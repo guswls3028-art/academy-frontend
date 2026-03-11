@@ -8,7 +8,7 @@ import { useCommunityScope } from "../context/CommunityScopeContext";
 import {
   fetchScopeNodes,
   fetchCommunityBoardPosts,
-  fetchBlockTypes,
+  ensureNoticeBlockType,
   fetchPost,
   updatePostNodes,
   updatePost,
@@ -24,6 +24,7 @@ import { isSupplement } from "@/shared/ui/session-block/session-block.constants"
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { NoticeAdminCreateModal } from "../components/NoticeAdminCreateModal";
+import RichTextEditor from "@/shared/ui/editor/RichTextEditor";
 import "@/features/community/qna-inbox.css";
 import "@/features/community/notice-tree.css";
 
@@ -78,17 +79,12 @@ export default function NoticeAdminPage() {
     enabled: expandedLectureId != null && Number.isFinite(expandedLectureId),
   });
 
-  const { data: blockTypes = [], isError: blockTypesError, refetch: refetchBlockTypes } = useQuery({
-    queryKey: ["community-block-types"],
-    queryFn: () => fetchBlockTypes(),
+  const { data: noticeTypeId = null, isError: blockTypesError, refetch: refetchBlockTypes } = useQuery({
+    queryKey: ["community-notice-type-ensure"],
+    queryFn: ensureNoticeBlockType,
+    staleTime: Infinity,
+    retry: 2,
   });
-
-  /** 공지 유형 ID — blockTypes 단일 소스에서 도출. 모달은 이 값이 있을 때만 열림 */
-  const noticeTypeId = useMemo(
-    () =>
-      blockTypes.find((b) => (b.code || "").toLowerCase() === "notice")?.id ?? null,
-    [blockTypes]
-  );
 
   /** 트리 노드별 공지 개수 집계용: 공지 전체 목록(매핑 포함) */
   const { data: allNoticePostsForCount = [] } = useQuery({
@@ -657,13 +653,11 @@ function NoticeDetailView({
           >
             내용
           </div>
-          <textarea
-            className="ds-input w-full whitespace-pre-wrap"
+          <RichTextEditor
             value={editingContent}
-            onChange={(e) => setEditingContent(e.target.value)}
+            onChange={setEditingContent}
             placeholder="공지 내용을 입력하세요."
-            rows={12}
-            style={{ resize: "vertical", minHeight: 160, fontSize: "var(--text-sm)", lineHeight: 1.65 }}
+            minHeight={200}
           />
           <div className="flex items-center gap-2 mt-2">
             <Button

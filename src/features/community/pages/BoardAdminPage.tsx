@@ -1,6 +1,6 @@
 // PATH: src/features/community/pages/BoardAdminPage.tsx
-// 커뮤니티 게시판 — 2-pane (목록 | 상세·댓글)
-// fetchAdminPosts로 전체 또는 블록 유형별 필터. 댓글(PostReply) CRUD 포함.
+// 커뮤니티 게시판 — 2-pane (목록 | 상세·글쓰기)
+// 추가하기 → 우측 패널에서 RichTextEditor 사용 인라인 작성
 
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -8,9 +8,11 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   fetchAdminPosts,
   fetchBlockTypes,
+  fetchScopeNodes,
   fetchPost,
   fetchPostReplies,
   createAnswer,
+  createPost,
   updateReply as updateReplyApi,
   deleteReply as deleteReplyApi,
   deletePost,
@@ -18,10 +20,11 @@ import {
   type PostEntity,
   type BlockType,
   type Answer,
+  type ScopeNodeMinimal,
 } from "../api/community.api";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
-import BoardCreateModal from "../components/BoardCreateModal";
+import RichTextEditor from "@/shared/ui/editor/RichTextEditor";
 import "@/features/community/qna-inbox.css";
 import "@/features/community/board-admin.css";
 
@@ -52,6 +55,13 @@ function timeAgo(dateStr: string): string {
   if (diff < 60) return `${Math.max(1, Math.floor(diff))}분 전`;
   if (diff < 1440) return `${Math.floor(diff / 60)}시간 전`;
   return `${Math.floor(diff / 1440)}일 전`;
+}
+
+/* ─── Strip HTML for snippet ─────────────────────────── */
+function stripHtml(html: string): string {
+  const div = document.createElement("div");
+  div.innerHTML = html;
+  return div.textContent || div.innerText || "";
 }
 
 /* ─── Main Page ─────────────────────────────────────── */
@@ -93,7 +103,7 @@ export default function BoardAdminPage() {
     return accPosts.filter(
       (p) =>
         (p.title ?? "").toLowerCase().includes(q) ||
-        (p.content ?? "").toLowerCase().includes(q) ||
+        stripHtml(p.content ?? "").toLowerCase().includes(q) ||
         (p.created_by_display ?? "").toLowerCase().includes(q) ||
         (p.block_type_label ?? "").toLowerCase().includes(q)
     );
@@ -107,6 +117,7 @@ export default function BoardAdminPage() {
         else next.delete("id");
         return next;
       });
+      if (id != null) setShowCreate(false);
     },
     [setSearchParams]
   );
@@ -133,20 +144,23 @@ export default function BoardAdminPage() {
 
   const hasMore = page * PAGE_SIZE < totalCount && !searchQuery.trim();
 
+  const handleCreateClick = () => {
+    setShowCreate(true);
+    setSelectedId(null);
+  };
+
   return (
     <div className="qna-inbox" style={{ minHeight: "calc(100vh - 180px)" }}>
       {/* ── LEFT panel ── */}
       <aside className="qna-inbox__list">
         <div className="qna-inbox__list-header">
-          {/* Title + create button */}
           <div className="board-admin__list-title-row">
             <h2 className="qna-inbox__list-title">게시판</h2>
-            <Button intent="primary" size="sm" onClick={() => setShowCreate(true)}>
+            <Button intent="primary" size="sm" onClick={handleCreateClick}>
               + 글쓰기
             </Button>
           </div>
 
-          {/* Block-type filter: 전체 탭만 표시 */}
           <div className="qna-inbox__filter-group" style={{ flexWrap: "wrap" }}>
             <button
               type="button"
@@ -157,7 +171,6 @@ export default function BoardAdminPage() {
             </button>
           </div>
 
-          {/* Search */}
           <div className="qna-inbox__search">
             <input
               type="search"
@@ -216,7 +229,17 @@ export default function BoardAdminPage() {
 
       {/* ── RIGHT panel ── */}
       <main className="qna-inbox__thread">
-        {selectedId == null ? (
+        {showCreate ? (
+          <BoardCreatePane
+            blockTypes={blockTypes}
+            onCancel={() => setShowCreate(false)}
+            onSuccess={() => {
+              qc.invalidateQueries({ queryKey: ["community-board-admin-posts"] });
+              setShowCreate(false);
+              feedback.success("게시물이 등록되었습니다.");
+            }}
+          />
+        ) : selectedId == null ? (
           <div className="qna-inbox__empty">
             <p className="qna-inbox__empty-title">게시물을 선택하세요</p>
             <p className="qna-inbox__empty-desc">
@@ -237,18 +260,176 @@ export default function BoardAdminPage() {
           />
         )}
       </main>
-
-      {showCreate && (
-        <BoardCreateModal
-          blockTypes={blockTypes}
-          onClose={() => setShowCreate(false)}
-          onSuccess={() => {
-            qc.invalidateQueries({ queryKey: ["community-board-admin-posts"] });
-            setShowCreate(false);
-          }}
-        />
-      )}
     </div>
+  );
+}
+
+/* ─── Inline Create Pane ──────────────────────────────── */
+function BoardCreatePane({
+  blockTypes,
+  onCancel,
+  onSuccess,
+}: {
+  blockTypes: BlockType[];
+  onCancel: () => void;
+  onSuccess: () => void;
+}) {
+  const [blockTypeId, setBlockTypeId] = useState<number | "">("");
+  const [title, setTitle] = useState("");
+  const [content, setContent] = useState("");
+  const [selectedNodeIds, setSelectedNodeIds] = useState<number[]>([]);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const scopeNodesQ = useQuery<ScopeNodeMinimal[]>({
+    queryKey: ["community-scope-nodes"],
+    queryFn: fetchScopeNodes,
+  });
+  const courseNodes = useMemo(
+    () => (scopeNodesQ.data ?? []).filter((n) => n.level === "COURSE"),
+    [scopeNodesQ.data]
+  );
+  const allSelected = courseNodes.length > 0 && selectedNodeIds.length === courseNodes.length;
+
+  const toggleNode = (id: number) =>
+    setSelectedNodeIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  const toggleAll = () =>
+    setSelectedNodeIds(allSelected ? [] : courseNodes.map((n) => n.id));
+
+  const canSubmit = blockTypeId !== "" && title.trim().length > 0 && selectedNodeIds.length > 0 && !submitting;
+
+  const handleSubmit = async () => {
+    if (!canSubmit) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      await createPost({
+        block_type: Number(blockTypeId),
+        title: title.trim(),
+        content,
+        node_ids: selectedNodeIds,
+      });
+      onSuccess();
+    } catch (e: unknown) {
+      const msg =
+        (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail ??
+        (e as Error)?.message ?? "등록에 실패했습니다.";
+      setError(msg);
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <>
+      <header className="qna-inbox__thread-header">
+        <div className="qna-inbox__thread-title-row">
+          <div className="qna-inbox__thread-title-group">
+            <h1 className="qna-inbox__thread-title">새 게시물 작성</h1>
+          </div>
+          <div className="qna-inbox__thread-actions">
+            <Button intent="ghost" size="sm" onClick={onCancel}>
+              취소
+            </Button>
+          </div>
+        </div>
+      </header>
+
+      <div className="qna-inbox__thread-body" style={{ padding: "var(--space-4, 16px) var(--space-5, 20px)" }}>
+        {/* Block type */}
+        <div style={{ marginBottom: "var(--space-4, 16px)" }}>
+          <label className="community-field__label community-field__label--required" style={{ display: "block", marginBottom: 6 }}>
+            유형
+          </label>
+          <select
+            className="ds-input"
+            value={blockTypeId}
+            onChange={(e) => setBlockTypeId(e.target.value === "" ? "" : Number(e.target.value))}
+            style={{ width: "100%" }}
+          >
+            <option value="">선택하세요</option>
+            {blockTypes.map((bt) => (
+              <option key={bt.id} value={bt.id}>{bt.label}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Title */}
+        <div style={{ marginBottom: "var(--space-4, 16px)" }}>
+          <label className="community-field__label community-field__label--required" style={{ display: "block", marginBottom: 6 }}>
+            제목
+          </label>
+          <input
+            className="ds-input"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="게시물 제목을 입력하세요"
+            style={{ width: "100%" }}
+            autoFocus
+          />
+        </div>
+
+        {/* Content — Rich Editor */}
+        <div style={{ marginBottom: "var(--space-4, 16px)" }}>
+          <label className="community-field__label" style={{ display: "block", marginBottom: 6 }}>
+            내용
+          </label>
+          <RichTextEditor
+            value={content}
+            onChange={setContent}
+            placeholder="내용을 입력하세요..."
+            minHeight={250}
+          />
+        </div>
+
+        {/* Scope nodes */}
+        <div style={{ marginBottom: "var(--space-4, 16px)" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+            <label className="community-field__label community-field__label--required" style={{ margin: 0 }}>
+              노출 강의
+            </label>
+            {courseNodes.length > 1 && (
+              <button
+                type="button"
+                className="community-link"
+                style={{ fontSize: 11, background: "none", border: "none", cursor: "pointer", padding: 0 }}
+                onClick={toggleAll}
+              >
+                {allSelected ? "전체 해제" : "전체 선택"}
+              </button>
+            )}
+          </div>
+          {scopeNodesQ.isLoading ? (
+            <p className="community-field__hint">강의 목록 불러오는 중…</p>
+          ) : courseNodes.length === 0 ? (
+            <p className="community-field__hint">등록된 강의가 없습니다.</p>
+          ) : (
+            <div className="community-checkbox-list">
+              {courseNodes.map((n) => (
+                <label key={n.id}>
+                  <input
+                    type="checkbox"
+                    checked={selectedNodeIds.includes(n.id)}
+                    onChange={() => toggleNode(n.id)}
+                  />
+                  {n.lecture_title}
+                </label>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {error && <p className="community-field__error">{error}</p>}
+
+        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+          <Button intent="secondary" size="sm" onClick={onCancel}>취소</Button>
+          <Button intent="primary" size="sm" onClick={handleSubmit} disabled={!canSubmit}>
+            {submitting ? "등록 중…" : "등록"}
+          </Button>
+        </div>
+      </div>
+    </>
   );
 }
 
@@ -262,10 +443,11 @@ function BoardPostCard({
   isActive: boolean;
   onClick: () => void;
 }) {
+  const plainText = stripHtml(post.content ?? "");
   const snippet =
-    post.content && post.content.length > SNIPPET_LEN
-      ? post.content.slice(0, SNIPPET_LEN).trim() + "…"
-      : post.content || "";
+    plainText.length > SNIPPET_LEN
+      ? plainText.slice(0, SNIPPET_LEN).trim() + "…"
+      : plainText;
   const authorName = post.created_by_deleted
     ? "삭제된 사용자"
     : (post.created_by_display ?? "관리자");
@@ -461,10 +643,10 @@ function PostDetailView({
 
       {/* Thread body */}
       <div className="qna-inbox__thread-body">
-        {/* Original post */}
+        {/* Original post — Rich Editor */}
         <div className="qna-inbox__message-row">
           <BoardAvatar name={authorName} size={32} />
-          <div className="qna-inbox__message-bubble">
+          <div className="qna-inbox__message-bubble" style={{ flex: 1, minWidth: 0 }}>
             <div className="qna-inbox__message-meta">
               <span className="qna-inbox__message-author">{authorName}</span>
               <span className="qna-inbox__message-badge">{post.block_type_label}</span>
@@ -477,20 +659,11 @@ function PostDetailView({
                 })}
               </span>
             </div>
-            <textarea
-              className="ds-input w-full"
+            <RichTextEditor
               value={editContent}
-              onChange={(e) => setEditContent(e.target.value)}
-              rows={8}
-              style={{
-                resize: "vertical",
-                minHeight: 120,
-                fontSize: 14,
-                lineHeight: 1.65,
-                background: "transparent",
-                border: "1px solid var(--color-border-divider)",
-              }}
+              onChange={setEditContent}
               placeholder="내용을 입력하세요."
+              minHeight={150}
             />
             {contentDirty && (
               <div style={{ marginTop: 8 }}>

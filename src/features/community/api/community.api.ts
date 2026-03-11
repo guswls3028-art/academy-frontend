@@ -145,6 +145,48 @@ export function ensureCounselBlockType(): Promise<number> {
   return _ensureCounselPromise;
 }
 
+/**
+ * materials 블록 유형이 없으면 자동 생성, 있으면 기존 ID 반환.
+ */
+let _ensureMaterialsPromise: Promise<number> | null = null;
+export function ensureMaterialsBlockType(): Promise<number> {
+  if (_ensureMaterialsPromise) return _ensureMaterialsPromise;
+  _ensureMaterialsPromise = (async () => {
+    try {
+      const types = await fetchBlockTypes();
+      const existing = types.find((t) => (t.code || "").toLowerCase() === "materials");
+      if (existing) return existing.id;
+      const created = await createBlockType({ label: "자료실", code: "materials", order: 60 });
+      return created.id;
+    } catch (e) {
+      _ensureMaterialsPromise = null;
+      throw e;
+    }
+  })();
+  return _ensureMaterialsPromise;
+}
+
+/**
+ * notice 블록 유형이 없으면 자동 생성, 있으면 기존 ID 반환.
+ */
+let _ensureNoticePromise: Promise<number> | null = null;
+export function ensureNoticeBlockType(): Promise<number> {
+  if (_ensureNoticePromise) return _ensureNoticePromise;
+  _ensureNoticePromise = (async () => {
+    try {
+      const types = await fetchBlockTypes();
+      const existing = types.find((t) => (t.code || "").toLowerCase() === "notice");
+      if (existing) return existing.id;
+      const created = await createBlockType({ label: "공지사항", code: "notice", order: 10 });
+      return created.id;
+    } catch (e) {
+      _ensureNoticePromise = null;
+      throw e;
+    }
+  })();
+  return _ensureNoticePromise;
+}
+
 // ----------------------------------------
 // Post templates (양식 저장/불러오기)
 // ----------------------------------------

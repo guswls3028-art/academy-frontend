@@ -10,6 +10,7 @@ import {
 import { Button } from "@/shared/ui/ds";
 import { useModalKeyboard } from "@/shared/ui/modal";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import RichTextEditor from "@/shared/ui/editor/RichTextEditor";
 import "@/features/community/community.css";
 
 export type NoticeScope = "all" | "lecture" | "session";
@@ -156,15 +157,12 @@ export function NoticeAdminCreateModal({
         </div>
 
         <div className="community-field">
-          <label htmlFor="notice-content" className="community-field__label">내용 (선택)</label>
-          <textarea
-            id="notice-content"
-            className="ds-input"
+          <label className="community-field__label">내용 (선택)</label>
+          <RichTextEditor
             value={content}
-            onChange={(e) => setContent(e.target.value)}
+            onChange={setContent}
             placeholder="공지 내용을 입력하세요. 등록 후에도 수정할 수 있습니다."
-            rows={5}
-            style={{ width: "100%", resize: "vertical", minHeight: 100 }}
+            minHeight={180}
           />
         </div>
 

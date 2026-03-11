@@ -1,0 +1,295 @@
+/* PATH: src/shared/ui/editor/rich-editor.css */
+/* RichTextEditor — TipTap admin editor styles */
+/* Scoped under [data-app="admin"] */
+
+/* ===== Wrapper ===== */
+[data-app="admin"] .rich-editor {
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+[data-app="admin"] .rich-editor--readonly {
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+/* ===== Toolbar ===== */
+[data-app="admin"] .rich-editor__toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  border-bottom: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface-hover);
+}
+
+/* ===== Toolbar Button ===== */
+[data-app="admin"] .rich-editor__toolbar-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+[data-app="admin"] .rich-editor__toolbar-btn:hover {
+  background: var(--color-bg-surface-active);
+  color: var(--color-text-primary);
+}
+
+[data-app="admin"] .rich-editor__toolbar-btn:active {
+  background: var(--color-bg-surface-active);
+}
+
+[data-app="admin"] .rich-editor__toolbar-btn--active {
+  background: color-mix(in srgb, var(--color-brand-primary) 14%, transparent);
+  color: var(--color-brand-primary);
+  border-color: color-mix(in srgb, var(--color-brand-primary) 30%, transparent);
+}
+
+[data-app="admin"] .rich-editor__toolbar-btn--active:hover {
+  background: color-mix(in srgb, var(--color-brand-primary) 20%, transparent);
+}
+
+[data-app="admin"] .rich-editor__toolbar-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* ===== Color Picker Button ===== */
+[data-app="admin"] .rich-editor__color-wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+}
+
+[data-app="admin"] .rich-editor__color-wrapper .rich-editor__toolbar-btn {
+  width: 100%;
+  height: 100%;
+}
+
+[data-app="admin"] .rich-editor__color-swatch {
+  display: block;
+  width: 14px;
+  height: 3px;
+  border-radius: 1px;
+  margin-top: 1px;
+}
+
+[data-app="admin"] .rich-editor__color-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  border: none;
+  padding: 0;
+}
+
+/* ===== Toolbar Divider ===== */
+[data-app="admin"] .rich-editor__toolbar-divider {
+  width: 1px;
+  height: 18px;
+  background: var(--color-border-divider);
+  margin: 0 var(--space-1);
+  flex-shrink: 0;
+}
+
+/* ===== Editor Content Area ===== */
+[data-app="admin"] .rich-editor__content {
+  flex: 1;
+  overflow-y: auto;
+}
+
+[data-app="admin"] .rich-editor__content .ProseMirror {
+  padding: var(--space-3) var(--space-4);
+  outline: none;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--color-text-primary);
+  letter-spacing: var(--letter-base);
+}
+
+/* Placeholder */
+[data-app="admin"] .rich-editor__content .ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: var(--color-text-muted);
+  pointer-events: none;
+  height: 0;
+}
+
+/* Headings */
+[data-app="admin"] .rich-editor__content .ProseMirror h2 {
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.4;
+  margin: 20px 0 8px;
+  color: var(--color-text-primary);
+}
+
+[data-app="admin"] .rich-editor__content .ProseMirror h3 {
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.45;
+  margin: 16px 0 6px;
+  color: var(--color-text-primary);
+}
+
+/* Paragraphs */
+[data-app="admin"] .rich-editor__content .ProseMirror p {
+  margin: 0 0 6px;
+}
+
+/* Lists */
+[data-app="admin"] .rich-editor__content .ProseMirror ul,
+[data-app="admin"] .rich-editor__content .ProseMirror ol {
+  padding-left: 24px;
+  margin: 6px 0;
+}
+
+[data-app="admin"] .rich-editor__content .ProseMirror li {
+  margin: 2px 0;
+}
+
+[data-app="admin"] .rich-editor__content .ProseMirror ul {
+  list-style-type: disc;
+}
+
+[data-app="admin"] .rich-editor__content .ProseMirror ol {
+  list-style-type: decimal;
+}
+
+/* Links */
+[data-app="admin"] .rich-editor__content .ProseMirror a {
+  color: var(--color-text-link);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+[data-app="admin"] .rich-editor__content .ProseMirror a:hover {
+  color: var(--color-text-link-hover);
+}
+
+/* Images */
+[data-app="admin"] .rich-editor__content .ProseMirror img {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radius-sm);
+  margin: 8px 0;
+  display: block;
+}
+
+/* Strikethrough */
+[data-app="admin"] .rich-editor__content .ProseMirror s {
+  text-decoration: line-through;
+}
+
+/* Horizontal rule */
+[data-app="admin"] .rich-editor__content .ProseMirror hr {
+  border: none;
+  border-top: 1px solid var(--color-border-divider);
+  margin: 16px 0;
+}
+
+/* Blockquote */
+[data-app="admin"] .rich-editor__content .ProseMirror blockquote {
+  border-left: 3px solid var(--color-border-divider-strong);
+  padding-left: var(--space-3);
+  margin: 8px 0;
+  color: var(--color-text-secondary);
+}
+
+/* Code */
+[data-app="admin"] .rich-editor__content .ProseMirror code {
+  background: var(--color-bg-surface-hover);
+  border-radius: 3px;
+  padding: 1px 4px;
+  font-size: 13px;
+}
+
+/* Text alignment */
+[data-app="admin"] .rich-editor__content .ProseMirror .has-text-align-center {
+  text-align: center;
+}
+
+[data-app="admin"] .rich-editor__content .ProseMirror .has-text-align-right {
+  text-align: right;
+}
+
+[data-app="admin"] .rich-editor__content .ProseMirror .has-text-align-left {
+  text-align: left;
+}
+
+/* ===== Attached Files List ===== */
+[data-app="admin"] .rich-editor__files {
+  border-top: 1px solid var(--color-border-divider);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-bg-surface-hover);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+[data-app="admin"] .rich-editor__files-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  margin-bottom: var(--space-1);
+}
+
+[data-app="admin"] .rich-editor__file-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-subtle);
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+[data-app="admin"] .rich-editor__file-item a {
+  color: var(--color-text-link);
+  text-decoration: none;
+}
+
+[data-app="admin"] .rich-editor__file-item a:hover {
+  text-decoration: underline;
+}
+
+[data-app="admin"] .rich-editor__file-icon {
+  flex-shrink: 0;
+  font-size: 14px;
+}
