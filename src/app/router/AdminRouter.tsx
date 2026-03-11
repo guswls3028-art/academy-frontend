@@ -1,7 +1,8 @@
 // PATH: src/app/router/AdminRouter.tsx
 // 선생앱(관리자) 라우터 — 라우트별 lazy 로딩으로 첫 진입·탭 전환 시 청크 분리
 
-import { lazy, Suspense } from "react";
+import { Suspense } from "react";
+import { lazyWithRetry as lazy } from "@/shared/utils/lazyWithRetry";
 import { Routes, Route, Navigate, useParams } from "react-router-dom";
 import { AppLayout, DomainLayout } from "@/shared/ui/layout";
 import { SendMessageModalProvider } from "@/features/messages/context/SendMessageModalContext";

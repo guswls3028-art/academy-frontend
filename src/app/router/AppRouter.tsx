@@ -1,6 +1,7 @@
 // PATH: src/app/router/AppRouter.tsx
 import { Routes, Route, Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { lazy, Suspense, useEffect, useRef } from "react";
+import { Suspense, useEffect, useRef } from "react";
+import { lazyWithRetry as lazy } from "@/shared/utils/lazyWithRetry";
 import ProtectedRoute from "./ProtectedRoute";
 
 import StudentRouter from "@/student/app/StudentRouter";

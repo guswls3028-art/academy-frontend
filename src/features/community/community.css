@@ -1,0 +1,285 @@
+/* PATH: src/features/community/community.css
+ * ============================================================================
+ * Community Domain — Shared Design Patterns (SSOT)
+ * All community pages import this single file for unified styling.
+ * Tokens: --color-*, --space-*, --radius-*, --elevation-*, --text-*
+ * ============================================================================ */
+@reference "tailwindcss";
+
+/* ---- Modal Overlay (SSOT) ---- */
+.community-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
+
+.community-modal-dialog {
+  background: var(--color-bg-surface);
+  border-radius: var(--radius-xl);
+  padding: var(--space-6);
+  max-width: 520px;
+  width: 92%;
+  box-shadow: var(--elevation-3);
+  max-height: 90vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.community-modal-dialog--narrow {
+  max-width: 420px;
+}
+
+.community-modal-title {
+  margin: 0;
+  font-size: var(--text-xl, 18px);
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+/* ---- Form Fields (SSOT) ---- */
+.community-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.community-field__label {
+  font-size: var(--text-xs, 11px);
+  font-weight: 600;
+  color: var(--color-text-tertiary);
+  letter-spacing: 0.01em;
+}
+
+.community-field__label--required::after {
+  content: " *";
+  color: var(--color-error, var(--color-danger));
+}
+
+.community-field__hint {
+  font-size: var(--text-xs, 11px);
+  color: var(--color-text-muted);
+  line-height: 1.5;
+}
+
+.community-field__error {
+  font-size: var(--text-xs, 11px);
+  color: var(--color-error, var(--color-danger));
+  margin: 0;
+}
+
+/* ---- Card / List Item (SSOT) ---- */
+.community-card {
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border-subtle);
+  background: var(--color-bg-surface);
+  transition: border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.community-card:hover {
+  border-color: var(--color-border-default);
+  box-shadow: var(--elevation-1);
+}
+
+.community-card__title {
+  font-size: var(--text-md, 14px);
+  font-weight: 700;
+  color: var(--color-text-primary);
+  line-height: 1.4;
+}
+
+.community-card__meta {
+  font-size: var(--text-xs, 11px);
+  color: var(--color-text-muted);
+  margin-top: var(--space-1);
+}
+
+.community-card__subtitle {
+  font-size: var(--text-xs, 11px);
+  color: var(--color-text-muted);
+  margin-top: var(--space-1);
+  display: inline-block;
+}
+
+.community-card__description {
+  font-size: var(--text-sm, 12px);
+  color: var(--color-text-secondary);
+  margin-top: var(--space-1);
+}
+
+/* ---- Section Panel (SSOT) ---- */
+.community-section {
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--color-border-subtle);
+  background: var(--color-bg-surface);
+  padding: var(--space-5);
+}
+
+.community-section + .community-section {
+  margin-top: var(--space-6);
+}
+
+.community-section__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-4);
+}
+
+.community-section__title {
+  font-size: var(--text-lg, 16px);
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+/* ---- Sub-Tab Bar (Segmented Control — SSOT) ---- */
+.community-tab-bar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface-soft, var(--bg-surface-soft));
+}
+
+.community-tab {
+  padding: var(--space-1) var(--space-4);
+  font-size: var(--text-sm, 12px);
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  border-radius: calc(var(--radius-md) - 2px);
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  transition: color 140ms ease, background 140ms ease, box-shadow 140ms ease;
+  white-space: nowrap;
+}
+
+.community-tab:hover {
+  color: var(--color-text-primary);
+  background: color-mix(in srgb, var(--color-bg-surface) 60%, transparent);
+}
+
+.community-tab--active {
+  color: var(--color-text-primary);
+  font-weight: 600;
+  background: var(--color-bg-surface);
+  box-shadow: var(--elevation-1);
+}
+
+/* ---- Scope Selector Bar ---- */
+.community-scope-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--color-border-subtle);
+  margin-bottom: var(--space-4);
+}
+
+.community-scope-bar__label {
+  font-size: var(--text-sm, 12px);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+/* ---- Checkbox List (node picker) ---- */
+.community-checkbox-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 160px;
+  overflow-y: auto;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-bg-surface-soft, var(--bg-surface-soft));
+}
+
+.community-checkbox-list label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm, 12px);
+  cursor: pointer;
+  padding: 4px 0;
+  color: var(--color-text-primary);
+}
+
+.community-checkbox-list input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
+  accent-color: var(--color-brand-primary);
+}
+
+/* ---- Inline Status Chip ---- */
+.community-status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: var(--radius-full, 999px);
+  white-space: nowrap;
+  line-height: 1.5;
+}
+
+.community-status-chip--answered {
+  background: color-mix(in srgb, var(--color-brand-primary) 12%, transparent);
+  color: var(--color-brand-primary);
+}
+
+.community-status-chip--pending {
+  background: var(--color-bg-surface-soft, var(--bg-surface-soft));
+  color: var(--color-text-muted);
+}
+
+/* ---- Item Tag (block type chip) ---- */
+.community-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px var(--space-2);
+  font-size: var(--text-xs, 11px);
+  font-weight: 500;
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-surface-soft, var(--bg-surface-soft));
+  color: var(--color-text-secondary);
+}
+
+/* ---- Pending Count Badge ---- */
+.community-count-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: var(--radius-full, 999px);
+  font-size: var(--text-xs, 11px);
+  font-weight: 700;
+  background: var(--color-error, var(--color-danger));
+  color: #fff;
+}
+
+/* ---- Link style ---- */
+.community-link {
+  color: var(--color-brand-primary);
+  text-decoration: none;
+  transition: color 100ms ease;
+}
+
+.community-link:hover {
+  color: var(--color-brand-primary-hover, var(--color-brand-primary));
+  text-decoration: underline;
+}

@@ -30,6 +30,7 @@ import {
   renderPreviewText,
 } from "../constants/templateBlocks";
 import panelStyles from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
+import "../styles/templateEditor.css";
 
 const QUERY_KEY = ["messaging", "templates"] as const;
 

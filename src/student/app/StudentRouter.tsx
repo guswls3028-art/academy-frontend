@@ -2,7 +2,8 @@
  * PATH: src/student/app/StudentRouter.tsx
  * 학생 앱 라우터 — 모바일 전용, 5탭(홈|영상|일정|QnA|더보기)
  */
-import { lazy, Suspense } from "react";
+import { Suspense } from "react";
+import { lazyWithRetry as lazy } from "@/shared/utils/lazyWithRetry";
 import { Navigate, Route, Routes } from "react-router-dom";
 import StudentLayout from "@/student/shared/ui/layout/StudentLayout";
 
