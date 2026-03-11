@@ -3,7 +3,7 @@
 
 import { useState, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { FolderOpen, FileText, Image, FilePlus, FolderPlus, X } from "lucide-react";
+import { FolderOpen, FileText, Image, FilePlus, FolderPlus, X, Download, Trash2 } from "lucide-react";
 import { Button, CloseButton } from "@/shared/ui/ds";
 import {
   fetchInventoryList,
@@ -50,6 +50,7 @@ export default function StudentStorageExplorer({ studentPs }: StudentStorageExpl
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const [selectedFileId, setSelectedFileId] = useState<string | null>(null);
   const [selectedFolderIds, setSelectedFolderIds] = useState<Set<string>>(new Set());
+  const [fileActionTarget, setFileActionTarget] = useState<InventoryFile | null>(null);
   const [movingId, setMovingId] = useState<string | null>(null);
   const [dropTargetFolderId, setDropTargetFolderId] = useState<string | null>(null);
   const [conflict, setConflict] = useState<{
@@ -309,8 +310,8 @@ export default function StudentStorageExplorer({ studentPs }: StudentStorageExpl
                     e.stopPropagation();
                     setSelectedFileId(file.id);
                     setSelectedFolderIds(new Set());
-                  }}
-                  onDoubleClick={() => openFileUrl(file.r2Key)}
+                    setFileActionTarget(file);
+                  }
                   title={file.description || file.displayName}
                   onDragStart={(e) => {
                     e.dataTransfer.setData(DRAG_TYPE, JSON.stringify({ type: "file" as const, sourceId: file.id }));
@@ -374,6 +375,50 @@ export default function StudentStorageExplorer({ studentPs }: StudentStorageExpl
                   <span className={styles.addPopupBtnLabel}>파일 업로드</span>
                   <span className={styles.addPopupBtnDesc}>파일을 선택하여 업로드합니다</span>
                 </div>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {fileActionTarget && (
+        <div className={styles.addPopupBackdrop} onClick={() => setFileActionTarget(null)}>
+          <div className={styles.addPopup} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.addPopupHeader}>
+              <span>파일</span>
+              <button type="button" style={{ background: "none", border: "none", cursor: "pointer", padding: 4, display: "grid", placeItems: "center" }} onClick={() => setFileActionTarget(null)}>
+                <X size={18} />
+              </button>
+            </div>
+            <div className={styles.fileActionFileName}>{fileActionTarget.displayName}</div>
+            <div className={styles.addPopupBody}>
+              <button
+                type="button"
+                className={styles.fileActionBtn}
+                onClick={() => {
+                  openFileUrl(fileActionTarget.r2Key);
+                  setFileActionTarget(null);
+                }}
+              >
+                <Download size={18} style={{ color: "var(--color-brand-primary)", flexShrink: 0 }} />
+                저장하기
+              </button>
+              <button
+                type="button"
+                className={styles.fileActionBtnDanger}
+                onClick={async () => {
+                  const id = fileActionTarget.id;
+                  setFileActionTarget(null);
+                  try {
+                    await deleteFile(SCOPE, id, studentPs);
+                    qc.invalidateQueries({ queryKey: ["storage-inventory", SCOPE, studentPs] });
+                  } catch (e) {
+                    alert((e as Error).message);
+                  }
+                }}
+              >
+                <Trash2 size={18} style={{ flexShrink: 0 }} />
+                삭제하기
               </button>
             </div>
           </div>

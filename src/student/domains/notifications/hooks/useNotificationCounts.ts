@@ -12,7 +12,7 @@ export function useNotificationCounts() {
     queryKey: ["student", "notifications", "counts"],
     queryFn: () => {
       const profile = queryClient.getQueryData<{ id: number }>(["student", "me"]);
-      return fetchNotificationCounts({ profile: profile ?? undefined });
+      return fetchNotificationCounts({ profileId: profile?.id ?? null });
     },
     refetchInterval: 60000, // 60초마다 갱신 (기존 30초에서 완화)
     refetchOnWindowFocus: false,

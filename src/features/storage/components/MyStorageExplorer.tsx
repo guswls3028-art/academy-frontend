@@ -389,6 +389,50 @@ export default function MyStorageExplorer() {
         </div>
       )}
 
+      {fileActionTarget && (
+        <div className={styles.addPopupBackdrop} onClick={() => setFileActionTarget(null)}>
+          <div className={styles.addPopup} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.addPopupHeader}>
+              <span>파일</span>
+              <button type="button" style={{ background: "none", border: "none", cursor: "pointer", padding: 4, display: "grid", placeItems: "center" }} onClick={() => setFileActionTarget(null)}>
+                <X size={18} />
+              </button>
+            </div>
+            <div className={styles.fileActionFileName}>{fileActionTarget.displayName}</div>
+            <div className={styles.addPopupBody}>
+              <button
+                type="button"
+                className={styles.fileActionBtn}
+                onClick={() => {
+                  openFileUrl(fileActionTarget.r2Key);
+                  setFileActionTarget(null);
+                }}
+              >
+                <Download size={18} style={{ color: "var(--color-brand-primary)", flexShrink: 0 }} />
+                저장하기
+              </button>
+              <button
+                type="button"
+                className={styles.fileActionBtnDanger}
+                onClick={async () => {
+                  const id = fileActionTarget.id;
+                  setFileActionTarget(null);
+                  try {
+                    await deleteFile(SCOPE, id);
+                    qc.invalidateQueries({ queryKey: ["storage-inventory", SCOPE] });
+                  } catch (e) {
+                    alert((e as Error).message);
+                  }
+                }}
+              >
+                <Trash2 size={18} style={{ flexShrink: 0 }} />
+                삭제하기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {newFolderOpen && (
         <div className={styles.modalBackdrop} onClick={() => setNewFolderOpen(false)}>
           <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
