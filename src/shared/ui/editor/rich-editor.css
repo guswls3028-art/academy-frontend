@@ -1,9 +1,9 @@
 /* PATH: src/shared/ui/editor/rich-editor.css */
 /* RichTextEditor — TipTap admin editor styles */
-/* Scoped under [data-app="admin"] */
+/* Scoped under :is([data-app="admin"], [data-app="student"])*/
 
 /* ===== Wrapper ===== */
-[data-app="admin"] .rich-editor {
+:is([data-app="admin"], [data-app="student"]) .rich-editor {
   border: 1px solid var(--color-border-divider);
   border-radius: var(--radius-md);
   background: var(--color-bg-surface);
@@ -12,13 +12,13 @@
   flex-direction: column;
 }
 
-[data-app="admin"] .rich-editor--readonly {
+:is([data-app="admin"], [data-app="student"]) .rich-editor--readonly {
   pointer-events: none;
   opacity: 0.7;
 }
 
 /* ===== Toolbar ===== */
-[data-app="admin"] .rich-editor__toolbar {
+:is([data-app="admin"], [data-app="student"]) .rich-editor__toolbar {
   position: sticky;
   top: 0;
   z-index: 2;
@@ -32,7 +32,7 @@
 }
 
 /* ===== Toolbar Button ===== */
-[data-app="admin"] .rich-editor__toolbar-btn {
+:is([data-app="admin"], [data-app="student"]) .rich-editor__toolbar-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -53,32 +53,32 @@
   flex-shrink: 0;
 }
 
-[data-app="admin"] .rich-editor__toolbar-btn:hover {
+:is([data-app="admin"], [data-app="student"]) .rich-editor__toolbar-btn:hover {
   background: var(--color-bg-surface-active);
   color: var(--color-text-primary);
 }
 
-[data-app="admin"] .rich-editor__toolbar-btn:active {
+:is([data-app="admin"], [data-app="student"]) .rich-editor__toolbar-btn:active {
   background: var(--color-bg-surface-active);
 }
 
-[data-app="admin"] .rich-editor__toolbar-btn--active {
+:is([data-app="admin"], [data-app="student"]) .rich-editor__toolbar-btn--active {
   background: color-mix(in srgb, var(--color-brand-primary) 14%, transparent);
   color: var(--color-brand-primary);
   border-color: color-mix(in srgb, var(--color-brand-primary) 30%, transparent);
 }
 
-[data-app="admin"] .rich-editor__toolbar-btn--active:hover {
+:is([data-app="admin"], [data-app="student"]) .rich-editor__toolbar-btn--active:hover {
   background: color-mix(in srgb, var(--color-brand-primary) 20%, transparent);
 }
 
-[data-app="admin"] .rich-editor__toolbar-btn:disabled {
+:is([data-app="admin"], [data-app="student"]) .rich-editor__toolbar-btn:disabled {
   opacity: 0.35;
   cursor: not-allowed;
 }
 
 /* ===== Color Picker Button ===== */
-[data-app="admin"] .rich-editor__color-wrapper {
+:is([data-app="admin"], [data-app="student"]) .rich-editor__color-wrapper {
   position: relative;
   display: inline-flex;
   align-items: center;
@@ -88,12 +88,12 @@
   flex-shrink: 0;
 }
 
-[data-app="admin"] .rich-editor__color-wrapper .rich-editor__toolbar-btn {
+:is([data-app="admin"], [data-app="student"]) .rich-editor__color-wrapper .rich-editor__toolbar-btn {
   width: 100%;
   height: 100%;
 }
 
-[data-app="admin"] .rich-editor__color-swatch {
+:is([data-app="admin"], [data-app="student"]) .rich-editor__color-swatch {
   display: block;
   width: 14px;
   height: 3px;
@@ -101,7 +101,7 @@
   margin-top: 1px;
 }
 
-[data-app="admin"] .rich-editor__color-input {
+:is([data-app="admin"], [data-app="student"]) .rich-editor__color-input {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -113,7 +113,7 @@
 }
 
 /* ===== Toolbar Divider ===== */
-[data-app="admin"] .rich-editor__toolbar-divider {
+:is([data-app="admin"], [data-app="student"]) .rich-editor__toolbar-divider {
   width: 1px;
   height: 18px;
   background: var(--color-border-divider);
@@ -122,12 +122,12 @@
 }
 
 /* ===== Editor Content Area ===== */
-[data-app="admin"] .rich-editor__content {
+:is([data-app="admin"], [data-app="student"]) .rich-editor__content {
   flex: 1;
   overflow-y: auto;
 }
 
-[data-app="admin"] .rich-editor__content .ProseMirror {
+:is([data-app="admin"], [data-app="student"]) .rich-editor__content .ProseMirror {
   padding: var(--space-3) var(--space-4);
   outline: none;
   font-family: var(--font-sans);
@@ -138,7 +138,7 @@
 }
 
 /* Placeholder */
-[data-app="admin"] .rich-editor__content .ProseMirror p.is-editor-empty:first-child::before {
+:is([data-app="admin"], [data-app="student"]) .rich-editor__content .ProseMirror p.is-editor-empty:first-child::before {
   content: attr(data-placeholder);
   float: left;
   color: var(--color-text-muted);
@@ -147,7 +147,7 @@
 }
 
 /* Headings */
-[data-app="admin"] .rich-editor__content .ProseMirror h2 {
+:is([data-app="admin"], [data-app="student"]) .rich-editor__content .ProseMirror h2 {
   font-size: 20px;
   font-weight: 700;
   line-height: 1.4;
@@ -155,7 +155,7 @@
   color: var(--color-text-primary);
 }
 
-[data-app="admin"] .rich-editor__content .ProseMirror h3 {
+:is([data-app="admin"], [data-app="student"]) .rich-editor__content .ProseMirror h3 {
   font-size: 16px;
   font-weight: 700;
   line-height: 1.45;
@@ -164,43 +164,43 @@
 }
 
 /* Paragraphs */
-[data-app="admin"] .rich-editor__content .ProseMirror p {
+:is([data-app="admin"], [data-app="student"]) .rich-editor__content .ProseMirror p {
   margin: 0 0 6px;
 }
 
 /* Lists */
-[data-app="admin"] .rich-editor__content .ProseMirror ul,
-[data-app="admin"] .rich-editor__content .ProseMirror ol {
+:is([data-app="admin"], [data-app="student"]) .rich-editor__content .ProseMirror ul,
+:is([data-app="admin"], [data-app="student"]) .rich-editor__content .ProseMirror ol {
   padding-left: 24px;
   margin: 6px 0;
 }
 
-[data-app="admin"] .rich-editor__content .ProseMirror li {
+:is([data-app="admin"], [data-app="student"]) .rich-editor__content .ProseMirror li {
   margin: 2px 0;
 }
 
-[data-app="admin"] .rich-editor__content .ProseMirror ul {
+:is([data-app="admin"], [data-app="student"]) .rich-editor__content .ProseMirror ul {
   list-style-type: disc;
 }
 
-[data-app="admin"] .rich-editor__content .ProseMirror ol {
+:is([data-app="admin"], [data-app="student"]) .rich-editor__content .ProseMirror ol {
   list-style-type: decimal;
 }
 
 /* Links */
-[data-app="admin"] .rich-editor__content .ProseMirror a {
+:is([data-app="admin"], [data-app="student"]) .rich-editor__content .ProseMirror a {
   color: var(--color-text-link);
   text-decoration: underline;
   text-underline-offset: 2px;
   cursor: pointer;
 }
 
-[data-app="admin"] .rich-editor__content .ProseMirror a:hover {
+:is([data-app="admin"], [data-app="student"]) .rich-editor__content .ProseMirror a:hover {
   color: var(--color-text-link-hover);
 }
 
 /* Images */
-[data-app="admin"] .rich-editor__content .ProseMirror img {
+:is([data-app="admin"], [data-app="student"]) .rich-editor__content .ProseMirror img {
   max-width: 100%;
   height: auto;
   border-radius: var(--radius-sm);
@@ -209,19 +209,19 @@
 }
 
 /* Strikethrough */
-[data-app="admin"] .rich-editor__content .ProseMirror s {
+:is([data-app="admin"], [data-app="student"]) .rich-editor__content .ProseMirror s {
   text-decoration: line-through;
 }
 
 /* Horizontal rule */
-[data-app="admin"] .rich-editor__content .ProseMirror hr {
+:is([data-app="admin"], [data-app="student"]) .rich-editor__content .ProseMirror hr {
   border: none;
   border-top: 1px solid var(--color-border-divider);
   margin: 16px 0;
 }
 
 /* Blockquote */
-[data-app="admin"] .rich-editor__content .ProseMirror blockquote {
+:is([data-app="admin"], [data-app="student"]) .rich-editor__content .ProseMirror blockquote {
   border-left: 3px solid var(--color-border-divider-strong);
   padding-left: var(--space-3);
   margin: 8px 0;
@@ -229,7 +229,7 @@
 }
 
 /* Code */
-[data-app="admin"] .rich-editor__content .ProseMirror code {
+:is([data-app="admin"], [data-app="student"]) .rich-editor__content .ProseMirror code {
   background: var(--color-bg-surface-hover);
   border-radius: 3px;
   padding: 1px 4px;
@@ -237,20 +237,20 @@
 }
 
 /* Text alignment */
-[data-app="admin"] .rich-editor__content .ProseMirror .has-text-align-center {
+:is([data-app="admin"], [data-app="student"]) .rich-editor__content .ProseMirror .has-text-align-center {
   text-align: center;
 }
 
-[data-app="admin"] .rich-editor__content .ProseMirror .has-text-align-right {
+:is([data-app="admin"], [data-app="student"]) .rich-editor__content .ProseMirror .has-text-align-right {
   text-align: right;
 }
 
-[data-app="admin"] .rich-editor__content .ProseMirror .has-text-align-left {
+:is([data-app="admin"], [data-app="student"]) .rich-editor__content .ProseMirror .has-text-align-left {
   text-align: left;
 }
 
 /* ===== Attached Files List ===== */
-[data-app="admin"] .rich-editor__files {
+:is([data-app="admin"], [data-app="student"]) .rich-editor__files {
   border-top: 1px solid var(--color-border-divider);
   padding: var(--space-2) var(--space-3);
   background: var(--color-bg-surface-hover);
@@ -259,7 +259,7 @@
   gap: var(--space-1);
 }
 
-[data-app="admin"] .rich-editor__files-title {
+:is([data-app="admin"], [data-app="student"]) .rich-editor__files-title {
   font-size: 11px;
   font-weight: 600;
   color: var(--color-text-muted);
@@ -268,7 +268,7 @@
   margin-bottom: var(--space-1);
 }
 
-[data-app="admin"] .rich-editor__file-item {
+:is([data-app="admin"], [data-app="student"]) .rich-editor__file-item {
   display: flex;
   align-items: center;
   gap: var(--space-2);
@@ -280,16 +280,103 @@
   color: var(--color-text-secondary);
 }
 
-[data-app="admin"] .rich-editor__file-item a {
+:is([data-app="admin"], [data-app="student"]) .rich-editor__file-item a {
   color: var(--color-text-link);
   text-decoration: none;
 }
 
-[data-app="admin"] .rich-editor__file-item a:hover {
+:is([data-app="admin"], [data-app="student"]) .rich-editor__file-item a:hover {
   text-decoration: underline;
 }
 
-[data-app="admin"] .rich-editor__file-icon {
+:is([data-app="admin"], [data-app="student"]) .rich-editor__file-icon {
   flex-shrink: 0;
   font-size: 14px;
+}
+
+/* ===== Color Palette Popup ===== */
+:is([data-app="admin"], [data-app="student"]) .rich-editor__color-palette-anchor {
+  position: relative;
+  display: inline-flex;
+}
+
+:is([data-app="admin"], [data-app="student"]) .rich-editor__color-palette {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 10;
+  display: grid;
+  grid-template-columns: repeat(8, 24px);
+  gap: 3px;
+  padding: 8px;
+  background: var(--color-bg-surface, #fff);
+  border: 1px solid var(--color-border-divider, #e0e0e0);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+}
+
+:is([data-app="admin"], [data-app="student"]) .rich-editor__color-swatch-btn {
+  width: 24px;
+  height: 24px;
+  border: 2px solid transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  padding: 0;
+  transition: border-color 120ms ease, transform 120ms ease;
+}
+
+:is([data-app="admin"], [data-app="student"]) .rich-editor__color-swatch-btn:hover {
+  transform: scale(1.15);
+  border-color: rgba(0,0,0,0.2);
+}
+
+:is([data-app="admin"], [data-app="student"]) .rich-editor__color-swatch-btn--active {
+  border-color: var(--color-brand-primary, #0d47a1);
+  box-shadow: 0 0 0 1px var(--color-brand-primary, #0d47a1);
+}
+
+:is([data-app="admin"], [data-app="student"]) .rich-editor__color-palette-custom {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  padding-top: 6px;
+  border-top: 1px solid var(--color-border-divider, #e0e0e0);
+  font-size: 11px;
+  color: var(--color-text-muted, #888);
+}
+
+:is([data-app="admin"], [data-app="student"]) .rich-editor__color-palette-custom input[type="color"] {
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--color-border-divider, #e0e0e0);
+  border-radius: 4px;
+  padding: 0;
+  cursor: pointer;
+  background: none;
+}
+
+/* ===== Student-specific variable fallbacks ===== */
+[data-app="student"] .rich-editor {
+  --color-border-divider: var(--stu-border-subtle, #e0e0e0);
+  --radius-md: var(--stu-radius-md, 10px);
+  --color-bg-surface: var(--stu-surface, #fff);
+  --color-bg-surface-hover: var(--stu-surface-soft, #f7f7f7);
+  --color-bg-surface-active: var(--stu-surface-soft, #eee);
+  --color-text-secondary: var(--stu-text-muted, #777);
+  --color-text-primary: var(--stu-text, #111);
+  --color-text-muted: var(--stu-text-muted, #999);
+  --color-text-link: var(--stu-primary, #0d47a1);
+  --color-text-link-hover: var(--stu-primary-hover, #0a3d8f);
+  --color-brand-primary: var(--stu-primary, #0d47a1);
+  --color-border-divider-strong: var(--stu-border-normal, #ccc);
+  --color-border-subtle: var(--stu-border-subtle, #eee);
+  --radius-sm: var(--stu-radius, 6px);
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --font-sans: var(--stu-font-sans, "Pretendard Variable", sans-serif);
+  --letter-base: -0.01em;
 }

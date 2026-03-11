@@ -3,7 +3,7 @@
  * TipTap-based rich text editor for admin SaaS.
  * Stores content as HTML string.
  */
-import { useCallback, useRef } from "react";
+import { useCallback, useRef, useState, useEffect } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
@@ -30,6 +30,83 @@ type RichTextEditorProps = {
   attachedFiles?: { name: string; url?: string }[];
   readOnly?: boolean;
 };
+
+// ---------------------------------------------------------------------------
+// Color Palette
+// ---------------------------------------------------------------------------
+
+const PALETTE_COLORS = [
+  // Row 1: basics
+  "#000000", "#434343", "#666666", "#999999", "#b7b7b7", "#cccccc", "#d9d9d9", "#ffffff",
+  // Row 2: vivid
+  "#ff0000", "#ff6600", "#ffcc00", "#33cc33", "#00cccc", "#3366ff", "#6633cc", "#cc00cc",
+  // Row 3: soft
+  "#ff9999", "#ffcc99", "#ffff99", "#ccffcc", "#ccffff", "#99ccff", "#cc99ff", "#ff99ff",
+  // Row 4: deep
+  "#cc0000", "#cc6600", "#cc9900", "#009900", "#006699", "#003399", "#660099", "#990066",
+];
+
+function ColorPalette({
+  currentColor,
+  onColorChange,
+}: {
+  currentColor: string;
+  onColorChange: (color: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  return (
+    <div className="rich-editor__color-palette-anchor" ref={ref}>
+      <button
+        type="button"
+        className="rich-editor__toolbar-btn"
+        onClick={() => setOpen(!open)}
+        title="글자 색상"
+      >
+        <span style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
+          <span style={{ fontSize: 12, fontWeight: 700, lineHeight: 1 }}>A</span>
+          <span
+            className="rich-editor__color-swatch"
+            style={{ background: currentColor }}
+          />
+        </span>
+      </button>
+
+      {open && (
+        <div className="rich-editor__color-palette">
+          {PALETTE_COLORS.map((c) => (
+            <button
+              key={c}
+              type="button"
+              className={`rich-editor__color-swatch-btn${currentColor.toLowerCase() === c ? " rich-editor__color-swatch-btn--active" : ""}`}
+              style={{ background: c, border: c === "#ffffff" ? "2px solid #ddd" : undefined }}
+              onClick={() => { onColorChange(c); setOpen(false); }}
+              title={c}
+            />
+          ))}
+          <div className="rich-editor__color-palette-custom">
+            <input
+              type="color"
+              value={currentColor}
+              onChange={(e) => { onColorChange(e.target.value); setOpen(false); }}
+            />
+            <span>직접 선택</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Component
@@ -187,24 +264,11 @@ export default function RichTextEditor({
 
           <span className="rich-editor__toolbar-divider" />
 
-          {/* --- Font color --- */}
-          <span className="rich-editor__color-wrapper" title="글자 색상">
-            <button type="button" className="rich-editor__toolbar-btn">
-              <span>A</span>
-              <span
-                className="rich-editor__color-swatch"
-                style={{ background: currentColor }}
-              />
-            </button>
-            <input
-              type="color"
-              className="rich-editor__color-input"
-              value={currentColor}
-              onChange={(e) =>
-                editor.chain().focus().setColor(e.target.value).run()
-              }
-            />
-          </span>
+          {/* --- Font color with palette --- */}
+          <ColorPalette
+            currentColor={currentColor}
+            onColorChange={(c) => editor.chain().focus().setColor(c).run()}
+          />
 
           <span className="rich-editor__toolbar-divider" />
 

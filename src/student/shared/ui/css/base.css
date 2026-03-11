@@ -1090,3 +1090,46 @@ html:has([data-app="student"]) {
 [data-app="student"] .stu-btn--ghost:hover:not(:disabled) {
   background: var(--stu-tint-primary);
 }
+
+/* =========================
+   15) HTML Content (rich text from admin editor)
+   ========================= */
+.stu-html-content h1,
+.stu-html-content h2,
+.stu-html-content h3 {
+  margin: 0.8em 0 0.4em;
+  font-weight: 700;
+  line-height: 1.4;
+}
+.stu-html-content h1 { font-size: 1.4em; }
+.stu-html-content h2 { font-size: 1.2em; }
+.stu-html-content h3 { font-size: 1.1em; }
+
+.stu-html-content p {
+  margin: 0.5em 0;
+}
+
+.stu-html-content ul,
+.stu-html-content ol {
+  padding-left: 1.5em;
+  margin: 0.5em 0;
+}
+
+.stu-html-content a {
+  color: var(--stu-primary);
+  text-decoration: underline;
+}
+
+.stu-html-content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--stu-radius);
+  margin: 0.5em 0;
+}
+
+.stu-html-content blockquote {
+  margin: 0.5em 0;
+  padding: 0.5em 1em;
+  border-left: 3px solid var(--stu-border-normal);
+  color: var(--stu-text-muted);
+}

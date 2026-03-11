@@ -13,7 +13,9 @@ import {
   updatePostNodes,
   updatePost,
   deletePost,
+  createPost,
   fetchAllNoticePostsForCount,
+  resolveNodeIdFromScope,
   type BoardPost,
   type ScopeNodeMinimal,
   type CommunityScopeParams,
@@ -23,7 +25,6 @@ import LectureChip from "@/shared/ui/chips/LectureChip";
 import { isSupplement } from "@/shared/ui/session-block/session-block.constants";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
-import { NoticeAdminCreateModal } from "../components/NoticeAdminCreateModal";
 import RichTextEditor from "@/shared/ui/editor/RichTextEditor";
 import "@/features/community/qna-inbox.css";
 import "@/features/community/notice-tree.css";
@@ -215,10 +216,13 @@ export default function NoticeAdminPage() {
     setExpandedLectureId((prev) => (prev === lecId ? null : lecId));
   }, []);
 
+  const hasScopeParam = searchParams.has("scope");
   const canShowList =
-    scope === "all" ||
-    (scope === "lecture" && effectiveLectureId != null) ||
-    (scope === "session" && sessionId != null);
+    hasScopeParam && (
+      scope === "all" ||
+      (scope === "lecture" && effectiveLectureId != null) ||
+      (scope === "session" && sessionId != null)
+    );
 
   return (
     <div className="notice-tree" style={{ minHeight: "calc(100vh - 180px)" }}>
@@ -336,7 +340,12 @@ export default function NoticeAdminPage() {
       {/* 2번 영역: 공지 목록 — 상단에 공지 추가하기 고정, 아래로 목록 스크롤 */}
       <aside className="qna-inbox__list">
         <div className="qna-inbox__list-header">
-          <h2 className="qna-inbox__list-title">공지사항</h2>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+            <h2 className="qna-inbox__list-title">공지사항</h2>
+            {noticeTypeId != null && (
+              <Button intent="primary" size="sm" onClick={() => { setShowCreate(true); setSelectedId(null); }}>+ 추가</Button>
+            )}
+          </div>
           <div className="flex items-center gap-2">
             <input
               type="search"
@@ -348,33 +357,6 @@ export default function NoticeAdminPage() {
             />
           </div>
         </div>
-        {canShowList && (
-          <div className="notice-tree__add-section">
-            {noticeTypeId != null ? (
-              <Button
-                intent="primary"
-                size="sm"
-                onClick={() => setShowCreate(true)}
-                className="w-full"
-              >
-                + 공지 추가하기
-              </Button>
-            ) : blockTypesError ? (
-              <Button
-                intent="primary"
-                size="sm"
-                onClick={() => refetchBlockTypes()}
-                className="w-full"
-              >
-                공지 추가하기 (재시도)
-              </Button>
-            ) : (
-              <Button intent="primary" size="sm" className="w-full" disabled>
-                불러오는 중…
-              </Button>
-            )}
-          </div>
-        )}
         <div className="qna-inbox__list-body">
           {!canShowList ? (
             <div className="qna-inbox__empty">
@@ -421,7 +403,21 @@ export default function NoticeAdminPage() {
       </aside>
 
       <main className="qna-inbox__thread">
-        {selectedId == null ? (
+        {showCreate && noticeTypeId != null ? (
+          <NoticeCreatePane
+            noticeTypeId={noticeTypeId}
+            scopeNodes={scopeNodes}
+            scopeParams={scopeParams}
+            onCancel={() => setShowCreate(false)}
+            onSuccess={() => {
+              qc.invalidateQueries({ queryKey: ["community-notice-posts"] });
+              qc.invalidateQueries({ queryKey: ["community-board-posts"] });
+              qc.invalidateQueries({ queryKey: ["community-all-notice-posts-for-count"] });
+              setShowCreate(false);
+              feedback.success("공지가 등록되었습니다.");
+            }}
+          />
+        ) : selectedId == null ? (
           <div className="qna-inbox__empty">
             <p className="qna-inbox__empty-title">공지를 선택하세요</p>
             <p className="qna-inbox__empty-desc">
@@ -437,25 +433,6 @@ export default function NoticeAdminPage() {
           />
         )}
       </main>
-
-      {showCreate && noticeTypeId != null && (
-        <NoticeAdminCreateModal
-          noticeTypeId={noticeTypeId}
-          scope={scope}
-          scopeNodes={scopeNodes}
-          scopeParams={scopeParams}
-          effectiveLectureId={effectiveLectureId ?? undefined}
-          sessionId={sessionId ?? undefined}
-          onClose={() => setShowCreate(false)}
-          onSuccess={() => {
-            qc.invalidateQueries({ queryKey: ["community-notice-posts"] });
-            qc.invalidateQueries({ queryKey: ["community-board-posts"] });
-            qc.invalidateQueries({ queryKey: ["community-all-notice-posts-for-count"] });
-            feedback.success("공지가 등록되었습니다.");
-            setShowCreate(false);
-          }}
-        />
-      )}
     </div>
   );
 }
@@ -710,6 +687,108 @@ function NoticeDetailView({
               노출 노드 저장
             </Button>
           </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+/* ─── Inline Notice Create Pane ──────────────────────── */
+function NoticeCreatePane({
+  noticeTypeId,
+  scopeNodes,
+  scopeParams,
+  onCancel,
+  onSuccess,
+}: {
+  noticeTypeId: number;
+  scopeNodes: ScopeNodeMinimal[];
+  scopeParams: CommunityScopeParams;
+  onCancel: () => void;
+  onSuccess: () => void;
+}) {
+  const [title, setTitle] = useState("");
+  const [content, setContent] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Auto-resolve node_ids from current scope
+  const autoNodeIds = useMemo(() => {
+    if (scopeParams.scope === "session" && scopeParams.sessionId != null) {
+      const node = scopeNodes.find(
+        (n) => n.lecture === scopeParams.lectureId && n.session === scopeParams.sessionId
+      );
+      return node ? [node.id] : [];
+    }
+    if (scopeParams.scope === "lecture" && scopeParams.lectureId != null) {
+      const nodes = scopeNodes.filter((n) => n.lecture === scopeParams.lectureId && n.level === "COURSE");
+      return nodes.map((n) => n.id);
+    }
+    // scope="all" → all COURSE nodes
+    return scopeNodes.filter((n) => n.level === "COURSE").map((n) => n.id);
+  }, [scopeNodes, scopeParams]);
+
+  const scopeLabel = scopeParams.scope === "session"
+    ? scopeNodes.find((n) => n.lecture === scopeParams.lectureId && n.session === scopeParams.sessionId)?.session_title ?? "선택된 차시"
+    : scopeParams.scope === "lecture"
+    ? scopeNodes.find((n) => n.lecture === scopeParams.lectureId)?.lecture_title ?? "선택된 강의"
+    : "전체 공지";
+
+  const canSubmit = title.trim().length > 0 && autoNodeIds.length > 0 && !submitting;
+
+  const handleSubmit = async () => {
+    if (!canSubmit) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      await createPost({
+        block_type: noticeTypeId,
+        title: title.trim(),
+        content,
+        node_ids: autoNodeIds,
+      });
+      onSuccess();
+    } catch (e: unknown) {
+      const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail ?? (e as Error)?.message ?? "등록에 실패했습니다.";
+      setError(msg);
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <>
+      <header className="qna-inbox__thread-header">
+        <div className="qna-inbox__thread-title-row">
+          <div className="qna-inbox__thread-title-group">
+            <h1 className="qna-inbox__thread-title">새 공지 작성</h1>
+            <div className="qna-inbox__thread-meta">
+              <span>대상: {scopeLabel}</span>
+            </div>
+          </div>
+          <div className="qna-inbox__thread-actions">
+            <Button intent="ghost" size="sm" onClick={onCancel}>취소</Button>
+          </div>
+        </div>
+      </header>
+
+      <div className="qna-inbox__thread-body" style={{ padding: "var(--space-4, 16px) var(--space-5, 20px)" }}>
+        <div style={{ marginBottom: "var(--space-4, 16px)" }}>
+          <label className="community-field__label community-field__label--required" style={{ display: "block", marginBottom: 6 }}>제목</label>
+          <input className="ds-input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="공지 제목을 입력하세요" style={{ width: "100%" }} autoFocus />
+        </div>
+
+        <div style={{ marginBottom: "var(--space-4, 16px)" }}>
+          <label className="community-field__label" style={{ display: "block", marginBottom: 6 }}>내용</label>
+          <RichTextEditor value={content} onChange={setContent} placeholder="공지 내용을 입력하세요..." minHeight={250} />
+        </div>
+
+        {error && <p className="community-field__error">{error}</p>}
+
+        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+          <Button intent="secondary" size="sm" onClick={onCancel}>취소</Button>
+          <Button intent="primary" size="sm" onClick={handleSubmit} disabled={!canSubmit}>
+            {submitting ? "등록 중…" : "등록"}
+          </Button>
         </div>
       </div>
     </>

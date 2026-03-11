@@ -8,12 +8,15 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import StudentPageShell from "@/student/shared/ui/pages/StudentPageShell";
 import EmptyState from "@/student/shared/ui/layout/EmptyState";
 import { formatYmd } from "@/student/shared/utils/date";
-import { IconPlus, IconChevronRight, IconFolder, IconDownload } from "@/student/shared/ui/icons/Icons";
+import { IconPlus, IconChevronRight } from "@/student/shared/ui/icons/Icons";
+import RichTextEditor from "@/shared/ui/editor/RichTextEditor";
 import { fetchMyProfile } from "@/student/domains/profile/api/profile";
 import {
   fetchMyQuestions,
   fetchQuestionDetail,
+  fetchNoticePosts,
   fetchBoardPosts,
+  fetchMaterialsPosts,
   fetchPostDetail,
   fetchReplies,
   submitQuestion,
@@ -25,21 +28,24 @@ import {
 } from "../api/community.api";
 
 // ─── Types ───
-type Tab = "qna" | "board" | "counsel" | "materials";
+type Tab = "notice" | "board" | "materials" | "qna" | "counsel";
 type QnaFilter = "all" | "pending" | "resolved";
 type View =
   | { kind: "tabs" }
+  | { kind: "notice-detail"; id: number }
   | { kind: "qna-form" }
   | { kind: "qna-detail"; id: number; cached?: PostEntity }
   | { kind: "board-detail"; id: number }
+  | { kind: "materials-detail"; id: number }
   | { kind: "counsel-form" }
   | { kind: "counsel-detail"; id: number; cached?: PostEntity };
 
 const TABS: { key: Tab; label: string }[] = [
-  { key: "qna", label: "QnA" },
+  { key: "notice", label: "공지사항" },
   { key: "board", label: "게시판" },
-  { key: "counsel", label: "상담 신청" },
   { key: "materials", label: "자료실" },
+  { key: "qna", label: "QnA" },
+  { key: "counsel", label: "상담 신청" },
 ];
 
 // ─── Shared tab bar ───
@@ -133,7 +139,7 @@ function StatusChip({ answered }: { answered: boolean }) {
 export default function CommunityPage() {
   const location = useLocation();
   const navigate = useNavigate();
-  const [tab, setTab] = useState<Tab>("qna");
+  const [tab, setTab] = useState<Tab>("notice");
   const [view, setView] = useState<View>({ kind: "tabs" });
 
   // 알림에서 질문 상세 직접 진입
@@ -149,9 +155,11 @@ export default function CommunityPage() {
   const back = () => setView({ kind: "tabs" });
 
   // ─── Sub-views ───
+  if (view.kind === "notice-detail") return <NoticeDetail id={view.id} onBack={back} />;
   if (view.kind === "qna-form") return <QnaForm onBack={back} onSuccess={back} />;
   if (view.kind === "qna-detail") return <QnaDetail id={view.id} cached={view.cached} onBack={back} />;
   if (view.kind === "board-detail") return <BoardDetail id={view.id} onBack={back} />;
+  if (view.kind === "materials-detail") return <MaterialsDetail id={view.id} onBack={back} />;
   if (view.kind === "counsel-form") return <CounselForm onBack={back} onSuccess={back} />;
   if (view.kind === "counsel-detail") return <CounselDetail id={view.id} cached={view.cached} onBack={back} />;
 
@@ -160,14 +168,20 @@ export default function CommunityPage() {
     <StudentPageShell title="커뮤니티">
       <SegmentedTabs items={TABS} value={tab} onChange={setTab} />
       <div style={{ marginTop: "var(--stu-space-5)" }}>
+        {tab === "notice" && (
+          <NoticeTab onDetail={(id) => setView({ kind: "notice-detail", id })} />
+        )}
+        {tab === "board" && (
+          <BoardTab onDetail={(id) => setView({ kind: "board-detail", id })} />
+        )}
+        {tab === "materials" && (
+          <MaterialsTab onDetail={(id) => setView({ kind: "materials-detail", id })} />
+        )}
         {tab === "qna" && (
           <QnaTab
             onForm={() => setView({ kind: "qna-form" })}
             onDetail={(id, cached) => setView({ kind: "qna-detail", id, cached })}
           />
-        )}
-        {tab === "board" && (
-          <BoardTab onDetail={(id) => setView({ kind: "board-detail", id })} />
         )}
         {tab === "counsel" && (
           <CounselTab
@@ -175,7 +189,65 @@ export default function CommunityPage() {
             onDetail={(id, cached) => setView({ kind: "counsel-detail", id, cached })}
           />
         )}
-        {tab === "materials" && <MaterialsTab />}
+      </div>
+    </StudentPageShell>
+  );
+}
+
+// ═══════════════════════════════════════════
+// Notice Tab (공지사항)
+// ═══════════════════════════════════════════
+function NoticeTab({ onDetail }: { onDetail: (id: number) => void }) {
+  const { data: posts = [], isLoading } = useQuery({
+    queryKey: ["student", "notice", "posts"],
+    queryFn: () => fetchNoticePosts(),
+  });
+
+  if (isLoading) return <SkeletonList />;
+  if (posts.length === 0) {
+    return <EmptyState title="등록된 공지사항이 없습니다" description="공지사항이 등록되면 여기에 표시됩니다." />;
+  }
+
+  return (
+    <PostList>
+      {posts.map((p) => {
+        const lecture = p.mappings?.[0]?.node_detail?.lecture_title;
+        return (
+          <PostRow
+            key={p.id}
+            post={p}
+            onClick={() => onDetail(p.id)}
+            subtitle={lecture || undefined}
+          />
+        );
+      })}
+    </PostList>
+  );
+}
+
+function NoticeDetail({ id, onBack }: { id: number; onBack: () => void }) {
+  const { data: post, isLoading } = useQuery({
+    queryKey: ["student", "notice", "post", id],
+    queryFn: () => fetchPostDetail(id),
+    enabled: Number.isFinite(id),
+  });
+
+  if (isLoading) return <StudentPageShell title="공지사항" onBack={onBack}><Loading /></StudentPageShell>;
+  if (!post) return <StudentPageShell title="공지사항" onBack={onBack}><EmptyState title="공지사항을 찾을 수 없습니다" /></StudentPageShell>;
+
+  const node = post.mappings?.[0]?.node_detail;
+
+  return (
+    <StudentPageShell title="공지사항" onBack={onBack}>
+      <div className="stu-section stu-section--nested" style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-4)" }}>
+        <div>
+          <h1 style={{ fontWeight: 700, fontSize: 20, marginBottom: "var(--stu-space-3)" }}>{post.title}</h1>
+          <div style={{ display: "flex", gap: "var(--stu-space-2)", alignItems: "center", flexWrap: "wrap" }}>
+            {node?.lecture_title && <Tag>{node.lecture_title}</Tag>}
+            <span className="stu-muted" style={{ fontSize: 13 }}>{formatYmd(post.created_at)}</span>
+          </div>
+        </div>
+        <HtmlContent html={post.content} />
       </div>
     </StudentPageShell>
   );
@@ -366,7 +438,8 @@ function QnaForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () => v
       })(mutation.error)
     : null;
 
-  const canSubmit = title.trim().length > 0 && content.trim().length > 0 && profile?.id != null;
+  const contentText = content.replace(/<[^>]*>/g, "").trim();
+  const canSubmit = title.trim().length > 0 && contentText.length > 0 && profile?.id != null;
 
   return (
     <StudentPageShell title="질문 보내기" description="궁금한 점을 적어 보내면 선생님이 확인해 주세요." onBack={onBack}>
@@ -380,10 +453,10 @@ function QnaForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () => v
           <span style={{ fontSize: 14, fontWeight: 600, color: "var(--stu-text-muted)" }}>제목</span>
           <input type="text" placeholder="질문 제목" value={title} onChange={(e) => setTitle(e.target.value)} className="stu-input" style={{ width: "100%" }} />
         </label>
-        <label style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-2)", flex: 1 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-2)", flex: 1 }}>
           <span style={{ fontSize: 14, fontWeight: 600, color: "var(--stu-text-muted)" }}>내용</span>
-          <textarea placeholder="질문 내용을 적어 주세요." value={content} onChange={(e) => setContent(e.target.value)} rows={8} className="stu-textarea" style={{ width: "100%", resize: "vertical", minHeight: 160 }} />
-        </label>
+          <RichTextEditor value={content} onChange={setContent} placeholder="질문 내용을 적어 주세요." minHeight={200} />
+        </div>
         <button
           type="button"
           className="stu-btn stu-btn--primary"
@@ -452,9 +525,7 @@ function BoardDetail({ id, onBack }: { id: number; onBack: () => void }) {
             {post.created_by_display && <span className="stu-muted" style={{ fontSize: 13 }}>· {post.created_by_display}</span>}
           </div>
         </div>
-        <div style={{ fontSize: 15, lineHeight: 1.6, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
-          {post.content || "내용이 없습니다."}
-        </div>
+        <HtmlContent html={post.content} />
       </div>
     </StudentPageShell>
   );
@@ -645,7 +716,8 @@ function CounselForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () 
       })(mutation.error)
     : null;
 
-  const canSubmit = title.trim().length > 0 && content.trim().length > 0 && profile?.id != null;
+  const counselContentText = content.replace(/<[^>]*>/g, "").trim();
+  const canSubmit = title.trim().length > 0 && counselContentText.length > 0 && profile?.id != null;
 
   return (
     <StudentPageShell title="상담 신청" description="상담받고 싶은 내용을 적어 보내면 관리자가 확인해 드립니다." onBack={onBack}>
@@ -659,10 +731,10 @@ function CounselForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () 
           <span style={{ fontSize: 14, fontWeight: 600, color: "var(--stu-text-muted)" }}>상담 제목</span>
           <input type="text" placeholder="예: 진로 상담, 학습 방법 상담" value={title} onChange={(e) => setTitle(e.target.value)} className="stu-input" style={{ width: "100%" }} />
         </label>
-        <label style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-2)", flex: 1 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-2)", flex: 1 }}>
           <span style={{ fontSize: 14, fontWeight: 600, color: "var(--stu-text-muted)" }}>상담 내용</span>
-          <textarea placeholder="상담받고 싶은 내용을 자세히 적어 주세요." value={content} onChange={(e) => setContent(e.target.value)} rows={8} className="stu-textarea" style={{ width: "100%", resize: "vertical", minHeight: 160 }} />
-        </label>
+          <RichTextEditor value={content} onChange={setContent} placeholder="상담받고 싶은 내용을 자세히 적어 주세요." minHeight={200} />
+        </div>
         <button
           type="button"
           className="stu-btn stu-btn--primary"
@@ -678,18 +750,80 @@ function CounselForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () 
 }
 
 // ═══════════════════════════════════════════
-// Materials Tab
+// Materials Tab (자료실)
 // ═══════════════════════════════════════════
-function MaterialsTab() {
+function MaterialsTab({ onDetail }: { onDetail: (id: number) => void }) {
+  const { data: posts = [], isLoading } = useQuery({
+    queryKey: ["student", "materials", "posts"],
+    queryFn: () => fetchMaterialsPosts(),
+  });
+
+  if (isLoading) return <SkeletonList />;
+  if (posts.length === 0) {
+    return <EmptyState title="등록된 자료가 없습니다" description="선생님이 자료를 등록하면 여기에서 확인할 수 있습니다." />;
+  }
+
   return (
-    <EmptyState
-      title="등록된 자료가 없습니다"
-      description="선생님이 자료를 등록하면 여기에서 확인할 수 있습니다."
-      icon={
-        <div style={{ width: 64, height: 64, borderRadius: "50%", background: "var(--stu-surface-soft)", border: "1px solid var(--stu-border-subtle)", display: "grid", placeItems: "center", margin: "0 auto", opacity: 0.6 }}>
-          <IconFolder style={{ width: 32, height: 32, color: "var(--stu-text-muted)" }} />
+    <PostList>
+      {posts.map((p) => {
+        const lecture = p.mappings?.[0]?.node_detail?.lecture_title;
+        return (
+          <PostRow
+            key={p.id}
+            post={p}
+            onClick={() => onDetail(p.id)}
+            subtitle={lecture || undefined}
+          />
+        );
+      })}
+    </PostList>
+  );
+}
+
+function MaterialsDetail({ id, onBack }: { id: number; onBack: () => void }) {
+  const { data: post, isLoading } = useQuery({
+    queryKey: ["student", "materials", "post", id],
+    queryFn: () => fetchPostDetail(id),
+    enabled: Number.isFinite(id),
+  });
+
+  if (isLoading) return <StudentPageShell title="자료실" onBack={onBack}><Loading /></StudentPageShell>;
+  if (!post) return <StudentPageShell title="자료실" onBack={onBack}><EmptyState title="자료를 찾을 수 없습니다" /></StudentPageShell>;
+
+  const node = post.mappings?.[0]?.node_detail;
+
+  return (
+    <StudentPageShell title="자료실" onBack={onBack}>
+      <div className="stu-section stu-section--nested" style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-4)" }}>
+        <div>
+          <h1 style={{ fontWeight: 700, fontSize: 20, marginBottom: "var(--stu-space-3)" }}>{post.title}</h1>
+          <div style={{ display: "flex", gap: "var(--stu-space-2)", alignItems: "center", flexWrap: "wrap" }}>
+            {node?.lecture_title && <Tag>{node.lecture_title}</Tag>}
+            <span className="stu-muted" style={{ fontSize: 13 }}>{formatYmd(post.created_at)}</span>
+          </div>
         </div>
-      }
+        <HtmlContent html={post.content} />
+      </div>
+    </StudentPageShell>
+  );
+}
+
+// ═══════════════════════════════════════════
+// HtmlContent — renders HTML content (from RichTextEditor) safely
+// ═══════════════════════════════════════════
+function HtmlContent({ html }: { html: string }) {
+  if (!html) return <div className="stu-muted" style={{ fontSize: 14 }}>내용이 없습니다.</div>;
+
+  const isPlainText = !/<[a-z][\s\S]*>/i.test(html);
+  if (isPlainText) {
+    return <div style={{ fontSize: 15, lineHeight: 1.7, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{html}</div>;
+  }
+
+  return (
+    <div
+      className="stu-html-content"
+      style={{ fontSize: 15, lineHeight: 1.7, wordBreak: "break-word" }}
+      dangerouslySetInnerHTML={{ __html: html }}
     />
   );
 }

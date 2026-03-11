@@ -8,6 +8,7 @@ import {
   fetchPostReplies as _fetchReplies,
   createPost as _createPost,
   ensureCounselBlockType,
+  ensureMaterialsBlockType,
   type PostEntity,
   type Answer,
 } from "@/features/community/api/community.api";
@@ -15,13 +16,13 @@ import {
 export type { PostEntity, Answer };
 
 // ── Block-type ID 캐시 (세션 동안 1회만 resolve) ──
-let _typeCache: { qna: number | null; notice: number | null; counsel: number | null } | null = null;
+let _typeCache: { qna: number | null; notice: number | null; counsel: number | null; materials: number | null } | null = null;
 
-async function resolveTypeIds(): Promise<{ qna: number | null; notice: number | null; counsel: number | null }> {
+async function resolveTypeIds(): Promise<{ qna: number | null; notice: number | null; counsel: number | null; materials: number | null }> {
   if (_typeCache) return _typeCache;
   const types = await fetchBlockTypes();
   const find = (code: string) => types.find((t) => (t.code || "").toLowerCase() === code)?.id ?? null;
-  _typeCache = { qna: find("qna"), notice: find("notice"), counsel: find("counsel") };
+  _typeCache = { qna: find("qna"), notice: find("notice"), counsel: find("counsel"), materials: find("materials") };
   return _typeCache;
 }
 
@@ -117,17 +118,55 @@ export async function submitCounselRequest(
   });
 }
 
-// ── 게시판 (QnA·공지·상담 제외 일반 게시물) ──
+// ── 공지사항 ──
 
-/** 일반 게시판 목록 */
-export async function fetchBoardPosts(pageSize = 100): Promise<PostEntity[]> {
-  const [{ qna, notice, counsel }, posts] = await Promise.all([
+/** 공지사항 목록 (notice 유형 게시물) */
+export async function fetchNoticePosts(pageSize = 100): Promise<PostEntity[]> {
+  const [{ notice }, posts] = await Promise.all([
     resolveTypeIds(),
     fetchPosts({ nodeId: null, pageSize }),
   ]);
-  const excluded = new Set([qna, notice, counsel].filter((v): v is number => v != null));
+  return posts
+    .filter((p) => {
+      const isNotice = notice != null ? p.block_type === notice : (p.block_type_label || "").toLowerCase().includes("notice");
+      return isNotice;
+    })
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+}
+
+// ── 게시판 (QnA·공지·상담·자료실 제외 일반 게시물) ──
+
+/** 일반 게시판 목록 */
+export async function fetchBoardPosts(pageSize = 100): Promise<PostEntity[]> {
+  const [{ qna, notice, counsel, materials }, posts] = await Promise.all([
+    resolveTypeIds(),
+    fetchPosts({ nodeId: null, pageSize }),
+  ]);
+  const excluded = new Set([qna, notice, counsel, materials].filter((v): v is number => v != null));
   return posts
     .filter((p) => !excluded.has(p.block_type))
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+}
+
+// ── 자료실 ──
+
+/** materials 블록 유형 ID를 확보 (없으면 자동 생성) */
+async function getMaterialsTypeId(): Promise<number> {
+  const cached = _typeCache?.materials;
+  if (cached != null) return cached;
+  const id = await ensureMaterialsBlockType();
+  if (_typeCache) _typeCache.materials = id;
+  return id;
+}
+
+/** 자료실 목록 */
+export async function fetchMaterialsPosts(pageSize = 100): Promise<PostEntity[]> {
+  const [materialsId, posts] = await Promise.all([
+    getMaterialsTypeId(),
+    fetchPosts({ nodeId: null, pageSize }),
+  ]);
+  return posts
+    .filter((p) => p.block_type === materialsId)
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 }
 

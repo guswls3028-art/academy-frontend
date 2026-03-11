@@ -161,10 +161,13 @@ export default function BoardAdminPage() {
     [scopeNodes, scopeParams]
   );
 
+  const hasScopeParam = searchParams.has("scope");
   const canShowList =
-    scope === "all" ||
-    (scope === "lecture" && effectiveLectureId != null) ||
-    (scope === "session" && sessionId != null);
+    hasScopeParam && (
+      scope === "all" ||
+      (scope === "lecture" && effectiveLectureId != null) ||
+      (scope === "session" && sessionId != null)
+    );
 
   const postsQ = useQuery<PostEntity[]>({
     queryKey: ["community-board-posts-scoped", scope, nodeId],
@@ -359,7 +362,10 @@ export default function BoardAdminPage() {
       {/* ═══ 2nd pane: List ═══ */}
       <aside className="qna-inbox__list">
         <div className="qna-inbox__list-header">
-          <h2 className="qna-inbox__list-title">게시물</h2>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+            <h2 className="qna-inbox__list-title">게시물</h2>
+            <Button intent="primary" size="sm" onClick={() => { setShowCreate(true); setSelectedId(null); }}>+ 글쓰기</Button>
+          </div>
           <div className="flex items-center gap-2">
             <input
               type="search"
@@ -371,19 +377,6 @@ export default function BoardAdminPage() {
             />
           </div>
         </div>
-
-        {canShowList && (
-          <div className="notice-tree__add-section">
-            <Button
-              intent="primary"
-              size="sm"
-              onClick={() => { setShowCreate(true); setSelectedId(null); }}
-              className="w-full"
-            >
-              + 글쓰기
-            </Button>
-          </div>
-        )}
 
         <div className="qna-inbox__list-body">
           {!canShowList ? (
@@ -425,6 +418,8 @@ export default function BoardAdminPage() {
         {showCreate ? (
           <BoardCreatePane
             blockTypes={blockTypes}
+            scopeNodes={scopeNodes}
+            scopeParams={scopeParams}
             onCancel={() => setShowCreate(false)}
             onSuccess={() => {
               qc.invalidateQueries({ queryKey: ["community-board-posts-scoped"] });
@@ -462,38 +457,45 @@ export default function BoardAdminPage() {
 /* ─── Inline Create Pane ──────────────────────────────── */
 function BoardCreatePane({
   blockTypes,
+  scopeNodes,
+  scopeParams,
   onCancel,
   onSuccess,
 }: {
   blockTypes: BlockType[];
+  scopeNodes: ScopeNodeMinimal[];
+  scopeParams: CommunityScopeParams;
   onCancel: () => void;
   onSuccess: () => void;
 }) {
   const [blockTypeId, setBlockTypeId] = useState<number | "">("");
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
-  const [selectedNodeIds, setSelectedNodeIds] = useState<number[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const scopeNodesQ = useQuery<ScopeNodeMinimal[]>({
-    queryKey: ["community-scope-nodes"],
-    queryFn: fetchScopeNodes,
-  });
-  const courseNodes = useMemo(
-    () => (scopeNodesQ.data ?? []).filter((n) => n.level === "COURSE"),
-    [scopeNodesQ.data]
-  );
-  const allSelected = courseNodes.length > 0 && selectedNodeIds.length === courseNodes.length;
+  // Auto-resolve node_ids from current scope
+  const autoNodeIds = useMemo(() => {
+    if (scopeParams.scope === "session" && scopeParams.sessionId != null) {
+      const node = scopeNodes.find(
+        (n) => n.lecture === scopeParams.lectureId && n.session === scopeParams.sessionId
+      );
+      return node ? [node.id] : [];
+    }
+    if (scopeParams.scope === "lecture" && scopeParams.lectureId != null) {
+      const nodes = scopeNodes.filter((n) => n.lecture === scopeParams.lectureId && n.level === "COURSE");
+      return nodes.map((n) => n.id);
+    }
+    return scopeNodes.filter((n) => n.level === "COURSE").map((n) => n.id);
+  }, [scopeNodes, scopeParams]);
 
-  const toggleNode = (id: number) =>
-    setSelectedNodeIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-    );
-  const toggleAll = () =>
-    setSelectedNodeIds(allSelected ? [] : courseNodes.map((n) => n.id));
+  const scopeLabel = scopeParams.scope === "session"
+    ? scopeNodes.find((n) => n.lecture === scopeParams.lectureId && n.session === scopeParams.sessionId)?.session_title ?? "선택된 차시"
+    : scopeParams.scope === "lecture"
+    ? scopeNodes.find((n) => n.lecture === scopeParams.lectureId)?.lecture_title ?? "선택된 강의"
+    : "전체 게시물";
 
-  const canSubmit = blockTypeId !== "" && title.trim().length > 0 && selectedNodeIds.length > 0 && !submitting;
+  const canSubmit = blockTypeId !== "" && title.trim().length > 0 && autoNodeIds.length > 0 && !submitting;
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
@@ -504,7 +506,7 @@ function BoardCreatePane({
         block_type: Number(blockTypeId),
         title: title.trim(),
         content,
-        node_ids: selectedNodeIds,
+        node_ids: autoNodeIds,
       });
       onSuccess();
     } catch (e: unknown) {
@@ -522,6 +524,9 @@ function BoardCreatePane({
         <div className="qna-inbox__thread-title-row">
           <div className="qna-inbox__thread-title-group">
             <h1 className="qna-inbox__thread-title">새 게시물 작성</h1>
+            <div className="qna-inbox__thread-meta">
+              <span>대상: {scopeLabel}</span>
+            </div>
           </div>
           <div className="qna-inbox__thread-actions">
             <Button intent="ghost" size="sm" onClick={onCancel}>취소</Button>
@@ -560,28 +565,6 @@ function BoardCreatePane({
         <div style={{ marginBottom: "var(--space-4, 16px)" }}>
           <label className="community-field__label" style={{ display: "block", marginBottom: 6 }}>내용</label>
           <RichTextEditor value={content} onChange={setContent} placeholder="내용을 입력하세요..." minHeight={250} />
-        </div>
-
-        <div style={{ marginBottom: "var(--space-4, 16px)" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-            <label className="community-field__label community-field__label--required" style={{ margin: 0 }}>노출 강의</label>
-            {courseNodes.length > 1 && (
-              <button type="button" className="community-link" style={{ fontSize: 11, background: "none", border: "none", cursor: "pointer", padding: 0 }} onClick={toggleAll}>
-                {allSelected ? "전체 해제" : "전체 선택"}
-              </button>
-            )}
-          </div>
-          {scopeNodesQ.isLoading ? (
-            <p className="community-field__hint">강의 목록 불러오는 중…</p>
-          ) : courseNodes.length === 0 ? (
-            <p className="community-field__hint">등록된 강의가 없습니다.</p>
-          ) : (
-            <div className="community-checkbox-list">
-              {courseNodes.map((n) => (
-                <label key={n.id}><input type="checkbox" checked={selectedNodeIds.includes(n.id)} onChange={() => toggleNode(n.id)} />{n.lecture_title}</label>
-              ))}
-            </div>
-          )}
         </div>
 
         {error && <p className="community-field__error">{error}</p>}
