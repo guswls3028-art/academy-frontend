@@ -1,26 +1,23 @@
+import { useState } from "react";
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import { logout } from "@/features/auth/api/auth";
 import s from "./DevLayout.module.css";
 
 const NAV_ITEMS = [
-  {
-    section: "General",
-    items: [
-      { to: "/dev/dashboard", label: "Dashboard", icon: IconDashboard },
-      { to: "/dev/tenants", label: "Tenants", icon: IconTenants },
-    ],
-  },
+  { to: "/dev/dashboard", label: "대시보드", icon: IconDashboard },
+  { to: "/dev/tenants", label: "테넌트", icon: IconTenants },
 ];
 
 export default function DevLayout() {
   const location = useLocation();
   const navigate = useNavigate();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const isActive = (path: string) =>
     location.pathname === path || location.pathname.startsWith(path + "/");
 
   return (
     <div className={s.shell}>
-      {/* Sidebar */}
+      {/* ── Desktop Sidebar ── */}
       <aside className={s.sidebar}>
         <div className={s.sidebarBrand}>
           <div className={s.brandIcon}>A</div>
@@ -29,27 +26,25 @@ export default function DevLayout() {
         </div>
 
         <nav className={s.sidebarNav}>
-          {NAV_ITEMS.map((section) => (
-            <div key={section.section} className={s.navSection}>
-              <div className={s.navSectionLabel}>{section.section}</div>
-              {section.items.map((item) => (
-                <Link
-                  key={item.to}
-                  to={item.to}
-                  className={`${s.navItem} ${isActive(item.to) ? s.navItemActive : ""}`}
-                >
-                  <item.icon className={s.navIcon} />
-                  {item.label}
-                </Link>
-              ))}
-            </div>
-          ))}
+          <div className={s.navSection}>
+            <div className={s.navSectionLabel}>메뉴</div>
+            {NAV_ITEMS.map((item) => (
+              <Link
+                key={item.to}
+                to={item.to}
+                className={`${s.navItem} ${isActive(item.to) ? s.navItemActive : ""}`}
+              >
+                <item.icon className={s.navIcon} />
+                {item.label}
+              </Link>
+            ))}
+          </div>
         </nav>
 
         <div className={s.sidebarFooter}>
           <Link to="/admin" className={s.navItem}>
             <IconExternal className={s.navIcon} />
-            Admin Console
+            운영 콘솔
           </Link>
           <button
             type="button"
@@ -57,15 +52,66 @@ export default function DevLayout() {
             onClick={() => { logout(); navigate("/login"); }}
           >
             <IconLogout className={s.navIcon} />
-            Logout
+            로그아웃
           </button>
         </div>
       </aside>
 
-      {/* Main */}
+      {/* ── Mobile Top Bar ── */}
+      <header className={s.mobileTopBar}>
+        <div className={s.mobileTopLeft}>
+          <div className={s.brandIcon} style={{ width: 24, height: 24, fontSize: 11 }}>A</div>
+          <span className={s.mobileBrandName}>Academy <span className={s.brandTag}>DEV</span></span>
+        </div>
+        <button
+          type="button"
+          className={s.mobileMenuBtn}
+          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          aria-label="메뉴"
+        >
+          {mobileMenuOpen ? <IconClose /> : <IconMenu />}
+        </button>
+      </header>
+
+      {/* ── Mobile Dropdown Menu ── */}
+      {mobileMenuOpen && (
+        <div className={s.mobileMenuOverlay} onClick={() => setMobileMenuOpen(false)}>
+          <nav className={s.mobileMenu} onClick={(e) => e.stopPropagation()}>
+            <Link to="/admin" className={s.mobileMenuItem} onClick={() => setMobileMenuOpen(false)}>
+              <IconExternal className={s.navIcon} />
+              운영 콘솔
+            </Link>
+            <button
+              type="button"
+              className={s.mobileMenuItem}
+              onClick={() => { logout(); navigate("/login"); }}
+            >
+              <IconLogout className={s.navIcon} />
+              로그아웃
+            </button>
+          </nav>
+        </div>
+      )}
+
+      {/* ── Main Content ── */}
       <div className={s.main}>
         <Outlet />
       </div>
+
+      {/* ── Mobile Bottom Tab Bar ── */}
+      <nav className={s.mobileTabBar}>
+        {NAV_ITEMS.map((item) => (
+          <Link
+            key={item.to}
+            to={item.to}
+            className={`${s.mobileTab} ${isActive(item.to) ? s.mobileTabActive : ""}`}
+            onClick={() => setMobileMenuOpen(false)}
+          >
+            <item.icon className={s.mobileTabIcon} />
+            <span className={s.mobileTabLabel}>{item.label}</span>
+          </Link>
+        ))}
+      </nav>
     </div>
   );
 }
@@ -110,6 +156,22 @@ function IconLogout({ className }: { className?: string }) {
       <path d="M6 16H3.5A1.5 1.5 0 012 14.5v-11A1.5 1.5 0 013.5 2H6" />
       <path d="M12 13l4-4-4-4" />
       <path d="M16 9H7" />
+    </svg>
+  );
+}
+
+function IconMenu() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+      <path d="M3 6h14M3 10h14M3 14h14" />
+    </svg>
+  );
+}
+
+function IconClose() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+      <path d="M5 5l10 10M15 5L5 15" />
     </svg>
   );
 }
