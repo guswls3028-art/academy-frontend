@@ -1,6 +1,7 @@
 // PATH: src/promo/layout/PromoLayout.tsx
 import { Link, Outlet, useLocation } from "react-router-dom";
 import { useState } from "react";
+import LoginModal from "../components/LoginModal";
 
 const NAV_ITEMS = [
   { label: "기능", path: "/promo/features" },
@@ -11,7 +12,7 @@ const NAV_ITEMS = [
   { label: "문의하기", path: "/promo/contact" },
 ];
 
-function Header() {
+function Header({ onLoginClick }: { onLoginClick: () => void }) {
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
 

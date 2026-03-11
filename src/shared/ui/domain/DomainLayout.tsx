@@ -7,6 +7,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 
 import DomainTabs, { type DomainTab } from "./DomainTabs";
 import DomainPanel from "./DomainPanel";
+import { useIsMobile } from "@/shared/hooks/useIsMobile";
 
 export type { DomainTab } from "./DomainTabs";
 
@@ -30,6 +31,7 @@ export default function DomainLayout({
 }: DomainLayoutProps) {
   const navigate = useNavigate();
   const location = useLocation();
+  const isMobile = useIsMobile();
 
   return (
     <div className="min-h-full bg-[var(--bg-page)]" data-app="admin">
@@ -39,10 +41,10 @@ export default function DomainLayout({
         style={{
           background: "color-mix(in srgb, var(--color-primary) 8%, var(--bg-surface))",
           borderBottom: "1px solid var(--color-border-divider-strong)",
-          paddingLeft: "var(--space-6)",
-          paddingRight: "var(--space-6)",
-          paddingTop: "var(--space-7)",
-          paddingBottom: tabs != null && tabs.length > 0 ? 0 : "var(--space-4)",
+          paddingLeft: isMobile ? "var(--space-4)" : "var(--space-6)",
+          paddingRight: isMobile ? "var(--space-4)" : "var(--space-6)",
+          paddingTop: isMobile ? "var(--space-4)" : "var(--space-7)",
+          paddingBottom: tabs != null && tabs.length > 0 ? 0 : "var(--space-3)",
         }}
       >
         <div className="relative flex-shrink-0">
@@ -90,8 +92,12 @@ export default function DomainLayout({
               </div>
             ) : (
               <div
-                className="text-2xl tracking-tight"
-                style={{ fontWeight: 700, color: "var(--color-text-primary)" }}
+                className="tracking-tight"
+                style={{
+                  fontWeight: 700,
+                  color: "var(--color-text-primary)",
+                  fontSize: isMobile ? "1.125rem" : "1.5rem",
+                }}
               >
                 {title}
               </div>
@@ -121,10 +127,10 @@ export default function DomainLayout({
         )}
       </div>
 
-      {/* DOMAIN CONTENT (ds-panel) — 편집/시험점수 표시 바와 동일한 수치(space-4) */}
+      {/* DOMAIN CONTENT (ds-panel) */}
       <div
         style={{
-          padding: "var(--space-4)",
+          padding: isMobile ? "var(--space-3)" : "var(--space-4)",
         }}
       >
         <DomainPanel>{children}</DomainPanel>

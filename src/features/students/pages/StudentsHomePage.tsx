@@ -29,6 +29,7 @@ import { DomainListToolbar, useTableColumnPrefs, TableColumnPicker } from "@/sha
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { getApiErrorMessage } from "@/shared/api/errorMessage";
 import { useSendMessageModal } from "@/features/messages/context/SendMessageModalContext";
+import { useIsMobile } from "@/shared/hooks/useIsMobile";
 
 export default function StudentsHomePage() {
   const navigate = useNavigate();
