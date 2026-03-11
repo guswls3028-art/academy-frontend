@@ -3,7 +3,7 @@
 
 import { useState, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { FolderOpen, FileText, Image, FilePlus, FolderPlus, X } from "lucide-react";
+import { FolderOpen, FileText, Image, FilePlus, FolderPlus, X, Download, Trash2 } from "lucide-react";
 import { Button, CloseButton } from "@/shared/ui/ds";
 import {
   fetchInventoryList,
@@ -47,6 +47,7 @@ export default function MyStorageExplorer() {
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const [selectedFileId, setSelectedFileId] = useState<string | null>(null);
   const [selectedFolderIds, setSelectedFolderIds] = useState<Set<string>>(new Set());
+  const [fileActionTarget, setFileActionTarget] = useState<InventoryFile | null>(null);
   const [movingId, setMovingId] = useState<string | null>(null);
   const [dropTargetFolderId, setDropTargetFolderId] = useState<string | null>(null);
   const [conflict, setConflict] = useState<{
@@ -317,8 +318,8 @@ export default function MyStorageExplorer() {
                     e.stopPropagation();
                     setSelectedFileId(file.id);
                     setSelectedFolderIds(new Set());
-                  }}
-                  onDoubleClick={() => openFileUrl(file.r2Key)}
+                    setFileActionTarget(file);
+                  }
                   title={file.description || file.displayName}
                   onDragStart={(e) => {
                     e.dataTransfer.setData(DRAG_TYPE, JSON.stringify({ type: "file" as const, sourceId: file.id }));

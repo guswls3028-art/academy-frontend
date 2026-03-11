@@ -1,92 +1,61 @@
 /**
  * 학생 앱 알림 API
  * 클리닉 예약 승인, QnA 답변, 새 영상, 새 성적 등의 알림 카운트 조회
- * 실데이터 기반: 내 클리닉 예약, 내 QnA 질문에 달린 답변만 집계
  */
 import { fetchMyClinicBookingRequests } from "@/student/domains/clinic/api/clinicBooking.api";
-import { fetchMyQnaQuestions } from "@/student/domains/qna/api/qna.api";
+import { fetchMyQuestions } from "@/student/domains/community/api/community.api";
 
 export type NotificationCounts = {
-  clinic: number; // 클리닉 예약 승인/거부 알림
-  qna: number; // QnA 답변 알림
-  video: number; // 새 영상 알림
-  grade: number; // 새 성적 알림
-  total: number; // 전체 알림 수
+  clinic: number;
+  qna: number;
+  video: number;
+  grade: number;
+  total: number;
 };
 
 export type FetchNotificationCountsOptions = {
-  /** 캐시된 프로필(id만 사용). 전달 시 알림 카운트 내부에서 프로필 API 호출 생략 */
-  profile?: { id: number } | null;
+  /** 프로필 id. 전달 시 QnA 질문 조회 가능 */
+  profileId?: number | null;
 };
 
-/**
- * 알림 카운트 조회
- * - 알림 숫자만 필요하므로 QnA는 pageSize 50으로 경량 조회
- * - profile 전달 시 프로필 API 중복 호출 방지
- */
+const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+
 export async function fetchNotificationCounts(
   options?: FetchNotificationCountsOptions
 ): Promise<NotificationCounts> {
-  const now = Date.now();
-  const sevenDaysAgo = now - 7 * 24 * 60 * 60 * 1000;
+  const sevenDaysAgo = Date.now() - SEVEN_DAYS_MS;
 
   try {
-    const [clinicBookings, myQnaQuestions] = await Promise.allSettled([
+    const qnaPromise = options?.profileId != null
+      ? fetchMyQuestions(options.profileId, 50)
+      : Promise.resolve([]);
+
+    const [clinicResult, qnaResult] = await Promise.allSettled([
       fetchMyClinicBookingRequests(),
-      fetchMyQnaQuestions({
-        profile: options?.profile ?? undefined,
-        pageSize: 50, // 카운트용 경량 조회 (7일 내 답변 건수만 필요)
-      }),
+      qnaPromise,
     ]);
 
-    // 클리닉: 승인된 예약 중 최근 7일 이내 상태 변경된 것
-    let clinicCount = 0;
-    if (clinicBookings.status === "fulfilled") {
-      clinicCount = clinicBookings.value.filter((b) => {
+    let clinic = 0;
+    if (clinicResult.status === "fulfilled") {
+      clinic = clinicResult.value.filter((b) => {
         if (b.status !== "booked" && b.status !== "approved") return false;
-        const changeDate = b.status_changed_at
-          ? new Date(b.status_changed_at).getTime()
-          : b.updated_at
-            ? new Date(b.updated_at).getTime()
-            : new Date(b.created_at).getTime();
-        return changeDate > sevenDaysAgo;
+        const t = b.status_changed_at ?? b.updated_at ?? b.created_at;
+        return new Date(t).getTime() > sevenDaysAgo;
       }).length;
     }
 
-    // QnA: 내 질문에 답변이 달린 것 중 최근 7일 이내
-    let qnaCount = 0;
-    if (myQnaQuestions.status === "fulfilled") {
-      qnaCount = myQnaQuestions.value.filter((p) => {
+    let qna = 0;
+    if (qnaResult.status === "fulfilled") {
+      qna = qnaResult.value.filter((p) => {
         if ((p.replies_count || 0) === 0) return false;
-        const updatedTime = p.updated_at ? new Date(p.updated_at).getTime() : new Date(p.created_at).getTime();
-        return updatedTime > sevenDaysAgo;
+        const t = p.updated_at ?? p.created_at;
+        return new Date(t).getTime() > sevenDaysAgo;
       }).length;
     }
 
-    // 영상: 새 영상 알림 (백엔드 API 확장 필요, 현재는 0)
-    const videoCount = 0;
-
-    // 성적: 새 성적 알림 (백엔드 API 확장 필요, 현재는 0)
-    const gradeCount = 0;
-
-    const total = clinicCount + qnaCount + videoCount + gradeCount;
-
-    return {
-      clinic: clinicCount,
-      qna: qnaCount,
-      video: videoCount,
-      grade: gradeCount,
-      total,
-    };
-  } catch (error) {
-    console.error("알림 카운트 조회 실패:", error);
-    // 에러 발생 시 안전한 기본값 반환
-    return {
-      clinic: 0,
-      qna: 0,
-      video: 0,
-      grade: 0,
-      total: 0,
-    };
+    const total = clinic + qna;
+    return { clinic, qna, video: 0, grade: 0, total };
+  } catch {
+    return { clinic: 0, qna: 0, video: 0, grade: 0, total: 0 };
   }
 }

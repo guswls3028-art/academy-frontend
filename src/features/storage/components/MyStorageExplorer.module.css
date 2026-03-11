@@ -213,3 +213,45 @@
   padding: var(--space-4);
   border-top: 1px solid var(--color-border-divider);
 }
+
+/* 파일 액션 팝업 (클릭 시 저장/삭제) */
+.fileActionBtn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+}
+
+.fileActionBtn:hover {
+  background: var(--color-bg-surface-hover);
+  border-color: color-mix(in srgb, var(--color-brand-primary) 30%, var(--color-border-divider));
+}
+
+.fileActionBtnDanger {
+  composes: fileActionBtn;
+  color: var(--color-danger-text, #dc2626);
+}
+
+.fileActionBtnDanger:hover {
+  background: color-mix(in srgb, var(--color-danger-text, #dc2626) 6%, var(--color-bg-surface));
+  border-color: color-mix(in srgb, var(--color-danger-text, #dc2626) 30%, var(--color-border-divider));
+}
+
+.fileActionFileName {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 0 var(--space-4) var(--space-1);
+}

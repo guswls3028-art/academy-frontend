@@ -9,7 +9,8 @@ import { Link } from "react-router-dom";
 import StudentPageShell from "@/student/shared/ui/pages/StudentPageShell";
 import { useNotificationCounts } from "../hooks/useNotificationCounts";
 import { fetchMyClinicBookingRequests } from "@/student/domains/clinic/api/clinicBooking.api";
-import { fetchMyQnaQuestions } from "@/student/domains/qna/api/qna.api";
+import { fetchMyQuestions } from "@/student/domains/community/api/community.api";
+import { fetchMyProfile } from "@/student/domains/profile/api/profile";
 import { useQuery } from "@tanstack/react-query";
 import { IconClinic, IconNotice } from "@/student/shared/ui/icons/Icons";
 import EmptyState from "@/student/shared/ui/layout/EmptyState";
@@ -26,9 +27,12 @@ export default function NotificationsPage() {
     staleTime: 30000,
   });
 
+  const { data: profile } = useQuery({ queryKey: ["student", "me"], queryFn: fetchMyProfile });
+
   const { data: myQnaQuestions = [], isLoading: qnaLoading } = useQuery({
     queryKey: ["student", "qna", "questions"],
-    queryFn: () => fetchMyQnaQuestions({ pageSize: 50 }),
+    queryFn: () => fetchMyQuestions(profile!.id, 50),
+    enabled: profile?.id != null,
     staleTime: 30000,
   });
 
