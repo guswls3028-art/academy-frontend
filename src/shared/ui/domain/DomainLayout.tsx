@@ -56,8 +56,12 @@ export default function DomainLayout({
           <div style={{ paddingLeft: "var(--space-4)" }}>
             {breadcrumbs != null && breadcrumbs.length > 0 ? (
               <div
-                className="flex items-center gap-2 flex-wrap text-2xl tracking-tight"
-                style={{ fontWeight: 700, color: "var(--color-text-primary)" }}
+                className="flex items-center gap-2 flex-wrap tracking-tight"
+                style={{
+                  fontWeight: 700,
+                  color: "var(--color-text-primary)",
+                  fontSize: isMobile ? "1rem" : "1.5rem",
+                }}
               >
                 {breadcrumbs.map((c, idx) => (
                   <span key={`${c.label}-${idx}`} className="flex items-center gap-2">
