@@ -1,6 +1,6 @@
 /**
  * PATH: src/student/app/StudentRouter.tsx
- * 학생 앱 라우터 — 모바일 전용, 5탭(홈|영상|일정|QnA|더보기)
+ * 학생 앱 라우터 — 모바일 전용, 5탭(홈|영상|일정|알림|더보기)
  */
 import { Suspense } from "react";
 import { lazyWithRetry as lazy } from "@/shared/utils/lazyWithRetry";
