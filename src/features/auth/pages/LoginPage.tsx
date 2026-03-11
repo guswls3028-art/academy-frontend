@@ -41,6 +41,18 @@ export default function LoginPage() {
   const { tenantCode: paramCode } = useParams<{ tenantCode?: string }>();
   const tenantCode = useTenantCode(program?.tenantCode);
 
+  // ── hooks는 조건부 return 전에 모두 호출 (Rules of Hooks) ──
+  const [formExpanded, setFormExpanded] = useState(false);
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState("");
+  const [showSignup, setShowSignup] = useState(false);
+  const [showPwReset, setShowPwReset] = useState(false);
+
+  const navigate = useNavigate();
+  const { refreshMe } = useAuth();
+
   // program 로딩 중이면 아무것도 렌더하지 않음 (기본값→실제값 플래시 방지)
   if (isLoading) return null;
 
@@ -73,17 +85,6 @@ export default function LoginPage() {
 
   // data-tenant: 테넌트 코드 그대로 사용 (themes/*.css selector 매칭)
   const themeAttr = tenantCode ?? "tchul";
-
-  const [formExpanded, setFormExpanded] = useState(false);
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [pending, setPending] = useState(false);
-  const [error, setError] = useState("");
-  const [showSignup, setShowSignup] = useState(false);
-  const [showPwReset, setShowPwReset] = useState(false);
-
-  const navigate = useNavigate();
-  const { refreshMe } = useAuth();
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
