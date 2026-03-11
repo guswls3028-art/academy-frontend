@@ -11,6 +11,7 @@ import {
 } from "../api/community.api";
 import { Button } from "@/shared/ui/ds";
 import { useModalKeyboard } from "@/shared/ui/modal";
+import "@/features/community/community.css";
 
 interface Props {
   blockTypes: BlockType[];
@@ -19,7 +20,6 @@ interface Props {
 }
 
 export default function BoardCreateModal({ blockTypes, onClose, onSuccess }: Props) {
-  // 유형 기본값 비움. 이전엔 blockTypes[0] 사용 → API 정렬에 따라 QnA가 첫 번째면 항상 QnA가 기본으로 잡혀 구조적 문제 발생.
   const [blockTypeId, setBlockTypeId] = useState<number | "">("");
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
@@ -84,45 +84,20 @@ export default function BoardCreateModal({ blockTypes, onClose, onSuccess }: Pro
       role="dialog"
       aria-modal="true"
       aria-labelledby="board-create-title"
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(0,0,0,0.45)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 1000,
-      }}
+      className="community-modal-overlay"
       onClick={onClose}
     >
       <div
-        style={{
-          background: "var(--color-bg-surface)",
-          borderRadius: "var(--radius-xl)",
-          padding: "var(--space-6)",
-          maxWidth: 520,
-          width: "92%",
-          boxShadow: "var(--elevation-3)",
-          maxHeight: "90vh",
-          overflowY: "auto",
-          display: "flex",
-          flexDirection: "column",
-          gap: 14,
-        }}
+        className="community-modal-dialog"
         onClick={(e) => e.stopPropagation()}
       >
-        <h3
-          id="board-create-title"
-          style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "var(--color-text-primary)" }}
-        >
+        <h3 id="board-create-title" className="community-modal-title">
           새 게시물
         </h3>
 
         {/* Block type */}
-        <div>
-          <label className="board-create__label">
-            유형 <span style={{ color: "var(--color-danger)" }}>*</span>
-          </label>
+        <div className="community-field">
+          <label className="community-field__label community-field__label--required">유형</label>
           <select
             className="ds-input"
             value={blockTypeId}
@@ -141,10 +116,8 @@ export default function BoardCreateModal({ blockTypes, onClose, onSuccess }: Pro
         </div>
 
         {/* Title */}
-        <div>
-          <label className="board-create__label">
-            제목 <span style={{ color: "var(--color-danger)" }}>*</span>
-          </label>
+        <div className="community-field">
+          <label className="community-field__label community-field__label--required">제목</label>
           <input
             className="ds-input"
             value={title}
@@ -159,8 +132,8 @@ export default function BoardCreateModal({ blockTypes, onClose, onSuccess }: Pro
         </div>
 
         {/* Content */}
-        <div>
-          <label className="board-create__label">내용</label>
+        <div className="community-field">
+          <label className="community-field__label">내용</label>
           <textarea
             className="ds-input"
             value={content}
@@ -172,29 +145,16 @@ export default function BoardCreateModal({ blockTypes, onClose, onSuccess }: Pro
         </div>
 
         {/* Scope nodes — COURSE level checkboxes */}
-        <div>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              marginBottom: 6,
-            }}
-          >
-            <label className="board-create__label" style={{ margin: 0 }}>
-              노출 강의 <span style={{ color: "var(--color-danger)" }}>*</span>
+        <div className="community-field">
+          <div className="flex items-center justify-between" style={{ marginBottom: 6 }}>
+            <label className="community-field__label community-field__label--required" style={{ margin: 0 }}>
+              노출 강의
             </label>
             {courseNodes.length > 1 && (
               <button
                 type="button"
-                style={{
-                  fontSize: 12,
-                  color: "var(--color-primary)",
-                  background: "none",
-                  border: "none",
-                  cursor: "pointer",
-                  padding: 0,
-                }}
+                className="community-link"
+                style={{ fontSize: "var(--text-xs, 11px)", background: "none", border: "none", cursor: "pointer", padding: 0 }}
                 onClick={toggleAll}
               >
                 {allSelected ? "전체 해제" : "전체 선택"}
@@ -203,45 +163,17 @@ export default function BoardCreateModal({ blockTypes, onClose, onSuccess }: Pro
           </div>
 
           {scopeNodesQ.isLoading ? (
-            <p style={{ fontSize: 13, color: "var(--color-text-muted)" }}>
-              강의 목록 불러오는 중…
-            </p>
+            <p className="community-field__hint">강의 목록 불러오는 중…</p>
           ) : courseNodes.length === 0 ? (
-            <p style={{ fontSize: 13, color: "var(--color-text-muted)" }}>
-              등록된 강의가 없습니다.
-            </p>
+            <p className="community-field__hint">등록된 강의가 없습니다.</p>
           ) : (
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: 2,
-                maxHeight: 160,
-                overflowY: "auto",
-                border: "1px solid var(--color-border-divider)",
-                borderRadius: 8,
-                padding: "8px 12px",
-                background: "var(--color-bg-surface-soft)",
-              }}
-            >
+            <div className="community-checkbox-list">
               {courseNodes.map((n) => (
-                <label
-                  key={n.id}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                    fontSize: 13,
-                    cursor: "pointer",
-                    padding: "4px 0",
-                    color: "var(--color-text-primary)",
-                  }}
-                >
+                <label key={n.id}>
                   <input
                     type="checkbox"
                     checked={selectedNodeIds.includes(n.id)}
                     onChange={() => toggleNode(n.id)}
-                    style={{ width: 14, height: 14, accentColor: "var(--color-primary)" }}
                   />
                   {n.lecture_title}
                 </label>
@@ -249,14 +181,14 @@ export default function BoardCreateModal({ blockTypes, onClose, onSuccess }: Pro
             </div>
           )}
           {selectedNodeIds.length > 0 && (
-            <p style={{ fontSize: 11, color: "var(--color-text-muted)", marginTop: 4 }}>
+            <p className="community-field__hint" style={{ marginTop: 4 }}>
               {selectedNodeIds.length}개 강의 선택됨
             </p>
           )}
         </div>
 
         {error && (
-          <p style={{ fontSize: 13, color: "var(--color-danger)", margin: 0 }}>{error}</p>
+          <p className="community-field__error">{error}</p>
         )}
 
         <div className="flex gap-2 justify-end" style={{ marginTop: 4 }}>

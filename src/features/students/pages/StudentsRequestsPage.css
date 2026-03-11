@@ -1,56 +1,264 @@
 /* PATH: src/features/students/pages/StudentsRequestsPage.css
-   가입 신청 탭 — 섹션형 목록(이름·전화번호만), 디자인 시스템 토큰 */
+   가입 신청 탭 — PanelWithTreeLayout SSOT 준수, 카드형 디자인 */
 
-.students-requests-page {
-  background: var(--color-bg-page, var(--color-bg-surface));
-  min-height: 100%;
-}
+/* ── 헤더 내부 ── */
 
-.students-requests-section__header {
+.students-requests__header-row {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: var(--space-4);
-  padding: var(--space-4) 0;
-  border-bottom: 1px solid var(--color-border-divider);
-  margin-bottom: var(--space-6);
 }
 
-.students-requests-section__title {
-  font-size: 18px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  color: var(--color-text-primary);
-  margin: 0;
-  line-height: 1.3;
-}
-
-.students-requests-section__meta {
-  font-size: 13px;
-  color: var(--color-text-muted);
-  margin: 4px 0 0 0;
-  line-height: 1.4;
-}
-
-.students-requests-section__actions {
+.students-requests__title-row {
   display: flex;
   align-items: center;
-  gap: var(--space-4);
+  gap: var(--space-2);
 }
 
-.students-requests-section__auto-approve {
+.students-requests__count-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 7px;
+  border-radius: 11px;
+  background: var(--color-primary);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.students-requests__auto-approve {
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
   cursor: pointer;
-  font-size: 14px;
+  flex-shrink: 0;
+  padding-top: var(--space-1);
+}
+
+.students-requests__auto-approve-label {
+  font-size: 13px;
+  font-weight: 600;
   color: var(--color-text-secondary);
 }
 
-.students-requests-section__auto-approve-label {
-  font-weight: 500;
+/* ── 선택 툴바 ── */
+
+.students-requests__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-5);
+  border-bottom: 1px solid var(--color-border-divider);
+  background: color-mix(in srgb, var(--color-brand-primary) 4%, var(--color-bg-surface));
 }
+
+.students-requests__toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.students-requests__toolbar-count {
+  font-size: 13px;
+  font-weight: 600;
+  transition: color 0.15s;
+}
+
+.students-requests__toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* ── 요청 카드 ── */
+
+.students-requests__card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+}
+
+.students-requests__card:hover {
+  background: color-mix(in srgb, var(--color-primary) 4%, var(--color-bg-surface));
+  border-color: color-mix(in srgb, var(--color-primary) 20%, var(--color-border-divider));
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--color-primary) 6%, transparent);
+}
+
+.students-requests__card--selected {
+  background: color-mix(in srgb, var(--color-primary) 6%, var(--color-bg-surface));
+  border-color: color-mix(in srgb, var(--color-primary) 25%, var(--color-border-divider));
+  box-shadow: inset 3px 0 0 var(--color-primary);
+}
+
+.students-requests__card-check {
+  flex-shrink: 0;
+}
+
+.students-requests__card-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-primary);
+  flex-shrink: 0;
+}
+
+.students-requests__card-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.students-requests__card-name-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.students-requests__card-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  letter-spacing: -0.1px;
+}
+
+.students-requests__card-school {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  padding: 1px 7px;
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-surface-soft);
+  border: 1px solid var(--color-border-divider);
+}
+
+.students-requests__card-meta {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  line-height: 1.45;
+  flex-wrap: wrap;
+}
+
+.students-requests__card-meta-sep {
+  color: var(--color-border-divider);
+  user-select: none;
+}
+
+/* ── 카드 액션 (아이콘 버튼) ── */
+
+.students-requests__card-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.students-requests__icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+  flex-shrink: 0;
+}
+
+.students-requests__icon-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.students-requests__icon-btn--approve:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-success, #22c55e) 10%, var(--color-bg-surface));
+  border-color: var(--color-success, #22c55e);
+  color: var(--color-success, #16a34a);
+}
+
+.students-requests__icon-btn--reject:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-error) 8%, var(--color-bg-surface));
+  border-color: var(--color-error);
+  color: var(--color-error);
+}
+
+.students-requests__card-chevron {
+  color: var(--color-text-muted);
+  opacity: 0.5;
+  transition: opacity 0.15s;
+  display: flex;
+  align-items: center;
+}
+
+.students-requests__card:hover .students-requests__card-chevron {
+  opacity: 1;
+  color: var(--color-primary);
+}
+
+/* ── 상세 모달 정의 리스트 ── */
+
+.students-request-detail__list {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.students-request-detail__row {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  gap: var(--space-3);
+  align-items: baseline;
+  margin: 0;
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border-divider) 50%, transparent);
+}
+
+.students-request-detail__row:last-child {
+  border-bottom: none;
+}
+
+.students-request-detail__label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.students-request-detail__value {
+  font-size: 14px;
+  color: var(--color-text-primary);
+  margin: 0;
+  word-break: break-word;
+}
+
+/* ── 접근성 ── */
 
 .sr-only {
   position: absolute;
@@ -62,152 +270,4 @@
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border: 0;
-}
-
-/* 선택 툴바 — 학생 홈 탭과 동일 패턴 (DS 토큰) */
-.students-requests-toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-2) 0 var(--space-4);
-}
-
-.students-requests-toolbar__count {
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.students-requests-toolbar__sep {
-  color: var(--color-border-divider);
-  font-size: 13px;
-  user-select: none;
-}
-
-/* 전체 선택 */
-.students-requests-select-all {
-  padding: var(--space-2) 0 var(--space-3);
-}
-
-.students-requests-select-all .ant-checkbox-wrapper {
-  font-size: 13px;
-  color: var(--color-text-secondary);
-}
-
-.students-requests-select-all__label {
-  font-weight: 500;
-}
-
-/* 리스트 컬럼 헤더 (섹션형 — 카드 아님) */
-.students-requests-list-header {
-  display: grid;
-  grid-template-columns: 44px minmax(80px, 1fr) minmax(100px, 1.2fr) minmax(100px, 1.2fr) auto;
-  gap: var(--space-4);
-  align-items: center;
-  padding: var(--space-2) var(--space-5);
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--color-text-muted);
-  border-bottom: 1px solid var(--color-border-divider);
-  margin-bottom: var(--space-2);
-}
-
-.students-requests-list-header__name,
-.students-requests-list-header__phone {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* 섹션형 목록 — 항목별 구분된 블록 */
-.students-requests-section-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-}
-
-.students-requests-section-item {
-  margin: 0;
-  padding: 0;
-}
-
-.students-requests-section-item__inner {
-  display: grid;
-  grid-template-columns: 44px minmax(80px, 1fr) minmax(100px, 1.2fr) minmax(100px, 1.2fr) auto;
-  gap: var(--space-4);
-  align-items: center;
-  padding: var(--space-4) var(--space-5);
-  background: var(--color-bg-surface);
-  border: 1px solid var(--color-border-divider);
-  border-radius: var(--radius-xl);
-  box-shadow: var(--elevation-0);
-  cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
-}
-
-.students-requests-section-item__inner:hover {
-  background: var(--color-bg-surface-hover, var(--color-surface-hover));
-  border-color: color-mix(in srgb, var(--color-brand-primary) 20%, var(--color-border-divider));
-  box-shadow: var(--elevation-1);
-}
-
-.students-requests-section-item__check {
-  flex-shrink: 0;
-}
-
-.students-requests-section-item__name {
-  font-weight: 600;
-  font-size: 15px;
-  color: var(--color-text-primary);
-  letter-spacing: -0.02em;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.students-requests-section-item__phone {
-  font-size: 13px;
-  color: var(--color-text-secondary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.students-requests-section-item__actions {
-  flex-shrink: 0;
-  display: flex;
-  gap: var(--space-2);
-}
-
-/* 상세 모달 내 정의 리스트 (modal-body 안) */
-.students-request-detail__list {
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-}
-
-.students-request-detail__row {
-  display: grid;
-  grid-template-columns: 120px 1fr;
-  gap: var(--space-3);
-  align-items: baseline;
-  margin: 0;
-}
-
-.students-request-detail__label {
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--color-text-muted);
-  margin: 0;
-}
-
-.students-request-detail__value {
-  font-size: 14px;
-  color: var(--color-text-primary);
-  margin: 0;
-  word-break: break-word;
 }

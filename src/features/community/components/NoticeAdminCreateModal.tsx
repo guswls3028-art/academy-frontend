@@ -10,11 +10,11 @@ import {
 import { Button } from "@/shared/ui/ds";
 import { useModalKeyboard } from "@/shared/ui/modal";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import "@/features/community/community.css";
 
 export type NoticeScope = "all" | "lecture" | "session";
 
 export interface NoticeAdminCreateModalProps {
-  /** 공지 유형 ID (필수). 블록 타입 중 code=notice 인 것 — 단일 소스로 QnA/공지 혼선 제거 */
   noticeTypeId: number;
   scope: NoticeScope;
   scopeNodes: ScopeNodeMinimal[];
@@ -25,11 +25,6 @@ export interface NoticeAdminCreateModalProps {
   onSuccess: () => void;
 }
 
-/**
- * 공지 관리 페이지 전용 생성 모달.
- * - 유형(블록 타입) 선택 없음 → 항상 noticeTypeId 사용
- * - scope가 "all"일 때만 "노출 위치(강의)" 선택
- */
 export function NoticeAdminCreateModal({
   noticeTypeId,
   scope,
@@ -96,41 +91,24 @@ export function NoticeAdminCreateModal({
       role="dialog"
       aria-modal="true"
       aria-labelledby="notice-admin-create-title"
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(0,0,0,0.4)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 1000,
-      }}
+      className="community-modal-overlay"
       onClick={onClose}
     >
       <div
-        style={{
-          background: "var(--color-bg-surface)",
-          borderRadius: "var(--radius-xl)",
-          padding: "var(--space-6)",
-          maxWidth: 480,
-          width: "90%",
-          boxShadow: "var(--elevation-3)",
-        }}
+        className="community-modal-dialog community-modal-dialog--narrow"
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 id="notice-admin-create-title" style={{ marginBottom: 16, fontSize: 18, fontWeight: 700 }}>
+        <h3 id="notice-admin-create-title" className="community-modal-title">
           공지 작성
         </h3>
 
         {(scope === "lecture" || scope === "session") && exposureNodeIds.length === 0 && (
           <p
             role="alert"
+            className="community-field__hint"
             style={{
-              marginBottom: 12,
-              padding: 10,
-              fontSize: 13,
-              color: "var(--color-text-secondary)",
-              background: "var(--color-bg-muted)",
+              padding: "var(--space-3)",
+              background: "var(--color-bg-surface-soft, var(--bg-surface-soft))",
               borderRadius: "var(--radius-md)",
             }}
           >
@@ -139,11 +117,8 @@ export function NoticeAdminCreateModal({
         )}
 
         {scope === "all" && (
-          <div style={{ marginBottom: 12 }}>
-            <label
-              htmlFor="notice-exposure-node"
-              style={{ fontSize: 12, color: "var(--color-text-muted)", display: "block", marginBottom: 4 }}
-            >
+          <div className="community-field">
+            <label htmlFor="notice-exposure-node" className="community-field__label">
               노출 위치(강의)
             </label>
             <select
@@ -166,13 +141,8 @@ export function NoticeAdminCreateModal({
           </div>
         )}
 
-        <div style={{ marginBottom: 12 }}>
-          <label
-            htmlFor="notice-title"
-            style={{ fontSize: 12, color: "var(--color-text-muted)", display: "block", marginBottom: 4 }}
-          >
-            제목
-          </label>
+        <div className="community-field">
+          <label htmlFor="notice-title" className="community-field__label">제목</label>
           <input
             id="notice-title"
             className="ds-input"
@@ -184,7 +154,7 @@ export function NoticeAdminCreateModal({
           />
         </div>
 
-        <p style={{ fontSize: 12, color: "var(--color-text-muted)", marginBottom: 16 }}>
+        <p className="community-field__hint">
           등록 후 오른쪽 상세 영역에서 내용을 작성할 수 있습니다.
         </p>
 
