@@ -69,10 +69,6 @@ export default function LoginPage() {
   }
 
   const title = program?.ui_config?.login_title ?? branding?.loginTitle ?? "로그인";
-  const subtitle =
-    program?.ui_config?.login_subtitle ??
-    branding?.loginSubtitle ??
-    (typeof window !== "undefined" ? window.location.hostname : "");
   const logoUrl = program?.ui_config?.logo_url ?? branding?.logoUrl;
 
   // data-tenant: 테넌트 코드 그대로 사용 (themes/*.css selector 매칭)
@@ -114,7 +110,6 @@ export default function LoginPage() {
         )}
         <div className={styles.typography}>
           <h1 className={styles.title}>{title}</h1>
-          {subtitle && <p className={styles.subtitle}>{subtitle}</p>}
         </div>
         {!formExpanded ? (
           <button

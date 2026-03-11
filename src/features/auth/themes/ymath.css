@@ -50,10 +50,6 @@
   display: none;
 }
 
-[data-app="auth"][data-tenant="ymath"] p[class*="subtitle"] {
-  display: none;
-}
-
 [data-app="auth"][data-tenant="ymath"] div[class*="typography"] {
   margin-bottom: 1rem;
 }

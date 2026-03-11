@@ -55,10 +55,6 @@
   display: none;
 }
 
-[data-app="auth"][data-tenant="tchul"] p[class*="subtitle"] {
-  display: none;
-}
-
 [data-app="auth"][data-tenant="tchul"] div[class*="typography"] {
   margin-bottom: 1rem;
 }
