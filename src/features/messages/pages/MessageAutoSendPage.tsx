@@ -15,6 +15,7 @@ import {
   type MessageTemplateItem,
   type MessageTemplatePayload,
 } from "../api/messages.api";
+import { useMessagingInfo } from "../hooks/useMessagingInfo";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import AutoSendSectionTree, {
@@ -347,6 +348,9 @@ export default function MessageAutoSendPage() {
   const qc = useQueryClient();
   const [selectedSection, setSelectedSection] = useState<AutoSendSectionId>("signup");
   const [editingTemplate, setEditingTemplate] = useState<MessageTemplateItem | null>(null);
+  const { data: messagingInfo } = useMessagingInfo();
+  const smsConnected = !!(messagingInfo?.sms_allowed);
+
   const { data: configs = EMPTY_CONFIGS, isLoading } = useQuery({
     queryKey: QUERY_KEY,
     queryFn: fetchAutoSendConfigs,
@@ -486,6 +490,7 @@ export default function MessageAutoSendPage() {
       initial={editingTemplate}
       onSubmit={(payload) => editTemplateMut.mutate(payload)}
       isPending={editTemplateMut.isPending}
+      smsConnected={smsConnected}
     />
   </>
   );

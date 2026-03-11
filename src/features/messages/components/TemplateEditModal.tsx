@@ -2,7 +2,9 @@
 // 템플릿 생성/수정 모달 — 좌: 미리보기+카테고리 / 우: 본문+삽입 블록
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { Input } from "antd";
+import { FiAlertCircle } from "react-icons/fi";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter } from "@/shared/ui/modal";
 import { Button, Tabs } from "@/shared/ui/ds";
 import {
@@ -51,7 +53,9 @@ export default function TemplateEditModal({
   onSubmit,
   isPending = false,
   zIndex,
+  smsConnected = true,
 }: TemplateEditModalProps) {
+  const navigate = useNavigate();
   const [name, setName] = useState("");
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
@@ -182,7 +186,7 @@ export default function TemplateEditModal({
           </div>
 
           {/* 우측: 편집 영역 */}
-          <div className="template-editor__right flex-1 min-w-0 flex flex-col gap-2 p-4">
+          <div className="template-editor__right flex-1 min-w-0 flex flex-col gap-2 p-4" style={{ position: "relative" }}>
             {/* 메시지/알림톡 탭 */}
             <div className="modal-tabs-elevated template-editor__tabs template-editor__tabs--top">
               <Tabs
@@ -191,6 +195,44 @@ export default function TemplateEditModal({
                 items={editorTabItems}
               />
             </div>
+
+            {/* SMS 연동 안내 오버레이 */}
+            {activeTab === "message" && !smsConnected && (
+              <div
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  top: 48,
+                  zIndex: 10,
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 16,
+                  background: "color-mix(in srgb, var(--color-bg-surface) 92%, transparent)",
+                  backdropFilter: "blur(2px)",
+                  borderRadius: "var(--radius-md)",
+                }}
+              >
+                <FiAlertCircle size={32} style={{ color: "var(--color-status-warning, #d97706)" }} />
+                <p style={{ fontSize: 15, fontWeight: 600, color: "var(--color-text-primary)", textAlign: "center" }}>
+                  문자(SMS) 발송을 위해 연동이 필요합니다
+                </p>
+                <p style={{ fontSize: 13, color: "var(--color-text-muted)", textAlign: "center", maxWidth: 320 }}>
+                  발신번호 등록 및 메시지 연동 설정을 완료해야 SMS 템플릿을 사용할 수 있습니다.
+                </p>
+                <Button
+                  intent="primary"
+                  size="sm"
+                  onClick={() => {
+                    onClose();
+                    navigate("/admin/message/settings");
+                  }}
+                >
+                  메시지 설정으로 이동
+                </Button>
+              </div>
+            )}
 
             <div>
               <label className="template-editor__editor-title block mb-1">템플릿 이름</label>
