@@ -24,6 +24,7 @@ import { useSendMessageModal } from "@/features/messages/context/SendMessageModa
 import "./attendance-ui.css";
 
 const STATUS_LIST = ORDERED_ATTENDANCE_STATUS;
+const PAGE_SIZE = 50;
 
 type SessionAttendancePageProps = {
   sessionId: number;
@@ -54,6 +55,7 @@ export default function SessionAttendancePage({
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [sort, setSort] = useState("-name");
+  const [page, setPage] = useState(1);
   const [statusPopoverOpen, setStatusPopoverOpen] = useState(false);
   const statusTriggerRef = useRef<HTMLButtonElement>(null);
   const statusPopoverRef = useRef<HTMLDivElement>(null);
@@ -82,6 +84,10 @@ export default function SessionAttendancePage({
   }, [searchInput]);
 
   useEffect(() => {
+    setPage(1);
+  }, [search, statusFilter]);
+
+  useEffect(() => {
     if (!statusPopoverOpen) return;
     const close = (e: MouseEvent) => {
       const target = e.target as Node;
@@ -106,11 +112,22 @@ export default function SessionAttendancePage({
     return () => document.removeEventListener("mousedown", close);
   }, [openStatusRowAttId]);
 
-  const { data: attendance, isLoading } = useQuery({
-    queryKey: ["attendance", sessionId],
-    queryFn: () => fetchAttendance(sessionId),
+  const { data: attendanceResult, isLoading } = useQuery({
+    queryKey: ["attendance", sessionId, page, search, statusFilter],
+    queryFn: () =>
+      fetchAttendance(sessionId, {
+        page,
+        page_size: PAGE_SIZE,
+        search: search.trim() || undefined,
+        status: statusFilter || undefined,
+      }),
     enabled: Number.isFinite(sessionId),
   });
+
+  const pageData = attendanceResult?.data ?? [];
+  const totalCount = attendanceResult?.count ?? 0;
+  const pageSize = attendanceResult?.pageSize ?? PAGE_SIZE;
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
 
   const { data: lecture } = useQuery({
     queryKey: ["lecture", lectureId],
@@ -130,12 +147,7 @@ export default function SessionAttendancePage({
     onSuccess: () => qc.invalidateQueries({ queryKey: ["attendance", sessionId] }),
   });
 
-  const filtered = useMemo(() => {
-    if (!attendance) return [];
-    let list = attendance.filter((att: any) => matchSearch(att, search));
-    if (statusFilter) list = list.filter((att: any) => att.status === statusFilter);
-    return list;
-  }, [attendance, search, statusFilter]);
+  const filtered = useMemo(() => pageData, [pageData]);
 
   const sorted = useMemo(() => {
     const list = [...filtered];
@@ -186,7 +198,7 @@ export default function SessionAttendancePage({
   );
 
   if (isLoading) return <EmptyState scope="panel" tone="loading" title="불러오는 중…" />;
-  if (!attendance) return <EmptyState scope="panel" tone="error" title="출결 데이터를 불러올 수 없습니다." />;
+  if (attendanceResult == null) return <EmptyState scope="panel" tone="error" title="출결 데이터를 불러올 수 없습니다." />;
 
   const allIds = sorted.map((att: any) => att.id);
   const allSelected = sorted.length > 0 && allIds.every((id: number) => selectedSet.has(id));
@@ -244,7 +256,8 @@ export default function SessionAttendancePage({
   };
 
   const selectionBar = (
-    <div className="flex flex-wrap items-center gap-2 pl-1">
+    <div className="flex flex-col gap-2">
+      <div className="flex flex-wrap items-center gap-2 pl-1">
       <span
         className="text-[13px] font-semibold"
         style={{
@@ -272,6 +285,32 @@ export default function SessionAttendancePage({
       >
         {deleting ? "삭제 중…" : "삭제"}
       </Button>
+      </div>
+      {totalPages > 1 && (
+        <div className="flex flex-wrap items-center gap-1 pl-1">
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+            <button
+              key={p}
+              type="button"
+              onClick={() => setPage(p)}
+              style={{
+                minWidth: 32,
+                height: 32,
+                padding: "0 8px",
+                fontSize: 13,
+                fontWeight: page === p ? 700 : 500,
+                borderRadius: 6,
+                border: page === p ? "2px solid var(--color-primary)" : "1px solid var(--color-border-divider)",
+                background: page === p ? "var(--state-selected-bg)" : "var(--color-bg-surface)",
+                color: page === p ? "var(--color-primary)" : "var(--color-text-secondary)",
+                cursor: "pointer",
+              }}
+            >
+              {p}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 
@@ -435,7 +474,7 @@ export default function SessionAttendancePage({
         );
       })()}
       <DomainListToolbar
-        totalLabel={`총 ${sorted.length}명`}
+        totalLabel={isLoading ? "…" : `총 ${totalCount}명`}
         searchSlot={
           <input
             className="ds-input"
@@ -455,17 +494,17 @@ export default function SessionAttendancePage({
             scope="panel"
             tone="empty"
             title={
-              attendance.length === 0 && !search && !statusFilter
+              totalCount === 0 && !search && !statusFilter
                 ? "이 차시에 수강생이 없습니다."
                 : "검색 결과가 없습니다."
             }
             description={
-              attendance.length === 0 && !search && !statusFilter
+              totalCount === 0 && !search && !statusFilter
                 ? "위 '수강생 등록' 버튼으로 추가해 주세요."
                 : "검색어나 필터를 변경해 보세요."
             }
             actions={
-              attendance.length === 0 && !search && !statusFilter && onOpenEnrollModal ? (
+              totalCount === 0 && !search && !statusFilter && onOpenEnrollModal ? (
                 <Button type="button" intent="primary" onClick={onOpenEnrollModal}>
                   수강생 등록
                 </Button>

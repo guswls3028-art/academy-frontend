@@ -938,26 +938,36 @@ export default function SessionEnrollModal({
               }}
             >
               <section className="shrink-0 space-y-5">
-                <div className="py-0.5 space-y-1">
-                  <p className="text-[11px] font-medium text-[var(--color-text-secondary)]">
-                    직전 차시에 등록된 수강생을 한 번에 불러올 수 있습니다.
-                  </p>
-                  <Button
-                    type="button"
-                    intent="primary"
-                    size="sm"
-                    className="w-full font-semibold"
-                    disabled={!prevSession || copyFromPrevLoading}
-                    onClick={() => prevSession && handleCopyFromPrevToSelection()}
-                    title={prevSession ? `직전 차시(${prevSession.order ?? "?"}차시) 수강생을 선택 목록에만 넣습니다.` : undefined}
-                    aria-label={prevSession ? `직전 차시 ${prevSession.order ?? "?"}차시 수강생 선택 목록에 추가` : "직전 차시에서 (1차시는 해당 없음)"}
-                  >
-                    {copyFromPrevLoading
-                      ? "직전 차시에서 가져오는 중…"
-                      : prevSession
-                        ? `직전 차시(${prevSession.order ?? "?"}차시)에서 불러오기`
-                        : "직전 차시에서 불러오기"}
-                  </Button>
+                <div className="py-0.5">
+                  <div className="flex items-center gap-1.5">
+                    <Button
+                      type="button"
+                      intent="primary"
+                      size="sm"
+                      className="w-full font-semibold flex-1 min-w-0"
+                      disabled={!prevSession || copyFromPrevLoading}
+                      onClick={() => prevSession && handleCopyFromPrevToSelection()}
+                      title={prevSession ? `직전 차시(${prevSession.order ?? "?"}차시) 수강생을 선택 목록에만 넣습니다.` : undefined}
+                      aria-label={prevSession ? `직전 차시 ${prevSession.order ?? "?"}차시 수강생 선택 목록에 추가` : "직전 차시에서 (1차시는 해당 없음)"}
+                    >
+                      {copyFromPrevLoading
+                        ? "직전 차시에서 가져오는 중…"
+                        : prevSession
+                          ? `직전 차시(${prevSession.order ?? "?"}차시)에서 불러오기`
+                          : "직전 차시에서 불러오기"}
+                    </Button>
+                    <span
+                      className="shrink-0 flex items-center justify-center w-6 h-6 rounded-full text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] cursor-help"
+                      title="직전 차시에 등록된 수강생을 한 번에 불러올 수 있습니다."
+                      aria-label="도움말: 직전 차시에 등록된 수강생을 한 번에 불러올 수 있습니다."
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                        <circle cx="12" cy="12" r="10" />
+                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                        <path d="M12 17h.01" />
+                      </svg>
+                    </span>
+                  </div>
                 </div>
                 {excelPendingFile ? (
                   <div className="excel-upload-zone excel-upload-zone--filled flex flex-col items-stretch justify-center gap-3 py-4 px-3">
