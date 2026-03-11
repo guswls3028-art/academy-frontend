@@ -365,11 +365,32 @@ export default function MessageAutoSendPage() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["messaging", "templates"] });
+      qc.invalidateQueries({ queryKey: QUERY_KEY });
       setEditingTemplate(null);
       feedback.success("템플릿이 수정되었습니다. 알림톡은 재검수가 필요할 수 있습니다.");
     },
     onError: () => {
       feedback.error("템플릿 수정에 실패했습니다.");
+    },
+  });
+
+  const createTemplateMut = useMutation({
+    mutationFn: (payload: MessageTemplatePayload) => createMessageTemplate(payload),
+    onSuccess: (created) => {
+      qc.invalidateQueries({ queryKey: ["messaging", "templates"] });
+      // 생성된 템플릿을 해당 trigger config에 연결
+      if (creatingForTrigger && created?.id) {
+        const next = localConfigs.map((c) =>
+          c.trigger === creatingForTrigger ? { ...c, template: created.id } : c,
+        );
+        setLocalConfigs(next);
+        updateMut.mutate(next);
+      }
+      setCreatingForTrigger(null);
+      feedback.success("템플릿이 생성되었습니다.");
+    },
+    onError: () => {
+      feedback.error("템플릿 생성에 실패했습니다.");
     },
   });
 
@@ -448,7 +469,12 @@ export default function MessageAutoSendPage() {
                     templates={templates}
                     onUpdate={handleUpdate}
                     saving={updateMut.isPending}
-                    onEditTemplate={(templateId) => {
+                    onEditTemplate={(trigger, templateId) => {
+                      if (!templateId) {
+                        // 템플릿 없음 → 생성 모달
+                        setCreatingForTrigger(trigger);
+                        return;
+                      }
                       const cached = templates.find((t) => t.id === templateId);
                       if (cached) {
                         setEditingTemplate(cached);
@@ -468,6 +494,7 @@ export default function MessageAutoSendPage() {
       </div>
     </div>
 
+    {/* 수정 모달 */}
     <TemplateEditModal
       open={editingTemplate !== null}
       onClose={() => setEditingTemplate(null)}
@@ -475,6 +502,21 @@ export default function MessageAutoSendPage() {
       initial={editingTemplate}
       onSubmit={(payload) => editTemplateMut.mutate(payload)}
       isPending={editTemplateMut.isPending}
+      smsConnected={smsConnected}
+    />
+
+    {/* 생성 모달 (템플릿 미연결 trigger) */}
+    <TemplateEditModal
+      open={creatingForTrigger !== null}
+      onClose={() => setCreatingForTrigger(null)}
+      category={
+        AUTO_SEND_SECTIONS.find((s) =>
+          s.triggers.includes(creatingForTrigger ?? ""),
+        )?.id ?? "default"
+      }
+      initial={null}
+      onSubmit={(payload) => createTemplateMut.mutate(payload)}
+      isPending={createTemplateMut.isPending}
       smsConnected={smsConnected}
     />
   </>
