@@ -107,6 +107,12 @@ export default function HomeworkEnrollmentManageModal({
     );
   }, [rows, keyword]);
 
+  /** 선택된 행 목록 (우측 패널용, 학생명 표시) */
+  const selectedRows = useMemo(
+    () => rows.filter((r) => selectedIds.has(r.enrollment_id)),
+    [rows, selectedIds]
+  );
+
   if (!open) return null;
 
   const canInteract = !loading && !saving;
@@ -141,12 +147,6 @@ export default function HomeworkEnrollmentManageModal({
   const removeSelected = (enrollmentId: number) => {
     onSetSelectedIds(new Set([...selectedIds].filter((id) => id !== enrollmentId)));
   };
-
-  /** 선택된 행 목록 (우측 패널용, 학생명 표시) */
-  const selectedRows = useMemo(
-    () => rows.filter((r) => selectedIds.has(r.enrollment_id)),
-    [rows, selectedIds]
-  );
 
   return (
     <AdminModal open={true} onClose={safeClose} type="action" width={840}>

@@ -317,6 +317,7 @@ function ExamItemRow({
   active,
   label,
   status,
+  maxScore,
   onSelect,
   onStart,
   onEnd,
@@ -325,6 +326,7 @@ function ExamItemRow({
   active: boolean;
   label: string;
   status: SessionExamRow["status"];
+  maxScore: number;
   onSelect: () => void;
   onStart: (e: React.MouseEvent) => void;
   onEnd: (e: React.MouseEvent) => void;
@@ -379,6 +381,7 @@ function ExamItemRow({
           )}
           <div className="min-w-0 flex-1">
             <div className="text-sm font-semibold text-[var(--color-text-primary)] truncate">{label}</div>
+            <div className="mt-0.5 text-xs text-[var(--color-text-muted)]">최대점수 : {maxScore}점</div>
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-1" onClick={(e) => e.stopPropagation()}>
@@ -416,6 +419,8 @@ function HomeworkItemRow({
   active,
   label,
   status,
+  cutlineMode,
+  cutlineValue,
   onSelect,
   onStart,
   onEnd,
@@ -423,6 +428,8 @@ function HomeworkItemRow({
   active: boolean;
   label: string;
   status: "DRAFT" | "OPEN" | "CLOSED";
+  cutlineMode: "PERCENT" | "COUNT";
+  cutlineValue: number;
   onSelect: () => void;
   onStart: (e: React.MouseEvent) => void;
   onEnd: (e: React.MouseEvent) => void;
@@ -436,6 +443,10 @@ function HomeworkItemRow({
       ? "color-mix(in srgb, var(--color-success) 12%, var(--color-bg-surface))"
       : "color-mix(in srgb, var(--color-danger) 10%, var(--color-bg-surface))";
   const statusLabel = isProgressing ? "진행중" : "마감됨";
+  const maxScoreLabel =
+    cutlineMode === "PERCENT"
+      ? `최대점수 : ${cutlineValue}%`
+      : `최대점수 : ${cutlineValue}점`;
 
   return (
     <div
@@ -469,6 +480,7 @@ function HomeworkItemRow({
           </span>
           <div className="min-w-0 flex-1">
             <div className="text-sm font-semibold text-[var(--color-text-primary)] truncate">{label}</div>
+            <div className="mt-0.5 text-xs text-[var(--color-text-muted)]">{maxScoreLabel}</div>
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-1" onClick={(e) => e.stopPropagation()}>
