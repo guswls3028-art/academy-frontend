@@ -3,6 +3,7 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMessagingInfo } from "../hooks/useMessagingInfo";
 import {
   FiMessageSquare,
   FiCopy,
@@ -182,6 +183,8 @@ export type ModalOpenState =
 
 export default function TemplateExplorer() {
   const qc = useQueryClient();
+  const { data: messagingInfo } = useMessagingInfo();
+  const smsConnected = !!(messagingInfo?.sms_allowed);
   const [activeCategory, setActiveCategory] =
     useState<MessageTemplateCategory>("default");
   const [modalOpen, setModalOpen] = useState<ModalOpenState>(null);
@@ -566,6 +569,7 @@ export default function TemplateExplorer() {
           }
         }}
         isPending={createMut.isPending || updateMut.isPending}
+        smsConnected={smsConnected}
       />
     </div>
   );

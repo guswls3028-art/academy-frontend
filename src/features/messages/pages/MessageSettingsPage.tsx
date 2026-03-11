@@ -746,7 +746,7 @@ export default function MessageSettingsPage() {
               }}
             >
               {smsAllowed ? <FiCheckCircle size={11} aria-hidden /> : null}
-              {smsAllowed ? "사용 가능" : "이 학원은 사용 불가"}
+              {smsAllowed ? "사용 가능" : "SMS 미연동"}
             </span>
           </div>
         </div>
