@@ -39,6 +39,10 @@ export interface NotificationLogItem {
   template_summary?: string;
   /** 실패 시 사유 */
   failure_reason?: string | null;
+  /** 실제 발송된 메시지 본문 */
+  message_body?: string;
+  /** 발송 방식: sms | alimtalk | both */
+  message_mode?: string;
 }
 
 export interface NotificationLogParams {
@@ -106,6 +110,14 @@ export async function fetchNotificationLog(
   params?: NotificationLogParams
 ): Promise<NotificationLogResponse> {
   const res = await api.get<NotificationLogResponse>(`${PREFIX}/log/`, { params });
+  return res.data;
+}
+
+/** 발송 로그 단건 상세 */
+export async function fetchNotificationLogDetail(
+  id: number
+): Promise<NotificationLogItem> {
+  const res = await api.get<NotificationLogItem>(`${PREFIX}/log/${id}/`);
   return res.data;
 }
 

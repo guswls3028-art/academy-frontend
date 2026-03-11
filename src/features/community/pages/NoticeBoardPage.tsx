@@ -21,6 +21,7 @@ import {
 } from "../api/community.api";
 import { fetchLectures } from "@/features/lectures/api/sessions";
 import { EmptyState, Button } from "@/shared/ui/ds";
+import "@/features/community/community.css";
 
 /** 게시 관리 내 "공지사항" 탭에서 임베드용. ScopeSelector는 상위(게시 관리)에서 노출. */
 export function NoticeBoardContent() {
@@ -94,13 +95,7 @@ export function NoticeBoardContent() {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
-        <span
-          style={{
-            fontSize: "var(--text-sm)",
-            fontWeight: "var(--font-title)",
-            color: "var(--color-text-muted)",
-          }}
-        >
+        <span className="community-field__label">
           {scope === "all" ? "전체 공지" : scope === "session" ? "해당 차시 공지" : "해당 강의 공지"} · {posts.length}개
         </span>
         {canCreate && (
@@ -143,45 +138,16 @@ export function NoticeBoardContent() {
       ) : (
         <ul className="flex flex-col gap-2" style={{ listStyle: "none", padding: 0, margin: 0 }}>
           {posts.map((p) => (
-            <li
-              key={p.id}
-              style={{
-                padding: "var(--space-4)",
-                borderRadius: "var(--radius-lg)",
-                border: "1px solid var(--color-border-divider)",
-                background: "var(--color-bg-surface)",
-              }}
-            >
+            <li key={p.id} className="community-card">
               <div className="flex items-start justify-between gap-2">
                 <div>
-                  <div
-                    style={{
-                      fontSize: "var(--text-md)",
-                      fontWeight: 700,
-                      color: "var(--color-text-primary)",
-                    }}
-                  >
-                    {p.title}
-                  </div>
+                  <div className="community-card__title">{p.title}</div>
                   {scope === "all" && p.lecture != null && p.lecture && (
-                    <span
-                      style={{
-                        fontSize: "var(--text-xs)",
-                        color: "var(--color-text-muted)",
-                        marginTop: 4,
-                        display: "inline-block",
-                      }}
-                    >
+                    <span className="community-card__subtitle">
                       {lectureTitleMap.get(p.lecture) ?? `강의 #${p.lecture}`}
                     </span>
                   )}
-                  <div
-                    style={{
-                      fontSize: "var(--text-xs)",
-                      color: "var(--color-text-muted)",
-                      marginTop: 6,
-                    }}
-                  >
+                  <div className="community-card__meta">
                     {new Date(p.created_at).toLocaleDateString("ko-KR")}
                   </div>
                 </div>
@@ -233,9 +199,7 @@ export function NoticeCreateModal({
   templates: PostTemplate[];
   onClose: () => void;
   onSuccess: () => void;
-  /** 공지사항 탭에서 열 때 "notice" 전달 → 유형을 공지로 고정 */
   defaultBlockTypeCode?: string;
-  /** 공지 관리 페이지에서 사용. 있으면 이 ID로 유형 고정(우선) */
   defaultBlockTypeId?: number | null;
 }) {
   const resolvedDefaultId =
@@ -252,7 +216,6 @@ export function NoticeCreateModal({
   const [templateName, setTemplateName] = useState("");
   const qc = useQueryClient();
 
-  // 공지 탭/공지 관리에서 열었을 때 유형을 해당 섹션으로 확실히 맞춤 (ID 우선, code 보조)
   useEffect(() => {
     if (defaultBlockTypeIdProp != null && defaultBlockTypeIdProp !== 0) {
       setBlockTypeId(defaultBlockTypeIdProp);
@@ -329,34 +292,18 @@ export function NoticeCreateModal({
     <div
       role="dialog"
       aria-modal="true"
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(0,0,0,0.4)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 1000,
-      }}
+      className="community-modal-overlay"
       onClick={onClose}
     >
       <div
-        style={{
-          background: "var(--color-bg-surface)",
-          borderRadius: "var(--radius-xl)",
-          padding: "var(--space-6)",
-          maxWidth: 480,
-          width: "90%",
-          boxShadow: "var(--elevation-3)",
-        }}
+        className="community-modal-dialog"
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 style={{ marginBottom: 16, fontSize: 18, fontWeight: 700 }}>공지 작성</h3>
+        <h3 className="community-modal-title">공지 작성</h3>
+
         {templates.length > 0 && (
-          <div style={{ marginBottom: 12 }}>
-            <label style={{ fontSize: 12, color: "var(--color-text-muted)", display: "block", marginBottom: 4 }}>
-              양식에서 불러오기
-            </label>
+          <div className="community-field">
+            <label className="community-field__label">양식에서 불러오기</label>
             <select
               className="ds-input"
               style={{ width: "100%" }}
@@ -378,16 +325,15 @@ export function NoticeCreateModal({
             </select>
           </div>
         )}
+
         {blockTypes.length === 0 ? (
-          <p style={{ fontSize: 13, color: "var(--color-text-muted)", marginBottom: 16 }}>
+          <p className="community-field__hint">
             블록 타입이 없습니다. 관리자 설정에서 확인하세요.
           </p>
         ) : (
           <>
-            <div style={{ marginBottom: 12 }}>
-              <label style={{ fontSize: 12, color: "var(--color-text-muted)", display: "block", marginBottom: 4 }}>
-                유형
-              </label>
+            <div className="community-field">
+              <label className="community-field__label">유형</label>
               <select
                 className="ds-input"
                 value={blockTypeId ?? ""}
@@ -401,11 +347,10 @@ export function NoticeCreateModal({
                 ))}
               </select>
             </div>
+
             {scope === "all" && (
-              <div style={{ marginBottom: 12 }}>
-                <label style={{ fontSize: 12, color: "var(--color-text-muted)", display: "block", marginBottom: 4 }}>
-                  노출 위치(강의)
-                </label>
+              <div className="community-field">
+                <label className="community-field__label">노출 위치(강의)</label>
                 <select
                   className="ds-input"
                   value={selectedNodeId ?? ""}
@@ -421,10 +366,9 @@ export function NoticeCreateModal({
                 </select>
               </div>
             )}
-            <div style={{ marginBottom: 12 }}>
-              <label style={{ fontSize: 12, color: "var(--color-text-muted)", display: "block", marginBottom: 4 }}>
-                제목
-              </label>
+
+            <div className="community-field">
+              <label className="community-field__label">제목</label>
               <input
                 className="ds-input"
                 value={title}
@@ -433,11 +377,10 @@ export function NoticeCreateModal({
                 style={{ width: "100%" }}
               />
             </div>
+
             {!isNoticeContext && (
-              <div style={{ marginBottom: 16 }}>
-                <label style={{ fontSize: 12, color: "var(--color-text-muted)", display: "block", marginBottom: 4 }}>
-                  내용
-                </label>
+              <div className="community-field">
+                <label className="community-field__label">내용</label>
                 <textarea
                   className="ds-input"
                   value={content}
@@ -448,13 +391,15 @@ export function NoticeCreateModal({
                 />
               </div>
             )}
+
             {isNoticeContext && (
-              <p style={{ fontSize: 12, color: "var(--color-text-muted)", marginBottom: 16 }}>
+              <p className="community-field__hint">
                 등록 후 오른쪽 상세 영역에서 내용을 작성할 수 있습니다.
               </p>
             )}
           </>
         )}
+
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex gap-2">
             {!isNoticeContext && (title.trim() || content.trim()) && (
@@ -487,34 +432,21 @@ export function NoticeCreateModal({
         <div
           role="dialog"
           aria-modal="true"
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,0.35)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 1001,
-          }}
+          className="community-modal-overlay"
+          style={{ zIndex: 1001 }}
           onClick={() => !saveAsTemplateMut.isPending && setShowSaveAsTemplate(false)}
         >
           <div
-            style={{
-              background: "var(--color-bg-surface)",
-              borderRadius: "var(--radius-lg)",
-              padding: "var(--space-5)",
-              minWidth: 320,
-              boxShadow: "var(--elevation-3)",
-            }}
+            className="community-modal-dialog community-modal-dialog--narrow"
             onClick={(e) => e.stopPropagation()}
           >
-            <h4 style={{ marginBottom: 12, fontSize: 16, fontWeight: 700 }}>양식으로 저장</h4>
+            <h4 className="community-modal-title" style={{ fontSize: "var(--text-lg, 16px)" }}>양식으로 저장</h4>
             <input
               className="ds-input"
               value={templateName}
               onChange={(e) => setTemplateName(e.target.value)}
               placeholder="양식 이름 (예: 중간고사 공지)"
-              style={{ width: "100%", marginBottom: 16 }}
+              style={{ width: "100%" }}
               disabled={saveAsTemplateMut.isPending}
             />
             <div className="flex gap-2 justify-end">
@@ -541,8 +473,6 @@ export function NoticeCreateModal({
     </div>
   );
 }
-
-// 블록 타입은 백엔드 시드/관리. 프론트에서 카테고리 추가 비활성화.
 
 /** 단독 라우트용(리다이렉트 대상 등). 기본은 게시 관리 내 공지사항 탭 사용 권장. */
 export default function NoticeBoardPage() {
