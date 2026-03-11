@@ -72,7 +72,7 @@ export default function SendMessageModal({
   const [activeTab, setActiveTab] = useState<EditorTab>("message");
   /** 수신자: 학부모·학생 둘 다 선택 가능 (최소 1개). 직원 모드일 때는 사용 안 함 */
   const [sendToParent, setSendToParent] = useState(true);
-  const [sendToStudent, setSendToStudent] = useState(false);
+  const [sendToStudent, setSendToStudent] = useState(true);
   /** 발송 방식: 단일 sendMode 드롭다운 */
   const [sendMode, setSendMode] = useState<SendMode>("both");
   const [sending, setSending] = useState(false);
@@ -128,7 +128,7 @@ export default function SendMessageModal({
       setContentMode("free");
       setActiveTab("message");
       setSendToParent(true);
-      setSendToStudent(false);
+      setSendToStudent(true);
       setSendMode(smsAllowed ? "both" : "alimtalk");
       sendingRef.current = false;
     }

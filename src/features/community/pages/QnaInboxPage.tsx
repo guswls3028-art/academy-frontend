@@ -309,6 +309,12 @@ function QuestionCard({
                 <span>{question.lecture_title}</span>
               </>
             )}
+            {question.category_label && (
+              <>
+                <span className="qna-inbox__card-meta-dot" />
+                <span style={{ color: "var(--color-primary)" }}>{question.category_label}</span>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -379,6 +385,12 @@ function ThreadView({
               <span>{post.created_by_deleted ? "삭제된 학생입니다." : (post.created_by_display ?? "—")}</span>
               <span className="qna-inbox__thread-meta-dot" />
               <span>{lectureLabel}</span>
+              {post.category_label && (
+                <>
+                  <span className="qna-inbox__thread-meta-dot" />
+                  <span style={{ color: "var(--color-primary)", fontWeight: 600 }}>{post.category_label}</span>
+                </>
+              )}
               <span className="qna-inbox__thread-meta-dot" />
               <span>
                 {new Date(post.created_at).toLocaleString("ko-KR", {

@@ -280,6 +280,12 @@ function CounselCard({
             <span>{studentName}</span>
             <span className="qna-inbox__card-meta-dot" />
             <span>{timeAgo}</span>
+            {post.category_label && (
+              <>
+                <span className="qna-inbox__card-meta-dot" />
+                <span style={{ color: "var(--color-primary)" }}>{post.category_label}</span>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -334,6 +340,12 @@ function CounselThreadView({
             <h1 className="qna-inbox__thread-title">{post.title}</h1>
             <div className="qna-inbox__thread-meta">
               <span>{studentName}</span>
+              {post.category_label && (
+                <>
+                  <span className="qna-inbox__thread-meta-dot" />
+                  <span style={{ color: "var(--color-primary)", fontWeight: 600 }}>{post.category_label}</span>
+                </>
+              )}
               <span className="qna-inbox__thread-meta-dot" />
               <span>
                 {new Date(post.created_at).toLocaleString("ko-KR", {

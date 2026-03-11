@@ -74,6 +74,7 @@ export async function submitQuestion(
   title: string,
   content: string,
   studentId: number,
+  categoryLabel?: string | null,
 ): Promise<PostEntity> {
   const { qna } = await resolveTypeIds();
   if (qna == null) throw new Error("QnA 유형이 설정되지 않았습니다. 관리자에게 문의하세요.");
@@ -83,6 +84,7 @@ export async function submitQuestion(
     content,
     created_by: studentId,
     node_ids: [],
+    category_label: categoryLabel || null,
   });
 }
 
@@ -116,6 +118,7 @@ export async function submitCounselRequest(
   title: string,
   content: string,
   studentId: number,
+  categoryLabel?: string | null,
 ): Promise<PostEntity> {
   const counselId = await getCounselTypeId();
   return _createPost({
@@ -124,6 +127,7 @@ export async function submitCounselRequest(
     content,
     created_by: studentId,
     node_ids: [],
+    category_label: categoryLabel || null,
   });
 }
 

@@ -65,6 +65,7 @@ export interface PostEntity {
   replies_count?: number;
   mappings: PostMappingItem[];
   attachments?: PostAttachment[];
+  category_label?: string | null;
 }
 
 // ----------------------------------------
@@ -362,6 +363,7 @@ export async function createPost(data: {
   content: string;
   created_by?: number | null;
   node_ids: number[];
+  category_label?: string | null;
 }): Promise<PostEntity> {
   const res = await api.post(`${PREFIX}/posts/`, data);
   return res.data as PostEntity;
@@ -490,6 +492,7 @@ export interface Question {
   created_by?: number | null;
   /** true면 질문자가 삭제된 학생 */
   created_by_deleted?: boolean;
+  category_label?: string | null;
 }
 
 function postEntityToQuestion(p: PostEntity): Omit<Question, "is_answered"> {
@@ -504,6 +507,7 @@ function postEntityToQuestion(p: PostEntity): Omit<Question, "is_answered"> {
     created_by_deleted: p.created_by_deleted,
     lecture_id: firstNode?.lecture,
     lecture_title: firstNode?.lecture_title,
+    category_label: p.category_label,
   };
 }
 

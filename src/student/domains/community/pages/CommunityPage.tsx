@@ -12,6 +12,7 @@ import { IconPlus, IconChevronRight } from "@/student/shared/ui/icons/Icons";
 import RichTextEditor from "@/shared/ui/editor/RichTextEditor";
 import DOMPurify from "dompurify";
 import { fetchMyProfile } from "@/student/domains/profile/api/profile";
+import { fetchVideoMe } from "@/student/domains/video/api/video";
 import {
   fetchMyQuestions,
   fetchQuestionDetail,
@@ -420,13 +421,16 @@ function QnaForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () => v
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [files, setFiles] = useState<File[]>([]);
+  const [categoryLabel, setCategoryLabel] = useState("");
 
   const { data: profile } = useQuery({ queryKey: ["student", "me"], queryFn: fetchMyProfile });
+  const { data: videoMe } = useQuery({ queryKey: ["student", "video", "me"], queryFn: fetchVideoMe, staleTime: 60_000 });
+  const lectureOptions = useMemo(() => (videoMe?.lectures ?? []).map((l) => l.title), [videoMe]);
 
   const mutation = useMutation({
     mutationFn: async () => {
       if (!profile?.id) throw new Error("로그인 정보를 불러오는 중입니다.");
-      const post = await submitQuestion(title.trim(), content.trim(), profile.id);
+      const post = await submitQuestion(title.trim(), content.trim(), profile.id, categoryLabel || null);
       if (files.length > 0) {
         await uploadPostAttachments(post.id, files);
       }
@@ -465,6 +469,15 @@ function QnaForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () => v
           <span style={{ fontSize: 14, fontWeight: 600, color: "var(--stu-text-muted)" }}>제목</span>
           <input type="text" placeholder="질문 제목" value={title} onChange={(e) => setTitle(e.target.value)} className="stu-input" style={{ width: "100%" }} />
         </label>
+        {lectureOptions.length > 0 && (
+          <label style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-2)" }}>
+            <span style={{ fontSize: 14, fontWeight: 600, color: "var(--stu-text-muted)" }}>카테고리 (선택)</span>
+            <select value={categoryLabel} onChange={(e) => setCategoryLabel(e.target.value)} className="stu-input" style={{ width: "100%" }}>
+              <option value="">카테고리 없음</option>
+              {lectureOptions.map((t) => <option key={t} value={t}>{t}</option>)}
+            </select>
+          </label>
+        )}
         <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-2)", flex: 1 }}>
           <span style={{ fontSize: 14, fontWeight: 600, color: "var(--stu-text-muted)" }}>내용</span>
           <RichTextEditor value={content} onChange={setContent} placeholder="질문 내용을 적어 주세요." minHeight={200} />
@@ -707,13 +720,16 @@ function CounselForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () 
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [files, setFiles] = useState<File[]>([]);
+  const [categoryLabel, setCategoryLabel] = useState("");
 
   const { data: profile } = useQuery({ queryKey: ["student", "me"], queryFn: fetchMyProfile });
+  const { data: videoMe } = useQuery({ queryKey: ["student", "video", "me"], queryFn: fetchVideoMe, staleTime: 60_000 });
+  const lectureOptions = useMemo(() => (videoMe?.lectures ?? []).map((l) => l.title), [videoMe]);
 
   const mutation = useMutation({
     mutationFn: async () => {
       if (!profile?.id) throw new Error("로그인 정보를 불러오는 중입니다.");
-      const post = await submitCounselRequest(title.trim(), content.trim(), profile.id);
+      const post = await submitCounselRequest(title.trim(), content.trim(), profile.id, categoryLabel || null);
       if (files.length > 0) {
         await uploadPostAttachments(post.id, files);
       }
@@ -752,6 +768,15 @@ function CounselForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () 
           <span style={{ fontSize: 14, fontWeight: 600, color: "var(--stu-text-muted)" }}>상담 제목</span>
           <input type="text" placeholder="예: 진로 상담, 학습 방법 상담" value={title} onChange={(e) => setTitle(e.target.value)} className="stu-input" style={{ width: "100%" }} />
         </label>
+        {lectureOptions.length > 0 && (
+          <label style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-2)" }}>
+            <span style={{ fontSize: 14, fontWeight: 600, color: "var(--stu-text-muted)" }}>카테고리 (선택)</span>
+            <select value={categoryLabel} onChange={(e) => setCategoryLabel(e.target.value)} className="stu-input" style={{ width: "100%" }}>
+              <option value="">카테고리 없음</option>
+              {lectureOptions.map((t) => <option key={t} value={t}>{t}</option>)}
+            </select>
+          </label>
+        )}
         <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-2)", flex: 1 }}>
           <span style={{ fontSize: 14, fontWeight: 600, color: "var(--stu-text-muted)" }}>상담 내용</span>
           <RichTextEditor value={content} onChange={setContent} placeholder="상담받고 싶은 내용을 자세히 적어 주세요." minHeight={200} />
