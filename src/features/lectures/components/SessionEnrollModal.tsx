@@ -8,7 +8,7 @@ import { Dropdown } from "antd";
 import { fetchSessionEnrollments, lectureEnrollFromExcelUpload } from "../api/enrollments";
 import type { SessionEnrollmentRow } from "../api/enrollments";
 import { fetchSessions } from "../api/sessions";
-import { bulkCreateAttendance, updateAttendance } from "../api/attendance";
+import { bulkCreateAttendance, updateAttendance, fetchAttendanceEnrolledStudentIds } from "../api/attendance";
 import { fetchStudents } from "@/features/students/api/students";
 import type { ClientStudent } from "@/features/students/api/students";
 import StudentCreateModal from "@/features/students/components/StudentCreateModal";
@@ -263,6 +263,13 @@ export default function SessionEnrollModal({
   }, [keyword]);
 
   // ── Queries ────────────────────────────────────────────────────────────────
+  /** 출결(attendance) 기준 이미 등록된 학생 ID 전체 — 수강생 등록 모달에서 목록/등록 제외용. 엑셀 일괄업로드 멱등은 별도. */
+  const { data: attendanceEnrolledIds = [] } = useQuery({
+    queryKey: ["attendance-enrolled-ids", sessionId],
+    queryFn: () => fetchAttendanceEnrolledStudentIds(sessionId),
+    enabled: isOpen && Number.isFinite(sessionId),
+  });
+
   const { data: sessionEnrollments = [] } = useQuery({
     queryKey: ["session-enrollments", sessionId],
     queryFn: () => fetchSessionEnrollments(sessionId),
@@ -290,14 +297,10 @@ export default function SessionEnrollModal({
     [sessionEnrollments]
   );
 
+  /** 이미 등록된 학생 ID 집합 — 출결(attendance) 목록 전체 기준. 표기/등록 모두에서 제외. */
   const alreadyEnrolledStudentIds = useMemo(
-    () =>
-      new Set(
-        sessionEnrollments
-          .map((se) => se.student_id)
-          .filter((id): id is number => id != null && Number.isFinite(id))
-      ),
-    [sessionEnrollments]
+    () => new Set(attendanceEnrolledIds.filter((id) => Number.isFinite(id))),
+    [attendanceEnrolledIds]
   );
 
   const apiFilters = useMemo(() => {

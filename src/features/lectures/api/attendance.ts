@@ -41,6 +41,27 @@ export async function fetchAttendance(
   };
 }
 
+/** 세션에 이미 출결 등록된 학생 ID 목록 전체 조회 (수강생 등록 모달에서 중복 제외용, 페이지네이션 전부 수집) */
+export async function fetchAttendanceEnrolledStudentIds(
+  sessionId: number
+): Promise<number[]> {
+  const ids: number[] = [];
+  let page = 1;
+  const pageSize = 500;
+  while (true) {
+    const res = await fetchAttendance(sessionId, { page, page_size: pageSize });
+    const items = res.data ?? [];
+    for (const row of items) {
+      const sid = row?.student_id ?? row?.enrollment?.student_id;
+      if (typeof sid === "number" && Number.isFinite(sid)) ids.push(sid);
+    }
+    const count = res.count ?? 0;
+    if (items.length < pageSize || ids.length >= count) break;
+    page += 1;
+  }
+  return ids;
+}
+
 /* =========================================================
  * 2️⃣ 출결 단건 수정 (상태 / 메모)
  * PATCH /api/v1/lectures/attendance/{id}/
