@@ -35,9 +35,9 @@ export async function fetchMe() {
   return data;
 }
 
-export async function updateProfile(payload: { name?: string; phone?: string }) {
+export async function updateProfile(payload: { name?: string; phone?: string; username?: string }) {
   const { data } = await api.patch("/core/profile/update_me/", payload);
-  return data as { id: number; name?: string | null; phone?: string | null };
+  return data as { id: number; name?: string | null; phone?: string | null; username?: string };
 }
 
 export async function changePassword(payload: {
