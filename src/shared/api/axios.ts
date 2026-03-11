@@ -238,6 +238,8 @@ api.interceptors.response.use(
 
       if (!newAccess) {
         clearTokens();
+        // 세션 만료 플래그 — AuthContext에서 감지하여 안내 메시지 표시
+        try { sessionStorage.setItem("session_expired", "1"); } catch { /* ignore */ }
         throw err;
       }
 

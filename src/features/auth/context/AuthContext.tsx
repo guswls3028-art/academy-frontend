@@ -61,6 +61,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem("access");
     localStorage.removeItem("refresh");
     setUser(null);
+
+    // 세션 만료 플래그가 있으면 안내 메시지 표시 후 로그인으로 이동
+    try {
+      if (sessionStorage.getItem("session_expired") === "1") {
+        sessionStorage.removeItem("session_expired");
+        alert("액세스 토큰이 만료되었습니다. 다시 로그인 해주세요.");
+        window.location.href = "/login";
+      }
+    } catch { /* ignore */ }
   }, []);
 
   const refreshMe = useCallback(async () => {
