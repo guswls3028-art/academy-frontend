@@ -16,7 +16,7 @@ export default function TenantsPage() {
   const [search, setSearch] = useState("");
   const [showCreate, setShowCreate] = useState(false);
 
-  // Create form
+  // 생성 폼
   const [newCode, setNewCode] = useState("");
   const [newName, setNewName] = useState("");
   const [newDomain, setNewDomain] = useState("");
@@ -91,16 +91,16 @@ export default function TenantsPage() {
     <>
       <header className={s.header}>
         <div className={s.headerLeft}>
-          <Link to="/dev/dashboard" style={{ color: "inherit", textDecoration: "none" }}>Dashboard</Link>
+          <Link to="/dev/dashboard" style={{ color: "inherit", textDecoration: "none" }}>대시보드</Link>
           <span className={s.breadcrumbSep}>/</span>
-          <span className={s.breadcrumbCurrent}>Tenants</span>
+          <span className={s.breadcrumbCurrent}>테넌트</span>
         </div>
       </header>
 
       <div className={s.content}>
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 24 }}>
           <div className={s.pageHeader} style={{ marginBottom: 0 }}>
-            <h1 className={s.pageTitle}>Tenants</h1>
+            <h1 className={s.pageTitle}>테넌트</h1>
             <p className={s.pageSub}>{tenants?.length ?? 0}개 테넌트 관리</p>
           </div>
           <button
@@ -108,29 +108,29 @@ export default function TenantsPage() {
             className={`${s.btn} ${s.btnPrimary}`}
             onClick={() => setShowCreate(!showCreate)}
           >
-            + New Tenant
+            + 새 테넌트
           </button>
         </div>
 
-        {/* Create Form Modal */}
+        {/* 생성 모달 */}
         {showCreate && (
           <div className={s.overlay} onClick={resetCreateForm}>
             <div className={s.modal} onClick={(e) => e.stopPropagation()}>
               <div className={s.modalHeader}>
-                <h2 className={s.modalTitle}>New Tenant</h2>
+                <h2 className={s.modalTitle}>새 테넌트</h2>
                 <p className={s.modalSub}>새 테넌트를 생성합니다.</p>
               </div>
               <div className={s.modalBody} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                 <div>
-                  <label className={s.inputLabel}>Code *</label>
+                  <label className={s.inputLabel}>코드 *</label>
                   <input className={s.input} value={newCode} onChange={(e) => setNewCode(e.target.value)} placeholder="tchul" />
                 </div>
                 <div>
-                  <label className={s.inputLabel}>Name *</label>
+                  <label className={s.inputLabel}>이름 *</label>
                   <input className={s.input} value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="천안학원" />
                 </div>
                 <div>
-                  <label className={s.inputLabel}>Domain</label>
+                  <label className={s.inputLabel}>도메인</label>
                   <input className={s.input} value={newDomain} onChange={(e) => setNewDomain(e.target.value)} placeholder="tchul.com" />
                 </div>
                 <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
@@ -140,35 +140,35 @@ export default function TenantsPage() {
                 {withOwner && (
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, paddingLeft: 2 }}>
                     <div>
-                      <label className={s.inputLabel}>Username *</label>
+                      <label className={s.inputLabel}>아이디 *</label>
                       <input className={s.input} value={ownerUser} onChange={(e) => setOwnerUser(e.target.value)} />
                     </div>
                     <div>
-                      <label className={s.inputLabel}>Password *</label>
+                      <label className={s.inputLabel}>비밀번호 *</label>
                       <input className={s.input} type="password" value={ownerPw} onChange={(e) => setOwnerPw(e.target.value)} />
                     </div>
                     <div>
-                      <label className={s.inputLabel}>Name</label>
+                      <label className={s.inputLabel}>이름</label>
                       <input className={s.input} value={ownerName} onChange={(e) => setOwnerName(e.target.value)} />
                     </div>
                     <div>
-                      <label className={s.inputLabel}>Phone</label>
+                      <label className={s.inputLabel}>전화번호</label>
                       <input className={s.input} value={ownerPhone} onChange={(e) => setOwnerPhone(e.target.value)} />
                     </div>
                   </div>
                 )}
               </div>
               <div className={s.modalFooter}>
-                <button type="button" className={`${s.btn} ${s.btnSecondary}`} onClick={resetCreateForm}>Cancel</button>
+                <button type="button" className={`${s.btn} ${s.btnSecondary}`} onClick={resetCreateForm}>취소</button>
                 <button type="button" className={`${s.btn} ${s.btnPrimary}`} onClick={handleCreate} disabled={createTenant.isPending}>
-                  {createTenant.isPending ? "Creating..." : "Create"}
+                  {createTenant.isPending ? "생성 중..." : "생성"}
                 </button>
               </div>
             </div>
           </div>
         )}
 
-        {/* Search + Table */}
+        {/* 검색 + 테이블 */}
         <div className={s.card}>
           <div className={s.cardHeader}>
             <div className={s.searchWrap} style={{ flex: 1, maxWidth: 320 }}>
@@ -180,7 +180,7 @@ export default function TenantsPage() {
               </span>
               <input
                 className={s.searchInput}
-                placeholder="Search tenants..."
+                placeholder="테넌트 검색..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
@@ -205,11 +205,11 @@ export default function TenantsPage() {
               <thead>
                 <tr>
                   <th style={{ width: 48 }}>ID</th>
-                  <th>Name</th>
-                  <th>Code</th>
-                  <th>Domain</th>
-                  <th>Status</th>
-                  <th style={{ width: 100 }}>Actions</th>
+                  <th>이름</th>
+                  <th>코드</th>
+                  <th>도메인</th>
+                  <th>상태</th>
+                  <th style={{ width: 100 }}>동작</th>
                 </tr>
               </thead>
               <tbody>
@@ -226,7 +226,7 @@ export default function TenantsPage() {
                     <td>
                       <span className={`${s.badge} ${t.isActive ? s.badgeActive : s.badgeInactive}`}>
                         <span className={`${s.badgeDot} ${t.isActive ? s.badgeDotActive : s.badgeDotInactive}`} />
-                        {t.isActive ? "Active" : "Inactive"}
+                        {t.isActive ? "활성" : "비활성"}
                       </span>
                     </td>
                     <td onClick={(e) => e.stopPropagation()}>
@@ -236,7 +236,7 @@ export default function TenantsPage() {
                         disabled={updateTenant.isPending}
                         onClick={() => handleToggleActive(t.id, t.isActive)}
                       >
-                        {t.isActive ? "Deactivate" : "Activate"}
+                        {t.isActive ? "비활성화" : "활성화"}
                       </button>
                     </td>
                   </tr>

@@ -39,6 +39,7 @@ export default function LoginPage() {
 
   const { program, isLoading } = useProgram();
   const { tenantCode: paramCode } = useParams<{ tenantCode?: string }>();
+  const tenantCode = useTenantCode(program?.tenantCode);
 
   // program 로딩 중이면 아무것도 렌더하지 않음 (기본값→실제값 플래시 방지)
   if (isLoading) return null;
@@ -48,7 +49,6 @@ export default function LoginPage() {
     return <Navigate to="/error/tenant-required" replace />;
   }
 
-  const tenantCode = useTenantCode(program?.tenantCode);
   const tenantId = tenantCode ? getTenantIdFromCode(tenantCode) : null;
   const branding = tenantId ? getTenantBranding(tenantId) : null;
 
