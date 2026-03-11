@@ -20,8 +20,6 @@ import AdminMemoSection from "@/features/videos/components/features/video-detail
 import VideoStudentsSection from "@/features/videos/components/features/video-detail/components/VideoStudentsSection";
 import type { TabKey } from "@/features/videos/components/features/video-permission/permission.types";
 
-type PreviewMode = "admin" | "student";
-
 function formatBytes(b?: number) {
   return b ? `${(Number(b) / 1024 / 1024).toFixed(1)} MB` : "—";
 }
@@ -32,7 +30,6 @@ export default function VideoDetailPage() {
   const sessionId = Number(params.sessionId);
   const videoId = Number(params.videoId);
 
-  const [previewMode, setPreviewMode] = useState<PreviewMode>("admin");
   const [permissionOpen, setPermissionOpen] = useState(false);
   const [permissionTab, setPermissionTab] = useState<TabKey>("permission");
   const [memo, setMemo] = useState("");
@@ -158,9 +155,6 @@ export default function VideoDetailPage() {
               <div className={styles.section.header}>영상 미리보기</div>
               <div className={styles.section.body}>
                 <VideoPreviewSection
-                  videoId={videoId}
-                  previewMode={previewMode}
-                  setPreviewMode={setPreviewMode}
                   hlsSrc={video.hls_url}
                   status={video.status}
                   progressPercent={null}
@@ -170,7 +164,6 @@ export default function VideoDetailPage() {
                       : undefined
                   }
                   isRetrying={retryMutation.isPending}
-                  selectedEnrollmentId={selectedEnrollmentId}
                 />
               </div>
             </section>
@@ -209,7 +202,6 @@ export default function VideoDetailPage() {
                 selectedEnrollmentId={selectedEnrollmentId}
                 onSelectPreviewStudent={(id) => {
                   setSelectedEnrollmentId(id);
-                  setPreviewMode("student");
                 }}
               />
             </div>

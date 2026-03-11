@@ -243,7 +243,7 @@ export default function VideoThumbnail({
         </Button>
       )}
 
-      {/* 인코딩 완료(READY): 썸네일 좌상단에 시청가능 뱃지 — 인코딩 중 카드와 동일한 위치감 */}
+      {/* 인코딩 완료(READY): 썸네일 좌상단에 시청가능 뱃지 — 초록 라이브 펄스 */}
       {status === "READY" && !showProgressOverlay && (
         <div
           className="video-thumbnail-ready-badge"
@@ -254,7 +254,8 @@ export default function VideoThumbnail({
             zIndex: 2,
           }}
         >
-          <span className="ds-status-badge" data-tone="success">
+          <span className="video-ready-live-badge">
+            <span className="video-ready-live-dot" />
             시청가능
           </span>
         </div>

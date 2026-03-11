@@ -534,9 +534,46 @@
   50% { opacity: 0.85; transform: scale(0.95); box-shadow: 0 0 0 4px rgba(59, 130, 246, 0); }
 }
 
-/* 인코딩 완료(READY) 시청가능 뱃지 — 썸네일 위 가독성 */
-.video-thumbnail-ready-badge .ds-status-badge {
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+/* 인코딩 완료(READY) 시청가능 — 라이브 초록 펄스 뱃지 */
+.video-ready-live-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px 4px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  color: #fff;
+  background: linear-gradient(135deg, #16a34a 0%, #22c55e 100%);
+  border-radius: 20px;
+  box-shadow:
+    0 0 0 0 rgba(34, 197, 94, 0.5),
+    0 1px 4px rgba(0, 0, 0, 0.3);
+  animation: ready-badge-glow 2s ease-in-out infinite;
+  user-select: none;
+  white-space: nowrap;
+  backdrop-filter: blur(4px);
+}
+
+.video-ready-live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #fff;
+  flex-shrink: 0;
+  box-shadow: 0 0 4px rgba(255, 255, 255, 0.8);
+  animation: ready-dot-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes ready-badge-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.45), 0 1px 4px rgba(0, 0, 0, 0.3); }
+  50% { box-shadow: 0 0 0 5px rgba(34, 197, 94, 0), 0 1px 6px rgba(0, 0, 0, 0.25); }
+}
+
+@keyframes ready-dot-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.75); }
 }
 
 .video-thumbnail-encoding-overlay__pct-center {
