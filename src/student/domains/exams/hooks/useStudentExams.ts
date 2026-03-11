@@ -11,7 +11,7 @@ export function useStudentExams(params?: { session_id?: number }) {
   const enabled = sessionId == null ? true : Number.isFinite(Number(sessionId));
 
   return useQuery({
-    queryKey: ["student", "exams", sessionId ?? null],
+    queryKey: ["student", "exams", params ?? {}],
     queryFn: () => fetchStudentExams(params),
     enabled,
   });
