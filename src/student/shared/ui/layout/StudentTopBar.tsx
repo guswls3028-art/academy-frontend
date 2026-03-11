@@ -7,7 +7,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Dropdown } from "antd";
 import { getStudentTenantBranding } from "@/student/shared/tenant/studentTenantBranding";
 import { fetchMyProfile } from "@/student/domains/profile/api/profile";
-import { getTenantCodeForApiRequest } from "@/shared/tenant";
+import { getTenantCodeForApiRequest, getTenantIdFromCode, getTenantBranding } from "@/shared/tenant";
 import { logout } from "@/features/auth/api/auth";
 import { useAuthContext } from "@/features/auth/context/AuthContext";
 import { setParentStudentId, getParentStudentId } from "@/student/shared/api/parentStudentSelection";
@@ -56,17 +56,22 @@ export default function StudentTopBar({ tenantCode }: Props) {
   const [profileOpen, setProfileOpen] = useState(false);
   const currentTenantCode = getTenantCodeForApiRequest();
   const isTchulTheme = currentTenantCode != null && currentTenantCode === "tchul";
+  // 테넌트 브랜딩에서 헤더 전용 로고 URL 가져오기
+  const currentTenantId = currentTenantCode ? getTenantIdFromCode(currentTenantCode) : null;
+  const tenantBrandingData = currentTenantId ? getTenantBranding(currentTenantId) : null;
+  const headerLogoUrl = tenantBrandingData?.headerLogoUrl ?? null;
+
   const [logoSrc, setLogoSrc] = useState<string | null>(null);
   useEffect(() => {
-    if (!isTchulTheme && branding.logoUrl) {
+    if (!isTchulTheme && !headerLogoUrl && branding.logoUrl) {
       setLogoSrc(branding.logoUrl);
     } else {
       setLogoSrc(null);
     }
-  }, [isTchulTheme, branding.logoUrl]);
+  }, [isTchulTheme, headerLogoUrl, branding.logoUrl]);
 
-  const useCommonSvgLogo = branding.useCommonLogo && !isTchulTheme;
-  const showImgLogo = logoSrc != null && !isTchulTheme;
+  const useCommonSvgLogo = branding.useCommonLogo && !isTchulTheme && !headerLogoUrl;
+  const showImgLogo = logoSrc != null && !isTchulTheme && !headerLogoUrl;
 
   const profileDropdownContent = (
     <div className="stu-topbar__profileDropdown">
@@ -154,7 +159,14 @@ export default function StudentTopBar({ tenantCode }: Props) {
         }}
         aria-label="홈"
       >
-        {useCommonSvgLogo ? (
+        {headerLogoUrl ? (
+          <img
+            src={headerLogoUrl}
+            alt=""
+            className="stu-topbar__logo"
+            style={{ height: 32, width: "auto", maxWidth: 40, objectFit: "contain", display: "block", flexShrink: 0 }}
+          />
+        ) : useCommonSvgLogo ? (
           <CommonLogoIcon height={32} style={{ width: "auto", maxWidth: 120 }} />
         ) : isTchulTheme ? (
           <TchulLogoIcon
@@ -177,7 +189,7 @@ export default function StudentTopBar({ tenantCode }: Props) {
             }}
           />
         ) : null}
-        {!useCommonSvgLogo && !isTchulTheme && !showImgLogo ? (
+        {!headerLogoUrl && !useCommonSvgLogo && !isTchulTheme && !showImgLogo ? (
           <div
             style={{
               width: 32,

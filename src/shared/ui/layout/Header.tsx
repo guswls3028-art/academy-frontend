@@ -19,8 +19,7 @@ import { fetchMe, displayUsername, meToStaffRole } from "@/features/profile/api/
 import { StaffRoleAvatar } from "@/shared/ui/avatars";
 import { HeaderCenterStaffClock } from "@/features/staff/components/HeaderCenterStaffClock";
 import { useDocumentTitle } from "@/shared/hooks/useDocumentTitle";
-import { resolveTenantCode } from "@/shared/tenant";
-import { getTenantIdFromCode } from "@/shared/tenant";
+import { resolveTenantCode, getTenantIdFromCode, getTenantBranding } from "@/shared/tenant";
 import TchulLogoIcon from "@/features/auth/assets/TchulLogoIcon";
 import CommonLogoIcon from "@/features/auth/assets/CommonLogoIcon";
 

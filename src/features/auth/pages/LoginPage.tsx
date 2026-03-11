@@ -12,6 +12,7 @@ import {
   resolveTenantCode,
 } from "@/shared/tenant";
 import CommonLogoIcon from "@/features/auth/assets/CommonLogoIcon";
+import { useFavicon } from "@/shared/hooks/useFavicon";
 import SignupModal from "./SignupModal";
 import PasswordResetModal from "./PasswordResetModal";
 import "@/features/auth/themes/tchul.css";
@@ -34,6 +35,7 @@ function useTenantCode(programTenantCode: string | undefined): string | null {
 
 export default function LoginPage() {
   useDocumentTitle();
+  useFavicon();
 
   const { program, isLoading } = useProgram();
   const { tenantCode: paramCode } = useParams<{ tenantCode?: string }>();
