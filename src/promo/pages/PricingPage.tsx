@@ -15,7 +15,7 @@ interface PlanDef {
 const PLANS: PlanDef[] = [
   {
     name: "Lite",
-    price: "99,000",
+    price: "55,000",
     target: "소형 학원 / 초기 도입",
     features: [
       "학생 수 50명 이하",

@@ -296,7 +296,7 @@ function Workflow() {
 /* ── Pricing Preview ── */
 function PricingPreview() {
   const plans = [
-    { name: "Lite", desc: "소형 학원 / 초기 도입", price: "99,000", color: "gray" },
+    { name: "Lite", desc: "소형 학원 / 초기 도입", price: "55,000", color: "gray" },
     { name: "Basic", desc: "중형 학원 / 실무 운영", price: "150,000", color: "blue", popular: true },
     { name: "Premium", desc: "대형 학원 / 프리미엄", price: "300,000", color: "violet" },
   ];

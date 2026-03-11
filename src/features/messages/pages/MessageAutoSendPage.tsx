@@ -9,7 +9,7 @@ import {
   fetchAutoSendConfigs,
   fetchMessageTemplates,
   updateAutoSendConfigs,
-  createMessageTemplate,
+  updateMessageTemplate,
   type AutoSendConfigItem,
   AUTO_SEND_TRIGGER_LABELS,
   type MessageTemplateItem,
@@ -77,14 +77,14 @@ function TriggerCard({
   onUpdate,
   saving,
   smsAllowed,
-  onOpenCreateTemplate,
+  onEditTemplate,
 }: {
   config: AutoSendConfigItem;
   templates: MessageTemplateItem[];
   onUpdate: (c: Partial<AutoSendConfigItem>, debounce?: boolean) => void;
   saving: boolean;
   smsAllowed: boolean;
-  onOpenCreateTemplate?: (trigger: string) => void;
+  onEditTemplate?: (template: MessageTemplateItem) => void;
 }) {
   const effectiveMode =
     !smsAllowed && (config.message_mode === "sms" || config.message_mode === "both")
@@ -174,33 +174,6 @@ function TriggerCard({
         </div>
       </div>
 
-      {/* 활성화인데 템플릿 미선택 시 안내 */}
-      {config.enabled && !config.template && !isComingSoon && (
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            padding: "8px 12px",
-            borderRadius: "var(--radius-md)",
-            background:
-              "color-mix(in srgb, var(--color-status-warning, #d97706) 8%, transparent)",
-            border:
-              "1px solid color-mix(in srgb, var(--color-status-warning, #d97706) 18%, transparent)",
-            marginBottom: "var(--space-2)",
-          }}
-        >
-          <FiInfo
-            size={13}
-            style={{ color: "var(--color-status-warning, #d97706)", flexShrink: 0 }}
-            aria-hidden
-          />
-          <span style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>
-            템플릿을 선택하거나 새로 생성해야 실제 발송됩니다. 알림톡은 카카오 검수 승인된 템플릿이 필요합니다.
-          </span>
-        </div>
-      )}
-
       {/* 컨트롤 영역 */}
       {!isComingSoon && (
         <div
@@ -211,7 +184,7 @@ function TriggerCard({
             alignItems: "end",
           }}
         >
-          {/* 템플릿 선택 */}
+          {/* 템플릿 (읽기 전용 + 수정 버튼) */}
           <div>
             <label
               style={{
@@ -226,39 +199,74 @@ function TriggerCard({
             >
               템플릿
             </label>
-            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-              <select
-                className="ds-input"
-                style={{ flex: 1, fontSize: 13 }}
-                value={config.template ?? ""}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  onUpdate({ ...config, template: v ? Number(v) : null });
-                }}
-                disabled={saving}
-              >
-                <option value="">템플릿을 선택하세요</option>
-                {templates.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name}
-                    {t.solapi_status === "APPROVED"
-                      ? " ✓"
-                      : t.solapi_status === "PENDING"
-                      ? " (검수대기)"
-                      : ""}
-                  </option>
-                ))}
-              </select>
-              <Button
-                type="button"
-                intent="secondary"
-                size="sm"
-                onClick={() => onOpenCreateTemplate?.(config.trigger)}
-                disabled={saving}
-              >
-                템플릿 생성하기
-              </Button>
-            </div>
+            {(() => {
+              const linked = config.template
+                ? templates.find((t) => t.id === config.template)
+                : null;
+              return (
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <div
+                    className="ds-input"
+                    style={{
+                      flex: 1,
+                      fontSize: 13,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      background: "var(--color-bg-surface-soft)",
+                      cursor: "default",
+                      minHeight: 36,
+                    }}
+                  >
+                    <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {linked ? linked.name : "기본 템플릿 미설정"}
+                    </span>
+                    {linked?.solapi_status && (
+                      <span
+                        style={{
+                          fontSize: 11,
+                          fontWeight: 600,
+                          padding: "1px 6px",
+                          borderRadius: "var(--radius-sm)",
+                          flexShrink: 0,
+                          background:
+                            linked.solapi_status === "APPROVED"
+                              ? "color-mix(in srgb, var(--color-status-success, #16a34a) 12%, transparent)"
+                              : linked.solapi_status === "PENDING"
+                              ? "color-mix(in srgb, var(--color-status-warning, #d97706) 12%, transparent)"
+                              : "color-mix(in srgb, var(--color-status-danger, #dc2626) 12%, transparent)",
+                          color:
+                            linked.solapi_status === "APPROVED"
+                              ? "var(--color-status-success, #16a34a)"
+                              : linked.solapi_status === "PENDING"
+                              ? "var(--color-status-warning, #d97706)"
+                              : "var(--color-status-danger, #dc2626)",
+                        }}
+                      >
+                        {linked.solapi_status === "APPROVED"
+                          ? "승인"
+                          : linked.solapi_status === "PENDING"
+                          ? "검수대기"
+                          : linked.solapi_status === "REJECTED"
+                          ? "반려"
+                          : linked.solapi_status}
+                      </span>
+                    )}
+                  </div>
+                  {linked && (
+                    <Button
+                      type="button"
+                      intent="secondary"
+                      size="sm"
+                      onClick={() => onEditTemplate?.(linked)}
+                      disabled={saving}
+                    >
+                      수정하기
+                    </Button>
+                  )}
+                </div>
+              );
+            })()}
           </div>
 
           {/* 발송 시점 (N분 전) */}
@@ -356,7 +364,7 @@ function TriggerCard({
 export default function MessageAutoSendPage() {
   const qc = useQueryClient();
   const [selectedSection, setSelectedSection] = useState<AutoSendSectionId>("signup");
-  const [createTemplateForTrigger, setCreateTemplateForTrigger] = useState<string | null>(null);
+  const [editingTemplate, setEditingTemplate] = useState<MessageTemplateItem | null>(null);
   const { data: messagingInfo } = useMessagingInfo();
   const smsAllowed = messagingInfo?.sms_allowed ?? true;
 
@@ -394,27 +402,18 @@ export default function MessageAutoSendPage() {
     },
   });
 
-  const createTemplateMut = useMutation({
-    mutationFn: (payload: MessageTemplatePayload) => createMessageTemplate(payload),
-    onSuccess: (created) => {
+  const editTemplateMut = useMutation({
+    mutationFn: (payload: MessageTemplatePayload) => {
+      if (!editingTemplate) throw new Error("no template");
+      return updateMessageTemplate(editingTemplate.id, payload);
+    },
+    onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["messaging", "templates"] });
-      qc.invalidateQueries({ queryKey: QUERY_KEY });
-      if (createTemplateForTrigger && created?.id) {
-        const configs = localConfigsRef.current;
-        const prev = configs.find((c) => c.trigger === createTemplateForTrigger);
-        if (prev) {
-          const next = configs.map((c) =>
-            c.trigger === createTemplateForTrigger ? { ...c, template: created.id } : c
-          );
-          setLocalConfigs(next);
-          updateMut.mutate(next);
-        }
-      }
-      setCreateTemplateForTrigger(null);
-      feedback.success("템플릿이 생성되었습니다. 해당 트리거에 연결했습니다.");
+      setEditingTemplate(null);
+      feedback.success("템플릿이 수정되었습니다. 알림톡은 재검수가 필요할 수 있습니다.");
     },
     onError: () => {
-      feedback.error("템플릿 생성에 실패했습니다.");
+      feedback.error("템플릿 수정에 실패했습니다.");
     },
   });
 
