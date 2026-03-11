@@ -19,6 +19,7 @@ interface Props {
 type Student = {
   id: number;
   name: string;
+  displayName: string;
   phone?: string | null;
 };
 
@@ -51,6 +52,7 @@ export default function EnrollStudentModal({ sessionId, isOpen, onClose, onSucce
       return data.map((s) => ({
         id: s.id,
         name: s.name,
+        displayName: s.displayName,
         phone: s.studentPhone,
       }));
     },
@@ -129,7 +131,7 @@ export default function EnrollStudentModal({ sessionId, isOpen, onClose, onSucce
                               textOverflow: "ellipsis",
                             }}
                           >
-                            {st.name}
+                            {st.displayName}
                           </div>
                           <div style={{ fontSize: 11, fontWeight: 850, color: "var(--color-text-muted)" }}>
                             {formatPhone(st.phone)}

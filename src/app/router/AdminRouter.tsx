@@ -92,6 +92,7 @@ const OrganizationSettingsPage = lazy(() => import("@/features/settings/pages/Or
 // MessagingSettingsPage removed — 발신번호 설정이 메시지 > 설정 탭으로 이동됨
 const AppearancePage = lazy(() => import("@/features/settings/pages/AppearancePage"));
 const SecuritySettingsPage = lazy(() => import("@/features/settings/pages/SecuritySettingsPage"));
+const BillingSettingsPage = lazy(() => import("@/features/settings/pages/BillingSettingsPage"));
 
 /* ================= Lazy: Learning (시험·성적·영상) ================= */
 const ExamExplorerPage = lazy(() => import("@/features/exams/pages/ExamExplorerPage"));
@@ -214,6 +215,7 @@ export default function AdminRouter() {
           <Route path="organization" element={wrapLazy(OrganizationSettingsPage)} />
           <Route path="messaging" element={<Navigate to="/admin/message/settings" replace />} />
           <Route path="appearance" element={wrapLazy(AppearancePage)} />
+          <Route path="billing" element={wrapLazy(BillingSettingsPage)} />
           <Route path="security" element={<Navigate to="/admin/settings/profile" replace />} />
           {/* 하위 호환 리디렉트 */}
           <Route path="account" element={<Navigate to="/admin/settings/profile" replace />} />

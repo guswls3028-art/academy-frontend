@@ -125,6 +125,27 @@ export default function RichTextEditor({
   const imageInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  /** Insert image file as base64 into ProseMirror view */
+  const insertImageIntoView = useCallback(
+    (file: File, view: { state: any; dispatch: any }) => {
+      if (!file.type.startsWith("image/")) return;
+      if (file.size > 5 * 1024 * 1024) {
+        feedback.warning("이미지 크기는 5MB를 초과할 수 없습니다.");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = () => {
+        const dataUrl = reader.result as string;
+        const { schema } = view.state;
+        const node = schema.nodes.image.create({ src: dataUrl });
+        const tr = view.state.tr.replaceSelectionWith(node);
+        view.dispatch(tr);
+      };
+      reader.readAsDataURL(file);
+    },
+    [],
+  );
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -150,6 +171,30 @@ export default function RichTextEditor({
     editable: !readOnly,
     onUpdate: ({ editor: e }) => {
       onChange(e.getHTML());
+    },
+    editorProps: {
+      handlePaste: (view, event) => {
+        const items = event.clipboardData?.items;
+        if (!items) return false;
+        for (const item of Array.from(items)) {
+          if (item.type.startsWith("image/")) {
+            event.preventDefault();
+            const file = item.getAsFile();
+            if (file) insertImageIntoView(file, view);
+            return true;
+          }
+        }
+        return false;
+      },
+      handleDrop: (view, event) => {
+        const files = event.dataTransfer?.files;
+        if (!files || files.length === 0) return false;
+        const imageFiles = Array.from(files).filter((f) => f.type.startsWith("image/"));
+        if (imageFiles.length === 0) return false;
+        event.preventDefault();
+        imageFiles.forEach((file) => insertImageIntoView(file, view));
+        return true;
+      },
     },
   });
 

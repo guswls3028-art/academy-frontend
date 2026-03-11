@@ -195,7 +195,7 @@ export default function StudentsTable({
       case "name":
         return (
           <StudentNameWithLectureChip
-            name={s.name ?? "-"}
+            name={s.displayName ?? s.name ?? "-"}
             profilePhotoUrl={s.profilePhotoUrl}
             avatarSize={24}
             lectures={
@@ -344,7 +344,7 @@ export default function StudentsTable({
                   checked={selectedSet.has(s.id)}
                   onChange={() => toggleSelect(s.id)}
                   onClick={(e) => e.stopPropagation()}
-                  aria-label={`${s.name} 선택`}
+                  aria-label={`${s.displayName ?? s.name} 선택`}
                   className="cursor-pointer"
                 />
               ) : null}

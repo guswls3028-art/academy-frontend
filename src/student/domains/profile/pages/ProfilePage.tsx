@@ -2,10 +2,10 @@
  * 프로필 — 회원가입 모달과 동일 필드 (이름, 로그인 아이디, 학부모/학생 전화, 성별, 학교 정보, 주소, 메모)
  * 아이디·비밀번호 변경은 별도 블록
  */
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import StudentPageShell from "@/student/shared/ui/pages/StudentPageShell";
-import { fetchMyProfile, updateMyProfile } from "../api/profile";
+import { fetchMyProfile, updateMyProfile, updateMyProfilePhoto } from "../api/profile";
 import EmptyState from "@/student/shared/ui/layout/EmptyState";
 import { IconPencil } from "@/student/shared/ui/icons/Icons";
 import { PhoneInput010Blocks } from "@/shared/ui/PhoneInput010Blocks";
@@ -94,6 +94,33 @@ export default function ProfilePage() {
       }
     },
   });
+
+  const photoInputRef = useRef<HTMLInputElement>(null);
+  const photoMutation = useMutation({
+    mutationFn: (file: File) => updateMyProfilePhoto(file),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["student", "me"] });
+      studentToast.success("프로필 사진이 변경되었습니다.");
+    },
+    onError: () => {
+      studentToast.error("사진 업로드에 실패했습니다.");
+    },
+  });
+
+  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      studentToast.error("이미지 파일만 업로드할 수 있습니다.");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      studentToast.error("파일 크기는 5MB 이하여야 합니다.");
+      return;
+    }
+    photoMutation.mutate(file);
+    e.target.value = "";
+  };
 
   const startEdit = () => {
     if (profile) {
@@ -192,6 +219,77 @@ export default function ProfilePage() {
           학부모 계정은 읽기 전용입니다. 프로필·아이디·비밀번호 수정은 학생 계정으로 로그인 후 이용해 주세요.
         </div>
       )}
+      {/* 프로필 사진 */}
+      {!profile.isParentReadOnly && (
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, marginBottom: "var(--stu-space-6)" }}>
+          <div
+            onClick={() => photoInputRef.current?.click()}
+            style={{
+              width: 80,
+              height: 80,
+              borderRadius: "50%",
+              overflow: "hidden",
+              background: "var(--stu-surface-soft)",
+              border: "3px solid var(--stu-border)",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              position: "relative",
+              transition: "border-color 0.2s",
+            }}
+            title="프로필 사진 변경"
+          >
+            {profile.profile_photo_url ? (
+              <img
+                src={profile.profile_photo_url}
+                alt="프로필"
+                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+              />
+            ) : (
+              <span style={{ fontSize: 32, fontWeight: 700, color: "var(--stu-text-muted)" }}>
+                {(profile.name || "?")[0]}
+              </span>
+            )}
+            <div
+              style={{
+                position: "absolute",
+                inset: 0,
+                background: "rgba(0,0,0,0.3)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                opacity: 0,
+                transition: "opacity 0.2s",
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.opacity = "1"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.opacity = "0"; }}
+            >
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                <circle cx="12" cy="13" r="4" />
+              </svg>
+            </div>
+          </div>
+          <input
+            ref={photoInputRef}
+            type="file"
+            accept="image/*"
+            style={{ display: "none" }}
+            onChange={handlePhotoSelect}
+          />
+          <button
+            type="button"
+            className="stu-btn stu-btn--ghost stu-btn--sm"
+            onClick={() => photoInputRef.current?.click()}
+            disabled={photoMutation.isPending}
+            style={{ fontSize: 13, color: "var(--stu-primary)" }}
+          >
+            {photoMutation.isPending ? "업로드 중..." : "사진 변경"}
+          </button>
+        </div>
+      )}
+
       {/* 기본 정보 — 선생앱 학생 필드 스펙(이름, 로그인 아이디, 학부모/학생 전화, 성별, 주소) */}
       <div className="stu-section stu-section--nested" style={{ marginBottom: "var(--stu-space-6)" }}>
         <div style={{ position: "relative", paddingRight: 36 }}>

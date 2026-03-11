@@ -133,6 +133,54 @@ export async function fetchStudentVideoPlayback(
  * 비디오 진행률 업데이트
  * POST /student/video/videos/{videoId}/progress/
  */
+/* ─── 좋아요 ─── */
+
+export async function toggleVideoLike(videoId: number): Promise<{ liked: boolean; like_count: number }> {
+  const res = await api.post(`/student/video/videos/${videoId}/like/`);
+  return res.data;
+}
+
+/* ─── 댓글 ─── */
+
+export type VideoCommentItem = {
+  id: number;
+  content: string;
+  author_type: "student" | "teacher";
+  author_name: string;
+  author_photo_url: string | null;
+  is_edited: boolean;
+  is_deleted: boolean;
+  is_mine: boolean;
+  created_at: string;
+  reply_count: number;
+  replies: VideoCommentItem[];
+};
+
+export async function fetchVideoComments(videoId: number): Promise<{ comments: VideoCommentItem[]; total: number }> {
+  const res = await api.get(`/student/video/videos/${videoId}/comments/`);
+  return res.data;
+}
+
+export async function createVideoComment(videoId: number, content: string, parentId?: number): Promise<VideoCommentItem> {
+  const res = await api.post(`/student/video/videos/${videoId}/comments/`, {
+    content,
+    parent_id: parentId ?? null,
+  });
+  return res.data;
+}
+
+export async function editVideoComment(commentId: number, content: string): Promise<{ id: number; content: string; is_edited: boolean }> {
+  const res = await api.patch(`/student/video/comments/${commentId}/`, { content });
+  return res.data;
+}
+
+export async function deleteVideoComment(commentId: number): Promise<{ deleted: boolean }> {
+  const res = await api.delete(`/student/video/comments/${commentId}/`);
+  return res.data;
+}
+
+/* ─── 진행률 ─── */
+
 export async function updateVideoProgress(
   videoId: number,
   data: {

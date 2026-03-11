@@ -204,6 +204,12 @@ api.interceptors.response.use(
 
     if (!original) throw err;
 
+    if (status === 402) {
+      // Subscription expired — broadcast to UI
+      try { window.dispatchEvent(new CustomEvent("subscription-expired", { detail: err.response?.data })); } catch { /* ignore */ }
+      throw err;
+    }
+
     if (status === 403) {
       throw err;
     }

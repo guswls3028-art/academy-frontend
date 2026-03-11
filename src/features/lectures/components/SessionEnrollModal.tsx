@@ -790,7 +790,7 @@ export default function SessionEnrollModal({
                                       onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openStudentDetail(); } }}
                                     >
                                       <StudentNameWithLectureChip
-                                        name={row.name ?? "-"}
+                                        name={row.displayName ?? row.name ?? "-"}
                                         profilePhotoUrl={row.profilePhotoUrl ?? undefined}
                                         avatarSize={20}
                                         lectures={
@@ -1052,7 +1052,7 @@ export default function SessionEnrollModal({
                         >
                           <span className="flex items-center gap-2 min-w-0 flex-1 truncate">
                             <StudentNameWithLectureChip
-                              name={s.name}
+                              name={s.displayName ?? s.name}
                               profilePhotoUrl={s.profilePhotoUrl}
                               avatarSize={20}
                               chipSize={14}

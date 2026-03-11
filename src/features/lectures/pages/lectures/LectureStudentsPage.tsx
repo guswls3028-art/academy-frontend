@@ -101,9 +101,32 @@ export default function LectureStudentsPage() {
     enabled: Number.isFinite(lectureIdNum),
   });
 
-  const students = matrix?.students ?? [];
+  const rawStudents = matrix?.students ?? [];
   const sessions = matrix?.sessions ?? [];
   const sessionsByDateDesc = useMemo(() => sortSessionsByDateDesc(sessions), [sessions]);
+
+  // 동명이인 displayName 부여
+  const students = useMemo(() => {
+    const nameGroups = new Map<string, typeof rawStudents>();
+    for (const s of rawStudents) {
+      const n = s.name ?? "";
+      const group = nameGroups.get(n) ?? [];
+      group.push(s);
+      nameGroups.set(n, group);
+    }
+    const displayMap = new Map<number, string>();
+    for (const [, group] of nameGroups) {
+      if (group.length < 2) continue;
+      group.sort((a, b) => (a.student_id ?? 0) - (b.student_id ?? 0));
+      for (let i = 0; i < group.length; i++) {
+        displayMap.set(group[i].student_id, `${group[i].name}${i + 1}`);
+      }
+    }
+    return rawStudents.map((s) => ({
+      ...s,
+      displayName: displayMap.get(s.student_id) ?? s.name,
+    }));
+  }, [rawStudents]);
 
   const filtered = useMemo(() => {
     if (!search.trim()) return students;
@@ -332,13 +355,13 @@ export default function LectureStudentsPage() {
                             checked={selectedSet.has(row.student_id)}
                             onChange={() => toggleSelect(row.student_id)}
                             onClick={(e) => e.stopPropagation()}
-                            aria-label={`${row.name} 선택`}
+                            aria-label={`${row.displayName ?? row.name} 선택`}
                             className="cursor-pointer"
                           />
                         </td>
                         <td className="text-[15px] font-bold leading-6 text-[var(--color-text-primary)] truncate align-middle" style={{ width: columnWidths.name ?? STUDENTS_TABLE_COL.name }}>
                           <StudentNameWithLectureChip
-                            name={row.name ?? ""}
+                            name={row.displayName ?? row.name ?? ""}
                             profilePhotoUrl={row.profile_photo_url ?? undefined}
                             avatarSize={24}
                             lectures={

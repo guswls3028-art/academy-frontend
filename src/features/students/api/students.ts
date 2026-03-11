@@ -20,6 +20,8 @@ export interface ClientEnrollmentLite {
 export interface ClientStudent {
   id: number;
   name: string;
+  /** 동명이인 구분용 표시명 (박철1, 박철2 등). 동명이인 아니면 name과 동일 */
+  displayName: string;
   /** 학생앱에서 업로드한 프로필 사진 URL (없으면 null) */
   profilePhotoUrl?: string | null;
 
@@ -65,6 +67,28 @@ function safeStr(v: any): string {
   return typeof v === "string" ? v : v == null ? "" : String(v);
 }
 
+/**
+ * 동명이인 번호 부여: 같은 이름이 2명 이상이면 id 순으로 1,2,3... 붙임
+ * 1명만 있으면 번호 없이 원래 이름 유지
+ */
+export function applyDisplayNames(students: ClientStudent[]): ClientStudent[] {
+  const nameGroups = new Map<string, ClientStudent[]>();
+  for (const s of students) {
+    const group = nameGroups.get(s.name) ?? [];
+    group.push(s);
+    nameGroups.set(s.name, group);
+  }
+  for (const [, group] of nameGroups) {
+    if (group.length < 2) continue;
+    // id 오름차순 정렬 → 먼저 등록된 학생이 1번
+    group.sort((a, b) => a.id - b.id);
+    for (let i = 0; i < group.length; i++) {
+      group[i].displayName = `${group[i].name}${i + 1}`;
+    }
+  }
+  return students;
+}
+
 export function mapStudent(item: any): ClientStudent {
   const phone = item?.phone ?? null;
   const omrCode = item?.omr_code ?? "";
@@ -79,6 +103,7 @@ export function mapStudent(item: any): ClientStudent {
   return {
     id: Number(item?.id),
     name: safeStr(item?.name),
+    displayName: safeStr(item?.name),
     profilePhotoUrl: item?.profile_photo_url ?? null,
 
     psNumber: safeStr(item?.ps_number),
@@ -192,7 +217,7 @@ export async function fetchStudents(
   const pageSize = typeof res.data?.page_size === "number" ? res.data.page_size : 50;
 
   return {
-    data: items.map(mapStudent),
+    data: applyDisplayNames(items.map(mapStudent)),
     count,
     pageSize,
   };

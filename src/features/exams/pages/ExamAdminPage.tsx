@@ -1,105 +1,65 @@
 /**
- * 시험 (사이드바) — 전체 시험 목록 · 강의·차시 단위 시험 통합 조회
- * Design SSOT: students 도메인 (DomainLayout, DomainListToolbar, DomainTable ds-table--flat)
+ * 시험 (사이드바) — 아이콘 카드 그리드 + 추가 모달
  */
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { fetchExams } from "../api/exams";
+import { fetchLectures, fetchSessions, type Lecture, type Session } from "@/features/lectures/api/sessions";
 import { DomainLayout } from "@/shared/ui/layout";
-import { DomainListToolbar, DomainTable, TABLE_COL, ResizableTh, useTableColumnPrefs } from "@/shared/ui/domain";
-import type { TableColumnDef } from "@/shared/ui/domain";
-import { Button, EmptyState } from "@/shared/ui/ds";
+import { EmptyState, Button } from "@/shared/ui/ds";
+import { AdminModal, ModalBody, ModalFooter, ModalHeader, MODAL_WIDTH } from "@/shared/ui/modal";
+import { feedback } from "@/shared/ui/feedback/feedback";
+import { createRegularExam, createTemplateExam } from "../api/exams";
 
-const EXAM_ADMIN_COLUMN_DEFS: TableColumnDef[] = [
-  { key: "title", label: "시험명", defaultWidth: TABLE_COL.title, minWidth: 100 },
-  { key: "subject", label: "과목", defaultWidth: TABLE_COL.subject, minWidth: 60 },
-  { key: "exam_type", label: "유형", defaultWidth: TABLE_COL.short, minWidth: 50 },
-  { key: "retake", label: "재응시", defaultWidth: TABLE_COL.status, minWidth: 60 },
-  { key: "status", label: "상태", defaultWidth: TABLE_COL.status, minWidth: 60 },
-  { key: "created_at", label: "개설일", defaultWidth: TABLE_COL.medium, minWidth: 80 },
-  { key: "actions", label: "관리", defaultWidth: TABLE_COL.actions, minWidth: 72 },
-];
+/* ── 아이콘 SVG ── */
+const ExamIcon = ({ size = 40, color = "var(--color-primary)" }: { size?: number; color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 40 40" fill="none">
+    <rect x="8" y="4" width="24" height="32" rx="3" stroke={color} strokeWidth="2" fill="none" />
+    <path d="M14 14h12M14 20h12M14 26h8" stroke={color} strokeWidth="1.6" strokeLinecap="round" />
+    <circle cx="28" cy="28" r="6" fill={color} fillOpacity="0.15" stroke={color} strokeWidth="1.5" />
+    <path d="M26 28l1.5 1.5 3-3" stroke={color} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
 
-function ExamSortableTh({
-  colKey,
-  label,
-  widthKey,
-  width,
-  sort,
-  onSort,
-  onWidthChange,
-}: {
-  colKey: string;
-  label: string;
-  widthKey: string;
-  width: number;
-  sort: string;
-  onSort: (colKey: string) => void;
-  onWidthChange: (key: string, width: number) => void;
-}) {
-  const isAsc = sort === colKey;
-  const isDesc = sort === `-${colKey}`;
-  return (
-    <ResizableTh
-      columnKey={widthKey}
-      width={width}
-      minWidth={40}
-      maxWidth={600}
-      onWidthChange={onWidthChange}
-      onClick={() => onSort(colKey)}
-      aria-sort={isAsc ? "ascending" : isDesc ? "descending" : "none"}
-      className="cursor-pointer select-none"
-    >
-      <span className="inline-flex items-center justify-center gap-2">
-        {label}
-        <span aria-hidden style={{ fontSize: 11, opacity: isAsc || isDesc ? 1 : 0.35, color: "var(--color-primary)" }}>
-          {isAsc ? "▲" : isDesc ? "▼" : "⇅"}
-        </span>
-      </span>
-    </ResizableTh>
-  );
-}
+const AddIcon = ({ size = 40 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 40 40" fill="none">
+    <circle cx="20" cy="20" r="14" stroke="var(--color-text-muted)" strokeWidth="1.5" strokeDasharray="4 3" />
+    <path d="M20 14v12M14 20h12" stroke="var(--color-text-muted)" strokeWidth="2" strokeLinecap="round" />
+  </svg>
+);
 
-function formatDate(s: string | null): string {
-  if (!s) return "—";
-  try {
-    const d = new Date(s);
-    return d.toLocaleDateString("ko-KR", { year: "numeric", month: "2-digit", day: "2-digit" });
-  } catch {
-    return "—";
-  }
-}
+/* ── 카드 스타일 ── */
+const cardBase: React.CSSProperties = {
+  display: "flex",
+  flexDirection: "column",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: 10,
+  padding: "24px 16px",
+  borderRadius: "var(--radius-lg, 12px)",
+  border: "1px solid var(--color-border-divider)",
+  background: "var(--color-bg-surface)",
+  cursor: "pointer",
+  transition: "all 0.15s ease",
+  minHeight: 160,
+  textAlign: "center" as const,
+};
+
+const cardHoverClass = "exam-domain-card";
 
 export default function ExamAdminPage() {
   const navigate = useNavigate();
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
-  const [sort, setSort] = useState("");
-  const { columnWidths, setColumnWidth } = useTableColumnPrefs("exams", EXAM_ADMIN_COLUMN_DEFS);
+  const [addOpen, setAddOpen] = useState(false);
 
   const { data: list = [], isLoading } = useQuery({
     queryKey: ["admin-exams"],
     queryFn: () => fetchExams(),
   });
 
-  // KPI counts derived from full list (not filtered)
-  const kpi = useMemo(() => {
-    const now = Date.now();
-    let active = 0;
-    let inactive = 0;
-    let ongoing = 0;
-    for (const e of list) {
-      if (e.is_active) active++; else inactive++;
-      const openAt = e.open_at ? new Date(e.open_at).getTime() : null;
-      const closeAt = e.close_at ? new Date(e.close_at).getTime() : null;
-      if (openAt != null && closeAt != null && openAt <= now && now <= closeAt) ongoing++;
-    }
-    return { total: list.length, active, inactive, ongoing };
-  }, [list]);
-
-  // 클라이언트 검색: 시험명·과목
   const filtered = useMemo(() => {
     if (!search.trim()) return list;
     const k = search.trim().toLowerCase();
@@ -110,179 +70,233 @@ export default function ExamAdminPage() {
     );
   }, [list, search]);
 
-  const sortedFiltered = useMemo(() => {
-    if (!sort) return filtered;
-    const key = sort.startsWith("-") ? sort.slice(1) : sort;
-    const asc = !sort.startsWith("-");
-    return [...filtered].sort((a, b) => {
-      let aVal: string | number = (a as Record<string, unknown>)[key] ?? "";
-      let bVal: string | number = (b as Record<string, unknown>)[key] ?? "";
-      if (key === "created_at") {
-        aVal = a.created_at ? new Date(a.created_at).getTime() : 0;
-        bVal = b.created_at ? new Date(b.created_at).getTime() : 0;
-      } else if (key === "status") {
-        aVal = a.is_active ? 1 : 0;
-        bVal = b.is_active ? 1 : 0;
-      }
-      if (typeof aVal === "string" && typeof bVal === "string") {
-        return asc ? String(aVal).localeCompare(String(bVal), "ko") : -String(aVal).localeCompare(String(bVal), "ko");
-      }
-      return asc ? Number(aVal) - Number(bVal) : Number(bVal) - Number(aVal);
-    });
-  }, [filtered, sort]);
-
-  const handleSort = useCallback((colKey: string) => {
-    setSort((prev) => (prev === colKey ? `-${colKey}` : prev === `-${colKey}` ? "" : colKey));
-  }, []);
-
-  const totalWidth =
-    (columnWidths.title ?? TABLE_COL.title) +
-    (columnWidths.subject ?? TABLE_COL.subject) +
-    (columnWidths.exam_type ?? TABLE_COL.short) +
-    (columnWidths.retake ?? TABLE_COL.status) +
-    (columnWidths.status ?? TABLE_COL.status) +
-    (columnWidths.created_at ?? TABLE_COL.medium) +
-    (columnWidths.actions ?? TABLE_COL.actions);
-
   return (
-    <DomainLayout
-      title="시험"
-      description="강의·차시 단위 시험을 한 화면에서 조회합니다. 시험 생성·관리는 각 강의 > 차시에서 진행하세요."
-    >
-      <div className="flex flex-col gap-4">
-        {/* KPI summary bar */}
-        {!isLoading && list.length > 0 && (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <div className="rounded border border-[var(--color-border-divider)] bg-[var(--color-bg-surface-soft)] px-3 py-3">
-              <div className="text-[11px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">전체</div>
-              <div className="mt-1 text-base font-bold text-[var(--color-text-primary)]">{kpi.total}</div>
+    <DomainLayout title="시험" description="모든 시험을 한눈에 확인하고, 새 시험을 추가할 수 있습니다.">
+      <style>{`
+        .exam-domain-card:hover {
+          border-color: var(--color-primary) !important;
+          box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+          transform: translateY(-2px);
+        }
+        .exam-add-card:hover {
+          border-color: var(--color-primary) !important;
+          background: var(--color-bg-surface-soft) !important;
+        }
+      `}</style>
+
+      <div style={{ marginBottom: 16 }}>
+        <input
+          className="ds-input"
+          placeholder="시험명 · 과목 검색"
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+          onBlur={() => setSearch(searchInput)}
+          onKeyDown={(e) => e.key === "Enter" && setSearch(searchInput)}
+          style={{ maxWidth: 320 }}
+        />
+      </div>
+
+      {isLoading ? (
+        <EmptyState scope="panel" tone="loading" title="불러오는 중..." />
+      ) : (
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
+            gap: 16,
+          }}
+        >
+          {filtered.map((e) => (
+            <div
+              key={e.id}
+              className={cardHoverClass}
+              style={cardBase}
+              onClick={() => navigate("/admin/lectures")}
+              title={`${e.title} — ${e.subject || "과목 없음"}`}
+            >
+              <ExamIcon
+                color={e.is_active ? "var(--color-primary)" : "var(--color-text-muted)"}
+              />
+              <div style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text-primary)", lineHeight: 1.3, maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {e.title || "제목 없음"}
+              </div>
+              <div style={{ fontSize: 12, color: "var(--color-text-muted)", lineHeight: 1.2 }}>
+                {e.subject || "—"}
+              </div>
+              <span
+                style={{
+                  display: "inline-block",
+                  fontSize: 11,
+                  fontWeight: 600,
+                  padding: "2px 8px",
+                  borderRadius: 6,
+                  background: e.is_active
+                    ? "color-mix(in srgb, var(--color-success, #22c55e) 12%, transparent)"
+                    : "var(--color-bg-surface-soft)",
+                  color: e.is_active ? "var(--color-success, #16a34a)" : "var(--color-text-muted)",
+                }}
+              >
+                {e.is_active ? "활성" : "비활성"}
+              </span>
             </div>
-            <div className="rounded border border-[var(--color-border-divider)] bg-[var(--color-bg-surface-soft)] px-3 py-3">
-              <div className="text-[11px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">활성</div>
-              <div className="mt-1 text-base font-bold text-[var(--color-text-primary)]">{kpi.active}</div>
-            </div>
-            <div className="rounded border border-[var(--color-border-divider)] bg-[var(--color-bg-surface-soft)] px-3 py-3">
-              <div className="text-[11px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">비활성</div>
-              <div className="mt-1 text-base font-bold text-[var(--color-text-primary)]">{kpi.inactive}</div>
-            </div>
-            <div className="rounded border border-[var(--color-border-divider)] bg-[var(--color-bg-surface-soft)] px-3 py-3">
-              <div className="text-[11px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">진행중</div>
-              <div className="mt-1 text-base font-bold text-[var(--color-text-primary)]">{kpi.ongoing}</div>
+          ))}
+
+          {/* +추가 카드 (항상 마지막) */}
+          <div
+            className="exam-add-card"
+            style={{
+              ...cardBase,
+              border: "2px dashed var(--color-border-divider)",
+              background: "transparent",
+            }}
+            onClick={() => setAddOpen(true)}
+          >
+            <AddIcon />
+            <div style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text-muted)" }}>
+              시험 추가
             </div>
           </div>
-        )}
+        </div>
+      )}
 
-        <DomainListToolbar
-          totalLabel={isLoading ? "…" : `총 ${filtered.length}건`}
-          searchSlot={
-            <input
-              className="ds-input"
-              placeholder="시험명 · 과목 검색"
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              onBlur={() => setSearch(searchInput)}
-              onKeyDown={(e) => e.key === "Enter" && setSearch(searchInput)}
-              style={{ maxWidth: 280 }}
-            />
-          }
-          primaryAction={
-            <Button intent="primary" onClick={() => navigate("/admin/lectures")}>
-              강의에서 관리
-            </Button>
-          }
-        />
-
-        {isLoading ? (
-          <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
-        ) : !filtered.length ? (
-          <EmptyState
-            scope="panel"
-            tone="empty"
-            title="시험이 없습니다"
-            description="각 강의 > 차시에서 시험을 추가하고 운영할 수 있습니다."
-            actions={
-              <Button intent="primary" onClick={() => navigate("/admin/lectures")}>
-                강의 목록
-              </Button>
-            }
-          />
-        ) : (
-          <DomainTable tableClassName="ds-table--flat ds-table--center" tableStyle={{ tableLayout: "fixed", width: totalWidth }}>
-            <colgroup>
-              <col style={{ width: columnWidths.title ?? TABLE_COL.title }} />
-              <col style={{ width: columnWidths.subject ?? TABLE_COL.subject }} />
-              <col style={{ width: columnWidths.exam_type ?? TABLE_COL.short }} />
-              <col style={{ width: columnWidths.retake ?? TABLE_COL.status }} />
-              <col style={{ width: columnWidths.status ?? TABLE_COL.status }} />
-              <col style={{ width: columnWidths.created_at ?? TABLE_COL.medium }} />
-              <col style={{ width: columnWidths.actions ?? TABLE_COL.actions }} />
-            </colgroup>
-            <thead>
-              <tr>
-                <ExamSortableTh colKey="title" label="시험명" widthKey="title" width={columnWidths.title ?? TABLE_COL.title} sort={sort} onSort={handleSort} onWidthChange={setColumnWidth} />
-                <ExamSortableTh colKey="subject" label="과목" widthKey="subject" width={columnWidths.subject ?? TABLE_COL.subject} sort={sort} onSort={handleSort} onWidthChange={setColumnWidth} />
-                <ExamSortableTh colKey="exam_type" label="유형" widthKey="exam_type" width={columnWidths.exam_type ?? TABLE_COL.short} sort={sort} onSort={handleSort} onWidthChange={setColumnWidth} />
-                <ExamSortableTh colKey="retake" label="재응시" widthKey="retake" width={columnWidths.retake ?? TABLE_COL.status} sort={sort} onSort={handleSort} onWidthChange={setColumnWidth} />
-                <ExamSortableTh colKey="status" label="상태" widthKey="status" width={columnWidths.status ?? TABLE_COL.status} sort={sort} onSort={handleSort} onWidthChange={setColumnWidth} />
-                <ExamSortableTh colKey="created_at" label="개설일" widthKey="created_at" width={columnWidths.created_at ?? TABLE_COL.medium} sort={sort} onSort={handleSort} onWidthChange={setColumnWidth} />
-                <th scope="col" style={{ width: columnWidths.actions ?? TABLE_COL.actions }} aria-label="관리" />
-              </tr>
-            </thead>
-            <tbody>
-              {sortedFiltered.map((e) => (
-                <tr
-                  key={e.id}
-                  className="transition-colors hover:bg-[var(--color-bg-surface-soft)]"
-                  style={{ outline: "none" }}
-                >
-                  <td className="font-semibold text-[var(--color-text-primary)] truncate" title={e.title}>
-                    {e.title || "—"}
-                  </td>
-                  <td className="text-[var(--color-text-secondary)] truncate">{e.subject || "—"}</td>
-                  <td>
-                    <span
-                      className="inline-flex items-center rounded px-2 py-0.5 text-xs font-medium"
-                      style={{
-                        background: e.exam_type === "template"
-                          ? "var(--color-bg-surface-soft)"
-                          : "transparent",
-                        border: "1px solid var(--color-border-divider)",
-                        color: "var(--color-text-secondary)",
-                      }}
-                    >
-                      {e.exam_type === "template" ? "템플릿" : "일반"}
-                    </span>
-                  </td>
-                  <td>
-                    {e.allow_retake ? (
-                      <span className="ds-status-badge" data-tone="primary">
-                        최대 {e.max_attempts}회
-                      </span>
-                    ) : (
-                      <span className="text-xs text-[var(--color-text-muted)]">불가</span>
-                    )}
-                  </td>
-                  <td>
-                    <span className="ds-status-badge" data-tone={e.is_active ? "success" : "neutral"}>
-                      {e.is_active ? "활성" : "비활성"}
-                    </span>
-                  </td>
-                  <td className="text-[var(--color-text-muted)]">{formatDate(e.created_at)}</td>
-                  <td onClick={(ev) => ev.stopPropagation()}>
-                    <Button
-                      intent="ghost"
-                      size="sm"
-                      onClick={() => navigate("/admin/lectures")}
-                    >
-                      관리
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </DomainTable>
-        )}
-      </div>
+      {addOpen && (
+        <ExamAddModal open={addOpen} onClose={() => setAddOpen(false)} onSuccess={() => { setAddOpen(false); }} />
+      )}
     </DomainLayout>
+  );
+}
+
+/* ── 시험 추가 모달 ── */
+function ExamAddModal({ open, onClose, onSuccess }: { open: boolean; onClose: () => void; onSuccess: () => void }) {
+  const [step, setStep] = useState<"select" | "form">("select");
+  const [selectedLecture, setSelectedLecture] = useState<Lecture | null>(null);
+  const [selectedSession, setSelectedSession] = useState<Session | null>(null);
+  const [title, setTitle] = useState("");
+  const [subject, setSubject] = useState("");
+  const [busy, setBusy] = useState(false);
+  const navigate = useNavigate();
+
+  const { data: lectures = [] } = useQuery({
+    queryKey: ["admin-lectures-for-exam-add"],
+    queryFn: () => fetchLectures({ is_active: true }),
+    enabled: open,
+  });
+
+  const { data: sessions = [] } = useQuery({
+    queryKey: ["lecture-sessions", selectedLecture?.id],
+    queryFn: () => fetchSessions(selectedLecture!.id),
+    enabled: !!selectedLecture,
+  });
+
+  async function handleCreate() {
+    if (!title.trim()) { feedback.error("시험명을 입력해 주세요."); return; }
+    if (!selectedSession) { feedback.error("차시를 선택해 주세요."); return; }
+    setBusy(true);
+    try {
+      await createTemplateExam({ title: title.trim(), subject: subject.trim() || selectedLecture?.subject || "" });
+      feedback.success("시험이 생성되었습니다. 강의 > 차시에서 상세 설정하세요.");
+      onSuccess();
+      navigate(`/admin/lectures/${selectedLecture?.id}`);
+    } catch {
+      feedback.error("시험 생성에 실패했습니다.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <AdminModal open={open} onClose={onClose} type="action" width={MODAL_WIDTH.sm}>
+      <ModalHeader type="action" title="시험 추가" description="강의 · 차시를 선택한 뒤 시험을 만듭니다." />
+      <ModalBody>
+        <div className="modal-scroll-body" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          {/* 강의 선택 */}
+          <div>
+            <label className="modal-section-label">강의 선택</label>
+            <select
+              className="ds-input"
+              value={selectedLecture?.id ?? ""}
+              onChange={(e) => {
+                const lec = lectures.find((l) => l.id === Number(e.target.value)) ?? null;
+                setSelectedLecture(lec);
+                setSelectedSession(null);
+                if (lec) setSubject(lec.subject || "");
+              }}
+              style={{ width: "100%" }}
+            >
+              <option value="">— 강의를 선택하세요 —</option>
+              {lectures.map((l) => (
+                <option key={l.id} value={l.id}>{l.title || l.name} ({l.subject || "—"})</option>
+              ))}
+            </select>
+          </div>
+
+          {/* 차시 선택 */}
+          {selectedLecture && (
+            <div>
+              <label className="modal-section-label">차시 선택</label>
+              {sessions.length === 0 ? (
+                <div style={{ fontSize: 13, color: "var(--color-text-muted)", padding: "8px 0" }}>
+                  차시가 없습니다. 먼저 차시를 추가하세요.
+                </div>
+              ) : (
+                <select
+                  className="ds-input"
+                  value={selectedSession?.id ?? ""}
+                  onChange={(e) => {
+                    const ses = sessions.find((s) => s.id === Number(e.target.value)) ?? null;
+                    setSelectedSession(ses);
+                  }}
+                  style={{ width: "100%" }}
+                >
+                  <option value="">— 차시를 선택하세요 —</option>
+                  {sessions.map((s) => (
+                    <option key={s.id} value={s.id}>{s.order}차시 — {s.title}</option>
+                  ))}
+                </select>
+              )}
+            </div>
+          )}
+
+          {/* 시험 정보 */}
+          {selectedSession && (
+            <>
+              <div>
+                <label className="modal-section-label">시험명</label>
+                <input
+                  className="ds-input"
+                  placeholder="예: 1차시 확인테스트"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  style={{ width: "100%" }}
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label className="modal-section-label">과목</label>
+                <input
+                  className="ds-input"
+                  placeholder="과목명"
+                  value={subject}
+                  onChange={(e) => setSubject(e.target.value)}
+                  style={{ width: "100%" }}
+                />
+              </div>
+            </>
+          )}
+        </div>
+      </ModalBody>
+      <ModalFooter
+        right={
+          <>
+            <Button intent="secondary" onClick={onClose} disabled={busy}>취소</Button>
+            {selectedSession && (
+              <Button intent="primary" onClick={handleCreate} disabled={busy || !title.trim()}>
+                {busy ? "생성 중..." : "생성"}
+              </Button>
+            )}
+          </>
+        }
+      />
+    </AdminModal>
   );
 }

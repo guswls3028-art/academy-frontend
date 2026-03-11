@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, startTransition } fr
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 
 import EmptyState from "../../../shared/ui/layout/EmptyState";
-import { fetchStudentVideoPlayback, fetchStudentSessionVideos, updateVideoProgress } from "../api/video";
+import { fetchStudentVideoPlayback, fetchStudentSessionVideos, updateVideoProgress, toggleVideoLike } from "../api/video";
 import type { StudentVideoListItem } from "../api/video";
 import { Link } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -13,6 +13,8 @@ import StudentVideoPlayer, {
   VideoMetaLite,
 } from "../playback/player/StudentVideoPlayer";
 import { safeParseInt, formatClock } from "../playback/player/design/utils";
+import { timeAgo, formatViewCount } from "../utils/timeAgo";
+import VideoCommentSection from "../components/VideoCommentSection";
 
 /* ─── localStorage 기반 이어보기 ─── */
 function getStoredPosition(videoId: number | null): number {
@@ -40,6 +42,56 @@ function useQueryParams() {
   return useMemo(() => new URLSearchParams(search), [search]);
 }
 
+/* ─── 좋아요 버튼 ─── */
+function LikeButton({ videoId, initialLiked, initialCount }: { videoId: number; initialLiked: boolean; initialCount: number }) {
+  const [liked, setLiked] = useState(initialLiked);
+  const [count, setCount] = useState(initialCount);
+
+  useEffect(() => {
+    setLiked(initialLiked);
+    setCount(initialCount);
+  }, [initialLiked, initialCount]);
+
+  const mutation = useMutation({
+    mutationFn: () => toggleVideoLike(videoId),
+    onMutate: () => {
+      setLiked((prev) => !prev);
+      setCount((prev) => liked ? Math.max(0, prev - 1) : prev + 1);
+    },
+    onError: () => {
+      setLiked(initialLiked);
+      setCount(initialCount);
+    },
+  });
+
+  return (
+    <button
+      type="button"
+      onClick={() => mutation.mutate()}
+      disabled={mutation.isPending}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 5,
+        padding: "5px 12px",
+        borderRadius: 20,
+        background: liked ? "rgba(239,68,68,0.15)" : "rgba(255,255,255,0.08)",
+        border: `1px solid ${liked ? "rgba(239,68,68,0.3)" : "rgba(255,255,255,0.12)"}`,
+        color: liked ? "#ef4444" : "rgba(255,255,255,0.7)",
+        cursor: "pointer",
+        fontSize: 13,
+        fontWeight: 600,
+        transition: "all 0.2s",
+      }}
+    >
+      <svg width="16" height="16" viewBox="0 0 24 24" fill={liked ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2">
+        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+      </svg>
+      {count > 0 ? count : "좋아요"}
+    </button>
+  );
+}
+
 export default function VideoPlayerPage() {
   const nav = useNavigate();
   const q = useQueryParams();
@@ -62,6 +114,11 @@ export default function VideoPlayerPage() {
   const [video, setVideo] = useState<(VideoMetaLite & {
     session_id?: number;
     last_position?: number;
+    view_count?: number;
+    like_count?: number;
+    comment_count?: number;
+    is_liked?: boolean;
+    created_at?: string | null;
   }) | null>(null);
   const [boot, setBoot] = useState<PlaybackBootstrap | null>(null);
   const [sessionVideosData, setSessionVideosData] = useState<{ items: StudentVideoListItem[] } | null>(null);
@@ -177,7 +234,7 @@ export default function VideoPlayerPage() {
           setLoading(false);
           return;
         }
-        const v: VideoMetaLite & { session_id?: number; last_position?: number } = {
+        const v: VideoMetaLite & { session_id?: number; last_position?: number; view_count?: number; like_count?: number; comment_count?: number; is_liked?: boolean; created_at?: string | null } = {
           id: Number(vd.id),
           title: String(vd.title ?? "영상"),
           duration: vd.duration == null ? null : Number(vd.duration),
@@ -186,6 +243,11 @@ export default function VideoPlayerPage() {
           hls_url: playbackData.hls_url ?? null,
           session_id: Number(vd.session_id),
           last_position: (vd as any).last_position ?? 0,
+          view_count: (vd as any).view_count ?? 0,
+          like_count: (vd as any).like_count ?? 0,
+          comment_count: (vd as any).comment_count ?? 0,
+          is_liked: !!(vd as any).is_liked,
+          created_at: (vd as any).created_at ?? null,
         };
 
         const playUrl = playbackData.play_url || playbackData.hls_url || playbackData.mp4_url || "";
@@ -300,28 +362,25 @@ export default function VideoPlayerPage() {
           {/* ─── 영상 정보 ─── */}
           <div className="vpp-info">
             <h1 className="vpp-title">{video.title}</h1>
-            {/* 영상 메타 정보 */}
-            {(() => {
-              const currentItem = items.find((v) => v.id === videoId);
-              const updatedAt = currentItem?.updated_at;
-              const dur = video.duration;
-              return (
-                <div className="vpp-meta-row">
-                  {updatedAt && (
-                    <span className="vpp-meta-item">
-                      {new Date(updatedAt).toLocaleDateString("ko-KR", { year: "numeric", month: "short", day: "numeric" })} 업데이트
-                    </span>
-                  )}
-                  {dur != null && dur > 0 && (
-                    <span className="vpp-meta-item">{formatClock(dur)}</span>
-                  )}
-                </div>
-              );
-            })()}
+            {/* 메타: 조회수 · 업로드 시간 · 길이 */}
+            <div className="vpp-meta-row">
+              <span className="vpp-meta-item">{formatViewCount(video.view_count)}</span>
+              {video.created_at && (
+                <span className="vpp-meta-item">{timeAgo(video.created_at)}</span>
+              )}
+              {video.duration != null && video.duration > 0 && (
+                <span className="vpp-meta-item">{formatClock(video.duration)}</span>
+              )}
+            </div>
+
+            {/* 액션: 좋아요 · 목록 · 다음 */}
             <div className="vpp-info-row">
-              <button type="button" className="vpp-back-link" onClick={() => nav(-1)}>
-                ← 목록으로
-              </button>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <button type="button" className="vpp-back-link" onClick={() => nav(-1)}>
+                  ← 목록으로
+                </button>
+                <LikeButton videoId={videoId!} initialLiked={video.is_liked ?? false} initialCount={video.like_count ?? 0} />
+              </div>
               <div className="vpp-info-actions">
                 {hasPlaylist && (
                   <button
@@ -343,6 +402,9 @@ export default function VideoPlayerPage() {
               </div>
             </div>
           </div>
+
+          {/* ─── 댓글 섹션 ─── */}
+          {videoId && <VideoCommentSection videoId={videoId} />}
 
           {/* ─── 재생목록 드로어 ─── */}
           {hasPlaylist && (

@@ -79,13 +79,8 @@ export async function saveExamAsTemplate(examId: number): Promise<Exam> {
 export async function recalculateExam(
   examId: number
 ) {
-  try {
-    const res = await api.post(
-      `/exams/${examId}/recalculate/`
-    );
-    return res.data;
-  } catch {
-    console.warn("recalculateExam not implemented");
-    return null;
-  }
+  const res = await api.post(
+    `/exams/${examId}/recalculate/`
+  );
+  return res.data;
 }

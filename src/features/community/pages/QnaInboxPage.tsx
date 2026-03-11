@@ -130,6 +130,8 @@ export default function QnaInboxPage() {
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || (e.target as HTMLElement)?.isContentEditable) return;
       if (filtered.length === 0) return;
       const idx = selectedId != null ? filtered.findIndex((q) => q.id === selectedId) : -1;
       if (e.key === "j" && !e.ctrlKey && !e.metaKey && !e.altKey) {

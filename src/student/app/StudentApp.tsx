@@ -10,7 +10,13 @@
  */
 
 import StudentRouter from "@/student/app/StudentRouter";
+import SubscriptionExpiredOverlay from "@/shared/ui/SubscriptionExpiredOverlay";
 
 export default function StudentApp() {
-  return <StudentRouter />;
+  return (
+    <>
+      <StudentRouter />
+      <SubscriptionExpiredOverlay />
+    </>
+  );
 }

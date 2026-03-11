@@ -1,71 +1,45 @@
 /**
- * 성적 (사이드바) — 강의별 성적 진입점 · 차시 내 성적은 각 강의 > 차시에서 운영
- * Design SSOT: students 도메인 (DomainLayout, DomainListToolbar, DomainTable ds-table--flat)
+ * 성적 (사이드바) — 아이콘 카드 그리드 · 강의별 성적 진입점
  */
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { fetchLectures } from "@/features/lectures/api/sessions";
 import { DomainLayout } from "@/shared/ui/layout";
-import { DomainListToolbar, DomainTable, TABLE_COL, STATUS_ACTIVE_COLOR, STATUS_INACTIVE_COLOR, ResizableTh, useTableColumnPrefs } from "@/shared/ui/domain";
-import type { TableColumnDef } from "@/shared/ui/domain";
-import { Button, EmptyState } from "@/shared/ui/ds";
+import { EmptyState, Button } from "@/shared/ui/ds";
 
-const RESULTS_ADMIN_COLUMN_DEFS: TableColumnDef[] = [
-  { key: "title", label: "강의명", defaultWidth: TABLE_COL.title, minWidth: 100 },
-  { key: "subject", label: "과목", defaultWidth: TABLE_COL.subject, minWidth: 60 },
-  { key: "dateRange", label: "기간", defaultWidth: TABLE_COL.medium, minWidth: 80 },
-  { key: "status", label: "상태", defaultWidth: TABLE_COL.status, minWidth: 60 },
-  { key: "actions", label: "관리", defaultWidth: TABLE_COL.actions, minWidth: 72 },
-];
+/* ── 아이콘 SVG ── */
+const ScoreIcon = ({ size = 40, color = "var(--color-primary)" }: { size?: number; color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 40 40" fill="none">
+    <rect x="4" y="32" width="6" height="0" rx="1" fill="none" />
+    <rect x="6" y="18" width="6" height="16" rx="2" fill={color} fillOpacity="0.2" stroke={color} strokeWidth="1.4" />
+    <rect x="17" y="10" width="6" height="24" rx="2" fill={color} fillOpacity="0.35" stroke={color} strokeWidth="1.4" />
+    <rect x="28" y="6" width="6" height="28" rx="2" fill={color} fillOpacity="0.55" stroke={color} strokeWidth="1.4" />
+    <path d="M4 36h32" stroke={color} strokeWidth="1.4" strokeLinecap="round" />
+  </svg>
+);
 
-function ResultsSortableTh({
-  colKey,
-  label,
-  widthKey,
-  width,
-  sort,
-  onSort,
-  onWidthChange,
-}: {
-  colKey: string;
-  label: string;
-  widthKey: string;
-  width: number;
-  sort: string;
-  onSort: (colKey: string) => void;
-  onWidthChange: (key: string, width: number) => void;
-}) {
-  const isAsc = sort === colKey;
-  const isDesc = sort === `-${colKey}`;
-  return (
-    <ResizableTh
-      columnKey={widthKey}
-      width={width}
-      minWidth={40}
-      maxWidth={600}
-      onWidthChange={onWidthChange}
-      onClick={() => onSort(colKey)}
-      aria-sort={isAsc ? "ascending" : isDesc ? "descending" : "none"}
-      className="cursor-pointer select-none"
-    >
-      <span className="inline-flex items-center justify-center gap-2">
-        {label}
-        <span aria-hidden style={{ fontSize: 11, opacity: isAsc || isDesc ? 1 : 0.35, color: "var(--color-primary)" }}>
-          {isAsc ? "▲" : isDesc ? "▼" : "⇅"}
-        </span>
-      </span>
-    </ResizableTh>
-  );
-}
+const cardBase: React.CSSProperties = {
+  display: "flex",
+  flexDirection: "column",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: 10,
+  padding: "24px 16px",
+  borderRadius: "var(--radius-lg, 12px)",
+  border: "1px solid var(--color-border-divider)",
+  background: "var(--color-bg-surface)",
+  cursor: "pointer",
+  transition: "all 0.15s ease",
+  minHeight: 160,
+  textAlign: "center" as const,
+};
 
 export default function ResultsAdminPage() {
   const navigate = useNavigate();
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
-  const [sort, setSort] = useState("");
-  const { columnWidths, setColumnWidth } = useTableColumnPrefs("results", RESULTS_ADMIN_COLUMN_DEFS);
 
   const { data: lectures = [], isLoading } = useQuery({
     queryKey: ["admin-results-lectures"],
@@ -83,141 +57,86 @@ export default function ResultsAdminPage() {
     );
   }, [lectures, search]);
 
-  const sortedFiltered = useMemo(() => {
-    if (!sort) return filtered;
-    const key = sort.startsWith("-") ? sort.slice(1) : sort;
-    const asc = !sort.startsWith("-");
-    return [...filtered].sort((a, b) => {
-      let aVal: string | number = "";
-      let bVal: string | number = "";
-      if (key === "dateRange") {
-        aVal = a.start_date ? new Date(a.start_date).getTime() : 0;
-        bVal = b.start_date ? new Date(b.start_date).getTime() : 0;
-      } else if (key === "status") {
-        aVal = a.is_active ? 1 : 0;
-        bVal = b.is_active ? 1 : 0;
-      } else {
-        aVal = (a as Record<string, unknown>)[key] ?? "";
-        bVal = (b as Record<string, unknown>)[key] ?? "";
-      }
-      if (typeof aVal === "string" && typeof bVal === "string") {
-        return asc ? aVal.localeCompare(String(bVal), "ko") : -aVal.localeCompare(String(bVal), "ko");
-      }
-      return asc ? Number(aVal) - Number(bVal) : Number(bVal) - Number(aVal);
-    });
-  }, [filtered, sort]);
-
-  const handleSort = useCallback((colKey: string) => {
-    setSort((prev) => (prev === colKey ? `-${colKey}` : prev === `-${colKey}` ? "" : colKey));
-  }, []);
-
-  const totalWidth =
-    (columnWidths.title ?? TABLE_COL.title) +
-    (columnWidths.subject ?? TABLE_COL.subject) +
-    (columnWidths.dateRange ?? TABLE_COL.medium) +
-    (columnWidths.status ?? TABLE_COL.status) +
-    (columnWidths.actions ?? TABLE_COL.actions);
-
   return (
-    <DomainLayout
-      title="성적"
-      description="강의·시험 단위 성적을 통합 조회합니다. 차시별 채점·성적은 각 강의 > 차시에서 확인하세요."
-    >
-      <div className="flex flex-col gap-4">
-        <DomainListToolbar
-          totalLabel={isLoading ? "…" : `총 ${filtered.length}개 강의`}
-          searchSlot={
-            <input
-              className="ds-input"
-              placeholder="강의명 · 과목 검색"
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              onBlur={() => setSearch(searchInput)}
-              onKeyDown={(e) => e.key === "Enter" && setSearch(searchInput)}
-              style={{ maxWidth: 280 }}
-            />
-          }
-          primaryAction={
+    <DomainLayout title="성적" description="강의별 시험 · 과제 성적을 통합 조회합니다.">
+      <style>{`
+        .score-domain-card:hover {
+          border-color: var(--color-primary) !important;
+          box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+          transform: translateY(-2px);
+        }
+      `}</style>
+
+      <div style={{ marginBottom: 16 }}>
+        <input
+          className="ds-input"
+          placeholder="강의명 · 과목 검색"
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+          onBlur={() => setSearch(searchInput)}
+          onKeyDown={(e) => e.key === "Enter" && setSearch(searchInput)}
+          style={{ maxWidth: 320 }}
+        />
+      </div>
+
+      {isLoading ? (
+        <EmptyState scope="panel" tone="loading" title="불러오는 중..." />
+      ) : !filtered.length ? (
+        <EmptyState
+          scope="panel"
+          tone="empty"
+          title="강의가 없습니다"
+          description="강의를 추가하면 시험 · 과제 성적을 여기서 확인할 수 있습니다."
+          actions={
             <Button intent="primary" onClick={() => navigate("/admin/lectures")}>
               강의 목록
             </Button>
           }
         />
-
-        {isLoading ? (
-          <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
-        ) : !filtered.length ? (
-          <EmptyState
-            scope="panel"
-            tone="empty"
-            title="강의가 없습니다"
-            description="강의를 추가한 뒤, 각 강의 > 차시 > 성적 탭에서 시험·과제 성적을 관리할 수 있습니다."
-            actions={
-              <Button intent="primary" onClick={() => navigate("/admin/lectures")}>
-                강의 목록
-              </Button>
-            }
-          />
-        ) : (
-          <DomainTable tableClassName="ds-table--flat ds-table--center" tableStyle={{ tableLayout: "fixed", width: totalWidth }}>
-            <colgroup>
-              <col style={{ width: columnWidths.title ?? TABLE_COL.title }} />
-              <col style={{ width: columnWidths.subject ?? TABLE_COL.subject }} />
-              <col style={{ width: columnWidths.dateRange ?? TABLE_COL.medium }} />
-              <col style={{ width: columnWidths.status ?? TABLE_COL.status }} />
-              <col style={{ width: columnWidths.actions ?? TABLE_COL.actions }} />
-            </colgroup>
-            <thead>
-              <tr>
-                <ResultsSortableTh colKey="title" label="강의명" widthKey="title" width={columnWidths.title ?? TABLE_COL.title} sort={sort} onSort={handleSort} onWidthChange={setColumnWidth} />
-                <ResultsSortableTh colKey="subject" label="과목" widthKey="subject" width={columnWidths.subject ?? TABLE_COL.subject} sort={sort} onSort={handleSort} onWidthChange={setColumnWidth} />
-                <ResultsSortableTh colKey="dateRange" label="기간" widthKey="dateRange" width={columnWidths.dateRange ?? TABLE_COL.medium} sort={sort} onSort={handleSort} onWidthChange={setColumnWidth} />
-                <ResultsSortableTh colKey="status" label="상태" widthKey="status" width={columnWidths.status ?? TABLE_COL.status} sort={sort} onSort={handleSort} onWidthChange={setColumnWidth} />
-                <th scope="col" style={{ width: columnWidths.actions ?? TABLE_COL.actions }} aria-label="관리" />
-              </tr>
-            </thead>
-            <tbody>
-              {sortedFiltered.map((l) => (
-                <tr
-                  key={l.id}
-                  className="cursor-pointer hover:bg-[var(--color-bg-surface-hover)]"
-                  onClick={() => navigate(`/admin/lectures/${l.id}`)}
-                >
-                  <td className="font-semibold text-[var(--color-text-primary)] truncate" title={l.title || l.name}>
-                    {l.title || l.name || "—"}
-                  </td>
-                  <td className="text-[var(--color-text-secondary)] truncate">{l.subject || "—"}</td>
-                  <td className="text-[var(--color-text-muted)]">
-                    {l.start_date && l.end_date
-                      ? `${l.start_date} ~ ${l.end_date}`
-                      : l.start_date || "—"}
-                  </td>
-                  <td>
-                    <span
-                      style={{
-                        fontSize: 12,
-                        fontWeight: 700,
-                        color: l.is_active ? STATUS_ACTIVE_COLOR : STATUS_INACTIVE_COLOR,
-                      }}
-                    >
-                      {l.is_active ? "활성" : "비활성"}
-                    </span>
-                  </td>
-                  <td onClick={(ev) => ev.stopPropagation()}>
-                    <Button
-                      intent="primary"
-                      size="sm"
-                      onClick={() => navigate(`/admin/lectures/${l.id}`)}
-                    >
-                      성적 보기
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </DomainTable>
-        )}
-      </div>
+      ) : (
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
+            gap: 16,
+          }}
+        >
+          {filtered.map((l) => (
+            <div
+              key={l.id}
+              className="score-domain-card"
+              style={cardBase}
+              onClick={() => navigate(`/admin/lectures/${l.id}`)}
+              title={`${l.title || l.name} — 성적 보기`}
+            >
+              <ScoreIcon
+                color={l.is_active ? "var(--color-primary)" : "var(--color-text-muted)"}
+              />
+              <div style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text-primary)", lineHeight: 1.3, maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {l.title || l.name || "강의"}
+              </div>
+              <div style={{ fontSize: 12, color: "var(--color-text-muted)", lineHeight: 1.2 }}>
+                {l.subject || "—"}
+              </div>
+              <span
+                style={{
+                  display: "inline-block",
+                  fontSize: 11,
+                  fontWeight: 600,
+                  padding: "2px 8px",
+                  borderRadius: 6,
+                  background: l.is_active
+                    ? "color-mix(in srgb, var(--color-success, #22c55e) 12%, transparent)"
+                    : "var(--color-bg-surface-soft)",
+                  color: l.is_active ? "var(--color-success, #16a34a)" : "var(--color-text-muted)",
+                }}
+              >
+                {l.is_active ? "활성" : "비활성"}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
     </DomainLayout>
   );
 }

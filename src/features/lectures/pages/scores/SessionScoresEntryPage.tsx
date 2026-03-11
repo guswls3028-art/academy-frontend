@@ -447,8 +447,27 @@ export default function SessionScoresEntryPage(_props: Props) {
             feedback.error("유효한 점수를 입력해주세요.");
             return;
           }
+          // Build PendingChange[] for all selected enrollments
+          const meta = data?.meta;
+          const changes: import("@/features/scores/api/scoreDraft").PendingChange[] = [];
+          for (const enrollmentId of selectedEnrollmentIds) {
+            if (bulkScoreTarget === "exam") {
+              for (const exam of meta?.exams ?? []) {
+                changes.push({ type: "examTotal", examId: exam.exam_id, enrollmentId, score });
+              }
+            } else {
+              for (const hw of meta?.homeworks ?? []) {
+                changes.push({ type: "homework", homeworkId: hw.homework_id, enrollmentId, score });
+              }
+            }
+          }
+          if (changes.length === 0) {
+            feedback.error("변경할 대상이 없습니다. 시험 또는 과제가 등록되어 있는지 확인하세요.");
+            return;
+          }
+          panelRef.current?.applyDraftPatch(changes);
           feedback.success(
-            `${bulkScoreTarget === "exam" ? "시험" : "과제"} 성적 일괄 변경이 적용되었습니다. (${selectedEnrollmentIds.length}명, ${score}점)`
+            `${bulkScoreTarget === "exam" ? "시험" : "과제"} 성적 일괄 변경이 적용되었습니다. (${selectedEnrollmentIds.length}명, ${score}점) 편집 종료 시 저장됩니다.`
           );
           setShowBulkScoreModal(false);
           setBulkScoreValue("");
@@ -457,6 +476,11 @@ export default function SessionScoresEntryPage(_props: Props) {
         <ModalHeader title="성적 일괄 변경" />
         <ModalBody>
           <div className="flex flex-col gap-4">
+            {!isEditMode && (
+              <p className="text-sm font-medium" style={{ color: "var(--color-error)" }}>
+                편집 모드에서만 성적 일괄 변경이 가능합니다. 먼저 편집 모드를 켜주세요.
+              </p>
+            )}
             <p className="text-sm text-[var(--color-text-muted)]">
               선택한 {selectedEnrollmentIds.length}명의 성적을 일괄 변경합니다.
             </p>
@@ -521,15 +545,34 @@ export default function SessionScoresEntryPage(_props: Props) {
               <Button
                 intent="primary"
                 size="sm"
-                disabled={!bulkScoreValue.trim()}
+                disabled={!bulkScoreValue.trim() || !isEditMode}
                 onClick={() => {
                   const score = Number(bulkScoreValue);
                   if (Number.isNaN(score) || score < 0) {
                     feedback.error("유효한 점수를 입력해주세요.");
                     return;
                   }
+                  // Build PendingChange[] for all selected enrollments
+                  const meta = data?.meta;
+                  const changes: import("@/features/scores/api/scoreDraft").PendingChange[] = [];
+                  for (const enrollmentId of selectedEnrollmentIds) {
+                    if (bulkScoreTarget === "exam") {
+                      for (const exam of meta?.exams ?? []) {
+                        changes.push({ type: "examTotal", examId: exam.exam_id, enrollmentId, score });
+                      }
+                    } else {
+                      for (const hw of meta?.homeworks ?? []) {
+                        changes.push({ type: "homework", homeworkId: hw.homework_id, enrollmentId, score });
+                      }
+                    }
+                  }
+                  if (changes.length === 0) {
+                    feedback.error("변경할 대상이 없습니다. 시험 또는 과제가 등록되어 있는지 확인하세요.");
+                    return;
+                  }
+                  panelRef.current?.applyDraftPatch(changes);
                   feedback.success(
-                    `${bulkScoreTarget === "exam" ? "시험" : "과제"} 성적 일괄 변경이 적용되었습니다. (${selectedEnrollmentIds.length}명, ${score}점)`
+                    `${bulkScoreTarget === "exam" ? "시험" : "과제"} 성적 일괄 변경이 적용되었습니다. (${selectedEnrollmentIds.length}명, ${score}점) 편집 종료 시 저장됩니다.`
                   );
                   setShowBulkScoreModal(false);
                   setBulkScoreValue("");

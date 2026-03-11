@@ -1,13 +1,24 @@
 // PATH: src/features/exams/panels/setup/ExamBulkActionsPanel.tsx
 
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { recalculateExam } from "../../api/adminExam";
 import AdminOmrBatchUploadBox from "@/features/submissions/components/AdminOmrBatchUploadBox";
 import { Button } from "@/shared/ui/ds";
+import { feedback } from "@/shared/ui/feedback/feedback";
 
 export default function ExamBulkActionsPanel({ examId }: { examId: number }) {
+  const qc = useQueryClient();
   const recalc = useMutation({
     mutationFn: () => recalculateExam(examId),
+    onSuccess: () => {
+      feedback.success("재채점이 완료되었습니다.");
+      qc.invalidateQueries({ queryKey: ["exam", examId] });
+      qc.invalidateQueries({ queryKey: ["exam-results"] });
+      qc.invalidateQueries({ queryKey: ["exam-submissions"] });
+    },
+    onError: (error: unknown) => {
+      feedback.error((error as Error)?.message ?? "재채점에 실패했습니다.");
+    },
   });
 
   return (

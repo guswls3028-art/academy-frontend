@@ -430,7 +430,7 @@ export default function BoardAdminPage() {
       <main className="qna-inbox__thread">
         {showCreate ? (
           <BoardCreatePane
-            blockTypes={blockTypes}
+            blockTypes={blockTypes.filter((bt) => ["notice", "board", "materials"].includes(bt.code || ""))}
             scopeNodes={scopeNodes}
             scopeParams={scopeParams}
             initialBlockTypeId={blockTypes.find((bt) => bt.code === "board")?.id ?? blockTypes[0]?.id}

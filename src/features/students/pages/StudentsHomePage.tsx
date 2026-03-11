@@ -205,7 +205,7 @@ export default function StudentsHomePage() {
               if (selectedIds.length === 0) return;
               const selected = (data ?? []).filter((s) => selectedIds.includes(s.id));
               const parts = selected.map(
-                (s) => `${s.name}(${Array.isArray(s.enrollments) ? s.enrollments.length : 0}개 강의 수강 중)`
+                (s) => `${s.displayName ?? s.name}(${Array.isArray(s.enrollments) ? s.enrollments.length : 0}개 강의 수강 중)`
               );
               const msg =
                 parts.length > 0

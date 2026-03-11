@@ -543,28 +543,32 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
       onSuccess();
       onClose();
     } catch (e: unknown) {
-      const err = e as { response?: { data?: { code?: string; deleted_student?: ClientStudent; detail?: unknown }; status?: number }; message?: string };
+      const err = e as { response?: { data?: Record<string, unknown>; status?: number }; message?: string };
       if (err?.response?.status === 409 && err.response.data?.code === "deleted_student_exists" && err.response.data?.deleted_student) {
         const { mapStudent } = await import("../api/students");
         setDeletedStudentConflict({
-          student: mapStudent(err.response.data.deleted_student),
+          student: mapStudent(err.response.data.deleted_student as any),
           formData: { ...form },
         });
         setBusy(false);
         return;
       }
-      const detail = err?.response?.data?.detail;
+      const data = err?.response?.data;
       let msg: string;
-      if (typeof detail === "string") {
-        msg = detail;
-      } else if (detail && typeof detail === "object" && !Array.isArray(detail)) {
-        const parts = (Object.entries(detail) as [string, unknown][]).map(([k, v]) => {
-          const val = Array.isArray(v) ? v.join(" ") : String(v ?? "");
-          return val ? `${k}: ${val}` : k;
-        });
-        msg = parts.length ? parts.join("\n") : "입력값을 확인해 주세요.";
-      } else if (detail) {
-        msg = JSON.stringify(detail);
+      if (data && typeof data === "object") {
+        // DRF returns field-level errors as {"field": ["error"]} or {"detail": "error"}
+        const detail = data.detail;
+        if (typeof detail === "string") {
+          msg = detail;
+        } else {
+          const parts = (Object.entries(data) as [string, unknown][])
+            .filter(([k]) => k !== "code" && k !== "deleted_student")
+            .map(([k, v]) => {
+              const val = Array.isArray(v) ? v.join(" ") : String(v ?? "");
+              return val ? `${k}: ${val}` : k;
+            });
+          msg = parts.length ? parts.join("\n") : "입력값을 확인해 주세요.";
+        }
       } else {
         msg = err instanceof Error ? err.message : "등록 요청 중 오류가 발생했습니다.";
       }
@@ -607,21 +611,24 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
       onSuccess();
       onClose();
     } catch (e: unknown) {
-      const err = e as { response?: { data?: { detail?: unknown }; status?: number }; message?: string };
-      const detail = err?.response?.data?.detail;
-      const msg =
-        typeof detail === "string"
-          ? detail
-          : detail && typeof detail === "object" && !Array.isArray(detail)
-            ? Object.entries(detail)
-                .map(([k, v]) => {
-                  const val = Array.isArray(v) ? v.join(" ") : String(v ?? "");
-                  return val ? `${k}: ${val}` : k;
-                })
-                .join("\n")
-            : err instanceof Error
-              ? err.message
-              : "등록 요청 중 오류가 발생했습니다.";
+      const err = e as { response?: { data?: Record<string, unknown>; status?: number }; message?: string };
+      const data = err?.response?.data;
+      let msg: string;
+      if (data && typeof data === "object") {
+        const detail = data.detail;
+        if (typeof detail === "string") {
+          msg = detail;
+        } else {
+          const parts = (Object.entries(data) as [string, unknown][])
+            .map(([k, v]) => {
+              const val = Array.isArray(v) ? v.join(" ") : String(v ?? "");
+              return val ? `${k}: ${val}` : k;
+            });
+          msg = parts.length ? parts.join("\n") : "입력값을 확인해 주세요.";
+        }
+      } else {
+        msg = err instanceof Error ? err.message : "등록 요청 중 오류가 발생했습니다.";
+      }
       feedback.error(msg);
     } finally {
       setBusy(false);
@@ -774,18 +781,6 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
           </div>
         ) : mode === "single" ? (
         <div className="modal-scroll-body modal-scroll-body--compact modal-scroll-body--no-scroll">
-          {/* 상단: 등록방식 변경 */}
-          <div style={{ marginBottom: "var(--space-3)" }}>
-            <button
-              type="button"
-              onClick={() => setMode("choice")}
-              className="modal-hint"
-              style={{ background: "none", border: "none", cursor: "pointer", padding: 0, textDecoration: "underline" }}
-            >
-              &larr; 등록 방식 변경
-            </button>
-          </div>
-
           {/* 자동발송 설정 카드 */}
           <div style={{ marginBottom: "var(--space-4)" }}>
             <AutoSendCard {...autoSendCardProps} />

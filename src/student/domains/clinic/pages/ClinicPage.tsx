@@ -137,16 +137,15 @@ export default function ClinicPage() {
       return;
     }
 
-    if (confirm("기존 예약을 취소하고 새로 신청하시겠습니까?")) {
-      cancelMutation.mutate(existingBooking.id, {
-        onSuccess: () => {
-          bookingMutation.mutate({
-            session: selectedSessionId,
-            memo: memo.trim() || undefined,
-          });
-        },
-      });
-    }
+    // Proceed directly — action is reversible (cancel + rebook)
+    cancelMutation.mutate(existingBooking.id, {
+      onSuccess: () => {
+        bookingMutation.mutate({
+          session: selectedSessionId,
+          memo: memo.trim() || undefined,
+        });
+      },
+    });
   };
 
   const isLoading = requestsLoading || sessionsLoading;
