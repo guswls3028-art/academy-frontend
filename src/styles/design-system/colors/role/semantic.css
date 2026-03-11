@@ -6,4 +6,10 @@
   --color-warning: var(--scale-Warning500);
   --color-error:   var(--scale-Error500);
   --color-info:    var(--scale-Info500);
+
+  /* 성별 — 파랑/분홍 (학생 등록 등에서 사용) */
+  --color-gender-male:        var(--scale-Primary500, #2563eb);
+  --color-gender-male-dark:   var(--scale-Primary700, #1e40af);
+  --color-gender-female:      #db2777;
+  --color-gender-female-dark: #9d174d;
 }

@@ -659,10 +659,10 @@
   transform: translateY(0);
 }
 
-/* 남자 — primary 스케일 토큰 기반 */
+/* 남자 — 전역 성별 토큰 기반 (파랑) */
 .student-gender-btn--m {
-  --_gender: var(--scale-Primary500, #2563eb);
-  --_gender-dark: var(--scale-Primary700, #1e40af);
+  --_gender: var(--color-gender-male);
+  --_gender-dark: var(--color-gender-male-dark);
   background: color-mix(in srgb, var(--_gender) 10%, var(--scale-Neutral0, #fff));
   color: var(--_gender-dark);
 }
@@ -681,10 +681,10 @@
     0 0 0 2px color-mix(in srgb, var(--_gender) 30%, transparent);
 }
 
-/* 여자 — 핑크 (테마에서 --color-gender-female 로 커스터마이즈 가능) */
+/* 여자 — 전역 성별 토큰 기반 (분홍) */
 .student-gender-btn--f {
-  --_gender: var(--color-gender-female, #db2777);
-  --_gender-dark: var(--color-gender-female-dark, #9d174d);
+  --_gender: var(--color-gender-female);
+  --_gender-dark: var(--color-gender-female-dark);
   background: color-mix(in srgb, var(--_gender) 10%, var(--scale-Neutral0, #fff));
   color: var(--_gender-dark);
 }
