@@ -3,7 +3,7 @@
 
 import { useState, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { FolderOpen, FileText, Image, FilePlus, FolderPlus } from "lucide-react";
+import { FolderOpen, FileText, Image, FilePlus, FolderPlus, X } from "lucide-react";
 import { Button, CloseButton } from "@/shared/ui/ds";
 import {
   fetchInventoryList,
@@ -21,6 +21,7 @@ import Breadcrumb from "./Breadcrumb";
 import FolderTree from "./FolderTree";
 import UploadModal from "./UploadModal";
 import MoveDuplicateModal from "./MoveDuplicateModal";
+import panelStyles from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
 import styles from "./MyStorageExplorer.module.css";
 
 const DRAG_TYPE = "application/x-storage-move";

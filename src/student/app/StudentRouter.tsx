@@ -32,7 +32,6 @@ const GradeListPage = lazy(() => import("@/student/domains/grades/pages/GradeLis
 const GradeDetailPage = lazy(() => import("@/student/domains/grades/pages/GradeDetailPage"));
 const MorePage = lazy(() => import("@/student/domains/more/pages/MorePage"));
 const ProfilePage = lazy(() => import("@/student/domains/profile/pages/ProfilePage"));
-const QnaPage = lazy(() => import("@/student/domains/qna/pages/QnaPage"));
 const CommunityPage = lazy(() => import("@/student/domains/community/pages/CommunityPage"));
 const NoticesPage = lazy(() => import("@/student/domains/notices/pages/NoticesPage"));
 const NoticeDetailPage = lazy(() => import("@/student/domains/notices/pages/NoticeDetailPage"));

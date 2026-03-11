@@ -3,7 +3,7 @@
 
 import { useState, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { FolderOpen, FileText, Image, FilePlus, FolderPlus } from "lucide-react";
+import { FolderOpen, FileText, Image, FilePlus, FolderPlus, X } from "lucide-react";
 import { Button, CloseButton } from "@/shared/ui/ds";
 import {
   fetchInventoryList,
@@ -210,37 +210,22 @@ export default function MyStorageExplorer() {
       <div className={panelStyles.toolbar}>
         <Breadcrumb path={breadcrumbPath} onSelect={setCurrentFolderId} />
         <div className={panelStyles.actions}>
-          <div className={styles.addWrap}>
-            <Button
-              type="button"
-              intent="primary"
-              size="sm"
-              onClick={() => !isLocked && setAddChoiceOpen(true)}
-              disabled={isLocked}
-              title={isLocked ? "Lite 플랜에서는 인벤토리를 사용할 수 없습니다." : undefined}
-            >
-              <FilePlus size={16} style={{ marginRight: 6 }} />
-              추가
-            </Button>
-            {addChoiceOpen && (
-              <>
-                <div className={styles.addBackdrop} onClick={() => setAddChoiceOpen(false)} />
-                <div className={styles.addMenu}>
-                  <button type="button" onClick={() => setAddChoiceOpen(false) || setNewFolderOpen(true)}>
-                    <FolderPlus size={18} /> 폴더 생성
-                  </button>
-                  <button type="button" onClick={() => setAddChoiceOpen(false) || setUploadModalOpen(true)}>
-                    <FilePlus size={18} /> 파일 업로드
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
           {hasSelection && (
             <Button type="button" intent="danger" size="sm" onClick={handleDeleteSelected}>
               삭제
             </Button>
           )}
+          <Button
+            type="button"
+            intent="primary"
+            size="sm"
+            onClick={() => !isLocked && setAddChoiceOpen(true)}
+            disabled={isLocked}
+            title={isLocked ? "Lite 플랜에서는 인벤토리를 사용할 수 없습니다." : undefined}
+          >
+            <FilePlus size={16} style={{ marginRight: 6 }} />
+            추가
+          </Button>
         </div>
       </div>
 
@@ -278,14 +263,6 @@ export default function MyStorageExplorer() {
                 }
               }}
             >
-              <div
-                className={styles.item + " " + styles.itemAdd + (isLocked ? " " + styles.itemLocked : "")}
-                onClick={() => !isLocked && setAddChoiceOpen(true)}
-                title={isLocked ? "Lite 플랜에서는 사용 불가" : "폴더 또는 파일 추가"}
-              >
-                <FilePlus size={32} />
-                <span>추가</span>
-              </div>
               {subFolders.map((f) => (
                 <div
                   key={f.id}
@@ -357,10 +334,59 @@ export default function MyStorageExplorer() {
                   {movingId === file.id && <span className={styles.movingLabel}>이동 중...</span>}
                 </div>
               ))}
+              <div
+                className={styles.item + " " + styles.itemAdd + (isLocked ? " " + styles.itemLocked : "")}
+                onClick={() => !isLocked && setAddChoiceOpen(true)}
+                title={isLocked ? "Lite 플랜에서는 사용 불가" : "폴더 또는 파일 추가"}
+              >
+                <FilePlus size={32} />
+                <span>추가</span>
+              </div>
             </div>
           )}
         </div>
       </div>
+
+      {addChoiceOpen && (
+        <div className={styles.addPopupBackdrop} onClick={() => setAddChoiceOpen(false)}>
+          <div className={styles.addPopup} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.addPopupHeader}>
+              <span>추가</span>
+              <button type="button" style={{ background: "none", border: "none", cursor: "pointer", padding: 4, display: "grid", placeItems: "center" }} onClick={() => setAddChoiceOpen(false)}>
+                <X size={18} />
+              </button>
+            </div>
+            <div className={styles.addPopupBody}>
+              <button
+                type="button"
+                className={styles.addPopupBtn}
+                onClick={() => { setAddChoiceOpen(false); setNewFolderOpen(true); }}
+              >
+                <div className={styles.addPopupBtnIcon}>
+                  <FolderPlus size={20} style={{ color: "var(--color-brand-primary)" }} />
+                </div>
+                <div className={styles.addPopupBtnText}>
+                  <span className={styles.addPopupBtnLabel}>폴더 생성</span>
+                  <span className={styles.addPopupBtnDesc}>새 폴더를 만듭니다</span>
+                </div>
+              </button>
+              <button
+                type="button"
+                className={styles.addPopupBtn}
+                onClick={() => { setAddChoiceOpen(false); setUploadModalOpen(true); }}
+              >
+                <div className={styles.addPopupBtnIcon}>
+                  <FilePlus size={20} style={{ color: "var(--color-brand-primary)" }} />
+                </div>
+                <div className={styles.addPopupBtnText}>
+                  <span className={styles.addPopupBtnLabel}>파일 업로드</span>
+                  <span className={styles.addPopupBtnDesc}>파일을 선택하여 업로드합니다</span>
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {newFolderOpen && (
         <div className={styles.modalBackdrop} onClick={() => setNewFolderOpen(false)}>

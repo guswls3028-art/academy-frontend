@@ -1,46 +1,96 @@
 /* 내 저장소 — 레이아웃은 PanelWithTreeLayout.module.css SSOT, 여기는 그리드·카드·모달만 */
 
-.addWrap {
-  position: relative;
-}
-
-.addBackdrop {
+/* 추가 선택 팝업 (센터 모달) */
+.addPopupBackdrop {
   position: fixed;
   inset: 0;
-  z-index: 50;
-}
-
-.addMenu {
-  position: absolute;
-  top: 100%;
-  right: 0;
-  margin-top: 4px;
-  min-width: 180px;
-  padding: var(--space-2);
-  border-radius: var(--radius-md);
-  background: var(--color-bg-surface);
-  border: 1px solid var(--color-border-divider);
-  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
-  z-index: 51;
-}
-
-.addMenu button {
+  z-index: 70;
   display: flex;
   align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.35);
+}
+
+.addPopup {
+  width: 90%;
+  max-width: 320px;
+  border-radius: var(--radius-xl);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-divider);
+  box-shadow: 0 24px 48px rgba(0,0,0,0.18);
+  overflow: hidden;
+  animation: addPopupIn 0.15s ease-out;
+}
+
+@keyframes addPopupIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+.addPopupHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-4);
+  border-bottom: 1px solid var(--color-border-divider);
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.addPopupBody {
+  padding: var(--space-3);
+  display: flex;
+  flex-direction: column;
   gap: var(--space-2);
+}
+
+.addPopupBtn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
   width: 100%;
-  padding: var(--space-2) var(--space-3);
-  border: none;
-  border-radius: var(--radius-sm);
-  background: none;
-  font-size: 13px;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface);
+  font-size: 14px;
   font-weight: 600;
   color: var(--color-text-primary);
   cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
 }
 
-.addMenu button:hover {
+.addPopupBtn:hover {
   background: var(--color-bg-surface-hover);
+  border-color: color-mix(in srgb, var(--color-brand-primary) 30%, var(--color-border-divider));
+}
+
+.addPopupBtnIcon {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-brand-primary) 10%, var(--color-bg-surface));
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.addPopupBtnText {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.addPopupBtnLabel {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.addPopupBtnDesc {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--color-text-muted);
 }
 
 .grid {
