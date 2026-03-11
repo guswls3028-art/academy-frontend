@@ -12,6 +12,7 @@ import {
 } from "../api/community.api";
 import { fetchLectures } from "@/features/lectures/api/sessions";
 import { EmptyState, Button } from "@/shared/ui/ds";
+import "@/features/community/community.css";
 
 export default function MaterialsBoardPage() {
   const { scope, sessionId, effectiveLectureId } = useCommunityScope();
@@ -67,13 +68,7 @@ export default function MaterialsBoardPage() {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
-        <span
-          style={{
-            fontSize: "var(--text-sm)",
-            fontWeight: "var(--font-title)",
-            color: "var(--color-text-muted)",
-          }}
-        >
+        <span className="community-field__label">
           {scope === "all" ? "전체 자료" : scope === "session" ? "해당 차시 자료" : "해당 강의 자료"} · {materials.length}개
         </span>
       </div>
@@ -111,76 +106,27 @@ export default function MaterialsBoardPage() {
       ) : (
         <ul className="flex flex-col gap-2" style={{ listStyle: "none", padding: 0, margin: 0 }}>
           {materials.map((m) => (
-            <li
-              key={m.id}
-              style={{
-                padding: "var(--space-4)",
-                borderRadius: "var(--radius-lg)",
-                border: "1px solid var(--color-border-divider)",
-                background: "var(--color-bg-surface)",
-              }}
-            >
+            <li key={m.id} className="community-card">
               <div className="flex items-start justify-between gap-2">
                 <div>
-                  <div
-                    style={{
-                      fontSize: "var(--text-md)",
-                      fontWeight: 700,
-                      color: "var(--color-text-primary)",
-                    }}
-                  >
-                    {m.title}
-                  </div>
+                  <div className="community-card__title">{m.title}</div>
                   {m.description && (
-                    <div
-                      style={{
-                        fontSize: "var(--text-sm)",
-                        color: "var(--color-text-secondary)",
-                        marginTop: 4,
-                      }}
-                    >
-                      {m.description}
-                    </div>
+                    <div className="community-card__description">{m.description}</div>
                   )}
                   {scope === "all" && m.lecture != null && m.lecture && (
-                    <span
-                      style={{
-                        fontSize: "var(--text-xs)",
-                        color: "var(--color-text-muted)",
-                        marginTop: 4,
-                        display: "inline-block",
-                      }}
-                    >
+                    <span className="community-card__subtitle">
                       {lectureTitleMap.get(m.lecture) ?? `강의 #${m.lecture}`}
                     </span>
                   )}
-                  <div
-                    style={{
-                      fontSize: "var(--text-xs)",
-                      color: "var(--color-text-muted)",
-                      marginTop: 6,
-                    }}
-                  >
+                  <div className="community-card__meta">
                     {new Date(m.created_at).toLocaleDateString("ko-KR")}
                     {m.file && (
-                      <a
-                        href={m.file}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="ml-2"
-                        style={{ color: "var(--color-primary)" }}
-                      >
+                      <a href={m.file} target="_blank" rel="noopener noreferrer" className="community-link ml-2">
                         파일
                       </a>
                     )}
                     {m.url && (
-                      <a
-                        href={m.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="ml-2"
-                        style={{ color: "var(--color-primary)" }}
-                      >
+                      <a href={m.url} target="_blank" rel="noopener noreferrer" className="community-link ml-2">
                         링크
                       </a>
                     )}
