@@ -163,48 +163,37 @@ export default function HomeworkEnrollmentManageModal({
         >
           {/* 좌측: 검색 + 툴바 + 테이블 */}
           <div className="flex flex-col gap-2 min-h-0 overflow-hidden">
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-[13px] font-semibold text-[var(--color-text-primary)]">
-                전체 학생 명단
-              </span>
+            <div className="flex flex-col gap-3" style={{ marginBottom: 12 }}>
+              <div className="flex flex-wrap items-center gap-3">
+                <span
+                  style={{
+                    fontSize: 15,
+                    fontWeight: 700,
+                    color: "var(--color-text-primary)",
+                    paddingRight: 12,
+                    borderRight: "1px solid var(--color-border-divider)",
+                    marginRight: 4,
+                  }}
+                >
+                  총 {rows.length}명
+                </span>
+                <div className="flex items-center gap-2 flex-1 min-w-0" style={{ maxWidth: 420 }}>
+                  <input
+                    className="ds-input flex-1 min-w-0"
+                    placeholder="이름 / 전화번호 / 학교명 / 학년(예: 고1, 중2, 3학년)"
+                    value={keyword}
+                    onChange={(e) => setKeyword(e.target.value)}
+                    style={{ maxWidth: 360 }}
+                    disabled={!canInteract}
+                    aria-label="학생 이름 검색"
+                  />
+                </div>
+              </div>
               {selectedIds.size > 0 && (
                 <span className="text-[13px] font-semibold text-[var(--color-brand-primary)]">
                   {selectedIds.size}명 선택됨
                 </span>
               )}
-            </div>
-            <input
-              value={keyword}
-              onChange={(e) => setKeyword(e.target.value)}
-              placeholder="학생 이름 검색"
-              className="ds-input w-full text-sm"
-              disabled={!canInteract}
-              aria-label="학생 이름 검색"
-            />
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <span className="text-[13px] text-[var(--color-text-secondary)]">
-                선택된 {selectedIds.size}명 / 전체 {rows.length}명
-              </span>
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  intent="secondary"
-                  size="sm"
-                  onClick={selectAll}
-                  disabled={!canInteract || filtered.length === 0}
-                >
-                  현재 목록 전체 선택
-                </Button>
-                <Button
-                  type="button"
-                  intent="secondary"
-                  size="sm"
-                  onClick={clearAll}
-                  disabled={!canInteract || filtered.length === 0}
-                >
-                  현재 목록 전체 해제
-                </Button>
-              </div>
             </div>
 
             {error && (
@@ -277,7 +266,7 @@ export default function HomeworkEnrollmentManageModal({
                           className="modal-inner-table__name-th border-b py-1.5 px-3 text-left text-[var(--color-text-muted)]"
                           style={{ borderColor: "var(--color-border-divider)" }}
                         >
-                          학생
+                          이름
                         </th>
                       </tr>
                     </thead>
@@ -289,7 +278,7 @@ export default function HomeworkEnrollmentManageModal({
                             className="py-5 px-3 text-center text-[var(--color-text-muted)]"
                           >
                             {keyword.trim()
-                              ? "검색 결과 없음. 검색어를 바꿔 보세요."
+                              ? "검색 결과 없음. 검색어·필터를 바꿔 보세요."
                               : "표시할 학생이 없습니다."}
                           </td>
                         </tr>
@@ -314,7 +303,7 @@ export default function HomeworkEnrollmentManageModal({
                                   aria-label={`${r.student_name ?? ""} 선택`}
                                 />
                               </td>
-                              <td className="modal-inner-table__name py-1.5 px-3 text-[var(--color-text-primary)] truncate font-medium">
+                              <td className="modal-inner-table__name py-1.5 px-3 text-[var(--color-text-primary)] truncate font-medium cursor-pointer hover:bg-[var(--color-bg-surface-soft)] leading-6">
                                 <StudentNameWithLectureChip
                                   name={r.student_name || "(이름 없음)"}
                                   profilePhotoUrl={r.profile_photo_url ?? undefined}
