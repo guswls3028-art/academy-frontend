@@ -76,20 +76,14 @@ function TriggerCard({
   templates,
   onUpdate,
   saving,
-  smsAllowed,
   onEditTemplate,
 }: {
   config: AutoSendConfigItem;
   templates: MessageTemplateItem[];
   onUpdate: (c: Partial<AutoSendConfigItem>, debounce?: boolean) => void;
   saving: boolean;
-  smsAllowed: boolean;
   onEditTemplate?: (template: MessageTemplateItem) => void;
 }) {
-  const effectiveMode =
-    !smsAllowed && (config.message_mode === "sms" || config.message_mode === "both")
-      ? "alimtalk"
-      : config.message_mode;
 
   const isComingSoon = false;
 
@@ -184,7 +178,7 @@ function TriggerCard({
             alignItems: "end",
           }}
         >
-          {/* 템플릿 (읽기 전용 + 수정 버튼) */}
+          {/* 템플릿 — 클릭하면 수정 모달 */}
           <div>
             <label
               style={{
@@ -204,67 +198,60 @@ function TriggerCard({
                 ? templates.find((t) => t.id === config.template)
                 : null;
               return (
-                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                  <div
-                    className="ds-input"
-                    style={{
-                      flex: 1,
-                      fontSize: 13,
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 8,
-                      background: "var(--color-bg-surface-soft)",
-                      cursor: "default",
-                      minHeight: 36,
-                    }}
-                  >
-                    <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {linked ? linked.name : "기본 템플릿 미설정"}
-                    </span>
-                    {linked?.solapi_status && (
-                      <span
-                        style={{
-                          fontSize: 11,
-                          fontWeight: 600,
-                          padding: "1px 6px",
-                          borderRadius: "var(--radius-sm)",
-                          flexShrink: 0,
-                          background:
-                            linked.solapi_status === "APPROVED"
-                              ? "color-mix(in srgb, var(--color-status-success, #16a34a) 12%, transparent)"
-                              : linked.solapi_status === "PENDING"
-                              ? "color-mix(in srgb, var(--color-status-warning, #d97706) 12%, transparent)"
-                              : "color-mix(in srgb, var(--color-status-danger, #dc2626) 12%, transparent)",
-                          color:
-                            linked.solapi_status === "APPROVED"
-                              ? "var(--color-status-success, #16a34a)"
-                              : linked.solapi_status === "PENDING"
-                              ? "var(--color-status-warning, #d97706)"
-                              : "var(--color-status-danger, #dc2626)",
-                        }}
-                      >
-                        {linked.solapi_status === "APPROVED"
-                          ? "승인"
-                          : linked.solapi_status === "PENDING"
-                          ? "검수대기"
-                          : linked.solapi_status === "REJECTED"
-                          ? "반려"
-                          : linked.solapi_status}
-                      </span>
-                    )}
-                  </div>
-                  {linked && (
-                    <Button
-                      type="button"
-                      intent="secondary"
-                      size="sm"
-                      onClick={() => onEditTemplate?.(linked)}
-                      disabled={saving}
+                <button
+                  type="button"
+                  className="ds-input"
+                  style={{
+                    width: "100%",
+                    fontSize: 13,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    background: "var(--color-bg-surface-soft)",
+                    cursor: "pointer",
+                    minHeight: 36,
+                    textAlign: "left",
+                    border: "1px solid var(--color-border)",
+                    borderRadius: "var(--radius-md)",
+                  }}
+                  onClick={() => linked && onEditTemplate?.(linked)}
+                  disabled={saving || !linked}
+                >
+                  <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--color-primary)" }}>
+                    수정하기
+                  </span>
+                  {linked?.solapi_status && (
+                    <span
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 600,
+                        padding: "1px 6px",
+                        borderRadius: "var(--radius-sm)",
+                        flexShrink: 0,
+                        background:
+                          linked.solapi_status === "APPROVED"
+                            ? "color-mix(in srgb, var(--color-status-success, #16a34a) 12%, transparent)"
+                            : linked.solapi_status === "PENDING"
+                            ? "color-mix(in srgb, var(--color-status-warning, #d97706) 12%, transparent)"
+                            : "color-mix(in srgb, var(--color-status-danger, #dc2626) 12%, transparent)",
+                        color:
+                          linked.solapi_status === "APPROVED"
+                            ? "var(--color-status-success, #16a34a)"
+                            : linked.solapi_status === "PENDING"
+                            ? "var(--color-status-warning, #d97706)"
+                            : "var(--color-status-danger, #dc2626)",
+                      }}
                     >
-                      수정하기
-                    </Button>
+                      {linked.solapi_status === "APPROVED"
+                        ? "승인"
+                        : linked.solapi_status === "PENDING"
+                        ? "검수대기"
+                        : linked.solapi_status === "REJECTED"
+                        ? "반려"
+                        : linked.solapi_status}
+                    </span>
                   )}
-                </div>
+                </button>
               );
             })()}
           </div>
@@ -337,7 +324,7 @@ function TriggerCard({
             <select
               className="ds-input"
               style={{ width: "100%", fontSize: 13 }}
-              value={effectiveMode}
+              value={config.message_mode}
               onChange={(e) =>
                 onUpdate({
                   ...config,
@@ -346,13 +333,9 @@ function TriggerCard({
               }
               disabled={saving}
             >
-              <option value="sms" disabled={!smsAllowed}>
-                {MESSAGE_MODE_LABELS.sms}
-              </option>
+              <option value="sms">{MESSAGE_MODE_LABELS.sms}</option>
               <option value="alimtalk">{MESSAGE_MODE_LABELS.alimtalk}</option>
-              <option value="both" disabled={!smsAllowed}>
-                {MESSAGE_MODE_LABELS.both}
-              </option>
+              <option value="both">{MESSAGE_MODE_LABELS.both}</option>
             </select>
           </div>
         </div>
@@ -420,19 +403,12 @@ export default function MessageAutoSendPage() {
       c.trigger === updated.trigger ? { ...c, ...updated } : c
     );
     setLocalConfigs(next);
-    const toSend = smsAllowed
-      ? next
-      : next.map((c) =>
-          c.message_mode === "sms" || c.message_mode === "both"
-            ? { ...c, message_mode: "alimtalk" as const }
-            : c
-        );
     if (debounce) {
       if (debounceRef.current) clearTimeout(debounceRef.current);
-      debounceRef.current = setTimeout(() => updateMut.mutate(toSend), 600);
+      debounceRef.current = setTimeout(() => updateMut.mutate(next), 600);
     } else {
       if (debounceRef.current) clearTimeout(debounceRef.current);
-      updateMut.mutate(toSend);
+      updateMut.mutate(next);
     }
   };
 
@@ -531,7 +507,6 @@ export default function MessageAutoSendPage() {
                     templates={templates}
                     onUpdate={handleUpdate}
                     saving={updateMut.isPending}
-                    smsAllowed={smsAllowed}
                     onEditTemplate={(tpl) => setEditingTemplate(tpl)}
                   />
                 ))}
