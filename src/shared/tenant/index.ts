@@ -207,10 +207,12 @@ export function getTenantCodeForApiRequest(): string | null {
   }
 }
 
-export type { TenantId } from "./config";
+export type { TenantId, TenantBranding, TenantDef } from "./config";
 export {
   getTenantIdFromCode,
   getTenantBranding,
+  getTenantDefById,
+  getTenantDefByHostname,
   HOSTNAME_TO_TENANT_CODE,
   getLoginPathForTenantId,
   getTenantIdsWithDedicatedLogin,

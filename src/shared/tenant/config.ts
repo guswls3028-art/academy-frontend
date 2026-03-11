@@ -6,9 +6,11 @@
 export {
   getTenantIdFromCode,
   getTenantBranding,
+  getTenantDefById,
+  getTenantDefByHostname,
   HOSTNAME_TO_TENANT_CODE,
   getLoginPathForTenantId,
   getTenantIdsWithDedicatedLogin,
   TENANTS,
 } from "./tenants";
-export type { TenantId, TenantBranding } from "./tenants";
+export type { TenantId, TenantBranding, TenantDef } from "./tenants";

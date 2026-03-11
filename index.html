@@ -16,23 +16,32 @@
     <script>
       (function () {
         var host = (typeof location !== "undefined" && location.hostname) ? location.hostname.toLowerCase() : "";
-        var title = "HakwonPlus";
-        var desc = "학원 관리·학생 학습 플랫폼";
-        if (host === "tchul.com" || host === "www.tchul.com") {
-          title = "박철과학";
-          desc = "박철과학 학습 플랫폼 – 학생·선생님 로그인";
-        }
-        document.title = title;
-        var ogTitle = document.querySelector('meta[property="og:title"]');
-        if (ogTitle) ogTitle.setAttribute("content", title);
-        var ogDesc = document.querySelector('meta[property="og:description"]');
-        if (ogDesc) ogDesc.setAttribute("content", desc);
-        var twTitle = document.querySelector('meta[name="twitter:title"]');
-        if (twTitle) twTitle.setAttribute("content", title);
-        var twDesc = document.querySelector('meta[name="twitter:description"]');
-        if (twDesc) twDesc.setAttribute("content", desc);
+        /* 테넌트별 브라우저 제목·설명·파비콘 SSOT (index.html 초기 렌더용) */
+        var tenants = {
+          "tchul.com":       { t: "박철과학",   d: "박철과학 학습 플랫폼 – 학생·선생님 로그인", f: "/tenants/tchul/favicon.png" },
+          "www.tchul.com":   { t: "박철과학",   d: "박철과학 학습 플랫폼 – 학생·선생님 로그인", f: "/tenants/tchul/favicon.png" },
+          "hakwonplus.com":  { t: "학원플러스", d: "학원플러스 – 학원 관리·학생 학습 플랫폼" },
+          "www.hakwonplus.com": { t: "학원플러스", d: "학원플러스 – 학원 관리·학생 학습 플랫폼" },
+          "limglish.kr":     { t: "림글리쉬",   d: "림글리쉬 학습 플랫폼" },
+          "www.limglish.kr": { t: "림글리쉬",   d: "림글리쉬 학습 플랫폼" },
+          "ymath.co.kr":     { t: "ymath",      d: "ymath 학습 플랫폼" },
+          "www.ymath.co.kr": { t: "ymath",      d: "ymath 학습 플랫폼" },
+          "sswe.co.kr":      { t: "SSWE",       d: "SSWE 학습 플랫폼" },
+          "www.sswe.co.kr":  { t: "SSWE",       d: "SSWE 학습 플랫폼" }
+        };
+        var cfg = tenants[host] || { t: "HakwonPlus", d: "학원 관리·학생 학습 플랫폼" };
+        document.title = cfg.t;
+        function setMeta(sel, val) { var el = document.querySelector(sel); if (el) el.setAttribute("content", val); }
+        setMeta('meta[property="og:title"]', cfg.t);
+        setMeta('meta[property="og:description"]', cfg.d);
+        setMeta('meta[name="twitter:title"]', cfg.t);
+        setMeta('meta[name="twitter:description"]', cfg.d);
         var ogUrl = document.querySelector('meta[property="og:url"]');
         if (ogUrl && typeof location !== "undefined" && location.href) ogUrl.setAttribute("content", location.href);
+        if (cfg.f) {
+          var link = document.querySelector('link[rel="icon"]');
+          if (link) { link.setAttribute("href", cfg.f); link.setAttribute("type", "image/png"); }
+        }
       })();
     </script>
   </head>
