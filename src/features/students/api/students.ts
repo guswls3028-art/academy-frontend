@@ -221,9 +221,7 @@ export async function createStudent(form: any) {
   const parentPhone = normalizePhone(parentPhoneRaw);
   const noPhone = !studentPhoneRaw;
 
-  const phone = noPhone
-    ? (parentPhone.length >= 8 ? `010${parentPhone.slice(-8)}` : "")
-    : normalizePhone(studentPhoneRaw);
+  const phone = noPhone ? "" : normalizePhone(studentPhoneRaw);
 
   const payload: Record<string, unknown> = {
     name,
@@ -246,7 +244,6 @@ export async function createStudent(form: any) {
 
   if (phone) {
     (payload as any).phone = phone;
-    (payload as any).omr_code = phone.slice(-8);
   }
 
   const psNumber = safeStr(form?.psNumber).trim();

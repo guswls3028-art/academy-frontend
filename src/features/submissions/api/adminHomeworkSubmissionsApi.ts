@@ -1,14 +1,13 @@
 import api from "@/shared/api/axios";
 import type { SubmissionStatus } from "../types";
 
-export type SubmissionRow = {
+export type HomeworkSubmissionRow = {
   id: number;
   enrollment_id: number;
   student_name: string;
   profile_photo_url?: string | null;
   status: SubmissionStatus;
-  source?: string;
-  score: number | null;
+  source: string;
   file_key?: string | null;
   file_type?: string | null;
   file_size?: number | null;
@@ -18,13 +17,10 @@ export type SubmissionRow = {
   created_at: string;
 };
 
-export async function fetchExamSubmissions(examId: number) {
-  // SSOT: GET /api/v1/submissions/submissions/exams/<exam_id>/
-  const res = await api.get(`/submissions/submissions/exams/${examId}/`);
-
+export async function fetchHomeworkSubmissions(homeworkId: number) {
+  const res = await api.get(`/submissions/submissions/homework/${homeworkId}/`);
   const data = res.data;
-  if (Array.isArray(data)) return data as SubmissionRow[];
-  if (Array.isArray(data?.results)) return data.results as SubmissionRow[];
-
+  if (Array.isArray(data)) return data as HomeworkSubmissionRow[];
+  if (Array.isArray(data?.results)) return data.results as HomeworkSubmissionRow[];
   return [];
 }

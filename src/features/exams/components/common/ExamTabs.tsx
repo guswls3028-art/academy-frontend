@@ -6,18 +6,20 @@ type Props = {
   onChange: (k: ExamTabKey) => void;
   hasSession: boolean;
   assetsReady: boolean;
-  /** operate 모드: 운영/제출/채점·결과만 노출, 자산 숨김 */
+  /** operate 모드: 운영/제출관리/채점·결과만 노출, 자산 숨김 */
   mode?: "design" | "operate";
 };
 
 const TABS_DESIGN: { key: ExamTabKey; label: string }[] = [
   { key: "setup", label: "기본 설정" },
   { key: "assets", label: "자산" },
+  { key: "submissions", label: "제출관리" },
   { key: "results", label: "결과" },
 ];
 
 const TABS_OPERATE: { key: ExamTabKey; label: string }[] = [
   { key: "setup", label: "운영" },
+  { key: "submissions", label: "제출관리" },
   { key: "results", label: "채점·결과" },
 ];
 

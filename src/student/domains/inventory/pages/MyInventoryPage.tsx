@@ -182,11 +182,12 @@ export default function MyInventoryPage() {
           <div style={{ display: "flex", gap: 8 }}>
             <button
               type="button"
-              className="stu-btn stu-btn--ghost stu-btn--sm"
+              className="stu-btn stu-btn--secondary stu-btn--sm"
               onClick={() => setShowNewFolder(true)}
-              title="새 폴더"
+              style={{ display: "flex", alignItems: "center", gap: 4 }}
             >
-              <IconPlus style={{ width: 16, height: 16 }} />
+              <IconPlus style={{ width: 14, height: 14 }} />
+              새 폴더
             </button>
             <button
               type="button"
@@ -196,7 +197,7 @@ export default function MyInventoryPage() {
               style={{ display: "flex", alignItems: "center", gap: 4 }}
             >
               <IconUpload style={{ width: 14, height: 14 }} />
-              {uploadMut.isPending ? "업로드 중…" : "업로드"}
+              {uploadMut.isPending ? "업로드 중…" : "파일 업로드"}
             </button>
           </div>
         ) : undefined

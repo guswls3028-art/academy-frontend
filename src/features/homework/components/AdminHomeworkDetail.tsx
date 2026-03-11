@@ -3,8 +3,8 @@
  * AdminHomeworkDetail
  *
  * ✅ 시험 AdminExamDetail과 동일한 탭 구조
- * - design: 기본 설정 | 자산 | 제출 | 결과
- * - operate(세션 컨텍스트): 운영 | 결과 (운영 탭에 기본설정+자산+제출 통합)
+ * - design: 기본 설정 | 자산 | 제출관리 | 결과
+ * - operate(세션 컨텍스트): 운영 | 제출관리 | 결과
  *
  * 🚫 금지
  * - 점수 계산 ❌
@@ -34,7 +34,7 @@ export default function AdminHomeworkDetail({
   homeworkId: number;
   /** URL의 sessionId (과제 정책 조회용, 있으면 과제 로드 전에도 사용) */
   sessionId?: number;
-  /** operate 시 2탭(운영|결과), design 시 4탭 — 시험과 동일 */
+  /** operate 시 3탭(운영|제출관리|결과), design 시 4탭 — 시험과 동일 */
   mode?: HomeworkDetailMode;
 }) {
   const [activeTab, setActiveTab] = useState<HomeworkTabKey>("setup");
@@ -61,10 +61,6 @@ export default function AdminHomeworkDetail({
     template_homework_id: data.template_homework_id,
   };
 
-  const showOperateSetup =
-    mode === "operate" &&
-    (activeTab === "setup" || activeTab === "assets" || activeTab === "submissions");
-
   return (
     <div className="space-y-6">
       <HomeworkHeader homework={summary} />
@@ -74,6 +70,7 @@ export default function AdminHomeworkDetail({
         mode={mode}
       />
 
+      {/* design mode: 개별 탭 렌더링 */}
       {mode === "design" && activeTab === "setup" && (
         <HomeworkSetupPanel
           homeworkId={homeworkId}
@@ -84,11 +81,9 @@ export default function AdminHomeworkDetail({
       {mode === "design" && activeTab === "assets" && (
         <HomeworkAssetsPanel homeworkId={homeworkId} />
       )}
-      {mode === "design" && activeTab === "submissions" && (
-        <HomeworkSubmissionsPanel homeworkId={homeworkId} />
-      )}
 
-      {showOperateSetup && (
+      {/* operate mode: 운영 탭 = setup + assets 통합 */}
+      {mode === "operate" && activeTab === "setup" && (
         <div className="space-y-6">
           <HomeworkSetupPanel
             homeworkId={homeworkId}
@@ -96,11 +91,15 @@ export default function AdminHomeworkDetail({
             homeworkSessionId={data?.session_id}
           />
           <HomeworkAssetsPanel homeworkId={homeworkId} />
-          <HomeworkSubmissionsPanel homeworkId={homeworkId} />
         </div>
       )}
 
-      {(activeTab === "results") && (
+      {/* 제출관리: 양쪽 모드에서 독립 탭 */}
+      {activeTab === "submissions" && (
+        <HomeworkSubmissionsPanel homeworkId={homeworkId} />
+      )}
+
+      {activeTab === "results" && (
         <HomeworkResultsPanel homeworkId={homeworkId} />
       )}
     </div>

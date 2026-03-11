@@ -76,6 +76,7 @@ export default function SendMessageModal({
   /** 발송 방식: 단일 sendMode 드롭다운 */
   const [sendMode, setSendMode] = useState<SendMode>("both");
   const [sending, setSending] = useState(false);
+  const sendingRef = useRef(false); // ref guard against double-submit
   const [templates, setTemplates] = useState<MessageTemplateItem[]>([]);
   const bodyWrapRef = useRef<HTMLDivElement>(null);
   const getNativeTextarea = useCallback(
@@ -129,6 +130,7 @@ export default function SendMessageModal({
       setSendToParent(true);
       setSendToStudent(false);
       setSendMode(smsAllowed ? "both" : "alimtalk");
+      sendingRef.current = false;
     }
   }, [open, smsAllowed]);
 
@@ -186,7 +188,8 @@ export default function SendMessageModal({
   };
 
   const handleSend = async () => {
-    if (!canSend) return;
+    if (!canSend || sendingRef.current) return;
+    sendingRef.current = true;
     setSending(true);
     const taskId = `msg-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
     asyncStatusStore.addWorkerJob("문자 발송", taskId, "messaging");
@@ -246,6 +249,7 @@ export default function SendMessageModal({
       asyncStatusStore.completeTask(taskId, "error", errMsg);
       feedback.error(errMsg);
     } finally {
+      sendingRef.current = false;
       setSending(false);
     }
   };

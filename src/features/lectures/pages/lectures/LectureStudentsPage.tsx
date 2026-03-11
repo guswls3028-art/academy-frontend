@@ -182,6 +182,7 @@ export default function LectureStudentsPage() {
             openSendMessageModal({
               studentIds: selectedIds,
               recipientLabel: `선택한 수강생 ${selectedIds.length}명`,
+              blockCategory: "lecture",
             })
           }
         >

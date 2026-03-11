@@ -72,6 +72,7 @@ const B = {
 const COMMON: TemplateBlock[] = [B.student_name_2, B.student_name_3, B.site_link, B.date, B.time];
 
 const CATEGORY_BLOCKS: Record<string, TemplateBlock[]> = {
+  student:    [...COMMON, B.student_name, B.student_id],
   signup:     [...COMMON, B.student_name, B.student_id, B.student_password, B.parent_id, B.parent_password, B.pw_notice],
   attendance: [...COMMON, B.lecture_name, B.session_name],
   lecture:    [...COMMON, B.lecture_name, B.session_name],
@@ -82,13 +83,14 @@ const CATEGORY_BLOCKS: Record<string, TemplateBlock[]> = {
   payment:    [...COMMON],
   notice:     [...COMMON],
   community:  [...COMMON, B.post_title, B.answer_summary, B.counsel_type],
-  staff:      [...COMMON, B.staff_name, B.department, B.position, B.pay_period, B.pay_amount, B.expense_amount, B.work_hours, B.work_days],
+  staff:      [B.staff_name, B.department, B.position, B.site_link, B.date, B.time, B.pay_period, B.pay_amount, B.expense_amount, B.work_hours, B.work_days],
 };
 
 // ─── 카테고리 타입 ───
 
 export type TemplateCategory =
   | "default"
+  | "student"
   | "signup"
   | "attendance"
   | "lecture"
@@ -101,9 +103,9 @@ export type TemplateCategory =
   | "community"
   | "staff";
 
-/** "default" (사용자) 카테고리는 모든 블록을 제공 */
+/** "default" (사용자) 카테고리는 어디서든 쓸 수 있는 공통 블록만 제공 */
 export function getBlocksForCategory(category: TemplateCategory): TemplateBlock[] {
-  if (category === "default") return Object.values(B);
+  if (category === "default") return [...COMMON];
   return CATEGORY_BLOCKS[category] ?? [...COMMON];
 }
 
@@ -119,6 +121,7 @@ export function renderPreviewText(text: string): string {
 
 export const TEMPLATE_CATEGORY_LABELS: Record<TemplateCategory, string> = {
   default: "사용자",
+  student: "학생",
   signup: "가입/등록",
   attendance: "출결",
   lecture: "강의",

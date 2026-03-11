@@ -8,6 +8,7 @@ import { EmptyState } from "@/shared/ui/ds";
 import ExamSetupPanel from "../panels/setup/ExamSetupPanel";
 import ExamAssetsPanel from "../panels/ExamAssetsPanel";
 import ExamResultsViewerPanel from "../panels/ExamResultsViewerPanel";
+import ExamSubmissionsPanel from "../panels/ExamSubmissionsPanel";
 
 export type ExamDetailMode = "design" | "operate";
 
@@ -19,7 +20,7 @@ type Props = {
 
 export default function AdminExamDetail({ examId, mode = "design", sessionId }: Props) {
   const { data: exam, isLoading } = useAdminExam(examId);
-  const [tab, setTab] = useState<"setup" | "assets" | "results">(
+  const [tab, setTab] = useState<"setup" | "assets" | "submissions" | "results">(
     "setup"
   );
 
@@ -46,6 +47,7 @@ export default function AdminExamDetail({ examId, mode = "design", sessionId }: 
         </div>
       )}
       {tab === "assets" && mode === "design" && <ExamAssetsPanel examId={examId} />}
+      {tab === "submissions" && <ExamSubmissionsPanel examId={examId} />}
       {tab === "results" && <ExamResultsViewerPanel examId={examId} />}
     </div>
   );

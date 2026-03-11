@@ -447,6 +447,7 @@ export default function MyStorageExplorer() {
                 type="text"
                 value={newFolderName}
                 onChange={(e) => setNewFolderName(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter" && newFolderName.trim()) handleCreateFolder(); }}
                 placeholder="이름 입력"
               />
             </div>

@@ -1,19 +1,33 @@
+/* 학생 인벤토리 관리 — 좌측 학생 리스트 + 우측 탐색기 3컬럼 레이아웃 */
+
 .root {
   display: flex;
+  min-height: 480px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface);
+  overflow: hidden;
+}
+
+/* ── 좌측 학생 패널 ── */
+.studentPanel {
+  width: 220px;
+  min-width: 220px;
+  border-right: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface-soft);
+  display: flex;
   flex-direction: column;
-  gap: var(--space-4);
-  min-height: 300px;
+  min-height: 0;
 }
 
 .searchWrap {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-md);
-  border: 1px solid var(--color-border-divider);
+  padding: var(--space-3) var(--space-3);
+  border-bottom: 1px solid var(--color-border-divider);
   background: var(--color-bg-surface);
-  max-width: 400px;
+  flex-shrink: 0;
 }
 
 .searchIcon {
@@ -23,9 +37,10 @@
 
 .searchInput {
   flex: 1;
+  min-width: 0;
   border: none;
   background: none;
-  font-size: 14px;
+  font-size: 13px;
   color: var(--color-text-primary);
   outline: none;
 }
@@ -34,81 +49,99 @@
   color: var(--color-text-muted);
 }
 
-.placeholder {
-  padding: var(--space-6);
-  text-align: center;
-  color: var(--color-text-muted);
-  font-size: 13px;
+/* 스크롤바 숨김 스크롤 */
+.studentList {
+  flex: 1;
+  overflow-y: auto;
+  scrollbar-width: none;          /* Firefox */
+  -ms-overflow-style: none;       /* IE/Edge */
 }
 
-.list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--color-border-divider);
-  background: var(--color-bg-surface);
-  overflow: hidden;
+.studentList::-webkit-scrollbar {
+  display: none;                  /* Chrome/Safari */
 }
 
-.row {
+.studentRow {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--space-2);
   width: 100%;
-  padding: var(--space-3) var(--space-4);
+  padding: var(--space-2) var(--space-3);
   border: none;
-  border-bottom: 1px solid var(--color-border-divider);
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border-divider) 50%, transparent);
   background: none;
-  font-size: 14px;
+  font-size: 13px;
   color: var(--color-text-primary);
   cursor: pointer;
   text-align: left;
-  transition: background 0.15s;
+  transition: background 0.12s;
 }
 
-.row:last-child {
-  border-bottom: none;
-}
-
-.row:hover {
+.studentRow:hover {
   background: var(--color-bg-surface-hover);
 }
 
-.name {
-  font-weight: 600;
-  flex: 1;
+.studentRowActive {
+  background: color-mix(in srgb, var(--color-brand-primary) 10%, var(--color-bg-surface));
+  border-left: 3px solid var(--color-brand-primary);
+  padding-left: calc(var(--space-3) - 3px);
 }
 
-.ps {
-  font-size: 12px;
+.studentRowActive:hover {
+  background: color-mix(in srgb, var(--color-brand-primary) 14%, var(--color-bg-surface));
+}
+
+.studentIcon {
   color: var(--color-text-muted);
+  flex-shrink: 0;
 }
 
-.backBar {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-2) 0;
-}
-
-.backBtn {
-  padding: var(--space-1) var(--space-2);
-  border: none;
-  border-radius: var(--radius-sm);
-  background: var(--color-bg-surface-hover);
-  color: var(--color-text-primary);
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.backBtn:hover {
-  background: color-mix(in srgb, var(--color-brand-primary) 15%, var(--color-bg-surface));
+.studentRowActive .studentIcon {
   color: var(--color-brand-primary);
 }
 
-.psLabel {
-  font-size: 12px;
+.studentName {
+  font-weight: 600;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.studentPs {
+  font-size: 11px;
   color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
+.placeholder {
+  padding: var(--space-6) var(--space-3);
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+/* ── 우측 탐색기 영역 ── */
+.explorerArea {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* StudentStorageExplorer의 PanelWithTreeLayout.root가 이 안에 들어감 — border/radius 제거 */
+.explorerArea > div {
+  border: none;
+  border-radius: 0;
+}
+
+.emptyState {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  color: var(--color-text-muted);
+  font-size: 14px;
 }

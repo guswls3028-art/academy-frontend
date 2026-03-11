@@ -56,6 +56,11 @@ html:has([data-app="student"]) {
   overflow: hidden;
 }
 
+/* 메인 영역 스크롤바 숨김 (scrollbar-width: none + webkit) */
+[data-app="student"] main::-webkit-scrollbar {
+  display: none;
+}
+
 /* Media elements — scoped to student app */
 [data-app="student"] img,
 [data-app="student"] picture,

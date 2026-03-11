@@ -1,7 +1,6 @@
 // PATH: src/features/videos/ui/VideoThumbnail.tsx
 
 import { useEffect, useState } from "react";
-import { Button } from "@/shared/ui/ds";
 import "@/styles/design-system/components/AsyncStatusBar.css";
 
 type VideoStatus = "READY" | "PROCESSING" | "FAILED" | "PENDING" | "UPLOADED";
@@ -49,7 +48,6 @@ interface Props {
  * - 상대 경로면 CDN BASE + default tenant 보정
  * - 실패 시 placeholder fallback
  * - 인코딩 중(PROCESSING/UPLOADED)이면 썸네일 영역에 진행률 오버레이 (우하단 진행 상황 패널과 동일 톤)
- * - 🔁 수동 재처리(캐시 무효화) 버튼
  */
 export default function VideoThumbnail({
   title,
@@ -100,16 +98,6 @@ export default function VideoThumbnail({
   useEffect(() => {
     setSrc(computedSrc);
   }, [computedSrc]);
-
-  const refreshThumbnail = () => {
-    if (!resolved) return;
-    const v = Date.now();
-    const next =
-      resolved.includes("?")
-        ? `${resolved}&v=${v}`
-        : `${resolved}?v=${v}`;
-    setSrc(next);
-  };
 
   const isEncoding = status === "PROCESSING" || status === "UPLOADED";
   const showProgressOverlay = isEncoding;
@@ -225,22 +213,6 @@ export default function VideoThumbnail({
             </div>
           </div>
         </>
-      )}
-
-      {resolved && !showProgressOverlay && (
-        <Button
-          type="button"
-          intent="secondary"
-          size="sm"
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            refreshThumbnail();
-          }}
-          className="absolute bottom-2 right-2 !bg-black/60 hover:!bg-black/80 !text-white !border-0"
-        >
-          ↺ 썸네일 새로고침
-        </Button>
       )}
 
       {/* 인코딩 완료(READY): 썸네일 좌상단에 시청가능 뱃지 — 초록 라이브 펄스 */}

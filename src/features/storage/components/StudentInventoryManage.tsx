@@ -1,10 +1,10 @@
 // PATH: src/features/storage/components/StudentInventoryManage.tsx
-// 학생 인벤토리 관리 — 이름/PS 검색 후 해당 학생 인벤토리 진입
+// 학생 인벤토리 관리 — 좌측 학생 리스트 | 우측 인벤토리 탐색기 (3컬럼 통합 뷰)
 
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Search, FolderOpen } from "lucide-react";
+import { Search, User } from "lucide-react";
 import { fetchStudents } from "@/features/students/api/students";
 import type { ClientStudent } from "@/features/students/api/students";
 import StudentStorageExplorer from "./StudentStorageExplorer";
@@ -39,7 +39,6 @@ export default function StudentInventoryManage({
   });
 
   const students = data?.data ?? [];
-  const showExplorer = selectedPs != null;
 
   const handleSelectStudent = (student: ClientStudent) => {
     setSelectedPs(student.psNumber);
@@ -47,60 +46,58 @@ export default function StudentInventoryManage({
     navigate(`/admin/storage/student/${student.psNumber}`, { replace: true });
   };
 
-  const handleBack = () => {
-    setSelectedPs(null);
-    navigate("/admin/storage", { replace: true });
-  };
-
-  if (showExplorer) {
-    return (
-      <div className={styles.root}>
-        <div className={styles.backBar}>
-          <button type="button" className={styles.backBtn} onClick={handleBack}>
-            ← 목록으로
-          </button>
-          <span className={styles.psLabel}>학생 PS: {selectedPs}</span>
-        </div>
-        <StudentStorageExplorer studentPs={selectedPs} />
-      </div>
-    );
-  }
-
   return (
     <div className={styles.root}>
-      <div className={styles.searchWrap}>
-        <Search size={20} className={styles.searchIcon} />
-        <input
-          type="text"
-          className={styles.searchInput}
-          placeholder="학생 이름 또는 PS번호로 검색"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-      </div>
-      {isLoading ? (
-        <div className={styles.placeholder}>학생 목록을 불러오는 중...</div>
-      ) : students.length === 0 ? (
-        <div className={styles.placeholder}>
-          {debouncedSearch ? "검색 결과가 없습니다." : "등록된 학생이 없습니다."}
+      {/* 좌측: 학생 선택 패널 */}
+      <aside className={styles.studentPanel}>
+        <div className={styles.searchWrap}>
+          <Search size={16} className={styles.searchIcon} />
+          <input
+            type="text"
+            className={styles.searchInput}
+            placeholder="이름 검색"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
         </div>
-      ) : (
-        <ul className={styles.list}>
-          {students.slice(0, 50).map((s) => (
-            <li key={s.id}>
+        <div className={styles.studentList}>
+          {isLoading ? (
+            <div className={styles.placeholder}>불러오는 중...</div>
+          ) : students.length === 0 ? (
+            <div className={styles.placeholder}>
+              {debouncedSearch ? "검색 결과 없음" : "등록된 학생 없음"}
+            </div>
+          ) : (
+            students.slice(0, 50).map((s) => (
               <button
+                key={s.id}
                 type="button"
-                className={styles.row}
+                className={
+                  styles.studentRow +
+                  (selectedPs === s.psNumber ? " " + styles.studentRowActive : "")
+                }
                 onClick={() => handleSelectStudent(s)}
               >
-                <FolderOpen size={18} />
-                <span className={styles.name}>{s.name}</span>
-                <span className={styles.ps}>{s.psNumber}</span>
+                <User size={16} className={styles.studentIcon} />
+                <span className={styles.studentName}>{s.name}</span>
+                <span className={styles.studentPs}>{s.psNumber}</span>
               </button>
-            </li>
-          ))}
-        </ul>
-      )}
+            ))
+          )}
+        </div>
+      </aside>
+
+      {/* 우측: 인벤토리 탐색기 */}
+      <div className={styles.explorerArea}>
+        {selectedPs ? (
+          <StudentStorageExplorer studentPs={selectedPs} />
+        ) : (
+          <div className={styles.emptyState}>
+            <User size={40} strokeWidth={1.2} />
+            <p>좌측에서 학생을 선택하세요</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

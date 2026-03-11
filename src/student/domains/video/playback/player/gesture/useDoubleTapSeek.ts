@@ -1,7 +1,7 @@
 /**
  * YouTube-style double-tap seek gesture controller.
  * State machine: IDLE | WAITING_FOR_SECOND_TAP | STACKING | ANIMATING | COOLDOWN
- * Uses pointer events; 300ms double-tap window; 600ms stacking; 50% left/right zones.
+ * Uses pointer events; 300ms double-tap window; 600ms stacking; 35% left / 30% center / 35% right zones.
  */
 import { useCallback, useRef, useState } from "react";
 
@@ -22,9 +22,9 @@ export type SeekOverlayState = {
 type State = "IDLE" | "WAITING_FOR_SECOND_TAP" | "STACKING" | "ANIMATING" | "COOLDOWN";
 
 function getZone(clientX: number, rect: DOMRect): TapZone {
-  const mid = rect.left + rect.width / 2;
-  if (clientX < mid) return 0;
-  if (clientX > mid) return 2;
+  const third = rect.width * 0.35;
+  if (clientX < rect.left + third) return 0;
+  if (clientX > rect.right - third) return 2;
   return 1;
 }
 

@@ -313,7 +313,7 @@
     gap: 4px;
   }
   .svpVolumeSlider {
-    display: none !important;
+    width: 70px;
   }
   .svpVolume {
     min-width: 0;
@@ -383,8 +383,8 @@
   gap: 8px;
 }
 
-@media (max-width: 768px), (hover: none) {
-  .svpRightControls > *:not(:last-child) {
+@media (max-width: 480px) {
+  .svpRightControls > .svpRate {
     display: none !important;
   }
 }

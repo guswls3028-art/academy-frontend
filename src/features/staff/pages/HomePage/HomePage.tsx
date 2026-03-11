@@ -102,6 +102,7 @@ export default function HomePage() {
             openSendMessageModal({
               staffIds: selectedStaffIds,
               recipientLabel: `선택한 직원 ${selectedStaffIds.length}명`,
+              blockCategory: "staff",
             });
           }}
         >

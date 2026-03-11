@@ -82,6 +82,9 @@ const StorageRoutes = lazy(() => import("@/features/storage/StorageRoutes"));
 /* ================= Lazy: Messages ================= */
 const MessageRoutes = lazy(() => import("@/features/messages/routes").then((m) => ({ default: m.MessageRoutes })));
 
+/* ================= Lazy: Developer ================= */
+const DeveloperPage = lazy(() => import("@/features/developer/pages/DeveloperPage"));
+
 /* ================= Lazy: Settings ================= */
 const SettingsLayout = lazy(() => import("@/features/settings/SettingsLayout"));
 const ProfileSettingsPage = lazy(() => import("@/features/settings/pages/ProfileSettingsPage"));
@@ -197,6 +200,9 @@ export default function AdminRouter() {
           <Route path="materials" element={wrapLazy(MaterialsBoardPage)} />
           <Route path="settings" element={wrapLazy(CommunitySettingsPage)} />
         </Route>
+
+        {/* ================= Developer (To개발자) ================= */}
+        <Route path="developer" element={wrapLazy(DeveloperPage)} />
 
         {/* ================= Staff ================= */}
         <Route path="staff/*" element={wrapLazy(StaffRoutes)} />

@@ -196,6 +196,48 @@ export function ensureNoticeBlockType(): Promise<number> {
   return _ensureNoticePromise;
 }
 
+/**
+ * bug_report 블록 유형이 없으면 자동 생성, 있으면 기존 ID 반환.
+ */
+let _ensureBugReportPromise: Promise<number> | null = null;
+export function ensureBugReportBlockType(): Promise<number> {
+  if (_ensureBugReportPromise) return _ensureBugReportPromise;
+  _ensureBugReportPromise = (async () => {
+    try {
+      const types = await fetchBlockTypes();
+      const existing = types.find((t) => (t.code || "").toLowerCase() === "bug_report");
+      if (existing) return existing.id;
+      const created = await createBlockType({ label: "버그 제보", code: "bug_report", order: 90 });
+      return created.id;
+    } catch (e) {
+      _ensureBugReportPromise = null;
+      throw e;
+    }
+  })();
+  return _ensureBugReportPromise;
+}
+
+/**
+ * dev_feedback 블록 유형이 없으면 자동 생성, 있으면 기존 ID 반환.
+ */
+let _ensureDevFeedbackPromise: Promise<number> | null = null;
+export function ensureDevFeedbackBlockType(): Promise<number> {
+  if (_ensureDevFeedbackPromise) return _ensureDevFeedbackPromise;
+  _ensureDevFeedbackPromise = (async () => {
+    try {
+      const types = await fetchBlockTypes();
+      const existing = types.find((t) => (t.code || "").toLowerCase() === "dev_feedback");
+      if (existing) return existing.id;
+      const created = await createBlockType({ label: "피드백", code: "dev_feedback", order: 91 });
+      return created.id;
+    } catch (e) {
+      _ensureDevFeedbackPromise = null;
+      throw e;
+    }
+  })();
+  return _ensureDevFeedbackPromise;
+}
+
 // ----------------------------------------
 // Post templates (양식 저장/불러오기)
 // ----------------------------------------

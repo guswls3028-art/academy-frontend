@@ -266,6 +266,7 @@ export default function VideoPlayerPage() {
   /* ─── Render ─── */
   const items = sessionVideosData?.items ?? [];
   const hasPlaylist = items.length > 1;
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   return (
     <div className="vpp-root">
@@ -303,20 +304,39 @@ export default function VideoPlayerPage() {
               <button type="button" className="vpp-back-link" onClick={() => nav(-1)}>
                 ← 목록으로
               </button>
-              {nextVideo && (
-                <Link
-                  to={`/student/video/play?video=${nextVideo.id}${enrollmentId ? `&enrollment=${enrollmentId}` : ""}`}
-                  className="vpp-next-link"
-                >
-                  다음 강의 →
-                </Link>
-              )}
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                {hasPlaylist && (
+                  <button
+                    type="button"
+                    className="vpp-back-link"
+                    onClick={() => setDrawerOpen((v) => !v)}
+                  >
+                    {drawerOpen ? "목록 닫기 ▼" : `재생목록 ▲ (${currentIndex + 1}/${items.length})`}
+                  </button>
+                )}
+                {nextVideo && (
+                  <Link
+                    to={`/student/video/play?video=${nextVideo.id}${enrollmentId ? `&enrollment=${enrollmentId}` : ""}`}
+                    className="vpp-next-link"
+                  >
+                    다음 강의 →
+                  </Link>
+                )}
+              </div>
             </div>
           </div>
 
-          {/* ─── 재생목록 ─── */}
+          {/* ─── 재생목록 드로어 ─── */}
           {hasPlaylist && (
-            <div className="vpp-playlist">
+            <div
+              className="vpp-playlist"
+              style={{
+                maxHeight: drawerOpen ? 480 : 0,
+                overflow: "hidden",
+                transition: "max-height 0.3s ease",
+                marginTop: drawerOpen ? "var(--stu-space-4)" : 0,
+              }}
+            >
               <div className="vpp-playlist-header">
                 <span className="vpp-playlist-label">재생목록</span>
                 <span className="vpp-playlist-count">

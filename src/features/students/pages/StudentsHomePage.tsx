@@ -91,6 +91,7 @@ export default function StudentsHomePage() {
 
   useEffect(() => {
     setPage(1);
+    setSelectedIds([]);
   }, [search, filters, isDeletedTab]);
 
   const { data: queryResult, isLoading } = useStudentsQuery(
@@ -150,7 +151,16 @@ export default function StudentsHomePage() {
       <span className="text-[var(--color-border-divider)]">|</span>
       {!isDeletedTab && (
         <>
-          <Button intent="secondary" size="sm" onClick={() => openSendMessageModal({ studentIds: selectedIds, recipientLabel: `선택한 학생 ${selectedIds.length}명` })}>
+          <Button intent="secondary" size="sm" onClick={() => {
+            // 현재 테이블에 표시된 학생만 발송 대상에 포함 (이전 검색의 잔여 선택 제외)
+            const visibleIds = new Set((data ?? []).map((s) => s.id));
+            const validIds = selectedIds.filter((id) => visibleIds.has(id));
+            if (validIds.length === 0) {
+              feedback.info("현재 목록에 선택된 학생이 없습니다.");
+              return;
+            }
+            openSendMessageModal({ studentIds: validIds, recipientLabel: `선택한 학생 ${validIds.length}명`, blockCategory: "student" });
+          }}>
             메시지 발송
           </Button>
           <Button

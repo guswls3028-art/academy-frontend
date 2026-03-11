@@ -221,6 +221,7 @@ export default function SessionAttendancePage({
     openSendMessageModal({
       studentIds,
       recipientLabel: `선택한 출결 ${selectedIds.length}명`,
+      blockCategory: "attendance",
     });
   };
 

@@ -95,40 +95,11 @@ function CourseCard({
       >
         {thumbnailUrl ? (
           <div style={{ width: "100%", height: "100%", position: "relative" }}>
-            {/* VideoThumbnail 컴포넌트 사용 (features에서 가져옴) */}
             <VideoThumbnailWrapper
               title={title}
               thumbnail_url={thumbnailUrl}
               status="READY"
             />
-            {/* 재생 오버레이 - Media Tile System */}
-            <div
-              style={{
-                position: "absolute",
-                inset: 0,
-                display: "grid",
-                placeItems: "center",
-                background: "rgba(0,0,0,0.15)",
-                opacity: 0.6,
-                pointerEvents: "none",
-                zIndex: 1,
-              }}
-            >
-              <div
-                style={{
-                  width: 64,
-                  height: 64,
-                  borderRadius: "50%",
-                  background: "rgba(255,255,255,0.9)",
-                  display: "grid",
-                  placeItems: "center",
-                  transform: "scale(0.9)",
-                  transition: "transform 0.2s ease",
-                }}
-              >
-                <IconPlay style={{ width: 28, height: 28, color: "#000", marginLeft: 2 }} />
-              </div>
-            </div>
           </div>
         ) : (
           <div
@@ -137,11 +108,36 @@ function CourseCard({
               height: "100%",
               display: "grid",
               placeItems: "center",
-              // 2번 테넌트(tchul) 브랜드색 그라데이션
               background: "linear-gradient(135deg, #0d47a1 0%, #00695c 50%, #004d40 100%)",
             }}
           >
             <IconPlay style={{ width: 48, height: 48, color: "rgba(255,255,255,0.9)", opacity: 0.8 }} />
+          </div>
+        )}
+
+        {/* YouTube-style 영상 갯수 오버레이 */}
+        {videoCount > 0 && (
+          <div
+            style={{
+              position: "absolute",
+              right: 0,
+              bottom: 0,
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+              padding: "3px 8px",
+              background: "rgba(0,0,0,0.82)",
+              borderTopLeftRadius: 6,
+              fontSize: 11,
+              fontWeight: 700,
+              color: "rgba(255,255,255,0.95)",
+              letterSpacing: 0.2,
+              zIndex: 2,
+              pointerEvents: "none",
+            }}
+          >
+            <IconChevronRight style={{ width: 12, height: 12, opacity: 0.8 }} />
+            {videoCount}개 영상
           </div>
         )}
 

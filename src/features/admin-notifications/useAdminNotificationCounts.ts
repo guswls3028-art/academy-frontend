@@ -21,6 +21,7 @@ export function useAdminNotificationCounts() {
     qnaPending: 0,
     clinicPending: 0,
     registrationRequestsPending: 0,
+    recentSubmissions: 0,
     total: 0,
   };
 

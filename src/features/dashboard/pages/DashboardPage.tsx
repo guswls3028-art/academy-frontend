@@ -10,6 +10,7 @@ import { fetchCommunityQuestions } from "@/features/community/api/community.api"
 import { fetchExams } from "@/features/exams/api/exams";
 import { fetchLectures } from "@/features/lectures/api/sessions";
 import { useMessagingInfo } from "@/features/messages/hooks/useMessagingInfo";
+import { fetchAdminSubmissions } from "@/features/submissions/api/adminSubmissions";
 import { Button } from "@/shared/ui/ds";
 import { DomainLayout } from "@/shared/ui/layout";
 import ClinicRemoconIcon from "../components/ClinicRemoconIcon";
@@ -40,9 +41,22 @@ export default function DashboardPage() {
     queryFn: () => fetchExams(),
     staleTime: 60 * 1000,
   });
+  const { data: recentSubs = [] } = useQuery({
+    queryKey: ["dashboard-recent-submissions"],
+    queryFn: () => fetchAdminSubmissions({ limit: 50 }),
+    staleTime: 60 * 1000,
+  });
 
   const pendingQnaCount = questions.filter((q) => !q.is_answered).length;
   const activeExams = exams.filter((e) => e.is_active);
+  const pendingSubs = recentSubs.filter((s) =>
+    s.status !== "done" && s.status !== "failed"
+  );
+  const todaySubs = recentSubs.filter((s) => {
+    const d = new Date(s.created_at);
+    const now = new Date();
+    return d.toDateString() === now.toDateString();
+  });
 
   return (
     <DomainLayout
@@ -106,6 +120,11 @@ export default function DashboardPage() {
               onClick={() => navigate("/admin/community/qna")}
             />
             <TodoRow
+              label="학생 제출 (처리 대기)"
+              value={`${pendingSubs.length}건`}
+              onClick={() => navigate("/admin/results")}
+            />
+            <TodoRow
               label="채점 · 성적"
               value="보기"
               onClick={() => navigate("/admin/results")}
@@ -149,6 +168,7 @@ export default function DashboardPage() {
           <div className="ds-section__kpi-list">
             <KpiRow label="운영 강의" value={`${lectures.length}개`} />
             <KpiRow label="운영 중 시험" value={`${activeExams.length}건`} />
+            <KpiRow label="오늘 학생 제출" value={`${todaySubs.length}건`} />
             <KpiRow label="미답변 질의" value={`${pendingQnaCount}건`} />
           </div>
         </DashboardWidget>

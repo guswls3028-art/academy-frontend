@@ -137,29 +137,28 @@ function SessionBox({
           </div>
         )}
 
-        {/* 재생 오버레이 */}
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            display: "grid",
-            placeItems: "center",
-            background: "rgba(0,0,0,0.2)",
-          }}
-        >
+        {/* 영상 갯수 오버레이 */}
+        {sessionData.videoCount > 0 && (
           <div
             style={{
-              width: 40,
-              height: 40,
-              borderRadius: "50%",
-              background: "rgba(255,255,255,0.9)",
-              display: "grid",
-              placeItems: "center",
+              position: "absolute",
+              right: 0,
+              bottom: 0,
+              display: "flex",
+              alignItems: "center",
+              gap: 3,
+              padding: "2px 6px",
+              background: "rgba(0,0,0,0.82)",
+              borderTopLeftRadius: 6,
+              fontSize: 10,
+              fontWeight: 700,
+              color: "rgba(255,255,255,0.95)",
+              zIndex: 2,
             }}
           >
-            <IconPlay style={{ width: 20, height: 20, color: "#000", marginLeft: 2 }} />
+            ▶ {sessionData.videoCount}
           </div>
-        </div>
+        )}
 
         {/* 진행률 바 (YouTube 스타일) */}
         {sessionData.progress > 0 && (

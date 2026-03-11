@@ -5,12 +5,13 @@ import type { HomeworkTabKey } from "../../types";
 const TABS_DESIGN: { key: HomeworkTabKey; label: string }[] = [
   { key: "setup", label: "기본 설정" },
   { key: "assets", label: "자산" },
-  { key: "submissions", label: "제출" },
+  { key: "submissions", label: "제출관리" },
   { key: "results", label: "결과" },
 ];
 
 const TABS_OPERATE: { key: HomeworkTabKey; label: string }[] = [
   { key: "setup", label: "운영" },
+  { key: "submissions", label: "제출관리" },
   { key: "results", label: "결과" },
 ];
 
@@ -24,7 +25,7 @@ type Props = {
 export default function HomeworkTabs({ activeTab, onChange, mode = "design" }: Props) {
   const tabs = mode === "operate" ? TABS_OPERATE : TABS_DESIGN;
   const effectiveTab =
-    mode === "operate" && (activeTab === "assets" || activeTab === "submissions")
+    mode === "operate" && activeTab === "assets"
       ? "setup"
       : activeTab;
 

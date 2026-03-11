@@ -7,16 +7,18 @@
 import { fetchBlockTypes, fetchAdminPosts } from "@/features/community/api/community.api";
 import { fetchClinicParticipants } from "@/features/clinic/api/clinicParticipants.api";
 import { fetchRegistrationRequests } from "@/features/students/api/students";
+import { fetchAdminSubmissions } from "@/features/submissions/api/adminSubmissions";
 
 export type AdminNotificationCounts = {
   qnaPending: number;
   clinicPending: number;
   registrationRequestsPending: number;
+  recentSubmissions: number;
   total: number;
 };
 
 export type AdminNotificationItem = {
-  type: "qna" | "clinic" | "registration_requests";
+  type: "qna" | "clinic" | "registration_requests" | "submissions";
   label: string;
   count: number;
   to: string;
@@ -24,7 +26,7 @@ export type AdminNotificationItem = {
 
 export async function fetchAdminNotificationCounts(): Promise<AdminNotificationCounts> {
   try {
-    const [participantsRes, typesAndPosts, registrationRes] = await Promise.all([
+    const [participantsRes, typesAndPosts, registrationRes, submissionsRes] = await Promise.all([
       fetchClinicParticipants({ status: "pending" }).then((r) => r).catch(() => []),
       (async () => {
         const types = await fetchBlockTypes();
@@ -37,21 +39,32 @@ export async function fetchAdminNotificationCounts(): Promise<AdminNotificationC
       fetchRegistrationRequests({ status: "pending", page: 1, page_size: 1 }).then(
         (r) => r.count
       ).catch(() => 0),
+      // 최근 24시간 내 학생 제출 중 처리 대기 건수
+      fetchAdminSubmissions({ limit: 100 }).then((subs) => {
+        const pending = subs.filter((s) =>
+          s.status === "submitted" || s.status === "dispatched" ||
+          s.status === "extracting" || s.status === "needs_identification" ||
+          s.status === "answers_ready" || s.status === "grading"
+        );
+        return pending.length;
+      }).catch(() => 0),
     ]);
 
     const qnaPending = typeof typesAndPosts === "number" ? typesAndPosts : 0;
     const clinicPending = Array.isArray(participantsRes) ? participantsRes.length : 0;
     const registrationRequestsPending = typeof registrationRes === "number" ? registrationRes : 0;
+    const recentSubmissions = typeof submissionsRes === "number" ? submissionsRes : 0;
 
     return {
       qnaPending,
       clinicPending,
       registrationRequestsPending,
-      total: qnaPending + clinicPending + registrationRequestsPending,
+      recentSubmissions,
+      total: qnaPending + clinicPending + registrationRequestsPending + recentSubmissions,
     };
   } catch (e) {
     console.error("fetchAdminNotificationCounts:", e);
-    return { qnaPending: 0, clinicPending: 0, registrationRequestsPending: 0, total: 0 };
+    return { qnaPending: 0, clinicPending: 0, registrationRequestsPending: 0, recentSubmissions: 0, total: 0 };
   }
 }
 
@@ -81,6 +94,14 @@ export function buildAdminNotificationItems(
       label: "가입 신청 학생",
       count: counts.registrationRequestsPending,
       to: "/admin/students/requests",
+    });
+  }
+  if (counts.recentSubmissions > 0) {
+    items.push({
+      type: "submissions",
+      label: "처리 대기 제출",
+      count: counts.recentSubmissions,
+      to: "/admin/results",
     });
   }
   return items;

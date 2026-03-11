@@ -6,6 +6,7 @@ export type ExamStatus = "DRAFT" | "OPEN" | "CLOSED";
 export type ExamTabKey =
   | "setup"
   | "assets"
+  | "submissions"
   | "results";
 
 /**
