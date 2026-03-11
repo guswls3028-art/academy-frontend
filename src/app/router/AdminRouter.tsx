@@ -84,7 +84,7 @@ const MessageRoutes = lazy(() => import("@/features/messages/routes").then((m) =
 const SettingsLayout = lazy(() => import("@/features/settings/SettingsLayout"));
 const ProfileSettingsPage = lazy(() => import("@/features/settings/pages/ProfileSettingsPage"));
 const OrganizationSettingsPage = lazy(() => import("@/features/settings/pages/OrganizationSettingsPage"));
-const MessagingSettingsPage = lazy(() => import("@/features/settings/pages/MessagingSettingsPage"));
+// MessagingSettingsPage removed — 발신번호 설정이 메시지 > 설정 탭으로 이동됨
 const AppearancePage = lazy(() => import("@/features/settings/pages/AppearancePage"));
 const SecuritySettingsPage = lazy(() => import("@/features/settings/pages/SecuritySettingsPage"));
 
@@ -209,7 +209,7 @@ export default function AdminRouter() {
           <Route index element={<Navigate to="profile" replace />} />
           <Route path="profile" element={wrapLazy(ProfileSettingsPage)} />
           <Route path="organization" element={wrapLazy(OrganizationSettingsPage)} />
-          <Route path="messaging" element={wrapLazy(MessagingSettingsPage)} />
+          <Route path="messaging" element={<Navigate to="/admin/message/settings" replace />} />
           <Route path="appearance" element={wrapLazy(AppearancePage)} />
           <Route path="security" element={<Navigate to="/admin/settings/profile" replace />} />
           {/* 하위 호환 리디렉트 */}

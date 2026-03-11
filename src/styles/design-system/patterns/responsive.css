@@ -1,0 +1,265 @@
+/* PATH: src/styles/design-system/patterns/responsive.css
+ * 관리자 앱 모바일 반응형 — @media (max-width: 1023px) 기준
+ * PC 레이아웃에 영향 없음 (모든 규칙이 미디어쿼리 내부)
+ */
+
+/* ========================================
+   1) 도메인 헤더 — 패딩 축소, 폰트 축소
+   ======================================== */
+@media (max-width: 1023px) {
+  [data-app="admin"] .domain-header--with-tabs,
+  [data-app="admin"] .min-h-full > div:first-child {
+    padding-left: var(--space-4) !important;
+    padding-right: var(--space-4) !important;
+    padding-top: var(--space-5) !important;
+  }
+
+  /* 도메인 제목 크기 축소 */
+  [data-app="admin"] .text-2xl {
+    font-size: 1.25rem !important;
+  }
+
+  /* 도메인 설명 */
+  [data-app="admin"] .text-base.mt-1 {
+    font-size: 0.8125rem !important;
+  }
+
+  /* 도메인 본문 패딩 축소 */
+  [data-app="admin"] .min-h-full > div:nth-child(2) {
+    padding: var(--space-3) !important;
+  }
+}
+
+/* ========================================
+   2) 섹션 그리드 — 모바일에서 1~2열
+   ======================================== */
+@media (max-width: 1023px) {
+  .ds-section__grid {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)) !important;
+    gap: var(--space-2) !important;
+  }
+
+  .ds-section__grid--wide {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* 섹션 아이템 — 터치 타겟 확대 */
+  .ds-section__item {
+    padding: var(--space-3) !important;
+    gap: var(--space-3) !important;
+    min-height: 44px;
+  }
+
+  .ds-section__item-icon {
+    width: 36px !important;
+    height: 36px !important;
+  }
+
+  /* KPI 값 크기 축소 */
+  .ds-section__kpi-value {
+    font-size: 16px !important;
+  }
+
+  .ds-section__kpi-list {
+    gap: var(--space-2) !important;
+  }
+
+  .ds-section__kpi-list .ds-section__kpi-row {
+    min-width: 120px !important;
+    padding: var(--space-2) var(--space-3) !important;
+  }
+}
+
+/* ========================================
+   3) 리스트 툴바 — 모바일 스택 레이아웃
+   ======================================== */
+@media (max-width: 1023px) {
+  /* 툴바 메인 행: 세로 스택, 검색 풀와이드 */
+  [data-app="admin"] .domain-list-toolbar {
+    gap: var(--space-2) !important;
+  }
+
+  [data-app="admin"] .domain-list-toolbar > .flex.flex-wrap {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: var(--space-2) !important;
+  }
+
+  /* 검색 인풋 풀 너비 */
+  [data-app="admin"] .ds-input {
+    max-width: none !important;
+    width: 100% !important;
+  }
+
+  /* 총계 라벨: border-right 제거, 풀 너비 */
+  [data-app="admin"] .domain-list-toolbar > .flex.flex-wrap > span:first-child {
+    border-right: none !important;
+    padding-right: 0 !important;
+    margin-right: 0 !important;
+  }
+
+  /* 선택 바: 가로 스크롤 */
+  [data-app="admin"] .domain-list-toolbar .flex.flex-wrap.items-center.gap-2 {
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: var(--space-1);
+    scrollbar-width: none;
+  }
+
+  [data-app="admin"] .domain-list-toolbar .flex.flex-wrap.items-center.gap-2::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* ========================================
+   4) 테이블 — 모바일 가로 스크롤 + 터치 개선
+   ======================================== */
+@media (max-width: 1023px) {
+  .ds-table-wrap {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+    margin: 0 calc(-1 * var(--space-3));
+    padding: 0 var(--space-3);
+  }
+
+  /* 테이블 행 높이 확대 (터치 타겟) */
+  [data-app="admin"] .ds-table tbody td {
+    padding-top: 10px !important;
+    padding-bottom: 10px !important;
+  }
+
+  /* 테이블 헤더 폰트 축소 */
+  [data-app="admin"] .ds-table thead th {
+    font-size: 11px !important;
+    padding: 6px 12px !important;
+    white-space: nowrap;
+  }
+
+  /* 테이블 셀 폰트 */
+  [data-app="admin"] .ds-table tbody td {
+    font-size: 13px !important;
+  }
+}
+
+/* ========================================
+   5) 패널/카드 — 모바일 여백 축소
+   ======================================== */
+@media (max-width: 1023px) {
+  .ds-panel {
+    padding: var(--space-3) !important;
+    border-radius: var(--radius-md) !important;
+  }
+
+  .ds-panel__header {
+    padding: var(--space-3) !important;
+    gap: var(--space-2) !important;
+  }
+}
+
+/* ========================================
+   6) 버튼 — 모바일 터치 타겟 보장
+   ======================================== */
+@media (max-width: 1023px) {
+  [data-app="admin"] .ds-button {
+    min-height: 40px !important;
+  }
+
+  [data-app="admin"] .ds-button[data-size="sm"] {
+    min-height: 36px !important;
+    font-size: 12px !important;
+    padding: 0 var(--space-3) !important;
+  }
+}
+
+/* ========================================
+   7) 모달 — 모바일 풀스크린화
+   ======================================== */
+@media (max-width: 1023px) {
+  [data-app="admin"] .ds-modal__overlay .ds-modal__content {
+    width: calc(100vw - 16px) !important;
+    max-width: none !important;
+    max-height: calc(100vh - 32px) !important;
+    margin: 8px !important;
+    border-radius: var(--radius-lg) !important;
+  }
+
+  [data-app="admin"] .ds-modal__overlay .ds-modal__content[data-size="lg"] {
+    width: calc(100vw - 16px) !important;
+    max-height: calc(100dvh - 32px) !important;
+  }
+}
+
+/* ========================================
+   8) antd 컴포넌트 모바일 오버라이드
+   ======================================== */
+@media (max-width: 1023px) {
+  /* antd Table: 가로 스크롤 */
+  [data-app="admin"] .ant-table-wrapper {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  [data-app="admin"] .ant-table {
+    min-width: 600px;
+  }
+
+  /* antd Modal: 모바일 풀너비 */
+  [data-app="admin"] .ant-modal {
+    max-width: calc(100vw - 16px) !important;
+    margin: 8px auto !important;
+    top: 8px !important;
+    padding-bottom: 8px !important;
+  }
+
+  [data-app="admin"] .ant-modal .ant-modal-content {
+    max-height: calc(100dvh - 32px);
+    overflow-y: auto;
+  }
+
+  /* antd Drawer: 모바일에서 80% 너비 */
+  [data-app="admin"] .ant-drawer-content-wrapper {
+    max-width: 85vw !important;
+  }
+
+  /* antd Dropdown/Popover: 모바일 너비 제한 */
+  .ant-dropdown,
+  .ant-popover {
+    max-width: calc(100vw - 16px) !important;
+  }
+
+  /* antd Tabs: 모바일 스크롤 */
+  [data-app="admin"] .ant-tabs-nav-list {
+    gap: 0 !important;
+  }
+
+  [data-app="admin"] .ant-tabs-tab {
+    padding: 8px 12px !important;
+    font-size: 13px !important;
+  }
+}
+
+/* ========================================
+   9) 유틸리티: 모바일 전용 표시/숨기기
+   ======================================== */
+@media (max-width: 1023px) {
+  .hide-mobile {
+    display: none !important;
+  }
+}
+
+@media (min-width: 1024px) {
+  .hide-desktop {
+    display: none !important;
+  }
+}
+
+/* 모바일에서 텍스트 줄임 */
+@media (max-width: 1023px) {
+  .mobile-truncate {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 120px;
+  }
+}

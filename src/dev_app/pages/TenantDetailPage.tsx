@@ -9,10 +9,10 @@ import s from "@/dev_app/layout/DevLayout.module.css";
 type TabId = "overview" | "branding" | "domains" | "owners";
 
 const TABS: { id: TabId; label: string }[] = [
-  { id: "overview", label: "Overview" },
-  { id: "branding", label: "Branding" },
-  { id: "domains", label: "Domains" },
-  { id: "owners", label: "Owners" },
+  { id: "overview", label: "개요" },
+  { id: "branding", label: "브랜딩" },
+  { id: "domains", label: "도메인" },
+  { id: "owners", label: "소유자" },
 ];
 
 export default function TenantDetailPage() {
@@ -28,9 +28,9 @@ export default function TenantDetailPage() {
       <>
         <header className={s.header}>
           <div className={s.headerLeft}>
-            <Link to="/dev/tenants" style={{ color: "inherit", textDecoration: "none" }}>Tenants</Link>
+            <Link to="/dev/tenants" style={{ color: "inherit", textDecoration: "none" }}>테넌트</Link>
             <span className={s.breadcrumbSep}>/</span>
-            <span className={s.breadcrumbCurrent}>Loading...</span>
+            <span className={s.breadcrumbCurrent}>불러오는 중...</span>
           </div>
         </header>
         <div className={s.content}>
@@ -46,9 +46,9 @@ export default function TenantDetailPage() {
       <>
         <header className={s.header}>
           <div className={s.headerLeft}>
-            <Link to="/dev/tenants" style={{ color: "inherit", textDecoration: "none" }}>Tenants</Link>
+            <Link to="/dev/tenants" style={{ color: "inherit", textDecoration: "none" }}>테넌트</Link>
             <span className={s.breadcrumbSep}>/</span>
-            <span className={s.breadcrumbCurrent}>Not Found</span>
+            <span className={s.breadcrumbCurrent}>찾을 수 없음</span>
           </div>
         </header>
         <div className={s.content}>
@@ -64,16 +64,16 @@ export default function TenantDetailPage() {
     <>
       <header className={s.header}>
         <div className={s.headerLeft}>
-          <Link to="/dev/dashboard" style={{ color: "inherit", textDecoration: "none" }}>Dashboard</Link>
+          <Link to="/dev/dashboard" style={{ color: "inherit", textDecoration: "none" }}>대시보드</Link>
           <span className={s.breadcrumbSep}>/</span>
-          <Link to="/dev/tenants" style={{ color: "inherit", textDecoration: "none" }}>Tenants</Link>
+          <Link to="/dev/tenants" style={{ color: "inherit", textDecoration: "none" }}>테넌트</Link>
           <span className={s.breadcrumbSep}>/</span>
           <span className={s.breadcrumbCurrent}>{tenant.name}</span>
         </div>
         <div className={s.headerRight}>
           <span className={`${s.badge} ${tenant.isActive ? s.badgeActive : s.badgeInactive}`}>
             <span className={`${s.badgeDot} ${tenant.isActive ? s.badgeDotActive : s.badgeDotInactive}`} />
-            {tenant.isActive ? "Active" : "Inactive"}
+            {tenant.isActive ? "활성" : "비활성"}
           </span>
         </div>
       </header>
@@ -109,7 +109,7 @@ export default function TenantDetailPage() {
   );
 }
 
-/* ===== Overview Tab ===== */
+/* ===== 개요 탭 ===== */
 function OverviewTab({ tenant }: { tenant: { id: number; code: string; name: string; isActive: boolean; primaryDomain: string | null; domains: string[] } }) {
   const updateTenant = useUpdateTenant();
   const { toast } = useDevToast();
@@ -129,23 +129,23 @@ function OverviewTab({ tenant }: { tenant: { id: number; code: string; name: str
     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
       <div className={s.card}>
         <div className={s.cardHeader}>
-          <h3 className={s.cardTitle}>Tenant Info</h3>
+          <h3 className={s.cardTitle}>테넌트 정보</h3>
         </div>
         <div className={s.cardBody}>
           <div className={s.infoGrid}>
             <div className={s.infoLabel}>ID</div>
             <div className={s.infoValue}>{tenant.id}</div>
-            <div className={s.infoLabel}>Code</div>
+            <div className={s.infoLabel}>코드</div>
             <div className={s.infoValue}><span className={s.code}>{tenant.code}</span></div>
-            <div className={s.infoLabel}>Name</div>
+            <div className={s.infoLabel}>이름</div>
             <div className={s.infoValue}>{tenant.name}</div>
-            <div className={s.infoLabel}>Primary Domain</div>
+            <div className={s.infoLabel}>대표 도메인</div>
             <div className={s.infoValue}>{tenant.primaryDomain || "—"}</div>
-            <div className={s.infoLabel}>Status</div>
+            <div className={s.infoLabel}>상태</div>
             <div className={s.infoValue}>
               <span className={`${s.badge} ${tenant.isActive ? s.badgeActive : s.badgeInactive}`}>
                 <span className={`${s.badgeDot} ${tenant.isActive ? s.badgeDotActive : s.badgeDotInactive}`} />
-                {tenant.isActive ? "Active" : "Inactive"}
+                {tenant.isActive ? "활성" : "비활성"}
               </span>
             </div>
           </div>
@@ -154,12 +154,12 @@ function OverviewTab({ tenant }: { tenant: { id: number; code: string; name: str
 
       <div className={s.card}>
         <div className={s.cardHeader}>
-          <h3 className={s.cardTitle}>Settings</h3>
+          <h3 className={s.cardTitle}>설정</h3>
         </div>
         <div className={s.cardBody}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <div>
-              <div style={{ fontSize: 13, fontWeight: 600 }}>Tenant Status</div>
+              <div style={{ fontSize: 13, fontWeight: 600 }}>테넌트 상태</div>
               <div style={{ fontSize: 12, color: "var(--dev-text-muted)", marginTop: 2 }}>
                 {tenant.isActive ? "로그인·가입 가능" : "신규 접속 제한"}
               </div>
@@ -177,11 +177,11 @@ function OverviewTab({ tenant }: { tenant: { id: number; code: string; name: str
           </div>
           {domains.length > 0 && (
             <div style={{ marginTop: 20 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: "var(--dev-text-muted)", marginBottom: 8 }}>DOMAINS</div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: "var(--dev-text-muted)", marginBottom: 8 }}>도메인</div>
               {domains.map((d) => (
                 <div key={d} style={{ fontSize: 13, padding: "6px 0", borderBottom: "1px solid var(--dev-border-light)", display: "flex", justifyContent: "space-between" }}>
                   <span>{d}</span>
-                  <span className={`${s.badge} ${s.badgeActive}`} style={{ fontSize: 10 }}>Active · SSL</span>
+                  <span className={`${s.badge} ${s.badgeActive}`} style={{ fontSize: 10 }}>활성 · SSL</span>
                 </div>
               ))}
             </div>
@@ -192,7 +192,7 @@ function OverviewTab({ tenant }: { tenant: { id: number; code: string; name: str
   );
 }
 
-/* ===== Branding Tab ===== */
+/* ===== 브랜딩 탭 ===== */
 function BrandingTab({ tenantId, tenantCode }: { tenantId: number; tenantCode: string }) {
   const { data: branding, isLoading } = useTenantBranding(tenantId);
   const uploadLogo = useUploadLogo();
@@ -261,17 +261,17 @@ function BrandingTab({ tenantId, tenantCode }: { tenantId: number; tenantCode: s
 
   return (
     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-      {/* Logo */}
+      {/* 로고 */}
       <div className={s.card}>
         <div className={s.cardHeader}>
-          <h3 className={s.cardTitle}>Logo</h3>
+          <h3 className={s.cardTitle}>로고</h3>
         </div>
         <div className={s.cardBody}>
           <label className={s.logoUpload}>
             <input type="file" accept="image/*" style={{ display: "none" }} onChange={handleLogoChange} />
             {logoUrl ? (
               <>
-                <img src={logoUrl} alt="Logo" className={s.logoUploadImg} />
+                <img src={logoUrl} alt="로고" className={s.logoUploadImg} />
                 <span className={s.logoUploadText}>클릭하여 변경</span>
               </>
             ) : (
@@ -282,26 +282,26 @@ function BrandingTab({ tenantId, tenantCode }: { tenantId: number; tenantCode: s
         </div>
       </div>
 
-      {/* Text Fields */}
+      {/* 표시 설정 */}
       <div className={s.card}>
         <div className={s.cardHeader}>
-          <h3 className={s.cardTitle}>Display Settings</h3>
+          <h3 className={s.cardTitle}>표시 설정</h3>
         </div>
         <div className={s.cardBody} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           <div>
-            <label className={s.inputLabel}>Display Name</label>
+            <label className={s.inputLabel}>표시 이름</label>
             <input className={s.input} value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="헤더에 표시될 이름" />
           </div>
           <div>
-            <label className={s.inputLabel}>Window Title</label>
+            <label className={s.inputLabel}>브라우저 제목</label>
             <input className={s.input} value={windowTitle} onChange={(e) => setWindowTitle(e.target.value)} placeholder="브라우저 탭 제목" />
           </div>
           <div>
-            <label className={s.inputLabel}>Login Title</label>
+            <label className={s.inputLabel}>로그인 제목</label>
             <input className={s.input} value={loginTitle} onChange={(e) => setLoginTitle(e.target.value)} placeholder="로그인 화면 타이틀" />
           </div>
           <div>
-            <label className={s.inputLabel}>Login Subtitle</label>
+            <label className={s.inputLabel}>로그인 부제목</label>
             <input className={s.input} value={loginSubtitle} onChange={(e) => setLoginSubtitle(e.target.value)} placeholder="로그인 화면 서브타이틀" />
           </div>
         </div>
@@ -309,9 +309,9 @@ function BrandingTab({ tenantId, tenantCode }: { tenantId: number; tenantCode: s
           <div className={s.saveBar}>
             <span className={s.saveBarText}>변경 사항이 있습니다</span>
             <div className={s.saveBarActions}>
-              <button type="button" className={`${s.btn} ${s.btnSecondary} ${s.btnSm}`} onClick={handleDiscard}>Discard</button>
+              <button type="button" className={`${s.btn} ${s.btnSecondary} ${s.btnSm}`} onClick={handleDiscard}>취소</button>
               <button type="button" className={`${s.btn} ${s.btnPrimary} ${s.btnSm}`} onClick={handleSave} disabled={patchBranding.isPending}>
-                {patchBranding.isPending ? "Saving..." : "Save"}
+                {patchBranding.isPending ? "저장 중..." : "저장"}
               </button>
             </div>
           </div>
@@ -321,14 +321,14 @@ function BrandingTab({ tenantId, tenantCode }: { tenantId: number; tenantCode: s
   );
 }
 
-/* ===== Domains Tab ===== */
+/* ===== 도메인 탭 ===== */
 function DomainsTab({ tenant }: { tenant: { primaryDomain: string | null; domains: string[] } }) {
   const domains = tenant.domains?.length ? tenant.domains : tenant.primaryDomain ? [tenant.primaryDomain] : [];
 
   return (
     <div className={s.card}>
       <div className={s.cardHeader}>
-        <h3 className={s.cardTitle}>Domains</h3>
+        <h3 className={s.cardTitle}>도메인</h3>
       </div>
       {domains.length === 0 ? (
         <div className={s.empty}>
@@ -338,8 +338,8 @@ function DomainsTab({ tenant }: { tenant: { primaryDomain: string | null; domain
         <table className={s.table}>
           <thead>
             <tr>
-              <th>Host</th>
-              <th>Status</th>
+              <th>호스트</th>
+              <th>상태</th>
               <th>SSL</th>
             </tr>
           </thead>
@@ -350,11 +350,11 @@ function DomainsTab({ tenant }: { tenant: { primaryDomain: string | null; domain
                 <td>
                   <span className={`${s.badge} ${s.badgeActive}`}>
                     <span className={`${s.badgeDot} ${s.badgeDotActive}`} />
-                    Active
+                    활성
                   </span>
                 </td>
                 <td>
-                  <span className={`${s.badge} ${s.badgeActive}`}>Valid</span>
+                  <span className={`${s.badge} ${s.badgeActive}`}>유효</span>
                 </td>
               </tr>
             ))}
@@ -365,7 +365,7 @@ function DomainsTab({ tenant }: { tenant: { primaryDomain: string | null; domain
   );
 }
 
-/* ===== Owners Tab ===== */
+/* ===== 소유자 탭 ===== */
 function OwnersTab({ tenantId, tenantName }: { tenantId: number; tenantName: string }) {
   const { data: owners, isLoading } = useTenantOwners(tenantId);
   const registerOwner = useRegisterOwner();
@@ -383,7 +383,7 @@ function OwnersTab({ tenantId, tenantName }: { tenantId: number; tenantName: str
   const [newPhone, setNewPhone] = useState("");
 
   async function handleAdd() {
-    if (!newUser.trim() || !newPw) { toast("ID와 PW를 입력하세요.", "error"); return; }
+    if (!newUser.trim() || !newPw) { toast("아이디와 비밀번호를 입력하세요.", "error"); return; }
     try {
       await registerOwner.mutateAsync({
         tenantId,
@@ -428,9 +428,9 @@ function OwnersTab({ tenantId, tenantName }: { tenantId: number; tenantName: str
     <>
       <div className={s.card} style={{ marginBottom: 16 }}>
         <div className={s.cardHeader}>
-          <h3 className={s.cardTitle}>Owners ({owners?.length ?? 0})</h3>
+          <h3 className={s.cardTitle}>소유자 ({owners?.length ?? 0})</h3>
           <button type="button" className={`${s.btn} ${s.btnPrimary} ${s.btnSm}`} onClick={() => setShowAdd(!showAdd)}>
-            + Add Owner
+            + 소유자 추가
           </button>
         </div>
 
@@ -438,26 +438,26 @@ function OwnersTab({ tenantId, tenantName }: { tenantId: number; tenantName: str
           <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--dev-border-light)", background: "var(--dev-bg)" }}>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
               <div>
-                <label className={s.inputLabel}>Username *</label>
+                <label className={s.inputLabel}>아이디 *</label>
                 <input className={s.input} value={newUser} onChange={(e) => setNewUser(e.target.value)} placeholder="admin97" />
               </div>
               <div>
-                <label className={s.inputLabel}>Password *</label>
+                <label className={s.inputLabel}>비밀번호 *</label>
                 <input className={s.input} type="password" value={newPw} onChange={(e) => setNewPw(e.target.value)} />
               </div>
               <div>
-                <label className={s.inputLabel}>Name</label>
+                <label className={s.inputLabel}>이름</label>
                 <input className={s.input} value={newName} onChange={(e) => setNewName(e.target.value)} />
               </div>
               <div>
-                <label className={s.inputLabel}>Phone</label>
+                <label className={s.inputLabel}>전화번호</label>
                 <input className={s.input} value={newPhone} onChange={(e) => setNewPhone(e.target.value)} />
               </div>
             </div>
             <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-              <button type="button" className={`${s.btn} ${s.btnSecondary} ${s.btnSm}`} onClick={() => setShowAdd(false)}>Cancel</button>
+              <button type="button" className={`${s.btn} ${s.btnSecondary} ${s.btnSm}`} onClick={() => setShowAdd(false)}>취소</button>
               <button type="button" className={`${s.btn} ${s.btnPrimary} ${s.btnSm}`} onClick={handleAdd} disabled={registerOwner.isPending}>
-                {registerOwner.isPending ? "Creating..." : "Create"}
+                {registerOwner.isPending ? "생성 중..." : "생성"}
               </button>
             </div>
           </div>
@@ -465,17 +465,17 @@ function OwnersTab({ tenantId, tenantName }: { tenantId: number; tenantName: str
 
         {!owners?.length ? (
           <div className={s.empty}>
-            <div className={s.emptyText}>등록된 Owner가 없습니다.</div>
+            <div className={s.emptyText}>등록된 소유자가 없습니다.</div>
           </div>
         ) : (
           <table className={s.table}>
             <thead>
               <tr>
-                <th>Username</th>
-                <th>Name</th>
-                <th>Phone</th>
-                <th>Role</th>
-                <th style={{ width: 120 }}>Actions</th>
+                <th>아이디</th>
+                <th>이름</th>
+                <th>전화번호</th>
+                <th>역할</th>
+                <th style={{ width: 120 }}>동작</th>
               </tr>
             </thead>
             <tbody>
@@ -486,11 +486,11 @@ function OwnersTab({ tenantId, tenantName }: { tenantId: number; tenantName: str
                       <td style={{ fontWeight: 600 }}>{o.username}</td>
                       <td><input className={s.input} value={editName} onChange={(e) => setEditName(e.target.value)} style={{ height: 32 }} /></td>
                       <td><input className={s.input} value={editPhone} onChange={(e) => setEditPhone(e.target.value)} style={{ height: 32 }} /></td>
-                      <td><span className={`${s.badge} ${s.badgeActive}`}>OWNER</span></td>
+                      <td><span className={`${s.badge} ${s.badgeActive}`}>소유자</span></td>
                       <td>
                         <div style={{ display: "flex", gap: 4 }}>
-                          <button type="button" className={`${s.btn} ${s.btnPrimary} ${s.btnSm}`} onClick={() => handleSaveEdit(o.userId)}>Save</button>
-                          <button type="button" className={`${s.btn} ${s.btnGhost} ${s.btnSm}`} onClick={() => setEditId(null)}>Cancel</button>
+                          <button type="button" className={`${s.btn} ${s.btnPrimary} ${s.btnSm}`} onClick={() => handleSaveEdit(o.userId)}>저장</button>
+                          <button type="button" className={`${s.btn} ${s.btnGhost} ${s.btnSm}`} onClick={() => setEditId(null)}>취소</button>
                         </div>
                       </td>
                     </>
@@ -499,7 +499,7 @@ function OwnersTab({ tenantId, tenantName }: { tenantId: number; tenantName: str
                       <td style={{ fontWeight: 600 }}>{o.username}</td>
                       <td>{o.name || "—"}</td>
                       <td style={{ color: "var(--dev-text-secondary)" }}>{o.phone || "—"}</td>
-                      <td><span className={`${s.badge} ${s.badgeActive}`}>OWNER</span></td>
+                      <td><span className={`${s.badge} ${s.badgeActive}`}>소유자</span></td>
                       <td>
                         <div style={{ display: "flex", gap: 4 }}>
                           <button
@@ -507,7 +507,7 @@ function OwnersTab({ tenantId, tenantName }: { tenantId: number; tenantName: str
                             className={`${s.btn} ${s.btnGhost} ${s.btnSm}`}
                             onClick={() => { setEditId(o.userId); setEditName(o.name || ""); setEditPhone(o.phone ?? ""); }}
                           >
-                            Edit
+                            수정
                           </button>
                           <button
                             type="button"
@@ -515,7 +515,7 @@ function OwnersTab({ tenantId, tenantName }: { tenantId: number; tenantName: str
                             onClick={() => handleRemove(o.userId, o.username)}
                             disabled={removeOwner.isPending}
                           >
-                            Remove
+                            제거
                           </button>
                         </div>
                       </td>

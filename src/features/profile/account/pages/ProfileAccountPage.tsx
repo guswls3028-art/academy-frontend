@@ -9,7 +9,6 @@ import useAuth from "@/features/auth/hooks/useAuth";
 
 import ProfileInfoCard from "../components/ProfileInfoCard";
 import ChangePasswordModal from "../components/ChangePasswordModal";
-import SenderNumberCard from "../components/SenderNumberCard";
 import TenantInfoCard from "../components/TenantInfoCard";
 
 import styles from "./ProfileAccountPage.module.css";
@@ -102,12 +101,6 @@ export default function ProfileAccountPage() {
           </section>
         )}
 
-        <section className={styles.section} aria-labelledby="account-sender-heading">
-          <p id="account-sender-heading" className={styles.sectionEyebrow}>메시지</p>
-          <div className={styles.sectionContent}>
-            <SenderNumberCard />
-          </div>
-        </section>
       </div>
       <ChangePasswordModal open={pwOpen} onClose={() => setPwOpen(false)} />
     </>
