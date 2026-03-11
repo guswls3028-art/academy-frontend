@@ -25,7 +25,7 @@ const PLANS: PlanDef[] = [
       "문자 자동발송 지원",
       "AI 자동채점 (객관식·단답형)",
       "동영상 플레이어 기본 제공",
-      "이메일 지원",
+      "카카오톡/전화 지원",
     ],
     cta: "문의하기",
     ctaLink: "/promo/contact",
@@ -78,7 +78,7 @@ const COMPARISON = [
   { feature: "동영상 플레이어", lite: "기본", basic: "고급", premium: "고급 + 분석" },
   { feature: "문자 자동발송", lite: "✓", basic: "✓", premium: "✓" },
   { feature: "상담/클리닉", lite: "—", basic: "✓", premium: "✓" },
-  { feature: "지원 방식", lite: "이메일", basic: "우선 지원", premium: "전담 매니저" },
+  { feature: "지원 방식", lite: "카카오톡/전화", basic: "우선 지원", premium: "전담 매니저" },
   { feature: "온보딩", lite: "셀프", basic: "가이드", premium: "전담" },
 ];
 

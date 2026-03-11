@@ -138,7 +138,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (document.visibilityState !== "visible") return;
       const access = getAccessToken();
       if (!access) {
-        setUser(null);
+        // 이전에 로그인 상태였으면 세션 만료 안내
+        if (user) {
+          setUser(null);
+          alert("액세스 토큰이 만료되었습니다. 다시 로그인 해주세요.");
+          window.location.href = "/login";
+        }
         return;
       }
       api.get<User>("/core/me/").then(
