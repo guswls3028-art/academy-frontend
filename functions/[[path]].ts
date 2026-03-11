@@ -1,5 +1,5 @@
-// Cloudflare Pages Function: tchul.com 등 테넌트 도메인 접속 시
-// HTML 문서의 <title> / og:title / og:description 을 브랜드명으로 치환.
+// Cloudflare Pages Function: 테넌트 도메인 접속 시
+// HTML 문서의 <title> / og:title / og:description / og:image / og:url 등을 브랜드명으로 치환.
 // 카카오톡 등 크롤러는 JS를 실행하지 않으므로, 서버에서 내려줄 때부터 올바른 값이 필요함.
 //
 // 배포: index.html과 /assets/* 청크는 반드시 동일 빌드에서 함께 업로드되어야 함.
@@ -17,6 +17,83 @@ function contentTypeForPath(pathname: string): string {
   if (/\.css(\?.*)?$/i.test(pathname)) return "text/css; charset=utf-8";
   if (/\.json(\?.*)?$/i.test(pathname)) return "application/json";
   return "application/octet-stream";
+}
+
+/** 테넌트별 OG 메타 SSOT — index.html inline script와 동일한 값 유지 */
+interface TenantMeta {
+  title: string;
+  description: string;
+  favicon?: string;  // path (e.g. "/tenants/ymath/favicon.png")
+  image?: string;    // path (e.g. "/tenants/ymath/og-image.png")
+}
+
+const TENANT_META: Record<string, TenantMeta> = {
+  "tchul.com":          { title: "박철과학",  description: "박철과학 학습 플랫폼 – 학생·선생님 로그인", favicon: "/tenants/tchul/favicon.png", image: "/tenants/tchul/logo.png" },
+  "www.tchul.com":      { title: "박철과학",  description: "박철과학 학습 플랫폼 – 학생·선생님 로그인", favicon: "/tenants/tchul/favicon.png", image: "/tenants/tchul/logo.png" },
+  "ymath.co.kr":        { title: "Y_math",     description: "Y_math 학습 플랫폼", favicon: "/tenants/ymath/favicon.png", image: "/tenants/ymath/og-image.png" },
+  "www.ymath.co.kr":    { title: "Y_math",     description: "Y_math 학습 플랫폼", favicon: "/tenants/ymath/favicon.png", image: "/tenants/ymath/og-image.png" },
+  "limglish.kr":        { title: "limglish",   description: "limglish 학습 플랫폼" },
+  "www.limglish.kr":    { title: "limglish",   description: "limglish 학습 플랫폼" },
+  "hakwonplus.com":     { title: "학원플러스",  description: "학원플러스 – 학원 관리·학생 학습 플랫폼" },
+  "www.hakwonplus.com": { title: "학원플러스",  description: "학원플러스 – 학원 관리·학생 학습 플랫폼" },
+  "sswe.co.kr":         { title: "sswe.co.kr", description: "sswe.co.kr 학습 플랫폼" },
+  "www.sswe.co.kr":     { title: "sswe.co.kr", description: "sswe.co.kr 학습 플랫폼" },
+};
+
+function injectMeta(html: string, meta: TenantMeta, origin: string): string {
+  const { title, description, favicon, image } = meta;
+
+  // <title>
+  html = html.replace(/<title>[^<]*<\/title>/, `<title>${title}</title>`);
+
+  // og:title, og:description
+  html = html.replace(
+    /<meta property="og:title" content="[^"]*" \/>/,
+    `<meta property="og:title" content="${title}" />`,
+  );
+  html = html.replace(
+    /<meta property="og:description" content="[^"]*" \/>/,
+    `<meta property="og:description" content="${description}" />`,
+  );
+
+  // og:url — 현재 페이지 origin
+  html = html.replace(
+    /<meta property="og:url" content="[^"]*" \/>/,
+    `<meta property="og:url" content="${origin}" />`,
+  );
+
+  // og:image
+  if (image) {
+    const absImage = origin + image;
+    html = html.replace(
+      /<meta property="og:image" content="[^"]*" \/>/,
+      `<meta property="og:image" content="${absImage}" />`,
+    );
+    html = html.replace(
+      /<meta name="twitter:image" content="[^"]*" \/>/,
+      `<meta name="twitter:image" content="${absImage}" />`,
+    );
+  }
+
+  // twitter:title, twitter:description
+  html = html.replace(
+    /<meta name="twitter:title" content="[^"]*" \/>/,
+    `<meta name="twitter:title" content="${title}" />`,
+  );
+  html = html.replace(
+    /<meta name="twitter:description" content="[^"]*" \/>/,
+    `<meta name="twitter:description" content="${description}" />`,
+  );
+
+  // favicon
+  if (favicon) {
+    html = html.replace(
+      /<link rel="icon" href="[^"]*"[^>]*>/,
+      `<link rel="icon" href="${favicon}" type="image/png" />`,
+    );
+  }
+
+  return html;
 }
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
@@ -60,50 +137,11 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
   let html = await res.text();
 
-  // tchul.com / www.tchul.com → 박철과학
-  if (host === "tchul.com" || host === "www.tchul.com") {
-    const title = "박철과학";
-    const desc = "박철과학 학습 플랫폼 – 학생·선생님 로그인";
-    html = html.replace(/<title>HakwonPlus<\/title>/, `<title>${title}</title>`);
-    html = html.replace(
-      /<meta property="og:title" content="HakwonPlus" \/>/,
-      `<meta property="og:title" content="${title}" />`
-    );
-    html = html.replace(
-      /<meta property="og:description" content="[^"]*" \/>/,
-      `<meta property="og:description" content="${desc}" />`
-    );
-    html = html.replace(
-      /<meta name="twitter:title" content="HakwonPlus" \/>/,
-      `<meta name="twitter:title" content="${title}" />`
-    );
-    html = html.replace(
-      /<meta name="twitter:description" content="[^"]*" \/>/,
-      `<meta name="twitter:description" content="${desc}" />`
-    );
-  }
-
-  // sswe.co.kr / www.sswe.co.kr → SSWE
-  if (host === "sswe.co.kr" || host === "www.sswe.co.kr") {
-    const title = "SSWE";
-    const desc = "SSWE 학습 플랫폼 – 학생·선생님 로그인";
-    html = html.replace(/<title>HakwonPlus<\/title>/, `<title>${title}</title>`);
-    html = html.replace(
-      /<meta property="og:title" content="HakwonPlus" \/>/,
-      `<meta property="og:title" content="${title}" />`
-    );
-    html = html.replace(
-      /<meta property="og:description" content="[^"]*" \/>/,
-      `<meta property="og:description" content="${desc}" />`
-    );
-    html = html.replace(
-      /<meta name="twitter:title" content="HakwonPlus" \/>/,
-      `<meta name="twitter:title" content="${title}" />`
-    );
-    html = html.replace(
-      /<meta name="twitter:description" content="[^"]*" \/>/,
-      `<meta name="twitter:description" content="${desc}" />`
-    );
+  // 테넌트별 메타 치환
+  const meta = TENANT_META[host];
+  if (meta) {
+    const origin = url.origin;
+    html = injectMeta(html, meta, origin);
   }
 
   return new Response(html, {
