@@ -92,14 +92,13 @@ export default function EditStudentModal({
     if (fieldErrors[name]) setFieldErrors((prev) => ({ ...prev, [name]: "" }));
   }
 
-  /** StudentUpdateSerializer / 모델 기준 필수: name, ps_number, phone, parent_phone (Create와 동일) */
   function validate(): string | null {
-    if (!String(form.name || "").trim()) return "필수 입력입니다.";
-    if (!String(form.psNumber || "").trim()) return "필수 입력입니다.";
+    if (!String(form.name || "").trim()) return "이름은 필수 입력입니다.";
+    if (!String(form.psNumber || "").trim()) return "아이디(PS 번호)는 필수 입력입니다.";
 
+    // 학생 전화번호는 선택사항 (식별자 학생은 전화번호 없음)
     const phone = String(form.studentPhone || "").trim();
-    if (!phone || phone.length < 11) return "학생 전화(010 뒤 8자리)를 입력해 주세요.";
-    if (!/^010\d{8}$/.test(phone)) return "학생 전화번호는 010 뒤 8자리 숫자여야 합니다.";
+    if (phone && !/^010\d{8}$/.test(phone)) return "학생 전화번호는 010 뒤 8자리 숫자여야 합니다.";
 
     const parent = String(form.parentPhone || "").trim();
     if (!parent || parent.length !== 11) return "학부모 전화(010 뒤 8자리)를 입력해 주세요.";
@@ -120,7 +119,8 @@ export default function EditStudentModal({
     setBusy(true);
     setFieldErrors({});
     try {
-      await updateStudent(initialValue.id, { ...form, noPhone: false });
+      const noPhone = !String(form.studentPhone || "").trim();
+      await updateStudent(initialValue.id, { ...form, noPhone });
       onSuccess();
       onClose();
     } catch (raw: any) {

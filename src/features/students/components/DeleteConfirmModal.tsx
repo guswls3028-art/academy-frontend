@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader, MODAL_DEFAULT_WIDTH } from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
 import { deleteStudent } from "../api/students";
+import { feedback } from "@/shared/ui/feedback/feedback";
 
 export default function DeleteConfirmModal({
   open,
@@ -26,6 +27,8 @@ export default function DeleteConfirmModal({
       await deleteStudent(id);
       onSuccess();
       onClose();
+    } catch (err: any) {
+      feedback.error(err?.response?.data?.detail || err?.message || "삭제에 실패했습니다.");
     } finally {
       setBusy(false);
     }

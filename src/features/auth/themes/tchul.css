@@ -47,8 +47,15 @@
 /* tchul 로그인 페이지: 글자+슬로건 포함 로고 사용 → 타이틀/서브타이틀 숨김 */
 [data-app="auth"][data-tenant="tchul"] img[class*="logo"] {
   max-height: 14rem;
-  max-width: 24rem;
+  max-width: min(100%, 24rem);
   margin-bottom: 0.5rem;
+}
+
+@media (max-width: 480px) {
+  [data-app="auth"][data-tenant="tchul"] img[class*="logo"] {
+    max-height: 10rem;
+    max-width: 80vw;
+  }
 }
 
 [data-app="auth"][data-tenant="tchul"] h1[class*="title"] {

@@ -50,6 +50,8 @@ export type StudentVideoListItem = {
   max_speed: number;
   show_watermark: boolean;
   access_mode?: AccessMode;
+  updated_at?: string | null;
+  order?: number;
 };
 
 export type StudentSessionVideosResponse = {

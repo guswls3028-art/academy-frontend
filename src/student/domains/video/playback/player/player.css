@@ -295,7 +295,7 @@
   margin-bottom: 10px;
 }
 
-/* 모바일: 컨트롤 영역 축소, 선택 옵션 일부 숨김 */
+/* 모바일: 컨트롤 영역 축소, 선택 옵션 일부 숨김, 줄바꿈 방지 */
 @media (max-width: 768px), (hover: none) {
   .svpControls {
     padding: 6px 8px 8px 8px;
@@ -306,14 +306,16 @@
   }
   .svpControlRow {
     gap: 4px;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
+    overflow: hidden;
   }
   .svpLeftControls,
   .svpRightControls {
-    gap: 4px;
+    gap: 2px;
+    flex-shrink: 0;
   }
   .svpVolumeSlider {
-    width: 70px;
+    display: none;
   }
   .svpVolume {
     min-width: 0;
@@ -632,12 +634,39 @@
   letter-spacing: -0.3px;
 }
 
+.vpp-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: var(--stu-space-2);
+  flex-wrap: wrap;
+}
+
+.vpp-meta-item {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.vpp-meta-item + .vpp-meta-item::before {
+  content: "·";
+  margin-right: 12px;
+  color: rgba(255, 255, 255, 0.3);
+}
+
 .vpp-info-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--stu-space-3);
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+}
+
+.vpp-info-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-shrink: 0;
 }
 
 .vpp-back-link,

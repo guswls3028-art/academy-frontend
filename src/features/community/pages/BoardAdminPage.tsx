@@ -433,6 +433,7 @@ export default function BoardAdminPage() {
             blockTypes={blockTypes}
             scopeNodes={scopeNodes}
             scopeParams={scopeParams}
+            initialBlockTypeId={blockTypes.find((bt) => bt.code === "board")?.id ?? blockTypes[0]?.id}
             onCancel={() => setShowCreate(false)}
             onSuccess={() => {
               qc.invalidateQueries({ queryKey: ["community-board-posts-scoped"] });
@@ -474,14 +475,16 @@ function BoardCreatePane({
   scopeParams,
   onCancel,
   onSuccess,
+  initialBlockTypeId,
 }: {
   blockTypes: BlockType[];
   scopeNodes: ScopeNodeMinimal[];
   scopeParams: CommunityScopeParams;
   onCancel: () => void;
   onSuccess: () => void;
+  initialBlockTypeId?: number;
 }) {
-  const [blockTypeId, setBlockTypeId] = useState<number | "">("");
+  const [blockTypeId, setBlockTypeId] = useState<number | "">(initialBlockTypeId ?? (blockTypes.length === 1 ? blockTypes[0].id : ""));
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [files, setFiles] = useState<File[]>([]);

@@ -203,15 +203,6 @@ export default function DashboardPage() {
             <div className="stu-action-tile__label">시험</div>
           </Link>
           <Link
-            to="/student/community"
-            className="stu-action-tile"
-          >
-            <div className="stu-action-tile__icon">
-              <IconNotice style={{ width: 20, height: 20, color: "var(--stu-primary)" }} />
-            </div>
-            <div className="stu-action-tile__label">커뮤니티</div>
-          </Link>
-          <Link
             to="/student/submit"
             className="stu-action-tile"
           >

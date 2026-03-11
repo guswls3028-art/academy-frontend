@@ -16,12 +16,13 @@ import "@/features/community/community.css";
 
 interface Props {
   blockTypes: BlockType[];
+  initialBlockTypeId?: number;
   onClose: () => void;
   onSuccess: () => void;
 }
 
-export default function BoardCreateModal({ blockTypes, onClose, onSuccess }: Props) {
-  const [blockTypeId, setBlockTypeId] = useState<number | "">("");
+export default function BoardCreateModal({ blockTypes, initialBlockTypeId, onClose, onSuccess }: Props) {
+  const [blockTypeId, setBlockTypeId] = useState<number | "">(initialBlockTypeId ?? (blockTypes.length === 1 ? blockTypes[0].id : ""));
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [files, setFiles] = useState<File[]>([]);

@@ -232,11 +232,8 @@ export default function ExamAdminPage() {
               {sortedFiltered.map((e) => (
                 <tr
                   key={e.id}
-                  className="cursor-pointer transition-colors hover:bg-[var(--color-bg-surface-soft)] active:bg-[var(--color-bg-surface-soft)]"
+                  className="transition-colors hover:bg-[var(--color-bg-surface-soft)]"
                   style={{ outline: "none" }}
-                  tabIndex={0}
-                  onClick={() => navigate("/admin/lectures")}
-                  onKeyDown={(ev) => ev.key === "Enter" && navigate("/admin/lectures")}
                 >
                   <td className="font-semibold text-[var(--color-text-primary)] truncate" title={e.title}>
                     {e.title || "—"}

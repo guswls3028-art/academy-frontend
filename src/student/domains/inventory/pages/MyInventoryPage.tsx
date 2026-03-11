@@ -196,7 +196,6 @@ export default function MyInventoryPage() {
               disabled={uploadMut.isPending}
               style={{ display: "flex", alignItems: "center", gap: 4 }}
             >
-              <IconUpload style={{ width: 14, height: 14 }} />
               {uploadMut.isPending ? "업로드 중…" : "파일 업로드"}
             </button>
           </div>

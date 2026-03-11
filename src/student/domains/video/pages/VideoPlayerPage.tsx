@@ -266,7 +266,7 @@ export default function VideoPlayerPage() {
   /* ─── Render ─── */
   const items = sessionVideosData?.items ?? [];
   const hasPlaylist = items.length > 1;
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(true);
 
   return (
     <div className="vpp-root">
@@ -300,11 +300,29 @@ export default function VideoPlayerPage() {
           {/* ─── 영상 정보 ─── */}
           <div className="vpp-info">
             <h1 className="vpp-title">{video.title}</h1>
+            {/* 영상 메타 정보 */}
+            {(() => {
+              const currentItem = items.find((v) => v.id === videoId);
+              const updatedAt = currentItem?.updated_at;
+              const dur = video.duration;
+              return (
+                <div className="vpp-meta-row">
+                  {updatedAt && (
+                    <span className="vpp-meta-item">
+                      {new Date(updatedAt).toLocaleDateString("ko-KR", { year: "numeric", month: "short", day: "numeric" })} 업데이트
+                    </span>
+                  )}
+                  {dur != null && dur > 0 && (
+                    <span className="vpp-meta-item">{formatClock(dur)}</span>
+                  )}
+                </div>
+              );
+            })()}
             <div className="vpp-info-row">
               <button type="button" className="vpp-back-link" onClick={() => nav(-1)}>
                 ← 목록으로
               </button>
-              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <div className="vpp-info-actions">
                 {hasPlaylist && (
                   <button
                     type="button"
@@ -319,7 +337,7 @@ export default function VideoPlayerPage() {
                     to={`/student/video/play?video=${nextVideo.id}${enrollmentId ? `&enrollment=${enrollmentId}` : ""}`}
                     className="vpp-next-link"
                   >
-                    다음 강의 →
+                    다음 →
                   </Link>
                 )}
               </div>
