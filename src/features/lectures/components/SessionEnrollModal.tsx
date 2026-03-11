@@ -221,7 +221,6 @@ export default function SessionEnrollModal({
   const [sort, setSort] = useState("name");
   const [schoolType, setSchoolType] = useState("");  // "" | "HIGH" | "MIDDLE"
   const [grade, setGrade] = useState(0);             // 0=전체, 1, 2, 3
-  const [selectingAll, setSelectingAll] = useState(false);
   const [excelUploading, setExcelUploading] = useState(false);
   const [excelStatusByStudentId, setExcelStatusByStudentId] = useState<Record<number, string>>({});
   const [excelPendingFile, setExcelPendingFile] = useState<File | null>(null);
@@ -349,6 +348,7 @@ export default function SessionEnrollModal({
       const { studentIds, statusByStudentId } = payload;
       qc.invalidateQueries({ queryKey: ["session-enrollments", sessionId] });
       qc.invalidateQueries({ queryKey: ["attendance", sessionId] });
+      qc.invalidateQueries({ queryKey: ["attendance-enrolled-ids", sessionId] });
       qc.invalidateQueries({ queryKey: ["attendance-matrix", lectureId] });
       qc.invalidateQueries({ queryKey: ["lecture-enrollments", lectureId] });
       if (statusByStudentId && created.length) {
@@ -463,49 +463,39 @@ export default function SessionEnrollModal({
     setSelectedItems((prev) => prev.filter((s) => s.id !== id));
   }, []);
 
-  const isAllSelected = totalCount > 0 && selectedItems.length === totalCount;
-  const SELECT_ALL_PAGE_SIZE = 100;
+  /** 현재 페이지(studentsToShow) 기준 전체 선택 여부 — DB 호출 없음 */
+  const isCurrentPageAllSelected =
+    studentsToShow.length > 0 &&
+    studentsToShow.every((s) => selectedIds.has(s.id));
 
-  const toggleSelectAllFull = useCallback(async () => {
-    if (isAllSelected) {
-      setSelectedItems([]);
+  /** 전체선택: 현재 페이지만 선택/해제. DB 안 때림. 실제 등록은 'N명 추가' 시에만. */
+  const toggleSelectCurrentPage = useCallback(() => {
+    if (isCurrentPageAllSelected) {
+      setSelectedItems((prev) => {
+        const pageIds = new Set(studentsToShow.map((s) => s.id));
+        return prev.filter((s) => !pageIds.has(s.id));
+      });
       return;
     }
-    setSelectingAll(true);
-    try {
-      const all: ClientStudent[] = [];
-      const selectAllFilters = { ...apiFilters, page_size: SELECT_ALL_PAGE_SIZE };
-      let p = 1;
-      while (true) {
-        const { data } = await fetchStudents(search, selectAllFilters, sort, p);
-        if (!data?.length) break;
-        all.push(...data);
-        if (data.length < SELECT_ALL_PAGE_SIZE) break;
-        p += 1;
-      }
-      setSelectedItems(
-        all
-          .filter((s) => !alreadyEnrolledStudentIds.has(s.id))
-          .map((s) => ({
-            id: s.id,
-            name: s.name ?? "-",
-            profilePhotoUrl: s.profilePhotoUrl ?? undefined,
-            enrollments: Array.isArray(s.enrollments)
-              ? s.enrollments.map((en) => ({
-                  lectureName: en.lectureName ?? "??",
-                  color: en.lectureColor ?? undefined,
-                  chipLabel: (en as { lectureChipLabel?: string | null }).lectureChipLabel ?? undefined,
-                }))
-              : [],
-          }))
-      );
-      if (all.length > 0) feedback.success(`전체 ${all.length}명 선택됨`);
-    } catch {
-      feedback.error("전체 선택 중 오류가 났습니다.");
-    } finally {
-      setSelectingAll(false);
-    }
-  }, [isAllSelected, apiFilters, search, sort, alreadyEnrolledStudentIds]);
+    setSelectedItems((prev) => {
+      const byId = new Map(prev.map((s) => [s.id, s]));
+      studentsToShow.forEach((s) => {
+        byId.set(s.id, {
+          id: s.id,
+          name: s.name ?? "-",
+          profilePhotoUrl: s.profilePhotoUrl ?? undefined,
+          enrollments: Array.isArray(s.enrollments)
+            ? s.enrollments.map((en) => ({
+                lectureName: en.lectureName ?? "??",
+                color: en.lectureColor ?? undefined,
+                chipLabel: (en as { lectureChipLabel?: string | null }).lectureChipLabel ?? undefined,
+              }))
+            : [],
+        });
+      });
+      return Array.from(byId.values());
+    });
+  }, [isCurrentPageAllSelected, studentsToShow, selectedIds]);
 
   const handleExcelFileSelect = useCallback((file: File) => {
     if (excelUploading) return;
@@ -707,11 +697,11 @@ export default function SessionEnrollModal({
                               >
                                 <input
                                   type="checkbox"
-                                  checked={isAllSelected}
-                                  disabled={selectingAll || loadingStudents}
-                                  onChange={() => toggleSelectAllFull()}
-                                  aria-label="전체 선택 (검색·필터 결과 전체)"
-                                  title={isAllSelected ? "선택 해제" : "검색·필터 결과 전체 선택"}
+                                  checked={isCurrentPageAllSelected}
+                                  disabled={loadingStudents}
+                                  onChange={() => toggleSelectCurrentPage()}
+                                  aria-label="현재 페이지 전체 선택"
+                                  title={isCurrentPageAllSelected ? "현재 페이지 선택 해제" : "현재 페이지 전체 선택"}
                                 />
                               </th>
                               <th
