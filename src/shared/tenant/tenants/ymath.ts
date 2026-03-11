@@ -5,15 +5,16 @@ import type { TenantDef } from "./types";
 export const ymath: TenantDef = {
   id: 4,
   code: "ymath",
-  name: "ymath",
+  name: "Y_math",
   hostnames: ["ymath.co.kr", "www.ymath.co.kr"],
   loginPath: "/login/ymath",
   branding: {
-    loginTitle: "ymath",
+    loginTitle: "Y_math",
     loginSubtitle: "ymath.co.kr",
-    windowTitle: "ymath",
-    ogDescription: "ymath 학습 플랫폼",
+    logoUrl: "/tenants/ymath/logo.png",
+    windowTitle: "Y_math",
+    ogDescription: "Y_math 학습 플랫폼",
   },
   dedicatedLoginPage: true,
-  hasCustomLogo: false,
+  hasCustomLogo: true,
 };

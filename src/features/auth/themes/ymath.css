@@ -1,4 +1,4 @@
-/* ymath 테넌트 색상 SSOT — 화이트톤 + 네이비~스카이블루 그라데이션 */
+/* ymath 테넌트 색상 SSOT — 화이트 + 스카이블루 (로고 색감 기반) */
 
 [data-app="auth"][data-tenant="ymath"] {
   /* 화이트톤 */
@@ -11,17 +11,19 @@
   --ymath-text: #0f172a;
   --ymath-text-muted: #64748b;
 
-  /* 로고 컬러 — 단색 */
-  --ymath-blue: #0369a1;
-  --ymath-blue-hover: #0284c7;
+  /* 로고 컬러 — 큐브 블루 + 텍스트 네이비 */
+  --ymath-blue: #0B4A82;
+  --ymath-blue-hover: #0D5A9E;
+  --ymath-sky: #5BB6E0;
+  --ymath-sky-light: #8ED0EE;
 
   /* 포커스 / 에러 */
-  --ymath-focus: rgba(3, 105, 161, 0.2);
+  --ymath-focus: rgba(11, 74, 130, 0.2);
   --ymath-error: #dc2626;
 
-  /* 그라데이션 모드 — 로고 컬러패턴 (Navy to Sky Blue) */
-  --ymath-gradient: linear-gradient(135deg, #020617 0%, #0ea5e9 50%, #7dd3fc 100%);
-  --ymath-gradient-hover: linear-gradient(135deg, #020617 0%, #0284c7 50%, #38bdf8 100%);
+  /* 그라데이션 — 로고 큐브 컬러패턴 (Navy → Sky Blue → Light Blue) */
+  --ymath-gradient: linear-gradient(135deg, #0B4A82 0%, #4DAAD6 50%, #8ED0EE 100%);
+  --ymath-gradient-hover: linear-gradient(135deg, #093D6E 0%, #3B9CC9 50%, #7CC8EA 100%);
 
   /* 공통 별칭 — LoginPage 에서 사용 */
   --auth-accent: var(--ymath-blue);
