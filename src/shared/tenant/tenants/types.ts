@@ -15,6 +15,8 @@ export type TenantBranding = {
   headerLogoUrl?: string;
   /** OG/트위터 카드 설명 (없으면 기본 문구) */
   ogDescription?: string;
+  /** OG/트위터 카드 이미지 URL — 카카오톡·페이스북 링크 미리보기용 (상대경로, origin은 런타임 부착) */
+  ogImageUrl?: string;
 };
 
 /** 단일 테넌트 정의 — tenants/*.ts 에서 사용 */

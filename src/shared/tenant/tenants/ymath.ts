@@ -12,6 +12,8 @@ export const ymath: TenantDef = {
     loginTitle: "Y_math",
     loginSubtitle: "ymath.co.kr",
     logoUrl: "/tenants/ymath/logo.png",
+    faviconUrl: "/tenants/ymath/favicon.png",
+    ogImageUrl: "/tenants/ymath/og-image.png",
     windowTitle: "Y_math",
     ogDescription: "Y_math 학습 플랫폼",
   },
