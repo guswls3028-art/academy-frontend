@@ -22,7 +22,7 @@ import { formatPhone } from "@/shared/utils/formatPhone";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { asyncStatusStore } from "@/shared/ui/asyncStatus";
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 100;
 /** 탭 디자인 유지. '신규 학생 추가' 클릭 시 탭 전환 없이 학생추가 모달만 연다 */
 const ENROLL_TABS = [
   { key: "existing", label: "기존 학생 추가" },
@@ -663,7 +663,10 @@ export default function SessionEnrollModal({
                       background: "var(--color-bg-surface)",
                     }}
                   >
-                    <div className="shrink-0 modal-inner-table">
+                    <div
+                      className="modal-inner-table flex-1 min-h-0"
+                      style={{ overflowY: "auto" }}
+                    >
                       {loadingStudents ? (
                         <EmptyState
                           mode="embedded"

@@ -297,6 +297,19 @@
 /* 모달 내부 테이블 — §9 SSOT: 글씨 크기만 축소, 폰트·체크박스 기준은 페이지와 동일 */
 .modal-inner-table {
   font-family: inherit;
+  scrollbar-width: none;       /* Firefox */
+  -ms-overflow-style: none;    /* IE/Edge */
+}
+.modal-inner-table::-webkit-scrollbar {
+  display: none;               /* Chrome/Safari */
+}
+/* 모달 스크롤 영역 공통 — 스크롤바 숨김 유틸 */
+.modal-scroll-hidden {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.modal-scroll-hidden::-webkit-scrollbar {
+  display: none;
 }
 .modal-inner-table thead th {
   font-size: 12px;

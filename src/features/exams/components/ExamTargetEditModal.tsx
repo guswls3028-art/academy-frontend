@@ -46,7 +46,7 @@ export default function ExamTargetEditModal({
           </button>
         </div>
 
-        <div className="max-h-[60vh] overflow-auto px-4 py-3">
+        <div className="max-h-[60vh] overflow-auto px-4 py-3 modal-scroll-hidden">
           {loading ? (
             <div className="text-sm text-muted">불러오는 중...</div>
           ) : (
