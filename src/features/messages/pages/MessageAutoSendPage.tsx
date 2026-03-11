@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { FiZap } from "react-icons/fi";
+import { FiZap, FiEdit3 } from "react-icons/fi";
 import { Switch } from "antd";
 import {
   fetchAutoSendConfigs,
@@ -171,185 +171,159 @@ function TriggerCard({
       </div>
 
       {/* 컨트롤 영역 */}
-      {!isComingSoon && (
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr auto 1fr",
-            gap: "var(--space-3)",
-            alignItems: "end",
-          }}
-        >
-          {/* 템플릿 — 클릭하면 수정 모달 */}
-          <div>
-            <label
-              style={{
-                display: "block",
-                fontSize: 11,
-                fontWeight: 600,
-                color: "var(--color-text-muted)",
-                marginBottom: 5,
-                textTransform: "uppercase",
-                letterSpacing: "0.04em",
-              }}
-            >
-              템플릿
-            </label>
-            {(() => {
-              const linked = config.template
-                ? templates.find((t) => t.id === config.template)
-                : null;
-              return (
-                <button
-                  type="button"
-                  className="ds-input"
-                  style={{
-                    width: "100%",
-                    fontSize: 13,
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                    background: "var(--color-bg-surface-soft)",
-                    cursor: "pointer",
-                    minHeight: 36,
-                    textAlign: "left",
-                    border: "1px solid var(--color-border)",
-                    borderRadius: "var(--radius-md)",
-                  }}
-                  onClick={() => linked && onEditTemplate?.(linked)}
-                  disabled={saving || !linked}
-                >
-                  <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--color-primary)" }}>
-                    수정하기
-                  </span>
-                  {linked?.solapi_status && (
-                    <span
-                      style={{
-                        fontSize: 11,
-                        fontWeight: 600,
-                        padding: "1px 6px",
-                        borderRadius: "var(--radius-sm)",
-                        flexShrink: 0,
-                        background:
-                          linked.solapi_status === "APPROVED"
-                            ? "color-mix(in srgb, var(--color-status-success, #16a34a) 12%, transparent)"
-                            : linked.solapi_status === "PENDING"
-                            ? "color-mix(in srgb, var(--color-status-warning, #d97706) 12%, transparent)"
-                            : "color-mix(in srgb, var(--color-status-danger, #dc2626) 12%, transparent)",
-                        color:
-                          linked.solapi_status === "APPROVED"
-                            ? "var(--color-status-success, #16a34a)"
-                            : linked.solapi_status === "PENDING"
-                            ? "var(--color-status-warning, #d97706)"
-                            : "var(--color-status-danger, #dc2626)",
-                      }}
-                    >
-                      {linked.solapi_status === "APPROVED"
-                        ? "승인"
-                        : linked.solapi_status === "PENDING"
-                        ? "검수대기"
-                        : linked.solapi_status === "REJECTED"
-                        ? "반려"
-                        : linked.solapi_status}
-                    </span>
-                  )}
-                </button>
-              );
-            })()}
-          </div>
+      {!isComingSoon && (() => {
+        const linked = config.template
+          ? templates.find((t) => t.id === config.template)
+          : null;
 
-          {/* 발송 시점 (N분 전) */}
-          <div>
-            <label
-              style={{
-                display: "block",
-                fontSize: 11,
-                fontWeight: 600,
-                color: "var(--color-text-muted)",
-                marginBottom: 5,
-                textTransform: "uppercase",
-                letterSpacing: "0.04em",
-              }}
-            >
-              발송 시점
-            </label>
-            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <input
-                type="number"
-                min={0}
-                step={5}
-                placeholder="예: 10"
-                className="ds-input message-domain-input"
-                style={{ width: 72, fontSize: 13, textAlign: "right" }}
-                value={config.minutes_before ?? ""}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  onUpdate(
-                    {
-                      ...config,
-                      minutes_before:
-                        v === "" ? null : Math.max(0, parseInt(v, 10) || 0),
-                    },
-                    true
-                  );
-                }}
-                disabled={saving}
-                aria-label="발송 시점 (분 전)"
-              />
-              <span
+        const statusColor =
+          linked?.solapi_status === "APPROVED"
+            ? "var(--color-status-success, #16a34a)"
+            : linked?.solapi_status === "PENDING"
+            ? "var(--color-status-warning, #d97706)"
+            : "var(--color-status-danger, #dc2626)";
+
+        const statusBg =
+          linked?.solapi_status === "APPROVED"
+            ? "color-mix(in srgb, var(--color-status-success, #16a34a) 10%, transparent)"
+            : linked?.solapi_status === "PENDING"
+            ? "color-mix(in srgb, var(--color-status-warning, #d97706) 10%, transparent)"
+            : "color-mix(in srgb, var(--color-status-danger, #dc2626) 10%, transparent)";
+
+        const statusLabel =
+          linked?.solapi_status === "APPROVED" ? "승인"
+          : linked?.solapi_status === "PENDING" ? "검수대기"
+          : linked?.solapi_status === "REJECTED" ? "반려"
+          : linked?.solapi_status ?? "";
+
+        return (
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 120px 160px",
+              gap: 16,
+              alignItems: "start",
+            }}
+          >
+            {/* 템플릿 — 클릭하면 수정 모달 */}
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 600, color: "var(--color-text-muted)", marginBottom: 6, textTransform: "uppercase" as const, letterSpacing: "0.04em" }}>
+                템플릿
+              </div>
+              <button
+                type="button"
+                onClick={() => linked && onEditTemplate?.(linked)}
+                disabled={saving || !linked}
                 style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  width: "100%",
+                  height: 36,
+                  padding: "0 12px",
                   fontSize: 13,
-                  color: "var(--color-text-muted)",
-                  whiteSpace: "nowrap",
+                  fontWeight: 500,
+                  textAlign: "left",
+                  color: linked ? "var(--color-text-primary)" : "var(--color-text-muted)",
+                  background: "color-mix(in srgb, var(--color-border-divider) 10%, var(--color-bg-surface))",
+                  border: "1px solid var(--color-border-divider)",
+                  borderRadius: "var(--radius-md)",
+                  boxShadow: "inset 0 2px 4px rgba(0,0,0,.06), inset 0 -1px 0 0 rgba(255,255,255,.04)",
+                  cursor: linked ? "pointer" : "default",
+                  transition: "border-color 120ms, box-shadow 120ms",
                 }}
               >
-                분 전
-              </span>
+                <FiEdit3 size={13} style={{ flexShrink: 0, color: "var(--color-primary)", opacity: linked ? 1 : 0.3 }} aria-hidden />
+                <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {linked ? "수정하기" : "템플릿 없음"}
+                </span>
+                {linked?.solapi_status && (
+                  <span
+                    style={{
+                      fontSize: 10,
+                      fontWeight: 700,
+                      lineHeight: 1,
+                      padding: "3px 7px",
+                      borderRadius: 10,
+                      flexShrink: 0,
+                      background: statusBg,
+                      color: statusColor,
+                      letterSpacing: "-0.01em",
+                    }}
+                  >
+                    {statusLabel}
+                  </span>
+                )}
+              </button>
+            </div>
+
+            {/* 발송 시점 */}
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 600, color: "var(--color-text-muted)", marginBottom: 6, textTransform: "uppercase" as const, letterSpacing: "0.04em" }}>
+                발송 시점
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                <input
+                  type="number"
+                  min={0}
+                  step={5}
+                  placeholder="0"
+                  className="ds-input"
+                  style={{ width: 72, fontSize: 13, textAlign: "right", paddingRight: 8 }}
+                  value={config.minutes_before ?? ""}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    onUpdate(
+                      {
+                        ...config,
+                        minutes_before: v === "" ? null : Math.max(0, parseInt(v, 10) || 0),
+                      },
+                      true,
+                    );
+                  }}
+                  disabled={saving}
+                  aria-label="발송 시점 (분 전)"
+                />
+                <span style={{ fontSize: 12, color: "var(--color-text-muted)", whiteSpace: "nowrap" }}>분 전</span>
+              </div>
+            </div>
+
+            {/* 발송 방식 */}
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 600, color: "var(--color-text-muted)", marginBottom: 6, textTransform: "uppercase" as const, letterSpacing: "0.04em" }}>
+                발송 방식
+              </div>
+              <select
+                className="ds-select"
+                style={{ width: "100%", fontSize: 13 }}
+                value={config.message_mode}
+                onChange={(e) =>
+                  onUpdate({
+                    ...config,
+                    message_mode: e.target.value as AutoSendConfigItem["message_mode"],
+                  })
+                }
+                disabled={saving}
+              >
+                {smsConnected && <option value="sms">{MESSAGE_MODE_LABELS.sms}</option>}
+                <option value="alimtalk">{MESSAGE_MODE_LABELS.alimtalk}</option>
+                {smsConnected && <option value="both">{MESSAGE_MODE_LABELS.both}</option>}
+              </select>
+              {!smsConnected && (
+                <p style={{ fontSize: 11, color: "var(--color-text-muted)", marginTop: 4, lineHeight: 1.4 }}>
+                  SMS 미연동 —{" "}
+                  <a
+                    href="/admin/message/settings"
+                    style={{ color: "var(--color-primary)", fontWeight: 600, textDecoration: "none" }}
+                  >
+                    연동하기
+                  </a>
+                </p>
+              )}
             </div>
           </div>
-
-          {/* 발송 방식 */}
-          <div>
-            <label
-              style={{
-                display: "block",
-                fontSize: 11,
-                fontWeight: 600,
-                color: "var(--color-text-muted)",
-                marginBottom: 5,
-                textTransform: "uppercase",
-                letterSpacing: "0.04em",
-              }}
-            >
-              발송 방식
-            </label>
-            <select
-              className="ds-input"
-              style={{ width: "100%", fontSize: 13 }}
-              value={config.message_mode}
-              onChange={(e) =>
-                onUpdate({
-                  ...config,
-                  message_mode: e.target.value as AutoSendConfigItem["message_mode"],
-                })
-              }
-              disabled={saving}
-            >
-              {smsConnected && <option value="sms">{MESSAGE_MODE_LABELS.sms}</option>}
-              <option value="alimtalk">{MESSAGE_MODE_LABELS.alimtalk}</option>
-              {smsConnected && <option value="both">{MESSAGE_MODE_LABELS.both}</option>}
-            </select>
-            {!smsConnected && (
-              <p style={{ fontSize: 11, color: "var(--color-text-muted)", marginTop: 4 }}>
-                SMS 미연동 — 알림톡만 가능합니다.{" "}
-                <a href="/admin/message/settings" style={{ color: "var(--color-brand-primary)", fontWeight: 600, textDecoration: "none" }}>
-                  연동하러 가기 →
-                </a>
-              </p>
-            )}
-          </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }
