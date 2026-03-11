@@ -16,12 +16,13 @@ type ContextValue = {
 
 const SendMessageModalContext = createContext<ContextValue | null>(null);
 
+const noopOpen: ContextValue = {
+  openSendMessageModal: () => {},
+};
+
 export function useSendMessageModal(): ContextValue {
   const ctx = useContext(SendMessageModalContext);
-  if (!ctx) {
-    throw new Error("useSendMessageModal must be used within SendMessageModalProvider");
-  }
-  return ctx;
+  return ctx ?? noopOpen;
 }
 
 export function SendMessageModalProvider({ children }: { children: ReactNode }) {
