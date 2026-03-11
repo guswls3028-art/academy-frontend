@@ -54,7 +54,7 @@ function RootRedirect() {
 
     // 테넌트 1번(hakwonplus) 및 9999번(로컬 개발) owner는 dev_app(개발자 앱)으로 리다이렉트
     if ((program.tenantCode === "hakwonplus" || program.tenantCode === "9999") && role === "owner") {
-      navigate("/dev/home", { replace: true });
+      navigate("/dev/dashboard", { replace: true });
       return;
     }
 
