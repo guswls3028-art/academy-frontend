@@ -66,6 +66,7 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
     setError("");
 
     if (!form.name.trim()) { setError("이름을 입력해 주세요."); return; }
+    if (!form.username.trim()) { setError("아이디를 입력해 주세요."); return; }
     if (!form.initialPassword.trim() || form.initialPassword.length < 4) {
       setError("초기 비밀번호를 4자 이상 입력해 주세요."); return;
     }
@@ -84,7 +85,6 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
     } else {
       if (!form.middleSchool.trim()) { setError("중학교명을 입력해 주세요."); return; }
     }
-    if (!form.highSchoolClass.trim()) { setError("반을 입력해 주세요."); return; }
     const gradeNum = form.grade.trim() ? Number(form.grade) : NaN;
     if (!form.grade.trim() || isNaN(gradeNum) || gradeNum < 1 || gradeNum > 3) {
       setError("학년을 입력해 주세요. (1~3)"); return;
@@ -156,7 +156,16 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
   return (
     <div className={styles.overlay} role="dialog" aria-modal="true" aria-labelledby="signup-modal-title">
       <div className={styles.overlayCard} onClick={(e) => e.stopPropagation()}>
-        <h2 id="signup-modal-title" className={styles.overlayTitle}>학생 회원가입</h2>
+        <button
+          type="button"
+          className={styles.overlayClose}
+          onClick={handleClose}
+          aria-label="닫기"
+          disabled={pending}
+        >
+          ✕
+        </button>
+        <h2 id="signup-modal-title" className={styles.overlayTitle} style={{ paddingLeft: 36 }}>학생 회원가입</h2>
         <p className={styles.overlaySubtitle}>
           필수 정보를 입력하시면 선생님 승인 후 로그인할 수 있습니다.
         </p>
@@ -210,7 +219,7 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
               </div>
               <div className={styles.signupInputRow}>
                 <label htmlFor="signup-username" className={styles.signupInputLabel}>
-                  아이디 (희망 로그인 ID)
+                  아이디 (희망 로그인 ID) <span className={styles.signupRequired}>*</span>
                 </label>
                 <input
                   id="signup-username"
@@ -296,7 +305,7 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
                     <input id="signup-grade" className={styles.signupInput} placeholder="선택" value={form.grade} onChange={(e) => setForm((f) => ({ ...f, grade: e.target.value }))} />
                   </div>
                   <div>
-                    <label htmlFor="signup-class" className={styles.signupInputLabel}>반 <span className={styles.signupRequired}>*</span></label>
+                    <label htmlFor="signup-class" className={styles.signupInputLabel}>반</label>
                     <input id="signup-class" className={styles.signupInput} placeholder="선택" value={form.highSchoolClass} onChange={(e) => setForm((f) => ({ ...f, highSchoolClass: e.target.value }))} />
                   </div>
                   <div className={styles.signupGrid2Full}>
@@ -315,7 +324,7 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
                     <input id="signup-grade-middle" className={styles.signupInput} placeholder="선택" value={form.grade} onChange={(e) => setForm((f) => ({ ...f, grade: e.target.value }))} />
                   </div>
                   <div>
-                    <label htmlFor="signup-class-middle" className={styles.signupInputLabel}>반 <span className={styles.signupRequired}>*</span></label>
+                    <label htmlFor="signup-class-middle" className={styles.signupInputLabel}>반</label>
                     <input id="signup-class-middle" className={styles.signupInput} placeholder="선택" value={form.highSchoolClass} onChange={(e) => setForm((f) => ({ ...f, highSchoolClass: e.target.value }))} />
                   </div>
                 </div>

@@ -190,6 +190,7 @@
 }
 
 .overlayCard {
+  position: relative;
   width: 100%;
   max-width: 420px;
   max-height: 90vh;
@@ -200,6 +201,30 @@
   padding: 28px;
   border: 1px solid #EEF1F4;
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.06);
+}
+
+.overlayClose {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #F3F4F6;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  color: #6B7280;
+  font-size: 18px;
+  line-height: 1;
+  transition: background 0.15s ease, color 0.15s ease;
+  padding: 0;
+}
+.overlayClose:hover {
+  background: #E5E7EB;
+  color: #111827;
 }
 
 .overlayTitle {
