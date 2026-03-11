@@ -29,6 +29,16 @@ export interface TenantMessagingInfo {
   channel_source?: "system_default" | "tenant_override";
   /** 메시징 공급자: solapi(기본) 또는 ppurio */
   messaging_provider?: MessagingProvider;
+  /** 자체 솔라피 API Key (마스킹됨, 읽기용) */
+  own_solapi_api_key?: string;
+  /** 자체 솔라피 API Secret (마스킹됨, 읽기용) */
+  own_solapi_api_secret?: string;
+  /** 자체 뿌리오 API Key (마스킹됨, 읽기용) */
+  own_ppurio_api_key?: string;
+  /** 자체 뿌리오 Account ID */
+  own_ppurio_account?: string;
+  /** 자체 연동 키가 설정되어 있는지 여부 */
+  has_own_credentials?: boolean;
 }
 
 export interface NotificationLogItem {
@@ -96,9 +106,14 @@ export async function verifySender(phoneNumber: string): Promise<{
   return res.data;
 }
 
-/** 메시징 설정 일부 수정 (발신번호, PFID, 공급자 등) */
+/** 메시징 설정 일부 수정 (발신번호, PFID, 공급자, 자체 연동 키 등) */
 export async function updateMessagingInfo(
-  payload: Partial<Pick<TenantMessagingInfo, "kakao_pfid" | "messaging_sender" | "messaging_provider">>
+  payload: Partial<Pick<TenantMessagingInfo, "kakao_pfid" | "messaging_sender" | "messaging_provider">> & {
+    own_solapi_api_key?: string;
+    own_solapi_api_secret?: string;
+    own_ppurio_api_key?: string;
+    own_ppurio_account?: string;
+  }
 ): Promise<TenantMessagingInfo> {
   const res = await api.patch<TenantMessagingInfo>(`${PREFIX}/info/`, payload);
   return res.data;
