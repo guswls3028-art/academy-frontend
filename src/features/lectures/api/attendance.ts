@@ -4,13 +4,41 @@ import { pollJobUntilDone, downloadFromUrl } from "@/shared/api/jobExport";
 
 /* =========================================================
  * 1️⃣ 세션 단위 출결 목록 조회 (SessionDetailPage)
- * GET /api/v1/lectures/attendance/?session={id}
+ * GET /api/v1/lectures/attendance/?session={id}&page=1&page_size=50
+ * 응답: { count, next, previous, results } (DRF 페이지네이션)
  * ======================================================= */
-export async function fetchAttendance(sessionId: number) {
-  const res = await api.get("/lectures/attendance/", {
-    params: { session: sessionId },
-  });
-  return Array.isArray(res.data) ? res.data : res.data.results;
+export type AttendanceListResponse = {
+  data: any[];
+  count: number;
+  pageSize: number;
+};
+
+export async function fetchAttendance(
+  sessionId: number,
+  options?: { page?: number; page_size?: number; search?: string; status?: string }
+): Promise<AttendanceListResponse> {
+  const params: Record<string, string | number> = { session: sessionId };
+  if (options?.page != null) params.page = options.page;
+  if (options?.page_size != null) params.page_size = options.page_size;
+  if (options?.search?.trim()) params.search = options.search.trim();
+  if (options?.status?.trim()) params.status = options.status.trim();
+
+  const res = await api.get("/lectures/attendance/", { params });
+
+  const raw = res.data;
+  const items = Array.isArray(raw?.results)
+    ? raw.results
+    : Array.isArray(raw)
+      ? raw
+      : [];
+  const count = typeof raw?.count === "number" ? raw.count : items.length;
+  const pageSize = typeof raw?.page_size === "number" ? raw.page_size : 50;
+
+  return {
+    data: items,
+    count,
+    pageSize,
+  };
 }
 
 /* =========================================================
