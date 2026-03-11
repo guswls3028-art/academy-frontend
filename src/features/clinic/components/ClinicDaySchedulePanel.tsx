@@ -149,7 +149,10 @@ export default function ClinicDaySchedulePanel({
                       >
                         <span className="clinic-session-card__bar" aria-hidden />
                         <div className="clinic-session-card__body">
-                          <span className="clinic-session-card__location">{s.location || "—"}</span>
+                          <span className="clinic-session-card__location">
+                            {s.title || s.location || "—"}
+                            {s.target_grade ? ` · ${s.target_grade}학년` : ""}
+                          </span>
                           <span className="clinic-session-card__count">예약 {booked}명</span>
                         </div>
                         {onDeleteSession && (

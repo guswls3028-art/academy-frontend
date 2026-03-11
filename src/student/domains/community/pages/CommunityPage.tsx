@@ -18,22 +18,27 @@ import {
   fetchReplies,
   submitQuestion,
   isAnswered,
+  fetchMyCounselRequests,
+  submitCounselRequest,
   type PostEntity,
   type Answer,
 } from "../api/community.api";
 
 // ─── Types ───
-type Tab = "qna" | "board" | "materials";
+type Tab = "qna" | "board" | "counsel" | "materials";
 type QnaFilter = "all" | "pending" | "resolved";
 type View =
   | { kind: "tabs" }
   | { kind: "qna-form" }
   | { kind: "qna-detail"; id: number; cached?: PostEntity }
-  | { kind: "board-detail"; id: number };
+  | { kind: "board-detail"; id: number }
+  | { kind: "counsel-form" }
+  | { kind: "counsel-detail"; id: number; cached?: PostEntity };
 
 const TABS: { key: Tab; label: string }[] = [
   { key: "qna", label: "QnA" },
   { key: "board", label: "게시판" },
+  { key: "counsel", label: "상담 신청" },
   { key: "materials", label: "자료실" },
 ];
 
@@ -147,6 +152,8 @@ export default function CommunityPage() {
   if (view.kind === "qna-form") return <QnaForm onBack={back} onSuccess={back} />;
   if (view.kind === "qna-detail") return <QnaDetail id={view.id} cached={view.cached} onBack={back} />;
   if (view.kind === "board-detail") return <BoardDetail id={view.id} onBack={back} />;
+  if (view.kind === "counsel-form") return <CounselForm onBack={back} onSuccess={back} />;
+  if (view.kind === "counsel-detail") return <CounselDetail id={view.id} cached={view.cached} onBack={back} />;
 
   // ─── Tab view ───
   return (
@@ -161,6 +168,12 @@ export default function CommunityPage() {
         )}
         {tab === "board" && (
           <BoardTab onDetail={(id) => setView({ kind: "board-detail", id })} />
+        )}
+        {tab === "counsel" && (
+          <CounselTab
+            onForm={() => setView({ kind: "counsel-form" })}
+            onDetail={(id, cached) => setView({ kind: "counsel-detail", id, cached })}
+          />
         )}
         {tab === "materials" && <MaterialsTab />}
       </div>
@@ -442,6 +455,223 @@ function BoardDetail({ id, onBack }: { id: number; onBack: () => void }) {
         <div style={{ fontSize: 15, lineHeight: 1.6, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
           {post.content || "내용이 없습니다."}
         </div>
+      </div>
+    </StudentPageShell>
+  );
+}
+
+// ═══════════════════════════════════════════
+// Counsel Tab (상담 신청)
+// ═══════════════════════════════════════════
+function CounselTab({
+  onForm,
+  onDetail,
+}: {
+  onForm: () => void;
+  onDetail: (id: number, cached?: PostEntity) => void;
+}) {
+  const [filter, setFilter] = useState<QnaFilter>("all");
+
+  const { data: profile } = useQuery({
+    queryKey: ["student", "me"],
+    queryFn: fetchMyProfile,
+  });
+
+  const { data: requests = [], isLoading } = useQuery({
+    queryKey: ["student", "counsel", "requests"],
+    queryFn: () => fetchMyCounselRequests(profile!.id),
+    enabled: profile?.id != null,
+  });
+
+  const pending = useMemo(() => requests.filter((q) => !isAnswered(q)), [requests]);
+  const resolved = useMemo(() => requests.filter(isAnswered), [requests]);
+  const filtered = filter === "pending" ? pending : filter === "resolved" ? resolved : requests;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-5)" }}>
+      {!profile?.isParentReadOnly && (
+        <button
+          type="button"
+          className="stu-btn stu-btn--primary"
+          onClick={onForm}
+          style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "var(--stu-space-2)" }}
+        >
+          <IconPlus style={{ width: 18, height: 18 }} />
+          상담 신청하기
+        </button>
+      )}
+
+      <SegmentedTabs
+        items={[
+          { key: "all" as const, label: "전체", count: requests.length },
+          { key: "pending" as const, label: "답변 대기", count: pending.length },
+          { key: "resolved" as const, label: "처리됨", count: resolved.length },
+        ]}
+        value={filter}
+        onChange={setFilter}
+      />
+
+      {isLoading || !profile ? (
+        <Loading />
+      ) : filtered.length === 0 ? (
+        <EmptyState
+          title={filter !== "all" ? "해당하는 상담 신청이 없습니다" : "상담 신청 내역이 없습니다"}
+          description={filter !== "all" ? "다른 필터를 선택해 보세요." : "상담 신청하기 버튼을 눌러 선생님께 상담을 요청해 보세요."}
+        />
+      ) : (
+        <PostList>
+          {filtered.map((q) => (
+            <PostRow key={q.id} post={q} onClick={() => onDetail(q.id, q)} right={<StatusChip answered={isAnswered(q)} />} />
+          ))}
+        </PostList>
+      )}
+    </div>
+  );
+}
+
+// ─── Counsel Detail ───
+function CounselDetail({ id, cached, onBack }: { id: number; cached?: PostEntity; onBack: () => void }) {
+  const { data: fetched, isLoading } = useQuery({
+    queryKey: ["student", "counsel", "request", id],
+    queryFn: () => fetchPostDetail(id),
+    enabled: !cached,
+  });
+  const request = cached ?? fetched;
+
+  if (isLoading && !request) {
+    return <StudentPageShell title="상담 신청 상세" onBack={onBack}><Loading /></StudentPageShell>;
+  }
+  if (!request) {
+    return (
+      <StudentPageShell title="상담 신청 상세" onBack={onBack}>
+        <EmptyState title="상담 신청을 찾을 수 없습니다" />
+      </StudentPageShell>
+    );
+  }
+
+  return <CounselDetailContent request={request} onBack={onBack} />;
+}
+
+function CounselDetailContent({ request, onBack }: { request: PostEntity; onBack: () => void }) {
+  const answered = isAnswered(request);
+  const { data: replies = [], isLoading } = useQuery<Answer[]>({
+    queryKey: ["student", "counsel", "replies", request.id],
+    queryFn: () => fetchReplies(request.id),
+    enabled: answered,
+  });
+
+  return (
+    <StudentPageShell title="상담 신청 상세" onBack={onBack}>
+      <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-6)" }}>
+        {/* 상담 신청 내용 */}
+        <div className="stu-section stu-section--nested">
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "var(--stu-space-4)" }}>
+            <div style={{ fontWeight: 700, fontSize: 15, flex: 1, minWidth: 0 }}>{request.title}</div>
+            <StatusChip answered={answered} />
+          </div>
+          <div className="stu-muted" style={{ fontSize: 12, marginBottom: "var(--stu-space-4)" }}>
+            {formatYmd(request.created_at)}
+          </div>
+          <div style={{ fontSize: 14, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{request.content}</div>
+        </div>
+
+        {/* 관리자 답변 */}
+        <div className="stu-section stu-section--nested">
+          {answered ? (
+            <>
+              <div style={{ fontWeight: 700, fontSize: 15, marginBottom: "var(--stu-space-4)" }}>
+                관리자 답변{replies.length > 0 && ` (${replies.length}개)`}
+              </div>
+              {isLoading ? (
+                <Loading />
+              ) : replies.length > 0 ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-3)" }}>
+                  {replies.map((r) => (
+                    <div
+                      key={r.id}
+                      className="stu-panel"
+                      style={{ padding: "var(--stu-space-4)", background: "var(--stu-success-bg)", border: "1px solid var(--stu-success)" }}
+                    >
+                      <div style={{ fontSize: 14, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{r.content}</div>
+                      <div className="stu-muted" style={{ fontSize: 12, marginTop: "var(--stu-space-2)" }}>{formatYmd(r.created_at)}</div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="stu-muted" style={{ textAlign: "center", padding: "var(--stu-space-4)" }}>
+                  답변이 등록되었습니다.
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="stu-muted" style={{ textAlign: "center", padding: "var(--stu-space-4)" }}>
+              아직 답변이 등록되지 않았습니다.<br />관리자가 확인 후 답변해 주실 거예요.
+            </div>
+          )}
+        </div>
+      </div>
+    </StudentPageShell>
+  );
+}
+
+// ─── Counsel Form ───
+function CounselForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () => void }) {
+  const qc = useQueryClient();
+  const [title, setTitle] = useState("");
+  const [content, setContent] = useState("");
+
+  const { data: profile } = useQuery({ queryKey: ["student", "me"], queryFn: fetchMyProfile });
+
+  const mutation = useMutation({
+    mutationFn: () => {
+      if (!profile?.id) throw new Error("로그인 정보를 불러오는 중입니다.");
+      return submitCounselRequest(title.trim(), content.trim(), profile.id);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["student", "counsel", "requests"] });
+      qc.invalidateQueries({ queryKey: ["student", "notifications", "counts"] });
+      onSuccess();
+    },
+    onError: (err: unknown) => {
+      const code = (err as { response?: { data?: { code?: string } } })?.response?.data?.code;
+      if (code === "profile_required") qc.invalidateQueries({ queryKey: ["student", "me"] });
+    },
+  });
+
+  const errorMsg = mutation.error
+    ? ((e: unknown) => {
+        const ax = e as { response?: { data?: { detail?: string } }; message?: string };
+        return ax?.response?.data?.detail ?? (e instanceof Error ? e.message : "전송에 실패했습니다.");
+      })(mutation.error)
+    : null;
+
+  const canSubmit = title.trim().length > 0 && content.trim().length > 0 && profile?.id != null;
+
+  return (
+    <StudentPageShell title="상담 신청" description="상담받고 싶은 내용을 적어 보내면 관리자가 확인해 드립니다." onBack={onBack}>
+      <div className="stu-section stu-section--nested" style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-4)" }}>
+        {errorMsg && (
+          <div role="alert" style={{ padding: "var(--stu-space-3)", background: "var(--stu-danger-bg)", border: "1px solid var(--stu-danger-border)", borderRadius: "var(--stu-radius)", fontSize: 14, color: "var(--stu-danger-text)", fontWeight: 600 }}>
+            {errorMsg}
+          </div>
+        )}
+        <label style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-2)" }}>
+          <span style={{ fontSize: 14, fontWeight: 600, color: "var(--stu-text-muted)" }}>상담 제목</span>
+          <input type="text" placeholder="예: 진로 상담, 학습 방법 상담" value={title} onChange={(e) => setTitle(e.target.value)} className="stu-input" style={{ width: "100%" }} />
+        </label>
+        <label style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-2)", flex: 1 }}>
+          <span style={{ fontSize: 14, fontWeight: 600, color: "var(--stu-text-muted)" }}>상담 내용</span>
+          <textarea placeholder="상담받고 싶은 내용을 자세히 적어 주세요." value={content} onChange={(e) => setContent(e.target.value)} rows={8} className="stu-textarea" style={{ width: "100%", resize: "vertical", minHeight: 160 }} />
+        </label>
+        <button
+          type="button"
+          className="stu-btn stu-btn--primary"
+          disabled={!canSubmit || mutation.isPending}
+          onClick={() => { if (canSubmit && !mutation.isPending) mutation.mutate(); }}
+          style={{ alignSelf: "flex-end", minHeight: 44, minWidth: 140 }}
+        >
+          {mutation.isPending ? "신청 중…" : "상담 신청하기"}
+        </button>
       </div>
     </StudentPageShell>
   );

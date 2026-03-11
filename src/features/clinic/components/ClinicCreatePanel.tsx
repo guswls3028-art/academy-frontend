@@ -142,6 +142,8 @@ export default function ClinicCreatePanel({
     }
   };
 
+  const [title, setTitle] = useState("");
+  const [targetGrade, setTargetGrade] = useState<number | null>(null);
   const [timeRange, setTimeRange] = useState("");
   const [room, setRoom] = useState("");
   const [memo, setMemo] = useState("");
@@ -153,11 +155,13 @@ export default function ClinicCreatePanel({
 
   const createSessionM = useMutation({
     mutationFn: async (payload: {
+      title?: string;
       date: string;
       start_time: string;
       duration_minutes: number;
       location: string;
       max_participants: number;
+      target_grade?: number | null;
     }) => {
       const res = await api.post("/clinic/sessions/", payload);
       return res.data as { id: number };
@@ -178,11 +182,13 @@ export default function ClinicCreatePanel({
 
     try {
       await createSessionM.mutateAsync({
+        title: title.trim() || undefined,
         date: selectedDate.format("YYYY-MM-DD"),
         start_time: toHHmmss(start),
         duration_minutes: duration,
         location: room.trim(),
         max_participants: cap,
+        target_grade: targetGrade,
       });
 
       message.success("클리닉 생성 완료");
@@ -256,6 +262,42 @@ export default function ClinicCreatePanel({
               </div>
             </div>
           )}
+
+          {/* 제목 · 대상 학년 */}
+          <div className="modal-form-group modal-form-group--compact flex flex-col gap-3">
+            <label className="modal-section-label">제목 · 학년</label>
+            <div className="flex flex-wrap items-center gap-3">
+              <Input
+                placeholder="클리닉 제목 (선택)"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className="clinic-input-filled flex-1 min-w-[140px]"
+              />
+              <div className="flex items-center gap-1.5 shrink-0">
+                <span className="text-sm font-semibold text-[var(--color-text-muted)] whitespace-nowrap">학년</span>
+                {([null, 1, 2, 3] as const).map((g) => (
+                  <button
+                    key={g ?? "all"}
+                    type="button"
+                    onClick={() => setTargetGrade(g)}
+                    style={{
+                      padding: "4px 10px",
+                      fontSize: 12,
+                      fontWeight: targetGrade === g ? 700 : 500,
+                      borderRadius: 6,
+                      border: `1px solid ${targetGrade === g ? "var(--color-brand-primary)" : "var(--color-border-divider)"}`,
+                      background: targetGrade === g ? "var(--color-brand-primary)" : "var(--color-bg-surface)",
+                      color: targetGrade === g ? "#fff" : "var(--color-text-secondary)",
+                      cursor: "pointer",
+                      transition: "all 0.15s",
+                    }}
+                  >
+                    {g === null ? "전체" : `${g}학년`}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
 
           {/* 시간 — 모달 SSOT: modal-form-group으로 영역 구분 */}
           <div className="modal-form-group modal-form-group--compact">

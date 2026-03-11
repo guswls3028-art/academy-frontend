@@ -8,7 +8,6 @@ import { useNavigate } from "react-router-dom";
 import { useQuery, useQueries } from "@tanstack/react-query";
 import { FileText, FilePlus } from "lucide-react";
 import { Button, EmptyState } from "@/shared/ui/ds";
-import { DomainLayout } from "@/shared/ui/layout";
 import Breadcrumb from "@/features/storage/components/Breadcrumb";
 import LectureSessionTree from "../components/LectureSessionTree";
 import { fetchLectures, fetchSessions, sortSessionsByDateDesc, type Lecture, type Session } from "@/features/lectures/api/sessions";
@@ -95,10 +94,6 @@ export default function ExamExplorerPage() {
   };
 
   return (
-    <DomainLayout
-      title="시험"
-      description="강의·차시 단위 시험을 한 화면에서 조회합니다. 좌측에서 차시를 선택하면 해당 차시 시험 목록이 우측에 표시됩니다."
-    >
       <div className={panelStyles.root}>
         <div className={panelStyles.toolbar}>
           <Breadcrumb
@@ -242,6 +237,5 @@ export default function ExamExplorerPage() {
           </div>
         </div>
       </div>
-    </DomainLayout>
   );
 }

@@ -123,6 +123,28 @@ export async function deleteBlockType(id: number): Promise<void> {
   await api.delete(`${PREFIX}/block-types/${id}/`);
 }
 
+/**
+ * counsel 블록 유형이 없으면 자동 생성, 있으면 기존 ID 반환.
+ * 중복 호출 방지를 위한 in-flight promise 캐시 포함.
+ */
+let _ensureCounselPromise: Promise<number> | null = null;
+export function ensureCounselBlockType(): Promise<number> {
+  if (_ensureCounselPromise) return _ensureCounselPromise;
+  _ensureCounselPromise = (async () => {
+    try {
+      const types = await fetchBlockTypes();
+      const existing = types.find((t) => (t.code || "").toLowerCase() === "counsel");
+      if (existing) return existing.id;
+      const created = await createBlockType({ label: "상담 신청", code: "counsel", order: 50 });
+      return created.id;
+    } catch (e) {
+      _ensureCounselPromise = null;
+      throw e;
+    }
+  })();
+  return _ensureCounselPromise;
+}
+
 // ----------------------------------------
 // Post templates (양식 저장/불러오기)
 // ----------------------------------------

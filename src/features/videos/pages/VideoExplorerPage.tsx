@@ -8,7 +8,6 @@ import { useNavigate } from "react-router-dom";
 import { useQuery, useQueries, useMutation, useQueryClient } from "@tanstack/react-query";
 import { FilePlus, Video, Folder } from "lucide-react";
 import { Button, EmptyState } from "@/shared/ui/ds";
-import { DomainLayout } from "@/shared/ui/layout";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter, MODAL_WIDTH } from "@/shared/ui/modal";
 import Breadcrumb from "@/features/storage/components/Breadcrumb";
 import VideoExplorerTree, { type VideoFolderId } from "../components/VideoExplorerTree";
@@ -329,10 +328,7 @@ export default function VideoExplorerPage() {
   );
 
   return (
-    <DomainLayout
-      title="영상"
-      description="강의·차시 단위 영상을 관리합니다. 전체공개영상은 프로그램에 등록된 모든 학생이 시청할 수 있는 영상입니다."
-    >
+    <>
       <div className={panelStyles.root}>
         <div className={panelStyles.toolbar}>
           <Breadcrumb
@@ -613,6 +609,6 @@ export default function VideoExplorerPage() {
           </ModalFooter>
         </AdminModal>
       )}
-    </DomainLayout>
+    </>
   );
 }

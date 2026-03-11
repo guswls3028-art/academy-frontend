@@ -8,10 +8,13 @@ import api from "@/student/shared/api/studentApi";
  */
 export type ClinicSession = {
   id: number;
+  title?: string;
   date: string; // YYYY-MM-DD
   start_time: string; // HH:MM:SS or HH:MM
   end_time?: string;
   location: string;
+  /** 대상 학년 (null = 전체). 백엔드가 학생 학년에 맞는 세션만 반환 */
+  target_grade?: number | null;
   participant_count: number;
   booked_count: number;
   max_participants?: number;

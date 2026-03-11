@@ -4,9 +4,12 @@ import dayjs from "dayjs";
 
 export type ClinicSessionTreeNode = {
   id: number;
+  title?: string;
   date: string; // YYYY-MM-DD
   start_time: string; // "HH:MM:SS" or "HH:MM"
   location: string;
+  /** 대상 학년 (null = 전체) */
+  target_grade?: number | null;
 
   participant_count: number;
   booked_count: number;

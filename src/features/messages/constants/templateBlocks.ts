@@ -1,6 +1,8 @@
 // PATH: src/features/messages/constants/templateBlocks.ts
 // 카테고리별 삽입 블록 — 실제 services.py 런타임 치환 변수와 1:1 매칭
 
+import React from "react";
+
 /** 현재 테넌트 사이트 URL (미리보기용) */
 function getTenantSiteUrl(): string {
   try {
@@ -96,14 +98,14 @@ export function renderPreviewText(text: string): string {
 }
 
 export const TEMPLATE_CATEGORY_LABELS: Record<TemplateCategory, string> = {
-  default: "기본",
+  default: "사용자",
   signup: "가입/등록",
   attendance: "출결",
   lecture: "강의",
   exam: "시험",
   assignment: "과제",
   grades: "성적",
-  clinic: "클리닉",
+  clinic: "클리닉/상담",
   payment: "결제",
   notice: "운영공지",
 };
@@ -145,4 +147,48 @@ const FALLBACK_COLOR = { bg: "color-mix(in srgb, var(--color-primary) 10%, trans
 /** 블록 ID로 고유 색상 반환 */
 export function getBlockColor(blockId: string): { bg: string; color: string; border: string } {
   return BLOCK_COLORS[blockId] ?? FALLBACK_COLOR;
+}
+
+// ─── 본문 미리보기용 컬러 배지 렌더링 ───
+
+const INSERT_TEXT_TO_BLOCK: Record<string, TemplateBlock> = Object.fromEntries(
+  ALL_BLOCKS.map((b) => [b.insertText, b]),
+);
+
+/**
+ * #{variable} 코드를 컬러 배지(React 노드)로 렌더링.
+ * 카드 미리보기·모달 미리보기 등에서 raw 코드 대신 사용.
+ */
+export function renderPreviewBadges(text: string): React.ReactNode[] {
+  const parts = text.split(/(#\{[^}]*\})/g);
+  return parts.map((part, i) => {
+    const block = INSERT_TEXT_TO_BLOCK[part];
+    if (block) {
+      const bc = BLOCK_COLORS[block.id] ?? FALLBACK_COLOR;
+      return React.createElement(
+        "span",
+        {
+          key: i,
+          style: {
+            display: "inline-flex",
+            alignItems: "center",
+            padding: "1px 6px",
+            borderRadius: 4,
+            fontSize: "0.85em",
+            fontWeight: 600,
+            lineHeight: 1.4,
+            background: bc.bg,
+            color: bc.color,
+            border: `1px solid ${bc.border}`,
+            whiteSpace: "nowrap" as const,
+            verticalAlign: "middle",
+          },
+        },
+        block.label,
+      );
+    }
+    // plain text — preserve newlines
+    if (!part) return null;
+    return React.createElement("span", { key: i }, part);
+  });
 }

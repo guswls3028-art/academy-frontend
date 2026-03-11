@@ -15,12 +15,15 @@ import {
   Bell,
   CalendarPlus,
   CalendarSync,
+  LayoutGrid,
 } from "lucide-react";
 import { AUTO_SEND_TRIGGER_LABELS } from "../api/messages.api";
+import { TEMPLATE_CATEGORY_LABELS } from "../constants/templateBlocks";
 import panelStyles from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
 import styles from "./AutoSendSectionTree.module.css";
 
 export type AutoSendSectionId =
+  | "default"
   | "signup"
   | "attendance"
   | "lecture"
@@ -49,8 +52,15 @@ function triggerChild(trigger: string, icon: React.ReactNode) {
 
 export const AUTO_SEND_SECTIONS: SectionDef[] = [
   {
+    id: "default",
+    label: TEMPLATE_CATEGORY_LABELS.default,
+    icon: <LayoutGrid size={16} aria-hidden />,
+    triggers: [],
+    children: [],
+  },
+  {
     id: "signup",
-    label: "가입/등록",
+    label: TEMPLATE_CATEGORY_LABELS.signup,
     icon: <UserPlus size={16} aria-hidden />,
     triggers: [
       "student_signup",
@@ -65,7 +75,7 @@ export const AUTO_SEND_SECTIONS: SectionDef[] = [
   },
   {
     id: "attendance",
-    label: "출결",
+    label: TEMPLATE_CATEGORY_LABELS.attendance,
     icon: <ClipboardCheck size={16} aria-hidden />,
     triggers: ["lecture_session_reminder", "check_in_complete", "absent_occurred"],
     children: [
@@ -76,14 +86,14 @@ export const AUTO_SEND_SECTIONS: SectionDef[] = [
   },
   {
     id: "lecture",
-    label: "강의",
+    label: TEMPLATE_CATEGORY_LABELS.lecture,
     icon: <BookOpen size={16} aria-hidden />,
     triggers: ["lecture_session_reminder"],
     children: [triggerChild("lecture_session_reminder", <Bell size={14} aria-hidden />)],
   },
   {
     id: "exam",
-    label: "시험",
+    label: TEMPLATE_CATEGORY_LABELS.exam,
     icon: <FileQuestion size={16} aria-hidden />,
     triggers: [
       "exam_scheduled_days_before",
@@ -102,7 +112,7 @@ export const AUTO_SEND_SECTIONS: SectionDef[] = [
   },
   {
     id: "assignment",
-    label: "과제",
+    label: TEMPLATE_CATEGORY_LABELS.assignment,
     icon: <ListTodo size={16} aria-hidden />,
     triggers: [
       "assignment_registered",
@@ -117,7 +127,7 @@ export const AUTO_SEND_SECTIONS: SectionDef[] = [
   },
   {
     id: "grades",
-    label: "성적",
+    label: TEMPLATE_CATEGORY_LABELS.grades,
     icon: <BarChart2 size={16} aria-hidden />,
     triggers: ["exam_score_published", "monthly_report_generated"],
     children: [
@@ -127,7 +137,7 @@ export const AUTO_SEND_SECTIONS: SectionDef[] = [
   },
   {
     id: "clinic",
-    label: "클리닉/상담",
+    label: TEMPLATE_CATEGORY_LABELS.clinic,
     icon: <Stethoscope size={16} aria-hidden />,
     triggers: [
       "clinic_reservation_created",
@@ -144,7 +154,7 @@ export const AUTO_SEND_SECTIONS: SectionDef[] = [
   },
   {
     id: "payment",
-    label: "결제",
+    label: TEMPLATE_CATEGORY_LABELS.payment,
     icon: <CreditCard size={16} aria-hidden />,
     triggers: ["payment_complete", "payment_due_days_before"],
     children: [
@@ -154,7 +164,7 @@ export const AUTO_SEND_SECTIONS: SectionDef[] = [
   },
   {
     id: "notice",
-    label: "운영공지",
+    label: TEMPLATE_CATEGORY_LABELS.notice,
     icon: <Megaphone size={16} aria-hidden />,
     triggers: ["urgent_notice"],
     children: [triggerChild("urgent_notice", <Bell size={14} aria-hidden />)],

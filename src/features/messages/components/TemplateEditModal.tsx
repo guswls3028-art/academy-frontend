@@ -10,7 +10,7 @@ import { Button, Tabs } from "@/shared/ui/ds";
 import {
   getBlocksForCategory,
   getBlockColor,
-  renderPreviewText,
+  renderPreviewBadges,
   TEMPLATE_CATEGORY_LABELS,
   type TemplateCategory,
 } from "../constants/templateBlocks";
@@ -103,8 +103,8 @@ export default function TemplateEditModal({
     });
   };
 
-  const previewBody = renderPreviewText(body);
-  const previewSubject = renderPreviewText(subject);
+  const badgeBody = renderPreviewBadges(body);
+  const badgeSubject = renderPreviewBadges(subject);
   const showSubject = activeTab === "alimtalk";
 
   const editorTabItems = [
@@ -151,8 +151,8 @@ export default function TemplateEditModal({
               {activeTab === "message" ? (
                 <div className="template-preview-phone" aria-label="아이폰 메시지 미리보기">
                   <div className="template-preview-phone__screen">
-                    <div className="template-preview-phone__bubble">
-                      {previewBody || (
+                    <div className="template-preview-phone__bubble" style={{ lineHeight: 1.7 }}>
+                      {body ? badgeBody : (
                         <span className="template-editor__preview-placeholder">본문을 입력하면 미리보기가 표시됩니다.</span>
                       )}
                     </div>
@@ -162,11 +162,11 @@ export default function TemplateEditModal({
               ) : (
                 <div className="template-preview-kakao" aria-label="카카오톡 알림톡 미리보기">
                   <div className="template-preview-kakao__card">
-                    {previewSubject && (
-                      <div className="template-preview-kakao__title">{previewSubject}</div>
+                    {subject && (
+                      <div className="template-preview-kakao__title" style={{ lineHeight: 1.7 }}>{badgeSubject}</div>
                     )}
-                    <div className="template-preview-kakao__body">
-                      {previewBody || (
+                    <div className="template-preview-kakao__body" style={{ lineHeight: 1.7 }}>
+                      {body ? badgeBody : (
                         <span className="template-editor__preview-placeholder">본문을 입력하면 미리보기가 표시됩니다.</span>
                       )}
                     </div>

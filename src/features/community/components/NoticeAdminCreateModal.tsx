@@ -35,6 +35,7 @@ export function NoticeAdminCreateModal({
   onSuccess,
 }: NoticeAdminCreateModalProps) {
   const [title, setTitle] = useState("");
+  const [content, setContent] = useState("");
   const [selectedExposureNodeId, setSelectedExposureNodeId] = useState<number | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -71,7 +72,7 @@ export function NoticeAdminCreateModal({
       await createCommunityBoardPost({
         block_type: noticeTypeId,
         title: title.trim(),
-        content: "",
+        content: content.trim(),
         node_ids: exposureNodeIds,
       });
       onSuccess();
@@ -148,15 +149,24 @@ export function NoticeAdminCreateModal({
             className="ds-input"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="제목"
+            placeholder="공지 제목"
             style={{ width: "100%" }}
             aria-required
           />
         </div>
 
-        <p className="community-field__hint">
-          등록 후 오른쪽 상세 영역에서 내용을 작성할 수 있습니다.
-        </p>
+        <div className="community-field">
+          <label htmlFor="notice-content" className="community-field__label">내용 (선택)</label>
+          <textarea
+            id="notice-content"
+            className="ds-input"
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            placeholder="공지 내용을 입력하세요. 등록 후에도 수정할 수 있습니다."
+            rows={5}
+            style={{ width: "100%", resize: "vertical", minHeight: 100 }}
+          />
+        </div>
 
         <div className="flex gap-2 justify-end">
           <Button intent="secondary" size="sm" onClick={onClose}>

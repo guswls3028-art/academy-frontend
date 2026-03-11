@@ -10,6 +10,7 @@ const COMMUNITY_TABS = [
   { key: "qna", label: "QnA", path: "/admin/community/qna" },
   { key: "notice", label: "공지사항", path: "/admin/community/notice" },
   { key: "board", label: "게시판", path: "/admin/community/board" },
+  { key: "counsel", label: "상담 신청", path: "/admin/community/counsel" },
   { key: "materials", label: "자료실", path: "/admin/community/materials" },
 ];
 
@@ -21,7 +22,7 @@ function CommunityPageInner() {
   return (
     <DomainLayout
       title="커뮤니티"
-      description="게시판 · 공지사항 · QnA · 자료실"
+      description="게시판 · 공지사항 · QnA · 상담 신청 · 자료실"
       tabs={COMMUNITY_TABS}
     >
       {showScope && <CommunityScopeSelector />}

@@ -8,7 +8,6 @@ import { useNavigate } from "react-router-dom";
 import { useQuery, useQueries } from "@tanstack/react-query";
 import { BarChart2 } from "lucide-react";
 import { Button } from "@/shared/ui/ds";
-import { DomainLayout } from "@/shared/ui/layout";
 import Breadcrumb from "@/features/storage/components/Breadcrumb";
 import LectureSessionTree from "@/features/exams/components/LectureSessionTree";
 import {
@@ -88,10 +87,6 @@ export default function ResultsExplorerPage() {
   const isLoading = lecturesLoading || sessionsLoading;
 
   return (
-    <DomainLayout
-      title="성적"
-      description="강의·차시 단위 성적을 통합 조회합니다. 차시별 시험·과제 성적은 각 강의 > 차시에서 확인하세요."
-    >
       <div className={panelStyles.root}>
         <div className={panelStyles.toolbar}>
           <Breadcrumb
@@ -157,6 +152,5 @@ export default function ResultsExplorerPage() {
           </div>
         </div>
       </div>
-    </DomainLayout>
   );
 }

@@ -381,9 +381,11 @@ export default function ClinicPage() {
                               <div>
                                 <div style={{ fontWeight: 600, fontSize: 14 }}>
                                   {formatTime(session.start_time)}
+                                  {session.title ? ` — ${session.title}` : ""}
                                 </div>
                                 <div className="stu-muted" style={{ fontSize: 12, marginTop: 2 }}>
                                   {session.location}
+                                  {session.target_grade ? ` · ${session.target_grade}학년` : ""}
                                 </div>
                               </div>
                               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>

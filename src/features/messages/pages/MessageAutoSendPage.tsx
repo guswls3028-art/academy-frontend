@@ -61,6 +61,7 @@ const TRIGGER_DESCRIPTIONS: Record<string, string> = {
 };
 
 const SECTION_DESCRIPTIONS: Record<AutoSendSectionId, string> = {
+  default: "사용자가 직접 만든 커스텀 예약 발송용 템플릿입니다. 모든 블록을 자유롭게 사용할 수 있습니다.",
   signup: "회원가입, 가입 승인, 퇴원 등 등록 관련 이벤트를 설정합니다.",
   attendance: "수업 시작 N분 전 리마인드, 입실(출석) 확인, 결석 발생 알림을 설정합니다.",
   lecture: "강의·차시 관련 알림을 설정합니다. 수업 리마인드는 출결 구간에서도 설정 가능합니다.",
@@ -335,6 +336,11 @@ export default function MessageAutoSendPage() {
     queryFn: () => fetchMessageTemplates(),
     staleTime: 30 * 1000,
   });
+  const { data: customTemplates = [] } = useQuery({
+    queryKey: ["messaging", "templates", "custom-default"],
+    queryFn: () => fetchMessageTemplates("default"),
+    staleTime: 30 * 1000,
+  });
 
   const [localConfigs, setLocalConfigs] = useState<AutoSendConfigItem[]>([]);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -474,7 +480,73 @@ export default function MessageAutoSendPage() {
         </aside>
         <div className={panelStyles.content}>
           <div className={panelStyles.contentInner}>
-            {hasNoDefaults ? (
+            {selectedSection === "default" ? (
+              <>
+                <p className={panelStyles.sectionTitle}>
+                  사용자 — {SECTION_DESCRIPTIONS.default}
+                </p>
+                {customTemplates.length > 0 && customTemplates.map((t) => (
+                  <div
+                    key={t.id}
+                    className={panelStyles.contentCard}
+                    style={{
+                      background: "color-mix(in srgb, var(--color-primary) 4%, var(--color-bg-surface))",
+                      cursor: "pointer",
+                    }}
+                    onClick={() => setEditingTemplate(t)}
+                  >
+                    <div className={panelStyles.contentCardHeader}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", flex: 1, minWidth: 0 }}>
+                        <div style={{ width: 36, height: 36, borderRadius: "var(--radius-md)", background: "color-mix(in srgb, var(--color-primary) 12%, transparent)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--color-primary)", flexShrink: 0 }}>
+                          <FiZap size={16} />
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <span style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text-primary)" }}>{t.name}</span>
+                          <div style={{ fontSize: 12, color: "var(--color-text-muted)", marginTop: 2 }}>
+                            {t.subject ? `${t.subject} · ` : ""}커스텀 템플릿
+                          </div>
+                        </div>
+                      </div>
+                      <Button intent="secondary" size="sm" onClick={(e) => { e.stopPropagation(); setEditingTemplate(t); }}>
+                        수정하기
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => setCreatingForTrigger("custom_default")}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 8,
+                    width: "100%",
+                    padding: "14px 0",
+                    borderRadius: 12,
+                    border: "2px dashed var(--color-border-divider)",
+                    background: "transparent",
+                    color: "var(--color-text-muted)",
+                    fontSize: 13,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    transition: "border-color 0.15s, color 0.15s, background 0.15s",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = "var(--color-primary)";
+                    e.currentTarget.style.color = "var(--color-primary)";
+                    e.currentTarget.style.background = "color-mix(in srgb, var(--color-primary) 4%, transparent)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = "var(--color-border-divider)";
+                    e.currentTarget.style.color = "var(--color-text-muted)";
+                    e.currentTarget.style.background = "transparent";
+                  }}
+                >
+                  + 새 커스텀 템플릿 추가
+                </button>
+              </>
+            ) : hasNoDefaults ? (
               <div
                 style={{
                   display: "flex",
@@ -492,7 +564,7 @@ export default function MessageAutoSendPage() {
                     자동발송 템플릿이 아직 설정되지 않았습니다
                   </p>
                   <p style={{ fontSize: 13, color: "var(--color-text-muted)", lineHeight: 1.5 }}>
-                    기본 템플릿을 생성하면 25개 자동발송 트리거에 대한<br />
+                    기본 템플릿을 생성하면 자동발송 트리거에 대한<br />
                     알림톡/SMS 템플릿과 발송 설정이 자동으로 구성됩니다.
                   </p>
                 </div>
@@ -518,7 +590,6 @@ export default function MessageAutoSendPage() {
                     saving={updateMut.isPending}
                     onEditTemplate={(trigger, templateId) => {
                       if (!templateId) {
-                        // 템플릿 없음 → 생성 모달
                         setCreatingForTrigger(trigger);
                         return;
                       }
