@@ -3,28 +3,7 @@
 import AttendanceStatusBadge from "@/shared/ui/badges/AttendanceStatusBadge";
 import type { AttendanceStatus } from "@/shared/ui/badges/AttendanceStatusBadge";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
-import { RULE_COLORS, RULE_LABELS, getAccessLabel, getAccessTone } from "../permission.constants";
-
-function Pill({
-  className,
-  children,
-}: {
-  className: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <span
-      className={[
-        "inline-flex items-center justify-center",
-        "h-[22px] px-2 rounded-full",
-        "text-[11px] font-semibold leading-none",
-        className,
-      ].join(" ")}
-    >
-      {children}
-    </span>
-  );
-}
+import { getAccessLabel, getAccessTone } from "../permission.constants";
 
 export default function PermissionRow({
   student,
@@ -39,13 +18,10 @@ export default function PermissionRow({
     <div
       className={[
         "permission-row",
-        selected ? "permission-row-selected" : "",
-        // ✅ row hover/active 강화 (SaaS 느낌)
-        "transition",
-        selected
-          ? "ring-1 ring-[color-mix(in_srgb,var(--color-primary)_45%,transparent)]"
-          : "",
-      ].join(" ")}
+        selected && "permission-row-selected",
+      ]
+        .filter(Boolean)
+        .join(" ")}
       onClick={onToggle}
       role="button"
       tabIndex={0}
@@ -59,7 +35,7 @@ export default function PermissionRow({
       </div>
 
       {/* NAME + 아바타 + 강의 딱지 (전역 규칙) */}
-      <div className="permission-name text-[var(--text-primary)]">
+      <div className="permission-name text-[var(--color-text-primary)]">
         <StudentNameWithLectureChip
           name={student.student_name ?? ""}
           profilePhotoUrl={student.profile_photo_url ?? undefined}
@@ -73,7 +49,7 @@ export default function PermissionRow({
         />
       </div>
 
-      {/* ✅ ATTENDANCE (SSOT: AttendanceStatusBadge 1ch) */}
+      {/* ATTENDANCE — SSOT: AttendanceStatusBadge 1ch */}
       <div className="w-[90px] flex justify-center">
         <AttendanceStatusBadge
           status={(student.attendance_status ?? "INACTIVE") as AttendanceStatus}
@@ -93,7 +69,10 @@ export default function PermissionRow({
 
       {/* COMPLETED */}
       <div className="w-[80px] flex justify-center">
-        <span className="text-xs text-[var(--text-secondary)]">
+        <span
+          className="ds-status-badge ds-status-badge--1ch"
+          data-tone={student.completed ? "success" : "neutral"}
+        >
           {student.completed ? "완료" : "미완료"}
         </span>
       </div>
@@ -108,7 +87,7 @@ export default function PermissionRow({
       <div className="w-[140px] permission-text-xs">
         {student.school || "-"}
       </div>
-      <div className="w-[60px] text-center text-xs text-[var(--text-secondary)]">
+      <div className="w-[60px] text-center permission-text-xs">
         {student.grade || "-"}
       </div>
     </div>

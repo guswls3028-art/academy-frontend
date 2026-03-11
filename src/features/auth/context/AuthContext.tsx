@@ -77,6 +77,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const status = err?.response?.status;
       if (status === 401 || status === 403 || status === 404) {
         clearAuth();
+      } else if (!err?.response && err?.code !== "ECONNABORTED") {
+        // CORS 차단된 401: 서버 응답 없고 타임아웃도 아니면 인증 실패로 간주
+        clearAuth();
       }
       throw err;
     }
@@ -96,6 +99,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } catch (err: any) {
         const status = err?.response?.status;
         if (status === 401 || status === 403 || status === 404) {
+          clearAuth();
+        } else if (!err?.response && err?.code !== "ECONNABORTED") {
+          // CORS 차단된 401 가능성 → 인증 해제
           clearAuth();
         } else {
           setUser(null);

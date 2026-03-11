@@ -2,9 +2,9 @@
 
 import { useMemo, useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { FiX } from "react-icons/fi";
 
 import api from "@/shared/api/axios";
-import { Button } from "@/shared/ui/ds";
 
 import PermissionHeader from "../../video-permission/components/PermissionHeader";
 import PermissionTable from "../../video-permission/components/PermissionTable";
@@ -111,21 +111,19 @@ export default function PermissionModal({
 
   const mutate = useMutation({
     mutationFn: async (ruleOrAccessMode: string) => {
-      // Support both legacy 'rule' and new 'access_mode'
       const isAccessMode = ["FREE_REVIEW", "PROCTORED_CLASS", "BLOCKED"].includes(ruleOrAccessMode);
-      
+
       const payload: any = {
         video_id: videoId,
         enrollments: selected,
       };
-      
+
       if (isAccessMode) {
         payload.access_mode = ruleOrAccessMode;
       } else {
-        // Legacy rule support
         payload.rule = ruleOrAccessMode;
       }
-      
+
       await api.post(`/media/video-permissions/bulk-set/`, payload);
     },
     onSuccess: async () => {
@@ -142,18 +140,31 @@ export default function PermissionModal({
     <div className="permission-modal-overlay">
       <div className="permission-modal">
         {/* HEADER */}
-        <div className="px-5 py-4">
-          <div className="flex items-start justify-between gap-4">
+        <div className="permission-modal-header">
+          <div className="flex items-center justify-between gap-4">
             <div>
-              <div className="text-sm font-semibold">시청 권한 관리</div>
-              <div className="mt-1 text-xs text-[var(--text-muted)]">
-                권한 설정 / 성취도 / 시청 로그
-              </div>
+              <h2
+                className="text-[var(--text-lg,16px)] font-semibold text-[var(--color-text-primary)]"
+                style={{ fontSize: "var(--text-lg, 16px)" }}
+              >
+                시청 권한 관리
+              </h2>
+              <p
+                className="mt-0.5 text-[var(--color-text-muted)]"
+                style={{ fontSize: "var(--text-xs, 11px)" }}
+              >
+                권한 설정 · 성취도 · 시청 로그
+              </p>
             </div>
 
-            <Button type="button" intent="ghost" size="sm" onClick={onClose}>
-              닫기
-            </Button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-surface-hover)] transition"
+              aria-label="닫기"
+            >
+              <FiX size={18} />
+            </button>
           </div>
 
           <div className="mt-3">
@@ -175,17 +186,20 @@ export default function PermissionModal({
               <div className="h-full flex gap-4 min-h-0">
                 {/* LEFT */}
                 <div className="permission-left">
-                  {/* SEARCH BAR ONLY */}
-                  <div className="permission-header flex items-center gap-3">
+                  {/* SEARCH BAR */}
+                  <div className="permission-header">
                     <input
-                      className="h-8 rounded border px-3 text-sm w-[220px]"
+                      className="permission-search"
                       placeholder="이름 검색"
                       value={search}
                       onChange={(e) => setSearch(e.target.value)}
                     />
 
-                    <div className="ml-auto text-sm text-[var(--text-secondary)]">
-                      전체 {totalCount}명
+                    <div
+                      className="ml-auto text-[var(--color-text-secondary)]"
+                      style={{ fontSize: "var(--text-sm, 12px)" }}
+                    >
+                      전체 <strong>{totalCount}</strong>명
                     </div>
                   </div>
 

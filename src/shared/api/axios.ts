@@ -163,10 +163,24 @@ async function refreshAccessToken(): Promise<string | null> {
 }
 
 /**
+ * CORS-blocked 401 감지:
+ * 서버가 401 응답에 CORS 헤더를 빠뜨리면 브라우저가 응답을 차단하여
+ * err.response 가 undefined 인 네트워크 에러로 나타남.
+ * 이때 Authorization 헤더가 있었으면 인증 실패로 간주.
+ */
+function isCorsBlocked401(err: AxiosError): boolean {
+  if (err.response) return false; // 서버 응답이 있으면 CORS 차단 아님
+  if (err.code === "ECONNABORTED") return false; // 타임아웃
+  const auth = (err.config?.headers as any)?.Authorization;
+  return !!auth; // Authorization 헤더가 있었는데 응답 없음 → CORS 차단된 401 가능성
+}
+
+/**
  * Response interceptor
  * - 비동기 SSOT: 성공/실패 시 해당 요청 완료 처리
  * - 401: attempt refresh ONCE, then replay original request
  * - 403: do not refresh (membership/role), fail-fast
+ * - CORS-blocked 401: 네트워크 에러로 나타나는 경우에도 인증 실패 처리
  */
 api.interceptors.response.use(
   (res: AxiosResponse) => {
@@ -194,7 +208,11 @@ api.interceptors.response.use(
       throw err;
     }
 
-    if (status === 401 && !original._retry && !shouldSkipAuth(original.url, original)) {
+    // 401 또는 CORS 차단된 401: refresh 시도
+    const is401 = status === 401;
+    const isCorsAuth = !is401 && isCorsBlocked401(err);
+
+    if ((is401 || isCorsAuth) && !original._retry && !shouldSkipAuth(original.url, original)) {
       original._retry = true;
 
       if (isRefreshing) {
