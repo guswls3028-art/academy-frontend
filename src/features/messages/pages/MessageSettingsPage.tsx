@@ -575,11 +575,12 @@ export default function MessageSettingsPage() {
           카카오 알림톡 채널
         </div>
         <p style={{ fontSize: 13, color: "var(--color-text-muted)", marginBottom: 4 }}>
-          기본적으로 <strong style={{ color: "var(--color-text-primary)" }}>플랫폼 기본 채널</strong>로 알림톡이 발송됩니다.
-          학원 자체 카카오 비즈니스 채널을 사용하려면 아래에 PFID를 입력하세요.
+          알림톡은 기본적으로 <strong style={{ color: "var(--color-text-primary)" }}>플랫폼 기본 채널</strong>로 발송됩니다.
+          별도 설정 없이도 바로 알림톡을 사용할 수 있습니다.
         </p>
         <p style={{ fontSize: 12, color: "var(--color-text-muted)", marginBottom: 12 }}>
-          PFID 미설정 시 플랫폼에서 제공하는 기본 채널로 발송됩니다. 자체 채널 설정은 선택 사항입니다.
+          학원 이름으로 발송하고 싶다면, 카카오 비즈니스 채널을 개설한 뒤 <strong style={{ color: "var(--color-text-primary)" }}>운영자에게 파트너 등록을 요청</strong>하세요.
+          등록이 완료되면 발급받은 PFID를 아래에 입력하면 됩니다. (선택 사항)
         </p>
         <div className="flex flex-col gap-4">
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -649,9 +650,13 @@ export default function MessageSettingsPage() {
         <div style={{ fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 4 }}>
           발신번호
         </div>
-        <p style={{ fontSize: 13, color: "var(--color-text-muted)", marginBottom: 12 }}>
-          SMS·알림톡 발송 시 표시되는 발신번호입니다.
-          선택한 공급자({provider === "ppurio" ? "뿌리오" : "솔라피"})에 사전 등록·인증된 번호만 사용할 수 있습니다.
+        <p style={{ fontSize: 13, color: "var(--color-text-muted)", marginBottom: 4 }}>
+          SMS·알림톡 발송 시 수신자에게 표시되는 학원 발신번호입니다.
+        </p>
+        <p style={{ fontSize: 12, color: "var(--color-text-muted)", marginBottom: 12 }}>
+          학원 전화번호를 발신번호로 사용하려면, 먼저 <strong style={{ color: "var(--color-text-primary)" }}>운영자에게 해당 번호의 등록을 요청</strong>하세요.
+          운영자가 발송 시스템에 번호를 등록한 뒤, 아래에서 입력하면 적용됩니다.
+          미설정 시 플랫폼 기본 번호로 발송됩니다.
         </p>
         <div className="flex flex-col gap-3">
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -670,7 +675,7 @@ export default function MessageSettingsPage() {
               <strong style={{ color: "var(--color-text-primary)" }}>
                 설정 &gt; 내 정보
               </strong>
-              에서 등록·인증할 수 있습니다.
+              에서 입력할 수 있습니다.
             </span>
           </div>
           <Button
@@ -698,30 +703,31 @@ export default function MessageSettingsPage() {
           연동 가이드
         </div>
         <p style={{ fontSize: 13, color: "var(--color-text-muted)", marginBottom: 12 }}>
-          처음 연동하는 경우 아래 순서대로 진행하세요.
-          자체 카카오 채널 없이도 플랫폼 기본 채널로 알림톡 발송이 가능합니다.
+          처음 사용하시는 경우 아래 순서대로 진행하세요.
+          별도 설정 없이도 플랫폼 기본 번호·채널로 바로 발송할 수 있습니다.
         </p>
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           <GuideStep step={1}>
-            <strong>메시징 공급자 선택</strong> — 위에서{" "}
-            <strong>솔라피(Solapi)</strong> 또는 <strong>뿌리오(Ppurio)</strong>를 선택합니다.
-            두 공급자 모두 플랫폼에서 연동되어 있으므로 별도 API 키 입력 없이 바로 사용 가능합니다.
+            <strong>바로 시작하기</strong> — 설정 없이도 플랫폼 기본 발신번호와 기본 알림톡 채널로 메시지를 발송할 수 있습니다.
+            「자동발송」 탭에서 트리거를 활성화하면 바로 동작합니다.
           </GuideStep>
           <GuideStep step={2}>
-            <strong>발신번호 등록</strong> — 설정 &gt; 내 정보에서 발신번호를 입력하고 인증합니다.
-            발신번호는 선택한 공급자({provider === "ppurio" ? "뿌리오" : "솔라피"})에 사전 등록된 번호여야 합니다.
+            <strong>학원 발신번호 사용하기 (선택)</strong> — 학원 전화번호로 발송하고 싶다면,
+            운영자에게 번호 등록을 요청하세요. 등록 완료 후 「설정 &gt; 내 정보」에서 해당 번호를 입력하면 적용됩니다.
           </GuideStep>
           <GuideStep step={3}>
-            <strong>알림톡 채널 설정 (선택)</strong> — 학원 자체 카카오 비즈니스 채널이 있으면
-            PFID를 등록하세요. <strong>설정하지 않아도 플랫폼 기본 채널로 알림톡이 발송됩니다.</strong>
+            <strong>학원 알림톡 채널 사용하기 (선택)</strong> — 학원 이름으로 알림톡을 보내고 싶다면:
+            <br />① 카카오 비즈니스 센터에서 학원 채널을 개설합니다.
+            <br />② 운영자에게 해당 채널의 파트너 등록을 요청합니다.
+            <br />③ 등록 완료 후 발급받은 PFID를 위 입력란에 저장합니다.
           </GuideStep>
           <GuideStep step={4}>
-            <strong>템플릿 작성 및 검수 신청</strong> — 「템플릿 저장」 탭에서 알림톡 양식을
-            작성하고 검수 신청합니다. 카카오 검수 승인(영업일 1~3일) 후 알림톡 발송이 가능합니다.
+            <strong>템플릿 작성</strong> — 「템플릿 저장」 탭에서 알림톡 양식을 작성하고 검수 신청합니다.
+            카카오 검수 승인(영업일 1~3일) 후 알림톡 발송이 가능합니다.
           </GuideStep>
           <GuideStep step={5}>
-            <strong>자동발송 설정</strong> — 「자동발송」 탭에서 구간별 트리거를 활성화하고
-            템플릿·발송 방식·발송 시점을 설정합니다.
+            <strong>자동발송 설정</strong> — 「자동발송」 탭에서 구간별 트리거를 활성화하고,
+            템플릿·발송 방식(알림톡/SMS/모두)·발송 시점을 설정합니다.
           </GuideStep>
 
           <div
@@ -733,8 +739,8 @@ export default function MessageSettingsPage() {
               color: "var(--color-text-muted)",
             }}
           >
-            궁금한 점이 있으면 운영자에게 문의하세요. 가이드 이미지나 상세 매뉴얼은 필요 시
-            이 영역에 추가할 수 있습니다.
+            발신번호 등록, 알림톡 채널 파트너 등록 등은 운영자가 처리합니다.
+            궁금한 점이 있으면 운영자에게 문의하세요.
           </div>
         </div>
       </div>
