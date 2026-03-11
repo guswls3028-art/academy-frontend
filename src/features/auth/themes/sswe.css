@@ -1,0 +1,38 @@
+/* sswe 테넌트 색상 SSOT — 화이트톤 + 퍼플-인디고 그라데이션 */
+
+[data-app="auth"][data-tenant="sswe"] {
+  /* 화이트톤 */
+  --sswe-bg: #faf8ff;
+  --sswe-surface: #ffffff;
+  --sswe-border: #e4e0f0;
+  --sswe-border-hover: #c4b5fd;
+
+  /* 텍스트 */
+  --sswe-text: #1e1b4b;
+  --sswe-text-muted: #6b7280;
+
+  /* 로고 컬러 — 퍼플 계열 */
+  --sswe-primary: #7c3aed;
+  --sswe-primary-hover: #6d28d9;
+
+  /* 포커스 / 에러 */
+  --sswe-focus: rgba(124, 58, 237, 0.2);
+  --sswe-error: #dc2626;
+
+  /* 그라데이션 모드 — Purple to Indigo */
+  --sswe-gradient: linear-gradient(135deg, #4c1d95 0%, #7c3aed 50%, #a78bfa 100%);
+  --sswe-gradient-hover: linear-gradient(135deg, #4c1d95 0%, #6d28d9 50%, #8b5cf6 100%);
+
+  /* 공통 별칭 — LoginPage 에서 사용 */
+  --auth-accent: var(--sswe-primary);
+  --auth-bg: var(--sswe-bg);
+  --auth-surface: var(--sswe-surface);
+  --auth-border: var(--sswe-border);
+  --auth-border-hover: var(--sswe-border-hover);
+  --auth-text: var(--sswe-text);
+  --auth-text-muted: var(--sswe-text-muted);
+  --auth-focus: var(--sswe-focus);
+  --auth-error: var(--sswe-error);
+  --auth-gradient: var(--sswe-gradient);
+  --auth-gradient-hover: var(--sswe-gradient-hover);
+}

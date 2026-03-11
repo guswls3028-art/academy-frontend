@@ -219,9 +219,12 @@ export default function Header() {
   // 로고 URL: Program의 ui_config.logo_url 우선, 없으면 테넌트별 기본 로고 사용
   const tenantResult = resolveTenantCode();
   const tenantId = tenantResult.ok ? getTenantIdFromCode(tenantResult.code) : null;
-  const isTchul = tenantResult.ok && (tenantResult.code === "tchul" || tenantResult.code === "9999" || tenantId === 2);
+  const isTchul = tenantResult.ok && (tenantResult.code === "tchul" || tenantId === 2);
+  const tenantBranding = tenantId ? getTenantBranding(tenantId) : null;
 
   const logoUrl = program?.ui_config?.logo_url ?? null;
+  // 커스텀 헤더 로고: tenant branding의 headerLogoUrl (아이콘 전용 크롭)
+  const headerLogoUrl = tenantBranding?.headerLogoUrl ?? null;
 
   const userMenu = {
     items: [
@@ -269,6 +272,8 @@ export default function Header() {
             <span className="app-header__brandMark" aria-hidden>
               {logoUrl ? (
                 <img src={logoUrl} alt="logo" />
+              ) : headerLogoUrl ? (
+                <img src={headerLogoUrl} alt="logo" style={{ height: 24, width: "auto" }} />
               ) : isTchul ? (
                 <TchulLogoIcon height={24} />
               ) : (

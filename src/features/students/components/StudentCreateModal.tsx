@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Switch } from "antd";
 import { FiMessageSquare } from "react-icons/fi";
+import "@/features/messages/styles/templateEditor.css";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader, MODAL_WIDTH } from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
 import { SessionBlockView } from "@/shared/ui/session-block";

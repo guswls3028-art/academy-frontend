@@ -18,6 +18,7 @@ import "@/features/auth/themes/tchul.css";
 import "@/features/auth/themes/limglish.css";
 import "@/features/auth/themes/hakwonplus.css";
 import "@/features/auth/themes/ymath.css";
+import "@/features/auth/themes/sswe.css";
 import styles from "./LoginPage.module.css";
 
 /** 테넌트 코드 결정: URL param > hostname > storage/env > program */
