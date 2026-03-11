@@ -1,5 +1,5 @@
 // PATH: src/shared/ui/layout/Header.tsx
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Dropdown, Badge } from "antd";
@@ -414,36 +414,32 @@ export default function Header() {
             </span>
           </Dropdown>
 
-          <Dropdown
+          <ProfileDropdown
             open={profileDropdownOpen}
-            onOpenChange={setProfileDropdownOpen}
-            trigger={["click"]}
-            placement="bottomRight"
-            classNames={{ root: "app-header__profileDropdownOverlay" }}
-            popupRender={() => profileDropdownContent}
+            onToggle={() => setProfileDropdownOpen((v) => !v)}
+            onClose={() => setProfileDropdownOpen(false)}
+            content={profileDropdownContent}
           >
-            <span>
-              <Button
-                intent="secondary"
-                size="lg"
-                className="app-header__userBtn"
-                aria-label="프로필"
-                leftIcon={
-                  me ? (
-                    <StaffRoleAvatar
-                      role={meToStaffRole(me)}
-                      size={16}
-                      className="text-[var(--color-text-secondary)]"
-                    />
-                  ) : (
-                    <IconUser />
-                  )
-                }
-              >
-                {me?.name || me?.username ? (me.name || displayUsername(me.username) || "사용자") : "프로필"}
-              </Button>
-            </span>
-          </Dropdown>
+            <Button
+              intent="secondary"
+              size="lg"
+              className="app-header__userBtn"
+              aria-label="프로필"
+              leftIcon={
+                me ? (
+                  <StaffRoleAvatar
+                    role={meToStaffRole(me)}
+                    size={16}
+                    className="text-[var(--color-text-secondary)]"
+                  />
+                ) : (
+                  <IconUser />
+                )
+              }
+            >
+              {me?.name || me?.username ? (me.name || displayUsername(me.username) || "사용자") : "프로필"}
+            </Button>
+          </ProfileDropdown>
         </div>
       </div>
 

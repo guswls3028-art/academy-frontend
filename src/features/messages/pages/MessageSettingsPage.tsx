@@ -336,12 +336,115 @@ export default function MessageSettingsPage() {
                 marginBottom: 6,
               }}
             >
+              공급자
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <span
+                style={{
+                  fontSize: 14,
+                  fontWeight: 600,
+                  color: "var(--color-text-primary)",
+                }}
+              >
+                {(info.messaging_provider ?? "solapi") === "ppurio" ? "뿌리오" : "솔라피"}
+              </span>
+            </div>
+          </div>
+          <div
+            style={{
+              borderRadius: "var(--radius-lg)",
+              border: "1px solid var(--color-border-divider)",
+              background: "var(--color-bg-surface)",
+              padding: "var(--space-4) var(--space-5)",
+            }}
+          >
+            <div
+              style={{
+                fontSize: 11,
+                fontWeight: 600,
+                color: "var(--color-text-muted)",
+                textTransform: "uppercase",
+                letterSpacing: "0.04em",
+                marginBottom: 6,
+              }}
+            >
               서비스 상태
             </div>
             <StatusChip ok={isActive} label={isActive ? "활성화" : "비활성화"} />
           </div>
         </div>
       )}
+
+      {/* 메시징 공급자 선택 */}
+      <div
+        style={{
+          borderRadius: "var(--radius-lg)",
+          padding: "var(--space-5)",
+          border: "1px solid var(--color-border-divider)",
+          background: "var(--color-bg-surface)",
+        }}
+      >
+        <div style={{ fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 4 }}>
+          메시징 공급자
+        </div>
+        <p style={{ fontSize: 13, color: "var(--color-text-muted)", marginBottom: 12 }}>
+          SMS·알림톡 발송에 사용할 공급자를 선택합니다. 변경 시 해당 공급자의 API 키가 설정되어 있어야 합니다.
+        </p>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <FiSettings size={16} style={{ color: "var(--color-primary)" }} aria-hidden />
+          <div style={{ display: "flex", gap: 0, borderRadius: "var(--radius-md)", overflow: "hidden", border: "1px solid var(--color-border-divider)" }}>
+            {(
+              [
+                { key: "solapi" as const, label: "솔라피(Solapi)" },
+                { key: "ppurio" as const, label: "뿌리오(Ppurio)" },
+              ] as const
+            ).map((opt) => (
+              <button
+                key={opt.key}
+                type="button"
+                onClick={() => {
+                  setProvider(opt.key);
+                  updateInfo(
+                    { messaging_provider: opt.key },
+                    {
+                      onSuccess: () => feedback.success(`메시징 공급자가 ${opt.label}(으)로 변경되었습니다.`),
+                      onError: () => feedback.error("공급자 변경에 실패했습니다."),
+                    },
+                  );
+                }}
+                disabled={isUpdatingInfo}
+                style={{
+                  padding: "8px 18px",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  border: "none",
+                  cursor: isUpdatingInfo ? "not-allowed" : "pointer",
+                  color: provider === opt.key ? "#fff" : "var(--color-text-secondary)",
+                  background:
+                    provider === opt.key
+                      ? "var(--color-primary)"
+                      : "var(--color-bg-surface-soft)",
+                  transition: "background 0.15s, color 0.15s",
+                }}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+          <span
+            style={{
+              fontSize: 12,
+              color: "var(--color-text-muted)",
+              marginLeft: 4,
+            }}
+          >
+            현재:{" "}
+            <strong style={{ color: "var(--color-text-primary)" }}>
+              {provider === "ppurio" ? "뿌리오" : "솔라피"}
+            </strong>
+          </span>
+        </div>
+      </div>
 
       {/* 크레딧 충전 */}
       <div
@@ -459,7 +562,7 @@ export default function MessageSettingsPage() {
         </div>
       </div>
 
-      {/* 카카오 알림톡 연동 */}
+      {/* 카카오 알림톡 채널 설정 */}
       <div
         style={{
           borderRadius: "var(--radius-lg)",
@@ -469,10 +572,14 @@ export default function MessageSettingsPage() {
         }}
       >
         <div style={{ fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 4 }}>
-          카카오 알림톡 연동
+          카카오 알림톡 채널
         </div>
-        <p style={{ fontSize: 13, color: "var(--color-text-muted)", marginBottom: 12 }}>
-          학원 전용 PFID를 설정하면 학원 채널로 알림톡을 발송할 수 있습니다.
+        <p style={{ fontSize: 13, color: "var(--color-text-muted)", marginBottom: 4 }}>
+          기본적으로 <strong style={{ color: "var(--color-text-primary)" }}>플랫폼 기본 채널</strong>로 알림톡이 발송됩니다.
+          학원 자체 카카오 비즈니스 채널을 사용하려면 아래에 PFID를 입력하세요.
+        </p>
+        <p style={{ fontSize: 12, color: "var(--color-text-muted)", marginBottom: 12 }}>
+          PFID 미설정 시 플랫폼에서 제공하는 기본 채널로 발송됩니다. 자체 채널 설정은 선택 사항입니다.
         </p>
         <div className="flex flex-col gap-4">
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -543,7 +650,8 @@ export default function MessageSettingsPage() {
           발신번호
         </div>
         <p style={{ fontSize: 13, color: "var(--color-text-muted)", marginBottom: 12 }}>
-          SMS·알림톡 발송 시 사용할 발신번호입니다. 솔라피에 등록된 번호만 사용 가능합니다.
+          SMS·알림톡 발송 시 사용할 발신번호입니다.{" "}
+          {provider === "ppurio" ? "뿌리오" : "솔라피"}에 등록된 번호만 사용 가능합니다.
         </p>
         <div className="flex flex-col gap-3">
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -577,7 +685,7 @@ export default function MessageSettingsPage() {
         </div>
       </div>
 
-      {/* Solapi 연동 가이드 */}
+      {/* 연동 가이드 */}
       <div
         style={{
           borderRadius: "var(--radius-lg)",
@@ -591,27 +699,29 @@ export default function MessageSettingsPage() {
         </div>
         <p style={{ fontSize: 13, color: "var(--color-text-muted)", marginBottom: 12 }}>
           처음 연동하는 경우 아래 순서대로 진행하세요.
+          자체 카카오 채널 없이도 플랫폼 기본 채널로 알림톡 발송이 가능합니다.
         </p>
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           <GuideStep step={1}>
-            <strong>카카오 비즈니스 채널 개설</strong> — 카카오 비즈니스 관리자 센터에 접속해
-            학원 채널을 개설합니다.
+            <strong>메시징 공급자 선택</strong> — 위에서{" "}
+            <strong>솔라피(Solapi)</strong> 또는 <strong>뿌리오(Ppurio)</strong>를 선택합니다.
+            API 키가 설정되어 있어야 발송이 가능합니다.
           </GuideStep>
           <GuideStep step={2}>
-            <strong>파트너 등록</strong> — 채널 관리 → 파트너 관리에서 운영 파트너 계정을
-            등록합니다. 파트너 등록 후 PFID(프로필 ID)를 발급받습니다.
+            <strong>발신번호 등록</strong> — 설정 &gt; 내 정보에서{" "}
+            {provider === "ppurio" ? "뿌리오" : "솔라피"}에 등록된 발신번호를 입력하고 인증합니다.
           </GuideStep>
           <GuideStep step={3}>
-            <strong>PFID 저장</strong> — 위 「카카오 알림톡 연동」 입력란에 발급받은 PFID를
-            입력하고 저장합니다.
+            <strong>알림톡 채널 설정 (선택)</strong> — 자체 카카오 비즈니스 채널을 사용하려면
+            PFID를 등록하세요. 미설정 시 플랫폼 기본 채널로 발송됩니다.
           </GuideStep>
           <GuideStep step={4}>
-            <strong>발신번호 등록</strong> — 설정 &gt; 내 정보에서 솔라피에 등록된 발신번호를
-            입력하고 인증합니다.
-          </GuideStep>
-          <GuideStep step={5}>
             <strong>템플릿 작성 및 검수 신청</strong> — 「템플릿 저장」 탭에서 알림톡 양식을
             작성하고 검수 신청합니다. 카카오 검수 승인 후 알림톡 발송이 가능합니다.
+          </GuideStep>
+          <GuideStep step={5}>
+            <strong>자동발송 설정</strong> — 「자동발송」 탭에서 각 이벤트별로 템플릿·발송 방식을
+            설정하고 활성화합니다.
           </GuideStep>
 
           <div
