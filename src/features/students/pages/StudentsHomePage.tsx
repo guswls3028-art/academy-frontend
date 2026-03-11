@@ -36,6 +36,7 @@ export default function StudentsHomePage() {
   const location = useLocation();
   const qc = useQueryClient();
   const { openSendMessageModal } = useSendMessageModal();
+  const isMobile = useIsMobile();
 
   const isDeletedTab = location.pathname.includes("/deleted");
 
@@ -358,10 +359,10 @@ export default function StudentsHomePage() {
           searchSlot={
             <input
               className="ds-input"
-              placeholder="이름 / 아이디 / 전화번호 / 학교 검색"
+              placeholder={isMobile ? "검색" : "이름 / 아이디 / 전화번호 / 학교 검색"}
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              style={{ maxWidth: 360 }}
+              style={{ maxWidth: isMobile ? "none" : 360, width: isMobile ? "100%" : undefined }}
             />
           }
           filterSlot={
