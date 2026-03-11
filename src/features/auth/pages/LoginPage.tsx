@@ -140,7 +140,7 @@ export default function LoginPage() {
               <button type="button" className={styles.link} onClick={() => setShowSignup(true)}>
                 회원가입
               </button>
-              <span style={{ color: "var(--auth-text-muted)" }}>|</span>
+              <span style={{ color: "var(--auth-text-muted, #6b7280)" }}>|</span>
               <button type="button" className={styles.link} onClick={() => setShowPwReset(true)}>
                 비밀번호 찾기
               </button>

@@ -63,7 +63,7 @@
   font-weight: 600;
   letter-spacing: 0.02em;
   color: #fff;
-  background: var(--auth-gradient);
+  background: var(--auth-gradient, linear-gradient(135deg, #0d47a1, #00695c));
   border: none;
   border-radius: 12px;
   cursor: pointer;
@@ -88,7 +88,7 @@
 .form {
   margin-top: 1.5rem;
   padding-top: 1.5rem;
-  border-top: 1px solid var(--auth-border);
+  border-top: 1px solid var(--auth-border, #e5e7eb);
   animation: formExpand 0.3s ease-out;
 }
 
@@ -109,25 +109,26 @@
   padding: 0.875rem 1.125rem;
   margin-bottom: 0.875rem;
   font-size: 0.9375rem;
-  color: var(--auth-text);
-  background: var(--auth-surface);
-  border: 1px solid var(--auth-border);
+  color: var(--auth-text, #1a1d21);
+  background: var(--auth-surface, #ffffff);
+  border: 1px solid var(--auth-border, #e5e7eb);
   border-radius: 12px;
   outline: none;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .input::placeholder {
-  color: var(--auth-text-muted);
+  color: var(--auth-text-muted, #6b7280);
+  opacity: 1;
 }
 
 .input:hover {
-  border-color: var(--auth-border-hover);
+  border-color: var(--auth-border-hover, #d1d5db);
 }
 
 .input:focus {
-  border-color: var(--auth-accent);
-  box-shadow: 0 0 0 3px var(--auth-focus);
+  border-color: var(--auth-accent, #0d47a1);
+  box-shadow: 0 0 0 3px var(--auth-focus, rgba(13, 71, 161, 0.2));
 }
 
 .form .btnPrimary {
@@ -140,7 +141,7 @@
   margin-top: 0.75rem;
   font-size: 0.8125rem;
   font-weight: 600;
-  color: var(--auth-error);
+  color: var(--auth-error, #b91c1c);
 }
 
 /* 회원가입 / 비밀번호 찾기 링크 */
@@ -156,7 +157,7 @@
 .link {
   font-size: 0.875rem;
   font-weight: 500;
-  color: var(--auth-accent);
+  color: var(--auth-accent, #0d47a1);
   background: none;
   border: none;
   cursor: pointer;
@@ -165,7 +166,7 @@
 }
 
 .link:hover {
-  color: var(--auth-text);
+  color: var(--auth-text, #1a1d21);
 }
 
 /* 전화번호 블록 래퍼 */
@@ -231,16 +232,16 @@
   padding: 0.75rem 1.25rem;
   font-size: 0.9375rem;
   font-weight: 600;
-  color: var(--auth-text-muted);
-  background: var(--auth-surface);
-  border: 1px solid var(--auth-border);
+  color: var(--auth-text-muted, #6b7280);
+  background: var(--auth-surface, #ffffff);
+  border: 1px solid var(--auth-border, #e5e7eb);
   border-radius: 12px;
   cursor: pointer;
 }
 
 .btnSecondary:hover {
-  border-color: var(--auth-border-hover);
-  color: var(--auth-text);
+  border-color: var(--auth-border-hover, #d1d5db);
+  color: var(--auth-text, #1a1d21);
 }
 
 /* ========== 회원가입 모달 ========== */
