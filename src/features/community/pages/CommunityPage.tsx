@@ -7,17 +7,16 @@ import { CommunityScopeProvider } from "../context/CommunityScopeContext";
 import CommunityScopeSelector from "../components/CommunityScopeSelector";
 
 const COMMUNITY_TABS = [
-  { key: "qna", label: "QnA", path: "/admin/community/qna" },
   { key: "notice", label: "공지사항", path: "/admin/community/notice" },
   { key: "board", label: "게시판", path: "/admin/community/board" },
-  { key: "counsel", label: "상담 신청", path: "/admin/community/counsel" },
   { key: "materials", label: "자료실", path: "/admin/community/materials" },
+  { key: "qna", label: "QnA", path: "/admin/community/qna" },
+  { key: "counsel", label: "상담 신청", path: "/admin/community/counsel" },
 ];
 
 function CommunityPageInner() {
   const location = useLocation();
-  const isBoardPanel = location.pathname.endsWith("/board");
-  const showScope = isBoardPanel; /* 공지는 좌측 패널 폴더 트리로 선택 */
+  const showScope = false; /* 각 탭이 자체 트리 내비게이션 보유 */
 
   return (
     <DomainLayout
