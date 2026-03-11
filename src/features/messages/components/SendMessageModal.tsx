@@ -303,24 +303,6 @@ export default function SendMessageModal({
                 </span>
               )}
             </div>
-            {!smsAllowed && (
-              <div className="mt-2 p-3 rounded-lg" style={{ background: "color-mix(in srgb, var(--color-brand-primary) 6%, var(--color-bg-surface))", border: "1px solid color-mix(in srgb, var(--color-brand-primary) 15%, var(--color-border-divider))" }}>
-                <p className="text-xs text-[var(--color-text-secondary)] mb-2">
-                  현재 계정은 SMS 미연동으로 알림톡만 가능합니다.
-                </p>
-                <button
-                  type="button"
-                  className="text-xs font-semibold"
-                  style={{ color: "var(--color-brand-primary)", background: "none", border: "none", cursor: "pointer", padding: 0 }}
-                  onClick={() => {
-                    onClose();
-                    window.location.href = "/admin/message/settings";
-                  }}
-                >
-                  연동하러 가기 →
-                </button>
-              </div>
-            )}
             {(useAlimtalk || useSms) && (
               <p className="text-xs text-[var(--color-text-muted)] mt-1">
                 메세지, 알림톡, 모두. 둘 다 선택 시 모두(알림톡→메세지 폴백)로 발송됩니다. 알림톡은 검수 승인된 템플릿이 필요합니다.

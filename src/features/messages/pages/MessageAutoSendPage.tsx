@@ -310,17 +310,6 @@ function TriggerCard({
                 <option value="alimtalk">{MESSAGE_MODE_LABELS.alimtalk}</option>
                 {smsConnected && <option value="both">{MESSAGE_MODE_LABELS.both}</option>}
               </select>
-              {!smsConnected && (
-                <p style={{ fontSize: 11, color: "var(--color-text-muted)", marginTop: 4, lineHeight: 1.4 }}>
-                  SMS 미연동 —{" "}
-                  <a
-                    href="/admin/message/settings"
-                    style={{ color: "var(--color-primary)", fontWeight: 600, textDecoration: "none" }}
-                  >
-                    연동하기
-                  </a>
-                </p>
-              )}
             </div>
           </div>
         );
