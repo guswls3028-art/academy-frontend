@@ -51,6 +51,7 @@ const B = {
   // 클리닉
   clinic_name:       { id: "clinic_name",       label: "클리닉명",         insertText: "#{클리닉명}",          previewValue: "수학 보충 클리닉" },
   clinic_place:      { id: "clinic_place",      label: "클리닉 장소",      insertText: "#{장소}",              previewValue: "3층 세미나실" },
+  clinic_result:     { id: "clinic_result",     label: "클리닉 합불",      insertText: "#{클리닉합불}",        previewValue: "합격" },
   // 커뮤니티
   post_title:        { id: "post_title",        label: "게시글 제목",      insertText: "#{게시글제목}",        previewValue: "수학 문제 질문" },
   answer_summary:    { id: "answer_summary",    label: "답변 요약",        insertText: "#{답변요약}",          previewValue: "풀이 방법을 안내드립니다." },
@@ -76,8 +77,8 @@ const CATEGORY_BLOCKS: Record<string, TemplateBlock[]> = {
   lecture:    [...COMMON, B.lecture_name, B.session_name],
   exam:       [...COMMON, B.lecture_name, B.session_name, B.exam_name, B.score],
   assignment: [...COMMON, B.lecture_name, B.session_name, B.assignment_name, B.score],
-  grades:     [...COMMON, B.lecture_name, B.session_name, B.exam_name, B.assignment_name, B.exam_score, B.assignment_score],
-  clinic:     [...COMMON, B.clinic_name, B.clinic_place],
+  grades:     [...COMMON, B.lecture_name, B.session_name, B.exam_name, B.assignment_name, B.exam_score, B.assignment_score, B.clinic_result],
+  clinic:     [...COMMON, B.clinic_name, B.clinic_place, B.clinic_result],
   payment:    [...COMMON],
   notice:     [...COMMON],
   community:  [...COMMON, B.post_title, B.answer_summary, B.counsel_type],
@@ -161,6 +162,7 @@ const BLOCK_COLORS: Record<string, { bg: string; color: string; border: string }
   // 클리닉 — 핑크/퍼플 계열
   clinic_name:      { bg: "color-mix(in srgb, #d946ef 12%, transparent)", color: "#c026d3", border: "color-mix(in srgb, #d946ef 30%, transparent)" },
   clinic_place:     { bg: "color-mix(in srgb, #a78bfa 12%, transparent)", color: "#7c3aed", border: "color-mix(in srgb, #a78bfa 30%, transparent)" },
+  clinic_result:    { bg: "color-mix(in srgb, #22c55e 12%, transparent)", color: "#16a34a", border: "color-mix(in srgb, #22c55e 30%, transparent)" },
   // 커뮤니티 — 인디고/블루 계열
   post_title:       { bg: "color-mix(in srgb, #818cf8 12%, transparent)", color: "#6366f1", border: "color-mix(in srgb, #818cf8 30%, transparent)" },
   answer_summary:   { bg: "color-mix(in srgb, #38bdf8 12%, transparent)", color: "#0284c7", border: "color-mix(in srgb, #38bdf8 30%, transparent)" },

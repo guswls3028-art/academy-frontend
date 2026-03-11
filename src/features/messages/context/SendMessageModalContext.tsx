@@ -4,10 +4,14 @@
 import { createContext, useContext, useState, useCallback, ReactNode } from "react";
 import SendMessageModal from "../components/SendMessageModal";
 
+import type { TemplateCategory } from "../constants/templateBlocks";
+
 export type OpenSendMessageOptions = {
   studentIds?: number[];
   staffIds?: number[];
   recipientLabel?: string;
+  /** 삽입 블록 카테고리. 미지정 시 "default" (모든 블록) */
+  blockCategory?: TemplateCategory;
 };
 
 type ContextValue = {
@@ -30,11 +34,13 @@ export function SendMessageModalProvider({ children }: { children: ReactNode }) 
   const [studentIds, setStudentIds] = useState<number[]>([]);
   const [staffIds, setStaffIds] = useState<number[]>([]);
   const [recipientLabel, setRecipientLabel] = useState<string | undefined>();
+  const [blockCategory, setBlockCategory] = useState<TemplateCategory | undefined>();
 
   const openSendMessageModal = useCallback((options: OpenSendMessageOptions) => {
     setStudentIds(options.studentIds ?? []);
     setStaffIds(options.staffIds ?? []);
     setRecipientLabel(options.recipientLabel);
+    setBlockCategory(options.blockCategory);
     setOpen(true);
   }, []);
 
@@ -43,6 +49,7 @@ export function SendMessageModalProvider({ children }: { children: ReactNode }) 
     setStudentIds([]);
     setStaffIds([]);
     setRecipientLabel(undefined);
+    setBlockCategory(undefined);
   }, []);
 
   return (
@@ -54,6 +61,7 @@ export function SendMessageModalProvider({ children }: { children: ReactNode }) 
         initialStudentIds={studentIds}
         initialStaffIds={staffIds}
         recipientLabel={recipientLabel}
+        blockCategory={blockCategory}
       />
     </SendMessageModalContext.Provider>
   );

@@ -38,6 +38,8 @@ export type SendMessageModalOpenOptions = {
   recipientLabel?: string;
 };
 
+import type { TemplateCategory } from "../constants/templateBlocks";
+
 export type SendMessageModalProps = {
   open: boolean;
   onClose: () => void;
@@ -47,6 +49,8 @@ export type SendMessageModalProps = {
   initialStaffIds?: number[];
   /** 수신자 설명 (예: "선택한 학생 3명") */
   recipientLabel?: string;
+  /** 삽입 블록 카테고리. 미지정 시 "default" (모든 블록) */
+  blockCategory?: TemplateCategory;
 };
 
 type ContentMode = "free" | "template";
@@ -59,6 +63,7 @@ export default function SendMessageModal({
   initialStudentIds = [],
   initialStaffIds = [],
   recipientLabel,
+  blockCategory = "default",
 }: SendMessageModalProps) {
   const [contentMode, setContentMode] = useState<ContentMode>("free");
   const [subject, setSubject] = useState("");
@@ -108,7 +113,7 @@ export default function SendMessageModal({
     messageModes.length > 0 &&
     !sending;
 
-  const blocks = getBlocksForCategory("default");
+  const blocks = getBlocksForCategory(blockCategory);
   const badgeBody = renderPreviewBadges(body);
   const badgeSubject = renderPreviewBadges(subject);
   const showSubject = activeTab === "alimtalk";

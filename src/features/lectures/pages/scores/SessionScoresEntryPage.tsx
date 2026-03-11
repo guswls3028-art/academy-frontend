@@ -158,6 +158,7 @@ export default function SessionScoresEntryPage(_props: Props) {
             openSendMessageModal({
               studentIds: selectedStudentIds,
               recipientLabel: `수업결과 발송 — 선택한 수강생 ${selectedEnrollmentIds.length}명`,
+              blockCategory: "grades",
             })
           }
           disabled={selectedEnrollmentIds.length === 0}
