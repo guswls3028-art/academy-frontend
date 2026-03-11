@@ -38,3 +38,22 @@
   --auth-gradient: var(--ymath-gradient);
   --auth-gradient-hover: var(--ymath-gradient-hover);
 }
+
+/* ymath 로그인 페이지: 로고만 크게, 타이틀/서브타이틀 숨김 */
+[data-app="auth"][data-tenant="ymath"] img[class*="logo"] {
+  max-height: 18rem;
+  max-width: 18rem;
+  margin-bottom: 0.5rem;
+}
+
+[data-app="auth"][data-tenant="ymath"] h1[class*="title"] {
+  display: none;
+}
+
+[data-app="auth"][data-tenant="ymath"] p[class*="subtitle"] {
+  display: none;
+}
+
+[data-app="auth"][data-tenant="ymath"] div[class*="typography"] {
+  margin-bottom: 1rem;
+}

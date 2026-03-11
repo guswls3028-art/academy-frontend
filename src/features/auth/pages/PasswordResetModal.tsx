@@ -68,7 +68,16 @@ export default function PasswordResetModal({ open, onClose }: PasswordResetModal
   return (
     <div className={styles.overlay} onClick={handleClose}>
       <div className={styles.overlayCard} onClick={(e) => e.stopPropagation()}>
-        <h2 className={styles.overlayTitle}>비밀번호 찾기</h2>
+        <button
+          type="button"
+          className={styles.overlayClose}
+          onClick={handleClose}
+          aria-label="닫기"
+          disabled={pending}
+        >
+          ✕
+        </button>
+        <h2 className={styles.overlayTitle} style={{ paddingLeft: 36 }}>비밀번호 찾기</h2>
         {success ? (
           <p style={{ color: "var(--auth-accent)", fontWeight: 600 }}>
             임시 비밀번호가 발송되었습니다. 문자를 확인한 뒤 로그인해 주세요.
