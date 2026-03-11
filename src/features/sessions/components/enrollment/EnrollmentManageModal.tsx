@@ -247,7 +247,6 @@ export default function EnrollmentManageModal({
                     <colgroup>
                       <col style={{ width: TABLE_COL.checkbox }} />
                       <col style={{ width: TABLE_COL.nameCompactModal }} />
-                      <col style={{ width: TABLE_COL.mediumModal }} />
                     </colgroup>
                     <thead>
                       <tr
@@ -287,19 +286,13 @@ export default function EnrollmentManageModal({
                         >
                           학생
                         </th>
-                        <th
-                          className="border-b py-1.5 px-3 text-left text-[var(--color-text-muted)]"
-                          style={{ borderColor: "var(--color-border-divider)" }}
-                        >
-                          enrollment_id
-                        </th>
                       </tr>
                     </thead>
                     <tbody>
                       {filtered.length === 0 ? (
                         <tr>
                           <td
-                            colSpan={3}
+                            colSpan={2}
                             className="py-5 px-3 text-center text-[var(--color-text-muted)]"
                           >
                             {keyword.trim()
@@ -343,9 +336,6 @@ export default function EnrollmentManageModal({
                                   lectures={r.lectures ?? undefined}
                                   chipSize={14}
                                 />
-                              </td>
-                              <td className="py-1.5 px-3 text-[var(--color-text-muted)]">
-                                {r.enrollment_id}
                               </td>
                             </tr>
                           );
@@ -402,7 +392,10 @@ export default function EnrollmentManageModal({
               >
                 {selectedRows.length === 0 ? (
                   <p className="text-[13px] text-[var(--color-text-muted)] py-4 text-center">
-                    선택한 학생이 없습니다.
+                    선택한 학생이 없어요.
+                    <span className="block mt-1.5 text-[11px] text-[var(--color-text-muted)]">
+                      왼쪽 테이블에서 체크 후 추가하세요.
+                    </span>
                   </p>
                 ) : (
                   <ul className="space-y-0">
@@ -411,8 +404,15 @@ export default function EnrollmentManageModal({
                         key={r.enrollment_id}
                         className="flex items-center justify-between gap-2 py-1.5 px-2 rounded hover:bg-[var(--color-bg-surface)] group min-h-[32px]"
                       >
-                        <span className="flex items-center gap-2 min-w-0 flex-1 truncate text-[13px] font-semibold leading-6 text-[var(--color-text-primary)]">
-                          {r.student_name || "(이름 없음)"}
+                        <span className="flex items-center gap-2 min-w-0 flex-1 truncate">
+                          <StudentNameWithLectureChip
+                            name={r.student_name || "(이름 없음)"}
+                            profilePhotoUrl={r.profile_photo_url ?? undefined}
+                            avatarSize={20}
+                            chipSize={14}
+                            lectures={r.lectures ?? undefined}
+                            className="text-[13px] font-semibold leading-6 text-[var(--color-text-primary)]"
+                          />
                         </span>
                         {!readOnly && (
                           <button

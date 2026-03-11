@@ -262,13 +262,13 @@ export default function SessionAssessmentSidePanel({
             {!hwLoading && homeworks.length === 0 && <Empty>과제 없음</Empty>}
             {homeworks.map((hw) => {
               const active = homeworkId === hw.id;
-              const sub = hw.status ? `상태: ${hw.status}` : "";
+              const isProgressing = hw.status === "DRAFT" || hw.status === "OPEN";
+              const isClosed = hw.status === "CLOSED";
               return (
                 <HomeworkItemRow
                   key={hw.id}
                   active={active}
                   label={hw.title}
-                  sub={sub}
                   status={hw.status ?? "DRAFT"}
                   onSelect={() => onSelectHomework(hw.id)}
                   onStart={(e) => { e.stopPropagation(); handleHomeworkProgress(hw); }}
@@ -328,12 +328,15 @@ function ExamItemRow({
   const isDraft = status === "DRAFT";
   const isOpen = status === "OPEN";
   const isClosed = status === "CLOSED";
-  const statusBg =
-    isOpen
-      ? "color-mix(in srgb, var(--color-success) 14%, var(--color-bg-surface))"
+  const isProgressing = isDraft || isOpen; // 진행중 = 초록
+  const statusBg = active
+    ? "var(--state-selected-bg)"
+    : isProgressing
+      ? "color-mix(in srgb, var(--color-success) 12%, var(--color-bg-surface))"
       : isClosed
-        ? "var(--color-bg-surface-soft)"
+        ? "color-mix(in srgb, var(--color-danger) 10%, var(--color-bg-surface))"
         : "var(--color-bg-surface)";
+  const statusLabel = isProgressing ? "진행중" : isClosed ? "마감됨" : "";
 
   return (
     <div
@@ -345,22 +348,29 @@ function ExamItemRow({
         group rounded-xl border-l-4 px-3 py-2.5 text-left transition-all
         ${active
           ? "border-l-[var(--color-primary)] ring-1 ring-[var(--color-primary)]/20"
-          : isOpen
+          : isProgressing
             ? "border-l-[var(--color-success)]"
-            : "border-l-transparent hover:opacity-90"
+            : isClosed
+              ? "border-l-[var(--color-danger)]"
+              : "border-l-transparent hover:opacity-90"
         }
       `}
       style={{
-        background: active ? "var(--state-selected-bg)" : statusBg,
+        background: statusBg,
       }}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1 flex items-start gap-2">
-          {isOpen && (
+          {statusLabel && (
             <span
-              className="mt-1.5 shrink-0 w-2 h-2 rounded-full bg-[var(--color-success)]"
+              className="shrink-0 mt-1 text-[10px] font-semibold uppercase tracking-wide"
+              style={{
+                color: isProgressing ? "var(--color-success)" : "var(--color-danger)",
+              }}
               aria-hidden
-            />
+            >
+              {statusLabel}
+            </span>
           )}
           <div className="min-w-0 flex-1">
             <div className="text-sm font-semibold text-[var(--color-text-primary)] truncate">{label}</div>
@@ -401,7 +411,6 @@ function ExamItemRow({
 function HomeworkItemRow({
   active,
   label,
-  sub,
   status,
   onSelect,
   onStart,
@@ -409,7 +418,6 @@ function HomeworkItemRow({
 }: {
   active: boolean;
   label: string;
-  sub: string;
   status: "DRAFT" | "OPEN" | "CLOSED";
   onSelect: () => void;
   onStart: (e: React.MouseEvent) => void;
@@ -417,6 +425,14 @@ function HomeworkItemRow({
 }) {
   const isDraft = status === "DRAFT";
   const isOpen = status === "OPEN";
+  const isProgressing = isDraft || isOpen;
+  const statusBg = active
+    ? "var(--state-selected-bg)"
+    : isProgressing
+      ? "color-mix(in srgb, var(--color-success) 12%, var(--color-bg-surface))"
+      : "color-mix(in srgb, var(--color-danger) 10%, var(--color-bg-surface))";
+  const statusLabel = isProgressing ? "진행중" : "마감됨";
+
   return (
     <div
       role="button"
@@ -426,15 +442,30 @@ function HomeworkItemRow({
       className={`
         group rounded-xl border-l-4 px-3 py-2.5 text-left transition-all
         ${active
-          ? "border-l-[var(--color-primary)] bg-[var(--state-selected-bg)] ring-1 ring-[var(--color-primary)]/20"
-          : "border-l-transparent hover:bg-[var(--color-bg-surface-soft)]"
+          ? "border-l-[var(--color-primary)] ring-1 ring-[var(--color-primary)]/20"
+          : isProgressing
+            ? "border-l-[var(--color-success)]"
+            : "border-l-[var(--color-danger)]"
         }
+        ${!active && !isProgressing && "hover:opacity-90"}
       `}
+      style={{
+        background: statusBg,
+      }}
     >
       <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0 flex-1">
-          <div className="text-sm font-semibold text-[var(--color-text-primary)] truncate">{label}</div>
-          {sub && <div className="mt-0.5 text-xs text-[var(--color-text-muted)]">{sub}</div>}
+        <div className="min-w-0 flex-1 flex items-start gap-2">
+          <span
+            className="shrink-0 mt-1 text-[10px] font-semibold uppercase tracking-wide"
+            style={{
+              color: isProgressing ? "var(--color-success)" : "var(--color-danger)",
+            }}
+          >
+            {statusLabel}
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="text-sm font-semibold text-[var(--color-text-primary)] truncate">{label}</div>
+          </div>
         </div>
         <div className="flex shrink-0 items-center gap-1" onClick={(e) => e.stopPropagation()}>
           {isDraft && (
