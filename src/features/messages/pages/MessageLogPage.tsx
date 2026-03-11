@@ -115,172 +115,134 @@ function ModeBadge({ mode }: { mode?: string }) {
   );
 }
 
-// ── LogCard ──
+// ── LogRow (horizontal log-style) ──
 
-function LogCard({
+function LogRow({
   item,
   onClick,
 }: {
   item: NotificationLogItem;
   onClick: () => void;
 }) {
-  const hasFailure = !!item.failure_reason;
-
   return (
     <button
       type="button"
       onClick={onClick}
       style={{
-        display: "block",
+        display: "flex",
+        alignItems: "center",
+        gap: 12,
         width: "100%",
         textAlign: "left",
-        padding: "14px 18px",
-        borderRadius: "var(--radius-lg)",
-        border: "1px solid var(--color-border-divider)",
-        background: "var(--color-bg-surface)",
+        padding: "9px 14px",
+        borderRadius: 0,
+        border: "none",
+        borderBottom: "1px solid var(--color-border-divider)",
+        background: "transparent",
         cursor: "pointer",
-        transition: "all 0.15s ease",
-        position: "relative",
-        overflow: "hidden",
+        transition: "background 0.1s",
       }}
       onMouseEnter={(e) => {
-        e.currentTarget.style.borderColor = "var(--color-primary)";
-        e.currentTarget.style.boxShadow =
-          "0 2px 8px color-mix(in srgb, var(--color-primary) 10%, transparent)";
+        e.currentTarget.style.background =
+          "color-mix(in srgb, var(--color-primary) 4%, transparent)";
       }}
       onMouseLeave={(e) => {
-        e.currentTarget.style.borderColor = "var(--color-border-divider)";
-        e.currentTarget.style.boxShadow = "none";
+        e.currentTarget.style.background = "transparent";
       }}
     >
-      {/* Row 1: 일시 + 배지 + 차감 */}
-      <div
+      {/* 일시 */}
+      <span
         style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          marginBottom: 8,
+          flex: "0 0 140px",
+          fontSize: 12,
+          color: "var(--color-text-muted)",
+          fontVariantNumeric: "tabular-nums",
+          fontFamily: "var(--font-mono, monospace)",
+          whiteSpace: "nowrap",
         }}
       >
-        <span
-          style={{
-            fontSize: 12,
-            color: "var(--color-text-muted)",
-            fontVariantNumeric: "tabular-nums",
-            flexShrink: 0,
-          }}
-        >
-          {formatDate(item.sent_at)}
-        </span>
+        {formatDate(item.sent_at)}
+      </span>
+
+      {/* 상태 */}
+      <span style={{ flex: "0 0 52px" }}>
         <StatusBadge success={item.success} />
-        <ModeBadge mode={item.message_mode} />
-        <span style={{ flex: 1 }} />
-        {item.amount_deducted && Number(item.amount_deducted) > 0 ? (
-          <span
-            style={{
-              fontSize: 13,
-              fontWeight: 600,
-              color: "var(--color-text-secondary)",
-              fontVariantNumeric: "tabular-nums",
-              flexShrink: 0,
-            }}
-          >
-            -{Number(item.amount_deducted).toLocaleString()}원
-          </span>
-        ) : null}
-      </div>
+      </span>
 
-      {/* Row 2: 수신자 + 템플릿 */}
-      <div
+      {/* 발송방식 */}
+      <span style={{ flex: "0 0 80px" }}>
+        <ModeBadge mode={item.message_mode} />
+      </span>
+
+      {/* 수신자 */}
+      <span
         style={{
-          display: "flex",
-          alignItems: "baseline",
-          gap: 12,
-          flexWrap: "wrap",
+          flex: "0 0 120px",
+          fontSize: 13,
+          fontWeight: 600,
+          color: "var(--color-text-primary)",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
         }}
       >
+        {item.recipient_summary || "—"}
+      </span>
+
+      {/* 내용 미리보기 */}
+      <span
+        style={{
+          flex: 1,
+          minWidth: 0,
+          fontSize: 13,
+          color: "var(--color-text-secondary)",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {item.template_summary || item.message_body || "—"}
+      </span>
+
+      {/* 실패 사유 (짧게) */}
+      {item.failure_reason ? (
         <span
           style={{
-            fontSize: 14,
-            fontWeight: 600,
-            color: "var(--color-text-primary)",
-            wordBreak: "break-word",
-          }}
-        >
-          {item.recipient_summary || "—"}
-        </span>
-        {item.template_summary ? (
-          <span
-            style={{
-              fontSize: 13,
-              color: "var(--color-text-muted)",
-              wordBreak: "break-word",
-            }}
-          >
-            {item.template_summary}
-          </span>
-        ) : null}
-      </div>
-
-      {/* Row 3: 메시지 미리보기 (본문이 있을 때) */}
-      {item.message_body ? (
-        <div
-          style={{
-            marginTop: 8,
-            fontSize: 13,
-            color: "var(--color-text-secondary)",
-            lineHeight: 1.5,
-            display: "-webkit-box",
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: "vertical",
-            overflow: "hidden",
-            wordBreak: "break-word",
-          }}
-        >
-          {item.message_body}
-        </div>
-      ) : null}
-
-      {/* Row 4: 실패 사유 */}
-      {hasFailure ? (
-        <div
-          style={{
-            marginTop: 8,
-            padding: "6px 10px",
-            borderRadius: "var(--radius-md)",
-            background: "color-mix(in srgb, var(--color-error) 6%, transparent)",
-            border: "1px solid color-mix(in srgb, var(--color-error) 15%, transparent)",
-            fontSize: 12,
+            flex: "0 0 auto",
+            maxWidth: 160,
+            fontSize: 11,
             color: "var(--color-error)",
-            lineHeight: 1.45,
-            wordBreak: "break-word",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
           }}
         >
           {item.failure_reason}
-        </div>
+        </span>
       ) : null}
 
-      {/* 클릭 힌트 */}
-      <div
+      {/* 차감 */}
+      <span
         style={{
-          position: "absolute",
-          top: 14,
-          right: 14,
-          color: "var(--color-text-muted)",
-          fontSize: 14,
-          opacity: 0.5,
+          flex: "0 0 70px",
+          fontSize: 13,
+          fontWeight: 600,
+          color: "var(--color-text-secondary)",
+          fontVariantNumeric: "tabular-nums",
+          textAlign: "right",
         }}
       >
+        {item.amount_deducted && Number(item.amount_deducted) > 0
+          ? `-${Number(item.amount_deducted).toLocaleString()}원`
+          : "—"}
+      </span>
+
+      {/* 화살표 */}
+      <span style={{ flex: "0 0 16px", color: "var(--color-text-muted)", opacity: 0.4 }}>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-          <path
-            d="M9 18l6-6-6-6"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
+          <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
-      </div>
+      </span>
     </button>
   );
 }
@@ -718,12 +680,12 @@ export default function MessageLogPage() {
           scope="panel"
         />
       ) : isLoading ? (
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {[1, 2, 3, 4, 5].map((i) => (
+        <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+          {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
             <div
               key={i}
               style={{
-                height: 76,
+                height: 38,
                 borderRadius: "var(--radius-lg)",
                 background:
                   "linear-gradient(90deg, var(--color-bg-surface-soft) 25%, color-mix(in srgb, var(--color-border-divider) 60%, var(--color-bg-surface-soft)) 50%, var(--color-bg-surface-soft) 75%)",
@@ -750,9 +712,41 @@ export default function MessageLogPage() {
         />
       ) : (
         <>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {/* 로그 테이블 */}
+          <div
+            style={{
+              borderRadius: "var(--radius-lg)",
+              border: "1px solid var(--color-border-divider)",
+              overflow: "hidden",
+            }}
+          >
+            {/* 헤더 */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                padding: "8px 14px",
+                background: "var(--color-bg-surface-soft)",
+                borderBottom: "1px solid var(--color-border-divider)",
+                fontSize: 11,
+                fontWeight: 600,
+                color: "var(--color-text-muted)",
+                textTransform: "uppercase",
+                letterSpacing: "0.3px",
+              }}
+            >
+              <span style={{ flex: "0 0 140px" }}>일시</span>
+              <span style={{ flex: "0 0 52px" }}>상태</span>
+              <span style={{ flex: "0 0 80px" }}>방식</span>
+              <span style={{ flex: "0 0 120px" }}>수신자</span>
+              <span style={{ flex: 1, minWidth: 0 }}>내용</span>
+              <span style={{ flex: "0 0 70px", textAlign: "right" }}>차감</span>
+              <span style={{ flex: "0 0 16px" }} />
+            </div>
+            {/* 행 */}
             {filtered.map((item) => (
-              <LogCard
+              <LogRow
                 key={item.id}
                 item={item}
                 onClick={() => setSelectedItem(item)}
