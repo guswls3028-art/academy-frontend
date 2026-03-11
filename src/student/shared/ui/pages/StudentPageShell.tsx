@@ -61,7 +61,7 @@ export default function StudentPageShell({
           )}
           <div style={{ fontSize: 20, fontWeight: 800 }}>{title}</div>
           {description && (
-            <div className="student-muted" style={{ marginTop: 4 }}>
+            <div className="stu-muted" style={{ marginTop: 4 }}>
               {description}
             </div>
           )}

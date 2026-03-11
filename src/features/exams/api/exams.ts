@@ -27,6 +27,8 @@ function normalizeExam(raw: any): Exam {
 
     template_exam_id: raw.template_exam_id ?? null,
 
+    status: raw.status ?? "DRAFT",
+
     created_at: String(raw.created_at ?? ""),
     updated_at: String(raw.updated_at ?? ""),
   };

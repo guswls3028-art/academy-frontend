@@ -1,12 +1,12 @@
 import api from "@/shared/api/axios";
 
 export type SubmissionStatus =
-  | "SUBMITTED"
-  | "PROCESSING"
-  | "ANSWERS_READY"
-  | "NEEDS_IDENTIFICATION"
-  | "GRADED"
-  | "FAILED";
+  | "submitted"
+  | "dispatched"
+  | "extracting"
+  | "needs_identification"
+  | "graded"
+  | "failed";
 
 export type SubmissionDTO = {
   id: number;

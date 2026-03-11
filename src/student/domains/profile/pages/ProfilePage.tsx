@@ -465,7 +465,10 @@ export default function ProfilePage() {
                 <button
                   type="button"
                   className="stu-btn stu-btn--ghost"
-                  onClick={() => setEditing(false)}
+                  onClick={() => {
+                    setEditing(false);
+                    setEditSchoolType(profile.school_type === "MIDDLE" ? "MIDDLE" : "HIGH");
+                  }}
                 >
                   취소
                 </button>

@@ -21,7 +21,7 @@ import { Submission } from "./types";
  */
 export async function createSubmission(formData: FormData) {
   const res = await api.post<Submission>(
-    "/submissions/",
+    "/submissions/submissions/",
     formData,
     {
       headers: {
@@ -38,7 +38,7 @@ export async function createSubmission(formData: FormData) {
  */
 export async function fetchSubmission(submissionId: number) {
   const res = await api.get<Submission>(
-    `/submissions/${submissionId}/`
+    `/submissions/submissions/${submissionId}/`
   );
   return res.data;
 }
@@ -49,7 +49,7 @@ export async function fetchSubmission(submissionId: number) {
  */
 export async function retrySubmission(submissionId: number) {
   const res = await api.post(
-    `/submissions/${submissionId}/retry/`
+    `/submissions/submissions/${submissionId}/retry/`
   );
   return res.data;
 }

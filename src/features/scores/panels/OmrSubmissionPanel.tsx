@@ -24,7 +24,7 @@ export default function OmrSubmissionPanel({
         <SubmissionStatusBadge status={data.status} />
       </div>
 
-      {data.status === "NEEDS_IDENTIFICATION" && (
+      {data.status === "needs_identification" && (
         <div className="text-sm text-red-600">
           학생 식별이 필요합니다 (휴대폰 번호 기준)
         </div>

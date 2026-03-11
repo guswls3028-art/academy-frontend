@@ -82,12 +82,23 @@ export default function ExamSubmitPage() {
     );
   }
 
-  if (examQ.isLoading || !examQ.data) {
+  if (examQ.isLoading) {
     return (
       <StudentPageShell title="시험 입력" description="불러오는 중...">
         <div className="stu-muted" style={{ padding: 16 }}>
           불러오는 중…
         </div>
+      </StudentPageShell>
+    );
+  }
+
+  if (examQ.isError || !examQ.data) {
+    return (
+      <StudentPageShell title="시험 입력" description="시험 정보를 불러올 수 없습니다.">
+        <EmptyState
+          title="시험 정보를 불러오지 못했습니다."
+          description="잠시 후 다시 시도해 주세요."
+        />
       </StudentPageShell>
     );
   }

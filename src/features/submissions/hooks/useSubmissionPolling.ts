@@ -12,7 +12,8 @@ export function useSubmissionPolling(submissionId?: number, enabled: boolean = t
     queryKey: ["submission", submissionId],
     queryFn: () => fetchSubmission(submissionId!),
     enabled: enabled && Number.isFinite(submissionId),
-    refetchInterval: (data) => {
+    refetchInterval: (query) => {
+      const data = query.state.data;
       if (!data) return 2000;
       return (TERMINAL_STATUS as readonly string[]).includes(data.status) ? false : 2000;
     },
