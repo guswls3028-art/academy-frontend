@@ -367,26 +367,6 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
 
   useEffect(() => {
     if (!open) return;
-
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-      const isTextarea = (e.target as HTMLElement)?.tagName === "TEXTAREA";
-      if (e.key === "Enter" && !isTextarea && mode === "single") {
-        e.preventDefault();
-        handleSubmit();
-      }
-      if (e.key === "Enter" && !isTextarea && mode === "excel" && selectedExcelFile) {
-        e.preventDefault();
-        handleExcelRegister();
-      }
-    }
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, onClose, form, busy, mode, selectedExcelFile]);
-
-  useEffect(() => {
-    if (!open) return;
     setMode("choice");
     setBusy(false);
     onBulkProgress?.(null);

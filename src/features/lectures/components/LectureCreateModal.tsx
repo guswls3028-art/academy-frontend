@@ -177,20 +177,6 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [], l
     setHasAttemptedSubmit(false);
   }, [isOpen, isEditMode, usedColors]);
 
-  useEffect(() => {
-    if (!isOpen) return;
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-      const isTextarea = (e.target as HTMLElement)?.tagName === "TEXTAREA";
-      if (e.key === "Enter" && !isTextarea && !isPending) {
-        e.preventDefault();
-        submit();
-      }
-    }
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [isOpen, isPending, title, name, subject, description, startDate, endDate, lectureTime, color, chipLabel]);
-
   if (!isOpen) return null;
 
   const effectiveChipLabel = (chipLabel.trim() || title.trim().slice(0, 2)).slice(0, 2);

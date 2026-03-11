@@ -1,5 +1,5 @@
 // src/features/lectures/components/BoardCategoryModal.tsx
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createBoardCategory } from "../api/board";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
@@ -32,19 +32,6 @@ export default function BoardCategoryModal({ lectureId, isOpen, onClose }: Props
       onClose();
     },
   });
-
-  useEffect(() => {
-    if (!isOpen) return;
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-      if (e.key === "Enter" && !busy && name.trim()) {
-        e.preventDefault();
-        mutate();
-      }
-    }
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [isOpen, busy, name]);
 
   if (!isOpen) return null;
 

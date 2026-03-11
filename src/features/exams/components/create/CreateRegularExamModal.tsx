@@ -122,19 +122,6 @@ export default function CreateRegularExamModal({
     !title.trim() ||
     (stage === "import" && !selectedTemplateId);
 
-  useEffect(() => {
-    if (!open) return;
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-      if (e.key === "Enter" && stage !== "choose" && !disabled) {
-        e.preventDefault();
-        handleSubmit();
-      }
-    }
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [open, onClose, disabled, stage]);
-
   const selectedTemplate = templates.find((t) => t.id === selectedTemplateId) ?? null;
 
   const filteredTemplates = useMemo(() => {
