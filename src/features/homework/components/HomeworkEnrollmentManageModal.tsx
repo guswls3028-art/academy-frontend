@@ -229,7 +229,7 @@ export default function HomeworkEnrollmentManageModal({
                     className="w-full border-collapse"
                     style={{ tableLayout: "fixed" }}
                     role="grid"
-                    aria-label="대상 학생 명단"
+                    aria-label="전체 학생 명단"
                   >
                     <colgroup>
                       <col style={{ width: TABLE_COL.checkbox }} />

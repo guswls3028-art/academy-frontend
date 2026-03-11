@@ -99,7 +99,12 @@ export default function SessionScoresEntryPage(_props: Props) {
     enabled: Number.isFinite(numericSessionId),
   });
 
-  const totalCount = data?.rows?.length ?? 0;
+  /** 시험 또는 과제 둘 중 하나라도 등록된 수강생만 테이블에 표시 → 툴바 인원도 동일 기준 */
+  const displayCount = useMemo(() => {
+    const raw = data?.rows ?? [];
+    return raw.filter((r) => (r.exams?.length ?? 0) > 0 || (r.homeworks?.length ?? 0) > 0).length;
+  }, [data?.rows]);
+
   const selectedStudentIds = useMemo(() => {
     const rows = data?.rows ?? [];
     return rows
@@ -204,7 +209,7 @@ export default function SessionScoresEntryPage(_props: Props) {
   return (
     <div className="flex flex-col gap-4">
       <DomainListToolbar
-        totalLabel={isLoading ? "…" : `총 ${totalCount}명`}
+        totalLabel={isLoading ? "…" : `총 ${displayCount}명`}
         searchSlot={
           <input
             type="search"
