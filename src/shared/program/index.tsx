@@ -1,5 +1,5 @@
 // PATH: src/shared/program/index.tsx
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import api, { type ApiRequestConfig } from "@/shared/api/axios";
 
 export type Program = {
@@ -39,7 +39,7 @@ export function ProgramProvider({ children }: { children: React.ReactNode }) {
   const [program, setProgram] = useState<Program | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     try {
       const res = await api.get<Program>("/core/program/", { skipAuth: true } as ApiRequestConfig);
       setProgram(res.data ?? null);
@@ -58,7 +58,7 @@ export function ProgramProvider({ children }: { children: React.ReactNode }) {
       }
       setProgram(null);
     }
-  };
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -68,10 +68,15 @@ export function ProgramProvider({ children }: { children: React.ReactNode }) {
         setIsLoading(false);
       }
     })();
-  }, []);
+  }, [load]);
+
+  const value = useMemo<ProgramState>(
+    () => ({ program, isLoading, refetch: load }),
+    [program, isLoading, load],
+  );
 
   return (
-    <ProgramContext.Provider value={{ program, isLoading, refetch: load }}>
+    <ProgramContext.Provider value={value}>
       {children}
     </ProgramContext.Provider>
   );
