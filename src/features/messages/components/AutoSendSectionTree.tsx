@@ -173,7 +173,7 @@ export default function AutoSendSectionTree({
   selectedSection,
   onSelectSection,
 }: AutoSendSectionTreeProps) {
-  const [expandedSection, setExpandedSection] = useState<AutoSendSectionId | null>("attendance");
+  const [expandedSection, setExpandedSection] = useState<AutoSendSectionId | null>(null);
 
   return (
     <div className={styles.root}>

@@ -171,7 +171,6 @@ export default function PermissionModal({
             <PermissionHeader
               tab={tab}
               onChangeTab={switchTab}
-              onClose={onClose}
               isFetching={!!isFetching}
               focusEnrollment={focusEnrollment}
               onClearFocus={() => setFocusBoth(null)}
