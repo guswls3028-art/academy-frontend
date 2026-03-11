@@ -5,6 +5,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { createPortal } from "react-dom";
+import api from "@/shared/api/axios";
 
 import {
   getStudentDetail,
@@ -559,11 +560,11 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
                 </div>
 
                 <div style={{ minHeight: 260, marginTop: 16 }}>
-                  {tab === "enroll" ? (
-                    <EnrollmentsTab enrollments={student.enrollments} />
-                  ) : (
-                    <EmptyState scope="panel" tone="empty" title="데이터가 없습니다." />
-                  )}
+                  {tab === "enroll" && <EnrollmentsTab enrollments={student.enrollments} />}
+                  {tab === "clinic" && <ClinicTab studentId={id} />}
+                  {tab === "question" && <QuestionTab studentId={id} />}
+                  {tab === "score" && <ScoreTab studentId={id} enrollments={student.enrollments} />}
+                  {tab === "schoolScore" && <EmptyState scope="panel" tone="empty" title="학교 성적 기능 준비 중" description="추후 업데이트 예정입니다." />}
                 </div>
               </div>
             </div>
@@ -859,6 +860,7 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
                   type="text"
                   value={newFolderModal.name}
                   onChange={(e) => setNewFolderModal((m) => (m ? { ...m, name: e.target.value } : null))}
+                  onKeyDown={(e) => { if (e.key === "Enter") confirmNewFolder(); }}
                   placeholder="폴더 제목"
                 />
               </div>
@@ -1149,28 +1151,152 @@ function InventoryTreeFolder({
   );
 }
 
+/** 2글자 강의 딱지 — 강의명 앞 2자 추출 */
+function LectureChip({ name, color }: { name: string; color?: string }) {
+  const label = (name || "").replace(/\s/g, "").slice(0, 2) || "강의";
+  return (
+    <span
+      className="inline-flex items-center justify-center rounded text-[10px] font-bold text-white select-none shrink-0"
+      style={{ width: 28, height: 20, background: color || "var(--color-brand-primary)", lineHeight: 1 }}
+    >
+      {label}
+    </span>
+  );
+}
+
 function EnrollmentsTab({ enrollments }: { enrollments: any[] }) {
   if (!enrollments?.length) return <EmptyState scope="panel" tone="empty" title="수강 이력이 없습니다." />;
 
   return (
-    <div style={{ display: "grid", gap: 10 }}>
+    <div style={{ display: "grid", gap: 8 }}>
       {enrollments.map((en: any) => (
         <div
           key={en.id}
-          style={{
-            padding: "14px 16px",
-            borderRadius: 12,
-            background: "var(--color-bg-surface)",
-            border: "1px solid var(--color-border-divider)",
-            fontSize: 13,
-            fontWeight: 700,
-            transition: "border-color 0.15s, box-shadow 0.15s",
-          }}
-          className="hover:border-[var(--color-primary)]/30 hover:shadow-sm"
+          className="flex items-center gap-2.5 rounded-xl bg-[var(--color-bg-surface)] border border-[var(--color-border-divider)] px-4 py-3 hover:border-[var(--color-primary)] hover:shadow-sm transition-all"
         >
-          {en.lectureName || "-"}
+          <LectureChip name={en.lectureName || ""} color={en.lectureColor} />
+          <span className="text-sm font-semibold text-[var(--color-text-primary)] truncate">{en.lectureName || "-"}</span>
         </div>
       ))}
+    </div>
+  );
+}
+
+/** 클리닉/상담 이력 탭 */
+function ClinicTab({ studentId }: { studentId: number }) {
+  const { data, isLoading } = useQuery({
+    queryKey: ["student", studentId, "clinic"],
+    queryFn: async () => {
+      const res = await api.get("/clinic/participants/", { params: { student: studentId, page_size: 50 } });
+      return Array.isArray(res.data?.results) ? res.data.results : Array.isArray(res.data) ? res.data : [];
+    },
+    enabled: studentId > 0,
+  });
+
+  if (isLoading) return <EmptyState scope="panel" tone="loading" title="불러오는 중..." />;
+  if (!data?.length) return <EmptyState scope="panel" tone="empty" title="클리닉/상담 이력이 없습니다." />;
+
+  const statusLabel: Record<string, string> = { BOOKED: "예약", ATTENDED: "출석", NO_SHOW: "결석", CANCELLED: "취소", PENDING: "대기" };
+  const statusTone: Record<string, string> = { BOOKED: "info", ATTENDED: "success", NO_SHOW: "danger", CANCELLED: "muted", PENDING: "warning" };
+
+  return (
+    <div style={{ display: "grid", gap: 8 }}>
+      {data.map((p: any) => (
+        <div key={p.id} className="flex items-center justify-between rounded-xl bg-[var(--color-bg-surface)] border border-[var(--color-border-divider)] px-4 py-3">
+          <div className="flex flex-col gap-0.5 min-w-0">
+            <span className="text-sm font-semibold text-[var(--color-text-primary)] truncate">{p.session_title || p.session?.title || "클리닉"}</span>
+            <span className="text-xs text-[var(--color-text-muted)]">{p.session_date || p.session?.date || ""}</span>
+          </div>
+          <span className={`ds-status-badge text-xs`} data-tone={statusTone[p.status] || "muted"}>
+            {statusLabel[p.status] || p.status}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** 질문 이력 탭 */
+function QuestionTab({ studentId }: { studentId: number }) {
+  const { data, isLoading } = useQuery({
+    queryKey: ["student", studentId, "questions"],
+    queryFn: async () => {
+      const res = await api.get("/community/posts/", { params: { author_student: studentId, page_size: 50 } });
+      return Array.isArray(res.data?.results) ? res.data.results : Array.isArray(res.data) ? res.data : [];
+    },
+    enabled: studentId > 0,
+  });
+
+  if (isLoading) return <EmptyState scope="panel" tone="loading" title="불러오는 중..." />;
+  if (!data?.length) return <EmptyState scope="panel" tone="empty" title="질문 이력이 없습니다." />;
+
+  return (
+    <div style={{ display: "grid", gap: 8 }}>
+      {data.map((post: any) => (
+        <div key={post.id} className="rounded-xl bg-[var(--color-bg-surface)] border border-[var(--color-border-divider)] px-4 py-3">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-sm font-semibold text-[var(--color-text-primary)] truncate">{post.title || "(제목 없음)"}</span>
+            <span className="text-xs text-[var(--color-text-muted)] shrink-0">
+              {post.reply_count != null ? `답변 ${post.reply_count}` : ""}
+            </span>
+          </div>
+          {post.body_preview && (
+            <p className="text-xs text-[var(--color-text-muted)] mt-1 line-clamp-2">{post.body_preview}</p>
+          )}
+          <span className="text-[11px] text-[var(--color-text-muted)] mt-1 block">
+            {post.created_at ? new Date(post.created_at).toLocaleDateString("ko-KR") : ""}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** 성적 이력 탭 */
+function ScoreTab({ studentId, enrollments }: { studentId: number; enrollments: any[] }) {
+  const { data, isLoading } = useQuery({
+    queryKey: ["student", studentId, "result-facts"],
+    queryFn: async () => {
+      const res = await api.get("/results/admin/facts/", { params: { student: studentId, page_size: 100 } });
+      return Array.isArray(res.data?.results) ? res.data.results : Array.isArray(res.data) ? res.data : [];
+    },
+    enabled: studentId > 0,
+  });
+
+  if (isLoading) return <EmptyState scope="panel" tone="loading" title="불러오는 중..." />;
+  if (!data?.length) return <EmptyState scope="panel" tone="empty" title="성적 이력이 없습니다." />;
+
+  return (
+    <div style={{ display: "grid", gap: 8 }}>
+      {data.map((fact: any, i: number) => {
+        const passed = fact.is_pass ?? fact.passed;
+        const score = fact.total_score ?? fact.score;
+        const maxScore = fact.max_score ?? 100;
+        const lectureName = fact.lecture_title || fact.lecture_name || "";
+        return (
+          <div key={fact.id ?? i} className="flex items-center justify-between rounded-xl bg-[var(--color-bg-surface)] border border-[var(--color-border-divider)] px-4 py-3">
+            <div className="flex items-center gap-2.5 min-w-0">
+              {lectureName && <LectureChip name={lectureName} color={fact.lecture_color} />}
+              <div className="flex flex-col gap-0.5 min-w-0">
+                <span className="text-sm font-semibold text-[var(--color-text-primary)] truncate">{fact.exam_title || fact.title || "시험"}</span>
+                <span className="text-xs text-[var(--color-text-muted)]">{fact.session_title || ""}</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 shrink-0">
+              {score != null && (
+                <span className="text-sm font-bold tabular-nums text-[var(--color-text-primary)]">
+                  {Math.round(score)}<span className="text-xs font-normal text-[var(--color-text-muted)]">/{maxScore}</span>
+                </span>
+              )}
+              {passed != null && (
+                <span className="ds-scores-pass-fail-badge" data-tone={passed ? "success" : "danger"}>
+                  {passed ? "합" : "불"}
+                </span>
+              )}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
