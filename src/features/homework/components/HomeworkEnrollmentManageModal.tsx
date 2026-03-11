@@ -231,6 +231,10 @@ export default function HomeworkEnrollmentManageModal({
                     <colgroup>
                       <col style={{ width: TABLE_COL.checkbox }} />
                       <col style={{ width: TABLE_COL.nameCompactModal }} />
+                      <col style={{ width: TABLE_COL.phoneCompact }} />
+                      <col style={{ width: TABLE_COL.phoneCompact }} />
+                      <col style={{ width: TABLE_COL.mediumModal }} />
+                      <col style={{ width: TABLE_COL.shortModal }} />
                     </colgroup>
                     <thead>
                       <tr
@@ -256,7 +260,7 @@ export default function HomeworkEnrollmentManageModal({
                               else
                                 selectAll();
                             }}
-                            aria-label="현재 목록 전체 선택"
+                            aria-label="전체 선택 (검색·필터 결과 전체)"
                           />
                         </th>
                         <th
@@ -265,18 +269,40 @@ export default function HomeworkEnrollmentManageModal({
                         >
                           이름
                         </th>
+                        <th
+                          className="border-b py-1.5 px-3 text-left text-[var(--color-text-muted)]"
+                          style={{ borderColor: "var(--color-border-divider)" }}
+                        >
+                          부모님 전화
+                        </th>
+                        <th
+                          className="border-b py-1.5 px-3 text-left text-[var(--color-text-muted)]"
+                          style={{ borderColor: "var(--color-border-divider)" }}
+                        >
+                          학생 전화
+                        </th>
+                        <th
+                          className="border-b py-1.5 px-3 text-left text-[var(--color-text-muted)]"
+                          style={{ borderColor: "var(--color-border-divider)" }}
+                        >
+                          학교
+                        </th>
+                        <th
+                          className="border-b py-1.5 px-3 text-left text-[var(--color-text-muted)]"
+                          style={{ borderColor: "var(--color-border-divider)" }}
+                        >
+                          학년
+                        </th>
                       </tr>
                     </thead>
                     <tbody>
                       {filtered.length === 0 ? (
                         <tr>
                           <td
-                            colSpan={2}
+                            colSpan={6}
                             className="py-5 px-3 text-center text-[var(--color-text-muted)]"
                           >
-                            {keyword.trim()
-                              ? "검색 결과 없음. 검색어·필터를 바꿔 보세요."
-                              : "표시할 학생이 없습니다."}
+                            검색 결과 없음. 검색어·필터를 바꿔 보세요.
                           </td>
                         </tr>
                       ) : (
@@ -300,7 +326,7 @@ export default function HomeworkEnrollmentManageModal({
                                   aria-label={`${r.student_name ?? ""} 선택`}
                                 />
                               </td>
-                              <td className="modal-inner-table__name py-1.5 px-3 text-[var(--color-text-primary)] truncate font-medium cursor-pointer hover:bg-[var(--color-bg-surface-soft)] leading-6">
+                              <td className="modal-inner-table__name py-1.5 px-3 text-[var(--color-text-primary)] truncate cursor-pointer hover:bg-[var(--color-bg-surface-soft)] leading-6">
                                 <StudentNameWithLectureChip
                                   name={r.student_name || "(이름 없음)"}
                                   profilePhotoUrl={r.profile_photo_url ?? undefined}
@@ -308,6 +334,18 @@ export default function HomeworkEnrollmentManageModal({
                                   lectures={r.lectures ?? undefined}
                                   chipSize={14}
                                 />
+                              </td>
+                              <td className="py-1.5 px-3 text-[var(--color-text-secondary)] truncate leading-6">
+                                -
+                              </td>
+                              <td className="py-1.5 px-3 text-[var(--color-text-secondary)] truncate leading-6">
+                                -
+                              </td>
+                              <td className="py-1.5 px-3 text-[var(--color-text-secondary)] truncate leading-6">
+                                -
+                              </td>
+                              <td className="py-1.5 px-3 text-[var(--color-text-secondary)] leading-6">
+                                -
                               </td>
                             </tr>
                           );
@@ -317,6 +355,18 @@ export default function HomeworkEnrollmentManageModal({
                   </table>
                 )}
               </div>
+
+              {/* 테이블 하단 총계 (차시 수강생 등록 모달과 동일) */}
+              {(filtered.length > 0 || rows.length > 0) && (
+                <div
+                  className="flex items-center justify-between gap-3 py-2.5 px-3 border-t shrink-0 bg-[var(--color-bg-surface)]"
+                  style={{ borderColor: "var(--color-border-divider)" }}
+                >
+                  <span className="text-[13px] font-semibold text-[var(--color-text-primary)]">
+                    총 {rows.length}명
+                  </span>
+                </div>
+              )}
             </div>
           </div>
 

@@ -9,7 +9,7 @@
  * API / state 관리 ❌ (Panel에서 주입)
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { EnrollmentRow } from "./types";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
 import { Button, EmptyState } from "@/shared/ui/ds";
@@ -82,6 +82,18 @@ export default function EnrollmentManageModal({
     if (!open) setKeyword("");
   }, [open]);
 
+  const safeClose = useCallback(() => {
+    if (saving) return;
+    if (!dirty) {
+      onClose();
+      return;
+    }
+    const ok = window.confirm(
+      "변경사항이 있습니다.\n저장하지 않고 닫을까요?"
+    );
+    if (ok) onClose();
+  }, [saving, dirty, onClose]);
+
   const filtered = useMemo(() => {
     const k = keyword.trim().toLowerCase();
     if (!k) return rows;
@@ -106,25 +118,12 @@ export default function EnrollmentManageModal({
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, dirty, saving, loading]);
+  }, [open, safeClose]);
 
   if (!open) return null;
 
   const canInteract = !loading && !saving;
   const canSave = !readOnly && dirty && !loading && !saving;
-
-  const safeClose = () => {
-    if (saving) return;
-    if (!dirty) {
-      onClose();
-      return;
-    }
-    const ok = window.confirm(
-      "변경사항이 있습니다.\n저장하지 않고 닫을까요?"
-    );
-    if (ok) onClose();
-  };
 
   const selectAll = () => {
     if (!canInteract || readOnly || !onSetSelectedIds) return;
