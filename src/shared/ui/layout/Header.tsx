@@ -337,7 +337,7 @@ export default function Header() {
                 />
               )}
             </span>
-            <span className="app-header__brandName">{academyName}</span>
+            {!headerLogoUrl && <span className="app-header__brandName">{academyName}</span>}
           </div>
         </div>
 
