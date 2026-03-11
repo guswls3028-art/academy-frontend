@@ -9,6 +9,7 @@ import { fetchAdminSessionExams } from "@/features/results/api/adminSessionExams
 import type { SessionExamRow } from "@/features/results/api/adminSessionExams";
 import { updateAdminExam } from "@/features/exams/api/adminExam";
 import { updateAdminHomework } from "@/features/homework/api/adminHomework";
+import { fetchHomeworkPolicyBySession } from "@/features/homework/api/homeworkPolicy";
 
 import { feedback } from "@/shared/ui/feedback/feedback";
 import CreateRegularExamModal from "@/features/exams/components/create/CreateRegularExamModal";
@@ -73,6 +74,30 @@ export default function SessionAssessmentSidePanel({
     enabled: !!sessionId,
   });
 
+  const { data: examsSummary } = useQuery({
+    queryKey: ["session-exams-summary", sessionId],
+    queryFn: async () => {
+      const res = await api.get(`/results/admin/sessions/${sessionId}/exams/summary/`);
+      return res.data as { exams?: { exam_id: number; max_score: number }[] };
+    },
+    enabled: !!sessionId,
+  });
+
+  const examMaxScoreById = useMemo(() => {
+    const map: Record<number, number> = {};
+    (examsSummary?.exams ?? []).forEach((e) => {
+      const ms = Number(e.max_score);
+      map[e.exam_id] = Number.isFinite(ms) && ms > 0 ? ms : 100;
+    });
+    return map;
+  }, [examsSummary]);
+
+  const { data: homeworkPolicy } = useQuery({
+    queryKey: ["homework-policy", sessionId],
+    queryFn: () => fetchHomeworkPolicyBySession(sessionId),
+    enabled: !!sessionId,
+  });
+
   const { data: homeworks = [], isLoading: hwLoading } = useQuery({
     queryKey: ["session-homeworks", sessionId],
     queryFn: async (): Promise<HomeworkItem[]> => {
@@ -112,6 +137,7 @@ export default function SessionAssessmentSidePanel({
   }, [location.pathname, sessionId, lectureId, examId, homeworkId, exams, homeworks, navigate]);
 
   const invalidateExams = () => qc.invalidateQueries({ queryKey: ["admin-session-exams", sessionId] });
+  const invalidateExamsSummary = () => qc.invalidateQueries({ queryKey: ["session-exams-summary", sessionId] });
   const invalidateSessionScores = () => qc.invalidateQueries({ queryKey: ["session-scores", sessionId] });
   const invalidateHomeworks = () => qc.invalidateQueries({ queryKey: ["session-homeworks", sessionId] });
 
@@ -151,6 +177,7 @@ export default function SessionAssessmentSidePanel({
       await updateAdminExam(id, { status: "OPEN" });
       qc.invalidateQueries({ queryKey: ["admin-exam", id] });
       invalidateExams();
+      invalidateExamsSummary();
       invalidateSessionScores();
       feedback.success("시험을 진행 중으로 변경했습니다.");
     } catch (e: any) {
@@ -167,6 +194,7 @@ export default function SessionAssessmentSidePanel({
       await updateAdminExam(id, { status: "CLOSED" });
       qc.invalidateQueries({ queryKey: ["admin-exam", id] });
       invalidateExams();
+      invalidateExamsSummary();
       invalidateSessionScores();
       feedback.success("시험을 종료했습니다.");
     } catch (e: any) {
@@ -204,12 +232,14 @@ export default function SessionAssessmentSidePanel({
             {exams.map((exam: SessionExamRow) => {
               const active = examId != null && Number(exam.exam_id) === examId;
               const busy = examBusy?.id === Number(exam.exam_id) ? examBusy.action : null;
+              const maxScore = examMaxScoreById[Number(exam.exam_id)] ?? 100;
               return (
                 <ExamItemRow
                   key={exam.exam_id}
                   active={active}
                   label={exam.title}
                   status={exam.status}
+                  maxScore={maxScore}
                   onSelect={() => onSelectExam(Number(exam.exam_id))}
                   onStart={(e) => { e.stopPropagation(); handleExamProgress(Number(exam.exam_id)); }}
                   onEnd={(e) => { e.stopPropagation(); handleExamClose(Number(exam.exam_id)); }}
@@ -237,14 +267,16 @@ export default function SessionAssessmentSidePanel({
             {!hwLoading && homeworks.length === 0 && <Empty>과제 없음</Empty>}
             {homeworks.map((hw) => {
               const active = homeworkId === hw.id;
-              const isProgressing = hw.status === "DRAFT" || hw.status === "OPEN";
-              const isClosed = hw.status === "CLOSED";
+              const cutlineMode = homeworkPolicy?.cutline_mode ?? "PERCENT";
+              const cutlineValue = homeworkPolicy?.cutline_value ?? 80;
               return (
                 <HomeworkItemRow
                   key={hw.id}
                   active={active}
                   label={hw.title}
                   status={hw.status ?? "DRAFT"}
+                  cutlineMode={cutlineMode}
+                  cutlineValue={cutlineValue}
                   onSelect={() => onSelectHomework(hw.id)}
                   onStart={(e) => { e.stopPropagation(); handleHomeworkProgress(hw); }}
                   onEnd={(e) => { e.stopPropagation(); handleHomeworkClose(hw); }}
