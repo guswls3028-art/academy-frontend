@@ -61,12 +61,17 @@ export async function initVideoUpload(params: VideoUploadParams): Promise<InitVi
     throw new Error("업로드 초기화에 실패했습니다.");
   }
 
+  // ✅ init 직후 바로 워커 메타 연결 — hydration 중복 방지
+  // (기존: R2 업로드 완료 후 attachWorkerMeta → hydration이 meta 없는 tempId 태스크를 감지 못해 중복 생성)
+  asyncStatusStore.attachWorkerMeta(tempId, String(videoId), "video_processing");
+  const taskId = String(videoId);
+
   const putHeaders: Record<string, string> = {};
   if (contentTypeFromServer) {
     putHeaders["Content-Type"] = contentTypeFromServer;
   }
 
-  return { videoId, uploadUrl, putHeaders, tempId };
+  return { videoId, uploadUrl, putHeaders, tempId: taskId };
 }
 
 /**
@@ -108,7 +113,7 @@ export async function uploadFileToR2AndComplete(
       { timeout: 60_000 }
     );
 
-    asyncStatusStore.attachWorkerMeta(tempId, String(videoId), "video_processing");
+    // attachWorkerMeta는 initVideoUpload에서 이미 호출됨 (hydration 중복 방지)
     return videoId;
   } catch (error) {
     const msg =
