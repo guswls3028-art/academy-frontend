@@ -7,6 +7,7 @@
     <title>HakwonPlus</title>
     <!-- Open Graph: 카카오톡/페이스북 등 링크 미리보기. 호스트별 값은 아래 스크립트로 보정 -->
     <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="HakwonPlus" />
     <meta property="og:title" content="HakwonPlus" />
     <meta property="og:description" content="학원 관리·학생 학습 플랫폼" />
     <meta property="og:url" content="" />
@@ -34,6 +35,7 @@
         var cfg = tenants[host] || { t: "HakwonPlus", d: "학원 관리·학생 학습 플랫폼" };
         document.title = cfg.t;
         function setMeta(sel, val) { var el = document.querySelector(sel); if (el) el.setAttribute("content", val); }
+        setMeta('meta[property="og:site_name"]', cfg.t);
         setMeta('meta[property="og:title"]', cfg.t);
         setMeta('meta[property="og:description"]', cfg.d);
         setMeta('meta[name="twitter:title"]', cfg.t);

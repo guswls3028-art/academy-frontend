@@ -46,7 +46,11 @@ function injectMeta(html: string, meta: TenantMeta, origin: string): string {
   // <title>
   html = html.replace(/<title>[^<]*<\/title>/, `<title>${title}</title>`);
 
-  // og:title, og:description
+  // og:site_name, og:title, og:description
+  html = html.replace(
+    /<meta property="og:site_name" content="[^"]*" \/>/,
+    `<meta property="og:site_name" content="${title}" />`,
+  );
   html = html.replace(
     /<meta property="og:title" content="[^"]*" \/>/,
     `<meta property="og:title" content="${title}" />`,
