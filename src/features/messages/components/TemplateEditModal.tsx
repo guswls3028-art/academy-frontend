@@ -1,5 +1,5 @@
 // PATH: src/features/messages/components/TemplateEditModal.tsx
-// 템플릿 추가/수정 모달 — 좌: 미리보기+블록 / 우: 본문(게시판형), 뷰 모드(잠금) 지원
+// 템플릿 생성/수정 모달 — 좌: 미리보기+카테고리 / 우: 본문+삽입 블록
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Input } from "antd";
@@ -32,11 +32,10 @@ export type TemplateEditModalProps = {
   onClose: () => void;
   category: TemplateCategory;
   initial?: MessageTemplateItem | null;
-  /** true면 기존 템플릿을 잠금(읽기 전용) 상태로 연다. 더블클릭 시 사용 */
+  /** @deprecated view 모드 제거됨. 항상 수정 모드로 열림 */
   defaultLocked?: boolean;
   onSubmit: (payload: MessageTemplatePayload) => void;
   isPending?: boolean;
-  /** 다른 모달 위에 띄울 때 더 높은 z-index (예: 학생 등록 모달 안에서 열 때) */
   zIndex?: number;
 };
 
@@ -47,7 +46,6 @@ export default function TemplateEditModal({
   onClose,
   category,
   initial = null,
-  defaultLocked = false,
   onSubmit,
   isPending = false,
   zIndex,
@@ -57,7 +55,6 @@ export default function TemplateEditModal({
   const [body, setBody] = useState("");
   const [activeTab, setActiveTab] = useState<EditorTab>("message");
   const [selectedCategory, setSelectedCategory] = useState<TemplateCategory>(category);
-  const [isLocked, setIsLocked] = useState(false);
   const bodyRef = useRef<HTMLTextAreaElement>(null);
   const blocks = getBlocksForCategory(selectedCategory);
 
@@ -68,9 +65,8 @@ export default function TemplateEditModal({
       setBody(initial?.body ?? "");
       setActiveTab("message");
       setSelectedCategory(initial?.category ?? category);
-      setIsLocked(Boolean(initial && defaultLocked));
     }
-  }, [open, initial?.id, initial?.name, initial?.subject, initial?.body, initial?.category, category, defaultLocked]);
+  }, [open, initial?.id, initial?.name, initial?.subject, initial?.body, initial?.category, category]);
 
   const insertBlock = useCallback(
     (insertText: string) => {
@@ -107,7 +103,6 @@ export default function TemplateEditModal({
 
   const previewBody = renderPreviewText(body);
   const previewSubject = renderPreviewText(subject);
-  const locked = isLocked || isPending;
   const showSubject = activeTab === "alimtalk";
 
   const editorTabItems = [
@@ -117,23 +112,19 @@ export default function TemplateEditModal({
 
   if (!open) return null;
 
-  const title = initial
-    ? isLocked
-      ? "템플릿 보기"
-      : "템플릿 수정"
-    : "템플릿 추가";
+  const title = initial ? "템플릿 수정" : "템플릿 추가";
 
   return (
     <AdminModal open={open} onClose={onClose} width={1000} zIndex={zIndex} onEnterConfirm={!isPending ? handleSubmit : undefined}>
       <ModalHeader title={title} />
       <ModalBody>
         <div className="template-editor flex gap-5" style={{ minHeight: 420 }}>
-          {/* 좌측: 카테고리 + 미리보기만 (삽입 블록은 우측 본문 옆으로 이동) */}
+          {/* 좌측: 카테고리 + 미리보기 */}
           <div
             className="template-editor__left shrink-0 flex flex-col gap-4 p-4 overflow-hidden"
             style={{ width: 300 }}
           >
-            {/* 카테고리: 기본 | 강의 | 클리닉 (모달 내 입체탭) */}
+            {/* 카테고리 선택 */}
             <section>
               <div className="template-editor__blocks-title mb-2">카테고리</div>
               <div className="modal-tabs-elevated">
@@ -143,8 +134,8 @@ export default function TemplateEditModal({
                       key={cat}
                       type="button"
                       className={`ds-tab ${selectedCategory === cat ? "is-active" : ""}`}
-                      onClick={() => !locked && setSelectedCategory(cat)}
-                      disabled={locked}
+                      onClick={() => !isPending && setSelectedCategory(cat)}
+                      disabled={isPending}
                     >
                       {TEMPLATE_CATEGORY_LABELS[cat]}
                     </button>
@@ -188,9 +179,9 @@ export default function TemplateEditModal({
             </section>
           </div>
 
-          {/* 우측: 메시지|알림톡 탭 상단 → 이름·제목 → 본문 2패널(입력 | 삽입 블록) */}
+          {/* 우측: 편집 영역 */}
           <div className="template-editor__right flex-1 min-w-0 flex flex-col gap-2 p-4">
-            {/* 메시지/알림톡 탭 — 상단 배치 */}
+            {/* 메시지/알림톡 탭 */}
             <div className="modal-tabs-elevated template-editor__tabs template-editor__tabs--top">
               <Tabs
                 value={activeTab}
@@ -205,12 +196,12 @@ export default function TemplateEditModal({
                 placeholder="예: 출석 안내, 시험 일정 공지"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                disabled={locked}
+                disabled={isPending}
                 className="template-editor__textarea message-domain-input"
               />
             </div>
 
-            {/* 제목 영역 고정 높이 — 메시지↔알림톡 전환 시 레이아웃 흔들림 방지 */}
+            {/* 제목 영역 고정 높이 */}
             <div className={`template-editor__subject-slot ${showSubject ? "template-editor__subject-slot--has-subject" : ""}`}>
               {showSubject ? (
                 <>
@@ -221,7 +212,7 @@ export default function TemplateEditModal({
                     placeholder="알림톡 제목"
                     value={subject}
                     onChange={(e) => setSubject(e.target.value)}
-                    disabled={locked}
+                    disabled={isPending}
                     className="template-editor__textarea message-domain-input"
                   />
                 </>
@@ -230,7 +221,7 @@ export default function TemplateEditModal({
               )}
             </div>
 
-            {/* 본문 영역 — 2패널: 좌측 입력 | 우측 삽입 블록 */}
+            {/* 본문 — 2패널: 입력 | 삽입 블록 */}
             <div className="template-editor__body-row flex-1 min-h-0 flex gap-4">
               <div className="template-editor__body-input flex-1 min-w-0 flex flex-col">
                 <label className="template-editor__editor-title block mb-1">
@@ -242,7 +233,7 @@ export default function TemplateEditModal({
                   value={body}
                   onChange={(e) => setBody(e.target.value)}
                   rows={14}
-                  disabled={locked}
+                  disabled={isPending}
                   className="template-editor__textarea message-domain-input w-full p-3"
                   style={{ resize: "vertical", fontFamily: "inherit", minHeight: 280 }}
                 />
@@ -255,7 +246,7 @@ export default function TemplateEditModal({
                       key={block.id}
                       type="button"
                       onClick={() => insertBlock(block.insertText)}
-                      disabled={locked}
+                      disabled={isPending}
                       className={`template-editor__block-tag template-editor__block-tag--${selectedCategory} template-editor__block-tag--n${idx % 3}`}
                     >
                       {block.label}
@@ -270,33 +261,19 @@ export default function TemplateEditModal({
       <ModalFooter
         right={
           <>
-            {isLocked ? (
-              <>
-                <Button intent="secondary" onClick={onClose}>
-                  닫기
-                </Button>
-                <Button intent="primary" onClick={() => setIsLocked(false)}>
-                  수정하기
-                </Button>
-              </>
-            ) : (
-              <>
-                <Button intent="secondary" onClick={onClose} disabled={isPending}>
-                  취소
-                </Button>
-                <Button
-                  intent="primary"
-                  onClick={handleSubmit}
-                  disabled={!name.trim() || !body.trim() || isPending}
-                >
-                  {isPending ? "저장 중…" : initial ? "수정" : "저장"}
-                </Button>
-              </>
-            )}
+            <Button intent="secondary" onClick={onClose} disabled={isPending}>
+              취소
+            </Button>
+            <Button
+              intent="primary"
+              onClick={handleSubmit}
+              disabled={!name.trim() || !body.trim() || isPending}
+            >
+              {isPending ? "저장 중…" : initial ? "수정" : "저장"}
+            </Button>
           </>
         }
       />
     </AdminModal>
   );
 }
-
