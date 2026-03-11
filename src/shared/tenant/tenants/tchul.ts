@@ -12,11 +12,12 @@ export const tchul: TenantDef = {
   branding: {
     loginTitle: "Tchul.com",
     loginSubtitle: "관리자 로그인",
-    logoUrl: "/tenants/tchul/logo.png",
+    logoUrl: "/tenants/tchul/logo-full.png",
     windowTitle: "Tchul.com",
     faviconUrl: "/tenants/tchul/favicon.png",
     headerLogoUrl: "/tenants/tchul/icon.png",
     ogDescription: "Tchul.com 학습 플랫폼 – 학생·선생님 로그인",
+    ogImageUrl: "/tenants/tchul/logo.png",
   },
   dedicatedLoginPage: true,
   hasCustomLogo: true,
