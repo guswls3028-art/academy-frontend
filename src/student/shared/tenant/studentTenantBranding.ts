@@ -40,7 +40,7 @@ function getStudentBrandingByCode(code: string | null): StudentTenantBranding {
   }
 
   if (TCHUL_DESIGN_CODES.includes(effectiveCode as (typeof TCHUL_DESIGN_CODES)[number])) {
-    return { ...base, logoUrl: null, title: "박철과학" };
+    return { ...base, logoUrl: null };
   }
 
   if (COMMON_LOGO_CODES.includes(effectiveCode as (typeof COMMON_LOGO_CODES)[number])) {
