@@ -2,36 +2,8 @@
 import api from "@/shared/api/axios";
 import type { Submission, SubmissionStatus } from "@/features/submissions/types";
 
-const CANDIDATE_BASES = ["/submissions", "/submissions/submissions"] as const;
-
-async function tryGet<T>(paths: string[], params?: any): Promise<T> {
-  let lastErr: any = null;
-  for (const p of paths) {
-    try {
-      const res = await api.get(p, { params });
-      return res.data as T;
-    } catch (e: any) {
-      lastErr = e;
-    }
-  }
-  throw lastErr;
-}
-
-async function tryPost<T>(paths: string[], body?: any): Promise<T> {
-  let lastErr: any = null;
-  for (const p of paths) {
-    try {
-      const res = await api.post(p, body ?? {});
-      return res.data as T;
-    } catch (e: any) {
-      lastErr = e;
-    }
-  }
-  throw lastErr;
-}
-
 /**
- * ✅ Admin submission list (best-effort)
+ * Admin submission list
  * - filters: exam_id(target_id), enrollment_id, status
  * - supports DRF pagination or plain array
  */
@@ -50,14 +22,8 @@ export async function fetchAdminSubmissions(params?: {
   if (params?.status) query.status = params.status;
   if (Number.isFinite(params?.limit)) query.limit = params!.limit;
 
-  const paths: string[] = [];
-  for (const b of CANDIDATE_BASES) {
-    paths.push(`${b}/admin/submissions/`);
-    paths.push(`${b}/submissions/`);
-    paths.push(`${b}/`);
-  }
-
-  const data = await tryGet<any>(paths, query);
+  const res = await api.get("/submissions/submissions/", { params: query });
+  const data = res.data;
 
   if (Array.isArray(data)) return data as Submission[];
   if (Array.isArray(data?.results)) return data.results as Submission[];
@@ -66,30 +32,19 @@ export async function fetchAdminSubmissions(params?: {
 }
 
 /**
- * ✅ Unified retry (FAILED only)
- * - tries both public and admin base paths
+ * Unified retry (FAILED only)
  */
 export async function retryAnySubmission(submissionId: number): Promise<{
   submission_id?: number;
   id?: number;
   status?: SubmissionStatus;
 } | any> {
-  const paths: string[] = [];
-  for (const b of CANDIDATE_BASES) {
-    paths.push(`${b}/${submissionId}/retry/`);
-    paths.push(`${b}/submissions/${submissionId}/retry/`);
-  }
-  return tryPost<any>(paths, {});
+  const res = await api.post(`/submissions/submissions/${submissionId}/retry/`, {});
+  return res.data;
 }
 
 /**
- * ✅ Manual review fetch (best-effort)
- * - expects shape:
- *   {
- *     identifier?: string | null,
- *     answers?: Array<{ question_id?: number; question_no?: number; answer?: string; meta?: any }>,
- *     meta?: any
- *   }
+ * Manual review fetch
  */
 export async function fetchSubmissionManualReview(submissionId: number): Promise<{
   identifier?: string | null;
@@ -101,38 +56,17 @@ export async function fetchSubmissionManualReview(submissionId: number): Promise
   }>;
   meta?: any;
 }> {
-  const paths: string[] = [];
-  for (const b of CANDIDATE_BASES) {
-    paths.push(`${b}/${submissionId}/manual-review/`);
-    paths.push(`${b}/${submissionId}/manual_edit/`);
-    paths.push(`${b}/${submissionId}/manual-edit/`);
-    paths.push(`${b}/submissions/${submissionId}/manual-review/`);
-    paths.push(`${b}/submissions/${submissionId}/manual_edit/`);
-    paths.push(`${b}/submissions/${submissionId}/manual-edit/`);
-  }
-  return tryGet<any>(paths);
+  const res = await api.get(`/submissions/submissions/${submissionId}/manual-edit/`);
+  return res.data;
 }
 
 /**
- * ✅ Manual review save + regrade (best-effort)
- * - payload contract is intentionally minimal and append-only friendly:
- *   {
- *     identifier?: string | null,
- *     answers?: Array<{ question_id?: number; question_no?: number; answer: string }>
- *   }
+ * Manual review save + regrade
  */
 export async function saveSubmissionManualReview(submissionId: number, payload: {
   identifier?: string | null;
   answers: Array<{ question_id?: number; question_no?: number; answer: string }>;
 }): Promise<any> {
-  const paths: string[] = [];
-  for (const b of CANDIDATE_BASES) {
-    paths.push(`${b}/${submissionId}/manual-review/`);
-    paths.push(`${b}/${submissionId}/manual_edit/`);
-    paths.push(`${b}/${submissionId}/manual-edit/`);
-    paths.push(`${b}/submissions/${submissionId}/manual-review/`);
-    paths.push(`${b}/submissions/${submissionId}/manual_edit/`);
-    paths.push(`${b}/submissions/${submissionId}/manual-edit/`);
-  }
-  return tryPost<any>(paths, payload);
+  const res = await api.post(`/submissions/submissions/${submissionId}/manual-edit/`, payload);
+  return res.data;
 }
