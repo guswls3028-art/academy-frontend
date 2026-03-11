@@ -25,32 +25,32 @@ export interface TemplateBlock {
 
 const B = {
   // 공통
-  student_name_2:    { id: "student_name_2",    label: "이름 2글자",       insertText: "#{student_name_2}",    previewValue: "길동" },
-  student_name_3:    { id: "student_name_3",    label: "이름 3글자",       insertText: "#{student_name_3}",    previewValue: "홍길동" },
-  site_link:         { id: "site_link",         label: "사이트 링크",      insertText: "#{site_link}",         previewValue: getTenantSiteUrl() },
-  date:              { id: "date",              label: "날짜",             insertText: "#{date}",              previewValue: "2026-03-11" },
-  time:              { id: "time",              label: "시간",             insertText: "#{time}",              previewValue: "14:00" },
+  student_name_2:    { id: "student_name_2",    label: "이름 2글자",       insertText: "#{학생이름2}",         previewValue: "길동" },
+  student_name_3:    { id: "student_name_3",    label: "이름 3글자",       insertText: "#{학생이름3}",         previewValue: "홍길동" },
+  site_link:         { id: "site_link",         label: "사이트 링크",      insertText: "#{사이트링크}",        previewValue: getTenantSiteUrl() },
+  date:              { id: "date",              label: "날짜",             insertText: "#{날짜}",              previewValue: "2026-03-11" },
+  time:              { id: "time",              label: "시간",             insertText: "#{시간}",              previewValue: "14:00" },
   // 가입/등록
-  student_name:      { id: "student_name",      label: "이름 (전체)",      insertText: "#{student_name}",      previewValue: "홍길동" },
-  student_id:        { id: "student_id",        label: "학생 아이디",      insertText: "#{student_id}",        previewValue: "S20250001" },
-  student_password:  { id: "student_password",  label: "학생 비밀번호",    insertText: "#{student_password}",  previewValue: "****" },
-  parent_id:         { id: "parent_id",         label: "학부모 아이디",    insertText: "#{parent_id}",         previewValue: "010****1234" },
-  parent_password:   { id: "parent_password",   label: "학부모 비밀번호",  insertText: "#{parent_password}",   previewValue: "****" },
-  pw_notice:         { id: "pw_notice",         label: "비밀번호 변경 안내", insertText: "#{pw_notice}",       previewValue: "보안을 위해 비밀번호를 변경해 주세요." },
+  student_name:      { id: "student_name",      label: "이름 (전체)",      insertText: "#{학생이름}",          previewValue: "홍길동" },
+  student_id:        { id: "student_id",        label: "학생 아이디",      insertText: "#{학생아이디}",        previewValue: "S20250001" },
+  student_password:  { id: "student_password",  label: "학생 비밀번호",    insertText: "#{학생비밀번호}",      previewValue: "****" },
+  parent_id:         { id: "parent_id",         label: "학부모 아이디",    insertText: "#{학부모아이디}",      previewValue: "010****1234" },
+  parent_password:   { id: "parent_password",   label: "학부모 비밀번호",  insertText: "#{학부모비밀번호}",    previewValue: "****" },
+  pw_notice:         { id: "pw_notice",         label: "비밀번호 변경 안내", insertText: "#{비밀번호안내}",    previewValue: "보안을 위해 비밀번호를 변경해 주세요." },
   // 강의/출결
-  lecture_name:      { id: "lecture_name",      label: "강의명",           insertText: "#{lecture_name}",      previewValue: "수학 심화반" },
-  session_name:      { id: "session_name",      label: "차시명",           insertText: "#{session_name}",      previewValue: "3회차" },
+  lecture_name:      { id: "lecture_name",      label: "강의명",           insertText: "#{강의명}",            previewValue: "수학 심화반" },
+  session_name:      { id: "session_name",      label: "차시명",           insertText: "#{차시명}",            previewValue: "3회차" },
   // 시험
-  exam_name:         { id: "exam_name",         label: "시험명",           insertText: "#{exam_name}",         previewValue: "3월 모의고사" },
-  score:             { id: "score",             label: "성적",             insertText: "#{score}",             previewValue: "85점" },
+  exam_name:         { id: "exam_name",         label: "시험명",           insertText: "#{시험명}",            previewValue: "3월 모의고사" },
+  score:             { id: "score",             label: "성적",             insertText: "#{성적}",              previewValue: "85점" },
   // 과제
-  assignment_name:   { id: "assignment_name",   label: "과제명",           insertText: "#{assignment_name}",   previewValue: "단원 복습 과제" },
+  assignment_name:   { id: "assignment_name",   label: "과제명",           insertText: "#{과제명}",            previewValue: "단원 복습 과제" },
   // 성적
-  exam_score:        { id: "exam_score",        label: "시험 성적",        insertText: "#{exam_score}",        previewValue: "85점" },
-  assignment_score:  { id: "assignment_score",  label: "과제 성적",        insertText: "#{assignment_score}",  previewValue: "90점" },
+  exam_score:        { id: "exam_score",        label: "시험 성적",        insertText: "#{시험성적}",          previewValue: "85점" },
+  assignment_score:  { id: "assignment_score",  label: "과제 성적",        insertText: "#{과제성적}",          previewValue: "90점" },
   // 클리닉
-  clinic_name:       { id: "clinic_name",       label: "클리닉명",         insertText: "#{clinic_name}",       previewValue: "수학 보충 클리닉" },
-  clinic_place:      { id: "clinic_place",      label: "클리닉 장소",      insertText: "#{clinic_place}",      previewValue: "3층 세미나실" },
+  clinic_name:       { id: "clinic_name",       label: "클리닉명",         insertText: "#{클리닉명}",          previewValue: "수학 보충 클리닉" },
+  clinic_place:      { id: "clinic_place",      label: "클리닉 장소",      insertText: "#{장소}",              previewValue: "3층 세미나실" },
 } satisfies Record<string, TemplateBlock>;
 
 // ─── 카테고리별 블록 조합 ───
