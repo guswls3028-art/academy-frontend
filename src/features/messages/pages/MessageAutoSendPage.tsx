@@ -11,6 +11,7 @@ import {
   fetchMessageTemplate,
   updateAutoSendConfigs,
   updateMessageTemplate,
+  createMessageTemplate,
   type AutoSendConfigItem,
   AUTO_SEND_TRIGGER_LABELS,
   type MessageTemplateItem,
@@ -84,7 +85,7 @@ function TriggerCard({
   templates: MessageTemplateItem[];
   onUpdate: (c: Partial<AutoSendConfigItem>, debounce?: boolean) => void;
   saving: boolean;
-  onEditTemplate?: (templateId: number) => void;
+  onEditTemplate?: (trigger: string, templateId: number | null) => void;
   smsConnected: boolean;
 }) {
 
@@ -193,8 +194,7 @@ function TriggerCard({
           : status || "";
 
         const handleEditClick = () => {
-          if (!config.template) return;
-          onEditTemplate?.(config.template);
+          onEditTemplate?.(config.trigger, config.template);
         };
 
         return (
@@ -214,7 +214,7 @@ function TriggerCard({
               <button
                 type="button"
                 onClick={handleEditClick}
-                disabled={saving || !hasTemplate}
+                disabled={saving}
                 style={{
                   display: "flex",
                   alignItems: "center",
@@ -322,6 +322,7 @@ export default function MessageAutoSendPage() {
   const qc = useQueryClient();
   const [selectedSection, setSelectedSection] = useState<AutoSendSectionId>("signup");
   const [editingTemplate, setEditingTemplate] = useState<MessageTemplateItem | null>(null);
+  const [creatingForTrigger, setCreatingForTrigger] = useState<string | null>(null);
   const { data: messagingInfo } = useMessagingInfo();
   const smsConnected = !!(messagingInfo?.sms_allowed);
 
