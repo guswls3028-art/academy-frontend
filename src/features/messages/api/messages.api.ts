@@ -188,6 +188,11 @@ export async function fetchMessageTemplates(
   return res.data;
 }
 
+export async function fetchMessageTemplate(id: number): Promise<MessageTemplateItem> {
+  const res = await api.get<MessageTemplateItem>(`${PREFIX}/templates/${id}/`);
+  return res.data;
+}
+
 export async function createMessageTemplate(
   payload: MessageTemplatePayload
 ): Promise<MessageTemplateItem> {

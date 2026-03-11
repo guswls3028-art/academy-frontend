@@ -8,6 +8,7 @@ import { Switch } from "antd";
 import {
   fetchAutoSendConfigs,
   fetchMessageTemplates,
+  fetchMessageTemplate,
   updateAutoSendConfigs,
   updateMessageTemplate,
   type AutoSendConfigItem,
@@ -83,7 +84,7 @@ function TriggerCard({
   templates: MessageTemplateItem[];
   onUpdate: (c: Partial<AutoSendConfigItem>, debounce?: boolean) => void;
   saving: boolean;
-  onEditTemplate?: (template: MessageTemplateItem) => void;
+  onEditTemplate?: (templateId: number) => void;
   smsConnected: boolean;
 }) {
 
@@ -172,29 +173,46 @@ function TriggerCard({
 
       {/* 컨트롤 영역 */}
       {!isComingSoon && (() => {
-        const linked = config.template
-          ? templates.find((t) => t.id === config.template)
-          : null;
+        const hasTemplate = !!config.template;
+        const status = config.template_solapi_status;
 
         const statusColor =
-          linked?.solapi_status === "APPROVED"
-            ? "var(--color-status-success, #16a34a)"
-            : linked?.solapi_status === "PENDING"
-            ? "var(--color-status-warning, #d97706)"
-            : "var(--color-status-danger, #dc2626)";
+          status === "APPROVED" ? "var(--color-status-success, #16a34a)"
+          : status === "PENDING" ? "var(--color-status-warning, #d97706)"
+          : "var(--color-status-danger, #dc2626)";
 
         const statusBg =
-          linked?.solapi_status === "APPROVED"
-            ? "color-mix(in srgb, var(--color-status-success, #16a34a) 10%, transparent)"
-            : linked?.solapi_status === "PENDING"
-            ? "color-mix(in srgb, var(--color-status-warning, #d97706) 10%, transparent)"
-            : "color-mix(in srgb, var(--color-status-danger, #dc2626) 10%, transparent)";
+          status === "APPROVED" ? "color-mix(in srgb, var(--color-status-success, #16a34a) 10%, transparent)"
+          : status === "PENDING" ? "color-mix(in srgb, var(--color-status-warning, #d97706) 10%, transparent)"
+          : "color-mix(in srgb, var(--color-status-danger, #dc2626) 10%, transparent)";
 
         const statusLabel =
-          linked?.solapi_status === "APPROVED" ? "승인"
-          : linked?.solapi_status === "PENDING" ? "검수대기"
-          : linked?.solapi_status === "REJECTED" ? "반려"
-          : linked?.solapi_status ?? "";
+          status === "APPROVED" ? "승인"
+          : status === "PENDING" ? "검수대기"
+          : status === "REJECTED" ? "반려"
+          : status || "";
+
+        // 수정 클릭 시 templates 배열에서 full object 조회
+        const handleEditClick = () => {
+          if (!config.template) return;
+          const full = templates.find((t) => t.id === config.template);
+          if (full) {
+            onEditTemplate?.(full);
+          } else {
+            // 템플릿 목록에 없으면 최소 정보로 모달 오픈
+            onEditTemplate?.({
+              id: config.template,
+              name: config.template_name,
+              category: "default",
+              subject: "",
+              body: "",
+              solapi_template_id: "",
+              solapi_status: config.template_solapi_status,
+              created_at: "",
+              updated_at: "",
+            } as MessageTemplateItem);
+          }
+        };
 
         return (
           <div
@@ -212,8 +230,8 @@ function TriggerCard({
               </div>
               <button
                 type="button"
-                onClick={() => linked && onEditTemplate?.(linked)}
-                disabled={saving || !linked}
+                onClick={handleEditClick}
+                disabled={saving || !hasTemplate}
                 style={{
                   display: "flex",
                   alignItems: "center",
@@ -224,20 +242,20 @@ function TriggerCard({
                   fontSize: 13,
                   fontWeight: 500,
                   textAlign: "left",
-                  color: linked ? "var(--color-text-primary)" : "var(--color-text-muted)",
+                  color: "var(--color-text-primary)",
                   background: "color-mix(in srgb, var(--color-border-divider) 10%, var(--color-bg-surface))",
                   border: "1px solid var(--color-border-divider)",
                   borderRadius: "var(--radius-md)",
                   boxShadow: "inset 0 2px 4px rgba(0,0,0,.06), inset 0 -1px 0 0 rgba(255,255,255,.04)",
-                  cursor: linked ? "pointer" : "default",
+                  cursor: hasTemplate ? "pointer" : "default",
                   transition: "border-color 120ms, box-shadow 120ms",
                 }}
               >
-                <FiEdit3 size={13} style={{ flexShrink: 0, color: "var(--color-primary)", opacity: linked ? 1 : 0.3 }} aria-hidden />
+                <FiEdit3 size={13} style={{ flexShrink: 0, color: "var(--color-primary)" }} aria-hidden />
                 <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {linked ? "수정하기" : "템플릿 없음"}
+                  수정하기
                 </span>
-                {linked?.solapi_status && (
+                {hasTemplate && status && (
                   <span
                     style={{
                       fontSize: 10,
