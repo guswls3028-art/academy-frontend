@@ -184,9 +184,6 @@ export default function EnrollmentManageModal({
             <div className="flex flex-wrap items-center justify-between gap-2">
               <span className="text-[13px] text-[var(--color-text-secondary)]">
                 선택된 {selectedIds.size}명 / 전체 {rows.length}명
-                <span className="ml-1.5 text-[var(--color-text-muted)]">
-                  session #{sessionId}
-                </span>
               </span>
               {!readOnly && (
                 <div className="flex gap-2">

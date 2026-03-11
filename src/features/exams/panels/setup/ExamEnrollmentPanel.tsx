@@ -133,9 +133,6 @@ export default function ExamEnrollmentPanel({ examId }: { examId: number }) {
                 (불러오기 실패)
               </span>
             )}
-            <span className="ml-2 text-xs text-[var(--text-muted)]">
-              exam #{examId} · session #{sessionId}
-            </span>
           </div>
 
           <Button

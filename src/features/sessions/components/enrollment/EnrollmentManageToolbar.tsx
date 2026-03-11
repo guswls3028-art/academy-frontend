@@ -69,9 +69,6 @@ export default function EnrollmentManageToolbar({
 
       <div className="text-xs text-[var(--text-secondary)]">
         선택됨: <b>{selectedCount}</b>명 / 전체 {totalCount}명
-        <span className="ml-2 text-[var(--text-muted)]">
-          session #{sessionId}
-        </span>
       </div>
 
       {!readOnly && (
