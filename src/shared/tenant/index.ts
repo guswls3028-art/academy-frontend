@@ -96,7 +96,9 @@ export function getTenantCodeFromHostname(hostname?: string): TenantResolveResul
     return { ok: false, reason: "missing" };
   }
 
-  return { ok: true, code: host, source: "hostname" };
+  // hostname → tenant code 매핑 (ymath.co.kr → ymath, tchul.com → tchul 등)
+  const mapped = HOSTNAME_TO_TENANT_CODE[host] || HOSTNAME_TO_TENANT_CODE[host.replace(/^www\./, "")];
+  return { ok: true, code: mapped || host, source: "hostname" };
 }
 
 /**
