@@ -484,6 +484,7 @@ export default function MessageAutoSendPage() {
                     onUpdate={handleUpdate}
                     saving={updateMut.isPending}
                     onEditTemplate={(tpl) => setEditingTemplate(tpl)}
+                    smsConnected={smsConnected}
                   />
                 ))}
               </>
