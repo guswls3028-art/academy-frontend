@@ -18,10 +18,9 @@
   box-sizing: border-box;
 }
 
-html,
 body {
-  height: 100%;
-  overflow: hidden; /* 기본적으로 body 스크롤 차단 */
+  margin: 0;
+  padding: 0;
 }
 
 html {
@@ -29,35 +28,40 @@ html {
   text-rendering: optimizeLegibility;
 }
 
-body {
-  margin: 0;
-  padding: 0;
+/* Student-app-only: body-level visual styles
+   Scoped via :has() so they only apply when [data-app="student"] is present */
+body:has([data-app="student"]) {
+  height: 100%;
+  overflow: hidden; /* body 스크롤 차단 — student app only */
   background-color: var(--stu-bg);
   color: var(--stu-text);
   font-family: var(--stu-font-sans);
   font-size: var(--stu-font-size-14);
   line-height: var(--stu-line-20);
-  letter-spacing: -0.01em; /* 프리미엄: 음수 letter-spacing */
+  letter-spacing: -0.01em;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-
-  /* iOS overscroll bounce color */
   overscroll-behavior-y: none;
-  
+
   /* 프리미엄: 배경 질감 추가 (미묘한 그리드 패턴) */
-  background-image: 
+  background-image:
     radial-gradient(circle at 1px 1px, rgba(0, 0, 0, 0.008) 1px, transparent 0),
     linear-gradient(to bottom, transparent, rgba(0, 0, 0, 0.01));
   background-size: 24px 24px, 100% 100%;
   background-position: 0 0, 0 0;
 }
 
-/* Media elements */
-img,
-picture,
-video,
-canvas,
-svg {
+html:has([data-app="student"]) {
+  height: 100%;
+  overflow: hidden;
+}
+
+/* Media elements — scoped to student app */
+[data-app="student"] img,
+[data-app="student"] picture,
+[data-app="student"] video,
+[data-app="student"] canvas,
+[data-app="student"] svg {
   display: block;
   max-width: 100%;
 }
@@ -67,22 +71,22 @@ svg {
   opacity: 0.85;
 }
 
-/* Forms */
-input,
-button,
-textarea,
-select {
+/* Forms — scoped to student app */
+[data-app="student"] input,
+[data-app="student"] button,
+[data-app="student"] textarea,
+[data-app="student"] select {
   font: inherit;
   color: inherit;
 }
 
-button {
+[data-app="student"] button {
   border: 0;
   background: transparent;
   padding: 0;
 }
 
-a {
+[data-app="student"] a {
   color: inherit;
   text-decoration: none;
 }
