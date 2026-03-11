@@ -15,7 +15,7 @@
  * - loading/saving 상태에서 상호작용 최소화
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { EnrollmentRow } from "@/features/sessions/components/enrollment/types";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
 import { Button, EmptyState } from "@/shared/ui/ds";
@@ -84,20 +84,29 @@ export default function HomeworkEnrollmentManageModal({
     if (!open) setKeyword("");
   }, [open]);
 
+  const safeClose = useCallback(() => {
+    if (saving) return;
+    if (!dirty) {
+      onClose();
+      return;
+    }
+    const ok = window.confirm(
+      "변경사항이 있습니다.\n저장하지 않고 닫을까요?"
+    );
+    if (ok) onClose();
+  }, [saving, dirty, onClose]);
+
   // ESC 닫기 + dirty confirm
   useEffect(() => {
     if (!open) return;
-
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
       e.preventDefault();
       safeClose();
     };
-
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, dirty, saving, loading]);
+  }, [open, safeClose]);
 
   const filtered = useMemo(() => {
     const k = keyword.trim().toLowerCase();
@@ -117,18 +126,6 @@ export default function HomeworkEnrollmentManageModal({
 
   const canInteract = !loading && !saving;
   const canSave = dirty && !loading && !saving;
-
-  const safeClose = () => {
-    if (saving) return;
-    if (!dirty) {
-      onClose();
-      return;
-    }
-    const ok = window.confirm(
-      "변경사항이 있습니다.\n저장하지 않고 닫을까요?"
-    );
-    if (ok) onClose();
-  };
 
   const selectAll = () => {
     if (!canInteract) return;
