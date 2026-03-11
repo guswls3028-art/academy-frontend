@@ -380,8 +380,6 @@ export default function MessageAutoSendPage() {
   });
 
   const [localConfigs, setLocalConfigs] = useState<AutoSendConfigItem[]>([]);
-  const localConfigsRef = useRef<AutoSendConfigItem[]>([]);
-  localConfigsRef.current = localConfigs;
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     setLocalConfigs(configs);
@@ -534,7 +532,7 @@ export default function MessageAutoSendPage() {
                     onUpdate={handleUpdate}
                     saving={updateMut.isPending}
                     smsAllowed={smsAllowed}
-                    onOpenCreateTemplate={(trigger) => setCreateTemplateForTrigger(trigger)}
+                    onEditTemplate={(tpl) => setEditingTemplate(tpl)}
                   />
                 ))}
               </>
@@ -545,12 +543,12 @@ export default function MessageAutoSendPage() {
     </div>
 
     <TemplateEditModal
-      open={createTemplateForTrigger !== null}
-      onClose={() => setCreateTemplateForTrigger(null)}
-      category="default"
-      initial={null}
-      onSubmit={(payload) => createTemplateMut.mutate(payload)}
-      isPending={createTemplateMut.isPending}
+      open={editingTemplate !== null}
+      onClose={() => setEditingTemplate(null)}
+      category={editingTemplate?.category ?? "default"}
+      initial={editingTemplate}
+      onSubmit={(payload) => editTemplateMut.mutate(payload)}
+      isPending={editTemplateMut.isPending}
     />
   </>
   );
