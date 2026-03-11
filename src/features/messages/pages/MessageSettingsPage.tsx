@@ -650,8 +650,8 @@ export default function MessageSettingsPage() {
           발신번호
         </div>
         <p style={{ fontSize: 13, color: "var(--color-text-muted)", marginBottom: 12 }}>
-          SMS·알림톡 발송 시 사용할 발신번호입니다.{" "}
-          {provider === "ppurio" ? "뿌리오" : "솔라피"}에 등록된 번호만 사용 가능합니다.
+          SMS·알림톡 발송 시 표시되는 발신번호입니다.
+          선택한 공급자({provider === "ppurio" ? "뿌리오" : "솔라피"})에 사전 등록·인증된 번호만 사용할 수 있습니다.
         </p>
         <div className="flex flex-col gap-3">
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -705,23 +705,23 @@ export default function MessageSettingsPage() {
           <GuideStep step={1}>
             <strong>메시징 공급자 선택</strong> — 위에서{" "}
             <strong>솔라피(Solapi)</strong> 또는 <strong>뿌리오(Ppurio)</strong>를 선택합니다.
-            API 키가 설정되어 있어야 발송이 가능합니다.
+            두 공급자 모두 플랫폼에서 연동되어 있으므로 별도 API 키 입력 없이 바로 사용 가능합니다.
           </GuideStep>
           <GuideStep step={2}>
-            <strong>발신번호 등록</strong> — 설정 &gt; 내 정보에서{" "}
-            {provider === "ppurio" ? "뿌리오" : "솔라피"}에 등록된 발신번호를 입력하고 인증합니다.
+            <strong>발신번호 등록</strong> — 설정 &gt; 내 정보에서 발신번호를 입력하고 인증합니다.
+            발신번호는 선택한 공급자({provider === "ppurio" ? "뿌리오" : "솔라피"})에 사전 등록된 번호여야 합니다.
           </GuideStep>
           <GuideStep step={3}>
-            <strong>알림톡 채널 설정 (선택)</strong> — 자체 카카오 비즈니스 채널을 사용하려면
-            PFID를 등록하세요. 미설정 시 플랫폼 기본 채널로 발송됩니다.
+            <strong>알림톡 채널 설정 (선택)</strong> — 학원 자체 카카오 비즈니스 채널이 있으면
+            PFID를 등록하세요. <strong>설정하지 않아도 플랫폼 기본 채널로 알림톡이 발송됩니다.</strong>
           </GuideStep>
           <GuideStep step={4}>
             <strong>템플릿 작성 및 검수 신청</strong> — 「템플릿 저장」 탭에서 알림톡 양식을
-            작성하고 검수 신청합니다. 카카오 검수 승인 후 알림톡 발송이 가능합니다.
+            작성하고 검수 신청합니다. 카카오 검수 승인(영업일 1~3일) 후 알림톡 발송이 가능합니다.
           </GuideStep>
           <GuideStep step={5}>
-            <strong>자동발송 설정</strong> — 「자동발송」 탭에서 각 이벤트별로 템플릿·발송 방식을
-            설정하고 활성화합니다.
+            <strong>자동발송 설정</strong> — 「자동발송」 탭에서 구간별 트리거를 활성화하고
+            템플릿·발송 방식·발송 시점을 설정합니다.
           </GuideStep>
 
           <div
