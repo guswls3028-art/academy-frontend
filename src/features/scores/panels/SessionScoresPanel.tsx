@@ -14,6 +14,8 @@ import { scoresQueryKeys } from "../api/queryKeys";
 import { fetchAttendance, updateAttendance } from "@/features/lectures/api/attendance";
 
 import ScoresTable, { type ScoresTableHandle } from "../components/ScoresTable";
+import StudentScoresDrawer from "../components/StudentScoresDrawer";
+import StudentResultDrawer from "@/features/results/components/StudentResultDrawer";
 import { EmptyState } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import AdminOmrBatchUploadBox from "@/features/submissions/components/AdminOmrBatchUploadBox";
@@ -68,6 +70,10 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
   const tableRef = useRef<ScoresTableHandle>(null);
   const qc = useQueryClient();
   const [openOmrForExam, setOpenOmrForExam] = useState<{ examId: number; title: string } | null>(null);
+  /** 읽기 모드 — 학생 상세 드로어 (이름 클릭) */
+  const [drawerRow, setDrawerRow] = useState<SessionScoreRow | null>(null);
+  /** 답안 상세 드로어 (StudentScoresDrawer → 답안 상세 보기) */
+  const [answerDetail, setAnswerDetail] = useState<{ examId: number; enrollmentId: number; examTitle: string } | null>(null);
 
   const handleOpenOmrModal = useCallback((examId: number, title: string) => {
     setOpenOmrForExam({ examId, title });
@@ -260,6 +266,9 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
       setSelectedEnrollmentId(null);
       return;
     }
+    // 편집 모드 진입 시 드로어 닫기
+    setDrawerRow(null);
+    setAnswerDetail(null);
     // 편집 모드 진입 시에만 첫 점수 셀 자동 포커스
     const justEntered = !prevEditModeRef.current;
     prevEditModeRef.current = true;
@@ -371,12 +380,35 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
                 }
               }
             : () => {}}
-          onSelectRow={isEditMode ? (r) => setSelectedEnrollmentId(r.enrollment_id) : () => {}}
+          onSelectRow={isEditMode ? (r) => setSelectedEnrollmentId(r.enrollment_id) : (r) => setDrawerRow(r)}
           selectedEnrollmentIds={selectedEnrollmentIds}
           onSelectionChange={onSelectionChange}
           onOpenOmrModal={handleOpenOmrModal}
         />
       </div>
+
+      {/* 읽기 모드 학생 상세 드로어 */}
+      {drawerRow && !isEditMode && (
+        <StudentScoresDrawer
+          row={drawerRow}
+          meta={meta}
+          onClose={() => { setDrawerRow(null); setAnswerDetail(null); }}
+          onOpenAnswerDetail={(examId, enrollmentId, examTitle) => {
+            setAnswerDetail({ examId, enrollmentId, examTitle });
+          }}
+        />
+      )}
+
+      {/* 답안 상세 드로어 (StudentScoresDrawer 에서 "답안 상세 보기" 클릭) */}
+      {answerDetail && (
+        <StudentResultDrawer
+          examId={answerDetail.examId}
+          enrollmentId={answerDetail.enrollmentId}
+          studentName={drawerRow?.student_name ?? ""}
+          examTitle={answerDetail.examTitle}
+          onClose={() => setAnswerDetail(null)}
+        />
+      )}
 
       {openOmrForExam && (
         <div

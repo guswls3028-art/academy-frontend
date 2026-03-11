@@ -1,0 +1,227 @@
+/* 성적 탭 — 학생 상세 드로어 (우측 슬라이드) */
+
+.student-scores-drawer {
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+}
+
+.student-scores-drawer__section {
+  margin-bottom: var(--space-5);
+}
+
+.student-scores-drawer__section-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: 0 0 var(--space-3);
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--color-border-divider);
+}
+
+.student-scores-drawer__empty {
+  padding: var(--space-6) 0;
+  text-align: center;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+/* ── Exam list ── */
+
+.student-scores-drawer__exam-list,
+.student-scores-drawer__hw-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.student-scores-drawer__exam-card,
+.student-scores-drawer__hw-card {
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface);
+  overflow: hidden;
+  transition: border-color 0.15s;
+}
+
+.student-scores-drawer__exam-card:hover,
+.student-scores-drawer__hw-card:hover {
+  border-color: color-mix(in srgb, var(--color-brand-primary) 30%, var(--color-border-divider));
+}
+
+/* ── Exam header (clickable to expand) ── */
+
+.student-scores-drawer__exam-header {
+  padding: var(--space-3);
+  cursor: pointer;
+  user-select: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.student-scores-drawer__exam-header:hover {
+  background: var(--color-bg-surface-hover);
+}
+
+.student-scores-drawer__exam-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.student-scores-drawer__exam-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.student-scores-drawer__exam-score-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 13px;
+}
+
+.student-scores-drawer__exam-score {
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.student-scores-drawer__max-score {
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+
+.student-scores-drawer__exam-breakdown {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  font-weight: 500;
+}
+
+.student-scores-drawer__no-score {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
+.student-scores-drawer__expand-icon {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  color: var(--color-text-muted);
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+.student-scores-drawer__expand-icon.is-expanded {
+  transform: rotate(180deg);
+}
+
+/* ── Homework card ── */
+
+.student-scores-drawer__hw-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-3) var(--space-1);
+  gap: var(--space-2);
+}
+
+.student-scores-drawer__hw-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.student-scores-drawer__hw-score {
+  padding: 0 var(--space-3) var(--space-3);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+/* ── Retry / detail section ── */
+
+.student-scores-drawer__retry-section {
+  border-top: 1px solid var(--color-border-divider);
+  background: color-mix(in srgb, var(--color-brand-primary) 4%, var(--color-bg-surface));
+  padding: var(--space-3);
+}
+
+.student-scores-drawer__retry-loading,
+.student-scores-drawer__retry-error {
+  font-size: 12px;
+  text-align: center;
+  padding: var(--space-2) 0;
+}
+
+.student-scores-drawer__retry-loading {
+  color: var(--color-text-muted);
+}
+
+.student-scores-drawer__retry-error {
+  color: var(--color-error);
+}
+
+.student-scores-drawer__retry-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.student-scores-drawer__retry-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+}
+
+.student-scores-drawer__retry-label {
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.student-scores-drawer__retry-value {
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+.student-scores-drawer__detail-btn {
+  margin-top: var(--space-2);
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-brand-primary);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  text-align: center;
+}
+
+.student-scores-drawer__detail-btn:hover {
+  background: var(--color-bg-surface-hover);
+  border-color: color-mix(in srgb, var(--color-brand-primary) 30%, var(--color-border-divider));
+}
+
+.student-scores-drawer__detail-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-brand-primary) 35%, transparent);
+}

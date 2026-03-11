@@ -4,7 +4,7 @@
  */
 
 import { useState, useMemo, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useQueries, useMutation, useQueryClient } from "@tanstack/react-query";
 import { FilePlus, Video, Folder, Eye } from "lucide-react";
 import { Button, EmptyState } from "@/shared/ui/ds";
@@ -38,6 +38,7 @@ import {
 } from "@/features/lectures/api/sessions";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { asyncStatusStore } from "@/shared/ui/asyncStatus";
+import VideoDetailOverlay from "./VideoDetailOverlay";
 import panelStyles from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
 import styles from "../components/VideoExplorer.module.css";
 
@@ -97,6 +98,7 @@ function formatDuration(seconds: number | null | undefined): string | null {
 
 export default function VideoExplorerPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const [selectedFolderId, setSelectedFolderId] = useState<VideoFolderId>(null);
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
@@ -104,6 +106,26 @@ export default function VideoExplorerPage() {
   const [newFolderName, setNewFolderName] = useState("");
   const [newFolderOpen, setNewFolderOpen] = useState(false);
   const [addChoiceModalOpen, setAddChoiceModalOpen] = useState(false);
+
+  // Overlay state — driven by ?videoId=N&lectureId=N&sessionId=N search params
+  const overlayVideoId = searchParams.get("videoId") ? Number(searchParams.get("videoId")) : null;
+  const overlayLectureId = searchParams.get("lectureId") ? Number(searchParams.get("lectureId")) : null;
+  const overlaySessionId = searchParams.get("sessionId") ? Number(searchParams.get("sessionId")) : null;
+  const isOverlayOpen = overlayVideoId != null && overlayLectureId != null && overlaySessionId != null;
+
+  const openOverlay = useCallback(
+    (videoId: number, lectureId: number, sessionId: number) => {
+      setSearchParams(
+        { videoId: String(videoId), lectureId: String(lectureId), sessionId: String(sessionId) },
+        { replace: true }
+      );
+    },
+    [setSearchParams]
+  );
+
+  const closeOverlay = useCallback(() => {
+    setSearchParams({}, { replace: true });
+  }, [setSearchParams]);
 
   const { data: lectures = [], isLoading: lecturesLoading } = useQuery({
     queryKey: ["admin-videos-lectures"],
@@ -229,25 +251,23 @@ export default function VideoExplorerPage() {
   };
 
   const openVideoDetail = (video: ApiVideo) => {
-    // 상세 페이지가 아니라 해당 영상이 있는 강의-차시-영상 탭으로 이동
+    // 전체공개영상인 경우
     if (selectedFolderId === "public" && publicSession && video.session_id === publicSession.session_id) {
-      navigate(
-        `/admin/lectures/${publicSession.lecture_id}/sessions/${publicSession.session_id}/videos`
-      );
+      openOverlay(video.id, publicSession.lecture_id, publicSession.session_id);
       return;
     }
+    // 현재 선택된 세션의 영상인 경우
     if (video.session_id && selectedSession) {
-      navigate(
-        `/admin/lectures/${selectedSession.lecture.id}/sessions/${selectedSession.session.id}/videos`
-      );
+      openOverlay(video.id, selectedSession.lecture.id, selectedSession.session.id);
       return;
     }
+    // 다른 강의-차시 영상 탐색
     const lecWithSession = lecturesWithSessions.find((l) =>
       l.sessions.some((s) => s.id === video.session_id)
     );
     const sess = lecWithSession?.sessions.find((s) => s.id === video.session_id);
     if (lecWithSession && sess) {
-      navigate(`/admin/lectures/${lecWithSession.id}/sessions/${sess.id}/videos`);
+      openOverlay(video.id, lecWithSession.id, sess.id);
     }
   };
 
@@ -651,6 +671,14 @@ export default function VideoExplorerPage() {
             </Button>
           </ModalFooter>
         </AdminModal>
+      )}
+      {isOverlayOpen && (
+        <VideoDetailOverlay
+          videoId={overlayVideoId!}
+          lectureId={overlayLectureId!}
+          sessionId={overlaySessionId!}
+          onClose={closeOverlay}
+        />
       )}
     </DomainLayout>
   );
