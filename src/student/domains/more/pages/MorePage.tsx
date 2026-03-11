@@ -45,7 +45,7 @@ const FULL_NAV: { category: string; items: { label: string; to: string; icon: Re
   },
   {
     category: "소통",
-    items: [{ label: "QnA", to: "/student/qna", icon: <IconBoard style={{ width: 22, height: 22, flexShrink: 0 }} /> }],
+    items: [{ label: "커뮤니티", to: "/student/community", icon: <IconBoard style={{ width: 22, height: 22, flexShrink: 0 }} /> }],
   },
   {
     category: "클리닉",

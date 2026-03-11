@@ -33,6 +33,7 @@ const GradeDetailPage = lazy(() => import("@/student/domains/grades/pages/GradeD
 const MorePage = lazy(() => import("@/student/domains/more/pages/MorePage"));
 const ProfilePage = lazy(() => import("@/student/domains/profile/pages/ProfilePage"));
 const QnaPage = lazy(() => import("@/student/domains/qna/pages/QnaPage"));
+const CommunityPage = lazy(() => import("@/student/domains/community/pages/CommunityPage"));
 const NoticesPage = lazy(() => import("@/student/domains/notices/pages/NoticesPage"));
 const NoticeDetailPage = lazy(() => import("@/student/domains/notices/pages/NoticeDetailPage"));
 const NotificationsPage = lazy(() => import("@/student/domains/notifications/pages/NotificationsPage"));
@@ -93,7 +94,8 @@ export default function StudentRouter() {
         <Route path="more" element={<MorePage />} />
         <Route path="profile" element={<ProfilePage />} />
         <Route path="settings" element={<StudentSettingsPage />} />
-        <Route path="qna" element={<QnaPage />} />
+        <Route path="community" element={<CommunityPage />} />
+        <Route path="qna" element={<CommunityPage />} /> {/* 하위호환: /qna → 커뮤니티 */}
         <Route path="notices" element={<NoticesPage />} />
         <Route path="notices/:id" element={<NoticeDetailPage />} />
         <Route path="notifications" element={<NotificationsPage />} />
