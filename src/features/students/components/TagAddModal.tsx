@@ -1,13 +1,14 @@
 // PATH: src/features/students/components/TagAddModal.tsx
-// 선택한 학생들에게 태그 일괄 부여
+// 선택한 학생들에게 태그 일괄 부여 + 인라인 태그 생성
 
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getTags, attachStudentTag } from "../api/students";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter } from "@/shared/ui/modal";
 import { MODAL_WIDTH } from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import TagCreateModal from "./TagCreateModal";
 
 type TagAddModalProps = {
   open: boolean;
@@ -26,7 +27,9 @@ export default function TagAddModal({
   adding,
   setAdding,
 }: TagAddModalProps) {
+  const qc = useQueryClient();
   const [selectedTagId, setSelectedTagId] = useState<number | null>(null);
+  const [showCreate, setShowCreate] = useState(false);
   const { data: tags = [], isLoading } = useQuery({
     queryKey: ["students", "tags"],
     queryFn: getTags,
@@ -55,51 +58,73 @@ export default function TagAddModal({
   if (!open) return null;
 
   return (
-    <AdminModal open={open} onClose={onClose} width={MODAL_WIDTH.sm}>
-      <ModalHeader
-        title="태그 추가"
-        description={`선택한 ${studentIds.length}명에게 추가할 태그를 선택하세요.`}
-      />
-      <ModalBody>
-        <div className="space-y-2">
-          <label className="block text-sm font-medium text-[var(--color-text-secondary)]">태그</label>
-          <select
-            className="ds-input w-full"
-            value={selectedTagId ?? ""}
-            onChange={(e) => setSelectedTagId(e.target.value ? Number(e.target.value) : null)}
-            disabled={isLoading}
-          >
-            <option value="">태그 선택…</option>
-            {tags.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name}
-              </option>
-            ))}
-          </select>
-          {tags.length === 0 && !isLoading && (
-            <p className="text-sm text-[var(--color-text-muted)]">등록된 태그가 없습니다. 학생 상세에서 태그를 먼저 만드세요.</p>
-          )}
-        </div>
-      </ModalBody>
-      <ModalFooter
-        right={
-          <>
-            <Button type="button" intent="secondary" size="md" onClick={onClose} disabled={adding}>
-              취소
-            </Button>
-            <Button
+    <>
+      <AdminModal open={open} onClose={onClose} width={MODAL_WIDTH.sm}>
+        <ModalHeader
+          title="태그 추가"
+          description={`선택한 ${studentIds.length}명에게 추가할 태그를 선택하세요.`}
+        />
+        <ModalBody>
+          <div className="space-y-3">
+            <div>
+              <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">태그</label>
+              <select
+                className="ds-input w-full"
+                value={selectedTagId ?? ""}
+                onChange={(e) => setSelectedTagId(e.target.value ? Number(e.target.value) : null)}
+                disabled={isLoading}
+              >
+                <option value="">태그 선택…</option>
+                {tags.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <button
               type="button"
-              intent="primary"
-              size="md"
-              onClick={handleSubmit}
-              disabled={adding || !selectedTagId || studentIds.length === 0}
-              loading={adding}
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-[var(--color-brand-primary)] hover:text-[var(--color-brand-primary-hover)] transition-colors"
+              onClick={() => setShowCreate(true)}
             >
-              {adding ? "추가 중…" : "태그 추가"}
-            </Button>
-          </>
-        }
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+              새 태그 만들기
+            </button>
+          </div>
+        </ModalBody>
+        <ModalFooter
+          right={
+            <>
+              <Button type="button" intent="secondary" size="md" onClick={onClose} disabled={adding}>
+                취소
+              </Button>
+              <Button
+                type="button"
+                intent="primary"
+                size="md"
+                onClick={handleSubmit}
+                disabled={adding || !selectedTagId || studentIds.length === 0}
+                loading={adding}
+              >
+                {adding ? "추가 중…" : "태그 추가"}
+              </Button>
+            </>
+          }
+        />
+      </AdminModal>
+
+      <TagCreateModal
+        open={showCreate}
+        onClose={() => setShowCreate(false)}
+        usedColors={tags.map((t) => t.color).filter(Boolean)}
+        onSuccess={(tag) => {
+          qc.invalidateQueries({ queryKey: ["students", "tags"] });
+          setSelectedTagId(tag.id);
+          setShowCreate(false);
+        }}
       />
-    </AdminModal>
+    </>
   );
 }

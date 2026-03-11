@@ -22,7 +22,7 @@ import StudentsTable, { getStudentsTableColumnsDef } from "../components/Student
 import StudentCreateModal from "../components/StudentCreateModal";
 import StudentFilterModal from "../components/StudentFilterModal";
 import TagAddModal from "../components/TagAddModal";
-import PasswordResetModal from "../components/PasswordResetModal";
+import PasswordResetModal, { type PwResetTarget } from "../components/PasswordResetModal";
 
 import { Button, EmptyState } from "@/shared/ui/ds";
 import { DomainListToolbar, useTableColumnPrefs, TableColumnPicker } from "@/shared/ui/domain";
@@ -63,7 +63,7 @@ export default function StudentsHomePage() {
   const [bulkUploadProgress, setBulkUploadProgress] = useState<{ current: number; total: number } | null>(null);
   const [showTagModal, setShowTagModal] = useState(false);
   const [showPasswordResetModal, setShowPasswordResetModal] = useState(false);
-  const [passwordResetTarget, setPasswordResetTarget] = useState<"student" | "parent">("student");
+  const [passwordResetTarget, setPasswordResetTarget] = useState<PwResetTarget>("student");
   const [tagAdding, setTagAdding] = useState(false);
   const [passwordResetting, setPasswordResetting] = useState(false);
 

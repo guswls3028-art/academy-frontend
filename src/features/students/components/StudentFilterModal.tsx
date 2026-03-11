@@ -73,24 +73,18 @@ export default function StudentFilterModal({
       <ModalBody>
         <div className="modal-scroll-body modal-scroll-body--compact">
           <div className="modal-form-row modal-form-row--3">
-            <select
-              className="ds-select"
-              value={local.school_type ?? ""}
-              onChange={(e) => update("school_type", e.target.value)}
-            >
-              <option value="">학교급 전체</option>
-              <option value="HIGH">고등</option>
-              <option value="MIDDLE">중등</option>
-            </select>
-            <select
-              className="ds-select"
-              value={local.is_managed ?? ""}
-              onChange={(e) => update("is_managed", e.target.value)}
-            >
-              <option value="">상태 전체</option>
-              <option value="true">활성</option>
-              <option value="false">비활성</option>
-            </select>
+            <input
+              className="ds-input"
+              placeholder="이름"
+              value={local.name || ""}
+              onChange={(e) => update("name", e.target.value)}
+            />
+            <input
+              className="ds-input"
+              placeholder="아이디"
+              value={local.ps_number || ""}
+              onChange={(e) => update("ps_number", e.target.value)}
+            />
             <select
               className="ds-select"
               value={local.gender || ""}
@@ -104,30 +98,36 @@ export default function StudentFilterModal({
           <div className="modal-form-row modal-form-row--3">
             <input
               className="ds-input"
-              placeholder="아이디"
-              value={local.ps_number || ""}
-              onChange={(e) => update("ps_number", e.target.value)}
+              placeholder="학생 전화번호"
+              value={local.student_phone || ""}
+              onChange={(e) => update("student_phone", e.target.value)}
             />
             <input
               className="ds-input"
-              placeholder="OMR 식별자 (8자리)"
-              value={local.omr_code || ""}
-              onChange={(e) => update("omr_code", e.target.value)}
+              placeholder="학부모 전화번호"
+              value={local.parent_phone || ""}
+              onChange={(e) => update("parent_phone", e.target.value)}
             />
-            <input
-              className="ds-input"
-              placeholder="이름"
-              value={local.name || ""}
-              onChange={(e) => update("name", e.target.value)}
-            />
+            <select
+              className="ds-select"
+              value={local.is_managed ?? ""}
+              onChange={(e) => update("is_managed", e.target.value)}
+            >
+              <option value="">상태 전체</option>
+              <option value="true">활성</option>
+              <option value="false">비활성</option>
+            </select>
           </div>
           <div className="modal-form-row modal-form-row--3">
-            <input
-              className="ds-input"
-              placeholder="계열(major)"
-              value={local.major || ""}
-              onChange={(e) => update("major", e.target.value)}
-            />
+            <select
+              className="ds-select"
+              value={local.school_type ?? ""}
+              onChange={(e) => update("school_type", e.target.value)}
+            >
+              <option value="">학교급 전체</option>
+              <option value="HIGH">고등</option>
+              <option value="MIDDLE">중등</option>
+            </select>
             <input
               className="ds-input"
               placeholder="고등학교"
@@ -141,21 +141,24 @@ export default function StudentFilterModal({
               onChange={(e) => update("middle_school", e.target.value)}
             />
           </div>
-          <div className="modal-form-row modal-form-row--1-auto">
+          <div className="modal-form-row modal-form-row--3">
             <select
               className="ds-select"
               value={local.grade ?? ""}
               onChange={(e) => update("grade", e.target.value)}
-              style={{ maxWidth: "12rem" }}
             >
               <option value="">학년 전체</option>
               <option value="1">1학년</option>
               <option value="2">2학년</option>
               <option value="3">3학년</option>
             </select>
-            <span className="modal-hint" style={{ marginBottom: 0 }}>
-              필터는 서버 조회에 반영되며, 빈 값은 자동 제거됩니다.
-            </span>
+            <input
+              className="ds-input"
+              placeholder="계열"
+              value={local.major || ""}
+              onChange={(e) => update("major", e.target.value)}
+            />
+            <span />
           </div>
         </div>
       </ModalBody>

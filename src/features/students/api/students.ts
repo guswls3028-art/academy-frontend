@@ -627,8 +627,9 @@ export async function sendPasswordReset(params: {
   student_name: string;
   student_ps_number?: string;
   parent_phone?: string;
+  temp_password?: string;
 }): Promise<{ message: string }> {
-  const { target, student_name, student_ps_number, parent_phone } = params;
+  const { target, student_name, student_ps_number, parent_phone, temp_password } = params;
   const body: Record<string, string> = {
     target,
     student_name: student_name.trim(),
@@ -638,6 +639,9 @@ export async function sendPasswordReset(params: {
   }
   if (target === "parent" && parent_phone != null) {
     body.parent_phone = normalizePhone(String(parent_phone));
+  }
+  if (temp_password?.trim()) {
+    body.temp_password = temp_password.trim();
   }
   const res = await api.post<{ message: string }>("/students/password_reset_send/", body, {
     skipAuth: true as any,
