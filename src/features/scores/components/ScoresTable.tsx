@@ -824,7 +824,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                   ref={(el) => {
                                     const k = `${row.enrollment_id}-${ex.exam_id}`;
                                     examInputRefs.current[k] = el;
-                                    if (el && el !== document.activeElement) el.innerText = block?.score != null ? String(Math.round(block.score)) : "";
+                                    if (el && el !== document.activeElement && !dirtyKeysRef.current.has(`examTotal:${row.enrollment_id}:${ex.exam_id}`)) el.innerText = block?.score != null ? String(Math.round(block.score)) : "";
                                   }}
                                   contentEditable
                                   suppressContentEditableWarning
@@ -848,21 +848,21 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                   onKeyDown={(e) => {
                                     const el = examInputRefs.current[`${row.enrollment_id}-${ex.exam_id}`];
                                     if (e.key === "Escape") {
-                                      e.preventDefault();
+                                      e.preventDefault(); e.stopPropagation();
                                       const prev = examScoreValueOnFocusRef.current[`${row.enrollment_id}-${ex.exam_id}`] ?? "";
                                       if (el) el.innerText = prev;
                                       el?.blur();
                                     } else if (e.key === "Enter") {
-                                      e.preventDefault();
-                                      onRequestMoveDown?.(); // blur fires on focus move → onBlur saves
+                                      e.preventDefault(); e.stopPropagation();
+                                      onRequestMoveDown?.();
                                     } else if (e.key === "Tab") {
-                                      e.preventDefault();
-                                      if (e.shiftKey) onRequestMovePrev?.(); // blur fires → onBlur saves
+                                      e.preventDefault(); e.stopPropagation();
+                                      if (e.shiftKey) onRequestMovePrev?.();
                                       else onRequestMoveNext?.();
-                                    } else if (e.key === "ArrowUp") { e.preventDefault(); onRequestMoveUp?.(); }
-                                    else if (e.key === "ArrowDown") { e.preventDefault(); onRequestMoveDown?.(); }
-                                    else if (e.key === "ArrowLeft") { e.preventDefault(); onRequestMovePrev?.(); }
-                                    else if (e.key === "ArrowRight") { e.preventDefault(); onRequestMoveNext?.(); }
+                                    } else if (e.key === "ArrowUp") { e.preventDefault(); e.stopPropagation(); onRequestMoveUp?.(); }
+                                    else if (e.key === "ArrowDown") { e.preventDefault(); e.stopPropagation(); onRequestMoveDown?.(); }
+                                    else if (e.key === "ArrowLeft") { e.preventDefault(); e.stopPropagation(); onRequestMovePrev?.(); }
+                                    else if (e.key === "ArrowRight") { e.preventDefault(); e.stopPropagation(); onRequestMoveNext?.(); }
                                   }}
                                 />
                               ) : (
@@ -887,7 +887,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                   ref={(el) => {
                                     const k = `${row.enrollment_id}-${ex.exam_id}-objective`;
                                     examObjectiveInputRefs.current[k] = el;
-                                    if (el && el !== document.activeElement) el.innerText = objScore != null ? String(Math.round(objScore)) : "";
+                                    if (el && el !== document.activeElement && !dirtyKeysRef.current.has(`examObjective:${row.enrollment_id}:${ex.exam_id}`)) el.innerText = objScore != null ? String(Math.round(objScore)) : "";
                                   }}
                                   contentEditable
                                   suppressContentEditableWarning
@@ -911,21 +911,21 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                   onKeyDown={(e) => {
                                     const el = examObjectiveInputRefs.current[`${row.enrollment_id}-${ex.exam_id}-objective`];
                                     if (e.key === "Escape") {
-                                      e.preventDefault();
+                                      e.preventDefault(); e.stopPropagation();
                                       const prev = examScoreValueOnFocusRef.current[`${row.enrollment_id}-${ex.exam_id}-objective`] ?? "";
                                       if (el) el.innerText = prev;
                                       el?.blur();
                                     } else if (e.key === "Enter") {
-                                      e.preventDefault();
-                                      onRequestMoveDown?.(); // blur fires → onBlur saves
+                                      e.preventDefault(); e.stopPropagation();
+                                      onRequestMoveDown?.();
                                     } else if (e.key === "Tab") {
-                                      e.preventDefault();
-                                      if (e.shiftKey) onRequestMovePrev?.(); // blur fires → onBlur saves
+                                      e.preventDefault(); e.stopPropagation();
+                                      if (e.shiftKey) onRequestMovePrev?.();
                                       else onRequestMoveNext?.();
-                                    } else if (e.key === "ArrowUp") { e.preventDefault(); onRequestMoveUp?.(); }
-                                    else if (e.key === "ArrowDown") { e.preventDefault(); onRequestMoveDown?.(); }
-                                    else if (e.key === "ArrowLeft") { e.preventDefault(); onRequestMovePrev?.(); }
-                                    else if (e.key === "ArrowRight") { e.preventDefault(); onRequestMoveNext?.(); }
+                                    } else if (e.key === "ArrowUp") { e.preventDefault(); e.stopPropagation(); onRequestMoveUp?.(); }
+                                    else if (e.key === "ArrowDown") { e.preventDefault(); e.stopPropagation(); onRequestMoveDown?.(); }
+                                    else if (e.key === "ArrowLeft") { e.preventDefault(); e.stopPropagation(); onRequestMovePrev?.(); }
+                                    else if (e.key === "ArrowRight") { e.preventDefault(); e.stopPropagation(); onRequestMoveNext?.(); }
                                   }}
                                 />
                               ) : (
@@ -950,7 +950,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                   ref={(el) => {
                                     const k = `${row.enrollment_id}-${ex.exam_id}-subjective`;
                                     examSubjectiveInputRefs.current[k] = el;
-                                    if (el && el !== document.activeElement) el.innerText = subScore != null ? String(Math.round(subScore)) : "";
+                                    if (el && el !== document.activeElement && !dirtyKeysRef.current.has(`examSubjective:${row.enrollment_id}:${ex.exam_id}`)) el.innerText = subScore != null ? String(Math.round(subScore)) : "";
                                   }}
                                   contentEditable
                                   suppressContentEditableWarning
@@ -974,21 +974,21 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                   onKeyDown={(e) => {
                                     const el = examSubjectiveInputRefs.current[`${row.enrollment_id}-${ex.exam_id}-subjective`];
                                     if (e.key === "Escape") {
-                                      e.preventDefault();
+                                      e.preventDefault(); e.stopPropagation();
                                       const prev = examScoreValueOnFocusRef.current[`${row.enrollment_id}-${ex.exam_id}-subjective`] ?? "";
                                       if (el) el.innerText = prev;
                                       el?.blur();
                                     } else if (e.key === "Enter") {
-                                      e.preventDefault();
-                                      onRequestMoveDown?.(); // blur fires → onBlur saves
+                                      e.preventDefault(); e.stopPropagation();
+                                      onRequestMoveDown?.();
                                     } else if (e.key === "Tab") {
-                                      e.preventDefault();
-                                      if (e.shiftKey) onRequestMovePrev?.(); // blur fires → onBlur saves
+                                      e.preventDefault(); e.stopPropagation();
+                                      if (e.shiftKey) onRequestMovePrev?.();
                                       else onRequestMoveNext?.();
-                                    } else if (e.key === "ArrowUp") { e.preventDefault(); onRequestMoveUp?.(); }
-                                    else if (e.key === "ArrowDown") { e.preventDefault(); onRequestMoveDown?.(); }
-                                    else if (e.key === "ArrowLeft") { e.preventDefault(); onRequestMovePrev?.(); }
-                                    else if (e.key === "ArrowRight") { e.preventDefault(); onRequestMoveNext?.(); }
+                                    } else if (e.key === "ArrowUp") { e.preventDefault(); e.stopPropagation(); onRequestMoveUp?.(); }
+                                    else if (e.key === "ArrowDown") { e.preventDefault(); e.stopPropagation(); onRequestMoveDown?.(); }
+                                    else if (e.key === "ArrowLeft") { e.preventDefault(); e.stopPropagation(); onRequestMovePrev?.(); }
+                                    else if (e.key === "ArrowRight") { e.preventDefault(); e.stopPropagation(); onRequestMoveNext?.(); }
                                   }}
                                 />
                               ) : (
@@ -1078,7 +1078,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                               ref={(el) => {
                                 const key = `${row.enrollment_id}-${hw.homework_id}`;
                                 homeworkInputRefs.current[key] = el;
-                                if (el && el !== document.activeElement) {
+                                if (el && el !== document.activeElement && !dirtyKeysRef.current.has(`homework:${row.enrollment_id}:${hw.homework_id}`)) {
                                   if (isNotSubmitted) el.innerText = "미제출";
                                   else el.innerText = block?.score != null ? String(block.score) : "";
                                 }
@@ -1133,21 +1133,20 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                 const raw = (e.target instanceof HTMLElement ? e.target.innerText?.trim() : el?.innerText?.trim()) ?? "";
 
                                 if (e.key === "Escape") {
-                                  e.preventDefault();
+                                  e.preventDefault(); e.stopPropagation();
                                   const prev = scoreValueOnFocusRef.current[key] ?? "";
                                   if (el) el.innerText = prev;
                                   el?.blur();
                                   return;
                                 }
                                 if (e.key === "Tab") {
-                                  e.preventDefault();
-                                  // blur fires on focus move → onBlur handles save
+                                  e.preventDefault(); e.stopPropagation();
                                   if (e.shiftKey) onRequestMovePrev?.();
                                   else onRequestMoveNext?.();
                                   return;
                                 }
                                 if (e.key === "Enter") {
-                                  e.preventDefault();
+                                  e.preventDefault(); e.stopPropagation();
                                   if (e.shiftKey) {
                                     onRequestMoveUp?.();
                                     return;
@@ -1208,12 +1207,12 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                   }
                                 }
                                 if (e.key === "ArrowUp") {
-                                  e.preventDefault();
+                                  e.preventDefault(); e.stopPropagation();
                                   onRequestMoveUp?.();
                                   return;
                                 }
                                 if (e.key === "ArrowDown") {
-                                  e.preventDefault();
+                                  e.preventDefault(); e.stopPropagation();
                                   onRequestMoveDown?.();
                                   return;
                                 }
