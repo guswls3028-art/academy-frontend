@@ -38,7 +38,7 @@ export default function AttemptSelectorPanel({
           key={a.id}
           className="border rounded px-3 py-2 text-sm"
         >
-          Attempt #{a.attempt_index} · 점수: {a.score ?? "-"}{" "}
+          제{a.attempt_index}차 시도 · 점수: {a.score ?? "-"}{" "}
           {a.is_representative && "⭐"}
         </div>
       ))}

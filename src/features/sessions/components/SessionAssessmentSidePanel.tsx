@@ -73,23 +73,6 @@ export default function SessionAssessmentSidePanel({
     enabled: !!sessionId,
   });
 
-  const { data: examsSummary } = useQuery({
-    queryKey: ["session-exams-summary", sessionId],
-    queryFn: async () => {
-      const res = await api.get(`/results/admin/sessions/${sessionId}/exams/summary/`);
-      return res.data as { exams?: { exam_id: number; participant_count: number; pass_count: number; fail_count: number }[] };
-    },
-    enabled: !!sessionId,
-  });
-
-  const examStatsById = useMemo(() => {
-    const map: Record<number, { participant_count: number; pass_count: number; fail_count: number }> = {};
-    (examsSummary?.exams ?? []).forEach((e) => {
-      map[e.exam_id] = { participant_count: e.participant_count, pass_count: e.pass_count, fail_count: e.fail_count };
-    });
-    return map;
-  }, [examsSummary]);
-
   const { data: homeworks = [], isLoading: hwLoading } = useQuery({
     queryKey: ["session-homeworks", sessionId],
     queryFn: async (): Promise<HomeworkItem[]> => {
@@ -129,7 +112,6 @@ export default function SessionAssessmentSidePanel({
   }, [location.pathname, sessionId, lectureId, examId, homeworkId, exams, homeworks, navigate]);
 
   const invalidateExams = () => qc.invalidateQueries({ queryKey: ["admin-session-exams", sessionId] });
-  const invalidateExamsSummary = () => qc.invalidateQueries({ queryKey: ["session-exams-summary", sessionId] });
   const invalidateSessionScores = () => qc.invalidateQueries({ queryKey: ["session-scores", sessionId] });
   const invalidateHomeworks = () => qc.invalidateQueries({ queryKey: ["session-homeworks", sessionId] });
 
@@ -169,7 +151,6 @@ export default function SessionAssessmentSidePanel({
       await updateAdminExam(id, { status: "OPEN" });
       qc.invalidateQueries({ queryKey: ["admin-exam", id] });
       invalidateExams();
-      invalidateExamsSummary();
       invalidateSessionScores();
       feedback.success("시험을 진행 중으로 변경했습니다.");
     } catch (e: any) {
@@ -186,7 +167,6 @@ export default function SessionAssessmentSidePanel({
       await updateAdminExam(id, { status: "CLOSED" });
       qc.invalidateQueries({ queryKey: ["admin-exam", id] });
       invalidateExams();
-      invalidateExamsSummary();
       invalidateSessionScores();
       feedback.success("시험을 종료했습니다.");
     } catch (e: any) {

@@ -237,7 +237,6 @@ export default function CreateHomeworkModal({
                         >
                           <div className="flex items-start justify-between gap-2">
                             <div className="text-sm font-semibold text-[var(--text-primary)] truncate">{t.title}</div>
-                            <span className="text-xs text-[var(--text-muted)]">#{t.id}</span>
                           </div>
                           {(t.used_lectures?.length ?? 0) > 0 && (
                             <div className="mt-2 flex flex-wrap gap-1.5">
@@ -268,7 +267,7 @@ export default function CreateHomeworkModal({
                 aria-label="과제 제목"
               />
               {stage === "import" && selectedTemplate && (
-                <p className="modal-hint modal-hint--block">템플릿: {selectedTemplate.title} (#{selectedTemplate.id})</p>
+                <p className="modal-hint modal-hint--block">템플릿: {selectedTemplate.title}</p>
               )}
             </div>
           )}

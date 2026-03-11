@@ -158,7 +158,7 @@ export default function EnrollmentManageModal({
           style={{
             gridTemplateColumns: "1fr 220px",
             maxHeight: "min(78vh, 600px)",
-            minHeight: 480,
+            minHeight: 420,
           }}
         >
           {/* 좌측: 검색 + 툴바 + 테이블 */}

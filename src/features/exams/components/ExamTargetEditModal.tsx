@@ -57,9 +57,6 @@ export default function ExamTargetEditModal({
                   className="flex justify-between rounded border px-3 py-2"
                 >
                   <span>{r.student_name}</span>
-                  <span className="text-xs text-muted">
-                    #{r.enrollment}
-                  </span>
                 </li>
               ))}
             </ul>

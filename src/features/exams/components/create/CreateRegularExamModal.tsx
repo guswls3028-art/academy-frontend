@@ -295,9 +295,6 @@ export default function CreateRegularExamModal({
                                 </div>
                               )}
                             </div>
-                            <div className="shrink-0 text-xs text-[var(--text-muted)]">
-                              template #{t.id}
-                            </div>
                           </div>
 
                           {lectures.length > 0 && (
@@ -347,7 +344,7 @@ export default function CreateRegularExamModal({
               />
               {stage === "import" && selectedTemplate && (
                 <p className="modal-hint modal-hint--block">
-                  템플릿: {selectedTemplate.title} (#{selectedTemplate.id})
+                  템플릿: {selectedTemplate.title}
                 </p>
               )}
             </div>
