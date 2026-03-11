@@ -77,12 +77,14 @@ function TriggerCard({
   onUpdate,
   saving,
   onEditTemplate,
+  smsConnected,
 }: {
   config: AutoSendConfigItem;
   templates: MessageTemplateItem[];
   onUpdate: (c: Partial<AutoSendConfigItem>, debounce?: boolean) => void;
   saving: boolean;
   onEditTemplate?: (template: MessageTemplateItem) => void;
+  smsConnected: boolean;
 }) {
 
   const isComingSoon = false;
@@ -333,10 +335,18 @@ function TriggerCard({
               }
               disabled={saving}
             >
-              <option value="sms">{MESSAGE_MODE_LABELS.sms}</option>
+              {smsConnected && <option value="sms">{MESSAGE_MODE_LABELS.sms}</option>}
               <option value="alimtalk">{MESSAGE_MODE_LABELS.alimtalk}</option>
-              <option value="both">{MESSAGE_MODE_LABELS.both}</option>
+              {smsConnected && <option value="both">{MESSAGE_MODE_LABELS.both}</option>}
             </select>
+            {!smsConnected && (
+              <p style={{ fontSize: 11, color: "var(--color-text-muted)", marginTop: 4 }}>
+                SMS 미연동 — 알림톡만 가능합니다.{" "}
+                <a href="/admin/message/settings" style={{ color: "var(--color-brand-primary)", fontWeight: 600, textDecoration: "none" }}>
+                  연동하러 가기 →
+                </a>
+              </p>
+            )}
           </div>
         </div>
       )}
