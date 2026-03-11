@@ -25,6 +25,7 @@ import AutoSendSectionTree, {
 import { MESSAGE_MODE_LABELS } from "../constants/messageSendOptions";
 import TemplateEditModal from "../components/TemplateEditModal";
 import panelStyles from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
+import "../styles/templateEditor.css";
 
 const QUERY_KEY = ["messaging", "auto-send"] as const;
 

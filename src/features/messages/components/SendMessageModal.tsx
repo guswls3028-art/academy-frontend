@@ -272,9 +272,9 @@ export default function SendMessageModal({
             )}
           </section>
 
-          {/* 발송 유형: SMS + 알림톡, SMS만, 알림톡만 (기본값 = SMS + 알림톡) */}
+          {/* 발송 방식: 메세지, 알림톡, 모두 (SSOT: messageSendOptions) */}
           <section>
-            <div className="text-sm font-medium text-[var(--color-text-primary)] mb-2">발송 유형</div>
+            <div className="text-sm font-medium text-[var(--color-text-primary)] mb-2">발송 방식</div>
             <div className="flex flex-wrap items-center gap-6">
               <label
                 className={
@@ -287,7 +287,7 @@ export default function SendMessageModal({
                   onChange={(e) => setUseSms(e.target.checked)}
                   disabled={!smsAllowed}
                 />
-                <span>SMS 발송</span>
+                <span>메세지</span>
               </label>
               <label className="inline-flex items-center gap-2 cursor-pointer">
                 <input
@@ -295,22 +295,22 @@ export default function SendMessageModal({
                   checked={useAlimtalk}
                   onChange={(e) => setUseAlimtalk(e.target.checked)}
                 />
-                <span>알림톡 발송</span>
+                <span>알림톡</span>
               </label>
               {messageModes.length === 0 && (
                 <span className="text-xs text-[var(--color-status-warning)]">
-                  SMS 또는 알림톡 중 최소 1개를 선택하세요.
+                  메세지 또는 알림톡 중 최소 1개를 선택하세요.
                 </span>
               )}
             </div>
             {!smsAllowed && (
               <p className="text-xs text-[var(--color-text-muted)] mt-1">
-                문자(SMS)는 내 테넌트 전용 정책으로 이 학원에서는 사용할 수 없습니다.
+                문자(메세지)는 내 테넌트 전용 정책으로 이 학원에서는 사용할 수 없습니다.
               </p>
             )}
             {(useAlimtalk || useSms) && (
               <p className="text-xs text-[var(--color-text-muted)] mt-1">
-                기본: SMS + 알림톡, SMS만, 알림톡만. 둘 다 선택하면 동일 내용을 SMS와 알림톡 각각 발송합니다. 알림톡은 검수 승인된 템플릿이 필요합니다.
+                메세지, 알림톡, 모두. 둘 다 선택 시 모두(알림톡→메세지 폴백)로 발송됩니다. 알림톡은 검수 승인된 템플릿이 필요합니다.
               </p>
             )}
           </section>

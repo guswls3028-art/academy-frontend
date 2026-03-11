@@ -52,6 +52,13 @@
   cursor: default;
 }
 
+/* 메시지 도메인 공통 플레이스홀더 디자인 (자동발송·발송 모달·템플릿 편집 등) */
+.message-domain-input::placeholder,
+.template-editor__textarea::placeholder {
+  color: var(--color-text-muted);
+  opacity: 0.9;
+}
+
 .template-editor__preview-placeholder {
   color: var(--color-text-muted);
 }
