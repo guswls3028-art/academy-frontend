@@ -4,12 +4,17 @@
 
 .root {
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 2rem;
-  background: var(--auth-bg);
-  color: var(--auth-text);
+  background: var(--auth-bg, #fafbfc);
+  color: var(--auth-text, #1a1d21);
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  /* auth 페이지 자체 리셋 — 외부 전역 CSS에 의존하지 않음 */
+  line-height: 1.5;
 }
 
 .center {
@@ -37,7 +42,7 @@
   font-weight: 700;
   letter-spacing: -0.02em;
   line-height: 1.2;
-  color: var(--auth-text);
+  color: var(--auth-text, #1a1d21);
   margin: 0 0 0.25rem;
 }
 
@@ -45,7 +50,7 @@
   font-size: 0.9375rem;
   font-weight: 500;
   letter-spacing: 0.01em;
-  color: var(--auth-text-muted);
+  color: var(--auth-text-muted, #6b7280);
   margin: 0;
 }
 
