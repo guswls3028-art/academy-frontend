@@ -138,6 +138,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const status = err?.response?.status;
           if (status === 401 || status === 403 || status === 404) {
             clearAuth();
+          } else if (!err?.response && err?.code !== "ECONNABORTED") {
+            clearAuth();
           }
         }
       );

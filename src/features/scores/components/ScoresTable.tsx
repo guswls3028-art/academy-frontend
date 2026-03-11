@@ -524,11 +524,12 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                   <button
                     type="button"
                     onClick={() => onOpenOmrModal(ex.exam_id, ex.title ?? "")}
-                    className="inline-flex items-center justify-center w-7 h-7 rounded border-0 text-[var(--color-text-muted)] hover:text-[var(--color-brand-primary)] hover:bg-[var(--color-bg-surface)]"
+                    className="inline-flex items-center justify-center gap-1.5 w-auto min-w-[7rem] h-7 rounded border-0 text-[var(--color-text-muted)] hover:text-[var(--color-brand-primary)] hover:bg-[var(--color-bg-surface)]"
                     title={`OMR 스캔 업로드 — ${ex.title ?? ""}`}
                     aria-label={`${ex.title ?? "시험"} OMR 업로드`}
                   >
                     <OmrIcon size={16} />
+                    <span>omr업로드</span>
                   </button>
                 </td>
               );

@@ -1,46 +1,20 @@
 // PATH: src/features/videos/components/features/video-permission/components/PermissionSidePanel.tsx
 
+import { FiX } from "react-icons/fi";
 import AttendanceStatusBadge from "@/shared/ui/badges/AttendanceStatusBadge";
 import type { AttendanceStatus } from "@/shared/ui/badges/AttendanceStatusBadge";
 import { Button } from "@/shared/ui/ds";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { formatPhone } from "@/shared/utils/formatPhone";
-import { RULE_COLORS, RULE_LABELS, ACCESS_MODE_LABELS, getAccessLabel, getAccessTone } from "../permission.constants";
+import { ACCESS_MODE_LABELS, RULE_LABELS, getAccessLabel, getAccessTone } from "../permission.constants";
 
-function cx(...xs: Array<string | false | null | undefined>) {
-  return xs.filter(Boolean).join(" ");
-}
+type ApplyTone = "primary" | "warning" | "danger";
 
-function ApplyPillButton({
-  label,
-  tone,
-  disabled,
-  onClick,
-}: {
-  label: string;
-  tone: "free" | "once" | "blocked" | "FREE_REVIEW" | "PROCTORED_CLASS" | "BLOCKED";
-  disabled: boolean;
-  onClick: () => void;
-}) {
-  const isProctored = tone === "once" || tone === "PROCTORED_CLASS";
-  const isBlocked = tone === "blocked" || tone === "BLOCKED";
-  const intent = isBlocked ? "danger" : isProctored ? "secondary" : "primary";
-  const onceClass = isProctored ? "!bg-yellow-400 hover:!bg-yellow-500 !border-yellow-500 !text-black" : "";
-
-  return (
-    <Button
-      type="button"
-      intent={intent}
-      size="sm"
-      disabled={disabled}
-      onClick={onClick}
-      className={cx("text-xs", onceClass)}
-      title={`${label} 적용`}
-    >
-      {label}
-    </Button>
-  );
-}
+const APPLY_ACTIONS: { mode: string; label: string; tone: ApplyTone }[] = [
+  { mode: "FREE_REVIEW", label: ACCESS_MODE_LABELS.FREE_REVIEW || RULE_LABELS.free, tone: "primary" },
+  { mode: "PROCTORED_CLASS", label: ACCESS_MODE_LABELS.PROCTORED_CLASS || RULE_LABELS.once, tone: "warning" },
+  { mode: "BLOCKED", label: ACCESS_MODE_LABELS.BLOCKED || RULE_LABELS.blocked, tone: "danger" },
+];
 
 export default function PermissionSidePanel({
   selectedCount,
@@ -62,13 +36,19 @@ export default function PermissionSidePanel({
   return (
     <div className="permission-right">
       {/* HEADER */}
-      <div className="px-4 py-3 border-b border-[var(--border-divider)]">
+      <div className="px-4 py-3 border-b border-[var(--color-border-subtle)]">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <div className="text-sm font-semibold text-[var(--text-primary)]">
+            <div
+              className="font-semibold text-[var(--color-text-primary)]"
+              style={{ fontSize: "var(--text-sm, 13px)" }}
+            >
               선택된 학생
             </div>
-            <div className="mt-0.5 text-xs text-[var(--text-muted)]">
+            <div
+              className="mt-0.5 text-[var(--color-text-muted)]"
+              style={{ fontSize: "var(--text-xs, 11px)" }}
+            >
               {selectedCount > 0
                 ? `${selectedCount}명 선택됨`
                 : "좌측에서 학생을 선택하세요."}
@@ -87,51 +67,61 @@ export default function PermissionSidePanel({
           </Button>
         </div>
 
-        {/* 권한 적용 버튼 */}
+        {/* Apply buttons — DS tone tokens */}
         <div className="mt-3 flex items-center gap-2">
-          <ApplyPillButton
-            label={ACCESS_MODE_LABELS.FREE_REVIEW || RULE_LABELS.free}
-            tone="FREE_REVIEW"
-            disabled={disabledApply}
-            onClick={() => onApply("FREE_REVIEW")}
-          />
-          <ApplyPillButton
-            label={ACCESS_MODE_LABELS.PROCTORED_CLASS || RULE_LABELS.once}
-            tone="PROCTORED_CLASS"
-            disabled={disabledApply}
-            onClick={() => onApply("PROCTORED_CLASS")}
-          />
-          <ApplyPillButton
-            label={ACCESS_MODE_LABELS.BLOCKED || RULE_LABELS.blocked}
-            tone="BLOCKED"
-            disabled={disabledApply}
-            onClick={() => onApply("BLOCKED")}
-          />
+          {APPLY_ACTIONS.map(({ mode, label, tone }) => (
+            <button
+              key={mode}
+              type="button"
+              className="permission-apply-btn"
+              data-tone={tone}
+              disabled={disabledApply}
+              onClick={() => onApply(mode)}
+              title={`${label} 적용`}
+            >
+              {label}
+            </button>
+          ))}
 
           {pending && (
-            <span className="ml-1 text-xs text-[var(--text-muted)]">
-              적용 중...
+            <span
+              className="ml-1 text-[var(--color-text-muted)]"
+              style={{ fontSize: "var(--text-xs, 11px)" }}
+            >
+              적용 중…
             </span>
           )}
         </div>
 
-        <div className="mt-2 text-[11px] text-[var(--text-muted)]">
+        <div className="mt-2 text-[var(--color-text-muted)]" style={{ fontSize: "10px" }}>
           * 권한은 <b>선택된 학생</b> 기준으로 즉시 반영됩니다.
         </div>
       </div>
 
       {/* BODY */}
       <div className="flex-1 min-h-0 p-4">
-        <div className="h-full rounded-xl border border-[var(--border-divider)] bg-[var(--bg-surface)] overflow-hidden flex flex-col min-h-0">
+        <div
+          className="h-full overflow-hidden flex flex-col min-h-0"
+          style={{
+            borderRadius: "var(--radius-lg)",
+            border: "1px solid var(--color-border-subtle)",
+            background: "var(--color-bg-surface)",
+          }}
+        >
           {/* table head */}
           <div className="
             grid grid-cols-12
             px-3 py-2
-            text-xs font-semibold
-            text-[var(--text-secondary)]
-            border-b border-[var(--border-divider)]
-            bg-[var(--bg-surface-soft)]
-          ">
+            font-semibold
+            border-b
+          "
+            style={{
+              fontSize: "var(--text-xs, 11px)",
+              color: "var(--color-text-tertiary)",
+              borderColor: "var(--color-border-subtle)",
+              background: "var(--color-bg-surface-soft, var(--bg-surface-soft))",
+            }}
+          >
             <div className="col-span-2 text-center">출석</div>
             <div className="col-span-2 text-center">접근 모드</div>
             <div className="col-span-1 text-center">완료</div>
@@ -140,14 +130,12 @@ export default function PermissionSidePanel({
             <div className="col-span-1 text-right">삭제</div>
           </div>
 
-
-
           {/* table body */}
           <div className="flex-1 min-h-0 overflow-auto">
             {selectedStudents.length === 0 ? (
-              <div className="p-6 text-sm text-[var(--text-muted)]">
+              <div className="p-6 text-[var(--color-text-muted)]" style={{ fontSize: "var(--text-sm, 12px)" }}>
                 선택된 학생이 없습니다. <br />
-                <span className="text-xs">
+                <span style={{ fontSize: "var(--text-xs, 11px)" }}>
                   좌측 체크 → 우측 상단에서 권한을 바로 적용하세요.
                 </span>
               </div>
@@ -155,7 +143,11 @@ export default function PermissionSidePanel({
               selectedStudents.map((s: any) => (
                 <div
                   key={s.enrollment}
-                  className="grid grid-cols-12 px-3 py-2 items-center border-b border-[var(--border-divider)] hover:bg-[var(--bg-surface-soft)]"
+                  className="grid grid-cols-12 px-3 py-2 items-center border-b hover:bg-[var(--color-bg-surface-hover)]"
+                  style={{
+                    borderColor: "var(--color-border-subtle)",
+                    transition: "background 120ms ease",
+                  }}
                 >
                   {/* 출석 — SSOT: AttendanceStatusBadge 1ch */}
                   <div className="col-span-2 flex justify-center">
@@ -177,14 +169,17 @@ export default function PermissionSidePanel({
 
                   {/* 완료 */}
                   <div className="col-span-1 flex justify-center">
-                    <span className="text-xs text-[var(--text-secondary)]">
+                    <span
+                      className="ds-status-badge ds-status-badge--1ch"
+                      data-tone={s.completed ? "success" : "neutral"}
+                    >
                       {s.completed ? "완료" : "미완료"}
                     </span>
                   </div>
 
                   {/* 이름 + 아바타 + 강의 딱지 (전역 규칙) */}
                   <div className="col-span-3 min-w-0">
-                    <div className="text-sm font-semibold text-[var(--text-primary)] truncate">
+                    <div className="font-semibold text-[var(--color-text-primary)] truncate" style={{ fontSize: "var(--text-sm, 12px)" }}>
                       <StudentNameWithLectureChip
                         name={s.student_name ?? ""}
                         profilePhotoUrl={s.profile_photo_url ?? undefined}
@@ -197,28 +192,26 @@ export default function PermissionSidePanel({
                         chipSize={14}
                       />
                     </div>
-                    <div className="text-[11px] text-[var(--text-muted)] truncate">
+                    <div className="text-[var(--color-text-muted)] truncate" style={{ fontSize: "10px" }}>
                       학생번호 {formatPhone(s.student_phone)}
                     </div>
                   </div>
 
                   {/* 학부모 번호 */}
-                  <div className="col-span-3 text-sm text-[var(--text-secondary)] truncate">
+                  <div className="col-span-3 text-[var(--color-text-secondary)] truncate" style={{ fontSize: "var(--text-sm, 12px)" }}>
                     {formatPhone(s.parent_phone)}
                   </div>
 
                   {/* 삭제 */}
                   <div className="col-span-1 flex justify-end">
-                    <Button
+                    <button
                       type="button"
-                      intent="ghost"
-                      size="sm"
                       onClick={() => onRemoveOne(s.enrollment)}
-                      className="!min-w-0 !w-10 !h-7"
+                      className="inline-flex items-center justify-center w-7 h-7 rounded-md text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-surface-hover)] transition"
                       title="선택에서 제거"
                     >
-                      ✕
-                    </Button>
+                      <FiX size={14} />
+                    </button>
                   </div>
                 </div>
               ))
@@ -228,7 +221,7 @@ export default function PermissionSidePanel({
       </div>
 
       {/* FOOTER */}
-      <div className="p-4 border-t border-[var(--border-divider)]">
+      <div className="permission-right-footer">
         <Button
           type="button"
           intent="secondary"
