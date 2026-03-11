@@ -3,7 +3,7 @@
  * 유튜브 모바일형, 아이콘 + 라벨
  */
 import { NavLink } from "react-router-dom";
-import { IconHome, IconPlay, IconCalendar, IconBell, IconMore } from "../icons/Icons";
+import { IconHome, IconPlay, IconCalendar, IconBell, IconBoard } from "../icons/Icons";
 import { useNotificationCounts } from "@/student/domains/notifications/hooks/useNotificationCounts";
 import NotificationBadge from "../components/NotificationBadge";
 
@@ -12,7 +12,7 @@ const tabs: { to: string; label: string; icon: React.ReactNode; badgeKey?: keyof
   { to: "/student/video", label: "영상", icon: <IconPlay /> },
   { to: "/student/sessions", label: "일정", icon: <IconCalendar /> },
   { to: "/student/notifications", label: "알림", icon: <IconBell />, badgeKey: "total" },
-  { to: "/student/more", label: "더보기", icon: <IconMore /> },
+  { to: "/student/community", label: "커뮤니티", icon: <IconBoard /> },
 ];
 
 export default function StudentTabBar() {

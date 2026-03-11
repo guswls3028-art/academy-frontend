@@ -2,7 +2,7 @@
  * 학생 앱 전역 레이아웃 — 전체화면 고정, 모바일 특화
  * 테넌트별 테마: data-student-tenant 에 따라 theme/tenants/{code}.css 적용
  */
-import { useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import { getTenantCodeForApiRequest } from "@/shared/tenant";
 import { useAuthContext } from "@/features/auth/context/AuthContext";
@@ -13,6 +13,7 @@ import "../theme/video.css";
 
 import StudentTopBar from "./StudentTopBar";
 import StudentTabBar from "./StudentTabBar";
+import StudentDrawer from "./StudentDrawer";
 import { useFavicon } from "@/shared/hooks/useFavicon";
 import { useDocumentTitle } from "@/shared/hooks/useDocumentTitle";
 
@@ -50,6 +51,11 @@ export default function StudentLayout() {
     }
   }, [user?.tenantRole, user?.linkedStudents]);
   
+  // 사이드 드로어 상태
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const openDrawer = useCallback(() => setDrawerOpen(true), []);
+  const closeDrawer = useCallback(() => setDrawerOpen(false), []);
+
   // 영상 페이지 전체인지 확인 (영상 홈, 코스 상세, 세션 상세, 플레이어 모두 포함)
   const isVideoPage = location.pathname.startsWith("/student/video");
 
@@ -62,7 +68,7 @@ export default function StudentLayout() {
       style={{
         minHeight: "100dvh",
         height: "100dvh", // 높이 고정으로 스크롤 방지
-        overflow: isVideoPage ? "hidden" : "visible", // 영상 페이지는 스크롤 완전 차단
+        overflow: "visible",
         backgroundColor: isVideoPage ? "#000" : "var(--stu-bg)",
         color: isVideoPage ? "#fff" : "var(--stu-text)",
         display: "flex",
@@ -105,14 +111,15 @@ export default function StudentLayout() {
           boxShadow: "0 1px 2px rgba(0, 0, 0, 0.02), 0 2px 4px rgba(0, 0, 0, 0.03)",
         }}
       >
-        <StudentTopBar tenantCode={tenantCode} />
+        <StudentTopBar tenantCode={tenantCode} onMenuClick={openDrawer} />
       </header>
 
       <main
         className={isVideoPage ? "video-page-main" : ""}
         style={{
           flex: 1,
-          overflow: isVideoPage ? "hidden" : "auto", // 영상 페이지는 스크롤 완전 차단, 다른 페이지는 main에서 스크롤
+          overflow: "auto",
+          scrollbarWidth: "none" as any, // 스크롤바 숨김
           paddingBottom: "calc(var(--stu-tabbar-h) + var(--stu-safe-bottom) + var(--stu-space-4))",
         }}
       >
@@ -120,14 +127,15 @@ export default function StudentLayout() {
           maxWidth: isVideoPage ? "100%" : "var(--stu-page-max-w)", 
           margin: "0 auto", 
           padding: isVideoPage ? 0 : "var(--stu-space-4)",
-          overflow: isVideoPage ? "hidden" : "visible", // 영상 페이지는 스크롤 차단
-          height: isVideoPage ? "100%" : "auto", // 영상 페이지는 높이 제한
+          overflow: "visible",
+          height: "auto",
         }}>
           <Outlet />
         </div>
       </main>
 
       <StudentTabBar />
+      <StudentDrawer open={drawerOpen} onClose={closeDrawer} />
     </div>
   );
 }

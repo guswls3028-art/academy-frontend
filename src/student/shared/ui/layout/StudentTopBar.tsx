@@ -14,7 +14,7 @@ import CommonLogoIcon from "@/features/auth/assets/CommonLogoIcon";
 import TchulLogoIcon from "@/features/auth/assets/TchulLogoIcon";
 import "@/student/shared/ui/theme/student-topbar.css";
 
-type Props = { tenantCode: string | null };
+type Props = { tenantCode: string | null; onMenuClick?: () => void };
 
 function StudentAvatar({ profile }: { profile: { name?: string; profile_photo_url?: string | null; displayName?: string | null; isParentReadOnly?: boolean } }) {
   const displayLabel = profile?.isParentReadOnly && profile?.displayName
@@ -40,7 +40,7 @@ function StudentAvatar({ profile }: { profile: { name?: string; profile_photo_ur
   );
 }
 
-export default function StudentTopBar({ tenantCode }: Props) {
+export default function StudentTopBar({ tenantCode, onMenuClick }: Props) {
   const navigate = useNavigate();
   const location = useLocation();
   const qc = useQueryClient();
@@ -162,6 +162,35 @@ export default function StudentTopBar({ tenantCode }: Props) {
         margin: "0 auto",
       }}
     >
+      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+      {/* 햄버거 메뉴 버튼 */}
+      {onMenuClick && (
+        <button
+          type="button"
+          onClick={onMenuClick}
+          aria-label="메뉴 열기"
+          className="stu-topbar__menuBtn"
+          style={{
+            width: 34,
+            height: 34,
+            display: "grid",
+            placeItems: "center",
+            background: "transparent",
+            border: "none",
+            borderRadius: "var(--stu-radius-sm)",
+            cursor: "pointer",
+            color: "var(--stu-text)",
+            padding: 0,
+            flexShrink: 0,
+          }}
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+            <line x1="3" y1="6" x2="21" y2="6" />
+            <line x1="3" y1="12" x2="21" y2="12" />
+            <line x1="3" y1="18" x2="21" y2="18" />
+          </svg>
+        </button>
+      )}
       <Link
         to="/student/dashboard"
         className="stu-topbar__home-link"
@@ -225,6 +254,7 @@ export default function StudentTopBar({ tenantCode }: Props) {
           {branding.title}
         </span>
       </Link>
+      </div>
 
       <div ref={profileRef} style={{ position: "relative" }}>
         <button
