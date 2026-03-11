@@ -1,6 +1,4 @@
-/* PATH: src/features/auth/themes/hakwonplus.css
- * hakwonplus 테넌트 색상 SSOT — 화이트톤 + 파란색 그라데이션
- */
+/* hakwonplus 테넌트 색상 SSOT — 화이트톤 + 파란색 그라데이션 */
 
 [data-app="auth"][data-tenant="hakwonplus"] {
   /* 화이트톤 */
@@ -24,4 +22,17 @@
   /* 그라데이션 모드 — 로고 컬러패턴 (Blue to Light Blue) */
   --hakwonplus-gradient: linear-gradient(135deg, #1e3a8a 0%, #2563eb 50%, #60a5fa 100%);
   --hakwonplus-gradient-hover: linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 50%, #3b82f6 100%);
+
+  /* 공통 별칭 — LoginPage 에서 사용 */
+  --auth-accent: var(--hakwonplus-blue);
+  --auth-bg: var(--hakwonplus-bg);
+  --auth-surface: var(--hakwonplus-surface);
+  --auth-border: var(--hakwonplus-border);
+  --auth-border-hover: var(--hakwonplus-border-hover);
+  --auth-text: var(--hakwonplus-text);
+  --auth-text-muted: var(--hakwonplus-text-muted);
+  --auth-focus: var(--hakwonplus-focus);
+  --auth-error: var(--hakwonplus-error);
+  --auth-gradient: var(--hakwonplus-gradient);
+  --auth-gradient-hover: var(--hakwonplus-gradient-hover);
 }

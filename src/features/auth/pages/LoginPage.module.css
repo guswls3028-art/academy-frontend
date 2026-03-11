@@ -1,6 +1,5 @@
-/* PATH: src/features/auth/pages/login/EnhancedCommonLoginPage.module.css
- * 테넌트 1, 3, 4, 9999 전용 — 카드 없음, 타이포그래피, 클릭 시 입력폼
- * 색상: themes/limglish.css 또는 tchul.css (data-tenant에 따라 --auth-* 변수)
+/* 통합 로그인 페이지 — 모든 테넌트 공용
+ * 색상은 themes/*.css 에서 --auth-* 변수로 주입 (data-tenant 셀렉터)
  */
 
 .root {
@@ -19,7 +18,6 @@
   text-align: center;
 }
 
-/* 로고: 시각적 고급화 — 약 2배 확대 */
 .logo {
   display: block;
   width: auto;
@@ -30,7 +28,6 @@
   margin: 0 auto 1.25rem;
 }
 
-/* 타이포그래피: 테넌트별 로그인 문구 */
 .typography {
   margin-bottom: 2rem;
 }
@@ -52,7 +49,7 @@
   margin: 0;
 }
 
-/* 로그인 버튼 — 클릭 시 입력폼 노출 */
+/* 로그인 버튼 */
 .btnPrimary {
   display: inline-block;
   min-width: 10rem;
@@ -82,6 +79,7 @@
   cursor: not-allowed;
 }
 
+/* 로그인 폼 — 클릭 시 슬라이드 다운 */
 .form {
   margin-top: 1.5rem;
   padding-top: 1.5rem;
@@ -127,56 +125,6 @@
   box-shadow: 0 0 0 3px var(--auth-focus);
 }
 
-/* 필수 필드처럼 보이는 인풋 (회원가입 모달) */
-.inputRequired {
-  border-width: 2px;
-  border-color: var(--auth-accent);
-  box-shadow: 0 0 0 1px var(--auth-accent);
-}
-.inputRequired::placeholder {
-  color: var(--auth-text-muted);
-}
-.inputRequired:hover {
-  border-color: var(--auth-accent);
-}
-.inputRequired:focus {
-  border-color: var(--auth-accent);
-  box-shadow: 0 0 0 3px var(--auth-focus);
-}
-
-/* 전화번호 010 블록 레이아웃 (회원가입/비밀번호찾기) */
-.phoneBlocksWrap {
-  margin-bottom: 0.875rem;
-}
-
-/* 고등/중등 선택 버튼 (회원가입 — 학생생성모달처럼 클릭 선택) */
-.signupSchoolChoice {
-  display: flex;
-  gap: 0.5rem;
-  margin-bottom: 0.875rem;
-}
-.signupSchoolBtn {
-  flex: 1;
-  padding: 0.875rem 1rem;
-  font-size: 0.9375rem;
-  font-weight: 600;
-  color: var(--auth-text-muted);
-  background: var(--auth-surface);
-  border: 2px solid var(--auth-border);
-  border-radius: 12px;
-  cursor: pointer;
-  transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
-}
-.signupSchoolBtn:hover {
-  border-color: var(--auth-border-hover);
-  color: var(--auth-text);
-}
-.signupSchoolBtn.isSelected {
-  border-color: var(--auth-accent);
-  background: var(--auth-focus);
-  color: var(--auth-accent);
-}
-
 .form .btnPrimary {
   display: block;
   width: 100%;
@@ -215,7 +163,13 @@
   color: var(--auth-text);
 }
 
-/* 모달 오버레이 — 프리미엄 (backdrop blur) */
+/* 전화번호 블록 래퍼 */
+.phoneBlocksWrap {
+  margin-bottom: 0.875rem;
+}
+
+/* ========== 모달 공통 ========== */
+
 .overlay {
   position: fixed;
   inset: 0;
@@ -255,7 +209,37 @@
   margin: 0 0 20px;
 }
 
-/* 회원가입 섹션 그룹 */
+.overlayActions {
+  margin-top: 1.25rem;
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.overlayActions .btnPrimary {
+  flex: 1;
+  min-width: 0;
+}
+
+.btnSecondary {
+  display: inline-block;
+  padding: 0.75rem 1.25rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--auth-text-muted);
+  background: var(--auth-surface);
+  border: 1px solid var(--auth-border);
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.btnSecondary:hover {
+  border-color: var(--auth-border-hover);
+  color: var(--auth-text);
+}
+
+/* ========== 회원가입 모달 ========== */
+
 .signupSection {
   margin-top: 20px;
 }
@@ -277,7 +261,6 @@
   margin: 20px 0 0;
 }
 
-/* 회원가입 인풋 (프리미엄) */
 .signupInput {
   display: block;
   width: 100%;
@@ -292,9 +275,6 @@
   transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
 }
 .signupInputRow .signupInput {
-  margin-bottom: 0;
-}
-.signupInput:last-child {
   margin-bottom: 0;
 }
 .signupInput::placeholder {
@@ -313,7 +293,6 @@
   margin-bottom: 12px;
 }
 
-/* 이름 + 성별 한 줄 (학생생성 모달처럼) */
 .signupNameGenderRow {
   display: flex;
   gap: 16px;
@@ -343,12 +322,6 @@
   margin-bottom: 6px;
 }
 
-/* 전화번호 블록 래퍼 (라벨 포함) */
-.signupPhoneRow {
-  margin-bottom: 12px;
-}
-
-/* 전화번호 블록 래퍼 (라벨 포함) */
 .signupPhoneRow {
   margin-bottom: 12px;
 }
@@ -376,7 +349,6 @@
   box-shadow: 0 0 0 3px rgba(79, 127, 255, 0.15) !important;
 }
 
-/* 2열 그리드 (학교 정보) */
 .signupGrid2 {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -387,7 +359,6 @@
   grid-column: 1 / -1;
 }
 
-/* 학교 유형 세그먼트 컨트롤 */
 .signupSegmentWrap {
   background: #F3F4F6;
   border-radius: 8px;
@@ -418,7 +389,6 @@
   box-shadow: 0 1px 2px rgba(0,0,0,0.05);
 }
 
-/* CTA 버튼 영역 */
 .signupActions {
   margin-top: 24px;
   padding-top: 20px;
@@ -466,46 +436,7 @@
   cursor: not-allowed;
 }
 
-/* 필수 표시 */
 .signupRequired {
   color: #EF4444;
   margin-left: 2px;
-}
-
-/* textarea */
-.signupTextarea {
-  composes: signupInput;
-  height: auto;
-  min-height: 72px;
-  padding: 10px 12px;
-  resize: vertical;
-}
-
-.overlayActions {
-  margin-top: 1.25rem;
-  display: flex;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-}
-
-.overlayActions .btnPrimary {
-  flex: 1;
-  min-width: 0;
-}
-
-.btnSecondary {
-  display: inline-block;
-  padding: 0.75rem 1.25rem;
-  font-size: 0.9375rem;
-  font-weight: 600;
-  color: var(--auth-text-muted);
-  background: var(--auth-surface);
-  border: 1px solid var(--auth-border);
-  border-radius: 12px;
-  cursor: pointer;
-}
-
-.btnSecondary:hover {
-  border-color: var(--auth-border-hover);
-  color: var(--auth-text);
 }

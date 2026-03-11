@@ -16,14 +16,7 @@ import {
 import { Button, EmptyState } from "@/shared/ui/ds";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
 import BlockTypeFormModal from "../components/BlockTypeFormModal";
-
-const SECTION_STYLE = {
-  borderRadius: "var(--radius-xl)",
-  border: "1px solid var(--color-border-divider)",
-  background: "var(--color-bg-surface)",
-  padding: "var(--space-5)",
-  marginBottom: "var(--space-6)",
-};
+import "@/features/community/community.css";
 
 export default function CommunitySettingsPage() {
   const qc = useQueryClient();
@@ -42,20 +35,17 @@ export default function CommunitySettingsPage() {
 
   return (
     <div className="max-w-4xl">
-      <h1 className="text-xl font-bold text-[var(--color-text-primary)] mb-1">설정</h1>
-      <p
-        className="mb-4"
-        style={{ fontSize: "var(--text-sm)", color: "var(--color-text-muted)" }}
-      >
+      <h1 className="font-bold text-[var(--color-text-primary)] mb-1" style={{ fontSize: "var(--text-xl, 18px)" }}>
+        설정
+      </h1>
+      <p className="community-field__hint mb-4">
         게시물 유형과 자주 쓰는 글 양식을 관리합니다. 유형을 추가하면 글 작성 시 선택할 수 있고, 양식은 불러와서 수정해 쓰면 됩니다.
       </p>
 
       {/* 블록 유형 */}
-      <section style={SECTION_STYLE}>
-        <div className="flex items-center justify-between mb-4">
-          <h2 style={{ fontSize: "var(--text-lg)", fontWeight: 700, margin: 0 }}>
-            블록 유형
-          </h2>
+      <section className="community-section">
+        <div className="community-section__header">
+          <h2 className="community-section__title">블록 유형</h2>
           <Button
             intent="primary"
             size="sm"
@@ -77,10 +67,15 @@ export default function CommunitySettingsPage() {
             {blockTypes.map((b) => (
               <li
                 key={b.id}
-                className="flex items-center gap-2 rounded-lg border border-[var(--color-border-divider)] px-3 py-2 bg-[var(--color-bg-surface-soft)]"
+                className="flex items-center gap-2 px-3 py-2"
+                style={{
+                  borderRadius: "var(--radius-md)",
+                  border: "1px solid var(--color-border-subtle)",
+                  background: "var(--color-bg-surface-soft, var(--bg-surface-soft))",
+                }}
               >
-                <span style={{ fontWeight: 600 }}>{b.label}</span>
-                <span style={{ fontSize: 12, color: "var(--color-text-muted)" }}>({b.code})</span>
+                <span className="font-semibold text-[var(--color-text-primary)]">{b.label}</span>
+                <span className="community-tag">({b.code})</span>
                 <Button
                   intent="ghost"
                   size="sm"
@@ -108,11 +103,9 @@ export default function CommunitySettingsPage() {
       </section>
 
       {/* 양식 */}
-      <section style={SECTION_STYLE}>
-        <div className="flex items-center justify-between mb-4">
-          <h2 style={{ fontSize: "var(--text-lg)", fontWeight: 700, margin: 0 }}>
-            글 양식
-          </h2>
+      <section className="community-section">
+        <div className="community-section__header">
+          <h2 className="community-section__title">글 양식</h2>
           <Button
             intent="primary"
             size="sm"
@@ -132,23 +125,15 @@ export default function CommunitySettingsPage() {
         ) : (
           <ul className="space-y-2" style={{ listStyle: "none", padding: 0, margin: 0 }}>
             {templates.map((t) => (
-              <li
-                key={t.id}
-                className="rounded-lg border border-[var(--color-border-divider)] p-3 bg-[var(--color-bg-surface-soft)]"
-              >
+              <li key={t.id} className="community-card">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1">
-                    <div style={{ fontWeight: 600, marginBottom: 4 }}>{t.name}</div>
+                    <div className="font-semibold text-[var(--color-text-primary)]" style={{ marginBottom: 4 }}>{t.name}</div>
                     {t.block_type_label && (
-                      <span
-                        className="inline-block rounded px-2 py-0.5 text-xs"
-                        style={{ background: "var(--color-bg-muted)", color: "var(--color-text-secondary)" }}
-                      >
-                        {t.block_type_label}
-                      </span>
+                      <span className="community-tag">{t.block_type_label}</span>
                     )}
                     {t.title && (
-                      <div style={{ fontSize: 13, color: "var(--color-text-muted)", marginTop: 6 }}>
+                      <div className="community-card__meta" style={{ marginTop: 6 }}>
                         {t.title.slice(0, 60)}{t.title.length > 60 ? "…" : ""}
                       </div>
                     )}
@@ -257,10 +242,8 @@ function PostTemplateFormModal({
         description={edit ? "양식 이름과 내용을 수정합니다." : "자주 쓰는 제목·내용을 저장해 두었다가 글 작성 시 불러올 수 있습니다."}
       />
       <ModalBody>
-        <div style={{ marginBottom: 12 }}>
-          <label className="block text-sm font-semibold text-[var(--color-text-secondary)] mb-1">
-            양식 이름
-          </label>
+        <div className="community-field" style={{ marginBottom: 12 }}>
+          <label className="community-field__label">양식 이름</label>
           <input
             className="ds-input w-full"
             value={name}
@@ -269,10 +252,8 @@ function PostTemplateFormModal({
             disabled={pending}
           />
         </div>
-        <div style={{ marginBottom: 12 }}>
-          <label className="block text-sm font-semibold text-[var(--color-text-secondary)] mb-1">
-            기본 유형 (선택)
-          </label>
+        <div className="community-field" style={{ marginBottom: 12 }}>
+          <label className="community-field__label">기본 유형 (선택)</label>
           <select
             className="ds-input w-full"
             value={blockTypeId ?? ""}
@@ -287,10 +268,8 @@ function PostTemplateFormModal({
             ))}
           </select>
         </div>
-        <div style={{ marginBottom: 12 }}>
-          <label className="block text-sm font-semibold text-[var(--color-text-secondary)] mb-1">
-            제목 (기본값)
-          </label>
+        <div className="community-field" style={{ marginBottom: 12 }}>
+          <label className="community-field__label">제목 (기본값)</label>
           <input
             className="ds-input w-full"
             value={title}
@@ -299,10 +278,8 @@ function PostTemplateFormModal({
             disabled={pending}
           />
         </div>
-        <div style={{ marginBottom: 0 }}>
-          <label className="block text-sm font-semibold text-[var(--color-text-secondary)] mb-1">
-            내용 (기본값)
-          </label>
+        <div className="community-field">
+          <label className="community-field__label">내용 (기본값)</label>
           <textarea
             className="ds-input w-full"
             value={content}

@@ -1,27 +1,38 @@
-/* PATH: src/features/auth/themes/ymath.css
- * ymath 테넌트 색상 SSOT — 화이트톤 + 네이비~스카이블루 그라데이션
- */
+/* ymath 테넌트 색상 SSOT — 화이트톤 + 네이비~스카이블루 그라데이션 */
 
 [data-app="auth"][data-tenant="ymath"] {
-    /* 화이트톤 */
-    --ymath-bg: #f8fafc;
-    --ymath-surface: #ffffff;
-    --ymath-border: #e2e8f0;
-    --ymath-border-hover: #cbd5e1;
+  /* 화이트톤 */
+  --ymath-bg: #f8fafc;
+  --ymath-surface: #ffffff;
+  --ymath-border: #e2e8f0;
+  --ymath-border-hover: #cbd5e1;
 
-    /* 텍스트 */
-    --ymath-text: #0f172a;
-    --ymath-text-muted: #64748b;
+  /* 텍스트 */
+  --ymath-text: #0f172a;
+  --ymath-text-muted: #64748b;
 
-    /* 로고 컬러 — 단색 */
-    --ymath-blue: #0369a1;
-    --ymath-blue-hover: #0284c7;
+  /* 로고 컬러 — 단색 */
+  --ymath-blue: #0369a1;
+  --ymath-blue-hover: #0284c7;
 
-    /* 포커스 / 에러 */
-    --ymath-focus: rgba(3, 105, 161, 0.2);
-    --ymath-error: #dc2626;
+  /* 포커스 / 에러 */
+  --ymath-focus: rgba(3, 105, 161, 0.2);
+  --ymath-error: #dc2626;
 
-    /* 그라데이션 모드 — 로고 컬러패턴 (Navy to Sky Blue) */
-    --ymath-gradient: linear-gradient(135deg, #020617 0%, #0ea5e9 50%, #7dd3fc 100%);
-    --ymath-gradient-hover: linear-gradient(135deg, #020617 0%, #0284c7 50%, #38bdf8 100%);
+  /* 그라데이션 모드 — 로고 컬러패턴 (Navy to Sky Blue) */
+  --ymath-gradient: linear-gradient(135deg, #020617 0%, #0ea5e9 50%, #7dd3fc 100%);
+  --ymath-gradient-hover: linear-gradient(135deg, #020617 0%, #0284c7 50%, #38bdf8 100%);
+
+  /* 공통 별칭 — LoginPage 에서 사용 */
+  --auth-accent: var(--ymath-blue);
+  --auth-bg: var(--ymath-bg);
+  --auth-surface: var(--ymath-surface);
+  --auth-border: var(--ymath-border);
+  --auth-border-hover: var(--ymath-border-hover);
+  --auth-text: var(--ymath-text);
+  --auth-text-muted: var(--ymath-text-muted);
+  --auth-focus: var(--ymath-focus);
+  --auth-error: var(--ymath-error);
+  --auth-gradient: var(--ymath-gradient);
+  --auth-gradient-hover: var(--ymath-gradient-hover);
 }

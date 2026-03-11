@@ -5,12 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useCommunityScope } from "../context/CommunityScopeContext";
 import { fetchLectures } from "@/features/lectures/api/sessions";
 import { fetchSessions } from "@/features/lectures/api/sessions";
-
-const WRAPPER_STYLE = {
-  padding: "var(--space-3) 0",
-  borderBottom: "1px solid var(--color-border-divider)",
-  marginBottom: "var(--space-4)",
-};
+import "@/features/community/community.css";
 
 export default function CommunityScopeSelector() {
   const { scope, setScope, lectureId, setLectureId, sessionId, setSessionId } = useCommunityScope();
@@ -27,16 +22,8 @@ export default function CommunityScopeSelector() {
   });
 
   return (
-    <div className="flex flex-wrap items-center gap-3" style={WRAPPER_STYLE}>
-      <span
-        style={{
-          fontSize: "var(--text-sm)",
-          fontWeight: "var(--font-title)",
-          color: "var(--color-text-secondary)",
-        }}
-      >
-        노출 범위
-      </span>
+    <div className="community-scope-bar">
+      <span className="community-scope-bar__label">노출 범위</span>
       <select
         className="ds-input"
         value={scope}

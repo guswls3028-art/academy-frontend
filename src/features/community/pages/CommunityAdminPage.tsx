@@ -18,6 +18,7 @@ import { EmptyState, Button } from "@/shared/ui/ds";
 import CommunityScopeSelector from "../components/CommunityScopeSelector";
 import BlockTypeFormModal from "../components/BlockTypeFormModal";
 import { NoticeBoardContent } from "./NoticeBoardPage";
+import "@/features/community/community.css";
 
 const PAGE_SIZE = 20;
 
@@ -47,6 +48,10 @@ function buildTreeData(nodes: ScopeNodeMinimal[]): DataNode[] {
 
 const SUB_TAB_BOARD = "board";
 const SUB_TAB_NOTICE = "notice";
+const SUB_TABS = [
+  { key: SUB_TAB_BOARD, label: "게시판 관리" },
+  { key: SUB_TAB_NOTICE, label: "공지사항" },
+];
 
 export default function CommunityAdminPage() {
   const qc = useQueryClient();
@@ -108,7 +113,7 @@ export default function CommunityAdminPage() {
       render: (t: string, r: PostEntity) => (
         <button
           type="button"
-          className="text-left font-semibold text-[var(--color-primary)] hover:underline"
+          className="text-left font-semibold text-[var(--color-brand-primary)] hover:underline"
           onClick={() => {
             setSelectedPost(r);
             setInspectorNodeIds(r.mappings?.map((m) => m.node) ?? []);
@@ -123,7 +128,7 @@ export default function CommunityAdminPage() {
       dataIndex: "block_type_label",
       key: "block_type_label",
       width: 100,
-      render: (label: string) => <Tag>{label}</Tag>,
+      render: (label: string) => <span className="community-tag">{label}</span>,
     },
     {
       title: "노출 노드",
@@ -132,7 +137,9 @@ export default function CommunityAdminPage() {
       render: (_: unknown, r: PostEntity) => (
         <div className="flex flex-wrap gap-1">
           {r.mappings?.map((m) => (
-            <Tag key={m.id}>{m.node_detail?.lecture_title} {m.node_detail?.session_title ? `· ${m.node_detail.session_title}` : "(전체)"}</Tag>
+            <span key={m.id} className="community-tag">
+              {m.node_detail?.lecture_title} {m.node_detail?.session_title ? `· ${m.node_detail.session_title}` : "(전체)"}
+            </span>
           )) ?? null}
         </div>
       ),
@@ -171,29 +178,18 @@ export default function CommunityAdminPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center gap-2 border-b border-[var(--color-border-divider)] pb-2">
-        <button
-          type="button"
-          className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-            subTab === SUB_TAB_BOARD
-              ? "bg-[var(--color-primary)] text-white"
-              : "text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-elevated)]"
-          }`}
-          onClick={() => setSubTab(SUB_TAB_BOARD)}
-        >
-          게시판 관리
-        </button>
-        <button
-          type="button"
-          className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-            subTab === SUB_TAB_NOTICE
-              ? "bg-[var(--color-primary)] text-white"
-              : "text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-elevated)]"
-          }`}
-          onClick={() => setSubTab(SUB_TAB_NOTICE)}
-        >
-          공지사항
-        </button>
+      {/* Sub-tab bar — SSOT: community-tab-bar */}
+      <div className="community-tab-bar" style={{ alignSelf: "flex-start" }}>
+        {SUB_TABS.map(({ key, label }) => (
+          <button
+            key={key}
+            type="button"
+            className={`community-tab ${subTab === key ? "community-tab--active" : ""}`}
+            onClick={() => setSubTab(key)}
+          >
+            {label}
+          </button>
+        ))}
       </div>
 
       {subTab === SUB_TAB_NOTICE ? (
@@ -205,9 +201,12 @@ export default function CommunityAdminPage() {
     <Layout className="!bg-transparent !min-h-0">
         <Layout.Sider
           width={280}
-          className="!bg-[var(--color-bg-surface)] !rounded-xl border border-[var(--color-border-divider)] overflow-hidden"
+          className="!bg-[var(--color-bg-surface)] !rounded-xl border border-[var(--color-border-subtle)] overflow-hidden"
         >
-          <div className="p-3 border-b border-[var(--color-border-divider)] font-semibold text-sm text-[var(--color-text-secondary)]">
+          <div
+            className="p-3 border-b font-semibold text-[var(--color-text-tertiary)]"
+            style={{ fontSize: "var(--text-sm, 12px)", borderColor: "var(--color-border-subtle)" }}
+          >
             노출 위치 (ScopeNode)
           </div>
           <div className="p-2 overflow-auto" style={{ maxHeight: "calc(100vh - 280px)" }}>
@@ -246,7 +245,14 @@ export default function CommunityAdminPage() {
               style={{ width: 200 }}
             />
           </div>
-          <div className="rounded-xl border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] overflow-hidden">
+          <div
+            className="overflow-hidden"
+            style={{
+              borderRadius: "var(--radius-lg)",
+              border: "1px solid var(--color-border-subtle)",
+              background: "var(--color-bg-surface)",
+            }}
+          >
             {loadingPosts ? (
               <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
             ) : (
@@ -270,9 +276,12 @@ export default function CommunityAdminPage() {
 
         <Layout.Sider
           width={320}
-          className="!bg-[var(--color-bg-surface)] !rounded-xl border border-[var(--color-border-divider)] overflow-hidden"
+          className="!bg-[var(--color-bg-surface)] !rounded-xl border border-[var(--color-border-subtle)] overflow-hidden"
         >
-          <div className="p-3 border-b border-[var(--color-border-divider)] font-semibold text-sm text-[var(--color-text-secondary)]">
+          <div
+            className="p-3 border-b font-semibold text-[var(--color-text-tertiary)]"
+            style={{ fontSize: "var(--text-sm, 12px)", borderColor: "var(--color-border-subtle)" }}
+          >
             Inspector
           </div>
           <div className="p-4 overflow-auto" style={{ maxHeight: "calc(100vh - 280px)" }}>
@@ -282,12 +291,12 @@ export default function CommunityAdminPage() {
               <>
                 <div className="mb-4">
                   <div className="font-bold text-[var(--color-text-primary)] mb-1">{selectedPost.title}</div>
-                  <Tag>{selectedPost.block_type_label}</Tag>
-                  <div className="text-xs text-[var(--color-text-muted)] mt-2">
+                  <span className="community-tag">{selectedPost.block_type_label}</span>
+                  <div className="community-card__meta mt-2">
                     {selectedPost.created_at?.slice(0, 16)}
                   </div>
                 </div>
-                <div className="mb-2 text-sm font-semibold text-[var(--color-text-secondary)]">
+                <div className="mb-2 font-semibold text-[var(--color-text-secondary)]" style={{ fontSize: "var(--text-sm, 12px)" }}>
                   노출 노드
                 </div>
                 <Select

@@ -11,8 +11,8 @@ import { getTenantCodeForApiRequest } from "@/shared/tenant";
 import { logout } from "@/features/auth/api/auth";
 import { useAuthContext } from "@/features/auth/context/AuthContext";
 import { setParentStudentId, getParentStudentId } from "@/student/shared/api/parentStudentSelection";
-import CommonLogoIcon from "@/features/auth/pages/logos/CommonLogoIcon";
-import TchulLogoIcon from "@/features/auth/pages/logos/TchulLogoIcon";
+import CommonLogoIcon from "@/features/auth/assets/CommonLogoIcon";
+import TchulLogoIcon from "@/features/auth/assets/TchulLogoIcon";
 import "@/student/shared/ui/theme/student-topbar.css";
 
 type Props = { tenantCode: string | null };

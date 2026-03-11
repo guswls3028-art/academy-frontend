@@ -21,8 +21,8 @@ import { HeaderCenterStaffClock } from "@/features/staff/components/HeaderCenter
 import { useDocumentTitle } from "@/shared/hooks/useDocumentTitle";
 import { resolveTenantCode } from "@/shared/tenant";
 import { getTenantIdFromCode } from "@/shared/tenant";
-import TchulLogoIcon from "@/features/auth/pages/logos/TchulLogoIcon";
-import CommonLogoIcon from "@/features/auth/pages/logos/CommonLogoIcon";
+import TchulLogoIcon from "@/features/auth/assets/TchulLogoIcon";
+import CommonLogoIcon from "@/features/auth/assets/CommonLogoIcon";
 
 function IconMenu() {
   return (
