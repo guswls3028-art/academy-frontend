@@ -60,15 +60,15 @@ const TRIGGER_DESCRIPTIONS: Record<string, string> = {
 };
 
 const SECTION_DESCRIPTIONS: Record<AutoSendSectionId, string> = {
-  signup: "가입·반 등록·수강 변경·만료 예정 등 등록 관련 이벤트의 자동 발송을 설정합니다.",
-  attendance: "수업 시작 N분 전, 입실/결석 등 출결 이벤트의 자동 발송을 설정합니다.",
-  lecture: "강의(차시) 관련 알림을 설정합니다.",
-  exam: "시험 예정·시작 전·미응시·성적 공개·재시험 대상 등 시험 lifecycle 자동 발송을 설정합니다.",
-  assignment: "과제 등록·마감 전·미제출 등 과제 관련 자동 발송을 설정합니다.",
-  grades: "성적 공개·월간 리포트 등 성적/리포트 자동 발송을 설정합니다.",
-  clinic: "클리닉·상담 예약/변경/시작 전 알림을 설정합니다.",
-  payment: "결제 완료·납부 예정일 등 결제/행정 자동 발송을 설정합니다.",
-  notice: "휴강·보강·긴급 공지 등 운영 공지 발송을 설정합니다.",
+  signup: "회원가입, 가입 승인, 반 등록, 등록 만료 예정, 퇴원 등 등록 관련 이벤트를 설정합니다.",
+  attendance: "수업 시작 N분 전 리마인드, 입실(출석) 확인, 결석 발생 알림을 설정합니다.",
+  lecture: "강의·차시 관련 알림을 설정합니다. 수업 리마인드는 출결 구간에서도 설정 가능합니다.",
+  exam: "시험 예정 안내, 시작 전 리마인드, 미응시, 성적 공개, 재시험 대상 지정을 설정합니다.",
+  assignment: "과제 등록 안내, 마감 전 리마인드, 미제출 알림을 설정합니다.",
+  grades: "성적 공개 안내, 월간 성적 리포트 발송을 설정합니다.",
+  clinic: "클리닉 예약 완료/변경, 시작 전 리마인드, 상담 예약 완료 알림을 설정합니다.",
+  payment: "결제 완료 확인, 납부 예정일 리마인드를 설정합니다.",
+  notice: "휴강, 보강, 강의실 변경, 시간표 변경, 긴급 공지 등 운영 공지를 설정합니다.",
 };
 
 function TriggerCard({
@@ -174,6 +174,33 @@ function TriggerCard({
         </div>
       </div>
 
+      {/* 활성화인데 템플릿 미선택 시 안내 */}
+      {config.enabled && !config.template && !isComingSoon && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            padding: "8px 12px",
+            borderRadius: "var(--radius-md)",
+            background:
+              "color-mix(in srgb, var(--color-status-warning, #d97706) 8%, transparent)",
+            border:
+              "1px solid color-mix(in srgb, var(--color-status-warning, #d97706) 18%, transparent)",
+            marginBottom: "var(--space-2)",
+          }}
+        >
+          <FiInfo
+            size={13}
+            style={{ color: "var(--color-status-warning, #d97706)", flexShrink: 0 }}
+            aria-hidden
+          />
+          <span style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>
+            템플릿을 선택하거나 새로 생성해야 실제 발송됩니다. 알림톡은 카카오 검수 승인된 템플릿이 필요합니다.
+          </span>
+        </div>
+      )}
+
       {/* 컨트롤 영역 */}
       {!isComingSoon && (
         <div
@@ -210,7 +237,7 @@ function TriggerCard({
                 }}
                 disabled={saving}
               >
-                <option value="">— 템플릿 선택 —</option>
+                <option value="">템플릿을 선택하세요</option>
                 {templates.map((t) => (
                   <option key={t.id} value={t.id}>
                     {t.name}
@@ -417,7 +444,9 @@ export default function MessageAutoSendPage() {
       <div className={panelStyles.root}>
         <div className={panelStyles.header}>
           <h2 className={panelStyles.headerTitle}>자동발송</h2>
-          <p className={panelStyles.headerDesc}>특정 상황 발생 시 설정한 템플릿으로 자동 발송됩니다.</p>
+          <p className={panelStyles.headerDesc}>
+            학원 운영 이벤트 발생 시 학생·학부모에게 알림톡/SMS를 자동 발송합니다.
+          </p>
         </div>
         <div className={panelStyles.body}>
           <aside className={panelStyles.tree}>
@@ -444,7 +473,10 @@ export default function MessageAutoSendPage() {
     <div className={panelStyles.root}>
       <div className={panelStyles.header}>
         <h2 className={panelStyles.headerTitle}>자동발송</h2>
-        <p className={panelStyles.headerDesc}>특정 상황 발생 시 설정한 템플릿으로 자동 발송됩니다.</p>
+        <p className={panelStyles.headerDesc}>
+          학원 운영 이벤트(가입·출결·시험·과제·클리닉·결제 등) 발생 시 학생·학부모에게 알림톡/SMS를 자동 발송합니다.
+          좌측에서 구간을 선택하고 각 트리거별로 템플릿·발송 시점·방식을 설정하세요.
+        </p>
         {!smsAllowed && (
           <div
             style={{
