@@ -7,16 +7,36 @@ import JsonViewerModal from "./JsonViewerModal";
 
 type RangeKey = "24h" | "7d" | "all";
 
-const SEV_COLORS: Record<string, string> = {
-  danger: "bg-red-600",
-  warn: "bg-yellow-500",
-  info: "bg-[var(--bg-surface-muted)] text-[var(--text-secondary)]",
+const RANGE_LABELS: Record<RangeKey, string> = {
+  "24h": "24시간",
+  "7d": "7일",
+  all: "전체",
 };
 
 type Props = {
   videoId: number;
   onClickRiskStudent: (enrollmentId: number) => void;
 };
+
+function SeverityBadge({ severity }: { severity: string }) {
+  const tone =
+    severity === "danger"
+      ? "danger"
+      : severity === "warn"
+        ? "warning"
+        : "neutral";
+  const label =
+    severity === "danger"
+      ? "위험"
+      : severity === "warn"
+        ? "주의"
+        : "정보";
+  return (
+    <span className="ds-status-badge ds-status-badge--1ch" data-tone={tone}>
+      {label}
+    </span>
+  );
+}
 
 export default function VideoLogTab({ videoId, onClickRiskStudent }: Props) {
   const [range, setRange] = useState<RangeKey>("24h");
@@ -79,62 +99,221 @@ export default function VideoLogTab({ videoId, onClickRiskStudent }: Props) {
 
   return (
     <div className="h-full flex gap-4">
-      {/* LEFT */}
-      <div className="w-[300px] rounded-xl border border-[var(--border-divider)] bg-[var(--bg-surface)] overflow-hidden flex flex-col">
-        <div className="px-3 py-2 border-b border-[var(--border-divider)] bg-[var(--bg-surface-soft)] text-sm font-semibold">
-          위반 / 이상 징후 학생
+      {/* LEFT — Risk Students Panel */}
+      <div
+        className="w-[300px] flex flex-col min-h-0 overflow-hidden"
+        style={{
+          borderRadius: "var(--radius-xl)",
+          border: "1px solid var(--color-border-subtle)",
+          background: "var(--color-bg-surface)",
+        }}
+      >
+        {/* Panel header */}
+        <div
+          className="flex items-center justify-between"
+          style={{
+            padding: "var(--space-3) var(--space-4)",
+            borderBottom: "1px solid var(--color-border-subtle)",
+            background: "var(--color-bg-surface-soft, var(--bg-surface-soft))",
+          }}
+        >
+          <div
+            className="font-semibold"
+            style={{
+              fontSize: "var(--text-sm, 13px)",
+              color: "var(--color-text-primary)",
+            }}
+          >
+            위반 / 이상 징후
+          </div>
+          <span
+            className="ds-status-badge ds-status-badge--1ch"
+            data-tone="danger"
+          >
+            {riskTop.length}
+          </span>
         </div>
 
-        <div className="p-3 space-y-3">
-          <div className="flex gap-2">
+        {/* Range selector + CSV */}
+        <div
+          style={{
+            padding: "var(--space-3) var(--space-4)",
+            borderBottom: "1px solid var(--color-border-subtle)",
+          }}
+        >
+          <div className="flex gap-1.5">
             {(["24h", "7d", "all"] as const).map((k) => (
               <button
                 key={k}
-                className={`text-xs px-2 py-1 rounded border border-[var(--border-divider)] ${
-                  range === k
-                    ? "bg-[var(--bg-surface)] font-semibold"
-                    : "bg-[var(--bg-surface-soft)]"
-                }`}
+                type="button"
+                className="permission-tab"
+                style={{
+                  padding: "var(--space-1) var(--space-3)",
+                  fontSize: "var(--text-xs, 11px)",
+                  fontWeight: range === k ? 600 : 500,
+                  background:
+                    range === k
+                      ? "var(--color-bg-surface)"
+                      : "transparent",
+                  boxShadow: range === k ? "var(--elevation-1)" : "none",
+                  color:
+                    range === k
+                      ? "var(--color-text-primary)"
+                      : "var(--color-text-secondary)",
+                  borderRadius: "var(--radius-sm)",
+                  border: "none",
+                  cursor: "pointer",
+                  transition: "all 140ms ease",
+                }}
                 onClick={() => {
                   setRange(k);
                   setPage(1);
                 }}
               >
-                {k === "24h" ? "24h" : k === "7d" ? "7d" : "전체"}
+                {RANGE_LABELS[k]}
               </button>
             ))}
           </div>
 
           <button
-            className="w-full text-xs px-3 py-2 rounded border border-[var(--border-divider)] bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-soft)]"
+            className="w-full mt-2"
             type="button"
+            style={{
+              height: 32,
+              fontSize: "var(--text-xs, 11px)",
+              fontWeight: 600,
+              color: "var(--color-text-secondary)",
+              background: "var(--color-bg-surface)",
+              border: "1px solid var(--color-border-default)",
+              borderRadius: "var(--radius-sm)",
+              cursor: "pointer",
+              transition: "all 140ms ease",
+            }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.background =
+                "var(--color-bg-surface-hover, var(--bg-surface-soft))";
+              (e.currentTarget as HTMLButtonElement).style.borderColor =
+                "var(--color-brand-primary)";
+              (e.currentTarget as HTMLButtonElement).style.color =
+                "var(--color-brand-primary)";
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.background =
+                "var(--color-bg-surface)";
+              (e.currentTarget as HTMLButtonElement).style.borderColor =
+                "var(--color-border-default)";
+              (e.currentTarget as HTMLButtonElement).style.color =
+                "var(--color-text-secondary)";
+            }}
           >
             CSV Export
           </button>
+        </div>
 
-          <div className="text-[11px] text-[var(--text-muted)]">
-            * 학생 클릭 → <b>권한 설정 탭</b>에서 해당 학생만 표시
-          </div>
+        {/* Hint */}
+        <div
+          style={{
+            padding: "var(--space-2) var(--space-4)",
+            fontSize: "10px",
+            color: "var(--color-text-muted)",
+            borderBottom: "1px solid var(--color-border-subtle)",
+          }}
+        >
+          학생 클릭 시 <b>권한 설정 탭</b>에서 해당 학생만 표시
+        </div>
 
+        {/* Risk student list */}
+        <div className="flex-1 min-h-0 overflow-auto" style={{ padding: "var(--space-3) var(--space-4)" }}>
           <div className="space-y-2">
             {riskTop.length === 0 ? (
-              <div className="text-xs text-[var(--text-muted)] p-2">
-                데이터 없음
+              <div
+                className="flex items-center justify-center"
+                style={{
+                  padding: "var(--space-6)",
+                  fontSize: "var(--text-sm, 12px)",
+                  color: "var(--color-text-muted)",
+                }}
+              >
+                이상 징후 학생 없음
               </div>
             ) : (
               riskTop.map((r: any) => (
                 <button
                   key={r.enrollment_id}
-                  className="w-full text-left rounded-lg border border-[var(--border-divider)] px-3 py-2 hover:bg-[var(--bg-surface-soft)]"
+                  className="w-full text-left"
                   onClick={() => onClickRiskStudent(r.enrollment_id)}
                   type="button"
+                  style={{
+                    display: "block",
+                    padding: "var(--space-3)",
+                    borderRadius: "var(--radius-md)",
+                    border: "1px solid var(--color-border-subtle)",
+                    background: "var(--color-bg-surface)",
+                    cursor: "pointer",
+                    transition: "all 160ms ease",
+                  }}
+                  onMouseEnter={(e) => {
+                    (e.currentTarget as HTMLButtonElement).style.background =
+                      "var(--color-bg-surface-hover, var(--bg-surface-soft))";
+                    (e.currentTarget as HTMLButtonElement).style.borderColor =
+                      "var(--color-border-default)";
+                    (e.currentTarget as HTMLButtonElement).style.boxShadow =
+                      "var(--elevation-1)";
+                  }}
+                  onMouseLeave={(e) => {
+                    (e.currentTarget as HTMLButtonElement).style.background =
+                      "var(--color-bg-surface)";
+                    (e.currentTarget as HTMLButtonElement).style.borderColor =
+                      "var(--color-border-subtle)";
+                    (e.currentTarget as HTMLButtonElement).style.boxShadow =
+                      "none";
+                  }}
                 >
-                  <div className="text-sm font-semibold">{r.student_name}</div>
-                  <div className="text-xs text-[var(--text-secondary)] mt-1">
-                    점수 <b>{r.score}</b> · danger {r.danger} · warn {r.warn}
+                  <div className="flex items-center justify-between">
+                    <span
+                      className="font-semibold truncate"
+                      style={{
+                        fontSize: "var(--text-sm, 13px)",
+                        color: "var(--color-text-primary)",
+                      }}
+                    >
+                      {r.student_name}
+                    </span>
+                    <span
+                      className="ds-status-badge ds-status-badge--1ch"
+                      data-tone={
+                        r.danger > 0
+                          ? "danger"
+                          : r.warn > 0
+                            ? "warning"
+                            : "neutral"
+                      }
+                    >
+                      {r.score}
+                    </span>
                   </div>
-                  <div className="text-[11px] text-[var(--text-muted)] mt-1 truncate">
-                    last:{" "}
+                  <div
+                    className="mt-1.5 flex items-center gap-2"
+                    style={{ fontSize: "var(--text-xs, 11px)" }}
+                  >
+                    {r.danger > 0 && (
+                      <span style={{ color: "var(--color-danger)" }}>
+                        위험 {r.danger}
+                      </span>
+                    )}
+                    {r.warn > 0 && (
+                      <span style={{ color: "var(--color-warning)" }}>
+                        주의 {r.warn}
+                      </span>
+                    )}
+                  </div>
+                  <div
+                    className="mt-1 truncate"
+                    style={{
+                      fontSize: "10px",
+                      color: "var(--color-text-muted)",
+                    }}
+                  >
                     {r.last_occurred_at
                       ? new Date(r.last_occurred_at).toLocaleString()
                       : "-"}
@@ -145,28 +324,91 @@ export default function VideoLogTab({ videoId, onClickRiskStudent }: Props) {
           </div>
         </div>
 
-        <div className="mt-auto border-t border-[var(--border-divider)] p-3 text-xs text-[var(--text-muted)]">
+        {/* Footer */}
+        <div
+          style={{
+            padding: "var(--space-3) var(--space-4)",
+            borderTop: "1px solid var(--color-border-subtle)",
+            background: "var(--color-bg-surface-soft, var(--bg-surface-soft))",
+            fontSize: "var(--text-xs, 11px)",
+            color: "var(--color-text-muted)",
+            fontWeight: 600,
+          }}
+        >
           총 이벤트: {totalCount.toLocaleString()}건
         </div>
       </div>
 
-      {/* RIGHT */}
-      <div className="flex-1 rounded-xl border border-[var(--border-divider)] bg-[var(--bg-surface)] overflow-hidden flex flex-col">
-        <div className="px-3 py-2 border-b border-[var(--border-divider)] bg-[var(--bg-surface-soft)] flex items-center justify-between">
-          <div className="text-sm font-semibold">
-            시청 로그
+      {/* RIGHT — Event Log Table */}
+      <div
+        className="flex-1 flex flex-col min-h-0 overflow-hidden"
+        style={{
+          borderRadius: "var(--radius-xl)",
+          border: "1px solid var(--color-border-subtle)",
+          background: "var(--color-bg-surface)",
+        }}
+      >
+        {/* Table header bar */}
+        <div
+          className="flex items-center justify-between"
+          style={{
+            padding: "var(--space-3) var(--space-4)",
+            borderBottom: "1px solid var(--color-border-subtle)",
+            background: "var(--color-bg-surface-soft, var(--bg-surface-soft))",
+          }}
+        >
+          <div className="flex items-center gap-2">
+            <span
+              className="font-semibold"
+              style={{
+                fontSize: "var(--text-sm, 13px)",
+                color: "var(--color-text-primary)",
+              }}
+            >
+              시청 로그
+            </span>
             {isFetching && (
-              <span className="ml-2 text-xs text-[var(--text-muted)]">
+              <span
+                style={{
+                  fontSize: "var(--text-xs, 11px)",
+                  color: "var(--color-text-muted)",
+                }}
+              >
                 동기화 중...
               </span>
             )}
           </div>
-          <div className="text-xs text-[var(--text-secondary)]">
-            range: {range} · page: {page}
+          <div className="flex items-center gap-3">
+            <span
+              className="ds-status-badge ds-status-badge--1ch"
+              data-tone="neutral"
+            >
+              {RANGE_LABELS[range]}
+            </span>
+            <span
+              style={{
+                fontSize: "var(--text-xs, 11px)",
+                color: "var(--color-text-muted)",
+              }}
+            >
+              {page} 페이지
+            </span>
           </div>
         </div>
 
-        <div className="grid grid-cols-12 text-xs font-semibold border-b border-[var(--border-divider)] px-3 py-2 bg-[var(--bg-surface)] text-[var(--text-secondary)]">
+        {/* Column headers */}
+        <div
+          className="grid grid-cols-12 items-center"
+          style={{
+            padding: "var(--space-2) var(--space-4)",
+            fontSize: "var(--text-xs, 11px)",
+            fontWeight: 600,
+            color: "var(--color-text-tertiary)",
+            letterSpacing: "0.01em",
+            borderBottom: "1px solid var(--color-border-subtle)",
+            background: "var(--color-bg-surface)",
+          }}
+        >
           <div className="col-span-2">시간</div>
           <div className="col-span-2">학생</div>
           <div className="col-span-3">타입</div>
@@ -176,43 +418,115 @@ export default function VideoLogTab({ videoId, onClickRiskStudent }: Props) {
           <div className="col-span-1 text-center">세션</div>
         </div>
 
-        <div className="flex-1 overflow-auto">
+        {/* Event rows */}
+        <div className="flex-1 min-h-0 overflow-auto">
           {events.length === 0 ? (
-            <div className="p-4 text-sm text-[var(--text-muted)]">
+            <div
+              className="flex items-center justify-center"
+              style={{
+                padding: "var(--space-8)",
+                fontSize: "var(--text-sm, 13px)",
+                color: "var(--color-text-muted)",
+              }}
+            >
               이벤트가 없습니다.
             </div>
           ) : (
-            events.map((e: any) => (
+            events.map((e: any, idx: number) => (
               <button
                 key={e.id}
-                className="w-full text-left grid grid-cols-12 px-3 py-2 border-b border-[var(--border-divider)] hover:bg-[var(--bg-surface-soft)] text-xs"
+                className="w-full text-left grid grid-cols-12 items-center"
                 onClick={() => setSelectedEvent(e)}
                 type="button"
+                style={{
+                  padding: "var(--space-2) var(--space-4)",
+                  fontSize: "var(--text-xs, 11px)",
+                  borderBottom: "1px solid var(--color-border-subtle)",
+                  background:
+                    idx % 2 === 1
+                      ? "color-mix(in srgb, var(--color-brand-primary) 2%, var(--color-bg-surface))"
+                      : "var(--color-bg-surface)",
+                  cursor: "pointer",
+                  transition: "background 120ms ease",
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.background =
+                    "var(--color-bg-surface-hover, var(--bg-surface-soft))";
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.background =
+                    idx % 2 === 1
+                      ? "color-mix(in srgb, var(--color-brand-primary) 2%, var(--color-bg-surface))"
+                      : "var(--color-bg-surface)";
+                }}
               >
-                <div className="col-span-2 text-[var(--text-secondary)]">
-                  {e.occurred_at ? new Date(e.occurred_at).toLocaleString() : "-"}
+                <div
+                  className="col-span-2 truncate"
+                  style={{ color: "var(--color-text-secondary)" }}
+                >
+                  {e.occurred_at
+                    ? new Date(e.occurred_at).toLocaleString()
+                    : "-"}
                 </div>
-                <div className="col-span-2 font-medium truncate">
+                <div
+                  className="col-span-2 truncate font-medium"
+                  style={{ color: "var(--color-text-primary)" }}
+                >
                   {e.student_name}
                 </div>
                 <div className="col-span-3 flex items-center gap-2">
+                  <SeverityBadge severity={e.severity} />
                   <span
-                    className={`px-2 py-0.5 rounded-full text-white text-[10px] ${
-                      SEV_COLORS[e.severity] || "bg-gray-500"
-                    }`}
+                    className="truncate"
+                    style={{ color: "var(--color-text-secondary)" }}
                   >
-                    {e.severity}
+                    {e.event_type}
                   </span>
-                  <span className="truncate">{e.event_type}</span>
                 </div>
-                <div className="col-span-1 text-center">
-                  {e.violated ? "Y" : "-"}
+                <div className="col-span-1 flex justify-center">
+                  {e.violated ? (
+                    <span
+                      className="ds-status-badge ds-status-badge--1ch"
+                      data-tone="danger"
+                    >
+                      Y
+                    </span>
+                  ) : (
+                    <span
+                      style={{
+                        color: "var(--color-text-muted)",
+                        fontSize: "var(--text-xs, 11px)",
+                      }}
+                    >
+                      -
+                    </span>
+                  )}
                 </div>
-                <div className="col-span-2 text-[var(--text-secondary)] truncate">
+                <div
+                  className="col-span-2 truncate"
+                  style={{ color: "var(--color-text-secondary)" }}
+                >
                   {e.violation_reason || "-"}
                 </div>
-                <div className="col-span-1 text-center font-bold">{e.score}</div>
-                <div className="col-span-1 text-center text-[var(--text-muted)] truncate">
+                <div
+                  className="col-span-1 text-center font-bold"
+                  style={{
+                    color:
+                      (e.score ?? 0) > 0
+                        ? "var(--color-danger)"
+                        : "var(--color-text-muted)",
+                  }}
+                >
+                  {e.score}
+                </div>
+                <div
+                  className="col-span-1 text-center truncate"
+                  style={{
+                    color: "var(--color-text-muted)",
+                    fontFamily: "monospace",
+                    fontSize: "10px",
+                  }}
+                >
                   {e.session_id ? String(e.session_id).slice(0, 6) : "-"}
                 </div>
               </button>
@@ -220,23 +534,67 @@ export default function VideoLogTab({ videoId, onClickRiskStudent }: Props) {
           )}
         </div>
 
-        <div className="px-3 py-2 border-t border-[var(--border-divider)] bg-[var(--bg-surface-soft)] flex justify-end gap-2">
-          <button
-            className="text-xs px-3 py-1 rounded border border-[var(--border-divider)] bg-[var(--bg-surface)] disabled:opacity-50"
-            disabled={!canPrev}
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-            type="button"
+        {/* Pagination footer */}
+        <div
+          className="flex items-center justify-between"
+          style={{
+            padding: "var(--space-2) var(--space-4)",
+            borderTop: "1px solid var(--color-border-subtle)",
+            background: "var(--color-bg-surface-soft, var(--bg-surface-soft))",
+          }}
+        >
+          <span
+            style={{
+              fontSize: "var(--text-xs, 11px)",
+              color: "var(--color-text-muted)",
+            }}
           >
-            이전
-          </button>
-          <button
-            className="text-xs px-3 py-1 rounded border border-[var(--border-divider)] bg-[var(--bg-surface)] disabled:opacity-50"
-            disabled={!canNext}
-            onClick={() => setPage((p) => p + 1)}
-            type="button"
-          >
-            다음
-          </button>
+            {events.length > 0
+              ? `${(page - 1) * pageSize + 1}~${(page - 1) * pageSize + events.length}건`
+              : "0건"}
+          </span>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              disabled={!canPrev}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              style={{
+                height: 28,
+                padding: "0 var(--space-3)",
+                fontSize: "var(--text-xs, 11px)",
+                fontWeight: 600,
+                color: "var(--color-text-secondary)",
+                background: "var(--color-bg-surface)",
+                border: "1px solid var(--color-border-default)",
+                borderRadius: "var(--radius-sm)",
+                cursor: canPrev ? "pointer" : "not-allowed",
+                opacity: canPrev ? 1 : 0.45,
+                transition: "all 140ms ease",
+              }}
+            >
+              이전
+            </button>
+            <button
+              type="button"
+              disabled={!canNext}
+              onClick={() => setPage((p) => p + 1)}
+              style={{
+                height: 28,
+                padding: "0 var(--space-3)",
+                fontSize: "var(--text-xs, 11px)",
+                fontWeight: 600,
+                color: "var(--color-text-secondary)",
+                background: "var(--color-bg-surface)",
+                border: "1px solid var(--color-border-default)",
+                borderRadius: "var(--radius-sm)",
+                cursor: canNext ? "pointer" : "not-allowed",
+                opacity: canNext ? 1 : 0.45,
+                transition: "all 140ms ease",
+              }}
+            >
+              다음
+            </button>
+          </div>
         </div>
       </div>
 

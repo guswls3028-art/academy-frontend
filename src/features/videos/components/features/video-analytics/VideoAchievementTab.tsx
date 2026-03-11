@@ -12,6 +12,7 @@ import {
   YAxis,
   Tooltip,
   CartesianGrid,
+  Cell,
 } from "recharts";
 
 type Props = {
@@ -36,9 +37,14 @@ function formatSeconds(sec: number) {
   return `${r}초`;
 }
 
-/** 사이즈·색상 SSOT: ds-status-badge + data-tone (success/danger/warning) */
+/** ds-status-badge + data-tone (success/danger/warning) */
 function StatusBadge({ status }: { status: Row["status"] }) {
-  const tone = status === "completed" ? "success" : status === "danger" ? "danger" : "warning";
+  const tone =
+    status === "completed"
+      ? "success"
+      : status === "danger"
+        ? "danger"
+        : "warning";
   const label: Record<Row["status"], string> = {
     completed: "완료",
     warning: "주의",
@@ -55,26 +61,105 @@ function KpiCard({
   label,
   value,
   sub,
+  accent,
 }: {
   label: string;
   value: string | number;
   sub?: string;
+  accent?: boolean;
 }) {
   return (
-    <div className="rounded-xl border border-[var(--border-divider)] bg-[var(--bg-surface)] p-4">
-      <div className="text-xs text-[var(--text-muted)]">{label}</div>
-      <div className="mt-1 text-2xl font-bold text-[var(--text-primary)]">
-        {value}
-      </div>
+    <div
+      className="kpi"
+      style={{
+        background: accent
+          ? "color-mix(in srgb, var(--color-brand-primary) 4%, var(--color-bg-surface))"
+          : "var(--color-bg-surface)",
+        borderColor: accent
+          ? "color-mix(in srgb, var(--color-brand-primary) 16%, var(--color-border-divider))"
+          : undefined,
+      }}
+    >
+      <div className="kpi-label">{label}</div>
+      <div className="kpi-value">{value}</div>
       {sub ? (
-        <div className="mt-1 text-xs text-[var(--text-muted)]">{sub}</div>
+        <div
+          className="mt-1"
+          style={{
+            fontSize: "var(--text-xs, 11px)",
+            color: "var(--color-text-muted)",
+          }}
+        >
+          {sub}
+        </div>
       ) : null}
     </div>
   );
 }
 
-export default function VideoAchievementTab({ videoId, onSelectStudent }: Props) {
-  const [sortKey, setSortKey] = useState<"progress" | "name" | "status">("status");
+/** Progress bar with color based on value */
+function ProgressBar({ value }: { value: number }) {
+  const pct = Math.min(100, Math.max(0, value));
+  const color =
+    pct >= 95
+      ? "var(--color-success)"
+      : pct >= 50
+        ? "var(--color-brand-primary)"
+        : pct >= 30
+          ? "var(--color-warning)"
+          : "var(--color-danger)";
+
+  return (
+    <div className="flex items-center gap-2 w-full">
+      <div
+        style={{
+          flex: 1,
+          height: 6,
+          borderRadius: 3,
+          background:
+            "color-mix(in srgb, var(--color-border-divider) 30%, var(--color-bg-surface))",
+          overflow: "hidden",
+        }}
+      >
+        <div
+          style={{
+            width: `${pct}%`,
+            height: "100%",
+            borderRadius: 3,
+            background: color,
+            transition: "width 400ms ease",
+          }}
+        />
+      </div>
+      <span
+        className="font-semibold tabular-nums"
+        style={{
+          fontSize: "var(--text-xs, 11px)",
+          color: "var(--color-text-primary)",
+          minWidth: 36,
+          textAlign: "right",
+        }}
+      >
+        {pct.toFixed(1)}%
+      </span>
+    </div>
+  );
+}
+
+const BAR_COLORS = [
+  "var(--color-danger)",
+  "var(--color-warning)",
+  "var(--color-brand-primary)",
+  "var(--color-success)",
+];
+
+export default function VideoAchievementTab({
+  videoId,
+  onSelectStudent,
+}: Props) {
+  const [sortKey, setSortKey] = useState<"progress" | "name" | "status">(
+    "status"
+  );
 
   const { data, isFetching } = useQuery({
     queryKey: ["video", videoId, "achievement"],
@@ -121,7 +206,9 @@ export default function VideoAchievementTab({ videoId, onSelectStudent }: Props)
     if (sortKey === "progress") {
       copy.sort((a, b) => (b.progress ?? 0) - (a.progress ?? 0));
     } else if (sortKey === "name") {
-      copy.sort((a, b) => (a.student_name || "").localeCompare(b.student_name || ""));
+      copy.sort((a, b) =>
+        (a.student_name || "").localeCompare(b.student_name || "")
+      );
     } else {
       copy.sort((a, b) => {
         const ra = statusRank[a.status] ?? 99;
@@ -140,23 +227,57 @@ export default function VideoAchievementTab({ videoId, onSelectStudent }: Props)
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <div className="text-sm font-semibold text-[var(--text-primary)]">
-            학습 성취도{" "}
-            {isFetching ? (
-              <span className="ml-2 text-xs text-[var(--text-muted)]">
+          <div
+            className="font-semibold flex items-center gap-2"
+            style={{
+              fontSize: "var(--text-sm, 13px)",
+              color: "var(--color-text-primary)",
+            }}
+          >
+            학습 성취도
+            {isFetching && (
+              <span
+                style={{
+                  fontSize: "var(--text-xs, 11px)",
+                  color: "var(--color-text-muted)",
+                  fontWeight: 400,
+                }}
+              >
                 동기화 중...
               </span>
-            ) : null}
+            )}
           </div>
-          <div className="mt-1 text-xs text-[var(--text-muted)]">
-            * 출석이 <b>ONLINE(영상)</b> 인 학생만 집계합니다.
+          <div
+            className="mt-1"
+            style={{
+              fontSize: "var(--text-xs, 11px)",
+              color: "var(--color-text-muted)",
+            }}
+          >
+            출석이 <b>ONLINE(영상)</b>인 학생만 집계합니다.
           </div>
         </div>
 
         <div className="flex items-center gap-2">
-          <div className="text-xs text-[var(--text-muted)]">정렬</div>
+          <span
+            style={{
+              fontSize: "var(--text-xs, 11px)",
+              color: "var(--color-text-muted)",
+            }}
+          >
+            정렬
+          </span>
           <select
-            className="rounded border border-[var(--border-divider)] bg-[var(--bg-surface)] px-2 py-1 text-xs text-[var(--text-primary)]"
+            style={{
+              height: 28,
+              padding: "0 var(--space-3)",
+              fontSize: "var(--text-xs, 11px)",
+              color: "var(--color-text-primary)",
+              background: "var(--color-bg-surface)",
+              border: "1px solid var(--color-border-default)",
+              borderRadius: "var(--radius-sm)",
+              cursor: "pointer",
+            }}
             value={sortKey}
             onChange={(e) => setSortKey(e.target.value as any)}
           >
@@ -169,17 +290,49 @@ export default function VideoAchievementTab({ videoId, onSelectStudent }: Props)
 
       {/* KPI */}
       <div className="grid grid-cols-4 gap-3">
-        <KpiCard label="영상 수강 학생" value={`${summary?.total_students ?? 0}명`} />
-        <KpiCard label="평균 진도율" value={`${summary?.avg_progress ?? 0}%`} />
-        <KpiCard label="완료율" value={`${summary?.completed_rate ?? 0}%`} />
-        <KpiCard label="미완료" value={`${summary?.incomplete_count ?? 0}명`} />
+        <KpiCard
+          label="영상 수강 학생"
+          value={`${summary?.total_students ?? 0}명`}
+        />
+        <KpiCard
+          label="평균 진도율"
+          value={`${summary?.avg_progress ?? 0}%`}
+          accent
+        />
+        <KpiCard
+          label="완료율"
+          value={`${summary?.completed_rate ?? 0}%`}
+          accent
+        />
+        <KpiCard
+          label="미완료"
+          value={`${summary?.incomplete_count ?? 0}명`}
+          sub={
+            summary?.incomplete_count > 0 ? "관리 필요" : undefined
+          }
+        />
       </div>
 
       {/* Chart + Table */}
       <div className="grid flex-1 min-h-0 grid-cols-12 gap-4">
         {/* Chart */}
-        <div className="col-span-5 flex min-h-0 flex-col rounded-xl border border-[var(--border-divider)] bg-[var(--bg-surface)] p-4">
-          <div className="mb-2 text-sm font-semibold text-[var(--text-primary)]">
+        <div
+          className="col-span-5 flex min-h-0 flex-col"
+          style={{
+            borderRadius: "var(--radius-xl)",
+            border: "1px solid var(--color-border-subtle)",
+            background: "var(--color-bg-surface)",
+            padding: "var(--space-4)",
+          }}
+        >
+          <div
+            className="font-semibold"
+            style={{
+              fontSize: "var(--text-sm, 13px)",
+              color: "var(--color-text-primary)",
+              marginBottom: "var(--space-3)",
+            }}
+          >
             진도 분포
           </div>
           <div className="flex-1 min-h-0">
@@ -188,72 +341,184 @@ export default function VideoAchievementTab({ videoId, onSelectStudent }: Props)
                 data={dist}
                 margin={{ left: 10, right: 10, top: 10, bottom: 10 }}
               >
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="label" tick={{ fontSize: 12 }} />
-                <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  stroke="var(--color-border-subtle)"
+                />
+                <XAxis
+                  dataKey="label"
+                  tick={{ fontSize: 11, fill: "var(--color-text-secondary)" }}
+                  axisLine={{ stroke: "var(--color-border-subtle)" }}
+                  tickLine={{ stroke: "var(--color-border-subtle)" }}
+                />
+                <YAxis
+                  allowDecimals={false}
+                  tick={{ fontSize: 11, fill: "var(--color-text-secondary)" }}
+                  axisLine={{ stroke: "var(--color-border-subtle)" }}
+                  tickLine={{ stroke: "var(--color-border-subtle)" }}
+                />
                 <Tooltip
                   contentStyle={{
-                    background: "var(--bg-surface-soft)",
-                    border: "1px solid var(--border-divider)",
-                    borderRadius: 8,
+                    background: "var(--color-bg-surface)",
+                    border: "1px solid var(--color-border-subtle)",
+                    borderRadius: "var(--radius-md)",
                     fontSize: 12,
-                    color: "var(--text-primary)",
+                    color: "var(--color-text-primary)",
+                    boxShadow: "var(--elevation-2)",
                   }}
-                  labelStyle={{ color: "var(--text-secondary)" }}
+                  labelStyle={{ color: "var(--color-text-secondary)" }}
+                  cursor={{ fill: "color-mix(in srgb, var(--color-brand-primary) 6%, transparent)" }}
                 />
-                <Bar dataKey="count" />
+                <Bar dataKey="count" radius={[4, 4, 0, 0]}>
+                  {dist.map((_entry, index) => (
+                    <Cell key={index} fill={BAR_COLORS[index]} />
+                  ))}
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
 
-          <div className="mt-3 text-xs text-[var(--text-muted)]">
-            * 95% 이상은 “완료”로 간주(백엔드 status 기준)
+          <div
+            className="mt-2"
+            style={{
+              fontSize: "10px",
+              color: "var(--color-text-muted)",
+            }}
+          >
+            95% 이상은 "완료"로 간주 (백엔드 status 기준)
           </div>
         </div>
 
         {/* Table */}
-        <div className="col-span-7 flex min-h-0 flex-col overflow-hidden rounded-xl border border-[var(--border-divider)] bg-[var(--bg-surface)]">
-          <div className="flex items-center justify-between border-b border-[var(--border-divider)] bg-[var(--bg-surface-soft)] px-3 py-2 text-sm font-semibold">
-            <span>학생별 현황</span>
-            <span className="text-xs text-[var(--text-muted)]">
-              클릭 → 권한 탭으로 이동
+        <div
+          className="col-span-7 flex min-h-0 flex-col overflow-hidden"
+          style={{
+            borderRadius: "var(--radius-xl)",
+            border: "1px solid var(--color-border-subtle)",
+            background: "var(--color-bg-surface)",
+          }}
+        >
+          {/* Table header bar */}
+          <div
+            className="flex items-center justify-between"
+            style={{
+              padding: "var(--space-3) var(--space-4)",
+              borderBottom: "1px solid var(--color-border-subtle)",
+              background:
+                "var(--color-bg-surface-soft, var(--bg-surface-soft))",
+            }}
+          >
+            <span
+              className="font-semibold"
+              style={{
+                fontSize: "var(--text-sm, 13px)",
+                color: "var(--color-text-primary)",
+              }}
+            >
+              학생별 현황
+            </span>
+            <span
+              style={{
+                fontSize: "10px",
+                color: "var(--color-text-muted)",
+              }}
+            >
+              클릭 시 권한 탭으로 이동
             </span>
           </div>
 
-          <div className="grid grid-cols-12 border-b border-[var(--border-divider)] bg-[var(--bg-surface)] px-3 py-2 text-xs font-semibold text-[var(--text-secondary)]">
+          {/* Column headers */}
+          <div
+            className="grid grid-cols-12 items-center"
+            style={{
+              padding: "var(--space-2) var(--space-4)",
+              borderBottom: "1px solid var(--color-border-subtle)",
+              background: "var(--color-bg-surface)",
+              fontSize: "var(--text-xs, 11px)",
+              fontWeight: 600,
+              color: "var(--color-text-tertiary)",
+              letterSpacing: "0.01em",
+            }}
+          >
             <div className="col-span-3">이름</div>
             <div className="col-span-2 text-center">상태</div>
-            <div className="col-span-2 text-center">진도</div>
-            <div className="col-span-3">시청 위치</div>
-            <div className="col-span-2 text-right">완료</div>
+            <div className="col-span-3">진도</div>
+            <div className="col-span-2">시청 위치</div>
+            <div className="col-span-2 text-center">완료</div>
           </div>
 
-          <div className="flex-1 overflow-auto">
+          {/* Table body */}
+          <div className="flex-1 min-h-0 overflow-auto">
             {sorted.length === 0 ? (
-              <div className="p-4 text-sm text-[var(--text-muted)]">
+              <div
+                className="flex items-center justify-center"
+                style={{
+                  padding: "var(--space-8)",
+                  fontSize: "var(--text-sm, 13px)",
+                  color: "var(--color-text-muted)",
+                }}
+              >
                 영상 수강(ONLINE) 학생이 없습니다.
               </div>
             ) : (
-              sorted.map((s) => (
+              sorted.map((s, idx) => (
                 <button
                   key={s.enrollment}
-                  className="grid w-full grid-cols-12 border-b border-[var(--border-divider)] px-3 py-2 text-left text-sm hover:bg-[var(--bg-surface-soft)]"
+                  className="grid w-full grid-cols-12 items-center text-left"
                   onClick={() => onSelectStudent?.(s.enrollment)}
+                  type="button"
+                  style={{
+                    padding: "var(--space-2) var(--space-4)",
+                    borderBottom: "1px solid var(--color-border-subtle)",
+                    background:
+                      idx % 2 === 1
+                        ? "color-mix(in srgb, var(--color-brand-primary) 2%, var(--color-bg-surface))"
+                        : "var(--color-bg-surface)",
+                    cursor: "pointer",
+                    transition: "background 120ms ease",
+                  }}
+                  onMouseEnter={(e) => {
+                    (e.currentTarget as HTMLButtonElement).style.background =
+                      "var(--color-bg-surface-hover, var(--bg-surface-soft))";
+                  }}
+                  onMouseLeave={(e) => {
+                    (e.currentTarget as HTMLButtonElement).style.background =
+                      idx % 2 === 1
+                        ? "color-mix(in srgb, var(--color-brand-primary) 2%, var(--color-bg-surface))"
+                        : "var(--color-bg-surface)";
+                  }}
                 >
-                  <div className="col-span-3 truncate font-medium">
+                  <div
+                    className="col-span-3 truncate font-medium"
+                    style={{
+                      fontSize: "var(--text-sm, 13px)",
+                      color: "var(--color-text-primary)",
+                    }}
+                  >
                     {s.student_name}
                   </div>
                   <div className="col-span-2 flex justify-center">
                     <StatusBadge status={s.status} />
                   </div>
-                  <div className="col-span-2 text-center font-semibold">
-                    {Number(s.progress ?? 0).toFixed(1)}%
+                  <div className="col-span-3">
+                    <ProgressBar value={Number(s.progress ?? 0)} />
                   </div>
-                  <div className="col-span-3 text-[var(--text-secondary)]">
+                  <div
+                    className="col-span-2"
+                    style={{
+                      fontSize: "var(--text-xs, 11px)",
+                      color: "var(--color-text-secondary)",
+                    }}
+                  >
                     {formatSeconds(s.watched_seconds)}
                   </div>
-                  <div className="col-span-2 text-right text-[var(--text-secondary)]">
-                    {s.completed ? "Y" : "-"}
+                  <div className="col-span-2 flex justify-center">
+                    <span
+                      className="ds-status-badge ds-status-badge--1ch"
+                      data-tone={s.completed ? "success" : "neutral"}
+                    >
+                      {s.completed ? "완료" : "미완료"}
+                    </span>
                   </div>
                 </button>
               ))

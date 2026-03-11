@@ -18,6 +18,8 @@ import VideoPreviewSection from "@/features/videos/components/features/video-det
 import VideoPolicySection from "@/features/videos/components/features/video-detail/components/VideoPolicySection";
 import AdminMemoSection from "@/features/videos/components/features/video-detail/components/AdminMemoSection";
 import VideoStudentsSection from "@/features/videos/components/features/video-detail/components/VideoStudentsSection";
+import VideoEngagementBar from "@/features/videos/components/features/video-detail/components/VideoEngagementBar";
+import AdminCommentSection from "@/features/videos/components/features/video-detail/components/AdminCommentSection";
 import type { TabKey } from "@/features/videos/components/features/video-permission/permission.types";
 
 function formatBytes(b?: number) {
@@ -168,6 +170,12 @@ export default function VideoDetailPage() {
               </div>
             </section>
 
+            {/* Engagement Stats Bar */}
+            <VideoEngagementBar
+              videoId={videoId}
+              fallbackViewCount={video.view_count}
+            />
+
             <section className={styles.section.wrapper}>
               <div className={styles.section.header}>학생 시청 정책</div>
               <div className={styles.section.body}>
@@ -186,6 +194,21 @@ export default function VideoDetailPage() {
               <div className={styles.section.header}>관리자 메모</div>
               <div className={styles.section.body}>
                 <AdminMemoSection memo={memo} setMemo={setMemo} />
+              </div>
+            </section>
+
+            {/* Comments Section */}
+            <section className={styles.section.wrapper}>
+              <div className={styles.section.header}>
+                <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                  </svg>
+                  학생 댓글
+                </span>
+              </div>
+              <div className={styles.section.body}>
+                <AdminCommentSection videoId={videoId} />
               </div>
             </section>
           </>

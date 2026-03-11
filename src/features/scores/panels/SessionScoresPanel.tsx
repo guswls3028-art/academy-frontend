@@ -11,10 +11,11 @@ import {
   type SessionScoreMeta,
 } from "../api/sessionScores";
 import { scoresQueryKeys } from "../api/queryKeys";
-import { fetchAttendance } from "@/features/lectures/api/attendance";
+import { fetchAttendance, updateAttendance } from "@/features/lectures/api/attendance";
 
 import ScoresTable, { type ScoresTableHandle } from "../components/ScoresTable";
 import { EmptyState } from "@/shared/ui/ds";
+import { feedback } from "@/shared/ui/feedback/feedback";
 import AdminOmrBatchUploadBox from "@/features/submissions/components/AdminOmrBatchUploadBox";
 
 type Props = {
@@ -113,6 +114,30 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
     }
     return map;
   }, [attendanceList]);
+
+  /** enrollment_id → attendance record id (for PATCH API) */
+  const attendanceIdMap = useMemo(() => {
+    const raw = attendanceList;
+    const list = Array.isArray(raw) ? raw : (raw as { results?: unknown[] })?.results ?? [];
+    const map: Record<number, number> = {};
+    for (const a of list) {
+      const item = a as { enrollment_id?: number; enrollment?: number; id?: number };
+      const eid = item?.enrollment_id ?? item?.enrollment;
+      if (eid != null && item?.id != null) map[Number(eid)] = Number(item.id);
+    }
+    return map;
+  }, [attendanceList]);
+
+  const handleAttendanceChange = useCallback(async (enrollmentId: number, newStatus: string) => {
+    const attendanceRecordId = attendanceIdMap[enrollmentId];
+    if (!attendanceRecordId) return;
+    try {
+      await updateAttendance(attendanceRecordId, { status: newStatus });
+      qc.invalidateQueries({ queryKey: scoresQueryKeys.attendance(sessionId) });
+    } catch {
+      feedback.error("출결 변경에 실패했습니다.");
+    }
+  }, [attendanceIdMap, qc, sessionId]);
 
   const rows = useMemo(() => {
     if (!search.trim()) return allRows;
@@ -307,6 +332,8 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
           meta={meta}
           sessionId={sessionId}
           attendanceMap={attendanceMap}
+          attendanceIdMap={attendanceIdMap}
+          onAttendanceChange={handleAttendanceChange}
           isEditMode={isEditMode}
           examEditTotal={examEditTotal}
           examEditObjective={examEditObjective}

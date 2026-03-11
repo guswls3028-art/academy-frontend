@@ -134,14 +134,12 @@ export default function HomeworkPolicyCard({
           <div className="mb-1 text-sm text-[var(--text-muted)]">커트라인 값</div>
           <div className="flex items-center gap-2">
             <input
-              type="number"
-              min={0}
-              max={mode === "PERCENT" ? 100 : undefined}
-              step={1}
+              type="text"
+              inputMode="numeric"
               className="w-[180px] rounded border border-[var(--border-divider)] px-3 py-2 text-4xl font-bold bg-[var(--bg-app)] text-[var(--text-primary)]"
-              value={cutlineValue}
+              value={cutlineValue === 0 ? "" : String(cutlineValue)}
               onChange={(e) => {
-                const v = e.target.value;
+                const v = e.target.value.replace(/\D/g, "");
                 if (v === "") {
                   setCutlineValue(0);
                   return;
@@ -149,11 +147,9 @@ export default function HomeworkPolicyCard({
                 const num = parseInt(v, 10);
                 setCutlineValue(clampCutline(Number.isFinite(num) ? num : 0, mode));
               }}
-              onBlur={(e) => {
-                const v = e.target.value;
-                if (v === "") return;
-                const num = parseInt(v, 10);
-                if (Number.isFinite(num)) setCutlineValue(clampCutline(num, mode));
+              onBlur={() => {
+                // 빈값이면 0으로 확정
+                if (cutlineValue === 0) setCutlineValue(0);
               }}
               disabled={!canEdit}
               placeholder="입력"

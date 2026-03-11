@@ -39,18 +39,25 @@ export default function PermissionSidePanel({
       <div className="px-4 py-3 border-b border-[var(--color-border-subtle)]">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <div
-              className="font-semibold text-[var(--color-text-primary)]"
-              style={{ fontSize: "var(--text-sm, 13px)" }}
-            >
-              선택된 학생
+            <div className="flex items-center gap-2">
+              <span
+                className="font-semibold text-[var(--color-text-primary)]"
+                style={{ fontSize: "var(--text-sm, 13px)" }}
+              >
+                선택된 학생
+              </span>
+              {selectedCount > 0 && (
+                <span className="ds-status-badge ds-status-badge--1ch" data-tone="primary">
+                  {selectedCount}
+                </span>
+              )}
             </div>
             <div
-              className="mt-0.5 text-[var(--color-text-muted)]"
+              className="mt-1 text-[var(--color-text-muted)]"
               style={{ fontSize: "var(--text-xs, 11px)" }}
             >
               {selectedCount > 0
-                ? `${selectedCount}명 선택됨`
+                ? "아래 버튼으로 권한을 즉시 적용하세요."
                 : "좌측에서 학생을 선택하세요."}
             </div>
           </div>
@@ -67,7 +74,7 @@ export default function PermissionSidePanel({
           </Button>
         </div>
 
-        {/* Apply buttons — DS tone tokens */}
+        {/* Apply buttons */}
         <div className="mt-3 flex items-center gap-2">
           {APPLY_ACTIONS.map(({ mode, label, tone }) => (
             <button
@@ -88,13 +95,13 @@ export default function PermissionSidePanel({
               className="ml-1 text-[var(--color-text-muted)]"
               style={{ fontSize: "var(--text-xs, 11px)" }}
             >
-              적용 중…
+              적용 중...
             </span>
           )}
         </div>
 
         <div className="mt-2 text-[var(--color-text-muted)]" style={{ fontSize: "10px" }}>
-          * 권한은 <b>선택된 학생</b> 기준으로 즉시 반영됩니다.
+          권한은 <b>선택된 학생</b> 기준으로 즉시 반영됩니다.
         </div>
       </div>
 
@@ -109,17 +116,14 @@ export default function PermissionSidePanel({
           }}
         >
           {/* table head */}
-          <div className="
-            grid grid-cols-12
-            px-3 py-2
-            font-semibold
-            border-b
-          "
+          <div
+            className="grid grid-cols-12 px-3 py-2 font-semibold border-b"
             style={{
               fontSize: "var(--text-xs, 11px)",
               color: "var(--color-text-tertiary)",
               borderColor: "var(--color-border-subtle)",
               background: "var(--color-bg-surface-soft, var(--bg-surface-soft))",
+              letterSpacing: "0.01em",
             }}
           >
             <div className="col-span-2 text-center">출석</div>
@@ -133,23 +137,54 @@ export default function PermissionSidePanel({
           {/* table body */}
           <div className="flex-1 min-h-0 overflow-auto">
             {selectedStudents.length === 0 ? (
-              <div className="p-6 text-[var(--color-text-muted)]" style={{ fontSize: "var(--text-sm, 12px)" }}>
-                선택된 학생이 없습니다. <br />
-                <span style={{ fontSize: "var(--text-xs, 11px)" }}>
-                  좌측 체크 → 우측 상단에서 권한을 바로 적용하세요.
+              <div
+                className="flex flex-col items-center justify-center gap-1"
+                style={{
+                  padding: "var(--space-8)",
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: "var(--text-sm, 13px)",
+                    color: "var(--color-text-muted)",
+                  }}
+                >
+                  선택된 학생이 없습니다.
+                </span>
+                <span
+                  style={{
+                    fontSize: "var(--text-xs, 11px)",
+                    color: "var(--color-text-muted)",
+                  }}
+                >
+                  좌측 체크박스로 학생을 선택하세요.
                 </span>
               </div>
             ) : (
-              selectedStudents.map((s: any) => (
+              selectedStudents.map((s: any, idx: number) => (
                 <div
                   key={s.enrollment}
-                  className="grid grid-cols-12 px-3 py-2 items-center border-b hover:bg-[var(--color-bg-surface-hover)]"
+                  className="grid grid-cols-12 px-3 py-2 items-center border-b"
                   style={{
                     borderColor: "var(--color-border-subtle)",
+                    background:
+                      idx % 2 === 1
+                        ? "color-mix(in srgb, var(--color-brand-primary) 2%, var(--color-bg-surface))"
+                        : "var(--color-bg-surface)",
                     transition: "background 120ms ease",
                   }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background =
+                      "var(--color-bg-surface-hover, var(--bg-surface-soft))";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background =
+                      idx % 2 === 1
+                        ? "color-mix(in srgb, var(--color-brand-primary) 2%, var(--color-bg-surface))"
+                        : "var(--color-bg-surface)";
+                  }}
                 >
-                  {/* 출석 — SSOT: AttendanceStatusBadge 1ch */}
+                  {/* 출석 */}
                   <div className="col-span-2 flex justify-center">
                     <AttendanceStatusBadge
                       status={(s.attendance_status ?? "INACTIVE") as AttendanceStatus}
@@ -157,7 +192,7 @@ export default function PermissionSidePanel({
                     />
                   </div>
 
-                  {/* 접근 모드 — SSOT: ds-status-badge + data-tone */}
+                  {/* 접근 모드 */}
                   <div className="col-span-2 flex justify-center">
                     <span
                       className="ds-status-badge"
@@ -177,9 +212,12 @@ export default function PermissionSidePanel({
                     </span>
                   </div>
 
-                  {/* 이름 + 아바타 + 강의 딱지 (전역 규칙) */}
+                  {/* 이름 */}
                   <div className="col-span-3 min-w-0">
-                    <div className="font-semibold text-[var(--color-text-primary)] truncate" style={{ fontSize: "var(--text-sm, 12px)" }}>
+                    <div
+                      className="font-semibold text-[var(--color-text-primary)] truncate"
+                      style={{ fontSize: "var(--text-sm, 12px)" }}
+                    >
                       <StudentNameWithLectureChip
                         name={s.student_name ?? ""}
                         profilePhotoUrl={s.profile_photo_url ?? undefined}
@@ -192,13 +230,19 @@ export default function PermissionSidePanel({
                         chipSize={14}
                       />
                     </div>
-                    <div className="text-[var(--color-text-muted)] truncate" style={{ fontSize: "10px" }}>
-                      학생번호 {formatPhone(s.student_phone)}
+                    <div
+                      className="text-[var(--color-text-muted)] truncate"
+                      style={{ fontSize: "10px" }}
+                    >
+                      {formatPhone(s.student_phone)}
                     </div>
                   </div>
 
                   {/* 학부모 번호 */}
-                  <div className="col-span-3 text-[var(--color-text-secondary)] truncate" style={{ fontSize: "var(--text-sm, 12px)" }}>
+                  <div
+                    className="col-span-3 text-[var(--color-text-secondary)] truncate"
+                    style={{ fontSize: "var(--text-sm, 12px)" }}
+                  >
                     {formatPhone(s.parent_phone)}
                   </div>
 
@@ -207,7 +251,7 @@ export default function PermissionSidePanel({
                     <button
                       type="button"
                       onClick={() => onRemoveOne(s.enrollment)}
-                      className="inline-flex items-center justify-center w-7 h-7 rounded-md text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-surface-hover)] transition"
+                      className="inline-flex items-center justify-center w-7 h-7 rounded-md text-[var(--color-text-muted)] hover:text-[var(--color-danger)] hover:bg-[color-mix(in_srgb,var(--color-danger)_8%,transparent)] transition"
                       title="선택에서 제거"
                     >
                       <FiX size={14} />

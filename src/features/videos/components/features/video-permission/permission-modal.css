@@ -1,10 +1,10 @@
 /* PATH: src/features/videos/components/features/video-permission/permission-modal.css */
 /* ============================================================================
- * PERMISSION MODAL — Design System 통합 (전역 토큰 SSOT)
- * - 색상: --color-* role tokens only (하드코딩 금지)
- * - 간격: --space-* density tokens
- * - 반경: --radius-* tokens
- * - 그림자: --elevation-* tokens
+ * PERMISSION MODAL — Design System (enterprise-grade tokens)
+ * - Colors: --color-* role tokens only (no hardcoding)
+ * - Spacing: --space-* density tokens
+ * - Radius: --radius-* tokens
+ * - Elevation: --elevation-* tokens
  * ============================================================================ */
 @reference "tailwindcss";
 
@@ -68,6 +68,7 @@
   letter-spacing: 0.01em;
   border-bottom: 1px solid var(--color-border-subtle);
   background: var(--color-bg-surface-soft, var(--bg-surface-soft));
+  user-select: none;
 }
 
 .permission-row {
@@ -76,9 +77,16 @@
   font-size: var(--text-sm, 12px);
   border-bottom: 1px solid var(--color-border-subtle);
   transition: background 120ms ease, box-shadow 120ms ease;
+  cursor: pointer;
 }
 .permission-row:hover {
   background: var(--color-bg-surface-hover, var(--bg-surface-soft));
+}
+
+/* Focus-visible for keyboard navigation */
+.permission-row:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--color-brand-primary) 40%, transparent);
 }
 
 .permission-row-selected {
@@ -140,7 +148,7 @@
 .permission-right-footer {
   padding: var(--space-3) var(--space-4);
   border-top: 1px solid var(--color-border-subtle);
-  background: var(--color-bg-surface);
+  background: var(--color-bg-surface-soft, var(--bg-surface-soft));
 }
 
 /* ---- Checkbox ---- */
@@ -151,6 +159,12 @@
 .permission-checkbox input[type="checkbox"] {
   @apply h-4 w-4 cursor-pointer rounded;
   accent-color: var(--color-brand-primary);
+  transition: box-shadow 120ms ease;
+}
+
+.permission-checkbox input[type="checkbox"]:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-brand-primary) 20%, transparent);
 }
 
 /* ---- Column helpers ---- */

@@ -9,10 +9,12 @@ export default function PermissionRow({
   student,
   selected,
   onToggle,
+  isAlt,
 }: {
   student: any;
   selected: boolean;
   onToggle: () => void;
+  isAlt?: boolean;
 }) {
   return (
     <div
@@ -28,13 +30,20 @@ export default function PermissionRow({
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") onToggle();
       }}
+      style={{
+        background: selected
+          ? undefined
+          : isAlt
+            ? "color-mix(in srgb, var(--color-brand-primary) 2%, var(--color-bg-surface))"
+            : undefined,
+      }}
     >
       {/* CHECK */}
       <div className="permission-checkbox" onClick={(e) => e.stopPropagation()}>
         <input type="checkbox" checked={selected} onChange={onToggle} />
       </div>
 
-      {/* NAME + 아바타 + 강의 딱지 (전역 규칙) */}
+      {/* NAME */}
       <div className="permission-name text-[var(--color-text-primary)]">
         <StudentNameWithLectureChip
           name={student.student_name ?? ""}
@@ -49,7 +58,7 @@ export default function PermissionRow({
         />
       </div>
 
-      {/* ATTENDANCE — SSOT: AttendanceStatusBadge 1ch */}
+      {/* ATTENDANCE */}
       <div className="w-[90px] flex justify-center">
         <AttendanceStatusBadge
           status={(student.attendance_status ?? "INACTIVE") as AttendanceStatus}
@@ -57,7 +66,7 @@ export default function PermissionRow({
         />
       </div>
 
-      {/* ACCESS MODE — SSOT: ds-status-badge + data-tone */}
+      {/* ACCESS MODE */}
       <div className="w-[90px] flex justify-center">
         <span
           className="ds-status-badge"

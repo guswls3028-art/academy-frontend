@@ -48,7 +48,7 @@ export const RULE_LABELS: Record<string, string> = {
 // New access mode labels
 export const ACCESS_MODE_LABELS: Record<string, string> = {
   FREE_REVIEW: "복습",
-  PROCTORED_CLASS: "온라인 수업 대체",
+  PROCTORED_CLASS: "1회제한",
   BLOCKED: "제한",
 };
 

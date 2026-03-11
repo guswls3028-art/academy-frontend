@@ -43,15 +43,29 @@ export default function PermissionHeader({
       </div>
 
       {tab === "permission" && (
-        <span className="text-[11px] text-[var(--color-text-muted)]">
-          {isFetching ? "동기화 중…" : "최신"}
+        <span
+          className="ds-status-badge ds-status-badge--1ch"
+          data-tone={isFetching ? "warning" : "success"}
+        >
+          {isFetching ? "동기화" : "최신"}
         </span>
       )}
 
       {focusEnrollment && tab === "permission" && (
         <button
           type="button"
-          className="ml-1 text-[11px] px-2 py-1 rounded-md border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface-hover)] transition"
+          style={{
+            height: 24,
+            padding: "0 var(--space-3)",
+            fontSize: "var(--text-xs, 11px)",
+            fontWeight: 600,
+            color: "var(--color-text-secondary)",
+            background: "var(--color-bg-surface)",
+            border: "1px solid var(--color-border-default)",
+            borderRadius: "var(--radius-sm)",
+            cursor: "pointer",
+            transition: "all 140ms ease",
+          }}
           onClick={onClearFocus}
         >
           학생 필터 해제

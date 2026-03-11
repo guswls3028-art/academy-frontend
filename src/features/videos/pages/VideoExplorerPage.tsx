@@ -6,7 +6,7 @@
 import { useState, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueries, useMutation, useQueryClient } from "@tanstack/react-query";
-import { FilePlus, Video, Folder } from "lucide-react";
+import { FilePlus, Video, Folder, Eye } from "lucide-react";
 import { Button, EmptyState } from "@/shared/ui/ds";
 import { DomainLayout } from "@/shared/ui/domain";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter, MODAL_WIDTH } from "@/shared/ui/modal";
@@ -79,9 +79,20 @@ function formatTimeAgo(isoDate: string): string {
 
 /** 조회수 표기: 1234 → "1.2천 회", 10000+ → "1만 회" 등 */
 function formatViewCount(count: number): string {
-  if (count >= 10000) return `${(count / 10000).toFixed(1).replace(/\.0$/, "")}만 회`;
-  if (count >= 1000) return `${(count / 1000).toFixed(1).replace(/\.0$/, "")}천 회`;
-  return `${count}회`;
+  if (count >= 10000) return `${(count / 10000).toFixed(1).replace(/\.0$/, "")}만`;
+  if (count >= 1000) return `${(count / 1000).toFixed(1).replace(/\.0$/, "")}천`;
+  return `${count}`;
+}
+
+/** duration(초) → "MM:SS" or "H:MM:SS" */
+function formatDuration(seconds: number | null | undefined): string | null {
+  if (seconds == null || !Number.isFinite(seconds) || seconds <= 0) return null;
+  const s = Math.round(seconds);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  if (h > 0) return `${h}:${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
+  return `${m}:${String(sec).padStart(2, "0")}`;
 }
 
 export default function VideoExplorerPage() {
@@ -414,9 +425,10 @@ export default function VideoExplorerPage() {
               </div>
             ) : (
               <div className={styles.grid}>
+                {/* Add card for public videos */}
                 {selectedFolderId === "public" && publicSession && (
                   <div
-                    className={styles.item + " " + styles.itemAdd}
+                    className={styles.itemAdd}
                     onClick={() => setAddChoiceModalOpen(true)}
                     title="추가"
                   >
@@ -424,9 +436,10 @@ export default function VideoExplorerPage() {
                     <span>추가</span>
                   </div>
                 )}
+                {/* Add card for session videos */}
                 {selectedSession && selectedFolderId !== "public" && (
                   <div
-                    className={styles.item + " " + styles.itemAdd}
+                    className={styles.itemAdd}
                     onClick={() => openUploadModal(selectedSession.session.id)}
                     title="영상 추가"
                   >
@@ -434,57 +447,86 @@ export default function VideoExplorerPage() {
                     <span>추가</span>
                   </div>
                 )}
-                {videos.map((v) => (
-                  <div key={v.id} className={styles.item} onClick={() => openVideoDetail(v)}>
-                    <VideoThumbnail
-                      title={v.title}
-                      status={v.status ?? "PENDING"}
-                      thumbnail_url={v.thumbnail_url}
-                    />
-                    <span className={styles.itemLabel} title={v.title}>
-                      {v.title || "—"}
-                    </span>
-                    <span className={styles.itemMeta}>
-                      {[
-                        v.view_count != null && Number.isFinite(v.view_count)
-                          ? `조회수 ${formatViewCount(v.view_count)}`
-                          : null,
-                        v.created_at ? formatTimeAgo(v.created_at) : null,
-                      ]
-                        .filter(Boolean)
-                        .join(" · ")}
-                    </span>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", justifyContent: "center", flexWrap: "wrap" }}>
-                      <VideoStatusBadge status={v.status ?? "PENDING"} />
-                      {canShowRetryButton(v) && (
+
+                {/* Video cards */}
+                {videos.map((v) => {
+                  const durationLabel = formatDuration(v.duration);
+                  const hasViewCount = v.view_count != null && Number.isFinite(v.view_count);
+
+                  return (
+                    <div key={v.id} className={styles.card} onClick={() => openVideoDetail(v)}>
+                      {/* Thumbnail area */}
+                      <div className={styles.thumbnailWrap}>
+                        <VideoThumbnail
+                          title={v.title}
+                          status={v.status ?? "PENDING"}
+                          thumbnail_url={v.thumbnail_url}
+                        />
+                        {/* Duration overlay (bottom-right, YouTube-style) */}
+                        {durationLabel && v.status === "READY" && (
+                          <span className={styles.duration}>{durationLabel}</span>
+                        )}
+                        {/* Status badge overlaid on thumbnail (top-left) */}
+                        <div className={styles.statusOverlay}>
+                          <VideoStatusBadge status={v.status ?? "PENDING"} />
+                        </div>
+                      </div>
+
+                      {/* Card body */}
+                      <div className={styles.cardBody}>
+                        <span className={styles.cardTitle} title={v.title}>
+                          {v.title || "—"}
+                        </span>
+                        <div className={styles.cardMeta}>
+                          {hasViewCount && (
+                            <>
+                              <span className={styles.viewCount}>
+                                <Eye className={styles.viewIcon} />
+                                조회수 {formatViewCount(v.view_count!)}회
+                              </span>
+                            </>
+                          )}
+                          {hasViewCount && v.created_at && (
+                            <span className={styles.metaDot}>·</span>
+                          )}
+                          {v.created_at && (
+                            <span>{formatTimeAgo(v.created_at)}</span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Action buttons */}
+                      <div className={styles.cardActions}>
+                        {canShowRetryButton(v) && (
+                          <Button
+                            intent="primary"
+                            size="sm"
+                            disabled={retryVideoMutation.isPending}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const msg = "재시도할까요? 진행 중인 작업이 있으면 취소 후 다시 제출됩니다.";
+                              if (window.confirm(msg)) {
+                                retryVideoMutation.mutate({ videoId: v.id, title: v.title });
+                              }
+                            }}
+                            title="재시도"
+                          >
+                            {retryVideoMutation.isPending ? "요청 중…" : "재시도"}
+                          </Button>
+                        )}
                         <Button
-                          intent="primary"
+                          intent="ghost"
                           size="sm"
-                          disabled={retryVideoMutation.isPending}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            const msg = "재시도할까요? 진행 중인 작업이 있으면 취소 후 다시 제출됩니다.";
-                            if (window.confirm(msg)) {
-                              retryVideoMutation.mutate({ videoId: v.id, title: v.title });
-                            }
-                          }}
-                          title="재시도"
+                          disabled={deleteVideoMutation.isPending}
+                          onClick={(e) => handleDeleteVideo(e, v.id)}
+                          title="삭제"
                         >
-                          {retryVideoMutation.isPending ? "요청 중…" : "재시도"}
+                          삭제
                         </Button>
-                      )}
-                      <Button
-                        intent="ghost"
-                        size="sm"
-                        disabled={deleteVideoMutation.isPending}
-                        onClick={(e) => handleDeleteVideo(e, v.id)}
-                        title="삭제"
-                      >
-                        삭제
-                      </Button>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

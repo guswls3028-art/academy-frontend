@@ -13,13 +13,19 @@ export default function PermissionTable({
   toggle: (id: number) => void;
   toggleAll: () => void;
 }) {
+  const allSelected = students.length > 0 && selected.length === students.length;
+  const someSelected = selected.length > 0 && selected.length < students.length;
+
   return (
     <>
       <div className="permission-table-header">
         <div className="permission-checkbox">
           <input
             type="checkbox"
-            checked={students.length > 0 && selected.length === students.length}
+            checked={allSelected}
+            ref={(el) => {
+              if (el) el.indeterminate = someSelected;
+            }}
             onChange={toggleAll}
           />
         </div>
@@ -35,17 +41,25 @@ export default function PermissionTable({
       </div>
 
       <div className="flex-1 overflow-auto">
-        {students.map((s: any) => (
+        {students.map((s: any, idx: number) => (
           <PermissionRow
             key={s.enrollment}
             student={s}
             selected={selected.includes(s.enrollment)}
             onToggle={() => toggle(s.enrollment)}
+            isAlt={idx % 2 === 1}
           />
         ))}
 
         {students.length === 0 && (
-          <div className="p-6 text-sm text-[var(--text-muted)]">
+          <div
+            className="flex items-center justify-center"
+            style={{
+              padding: "var(--space-8)",
+              fontSize: "var(--text-sm, 13px)",
+              color: "var(--color-text-muted)",
+            }}
+          >
             표시할 학생이 없습니다.
           </div>
         )}

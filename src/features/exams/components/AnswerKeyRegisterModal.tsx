@@ -3,7 +3,7 @@
  * 디자인 시스템: ds-tabs, ds-button, ds-input, modal-tabs-area, modal-footer.
  */
 
-import { useEffect, useMemo, useState, useRef } from "react";
+import { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter, MODAL_WIDTH } from "@/shared/ui/modal";
 import { Button, Tabs } from "@/shared/ui/ds";
@@ -319,6 +319,7 @@ export default function AnswerKeyRegisterModal({
       feedback.success(
         canEditQuestions ? "저장되었습니다." : "정답이 저장되었습니다. 문항·배점 수정은 템플릿 시험에서만 가능합니다."
       );
+      onClose();
     } catch (e: any) {
       const raw = e?.response?.data;
       const detail = raw?.detail ?? raw ?? e?.message;
@@ -372,6 +373,15 @@ export default function AnswerKeyRegisterModal({
         <div className="modal-scroll-body modal-scroll-body--compact answer-key-panel">
           {activeTab === "answer" && (
             <>
+            {answerKey && Object.keys(answerKey.answers ?? {}).length > 0 && (
+              <AnswerSummary
+                answerKey={answerKey}
+                sortedQuestions={sortedQuestions}
+                effectiveChoiceCount={effectiveChoiceCount}
+                effectiveEssayCount={effectiveEssayCount}
+                totalScore={totalScore}
+              />
+            )}
             <div className="answer-key-two-panels">
               {/* 좌측: 선택형 — 문항 수 메뉴 상시 표시 */}
               <div className="answer-key-panel answer-key-panel--choice">
@@ -909,9 +919,62 @@ function EssayRow({
   );
 }
 
+/** 등록된 답안 요약 — 문항 수, 총점, 미니 그리드 */
+function AnswerSummary({
+  answerKey,
+  sortedQuestions,
+  effectiveChoiceCount,
+  effectiveEssayCount,
+  totalScore,
+}: {
+  answerKey: AnswerKey;
+  sortedQuestions: ExamQuestion[];
+  effectiveChoiceCount: number;
+  effectiveEssayCount: number;
+  totalScore: number;
+}) {
+  const answers = answerKey.answers ?? {};
+  const answeredCount = Object.values(answers).filter((v) => v && String(v).trim() !== "").length;
+
+  return (
+    <div className="answer-key-summary">
+      <div className="answer-key-summary__header">
+        <span className="answer-key-summary__title">등록된 답안</span>
+        <span className="answer-key-summary__stats">
+          {effectiveChoiceCount > 0 && <span>선택형 {effectiveChoiceCount}문항</span>}
+          {effectiveChoiceCount > 0 && effectiveEssayCount > 0 && <span className="answer-key-summary__sep">,</span>}
+          {effectiveEssayCount > 0 && <span>서술형 {effectiveEssayCount}문항</span>}
+          <span className="answer-key-summary__sep"> | </span>
+          <span>총 {Math.round(totalScore)}점</span>
+          <span className="answer-key-summary__sep"> | </span>
+          <span>입력 {answeredCount}/{sortedQuestions.length}</span>
+        </span>
+      </div>
+      <div className="answer-key-summary__grid">
+        {sortedQuestions.map((q) => {
+          const val = String(answers[String(q.id)] ?? "").trim();
+          const isChoice = sortedQuestions.indexOf(q) < effectiveChoiceCount;
+          return (
+            <div
+              key={q.id}
+              className={`answer-key-summary__cell ${val ? "answer-key-summary__cell--filled" : "answer-key-summary__cell--empty"}`}
+              title={`${q.number}번: ${val || "(미입력)"}`}
+            >
+              <span className="answer-key-summary__cell-num">{q.number}</span>
+              <span className="answer-key-summary__cell-val">
+                {isChoice ? (val || "-") : (val ? (val.length > 3 ? val.slice(0, 3) + ".." : val) : "-")}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 type ExplanationState = { text: string; problemImageUrl: string | null; imageUrl: string | null };
 
-/** 문제 이미지·해설 이미지 공통 셀 — 붙여넣기(Ctrl+V) + 파일 업로드 동일 로직·디자인 */
+/** 문제 이미지·해설 이미지 공통 셀 — 클릭: 포커스(Ctrl+V 붙여넣기), 더블클릭: 파일 선택 */
 function ImageCell({
   label,
   imageUrl,
@@ -923,23 +986,42 @@ function ImageCell({
   onImageChange: (url: string) => void;
   onClear: () => void;
 }) {
-  const handlePaste = (e: React.ClipboardEvent) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handlePaste = useCallback((e: React.ClipboardEvent) => {
     const file = e.clipboardData?.files?.[0];
     if (!file?.type.startsWith("image/")) return;
     e.preventDefault();
     onImageChange(URL.createObjectURL(file));
-  };
+  }, [onImageChange]);
 
-  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFile = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     onImageChange(URL.createObjectURL(file));
     e.target.value = "";
-  };
+  }, [onImageChange]);
+
+  const handleClick = useCallback(() => {
+    containerRef.current?.focus();
+  }, []);
+
+  const handleDoubleClick = useCallback(() => {
+    fileInputRef.current?.click();
+  }, []);
 
   if (imageUrl) {
     return (
-      <div className="answer-key-explanation-cell answer-key-explanation-cell--image" onPaste={handlePaste}>
+      <div
+        ref={containerRef}
+        className="answer-key-explanation-cell answer-key-explanation-cell--image"
+        tabIndex={0}
+        onPaste={handlePaste}
+        onClick={handleClick}
+        onDoubleClick={handleDoubleClick}
+      >
+        <input ref={fileInputRef} type="file" accept="image/*" className="ds-sr-only" onChange={handleFile} />
         <div className="answer-key-explanation-cell__image-wrap">
           <img src={imageUrl} alt={label} className="answer-key-explanation-cell__img" />
           <Button type="button" intent="ghost" size="sm" onClick={onClear}>
@@ -951,16 +1033,23 @@ function ImageCell({
   }
 
   return (
-    <div className="answer-key-explanation-cell answer-key-explanation-cell__placeholder-wrap" onPaste={handlePaste}>
-      <label className="answer-key-explanation-cell__placeholder">
-        <input type="file" accept="image/*" className="ds-sr-only" onChange={handleFile} />
+    <div
+      ref={containerRef}
+      className="answer-key-explanation-cell answer-key-explanation-cell__placeholder-wrap"
+      tabIndex={0}
+      onPaste={handlePaste}
+      onClick={handleClick}
+      onDoubleClick={handleDoubleClick}
+    >
+      <input ref={fileInputRef} type="file" accept="image/*" className="ds-sr-only" onChange={handleFile} />
+      <div className="answer-key-explanation-cell__placeholder answer-key-explanation-cell__placeholder--no-label">
         <span className="answer-key-explanation-cell__placeholder-text">{label}</span>
         <span className="answer-key-explanation-cell__placeholder-hint">
-          클릭 후 Ctrl+V 또는
+          클릭 후 Ctrl+V 붙여넣기
           <br />
-          클릭하여 업로드
+          더블클릭으로 파일 선택
         </span>
-      </label>
+      </div>
     </div>
   );
 }

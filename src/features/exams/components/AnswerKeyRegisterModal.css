@@ -677,3 +677,126 @@
 .answer-key-explanation-cell__upload:hover {
   text-decoration: underline;
 }
+
+/* ========== 답안 요약 ========== */
+.answer-key-summary {
+  margin-bottom: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--color-brand-primary) 4%, var(--color-bg-surface));
+}
+
+.answer-key-summary__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.answer-key-summary__title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.answer-key-summary__stats {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  font-weight: 600;
+}
+
+.answer-key-summary__sep {
+  margin: 0 2px;
+  color: var(--color-text-muted);
+  opacity: 0.6;
+}
+
+.answer-key-summary__grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.answer-key-summary__cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border-divider);
+  font-size: 10px;
+  line-height: 1.2;
+  cursor: default;
+  transition: border-color 0.15s;
+}
+
+.answer-key-summary__cell--filled {
+  background: var(--color-bg-surface);
+  border-color: var(--color-brand-primary);
+}
+
+.answer-key-summary__cell--empty {
+  background: var(--color-bg-surface-soft);
+  border-color: var(--color-border-divider);
+  opacity: 0.6;
+}
+
+.answer-key-summary__cell-num {
+  font-weight: 700;
+  color: var(--color-text-primary);
+  font-size: 10px;
+  line-height: 1;
+}
+
+.answer-key-summary__cell-val {
+  font-weight: 600;
+  color: var(--color-brand-primary);
+  font-size: 11px;
+  line-height: 1;
+  max-width: 32px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: center;
+}
+
+.answer-key-summary__cell--empty .answer-key-summary__cell-val {
+  color: var(--color-text-muted);
+}
+
+/* ImageCell 포커스 상태 — 붙여넣기 가능함을 표시 */
+.answer-key-explanation-cell__placeholder-wrap:focus,
+.answer-key-explanation-cell--image:focus {
+  outline: 2px solid var(--color-brand-primary);
+  outline-offset: 2px;
+  border-radius: var(--radius-md);
+}
+
+/* label이 아닌 div일 때 placeholder 스타일 유지 */
+.answer-key-explanation-cell__placeholder--no-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  height: 120px;
+  min-height: 120px;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  border: 2px dashed var(--color-border-divider);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface-soft);
+  color: var(--color-text-muted);
+  font-size: 12px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.answer-key-explanation-cell__placeholder--no-label:hover {
+  border-color: var(--color-brand-primary);
+  background: color-mix(in srgb, var(--color-brand-primary) 6%, var(--color-bg-surface));
+}

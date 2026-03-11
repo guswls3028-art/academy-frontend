@@ -7,7 +7,7 @@
  * - 디자인 토큰만 사용, DomainTable 기반
  */
 
-import { useMemo, useRef, useEffect, Fragment, useCallback, forwardRef, useImperativeHandle } from "react";
+import { useMemo, useRef, useEffect, useState, Fragment, useCallback, forwardRef, useImperativeHandle } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
 import type { SessionScoreRow, SessionScoreMeta } from "../api/sessionScores";
@@ -25,12 +25,13 @@ import { DomainTable, ResizableTh, useTableColumnPrefs } from "@/shared/ui/domai
 import type { TableColumnDef } from "@/shared/ui/domain";
 import AttendanceStatusBadge, {
   type AttendanceStatus,
+  ORDERED_ATTENDANCE_STATUS,
 } from "@/shared/ui/badges/AttendanceStatusBadge";
 import { feedback } from "@/shared/ui/feedback/feedback";
 
 /** 컬럼 기본 너비 — 설계 문서 12️⃣ */
-const COL_EDIT = 80;
-const COL_NAME = 160;
+const COL_EDIT = 44;
+const COL_NAME = 120;
 const COL_ATTENDANCE = 80;
 const COL_SCORE = 84;
 const COL_PASS = 64;
@@ -83,13 +84,13 @@ function pendingKeyForChange(p: PendingChange): string {
 
 /** 합불 표시 — 시험/과제 셀: 합=초록 배지, 불=빨강 배지. 긍정은 초록색 */
 function PassFailText({ passed }: { passed: boolean | null | undefined }) {
-  if (passed == null) return <span className="text-[var(--color-text-muted)]">-</span>;
+  if (passed == null) return null;
   return (
     <span
       className="ds-scores-pass-fail-badge"
       data-tone={passed ? "success" : "danger"}
     >
-      {passed ? "합" : "불"}
+      {passed ? "합격" : "불합"}
     </span>
   );
 }
@@ -109,6 +110,75 @@ function getClinicReason(row: SessionScoreRow): { target: boolean; reason: strin
   if (examFail && hwFail) return { target: true, reason: "시험+과제" };
   if (examFail) return { target: true, reason: "시험" };
   return { target: true, reason: "과제" };
+}
+
+/** 출결 셀 팝오버 — 클릭 시 상태 선택 드롭다운 */
+function AttendanceCellPopover({
+  currentStatus,
+  enrollmentId,
+  hasAttendanceRecord,
+  onSelect,
+}: {
+  currentStatus: string | undefined;
+  enrollmentId: number;
+  hasAttendanceRecord: boolean;
+  onSelect: (enrollmentId: number, status: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  if (!hasAttendanceRecord) {
+    return <span className="text-[var(--color-text-muted)]">-</span>;
+  }
+
+  return (
+    <div ref={wrapperRef} className="relative inline-block">
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); setOpen((v) => !v); }}
+        className="cursor-pointer hover:opacity-80 transition-opacity"
+        title="출결 변경"
+      >
+        {currentStatus ? (
+          <AttendanceStatusBadge status={currentStatus as AttendanceStatus} variant="2ch" />
+        ) : (
+          <span className="text-[var(--color-text-muted)]">-</span>
+        )}
+      </button>
+      {open && (
+        <div
+          className="absolute left-0 top-full mt-1 z-50 bg-[var(--color-bg-surface)] border border-[var(--color-border-divider)] rounded-md shadow-lg py-1 min-w-[88px]"
+          style={{ maxHeight: 240, overflowY: "auto" }}
+        >
+          {ORDERED_ATTENDANCE_STATUS.map((s) => (
+            <button
+              key={s}
+              type="button"
+              className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-sm hover:bg-[var(--color-bg-surface-hover)] transition-colors ${s === currentStatus ? "bg-[var(--color-bg-surface-hover)]" : ""}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                onSelect(enrollmentId, s);
+                setOpen(false);
+              }}
+            >
+              <AttendanceStatusBadge status={s} variant="2ch" />
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export type ScoreColumnDef =
@@ -168,6 +238,10 @@ type Props = {
   meta: SessionScoreMeta | null;
   sessionId: number;
   attendanceMap?: Record<number, string>;
+  /** enrollment_id → attendance record id (for PATCH) */
+  attendanceIdMap?: Record<number, number>;
+  /** 출결 상태 변경 콜백 (always editable) */
+  onAttendanceChange?: (enrollmentId: number, newStatus: string) => void;
 
   /** 편집 모드일 때만 점수 셀 입력 가능 */
   isEditMode?: boolean;
@@ -205,6 +279,8 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
   meta,
   sessionId,
   attendanceMap = {},
+  attendanceIdMap = {},
+  onAttendanceChange,
   isEditMode = false,
   examEditTotal = false,
   examEditObjective = false,
@@ -760,18 +836,27 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                   />
                 </td>
 
-                <td className="ds-scores-cell-attendance text-left py-2.5 px-3 align-middle" onClick={() => onSelectRow(row)}>
-                  {(() => {
-                    const status = attendanceMap[row.enrollment_id];
-                    if (!status)
-                      return <span className="text-[var(--color-text-muted)]">-</span>;
-                    return (
-                      <AttendanceStatusBadge
-                        status={status as AttendanceStatus}
-                        variant="2ch"
-                      />
-                    );
-                  })()}
+                <td className="ds-scores-cell-attendance text-left py-2.5 px-3 align-middle">
+                  {onAttendanceChange ? (
+                    <AttendanceCellPopover
+                      currentStatus={attendanceMap[row.enrollment_id]}
+                      enrollmentId={row.enrollment_id}
+                      hasAttendanceRecord={attendanceIdMap[row.enrollment_id] != null}
+                      onSelect={onAttendanceChange}
+                    />
+                  ) : (
+                    (() => {
+                      const status = attendanceMap[row.enrollment_id];
+                      if (!status)
+                        return <span className="text-[var(--color-text-muted)]">-</span>;
+                      return (
+                        <AttendanceStatusBadge
+                          status={status as AttendanceStatus}
+                          variant="2ch"
+                        />
+                      );
+                    })()
+                  )}
                 </td>
 
                 {/* 시험: 컬럼 정의에 따라 합산/객관식/주관식/문항별/합불 */}

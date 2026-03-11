@@ -26,10 +26,10 @@ function Chip({
       type="button"
       onClick={onClick}
       className={cx(
-        "h-8 px-3 rounded-full border text-xs font-semibold transition",
+        "h-8 px-3 rounded-full border text-xs font-semibold transition-all duration-150",
         active
-          ? "bg-[var(--color-primary)] text-[var(--color-on-primary)] border-[var(--color-primary)]"
-          : "bg-[var(--bg-surface)] text-[var(--text-secondary)] border-[var(--border-divider)] hover:bg-[var(--bg-app)]"
+          ? "bg-[var(--color-brand-primary)] text-white border-[var(--color-brand-primary)] shadow-[0_1px_3px_rgba(0,0,0,0.12)]"
+          : "bg-[var(--color-bg-surface)] text-[var(--color-text-secondary)] border-[var(--color-border-default)] hover:border-[var(--color-brand-primary)] hover:text-[var(--color-brand-primary)] hover:bg-[color-mix(in_srgb,var(--color-brand-primary)_4%,var(--color-bg-surface))]"
       )}
     >
       {label}
@@ -37,7 +37,7 @@ function Chip({
   );
 }
 
-/** ✅ 출결 상태 10개 — 역할 순서: 출석인정 → 경고 → 부정 → 중립 (AttendanceStatusBadge SSOT) */
+/** 출결 상태 10개 (AttendanceStatusBadge SSOT) */
 const ATTENDANCE_OPTIONS = [
   { value: "PRESENT", label: "현장" },
   { value: "ONLINE", label: "영상" },
@@ -69,7 +69,7 @@ export default function PermissionFilter({
     grade: filters.grade ?? "",
   });
 
-  // ✅ 선택 즉시 반영 (적용 버튼 없음)
+  // Immediate apply (no confirm button)
   useEffect(() => {
     const next: any = {};
     Object.entries(local).forEach(([k, v]) => {
@@ -87,21 +87,71 @@ export default function PermissionFilter({
     setFilters({});
   };
 
+  const activeCount = Object.values(local).filter(Boolean).length;
+
   return (
     <div className="permission-modal-overlay">
-      <div className="w-full max-w-[640px] rounded-xl bg-[var(--bg-surface)] shadow-xl">
+      <div
+        className="w-full max-w-[640px]"
+        style={{
+          borderRadius: "var(--radius-xl)",
+          background: "var(--color-bg-surface)",
+          boxShadow: "var(--elevation-3), 0 0 0 1px rgba(0, 0, 0, 0.04)",
+        }}
+      >
         {/* HEADER */}
-        <div className="px-5 py-4">
+        <div
+          style={{
+            padding: "var(--space-4) var(--space-5)",
+            borderBottom: "1px solid var(--color-border-subtle)",
+          }}
+        >
           <div className="flex items-start justify-between">
             <div>
-              <div className="text-sm font-semibold">필터</div>
-              <div className="mt-1 text-xs text-[var(--text-muted)]">
+              <div className="flex items-center gap-2">
+                <span
+                  className="font-semibold"
+                  style={{
+                    fontSize: "var(--text-sm, 13px)",
+                    color: "var(--color-text-primary)",
+                  }}
+                >
+                  필터
+                </span>
+                {activeCount > 0 && (
+                  <span
+                    className="ds-status-badge ds-status-badge--1ch"
+                    data-tone="primary"
+                  >
+                    {activeCount}
+                  </span>
+                )}
+              </div>
+              <div
+                className="mt-1"
+                style={{
+                  fontSize: "var(--text-xs, 11px)",
+                  color: "var(--color-text-muted)",
+                }}
+              >
                 선택 즉시 반영됩니다
               </div>
             </div>
             <button
               onClick={onClose}
-              className="rounded border px-3 py-1.5 text-xs"
+              type="button"
+              style={{
+                height: 28,
+                padding: "0 var(--space-3)",
+                fontSize: "var(--text-xs, 11px)",
+                fontWeight: 600,
+                color: "var(--color-text-secondary)",
+                background: "var(--color-bg-surface)",
+                border: "1px solid var(--color-border-default)",
+                borderRadius: "var(--radius-sm)",
+                cursor: "pointer",
+                transition: "all 140ms ease",
+              }}
             >
               닫기
             </button>
@@ -109,11 +159,29 @@ export default function PermissionFilter({
         </div>
 
         {/* BODY */}
-        <div className="px-5 pb-5">
-          <div className="rounded-lg bg-[var(--bg-surface-soft)] p-4 space-y-5">
+        <div style={{ padding: "0 var(--space-5) var(--space-5)" }}>
+          <div
+            className="space-y-5"
+            style={{
+              marginTop: "var(--space-4)",
+              borderRadius: "var(--radius-lg)",
+              background: "var(--color-bg-surface-soft, var(--bg-surface-soft))",
+              padding: "var(--space-4)",
+            }}
+          >
             {/* 출석 */}
             <div>
-              <div className="text-xs font-semibold mb-2">출석</div>
+              <div
+                className="font-semibold mb-2.5"
+                style={{
+                  fontSize: "var(--text-xs, 11px)",
+                  color: "var(--color-text-secondary)",
+                  letterSpacing: "0.02em",
+                  textTransform: "uppercase",
+                }}
+              >
+                출석 상태
+              </div>
               <div className="flex flex-wrap gap-2">
                 {ATTENDANCE_OPTIONS.map((o) => (
                   <Chip
@@ -132,9 +200,27 @@ export default function PermissionFilter({
               </div>
             </div>
 
+            {/* Divider */}
+            <div
+              style={{
+                height: 1,
+                background: "var(--color-border-subtle)",
+              }}
+            />
+
             {/* 권한 */}
             <div>
-              <div className="text-xs font-semibold mb-2">권한</div>
+              <div
+                className="font-semibold mb-2.5"
+                style={{
+                  fontSize: "var(--text-xs, 11px)",
+                  color: "var(--color-text-secondary)",
+                  letterSpacing: "0.02em",
+                  textTransform: "uppercase",
+                }}
+              >
+                접근 권한
+              </div>
               <div className="flex gap-2">
                 {RULE_OPTIONS.map((o) => (
                   <Chip
@@ -152,16 +238,40 @@ export default function PermissionFilter({
               </div>
             </div>
 
+            {/* Divider */}
+            <div
+              style={{
+                height: 1,
+                background: "var(--color-border-subtle)",
+              }}
+            />
+
             {/* 학년 */}
             <div>
-              <div className="text-xs font-semibold mb-2">학년</div>
+              <div
+                className="font-semibold mb-2.5"
+                style={{
+                  fontSize: "var(--text-xs, 11px)",
+                  color: "var(--color-text-secondary)",
+                  letterSpacing: "0.02em",
+                  textTransform: "uppercase",
+                }}
+              >
+                학년
+              </div>
               {[
                 { label: "초", nums: ["1", "2", "3", "4", "5", "6"] },
                 { label: "중", nums: ["1", "2", "3"] },
                 { label: "고", nums: ["1", "2", "3"] },
               ].map((g) => (
                 <div key={g.label} className="flex items-center gap-2 mb-2">
-                  <span className="w-6 text-xs text-[var(--text-muted)]">
+                  <span
+                    className="w-6 font-semibold"
+                    style={{
+                      fontSize: "var(--text-xs, 11px)",
+                      color: "var(--color-text-muted)",
+                    }}
+                  >
                     {g.label}
                   </span>
                   {g.nums.map((n) => {
@@ -185,12 +295,26 @@ export default function PermissionFilter({
             </div>
 
             {/* RESET */}
-            <div className="flex justify-end">
+            <div className="flex justify-end pt-1">
               <button
                 onClick={reset}
-                className="h-8 px-3 text-xs rounded border hover:bg-[var(--bg-app)]"
+                type="button"
+                style={{
+                  height: 32,
+                  padding: "0 var(--space-4)",
+                  fontSize: "var(--text-xs, 11px)",
+                  fontWeight: 600,
+                  color: activeCount > 0
+                    ? "var(--color-danger)"
+                    : "var(--color-text-secondary)",
+                  background: "var(--color-bg-surface)",
+                  border: `1px solid ${activeCount > 0 ? "var(--color-danger)" : "var(--color-border-default)"}`,
+                  borderRadius: "var(--radius-sm)",
+                  cursor: "pointer",
+                  transition: "all 140ms ease",
+                }}
               >
-                전체 초기화
+                전체 초기화{activeCount > 0 ? ` (${activeCount})` : ""}
               </button>
             </div>
           </div>

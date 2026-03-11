@@ -102,29 +102,40 @@ export function PhoneInput010Blocks({
 
   const handleSecondKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
-      if (e.key !== "Backspace") return;
-      if (last4 === "") {
-        // 이미 비어 있음 — 앞 칸 마지막 글자 삭제 후 앞 칸으로 포커스
-        if (first4.length > 0) {
+      if (e.key === "Backspace" || e.key === "Delete") {
+        const el = e.currentTarget;
+        const selStart = el.selectionStart ?? 0;
+        const selEnd = el.selectionEnd ?? 0;
+        const hasSelection = selEnd > selStart;
+
+        if (hasSelection) {
+          // 선택 영역이 있으면 브라우저 기본 동작으로 선택 영역 삭제
+          return;
+        }
+
+        if (last4 === "" || (e.key === "Backspace" && selStart === 0 && !hasSelection)) {
+          // 비어 있거나 커서가 맨 앞에서 Backspace → 앞 칸으로 이동
+          if (first4.length > 0) {
+            e.preventDefault();
+            setRaw(first4.slice(0, -1), "");
+            requestAnimationFrame(() => {
+              const ref = firstInputRef.current;
+              if (!ref) return;
+              ref.focus();
+              ref.setSelectionRange(ref.value.length, ref.value.length);
+            });
+          }
+        } else if (e.key === "Backspace" && last4.length === 1) {
+          // 마지막 한 자리 삭제 → 앞 칸으로 이동
           e.preventDefault();
-          setRaw(first4.slice(0, -1), "");
+          setRaw(first4, "");
           requestAnimationFrame(() => {
-            const el = firstInputRef.current;
-            if (!el) return;
-            el.focus();
-            el.setSelectionRange(el.value.length, el.value.length);
+            const ref = firstInputRef.current;
+            if (!ref) return;
+            ref.focus();
+            ref.setSelectionRange(ref.value.length, ref.value.length);
           });
         }
-      } else if (last4.length === 1) {
-        // 마지막 한 자리 삭제 → 뒷칸이 비게 되므로 앞 칸으로 바로 이동
-        e.preventDefault();
-        setRaw(first4, "");
-        requestAnimationFrame(() => {
-          const el = firstInputRef.current;
-          if (!el) return;
-          el.focus();
-          el.setSelectionRange(el.value.length, el.value.length);
-        });
       }
     },
     [first4, last4, setRaw]

@@ -1,5 +1,5 @@
 // PATH: src/features/sessions/components/SessionAssessmentSidePanel.tsx
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, type CSSProperties } from "react";
 import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -31,6 +31,170 @@ type HomeworkItem = {
   title: string;
   status?: "DRAFT" | "OPEN" | "CLOSED";
 };
+
+/* ------------------------------------------------------------------ */
+/*  Inline styles (CSS-in-JS) — uses design tokens only               */
+/* ------------------------------------------------------------------ */
+
+const S = {
+  aside: {
+    width: 296,
+    maxHeight: "calc(100vh - 140px)",
+    top: "var(--space-6)",
+    flexShrink: 0,
+    alignSelf: "start",
+    overflowY: "auto",
+    position: "sticky",
+    display: "flex",
+    flexDirection: "column",
+    gap: "var(--space-5)",
+  } satisfies CSSProperties,
+
+  section: {
+    borderRadius: "var(--radius-lg, 12px)",
+    border: "1px solid var(--color-border-divider)",
+    background: "var(--color-bg-surface)",
+    boxShadow: "0 1px 3px rgba(0,0,0,.04), 0 1px 2px rgba(0,0,0,.02)",
+    overflow: "hidden",
+  } satisfies CSSProperties,
+
+  sectionHeader: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: "12px 14px 8px",
+  } satisfies CSSProperties,
+
+  sectionTitle: {
+    display: "flex",
+    alignItems: "center",
+    gap: "var(--space-2)",
+    fontSize: "12px",
+    fontWeight: 600,
+    letterSpacing: "0.04em",
+    textTransform: "uppercase" as const,
+    color: "var(--color-text-muted)",
+  } satisfies CSSProperties,
+
+  countBadge: {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    minWidth: 20,
+    height: 20,
+    padding: "0 6px",
+    fontSize: "11px",
+    fontWeight: 700,
+    lineHeight: 1,
+    borderRadius: "var(--radius-full, 9999px)",
+    background: "color-mix(in srgb, var(--color-border-divider) 18%, var(--color-bg-surface))",
+    color: "var(--color-text-muted)",
+  } satisfies CSSProperties,
+
+  itemList: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 2,
+    padding: "0 6px 8px",
+  } satisfies CSSProperties,
+
+  /* Card base — shared between exam & homework rows */
+  card: (active: boolean): CSSProperties => ({
+    position: "relative",
+    display: "flex",
+    flexDirection: "column",
+    gap: 4,
+    padding: "10px 12px",
+    borderRadius: "var(--radius-md, 8px)",
+    cursor: "pointer",
+    transition: "background 140ms ease, box-shadow 140ms ease",
+    background: active
+      ? "var(--state-selected-bg)"
+      : "transparent",
+    boxShadow: active
+      ? "inset 0 0 0 1.5px color-mix(in srgb, var(--color-brand-primary) 35%, transparent)"
+      : "none",
+  }),
+
+  cardHover: {
+    background: "color-mix(in srgb, var(--color-border-divider) 8%, var(--color-bg-surface))",
+  } satisfies CSSProperties,
+
+  cardTopRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: "var(--space-2)",
+    minWidth: 0,
+  } satisfies CSSProperties,
+
+  cardTitle: {
+    flex: 1,
+    fontSize: "13px",
+    fontWeight: 600,
+    lineHeight: 1.35,
+    color: "var(--color-text-primary)",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  } satisfies CSSProperties,
+
+  cardMeta: {
+    fontSize: "11px",
+    fontWeight: 500,
+    color: "var(--color-text-muted)",
+    lineHeight: 1,
+    paddingLeft: 2,
+  } satisfies CSSProperties,
+
+  /* Action buttons row — visible on hover via group */
+  actionsRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: "var(--space-2)",
+    marginTop: 2,
+    opacity: 0,
+    height: 0,
+    overflow: "hidden",
+    transition: "opacity 120ms ease, height 120ms ease, margin 120ms ease",
+  } satisfies CSSProperties,
+
+  actionsRowVisible: {
+    opacity: 1,
+    height: 28,
+    marginTop: 6,
+  } satisfies CSSProperties,
+
+  emptyState: {
+    padding: "20px 14px",
+    textAlign: "center",
+    fontSize: "12px",
+    fontWeight: 500,
+    color: "var(--color-text-muted)",
+    lineHeight: 1.5,
+  } satisfies CSSProperties,
+} as const;
+
+/* ------------------------------------------------------------------ */
+/*  Status badge helper                                                */
+/* ------------------------------------------------------------------ */
+
+type StatusTone = "success" | "danger" | "neutral" | "primary";
+
+function StatusBadge({ label, tone }: { label: string; tone: StatusTone }) {
+  return (
+    <span
+      className="ds-status-badge ds-status-badge--1ch"
+      data-tone={tone}
+      style={{ flexShrink: 0 }}
+    >
+      {label}
+    </span>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Main component                                                     */
+/* ------------------------------------------------------------------ */
 
 export default function SessionAssessmentSidePanel({
   lectureId,
@@ -114,7 +278,7 @@ export default function SessionAssessmentSidePanel({
 
   const base = `/admin/lectures/${lectureId}/sessions/${sessionId}`;
 
-  // 시험 탭 진입 시 선택 없으면 최상단 시험 자동 선택 / 과제 탭 진입 시 최상단 과제 자동 선택
+  // Auto-select first exam/homework when entering tab with no selection
   useEffect(() => {
     if (!sessionId || !lectureId) return;
     const path = location.pathname;
@@ -205,88 +369,86 @@ export default function SessionAssessmentSidePanel({
   };
 
   return (
-    <aside
-      className="flex-shrink-0 self-start overflow-y-auto sticky"
-      style={{
-        width: 280,
-        maxHeight: "calc(100vh - 140px)",
-        top: "var(--space-6)",
-      }}
-    >
-      <div className="grid gap-5">
-        <section
-          className="rounded-2xl border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] p-4 shadow-sm"
-          style={{ boxShadow: "0 1px 3px rgba(0,0,0,.06)" }}
-        >
-          <div className="mb-3 flex items-center justify-between">
-            <h3 className="text-sm font-bold uppercase tracking-wide text-[var(--color-text-secondary)]">
-              시험
-            </h3>
-            <Button type="button" intent="ghost" size="xl" onClick={setOpenCreateExam} className="text-sm font-bold">
-              + 추가
-            </Button>
+    <aside style={S.aside}>
+      {/* ── Exams Section ── */}
+      <section style={S.section}>
+        <div style={S.sectionHeader}>
+          <div style={S.sectionTitle}>
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style={{ opacity: 0.55 }}>
+              <path d="M3 2h10a1 1 0 011 1v10a1 1 0 01-1 1H3a1 1 0 01-1-1V3a1 1 0 011-1zm1 3v2h8V5H4zm0 4v2h5V9H4z" fill="currentColor"/>
+            </svg>
+            <span>시험</span>
+            <span style={S.countBadge}>{examsLoading ? "-" : exams.length}</span>
           </div>
-          <div className="grid gap-1.5">
-            {examsLoading && <Empty>불러오는 중…</Empty>}
-            {!examsLoading && exams.length === 0 && <Empty>시험 없음</Empty>}
-            {exams.map((exam: SessionExamRow) => {
-              const active = examId != null && Number(exam.exam_id) === examId;
-              const busy = examBusy?.id === Number(exam.exam_id) ? examBusy.action : null;
-              const maxScore = examMaxScoreById[Number(exam.exam_id)] ?? 100;
-              return (
-                <ExamItemRow
-                  key={exam.exam_id}
-                  active={active}
-                  label={exam.title}
-                  status={exam.status}
-                  maxScore={maxScore}
-                  onSelect={() => onSelectExam(Number(exam.exam_id))}
-                  onStart={(e) => { e.stopPropagation(); handleExamProgress(Number(exam.exam_id)); }}
-                  onEnd={(e) => { e.stopPropagation(); handleExamClose(Number(exam.exam_id)); }}
-                  busy={busy}
-                />
-              );
-            })}
-          </div>
-        </section>
+          <Button type="button" intent="ghost" size="sm" onClick={setOpenCreateExam}>
+            + 추가
+          </Button>
+        </div>
 
-        <section
-          className="rounded-2xl border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] p-4 shadow-sm"
-          style={{ boxShadow: "0 1px 3px rgba(0,0,0,.06)" }}
-        >
-          <div className="mb-3 flex items-center justify-between">
-            <h3 className="text-sm font-bold uppercase tracking-wide text-[var(--color-text-secondary)]">
-              과제
-            </h3>
-            <Button type="button" intent="ghost" size="xl" onClick={setOpenCreateHomework} className="text-sm font-bold">
-              + 추가
-            </Button>
-          </div>
-          <div className="grid gap-1.5">
-            {hwLoading && <Empty>불러오는 중…</Empty>}
-            {!hwLoading && homeworks.length === 0 && <Empty>과제 없음</Empty>}
-            {homeworks.map((hw) => {
-              const active = homeworkId === hw.id;
-              const cutlineMode = homeworkPolicy?.cutline_mode ?? "PERCENT";
-              const cutlineValue = homeworkPolicy?.cutline_value ?? 80;
-              return (
-                <HomeworkItemRow
-                  key={hw.id}
-                  active={active}
-                  label={hw.title}
-                  status={hw.status ?? "DRAFT"}
-                  cutlineMode={cutlineMode}
-                  cutlineValue={cutlineValue}
-                  onSelect={() => onSelectHomework(hw.id)}
-                  onStart={(e) => { e.stopPropagation(); handleHomeworkProgress(hw); }}
-                  onEnd={(e) => { e.stopPropagation(); handleHomeworkClose(hw); }}
-                />
-              );
-            })}
-          </div>
-        </section>
-      </div>
+        <div style={S.itemList}>
+          {examsLoading && <EmptyState>불러오는 중...</EmptyState>}
+          {!examsLoading && exams.length === 0 && <EmptyState>등록된 시험이 없습니다</EmptyState>}
+          {exams.map((exam: SessionExamRow) => {
+            const active = examId != null && Number(exam.exam_id) === examId;
+            const busy = examBusy?.id === Number(exam.exam_id) ? examBusy.action : null;
+            const maxScore = examMaxScoreById[Number(exam.exam_id)] ?? 100;
+            return (
+              <ExamItemCard
+                key={exam.exam_id}
+                active={active}
+                label={exam.title}
+                status={exam.status}
+                maxScore={maxScore}
+                onSelect={() => onSelectExam(Number(exam.exam_id))}
+                onStart={(e) => { e.stopPropagation(); handleExamProgress(Number(exam.exam_id)); }}
+                onEnd={(e) => { e.stopPropagation(); handleExamClose(Number(exam.exam_id)); }}
+                busy={busy}
+              />
+            );
+          })}
+        </div>
+      </section>
 
+      {/* ── Homework Section ── */}
+      <section style={S.section}>
+        <div style={S.sectionHeader}>
+          <div style={S.sectionTitle}>
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style={{ opacity: 0.55 }}>
+              <path d="M4 1a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V5.414a1 1 0 00-.293-.707l-3.414-3.414A1 1 0 009.586 1H4zm0 1.5h5v2.25c0 .414.336.75.75.75H12v7.5a.5.5 0 01-.5.5h-7a.5.5 0 01-.5-.5v-10a.5.5 0 01.5-.5z" fill="currentColor"/>
+            </svg>
+            <span>과제</span>
+            <span style={S.countBadge}>{hwLoading ? "-" : homeworks.length}</span>
+          </div>
+          <Button type="button" intent="ghost" size="sm" onClick={setOpenCreateHomework}>
+            + 추가
+          </Button>
+        </div>
+
+        <div style={S.itemList}>
+          {hwLoading && <EmptyState>불러오는 중...</EmptyState>}
+          {!hwLoading && homeworks.length === 0 && <EmptyState>등록된 과제가 없습니다</EmptyState>}
+          {homeworks.map((hw) => {
+            const active = homeworkId === hw.id;
+            const cutlineMode = homeworkPolicy?.cutline_mode ?? "PERCENT";
+            const cutlineValue = homeworkPolicy?.cutline_value ?? 80;
+            return (
+              <HomeworkItemCard
+                key={hw.id}
+                active={active}
+                label={hw.title}
+                status={hw.status ?? "DRAFT"}
+                cutlineMode={cutlineMode}
+                cutlineValue={cutlineValue}
+                onSelect={() => onSelectHomework(hw.id)}
+                onStart={(e) => { e.stopPropagation(); handleHomeworkProgress(hw); }}
+                onEnd={(e) => { e.stopPropagation(); handleHomeworkClose(hw); }}
+              />
+            );
+          })}
+        </div>
+      </section>
+
+      {/* ── Modals ── */}
       <CreateRegularExamModal
         open={openCreateExam}
         onClose={handleCloseCreateExam}
@@ -313,7 +475,11 @@ export default function SessionAssessmentSidePanel({
   );
 }
 
-function ExamItemRow({
+/* ------------------------------------------------------------------ */
+/*  ExamItemCard                                                       */
+/* ------------------------------------------------------------------ */
+
+function ExamItemCard({
   active,
   label,
   status,
@@ -332,18 +498,21 @@ function ExamItemRow({
   onEnd: (e: React.MouseEvent) => void;
   busy: null | "start" | "end";
 }) {
+  const [hovered, setHovered] = useState(false);
   const isDraft = status === "DRAFT";
   const isOpen = status === "OPEN";
   const isClosed = status === "CLOSED";
-  const isProgressing = isDraft || isOpen; // 진행중 = 초록
-  const statusBg = active
-    ? "var(--state-selected-bg)"
-    : isProgressing
-      ? "color-mix(in srgb, var(--color-success) 12%, var(--color-bg-surface))"
-      : isClosed
-        ? "color-mix(in srgb, var(--color-danger) 10%, var(--color-bg-surface))"
-        : "var(--color-bg-surface)";
-  const statusLabel = isProgressing ? "진행중" : isClosed ? "마감됨" : "";
+
+  const statusLabel = isDraft ? "준비" : isOpen ? "진행" : "마감";
+  const statusTone: StatusTone = isDraft ? "neutral" : isOpen ? "success" : "danger";
+
+  const hasActions = isDraft || isOpen;
+  const showActions = hasActions && (hovered || active);
+
+  const cardStyle: CSSProperties = {
+    ...S.card(active),
+    ...(hovered && !active ? S.cardHover : {}),
+  };
 
   return (
     <div
@@ -351,71 +520,65 @@ function ExamItemRow({
       tabIndex={0}
       onClick={onSelect}
       onKeyDown={(e) => e.key === "Enter" && onSelect()}
-      className={`
-        group rounded-xl border-l-4 px-3 py-2.5 text-left transition-all
-        ${active
-          ? "border-l-[var(--color-primary)] ring-1 ring-[var(--color-primary)]/20"
-          : isProgressing
-            ? "border-l-[var(--color-success)]"
-            : isClosed
-              ? "border-l-[var(--color-danger)]"
-              : "border-l-transparent hover:opacity-90"
-        }
-      `}
-      style={{
-        background: statusBg,
-      }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={cardStyle}
     >
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0 flex-1 flex items-start gap-2">
-          {statusLabel && (
-            <span
-              className="shrink-0 mt-1 text-[10px] font-semibold uppercase tracking-wide"
-              style={{
-                color: isProgressing ? "var(--color-success)" : "var(--color-danger)",
-              }}
-              aria-hidden
-            >
-              {statusLabel}
-            </span>
-          )}
-          <div className="min-w-0 flex-1">
-            <div className="text-sm font-semibold text-[var(--color-text-primary)] truncate">{label}</div>
-            <div className="mt-0.5 text-xs text-[var(--color-text-muted)]">최대점수 : {maxScore}점</div>
-          </div>
-        </div>
-        <div className="flex shrink-0 items-center gap-1" onClick={(e) => e.stopPropagation()}>
+      {/* Top row: badge + title */}
+      <div style={S.cardTopRow}>
+        <StatusBadge label={statusLabel} tone={statusTone} />
+        <div style={S.cardTitle} title={label}>{label}</div>
+      </div>
+
+      {/* Meta row */}
+      <div style={S.cardMeta}>
+        만점 {maxScore}점
+      </div>
+
+      {/* Action buttons — slide in on hover */}
+      {hasActions && (
+        <div
+          style={{
+            ...S.actionsRow,
+            ...(showActions ? S.actionsRowVisible : {}),
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
           {isDraft && (
             <Button
               type="button"
-              size="lg"
+              size="sm"
               intent="primary"
               onClick={onStart}
               disabled={busy != null}
-              className="!py-2 !px-4 !text-sm !min-h-[44px]"
+              loading={busy === "start"}
             >
-              {busy === "start" ? "처리 중…" : "진행"}
+              시험 시작
             </Button>
           )}
           {isOpen && (
             <Button
               type="button"
-              size="lg"
+              size="sm"
               intent="danger"
               onClick={onEnd}
               disabled={busy != null}
-              className="!py-2 !px-4 !text-sm !min-h-[44px]"
+              loading={busy === "end"}
             >
-              {busy === "end" ? "처리 중…" : "종료하기"}
+              시험 종료
             </Button>
           )}
         </div>
-      </div>
+      )}
     </div>
   );
 }
 
-function HomeworkItemRow({
+/* ------------------------------------------------------------------ */
+/*  HomeworkItemCard                                                    */
+/* ------------------------------------------------------------------ */
+
+function HomeworkItemCard({
   active,
   label,
   status,
@@ -434,19 +597,25 @@ function HomeworkItemRow({
   onStart: (e: React.MouseEvent) => void;
   onEnd: (e: React.MouseEvent) => void;
 }) {
+  const [hovered, setHovered] = useState(false);
   const isDraft = status === "DRAFT";
   const isOpen = status === "OPEN";
-  const isProgressing = isDraft || isOpen;
-  const statusBg = active
-    ? "var(--state-selected-bg)"
-    : isProgressing
-      ? "color-mix(in srgb, var(--color-success) 12%, var(--color-bg-surface))"
-      : "color-mix(in srgb, var(--color-danger) 10%, var(--color-bg-surface))";
-  const statusLabel = isProgressing ? "진행중" : "마감됨";
-  const maxScoreLabel =
+
+  const statusLabel = isDraft ? "준비" : isOpen ? "진행" : "마감";
+  const statusTone: StatusTone = isDraft ? "neutral" : isOpen ? "success" : "danger";
+
+  const metaLabel =
     cutlineMode === "PERCENT"
-      ? `최대점수 : ${cutlineValue}%`
-      : `최대점수 : ${cutlineValue}점`;
+      ? `기준 ${cutlineValue}%`
+      : `기준 ${cutlineValue}점`;
+
+  const hasActions = isDraft || isOpen;
+  const showActions = hasActions && (hovered || active);
+
+  const cardStyle: CSSProperties = {
+    ...S.card(active),
+    ...(hovered && !active ? S.cardHover : {}),
+  };
 
   return (
     <div
@@ -454,56 +623,50 @@ function HomeworkItemRow({
       tabIndex={0}
       onClick={onSelect}
       onKeyDown={(e) => e.key === "Enter" && onSelect()}
-      className={`
-        group rounded-xl border-l-4 px-3 py-2.5 text-left transition-all
-        ${active
-          ? "border-l-[var(--color-primary)] ring-1 ring-[var(--color-primary)]/20"
-          : isProgressing
-            ? "border-l-[var(--color-success)]"
-            : "border-l-[var(--color-danger)]"
-        }
-        ${!active && !isProgressing && "hover:opacity-90"}
-      `}
-      style={{
-        background: statusBg,
-      }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={cardStyle}
     >
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0 flex-1 flex items-start gap-2">
-          <span
-            className="shrink-0 mt-1 text-[10px] font-semibold uppercase tracking-wide"
-            style={{
-              color: isProgressing ? "var(--color-success)" : "var(--color-danger)",
-            }}
-          >
-            {statusLabel}
-          </span>
-          <div className="min-w-0 flex-1">
-            <div className="text-sm font-semibold text-[var(--color-text-primary)] truncate">{label}</div>
-            <div className="mt-0.5 text-xs text-[var(--color-text-muted)]">{maxScoreLabel}</div>
-          </div>
-        </div>
-        <div className="flex shrink-0 items-center gap-1" onClick={(e) => e.stopPropagation()}>
+      {/* Top row: badge + title */}
+      <div style={S.cardTopRow}>
+        <StatusBadge label={statusLabel} tone={statusTone} />
+        <div style={S.cardTitle} title={label}>{label}</div>
+      </div>
+
+      {/* Meta row */}
+      <div style={S.cardMeta}>
+        {metaLabel}
+      </div>
+
+      {/* Action buttons — slide in on hover */}
+      {hasActions && (
+        <div
+          style={{
+            ...S.actionsRow,
+            ...(showActions ? S.actionsRowVisible : {}),
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
           {isDraft && (
-            <Button type="button" size="lg" intent="primary" onClick={onStart} className="!py-2 !px-4 !text-sm !min-h-[44px]">
-              진행
+            <Button type="button" size="sm" intent="primary" onClick={onStart}>
+              과제 시작
             </Button>
           )}
           {isOpen && (
-            <Button type="button" size="lg" intent="secondary" onClick={onEnd} className="!py-2 !px-4 !text-sm !min-h-[44px]">
-              종료
+            <Button type="button" size="sm" intent="secondary" onClick={onEnd}>
+              과제 종료
             </Button>
           )}
         </div>
-      </div>
+      )}
     </div>
   );
 }
 
-function Empty({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="rounded-lg bg-[var(--color-bg-surface-soft)] px-3 py-4 text-center text-xs text-[var(--color-text-muted)]">
-      {children}
-    </div>
-  );
+/* ------------------------------------------------------------------ */
+/*  EmptyState                                                         */
+/* ------------------------------------------------------------------ */
+
+function EmptyState({ children }: { children: React.ReactNode }) {
+  return <div style={S.emptyState}>{children}</div>;
 }

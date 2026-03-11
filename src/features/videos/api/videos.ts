@@ -323,3 +323,84 @@ export async function deleteVideo(videoId: number): Promise<void> {
     throw e;
   }
 }
+
+// ========================================================
+// Video Social (댓글 · 좋아요 · 조회수 — 관리자 전용)
+// ========================================================
+
+export type VideoCommentItem = {
+  id: number;
+  content: string;
+  author_type: "student" | "teacher";
+  author_name: string;
+  author_photo_url: string | null;
+  is_edited: boolean;
+  is_deleted: boolean;
+  is_mine: boolean;
+  created_at: string;
+  reply_count: number;
+  replies: VideoCommentItem[];
+};
+
+export type VideoCommentsResponse = {
+  comments: VideoCommentItem[];
+  total: number;
+};
+
+export type VideoEngagement = {
+  view_count: number;
+  like_count: number;
+  comment_count: number;
+};
+
+/** 관리자용 댓글 목록 조회 */
+export async function fetchAdminVideoComments(
+  videoId: number
+): Promise<VideoCommentsResponse> {
+  const res = await api.get(`/media/videos/${videoId}/comments/`);
+  return safeData<VideoCommentsResponse>(res.data, { comments: [], total: 0 });
+}
+
+/** 관리자용 댓글 작성 (답글 포함) */
+export async function createAdminVideoComment(
+  videoId: number,
+  content: string,
+  parentId?: number
+): Promise<VideoCommentItem> {
+  const res = await api.post(`/media/videos/${videoId}/comments/`, {
+    content,
+    parent_id: parentId ?? null,
+  });
+  return res.data;
+}
+
+/** 관리자용 댓글 수정 */
+export async function editAdminVideoComment(
+  commentId: number,
+  content: string
+): Promise<{ id: number; content: string; is_edited: boolean }> {
+  const res = await api.patch(`/media/videos/comments/${commentId}/`, {
+    content,
+  });
+  return res.data;
+}
+
+/** 관리자용 댓글 삭제 */
+export async function deleteAdminVideoComment(
+  commentId: number
+): Promise<{ deleted: boolean }> {
+  const res = await api.delete(`/media/videos/comments/${commentId}/`);
+  return res.data;
+}
+
+/** 관리자용 영상 engagement 통계 (조회수 · 좋아요 · 댓글 수) */
+export async function fetchVideoEngagement(
+  videoId: number
+): Promise<VideoEngagement> {
+  const res = await api.get(`/media/videos/${videoId}/engagement/`);
+  return safeData<VideoEngagement>(res.data, {
+    view_count: 0,
+    like_count: 0,
+    comment_count: 0,
+  });
+}

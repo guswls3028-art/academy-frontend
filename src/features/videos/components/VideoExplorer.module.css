@@ -46,53 +46,146 @@
   font-size: 13px;
 }
 
+/* ── YouTube-style responsive grid ── */
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: var(--space-4);
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--space-5);
 }
 
-.item {
+/* ── Video card ── */
+.card {
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface);
+  cursor: pointer;
+  overflow: hidden;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--elevation-2);
+}
+
+/* ── Thumbnail wrapper (16:9 aspect ratio) ── */
+.thumbnailWrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface-hover);
+}
+
+/* ── Duration badge (bottom-right corner, YouTube-style) ── */
+.duration {
+  position: absolute;
+  bottom: 6px;
+  right: 6px;
+  padding: 2px 6px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.78);
+  border-radius: var(--radius-sm);
+  letter-spacing: 0.3px;
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* ── Status badge overlaid on thumbnail (top-left) ── */
+.statusOverlay {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* ── Card body (info area below thumbnail) ── */
+.cardBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-2) var(--space-2);
+}
+
+/* ── Title: 2-line clamp ── */
+.cardTitle {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--color-text-primary);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  word-break: break-word;
+}
+
+/* ── Meta row (view count · time ago) ── */
+.cardMeta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--color-text-muted);
+  line-height: 1.4;
+}
+
+.metaDot {
+  color: var(--color-text-disabled);
+}
+
+/* ── View count with icon ── */
+.viewCount {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.viewIcon {
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
+  color: var(--color-text-disabled);
+}
+
+/* ── Action buttons row ── */
+.cardActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-2) var(--space-2);
+  flex-wrap: wrap;
+}
+
+/* ── Add card (upload/folder) ── */
+.itemAdd {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: center;
   gap: var(--space-2);
-  padding: var(--space-3);
+  min-height: 180px;
   border-radius: var(--radius-md);
-  border: 1px solid var(--color-border-divider);
+  border: 2px dashed var(--color-border-divider);
   background: var(--color-bg-surface);
   cursor: pointer;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
-  color: var(--color-text-primary);
-  transition: background 0.15s, border-color 0.15s;
-}
-
-.item:hover {
-  background: var(--color-bg-surface-hover);
-  border-color: color-mix(in srgb, var(--color-brand-primary) 30%, var(--color-border-divider));
-}
-
-.itemAdd {
-  border-style: dashed;
   color: var(--color-text-muted);
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
 }
 
 .itemAdd:hover {
   color: var(--color-brand-primary);
-}
-
-.itemLabel {
-  text-align: center;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  width: 100%;
-}
-
-.itemMeta {
-  font-size: 10px;
-  font-weight: 500;
-  color: var(--color-text-muted);
+  border-color: color-mix(in srgb, var(--color-brand-primary) 40%, var(--color-border-divider));
+  background: var(--color-bg-surface-hover);
 }

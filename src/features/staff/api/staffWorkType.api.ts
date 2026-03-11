@@ -69,3 +69,22 @@ export async function deleteStaffWorkType(id: number) {
   await api.delete(`/staffs/staff-work-types/${id}/`);
   return true;
 }
+
+/**
+ * PATCH /staffs/work-types/:id/
+ */
+export async function updateWorkType(
+  id: number,
+  payload: Partial<Pick<WorkType, "name" | "base_hourly_wage" | "color" | "description" | "is_active">>
+) {
+  const res = await api.patch(`/staffs/work-types/${id}/`, payload);
+  return res.data as WorkType;
+}
+
+/**
+ * DELETE /staffs/work-types/:id/
+ */
+export async function deleteWorkType(id: number) {
+  await api.delete(`/staffs/work-types/${id}/`);
+  return true;
+}
