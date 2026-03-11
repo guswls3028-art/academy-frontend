@@ -29,6 +29,7 @@ function formatDate(dateStr: string | null): string {
   if (!dateStr) return "-";
   try {
     const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
     return `${d.getFullYear()}. ${d.getMonth() + 1}. ${d.getDate()}.`;
   } catch {
     return dateStr;
