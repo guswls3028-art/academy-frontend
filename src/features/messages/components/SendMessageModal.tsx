@@ -1,6 +1,6 @@
 // PATH: src/features/messages/components/SendMessageModal.tsx
 // 공용 메시지 발송 모달 — 직접 입력 또는 기존 템플릿 불러와서 발송
-// 수신자(학부모/학생), 발송 유형(SMS/알림톡) 다중 선택 가능. 템플릿 수정 모달과 비슷한 큰 레이아웃.
+// 수신자(학부모/학생), 발송 방식(메세지/알림톡/모두) 다중 선택 가능. SSOT: messageSendOptions.
 
 import { useState, useEffect, useRef } from "react";
 import { Input } from "antd";
@@ -61,7 +61,7 @@ export default function SendMessageModal({
   /** 수신자: 학부모·학생 둘 다 선택 가능 (최소 1개). 직원 모드일 때는 사용 안 함 */
   const [sendToParent, setSendToParent] = useState(true);
   const [sendToStudent, setSendToStudent] = useState(false);
-  /** 발송 유형: SMS·알림톡 둘 다 선택 가능 (최소 1개). 기본값 = SMS + 알림톡 */
+  /** 발송 방식: 메세지·알림톡 둘 다 선택 가능 (최소 1개). 기본값 = 모두(메세지+알림톡) */
   const [useSms, setUseSms] = useState(true);
   const [useAlimtalk, setUseAlimtalk] = useState(true);
   const [sending, setSending] = useState(false);
@@ -194,7 +194,7 @@ export default function SendMessageModal({
         ? "직원"
         : sendToTargets.length === 2 ? "학부모·학생" : sendToTargets[0] === "parent" ? "학부모" : "학생";
       const modeLabel =
-        messageModes.length === 2 ? "SMS·알림톡" : messageModes[0] === "sms" ? "SMS" : "알림톡";
+        messageModes.length === 2 ? "모두" : messageModes[0] === "sms" ? "메세지" : "알림톡";
       feedback.success(
         `${sendToLabel} ${modeLabel} 발송 예정 ${totalEnqueued}건입니다.`
       );

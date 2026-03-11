@@ -253,8 +253,8 @@ function TriggerCard({
                 type="number"
                 min={0}
                 step={5}
-                placeholder="—"
-                className="ds-input"
+                placeholder="예: 10"
+                className="ds-input message-domain-input"
                 style={{ width: 72, fontSize: 13, textAlign: "right" }}
                 value={config.minutes_before ?? ""}
                 onChange={(e) => {
