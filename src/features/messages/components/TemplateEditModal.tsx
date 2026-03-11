@@ -9,24 +9,13 @@ import { AdminModal, ModalHeader, ModalBody, ModalFooter } from "@/shared/ui/mod
 import { Button, Tabs } from "@/shared/ui/ds";
 import {
   getBlocksForCategory,
+  getBlockColor,
   renderPreviewText,
   TEMPLATE_CATEGORY_LABELS,
   type TemplateCategory,
 } from "../constants/templateBlocks";
 import type { MessageTemplateItem, MessageTemplatePayload } from "../api/messages.api";
 
-const CATEGORIES: TemplateCategory[] = [
-  "default",
-  "signup",
-  "attendance",
-  "lecture",
-  "exam",
-  "assignment",
-  "grades",
-  "clinic",
-  "payment",
-  "notice",
-];
 import "../styles/templateEditor.css";
 
 export type TemplateEditModalProps = {
@@ -61,7 +50,12 @@ export default function TemplateEditModal({
   const [body, setBody] = useState("");
   const [activeTab, setActiveTab] = useState<EditorTab>("message");
   const [selectedCategory, setSelectedCategory] = useState<TemplateCategory>(category);
-  const bodyRef = useRef<HTMLTextAreaElement>(null);
+  // Ant Design Input.TextArea ref는 래퍼 객체 — native textarea를 직접 찾는다
+  const bodyWrapRef = useRef<HTMLDivElement>(null);
+  const getNativeTextarea = useCallback(
+    () => bodyWrapRef.current?.querySelector("textarea") ?? null,
+    []
+  );
   const blocks = getBlocksForCategory(selectedCategory);
 
   useEffect(() => {
@@ -76,23 +70,25 @@ export default function TemplateEditModal({
 
   const insertBlock = useCallback(
     (insertText: string) => {
-      const ta = bodyRef.current;
+      const ta = getNativeTextarea();
       if (!ta) {
         setBody((prev) => prev + insertText);
         return;
       }
-      const start = ta.selectionStart;
+      const start = ta.selectionStart ?? ta.value.length;
       const end = ta.selectionEnd ?? start;
-      const before = body.slice(0, start);
-      const after = body.slice(end);
-      setBody(before + insertText + after);
-      setTimeout(() => {
+      setBody((prev) => {
+        const before = prev.slice(0, start);
+        const after = prev.slice(end);
+        return before + insertText + after;
+      });
+      const newPos = start + insertText.length;
+      requestAnimationFrame(() => {
         ta.focus();
-        const newPos = start + insertText.length;
         ta.setSelectionRange(newPos, newPos);
-      }, 0);
+      });
     },
-    [body]
+    [getNativeTextarea]
   );
 
   const handleSubmit = () => {
@@ -130,24 +126,22 @@ export default function TemplateEditModal({
             className="template-editor__left shrink-0 flex flex-col gap-4 p-4 overflow-hidden"
             style={{ width: 300 }}
           >
-            {/* 카테고리 선택 */}
+            {/* 카테고리 (읽기 전용) */}
             <section>
-              <div className="template-editor__blocks-title mb-2">카테고리</div>
-              <div className="modal-tabs-elevated">
-                <div className="ds-tabs">
-                  {CATEGORIES.map((cat) => (
-                    <button
-                      key={cat}
-                      type="button"
-                      className={`ds-tab ${selectedCategory === cat ? "is-active" : ""}`}
-                      onClick={() => !isPending && setSelectedCategory(cat)}
-                      disabled={isPending}
-                    >
-                      {TEMPLATE_CATEGORY_LABELS[cat]}
-                    </button>
-                  ))}
-                </div>
-              </div>
+              <div className="template-editor__blocks-title mb-1">카테고리</div>
+              <span
+                style={{
+                  display: "inline-block",
+                  padding: "4px 14px",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  borderRadius: 8,
+                  background: "color-mix(in srgb, var(--color-primary) 10%, transparent)",
+                  color: "var(--color-primary)",
+                }}
+              >
+                {TEMPLATE_CATEGORY_LABELS[selectedCategory]}
+              </span>
             </section>
 
             <section>
@@ -267,12 +261,11 @@ export default function TemplateEditModal({
 
             {/* 본문 — 2패널: 입력 | 삽입 블록 */}
             <div className="template-editor__body-row flex-1 min-h-0 flex gap-4">
-              <div className="template-editor__body-input flex-1 min-w-0 flex flex-col">
+              <div ref={bodyWrapRef} className="template-editor__body-input flex-1 min-w-0 flex flex-col">
                 <label className="template-editor__editor-title block mb-1">
                   본문 (직접 입력 또는 오른쪽 블록 클릭하여 삽입)
                 </label>
                 <Input.TextArea
-                  ref={bodyRef}
                   placeholder="내용을 입력하세요. 오른쪽 블록을 클릭하면 치환 변수가 삽입됩니다."
                   value={body}
                   onChange={(e) => setBody(e.target.value)}
@@ -285,17 +278,22 @@ export default function TemplateEditModal({
               <div className="template-editor__body-blocks shrink-0 flex flex-col" style={{ width: 220 }}>
                 <div className="template-editor__blocks-title mb-2">삽입 블록</div>
                 <div className="template-editor__block-list flex flex-wrap gap-2 content-start overflow-auto p-1">
-                  {blocks.map((block, idx) => (
-                    <button
-                      key={block.id}
-                      type="button"
-                      onClick={() => insertBlock(block.insertText)}
-                      disabled={isPending}
-                      className={`template-editor__block-tag template-editor__block-tag--${selectedCategory} template-editor__block-tag--n${idx % 3}`}
-                    >
-                      {block.label}
-                    </button>
-                  ))}
+                  {blocks.map((block) => {
+                    const bc = getBlockColor(block.id);
+                    return (
+                      <button
+                        key={block.id}
+                        type="button"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => insertBlock(block.insertText)}
+                        disabled={isPending}
+                        className="template-editor__block-tag"
+                        style={{ background: bc.bg, color: bc.color, borderColor: bc.border }}
+                      >
+                        {block.label}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             </div>

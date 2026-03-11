@@ -254,18 +254,14 @@
   border-color: color-mix(in srgb, var(--color-success, #22c55e) 35%, transparent);
 }
 
-/* 제목(알림톡) 슬롯 — 탭 전환 시 높이 고정 */
+/* 제목(알림톡) 슬롯 — 탭 전환해도 높이 고정 */
 .template-editor__subject-slot {
-  min-height: 0;
+  min-height: 56px;
   flex-shrink: 0;
 }
 
-.template-editor__subject-slot--has-subject {
-  min-height: 56px;
-}
-
 .template-editor__subject-placeholder {
-  height: 8px;
+  height: 56px;
   pointer-events: none;
 }
 
@@ -341,6 +337,31 @@
 .template-editor__tabs .ant-tabs-ink-bar {
   background: var(--color-primary);
   height: 2px;
+}
+
+/* ----- SendMessageModal: 모달 셸 높이 고정 (체크박스 토글 시 리사이즈 방지) ----- */
+.send-message-modal .ant-modal-content {
+  height: 720px;
+  display: flex;
+  flex-direction: column;
+}
+
+.send-message-modal .ant-modal-body {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.send-message-modal .admin-modal__inner {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.send-message-modal .modal-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 /* ----- 템플릿 카드 그리드 ----- */

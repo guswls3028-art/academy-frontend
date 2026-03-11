@@ -1,9 +1,16 @@
 // PATH: src/features/messages/constants/templateBlocks.ts
-// 카테고리별 삽입 블록 — 기본(공통) | 강의 | 클리닉
-//
-// 템플릿 구분:
-// - 일반 템플릿: 양식 저장. 메시지 발송 모달에서 "템플릿 불러오기"로 사용.
-// - 자동발송 템플릿: 자동발송 탭에서 트리거별로 연결. 가입 완료, 클리닉 알림 등.
+// 카테고리별 삽입 블록 — 실제 services.py 런타임 치환 변수와 1:1 매칭
+
+/** 현재 테넌트 사이트 URL (미리보기용) */
+function getTenantSiteUrl(): string {
+  try {
+    const host = window.location.hostname;
+    if (host === "localhost" || host === "127.0.0.1") return "https://example.com";
+    return `https://${host}`;
+  } catch {
+    return "https://example.com";
+  }
+}
 
 export interface TemplateBlock {
   id: string;
@@ -12,39 +19,55 @@ export interface TemplateBlock {
   previewValue: string;
 }
 
-/** 기본: 이름 2/3글자, 사이트링크. 다른 템플릿에도 공통 포함 */
-export const DEFAULT_BLOCKS: TemplateBlock[] = [
-  { id: "student_name_2", label: "이름 2글자", insertText: "#{student_name_2}", previewValue: "홍길" },
-  { id: "student_name_3", label: "이름 3글자", insertText: "#{student_name_3}", previewValue: "홍길동" },
-  { id: "site_link", label: "사이트 링크", insertText: "#{site_link}", previewValue: "https://example.com" },
-];
+// ─── 블록 정의 ───
 
-/** 가입 완료(자동발송) 전용 */
-export const SIGNUP_BLOCKS: TemplateBlock[] = [
-  ...DEFAULT_BLOCKS,
-  { id: "student_id", label: "학생 ID", insertText: "#{student_id}", previewValue: "S001" },
-  { id: "student_password", label: "학생 비밀번호", insertText: "#{student_password}", previewValue: "****" },
-  { id: "parent_id", label: "학부모 ID(전화)", insertText: "#{parent_id}", previewValue: "010****1234" },
-  { id: "parent_password", label: "학부모 비밀번호", insertText: "#{parent_password}", previewValue: "****" },
-];
+const B = {
+  // 공통
+  student_name_2:    { id: "student_name_2",    label: "이름 2글자",       insertText: "#{student_name_2}",    previewValue: "길동" },
+  student_name_3:    { id: "student_name_3",    label: "이름 3글자",       insertText: "#{student_name_3}",    previewValue: "홍길동" },
+  site_link:         { id: "site_link",         label: "사이트 링크",      insertText: "#{site_link}",         previewValue: getTenantSiteUrl() },
+  date:              { id: "date",              label: "날짜",             insertText: "#{date}",              previewValue: "2026-03-11" },
+  time:              { id: "time",              label: "시간",             insertText: "#{time}",              previewValue: "14:00" },
+  // 가입/등록
+  student_name:      { id: "student_name",      label: "이름 (전체)",      insertText: "#{student_name}",      previewValue: "홍길동" },
+  student_id:        { id: "student_id",        label: "학생 아이디",      insertText: "#{student_id}",        previewValue: "S20250001" },
+  student_password:  { id: "student_password",  label: "학생 비밀번호",    insertText: "#{student_password}",  previewValue: "****" },
+  parent_id:         { id: "parent_id",         label: "학부모 아이디",    insertText: "#{parent_id}",         previewValue: "010****1234" },
+  parent_password:   { id: "parent_password",   label: "학부모 비밀번호",  insertText: "#{parent_password}",   previewValue: "****" },
+  pw_notice:         { id: "pw_notice",         label: "비밀번호 변경 안내", insertText: "#{pw_notice}",       previewValue: "보안을 위해 비밀번호를 변경해 주세요." },
+  // 강의/출결
+  lecture_name:      { id: "lecture_name",      label: "강의명",           insertText: "#{lecture_name}",      previewValue: "수학 심화반" },
+  session_name:      { id: "session_name",      label: "차시명",           insertText: "#{session_name}",      previewValue: "3회차" },
+  // 시험
+  exam_name:         { id: "exam_name",         label: "시험명",           insertText: "#{exam_name}",         previewValue: "3월 모의고사" },
+  score:             { id: "score",             label: "성적",             insertText: "#{score}",             previewValue: "85점" },
+  // 과제
+  assignment_name:   { id: "assignment_name",   label: "과제명",           insertText: "#{assignment_name}",   previewValue: "단원 복습 과제" },
+  // 성적
+  exam_score:        { id: "exam_score",        label: "시험 성적",        insertText: "#{exam_score}",        previewValue: "85점" },
+  assignment_score:  { id: "assignment_score",  label: "과제 성적",        insertText: "#{assignment_score}",  previewValue: "90점" },
+  // 클리닉
+  clinic_name:       { id: "clinic_name",       label: "클리닉명",         insertText: "#{clinic_name}",       previewValue: "수학 보충 클리닉" },
+  clinic_place:      { id: "clinic_place",      label: "클리닉 장소",      insertText: "#{clinic_place}",      previewValue: "3층 세미나실" },
+} satisfies Record<string, TemplateBlock>;
 
-/** 강의 전용: 강의·차시(세션) 내 학생 선택 발송 시 사용. 기본 + 아래 */
-const LECTURE_EXTRA_BLOCKS: TemplateBlock[] = [
-  { id: "lecture_name", label: "강의명", insertText: "#{lecture_name}", previewValue: "중등 수학" },
-  { id: "attendance_status", label: "출결", insertText: "#{attendance_status}", previewValue: "출석" },
-  { id: "exam_name", label: "시험 이름", insertText: "#{exam_name}", previewValue: "1차 모의고사" },
-  { id: "exam_score", label: "시험 성적", insertText: "#{exam_score}", previewValue: "85점" },
-  { id: "assignment_name", label: "과제 이름", insertText: "#{assignment_name}", previewValue: "챕터 3 문제" },
-  { id: "assignment_score", label: "과제 성적", insertText: "#{assignment_score}", previewValue: "90점" },
-  { id: "clinic_required", label: "클리닉 합불(필수대상자 여부)", insertText: "#{clinic_required}", previewValue: "필수대상자" },
-  { id: "video_name", label: "영상 이름", insertText: "#{video_name}", previewValue: "1강 식의 계산" },
-];
+// ─── 카테고리별 블록 조합 ───
 
-/** 클리닉 전용: 클리닉 내 학생 선택 발송 시 사용. 기본 + 아래 */
-const CLINIC_EXTRA_BLOCKS: TemplateBlock[] = [
-  { id: "clinic_required", label: "클리닉 합불(필수대상자 여부)", insertText: "#{clinic_required}", previewValue: "필수대상자" },
-  { id: "clinic_date", label: "클리닉 날짜", insertText: "#{clinic_date}", previewValue: "12/25(목) 14:00" },
-];
+const COMMON: TemplateBlock[] = [B.student_name_2, B.student_name_3, B.site_link, B.date, B.time];
+
+const CATEGORY_BLOCKS: Record<string, TemplateBlock[]> = {
+  signup:     [...COMMON, B.student_name, B.student_id, B.student_password, B.parent_id, B.parent_password, B.pw_notice],
+  attendance: [...COMMON, B.lecture_name, B.session_name],
+  lecture:    [...COMMON, B.lecture_name, B.session_name],
+  exam:       [...COMMON, B.lecture_name, B.session_name, B.exam_name, B.score],
+  assignment: [...COMMON, B.lecture_name, B.session_name, B.assignment_name, B.score],
+  grades:     [...COMMON, B.lecture_name, B.session_name, B.exam_name, B.assignment_name, B.exam_score, B.assignment_score],
+  clinic:     [...COMMON, B.clinic_name, B.clinic_place],
+  payment:    [...COMMON],
+  notice:     [...COMMON],
+};
+
+// ─── 카테고리 타입 ───
 
 export type TemplateCategory =
   | "default"
@@ -58,39 +81,18 @@ export type TemplateCategory =
   | "payment"
   | "notice";
 
-export const LECTURE_BLOCKS: TemplateBlock[] = [...DEFAULT_BLOCKS, ...LECTURE_EXTRA_BLOCKS];
-export const CLINIC_BLOCKS: TemplateBlock[] = [...DEFAULT_BLOCKS, ...CLINIC_EXTRA_BLOCKS];
-
-const PREVIEW_MAP: Record<string, string> = Object.fromEntries(
-  [
-    ...DEFAULT_BLOCKS,
-    ...SIGNUP_BLOCKS.filter((b) => !DEFAULT_BLOCKS.some((d) => d.id === b.id)),
-    ...LECTURE_EXTRA_BLOCKS,
-    ...CLINIC_EXTRA_BLOCKS,
-  ].map((b) => [b.insertText, b.previewValue])
-);
-
 export function getBlocksForCategory(category: TemplateCategory): TemplateBlock[] {
-  switch (category) {
-    case "signup":
-      return SIGNUP_BLOCKS;
-    case "lecture":
-      return LECTURE_BLOCKS;
-    case "clinic":
-      return CLINIC_BLOCKS;
-    case "attendance":
-    case "exam":
-    case "assignment":
-    case "grades":
-    case "payment":
-    case "notice":
-    default:
-      return DEFAULT_BLOCKS;
-  }
+  return CATEGORY_BLOCKS[category] ?? [...COMMON];
 }
 
+// ─── 미리보기 치환 ───
+
+const ALL_BLOCKS = Object.values(B);
 export function renderPreviewText(text: string): string {
-  return text.replace(/#\{[^}]*\}/g, (match) => PREVIEW_MAP[match] ?? match);
+  const map: Record<string, string> = Object.fromEntries(
+    ALL_BLOCKS.map((b) => [b.insertText, b.previewValue]),
+  );
+  return text.replace(/#\{[^}]*\}/g, (match) => map[match] ?? match);
 }
 
 export const TEMPLATE_CATEGORY_LABELS: Record<TemplateCategory, string> = {
@@ -105,3 +107,42 @@ export const TEMPLATE_CATEGORY_LABELS: Record<TemplateCategory, string> = {
   payment: "결제",
   notice: "운영공지",
 };
+
+// ─── 블록별 고유 색상 ───
+
+const BLOCK_COLORS: Record<string, { bg: string; color: string; border: string }> = {
+  // 공통 — 보라/인디고 계열
+  student_name_2:   { bg: "color-mix(in srgb, #6366f1 12%, transparent)", color: "#4f46e5", border: "color-mix(in srgb, #6366f1 30%, transparent)" },
+  student_name_3:   { bg: "color-mix(in srgb, #8b5cf6 12%, transparent)", color: "#7c3aed", border: "color-mix(in srgb, #8b5cf6 30%, transparent)" },
+  site_link:        { bg: "color-mix(in srgb, #14b8a6 12%, transparent)", color: "#0d9488", border: "color-mix(in srgb, #14b8a6 30%, transparent)" },
+  date:             { bg: "color-mix(in srgb, #ec4899 12%, transparent)", color: "#db2777", border: "color-mix(in srgb, #ec4899 30%, transparent)" },
+  time:             { bg: "color-mix(in srgb, #f43f5e 12%, transparent)", color: "#e11d48", border: "color-mix(in srgb, #f43f5e 30%, transparent)" },
+  // 가입/등록 — 블루/옐로 계열
+  student_name:     { bg: "color-mix(in srgb, #3b82f6 12%, transparent)", color: "#2563eb", border: "color-mix(in srgb, #3b82f6 30%, transparent)" },
+  student_id:       { bg: "color-mix(in srgb, #0ea5e9 12%, transparent)", color: "#0284c7", border: "color-mix(in srgb, #0ea5e9 30%, transparent)" },
+  student_password: { bg: "color-mix(in srgb, #06b6d4 12%, transparent)", color: "#0891b2", border: "color-mix(in srgb, #06b6d4 30%, transparent)" },
+  parent_id:        { bg: "color-mix(in srgb, #f59e0b 12%, transparent)", color: "#d97706", border: "color-mix(in srgb, #f59e0b 30%, transparent)" },
+  parent_password:  { bg: "color-mix(in srgb, #f97316 12%, transparent)", color: "#ea580c", border: "color-mix(in srgb, #f97316 30%, transparent)" },
+  pw_notice:        { bg: "color-mix(in srgb, #22c55e 12%, transparent)", color: "#16a34a", border: "color-mix(in srgb, #22c55e 30%, transparent)" },
+  // 강의/출결 — 그린/시안 계열
+  lecture_name:     { bg: "color-mix(in srgb, #10b981 12%, transparent)", color: "#059669", border: "color-mix(in srgb, #10b981 30%, transparent)" },
+  session_name:     { bg: "color-mix(in srgb, #2dd4bf 12%, transparent)", color: "#0d9488", border: "color-mix(in srgb, #2dd4bf 30%, transparent)" },
+  // 시험 — 레드/오렌지 계열
+  exam_name:        { bg: "color-mix(in srgb, #ef4444 12%, transparent)", color: "#dc2626", border: "color-mix(in srgb, #ef4444 30%, transparent)" },
+  score:            { bg: "color-mix(in srgb, #a855f7 12%, transparent)", color: "#9333ea", border: "color-mix(in srgb, #a855f7 30%, transparent)" },
+  // 과제
+  assignment_name:  { bg: "color-mix(in srgb, #f97316 12%, transparent)", color: "#ea580c", border: "color-mix(in srgb, #f97316 30%, transparent)" },
+  // 성적
+  exam_score:       { bg: "color-mix(in srgb, #ef4444 12%, transparent)", color: "#dc2626", border: "color-mix(in srgb, #ef4444 30%, transparent)" },
+  assignment_score: { bg: "color-mix(in srgb, #f59e0b 12%, transparent)", color: "#d97706", border: "color-mix(in srgb, #f59e0b 30%, transparent)" },
+  // 클리닉 — 핑크/퍼플 계열
+  clinic_name:      { bg: "color-mix(in srgb, #d946ef 12%, transparent)", color: "#c026d3", border: "color-mix(in srgb, #d946ef 30%, transparent)" },
+  clinic_place:     { bg: "color-mix(in srgb, #a78bfa 12%, transparent)", color: "#7c3aed", border: "color-mix(in srgb, #a78bfa 30%, transparent)" },
+};
+
+const FALLBACK_COLOR = { bg: "color-mix(in srgb, var(--color-primary) 10%, transparent)", color: "var(--color-primary)", border: "color-mix(in srgb, var(--color-primary) 25%, transparent)" };
+
+/** 블록 ID로 고유 색상 반환 */
+export function getBlockColor(blockId: string): { bg: string; color: string; border: string } {
+  return BLOCK_COLORS[blockId] ?? FALLBACK_COLOR;
+}

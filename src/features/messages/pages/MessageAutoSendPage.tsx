@@ -12,6 +12,7 @@ import {
   updateAutoSendConfigs,
   updateMessageTemplate,
   createMessageTemplate,
+  provisionDefaultTemplates,
   type AutoSendConfigItem,
   AUTO_SEND_TRIGGER_LABELS,
   type MessageTemplateItem,
@@ -37,8 +38,6 @@ const TRIGGER_DESCRIPTIONS: Record<string, string> = {
   student_signup: "학생이 가입하면 학생·학부모에게 ID/비밀번호 및 접속 안내를 자동 발송합니다.",
   registration_approved_student: "가입 신청 승인 시 학생에게 ID/비밀번호 및 접속 안내를 발송합니다.",
   registration_approved_parent: "가입 신청 승인 시 학부모에게 ID/비밀번호 및 접속 안내를 발송합니다.",
-  class_enrollment_complete: "반 등록이 완료되면 학생·학부모에게 반명/강의명/강사명을 안내합니다.",
-  enrollment_expiring_soon: "등록 만료 예정일이 도래하면 학생·학부모에게 재등록을 안내합니다. 발송 시점을 설정하세요.",
   withdrawal_complete: "퇴원 처리가 완료되면 학생·학부모에게 퇴원 확인 메시지를 발송합니다.",
   lecture_session_reminder: "수업 시작 전 학생·학부모에게 수업 일시/교실/강사를 리마인드합니다. 분 전 설정 필수.",
   check_in_complete: "입실(출석) 처리가 완료되면 학부모에게 출석 확인 알림을 발송합니다.",
@@ -62,7 +61,7 @@ const TRIGGER_DESCRIPTIONS: Record<string, string> = {
 };
 
 const SECTION_DESCRIPTIONS: Record<AutoSendSectionId, string> = {
-  signup: "회원가입, 가입 승인, 반 등록, 등록 만료 예정, 퇴원 등 등록 관련 이벤트를 설정합니다.",
+  signup: "회원가입, 가입 승인, 퇴원 등 등록 관련 이벤트를 설정합니다.",
   attendance: "수업 시작 N분 전 리마인드, 입실(출석) 확인, 결석 발생 알림을 설정합니다.",
   lecture: "강의·차시 관련 알림을 설정합니다. 수업 리마인드는 출결 구간에서도 설정 가능합니다.",
   exam: "시험 예정 안내, 시작 전 리마인드, 미응시, 성적 공개, 재시험 대상 지정을 설정합니다.",
@@ -378,7 +377,6 @@ export default function MessageAutoSendPage() {
     mutationFn: (payload: MessageTemplatePayload) => createMessageTemplate(payload),
     onSuccess: (created) => {
       qc.invalidateQueries({ queryKey: ["messaging", "templates"] });
-      // 생성된 템플릿을 해당 trigger config에 연결
       if (creatingForTrigger && created?.id) {
         const next = localConfigs.map((c) =>
           c.trigger === creatingForTrigger ? { ...c, template: created.id } : c,
@@ -391,6 +389,24 @@ export default function MessageAutoSendPage() {
     },
     onError: () => {
       feedback.error("템플릿 생성에 실패했습니다.");
+    },
+  });
+
+  const provisionMut = useMutation({
+    mutationFn: provisionDefaultTemplates,
+    onSuccess: (result) => {
+      qc.invalidateQueries({ queryKey: QUERY_KEY });
+      qc.invalidateQueries({ queryKey: ["messaging", "templates"] });
+      const parts: string[] = [];
+      if (result.created_templates > 0) parts.push(`템플릿 ${result.created_templates}개 생성`);
+      if (result.reset_templates > 0) parts.push(`${result.reset_templates}개 기본값 복원`);
+      if (result.created_configs > 0) parts.push(`자동발송 ${result.created_configs}개 설정`);
+      if (result.linked > 0) parts.push(`${result.linked}개 연결`);
+      if (parts.length === 0) parts.push(`이미 모두 최신 상태입니다 (총 ${result.total_configs}개)`);
+      feedback.success(parts.join(", "));
+    },
+    onError: () => {
+      feedback.error("기본 템플릿 생성에 실패했습니다.");
     },
   });
 
@@ -433,6 +449,7 @@ export default function MessageAutoSendPage() {
     );
   }
 
+  const hasNoDefaults = localConfigs.length === 0 || localConfigs.every((c) => !c.template);
   const section = AUTO_SEND_SECTIONS.find((s) => s.id === selectedSection);
   const sectionTriggers = section?.triggers ?? [];
   const configsInSection = localConfigs.filter((c) => sectionTriggers.includes(c.trigger));
@@ -457,7 +474,37 @@ export default function MessageAutoSendPage() {
         </aside>
         <div className={panelStyles.content}>
           <div className={panelStyles.contentInner}>
-            {section && (
+            {hasNoDefaults ? (
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 16,
+                  padding: "60px 24px",
+                  textAlign: "center",
+                }}
+              >
+                <FiZap size={36} style={{ color: "var(--color-text-muted)", opacity: 0.5 }} />
+                <div>
+                  <p style={{ fontSize: 15, fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 6 }}>
+                    자동발송 템플릿이 아직 설정되지 않았습니다
+                  </p>
+                  <p style={{ fontSize: 13, color: "var(--color-text-muted)", lineHeight: 1.5 }}>
+                    기본 템플릿을 생성하면 25개 자동발송 트리거에 대한<br />
+                    알림톡/SMS 템플릿과 발송 설정이 자동으로 구성됩니다.
+                  </p>
+                </div>
+                <Button
+                  intent="primary"
+                  onClick={() => provisionMut.mutate()}
+                  disabled={provisionMut.isPending}
+                >
+                  {provisionMut.isPending ? "생성 중…" : "기본 템플릿 생성하기"}
+                </Button>
+              </div>
+            ) : section && (
               <>
                 <p className={panelStyles.sectionTitle}>
                   {section.label} — {SECTION_DESCRIPTIONS[section.id]}

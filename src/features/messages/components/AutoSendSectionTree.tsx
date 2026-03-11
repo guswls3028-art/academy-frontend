@@ -56,14 +56,11 @@ export const AUTO_SEND_SECTIONS: SectionDef[] = [
       "student_signup",
       "registration_approved_student",
       "registration_approved_parent",
-      "class_enrollment_complete",
-      "enrollment_expiring_soon",
       "withdrawal_complete",
     ],
     children: [
       triggerChild("student_signup", <Bell size={14} aria-hidden />),
-      triggerChild("class_enrollment_complete", <Bell size={14} aria-hidden />),
-      triggerChild("enrollment_expiring_soon", <Bell size={14} aria-hidden />),
+      triggerChild("withdrawal_complete", <Bell size={14} aria-hidden />),
     ],
   },
   {

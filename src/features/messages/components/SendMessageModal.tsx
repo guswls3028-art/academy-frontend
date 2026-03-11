@@ -16,7 +16,7 @@ import {
   type SendToType,
 } from "../api/messages.api";
 import { useMessagingInfo } from "../hooks/useMessagingInfo";
-import { TEMPLATE_CATEGORY_LABELS, DEFAULT_BLOCKS } from "../constants/templateBlocks";
+import { TEMPLATE_CATEGORY_LABELS, getBlocksForCategory } from "../constants/templateBlocks";
 import { getDefaultSendModalModes } from "../constants/messageSendOptions";
 import type { MessageTemplateCategory } from "../api/messages.api";
 import "../styles/templateEditor.css";
@@ -61,8 +61,8 @@ export default function SendMessageModal({
   /** 수신자: 학부모·학생 둘 다 선택 가능 (최소 1개). 직원 모드일 때는 사용 안 함 */
   const [sendToParent, setSendToParent] = useState(true);
   const [sendToStudent, setSendToStudent] = useState(false);
-  /** 발송 방식: 메세지·알림톡 둘 다 선택 가능 (최소 1개). 기본값 = 모두(메세지+알림톡) */
-  const [useSms, setUseSms] = useState(true);
+  /** 발송 방식: 메세지·알림톡 둘 다 선택 가능 (최소 1개). 기본값 = smsAllowed에 따라 결정 */
+  const [useSms, setUseSms] = useState(() => getDefaultSendModalModes(true).useSms);
   const [useAlimtalk, setUseAlimtalk] = useState(true);
   const [sending, setSending] = useState(false);
   const [templates, setTemplates] = useState<MessageTemplateItem[]>([]);
@@ -225,10 +225,10 @@ export default function SendMessageModal({
       : (hasRecipients ? `선택한 학생 ${studentIds.length}명` : "수신자 없음"));
 
   return (
-    <AdminModal open={open} onClose={onClose} width={1000} onEnterConfirm={handleSend}>
+    <AdminModal open={open} onClose={onClose} width={1000} onEnterConfirm={handleSend} className="send-message-modal">
       <ModalHeader title="메시지 발송" />
       <ModalBody>
-        <div className="flex flex-col gap-5" style={{ minHeight: 420 }}>
+        <div className="flex flex-col gap-5 flex-1 min-h-0">
           {/* 수신자: 직원 모드면 직원 N명만 표시, 아니면 학부모·학생 선택 */}
           <section>
             <div className="text-sm font-medium text-[var(--color-text-primary)] mb-2">수신자</div>
@@ -311,7 +311,7 @@ export default function SendMessageModal({
           </section>
 
           {/* 내용: 직접 입력 / 템플릿 불러오기 */}
-          <section>
+          <section className="flex-1 min-h-0 flex flex-col">
             <div className="text-sm font-medium text-[var(--color-text-primary)] mb-2">내용</div>
             <div className="flex gap-3 mb-3">
               <button
@@ -400,7 +400,7 @@ export default function SendMessageModal({
               </div>
               {/* 변수 삽입 블록 */}
               <div className="flex flex-wrap gap-1.5 mb-2">
-                {DEFAULT_BLOCKS.map((block) => (
+                {getBlocksForCategory("default").map((block) => (
                   <button
                     key={block.id}
                     type="button"
@@ -420,7 +420,7 @@ export default function SendMessageModal({
                 rows={12}
                 disabled={sending}
                 className="template-editor__textarea message-domain-input w-full p-3"
-                style={{ resize: "vertical", minHeight: 240 }}
+                style={{ resize: "none", minHeight: 200 }}
               />
             </div>
           </section>

@@ -261,8 +261,6 @@ export type AutoSendTrigger =
   | "student_signup"
   | "registration_approved_student"
   | "registration_approved_parent"
-  | "class_enrollment_complete"
-  | "enrollment_expiring_soon"
   | "withdrawal_complete"
   | "lecture_session_reminder"
   | "check_in_complete"
@@ -302,8 +300,6 @@ export const AUTO_SEND_TRIGGER_LABELS: Record<string, string> = {
   student_signup: "가입 완료",
   registration_approved_student: "가입 승인(학생)",
   registration_approved_parent: "가입 승인(학부모)",
-  class_enrollment_complete: "반 등록 완료",
-  enrollment_expiring_soon: "등록 만료 예정",
   withdrawal_complete: "퇴원 처리 완료",
   lecture_session_reminder: "수업 시작 N분 전",
   check_in_complete: "입실 완료",
@@ -342,5 +338,19 @@ export async function updateAutoSendConfigs(configs: Partial<AutoSendConfigItem>
   const res = await api.patch<AutoSendConfigItem[]>(`${PREFIX}/auto-send/`, {
     configs: payload,
   });
+  return res.data;
+}
+
+export interface ProvisionDefaultsResult {
+  created_templates: number;
+  created_configs: number;
+  reset_templates: number;
+  linked: number;
+  total_templates: number;
+  total_configs: number;
+}
+
+export async function provisionDefaultTemplates(): Promise<ProvisionDefaultsResult> {
+  const res = await api.post<ProvisionDefaultsResult>(`${PREFIX}/provision-defaults/`);
   return res.data;
 }

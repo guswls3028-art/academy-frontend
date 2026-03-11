@@ -22,6 +22,7 @@ import {
   updateMessageTemplate,
   deleteMessageTemplate,
   submitMessageTemplateReview,
+  provisionDefaultTemplates,
   type MessageTemplateItem,
   type MessageTemplatePayload,
   type MessageTemplateCategory,
@@ -257,6 +258,21 @@ export default function TemplateExplorer() {
     },
   });
 
+  const provisionMut = useMutation({
+    mutationFn: provisionDefaultTemplates,
+    onSuccess: (result) => {
+      qc.invalidateQueries({ queryKey: QUERY_KEY });
+      const parts: string[] = [];
+      if (result.created_templates > 0) parts.push(`${result.created_templates}개 생성`);
+      if (result.reset_templates > 0) parts.push(`${result.reset_templates}개 기본값 복원`);
+      if (parts.length === 0) parts.push(`이미 모두 최신 상태입니다 (총 ${result.total_templates}개)`);
+      feedback.success(parts.join(", "));
+    },
+    onError: () => {
+      feedback.error("기본 템플릿 생성에 실패했습니다.");
+    },
+  });
+
   const handleDuplicate = (t: MessageTemplateItem) => {
     createMut.mutate({
       category: t.category,
@@ -289,13 +305,23 @@ export default function TemplateExplorer() {
               알림톡·문자 발송 시 사용할 메시지 템플릿을 카테고리별로 관리합니다.
             </p>
           </div>
-          <Button
-            intent="primary"
-            size="sm"
-            onClick={() => setModalOpen("create")}
-          >
-            <FilePlus size={14} style={{ marginRight: 5 }} />새 템플릿
-          </Button>
+          <div style={{ display: "flex", gap: 8 }}>
+            <Button
+              intent="secondary"
+              size="sm"
+              onClick={() => provisionMut.mutate()}
+              disabled={provisionMut.isPending}
+            >
+              {provisionMut.isPending ? "생성 중…" : "기본 템플릿 생성"}
+            </Button>
+            <Button
+              intent="primary"
+              size="sm"
+              onClick={() => setModalOpen("create")}
+            >
+              <FilePlus size={14} style={{ marginRight: 5 }} />새 템플릿
+            </Button>
+          </div>
         </div>
       </div>
 
