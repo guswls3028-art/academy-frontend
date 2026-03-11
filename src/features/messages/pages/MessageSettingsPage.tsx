@@ -388,7 +388,7 @@ export default function MessageSettingsPage() {
           메시징 공급자
         </div>
         <p style={{ fontSize: 13, color: "var(--color-text-muted)", marginBottom: 12 }}>
-          SMS·알림톡 발송에 사용할 공급자를 선택합니다. 솔라피와 뿌리오 모두 플랫폼에서 연동되어 있으므로 선택만 하면 됩니다.
+          SMS·알림톡 발송에 사용할 공급자입니다. 일반적으로 운영자가 지정하며, 변경이 필요하면 운영자에게 문의하세요.
         </p>
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
           <FiSettings size={16} style={{ color: "var(--color-primary)" }} aria-hidden />
