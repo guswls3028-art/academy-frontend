@@ -7,6 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useCommunityScope } from "../context/CommunityScopeContext";
 import { fetchCommunityQuestions, type Question } from "../api/community.api";
 import { EmptyState, Button } from "@/shared/ui/ds";
+import "@/features/community/community.css";
 
 const SNIPPET_LEN = 80;
 
@@ -120,16 +121,14 @@ export default function QnaBoardPage() {
               type="checkbox"
               checked={filterPending}
               onChange={(e) => setFilterPending(e.target.checked)}
-              className="rounded border-[var(--color-border-divider)]"
+              className="rounded"
+              style={{ accentColor: "var(--color-brand-primary)" }}
             />
-            <span className="text-sm text-[var(--color-text-secondary)]">
+            <span className="text-[var(--color-text-secondary)]" style={{ fontSize: "var(--text-sm, 12px)" }}>
               답변 필요 질문만
             </span>
             {pendingCount > 0 && (
-              <span
-                className="flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-xs font-semibold text-white bg-[var(--color-status-error,#ef4444)]"
-                aria-label={`답변 대기 ${pendingCount}건`}
-              >
+              <span className="community-count-badge" aria-label={`답변 대기 ${pendingCount}건`}>
                 {pendingCount}
               </span>
             )}
@@ -172,30 +171,22 @@ function QuestionRow({ question, onOpen }: { question: Question; onOpen: () => v
     <button
       type="button"
       onClick={onOpen}
-      className="ds-section__item w-full flex items-start gap-3 text-left"
+      className="community-card w-full flex items-start gap-3 text-left cursor-pointer"
     >
-      <div className="ds-section__item-content flex-1 min-w-0">
+      <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-[var(--color-text-muted)] font-medium tabular-nums">
+          <span className="text-[var(--color-text-muted)] font-medium tabular-nums" style={{ fontSize: "var(--text-sm, 12px)" }}>
             {question.id}
           </span>
-          <span className="ds-section__item-label">{question.title}</span>
-          <span
-            className="shrink-0 text-xs font-semibold px-2 py-0.5 rounded-full"
-            style={{
-              background: question.is_answered
-                ? "color-mix(in srgb, var(--color-primary) 15%, transparent)"
-                : "var(--color-bg-surface-soft)",
-              color: question.is_answered ? "var(--color-primary)" : "var(--color-text-muted)",
-            }}
-          >
+          <span className="community-card__title" style={{ flex: 1 }}>{question.title}</span>
+          <span className={`community-status-chip ${question.is_answered ? "community-status-chip--answered" : "community-status-chip--pending"}`}>
             {question.is_answered ? "답변 완료" : "답변 대기"}
           </span>
         </div>
         {snippet && (
-          <p className="ds-section__item-meta mt-1 line-clamp-2">{snippet}</p>
+          <p className="community-card__meta mt-1 line-clamp-2">{snippet}</p>
         )}
-        <p className="ds-section__item-meta mt-1">
+        <p className="community-card__meta mt-1">
           {question.student_name ?? "—"} ·{" "}
           {new Date(question.created_at).toLocaleString("ko-KR", {
             year: "numeric",

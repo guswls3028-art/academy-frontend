@@ -1,4 +1,4 @@
-import { lazy, type ComponentType } from "react";
+import { lazy } from "react";
 
 /**
  * Vite code-splitting + Cloudflare Pages 배포 시, 이전 빌드의 chunk 파일이
@@ -7,9 +7,8 @@ import { lazy, type ComponentType } from "react";
  * 실패 시 한 번만 페이지를 리로드하여 최신 HTML(새 chunk 해시)을 가져온다.
  * sessionStorage 플래그로 무한 리로드를 방지한다.
  */
-export function lazyWithRetry<T extends ComponentType<unknown>>(
-  factory: () => Promise<{ default: T }>,
-) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function lazyWithRetry(factory: () => Promise<{ default: any }>) {
   return lazy(() =>
     factory().catch((err: unknown) => {
       const key = "chunk_reload_retry";
@@ -18,11 +17,9 @@ export function lazyWithRetry<T extends ComponentType<unknown>>(
       if (!hasRetried) {
         sessionStorage.setItem(key, "1");
         window.location.reload();
-        // reload 중 Promise가 resolve되지 않도록 영원히 pending
         return new Promise<never>(() => {});
       }
 
-      // 이미 한 번 리로드했으면 에러를 그대로 throw
       sessionStorage.removeItem(key);
       throw err;
     }),
