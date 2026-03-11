@@ -4,6 +4,7 @@
  */
 import { fetchMyClinicBookingRequests } from "@/student/domains/clinic/api/clinicBooking.api";
 import { fetchMyQuestions } from "@/student/domains/community/api/community.api";
+import { isNotificationSeen } from "../hooks/useSeenNotifications";
 
 export type NotificationCounts = {
   clinic: number;
@@ -40,7 +41,8 @@ export async function fetchNotificationCounts(
       clinic = clinicResult.value.filter((b) => {
         if (b.status !== "booked" && b.status !== "approved") return false;
         const t = b.status_changed_at ?? b.updated_at ?? b.created_at;
-        return new Date(t).getTime() > sevenDaysAgo;
+        if (new Date(t).getTime() <= sevenDaysAgo) return false;
+        return !isNotificationSeen("clinic", b.id);
       }).length;
     }
 
@@ -49,7 +51,8 @@ export async function fetchNotificationCounts(
       qna = qnaResult.value.filter((p) => {
         if ((p.replies_count || 0) === 0) return false;
         const t = p.updated_at ?? p.created_at;
-        return new Date(t).getTime() > sevenDaysAgo;
+        if (new Date(t).getTime() <= sevenDaysAgo) return false;
+        return !isNotificationSeen("qna", p.id);
       }).length;
     }
 

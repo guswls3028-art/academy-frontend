@@ -5,9 +5,11 @@
  * - 알림 카운트와 실제 데이터를 동일한 쿼리 키로 공유하여 중복 호출 방지
  * - 로딩 상태 및 에러 처리 개선
  */
+import { useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import StudentPageShell from "@/student/shared/ui/pages/StudentPageShell";
 import { useNotificationCounts } from "../hooks/useNotificationCounts";
+import { useMarkNotificationsSeen } from "../hooks/useSeenNotifications";
 import { fetchMyClinicBookingRequests } from "@/student/domains/clinic/api/clinicBooking.api";
 import { fetchMyQuestions } from "@/student/domains/community/api/community.api";
 import { fetchMyProfile } from "@/student/domains/profile/api/profile";
@@ -55,7 +57,24 @@ export default function NotificationsPage() {
     return updatedTime > sevenDaysAgo;
   });
 
-  const hasNotifications = (counts?.total || 0) > 0;
+  const hasNotifications = (counts?.total || 0) > 0 ||
+    approvedClinicBookings.length > 0 || answeredQnaPosts.length > 0;
+
+  // 알림 페이지 진입 시 현재 보이는 항목들을 "읽음" 처리
+  const markSeen = useMarkNotificationsSeen();
+  const markedRef = useRef<string>("");
+  useEffect(() => {
+    if (isLoading) return;
+    const items: { type: string; id: number }[] = [];
+    for (const b of approvedClinicBookings) items.push({ type: "clinic", id: b.id });
+    for (const p of answeredQnaPosts) items.push({ type: "qna", id: p.id });
+    if (items.length === 0) return;
+    // 동일 항목 세트면 중복 호출 방지
+    const key = items.map((i) => `${i.type}:${i.id}`).join(",");
+    if (key === markedRef.current) return;
+    markedRef.current = key;
+    markSeen(items);
+  }, [isLoading, approvedClinicBookings, answeredQnaPosts, markSeen]);
 
   if (isLoading) {
     return (
