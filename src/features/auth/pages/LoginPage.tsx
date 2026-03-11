@@ -40,6 +40,14 @@ export default function LoginPage() {
   const { program, isLoading } = useProgram();
   const { tenantCode: paramCode } = useParams<{ tenantCode?: string }>();
 
+  // program 로딩 중이면 아무것도 렌더하지 않음 (기본값→실제값 플래시 방지)
+  if (isLoading) return null;
+
+  // program 로딩 완료 후 없으면 에러 페이지
+  if (!program) {
+    return <Navigate to="/error/tenant-required" replace />;
+  }
+
   const tenantCode = useTenantCode(program?.tenantCode);
   const tenantId = tenantCode ? getTenantIdFromCode(tenantCode) : null;
   const branding = tenantId ? getTenantBranding(tenantId) : null;
@@ -52,11 +60,6 @@ export default function LoginPage() {
     if (hostTenantId === paramTenantId) {
       return <Navigate to="/login" replace />;
     }
-  }
-
-  // program 로딩 완료 후 없으면 에러 페이지
-  if (!isLoading && !program) {
-    return <Navigate to="/error/tenant-required" replace />;
   }
 
   const title = program?.ui_config?.login_title ?? branding?.loginTitle ?? "로그인";
