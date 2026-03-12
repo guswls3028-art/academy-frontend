@@ -131,7 +131,7 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
   const confirmNewFolder = () => {
     if (!newFolderModal || !newFolderModal.name.trim()) return;
     const folder: InventoryFolder = {
-      id: crypto.randomUUID(),
+      id: crypto.randomUUID?.() ?? Math.random().toString(36).slice(2) + Date.now().toString(36),
       name: newFolderModal.name.trim(),
       parentId: currentFolderId,
     };
@@ -145,7 +145,7 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
     const fileUrl = URL.createObjectURL(file);
     const fileType = file.type.startsWith("image/") ? "image" as const : "pdf" as const;
     const item: UploadedInventoryItem = {
-      id: crypto.randomUUID(),
+      id: crypto.randomUUID?.() ?? Math.random().toString(36).slice(2) + Date.now().toString(36),
       title: title.trim() || file.name,
       description,
       fileName: file.name,

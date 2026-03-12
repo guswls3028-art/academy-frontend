@@ -26,6 +26,7 @@ export default defineConfig({
   },
 
   build: {
+    target: ["es2020", "chrome92", "edge92", "safari14", "firefox90"],
     rollupOptions: {
       output: {
         manualChunks(id) {

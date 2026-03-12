@@ -1273,7 +1273,13 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                   if (e.key === "c") {
                                     e.preventDefault();
                                     const text = el?.innerText?.trim() ?? "";
-                                    if (text) await navigator.clipboard.writeText(text);
+                                    if (text) {
+                                      try {
+                                        await navigator.clipboard.writeText(text);
+                                      } catch {
+                                        // clipboard writeText denied (Edge security context, iframe, etc.)
+                                      }
+                                    }
                                     return;
                                   }
                                   if (e.key === "v") {
