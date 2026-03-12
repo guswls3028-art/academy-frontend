@@ -25,4 +25,8 @@ export const feedback = {
   warning(text: string) {
     messageApiRef.current?.warning({ content: text, duration: 2 });
   },
+  /** alias — console-style .warn() 호출 호환 */
+  warn(text: string) {
+    messageApiRef.current?.warning({ content: text, duration: 2 });
+  },
 };
