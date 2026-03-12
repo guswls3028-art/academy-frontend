@@ -345,6 +345,10 @@ export async function updateStudent(id: number, form: any) {
     is_managed: !!form?.active,
   };
 
+  if (form?.name !== undefined) {
+    payload.name = safeStr(form.name).trim();
+  }
+
   if (form?.parentPhone !== undefined) {
     payload.parent_phone = normalizePhone(String(form.parentPhone));
   }

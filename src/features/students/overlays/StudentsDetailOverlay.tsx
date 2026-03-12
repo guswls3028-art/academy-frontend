@@ -1048,6 +1048,7 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
             onSuccess={() => {
               setEditOpen(false);
               qc.invalidateQueries({ queryKey: ["student", id] });
+              qc.invalidateQueries({ queryKey: ["students"] });
             }}
           />,
           document.body
