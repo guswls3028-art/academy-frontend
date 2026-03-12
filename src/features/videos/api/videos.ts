@@ -19,6 +19,9 @@ function mapRetryErrorForUser(backendMessage: string): string {
   if (s.includes("대기열이 가득") || s.includes("처리 중인 영상이 많아")) {
     return "처리 대기열이 가득 찼습니다. 잠시 후 자동으로 처리됩니다.";
   }
+  if (s.includes("currently running") || s.includes("job is currently")) {
+    return "현재 처리 중인 작업이 있습니다. 완료 후 다시 시도해 주세요.";
+  }
   if (s.includes("cannot retry") || s.includes("status must be")) {
     return "현재 상태에서는 재시도할 수 없습니다.";
   }
@@ -78,7 +81,10 @@ export interface Video {
   view_count?: number | null;
 }
 
-export interface VideoDetail extends Video {}
+export interface VideoDetail extends Video {
+  /** 서버에서 판단한 retry 가능 여부 (job state 포함) */
+  can_retry?: boolean;
+}
 
 import type { AccessMode, VideoRule } from "../types/access-mode";
 

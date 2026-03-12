@@ -34,15 +34,21 @@ export function isRetryAllowedByStatus(status: string | undefined): boolean {
 }
 
 /**
- * Retry button visibility: backend can act only when
- * - PENDING + file_key (re-run upload-complete)
- * - FAILED, PROCESSING, UPLOADED (re-submit job)
- * PENDING without file_key → backend returns 400 "업로드가 완료되지 않았습니다" → hide button.
+ * Retry button visibility.
+ * Server-side `can_retry` is the SSOT (accounts for job state).
+ * Falls back to client-side status check when can_retry is not available
+ * (e.g. list endpoints that use VideoSerializer instead of VideoDetailSerializer).
  */
 export function canShowRetryButton(video: {
   status?: string | null;
   file_key?: string | null;
+  can_retry?: boolean;
 }): boolean {
+  // Server SSOT: if can_retry is explicitly provided, trust it
+  if (typeof video.can_retry === "boolean") {
+    return video.can_retry;
+  }
+  // Fallback: client-side status-only check (list views)
   if (!video.status || !VIDEO_STATUS_RETRY_ALLOWED.includes(video.status as VideoStatus)) {
     return false;
   }
