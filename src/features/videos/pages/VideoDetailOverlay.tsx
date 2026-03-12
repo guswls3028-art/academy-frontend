@@ -95,13 +95,14 @@ export default function VideoDetailOverlay({
       await api.post(`/media/videos/${videoId}/retry/`);
     },
     onSuccess: () => {
+      const title = data?.video?.title;
       qc.invalidateQueries({ queryKey: ["video-stats", videoId] });
       asyncStatusStore.addWorkerJob(
-        video?.title ? `${video.title} \uC7AC\uC2DC\uB3C4` : `\uC601\uC0C1 ${videoId} \uC7AC\uC2DC\uB3C4`,
+        title ? `${title} 재시도` : `영상 ${videoId} 재시도`,
         String(videoId),
         "video_processing"
       );
-      feedback.success("\uC7AC\uC2DC\uB3C4 \uC694\uCCAD\uC744 \uBCF4\uB0C8\uC2B5\uB2C8\uB2E4.");
+      feedback.success("재시도 요청을 보냈습니다.");
     },
     onError: (e: unknown) => {
       const msg = getRetryErrorMessage(e);

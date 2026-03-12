@@ -62,9 +62,10 @@ export default function VideoDetailPage() {
       await api.post(`/media/videos/${videoId}/retry/`);
     },
     onSuccess: () => {
+      const title = data?.video?.title;
       qc.invalidateQueries({ queryKey: ["video-stats", videoId] });
       asyncStatusStore.addWorkerJob(
-        video?.title ? `${video.title} 재시도` : `영상 ${videoId} 재시도`,
+        title ? `${title} 재시도` : `영상 ${videoId} 재시도`,
         String(videoId),
         "video_processing"
       );
