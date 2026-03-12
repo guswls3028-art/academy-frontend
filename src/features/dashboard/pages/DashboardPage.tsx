@@ -26,27 +26,29 @@ export default function DashboardPage() {
   const [clinicPasscardModalOpen, setClinicPasscardModalOpen] = useState(false);
 
   const { data: messagingInfo } = useMessagingInfo();
-  const { data: questions = [] } = useQuery({
+  const { data: questions = [], isLoading: qLoading } = useQuery({
     queryKey: ["dashboard-pending-questions"],
     queryFn: () => fetchCommunityQuestions(null),
     staleTime: 60 * 1000,
   });
-  const { data: lectures = [] } = useQuery({
+  const { data: lectures = [], isLoading: lLoading } = useQuery({
     queryKey: ["dashboard-lectures"],
     queryFn: () => fetchLectures({ is_active: true }),
     staleTime: 60 * 1000,
   });
-  const { data: exams = [] } = useQuery({
+  const { data: exams = [], isLoading: eLoading } = useQuery({
     queryKey: ["dashboard-exams"],
     queryFn: () => fetchExams(),
     staleTime: 60 * 1000,
   });
-  const { data: recentSubs = [] } = useQuery({
+  const { data: recentSubs = [], isLoading: sLoading } = useQuery({
     queryKey: ["dashboard-recent-submissions"],
     queryFn: () => fetchAdminSubmissions({ limit: 50 }),
     staleTime: 60 * 1000,
   });
+  const isDashLoading = qLoading || lLoading || eLoading || sLoading;
 
+  const loadingLabel = isDashLoading ? "로딩 중…" : null;
   const pendingQnaCount = questions.filter((q) => !q.is_answered).length;
   const activeExams = exams.filter((e) => e.is_active);
   const pendingSubs = recentSubs.filter((s) =>
@@ -116,12 +118,12 @@ export default function DashboardPage() {
           <div className="ds-section__grid">
             <TodoRow
               label="미답변 질의"
-              value={`${pendingQnaCount}건`}
+              value={loadingLabel ?? `${pendingQnaCount}건`}
               onClick={() => navigate("/admin/community/qna")}
             />
             <TodoRow
               label="학생 제출 (처리 대기)"
-              value={`${pendingSubs.length}건`}
+              value={loadingLabel ?? `${pendingSubs.length}건`}
               onClick={() => navigate("/admin/results")}
             />
             <TodoRow
@@ -166,10 +168,10 @@ export default function DashboardPage() {
           description="운영 현황"
         >
           <div className="ds-section__kpi-list">
-            <KpiRow label="운영 강의" value={`${lectures.length}개`} />
-            <KpiRow label="운영 중 시험" value={`${activeExams.length}건`} />
-            <KpiRow label="오늘 학생 제출" value={`${todaySubs.length}건`} />
-            <KpiRow label="미답변 질의" value={`${pendingQnaCount}건`} />
+            <KpiRow label="운영 강의" value={loadingLabel ?? `${lectures.length}개`} />
+            <KpiRow label="운영 중 시험" value={loadingLabel ?? `${activeExams.length}건`} />
+            <KpiRow label="오늘 학생 제출" value={loadingLabel ?? `${todaySubs.length}건`} />
+            <KpiRow label="미답변 질의" value={loadingLabel ?? `${pendingQnaCount}건`} />
           </div>
         </DashboardWidget>
       </div>

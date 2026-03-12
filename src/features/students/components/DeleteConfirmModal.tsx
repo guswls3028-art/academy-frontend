@@ -39,7 +39,7 @@ export default function DeleteConfirmModal({
       <ModalHeader
         type="confirm"
         title={title}
-        description="삭제된 데이터는 복구할 수 없습니다."
+        description="삭제된 학생은 30일간 보관 후 자동 삭제됩니다."
       />
 
       <ModalBody>
@@ -69,7 +69,7 @@ export default function DeleteConfirmModal({
             letterSpacing: "-0.12px",
           }}
         >
-          삭제 후에는 학생 정보/태그/메모/연결된 이력이 복구되지 않습니다.
+          삭제된 학생은 '삭제된 학생' 탭에서 30일 이내 복구할 수 있습니다.
         </div>
       </ModalBody>
 

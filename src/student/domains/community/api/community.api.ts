@@ -133,18 +133,11 @@ export async function submitCounselRequest(
 
 // ── 공지사항 ──
 
-/** 공지사항 목록 (notice 유형 게시물) */
+/** 공지사항 목록 — 관리자 작성 공지 포함 (GET /community/posts/notices/) */
 export async function fetchNoticePosts(pageSize = 100): Promise<PostEntity[]> {
-  const [{ notice }, posts] = await Promise.all([
-    resolveTypeIds(),
-    fetchPosts({ nodeId: null, pageSize }),
-  ]);
-  return posts
-    .filter((p) => {
-      const isNotice = notice != null ? p.block_type === notice : (p.block_type_label || "").toLowerCase().includes("notice");
-      return isNotice;
-    })
-    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  const { fetchNoticePosts: _fetchNotices } = await import("@/features/community/api/community.api");
+  const posts = await _fetchNotices({ pageSize });
+  return posts.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 }
 
 // ── 게시판 (QnA·공지·상담·자료실 제외 일반 게시물) ──

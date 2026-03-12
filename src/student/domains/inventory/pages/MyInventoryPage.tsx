@@ -161,7 +161,8 @@ export default function MyInventoryPage() {
     try {
       const { url } = await getMyFileUrl(file.r2Key);
       if (url) {
-        window.open(url, "_blank", "noopener");
+        const { downloadPresignedUrl } = await import("@/shared/utils/safeDownload");
+        downloadPresignedUrl(url, file.name || "download");
       }
     } catch {
       // silently fail
