@@ -177,7 +177,7 @@ export default function SessionScoresEntryPage(_props: Props) {
         <Button
           intent="secondary"
           size="sm"
-          onClick={() => {
+          onClick={async () => {
             const rows = data?.rows ?? [];
             const selected = rows.filter((r) => selectedEnrollmentIds.includes(r.enrollment_id));
             if (selected.length === 0) {
@@ -207,12 +207,8 @@ export default function SessionScoresEntryPage(_props: Props) {
 
             const bom = "\uFEFF";
             const blob = new Blob([bom + csvRows.join("\n")], { type: "text/csv;charset=utf-8" });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = `성적_${selected.length}명.csv`;
-            a.click();
-            URL.revokeObjectURL(url);
+            const { downloadBlob } = await import("@/shared/utils/safeDownload");
+            downloadBlob(blob, `성적_${selected.length}명.csv`);
             feedback.success(`엑셀 다운로드됨 (${selected.length}명)`);
           }}
           disabled={selectedEnrollmentIds.length === 0}

@@ -910,14 +910,8 @@ function AdminAttachmentSection({
   const handleDownload = async (att: PostAttachment) => {
     try {
       const { url } = await getAttachmentDownloadUrl(postId, att.id);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = att.original_name;
-      a.target = "_blank";
-      a.rel = "noopener noreferrer";
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+      const { downloadPresignedUrl } = await import("@/shared/utils/safeDownload");
+      downloadPresignedUrl(url, att.original_name);
     } catch {
       feedback.error("다운로드 URL을 가져오지 못했습니다.");
     }

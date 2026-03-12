@@ -1,5 +1,6 @@
 // PATH: src/features/staff/api/payrollSnapshotPDF.api.ts
 import api from "@/shared/api/axios";
+import { downloadBlob } from "@/shared/utils/safeDownload";
 
 export async function exportPayrollSnapshotPDF(params: {
   staff: number;
@@ -15,16 +16,8 @@ export async function exportPayrollSnapshotPDF(params: {
   );
 
   const blob = new Blob([res.data], { type: "application/pdf" });
-  const url = URL.createObjectURL(blob);
-
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `payroll_${params.staff}_${params.year}_${String(
+  const filename = `payroll_${params.staff}_${params.year}_${String(
     params.month
   ).padStart(2, "0")}.pdf`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-
-  URL.revokeObjectURL(url);
+  downloadBlob(blob, filename);
 }

@@ -39,12 +39,4 @@ export async function pollJobUntilDone(jobId: string): Promise<JobStatusResponse
 /**
  * 완료 시 result.download_url 로 브라우저 다운로드 트리거
  */
-export function downloadFromUrl(url: string, filename?: string) {
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename || "download";
-  a.rel = "noopener";
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-}
+export { downloadPresignedUrl as downloadFromUrl } from "@/shared/utils/safeDownload";

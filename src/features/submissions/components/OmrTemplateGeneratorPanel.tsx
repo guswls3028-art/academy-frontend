@@ -8,6 +8,7 @@
  */
 import { useMutation } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
+import { downloadBlob } from "@/shared/utils/safeDownload";
 
 export default function OmrTemplateGeneratorPanel({ examId }: { examId: number }) {
   const gen = useMutation({
@@ -17,12 +18,9 @@ export default function OmrTemplateGeneratorPanel({ examId }: { examId: number }
         { format: fmt },
         { responseType: "blob" }
       );
-      const url = URL.createObjectURL(res.data);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `exam_${examId}_omr.${fmt}`;
-      a.click();
-      URL.revokeObjectURL(url);
+      const mimeType = fmt === "pdf" ? "application/pdf" : "image/png";
+      const blob = new Blob([res.data], { type: mimeType });
+      downloadBlob(blob, `exam_${examId}_omr.${fmt}`);
     },
   });
 
