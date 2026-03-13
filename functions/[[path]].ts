@@ -120,9 +120,15 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     return res;
   }
 
-  // HTML 문서 요청이 아니면 그대로 위임
-  if (!accept.includes("text/html")) {
-    return context.env.ASSETS.fetch(context.request);
+  // 크롤러(카카오톡 등)는 Accept: */* 로 요청할 수 있으므로,
+  // 정적 파일이 아닌 모든 경로는 SPA index.html + 메타 치환으로 처리.
+  // Accept 헤더와 무관하게 ASSETS에서 먼저 시도하고, HTML이 아닌 실제 에셋이면 그대로 반환.
+  const assetRes = await context.env.ASSETS.fetch(context.request);
+  const assetCt = assetRes.headers.get("Content-Type") ?? "";
+
+  // ASSETS가 실제 비-HTML 파일을 반환하면 그대로 위임 (예: /favicon.ico 등)
+  if (assetRes.status === 200 && !assetCt.includes("text/html")) {
+    return assetRes;
   }
 
   // index.html 가져오기 (SPA 루트)
