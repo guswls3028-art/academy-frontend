@@ -72,7 +72,7 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
   const qc = useQueryClient();
   const [openOmrForExam, setOpenOmrForExam] = useState<{ examId: number; title: string } | null>(null);
   /** 읽기 모드 — 학생 상세 드로어 (이름 클릭) */
-  const [drawerRow, setDrawerRow] = useState<SessionScoreRow | null>(null);
+  const [drawerEnrollmentId, setDrawerEnrollmentId] = useState<number | null>(null);
   /** 답안 상세 드로어 (StudentScoresDrawer → 답안 상세 보기) */
   const [answerDetail, setAnswerDetail] = useState<{ examId: number; enrollmentId: number; examTitle: string } | null>(null);
 
@@ -170,6 +170,12 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
     const q = search.trim().toLowerCase();
     return allRows.filter((r) => (r.student_name ?? "").toLowerCase().includes(q));
   }, [allRows, search]);
+
+  // 드로어에 항상 최신 rows 데이터를 전달 (쿼리 갱신 시 자동 반영)
+  const drawerRow = useMemo(
+    () => (drawerEnrollmentId != null ? allRows.find((r) => r.enrollment_id === drawerEnrollmentId) ?? null : null),
+    [allRows, drawerEnrollmentId],
+  );
 
   const [selectedEnrollmentId, setSelectedEnrollmentId] = useState<number | null>(null);
   const [selectedColIndex, setSelectedColIndex] = useState<number>(0); // editable columns index
@@ -346,7 +352,7 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
   }
 
   return (
-    <div className="flex flex-col gap-4" style={drawerRow ? { marginRight: 388 } : undefined}>
+    <div className="flex flex-col gap-4">
       <div
         tabIndex={0}
         className="min-w-0 overflow-x-auto outline-none"
@@ -399,7 +405,9 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
             : () => {}}
           onSelectRow={(r) => {
             if (isEditMode) setSelectedEnrollmentId(r.enrollment_id);
-            setDrawerRow(r);
+            setDrawerEnrollmentId((prev) =>
+              prev === r.enrollment_id ? null : r.enrollment_id
+            );
           }}
           selectedEnrollmentIds={selectedEnrollmentIds}
           onSelectionChange={onSelectionChange}
@@ -413,7 +421,7 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
         <StudentScoresDrawer
           row={drawerRow}
           meta={meta}
-          onClose={() => { setDrawerRow(null); setAnswerDetail(null); }}
+          onClose={() => { setDrawerEnrollmentId(null); setAnswerDetail(null); }}
           onOpenAnswerDetail={(examId, enrollmentId, examTitle) => {
             setAnswerDetail({ examId, enrollmentId, examTitle });
           }}

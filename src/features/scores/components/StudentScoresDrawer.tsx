@@ -223,7 +223,7 @@ export default function StudentScoresDrawer({ row, meta, onClose, onOpenAnswerDe
                       <span className="student-scores-drawer__hw-title">{hw.title}</span>
                       <PassBadge passed={hw.block.passed} />
                     </div>
-                    <div className="student-scores-drawer__hw-score">
+                    <div className="student-scores-drawer__hw-score" data-tone={hw.block.passed === true ? "success" : hw.block.passed === false ? "danger" : undefined}>
                       {hw.block.score != null ? (
                         <span>
                           {hw.block.score}
@@ -293,7 +293,7 @@ function ExamResultCard({
         </div>
         <div className="student-scores-drawer__exam-score-row">
           {exam.block.score != null ? (
-            <span className="student-scores-drawer__exam-score">
+            <span className="student-scores-drawer__exam-score" data-tone={exam.block.passed === true ? "success" : exam.block.passed === false ? "danger" : undefined}>
               {exam.block.score}
               {maxScore != null && (
                 <span className="student-scores-drawer__max-score"> / {maxScore}</span>

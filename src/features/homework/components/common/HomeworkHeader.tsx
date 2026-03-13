@@ -8,16 +8,17 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/shared/ui/ds";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter, MODAL_WIDTH } from "@/shared/ui/modal";
 import { feedback } from "@/shared/ui/feedback/feedback";
-import { saveHomeworkAsTemplate } from "../../api/adminHomework";
+import { saveHomeworkAsTemplate, updateAdminHomework } from "../../api/adminHomework";
 import { FiSave, FiChevronDown } from "react-icons/fi";
 import type { HomeworkSummary } from "../../types";
 import "../../../exams/components/common/ExamHeader.css";
 
 type Props = {
   homework: HomeworkSummary;
+  sessionId?: number | null;
 };
 
-export default function HomeworkHeader({ homework }: Props) {
+export default function HomeworkHeader({ homework, sessionId }: Props) {
   const qc = useQueryClient();
   const [templateModalOpen, setTemplateModalOpen] = useState(false);
   const [templateDropdownOpen, setTemplateDropdownOpen] = useState(false);
@@ -41,6 +42,26 @@ export default function HomeworkHeader({ homework }: Props) {
       feedback.error(e?.response?.data?.detail ?? "템플릿 저장에 실패했습니다.");
     },
   });
+
+  const statusMut = useMutation({
+    mutationFn: (status: "OPEN" | "CLOSED") => updateAdminHomework(homework.id, { status }),
+    onSuccess: async (_, status) => {
+      await qc.invalidateQueries({ queryKey: ["admin-homework", homework.id] });
+      if (sessionId != null) {
+        await qc.invalidateQueries({ queryKey: ["session-homeworks", sessionId] });
+        await qc.invalidateQueries({ queryKey: ["session-scores", sessionId] });
+      }
+      feedback.success(status === "OPEN" ? "진행 중으로 변경했습니다." : "과제를 종료했습니다.");
+    },
+    onError: (e: any) => {
+      feedback.error(e?.response?.data?.detail ?? "상태 변경에 실패했습니다.");
+    },
+  });
+
+  const handleCloseHomework = () => {
+    if (!window.confirm("과제를 종료하시겠습니까? 종료 이후엔 제출이 불가합니다.")) return;
+    statusMut.mutate("CLOSED");
+  };
 
   useEffect(() => {
     if (!templateDropdownOpen) return;
@@ -124,6 +145,31 @@ export default function HomeworkHeader({ homework }: Props) {
                 </div>
               )}
             </div>
+          )}
+
+          {isDraft && (
+            <Button
+              type="button"
+              intent="primary"
+              size="xl"
+              onClick={() => statusMut.mutate("OPEN")}
+              disabled={statusMut.isPending}
+              className="min-w-[140px]"
+            >
+              {statusMut.isPending ? "처리 중…" : "진행"}
+            </Button>
+          )}
+          {isOpen && (
+            <Button
+              type="button"
+              intent="danger"
+              size="xl"
+              onClick={handleCloseHomework}
+              disabled={statusMut.isPending}
+              className="min-w-[140px]"
+            >
+              {statusMut.isPending ? "처리 중…" : "종료하기"}
+            </Button>
           )}
         </div>
       </div>

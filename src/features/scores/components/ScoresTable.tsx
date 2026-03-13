@@ -657,7 +657,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
             maxWidth={400}
             onWidthChange={setColumnWidth}
             rowSpan={2}
-            className="text-left font-semibold text-[var(--color-text-primary)] py-2.5 px-3 border-l-2 border-[var(--color-border-divider)]"
+            className="text-center font-semibold text-[var(--color-text-primary)] py-2.5 px-3 border-l-2 border-[var(--color-border-divider)]"
           >
             이름
           </ResizableTh>

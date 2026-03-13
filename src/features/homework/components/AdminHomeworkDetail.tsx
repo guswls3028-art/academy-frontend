@@ -63,7 +63,7 @@ export default function AdminHomeworkDetail({
 
   return (
     <div className="space-y-6">
-      <HomeworkHeader homework={summary} />
+      <HomeworkHeader homework={summary} sessionId={sessionIdFromRoute ?? data?.session_id} />
       <HomeworkTabs
         activeTab={activeTab}
         onChange={setActiveTab}

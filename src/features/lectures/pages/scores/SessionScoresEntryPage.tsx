@@ -27,6 +27,10 @@ import CreateHomeworkModal from "@/features/homework/components/CreateHomeworkMo
 import { fetchSessionEnrollments } from "@/features/exams/api/sessionEnrollments";
 import { updateExamEnrollmentRows } from "@/features/exams/api/examEnrollments";
 import { putHomeworkAssignments } from "@/features/homework/api/homeworkAssignments";
+import api from "@/shared/api/axios";
+import { updateAdminExam } from "@/features/exams/api/adminExam";
+import { updateAdminHomework } from "@/features/homework/api/adminHomework";
+import { fetchAdminSessionExams } from "@/features/results/api/adminSessionExams";
 import "./SessionScoresEntryPage.css";
 
 type Props = {
@@ -42,6 +46,7 @@ export default function SessionScoresEntryPage(_props: Props) {
   const [searchInput, setSearchInput] = useState("");
   const [selectedEnrollmentIds, setSelectedEnrollmentIds] = useState<number[]>([]);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   /** 편집 시 어떤 셀을 쓰기 모드로 할지 */
   const [examEditTotal, setExamEditTotal] = useState(false);
   const [examEditSubjective, setExamEditSubjective] = useState(false);
@@ -116,6 +121,50 @@ export default function SessionScoresEntryPage(_props: Props) {
       feedback.error(e?.response?.data?.detail ?? e?.message ?? "대상자 등록 실패");
     } finally {
       setEnrollingAll(false);
+    }
+  };
+
+  const [closingExams, setClosingExams] = useState(false);
+  const [closingHomeworks, setClosingHomeworks] = useState(false);
+
+  const handleCloseAllExams = async () => {
+    setClosingExams(true);
+    try {
+      const exams = await fetchAdminSessionExams(numericSessionId);
+      const openExams = exams.filter((e) => e.status === "OPEN");
+      if (openExams.length === 0) {
+        feedback.info("진행 중인 시험이 없습니다.");
+        return;
+      }
+      if (!window.confirm(`진행 중인 시험 ${openExams.length}건을 모두 종료하시겠습니까?`)) return;
+      await Promise.all(openExams.map((e) => updateAdminExam(Number(e.exam_id), { status: "CLOSED" })));
+      invalidateScores();
+      feedback.success(`시험 ${openExams.length}건 종료 완료`);
+    } catch (e: any) {
+      feedback.error(e?.response?.data?.detail ?? "시험 종료 실패");
+    } finally {
+      setClosingExams(false);
+    }
+  };
+
+  const handleCloseAllHomeworks = async () => {
+    setClosingHomeworks(true);
+    try {
+      const res = await api.get("/homeworks/", { params: { session_id: numericSessionId } });
+      const hws = (res.data?.results ?? res.data?.items ?? res.data ?? []) as any[];
+      const openHws = hws.filter((h) => h.status === "OPEN");
+      if (openHws.length === 0) {
+        feedback.info("진행 중인 과제가 없습니다.");
+        return;
+      }
+      if (!window.confirm(`진행 중인 과제 ${openHws.length}건을 모두 종료하시겠습니까?`)) return;
+      await Promise.all(openHws.map((h) => updateAdminHomework(Number(h.id), { status: "CLOSED" })));
+      invalidateScores();
+      feedback.success(`과제 ${openHws.length}건 종료 완료`);
+    } catch (e: any) {
+      feedback.error(e?.response?.data?.detail ?? "과제 종료 실패");
+    } finally {
+      setClosingHomeworks(false);
     }
   };
 
@@ -319,20 +368,44 @@ export default function SessionScoresEntryPage(_props: Props) {
       <span className="text-[var(--color-border-divider)]">|</span>
       <Button
         type="button"
+        intent="danger"
+        size="sm"
+        onClick={handleCloseAllExams}
+        disabled={closingExams}
+      >
+        {closingExams ? "종료 중…" : "전체 시험 종료"}
+      </Button>
+      <Button
+        type="button"
+        intent="danger"
+        size="sm"
+        onClick={handleCloseAllHomeworks}
+        disabled={closingHomeworks}
+      >
+        {closingHomeworks ? "종료 중…" : "전체 과제 종료"}
+      </Button>
+      <span className="text-[var(--color-border-divider)]">|</span>
+      <Button
+        type="button"
         intent="primary"
         size="sm"
-        onClick={() => {
+        disabled={isSaving}
+        onClick={async () => {
           if (isEditMode) {
-            setIsEditMode(false); // 즉시 UI 전환 (optimistic)
-            void panelRef.current?.flushPendingChanges?.().then(() =>
-              postScoreDraftCommit(sessionIdForDraft)
-            );
+            setIsSaving(true);
+            try {
+              await panelRef.current?.flushPendingChanges?.();
+              await postScoreDraftCommit(sessionIdForDraft);
+            } finally {
+              setIsSaving(false);
+              setIsEditMode(false);
+            }
             return;
           }
           setIsEditMode(true);
         }}
       >
-        {isEditMode ? "편집 종료" : "편집 모드"}
+        {isSaving ? "저장 중…" : isEditMode ? "저장하기" : "편집 모드"}
       </Button>
     </div>
   );
@@ -550,7 +623,7 @@ export default function SessionScoresEntryPage(_props: Props) {
           }
           panelRef.current?.applyDraftPatch(changes);
           feedback.success(
-            `${bulkScoreTarget === "exam" ? "시험" : "과제"} 성적 일괄 변경이 적용되었습니다. (${selectedEnrollmentIds.length}명, ${score}점) 편집 종료 시 저장됩니다.`
+            `${bulkScoreTarget === "exam" ? "시험" : "과제"} 성적 일괄 변경이 적용되었습니다. (${selectedEnrollmentIds.length}명, ${score}점) 저장하기를 눌러 반영하세요.`
           );
           setShowBulkScoreModal(false);
           setBulkScoreValue("");
@@ -655,7 +728,7 @@ export default function SessionScoresEntryPage(_props: Props) {
                   }
                   panelRef.current?.applyDraftPatch(changes);
                   feedback.success(
-                    `${bulkScoreTarget === "exam" ? "시험" : "과제"} 성적 일괄 변경이 적용되었습니다. (${selectedEnrollmentIds.length}명, ${score}점) 편집 종료 시 저장됩니다.`
+                    `${bulkScoreTarget === "exam" ? "시험" : "과제"} 성적 일괄 변경이 적용되었습니다. (${selectedEnrollmentIds.length}명, ${score}점) 저장하기를 눌러 반영하세요.`
                   );
                   setShowBulkScoreModal(false);
                   setBulkScoreValue("");

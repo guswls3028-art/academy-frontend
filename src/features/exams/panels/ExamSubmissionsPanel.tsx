@@ -60,21 +60,21 @@ export default function ExamSubmissionsPanel({ examId }: Props) {
 
   return (
     <div className="space-y-6">
-      {/* OMR 업로드 섹션 */}
-      <section className="rounded-lg border border-[var(--color-border-divider)] bg-[var(--color-bg-surface-soft)] p-5">
-        <div className="text-sm font-semibold text-[var(--color-text-primary)]">
-          OMR 시험 운영 작업대
+      {/* OMR 업로드 섹션 — 통합 카드 */}
+      <section className="rounded-lg border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] overflow-hidden">
+        <div className="border-b border-[var(--color-border-divider)] px-4 py-3">
+          <div className="text-sm font-semibold text-[var(--color-text-primary)]">OMR 시험 운영</div>
+          <div className="mt-0.5 text-xs text-[var(--color-text-muted)]">
+            스캔 파일만 업로드하면 학생 식별(8자리)은 OMR 마킹값으로 자동 처리됩니다.
+          </div>
         </div>
-        <div className="mt-1.5 text-xs text-[var(--color-text-secondary)] leading-relaxed">
-          조교는 <b>스캔 파일만 업로드</b>하면 됩니다.
-          학생 식별(번호 8자리)은 <b>OMR 마킹값</b>을 서버가 읽습니다.
+        <div className="p-4">
+          <AdminOmrUploadSection
+            examId={examId}
+            onUploaded={() => setRefreshKey((k) => k + 1)}
+          />
         </div>
       </section>
-
-      <AdminOmrUploadSection
-        examId={examId}
-        onUploaded={() => setRefreshKey((k) => k + 1)}
-      />
 
       {/* 제출 목록 */}
       <div className="space-y-4">

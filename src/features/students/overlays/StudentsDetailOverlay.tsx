@@ -544,6 +544,9 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
                   border: "1px solid var(--color-border-divider)",
                 }}
               >
+                {/* 한눈에 요약 */}
+                <StudentSummaryDashboard studentId={id} enrollments={student.enrollments} />
+
                 <div className="ds-overlay-tabs">
                   <div className="ds-tabs ds-tabs--flat">
                     {TABS.map((t) => (
@@ -1147,6 +1150,107 @@ function InventoryTreeFolder({
           currentFolderId={currentFolderId}
           onSelect={onSelect}
         />
+      ))}
+    </div>
+  );
+}
+
+/** 한눈에 보는 학생 요약 대시보드 */
+function StudentSummaryDashboard({ studentId, enrollments }: { studentId: number; enrollments: any[] }) {
+  const { data: scoreFacts } = useQuery({
+    queryKey: ["student", studentId, "result-facts"],
+    queryFn: async () => {
+      const res = await api.get("/results/admin/facts/", { params: { student: studentId, page_size: 100 } });
+      return Array.isArray(res.data?.results) ? res.data.results : Array.isArray(res.data) ? res.data : [];
+    },
+    enabled: studentId > 0,
+  });
+
+  const { data: clinicData } = useQuery({
+    queryKey: ["student", studentId, "clinic"],
+    queryFn: async () => {
+      const res = await api.get("/clinic/participants/", { params: { student: studentId, page_size: 50 } });
+      return Array.isArray(res.data?.results) ? res.data.results : Array.isArray(res.data) ? res.data : [];
+    },
+    enabled: studentId > 0,
+  });
+
+  const { data: questionsData } = useQuery({
+    queryKey: ["student", studentId, "questions"],
+    queryFn: async () => {
+      const res = await api.get("/community/posts/", { params: { author_student: studentId, page_size: 50 } });
+      return Array.isArray(res.data?.results) ? res.data.results : Array.isArray(res.data) ? res.data : [];
+    },
+    enabled: studentId > 0,
+  });
+
+  const facts = scoreFacts ?? [];
+  const passCount = facts.filter((f: any) => f.is_pass === true || f.passed === true).length;
+  const failCount = facts.filter((f: any) => f.is_pass === false || f.passed === false).length;
+  const avgScore = facts.length > 0
+    ? Math.round(facts.reduce((s: number, f: any) => s + (f.total_score ?? f.score ?? 0), 0) / facts.length)
+    : null;
+
+  const clinicCount = (clinicData ?? []).length;
+  const clinicAttended = (clinicData ?? []).filter((c: any) => c.status === "ATTENDED").length;
+  const questionCount = (questionsData ?? []).length;
+
+  const cards: { label: string; value: string; sub?: string; tone?: string }[] = [
+    {
+      label: "수강",
+      value: `${enrollments?.length ?? 0}개`,
+      sub: "강의",
+    },
+    {
+      label: "시험",
+      value: `${facts.length}건`,
+      sub: avgScore != null ? `평균 ${avgScore}점` : undefined,
+    },
+    {
+      label: "합격률",
+      value: passCount + failCount > 0 ? `${Math.round((passCount / (passCount + failCount)) * 100)}%` : "-",
+      sub: `합 ${passCount} · 불 ${failCount}`,
+      tone: passCount >= failCount ? "success" : "danger",
+    },
+    {
+      label: "클리닉",
+      value: `${clinicCount}건`,
+      sub: clinicAttended > 0 ? `출석 ${clinicAttended}건` : undefined,
+    },
+    {
+      label: "질문",
+      value: `${questionCount}건`,
+    },
+  ];
+
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: `repeat(${cards.length}, 1fr)`, gap: 8, marginBottom: 12 }}>
+      {cards.map((c) => (
+        <div
+          key={c.label}
+          style={{
+            borderRadius: 10,
+            padding: "10px 12px",
+            background: "var(--color-bg-surface)",
+            border: "1px solid var(--color-border-divider)",
+            textAlign: "center",
+          }}
+        >
+          <div style={{ fontSize: 11, fontWeight: 600, color: "var(--color-text-muted)", marginBottom: 4 }}>{c.label}</div>
+          <div
+            style={{
+              fontSize: 18,
+              fontWeight: 800,
+              lineHeight: 1.2,
+              color: c.tone === "success" ? "var(--color-success)" : c.tone === "danger" ? "var(--color-error)" : "var(--color-text-primary)",
+            }}
+          >
+            {c.value}
+          </div>
+          {c.sub && (
+            <div style={{ fontSize: 11, fontWeight: 500, color: "var(--color-text-muted)", marginTop: 2 }}>{c.sub}</div>
+          )}
+        </div>
       ))}
     </div>
   );

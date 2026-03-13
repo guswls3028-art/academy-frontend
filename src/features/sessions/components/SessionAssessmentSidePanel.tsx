@@ -96,6 +96,8 @@ const S = {
     flexDirection: "column",
     gap: 2,
     padding: "0 6px 8px",
+    overflowY: "auto",
+    maxHeight: 320,
   } satisfies CSSProperties,
 
   /* Card base — shared between exam & homework rows */
@@ -118,17 +120,16 @@ const S = {
     boxShadow: active
       ? "inset 0 0 0 1.5px color-mix(in srgb, var(--color-brand-primary) 35%, transparent)"
       : "none",
+    borderTop: "1px solid var(--color-border-divider)",
+    borderRight: "1px solid var(--color-border-divider)",
+    borderBottom: "1px solid var(--color-border-divider)",
     borderLeft: status === "OPEN"
       ? "3px solid var(--color-success)"
       : status === "CLOSED"
         ? "3px solid var(--color-border-divider)"
-        : "3px solid transparent",
+        : "3px solid color-mix(in srgb, var(--color-text-muted) 30%, transparent)",
     opacity: status === "CLOSED" ? 0.7 : 1,
   }),
-
-  cardHover: {
-    background: "color-mix(in srgb, var(--color-border-divider) 8%, var(--color-bg-surface))",
-  } satisfies CSSProperties,
 
   cardTopRow: {
     display: "flex",
@@ -156,19 +157,12 @@ const S = {
     paddingLeft: 2,
   } satisfies CSSProperties,
 
-  /* Action buttons row — always visible */
+  /* Action buttons row — always visible, inline */
   actionsRow: {
     display: "flex",
     alignItems: "center",
-    gap: "var(--space-2)",
-    marginTop: 6,
-    opacity: 1,
-    height: 28,
-    overflow: "hidden",
-  } satisfies CSSProperties,
-
-  actionsRowVisible: {
-    /* no-op — buttons always visible now */
+    gap: "var(--space-1)",
+    marginTop: 4,
   } satisfies CSSProperties,
 
   emptyState: {
@@ -315,6 +309,73 @@ export default function SessionAssessmentSidePanel({
       }
     }
   }, [location.pathname, sessionId, lectureId, examId, homeworkId, exams, homeworks, navigate]);
+
+  // Auto-close OPEN exams/homework when the next session date has arrived
+  const [autoCloseDone, setAutoCloseDone] = useState(false);
+  useEffect(() => {
+    if (autoCloseDone || !sessionId || !lectureId) return;
+    if (exams.length === 0 && homeworks.length === 0) return;
+    const hasOpen = exams.some((e) => e.status === "OPEN") || homeworks.some((h) => h.status === "OPEN");
+    if (!hasOpen) { setAutoCloseDone(true); return; }
+
+    let cancelled = false;
+    (async () => {
+      try {
+        // Fetch all sessions for this lecture to find next session date
+        const res = await api.get(`/lectures/${lectureId}/sessions/`);
+        const sessions = (res.data?.results ?? res.data ?? []) as { id: number; date?: string | null; order: number }[];
+        const current = sessions.find((s) => s.id === sessionId);
+        if (!current?.date) return;
+
+        const sorted = sessions.filter((s) => s.date).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+        const currentIdx = sorted.findIndex((s) => s.id === sessionId);
+        const nextSession = currentIdx >= 0 && currentIdx < sorted.length - 1 ? sorted[currentIdx + 1] : null;
+
+        // Use next session date if available, otherwise use current session date + 1 day
+        const deadlineStr = nextSession?.date ?? current.date;
+        const deadline = new Date(deadlineStr);
+        if (nextSession?.date) {
+          // Next session date = close on that date
+        } else {
+          // No next session — close day after current session
+          deadline.setDate(deadline.getDate() + 1);
+        }
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        deadline.setHours(0, 0, 0, 0);
+
+        if (today < deadline) return; // Not yet time to close
+        if (cancelled) return;
+
+        // Auto-close all OPEN exams and homeworks
+        const promises: Promise<any>[] = [];
+        for (const exam of exams) {
+          if (exam.status === "OPEN") {
+            promises.push(updateAdminExam(Number(exam.exam_id), { status: "CLOSED" }).catch(() => {}));
+          }
+        }
+        for (const hw of homeworks) {
+          if (hw.status === "OPEN") {
+            promises.push(updateAdminHomework(hw.id, { status: "CLOSED" }).catch(() => {}));
+          }
+        }
+        if (promises.length > 0) {
+          await Promise.all(promises);
+          if (!cancelled) {
+            qc.invalidateQueries({ queryKey: ["admin-session-exams", sessionId] });
+            qc.invalidateQueries({ queryKey: ["session-homeworks", sessionId] });
+            qc.invalidateQueries({ queryKey: ["session-scores", sessionId] });
+          }
+        }
+      } catch {
+        // best-effort
+      } finally {
+        if (!cancelled) setAutoCloseDone(true);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [sessionId, lectureId, exams, homeworks, autoCloseDone, qc]);
 
   const invalidateExams = () => qc.invalidateQueries({ queryKey: ["admin-session-exams", sessionId] });
   const invalidateExamsSummary = () => qc.invalidateQueries({ queryKey: ["session-exams-summary", sessionId] });
@@ -470,10 +531,12 @@ export default function SessionAssessmentSidePanel({
         onClose={handleCloseCreateExam}
         sessionId={sessionId}
         lectureId={lectureId}
-        onCreated={(id) => {
+        onCreated={async (id) => {
+          try { await updateAdminExam(id, { status: "OPEN" }); } catch {}
           invalidateExams();
+          invalidateExamsSummary();
           invalidateSessionScores();
-          feedback.success("시험이 생성되었습니다.");
+          feedback.success("시험이 생성되어 진행 상태로 전환되었습니다.");
           onSelectExam(id);
         }}
       />
@@ -481,9 +544,11 @@ export default function SessionAssessmentSidePanel({
         open={openCreateHomework}
         onClose={handleCloseCreateHomework}
         sessionId={sessionId}
-        onCreated={(id) => {
+        onCreated={async (id) => {
+          try { await updateAdminHomework(id, { status: "OPEN" }); } catch {}
           invalidateHomeworks();
           invalidateSessionScores();
+          feedback.success("과제가 생성되어 진행 상태로 전환되었습니다.");
           onSelectHomework(id);
         }}
       />
@@ -514,7 +579,6 @@ function ExamItemCard({
   onEnd: (e: React.MouseEvent) => void;
   busy: null | "start" | "end";
 }) {
-  const [hovered, setHovered] = useState(false);
   const isDraft = status === "DRAFT";
   const isOpen = status === "OPEN";
   const isClosed = status === "CLOSED";
@@ -522,23 +586,13 @@ function ExamItemCard({
   const statusLabel = isDraft ? "준비" : isOpen ? "진행" : "마감";
   const statusTone: StatusTone = isDraft ? "neutral" : isOpen ? "success" : "danger";
 
-  const hasActions = isDraft || isOpen;
-  const showActions = hasActions && (hovered || active);
-
-  const cardStyle: CSSProperties = {
-    ...S.card(active, status),
-    ...(hovered && !active ? S.cardHover : {}),
-  };
-
   return (
     <div
       role="button"
       tabIndex={0}
       onClick={onSelect}
       onKeyDown={(e) => e.key === "Enter" && onSelect()}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={cardStyle}
+      style={S.card(active, status)}
     >
       {/* Top row: badge + title */}
       <div style={S.cardTopRow}>
@@ -546,47 +600,25 @@ function ExamItemCard({
         <div style={{ ...S.cardTitle, ...(isClosed ? { textDecoration: "line-through", opacity: 0.65 } : {}) }} title={label}>{label}</div>
       </div>
 
-      {/* Meta row */}
-      <div style={S.cardMeta}>
-        만점 {maxScore}점
-        {isClosed && <span style={{ marginLeft: 6, fontSize: 10, color: "var(--color-text-muted)" }}>종료됨</span>}
-      </div>
-
-      {/* Action buttons — slide in on hover */}
-      {hasActions && (
-        <div
-          style={{
-            ...S.actionsRow,
-            ...(showActions ? S.actionsRowVisible : {}),
-          }}
-          onClick={(e) => e.stopPropagation()}
-        >
+      {/* Meta + action buttons in one row */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 4 }}>
+        <div style={S.cardMeta}>
+          만점 {maxScore}점
+          {isClosed && <span style={{ marginLeft: 6, fontSize: 10, color: "var(--color-text-muted)" }}>종료됨</span>}
+        </div>
+        <div style={S.actionsRow} onClick={(e) => e.stopPropagation()}>
           {isDraft && (
-            <Button
-              type="button"
-              size="sm"
-              intent="primary"
-              onClick={onStart}
-              disabled={busy != null}
-              loading={busy === "start"}
-            >
+            <Button type="button" size="sm" intent="primary" onClick={onStart} disabled={busy != null} loading={busy === "start"}>
               시험 시작
             </Button>
           )}
           {isOpen && (
-            <Button
-              type="button"
-              size="sm"
-              intent="danger"
-              onClick={onEnd}
-              disabled={busy != null}
-              loading={busy === "end"}
-            >
+            <Button type="button" size="sm" intent="danger" onClick={onEnd} disabled={busy != null} loading={busy === "end"}>
               시험 종료
             </Button>
           )}
         </div>
-      )}
+      </div>
     </div>
   );
 }
@@ -614,10 +646,8 @@ function HomeworkItemCard({
   onStart: (e: React.MouseEvent) => void;
   onEnd: (e: React.MouseEvent) => void;
 }) {
-  const [hovered, setHovered] = useState(false);
   const isDraft = status === "DRAFT";
   const isOpen = status === "OPEN";
-
   const isClosed = status === "CLOSED";
   const statusLabel = isDraft ? "준비" : isOpen ? "진행" : "마감";
   const statusTone: StatusTone = isDraft ? "neutral" : isOpen ? "success" : "danger";
@@ -627,23 +657,13 @@ function HomeworkItemCard({
       ? `기준 ${cutlineValue}%`
       : `기준 ${cutlineValue}점`;
 
-  const hasActions = isDraft || isOpen;
-  const showActions = hasActions && (hovered || active);
-
-  const cardStyle: CSSProperties = {
-    ...S.card(active, status),
-    ...(hovered && !active ? S.cardHover : {}),
-  };
-
   return (
     <div
       role="button"
       tabIndex={0}
       onClick={onSelect}
       onKeyDown={(e) => e.key === "Enter" && onSelect()}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={cardStyle}
+      style={S.card(active, status)}
     >
       {/* Top row: badge + title */}
       <div style={S.cardTopRow}>
@@ -651,21 +671,13 @@ function HomeworkItemCard({
         <div style={{ ...S.cardTitle, ...(isClosed ? { textDecoration: "line-through", opacity: 0.65 } : {}) }} title={label}>{label}</div>
       </div>
 
-      {/* Meta row */}
-      <div style={S.cardMeta}>
-        {metaLabel}
-        {isClosed && <span style={{ marginLeft: 6, fontSize: 10, color: "var(--color-text-muted)" }}>종료됨</span>}
-      </div>
-
-      {/* Action buttons — slide in on hover */}
-      {hasActions && (
-        <div
-          style={{
-            ...S.actionsRow,
-            ...(showActions ? S.actionsRowVisible : {}),
-          }}
-          onClick={(e) => e.stopPropagation()}
-        >
+      {/* Meta + action buttons in one row */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 4 }}>
+        <div style={S.cardMeta}>
+          {metaLabel}
+          {isClosed && <span style={{ marginLeft: 6, fontSize: 10, color: "var(--color-text-muted)" }}>종료됨</span>}
+        </div>
+        <div style={S.actionsRow} onClick={(e) => e.stopPropagation()}>
           {isDraft && (
             <Button type="button" size="sm" intent="primary" onClick={onStart}>
               과제 시작
@@ -677,7 +689,7 @@ function HomeworkItemCard({
             </Button>
           )}
         </div>
-      )}
+      </div>
     </div>
   );
 }

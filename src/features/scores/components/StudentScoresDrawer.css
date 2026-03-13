@@ -261,6 +261,12 @@
   color: var(--color-text-primary);
   font-variant-numeric: tabular-nums;
 }
+.student-scores-drawer__exam-score[data-tone="success"] {
+  color: var(--color-success);
+}
+.student-scores-drawer__exam-score[data-tone="danger"] {
+  color: var(--color-error);
+}
 
 .student-scores-drawer__max-score {
   font-weight: 500;
@@ -319,6 +325,12 @@
   font-weight: 700;
   color: var(--color-text-primary);
   font-variant-numeric: tabular-nums;
+}
+.student-scores-drawer__hw-score[data-tone="success"] {
+  color: var(--color-success);
+}
+.student-scores-drawer__hw-score[data-tone="danger"] {
+  color: var(--color-error);
 }
 
 /* ── Retry / detail section ── */
@@ -414,15 +426,15 @@
 }
 
 .student-scores-drawer__pass-badge[data-tone="success"] {
-  background: color-mix(in srgb, var(--color-success) 14%, transparent);
-  color: var(--color-success);
-  border: 1px solid color-mix(in srgb, var(--color-success) 25%, transparent);
+  background: var(--color-success);
+  color: #fff;
+  border: none;
 }
 
 .student-scores-drawer__pass-badge[data-tone="danger"] {
-  background: color-mix(in srgb, var(--color-error) 12%, transparent);
-  color: var(--color-error);
-  border: 1px solid color-mix(in srgb, var(--color-error) 22%, transparent);
+  background: var(--color-error);
+  color: #fff;
+  border: none;
 }
 
 .student-scores-drawer__pass-badge[data-tone="muted"] {
@@ -444,8 +456,8 @@
 }
 
 .student-scores-drawer__verdict[data-tone="success"] {
-  background: color-mix(in srgb, var(--color-success) 8%, var(--color-bg-surface));
-  border: 1.5px solid color-mix(in srgb, var(--color-success) 30%, transparent);
+  background: color-mix(in srgb, var(--color-success) 14%, var(--color-bg-surface));
+  border: 1.5px solid color-mix(in srgb, var(--color-success) 40%, transparent);
   color: var(--color-success);
 }
 
@@ -466,7 +478,7 @@
 }
 
 .student-scores-drawer__verdict[data-tone="success"] .student-scores-drawer__verdict-icon {
-  background: color-mix(in srgb, var(--color-success) 15%, transparent);
+  background: color-mix(in srgb, var(--color-success) 25%, transparent);
 }
 
 .student-scores-drawer__verdict[data-tone="danger"] .student-scores-drawer__verdict-icon {
@@ -511,15 +523,19 @@
   color: var(--color-error);
 }
 
-/* ── Exam/HW card pass indicator stripe ── */
+/* ── Exam/HW card pass indicator — 합격(초록) · 불합격(빨강) 동일 디자인 ── */
 .student-scores-drawer__exam-card[data-passed="true"],
 .student-scores-drawer__hw-card[data-passed="true"] {
   border-left: 3px solid var(--color-success) !important;
+  background: color-mix(in srgb, var(--color-success) 5%, var(--color-bg-surface));
+  border-color: color-mix(in srgb, var(--color-success) 25%, var(--color-border-divider));
 }
 
 .student-scores-drawer__exam-card[data-passed="false"],
 .student-scores-drawer__hw-card[data-passed="false"] {
   border-left: 3px solid var(--color-error) !important;
+  background: color-mix(in srgb, var(--color-error) 4%, var(--color-bg-surface));
+  border-color: color-mix(in srgb, var(--color-error) 20%, var(--color-border-divider));
 }
 
 /* ── Actions (send button) — 하단 고정 ── */

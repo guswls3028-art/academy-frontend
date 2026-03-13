@@ -277,6 +277,12 @@ table.ds-table {
   display: block;
 }
 
+/* 성적 테이블 — 전체 셀 중앙정렬 (ds-table--center의 left 오버라이드) */
+.ds-table-wrap .ds-table.ds-table--flat.ds-scores-table thead th,
+.ds-table-wrap .ds-table.ds-table--flat.ds-scores-table tbody td {
+  text-align: center;
+}
+
 /* 출결 테이블 — 패딩·세로 간격만 축소, 폰트는 students(SSOT)와 동일하게 셀 단위로 적용 */
 .ds-table-wrap .ds-table.ds-table--attendance.ds-table--flat thead th {
   padding: 4px 12px;

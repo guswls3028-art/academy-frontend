@@ -41,6 +41,7 @@ export default function CreateHomeworkModal({
 
   // post-creation setup
   const [createdHomeworkId, setCreatedHomeworkId] = useState<number | null>(null);
+  const [maxScore, setMaxScore] = useState("100");
   const [cutlineValue, setCutlineValue] = useState("80");
   const [cutlineMode, setCutlineMode] = useState<"PERCENT" | "COUNT">("PERCENT");
   const [savingSetup, setSavingSetup] = useState(false);
@@ -61,6 +62,7 @@ export default function CreateHomeworkModal({
     setSelectedTemplateId(null);
     setKeyword("");
     setCreatedHomeworkId(null);
+    setMaxScore("100");
     setCutlineValue("80");
     setCutlineMode("PERCENT");
     setSavingSetup(false);
@@ -159,19 +161,31 @@ export default function CreateHomeworkModal({
     }
   };
 
-  const handleSaveSetup = async () => {
-    if (!policyId) {
-      onClose();
-      return;
+  const saveMaxScoreToHomework = async () => {
+    if (!createdHomeworkId) return;
+    const ms = Number(maxScore);
+    if (!Number.isFinite(ms) || ms <= 0) return;
+    try {
+      await api.patch(`/homeworks/${createdHomeworkId}/`, {
+        meta: { default_max_score: ms },
+      });
+    } catch {
+      // best-effort — meta field may not be writeable on all backends
     }
+  };
+
+  const handleSaveSetup = async () => {
     setSavingSetup(true);
     try {
-      const cv = Number(cutlineValue);
-      await patchHomeworkPolicy(policyId, {
-        cutline_mode: cutlineMode,
-        cutline_value: Number.isFinite(cv) && cv >= 0 ? cv : 80,
-      });
-      feedback.success(`"${title}" 커트라인 저장 완료`);
+      await saveMaxScoreToHomework();
+      if (policyId) {
+        const cv = Number(cutlineValue);
+        await patchHomeworkPolicy(policyId, {
+          cutline_mode: cutlineMode,
+          cutline_value: Number.isFinite(cv) && cv >= 0 ? cv : 80,
+        });
+      }
+      feedback.success(`"${title}" 설정 저장 완료`);
       onClose();
     } catch (e: any) {
       setError(e?.response?.data?.detail ?? e?.message ?? "설정 저장 실패");
@@ -181,28 +195,28 @@ export default function CreateHomeworkModal({
   };
 
   const handleSaveAndContinue = async () => {
-    if (policyId) {
-      setSavingSetup(true);
-      try {
+    setSavingSetup(true);
+    try {
+      await saveMaxScoreToHomework();
+      if (policyId) {
         const cv = Number(cutlineValue);
         await patchHomeworkPolicy(policyId, {
           cutline_mode: cutlineMode,
           cutline_value: Number.isFinite(cv) && cv >= 0 ? cv : 80,
         });
-        feedback.success(`"${title}" 저장 완료 (${createdCount}번째)`);
-      } catch (e: any) {
-        setError(e?.response?.data?.detail ?? e?.message ?? "설정 저장 실패");
-        setSavingSetup(false);
-        return;
       }
+      feedback.success(`"${title}" 저장 완료 (${createdCount}번째)`);
+    } catch (e: any) {
+      setError(e?.response?.data?.detail ?? e?.message ?? "설정 저장 실패");
       setSavingSetup(false);
-    } else {
-      feedback.success(`"${title}" 생성 완료 (${createdCount}번째)`);
+      return;
     }
+    setSavingSetup(false);
     // Reset for next creation
     setTitle("");
     setSelectedTemplateId(null);
     setCreatedHomeworkId(null);
+    setMaxScore("100");
     setCutlineValue("80");
     setCutlineMode("PERCENT");
     setError(null);
@@ -398,8 +412,21 @@ export default function CreateHomeworkModal({
           {stage === "setup" && (
             <div className="space-y-5">
               <div className="modal-form-group">
-                <div className="modal-section-label mb-2">커트라인</div>
+                <div className="modal-section-label mb-2">만점 · 커트라인</div>
                 <div className="flex items-center gap-4">
+                  <div>
+                    <div className="mb-1 text-xs text-[var(--color-text-muted)]">만점</div>
+                    <input
+                      type="number"
+                      min={1}
+                      className="ds-input"
+                      style={{ width: 100 }}
+                      value={maxScore}
+                      onChange={(e) => setMaxScore(e.target.value)}
+                      placeholder="100"
+                      autoFocus
+                    />
+                  </div>
                   <div>
                     <div className="mb-1 text-xs text-[var(--color-text-muted)]">기준</div>
                     <select
@@ -424,7 +451,6 @@ export default function CreateHomeworkModal({
                       value={cutlineValue}
                       onChange={(e) => setCutlineValue(e.target.value)}
                       placeholder={cutlineMode === "PERCENT" ? "80" : "40"}
-                      autoFocus
                     />
                   </div>
                 </div>

@@ -36,7 +36,6 @@
   --border-divider-strong: var(--color-border-divider-strong);
 
   /* Semantic */
-  --color-success: var(--color-success);
   --color-danger: var(--color-error);
 
   /* ❌ sidebar-* 정의 제거됨 */

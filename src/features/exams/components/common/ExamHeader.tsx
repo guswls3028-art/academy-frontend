@@ -11,7 +11,7 @@ import "./ExamHeader.css";
 /**
  * 시험 헤더: 제목, 상태 배지, 마감/진행 토글 버튼, 템플릿 저장(regular만).
  */
-export default function ExamHeader({ exam }: { exam: Exam; sessionId?: number | null }) {
+export default function ExamHeader({ exam, sessionId }: { exam: Exam; sessionId?: number | null }) {
   const qc = useQueryClient();
   const [templateModalOpen, setTemplateModalOpen] = useState(false);
   const [templateName, setTemplateName] = useState("");
