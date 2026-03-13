@@ -34,14 +34,26 @@ export default function AdminHlsPreview({ src }: { src: string }) {
   }, [src]);
 
   return (
-    <div className="rounded-lg overflow-hidden bg-black shadow">
+    <div
+      style={{
+        borderRadius: 16,
+        overflow: "hidden",
+        background: "#000",
+        position: "relative",
+      }}
+    >
       <video
         ref={ref}
         controls
         autoPlay
         muted
         playsInline
-        className="w-full max-h-[520px] object-contain"
+        style={{
+          width: "100%",
+          maxHeight: 520,
+          objectFit: "contain",
+          display: "block",
+        }}
         controlsList="nodownload noremoteplayback"
       />
     </div>

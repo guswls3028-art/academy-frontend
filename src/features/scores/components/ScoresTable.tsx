@@ -95,8 +95,10 @@ function PassFailText({ passed }: { passed: boolean | null | undefined }) {
   );
 }
 
-/** 클리닉 대상 여부 + 대상 사유 (시험 / 시험+과제 / 과제) */
+/** 클리닉 대상 여부 + 대상 사유 (시험 / 시험+과제 / 과제)
+ *  row.clinic_required (서버 판정)이 SSOT. 사유만 로컬에서 표시용으로 추론. */
 function getClinicReason(row: SessionScoreRow): { target: boolean; reason: string } {
+  if (!row.clinic_required) return { target: false, reason: "" };
   const examFail = row.exams?.some((e) => e.block.passed === false) ?? false;
   const hwFail =
     row.homeworks?.some((h) => {
@@ -106,10 +108,10 @@ function getClinicReason(row: SessionScoreRow): { target: boolean; reason: strin
       });
       return st === "NOT_SUBMITTED" || h.block.passed === false;
     }) ?? false;
-  if (!examFail && !hwFail) return { target: false, reason: "" };
   if (examFail && hwFail) return { target: true, reason: "시험+과제" };
   if (examFail) return { target: true, reason: "시험" };
-  return { target: true, reason: "과제" };
+  if (hwFail) return { target: true, reason: "과제" };
+  return { target: true, reason: "대상" };
 }
 
 /** 출결 셀 팝오버 — 클릭 시 상태 선택 드롭다운 */
@@ -327,7 +329,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
     for (const p of list) {
       try {
         if (p.type === "examTotal") {
-          await patchExamTotalScoreQuick({ examId: p.examId, enrollmentId: p.enrollmentId, score: p.score, maxScore: 100 });
+          await patchExamTotalScoreQuick({ examId: p.examId, enrollmentId: p.enrollmentId, score: p.score, maxScore: p.maxScore ?? 100 });
         } else if (p.type === "examObjective") {
           await patchExamObjectiveScoreQuick({ examId: p.examId, enrollmentId: p.enrollmentId, score: p.score });
         } else if (p.type === "examSubjective") {
@@ -920,7 +922,8 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                         }
 
                         if (col.sub === "total") {
-                          const scoreText = block?.score == null ? "-" : `${Math.round(block.score)}`;
+                          const examMaxScore = block?.max_score ?? ex.max_score ?? null;
+                          const scoreText = block?.score == null ? "-" : `${Math.round(block.score)}${examMaxScore != null ? ` / ${examMaxScore}` : ""}`;
                           const canEdit = isEditMode && examEditTotal && !block?.is_locked;
                           return (
                             <td
@@ -947,10 +950,11 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                     const el = examInputRefs.current[`${row.enrollment_id}-${ex.exam_id}`];
                                     if (!el) return;
                                     const raw = firstLine(el.innerText);
-                                    const parsed = parseScoreInput(raw, 100);
-                                    if (parsed != null && validateScore(parsed, 100)) {
+                                    const metaMax = block?.max_score ?? ex.max_score ?? 100;
+                                    const parsed = parseScoreInput(raw, metaMax);
+                                    if (parsed != null && validateScore(parsed, metaMax)) {
                                       const key = `examTotal:${row.enrollment_id}:${ex.exam_id}`;
-                                      pendingRef.current.set(key, { type: "examTotal", examId: ex.exam_id, enrollmentId: row.enrollment_id, score: parsed });
+                                      pendingRef.current.set(key, { type: "examTotal", examId: ex.exam_id, enrollmentId: row.enrollment_id, score: parsed, maxScore: metaMax });
                                       dirtyKeysRef.current.add(key);
                                     } else if (raw !== "") el.innerText = block?.score != null ? String(Math.round(block.score)) : "";
                                   }}
@@ -1010,8 +1014,9 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                     const el = examObjectiveInputRefs.current[`${row.enrollment_id}-${ex.exam_id}-objective`];
                                     if (!el) return;
                                     const raw = firstLine(el.innerText);
-                                    const parsed = parseScoreInput(raw, 100);
-                                    if (parsed != null && validateScore(parsed, 100)) {
+                                    const metaMax = block?.max_score ?? ex.max_score ?? 100;
+                                    const parsed = parseScoreInput(raw, metaMax);
+                                    if (parsed != null && validateScore(parsed, metaMax)) {
                                       const key = `examObjective:${row.enrollment_id}:${ex.exam_id}`;
                                       pendingRef.current.set(key, { type: "examObjective", examId: ex.exam_id, enrollmentId: row.enrollment_id, score: parsed });
                                       dirtyKeysRef.current.add(key);
@@ -1073,8 +1078,9 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                     const el = examSubjectiveInputRefs.current[`${row.enrollment_id}-${ex.exam_id}-subjective`];
                                     if (!el) return;
                                     const raw = firstLine(el.innerText);
-                                    const parsed = parseScoreInput(raw, 100);
-                                    if (parsed != null && validateScore(parsed, 100)) {
+                                    const metaMax = block?.max_score ?? ex.max_score ?? 100;
+                                    const parsed = parseScoreInput(raw, metaMax);
+                                    if (parsed != null && validateScore(parsed, metaMax)) {
                                       const key = `examSubjective:${row.enrollment_id}:${ex.exam_id}`;
                                       pendingRef.current.set(key, { type: "examSubjective", examId: ex.exam_id, enrollmentId: row.enrollment_id, score: parsed });
                                       dirtyKeysRef.current.add(key);
@@ -1347,7 +1353,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                             />
                           ) : block ? (
                             <span className={`font-medium ${isNotSubmitted ? "text-[var(--color-text-muted)]" : "text-[var(--color-text-primary)]"}`}>
-                              {isNotSubmitted ? "미제출" : (block?.score != null ? String(block.score) : "-")}
+                              {isNotSubmitted ? "미제출" : (block?.score != null ? `${block.score}${(block.max_score ?? hw.max_score) != null ? ` / ${block.max_score ?? hw.max_score}` : ""}` : "-")}
                             </span>
                           ) : (
                             <span className="text-[var(--color-text-muted)]">-</span>

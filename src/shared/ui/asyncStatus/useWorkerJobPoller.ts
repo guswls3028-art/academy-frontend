@@ -4,6 +4,7 @@
 import { useEffect, useRef } from "react";
 import { getTenantCodeForApiRequest } from "@/shared/tenant";
 import { asyncStatusStore } from "./asyncStatusStore";
+import { feedback } from "@/shared/ui/feedback/feedback";
 import api from "@/shared/api/axios";
 
 const POLL_INTERVAL_INITIAL_MS = 5000;   // 5s for first 1 min
@@ -89,6 +90,30 @@ function pollExcelJob(
         );
       } else if (status === "DONE") {
         onSuccess?.();
+        // 엑셀 등록 결과 상세 표시
+        const result = res.data?.result as Record<string, unknown> | undefined;
+        if (result) {
+          const created = Number(result.created ?? 0);
+          const dupCount = Array.isArray(result.duplicates) ? result.duplicates.length : 0;
+          const restoredCount = Array.isArray(result.restored) ? result.restored.length : 0;
+          const failedCount = Array.isArray(result.failed) ? result.failed.length : 0;
+          const parts: string[] = [];
+          if (created > 0) parts.push(`신규 등록 ${created}명`);
+          if (dupCount > 0) parts.push(`이미 등록된 학생 ${dupCount}명`);
+          if (restoredCount > 0) parts.push(`복원 ${restoredCount}명`);
+          if (failedCount > 0) parts.push(`실패 ${failedCount}명`);
+          const summary = parts.length > 0 ? parts.join(", ") : "완료";
+          asyncStatusStore.setTaskLabel(taskId, `학생 일괄 등록 — ${summary}`);
+          if (restoredCount > 0) {
+            feedback.success(`삭제 대기중인 학생 ${restoredCount}명이 모두 복원되었습니다.`);
+          }
+          if (dupCount > 0 || failedCount > 0) {
+            const msgs: string[] = [];
+            if (dupCount > 0) msgs.push(`이미 등록된 학생 ${dupCount}명`);
+            if (failedCount > 0) msgs.push(`실패 ${failedCount}명`);
+            feedback.error(`학생 등록 결과: ${msgs.join(", ")}`);
+          }
+        }
         asyncStatusStore.completeTask(taskId, "success");
       }
     })

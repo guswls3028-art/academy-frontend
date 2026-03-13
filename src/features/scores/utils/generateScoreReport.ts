@@ -90,8 +90,10 @@ export function generateScoreReport(
     lines.push("■ 과제 결과");
     for (const hw of row.homeworks) {
       if (hw.block.score != null) {
-        const maxStr = hw.block.max_score != null ? `/${hw.block.max_score}` : "";
-        const percent = pct(hw.block.score, hw.block.max_score);
+        const metaHw = meta?.homeworks?.find((h) => h.homework_id === hw.homework_id);
+        const hwMaxScore = hw.block.max_score ?? metaHw?.max_score ?? null;
+        const maxStr = hwMaxScore != null ? `/${hwMaxScore}` : "";
+        const percent = pct(hw.block.score, hwMaxScore);
         const passStr = passLabel(hw.block.passed);
         let line = `- ${hw.title}: ${hw.block.score}${maxStr}`;
         if (percent) line += ` (${percent})`;

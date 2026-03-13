@@ -615,6 +615,27 @@ export async function submitRegistrationRequest(form: {
 }
 
 /* ===============================
+ * 기존 학생 아이디/비밀번호 알림톡 발송
+ * =============================== */
+
+/** 이미 등록된 학생에게 아이디 + 임시 비밀번호를 알림톡으로 발송 */
+export async function sendExistingCredentials(params: {
+  phone: string;
+  name?: string;
+}): Promise<{ message: string }> {
+  const body: Record<string, string> = {
+    phone: normalizePhone(params.phone),
+  };
+  if (params.name?.trim()) {
+    body.name = params.name.trim();
+  }
+  const res = await api.post<{ message: string }>("/students/send_existing_credentials/", body, {
+    skipAuth: true as any,
+  });
+  return res.data;
+}
+
+/* ===============================
  * 비밀번호 찾기 (이름+전화번호 → SMS 인증 → 새 비밀번호)
  * =============================== */
 
@@ -647,19 +668,23 @@ export async function verifyPasswordFindCode(
   });
 }
 
-/** 비밀번호 재설정 발송 (학생: 이름+학생번호 → 학생 번호로, 학부모: 이름+학부모번호 → 학부모 번호로 임시 비밀번호 발송) */
+/** 비밀번호 재설정 발송 (학생: 이름+전화번호, 학부모: 이름+학부모번호 → 임시 비밀번호 알림톡 발송) */
 export async function sendPasswordReset(params: {
   target: "student" | "parent";
   student_name: string;
+  student_phone?: string;
   student_ps_number?: string;
   parent_phone?: string;
   temp_password?: string;
 }): Promise<{ message: string }> {
-  const { target, student_name, student_ps_number, parent_phone, temp_password } = params;
+  const { target, student_name, student_phone, student_ps_number, parent_phone, temp_password } = params;
   const body: Record<string, string> = {
     target,
     student_name: student_name.trim(),
   };
+  if (target === "student" && student_phone != null) {
+    body.student_phone = normalizePhone(String(student_phone));
+  }
   if (target === "student" && student_ps_number != null) {
     body.student_ps_number = String(student_ps_number).trim();
   }

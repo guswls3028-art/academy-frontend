@@ -50,6 +50,13 @@ export type SessionScoreRow = {
   student_id?: number | null;
   student_name: string;
 
+  /** 프로필 사진 URL (API 확장 시 제공) */
+  profile_photo_url?: string | null;
+  /** 강의명 (API 확장 시 제공) */
+  lecture_title?: string | null;
+  /** 강의 색상 (API 확장 시 제공) */
+  lecture_color?: string | null;
+
   // 시험 1:N
   exams: SessionScoreExamEntry[];
 
@@ -81,6 +88,7 @@ export type SessionScoreMeta = {
     homework_id: number;
     title: string;
     unit: string | null; // "%", "점" 등 (서버 단일 진실)
+    max_score: number;
     display_order: number;
   }[];
 };

@@ -20,6 +20,10 @@ import {
   updateRegistrationRequestSettings,
   type ClientRegistrationRequest,
 } from "../api/students";
+import {
+  fetchAutoSendConfigs,
+  updateAutoSendConfigs,
+} from "@/features/messages/api/messages.api";
 import { Button, EmptyState } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import AdminModal from "@/shared/ui/modal/AdminModal";
@@ -285,6 +289,55 @@ export default function StudentsRequestsPage() {
     },
   });
 
+  /* ── 승인 시 자동발송 on/off ── */
+  const autoSendQ = useQuery({
+    queryKey: ["messaging", "auto-send"],
+    queryFn: fetchAutoSendConfigs,
+    staleTime: 60_000,
+  });
+
+  const studentMsgEnabled = useMemo(
+    () =>
+      autoSendQ.data?.find(
+        (c) => c.trigger === "registration_approved_student"
+      )?.enabled ?? false,
+    [autoSendQ.data]
+  );
+  const parentMsgEnabled = useMemo(
+    () =>
+      autoSendQ.data?.find(
+        (c) => c.trigger === "registration_approved_parent"
+      )?.enabled ?? false,
+    [autoSendQ.data]
+  );
+
+  const toggleAutoSendM = useMutation({
+    mutationFn: ({
+      trigger,
+      enabled,
+    }: {
+      trigger: string;
+      enabled: boolean;
+    }) => {
+      const existing = autoSendQ.data?.find((c) => c.trigger === trigger);
+      return updateAutoSendConfigs([
+        {
+          trigger,
+          enabled,
+          template: existing?.template ?? null,
+          message_mode: existing?.message_mode ?? "both",
+          minutes_before: existing?.minutes_before ?? null,
+        },
+      ]);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["messaging", "auto-send"] });
+    },
+    onError: () => {
+      feedback.error("알림 설정 변경에 실패했습니다.");
+    },
+  });
+
   const autoApproved = !!settingsQ.data?.auto_approve;
   const selectedList = useMemo(
     () => pendingList.filter((r) => selectedIds.has(r.id)),
@@ -367,22 +420,51 @@ export default function StudentsRequestsPage() {
                 학생이 로그인 페이지에서 회원가입을 요청하면 여기에 표시됩니다.
               </p>
             </div>
-            <label className="students-requests__auto-approve">
-              <span className="students-requests__auto-approve-label">
-                자동 승인
-              </span>
-              <Switch
-                checked={autoApproved}
-                onChange={(checked) => updateAutoApproveM.mutate(checked)}
-                disabled={updateAutoApproveM.isPending}
-                size="small"
-              />
-              <span className="sr-only">
-                {autoApproved
-                  ? "활성화됨. 새 가입 신청이 즉시 승인됩니다."
-                  : "비활성화됨. 선생님이 직접 승인해야 합니다."}
-              </span>
-            </label>
+            <div className="students-requests__toggles">
+              <label className="students-requests__auto-approve">
+                <span className="students-requests__auto-approve-label">
+                  자동 승인
+                </span>
+                <Switch
+                  checked={autoApproved}
+                  onChange={(checked) => updateAutoApproveM.mutate(checked)}
+                  disabled={updateAutoApproveM.isPending}
+                  size="small"
+                />
+              </label>
+              <label className="students-requests__auto-approve">
+                <span className="students-requests__auto-approve-label">
+                  학생 알림
+                </span>
+                <Switch
+                  checked={studentMsgEnabled}
+                  onChange={(checked) =>
+                    toggleAutoSendM.mutate({
+                      trigger: "registration_approved_student",
+                      enabled: checked,
+                    })
+                  }
+                  disabled={toggleAutoSendM.isPending}
+                  size="small"
+                />
+              </label>
+              <label className="students-requests__auto-approve">
+                <span className="students-requests__auto-approve-label">
+                  학부모 알림
+                </span>
+                <Switch
+                  checked={parentMsgEnabled}
+                  onChange={(checked) =>
+                    toggleAutoSendM.mutate({
+                      trigger: "registration_approved_parent",
+                      enabled: checked,
+                    })
+                  }
+                  disabled={toggleAutoSendM.isPending}
+                  size="small"
+                />
+              </label>
+            </div>
           </div>
         </div>
 

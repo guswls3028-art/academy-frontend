@@ -1,7 +1,7 @@
 /**
  * PATH: src/features/videos/pages/VideoDetailOverlay.tsx
  * 영상 상세 오버레이 — VideoExplorerPage 그리드 위에 우측 와이드 드로어로 표시
- * ds-overlay SSOT 패턴 준수, createPortal 사용
+ * YouTube-style layout: Player → Title + Engagement → Comments → Settings
  */
 
 import { useEffect, useCallback, useRef, useState } from "react";
@@ -15,7 +15,6 @@ import { feedback } from "@/shared/ui/feedback/feedback";
 import { asyncStatusStore } from "@/shared/ui/asyncStatus/asyncStatusStore";
 import { CloseButton } from "@/shared/ui/ds";
 
-import VideoDetailLayout from "./VideoDetailLayout";
 import { styles } from "./VideoDetail.styles";
 
 import PermissionModal from "@/features/videos/components/features/video-detail/modals/PermissionModal";
@@ -29,6 +28,39 @@ import type { TabKey } from "@/features/videos/components/features/video-permiss
 
 function formatBytes(b?: number) {
   return b ? `${(Number(b) / 1024 / 1024).toFixed(1)} MB` : "\u2014";
+}
+
+function formatDuration(d?: string | number | null) {
+  if (!d) return null;
+  const sec = typeof d === "string" ? parseInt(d, 10) : d;
+  if (isNaN(sec) || sec <= 0) return null;
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = sec % 60;
+  if (h > 0) return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
+
+/* ── Chevron icon for collapsible ── */
+function ChevronIcon({ open }: { open: boolean }) {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      style={{
+        transition: "transform 0.2s",
+        transform: open ? "rotate(180deg)" : "rotate(0deg)",
+      }}
+    >
+      <polyline points="6 9 12 15 18 9" />
+    </svg>
+  );
 }
 
 interface VideoDetailOverlayProps {
@@ -50,6 +82,7 @@ export default function VideoDetailOverlay({
   const [permissionTab, setPermissionTab] = useState<TabKey>("permission");
   const [memo, setMemo] = useState("");
   const [selectedEnrollmentId, setSelectedEnrollmentId] = useState<number | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   // Close on Escape
   const handleKeyDown = useCallback(
@@ -63,7 +96,6 @@ export default function VideoDetailOverlay({
 
   useEffect(() => {
     document.addEventListener("keydown", handleKeyDown);
-    // Prevent body scroll while overlay is open
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
@@ -161,28 +193,70 @@ export default function VideoDetailOverlay({
                   style={{ background: "var(--color-bg-surface-soft)" }}
                 />
                 <div
-                  className="h-[320px] rounded-lg"
-                  style={{ background: "var(--color-bg-surface-soft)" }}
+                  className="h-[320px] rounded-2xl"
+                  style={{ background: "#000" }}
                 />
               </div>
             ) : (
               <>
-                <VideoDetailLayout
-                  header={
-                    <>
-                      <div>
-                        <h1 className={styles.header.title}>{video.title}</h1>
-                        <p className={styles.header.subtitle}>
-                          세션 영상 관리 · 정책 / 시청 / 로그
-                        </p>
-                        <p className={styles.header.description}>
-                          이 영상에 대한 시청 정책, 학생 성과, 로그 데이터를 관리합니다.
-                        </p>
-                      </div>
-                      <div
-                        className={styles.header.actions}
-                        style={{ display: "flex", gap: 12, alignItems: "center", marginRight: 48 }}
+                {/* ── YouTube-style layout ── */}
+                <div className={styles.layout.root}>
+                  {/* LEFT: Player → Title+Engagement → Comments → Settings */}
+                  <div className={styles.layout.left}>
+                    {/* 1. Video Player — cinematic, no card wrapper */}
+                    <VideoPreviewSection
+                      hlsSrc={video.hls_url}
+                      status={video.status}
+                      progressPercent={null}
+                      onRetry={
+                        canShowRetryButton(video)
+                          ? () => retryMutation.mutate()
+                          : undefined
+                      }
+                      isRetrying={retryMutation.isPending}
+                    />
+
+                    {/* 2. Title + Meta — YouTube style below player */}
+                    <div style={{ padding: "4px 0" }}>
+                      <h1
+                        style={{
+                          fontSize: 20,
+                          fontWeight: 700,
+                          color: "var(--color-text-primary)",
+                          lineHeight: 1.4,
+                          letterSpacing: "-0.01em",
+                          margin: 0,
+                        }}
                       >
+                        {video.title}
+                      </h1>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 12,
+                          marginTop: 6,
+                          fontSize: 13,
+                          color: "var(--color-text-muted)",
+                          flexWrap: "wrap",
+                        }}
+                      >
+                        {video.created_at && (
+                          <span>{video.created_at}</span>
+                        )}
+                        {formatDuration(video.duration) && (
+                          <>
+                            <span style={{ opacity: 0.4 }}>·</span>
+                            <span>{formatDuration(video.duration)}</span>
+                          </>
+                        )}
+                        {video.file_size && (
+                          <>
+                            <span style={{ opacity: 0.4 }}>·</span>
+                            <span>{formatBytes(video.file_size)}</span>
+                          </>
+                        )}
+                        <span style={{ flex: 1 }} />
                         <button
                           type="button"
                           onClick={() => {
@@ -191,88 +265,167 @@ export default function VideoDetailOverlay({
                             }
                           }}
                           disabled={deleteMutation.isPending}
-                          className={styles.header.primaryDropdown}
                           style={{
+                            fontSize: 12,
+                            fontWeight: 600,
                             color: "var(--color-danger)",
-                            borderColor: "var(--color-danger)",
-                            background: "transparent",
+                            background: "none",
+                            border: "none",
+                            cursor: "pointer",
+                            padding: "4px 8px",
+                            borderRadius: 6,
+                            transition: "background 0.15s",
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.background = "color-mix(in srgb, var(--color-danger) 10%, transparent)";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = "none";
                           }}
                         >
                           {deleteMutation.isPending ? "\uC0AD\uC81C \uC911\u2026" : "\uC0AD\uC81C"}
                         </button>
                       </div>
-                    </>
-                  }
-                  left={
-                    <>
-                      <section className={styles.section.wrapper}>
-                        <div className={styles.section.header}>영상 미리보기</div>
-                        <div className={styles.section.body}>
-                          <VideoPreviewSection
-                            hlsSrc={video.hls_url}
-                            status={video.status}
-                            progressPercent={null}
-                            onRetry={
-                              canShowRetryButton(video)
-                                ? () => retryMutation.mutate()
-                                : undefined
-                            }
-                            isRetrying={retryMutation.isPending}
-                          />
-                        </div>
-                      </section>
+                    </div>
 
-                      <VideoEngagementBar
-                        videoId={videoId}
-                        fallbackViewCount={video.view_count}
-                      />
+                    {/* 3. Engagement Bar — directly under title */}
+                    <VideoEngagementBar
+                      videoId={videoId}
+                      fallbackViewCount={video.view_count}
+                    />
 
-                      <section className={styles.section.wrapper}>
-                        <div className={styles.section.header}>학생 시청 정책</div>
-                        <div className={styles.section.body}>
-                          <VideoPolicySection
-                            videoId={videoId}
-                            initial={{
-                              allow_skip: video.allow_skip,
-                              max_speed: video.max_speed,
-                              show_watermark: video.show_watermark,
-                            }}
-                          />
-                        </div>
-                      </section>
+                    {/* 4. Comments — directly under engagement (YouTube style) */}
+                    <div
+                      style={{
+                        background: "var(--color-bg-surface)",
+                        borderRadius: 16,
+                        border: "1px solid var(--color-border-divider)",
+                        padding: "20px 24px",
+                      }}
+                    >
+                      <AdminCommentSection videoId={videoId} />
+                    </div>
 
-                      <section className={styles.section.wrapper}>
-                        <div className={styles.section.header}>관리자 메모</div>
-                        <div className={styles.section.body}>
-                          <AdminMemoSection memo={memo} setMemo={setMemo} />
-                        </div>
-                      </section>
-
-                      <section className={styles.section.wrapper}>
-                        <div className={styles.section.header}>
-                          <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                            <svg
-                              width="16"
-                              height="16"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
+                    {/* 5. Settings (Policy + Memo) — collapsible */}
+                    <div
+                      style={{
+                        background: "var(--color-bg-surface)",
+                        borderRadius: 16,
+                        border: "1px solid var(--color-border-divider)",
+                        overflow: "hidden",
+                      }}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setSettingsOpen(!settingsOpen)}
+                        style={{
+                          width: "100%",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          padding: "14px 20px",
+                          background: "none",
+                          border: "none",
+                          cursor: "pointer",
+                          fontSize: 14,
+                          fontWeight: 600,
+                          color: "var(--color-text-primary)",
+                        }}
+                      >
+                        <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <circle cx="12" cy="12" r="3" />
+                            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                          </svg>
+                          시청 정책 · 관리자 메모
+                        </span>
+                        <ChevronIcon open={settingsOpen} />
+                      </button>
+                      {settingsOpen && (
+                        <div
+                          style={{
+                            borderTop: "1px solid var(--color-border-divider)",
+                            padding: "20px 24px",
+                          }}
+                        >
+                          <div style={{ marginBottom: 24 }}>
+                            <div
+                              style={{
+                                fontSize: 13,
+                                fontWeight: 600,
+                                color: "var(--color-text-primary)",
+                                marginBottom: 12,
+                              }}
                             >
-                              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                            </svg>
-                            학생 댓글
-                          </span>
+                              학생 시청 정책
+                            </div>
+                            <VideoPolicySection
+                              videoId={videoId}
+                              initial={{
+                                allow_skip: video.allow_skip,
+                                max_speed: video.max_speed,
+                                show_watermark: video.show_watermark,
+                              }}
+                            />
+                          </div>
+                          <div
+                            style={{
+                              borderTop: "1px solid var(--color-border-divider)",
+                              paddingTop: 20,
+                            }}
+                          >
+                            <div
+                              style={{
+                                fontSize: 13,
+                                fontWeight: 600,
+                                color: "var(--color-text-primary)",
+                                marginBottom: 12,
+                              }}
+                            >
+                              관리자 메모
+                            </div>
+                            <AdminMemoSection memo={memo} setMemo={setMemo} />
+                          </div>
                         </div>
-                        <div className={styles.section.body}>
-                          <AdminCommentSection videoId={videoId} />
-                        </div>
-                      </section>
-                    </>
-                  }
-                  right={
+                      )}
+                    </div>
+
+                    {/* Bottom stats */}
+                    <div
+                      style={{
+                        display: "flex",
+                        flexWrap: "wrap",
+                        gap: 16,
+                        fontSize: 12,
+                        color: "var(--color-text-muted)",
+                        padding: "4px 0",
+                      }}
+                    >
+                      <span>
+                        평균 진도율{" "}
+                        <strong style={{ color: "var(--color-text-secondary)" }}>
+                          {total > 0 ? `${(avgProgress * 100).toFixed(1)}%` : "\u2014"}
+                        </strong>
+                      </span>
+                      <span style={{ opacity: 0.3 }}>·</span>
+                      <span>
+                        100% 완료{" "}
+                        <strong style={{ color: "var(--color-text-secondary)" }}>
+                          {completed100}명
+                        </strong>
+                      </span>
+                      <span style={{ opacity: 0.3 }}>·</span>
+                      <span>
+                        90% 이상{" "}
+                        <strong style={{ color: "var(--color-text-secondary)" }}>
+                          {completed90}명
+                        </strong>
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* RIGHT: Student watch status */}
+                  <div className={styles.layout.right}>
                     <section className={styles.section.wrapper}>
                       <div className={styles.section.header}>학생 시청 현황</div>
                       <div className={styles.section.body}>
@@ -288,27 +441,8 @@ export default function VideoDetailOverlay({
                         />
                       </div>
                     </section>
-                  }
-                  bottom={
-                    <>
-                      <div className={styles.bottom.row}>
-                        <span className={styles.bottom.label}>파일 정보</span>
-                        <span>
-                          {video.status ?? "\u2014"} / {video.duration ?? "\u2014"} /{" "}
-                          {formatBytes(video.file_size)} / {video.created_at ?? "\u2014"}
-                        </span>
-                      </div>
-                      <div className={styles.bottom.row}>
-                        <span className={styles.bottom.label}>통계</span>
-                        <span>
-                          평균 진도율{" "}
-                          {total > 0 ? `${(avgProgress * 100).toFixed(1)}%` : "\u2014"} / 100%
-                          완료 {completed100}명 / 90% 완료 {completed90}명
-                        </span>
-                      </div>
-                    </>
-                  }
-                />
+                  </div>
+                </div>
 
                 <PermissionModal
                   open={permissionOpen}

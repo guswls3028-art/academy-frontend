@@ -7,6 +7,7 @@ import {
   updateKakaoPfid,
   updateMessagingInfo,
   verifySender,
+  testCredentials,
   type TenantMessagingInfo,
 } from "../api/messages.api";
 
@@ -76,5 +77,14 @@ export function useUpdateMessagingInfo() {
 export function useVerifySender() {
   return useMutation({
     mutationFn: (phoneNumber: string) => verifySender(phoneNumber),
+  });
+}
+
+/** 공급자 연동 테스트 */
+export function useTestCredentials() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => testCredentials(),
+    onSuccess: () => qc.invalidateQueries({ queryKey: KEY }),
   });
 }

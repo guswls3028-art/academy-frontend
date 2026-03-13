@@ -110,19 +110,21 @@ export default function SendMessageModal({
     return modes;
   })();
 
-  // When alimtalk is involved, require an APPROVED template to be selected
+  // Alimtalk template resolution: auto-select freeform template if user typed freely
   const needsApprovedTemplate =
     sendMode === "alimtalk" || sendMode === "both";
   const selectedTemplate = templates.find((t) => t.id === selectedTemplateId);
   const hasApprovedTemplate =
     !!selectedTemplate && selectedTemplate.solapi_status === "APPROVED";
+  // Auto-detect: any approved template available (backend will auto-pick freeform if needed)
+  const hasAnyApprovedTemplate = templates.some((t) => t.solapi_status === "APPROVED");
 
   const canSend =
     hasRecipients &&
     body.trim().length > 0 &&
     sendToTargets.length > 0 &&
     messageModes.length > 0 &&
-    (!needsApprovedTemplate || hasApprovedTemplate) &&
+    (!needsApprovedTemplate || hasApprovedTemplate || hasAnyApprovedTemplate) &&
     !sending;
 
   const blocks = getBlocksForCategory(blockCategory);
@@ -391,9 +393,14 @@ export default function SendMessageModal({
                     SMS (메시지){!smsAllowed ? " — SMS 미연동" : ""}
                   </option>
                 </select>
-                {needsApprovedTemplate && !hasApprovedTemplate && (
+                {needsApprovedTemplate && !hasApprovedTemplate && !hasAnyApprovedTemplate && (
                   <p className="mt-1 text-xs" style={{ color: "var(--color-status-warning, #d97706)" }}>
                     알림톡 발송에는 검수 승인된 템플릿이 필요합니다.
+                  </p>
+                )}
+                {needsApprovedTemplate && !hasApprovedTemplate && hasAnyApprovedTemplate && (
+                  <p className="mt-1 text-xs" style={{ color: "var(--color-text-muted)" }}>
+                    자유 입력 모드 — 본문을 직접 작성하면 자동으로 알림톡 템플릿이 적용됩니다.
                   </p>
                 )}
               </div>
@@ -525,6 +532,11 @@ export default function SendMessageModal({
                 <div className="flex items-center justify-between mb-1">
                   <label className="template-editor__editor-title">
                     본문
+                    {initialBody && body === initialBody && (
+                      <span className="ml-2 text-[10px] font-normal text-[var(--color-text-muted)]">
+                        자동 생성됨 · 자유롭게 수정 가능
+                      </span>
+                    )}
                   </label>
                   {(() => {
                     const info = getCharLabel(body.length);

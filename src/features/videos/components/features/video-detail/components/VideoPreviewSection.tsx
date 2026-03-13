@@ -18,29 +18,22 @@ export default function VideoPreviewSection({
 }: Props) {
   const isReady = status === "READY";
 
-  return (
+  return isReady && hlsSrc ? (
+    <AdminHlsPreview src={hlsSrc} />
+  ) : (
     <div
-      className="rounded-lg p-4"
       style={{
-        border: "1px solid var(--color-border-divider)",
+        borderRadius: 16,
+        overflow: "hidden",
         background: "var(--color-bg-surface-soft)",
       }}
     >
-      <div
-        className="rounded-md p-3"
-        style={{ background: "var(--color-bg-surface)" }}
-      >
-        {isReady && hlsSrc ? (
-          <AdminHlsPreview src={hlsSrc} />
-        ) : (
-          <VideoProcessingPreview
-            status={status}
-            percent={progressPercent}
-            onRetry={onRetry}
-            isRetrying={isRetrying}
-          />
-        )}
-      </div>
+      <VideoProcessingPreview
+        status={status}
+        percent={progressPercent}
+        onRetry={onRetry}
+        isRetrying={isRetrying}
+      />
     </div>
   );
 }

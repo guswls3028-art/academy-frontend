@@ -11,7 +11,7 @@ interface PasswordResetModalProps {
 export default function PasswordResetModal({ open, onClose }: PasswordResetModalProps) {
   const [target, setTarget] = useState<"student" | "parent">("student");
   const [name, setName] = useState("");
-  const [psNumber, setPsNumber] = useState("");
+  const [phone, setPhone] = useState("");
   const [parentPhone, setParentPhone] = useState("");
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
@@ -22,7 +22,7 @@ export default function PasswordResetModal({ open, onClose }: PasswordResetModal
     if (open) {
       setTarget("student");
       setName("");
-      setPsNumber("");
+      setPhone("");
       setParentPhone("");
       setError("");
       setSuccess(false);
@@ -55,10 +55,13 @@ export default function PasswordResetModal({ open, onClose }: PasswordResetModal
     const trimmedName = name.trim();
     if (!trimmedName) { setError("학생 이름을 입력해 주세요."); return; }
     if (target === "student") {
-      if (!psNumber.trim()) { setError("학생 번호를 입력해 주세요."); return; }
+      const studentPhone = phone.replace(/\D/g, "");
+      if (studentPhone.length !== 11 || !studentPhone.startsWith("010")) {
+        setError("전화번호를 010 뒤 8자리로 입력해 주세요."); return;
+      }
     } else {
-      const phone = parentPhone.replace(/\D/g, "");
-      if (phone.length !== 11 || !phone.startsWith("010")) {
+      const parentP = parentPhone.replace(/\D/g, "");
+      if (parentP.length !== 11 || !parentP.startsWith("010")) {
         setError("학부모 전화번호를 010 뒤 8자리로 입력해 주세요."); return;
       }
     }
@@ -68,7 +71,7 @@ export default function PasswordResetModal({ open, onClose }: PasswordResetModal
       await sendPasswordReset({
         target,
         student_name: trimmedName,
-        student_ps_number: target === "student" ? psNumber.trim() : undefined,
+        student_phone: target === "student" ? phone : undefined,
         parent_phone: target === "parent" ? parentPhone : undefined,
       });
       setSuccess(true);
@@ -76,7 +79,7 @@ export default function PasswordResetModal({ open, onClose }: PasswordResetModal
         onClose();
         setTarget("student");
         setName("");
-        setPsNumber("");
+        setPhone("");
         setParentPhone("");
         setSuccess(false);
       }, 2000);
@@ -104,12 +107,12 @@ export default function PasswordResetModal({ open, onClose }: PasswordResetModal
         <h2 id="pw-reset-title" className={styles.overlayTitle} style={{ paddingLeft: 36 }}>비밀번호 찾기</h2>
         {success ? (
           <p style={{ color: "var(--auth-accent)", fontWeight: 600 }}>
-            임시 비밀번호가 발송되었습니다. 문자를 확인한 뒤 로그인해 주세요.
+            임시 비밀번호가 발송되었습니다. 알림톡을 확인한 뒤 로그인해 주세요.
           </p>
         ) : (
           <>
             <p style={{ fontSize: "0.875rem", color: "var(--auth-text-muted)", marginBottom: "1rem" }}>
-              대상을 선택한 뒤 정보를 입력하시면 임시 비밀번호를 문자로 보내드립니다.
+              대상을 선택한 뒤 정보를 입력하시면 임시 비밀번호를 알림톡으로 보내드립니다.
             </p>
             <div className={styles.signupSegmentWrap} role="group" aria-label="대상 선택" style={{ marginBottom: "1rem" }}>
               <button
@@ -136,24 +139,18 @@ export default function PasswordResetModal({ open, onClose }: PasswordResetModal
                 value={name}
                 onChange={(e) => setName(e.target.value)}
               />
-              {target === "student" ? (
-                <input
-                  className={styles.input}
-                  placeholder="학생 번호 *"
-                  value={psNumber}
-                  onChange={(e) => setPsNumber(e.target.value)}
-                />
-              ) : (
-                <div className={styles.signupPhoneRow}>
+              <div className={styles.signupPhoneRow}>
+                <span className={styles.signupInputLabel} style={{ marginBottom: 4 }}>
+                  {target === "student" ? "학생 또는 학부모 전화번호 *" : "학부모 전화번호 *"}
+                </span>
                 <PhoneInput010Blocks
-                  value={parentPhone}
-                  onChange={setParentPhone}
+                  value={target === "student" ? phone : parentPhone}
+                  onChange={target === "student" ? setPhone : setParentPhone}
                   blockClassName={styles.signupPhoneBlock}
                   inputClassName={styles.signupPhoneBlockInput}
-                  aria-label="학부모 전화번호"
+                  aria-label={target === "student" ? "학생 전화번호" : "학부모 전화번호"}
                 />
               </div>
-              )}
               {error && <div className={styles.error}>{error}</div>}
               <div className={styles.overlayActions}>
                 <button type="button" className={styles.btnSecondary} onClick={handleClose}>취소</button>

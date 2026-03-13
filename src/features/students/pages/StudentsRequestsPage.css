@@ -31,13 +31,20 @@
   line-height: 1;
 }
 
+.students-requests__toggles {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  flex-shrink: 0;
+  padding-top: var(--space-1);
+}
+
 .students-requests__auto-approve {
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
   cursor: pointer;
   flex-shrink: 0;
-  padding-top: var(--space-1);
 }
 
 .students-requests__auto-approve-label {

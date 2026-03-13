@@ -125,6 +125,26 @@ export async function checkChannelShared(): Promise<{ shared: boolean; message?:
   return res.data;
 }
 
+/** 공급자 연동 키 테스트 */
+export interface TestCredentialsCheck {
+  test: string;
+  ok: boolean;
+  message: string;
+  sender_numbers?: string[];
+}
+
+export interface TestCredentialsResult {
+  provider: string;
+  checks: TestCredentialsCheck[];
+  all_ok: boolean;
+  summary: string;
+}
+
+export async function testCredentials(): Promise<TestCredentialsResult> {
+  const res = await api.post<TestCredentialsResult>(`${PREFIX}/test-credentials/`);
+  return res.data;
+}
+
 /** 발송 로그 목록 */
 export async function fetchNotificationLog(
   params?: NotificationLogParams
@@ -171,6 +191,8 @@ export interface MessageTemplateItem {
   solapi_template_id?: string;
   /** 검수 상태: 미신청 / PENDING / APPROVED / REJECTED */
   solapi_status?: SolapiStatus;
+  /** 본문에 #{내용} 변수 포함 여부 — true면 자유양식 발송 가능 */
+  has_content_var?: boolean;
   created_at: string;
   updated_at: string;
 }

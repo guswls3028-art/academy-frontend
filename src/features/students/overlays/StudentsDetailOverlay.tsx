@@ -2,7 +2,7 @@
 // 학생 상세 오버레이 — 고급 SaaS 스타일, 기능·구성 동일
 
 import { useParams, useNavigate } from "react-router-dom";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { createPortal } from "react-dom";
 import api from "@/shared/api/axios";
@@ -13,16 +13,17 @@ import {
   attachStudentTag,
   detachStudentTag,
   createMemo,
-  deleteStudent,
   toggleStudentActive,
 } from "../api/students";
 
 import StudentFormModal from "../components/EditStudentModal";
 import TagCreateModal from "../components/TagCreateModal";
+import DeleteConfirmModal from "../components/DeleteConfirmModal";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { EmptyState, Button, CloseButton } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { formatPhone, formatStudentPhoneDisplay, formatOmrCode, formatGenderDisplay } from "@/shared/utils/formatPhone";
+import { useSendMessageModal } from "@/features/messages/context/SendMessageModalContext";
 
 const TABS = [
   { key: "enroll", label: "수강 이력" },
@@ -57,10 +58,21 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
   const id = props?.studentId ?? Number(routeParams.studentId);
   const onClose = props?.onClose ?? (() => navigate(-1));
   const qc = useQueryClient();
+  const { openSendMessageModal } = useSendMessageModal();
 
   const [tab, setTab] = useState("enroll");
   const [editOpen, setEditOpen] = useState(false);
   const [tagCreateOpen, setTagCreateOpen] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+
+  // Escape 키로 오버레이 닫기
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [onClose]);
   const [inventoryOpen, setInventoryOpen] = useState(false);
   const [inventoryTab, setInventoryTab] = useState<"score" | "misc" | "video" | "image">("score");
   const [viewerItem, setViewerItem] = useState<{ type: "pdf" | "image" | "video"; url: string; name: string } | null>(null);
@@ -257,6 +269,32 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
     queryFn: getTags,
   });
 
+  // 공유 데이터: 대시보드 + 탭에서 중복 호출 제거
+  const { data: scoreFacts } = useQuery({
+    queryKey: ["student", id, "result-facts"],
+    queryFn: async () => {
+      const res = await api.get("/results/admin/facts/", { params: { student: id, page_size: 100 } });
+      return Array.isArray(res.data?.results) ? res.data.results : Array.isArray(res.data) ? res.data : [];
+    },
+    enabled: id > 0,
+  });
+  const { data: clinicData } = useQuery({
+    queryKey: ["student", id, "clinic"],
+    queryFn: async () => {
+      const res = await api.get("/clinic/participants/", { params: { student: id, page_size: 50 } });
+      return Array.isArray(res.data?.results) ? res.data.results : Array.isArray(res.data) ? res.data : [];
+    },
+    enabled: id > 0,
+  });
+  const { data: questionsData } = useQuery({
+    queryKey: ["student", id, "questions"],
+    queryFn: async () => {
+      const res = await api.get("/community/posts/", { params: { author_student: id, page_size: 50 } });
+      return Array.isArray(res.data?.results) ? res.data.results : Array.isArray(res.data) ? res.data : [];
+    },
+    enabled: id > 0,
+  });
+
   const addTag = useMutation({
     mutationFn: (tagId: number) => attachStudentTag(id, tagId),
     onSuccess: () => {
@@ -283,14 +321,37 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
     },
   });
 
-  async function handleDelete() {
-    if (!confirm("이 학생을 삭제하시겠습니까?")) return;
-    await deleteStudent(id);
-    qc.invalidateQueries({ queryKey: ["students"] });
-    onClose();
+  // 로딩 스켈레톤
+  if (isLoading || !student) {
+    return (
+      <>
+        <div className="ds-overlay-backdrop" onClick={onClose} aria-hidden />
+        <div className="ds-overlay-wrap">
+          <div className="ds-overlay-panel ds-overlay-panel--student-detail" onClick={(e) => e.stopPropagation()}>
+            <CloseButton className="ds-overlay-panel__close" onClick={onClose} />
+            <header className="ds-overlay-header">
+              <div className="ds-overlay-header__inner">
+                <div className="ds-overlay-header__left">
+                  <div className="ds-overlay-header__avatar-wrap" aria-hidden>
+                    <span className="ds-overlay-header__avatar" style={{ background: "var(--color-bg-surface-soft)", animation: "pulse 1.5s ease-in-out infinite" }}>
+                      &nbsp;
+                    </span>
+                  </div>
+                  <div className="ds-overlay-header__title-block">
+                    <div style={{ width: 120, height: 20, borderRadius: 6, background: "var(--color-bg-surface-soft)", animation: "pulse 1.5s ease-in-out infinite" }} />
+                    <div style={{ width: 80, height: 14, borderRadius: 4, marginTop: 6, background: "var(--color-bg-surface-soft)", animation: "pulse 1.5s ease-in-out infinite" }} />
+                  </div>
+                </div>
+              </div>
+            </header>
+            <div className="ds-overlay-body" style={{ padding: 24 }}>
+              <EmptyState scope="panel" tone="loading" title="학생 정보를 불러오는 중..." />
+            </div>
+          </div>
+        </div>
+      </>
+    );
   }
-
-  if (isLoading || !student) return null;
 
   return (
     <>
@@ -347,15 +408,27 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
                     type="button"
                     onClick={() => toggleActive.mutate(!student.active)}
                     disabled={toggleActive.isPending}
-                    className="ds-status-badge"
+                    className="ds-status-badge ds-status-badge--action"
                     data-status={student.active ? "active" : "inactive"}
                   >
                     {toggleActive.isPending ? "…" : student.active ? "활성" : "비활성"}
                   </button>
+                  <Button
+                    type="button"
+                    intent="secondary"
+                    size="sm"
+                    onClick={() => openSendMessageModal({
+                      studentIds: [id],
+                      recipientLabel: student.name,
+                      blockCategory: "student",
+                    })}
+                  >
+                    메시지
+                  </Button>
                   <Button type="button" intent="primary" size="sm" onClick={() => setEditOpen(true)}>
                     수정
                   </Button>
-                  <Button type="button" intent="danger" size="sm" onClick={handleDelete}>
+                  <Button type="button" intent="danger" size="sm" onClick={() => setDeleteConfirmOpen(true)}>
                     삭제
                   </Button>
                 </div>
@@ -379,11 +452,13 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
                     label="식별코드"
                     value={formatOmrCode(student.omrCode)}
                     accent
+                    copyable
                   />
-                  <InfoRow label="학부모 전화" value={formatPhone(student.parentPhone)} />
+                  <InfoRow label="학부모 전화" value={formatPhone(student.parentPhone)} copyable />
                   <InfoRow
                     label="학생 전화"
                     value={formatStudentPhoneDisplay(student.studentPhone)}
+                    copyable
                   />
                   <InfoRow label="성별" value={formatGenderDisplay(student.gender)} />
                   <InfoRow label="학교" value={student.school} />
@@ -396,6 +471,7 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
                   />
                   <InfoRow label="반" value={student.schoolClass} />
                   <InfoRow label="계열" value={student.major} />
+                  <InfoRow label="등록일" value={student.registeredAt?.slice(0, 10)} />
                 </div>
 
                 <div style={{ marginTop: 20 }}>
@@ -510,21 +586,35 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
                 <div style={{ marginTop: 20 }}>
                   <div
                     style={{
-                      fontSize: 11,
-                      fontWeight: 800,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
                       marginBottom: 8,
-                      color: "var(--color-text-muted)",
-                      letterSpacing: "0.04em",
-                      textTransform: "uppercase",
                     }}
                   >
-                    메모
+                    <span
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 800,
+                        color: "var(--color-text-muted)",
+                        letterSpacing: "0.04em",
+                        textTransform: "uppercase",
+                      }}
+                    >
+                      메모
+                    </span>
+                    {updateMemo.isPending && (
+                      <span style={{ fontSize: 11, color: "var(--color-primary)", fontWeight: 600 }}>저장 중...</span>
+                    )}
+                    {updateMemo.isSuccess && !updateMemo.isPending && (
+                      <span style={{ fontSize: 11, color: "var(--color-success)", fontWeight: 600 }}>저장됨</span>
+                    )}
                   </div>
                   <textarea
                     className="ds-textarea w-full"
                     rows={4}
                     defaultValue={student.memo}
-                    placeholder="메모..."
+                    placeholder="메모를 입력하면 포커스 해제 시 자동 저장됩니다."
                     onBlur={(e) => updateMemo.mutate(e.target.value)}
                     style={{
                       fontSize: 13,
@@ -545,7 +635,12 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
                 }}
               >
                 {/* 한눈에 요약 */}
-                <StudentSummaryDashboard studentId={id} enrollments={student.enrollments} />
+                <StudentSummaryDashboard
+                  enrollments={student.enrollments}
+                  scoreFacts={scoreFacts ?? []}
+                  clinicData={clinicData ?? []}
+                  questionsData={questionsData ?? []}
+                />
 
                 <div className="ds-overlay-tabs">
                   <div className="ds-tabs ds-tabs--flat">
@@ -564,9 +659,9 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
 
                 <div style={{ minHeight: 260, marginTop: 16 }}>
                   {tab === "enroll" && <EnrollmentsTab enrollments={student.enrollments} />}
-                  {tab === "clinic" && <ClinicTab studentId={id} />}
-                  {tab === "question" && <QuestionTab studentId={id} />}
-                  {tab === "score" && <ScoreTab studentId={id} enrollments={student.enrollments} />}
+                  {tab === "clinic" && <ClinicTab data={clinicData ?? []} />}
+                  {tab === "question" && <QuestionTab data={questionsData ?? []} />}
+                  {tab === "score" && <ScoreTab data={scoreFacts ?? []} />}
                   {tab === "schoolScore" && <EmptyState scope="panel" tone="empty" title="학교 성적 기능 준비 중" description="추후 업데이트 예정입니다." />}
                 </div>
               </div>
@@ -1070,6 +1165,20 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
           />,
           document.body
         )}
+
+      {deleteConfirmOpen && (
+        <DeleteConfirmModal
+          open={true}
+          id={id}
+          onClose={() => setDeleteConfirmOpen(false)}
+          onSuccess={() => {
+            setDeleteConfirmOpen(false);
+            qc.invalidateQueries({ queryKey: ["students"] });
+            feedback.success("학생이 삭제되었습니다. 30일간 보관 후 자동 삭제됩니다.");
+            onClose();
+          }}
+        />
+      )}
     </>
   );
 }
@@ -1078,11 +1187,25 @@ function InfoRow({
   label,
   value,
   accent,
+  copyable,
 }: {
   label: string;
   value: any;
   accent?: boolean;
+  copyable?: boolean;
 }) {
+  const displayValue = value || "-";
+  const canCopy = copyable && value && value !== "-";
+
+  const handleCopy = () => {
+    if (!canCopy) return;
+    const text = String(value).replace(/[^0-9a-zA-Z가-힣\-]/g, "").trim() || String(value);
+    navigator.clipboard.writeText(text).then(
+      () => feedback.success(`${label} 복사됨`),
+      () => {}
+    );
+  };
+
   return (
     <div
       className="ds-overlay-info-row"
@@ -1097,7 +1220,11 @@ function InfoRow({
           : "var(--color-bg-surface)",
         border: "1px solid var(--color-border-divider)",
         fontSize: 13,
+        cursor: canCopy ? "pointer" : undefined,
+        transition: "background 0.15s",
       }}
+      onClick={canCopy ? handleCopy : undefined}
+      title={canCopy ? "클릭하여 복사" : undefined}
     >
       <span
         style={{
@@ -1113,9 +1240,18 @@ function InfoRow({
           fontWeight: 700,
           color: "var(--color-text-primary)",
           textAlign: "right",
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 4,
         }}
       >
-        {value || "-"}
+        {displayValue}
+        {canCopy && (
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.5 }}>
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+          </svg>
+        )}
       </span>
     </div>
   );
@@ -1156,35 +1292,18 @@ function InventoryTreeFolder({
 }
 
 /** 한눈에 보는 학생 요약 대시보드 */
-function StudentSummaryDashboard({ studentId, enrollments }: { studentId: number; enrollments: any[] }) {
-  const { data: scoreFacts } = useQuery({
-    queryKey: ["student", studentId, "result-facts"],
-    queryFn: async () => {
-      const res = await api.get("/results/admin/facts/", { params: { student: studentId, page_size: 100 } });
-      return Array.isArray(res.data?.results) ? res.data.results : Array.isArray(res.data) ? res.data : [];
-    },
-    enabled: studentId > 0,
-  });
-
-  const { data: clinicData } = useQuery({
-    queryKey: ["student", studentId, "clinic"],
-    queryFn: async () => {
-      const res = await api.get("/clinic/participants/", { params: { student: studentId, page_size: 50 } });
-      return Array.isArray(res.data?.results) ? res.data.results : Array.isArray(res.data) ? res.data : [];
-    },
-    enabled: studentId > 0,
-  });
-
-  const { data: questionsData } = useQuery({
-    queryKey: ["student", studentId, "questions"],
-    queryFn: async () => {
-      const res = await api.get("/community/posts/", { params: { author_student: studentId, page_size: 50 } });
-      return Array.isArray(res.data?.results) ? res.data.results : Array.isArray(res.data) ? res.data : [];
-    },
-    enabled: studentId > 0,
-  });
-
-  const facts = scoreFacts ?? [];
+function StudentSummaryDashboard({
+  enrollments,
+  scoreFacts,
+  clinicData,
+  questionsData,
+}: {
+  enrollments: any[];
+  scoreFacts: any[];
+  clinicData: any[];
+  questionsData: any[];
+}) {
+  const facts = scoreFacts;
   const passCount = facts.filter((f: any) => f.is_pass === true || f.passed === true).length;
   const failCount = facts.filter((f: any) => f.is_pass === false || f.passed === false).length;
   const avgScore = facts.length > 0
@@ -1274,31 +1393,38 @@ function EnrollmentsTab({ enrollments }: { enrollments: any[] }) {
 
   return (
     <div style={{ display: "grid", gap: 8 }}>
-      {enrollments.map((en: any) => (
-        <div
-          key={en.id}
-          className="flex items-center gap-2.5 rounded-xl bg-[var(--color-bg-surface)] border border-[var(--color-border-divider)] px-4 py-3 hover:border-[var(--color-primary)] hover:shadow-sm transition-all"
-        >
-          <LectureChip name={en.lectureName || ""} color={en.lectureColor} />
-          <span className="text-sm font-semibold text-[var(--color-text-primary)] truncate">{en.lectureName || "-"}</span>
-        </div>
-      ))}
+      {enrollments.map((en: any) => {
+        const status = en.status ?? en.enrollment_status ?? "ACTIVE";
+        const isActive = status === "ACTIVE";
+        return (
+          <div
+            key={en.id}
+            className="flex items-center gap-2.5 rounded-xl bg-[var(--color-bg-surface)] border border-[var(--color-border-divider)] px-4 py-3 hover:border-[var(--color-primary)] hover:shadow-sm transition-all"
+            style={{ opacity: isActive ? 1 : 0.6 }}
+          >
+            <LectureChip name={en.lectureName || ""} color={en.lectureColor} />
+            <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+              <span className="text-sm font-semibold text-[var(--color-text-primary)] truncate">{en.lectureName || "-"}</span>
+              {en.enrolledAt && (
+                <span className="text-[11px] text-[var(--color-text-muted)]">
+                  {en.enrolledAt?.slice(0, 10)} 수강 시작
+                </span>
+              )}
+            </div>
+            {!isActive && (
+              <span className="text-[11px] font-semibold text-[var(--color-text-muted)] px-2 py-0.5 rounded bg-[var(--color-bg-surface-soft)]">
+                비활성
+              </span>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
 
 /** 클리닉/상담 이력 탭 */
-function ClinicTab({ studentId }: { studentId: number }) {
-  const { data, isLoading } = useQuery({
-    queryKey: ["student", studentId, "clinic"],
-    queryFn: async () => {
-      const res = await api.get("/clinic/participants/", { params: { student: studentId, page_size: 50 } });
-      return Array.isArray(res.data?.results) ? res.data.results : Array.isArray(res.data) ? res.data : [];
-    },
-    enabled: studentId > 0,
-  });
-
-  if (isLoading) return <EmptyState scope="panel" tone="loading" title="불러오는 중..." />;
+function ClinicTab({ data }: { data: any[] }) {
   if (!data?.length) return <EmptyState scope="panel" tone="empty" title="클리닉/상담 이력이 없습니다." />;
 
   const statusLabel: Record<string, string> = { BOOKED: "예약", ATTENDED: "출석", NO_SHOW: "결석", CANCELLED: "취소", PENDING: "대기" };
@@ -1322,17 +1448,7 @@ function ClinicTab({ studentId }: { studentId: number }) {
 }
 
 /** 질문 이력 탭 */
-function QuestionTab({ studentId }: { studentId: number }) {
-  const { data, isLoading } = useQuery({
-    queryKey: ["student", studentId, "questions"],
-    queryFn: async () => {
-      const res = await api.get("/community/posts/", { params: { author_student: studentId, page_size: 50 } });
-      return Array.isArray(res.data?.results) ? res.data.results : Array.isArray(res.data) ? res.data : [];
-    },
-    enabled: studentId > 0,
-  });
-
-  if (isLoading) return <EmptyState scope="panel" tone="loading" title="불러오는 중..." />;
+function QuestionTab({ data }: { data: any[] }) {
   if (!data?.length) return <EmptyState scope="panel" tone="empty" title="질문 이력이 없습니다." />;
 
   return (
@@ -1358,17 +1474,7 @@ function QuestionTab({ studentId }: { studentId: number }) {
 }
 
 /** 성적 이력 탭 */
-function ScoreTab({ studentId, enrollments }: { studentId: number; enrollments: any[] }) {
-  const { data, isLoading } = useQuery({
-    queryKey: ["student", studentId, "result-facts"],
-    queryFn: async () => {
-      const res = await api.get("/results/admin/facts/", { params: { student: studentId, page_size: 100 } });
-      return Array.isArray(res.data?.results) ? res.data.results : Array.isArray(res.data) ? res.data : [];
-    },
-    enabled: studentId > 0,
-  });
-
-  if (isLoading) return <EmptyState scope="panel" tone="loading" title="불러오는 중..." />;
+function ScoreTab({ data }: { data: any[] }) {
   if (!data?.length) return <EmptyState scope="panel" tone="empty" title="성적 이력이 없습니다." />;
 
   return (

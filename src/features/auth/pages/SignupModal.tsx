@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import {
   submitRegistrationRequest,
+  sendExistingCredentials,
 } from "@/features/students/api/students";
 import { PhoneInput010Blocks } from "@/shared/ui/PhoneInput010Blocks";
 import styles from "./LoginPage.module.css";
@@ -33,6 +34,8 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [duplicateInfo, setDuplicateInfo] = useState<{ phone: string; name: string } | null>(null);
+  const [credentialsSent, setCredentialsSent] = useState(false);
 
   // 모달 열릴 때 폼 초기화
   useEffect(() => {
@@ -40,6 +43,8 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
       setForm(INITIAL_FORM);
       setError("");
       setSuccess(false);
+      setDuplicateInfo(null);
+      setCredentialsSent(false);
     }
   }, [open]);
 
@@ -127,6 +132,16 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
       const data = res?.data as Record<string, unknown> | undefined;
       const status = res?.status;
 
+      // 409: 이미 등록된 학생
+      if (status === 409 && data?.code === "already_registered") {
+        setDuplicateInfo({
+          phone: String(data.student_phone ?? form.phone ?? ""),
+          name: String(data.student_name ?? form.name ?? ""),
+        });
+        setPending(false);
+        return;
+      }
+
       let msg: string;
       if (data && typeof data === "object") {
         if (typeof data.detail === "string") {
@@ -178,7 +193,66 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
         <p className={styles.overlaySubtitle}>
           필수 정보를 입력하시면 선생님 승인 후 로그인할 수 있습니다.
         </p>
-        {success ? (
+        {duplicateInfo ? (
+          <>
+            <div style={{ textAlign: "center", padding: "0.5rem 0" }}>
+              <p style={{ fontSize: "1rem", fontWeight: 600, color: "var(--auth-text)", marginBottom: "0.75rem" }}>
+                이미 가입된 아이디입니다.
+              </p>
+              <p style={{ fontSize: "0.875rem", color: "var(--auth-text-muted)", marginBottom: "1.25rem", lineHeight: 1.5 }}>
+                아이디와 임시 비밀번호를 알림톡으로 받으시겠습니까?
+              </p>
+              {credentialsSent ? (
+                <p style={{ color: "var(--auth-accent)", fontWeight: 600, marginBottom: "1rem" }}>
+                  알림톡이 발송되었습니다. 확인 후 로그인해 주세요.
+                </p>
+              ) : (
+                <>
+                  {error && <div className={styles.error} style={{ marginBottom: "0.75rem" }}>{error}</div>}
+                  <button
+                    type="button"
+                    className={styles.signupBtnSubmit}
+                    style={{ width: "100%", marginBottom: "0.5rem" }}
+                    disabled={pending}
+                    onClick={async () => {
+                      setPending(true);
+                      setError("");
+                      try {
+                        await sendExistingCredentials({
+                          phone: duplicateInfo.phone,
+                          name: duplicateInfo.name,
+                        });
+                        setCredentialsSent(true);
+                      } catch (e: unknown) {
+                        const errObj = e as { response?: { data?: { detail?: string } }; message?: string };
+                        setError(errObj?.response?.data?.detail || errObj?.message || "발송에 실패했습니다.");
+                      } finally {
+                        setPending(false);
+                      }
+                    }}
+                  >
+                    {pending ? "발송 중..." : "카카오톡으로 ID/비밀번호 발송"}
+                  </button>
+                </>
+              )}
+              <button
+                type="button"
+                className={styles.signupBtnCancel}
+                style={{ width: "100%", marginTop: credentialsSent ? "0.5rem" : 0 }}
+                onClick={() => {
+                  if (credentialsSent) {
+                    handleClose();
+                  } else {
+                    setDuplicateInfo(null);
+                    setError("");
+                  }
+                }}
+              >
+                {credentialsSent ? "확인" : "돌아가기"}
+              </button>
+            </div>
+          </>
+        ) : success ? (
           <>
             <p style={{ color: "var(--auth-accent)", fontWeight: 600 }}>신청이 완료되었습니다. 승인 후 로그인해 주세요.</p>
             <div className={styles.signupActions} style={{ marginTop: 20 }}>

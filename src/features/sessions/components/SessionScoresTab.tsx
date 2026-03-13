@@ -126,23 +126,6 @@ export default function SessionScoresTab() {
             : "border-[var(--color-border-divider)]",
         ].join(" ")}
       >
-        {/* 편집 모드 토글 버튼 */}
-        <button
-          type="button"
-          onClick={handleToggleEditMode}
-          className={[
-            "h-8 rounded px-3 text-sm font-medium transition-colors",
-            isEditMode
-              ? "bg-[var(--color-brand-primary)] text-white"
-              : "border border-[var(--color-border-divider)] bg-transparent text-[var(--color-text-muted)] hover:border-[var(--color-brand-primary)] hover:text-[var(--color-brand-primary)]",
-          ].join(" ")}
-        >
-          {isEditMode ? "편집 종료" : "편집 모드"}
-        </button>
-
-        {/* 구분선 */}
-        <div className="h-5 w-px bg-[var(--color-border-divider)]" />
-
         {isEditMode ? (
           /* 편집 모드 ON: 편집 타입 세그먼트 버튼 */
           <div className="flex items-center gap-1">
@@ -268,6 +251,27 @@ export default function SessionScoresTab() {
           </div>
         </div>
       )}
+
+      {/* ── 편집 모드 토글 (테이블 바로 위) ── */}
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={handleToggleEditMode}
+          className={[
+            "h-9 rounded-lg px-4 text-sm font-semibold transition-all",
+            isEditMode
+              ? "bg-[var(--color-brand-primary)] text-white shadow-sm hover:opacity-90"
+              : "border-2 border-[var(--color-brand-primary)] bg-[var(--color-brand-primary)]/8 text-[var(--color-brand-primary)] hover:bg-[var(--color-brand-primary)] hover:text-white",
+          ].join(" ")}
+        >
+          {isEditMode ? "✓ 편집 종료" : "편집 모드"}
+        </button>
+        {isEditMode && (
+          <span className="text-xs text-[var(--color-text-muted)]">
+            셀을 클릭하여 성적을 입력하세요
+          </span>
+        )}
+      </div>
 
       {/* ── Scores Panel ── */}
       <SessionScoresPanel

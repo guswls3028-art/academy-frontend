@@ -21,7 +21,9 @@ import {
   useChargeCredits,
   useUpdateMessagingInfo,
   useVerifySender,
+  useTestCredentials,
 } from "../hooks/useMessagingInfo";
+import type { TestCredentialsResult } from "../api/messages.api";
 import type { MessagingProvider } from "../api/messages.api";
 
 type IntegrationMode = "agency" | "self";
@@ -166,8 +168,10 @@ export default function MessageSettingsPage() {
   const { mutate: chargeCredits, isPending: isCharging } = useChargeCredits();
   const { mutate: updateInfo, isPending: isUpdatingInfo } = useUpdateMessagingInfo();
   const { mutate: verify, isPending: isVerifying } = useVerifySender();
+  const { mutate: runTest, isPending: isTesting } = useTestCredentials();
 
   const [pfid, setPfid] = useState("");
+  const [testResult, setTestResult] = useState<TestCredentialsResult | null>(null);
   const [chargeAmount, setChargeAmount] = useState("");
   const [provider, setProvider] = useState<MessagingProvider>("solapi");
   const [mode, setMode] = useState<IntegrationMode>("agency");
@@ -699,6 +703,74 @@ export default function MessageSettingsPage() {
         <p style={{ fontSize: 12, color: "var(--color-text-muted)", marginTop: 8 }}>
           충전 후 잔액은 자동으로 업데이트됩니다. 실제 결제는 운영자 확인 후 처리됩니다.
         </p>
+      </Card>
+
+      {/* 연동 테스트 */}
+      <Card>
+        <SectionTitle>연동 테스트</SectionTitle>
+        <Desc>현재 설정된 API 키, 발신번호, 알림톡 채널이 정상 작동하는지 한 번에 확인합니다.</Desc>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          <Button
+            intent="primary"
+            onClick={() => {
+              setTestResult(null);
+              runTest(undefined, {
+                onSuccess: (data) => {
+                  setTestResult(data);
+                  if (data.all_ok) feedback.success("모든 연동이 정상입니다!");
+                  else feedback.error("일부 설정을 확인해 주세요.");
+                },
+                onError: () => feedback.error("연동 테스트에 실패했습니다."),
+              });
+            }}
+            disabled={isTesting}
+          >
+            {isTesting ? "테스트 중…" : "연동 상태 테스트"}
+          </Button>
+          {testResult && (
+            <span
+              style={{
+                fontSize: 13,
+                fontWeight: 600,
+                color: testResult.all_ok ? "var(--color-success)" : "var(--color-error)",
+                display: "flex",
+                alignItems: "center",
+                gap: 4,
+              }}
+            >
+              {testResult.all_ok ? <FiCheckCircle size={13} /> : <FiAlertCircle size={13} />}
+              {testResult.summary}
+            </span>
+          )}
+        </div>
+        {testResult && (
+          <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 6 }}>
+            {testResult.checks.map((c, i) => (
+              <div
+                key={i}
+                style={{
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: 8,
+                  padding: "8px 12px",
+                  borderRadius: "var(--radius-md)",
+                  background: c.ok
+                    ? "color-mix(in srgb, var(--color-success) 6%, transparent)"
+                    : "color-mix(in srgb, var(--color-error) 6%, transparent)",
+                }}
+              >
+                {c.ok ? (
+                  <FiCheckCircle size={14} style={{ color: "var(--color-success)", marginTop: 2, flexShrink: 0 }} />
+                ) : (
+                  <FiAlertCircle size={14} style={{ color: "var(--color-error)", marginTop: 2, flexShrink: 0 }} />
+                )}
+                <span style={{ fontSize: 13, color: "var(--color-text-primary)", lineHeight: 1.5 }}>
+                  {c.message}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
       </Card>
 
       {/* 연동 상태 */}

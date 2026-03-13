@@ -553,6 +553,11 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
         setBusy(false);
         return;
       }
+      if (err?.response?.status === 409 && err.response.data?.code === "duplicate_student") {
+        feedback.error("이미 있는 학생입니다.");
+        setBusy(false);
+        return;
+      }
       const data = err?.response?.data;
       let msg: string;
       if (data && typeof data === "object") {
@@ -736,7 +741,7 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
             {deletedStudentConflict ? (
           <div className="modal-scroll-body modal-scroll-body--compact" style={{ padding: "var(--space-4)" }}>
             <div style={{ marginBottom: "var(--space-4)", fontSize: 15, fontWeight: 600, color: "var(--color-text-primary)" }}>
-              삭제된 학생이 있습니다. 복원하시겠습니까?
+              삭제 대기중인 학생입니다. 복구하시겠습니까?
             </div>
             <div style={{ marginBottom: "var(--space-4)", padding: "var(--space-3)", background: "var(--color-surface-secondary)", borderRadius: 8, fontSize: 14 }}>
               <div style={{ marginBottom: "var(--space-2)" }}>

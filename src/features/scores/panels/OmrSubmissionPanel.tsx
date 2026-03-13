@@ -7,11 +7,18 @@ export default function OmrSubmissionPanel({
 }: {
   submissionId: number;
 }) {
-  const { data } = useQuery({
+  const { data, isError } = useQuery({
     queryKey: ["submission", submissionId],
     queryFn: () => fetchSubmission(submissionId),
     refetchInterval: 2000, // ✅ polling only
   });
+
+  if (isError)
+    return (
+      <div className="card p-4 text-sm text-red-600">
+        제출 상태를 조회할 수 없습니다.
+      </div>
+    );
 
   if (!data) return null;
 

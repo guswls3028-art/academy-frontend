@@ -225,14 +225,20 @@ export default function StudentScoresDrawer({ row, meta, onClose, onOpenAnswerDe
                     </div>
                     <div className="student-scores-drawer__hw-score" data-tone={hw.block.passed === true ? "success" : hw.block.passed === false ? "danger" : undefined}>
                       {hw.block.score != null ? (
-                        <span>
-                          {hw.block.score}
-                          {hw.block.max_score != null && <span className="student-scores-drawer__max-score"> / {hw.block.max_score}</span>}
-                          {(() => {
-                            const p = pctNum(hw.block.score, hw.block.max_score);
-                            return p != null ? <PercentBadge value={p} passed={hw.block.passed} /> : null;
-                          })()}
-                        </span>
+                        (() => {
+                          const metaHw = meta?.homeworks?.find((h) => h.homework_id === hw.homework_id);
+                          const hwMaxScore = hw.block.max_score ?? metaHw?.max_score ?? null;
+                          return (
+                            <span>
+                              {hw.block.score}
+                              {hwMaxScore != null && <span className="student-scores-drawer__max-score"> / {hwMaxScore}</span>}
+                              {(() => {
+                                const p = pctNum(hw.block.score, hwMaxScore);
+                                return p != null ? <PercentBadge value={p} passed={hw.block.passed} /> : null;
+                              })()}
+                            </span>
+                          );
+                        })()
                       ) : (
                         <span className="student-scores-drawer__no-score">미제출</span>
                       )}

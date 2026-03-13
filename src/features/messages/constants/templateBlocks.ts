@@ -56,6 +56,8 @@ const B = {
   post_title:        { id: "post_title",        label: "게시글 제목",      insertText: "#{게시글제목}",        previewValue: "수학 문제 질문" },
   answer_summary:    { id: "answer_summary",    label: "답변 요약",        insertText: "#{답변요약}",          previewValue: "풀이 방법을 안내드립니다." },
   counsel_type:      { id: "counsel_type",      label: "상담 유형",        insertText: "#{상담유형}",          previewValue: "학습 상담" },
+  // 자유 입력 (알림톡 자유양식 템플릿용)
+  free_content:      { id: "free_content",      label: "자유 내용",        insertText: "#{내용}",              previewValue: "(직접 입력한 내용이 여기에 표시됩니다)" },
   // 직원
   staff_name:        { id: "staff_name",        label: "직원명",           insertText: "#{직원명}",            previewValue: "김영희" },
   department:        { id: "department",         label: "부서",             insertText: "#{부서}",              previewValue: "수학과" },
@@ -69,7 +71,7 @@ const B = {
 
 // ─── 카테고리별 블록 조합 ───
 
-const COMMON: TemplateBlock[] = [B.student_name_2, B.student_name_3, B.site_link, B.date, B.time];
+const COMMON: TemplateBlock[] = [B.student_name_2, B.student_name_3, B.free_content, B.site_link, B.date, B.time];
 
 const CATEGORY_BLOCKS: Record<string, TemplateBlock[]> = {
   student:    [...COMMON, B.student_name, B.student_id],
@@ -170,6 +172,8 @@ const BLOCK_COLORS: Record<string, { bg: string; color: string; border: string }
   post_title:       { bg: "color-mix(in srgb, #818cf8 12%, transparent)", color: "#6366f1", border: "color-mix(in srgb, #818cf8 30%, transparent)" },
   answer_summary:   { bg: "color-mix(in srgb, #38bdf8 12%, transparent)", color: "#0284c7", border: "color-mix(in srgb, #38bdf8 30%, transparent)" },
   counsel_type:     { bg: "color-mix(in srgb, #c084fc 12%, transparent)", color: "#9333ea", border: "color-mix(in srgb, #c084fc 30%, transparent)" },
+  // 자유 입력 — 그린/에메랄드
+  free_content:     { bg: "color-mix(in srgb, #059669 14%, transparent)", color: "#047857", border: "color-mix(in srgb, #059669 35%, transparent)" },
   // 직원 — 앰버/브라운 계열
   staff_name:       { bg: "color-mix(in srgb, #fb923c 12%, transparent)", color: "#ea580c", border: "color-mix(in srgb, #fb923c 30%, transparent)" },
   department:       { bg: "color-mix(in srgb, #fbbf24 12%, transparent)", color: "#d97706", border: "color-mix(in srgb, #fbbf24 30%, transparent)" },
