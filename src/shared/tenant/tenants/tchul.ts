@@ -17,7 +17,7 @@ export const tchul: TenantDef = {
     faviconUrl: "/tenants/tchul/favicon.png",
     headerLogoUrl: "/tenants/tchul/icon.png",
     ogDescription: "Tchul.com 학습 플랫폼 – 학생·선생님 로그인",
-    ogImageUrl: "/tenants/tchul/logo.png",
+    ogImageUrl: "/tenants/tchul/logo-full.png",
   },
   dedicatedLoginPage: true,
   hasCustomLogo: true,

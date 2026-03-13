@@ -28,8 +28,8 @@ interface TenantMeta {
 }
 
 const TENANT_META: Record<string, TenantMeta> = {
-  "tchul.com":          { title: "박철과학",  description: "박철과학 학습 플랫폼 – 학생·선생님 로그인", favicon: "/tenants/tchul/favicon.png", image: "/tenants/tchul/logo.png" },
-  "www.tchul.com":      { title: "박철과학",  description: "박철과학 학습 플랫폼 – 학생·선생님 로그인", favicon: "/tenants/tchul/favicon.png", image: "/tenants/tchul/logo.png" },
+  "tchul.com":          { title: "박철과학",  description: "박철과학 학습 플랫폼 – 학생·선생님 로그인", favicon: "/tenants/tchul/favicon.png", image: "/tenants/tchul/logo-full.png" },
+  "www.tchul.com":      { title: "박철과학",  description: "박철과학 학습 플랫폼 – 학생·선생님 로그인", favicon: "/tenants/tchul/favicon.png", image: "/tenants/tchul/logo-full.png" },
   "ymath.co.kr":        { title: "Y_math",     description: "Y_math 학습 플랫폼", favicon: "/tenants/ymath/favicon.png", image: "/tenants/ymath/og-image.png" },
   "www.ymath.co.kr":    { title: "Y_math",     description: "Y_math 학습 플랫폼", favicon: "/tenants/ymath/favicon.png", image: "/tenants/ymath/og-image.png" },
   "limglish.kr":        { title: "limglish",   description: "limglish 학습 플랫폼" },
