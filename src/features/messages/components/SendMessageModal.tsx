@@ -199,6 +199,10 @@ export default function SendMessageModal({
     try {
       let totalEnqueued = 0;
       let totalSkipped = 0;
+      let completedCalls = 0;
+      const totalCalls = isStaffMode
+        ? messageModes.length
+        : sendToTargets.length * messageModes.length;
       if (isStaffMode) {
         for (const messageMode of messageModes) {
           const payload: Parameters<typeof sendMessage>[0] = {
@@ -212,6 +216,8 @@ export default function SendMessageModal({
           const res = await sendMessage(payload);
           totalEnqueued += res.enqueued ?? 0;
           totalSkipped += res.skipped_no_phone ?? 0;
+          completedCalls++;
+          asyncStatusStore.updateProgress(taskId, Math.round((completedCalls / totalCalls) * 90));
         }
       } else {
         for (const sendTo of sendToTargets) {
@@ -227,6 +233,8 @@ export default function SendMessageModal({
             const res = await sendMessage(payload);
             totalEnqueued += res.enqueued ?? 0;
             totalSkipped += res.skipped_no_phone ?? 0;
+            completedCalls++;
+            asyncStatusStore.updateProgress(taskId, Math.round((completedCalls / totalCalls) * 90));
           }
         }
       }

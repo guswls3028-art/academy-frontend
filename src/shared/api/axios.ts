@@ -87,10 +87,14 @@ async function refreshAccessToken(): Promise<string | null> {
   if (!refresh) return null;
 
   try {
+    const headers: Record<string, string> = {};
+    const tenantCode = getTenantCodeForApiRequest();
+    if (tenantCode) headers["X-Tenant-Code"] = tenantCode;
+
     const res = await axios.post<RefreshResponse>(
       `${API_BASE}/api/v1/token/refresh/`,
       { refresh },
-      { timeout: 20_000, withCredentials: false }
+      { timeout: 20_000, withCredentials: false, headers }
     );
 
     const newAccess = String(res.data?.access || "").trim();

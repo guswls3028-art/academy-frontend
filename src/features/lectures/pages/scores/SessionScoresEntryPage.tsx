@@ -323,13 +323,10 @@ export default function SessionScoresEntryPage(_props: Props) {
         size="sm"
         onClick={() => {
           if (isEditMode) {
-            void panelRef.current?.flushPendingChanges?.().then(async () => {
-              try {
-                await postScoreDraftCommit(sessionIdForDraft);
-              } finally {
-                setIsEditMode(false);
-              }
-            });
+            setIsEditMode(false); // 즉시 UI 전환 (optimistic)
+            void panelRef.current?.flushPendingChanges?.().then(() =>
+              postScoreDraftCommit(sessionIdForDraft)
+            );
             return;
           }
           setIsEditMode(true);
