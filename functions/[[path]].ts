@@ -177,9 +177,16 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
   let html = await res.text();
 
-  // 테넌트별 메타 치환 — API 우선, 폴백은 하드코딩
+  // 테넌트별 메타 치환 — API 우선, 빈 필드는 폴백으로 보완
   const apiMeta = await fetchOgMeta(host);
-  const meta = apiMeta || FALLBACK_META[host];
+  const fallback = FALLBACK_META[host];
+  const meta = apiMeta
+    ? {
+        ...apiMeta,
+        image: apiMeta.image || fallback?.image,
+        favicon: apiMeta.favicon || fallback?.favicon,
+      }
+    : fallback;
   if (meta) {
     const origin = url.origin;
     html = injectMeta(html, meta, origin);
