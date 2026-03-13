@@ -48,7 +48,7 @@ export default function StudentTopBar({ tenantCode, onMenuClick }: Props) {
   const isVideoPage = location.pathname.startsWith("/student/video");
   const branding = getStudentTenantBranding(tenantCode);
   const { data: profile } = useQuery({
-    queryKey: ["student", "me", getParentStudentId()],
+    queryKey: ["student", "me"],
     queryFn: fetchMyProfile,
   });
 

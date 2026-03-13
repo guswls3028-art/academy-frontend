@@ -70,7 +70,7 @@ export async function fetchAvailableClinicSessions(params?: {
 
     return sessions as ClinicSession[];
   } catch (error) {
-    console.error("예약 가능 세션 조회 실패:", error);
+    // silent: error already handled by returning empty array
     return [];
   }
 }
@@ -111,7 +111,7 @@ export async function fetchMyClinicBookingRequests(): Promise<ClinicBookingReque
         status_changed_at: p.status_changed_at,
       }));
   } catch (error) {
-    console.error("내 예약 신청 조회 실패:", error);
+    // silent: error already handled by returning empty array
     return [];
   }
 }

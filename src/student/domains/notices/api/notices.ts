@@ -11,7 +11,7 @@ export async function fetchNotices(): Promise<PostEntity[]> {
   try {
     return await fetchNoticePosts({ pageSize: 50 });
   } catch (error) {
-    console.error("공지 목록 조회 실패:", error);
+    // silent: error already handled by returning empty array
     return [];
   }
 }
@@ -23,7 +23,7 @@ export async function fetchNoticeDetail(id: number): Promise<PostEntity | null> 
   try {
     return await fetchPost(id);
   } catch (error) {
-    console.error("공지 상세 조회 실패:", error);
+    // silent: error already handled by returning null
     return null;
   }
 }
