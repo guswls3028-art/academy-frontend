@@ -1,6 +1,7 @@
 // PATH: src/features/homework/components/CreateHomeworkModal.tsx
 // ------------------------------------------------------------
-// 과제 생성 모달 — 제목 → 생성 → 설정(커트라인/대상자) 한 번에
+// 과제 생성 모달 — 제목 → 생성 → 설정(커트라인) → 연속 생성 가능
+// 대상자 자동 등록, 여러 과제 연속 생성 지원
 // ------------------------------------------------------------
 
 import { useEffect, useState, useMemo } from "react";
@@ -42,10 +43,12 @@ export default function CreateHomeworkModal({
   const [createdHomeworkId, setCreatedHomeworkId] = useState<number | null>(null);
   const [cutlineValue, setCutlineValue] = useState("80");
   const [cutlineMode, setCutlineMode] = useState<"PERCENT" | "COUNT">("PERCENT");
-  const [enrolling, setEnrolling] = useState(false);
-  const [enrolledCount, setEnrolledCount] = useState<number | null>(null);
   const [savingSetup, setSavingSetup] = useState(false);
   const [policyId, setPolicyId] = useState<number | null>(null);
+
+  // sequential creation tracking
+  const [createdCount, setCreatedCount] = useState(0);
+  const [lastStage, setLastStage] = useState<"new" | "import">("new");
 
   useEffect(() => {
     if (!open) return;
@@ -60,10 +63,10 @@ export default function CreateHomeworkModal({
     setCreatedHomeworkId(null);
     setCutlineValue("80");
     setCutlineMode("PERCENT");
-    setEnrolling(false);
-    setEnrolledCount(null);
     setSavingSetup(false);
     setPolicyId(null);
+    setCreatedCount(0);
+    setLastStage("new");
   }, [open]);
 
   useEffect(() => {
@@ -100,6 +103,18 @@ export default function CreateHomeworkModal({
     return () => { cancelled = true; };
   }, [stage, sessionId]);
 
+  const autoEnroll = async (homeworkId: number) => {
+    try {
+      const enrollments = await fetchSessionEnrollments(sessionId);
+      const ids = enrollments.map((e) => e.enrollment);
+      if (ids.length > 0) {
+        await putHomeworkAssignments({ homeworkId, enrollment_ids: ids });
+      }
+    } catch {
+      // silent — enrollment is best-effort during creation
+    }
+  };
+
   const handleSubmit = async () => {
     if (!sessionId) {
       setError("세션 정보가 없습니다.");
@@ -128,7 +143,13 @@ export default function CreateHomeworkModal({
       const res = await api.post("/homeworks/", payload);
       const newId = Number(res.data?.id ?? res.data?.homework_id ?? res.data?.pk);
       if (!Number.isFinite(newId) || newId <= 0) throw new Error("생성 후 ID를 받지 못했습니다.");
+
+      // Auto-enroll students
+      void autoEnroll(newId);
+
       setCreatedHomeworkId(newId);
+      setLastStage(stage === "import" ? "import" : "new");
+      setCreatedCount((c) => c + 1);
       onCreated(newId);
       setStage("setup");
     } catch (e: any) {
@@ -140,7 +161,6 @@ export default function CreateHomeworkModal({
 
   const handleSaveSetup = async () => {
     if (!policyId) {
-      // No policy to save — just close
       onClose();
       return;
     }
@@ -151,7 +171,7 @@ export default function CreateHomeworkModal({
         cutline_mode: cutlineMode,
         cutline_value: Number.isFinite(cv) && cv >= 0 ? cv : 80,
       });
-      feedback.success("커트라인이 저장되었습니다.");
+      feedback.success(`"${title}" 커트라인 저장 완료`);
       onClose();
     } catch (e: any) {
       setError(e?.response?.data?.detail ?? e?.message ?? "설정 저장 실패");
@@ -160,27 +180,33 @@ export default function CreateHomeworkModal({
     }
   };
 
-  const handleEnrollAll = async () => {
-    if (!createdHomeworkId || !sessionId) return;
-    setEnrolling(true);
-    try {
-      const enrollments = await fetchSessionEnrollments(sessionId);
-      const ids = enrollments.map((e) => e.enrollment);
-      if (ids.length === 0) {
-        feedback.error("세션에 등록된 수강생이 없습니다.");
+  const handleSaveAndContinue = async () => {
+    if (policyId) {
+      setSavingSetup(true);
+      try {
+        const cv = Number(cutlineValue);
+        await patchHomeworkPolicy(policyId, {
+          cutline_mode: cutlineMode,
+          cutline_value: Number.isFinite(cv) && cv >= 0 ? cv : 80,
+        });
+        feedback.success(`"${title}" 저장 완료 (${createdCount}번째)`);
+      } catch (e: any) {
+        setError(e?.response?.data?.detail ?? e?.message ?? "설정 저장 실패");
+        setSavingSetup(false);
         return;
       }
-      await putHomeworkAssignments({
-        homeworkId: createdHomeworkId,
-        enrollment_ids: ids,
-      });
-      setEnrolledCount(ids.length);
-      feedback.success(`수강생 ${ids.length}명이 등록되었습니다.`);
-    } catch (e: any) {
-      feedback.error(e?.response?.data?.detail ?? e?.message ?? "대상자 등록 실패");
-    } finally {
-      setEnrolling(false);
+      setSavingSetup(false);
+    } else {
+      feedback.success(`"${title}" 생성 완료 (${createdCount}번째)`);
     }
+    // Reset for next creation
+    setTitle("");
+    setSelectedTemplateId(null);
+    setCreatedHomeworkId(null);
+    setCutlineValue("80");
+    setCutlineMode("PERCENT");
+    setError(null);
+    setStage(lastStage);
   };
 
   const disabled =
@@ -206,7 +232,14 @@ export default function CreateHomeworkModal({
     stage === "choose" ? (
       "과제 생성"
     ) : stage === "setup" ? (
-      "과제 설정"
+      <span>
+        과제 설정
+        {createdCount > 1 && (
+          <span className="ml-2 text-xs font-normal text-[var(--color-text-muted)]">
+            ({createdCount}번째)
+          </span>
+        )}
+      </span>
     ) : (
       <div className="flex items-center gap-2">
         <button
@@ -217,7 +250,14 @@ export default function CreateHomeworkModal({
         >
           ←
         </button>
-        <span>{stage === "new" ? "신규 과제" : "불러오기"}</span>
+        <span>
+          {stage === "new" ? "신규 과제" : "불러오기"}
+          {createdCount > 0 && (
+            <span className="ml-2 text-xs font-normal text-[var(--color-text-muted)]">
+              ({createdCount}개 생성됨)
+            </span>
+          )}
+        </span>
       </div>
     );
 
@@ -240,9 +280,9 @@ export default function CreateHomeworkModal({
         title={headerTitle}
         description={
           stage === "choose"
-            ? "신규 과제를 만들거나, 기존 템플릿을 불러와 이 차시에 적용할 수 있습니다. 다른 강의에서도 사용 가능하며, 여러 강의의 통계를 합산해 볼 수 있습니다."
+            ? "신규 과제를 만들거나, 기존 템플릿을 불러와 이 차시에 적용할 수 있습니다. 대상자는 자동 등록됩니다."
             : stage === "setup"
-            ? `"${title}" 과제가 생성되었습니다. 커트라인·대상자를 설정하세요.`
+            ? `"${title}" 과제가 생성되었습니다. 커트라인을 설정하세요.`
             : undefined
         }
       />
@@ -279,6 +319,11 @@ export default function CreateHomeworkModal({
                   onClick={() => { setError(null); setKeyword(""); setSelectedTemplateId(null); setStage("import"); }}
                 />
               </div>
+              {createdCount > 0 && (
+                <p className="mt-3 text-sm text-[var(--color-brand-primary)] font-semibold">
+                  {createdCount}개 과제가 생성되었습니다.
+                </p>
+              )}
             </div>
           )}
 
@@ -299,7 +344,7 @@ export default function CreateHomeworkModal({
                   <div className="text-sm text-[var(--text-muted)]">사용 가능한 템플릿이 없습니다.</div>
                 )}
                 {!templatesLoading && filteredTemplates.length > 0 && (
-                  <div className="grid gap-2">
+                  <div className="grid gap-2" style={{ maxHeight: 240, overflowY: "auto" }}>
                     {filteredTemplates.map((t) => {
                       const active = t.id === selectedTemplateId;
                       return (
@@ -379,6 +424,7 @@ export default function CreateHomeworkModal({
                       value={cutlineValue}
                       onChange={(e) => setCutlineValue(e.target.value)}
                       placeholder={cutlineMode === "PERCENT" ? "80" : "40"}
+                      autoFocus
                     />
                   </div>
                 </div>
@@ -389,27 +435,9 @@ export default function CreateHomeworkModal({
                 )}
               </div>
 
-              <div className="modal-form-group">
-                <div className="modal-section-label mb-2">대상자 등록</div>
-                <div className="flex items-center gap-3">
-                  <Button
-                    type="button"
-                    intent="secondary"
-                    size="sm"
-                    onClick={handleEnrollAll}
-                    disabled={enrolling || enrolledCount != null}
-                  >
-                    {enrolling
-                      ? "등록 중…"
-                      : enrolledCount != null
-                      ? `${enrolledCount}명 등록 완료`
-                      : "수강생 전체 등록"}
-                  </Button>
-                  {enrolledCount == null && (
-                    <span className="text-xs text-[var(--color-text-muted)]">
-                      이 차시의 모든 수강생을 과제 대상자로 등록합니다
-                    </span>
-                  )}
+              <div className="rounded border border-[var(--color-border-divider)] bg-[color-mix(in_srgb,var(--color-brand-primary)_4%,var(--color-bg-surface))] p-3">
+                <div className="text-xs text-[var(--color-text-muted)]">
+                  대상자 자동 등록됨 (이 차시의 모든 수강생)
                 </div>
               </div>
             </div>
@@ -421,12 +449,22 @@ export default function CreateHomeworkModal({
         right={
           <>
             <Button intent="secondary" size="xl" onClick={onClose} disabled={submitting || savingSetup}>
-              {stage === "setup" ? "건너뛰기" : "취소"}
+              {stage === "setup" ? (createdCount > 0 ? "닫기" : "건너뛰기") : "취소"}
             </Button>
             {stage === "setup" ? (
-              <Button intent="primary" size="xl" onClick={handleSaveSetup} disabled={savingSetup}>
-                {savingSetup ? "저장 중…" : "완료"}
-              </Button>
+              <>
+                <Button
+                  intent="secondary"
+                  size="xl"
+                  onClick={handleSaveAndContinue}
+                  disabled={savingSetup}
+                >
+                  저장 후 계속 추가
+                </Button>
+                <Button intent="primary" size="xl" onClick={handleSaveSetup} disabled={savingSetup}>
+                  {savingSetup ? "저장 중…" : "완료"}
+                </Button>
+              </>
             ) : stage !== "choose" ? (
               <Button intent="primary" size="xl" onClick={handleSubmit} disabled={disabled}>
                 {submitting ? "생성 중…" : "생성"}

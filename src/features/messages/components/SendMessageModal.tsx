@@ -135,7 +135,7 @@ export default function SendMessageModal({
       setSendMode(smsAllowed ? "both" : "alimtalk");
       sendingRef.current = false;
     }
-  }, [open, smsAllowed]);
+  }, [open, smsAllowed, initialBody]);
 
   // Guard: if smsAllowed becomes false while sms-related mode is selected
   useEffect(() => {

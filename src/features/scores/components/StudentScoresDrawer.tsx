@@ -26,9 +26,9 @@ type Props = {
   onOpenAnswerDetail?: (examId: number, enrollmentId: number, examTitle: string) => void;
 };
 
-function pct(score: number | null | undefined, max: number | null | undefined): string | null {
+function pctNum(score: number | null | undefined, max: number | null | undefined): number | null {
   if (score == null || max == null || max === 0) return null;
-  return `${Math.round((score / max) * 100)}%`;
+  return Math.round((score / max) * 100);
 }
 
 export default function StudentScoresDrawer({ row, meta, onClose, onOpenAnswerDetail }: Props) {
@@ -207,8 +207,8 @@ export default function StudentScoresDrawer({ row, meta, onClose, onOpenAnswerDe
                           {hw.block.score}
                           {hw.block.max_score != null && <span className="student-scores-drawer__max-score"> / {hw.block.max_score}</span>}
                           {(() => {
-                            const p = pct(hw.block.score, hw.block.max_score);
-                            return p ? <PercentBadge value={parseInt(p)} passed={hw.block.passed} /> : null;
+                            const p = pctNum(hw.block.score, hw.block.max_score);
+                            return p != null ? <PercentBadge value={p} passed={hw.block.passed} /> : null;
                           })()}
                         </span>
                       ) : (
@@ -260,11 +260,11 @@ function ExamResultCard({
 }) {
   const metaExam = meta?.exams?.find((e) => e.exam_id === exam.exam_id);
   const maxScore = exam.block.max_score ?? metaExam?.max_score ?? null;
-  const percent = pct(exam.block.score, maxScore);
+  const percent = pctNum(exam.block.score, maxScore);
 
   return (
     <li className="student-scores-drawer__exam-card">
-      <div className="student-scores-drawer__exam-header" onClick={onToggle} role="button" tabIndex={0}>
+      <div className="student-scores-drawer__exam-header" onClick={onToggle} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onToggle(); } }} role="button" tabIndex={0}>
         <div className="student-scores-drawer__exam-title-row">
           <span className="student-scores-drawer__exam-title">{exam.title}</span>
           <PassBadge passed={exam.block.passed} />
@@ -276,7 +276,7 @@ function ExamResultCard({
               {maxScore != null && (
                 <span className="student-scores-drawer__max-score"> / {maxScore}</span>
               )}
-              {percent && <PercentBadge value={parseInt(percent)} passed={exam.block.passed} />}
+              {percent != null && <PercentBadge value={percent} passed={exam.block.passed} />}
             </span>
           ) : (
             <span className="student-scores-drawer__no-score">미응시</span>

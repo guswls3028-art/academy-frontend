@@ -1,6 +1,7 @@
 // PATH: src/features/exams/components/create/CreateRegularExamModal.tsx
 // ------------------------------------------------------------
-// 시험 생성 모달 — 제목 → 생성 → 설정(만점/커트라인/대상자) 한 번에
+// 시험 생성 모달 — 제목 → 생성 → 설정(만점/커트라인) → 연속 생성 가능
+// 대상자 자동 등록, 여러 시험 연속 생성 지원
 // ------------------------------------------------------------
 
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
@@ -43,9 +44,11 @@ export default function CreateRegularExamModal({
   const [createdExamId, setCreatedExamId] = useState<number | null>(null);
   const [maxScore, setMaxScore] = useState("100");
   const [passScore, setPassScore] = useState("0");
-  const [enrolling, setEnrolling] = useState(false);
-  const [enrolledCount, setEnrolledCount] = useState<number | null>(null);
   const [savingSetup, setSavingSetup] = useState(false);
+
+  // sequential creation tracking
+  const [createdCount, setCreatedCount] = useState(0);
+  const [lastStage, setLastStage] = useState<"new" | "import">("new");
 
   useEffect(() => {
     if (!open) return;
@@ -60,9 +63,9 @@ export default function CreateRegularExamModal({
     setCreatedExamId(null);
     setMaxScore("100");
     setPassScore("0");
-    setEnrolling(false);
-    setEnrolledCount(null);
     setSavingSetup(false);
+    setCreatedCount(0);
+    setLastStage("new");
   }, [open]);
 
   useEffect(() => {
@@ -91,22 +94,31 @@ export default function CreateRegularExamModal({
     };
   }, [open, stage]);
 
+  const autoEnroll = async (examId: number) => {
+    try {
+      const enrollments = await fetchSessionEnrollments(sessionId);
+      const ids = enrollments.map((e) => e.enrollment);
+      if (ids.length > 0) {
+        await updateExamEnrollmentRows({ examId, sessionId, enrollment_ids: ids });
+      }
+    } catch {
+      // silent — enrollment is best-effort during creation
+    }
+  };
+
   const handleSubmit = async () => {
     if (!sessionId) {
       setError("세션 정보가 없습니다.");
       return;
     }
-
     if (stage === "choose") {
       setError("생성 방식을 선택하세요.");
       return;
     }
-
     if (stage === "import" && !selectedTemplateId) {
       setError("불러올 템플릿을 선택하세요.");
       return;
     }
-
     if (!title.trim()) {
       setError("시험 제목을 입력하세요.");
       return;
@@ -124,7 +136,13 @@ export default function CreateRegularExamModal({
       });
       const newExamId = Number(res.data?.id);
       if (!newExamId) throw new Error("생성 후 ID를 받지 못했습니다.");
+
+      // Auto-enroll students
+      void autoEnroll(newExamId);
+
       setCreatedExamId(newExamId);
+      setLastStage(stage === "import" ? "import" : "new");
+      setCreatedCount((c) => c + 1);
       onCreated(newExamId);
       setStage("setup");
     } catch (e: any) {
@@ -144,7 +162,7 @@ export default function CreateRegularExamModal({
         max_score: Number.isFinite(ms) && ms > 0 ? ms : 100,
         pass_score: Number.isFinite(ps) && ps >= 0 ? ps : 0,
       });
-      feedback.success("만점·커트라인이 저장되었습니다.");
+      feedback.success(`"${title}" 만점·커트라인 저장 완료`);
       onClose();
     } catch (e: any) {
       setError(e?.response?.data?.detail ?? e?.message ?? "설정 저장 실패");
@@ -153,27 +171,29 @@ export default function CreateRegularExamModal({
     }
   };
 
-  const handleEnrollAll = async () => {
-    if (!createdExamId || !sessionId) return;
-    setEnrolling(true);
+  const handleSaveAndContinue = async () => {
+    if (!createdExamId) return;
+    setSavingSetup(true);
     try {
-      const enrollments = await fetchSessionEnrollments(sessionId);
-      const ids = enrollments.map((e) => e.enrollment);
-      if (ids.length === 0) {
-        feedback.error("세션에 등록된 수강생이 없습니다.");
-        return;
-      }
-      await updateExamEnrollmentRows({
-        examId: createdExamId,
-        sessionId,
-        enrollment_ids: ids,
+      const ms = Number(maxScore);
+      const ps = Number(passScore);
+      await updateAdminExam(createdExamId, {
+        max_score: Number.isFinite(ms) && ms > 0 ? ms : 100,
+        pass_score: Number.isFinite(ps) && ps >= 0 ? ps : 0,
       });
-      setEnrolledCount(ids.length);
-      feedback.success(`수강생 ${ids.length}명이 등록되었습니다.`);
+      feedback.success(`"${title}" 저장 완료 (${createdCount}번째)`);
+      // Reset for next creation
+      setTitle("");
+      setSelectedTemplateId(null);
+      setCreatedExamId(null);
+      setMaxScore("100");
+      setPassScore("0");
+      setError(null);
+      setStage(lastStage);
     } catch (e: any) {
-      feedback.error(e?.response?.data?.detail ?? e?.message ?? "대상자 등록 실패");
+      setError(e?.response?.data?.detail ?? e?.message ?? "설정 저장 실패");
     } finally {
-      setEnrolling(false);
+      setSavingSetup(false);
     }
   };
 
@@ -209,7 +229,14 @@ export default function CreateRegularExamModal({
     stage === "choose" ? (
       "시험 생성"
     ) : stage === "setup" ? (
-      "시험 설정"
+      <span>
+        시험 설정
+        {createdCount > 1 && (
+          <span className="ml-2 text-xs font-normal text-[var(--color-text-muted)]">
+            ({createdCount}번째)
+          </span>
+        )}
+      </span>
     ) : (
       <div className="flex items-center gap-2">
         <button
@@ -224,7 +251,14 @@ export default function CreateRegularExamModal({
         >
           ←
         </button>
-        <span>{stage === "new" ? "신규시험" : "불러오기"}</span>
+        <span>
+          {stage === "new" ? "신규시험" : "불러오기"}
+          {createdCount > 0 && (
+            <span className="ml-2 text-xs font-normal text-[var(--color-text-muted)]">
+              ({createdCount}개 생성됨)
+            </span>
+          )}
+        </span>
       </div>
     );
 
@@ -247,9 +281,9 @@ export default function CreateRegularExamModal({
         title={headerTitle}
         description={
           stage === "choose"
-            ? "신규 시험을 만들거나, 기존 템플릿을 불러와 이 차시에 적용할 수 있습니다. 템플릿은 다른 강의에서도 사용 가능하며, 여러 강의의 통계를 합산해 볼 수 있습니다."
+            ? "신규 시험을 만들거나, 기존 템플릿을 불러와 이 차시에 적용할 수 있습니다. 대상자는 자동 등록됩니다."
             : stage === "setup"
-            ? `"${title}" 시험이 생성되었습니다. 만점·커트라인·대상자를 설정하세요.`
+            ? `"${title}" 시험이 생성되었습니다. 만점·커트라인을 설정하세요.`
             : undefined
         }
       />
@@ -297,6 +331,11 @@ export default function CreateRegularExamModal({
                   }}
                 />
               </div>
+              {createdCount > 0 && (
+                <p className="mt-3 text-sm text-[var(--color-brand-primary)] font-semibold">
+                  {createdCount}개 시험이 생성되었습니다.
+                </p>
+              )}
             </div>
           )}
 
@@ -319,7 +358,7 @@ export default function CreateRegularExamModal({
                   <div className="text-sm text-[var(--text-muted)]">사용 가능한 템플릿이 없습니다.</div>
                 )}
                 {!templatesLoading && filteredTemplates.length > 0 && (
-                  <div className="grid gap-2">
+                  <div className="grid gap-2" style={{ maxHeight: 240, overflowY: "auto" }}>
                     {filteredTemplates.map((t) => {
                       const active = t.id === selectedTemplateId;
                       const lectures = [...(t.used_lectures ?? [])].sort((a, b) =>
@@ -347,16 +386,11 @@ export default function CreateRegularExamModal({
                               <div className="mt-0.5 text-xs text-[var(--text-muted)]">
                                 {t.subject ? `과목: ${t.subject}` : "과목: -"}
                               </div>
-                              {!!t.last_used_date && (
-                                <div className="mt-0.5 text-xs text-[var(--text-muted)]">
-                                  최근 사용: {t.last_used_date}
-                                </div>
-                              )}
                             </div>
                           </div>
                           {lectures.length > 0 && (
                             <div className="mt-2 flex flex-wrap gap-1.5">
-                              {lectures.slice(0, 6).map((lec) => (
+                              {lectures.slice(0, 4).map((lec) => (
                                 <span
                                   key={lec.lecture_id}
                                   className="ds-badge"
@@ -372,8 +406,8 @@ export default function CreateRegularExamModal({
                                   {(lec.chip_label ? `${lec.chip_label} ` : "") + lec.lecture_title}
                                 </span>
                               ))}
-                              {lectures.length > 6 && (
-                                <span className="ds-badge">+{lectures.length - 6}</span>
+                              {lectures.length > 4 && (
+                                <span className="ds-badge">+{lectures.length - 4}</span>
                               )}
                             </div>
                           )}
@@ -422,6 +456,7 @@ export default function CreateRegularExamModal({
                       value={maxScore}
                       onChange={(e) => setMaxScore(e.target.value)}
                       placeholder="100"
+                      autoFocus
                     />
                   </div>
                   <div>
@@ -439,27 +474,9 @@ export default function CreateRegularExamModal({
                 </div>
               </div>
 
-              <div className="modal-form-group">
-                <div className="modal-section-label mb-2">대상자 등록</div>
-                <div className="flex items-center gap-3">
-                  <Button
-                    type="button"
-                    intent="secondary"
-                    size="sm"
-                    onClick={handleEnrollAll}
-                    disabled={enrolling || enrolledCount != null}
-                  >
-                    {enrolling
-                      ? "등록 중…"
-                      : enrolledCount != null
-                      ? `${enrolledCount}명 등록 완료`
-                      : "수강생 전체 등록"}
-                  </Button>
-                  {enrolledCount == null && (
-                    <span className="text-xs text-[var(--color-text-muted)]">
-                      이 차시의 모든 수강생을 시험 대상자로 등록합니다
-                    </span>
-                  )}
+              <div className="rounded border border-[var(--color-border-divider)] bg-[color-mix(in_srgb,var(--color-brand-primary)_4%,var(--color-bg-surface))] p-3">
+                <div className="text-xs text-[var(--color-text-muted)]">
+                  대상자 자동 등록됨 (이 차시의 모든 수강생)
                 </div>
               </div>
             </div>
@@ -471,12 +488,22 @@ export default function CreateRegularExamModal({
         right={
           <>
             <Button intent="secondary" size="xl" onClick={onClose} disabled={submitting || savingSetup}>
-              {stage === "setup" ? "건너뛰기" : "취소"}
+              {stage === "setup" ? (createdCount > 0 ? "닫기" : "건너뛰기") : "취소"}
             </Button>
             {stage === "setup" ? (
-              <Button intent="primary" size="xl" onClick={handleSaveSetup} disabled={savingSetup}>
-                {savingSetup ? "저장 중…" : "완료"}
-              </Button>
+              <>
+                <Button
+                  intent="secondary"
+                  size="xl"
+                  onClick={handleSaveAndContinue}
+                  disabled={savingSetup}
+                >
+                  저장 후 계속 추가
+                </Button>
+                <Button intent="primary" size="xl" onClick={handleSaveSetup} disabled={savingSetup}>
+                  {savingSetup ? "저장 중…" : "완료"}
+                </Button>
+              </>
             ) : stage !== "choose" ? (
               <Button intent="primary" size="xl" onClick={handleSubmit} disabled={disabled}>
                 {submitting ? "생성 중…" : "생성"}
