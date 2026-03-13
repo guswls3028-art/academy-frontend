@@ -157,7 +157,7 @@ export default function ClinicTargetSelectModal({
 
       <ModalBody>
         <div
-          className="grid gap-4 min-h-0 overflow-hidden"
+          className="grid gap-4 min-h-0 overflow-hidden ds-split-layout"
           style={{
             gridTemplateColumns: "1fr 220px",
             maxHeight: "min(78vh, 600px)",

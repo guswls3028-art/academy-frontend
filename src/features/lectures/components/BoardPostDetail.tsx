@@ -45,7 +45,7 @@ export default function BoardPostDetail({ lectureId, post, onClose }: Props) {
       <ModalHeader type="inspect" title={post.title} description={headerDesc} />
 
       <ModalBody>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 280px", gap: 16 }}>
+        <div className="ds-split-layout" style={{ display: "grid", gridTemplateColumns: "1fr 280px", gap: 16 }}>
           {/* LEFT */}
           <div
             style={{

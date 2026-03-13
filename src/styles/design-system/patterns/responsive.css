@@ -263,3 +263,59 @@
     max-width: 120px;
   }
 }
+
+/* ========================================
+   10) 폰 전용 오버라이드 (≤639px)
+   — 데스크톱·태블릿에 영향 없음
+   ======================================== */
+
+/* P0: antd 테이블 — 폰에서 min-width 해제 (가로 스크롤 방지) */
+@media (max-width: 639px) {
+  [data-app="admin"] .ant-table {
+    min-width: unset;
+  }
+}
+
+/* P0: 분할 레이아웃 — 폰에서 1열 스택 */
+@media (max-width: 639px) {
+  .ds-split-layout {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* P1: antd 모달 — 폰에서 풀스크린 */
+@media (max-width: 639px) {
+  [data-app="admin"] .ant-modal {
+    top: 0 !important;
+    padding: 0 !important;
+    max-width: 100vw !important;
+    margin: 0 !important;
+  }
+  [data-app="admin"] .ant-modal .ant-modal-content {
+    border-radius: 0 !important;
+    min-height: 100dvh;
+    max-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+  }
+  [data-app="admin"] .ant-modal .ant-modal-body {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* P1: antd 드로어 — 폰에서 풀너비 (40px 여백) */
+@media (max-width: 639px) {
+  [data-app="admin"] .ant-drawer-content-wrapper {
+    max-width: calc(100vw - 40px) !important;
+    min-width: calc(100vw - 40px) !important;
+  }
+}
+
+/* P1: ds-table 헤더 — 폰에서 폰트 축소 */
+@media (max-width: 639px) {
+  [data-app="admin"] .ds-table thead th {
+    font-size: 12px !important;
+  }
+}

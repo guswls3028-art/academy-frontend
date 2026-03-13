@@ -99,6 +99,12 @@ button.ds-status-badge:disabled {
   color: #fff;
 }
 
+/** 틸(teal) — 보강 출결 등 별도 구분용 */
+.ds-status-badge[data-tone="teal"] {
+  background: #14b8a6;
+  color: #fff;
+}
+
 /* ---- 라이브 펄스 도트 (진행 중 상태 표시) ---- */
 @keyframes assess-pulse {
   0%, 100% { opacity: 1; }
