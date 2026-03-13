@@ -430,6 +430,13 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
             </section>
 
             <div className={styles.signupSectionDivider} aria-hidden />
+            <p className={styles.signupLegalNotice}>
+              가입 시{" "}
+              <a href="/terms" target="_blank" rel="noopener noreferrer">이용약관</a>
+              {" "}및{" "}
+              <a href="/privacy" target="_blank" rel="noopener noreferrer">개인정보처리방침</a>
+              에 동의한 것으로 간주합니다.
+            </p>
             {error && <div className={styles.error}>{error}</div>}
             <div className={styles.signupActions}>
               <button type="button" className={styles.signupBtnCancel} onClick={handleClose}>취소</button>

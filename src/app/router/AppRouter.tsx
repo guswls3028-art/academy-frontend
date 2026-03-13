@@ -10,6 +10,7 @@ import { SendMessageModalProvider } from "@/features/messages/context/SendMessag
 
 import TenantRequiredPage from "@/features/auth/pages/TenantRequiredPage";
 import MaintenancePage from "@/features/maintenance/pages/MaintenancePage";
+import { TermsPage, PrivacyPage } from "@/features/legal";
 import useAuth from "@/features/auth/hooks/useAuth";
 import { useProgram } from "@/shared/program";
 
@@ -22,7 +23,7 @@ function MaintenanceGate({ enabled }: { enabled: boolean }) {
   if (!enabled) return <Outlet />;
 
   const p = location.pathname || "";
-  if (p.startsWith("/dev") || p.startsWith("/login") || p.startsWith("/promo") || p.startsWith("/maintenance")) {
+  if (p.startsWith("/dev") || p.startsWith("/login") || p.startsWith("/promo") || p.startsWith("/maintenance") || p.startsWith("/terms") || p.startsWith("/privacy")) {
     return <Outlet />;
   }
 
@@ -95,6 +96,8 @@ export default function AppRouter() {
   return (
     <Routes>
       <Route path="/login/*" element={<AuthRouter />} />
+      <Route path="/terms" element={<TermsPage />} />
+      <Route path="/privacy" element={<PrivacyPage />} />
       <Route
         path="/promo/*"
         element={

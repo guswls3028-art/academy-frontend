@@ -1,7 +1,7 @@
 // PATH: src/features/settings/SettingsLayout.tsx
 // Premium SaaS 설정 레이아웃 — 사이드바 네비게이션 + 콘텐츠 영역
 
-import { NavLink, Outlet } from "react-router-dom";
+import { NavLink, Outlet, Link } from "react-router-dom";
 import { FiUser, FiHome, FiMonitor, FiCreditCard } from "react-icons/fi";
 import styles from "./SettingsLayout.module.css";
 
@@ -37,6 +37,12 @@ export default function SettingsLayout() {
             <span>{label}</span>
           </NavLink>
         ))}
+
+        <div className={styles.sidebarLegal}>
+          <Link to="/terms" target="_blank" className={styles.legalLink}>이용약관</Link>
+          <span className={styles.legalSep}>·</span>
+          <Link to="/privacy" target="_blank" className={styles.legalLink}>개인정보처리방침</Link>
+        </div>
       </nav>
 
       {/* ── Main content ── */}

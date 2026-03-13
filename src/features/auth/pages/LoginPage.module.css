@@ -490,3 +490,50 @@
   color: #EF4444;
   margin-left: 2px;
 }
+
+/* ========== Legal footer (login page) ========== */
+
+.legalFooter {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  font-size: 0.75rem;
+  color: var(--auth-text-muted, #9ca3af);
+}
+
+.legalLink {
+  color: var(--auth-text-muted, #9ca3af);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+.legalLink:hover {
+  color: var(--auth-text, #374151);
+  text-decoration: underline;
+}
+
+.legalSep {
+  color: var(--auth-text-muted, #d1d5db);
+}
+
+/* ========== Legal notice (signup modal) ========== */
+
+.signupLegalNotice {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  line-height: 1.5;
+  text-align: center;
+  margin-top: 12px;
+}
+.signupLegalNotice a {
+  color: #6b7280;
+  text-decoration: underline;
+}
+.signupLegalNotice a:hover {
+  color: #374151;
+}

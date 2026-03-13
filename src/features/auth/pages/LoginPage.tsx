@@ -1,6 +1,6 @@
 // 통합 로그인 페이지 — 테넌트별 테마는 data-tenant + themes/*.css 로 적용
 import { useState } from "react";
-import { useNavigate, useParams, Navigate } from "react-router-dom";
+import { useNavigate, useParams, Navigate, Link } from "react-router-dom";
 import { login } from "@/features/auth/api/auth";
 import useAuth from "@/features/auth/hooks/useAuth";
 import { useDocumentTitle } from "@/shared/hooks/useDocumentTitle";
@@ -156,6 +156,12 @@ export default function LoginPage() {
 
       <SignupModal open={showSignup} onClose={() => setShowSignup(false)} />
       <PasswordResetModal open={showPwReset} onClose={() => setShowPwReset(false)} />
+
+      <footer className={styles.legalFooter}>
+        <Link to="/terms" className={styles.legalLink}>이용약관</Link>
+        <span className={styles.legalSep}>|</span>
+        <Link to="/privacy" className={styles.legalLink}>개인정보처리방침</Link>
+      </footer>
     </div>
   );
 }
