@@ -1,5 +1,5 @@
 // PATH: src/shared/ui/ds/components/StatusToggle.tsx
-import { Button } from "@/shared/ui/ds";
+import Button from "../Button";
 
 export default function StatusToggle({
   active,

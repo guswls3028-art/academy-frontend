@@ -1,6 +1,6 @@
 // PATH: src/shared/ui/ds/components/ActionButton.tsx
-import { Button } from "@/shared/ui/ds";
-import type { ButtonIntent, ButtonSize } from "@/shared/ui/ds/Button";
+import Button from "../Button";
+import type { ButtonIntent, ButtonSize } from "../Button";
 
 type Action =
   | "create"
