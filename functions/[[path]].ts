@@ -19,15 +19,16 @@ function contentTypeForPath(pathname: string): string {
   return "application/octet-stream";
 }
 
-/** 테넌트별 OG 메타 SSOT — index.html inline script와 동일한 값 유지 */
+/** 테넌트별 OG 메타 */
 interface TenantMeta {
   title: string;
   description: string;
-  favicon?: string;  // path (e.g. "/tenants/ymath/favicon.png")
-  image?: string;    // path (e.g. "/tenants/ymath/og-image.png")
+  favicon?: string;
+  image?: string;
 }
 
-const TENANT_META: Record<string, TenantMeta> = {
+/** 하드코딩 폴백 — API 장애 시 사용 */
+const FALLBACK_META: Record<string, TenantMeta> = {
   "tchul.com":          { title: "박철과학",  description: "박철과학 학습 플랫폼 – 학생·선생님 로그인", favicon: "/tenants/tchul/favicon.png", image: "/tenants/tchul/logo-full.png" },
   "www.tchul.com":      { title: "박철과학",  description: "박철과학 학습 플랫폼 – 학생·선생님 로그인", favicon: "/tenants/tchul/favicon.png", image: "/tenants/tchul/logo-full.png" },
   "ymath.co.kr":        { title: "Y_math",     description: "Y_math 학습 플랫폼", favicon: "/tenants/ymath/favicon.png", image: "/tenants/ymath/og-image.png" },
@@ -39,6 +40,35 @@ const TENANT_META: Record<string, TenantMeta> = {
   "sswe.co.kr":         { title: "sswe.co.kr", description: "sswe.co.kr 학습 플랫폼" },
   "www.sswe.co.kr":     { title: "sswe.co.kr", description: "sswe.co.kr 학습 플랫폼" },
 };
+
+const API_BASE = "https://api.hakwonplus.com";
+const OG_CACHE_TTL = 300_000; // 5분
+const ogCache: Record<string, { data: TenantMeta; ts: number }> = {};
+
+/** 백엔드 API에서 테넌트 OG 데이터 가져오기 (5분 캐시) */
+async function fetchOgMeta(host: string): Promise<TenantMeta | null> {
+  const cached = ogCache[host];
+  if (cached && Date.now() - cached.ts < OG_CACHE_TTL) return cached.data;
+
+  try {
+    const res = await fetch(`${API_BASE}/api/v1/core/og-meta/?hostname=${encodeURIComponent(host)}`, {
+      headers: { "Accept": "application/json" },
+      cf: { cacheTtl: 300 } as RequestInitCfProperties,
+    });
+    if (!res.ok) return null;
+    const json = await res.json() as { title?: string; description?: string; image?: string };
+    if (!json.title) return null;
+    const meta: TenantMeta = {
+      title: json.title,
+      description: json.description || `${json.title} 학습 플랫폼`,
+      image: json.image || undefined,
+    };
+    ogCache[host] = { data: meta, ts: Date.now() };
+    return meta;
+  } catch {
+    return null;
+  }
+}
 
 function injectMeta(html: string, meta: TenantMeta, origin: string): string {
   const { title, description, favicon, image } = meta;
@@ -147,8 +177,9 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
   let html = await res.text();
 
-  // 테넌트별 메타 치환
-  const meta = TENANT_META[host];
+  // 테넌트별 메타 치환 — API 우선, 폴백은 하드코딩
+  const apiMeta = await fetchOgMeta(host);
+  const meta = apiMeta || FALLBACK_META[host];
   if (meta) {
     const origin = url.origin;
     html = injectMeta(html, meta, origin);

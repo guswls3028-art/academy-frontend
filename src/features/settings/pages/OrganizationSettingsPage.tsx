@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { FiCheck, FiX, FiLock, FiPlus, FiTrash2 } from "react-icons/fi";
+import { FiCheck, FiX, FiLock, FiPlus, FiTrash2, FiMessageCircle } from "react-icons/fi";
 
 import {
   fetchTenantInfo,
@@ -325,6 +325,265 @@ export default function OrganizationSettingsPage() {
           </>
         )}
       </section>
+
+      {/* ── 카카오톡 미리보기 설정 ── */}
+      <OgPreviewSection tenantData={tenantQ.data} saving={updateMut.isPending} />
     </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  카카오톡 OG 미리보기 설정 섹션                                       */
+/* ------------------------------------------------------------------ */
+
+function OgPreviewSection({
+  tenantData,
+  saving: parentSaving,
+}: {
+  tenantData?: { og_title?: string; og_description?: string; og_image_url?: string; name?: string } | null;
+  saving: boolean;
+}) {
+  const qc = useQueryClient();
+  const [ogTitle, setOgTitle] = useState("");
+  const [ogDescription, setOgDescription] = useState("");
+  const [ogImageUrl, setOgImageUrl] = useState("");
+  const [editing, setEditing] = useState(false);
+
+  useEffect(() => {
+    if (tenantData) {
+      setOgTitle(tenantData.og_title || "");
+      setOgDescription(tenantData.og_description || "");
+      setOgImageUrl(tenantData.og_image_url || "");
+    }
+  }, [tenantData]);
+
+  const saveMut = useMutation({
+    mutationFn: () =>
+      updateTenantInfo({
+        og_title: ogTitle.trim(),
+        og_description: ogDescription.trim(),
+        og_image_url: ogImageUrl.trim(),
+      }),
+    onSuccess: (data) => {
+      qc.setQueryData(["tenant-info"], data);
+      feedback.success("카카오톡 미리보기가 저장되었습니다. 반영까지 최대 5분 소요됩니다.");
+      setEditing(false);
+    },
+    onError: () => feedback.error("저장에 실패했습니다."),
+  });
+
+  const displayTitle = ogTitle || tenantData?.name || "학원명";
+  const displayDesc = ogDescription || `${displayTitle} 학습 플랫폼`;
+  const isSaving = saveMut.isPending || parentSaving;
+
+  return (
+    <>
+      <div className={s.sectionHeader} style={{ marginTop: 32 }}>
+        <h2 className={s.sectionTitle}>
+          <FiMessageCircle size={16} style={{ marginRight: 6, verticalAlign: -2 }} />
+          카카오톡 미리보기
+        </h2>
+        <p className={s.sectionDescription}>
+          카카오톡에서 학원 링크를 공유할 때 표시되는 제목, 설명, 이미지를 설정합니다.
+        </p>
+      </div>
+
+      <section className={s.section}>
+        {/* 미리보기 카드 */}
+        <div
+          style={{
+            display: "flex",
+            gap: 20,
+            alignItems: "flex-start",
+            flexWrap: "wrap",
+          }}
+        >
+          {/* 카카오톡 스타일 미리보기 */}
+          <div
+            style={{
+              width: 280,
+              border: "1px solid var(--color-border-divider)",
+              borderRadius: 12,
+              overflow: "hidden",
+              background: "var(--color-bg-surface)",
+              flexShrink: 0,
+            }}
+          >
+            {ogImageUrl ? (
+              <div
+                style={{
+                  width: "100%",
+                  height: 140,
+                  background: `url(${ogImageUrl}) center/contain no-repeat var(--color-bg-surface-soft)`,
+                }}
+              />
+            ) : (
+              <div
+                style={{
+                  width: "100%",
+                  height: 140,
+                  background: "var(--color-bg-surface-soft)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: "var(--color-text-muted)",
+                  fontSize: 12,
+                }}
+              >
+                이미지 미설정
+              </div>
+            )}
+            <div style={{ padding: "10px 14px 12px" }}>
+              <div
+                style={{
+                  fontSize: 14,
+                  fontWeight: 700,
+                  color: "var(--color-text-primary)",
+                  marginBottom: 3,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {displayTitle}
+              </div>
+              <div
+                style={{
+                  fontSize: 12,
+                  color: "var(--color-text-muted)",
+                  lineHeight: 1.4,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {displayDesc}
+              </div>
+              <div
+                style={{
+                  fontSize: 11,
+                  color: "var(--color-text-muted)",
+                  marginTop: 4,
+                  opacity: 0.7,
+                }}
+              >
+                {location.hostname}
+              </div>
+            </div>
+          </div>
+
+          {/* 입력 폼 */}
+          <div style={{ flex: 1, minWidth: 260 }}>
+            {editing ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                <div>
+                  <p className={s.fieldLabel}>제목</p>
+                  <input
+                    type="text"
+                    className="ds-input"
+                    value={ogTitle}
+                    onChange={(e) => setOgTitle(e.target.value)}
+                    placeholder="비워두면 학원명 사용"
+                    disabled={isSaving}
+                    maxLength={100}
+                    style={{ width: "100%" }}
+                  />
+                </div>
+                <div>
+                  <p className={s.fieldLabel}>설명</p>
+                  <input
+                    type="text"
+                    className="ds-input"
+                    value={ogDescription}
+                    onChange={(e) => setOgDescription(e.target.value)}
+                    placeholder="비워두면 '학원명 학습 플랫폼' 사용"
+                    disabled={isSaving}
+                    maxLength={300}
+                    style={{ width: "100%" }}
+                  />
+                </div>
+                <div>
+                  <p className={s.fieldLabel}>이미지 URL</p>
+                  <input
+                    type="text"
+                    className="ds-input"
+                    value={ogImageUrl}
+                    onChange={(e) => setOgImageUrl(e.target.value)}
+                    placeholder="/tenants/xxx/logo.png 또는 https://..."
+                    disabled={isSaving}
+                    maxLength={500}
+                    style={{ width: "100%" }}
+                  />
+                  <p style={{ fontSize: 11, color: "var(--color-text-muted)", marginTop: 4 }}>
+                    /tenants/ 로 시작하면 사이트 내 이미지, https:// 로 시작하면 외부 이미지
+                  </p>
+                </div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <Button
+                    type="button"
+                    intent="primary"
+                    size="sm"
+                    onClick={() => saveMut.mutate()}
+                    disabled={isSaving}
+                    loading={saveMut.isPending}
+                    leftIcon={saveMut.isPending ? undefined : <FiCheck size={13} />}
+                  >
+                    저장
+                  </Button>
+                  <Button
+                    type="button"
+                    intent="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setEditing(false);
+                      if (tenantData) {
+                        setOgTitle(tenantData.og_title || "");
+                        setOgDescription(tenantData.og_description || "");
+                        setOgImageUrl(tenantData.og_image_url || "");
+                      }
+                    }}
+                    disabled={isSaving}
+                    leftIcon={<FiX size={13} />}
+                  >
+                    취소
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className={s.rows}>
+                <div className={s.row}>
+                  <span className={s.rowLabel}>제목</span>
+                  <span className={ogTitle ? s.rowValue : s.rowValueMuted}>
+                    {ogTitle || "미설정 (학원명 사용)"}
+                  </span>
+                </div>
+                <div className={s.row}>
+                  <span className={s.rowLabel}>설명</span>
+                  <span className={ogDescription ? s.rowValue : s.rowValueMuted}>
+                    {ogDescription || "미설정 (자동 생성)"}
+                  </span>
+                </div>
+                <div className={s.row}>
+                  <span className={s.rowLabel}>이미지</span>
+                  <span className={ogImageUrl ? s.rowValue : s.rowValueMuted}>
+                    {ogImageUrl || "미설정"}
+                  </span>
+                </div>
+                <div style={{ marginTop: 8 }}>
+                  <Button
+                    type="button"
+                    intent="secondary"
+                    size="sm"
+                    onClick={() => setEditing(true)}
+                  >
+                    수정
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+    </>
   );
 }

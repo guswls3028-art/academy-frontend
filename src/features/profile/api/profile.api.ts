@@ -57,6 +57,10 @@ export type TenantInfo = {
   headquarters_phone: string;
   /** 소속 학원 목록 (여러 개 등록 가능). 비어 있으면 기존 name/headquarters_phone 단일 항목 */
   academies: AcademyEntry[];
+  /** 카카오톡/SNS OG 미리보기 */
+  og_title?: string;
+  og_description?: string;
+  og_image_url?: string;
 };
 
 export async function fetchTenantInfo(): Promise<TenantInfo> {
@@ -64,7 +68,7 @@ export async function fetchTenantInfo(): Promise<TenantInfo> {
   return data;
 }
 
-export async function updateTenantInfo(payload: Partial<Pick<TenantInfo, "name" | "phone" | "headquarters_phone">> & { academies?: AcademyEntry[] }): Promise<TenantInfo> {
+export async function updateTenantInfo(payload: Partial<Pick<TenantInfo, "name" | "phone" | "headquarters_phone" | "og_title" | "og_description" | "og_image_url">> & { academies?: AcademyEntry[] }): Promise<TenantInfo> {
   const { data } = await api.patch<TenantInfo>("/core/tenant-info/", payload);
   return data;
 }
