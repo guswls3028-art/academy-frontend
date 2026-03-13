@@ -296,9 +296,9 @@ function Workflow() {
 /* ── Pricing Preview ── */
 function PricingPreview() {
   const plans = [
-    { name: "Lite", desc: "소형 학원 / 초기 도입", price: "55,000", color: "gray" },
-    { name: "Basic", desc: "중형 학원 / 실무 운영", price: "198,000", color: "blue", popular: true },
-    { name: "Premium", desc: "대형 학원 / 프리미엄", price: "300,000", color: "violet" },
+    { name: "Standard", desc: "소형 학원 / 학생 100명 이하", price: "99,000", color: "gray" },
+    { name: "Pro", desc: "중형 학원 / 실무 운영", price: "198,000", color: "blue", popular: true },
+    { name: "Max", desc: "대형 학원 / 프리미엄", price: "300,000", color: "violet" },
   ];
 
   return (
@@ -351,7 +351,7 @@ function PricingPreview() {
 const FAQ_ITEMS = [
   { q: "AI 자동채점은 어떤 문제에 적용되나요?", a: "객관식, OX형, 단답형은 자동 채점됩니다. 서술형은 AI 보조 평가 후 교사 검수 구조를 제공합니다." },
   { q: "기존 영상 플랫폼 없이도 운영 가능한가요?", a: "네. 자체 동영상 플레이어를 기본 제공하여 별도 외부 서비스 없이 운영 가능합니다." },
-  { q: "학원 규모별 요금제는 어떻게 되나요?", a: "Lite, Basic, Premium 3단계로 구성됩니다. 학원 규모와 필요 기능에 따라 선택하세요." },
+  { q: "학원 규모별 요금제는 어떻게 되나요?", a: "Standard, Pro, Max 3단계로 구성됩니다. Standard와 Pro는 동일 기능, 학생 수에 따라 선택하세요." },
   { q: "데모 요청 후 어떤 절차로 진행되나요?", a: "데모 요청 접수 후 담당자가 연락드려 운영 환경에 맞는 시연과 도입 상담을 진행합니다." },
 ];
 

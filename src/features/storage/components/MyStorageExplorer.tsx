@@ -223,7 +223,7 @@ export default function MyStorageExplorer() {
             size="sm"
             onClick={() => !isLocked && setAddChoiceOpen(true)}
             disabled={isLocked}
-            title={isLocked ? "Lite 플랜에서는 인벤토리를 사용할 수 없습니다." : undefined}
+            title={isLocked ? "Standard 플랜에서는 인벤토리를 사용할 수 없습니다." : undefined}
           >
             <FilePlus size={16} style={{ marginRight: 6 }} />
             추가
@@ -339,7 +339,7 @@ export default function MyStorageExplorer() {
               <div
                 className={styles.item + " " + styles.itemAdd + (isLocked ? " " + styles.itemLocked : "")}
                 onClick={() => !isLocked && setAddChoiceOpen(true)}
-                title={isLocked ? "Lite 플랜에서는 사용 불가" : "폴더 또는 파일 추가"}
+                title={isLocked ? "Standard 플랜에서는 사용 불가" : "폴더 또는 파일 추가"}
               >
                 <FilePlus size={32} />
                 <span>추가</span>

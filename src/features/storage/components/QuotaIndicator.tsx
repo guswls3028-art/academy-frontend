@@ -34,16 +34,16 @@ export default function QuotaIndicator({ className }: QuotaIndicatorProps) {
 
   const { usedBytes, limitBytes, plan } = data;
   const pct = limitBytes > 0 ? Math.min(100, (usedBytes / limitBytes) * 100) : 0;
-  const isLite = plan === "standard";
+  const isStandard = plan === "standard";
   const isOver = limitBytes > 0 && usedBytes >= limitBytes;
 
   return (
     <div className={[styles.root, className].filter(Boolean).join(" ")}>
       <span className={styles.label}>전체 테넌트 사용량</span>
       <span className={styles.value}>
-        {formatBytes(usedBytes)} / {isLite ? "—" : formatBytes(limitBytes)}
+        {formatBytes(usedBytes)} / {isStandard ? "—" : formatBytes(limitBytes)}
       </span>
-      {!isLite && limitBytes > 0 && (
+      {!isStandard && limitBytes > 0 && (
         <div className={styles.bar}>
           <div
             className={[styles.barFill, isOver ? styles.barOver : ""].filter(Boolean).join(" ")}
