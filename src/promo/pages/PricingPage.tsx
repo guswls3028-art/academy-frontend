@@ -32,7 +32,7 @@ const PLANS: PlanDef[] = [
   },
   {
     name: "Basic",
-    price: "150,000",
+    price: "198,000",
     target: "중형 학원 / 실무 운영",
     popular: true,
     features: [

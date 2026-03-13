@@ -76,7 +76,12 @@ export function PhoneInput010Blocks({
 
   const handleFirstPaste = useCallback(
     (e: React.ClipboardEvent<HTMLInputElement>) => {
-      const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 8);
+      let pasted = e.clipboardData.getData("text").replace(/\D/g, "");
+      // Strip leading "010" if user pasted full phone number like "01012345678"
+      if (pasted.startsWith("010") && pasted.length >= 11) {
+        pasted = pasted.slice(3);
+      }
+      pasted = pasted.slice(0, 8);
       if (pasted.length > 4) {
         e.preventDefault();
         setRaw(pasted.slice(0, 4), pasted.slice(4, 8));
@@ -88,7 +93,12 @@ export function PhoneInput010Blocks({
 
   const handleLastPaste = useCallback(
     (e: React.ClipboardEvent<HTMLInputElement>) => {
-      const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 8);
+      let pasted = e.clipboardData.getData("text").replace(/\D/g, "");
+      // Strip leading "010" if user pasted full phone number
+      if (pasted.startsWith("010") && pasted.length >= 11) {
+        pasted = pasted.slice(3);
+      }
+      pasted = pasted.slice(0, 8);
       if (pasted.length >= 8) {
         e.preventDefault();
         setRaw(pasted.slice(0, 4), pasted.slice(4, 8));
@@ -100,14 +110,43 @@ export function PhoneInput010Blocks({
     [first4, setRaw]
   );
 
+  const handleFirstKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
+      const el = e.currentTarget;
+      const pos = el.selectionStart ?? 0;
+
+      // ArrowRight at end of first field → move to second field
+      if (e.key === "ArrowRight" && pos === first4.length && first4.length > 0) {
+        e.preventDefault();
+        const ref = secondInputRef.current;
+        if (ref) {
+          ref.focus();
+          ref.setSelectionRange(0, 0);
+        }
+      }
+    },
+    [first4]
+  );
+
   const handleSecondKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
-      if (e.key === "Backspace" || e.key === "Delete") {
-        const el = e.currentTarget;
-        const selStart = el.selectionStart ?? 0;
-        const selEnd = el.selectionEnd ?? 0;
-        const hasSelection = selEnd > selStart;
+      const el = e.currentTarget;
+      const selStart = el.selectionStart ?? 0;
+      const selEnd = el.selectionEnd ?? 0;
+      const hasSelection = selEnd > selStart;
 
+      // ArrowLeft at start of second field → move to first field end
+      if (e.key === "ArrowLeft" && selStart === 0 && !hasSelection) {
+        e.preventDefault();
+        const ref = firstInputRef.current;
+        if (ref) {
+          ref.focus();
+          ref.setSelectionRange(ref.value.length, ref.value.length);
+        }
+        return;
+      }
+
+      if (e.key === "Backspace" || e.key === "Delete") {
         if (hasSelection) {
           // 선택 영역이 있으면 브라우저 기본 동작으로 선택 영역 삭제
           return;
@@ -178,6 +217,7 @@ export function PhoneInput010Blocks({
         placeholder="0000"
         value={first4}
         onChange={handleFirstChange}
+        onKeyDown={handleFirstKeyDown}
         onPaste={handleFirstPaste}
         disabled={disabled}
         className={inputClassName}

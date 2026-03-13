@@ -247,6 +247,8 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
       logRetryAttempt(videoId);
       await api.post(`/media/videos/${task.meta.jobId}/retry/`);
       asyncStatusStore.retryTask(task.id);
+      queryClient.invalidateQueries({ queryKey: ["video-stats", videoId] });
+      queryClient.invalidateQueries({ queryKey: ["session-videos"] });
       feedback.success("재시도 요청을 보냈습니다.");
     } catch (e: unknown) {
       const msg = getRetryErrorMessage(e);

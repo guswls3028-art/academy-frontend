@@ -18,6 +18,8 @@ function normalizeExam(raw: any): Exam {
     max_attempts: Number(raw.max_attempts ?? 0),
 
     pass_score: Number(raw.pass_score ?? 0),
+    max_score: Number(raw.max_score ?? 100),
+    display_order: Number(raw.display_order ?? 0),
 
     open_at: raw.open_at ?? null,
     close_at: raw.close_at ?? null,
@@ -55,6 +57,8 @@ export async function updateAdminExam(
     | "allow_retake"
     | "max_attempts"
     | "pass_score"
+    | "max_score"
+    | "display_order"
     | "open_at"
     | "close_at"
   >>

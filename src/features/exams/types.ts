@@ -30,6 +30,8 @@ export type Exam = {
   max_attempts: number;
 
   pass_score: number;
+  max_score: number;
+  display_order: number;
 
   open_at: string | null;
   close_at: string | null;

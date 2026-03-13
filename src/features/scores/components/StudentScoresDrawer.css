@@ -1,11 +1,96 @@
-/* 성적 탭 — 학생 상세 드로어 (우측 슬라이드) */
+/* 성적 탭 — 학생 상세 드로어 (우측 사이드 패널, non-blocking) */
 
-.student-scores-drawer {
-  max-width: 400px;
-  display: flex;
-  flex-direction: column;
+/* ── Side panel wrapper — sits to the right, does NOT block table ── */
+.student-scores-drawer-side-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 380px;
+  max-width: 90vw;
+  z-index: 40;
+  pointer-events: none; /* allow clicks to pass through to table */
 }
 
+.student-scores-drawer {
+  pointer-events: auto; /* re-enable clicks inside drawer */
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg-surface);
+  border-left: 1px solid var(--color-border-divider);
+  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.08);
+  animation: slideInRight 0.2s ease-out;
+}
+
+@keyframes slideInRight {
+  from { transform: translateX(100%); }
+  to   { transform: translateX(0); }
+}
+
+/* ── Close button ── */
+.student-scores-drawer__close {
+  position: absolute;
+  top: var(--space-3);
+  right: var(--space-3);
+  z-index: 2;
+}
+
+/* ── Header ── */
+.student-scores-drawer__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-4) var(--space-3);
+  border-bottom: 1px solid var(--color-border-divider);
+  flex-shrink: 0;
+}
+
+.student-scores-drawer__avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--color-brand-primary) 12%, var(--color-bg-surface));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  color: var(--color-brand-primary);
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.student-scores-drawer__header-info {
+  min-width: 0;
+  flex: 1;
+}
+
+.student-scores-drawer__header-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin: 0;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.student-scores-drawer__header-id {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  font-weight: 500;
+}
+
+/* ── Body (scrollable) ── */
+.student-scores-drawer__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-4);
+}
+
+/* ── Sections ── */
 .student-scores-drawer__section {
   margin-bottom: var(--space-5);
 }
@@ -222,6 +307,98 @@
 }
 
 .student-scores-drawer__detail-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-brand-primary) 35%, transparent);
+}
+
+/* ── Score percent badge ── */
+.student-scores-drawer__score-percent {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  margin-left: var(--space-1);
+}
+
+.student-scores-drawer__score-percent[data-tone="success"] {
+  color: var(--color-success);
+}
+
+.student-scores-drawer__score-percent[data-tone="danger"] {
+  color: var(--color-error);
+}
+
+/* ── Summary section ── */
+.student-scores-drawer__summary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: color-mix(in srgb, var(--color-brand-primary) 4%, var(--color-bg-surface));
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-md);
+}
+
+.student-scores-drawer__summary-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  font-size: 13px;
+  gap: var(--space-2);
+}
+
+.student-scores-drawer__summary-label {
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  flex-shrink: 0;
+}
+
+.student-scores-drawer__summary-value {
+  font-weight: 600;
+  color: var(--color-text-primary);
+  text-align: right;
+  min-width: 0;
+  word-break: break-word;
+}
+
+/* ── Section count chip ── */
+.student-scores-drawer__section-count {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  margin-left: var(--space-2);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* ── Actions (send button) ── */
+.student-scores-drawer__actions {
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--color-border-divider);
+  margin-top: var(--space-2);
+}
+
+.student-scores-drawer__send-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-brand-primary);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-brand-primary) 8%, transparent);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-brand-primary);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.student-scores-drawer__send-btn:hover {
+  background: color-mix(in srgb, var(--color-brand-primary) 15%, transparent);
+}
+
+.student-scores-drawer__send-btn:focus-visible {
   outline: none;
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-brand-primary) 35%, transparent);
 }

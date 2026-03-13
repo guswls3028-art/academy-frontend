@@ -1,16 +1,18 @@
 // PATH: src/features/homework/components/CreateHomeworkModal.tsx
 // ------------------------------------------------------------
-// CreateHomeworkModal — 시험 CreateRegularExamModal과 동일: 신규 / 불러오기(템플릿)
+// 과제 생성 모달 — 제목 → 생성 → 설정(커트라인/대상자) 한 번에
 // ------------------------------------------------------------
 
 import { useEffect, useState, useMemo } from "react";
-import { useMutation } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter, MODAL_WIDTH } from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
 import { SessionBlockView } from "@/shared/ui/session-block";
-import { createHomework } from "../api/homeworks";
 import { fetchHomeworkTemplatesWithUsage, type HomeworkTemplateWithUsage } from "../api/adminHomework";
+import { fetchHomeworkPolicyBySession, patchHomeworkPolicy } from "../api/homeworkPolicy";
+import { fetchSessionEnrollments } from "@/features/exams/api/sessionEnrollments";
+import { putHomeworkAssignments } from "../api/homeworkAssignments";
+import { feedback } from "@/shared/ui/feedback/feedback";
 
 type Props = {
   open: boolean;
@@ -19,7 +21,7 @@ type Props = {
   onCreated: (newId: number) => void;
 };
 
-type Stage = "choose" | "new" | "import";
+type Stage = "choose" | "new" | "import" | "setup";
 
 export default function CreateHomeworkModal({
   open,
@@ -36,6 +38,15 @@ export default function CreateHomeworkModal({
   const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null);
   const [keyword, setKeyword] = useState("");
 
+  // post-creation setup
+  const [createdHomeworkId, setCreatedHomeworkId] = useState<number | null>(null);
+  const [cutlineValue, setCutlineValue] = useState("80");
+  const [cutlineMode, setCutlineMode] = useState<"PERCENT" | "COUNT">("PERCENT");
+  const [enrolling, setEnrolling] = useState(false);
+  const [enrolledCount, setEnrolledCount] = useState<number | null>(null);
+  const [savingSetup, setSavingSetup] = useState(false);
+  const [policyId, setPolicyId] = useState<number | null>(null);
+
   useEffect(() => {
     if (!open) return;
     setStage("choose");
@@ -46,6 +57,13 @@ export default function CreateHomeworkModal({
     setTemplatesLoading(false);
     setSelectedTemplateId(null);
     setKeyword("");
+    setCreatedHomeworkId(null);
+    setCutlineValue("80");
+    setCutlineMode("PERCENT");
+    setEnrolling(false);
+    setEnrolledCount(null);
+    setSavingSetup(false);
+    setPolicyId(null);
   }, [open]);
 
   useEffect(() => {
@@ -68,6 +86,19 @@ export default function CreateHomeworkModal({
       });
     return () => { cancelled = true; };
   }, [open, stage]);
+
+  // Load existing policy when entering setup
+  useEffect(() => {
+    if (stage !== "setup" || !sessionId) return;
+    let cancelled = false;
+    fetchHomeworkPolicyBySession(sessionId).then((policy) => {
+      if (cancelled || !policy) return;
+      setPolicyId(policy.id);
+      setCutlineMode(policy.cutline_mode);
+      setCutlineValue(String(policy.cutline_value));
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [stage, sessionId]);
 
   const handleSubmit = async () => {
     if (!sessionId) {
@@ -97,12 +128,58 @@ export default function CreateHomeworkModal({
       const res = await api.post("/homeworks/", payload);
       const newId = Number(res.data?.id ?? res.data?.homework_id ?? res.data?.pk);
       if (!Number.isFinite(newId) || newId <= 0) throw new Error("생성 후 ID를 받지 못했습니다.");
+      setCreatedHomeworkId(newId);
       onCreated(newId);
-      onClose();
+      setStage("setup");
     } catch (e: any) {
       setError(e?.response?.data?.detail ?? e?.message ?? "과제 생성 실패.");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleSaveSetup = async () => {
+    if (!policyId) {
+      // No policy to save — just close
+      onClose();
+      return;
+    }
+    setSavingSetup(true);
+    try {
+      const cv = Number(cutlineValue);
+      await patchHomeworkPolicy(policyId, {
+        cutline_mode: cutlineMode,
+        cutline_value: Number.isFinite(cv) && cv >= 0 ? cv : 80,
+      });
+      feedback.success("커트라인이 저장되었습니다.");
+      onClose();
+    } catch (e: any) {
+      setError(e?.response?.data?.detail ?? e?.message ?? "설정 저장 실패");
+    } finally {
+      setSavingSetup(false);
+    }
+  };
+
+  const handleEnrollAll = async () => {
+    if (!createdHomeworkId || !sessionId) return;
+    setEnrolling(true);
+    try {
+      const enrollments = await fetchSessionEnrollments(sessionId);
+      const ids = enrollments.map((e) => e.enrollment);
+      if (ids.length === 0) {
+        feedback.error("세션에 등록된 수강생이 없습니다.");
+        return;
+      }
+      await putHomeworkAssignments({
+        homeworkId: createdHomeworkId,
+        enrollment_ids: ids,
+      });
+      setEnrolledCount(ids.length);
+      feedback.success(`수강생 ${ids.length}명이 등록되었습니다.`);
+    } catch (e: any) {
+      feedback.error(e?.response?.data?.detail ?? e?.message ?? "대상자 등록 실패");
+    } finally {
+      setEnrolling(false);
     }
   };
 
@@ -128,6 +205,8 @@ export default function CreateHomeworkModal({
   const headerTitle =
     stage === "choose" ? (
       "과제 생성"
+    ) : stage === "setup" ? (
+      "과제 설정"
     ) : (
       <div className="flex items-center gap-2">
         <button
@@ -148,7 +227,13 @@ export default function CreateHomeworkModal({
       onClose={onClose}
       type="action"
       width={MODAL_WIDTH.default}
-      onEnterConfirm={stage !== "choose" && !disabled ? handleSubmit : undefined}
+      onEnterConfirm={
+        stage === "setup"
+          ? handleSaveSetup
+          : stage !== "choose" && !disabled
+          ? handleSubmit
+          : undefined
+      }
     >
       <ModalHeader
         type="action"
@@ -156,6 +241,8 @@ export default function CreateHomeworkModal({
         description={
           stage === "choose"
             ? "신규 과제를 만들거나, 기존 템플릿을 불러와 이 차시에 적용할 수 있습니다. 다른 강의에서도 사용 가능하며, 여러 강의의 통계를 합산해 볼 수 있습니다."
+            : stage === "setup"
+            ? `"${title}" 과제가 생성되었습니다. 커트라인·대상자를 설정하세요.`
             : undefined
         }
       />
@@ -168,6 +255,7 @@ export default function CreateHomeworkModal({
             </div>
           )}
 
+          {/* ── Stage: choose ── */}
           {stage === "choose" && (
             <div className="modal-form-group">
               <div className="modal-section-label mb-3">생성 방식</div>
@@ -194,6 +282,7 @@ export default function CreateHomeworkModal({
             </div>
           )}
 
+          {/* ── Stage: import ── */}
           {stage === "import" && (
             <div className="modal-form-group">
               <label className="modal-section-label">템플릿 선택</label>
@@ -242,7 +331,8 @@ export default function CreateHomeworkModal({
             </div>
           )}
 
-          {stage !== "choose" && (
+          {/* ── Stage: new / import → title ── */}
+          {(stage === "new" || stage === "import") && (
             <div className="modal-form-group">
               <label className="modal-section-label">제목 (필수)</label>
               <input
@@ -258,20 +348,90 @@ export default function CreateHomeworkModal({
               )}
             </div>
           )}
+
+          {/* ── Stage: setup (post-creation) ── */}
+          {stage === "setup" && (
+            <div className="space-y-5">
+              <div className="modal-form-group">
+                <div className="modal-section-label mb-2">커트라인</div>
+                <div className="flex items-center gap-4">
+                  <div>
+                    <div className="mb-1 text-xs text-[var(--color-text-muted)]">기준</div>
+                    <select
+                      className="ds-input"
+                      style={{ width: 120 }}
+                      value={cutlineMode}
+                      onChange={(e) => setCutlineMode(e.target.value as "PERCENT" | "COUNT")}
+                    >
+                      <option value="PERCENT">퍼센트 (%)</option>
+                      <option value="COUNT">문항수 (점)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <div className="mb-1 text-xs text-[var(--color-text-muted)]">
+                      {cutlineMode === "PERCENT" ? "커트라인 (%)" : "커트라인 (점)"}
+                    </div>
+                    <input
+                      type="number"
+                      min={0}
+                      className="ds-input"
+                      style={{ width: 120 }}
+                      value={cutlineValue}
+                      onChange={(e) => setCutlineValue(e.target.value)}
+                      placeholder={cutlineMode === "PERCENT" ? "80" : "40"}
+                    />
+                  </div>
+                </div>
+                {!policyId && (
+                  <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+                    과제 정책이 아직 생성되지 않았습니다. 과제 설정에서 커트라인을 조정할 수 있습니다.
+                  </p>
+                )}
+              </div>
+
+              <div className="modal-form-group">
+                <div className="modal-section-label mb-2">대상자 등록</div>
+                <div className="flex items-center gap-3">
+                  <Button
+                    type="button"
+                    intent="secondary"
+                    size="sm"
+                    onClick={handleEnrollAll}
+                    disabled={enrolling || enrolledCount != null}
+                  >
+                    {enrolling
+                      ? "등록 중…"
+                      : enrolledCount != null
+                      ? `${enrolledCount}명 등록 완료`
+                      : "수강생 전체 등록"}
+                  </Button>
+                  {enrolledCount == null && (
+                    <span className="text-xs text-[var(--color-text-muted)]">
+                      이 차시의 모든 수강생을 과제 대상자로 등록합니다
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </ModalBody>
 
       <ModalFooter
         right={
           <>
-            <Button intent="secondary" size="xl" onClick={onClose} disabled={submitting}>
-              취소
+            <Button intent="secondary" size="xl" onClick={onClose} disabled={submitting || savingSetup}>
+              {stage === "setup" ? "건너뛰기" : "취소"}
             </Button>
-            {stage !== "choose" && (
+            {stage === "setup" ? (
+              <Button intent="primary" size="xl" onClick={handleSaveSetup} disabled={savingSetup}>
+                {savingSetup ? "저장 중…" : "완료"}
+              </Button>
+            ) : stage !== "choose" ? (
               <Button intent="primary" size="xl" onClick={handleSubmit} disabled={disabled}>
                 {submitting ? "생성 중…" : "생성"}
               </Button>
-            )}
+            ) : null}
           </>
         }
       />

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { sendPasswordReset } from "@/features/students/api/students";
 import { PhoneInput010Blocks } from "@/shared/ui/PhoneInput010Blocks";
 import styles from "./LoginPage.module.css";
@@ -16,6 +16,18 @@ export default function PasswordResetModal({ open, onClose }: PasswordResetModal
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
   const [success, setSuccess] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        handleClose();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [open, pending]);
 
   function handleClose() {
     if (!pending) {
@@ -120,13 +132,15 @@ export default function PasswordResetModal({ open, onClose }: PasswordResetModal
                   onChange={(e) => setPsNumber(e.target.value)}
                 />
               ) : (
+                <div className={styles.signupPhoneRow}>
                 <PhoneInput010Blocks
                   value={parentPhone}
                   onChange={setParentPhone}
-                  className={styles.phoneBlocksWrap}
-                  inputClassName={styles.input}
+                  blockClassName={styles.signupPhoneBlock}
+                  inputClassName={styles.signupPhoneBlockInput}
                   aria-label="학부모 전화번호"
                 />
+              </div>
               )}
               {error && <div className={styles.error}>{error}</div>}
               <div className={styles.overlayActions}>

@@ -1,16 +1,19 @@
 /**
- * 성적 탭 — 학생 상세 드로어 (우측 슬라이드)
- * 읽기 모드에서 학생 이름 클릭 시 열림
+ * 성적 탭 — 학생 상세 드로어 (우측 사이드 패널, non-blocking)
  * - 학생 프로필 (아바타, 이름, 강의)
- * - 세션 내 모든 시험 결과 요약 (점수, 합불, 제출시각)
+ * - 세션 내 모든 시험/과제 결과 요약 (점수, 퍼센트, 합불)
+ * - 미달 항목 요약
  * - 시험별 재응시(retry) 이력
+ * - 성적 발송 (메시지 모달 연계)
  */
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import type { SessionScoreRow, SessionScoreExamEntry, SessionScoreMeta } from "../api/sessionScores";
 import { fetchAdminExamResultDetail } from "@/features/results/api/adminExamResultDetail";
+import { generateScoreReport } from "../utils/generateScoreReport";
+import { useSendMessageModal } from "@/features/messages/context/SendMessageModalContext";
 import CloseButton from "@/shared/ui/ds/CloseButton";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import "./StudentScoresDrawer.css";
@@ -23,121 +26,218 @@ type Props = {
   onOpenAnswerDetail?: (examId: number, enrollmentId: number, examTitle: string) => void;
 };
 
+function pct(score: number | null | undefined, max: number | null | undefined): string | null {
+  if (score == null || max == null || max === 0) return null;
+  return `${Math.round((score / max) * 100)}%`;
+}
+
 export default function StudentScoresDrawer({ row, meta, onClose, onOpenAnswerDetail }: Props) {
   const [expandedExamId, setExpandedExamId] = useState<number | null>(null);
+  const { openSendMessageModal } = useSendMessageModal();
 
   const toggleExpand = useCallback((examId: number) => {
     setExpandedExamId((prev) => (prev === examId ? null : examId));
   }, []);
 
-  return (
-    <>
-      <div className="ds-overlay-backdrop" onClick={onClose} aria-hidden />
-      <div className="ds-overlay-wrap ds-overlay-wrap--drawer-right">
-        <div
-          className="ds-overlay-panel student-scores-drawer"
-          onClick={(e) => e.stopPropagation()}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="student-scores-drawer-title"
-        >
-          <CloseButton className="ds-overlay-panel__close" onClick={onClose} />
+  // Compute failed items summary
+  const failedItems = useMemo(() => {
+    const items: string[] = [];
+    for (const exam of row.exams ?? []) {
+      if (exam.block.passed === false || exam.block.score == null) items.push(exam.title);
+    }
+    for (const hw of row.homeworks ?? []) {
+      if (hw.block.passed === false || hw.block.score == null) items.push(hw.title);
+    }
+    return items;
+  }, [row]);
 
-          {/* Header */}
-          <header className="ds-overlay-header" style={{ paddingRight: 48 }}>
-            <div className="ds-overlay-header__inner">
-              <div className="ds-overlay-header__left">
-                {/* Avatar */}
-                <div className="ds-overlay-header__avatar-wrap">
-                  <div className="ds-overlay-header__avatar" style={{ width: 56, height: 56, fontSize: "1.5rem" }}>
-                    {(row as any).profile_photo_url ? (
-                      <img src={(row as any).profile_photo_url} alt="" />
-                    ) : (
-                      (row.student_name ?? "?").charAt(0)
+  // Overall stats
+  const stats = useMemo(() => {
+    let totalScore = 0;
+    let totalMax = 0;
+    let count = 0;
+    for (const exam of row.exams ?? []) {
+      if (exam.block.score != null) {
+        totalScore += exam.block.score;
+        const metaExam = meta?.exams?.find((e) => e.exam_id === exam.exam_id);
+        const max = exam.block.max_score ?? metaExam?.max_score ?? 0;
+        totalMax += max;
+        count++;
+      }
+    }
+    for (const hw of row.homeworks ?? []) {
+      if (hw.block.score != null) {
+        totalScore += hw.block.score;
+        totalMax += hw.block.max_score ?? 0;
+        count++;
+      }
+    }
+    return { totalScore, totalMax, count, pct: totalMax > 0 ? Math.round((totalScore / totalMax) * 100) : null };
+  }, [row, meta]);
+
+  const handleSendScoreReport = useCallback(() => {
+    const body = generateScoreReport(row, meta);
+    openSendMessageModal({
+      studentIds: row.student_id != null ? [row.student_id] : [],
+      recipientLabel: `${row.student_name} 성적 발송`,
+      blockCategory: "grades",
+      initialBody: body,
+    });
+  }, [row, meta, openSendMessageModal]);
+
+  return (
+    <div className="student-scores-drawer-side-panel">
+      <div
+        className="student-scores-drawer"
+        role="complementary"
+        aria-labelledby="student-scores-drawer-title"
+      >
+        <CloseButton className="student-scores-drawer__close" onClick={onClose} />
+
+        {/* Header */}
+        <header className="student-scores-drawer__header">
+          <div className="student-scores-drawer__avatar" style={{ width: 40, height: 40, fontSize: "1.1rem" }}>
+            {(row as any).profile_photo_url ? (
+              <img src={(row as any).profile_photo_url} alt="" style={{ width: "100%", height: "100%", borderRadius: "50%", objectFit: "cover" }} />
+            ) : (
+              (row.student_name ?? "?").charAt(0)
+            )}
+          </div>
+          <div className="student-scores-drawer__header-info">
+            <h2 id="student-scores-drawer-title" className="student-scores-drawer__header-name">
+              <StudentNameWithLectureChip
+                name={row.student_name ?? ""}
+                lectures={
+                  (row as any).lecture_title
+                    ? [{ lectureName: (row as any).lecture_title, color: (row as any).lecture_color }]
+                    : undefined
+                }
+                chipSize={12}
+              />
+            </h2>
+            <span className="student-scores-drawer__header-id">ID {row.enrollment_id}</span>
+          </div>
+        </header>
+
+        {/* Body */}
+        <div className="student-scores-drawer__body">
+          {/* ── Overall summary ── */}
+          {stats.count > 0 && (
+            <section className="student-scores-drawer__section">
+              <h3 className="student-scores-drawer__section-title">종합</h3>
+              <div className="student-scores-drawer__summary">
+                <div className="student-scores-drawer__summary-row">
+                  <span className="student-scores-drawer__summary-label">총점</span>
+                  <span className="student-scores-drawer__summary-value">
+                    {stats.totalScore}
+                    {stats.totalMax > 0 && <span className="student-scores-drawer__max-score"> / {stats.totalMax}</span>}
+                    {stats.pct != null && (
+                      <PercentBadge value={stats.pct} />
                     )}
-                  </div>
+                  </span>
                 </div>
-                <div className="ds-overlay-header__title-block">
-                  <h1 id="student-scores-drawer-title" className="ds-overlay-header__title" style={{ fontSize: 18 }}>
-                    <StudentNameWithLectureChip
-                      name={row.student_name ?? ""}
-                      lectures={
-                        (row as any).lecture_title
-                          ? [{ lectureName: (row as any).lecture_title, color: (row as any).lecture_color }]
-                          : undefined
-                      }
-                      chipSize={14}
-                    />
-                  </h1>
-                  <div className="ds-overlay-header__pills">
-                    <span className="ds-badge ds-overlay-header__badge-id">
-                      ID {row.enrollment_id}
+                {failedItems.length > 0 && (
+                  <div className="student-scores-drawer__summary-row">
+                    <span className="student-scores-drawer__summary-label">미달 항목</span>
+                    <span className="student-scores-drawer__summary-value" style={{ color: "var(--color-error)" }}>
+                      {failedItems.join(", ")}
                     </span>
                   </div>
-                </div>
+                )}
+                {row.clinic_required && (
+                  <div className="student-scores-drawer__summary-row">
+                    <span className="student-scores-drawer__summary-label">판정</span>
+                    <span className="student-scores-drawer__summary-value" style={{ color: "var(--color-error)", fontWeight: 700 }}>
+                      클리닉 대상
+                    </span>
+                  </div>
+                )}
               </div>
+            </section>
+          )}
+
+          {/* ── Exam results ── */}
+          {row.exams && row.exams.length > 0 ? (
+            <section className="student-scores-drawer__section">
+              <h3 className="student-scores-drawer__section-title">
+                시험 결과
+                <span className="student-scores-drawer__section-count">{row.exams.length}건</span>
+              </h3>
+              <ul className="student-scores-drawer__exam-list">
+                {row.exams.map((exam) => (
+                  <ExamResultCard
+                    key={exam.exam_id}
+                    exam={exam}
+                    meta={meta}
+                    enrollmentId={row.enrollment_id}
+                    expanded={expandedExamId === exam.exam_id}
+                    onToggle={() => toggleExpand(exam.exam_id)}
+                    onOpenDetail={
+                      onOpenAnswerDetail
+                        ? () => onOpenAnswerDetail(exam.exam_id, row.enrollment_id, exam.title)
+                        : undefined
+                    }
+                  />
+                ))}
+              </ul>
+            </section>
+          ) : (
+            <div className="student-scores-drawer__empty">
+              배정된 시험이 없습니다.
             </div>
-          </header>
+          )}
 
-          {/* Body */}
-          <div className="ds-overlay-body" style={{ overflow: "auto", flex: 1, minHeight: 0 }}>
-            {/* Exam results */}
-            {row.exams && row.exams.length > 0 ? (
-              <section className="student-scores-drawer__section">
-                <h3 className="student-scores-drawer__section-title">시험 결과</h3>
-                <ul className="student-scores-drawer__exam-list">
-                  {row.exams.map((exam) => (
-                    <ExamResultCard
-                      key={exam.exam_id}
-                      exam={exam}
-                      enrollmentId={row.enrollment_id}
-                      expanded={expandedExamId === exam.exam_id}
-                      onToggle={() => toggleExpand(exam.exam_id)}
-                      onOpenDetail={
-                        onOpenAnswerDetail
-                          ? () => onOpenAnswerDetail(exam.exam_id, row.enrollment_id, exam.title)
-                          : undefined
-                      }
-                    />
-                  ))}
-                </ul>
-              </section>
-            ) : (
-              <div className="student-scores-drawer__empty">
-                배정된 시험이 없습니다.
-              </div>
-            )}
+          {/* ── Homework results ── */}
+          {row.homeworks && row.homeworks.length > 0 && (
+            <section className="student-scores-drawer__section">
+              <h3 className="student-scores-drawer__section-title">
+                과제 결과
+                <span className="student-scores-drawer__section-count">{row.homeworks.length}건</span>
+              </h3>
+              <ul className="student-scores-drawer__hw-list">
+                {row.homeworks.map((hw) => (
+                  <li key={hw.homework_id} className="student-scores-drawer__hw-card">
+                    <div className="student-scores-drawer__hw-header">
+                      <span className="student-scores-drawer__hw-title">{hw.title}</span>
+                      <PassBadge passed={hw.block.passed} />
+                    </div>
+                    <div className="student-scores-drawer__hw-score">
+                      {hw.block.score != null ? (
+                        <span>
+                          {hw.block.score}
+                          {hw.block.max_score != null && <span className="student-scores-drawer__max-score"> / {hw.block.max_score}</span>}
+                          {(() => {
+                            const p = pct(hw.block.score, hw.block.max_score);
+                            return p ? <PercentBadge value={parseInt(p)} passed={hw.block.passed} /> : null;
+                          })()}
+                        </span>
+                      ) : (
+                        <span className="student-scores-drawer__no-score">미제출</span>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
 
-            {/* Homework results */}
-            {row.homeworks && row.homeworks.length > 0 && (
-              <section className="student-scores-drawer__section">
-                <h3 className="student-scores-drawer__section-title">과제 결과</h3>
-                <ul className="student-scores-drawer__hw-list">
-                  {row.homeworks.map((hw) => (
-                    <li key={hw.homework_id} className="student-scores-drawer__hw-card">
-                      <div className="student-scores-drawer__hw-header">
-                        <span className="student-scores-drawer__hw-title">{hw.title}</span>
-                        <PassBadge passed={hw.block.passed} />
-                      </div>
-                      <div className="student-scores-drawer__hw-score">
-                        {hw.block.score != null ? (
-                          <span>
-                            {hw.block.score}
-                            {hw.block.max_score != null && <span className="student-scores-drawer__max-score"> / {hw.block.max_score}</span>}
-                          </span>
-                        ) : (
-                          <span className="student-scores-drawer__no-score">미제출</span>
-                        )}
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            )}
+          {/* ── Send score report button ── */}
+          <div className="student-scores-drawer__actions">
+            <button
+              type="button"
+              className="student-scores-drawer__send-btn"
+              onClick={handleSendScoreReport}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M22 2L11 13" />
+                <path d="M22 2L15 22L11 13L2 9L22 2Z" />
+              </svg>
+              성적 발송
+            </button>
           </div>
         </div>
       </div>
-    </>
+    </div>
   );
 }
 
@@ -145,17 +245,23 @@ export default function StudentScoresDrawer({ row, meta, onClose, onOpenAnswerDe
 
 function ExamResultCard({
   exam,
+  meta,
   enrollmentId,
   expanded,
   onToggle,
   onOpenDetail,
 }: {
   exam: SessionScoreExamEntry;
+  meta: SessionScoreMeta | null;
   enrollmentId: number;
   expanded: boolean;
   onToggle: () => void;
   onOpenDetail?: () => void;
 }) {
+  const metaExam = meta?.exams?.find((e) => e.exam_id === exam.exam_id);
+  const maxScore = exam.block.max_score ?? metaExam?.max_score ?? null;
+  const percent = pct(exam.block.score, maxScore);
+
   return (
     <li className="student-scores-drawer__exam-card">
       <div className="student-scores-drawer__exam-header" onClick={onToggle} role="button" tabIndex={0}>
@@ -167,9 +273,10 @@ function ExamResultCard({
           {exam.block.score != null ? (
             <span className="student-scores-drawer__exam-score">
               {exam.block.score}
-              {exam.block.max_score != null && (
-                <span className="student-scores-drawer__max-score"> / {exam.block.max_score}</span>
+              {maxScore != null && (
+                <span className="student-scores-drawer__max-score"> / {maxScore}</span>
               )}
+              {percent && <PercentBadge value={parseInt(percent)} passed={exam.block.passed} />}
             </span>
           ) : (
             <span className="student-scores-drawer__no-score">미응시</span>
@@ -274,7 +381,19 @@ function PassBadge({ passed }: { passed: boolean | null | undefined }) {
       className="ds-scores-pass-fail-badge"
       data-tone={passed ? "success" : "danger"}
     >
-      {passed ? "합격" : "불합"}
+      {passed ? "합" : "불"}
+    </span>
+  );
+}
+
+function PercentBadge({ value, passed }: { value: number; passed?: boolean | null }) {
+  const tone = passed === true ? "success" : passed === false ? "danger" : undefined;
+  return (
+    <span
+      className="student-scores-drawer__score-percent"
+      data-tone={tone}
+    >
+      {value}%
     </span>
   );
 }

@@ -90,7 +90,7 @@ function PassFailText({ passed }: { passed: boolean | null | undefined }) {
       className="ds-scores-pass-fail-badge"
       data-tone={passed ? "success" : "danger"}
     >
-      {passed ? "합격" : "불합"}
+      {passed ? "합" : "불"}
     </span>
   );
 }
@@ -272,6 +272,9 @@ type Props = {
 
   /** 시험 컬럼 헤더에서 OMR 업로드 모달 열기 */
   onOpenOmrModal?: (examId: number, title: string) => void;
+
+  /** 시험/과제 표시 순서 변경 */
+  onReorder?: (type: "exam" | "homework", id: number, direction: "up" | "down") => void;
 };
 
 const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
@@ -298,6 +301,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
   selectedEnrollmentIds = [],
   onSelectionChange,
   onOpenOmrModal,
+  onReorder,
 }: Props, ref) {
   const qc = useQueryClient();
   const homeworkInputRefs = useRef<Record<string, HTMLSpanElement | null>>({});
@@ -668,7 +672,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
           >
             출석
           </ResizableTh>
-          {examOptions.map((ex) => {
+          {examOptions.map((ex, idx) => {
             const examColsList = examColsMap[ex.exam_id] ?? [];
             const colSpan = examColsList.length || 1;
             return (
@@ -679,7 +683,13 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                 className="text-left font-medium text-[var(--color-text-primary)] py-2 px-3 truncate"
                 title={ex.title}
               >
-                <span className="inline-flex items-center gap-1.5">
+                <span className="inline-flex items-center gap-1">
+                  {onReorder && examOptions.length > 1 && (
+                    <span className="inline-flex flex-col" style={{ gap: 0, lineHeight: 0 }}>
+                      <button type="button" disabled={idx === 0} onClick={(e) => { e.stopPropagation(); onReorder("exam", ex.exam_id, "up"); }} className="text-[10px] leading-none text-[var(--color-text-muted)] hover:text-[var(--color-brand-primary)] disabled:opacity-20" aria-label="위로" title="위로">▲</button>
+                      <button type="button" disabled={idx === examOptions.length - 1} onClick={(e) => { e.stopPropagation(); onReorder("exam", ex.exam_id, "down"); }} className="text-[10px] leading-none text-[var(--color-text-muted)] hover:text-[var(--color-brand-primary)] disabled:opacity-20" aria-label="아래로" title="아래로">▼</button>
+                    </span>
+                  )}
                   <span className="ds-status-badge ds-status-badge--1ch" data-tone="primary" aria-label="시험">
                     시
                   </span>
@@ -688,7 +698,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
               </th>
             );
           })}
-          {homeworkOptions.map((hw) => (
+          {homeworkOptions.map((hw, idx) => (
             <th
               key={`head-hw-${hw.homework_id}`}
               scope="col"
@@ -696,7 +706,13 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
               className="text-left font-medium text-[var(--color-text-primary)] py-2 px-3 truncate"
               title={hw.title}
             >
-              <span className="inline-flex items-center gap-1.5">
+              <span className="inline-flex items-center gap-1">
+                {onReorder && homeworkOptions.length > 1 && (
+                  <span className="inline-flex flex-col" style={{ gap: 0, lineHeight: 0 }}>
+                    <button type="button" disabled={idx === 0} onClick={(e) => { e.stopPropagation(); onReorder("homework", hw.homework_id, "up"); }} className="text-[10px] leading-none text-[var(--color-text-muted)] hover:text-[var(--color-brand-primary)] disabled:opacity-20" aria-label="위로" title="위로">▲</button>
+                    <button type="button" disabled={idx === homeworkOptions.length - 1} onClick={(e) => { e.stopPropagation(); onReorder("homework", hw.homework_id, "down"); }} className="text-[10px] leading-none text-[var(--color-text-muted)] hover:text-[var(--color-brand-primary)] disabled:opacity-20" aria-label="아래로" title="아래로">▼</button>
+                  </span>
+                )}
                 <span className="ds-status-badge ds-status-badge--1ch" data-tone="complement" aria-label="과제">
                   과
                 </span>
@@ -1351,7 +1367,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                 >
                   {clinicTarget ? (
                     <span className="ds-scores-pass-fail-badge" data-tone="danger">
-                      불합격
+                      불합
                     </span>
                   ) : (
                     <span className="ds-scores-pass-fail-badge" data-tone="success">

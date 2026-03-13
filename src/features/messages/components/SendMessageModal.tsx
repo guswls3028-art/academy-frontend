@@ -51,6 +51,8 @@ export type SendMessageModalProps = {
   recipientLabel?: string;
   /** 삽입 블록 카테고리. 미지정 시 "default" (모든 블록) */
   blockCategory?: TemplateCategory;
+  /** 본문 사전 입력 (성적 발송 등) */
+  initialBody?: string;
 };
 
 type ContentMode = "free" | "template";
@@ -64,6 +66,7 @@ export default function SendMessageModal({
   initialStaffIds = [],
   recipientLabel,
   blockCategory = "default",
+  initialBody,
 }: SendMessageModalProps) {
   const [contentMode, setContentMode] = useState<ContentMode>("free");
   const [subject, setSubject] = useState("");
@@ -123,7 +126,7 @@ export default function SendMessageModal({
   useEffect(() => {
     if (open) {
       setSubject("");
-      setBody("");
+      setBody(initialBody ?? "");
       setSelectedTemplateId(null);
       setContentMode("free");
       setActiveTab("message");

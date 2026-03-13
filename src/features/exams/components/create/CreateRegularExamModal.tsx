@@ -1,6 +1,6 @@
 // PATH: src/features/exams/components/create/CreateRegularExamModal.tsx
 // ------------------------------------------------------------
-// 시험 생성 모달 — 과제와 동일: 제목만 입력 후 생성. 템플릿·세부 설정은 시험 설정에서.
+// 시험 생성 모달 — 제목 → 생성 → 설정(만점/커트라인/대상자) 한 번에
 // ------------------------------------------------------------
 
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
@@ -9,6 +9,10 @@ import { AdminModal, ModalHeader, ModalBody, ModalFooter, MODAL_WIDTH } from "@/
 import { Button } from "@/shared/ui/ds";
 import { SessionBlockView } from "@/shared/ui/session-block";
 import { fetchTemplatesWithUsage, type TemplateWithUsage } from "@/features/exams/api/templatesWithUsage";
+import { updateAdminExam } from "@/features/exams/api/adminExam";
+import { fetchSessionEnrollments } from "@/features/exams/api/sessionEnrollments";
+import { updateExamEnrollmentRows } from "@/features/exams/api/examEnrollments";
+import { feedback } from "@/shared/ui/feedback/feedback";
 
 type Props = {
   open: boolean;
@@ -18,7 +22,7 @@ type Props = {
   onCreated: (examId: number) => void;
 };
 
-type Stage = "choose" | "new" | "import";
+type Stage = "choose" | "new" | "import" | "setup";
 
 export default function CreateRegularExamModal({
   open,
@@ -35,6 +39,14 @@ export default function CreateRegularExamModal({
   const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null);
   const [keyword, setKeyword] = useState("");
 
+  // post-creation setup
+  const [createdExamId, setCreatedExamId] = useState<number | null>(null);
+  const [maxScore, setMaxScore] = useState("100");
+  const [passScore, setPassScore] = useState("0");
+  const [enrolling, setEnrolling] = useState(false);
+  const [enrolledCount, setEnrolledCount] = useState<number | null>(null);
+  const [savingSetup, setSavingSetup] = useState(false);
+
   useEffect(() => {
     if (!open) return;
     setStage("choose");
@@ -45,6 +57,12 @@ export default function CreateRegularExamModal({
     setTemplatesLoading(false);
     setSelectedTemplateId(null);
     setKeyword("");
+    setCreatedExamId(null);
+    setMaxScore("100");
+    setPassScore("0");
+    setEnrolling(false);
+    setEnrolledCount(null);
+    setSavingSetup(false);
   }, [open]);
 
   useEffect(() => {
@@ -106,12 +124,56 @@ export default function CreateRegularExamModal({
       });
       const newExamId = Number(res.data?.id);
       if (!newExamId) throw new Error("생성 후 ID를 받지 못했습니다.");
+      setCreatedExamId(newExamId);
       onCreated(newExamId);
-      onClose();
+      setStage("setup");
     } catch (e: any) {
       setError(e?.response?.data?.detail ?? e?.message ?? "시험 생성 실패. 입력값을 확인하세요.");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleSaveSetup = async () => {
+    if (!createdExamId) return;
+    setSavingSetup(true);
+    try {
+      const ms = Number(maxScore);
+      const ps = Number(passScore);
+      await updateAdminExam(createdExamId, {
+        max_score: Number.isFinite(ms) && ms > 0 ? ms : 100,
+        pass_score: Number.isFinite(ps) && ps >= 0 ? ps : 0,
+      });
+      feedback.success("만점·커트라인이 저장되었습니다.");
+      onClose();
+    } catch (e: any) {
+      setError(e?.response?.data?.detail ?? e?.message ?? "설정 저장 실패");
+    } finally {
+      setSavingSetup(false);
+    }
+  };
+
+  const handleEnrollAll = async () => {
+    if (!createdExamId || !sessionId) return;
+    setEnrolling(true);
+    try {
+      const enrollments = await fetchSessionEnrollments(sessionId);
+      const ids = enrollments.map((e) => e.enrollment);
+      if (ids.length === 0) {
+        feedback.error("세션에 등록된 수강생이 없습니다.");
+        return;
+      }
+      await updateExamEnrollmentRows({
+        examId: createdExamId,
+        sessionId,
+        enrollment_ids: ids,
+      });
+      setEnrolledCount(ids.length);
+      feedback.success(`수강생 ${ids.length}명이 등록되었습니다.`);
+    } catch (e: any) {
+      feedback.error(e?.response?.data?.detail ?? e?.message ?? "대상자 등록 실패");
+    } finally {
+      setEnrolling(false);
     }
   };
 
@@ -146,6 +208,8 @@ export default function CreateRegularExamModal({
   const headerTitle =
     stage === "choose" ? (
       "시험 생성"
+    ) : stage === "setup" ? (
+      "시험 설정"
     ) : (
       <div className="flex items-center gap-2">
         <button
@@ -170,7 +234,13 @@ export default function CreateRegularExamModal({
       onClose={onClose}
       type="action"
       width={MODAL_WIDTH.default}
-      onEnterConfirm={stage !== "choose" && !disabled ? handleSubmit : undefined}
+      onEnterConfirm={
+        stage === "setup"
+          ? handleSaveSetup
+          : stage !== "choose" && !disabled
+          ? handleSubmit
+          : undefined
+      }
     >
       <ModalHeader
         type="action"
@@ -178,6 +248,8 @@ export default function CreateRegularExamModal({
         description={
           stage === "choose"
             ? "신규 시험을 만들거나, 기존 템플릿을 불러와 이 차시에 적용할 수 있습니다. 템플릿은 다른 강의에서도 사용 가능하며, 여러 강의의 통계를 합산해 볼 수 있습니다."
+            : stage === "setup"
+            ? `"${title}" 시험이 생성되었습니다. 만점·커트라인·대상자를 설정하세요.`
             : undefined
         }
       />
@@ -190,6 +262,7 @@ export default function CreateRegularExamModal({
             </div>
           )}
 
+          {/* ── Stage: choose ── */}
           {stage === "choose" && (
             <div className="modal-form-group">
               <div className="modal-section-label mb-3">생성 방식</div>
@@ -227,10 +300,10 @@ export default function CreateRegularExamModal({
             </div>
           )}
 
+          {/* ── Stage: import ── */}
           {stage === "import" && (
             <div className="modal-form-group">
               <label className="modal-section-label">템플릿 선택</label>
-
               <div className="rounded border border-[var(--border-divider)] bg-[var(--bg-surface)] p-3 space-y-2">
                 <input
                   className="ds-input"
@@ -239,14 +312,12 @@ export default function CreateRegularExamModal({
                   placeholder="제목/과목 검색"
                   aria-label="템플릿 검색"
                 />
-
                 {templatesLoading && (
                   <div className="text-sm text-[var(--text-muted)]">불러오는 중…</div>
                 )}
                 {!templatesLoading && filteredTemplates.length === 0 && (
                   <div className="text-sm text-[var(--text-muted)]">사용 가능한 템플릿이 없습니다.</div>
                 )}
-
                 {!templatesLoading && filteredTemplates.length > 0 && (
                   <div className="grid gap-2">
                     {filteredTemplates.map((t) => {
@@ -283,7 +354,6 @@ export default function CreateRegularExamModal({
                               )}
                             </div>
                           </div>
-
                           {lectures.length > 0 && (
                             <div className="mt-2 flex flex-wrap gap-1.5">
                               {lectures.slice(0, 6).map((lec) => (
@@ -303,9 +373,7 @@ export default function CreateRegularExamModal({
                                 </span>
                               ))}
                               {lectures.length > 6 && (
-                                <span className="ds-badge">
-                                  +{lectures.length - 6}
-                                </span>
+                                <span className="ds-badge">+{lectures.length - 6}</span>
                               )}
                             </div>
                           )}
@@ -318,7 +386,8 @@ export default function CreateRegularExamModal({
             </div>
           )}
 
-          {stage !== "choose" && (
+          {/* ── Stage: new / import → title input ── */}
+          {(stage === "new" || stage === "import") && (
             <div className="modal-form-group">
               <label className="modal-section-label">제목 (필수)</label>
               <input
@@ -336,20 +405,83 @@ export default function CreateRegularExamModal({
               )}
             </div>
           )}
+
+          {/* ── Stage: setup (post-creation) ── */}
+          {stage === "setup" && (
+            <div className="space-y-5">
+              <div className="modal-form-group">
+                <div className="modal-section-label mb-2">만점 / 커트라인</div>
+                <div className="flex items-center gap-4">
+                  <div>
+                    <div className="mb-1 text-xs text-[var(--color-text-muted)]">만점</div>
+                    <input
+                      type="number"
+                      min={1}
+                      className="ds-input"
+                      style={{ width: 120 }}
+                      value={maxScore}
+                      onChange={(e) => setMaxScore(e.target.value)}
+                      placeholder="100"
+                    />
+                  </div>
+                  <div>
+                    <div className="mb-1 text-xs text-[var(--color-text-muted)]">커트라인</div>
+                    <input
+                      type="number"
+                      min={0}
+                      className="ds-input"
+                      style={{ width: 120 }}
+                      value={passScore}
+                      onChange={(e) => setPassScore(e.target.value)}
+                      placeholder="0"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="modal-form-group">
+                <div className="modal-section-label mb-2">대상자 등록</div>
+                <div className="flex items-center gap-3">
+                  <Button
+                    type="button"
+                    intent="secondary"
+                    size="sm"
+                    onClick={handleEnrollAll}
+                    disabled={enrolling || enrolledCount != null}
+                  >
+                    {enrolling
+                      ? "등록 중…"
+                      : enrolledCount != null
+                      ? `${enrolledCount}명 등록 완료`
+                      : "수강생 전체 등록"}
+                  </Button>
+                  {enrolledCount == null && (
+                    <span className="text-xs text-[var(--color-text-muted)]">
+                      이 차시의 모든 수강생을 시험 대상자로 등록합니다
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </ModalBody>
 
       <ModalFooter
         right={
           <>
-            <Button intent="secondary" size="xl" onClick={onClose} disabled={submitting}>
-              취소
+            <Button intent="secondary" size="xl" onClick={onClose} disabled={submitting || savingSetup}>
+              {stage === "setup" ? "건너뛰기" : "취소"}
             </Button>
-            {stage !== "choose" && (
+            {stage === "setup" ? (
+              <Button intent="primary" size="xl" onClick={handleSaveSetup} disabled={savingSetup}>
+                {savingSetup ? "저장 중…" : "완료"}
+              </Button>
+            ) : stage !== "choose" ? (
               <Button intent="primary" size="xl" onClick={handleSubmit} disabled={disabled}>
                 {submitting ? "생성 중…" : "생성"}
               </Button>
-            )}
+            ) : null}
           </>
         }
       />

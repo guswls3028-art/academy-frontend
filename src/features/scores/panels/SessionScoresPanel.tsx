@@ -19,6 +19,7 @@ import StudentResultDrawer from "@/features/results/components/StudentResultDraw
 import { EmptyState } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import AdminOmrBatchUploadBox from "@/features/submissions/components/AdminOmrBatchUploadBox";
+import { reorderSession } from "../api/reorderSession";
 
 type Props = {
   sessionId: number;
@@ -83,6 +84,25 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
     setOpenOmrForExam(null);
     qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
   }, [qc, sessionId]);
+
+  const handleReorder = useCallback(async (type: "exam" | "homework", id: number, direction: "up" | "down") => {
+    if (!meta) return;
+    const list = type === "exam"
+      ? meta.exams.map((e) => e.exam_id)
+      : meta.homeworks.map((h) => h.homework_id);
+    const idx = list.indexOf(id);
+    if (idx < 0) return;
+    const swapIdx = direction === "up" ? idx - 1 : idx + 1;
+    if (swapIdx < 0 || swapIdx >= list.length) return;
+    const newList = [...list];
+    [newList[idx], newList[swapIdx]] = [newList[swapIdx], newList[idx]];
+    try {
+      await reorderSession(sessionId, type === "exam" ? { exams: newList } : { homeworks: newList });
+      void qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
+    } catch {
+      feedback.error("순서 변경 실패");
+    }
+  }, [meta, sessionId, qc]);
 
   useImperativeHandle(ref, () => ({
     flushPendingChanges: () => tableRef.current?.flushPendingChanges?.() ?? Promise.resolve(),
@@ -266,9 +286,6 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
       setSelectedEnrollmentId(null);
       return;
     }
-    // 편집 모드 진입 시 드로어 닫기
-    setDrawerRow(null);
-    setAnswerDetail(null);
     // 편집 모드 진입 시에만 첫 점수 셀 자동 포커스
     const justEntered = !prevEditModeRef.current;
     prevEditModeRef.current = true;
@@ -329,7 +346,7 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
   }
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4" style={drawerRow ? { marginRight: 388 } : undefined}>
       <div
         tabIndex={0}
         className="min-w-0 overflow-x-auto outline-none"
@@ -380,15 +397,19 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
                 }
               }
             : () => {}}
-          onSelectRow={isEditMode ? (r) => setSelectedEnrollmentId(r.enrollment_id) : (r) => setDrawerRow(r)}
+          onSelectRow={(r) => {
+            if (isEditMode) setSelectedEnrollmentId(r.enrollment_id);
+            setDrawerRow(r);
+          }}
           selectedEnrollmentIds={selectedEnrollmentIds}
           onSelectionChange={onSelectionChange}
           onOpenOmrModal={handleOpenOmrModal}
+          onReorder={handleReorder}
         />
       </div>
 
-      {/* 읽기 모드 학생 상세 드로어 */}
-      {drawerRow && !isEditMode && (
+      {/* 학생 상세 드로어 (편집 모드에서도 유지) */}
+      {drawerRow && (
         <StudentScoresDrawer
           row={drawerRow}
           meta={meta}

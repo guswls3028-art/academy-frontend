@@ -7,7 +7,7 @@
 
 import { useState, useMemo, useRef, useEffect } from "react";
 import { useParams } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import SessionScoresPanel, { type SessionScoresPanelHandle } from "@/features/scores/panels/SessionScoresPanel";
 import { useScoreEditDraft } from "@/features/scores/hooks/useScoreEditDraft";
@@ -22,6 +22,11 @@ import { DomainListToolbar } from "@/shared/ui/domain";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter } from "@/shared/ui/modal";
 import { useSendMessageModal } from "@/features/messages/context/SendMessageModalContext";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import CreateRegularExamModal from "@/features/exams/components/create/CreateRegularExamModal";
+import CreateHomeworkModal from "@/features/homework/components/CreateHomeworkModal";
+import { fetchSessionEnrollments } from "@/features/exams/api/sessionEnrollments";
+import { updateExamEnrollmentRows } from "@/features/exams/api/examEnrollments";
+import { putHomeworkAssignments } from "@/features/homework/api/homeworkAssignments";
 import "./SessionScoresEntryPage.css";
 
 type Props = {
@@ -30,8 +35,10 @@ type Props = {
 };
 
 export default function SessionScoresEntryPage(_props: Props) {
-  const { sessionId: sessionIdParam } = useParams<{ lectureId: string; sessionId: string }>();
+  const { sessionId: sessionIdParam, lectureId: lectureIdParam } = useParams<{ lectureId: string; sessionId: string }>();
   const numericSessionId = Number(sessionIdParam);
+  const numericLectureId = Number(lectureIdParam);
+  const qc = useQueryClient();
   const [searchInput, setSearchInput] = useState("");
   const [selectedEnrollmentIds, setSelectedEnrollmentIds] = useState<number[]>([]);
   const [isEditMode, setIsEditMode] = useState(false);
@@ -46,6 +53,71 @@ export default function SessionScoresEntryPage(_props: Props) {
   const [showBulkScoreModal, setShowBulkScoreModal] = useState(false);
   const [bulkScoreValue, setBulkScoreValue] = useState("");
   const [bulkScoreTarget, setBulkScoreTarget] = useState<"exam" | "homework">("exam");
+
+  /* ── 시험/과제 추가 모달 + 대상자 등록 ── */
+  const [showCreateExam, setShowCreateExam] = useState(false);
+  const [showCreateHomework, setShowCreateHomework] = useState(false);
+  const [enrollingAll, setEnrollingAll] = useState(false);
+
+  const invalidateScores = () => {
+    void qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(numericSessionId) });
+    void qc.invalidateQueries({ queryKey: ["admin-session-exams", numericSessionId] });
+    void qc.invalidateQueries({ queryKey: ["session-homeworks", numericSessionId] });
+  };
+
+  const handleExamCreated = (_examId: number) => {
+    invalidateScores();
+    feedback.success("시험이 추가되었습니다.");
+  };
+
+  const handleHomeworkCreated = (_homeworkId: number) => {
+    invalidateScores();
+    feedback.success("과제가 추가되었습니다.");
+  };
+
+  /** 대상자 전체 등록 — 세션 수강생을 모든 시험/과제에 일괄 등록 */
+  const handleEnrollAll = async () => {
+    if (!Number.isFinite(numericSessionId)) return;
+    const meta = data?.meta;
+    if (!meta || ((meta.exams?.length ?? 0) === 0 && (meta.homeworks?.length ?? 0) === 0)) {
+      feedback.error("등록된 시험 또는 과제가 없습니다. 먼저 시험/과제를 추가하세요.");
+      return;
+    }
+    setEnrollingAll(true);
+    try {
+      const enrollments = await fetchSessionEnrollments(numericSessionId);
+      const enrollmentIds = enrollments.map((e) => e.enrollment);
+      if (enrollmentIds.length === 0) {
+        feedback.error("세션에 등록된 수강생이 없습니다.");
+        return;
+      }
+      const promises: Promise<any>[] = [];
+      for (const exam of meta.exams ?? []) {
+        promises.push(
+          updateExamEnrollmentRows({
+            examId: exam.exam_id,
+            sessionId: numericSessionId,
+            enrollment_ids: enrollmentIds,
+          })
+        );
+      }
+      for (const hw of meta.homeworks ?? []) {
+        promises.push(
+          putHomeworkAssignments({
+            homeworkId: hw.homework_id,
+            enrollment_ids: enrollmentIds,
+          })
+        );
+      }
+      await Promise.all(promises);
+      invalidateScores();
+      feedback.success(`수강생 ${enrollmentIds.length}명이 모든 시험/과제에 등록되었습니다.`);
+    } catch (e: any) {
+      feedback.error(e?.response?.data?.detail ?? e?.message ?? "대상자 등록 실패");
+    } finally {
+      setEnrollingAll(false);
+    }
+  };
 
   const sessionIdForDraft = Number.isFinite(numericSessionId) ? numericSessionId : 0;
   const draft = useScoreEditDraft({
@@ -228,26 +300,44 @@ export default function SessionScoresEntryPage(_props: Props) {
   }
 
   const primaryAction = (
-    <Button
-      type="button"
-      intent="primary"
-      size="sm"
-      onClick={() => {
-        if (isEditMode) {
-          void panelRef.current?.flushPendingChanges?.().then(async () => {
-            try {
-              await postScoreDraftCommit(sessionIdForDraft);
-            } finally {
-              setIsEditMode(false);
-            }
-          });
-          return;
-        }
-        setIsEditMode(true);
-      }}
-    >
-      {isEditMode ? "편집 종료" : "편집 모드"}
-    </Button>
+    <div className="flex items-center gap-2">
+      <Button type="button" intent="ghost" size="sm" onClick={() => setShowCreateExam(true)}>
+        + 시험
+      </Button>
+      <Button type="button" intent="ghost" size="sm" onClick={() => setShowCreateHomework(true)}>
+        + 과제
+      </Button>
+      <Button
+        type="button"
+        intent="secondary"
+        size="sm"
+        onClick={handleEnrollAll}
+        disabled={enrollingAll}
+      >
+        {enrollingAll ? "등록 중…" : "대상자 전체 등록"}
+      </Button>
+      <span className="text-[var(--color-border-divider)]">|</span>
+      <Button
+        type="button"
+        intent="primary"
+        size="sm"
+        onClick={() => {
+          if (isEditMode) {
+            void panelRef.current?.flushPendingChanges?.().then(async () => {
+              try {
+                await postScoreDraftCommit(sessionIdForDraft);
+              } finally {
+                setIsEditMode(false);
+              }
+            });
+            return;
+          }
+          setIsEditMode(true);
+        }}
+      >
+        {isEditMode ? "편집 종료" : "편집 모드"}
+      </Button>
+    </div>
   );
 
   return (
@@ -580,6 +670,23 @@ export default function SessionScoresEntryPage(_props: Props) {
           }
         />
       </AdminModal>
+
+      {/* 시험 추가 모달 */}
+      <CreateRegularExamModal
+        open={showCreateExam}
+        onClose={() => setShowCreateExam(false)}
+        sessionId={numericSessionId}
+        lectureId={numericLectureId}
+        onCreated={handleExamCreated}
+      />
+
+      {/* 과제 추가 모달 */}
+      <CreateHomeworkModal
+        open={showCreateHomework}
+        onClose={() => setShowCreateHomework(false)}
+        sessionId={numericSessionId}
+        onCreated={handleHomeworkCreated}
+      />
     </div>
   );
 }

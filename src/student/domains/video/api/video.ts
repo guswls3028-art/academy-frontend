@@ -15,11 +15,17 @@ export type StudentVideoMeLecture = {
   title: string;
   sessions: StudentVideoMeSession[];
   enrollment_id?: number | null;
+  video_count?: number;
+  total_duration?: number;
+  thumbnail_url?: string | null;
 };
 
 export type StudentVideoMePublic = {
   session_id: number;
   lecture_id: number;
+  video_count?: number;
+  total_duration?: number;
+  thumbnail_url?: string | null;
 } | null;
 
 export type StudentVideoMeResponse = {

@@ -71,6 +71,8 @@ export type SessionScoreMeta = {
     exam_id: number;
     title: string;
     pass_score: number;
+    max_score: number;
+    display_order: number;
     /** 주관식 점수 입력 모드용 문항 목록 */
     questions?: { question_id: number; number: number; max_score: number }[];
   }[];
@@ -79,6 +81,7 @@ export type SessionScoreMeta = {
     homework_id: number;
     title: string;
     unit: string | null; // "%", "점" 등 (서버 단일 진실)
+    display_order: number;
   }[];
 };
 

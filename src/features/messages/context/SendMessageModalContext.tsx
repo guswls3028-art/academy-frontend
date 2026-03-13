@@ -12,6 +12,8 @@ export type OpenSendMessageOptions = {
   recipientLabel?: string;
   /** 삽입 블록 카테고리. 미지정 시 "default" (모든 블록) */
   blockCategory?: TemplateCategory;
+  /** 본문 사전 입력 (성적 발송 등) */
+  initialBody?: string;
 };
 
 type ContextValue = {
@@ -35,12 +37,14 @@ export function SendMessageModalProvider({ children }: { children: ReactNode }) 
   const [staffIds, setStaffIds] = useState<number[]>([]);
   const [recipientLabel, setRecipientLabel] = useState<string | undefined>();
   const [blockCategory, setBlockCategory] = useState<TemplateCategory | undefined>();
+  const [initialBody, setInitialBody] = useState<string | undefined>();
 
   const openSendMessageModal = useCallback((options: OpenSendMessageOptions) => {
     setStudentIds(options.studentIds ?? []);
     setStaffIds(options.staffIds ?? []);
     setRecipientLabel(options.recipientLabel);
     setBlockCategory(options.blockCategory);
+    setInitialBody(options.initialBody);
     setOpen(true);
   }, []);
 
@@ -50,6 +54,7 @@ export function SendMessageModalProvider({ children }: { children: ReactNode }) 
     setStaffIds([]);
     setRecipientLabel(undefined);
     setBlockCategory(undefined);
+    setInitialBody(undefined);
   }, []);
 
   return (
@@ -62,6 +67,7 @@ export function SendMessageModalProvider({ children }: { children: ReactNode }) 
         initialStaffIds={staffIds}
         recipientLabel={recipientLabel}
         blockCategory={blockCategory}
+        initialBody={initialBody}
       />
     </SendMessageModalContext.Provider>
   );

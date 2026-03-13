@@ -21,6 +21,8 @@ function normalizeExam(raw: any): Exam {
     max_attempts: Number(raw.max_attempts ?? 0),
 
     pass_score: Number(raw.pass_score ?? 0),
+    max_score: Number(raw.max_score ?? 100),
+    display_order: Number(raw.display_order ?? 0),
 
     open_at: raw.open_at ?? null,
     close_at: raw.close_at ?? null,

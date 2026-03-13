@@ -1,95 +1,46 @@
 /**
  * 영상 홈 — 프리미엄 SaaS 인강 느낌의 코스 카드 UI
  * 전체공개영상(맨위) + 강의별 코스 카드
+ *
+ * 성능 최적화: /student/video/me/ 응답의 video_count, total_duration,
+ * thumbnail_url 요약을 사용하여 추가 API 호출 없이 카드 렌더링.
  */
-import { useMemo } from "react";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
-import { fetchVideoMe, fetchStudentSessionVideos } from "../api/video";
+import { fetchVideoMe } from "../api/video";
+import type { StudentVideoMeLecture, StudentVideoMePublic } from "../api/video";
 import EmptyState from "@/student/shared/ui/layout/EmptyState";
 import CourseCard from "../components/CourseCard";
 
-// 전체공개영상 세션용 코스 카드 데이터 계산
-function usePublicCourseCard(publicSession: { session_id: number } | null) {
-  const { data: videosData } = useQuery({
-    queryKey: ["student-session-videos", publicSession?.session_id, null],
-    queryFn: () => fetchStudentSessionVideos(publicSession!.session_id, null),
-    enabled: !!publicSession?.session_id,
-    staleTime: 60 * 1000,
-  });
-
-  return useMemo(() => {
-    if (!videosData?.items || videosData.items.length === 0) return null;
-    
-    const videos = videosData.items;
-    const totalDuration = videos.reduce((sum, v) => sum + ((v as { duration?: number }).duration ?? 0), 0);
-    const firstVideo = videos[0];
-    
-    return {
-      title: "전체공개영상",
-      thumbnailUrl: firstVideo.thumbnail_url,
-      videoCount: videos.length,
-      totalDuration,
-      progress: 0, // TODO: 진행률 계산
-      isNew: false,
-      isContinue: false,
-      isCompleted: false,
-      to: `/student/video/courses/public`,
-    };
-  }, [videosData]);
+function PublicCourseCard({ pub }: { pub: StudentVideoMePublic }) {
+  return (
+    <CourseCard
+      title="전체공개영상"
+      thumbnailUrl={pub?.thumbnail_url ?? null}
+      videoCount={pub?.video_count ?? 0}
+      totalDuration={pub?.total_duration ?? 0}
+      progress={0}
+      isNew={false}
+      isContinue={false}
+      isCompleted={false}
+      to="/student/video/courses/public"
+    />
+  );
 }
 
-// 강의별 코스 카드 컴포넌트 (hook을 컴포넌트 내부에서 호출)
-function LectureCourseCard({ lecture }: { lecture: { id: number; title: string; sessions: Array<{ id: number }> } }) {
-  const sessionIds = lecture.sessions.map((s) => s.id);
-  const sessionQueries = useQuery({
-    queryKey: ["student-lecture-videos", lecture.id],
-    queryFn: async () => {
-      const results = await Promise.all(
-        sessionIds.map((sessionId) => fetchStudentSessionVideos(sessionId, null))
-      );
-      const allVideos: Array<{ duration?: number; thumbnail_url?: string | null; id: number }> = [];
-      for (const res of results) {
-        allVideos.push(...res.items);
-      }
-      return allVideos;
-    },
-    enabled: sessionIds.length > 0,
-    staleTime: 60 * 1000,
-  });
-
-  const cardData = useMemo(() => {
-    if (!sessionQueries.data || sessionQueries.data.length === 0) return null;
-    
-    const videos = sessionQueries.data;
-    const totalDuration = videos.reduce((sum, v) => sum + (v.duration ?? 0), 0);
-    const firstVideo = videos[0];
-    
-    return {
-      title: lecture.title,
-      thumbnailUrl: firstVideo.thumbnail_url,
-      videoCount: videos.length,
-      totalDuration,
-      progress: 0, // TODO: 진행률 계산
-      isNew: false,
-      isContinue: false,
-      isCompleted: false,
-      to: `/student/video/courses/${lecture.id}`,
-    };
-  }, [lecture, sessionQueries.data]);
-
-  if (!cardData) return null;
+function LectureCourseCard({ lecture }: { lecture: StudentVideoMeLecture }) {
+  if (!lecture.video_count) return null;
 
   return (
     <CourseCard
-      title={cardData.title}
-      thumbnailUrl={cardData.thumbnailUrl}
-      videoCount={cardData.videoCount}
-      totalDuration={cardData.totalDuration}
-      progress={cardData.progress}
-      isNew={cardData.isNew}
-      isContinue={cardData.isContinue}
-      isCompleted={cardData.isCompleted}
-      to={cardData.to}
+      title={lecture.title}
+      thumbnailUrl={lecture.thumbnail_url ?? null}
+      videoCount={lecture.video_count ?? 0}
+      totalDuration={lecture.total_duration ?? 0}
+      progress={0}
+      isNew={false}
+      isContinue={false}
+      isCompleted={false}
+      to={`/student/video/courses/${lecture.id}`}
     />
   );
 }
@@ -102,13 +53,8 @@ export default function VideoHomePage() {
     placeholderData: keepPreviousData,
   });
 
-  // 전체공개영상: 내용물이 있던 없던 항상 카드 표시
-  const publicCard = usePublicCourseCard(videoMe?.public ?? null);
-  // public이 null이어도 전체공개영상 카드는 표시 (내용 없으면 빈 상태)
-  const shouldShowPublicCard = true; // 항상 표시
-
   const hasLectures = (videoMe?.lectures?.length ?? 0) > 0;
-  const hasAny = shouldShowPublicCard || hasLectures;
+  const hasAny = true; // 전체공개영상 카드는 항상 표시
 
   if (isLoading && videoMe == null) {
     return (
@@ -131,7 +77,7 @@ export default function VideoHomePage() {
   }
 
   return (
-    <div className="video-page-content" style={{ 
+    <div className="video-page-content" style={{
       padding: "var(--stu-space-4)",
     }}>
       <h1
@@ -152,20 +98,8 @@ export default function VideoHomePage() {
           gap: 16,
         }}
       >
-        {/* 전체공개영상 코스 카드 - 내용물이 있던 없던 항상 표시 */}
-        {shouldShowPublicCard && (
-          <CourseCard
-            title={publicCard?.title ?? "전체공개영상"}
-            thumbnailUrl={publicCard?.thumbnailUrl ?? null}
-            videoCount={publicCard?.videoCount ?? 0}
-            totalDuration={publicCard?.totalDuration ?? 0}
-            progress={publicCard?.progress ?? 0}
-            isNew={publicCard?.isNew ?? false}
-            isContinue={publicCard?.isContinue ?? false}
-            isCompleted={publicCard?.isCompleted ?? false}
-            to={publicCard?.to ?? "/student/video/courses/public"}
-          />
-        )}
+        {/* 전체공개영상 코스 카드 */}
+        <PublicCourseCard pub={videoMe?.public ?? null} />
 
         {/* 강의별 코스 카드 */}
         {(videoMe?.lectures ?? []).map((lec) => (

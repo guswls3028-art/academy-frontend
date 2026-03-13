@@ -6,7 +6,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader, MODAL_WIDTH } from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
-import { initVideoUpload, uploadFileToR2AndComplete } from "@/features/videos/utils/videoUpload";
+import { initVideoUpload, uploadFilesWithLimit } from "@/features/videos/utils/videoUpload";
 import AttendanceStatusBadge from "@/shared/ui/badges/AttendanceStatusBadge";
 import "./VideoUploadModal.css";
 
@@ -70,6 +70,7 @@ function ChevronRightIcon() {
 
 const SLOT_COUNT = 5;
 const VIDEO_ACCEPT = "video/*";
+const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024 * 1024; // 5 GB
 
 type Props = {
   sessionId: number;
@@ -103,6 +104,16 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
     setIsUploading(false);
   }, [isOpen]);
 
+  // Warn user before closing tab/navigating away during active upload
+  useEffect(() => {
+    if (!isUploading) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [isUploading]);
+
   const filledCount = useMemo(() => files.filter(Boolean).length, [files]);
   const canSubmit = useMemo(
     () => Number.isFinite(sessionId) && sessionId > 0 && filledCount > 0 && baseTitle.trim().length > 0,
@@ -110,6 +121,11 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
   );
 
   const setFileAt = useCallback((index: number, file: File | null) => {
+    if (file && file.size > MAX_FILE_SIZE_BYTES) {
+      const sizeMB = (file.size / 1024 / 1024).toFixed(0);
+      feedback.error(`파일 크기가 너무 큽니다 (${sizeMB}MB). 최대 5GB까지 업로드 가능합니다.`);
+      return;
+    }
     setFiles((prev) => {
       const next = [...prev];
       next[index] = file;
@@ -196,9 +212,8 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
         feedback.error(initErrors.join(" / "));
       }
 
-      const uploadResults = await Promise.allSettled(
-        initResults.map(({ init, file }) => uploadFileToR2AndComplete(init, file))
-      );
+      // 동시 업로드 2개로 제한 — 대역폭 포화 + presigned URL 만료 방지
+      const uploadResults = await uploadFilesWithLimit(initResults, 2);
       const successCount = uploadResults.filter((r) => r.status === "fulfilled").length;
       const r2Errors: string[] = [];
       uploadResults.forEach((r, idx) => {
