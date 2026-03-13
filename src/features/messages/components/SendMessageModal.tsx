@@ -110,11 +110,19 @@ export default function SendMessageModal({
     return modes;
   })();
 
+  // When alimtalk is involved, require an APPROVED template to be selected
+  const needsApprovedTemplate =
+    sendMode === "alimtalk" || sendMode === "both";
+  const selectedTemplate = templates.find((t) => t.id === selectedTemplateId);
+  const hasApprovedTemplate =
+    !!selectedTemplate && selectedTemplate.solapi_status === "APPROVED";
+
   const canSend =
     hasRecipients &&
     body.trim().length > 0 &&
     sendToTargets.length > 0 &&
     messageModes.length > 0 &&
+    (!needsApprovedTemplate || hasApprovedTemplate) &&
     !sending;
 
   const blocks = getBlocksForCategory(blockCategory);
@@ -242,7 +250,7 @@ export default function SendMessageModal({
         ? "직원"
         : sendToTargets.length === 2 ? "학부모·학생" : sendToTargets[0] === "parent" ? "학부모" : "학생";
       const modeLabel =
-        messageModes.length === 2 ? "모두" : messageModes[0] === "sms" ? "메세지" : "알림톡";
+        messageModes.length === 2 ? "모두" : messageModes[0] === "sms" ? "메시지" : "알림톡";
       feedback.success(
         `${sendToLabel} ${modeLabel} 발송 예정 ${totalEnqueued}건입니다.`
       );
@@ -380,9 +388,14 @@ export default function SendMessageModal({
                   </option>
                   <option value="alimtalk">알림톡</option>
                   <option value="sms" disabled={!smsAllowed}>
-                    SMS (메세지){!smsAllowed ? " — SMS 미연동" : ""}
+                    SMS (메시지){!smsAllowed ? " — SMS 미연동" : ""}
                   </option>
                 </select>
+                {needsApprovedTemplate && !hasApprovedTemplate && (
+                  <p className="mt-1 text-xs" style={{ color: "var(--color-status-warning, #d97706)" }}>
+                    알림톡 발송에는 검수 승인된 템플릿이 필요합니다.
+                  </p>
+                )}
               </div>
 
               {/* 수신 대상 */}

@@ -11,6 +11,8 @@ import {
   Stethoscope,
   CreditCard,
   Megaphone,
+  MessageCircle,
+  Users,
   LayoutGrid,
 } from "lucide-react";
 import type { MessageTemplateCategory } from "../api/messages.api";
@@ -30,6 +32,8 @@ const CATEGORY_DEFS: { id: TemplateCategory; icon: React.ReactNode }[] = [
   { id: "clinic", icon: <Stethoscope size={16} aria-hidden /> },
   { id: "payment", icon: <CreditCard size={16} aria-hidden /> },
   { id: "notice", icon: <Megaphone size={16} aria-hidden /> },
+  { id: "community", icon: <MessageCircle size={16} aria-hidden /> },
+  { id: "staff", icon: <Users size={16} aria-hidden /> },
 ];
 
 type TemplateCategoryTreeProps = {

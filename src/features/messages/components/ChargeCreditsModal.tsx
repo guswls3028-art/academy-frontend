@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Input } from "antd";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter } from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
+import { feedback } from "@/shared/ui/feedback/feedback";
 import { useChargeCredits } from "../hooks/useMessagingInfo";
 
 type Props = {
@@ -23,8 +24,12 @@ export default function ChargeCreditsModal({ open, onClose }: Props) {
       await charge(value);
       setAmount("");
       onClose();
-    } catch {
-      // 에러 토스트는 mutation/전역에서 처리 가능
+    } catch (e: unknown) {
+      const msg =
+        e && typeof e === "object" && "response" in e
+          ? (e as { response?: { data?: { detail?: string } } }).response?.data?.detail
+          : null;
+      feedback.error(msg && typeof msg === "string" ? msg : "크레딧 충전에 실패했습니다.");
     }
   };
 

@@ -92,8 +92,8 @@ export const AUTO_SEND_SECTIONS: SectionDef[] = [
     id: "lecture",
     label: TEMPLATE_CATEGORY_LABELS.lecture,
     icon: <BookOpen size={16} aria-hidden />,
-    triggers: ["lecture_session_reminder"],
-    children: [triggerChild("lecture_session_reminder", <Bell size={14} aria-hidden />)],
+    triggers: [],
+    children: [],
   },
   {
     id: "exam",
@@ -133,9 +133,8 @@ export const AUTO_SEND_SECTIONS: SectionDef[] = [
     id: "grades",
     label: TEMPLATE_CATEGORY_LABELS.grades,
     icon: <BarChart2 size={16} aria-hidden />,
-    triggers: ["exam_score_published", "monthly_report_generated"],
+    triggers: ["monthly_report_generated"],
     children: [
-      triggerChild("exam_score_published", <Bell size={14} aria-hidden />),
       triggerChild("monthly_report_generated", <Bell size={14} aria-hidden />),
     ],
   },

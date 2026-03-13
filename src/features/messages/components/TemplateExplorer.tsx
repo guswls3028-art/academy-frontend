@@ -201,6 +201,10 @@ const CATEGORY_DESCRIPTIONS: Record<MessageTemplateCategory, string> = {
     "결제 관련 자동발송에 사용됩니다. 기본 블록을 사용할 수 있습니다.",
   notice:
     "운영공지 자동발송에 사용됩니다. 기본 블록을 사용할 수 있습니다.",
+  community:
+    "커뮤니티(Q&A, 상담) 관련 자동발송에 사용됩니다. 기본 블록을 사용할 수 있습니다.",
+  staff:
+    "직원 관련 자동발송에 사용됩니다. 출결 요약·급여·정산 블록을 사용할 수 있습니다.",
 };
 
 export type ModalOpenState =

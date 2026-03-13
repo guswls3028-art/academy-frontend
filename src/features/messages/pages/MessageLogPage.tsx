@@ -580,12 +580,22 @@ export default function MessageLogPage() {
   const count = data?.count ?? 0;
   const totalPages = Math.max(1, Math.ceil(count / PAGE_SIZE));
 
+  // NOTE: Backend API does not support a `status` query param, so filtering
+  // is client-side on the current page only. This means the displayed count
+  // and pagination reflect the full (unfiltered) dataset. If a server-side
+  // `status` filter is added in the future, pass it via useNotificationLog
+  // params (e.g., { page, page_size, status }) for accurate paginated results.
   const filtered =
     statusFilter === "all"
       ? results
       : results.filter((r) =>
           statusFilter === "success" ? r.success : !r.success
         );
+
+  const filteredCountLabel =
+    statusFilter !== "all" && filtered.length !== results.length
+      ? `${filtered.length}/${results.length}건 (현재 페이지)`
+      : null;
 
   const handleFilterChange = (key: StatusFilter) => {
     setStatusFilter(key);
@@ -629,6 +639,11 @@ export default function MessageLogPage() {
             {!isLoading && count > 0 ? (
               <span style={{ marginLeft: 8, color: "var(--color-text-secondary)" }}>
                 총 {count.toLocaleString()}건
+                {filteredCountLabel && (
+                  <span style={{ marginLeft: 6, fontSize: 12, color: "var(--color-text-muted)" }}>
+                    ({filteredCountLabel})
+                  </span>
+                )}
               </span>
             ) : null}
           </div>
