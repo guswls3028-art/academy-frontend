@@ -64,7 +64,7 @@ export const REJECTION_MESSAGE: Record<RejectionCode, string> = {
   TOO_DARK: "너무 어둡습니다. 밝은 곳에서 촬영해 주세요.",
   INVALID_FORMAT: "지원하지 않는 파일 형식입니다.",
   OMR_PHOTO_NOT_ALLOWED:
-    "Basic 요금제에서는 스캔된 OMR만 가능합니다. 촬영물은 Premium에서 이용해 주세요.",
+    "Pro 요금제에서는 스캔된 OMR만 가능합니다. 촬영물은 Max에서 이용해 주세요.",
 };
 
 export function getRejectionMessage(code: string | null | undefined): string {
