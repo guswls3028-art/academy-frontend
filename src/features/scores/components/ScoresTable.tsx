@@ -599,7 +599,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                 <td
                   key={`omr-exam-${ex.exam_id}`}
                   colSpan={colSpan}
-                  className="py-1 px-2 align-middle text-left"
+                  className="py-1 px-2 align-middle text-center"
                 >
                   <button
                     type="button"
@@ -668,7 +668,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
             maxWidth={120}
             onWidthChange={setColumnWidth}
             rowSpan={2}
-            className="text-left font-semibold text-[var(--color-text-primary)] py-2.5 px-3"
+            className="text-center font-semibold text-[var(--color-text-primary)] py-2.5 px-3"
           >
             출석
           </ResizableTh>
@@ -680,20 +680,24 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                 key={`head-exam-${ex.exam_id}`}
                 scope="col"
                 colSpan={colSpan}
-                className="text-left font-medium text-[var(--color-text-primary)] py-2 px-3 truncate"
+                className="group text-center font-medium text-[var(--color-text-primary)] py-2 px-3 truncate"
                 title={ex.title}
               >
                 <span className="inline-flex items-center gap-1">
-                  {onReorder && examOptions.length > 1 && (
-                    <span className="inline-flex flex-col" style={{ gap: 0, lineHeight: 0 }}>
-                      <button type="button" disabled={idx === 0} onClick={(e) => { e.stopPropagation(); onReorder("exam", ex.exam_id, "up"); }} className="text-[10px] leading-none text-[var(--color-text-muted)] hover:text-[var(--color-brand-primary)] disabled:opacity-20" aria-label="위로" title="위로">▲</button>
-                      <button type="button" disabled={idx === examOptions.length - 1} onClick={(e) => { e.stopPropagation(); onReorder("exam", ex.exam_id, "down"); }} className="text-[10px] leading-none text-[var(--color-text-muted)] hover:text-[var(--color-brand-primary)] disabled:opacity-20" aria-label="아래로" title="아래로">▼</button>
-                    </span>
-                  )}
                   <span className="ds-status-badge ds-status-badge--1ch" data-tone="primary" aria-label="시험">
                     시
                   </span>
                   <span className="truncate">{ex.title}</span>
+                  {onReorder && examOptions.length > 1 && (
+                    <span className="inline-flex items-center gap-0 ml-auto flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" style={{ opacity: undefined }}>
+                      <button type="button" disabled={idx === 0} onClick={(e) => { e.stopPropagation(); onReorder("exam", ex.exam_id, "up"); }} className="p-0.5 rounded hover:bg-[var(--color-bg-surface-hover)] text-[var(--color-text-muted)] hover:text-[var(--color-brand-primary)] disabled:opacity-20 disabled:pointer-events-none" aria-label="왼쪽으로" title="왼쪽으로">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
+                      </button>
+                      <button type="button" disabled={idx === examOptions.length - 1} onClick={(e) => { e.stopPropagation(); onReorder("exam", ex.exam_id, "down"); }} className="p-0.5 rounded hover:bg-[var(--color-bg-surface-hover)] text-[var(--color-text-muted)] hover:text-[var(--color-brand-primary)] disabled:opacity-20 disabled:pointer-events-none" aria-label="오른쪽으로" title="오른쪽으로">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
+                      </button>
+                    </span>
+                  )}
                 </span>
               </th>
             );
@@ -703,20 +707,24 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
               key={`head-hw-${hw.homework_id}`}
               scope="col"
               colSpan={2}
-              className="text-left font-medium text-[var(--color-text-primary)] py-2 px-3 truncate"
+              className="group text-center font-medium text-[var(--color-text-primary)] py-2 px-3 truncate"
               title={hw.title}
             >
               <span className="inline-flex items-center gap-1">
-                {onReorder && homeworkOptions.length > 1 && (
-                  <span className="inline-flex flex-col" style={{ gap: 0, lineHeight: 0 }}>
-                    <button type="button" disabled={idx === 0} onClick={(e) => { e.stopPropagation(); onReorder("homework", hw.homework_id, "up"); }} className="text-[10px] leading-none text-[var(--color-text-muted)] hover:text-[var(--color-brand-primary)] disabled:opacity-20" aria-label="위로" title="위로">▲</button>
-                    <button type="button" disabled={idx === homeworkOptions.length - 1} onClick={(e) => { e.stopPropagation(); onReorder("homework", hw.homework_id, "down"); }} className="text-[10px] leading-none text-[var(--color-text-muted)] hover:text-[var(--color-brand-primary)] disabled:opacity-20" aria-label="아래로" title="아래로">▼</button>
-                  </span>
-                )}
                 <span className="ds-status-badge ds-status-badge--1ch" data-tone="complement" aria-label="과제">
                   과
                 </span>
                 <span className="truncate">{hw.title}</span>
+                {onReorder && homeworkOptions.length > 1 && (
+                  <span className="inline-flex items-center gap-0 ml-auto flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" style={{ opacity: undefined }}>
+                    <button type="button" disabled={idx === 0} onClick={(e) => { e.stopPropagation(); onReorder("homework", hw.homework_id, "up"); }} className="p-0.5 rounded hover:bg-[var(--color-bg-surface-hover)] text-[var(--color-text-muted)] hover:text-[var(--color-brand-primary)] disabled:opacity-20 disabled:pointer-events-none" aria-label="왼쪽으로" title="왼쪽으로">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
+                    </button>
+                    <button type="button" disabled={idx === homeworkOptions.length - 1} onClick={(e) => { e.stopPropagation(); onReorder("homework", hw.homework_id, "down"); }} className="p-0.5 rounded hover:bg-[var(--color-bg-surface-hover)] text-[var(--color-text-muted)] hover:text-[var(--color-brand-primary)] disabled:opacity-20 disabled:pointer-events-none" aria-label="오른쪽으로" title="오른쪽으로">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
+                    </button>
+                  </span>
+                )}
               </span>
             </th>
           ))}
@@ -727,7 +735,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
             maxWidth={140}
             onWidthChange={setColumnWidth}
             rowSpan={2}
-            className="text-left font-semibold text-[var(--color-text-primary)] py-2.5 px-3"
+            className="text-center font-semibold text-[var(--color-text-primary)] py-2.5 px-3"
           >
             판정
           </ResizableTh>
@@ -738,7 +746,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
             maxWidth={400}
             onWidthChange={setColumnWidth}
             rowSpan={2}
-            className="text-left font-semibold text-[var(--color-text-primary)] py-2.5 px-3 min-w-0"
+            className="text-center font-semibold text-[var(--color-text-primary)] py-2.5 px-3 min-w-0"
           >
             사유
           </ResizableTh>
@@ -754,7 +762,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                   <th
                     key={c.key}
                     scope="col"
-                    className="text-left text-xs font-medium text-[var(--color-text-secondary)] py-2 px-3"
+                    className="text-center text-xs font-medium text-[var(--color-text-secondary)] py-2 px-3"
                     style={{ width: c.sub === "pass" ? COL_PASS : COL_SCORE, minWidth: 48 }}
                   >
                     {c.sub === "total" ? "합산" : c.sub === "objective" ? "객관식" : c.sub === "subjective" ? "주관식" : c.sub === "item" && c.questionId != null
@@ -769,7 +777,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
             <Fragment key={hw.homework_id}>
               <th
                 scope="col"
-                className="text-left text-xs font-medium text-[var(--color-text-secondary)] py-2 px-3"
+                className="text-center text-xs font-medium text-[var(--color-text-secondary)] py-2 px-3"
                 style={{
                   width: columnWidths[`hw_${hw.homework_id}_score`] ?? COL_SCORE,
                   minWidth: 48,
@@ -780,7 +788,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
               </th>
               <th
                 scope="col"
-                className="text-left text-xs font-medium text-[var(--color-text-secondary)] py-2 px-3"
+                className="text-center text-xs font-medium text-[var(--color-text-secondary)] py-2 px-3"
                 style={{
                   width: columnWidths[`hw_${hw.homework_id}_pass`] ?? COL_PASS,
                   minWidth: 48,
@@ -852,7 +860,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                   />
                 </td>
 
-                <td className="ds-scores-cell-attendance text-left py-2.5 px-3 align-middle">
+                <td className="ds-scores-cell-attendance text-center py-2.5 px-3 align-middle">
                   {onAttendanceChange ? (
                     <AttendanceCellPopover
                       currentStatus={attendanceMap[row.enrollment_id]}
@@ -905,7 +913,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
 
                         if (col.sub === "pass") {
                           return (
-                            <td key={col.key} className="min-w-0 text-left align-middle py-2.5 px-3" onClick={(e) => { e.stopPropagation(); onSelectCell(row, "exam", ex.exam_id); }}>
+                            <td key={col.key} className="min-w-0 text-center align-middle py-2.5 px-3" onClick={(e) => { if (isEditMode) e.stopPropagation(); onSelectCell(row, "exam", ex.exam_id); }}>
                               <PassFailText passed={block?.passed} />
                             </td>
                           );
@@ -917,8 +925,8 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                           return (
                             <td
                               key={col.key}
-                              className={`min-w-0 text-left align-middle py-2.5 px-3 ${isSelected ? "outline-2 outline-[var(--color-brand-primary)] outline-offset-[-2px]" : ""} ${isEditMode ? "hover:bg-[var(--color-bg-surface-hover)]" : ""}`}
-                              onClick={(e) => { e.stopPropagation(); onSelectCell(row, "exam", ex.exam_id, "total"); }}
+                              className={`min-w-0 text-center align-middle py-2.5 px-3 ${isSelected ? "outline-2 outline-[var(--color-brand-primary)] outline-offset-[-2px]" : ""} ${isEditMode ? "hover:bg-[var(--color-bg-surface-hover)]" : ""}`}
+                              onClick={(e) => { if (isEditMode) e.stopPropagation(); onSelectCell(row, "exam", ex.exam_id, "total"); }}
                             >
                               {canEdit ? (
                                 <span
@@ -929,7 +937,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                   }}
                                   contentEditable
                                   suppressContentEditableWarning
-                                  className="ds-scores-cell-editable font-medium text-right tabular-nums text-sm outline-none inline-block w-full min-w-0"
+                                  className="ds-scores-cell-editable font-medium text-center tabular-nums text-sm outline-none inline-block w-full min-w-0"
                                   onFocus={(e) => {
                                     const el = e.currentTarget;
                                     examScoreValueOnFocusRef.current[`${row.enrollment_id}-${ex.exam_id}`] = block?.score != null ? String(Math.round(block.score)) : "";
@@ -980,8 +988,8 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                           return (
                             <td
                               key={col.key}
-                              className={`min-w-0 text-left align-middle py-2.5 px-3 ${isSelected ? "outline-2 outline-[var(--color-brand-primary)] outline-offset-[-2px]" : ""} ${isEditMode ? "hover:bg-[var(--color-bg-surface-hover)]" : ""}`}
-                              onClick={(e) => { e.stopPropagation(); onSelectCell(row, "exam", ex.exam_id, "objective"); }}
+                              className={`min-w-0 text-center align-middle py-2.5 px-3 ${isSelected ? "outline-2 outline-[var(--color-brand-primary)] outline-offset-[-2px]" : ""} ${isEditMode ? "hover:bg-[var(--color-bg-surface-hover)]" : ""}`}
+                              onClick={(e) => { if (isEditMode) e.stopPropagation(); onSelectCell(row, "exam", ex.exam_id, "objective"); }}
                             >
                               {canEdit ? (
                                 <span
@@ -992,7 +1000,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                   }}
                                   contentEditable
                                   suppressContentEditableWarning
-                                  className="ds-scores-cell-editable font-medium text-right tabular-nums text-sm outline-none inline-block w-full min-w-0"
+                                  className="ds-scores-cell-editable font-medium text-center tabular-nums text-sm outline-none inline-block w-full min-w-0"
                                   onFocus={(e) => {
                                     const el = e.currentTarget;
                                     examScoreValueOnFocusRef.current[`${row.enrollment_id}-${ex.exam_id}-objective`] = objScore != null ? String(Math.round(objScore)) : "";
@@ -1043,8 +1051,8 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                           return (
                             <td
                               key={col.key}
-                              className={`min-w-0 text-left align-middle py-2.5 px-3 ${isSelected ? "outline-2 outline-[var(--color-brand-primary)] outline-offset-[-2px]" : ""} ${isEditMode ? "hover:bg-[var(--color-bg-surface-hover)]" : ""}`}
-                              onClick={(e) => { e.stopPropagation(); onSelectCell(row, "exam", ex.exam_id, "subjective"); }}
+                              className={`min-w-0 text-center align-middle py-2.5 px-3 ${isSelected ? "outline-2 outline-[var(--color-brand-primary)] outline-offset-[-2px]" : ""} ${isEditMode ? "hover:bg-[var(--color-bg-surface-hover)]" : ""}`}
+                              onClick={(e) => { if (isEditMode) e.stopPropagation(); onSelectCell(row, "exam", ex.exam_id, "subjective"); }}
                             >
                               {canEdit ? (
                                 <span
@@ -1055,7 +1063,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                   }}
                                   contentEditable
                                   suppressContentEditableWarning
-                                  className="ds-scores-cell-editable font-medium text-right tabular-nums text-sm outline-none inline-block w-full min-w-0"
+                                  className="ds-scores-cell-editable font-medium text-center tabular-nums text-sm outline-none inline-block w-full min-w-0"
                                   onFocus={(e) => {
                                     const el = e.currentTarget;
                                     examScoreValueOnFocusRef.current[`${row.enrollment_id}-${ex.exam_id}-subjective`] = subScore != null ? String(Math.round(subScore)) : "";
@@ -1108,8 +1116,8 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                           return (
                             <td
                               key={col.key}
-                              className={`min-w-0 text-left align-middle py-2.5 px-3 ${isSelected ? "outline-2 outline-[var(--color-brand-primary)] outline-offset-[-2px]" : ""}`}
-                              onClick={(e) => { e.stopPropagation(); onSelectCell(row, "exam", ex.exam_id, col.questionId); }}
+                              className={`min-w-0 text-center align-middle py-2.5 px-3 ${isSelected ? "outline-2 outline-[var(--color-brand-primary)] outline-offset-[-2px]" : ""}`}
+                              onClick={(e) => { if (isEditMode) e.stopPropagation(); onSelectCell(row, "exam", ex.exam_id, col.questionId); }}
                             >
                               {canEdit ? (
                                 <ScoreInputCell
@@ -1167,9 +1175,9 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                       ) : (
                       <>
                       <td
-                        className={`min-w-0 text-left align-middle py-2.5 px-3 ${isSelected ? "ds-scores-cell-active" : ""} ${isEditMode ? "hover:bg-[var(--color-bg-surface-hover)]" : ""}`}
+                        className={`min-w-0 text-center align-middle py-2.5 px-3 ${isSelected ? "ds-scores-cell-active" : ""} ${isEditMode ? "hover:bg-[var(--color-bg-surface-hover)]" : ""}`}
                         onClick={(e) => {
-                          e.stopPropagation();
+                          if (isEditMode) e.stopPropagation();
                           onSelectCell(row, "homework", hw.homework_id);
                         }}
                       >
@@ -1347,9 +1355,9 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                         </span>
                       </td>
                       <td
-                        className="min-w-0 text-left align-middle py-2.5 px-3"
+                        className="min-w-0 text-center align-middle py-2.5 px-3"
                         onClick={(e) => {
-                          e.stopPropagation();
+                          if (isEditMode) e.stopPropagation();
                           onSelectCell(row, "homework", hw.homework_id);
                         }}
                       >
@@ -1362,8 +1370,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                 })}
 
                 <td
-                  className="text-left align-middle py-2.5 px-3"
-                  onClick={() => onSelectRow(row)}
+                  className="text-center align-middle py-2.5 px-3"
                 >
                   {clinicTarget ? (
                     <span className="ds-scores-pass-fail-badge" data-tone="danger">
@@ -1377,8 +1384,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                 </td>
 
                 <td
-                  className="text-left align-middle py-2.5 px-3 min-w-0"
-                  onClick={() => onSelectRow(row)}
+                  className="text-center align-middle py-2.5 px-3 min-w-0"
                 >
                   {clinicReason ? (
                     <span className="text-xs font-semibold text-[var(--color-text-secondary)]">

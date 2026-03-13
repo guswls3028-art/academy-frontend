@@ -297,7 +297,7 @@ export default function SendMessageModal({
                 {label}
               </span>
               {!hasRecipients && (
-                <p className="mt-2 text-xs" style={{ color: "var(--color-status-warning)" }}>
+                <p className="mt-2 text-xs" style={{ color: "var(--color-status-warning, #d97706)" }}>
                   수신자를 선택한 뒤 메시지 발송 버튼을 눌러 주세요.
                 </p>
               )}
@@ -415,7 +415,7 @@ export default function SendMessageModal({
                       학생
                     </label>
                     {sendToTargets.length === 0 && (
-                      <span className="text-xs" style={{ color: "var(--color-status-warning)" }}>
+                      <span className="text-xs" style={{ color: "var(--color-status-warning, #d97706)" }}>
                         최소 1개 선택
                       </span>
                     )}

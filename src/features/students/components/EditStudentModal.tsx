@@ -202,8 +202,6 @@ export default function EditStudentModal({
                 disabled={busy}
                 blockClassName="modal-phone-block"
                 inputClassName="modal-phone-block-input"
-                data-required="true"
-                data-invalid={!String(form.studentPhone || "").trim() ? "true" : "false"}
                 aria-label="학생 전화"
               />
             </div>

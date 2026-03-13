@@ -51,12 +51,17 @@ export default function StudentScoresDrawer({ row, meta, onClose, onOpenAnswerDe
     return items;
   }, [row]);
 
-  // Overall stats
+  // Overall stats + completion rates
   const stats = useMemo(() => {
     let totalScore = 0;
     let totalMax = 0;
     let count = 0;
+    let examTotal = 0;
+    let examPassed = 0;
+    let hwTotal = 0;
+    let hwPassed = 0;
     for (const exam of row.exams ?? []) {
+      examTotal++;
       if (exam.block.score != null) {
         totalScore += exam.block.score;
         const metaExam = meta?.exams?.find((e) => e.exam_id === exam.exam_id);
@@ -64,15 +69,25 @@ export default function StudentScoresDrawer({ row, meta, onClose, onOpenAnswerDe
         totalMax += max;
         count++;
       }
+      if (exam.block.passed === true) examPassed++;
     }
     for (const hw of row.homeworks ?? []) {
+      hwTotal++;
       if (hw.block.score != null) {
         totalScore += hw.block.score;
         totalMax += hw.block.max_score ?? 0;
         count++;
       }
+      if (hw.block.passed === true) hwPassed++;
     }
-    return { totalScore, totalMax, count, pct: totalMax > 0 ? Math.round((totalScore / totalMax) * 100) : null };
+    const examPassRate = examTotal > 0 ? Math.round((examPassed / examTotal) * 100) : null;
+    const hwPassRate = hwTotal > 0 ? Math.round((hwPassed / hwTotal) * 100) : null;
+    return {
+      totalScore, totalMax, count,
+      pct: totalMax > 0 ? Math.round((totalScore / totalMax) * 100) : null,
+      examTotal, examPassed, examPassRate,
+      hwTotal, hwPassed, hwPassRate,
+    };
   }, [row, meta]);
 
   const handleSendScoreReport = useCallback(() => {
@@ -121,34 +136,41 @@ export default function StudentScoresDrawer({ row, meta, onClose, onOpenAnswerDe
 
         {/* Body */}
         <div className="student-scores-drawer__body">
+          {/* ── Final verdict banner ── */}
+          <VerdictBanner clinicRequired={!!row.clinic_required} failedCount={failedItems.length} />
+
           {/* ── Overall summary ── */}
           {stats.count > 0 && (
             <section className="student-scores-drawer__section">
               <h3 className="student-scores-drawer__section-title">종합</h3>
               <div className="student-scores-drawer__summary">
-                <div className="student-scores-drawer__summary-row">
-                  <span className="student-scores-drawer__summary-label">총점</span>
-                  <span className="student-scores-drawer__summary-value">
-                    {stats.totalScore}
-                    {stats.totalMax > 0 && <span className="student-scores-drawer__max-score"> / {stats.totalMax}</span>}
-                    {stats.pct != null && (
-                      <PercentBadge value={stats.pct} />
-                    )}
-                  </span>
-                </div>
+                {stats.examPassRate != null && (
+                  <div className="student-scores-drawer__summary-row">
+                    <span className="student-scores-drawer__summary-label">시험 합격률</span>
+                    <span className="student-scores-drawer__summary-value">
+                      <span style={{ color: stats.examPassRate === 100 ? "var(--color-success)" : stats.examPassRate < 50 ? "var(--color-error)" : "var(--color-text-primary)" }}>
+                        {stats.examPassRate}%
+                      </span>
+                      <span className="student-scores-drawer__max-score"> ({stats.examPassed}/{stats.examTotal})</span>
+                    </span>
+                  </div>
+                )}
+                {stats.hwPassRate != null && (
+                  <div className="student-scores-drawer__summary-row">
+                    <span className="student-scores-drawer__summary-label">과제 합격률</span>
+                    <span className="student-scores-drawer__summary-value">
+                      <span style={{ color: stats.hwPassRate === 100 ? "var(--color-success)" : stats.hwPassRate < 50 ? "var(--color-error)" : "var(--color-text-primary)" }}>
+                        {stats.hwPassRate}%
+                      </span>
+                      <span className="student-scores-drawer__max-score"> ({stats.hwPassed}/{stats.hwTotal})</span>
+                    </span>
+                  </div>
+                )}
                 {failedItems.length > 0 && (
                   <div className="student-scores-drawer__summary-row">
                     <span className="student-scores-drawer__summary-label">미달 항목</span>
                     <span className="student-scores-drawer__summary-value" style={{ color: "var(--color-error)" }}>
                       {failedItems.join(", ")}
-                    </span>
-                  </div>
-                )}
-                {row.clinic_required && (
-                  <div className="student-scores-drawer__summary-row">
-                    <span className="student-scores-drawer__summary-label">판정</span>
-                    <span className="student-scores-drawer__summary-value" style={{ color: "var(--color-error)", fontWeight: 700 }}>
-                      클리닉 대상
                     </span>
                   </div>
                 )}
@@ -196,7 +218,7 @@ export default function StudentScoresDrawer({ row, meta, onClose, onOpenAnswerDe
               </h3>
               <ul className="student-scores-drawer__hw-list">
                 {row.homeworks.map((hw) => (
-                  <li key={hw.homework_id} className="student-scores-drawer__hw-card">
+                  <li key={hw.homework_id} className="student-scores-drawer__hw-card" data-passed={hw.block.passed === true ? "true" : hw.block.passed === false ? "false" : undefined}>
                     <div className="student-scores-drawer__hw-header">
                       <span className="student-scores-drawer__hw-title">{hw.title}</span>
                       <PassBadge passed={hw.block.passed} />
@@ -263,7 +285,7 @@ function ExamResultCard({
   const percent = pctNum(exam.block.score, maxScore);
 
   return (
-    <li className="student-scores-drawer__exam-card">
+    <li className="student-scores-drawer__exam-card" data-passed={exam.block.passed === true ? "true" : exam.block.passed === false ? "false" : undefined}>
       <div className="student-scores-drawer__exam-header" onClick={onToggle} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onToggle(); } }} role="button" tabIndex={0}>
         <div className="student-scores-drawer__exam-title-row">
           <span className="student-scores-drawer__exam-title">{exam.title}</span>
@@ -375,14 +397,48 @@ function ExamRetryHistory({
 /* ── Shared sub-components ── */
 
 function PassBadge({ passed }: { passed: boolean | null | undefined }) {
-  if (passed == null) return null;
+  if (passed == null) {
+    return (
+      <span className="student-scores-drawer__pass-badge" data-tone="muted">
+        미정
+      </span>
+    );
+  }
   return (
     <span
-      className="ds-scores-pass-fail-badge"
+      className="student-scores-drawer__pass-badge"
       data-tone={passed ? "success" : "danger"}
     >
-      {passed ? "합" : "불"}
+      {passed ? "합격" : "불합격"}
     </span>
+  );
+}
+
+function VerdictBanner({ clinicRequired, failedCount }: { clinicRequired: boolean; failedCount: number }) {
+  const passed = !clinicRequired && failedCount === 0;
+  const tone = passed ? "success" : "danger";
+  return (
+    <div className="student-scores-drawer__verdict" data-tone={tone}>
+      <span className="student-scores-drawer__verdict-icon" aria-hidden>
+        {passed ? (
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+        ) : (
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="12" />
+            <line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg>
+        )}
+      </span>
+      <span className="student-scores-drawer__verdict-text">
+        <span className="student-scores-drawer__verdict-label">최종 판정</span>
+        <span className="student-scores-drawer__verdict-value">
+          {clinicRequired ? "클리닉 대상" : failedCount > 0 ? `미달 ${failedCount}건` : "전체 합격"}
+        </span>
+      </span>
+    </div>
   );
 }
 

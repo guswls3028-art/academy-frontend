@@ -34,6 +34,15 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
   const [pending, setPending] = useState(false);
   const [success, setSuccess] = useState(false);
 
+  // 모달 열릴 때 폼 초기화
+  useEffect(() => {
+    if (open) {
+      setForm(INITIAL_FORM);
+      setError("");
+      setSuccess(false);
+    }
+  }, [open]);
+
   useEffect(() => {
     if (!open) return;
     const onKeyDown = (e: KeyboardEvent) => {

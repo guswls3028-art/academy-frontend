@@ -3,6 +3,9 @@
  * 표기는 4+4칸이지만 한 개의 8자리 필드처럼 동작:
  * - 연속으로 8자리 입력 시 앞 4자리 채운 뒤 뒤 4자리로 자연스럽게 이어짐
  * - 두 번째 칸에서 백스페이스 시 뒤 4자리 비어 있으면 앞 4자리 마지막 한 글자 삭제 후 첫 칸으로 포커스
+ * - Home/End → 필드 간 이동, Arrow → 필드 간 이동, Ctrl+A → 현재 필드 전체 선택 (브라우저 기본)
+ * - 010 블록 클릭 시 첫째 칸 자동 포커스
+ * - 010 포함 11자리 / 하이픈 포함 전화번호 붙여넣기 지원
  */
 import { useRef, useCallback } from "react";
 
@@ -15,6 +18,7 @@ type Props = {
   inputClassName?: string;
   blockClassName?: string;
   "data-invalid"?: boolean;
+  "data-required"?: string;
   "aria-label"?: string;
 };
 
@@ -27,6 +31,15 @@ function getParts(raw: string): { first4: string; last4: string } {
   const d = String(raw).replace(/\D/g, "");
   const eight = d.startsWith("010") ? d.slice(3, 11) : d.slice(0, 8);
   return { first4: eight.slice(0, 4), last4: eight.slice(4, 8) };
+}
+
+/** 붙여넣기 텍스트에서 8자리 추출 (010/하이픈 자동 제거) */
+function extractDigitsFromPaste(text: string): string {
+  let digits = text.replace(/\D/g, "");
+  if (digits.startsWith("010") && digits.length >= 11) {
+    digits = digits.slice(3);
+  }
+  return digits.slice(0, 8);
 }
 
 export function PhoneInput010Blocks({
@@ -52,6 +65,7 @@ export function PhoneInput010Blocks({
     [onChange]
   );
 
+  /* ── Change handlers ── */
   const handleFirstChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const v = e.target.value.replace(/\D/g, "").slice(0, 8);
@@ -74,18 +88,16 @@ export function PhoneInput010Blocks({
     [first4, setRaw]
   );
 
+  /* ── Paste handlers ── */
   const handleFirstPaste = useCallback(
     (e: React.ClipboardEvent<HTMLInputElement>) => {
-      let pasted = e.clipboardData.getData("text").replace(/\D/g, "");
-      // Strip leading "010" if user pasted full phone number like "01012345678"
-      if (pasted.startsWith("010") && pasted.length >= 11) {
-        pasted = pasted.slice(3);
-      }
-      pasted = pasted.slice(0, 8);
+      const pasted = extractDigitsFromPaste(e.clipboardData.getData("text"));
       if (pasted.length > 4) {
         e.preventDefault();
         setRaw(pasted.slice(0, 4), pasted.slice(4, 8));
         secondInputRef.current?.focus();
+      } else if (pasted.length > 0) {
+        // Let browser handle normally for <=4 digits
       }
     },
     [setRaw]
@@ -93,12 +105,7 @@ export function PhoneInput010Blocks({
 
   const handleLastPaste = useCallback(
     (e: React.ClipboardEvent<HTMLInputElement>) => {
-      let pasted = e.clipboardData.getData("text").replace(/\D/g, "");
-      // Strip leading "010" if user pasted full phone number
-      if (pasted.startsWith("010") && pasted.length >= 11) {
-        pasted = pasted.slice(3);
-      }
-      pasted = pasted.slice(0, 8);
+      const pasted = extractDigitsFromPaste(e.clipboardData.getData("text"));
       if (pasted.length >= 8) {
         e.preventDefault();
         setRaw(pasted.slice(0, 4), pasted.slice(4, 8));
@@ -110,13 +117,25 @@ export function PhoneInput010Blocks({
     [first4, setRaw]
   );
 
+  /* ── KeyDown: first input ── */
   const handleFirstKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
       const el = e.currentTarget;
       const pos = el.selectionStart ?? 0;
 
-      // ArrowRight at end of first field → move to second field
-      if (e.key === "ArrowRight" && pos === first4.length && first4.length > 0) {
+      // End → 둘째 칸 끝으로
+      if (e.key === "End" && !e.shiftKey) {
+        e.preventDefault();
+        const ref = secondInputRef.current;
+        if (ref) {
+          ref.focus();
+          ref.setSelectionRange(ref.value.length, ref.value.length);
+        }
+        return;
+      }
+
+      // ArrowRight at end → 둘째 칸으로
+      if (e.key === "ArrowRight" && pos >= first4.length) {
         e.preventDefault();
         const ref = secondInputRef.current;
         if (ref) {
@@ -128,6 +147,7 @@ export function PhoneInput010Blocks({
     [first4]
   );
 
+  /* ── KeyDown: second input ── */
   const handleSecondKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
       const el = e.currentTarget;
@@ -135,7 +155,20 @@ export function PhoneInput010Blocks({
       const selEnd = el.selectionEnd ?? 0;
       const hasSelection = selEnd > selStart;
 
-      // ArrowLeft at start of second field → move to first field end
+      // Home → 첫째 칸 시작으로
+      if (e.key === "Home" && !e.shiftKey) {
+        e.preventDefault();
+        const ref = firstInputRef.current;
+        if (ref) {
+          ref.focus();
+          ref.setSelectionRange(0, 0);
+        }
+        return;
+      }
+
+      // End at end → 이미 끝이므로 무시 (기본 동작)
+
+      // ArrowLeft at start → 첫째 칸 끝으로
       if (e.key === "ArrowLeft" && selStart === 0 && !hasSelection) {
         e.preventDefault();
         const ref = firstInputRef.current;
@@ -180,6 +213,13 @@ export function PhoneInput010Blocks({
     [first4, last4, setRaw]
   );
 
+  /* ── 010 블록 클릭 → 첫째 칸 포커스 ── */
+  const handleBlockClick = useCallback(() => {
+    if (!disabled) {
+      firstInputRef.current?.focus();
+    }
+  }, [disabled]);
+
   const invalid = !!dataInvalid;
 
   return (
@@ -203,8 +243,10 @@ export function PhoneInput010Blocks({
           border: "1px solid var(--auth-border, var(--color-border-divider, #e0e0e0))",
           borderRadius: "12px",
           userSelect: "none",
+          cursor: disabled ? "default" : "pointer",
         }}
         aria-hidden
+        onClick={handleBlockClick}
       >
         010
       </div>

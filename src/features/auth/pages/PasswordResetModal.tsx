@@ -17,6 +17,18 @@ export default function PasswordResetModal({ open, onClose }: PasswordResetModal
   const [pending, setPending] = useState(false);
   const [success, setSuccess] = useState(false);
 
+  // 모달 열릴 때 폼 초기화
+  useEffect(() => {
+    if (open) {
+      setTarget("student");
+      setName("");
+      setPsNumber("");
+      setParentPhone("");
+      setError("");
+      setSuccess(false);
+    }
+  }, [open]);
+
   useEffect(() => {
     if (!open) return;
     const onKeyDown = (e: KeyboardEvent) => {
@@ -78,7 +90,7 @@ export default function PasswordResetModal({ open, onClose }: PasswordResetModal
   if (!open) return null;
 
   return (
-    <div className={styles.overlay} onClick={handleClose}>
+    <div className={styles.overlay} role="dialog" aria-modal="true" aria-labelledby="pw-reset-title" onClick={handleClose}>
       <div className={styles.overlayCard} onClick={(e) => e.stopPropagation()}>
         <button
           type="button"
@@ -89,7 +101,7 @@ export default function PasswordResetModal({ open, onClose }: PasswordResetModal
         >
           ✕
         </button>
-        <h2 className={styles.overlayTitle} style={{ paddingLeft: 36 }}>비밀번호 찾기</h2>
+        <h2 id="pw-reset-title" className={styles.overlayTitle} style={{ paddingLeft: 36 }}>비밀번호 찾기</h2>
         {success ? (
           <p style={{ color: "var(--auth-accent)", fontWeight: 600 }}>
             임시 비밀번호가 발송되었습니다. 문자를 확인한 뒤 로그인해 주세요.

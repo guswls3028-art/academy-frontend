@@ -120,7 +120,7 @@ export default function ScoreInputCell({
           return;
         }
       }}
-      className="rounded-lg border px-2 py-1.5 text-sm text-right font-medium transition-all"
+      className="rounded-lg border px-2 py-1.5 text-sm text-center font-medium transition-all"
       style={{
         width: 72,
         borderColor: disabled
