@@ -79,6 +79,70 @@ function shouldSkipAuth(url?: string, config?: AxiosRequestConfig) {
   return u.includes("/token/") || u.includes("/token/refresh/");
 }
 
+/**
+ * Refresh token (raw axios instance without interceptors to avoid loops)
+ */
+async function refreshAccessToken(): Promise<string | null> {
+  const refresh = getRefreshToken();
+  if (!refresh) return null;
+
+  try {
+    const res = await axios.post<RefreshResponse>(
+      `${API_BASE}/api/v1/token/refresh/`,
+      { refresh },
+      { timeout: 20_000, withCredentials: false }
+    );
+
+    const newAccess = String(res.data?.access || "").trim();
+    if (!newAccess) return null;
+
+    setAccessToken(newAccess);
+    return newAccess;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * JWT exp 디코딩 (base64url → JSON).
+ * 토큰이 만료되었거나 EXPIRY_BUFFER_SEC 이내로 만료 예정이면 true 반환.
+ */
+const EXPIRY_BUFFER_SEC = 30;
+
+function isTokenExpiredOrSoon(token: string): boolean {
+  try {
+    const parts = token.split(".");
+    if (parts.length !== 3) return true;
+    const payload = JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")));
+    const exp = payload?.exp;
+    if (typeof exp !== "number") return true;
+    return Date.now() / 1000 >= exp - EXPIRY_BUFFER_SEC;
+  } catch {
+    return true; // 파싱 실패 → 만료로 취급
+  }
+}
+
+/**
+ * 요청 전 선제적 토큰 리프레시.
+ * access 토큰이 곧 만료되면 request interceptor 단계에서 미리 refresh 하여
+ * 401 응답 자체를 방지한다 (브라우저 콘솔 401 로그 제거).
+ */
+let proactiveRefreshPromise: Promise<string | null> | null = null;
+
+async function ensureFreshToken(): Promise<string | null> {
+  const access = getAccessToken();
+  if (!access) return null;
+  if (!isTokenExpiredOrSoon(access)) return access;
+
+  // 이미 리프레시 진행 중이면 대기
+  if (proactiveRefreshPromise) return proactiveRefreshPromise;
+
+  proactiveRefreshPromise = refreshAccessToken().finally(() => {
+    proactiveRefreshPromise = null;
+  });
+  return proactiveRefreshPromise;
+}
+
 function isAxiosError(e: any): e is AxiosError {
   return !!e?.isAxiosError;
 }
@@ -101,13 +165,14 @@ const api: AxiosInstance = axios.create({
  * - X-Tenant-Code: 테넌트 코드가 있으면 항상 전송. 중앙 API(api.hakwonplus.com)는 이걸로 테넌트 판별.
  *   (1테넌트=1도메인이면 백엔드가 Host로 판별하고 헤더는 무시됨)
  */
-api.interceptors.request.use((config) => {
+api.interceptors.request.use(async (config) => {
   const cfg = config;
 
   // Attach Authorization if access exists (JWT)
   // skipAuth: true → 로그인 전 /core/program/ 등 AllowAny 엔드포인트용 (만료 토큰 시 401 방지)
   if (!shouldSkipAuth(cfg.url, cfg)) {
-    const access = getAccessToken();
+    // 선제적 토큰 리프레시: 만료 임박 시 요청 전에 갱신하여 401 방지
+    const access = await ensureFreshToken();
     if (access) {
       cfg.headers = cfg.headers ?? {};
       (cfg.headers as any).Authorization = `Bearer ${access}`;
@@ -137,30 +202,6 @@ api.interceptors.request.use((config) => {
 
   return cfg;
 });
-
-/**
- * Refresh token (raw axios instance without interceptors to avoid loops)
- */
-async function refreshAccessToken(): Promise<string | null> {
-  const refresh = getRefreshToken();
-  if (!refresh) return null;
-
-  try {
-    const res = await axios.post<RefreshResponse>(
-      `${API_BASE}/api/v1/token/refresh/`,
-      { refresh },
-      { timeout: 20_000, withCredentials: false }
-    );
-
-    const newAccess = String(res.data?.access || "").trim();
-    if (!newAccess) return null;
-
-    setAccessToken(newAccess);
-    return newAccess;
-  } catch {
-    return null;
-  }
-}
 
 /**
  * CORS-blocked 401 감지:
