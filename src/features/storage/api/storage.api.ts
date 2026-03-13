@@ -6,7 +6,7 @@ import api from "@/shared/api/axios";
 export type StorageQuota = {
   usedBytes: number;
   limitBytes: number;
-  plan: "lite" | "basic" | "premium";
+  plan: "standard" | "pro" | "max";
 };
 
 export async function fetchStorageQuota(): Promise<StorageQuota> {
@@ -14,7 +14,7 @@ export async function fetchStorageQuota(): Promise<StorageQuota> {
     const { data } = await api.get<StorageQuota>("/storage/quota/");
     return data;
   } catch {
-    return { usedBytes: 0, limitBytes: 10 * 1e9, plan: "basic" };
+    return { usedBytes: 0, limitBytes: 10 * 1e9, plan: "pro" };
   }
 }
 

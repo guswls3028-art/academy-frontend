@@ -93,7 +93,7 @@ export default function SubscriptionExpiredOverlay() {
 
         {expired.plan && (
           <p style={{ fontSize: 12, color: "#999", margin: "0 0 16px" }}>
-            요금제: {expired.plan}
+            요금제: {{ standard: "Standard", pro: "Pro", max: "Max" }[expired.plan] ?? expired.plan}
             {expired.expires_at ? ` · 만료일: ${expired.expires_at}` : ""}
           </p>
         )}

@@ -34,7 +34,7 @@ export default function QuotaIndicator({ className }: QuotaIndicatorProps) {
 
   const { usedBytes, limitBytes, plan } = data;
   const pct = limitBytes > 0 ? Math.min(100, (usedBytes / limitBytes) * 100) : 0;
-  const isLite = plan === "lite";
+  const isLite = plan === "standard";
   const isOver = limitBytes > 0 && usedBytes >= limitBytes;
 
   return (

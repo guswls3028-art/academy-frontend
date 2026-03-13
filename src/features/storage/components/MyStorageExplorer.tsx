@@ -66,7 +66,7 @@ export default function MyStorageExplorer() {
     queryKey: ["storage-quota"],
     queryFn: fetchStorageQuota,
   });
-  const isLocked = quota?.plan === "lite";
+  const isLocked = quota?.plan === "standard";
 
   const folders = data?.folders ?? [];
   const files = data?.files ?? [];

@@ -1,5 +1,5 @@
 // PATH: src/features/settings/pages/BillingSettingsPage.tsx
-// 결제/구독 설정 페이지 — 요금제, 구독 상태, 남은 일수
+// 결제/구독 설정 페이지 — 요금제, 구독 상태, 남은 일수, 프로모션 할인
 
 import { useQuery } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
@@ -9,6 +9,9 @@ type SubscriptionInfo = {
   plan: string;
   plan_display: string;
   monthly_price: number;
+  original_price: number;
+  is_promo: boolean;
+  discount_rate: number;
   subscription_status: string;
   subscription_status_display: string;
   subscription_started_at: string | null;
@@ -48,9 +51,9 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 const PLAN_COLORS: Record<string, string> = {
-  lite: "#64748b",
-  basic: "var(--color-primary, #6366f1)",
-  premium: "#f59e0b",
+  standard: "#64748b",
+  pro: "var(--color-primary, #6366f1)",
+  max: "#f59e0b",
 };
 
 export default function BillingSettingsPage() {
@@ -92,7 +95,29 @@ export default function BillingSettingsPage() {
           {data.plan_display}
         </div>
         <span className={styles.planPrice}>
-          월 {formatPrice(data.monthly_price)}
+          {data.is_promo ? (
+            <>
+              <span style={{ textDecoration: "line-through", color: "var(--color-text-muted)", fontSize: "0.85em", marginRight: 6 }}>
+                월 {formatPrice(data.original_price)}
+              </span>
+              <span style={{ fontWeight: 700 }}>
+                월 {formatPrice(data.monthly_price)}
+              </span>
+              <span style={{
+                marginLeft: 8,
+                padding: "2px 8px",
+                borderRadius: 12,
+                background: "var(--color-semantic-danger, #ef4444)",
+                color: "#fff",
+                fontSize: "0.75em",
+                fontWeight: 700,
+              }}>
+                {data.discount_rate}% 할인
+              </span>
+            </>
+          ) : (
+            <>월 {formatPrice(data.monthly_price)}</>
+          )}
         </span>
       </div>
 
