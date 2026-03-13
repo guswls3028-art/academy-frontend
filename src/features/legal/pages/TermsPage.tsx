@@ -1,5 +1,6 @@
 // PATH: src/features/legal/pages/TermsPage.tsx
 // 이용약관 — Korean Terms of Service
+// 법적 근거: 전자상거래법 제13조, 시행령 제6조, 개인정보 보호법 제30조
 
 import { Link } from "react-router-dom";
 import styles from "./LegalPage.module.css";
@@ -17,7 +18,7 @@ export default function TermsPage() {
       <div className={styles.container}>
         <h1 className={styles.title}>이용약관</h1>
         <p className={styles.meta}>
-          시행일: 2026년 3월 14일 | 버전 1.0
+          시행일: 2026년 3월 14일 | 버전 1.1
         </p>
 
         <article className={styles.article}>
@@ -38,13 +39,14 @@ export default function TermsPage() {
               유료 서비스 이용 계약의 당사자가 아닌 데이터 주체입니다.</li>
             <li>"테넌트"란 서비스 내에서 하나의 학원 단위로 논리적으로 분리된 데이터 공간을 말합니다.</li>
             <li>"유료 서비스"란 서비스 이용을 위해 이용료를 지불하는 구독형 서비스를 말합니다.</li>
+            <li>"구독"이란 일정 기간 단위(월 등)로 반복 결제하여 서비스를 이용하는 방식을 말합니다.</li>
           </ol>
 
           <h2>제3조 (약관의 효력 및 변경)</h2>
           <ol>
             <li>본 약관은 서비스 화면 또는 기타 방법으로 이용자에게 공지함으로써 효력이 발생합니다.</li>
-            <li>회사는 합리적인 사유가 있는 경우 본 약관을 변경할 수 있으며, 변경된 약관은 적용일자 7일 전부터
-              서비스 내 공지합니다. 다만, 이용자에게 불리하게 변경되는 경우에는 30일 전에 공지합니다.</li>
+            <li>회사는 합리적인 사유가 있는 경우 본 약관을 변경할 수 있으며, 변경된 약관은 적용일자 <strong>7일 전</strong>부터
+              서비스 내 공지합니다. 다만, 이용자에게 불리하게 변경되는 경우에는 <strong>30일 전</strong>에 공지합니다.</li>
             <li>변경된 약관 시행일 이후에도 서비스를 계속 이용하는 경우, 변경된 약관에 동의한 것으로 봅니다.</li>
             <li>이용자가 변경된 약관에 동의하지 않는 경우, 서비스 이용 계약을 해지할 수 있습니다.</li>
           </ol>
@@ -64,6 +66,8 @@ export default function TermsPage() {
             </li>
             <li>학생·학부모 계정은 원장 또는 스태프가 서비스 내에서 직접 등록하거나, 학생의 가입 신청을 원장이
               승인하는 방식으로 생성됩니다.</li>
+            <li><strong>미성년자가 이용 계약을 체결하는 경우, 법정대리인이 동의하지 아니하면 미성년자 본인 또는
+              법정대리인이 계약을 취소할 수 있습니다.</strong></li>
           </ol>
 
           <h2>제5조 (서비스의 내용)</h2>
@@ -81,30 +85,46 @@ export default function TermsPage() {
               </ol>
             </li>
             <li>서비스의 구체적인 기능 및 범위는 구독 플랜에 따라 다를 수 있습니다.</li>
+            <li>서비스는 인터넷을 통해 제공되며, 이용자의 인터넷 환경에 따라 서비스 이용에 제한이 있을 수 있습니다.</li>
           </ol>
 
           <h2>제6조 (유료 서비스 및 결제)</h2>
           <ol>
-            <li>유료 서비스의 구독 플랜, 이용 요금, 결제 방법 등은 서비스 내 결제 페이지에 별도로 안내합니다.</li>
-            <li>이용자는 구독 기간 만료 전까지 구독을 갱신하거나 해지할 수 있습니다.</li>
+            <li>유료 서비스의 구독 플랜, <strong>이용 요금(부가가치세 포함)</strong>, 결제 방법 등은 서비스 내
+              결제 페이지에 별도로 안내합니다.</li>
+            <li>구독은 월 단위로 자동 갱신되며, 이용자가 해지하지 않는 한 동일 결제 수단으로 <strong>자동
+              결제</strong>됩니다. 자동 결제에 대한 별도 동의를 받습니다.</li>
+            <li>이용자는 구독 기간 만료 전까지 서비스 내에서 또는 고객센터를 통해 구독을 해지할 수 있습니다.
+              해지는 웹 또는 앱에서 직접 가능합니다.</li>
             <li>구독 만료 후 갱신하지 않은 경우, 유료 기능에 대한 접근이 제한될 수 있습니다.</li>
-            <li>회사는 이용 요금을 변경할 수 있으며, 변경 시 30일 전에 서비스 내에서 사전 고지합니다.
+            <li>회사는 이용 요금을 변경할 수 있으며, 변경 시 <strong>30일 전</strong>에 서비스 내에서 사전 고지합니다.
               기존 구독 기간 내 요금은 변경되지 않습니다.</li>
+            <li>무료 체험 기간이 제공된 경우, 유료 서비스로 전환되기 <strong>최소 7일 전</strong>에 전환되는
+              가격, 결제일, 결제 방법을 서면·문자·이메일 등으로 통지합니다.</li>
           </ol>
 
           <h2>제7조 (청약철회 및 환불)</h2>
           <ol>
-            <li>이용자는 유료 서비스 구매일(결제 완료일)로부터 7일 이내에 청약을 철회할 수 있습니다.
-              다만, 이미 서비스 이용이 개시된 경우에는 이용 일수에 해당하는 금액을 공제한 잔액을 환불합니다.</li>
+            <li>이용자는 유료 서비스 구매일(결제 완료일)로부터 <strong>7일 이내</strong>에 청약을 철회할 수 있습니다.</li>
+            <li>본 서비스는 월 단위로 제공되는 <strong>가분적 용역</strong>에 해당하므로, 이미 서비스가 제공된 기간에
+              대해서는 환불이 제한되며, <strong>미이용 기간에 대하여는 청약을 철회</strong>할 수 있습니다
+              (전자상거래법 제17조 제2항 제5호 단서).</li>
+            <li>구독 중도 해지 시 이용 일수에 해당하는 금액을 공제한 잔액을 환불합니다.</li>
+            <li>환불은 청약철회일로부터 <strong>3영업일 이내</strong>에 결제 수단과 동일한 방법으로 처리합니다.
+              환급이 지연되는 경우 지연 기간에 대하여 연 15%의 지연이자를 가산합니다
+              (전자상거래법 제18조).</li>
             <li>환불 요청은 서비스 내 문의 또는 고객센터(
-              <span className={styles.placeholder}>[TODO_FOR_OWNER: 고객센터 이메일]</span>)를 통해 접수합니다.</li>
-            <li>환불은 결제 수단과 동일한 방법으로 처리하며, 결제 수단에 따라 환불 소요 기간이 상이할 수 있습니다.</li>
+              <span className={styles.placeholder}>[TODO_FOR_OWNER: 고객센터 이메일]</span> /{" "}
+              <span className={styles.placeholder}>[TODO_FOR_OWNER: 고객센터 전화번호]</span>)를 통해 접수합니다.</li>
             <li>다음 각 호에 해당하는 경우 환불이 제한됩니다:
               <ol>
                 <li>이용자의 귀책 사유로 서비스 이용이 제한된 경우</li>
                 <li>무료 체험 또는 프로모션 기간의 서비스</li>
               </ol>
             </li>
+            <li>서비스 내용이 표시·광고 내용과 다르거나 계약 내용과 다르게 이행된 경우,
+              공급받은 날로부터 <strong>3개월 이내</strong> 또는 그 사실을 안 날로부터 <strong>30일 이내</strong>에
+              청약을 철회할 수 있습니다 (전자상거래법 제17조 제3항).</li>
           </ol>
 
           <h2>제8조 (서비스의 변경 및 중단)</h2>
@@ -169,7 +189,38 @@ export default function TermsPage() {
               개인정보 보호법상 개인정보처리자로서의 의무를 부담합니다.</li>
           </ol>
 
-          <h2>제13조 (계약 해지 및 이용 제한)</h2>
+          <h2>제13조 (거래기록의 보존)</h2>
+          <p>
+            회사는 전자상거래 등에서의 소비자보호에 관한 법률 시행령 제6조에 따라 다음과 같이 거래기록을 보존합니다:
+          </p>
+          <table>
+            <thead>
+              <tr>
+                <th>보존 대상</th>
+                <th>보존 기간</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>계약 또는 청약철회 등에 관한 기록</td>
+                <td>5년</td>
+              </tr>
+              <tr>
+                <td>대금결제 및 재화등의 공급에 관한 기록</td>
+                <td>5년</td>
+              </tr>
+              <tr>
+                <td>소비자의 불만 또는 분쟁처리에 관한 기록</td>
+                <td>3년</td>
+              </tr>
+              <tr>
+                <td>표시·광고에 관한 기록</td>
+                <td>6개월</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <h2>제14조 (계약 해지 및 이용 제한)</h2>
           <ol>
             <li>이용자는 언제든지 서비스 내에서 또는 고객센터를 통해 이용 계약 해지를 요청할 수 있습니다.</li>
             <li>계약 해지 시, 해당 테넌트에 저장된 데이터는 관련 법령 및 개인정보 처리방침에 따라 일정 기간
@@ -178,7 +229,7 @@ export default function TermsPage() {
               있습니다. 이 경우 사전 통지하되, 긴급한 경우에는 사후 통지할 수 있습니다.</li>
           </ol>
 
-          <h2>제14조 (손해배상 및 면책)</h2>
+          <h2>제15조 (손해배상 및 면책)</h2>
           <ol>
             <li>회사는 관련 법령이 허용하는 범위 내에서, 서비스 이용과 관련하여 발생한 직접적 손해에 대하여
               해당 이용자가 회사에 지급한 최근 3개월간의 서비스 이용 요금을 한도로 배상합니다.</li>
@@ -194,27 +245,33 @@ export default function TermsPage() {
               부담하지 않습니다.</li>
           </ol>
 
-          <h2>제15조 (분쟁 해결)</h2>
+          <h2>제16조 (소비자 피해보상 및 분쟁 해결)</h2>
           <ol>
             <li>본 약관과 관련한 분쟁은 대한민국 법을 준거법으로 합니다.</li>
             <li>서비스 이용과 관련하여 회사와 이용자 간에 분쟁이 발생한 경우, 양 당사자는 우선 협의하여 해결하도록
               노력합니다.</li>
+            <li>소비자 피해보상, 환불 등에 관한 사항은 공정거래위원회가 고시하는 소비자분쟁해결기준에 따릅니다.</li>
             <li>협의가 이루어지지 않는 경우, 민사소송법에 따른 관할 법원에 소를 제기할 수 있습니다.</li>
           </ol>
 
-          <h2>제16조 (시행일)</h2>
+          <h2>제17조 (시행일)</h2>
           <p>본 약관은 2026년 3월 14일부터 시행합니다.</p>
 
+          {/* 전자상거래법 제13조 사업자 정보 표시 */}
           <div style={{ marginTop: 48, paddingTop: 24, borderTop: "1px solid #e5e7eb" }}>
             <p style={{ fontSize: "0.8125rem", color: "#9ca3af" }}>
               <span className={styles.placeholder}>[TODO_FOR_OWNER: 상호]</span>{" "}
               | 대표: <span className={styles.placeholder}>[TODO_FOR_OWNER: 대표자명]</span>{" "}
               | 사업자등록번호: <span className={styles.placeholder}>[TODO_FOR_OWNER: 사업자등록번호]</span>
               <br />
+              통신판매업 신고번호: <span className={styles.placeholder}>[TODO_FOR_OWNER: 통신판매업 신고번호 (예: 제2026-서울XX-XXXX호)]</span>
+              <br />
               주소: <span className={styles.placeholder}>[TODO_FOR_OWNER: 사업장 주소]</span>
               <br />
               고객센터: <span className={styles.placeholder}>[TODO_FOR_OWNER: 고객센터 이메일]</span>{" "}
-              / <span className={styles.placeholder}>[TODO_FOR_OWNER: 고객센터 전화번호]</span>
+              / <span className={styles.placeholder}>[TODO_FOR_OWNER: 고객센터 전화번호 (유선)]</span>
+              <br />
+              호스팅 서비스 제공자: Cloudflare, Inc. (웹), Amazon Web Services, Inc. (API 서버)
             </p>
           </div>
         </article>
