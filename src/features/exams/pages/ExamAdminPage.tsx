@@ -106,40 +106,49 @@ export default function ExamAdminPage() {
             gap: 16,
           }}
         >
-          {filtered.map((e) => (
-            <div
-              key={e.id}
-              className={cardHoverClass}
-              style={cardBase}
-              onClick={() => navigate("/admin/lectures")}
-              title={`${e.title} — ${e.subject || "과목 없음"}`}
-            >
-              <ExamIcon
-                color={e.is_active ? "var(--color-primary)" : "var(--color-text-muted)"}
-              />
-              <div style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text-primary)", lineHeight: 1.3, maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                {e.title || "제목 없음"}
-              </div>
-              <div style={{ fontSize: 12, color: "var(--color-text-muted)", lineHeight: 1.2 }}>
-                {e.subject || "—"}
-              </div>
-              <span
+          {filtered.map((e) => {
+            const isOpen = e.status === "OPEN";
+            const isClosed = e.status === "CLOSED";
+            const statusLabel = e.status === "DRAFT" ? "준비" : isOpen ? "진행 중" : "마감";
+            const iconColor = isOpen
+              ? "var(--color-success)"
+              : isClosed
+                ? "var(--color-text-muted)"
+                : "var(--color-primary)";
+
+            return (
+              <div
+                key={e.id}
+                className={cardHoverClass}
                 style={{
-                  display: "inline-block",
-                  fontSize: 11,
-                  fontWeight: 600,
-                  padding: "2px 8px",
-                  borderRadius: 6,
-                  background: e.is_active
-                    ? "color-mix(in srgb, var(--color-success, #22c55e) 12%, transparent)"
-                    : "var(--color-bg-surface-soft)",
-                  color: e.is_active ? "var(--color-success, #16a34a)" : "var(--color-text-muted)",
+                  ...cardBase,
+                  borderLeft: isOpen
+                    ? "3px solid var(--color-success)"
+                    : isClosed
+                      ? "3px solid var(--color-border-divider)"
+                      : "1px solid var(--color-border-divider)",
+                  opacity: isClosed ? 0.65 : 1,
                 }}
+                onClick={() => navigate("/admin/lectures")}
+                title={`${e.title} — ${e.subject || "과목 없음"}`}
               >
-                {e.is_active ? "활성" : "비활성"}
-              </span>
-            </div>
-          ))}
+                <ExamIcon color={iconColor} />
+                <div style={{
+                  fontSize: 14, fontWeight: 600, color: "var(--color-text-primary)", lineHeight: 1.3,
+                  maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                  textDecoration: isClosed ? "line-through" : "none",
+                }}>
+                  {e.title || "제목 없음"}
+                </div>
+                <div style={{ fontSize: 12, color: "var(--color-text-muted)", lineHeight: 1.2 }}>
+                  {e.subject || "—"}
+                </div>
+                <span className="ds-status-badge ds-status-badge--1ch" data-tone={isOpen ? "success" : isClosed ? "danger" : "neutral"}>
+                  {statusLabel}
+                </span>
+              </div>
+            );
+          })}
 
           {/* +추가 카드 (항상 마지막) */}
           <div

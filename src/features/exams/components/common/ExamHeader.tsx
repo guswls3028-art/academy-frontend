@@ -66,7 +66,7 @@ export default function ExamHeader({ exam }: { exam: Exam; sessionId?: number | 
   }, [templateDropdownOpen]);
 
   const statusLabel = isDraft ? "초안" : isOpen ? "진행 중" : isClosed ? "마감" : exam.status;
-  const statusTone = isOpen ? "success" : "neutral";
+  const statusTone = isOpen ? "success" : isClosed ? "danger" : "neutral";
 
   const handleCloseExam = () => {
     if (!window.confirm("시험을 종료하시겠습니까? 종료 이후엔 답안 제출이 불가합니다.")) return;
@@ -79,8 +79,20 @@ export default function ExamHeader({ exam }: { exam: Exam; sessionId?: number | 
 
   return (
     <div
-      className={`space-y-2 ${isOpen ? "rounded-lg border-l-4 border-l-[var(--color-success)] pl-3 py-2" : ""}`}
-      style={isOpen ? { background: "color-mix(in srgb, var(--color-success) 12%, var(--color-bg-surface))" } : undefined}
+      className={`space-y-2 ${
+        isOpen
+          ? "rounded-lg border-l-4 border-l-[var(--color-success)] pl-3 py-2"
+          : isClosed
+            ? "rounded-lg border-l-4 border-l-[var(--color-border-divider)] pl-3 py-2"
+            : ""
+      }`}
+      style={
+        isOpen
+          ? { background: "color-mix(in srgb, var(--color-success) 12%, var(--color-bg-surface))" }
+          : isClosed
+            ? { background: "color-mix(in srgb, var(--color-border-divider) 12%, var(--color-bg-surface))", opacity: 0.75 }
+            : undefined
+      }
     >
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="space-y-1">

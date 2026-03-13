@@ -54,13 +54,24 @@ export default function HomeworkHeader({ homework }: Props) {
   }, [templateDropdownOpen]);
 
   const statusLabel = isDraft ? "초안" : isOpen ? "진행 중" : isClosed ? "마감" : homework.status;
-  const statusTone = isOpen ? "success" : "neutral";
+  const statusTone = isOpen ? "success" : isClosed ? "danger" : "neutral";
+
+  const bannerClass = isOpen
+    ? "rounded-lg border-l-4 border-l-[var(--color-success)] pl-3 py-2"
+    : isClosed
+      ? "rounded-lg border-l-4 border-l-[var(--color-border-divider)] pl-3 py-2"
+      : "";
+  const bannerBg = isOpen
+    ? { background: "color-mix(in srgb, var(--color-success) 12%, var(--color-bg-surface))" }
+    : isClosed
+      ? { background: "color-mix(in srgb, var(--color-border-divider) 12%, var(--color-bg-surface))", opacity: 0.75 }
+      : undefined;
 
   return (
-    <div className="space-y-2">
+    <div className={`space-y-2 ${bannerClass}`} style={bannerBg}>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <h2 className="text-lg font-semibold text-[var(--text-primary)]">
+          <h2 className={`text-lg font-semibold text-[var(--text-primary)] ${isClosed ? "line-through opacity-65" : ""}`}>
             {homework.title}
           </h2>
           <span className="ds-status-badge" data-tone={statusTone}>{statusLabel}</span>

@@ -99,21 +99,31 @@ const S = {
   } satisfies CSSProperties,
 
   /* Card base — shared between exam & homework rows */
-  card: (active: boolean): CSSProperties => ({
+  card: (active: boolean, status?: "DRAFT" | "OPEN" | "CLOSED"): CSSProperties => ({
     position: "relative",
     display: "flex",
     flexDirection: "column",
     gap: 4,
-    padding: "10px 12px",
+    padding: "10px 12px 10px 14px",
     borderRadius: "var(--radius-md, 8px)",
     cursor: "pointer",
-    transition: "background 140ms ease, box-shadow 140ms ease",
+    transition: "background 140ms ease, box-shadow 140ms ease, border-color 140ms ease",
     background: active
       ? "var(--state-selected-bg)"
-      : "transparent",
+      : status === "OPEN"
+        ? "color-mix(in srgb, var(--color-success) 6%, var(--color-bg-surface))"
+        : status === "CLOSED"
+          ? "color-mix(in srgb, var(--color-border-divider) 6%, var(--color-bg-surface))"
+          : "transparent",
     boxShadow: active
       ? "inset 0 0 0 1.5px color-mix(in srgb, var(--color-brand-primary) 35%, transparent)"
       : "none",
+    borderLeft: status === "OPEN"
+      ? "3px solid var(--color-success)"
+      : status === "CLOSED"
+        ? "3px solid var(--color-border-divider)"
+        : "3px solid transparent",
+    opacity: status === "CLOSED" ? 0.7 : 1,
   }),
 
   cardHover: {
@@ -146,22 +156,19 @@ const S = {
     paddingLeft: 2,
   } satisfies CSSProperties,
 
-  /* Action buttons row — visible on hover via group */
+  /* Action buttons row — always visible */
   actionsRow: {
     display: "flex",
     alignItems: "center",
     gap: "var(--space-2)",
-    marginTop: 2,
-    opacity: 0,
-    height: 0,
+    marginTop: 6,
+    opacity: 1,
+    height: 28,
     overflow: "hidden",
-    transition: "opacity 120ms ease, height 120ms ease, margin 120ms ease",
   } satisfies CSSProperties,
 
   actionsRowVisible: {
-    opacity: 1,
-    height: 28,
-    marginTop: 6,
+    /* no-op — buttons always visible now */
   } satisfies CSSProperties,
 
   emptyState: {
@@ -180,13 +187,22 @@ const S = {
 
 type StatusTone = "success" | "danger" | "neutral" | "primary";
 
-function StatusBadge({ label, tone }: { label: string; tone: StatusTone }) {
+function StatusBadge({ label, tone, pulse }: { label: string; tone: StatusTone; pulse?: boolean }) {
   return (
     <span
       className="ds-status-badge ds-status-badge--1ch"
       data-tone={tone}
-      style={{ flexShrink: 0 }}
+      style={{ flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 4 }}
     >
+      {pulse && (
+        <span style={{
+          width: 6, height: 6,
+          borderRadius: "50%",
+          background: "#fff",
+          animation: "assess-pulse 1.5s ease-in-out infinite",
+          flexShrink: 0,
+        }} />
+      )}
       {label}
     </span>
   );
@@ -510,7 +526,7 @@ function ExamItemCard({
   const showActions = hasActions && (hovered || active);
 
   const cardStyle: CSSProperties = {
-    ...S.card(active),
+    ...S.card(active, status),
     ...(hovered && !active ? S.cardHover : {}),
   };
 
@@ -526,13 +542,14 @@ function ExamItemCard({
     >
       {/* Top row: badge + title */}
       <div style={S.cardTopRow}>
-        <StatusBadge label={statusLabel} tone={statusTone} />
-        <div style={S.cardTitle} title={label}>{label}</div>
+        <StatusBadge label={statusLabel} tone={statusTone} pulse={isOpen} />
+        <div style={{ ...S.cardTitle, ...(isClosed ? { textDecoration: "line-through", opacity: 0.65 } : {}) }} title={label}>{label}</div>
       </div>
 
       {/* Meta row */}
       <div style={S.cardMeta}>
         만점 {maxScore}점
+        {isClosed && <span style={{ marginLeft: 6, fontSize: 10, color: "var(--color-text-muted)" }}>종료됨</span>}
       </div>
 
       {/* Action buttons — slide in on hover */}
@@ -601,6 +618,7 @@ function HomeworkItemCard({
   const isDraft = status === "DRAFT";
   const isOpen = status === "OPEN";
 
+  const isClosed = status === "CLOSED";
   const statusLabel = isDraft ? "준비" : isOpen ? "진행" : "마감";
   const statusTone: StatusTone = isDraft ? "neutral" : isOpen ? "success" : "danger";
 
@@ -613,7 +631,7 @@ function HomeworkItemCard({
   const showActions = hasActions && (hovered || active);
 
   const cardStyle: CSSProperties = {
-    ...S.card(active),
+    ...S.card(active, status),
     ...(hovered && !active ? S.cardHover : {}),
   };
 
@@ -629,13 +647,14 @@ function HomeworkItemCard({
     >
       {/* Top row: badge + title */}
       <div style={S.cardTopRow}>
-        <StatusBadge label={statusLabel} tone={statusTone} />
-        <div style={S.cardTitle} title={label}>{label}</div>
+        <StatusBadge label={statusLabel} tone={statusTone} pulse={isOpen} />
+        <div style={{ ...S.cardTitle, ...(isClosed ? { textDecoration: "line-through", opacity: 0.65 } : {}) }} title={label}>{label}</div>
       </div>
 
       {/* Meta row */}
       <div style={S.cardMeta}>
         {metaLabel}
+        {isClosed && <span style={{ marginLeft: 6, fontSize: 10, color: "var(--color-text-muted)" }}>종료됨</span>}
       </div>
 
       {/* Action buttons — slide in on hover */}

@@ -99,6 +99,12 @@ button.ds-status-badge:disabled {
   color: #fff;
 }
 
+/* ---- 라이브 펄스 도트 (진행 중 상태 표시) ---- */
+@keyframes assess-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
 /* 톤 미지정 시 기본(neutral) */
 .ds-status-badge:not([data-status]):not([data-tone]) {
   background: var(--status-badge-neutral-bg, color-mix(in srgb, var(--color-border-divider) 22%, var(--color-bg-surface)));
