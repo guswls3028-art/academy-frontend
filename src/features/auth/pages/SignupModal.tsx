@@ -436,6 +436,8 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
               {" "}및{" "}
               <a href="/privacy" target="_blank" rel="noopener noreferrer">개인정보처리방침</a>
               에 동의한 것으로 간주합니다.
+              <br />
+              만 14세 미만 학생은 보호자(학부모)의 동의가 필요하며, 학원을 통해 등록해 주세요.
             </p>
             {error && <div className={styles.error}>{error}</div>}
             <div className={styles.signupActions}>
