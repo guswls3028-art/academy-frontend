@@ -298,7 +298,7 @@ function PricingPreview() {
   const plans = [
     { name: "Standard", desc: "소형 학원 / 학생 100명 이하", price: "99,000", color: "gray" },
     { name: "Pro", desc: "중형 학원 / 실무 운영", price: "198,000", color: "blue", popular: true },
-    { name: "Max", desc: "대형 학원 / 프리미엄", price: "300,000", color: "violet" },
+    { name: "Max", desc: "대형 학원 / 프리미엄", price: "330,000", color: "violet" },
   ];
 
   return (

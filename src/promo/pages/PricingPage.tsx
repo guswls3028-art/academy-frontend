@@ -55,7 +55,7 @@ const PLANS: PlanDef[] = [
   {
     name: "Max",
     key: "max",
-    price: "300,000",
+    price: "330,000",
     target: "대형 학원 / 프리미엄",
     features: [
       "학생 수 무제한",
