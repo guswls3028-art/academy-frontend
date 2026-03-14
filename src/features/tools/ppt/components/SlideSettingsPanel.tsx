@@ -302,7 +302,7 @@ export default function SlideSettingsPanel({ settings, onChange, disabled }: Sli
               </svg>
             }
             label="자동 밝기 보정"
-            desc="어두운 사진 자동 보정"
+            desc="어두운 사진을 분석하여 자동으로 밝게"
           />
 
           <ToggleRow
@@ -317,7 +317,7 @@ export default function SlideSettingsPanel({ settings, onChange, disabled }: Sli
               </svg>
             }
             label="흑백 반전"
-            desc="밝은 글씨로 색상 반전"
+            desc="흰 배경 → 검정, 검정 글씨 → 흰색"
           />
 
           <ToggleRow
@@ -332,14 +332,17 @@ export default function SlideSettingsPanel({ settings, onChange, disabled }: Sli
               </svg>
             }
             label="그레이스케일"
-            desc="흑백 변환"
+            desc="컬러 사진을 흑백으로 변환"
           />
         </div>
       </div>
 
       {/* 밝기 / 대비 수동 조절 */}
       <div>
-        <SectionLabel>밝기 / 대비</SectionLabel>
+        <SectionLabel>밝기 / 대비 수동 조절</SectionLabel>
+        <div style={{ fontSize: 11, color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>
+          자동 보정 결과가 맘에 안 들 때 직접 조절
+        </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           <SliderRow
             label="밝기"
