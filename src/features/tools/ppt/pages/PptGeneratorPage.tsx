@@ -164,6 +164,7 @@ export default function PptGeneratorPage() {
           borderRadius: "var(--radius-lg, 12px)",
           border: "1px solid var(--color-border-divider)",
           padding: 20,
+          overflow: "hidden",
         }}>
           <div style={{
             fontSize: 15,

@@ -218,7 +218,7 @@ export default function SlideSettingsPanel({ settings, onChange, disabled }: Sli
       {/* 슬라이드 비율 */}
       <div>
         <SectionLabel>슬라이드 비율</SectionLabel>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr)", gap: 6 }}>
           {RATIO_OPTIONS.map((opt) => (
             <OptionButton
               key={opt.value}
@@ -240,7 +240,7 @@ export default function SlideSettingsPanel({ settings, onChange, disabled }: Sli
       {/* 배경색 */}
       <div>
         <SectionLabel>배경색</SectionLabel>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr) minmax(0,1fr)", gap: 6 }}>
           {BG_OPTIONS.map((opt) => (
             <OptionButton
               key={opt.value}
@@ -268,7 +268,7 @@ export default function SlideSettingsPanel({ settings, onChange, disabled }: Sli
       {/* 이미지 배치 */}
       <div>
         <SectionLabel>이미지 배치</SectionLabel>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr) minmax(0,1fr)", gap: 6 }}>
           {FIT_OPTIONS.map((opt) => (
             <OptionButton
               key={opt.value}
