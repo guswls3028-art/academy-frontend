@@ -14,21 +14,14 @@ export function useDocumentTitle(title?: string) {
       return;
     }
 
-    // 1) Program의 ui_config.window_title
+    // 1) Program의 ui_config.window_title (DB에서 명시적으로 설정한 값)
     const windowTitle = program?.ui_config?.window_title;
     if (windowTitle) {
       document.title = windowTitle;
       return;
     }
 
-    // 2) Program display_name
-    const displayName = program?.display_name;
-    if (displayName) {
-      document.title = displayName;
-      return;
-    }
-
-    // 3) Tenant branding windowTitle
+    // 2) Tenant branding windowTitle (프론트 코드에 정의된 테넌트별 값)
     const tenantResult = resolveTenantCode();
     if (tenantResult.ok) {
       const tenantId = getTenantIdFromCode(tenantResult.code);
@@ -41,7 +34,14 @@ export function useDocumentTitle(title?: string) {
       }
     }
 
+    // 3) Program display_name (마지막 fallback)
+    const displayName = program?.display_name;
+    if (displayName) {
+      document.title = displayName;
+      return;
+    }
+
     // 4) 기본값
-    document.title = "HakwonPlus";
+    document.title = "학원플러스";
   }, [title, program]);
 }

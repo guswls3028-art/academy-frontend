@@ -80,8 +80,8 @@ export default function LoginPage() {
     }
   }
 
-  const title = program?.ui_config?.login_title ?? branding?.loginTitle ?? "로그인";
-  const logoUrl = program?.ui_config?.logo_url ?? branding?.logoUrl;
+  const title = branding?.loginTitle ?? program?.ui_config?.login_title ?? "로그인";
+  const logoUrl = branding?.logoUrl ?? program?.ui_config?.logo_url;
 
   // data-tenant: 테넌트 코드 그대로 사용 (themes/*.css selector 매칭)
   const themeAttr = tenantCode ?? "tchul";
