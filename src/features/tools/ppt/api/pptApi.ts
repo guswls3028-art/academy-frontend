@@ -9,7 +9,16 @@ export interface PptSettings {
   fit_mode: "contain" | "cover" | "stretch";
   invert: boolean;
   grayscale: boolean;
-  per_slide?: Array<{ invert?: boolean; grayscale?: boolean }>;
+  auto_enhance: boolean;
+  brightness: number;
+  contrast: number;
+  per_slide?: Array<{
+    invert?: boolean;
+    grayscale?: boolean;
+    auto_enhance?: boolean;
+    brightness?: number;
+    contrast?: number;
+  }>;
 }
 
 export interface PptGenerateResponse {

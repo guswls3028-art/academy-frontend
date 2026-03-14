@@ -20,6 +20,9 @@ const DEFAULT_SETTINGS: PptSettings = {
   fit_mode: "contain",
   invert: false,
   grayscale: false,
+  auto_enhance: false,
+  brightness: 1.0,
+  contrast: 1.0,
 };
 
 export default function PptGeneratorPage() {
@@ -77,10 +80,13 @@ export default function PptGeneratorPage() {
       const files = images.map((i) => i.file);
       const order = images.map((_, idx) => idx); // 이미 정렬된 순서
 
-      // 슬라이드별 반전 설정 반영
+      // 슬라이드별 설정 반영
       const perSlide = images.map((item) => ({
         invert: item.invert || settings.invert,
         grayscale: settings.grayscale,
+        auto_enhance: settings.auto_enhance,
+        brightness: settings.brightness,
+        contrast: settings.contrast,
       }));
 
       return generatePpt(files, order, { ...settings, per_slide: perSlide }, (pct) => {
@@ -205,7 +211,9 @@ export default function PptGeneratorPage() {
                 height: settings.fit_mode === "stretch" ? "100%" : undefined,
                 objectFit: settings.fit_mode === "cover" ? "cover" : "contain",
                 filter: (images[0].invert || settings.invert ? "invert(1) " : "")
-                  + (settings.grayscale ? "grayscale(1)" : ""),
+                  + (settings.grayscale ? "grayscale(1) " : "")
+                  + (settings.brightness !== 1.0 ? `brightness(${settings.brightness}) ` : "")
+                  + (settings.contrast !== 1.0 ? `contrast(${settings.contrast})` : ""),
                 transition: "filter 0.2s",
               }}
             />
