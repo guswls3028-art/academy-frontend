@@ -1,16 +1,22 @@
 // PATH: src/features/clinic/pages/BookingsPage/ClinicBookingsPage.tsx
-// 예약대상자 — 3단 패널(예약신청자 | 예약대상자 | 클리닉생성). 운영 탭·클리닉 생성과 동일 패널 디자인.
+// 예약대상자 — 단일 컬럼 워크플로우: 승인대기(접이식) → 대상자 테이블 → 클리닉 만들기(모달)
+// Phase 8: 선택 인원 표시, 미예약 전체선택, 미예약 우선 정렬
 
 import { useMemo, useState, useEffect, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import dayjs from "dayjs";
+import "dayjs/locale/ko";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { ChevronDown, ChevronRight, CheckCircle, Plus } from "lucide-react";
+
 import ClinicTargetTable from "../../components/bookings/ClinicTargetTable";
 import ClinicCreatePanel from "../../components/ClinicCreatePanel";
 import { useClinicTargets } from "../../hooks/useClinicTargets";
 import { useClinicParticipants } from "../../hooks/useClinicParticipants";
 import { patchClinicParticipantStatus } from "../../api/clinicParticipants.api";
 import type { ClinicParticipant } from "../../api/clinicParticipants.api";
+import { AdminModal } from "@/shared/ui/modal";
+import { Button } from "@/shared/ui/ds";
 
 function useQueryParam(name: string) {
   const loc = useLocation();
@@ -26,6 +32,7 @@ export default function ClinicBookingsPage() {
   const today = dayjs().format("YYYY-MM-DD");
   const [selected, setSelected] = useState<number[]>([]);
   const didAutoSelect = useRef(false);
+  const [createModalOpen, setCreateModalOpen] = useState(false);
 
   const wk = useMemo(() => {
     const d = dayjs(today);
@@ -76,48 +83,129 @@ export default function ClinicBookingsPage() {
     }
   }, [focus, requiredEnrollmentIds]);
 
+  // Pending approvals section: expanded when items exist
+  const [pendingOpen, setPendingOpen] = useState(true);
+  useEffect(() => {
+    if (pendingList.length === 0) setPendingOpen(false);
+    else setPendingOpen(true);
+  }, [pendingList.length]);
+
+  const totalTargets = targetsQ.data?.length ?? 0;
+  const unbookedCount = requiredEnrollmentIds.length;
+
+  // Phase 8: 미예약 전체 선택
+  const selectAllUnbooked = () => {
+    const current = new Set(selected);
+    requiredEnrollmentIds.forEach((id) => current.add(id));
+    setSelected(Array.from(current));
+  };
+
+  // Phase 8: 선택 인원 표시 텍스트
+  const createBtnLabel = selected.length > 0
+    ? `선택한 ${selected.length}명으로 클리닉 만들기`
+    : "학생을 선택하세요";
+
   return (
     <div className="clinic-page">
-      <div className="clinic-three-panel">
-        {/* 1단: 예약 신청 (승인 대기) — 클리닉 생성과 동일 헤더/카드 톤 */}
-        <div className="clinic-three-panel__cell clinic-three-panel__cell--fixed w-full lg:w-[320px]">
-          <div className="ds-card-modal clinic-panel h-full flex flex-col overflow-hidden">
-            <div className="ds-card-modal__header flex items-center justify-between">
-              <div className="ds-card-modal__accent" aria-hidden />
-              <div className="ds-card-modal__header-inner">
-                <h2 className="ds-card-modal__header-title">예약 신청 (승인 대기)</h2>
-                <p className="ds-card-modal__header-description">대기 중인 신청</p>
-              </div>
-              <div className="ds-card-modal__header-right">
-                <span className="text-xs font-semibold text-[var(--color-text-muted)]">
-                  {pendingList.length}건
-                </span>
-              </div>
-            </div>
-            <div className="flex-1 min-h-0 overflow-auto border-t border-[var(--color-border-divider)] ds-card-modal__body">
+      <div className="clinic-bookings">
+        {/* Toolbar */}
+        <div className="clinic-bookings__toolbar">
+          <div className="clinic-bookings__toolbar-info">
+            <span className="clinic-bookings__toolbar-stat">
+              이번 주 대상자 <strong>{totalTargets}</strong>명
+            </span>
+            <span className="clinic-bookings__toolbar-divider" aria-hidden />
+            <span className={`clinic-bookings__toolbar-stat ${unbookedCount > 0 ? "clinic-bookings__toolbar-stat--alert" : ""}`}>
+              미예약 <strong>{unbookedCount}</strong>명
+            </span>
+            {/* Phase 8: 미예약 전체 선택 버튼 */}
+            {unbookedCount > 0 && (
+              <>
+                <span className="clinic-bookings__toolbar-divider" aria-hidden />
+                <button
+                  type="button"
+                  className="clinic-bookings__select-unbooked-btn"
+                  onClick={selectAllUnbooked}
+                >
+                  미예약 학생 전체 선택
+                </button>
+              </>
+            )}
+            {selected.length > 0 && (
+              <>
+                <span className="clinic-bookings__toolbar-divider" aria-hidden />
+                <button
+                  type="button"
+                  className="clinic-bookings__deselect-btn"
+                  onClick={() => setSelected([])}
+                >
+                  전체 해제
+                </button>
+              </>
+            )}
+          </div>
+          <div className="clinic-bookings__toolbar-actions">
+            <Button
+              intent="primary"
+              size="md"
+              onClick={() => setCreateModalOpen(true)}
+              disabled={selected.length === 0}
+            >
+              <Plus size={16} />
+              {createBtnLabel}
+            </Button>
+          </div>
+        </div>
+
+        {/* Pending approvals — collapsible */}
+        <div className="clinic-bookings__pending">
+          <button
+            type="button"
+            className="clinic-bookings__pending-header"
+            onClick={() => setPendingOpen((v) => !v)}
+          >
+            <span className="clinic-bookings__pending-toggle">
+              {pendingOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+            </span>
+            <span className="clinic-bookings__pending-title">
+              승인 대기
+            </span>
+            {pendingList.length > 0 ? (
+              <span className="clinic-bookings__pending-badge">
+                {pendingList.length}건
+              </span>
+            ) : (
+              <span className="clinic-bookings__pending-done">
+                <CheckCircle size={14} />
+                처리 완료
+              </span>
+            )}
+          </button>
+
+          {pendingOpen && pendingList.length > 0 && (
+            <div className="clinic-bookings__pending-body">
               {pendingQ.listQ.isLoading ? (
-                <div className="ds-section__empty py-10">불러오는 중…</div>
-              ) : pendingList.length === 0 ? (
-                <div className="ds-section__empty py-10">대기 중인 신청이 없습니다.</div>
+                <div className="ds-section__empty py-6">불러오는 중…</div>
               ) : (
-                <ul className="divide-y divide-[var(--color-border-divider)]">
+                <ul className="clinic-bookings__pending-list">
                   {pendingList.map((p) => (
-                    <li
-                      key={p.id}
-                      className="ds-section__item flex items-center justify-between gap-3 px-5 py-3"
-                    >
-                      <div className="min-w-0 flex-1">
-                        <div className="ds-section__item-label truncate">{p.student_name}</div>
-                        <div className="ds-section__item-meta">
-                          {p.session_date ?? "-"} {p.session_start_time?.slice(0, 5) ?? ""} · {p.session_location ?? "-"}
-                        </div>
+                    <li key={p.id} className="clinic-bookings__pending-item">
+                      <div className="clinic-bookings__pending-item-info">
+                        <span className="clinic-bookings__pending-item-name">
+                          {p.student_name}
+                        </span>
+                        <span className="clinic-bookings__pending-item-meta">
+                          {p.session_date ?? "-"}{" "}
+                          {p.session_start_time?.slice(0, 5) ?? ""}{" "}
+                          {p.session_location ?? "-"}
+                        </span>
                       </div>
-                      <div className="flex gap-2 shrink-0">
+                      <div className="clinic-bookings__pending-actions">
                         <button
                           type="button"
                           onClick={() => patchStatusM.mutate({ id: p.id, status: "booked" })}
                           disabled={patchStatusM.isPending}
-                          className="text-xs font-semibold px-3 py-1.5 rounded-md bg-[var(--color-success)] text-white hover:opacity-90 transition-opacity"
+                          className="clinic-bookings__action-btn clinic-bookings__action-btn--approve"
                         >
                           승인
                         </button>
@@ -125,7 +213,7 @@ export default function ClinicBookingsPage() {
                           type="button"
                           onClick={() => patchStatusM.mutate({ id: p.id, status: "rejected" })}
                           disabled={patchStatusM.isPending}
-                          className="text-xs font-semibold px-3 py-1.5 rounded-md bg-[var(--color-error)] text-white hover:opacity-90 transition-opacity"
+                          className="clinic-bookings__action-btn clinic-bookings__action-btn--reject"
                         >
                           거절
                         </button>
@@ -135,24 +223,54 @@ export default function ClinicBookingsPage() {
                 </ul>
               )}
             </div>
-          </div>
+          )}
         </div>
 
-        {/* 2단: 예약대상자 — 1단과 동일 너비·동일 카드/헤더 톤 */}
-        <div className="clinic-three-panel__cell clinic-three-panel__cell--fixed w-full lg:w-[320px]">
-          <ClinicTargetTable selected={selected} onChangeSelected={setSelected} />
-        </div>
+        {/* Section divider between approval and target table */}
+        <div className="clinic-bookings__section-divider" />
 
-        {/* 3단: 클리닉생성 */}
-        <div className="clinic-three-panel__cell clinic-three-panel__cell--fill">
-          <ClinicCreatePanel
-            defaultMode="targets"
-            selectedTargetEnrollmentIds={selected}
-            onChangeSelectedTargetEnrollmentIds={setSelected}
-            onCreated={() => setSelected([])}
-          />
-        </div>
+        {/* Target table — Phase 8: pass unbooked IDs for sorting */}
+        <ClinicTargetTable
+          selected={selected}
+          onChangeSelected={setSelected}
+          bookedEnrollmentIds={bookedEnrollmentIds}
+          unbookedEnrollmentIds={requiredEnrollmentIds}
+        />
       </div>
+
+      {/* Floating selection bar */}
+      {selected.length > 0 && (
+        <div className="clinic-bookings__floating-bar">
+          <span className="clinic-bookings__floating-bar-text">
+            {selected.length}명 선택됨
+          </span>
+          <button
+            type="button"
+            className="clinic-bookings__floating-bar-btn"
+            onClick={() => setCreateModalOpen(true)}
+          >
+            <Plus size={14} />
+            클리닉 만들기
+          </button>
+        </div>
+      )}
+
+      {/* Create clinic modal */}
+      <AdminModal
+        open={createModalOpen}
+        onClose={() => setCreateModalOpen(false)}
+        width={560}
+      >
+        <ClinicCreatePanel
+          defaultMode="targets"
+          selectedTargetEnrollmentIds={selected}
+          onChangeSelectedTargetEnrollmentIds={setSelected}
+          onCreated={() => {
+            setSelected([]);
+            setCreateModalOpen(false);
+          }}
+        />
+      </AdminModal>
     </div>
   );
 }

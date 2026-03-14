@@ -1,20 +1,21 @@
 // PATH: src/features/clinic/pages/HomePage/ClinicHomePage.tsx
-// 클리닉 홈 — 오늘 일정 리스트, 예약대상자 리스트, 예약신청자 리스트 + 자동 승인 설정
-/** 배포 확인용: 서버에서 자동 승인 체크 반영 여부 확인 시 이 값을 올리면 새 번들이 배포된 것임 */
-const CLINIC_SETTINGS_UI_VERSION = "2025-03-07.2";
+// 클리닉 홈 — "오늘의 워크스페이스" 단일 컬럼 레이아웃
+// Phase 3: 액션바 + 오늘 일정 타임라인 + 미예약 배너
+// Phase 7: 빈 상태 CTA, 조건부 액션바, 세션 미니 진행 표시, "다음" 뱃지
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import dayjs from "dayjs";
-import { DatePicker } from "@/shared/ui/date";
-import { Button } from "@/shared/ui/ds";
+import "dayjs/locale/ko";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { CalendarPlus } from "lucide-react";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useClinicParticipants } from "../../hooks/useClinicParticipants";
 import { useClinicTargets } from "../../hooks/useClinicTargets";
 import { fetchClinicSettings, updateClinicSettings } from "../../api/clinicSettings.api";
-import { patchClinicParticipantStatus } from "../../api/clinicParticipants.api";
-import ClinicTodaySummary from "../../components/home/ClinicTodaySummary";
+import { patchClinicParticipantStatus, ClinicParticipant } from "../../api/clinicParticipants.api";
+
+dayjs.locale("ko");
 
 function todayISO() {
   return dayjs().format("YYYY-MM-DD");
@@ -27,24 +28,48 @@ function weekRangeISO(base: string) {
   return { from: start.format("YYYY-MM-DD"), to: end.format("YYYY-MM-DD") };
 }
 
+function nowHHMM() {
+  return dayjs().format("HH:mm");
+}
+
+function groupBySession(rows: ClinicParticipant[]) {
+  const map = new Map<number, ClinicParticipant[]>();
+  rows.forEach((r) => {
+    if (!r.session) return;
+    map.set(r.session, [...(map.get(r.session) ?? []), r]);
+  });
+  const items = Array.from(map.entries()).map(([sessionId, rs]) => {
+    const first = rs[0];
+    const time = (first?.session_start_time || "").slice(0, 5) || "-";
+    const end = first?.session_end_time ? first.session_end_time.slice(0, 5) : "";
+    const location = first?.session_location || "";
+    const booked = rs.filter((x) => x.status === "booked").length;
+    const attended = rs.filter((x) => x.status === "attended").length;
+    const noShow = rs.filter((x) => x.status === "no_show").length;
+    const total = rs.length;
+    return { sessionId, time, end, location, total, booked, attended, noShow };
+  });
+  items.sort((a, b) => (a.time > b.time ? 1 : a.time < b.time ? -1 : 0));
+  return items;
+}
+
 export default function ClinicHomePage() {
   const nav = useNavigate();
   const qc = useQueryClient();
-  const [date, setDate] = useState(todayISO());
-  const wk = useMemo(() => weekRangeISO(date), [date]);
+  const today = todayISO();
+  const wk = useMemo(() => weekRangeISO(today), [today]);
+  const currentTime = nowHHMM();
 
   const todayQ = useClinicParticipants({
-    session_date_from: date,
-    session_date_to: date,
+    session_date_from: today,
+    session_date_to: today,
   });
   const weekQ = useClinicParticipants({
     session_date_from: wk.from,
     session_date_to: wk.to,
   });
   const targetsQ = useClinicTargets();
-  const pendingQ = useClinicParticipants({
-    status: "pending",
-  });
+  const pendingQ = useClinicParticipants({ status: "pending" });
   const settingsQ = useQuery({
     queryKey: ["clinic-settings"],
     queryFn: fetchClinicSettings,
@@ -64,10 +89,30 @@ export default function ClinicHomePage() {
     return targets.filter((t) => !bookedEnrollmentIds.has(t.enrollment_id)).length;
   }, [targetsQ.data, bookedEnrollmentIds]);
 
-  const targetsList = (targetsQ.data ?? []) as { enrollment_id: number; student_name: string }[];
   const pendingList = pendingQ.listQ.data ?? [];
   const autoApproved = !!settingsQ.data?.auto_approve_booking;
+  const todayRows = todayQ.listQ.data ?? [];
+  const sessions = useMemo(() => groupBySession(todayRows), [todayRows]);
+  const noShowCount = todayRows.filter((r) => r.status === "no_show").length;
 
+  // 오늘 출석 요약 계산
+  const todaySummary = useMemo(() => {
+    const active = todayRows.filter((r) => r.status !== "cancelled");
+    const total = active.length;
+    const attended = active.filter((r) => r.status === "attended").length;
+    return { total, attended };
+  }, [todayRows]);
+
+  // Phase 7: 액션바 표시 조건 — 할 일이 있을 때만
+  const hasActionableItems = pendingList.length > 0 || noShowCount > 0;
+
+  // Phase 7: "다음" 세션 계산 — 아직 시작 안 된 가장 이른 세션
+  const nextSessionId = useMemo(() => {
+    const upcoming = sessions.filter((s) => s.time > currentTime);
+    return upcoming.length > 0 ? upcoming[0].sessionId : null;
+  }, [sessions, currentTime]);
+
+  // --- mutations ---
   const updateAutoApprovedM = useMutation({
     mutationFn: (on: boolean) =>
       updateClinicSettings(undefined, undefined, on),
@@ -78,7 +123,6 @@ export default function ClinicHomePage() {
     },
     onError: (err: any) => {
       const msg = err?.response?.data?.detail ?? err?.message ?? "자동 승인 설정 저장에 실패했습니다.";
-      console.error("[Clinic] auto_approve_booking PATCH failed:", err?.response?.status, msg);
       feedback.error(`자동 승인 설정을 저장할 수 없습니다. ${typeof msg === "string" ? msg : ""}`);
     },
   });
@@ -88,143 +132,192 @@ export default function ClinicHomePage() {
       patchClinicParticipantStatus(id, { status }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["clinic-participants"] });
+      qc.invalidateQueries({ queryKey: ["admin", "notification-counts"] });
     },
   });
 
+  const approveAll = () => {
+    pendingList.forEach((p) => {
+      patchStatusM.mutate({ id: p.id, status: "booked" });
+    });
+  };
+
+  const todayLabel = dayjs(today).format("YYYY-MM-DD (dd)");
+
   return (
-    <div className="clinic-page clinic-home" data-clinic-settings-version={CLINIC_SETTINGS_UI_VERSION}>
-      <div className="clinic-toolbar">
-        <DatePicker value={date} onChange={setDate} placeholder="날짜" />
-      </div>
+    <div className="clinic-page clinic-home clinic-home--workspace">
+      {/* ── 1) 액션바: 승인 대기 + 불참 + 자동승인 — 할 일이 없으면 완전 숨김 ── */}
+      {hasActionableItems && (
+        <div className="clinic-home__action-bar">
+          <div className="clinic-home__action-bar-left">
+            {pendingList.length > 0 ? (
+              <div className="clinic-home__action-bar-group">
+                <span className="clinic-home__action-bar-badge clinic-home__action-bar-badge--pending">
+                  승인 대기 {pendingList.length}건
+                </span>
+                <button
+                  type="button"
+                  className="clinic-home__action-btn clinic-home__action-btn--approve"
+                  onClick={approveAll}
+                  disabled={patchStatusM.isPending}
+                >
+                  일괄 승인
+                </button>
+                <button
+                  type="button"
+                  className="clinic-home__action-bar-link"
+                  onClick={() => nav("/admin/clinic/bookings?focus=pending")}
+                >
+                  개별 관리
+                </button>
+              </div>
+            ) : null}
 
-      {/* 오늘 클리닉 · 예약 대상자 · 예약 신청 — 가로 3섹션 */}
-      <div className="clinic-home__row grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <ClinicTodaySummary
-          date={date}
-          rows={todayQ.listQ.data ?? []}
-          loading={todayQ.listQ.isLoading}
-          onGoOperations={() => nav("/admin/clinic/operations")}
-          onGoBookings={() => nav("/admin/clinic/bookings")}
-        />
-
-        <div className="clinic-home__section">
-          <div className="clinic-home__header flex items-center justify-between gap-4">
-            <div>
-              <h2 className="clinic-home__title">예약 대상자</h2>
-              <p className="clinic-home__meta">
-                이번 주 미예약 {requiredCount}명
-              </p>
-            </div>
-            <Button
-              type="button"
-              intent="primary"
-              size="sm"
-              onClick={() => nav("/admin/clinic/bookings?focus=required")}
-            >
-              관리
-            </Button>
-          </div>
-          <div className="clinic-home__body">
-            {targetsQ.isLoading && (
-              <p className="clinic-home__body-text clinic-home__body-text--muted">불러오는 중…</p>
-            )}
-            {!targetsQ.isLoading && targetsList.length === 0 && (
-              <p className="ds-section__empty">대상자가 없습니다.</p>
-            )}
-            {!targetsQ.isLoading && targetsList.length > 0 && (
-              <ul className="clinic-home__list space-y-2 max-h-[240px] overflow-auto">
-                {targetsList.map((t) => (
-                  <li
-                    key={t.enrollment_id}
-                    className="clinic-home__list-item"
-                  >
-                    <span className="clinic-home__list-item-primary truncate">
-                      {t.student_name}
-                    </span>
-                    {bookedEnrollmentIds.has(t.enrollment_id) ? (
-                      <span className="clinic-home__list-item-badge clinic-home__list-item-badge--success">예약됨</span>
-                    ) : (
-                      <span className="clinic-home__list-item-badge clinic-home__list-item-badge--muted">미예약</span>
-                    )}
-                  </li>
-                ))}
-              </ul>
+            {noShowCount > 0 && (
+              <span className="clinic-home__action-bar-badge clinic-home__action-bar-badge--alert">
+                불참 {noShowCount}명
+              </span>
             )}
           </div>
-        </div>
 
-        <div className="clinic-home__section">
-          <div className="clinic-home__header flex items-center justify-between gap-4 flex-wrap">
-            <div>
-              <h2 className="clinic-home__title">예약 신청</h2>
-              <p className="clinic-home__meta">승인 대기 {pendingList.length}건</p>
-            </div>
-            <div className="clinic-home__auto-approve shrink-0">
-              <label className="clinic-home__auto-approve-label">
-                <input
-                  type="checkbox"
-                  checked={autoApproved}
-                  onChange={(e) => updateAutoApprovedM.mutate(e.target.checked)}
-                  disabled={updateAutoApprovedM.isPending}
-                  className="clinic-home__auto-approve-checkbox"
-                  aria-describedby={settingsQ.isError ? "clinic-auto-approve-error" : undefined}
-                />
-                <span className="clinic-home__auto-approve-text">자동 승인</span>
-              </label>
-            </div>
+          <div className="clinic-home__action-bar-right">
+            <label className="clinic-home__auto-approve-compact">
+              <input
+                type="checkbox"
+                checked={autoApproved}
+                onChange={(e) => updateAutoApprovedM.mutate(e.target.checked)}
+                disabled={updateAutoApprovedM.isPending}
+                className="clinic-home__auto-approve-checkbox-sm"
+              />
+              <span className="clinic-home__auto-approve-text-sm">자동 승인</span>
+            </label>
             {settingsQ.isError && (
-              <p id="clinic-auto-approve-error" className="clinic-home__body-text clinic-home__body-text--error mt-1 w-full">
-                설정을 불러올 수 없습니다. 네트워크 또는 로그인을 확인하세요.
-              </p>
-            )}
-          </div>
-          <div className="clinic-home__body">
-            {pendingQ.listQ.isLoading && (
-              <p className="clinic-home__body-text clinic-home__body-text--muted">불러오는 중…</p>
-            )}
-            {!pendingQ.listQ.isLoading && pendingList.length === 0 && (
-              <p className="ds-section__empty">대기 중인 신청이 없습니다.</p>
-            )}
-            {!pendingQ.listQ.isLoading && pendingList.length > 0 && (
-              <ul className="clinic-home__list space-y-2 max-h-[240px] overflow-auto">
-                {pendingList.map((p) => (
-                  <li
-                    key={p.id}
-                    className="clinic-home__list-item clinic-home__list-item--two-line"
-                  >
-                    <div className="min-w-0">
-                      <div className="clinic-home__list-item-primary truncate">
-                        {p.student_name}
-                      </div>
-                      <div className="clinic-home__list-item-secondary">
-                        {p.session_date ?? "-"} {p.session_start_time?.slice(0, 5) ?? ""} · {p.session_location ?? "-"}
-                      </div>
-                    </div>
-                    <div className="flex gap-2 shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => patchStatusM.mutate({ id: p.id, status: "booked" })}
-                        disabled={patchStatusM.isPending}
-                        className="clinic-home__action-btn clinic-home__action-btn--approve"
-                      >
-                        승인
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => patchStatusM.mutate({ id: p.id, status: "rejected" })}
-                        disabled={patchStatusM.isPending}
-                        className="clinic-home__action-btn clinic-home__action-btn--reject"
-                      >
-                        거절
-                      </button>
-                    </div>
-                  </li>
-                ))}
-              </ul>
+              <span className="clinic-home__body-text clinic-home__body-text--error">
+                설정 불러오기 실패
+              </span>
             )}
           </div>
         </div>
+      )}
+
+      {/* 자동 승인 토글 — 액션바 없을 때만 독립 표시 */}
+      {!hasActionableItems && !settingsQ.isLoading && (
+        <div className="clinic-home__auto-approve-standalone">
+          <label className="clinic-home__auto-approve-compact">
+            <input
+              type="checkbox"
+              checked={autoApproved}
+              onChange={(e) => updateAutoApprovedM.mutate(e.target.checked)}
+              disabled={updateAutoApprovedM.isPending}
+              className="clinic-home__auto-approve-checkbox-sm"
+            />
+            <span className="clinic-home__auto-approve-text-sm">자동 승인</span>
+          </label>
+        </div>
+      )}
+
+      {/* ── 2) 오늘 일정 타임라인 ── */}
+      <div className="clinic-home__section">
+        <div className="clinic-home__header">
+          <div>
+            <h2 className="clinic-home__title">오늘 클리닉 일정</h2>
+            <p className="clinic-home__meta">{todayLabel}</p>
+          </div>
+        </div>
+
+        <div className="clinic-home__body">
+          {/* 오늘 출석 요약 한 줄 */}
+          {!todayQ.listQ.isLoading && sessions.length > 0 && (
+            <p className="clinic-home__today-summary">
+              오늘 전체 {todaySummary.total}명 중 출석 {todaySummary.attended}명
+            </p>
+          )}
+
+          {todayQ.listQ.isLoading && (
+            <p className="clinic-home__body-text clinic-home__body-text--muted">불러오는 중…</p>
+          )}
+
+          {!todayQ.listQ.isLoading && sessions.length === 0 && (
+            <div className="clinic-home__empty-sessions">
+              <p className="clinic-home__empty-sessions-text">
+                오늘 예정된 클리닉이 없습니다.
+              </p>
+              <button
+                type="button"
+                className="clinic-home__empty-sessions-cta"
+                onClick={() => nav("/admin/clinic/schedule")}
+              >
+                <CalendarPlus size={15} aria-hidden />
+                일정 관리에서 만들기
+              </button>
+            </div>
+          )}
+
+          {!todayQ.listQ.isLoading && sessions.length > 0 && (
+            <ul className="clinic-home__timeline">
+              {sessions.map((s) => {
+                const isPast = s.end ? s.end <= currentTime : s.time < currentTime;
+                const isNext = s.sessionId === nextSessionId;
+
+                return (
+                  <li key={s.sessionId} className="clinic-home__timeline-row">
+                    <div className="clinic-home__timeline-time">
+                      <span className="clinic-home__timeline-time-text">
+                        {s.time}{s.end ? `~${s.end}` : ""}
+                      </span>
+                    </div>
+
+                    <div className={`clinic-home__timeline-card ${isNext ? "clinic-home__timeline-card--next" : ""}`}>
+                      <div className="clinic-home__timeline-card-info">
+                        {isNext && (
+                          <span className="clinic-home__timeline-card-next-badge">다음</span>
+                        )}
+                        {s.location && (
+                          <span className="clinic-home__timeline-card-location">{s.location}</span>
+                        )}
+                        <span className="clinic-home__timeline-card-fill">
+                          {s.booked}/{s.total}명
+                          {s.noShow > 0 && (
+                            <span className="clinic-home__timeline-card-alert"> · 불참 {s.noShow}</span>
+                          )}
+                        </span>
+
+                        {isPast && (s.attended > 0 || s.noShow > 0) && (
+                          <span className="clinic-home__timeline-card-progress">
+                            출석 {s.attended} · 불참 {s.noShow}
+                          </span>
+                        )}
+                      </div>
+
+                      <button
+                        type="button"
+                        className="clinic-home__timeline-card-action"
+                        onClick={() => nav(`/admin/clinic/operations?date=${today}`)}
+                      >
+                        출석 확인 →
+                      </button>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
       </div>
+
+      {/* ── 3) 미예약 배너 — 대상자 있고 미예약자 있을 때만 표시 ── */}
+      {!targetsQ.isLoading && (targetsQ.data ?? []).length > 0 && requiredCount > 0 && (
+        <button
+          type="button"
+          className="clinic-home__unbooked-banner"
+          onClick={() => nav("/admin/clinic/bookings?focus=required")}
+        >
+          <span className="clinic-home__unbooked-banner-text">
+            이번 주 미예약 학생 <strong>{requiredCount}명</strong>
+          </span>
+          <span className="clinic-home__unbooked-banner-arrow">예약 탭으로 이동 →</span>
+        </button>
+      )}
     </div>
   );
 }

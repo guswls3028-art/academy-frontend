@@ -1,12 +1,13 @@
 /**
  * PATH: src/features/clinic/pages/OperationsConsolePage/ClinicConsoleSidebar.tsx
  * 운영 콘솔 좌측 — 미니 달력 + 해당일 클리닉 수업 목록 (SSOT: clinic.css 미니캘 그리드)
+ * Phase 6: 시간 + 장소 인라인 표시, 인원 수 뱃지
  */
 
 import { useMemo } from "react";
 import dayjs from "dayjs";
 import "dayjs/locale/ko";
-import { Clock } from "lucide-react";
+import { Clock, MapPin } from "lucide-react";
 import type { ClinicSessionTreeNode } from "../../api/clinicSessions.api";
 
 dayjs.locale("ko");
@@ -168,39 +169,24 @@ export default function ClinicConsoleSidebar({
                   <button
                     type="button"
                     onClick={() => onSelectSession(s.id)}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 8,
-                      width: "100%",
-                      padding: "var(--space-2) var(--space-4)",
-                      border: "none",
-                      borderRadius: 0,
-                      background: isActive
-                        ? "color-mix(in srgb, var(--color-primary) 10%, var(--color-bg-surface))"
-                        : "transparent",
-                      color: isActive ? "var(--color-primary)" : "var(--color-text-secondary)",
-                      fontWeight: isActive ? 600 : 500,
-                      fontSize: 13,
-                      textAlign: "left",
-                      cursor: "pointer",
-                      borderLeft: `3px solid ${isActive ? "var(--color-primary)" : "transparent"}`,
-                    }}
+                    className={cx(
+                      "clinic-console__sidebar-session",
+                      isActive && "clinic-console__sidebar-session--active"
+                    )}
                   >
-                    <Clock size={14} aria-hidden />
-                    <span>{time}</span>
-                    <span
-                      style={{
-                        flex: 1,
-                        minWidth: 0,
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {s.location || "—"}
-                    </span>
-                    <span style={{ fontSize: 11, color: "var(--color-text-muted)" }}>
+                    <div className="clinic-console__sidebar-session-top">
+                      <Clock size={13} aria-hidden />
+                      <span className="clinic-console__sidebar-session-time">{time}</span>
+                      {s.location && (
+                        <>
+                          <MapPin size={11} aria-hidden style={{ opacity: 0.6 }} />
+                          <span className="clinic-console__sidebar-session-location">
+                            {s.location}
+                          </span>
+                        </>
+                      )}
+                    </div>
+                    <span className="clinic-console__sidebar-session-badge">
                       {s.booked_count ?? 0}명
                     </span>
                   </button>

@@ -1,6 +1,6 @@
 /**
  * PATH: src/features/clinic/pages/OperationsConsolePage/ClinicOperationsConsolePage.tsx
- * 클리닉 운영 콘솔 — 좌: 달력 + 해당일 클리닉 수업 목록 | 우: 해당 수업 대상자 관리 워크스페이스
+ * 클리닉 진행 — 좌: 달력 + 해당일 클리닉 수업 목록 | 우: 해당 수업 대상자 관리 워크스페이스
  * SSOT: PanelWithTreeLayout (메시지 자동발송과 동일)
  */
 
@@ -8,7 +8,8 @@ import { useMemo, useState, useEffect } from "react";
 import dayjs from "dayjs";
 import "dayjs/locale/ko";
 import { useQuery } from "@tanstack/react-query";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
+import { CalendarPlus } from "lucide-react";
 import { fetchClinicSessionTree } from "../../api/clinicSessions.api";
 import type { ClinicSessionTreeNode } from "../../api/clinicSessions.api";
 import { useClinicParticipants } from "../../hooks/useClinicParticipants";
@@ -25,6 +26,7 @@ function todayISO() {
 
 export default function ClinicOperationsConsolePage() {
   const [sp] = useSearchParams();
+  const navigate = useNavigate();
   const dateParam = sp.get("date");
   const initialDate =
     dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam) ? dateParam : todayISO();
@@ -62,15 +64,21 @@ export default function ClinicOperationsConsolePage() {
 
   const rows = (participants.listQ.data ?? []) as ClinicParticipant[];
 
+  // Phase 2: 오늘 날짜일 때 첫 번째 세션 자동 선택 (빈 placeholder 제거)
+  useEffect(() => {
+    if (!selectedSessionId && sessionsForDay.length > 0) {
+      setSelectedSessionId(sessionsForDay[0].id);
+    }
+  }, [sessionsForDay, selectedSessionId]);
+
+  const headerDesc = "출석 확인하고 학생 관리하세요.";
+
   return (
     <div className="clinic-page">
       <div className={panelStyles.root}>
         <div className={panelStyles.header}>
-          <h2 className={panelStyles.headerTitle}>운영 콘솔</h2>
-          <p className={panelStyles.headerDesc}>
-            날짜와 클리닉 수업을 선택하면 해당 수업의 대상자를 한 화면에서 관리할 수 있습니다.
-            시험 불합·과제 불합 등 사유별로 재시험 연결, 점수 갱신을 진행하세요.
-          </p>
+          <h2 className={panelStyles.headerTitle}>클리닉 진행</h2>
+          <p className={panelStyles.headerDesc}>{headerDesc}</p>
         </div>
 
         <div className={panelStyles.body}>
@@ -108,8 +116,26 @@ export default function ClinicOperationsConsolePage() {
           <div className={panelStyles.content}>
             <div className={panelStyles.contentInner}>
               {!selectedSessionId ? (
-                <div className={panelStyles.placeholder}>
-                  좌측에서 날짜를 선택한 뒤, 해당 날짜의 클리닉 수업을 선택하세요.
+                <div className="clinic-console__empty-workspace">
+                  {sessionsForDay.length === 0 ? (
+                    <>
+                      <p className="clinic-console__empty-text">
+                        {dayjs(selectedDate).format("M월 D일")}에는 예정된 클리닉이 없습니다.
+                      </p>
+                      <button
+                        type="button"
+                        className="clinic-console__empty-cta"
+                        onClick={() => navigate("/admin/clinic/schedule")}
+                      >
+                        <CalendarPlus size={16} aria-hidden />
+                        일정 관리에서 만들기
+                      </button>
+                    </>
+                  ) : (
+                    <p className="clinic-console__empty-text">
+                      좌측에서 클리닉 수업을 선택하세요.
+                    </p>
+                  )}
                 </div>
               ) : (
                 <ClinicConsoleWorkspace

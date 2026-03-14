@@ -1,0 +1,301 @@
+/* ── Agent Detail Panel ────────────────────────────────────────────────────── */
+/* Side panel showing selected agent details, logs, and event timeline.        */
+/* Uses --dev-dark-* tokens from DevLayout.module.css.                         */
+
+/* ===== Detail Panel ===== */
+.detailPanel {
+  width: 360px;
+  flex-shrink: 0;
+  background: var(--dev-dark-floor);
+  border: 1px solid var(--dev-dark-border);
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 240px);
+  overflow: hidden;
+}
+
+.statusBadge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+
+.detailHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  border-bottom: 1px solid var(--dev-dark-border);
+  border-top: 2px solid var(--dev-primary);
+  flex-shrink: 0;
+}
+
+.detailTitle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.detailName {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--dev-dark-text-bright);
+  margin: 0 0 4px;
+}
+
+.detailClose {
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: var(--dev-dark-border);
+  color: #64748b;
+  border-radius: 4px;
+  font-size: 16px;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: background 0.15s, color 0.15s;
+  font-family: inherit;
+}
+
+.detailClose:hover {
+  background: var(--dev-dark-border-light);
+  color: var(--dev-dark-text);
+}
+
+.detailBody {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--dev-dark-border-light) transparent;
+}
+
+/* ── Data source hint ── */
+.dataSourceHint {
+  font-size: 10px;
+  color: var(--dev-dark-text-muted);
+  padding: 6px 8px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px dashed var(--dev-dark-border);
+  border-radius: 4px;
+  line-height: 1.5;
+}
+
+/* ── Detail info grid ── */
+.detailGrid {
+  display: grid;
+  grid-template-columns: 80px 1fr;
+  gap: 0;
+}
+
+.infoLabel {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--dev-dark-text-muted);
+  padding: 5px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.infoValue {
+  font-size: 11px;
+  color: #cbd5e1;
+  padding: 5px 0;
+  word-break: break-all;
+}
+
+.mono {
+  font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
+  font-size: 10px;
+}
+
+/* ── Error box ── */
+.errorBox {
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: 6px;
+  padding: 10px;
+}
+
+.errorLabel {
+  font-size: 10px;
+  font-weight: 700;
+  color: #f87171;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 4px;
+}
+
+.errorText {
+  font-size: 11px;
+  color: #fca5a5;
+  line-height: 1.5;
+}
+
+/* ── Log box ── */
+.logBox {
+  background: #0f172a;
+  border: 1px solid var(--dev-dark-border);
+  border-radius: 6px;
+  padding: 10px;
+}
+
+.logLabel {
+  font-size: 10px;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 6px;
+}
+
+.logPre {
+  font-size: 10px;
+  color: var(--dev-dark-text-secondary);
+  line-height: 1.5;
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* ── Event Timeline ── */
+.timelineSection {
+  flex: 1;
+}
+
+.timelineLabel {
+  font-size: 10px;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 10px;
+}
+
+.timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.timelineEmpty {
+  font-size: 11px;
+  color: var(--dev-dark-text-muted);
+  padding: 12px 0;
+}
+
+.timelineItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 5px 0;
+  border-left: 1px solid var(--dev-dark-border);
+  margin-left: 4px;
+  padding-left: 12px;
+  position: relative;
+}
+
+.timelineDot {
+  position: absolute;
+  left: -4px;
+  top: 9px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--dev-dark-border-light);
+  border: 1px solid var(--dev-dark-border);
+  flex-shrink: 0;
+}
+
+.timelineDotError {
+  background: var(--dev-danger);
+  border-color: var(--dev-danger);
+}
+
+.timelineDotWarn {
+  background: var(--dev-warning);
+  border-color: var(--dev-warning);
+}
+
+.timelineContent {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.timelineType {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--dev-dark-text-secondary);
+  text-transform: uppercase;
+}
+
+.timelineMsg {
+  font-size: 10px;
+  color: #64748b;
+  word-break: break-word;
+}
+
+.timelineTarget {
+  font-size: 10px;
+  color: var(--dev-dark-text-muted);
+  font-family: "SF Mono", "Fira Code", monospace;
+}
+
+.timelineTime {
+  font-size: 10px;
+  color: var(--dev-dark-text-muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* ===== Focus Visible ===== */
+.detailClose:focus-visible {
+  outline: 2px solid #60a5fa;
+  outline-offset: 2px;
+}
+
+/* ===== Scrollbar (dark theme) ===== */
+.detailBody::-webkit-scrollbar {
+  width: 4px;
+}
+
+.detailBody::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.detailBody::-webkit-scrollbar-thumb {
+  background: var(--dev-dark-border-light);
+  border-radius: 2px;
+}
+
+/* ===== Responsive ===== */
+@media (max-width: 1024px) {
+  .detailPanel {
+    width: 100%;
+    max-height: 400px;
+  }
+}
+
+@media (max-width: 640px) {
+  .detailPanel {
+    width: 100%;
+  }
+}
+
+/* ===== Reduced Motion ===== */
+@media (prefers-reduced-motion: reduce) {
+  .detailPanel,
+  .detailBody {
+    transition: none !important;
+  }
+}

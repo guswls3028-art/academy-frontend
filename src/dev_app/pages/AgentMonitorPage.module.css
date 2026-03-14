@@ -1,0 +1,613 @@
+/* -- Agent Monitor: Office Floor Map Layout ------------------------------------------------- */
+/* Zone-based grid, summary bar, filter bar, office scene.                                   */
+/* Uses --dev-dark-* tokens from DevLayout.module.css.                                       */
+
+/* ===== Page Shell ===== */
+.page {
+  padding: 24px;
+  min-height: 100%;
+  background: var(--dev-dark-bg);
+  color: var(--dev-dark-text);
+  font-family: "SF Mono", "Fira Code", "Cascadia Code", "Consolas", monospace;
+}
+
+/* ===== Page Header ===== */
+.pageHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.headerLeft {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.pageTitle {
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--dev-dark-text-bright);
+  margin: 0;
+}
+
+.connBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
+  letter-spacing: 0.06em;
+}
+
+.connOn {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+}
+
+.connOff {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+}
+
+.connDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: connPulse 2s infinite;
+}
+
+.connOff .connDot {
+  animation: none;
+}
+
+@keyframes connPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+.sessionId {
+  font-size: 10px;
+  color: var(--dev-dark-text-muted);
+}
+
+.headerRight {
+  display: flex;
+  gap: 8px;
+}
+
+.actionBtn {
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 5px 12px;
+  border-radius: 4px;
+  border: 1px solid var(--dev-dark-border);
+  background: var(--dev-dark-border);
+  color: var(--dev-dark-text-secondary);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.actionBtn:hover {
+  background: var(--dev-dark-border-light);
+  color: var(--dev-dark-text);
+}
+
+.actionBtnMuted {
+  opacity: 0.5;
+}
+
+.actionBtnMuted:hover {
+  opacity: 0.8;
+}
+
+.liveHint {
+  font-size: 10px;
+  color: var(--dev-dark-text-muted);
+  padding: 3px 8px;
+  border: 1px dashed var(--dev-dark-border);
+  border-radius: 4px;
+}
+
+/* ===== Summary Bar ===== */
+.summaryBar {
+  display: flex;
+  gap: 2px;
+  margin-bottom: 16px;
+  background: var(--dev-dark-border);
+  border-radius: 6px;
+  padding: 3px;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--dev-dark-border-light);
+}
+
+.summaryChip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 16px;
+  border-radius: 6px;
+  min-width: 72px;
+  flex: 1;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s;
+}
+
+.summaryChip:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.summaryValue {
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.summaryLabel {
+  font-size: 10px;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+/* ===== Control Bar (Filter + View Toggle) ===== */
+.controlBar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.filterBar {
+  display: flex;
+  gap: 2px;
+  background: var(--dev-dark-border);
+  border-radius: 6px;
+  padding: 3px;
+  flex: 1;
+}
+
+.filterTab {
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 5px 14px;
+  border-radius: 4px;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.filterTab:hover {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--dev-dark-text-secondary);
+}
+
+.filterTabActive {
+  background: var(--dev-dark-border-light);
+  color: var(--dev-dark-text);
+}
+
+/* ===== View Toggle ===== */
+.viewToggle {
+  display: flex;
+  gap: 2px;
+  background: var(--dev-dark-border);
+  border-radius: 6px;
+  padding: 3px;
+  flex-shrink: 0;
+}
+
+.viewBtn {
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 5px 12px;
+  border-radius: 4px;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.viewBtn:hover {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--dev-dark-text-secondary);
+}
+
+.viewBtnActive {
+  background: var(--dev-dark-border-light);
+  color: var(--dev-dark-text);
+}
+
+/* ===== Main Area ===== */
+.mainArea {
+  display: flex;
+  gap: 16px;
+  min-height: 400px;
+}
+
+/* ===== Office Scene ===== */
+.officeScene {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ===== Empty State ===== */
+.emptyOffice {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 320px;
+  gap: 16px;
+  background:
+    repeating-linear-gradient(
+      0deg, transparent, transparent 3px,
+      rgba(255, 255, 255, 0.035) 3px, rgba(255, 255, 255, 0.035) 4px
+    ),
+    repeating-linear-gradient(
+      90deg, transparent, transparent 3px,
+      rgba(255, 255, 255, 0.035) 3px, rgba(255, 255, 255, 0.035) 4px
+    ),
+    linear-gradient(180deg, var(--dev-dark-floor) 0%, var(--dev-dark-bg) 100%);
+  border: 1px solid var(--dev-dark-border);
+  border-radius: 10px;
+  padding: 16px;
+}
+
+.emptyIcon {
+  /* opacity handled by SVG inline style */
+}
+
+.emptyText {
+  font-size: 12px;
+  color: var(--dev-dark-text-muted);
+  text-align: center;
+  max-width: 360px;
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* ===== Office Floor: 3-Column Zone Grid ===== */
+.officeFloor {
+  display: grid;
+  grid-template-columns: 1fr 1.6fr 1fr;
+  gap: 12px;
+  background:
+    repeating-linear-gradient(
+      0deg, transparent, transparent 3px,
+      rgba(255, 255, 255, 0.025) 3px, rgba(255, 255, 255, 0.025) 4px
+    ),
+    repeating-linear-gradient(
+      90deg, transparent, transparent 3px,
+      rgba(255, 255, 255, 0.025) 3px, rgba(255, 255, 255, 0.025) 4px
+    ),
+    linear-gradient(180deg, var(--dev-dark-floor) 0%, var(--dev-dark-bg) 100%);
+  border: 1px solid var(--dev-dark-border);
+  border-radius: 10px;
+  padding: 20px;
+  min-height: 360px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--dev-dark-border-light) transparent;
+}
+
+.floorColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* Column separators for spatial depth */
+.floorColumn:not(:last-child) {
+  border-right: 1px solid rgba(255, 255, 255, 0.04);
+  padding-right: 12px;
+}
+
+/* ===== Zone Box ===== */
+.zone {
+  border: 1px solid var(--dev-dark-border);
+  border-left: 3px solid var(--dev-dark-border); /* overridden by inline borderLeftColor */
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.zone:hover {
+  border-color: var(--dev-dark-border-light);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 6px rgba(0, 0, 0, 0.15);
+}
+
+/* Compact zone when empty */
+.zoneCompact {
+  padding: 8px 12px;
+  gap: 4px;
+}
+
+/* ── Zone Layout Variants ── */
+/* Strategy Room: meeting table feel — wider seats, less columns */
+.zoneMeeting .zoneDesks { gap: 8px; }
+
+/* Review Room: focus/single — narrow, 1-2 seats */
+.zoneFocus { max-width: 280px; }
+.zoneFocus .zoneDesks { gap: 8px; }
+
+/* Engineering Floor: open office — compact, many seats */
+.zoneOpen {
+  padding: 14px;
+  min-height: 120px;
+}
+.zoneOpen .zoneDesks { gap: 5px; }
+
+/* QA Lab: test booths — spaced */
+.zoneBooth .zoneDesks { gap: 8px; }
+
+/* Ops Desk: console — tight, monitoring feel */
+.zoneConsole .zoneDesks { gap: 6px; }
+
+/* Reserve Pool: muted bench — lower contrast, clearly secondary */
+.zoneBench {
+  opacity: 0.75;
+  border-style: dashed;
+}
+.zoneBench:hover { opacity: 1; }
+.zoneBench .zoneName {
+  font-style: italic;
+}
+
+/* Incident Desk: alert zone — strong isolation feel */
+.zoneAlert_ {
+  border-color: rgba(239, 68, 68, 0.2);
+  box-shadow: inset 0 0 0 1px rgba(239, 68, 68, 0.05);
+  border-top: 2px solid rgba(239, 68, 68, 0.4);
+  background-image:
+    repeating-linear-gradient(
+      -45deg,
+      transparent,
+      transparent 8px,
+      rgba(239, 68, 68, 0.02) 8px,
+      rgba(239, 68, 68, 0.02) 12px
+    );
+  animation: incidentPulse 4s ease-in-out infinite;
+}
+.zoneAlert_:hover {
+  border-color: rgba(239, 68, 68, 0.35);
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.1);
+}
+
+@keyframes incidentPulse {
+  0%, 100% { border-top-color: rgba(239, 68, 68, 0.4); }
+  50% { border-top-color: rgba(239, 68, 68, 0.7); }
+}
+
+/* ── Zone Header ── */
+.zoneHeader {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--dev-dark-border);
+}
+
+.zoneCompact .zoneHeader {
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.zoneIcon {
+  font-size: 14px;
+  opacity: 0.6;
+}
+
+.zoneName {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--dev-dark-text);
+  letter-spacing: 0.02em;
+}
+
+.zoneStats {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-variant-numeric: tabular-nums;
+}
+
+.zoneCount {
+  font-size: 10px;
+  color: var(--dev-dark-text-muted);
+  background: var(--dev-dark-border);
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-weight: 600;
+}
+
+.zoneActive {
+  font-size: 9px;
+  color: var(--dev-success);
+  font-weight: 600;
+}
+
+.zoneBlocked {
+  font-size: 9px;
+  color: var(--dev-warning);
+  font-weight: 700;
+}
+
+.zoneFailed {
+  font-size: 9px;
+  color: #fff;
+  font-weight: 700;
+  background: var(--dev-danger);
+  padding: 0 5px;
+  border-radius: 3px;
+  line-height: 1.6;
+}
+
+/* ===== Desk Grid inside Zone ===== */
+.zoneDesks {
+  display: grid;
+  gap: 6px;
+}
+
+.zoneEmpty {
+  font-size: 10px;
+  color: var(--dev-dark-text-muted);
+  padding: 8px;
+  text-align: center;
+  opacity: 0.5;
+}
+
+/* ===== List View (fallback flat grid) ===== */
+.listFloor {
+  background:
+    repeating-linear-gradient(
+      0deg, transparent, transparent 3px,
+      rgba(255, 255, 255, 0.035) 3px, rgba(255, 255, 255, 0.035) 4px
+    ),
+    repeating-linear-gradient(
+      90deg, transparent, transparent 3px,
+      rgba(255, 255, 255, 0.035) 3px, rgba(255, 255, 255, 0.035) 4px
+    ),
+    linear-gradient(180deg, var(--dev-dark-floor) 0%, var(--dev-dark-bg) 100%);
+  border: 1px solid var(--dev-dark-border);
+  border-radius: 10px;
+  padding: 16px;
+  min-height: 360px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--dev-dark-border-light) transparent;
+}
+
+.deskGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 8px;
+}
+
+/* ===== Focus Visible ===== */
+.summaryChip:focus-visible,
+.filterTab:focus-visible,
+.viewBtn:focus-visible,
+.actionBtn:focus-visible {
+  outline: 2px solid #60a5fa;
+  outline-offset: 2px;
+}
+
+/* ===== Scrollbar (office floor) ===== */
+.officeFloor::-webkit-scrollbar,
+.listFloor::-webkit-scrollbar {
+  width: 4px;
+}
+
+.officeFloor::-webkit-scrollbar-track,
+.listFloor::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.officeFloor::-webkit-scrollbar-thumb,
+.listFloor::-webkit-scrollbar-thumb {
+  background: var(--dev-dark-border);
+  border-radius: 2px;
+}
+
+/* ===== Responsive ===== */
+@media (max-width: 1024px) {
+  .mainArea {
+    flex-direction: column;
+  }
+
+  .officeFloor {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  /* Column 3 wraps into column 2 area */
+  .floorColumn:nth-child(3) {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  .floorColumn:not(:last-child) {
+    border-right: none;
+    padding-right: 0;
+  }
+
+  .deskGrid {
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .page {
+    padding: 12px;
+  }
+
+  .pageHeader {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .controlBar {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .summaryBar {
+    flex-wrap: wrap;
+  }
+
+  .summaryChip {
+    min-width: 56px;
+    padding: 6px 10px;
+  }
+
+  .officeFloor {
+    grid-template-columns: 1fr;
+  }
+
+  .floorColumn:nth-child(3) {
+    grid-template-columns: 1fr;
+  }
+
+  .deskGrid {
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  }
+
+  .zoneDesks {
+    grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+  }
+}
+
+/* ===== Reduced Motion ===== */
+@media (prefers-reduced-motion: reduce) {
+  .connDot,
+  .zoneAlert_ {
+    animation: none !important;
+    transition: none !important;
+  }
+}

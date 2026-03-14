@@ -100,7 +100,7 @@ export default function OperationsSessionTree({
   const grid = useMemo(() => buildMonthGrid(year, month), [year, month]);
 
   return (
-    <div className="clinic-scheduler-panel ds-card-modal clinic-panel w-[320px] shrink-0 overflow-hidden flex flex-col">
+    <div className="clinic-scheduler-panel ds-card-modal clinic-panel shrink-0 overflow-hidden flex flex-col">
       {/* 헤더: 클리닉 스케줄러 + 연도 */}
       <div className="clinic-scheduler-panel__header">
         <div className="ds-card-modal__accent" aria-hidden />

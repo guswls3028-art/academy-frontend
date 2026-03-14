@@ -86,7 +86,7 @@ export default function ClinicDaySchedulePanel({
         <div className="ds-card-modal__body">
           <div className="clinic-empty-state">
             <EmptyCalendarIcon className="clinic-empty-state__icon" />
-            <p className="clinic-empty-state__text">해당 날짜에 일정이 없습니다.</p>
+            <p className="clinic-empty-state__text">이 날은 일정이 없습니다.</p>
           </div>
         </div>
       </div>

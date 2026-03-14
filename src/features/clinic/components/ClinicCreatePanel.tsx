@@ -226,7 +226,7 @@ export default function ClinicCreatePanel({
         target_lecture_ids: targetLectureIds.length > 0 ? targetLectureIds : [],
       });
 
-      message.success("클리닉 생성 완료");
+      message.success("클리닉이 만들어졌습니다.");
       setSelected([]);
       setMemo("");
       setTimeRange("");
@@ -242,7 +242,7 @@ export default function ClinicCreatePanel({
       onCreated?.(selectedDate.format("YYYY-MM-DD"));
     } catch (e: any) {
       const res = e?.response?.data;
-      let detail = "생성 실패";
+      let detail = "클리닉을 만들지 못했습니다.";
       if (res) {
         if (typeof res.detail === "string") detail = res.detail;
         else if (Array.isArray(res.detail))
@@ -265,8 +265,8 @@ export default function ClinicCreatePanel({
       <div className="ds-card-modal__header flex items-center justify-between">
         <div className="ds-card-modal__accent" aria-hidden />
         <div className="ds-card-modal__header-inner">
-          <h2 className="ds-card-modal__header-title">클리닉 생성</h2>
-          <p className="ds-card-modal__header-description">시작·종료 시간 설정</p>
+          <h2 className="ds-card-modal__header-title">클리닉 만들기</h2>
+          <p className="ds-card-modal__header-description">시간, 장소, 대상자를 설정하세요.</p>
         </div>
         <div className="ds-card-modal__header-right">
           <span className="text-xs font-semibold text-[var(--color-text-muted)]">
@@ -646,7 +646,7 @@ export default function ClinicCreatePanel({
               <span className="text-[13px] font-semibold text-[var(--color-text-primary)]">
                 {selected.length > 0
                   ? `${mode === "targets" ? "예약 대상자" : "전체 학생"} ${selected.length}명 선택됨`
-                  : "선택한 대상 없음"}
+                  : "아직 선택 안 됨"}
               </span>
             </div>
           </div>
@@ -663,10 +663,10 @@ export default function ClinicCreatePanel({
             disabled={isPastDate}
           >
             {isPastDate
-              ? "지난 날짜 — 생성 불가"
+              ? "지난 날짜입니다"
               : selected.length > 0
-                ? `선택 ${selected.length}명 클리닉 생성`
-                : `클리닉만 생성 (정원 ${maxParticipants}명)`}
+                ? `${selected.length}명 클리닉 만들기`
+                : `클리닉 만들기 (정원 ${maxParticipants}명)`}
           </Button>
         </div>
       </div>
