@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import {
   submitRegistrationRequest,
   sendExistingCredentials,
+  checkSignupDuplicate,
 } from "@/features/students/api/students";
 import { PhoneInput010Blocks } from "@/shared/ui/PhoneInput010Blocks";
 import styles from "./LoginPage.module.css";
@@ -36,6 +37,10 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
   const [success, setSuccess] = useState(false);
   const [duplicateInfo, setDuplicateInfo] = useState<{ phone: string; name: string } | null>(null);
   const [credentialsSent, setCredentialsSent] = useState(false);
+  const [usernameCheck, setUsernameCheck] = useState<{ available: boolean; reason?: string } | null>(null);
+  const [phoneCheck, setPhoneCheck] = useState<{ available: boolean; reason?: string } | null>(null);
+  const [checkingUsername, setCheckingUsername] = useState(false);
+  const [checkingPhone, setCheckingPhone] = useState(false);
 
   // 모달 열릴 때 폼 초기화
   useEffect(() => {
@@ -45,8 +50,32 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
       setSuccess(false);
       setDuplicateInfo(null);
       setCredentialsSent(false);
+      setUsernameCheck(null);
+      setPhoneCheck(null);
     }
   }, [open]);
+
+  async function handleCheckUsername() {
+    const val = form.username.trim();
+    if (!val) { setUsernameCheck(null); return; }
+    setCheckingUsername(true);
+    try {
+      const res = await checkSignupDuplicate({ username: val });
+      setUsernameCheck(res.username ?? null);
+    } catch { setUsernameCheck(null); }
+    finally { setCheckingUsername(false); }
+  }
+
+  async function handleCheckPhone() {
+    const val = form.phone.replace(/\D/g, "");
+    if (val.length !== 11 || !val.startsWith("010")) { setPhoneCheck(null); return; }
+    setCheckingPhone(true);
+    try {
+      const res = await checkSignupDuplicate({ phone: val });
+      setPhoneCheck(res.phone ?? null);
+    } catch { setPhoneCheck(null); }
+    finally { setCheckingPhone(false); }
+  }
 
   useEffect(() => {
     if (!open) return;
@@ -309,9 +338,16 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
                   className={styles.signupInput}
                   placeholder="영문·숫자 조합"
                   value={form.username}
-                  onChange={(e) => setForm((f) => ({ ...f, username: e.target.value }))}
+                  onChange={(e) => { setForm((f) => ({ ...f, username: e.target.value })); setUsernameCheck(null); }}
+                  onBlur={handleCheckUsername}
                   autoComplete="username"
                 />
+                {checkingUsername && <span style={{ fontSize: "0.75rem", color: "var(--auth-text-muted)" }}>확인 중...</span>}
+                {usernameCheck && !checkingUsername && (
+                  <span style={{ fontSize: "0.75rem", fontWeight: 600, color: usernameCheck.available ? "#16a34a" : "#dc2626" }}>
+                    {usernameCheck.available ? "사용 가능한 아이디입니다." : usernameCheck.reason}
+                  </span>
+                )}
               </div>
               <div className={styles.signupInputRow}>
                 <label htmlFor="signup-pw" className={styles.signupInputLabel}>
@@ -333,15 +369,24 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
             {/* 연락처 */}
             <section className={styles.signupSection} aria-labelledby="signup-contact">
               <h3 id="signup-contact" className={styles.signupSectionTitle}>연락처</h3>
-              <div className={styles.signupPhoneRow}>
+              <div className={styles.signupPhoneRow} onBlur={(e) => {
+                // 포커스가 이 row 밖으로 나갈 때만 검사
+                if (!e.currentTarget.contains(e.relatedTarget as Node)) handleCheckPhone();
+              }}>
                 <span className={styles.signupInputLabel}>휴대전화 <span className={styles.signupRequired}>*</span></span>
                 <PhoneInput010Blocks
                   value={form.phone}
-                  onChange={(v) => setForm((f) => ({ ...f, phone: v }))}
+                  onChange={(v) => { setForm((f) => ({ ...f, phone: v })); setPhoneCheck(null); }}
                   blockClassName={styles.signupPhoneBlock}
                   inputClassName={styles.signupPhoneBlockInput}
                   aria-label="휴대전화"
                 />
+                {checkingPhone && <span style={{ fontSize: "0.75rem", color: "var(--auth-text-muted)" }}>확인 중...</span>}
+                {phoneCheck && !checkingPhone && (
+                  <span style={{ fontSize: "0.75rem", fontWeight: 600, color: phoneCheck.available ? "#16a34a" : "#dc2626" }}>
+                    {phoneCheck.available ? "사용 가능한 전화번호입니다." : phoneCheck.reason}
+                  </span>
+                )}
               </div>
               <div className={styles.signupPhoneRow}>
                 <span className={styles.signupInputLabel}>학부모 연락처 <span className={styles.signupRequired}>*</span></span>

@@ -618,6 +618,28 @@ export async function submitRegistrationRequest(form: {
  * 기존 학생 아이디/비밀번호 알림톡 발송
  * =============================== */
 
+/** 회원가입 실시간 중복검사 (아이디 / 전화번호) */
+export type DuplicateCheckResult = {
+  username?: { available: boolean; reason?: string };
+  phone?: { available: boolean; reason?: string };
+};
+
+export async function checkSignupDuplicate(params: {
+  username?: string;
+  phone?: string;
+}): Promise<DuplicateCheckResult> {
+  const body: Record<string, string> = {};
+  if (params.username?.trim()) body.username = params.username.trim();
+  if (params.phone?.trim()) body.phone = normalizePhone(params.phone);
+  if (Object.keys(body).length === 0) return {};
+  const res = await api.post<DuplicateCheckResult>(
+    "/students/registration_requests/check_duplicate/",
+    body,
+    { skipAuth: true as any },
+  );
+  return res.data;
+}
+
 /** 이미 등록된 학생에게 아이디 + 임시 비밀번호를 알림톡으로 발송 */
 export async function sendExistingCredentials(params: {
   phone: string;
