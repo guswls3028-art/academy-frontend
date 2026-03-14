@@ -335,6 +335,27 @@ export default function ClinicCreatePanel({
               </span>
             </button>
 
+            {/* 필터 경고 — 접힌 상태에서만 표시 (펼쳐지면 필터 직접 보임) */}
+            {hasActiveFilter && !showFilters && (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  padding: "6px 10px",
+                  borderRadius: 6,
+                  background: "color-mix(in srgb, var(--color-warning) 10%, var(--color-bg-surface))",
+                  border: "1px solid color-mix(in srgb, var(--color-warning) 40%, var(--color-border-divider))",
+                  fontSize: 12,
+                  fontWeight: 500,
+                  color: "var(--color-text-secondary)",
+                }}
+              >
+                <span style={{ fontSize: 14 }} aria-hidden>&#9888;</span>
+                필터가 적용되어 일부 학생만 표시됩니다.
+              </div>
+            )}
+
             {showFilters && (
               <div className="flex flex-col gap-3 pt-1">
                 {/* 학년 */}

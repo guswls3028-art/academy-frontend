@@ -566,11 +566,28 @@ export default function ClinicPage() {
               <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-2)" }}>
                 {pendingBookings.map((request) => (
                   <div key={request.id} className="stu-panel" style={{ padding: "var(--stu-space-3)" }}>
-                    <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4 }}>
-                      {formatYmd(request.session_date)} {formatTime(request.session_start_time)}
-                    </div>
-                    <div className="stu-muted" style={{ fontSize: 12 }}>
-                      {request.session_location}
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+                      <div>
+                        <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4 }}>
+                          {formatYmd(request.session_date)} {formatTime(request.session_start_time)}
+                        </div>
+                        <div className="stu-muted" style={{ fontSize: 12 }}>
+                          {request.session_location}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        className="stu-btn stu-btn--secondary"
+                        style={{ fontSize: 12, padding: "4px 10px", whiteSpace: "nowrap", flexShrink: 0, color: "var(--stu-danger)" }}
+                        disabled={cancelMutation.isPending}
+                        onClick={() => {
+                          if (window.confirm("예약을 취소할까요?")) {
+                            cancelMutation.mutate(request.id);
+                          }
+                        }}
+                      >
+                        예약 취소
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -595,11 +612,28 @@ export default function ClinicPage() {
                       border: "1px solid var(--stu-success)",
                     }}
                   >
-                    <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4 }}>
-                      {formatYmd(request.session_date)} {formatTime(request.session_start_time)}
-                    </div>
-                    <div className="stu-muted" style={{ fontSize: 12 }}>
-                      {request.session_location}
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+                      <div>
+                        <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4 }}>
+                          {formatYmd(request.session_date)} {formatTime(request.session_start_time)}
+                        </div>
+                        <div className="stu-muted" style={{ fontSize: 12 }}>
+                          {request.session_location}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        className="stu-btn stu-btn--secondary"
+                        style={{ fontSize: 12, padding: "4px 10px", whiteSpace: "nowrap", flexShrink: 0, color: "var(--stu-danger)" }}
+                        disabled={cancelMutation.isPending}
+                        onClick={() => {
+                          if (window.confirm("예약을 취소할까요?")) {
+                            cancelMutation.mutate(request.id);
+                          }
+                        }}
+                      >
+                        예약 취소
+                      </button>
                     </div>
                   </div>
                 ))}

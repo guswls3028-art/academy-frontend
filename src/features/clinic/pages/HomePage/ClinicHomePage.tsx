@@ -3,7 +3,7 @@
 // Phase 3: 액션바 + 오늘 일정 타임라인 + 미예약 배너
 // Phase 7: 빈 상태 CTA, 조건부 액션바, 세션 미니 진행 표시, "다음" 뱃지
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import dayjs from "dayjs";
 import "dayjs/locale/ko";
@@ -58,6 +58,14 @@ export default function ClinicHomePage() {
   const qc = useQueryClient();
   const today = todayISO();
   const wk = useMemo(() => weekRangeISO(today), [today]);
+
+  // Re-render every 60s so currentTime, "다음" badge, and past-session detection stay fresh
+  const [, setTimeTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setTimeTick((t) => t + 1), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
   const currentTime = nowHHMM();
 
   const todayQ = useClinicParticipants({
