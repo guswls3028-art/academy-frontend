@@ -112,6 +112,27 @@
 5. Student ClinicPage → 에러 상태 + 재시도 버튼 추가
 6. AuthContext → 로그아웃 시 queryClient.clear()
 
+### 2차 감사 핫픽스 (커밋 cc00eca5)
+- P2-1: 학생앱 독립 예약 취소 버튼 추가
+- P2-2: 오늘 탭 60초 타임 틱 (다음 배지 자동 전환)
+- P2-3: ClinicCreatePanel 필터 경고 배너
+
+### 3차 심층 감사 핫픽스 (커밋 f96e2463)
+- B-01 (HIGH): ClinicCreatePanel 선택 학생 → 세션 생성 후 자동 참가자 등록
+- B-02 (MEDIUM): bulkApprove 부분 실패 감지 + 피드백
+- B-03 (LOW): bulkAttend onError 사용자 피드백 추가
+- B-04 (LOW): patchStatusM onError 핸들러 (BookingsPage + HomePage)
+- B-05 (LOW): DevLayout 테넌트 가드 (hakwonplus/9999만 /dev/* 접근)
+
+### 테넌트 격리 감사 결과
+- 6항목 점검: 위반 없음
+- X-Tenant-Code 헤더: SAFE (모든 API 호출에 주입)
+- Dev 앱 접근: SAFE (B-05로 프론트 가드 추가)
+- 에이전트 엔드포인트: SAFE (dev 서버 전용)
+- queryClient.clear(): SAFE (로그아웃 시 캐시 전체 클리어)
+- 클리닉 데이터 스코핑: SAFE
+- 학생 예약 교차 테넌트: SAFE
+
 ### CS 분석 결과 (P2 잔여)
 - 탭 "클리닉 진행" → "출석" 키워드 부재로 검색성 약함
 - 클리닉 생성 진입점 2개 (일정 관리 vs 예약) → 통합 안내 필요
