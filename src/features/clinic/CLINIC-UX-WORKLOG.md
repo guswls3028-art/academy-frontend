@@ -90,6 +90,35 @@
 | 클리닉 진행 | 4.2 | 9.0 | +4.8 |
 | **전체** | **6.2** | **9.0** | **+2.8** |
 
+## 야간 감사 & 핫픽스 (2026-03-15~16)
+
+### 배포 검증: 5-Stage SSOT
+- Stage 1: CI/CD — PASS (Cloudflare Pages)
+- Stage 2: healthz 200, health 200 (DB connected) — PASS
+- Stage 3: Frontend HTTP 200 — PASS
+- Stage 4: Workers — UNABLE_TO_VERIFY (auth-gated, endpoint responsive)
+- Stage 5: Backend runs — PASS (5/5 success)
+
+### Gray-Zone Bug Hunt 결과
+- 발견: BUG 7건, RISK 4건, UX_GAP 4건
+- P1 수정 완료: 4건 (toggle bypass, approveAll race, bulkAttend partial failure, student API error swallow)
+- P1 미수정 (백엔드 필요): student cancel-then-rebook 비원자성
+
+### P1 핫픽스 (커밋 3920f227)
+1. ConsoleWorkspace toggle-back → statusMutation 경유로 변경
+2. ClinicHomePage approveAll → bulkApproveMutation (Promise.allSettled)
+3. ConsoleWorkspace bulkAttend → Promise.allSettled + onError 캐시 갱신
+4. Student clinicBooking.api → 에러 삼킴 제거, React Query isError 전파
+5. Student ClinicPage → 에러 상태 + 재시도 버튼 추가
+6. AuthContext → 로그아웃 시 queryClient.clear()
+
+### CS 분석 결과 (P2 잔여)
+- 탭 "클리닉 진행" → "출석" 키워드 부재로 검색성 약함
+- 클리닉 생성 진입점 2개 (일정 관리 vs 예약) → 통합 안내 필요
+- ClinicCreatePanel 필터 활성 시 시각적 경고 부족
+- 학생앱 예약 취소 버튼 없음 (변경만 가능)
+- 학생앱 세션 조회 14일 제한
+
 ## 남은 Layer 2 (백엔드 필요)
 - [ ] clinic-targets API에 clinic_reason 필드 포함
 - [ ] ClinicLink.resolved_at 설정 API (통과 처리)
