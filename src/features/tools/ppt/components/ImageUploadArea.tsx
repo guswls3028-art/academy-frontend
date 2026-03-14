@@ -72,20 +72,24 @@ export default function ImageUploadArea({ onFilesAdd, disabled }: ImageUploadAre
         onChange={handleChange}
       />
       <svg
-        width="40" height="40" viewBox="0 0 24 24" fill="none"
-        stroke="var(--color-text-secondary)" strokeWidth="1.5"
+        width="36" height="36" viewBox="0 0 24 24" fill="none"
+        stroke="var(--color-text-muted)" strokeWidth="1.5"
         strokeLinecap="round" strokeLinejoin="round"
-        style={{ margin: "0 auto 12px" }}
+        style={{ margin: "0 auto 16px", opacity: 0.7 }}
       >
         <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
         <circle cx="8.5" cy="8.5" r="1.5" />
         <polyline points="21 15 16 10 5 21" />
       </svg>
-      <div style={{ fontWeight: 600, fontSize: 15, color: "var(--color-text-primary)", marginBottom: 4 }}>
-        이미지를 드래그하거나 클릭하여 업로드
+      <div style={{ fontWeight: 700, fontSize: 16, color: "var(--color-text-primary)", lineHeight: 1.3 }}>
+        이미지 업로드
       </div>
-      <div style={{ fontSize: 13, color: "var(--color-text-muted)" }}>
-        JPG, PNG, GIF, WebP, BMP, TIFF (최대 20MB/장, 50장)
+      <div style={{ fontSize: 13, color: "var(--color-text-muted)", marginTop: 6, lineHeight: 1.5 }}>
+        드래그하거나 클릭하여 이미지를 추가하세요
+        <br />
+        <span style={{ fontSize: 12, opacity: 0.8 }}>
+          JPG, PNG, GIF, WebP, BMP, TIFF · 최대 20MB/장 · 50장
+        </span>
       </div>
     </div>
   );

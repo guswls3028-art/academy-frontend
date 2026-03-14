@@ -267,10 +267,13 @@ export default function PptGeneratorPage() {
         </button>
 
         {images.length > 0 && (
-          <div style={{ fontSize: 12, color: "var(--color-text-muted)", textAlign: "center" }}>
-            {images.length}장 이미지 ·{" "}
-            {formatBytes(images.reduce((sum, i) => sum + i.file.size, 0))} ·{" "}
-            {settings.aspect_ratio} {settings.background === "black" ? "검정" : settings.background === "white" ? "흰색" : "진회색"} 배경
+          <div style={{ textAlign: "center", lineHeight: 1.6 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-secondary)" }}>
+              {images.length}장 슬라이드
+            </div>
+            <div style={{ fontSize: 11, color: "var(--color-text-muted)" }}>
+              {formatBytes(images.reduce((sum, i) => sum + i.file.size, 0))} · {settings.aspect_ratio} · {settings.background === "black" ? "검정" : settings.background === "white" ? "흰색" : "진회색"} 배경
+            </div>
           </div>
         )}
       </div>
