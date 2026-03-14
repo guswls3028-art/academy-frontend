@@ -14,10 +14,14 @@
  */
 
 import { useState, useRef, useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSessionParams } from "../hooks/useSessionParams";
 import SessionScoresPanel, { type SessionScoresPanelHandle } from "@/features/scores/panels/SessionScoresPanel";
 import { useScoreEditDraft } from "@/features/scores/hooks/useScoreEditDraft";
 import { postScoreDraftCommit } from "@/features/scores/api/scoreDraft";
+import { fetchSessionScores } from "@/features/scores/api/sessionScores";
+import { scoresQueryKeys } from "@/features/scores/api/queryKeys";
+import { downloadClinicPdf } from "@/features/scores/utils/clinicPdfGenerator";
 
 type EditConfig = {
   examEditTotal: boolean;
@@ -34,7 +38,8 @@ const DEFAULT_EDIT_CONFIG: EditConfig = {
 type ScoreDisplayMode = "total" | "breakdown";
 
 export default function SessionScoresTab() {
-  const { sessionId } = useSessionParams();
+  const { sessionId, lectureId } = useSessionParams();
+  const qc = useQueryClient();
 
   const [isEditMode, setIsEditMode] = useState(false);
   const [editConfig, setEditConfig] = useState<EditConfig>(DEFAULT_EDIT_CONFIG);
@@ -252,7 +257,7 @@ export default function SessionScoresTab() {
         </div>
       )}
 
-      {/* ── 편집 모드 토글 (테이블 바로 위) ── */}
+      {/* ── 편집 모드 토글 + 클리닉 PDF (테이블 바로 위) ── */}
       <div className="flex items-center gap-3">
         <button
           type="button"
@@ -270,6 +275,30 @@ export default function SessionScoresTab() {
           <span className="text-xs text-[var(--color-text-muted)]">
             셀을 클릭하여 성적을 입력하세요
           </span>
+        )}
+
+        {!isEditMode && (
+          <button
+            type="button"
+            onClick={() => {
+              const scoresData = qc.getQueryData<import("@/features/scores/api/sessionScores").SessionScoresResponse>(
+                scoresQueryKeys.sessionScores(numericSessionId),
+              );
+              if (!scoresData) return;
+              const session = qc.getQueryData<{ title?: string; date?: string }>(["session", sessionId]);
+              const lecture = qc.getQueryData<{ title?: string; name?: string }>(["lecture", lectureId]);
+              downloadClinicPdf(
+                scoresData.rows,
+                scoresData.meta,
+                session?.title ?? "",
+                lecture?.title ?? lecture?.name ?? "",
+                session?.date ?? undefined,
+              );
+            }}
+            className="h-9 rounded-lg px-4 text-sm font-semibold border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface-hover)] hover:text-[var(--color-text-primary)] transition-colors"
+          >
+            클리닉 대상자 PDF
+          </button>
         )}
       </div>
 
