@@ -142,17 +142,30 @@ export default function ClinicHomePage() {
       qc.invalidateQueries({ queryKey: ["clinic-participants"] });
       qc.invalidateQueries({ queryKey: ["admin", "notification-counts"] });
     },
+    onError: () => {
+      qc.invalidateQueries({ queryKey: ["clinic-participants"] });
+      feedback.error("처리에 실패했습니다. 다시 시도해 주세요.");
+    },
   });
 
   const bulkApproveMutation = useMutation({
     mutationFn: async (ids: number[]) => {
-      await Promise.allSettled(
+      const results = await Promise.allSettled(
         ids.map((id) => patchClinicParticipantStatus(id, { status: "booked" }))
       );
+      const failed = results.filter((r) => r.status === "rejected");
+      if (failed.length > 0) {
+        throw new Error(`${ids.length - failed.length}건 승인, ${failed.length}건 실패`);
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["clinic-participants"] });
       qc.invalidateQueries({ queryKey: ["admin", "notification-counts"] });
+    },
+    onError: (err: Error) => {
+      qc.invalidateQueries({ queryKey: ["clinic-participants"] });
+      qc.invalidateQueries({ queryKey: ["admin", "notification-counts"] });
+      feedback.error(err.message || "일부 예약의 승인 처리에 실패했습니다.");
     },
   });
 

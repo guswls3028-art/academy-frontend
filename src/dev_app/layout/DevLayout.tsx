@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
+import { Outlet, Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { logout } from "@/features/auth/api/auth";
+import { useProgram } from "@/shared/program";
 import s from "./DevLayout.module.css";
 
 const NAV_ITEMS = [
@@ -12,7 +13,13 @@ const NAV_ITEMS = [
 export default function DevLayout() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { program } = useProgram();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // B-05: Only hakwonplus / 9999 tenants may access /dev/*
+  if (program && program.tenantCode !== "hakwonplus" && program.tenantCode !== "9999") {
+    return <Navigate to="/admin" replace />;
+  }
   const isActive = (path: string) =>
     location.pathname === path || location.pathname.startsWith(path + "/");
 

@@ -12,6 +12,7 @@ import type { ClinicSessionTreeNode } from "../../api/clinicSessions.api";
 import type { ClinicParticipant } from "../../api/clinicParticipants.api";
 import { patchClinicParticipantStatus } from "../../api/clinicParticipants.api";
 import { Button } from "@/shared/ui/ds";
+import { feedback } from "@/shared/ui/feedback/feedback";
 
 const REASON_LABEL: Record<string, string> = {
   exam: "시험 불합",
@@ -65,11 +66,12 @@ export default function ClinicConsoleWorkspace({
       qc.invalidateQueries({ queryKey: ["clinic-sessions-tree"] });
       qc.invalidateQueries({ queryKey: ["admin", "notification-counts"] });
     },
-    onError: () => {
+    onError: (err: Error) => {
       // Partial failure: some succeeded on backend, so always invalidate cache
       qc.invalidateQueries({ queryKey: ["clinic-participants"] });
       qc.invalidateQueries({ queryKey: ["clinic-sessions-tree"] });
       qc.invalidateQueries({ queryKey: ["admin", "notification-counts"] });
+      feedback.error(err.message || "일부 학생의 출석 처리에 실패했습니다.");
     },
   });
 

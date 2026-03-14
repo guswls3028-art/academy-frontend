@@ -42,6 +42,17 @@ export async function fetchClinicParticipants(params: {
   return [];
 }
 
+export async function createClinicParticipant(payload: {
+  session: number;
+  enrollment_id: number;
+  status?: ClinicParticipantStatus;
+  memo?: string;
+  source?: string;
+}) {
+  const res = await api.post("/clinic/participants/", payload);
+  return res.data as ClinicParticipant;
+}
+
 export async function patchClinicParticipantStatus(
   id: number,
   payload: { status: ClinicParticipantStatus; memo?: string }

@@ -15,6 +15,7 @@ import { useClinicTargets } from "../../hooks/useClinicTargets";
 import { useClinicParticipants } from "../../hooks/useClinicParticipants";
 import { patchClinicParticipantStatus } from "../../api/clinicParticipants.api";
 import type { ClinicParticipant } from "../../api/clinicParticipants.api";
+import { feedback } from "@/shared/ui/feedback/feedback";
 import { AdminModal } from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
 
@@ -56,6 +57,10 @@ export default function ClinicBookingsPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["clinic-participants"] });
       qc.invalidateQueries({ queryKey: ["admin", "notification-counts"] });
+    },
+    onError: () => {
+      qc.invalidateQueries({ queryKey: ["clinic-participants"] });
+      feedback.error("처리에 실패했습니다. 다시 시도해 주세요.");
     },
   });
 

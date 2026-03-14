@@ -16,6 +16,7 @@ import { fetchLectures, type Lecture } from "@/features/lectures/api/sessions";
 import ClinicTargetSelectModal, { type ClinicTargetSelectResult } from "./ClinicTargetSelectModal";
 
 import api from "@/shared/api/axios";
+import { createClinicParticipant } from "../api/clinicParticipants.api";
 
 const SAVED_LOCATIONS_KEY = "academy-clinic-saved-locations";
 
@@ -214,7 +215,7 @@ export default function ClinicCreatePanel({
     if (cap < 1) return message.warning("정원을 1명 이상으로 설정하거나 학생을 선택해주세요.");
 
     try {
-      await createSessionM.mutateAsync({
+      const created = await createSessionM.mutateAsync({
         title: title.trim() || undefined,
         date: selectedDate.format("YYYY-MM-DD"),
         start_time: toHHmmss(start),
@@ -226,7 +227,28 @@ export default function ClinicCreatePanel({
         target_lecture_ids: targetLectureIds.length > 0 ? targetLectureIds : [],
       });
 
-      message.success("클리닉이 만들어졌습니다.");
+      // B-01: 선택된 학생들을 참가자로 등록
+      if (selected.length > 0) {
+        const results = await Promise.allSettled(
+          selected.map((enrollmentId) =>
+            createClinicParticipant({
+              session: created.id,
+              enrollment_id: enrollmentId,
+              status: "booked",
+            })
+          )
+        );
+        const failed = results.filter((r) => r.status === "rejected");
+        if (failed.length > 0) {
+          message.warning(
+            `클리닉이 만들어졌습니다. (${selected.length - failed.length}명 등록, ${failed.length}명 실패)`
+          );
+        } else {
+          message.success(`클리닉이 만들어졌습니다. (${selected.length}명 등록)`);
+        }
+      } else {
+        message.success("클리닉이 만들어졌습니다.");
+      }
       setSelected([]);
       setMemo("");
       setTimeRange("");
