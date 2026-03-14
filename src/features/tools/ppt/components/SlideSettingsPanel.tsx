@@ -1,5 +1,5 @@
 // PATH: src/features/tools/ppt/components/SlideSettingsPanel.tsx
-// PPT 생성 설정 패널 — 비율, 배경, 배치, 반전 등
+// PPT 생성 설정 패널 — 비율, 배경, 배치, 반전, 밝기/대비
 
 import type { PptSettings } from "../api/pptApi";
 
@@ -10,8 +10,8 @@ interface SlideSettingsPanelProps {
 }
 
 const RATIO_OPTIONS = [
-  { value: "16:9" as const, label: "16:9 와이드", desc: "빔프로젝터 표준" },
-  { value: "4:3" as const, label: "4:3 표준", desc: "구형 프로젝터" },
+  { value: "16:9" as const, label: "16:9", desc: "와이드" },
+  { value: "4:3" as const, label: "4:3", desc: "표준" },
 ];
 
 const BG_OPTIONS = [
@@ -21,9 +21,9 @@ const BG_OPTIONS = [
 ];
 
 const FIT_OPTIONS = [
-  { value: "contain" as const, label: "맞춤", desc: "비율 유지, 여백 포함" },
-  { value: "cover" as const, label: "채움", desc: "가득 채움, 일부 잘림" },
-  { value: "stretch" as const, label: "늘림", desc: "비율 무시, 꽉 채움" },
+  { value: "contain" as const, label: "맞춤", desc: "여백 포함" },
+  { value: "cover" as const, label: "채움", desc: "일부 잘림" },
+  { value: "stretch" as const, label: "늘림", desc: "꽉 채움" },
 ];
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
@@ -59,15 +59,17 @@ function OptionButton({
       onClick={onClick}
       disabled={disabled}
       style={{
-        padding: "8px 12px",
+        padding: "8px 10px",
         borderRadius: "var(--radius-md, 8px)",
         border: selected ? "2px solid var(--color-primary)" : "1px solid var(--color-border-divider)",
         background: selected
           ? "color-mix(in srgb, var(--color-primary) 10%, var(--bg-surface))"
           : "var(--bg-surface)",
         cursor: disabled ? "not-allowed" : "pointer",
-        textAlign: "left",
+        textAlign: "center",
         transition: "all 0.15s",
+        overflow: "hidden",
+        minWidth: 0,
         ...style,
       }}
     >
@@ -126,11 +128,11 @@ function ToggleRow({
       }}>
         {icon}
       </div>
-      <div style={{ minWidth: 0 }}>
+      <div style={{ minWidth: 0, overflow: "hidden" }}>
         <div style={{ fontWeight: 600, fontSize: 13, color: "var(--color-text-primary)" }}>
           {label}
         </div>
-        <div style={{ fontSize: 11, color: "var(--color-text-muted)" }}>
+        <div style={{ fontSize: 11, color: "var(--color-text-muted)", overflow: "hidden", textOverflow: "ellipsis" }}>
           {desc}
         </div>
       </div>
@@ -158,8 +160,6 @@ function SliderRow({
   disabled?: boolean;
 }) {
   const isDefault = Math.abs(value - 1.0) < 0.05;
-  const pct = Math.round((value - 1.0) * 100);
-  const displayVal = pct > 0 ? `+${pct}%` : pct === 0 ? "기본" : `${pct}%`;
 
   return (
     <div>
@@ -167,36 +167,25 @@ function SliderRow({
         <span style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-primary)" }}>
           {label}
         </span>
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <span style={{
-            fontSize: 12,
-            fontWeight: 600,
-            color: isDefault ? "var(--color-text-muted)" : "var(--color-primary)",
-            minWidth: 40,
-            textAlign: "right",
-          }}>
-            {displayVal}
-          </span>
-          {!isDefault && (
-            <button
-              type="button"
-              onClick={onReset}
-              disabled={disabled}
-              style={{
-                fontSize: 10,
-                color: "var(--color-text-muted)",
-                background: "none",
-                border: "1px solid var(--color-border-divider)",
-                borderRadius: 4,
-                padding: "1px 5px",
-                cursor: "pointer",
-                lineHeight: 1.4,
-              }}
-            >
-              초기화
-            </button>
-          )}
-        </div>
+        {!isDefault && (
+          <button
+            type="button"
+            onClick={onReset}
+            disabled={disabled}
+            style={{
+              fontSize: 10,
+              color: "var(--color-text-muted)",
+              background: "none",
+              border: "1px solid var(--color-border-divider)",
+              borderRadius: 4,
+              padding: "1px 5px",
+              cursor: "pointer",
+              lineHeight: 1.4,
+            }}
+          >
+            초기화
+          </button>
+        )}
       </div>
       <input
         type="range"
@@ -237,10 +226,10 @@ export default function SlideSettingsPanel({ settings, onChange, disabled }: Sli
               onClick={() => update({ aspect_ratio: opt.value })}
               disabled={disabled}
             >
-              <div style={{ fontWeight: 700, fontSize: 14, color: "var(--color-text-primary)", whiteSpace: "nowrap" }}>
+              <div style={{ fontWeight: 700, fontSize: 15, color: "var(--color-text-primary)" }}>
                 {opt.label}
               </div>
-              <div style={{ fontSize: 11, color: "var(--color-text-muted)", marginTop: 2, whiteSpace: "nowrap" }}>
+              <div style={{ fontSize: 11, color: "var(--color-text-muted)", marginTop: 1 }}>
                 {opt.desc}
               </div>
             </OptionButton>
@@ -258,17 +247,17 @@ export default function SlideSettingsPanel({ settings, onChange, disabled }: Sli
               selected={settings.background === opt.value}
               onClick={() => update({ background: opt.value })}
               disabled={disabled}
-              style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "8px" }}
+              style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
             >
               <div style={{
-                width: 16,
-                height: 16,
+                width: 14,
+                height: 14,
                 borderRadius: 3,
                 background: opt.color,
                 border: "1px solid var(--color-border-divider-strong)",
                 flexShrink: 0,
               }} />
-              <span style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-primary)", whiteSpace: "nowrap" }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-primary)" }}>
                 {opt.label}
               </span>
             </OptionButton>
@@ -287,10 +276,10 @@ export default function SlideSettingsPanel({ settings, onChange, disabled }: Sli
               onClick={() => update({ fit_mode: opt.value })}
               disabled={disabled}
             >
-              <div style={{ fontWeight: 700, fontSize: 13, color: "var(--color-text-primary)", whiteSpace: "nowrap" }}>
+              <div style={{ fontWeight: 700, fontSize: 13, color: "var(--color-text-primary)" }}>
                 {opt.label}
               </div>
-              <div style={{ fontSize: 10, color: "var(--color-text-muted)", marginTop: 2, lineHeight: 1.3, whiteSpace: "nowrap" }}>
+              <div style={{ fontSize: 10, color: "var(--color-text-muted)", marginTop: 1 }}>
                 {opt.desc}
               </div>
             </OptionButton>
@@ -313,7 +302,7 @@ export default function SlideSettingsPanel({ settings, onChange, disabled }: Sli
               </svg>
             }
             label="자동 밝기 보정"
-            desc="어두운 사진을 빔프로젝터에 맞게 자동 보정"
+            desc="어두운 사진 자동 보정"
           />
 
           <ToggleRow
@@ -328,7 +317,7 @@ export default function SlideSettingsPanel({ settings, onChange, disabled }: Sli
               </svg>
             }
             label="흑백 반전"
-            desc="색상을 반전하여 밝은 글씨로 변환"
+            desc="밝은 글씨로 색상 반전"
           />
 
           <ToggleRow
@@ -343,14 +332,14 @@ export default function SlideSettingsPanel({ settings, onChange, disabled }: Sli
               </svg>
             }
             label="그레이스케일"
-            desc="모든 이미지를 흑백으로 변환"
+            desc="흑백 변환"
           />
         </div>
       </div>
 
       {/* 밝기 / 대비 수동 조절 */}
       <div>
-        <SectionLabel>밝기 / 대비 조절</SectionLabel>
+        <SectionLabel>밝기 / 대비</SectionLabel>
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           <SliderRow
             label="밝기"
