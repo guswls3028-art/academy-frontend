@@ -20,7 +20,8 @@ import SessionScoresPanel, { type SessionScoresPanelHandle } from "@/features/sc
 import { useScoreEditDraft } from "@/features/scores/hooks/useScoreEditDraft";
 import { postScoreDraftCommit } from "@/features/scores/api/scoreDraft";
 import { scoresQueryKeys } from "@/features/scores/api/queryKeys";
-import { downloadClinicPdf } from "@/features/scores/utils/clinicPdfGenerator";
+import { downloadClinicPdf, getClinicStats } from "@/features/scores/utils/clinicPdfGenerator";
+import type { SessionScoresResponse } from "@/features/scores/api/sessionScores";
 
 type EditConfig = {
   examEditTotal: boolean;
@@ -45,6 +46,8 @@ export default function SessionScoresTab() {
   const [scoreDisplayMode, setScoreDisplayMode] = useState<ScoreDisplayMode>("total");
   const [search, setSearch] = useState("");
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [showPdfModal, setShowPdfModal] = useState(false);
+  const [pdfSchedule, setPdfSchedule] = useState("");
   const panelRef = useRef<SessionScoresPanelHandle>(null);
 
   const numericSessionId = sessionId != null ? Number(sessionId) : 0;
@@ -111,20 +114,46 @@ export default function SessionScoresTab() {
     });
   }
 
-  function handleClinicPdf() {
-    const scoresData = qc.getQueryData<import("@/features/scores/api/sessionScores").SessionScoresResponse>(
+  function getAttendanceMap(): Record<number, string> | undefined {
+    const raw = qc.getQueryData(scoresQueryKeys.attendance(numericSessionId));
+    if (!raw) return undefined;
+    const list = Array.isArray(raw) ? raw : (raw as { results?: unknown[] })?.results ?? [];
+    const map: Record<number, string> = {};
+    for (const item of list as { enrollment_id?: number; enrollment?: number; status?: string }[]) {
+      const eid = item.enrollment_id ?? item.enrollment;
+      if (eid != null && item.status) map[eid] = item.status.toLowerCase();
+    }
+    return map;
+  }
+
+  function getPdfContext() {
+    const scoresData = qc.getQueryData<SessionScoresResponse>(
       scoresQueryKeys.sessionScores(numericSessionId),
     );
-    if (!scoresData) return;
+    if (!scoresData) return null;
     const session = qc.getQueryData<{ title?: string; date?: string }>(["session", sessionId]);
     const lecture = qc.getQueryData<{ title?: string; name?: string }>(["lecture", lectureId]);
-    downloadClinicPdf(
-      scoresData.rows,
-      scoresData.meta,
-      session?.title ?? "",
-      lecture?.title ?? lecture?.name ?? "",
-      session?.date ?? undefined,
-    );
+    return {
+      rows: scoresData.rows,
+      meta: scoresData.meta,
+      sessionTitle: session?.title ?? "",
+      lectureTitle: lecture?.title ?? lecture?.name ?? "",
+      date: session?.date ?? undefined,
+      attendanceMap: getAttendanceMap(),
+    };
+  }
+
+  function handleOpenPdfModal() {
+    const ctx = getPdfContext();
+    if (!ctx) return;
+    setShowPdfModal(true);
+  }
+
+  function handleGeneratePdf() {
+    const ctx = getPdfContext();
+    if (!ctx) return;
+    downloadClinicPdf({ ...ctx, schedule: pdfSchedule || undefined });
+    setShowPdfModal(false);
   }
 
   const editTypes: { key: keyof EditConfig; label: string }[] = [
@@ -214,10 +243,10 @@ export default function SessionScoresTab() {
           {!isEditMode && (
             <button
               type="button"
-              onClick={handleClinicPdf}
+              onClick={handleOpenPdfModal}
               className="h-8 rounded-lg px-3 text-xs font-semibold border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface-hover)] hover:text-[var(--color-text-primary)] transition-colors whitespace-nowrap"
             >
-              클리닉 PDF
+              성적 PDF
             </button>
           )}
 
@@ -270,6 +299,79 @@ export default function SessionScoresTab() {
           </div>
         </div>
       )}
+
+      {/* ── PDF 생성 모달 ── */}
+      {showPdfModal && (() => {
+        const ctx = getPdfContext();
+        const stats = ctx ? getClinicStats(ctx.rows, ctx.meta, ctx.attendanceMap) : null;
+        return (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="pdf-modal-title"
+          >
+            <div className="bg-[var(--color-bg-surface)] rounded-lg shadow-lg p-6 max-w-md w-full mx-4 border border-[var(--color-border-divider)]">
+              <h2 id="pdf-modal-title" className="text-base font-semibold text-[var(--color-text-primary)] mb-3">
+                성적 현황 PDF 생성
+              </h2>
+
+              {stats && (
+                <div className="flex gap-3 mb-4 text-sm">
+                  <div className="flex-1 rounded-lg bg-emerald-50 border border-emerald-200 p-3 text-center">
+                    <div className="text-emerald-700 font-bold text-lg">{stats.passedCount}</div>
+                    <div className="text-emerald-600 text-xs font-medium">통과</div>
+                  </div>
+                  <div className="flex-1 rounded-lg bg-red-50 border border-red-200 p-3 text-center">
+                    <div className="text-red-700 font-bold text-lg">{stats.clinicCount}</div>
+                    <div className="text-red-600 text-xs font-medium">클리닉 대상</div>
+                  </div>
+                  <div className="flex-1 rounded-lg bg-gray-50 border border-gray-200 p-3 text-center">
+                    <div className="text-gray-700 font-bold text-lg">{stats.totalPresent}</div>
+                    <div className="text-gray-500 text-xs font-medium">현장 출석</div>
+                  </div>
+                </div>
+              )}
+
+              <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1.5">
+                클리닉 시간표 (선택)
+              </label>
+              <textarea
+                value={pdfSchedule}
+                onChange={(e) => setPdfSchedule(e.target.value)}
+                placeholder={"예) 금 17~22시\n토 13~22시\n일 15~22시"}
+                rows={3}
+                className={[
+                  "w-full rounded border px-3 py-2 text-sm",
+                  "border-[var(--color-border-divider)] bg-[var(--color-bg-surface-soft)]",
+                  "text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)]",
+                  "focus:border-[var(--color-brand-primary)] focus:outline-none resize-none",
+                ].join(" ")}
+              />
+              <p className="text-xs text-[var(--color-text-muted)] mt-1 mb-4">
+                입력하면 PDF 하단에 클리닉 시간표가 표시됩니다.
+              </p>
+
+              <div className="flex gap-2 justify-end">
+                <button
+                  type="button"
+                  onClick={() => setShowPdfModal(false)}
+                  className="h-9 px-4 rounded text-sm font-medium border border-[var(--color-border-divider)] bg-transparent text-[var(--color-text-muted)] hover:bg-[var(--color-bg-surface-soft)]"
+                >
+                  취소
+                </button>
+                <button
+                  type="button"
+                  onClick={handleGeneratePdf}
+                  className="h-9 px-4 rounded text-sm font-medium bg-[var(--color-brand-primary)] text-white hover:opacity-90"
+                >
+                  PDF 생성
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ── Scores Panel ── */}
       <SessionScoresPanel
