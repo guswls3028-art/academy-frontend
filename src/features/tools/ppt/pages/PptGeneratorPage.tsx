@@ -272,7 +272,7 @@ export default function PptGeneratorPage() {
               {images.length}장 슬라이드
             </div>
             <div style={{ fontSize: 11, color: "var(--color-text-muted)" }}>
-              {formatBytes(images.reduce((sum, i) => sum + i.file.size, 0))} · {settings.aspect_ratio} · {settings.background === "black" ? "검정" : settings.background === "white" ? "흰색" : "진회색"} 배경
+              {formatBytes(images.reduce((sum, i) => sum + i.file.size, 0))} · {settings.aspect_ratio} · {settings.background === "black" ? "검정" : settings.background === "white" ? "흰색" : "진회"} 배경
             </div>
           </div>
         )}
