@@ -31,6 +31,9 @@ import api from "@/shared/api/axios";
 import { updateAdminExam } from "@/features/exams/api/adminExam";
 import { updateAdminHomework } from "@/features/homework/api/adminHomework";
 import { fetchAdminSessionExams } from "@/features/results/api/adminSessionExams";
+import ScorePrintPreviewModal from "@/features/scores/components/ScorePrintPreviewModal";
+import { downloadClinicPdf } from "@/features/scores/utils/clinicPdfGenerator";
+import { fetchAttendance } from "@/features/lectures/api/attendance";
 import "./SessionScoresEntryPage.css";
 
 type Props = {
@@ -63,6 +66,53 @@ export default function SessionScoresEntryPage(_props: Props) {
   const [showCreateExam, setShowCreateExam] = useState(false);
   const [showCreateHomework, setShowCreateHomework] = useState(false);
   const [enrollingAll, setEnrollingAll] = useState(false);
+  const [showPrintPreview, setShowPrintPreview] = useState(false);
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const moreMenuRef = useRef<HTMLDivElement>(null);
+
+  /** 강의 정보 (PDF 제목용) */
+  const { data: lectureData } = useQuery({
+    queryKey: ["lecture", numericLectureId],
+    queryFn: async () => (await api.get(`/lectures/lectures/${numericLectureId}/`)).data,
+    enabled: Number.isFinite(numericLectureId),
+  });
+  /** 세션 정보 (PDF 제목용) */
+  const { data: sessionData } = useQuery({
+    queryKey: ["session-detail", numericSessionId],
+    queryFn: async () => (await api.get(`/lectures/sessions/${numericSessionId}/`)).data,
+    enabled: Number.isFinite(numericSessionId),
+  });
+  /** 출결 (PDF 출결 열용) */
+  const { data: attendanceForPdf } = useQuery({
+    queryKey: ["attendance-for-pdf", numericSessionId],
+    queryFn: () => fetchAttendance(numericSessionId, { page_size: 500 }),
+    enabled: Number.isFinite(numericSessionId) && showPrintPreview,
+  });
+
+  const attendanceMapForPdf = useMemo(() => {
+    const raw = attendanceForPdf;
+    const list = raw?.data ?? [];
+    const map: Record<number, string> = {};
+    for (const a of list) {
+      const eid = (a as any)?.enrollment_id ?? (a as any)?.enrollment;
+      if (eid != null && (a as any)?.status) map[Number(eid)] = String((a as any).status);
+    }
+    return map;
+  }, [attendanceForPdf]);
+
+  const sessionTitle = sessionData?.title
+    || (sessionData?.order != null ? `${sessionData.order}차시` : `차시 #${numericSessionId}`);
+  const lectureTitle = lectureData?.title || "강의";
+
+  // 더보기 메뉴 외부 클릭 닫기
+  useEffect(() => {
+    if (!showMoreMenu) return;
+    const handler = (e: MouseEvent) => {
+      if (moreMenuRef.current && !moreMenuRef.current.contains(e.target as Node)) setShowMoreMenu(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [showMoreMenu]);
 
   const invalidateScores = () => {
     void qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(numericSessionId) });
@@ -350,41 +400,7 @@ export default function SessionScoresEntryPage(_props: Props) {
 
   const primaryAction = (
     <div className="flex items-center gap-2">
-      <Button type="button" intent="ghost" size="sm" onClick={() => setShowCreateExam(true)}>
-        + 시험
-      </Button>
-      <Button type="button" intent="ghost" size="sm" onClick={() => setShowCreateHomework(true)}>
-        + 과제
-      </Button>
-      <Button
-        type="button"
-        intent="secondary"
-        size="sm"
-        onClick={handleEnrollAll}
-        disabled={enrollingAll}
-      >
-        {enrollingAll ? "등록 중…" : "대상자 전체 등록"}
-      </Button>
-      <span className="text-[var(--color-border-divider)]">|</span>
-      <Button
-        type="button"
-        intent="danger"
-        size="sm"
-        onClick={handleCloseAllExams}
-        disabled={closingExams}
-      >
-        {closingExams ? "종료 중…" : "전체 시험 종료"}
-      </Button>
-      <Button
-        type="button"
-        intent="danger"
-        size="sm"
-        onClick={handleCloseAllHomeworks}
-        disabled={closingHomeworks}
-      >
-        {closingHomeworks ? "종료 중…" : "전체 과제 종료"}
-      </Button>
-      <span className="text-[var(--color-border-divider)]">|</span>
+      {/* 핵심 액션: 편집 / 인쇄 */}
       <Button
         type="button"
         intent="primary"
@@ -407,6 +423,73 @@ export default function SessionScoresEntryPage(_props: Props) {
       >
         {isSaving ? "저장 중…" : isEditMode ? "저장하기" : "편집 모드"}
       </Button>
+      <Button
+        type="button"
+        intent="secondary"
+        size="sm"
+        onClick={() => setShowPrintPreview(true)}
+        title="성적표 인쇄 (흑백 A4)"
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: 4, display: "inline-block", verticalAlign: "-2px" }}>
+          <polyline points="6 9 6 2 18 2 18 9" />
+          <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+          <rect x="6" y="14" width="12" height="8" />
+        </svg>
+        성적표
+      </Button>
+
+      {/* 더보기 메뉴 (덜 쓰는 액션 그룹핑) */}
+      <div ref={moreMenuRef} className="relative">
+        <Button
+          type="button"
+          intent="ghost"
+          size="sm"
+          onClick={() => setShowMoreMenu((v) => !v)}
+          title="추가 기능"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="5" r="1" /><circle cx="12" cy="12" r="1" /><circle cx="12" cy="19" r="1" />
+          </svg>
+        </Button>
+        {showMoreMenu && (
+          <div
+            className="absolute right-0 top-full mt-1 z-50 bg-[var(--color-bg-surface)] border border-[var(--color-border-divider)] rounded-lg shadow-lg py-1 min-w-[180px]"
+          >
+            <button type="button" className="w-full text-left px-4 py-2 text-sm hover:bg-[var(--color-bg-surface-hover)] flex items-center gap-2" onClick={() => { setShowCreateExam(true); setShowMoreMenu(false); }}>
+              <span className="text-[var(--color-text-muted)]">+</span> 시험 추가
+            </button>
+            <button type="button" className="w-full text-left px-4 py-2 text-sm hover:bg-[var(--color-bg-surface-hover)] flex items-center gap-2" onClick={() => { setShowCreateHomework(true); setShowMoreMenu(false); }}>
+              <span className="text-[var(--color-text-muted)]">+</span> 과제 추가
+            </button>
+            <div className="border-t border-[var(--color-border-divider)] my-1" />
+            <button type="button" className="w-full text-left px-4 py-2 text-sm hover:bg-[var(--color-bg-surface-hover)]" disabled={enrollingAll} onClick={() => { void handleEnrollAll(); setShowMoreMenu(false); }}>
+              {enrollingAll ? "등록 중…" : "대상자 전체 등록"}
+            </button>
+            <div className="border-t border-[var(--color-border-divider)] my-1" />
+            <button type="button" className="w-full text-left px-4 py-2 text-sm hover:bg-[var(--color-bg-surface-hover)]" onClick={() => {
+              if (data?.rows && data?.meta) {
+                downloadClinicPdf({
+                  rows: data.rows,
+                  meta: data.meta,
+                  sessionTitle,
+                  lectureTitle,
+                  attendanceMap: attendanceMapForPdf,
+                });
+              }
+              setShowMoreMenu(false);
+            }}>
+              클리닉 현황 인쇄
+            </button>
+            <div className="border-t border-[var(--color-border-divider)] my-1" />
+            <button type="button" className="w-full text-left px-4 py-2 text-sm text-[var(--color-error)] hover:bg-[var(--color-bg-surface-hover)]" disabled={closingExams} onClick={() => { void handleCloseAllExams(); setShowMoreMenu(false); }}>
+              {closingExams ? "종료 중…" : "전체 시험 종료"}
+            </button>
+            <button type="button" className="w-full text-left px-4 py-2 text-sm text-[var(--color-error)] hover:bg-[var(--color-bg-surface-hover)]" disabled={closingHomeworks} onClick={() => { void handleCloseAllHomeworks(); setShowMoreMenu(false); }}>
+              {closingHomeworks ? "종료 중…" : "전체 과제 종료"}
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 
@@ -757,6 +840,19 @@ export default function SessionScoresEntryPage(_props: Props) {
         sessionId={numericSessionId}
         onCreated={handleHomeworkCreated}
       />
+
+      {/* 성적표 인쇄 미리보기 */}
+      {showPrintPreview && data?.meta && (
+        <ScorePrintPreviewModal
+          open={showPrintPreview}
+          onClose={() => setShowPrintPreview(false)}
+          rows={data.rows.filter((r) => (r.exams?.length ?? 0) > 0 || (r.homeworks?.length ?? 0) > 0)}
+          meta={data.meta}
+          sessionTitle={sessionTitle}
+          lectureTitle={lectureTitle}
+          attendanceMap={attendanceMapForPdf}
+        />
+      )}
     </div>
   );
 }
