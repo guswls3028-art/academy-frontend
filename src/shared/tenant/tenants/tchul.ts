@@ -11,7 +11,7 @@ export const tchul: TenantDef = {
   loginPath: "/login/tchul",
   branding: {
     loginTitle: "Tchul.com",
-    loginSubtitle: "관리자 로그인",
+    loginSubtitle: "tchul.com",
     logoUrl: "/tenants/tchul/logo-full.png",
     windowTitle: "Tchul.com",
     faviconUrl: "/tenants/tchul/favicon.png",

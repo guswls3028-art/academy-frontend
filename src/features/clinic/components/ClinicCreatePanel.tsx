@@ -1,17 +1,18 @@
 // PATH: src/features/clinic/components/ClinicCreatePanel.tsx
-// 클리닉 생성 — 차시 추가 모달과 똑같은 DatePicker·TimeRangeInput만 사용 (같은 컴포넌트·같은 props, 직접선택 행 없음)
+// 클리닉 생성 — 대상 필터(학년/학교/강의) + 시간/장소/정원/대상자
 
 import { useEffect, useState } from "react";
-import { Input, App, Popover } from "antd";
+import { Input, App, Popover, Select } from "antd";
 import dayjs from "dayjs";
-import { Save, FolderOpen, Trash2 } from "lucide-react";
+import { Save, FolderOpen, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 
 import { DatePicker } from "@/shared/ui/date";
 import { TimeRangeInput } from "@/shared/ui/time";
 import { Button } from "@/shared/ui/ds";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { fetchClinicSessionTree } from "../api/clinicSessions.api";
+import { fetchLectures, type Lecture } from "@/features/lectures/api/sessions";
 import ClinicTargetSelectModal, { type ClinicTargetSelectResult } from "./ClinicTargetSelectModal";
 
 import api from "@/shared/api/axios";
@@ -83,6 +84,18 @@ function toHHmmss(s: string): string {
   return `${h.padStart(2, "0")}:${m}:00`;
 }
 
+const filterBtnStyle = (active: boolean) => ({
+  padding: "4px 10px",
+  fontSize: 12,
+  fontWeight: active ? 700 : 500,
+  borderRadius: 6,
+  border: `1px solid ${active ? "var(--color-brand-primary)" : "var(--color-border-divider)"}`,
+  background: active ? "var(--color-brand-primary)" : "var(--color-bg-surface)",
+  color: active ? "#fff" : "var(--color-text-secondary)",
+  cursor: "pointer",
+  transition: "all 0.15s",
+});
+
 type Props = {
   date?: string;
   defaultMode?: "targets" | "students";
@@ -144,6 +157,9 @@ export default function ClinicCreatePanel({
 
   const [title, setTitle] = useState("");
   const [targetGrade, setTargetGrade] = useState<number | null>(null);
+  const [targetSchoolType, setTargetSchoolType] = useState<string | null>(null);
+  const [targetLectureIds, setTargetLectureIds] = useState<number[]>([]);
+  const [showFilters, setShowFilters] = useState(false);
   const [timeRange, setTimeRange] = useState("");
   const [room, setRoom] = useState("");
   const [memo, setMemo] = useState("");
@@ -152,6 +168,21 @@ export default function ClinicCreatePanel({
   const [savedLocations, setSavedLocations] = useState<string[]>(() => getSavedLocations());
   const [loadPopoverOpen, setLoadPopoverOpen] = useState(false);
   const [addLocationInput, setAddLocationInput] = useState("");
+
+  // 강의 목록 (필터 열렸을 때만 로드)
+  const lecturesQ = useQuery<Lecture[]>({
+    queryKey: ["lectures-for-clinic-filter"],
+    queryFn: () => fetchLectures({ is_active: true }),
+    enabled: showFilters,
+    staleTime: 60_000,
+  });
+
+  const hasActiveFilter = targetGrade !== null || targetSchoolType !== null || targetLectureIds.length > 0;
+  const filterSummary = [
+    targetGrade !== null ? `${targetGrade}학년` : null,
+    targetSchoolType ? (targetSchoolType === "HIGH" ? "고등" : "중등") : null,
+    targetLectureIds.length > 0 ? `강의 ${targetLectureIds.length}개` : null,
+  ].filter(Boolean).join(" · ");
 
   const createSessionM = useMutation({
     mutationFn: async (payload: {
@@ -162,6 +193,8 @@ export default function ClinicCreatePanel({
       location: string;
       max_participants: number;
       target_grade?: number | null;
+      target_school_type?: string | null;
+      target_lecture_ids?: number[];
     }) => {
       const res = await api.post("/clinic/sessions/", payload);
       return res.data as { id: number };
@@ -189,6 +222,8 @@ export default function ClinicCreatePanel({
         location: room.trim(),
         max_participants: cap,
         target_grade: targetGrade,
+        target_school_type: targetSchoolType,
+        target_lecture_ids: targetLectureIds.length > 0 ? targetLectureIds : [],
       });
 
       message.success("클리닉 생성 완료");
@@ -198,7 +233,6 @@ export default function ClinicCreatePanel({
       qc.invalidateQueries({ queryKey: ["clinic-participants"] });
       qc.invalidateQueries({ queryKey: ["clinic-sessions-tree"] });
       qc.invalidateQueries({ queryKey: ["clinic-sessions-month"] });
-      // 생성한 날짜의 연·월로 트리 즉시 refetch (목록 반영 보장)
       const y = selectedDate.year();
       const m = selectedDate.month() + 1;
       await qc.fetchQuery({
@@ -243,7 +277,7 @@ export default function ClinicCreatePanel({
 
       <div className="ds-card-modal__body clinic-create-body flex-1 min-h-0 flex flex-col">
         <div className="modal-scroll-body modal-scroll-body--compact flex flex-col gap-5 flex-1 min-h-0 w-full max-w-full box-border">
-          {/* 날짜 — 모달 SSOT: modal-form-group으로 영역 구분 */}
+          {/* 날짜 */}
           {!hideDatePicker && (
             <div className="modal-form-group modal-form-group--compact">
               <label className="modal-section-label">날짜</label>
@@ -263,43 +297,118 @@ export default function ClinicCreatePanel({
             </div>
           )}
 
-          {/* 제목 · 대상 학년 */}
+          {/* 제목 */}
           <div className="modal-form-group modal-form-group--compact flex flex-col gap-3">
-            <label className="modal-section-label">제목 · 학년</label>
-            <div className="flex flex-wrap items-center gap-3">
-              <Input
-                placeholder="클리닉 제목 (선택)"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                className="clinic-input-filled flex-1 min-w-[140px]"
-              />
-              <div className="flex items-center gap-1.5 shrink-0">
-                <span className="text-sm font-semibold text-[var(--color-text-muted)] whitespace-nowrap">학년</span>
-                {([null, 1, 2, 3] as const).map((g) => (
-                  <button
-                    key={g ?? "all"}
-                    type="button"
-                    onClick={() => setTargetGrade(g)}
-                    style={{
-                      padding: "4px 10px",
-                      fontSize: 12,
-                      fontWeight: targetGrade === g ? 700 : 500,
-                      borderRadius: 6,
-                      border: `1px solid ${targetGrade === g ? "var(--color-brand-primary)" : "var(--color-border-divider)"}`,
-                      background: targetGrade === g ? "var(--color-brand-primary)" : "var(--color-bg-surface)",
-                      color: targetGrade === g ? "#fff" : "var(--color-text-secondary)",
-                      cursor: "pointer",
-                      transition: "all 0.15s",
-                    }}
-                  >
-                    {g === null ? "전체" : `${g}학년`}
-                  </button>
-                ))}
-              </div>
-            </div>
+            <label className="modal-section-label">제목</label>
+            <Input
+              placeholder="클리닉 제목 (선택)"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="clinic-input-filled"
+            />
           </div>
 
-          {/* 시간 — 모달 SSOT: modal-form-group으로 영역 구분 */}
+          {/* 대상 필터 — 접이식 */}
+          <div className="modal-form-group modal-form-group--compact flex flex-col gap-2">
+            <button
+              type="button"
+              className="flex items-center gap-2 w-full text-left"
+              onClick={() => setShowFilters((v) => !v)}
+            >
+              <span className="modal-section-label" style={{ margin: 0 }}>대상 조건</span>
+              {hasActiveFilter && (
+                <span
+                  style={{
+                    fontSize: 11,
+                    color: "var(--color-brand-primary)",
+                    fontWeight: 600,
+                  }}
+                >
+                  {filterSummary}
+                </span>
+              )}
+              {!hasActiveFilter && (
+                <span style={{ fontSize: 11, color: "var(--color-text-muted)" }}>전체 학생</span>
+              )}
+              <span className="ml-auto text-[var(--color-text-muted)]">
+                {showFilters ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+              </span>
+            </button>
+
+            {showFilters && (
+              <div className="flex flex-col gap-3 pt-1">
+                {/* 학년 */}
+                <div className="flex items-center gap-1.5">
+                  <span className="text-sm font-semibold text-[var(--color-text-muted)] whitespace-nowrap w-[40px]">학년</span>
+                  {([null, 1, 2, 3] as const).map((g) => (
+                    <button
+                      key={g ?? "all"}
+                      type="button"
+                      onClick={() => setTargetGrade(g)}
+                      style={filterBtnStyle(targetGrade === g)}
+                    >
+                      {g === null ? "전체" : `${g}학년`}
+                    </button>
+                  ))}
+                </div>
+
+                {/* 학교 유형 */}
+                <div className="flex items-center gap-1.5">
+                  <span className="text-sm font-semibold text-[var(--color-text-muted)] whitespace-nowrap w-[40px]">학교</span>
+                  {([null, "HIGH", "MIDDLE"] as const).map((s) => (
+                    <button
+                      key={s ?? "all"}
+                      type="button"
+                      onClick={() => setTargetSchoolType(s)}
+                      style={filterBtnStyle(targetSchoolType === s)}
+                    >
+                      {s === null ? "전체" : s === "HIGH" ? "고등" : "중등"}
+                    </button>
+                  ))}
+                </div>
+
+                {/* 강의 선택 */}
+                <div className="flex items-start gap-1.5">
+                  <span className="text-sm font-semibold text-[var(--color-text-muted)] whitespace-nowrap w-[40px] mt-1">강의</span>
+                  <Select
+                    mode="multiple"
+                    placeholder="전체 (강의 제한 없음)"
+                    value={targetLectureIds}
+                    onChange={(ids) => setTargetLectureIds(ids)}
+                    options={(lecturesQ.data ?? []).map((l) => ({
+                      label: l.title,
+                      value: l.id,
+                    }))}
+                    loading={lecturesQ.isLoading}
+                    className="flex-1 min-w-0"
+                    maxTagCount={2}
+                    maxTagPlaceholder={(omitted) => `+${omitted.length}개`}
+                    allowClear
+                    style={{ minWidth: 0 }}
+                    size="small"
+                  />
+                </div>
+
+                {/* 필터 초기화 */}
+                {hasActiveFilter && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTargetGrade(null);
+                      setTargetSchoolType(null);
+                      setTargetLectureIds([]);
+                    }}
+                    className="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] self-end"
+                    style={{ textDecoration: "underline" }}
+                  >
+                    필터 초기화
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* 시간 */}
           <div className="modal-form-group modal-form-group--compact">
             <div className="modal-section-label">시간</div>
             <div className="flex flex-col gap-2">
@@ -316,7 +425,7 @@ export default function ClinicCreatePanel({
             </div>
           </div>
 
-          {/* 장소 · 정원 · 메모 — 모달 SSOT */}
+          {/* 장소 · 정원 · 메모 */}
           <div className="modal-form-group modal-form-group--compact flex flex-col gap-3">
             <label className="modal-section-label">장소 · 정원</label>
             <div className="flex flex-wrap items-center gap-4">
@@ -520,7 +629,7 @@ export default function ClinicCreatePanel({
             />
           </div>
 
-          {/* 대상자 선택 — 모달로 분리 (수강대상등록 스타일) */}
+          {/* 대상자 선택 */}
           <div className="modal-form-group modal-form-group--compact flex flex-col gap-2">
             <label className="modal-section-label">대상자 선택</label>
             <div className="flex items-center gap-3 flex-wrap">

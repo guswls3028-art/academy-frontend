@@ -85,7 +85,7 @@ export default function LoginModal({ open, onClose }: Props) {
           <h2 className="text-2xl font-bold text-gray-900">
             <span className="text-blue-600">학원</span>플러스
           </h2>
-          <p className="text-sm text-gray-500 mt-1">관리자 로그인</p>
+          <p className="text-sm text-gray-500 mt-1">sswe</p>
         </div>
 
         <form onSubmit={onSubmit} className="space-y-4">
