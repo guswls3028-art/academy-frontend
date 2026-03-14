@@ -157,9 +157,23 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
   const handleAttendanceChange = useCallback(async (enrollmentId: number, newStatus: string) => {
     const attendanceRecordId = attendanceIdMap[enrollmentId];
     if (!attendanceRecordId) return;
+    if (newStatus === "SECESSION") {
+      const ok = window.confirm(
+        "퇴원 처리하시겠습니까?\n\n" +
+        "• 수강등록이 비활성화됩니다\n" +
+        "• 시험/과제 응시 대상에서 제외됩니다\n" +
+        "• 기존 데이터(성적·출결)는 보관됩니다"
+      );
+      if (!ok) return;
+    }
     try {
       await updateAttendance(attendanceRecordId, { status: newStatus });
       qc.invalidateQueries({ queryKey: scoresQueryKeys.attendance(sessionId) });
+      if (newStatus === "SECESSION") {
+        qc.invalidateQueries({ queryKey: ["attendance-matrix"] });
+        qc.invalidateQueries({ queryKey: ["session-enrollments"] });
+        feedback.success("퇴원 처리되었습니다.");
+      }
     } catch {
       feedback.error("출결 변경에 실패했습니다.");
     }
