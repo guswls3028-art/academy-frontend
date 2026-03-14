@@ -7,6 +7,7 @@ import React, {
   useMemo,
   useState,
 } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
 import { feedback } from "@/shared/ui/feedback/feedback";
 
@@ -57,10 +58,12 @@ function getAccessToken(): string | null {
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const queryClient = useQueryClient();
 
   const clearAuth = useCallback(() => {
     localStorage.removeItem("access");
     localStorage.removeItem("refresh");
+    queryClient.clear();
     setUser(null);
 
     // 세션 만료 플래그가 있으면 안내 메시지 표시 후 루트로 이동 (RootRedirect가 적절한 곳으로 보냄)
@@ -71,7 +74,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         window.location.href = "/";
       }
     } catch { /* ignore */ }
-  }, []);
+  }, [queryClient]);
 
   const refreshMe = useCallback(async () => {
     const access = getAccessToken();

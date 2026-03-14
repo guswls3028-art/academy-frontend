@@ -38,13 +38,13 @@ export default function ClinicPage() {
   useNotificationCounts();
 
   // 내 예약 신청 목록 조회 (알림·클리닉 공통 키로 캐시 공유)
-  const { data: myRequests = [], isLoading: requestsLoading } = useQuery({
+  const { data: myRequests = [], isLoading: requestsLoading, isError: requestsError, refetch: refetchRequests } = useQuery({
     queryKey: ["student", "clinic", "bookings"],
     queryFn: fetchMyClinicBookingRequests,
   });
 
   // 예약 가능한 세션 목록 조회
-  const { data: sessions = [], isLoading: sessionsLoading } = useQuery({
+  const { data: sessions = [], isLoading: sessionsLoading, isError: sessionsError, refetch: refetchSessions } = useQuery({
     queryKey: ["student", "clinic", "available-sessions"],
     queryFn: () => {
       const today = todayYmd();
@@ -235,6 +235,27 @@ export default function ClinicPage() {
     );
   }
 
+  // 두 쿼리 모두 실패한 경우 전체 에러 화면
+  if (sessionsError && requestsError) {
+    return (
+      <StudentPageShell title="클리닉">
+        <EmptyState
+          title="클리닉 정보를 불러오지 못했습니다"
+          description="네트워크 연결을 확인하고 다시 시도해 주세요."
+        />
+        <div style={{ textAlign: "center", marginTop: "var(--stu-space-4)" }}>
+          <button
+            type="button"
+            className="stu-btn stu-btn--secondary"
+            onClick={() => { refetchSessions(); refetchRequests(); }}
+          >
+            다시 시도
+          </button>
+        </div>
+      </StudentPageShell>
+    );
+  }
+
   return (
     <StudentPageShell title="클리닉">
       <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-6)" }}>
@@ -275,6 +296,32 @@ export default function ClinicPage() {
             <div style={{ fontWeight: 600, fontSize: 15, color: "var(--stu-success-text)" }}>
               신청이 완료되었습니다.
             </div>
+          </div>
+        )}
+
+        {/* 세션 조회 에러 */}
+        {sessionsError && (
+          <div
+            className="stu-panel"
+            style={{
+              padding: "var(--stu-space-4)",
+              background: "var(--stu-danger-bg, rgba(239, 68, 68, 0.08))",
+              border: "1px solid var(--stu-danger)",
+              borderRadius: "var(--stu-radius-md)",
+              textAlign: "center",
+            }}
+          >
+            <div style={{ fontWeight: 600, fontSize: 14, color: "var(--stu-danger)", marginBottom: "var(--stu-space-2)" }}>
+              클리닉 정보를 불러오지 못했습니다.
+            </div>
+            <button
+              type="button"
+              className="stu-btn stu-btn--secondary"
+              style={{ fontSize: 13 }}
+              onClick={() => refetchSessions()}
+            >
+              다시 시도
+            </button>
           </div>
         )}
 
@@ -482,6 +529,33 @@ export default function ClinicPage() {
               </span>
             )}
           </div>
+
+          {/* 예약 조회 에러 */}
+          {requestsError && (
+            <div
+              className="stu-panel"
+              style={{
+                padding: "var(--stu-space-4)",
+                marginBottom: "var(--stu-space-4)",
+                background: "var(--stu-danger-bg, rgba(239, 68, 68, 0.08))",
+                border: "1px solid var(--stu-danger)",
+                borderRadius: "var(--stu-radius-md)",
+                textAlign: "center",
+              }}
+            >
+              <div style={{ fontWeight: 600, fontSize: 14, color: "var(--stu-danger)", marginBottom: "var(--stu-space-2)" }}>
+                예약 현황을 불러오지 못했습니다.
+              </div>
+              <button
+                type="button"
+                className="stu-btn stu-btn--secondary"
+                style={{ fontSize: 13 }}
+                onClick={() => refetchRequests()}
+              >
+                다시 시도
+              </button>
+            </div>
+          )}
 
           {/* 승인 대기 */}
           {pendingBookings.length > 0 && (

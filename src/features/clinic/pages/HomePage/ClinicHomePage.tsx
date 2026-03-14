@@ -136,10 +136,20 @@ export default function ClinicHomePage() {
     },
   });
 
+  const bulkApproveMutation = useMutation({
+    mutationFn: async (ids: number[]) => {
+      await Promise.allSettled(
+        ids.map((id) => patchClinicParticipantStatus(id, { status: "booked" }))
+      );
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["clinic-participants"] });
+      qc.invalidateQueries({ queryKey: ["admin", "notification-counts"] });
+    },
+  });
+
   const approveAll = () => {
-    pendingList.forEach((p) => {
-      patchStatusM.mutate({ id: p.id, status: "booked" });
-    });
+    bulkApproveMutation.mutate(pendingList.map((p) => p.id));
   };
 
   const todayLabel = dayjs(today).format("YYYY-MM-DD (dd)");
@@ -159,9 +169,9 @@ export default function ClinicHomePage() {
                   type="button"
                   className="clinic-home__action-btn clinic-home__action-btn--approve"
                   onClick={approveAll}
-                  disabled={patchStatusM.isPending}
+                  disabled={bulkApproveMutation.isPending}
                 >
-                  일괄 승인
+                  {bulkApproveMutation.isPending ? "처리 중…" : "일괄 승인"}
                 </button>
                 <button
                   type="button"

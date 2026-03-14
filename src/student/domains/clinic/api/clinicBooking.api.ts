@@ -47,32 +47,27 @@ export async function fetchAvailableClinicSessions(params?: {
   date_from?: string;
   date_to?: string;
 }): Promise<ClinicSession[]> {
-  try {
-    const today = new Date();
-    const nextWeek = new Date(today);
-    nextWeek.setDate(today.getDate() + 14); // 2주 후까지
+  const today = new Date();
+  const nextWeek = new Date(today);
+  nextWeek.setDate(today.getDate() + 14); // 2주 후까지
 
-    const dateFrom = params?.date_from || today.toISOString().slice(0, 10);
-    const dateTo = params?.date_to || nextWeek.toISOString().slice(0, 10);
+  const dateFrom = params?.date_from || today.toISOString().slice(0, 10);
+  const dateTo = params?.date_to || nextWeek.toISOString().slice(0, 10);
 
-    const res = await api.get("/clinic/sessions/", {
-      params: {
-        date_from: dateFrom,
-        date_to: dateTo,
-      },
-    });
+  const res = await api.get("/clinic/sessions/", {
+    params: {
+      date_from: dateFrom,
+      date_to: dateTo,
+    },
+  });
 
-    const sessions = Array.isArray(res.data)
-      ? res.data
-      : Array.isArray(res.data?.results)
-      ? res.data.results
-      : [];
+  const sessions = Array.isArray(res.data)
+    ? res.data
+    : Array.isArray(res.data?.results)
+    ? res.data.results
+    : [];
 
-    return sessions as ClinicSession[];
-  } catch (error) {
-    // silent: error already handled by returning empty array
-    return [];
-  }
+  return sessions as ClinicSession[];
 }
 
 /**
@@ -81,39 +76,34 @@ export async function fetchAvailableClinicSessions(params?: {
  * 백엔드에서 자동으로 현재 로그인한 학생의 예약만 반환
  */
 export async function fetchMyClinicBookingRequests(): Promise<ClinicBookingRequest[]> {
-  try {
-    const res = await api.get("/clinic/participants/");
+  const res = await api.get("/clinic/participants/");
 
-    const participants = Array.isArray(res.data)
-      ? res.data
-      : Array.isArray(res.data?.results)
-      ? res.data.results
-      : [];
+  const participants = Array.isArray(res.data)
+    ? res.data
+    : Array.isArray(res.data?.results)
+    ? res.data.results
+    : [];
 
-    // 예약 신청 상태인 것만 필터링 (pending, booked 등)
-    return participants
-      .filter((p: any) => 
-        p.status === "pending" || 
-        p.status === "booked" || 
-        p.status === "approved" ||
-        p.status === "rejected"
-      )
-      .map((p: any) => ({
-        id: p.id,
-        session: p.session || null, // ✅ 세션이 없을 수 있음
-        session_date: p.session_date,
-        session_start_time: p.session_start_time,
-        session_location: p.session_location || null, // ✅ 세션이 없으면 null
-        status: p.status === "approved" ? "booked" : p.status, // approved는 booked로 매핑
-        memo: p.memo,
-        created_at: p.created_at,
-        updated_at: p.updated_at,
-        status_changed_at: p.status_changed_at,
-      }));
-  } catch (error) {
-    // silent: error already handled by returning empty array
-    return [];
-  }
+  // 예약 신청 상태인 것만 필터링 (pending, booked 등)
+  return participants
+    .filter((p: any) =>
+      p.status === "pending" ||
+      p.status === "booked" ||
+      p.status === "approved" ||
+      p.status === "rejected"
+    )
+    .map((p: any) => ({
+      id: p.id,
+      session: p.session || null, // ✅ 세션이 없을 수 있음
+      session_date: p.session_date,
+      session_start_time: p.session_start_time,
+      session_location: p.session_location || null, // ✅ 세션이 없으면 null
+      status: p.status === "approved" ? "booked" : p.status, // approved는 booked로 매핑
+      memo: p.memo,
+      created_at: p.created_at,
+      updated_at: p.updated_at,
+      status_changed_at: p.status_changed_at,
+    }));
 }
 
 /**

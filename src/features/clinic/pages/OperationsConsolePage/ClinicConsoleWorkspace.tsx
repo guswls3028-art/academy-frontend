@@ -41,7 +41,7 @@ export default function ClinicConsoleWorkspace({
   const navigate = useNavigate();
 
   const statusMutation = useMutation({
-    mutationFn: ({ id, status }: { id: number; status: "attended" | "no_show" }) =>
+    mutationFn: ({ id, status }: { id: number; status: "attended" | "no_show" | "booked" }) =>
       patchClinicParticipantStatus(id, { status }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["clinic-participants"] });
@@ -52,11 +52,21 @@ export default function ClinicConsoleWorkspace({
 
   const bulkAttendMutation = useMutation({
     mutationFn: async (ids: number[]) => {
-      await Promise.all(
+      const results = await Promise.allSettled(
         ids.map((id) => patchClinicParticipantStatus(id, { status: "attended" }))
       );
+      const failed = results.filter((r) => r.status === "rejected");
+      if (failed.length > 0) {
+        throw new Error(`${ids.length - failed.length}명 처리 완료, ${failed.length}명 실패`);
+      }
     },
     onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["clinic-participants"] });
+      qc.invalidateQueries({ queryKey: ["clinic-sessions-tree"] });
+      qc.invalidateQueries({ queryKey: ["admin", "notification-counts"] });
+    },
+    onError: () => {
+      // Partial failure: some succeeded on backend, so always invalidate cache
       qc.invalidateQueries({ queryKey: ["clinic-participants"] });
       qc.invalidateQueries({ queryKey: ["clinic-sessions-tree"] });
       qc.invalidateQueries({ queryKey: ["admin", "notification-counts"] });
@@ -92,10 +102,7 @@ export default function ClinicConsoleWorkspace({
     if (statusMutation.isPending) return;
     // 이미 같은 상태면 booked로 되돌림 (토글 해제)
     if (p.status === target) {
-      // 되돌림은 booked 로
-      patchClinicParticipantStatus(p.id, { status: "booked" }).then(() => {
-        qc.invalidateQueries({ queryKey: ["clinic-participants"] });
-      });
+      statusMutation.mutate({ id: p.id, status: "booked" });
       return;
     }
     statusMutation.mutate({ id: p.id, status: target });
