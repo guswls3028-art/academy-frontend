@@ -240,22 +240,70 @@ export function buildScorePdfHtml(params: ScorePdfParams): string {
 
 // ── Export ──
 
-export function printScorePdf(params: ScorePdfParams): void {
+/**
+ * 성적표 PDF 다운로드
+ * HTML → hidden iframe 렌더 → html2canvas 캡처 → jsPDF A4 landscape 저장
+ * 라이브러리는 CDN dynamic import (npm 설치 불필요)
+ */
+export async function downloadScorePdf(params: ScorePdfParams): Promise<void> {
   const html = buildScorePdfHtml(params);
+
+  // 1) hidden iframe에 HTML 렌더
   const iframe = document.createElement("iframe");
-  iframe.style.cssText = "position:fixed;left:-9999px;top:-9999px;width:0;height:0";
+  iframe.style.cssText = "position:fixed;left:0;top:0;width:1122px;height:793px;opacity:0;pointer-events:none;z-index:-1";
   document.body.appendChild(iframe);
   const doc = iframe.contentDocument ?? iframe.contentWindow?.document;
-  if (!doc) { document.body.removeChild(iframe); return; }
+  if (!doc) { document.body.removeChild(iframe); throw new Error("iframe 생성 실패"); }
   doc.open();
   doc.write(html);
   doc.close();
-  const doPrint = () => {
-    setTimeout(() => {
-      iframe.contentWindow?.print();
-      setTimeout(() => { document.body.removeChild(iframe); }, 1000);
-    }, 300);
-  };
-  iframe.onload = doPrint;
-  if (doc.readyState === "complete") doPrint();
+
+  // 2) 렌더 완료 대기
+  await new Promise<void>((resolve) => {
+    const check = () => {
+      if (doc.readyState === "complete") resolve();
+      else setTimeout(check, 50);
+    };
+    check();
+  });
+  // 약간의 렌더 안정 대기
+  await new Promise((r) => setTimeout(r, 300));
+
+  // 3) CDN에서 html2canvas, jsPDF 로드
+  const [html2canvasModule, jsPDFModule] = await Promise.all([
+    import(/* @vite-ignore */ "https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/+esm"),
+    import(/* @vite-ignore */ "https://cdn.jsdelivr.net/npm/jspdf@2.5.2/+esm"),
+  ]);
+  const html2canvas = html2canvasModule.default;
+  const { jsPDF } = jsPDFModule;
+
+  // 4) 캡처
+  const pageEl = doc.querySelector(".page") as HTMLElement ?? doc.body;
+  const canvas = await html2canvas(pageEl, {
+    scale: 2,
+    useCORS: true,
+    backgroundColor: "#ffffff",
+    logging: false,
+  });
+
+  // 5) PDF 생성 (A4 가로)
+  const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+  const pdfW = pdf.internal.pageSize.getWidth();
+  const pdfH = pdf.internal.pageSize.getHeight();
+  const imgData = canvas.toDataURL("image/png");
+  const imgRatio = canvas.width / canvas.height;
+  let drawW = pdfW;
+  let drawH = pdfW / imgRatio;
+  if (drawH > pdfH) {
+    drawH = pdfH;
+    drawW = pdfH * imgRatio;
+  }
+  pdf.addImage(imgData, "PNG", 0, 0, drawW, drawH);
+
+  // 6) 다운로드
+  const filename = `성적표_${params.lectureTitle}_${params.sessionTitle}_${resolveDate(params.date).replace(/[.\s/]/g, "")}.pdf`;
+  pdf.save(filename);
+
+  // 정리
+  document.body.removeChild(iframe);
 }
