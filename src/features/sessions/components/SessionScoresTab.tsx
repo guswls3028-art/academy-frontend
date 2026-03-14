@@ -14,12 +14,11 @@
  */
 
 import { useState, useRef, useEffect } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { useSessionParams } from "../hooks/useSessionParams";
 import SessionScoresPanel, { type SessionScoresPanelHandle } from "@/features/scores/panels/SessionScoresPanel";
 import { useScoreEditDraft } from "@/features/scores/hooks/useScoreEditDraft";
 import { postScoreDraftCommit } from "@/features/scores/api/scoreDraft";
-import { fetchSessionScores } from "@/features/scores/api/sessionScores";
 import { scoresQueryKeys } from "@/features/scores/api/queryKeys";
 import { downloadClinicPdf } from "@/features/scores/utils/clinicPdfGenerator";
 
@@ -73,7 +72,6 @@ export default function SessionScoresTab() {
 
   function handleToggleEditMode() {
     if (isEditMode) {
-      // 편집 종료: 최종 반영(flush) 후 draft 삭제(commit), 모드 해제
       void panelRef.current?.flushPendingChanges?.().then(async () => {
         try {
           await postScoreDraftCommit(numericSessionId);
@@ -113,15 +111,38 @@ export default function SessionScoresTab() {
     });
   }
 
+  function handleClinicPdf() {
+    const scoresData = qc.getQueryData<import("@/features/scores/api/sessionScores").SessionScoresResponse>(
+      scoresQueryKeys.sessionScores(numericSessionId),
+    );
+    if (!scoresData) return;
+    const session = qc.getQueryData<{ title?: string; date?: string }>(["session", sessionId]);
+    const lecture = qc.getQueryData<{ title?: string; name?: string }>(["lecture", lectureId]);
+    downloadClinicPdf(
+      scoresData.rows,
+      scoresData.meta,
+      session?.title ?? "",
+      lecture?.title ?? lecture?.name ?? "",
+      session?.date ?? undefined,
+    );
+  }
+
   const editTypes: { key: keyof EditConfig; label: string }[] = [
     { key: "examEditTotal", label: "합산" },
     { key: "examEditSubjective", label: "주관식만" },
     { key: "homeworkEdit", label: "과제" },
   ];
 
+  const segmentBtn = (active: boolean) => [
+    "h-8 rounded px-2.5 text-xs font-medium transition-colors",
+    active
+      ? "bg-[var(--color-primary)] text-white"
+      : "border border-[var(--color-border-divider)] bg-[var(--color-bg-surface-soft)] text-[var(--color-text-muted)] hover:border-[var(--color-primary)] hover:text-[var(--color-text-primary)]",
+  ].join(" ");
+
   return (
     <div className="flex flex-col gap-2">
-      {/* ── Toolbar ── */}
+      {/* ── 통합 툴바 ── */}
       <div
         className={[
           "flex flex-wrap items-center gap-2 rounded-lg px-3 py-2",
@@ -131,95 +152,88 @@ export default function SessionScoresTab() {
             : "border-[var(--color-border-divider)]",
         ].join(" ")}
       >
-        {isEditMode ? (
-          /* 편집 모드 ON: 편집 타입 세그먼트 버튼 */
-          <div className="flex items-center gap-1">
-            {editTypes.map(({ key, label }) => {
-              const active = editConfig[key];
-              return (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => handleEditTypeClick(key)}
-                  className={[
-                    "h-8 rounded px-2.5 text-xs font-medium transition-colors",
-                    active
-                      ? "bg-[var(--color-primary)] text-white"
-                      : "border border-[var(--color-border-divider)] bg-[var(--color-bg-surface-soft)] text-[var(--color-text-muted)] hover:border-[var(--color-primary)] hover:text-[var(--color-text-primary)]",
-                  ].join(" ")}
-                >
+        {/* 좌측: 보기/편집 옵션 */}
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          {isEditMode ? (
+            <div className="flex items-center gap-1">
+              {editTypes.map(({ key, label }) => (
+                <button key={key} type="button" onClick={() => handleEditTypeClick(key)} className={segmentBtn(editConfig[key])}>
                   {label}
                 </button>
-              );
-            })}
-          </div>
-        ) : (
-          /* 편집 모드 OFF: 표시 방식 토글 */
-          <div className="flex items-center gap-1">
-            {(["total", "breakdown"] as ScoreDisplayMode[]).map((mode) => {
-              const active = scoreDisplayMode === mode;
-              return (
-                <button
-                  key={mode}
-                  type="button"
-                  onClick={() => setScoreDisplayMode(mode)}
-                  className={[
-                    "h-8 rounded px-2.5 text-xs font-medium transition-colors",
-                    active
-                      ? "bg-[var(--color-primary)] text-white"
-                      : "border border-[var(--color-border-divider)] bg-[var(--color-bg-surface-soft)] text-[var(--color-text-muted)] hover:border-[var(--color-primary)] hover:text-[var(--color-text-primary)]",
-                  ].join(" ")}
-                >
+              ))}
+            </div>
+          ) : (
+            <div className="flex items-center gap-1">
+              {(["total", "breakdown"] as ScoreDisplayMode[]).map((mode) => (
+                <button key={mode} type="button" onClick={() => setScoreDisplayMode(mode)} className={segmentBtn(scoreDisplayMode === mode)}>
                   {mode === "total" ? "합산" : "세부"}
                 </button>
-              );
-            })}
-          </div>
-        )}
+              ))}
+            </div>
+          )}
 
-        {/* 구분선 */}
-        <div className="h-5 w-px bg-[var(--color-border-divider)]" />
+          <div className="h-5 w-px bg-[var(--color-border-divider)]" />
 
-        {/* 검색 입력 (항상 표시) */}
-        <input
-          type="search"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="학생 이름 검색..."
-          className={[
-            "h-8 rounded border px-2.5 text-sm transition-colors",
-            "border-[var(--color-border-divider)] bg-[var(--color-bg-surface-soft)]",
-            "text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)]",
-            "focus:border-[var(--color-brand-primary)] focus:outline-none",
-            "w-[180px] min-w-[120px]",
-          ].join(" ")}
-        />
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="학생 검색..."
+            className={[
+              "h-8 rounded border px-2.5 text-sm transition-colors",
+              "border-[var(--color-border-divider)] bg-[var(--color-bg-surface-soft)]",
+              "text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)]",
+              "focus:border-[var(--color-brand-primary)] focus:outline-none",
+              "w-[160px] min-w-[100px]",
+            ].join(" ")}
+          />
 
-        {/* 편집 모드: 임시 저장 상태 */}
-        {isEditMode && (
-          <span className="text-xs text-[var(--color-text-muted)] ml-1">
-            {draft.draftStatus === "saving" && "임시저장 중..."}
-            {draft.draftStatus === "saved" && draft.lastSavedAt != null && (
-              `임시저장됨 · ${Math.max(0, Math.floor((Date.now() - draft.lastSavedAt) / 1000))}초 전`
-            )}
-            {draft.draftStatus === "error" && (
-              <>
-                <span className="text-[var(--color-error)]">임시저장 실패</span>
-                {" "}
-                <button
-                  type="button"
-                  className="underline text-[var(--color-brand-primary)]"
-                  onClick={() => void draft.performSave()}
-                >
-                  다시 시도
-                </button>
-              </>
-            )}
-            {draft.draftStatus === "idle" && (
-              <span className="text-[var(--color-text-muted)]">저장 안 됨</span>
-            )}
-          </span>
-        )}
+          {/* 편집 모드 드래프트 상태 */}
+          {isEditMode && (
+            <span className="text-xs text-[var(--color-text-muted)] whitespace-nowrap">
+              {draft.draftStatus === "saving" && "임시저장 중..."}
+              {draft.draftStatus === "saved" && draft.lastSavedAt != null && (
+                `임시저장됨 · ${Math.max(0, Math.floor((Date.now() - draft.lastSavedAt) / 1000))}초 전`
+              )}
+              {draft.draftStatus === "error" && (
+                <>
+                  <span className="text-[var(--color-error)]">임시저장 실패</span>
+                  {" "}
+                  <button type="button" className="underline text-[var(--color-brand-primary)]" onClick={() => void draft.performSave()}>
+                    다시 시도
+                  </button>
+                </>
+              )}
+              {draft.draftStatus === "idle" && ""}
+            </span>
+          )}
+        </div>
+
+        {/* 우측: 액션 버튼 */}
+        <div className="flex items-center gap-2">
+          {!isEditMode && (
+            <button
+              type="button"
+              onClick={handleClinicPdf}
+              className="h-8 rounded-lg px-3 text-xs font-semibold border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface-hover)] hover:text-[var(--color-text-primary)] transition-colors whitespace-nowrap"
+            >
+              클리닉 PDF
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={handleToggleEditMode}
+            className={[
+              "h-8 rounded-lg px-3 text-xs font-semibold transition-all whitespace-nowrap",
+              isEditMode
+                ? "bg-[var(--color-brand-primary)] text-white shadow-sm hover:opacity-90"
+                : "border-2 border-[var(--color-brand-primary)] bg-[var(--color-brand-primary)]/8 text-[var(--color-brand-primary)] hover:bg-[var(--color-brand-primary)] hover:text-white",
+            ].join(" ")}
+          >
+            {isEditMode ? "✓ 편집 종료" : "편집 모드"}
+          </button>
+        </div>
       </div>
 
       {/* 복원 확인 모달 */}
@@ -256,51 +270,6 @@ export default function SessionScoresTab() {
           </div>
         </div>
       )}
-
-      {/* ── 편집 모드 토글 + 클리닉 PDF (테이블 바로 위) ── */}
-      <div className="flex items-center gap-3">
-        <button
-          type="button"
-          onClick={handleToggleEditMode}
-          className={[
-            "h-9 rounded-lg px-4 text-sm font-semibold transition-all",
-            isEditMode
-              ? "bg-[var(--color-brand-primary)] text-white shadow-sm hover:opacity-90"
-              : "border-2 border-[var(--color-brand-primary)] bg-[var(--color-brand-primary)]/8 text-[var(--color-brand-primary)] hover:bg-[var(--color-brand-primary)] hover:text-white",
-          ].join(" ")}
-        >
-          {isEditMode ? "✓ 편집 종료" : "편집 모드"}
-        </button>
-        {isEditMode && (
-          <span className="text-xs text-[var(--color-text-muted)]">
-            셀을 클릭하여 성적을 입력하세요
-          </span>
-        )}
-
-        {!isEditMode && (
-          <button
-            type="button"
-            onClick={() => {
-              const scoresData = qc.getQueryData<import("@/features/scores/api/sessionScores").SessionScoresResponse>(
-                scoresQueryKeys.sessionScores(numericSessionId),
-              );
-              if (!scoresData) return;
-              const session = qc.getQueryData<{ title?: string; date?: string }>(["session", sessionId]);
-              const lecture = qc.getQueryData<{ title?: string; name?: string }>(["lecture", lectureId]);
-              downloadClinicPdf(
-                scoresData.rows,
-                scoresData.meta,
-                session?.title ?? "",
-                lecture?.title ?? lecture?.name ?? "",
-                session?.date ?? undefined,
-              );
-            }}
-            className="h-9 rounded-lg px-4 text-sm font-semibold border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface-hover)] hover:text-[var(--color-text-primary)] transition-colors"
-          >
-            클리닉 대상자 PDF
-          </button>
-        )}
-      </div>
 
       {/* ── Scores Panel ── */}
       <SessionScoresPanel
