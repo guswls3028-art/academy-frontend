@@ -12,6 +12,8 @@
     <meta property="og:description" content="학원 관리·학생 학습 플랫폼" />
     <meta property="og:url" content="" />
     <meta property="og:image" content="" />
+    <meta property="og:image:width" content="" />
+    <meta property="og:image:height" content="" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="HakwonPlus" />
     <meta name="twitter:description" content="학원 관리·학생 학습 플랫폼" />
@@ -21,14 +23,14 @@
         var host = (typeof location !== "undefined" && location.hostname) ? location.hostname.toLowerCase() : "";
         /* 테넌트별 브라우저 제목·설명·파비콘 SSOT (index.html 초기 렌더용) */
         var tenants = {
-          "tchul.com":       { t: "박철과학",  d: "박철과학 학습 플랫폼 – 학생·선생님 로그인", f: "/tenants/tchul/favicon.png", i: "/tenants/tchul/logo-full.png" },
-          "www.tchul.com":   { t: "박철과학",  d: "박철과학 학습 플랫폼 – 학생·선생님 로그인", f: "/tenants/tchul/favicon.png", i: "/tenants/tchul/logo-full.png" },
+          "tchul.com":       { t: "박철과학",  d: "박철과학 학습 플랫폼 – 학생·선생님 로그인", f: "/tenants/tchul/favicon.png", i: "/tenants/tchul/logo-full.png", w: 800, h: 427 },
+          "www.tchul.com":   { t: "박철과학",  d: "박철과학 학습 플랫폼 – 학생·선생님 로그인", f: "/tenants/tchul/favicon.png", i: "/tenants/tchul/logo-full.png", w: 800, h: 427 },
           "hakwonplus.com":  { t: "학원플러스", d: "학원플러스 – 학원 관리·학생 학습 플랫폼" },
           "www.hakwonplus.com": { t: "학원플러스", d: "학원플러스 – 학원 관리·학생 학습 플랫폼" },
           "limglish.kr":     { t: "limglish",   d: "limglish 학습 플랫폼" },
           "www.limglish.kr": { t: "limglish",   d: "limglish 학습 플랫폼" },
-          "ymath.co.kr":     { t: "Y_math",     d: "Y_math 학습 플랫폼", f: "/tenants/ymath/favicon.png", i: "/tenants/ymath/og-image.png" },
-          "www.ymath.co.kr": { t: "Y_math",     d: "Y_math 학습 플랫폼", f: "/tenants/ymath/favicon.png", i: "/tenants/ymath/og-image.png" },
+          "ymath.co.kr":     { t: "Y_math",     d: "Y_math 학습 플랫폼", f: "/tenants/ymath/favicon.png", i: "/tenants/ymath/og-image.png", w: 800, h: 420 },
+          "www.ymath.co.kr": { t: "Y_math",     d: "Y_math 학습 플랫폼", f: "/tenants/ymath/favicon.png", i: "/tenants/ymath/og-image.png", w: 800, h: 420 },
           "sswe.co.kr":      { t: "sswe.co.kr", d: "sswe.co.kr 학습 플랫폼" },
           "www.sswe.co.kr":  { t: "sswe.co.kr", d: "sswe.co.kr 학습 플랫폼" }
         };
@@ -51,6 +53,8 @@
           var imgUrl = origin + cfg.i;
           setMeta('meta[property="og:image"]', imgUrl);
           setMeta('meta[name="twitter:image"]', imgUrl);
+          if (cfg.w) setMeta('meta[property="og:image:width"]', String(cfg.w));
+          if (cfg.h) setMeta('meta[property="og:image:height"]', String(cfg.h));
         }
       })();
     </script>

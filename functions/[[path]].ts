@@ -25,14 +25,23 @@ interface TenantMeta {
   description: string;
   favicon?: string;
   image?: string;
+  imageWidth?: number;
+  imageHeight?: number;
 }
 
-/** 하드코딩 폴백 — API 장애 시 사용 */
+/** 이미지 경로 정규화: 상대 경로는 /로 시작하도록, 절대 URL은 그대로 반환 */
+function normalizeImagePath(image: string): string {
+  if (!image) return "";
+  if (image.startsWith("http://") || image.startsWith("https://")) return image;
+  return image.startsWith("/") ? image : "/" + image;
+}
+
+/** 하드코딩 폴백 — API 장애 시 사용. imageWidth/imageHeight는 카카오톡 크롤러 힌트용. */
 const FALLBACK_META: Record<string, TenantMeta> = {
-  "tchul.com":          { title: "박철과학",  description: "박철과학 학습 플랫폼 – 학생·선생님 로그인", favicon: "/tenants/tchul/favicon.png", image: "/tenants/tchul/logo-full.png" },
-  "www.tchul.com":      { title: "박철과학",  description: "박철과학 학습 플랫폼 – 학생·선생님 로그인", favicon: "/tenants/tchul/favicon.png", image: "/tenants/tchul/logo-full.png" },
-  "ymath.co.kr":        { title: "Y_math",     description: "Y_math 학습 플랫폼", favicon: "/tenants/ymath/favicon.png", image: "/tenants/ymath/og-image.png" },
-  "www.ymath.co.kr":    { title: "Y_math",     description: "Y_math 학습 플랫폼", favicon: "/tenants/ymath/favicon.png", image: "/tenants/ymath/og-image.png" },
+  "tchul.com":          { title: "박철과학",  description: "박철과학 학습 플랫폼 – 학생·선생님 로그인", favicon: "/tenants/tchul/favicon.png", image: "/tenants/tchul/logo-full.png", imageWidth: 800, imageHeight: 427 },
+  "www.tchul.com":      { title: "박철과학",  description: "박철과학 학습 플랫폼 – 학생·선생님 로그인", favicon: "/tenants/tchul/favicon.png", image: "/tenants/tchul/logo-full.png", imageWidth: 800, imageHeight: 427 },
+  "ymath.co.kr":        { title: "Y_math",     description: "Y_math 학습 플랫폼", favicon: "/tenants/ymath/favicon.png", image: "/tenants/ymath/og-image.png", imageWidth: 800, imageHeight: 420 },
+  "www.ymath.co.kr":    { title: "Y_math",     description: "Y_math 학습 플랫폼", favicon: "/tenants/ymath/favicon.png", image: "/tenants/ymath/og-image.png", imageWidth: 800, imageHeight: 420 },
   "limglish.kr":        { title: "limglish",   description: "limglish 학습 플랫폼" },
   "www.limglish.kr":    { title: "limglish",   description: "limglish 학습 플랫폼" },
   "hakwonplus.com":     { title: "학원플러스",  description: "학원플러스 – 학원 관리·학생 학습 플랫폼" },
@@ -96,12 +105,19 @@ function injectMeta(html: string, meta: TenantMeta, origin: string): string {
     `<meta property="og:url" content="${origin}" />`,
   );
 
-  // og:image
+  // og:image — 절대 URL이면 그대로, 상대 경로면 origin 붙임
   if (image) {
-    const absImage = origin + image;
+    const normalized = normalizeImagePath(image);
+    const absImage = normalized.startsWith("http") ? normalized : origin + normalized;
+    // og:image + optional width/height (카카오톡 크롤러 힌트)
+    let ogImageTag = `<meta property="og:image" content="${absImage}" />`;
+    if (meta.imageWidth && meta.imageHeight) {
+      ogImageTag += `\n    <meta property="og:image:width" content="${meta.imageWidth}" />`;
+      ogImageTag += `\n    <meta property="og:image:height" content="${meta.imageHeight}" />`;
+    }
     html = html.replace(
       /<meta property="og:image" content="[^"]*" \/>/,
-      `<meta property="og:image" content="${absImage}" />`,
+      ogImageTag,
     );
     html = html.replace(
       /<meta name="twitter:image" content="[^"]*" \/>/,
@@ -185,6 +201,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         ...apiMeta,
         image: apiMeta.image || fallback?.image,
         favicon: apiMeta.favicon || fallback?.favicon,
+        imageWidth: fallback?.imageWidth,
+        imageHeight: fallback?.imageHeight,
       }
     : fallback;
   if (meta) {
