@@ -438,6 +438,31 @@ export default function SessionScoresEntryPage(_props: Props) {
         </svg>
         성적표
       </Button>
+      <Button
+        type="button"
+        intent="secondary"
+        size="sm"
+        onClick={async () => {
+          if (data?.rows && data?.meta) {
+            try {
+              await downloadClinicPdf({
+                rows: data.rows,
+                meta: data.meta,
+                sessionTitle,
+                lectureTitle,
+                attendanceMap: attendanceMapForPdf,
+              });
+              feedback.success("클리닉 현황 PDF가 다운로드되었습니다.");
+            } catch { feedback.error("PDF 생성에 실패했습니다."); }
+          }
+        }}
+        title="클리닉 현황 PDF 다운로드"
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: 4, display: "inline-block", verticalAlign: "-2px" }}>
+          <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+        </svg>
+        클리닉
+      </Button>
 
       {/* 더보기 메뉴 (덜 쓰는 액션 그룹핑) */}
       <div ref={moreMenuRef} className="relative">
@@ -465,21 +490,6 @@ export default function SessionScoresEntryPage(_props: Props) {
             <div className="border-t border-[var(--color-border-divider)] my-1" />
             <button type="button" className="w-full text-left px-4 py-2 text-sm hover:bg-[var(--color-bg-surface-hover)]" disabled={enrollingAll} onClick={() => { void handleEnrollAll(); setShowMoreMenu(false); }}>
               {enrollingAll ? "등록 중…" : "대상자 전체 등록"}
-            </button>
-            <div className="border-t border-[var(--color-border-divider)] my-1" />
-            <button type="button" className="w-full text-left px-4 py-2 text-sm hover:bg-[var(--color-bg-surface-hover)]" onClick={() => {
-              if (data?.rows && data?.meta) {
-                downloadClinicPdf({
-                  rows: data.rows,
-                  meta: data.meta,
-                  sessionTitle,
-                  lectureTitle,
-                  attendanceMap: attendanceMapForPdf,
-                });
-              }
-              setShowMoreMenu(false);
-            }}>
-              클리닉 현황 PDF
             </button>
             <div className="border-t border-[var(--color-border-divider)] my-1" />
             <button type="button" className="w-full text-left px-4 py-2 text-sm text-[var(--color-error)] hover:bg-[var(--color-bg-surface-hover)]" disabled={closingExams} onClick={() => { void handleCloseAllExams(); setShowMoreMenu(false); }}>
