@@ -9,6 +9,7 @@ import {
   type BlockType,
 } from "../api/community.api";
 import { Button } from "@/shared/ui/ds";
+import { feedback } from "@/shared/ui/feedback/feedback";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
 
 export interface BlockTypeFormModalProps {
@@ -36,6 +37,9 @@ export default function BlockTypeFormModal({
       onSuccess();
       onSuccessWithCreated?.(data);
     },
+    onError: (e: any) => {
+      feedback.error(e?.response?.data?.detail ?? "유형 추가에 실패했습니다.");
+    },
   });
   const updateMut = useMutation({
     mutationFn: () =>
@@ -43,6 +47,9 @@ export default function BlockTypeFormModal({
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["community-block-types"] });
       onSuccess();
+    },
+    onError: (e: any) => {
+      feedback.error(e?.response?.data?.detail ?? "유형 수정에 실패했습니다.");
     },
   });
 

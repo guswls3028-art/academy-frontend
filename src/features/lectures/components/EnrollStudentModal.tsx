@@ -6,6 +6,7 @@ import { bulkCreateAttendance } from "../api/attendance";
 import { fetchStudents } from "@/features/students/api/students";
 
 import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
+import { feedback } from "@/shared/ui/feedback/feedback";
 import { Button, EmptyState } from "@/shared/ui/ds";
 import { formatPhone } from "@/shared/utils/formatPhone";
 
@@ -39,9 +40,13 @@ export default function EnrollStudentModal({ sessionId, isOpen, onClose, onSucce
     mutationFn: (ids: number[]) => bulkCreateAttendance(sessionId, ids),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["attendance", sessionId] });
+      feedback.success("수강생이 추가되었습니다.");
       onSuccess?.();
       onClose();
       setSelectedIds([]);
+    },
+    onError: (e: any) => {
+      feedback.error(e?.response?.data?.detail ?? "수강생 추가에 실패했습니다.");
     },
   });
 

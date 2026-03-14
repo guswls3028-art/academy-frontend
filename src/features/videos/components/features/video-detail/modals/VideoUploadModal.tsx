@@ -206,11 +206,12 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
       if (initResults.length > 0) {
         qc.invalidateQueries({ queryKey: ["session-videos", sessionId] });
       }
-      onClose();
 
       if (initErrors.length > 0) {
         feedback.error(initErrors.join(" / "));
+        if (initResults.length === 0) return; // 전부 실패 시 모달 유지
       }
+      onClose();
 
       // 동시 업로드 2개로 제한 — 대역폭 포화 + presigned URL 만료 방지
       const uploadResults = await uploadFilesWithLimit(initResults, 2);

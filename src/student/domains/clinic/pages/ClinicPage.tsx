@@ -109,6 +109,7 @@ export default function ClinicPage() {
 
   // 예약 신청 핸들러 — 등록 가능한 클리닉(세션)만 신청 가능
   const handleBooking = () => {
+    if (bookingMutation.isPending || cancelMutation.isPending) return;
     if (!selectedSessionId) {
       studentToast.info("등록 가능한 클리닉 시간을 선택해주세요.");
       return;
@@ -121,6 +122,7 @@ export default function ClinicPage() {
 
   // 일정 변경 신청 핸들러
   const handleChangeRequest = () => {
+    if (bookingMutation.isPending || cancelMutation.isPending) return;
     if (!selectedDate) {
       studentToast.info("날짜를 선택해주세요.");
       return;

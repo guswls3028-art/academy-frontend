@@ -158,6 +158,9 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [], l
       qc.invalidateQueries({ queryKey: ["lectures"] });
       onClose();
     },
+    onError: (e: any) => {
+      feedback.error(e?.response?.data?.detail ?? "저장에 실패했습니다.");
+    },
   });
 
   useEffect(() => {

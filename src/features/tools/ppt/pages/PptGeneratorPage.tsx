@@ -1,7 +1,7 @@
 // PATH: src/features/tools/ppt/pages/PptGeneratorPage.tsx
-// PPT 생성기 메인 페이지 — 이미지 업로드/정렬 → 설정 → 생성/다운로드
+// PPT 생성기 메인 페이지 — 이미지 업로드/정렬 -> 설정 -> 생성/다운로드 (async worker)
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { generatePpt, type PptSettings } from "../api/pptApi";
@@ -28,7 +28,8 @@ const DEFAULT_SETTINGS: PptSettings = {
 export default function PptGeneratorPage() {
   const [images, setImages] = useState<ImageItem[]>([]);
   const [settings, setSettings] = useState<PptSettings>(DEFAULT_SETTINGS);
-  const [uploadPct, setUploadPct] = useState<number | null>(null);
+  const [progressPct, setProgressPct] = useState<number | null>(null);
+  const [progressLabel, setProgressLabel] = useState<string>("");
 
   // 이미지 추가
   const handleFilesAdd = useCallback((files: File[]) => {
@@ -74,11 +75,11 @@ export default function PptGeneratorPage() {
     setImages([]);
   }, [images]);
 
-  // PPT 생성 mutation
+  // PPT 생성 mutation (async worker pattern)
   const generateMutation = useMutation({
     mutationFn: async () => {
       const files = images.map((i) => i.file);
-      const order = images.map((_, idx) => idx); // 이미 정렬된 순서
+      const order = images.map((_, idx) => idx);
 
       // 슬라이드별 설정 반영
       const perSlide = images.map((item) => ({
@@ -89,12 +90,20 @@ export default function PptGeneratorPage() {
         contrast: settings.contrast,
       }));
 
+      setProgressLabel("파일 업로드 중...");
+
       return generatePpt(files, order, { ...settings, per_slide: perSlide }, (pct) => {
-        setUploadPct(pct);
+        setProgressPct(pct);
+        if (pct <= 50) {
+          setProgressLabel(`업로드 중 ${Math.round(pct * 2)}%`);
+        } else {
+          setProgressLabel(`PPT 생성 중 ${Math.round((pct - 50) * 2)}%`);
+        }
       });
     },
     onSuccess: (data) => {
-      setUploadPct(null);
+      setProgressPct(null);
+      setProgressLabel("");
       feedback.success(`PPT 생성 완료 (${data.slide_count}장, ${formatBytes(data.size_bytes)})`);
       // 자동 다운로드
       const a = document.createElement("a");
@@ -106,8 +115,9 @@ export default function PptGeneratorPage() {
       setTimeout(() => a.remove(), 100);
     },
     onError: (err: any) => {
-      setUploadPct(null);
-      const msg = err?.response?.data?.detail || "PPT 생성에 실패했습니다.";
+      setProgressPct(null);
+      setProgressLabel("");
+      const msg = err?.response?.data?.detail || err?.message || "PPT 생성에 실패했습니다.";
       feedback.error(msg);
     },
   });
@@ -255,15 +265,36 @@ export default function PptGeneratorPage() {
             alignItems: "center",
             justifyContent: "center",
             gap: 8,
+            flexDirection: "column",
           }}
         >
           {isGenerating ? (
             <>
-              <Spinner />
-              {uploadPct !== null ? `업로드 중 ${uploadPct}%` : "PPT 생성 중..."}
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <Spinner />
+                {progressLabel || "PPT 생성 중..."}
+              </div>
+              {progressPct !== null && (
+                <div style={{
+                  width: "80%",
+                  height: 4,
+                  background: "rgba(255,255,255,0.3)",
+                  borderRadius: 2,
+                  overflow: "hidden",
+                  marginTop: 4,
+                }}>
+                  <div style={{
+                    width: `${progressPct}%`,
+                    height: "100%",
+                    background: "#fff",
+                    borderRadius: 2,
+                    transition: "width 0.3s ease",
+                  }} />
+                </div>
+              )}
             </>
           ) : (
-            <>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
                 strokeLinecap="round" strokeLinejoin="round">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
@@ -271,7 +302,7 @@ export default function PptGeneratorPage() {
                 <line x1="12" y1="15" x2="12" y2="3" />
               </svg>
               PPT 생성 및 다운로드
-            </>
+            </div>
           )}
         </button>
 

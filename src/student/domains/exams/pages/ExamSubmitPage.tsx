@@ -47,6 +47,7 @@ export default function ExamSubmitPage() {
   }, [questions]);
 
   const handleSubmit = async () => {
+    if (submitting) return;
     if (!Number.isFinite(safeId)) return;
     const payload = {
       answers: Object.entries(answers)
@@ -60,6 +61,11 @@ export default function ExamSubmitPage() {
       setError("최소 한 문항의 답을 입력하세요.");
       return;
     }
+    const unanswered = questions.length - payload.answers.length;
+    const confirmMsg = unanswered > 0
+      ? `${unanswered}개 문항이 미입력 상태입니다. 제출하시겠습니까?`
+      : "답안을 제출하시겠습니까? 제출 후에는 수정할 수 없습니다.";
+    if (!window.confirm(confirmMsg)) return;
     setError(null);
     setSubmitting(true);
     try {

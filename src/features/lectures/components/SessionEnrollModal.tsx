@@ -369,6 +369,9 @@ export default function SessionEnrollModal({
       onSuccess?.();
       onClose();
     },
+    onError: (e: any) => {
+      feedback.error(e?.response?.data?.detail ?? "수강생 추가에 실패했습니다.");
+    },
   });
 
   // ── Handlers ───────────────────────────────────────────────────────────────

@@ -1,5 +1,5 @@
 // PATH: src/features/staff/pages/HomePage/StaffCreateModal.tsx
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
 
@@ -62,6 +62,13 @@ export default function StaffCreateModal({ open, onClose }: Props) {
       feedback.error(msg);
     },
   });
+
+  // 모달 열릴 때 폼 초기화
+  useEffect(() => {
+    if (open) {
+      setForm({ username: "", password: "", name: "", phone: "", permission_role: "ASSISTANT" });
+    }
+  }, [open]);
 
   const invalidUsername = !String(form.username || "").trim();
   const invalidPassword = !String(form.password || "").trim();

@@ -151,7 +151,10 @@ export default function SessionCreateModal({ lectureId, onClose }: Props) {
     setBusy(true);
     try {
       await createSession(lectureId, title, effectiveDate || undefined, nextOrder);
+      feedback.success("차시가 추가되었습니다.");
       onClose();
+    } catch (e: any) {
+      feedback.error(e?.response?.data?.detail ?? "차시 추가에 실패했습니다.");
     } finally {
       setBusy(false);
     }

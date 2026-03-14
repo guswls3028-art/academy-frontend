@@ -15,7 +15,8 @@ export default function DashboardPage() {
   const { data: sessions, isLoading: sessionsLoading } = useMySessions();
   const { data: notificationCounts, isLoading: countsLoading } = useNotificationCounts();
 
-  const today = new Date().toISOString().slice(0, 10);
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
   const todaySessions = (sessions ?? []).filter((s) => (s.date ?? "").slice(0, 10) === today);
 
   if (dashLoading || sessionsLoading) {

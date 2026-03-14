@@ -113,7 +113,7 @@ export default function CreateHomeworkModal({
         await putHomeworkAssignments({ homeworkId, enrollment_ids: ids });
       }
     } catch {
-      // silent — enrollment is best-effort during creation
+      feedback.warning("학생 자동 등록에 실패했습니다. 수동으로 등록해 주세요.");
     }
   };
 

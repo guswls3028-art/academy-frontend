@@ -6,6 +6,7 @@ import { createPostTemplate, type PostTemplate } from "@/features/community/api/
 
 import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
+import { feedback } from "@/shared/ui/feedback/feedback";
 
 interface Props {
   lectureId: number;
@@ -41,6 +42,9 @@ export default function BoardPostModal({ lectureId, category, templates = [], on
       setShowSaveAsTemplate(false);
       setTemplateName("");
     },
+    onError: (e: any) => {
+      feedback.error(e?.response?.data?.detail ?? "양식 저장에 실패했습니다.");
+    },
   });
 
   const title = useMemo(
@@ -66,7 +70,11 @@ export default function BoardPostModal({ lectureId, category, templates = [], on
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["board-posts", lectureId, category.id] });
+      feedback.success("글이 등록되었습니다.");
       onClose();
+    },
+    onError: (e: any) => {
+      feedback.error(e?.response?.data?.detail ?? "글 등록에 실패했습니다.");
     },
   });
 

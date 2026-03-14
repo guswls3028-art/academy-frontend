@@ -21,6 +21,7 @@ import {
 } from "../api/community.api";
 import { fetchLectures } from "@/features/lectures/api/sessions";
 import { EmptyState, Button } from "@/shared/ui/ds";
+import { feedback } from "@/shared/ui/feedback/feedback";
 import "@/features/community/community.css";
 
 /** 게시 관리 내 "공지사항" 탭에서 임베드용. ScopeSelector는 상위(게시 관리)에서 노출. */
@@ -248,6 +249,9 @@ export function NoticeCreateModal({
       setShowSaveAsTemplate(false);
       setTemplateName("");
     },
+    onError: (e: any) => {
+      feedback.error(e?.response?.data?.detail ?? "양식 저장에 실패했습니다.");
+    },
   });
 
   const nodeIds = useMemo(() => {
@@ -274,6 +278,9 @@ export function NoticeCreateModal({
         node_ids: nodeIds,
       }),
     onSuccess: () => onSuccess(),
+    onError: (e: any) => {
+      feedback.error(e?.response?.data?.detail ?? "글 등록에 실패했습니다.");
+    },
   });
 
   const canSubmit =
