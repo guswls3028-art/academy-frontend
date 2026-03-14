@@ -36,9 +36,9 @@ export default function PptGeneratorPage() {
       invert: false,
     }));
     setImages((prev) => {
-      if (prev.length + newItems.length > 100) {
-        feedback.warning("최대 100장까지 업로드할 수 있습니다.");
-        return [...prev, ...newItems.slice(0, 100 - prev.length)];
+      if (prev.length + newItems.length > 50) {
+        feedback.warning("최대 50장까지 업로드할 수 있습니다.");
+        return [...prev, ...newItems.slice(0, 50 - prev.length)];
       }
       return [...prev, ...newItems];
     });

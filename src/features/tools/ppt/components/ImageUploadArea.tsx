@@ -4,7 +4,7 @@
 import { useRef, useState, useCallback } from "react";
 
 const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp", "image/bmp", "image/tiff"];
-const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
 
 interface ImageUploadAreaProps {
   onFilesAdd: (files: File[]) => void;
@@ -85,7 +85,7 @@ export default function ImageUploadArea({ onFilesAdd, disabled }: ImageUploadAre
         이미지를 드래그하거나 클릭하여 업로드
       </div>
       <div style={{ fontSize: 13, color: "var(--color-text-muted)" }}>
-        JPG, PNG, GIF, WebP, BMP, TIFF (최대 50MB/장, 100장)
+        JPG, PNG, GIF, WebP, BMP, TIFF (최대 20MB/장, 50장)
       </div>
     </div>
   );
