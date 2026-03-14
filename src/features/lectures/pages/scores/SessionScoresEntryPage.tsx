@@ -479,7 +479,7 @@ export default function SessionScoresEntryPage(_props: Props) {
               }
               setShowMoreMenu(false);
             }}>
-              클리닉 현황 인쇄
+              클리닉 현황 PDF
             </button>
             <div className="border-t border-[var(--color-border-divider)] my-1" />
             <button type="button" className="w-full text-left px-4 py-2 text-sm text-[var(--color-error)] hover:bg-[var(--color-bg-surface-hover)]" disabled={closingExams} onClick={() => { void handleCloseAllExams(); setShowMoreMenu(false); }}>

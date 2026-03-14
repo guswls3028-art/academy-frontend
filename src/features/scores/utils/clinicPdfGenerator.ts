@@ -92,23 +92,48 @@ const BASE_STYLE = `
   }
 `;
 
-function printHtml(html: string) {
+async function htmlToPdfDownload(html: string, filename: string) {
+  // 1) hidden iframe 렌더
   const iframe = document.createElement("iframe");
-  iframe.style.cssText = "position:fixed;left:-9999px;top:-9999px;width:0;height:0";
+  iframe.style.cssText = "position:fixed;left:0;top:0;width:794px;height:1123px;opacity:0;pointer-events:none;z-index:-1";
   document.body.appendChild(iframe);
   const doc = iframe.contentDocument ?? iframe.contentWindow?.document;
   if (!doc) { document.body.removeChild(iframe); return; }
   doc.open();
   doc.write(html);
   doc.close();
-  const doPrint = () => {
-    setTimeout(() => {
-      iframe.contentWindow?.print();
-      setTimeout(() => { document.body.removeChild(iframe); }, 1000);
-    }, 300);
-  };
-  iframe.onload = doPrint;
-  if (doc.readyState === "complete") doPrint();
+
+  await new Promise<void>((resolve) => {
+    const check = () => { if (doc.readyState === "complete") resolve(); else setTimeout(check, 50); };
+    check();
+  });
+  await new Promise((r) => setTimeout(r, 300));
+
+  // 2) CDN 로드
+  const [h2cMod, jpMod] = await Promise.all([
+    import(/* @vite-ignore */ "https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/+esm"),
+    import(/* @vite-ignore */ "https://cdn.jsdelivr.net/npm/jspdf@2.5.2/+esm"),
+  ]);
+  const html2canvas = h2cMod.default;
+  const { jsPDF } = jpMod;
+
+  // 3) 캡처
+  const pageEl = doc.querySelector(".page") as HTMLElement ?? doc.body;
+  const canvas = await html2canvas(pageEl, { scale: 2, useCORS: true, backgroundColor: "#ffffff", logging: false });
+
+  // 4) PDF A4 세로
+  const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  const pdfW = pdf.internal.pageSize.getWidth();
+  const pdfH = pdf.internal.pageSize.getHeight();
+  const imgData = canvas.toDataURL("image/png");
+  const imgRatio = canvas.width / canvas.height;
+  let drawW = pdfW;
+  let drawH = pdfW / imgRatio;
+  if (drawH > pdfH) { drawH = pdfH; drawW = pdfH * imgRatio; }
+  pdf.addImage(imgData, "PNG", 0, 0, drawW, drawH);
+  pdf.save(filename);
+
+  document.body.removeChild(iframe);
 }
 
 function filterPresent(rows: SessionScoreRow[], attendanceMap?: Record<number, string>) {
@@ -251,11 +276,13 @@ export type ClinicPdfParams = {
   schedule?: string;
 };
 
-export function downloadClinicPdf(params: ClinicPdfParams): void {
+export async function downloadClinicPdf(params: ClinicPdfParams): Promise<void> {
   const { rows, meta, sessionTitle, lectureTitle, date, attendanceMap, schedule } = params;
   const data = analyze(rows, meta, attendanceMap);
   if (data.totalStudents === 0) { alert("출석 학생이 없습니다."); return; }
-  printHtml(buildHtml(data, sessionTitle, lectureTitle, resolveDate(date), schedule));
+  const html = buildHtml(data, sessionTitle, lectureTitle, resolveDate(date), schedule);
+  const filename = `클리닉현황_${lectureTitle}_${sessionTitle}_${resolveDate(date).replace(/[.\s/]/g, "")}.pdf`;
+  await htmlToPdfDownload(html, filename);
 }
 
 export function getClinicStats(rows: SessionScoreRow[], meta: SessionScoreMeta, attendanceMap?: Record<number, string>) {

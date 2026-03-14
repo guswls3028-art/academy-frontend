@@ -13,64 +13,106 @@ const BW_STYLE = `
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
     font-family: 'Malgun Gothic', '맑은 고딕', 'Apple SD Gothic Neo', sans-serif;
-    color: #000; background: #fff;
+    color: #111; background: #fff;
     -webkit-print-color-adjust: exact; print-color-adjust: exact;
   }
   .page {
     width: 100%; margin: 0 auto;
     display: flex; flex-direction: column;
+    padding: 16px 20px;
   }
+
+  /* ── 헤더 ── */
   .header {
     display: flex; justify-content: space-between; align-items: flex-end;
-    margin-bottom: 6px; padding-bottom: 4px;
-    border-bottom: 2px solid #000;
+    margin-bottom: 10px; padding-bottom: 8px;
+    border-bottom: 3px double #111;
   }
-  .header h1 { font-size: 16px; font-weight: 900; }
-  .header .sub { font-size: 10px; color: #333; }
-  .header .date { font-size: 10px; color: #333; text-align: right; }
+  .header h1 {
+    font-size: 18px; font-weight: 900; letter-spacing: -0.5px;
+  }
+  .header .sub {
+    font-size: 10px; color: #444; margin-top: 2px;
+  }
+  .header .date-box {
+    text-align: right; font-size: 10px; color: #444;
+    border: 1px solid #999; border-radius: 4px;
+    padding: 4px 10px; background: #f8f8f8;
+  }
 
+  /* ── 테이블 ── */
   table {
     width: 100%; border-collapse: collapse;
-    font-size: 10px; line-height: 1.3;
+    font-size: 10px; line-height: 1.4;
+    border: 2px solid #111;
   }
   th, td {
-    border: 1px solid #333; padding: 4px 6px;
+    border: 1px solid #555; padding: 5px 6px;
     text-align: center; vertical-align: middle;
   }
+
+  /* 그룹 헤더 (시험 / 과제) */
+  th.group-header {
+    background: #222; color: #fff; font-weight: 800;
+    font-size: 10px; letter-spacing: 1px;
+    border-bottom: 2px solid #111;
+    padding: 6px 8px;
+  }
+  /* 서브 헤더 (개별 시험명/과제명) */
   th {
-    background: #e8e8e8; font-weight: 700;
+    background: #eee; font-weight: 700;
     font-size: 9px; white-space: nowrap;
   }
-  th.group-header {
-    background: #d0d0d0; font-weight: 800;
-    font-size: 10px; border-bottom: 2px solid #333;
-  }
+
+  /* 짝수 행 얼룩무늬 */
+  tbody tr:nth-child(even) td { background: #f7f7f7; }
+  tbody tr:hover td { background: #eef; }
+
   td.name {
-    text-align: left; font-weight: 600;
+    text-align: left; font-weight: 700;
     white-space: nowrap; font-size: 11px;
-    min-width: 60px;
+    min-width: 60px; padding-left: 8px;
+    border-right: 2px solid #555;
   }
   td.num { font-variant-numeric: tabular-nums; }
-  td.pass { font-weight: 700; }
+  td.pass { font-weight: 700; font-size: 11px; }
   td.pass-y { }
-  td.pass-n { font-weight: 800; text-decoration: underline; }
-  td.no-score { color: #999; }
+  td.pass-n { font-weight: 900; }
+  td.no-score { color: #aaa; font-style: italic; }
   td.attendance { font-size: 9px; }
 
-  .footer {
-    margin-top: 4px; padding-top: 3px; border-top: 1px solid #999;
-    display: flex; justify-content: space-between;
-    font-size: 9px; color: #666;
+  /* 판정 열 */
+  td.verdict-pass { font-weight: 800; }
+  td.verdict-fail { font-weight: 900; background: #ddd !important; }
+
+  /* 요약 행 */
+  .summary-row td {
+    background: #222 !important; color: #fff;
+    font-weight: 700; font-size: 10px;
+    border-color: #111; padding: 6px;
   }
 
-  .summary-row td { background: #f0f0f0; font-weight: 700; }
+  /* ── 푸터 ── */
+  .footer {
+    margin-top: 8px; padding-top: 6px;
+    border-top: 3px double #111;
+    display: flex; justify-content: space-between;
+    font-size: 9px; color: #555;
+  }
+  .footer .legend {
+    display: flex; gap: 12px;
+  }
+  .footer .legend span {
+    display: inline-flex; align-items: center; gap: 3px;
+  }
 
   @media print {
     body { background: #fff; }
-    .page { width: 100%; min-height: auto; }
+    .page { padding: 0; width: 100%; min-height: auto; }
+    tbody tr:hover td { background: inherit; }
   }
   @media screen {
-    .page { max-width: 1100px; padding: 20px; }
+    .page { max-width: 1122px; }
   }
 `;
 
@@ -186,7 +228,7 @@ export function buildScorePdfHtml(params: ScorePdfParams): string {
       || row.homeworks.some((h) => h.block.score != null);
     let verdict = "-";
     if (hasAnyScore) verdict = allPassed ? "통과" : "미달";
-    const verdictClass = verdict === "미달" ? "pass pass-n" : "pass";
+    const verdictClass = verdict === "미달" ? "verdict-fail" : "verdict-pass";
     cells.push(`<td class="${verdictClass}">${verdict}</td>`);
 
     return `<tr>${cells.join("")}</tr>`;
@@ -218,8 +260,11 @@ export function buildScorePdfHtml(params: ScorePdfParams): string {
 <style>${BW_STYLE}</style></head><body>
 <div class="page">
   <div class="header">
-    <div><h1>${lectureTitle} — ${sessionTitle} 성적표</h1><div class="sub">${rows.length}명 | 시험 ${exams.length}건 · 과제 ${homeworks.length}건</div></div>
-    <div class="date">${resolveDate(date)}</div>
+    <div>
+      <h1>${lectureTitle} — ${sessionTitle}</h1>
+      <div class="sub">수강생 ${rows.length}명 · 시험 ${exams.length}건 · 과제 ${homeworks.length}건</div>
+    </div>
+    <div class="date-box">${resolveDate(date)}</div>
   </div>
   <table>
     <thead>
@@ -232,7 +277,12 @@ export function buildScorePdfHtml(params: ScorePdfParams): string {
     </tbody>
   </table>
   <div class="footer">
-    <span>평균 = 응시자 기준 | P/F = O 통과, X 미달 (밑줄)</span>
+    <div class="legend">
+      <span><b>O</b> 통과</span>
+      <span><b>X</b> 미달</span>
+      <span>평균 = 응시자 기준</span>
+      <span>통과 ${totalPassed}/${rows.length}명</span>
+    </div>
     <span>${resolveDate(date)} 출력</span>
   </div>
 </div></body></html>`;
