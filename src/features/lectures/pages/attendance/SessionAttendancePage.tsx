@@ -8,6 +8,7 @@ import {
   updateAttendance,
   deleteAttendance,
   downloadAttendanceExcel,
+  bulkSetPresent,
 } from "@/features/lectures/api/attendance";
 import api from "@/shared/api/axios";
 import { EmptyState, Button } from "@/shared/ui/ds";
@@ -315,12 +316,30 @@ export default function SessionAttendancePage({
     </div>
   );
 
-  const primaryAction =
-    onOpenEnrollModal ? (
-      <Button type="button" intent="primary" size="sm" onClick={onOpenEnrollModal}>
-        수강생 등록
+  const handleBulkSetPresent = async () => {
+    if (!window.confirm("모든 학생의 출석 상태를 '현장'으로 설정합니다.")) return;
+    try {
+      const result = await bulkSetPresent(sessionId);
+      qc.invalidateQueries({ queryKey: ["attendance", sessionId] });
+      qc.invalidateQueries({ queryKey: ["attendance-matrix"] });
+      feedback.success(result.updated > 0 ? `${result.updated}명 현장 출석으로 변경` : "이미 전원 현장 출석입니다.");
+    } catch {
+      feedback.error("일괄 출석 변경에 실패했습니다.");
+    }
+  };
+
+  const primaryAction = (
+    <div className="flex items-center gap-2">
+      <Button type="button" intent="secondary" size="sm" onClick={handleBulkSetPresent}>
+        전체 현장 출석
       </Button>
-    ) : null;
+      {onOpenEnrollModal && (
+        <Button type="button" intent="primary" size="sm" onClick={onOpenEnrollModal}>
+          수강생 등록
+        </Button>
+      )}
+    </div>
+  );
 
   const filterSlot = (
     <>

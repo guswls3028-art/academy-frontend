@@ -82,11 +82,11 @@ export default function SessionScoresEntryPage(_props: Props) {
     queryFn: async () => (await api.get(`/lectures/sessions/${numericSessionId}/`)).data,
     enabled: Number.isFinite(numericSessionId),
   });
-  /** 출결 (PDF 출결 열용) */
+  /** 출결 (PDF 출결 열 + 클리닉 현황용) */
   const { data: attendanceForPdf } = useQuery({
     queryKey: ["attendance-for-pdf", numericSessionId],
     queryFn: () => fetchAttendance(numericSessionId, { page_size: 500 }),
-    enabled: Number.isFinite(numericSessionId) && showPrintPreview,
+    enabled: Number.isFinite(numericSessionId),
   });
 
   const attendanceMapForPdf = useMemo(() => {

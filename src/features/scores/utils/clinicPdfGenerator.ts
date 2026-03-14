@@ -137,9 +137,11 @@ async function htmlToPdfDownload(html: string, filename: string) {
 }
 
 function filterPresent(rows: SessionScoreRow[], attendanceMap?: Record<number, string>) {
-  return attendanceMap
-    ? rows.filter((r) => attendanceMap[r.enrollment_id] === "present")
-    : rows;
+  if (!attendanceMap || Object.keys(attendanceMap).length === 0) return rows;
+  return rows.filter((r) => {
+    const s = (attendanceMap[r.enrollment_id] ?? "").toUpperCase();
+    return s === "PRESENT" || s === "ONLINE" || s === "SUPPLEMENT" || s === "LATE";
+  });
 }
 
 function resolveDate(date?: string) {

@@ -83,6 +83,17 @@ export async function deleteAttendance(id: number) {
 }
 
 /* =========================================================
+ * 2-2 전체 현장 출석 (세션 내 모든 출결 → PRESENT)
+ * POST /api/v1/lectures/attendance/bulk_set_present/
+ * ======================================================= */
+export async function bulkSetPresent(sessionId: number) {
+  const res = await api.post("/lectures/attendance/bulk_set_present/", {
+    session: sessionId,
+  });
+  return res.data as { updated: number; session: number };
+}
+
+/* =========================================================
  * 3️⃣ 세션 기준 학생 등록
  * POST /api/v1/lectures/attendance/bulk_create/
  * ======================================================= */
