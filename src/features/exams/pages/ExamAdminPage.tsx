@@ -4,7 +4,7 @@
 
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchExams } from "../api/exams";
 import { fetchLectures, fetchSessions, type Lecture, type Session } from "@/features/lectures/api/sessions";
 import { DomainLayout } from "@/shared/ui/layout";
@@ -127,7 +127,7 @@ export default function ExamAdminPage() {
                       : "1px solid var(--color-border-divider)",
                   opacity: isClosed ? 0.65 : 1,
                 }}
-                onClick={() => navigate("/admin/lectures")}
+                onClick={() => navigate(`/admin/exams`)}
                 title={`${e.title} — ${e.subject || "과목 없음"}`}
               >
                 <ExamIcon color={iconColor} />
@@ -182,6 +182,7 @@ function ExamAddModal({ open, onClose, onSuccess }: { open: boolean; onClose: ()
   const [subject, setSubject] = useState("");
   const [busy, setBusy] = useState(false);
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const { data: lectures = [] } = useQuery({
     queryKey: ["admin-lectures-for-exam-add"],
@@ -201,9 +202,10 @@ function ExamAddModal({ open, onClose, onSuccess }: { open: boolean; onClose: ()
     setBusy(true);
     try {
       await createTemplateExam({ title: title.trim(), subject: subject.trim() || selectedLecture?.subject || "" });
+      await queryClient.invalidateQueries({ queryKey: ["admin-exams"] });
       feedback.success("시험이 생성되었습니다. 강의 > 차시에서 상세 설정하세요.");
       onSuccess();
-      navigate(`/admin/lectures/${selectedLecture?.id}`);
+      navigate(`/admin/lectures/${selectedLecture?.id}/sessions/${selectedSession?.id}/exams`);
     } catch {
       feedback.error("시험 생성에 실패했습니다.");
     } finally {

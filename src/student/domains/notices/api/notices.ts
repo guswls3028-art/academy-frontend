@@ -8,22 +8,12 @@ import { fetchNoticePosts, fetchPost, type PostEntity } from "@/features/communi
  * - 관리자 공지사항 탭에서 등록한 공지(block_type code=notice)와 동일한 API 사용
  */
 export async function fetchNotices(): Promise<PostEntity[]> {
-  try {
-    return await fetchNoticePosts({ pageSize: 50 });
-  } catch (error) {
-    // silent: error already handled by returning empty array
-    return [];
-  }
+  return await fetchNoticePosts({ pageSize: 50 });
 }
 
 /**
  * 공지 상세 조회
  */
-export async function fetchNoticeDetail(id: number): Promise<PostEntity | null> {
-  try {
-    return await fetchPost(id);
-  } catch (error) {
-    // silent: error already handled by returning null
-    return null;
-  }
+export async function fetchNoticeDetail(id: number): Promise<PostEntity> {
+  return await fetchPost(id);
 }

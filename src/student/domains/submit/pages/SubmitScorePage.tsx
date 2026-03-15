@@ -8,6 +8,7 @@ import StudentPageShell from "@/student/shared/ui/pages/StudentPageShell";
 import { fetchMyProfile } from "@/student/domains/profile/api/profile";
 import { uploadMyFile, fetchMyInventory, getMyFileUrl, type InventoryFile } from "@/student/domains/inventory/api/inventory";
 import { IconFileText, IconImage, IconDownload } from "@/student/shared/ui/icons/Icons";
+import { studentToast } from "@/student/shared/ui/feedback/studentToast";
 
 const ACCEPT = "image/*,.pdf";
 const MAX_SIZE_MB = 20;
@@ -84,7 +85,7 @@ export default function SubmitScorePage() {
     try {
       const { url } = await getMyFileUrl(file.r2Key);
       if (url) window.open(url, "_blank", "noopener");
-    } catch { /* silent */ }
+    } catch { studentToast.error("다운로드에 실패했습니다."); }
   };
 
   const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
