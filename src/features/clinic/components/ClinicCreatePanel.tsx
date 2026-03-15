@@ -404,36 +404,36 @@ export default function ClinicCreatePanel({
   /* ── form fields (shared between card and modal layouts) ── */
   const formFields = (
     <>
-      {/* 날짜 + 시간 (한 행) */}
-      <div className="clinic-create__row">
-        {!hideDatePicker && (
-          <div className="clinic-create__field clinic-create__field--half">
-            <label className="clinic-create__label">날짜</label>
-            <DatePicker
-              value={selectedDate.format("YYYY-MM-DD")}
-              onChange={(s) => {
-                const next = dayjs(s);
-                setSelectedDate(next);
-                onDateChange?.(next.format("YYYY-MM-DD"));
-              }}
-              placeholder="날짜 선택"
-              minDate={todayISO()}
-              openBelow
-            />
-          </div>
-        )}
-        <div className={`clinic-create__field ${hideDatePicker ? "" : "clinic-create__field--half"}`}>
-          <label className="clinic-create__label">시간</label>
-          <div role="group" aria-label="시간 선택">
-            <TimeRangeInput
-              value={timeRange}
-              onChange={setTimeRange}
-              startLabel="시작"
-              endLabel="종료"
-              startPlaceholder="시작"
-              endPlaceholder="종료"
-            />
-          </div>
+      {/* 날짜 */}
+      {!hideDatePicker && (
+        <div className="clinic-create__field">
+          <label className="clinic-create__label">날짜</label>
+          <DatePicker
+            value={selectedDate.format("YYYY-MM-DD")}
+            onChange={(s) => {
+              const next = dayjs(s);
+              setSelectedDate(next);
+              onDateChange?.(next.format("YYYY-MM-DD"));
+            }}
+            placeholder="날짜 선택"
+            minDate={todayISO()}
+            openBelow
+          />
+        </div>
+      )}
+
+      {/* 시간 */}
+      <div className="clinic-create__field">
+        <label className="clinic-create__label">시간</label>
+        <div role="group" aria-label="시간 선택">
+          <TimeRangeInput
+            value={timeRange}
+            onChange={setTimeRange}
+            startLabel="시작"
+            endLabel="종료"
+            startPlaceholder="시작"
+            endPlaceholder="종료"
+          />
         </div>
       </div>
 
