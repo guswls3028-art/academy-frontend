@@ -664,6 +664,7 @@ html:has([data-app="student"]) {
   align-items: center;
   justify-content: center;
   gap: 8px;
+  white-space: nowrap;
 
   min-height: 44px; /* touch target */
   padding: 10px 14px;
