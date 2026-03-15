@@ -50,7 +50,7 @@ export default function ClinicPage() {
       const today = todayYmd();
       const from = new Date(today);
       const to = new Date(from);
-      to.setDate(to.getDate() + 14);
+      to.setDate(to.getDate() + 60);
       return fetchAvailableClinicSessions({
         date_from: today,
         date_to: `${to.getFullYear()}-${String(to.getMonth() + 1).padStart(2, "0")}-${String(to.getDate()).padStart(2, "0")}`,
