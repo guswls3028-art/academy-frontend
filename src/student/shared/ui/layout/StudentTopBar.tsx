@@ -104,8 +104,18 @@ export default function StudentTopBar({ tenantCode, onMenuClick }: Props) {
               onClick={() => {
                 setParentStudentId(s.id);
                 setProfileOpen(false);
-                qc.invalidateQueries({ queryKey: ["student", "me"] });
+                // 자녀 전환 시 모든 학생 캐시 무효화 (배열 키 + 하이픈 키)
                 qc.invalidateQueries({ queryKey: ["student"] });
+                qc.invalidateQueries({ queryKey: ["student-dashboard"] });
+                qc.invalidateQueries({ queryKey: ["student-sessions"] });
+                qc.invalidateQueries({ queryKey: ["student-session"] });
+                qc.invalidateQueries({ queryKey: ["student-notices"] });
+                qc.invalidateQueries({ queryKey: ["student-notice"] });
+                qc.invalidateQueries({ queryKey: ["student-video-me"] });
+                qc.invalidateQueries({ queryKey: ["student-session-videos"] });
+                qc.invalidateQueries({ queryKey: ["student-inventory"] });
+                qc.invalidateQueries({ queryKey: ["clinic-idcard"] });
+                qc.invalidateQueries({ queryKey: ["video-comments"] });
                 navigate("/student/dashboard");
               }}
             >

@@ -43,13 +43,21 @@ export default function ClinicCalendar({
     return new Date(date.getFullYear(), date.getMonth(), 1);
   });
 
-  // 날짜별 예약 상태 매핑
+  // 날짜별 예약 상태 매핑 — 활성 예약(pending/booked/approved)을 우선 표시
   const bookingByDate = useMemo(() => {
     const map = new Map<string, ClinicBookingRequest>();
-    bookings.forEach((b) => {
+    const isActive = (s: string) => ["pending", "booked", "approved"].includes(s);
+    // Sort: active bookings first, then by most recent
+    const sorted = [...bookings].sort((a, b) => {
+      const aPri = isActive(a.status) ? 0 : 1;
+      const bPri = isActive(b.status) ? 0 : 1;
+      if (aPri !== bPri) return aPri - bPri;
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
+    sorted.forEach((b) => {
       const date = b.session_date;
-      // 같은 날짜에 여러 예약이 있으면 가장 최근 것만 표시
-      if (!map.has(date) || new Date(b.created_at) > new Date(map.get(date)!.created_at)) {
+      // First entry per date wins (highest priority due to sort)
+      if (!map.has(date)) {
         map.set(date, b);
       }
     });

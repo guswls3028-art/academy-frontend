@@ -81,6 +81,7 @@ export default function ClinicOperationsPage() {
     mutationFn: (id: number) => deleteClinicSession(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["clinic-sessions-tree"] });
+      qc.invalidateQueries({ queryKey: ["clinic-sessions-month"] });
       qc.invalidateQueries({ queryKey: ["clinic-participants"] });
       setDeleteConfirm(null);
       feedback.success("클리닉이 삭제되었습니다.");
@@ -303,12 +304,13 @@ export default function ClinicOperationsPage() {
                           className="clinic-schedule__card-delete"
                           title="클리닉 삭제"
                           aria-label={`${s.location} 클리닉 삭제`}
-                          onClick={() =>
+                          onClick={(e) => {
+                            e.stopPropagation();
                             setDeleteConfirm({
                               id: s.id,
                               label: `${formatTime(s.start_time)} ${s.location}`,
-                            })
-                          }
+                            });
+                          }}
                         >
                           <Trash2 size={16} strokeWidth={2} aria-hidden />
                         </button>

@@ -4,7 +4,7 @@
  */
 import { useState, useEffect, useCallback } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import StudentPageShell from "@/student/shared/ui/pages/StudentPageShell";
 import EmptyState from "@/student/shared/ui/layout/EmptyState";
 import { useStudentExam } from "@/student/domains/exams/hooks/useStudentExams";

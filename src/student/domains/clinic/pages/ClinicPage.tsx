@@ -88,6 +88,7 @@ export default function ClinicPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["student", "clinic", "bookings"] });
       qc.invalidateQueries({ queryKey: ["student", "clinic", "available-sessions"] });
+      qc.invalidateQueries({ queryKey: ["clinic-idcard"] });
       qc.invalidateQueries({ queryKey: ["student", "notifications", "counts"] });
       studentToast.success("예약 신청이 취소되었습니다.");
     },
@@ -222,7 +223,9 @@ export default function ClinicPage() {
   // 선택한 날짜의 예약 정보
   const selectedDateBooking = useMemo(() => {
     if (!selectedDate) return null;
-    return myRequests.find((r) => r.session_date === selectedDate);
+    return myRequests.find(
+      (r) => r.session_date === selectedDate && ["pending", "booked", "approved"].includes(r.status)
+    );
   }, [selectedDate, myRequests]);
 
   // 선택한 날짜의 세션 정보

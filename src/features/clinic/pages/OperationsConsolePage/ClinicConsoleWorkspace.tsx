@@ -8,13 +8,15 @@ import { createPortal } from "react-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 
-import { FileQuestion, BookOpen, User, CheckCircle, XCircle, X } from "lucide-react";
+import { FileQuestion, BookOpen, User, CheckCircle, XCircle, X, UserPlus } from "lucide-react";
 import type { ClinicSessionTreeNode } from "../../api/clinicSessions.api";
 import type { ClinicParticipant } from "../../api/clinicParticipants.api";
-import { patchClinicParticipantStatus } from "../../api/clinicParticipants.api";
+import { patchClinicParticipantStatus, createClinicParticipant } from "../../api/clinicParticipants.api";
 import type { ClinicTarget } from "../../api/clinicTargets";
 import { useClinicTargets } from "../../hooks/useClinicTargets";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import ClinicTargetSelectModal from "../../components/ClinicTargetSelectModal";
+import type { ClinicTargetSelectResult } from "../../components/ClinicTargetSelectModal";
 
 const StudentsDetailOverlay = lazy(() => import("@/features/students/overlays/StudentsDetailOverlay"));
 
@@ -79,6 +81,7 @@ export default function ClinicConsoleWorkspace({
   const navigate = useNavigate();
   const [drawer, setDrawer] = useState<DrawerState>(null);
   const [studentOverlayId, setStudentOverlayId] = useState<number | null>(null);
+  const [addStudentModalOpen, setAddStudentModalOpen] = useState(false);
 
   const { data: clinicTargets } = useClinicTargets();
 
@@ -187,20 +190,38 @@ export default function ClinicConsoleWorkspace({
         <p style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-secondary)", margin: 0 }}>
           {selectedDate} · {sessionLabel} — 예약 {participants.length}명
         </p>
-        {!isLoading && pendingIds.length > 0 && (
+        <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
           <button
             type="button"
-            className="clinic-console__bulk-attend"
-            disabled={bulkAttendMutation.isPending}
-            onClick={() => bulkAttendMutation.mutate(pendingIds)}
-            style={{ margin: 0 }}
+            onClick={() => setAddStudentModalOpen(true)}
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 4,
+              padding: "4px 10px", fontSize: 12, fontWeight: 600,
+              border: "1px dashed var(--color-brand-primary)", borderRadius: "var(--radius-sm)",
+              background: "transparent", color: "var(--color-brand-primary)",
+              cursor: "pointer", transition: "background 0.15s",
+            }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "color-mix(in srgb, var(--color-brand-primary) 8%, transparent)"; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
           >
-            <CheckCircle size={14} aria-hidden />
-            {bulkAttendMutation.isPending
-              ? `처리 중… (${pendingIds.length}명)`
-              : `전체 출석 (${pendingIds.length}명)`}
+            <UserPlus size={14} aria-hidden />
+            학생 추가
           </button>
-        )}
+          {!isLoading && pendingIds.length > 0 && (
+            <button
+              type="button"
+              className="clinic-console__bulk-attend"
+              disabled={bulkAttendMutation.isPending}
+              onClick={() => bulkAttendMutation.mutate(pendingIds)}
+              style={{ margin: 0 }}
+            >
+              <CheckCircle size={14} aria-hidden />
+              {bulkAttendMutation.isPending
+                ? `처리 중… (${pendingIds.length}명)`
+                : `전체 출석 (${pendingIds.length}명)`}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* 진행 요약 바 */}
@@ -253,9 +274,10 @@ export default function ClinicConsoleWorkspace({
           <button
             type="button"
             className="clinic-console__empty-cta"
-            onClick={() => navigate("/admin/clinic/bookings")}
+            onClick={() => setAddStudentModalOpen(true)}
           >
-            예약 탭에서 추가 →
+            <UserPlus size={14} aria-hidden style={{ marginRight: 4 }} />
+            학생 추가하기
           </button>
         </div>
       ) : (
@@ -544,6 +566,30 @@ export default function ClinicConsoleWorkspace({
           </Suspense>,
           document.body,
         )}
+
+      {/* 학생 추가 모달 — 대상자 또는 전체 학생 선택 */}
+      <ClinicTargetSelectModal
+        open={addStudentModalOpen}
+        onClose={() => setAddStudentModalOpen(false)}
+        initialMode="targets"
+        onConfirm={async (result: ClinicTargetSelectResult) => {
+          setAddStudentModalOpen(false);
+          if (!session || result.ids.length === 0) return;
+          const results = await Promise.allSettled(
+            result.ids.map((enrollmentId) =>
+              createClinicParticipant({ session: session.id, enrollment_id: enrollmentId, status: "booked" })
+            )
+          );
+          const failed = results.filter((r) => r.status === "rejected").length;
+          qc.invalidateQueries({ queryKey: ["clinic-participants"] });
+          qc.invalidateQueries({ queryKey: ["clinic-sessions-tree"] });
+          if (failed > 0) {
+            feedback.warning(`${result.ids.length - failed}명 추가, ${failed}명 실패`);
+          } else {
+            feedback.success(`${result.ids.length}명이 추가되었습니다.`);
+          }
+        }}
+      />
     </>
   );
 }
