@@ -18,8 +18,7 @@ export default function ExamHeader({ exam, sessionId }: { exam: Exam; sessionId?
   const [templateDropdownOpen, setTemplateDropdownOpen] = useState(false);
   const templateDropdownRef = useRef<HTMLDivElement>(null);
 
-  const isDraft = exam.status === "DRAFT";
-  const isOpen = exam.status === "OPEN";
+  const isOpen = exam.status !== "CLOSED";
   const isClosed = exam.status === "CLOSED";
   const isRegular = exam.exam_type === "regular";
   const canSaveAsTemplate = isRegular && !exam.template_exam_id;
@@ -65,8 +64,8 @@ export default function ExamHeader({ exam, sessionId }: { exam: Exam; sessionId?
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [templateDropdownOpen]);
 
-  const statusLabel = isDraft ? "초안" : isOpen ? "진행 중" : isClosed ? "마감" : exam.status;
-  const statusTone = isOpen ? "success" : isClosed ? "danger" : "neutral";
+  const statusLabel = isOpen ? "진행 중" : "마감";
+  const statusTone = isOpen ? "success" : "danger";
 
   const handleCloseExam = () => {
     if (!window.confirm("시험을 종료하시겠습니까? 종료 이후엔 답안 제출이 불가합니다.")) return;
@@ -79,19 +78,15 @@ export default function ExamHeader({ exam, sessionId }: { exam: Exam; sessionId?
 
   return (
     <div
-      className={`space-y-2 ${
+      className={`space-y-2 rounded-lg border-l-4 pl-3 py-2 ${
         isOpen
-          ? "rounded-lg border-l-4 border-l-[var(--color-success)] pl-3 py-2"
-          : isClosed
-            ? "rounded-lg border-l-4 border-l-[var(--color-border-divider)] pl-3 py-2"
-            : ""
+          ? "border-l-[var(--color-success)]"
+          : "border-l-[var(--color-border-divider)]"
       }`}
       style={
         isOpen
           ? { background: "color-mix(in srgb, var(--color-success) 12%, var(--color-bg-surface))" }
-          : isClosed
-            ? { background: "color-mix(in srgb, var(--color-border-divider) 12%, var(--color-bg-surface))", opacity: 0.75 }
-            : undefined
+          : { background: "color-mix(in srgb, var(--color-border-divider) 12%, var(--color-bg-surface))", opacity: 0.75 }
       }
     >
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -162,33 +157,17 @@ export default function ExamHeader({ exam, sessionId }: { exam: Exam; sessionId?
             </div>
           )}
 
-          {isRegular && (
-            <>
-              {isDraft && (
-                <Button
-                  type="button"
-                  intent="primary"
-                  size="xl"
-                  onClick={() => statusMut.mutate("OPEN")}
-                  disabled={statusMut.isPending}
-                  className="min-w-[140px]"
-                >
-                  {statusMut.isPending ? "처리 중…" : "진행"}
-                </Button>
-              )}
-              {isOpen && (
-                <Button
-                  type="button"
-                  intent="danger"
-                  size="xl"
-                  onClick={handleCloseExam}
-                  disabled={statusMut.isPending}
-                  className="min-w-[140px]"
-                >
-                  {statusMut.isPending ? "처리 중…" : "종료하기"}
-                </Button>
-              )}
-            </>
+          {isRegular && isOpen && (
+            <Button
+              type="button"
+              intent="danger"
+              size="xl"
+              onClick={handleCloseExam}
+              disabled={statusMut.isPending}
+              className="min-w-[140px]"
+            >
+              {statusMut.isPending ? "처리 중…" : "종료하기"}
+            </Button>
           )}
         </div>
       </div>

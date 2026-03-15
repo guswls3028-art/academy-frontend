@@ -1,29 +1,63 @@
 /**
  * PATH: src/features/clinic/pages/OperationsConsolePage/ClinicConsoleWorkspace.tsx
- * 선택한 클리닉 수업의 대상자 관리 — 진행 요약 바 + 출석/불참 토글 + 사유별(시험/과제/기타) 카드 + 재시험·과제점수 갱신 연결
+ * 선택한 클리닉 수업의 대상자 관리 — 진행 요약 바 + 출석/불참 토글 + 미통과 항목 인라인 표시 + 상세 드로어
  */
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 
-import { FileQuestion, BookOpen, User, ExternalLink, Edit3, CheckCircle, XCircle } from "lucide-react";
+import { FileQuestion, BookOpen, User, CheckCircle, XCircle, X } from "lucide-react";
 import type { ClinicSessionTreeNode } from "../../api/clinicSessions.api";
 import type { ClinicParticipant } from "../../api/clinicParticipants.api";
 import { patchClinicParticipantStatus } from "../../api/clinicParticipants.api";
-import { Button } from "@/shared/ui/ds";
+import type { ClinicTarget } from "../../api/clinicTargets";
+import { useClinicTargets } from "../../hooks/useClinicTargets";
 import { feedback } from "@/shared/ui/feedback/feedback";
-
-const REASON_LABEL: Record<string, string> = {
-  exam: "시험 불합",
-  homework: "과제 불합",
-  both: "시험·과제 불합",
-};
 
 function formatTime(s: string | undefined) {
   if (!s) return "—";
   return s.slice(0, 5) || "—";
 }
+
+function formatReasonLabel(reason: string | undefined): string {
+  if (reason === "exam") return "시험 미통과";
+  if (reason === "homework") return "과제 미통과";
+  if (reason === "both") return "시험·과제 미통과";
+  return "클리닉 대상";
+}
+
+function formatScoreDetail(target: ClinicTarget): string {
+  const parts: string[] = [];
+
+  if (target.clinic_reason === "exam" || target.clinic_reason === "both" || target.reason === "score") {
+    if (target.exam_score != null && target.cutline_score != null) {
+      parts.push(`시험 미통과 (${target.exam_score}/${target.cutline_score}점)`);
+    } else {
+      parts.push("시험 미통과");
+    }
+  }
+
+  if (target.clinic_reason === "homework" || target.clinic_reason === "both") {
+    if (target.homework_score != null && target.homework_cutline != null) {
+      parts.push(`과제 미통과 (${target.homework_score}/${target.homework_cutline}점)`);
+    } else {
+      parts.push("과제 미통과");
+    }
+  }
+
+  // Fallback if neither matched but we have a target
+  if (parts.length === 0) {
+    parts.push(formatReasonLabel(target.clinic_reason));
+  }
+
+  return parts.join(" · ");
+}
+
+type DrawerState = {
+  participant: ClinicParticipant;
+  target: ClinicTarget;
+} | null;
 
 type Props = {
   selectedDate: string;
@@ -40,6 +74,24 @@ export default function ClinicConsoleWorkspace({
 }: Props) {
   const qc = useQueryClient();
   const navigate = useNavigate();
+  const [drawer, setDrawer] = useState<DrawerState>(null);
+
+  const { data: clinicTargets } = useClinicTargets();
+
+  // Build enrollment_id → ClinicTarget[] map for O(1) lookup
+  const targetsByEnrollment = useMemo(() => {
+    const map = new Map<number, ClinicTarget[]>();
+    if (!clinicTargets) return map;
+    for (const t of clinicTargets) {
+      const existing = map.get(t.enrollment_id);
+      if (existing) {
+        existing.push(t);
+      } else {
+        map.set(t.enrollment_id, [t]);
+      }
+    }
+    return map;
+  }, [clinicTargets]);
 
   const statusMutation = useMutation({
     mutationFn: ({ id, status }: { id: number; status: "attended" | "no_show" | "booked" }) =>
@@ -71,7 +123,6 @@ export default function ClinicConsoleWorkspace({
       qc.invalidateQueries({ queryKey: ["admin", "notification-counts"] });
     },
     onError: (err: Error) => {
-      // Partial failure: some succeeded on backend, so always invalidate cache
       qc.invalidateQueries({ queryKey: ["clinic-participants"] });
       qc.invalidateQueries({ queryKey: ["clinic-sessions-tree"] });
       qc.invalidateQueries({ queryKey: ["admin", "notification-counts"] });
@@ -84,7 +135,6 @@ export default function ClinicConsoleWorkspace({
   const timeLabel = formatTime(session.start_time);
   const sessionLabel = `${timeLabel} ${session.location || ""}`.trim();
 
-  // Phase 6: 진행 요약 계산
   const progress = useMemo(() => {
     const attended = participants.filter((p) => p.status === "attended").length;
     const noShow = participants.filter((p) => p.status === "no_show").length;
@@ -95,7 +145,6 @@ export default function ClinicConsoleWorkspace({
     return { attended, noShow, pending, total };
   }, [participants]);
 
-  // 전체 출석 대상: 아직 attended/no_show/cancelled/rejected 가 아닌 참가자
   const pendingIds = useMemo(
     () =>
       participants
@@ -106,12 +155,24 @@ export default function ClinicConsoleWorkspace({
 
   function handleToggleStatus(p: ClinicParticipant, target: "attended" | "no_show") {
     if (statusMutation.isPending) return;
-    // 이미 같은 상태면 booked로 되돌림 (토글 해제)
     if (p.status === target) {
       statusMutation.mutate({ id: p.id, status: "booked" });
       return;
     }
     statusMutation.mutate({ id: p.id, status: target });
+  }
+
+  function handleMarkAttendedFromDrawer() {
+    if (!drawer) return;
+    const p = drawer.participant;
+    if (p.status === "attended") {
+      feedback.info("이미 출석 처리되었습니다.");
+      return;
+    }
+    statusMutation.mutate(
+      { id: p.id, status: "attended" },
+      { onSuccess: () => setDrawer(null) }
+    );
   }
 
   return (
@@ -122,7 +183,7 @@ export default function ClinicConsoleWorkspace({
         {selectedDate} · {sessionLabel} — 예약 {participants.length}명
       </p>
 
-      {/* Phase 6: 진행 요약 바 */}
+      {/* 진행 요약 바 */}
       {!isLoading && participants.length > 0 && (
         <div className="clinic-console__progress">
           <div className="clinic-console__progress-labels">
@@ -158,9 +219,8 @@ export default function ClinicConsoleWorkspace({
               )}
             </div>
           )}
-          {/* All-done state */}
           {progress.total > 0 && progress.pending === 0 && (
-            <p className="clinic-console__progress-done">모든 학생 확인 완료 ✓</p>
+            <p className="clinic-console__progress-done">모든 학생 확인 완료</p>
           )}
         </div>
       )}
@@ -196,10 +256,7 @@ export default function ClinicConsoleWorkspace({
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
           {participants.map((p) => {
-            const reason = p.clinic_reason ?? "both";
-            const reasonLabel = REASON_LABEL[reason] ?? "클리닉 대상";
-            const isExam = reason === "exam" || reason === "both";
-            const isHomework = reason === "homework" || reason === "both";
+            const targets = p.enrollment_id ? targetsByEnrollment.get(p.enrollment_id) ?? [] : [];
             const isAttended = p.status === "attended";
             const isNoShow = p.status === "no_show";
 
@@ -208,16 +265,17 @@ export default function ClinicConsoleWorkspace({
                 key={p.id}
                 className={`clinic-console__card ${isAttended ? "clinic-console__card--attended" : ""} ${isNoShow ? "clinic-console__card--no-show" : ""}`}
               >
+                {/* Header: name + attendance */}
                 <div
                   style={{
                     display: "flex",
-                    alignItems: "flex-start",
+                    alignItems: "center",
                     justifyContent: "space-between",
                     gap: "var(--space-4)",
                     flexWrap: "wrap",
                   }}
                 >
-                  {/* 좌측: 이름 + 사유 */}
+                  {/* Left: avatar + name */}
                   <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", minWidth: 0 }}>
                     <div
                       style={{
@@ -234,99 +292,68 @@ export default function ClinicConsoleWorkspace({
                     >
                       <User size={20} aria-hidden />
                     </div>
-                    <div>
-                      <div style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text-primary)", display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
-                        {p.student_name}
-                        {isAttended && <span className="clinic-console__status-label clinic-console__status-label--attended">✓ 출석</span>}
-                        {isNoShow && <span className="clinic-console__status-label clinic-console__status-label--no-show">✗ 불참</span>}
-                      </div>
-                      <div
-                        style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: 6,
-                          marginTop: 4,
-                          fontSize: 12,
-                          fontWeight: 600,
-                          color: "var(--color-text-muted)",
-                          textTransform: "uppercase",
-                          letterSpacing: "0.04em",
-                        }}
-                      >
-                        {reason === "exam" && <FileQuestion size={12} aria-hidden />}
-                        {reason === "homework" && <BookOpen size={12} aria-hidden />}
-                        {reason === "both" && (
-                          <>
-                            <FileQuestion size={12} aria-hidden />
-                            <BookOpen size={12} aria-hidden />
-                          </>
-                        )}
-                        {reasonLabel}
-                      </div>
-
+                    <div style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text-primary)", display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
+                      {p.student_name}
+                      {isAttended && <span className="clinic-console__status-label clinic-console__status-label--attended">출석</span>}
+                      {isNoShow && <span className="clinic-console__status-label clinic-console__status-label--no-show">불참</span>}
                     </div>
                   </div>
 
-                  {/* 우측: 출석 토글 + 액션 링크 */}
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-2)", alignItems: "center" }}>
-                    {/* 출석/불참 토글 버튼 그룹 */}
-                    <div className="clinic-console__attendance-group">
-                      <button
-                        type="button"
-                        className={`clinic-console__attendance-btn clinic-console__attendance-btn--attended ${isAttended ? "clinic-console__attendance-btn--active" : ""}`}
-                        onClick={() => handleToggleStatus(p, "attended")}
-                        disabled={statusMutation.isPending}
-                      >
-                        <CheckCircle size={14} aria-hidden />
-                        출석
-                      </button>
-                      <button
-                        type="button"
-                        className={`clinic-console__attendance-btn clinic-console__attendance-btn--no-show ${isNoShow ? "clinic-console__attendance-btn--active" : ""}`}
-                        onClick={() => handleToggleStatus(p, "no_show")}
-                        disabled={statusMutation.isPending}
-                      >
-                        <XCircle size={14} aria-hidden />
-                        불참
-                      </button>
-                    </div>
-
-                    {/* 기존 액션 링크 */}
-                    {isExam && (
-                      <Button
-                        size="sm"
-                        intent="primary"
-                        onClick={() => window.open("/admin/exams", "_blank")}
-                        title="재시험 관리하러 가기"
-                      >
-                        재시험 관리 ↗
-                        <ExternalLink size={14} style={{ marginLeft: 4 }} aria-hidden />
-                      </Button>
-                    )}
-                    {isHomework && (
-                      <Button
-                        size="sm"
-                        intent="secondary"
-                        onClick={() => window.open("/admin/results", "_blank")}
-                        title="과제 점수 확인하러 가기"
-                      >
-                        과제 점수 ↗
-                        <Edit3 size={14} style={{ marginLeft: 4 }} aria-hidden />
-                      </Button>
-                    )}
-                    {!p.clinic_reason && (
-                      <Button
-                        size="sm"
-                        intent="ghost"
-                        onClick={() => window.open("/admin/students", "_blank")}
-                        title="학생 목록에서 확인"
-                      >
-                        학생 정보 ↗
-                        <ExternalLink size={14} style={{ marginLeft: 4 }} aria-hidden />
-                      </Button>
-                    )}
+                  {/* Right: attendance toggle */}
+                  <div className="clinic-console__attendance-group">
+                    <button
+                      type="button"
+                      className={`clinic-console__attendance-btn clinic-console__attendance-btn--attended ${isAttended ? "clinic-console__attendance-btn--active" : ""}`}
+                      onClick={() => handleToggleStatus(p, "attended")}
+                      disabled={statusMutation.isPending}
+                    >
+                      <CheckCircle size={14} aria-hidden />
+                      출석
+                    </button>
+                    <button
+                      type="button"
+                      className={`clinic-console__attendance-btn clinic-console__attendance-btn--no-show ${isNoShow ? "clinic-console__attendance-btn--active" : ""}`}
+                      onClick={() => handleToggleStatus(p, "no_show")}
+                      disabled={statusMutation.isPending}
+                    >
+                      <XCircle size={14} aria-hidden />
+                      불참
+                    </button>
                   </div>
                 </div>
+
+                {/* Failed items list */}
+                {targets.length > 0 ? (
+                  <ul className="clinic-console__deficit-list">
+                    {targets.map((t, idx) => (
+                      <li key={`${t.enrollment_id}-${t.session_title}-${idx}`}>
+                        <button
+                          type="button"
+                          className="clinic-console__deficit-item"
+                          onClick={() => setDrawer({ participant: p, target: t })}
+                        >
+                          <span className={`clinic-console__deficit-badge ${
+                            t.clinic_reason === "homework"
+                              ? "clinic-console__deficit-badge--homework"
+                              : "clinic-console__deficit-badge--exam"
+                          }`}>
+                            {t.clinic_reason === "homework" ? (
+                              <BookOpen size={12} aria-hidden />
+                            ) : (
+                              <FileQuestion size={12} aria-hidden />
+                            )}
+                          </span>
+                          <span className="clinic-console__deficit-text">
+                            {t.session_title} · {formatScoreDetail(t)}
+                          </span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <div className="clinic-console__self-study">자율 학습 참여</div>
+                )}
+
                 {p.memo && (
                   <div
                     style={{
@@ -344,6 +371,143 @@ export default function ClinicConsoleWorkspace({
             );
           })}
         </div>
+      )}
+
+      {/* Detail Drawer */}
+      {drawer && (
+        <>
+          <div
+            className="clinic-console__drawer-backdrop"
+            onClick={() => setDrawer(null)}
+            aria-hidden
+          />
+          <div
+            className="clinic-console__drawer"
+            role="dialog"
+            aria-modal="true"
+            aria-label="클리닉 상세"
+          >
+            <div className="clinic-console__drawer-header">
+              <h2 className="clinic-console__drawer-title">클리닉 상세</h2>
+              <button
+                type="button"
+                className="clinic-console__drawer-close"
+                onClick={() => setDrawer(null)}
+                aria-label="닫기"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="clinic-console__drawer-body">
+              <div className="clinic-console__drawer-field">
+                <span className="clinic-console__drawer-label">학생</span>
+                <span className="clinic-console__drawer-value">{drawer.participant.student_name}</span>
+              </div>
+
+              <div className="clinic-console__drawer-field">
+                <span className="clinic-console__drawer-label">수업</span>
+                <span className="clinic-console__drawer-value">{drawer.target.session_title}</span>
+              </div>
+
+              <div className="clinic-console__drawer-field">
+                <span className="clinic-console__drawer-label">사유</span>
+                <span className="clinic-console__drawer-value">{formatReasonLabel(drawer.target.clinic_reason)}</span>
+              </div>
+
+              {/* Exam score detail */}
+              {(drawer.target.clinic_reason === "exam" || drawer.target.clinic_reason === "both" || drawer.target.reason === "score") &&
+                drawer.target.exam_score != null && drawer.target.cutline_score != null && (
+                <div className="clinic-console__drawer-score-block">
+                  <div className="clinic-console__drawer-score-row">
+                    <span>시험 점수</span>
+                    <span className="clinic-console__drawer-score-value clinic-console__drawer-score-value--fail">
+                      {drawer.target.exam_score}점
+                    </span>
+                  </div>
+                  <div className="clinic-console__drawer-score-row">
+                    <span>통과 기준</span>
+                    <span className="clinic-console__drawer-score-value">
+                      {drawer.target.cutline_score}점
+                    </span>
+                  </div>
+                  <div className="clinic-console__drawer-score-bar">
+                    <div
+                      className="clinic-console__drawer-score-fill clinic-console__drawer-score-fill--fail"
+                      style={{
+                        width: `${Math.min(100, (drawer.target.exam_score / drawer.target.cutline_score) * 100)}%`,
+                      }}
+                    />
+                    <div
+                      className="clinic-console__drawer-score-cutline"
+                      style={{ left: "100%" }}
+                      aria-label={`통과 기준: ${drawer.target.cutline_score}점`}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Homework score detail */}
+              {(drawer.target.clinic_reason === "homework" || drawer.target.clinic_reason === "both") &&
+                drawer.target.homework_score != null && drawer.target.homework_cutline != null && (
+                <div className="clinic-console__drawer-score-block">
+                  <div className="clinic-console__drawer-score-row">
+                    <span>과제 점수</span>
+                    <span className="clinic-console__drawer-score-value clinic-console__drawer-score-value--fail">
+                      {drawer.target.homework_score}점
+                    </span>
+                  </div>
+                  <div className="clinic-console__drawer-score-row">
+                    <span>통과 기준</span>
+                    <span className="clinic-console__drawer-score-value">
+                      {drawer.target.homework_cutline}점
+                    </span>
+                  </div>
+                  <div className="clinic-console__drawer-score-bar">
+                    <div
+                      className="clinic-console__drawer-score-fill clinic-console__drawer-score-fill--fail"
+                      style={{
+                        width: `${Math.min(100, (drawer.target.homework_score / drawer.target.homework_cutline) * 100)}%`,
+                      }}
+                    />
+                    <div
+                      className="clinic-console__drawer-score-cutline"
+                      style={{ left: "100%" }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Attend status */}
+              <div className="clinic-console__drawer-field" style={{ marginTop: "var(--space-4)" }}>
+                <span className="clinic-console__drawer-label">출석 상태</span>
+                <span className="clinic-console__drawer-value">
+                  {drawer.participant.status === "attended"
+                    ? "출석 완료"
+                    : drawer.participant.status === "no_show"
+                    ? "불참"
+                    : "미확인"}
+                </span>
+              </div>
+            </div>
+
+            <div className="clinic-console__drawer-footer">
+              {drawer.participant.status !== "attended" ? (
+                <button
+                  type="button"
+                  className="clinic-console__drawer-action"
+                  onClick={handleMarkAttendedFromDrawer}
+                  disabled={statusMutation.isPending}
+                >
+                  <CheckCircle size={16} aria-hidden />
+                  {statusMutation.isPending ? "처리 중…" : "통과 처리"}
+                </button>
+              ) : (
+                <span className="clinic-console__drawer-done">출석 처리 완료</span>
+              )}
+            </div>
+          </div>
+        </>
       )}
     </>
   );

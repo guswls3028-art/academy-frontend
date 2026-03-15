@@ -24,8 +24,7 @@ export default function HomeworkHeader({ homework, sessionId }: Props) {
   const [templateDropdownOpen, setTemplateDropdownOpen] = useState(false);
   const templateDropdownRef = useRef<HTMLDivElement>(null);
 
-  const isDraft = homework.status === "DRAFT";
-  const isOpen = homework.status === "OPEN";
+  const isOpen = homework.status !== "CLOSED";
   const isClosed = homework.status === "CLOSED";
   const isRegular = (homework.homework_type ?? "regular") === "regular";
   const canSaveAsTemplate = isRegular && !homework.template_homework_id;
@@ -74,19 +73,17 @@ export default function HomeworkHeader({ homework, sessionId }: Props) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [templateDropdownOpen]);
 
-  const statusLabel = isDraft ? "초안" : isOpen ? "진행 중" : isClosed ? "마감" : homework.status;
-  const statusTone = isOpen ? "success" : isClosed ? "danger" : "neutral";
+  const statusLabel = isOpen ? "진행 중" : "마감";
+  const statusTone = isOpen ? "success" : "danger";
 
-  const bannerClass = isOpen
-    ? "rounded-lg border-l-4 border-l-[var(--color-success)] pl-3 py-2"
-    : isClosed
-      ? "rounded-lg border-l-4 border-l-[var(--color-border-divider)] pl-3 py-2"
-      : "";
+  const bannerClass = `rounded-lg border-l-4 pl-3 py-2 ${
+    isOpen
+      ? "border-l-[var(--color-success)]"
+      : "border-l-[var(--color-border-divider)]"
+  }`;
   const bannerBg = isOpen
     ? { background: "color-mix(in srgb, var(--color-success) 12%, var(--color-bg-surface))" }
-    : isClosed
-      ? { background: "color-mix(in srgb, var(--color-border-divider) 12%, var(--color-bg-surface))", opacity: 0.75 }
-      : undefined;
+    : { background: "color-mix(in srgb, var(--color-border-divider) 12%, var(--color-bg-surface))", opacity: 0.75 } as React.CSSProperties;
 
   return (
     <div className={`space-y-2 ${bannerClass}`} style={bannerBg}>
@@ -147,18 +144,6 @@ export default function HomeworkHeader({ homework, sessionId }: Props) {
             </div>
           )}
 
-          {isDraft && (
-            <Button
-              type="button"
-              intent="primary"
-              size="xl"
-              onClick={() => statusMut.mutate("OPEN")}
-              disabled={statusMut.isPending}
-              className="min-w-[140px]"
-            >
-              {statusMut.isPending ? "처리 중…" : "진행"}
-            </Button>
-          )}
           {isOpen && (
             <Button
               type="button"

@@ -50,8 +50,8 @@ function formatShortDate(dateStr: string): string {
 }
 
 export default function DashboardPage() {
-  const { data: dashboard, isLoading: dashLoading } = useStudentDashboard();
-  const { data: sessions, isLoading: sessionsLoading } = useMySessions();
+  const { data: dashboard, isLoading: dashLoading, isError: dashError } = useStudentDashboard();
+  const { data: sessions, isLoading: sessionsLoading, isError: sessionsError } = useMySessions();
   const { data: grades } = useMyGradesSummary();
   const { data: notificationCounts, isLoading: countsLoading } = useNotificationCounts();
 
@@ -108,6 +108,14 @@ export default function DashboardPage() {
       <div style={{ padding: "var(--stu-space-4) 0" }}>
         <div className="stu-skel" style={{ height: 100, borderRadius: "var(--stu-radius-md)" }} />
         <div className="stu-skel" style={{ height: 120, marginTop: 12, borderRadius: "var(--stu-radius-md)" }} />
+      </div>
+    );
+  }
+
+  if (dashError || sessionsError) {
+    return (
+      <div style={{ padding: 24, textAlign: "center", color: "#999" }}>
+        데이터를 불러올 수 없습니다. 잠시 후 다시 시도해 주세요.
       </div>
     );
   }

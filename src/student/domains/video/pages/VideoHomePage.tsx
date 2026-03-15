@@ -54,7 +54,8 @@ export default function VideoHomePage() {
   });
 
   const hasLectures = (videoMe?.lectures?.length ?? 0) > 0;
-  const hasAny = true; // 전체공개영상 카드는 항상 표시
+  const hasPublic = (videoMe?.public?.video_count ?? 0) > 0;
+  const hasAny = hasLectures || hasPublic;
 
   if (isLoading && videoMe == null) {
     return (

@@ -12,7 +12,7 @@ function normalizeExam(raw: any): Exam {
     exam_type: raw.exam_type,
 
     is_active: Boolean(raw.is_active),
-    status: (raw?.status ?? "DRAFT") as Exam["status"],
+    status: (raw?.status ?? "OPEN") as Exam["status"],
 
     allow_retake: Boolean(raw.allow_retake),
     max_attempts: Number(raw.max_attempts ?? 0),

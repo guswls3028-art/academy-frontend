@@ -26,27 +26,28 @@ export default function DashboardPage() {
   const [clinicPasscardModalOpen, setClinicPasscardModalOpen] = useState(false);
 
   const { data: messagingInfo } = useMessagingInfo();
-  const { data: questions = [], isLoading: qLoading } = useQuery({
+  const { data: questions = [], isLoading: qLoading, isError: qError } = useQuery({
     queryKey: ["dashboard-pending-questions"],
     queryFn: () => fetchCommunityQuestions(null),
     staleTime: 60 * 1000,
   });
-  const { data: lectures = [], isLoading: lLoading } = useQuery({
+  const { data: lectures = [], isLoading: lLoading, isError: lError } = useQuery({
     queryKey: ["dashboard-lectures"],
     queryFn: () => fetchLectures({ is_active: true }),
     staleTime: 60 * 1000,
   });
-  const { data: exams = [], isLoading: eLoading } = useQuery({
+  const { data: exams = [], isLoading: eLoading, isError: eError } = useQuery({
     queryKey: ["dashboard-exams"],
     queryFn: () => fetchExams(),
     staleTime: 60 * 1000,
   });
-  const { data: recentSubs = [], isLoading: sLoading } = useQuery({
+  const { data: recentSubs = [], isLoading: sLoading, isError: sError } = useQuery({
     queryKey: ["dashboard-recent-submissions"],
     queryFn: () => fetchAdminSubmissions({ limit: 50 }),
     staleTime: 60 * 1000,
   });
   const isDashLoading = qLoading || lLoading || eLoading || sLoading;
+  const isDashError = qError || lError || eError || sError;
 
   const loadingLabel = isDashLoading ? "로딩 중…" : null;
   const pendingQnaCount = questions.filter((q) => !q.is_answered).length;
@@ -65,6 +66,11 @@ export default function DashboardPage() {
       title="대시보드"
       description="학원 운영 현황을 한눈에 확인하세요."
     >
+      {isDashError && (
+        <div style={{ padding: 24, textAlign: "center", color: "#999", marginBottom: 16 }}>
+          데이터를 불러올 수 없습니다. 잠시 후 다시 시도해 주세요.
+        </div>
+      )}
       <div className="flex flex-col gap-6" style={{ padding: 0 }}>
         <DashboardWidget
           title="바로가기"

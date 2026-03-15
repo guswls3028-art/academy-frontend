@@ -107,14 +107,12 @@ export default function ExamAdminPage() {
           }}
         >
           {filtered.map((e) => {
-            const isOpen = e.status === "OPEN";
             const isClosed = e.status === "CLOSED";
-            const statusLabel = e.status === "DRAFT" ? "준비" : isOpen ? "진행 중" : "마감";
+            const isOpen = !isClosed;
+            const statusLabel = isOpen ? "진행 중" : "마감";
             const iconColor = isOpen
               ? "var(--color-success)"
-              : isClosed
-                ? "var(--color-text-muted)"
-                : "var(--color-primary)";
+              : "var(--color-text-muted)";
 
             return (
               <div

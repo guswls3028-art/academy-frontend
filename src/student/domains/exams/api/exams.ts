@@ -18,8 +18,8 @@ export type ExamsListResponse = {
   items: StudentExam[];
 };
 
-export async function fetchStudentExams(): Promise<ExamsListResponse> {
-  const res = await api.get("/student/exams/");
+export async function fetchStudentExams(params?: { session_id?: number }): Promise<ExamsListResponse> {
+  const res = await api.get("/student/exams/", { params });
   const data = res.data;
   if (data?.items && Array.isArray(data.items)) return data as ExamsListResponse;
   if (Array.isArray(data)) return { items: data as StudentExam[] };

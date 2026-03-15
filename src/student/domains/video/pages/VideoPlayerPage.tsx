@@ -46,6 +46,8 @@ function useQueryParams() {
 function LikeButton({ videoId, initialLiked, initialCount }: { videoId: number; initialLiked: boolean; initialCount: number }) {
   const [liked, setLiked] = useState(initialLiked);
   const [count, setCount] = useState(initialCount);
+  const likedRef = useRef(liked);
+  likedRef.current = liked;
 
   useEffect(() => {
     setLiked(initialLiked);
@@ -55,8 +57,9 @@ function LikeButton({ videoId, initialLiked, initialCount }: { videoId: number; 
   const mutation = useMutation({
     mutationFn: () => toggleVideoLike(videoId),
     onMutate: () => {
+      const wasLiked = likedRef.current;
       setLiked((prev) => !prev);
-      setCount((prev) => liked ? Math.max(0, prev - 1) : prev + 1);
+      setCount((prev) => wasLiked ? Math.max(0, prev - 1) : prev + 1);
     },
     onError: () => {
       setLiked(initialLiked);
