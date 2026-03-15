@@ -78,7 +78,7 @@ function NoticeBanner() {
       }}
     >
       <span style={{ flex: 1, textAlign: "center" }}>
-        🔄 시스템이 업데이트되었습니다. 원활한 이용을 위해 <button onClick={() => window.location.reload()} style={{ background: "none", border: "none", cursor: "pointer", textDecoration: "underline", fontWeight: 700, color: "inherit", padding: 0, fontSize: "inherit" }}>새로고침</button>해 주세요.
+        🔄 시스템이 업데이트되었습니다. 원활한 이용을 위해 <button onClick={() => { localStorage.setItem(NOTICE_DISMISS_KEY, "1"); window.location.reload(); }} style={{ background: "none", border: "none", cursor: "pointer", textDecoration: "underline", fontWeight: 700, color: "inherit", padding: 0, fontSize: "inherit" }}>새로고침</button>해 주세요.
       </span>
       <button
         onClick={() => {
