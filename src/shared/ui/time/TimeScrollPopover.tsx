@@ -267,7 +267,7 @@ export function TimeScrollPopover({
       style={{
         position: "fixed",
         left: rect.left,
-        bottom: window.innerHeight - rect.top + 8,
+        top: rect.bottom + 8,
         width: Math.max(rect.width, 260),
         zIndex: 1200,
       }}
