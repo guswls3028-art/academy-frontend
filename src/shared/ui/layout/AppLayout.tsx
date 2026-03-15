@@ -1,4 +1,5 @@
 // PATH: src/shared/ui/layout/AppLayout.tsx
+import { useState } from "react";
 import { Outlet } from "react-router-dom";
 import { ConfigProvider, App } from "antd";
 import Sidebar from "./Sidebar";
@@ -16,6 +17,60 @@ import { SendMessageModalProvider } from "@/features/messages/context/SendMessag
 import { useIsMobile } from "@/shared/hooks/useIsMobile";
 import { useFavicon } from "@/shared/hooks/useFavicon";
 
+const NOTICE_DISMISS_KEY = "admin_notice_parent_pw_dismissed";
+
+function NoticeBanner() {
+  const [dismissed, setDismissed] = useState(
+    () => localStorage.getItem(NOTICE_DISMISS_KEY) === "1",
+  );
+
+  if (dismissed) return null;
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 8,
+        padding: "8px 16px",
+        background: "color-mix(in srgb, var(--color-brand-primary) 12%, var(--color-bg-surface))",
+        borderBottom: "1px solid color-mix(in srgb, var(--color-brand-primary) 30%, var(--color-border-divider))",
+        color: "var(--color-text-primary)",
+        fontSize: 13,
+        fontWeight: 500,
+        lineHeight: 1.5,
+        position: "relative",
+        zIndex: 100,
+      }}
+    >
+      <span style={{ flex: 1, textAlign: "center" }}>
+        {"\uD83D\uDCE2"} [업데이트] 클리닉 예약 오류 수정 · 학부모 초기 비밀번호 0000 통일 · 삭제 학생 데이터 정리
+      </span>
+      <button
+        onClick={() => {
+          localStorage.setItem(NOTICE_DISMISS_KEY, "1");
+          setDismissed(true);
+        }}
+        style={{
+          background: "none",
+          border: "none",
+          cursor: "pointer",
+          padding: "2px 6px",
+          fontSize: 16,
+          lineHeight: 1,
+          color: "var(--color-text-secondary)",
+          borderRadius: 4,
+          flexShrink: 0,
+        }}
+        aria-label="닫기"
+      >
+        ✕
+      </button>
+    </div>
+  );
+}
+
 function AppLayoutContent() {
   const isMobile = useIsMobile();
   useFavicon();
@@ -25,6 +80,7 @@ function AppLayoutContent() {
       {isMobile ? (
         <AdminLayoutProvider>
           <WorkboxProvider>
+            <NoticeBanner />
             <AppLayoutMobile />
           </WorkboxProvider>
         </AdminLayoutProvider>
@@ -36,16 +92,19 @@ function AppLayoutContent() {
         height: "100vh",
         minHeight: "100vh",
         overflow: "hidden",
+        display: "flex",
+        flexDirection: "column",
         background: "var(--layout-canvas-bg)",
         color: "var(--color-text-primary)",
       }}
     >
+      <NoticeBanner />
       <div
         style={{
           display: "grid",
           gridTemplateColumns: "var(--sidebar-width) 1fr",
           gridTemplateRows: "auto 1fr",
-          height: "100%",
+          flex: 1,
           minHeight: 0,
         }}
       >
