@@ -81,6 +81,21 @@ function UpdatesPanel() {
     <div className={styles.changelog}>
       <div className={styles.changelogEntry}>
         <div className={styles.changelogDate}>
+          2026-03-16 <span className={styles.changelogVersion}>V1.1.1</span>
+        </div>
+        <ul className={styles.changelogItems}>
+          <li>클리닉 UX 전면 재설계 (오늘/일정 관리/예약/클리닉 진행)</li>
+          <li>클리닉 진행: 미통과 항목 인라인 표시 + 학생 상세 오버레이</li>
+          <li>학생 대시보드 개편 (다음 일정 카운트다운, 오늘 할 일)</li>
+          <li>학생 클리닉 2탭 (예약/내 일정 분리)</li>
+          <li>클리닉 PDF 미리보기 + 프리미엄 디자인</li>
+          <li>영상 인코딩 상태 표시 + 오름차순 정렬</li>
+          <li>에이전트 모니터 (/dev/agents) — 실시간 병렬 에이전트 대시보드</li>
+          <li>새 배포 감지 → 새로고침 안내 배너</li>
+        </ul>
+      </div>
+      <div className={styles.changelogEntry}>
+        <div className={styles.changelogDate}>
           2026-03-15 <span className={styles.changelogVersion}>V1.1.0</span>
         </div>
         <ul className={styles.changelogItems}>
@@ -131,6 +146,26 @@ function UpdatesPanel() {
 function BugfixesPanel() {
   return (
     <div className={styles.changelog}>
+      <div className={styles.changelogEntry}>
+        <div className={styles.changelogDate}>
+          2026-03-16 <span className={styles.changelogVersion}>V1.1.1</span>
+        </div>
+        <ul className={styles.changelogItems}>
+          <li data-type="fix">선생님 대상자 등록 400 에러 — enrollment_id→student 자동 resolve</li>
+          <li data-type="fix">학생 클리닉 재예약 차단 — 중복 체크에서 cancelled 제외</li>
+          <li data-type="fix">로그인 페이지 프로모 무한 리다이렉트 제거</li>
+          <li data-type="fix">참가자 0명 클리닉 세션 오늘 탭 미표시</li>
+          <li data-type="fix">시험 카드 클릭 네비게이션 오류 수정</li>
+          <li data-type="fix">시험 생성 후 목록 미갱신</li>
+          <li data-type="fix">출석 토글 뮤테이션 추적 누락</li>
+          <li data-type="fix">일괄 승인 부분 실패 피드백 추가</li>
+          <li data-type="fix">학생앱 API 에러 삼킴 수정 (빈 배열 → 에러 전파)</li>
+          <li data-type="fix">점수 편집모드 기본 활성화</li>
+          <li data-type="fix">드로어/오버레이 배너 오프셋</li>
+          <li data-type="fix">캘린더 날짜 하루 밀림 (타임존)</li>
+          <li data-type="fix">React hooks 규칙 위반 수정</li>
+        </ul>
+      </div>
       <div className={styles.changelogEntry}>
         <div className={styles.changelogDate}>
           2026-03-15
