@@ -181,11 +181,27 @@ export default function ClinicConsoleWorkspace({
 
   return (
     <>
-      <p
-        style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-secondary)", marginBottom: "var(--space-2)" }}
+      <div
+        style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "var(--space-3)", marginBottom: "var(--space-2)", flexWrap: "wrap" }}
       >
-        {selectedDate} · {sessionLabel} — 예약 {participants.length}명
-      </p>
+        <p style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-secondary)", margin: 0 }}>
+          {selectedDate} · {sessionLabel} — 예약 {participants.length}명
+        </p>
+        {!isLoading && pendingIds.length > 0 && (
+          <button
+            type="button"
+            className="clinic-console__bulk-attend"
+            disabled={bulkAttendMutation.isPending}
+            onClick={() => bulkAttendMutation.mutate(pendingIds)}
+            style={{ margin: 0 }}
+          >
+            <CheckCircle size={14} aria-hidden />
+            {bulkAttendMutation.isPending
+              ? `처리 중… (${pendingIds.length}명)`
+              : `전체 출석 (${pendingIds.length}명)`}
+          </button>
+        )}
+      </div>
 
       {/* 진행 요약 바 */}
       {!isLoading && participants.length > 0 && (
@@ -227,21 +243,6 @@ export default function ClinicConsoleWorkspace({
             <p className="clinic-console__progress-done">모든 학생 확인 완료</p>
           )}
         </div>
-      )}
-
-      {/* 전체 출석 버튼 */}
-      {!isLoading && pendingIds.length > 0 && (
-        <button
-          type="button"
-          className="clinic-console__bulk-attend"
-          disabled={bulkAttendMutation.isPending}
-          onClick={() => bulkAttendMutation.mutate(pendingIds)}
-        >
-          <CheckCircle size={14} aria-hidden />
-          {bulkAttendMutation.isPending
-            ? `처리 중… (${pendingIds.length}명)`
-            : `전체 출석 (${pendingIds.length}명)`}
-        </button>
       )}
 
       {isLoading ? (

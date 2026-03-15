@@ -28,10 +28,15 @@ function useNoticeBannerHeight() {
   }, []);
 
   useEffect(() => {
+    // Sync immediately + watch for resize
     syncHeight();
-    return () => {
-      document.documentElement.style.setProperty("--notice-banner-height", "0px");
-    };
+    const el = bannerRef.current;
+    if (el) {
+      const ro = new ResizeObserver(syncHeight);
+      ro.observe(el);
+      return () => { ro.disconnect(); document.documentElement.style.setProperty("--notice-banner-height", "0px"); };
+    }
+    return () => { document.documentElement.style.setProperty("--notice-banner-height", "0px"); };
   }, [syncHeight]);
 
   return { bannerRef, syncHeight };
