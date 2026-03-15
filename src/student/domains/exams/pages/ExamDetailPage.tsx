@@ -51,6 +51,12 @@ export default function ExamDetailPage() {
   }
 
   const exam = examQ.data;
+
+  // Closed exam check: if close_at exists and has passed, exam is closed
+  const isClosed = exam.close_at
+    ? new Date(exam.close_at) < new Date()
+    : false;
+
   // While result is loading: hide submit button (unknown state).
   // On error (no prior submission = 404): allow submit (first attempt).
   // On success: trust can_retake from backend.
@@ -85,9 +91,11 @@ export default function ExamDetailPage() {
               결과 보기
             </Link>
 
-            {/* ✅ can_retake만 신뢰. null = 로딩 중(버튼 미표시). 학부모는 응시 불가 */}
+            {/* ✅ can_retake만 신뢰. null = 로딩 중(버튼 미표시). 학부모는 응시 불가. 마감된 시험은 응시 불가 */}
             {isParent ? (
               <div className="stu-muted" style={{ fontSize: 13 }}>학부모는 시험에 응시할 수 없습니다.</div>
+            ) : isClosed ? (
+              <div className="stu-muted" style={{ fontSize: 13 }}>시험이 마감되었습니다</div>
             ) : canRetake === null ? (
               <div className="stu-muted" style={{ fontSize: 13 }}>확인 중…</div>
             ) : canRetake ? (

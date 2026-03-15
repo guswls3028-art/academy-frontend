@@ -16,6 +16,7 @@ import {
   fetchAvailableClinicSessions,
   createClinicBookingRequest,
   cancelClinicBookingRequest,
+  changeClinicBooking,
   type ClinicBookingRequest,
 } from "../api/clinicBooking.api";
 import { formatYmd, todayYmd } from "@/student/shared/utils/date";
@@ -95,6 +96,29 @@ export default function ClinicPage() {
     },
   });
 
+  // 예약 변경 mutation (atomic: 새 예약 실패 시 기존 예약 보존)
+  const changeMutation = useMutation({
+    mutationFn: (data: { oldId: number; newSessionId: number; memo?: string }) =>
+      changeClinicBooking(data.oldId, data.newSessionId, data.memo),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["student", "clinic", "available-sessions"] });
+      qc.invalidateQueries({ queryKey: ["student", "clinic", "bookings"] });
+      qc.invalidateQueries({ queryKey: ["clinic-idcard"] });
+      qc.invalidateQueries({ queryKey: ["student", "notifications", "counts"] });
+      setSelectedSessionId(null);
+      setMemo("");
+      setShowSuccessMessage(true);
+      setTimeout(() => setShowSuccessMessage(false), 3000);
+    },
+    onError: (error: any) => {
+      const message =
+        error?.response?.data?.detail ||
+        error?.response?.data?.message ||
+        "일정 변경에 실패했습니다. 기존 예약은 유지됩니다.";
+      studentToast.error(message);
+    },
+  });
+
   // 날짜 선택 핸들러
   const handleDateSelect = (date: string) => {
     setSelectedDate(date);
@@ -109,7 +133,7 @@ export default function ClinicPage() {
 
   // 예약 신청 핸들러 — 등록 가능한 클리닉(세션)만 신청 가능
   const handleBooking = () => {
-    if (bookingMutation.isPending || cancelMutation.isPending) return;
+    if (bookingMutation.isPending || cancelMutation.isPending || changeMutation.isPending) return;
     if (!selectedSessionId) {
       studentToast.info("등록 가능한 클리닉 시간을 선택해주세요.");
       return;
@@ -120,15 +144,19 @@ export default function ClinicPage() {
     });
   };
 
-  // 일정 변경 신청 핸들러
+  // 일정 변경 신청 핸들러 (atomic: 새 예약 확보 후에만 기존 취소)
   const handleChangeRequest = () => {
-    if (bookingMutation.isPending || cancelMutation.isPending) return;
+    if (changeMutation.isPending || bookingMutation.isPending || cancelMutation.isPending) return;
     if (!selectedDate) {
       studentToast.info("날짜를 선택해주세요.");
       return;
     }
 
-    const existingBooking = myRequests.find((r) => r.session_date === selectedDate);
+    const existingBooking = myRequests.find(
+      (r) =>
+        r.session_date === selectedDate &&
+        (r.status === "pending" || r.status === "booked" || r.status === "approved")
+    );
     if (!existingBooking) {
       studentToast.error("변경할 예약을 찾을 수 없습니다.");
       return;
@@ -139,14 +167,10 @@ export default function ClinicPage() {
       return;
     }
 
-    // Proceed directly — action is reversible (cancel + rebook)
-    cancelMutation.mutate(existingBooking.id, {
-      onSuccess: () => {
-        bookingMutation.mutate({
-          session: selectedSessionId,
-          memo: memo.trim() || undefined,
-        });
-      },
+    changeMutation.mutate({
+      oldId: existingBooking.id,
+      newSessionId: selectedSessionId,
+      memo: memo.trim() || undefined,
     });
   };
 
@@ -488,7 +512,7 @@ export default function ClinicPage() {
                 <button
                   type="button"
                   className="stu-btn stu-btn--primary"
-                  disabled={!selectedSessionId || selectedSessionIsFull || bookingMutation.isPending || cancelMutation.isPending}
+                  disabled={!selectedSessionId || selectedSessionIsFull || bookingMutation.isPending || cancelMutation.isPending || changeMutation.isPending}
                   onClick={handleBooking}
                   style={{ width: "100%" }}
                 >
@@ -500,19 +524,19 @@ export default function ClinicPage() {
                 <button
                   type="button"
                   className="stu-btn stu-btn--secondary"
-                  disabled={!selectedSessionId || selectedSessionIsFull || bookingMutation.isPending || cancelMutation.isPending || selectedDateSessions.length === 0}
+                  disabled={!selectedSessionId || selectedSessionIsFull || changeMutation.isPending || bookingMutation.isPending || cancelMutation.isPending || selectedDateSessions.length === 0}
                   onClick={handleChangeRequest}
                   style={{ width: "100%" }}
                 >
-                  {cancelMutation.isPending || bookingMutation.isPending
+                  {changeMutation.isPending
                     ? "처리 중…"
                     : "일정 변경 신청하기"}
                 </button>
               )}
 
-              {(bookingMutation.isError || cancelMutation.isError) && (
+              {(bookingMutation.isError || cancelMutation.isError || changeMutation.isError) && (
                 <div className="stu-muted" style={{ fontSize: 13, color: "var(--stu-danger)" }}>
-                  {isChangeMode ? "일정 변경에 실패했습니다." : "예약 신청에 실패했습니다."} 다시 시도해주세요.
+                  {isChangeMode ? "일정 변경에 실패했습니다. 기존 예약은 유지됩니다." : "예약 신청에 실패했습니다."} 다시 시도해주세요.
                 </div>
               )}
             </div>

@@ -2,7 +2,7 @@
 /**
  * 시험 답안 입력 페이지 — 문항별 1, 2, 3, 4, 5 입력 후 제출
  */
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import StudentPageShell from "@/student/shared/ui/pages/StudentPageShell";
@@ -30,21 +30,44 @@ export default function ExamSubmitPage() {
   const questions = questionsQ.data ?? [];
   const loadingQuestions = questionsQ.isLoading;
 
-  const [answers, setAnswers] = useState<Record<number, string>>({});
+  const draftKey = `exam_draft_${safeId}`;
+
+  const [answers, setAnswers] = useState<Record<number, string>>(() => {
+    // Restore draft from localStorage on mount
+    try {
+      const stored = localStorage.getItem(draftKey);
+      if (stored) return JSON.parse(stored);
+    } catch { /* ignore corrupt data */ }
+    return {};
+  });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Save draft to localStorage on answer change
+  const updateAnswers = useCallback(
+    (updater: (prev: Record<number, string>) => Record<number, string>) => {
+      setAnswers((prev) => {
+        const next = updater(prev);
+        try {
+          localStorage.setItem(draftKey, JSON.stringify(next));
+        } catch { /* quota exceeded — non-critical */ }
+        return next;
+      });
+    },
+    [draftKey],
+  );
 
   // Seed answers state when questions first load
   useEffect(() => {
     if (questions.length === 0) return;
-    setAnswers((prev) => {
+    updateAnswers((prev) => {
       const next = { ...prev };
       questions.forEach((q) => {
         if (next[q.id] === undefined) next[q.id] = "";
       });
       return next;
     });
-  }, [questions]);
+  }, [questions, updateAnswers]);
 
   const handleSubmit = async () => {
     if (submitting) return;
@@ -70,6 +93,7 @@ export default function ExamSubmitPage() {
     setSubmitting(true);
     try {
       await submitStudentExamAnswers(safeId, payload);
+      try { localStorage.removeItem(draftKey); } catch { /* non-critical */ }
       navigate(`/student/exams/${safeId}/result`, { replace: true });
     } catch (e: any) {
       setError(
@@ -110,6 +134,27 @@ export default function ExamSubmitPage() {
   }
 
   const exam = examQ.data;
+
+  // Closed exam guard: prevent submission after close_at
+  const isClosed = exam.close_at
+    ? new Date(exam.close_at) < new Date()
+    : false;
+
+  if (isClosed) {
+    return (
+      <StudentPageShell title={exam.title} description="시험이 마감되었습니다.">
+        <EmptyState
+          title="시험이 마감되었습니다"
+          description="마감 시간이 지나 더 이상 답안을 제출할 수 없습니다."
+        />
+        <div style={{ padding: 16 }}>
+          <Link to={`/student/exams/${safeId}`} className="stu-cta-link">
+            시험 상세로 돌아가기
+          </Link>
+        </div>
+      </StudentPageShell>
+    );
+  }
 
   if (isParent) {
     return (
@@ -207,12 +252,13 @@ export default function ExamSubmitPage() {
                     <input
                       type="text"
                       value={answers[q.id] ?? ""}
-                      onChange={(e) =>
-                        setAnswers((prev) => ({
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        updateAnswers((prev) => ({
                           ...prev,
-                          [q.id]: e.target.value,
-                        }))
-                      }
+                          [q.id]: val,
+                        }));
+                      }}
                       placeholder="1~5, O/X, 단답"
                       maxLength={20}
                       style={{

@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { FiCheck, FiX, FiLock, FiPlus, FiTrash2, FiMessageCircle } from "react-icons/fi";
+import { FiCheck, FiX, FiLock, FiPlus, FiTrash2, FiMessageCircle, FiFileText } from "react-icons/fi";
 
 import {
   fetchTenantInfo,
@@ -11,6 +11,7 @@ import {
   type AcademyEntry,
 } from "@/features/profile/api/profile.api";
 import { fetchMe } from "@/features/profile/api/profile.api";
+import { fetchLegalConfig, updateLegalConfig, type LegalConfig } from "@/features/legal/api/legal.api";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 
@@ -328,6 +329,9 @@ export default function OrganizationSettingsPage() {
 
       {/* ── 카카오톡 미리보기 설정 ── */}
       <OgPreviewSection tenantData={tenantQ.data} saving={updateMut.isPending} />
+
+      {/* ── 법적 고지 정보 ── */}
+      <LegalInfoSection />
     </div>
   );
 }
@@ -583,6 +587,159 @@ function OgPreviewSection({
             )}
           </div>
         </div>
+      </section>
+    </>
+  );
+}
+
+
+/* ------------------------------------------------------------------ */
+/*  법적 고지 정보 설정 섹션 (이용약관/개인정보처리방침 표시용)              */
+/* ------------------------------------------------------------------ */
+
+const LEGAL_FIELDS: { key: keyof Omit<LegalConfig, "terms_version" | "privacy_version" | "effective_date">; label: string; placeholder: string; maxLen: number }[] = [
+  { key: "company_name", label: "상호", placeholder: "예: 주식회사 OO교육", maxLen: 200 },
+  { key: "representative", label: "대표자명", placeholder: "예: 홍길동", maxLen: 100 },
+  { key: "business_number", label: "사업자등록번호", placeholder: "예: 123-45-67890", maxLen: 50 },
+  { key: "ecommerce_number", label: "통신판매업 신고번호", placeholder: "예: 제2026-서울강남-0001호", maxLen: 100 },
+  { key: "address", label: "사업장 주소", placeholder: "예: 서울특별시 강남구 ...", maxLen: 500 },
+  { key: "support_email", label: "고객센터 이메일", placeholder: "예: support@example.com", maxLen: 200 },
+  { key: "support_phone", label: "고객센터 전화번호", placeholder: "예: 02-1234-5678", maxLen: 50 },
+  { key: "privacy_officer_name", label: "개인정보 보호책임자", placeholder: "예: 홍길동", maxLen: 100 },
+  { key: "privacy_officer_contact", label: "보호책임자 연락처", placeholder: "예: privacy@example.com 또는 02-1234-5678", maxLen: 200 },
+];
+
+function LegalInfoSection() {
+  const qc = useQueryClient();
+  const [editing, setEditing] = useState(false);
+  const [form, setForm] = useState<Record<string, string>>({});
+
+  const legalQ = useQuery({
+    queryKey: ["legal-config"],
+    queryFn: fetchLegalConfig,
+  });
+
+  useEffect(() => {
+    if (legalQ.data) {
+      const initial: Record<string, string> = {};
+      for (const f of LEGAL_FIELDS) {
+        initial[f.key] = (legalQ.data as any)[f.key] || "";
+      }
+      setForm(initial);
+    }
+  }, [legalQ.data]);
+
+  const saveMut = useMutation({
+    mutationFn: (payload: Partial<LegalConfig>) => updateLegalConfig(payload),
+    onSuccess: (data) => {
+      qc.setQueryData(["legal-config"], data);
+      feedback.success("법적 고지 정보가 저장되었습니다.");
+      setEditing(false);
+    },
+    onError: () => feedback.error("저장에 실패했습니다."),
+  });
+
+  const handleSave = () => {
+    const payload: Record<string, string> = {};
+    for (const f of LEGAL_FIELDS) {
+      payload[f.key] = (form[f.key] || "").trim();
+    }
+    saveMut.mutate(payload as any);
+  };
+
+  const handleCancel = () => {
+    setEditing(false);
+    if (legalQ.data) {
+      const initial: Record<string, string> = {};
+      for (const f of LEGAL_FIELDS) {
+        initial[f.key] = (legalQ.data as any)[f.key] || "";
+      }
+      setForm(initial);
+    }
+  };
+
+  const isSaving = saveMut.isPending;
+
+  return (
+    <>
+      <div className={s.sectionHeader} style={{ marginTop: 32 }}>
+        <h2 className={s.sectionTitle}>
+          <FiFileText size={16} style={{ marginRight: 6, verticalAlign: -2 }} />
+          법적 고지 정보
+        </h2>
+        <p className={s.sectionDescription}>
+          이용약관, 개인정보처리방침 페이지에 표시되는 사업자 정보입니다. 미입력 항목은 &quot;정보 미등록&quot;으로 표시됩니다.
+        </p>
+      </div>
+
+      <section className={s.section}>
+        {legalQ.isLoading ? (
+          <div className={s.loadingBox}>불러오는 중...</div>
+        ) : editing ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            {LEGAL_FIELDS.map((f) => (
+              <div key={f.key}>
+                <p className={s.fieldLabel}>{f.label}</p>
+                <input
+                  type="text"
+                  className="ds-input"
+                  value={form[f.key] || ""}
+                  onChange={(e) => setForm((prev) => ({ ...prev, [f.key]: e.target.value }))}
+                  placeholder={f.placeholder}
+                  disabled={isSaving}
+                  maxLength={f.maxLen}
+                  style={{ width: "100%", maxWidth: 480 }}
+                />
+              </div>
+            ))}
+            <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+              <Button
+                type="button"
+                intent="primary"
+                size="sm"
+                onClick={handleSave}
+                disabled={isSaving}
+                loading={isSaving}
+                leftIcon={isSaving ? undefined : <FiCheck size={13} />}
+              >
+                저장
+              </Button>
+              <Button
+                type="button"
+                intent="ghost"
+                size="sm"
+                onClick={handleCancel}
+                disabled={isSaving}
+                leftIcon={<FiX size={13} />}
+              >
+                취소
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className={s.rows}>
+              {LEGAL_FIELDS.map((f) => (
+                <div className={s.row} key={f.key}>
+                  <span className={s.rowLabel}>{f.label}</span>
+                  <span className={form[f.key] ? s.rowValue : s.rowValueMuted}>
+                    {form[f.key] || "미설정"}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <div style={{ marginTop: 8 }}>
+              <Button
+                type="button"
+                intent="secondary"
+                size="sm"
+                onClick={() => setEditing(true)}
+              >
+                수정
+              </Button>
+            </div>
+          </>
+        )}
       </section>
     </>
   );

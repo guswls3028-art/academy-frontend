@@ -3,6 +3,8 @@ export type ExamType = "template" | "regular";
 /** 과제와 동일. 사용자에는 설정 중/진행 중/마감으로만 노출 */
 export type ExamStatus = "DRAFT" | "OPEN" | "CLOSED";
 
+export type AnswerVisibility = "hidden" | "after_closed" | "always";
+
 export type ExamTabKey =
   | "setup"
   | "assets"
@@ -37,6 +39,8 @@ export type Exam = {
   close_at: string | null;
 
   template_exam_id: number | null;
+
+  answer_visibility: AnswerVisibility;
 
   created_at: string;
   updated_at: string;

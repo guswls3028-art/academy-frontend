@@ -148,3 +148,35 @@ export async function cancelClinicBookingRequest(id: number): Promise<void> {
     status: "cancelled",
   });
 }
+
+/**
+ * 클리닉 예약 변경 (atomic)
+ * POST /clinic/participants/{id}/change-booking/
+ *
+ * 새 세션 예약이 확보된 후에만 기존 예약이 취소됩니다.
+ * 새 예약 실패 시 기존 예약이 보존됩니다.
+ */
+export async function changeClinicBooking(
+  oldParticipantId: number,
+  newSessionId: number,
+  memo?: string
+): Promise<ClinicBookingRequest> {
+  const res = await api.post(
+    `/clinic/participants/${oldParticipantId}/change-booking/`,
+    {
+      new_session_id: newSessionId,
+      memo: memo ?? undefined,
+    }
+  );
+
+  return {
+    id: res.data.id,
+    session: res.data.session,
+    session_date: res.data.session_date,
+    session_start_time: res.data.session_start_time,
+    session_location: res.data.session_location || null,
+    status: res.data.status,
+    memo: res.data.memo,
+    created_at: res.data.created_at,
+  };
+}

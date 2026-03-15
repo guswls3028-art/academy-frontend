@@ -3,9 +3,41 @@
 // 법적 근거: 전자상거래법 제13조, 시행령 제6조, 개인정보 보호법 제30조
 
 import { Link } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { fetchLegalConfig, type LegalConfig } from "../api/legal.api";
 import styles from "./LegalPage.module.css";
 
+/** Show value or "정보 미등록" muted text */
+function V({ value }: { value: string }) {
+  if (value) return <>{value}</>;
+  return <span className={styles.unregistered}>정보 미등록</span>;
+}
+
 export default function TermsPage() {
+  const { data: lc } = useQuery<LegalConfig>({
+    queryKey: ["legal-config"],
+    queryFn: fetchLegalConfig,
+    staleTime: 5 * 60_000,
+    retry: 1,
+  });
+
+  const c = lc ?? {
+    company_name: "",
+    representative: "",
+    business_number: "",
+    ecommerce_number: "",
+    address: "",
+    support_email: "",
+    support_phone: "",
+    privacy_officer_name: "",
+    privacy_officer_contact: "",
+    terms_version: "1.0",
+    privacy_version: "1.0",
+    effective_date: "2026-03-14",
+  };
+
+  const companyLabel = c.company_name || "회사";
+
   return (
     <div className={styles.root}>
       <header className={styles.header}>
@@ -24,22 +56,22 @@ export default function TermsPage() {
         <article className={styles.article}>
           <h2>제1조 (목적)</h2>
           <p>
-            본 약관은 <span className={styles.placeholder}>[TODO_FOR_OWNER: 상호]</span>(이하 "회사")가 제공하는
-            학원 관리 서비스(이하 "서비스")의 이용 조건 및 절차, 회사와 이용자 간의 권리·의무 및 책임 사항을
+            본 약관은 <V value={c.company_name} />(이하 &quot;회사&quot;)가 제공하는
+            학원 관리 서비스(이하 &quot;서비스&quot;)의 이용 조건 및 절차, 회사와 이용자 간의 권리·의무 및 책임 사항을
             규정함을 목적으로 합니다.
           </p>
 
           <h2>제2조 (정의)</h2>
           <ol>
-            <li>"서비스"란 회사가 제공하는 학원 운영·관리 SaaS 플랫폼으로, 학생 관리, 출결, 성적, 시험, 수업 영상,
+            <li>&quot;서비스&quot;란 회사가 제공하는 학원 운영·관리 SaaS 플랫폼으로, 학생 관리, 출결, 성적, 시험, 수업 영상,
               메시지 발송, 정산 등의 기능을 포함합니다.</li>
-            <li>"이용자"란 본 약관에 따라 서비스 이용 계약을 체결하고, 회사가 제공하는 서비스를 이용하는 학원
-              운영자(이하 "원장") 및 원장이 지정한 직원(이하 "스태프")을 말합니다.</li>
-            <li>"학생·학부모"란 원장 또는 스태프가 서비스에 등록한 수강생 및 그 보호자를 말하며, 직접적인
+            <li>&quot;이용자&quot;란 본 약관에 따라 서비스 이용 계약을 체결하고, 회사가 제공하는 서비스를 이용하는 학원
+              운영자(이하 &quot;원장&quot;) 및 원장이 지정한 직원(이하 &quot;스태프&quot;)을 말합니다.</li>
+            <li>&quot;학생·학부모&quot;란 원장 또는 스태프가 서비스에 등록한 수강생 및 그 보호자를 말하며, 직접적인
               유료 서비스 이용 계약의 당사자가 아닌 데이터 주체입니다.</li>
-            <li>"테넌트"란 서비스 내에서 하나의 학원 단위로 논리적으로 분리된 데이터 공간을 말합니다.</li>
-            <li>"유료 서비스"란 서비스 이용을 위해 이용료를 지불하는 구독형 서비스를 말합니다.</li>
-            <li>"구독"이란 일정 기간 단위(월 등)로 반복 결제하여 서비스를 이용하는 방식을 말합니다.</li>
+            <li>&quot;테넌트&quot;란 서비스 내에서 하나의 학원 단위로 논리적으로 분리된 데이터 공간을 말합니다.</li>
+            <li>&quot;유료 서비스&quot;란 서비스 이용을 위해 이용료를 지불하는 구독형 서비스를 말합니다.</li>
+            <li>&quot;구독&quot;이란 일정 기간 단위(월 등)로 반복 결제하여 서비스를 이용하는 방식을 말합니다.</li>
           </ol>
 
           <h2>제3조 (약관의 효력 및 변경)</h2>
@@ -114,8 +146,10 @@ export default function TermsPage() {
               환급이 지연되는 경우 지연 기간에 대하여 연 15%의 지연이자를 가산합니다
               (전자상거래법 제18조).</li>
             <li>환불 요청은 서비스 내 문의 또는 고객센터(
-              <span className={styles.placeholder}>[TODO_FOR_OWNER: 고객센터 이메일]</span> /{" "}
-              <span className={styles.placeholder}>[TODO_FOR_OWNER: 고객센터 전화번호]</span>)를 통해 접수합니다.</li>
+              {c.support_email ? <>{c.support_email}</> : <span className={styles.unregistered}>이메일 미등록</span>}
+              {" / "}
+              {c.support_phone ? <>{c.support_phone}</> : <span className={styles.unregistered}>전화번호 미등록</span>}
+              )를 통해 접수합니다.</li>
             <li>다음 각 호에 해당하는 경우 환불이 제한됩니다:
               <ol>
                 <li>이용자의 귀책 사유로 서비스 이용이 제한된 경우</li>
@@ -191,7 +225,7 @@ export default function TermsPage() {
 
           <h2>제13조 (거래기록의 보존)</h2>
           <p>
-            회사는 전자상거래 등에서의 소비자보호에 관한 법률 시행령 제6조에 따라 다음과 같이 거래기록을 보존합니다:
+            {companyLabel}는 전자상거래 등에서의 소비자보호에 관한 법률 시행령 제6조에 따라 다음과 같이 거래기록을 보존합니다:
           </p>
           <table>
             <thead>
@@ -260,16 +294,15 @@ export default function TermsPage() {
           {/* 전자상거래법 제13조 사업자 정보 표시 */}
           <div style={{ marginTop: 48, paddingTop: 24, borderTop: "1px solid #e5e7eb" }}>
             <p style={{ fontSize: "0.8125rem", color: "#9ca3af" }}>
-              <span className={styles.placeholder}>[TODO_FOR_OWNER: 상호]</span>{" "}
-              | 대표: <span className={styles.placeholder}>[TODO_FOR_OWNER: 대표자명]</span>{" "}
-              | 사업자등록번호: <span className={styles.placeholder}>[TODO_FOR_OWNER: 사업자등록번호]</span>
+              <V value={c.company_name} />{" "}
+              | 대표: <V value={c.representative} />{" "}
+              | 사업자등록번호: <V value={c.business_number} />
               <br />
-              통신판매업 신고번호: <span className={styles.placeholder}>[TODO_FOR_OWNER: 통신판매업 신고번호 (예: 제2026-서울XX-XXXX호)]</span>
+              {c.ecommerce_number && (<>통신판매업 신고번호: {c.ecommerce_number}<br /></>)}
+              주소: <V value={c.address} />
               <br />
-              주소: <span className={styles.placeholder}>[TODO_FOR_OWNER: 사업장 주소]</span>
-              <br />
-              고객센터: <span className={styles.placeholder}>[TODO_FOR_OWNER: 고객센터 이메일]</span>{" "}
-              / <span className={styles.placeholder}>[TODO_FOR_OWNER: 고객센터 전화번호 (유선)]</span>
+              고객센터: <V value={c.support_email} />{" "}
+              / <V value={c.support_phone} />
               <br />
               호스팅 서비스 제공자: Cloudflare, Inc. (웹), Amazon Web Services, Inc. (API 서버)
             </p>

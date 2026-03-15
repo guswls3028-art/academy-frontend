@@ -32,7 +32,7 @@ import { updateAdminExam } from "@/features/exams/api/adminExam";
 import { updateAdminHomework } from "@/features/homework/api/adminHomework";
 import { fetchAdminSessionExams } from "@/features/results/api/adminSessionExams";
 import ScorePrintPreviewModal from "@/features/scores/components/ScorePrintPreviewModal";
-import { downloadClinicPdf } from "@/features/scores/utils/clinicPdfGenerator";
+import ClinicPrintPreviewModal from "@/features/scores/components/ClinicPrintPreviewModal";
 import { fetchAttendance } from "@/features/lectures/api/attendance";
 import "./SessionScoresEntryPage.css";
 
@@ -67,6 +67,7 @@ export default function SessionScoresEntryPage(_props: Props) {
   const [showCreateHomework, setShowCreateHomework] = useState(false);
   const [enrollingAll, setEnrollingAll] = useState(false);
   const [showPrintPreview, setShowPrintPreview] = useState(false);
+  const [showClinicPreview, setShowClinicPreview] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const moreMenuRef = useRef<HTMLDivElement>(null);
 
@@ -442,21 +443,8 @@ export default function SessionScoresEntryPage(_props: Props) {
         type="button"
         intent="secondary"
         size="sm"
-        onClick={async () => {
-          if (data?.rows && data?.meta) {
-            try {
-              await downloadClinicPdf({
-                rows: data.rows,
-                meta: data.meta,
-                sessionTitle,
-                lectureTitle,
-                attendanceMap: attendanceMapForPdf,
-              });
-              feedback.success("클리닉 현황 PDF가 다운로드되었습니다.");
-            } catch { feedback.error("PDF 생성에 실패했습니다."); }
-          }
-        }}
-        title="클리닉 현황 PDF 다운로드"
+        onClick={() => setShowClinicPreview(true)}
+        title="클리닉 대상자 미리보기"
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: 4, display: "inline-block", verticalAlign: "-2px" }}>
           <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
@@ -868,6 +856,19 @@ export default function SessionScoresEntryPage(_props: Props) {
           open={showPrintPreview}
           onClose={() => setShowPrintPreview(false)}
           rows={data.rows.filter((r) => (r.exams?.length ?? 0) > 0 || (r.homeworks?.length ?? 0) > 0)}
+          meta={data.meta}
+          sessionTitle={sessionTitle}
+          lectureTitle={lectureTitle}
+          attendanceMap={attendanceMapForPdf}
+        />
+      )}
+
+      {/* 클리닉 대상자 미리보기 */}
+      {showClinicPreview && data?.meta && (
+        <ClinicPrintPreviewModal
+          open={showClinicPreview}
+          onClose={() => setShowClinicPreview(false)}
+          rows={data.rows}
           meta={data.meta}
           sessionTitle={sessionTitle}
           lectureTitle={lectureTitle}

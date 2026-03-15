@@ -26,6 +26,8 @@ function normalizeExam(raw: any): Exam {
 
     template_exam_id: raw.template_exam_id ?? null,
 
+    answer_visibility: raw.answer_visibility ?? "hidden",
+
     created_at: raw.created_at,
     updated_at: raw.updated_at,
   };
@@ -61,6 +63,7 @@ export async function updateAdminExam(
     | "display_order"
     | "open_at"
     | "close_at"
+    | "answer_visibility"
   >>
 ): Promise<Exam> {
   const res = await api.patch(`/exams/${examId}/`, payload);

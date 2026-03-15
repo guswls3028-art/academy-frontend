@@ -88,6 +88,13 @@ export default function GradeDetailPage() {
             <div className="stu-muted" style={{ fontSize: 13 }}>문항 데이터가 없습니다.</div>
           )}
 
+          {!r.answers_visible && (
+            <div className="stu-muted" style={{ fontSize: 13, padding: "6px 0" }}>
+              정답은 비공개입니다.
+              {r.answer_visibility === "after_closed" && " 시험 마감 후 공개됩니다."}
+            </div>
+          )}
+
           {itemsQ.data && itemsQ.data.length > 0 && (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {itemsQ.data.map((it) => (
@@ -108,7 +115,8 @@ export default function GradeDetailPage() {
                     </span>
                   </div>
                   <div className="stu-muted" style={{ marginTop: 6, fontSize: 13 }}>
-                    내 답: {it.student_answer ?? "-"} · 정답: {it.correct_answer ?? "-"}
+                    내 답: {it.student_answer ?? "-"}
+                    {it.correct_answer != null ? ` · 정답: ${it.correct_answer}` : ""}
                   </div>
                 </div>
               ))}

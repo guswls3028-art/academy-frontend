@@ -341,6 +341,12 @@ export type ClinicPdfParams = {
   schedule?: string;
 };
 
+export function buildClinicPdfHtml(params: ClinicPdfParams): string {
+  const { rows, meta, sessionTitle, lectureTitle, date, attendanceMap, schedule } = params;
+  const data = analyze(rows, meta, attendanceMap);
+  return buildHtml(data, sessionTitle, lectureTitle, resolveDate(date), schedule);
+}
+
 export async function downloadClinicPdf(params: ClinicPdfParams): Promise<void> {
   const { rows, meta, sessionTitle, lectureTitle, date, attendanceMap, schedule } = params;
   const data = analyze(rows, meta, attendanceMap);

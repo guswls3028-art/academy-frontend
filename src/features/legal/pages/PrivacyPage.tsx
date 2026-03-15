@@ -3,9 +3,41 @@
 // 법적 근거: 개인정보 보호법 제30조, 시행령 제31조, PIPC 작성지침 2025.4
 
 import { Link } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { fetchLegalConfig, type LegalConfig } from "../api/legal.api";
 import styles from "./LegalPage.module.css";
 
+/** Show value or "정보 미등록" muted text */
+function V({ value }: { value: string }) {
+  if (value) return <>{value}</>;
+  return <span className={styles.unregistered}>정보 미등록</span>;
+}
+
 export default function PrivacyPage() {
+  const { data: lc } = useQuery<LegalConfig>({
+    queryKey: ["legal-config"],
+    queryFn: fetchLegalConfig,
+    staleTime: 5 * 60_000,
+    retry: 1,
+  });
+
+  const c = lc ?? {
+    company_name: "",
+    representative: "",
+    business_number: "",
+    ecommerce_number: "",
+    address: "",
+    support_email: "",
+    support_phone: "",
+    privacy_officer_name: "",
+    privacy_officer_contact: "",
+    terms_version: "1.0",
+    privacy_version: "1.0",
+    effective_date: "2026-03-14",
+  };
+
+  const companyLabel = c.company_name || "회사";
+
   return (
     <div className={styles.root}>
       <header className={styles.header}>
@@ -23,14 +55,14 @@ export default function PrivacyPage() {
 
         <article className={styles.article}>
           <p>
-            <span className={styles.placeholder}>[TODO_FOR_OWNER: 상호]</span>(이하 "회사")는 개인정보 보호법 등
+            <V value={c.company_name} />(이하 &quot;회사&quot;)는 개인정보 보호법 등
             관련 법령에 따라 정보주체의 개인정보를 보호하고, 이와 관련한 고충을 신속하고 원활하게 처리하기 위하여
             다음과 같이 개인정보 처리방침을 수립·공개합니다.
           </p>
 
           {/* ── 1. 처리 목적 ── */}
           <h2>제1조 (개인정보의 처리 목적)</h2>
-          <p>회사는 다음의 목적을 위하여 개인정보를 처리합니다. 처리하는 개인정보는 다음의 목적 이외의 용도로는 이용되지 않으며, 이용 목적이 변경되는 경우에는 별도의 동의를 받는 등 필요한 조치를 이행합니다.</p>
+          <p>{companyLabel}는 다음의 목적을 위하여 개인정보를 처리합니다. 처리하는 개인정보는 다음의 목적 이외의 용도로는 이용되지 않으며, 이용 목적이 변경되는 경우에는 별도의 동의를 받는 등 필요한 조치를 이행합니다.</p>
           <ol>
             <li><strong>서비스 제공 및 운영:</strong> 학생 관리, 출결·성적·시험 관리, 수업 영상 제공, 과제 관리, 메시지 발송</li>
             <li><strong>회원 관리:</strong> 본인 확인, 서비스 이용 계약 이행, 계정 관리</li>
@@ -86,7 +118,7 @@ export default function PrivacyPage() {
           {/* ── 3. 만 14세 미만 아동 (PIPC 2025 필수) ── */}
           <h2>제3조 (만 14세 미만 아동의 개인정보 처리)</h2>
           <ol>
-            <li>회사는 만 14세 미만 아동의 개인정보를 처리하는 경우, 개인정보 보호법 제22조의2에 따라
+            <li>{companyLabel}는 만 14세 미만 아동의 개인정보를 처리하는 경우, 개인정보 보호법 제22조의2에 따라
               <strong> 법정대리인(보호자)의 동의</strong>를 받습니다.</li>
             <li>학원 서비스의 특성상, 만 14세 미만 학생의 등록은 원칙적으로 원장 또는 스태프가 학부모(법정대리인)의
               동의를 직접 확인한 후 진행합니다.</li>
@@ -99,7 +131,7 @@ export default function PrivacyPage() {
           {/* ── 4. 보유 기간 ── */}
           <h2>제4조 (개인정보의 처리 및 보유 기간)</h2>
           <ol>
-            <li>회사는 개인정보 수집·이용 목적이 달성된 후에는 해당 정보를 지체 없이 파기합니다.</li>
+            <li>{companyLabel}는 개인정보 수집·이용 목적이 달성된 후에는 해당 정보를 지체 없이 파기합니다.</li>
             <li>보유 기간:
               <ul>
                 <li><strong>서비스 이용 계약 존속 기간:</strong> 서비스 이용 계약이 유효한 기간 동안 보유</li>
@@ -163,7 +195,7 @@ export default function PrivacyPage() {
           {/* ── 6. 제3자 제공 ── */}
           <h2>제6조 (개인정보의 제3자 제공)</h2>
           <p>
-            회사는 정보주체의 개인정보를 제1조에서 명시한 범위 내에서만 처리하며, 원칙적으로 정보주체의 사전 동의
+            {companyLabel}는 정보주체의 개인정보를 제1조에서 명시한 범위 내에서만 처리하며, 원칙적으로 정보주체의 사전 동의
             없이 제3자에게 개인정보를 제공하지 않습니다. 다만, 다음의 경우에는 예외로 합니다:
           </p>
           <ol>
@@ -174,7 +206,7 @@ export default function PrivacyPage() {
           {/* ── 7. 위탁 ── */}
           <h2>제7조 (개인정보 처리업무의 위탁)</h2>
           <p>
-            회사는 원활한 서비스 제공을 위하여 다음과 같이 개인정보 처리 업무를 위탁하고 있습니다.
+            {companyLabel}는 원활한 서비스 제공을 위하여 다음과 같이 개인정보 처리 업무를 위탁하고 있습니다.
             위탁받는 자에게 관련 법령을 준수하도록 관리·감독하고 있습니다.
           </p>
           <table>
@@ -207,7 +239,7 @@ export default function PrivacyPage() {
           {/* ── 8. 국외 이전 (PIPC 2025 필수 — Cloudflare CDN) ── */}
           <h2>제8조 (개인정보의 국외 이전)</h2>
           <p>
-            회사는 서비스 제공을 위해 다음과 같이 개인정보를 국외의 사업자에게 처리를 위탁하고 있습니다
+            {companyLabel}는 서비스 제공을 위해 다음과 같이 개인정보를 국외의 사업자에게 처리를 위탁하고 있습니다
             (개인정보 보호법 제28조의8).
           </p>
           <table>
@@ -245,7 +277,7 @@ export default function PrivacyPage() {
 
           {/* ── 9. 안전성 확보 조치 ── */}
           <h2>제9조 (개인정보의 안전성 확보조치)</h2>
-          <p>회사는 개인정보의 안전성 확보를 위해 다음과 같은 조치를 취하고 있습니다 (개인정보 보호법 제29조, 시행령 제30조):</p>
+          <p>{companyLabel}는 개인정보의 안전성 확보를 위해 다음과 같은 조치를 취하고 있습니다 (개인정보 보호법 제29조, 시행령 제30조):</p>
           <ol>
             <li><strong>관리적 조치:</strong> 개인정보 보호 내부 관리 계획 수립·시행, 접근 권한 관리, 취급 직원 최소화</li>
             <li><strong>기술적 조치:</strong>
@@ -275,7 +307,7 @@ export default function PrivacyPage() {
           {/* ── 11. 정보주체 권리 ── */}
           <h2>제11조 (정보주체와 법정대리인의 권리·의무 및 행사방법)</h2>
           <ol>
-            <li>정보주체는 회사에 대해 언제든지 다음 각 호의 권리를 행사할 수 있습니다 (개인정보 보호법 제35조~제38조):
+            <li>정보주체는 {companyLabel}에 대해 언제든지 다음 각 호의 권리를 행사할 수 있습니다 (개인정보 보호법 제35조~제38조):
               <ol>
                 <li>개인정보 <strong>열람</strong> 요구 (제35조)</li>
                 <li>오류 등이 있을 경우 <strong>정정</strong> 요구 (제36조)</li>
@@ -285,39 +317,36 @@ export default function PrivacyPage() {
               </ol>
             </li>
             <li><strong>만 14세 미만 아동</strong>의 법정대리인은 해당 아동의 개인정보에 대하여 위 권리를 대리하여 행사할 수 있습니다.</li>
-            <li>학생·학부모의 경우 해당 학원의 원장을 통해 권리를 행사하거나, 회사 고객센터에 직접 요청할 수
+            <li>학생·학부모의 경우 해당 학원의 원장을 통해 권리를 행사하거나, {companyLabel} 고객센터에 직접 요청할 수
               있습니다.</li>
-            <li>권리 행사는 서면, 전화, 이메일 등을 통해 가능하며, 회사는 지체 없이 조치합니다.</li>
+            <li>권리 행사는 서면, 전화, 이메일 등을 통해 가능하며, {companyLabel}는 지체 없이 조치합니다.</li>
             <li>정보주체가 개인정보의 오류에 대한 정정을 요구한 경우, 정정이 완료되기 전까지 해당 개인정보를
               이용하거나 제공하지 않습니다.</li>
             <li>삭제 요구 시 해당 개인정보를 복구·재생할 수 없도록 조치합니다. 다만, 다른 법령에서 해당 개인정보의
               수집을 의무화한 경우에는 삭제를 요구할 수 없습니다.</li>
-            <li>권리 행사에 대한 처리 결과에 이의가 있는 경우, 회사에 이의를 제기할 수 있으며, 회사는 이의 제기
+            <li>권리 행사에 대한 처리 결과에 이의가 있는 경우, {companyLabel}에 이의를 제기할 수 있으며, {companyLabel}는 이의 제기
               절차를 마련하여 안내합니다.</li>
           </ol>
 
           {/* ── 12. 개인정보 보호책임자 및 고충처리 ── */}
           <h2>제12조 (개인정보 보호책임자 및 고충처리 부서)</h2>
           <p>
-            회사는 개인정보 처리에 관한 업무를 총괄해서 책임지고, 정보주체의 불만 처리 및 피해 구제를 위하여
+            {companyLabel}는 개인정보 처리에 관한 업무를 총괄해서 책임지고, 정보주체의 불만 처리 및 피해 구제를 위하여
             아래와 같이 개인정보 보호책임자를 지정하고 있습니다:
           </p>
           <h3>개인정보 보호책임자</h3>
           <ul>
-            <li>성명: <span className={styles.placeholder}>[TODO_FOR_OWNER: 개인정보 보호책임자 성명]</span></li>
-            <li>직위: <span className={styles.placeholder}>[TODO_FOR_OWNER: 직위]</span></li>
-            <li>연락처: <span className={styles.placeholder}>[TODO_FOR_OWNER: 전화번호]</span></li>
-            <li>이메일: <span className={styles.placeholder}>[TODO_FOR_OWNER: 이메일]</span></li>
+            <li>성명: <V value={c.privacy_officer_name} /></li>
+            <li>연락처: <V value={c.privacy_officer_contact} /></li>
           </ul>
-          <h3>고충처리 부서</h3>
+          <h3>고충처리</h3>
           <ul>
-            <li>부서명: <span className={styles.placeholder}>[TODO_FOR_OWNER: 고충처리 부서명 (예: 고객지원팀)]</span></li>
-            <li>연락처: <span className={styles.placeholder}>[TODO_FOR_OWNER: 고충처리 전화번호]</span></li>
-            <li>이메일: <span className={styles.placeholder}>[TODO_FOR_OWNER: 고충처리 이메일]</span></li>
+            <li>고객센터: <V value={c.support_email} /></li>
+            <li>전화: <V value={c.support_phone} /></li>
           </ul>
           <p>
             정보주체는 서비스 이용 중 발생한 모든 개인정보 보호 관련 문의, 불만, 피해 구제 등에 관한 사항을
-            개인정보 보호책임자 또는 고충처리 부서에 문의할 수 있습니다.
+            개인정보 보호책임자 또는 고객센터에 문의할 수 있습니다.
           </p>
 
           {/* ── 13. 권익침해 구제방법 ── */}
@@ -356,14 +385,14 @@ export default function PrivacyPage() {
 
           <div style={{ marginTop: 48, paddingTop: 24, borderTop: "1px solid #e5e7eb" }}>
             <p style={{ fontSize: "0.8125rem", color: "#9ca3af" }}>
-              <span className={styles.placeholder}>[TODO_FOR_OWNER: 상호]</span>{" "}
-              | 대표: <span className={styles.placeholder}>[TODO_FOR_OWNER: 대표자명]</span>{" "}
-              | 사업자등록번호: <span className={styles.placeholder}>[TODO_FOR_OWNER: 사업자등록번호]</span>
+              <V value={c.company_name} />{" "}
+              | 대표: <V value={c.representative} />{" "}
+              | 사업자등록번호: <V value={c.business_number} />
               <br />
-              주소: <span className={styles.placeholder}>[TODO_FOR_OWNER: 사업장 주소]</span>
+              주소: <V value={c.address} />
               <br />
-              고객센터: <span className={styles.placeholder}>[TODO_FOR_OWNER: 고객센터 이메일]</span>{" "}
-              / <span className={styles.placeholder}>[TODO_FOR_OWNER: 고객센터 전화번호]</span>
+              고객센터: <V value={c.support_email} />{" "}
+              / <V value={c.support_phone} />
             </p>
           </div>
         </article>

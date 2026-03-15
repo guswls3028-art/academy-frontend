@@ -280,12 +280,6 @@ export default function AnswerKeyRegisterModal({
 
   const handleSave = async () => {
     setSaveBusy(true);
-    const stepLog = (msg: string, data?: unknown) => {
-      if (import.meta.env.DEV) {
-        console.log("[AnswerKeyRegister] " + msg, data ?? "");
-      }
-    };
-    stepLog("handleSave 시작", { canEditQuestions, examId, hasAnswerKey: !!answerKey });
     try {
       const normalized = normalizeAnswers(draft);
       const essayIds = new Set(
@@ -296,10 +290,8 @@ export default function AnswerKeyRegisterModal({
       });
       const targetExamId = examId;
       if (!answerKey) {
-        stepLog("createAnswerKey 호출", { exam: targetExamId, answerKeys: Object.keys(normalized).length });
         await createAnswerKey({ exam: targetExamId, answers: normalized });
       } else {
-        stepLog("updateAnswerKey 호출", { id: answerKey.id, exam: answerKey.exam, answerKeys: Object.keys(normalized).length });
         await updateAnswerKey(answerKey.id, { exam: answerKey.exam, answers: normalized });
       }
       await qc.invalidateQueries({ queryKey: ["answer-key", examId] });
@@ -307,14 +299,11 @@ export default function AnswerKeyRegisterModal({
         const toPatch = sortedQuestions.filter(
           (q) => Number.isFinite(scoreDraft[q.id] ?? q.score ?? 0) && (scoreDraft[q.id] ?? q.score ?? 0) !== (q.score ?? 0)
         );
-        stepLog("문항 점수 PATCH", { count: toPatch.length, canEditQuestions });
         for (const q of toPatch) {
           const nextScore = scoreDraft[q.id] ?? q.score ?? 0;
           await patchQuestionScore({ questionId: q.id, score: nextScore });
         }
         await qc.invalidateQueries({ queryKey: ["exam-questions", examId] });
-      } else {
-        stepLog("문항 점수 PATCH 생략 (regular 시험)", { canEditQuestions });
       }
       feedback.success(
         canEditQuestions ? "저장되었습니다." : "정답이 저장되었습니다. 문항·배점 수정은 템플릿 시험에서만 가능합니다."
@@ -323,7 +312,6 @@ export default function AnswerKeyRegisterModal({
     } catch (e: any) {
       const raw = e?.response?.data;
       const detail = raw?.detail ?? raw ?? e?.message;
-      stepLog("저장 실패", { status: e?.response?.status, detail });
       const msg =
         typeof detail === "string"
           ? detail

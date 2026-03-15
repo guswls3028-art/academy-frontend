@@ -14,6 +14,7 @@ import { updateAdminExam } from "@/features/exams/api/adminExam";
 import { fetchSessionEnrollments } from "@/features/exams/api/sessionEnrollments";
 import { updateExamEnrollmentRows } from "@/features/exams/api/examEnrollments";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import type { AnswerVisibility } from "@/features/exams/types";
 
 type Props = {
   open: boolean;
@@ -45,6 +46,7 @@ export default function CreateRegularExamModal({
   const [maxScore, setMaxScore] = useState("100");
   const [passScore, setPassScore] = useState("0");
   const [savingSetup, setSavingSetup] = useState(false);
+  const [answerVisibility, setAnswerVisibility] = useState<AnswerVisibility>("hidden");
 
   // sequential creation tracking
   const [createdCount, setCreatedCount] = useState(0);
@@ -64,6 +66,7 @@ export default function CreateRegularExamModal({
     setMaxScore("100");
     setPassScore("0");
     setSavingSetup(false);
+    setAnswerVisibility("hidden");
     setCreatedCount(0);
     setLastStage("new");
   }, [open]);
@@ -161,6 +164,7 @@ export default function CreateRegularExamModal({
       await updateAdminExam(createdExamId, {
         max_score: Number.isFinite(ms) && ms > 0 ? ms : 100,
         pass_score: Number.isFinite(ps) && ps >= 0 ? ps : 0,
+        answer_visibility: answerVisibility,
       });
       feedback.success(`"${title}" 만점·커트라인 저장 완료`);
       onClose();
@@ -180,6 +184,7 @@ export default function CreateRegularExamModal({
       await updateAdminExam(createdExamId, {
         max_score: Number.isFinite(ms) && ms > 0 ? ms : 100,
         pass_score: Number.isFinite(ps) && ps >= 0 ? ps : 0,
+        answer_visibility: answerVisibility,
       });
       feedback.success(`"${title}" 저장 완료 (${createdCount}번째)`);
       // Reset for next creation
@@ -188,6 +193,7 @@ export default function CreateRegularExamModal({
       setCreatedExamId(null);
       setMaxScore("100");
       setPassScore("0");
+      setAnswerVisibility("hidden");
       setError(null);
       setStage(lastStage);
     } catch (e: any) {
@@ -472,6 +478,23 @@ export default function CreateRegularExamModal({
                     />
                   </div>
                 </div>
+              </div>
+
+              <div className="modal-form-group">
+                <div className="modal-section-label mb-2">정답 공개</div>
+                <select
+                  className="ds-input"
+                  value={answerVisibility}
+                  onChange={(e) => setAnswerVisibility(e.target.value as AnswerVisibility)}
+                  style={{ width: "100%" }}
+                >
+                  <option value="hidden">비공개</option>
+                  <option value="after_closed">마감 후 공개</option>
+                  <option value="always">항상 공개</option>
+                </select>
+                <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+                  학생이 결과 화면에서 정답을 볼 수 있는 조건을 설정합니다.
+                </p>
               </div>
 
               <div className="rounded border border-[var(--color-border-divider)] bg-[color-mix(in_srgb,var(--color-brand-primary)_4%,var(--color-bg-surface))] p-3">

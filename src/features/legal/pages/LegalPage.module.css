@@ -144,3 +144,9 @@
   font-weight: 600;
   font-size: 0.875em;
 }
+
+.unregistered {
+  color: #9ca3af;
+  font-style: italic;
+  font-size: 0.875em;
+}

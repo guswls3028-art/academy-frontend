@@ -56,9 +56,6 @@ export default function ExamPolicyPanel({ examId }: { examId: number }) {
   }
 
   const canEditQuestions = exam.exam_type === "template";
-  if (import.meta.env.DEV) {
-    console.log("[ExamPolicyPanel] exam", { examId, exam_type: exam.exam_type, canEditQuestions });
-  }
 
   const savePassScore = async () => {
     try {

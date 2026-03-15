@@ -2,6 +2,8 @@
 
 import api from "@/student/shared/api/studentApi";
 
+export type AnswerVisibility = "hidden" | "after_closed" | "always";
+
 export type MyExamResult = {
   exam_id: number;
   attempt_id: number;
@@ -10,6 +12,8 @@ export type MyExamResult = {
   is_pass: boolean;
   submitted_at: string | null;
   can_retake: boolean;
+  answer_visibility?: AnswerVisibility;
+  answers_visible?: boolean;
 };
 
 export type MyExamResultItem = {
