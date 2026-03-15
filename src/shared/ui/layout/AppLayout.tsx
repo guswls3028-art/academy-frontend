@@ -17,7 +17,9 @@ import { SendMessageModalProvider } from "@/features/messages/context/SendMessag
 import { useIsMobile } from "@/shared/hooks/useIsMobile";
 import { useFavicon } from "@/shared/hooks/useFavicon";
 
-const NOTICE_DISMISS_KEY = "admin_notice_refresh_0316";
+// 빌드마다 새 키 → 배포 후 배너 1회 노출, 새로고침 후 사라짐
+const BUILD_ID = String(import.meta.env.VITE_APP_VERSION || __BUILD_TIMESTAMP__ || "dev");
+const NOTICE_DISMISS_KEY = `admin_refresh_${BUILD_ID}`;
 
 function useNoticeBannerHeight() {
   const bannerRef = useRef<HTMLDivElement>(null);
