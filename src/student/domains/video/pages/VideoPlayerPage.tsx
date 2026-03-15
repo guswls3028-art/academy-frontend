@@ -193,7 +193,8 @@ export default function VideoPlayerPage() {
   }, [playbackQuery.data, playbackQuery.error, videoId]);
 
   const loading = playbackQuery.isLoading;
-  const sessionId = video?.session_id ?? null;
+  const urlSessionId = safeParseInt(q.get("session"));
+  const sessionId = video?.session_id ?? urlSessionId ?? null;
 
   /* ─── 세션 영상 목록 (React Query, dependent) ─── */
   const sessionVideosQuery = useQuery({
@@ -243,6 +244,13 @@ export default function VideoPlayerPage() {
     if (!sessionVideosData?.items?.length || !videoId) return -1;
     return sessionVideosData.items.findIndex((v) => v.id === videoId);
   }, [sessionVideosData, videoId]);
+
+  // Defer comments to reduce bandwidth contention during player initialization
+  const [showComments, setShowComments] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setShowComments(true), 2000);
+    return () => clearTimeout(t);
+  }, []);
 
   const [fatalError, setFatalError] = useState<string | null>(null);
   const onFatal = useCallback((reason: string) => setFatalError(reason), []);
@@ -382,8 +390,8 @@ export default function VideoPlayerPage() {
             </div>
           </div>
 
-          {/* ─── 댓글 섹션 ─── */}
-          {videoId && <VideoCommentSection videoId={videoId} />}
+          {/* ─── 댓글 섹션 (플레이어 로드 후 지연 렌더링) ─── */}
+          {videoId && showComments && <VideoCommentSection videoId={videoId} />}
 
           {/* ─── 재생목록 드로어 ─── */}
           {hasPlaylist && (

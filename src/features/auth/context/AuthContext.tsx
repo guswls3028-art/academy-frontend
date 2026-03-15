@@ -145,7 +145,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
       api.get<User>("/core/me/").then(
-        (res) => setUser(res.data ?? null),
+        (res) => {
+          const newUser = res.data ?? null;
+          setUser((prev) => {
+            if (
+              prev && newUser &&
+              prev.id === newUser.id &&
+              prev.tenantRole === newUser.tenantRole &&
+              prev.name === newUser.name &&
+              prev.is_staff === newUser.is_staff &&
+              prev.is_superuser === newUser.is_superuser
+            ) {
+              return prev; // Same user data, skip re-render
+            }
+            return newUser;
+          });
+        },
         (err: any) => {
           const status = err?.response?.status;
           if (status === 401 || status === 403 || status === 404) {

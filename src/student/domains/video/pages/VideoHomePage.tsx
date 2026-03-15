@@ -5,6 +5,7 @@
  * 성능 최적화: /student/video/me/ 응답의 video_count, total_duration,
  * thumbnail_url 요약을 사용하여 추가 API 호출 없이 카드 렌더링.
  */
+import { useEffect } from "react";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { fetchVideoMe } from "../api/video";
 import type { StudentVideoMeLecture, StudentVideoMePublic } from "../api/video";
@@ -46,6 +47,11 @@ function LectureCourseCard({ lecture }: { lecture: StudentVideoMeLecture }) {
 }
 
 export default function VideoHomePage() {
+  // Preload hls.js chunk for faster video playback start
+  useEffect(() => {
+    import("hls.js").catch(() => {});
+  }, []);
+
   const { data: videoMe, isLoading, isError } = useQuery({
     queryKey: ["student-video-me"],
     queryFn: fetchVideoMe,

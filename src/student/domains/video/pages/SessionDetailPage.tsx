@@ -3,8 +3,8 @@
  */
 import { useEffect, useState } from "react";
 import { useParams, useNavigate, useSearchParams, Link } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
-import { fetchStudentSessionVideos } from "../api/video";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { fetchStudentSessionVideos, fetchStudentVideoPlayback } from "../api/video";
 import EmptyState from "@/student/shared/ui/layout/EmptyState";
 import StudentPageShell from "@/student/shared/ui/pages/StudentPageShell";
 import { IconPlay } from "@/student/shared/ui/icons/Icons";
@@ -49,8 +49,10 @@ function VideoStatusBadge({ status }: { status: string }) {
 function VideoListItem({
   video,
   enrollmentId,
+  sessionId,
   isCurrent = false,
   progress = 0, // 0-100
+  onPrefetch,
 }: {
   video: {
     id: number;
@@ -60,14 +62,16 @@ function VideoListItem({
     status?: string;
   };
   enrollmentId?: number | null;
+  sessionId?: number | null;
   isCurrent?: boolean;
   progress?: number; // 0-100
+  onPrefetch?: (videoId: number) => void;
 }) {
   const videoStatus = video.status ?? "READY";
   const isPlayable = videoStatus === "READY";
 
   const href = isPlayable
-    ? `/student/video/play?video=${video.id}${enrollmentId ? `&enrollment=${enrollmentId}` : ""}`
+    ? `/student/video/play?video=${video.id}${enrollmentId ? `&enrollment=${enrollmentId}` : ""}${sessionId ? `&session=${sessionId}` : ""}`
     : undefined;
 
   const handleClick = (e: React.MouseEvent) => {
@@ -98,8 +102,10 @@ function VideoListItem({
         boxShadow: "0 4px 12px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05)",
         position: "relative",
       }}
+      onTouchStart={() => { if (isPlayable && onPrefetch) onPrefetch(video.id); }}
       onMouseEnter={(e) => {
         if (!isPlayable) return;
+        if (onPrefetch) onPrefetch(video.id);
         e.currentTarget.style.transform = "translateY(-4px)";
         e.currentTarget.style.boxShadow = "0 8px 20px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.1)";
         e.currentTarget.style.background = "#222";
@@ -283,9 +289,16 @@ export default function SessionDetailPage() {
   const { sessionId } = useParams<{ sessionId: string }>();
   const [searchParams] = useSearchParams();
   const nav = useNavigate();
-  
+  const qc = useQueryClient();
+
   const sessionIdNum = sessionId ? parseInt(sessionId, 10) : null;
   const enrollmentId = searchParams.get("enrollment") ? parseInt(searchParams.get("enrollment")!, 10) : null;
+
+  // Preload hls.js and player chunk for faster video playback start
+  useEffect(() => {
+    import("hls.js").catch(() => {});
+    import("./VideoPlayerPage").catch(() => {});
+  }, []);
   
   // 현재 재생 중인 영상 ID (localStorage에서 가져오기 - VideoPlayerPage에서 설정)
   // useMemo 대신 useState + useEffect 사용하여 Hook 순서 일관성 유지
@@ -408,14 +421,22 @@ export default function SessionDetailPage() {
               // 백엔드에서 받은 progress 사용 (0-100)
               const progress = video.progress ?? 0;
               const isCurrent = currentVideoId === video.id;
-              
+
               return (
                 <VideoListItem
                   key={video.id}
                   video={video}
                   enrollmentId={enrollmentId}
+                  sessionId={sessionIdNum}
                   isCurrent={isCurrent}
                   progress={progress}
+                  onPrefetch={(vid) => {
+                    qc.prefetchQuery({
+                      queryKey: ["student-video-playback", vid, enrollmentId],
+                      queryFn: () => fetchStudentVideoPlayback(vid, enrollmentId ?? undefined),
+                      staleTime: 60_000,
+                    });
+                  }}
                 />
               );
             })}
