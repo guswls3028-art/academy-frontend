@@ -595,7 +595,7 @@ export default function ClinicPage() {
             </div>
           )}
 
-          {/* 승인됨 */}
+          {/* 승인됨 — 취소 불가 (백엔드 정책: 승인 후 취소는 선생님만 가능) */}
           {approvedBookings.length > 0 && (
             <div>
               <div style={{ fontSize: 13, fontWeight: 600, color: "var(--stu-text-muted)", marginBottom: "var(--stu-space-2)" }}>
@@ -621,19 +621,15 @@ export default function ClinicPage() {
                           {request.session_location}
                         </div>
                       </div>
-                      <button
-                        type="button"
-                        className="stu-btn stu-btn--secondary"
-                        style={{ fontSize: 12, padding: "4px 10px", whiteSpace: "nowrap", flexShrink: 0, color: "var(--stu-danger)" }}
-                        disabled={cancelMutation.isPending}
-                        onClick={() => {
-                          if (window.confirm("예약을 취소할까요?")) {
-                            cancelMutation.mutate(request.id);
-                          }
+                      <span
+                        style={{
+                          fontSize: 12, fontWeight: 600, padding: "3px 10px",
+                          borderRadius: 6, background: "var(--stu-success-bg)",
+                          color: "var(--stu-success-text, #065f46)", whiteSpace: "nowrap",
                         }}
                       >
-                        예약 취소
-                      </button>
+                        확정
+                      </span>
                     </div>
                   </div>
                 ))}
