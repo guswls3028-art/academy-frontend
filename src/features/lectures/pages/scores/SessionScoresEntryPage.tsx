@@ -456,6 +456,17 @@ export default function SessionScoresEntryPage(_props: Props) {
         클리닉
       </Button>
 
+      <Button
+        type="button"
+        intent="secondary"
+        size="sm"
+        disabled={enrollingAll}
+        onClick={() => void handleEnrollAll()}
+        title="강의 수강생 전원을 이 차시에 등록"
+      >
+        {enrollingAll ? "등록 중…" : "대상자 전원등록"}
+      </Button>
+
       {/* 더보기 메뉴 (덜 쓰는 액션 그룹핑) */}
       <div ref={moreMenuRef} className="relative">
         <Button
@@ -478,10 +489,6 @@ export default function SessionScoresEntryPage(_props: Props) {
             </button>
             <button type="button" className="w-full text-left px-4 py-2 text-sm hover:bg-[var(--color-bg-surface-hover)] flex items-center gap-2" onClick={() => { setShowCreateHomework(true); setShowMoreMenu(false); }}>
               <span className="text-[var(--color-text-muted)]">+</span> 과제 추가
-            </button>
-            <div className="border-t border-[var(--color-border-divider)] my-1" />
-            <button type="button" className="w-full text-left px-4 py-2 text-sm hover:bg-[var(--color-bg-surface-hover)]" disabled={enrollingAll} onClick={() => { void handleEnrollAll(); setShowMoreMenu(false); }}>
-              {enrollingAll ? "등록 중…" : "대상자 전체 등록"}
             </button>
             <div className="border-t border-[var(--color-border-divider)] my-1" />
             <button type="button" className="w-full text-left px-4 py-2 text-sm text-[var(--color-error)] hover:bg-[var(--color-bg-surface-hover)]" disabled={closingExams} onClick={() => { void handleCloseAllExams(); setShowMoreMenu(false); }}>

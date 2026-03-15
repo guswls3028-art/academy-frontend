@@ -267,12 +267,14 @@ export default function SessionEnrollModal({
     queryKey: ["attendance-enrolled-ids", sessionId],
     queryFn: () => fetchAttendanceEnrolledStudentIds(sessionId),
     enabled: isOpen && Number.isFinite(sessionId),
+    staleTime: 0,
   });
 
   const { data: sessionEnrollments = [] } = useQuery({
     queryKey: ["session-enrollments", sessionId],
     queryFn: () => fetchSessionEnrollments(sessionId),
     enabled: isOpen && Number.isFinite(sessionId),
+    staleTime: 0,
   });
 
   const { data: sessions = [] } = useQuery({
@@ -288,7 +290,11 @@ export default function SessionEnrollModal({
   const prevSession = useMemo(() => {
     const idx = sortedSessions.findIndex((s) => s.id === sessionId);
     if (idx <= 0) return null;
-    return sortedSessions[idx - 1];
+    // 보강 세션은 건너뛰고 가장 가까운 정규 차시를 찾음
+    for (let i = idx - 1; i >= 0; i--) {
+      if (!(sortedSessions[i] as { title?: string }).title?.includes?.("보강")) return sortedSessions[i];
+    }
+    return sortedSessions[idx - 1]; // 전부 보강이면 직전 세션 사용
   }, [sortedSessions, sessionId]);
 
   const alreadyEnrolledIds = useMemo(
@@ -346,11 +352,13 @@ export default function SessionEnrollModal({
     onSuccess: async (result) => {
       const { created, payload } = result;
       const { studentIds, statusByStudentId } = payload;
-      qc.invalidateQueries({ queryKey: ["session-enrollments", sessionId] });
-      qc.invalidateQueries({ queryKey: ["attendance", sessionId] });
-      qc.invalidateQueries({ queryKey: ["attendance-enrolled-ids", sessionId] });
-      qc.invalidateQueries({ queryKey: ["attendance-matrix", lectureId] });
-      qc.invalidateQueries({ queryKey: ["lecture-enrollments", lectureId] });
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["session-enrollments", sessionId] }),
+        qc.invalidateQueries({ queryKey: ["attendance", sessionId] }),
+        qc.invalidateQueries({ queryKey: ["attendance-enrolled-ids", sessionId] }),
+        qc.invalidateQueries({ queryKey: ["attendance-matrix", lectureId] }),
+        qc.invalidateQueries({ queryKey: ["lecture-enrollments", lectureId] }),
+      ]);
       if (statusByStudentId && created.length) {
         for (let i = 0; i < created.length; i++) {
           const studentId = studentIds[i];
