@@ -195,7 +195,7 @@ export default function ClinicConsoleWorkspace({
             type="button"
             onClick={() => setAddStudentModalOpen(true)}
             style={{
-              display: "inline-flex", alignItems: "center", gap: 4,
+              display: "inline-flex", alignItems: "center", gap: 4, whiteSpace: "nowrap" as const,
               padding: "4px 10px", fontSize: 12, fontWeight: 600,
               border: "1px dashed var(--color-brand-primary)", borderRadius: "var(--radius-sm)",
               background: "transparent", color: "var(--color-brand-primary)",

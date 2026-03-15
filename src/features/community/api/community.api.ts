@@ -538,20 +538,14 @@ export async function fetchCommunityQuestions(
   const isQnaPost = (p: PostEntity) =>
     qnaBlockTypeId != null ? p.block_type === qnaBlockTypeId : (p.block_type_label || "").toLowerCase().includes("qna");
 
-  // 관리자 "전체" 범위: admin API로 전체 QnA 목록 조회 (페이지네이션 500)
-  if (!params || params.scope === "all") {
-    const { results } = await fetchAdminPosts({
-      blockTypeId: qnaBlockTypeId ?? undefined,
-      pageSize: 500,
-    });
-    const filtered = qnaBlockTypeId != null ? results : results.filter(isQnaPost);
-    return filtered.map(toQuestion);
-  }
-  const nodes = await fetchScopeNodes();
-  const nodeId = resolveNodeIdFromScope(nodes, params);
-  const list = await fetchPosts({ nodeId: nodeId ?? undefined });
-  const qnaOnly = list.filter(isQnaPost);
-  return qnaOnly.map(toQuestion);
+  // 관리자: 항상 admin API 사용 (학생 글은 node_ids=[] 이므로 scope 기반 조회에서 누락됨)
+  const { results } = await fetchAdminPosts({
+    blockTypeId: qnaBlockTypeId ?? undefined,
+    lectureId: params?.scope === "lecture" ? (params.lectureId ?? undefined) : undefined,
+    pageSize: 500,
+  });
+  const filtered = qnaBlockTypeId != null ? results : results.filter(isQnaPost);
+  return filtered.map(toQuestion);
 }
 
 export interface Answer {

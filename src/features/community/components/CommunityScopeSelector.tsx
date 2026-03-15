@@ -72,11 +72,18 @@ export default function CommunityScopeSelector() {
           style={{ width: 200 }}
         >
           <option value="">차시 선택</option>
-          {sessions.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.order}차시 · {s.title || "제목 없음"}
-            </option>
-          ))}
+          {[...sessions]
+            .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+            .map((s) => {
+              const isSupplement = (s.title ?? "").includes("보강");
+              const label = isSupplement ? "보강" : `${s.order}차시`;
+              const dateStr = s.date ? ` (${new Date(s.date).toLocaleDateString("ko-KR", { month: "2-digit", day: "2-digit" })})` : "";
+              return (
+                <option key={s.id} value={s.id}>
+                  {label}{dateStr}
+                </option>
+              );
+            })}
         </select>
       )}
     </div>
