@@ -61,7 +61,7 @@ export default function ExamListPage() {
 
   return (
     <StudentPageShell title="시험">
-      {isLoading && <div>불러오는 중…</div>}
+      {isLoading && <div className="stu-muted">불러오는 중…</div>}
       {isError && <EmptyState title="시험 목록 오류" />}
 
       {!isLoading && !isError && items.length === 0 && (

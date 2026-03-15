@@ -67,7 +67,7 @@ export default function DashboardPage() {
       description="학원 운영 현황을 한눈에 확인하세요."
     >
       {isDashError && (
-        <div style={{ padding: 24, textAlign: "center", color: "#999", marginBottom: 16 }}>
+        <div style={{ padding: 24, textAlign: "center", color: "var(--color-text-muted)", marginBottom: 16 }}>
           데이터를 불러올 수 없습니다. 잠시 후 다시 시도해 주세요.
         </div>
       )}

@@ -74,13 +74,13 @@ export default function ExamAdminPage() {
     <DomainLayout title="시험" description="모든 시험을 한눈에 확인하고, 새 시험을 추가할 수 있습니다.">
       <style>{`
         .exam-domain-card:hover {
-          border-color: var(--color-primary) !important;
+          border-color: var(--color-primary);
           box-shadow: 0 2px 12px rgba(0,0,0,0.06);
           transform: translateY(-2px);
         }
         .exam-add-card:hover {
-          border-color: var(--color-primary) !important;
-          background: var(--color-bg-surface-soft) !important;
+          border-color: var(--color-primary);
+          background: var(--color-bg-surface-soft);
         }
       `}</style>
 

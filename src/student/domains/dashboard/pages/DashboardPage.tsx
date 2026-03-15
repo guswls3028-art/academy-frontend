@@ -111,10 +111,10 @@ export default function DashboardPage() {
             textDecoration: "none",
             color: "inherit",
             marginBottom: "var(--stu-space-4)",
-            borderRadius: 14,
+            borderRadius: "var(--stu-radius-lg, 12px)",
             background: nextSession.session.type === "clinic"
-              ? "linear-gradient(135deg, rgba(16,185,129,0.08) 0%, var(--stu-surface) 60%)"
-              : "linear-gradient(135deg, rgba(99,102,241,0.08) 0%, var(--stu-surface) 60%)",
+              ? "linear-gradient(135deg, rgba(16,185,129,0.08) 0%, var(--stu-surface) 60%)" /* tint — no token */
+              : "linear-gradient(135deg, rgba(99,102,241,0.08) 0%, var(--stu-surface) 60%)" /* tint — no token */,
             border: nextSession.session.type === "clinic"
               ? "1.5px solid rgba(16,185,129,0.2)"
               : "1.5px solid rgba(99,102,241,0.2)",
@@ -166,8 +166,8 @@ export default function DashboardPage() {
           textDecoration: "none",
           color: "inherit",
           marginBottom: "var(--stu-space-6)",
-          borderRadius: 14,
-          background: "linear-gradient(135deg, rgba(59,130,246,0.07) 0%, var(--stu-surface) 55%)",
+          borderRadius: "var(--stu-radius-lg, 12px)",
+          background: "linear-gradient(135deg, rgba(59,130,246,0.07) 0%, var(--stu-surface) 55%)" /* tint — no token */,
           border: "1.5px solid rgba(59,130,246,0.18)",
           boxShadow: "0 2px 16px rgba(59,130,246,0.08), 0 1px 4px rgba(0,0,0,0.04)",
           padding: "14px 16px 12px",
@@ -257,7 +257,7 @@ export default function DashboardPage() {
             오늘 할 일
           </div>
           <div style={{
-            borderRadius: 14,
+            borderRadius: "var(--stu-radius-lg, 12px)",
             border: "1.5px solid var(--stu-border)",
             background: "var(--stu-surface)",
             overflow: "hidden",
@@ -277,13 +277,13 @@ export default function DashboardPage() {
               >
                 <div style={{
                   width: 36, height: 36, borderRadius: 10,
-                  background: "rgba(245,158,11,0.1)",
+                  background: "rgba(245,158,11,0.1)" /* tint — no token */,
                   display: "grid", placeItems: "center", flexShrink: 0,
                 }}>
-                  <IconClipboard style={{ width: 18, height: 18, color: "#f59e0b" }} />
+                  <IconClipboard style={{ width: 18, height: 18, color: "var(--stu-warn, #f59e0b)" }} />
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 600, fontSize: 14, color: "#b45309" }}>
+                  <div style={{ fontWeight: 600, fontSize: 14, color: "var(--stu-warn-text, #b45309)" }}>
                     과제 미통과 {failedHomeworkCount}건
                   </div>
                 </div>
@@ -305,13 +305,13 @@ export default function DashboardPage() {
               >
                 <div style={{
                   width: 36, height: 36, borderRadius: 10,
-                  background: "rgba(239,68,68,0.1)",
+                  background: "rgba(239,68,68,0.1)" /* tint — no token */,
                   display: "grid", placeItems: "center", flexShrink: 0,
                 }}>
-                  <IconExam style={{ width: 18, height: 18, color: "#ef4444" }} />
+                  <IconExam style={{ width: 18, height: 18, color: "var(--stu-danger)" }} />
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 600, fontSize: 14, color: "#dc2626" }}>
+                  <div style={{ fontWeight: 600, fontSize: 14, color: "var(--stu-danger)" }}>
                     재시험 필요 {failedExamCount}건
                   </div>
                 </div>
@@ -332,13 +332,13 @@ export default function DashboardPage() {
               >
                 <div style={{
                   width: 36, height: 36, borderRadius: 10,
-                  background: "rgba(59,130,246,0.1)",
+                  background: "rgba(59,130,246,0.1)" /* tint — no token */,
                   display: "grid", placeItems: "center", flexShrink: 0,
                 }}>
-                  <IconClinic style={{ width: 18, height: 18, color: "#3b82f6" }} />
+                  <IconClinic style={{ width: 18, height: 18, color: "var(--stu-primary)" }} />
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 600, fontSize: 14, color: "#2563eb" }}>
+                  <div style={{ fontWeight: 600, fontSize: 14, color: "var(--stu-primary)" }}>
                     클리닉 예약이 있습니다
                   </div>
                 </div>

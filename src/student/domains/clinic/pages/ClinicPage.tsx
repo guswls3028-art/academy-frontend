@@ -33,7 +33,6 @@ export default function ClinicPage() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedSessionId, setSelectedSessionId] = useState<number | null>(null);
   const [memo, setMemo] = useState("");
-  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [activeTab, setActiveTab] = useState<"book" | "schedule">("book");
 
   // 알림 카운트는 invalidateQueries로 자동 갱신됨
@@ -71,8 +70,7 @@ export default function ClinicPage() {
       qc.invalidateQueries({ queryKey: ["student", "notifications", "counts"] });
       setSelectedSessionId(null);
       setMemo("");
-      setShowSuccessMessage(true);
-      setTimeout(() => setShowSuccessMessage(false), 3000);
+      studentToast.success("예약이 완료되었습니다.");
     },
     onError: (error: any) => {
       const message =
@@ -109,8 +107,7 @@ export default function ClinicPage() {
       qc.invalidateQueries({ queryKey: ["student", "notifications", "counts"] });
       setSelectedSessionId(null);
       setMemo("");
-      setShowSuccessMessage(true);
-      setTimeout(() => setShowSuccessMessage(false), 3000);
+      studentToast.success("일정 변경이 완료되었습니다.");
     },
     onError: (error: any) => {
       const message =
@@ -125,7 +122,6 @@ export default function ClinicPage() {
   const handleDateSelect = (date: string) => {
     setSelectedDate(date);
     setSelectedSessionId(null);
-    setShowSuccessMessage(false);
 
     const existingBooking = myRequests.find((r) => r.session_date === date);
     if (existingBooking && (existingBooking.status === "pending" || existingBooking.status === "booked" || existingBooking.status === "approved")) {
@@ -342,24 +338,6 @@ export default function ClinicPage() {
             )}
           </button>
         </div>
-
-        {/* 성공 메시지 */}
-        {showSuccessMessage && (
-          <div
-            className="stu-panel"
-            style={{
-              padding: "var(--stu-space-4)",
-              background: "var(--stu-success-bg)",
-              border: "1px solid var(--stu-success)",
-              borderRadius: "var(--stu-radius-md)",
-              textAlign: "center",
-            }}
-          >
-            <div style={{ fontWeight: 600, fontSize: 15, color: "var(--stu-success-text)" }}>
-              신청이 완료되었습니다.
-            </div>
-          </div>
-        )}
 
         {/* ===== 예약 탭 ===== */}
         {activeTab === "book" && (<>
