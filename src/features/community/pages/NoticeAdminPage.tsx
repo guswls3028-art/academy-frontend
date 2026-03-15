@@ -722,6 +722,7 @@ function NoticeCreatePane({
   const [error, setError] = useState<string | null>(null);
 
   // Auto-resolve node_ids from current scope
+  // 전체공지(scope=all)는 매핑 없음(node_ids=[]) — 모든 학생에게 노출
   const autoNodeIds = useMemo(() => {
     if (scopeParams.scope === "session" && scopeParams.sessionId != null) {
       const node = scopeNodes.find(
@@ -733,8 +734,8 @@ function NoticeCreatePane({
       const nodes = scopeNodes.filter((n) => n.lecture === scopeParams.lectureId && n.level === "COURSE");
       return nodes.map((n) => n.id);
     }
-    // scope="all" → all COURSE nodes
-    return scopeNodes.filter((n) => n.level === "COURSE").map((n) => n.id);
+    // scope="all" → 전체 공지: 매핑 없음
+    return [];
   }, [scopeNodes, scopeParams]);
 
   const scopeLabel = scopeParams.scope === "session"
@@ -743,7 +744,7 @@ function NoticeCreatePane({
     ? scopeNodes.find((n) => n.lecture === scopeParams.lectureId)?.lecture_title ?? "선택된 강의"
     : "전체 공지";
 
-  const canSubmit = title.trim().length > 0 && autoNodeIds.length > 0 && !submitting;
+  const canSubmit = title.trim().length > 0 && !submitting;
 
   const handleSubmit = async () => {
     if (!canSubmit) return;

@@ -465,6 +465,7 @@ function MatCreatePane({
   const [error, setError] = useState<string | null>(null);
 
   // Auto-resolve node_ids from current scope
+  // 전체 자료(scope=all)는 매핑 없음(node_ids=[])
   const autoNodeIds = useMemo(() => {
     if (scopeParams.scope === "session" && scopeParams.sessionId != null) {
       const node = scopeNodes.find(
@@ -476,7 +477,7 @@ function MatCreatePane({
       const nodes = scopeNodes.filter((n) => n.lecture === scopeParams.lectureId && n.level === "COURSE");
       return nodes.map((n) => n.id);
     }
-    return scopeNodes.filter((n) => n.level === "COURSE").map((n) => n.id);
+    return [];
   }, [scopeNodes, scopeParams]);
 
   const scopeLabel = scopeParams.scope === "session"
@@ -485,7 +486,7 @@ function MatCreatePane({
     ? scopeNodes.find((n) => n.lecture === scopeParams.lectureId)?.lecture_title ?? "선택된 강의"
     : "전체 자료";
 
-  const canSubmit = title.trim().length > 0 && autoNodeIds.length > 0 && !submitting;
+  const canSubmit = title.trim().length > 0 && !submitting;
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
