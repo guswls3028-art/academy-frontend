@@ -283,9 +283,67 @@ export default function ClinicPage() {
     );
   }
 
+  const [activeTab, setActiveTab] = useState<"book" | "schedule">("book");
+
   return (
     <StudentPageShell title="클리닉">
-      <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-6)" }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-4)" }}>
+        {/* 탭 바 */}
+        <div style={{
+          display: "flex", gap: 0, borderRadius: 10,
+          background: "var(--stu-surface-soft, #f1f5f9)",
+          padding: 3, marginBottom: "var(--stu-space-2)",
+        }}>
+          <button
+            type="button"
+            onClick={() => setActiveTab("book")}
+            style={{
+              flex: 1, padding: "8px 0", borderRadius: 8,
+              border: "none", cursor: "pointer",
+              fontSize: 14, fontWeight: 600,
+              background: activeTab === "book" ? "var(--stu-surface, #fff)" : "transparent",
+              color: activeTab === "book" ? "var(--stu-text)" : "var(--stu-text-muted)",
+              boxShadow: activeTab === "book" ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
+              transition: "all 0.15s",
+            }}
+          >
+            예약
+            {(pendingBookings.length + approvedBookings.length) > 0 && activeTab !== "schedule" && (
+              <span style={{
+                marginLeft: 6, fontSize: 11, fontWeight: 700,
+                background: "var(--stu-primary)", color: "#fff",
+                borderRadius: 999, padding: "1px 6px", verticalAlign: "middle",
+              }}>
+                {pendingBookings.length + approvedBookings.length}
+              </span>
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab("schedule")}
+            style={{
+              flex: 1, padding: "8px 0", borderRadius: 8,
+              border: "none", cursor: "pointer",
+              fontSize: 14, fontWeight: 600,
+              background: activeTab === "schedule" ? "var(--stu-surface, #fff)" : "transparent",
+              color: activeTab === "schedule" ? "var(--stu-text)" : "var(--stu-text-muted)",
+              boxShadow: activeTab === "schedule" ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
+              transition: "all 0.15s",
+            }}
+          >
+            내 일정
+            {(pendingBookings.length + approvedBookings.length) > 0 && activeTab !== "book" && (
+              <span style={{
+                marginLeft: 6, fontSize: 11, fontWeight: 700,
+                background: "var(--stu-primary)", color: "#fff",
+                borderRadius: 999, padding: "1px 6px", verticalAlign: "middle",
+              }}>
+                {pendingBookings.length + approvedBookings.length}
+              </span>
+            )}
+          </button>
+        </div>
+
         {/* 성공 메시지 */}
         {showSuccessMessage && (
           <div
@@ -304,6 +362,8 @@ export default function ClinicPage() {
           </div>
         )}
 
+        {/* ===== 예약 탭 ===== */}
+        {activeTab === "book" && (<>
         {/* 세션 조회 에러 */}
         {sessionsError && (
           <div
@@ -524,6 +584,10 @@ export default function ClinicPage() {
           </div>
         )}
 
+        </>)}
+
+        {/* ===== 내 일정 탭 ===== */}
+        {activeTab === "schedule" && (<>
         {/* 내 예약 현황 (클리닉 신청자 실데이터) */}
         <div className="stu-section stu-section--nested">
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "var(--stu-space-4)", flexWrap: "wrap", gap: 8 }}>
@@ -645,10 +709,11 @@ export default function ClinicPage() {
           {pendingBookings.length === 0 && approvedBookings.length === 0 && (
             <EmptyState
               title="예약 내역이 없습니다"
-              description="달력에서 날짜를 선택하여 예약을 신청하세요."
+              description="예약 탭에서 클리닉을 신청해 보세요."
             />
           )}
         </div>
+        </>)}
       </div>
     </StudentPageShell>
   );
