@@ -4,11 +4,10 @@
  */
 export type ExamStatus = "draft" | "open" | "grading" | "completed";
 
-/** 과제와 동일. 운영 보드에서만 사용. 사용자에는 설정 중/진행 중/마감으로만 노출 */
+/** 운영 보드 상태. DRAFT는 레거시 — 모두 OPEN으로 취급. */
 export type ExamPhaseStatus = "DRAFT" | "OPEN" | "CLOSED";
 
-export const EXAM_PHASE_LABEL: Record<ExamPhaseStatus, string> = {
-  DRAFT: "설정 중",
+export const EXAM_PHASE_LABEL: Record<string, string> = {
   OPEN: "진행 중",
   CLOSED: "마감",
 };
@@ -21,7 +20,7 @@ export function getExamStatus(
   const open = openAt ? new Date(openAt) : null;
   const close = closeAt ? new Date(closeAt) : null;
 
-  if (!open || open > now) return "draft";
+  if (!open || open > now) return "open";
   if (close && now > close) return "grading";
   return "open";
 }

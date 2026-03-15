@@ -15,6 +15,8 @@ export type ClinicParticipant = {
   // ✅ 백엔드 단일진실: session FK
   session: number;
 
+  /** student PK (백엔드 fields="__all__"로 포함) */
+  student: number;
   student_name: string;
   enrollment_id?: number;
   clinic_reason?: "exam" | "homework" | "both";

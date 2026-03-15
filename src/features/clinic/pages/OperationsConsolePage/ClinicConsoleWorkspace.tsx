@@ -3,7 +3,8 @@
  * 선택한 클리닉 수업의 대상자 관리 — 진행 요약 바 + 출석/불참 토글 + 미통과 항목 인라인 표시 + 상세 드로어
  */
 
-import { useMemo, useState } from "react";
+import { lazy, Suspense, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 
@@ -14,6 +15,8 @@ import { patchClinicParticipantStatus } from "../../api/clinicParticipants.api";
 import type { ClinicTarget } from "../../api/clinicTargets";
 import { useClinicTargets } from "../../hooks/useClinicTargets";
 import { feedback } from "@/shared/ui/feedback/feedback";
+
+const StudentsDetailOverlay = lazy(() => import("@/features/students/overlays/StudentsDetailOverlay"));
 
 function formatTime(s: string | undefined) {
   if (!s) return "—";
@@ -75,6 +78,7 @@ export default function ClinicConsoleWorkspace({
   const qc = useQueryClient();
   const navigate = useNavigate();
   const [drawer, setDrawer] = useState<DrawerState>(null);
+  const [studentOverlayId, setStudentOverlayId] = useState<number | null>(null);
 
   const { data: clinicTargets } = useClinicTargets();
 
@@ -296,8 +300,8 @@ export default function ClinicConsoleWorkspace({
                       <button
                         type="button"
                         onClick={() => {
-                          if (p.enrollment_id) {
-                            window.open(`/admin/students?highlight=${p.enrollment_id}`, "_blank");
+                          if (p.student) {
+                            setStudentOverlayId(p.student);
                           }
                         }}
                         style={{
@@ -527,6 +531,18 @@ export default function ClinicConsoleWorkspace({
           </div>
         </>
       )}
+
+      {/* Student detail overlay — portal to body for proper z-index layering */}
+      {studentOverlayId != null &&
+        createPortal(
+          <Suspense fallback={null}>
+            <StudentsDetailOverlay
+              studentId={studentOverlayId}
+              onClose={() => setStudentOverlayId(null)}
+            />
+          </Suspense>,
+          document.body,
+        )}
     </>
   );
 }

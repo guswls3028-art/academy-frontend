@@ -13,10 +13,9 @@ import { Button } from "@/shared/ui/ds";
 import ExamKanbanCard from "./ops/ExamKanbanCard";
 import KPICard from "./ops/KPICard";
 
-const STATUS_ORDER: ExamPhaseStatus[] = ["DRAFT", "OPEN", "CLOSED"];
+const STATUS_ORDER: ExamPhaseStatus[] = ["OPEN", "CLOSED"];
 
-const COLUMN_LABELS: Record<ExamPhaseStatus, string> = {
-  DRAFT: "설정 중",
+const COLUMN_LABELS: Record<string, string> = {
   OPEN: "진행 중",
   CLOSED: "마감",
 };
@@ -33,7 +32,7 @@ function toCard(row: SessionExamRow): ExamCardDataPhase {
   return {
     id: row.exam_id,
     title: row.title ?? "",
-    status: row.status ?? "DRAFT",
+    status: (row.status === "CLOSED" ? "CLOSED" : "OPEN") as ExamPhaseStatus,
     enrolled: 0,
     attempted: 0,
     submitted: 0,
@@ -52,18 +51,16 @@ function useExamStatsAndGroups(sessionId: number) {
   const cards = useMemo(() => rows.map(toCard), [rows]);
 
   const stats = useMemo(() => {
-    const s = { draft: 0, open: 0, closed: 0 };
+    const s = { open: 0, closed: 0 };
     cards.forEach((c) => {
-      if (c.status === "DRAFT") s.draft++;
-      else if (c.status === "OPEN") s.open++;
-      else s.closed++;
+      if (c.status === "CLOSED") s.closed++;
+      else s.open++;
     });
     return s;
   }, [cards]);
 
   const byStatus = useMemo(() => {
-    const map: Record<ExamPhaseStatus, ExamCardDataPhase[]> = {
-      DRAFT: [],
+    const map: Record<string, ExamCardDataPhase[]> = {
       OPEN: [],
       CLOSED: [],
     };
@@ -86,7 +83,7 @@ export default function SessionExamOpsBoard({ lectureId, sessionId, onAddExam }:
 
   const hasNoExams =
     !isLoading &&
-    byStatus.DRAFT.length + byStatus.OPEN.length + byStatus.CLOSED.length === 0;
+    byStatus.OPEN.length + byStatus.CLOSED.length === 0;
 
   if (isLoading) {
     return (
@@ -119,9 +116,8 @@ export default function SessionExamOpsBoard({ lectureId, sessionId, onAddExam }:
 
       {/* KPI stat row */}
       {!hasNoExams && (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="grid grid-cols-3 gap-3">
           <KPICard label="전체" value={total} color="gray" />
-          <KPICard label="설정 중" value={stats.draft} color="gray" />
           <KPICard label="진행 중" value={stats.open} color="blue" />
           <KPICard label="마감" value={stats.closed} color="green" />
         </div>
@@ -134,7 +130,7 @@ export default function SessionExamOpsBoard({ lectureId, sessionId, onAddExam }:
             이 차시에 연결된 시험이 없습니다
           </p>
           <p className="mb-4 text-xs text-[var(--color-text-muted)]">
-            시험 추가 후 설정 탭에서 기본 설정을 하고 진행하기를 누르면 배포됩니다.
+            시험을 추가하면 바로 진행됩니다. 종료하려면 종료하기를 눌러주세요.
           </p>
           <Button type="button" intent="primary" size="lg" onClick={onAddExam}>
             + 시험 추가
@@ -144,7 +140,7 @@ export default function SessionExamOpsBoard({ lectureId, sessionId, onAddExam }:
 
       {/* Kanban columns */}
       {!hasNoExams && (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {STATUS_ORDER.map((status) => (
             <div
               key={status}

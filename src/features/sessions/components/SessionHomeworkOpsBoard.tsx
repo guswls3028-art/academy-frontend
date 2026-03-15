@@ -1,5 +1,5 @@
 /**
- * 차시 과제 운영 보드 — KPI + Kanban
+ * 차시 과제 운영 보드 — KPI + Kanban (진행 중 / 마감)
  */
 import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
@@ -12,10 +12,9 @@ import { Button } from "@/shared/ui/ds";
 import HomeworkKanbanCard from "./ops/HomeworkKanbanCard";
 import KPICard from "./ops/KPICard";
 
-const HW_STATUS_ORDER = ["DRAFT", "OPEN", "CLOSED"] as const;
+const HW_STATUS_ORDER = ["OPEN", "CLOSED"] as const;
 
 const COLUMN_LABELS: Record<string, string> = {
-  DRAFT: "설정 중",
   OPEN: "진행 중",
   CLOSED: "마감",
 };
@@ -23,7 +22,6 @@ const COLUMN_LABELS: Record<string, string> = {
 type Props = {
   lectureId: number;
   sessionId: number;
-  /** 메인 영역에서 과제 추가 모달 열기 (좌측 패널과 동일 모달) */
   onAddHomework?: () => void;
 };
 
@@ -31,7 +29,7 @@ function toCard(item: HomeworkListItem): HomeworkCardData {
   return {
     id: item.id,
     title: item.title,
-    status: item.status,
+    status: item.status === "CLOSED" ? "CLOSED" : "OPEN",
   };
 }
 
@@ -45,18 +43,16 @@ function useHomeworkStatsAndGroups(sessionId: number) {
   const cards = useMemo(() => list.map(toCard), [list]);
 
   const stats = useMemo(() => {
-    const s = { draft: 0, open: 0, closed: 0 };
+    const s = { open: 0, closed: 0 };
     cards.forEach((c) => {
-      if (c.status === "DRAFT") s.draft++;
-      else if (c.status === "OPEN") s.open++;
-      else s.closed++;
+      if (c.status === "CLOSED") s.closed++;
+      else s.open++;
     });
     return s;
   }, [cards]);
 
   const byStatus = useMemo(() => {
     const map: Record<string, HomeworkCardData[]> = {
-      DRAFT: [],
       OPEN: [],
       CLOSED: [],
     };
@@ -81,7 +77,7 @@ export default function SessionHomeworkOpsBoard({ lectureId, sessionId, onAddHom
 
   const hasNoHomeworks =
     !isLoading &&
-    (byStatus.DRAFT?.length ?? 0) + (byStatus.OPEN?.length ?? 0) + (byStatus.CLOSED?.length ?? 0) === 0;
+    (byStatus.OPEN?.length ?? 0) + (byStatus.CLOSED?.length ?? 0) === 0;
 
   if (isLoading) {
     return (
@@ -114,9 +110,8 @@ export default function SessionHomeworkOpsBoard({ lectureId, sessionId, onAddHom
 
       {/* KPI stat row */}
       {!hasNoHomeworks && (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="grid grid-cols-3 gap-3">
           <KPICard label="전체" value={total} color="gray" />
-          <KPICard label="설정 중" value={stats.draft} color="gray" />
           <KPICard label="진행 중" value={stats.open} color="blue" />
           <KPICard label="마감" value={stats.closed} color="green" />
         </div>
@@ -139,7 +134,7 @@ export default function SessionHomeworkOpsBoard({ lectureId, sessionId, onAddHom
 
       {/* Kanban columns */}
       {!hasNoHomeworks && (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {HW_STATUS_ORDER.map((status) => (
             <div
               key={status}

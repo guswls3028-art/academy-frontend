@@ -28,14 +28,12 @@ export function ExamStatusBadge({ status, className = "" }: Props) {
   );
 }
 
-/** 과제 단계 표시용 (DRAFT/OPEN/CLOSED는 사용자에게 노출하지 않음) */
+/** 과제 단계 표시용 */
 const HW_LABEL: Record<string, string> = {
-  DRAFT: "설정 중",
   OPEN: "진행 중",
   CLOSED: "마감",
 };
 const HW_CLASS: Record<string, string> = {
-  DRAFT: badgeClass.gray,
   OPEN: badgeClass.blue,
   CLOSED: badgeClass.green,
 };
