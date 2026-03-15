@@ -334,7 +334,10 @@ export default function SessionDetailPage() {
     retry: false,
   });
 
-  const videos = [...(videosData?.items ?? [])].sort((a, b) => (a.id ?? 0) - (b.id ?? 0));
+  const videos = [...(videosData?.items ?? [])].sort((a, b) => {
+    const orderDiff = (a.order ?? 1) - (b.order ?? 1);
+    return orderDiff !== 0 ? orderDiff : (a.id ?? 0) - (b.id ?? 0);
+  });
   const res = (queryError as { response?: { status?: number; data?: { detail?: unknown } } })?.response;
   const is403 = isError && res?.status === 403;
   const serverMessage =

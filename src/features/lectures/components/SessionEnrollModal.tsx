@@ -424,7 +424,9 @@ export default function SessionEnrollModal({
     setCopyFromPrevLoading(true);
     try {
       const prevList = await fetchSessionEnrollments(prevSession.id);
-      const toAddRows = prevList.filter((se) => !alreadyEnrolledIds.has(se.enrollment));
+      const toAddRows = prevList.filter(
+        (se) => !alreadyEnrolledIds.has(se.enrollment) && se.student_id != null && !alreadyEnrolledStudentIds.has(se.student_id)
+      );
       const itemsToAdd: SelectedItem[] = toAddRows
         .filter((se): se is SessionEnrollmentRow & { student_id: number } => se.student_id != null)
         .map((se) => ({ id: se.student_id, name: se.student_name ?? "-" }));
@@ -443,7 +445,7 @@ export default function SessionEnrollModal({
     } finally {
       setCopyFromPrevLoading(false);
     }
-  }, [prevSession, alreadyEnrolledIds]);
+  }, [prevSession, alreadyEnrolledIds, alreadyEnrolledStudentIds]);
 
   const toggleSelect = useCallback((student: ClientStudent) => {
     const id = student.id;
