@@ -586,8 +586,15 @@ export default function ClinicConsoleWorkspace({
           setAddStudentModalOpen(false);
           if (!session || result.ids.length === 0) return;
           const results = await Promise.allSettled(
-            result.ids.map((enrollmentId) =>
-              createClinicParticipant({ session: session.id, enrollment_id: enrollmentId, status: "booked" })
+            result.ids.map((enrollmentId) => {
+              const reason = clinicTargets?.find((t) => t.enrollment_id === enrollmentId)?.clinic_reason;
+              return createClinicParticipant({
+                session: session.id,
+                enrollment_id: enrollmentId,
+                status: "booked",
+                ...(reason ? { clinic_reason: reason } : {}),
+              });
+            }
             )
           );
           const failed = results.filter((r) => r.status === "rejected").length;

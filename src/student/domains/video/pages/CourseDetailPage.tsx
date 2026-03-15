@@ -1,7 +1,7 @@
 /**
  * 수업 상세 페이지 — 상단에 수업 정보, 하단에 차시별 박스 (작은 썸네일 구조)
  */
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { fetchVideoMe, fetchStudentSessionVideos } from "../api/video";
@@ -279,10 +279,13 @@ export default function CourseDetailPage() {
   }
 
   // 전체공개영상: 차시 선택 스킵 → 바로 영상 목록으로 이동
-  if (isPublic && firstSessionIdForQuery > 0) {
-    nav(`/student/video/sessions/${firstSessionIdForQuery}`, { replace: true });
-    return null;
-  }
+  const [publicRedirected, setPublicRedirected] = useState(false);
+  useEffect(() => {
+    if (isPublic && firstSessionIdForQuery > 0 && !publicRedirected) {
+      setPublicRedirected(true);
+      nav(`/student/video/sessions/${firstSessionIdForQuery}`, { replace: true });
+    }
+  }, [isPublic, firstSessionIdForQuery, publicRedirected, nav]);
 
   // 전체공개영상이 아닐 때만 수업 없음 오류 표시
   if (!isPublic && !lecture) {

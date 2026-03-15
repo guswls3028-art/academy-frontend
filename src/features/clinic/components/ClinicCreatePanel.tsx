@@ -1,7 +1,7 @@
 // PATH: src/features/clinic/components/ClinicCreatePanel.tsx
 // 클리닉 생성 — 대상 필터(학년/학교/강의) + 시간/장소/정원/대상자
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Input, App, Popover, Select } from "antd";
 import dayjs from "dayjs";
 import { Save, FolderOpen, Trash2, ChevronDown, ChevronUp } from "lucide-react";
@@ -17,6 +17,7 @@ import ClinicTargetSelectModal, { type ClinicTargetSelectResult } from "./Clinic
 
 import api from "@/shared/api/axios";
 import { createClinicParticipant } from "../api/clinicParticipants.api";
+import { useClinicTargets } from "../hooks/useClinicTargets";
 
 const SAVED_LOCATIONS_KEY = "academy-clinic-saved-locations";
 
@@ -121,6 +122,19 @@ export default function ClinicCreatePanel({
 }: Props) {
   const { message } = App.useApp();
   const qc = useQueryClient();
+  const { data: clinicTargets } = useClinicTargets();
+
+  // enrollment_id → clinic_reason 매핑 (참가자 등록 시 사유 전달용)
+  const targetReasonMap = useMemo(() => {
+    const map = new Map<number, "exam" | "homework" | "both">();
+    if (!clinicTargets) return map;
+    for (const t of clinicTargets) {
+      if (t.clinic_reason && !map.has(t.enrollment_id)) {
+        map.set(t.enrollment_id, t.clinic_reason);
+      }
+    }
+    return map;
+  }, [clinicTargets]);
 
   const initialDate = date ?? todayISO();
   const [selectedDate, setSelectedDate] = useState(dayjs(initialDate));
@@ -233,12 +247,15 @@ export default function ClinicCreatePanel({
       // B-01: 선택된 학생들을 참가자로 등록
       if (selected.length > 0) {
         const results = await Promise.allSettled(
-          selected.map((enrollmentId) =>
-            createClinicParticipant({
+          selected.map((enrollmentId) => {
+            const reason = targetReasonMap.get(enrollmentId);
+            return createClinicParticipant({
               session: created.id,
               enrollment_id: enrollmentId,
               status: "booked",
-            })
+              ...(reason ? { clinic_reason: reason } : {}),
+            });
+          }
           )
         );
         const failed = results.filter((r) => r.status === "rejected");

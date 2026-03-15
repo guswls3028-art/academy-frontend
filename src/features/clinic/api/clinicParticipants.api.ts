@@ -50,6 +50,7 @@ export async function createClinicParticipant(payload: {
   status?: ClinicParticipantStatus;
   memo?: string;
   source?: string;
+  clinic_reason?: "exam" | "homework" | "both";
 }) {
   const res = await api.post("/clinic/participants/", payload);
   return res.data as ClinicParticipant;
