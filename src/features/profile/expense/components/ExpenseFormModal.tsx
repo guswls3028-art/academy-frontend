@@ -46,8 +46,9 @@ export default function ExpenseFormModal({
         memo: initial.memo ?? "",
       });
     } else {
+      const _d = new Date();
       setForm({
-        date: new Date().toISOString().slice(0, 10),
+        date: `${_d.getFullYear()}-${String(_d.getMonth() + 1).padStart(2, "0")}-${String(_d.getDate()).padStart(2, "0")}`,
         title: "",
         amount: 0,
         memo: "",

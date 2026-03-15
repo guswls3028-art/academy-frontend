@@ -50,8 +50,9 @@ export default function AttendanceFormModal({
         memo: initial.memo ?? "",
       });
     } else {
+      const _d = new Date();
       setForm({
-        date: new Date().toISOString().slice(0, 10),
+        date: `${_d.getFullYear()}-${String(_d.getMonth() + 1).padStart(2, "0")}-${String(_d.getDate()).padStart(2, "0")}`,
         start_time: "09:00",
         end_time: "18:00",
         work_type: "근무",

@@ -20,8 +20,8 @@ const ACCEPT = "image/*,video/*";
 const MAX_SIZE_MB = 100;
 
 type SelectedTarget =
-  | { type: "exam"; id: number; title: string }
-  | { type: "homework"; id: number; title: string };
+  | { type: "exam"; id: number; title: string; enrollmentId: number }
+  | { type: "homework"; id: number; title: string; enrollmentId: number };
 
 export default function SubmitAssignmentPage() {
   const qc = useQueryClient();
@@ -56,9 +56,10 @@ export default function SubmitAssignmentPage() {
         : (isVideo ? "homework_video" : "homework_image");
 
       const fd = new FormData();
-      fd.append("kind", kind);
+      fd.append("source", kind);
       fd.append("target_type", selected.type);
       fd.append("target_id", String(selected.id));
+      fd.append("enrollment_id", String(selected.enrollmentId));
       fd.append("file", selectedFile);
 
       return createSubmission(fd);
@@ -143,7 +144,7 @@ export default function SubmitAssignmentPage() {
                 <button
                   key={`hw-${h.homework_id}`}
                   type="button"
-                  onClick={() => setSelected({ type: "homework", id: h.homework_id, title: h.title })}
+                  onClick={() => setSelected({ type: "homework", id: h.homework_id, title: h.title, enrollmentId: h.enrollment_id })}
                   style={{
                     display: "flex",
                     alignItems: "center",
@@ -192,7 +193,7 @@ export default function SubmitAssignmentPage() {
                 <button
                   key={`ex-${e.exam_id}`}
                   type="button"
-                  onClick={() => setSelected({ type: "exam", id: e.exam_id, title: e.title })}
+                  onClick={() => setSelected({ type: "exam", id: e.exam_id, title: e.title, enrollmentId: e.enrollment_id })}
                   style={{
                     display: "flex",
                     alignItems: "center",

@@ -20,7 +20,7 @@ export default function ExpenseHeader({
   onCreate: () => void;
 }) {
   const monthValue =
-    range.from?.slice(0, 7) || new Date().toISOString().slice(0, 7);
+    range.from?.slice(0, 7) || (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`; })();
 
   return (
     <Panel variant="subtle">

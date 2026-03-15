@@ -139,7 +139,10 @@ export default function SessionAttendancePage({
   const updateStatus = useMutation({
     mutationFn: ({ id, status }: { id: number; status: AttendanceStatus }) =>
       updateAttendance(id, { status }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["attendance", sessionId] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["attendance", sessionId] });
+      qc.invalidateQueries({ queryKey: ["session-scores"] });
+    },
     onError: () => { feedback.error("출석 변경에 실패했습니다."); },
   });
 
@@ -324,6 +327,7 @@ export default function SessionAttendancePage({
       const result = await bulkSetPresent(sessionId);
       qc.invalidateQueries({ queryKey: ["attendance", sessionId] });
       qc.invalidateQueries({ queryKey: ["attendance-matrix"] });
+      qc.invalidateQueries({ queryKey: ["session-scores"] });
       feedback.success(result.updated > 0 ? `${result.updated}명 현장 출석으로 변경` : "이미 전원 현장 출석입니다.");
     } catch {
       feedback.error("일괄 출석 변경에 실패했습니다.");

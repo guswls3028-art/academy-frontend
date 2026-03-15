@@ -14,9 +14,10 @@ import { Submission } from "./types";
  * ✅ 제출 생성 (파일 업로드)
  *
  * formData 필수 필드 (backend contract):
- * - kind
- * - target_type (exam | homework | video)
+ * - source (omr_scan | homework_image | homework_video | online | ...)
+ * - target_type (exam | homework)
  * - target_id
+ * - enrollment_id (exam/homework 시 필수, omr_scan 제외)
  * - file
  */
 export async function createSubmission(formData: FormData) {

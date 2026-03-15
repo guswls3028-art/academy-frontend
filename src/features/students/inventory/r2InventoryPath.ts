@@ -35,7 +35,8 @@ export function safeInventoryFileName(originalFileName: string): string {
   const lastDot = originalFileName.lastIndexOf(".");
   const base = lastDot >= 0 ? originalFileName.slice(0, lastDot) : originalFileName;
   const ext = lastDot >= 0 ? originalFileName.slice(lastDot) : "";
-  const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+  const _d = new Date();
+  const stamp = `${_d.getFullYear()}${String(_d.getMonth() + 1).padStart(2, "0")}${String(_d.getDate()).padStart(2, "0")}`;
   const hash = Math.random().toString(36).slice(2, 6);
   const safe = `${base}_${stamp}_${hash}${ext}`;
   return safe;

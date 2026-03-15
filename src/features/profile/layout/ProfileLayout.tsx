@@ -41,7 +41,10 @@ const PROFILE_TABS = [
 export default function ProfileLayout() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [month, setMonth] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  });
   const [range, setRange] = useState<DateRange>(() =>
     getMonthBounds(month)
   );

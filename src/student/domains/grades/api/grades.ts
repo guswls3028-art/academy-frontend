@@ -4,6 +4,7 @@ import api from "@/student/shared/api/studentApi";
 
 export type MyExamGradeSummary = {
   exam_id: number;
+  enrollment_id: number;
   title: string;
   total_score: number;
   max_score: number;
@@ -15,6 +16,7 @@ export type MyExamGradeSummary = {
 
 export type MyHomeworkGradeSummary = {
   homework_id: number;
+  enrollment_id: number;
   title: string;
   score: number;
   max_score: number | null;

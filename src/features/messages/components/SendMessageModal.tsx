@@ -3,6 +3,7 @@
 // TemplateEditModal 디자인 패턴과 통일된 split-view 레이아웃. 단발성 발송 SSOT.
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Input } from "antd";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter } from "@/shared/ui/modal";
 import { Button, Tabs } from "@/shared/ui/ds";
@@ -68,6 +69,7 @@ export default function SendMessageModal({
   blockCategory = "default",
   initialBody,
 }: SendMessageModalProps) {
+  const queryClient = useQueryClient();
   const [contentMode, setContentMode] = useState<ContentMode>("free");
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
@@ -260,6 +262,7 @@ export default function SendMessageModal({
         feedback.info(`전화번호 없음으로 ${totalSkipped}건 제외되었습니다.`);
       }
       asyncStatusStore.completeTask(taskId, "success");
+      queryClient.invalidateQueries({ queryKey: ["messaging", "info"] });
       onClose();
     } catch (e: unknown) {
       const msg =
