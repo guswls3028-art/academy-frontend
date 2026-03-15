@@ -49,6 +49,10 @@ export default function ClinicConsoleWorkspace({
       qc.invalidateQueries({ queryKey: ["clinic-sessions-tree"] });
       qc.invalidateQueries({ queryKey: ["admin", "notification-counts"] });
     },
+    onError: () => {
+      qc.invalidateQueries({ queryKey: ["clinic-participants"] });
+      feedback.error("처리에 실패했습니다. 다시 시도해 주세요.");
+    },
   });
 
   const bulkAttendMutation = useMutation({

@@ -7,7 +7,7 @@ import { useLocation } from "react-router-dom";
 import dayjs from "dayjs";
 import "dayjs/locale/ko";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { ChevronDown, ChevronRight, CheckCircle, Plus } from "lucide-react";
+import { ChevronDown, ChevronRight, Plus } from "lucide-react";
 
 import ClinicTargetTable from "../../components/bookings/ClinicTargetTable";
 import ClinicCreatePanel from "../../components/ClinicCreatePanel";
@@ -162,74 +162,69 @@ export default function ClinicBookingsPage() {
           </div>
         </div>
 
-        {/* Pending approvals — collapsible */}
-        <div className="clinic-bookings__pending">
-          <button
-            type="button"
-            className="clinic-bookings__pending-header"
-            onClick={() => setPendingOpen((v) => !v)}
-          >
-            <span className="clinic-bookings__pending-toggle">
-              {pendingOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-            </span>
-            <span className="clinic-bookings__pending-title">
-              승인 대기
-            </span>
-            {pendingList.length > 0 ? (
+        {/* Pending approvals — only shown when items exist */}
+        {pendingList.length > 0 && (
+          <div className="clinic-bookings__pending">
+            <button
+              type="button"
+              className="clinic-bookings__pending-header"
+              onClick={() => setPendingOpen((v) => !v)}
+            >
+              <span className="clinic-bookings__pending-toggle">
+                {pendingOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+              </span>
+              <span className="clinic-bookings__pending-title">
+                승인 대기
+              </span>
               <span className="clinic-bookings__pending-badge">
                 {pendingList.length}건
               </span>
-            ) : (
-              <span className="clinic-bookings__pending-done">
-                <CheckCircle size={14} />
-                처리 완료
-              </span>
-            )}
-          </button>
+            </button>
 
-          {pendingOpen && pendingList.length > 0 && (
-            <div className="clinic-bookings__pending-body">
-              {pendingQ.listQ.isLoading ? (
-                <div className="ds-section__empty py-6">불러오는 중…</div>
-              ) : (
-                <ul className="clinic-bookings__pending-list">
-                  {pendingList.map((p) => (
-                    <li key={p.id} className="clinic-bookings__pending-item">
-                      <div className="clinic-bookings__pending-item-info">
-                        <span className="clinic-bookings__pending-item-name">
-                          {p.student_name}
-                        </span>
-                        <span className="clinic-bookings__pending-item-meta">
-                          {p.session_date ?? "-"}{" "}
-                          {p.session_start_time?.slice(0, 5) ?? ""}{" "}
-                          {p.session_location ?? "-"}
-                        </span>
-                      </div>
-                      <div className="clinic-bookings__pending-actions">
-                        <button
-                          type="button"
-                          onClick={() => patchStatusM.mutate({ id: p.id, status: "booked" })}
-                          disabled={patchStatusM.isPending}
-                          className="clinic-bookings__action-btn clinic-bookings__action-btn--approve"
-                        >
-                          승인
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => patchStatusM.mutate({ id: p.id, status: "rejected" })}
-                          disabled={patchStatusM.isPending}
-                          className="clinic-bookings__action-btn clinic-bookings__action-btn--reject"
-                        >
-                          거절
-                        </button>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          )}
-        </div>
+            {pendingOpen && (
+              <div className="clinic-bookings__pending-body">
+                {pendingQ.listQ.isLoading ? (
+                  <div className="ds-section__empty py-6">불러오는 중…</div>
+                ) : (
+                  <ul className="clinic-bookings__pending-list">
+                    {pendingList.map((p) => (
+                      <li key={p.id} className="clinic-bookings__pending-item">
+                        <div className="clinic-bookings__pending-item-info">
+                          <span className="clinic-bookings__pending-item-name">
+                            {p.student_name}
+                          </span>
+                          <span className="clinic-bookings__pending-item-meta">
+                            {p.session_date ?? "-"}{" "}
+                            {p.session_start_time?.slice(0, 5) ?? ""}{" "}
+                            {p.session_location ?? "-"}
+                          </span>
+                        </div>
+                        <div className="clinic-bookings__pending-actions">
+                          <button
+                            type="button"
+                            onClick={() => patchStatusM.mutate({ id: p.id, status: "booked" })}
+                            disabled={patchStatusM.isPending}
+                            className="clinic-bookings__action-btn clinic-bookings__action-btn--approve"
+                          >
+                            승인
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => patchStatusM.mutate({ id: p.id, status: "rejected" })}
+                            disabled={patchStatusM.isPending}
+                            className="clinic-bookings__action-btn clinic-bookings__action-btn--reject"
+                          >
+                            거절
+                          </button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Section divider between approval and target table */}
         <div className="clinic-bookings__section-divider" />

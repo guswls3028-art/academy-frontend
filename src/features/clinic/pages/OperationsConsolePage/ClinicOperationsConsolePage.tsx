@@ -64,12 +64,15 @@ export default function ClinicOperationsConsolePage() {
 
   const rows = (participants.listQ.data ?? []) as ClinicParticipant[];
 
-  // Phase 2: 오늘 날짜일 때 첫 번째 세션 자동 선택 (빈 placeholder 제거)
+  // Phase 2: 오늘 날짜일 때 세션 자동 선택 — URL session param 우선, 없으면 첫 번째
+  const sessionParam = sp.get("session");
   useEffect(() => {
     if (!selectedSessionId && sessionsForDay.length > 0) {
-      setSelectedSessionId(sessionsForDay[0].id);
+      const targetId = sessionParam ? Number(sessionParam) : null;
+      const match = targetId ? sessionsForDay.find((s) => s.id === targetId) : null;
+      setSelectedSessionId(match?.id ?? sessionsForDay[0].id);
     }
-  }, [sessionsForDay, selectedSessionId]);
+  }, [sessionsForDay, selectedSessionId, sessionParam]);
 
   const headerDesc = "출석 확인하고 학생 관리하세요.";
 

@@ -14,6 +14,7 @@ import { useClinicParticipants } from "../../hooks/useClinicParticipants";
 import { useClinicTargets } from "../../hooks/useClinicTargets";
 import { fetchClinicSettings, updateClinicSettings } from "../../api/clinicSettings.api";
 import { patchClinicParticipantStatus, ClinicParticipant } from "../../api/clinicParticipants.api";
+import { fetchClinicSessionTree, ClinicSessionTreeNode } from "../../api/clinicSessions.api";
 
 dayjs.locale("ko");
 
@@ -72,6 +73,21 @@ export default function ClinicHomePage() {
     session_date_from: today,
     session_date_to: today,
   });
+
+  // 오늘 세션 목록 (참가자 0명인 세션도 표시하기 위해 세션 트리 사용)
+  const todayYM = useMemo(() => {
+    const d = dayjs(today);
+    return { year: d.year(), month: d.month() + 1 };
+  }, [today]);
+  const sessionTreeQ = useQuery({
+    queryKey: ["clinic-sessions-tree", todayYM.year, todayYM.month],
+    queryFn: () => fetchClinicSessionTree(todayYM),
+  });
+  const todaySessions = useMemo(() => {
+    return (sessionTreeQ.data ?? []).filter(
+      (s) => dayjs(s.date).format("YYYY-MM-DD") === today
+    );
+  }, [sessionTreeQ.data, today]);
   const weekQ = useClinicParticipants({
     session_date_from: wk.from,
     session_date_to: wk.to,
@@ -100,7 +116,34 @@ export default function ClinicHomePage() {
   const pendingList = pendingQ.listQ.data ?? [];
   const autoApproved = !!settingsQ.data?.auto_approve_booking;
   const todayRows = todayQ.listQ.data ?? [];
-  const sessions = useMemo(() => groupBySession(todayRows), [todayRows]);
+  // 세션 트리 기반 목록 (참가자 0명인 세션도 포함) + 참가자 데이터 병합
+  const sessions = useMemo(() => {
+    const participantGroups = groupBySession(todayRows);
+    const pMap = new Map(participantGroups.map((g) => [g.sessionId, g]));
+    // 세션 트리에서 오늘 세션을 기반으로 하되, 참가자 데이터를 병합
+    const merged = todaySessions.map((s) => {
+      const pg = pMap.get(s.id);
+      return {
+        sessionId: s.id,
+        time: (s.start_time || "").slice(0, 5) || "-",
+        end: "",
+        location: s.location || "",
+        total: pg?.total ?? s.booked_count ?? 0,
+        booked: pg?.booked ?? s.booked_count ?? 0,
+        attended: pg?.attended ?? 0,
+        noShow: pg?.noShow ?? s.no_show_count ?? 0,
+        maxParticipants: s.max_participants ?? null,
+      };
+    });
+    // 참가자에만 있고 세션 트리에 없는 경우 (혹시 모를 정합성 보장)
+    for (const pg of participantGroups) {
+      if (!todaySessions.some((s) => s.id === pg.sessionId)) {
+        merged.push({ ...pg, maxParticipants: null });
+      }
+    }
+    merged.sort((a, b) => (a.time > b.time ? 1 : a.time < b.time ? -1 : 0));
+    return merged;
+  }, [todaySessions, todayRows]);
   const noShowCount = todayRows.filter((r) => r.status === "no_show").length;
 
   // 오늘 출석 요약 계산
@@ -161,6 +204,7 @@ export default function ClinicHomePage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["clinic-participants"] });
       qc.invalidateQueries({ queryKey: ["admin", "notification-counts"] });
+      feedback.success("일괄 승인되었습니다.");
     },
     onError: (err: Error) => {
       qc.invalidateQueries({ queryKey: ["clinic-participants"] });
@@ -323,7 +367,7 @@ export default function ClinicHomePage() {
                       <button
                         type="button"
                         className="clinic-home__timeline-card-action"
-                        onClick={() => nav(`/admin/clinic/operations?date=${today}`)}
+                        onClick={() => nav(`/admin/clinic/operations?date=${today}&session=${s.sessionId}`)}
                       >
                         출석 확인 →
                       </button>
