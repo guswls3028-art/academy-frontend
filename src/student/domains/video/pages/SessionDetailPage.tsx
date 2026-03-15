@@ -321,7 +321,7 @@ export default function SessionDetailPage() {
     retry: false,
   });
 
-  const videos = videosData?.items ?? [];
+  const videos = [...(videosData?.items ?? [])].sort((a, b) => (a.id ?? 0) - (b.id ?? 0));
   const res = (queryError as { response?: { status?: number; data?: { detail?: unknown } } })?.response;
   const is403 = isError && res?.status === 403;
   const serverMessage =
