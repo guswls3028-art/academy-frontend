@@ -69,8 +69,19 @@ export default function SubmitAssignmentPage() {
       if (fileInputRef.current) fileInputRef.current.value = "";
       qc.invalidateQueries({ queryKey: ["student", "grades", "summary"] });
     },
-    onError: (e: Error) => {
-      setError(e.message || "제출에 실패했습니다.");
+    onError: (e: any) => {
+      const detail = e?.response?.data?.detail || e?.response?.data?.message;
+      const fieldErrors = e?.response?.data;
+      let msg = "제출에 실패했습니다.";
+      if (typeof detail === "string") msg = detail;
+      else if (fieldErrors && typeof fieldErrors === "object" && !detail) {
+        const parts = Object.entries(fieldErrors)
+          .filter(([k]) => k !== "detail")
+          .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : v}`);
+        if (parts.length) msg = parts.join(" · ");
+      }
+      else if (e.message) msg = e.message;
+      setError(msg);
     },
   });
 
