@@ -74,10 +74,12 @@ export default function ClinicCalendar({
     startDate.setDate(startDate.getDate() - firstDay.getDay()); // 일요일부터 시작
 
     const days: Array<{
-      date: Date;
+      dateStr: string; // YYYY-MM-DD
+      dayNum: number;
       isCurrentMonth: boolean;
       isToday: boolean;
       isSelectable: boolean;
+      isAvailable: boolean;
       booking?: ClinicBookingRequest;
     }> = [];
 
@@ -95,14 +97,15 @@ export default function ClinicCalendar({
       const booking = bookingByDate.get(dateStr);
       const isAvailable = availableDates.includes(dateStr);
       const isPast = dateStr < today;
-      // 현재 월이고 과거가 아닌 날짜는 모두 선택 가능 (예약 가능 여부와 관계없이)
       const isSelectable = isCurrentMonth && !isPast;
 
       days.push({
-        date: new Date(current),
+        dateStr,
+        dayNum: current.getDate(),
         isCurrentMonth,
         isToday,
         isSelectable,
+        isAvailable,
         booking,
       });
 
@@ -210,12 +213,8 @@ export default function ClinicCalendar({
         }}
       >
       {calendarDays.map((day, idx) => {
-        const y = day.date.getFullYear();
-        const m = String(day.date.getMonth() + 1).padStart(2, "0");
-        const d = String(day.date.getDate()).padStart(2, "0");
-        const dateStr = `${y}-${m}-${d}`;
-        const isSelected = selectedDate === dateStr;
-          const statusColor = getDateStatusColor(dateStr, day.booking);
+        const isSelected = selectedDate === day.dateStr;
+          const statusColor = getDateStatusColor(day.dateStr, day.booking);
           const isClickable = day.isSelectable;
 
           return (
@@ -226,7 +225,7 @@ export default function ClinicCalendar({
                 e.preventDefault();
                 e.stopPropagation();
                 if (isClickable) {
-                  onDateSelect(dateStr);
+                  onDateSelect(day.dateStr);
                 }
               }}
               disabled={!isClickable}
@@ -278,17 +277,20 @@ export default function ClinicCalendar({
                 }
               }}
             >
-              <span>{day.date.getDate()}</span>
-              {day.booking && (
+              <span>{day.dayNum}</span>
+              {/* 일정 있는 날짜 — 하단 dot 표시 */}
+              {(day.isAvailable || day.booking) && (
                 <span
                   style={{
                     position: "absolute",
-                    bottom: 2,
-                    width: 4,
-                    height: 4,
+                    bottom: 3,
+                    width: 5,
+                    height: 5,
                     borderRadius: "50%",
-                    background: statusColor === "#22c55e" ? "#ffffff" : statusColor === "#fbbf24" ? "#ffffff" : "var(--stu-primary)",
-                    opacity: 0.8,
+                    background: day.booking
+                      ? (statusColor ? "#fff" : "var(--stu-primary)")
+                      : "var(--stu-primary)",
+                    opacity: 0.9,
                   }}
                 />
               )}
