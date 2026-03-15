@@ -74,6 +74,102 @@ export default function DeveloperPage() {
   );
 }
 
+// ═══════════════════ 업데이트 기록 ═══════════════════
+
+function UpdatesPanel() {
+  return (
+    <div className={styles.changelog}>
+      <div className={styles.changelogEntry}>
+        <div className={styles.changelogDate}>
+          2026-03-15 <span className={styles.changelogVersion}>V1.1.0</span>
+        </div>
+        <ul className={styles.changelogItems}>
+          <li>무중단 배포 인프라 전환 (Zero-Downtime Deployment)</li>
+          <li>학생 ID SSOT 감사 — ps_number/username 동기화 통일</li>
+          <li>삭제 학생 고스트 데이터 제거 (커뮤니티, 영상 댓글, 클리닉)</li>
+          <li>학부모 초기 비밀번호 0000 통일 및 전체 초기화</li>
+          <li>클리닉 예약 테넌트 격리 강화</li>
+        </ul>
+      </div>
+      <div className={styles.changelogEntry}>
+        <div className={styles.changelogDate}>
+          2026-03-14 <span className={styles.changelogVersion}>V1.0.3+</span>
+        </div>
+        <ul className={styles.changelogItems}>
+          <li>테넌트 격리 하드닝 (커뮤니티/대시보드 fallback 제거)</li>
+          <li>영상 좋아요 race condition 수정</li>
+          <li>StudentTopBar 쿼리 키 정규화</li>
+        </ul>
+      </div>
+      <div className={styles.changelogEntry}>
+        <div className={styles.changelogDate}>
+          2026-03-13 <span className={styles.changelogVersion}>V1.0.3</span>
+        </div>
+        <ul className={styles.changelogItems}>
+          <li>영상 처리 인프라 하드닝 (daemon/batch 이중 모드)</li>
+          <li>R2 publish 병렬화 (ThreadPoolExecutor 16)</li>
+          <li>영상 복구 커맨드 추가</li>
+        </ul>
+      </div>
+      <div className={styles.changelogEntry}>
+        <div className={styles.changelogDate}>
+          2026-03-12 <span className={styles.changelogVersion}>V1.0.2</span>
+        </div>
+        <ul className={styles.changelogItems}>
+          <li>구독/결제 시스템</li>
+          <li>영상 소셜 기능 (좋아요, 댓글, 조회수)</li>
+          <li>직원 프로필 사진</li>
+          <li>동명이인 넘버링</li>
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════ 버그픽스 기록 ═══════════════════
+
+function BugfixesPanel() {
+  return (
+    <div className={styles.changelog}>
+      <div className={styles.changelogEntry}>
+        <div className={styles.changelogDate}>
+          2026-03-15
+        </div>
+        <ul className={styles.changelogItems}>
+          <li data-type="fix">클리닉 예약 서버 오류 (500) — 세션 카운트 어노테이션 JOIN 충돌</li>
+          <li data-type="fix">학생 삭제 시 클리닉 예약 미취소 → CANCELLED 자동 처리</li>
+          <li data-type="security">클리닉 세션 FK 테넌트 미검증 → serializer + view 이중 체크</li>
+          <li data-type="fix">동시 예약 시 IntegrityError → 409 응답 처리</li>
+          <li data-type="fix">학부모 비밀번호 메시지-DB 불일치 (메시지: 학생 비밀번호 → 0000 통일)</li>
+          <li data-type="fix">select_for_update 범위 확장 (학생+선생 모두 세션 락)</li>
+        </ul>
+      </div>
+      <div className={styles.changelogEntry}>
+        <div className={styles.changelogDate}>
+          2026-03-14
+        </div>
+        <ul className={styles.changelogItems}>
+          <li data-type="fix">커뮤니티/대시보드 테넌트 fallback 제거 (격리 위반)</li>
+          <li data-type="fix">시험 등록 enrollment 테넌트 교차 검증</li>
+          <li data-type="fix">학생 영상 조회 lecture tenant 교차 검증</li>
+          <li data-type="fix">영상 좋아요 select_for_update race condition</li>
+        </ul>
+      </div>
+      <div className={styles.changelogEntry}>
+        <div className={styles.changelogDate}>
+          2026-03-09
+        </div>
+        <ul className={styles.changelogItems}>
+          <li data-type="fix">ExamListPage 로딩 중 빈 상태 렌더링</li>
+          <li data-type="fix">ExamResultPage 디버그 필드 노출</li>
+          <li data-type="fix">프로필 쿼리 키 정규화 (["student", "me"])</li>
+          <li data-type="fix">QnaPage 죽은 파일 업로드 UI 제거</li>
+        </ul>
+      </div>
+    </div>
+  );
+}
+
 // ═══════════════════ 버그 제보 패널 ═══════════════════
 
 function BugReportPanel() {
