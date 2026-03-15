@@ -264,7 +264,7 @@ export default function DashboardPage() {
           }}>
             {failedHomeworkCount > 0 && (
               <Link
-                to="/student/grades"
+                to="/student/submit"
                 style={{
                   display: "flex",
                   alignItems: "center",
@@ -292,7 +292,7 @@ export default function DashboardPage() {
             )}
             {failedExamCount > 0 && (
               <Link
-                to="/student/grades"
+                to="/student/exams"
                 style={{
                   display: "flex",
                   alignItems: "center",
