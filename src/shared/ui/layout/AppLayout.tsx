@@ -17,7 +17,7 @@ import { SendMessageModalProvider } from "@/features/messages/context/SendMessag
 import { useIsMobile } from "@/shared/hooks/useIsMobile";
 import { useFavicon } from "@/shared/hooks/useFavicon";
 
-const NOTICE_DISMISS_KEY = "admin_notice_parent_pw_dismissed";
+const NOTICE_DISMISS_KEY = "admin_notice_clinic_hotfix_0315";
 
 function NoticeBanner() {
   const [dismissed, setDismissed] = useState(
@@ -34,8 +34,8 @@ function NoticeBanner() {
         justifyContent: "center",
         gap: 8,
         padding: "8px 16px",
-        background: "color-mix(in srgb, var(--color-brand-primary) 12%, var(--color-bg-surface))",
-        borderBottom: "1px solid color-mix(in srgb, var(--color-brand-primary) 30%, var(--color-border-divider))",
+        background: "color-mix(in srgb, var(--color-success) 10%, var(--color-bg-surface))",
+        borderBottom: "1px solid color-mix(in srgb, var(--color-success) 30%, var(--color-border-divider))",
         color: "var(--color-text-primary)",
         fontSize: 13,
         fontWeight: 500,
@@ -45,7 +45,7 @@ function NoticeBanner() {
       }}
     >
       <span style={{ flex: 1, textAlign: "center" }}>
-        {"\uD83D\uDCE2"} [업데이트] 클리닉 예약 오류 수정 · 학부모 초기 비밀번호 0000 통일 · 삭제 학생 데이터 정리
+        ✅ [버그 수정] 클리닉 대상자 등록 오류가 해결되었습니다. 정상 이용 가능합니다.
       </span>
       <button
         onClick={() => {

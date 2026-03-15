@@ -3,7 +3,7 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Bug, MessageSquare, ImagePlus, Send, Trash2, Paperclip } from "lucide-react";
+import { Bug, MessageSquare, ImagePlus, Send, Trash2, Paperclip, Sparkles, Wrench } from "lucide-react";
 import { DomainLayout } from "@/shared/ui/layout";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
@@ -19,18 +19,34 @@ import {
 import tabStyles from "@/shared/ui/domain/StorageStyleTabs.module.css";
 import styles from "./DeveloperPage.module.css";
 
-type Tab = "bug" | "feedback";
+type Tab = "bug" | "feedback" | "updates" | "bugfixes";
 
 export default function DeveloperPage() {
-  const [tab, setTab] = useState<Tab>("bug");
+  const [tab, setTab] = useState<Tab>("updates");
 
   return (
     <DomainLayout
       title="To개발자"
-      description="버그 제보와 피드백을 보내 서비스 개선에 참여하세요."
+      description="업데이트 내역, 버그 수정 기록, 제보 및 피드백"
     >
       <div className={tabStyles.wrap}>
         <div className={tabStyles.tabs}>
+          <button
+            type="button"
+            className={tabStyles.tab + (tab === "updates" ? " " + tabStyles.tabActive : "")}
+            onClick={() => setTab("updates")}
+          >
+            <Sparkles size={14} style={{ marginRight: 6, verticalAlign: -2 }} />
+            업데이트
+          </button>
+          <button
+            type="button"
+            className={tabStyles.tab + (tab === "bugfixes" ? " " + tabStyles.tabActive : "")}
+            onClick={() => setTab("bugfixes")}
+          >
+            <Wrench size={14} style={{ marginRight: 6, verticalAlign: -2 }} />
+            버그픽스
+          </button>
           <button
             type="button"
             className={tabStyles.tab + (tab === "bug" ? " " + tabStyles.tabActive : "")}
@@ -49,6 +65,8 @@ export default function DeveloperPage() {
           </button>
         </div>
 
+        {tab === "updates" && <UpdatesPanel />}
+        {tab === "bugfixes" && <BugfixesPanel />}
         {tab === "bug" && <BugReportPanel />}
         {tab === "feedback" && <FeedbackPanel />}
       </div>
