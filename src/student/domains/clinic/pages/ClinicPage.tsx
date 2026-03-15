@@ -34,6 +34,7 @@ export default function ClinicPage() {
   const [selectedSessionId, setSelectedSessionId] = useState<number | null>(null);
   const [memo, setMemo] = useState("");
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  const [activeTab, setActiveTab] = useState<"book" | "schedule">("book");
 
   // 알림 카운트는 invalidateQueries로 자동 갱신됨
   useNotificationCounts();
@@ -282,8 +283,6 @@ export default function ClinicPage() {
       </StudentPageShell>
     );
   }
-
-  const [activeTab, setActiveTab] = useState<"book" | "schedule">("book");
 
   return (
     <StudentPageShell title="클리닉">

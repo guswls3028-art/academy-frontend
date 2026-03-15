@@ -244,7 +244,7 @@ export default function DashboardPage() {
         </div>
       </Link>
 
-      {/* 오늘 할 일 — 미제출 과제, 재시험 필요, 클리닉 예약 */}
+      {/* 오늘 할 일 — 과제 미통과, 재시험 필요, 클리닉 예약 */}
       {hasTodos && (
         <section style={{ marginBottom: "var(--stu-space-6)" }}>
           <div style={{
@@ -284,7 +284,7 @@ export default function DashboardPage() {
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontWeight: 600, fontSize: 14, color: "#b45309" }}>
-                    미제출 과제 {failedHomeworkCount}건
+                    과제 미통과 {failedHomeworkCount}건
                   </div>
                 </div>
                 <IconChevronRight style={{ width: 16, height: 16, color: "var(--stu-text-muted)", flexShrink: 0 }} />
