@@ -289,7 +289,7 @@ export default function StudentTopBar({ tenantCode, onMenuClick }: Props) {
               overflow: "hidden",
               textOverflow: "ellipsis",
               whiteSpace: "nowrap",
-              maxWidth: 100,
+              maxWidth: 140,
             }}
           >
             {profile?.isParentReadOnly && profile?.displayName
