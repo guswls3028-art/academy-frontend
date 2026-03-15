@@ -11,16 +11,18 @@ import { IconPlay } from "@/student/shared/ui/icons/Icons";
 import { formatDuration } from "../utils/format";
 
 // 차시별 박스 컴포넌트 (영상 목록과 동일한 스타일)
-function SessionBox({ 
-  sessionId, 
-  sessionTitle, 
+function SessionBox({
+  sessionId,
+  sessionTitle,
   enrollmentId,
-  order 
-}: { 
-  sessionId: number; 
+  order,
+  isPublic,
+}: {
+  sessionId: number;
   sessionTitle: string;
   enrollmentId?: number | null;
   order: number;
+  isPublic?: boolean;
 }) {
   const { data: videosData } = useQuery({
     queryKey: ["student-session-videos", sessionId, enrollmentId],
@@ -211,7 +213,7 @@ function SessionBox({
             textShadow: "0 1px 2px rgba(0,0,0,0.5)",
           }}
         >
-          {order}차시 · {sessionTitle}
+          {isPublic ? sessionTitle : `${order}차시 · ${sessionTitle}`}
         </div>
       </div>
     </Link>
@@ -388,6 +390,7 @@ export default function CourseDetailPage() {
                     sessionTitle={session.title}
                     enrollmentId={enrollmentIdForQuery}
                     order={session.order}
+                    isPublic={isPublic}
                   />
                 );
               })}

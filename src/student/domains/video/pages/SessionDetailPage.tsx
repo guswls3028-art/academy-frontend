@@ -11,25 +11,75 @@ import { IconPlay } from "@/student/shared/ui/icons/Icons";
 import { formatDuration, formatDurationDetailed } from "../utils/format";
 
 // 영상 목록 아이템 컴포넌트
-function VideoListItem({ 
-  video, 
+function VideoStatusBadge({ status }: { status: string }) {
+  const isEncoding = status === "PENDING" || status === "PROCESSING";
+  const isFailed = status === "FAILED";
+  if (!isEncoding && !isFailed) return null;
+
+  return (
+    <div
+      style={{
+        position: "absolute",
+        inset: 0,
+        display: "grid",
+        placeItems: "center",
+        background: "rgba(0,0,0,0.6)",
+        zIndex: 4,
+        borderRadius: 8,
+      }}
+    >
+      <div
+        style={{
+          padding: "4px 10px",
+          borderRadius: 6,
+          background: isFailed ? "rgba(239,68,68,0.9)" : "rgba(255,255,255,0.15)",
+          backdropFilter: "blur(4px)",
+          fontSize: 11,
+          fontWeight: 700,
+          color: "#fff",
+          letterSpacing: "0.02em",
+        }}
+      >
+        {isFailed ? "처리 실패" : "인코딩 중"}
+      </div>
+    </div>
+  );
+}
+
+function VideoListItem({
+  video,
   enrollmentId,
   isCurrent = false,
   progress = 0, // 0-100
-}: { 
+}: {
   video: {
     id: number;
     title: string;
     thumbnail_url?: string | null;
     duration?: number | null;
+    status?: string;
   };
   enrollmentId?: number | null;
   isCurrent?: boolean;
   progress?: number; // 0-100
 }) {
+  const videoStatus = video.status ?? "READY";
+  const isPlayable = videoStatus === "READY";
+
+  const href = isPlayable
+    ? `/student/video/play?video=${video.id}${enrollmentId ? `&enrollment=${enrollmentId}` : ""}`
+    : undefined;
+
+  const handleClick = (e: React.MouseEvent) => {
+    if (!isPlayable) {
+      e.preventDefault();
+    }
+  };
+
   return (
     <Link
-      to={`/student/video/play?video=${video.id}${enrollmentId ? `&enrollment=${enrollmentId}` : ""}`}
+      to={href ?? "#"}
+      onClick={handleClick}
       style={{
         display: "flex",
         gap: 12,
@@ -43,26 +93,31 @@ function VideoListItem({
         textDecoration: "none",
         color: "inherit",
         transition: "transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, background 0.2s ease",
-        cursor: "pointer",
+        cursor: isPlayable ? "pointer" : "default",
+        opacity: isPlayable ? 1 : 0.7,
         boxShadow: "0 4px 12px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05)",
         position: "relative",
       }}
       onMouseEnter={(e) => {
+        if (!isPlayable) return;
         e.currentTarget.style.transform = "translateY(-4px)";
         e.currentTarget.style.boxShadow = "0 8px 20px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.1)";
         e.currentTarget.style.background = "#222";
         e.currentTarget.style.borderColor = "rgba(255,255,255,0.25)";
       }}
       onMouseLeave={(e) => {
+        if (!isPlayable) return;
         e.currentTarget.style.transform = "translateY(0)";
         e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05)";
         e.currentTarget.style.background = "#1a1a1a";
         e.currentTarget.style.borderColor = "rgba(255,255,255,0.15)";
       }}
       onMouseDown={(e) => {
+        if (!isPlayable) return;
         e.currentTarget.style.transform = "translateY(-2px) scale(0.98)";
       }}
       onMouseUp={(e) => {
+        if (!isPlayable) return;
         e.currentTarget.style.transform = "translateY(-4px)";
       }}
     >
@@ -115,8 +170,11 @@ function VideoListItem({
           </div>
         )}
 
+        {/* 인코딩/실패 상태 오버레이 */}
+        {!isPlayable && <VideoStatusBadge status={videoStatus} />}
+
         {/* 현재 재생 중 오버레이 */}
-        {isCurrent && (
+        {isCurrent && isPlayable && (
           <div
             style={{
               position: "absolute",
