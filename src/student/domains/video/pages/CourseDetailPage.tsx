@@ -278,6 +278,12 @@ export default function CourseDetailPage() {
     );
   }
 
+  // 전체공개영상: 차시 선택 스킵 → 바로 영상 목록으로 이동
+  if (isPublic && firstSessionIdForQuery > 0) {
+    nav(`/student/video/sessions/${firstSessionIdForQuery}`, { replace: true });
+    return null;
+  }
+
   // 전체공개영상이 아닐 때만 수업 없음 오류 표시
   if (!isPublic && !lecture) {
     return (

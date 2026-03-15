@@ -114,8 +114,16 @@ export default function DashboardPage() {
 
   if (dashError || sessionsError) {
     return (
-      <div style={{ padding: 24, textAlign: "center", color: "#999" }}>
-        데이터를 불러올 수 없습니다. 잠시 후 다시 시도해 주세요.
+      <div style={{ padding: 24, textAlign: "center" }}>
+        <p style={{ color: "#999", marginBottom: 12 }}>일시적으로 연결이 불안정합니다.</p>
+        <button
+          type="button"
+          className="stu-btn stu-btn--primary"
+          onClick={() => window.location.reload()}
+          style={{ fontSize: 14 }}
+        >
+          새로고침
+        </button>
       </div>
     );
   }
