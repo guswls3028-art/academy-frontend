@@ -22,7 +22,7 @@ function normalizeListItem(raw: any): HomeworkListItem {
   return {
     id: Number(raw?.id),
     title: String(raw?.title ?? ""),
-    status: (raw?.status ?? "DRAFT") as any,
+    status: (raw?.status ?? "OPEN") as any,
     session_id: typeof sid === "number" && sid > 0 ? sid : undefined,
   };
 }

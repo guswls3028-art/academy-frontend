@@ -30,7 +30,7 @@ function normalize(raw: any): AdminHomeworkDetail {
     title: String(raw?.title ?? ""),
     description: raw?.description ?? undefined,
 
-    status: (raw?.status ?? "DRAFT") as any,
+    status: (raw?.status ?? "OPEN") as any,
 
     created_at: String(raw?.created_at ?? ""),
     updated_at: String(raw?.updated_at ?? ""),

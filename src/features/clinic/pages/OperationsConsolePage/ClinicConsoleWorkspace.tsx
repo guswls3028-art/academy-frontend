@@ -293,7 +293,25 @@ export default function ClinicConsoleWorkspace({
                       <User size={20} aria-hidden />
                     </div>
                     <div style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text-primary)", display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
-                      {p.student_name}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (p.enrollment_id) {
+                            window.open(`/admin/students?highlight=${p.enrollment_id}`, "_blank");
+                          }
+                        }}
+                        style={{
+                          background: "none", border: "none", padding: 0, cursor: "pointer",
+                          fontSize: "inherit", fontWeight: "inherit", color: "var(--color-brand-primary)",
+                          textDecoration: "underline", textDecorationColor: "transparent",
+                          transition: "text-decoration-color 0.15s",
+                        }}
+                        onMouseEnter={(e) => { (e.target as HTMLElement).style.textDecorationColor = "var(--color-brand-primary)"; }}
+                        onMouseLeave={(e) => { (e.target as HTMLElement).style.textDecorationColor = "transparent"; }}
+                        title="학생 정보 보기"
+                      >
+                        {p.student_name}
+                      </button>
                       {isAttended && <span className="clinic-console__status-label clinic-console__status-label--attended">출석</span>}
                       {isNoShow && <span className="clinic-console__status-label clinic-console__status-label--no-show">불참</span>}
                     </div>

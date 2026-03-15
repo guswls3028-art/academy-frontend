@@ -280,7 +280,7 @@ export default function SessionAssessmentSidePanel({
       return arr.map((x: any) => ({
         id: Number(x.id),
         title: String(x.title ?? ""),
-        status: (x.status ?? "DRAFT") as HomeworkItem["status"],
+        status: (x.status ?? "OPEN") as HomeworkItem["status"],
       }));
     },
     enabled: !!sessionId,
@@ -513,7 +513,7 @@ export default function SessionAssessmentSidePanel({
                 key={hw.id}
                 active={active}
                 label={hw.title}
-                status={hw.status ?? "DRAFT"}
+                status={hw.status ?? "OPEN"}
                 cutlineMode={cutlineMode}
                 cutlineValue={cutlineValue}
                 onSelect={() => onSelectHomework(hw.id)}
@@ -579,12 +579,11 @@ function ExamItemCard({
   onEnd: (e: React.MouseEvent) => void;
   busy: null | "start" | "end";
 }) {
-  const isDraft = status === "DRAFT";
-  const isOpen = status === "OPEN";
   const isClosed = status === "CLOSED";
+  const isOpen = !isClosed;
 
-  const statusLabel = isDraft ? "준비" : isOpen ? "진행" : "마감";
-  const statusTone: StatusTone = isDraft ? "neutral" : isOpen ? "success" : "danger";
+  const statusLabel = isOpen ? "진행" : "마감";
+  const statusTone: StatusTone = isOpen ? "success" : "danger";
 
   return (
     <div
@@ -607,11 +606,6 @@ function ExamItemCard({
           {isClosed && <span style={{ marginLeft: 6, fontSize: 10, color: "var(--color-text-muted)" }}>종료됨</span>}
         </div>
         <div style={S.actionsRow} onClick={(e) => e.stopPropagation()}>
-          {isDraft && (
-            <Button type="button" size="sm" intent="primary" onClick={onStart} disabled={busy != null} loading={busy === "start"}>
-              시험 시작
-            </Button>
-          )}
           {isOpen && (
             <Button type="button" size="sm" intent="danger" onClick={onEnd} disabled={busy != null} loading={busy === "end"}>
               시험 종료
@@ -646,11 +640,10 @@ function HomeworkItemCard({
   onStart: (e: React.MouseEvent) => void;
   onEnd: (e: React.MouseEvent) => void;
 }) {
-  const isDraft = status === "DRAFT";
-  const isOpen = status === "OPEN";
   const isClosed = status === "CLOSED";
-  const statusLabel = isDraft ? "준비" : isOpen ? "진행" : "마감";
-  const statusTone: StatusTone = isDraft ? "neutral" : isOpen ? "success" : "danger";
+  const isOpen = !isClosed;
+  const statusLabel = isOpen ? "진행" : "마감";
+  const statusTone: StatusTone = isOpen ? "success" : "danger";
 
   const metaLabel =
     cutlineMode === "PERCENT"
@@ -678,11 +671,6 @@ function HomeworkItemCard({
           {isClosed && <span style={{ marginLeft: 6, fontSize: 10, color: "var(--color-text-muted)" }}>종료됨</span>}
         </div>
         <div style={S.actionsRow} onClick={(e) => e.stopPropagation()}>
-          {isDraft && (
-            <Button type="button" size="sm" intent="primary" onClick={onStart}>
-              과제 시작
-            </Button>
-          )}
           {isOpen && (
             <Button type="button" size="sm" intent="secondary" onClick={onEnd}>
               과제 종료
