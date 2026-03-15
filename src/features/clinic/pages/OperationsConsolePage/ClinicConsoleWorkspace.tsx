@@ -283,7 +283,17 @@ export default function ClinicConsoleWorkspace({
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
           {participants.map((p) => {
-            const targets = p.enrollment_id ? targetsByEnrollment.get(p.enrollment_id) ?? [] : [];
+            let targets = p.enrollment_id ? targetsByEnrollment.get(p.enrollment_id) ?? [] : [];
+            // Fallback: 수동 등록 학생은 ClinicTarget이 없으므로 participant의 clinic_reason으로 표시
+            if (targets.length === 0 && p.clinic_reason) {
+              targets = [{
+                enrollment_id: p.enrollment_id ?? 0,
+                student_name: p.student_name,
+                session_title: "",
+                clinic_reason: p.clinic_reason,
+                created_at: "",
+              }];
+            }
             const isAttended = p.status === "attended";
             const isNoShow = p.status === "no_show";
 
