@@ -122,13 +122,26 @@ export default function BoardAdminPage() {
   });
   const blockTypes = blockTypesQ.data ?? [];
 
-  // ── All posts for tree counts ──
+  // 게시판 전용: 공지/자료실/QnA/상담 등 전용 유형 제외
+  const excludedCodes = useMemo(
+    () => new Set(["notice", "qna", "counsel", "materials", "bug_report", "dev_feedback"]),
+    []
+  );
+  const boardBlockTypeIds = useMemo(
+    () => new Set(blockTypes.filter((bt) => !excludedCodes.has((bt.code ?? "").toLowerCase())).map((bt) => bt.id)),
+    [blockTypes, excludedCodes]
+  );
+
+  // ── All posts for tree counts (게시판 유형만) ──
   const { data: allPostsForCount = [] } = useQuery<PostEntity[]>({
-    queryKey: ["community-all-board-posts-for-count"],
+    queryKey: ["community-all-board-posts-for-count", [...boardBlockTypeIds].sort().join(",")],
     queryFn: async () => {
       const { results } = await fetchAdminPosts({ blockTypeId: null, pageSize: 500 });
-      return results;
+      // 게시판 전용 유형만 필터
+      if (boardBlockTypeIds.size === 0) return results;
+      return results.filter((p) => boardBlockTypeIds.has(p.block_type));
     },
+    enabled: blockTypes.length > 0,
   });
 
   const treeCounts = useMemo(() => {
@@ -165,13 +178,11 @@ export default function BoardAdminPage() {
     [scopeNodes, scopeParams]
   );
 
-  const hasScopeParam = searchParams.has("scope");
+  // scope 파라미터 없으면 전체 게시물 표시 (기본 = all)
   const canShowList =
-    hasScopeParam && (
-      scope === "all" ||
-      (scope === "lecture" && effectiveLectureId != null) ||
-      (scope === "session" && sessionId != null)
-    );
+    scope === "all" ||
+    (scope === "lecture" && effectiveLectureId != null) ||
+    (scope === "session" && sessionId != null);
 
   const postsQ = useQuery<PostEntity[]>({
     queryKey: ["community-board-posts-scoped", scope, nodeId],
@@ -180,17 +191,23 @@ export default function BoardAdminPage() {
   });
   const posts = postsQ.data ?? [];
 
+  // 게시판 유형만 필터 + 검색
+  const boardPosts = useMemo(() => {
+    if (boardBlockTypeIds.size === 0) return posts;
+    return posts.filter((p) => boardBlockTypeIds.has(p.block_type));
+  }, [posts, boardBlockTypeIds]);
+
   const filtered = useMemo(() => {
-    if (!searchQuery.trim()) return posts;
+    if (!searchQuery.trim()) return boardPosts;
     const q = searchQuery.trim().toLowerCase();
-    return posts.filter(
+    return boardPosts.filter(
       (p) =>
         (p.title ?? "").toLowerCase().includes(q) ||
         stripHtml(p.content ?? "").toLowerCase().includes(q) ||
         (p.created_by_display ?? "").toLowerCase().includes(q) ||
         (p.block_type_label ?? "").toLowerCase().includes(q)
     );
-  }, [posts, searchQuery]);
+  }, [boardPosts, searchQuery]);
 
   const setSelectedId = useCallback(
     (id: number | null) => {
