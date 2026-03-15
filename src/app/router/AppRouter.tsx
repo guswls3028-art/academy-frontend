@@ -46,9 +46,14 @@ function RootRedirect() {
 
     redirectedRef.current = true;
 
-    // 비로그인: 로그인 페이지로 이동
+    // 비로그인: 홍보 테넌트(1번/9999)면 홍보 앱, 그 외는 로그인 페이지
     if (!user) {
-      navigate("/login", { replace: true });
+      const tc = program.tenantCode;
+      if (tc === "hakwonplus" || tc === "9999") {
+        navigate("/promo", { replace: true });
+      } else {
+        navigate("/login", { replace: true });
+      }
       return;
     }
 
