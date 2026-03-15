@@ -80,7 +80,7 @@ export default function DashboardPage() {
     return best;
   })();
 
-  // 오늘 할 일 계산
+  // 오늘 할 일
   const failedExamCount = grades?.exams?.filter((e) => !e.is_pass).length ?? 0;
   const failedHomeworkCount = grades?.homeworks?.filter((h) => !h.passed).length ?? 0;
   const clinicUpcoming = dashboard?.badges?.clinic_upcoming === true;
@@ -264,20 +264,16 @@ export default function DashboardPage() {
           }}>
             {failedHomeworkCount > 0 && (
               <Link
-                to="/student/submit"
+                to="/student/grades"
                 style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 12,
-                  padding: "12px 16px",
-                  textDecoration: "none",
-                  color: "inherit",
+                  display: "flex", alignItems: "center", gap: 12,
+                  padding: "12px 16px", textDecoration: "none", color: "inherit",
                   borderBottom: (failedExamCount > 0 || clinicUpcoming) ? "1px solid var(--stu-border)" : "none",
                 }}
               >
                 <div style={{
                   width: 36, height: 36, borderRadius: 10,
-                  background: "rgba(245,158,11,0.1)" /* tint — no token */,
+                  background: "rgba(245,158,11,0.1)" /* tint */,
                   display: "grid", placeItems: "center", flexShrink: 0,
                 }}>
                   <IconClipboard style={{ width: 18, height: 18, color: "var(--stu-warn, #f59e0b)" }} />
@@ -294,18 +290,14 @@ export default function DashboardPage() {
               <Link
                 to="/student/exams"
                 style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 12,
-                  padding: "12px 16px",
-                  textDecoration: "none",
-                  color: "inherit",
+                  display: "flex", alignItems: "center", gap: 12,
+                  padding: "12px 16px", textDecoration: "none", color: "inherit",
                   borderBottom: clinicUpcoming ? "1px solid var(--stu-border)" : "none",
                 }}
               >
                 <div style={{
                   width: 36, height: 36, borderRadius: 10,
-                  background: "rgba(239,68,68,0.1)" /* tint — no token */,
+                  background: "rgba(239,68,68,0.1)" /* tint */,
                   display: "grid", placeItems: "center", flexShrink: 0,
                 }}>
                   <IconExam style={{ width: 18, height: 18, color: "var(--stu-danger)" }} />
