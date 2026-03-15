@@ -112,21 +112,8 @@ export default function DashboardPage() {
     );
   }
 
-  if (dashError || sessionsError) {
-    return (
-      <div style={{ padding: 24, textAlign: "center" }}>
-        <p style={{ color: "#999", marginBottom: 12 }}>일시적으로 연결이 불안정합니다.</p>
-        <button
-          type="button"
-          className="stu-btn stu-btn--primary"
-          onClick={() => window.location.reload()}
-          style={{ fontSize: 14 }}
-        >
-          새로고침
-        </button>
-      </div>
-    );
-  }
+  // 에러가 있어도 부분 렌더링 — 가능한 데이터는 보여준다
+  // dashError/sessionsError는 해당 섹션만 숨김 (전체 페이지 차단하지 않음)
 
   return (
     <div style={{ padding: "var(--stu-space-2) 0" }}>
