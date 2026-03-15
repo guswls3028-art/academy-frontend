@@ -268,10 +268,10 @@ export default function SessionScoresEntryPage(_props: Props) {
   };
   const handleSelectHomework = () => setHomeworkEdit((v) => !v);
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: scoresQueryKeys.sessionScores(numericSessionId),
     queryFn: () => fetchSessionScores(numericSessionId),
-    enabled: Number.isFinite(numericSessionId),
+    enabled: Number.isFinite(numericSessionId) && numericSessionId > 0,
   });
 
   /** 시험 또는 과제 둘 중 하나라도 등록된 수강생만 테이블에 표시 → 툴바 인원도 동일 기준 */
@@ -662,7 +662,17 @@ export default function SessionScoresEntryPage(_props: Props) {
       )}
 
       {!isLoading && isError && (
-        <EmptyState scope="panel" tone="error" title="성적 로드 실패" />
+        <EmptyState
+          scope="panel"
+          tone="error"
+          title="성적 로드 실패"
+          description="네트워크 연결을 확인하고 다시 시도해 주세요."
+          actions={
+            <Button intent="secondary" size="sm" onClick={() => void refetch()}>
+              다시 시도
+            </Button>
+          }
+        />
       )}
 
       {!isLoading && !isError && (

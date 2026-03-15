@@ -85,7 +85,7 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
     qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
   }, [qc, sessionId]);
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: scoresQueryKeys.sessionScores(sessionId),
     queryFn: () => fetchSessionScores(sessionId),
     enabled: Number.isFinite(sessionId) && sessionId > 0,
@@ -351,7 +351,23 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
   }
 
   if (isError || !data) {
-    return <EmptyState scope="panel" tone="error" title="성적 로드 실패" />;
+    return (
+      <EmptyState
+        scope="panel"
+        tone="error"
+        title="성적 로드 실패"
+        description="네트워크 연결을 확인하고 다시 시도해 주세요."
+        actions={
+          <button
+            type="button"
+            onClick={() => void refetch()}
+            className="h-8 px-3 rounded text-sm font-medium border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface-hover)]"
+          >
+            다시 시도
+          </button>
+        }
+      />
+    );
   }
 
   if (rows.length === 0) {
