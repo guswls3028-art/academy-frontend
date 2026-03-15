@@ -51,9 +51,9 @@ export default function SessionScoresEntryPage(_props: Props) {
   const [isEditMode, setIsEditMode] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   /** 편집 시 어떤 셀을 쓰기 모드로 할지 */
-  const [examEditTotal, setExamEditTotal] = useState(false);
+  const [examEditTotal, setExamEditTotal] = useState(true);
   const [examEditSubjective, setExamEditSubjective] = useState(false);
-  const [homeworkEdit, setHomeworkEdit] = useState(false);
+  const [homeworkEdit, setHomeworkEdit] = useState(true);
   /** 읽기 모드에서 시험 점수 표시: 합산(한 칸) | 객관식+주관식(두 칸) */
   const [scoreDisplayMode, setScoreDisplayMode] = useState<"total" | "breakdown">("total");
   const { openSendMessageModal } = useSendMessageModal();

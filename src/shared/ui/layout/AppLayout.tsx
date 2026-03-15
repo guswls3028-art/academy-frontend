@@ -1,5 +1,5 @@
 // PATH: src/shared/ui/layout/AppLayout.tsx
-import { useState } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Outlet } from "react-router-dom";
 import { ConfigProvider, App } from "antd";
 import Sidebar from "./Sidebar";
@@ -19,15 +19,43 @@ import { useFavicon } from "@/shared/hooks/useFavicon";
 
 const NOTICE_DISMISS_KEY = "admin_notice_clinic_hotfix_0315";
 
+function useNoticeBannerHeight() {
+  const bannerRef = useRef<HTMLDivElement>(null);
+
+  const syncHeight = useCallback(() => {
+    const h = bannerRef.current?.offsetHeight ?? 0;
+    document.documentElement.style.setProperty("--notice-banner-height", `${h}px`);
+  }, []);
+
+  useEffect(() => {
+    syncHeight();
+    return () => {
+      document.documentElement.style.setProperty("--notice-banner-height", "0px");
+    };
+  }, [syncHeight]);
+
+  return { bannerRef, syncHeight };
+}
+
 function NoticeBanner() {
   const [dismissed, setDismissed] = useState(
     () => localStorage.getItem(NOTICE_DISMISS_KEY) === "1",
   );
+  const { bannerRef, syncHeight } = useNoticeBannerHeight();
+
+  useEffect(() => {
+    if (dismissed) {
+      document.documentElement.style.setProperty("--notice-banner-height", "0px");
+    } else {
+      syncHeight();
+    }
+  }, [dismissed, syncHeight]);
 
   if (dismissed) return null;
 
   return (
     <div
+      ref={bannerRef}
       style={{
         display: "flex",
         alignItems: "center",
@@ -129,7 +157,7 @@ function AppLayoutContent() {
             gridRow: "2",
             position: "sticky",
             top: "var(--panel-header)",
-            height: "calc(100vh - var(--panel-header))",
+            height: "calc(100vh - var(--panel-header) - var(--notice-banner-height, 0px))",
             overflow: "hidden",
           }}
         >

@@ -7,7 +7,7 @@
 /* ── Side panel wrapper — 헤더 아래, 비차단 ── */
 .student-scores-drawer-side-panel {
   position: fixed;
-  top: var(--panel-header, 56px);
+  top: calc(var(--panel-header, 56px) + var(--notice-banner-height, 0px));
   right: 0;
   bottom: 0;
   width: 380px;
