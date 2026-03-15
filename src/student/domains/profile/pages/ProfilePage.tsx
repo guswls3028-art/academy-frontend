@@ -219,7 +219,7 @@ export default function ProfilePage() {
             color: "var(--stu-text-muted)",
           }}
         >
-          학부모 계정은 읽기 전용입니다. 프로필·아이디·비밀번호 수정은 학생 계정으로 로그인 후 이용해 주세요.
+          학부모 계정으로 로그인 중입니다. 자녀 정보는 읽기 전용이며, 내 비밀번호는 아래에서 변경할 수 있습니다.
         </div>
       )}
       {/* 프로필 사진 */}
@@ -293,8 +293,11 @@ export default function ProfilePage() {
         </div>
       )}
 
-      {/* 기본 정보 — 선생앱 학생 필드 스펙(이름, 로그인 아이디, 학부모/학생 전화, 성별, 주소) */}
+      {/* 기본 정보 */}
       <div className="stu-section stu-section--nested" style={{ marginBottom: "var(--stu-space-6)" }}>
+        {profile.isParentReadOnly && (
+          <div style={{ fontWeight: 700, fontSize: 15, marginBottom: "var(--stu-space-3)" }}>자녀 정보</div>
+        )}
         <div style={{ position: "relative", paddingRight: 36 }}>
           {!profile.isParentReadOnly && (
           <button
@@ -626,10 +629,12 @@ export default function ProfilePage() {
       </div>
       )}
 
-      {/* 비밀번호 변경 — 학부모는 숨김 */}
-      {!profile.isParentReadOnly && (
+      {/* 비밀번호 변경 — 학부모도 자기 비밀번호 변경 가능 */}
+      {(
       <div className="stu-section stu-section--nested">
-        <div style={{ fontWeight: 700, fontSize: 15, marginBottom: "var(--stu-space-4)" }}>비밀번호 변경</div>
+        <div style={{ fontWeight: 700, fontSize: 15, marginBottom: "var(--stu-space-4)" }}>
+          {profile.isParentReadOnly ? "내 비밀번호 변경" : "비밀번호 변경"}
+        </div>
         {!showPasswordForm ? (
           <button
             type="button"
