@@ -9,6 +9,7 @@ export type StudentSession = {
   status?: string | null;
   exam_ids?: number[] | null;
   type?: "session" | "clinic";
+  start_time?: string | null;
 };
 
 export async function fetchMySessions(): Promise<StudentSession[]> {

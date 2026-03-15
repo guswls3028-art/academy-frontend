@@ -10,7 +10,7 @@ import { useMySessions } from "@/student/domains/sessions/hooks/useStudentSessio
 import type { StudentSession } from "@/student/domains/sessions/api/sessions";
 import EmptyState from "@/student/shared/ui/layout/EmptyState";
 import { formatYmd } from "@/student/shared/utils/date";
-import { IconCalendar, IconChevronRight } from "@/student/shared/ui/icons/Icons";
+import { IconCalendar, IconClinic, IconChevronRight } from "@/student/shared/ui/icons/Icons";
 
 function toDateKey(d: string | null | undefined): string | null {
   if (!d) return null;
@@ -93,6 +93,8 @@ export default function SessionListPage() {
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-2)" }}>
                 {selectedDaySessions.map((s) => {
+                  const isClinic = s.type === "clinic";
+                  const linkTo = isClinic ? "/student/clinic" : `/student/sessions/${s.id}`;
                   const status = (s.status ?? "").toLowerCase();
                   const panelVariant =
                     status.includes("완료") || status.includes("종료")
@@ -105,7 +107,7 @@ export default function SessionListPage() {
                   return (
                     <Link
                       key={s.id}
-                      to={`/student/sessions/${s.id}`}
+                      to={linkTo}
                       className={`stu-panel stu-panel--pressable stu-panel--accent ${panelVariant}`}
                       style={{
                         display: "flex",
@@ -120,16 +122,20 @@ export default function SessionListPage() {
                           width: 44,
                           height: 44,
                           borderRadius: 12,
-                          background: "var(--stu-surface-soft)",
+                          background: isClinic ? "rgba(16,185,129,0.1)" : "var(--stu-surface-soft)",
                           display: "grid",
                           placeItems: "center",
                         }}
                       >
-                        <IconCalendar style={{ width: 22, height: 22, color: "var(--stu-primary)" }} />
+                        {isClinic
+                          ? <IconClinic style={{ width: 22, height: 22, color: "var(--stu-success, #10b981)" }} />
+                          : <IconCalendar style={{ width: 22, height: 22, color: "var(--stu-primary)" }} />
+                        }
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontWeight: 800, fontSize: 15 }}>{s.title}</div>
                         <div className="stu-muted" style={{ fontSize: 13, marginTop: 2 }}>
+                          {s.start_time && s.start_time.slice(0, 5)}
                           {s.status ? ` · ${s.status}` : ""}
                         </div>
                       </div>
