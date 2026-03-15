@@ -21,8 +21,6 @@ import {
 } from "../api/clinicBooking.api";
 import { formatYmd, todayYmd } from "@/student/shared/utils/date";
 import EmptyState from "@/student/shared/ui/layout/EmptyState";
-import { useNotificationCounts } from "@/student/domains/notifications/hooks/useNotificationCounts";
-// NOTE: useNotificationCounts is called here to prime cache only; invalidateQueries handles refresh
 
 function formatTime(time: string): string {
   return time.slice(0, 5);
@@ -34,9 +32,6 @@ export default function ClinicPage() {
   const [selectedSessionId, setSelectedSessionId] = useState<number | null>(null);
   const [memo, setMemo] = useState("");
   const [activeTab, setActiveTab] = useState<"book" | "schedule">("book");
-
-  // 알림 카운트는 invalidateQueries로 자동 갱신됨
-  useNotificationCounts();
 
   // 내 예약 신청 목록 조회 (알림·클리닉 공통 키로 캐시 공유)
   const { data: myRequests = [], isLoading: requestsLoading, isError: requestsError, refetch: refetchRequests } = useQuery({

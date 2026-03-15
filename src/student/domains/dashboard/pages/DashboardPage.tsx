@@ -1,7 +1,7 @@
 /**
  * 홈 — 다음 일정 카운트다운, 오늘 할 일, 오늘/다음 수업, 빠른 메뉴, 공지
  */
-import { useState, useEffect } from "react";
+import { useState, useEffect, memo } from "react";
 import { Link } from "react-router-dom";
 import { useStudentDashboard } from "../hooks/useStudentDashboard";
 import { useMySessions } from "@/student/domains/sessions/hooks/useStudentSessions";
@@ -49,20 +49,81 @@ function formatShortDate(dateStr: string): string {
   return `${m}/${day} (${dow})`;
 }
 
+/** 다음 일정 카운트다운 — 자체 60s 타이머로 대시보드 전체 re-render 방지 */
+const CountdownCard = memo(function CountdownCard({ session, dt }: { session: StudentSession; dt: Date }) {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
+  const linkTo = session.type === "clinic" ? "/student/clinic" : `/student/sessions/${session.id}`;
+  const isClinic = session.type === "clinic";
+
+  return (
+    <Link
+      to={linkTo}
+      style={{
+        display: "block",
+        textDecoration: "none",
+        color: "inherit",
+        marginBottom: "var(--stu-space-4)",
+        borderRadius: "var(--stu-radius-lg, 12px)",
+        background: isClinic
+          ? "linear-gradient(135deg, rgba(16,185,129,0.08) 0%, var(--stu-surface) 60%)" /* tint — no token */
+          : "linear-gradient(135deg, rgba(99,102,241,0.08) 0%, var(--stu-surface) 60%)" /* tint — no token */,
+        border: isClinic
+          ? "1.5px solid rgba(16,185,129,0.2)"
+          : "1.5px solid rgba(99,102,241,0.2)",
+        padding: "14px 16px",
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <div style={{
+          width: 44, height: 44, borderRadius: 12,
+          background: isClinic ? "rgba(16,185,129,0.12)" : "rgba(99,102,241,0.12)",
+          display: "grid", placeItems: "center", flexShrink: 0,
+        }}>
+          {isClinic
+            ? <IconClinic style={{ width: 22, height: 22, color: "var(--stu-success, #10b981)" }} />
+            : <IconCalendar style={{ width: 22, height: 22, color: "var(--stu-primary)" }} />
+          }
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "var(--stu-text-muted)", letterSpacing: "0.03em", marginBottom: 2 }}>
+            다음 일정
+          </div>
+          <div style={{ fontWeight: 700, fontSize: 15, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {session.title}
+          </div>
+          <div style={{ fontSize: 12, color: "var(--stu-text-muted)", marginTop: 2 }}>
+            {formatYmd(session.date ?? null)}
+            {session.start_time && ` ${session.start_time.slice(0, 5)}`}
+          </div>
+        </div>
+        <div style={{
+          textAlign: "right", flexShrink: 0,
+        }}>
+          <div style={{
+            fontSize: 18, fontWeight: 800, letterSpacing: "-0.02em",
+            color: isClinic ? "var(--stu-success, #10b981)" : "var(--stu-primary)",
+          }}>
+            {formatRemaining(dt.getTime() - now.getTime())}
+          </div>
+        </div>
+      </div>
+    </Link>
+  );
+});
+
 export default function DashboardPage() {
   const { data: dashboard, isLoading: dashLoading, isError: dashError } = useStudentDashboard();
   const { data: sessions, isLoading: sessionsLoading, isError: sessionsError } = useMySessions();
   const { data: grades } = useMyGradesSummary();
   const { data: notificationCounts, isLoading: countsLoading } = useNotificationCounts();
 
-  const [now, setNow] = useState(() => new Date());
-
-  // 1분마다 갱신 (카운트다운용)
-  useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 60_000);
-    return () => clearInterval(id);
-  }, []);
-
+  // today는 날짜 단위이므로 페이지 렌더 시점 한 번만 계산 (일중 변하지 않음)
+  const now = new Date();
   const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
   const todaySessions = (sessions ?? []).filter((s) => (s.date ?? "").slice(0, 10) === today);
 
@@ -102,60 +163,9 @@ export default function DashboardPage() {
 
   return (
     <div style={{ padding: "var(--stu-space-2) 0" }}>
-      {/* 다음 일정 카운트다운 */}
+      {/* 다음 일정 카운트다운 — 자체 타이머로 대시보드 전체 re-render 방지 */}
       {nextSession && (
-        <Link
-          to={nextSession.session.type === "clinic" ? "/student/clinic" : `/student/sessions/${nextSession.session.id}`}
-          style={{
-            display: "block",
-            textDecoration: "none",
-            color: "inherit",
-            marginBottom: "var(--stu-space-4)",
-            borderRadius: "var(--stu-radius-lg, 12px)",
-            background: nextSession.session.type === "clinic"
-              ? "linear-gradient(135deg, rgba(16,185,129,0.08) 0%, var(--stu-surface) 60%)" /* tint — no token */
-              : "linear-gradient(135deg, rgba(99,102,241,0.08) 0%, var(--stu-surface) 60%)" /* tint — no token */,
-            border: nextSession.session.type === "clinic"
-              ? "1.5px solid rgba(16,185,129,0.2)"
-              : "1.5px solid rgba(99,102,241,0.2)",
-            padding: "14px 16px",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <div style={{
-              width: 44, height: 44, borderRadius: 12,
-              background: nextSession.session.type === "clinic" ? "rgba(16,185,129,0.12)" : "rgba(99,102,241,0.12)",
-              display: "grid", placeItems: "center", flexShrink: 0,
-            }}>
-              {nextSession.session.type === "clinic"
-                ? <IconClinic style={{ width: 22, height: 22, color: "var(--stu-success, #10b981)" }} />
-                : <IconCalendar style={{ width: 22, height: 22, color: "var(--stu-primary)" }} />
-              }
-            </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: "var(--stu-text-muted)", letterSpacing: "0.03em", marginBottom: 2 }}>
-                다음 일정
-              </div>
-              <div style={{ fontWeight: 700, fontSize: 15, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                {nextSession.session.title}
-              </div>
-              <div style={{ fontSize: 12, color: "var(--stu-text-muted)", marginTop: 2 }}>
-                {formatYmd(nextSession.session.date ?? null)}
-                {nextSession.session.start_time && ` ${nextSession.session.start_time.slice(0, 5)}`}
-              </div>
-            </div>
-            <div style={{
-              textAlign: "right", flexShrink: 0,
-            }}>
-              <div style={{
-                fontSize: 18, fontWeight: 800, letterSpacing: "-0.02em",
-                color: nextSession.session.type === "clinic" ? "var(--stu-success, #10b981)" : "var(--stu-primary)",
-              }}>
-                {formatRemaining(nextSession.dt.getTime() - now.getTime())}
-              </div>
-            </div>
-          </div>
-        </Link>
+        <CountdownCard session={nextSession.session} dt={nextSession.dt} />
       )}
 
       {/* 공지 KPI 위젯 */}

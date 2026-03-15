@@ -4,7 +4,7 @@ import { Suspense, useEffect, useRef } from "react";
 import { lazyWithRetry as lazy } from "@/shared/utils/lazyWithRetry";
 import ProtectedRoute from "./ProtectedRoute";
 
-import StudentRouter from "@/student/app/StudentRouter";
+const StudentRouter = lazy(() => import("@/student/app/StudentRouter"));
 import AuthRouter from "./AuthRouter";
 import { SendMessageModalProvider } from "@/features/messages/context/SendMessageModalContext";
 
@@ -153,7 +153,29 @@ export default function AppRouter() {
         <Route path="/" element={<RootRedirect />} />
 
         <Route element={<ProtectedRoute allow={["student", "parent"]} />}>
-          <Route path="/student/*" element={<StudentRouter />} />
+          <Route
+            path="/student/*"
+            element={
+              <Suspense
+                fallback={
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      minHeight: 200,
+                      color: "#666",
+                      fontSize: 14,
+                    }}
+                  >
+                    불러오는 중…
+                  </div>
+                }
+              >
+                <StudentRouter />
+              </Suspense>
+            }
+          />
         </Route>
 
         <Route
