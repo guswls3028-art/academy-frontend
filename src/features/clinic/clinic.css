@@ -3485,3 +3485,16 @@ details[open] > .clinic-tree__summary {
   font-size: 12px;
   font-weight: 600;
 }
+
+/* ── Schedule card: clickable → navigates to 클리닉 진행 ── */
+.clinic-schedule__card--clickable {
+  cursor: pointer;
+  transition: background 0.15s, box-shadow 0.15s, transform 0.1s;
+}
+.clinic-schedule__card--clickable:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transform: translateY(-1px);
+}
+.clinic-schedule__card--clickable:active {
+  transform: scale(0.99);
+}

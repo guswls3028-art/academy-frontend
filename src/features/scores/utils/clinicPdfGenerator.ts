@@ -5,6 +5,7 @@ import type {
   SessionScoreRow,
   SessionScoreMeta,
 } from "../api/sessionScores";
+import { feedback } from "@/shared/ui/feedback/feedback";
 
 // ── 공통 ──
 
@@ -343,7 +344,7 @@ export type ClinicPdfParams = {
 export async function downloadClinicPdf(params: ClinicPdfParams): Promise<void> {
   const { rows, meta, sessionTitle, lectureTitle, date, attendanceMap, schedule } = params;
   const data = analyze(rows, meta, attendanceMap);
-  if (data.totalStudents === 0) { alert("출석 학생이 없습니다."); return; }
+  if (data.totalStudents === 0) { feedback.warning("출석 학생이 없습니다."); return; }
   const html = buildHtml(data, sessionTitle, lectureTitle, resolveDate(date), schedule);
   const filename = `클리닉현황_${lectureTitle}_${sessionTitle}_${resolveDate(date).replace(/[.\s/]/g, "")}.pdf`;
   await htmlToPdfDownload(html, filename);

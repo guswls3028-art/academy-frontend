@@ -2,6 +2,7 @@
 // 운영 — 2-zone 레이아웃 (사이드바 미니캘린더 | 메인 일정 카드) + 모달 기반 생성
 
 import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import dayjs from "dayjs";
 import "dayjs/locale/ko";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -57,6 +58,7 @@ function cx(...xs: Array<string | false | null | undefined>) {
 
 export default function ClinicOperationsPage() {
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const [baseDate, setBaseDate] = useState(() => todayISO());
   const [deleteConfirm, setDeleteConfirm] = useState<{
     id: number;
@@ -226,8 +228,13 @@ export default function ClinicOperationsPage() {
                     className={cx(
                       "clinic-schedule__card",
                       `clinic-schedule__card--${status}`,
-                      isPastDate && "clinic-schedule__card--past"
+                      isPastDate && "clinic-schedule__card--past",
+                      "clinic-schedule__card--clickable"
                     )}
+                    onClick={() => navigate(`/admin/clinic/operations?date=${baseDate}&session=${s.id}`)}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => { if (e.key === "Enter") navigate(`/admin/clinic/operations?date=${baseDate}&session=${s.id}`); }}
                   >
                     <span
                       className="clinic-schedule__card-bar"
