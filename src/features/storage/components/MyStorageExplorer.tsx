@@ -386,6 +386,7 @@ export default function MyStorageExplorer() {
                     e.stopPropagation();
                     toggleFolderSelect(f.id, e.ctrlKey || e.metaKey);
                   }}
+                  title={f.name}
                   onDoubleClick={() => { clearSelection(); setCurrentFolderId(f.id); }}
                   onDragStart={(e) => {
                     e.dataTransfer.setData(DRAG_TYPE, JSON.stringify({ type: "folder" as const, sourceId: f.id }));
