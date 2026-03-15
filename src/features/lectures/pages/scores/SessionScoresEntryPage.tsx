@@ -415,9 +415,11 @@ export default function SessionScoresEntryPage(_props: Props) {
             try {
               await panelRef.current?.flushPendingChanges?.();
               await postScoreDraftCommit(sessionIdForDraft);
+              setIsEditMode(false);
+            } catch (err) {
+              feedback.error((err as Error).message || "저장에 실패했습니다. 다시 시도해주세요.");
             } finally {
               setIsSaving(false);
-              setIsEditMode(false);
             }
             return;
           }
@@ -691,7 +693,7 @@ export default function SessionScoresEntryPage(_props: Props) {
         type="action"
         width={420}
         onEnterConfirm={() => {
-          if (!bulkScoreValue.trim()) return;
+          if (!isEditMode || !bulkScoreValue.trim()) return;
           const score = Number(bulkScoreValue);
           if (Number.isNaN(score) || score < 0) {
             feedback.error("유효한 점수를 입력해주세요.");

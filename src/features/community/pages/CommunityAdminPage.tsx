@@ -4,7 +4,7 @@
 import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Layout, Tree, Table, Select, Tag, message } from "antd";
+import { Layout, Tree, Table, Select, Tag } from "antd";
 import type { DataNode } from "antd/es/tree";
 import {
   fetchScopeNodes,
@@ -15,6 +15,7 @@ import {
   type ScopeNodeMinimal,
 } from "../api/community.api";
 import { EmptyState, Button } from "@/shared/ui/ds";
+import { feedback } from "@/shared/ui/feedback/feedback";
 import CommunityScopeSelector from "../components/CommunityScopeSelector";
 import BlockTypeFormModal from "../components/BlockTypeFormModal";
 import { NoticeBoardContent } from "./NoticeBoardPage";
@@ -157,11 +158,11 @@ export default function CommunityAdminPage() {
     mutationFn: ({ postId, nodeIds }: { postId: number; nodeIds: number[] }) =>
       updatePostNodes(postId, nodeIds),
     onSuccess: () => {
-      message.success("노출 노드가 저장되었습니다.");
+      feedback.success("노출 노드가 저장되었습니다.");
       qc.invalidateQueries({ queryKey: ["community-admin-posts"] });
       setSelectedPost(null);
     },
-    onError: () => message.error("저장에 실패했습니다."),
+    onError: () => feedback.error("저장에 실패했습니다."),
   });
 
   const handleSaveNodes = () => {

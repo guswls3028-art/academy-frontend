@@ -484,7 +484,7 @@ function ThreadView({
                   {new Date(q.created_at).toLocaleDateString("ko-KR", { month: "2-digit", day: "2-digit" })}{" "}
                   {q.title}
                 </button>
-                <span className="qna-inbox__status qna-inbox__status--resolved">해결됨</span>
+                <span className={`qna-inbox__status ${q.is_answered ? "qna-inbox__status--resolved" : "qna-inbox__status--pending"}`}>{q.is_answered ? "해결됨" : "답변 대기"}</span>
               </div>
             ))}
           </div>

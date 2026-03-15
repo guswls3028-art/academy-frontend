@@ -153,7 +153,7 @@ function safeData<T>(d: any, fallback: T): T {
 function normalizeVideo(v: any): Video {
   if (!v) return v;
   if (!v.thumbnail_url && v.thumbnail) {
-    v.thumbnail_url = v.thumbnail;
+    return { ...v, thumbnail_url: v.thumbnail } as Video;
   }
   return v as Video;
 }

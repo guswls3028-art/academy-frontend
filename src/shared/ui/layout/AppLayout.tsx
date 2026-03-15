@@ -17,7 +17,7 @@ import { SendMessageModalProvider } from "@/features/messages/context/SendMessag
 import { useIsMobile } from "@/shared/hooks/useIsMobile";
 import { useFavicon } from "@/shared/hooks/useFavicon";
 
-const NOTICE_DISMISS_KEY = "admin_notice_clinic_hotfix_0315";
+const NOTICE_DISMISS_KEY = "admin_notice_refresh_0316";
 
 function useNoticeBannerHeight() {
   const bannerRef = useRef<HTMLDivElement>(null);
@@ -78,7 +78,7 @@ function NoticeBanner() {
       }}
     >
       <span style={{ flex: 1, textAlign: "center" }}>
-        ✅ [버그 수정] 클리닉 대상자 등록 오류가 해결되었습니다. 정상 이용 가능합니다.
+        🔄 시스템이 업데이트되었습니다. 원활한 이용을 위해 <button onClick={() => window.location.reload()} style={{ background: "none", border: "none", cursor: "pointer", textDecoration: "underline", fontWeight: 700, color: "inherit", padding: 0, fontSize: "inherit" }}>새로고침</button>해 주세요.
       </span>
       <button
         onClick={() => {

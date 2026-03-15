@@ -299,7 +299,8 @@ export default function VideoExplorerPage() {
 
   const handleDeleteFolder = useCallback(
     async (folderId: number) => {
-      if (!confirm("폴더를 삭제하시겠습니까? 폴더 내 영상이 있으면 삭제할 수 없습니다.")) return;
+      const ok = await confirm({ title: "폴더 삭제", message: "폴더를 삭제하시겠습니까? 폴더 내 영상이 있으면 삭제할 수 없습니다." });
+      if (!ok) return;
       try {
         await deleteVideoFolder(folderId);
         queryClient.invalidateQueries({ queryKey: ["video-folders", publicSession?.session_id] });
@@ -313,7 +314,7 @@ export default function VideoExplorerPage() {
         feedback.error((e as Error).message || "폴더 삭제에 실패했습니다.");
       }
     },
-    [publicSession, selectedFolderId, queryClient]
+    [publicSession, selectedFolderId, queryClient, confirm]
   );
 
   const retryVideoMutation = useMutation({
@@ -352,13 +353,14 @@ export default function VideoExplorerPage() {
   });
 
   const handleDeleteVideo = useCallback(
-    (e: React.MouseEvent, videoId: number) => {
+    async (e: React.MouseEvent, videoId: number) => {
       e.preventDefault();
       e.stopPropagation();
-      if (!confirm("정말 삭제하시겠습니까?")) return;
+      const ok = await confirm({ title: "영상 삭제", message: "정말 삭제하시겠습니까?" });
+      if (!ok) return;
       deleteVideoMutation.mutate(videoId);
     },
-    [deleteVideoMutation]
+    [deleteVideoMutation, confirm]
   );
 
   return (
