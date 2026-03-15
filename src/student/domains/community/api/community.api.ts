@@ -90,16 +90,22 @@ export async function submitQuestion(
 
 // ── 상담 신청 ──
 
-/** counsel 블록 유형 ID를 확보 (없으면 자동 생성) */
+/** counsel 블록 유형 ID를 확보 (목록에서 resolve, 없으면 생성 시도) */
 async function getCounselTypeId(): Promise<number> {
   // 캐시에 있으면 바로 반환
   const cached = _typeCache?.counsel;
   if (cached != null) return cached;
-  // 없으면 ensureCounselBlockType으로 자동 생성
-  const id = await ensureCounselBlockType();
-  // 캐시 갱신
-  if (_typeCache) _typeCache.counsel = id;
-  return id;
+  // 먼저 목록에서 resolve 시도 (학생도 접근 가능)
+  const { counsel } = await resolveTypeIds();
+  if (counsel != null) return counsel;
+  // 목록에 없으면 생성 시도 (스태프만 가능, 학생은 403)
+  try {
+    const id = await ensureCounselBlockType();
+    if (_typeCache) _typeCache.counsel = id;
+    return id;
+  } catch {
+    throw new Error("상담 신청 유형이 설정되지 않았습니다. 관리자에게 문의하세요.");
+  }
 }
 
 /** 내가 작성한 상담 신청 목록 */
@@ -156,13 +162,21 @@ export async function fetchBoardPosts(pageSize = 100): Promise<PostEntity[]> {
 
 // ── 자료실 ──
 
-/** materials 블록 유형 ID를 확보 (없으면 자동 생성) */
+/** materials 블록 유형 ID를 확보 (목록에서 resolve, 없으면 생성 시도) */
 async function getMaterialsTypeId(): Promise<number> {
   const cached = _typeCache?.materials;
   if (cached != null) return cached;
-  const id = await ensureMaterialsBlockType();
-  if (_typeCache) _typeCache.materials = id;
-  return id;
+  // 먼저 목록에서 resolve 시도 (학생도 접근 가능)
+  const { materials } = await resolveTypeIds();
+  if (materials != null) return materials;
+  // 목록에 없으면 생성 시도 (스태프만 가능, 학생은 403)
+  try {
+    const id = await ensureMaterialsBlockType();
+    if (_typeCache) _typeCache.materials = id;
+    return id;
+  } catch {
+    throw new Error("자료실 유형이 설정되지 않았습니다. 관리자에게 문의하세요.");
+  }
 }
 
 /** 자료실 목록 */
