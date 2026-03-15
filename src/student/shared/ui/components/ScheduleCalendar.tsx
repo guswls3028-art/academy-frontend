@@ -18,7 +18,8 @@ export default function ScheduleCalendar({
   onDateSelect,
   datesWithSessions,
 }: Props) {
-  const today = new Date().toISOString().slice(0, 10);
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
   const [currentMonth, setCurrentMonth] = useState(() => {
     const base = selectedDate ? new Date(selectedDate) : new Date();
     return new Date(base.getFullYear(), base.getMonth(), 1);
@@ -35,7 +36,7 @@ export default function ScheduleCalendar({
     end.setDate(end.getDate() + (6 - last.getDay()));
 
     const days: Array<{
-      date: Date;
+      dayNum: number;
       isCurrentMonth: boolean;
       isToday: boolean;
       isSelectable: boolean;
@@ -44,10 +45,13 @@ export default function ScheduleCalendar({
     }> = [];
     const cur = new Date(start);
     while (cur <= end) {
-      const dateStr = cur.toISOString().slice(0, 10);
+      const y = cur.getFullYear();
+      const m = String(cur.getMonth() + 1).padStart(2, "0");
+      const d = String(cur.getDate()).padStart(2, "0");
+      const dateStr = `${y}-${m}-${d}`;
       const isPast = dateStr < today;
       days.push({
-        date: new Date(cur),
+        dayNum: cur.getDate(),
         isCurrentMonth: cur.getMonth() === month,
         isToday: dateStr === today,
         isSelectable: cur.getMonth() === month && !isPast,
@@ -197,7 +201,7 @@ export default function ScheduleCalendar({
                 }
               }}
             >
-              <span>{day.date.getDate()}</span>
+              <span>{day.dayNum}</span>
               {day.hasSession && (
                 <span
                   style={{

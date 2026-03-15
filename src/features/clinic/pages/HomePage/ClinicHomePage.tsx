@@ -183,6 +183,7 @@ export default function ClinicHomePage() {
       patchClinicParticipantStatus(id, { status }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["clinic-participants"] });
+      qc.invalidateQueries({ queryKey: ["clinic-sessions-tree"] });
       qc.invalidateQueries({ queryKey: ["admin", "notification-counts"] });
     },
     onError: () => {

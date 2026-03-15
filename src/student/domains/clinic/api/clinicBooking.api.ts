@@ -47,12 +47,15 @@ export async function fetchAvailableClinicSessions(params?: {
   date_from?: string;
   date_to?: string;
 }): Promise<ClinicSession[]> {
-  const today = new Date();
-  const nextWeek = new Date(today);
-  nextWeek.setDate(today.getDate() + 14); // 2주 후까지
+  const now = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  const future = new Date(now);
+  future.setDate(now.getDate() + 14);
+  const futureStr = `${future.getFullYear()}-${pad(future.getMonth() + 1)}-${pad(future.getDate())}`;
 
-  const dateFrom = params?.date_from || today.toISOString().slice(0, 10);
-  const dateTo = params?.date_to || nextWeek.toISOString().slice(0, 10);
+  const dateFrom = params?.date_from || todayStr;
+  const dateTo = params?.date_to || futureStr;
 
   const res = await api.get("/clinic/sessions/", {
     params: {
