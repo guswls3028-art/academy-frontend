@@ -6,6 +6,7 @@ import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import StudentPageShell from "@/student/shared/ui/pages/StudentPageShell";
 import ScheduleCalendar from "@/student/shared/ui/components/ScheduleCalendar";
+import type { DateStatusColor } from "@/student/shared/ui/components/ScheduleCalendar";
 import { useMySessions } from "@/student/domains/sessions/hooks/useStudentSessions";
 import type { StudentSession } from "@/student/domains/sessions/api/sessions";
 import EmptyState from "@/student/shared/ui/layout/EmptyState";
@@ -21,15 +22,6 @@ export default function SessionListPage() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const { data: sessions = [], isLoading, isError } = useMySessions();
 
-  const datesWithSessions = useMemo(() => {
-    const set = new Set<string>();
-    sessions.forEach((s) => {
-      const key = toDateKey(s.date);
-      if (key) set.add(key);
-    });
-    return Array.from(set);
-  }, [sessions]);
-
   const sessionsByDate = useMemo(() => {
     const map = new Map<string, StudentSession[]>();
     sessions.forEach((s) => {
@@ -41,6 +33,31 @@ export default function SessionListPage() {
     map.forEach((arr) => arr.sort((a, b) => (a.date || "").localeCompare(b.date || "")));
     return map;
   }, [sessions]);
+
+  const datesWithSessions = useMemo(() => {
+    const set = new Set<string>();
+    sessions.forEach((s) => {
+      const key = toDateKey(s.date);
+      if (key) set.add(key);
+    });
+    return Array.from(set);
+  }, [sessions]);
+
+  // 날짜별 상태 색상: 임박/마감 있으면 빨강, 예정/진행 있으면 파랑, 완료만이면 회색
+  const dateStatusMap = useMemo(() => {
+    const map: Record<string, DateStatusColor> = {};
+    sessionsByDate.forEach((arr, date) => {
+      const statuses = arr.map((s) => (s.status ?? "").toLowerCase());
+      if (statuses.some((st) => st.includes("임박") || st.includes("마감"))) {
+        map[date] = "danger";
+      } else if (statuses.some((st) => st.includes("예정") || st.includes("진행"))) {
+        map[date] = "action";
+      } else if (statuses.some((st) => st.includes("완료") || st.includes("종료"))) {
+        map[date] = "complete";
+      }
+    });
+    return map;
+  }, [sessionsByDate]);
 
   const selectedDaySessions = useMemo(() => {
     if (!selectedDate) return [];
@@ -76,6 +93,7 @@ export default function SessionListPage() {
           selectedDate={selectedDate}
           onDateSelect={handleDateSelect}
           datesWithSessions={datesWithSessions}
+          dateStatusMap={dateStatusMap}
         />
 
         {/* 선택한 날짜의 상세 일정 */}

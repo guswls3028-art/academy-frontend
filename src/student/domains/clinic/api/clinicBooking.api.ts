@@ -61,6 +61,7 @@ export async function fetchAvailableClinicSessions(params?: {
     params: {
       date_from: dateFrom,
       date_to: dateTo,
+      page_size: 200,
     },
   });
 
@@ -79,7 +80,7 @@ export async function fetchAvailableClinicSessions(params?: {
  * 백엔드에서 자동으로 현재 로그인한 학생의 예약만 반환
  */
 export async function fetchMyClinicBookingRequests(): Promise<ClinicBookingRequest[]> {
-  const res = await api.get("/clinic/participants/");
+  const res = await api.get("/clinic/participants/", { params: { page_size: 200 } });
 
   const participants = Array.isArray(res.data)
     ? res.data

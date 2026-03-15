@@ -1,14 +1,25 @@
 /**
  * 일정 페이지용 달력 — 클리닉 달력(ClinicCalendar)과 동일한 UI
  * 날짜 클릭 시 아래에 그날 상세 일정 표시 (부모에서 처리)
+ * 날짜별 상태 색상: 예정/진행=파랑, 임박=빨강, 완료=회색
  */
 import { useState, useMemo } from "react";
+
+export type DateStatusColor = "action" | "danger" | "complete";
+
+const STATUS_COLORS: Record<DateStatusColor, string> = {
+  action: "var(--stu-primary, #3b82f6)",
+  danger: "#ef4444",
+  complete: "#94a3b8",
+};
 
 type Props = {
   selectedDate: string | null;
   onDateSelect: (date: string) => void;
   /** 일정이 있는 날짜 (YYYY-MM-DD). 있으면 셀에 점 표시 */
   datesWithSessions: string[];
+  /** 날짜별 상태 색상 (예정=action, 임박=danger, 완료=complete) */
+  dateStatusMap?: Record<string, DateStatusColor>;
 };
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
@@ -17,6 +28,7 @@ export default function ScheduleCalendar({
   selectedDate,
   onDateSelect,
   datesWithSessions,
+  dateStatusMap,
 }: Props) {
   const now = new Date();
   const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
@@ -42,6 +54,7 @@ export default function ScheduleCalendar({
       isSelectable: boolean;
       dateStr: string;
       hasSession: boolean;
+      statusColor: string | null;
     }> = [];
     const cur = new Date(start);
     while (cur <= end) {
@@ -50,18 +63,20 @@ export default function ScheduleCalendar({
       const d = String(cur.getDate()).padStart(2, "0");
       const dateStr = `${y}-${m}-${d}`;
       const isPast = dateStr < today;
+      const statusKey = dateStatusMap?.[dateStr];
       days.push({
         dayNum: cur.getDate(),
         isCurrentMonth: cur.getMonth() === month,
         isToday: dateStr === today,
-        isSelectable: cur.getMonth() === month && !isPast,
+        isSelectable: cur.getMonth() === month,
         dateStr,
         hasSession: datesWithSessions.includes(dateStr),
+        statusColor: statusKey ? STATUS_COLORS[statusKey] : null,
       });
       cur.setDate(cur.getDate() + 1);
     }
     return days;
-  }, [currentMonth, datesWithSessions, today]);
+  }, [currentMonth, datesWithSessions, dateStatusMap, today]);
 
   const monthLabel = `${currentMonth.getFullYear()}년 ${currentMonth.getMonth() + 1}월`;
 
@@ -72,6 +87,8 @@ export default function ScheduleCalendar({
   const goToNextMonth = () => {
     setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
   };
+
+  const hasStatusColors = dateStatusMap && Object.keys(dateStatusMap).length > 0;
 
   return (
     <div
@@ -146,6 +163,7 @@ export default function ScheduleCalendar({
         {calendarDays.map((day, idx) => {
           const isSelected = selectedDate === day.dateStr;
           const isClickable = day.isSelectable;
+          const sc = day.statusColor;
 
           return (
             <button
@@ -170,34 +188,41 @@ export default function ScheduleCalendar({
                   : day.isToday
                     ? "1px solid var(--stu-primary)"
                     : "1px solid transparent",
-                background: isSelected
-                  ? "var(--stu-primary-bg)"
-                  : day.isCurrentMonth
-                    ? "var(--stu-surface-soft)"
-                    : "transparent",
-                color: !day.isCurrentMonth
-                  ? "var(--stu-text-muted)"
+                background: sc
+                  ? sc
                   : isSelected
-                    ? "var(--stu-primary)"
-                    : "var(--stu-text)",
+                    ? "var(--stu-primary-bg)"
+                    : day.isCurrentMonth
+                      ? "var(--stu-surface-soft)"
+                      : "transparent",
+                color: sc
+                  ? "#ffffff"
+                  : !day.isCurrentMonth
+                    ? "var(--stu-text-muted)"
+                    : isSelected
+                      ? "var(--stu-primary)"
+                      : "var(--stu-text)",
                 fontWeight: day.isToday ? 700 : isSelected ? 600 : 400,
                 fontSize: 14,
-                cursor: isClickable ? "pointer" : "not-allowed",
-                opacity: !day.isCurrentMonth ? 0.3 : day.isSelectable ? 1 : 0.5,
+                cursor: isClickable ? "pointer" : "default",
+                opacity: !day.isCurrentMonth ? 0.3 : 1,
                 transition: "all 150ms cubic-bezier(0.4, 0, 0.2, 1)",
                 position: "relative",
                 zIndex: 10,
-                pointerEvents: isClickable ? "auto" : "none",
                 touchAction: "manipulation",
               }}
               onMouseEnter={(e) => {
-                if (isClickable) {
+                if (isClickable && !sc) {
                   e.currentTarget.style.background = "var(--stu-surface-hover)";
                 }
               }}
               onMouseLeave={(e) => {
-                if (isClickable) {
-                  e.currentTarget.style.background = day.isCurrentMonth ? "var(--stu-surface-soft)" : "transparent";
+                if (isClickable && !sc) {
+                  e.currentTarget.style.background = isSelected
+                    ? "var(--stu-primary-bg)"
+                    : day.isCurrentMonth
+                      ? "var(--stu-surface-soft)"
+                      : "transparent";
                 }
               }}
             >
@@ -210,7 +235,7 @@ export default function ScheduleCalendar({
                     width: 4,
                     height: 4,
                     borderRadius: "50%",
-                    background: isSelected ? "var(--stu-primary)" : "var(--stu-text-muted)",
+                    background: sc ? "#fff" : isSelected ? "var(--stu-primary)" : "var(--stu-text-muted)",
                     opacity: 0.8,
                   }}
                 />
@@ -219,6 +244,35 @@ export default function ScheduleCalendar({
           );
         })}
       </div>
+
+      {/* 범례 */}
+      {hasStatusColors && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "var(--stu-space-4)",
+            marginTop: "var(--stu-space-4)",
+            paddingTop: "var(--stu-space-4)",
+            borderTop: "1px solid var(--stu-border)",
+            fontSize: 12,
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <div style={{ width: 16, height: 16, borderRadius: 4, background: STATUS_COLORS.action }} />
+            <span className="stu-muted">예정</span>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <div style={{ width: 16, height: 16, borderRadius: 4, background: STATUS_COLORS.danger }} />
+            <span className="stu-muted">임박</span>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <div style={{ width: 16, height: 16, borderRadius: 4, background: STATUS_COLORS.complete }} />
+            <span className="stu-muted">완료</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
