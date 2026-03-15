@@ -8,6 +8,7 @@
 import { useState, useMemo, useRef, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useConfirm } from "@/shared/ui/confirm";
 
 import SessionScoresPanel, { type SessionScoresPanelHandle } from "@/features/scores/panels/SessionScoresPanel";
 import { useScoreEditDraft } from "@/features/scores/hooks/useScoreEditDraft";
@@ -46,6 +47,7 @@ export default function SessionScoresEntryPage(_props: Props) {
   const numericSessionId = Number(sessionIdParam);
   const numericLectureId = Number(lectureIdParam);
   const qc = useQueryClient();
+  const confirm = useConfirm();
   const [searchInput, setSearchInput] = useState("");
   const [selectedEnrollmentIds, setSelectedEnrollmentIds] = useState<number[]>([]);
   const [isEditMode, setIsEditMode] = useState(false);
@@ -187,7 +189,7 @@ export default function SessionScoresEntryPage(_props: Props) {
         feedback.info("진행 중인 시험이 없습니다.");
         return;
       }
-      if (!window.confirm(`진행 중인 시험 ${openExams.length}건을 모두 종료하시겠습니까?`)) return;
+      if (!(await confirm({ title: "시험 일괄 종료", message: `진행 중인 시험 ${openExams.length}건을 모두 종료하시겠습니까?`, confirmText: "종료" }))) return;
       await Promise.all(openExams.map((e) => updateAdminExam(Number(e.exam_id), { status: "CLOSED" })));
       invalidateScores();
       feedback.success(`시험 ${openExams.length}건 종료 완료`);
@@ -208,7 +210,7 @@ export default function SessionScoresEntryPage(_props: Props) {
         feedback.info("진행 중인 과제가 없습니다.");
         return;
       }
-      if (!window.confirm(`진행 중인 과제 ${openHws.length}건을 모두 종료하시겠습니까?`)) return;
+      if (!(await confirm({ title: "과제 일괄 종료", message: `진행 중인 과제 ${openHws.length}건을 모두 종료하시겠습니까?`, confirmText: "종료" }))) return;
       await Promise.all(openHws.map((h) => updateAdminHomework(Number(h.id), { status: "CLOSED" })));
       invalidateScores();
       feedback.success(`과제 ${openHws.length}건 종료 완료`);
@@ -243,25 +245,25 @@ export default function SessionScoresEntryPage(_props: Props) {
     setHomeworkEdit(true);
   };
 
-  const handleSelectTotal = () => {
+  const handleSelectTotal = async () => {
     if (examEditTotal) {
       setExamEditTotal(false);
       return;
     }
     if (examEditSubjective) {
-      const ok = window.confirm("주관식만 입력이 해제됩니다. 합산으로 입력하시겠습니까?");
+      const ok = await confirm({ title: "입력 방식 변경", message: "주관식만 입력이 해제됩니다. 합산으로 입력하시겠습니까?", confirmText: "합산 입력" });
       if (!ok) return;
       setExamEditSubjective(false);
     }
     setExamEditTotal(true);
   };
-  const handleSelectSubjective = () => {
+  const handleSelectSubjective = async () => {
     if (examEditSubjective) {
       setExamEditSubjective(false);
       return;
     }
     if (examEditTotal) {
-      const ok = window.confirm("합산 입력이 해제됩니다. 주관식만으로 입력하시겠습니까?");
+      const ok = await confirm({ title: "입력 방식 변경", message: "합산 입력이 해제됩니다. 주관식만으로 입력하시겠습니까?", confirmText: "주관식 입력" });
       if (!ok) return;
       setExamEditTotal(false);
     }

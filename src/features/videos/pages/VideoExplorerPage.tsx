@@ -6,6 +6,7 @@
 import { useState, useMemo, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useQueries, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useConfirm } from "@/shared/ui/confirm";
 import { FilePlus, Video, Folder, Eye } from "lucide-react";
 import { Button, EmptyState } from "@/shared/ui/ds";
 import { DomainLayout } from "@/shared/ui/domain";
@@ -100,6 +101,7 @@ export default function VideoExplorerPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
+  const confirm = useConfirm();
   const [selectedFolderId, setSelectedFolderId] = useState<VideoFolderId>(null);
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const [uploadTargetSessionId, setUploadTargetSessionId] = useState<number | null>(null);
@@ -522,10 +524,10 @@ export default function VideoExplorerPage() {
                             intent="primary"
                             size="sm"
                             disabled={retryVideoMutation.isPending}
-                            onClick={(e) => {
+                            onClick={async (e) => {
                               e.stopPropagation();
-                              const msg = "재시도할까요? 진행 중인 작업이 있으면 취소 후 다시 제출됩니다.";
-                              if (window.confirm(msg)) {
+                              const ok = await confirm({ title: "영상 재시도", message: "재시도할까요? 진행 중인 작업이 있으면 취소 후 다시 제출됩니다.", confirmText: "재시도" });
+                              if (ok) {
                                 retryVideoMutation.mutate({ videoId: v.id, title: v.title });
                               }
                             }}

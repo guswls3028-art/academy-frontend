@@ -8,6 +8,7 @@
 import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useConfirm } from "@/shared/ui/confirm";
 import { studentToast } from "@/student/shared/ui/feedback/studentToast";
 import StudentPageShell from "@/student/shared/ui/pages/StudentPageShell";
 import ClinicCalendar from "@/student/shared/ui/components/ClinicCalendar";
@@ -28,6 +29,7 @@ function formatTime(time: string): string {
 
 export default function ClinicPage() {
   const qc = useQueryClient();
+  const confirm = useConfirm();
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedSessionId, setSelectedSessionId] = useState<number | null>(null);
   const [memo, setMemo] = useState("");
@@ -621,8 +623,8 @@ export default function ClinicPage() {
                         className="stu-btn stu-btn--secondary"
                         style={{ fontSize: 12, padding: "4px 10px", whiteSpace: "nowrap", flexShrink: 0, color: "var(--stu-danger)" }}
                         disabled={cancelMutation.isPending}
-                        onClick={() => {
-                          if (window.confirm("예약을 취소할까요?")) {
+                        onClick={async () => {
+                          if (await confirm({ title: "예약 취소", message: "예약을 취소할까요?", confirmText: "취소", danger: true })) {
                             cancelMutation.mutate(request.id);
                           }
                         }}

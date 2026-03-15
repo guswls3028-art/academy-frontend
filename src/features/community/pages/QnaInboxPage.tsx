@@ -23,6 +23,7 @@ import {
   type Answer,
 } from "../api/community.api";
 import { Button } from "@/shared/ui/ds";
+import { useConfirm } from "@/shared/ui/confirm";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import "@/features/community/qna-inbox.css";
 
@@ -338,6 +339,7 @@ function ThreadView({
   onSelectQuestion: (id: number) => void;
 }) {
   const qc = useQueryClient();
+  const confirm = useConfirm();
   const { data: post, isLoading } = useQuery({
     queryKey: ["community-post", postId],
     queryFn: () => fetchPost(postId),
@@ -422,7 +424,7 @@ function ThreadView({
             <Button
               intent="danger"
               size="sm"
-              onClick={() => window.confirm("이 질문을 삭제할까요?") && deletePostMut.mutate()}
+              onClick={async () => { if (await confirm({ title: "질문 삭제", message: "이 질문을 삭제할까요?", confirmText: "삭제", danger: true })) deletePostMut.mutate(); }}
               disabled={deletePostMut.isPending}
             >
               삭제
@@ -519,6 +521,7 @@ function AnswerThread({ postId }: { postId: number }) {
 
 function ReplyBlock({ postId, answer }: { postId: number; answer: Answer }) {
   const qc = useQueryClient();
+  const confirm = useConfirm();
   const [editing, setEditing] = useState(false);
   const [editContent, setEditContent] = useState(answer.content);
 
@@ -591,7 +594,7 @@ function ReplyBlock({ postId, answer }: { postId: number; answer: Answer }) {
               <Button
                 size="sm"
                 intent="ghost"
-                onClick={() => window.confirm("이 답변을 삭제할까요?") && deleteMut.mutate()}
+                onClick={async () => { if (await confirm({ title: "답변 삭제", message: "이 답변을 삭제할까요?", confirmText: "삭제", danger: true })) deleteMut.mutate(); }}
                 disabled={deleteMut.isPending}
               >
                 삭제

@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useConfirm } from "@/shared/ui/confirm";
 
 const STORAGE_KEY = "students-selected-ids";
 
@@ -35,6 +36,7 @@ export default function StudentsHomePage() {
   const navigate = useNavigate();
   const location = useLocation();
   const qc = useQueryClient();
+  const confirm = useConfirm();
   const { openSendMessageModal } = useSendMessageModal();
   const isMobile = useIsMobile();
 
@@ -212,7 +214,7 @@ export default function StudentsHomePage() {
                 parts.length > 0
                   ? `${parts.join(", ")}\n\n위 ${selectedIds.length}명을 삭제하시겠습니까? 30일간 보관 후 자동 삭제됩니다.`
                   : `선택한 ${selectedIds.length}명을 삭제하시겠습니까? 30일간 보관 후 자동 삭제됩니다.`;
-              if (!window.confirm(msg)) return;
+              if (!(await confirm({ title: "학생 삭제", message: msg, confirmText: "삭제", danger: true }))) return;
               setDeleting(true);
               try {
                 const { deleted } = await bulkDeleteStudents(selectedIds);
@@ -238,7 +240,7 @@ export default function StudentsHomePage() {
             disabled={selectedIds.length === 0 || deleting}
             onClick={async () => {
               if (selectedIds.length === 0) return;
-              if (!window.confirm(`선택한 ${selectedIds.length}명을 복원하시겠습니까?`)) return;
+              if (!(await confirm({ title: "학생 복원", message: `선택한 ${selectedIds.length}명을 복원하시겠습니까?`, confirmText: "복원" }))) return;
               setDeleting(true);
               try {
                 const { restored } = await bulkRestoreStudents(selectedIds);
@@ -260,7 +262,7 @@ export default function StudentsHomePage() {
             disabled={selectedIds.length === 0 || deleting}
             onClick={async () => {
               if (selectedIds.length === 0) return;
-              if (!window.confirm(`선택한 ${selectedIds.length}명을 즉시 영구 삭제하시겠습니까? 복구할 수 없습니다.`)) return;
+              if (!(await confirm({ title: "영구 삭제", message: `선택한 ${selectedIds.length}명을 즉시 영구 삭제하시겠습니까? 복구할 수 없습니다.`, confirmText: "영구 삭제", danger: true }))) return;
               setDeleting(true);
               try {
                 const { deleted } = await bulkPermanentDeleteStudents(selectedIds);
