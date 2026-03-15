@@ -18,6 +18,7 @@ export default function ExamSubmitPage() {
   const { examId } = useParams();
   const safeId = Number(examId);
   const navigate = useNavigate();
+  const qc = useQueryClient();
   const { user } = useAuthContext();
   const isParent = user?.tenantRole === "parent";
 
@@ -94,6 +95,9 @@ export default function ExamSubmitPage() {
     try {
       await submitStudentExamAnswers(safeId, payload);
       try { localStorage.removeItem(draftKey); } catch { /* non-critical */ }
+      qc.invalidateQueries({ queryKey: ["student", "exams"] });
+      qc.invalidateQueries({ queryKey: ["student", "grades"] });
+      qc.invalidateQueries({ queryKey: ["student-dashboard"] });
       navigate(`/student/exams/${safeId}/result`, { replace: true });
     } catch (e: any) {
       setError(

@@ -6,6 +6,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { fetchMe, updateProfile, changePassword } from "../../api/profile.api";
 import useAuth from "@/features/auth/hooks/useAuth";
+import { feedback } from "@/shared/ui/feedback/feedback";
 
 import ProfileInfoCard from "../components/ProfileInfoCard";
 import ChangePasswordModal from "../components/ChangePasswordModal";
@@ -44,6 +45,9 @@ export default function ProfileAccountPage() {
     },
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["me"] });
+    },
+    onError: () => {
+      feedback.error("프로필 저장에 실패했습니다.");
     },
   });
 

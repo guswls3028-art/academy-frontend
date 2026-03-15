@@ -83,6 +83,9 @@ function CommentRow({
       setEditMode(false);
       studentToast.success("수정되었습니다.");
     },
+    onError: () => {
+      studentToast.error("댓글 수정에 실패했습니다.");
+    },
   });
 
   const deleteMut = useMutation({
@@ -90,6 +93,9 @@ function CommentRow({
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["video-comments", videoId] });
       studentToast.success("삭제되었습니다.");
+    },
+    onError: () => {
+      studentToast.error("댓글 삭제에 실패했습니다.");
     },
   });
 

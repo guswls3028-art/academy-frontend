@@ -93,6 +93,9 @@ export default function ProfilePage() {
         setConfirmPassword("");
       }
     },
+    onError: () => {
+      studentToast.error("저장에 실패했습니다.");
+    },
   });
 
   const photoInputRef = useRef<HTMLInputElement>(null);

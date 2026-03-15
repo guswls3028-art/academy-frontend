@@ -140,12 +140,14 @@ export default function SessionAttendancePage({
     mutationFn: ({ id, status }: { id: number; status: AttendanceStatus }) =>
       updateAttendance(id, { status }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["attendance", sessionId] }),
+    onError: () => { feedback.error("출석 변경에 실패했습니다."); },
   });
 
   const updateMemo = useMutation({
     mutationFn: ({ id, memo }: { id: number; memo: string }) =>
       updateAttendance(id, { memo }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["attendance", sessionId] }),
+    onError: () => { feedback.error("출석 변경에 실패했습니다."); },
   });
 
   const filtered = useMemo(() => pageData, [pageData]);

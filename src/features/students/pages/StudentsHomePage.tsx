@@ -127,6 +127,7 @@ export default function StudentsHomePage() {
       qc.invalidateQueries({ queryKey: ["students"] });
       qc.invalidateQueries({ queryKey: ["student"] });
     },
+    onError: () => { feedback.error("상태 변경에 실패했습니다."); },
   });
   const togglingId =
     toggleActiveMutation.isPending && toggleActiveMutation.variables

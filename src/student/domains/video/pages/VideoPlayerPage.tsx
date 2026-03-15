@@ -143,7 +143,7 @@ export default function VideoPlayerPage() {
     },
     onSuccess: () => {
       if (sessionId == null) return;
-      const key = ["student-session-videos", sessionId, enrollmentId ?? "public"] as const;
+      const key = ["student-session-videos", sessionId, enrollmentId ?? null] as const;
       setTimeout(() => queryClient.invalidateQueries({ queryKey: key }), 0);
     },
   });
@@ -314,7 +314,7 @@ export default function VideoPlayerPage() {
       .then((res) => { if (!cancelled) setSessionVideosData(res); })
       .catch(() => { if (!cancelled) setSessionVideosData(null); });
     return () => { cancelled = true; };
-  }, [sessionId, enrollmentId ?? "public", videoId]);
+  }, [sessionId, enrollmentId ?? null, videoId]);
 
   useEffect(() => {
     if (autoPlayCountdown !== null && autoPlayCountdown <= 0 && nextVideo) {

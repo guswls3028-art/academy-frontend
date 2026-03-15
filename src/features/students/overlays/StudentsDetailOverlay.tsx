@@ -301,16 +301,19 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
       qc.invalidateQueries({ queryKey: ["student", id] });
       qc.invalidateQueries({ queryKey: ["tags"] });
     },
+    onError: () => { feedback.error("처리에 실패했습니다."); },
   });
 
   const removeTag = useMutation({
     mutationFn: (tagId: number) => detachStudentTag(id, tagId),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["student", id] }),
+    onError: () => { feedback.error("처리에 실패했습니다."); },
   });
 
   const updateMemo = useMutation({
     mutationFn: (memo: string) => createMemo(id, memo),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["student", id] }),
+    onError: () => { feedback.error("처리에 실패했습니다."); },
   });
 
   const toggleActive = useMutation({
@@ -319,6 +322,7 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
       qc.invalidateQueries({ queryKey: ["student", id] });
       qc.invalidateQueries({ queryKey: ["students"] });
     },
+    onError: () => { feedback.error("처리에 실패했습니다."); },
   });
 
   // 로딩 스켈레톤

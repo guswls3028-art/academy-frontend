@@ -86,22 +86,7 @@ export default function DashboardPage() {
   const clinicUpcoming = dashboard?.badges?.clinic_upcoming === true;
   const hasTodos = failedExamCount > 0 || failedHomeworkCount > 0 || clinicUpcoming;
 
-  // 다음 수업 (오늘 수업이 없을 때 표시할 가장 가까운 미래 세션)
-  const nextFutureSession = (() => {
-    if (todaySessions.length > 0) return null; // 오늘 수업이 있으면 불필요
-    if (!sessions?.length) return null;
-    let best: { session: StudentSession; dt: Date } | null = null;
-    for (const s of sessions) {
-      const dateStr = (s.date ?? "").slice(0, 10);
-      if (!dateStr || dateStr <= today) continue; // 오늘 이후만
-      const dt = sessionToDate(s);
-      if (!dt) continue;
-      if (!best || dt.getTime() < best.dt.getTime()) {
-        best = { session: s, dt };
-      }
-    }
-    return best;
-  })();
+  // nextFutureSession 제거 — 상단 카운트다운(nextSession)이 이미 다음 일정을 보여줌
 
   if (dashLoading || sessionsLoading) {
     return (
@@ -279,7 +264,7 @@ export default function DashboardPage() {
           }}>
             {failedHomeworkCount > 0 && (
               <Link
-                to="/student/submit"
+                to="/student/grades"
                 style={{
                   display: "flex",
                   alignItems: "center",
@@ -307,7 +292,7 @@ export default function DashboardPage() {
             )}
             {failedExamCount > 0 && (
               <Link
-                to="/student/exams"
+                to="/student/grades"
                 style={{
                   display: "flex",
                   alignItems: "center",
@@ -364,62 +349,12 @@ export default function DashboardPage() {
         </section>
       )}
 
-      {/* 오늘/다음 수업 */}
-      <section style={{ marginBottom: "var(--stu-space-8)" }}>
-        {todaySessions.length === 0 ? (
-          nextFutureSession ? (
-            /* 오늘 수업 없으나 다음 수업이 있는 경우 */
-            <Link
-              to={nextFutureSession.session.type === "clinic" ? "/student/clinic" : `/student/sessions/${nextFutureSession.session.id}`}
-              className="stu-status-surface stu-panel--pressable"
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: "var(--stu-space-4)",
-                textDecoration: "none",
-                color: "inherit",
-              }}
-            >
-              <div>
-                <div className="stu-status-eyebrow">다음 수업</div>
-                <div className="stu-status-title" style={{ fontSize: 15 }}>
-                  {formatShortDate(nextFutureSession.session.date!)}
-                  {nextFutureSession.session.start_time && ` ${nextFutureSession.session.start_time.slice(0, 5)}`}
-                  {" · "}
-                  {nextFutureSession.session.title}
-                </div>
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: "var(--stu-space-2)", flexShrink: 0 }}>
-                <IconCalendar style={{ width: 24, height: 24, color: "var(--stu-primary)" }} />
-                <span className="stu-cta-link" style={{ fontSize: 13 }}>전체 일정</span>
-              </div>
-            </Link>
-          ) : (
-            /* 다음 수업도 없는 경우 */
-            <Link
-              to="/student/sessions"
-              className="stu-status-surface stu-panel--pressable"
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: "var(--stu-space-4)",
-                textDecoration: "none",
-                color: "inherit",
-              }}
-            >
-              <div>
-                <div className="stu-status-eyebrow">TODAY</div>
-                <div className="stu-status-title">예정된 수업이 없습니다</div>
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: "var(--stu-space-2)", flexShrink: 0 }}>
-                <IconCalendar style={{ width: 24, height: 24, color: "var(--stu-primary)" }} />
-                <span className="stu-cta-link" style={{ fontSize: 13 }}>전체 일정 보기</span>
-              </div>
-            </Link>
-          )
-        ) : (
+      {/* 오늘 수업 — 상단 카운트다운과 중복되지 않게 오늘 수업이 있을 때만 표시 */}
+      {todaySessions.length > 0 && (
+        <section style={{ marginBottom: "var(--stu-space-6)" }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "var(--stu-text-muted)", letterSpacing: "0.02em", marginBottom: 10 }}>
+            오늘 수업
+          </div>
           <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-2)" }}>
             {todaySessions.slice(0, 3).map((s) => {
               const isClinic = s.type === "clinic";
@@ -450,33 +385,14 @@ export default function DashboardPage() {
                         </span>
                       )}
                     </div>
-                    <div className="stu-muted" style={{ fontSize: 12 }}>
-                      {isClinic && s.status && <span style={{ color: "var(--stu-success, #10b981)", fontWeight: 600 }}>{s.status}</span>}
-                      {!isClinic && `오늘 수업`}
-                    </div>
+                    <div className="stu-muted" style={{ fontSize: 12 }}>오늘 수업</div>
                   </div>
                 </Link>
               );
             })}
-            <Link
-              to="/student/sessions"
-              className="stu-panel stu-panel--pressable"
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "flex-end",
-                gap: "var(--stu-space-2)",
-                textDecoration: "none",
-                color: "inherit",
-                padding: "var(--stu-space-3)",
-              }}
-            >
-              <IconCalendar style={{ width: 20, height: 20, color: "var(--stu-primary)", flexShrink: 0 }} />
-              <span className="stu-cta-link" style={{ fontSize: 13 }}>전체 일정 보기</span>
-            </Link>
           </div>
-        )}
-      </section>
+        </section>
+      )}
 
       {/* 빠른 메뉴 */}
       <section>
