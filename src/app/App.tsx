@@ -5,6 +5,7 @@ import { AuthProvider } from "@/features/auth/context/AuthContext";
 import QueryProvider from "./providers/QueryProvider";
 import { ProgramProvider } from "@/shared/program";
 import SubscriptionExpiredOverlay from "@/shared/ui/SubscriptionExpiredOverlay";
+import VersionChecker from "@/shared/ui/layout/VersionChecker";
 
 export default function App() {
   return (
@@ -12,6 +13,7 @@ export default function App() {
       <BrowserRouter>
         <ProgramProvider>
           <AuthProvider>
+            <VersionChecker />
             <AppRouter />
             <SubscriptionExpiredOverlay />
           </AuthProvider>

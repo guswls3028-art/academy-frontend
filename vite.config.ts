@@ -4,11 +4,32 @@ import tailwindcss from "@tailwindcss/vite";
 import path from "path";
 import agentEventServer from "./vite-plugins/agentEventServer";
 
+function versionJsonPlugin() {
+  return {
+    name: "version-json",
+    apply: "build" as const,
+    generateBundle() {
+      this.emitFile({
+        type: "asset",
+        fileName: "version.json",
+        source: JSON.stringify({ version: buildTimestamp }),
+      });
+    },
+  };
+}
+
+const buildTimestamp = Date.now().toString();
+
 export default defineConfig({
+  define: {
+    __BUILD_TIMESTAMP__: JSON.stringify(buildTimestamp),
+  },
+
   plugins: [
     react(),
     tailwindcss(),
     agentEventServer(),
+    versionJsonPlugin(),
   ],
 
   server: {
