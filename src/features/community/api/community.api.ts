@@ -66,6 +66,7 @@ export interface PostEntity {
   mappings: PostMappingItem[];
   attachments?: PostAttachment[];
   category_label?: string | null;
+  is_urgent?: boolean;
 }
 
 // ----------------------------------------
@@ -364,6 +365,7 @@ export async function createPost(data: {
   created_by?: number | null;
   node_ids: number[];
   category_label?: string | null;
+  is_urgent?: boolean;
 }): Promise<PostEntity> {
   const res = await api.post(`${PREFIX}/posts/`, data);
   return res.data as PostEntity;

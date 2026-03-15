@@ -1061,8 +1061,11 @@ function PostRow({
       style={{ textAlign: "left", padding: "var(--stu-space-4)", display: "flex", alignItems: "center", gap: "var(--stu-space-3)" }}
     >
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-          {post.title}
+        <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 6 }}>
+          {post.is_urgent && (
+            <span style={{ flexShrink: 0, fontSize: 11, fontWeight: 700, color: "#fff", background: "var(--stu-danger, #ef4444)", borderRadius: 4, padding: "1px 6px", lineHeight: 1.5 }}>긴급</span>
+          )}
+          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{post.title}</span>
         </div>
         <div className="stu-muted" style={{ fontSize: 12 }}>
           {formatYmd(post.created_at)}

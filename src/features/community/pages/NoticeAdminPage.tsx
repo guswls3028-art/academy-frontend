@@ -717,6 +717,7 @@ function NoticeCreatePane({
 }) {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
+  const [isUrgent, setIsUrgent] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -754,6 +755,7 @@ function NoticeCreatePane({
         title: title.trim(),
         content,
         node_ids: autoNodeIds,
+        is_urgent: isUrgent || undefined,
       });
       onSuccess();
     } catch (e: unknown) {
@@ -788,6 +790,14 @@ function NoticeCreatePane({
         <div style={{ marginBottom: "var(--space-4, 16px)" }}>
           <label className="community-field__label" style={{ display: "block", marginBottom: 6 }}>내용</label>
           <RichTextEditor value={content} onChange={setContent} placeholder="공지 내용을 입력하세요..." minHeight={250} />
+        </div>
+
+        <div style={{ marginBottom: "var(--space-4, 16px)", display: "flex", alignItems: "center", gap: 8 }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 14, fontWeight: 600, color: isUrgent ? "var(--color-error, #dc2626)" : "var(--color-text-secondary)" }}>
+            <input type="checkbox" checked={isUrgent} onChange={(e) => setIsUrgent(e.target.checked)} style={{ width: 18, height: 18, accentColor: "var(--color-error, #dc2626)" }} />
+            긴급 공지
+          </label>
+          {isUrgent && <span style={{ fontSize: 12, color: "var(--color-text-muted)" }}>학생 앱에서 강조 표시됩니다</span>}
         </div>
 
         {error && <p className="community-field__error">{error}</p>}

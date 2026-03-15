@@ -235,6 +235,7 @@ export default function DashboardPage() {
                     textOverflow: "ellipsis",
                     whiteSpace: "nowrap",
                   }}>
+                    {n.is_urgent && <span style={{ fontSize: 10, fontWeight: 700, color: "#fff", background: "var(--stu-danger, #ef4444)", borderRadius: 3, padding: "0 5px", marginRight: 4, lineHeight: 1.6, flexShrink: 0, display: "inline" }}>긴급</span>}
                     {n.title}
                   </div>
                 </div>

@@ -14,6 +14,7 @@ export type DashboardNotice = {
   id: number;
   title: string;
   created_at: string | null;
+  is_urgent?: boolean;
 };
 
 export type DashboardSession = {
@@ -50,6 +51,7 @@ export async function fetchStudentDashboard(): Promise<StudentDashboardResponse>
         id: Number(n.id),
         title: String(n.title ?? ""),
         created_at: n.created_at != null ? String(n.created_at) : null,
+        is_urgent: Boolean(n.is_urgent),
       }))
     : [];
   const today_sessions = Array.isArray(data.today_sessions)

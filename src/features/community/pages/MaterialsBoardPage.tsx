@@ -2,7 +2,7 @@
 // 자료실 — 3-pane (좌측 강의/차시 트리 | 목록 | 상세·글쓰기)
 // 공지사항·게시판과 동일한 카테고리(트리) 디자인
 
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCommunityScope } from "../context/CommunityScopeContext";
@@ -18,9 +18,13 @@ import {
   createPost,
   updatePost,
   deletePost,
+  uploadPostAttachments,
+  getAttachmentDownloadUrl,
+  deletePostAttachment,
   updateReply as updateReplyApi,
   deleteReply as deleteReplyApi,
   type PostEntity,
+  type PostAttachment,
   type Answer,
   type ScopeNodeMinimal,
   type CommunityScopeParams,
@@ -455,6 +459,8 @@ function MatCreatePane({
 }) {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
+  const [files, setFiles] = useState<File[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -486,7 +492,10 @@ function MatCreatePane({
     setSubmitting(true);
     setError(null);
     try {
-      await createPost({ block_type: materialsTypeId, title: title.trim(), content, node_ids: autoNodeIds });
+      const post = await createPost({ block_type: materialsTypeId, title: title.trim(), content, node_ids: autoNodeIds });
+      if (files.length > 0 && post?.id) {
+        await uploadPostAttachments(post.id, files);
+      }
       onSuccess();
     } catch (e: unknown) {
       const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail ?? (e as Error)?.message ?? "등록에 실패했습니다.";
@@ -517,6 +526,23 @@ function MatCreatePane({
           <label className="community-field__label" style={{ display: "block", marginBottom: 6 }}>내용</label>
           <RichTextEditor value={content} onChange={setContent} placeholder="자료 내용을 입력하세요. 이미지를 삽입하거나 파일을 첨부할 수 있습니다." minHeight={250} />
         </div>
+        {/* 파일 첨부 */}
+        <div style={{ marginBottom: "var(--space-4, 16px)" }}>
+          <label className="community-field__label" style={{ display: "block", marginBottom: 6 }}>파일 첨부</label>
+          <input ref={fileInputRef} type="file" multiple style={{ display: "none" }} onChange={(e) => { if (e.target.files) setFiles((prev) => [...prev, ...Array.from(e.target.files!)]); e.target.value = ""; }} />
+          <Button intent="secondary" size="sm" onClick={() => fileInputRef.current?.click()}>파일 선택</Button>
+          {files.length > 0 && (
+            <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 4 }}>
+              {files.map((f, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "var(--color-text-secondary)" }}>
+                  <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name} ({(f.size / 1024 / 1024).toFixed(1)}MB)</span>
+                  <button type="button" onClick={() => setFiles((prev) => prev.filter((_, j) => j !== i))} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-error, #dc2626)", fontSize: 12, fontWeight: 600 }}>삭제</button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         {error && <p className="community-field__error">{error}</p>}
         <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
           <Button intent="secondary" size="sm" onClick={onCancel}>취소</Button>
@@ -629,6 +655,25 @@ function MatDetailView({ postId, onClose, onDeleted }: { postId: number; onClose
             )}
           </div>
         </div>
+
+        {/* 첨부파일 */}
+        {(post.attachments?.length ?? 0) > 0 && (
+          <div style={{ padding: "var(--space-4, 16px) var(--space-5, 20px)", borderTop: "1px solid var(--color-border-divider)" }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-secondary)", marginBottom: 8 }}>첨부파일 ({post.attachments!.length})</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {post.attachments!.map((att: PostAttachment) => (
+                <div key={att.id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
+                  <button type="button" onClick={async () => { try { const { url } = await getAttachmentDownloadUrl(postId, att.id); window.open(url, "_blank"); } catch { feedback.error("다운로드 실패"); } }} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-brand-primary)", fontWeight: 600, fontSize: 13, textDecoration: "underline", textAlign: "left", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {att.original_name} ({(att.size_bytes / 1024 / 1024).toFixed(1)}MB)
+                  </button>
+                  <button type="button" onClick={async () => { if (!window.confirm("첨부파일을 삭제할까요?")) return; try { await deletePostAttachment(postId, att.id); qc.invalidateQueries({ queryKey: ["community-post", postId] }); feedback.success("삭제 완료"); } catch { feedback.error("삭제 실패"); } }} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-error, #dc2626)", fontSize: 12, fontWeight: 600, flexShrink: 0 }}>
+                    삭제
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {(post.replies_count ?? 0) > 0 && (
           <div className="qna-inbox__thread-sep"><span className="qna-inbox__thread-sep-label">댓글 {post.replies_count}개</span></div>
