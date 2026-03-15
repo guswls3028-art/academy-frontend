@@ -8,6 +8,7 @@ export type StudentSession = {
   date?: string | null;
   status?: string | null;
   exam_ids?: number[] | null;
+  type?: "session" | "clinic";
 };
 
 export async function fetchMySessions(): Promise<StudentSession[]> {
