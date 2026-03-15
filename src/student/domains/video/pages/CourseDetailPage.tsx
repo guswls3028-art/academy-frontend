@@ -3,45 +3,45 @@
  */
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
-import { fetchVideoMe, fetchStudentSessionVideos } from "../api/video";
+import { useQuery, useQueries } from "@tanstack/react-query";
+import {
+  fetchVideoMe,
+  fetchStudentSessionVideos,
+  type StudentSessionVideosResponse,
+} from "../api/video";
 import EmptyState from "@/student/shared/ui/layout/EmptyState";
 import StudentPageShell from "@/student/shared/ui/pages/StudentPageShell";
 import { IconPlay } from "@/student/shared/ui/icons/Icons";
 import { formatDuration } from "../utils/format";
 
-// 차시별 박스 컴포넌트 (영상 목록과 동일한 스타일)
+// 차시별 박스 컴포넌트 — pure presentational (데이터는 부모에서 주입)
 function SessionBox({
   sessionId,
   sessionTitle,
   enrollmentId,
   order,
   isPublic,
+  videosData,
 }: {
   sessionId: number;
   sessionTitle: string;
   enrollmentId?: number | null;
   order: number;
   isPublic?: boolean;
+  videosData?: StudentSessionVideosResponse;
 }) {
-  const { data: videosData } = useQuery({
-    queryKey: ["student-session-videos", sessionId, enrollmentId],
-    queryFn: () => fetchStudentSessionVideos(sessionId, enrollmentId),
-    enabled: !!sessionId,
-  });
-
   const sessionData = useMemo(() => {
     if (!videosData?.items || videosData.items.length === 0) return null;
-    
+
     const videos = videosData.items;
     const firstVideo = videos[0];
     const totalDuration = videos.reduce((sum, v) => sum + (v.duration ?? 0), 0);
-    
+
     // 진행률 계산: 백엔드에서 받은 progress 사용
     // 완료된 영상 수 / 전체 영상 수로 세션 전체 진행률 계산
     const completedVideos = videos.filter((v) => (v.progress ?? 0) >= 100 || v.completed).length;
     const progress = videos.length > 0 ? Math.round((completedVideos / videos.length) * 100) : 0;
-    
+
     return {
       thumbnailUrl: firstVideo.thumbnail_url,
       videoCount: videos.length,
@@ -100,7 +100,7 @@ function SessionBox({
           borderRadius: 10,
         }}
       />
-      
+
       {/* 좌측: 작은 플레이 아이콘 */}
       <div
         style={{
@@ -255,17 +255,32 @@ export default function CourseDetailPage() {
   const firstSessionIdForQuery = sessionsForQuery[0]?.id ?? 0;
   const enrollmentIdForQuery = isPublic ? null : (lecture ? (videoMe?.lectures?.find((l) => l.id === lecture.id)?.enrollment_id ?? null) : null);
 
-  const { data: firstSessionVideos } = useQuery({
-    queryKey: ["student-session-videos", firstSessionIdForQuery, enrollmentIdForQuery],
-    queryFn: () => fetchStudentSessionVideos(firstSessionIdForQuery, enrollmentIdForQuery ?? undefined),
-    enabled: !isLoading && !!firstSessionIdForQuery && firstSessionIdForQuery > 0,
+  // 모든 세션의 영상을 한꺼번에 fetch (N+1 → 부모에서 일괄 관리)
+  const sessionVideoQueries = useQueries({
+    queries: sessionsForQuery.map((s) => ({
+      queryKey: ["student-session-videos", s.id, enrollmentIdForQuery],
+      queryFn: () => fetchStudentSessionVideos(s.id, enrollmentIdForQuery ?? undefined),
+      enabled: !isLoading && !!s.id && s.id > 0,
+      staleTime: 30_000,
+    })),
   });
 
+  // 첫 번째 세션 데이터로 상단 요약 정보 표시 (기존 firstSessionVideos 대체)
+  const firstSessionVideos = sessionVideoQueries[0]?.data;
   const totalVideos = useMemo(() => firstSessionVideos?.items?.length ?? 0, [firstSessionVideos]);
   const totalDuration = useMemo(
     () => firstSessionVideos?.items?.reduce((sum, v) => sum + (v.duration ?? 0), 0) ?? 0,
     [firstSessionVideos]
   );
+
+  // 전체공개영상 리다이렉트 (훅은 early return 이전에 호출)
+  const [publicRedirected, setPublicRedirected] = useState(false);
+  useEffect(() => {
+    if (isPublic && firstSessionIdForQuery > 0 && !publicRedirected) {
+      setPublicRedirected(true);
+      nav(`/student/video/sessions/${firstSessionIdForQuery}`, { replace: true });
+    }
+  }, [isPublic, firstSessionIdForQuery, publicRedirected, nav]);
 
   if (isLoading) {
     return (
@@ -277,15 +292,6 @@ export default function CourseDetailPage() {
       </StudentPageShell>
     );
   }
-
-  // 전체공개영상: 차시 선택 스킵 → 바로 영상 목록으로 이동
-  const [publicRedirected, setPublicRedirected] = useState(false);
-  useEffect(() => {
-    if (isPublic && firstSessionIdForQuery > 0 && !publicRedirected) {
-      setPublicRedirected(true);
-      nav(`/student/video/sessions/${firstSessionIdForQuery}`, { replace: true });
-    }
-  }, [isPublic, firstSessionIdForQuery, publicRedirected, nav]);
 
   // 전체공개영상이 아닐 때만 수업 없음 오류 표시
   if (!isPublic && !lecture) {
@@ -323,7 +329,7 @@ export default function CourseDetailPage() {
           >
             {isPublic ? "전체공개영상" : lecture?.title ?? "수업"}
           </h1>
-          
+
           <div
             style={{
               display: "flex",
@@ -357,7 +363,7 @@ export default function CourseDetailPage() {
           >
             차시 목록
           </h2>
-          
+
           {sessions.length === 0 ? (
             <EmptyState
               title="차시가 없습니다"
@@ -371,7 +377,7 @@ export default function CourseDetailPage() {
                 gap: "var(--stu-space-4)",
               }}
             >
-              {sessions.map((session) => {
+              {sessions.map((session, idx) => {
                 // 전체공개영상이지만 실제 세션이 없는 경우 (id === 0)
                 if (isPublic && session.id === 0) {
                   return (
@@ -400,6 +406,7 @@ export default function CourseDetailPage() {
                     enrollmentId={enrollmentIdForQuery}
                     order={session.order}
                     isPublic={isPublic}
+                    videosData={sessionVideoQueries[idx]?.data}
                   />
                 );
               })}

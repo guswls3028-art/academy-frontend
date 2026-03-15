@@ -1,12 +1,12 @@
 // PATH: src/student/domains/video/pages/VideoPlayerPage.tsx
-import { useCallback, useEffect, useMemo, useRef, useState, startTransition } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 
 import EmptyState from "../../../shared/ui/layout/EmptyState";
 import { fetchStudentVideoPlayback, fetchStudentSessionVideos, updateVideoProgress, toggleVideoLike } from "../api/video";
 import type { StudentVideoListItem } from "../api/video";
 import { Link } from "react-router-dom";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import StudentVideoPlayer, {
   PlaybackBootstrap,
@@ -112,21 +112,98 @@ export default function VideoPlayerPage() {
     safeParseInt(params.enrollmentId);
   const enrollmentId = rawEnrollmentId != null && Number.isFinite(rawEnrollmentId) ? rawEnrollmentId : null;
 
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [video, setVideo] = useState<(VideoMetaLite & {
-    session_id?: number;
-    last_position?: number;
-    view_count?: number;
-    like_count?: number;
-    comment_count?: number;
-    is_liked?: boolean;
-    created_at?: string | null;
-  }) | null>(null);
-  const [boot, setBoot] = useState<PlaybackBootstrap | null>(null);
-  const [sessionVideosData, setSessionVideosData] = useState<{ items: StudentVideoListItem[] } | null>(null);
+  /* ─── Playback 데이터 (React Query) ─── */
+  const playbackQuery = useQuery({
+    queryKey: ["student-video-playback", videoId, enrollmentId],
+    queryFn: () => fetchStudentVideoPlayback(videoId!, enrollmentId ?? undefined),
+    enabled: !!videoId,
+    staleTime: 60_000,
+    retry: 1,
+  });
 
+  // localStorage에 현재 videoId 저장 (side effect)
+  useEffect(() => {
+    if (videoId) {
+      try { localStorage.setItem("student_current_video_id", String(videoId)); } catch {}
+    }
+  }, [videoId]);
+
+  // playbackData → video, boot, loadError 파생
+  const { video, boot, loadError } = useMemo(() => {
+    if (!playbackQuery.data) {
+      if (playbackQuery.error) {
+        const e = playbackQuery.error as any;
+        const msg =
+          e?.response?.data?.detail ||
+          e?.response?.data?.message ||
+          e?.message ||
+          "재생 페이지 로드에 실패했습니다.";
+        return { video: null, boot: null, loadError: String(msg) };
+      }
+      if (!videoId) {
+        return { video: null, boot: null, loadError: "video_id가 필요합니다." };
+      }
+      return { video: null, boot: null, loadError: null };
+    }
+
+    const playbackData = playbackQuery.data;
+    const vd = playbackData?.video;
+    if (!vd || typeof vd.id === "undefined") {
+      return { video: null, boot: null, loadError: "재생 정보 형식이 올바르지 않습니다." };
+    }
+
+    const v: VideoMetaLite & { session_id?: number; last_position?: number; view_count?: number; like_count?: number; comment_count?: number; is_liked?: boolean; created_at?: string | null } = {
+      id: Number(vd.id),
+      title: String(vd.title ?? "영상"),
+      duration: vd.duration == null ? null : Number(vd.duration),
+      status: String(vd.status ?? ""),
+      thumbnail_url: vd.thumbnail_url ?? null,
+      hls_url: playbackData.hls_url ?? null,
+      session_id: Number(vd.session_id),
+      last_position: (vd as any).last_position ?? 0,
+      view_count: (vd as any).view_count ?? 0,
+      like_count: (vd as any).like_count ?? 0,
+      comment_count: (vd as any).comment_count ?? 0,
+      is_liked: !!(vd as any).is_liked,
+      created_at: (vd as any).created_at ?? null,
+    };
+
+    const playUrl = playbackData.play_url || playbackData.hls_url || playbackData.mp4_url || "";
+
+    if (!playUrl) {
+      const videoStatus = playbackData?.video?.status;
+      const detail = (playbackData as { detail?: string })?.detail ?? "";
+      if (detail) return { video: null, boot: null, loadError: detail };
+      if (videoStatus && videoStatus !== "READY")
+        return { video: null, boot: null, loadError: `비디오가 아직 준비되지 않았습니다. (상태: ${videoStatus})` };
+      return { video: null, boot: null, loadError: "재생 URL을 가져올 수 없습니다." };
+    }
+
+    const b: PlaybackBootstrap = {
+      token: `student-${videoId}-${Date.now()}`,
+      session_id: null,
+      expires_at: null,
+      access_mode: playbackData.policy?.access_mode || "FREE_REVIEW",
+      monitoring_enabled: playbackData.policy?.monitoring_enabled ?? false,
+      policy: playbackData.policy || {},
+      play_url: playUrl,
+    };
+
+    return { video: v, boot: b, loadError: null };
+  }, [playbackQuery.data, playbackQuery.error, videoId]);
+
+  const loading = playbackQuery.isLoading;
   const sessionId = video?.session_id ?? null;
+
+  /* ─── 세션 영상 목록 (React Query, dependent) ─── */
+  const sessionVideosQuery = useQuery({
+    queryKey: ["student-session-videos", sessionId, enrollmentId ?? null],
+    queryFn: () => fetchStudentSessionVideos(sessionId!, enrollmentId ?? undefined),
+    enabled: !!sessionId && !!videoId,
+    staleTime: 60_000,
+    retry: 1,
+  });
+  const sessionVideosData = sessionVideosQuery.data ?? null;
 
   /* ─── 이어보기 위치 계산 ─── */
   const initialPosition = useMemo(() => {
@@ -167,7 +244,8 @@ export default function VideoPlayerPage() {
     return sessionVideosData.items.findIndex((v) => v.id === videoId);
   }, [sessionVideosData, videoId]);
 
-  const onFatal = useCallback((reason: string) => setLoadError(reason), []);
+  const [fatalError, setFatalError] = useState<string | null>(null);
+  const onFatal = useCallback((reason: string) => setFatalError(reason), []);
 
   /* ─── 자동 다음 재생 ─── */
   const [autoPlayCountdown, setAutoPlayCountdown] = useState<number | null>(null);
@@ -205,116 +283,14 @@ export default function VideoPlayerPage() {
     [videoId]
   );
 
-  /* ─── 재생 데이터 로드 ─── */
-  useEffect(() => {
-    let alive = true;
-
-    async function run() {
-      setLoading(true);
-      setLoadError(null);
-
-      if (!videoId) {
-        setLoading(false);
-        setLoadError("video_id가 필요합니다.");
-        return;
-      }
-
-      try {
-        localStorage.setItem("student_current_video_id", String(videoId));
-      } catch {}
-
-      try {
-        const playbackData = await fetchStudentVideoPlayback(
-          videoId,
-          enrollmentId != null ? enrollmentId : undefined
-        );
-
-        if (!alive) return;
-
-        const vd = playbackData?.video;
-        if (!vd || typeof vd.id === "undefined") {
-          setLoadError("재생 정보 형식이 올바르지 않습니다.");
-          setLoading(false);
-          return;
-        }
-        const v: VideoMetaLite & { session_id?: number; last_position?: number; view_count?: number; like_count?: number; comment_count?: number; is_liked?: boolean; created_at?: string | null } = {
-          id: Number(vd.id),
-          title: String(vd.title ?? "영상"),
-          duration: vd.duration == null ? null : Number(vd.duration),
-          status: String(vd.status ?? ""),
-          thumbnail_url: vd.thumbnail_url ?? null,
-          hls_url: playbackData.hls_url ?? null,
-          session_id: Number(vd.session_id),
-          last_position: (vd as any).last_position ?? 0,
-          view_count: (vd as any).view_count ?? 0,
-          like_count: (vd as any).like_count ?? 0,
-          comment_count: (vd as any).comment_count ?? 0,
-          is_liked: !!(vd as any).is_liked,
-          created_at: (vd as any).created_at ?? null,
-        };
-
-        const playUrl = playbackData.play_url || playbackData.hls_url || playbackData.mp4_url || "";
-
-        if (!playUrl) {
-          const videoStatus = playbackData?.video?.status;
-          const detail = (playbackData as { detail?: string })?.detail ?? "";
-          if (detail) setLoadError(detail);
-          else if (videoStatus && videoStatus !== "READY")
-            setLoadError(`비디오가 아직 준비되지 않았습니다. (상태: ${videoStatus})`);
-          else setLoadError("재생 URL을 가져올 수 없습니다.");
-          setLoading(false);
-          return;
-        }
-
-        const b: PlaybackBootstrap = {
-          token: `student-${videoId}-${Date.now()}`,
-          session_id: null,
-          expires_at: null,
-          access_mode: playbackData.policy?.access_mode || "FREE_REVIEW",
-          monitoring_enabled: playbackData.policy?.monitoring_enabled ?? false,
-          policy: playbackData.policy || {},
-          play_url: playUrl,
-        };
-
-        startTransition(() => {
-          setVideo(v);
-          setBoot(b);
-        });
-        setLoading(false);
-      } catch (e: any) {
-        if (!alive) return;
-        const msg =
-          e?.response?.data?.detail ||
-          e?.response?.data?.message ||
-          e?.message ||
-          "재생 페이지 로드에 실패했습니다.";
-        setLoadError(String(msg));
-        setLoading(false);
-      }
-    }
-
-    run();
-    return () => { alive = false; };
-  }, [videoId, enrollmentId]);
+  // Reset fatalError when videoId changes
+  useEffect(() => { setFatalError(null); }, [videoId]);
 
   useEffect(() => {
     return () => {
       try { localStorage.removeItem("student_current_video_id"); } catch {}
     };
   }, []);
-
-  /* ─── 세션 영상 목록 로드 ─── */
-  useEffect(() => {
-    if (!sessionId || !videoId) {
-      setSessionVideosData(null);
-      return;
-    }
-    let cancelled = false;
-    fetchStudentSessionVideos(sessionId, enrollmentId ?? undefined)
-      .then((res) => { if (!cancelled) setSessionVideosData(res); })
-      .catch(() => { if (!cancelled) setSessionVideosData(null); });
-    return () => { cancelled = true; };
-  }, [sessionId, enrollmentId ?? null, videoId]);
 
   useEffect(() => {
     if (autoPlayCountdown !== null && autoPlayCountdown <= 0 && nextVideo) {
@@ -341,9 +317,9 @@ export default function VideoPlayerPage() {
             <div className="stu-skel stu-skel--media" />
           </div>
         </div>
-      ) : loadError ? (
+      ) : (loadError || fatalError) ? (
         <div className="vpp-error">
-          <EmptyState title="재생을 시작할 수 없습니다" description={loadError} />
+          <EmptyState title="재생을 시작할 수 없습니다" description={fatalError || loadError!} />
           <button type="button" className="vpp-back-btn" onClick={() => nav(-1)}>
             ← 뒤로가기
           </button>
