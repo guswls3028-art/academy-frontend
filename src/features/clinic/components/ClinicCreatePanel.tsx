@@ -105,6 +105,8 @@ type Props = {
   onChangeSelectedTargetEnrollmentIds?: (ids: number[]) => void;
   onDateChange?: (date: string) => void;
   onCreated?: (createdDate?: string) => void;
+  /** When true, renders as a flat form (no card shell) — use inside AdminModal */
+  asModal?: boolean;
 };
 
 export default function ClinicCreatePanel({
@@ -115,6 +117,7 @@ export default function ClinicCreatePanel({
   onChangeSelectedTargetEnrollmentIds,
   onDateChange,
   onCreated,
+  asModal = false,
 }: Props) {
   const { message } = App.useApp();
   const qc = useQueryClient();
@@ -282,6 +285,435 @@ export default function ClinicCreatePanel({
     }
   };
 
+  /* ── location save/load popover content (shared) ── */
+  const locationPopoverContent = (
+    <div className="clinic-location-popover">
+      {savedLocations.length === 0 ? (
+        <div className="clinic-location-popover-empty">
+          <p className="text-xs text-[var(--color-text-muted)] mb-2">
+            저장된 장소가 없습니다.
+          </p>
+          <div className="flex gap-2">
+            <Input
+              size="small"
+              placeholder="장소 입력"
+              value={addLocationInput}
+              onChange={(e) => setAddLocationInput(e.target.value)}
+              onPressEnter={() => {
+                const v = addLocationInput.trim();
+                if (v) {
+                  setSavedLocations(saveLocationToStorage(v));
+                  setRoom(v);
+                  setAddLocationInput("");
+                  setLoadPopoverOpen(false);
+                  message.success("추가됨");
+                }
+              }}
+              className="flex-1 min-w-0"
+            />
+            <Button
+              size="small"
+              intent="primary"
+              onClick={() => {
+                const v = addLocationInput.trim();
+                if (v) {
+                  setSavedLocations(saveLocationToStorage(v));
+                  setRoom(v);
+                  setAddLocationInput("");
+                  setLoadPopoverOpen(false);
+                  message.success("추가됨");
+                }
+              }}
+            >
+              추가
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="clinic-location-popover-list">
+          {savedLocations.map((loc) => (
+            <div key={loc} className="clinic-location-popover-item-row">
+              <button
+                type="button"
+                className="clinic-location-popover-item flex-1 min-w-0 text-left"
+                onClick={() => {
+                  setRoom(loc);
+                  setLoadPopoverOpen(false);
+                }}
+              >
+                {loc}
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSavedLocations(removeSavedLocation(loc));
+                  message.success("삭제됨");
+                }}
+                className="clinic-location-popover-delete"
+                title="장소 삭제"
+                aria-label={`${loc} 삭제`}
+              >
+                <Trash2 size={14} />
+              </button>
+            </div>
+          ))}
+          <div className="border-t border-[var(--color-border-divider)] mt-2 pt-2">
+            <p className="text-[11px] text-[var(--color-text-muted)] mb-1">장소 추가하기</p>
+            <div className="flex gap-2">
+              <Input
+                size="small"
+                placeholder="새 장소"
+                value={addLocationInput}
+                onChange={(e) => setAddLocationInput(e.target.value)}
+                onPressEnter={() => {
+                  const v = addLocationInput.trim();
+                  if (v) {
+                    setSavedLocations(saveLocationToStorage(v));
+                    setRoom(v);
+                    setAddLocationInput("");
+                    setLoadPopoverOpen(false);
+                    message.success("추가됨");
+                  }
+                }}
+                className="flex-1 min-w-0"
+              />
+              <Button
+                size="small"
+                intent="secondary"
+                onClick={() => {
+                  const v = addLocationInput.trim();
+                  if (v) {
+                    setSavedLocations(saveLocationToStorage(v));
+                    setRoom(v);
+                    setAddLocationInput("");
+                    setLoadPopoverOpen(false);
+                    message.success("추가됨");
+                  }
+                }}
+              >
+                추가
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  /* ── form fields (shared between card and modal layouts) ── */
+  const formFields = (
+    <>
+      {/* 날짜 + 시간 (한 행) */}
+      <div className="clinic-create__row">
+        {!hideDatePicker && (
+          <div className="clinic-create__field clinic-create__field--half">
+            <label className="clinic-create__label">날짜</label>
+            <DatePicker
+              value={selectedDate.format("YYYY-MM-DD")}
+              onChange={(s) => {
+                const next = dayjs(s);
+                setSelectedDate(next);
+                onDateChange?.(next.format("YYYY-MM-DD"));
+              }}
+              placeholder="날짜 선택"
+              minDate={todayISO()}
+              openBelow
+            />
+          </div>
+        )}
+        <div className={`clinic-create__field ${hideDatePicker ? "" : "clinic-create__field--half"}`}>
+          <label className="clinic-create__label">시간</label>
+          <div role="group" aria-label="시간 선택">
+            <TimeRangeInput
+              value={timeRange}
+              onChange={setTimeRange}
+              startLabel="시작"
+              endLabel="종료"
+              startPlaceholder="시작"
+              endPlaceholder="종료"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* 제목 + 정원 (한 행) */}
+      <div className="clinic-create__row">
+        <div className="clinic-create__field" style={{ flex: 1 }}>
+          <label className="clinic-create__label">제목 (선택)</label>
+          <Input
+            placeholder="예: 수학 보충"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            className="clinic-input-filled"
+            size="small"
+          />
+        </div>
+        <div className="clinic-create__field" style={{ flex: 0, minWidth: 120 }}>
+          <label className="clinic-create__label">정원</label>
+          <div className="clinic-create__capacity-row">
+            <div className="clinic-capacity-stepper">
+              <button
+                type="button"
+                className="clinic-capacity-stepper__btn"
+                onClick={() => setMaxParticipants((p) => Math.max(1, p - 1))}
+                disabled={selected.length > 0}
+                aria-label="정원 1 감소"
+              >−</button>
+              <span className="clinic-capacity-stepper__value">
+                {selected.length > 0 ? selected.length : maxParticipants}
+              </span>
+              <button
+                type="button"
+                className="clinic-capacity-stepper__btn"
+                onClick={() => setMaxParticipants((p) => Math.min(999, p + 1))}
+                disabled={selected.length > 0}
+                aria-label="정원 1 증가"
+              >+</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 장소 */}
+      <div className="clinic-create__field">
+        <label className="clinic-create__label">장소</label>
+        <div className="clinic-create__location-row">
+          <Input
+            placeholder="장소 / 룸"
+            value={room}
+            onChange={(e) => setRoom(e.target.value)}
+            className="clinic-input-filled clinic-create__location-input"
+          />
+          <div className="clinic-create__location-actions">
+            <button
+              type="button"
+              onClick={() => {
+                const v = room.trim();
+                if (!v) {
+                  message.warning("장소를 입력한 뒤 저장해주세요.");
+                  return;
+                }
+                setSavedLocations(saveLocationToStorage(v));
+                message.success("저장됨");
+              }}
+              className="clinic-create__location-btn"
+              title="현재 장소를 저장"
+              aria-label="장소 저장"
+            >
+              <Save size={14} />
+              <span>저장</span>
+            </button>
+            <Popover
+              open={loadPopoverOpen}
+              onOpenChange={(open) => {
+                setLoadPopoverOpen(open);
+                if (open) setSavedLocations(getSavedLocations());
+              }}
+              trigger="click"
+              placement="bottomRight"
+              content={locationPopoverContent}
+            >
+              <button
+                type="button"
+                className="clinic-create__location-btn"
+                title="저장된 장소 불러오기"
+                aria-label="장소 불러오기"
+              >
+                <FolderOpen size={14} />
+                <span>불러오기</span>
+              </button>
+            </Popover>
+          </div>
+        </div>
+      </div>
+
+      {/* 대상 조건 — 접이식 */}
+      <div className="clinic-create__field">
+        <button
+          type="button"
+          className="clinic-create__collapse-trigger"
+          onClick={() => setShowFilters((v) => !v)}
+        >
+          <span className="clinic-create__label" style={{ margin: 0 }}>대상 조건</span>
+          {hasActiveFilter && (
+            <span className="clinic-create__filter-badge">{filterSummary}</span>
+          )}
+          {!hasActiveFilter && (
+            <span className="clinic-create__filter-default">전체 학생</span>
+          )}
+          <span className="clinic-create__collapse-icon">
+            {showFilters ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          </span>
+        </button>
+
+        {/* 필터 경고 — 접힌 상태에서만 */}
+        {hasActiveFilter && !showFilters && (
+          <div className="clinic-create__filter-warning">
+            <span aria-hidden>&#9888;</span>
+            필터가 적용되어 일부 학생만 표시됩니다.
+          </div>
+        )}
+
+        {showFilters && (
+          <div className="clinic-create__filter-body">
+            {/* 학년 */}
+            <div className="clinic-create__filter-row">
+              <span className="clinic-create__filter-row-label">학년</span>
+              <div className="clinic-create__filter-chips">
+                {([null, 1, 2, 3] as const).map((g) => (
+                  <button
+                    key={g ?? "all"}
+                    type="button"
+                    onClick={() => setTargetGrade(g)}
+                    style={filterBtnStyle(targetGrade === g)}
+                  >
+                    {g === null ? "전체" : `${g}학년`}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* 학교 유형 */}
+            <div className="clinic-create__filter-row">
+              <span className="clinic-create__filter-row-label">학교</span>
+              <div className="clinic-create__filter-chips">
+                {([null, "HIGH", "MIDDLE"] as const).map((s) => (
+                  <button
+                    key={s ?? "all"}
+                    type="button"
+                    onClick={() => setTargetSchoolType(s)}
+                    style={filterBtnStyle(targetSchoolType === s)}
+                  >
+                    {s === null ? "전체" : s === "HIGH" ? "고등" : "중등"}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* 강의 선택 */}
+            <div className="clinic-create__filter-row clinic-create__filter-row--top">
+              <span className="clinic-create__filter-row-label">강의</span>
+              <Select
+                mode="multiple"
+                placeholder="전체 (강의 제한 없음)"
+                value={targetLectureIds}
+                onChange={(ids) => setTargetLectureIds(ids)}
+                options={(lecturesQ.data ?? []).map((l) => ({
+                  label: l.title,
+                  value: l.id,
+                }))}
+                loading={lecturesQ.isLoading}
+                className="flex-1 min-w-0"
+                maxTagCount={2}
+                maxTagPlaceholder={(omitted) => `+${omitted.length}개`}
+                allowClear
+                style={{ minWidth: 0 }}
+                size="small"
+              />
+            </div>
+
+            {/* 필터 초기화 */}
+            {hasActiveFilter && (
+              <button
+                type="button"
+                onClick={() => {
+                  setTargetGrade(null);
+                  setTargetSchoolType(null);
+                  setTargetLectureIds([]);
+                }}
+                className="clinic-create__filter-reset"
+              >
+                필터 초기화
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* 대상자 선택 */}
+      <div className="clinic-create__field">
+        <label className="clinic-create__label">대상자 선택</label>
+        <div className="clinic-create__target-row">
+          <Button
+            type="button"
+            intent="secondary"
+            size="md"
+            onClick={() => setTargetModalOpen(true)}
+            aria-haspopup="dialog"
+            aria-expanded={targetModalOpen}
+          >
+            대상자 추가
+          </Button>
+          <span className="clinic-create__target-count">
+            {selected.length > 0
+              ? `${mode === "targets" ? "예약 대상자" : "전체 학생"} ${selected.length}명 선택됨`
+              : "아직 선택 안 됨"}
+          </span>
+        </div>
+      </div>
+
+      {/* 메모 */}
+      <div className="clinic-create__field">
+        <label className="clinic-create__label">메모</label>
+        <Input.TextArea
+          rows={2}
+          placeholder="메모 (선택)"
+          value={memo}
+          onChange={(e) => setMemo(e.target.value)}
+          className="clinic-input-filled resize-none"
+          autoSize={{ minRows: 2, maxRows: 4 }}
+        />
+      </div>
+    </>
+  );
+
+  /* ── submit button (shared) ── */
+  const submitButton = (
+    <Button
+      type="button"
+      intent="primary"
+      size="lg"
+      loading={createSessionM.isPending}
+      onClick={submit}
+      className="w-full"
+      disabled={isPastDate}
+    >
+      {isPastDate
+        ? "지난 날짜입니다"
+        : selected.length > 0
+          ? `${selected.length}명 클리닉 만들기`
+          : `클리닉 만들기 (정원 ${maxParticipants}명)`}
+    </Button>
+  );
+
+  /* ── target select modal (always rendered) ── */
+  const targetSelectModal = (
+    <ClinicTargetSelectModal
+      open={targetModalOpen}
+      onClose={() => setTargetModalOpen(false)}
+      initialMode={mode}
+      initialSelectedIds={selected}
+      onConfirm={handleTargetModalConfirm}
+    />
+  );
+
+  /* ══════════ asModal layout — clean flat form ══════════ */
+  if (asModal) {
+    return (
+      <div className="clinic-create">
+        <div className="clinic-create__form">
+          {formFields}
+        </div>
+        <div className="clinic-create__footer">
+          {submitButton}
+        </div>
+        {targetSelectModal}
+      </div>
+    );
+  }
+
+  /* ══════════ standalone card layout (original) ══════════ */
   return (
     <div className="ds-card-modal clinic-panel overflow-hidden flex flex-col">
       <div className="ds-card-modal__header flex items-center justify-between">
@@ -298,429 +730,15 @@ export default function ClinicCreatePanel({
       </div>
 
       <div className="ds-card-modal__body clinic-create-body flex-1 min-h-0 flex flex-col">
-        <div className="modal-scroll-body modal-scroll-body--compact flex flex-col gap-5 flex-1 min-h-0 w-full max-w-full box-border">
-          {/* 날짜 */}
-          {!hideDatePicker && (
-            <div className="modal-form-group modal-form-group--compact">
-              <label className="modal-section-label">날짜</label>
-              <div className="flex flex-col gap-2">
-                <DatePicker
-                  value={selectedDate.format("YYYY-MM-DD")}
-                  onChange={(s) => {
-                    const next = dayjs(s);
-                    setSelectedDate(next);
-                    onDateChange?.(next.format("YYYY-MM-DD"));
-                  }}
-                  placeholder="날짜 선택"
-                  minDate={todayISO()}
-                  openBelow
-                />
-              </div>
-            </div>
-          )}
-
-          {/* 제목 */}
-          <div className="modal-form-group modal-form-group--compact flex flex-col gap-3">
-            <label className="modal-section-label">제목</label>
-            <Input
-              placeholder="클리닉 제목 (선택)"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="clinic-input-filled"
-            />
-          </div>
-
-          {/* 대상 필터 — 접이식 */}
-          <div className="modal-form-group modal-form-group--compact flex flex-col gap-2">
-            <button
-              type="button"
-              className="flex items-center gap-2 w-full text-left"
-              onClick={() => setShowFilters((v) => !v)}
-            >
-              <span className="modal-section-label" style={{ margin: 0 }}>대상 조건</span>
-              {hasActiveFilter && (
-                <span
-                  style={{
-                    fontSize: 11,
-                    color: "var(--color-brand-primary)",
-                    fontWeight: 600,
-                  }}
-                >
-                  {filterSummary}
-                </span>
-              )}
-              {!hasActiveFilter && (
-                <span style={{ fontSize: 11, color: "var(--color-text-muted)" }}>전체 학생</span>
-              )}
-              <span className="ml-auto text-[var(--color-text-muted)]">
-                {showFilters ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-              </span>
-            </button>
-
-            {/* 필터 경고 — 접힌 상태에서만 표시 (펼쳐지면 필터 직접 보임) */}
-            {hasActiveFilter && !showFilters && (
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6,
-                  padding: "6px 10px",
-                  borderRadius: 6,
-                  background: "color-mix(in srgb, var(--color-warning) 10%, var(--color-bg-surface))",
-                  border: "1px solid color-mix(in srgb, var(--color-warning) 40%, var(--color-border-divider))",
-                  fontSize: 12,
-                  fontWeight: 500,
-                  color: "var(--color-text-secondary)",
-                }}
-              >
-                <span style={{ fontSize: 14 }} aria-hidden>&#9888;</span>
-                필터가 적용되어 일부 학생만 표시됩니다.
-              </div>
-            )}
-
-            {showFilters && (
-              <div className="flex flex-col gap-3 pt-1">
-                {/* 학년 */}
-                <div className="flex items-center gap-1.5">
-                  <span className="text-sm font-semibold text-[var(--color-text-muted)] whitespace-nowrap w-[40px]">학년</span>
-                  {([null, 1, 2, 3] as const).map((g) => (
-                    <button
-                      key={g ?? "all"}
-                      type="button"
-                      onClick={() => setTargetGrade(g)}
-                      style={filterBtnStyle(targetGrade === g)}
-                    >
-                      {g === null ? "전체" : `${g}학년`}
-                    </button>
-                  ))}
-                </div>
-
-                {/* 학교 유형 */}
-                <div className="flex items-center gap-1.5">
-                  <span className="text-sm font-semibold text-[var(--color-text-muted)] whitespace-nowrap w-[40px]">학교</span>
-                  {([null, "HIGH", "MIDDLE"] as const).map((s) => (
-                    <button
-                      key={s ?? "all"}
-                      type="button"
-                      onClick={() => setTargetSchoolType(s)}
-                      style={filterBtnStyle(targetSchoolType === s)}
-                    >
-                      {s === null ? "전체" : s === "HIGH" ? "고등" : "중등"}
-                    </button>
-                  ))}
-                </div>
-
-                {/* 강의 선택 */}
-                <div className="flex items-start gap-1.5">
-                  <span className="text-sm font-semibold text-[var(--color-text-muted)] whitespace-nowrap w-[40px] mt-1">강의</span>
-                  <Select
-                    mode="multiple"
-                    placeholder="전체 (강의 제한 없음)"
-                    value={targetLectureIds}
-                    onChange={(ids) => setTargetLectureIds(ids)}
-                    options={(lecturesQ.data ?? []).map((l) => ({
-                      label: l.title,
-                      value: l.id,
-                    }))}
-                    loading={lecturesQ.isLoading}
-                    className="flex-1 min-w-0"
-                    maxTagCount={2}
-                    maxTagPlaceholder={(omitted) => `+${omitted.length}개`}
-                    allowClear
-                    style={{ minWidth: 0 }}
-                    size="small"
-                  />
-                </div>
-
-                {/* 필터 초기화 */}
-                {hasActiveFilter && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setTargetGrade(null);
-                      setTargetSchoolType(null);
-                      setTargetLectureIds([]);
-                    }}
-                    className="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] self-end"
-                    style={{ textDecoration: "underline" }}
-                  >
-                    필터 초기화
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* 시간 */}
-          <div className="modal-form-group modal-form-group--compact">
-            <div className="modal-section-label">시간</div>
-            <div className="flex flex-col gap-2">
-              <div role="group" aria-label="시간 선택">
-                <TimeRangeInput
-                  value={timeRange}
-                  onChange={setTimeRange}
-                  startLabel="시작"
-                  endLabel="종료"
-                  startPlaceholder="시작"
-                  endPlaceholder="종료"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* 장소 · 정원 · 메모 */}
-          <div className="modal-form-group modal-form-group--compact flex flex-col gap-3">
-            <label className="modal-section-label">장소 · 정원</label>
-            <div className="flex flex-wrap items-center gap-4">
-              <div className="flex flex-1 min-w-[180px] gap-2 items-center">
-                <Input
-                  placeholder="장소 / 룸"
-                  value={room}
-                  onChange={(e) => setRoom(e.target.value)}
-                  className="clinic-input-filled flex-1 min-w-0"
-                />
-                <button
-                  type="button"
-                  onClick={() => {
-                    const v = room.trim();
-                    if (!v) {
-                      message.warning("장소를 입력한 뒤 저장해주세요.");
-                      return;
-                    }
-                    setSavedLocations(saveLocationToStorage(v));
-                    message.success("저장됨");
-                  }}
-                  className="clinic-location-icon-btn"
-                  title="장소 저장"
-                  aria-label="장소 저장"
-                >
-                  <Save size={16} />
-                </button>
-                <Popover
-                  open={loadPopoverOpen}
-                  onOpenChange={(open) => {
-                    setLoadPopoverOpen(open);
-                    if (open) setSavedLocations(getSavedLocations());
-                  }}
-                  trigger="click"
-                  placement="bottomLeft"
-                  content={
-                    <div className="clinic-location-popover">
-                      {savedLocations.length === 0 ? (
-                        <div className="clinic-location-popover-empty">
-                          <p className="text-xs text-[var(--color-text-muted)] mb-2">
-                            저장된 장소가 없습니다.
-                          </p>
-                          <div className="flex gap-2">
-                            <Input
-                              size="small"
-                              placeholder="장소 입력"
-                              value={addLocationInput}
-                              onChange={(e) => setAddLocationInput(e.target.value)}
-                              onPressEnter={() => {
-                                const v = addLocationInput.trim();
-                                if (v) {
-                                  setSavedLocations(saveLocationToStorage(v));
-                                  setRoom(v);
-                                  setAddLocationInput("");
-                                  setLoadPopoverOpen(false);
-                                  message.success("추가됨");
-                                }
-                              }}
-                              className="flex-1 min-w-0"
-                            />
-                            <Button
-                              size="small"
-                              intent="primary"
-                              onClick={() => {
-                                const v = addLocationInput.trim();
-                                if (v) {
-                                  setSavedLocations(saveLocationToStorage(v));
-                                  setRoom(v);
-                                  setAddLocationInput("");
-                                  setLoadPopoverOpen(false);
-                                  message.success("추가됨");
-                                }
-                              }}
-                            >
-                              추가
-                            </Button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="clinic-location-popover-list">
-                          {savedLocations.map((loc) => (
-                            <div
-                              key={loc}
-                              className="clinic-location-popover-item-row"
-                            >
-                              <button
-                                type="button"
-                                className="clinic-location-popover-item flex-1 min-w-0 text-left"
-                                onClick={() => {
-                                  setRoom(loc);
-                                  setLoadPopoverOpen(false);
-                                }}
-                              >
-                                {loc}
-                              </button>
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSavedLocations(removeSavedLocation(loc));
-                                  message.success("삭제됨");
-                                }}
-                                className="clinic-location-popover-delete"
-                                title="장소 삭제"
-                                aria-label={`${loc} 삭제`}
-                              >
-                                <Trash2 size={14} />
-                              </button>
-                            </div>
-                          ))}
-                          <div className="border-t border-[var(--color-border-divider)] mt-2 pt-2">
-                            <p className="text-[11px] text-[var(--color-text-muted)] mb-1">장소 추가하기</p>
-                            <div className="flex gap-2">
-                              <Input
-                                size="small"
-                                placeholder="새 장소"
-                                value={addLocationInput}
-                                onChange={(e) => setAddLocationInput(e.target.value)}
-                                onPressEnter={() => {
-                                  const v = addLocationInput.trim();
-                                  if (v) {
-                                    setSavedLocations(saveLocationToStorage(v));
-                                    setRoom(v);
-                                    setAddLocationInput("");
-                                    setLoadPopoverOpen(false);
-                                    message.success("추가됨");
-                                  }
-                                }}
-                                className="flex-1 min-w-0"
-                              />
-                              <Button
-                                size="small"
-                                intent="secondary"
-                                onClick={() => {
-                                  const v = addLocationInput.trim();
-                                  if (v) {
-                                    setSavedLocations(saveLocationToStorage(v));
-                                    setRoom(v);
-                                    setAddLocationInput("");
-                                    setLoadPopoverOpen(false);
-                                    message.success("추가됨");
-                                  }
-                                }}
-                              >
-                                추가
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  }
-                >
-                  <button
-                    type="button"
-                    className="clinic-location-icon-btn"
-                    title="장소 불러오기"
-                    aria-label="장소 불러오기"
-                  >
-                    <FolderOpen size={16} />
-                  </button>
-                </Popover>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <span className="text-sm font-semibold text-[var(--color-text-muted)] whitespace-nowrap">정원</span>
-                <div className="clinic-capacity-stepper">
-                  <button
-                    type="button"
-                    className="clinic-capacity-stepper__btn"
-                    onClick={() => setMaxParticipants((p) => Math.max(1, p - 1))}
-                    disabled={selected.length > 0}
-                    aria-label="정원 1 감소"
-                  >
-                    −
-                  </button>
-                  <span className="clinic-capacity-stepper__value">
-                    {selected.length > 0 ? selected.length : maxParticipants}
-                  </span>
-                  <button
-                    type="button"
-                    className="clinic-capacity-stepper__btn"
-                    onClick={() => setMaxParticipants((p) => Math.min(999, p + 1))}
-                    disabled={selected.length > 0}
-                    aria-label="정원 1 증가"
-                  >
-                    +
-                  </button>
-                </div>
-                <span className="text-xs text-[var(--color-text-muted)] shrink-0">
-                  {selected.length > 0 ? "선택 인원으로 설정" : "명"}
-                </span>
-              </div>
-            </div>
-            <Input.TextArea
-              rows={1}
-              placeholder="메모 (선택)"
-              value={memo}
-              onChange={(e) => setMemo(e.target.value)}
-              className="clinic-input-filled resize-none"
-              autoSize={{ minRows: 1, maxRows: 2 }}
-            />
-          </div>
-
-          {/* 대상자 선택 */}
-          <div className="modal-form-group modal-form-group--compact flex flex-col gap-2">
-            <label className="modal-section-label">대상자 선택</label>
-            <div className="flex items-center gap-3 flex-wrap">
-              <Button
-                type="button"
-                intent="secondary"
-                size="md"
-                onClick={() => setTargetModalOpen(true)}
-                aria-haspopup="dialog"
-                aria-expanded={targetModalOpen}
-              >
-                대상자 추가
-              </Button>
-              <span className="text-[13px] font-semibold text-[var(--color-text-primary)]">
-                {selected.length > 0
-                  ? `${mode === "targets" ? "예약 대상자" : "전체 학생"} ${selected.length}명 선택됨`
-                  : "아직 선택 안 됨"}
-              </span>
-            </div>
-          </div>
+        <div className="clinic-create__form">
+          {formFields}
         </div>
-
-        <div className="pt-3 mt-auto border-t border-[var(--color-border-divider)]">
-          <Button
-            type="button"
-            intent="primary"
-            size="lg"
-            loading={createSessionM.isPending}
-            onClick={submit}
-            className="w-full"
-            disabled={isPastDate}
-          >
-            {isPastDate
-              ? "지난 날짜입니다"
-              : selected.length > 0
-                ? `${selected.length}명 클리닉 만들기`
-                : `클리닉 만들기 (정원 ${maxParticipants}명)`}
-          </Button>
+        <div className="clinic-create__footer">
+          {submitButton}
         </div>
       </div>
 
-      <ClinicTargetSelectModal
-        open={targetModalOpen}
-        onClose={() => setTargetModalOpen(false)}
-        initialMode={mode}
-        initialSelectedIds={selected}
-        onConfirm={handleTargetModalConfirm}
-      />
+      {targetSelectModal}
     </div>
   );
 }

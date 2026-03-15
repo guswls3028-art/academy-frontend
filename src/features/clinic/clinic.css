@@ -917,6 +917,189 @@
   padding: var(--space-4) var(--space-5);
 }
 
+/* ========== clinic-create — clean form layout (asModal=true) ========== */
+.clinic-create {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.clinic-create__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  padding: 0;
+}
+/* When inside the card layout, reuse same form spacing */
+.ds-card-modal .clinic-create__form {
+  gap: var(--space-5);
+}
+.clinic-create__field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.clinic-create__label {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--color-text-primary);
+}
+.clinic-create__footer {
+  padding-top: var(--space-4);
+  margin-top: var(--space-5);
+  border-top: 1px solid var(--color-border-divider);
+}
+
+/* 장소 — input + text buttons row */
+.clinic-create__location-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.clinic-create__location-input {
+  flex: 1;
+  min-width: 0;
+}
+.clinic-create__location-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-shrink: 0;
+}
+.clinic-create__location-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px;
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface);
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+.clinic-create__location-btn:hover {
+  background: var(--color-bg-surface-hover);
+  color: var(--color-brand-primary);
+  border-color: color-mix(in srgb, var(--color-brand-primary) 40%, var(--color-border-divider));
+}
+
+/* 정원 — stepper left-aligned */
+.clinic-create__capacity-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.clinic-create__capacity-hint {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
+/* 대상 조건 — collapse trigger */
+.clinic-create__collapse-trigger {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+.clinic-create__collapse-icon {
+  margin-left: auto;
+  color: var(--color-text-muted);
+  display: flex;
+}
+.clinic-create__filter-badge {
+  font-size: 11px;
+  color: var(--color-brand-primary);
+  font-weight: 600;
+}
+.clinic-create__filter-default {
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+/* 필터 경고 배너 */
+.clinic-create__filter-warning {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-warning) 10%, var(--color-bg-surface));
+  border: 1px solid color-mix(in srgb, var(--color-warning) 40%, var(--color-border-divider));
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+.clinic-create__filter-warning span[aria-hidden] {
+  font-size: 14px;
+}
+
+/* 필터 본문 */
+.clinic-create__filter-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-top: var(--space-2);
+}
+.clinic-create__filter-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.clinic-create__filter-row--top {
+  align-items: flex-start;
+}
+.clinic-create__filter-row-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  width: 40px;
+  flex-shrink: 0;
+}
+.clinic-create__filter-chips {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.clinic-create__filter-reset {
+  align-self: flex-end;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  text-decoration: underline;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  transition: color 0.12s ease;
+}
+.clinic-create__filter-reset:hover {
+  color: var(--color-text-primary);
+}
+
+/* 대상자 선택 row */
+.clinic-create__target-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+.clinic-create__target-count {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
 /* 클리닉 생성: 한 페이지 컴팩트 레이아웃 — 스크롤은 대상자 리스트만 */
 .clinic-create-body {
   display: flex;
@@ -3175,4 +3358,23 @@ details[open] > .clinic-tree__summary {
   color: var(--color-text-muted);
   opacity: 0.7;
   margin: var(--space-1) 0 0 0;
+}
+
+/* ── Clinic Create: Compact Row Layout ── */
+.clinic-create__row {
+  display: flex;
+  gap: var(--space-4);
+  align-items: flex-start;
+}
+
+.clinic-create__field--half {
+  flex: 1;
+  min-width: 0;
+}
+
+@media (max-width: 480px) {
+  .clinic-create__row {
+    flex-direction: column;
+    gap: var(--space-3);
+  }
 }

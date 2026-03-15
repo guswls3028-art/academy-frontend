@@ -322,6 +322,7 @@ export default function ClinicOperationsPage() {
         width={520}
       >
         <ClinicCreatePanel
+          asModal
           date={baseDate}
           onDateChange={(d) => {
             setBaseDate(d);

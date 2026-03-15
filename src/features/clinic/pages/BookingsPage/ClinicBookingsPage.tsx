@@ -262,6 +262,7 @@ export default function ClinicBookingsPage() {
         width={560}
       >
         <ClinicCreatePanel
+          asModal
           defaultMode="targets"
           selectedTargetEnrollmentIds={selected}
           onChangeSelectedTargetEnrollmentIds={setSelected}
