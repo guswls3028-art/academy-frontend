@@ -440,7 +440,7 @@ export default function DashboardPage() {
             <div className="stu-action-tile__icon">
               <IconFolder style={{ width: 20, height: 20, color: "var(--stu-primary)" }} />
             </div>
-            <div className="stu-action-tile__label">인벤토리</div>
+            <div className="stu-action-tile__label">보관함</div>
           </Link>
           <Link
             to="/student/clinic"

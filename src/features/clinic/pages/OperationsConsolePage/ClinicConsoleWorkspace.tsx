@@ -545,7 +545,7 @@ export default function ClinicConsoleWorkspace({
                   disabled={statusMutation.isPending}
                 >
                   <CheckCircle size={16} aria-hidden />
-                  {statusMutation.isPending ? "처리 중…" : "통과 처리"}
+                  {statusMutation.isPending ? "처리 중…" : "출석 처리"}
                 </button>
               ) : (
                 <span className="clinic-console__drawer-done">출석 처리 완료</span>
