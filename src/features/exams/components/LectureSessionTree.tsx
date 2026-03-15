@@ -14,9 +14,11 @@ type Props = {
 };
 
 function formatSessionTitle(s: Session): string {
-  const order = s.order ?? 0;
+  const title = (s.title ?? "").trim();
+  const isSupplement = title.includes("보강");
+  const label = isSupplement ? "보강" : `${s.order ?? 0}차시`;
   const date = s.date ? new Date(s.date).toLocaleDateString("ko-KR", { month: "2-digit", day: "2-digit" }) : "";
-  return date ? `${order}차시 ${date}` : `${order}차시`;
+  return date ? `${label} ${date}` : label;
 }
 
 export default function LectureSessionTree({

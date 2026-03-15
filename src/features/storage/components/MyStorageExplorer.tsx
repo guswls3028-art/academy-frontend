@@ -1,11 +1,13 @@
 // PATH: src/features/storage/components/MyStorageExplorer.tsx
 // 내 저장소(선생님) — 좌측 폴더 트리, 상단 브레드크럼, 우측 아이콘 그리드 (파일 탐색기형)
+// 다중선택: Ctrl/Cmd+Click, 일괄삭제 지원
 
 import { useState, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { FolderOpen, FileText, Image, FilePlus, FolderPlus, X, Download, Trash2 } from "lucide-react";
+import { FolderOpen, FileText, Image, FilePlus, FolderPlus, X, Download, Trash2, Pencil } from "lucide-react";
 import { Button, CloseButton } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { useConfirm } from "@/shared/ui/confirm";
 import {
   fetchInventoryList,
   fetchStorageQuota,
@@ -13,6 +15,8 @@ import {
   uploadFile,
   deleteFolder,
   deleteFile,
+  renameFolder,
+  renameFile,
   getPresignedUrl,
   moveInventoryItem,
   type InventoryFolder,
@@ -41,12 +45,14 @@ const SCOPE = "admin" as const;
 
 export default function MyStorageExplorer() {
   const qc = useQueryClient();
+  const confirm = useConfirm();
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
   const [addChoiceOpen, setAddChoiceOpen] = useState(false);
   const [newFolderOpen, setNewFolderOpen] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
-  const [selectedFileId, setSelectedFileId] = useState<string | null>(null);
+  // 다중 선택: 파일 ID Set + 폴더 ID Set (동시 선택 가능)
+  const [selectedFileIds, setSelectedFileIds] = useState<Set<string>>(new Set());
   const [selectedFolderIds, setSelectedFolderIds] = useState<Set<string>>(new Set());
   const [fileActionTarget, setFileActionTarget] = useState<InventoryFile | null>(null);
   const [movingId, setMovingId] = useState<string | null>(null);
@@ -57,6 +63,9 @@ export default function MyStorageExplorer() {
     targetFolderId: string | null;
     existingName: string;
   } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [renamingId, setRenamingId] = useState<{ type: "folder" | "file"; id: string } | null>(null);
+  const [renameValue, setRenameValue] = useState("");
 
   const { data, isLoading } = useQuery({
     queryKey: ["storage-inventory", SCOPE],
@@ -108,29 +117,113 @@ export default function MyStorageExplorer() {
     [currentFolderId, qc]
   );
 
+  const selectionCount = selectedFolderIds.size + selectedFileIds.size;
+  const hasSelection = selectionCount > 0;
+
+  // 선택 토글 (Ctrl/Cmd+Click = 추가/제거, 일반 Click = 단일 선택)
+  const toggleFolderSelect = useCallback((folderId: string, multi: boolean) => {
+    if (multi) {
+      setSelectedFolderIds((prev) => {
+        const next = new Set(prev);
+        if (next.has(folderId)) next.delete(folderId);
+        else next.add(folderId);
+        return next;
+      });
+    } else {
+      setSelectedFolderIds(new Set([folderId]));
+      setSelectedFileIds(new Set());
+    }
+  }, []);
+
+  const toggleFileSelect = useCallback((fileId: string, multi: boolean) => {
+    if (multi) {
+      setSelectedFileIds((prev) => {
+        const next = new Set(prev);
+        if (next.has(fileId)) next.delete(fileId);
+        else next.add(fileId);
+        return next;
+      });
+    } else {
+      setSelectedFileIds(new Set([fileId]));
+      setSelectedFolderIds(new Set());
+    }
+  }, []);
+
+  const clearSelection = useCallback(() => {
+    setSelectedFolderIds(new Set());
+    setSelectedFileIds(new Set());
+  }, []);
+
+  // 전체 선택
+  const handleSelectAll = useCallback(() => {
+    setSelectedFolderIds(new Set(subFolders.map((f) => f.id)));
+    setSelectedFileIds(new Set(subFiles.map((f) => f.id)));
+  }, [subFolders, subFiles]);
+
+  const isAllSelected = subFolders.length + subFiles.length > 0 &&
+    subFolders.every((f) => selectedFolderIds.has(f.id)) &&
+    subFiles.every((f) => selectedFileIds.has(f.id));
+
+  // 일괄 삭제
   const handleDeleteSelected = useCallback(async () => {
+    const folderCount = selectedFolderIds.size;
+    const fileCount = selectedFileIds.size;
+    const parts: string[] = [];
+    if (folderCount > 0) parts.push(`폴더 ${folderCount}개`);
+    if (fileCount > 0) parts.push(`파일 ${fileCount}개`);
+    const ok = await confirm({
+      title: "선택 항목 삭제",
+      message: `${parts.join(", ")}를 삭제하시겠습니까?`,
+      confirmText: "삭제",
+      danger: true,
+    });
+    if (!ok) return;
+
+    setIsDeleting(true);
+    let errorCount = 0;
     for (const id of selectedFolderIds) {
       try {
         await deleteFolder(SCOPE, id);
       } catch (e) {
+        errorCount++;
         feedback.error((e as Error).message);
-        return;
       }
     }
-    if (selectedFileId) {
+    for (const id of selectedFileIds) {
       try {
-        await deleteFile(SCOPE, selectedFileId);
+        await deleteFile(SCOPE, id);
       } catch (e) {
+        errorCount++;
         feedback.error((e as Error).message);
-        return;
       }
     }
     qc.invalidateQueries({ queryKey: ["storage-inventory", SCOPE] });
-    setSelectedFolderIds(new Set());
-    setSelectedFileId(null);
-  }, [selectedFolderIds, selectedFileId, qc]);
+    clearSelection();
+    setIsDeleting(false);
+    if (errorCount === 0) {
+      feedback.success(`${parts.join(", ")} 삭제 완료`);
+    }
+  }, [selectedFolderIds, selectedFileIds, qc, confirm, clearSelection]);
 
-  const hasSelection = selectedFolderIds.size > 0 || selectedFileId != null;
+  const startRename = useCallback((type: "folder" | "file", id: string, currentName: string) => {
+    setRenamingId({ type, id });
+    setRenameValue(currentName);
+  }, []);
+
+  const submitRename = useCallback(async () => {
+    if (!renamingId || !renameValue.trim()) { setRenamingId(null); return; }
+    try {
+      if (renamingId.type === "folder") {
+        await renameFolder(SCOPE, renamingId.id, renameValue.trim());
+      } else {
+        await renameFile(SCOPE, renamingId.id, renameValue.trim());
+      }
+      qc.invalidateQueries({ queryKey: ["storage-inventory", SCOPE] });
+    } catch (e) {
+      feedback.error((e as Error).message);
+    }
+    setRenamingId(null);
+  }, [renamingId, renameValue, qc]);
 
   const handleMove = useCallback(
     async (
@@ -213,8 +306,21 @@ export default function MyStorageExplorer() {
         <Breadcrumb path={breadcrumbPath} onSelect={setCurrentFolderId} />
         <div className={panelStyles.actions}>
           {hasSelection && (
-            <Button type="button" intent="danger" size="sm" onClick={handleDeleteSelected}>
-              삭제
+            <>
+              <span style={{ fontSize: 12, color: "var(--color-text-secondary)", marginRight: 4 }}>
+                {selectionCount}개 선택
+              </span>
+              <Button type="button" intent="ghost" size="sm" onClick={clearSelection}>
+                선택 해제
+              </Button>
+              <Button type="button" intent="danger" size="sm" onClick={handleDeleteSelected} disabled={isDeleting}>
+                {isDeleting ? "삭제 중…" : "삭제"}
+              </Button>
+            </>
+          )}
+          {!hasSelection && (subFolders.length + subFiles.length > 0) && (
+            <Button type="button" intent="ghost" size="sm" onClick={handleSelectAll}>
+              전체 선택
             </Button>
           )}
           <Button
@@ -238,10 +344,10 @@ export default function MyStorageExplorer() {
           </div>
           <div className={panelStyles.treeScroll}>
             <FolderTree
-            folders={allFoldersForTree}
-            currentFolderId={currentFolderId}
-            onSelect={setCurrentFolderId}
-          />
+              folders={allFoldersForTree}
+              currentFolderId={currentFolderId}
+              onSelect={setCurrentFolderId}
+            />
           </div>
         </aside>
         <div className={panelStyles.gridWrap}>
@@ -250,6 +356,7 @@ export default function MyStorageExplorer() {
           ) : (
             <div
               className={styles.grid}
+              onClick={() => clearSelection()}
               onDragOver={(e) => {
                 e.preventDefault();
                 e.dataTransfer.dropEffect = "move";
@@ -277,10 +384,9 @@ export default function MyStorageExplorer() {
                   }
                   onClick={(e) => {
                     e.stopPropagation();
-                    setSelectedFolderIds((prev) => new Set(prev).add(f.id));
-                    setSelectedFileId(null);
+                    toggleFolderSelect(f.id, e.ctrlKey || e.metaKey);
                   }}
-                  onDoubleClick={() => setCurrentFolderId(f.id)}
+                  onDoubleClick={() => { clearSelection(); setCurrentFolderId(f.id); }}
                   onDragStart={(e) => {
                     e.dataTransfer.setData(DRAG_TYPE, JSON.stringify({ type: "folder" as const, sourceId: f.id }));
                     e.dataTransfer.effectAllowed = "move";
@@ -302,7 +408,19 @@ export default function MyStorageExplorer() {
                   }}
                 >
                   <FolderOpen size={36} />
-                  <span>{f.name}</span>
+                  {renamingId?.type === "folder" && renamingId.id === f.id ? (
+                    <input
+                      className={styles.renameInput}
+                      value={renameValue}
+                      onChange={(e) => setRenameValue(e.target.value)}
+                      onBlur={submitRename}
+                      onKeyDown={(e) => { if (e.key === "Enter") submitRename(); if (e.key === "Escape") setRenamingId(null); }}
+                      autoFocus
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  ) : (
+                    <span onDoubleClick={(e) => { e.stopPropagation(); startRename("folder", f.id, f.name); }}>{f.name}</span>
+                  )}
                   {movingId === f.id && <span className={styles.movingLabel}>이동 중...</span>}
                 </div>
               ))}
@@ -312,14 +430,17 @@ export default function MyStorageExplorer() {
                   draggable
                   className={
                     styles.item +
-                    (selectedFileId === file.id ? " " + styles.itemSelected : "") +
+                    (selectedFileIds.has(file.id) ? " " + styles.itemSelected : "") +
                     (movingId === file.id ? " " + styles.itemMoving : "")
                   }
                   onClick={(e) => {
                     e.stopPropagation();
-                    setSelectedFileId(file.id);
-                    setSelectedFolderIds(new Set());
-                    setFileActionTarget(file);
+                    if (e.ctrlKey || e.metaKey) {
+                      toggleFileSelect(file.id, true);
+                    } else {
+                      toggleFileSelect(file.id, false);
+                      setFileActionTarget(file);
+                    }
                   }}
                   title={file.description || file.displayName}
                   onDragStart={(e) => {
@@ -332,13 +453,25 @@ export default function MyStorageExplorer() {
                   ) : (
                     <FileText size={36} />
                   )}
-                  <span>{file.displayName}</span>
+                  {renamingId?.type === "file" && renamingId.id === file.id ? (
+                    <input
+                      className={styles.renameInput}
+                      value={renameValue}
+                      onChange={(e) => setRenameValue(e.target.value)}
+                      onBlur={submitRename}
+                      onKeyDown={(e) => { if (e.key === "Enter") submitRename(); if (e.key === "Escape") setRenamingId(null); }}
+                      autoFocus
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  ) : (
+                    <span>{file.displayName}</span>
+                  )}
                   {movingId === file.id && <span className={styles.movingLabel}>이동 중...</span>}
                 </div>
               ))}
               <div
                 className={styles.item + " " + styles.itemAdd + (isLocked ? " " + styles.itemLocked : "")}
-                onClick={() => !isLocked && setAddChoiceOpen(true)}
+                onClick={(e) => { e.stopPropagation(); if (!isLocked) setAddChoiceOpen(true); }}
                 title={isLocked ? "Standard 플랜에서는 사용 불가" : "폴더 또는 파일 추가"}
               >
                 <FilePlus size={32} />
@@ -390,7 +523,7 @@ export default function MyStorageExplorer() {
         </div>
       )}
 
-      {fileActionTarget && (
+      {fileActionTarget && !selectedFileIds.has(fileActionTarget.id) && (
         <div className={styles.addPopupBackdrop} onClick={() => setFileActionTarget(null)}>
           <div className={styles.addPopup} onClick={(e) => e.stopPropagation()}>
             <div className={styles.addPopupHeader}>
@@ -414,10 +547,23 @@ export default function MyStorageExplorer() {
               </button>
               <button
                 type="button"
+                className={styles.fileActionBtn}
+                onClick={() => {
+                  startRename("file", fileActionTarget.id, fileActionTarget.displayName);
+                  setFileActionTarget(null);
+                }}
+              >
+                <Pencil size={18} style={{ color: "var(--color-brand-primary)", flexShrink: 0 }} />
+                이름 수정
+              </button>
+              <button
+                type="button"
                 className={styles.fileActionBtnDanger}
                 onClick={async () => {
                   const id = fileActionTarget.id;
                   setFileActionTarget(null);
+                  const ok = await confirm({ title: "파일 삭제", message: "정말 삭제하시겠습니까?", confirmText: "삭제", danger: true });
+                  if (!ok) return;
                   try {
                     await deleteFile(SCOPE, id);
                     qc.invalidateQueries({ queryKey: ["storage-inventory", SCOPE] });

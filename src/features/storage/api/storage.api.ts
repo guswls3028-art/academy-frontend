@@ -110,6 +110,28 @@ export async function deleteFolder(
   await api.delete(`/storage/inventory/folders/${folderId}/`, { params });
 }
 
+export async function renameFolder(
+  scope: "admin" | "student",
+  folderId: string,
+  name: string,
+  studentPs?: string
+): Promise<void> {
+  const params: Record<string, string> = { scope };
+  if (studentPs) params.student_ps = studentPs;
+  await api.patch(`/storage/inventory/folders/${folderId}/`, { name }, { params });
+}
+
+export async function renameFile(
+  scope: "admin" | "student",
+  fileId: string,
+  displayName: string,
+  studentPs?: string
+): Promise<void> {
+  const params: Record<string, string> = { scope };
+  if (studentPs) params.student_ps = studentPs;
+  await api.patch(`/storage/inventory/files/${fileId}/`, { displayName }, { params });
+}
+
 export async function getPresignedUrl(r2Key: string, expiresIn?: number): Promise<{ url: string }> {
   const { data } = await api.post<{ url: string }>("/storage/inventory/presign/", {
     r2_key: r2Key,

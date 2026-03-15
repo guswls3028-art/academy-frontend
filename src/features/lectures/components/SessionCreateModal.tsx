@@ -127,8 +127,11 @@ export default function SessionCreateModal({ lectureId, onClose }: Props) {
 
   const effectiveDate = dateMode === "default" ? (defaultDateFromLecture || date) : date;
 
+  const MAX_SESSIONS = 52;
+
   function validate(): string | null {
     if (!sessionType) return "차시 유형을 선택하세요.";
+    if (sortedSessions.length >= MAX_SESSIONS) return `차시는 최대 ${MAX_SESSIONS}개까지 생성할 수 있습니다.`;
     if (!effectiveDate?.trim()) return "날짜를 선택하세요.";
     if (sessionType === "supplement" || timeMode === "custom") {
       if (!timeInput.trim()) return "시간을 입력하세요.";

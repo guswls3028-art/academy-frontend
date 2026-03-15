@@ -95,8 +95,8 @@
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-  gap: var(--space-4);
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: var(--space-3);
 }
 
 .item {
@@ -105,7 +105,7 @@
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
-  padding: var(--space-4);
+  padding: var(--space-3) var(--space-4);
   border-radius: var(--radius-md);
   border: 1px solid var(--color-border-divider);
   background: var(--color-bg-surface);
@@ -114,6 +114,19 @@
   font-weight: 600;
   color: var(--color-text-primary);
   transition: background 0.15s, border-color 0.15s;
+  min-height: 90px;
+}
+
+.item > svg {
+  flex-shrink: 0;
+}
+
+.item > span {
+  width: 100%;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .item:hover {
@@ -244,6 +257,19 @@
 .fileActionBtnDanger:hover {
   background: color-mix(in srgb, var(--color-danger-text, #dc2626) 6%, var(--color-bg-surface));
   border-color: color-mix(in srgb, var(--color-danger-text, #dc2626) 30%, var(--color-border-divider));
+}
+
+.renameInput {
+  width: 100%;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 4px;
+  border: 1px solid var(--color-brand-primary);
+  border-radius: 4px;
+  outline: none;
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
 }
 
 .fileActionFileName {
