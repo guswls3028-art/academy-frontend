@@ -61,12 +61,12 @@ async function _setTokensAndNavigate(
     localStorage.setItem("refresh", t.refresh);
   }, tokens);
 
-  // 4. 대시보드로 이동
+  // 4. 대시보드로 이동 (full page load로 React가 토큰을 읽도록)
   const dashPath = role === "student" ? "/student" : "/admin";
-  await page.goto(`${base}${dashPath}`, { waitUntil: "load" });
+  await page.goto(`${base}${dashPath}`, { waitUntil: "domcontentloaded" });
 
-  // 5. 인증된 상태 확인 (로그인 페이지로 리다이렉트 안 되는지)
-  await page.waitForTimeout(2000);
+  // 5. SPA 마운트 대기 — data-app 속성이 나타날 때까지
+  await page.waitForSelector("[data-app]", { state: "attached", timeout: 15000 });
 }
 
 export function getBaseUrl(role?: TenantRole | string): string {
