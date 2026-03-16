@@ -532,6 +532,8 @@ function MatDetailView({ postId, onClose, onDeleted }: { postId: number; onClose
               <h1 className="qna-inbox__thread-title" style={{ cursor: "text" }} title="클릭하여 제목 수정" onClick={() => setEditingTitle(true)}>{post.title}</h1>
             )}
             <div className="qna-inbox__thread-meta">
+              <span className="ds-status-badge" data-tone="neutral" style={{ fontSize: 10 }}>{(() => { const m = post.mappings?.[0]?.node_detail; if (!m) return "전체"; return m.session_title || m.lecture_title || "전체"; })()}</span>
+              <span className="qna-inbox__thread-meta-dot" />
               <span>{authorName}</span>
               <span className="qna-inbox__thread-meta-dot" />
               <span>{new Date(post.created_at).toLocaleString("ko-KR", { month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span>
@@ -551,6 +553,8 @@ function MatDetailView({ postId, onClose, onDeleted }: { postId: number; onClose
             {getInitials(authorName)}
           </span>
           <span className="cms-detail__meta-author">{authorName}</span>
+          <span className="cms-detail__meta-dot" />
+          <span>{(() => { const m = post.mappings?.[0]?.node_detail; if (!m) return "전체"; return m.session_title || m.lecture_title || "전체"; })()}</span>
           <span className="cms-detail__meta-dot" />
           <span>{timeAgo(post.created_at)}</span>
         </div>

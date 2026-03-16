@@ -9,7 +9,6 @@ import {
   fetchScopeNodes,
   fetchAdminPosts,
   fetchPost,
-  updatePostNodes,
   updatePost,
   deletePost,
   createPost,
@@ -329,7 +328,6 @@ export default function NoticeAdminPage() {
         ) : (
           <NoticeDetailView
             postId={selectedId}
-            scopeNodes={scopeNodes}
             onClose={() => setSelectedId(null)}
             onDeleted={() => setSelectedId(null)}
           />
@@ -387,12 +385,10 @@ function NoticeCard({
 
 function NoticeDetailView({
   postId,
-  scopeNodes,
   onClose,
   onDeleted,
 }: {
   postId: number;
-  scopeNodes: ScopeNodeMinimal[];
   onClose: () => void;
   onDeleted: () => void;
 }) {
@@ -404,18 +400,8 @@ function NoticeDetailView({
     enabled: postId != null,
   });
 
-  const initialNodeIds = post?.mappings?.map((m) => m.node) ?? [];
-  const [inspectorNodeIds, setInspectorNodeIds] = useState<number[]>([]);
   const [editingContent, setEditingContent] = useState("");
   const [contentSaved, setContentSaved] = useState(false);
-
-  useEffect(() => {
-    if (post?.mappings?.length) {
-      setInspectorNodeIds(post.mappings.map((m) => m.node));
-    } else {
-      setInspectorNodeIds([]);
-    }
-  }, [post?.id, post?.mappings]);
 
   useEffect(() => {
     setEditingContent(post?.content ?? "");
@@ -436,19 +422,6 @@ function NoticeDetailView({
     },
   });
 
-  const updateNodesMut = useMutation({
-    mutationFn: (nodeIds: number[]) => updatePostNodes(postId, nodeIds),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["community-post", postId] });
-      qc.invalidateQueries({ queryKey: ["community-notice-posts"] });
-      qc.invalidateQueries({ queryKey: ["community-all-notice-posts-for-count"] });
-      feedback.success("노출 범위가 저장되었습니다.");
-    },
-    onError: (e: unknown) => {
-      feedback.error((e as Error)?.message ?? "저장에 실패했습니다.");
-    },
-  });
-
   const updateContentMut = useMutation({
     mutationFn: (content: string) => updatePost(postId, { content }),
     onSuccess: () => {
@@ -464,17 +437,6 @@ function NoticeDetailView({
     },
   });
 
-  const nodePickerOptions = useMemo(
-    () =>
-      scopeNodes.map((n) => ({
-        label: n.session_title
-          ? `${n.lecture_title} · ${n.session_title}`
-          : `${n.lecture_title} (전체)`,
-        value: n.id,
-      })),
-    [scopeNodes]
-  );
-
   if (isLoading || !post) {
     return (
       <div className="qna-inbox__empty">
@@ -485,8 +447,11 @@ function NoticeDetailView({
     );
   }
 
-  const lectureLabel = post.mappings?.[0]?.node_detail?.lecture_title ?? "—";
-  const currentNodeIds = inspectorNodeIds.length ? inspectorNodeIds : initialNodeIds;
+  const scopeBadgeLabel = (() => {
+    const m = post.mappings?.[0]?.node_detail;
+    if (!m) return "전체";
+    return m.session_title || m.lecture_title || "전체";
+  })();
 
   return (
     <>
@@ -495,7 +460,7 @@ function NoticeDetailView({
           <div className="qna-inbox__thread-title-group">
             <h1 className="qna-inbox__thread-title">{post.title}</h1>
             <div className="qna-inbox__thread-meta">
-              <span>{lectureLabel}</span>
+              <span className="ds-status-badge" data-tone="neutral" style={{ fontSize: 10 }}>{scopeBadgeLabel}</span>
               <span className="qna-inbox__thread-meta-dot" />
               <span>
                 {new Date(post.created_at).toLocaleString("ko-KR", {
@@ -551,37 +516,6 @@ function NoticeDetailView({
           </div>
         </div>
 
-        <div className="cms-detail__section">
-          <div className="cms-detail__section-label">노출 대상</div>
-          <div className="cms-node-picker">
-            {nodePickerOptions.map((opt) => (
-              <label key={opt.value} className="cms-node-picker__item">
-                <input
-                  type="checkbox"
-                  checked={currentNodeIds.includes(opt.value)}
-                  onChange={(e) => {
-                    if (e.target.checked) {
-                      setInspectorNodeIds([...inspectorNodeIds, opt.value]);
-                    } else {
-                      setInspectorNodeIds(inspectorNodeIds.filter(id => id !== opt.value));
-                    }
-                  }}
-                />
-                {opt.label}
-              </label>
-            ))}
-          </div>
-          <div className="cms-detail__content-actions">
-            <Button
-              intent="primary"
-              size="sm"
-              onClick={() => updateNodesMut.mutate(currentNodeIds)}
-              disabled={updateNodesMut.isPending}
-            >
-              노출 범위 저장
-            </Button>
-          </div>
-        </div>
       </div>
     </>
   );

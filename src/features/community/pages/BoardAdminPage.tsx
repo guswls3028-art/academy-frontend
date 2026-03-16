@@ -626,7 +626,6 @@ function PostDetailView({
   }
 
   const authorName = post.created_by_deleted ? "삭제된 사용자" : (post.created_by_display ?? "관리자");
-  const lectureLabel = post.mappings?.[0]?.node_detail?.lecture_title ?? null;
   const contentDirty = editContent !== (post.content ?? "");
 
   return (
@@ -656,7 +655,6 @@ function PostDetailView({
               <span className="ds-status-badge" data-tone="neutral" style={{ fontSize: 10 }}>{(() => { const m = post.mappings?.[0]?.node_detail; if (!m) return "전체"; return m.session_title || m.lecture_title || "전체"; })()}</span>
               <span className="qna-inbox__thread-meta-dot" />
               <span>{authorName}</span>
-              {lectureLabel && (<><span className="qna-inbox__thread-meta-dot" /><span>{lectureLabel}</span></>)}
               <span className="qna-inbox__thread-meta-dot" />
               <span>{new Date(post.created_at).toLocaleString("ko-KR", { month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span>
             </div>
