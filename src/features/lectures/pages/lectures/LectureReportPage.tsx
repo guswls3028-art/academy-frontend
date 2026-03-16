@@ -96,7 +96,7 @@ export default function LectureReportPage() {
                     {s.avg_progress ?? 0}%
                   </td>
                   <td className="px-4 py-3 text-center text-[13px] font-semibold text-[var(--color-text-muted)]">
-                    {s.last_attendance_status ?? "-"}
+                    {({ PRESENT: "현장", ONLINE: "영상", SUPPLEMENT: "보강", LATE: "지각", EARLY_LEAVE: "조퇴", ABSENT: "결석", RUNAWAY: "출튀", MATERIAL: "자료", INACTIVE: "부재", SECESSION: "퇴원" } as Record<string, string>)[s.last_attendance_status ?? ""] ?? s.last_attendance_status ?? "-"}
                   </td>
                 </tr>
               ))}

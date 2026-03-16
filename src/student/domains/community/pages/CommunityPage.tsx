@@ -437,9 +437,11 @@ function QnaForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () => v
       }
       return post;
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       qc.invalidateQueries({ queryKey: ["student", "qna", "questions"] });
       qc.invalidateQueries({ queryKey: ["student", "notifications", "counts"] });
+      const { studentToast } = await import("@/student/shared/ui/feedback/studentToast");
+      studentToast.success("질문이 등록되었습니다.");
       onSuccess();
     },
     onError: (err: unknown) => {
@@ -737,9 +739,11 @@ function CounselForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () 
       }
       return post;
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       qc.invalidateQueries({ queryKey: ["student", "counsel", "requests"] });
       qc.invalidateQueries({ queryKey: ["student", "notifications", "counts"] });
+      const { studentToast } = await import("@/student/shared/ui/feedback/studentToast");
+      studentToast.success("상담 요청이 등록되었습니다.");
       onSuccess();
     },
     onError: (err: unknown) => {

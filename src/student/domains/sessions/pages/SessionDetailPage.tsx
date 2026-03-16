@@ -54,9 +54,8 @@ export default function SessionDetailPage() {
     <StudentPageShell title={data.title} description={`날짜: ${formatYmd(data.date ?? null)}`}>
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         {/* ===== Actions ===== */}
-        <ActionCard title="영상 보기" desc="미디어 도메인으로 이동합니다.">
-          {/* media 이식 전이면 링크만 자리 확보 */}
-          <Link to={`/student/video?session=${data.id}`} className="stu-cta-link">
+        <ActionCard title="영상 보기" desc="이 수업의 영상을 볼 수 있어요.">
+          <Link to={`/student/video/sessions/${data.id}`} className="stu-cta-link">
             영상으로 이동
           </Link>
         </ActionCard>

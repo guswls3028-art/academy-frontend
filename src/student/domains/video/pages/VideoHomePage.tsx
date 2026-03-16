@@ -13,6 +13,7 @@ import EmptyState from "@/student/shared/ui/layout/EmptyState";
 import CourseCard from "../components/CourseCard";
 
 function PublicCourseCard({ pub }: { pub: StudentVideoMePublic }) {
+  if (!pub?.video_count) return null;
   return (
     <CourseCard
       title="전체공개영상"

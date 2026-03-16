@@ -13,9 +13,9 @@ export default function SessionExamAction({ examIds }: SessionExamActionProps) {
   if (Array.isArray(examIds) && examIds.length > 0) {
     return (
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-        {examIds.map((eid) => (
+        {examIds.map((eid, idx) => (
           <Link key={eid} to={`/student/exams/${eid}`} className="stu-cta-link">
-            시험 #{eid}
+            {examIds.length === 1 ? "시험 보기" : `${idx + 1}차 시험`}
           </Link>
         ))}
       </div>

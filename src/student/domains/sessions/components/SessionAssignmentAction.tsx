@@ -9,9 +9,12 @@ type SessionAssignmentActionProps = {
   sessionId?: number;
 };
 
-export default function SessionAssignmentAction({ sessionId: _sessionId }: SessionAssignmentActionProps) {
+export default function SessionAssignmentAction({ sessionId }: SessionAssignmentActionProps) {
+  const to = sessionId
+    ? `/student/submit/assignment?sessionId=${sessionId}`
+    : "/student/submit/assignment";
   return (
-    <Link to="/student/submit/assignment" className="stu-cta-link">
+    <Link to={to} className="stu-cta-link">
       과제 제출
     </Link>
   );
