@@ -1,0 +1,59 @@
+name: E2E Tests
+
+on:
+  workflow_dispatch:
+  # 수동 실행 + PR 체크에서 사용 가능
+  # push:
+  #   branches: [main]
+  #   paths:
+  #     - 'src/**'
+  #     - 'e2e/**'
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: npx playwright install chromium --with-deps
+
+      - name: Create .env.e2e
+        run: |
+          cat > .env.e2e << 'EOF'
+          E2E_BASE_URL=${{ secrets.E2E_BASE_URL || 'https://hakwonplus.com' }}
+          E2E_API_URL=${{ secrets.E2E_API_URL || 'https://api.hakwonplus.com' }}
+          E2E_TENANT_CODE=hakwonplus
+          E2E_ADMIN_USER=${{ secrets.E2E_ADMIN_USER }}
+          E2E_ADMIN_PASS=${{ secrets.E2E_ADMIN_PASS }}
+          E2E_STUDENT_USER=${{ secrets.E2E_STUDENT_USER }}
+          E2E_STUDENT_PASS=${{ secrets.E2E_STUDENT_PASS }}
+          TCHUL_BASE_URL=https://tchul.com
+          TCHUL_ADMIN_USER=${{ secrets.TCHUL_ADMIN_USER }}
+          TCHUL_ADMIN_PASS=${{ secrets.TCHUL_ADMIN_PASS }}
+          SSWE_BASE_URL=https://sswe.co.kr
+          EOF
+
+      - name: Run E2E tests
+        run: npx playwright test --reporter=github,html
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
