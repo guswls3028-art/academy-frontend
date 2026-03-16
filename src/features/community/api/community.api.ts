@@ -61,6 +61,7 @@ export interface PostEntity {
   created_by_display?: string | null;
   /** true면 질문자가 삭제된 학생. 답변 추가 비활성화용 */
   created_by_deleted?: boolean;
+  author_role?: "staff" | "student";
   created_at: string;
   updated_at?: string;
   replies_count?: number;
@@ -342,6 +343,7 @@ export interface Answer {
   content: string;
   created_at: string;
   created_by_display?: string | null;
+  author_role?: string;
 }
 
 /**
