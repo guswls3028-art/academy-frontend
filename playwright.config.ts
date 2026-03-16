@@ -18,8 +18,8 @@ export default defineConfig({
   reporter: [["list"], ["html", { open: "never" }]],
   use: {
     headless: true,
-    screenshot: "only-on-failure",
-    trace: "on-first-retry",
+    screenshot: "on",
+    trace: "on",
     video: "retain-on-failure",
     actionTimeout: 8_000,
     navigationTimeout: 15_000,
