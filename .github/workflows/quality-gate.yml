@@ -27,7 +27,7 @@ jobs:
           cache: pnpm
 
       - name: Install dependencies
-        run: pnpm install --no-frozen-lockfile
+        run: pnpm install --no-frozen-lockfile --shamefully-hoist
 
       - name: Typecheck
         run: pnpm exec tsc --noEmit -p tsconfig.app.json || echo "::warning::TypeScript errors found (non-blocking for now)"
