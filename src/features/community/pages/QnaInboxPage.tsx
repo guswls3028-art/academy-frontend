@@ -160,7 +160,7 @@ export default function QnaInboxPage() {
         </p>
         <p className="qna-inbox__empty-desc">
           {scope === "session"
-            ? "노출 범위를 세션별로 두고 강의와 차시를 선택하면 해당 차시 QnA를 볼 수 있습니다."
+            ? "노출 범위를 차시별로 두고 강의와 차시를 선택하면 해당 차시 QnA를 볼 수 있습니다."
             : "노출 범위를 강의별로 두고 위에서 강의를 선택하면 해당 강의의 QnA를 관리할 수 있습니다."}
         </p>
       </div>
@@ -171,7 +171,7 @@ export default function QnaInboxPage() {
     <div className="qna-inbox" style={{ minHeight: "calc(100vh - 180px)" }}>
       <aside className="qna-inbox__list" ref={listRef}>
         <div className="qna-inbox__list-header">
-          <h2 className="qna-inbox__list-title">QnA Support</h2>
+          <h2 className="qna-inbox__list-title">질의응답</h2>
           <div className="qna-inbox__filter-group">
             <button
               type="button"
@@ -194,7 +194,7 @@ export default function QnaInboxPage() {
               className={`qna-inbox__filter-btn ${filter === "resolved" ? "qna-inbox__filter-btn--active" : ""}`}
               onClick={() => setFilter("resolved")}
             >
-              <span>해결됨</span>
+              <span>답변 완료</span>
               <span className="qna-inbox__filter-badge">{questions.length - pendingCount}</span>
             </button>
           </div>
@@ -484,7 +484,7 @@ function ThreadView({
                   {new Date(q.created_at).toLocaleDateString("ko-KR", { month: "2-digit", day: "2-digit" })}{" "}
                   {q.title}
                 </button>
-                <span className={`qna-inbox__status ${q.is_answered ? "qna-inbox__status--resolved" : "qna-inbox__status--pending"}`}>{q.is_answered ? "해결됨" : "답변 대기"}</span>
+                <span className={`qna-inbox__status ${q.is_answered ? "qna-inbox__status--resolved" : "qna-inbox__status--pending"}`}>{q.is_answered ? "답변 완료" : "답변 대기"}</span>
               </div>
             ))}
           </div>
@@ -644,7 +644,7 @@ function Composer({ postId, allowReply = true }: { postId: number; allowReply?: 
         />
         <div className="qna-inbox__composer-footer">
           <span className="qna-inbox__composer-hint">
-            <kbd>⌘</kbd><kbd>Enter</kbd> 빠른 등록
+            <kbd>Ctrl</kbd><kbd>Enter</kbd> 빠른 등록
           </span>
           <Button
             intent="primary"

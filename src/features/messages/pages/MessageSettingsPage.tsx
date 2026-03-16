@@ -566,7 +566,7 @@ export default function MessageSettingsPage() {
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                 <Input
-                  placeholder="Ppurio Account ID"
+                  placeholder="뿌리오 계정 ID"
                   value={ownPpurioAccount}
                   onChange={(e) => setOwnPpurioAccount(e.target.value)}
                   style={{ maxWidth: 300 }}

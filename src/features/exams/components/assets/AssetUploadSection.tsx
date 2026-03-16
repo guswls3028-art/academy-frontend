@@ -78,12 +78,12 @@ export default function AssetUploadSection({
       // 백엔드 봉인 메시지/권한/검증 메시지를 가능한 그대로 노출
       let msg =
         detail ||
-        "업로드 실패. 파일/권한/템플릿 봉인 상태를 확인하세요.";
+        "업로드에 실패했습니다. 파일을 확인하고 다시 시도해 주세요.";
 
       if (status === 403) {
         msg =
           detail ||
-          "권한이 없습니다. (Teacher/Admin 필요 또는 운영시험은 업로드 불가)";
+          "권한이 없습니다. 운영 시험은 파일을 수정할 수 없습니다.";
       }
 
       if (status === 400) {

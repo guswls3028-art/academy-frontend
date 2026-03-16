@@ -32,6 +32,7 @@ import { fetchLectures, fetchSessions, type Lecture, type Session } from "@/feat
 import LectureChip from "@/shared/ui/chips/LectureChip";
 import { isSupplement } from "@/shared/ui/session-block/session-block.constants";
 import { Button } from "@/shared/ui/ds";
+import { useConfirm } from "@/shared/ui/confirm";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import RichTextEditor from "@/shared/ui/editor/RichTextEditor";
 import "@/features/community/qna-inbox.css";
@@ -98,11 +99,6 @@ export default function MaterialsBoardPage() {
   const [showCreate, setShowCreate] = useState(false);
   const qc = useQueryClient();
 
-  // post_type 기반: materialsTypeId 불필요
-  const materialsTypeId = null as number | null;
-  const typeLoading = false;
-  const typeError = false;
-
   const { data: scopeNodes = [] } = useQuery<ScopeNodeMinimal[]>({
     queryKey: ["community-scope-nodes"],
     queryFn: fetchScopeNodes,
@@ -164,11 +160,6 @@ export default function MaterialsBoardPage() {
   );
 
   const canShowList = true;
-  const _unused = searchParams.has("scope") && (
-      scope === "all" ||
-      (scope === "lecture" && effectiveLectureId != null) ||
-      (scope === "session" && sessionId != null)
-    );
 
   // 자료실 전체 목록 (post_type 기반, scope는 클라이언트 필터)
   const postsQ = useQuery<PostEntity[]>({
@@ -277,26 +268,6 @@ export default function MaterialsBoardPage() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [filtered, selectedId, setSelectedId]);
-
-  if (typeLoading) {
-    return (
-      <div className="notice-tree" style={{ minHeight: "calc(100vh - 180px)" }}>
-        <div className="qna-inbox__empty" style={{ gridColumn: "1 / -1" }}>
-          <p className="qna-inbox__empty-title">자료실 준비 중…</p>
-        </div>
-      </div>
-    );
-  }
-  if (typeError) {
-    return (
-      <div className="notice-tree" style={{ minHeight: "calc(100vh - 180px)" }}>
-        <div className="qna-inbox__empty" style={{ gridColumn: "1 / -1" }}>
-          <p className="qna-inbox__empty-title">자료실을 불러오지 못했습니다</p>
-          <p className="qna-inbox__empty-desc">네트워크를 확인한 뒤 페이지를 새로고침해 주세요.</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="notice-tree" style={{ minHeight: "calc(100vh - 180px)" }}>
@@ -415,7 +386,6 @@ export default function MaterialsBoardPage() {
       <main className="qna-inbox__thread">
         {showCreate ? (
           <MatCreatePane
-            materialsTypeId={materialsTypeId ?? 0}
             scopeNodes={scopeNodes}
             scopeParams={scopeParams}
             onCancel={() => setShowCreate(false)}
@@ -450,13 +420,11 @@ export default function MaterialsBoardPage() {
 
 /* ─── Inline Create Pane ──────────────────────────────── */
 function MatCreatePane({
-  materialsTypeId,
   scopeNodes,
   scopeParams,
   onCancel,
   onSuccess,
 }: {
-  materialsTypeId: number;
   scopeNodes: ScopeNodeMinimal[];
   scopeParams: CommunityScopeParams;
   onCancel: () => void;
@@ -585,6 +553,7 @@ function MatPostCard({ post, isActive, onClick }: { post: PostEntity; isActive: 
 /* ─── Detail View ────────────────────────────────────── */
 function MatDetailView({ postId, onClose, onDeleted }: { postId: number; onClose: () => void; onDeleted: () => void }) {
   const qc = useQueryClient();
+  const confirm = useConfirm();
   const { data: post, isLoading } = useQuery({ queryKey: ["community-post", postId], queryFn: () => fetchPost(postId), enabled: postId != null });
 
   const [editingTitle, setEditingTitle] = useState(false);
@@ -638,7 +607,7 @@ function MatDetailView({ postId, onClose, onDeleted }: { postId: number; onClose
           </div>
           <div className="qna-inbox__thread-actions">
             <Button intent="ghost" size="sm" onClick={onClose}>목록</Button>
-            <Button intent="danger" size="sm" disabled={deleteMut.isPending} onClick={() => window.confirm("이 자료를 삭제할까요?") && deleteMut.mutate()}>삭제</Button>
+            <Button intent="danger" size="sm" disabled={deleteMut.isPending} onClick={async () => { if (await confirm({ title: "자료 삭제", message: "이 자료를 삭제할까요?", confirmText: "삭제", danger: true })) deleteMut.mutate(); }}>삭제</Button>
           </div>
         </div>
       </header>
@@ -672,7 +641,7 @@ function MatDetailView({ postId, onClose, onDeleted }: { postId: number; onClose
                   <button type="button" onClick={async () => { try { const { url } = await getAttachmentDownloadUrl(postId, att.id); window.open(url, "_blank"); } catch { feedback.error("다운로드 실패"); } }} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-brand-primary)", fontWeight: 600, fontSize: 13, textDecoration: "underline", textAlign: "left", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {att.original_name} ({(att.size_bytes / 1024 / 1024).toFixed(1)}MB)
                   </button>
-                  <button type="button" onClick={async () => { if (!window.confirm("첨부파일을 삭제할까요?")) return; try { await deletePostAttachment(postId, att.id); qc.invalidateQueries({ queryKey: ["community-post", postId] }); feedback.success("삭제 완료"); } catch { feedback.error("삭제 실패"); } }} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-error, #dc2626)", fontSize: 12, fontWeight: 600, flexShrink: 0 }}>
+                  <button type="button" onClick={async () => { if (!await confirm({ title: "첨부파일 삭제", message: "첨부파일을 삭제할까요?", confirmText: "삭제", danger: true })) return; try { await deletePostAttachment(postId, att.id); qc.invalidateQueries({ queryKey: ["community-post", postId] }); feedback.success("삭제 완료"); } catch { feedback.error("삭제 실패"); } }} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-error, #dc2626)", fontSize: 12, fontWeight: 600, flexShrink: 0 }}>
                     삭제
                   </button>
                 </div>
@@ -700,6 +669,7 @@ function MatCommentThread({ postId }: { postId: number }) {
 
 function MatCommentBlock({ postId, reply }: { postId: number; reply: Answer }) {
   const qc = useQueryClient();
+  const confirm = useConfirm();
   const [editing, setEditing] = useState(false);
   const [editContent, setEditContent] = useState(reply.content);
   const authorName = reply.created_by_display ?? "관리자";
@@ -737,7 +707,7 @@ function MatCommentBlock({ postId, reply }: { postId: number; reply: Answer }) {
             <div className="qna-inbox__message-body">{reply.content}</div>
             <div className="qna-inbox__message-actions">
               <Button size="sm" intent="ghost" onClick={() => setEditing(true)}>수정</Button>
-              <Button size="sm" intent="ghost" onClick={() => window.confirm("이 댓글을 삭제할까요?") && deleteMut.mutate()} disabled={deleteMut.isPending}>삭제</Button>
+              <Button size="sm" intent="ghost" onClick={async () => { if (await confirm({ title: "댓글 삭제", message: "이 댓글을 삭제할까요?", confirmText: "삭제", danger: true })) deleteMut.mutate(); }} disabled={deleteMut.isPending}>삭제</Button>
             </div>
           </>
         )}
@@ -760,7 +730,7 @@ function MatCommentComposer({ postId }: { postId: number }) {
       <div className="qna-inbox__composer-inner">
         <textarea value={content} onChange={(e) => setContent(e.target.value)} onKeyDown={(e) => { if ((e.metaKey || e.ctrlKey) && e.key === "Enter" && content.trim() && !createMut.isPending) { e.preventDefault(); createMut.mutate(); } }} placeholder="댓글을 작성하세요…" rows={3} />
         <div className="qna-inbox__composer-footer">
-          <span className="qna-inbox__composer-hint"><kbd>⌘</kbd><kbd>Enter</kbd> 빠른 등록</span>
+          <span className="qna-inbox__composer-hint"><kbd>Ctrl</kbd><kbd>Enter</kbd> 빠른 등록</span>
           <Button intent="primary" size="sm" onClick={() => createMut.mutate()} disabled={!content.trim() || createMut.isPending}>{createMut.isPending ? "등록 중…" : "댓글 등록"}</Button>
         </div>
       </div>

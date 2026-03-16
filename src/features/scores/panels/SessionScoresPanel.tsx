@@ -355,7 +355,7 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
       <EmptyState
         scope="panel"
         tone="error"
-        title="성적 로드 실패"
+        title="성적을 불러오지 못했습니다"
         description="네트워크 연결을 확인하고 다시 시도해 주세요."
         actions={
           <button

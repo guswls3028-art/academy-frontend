@@ -58,9 +58,6 @@ export async function fetchSessionEnrollments(
       const status = err.response?.status;
 
       if (status === 404 || status === 501) {
-        console.warn(
-          "[SessionEnrollment] API not available yet. Return empty list."
-        );
         return [];
       }
     }

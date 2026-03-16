@@ -58,8 +58,7 @@ export async function fetchAdminNotificationCounts(): Promise<AdminNotificationC
       recentSubmissions,
       total: qnaPending + clinicPending + registrationRequestsPending + recentSubmissions,
     };
-  } catch (e) {
-    console.error("fetchAdminNotificationCounts:", e);
+  } catch {
     return { qnaPending: 0, clinicPending: 0, registrationRequestsPending: 0, recentSubmissions: 0, total: 0 };
   }
 }

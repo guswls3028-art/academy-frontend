@@ -23,6 +23,7 @@ import { fetchLectures, fetchSessions, type Lecture, type Session } from "@/feat
 import LectureChip from "@/shared/ui/chips/LectureChip";
 import { isSupplement } from "@/shared/ui/session-block/session-block.constants";
 import { Button } from "@/shared/ui/ds";
+import { useConfirm } from "@/shared/ui/confirm";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import RichTextEditor from "@/shared/ui/editor/RichTextEditor";
 import "@/features/community/qna-inbox.css";
@@ -495,6 +496,7 @@ function NoticeDetailView({
   onDeleted: () => void;
 }) {
   const qc = useQueryClient();
+  const confirm = useConfirm();
   const { data: post, isLoading } = useQuery({
     queryKey: ["community-post", postId],
     queryFn: () => fetchPost(postId),
@@ -539,7 +541,7 @@ function NoticeDetailView({
       qc.invalidateQueries({ queryKey: ["community-post", postId] });
       qc.invalidateQueries({ queryKey: ["community-notice-posts"] });
       qc.invalidateQueries({ queryKey: ["community-all-notice-posts-for-count"] });
-      feedback.success("노출 노드가 저장되었습니다.");
+      feedback.success("노출 범위가 저장되었습니다.");
     },
     onError: (e: unknown) => {
       feedback.error((e as Error)?.message ?? "저장에 실패했습니다.");
@@ -611,9 +613,9 @@ function NoticeDetailView({
             <Button
               intent="danger"
               size="sm"
-              onClick={() =>
-                window.confirm("이 공지를 삭제할까요?") && deleteMut.mutate()
-              }
+              onClick={async () => {
+                if (await confirm({ title: "공지 삭제", message: "이 공지를 삭제할까요?", confirmText: "삭제", danger: true })) deleteMut.mutate();
+              }}
               disabled={deleteMut.isPending}
             >
               삭제
@@ -626,7 +628,6 @@ function NoticeDetailView({
         <div style={{ marginBottom: "var(--space-4)" }}>
           <div
             className="text-xs font-semibold text-[var(--color-text-secondary)] mb-2"
-            style={{ textTransform: "uppercase", letterSpacing: "0.06em" }}
           >
             내용
           </div>
@@ -654,9 +655,8 @@ function NoticeDetailView({
         <div style={{ marginTop: "var(--space-6)" }}>
           <div
             className="text-xs font-semibold text-[var(--color-text-secondary)] mb-2"
-            style={{ textTransform: "uppercase", letterSpacing: "0.06em" }}
           >
-            노출 노드
+            노출 대상
           </div>
           <select
             className="ds-input w-full"
@@ -684,7 +684,7 @@ function NoticeDetailView({
               onClick={() => updateNodesMut.mutate(currentNodeIds)}
               disabled={updateNodesMut.isPending}
             >
-              노출 노드 저장
+              노출 범위 저장
             </Button>
           </div>
         </div>

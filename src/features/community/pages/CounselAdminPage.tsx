@@ -17,6 +17,7 @@ import {
   type Answer,
 } from "../api/community.api";
 import { Button } from "@/shared/ui/ds";
+import { useConfirm } from "@/shared/ui/confirm";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import "@/features/community/qna-inbox.css";
 
@@ -50,20 +51,15 @@ export default function CounselAdminPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const qc = useQueryClient();
 
-  // post_type 기반: counselTypeId 불필요
-  const counselTypeId = null as number | null;
-  const typeLoading = false;
-  const typeError = false;
-
   // Fetch counsel posts
   const { data: postsData, isLoading: postsLoading } = useQuery({
-    queryKey: ["community-counsel-posts", counselTypeId],
+    queryKey: ["community-counsel-posts"],
     queryFn: () => fetchAdminPosts({ postType: "counsel", pageSize: 500 }),
     enabled: true,
   });
   const posts = postsData?.results ?? [];
 
-  const isLoading = typeLoading || postsLoading;
+  const isLoading = postsLoading;
 
   // Derive answered status from replies_count
   const withStatus = useMemo(
@@ -121,18 +117,6 @@ export default function CounselAdminPage() {
     return () => window.removeEventListener("keydown", handleKey);
   }, [filtered, selectedId, setSelectedId]);
 
-  // 초기화 실패 시 에러 표시
-  if (typeError) {
-    return (
-      <div className="qna-inbox__empty" style={{ minHeight: "calc(100vh - 260px)" }}>
-        <p className="qna-inbox__empty-title">상담 기능을 초기화하지 못했습니다</p>
-        <p className="qna-inbox__empty-desc">
-          네트워크를 확인한 뒤 페이지를 새로고침해 주세요.
-        </p>
-      </div>
-    );
-  }
-
   return (
     <div className="qna-inbox" style={{ minHeight: "calc(100vh - 180px)" }}>
       <aside className="qna-inbox__list">
@@ -160,7 +144,7 @@ export default function CounselAdminPage() {
               className={`qna-inbox__filter-btn ${filter === "resolved" ? "qna-inbox__filter-btn--active" : ""}`}
               onClick={() => setFilter("resolved")}
             >
-              <span>처리됨</span>
+              <span>답변 완료</span>
               <span className="qna-inbox__filter-badge">{withStatus.length - pendingCount}</span>
             </button>
           </div>
@@ -253,7 +237,7 @@ function CounselCard({
   })();
 
   const statusClass = post.is_answered ? "qna-inbox__status--resolved" : "qna-inbox__status--pending";
-  const statusLabel = post.is_answered ? "처리 완료" : "답변 대기";
+  const statusLabel = post.is_answered ? "답변 완료" : "답변 대기";
   const studentName = post.created_by_deleted ? "삭제된 학생" : (post.created_by_display ?? "학생");
 
   return (
@@ -300,6 +284,7 @@ function CounselThreadView({
   onDelete: () => void;
 }) {
   const qc = useQueryClient();
+  const confirm = useConfirm();
   const { data: post, isLoading } = useQuery({
     queryKey: ["community-post", postId],
     queryFn: () => fetchPost(postId),
@@ -353,7 +338,7 @@ function CounselThreadView({
               </span>
               <span className="qna-inbox__thread-meta-dot" />
               {(post.replies_count ?? 0) > 0 ? (
-                <span className="qna-inbox__status qna-inbox__status--resolved">처리 완료</span>
+                <span className="qna-inbox__status qna-inbox__status--resolved">답변 완료</span>
               ) : (
                 <span className="qna-inbox__status qna-inbox__status--pending">답변 대기</span>
               )}
@@ -364,7 +349,7 @@ function CounselThreadView({
             <Button
               intent="danger"
               size="sm"
-              onClick={() => window.confirm("이 상담 신청을 삭제할까요?") && deletePostMut.mutate()}
+              onClick={async () => { if (await confirm({ title: "상담 삭제", message: "이 상담 신청을 삭제할까요?", confirmText: "삭제", danger: true })) deletePostMut.mutate(); }}
               disabled={deletePostMut.isPending}
             >
               삭제
@@ -403,7 +388,7 @@ function CounselThreadView({
 
         {(post.replies_count ?? 0) > 0 && (
           <div className="qna-inbox__thread-sep">
-            <span className="qna-inbox__thread-sep-label">관리자 답변</span>
+            <span className="qna-inbox__thread-sep-label">선생님 답변</span>
           </div>
         )}
 
@@ -438,6 +423,7 @@ function CounselAnswerThread({ postId }: { postId: number }) {
 /* ── Single Reply ── */
 function CounselReplyBlock({ postId, answer }: { postId: number; answer: Answer }) {
   const qc = useQueryClient();
+  const confirm = useConfirm();
   const [editing, setEditing] = useState(false);
   const [editContent, setEditContent] = useState(answer.content);
 
@@ -462,7 +448,7 @@ function CounselReplyBlock({ postId, answer }: { postId: number; answer: Answer 
     onError: (e: unknown) => feedback.error((e as Error)?.message ?? "삭제에 실패했습니다."),
   });
 
-  const teacherName = answer.created_by_display ?? "관리자";
+  const teacherName = answer.created_by_display ?? "선생님";
 
   return (
     <div className="qna-inbox__message-row qna-inbox__message-row--teacher">
@@ -470,7 +456,7 @@ function CounselReplyBlock({ postId, answer }: { postId: number; answer: Answer 
       <div className="qna-inbox__message-bubble">
         <div className="qna-inbox__message-meta">
           <span className="qna-inbox__message-author">{teacherName}</span>
-          <span className="qna-inbox__message-badge">관리자</span>
+          <span className="qna-inbox__message-badge">선생님</span>
           <span className="qna-inbox__message-date">
             {new Date(answer.created_at).toLocaleString("ko-KR", {
               month: "long",
@@ -496,7 +482,7 @@ function CounselReplyBlock({ postId, answer }: { postId: number; answer: Answer 
               <Button
                 size="sm"
                 intent="ghost"
-                onClick={() => window.confirm("이 답변을 삭제할까요?") && deleteMut.mutate()}
+                onClick={async () => { if (await confirm({ title: "답변 삭제", message: "이 답변을 삭제할까요?", confirmText: "삭제", danger: true })) deleteMut.mutate(); }}
                 disabled={deleteMut.isPending}
               >
                 삭제
@@ -545,7 +531,7 @@ function CounselComposer({ postId, allowReply = true }: { postId: number; allowR
           />
           <div className="qna-inbox__composer-footer">
             <span className="qna-inbox__composer-hint">
-              <kbd>⌘</kbd><kbd>Enter</kbd> 빠른 등록
+              <kbd>Ctrl</kbd><kbd>Enter</kbd> 빠른 등록
             </span>
             <Button
               intent="primary"

@@ -23,6 +23,14 @@ import "@/features/community/community.css";
 
 const PAGE_SIZE = 20;
 
+const POST_TYPE_LABELS: Record<string, string> = {
+  notice: "공지",
+  board: "게시판",
+  materials: "자료실",
+  qna: "질의응답",
+  counsel: "상담",
+};
+
 function buildTreeData(nodes: ScopeNodeMinimal[]): DataNode[] {
   const byLecture = new Map<number, ScopeNodeMinimal[]>();
   nodes.forEach((n) => {
@@ -72,7 +80,7 @@ export default function CommunityAdminPage() {
     queryFn: () => fetchScopeNodes(),
   });
 
-  const { data: adminData, isLoading: loadingPosts } = useQuery({
+  const { data: adminData, isLoading: loadingPosts, isError: postsError } = useQuery({
     queryKey: ["community-admin-posts", selectedPostType, lectureId, page],
     queryFn: () =>
       fetchAdminPosts({
@@ -124,10 +132,10 @@ export default function CommunityAdminPage() {
       dataIndex: "post_type",
       key: "post_type",
       width: 100,
-      render: (t: string) => <span className="community-tag">{t}</span>,
+      render: (t: string) => <span className="community-tag">{POST_TYPE_LABELS[t] ?? t}</span>,
     },
     {
-      title: "노출 노드",
+      title: "노출 대상",
       key: "nodes",
       width: 220,
       render: (_: unknown, r: PostEntity) => (
@@ -153,7 +161,7 @@ export default function CommunityAdminPage() {
     mutationFn: ({ postId, nodeIds }: { postId: number; nodeIds: number[] }) =>
       updatePostNodes(postId, nodeIds),
     onSuccess: () => {
-      feedback.success("노출 노드가 저장되었습니다.");
+      feedback.success("노출 대상이 저장되었습니다.");
       qc.invalidateQueries({ queryKey: ["community-admin-posts"] });
       setSelectedPost(null);
     },
@@ -203,11 +211,11 @@ export default function CommunityAdminPage() {
             className="p-3 border-b font-semibold text-[var(--color-text-tertiary)]"
             style={{ fontSize: "var(--text-sm, 12px)", borderColor: "var(--color-border-subtle)" }}
           >
-            노출 위치 (ScopeNode)
+            노출 위치
           </div>
           <div className="p-2 overflow-auto" style={{ maxHeight: "calc(100vh - 280px)" }}>
             {treeData.length === 0 ? (
-              <EmptyState scope="panel" title="노드 없음" />
+              <EmptyState scope="panel" title="등록된 강의가 없습니다" />
             ) : (
               <Tree
                 showLine
@@ -230,13 +238,13 @@ export default function CommunityAdminPage() {
                 { label: "공지", value: "notice" as PostType },
                 { label: "게시판", value: "board" as PostType },
                 { label: "자료실", value: "materials" as PostType },
-                { label: "QnA", value: "qna" as PostType },
+                { label: "질의응답", value: "qna" as PostType },
                 { label: "상담", value: "counsel" as PostType },
               ]}
               style={{ width: 120 }}
             />
             <Button intent="secondary" size="sm" onClick={() => setShowAddBlockType(true)}>
-              + 블록 추가
+              + 유형 추가
             </Button>
             <Select
               placeholder="강의"
@@ -255,7 +263,9 @@ export default function CommunityAdminPage() {
               background: "var(--color-bg-surface)",
             }}
           >
-            {loadingPosts ? (
+            {postsError ? (
+              <EmptyState scope="panel" title="게시물을 불러오지 못했습니다" />
+            ) : loadingPosts ? (
               <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
             ) : (
               <Table
@@ -284,7 +294,7 @@ export default function CommunityAdminPage() {
             className="p-3 border-b font-semibold text-[var(--color-text-tertiary)]"
             style={{ fontSize: "var(--text-sm, 12px)", borderColor: "var(--color-border-subtle)" }}
           >
-            Inspector
+            글 상세
           </div>
           <div className="p-4 overflow-auto" style={{ maxHeight: "calc(100vh - 280px)" }}>
             {!selectedPost ? (
@@ -293,17 +303,17 @@ export default function CommunityAdminPage() {
               <>
                 <div className="mb-4">
                   <div className="font-bold text-[var(--color-text-primary)] mb-1">{selectedPost.title}</div>
-                  <span className="community-tag">{selectedPost.post_type}</span>
+                  <span className="community-tag">{POST_TYPE_LABELS[selectedPost.post_type] ?? selectedPost.post_type}</span>
                   <div className="community-card__meta mt-2">
                     {selectedPost.created_at?.slice(0, 16)}
                   </div>
                 </div>
                 <div className="mb-2 font-semibold text-[var(--color-text-secondary)]" style={{ fontSize: "var(--text-sm, 12px)" }}>
-                  노출 노드
+                  노출 대상
                 </div>
                 <Select
                   mode="multiple"
-                  placeholder="노드 추가"
+                  placeholder="노출 대상 추가"
                   value={inspectorNodeIds}
                   onChange={setInspectorNodeIds}
                   options={nodePickerOptions}

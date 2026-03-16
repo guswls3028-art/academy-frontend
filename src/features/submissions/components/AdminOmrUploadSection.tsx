@@ -149,10 +149,10 @@ export default function AdminOmrUploadSection({ examId, onUploaded }: Props) {
       let msg =
         detail ||
         e?.message ||
-        "업로드 실패. 서버 엔드포인트/권한/파일 형식을 확인하세요.";
+        "업로드에 실패했습니다. 파일 형식을 확인하고 다시 시도해 주세요.";
 
       if (status === 403) {
-        msg = detail || "권한이 없습니다. (Admin/Teacher 권한 필요)";
+        msg = detail || "권한이 없습니다. 원장님 또는 선생님 계정으로 로그인해 주세요.";
       } else if (status === 400) {
         msg = detail || "요청 값이 올바르지 않습니다. 파일 형식을 확인하세요.";
       } else if (status === 404) {

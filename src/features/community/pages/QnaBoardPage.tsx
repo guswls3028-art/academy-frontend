@@ -29,7 +29,7 @@ export default function QnaBoardPage() {
     [scope, effectiveLectureId, sessionId]
   );
 
-  const { data: questions = [], isLoading } = useQuery<Question[]>({
+  const { data: questions = [], isLoading, isError } = useQuery<Question[]>({
     queryKey: ["community-questions", scope, effectiveLectureId, sessionId],
     queryFn: () => fetchCommunityQuestions(scopeParams),
     enabled:
@@ -76,8 +76,8 @@ export default function QnaBoardPage() {
         title={scope === "session" ? "강의·차시를 선택하세요" : "강의를 선택하세요"}
         description={
           scope === "session"
-            ? "노출 범위를 '세션별'로 두고 강의와 차시를 선택하면 해당 차시 QnA를 볼 수 있습니다."
-            : "노출 범위를 '강의별'로 두고 위에서 강의를 선택하면 해당 강의의 QnA를 관리할 수 있습니다."
+            ? "노출 범위를 '차시별'로 두고 강의와 차시를 선택하면 해당 차시 질의응답을 볼 수 있습니다."
+            : "노출 범위를 '강의별'로 두고 위에서 강의를 선택하면 해당 강의의 질의응답을 관리할 수 있습니다."
         }
       />
     );
@@ -96,17 +96,10 @@ export default function QnaBoardPage() {
           className="flex flex-wrap items-center gap-3"
           style={{ marginBottom: "var(--space-4)" }}
         >
-          <select
-            className="ds-input"
-            style={{ width: 140 }}
-            aria-label="카테고리"
-          >
-            <option value="all">전체</option>
-          </select>
           <input
             type="search"
             className="ds-input"
-            placeholder="Q 검색"
+            placeholder="질문 검색"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSearch()}
@@ -135,7 +128,13 @@ export default function QnaBoardPage() {
           </label>
         </div>
 
-        {isLoading ? (
+        {isError ? (
+          <EmptyState
+            scope="panel"
+            title="질문을 불러오지 못했습니다"
+            description="잠시 후 다시 시도해 주세요."
+          />
+        ) : isLoading ? (
           <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
         ) : filtered.length === 0 ? (
           <EmptyState

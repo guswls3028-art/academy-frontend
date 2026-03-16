@@ -219,7 +219,7 @@ export default function LecturesPage({ tab = "active" }: LecturesPageProps = {})
           {isLoading ? (
             <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
           ) : error ? (
-            <EmptyState scope="panel" tone="error" title="에러가 발생했습니다." />
+            <EmptyState scope="panel" tone="error" title="문제가 발생했습니다." />
           ) : list.length === 0 ? (
             <EmptyState scope="panel" tone="empty" title="표시할 강의가 없습니다." />
           ) : (

@@ -28,7 +28,7 @@ export default function ExamAssetsPanel({ examId }: { examId: number }) {
 
       {q.isError && (
         <BlockReason
-          title="자산 조회 실패"
+          title="파일을 불러오지 못했습니다"
           description={
             String((q.error as any)?.response?.data?.detail || "자산 정보를 불러오지 못했습니다.")
           }

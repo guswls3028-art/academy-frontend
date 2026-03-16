@@ -13,22 +13,7 @@ type NoticeState = {
 const NoticeContext = createContext<NoticeState | null>(null);
 
 export function NoticeProvider({ children }: { children: React.ReactNode }) {
-  const [notices, setNotices] = useState<Notice[]>([
-    {
-      id: "n-001",
-      title: "시험 채점이 완료되었습니다",
-      body: "고2 모의고사 · 결과 업데이트됨",
-      level: "success",
-      created_at: new Date().toISOString(),
-    },
-    {
-      id: "n-002",
-      title: "오늘 클리닉 일정이 있습니다",
-      body: "오후 6시 · 중3 수학",
-      level: "info",
-      created_at: new Date().toISOString(),
-    },
-  ]);
+  const [notices, setNotices] = useState<Notice[]>([]);
 
   const unreadCount = useMemo(() => notices.length, [notices]);
 

@@ -41,7 +41,7 @@ export default function CommunityScopeSelector() {
       >
         <option value="all">통합 (전체 학생)</option>
         <option value="lecture">강의별</option>
-        <option value="session">세션별</option>
+        <option value="session">차시별</option>
       </select>
 
       {(scope === "lecture" || scope === "session") && (

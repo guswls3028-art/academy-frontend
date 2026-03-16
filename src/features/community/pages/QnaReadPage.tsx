@@ -15,12 +15,14 @@ import {
   type Answer,
 } from "../api/community.api";
 import { EmptyState, Button } from "@/shared/ui/ds";
+import { useConfirm } from "@/shared/ui/confirm";
 import { feedback } from "@/shared/ui/feedback/feedback";
 
 export default function QnaReadPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const confirm = useConfirm();
   const postId = id != null && /^\d+$/.test(id) ? Number(id) : null;
 
   const { data: post, isLoading: postLoading } = useQuery({
@@ -90,8 +92,8 @@ export default function QnaReadPage() {
         <Button
           intent="secondary"
           size="sm"
-          onClick={() => {
-            if (window.confirm("이 질문을 삭제할까요?")) deletePostMut.mutate();
+          onClick={async () => {
+            if (await confirm({ title: "질문 삭제", message: "이 질문을 삭제할까요?", confirmText: "삭제", danger: true })) deletePostMut.mutate();
           }}
           disabled={deletePostMut.isPending}
         >
@@ -242,6 +244,7 @@ function AnswerSection({ postId, allowReply = true }: { postId: number; allowRep
 
 function AnswerBlock({ postId, answer }: { postId: number; answer: Answer }) {
   const qc = useQueryClient();
+  const confirm = useConfirm();
   const [editing, setEditing] = useState(false);
   const [editContent, setEditContent] = useState(answer.content);
 
@@ -316,8 +319,8 @@ function AnswerBlock({ postId, answer }: { postId: number; answer: Answer }) {
             <Button
               size="sm"
               intent="secondary"
-              onClick={() => {
-                if (window.confirm("이 답변을 삭제할까요?")) deleteMut.mutate();
+              onClick={async () => {
+                if (await confirm({ title: "답변 삭제", message: "이 답변을 삭제할까요?", confirmText: "삭제", danger: true })) deleteMut.mutate();
               }}
               disabled={deleteMut.isPending}
             >

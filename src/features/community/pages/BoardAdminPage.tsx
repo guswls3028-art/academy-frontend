@@ -32,6 +32,7 @@ import { fetchLectures, fetchSessions, type Lecture, type Session } from "@/feat
 import LectureChip from "@/shared/ui/chips/LectureChip";
 import { isSupplement } from "@/shared/ui/session-block/session-block.constants";
 import { Button } from "@/shared/ui/ds";
+import { useConfirm } from "@/shared/ui/confirm";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import RichTextEditor from "@/shared/ui/editor/RichTextEditor";
 import "@/features/community/qna-inbox.css";
@@ -664,6 +665,7 @@ function PostDetailView({
   onDeleted: () => void;
 }) {
   const qc = useQueryClient();
+  const confirm = useConfirm();
   const { data: post, isLoading } = useQuery({
     queryKey: ["community-post", postId],
     queryFn: () => fetchPost(postId),
@@ -754,7 +756,7 @@ function PostDetailView({
           </div>
           <div className="qna-inbox__thread-actions">
             <Button intent="ghost" size="sm" onClick={onClose}>목록</Button>
-            <Button intent="danger" size="sm" disabled={deleteMut.isPending} onClick={() => window.confirm("이 게시물을 삭제할까요?") && deleteMut.mutate()}>삭제</Button>
+            <Button intent="danger" size="sm" disabled={deleteMut.isPending} onClick={async () => { if (await confirm({ title: "게시물 삭제", message: "이 게시물을 삭제할까요?", confirmText: "삭제", danger: true })) deleteMut.mutate(); }}>삭제</Button>
           </div>
         </div>
       </header>
@@ -806,6 +808,7 @@ function CommentThread({ postId }: { postId: number }) {
 
 function CommentBlock({ postId, reply }: { postId: number; reply: Answer }) {
   const qc = useQueryClient();
+  const confirm = useConfirm();
   const [editing, setEditing] = useState(false);
   const [editContent, setEditContent] = useState(reply.content);
   const authorName = reply.created_by_display ?? "관리자";
@@ -843,7 +846,7 @@ function CommentBlock({ postId, reply }: { postId: number; reply: Answer }) {
             <div className="qna-inbox__message-body">{reply.content}</div>
             <div className="qna-inbox__message-actions">
               <Button size="sm" intent="ghost" onClick={() => setEditing(true)}>수정</Button>
-              <Button size="sm" intent="ghost" onClick={() => window.confirm("이 댓글을 삭제할까요?") && deleteMut.mutate()} disabled={deleteMut.isPending}>삭제</Button>
+              <Button size="sm" intent="ghost" onClick={async () => { if (await confirm({ title: "댓글 삭제", message: "이 댓글을 삭제할까요?", confirmText: "삭제", danger: true })) deleteMut.mutate(); }} disabled={deleteMut.isPending}>삭제</Button>
             </div>
           </>
         )}
@@ -861,6 +864,7 @@ function AdminAttachmentSection({
   attachments: PostAttachment[];
 }) {
   const qc = useQueryClient();
+  const confirm = useConfirm();
   const fileInputRef = { current: null as HTMLInputElement | null };
 
   const uploadMut = useMutation({
@@ -931,7 +935,7 @@ function AdminAttachmentSection({
                 {att.original_name}
               </button>
               <span style={{ fontSize: 11, color: "var(--color-text-muted)", flexShrink: 0 }}>{formatSize(att.size_bytes)}</span>
-              <button type="button" onClick={() => window.confirm("이 파일을 삭제할까요?") && deleteMut.mutate(att.id)} disabled={deleteMut.isPending} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 14, lineHeight: 1, padding: 2, color: "var(--color-text-muted)" }}>&times;</button>
+              <button type="button" onClick={async () => { if (await confirm({ title: "첨부파일 삭제", message: "이 파일을 삭제할까요?", confirmText: "삭제", danger: true })) deleteMut.mutate(att.id); }} disabled={deleteMut.isPending} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 14, lineHeight: 1, padding: 2, color: "var(--color-text-muted)" }}>&times;</button>
             </div>
           ))}
         </div>
@@ -963,7 +967,7 @@ function CommentComposer({ postId }: { postId: number }) {
           placeholder="댓글을 작성하세요…" rows={3}
         />
         <div className="qna-inbox__composer-footer">
-          <span className="qna-inbox__composer-hint"><kbd>⌘</kbd><kbd>Enter</kbd> 빠른 등록</span>
+          <span className="qna-inbox__composer-hint"><kbd>Ctrl</kbd><kbd>Enter</kbd> 빠른 등록</span>
           <Button intent="primary" size="sm" onClick={() => createMut.mutate()} disabled={!content.trim() || createMut.isPending}>
             {createMut.isPending ? "등록 중…" : "댓글 등록"}
           </Button>

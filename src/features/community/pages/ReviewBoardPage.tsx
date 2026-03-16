@@ -7,8 +7,8 @@ export default function ReviewBoardPage() {
     <div style={{ padding: "var(--space-6)" }}>
       <EmptyState
         scope="panel"
-        title="아직 등록된 후기가 없습니다."
-        description="학생들이 수강 후기를 작성하면 여기에 표시됩니다."
+        title="수강후기 기능은 준비 중입니다"
+        description="곧 이용하실 수 있습니다."
       />
     </div>
   );
