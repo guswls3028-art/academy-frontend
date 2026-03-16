@@ -1,30 +1,30 @@
 /**
  * E2E Auth Helper — 실제 브라우저 로그인
+ *
+ * E2E 테스트는 Tenant 2 (tchul.com) 전용.
+ * Tenant 1은 개발 전용이므로 E2E 대상에서 제외.
  */
 import { type Page, expect } from "@playwright/test";
-import { fileURLToPath } from "url";
-import { dirname, resolve } from "path";
-import * as fs from "fs";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-const STORAGE_DIR = resolve(__dirname, "../.auth");
 
 export type TenantRole =
-  | "admin"      // T1 hakwonplus admin
-  | "student"    // T1 hakwonplus student
-  | "tchul-admin"
-  | "sswe-admin";
+  | "admin"      // T2 tchul admin (owner)
+  | "student";   // T2 tchul student
 
-const BASE = process.env.E2E_BASE_URL || "https://hakwonplus.com";
-const TCHUL = process.env.TCHUL_BASE_URL || "https://tchul.com";
-const SSWE = process.env.SSWE_BASE_URL || "https://sswe.co.kr";
+const BASE = process.env.E2E_BASE_URL || "https://tchul.com";
 
 const CREDS: Record<TenantRole, { base: string; code: string; user: string; pass: string }> = {
-  admin:       { base: BASE, code: "hakwonplus", user: process.env.E2E_ADMIN_USER || "admin97", pass: process.env.E2E_ADMIN_PASS || "test1234" },
-  student:     { base: BASE, code: "hakwonplus", user: process.env.E2E_STUDENT_USER || "3333", pass: process.env.E2E_STUDENT_PASS || "test1234" },
-  "tchul-admin": { base: TCHUL, code: "tchul", user: process.env.TCHUL_ADMIN_USER || "01035023313", pass: process.env.TCHUL_ADMIN_PASS || "727258" },
-  "sswe-admin": { base: SSWE, code: "sswe", user: "admin", pass: "admin" },
+  admin: {
+    base: BASE,
+    code: "tchul",
+    user: process.env.E2E_ADMIN_USER || "",
+    pass: process.env.E2E_ADMIN_PASS || "",
+  },
+  student: {
+    base: BASE,
+    code: "tchul",
+    user: process.env.E2E_STUDENT_USER || "",
+    pass: process.env.E2E_STUDENT_PASS || "",
+  },
 };
 
 /**
@@ -32,6 +32,10 @@ const CREDS: Record<TenantRole, { base: string; code: string; user: string; pass
  */
 export async function loginViaUI(page: Page, role: TenantRole): Promise<void> {
   const c = CREDS[role];
+  if (!c.user || !c.pass) {
+    throw new Error(`E2E credentials not set for role "${role}". Set E2E_ADMIN_USER/PASS or E2E_STUDENT_USER/PASS.`);
+  }
+
   await page.goto(`${c.base}/login/${c.code}`);
   await page.waitForLoadState("networkidle");
 
@@ -53,10 +57,10 @@ export async function loginViaUI(page: Page, role: TenantRole): Promise<void> {
   // 제출
   await page.locator('button[type="submit"], button').filter({ hasText: /로그인/ }).first().click();
 
-  // 대시보드 도착 대기 (superuser는 /dev로 갈 수 있음)
+  // 대시보드 도착 대기
   await page.waitForURL(/\/(admin|student|dev)/, { timeout: 15000 });
 }
 
-export function getBaseUrl(role: TenantRole): string {
-  return CREDS[role].base;
+export function getBaseUrl(_role?: TenantRole): string {
+  return BASE;
 }

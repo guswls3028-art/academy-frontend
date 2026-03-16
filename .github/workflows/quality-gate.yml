@@ -11,6 +11,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # ── 1. 빌드 품질 게이트 (차단) ──
   quality-check:
     name: Typecheck + Lint + Build
     runs-on: ubuntu-latest
@@ -18,9 +19,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
       - uses: pnpm/action-setup@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -28,14 +27,17 @@ jobs:
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile --shamefully-hoist
 
-      - name: Typecheck
-        run: pnpm exec tsc --noEmit -p tsconfig.app.json || echo "::warning::TypeScript errors found (non-blocking for now)"
+      # warning-only: 기존 타입 에러 20+건 존재. 0건 달성 후 차단으로 승격 예정.
+      - name: Typecheck (warning-only)
+        run: pnpm exec tsc --noEmit -p tsconfig.app.json || echo "::warning::TypeScript errors found"
         continue-on-error: true
 
-      - name: Lint
-        run: pnpm lint || echo "::warning::Lint errors found (non-blocking for now)"
+      # warning-only: 기존 lint 에러 존재. 점진 수정 후 차단으로 승격 예정.
+      - name: Lint (warning-only)
+        run: pnpm lint || echo "::warning::Lint errors found"
         continue-on-error: true
 
+      # 차단 게이트: 빌드 실패 = 서비스 장애
       - name: Build
         run: pnpm build
 
@@ -47,6 +49,7 @@ jobs:
           path: dist/
           retention-days: 1
 
+  # ── 2. Cloudflare 배포 (quality-check 통과 후) ──
   deploy:
     name: Deploy to Cloudflare Pages
     runs-on: ubuntu-latest
@@ -68,8 +71,9 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: pages deploy dist/ --project-name=${{ vars.CLOUDFLARE_PROJECT_NAME }}
 
+  # ── 3. E2E 왕복 플로우 (배포 후, Tenant 2 대상) ──
   e2e-roundtrip:
-    name: E2E 왕복 플로우 테스트
+    name: E2E 왕복 테스트 (Tenant 2)
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: [deploy]
@@ -77,9 +81,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
       - uses: pnpm/action-setup@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -90,10 +92,11 @@ jobs:
       - name: Install Playwright browsers
         run: pnpm exec playwright install chromium
 
-      - name: Run E2E smoke + roundtrip tests
+      - name: Run E2E tests
         run: pnpm exec playwright test e2e/smoke.spec.ts e2e/flows/ --reporter=list
         env:
-          E2E_BASE_URL: https://hakwonplus.com
+          # Tenant 2 (tchul.com) — 운영 테넌트 E2E 전용
+          E2E_BASE_URL: https://tchul.com
           API_BASE_URL: https://api.hakwonplus.com
           E2E_ADMIN_USER: ${{ secrets.E2E_ADMIN_USER }}
           E2E_ADMIN_PASS: ${{ secrets.E2E_ADMIN_PASS }}
