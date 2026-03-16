@@ -72,3 +72,9 @@ temp/
 
 # 로컬 테스트 자료 (git 제외)
 로컬테스트자료/
+
+# E2E test artifacts
+test-results/
+playwright-report/
+e2e/.auth/
+.env.e2e
