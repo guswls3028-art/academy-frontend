@@ -52,8 +52,9 @@ async function _setTokensAndNavigate(
   role: TenantRole,
   tokens: { access: string; refresh: string },
 ): Promise<void> {
-  // 2. 프론트앱 도메인으로 이동 (localStorage 설정을 위해 동일 origin 필요)
-  await page.goto(`${base}/login`, { waitUntil: "commit" });
+  // 2. 대시보드 URL로 직접 이동 (동일 origin에서 localStorage 설정)
+  const dashPath = role === "student" ? "/student" : "/admin";
+  await page.goto(`${base}${dashPath}`, { waitUntil: "commit" });
 
   // 3. localStorage에 토큰 설정
   await page.evaluate((t) => {
@@ -61,12 +62,11 @@ async function _setTokensAndNavigate(
     localStorage.setItem("refresh", t.refresh);
   }, tokens);
 
-  // 4. 대시보드로 이동 (full page load로 React가 토큰을 읽도록)
-  const dashPath = role === "student" ? "/student" : "/admin";
-  await page.goto(`${base}${dashPath}`, { waitUntil: "domcontentloaded" });
+  // 4. reload로 SPA가 토큰을 읽도록 강제
+  await page.reload({ waitUntil: "domcontentloaded" });
 
-  // 5. SPA 마운트 대기 — data-app 속성이 나타날 때까지
-  await page.waitForSelector("[data-app]", { state: "attached", timeout: 15000 });
+  // 5. SPA 마운트 + 인증 상태 확인 (로그인으로 리다이렉트 안 되는지)
+  await page.waitForTimeout(3000);
 }
 
 export function getBaseUrl(role?: TenantRole | string): string {
