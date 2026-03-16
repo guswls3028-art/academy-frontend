@@ -236,6 +236,30 @@ export async function fetchAllNoticePostsForCount(): Promise<PostEntity[]> {
   return all;
 }
 
+/** 게시판 목록 — GET /community/posts/board/ */
+export async function fetchBoardPostsByEndpoint(params?: { page?: number; pageSize?: number }): Promise<PostEntity[]> {
+  const search = new URLSearchParams();
+  if (params?.page != null) search.set("page", String(params.page));
+  if (params?.pageSize != null) search.set("page_size", String(params.pageSize));
+  const qs = search.toString();
+  const url = qs ? `${PREFIX}/posts/board/?${qs}` : `${PREFIX}/posts/board/`;
+  const res = await api.get(url);
+  const data = res.data;
+  return Array.isArray(data) ? data : [];
+}
+
+/** 자료실 목록 — GET /community/posts/materials/ */
+export async function fetchMaterialsPostsByEndpoint(params?: { page?: number; pageSize?: number }): Promise<PostEntity[]> {
+  const search = new URLSearchParams();
+  if (params?.page != null) search.set("page", String(params.page));
+  if (params?.pageSize != null) search.set("page_size", String(params.pageSize));
+  const qs = search.toString();
+  const url = qs ? `${PREFIX}/posts/materials/?${qs}` : `${PREFIX}/posts/materials/`;
+  const res = await api.get(url);
+  const data = res.data;
+  return Array.isArray(data) ? data : [];
+}
+
 /** 관리자 목록: post_type, lecture_id, page, page_size */
 export async function fetchAdminPosts(params: {
   postType?: PostType | null;

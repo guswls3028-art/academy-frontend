@@ -217,7 +217,8 @@ function NoticeTab({ onDetail }: { onDetail: (id: number) => void }) {
   return (
     <PostList>
       {posts.map((p) => {
-        const lecture = p.mappings?.[0]?.node_detail?.lecture_title;
+        const nd = p.mappings?.[0]?.node_detail;
+        const lecture = nd?.session_title || nd?.lecture_title || "전체";
         return (
           <PostRow
             key={p.id}
@@ -249,7 +250,7 @@ function NoticeDetail({ id, onBack }: { id: number; onBack: () => void }) {
         <div>
           <h1 style={{ fontWeight: 700, fontSize: 20, marginBottom: "var(--stu-space-3)" }}>{post.title}</h1>
           <div style={{ display: "flex", gap: "var(--stu-space-2)", alignItems: "center", flexWrap: "wrap" }}>
-            {node?.lecture_title && <Tag>{node.lecture_title}</Tag>}
+            <Tag>{node?.session_title || node?.lecture_title || "전체"}</Tag>
             <span className="stu-muted" style={{ fontSize: 13 }}>{formatYmd(post.created_at)}</span>
           </div>
         </div>
@@ -515,7 +516,8 @@ function BoardTab({ onDetail }: { onDetail: (id: number) => void }) {
   return (
     <PostList>
       {posts.map((p) => {
-        const lecture = p.mappings?.[0]?.node_detail?.lecture_title;
+        const nd = p.mappings?.[0]?.node_detail;
+        const lecture = nd?.session_title || nd?.lecture_title || "전체";
         return (
           <PostRow
             key={p.id}
@@ -547,7 +549,7 @@ function BoardDetail({ id, onBack }: { id: number; onBack: () => void }) {
         <div>
           <h1 style={{ fontWeight: 700, fontSize: 20, marginBottom: "var(--stu-space-3)" }}>{post.title}</h1>
           <div style={{ display: "flex", gap: "var(--stu-space-2)", alignItems: "center", flexWrap: "wrap" }}>
-            {node?.lecture_title && <Tag>{node.lecture_title}</Tag>}
+            <Tag>{node?.session_title || node?.lecture_title || "전체"}</Tag>
             <span className="stu-muted" style={{ fontSize: 13 }}>{formatYmd(post.created_at)}</span>
             {post.created_by_display && <span className="stu-muted" style={{ fontSize: 13 }}>· {post.created_by_display}</span>}
           </div>
@@ -814,7 +816,8 @@ function MaterialsTab({ onDetail }: { onDetail: (id: number) => void }) {
   return (
     <PostList>
       {posts.map((p) => {
-        const lecture = p.mappings?.[0]?.node_detail?.lecture_title;
+        const nd = p.mappings?.[0]?.node_detail;
+        const lecture = nd?.session_title || nd?.lecture_title || "전체";
         return (
           <PostRow
             key={p.id}
@@ -846,7 +849,7 @@ function MaterialsDetail({ id, onBack }: { id: number; onBack: () => void }) {
         <div>
           <h1 style={{ fontWeight: 700, fontSize: 20, marginBottom: "var(--stu-space-3)" }}>{post.title}</h1>
           <div style={{ display: "flex", gap: "var(--stu-space-2)", alignItems: "center", flexWrap: "wrap" }}>
-            {node?.lecture_title && <Tag>{node.lecture_title}</Tag>}
+            <Tag>{node?.session_title || node?.lecture_title || "전체"}</Tag>
             <span className="stu-muted" style={{ fontSize: 13 }}>{formatYmd(post.created_at)}</span>
           </div>
         </div>

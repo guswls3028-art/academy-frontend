@@ -8,6 +8,8 @@ import {
   createPost as _createPost,
   uploadPostAttachments as _uploadAttachments,
   getAttachmentDownloadUrl as _getDownloadUrl,
+  fetchBoardPostsByEndpoint,
+  fetchMaterialsPostsByEndpoint,
   type PostEntity,
   type PostAttachment,
   type Answer,
@@ -97,17 +99,17 @@ export async function fetchNoticePosts(pageSize = 100): Promise<PostEntity[]> {
 
 // ── 게시판 — post_type 기반 ──
 
-/** 일반 게시판 목록 */
+/** 일반 게시판 목록 — 전용 엔드포인트 사용 (선생 글 포함) */
 export async function fetchBoardPosts(pageSize = 100): Promise<PostEntity[]> {
-  const posts = await fetchPosts({ nodeId: null, pageSize, postType: "board" });
+  const posts = await fetchBoardPostsByEndpoint({ pageSize });
   return posts.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 }
 
-// ── 자료실 — post_type 기반 ──
+// ── 자료실 ──
 
-/** 자료실 목록 */
+/** 자료실 목록 — 전용 엔드포인트 사용 (선생 글 포함) */
 export async function fetchMaterialsPosts(pageSize = 100): Promise<PostEntity[]> {
-  const posts = await fetchPosts({ nodeId: null, pageSize, postType: "materials" });
+  const posts = await fetchMaterialsPostsByEndpoint({ pageSize });
   return posts.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 }
 
