@@ -1,0 +1,74 @@
+name: Frontend Quality Gate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: frontend-quality-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality-check:
+    name: Typecheck + Lint + Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm exec tsc --noEmit -p tsconfig.app.json
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Build
+        run: pnpm build
+
+  e2e-smoke:
+    name: Post-deploy smoke test
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: quality-check
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    continue-on-error: true  # informational — does not block
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install chromium
+
+      - name: Run smoke tests
+        run: pnpm exec playwright test e2e/smoke.spec.ts
+        env:
+          API_BASE_URL: https://api.hakwonplus.com
+          HAKWONPLUS_BASE_URL: https://hakwonplus.com
+          TCHUL_BASE_URL: https://tchul.com
