@@ -163,9 +163,8 @@ export default function MaterialsBoardPage() {
     [scopeNodes, scopeParams]
   );
 
-  const hasScopeParam = searchParams.has("scope");
-  const canShowList =
-    hasScopeParam && (
+  const canShowList = true;
+  const _unused = searchParams.has("scope") && (
       scope === "all" ||
       (scope === "lecture" && effectiveLectureId != null) ||
       (scope === "session" && sessionId != null)

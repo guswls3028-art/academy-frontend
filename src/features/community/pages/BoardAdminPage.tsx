@@ -157,11 +157,7 @@ export default function BoardAdminPage() {
     [scopeNodes, scopeParams]
   );
 
-  // scope 파라미터 없으면 전체 게시물 표시 (기본 = all)
-  const canShowList =
-    scope === "all" ||
-    (scope === "lecture" && effectiveLectureId != null) ||
-    (scope === "session" && sessionId != null);
+  const canShowList = true;
 
   // 게시판 전체 목록 (post_type 기반, scope는 클라이언트 필터)
   const postsQ = useQuery<PostEntity[]>({
