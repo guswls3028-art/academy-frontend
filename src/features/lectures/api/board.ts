@@ -4,17 +4,10 @@
 
 import {
   fetchScopeNodes,
-  fetchBlockTypes,
   fetchPosts,
   createPost,
-  type BlockType,
   type PostEntity,
 } from "@/features/community/api/community.api";
-
-/* =========================
- * TYPES (community 호환)
- * ========================= */
-export type BoardCategory = BlockType;
 
 export interface BoardAttachment {
   id: number;
@@ -46,7 +39,7 @@ function postEntityToBoardPost(p: PostEntity): BoardPost {
   return {
     id: p.id,
     lecture: firstNode?.lecture ?? 0,
-    category: p.block_type,
+    category: 0,
     title: p.title,
     content: p.content,
     created_by: p.created_by ?? null,
@@ -56,25 +49,11 @@ function postEntityToBoardPost(p: PostEntity): BoardPost {
 }
 
 /* =========================
- * CATEGORY → block-types (읽기 전용)
- * ========================= */
-export async function fetchBoardCategories(_lectureId: number): Promise<BoardCategory[]> {
-  return fetchBlockTypes();
-}
-
-export async function createBoardCategory(_payload: {
-  lecture: number;
-  name: string;
-}): Promise<BoardCategory> {
-  throw new Error("블록 타입은 읽기 전용입니다.");
-}
-
-/* =========================
  * POSTS → scope-nodes + posts
  * ========================= */
 export async function fetchBoardPosts(params: {
   lecture: number;
-  category?: number;
+  postType?: string;
 }): Promise<BoardPost[]> {
   const nodes = await fetchScopeNodes();
   const courseNode = nodes.find(
@@ -82,21 +61,20 @@ export async function fetchBoardPosts(params: {
   );
   if (!courseNode) return [];
   const list = await fetchPosts({ nodeId: courseNode.id });
-  const filtered =
-    params.category != null
-      ? list.filter((p) => p.block_type === params.category)
-      : list;
+  const filtered = params.postType
+    ? list.filter((p) => p.post_type === params.postType)
+    : list;
   return filtered.map(postEntityToBoardPost);
 }
 
 export async function createBoardPost(data: {
-  block_type: number;
+  post_type: string;
   title: string;
   content: string;
   node_ids: number[];
 }): Promise<BoardPost> {
   const post = await createPost({
-    block_type: data.block_type,
+    post_type: data.post_type as "board",
     title: data.title,
     content: data.content,
     node_ids: data.node_ids,

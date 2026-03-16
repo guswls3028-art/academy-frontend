@@ -8,10 +8,10 @@ import { Layout, Tree, Table, Select, Tag } from "antd";
 import type { DataNode } from "antd/es/tree";
 import {
   fetchScopeNodes,
-  fetchBlockTypes,
   fetchAdminPosts,
   updatePostNodes,
   type PostEntity,
+  type PostType,
   type ScopeNodeMinimal,
 } from "../api/community.api";
 import { EmptyState, Button } from "@/shared/ui/ds";
@@ -60,7 +60,7 @@ export default function CommunityAdminPage() {
   const subTab = searchParams.get("tab") === SUB_TAB_NOTICE ? SUB_TAB_NOTICE : SUB_TAB_BOARD;
   const setSubTab = (tab: string) => setSearchParams(tab === SUB_TAB_BOARD ? {} : { tab });
 
-  const [blockTypeId, setBlockTypeId] = useState<number | null>(null);
+  const [selectedPostType, setSelectedPostType] = useState<PostType | null>(null);
   const [lectureId, setLectureId] = useState<number | null>(null);
   const [page, setPage] = useState(1);
   const [selectedPost, setSelectedPost] = useState<PostEntity | null>(null);
@@ -72,16 +72,11 @@ export default function CommunityAdminPage() {
     queryFn: () => fetchScopeNodes(),
   });
 
-  const { data: blockTypes = [] } = useQuery({
-    queryKey: ["community-block-types"],
-    queryFn: () => fetchBlockTypes(),
-  });
-
   const { data: adminData, isLoading: loadingPosts } = useQuery({
-    queryKey: ["community-admin-posts", blockTypeId, lectureId, page],
+    queryKey: ["community-admin-posts", selectedPostType, lectureId, page],
     queryFn: () =>
       fetchAdminPosts({
-        blockTypeId: blockTypeId ?? undefined,
+        postType: selectedPostType ?? undefined,
         lectureId: lectureId ?? undefined,
         page,
         pageSize: PAGE_SIZE,
@@ -126,10 +121,10 @@ export default function CommunityAdminPage() {
     },
     {
       title: "유형",
-      dataIndex: "block_type_label",
-      key: "block_type_label",
+      dataIndex: "post_type",
+      key: "post_type",
       width: 100,
-      render: (label: string) => <span className="community-tag">{label}</span>,
+      render: (t: string) => <span className="community-tag">{t}</span>,
     },
     {
       title: "노출 노드",
@@ -229,9 +224,15 @@ export default function CommunityAdminPage() {
             <Select
               placeholder="유형"
               allowClear
-              value={blockTypeId}
-              onChange={setBlockTypeId}
-              options={blockTypes.map((b) => ({ label: b.label, value: b.id }))}
+              value={selectedPostType}
+              onChange={setSelectedPostType}
+              options={[
+                { label: "공지", value: "notice" as PostType },
+                { label: "게시판", value: "board" as PostType },
+                { label: "자료실", value: "materials" as PostType },
+                { label: "QnA", value: "qna" as PostType },
+                { label: "상담", value: "counsel" as PostType },
+              ]}
               style={{ width: 120 }}
             />
             <Button intent="secondary" size="sm" onClick={() => setShowAddBlockType(true)}>
@@ -292,7 +293,7 @@ export default function CommunityAdminPage() {
               <>
                 <div className="mb-4">
                   <div className="font-bold text-[var(--color-text-primary)] mb-1">{selectedPost.title}</div>
-                  <span className="community-tag">{selectedPost.block_type_label}</span>
+                  <span className="community-tag">{selectedPost.post_type}</span>
                   <div className="community-card__meta mt-2">
                     {selectedPost.created_at?.slice(0, 16)}
                   </div>
@@ -328,7 +329,7 @@ export default function CommunityAdminPage() {
         <BlockTypeFormModal
           onClose={() => setShowAddBlockType(false)}
           onSuccess={() => setShowAddBlockType(false)}
-          onSuccessWithCreated={(block) => setBlockTypeId(block.id)}
+          onSuccessWithCreated={() => {}}
         />
       )}
     </div>

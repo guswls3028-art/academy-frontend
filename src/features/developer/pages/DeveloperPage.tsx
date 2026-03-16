@@ -8,8 +8,6 @@ import { DomainLayout } from "@/shared/ui/layout";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import {
-  ensureBugReportBlockType,
-  ensureDevFeedbackBlockType,
   createPost,
   uploadPostAttachments,
   fetchAdminPosts,
@@ -216,18 +214,13 @@ function BugReportPanel() {
   const contentRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  // 블록타입 ID 가져오기
-  const { data: blockTypeId } = useQuery({
-    queryKey: ["dev-block-type", "bug_report"],
-    queryFn: ensureBugReportBlockType,
-    staleTime: Infinity,
-  });
-
-  // 기존 버그 리포트 목록
+  // 기존 버그 리포트 목록 — post_type "board" + title prefix "[BUG]"
   const { data: posts } = useQuery({
-    queryKey: ["dev-posts", "bug_report", blockTypeId],
-    queryFn: () => fetchAdminPosts({ blockTypeId: blockTypeId!, pageSize: 50 }),
-    enabled: blockTypeId != null,
+    queryKey: ["dev-posts", "bug_report"],
+    queryFn: async () => {
+      const { results } = await fetchAdminPosts({ postType: "board", pageSize: 200 });
+      return { results: results.filter((p) => p.title?.startsWith("[BUG]")), count: 0 };
+    },
   });
 
   // 이미지 붙여넣기 핸들러
@@ -276,11 +269,10 @@ function BugReportPanel() {
 
   const submitMut = useMutation({
     mutationFn: async () => {
-      if (!blockTypeId) throw new Error("블록 타입을 불러오지 못했습니다.");
       if (!title.trim()) throw new Error("제목을 입력해주세요.");
       const post = await createPost({
-        block_type: blockTypeId,
-        title: title.trim(),
+        post_type: "board",
+        title: `[BUG] ${title.trim()}`,
         content: content.trim(),
         node_ids: [],
       });
@@ -401,16 +393,12 @@ function FeedbackPanel() {
   const [files, setFiles] = useState<File[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const { data: blockTypeId } = useQuery({
-    queryKey: ["dev-block-type", "dev_feedback"],
-    queryFn: ensureDevFeedbackBlockType,
-    staleTime: Infinity,
-  });
-
   const { data: posts } = useQuery({
-    queryKey: ["dev-posts", "dev_feedback", blockTypeId],
-    queryFn: () => fetchAdminPosts({ blockTypeId: blockTypeId!, pageSize: 50 }),
-    enabled: blockTypeId != null,
+    queryKey: ["dev-posts", "dev_feedback"],
+    queryFn: async () => {
+      const { results } = await fetchAdminPosts({ postType: "board", pageSize: 200 });
+      return { results: results.filter((p) => p.title?.startsWith("[FB]")), count: 0 };
+    },
   });
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -426,11 +414,10 @@ function FeedbackPanel() {
 
   const submitMut = useMutation({
     mutationFn: async () => {
-      if (!blockTypeId) throw new Error("블록 타입을 불러오지 못했습니다.");
       if (!title.trim()) throw new Error("제목을 입력해주세요.");
       const post = await createPost({
-        block_type: blockTypeId,
-        title: title.trim(),
+        post_type: "board",
+        title: `[FB] ${title.trim()}`,
         content: content.trim(),
         node_ids: [],
       });

@@ -6,7 +6,6 @@ import { useState, useMemo, useCallback, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  ensureCounselBlockType,
   fetchAdminPosts,
   fetchPost,
   fetchPostReplies,

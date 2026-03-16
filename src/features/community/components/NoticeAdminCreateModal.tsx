@@ -3,7 +3,7 @@
 
 import { useState, useMemo } from "react";
 import {
-  createCommunityBoardPost,
+  createPost,
   uploadPostAttachments,
   type ScopeNodeMinimal,
   type CommunityScopeParams,
@@ -17,7 +17,6 @@ import "@/features/community/community.css";
 export type NoticeScope = "all" | "lecture" | "session";
 
 export interface NoticeAdminCreateModalProps {
-  noticeTypeId: number;
   scope: NoticeScope;
   scopeNodes: ScopeNodeMinimal[];
   scopeParams: CommunityScopeParams;
@@ -28,7 +27,6 @@ export interface NoticeAdminCreateModalProps {
 }
 
 export function NoticeAdminCreateModal({
-  noticeTypeId,
   scope,
   scopeNodes,
   effectiveLectureId,
@@ -73,14 +71,14 @@ export function NoticeAdminCreateModal({
     if (!canSubmit || isSubmitting) return;
     setIsSubmitting(true);
     try {
-      const boardPost = await createCommunityBoardPost({
-        block_type: noticeTypeId,
+      const post = await createPost({
+        post_type: "notice",
         title: title.trim(),
         content: content.trim(),
         node_ids: exposureNodeIds,
       });
       if (files.length > 0) {
-        await uploadPostAttachments(boardPost.id, files);
+        await uploadPostAttachments(post.id, files);
       }
       onSuccess();
     } catch (e) {

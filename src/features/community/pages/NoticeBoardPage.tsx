@@ -1,20 +1,17 @@
 // PATH: src/features/community/pages/NoticeBoardPage.tsx
 // 공지사항 목록+작성 (게시 관리 내 "공지사항" 탭에서 사용, 또는 단독 라우트용)
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCommunityScope } from "../context/CommunityScopeContext";
 import {
   fetchScopeNodes,
+  fetchPosts,
   resolveNodeIdFromScope,
-  fetchCommunityBoardPosts,
-  fetchCommunityBoardCategories,
-  createCommunityBoardPost,
-  fetchBlockTypes,
   fetchPostTemplates,
   createPostTemplate,
-  type BoardPost,
-  type BlockType,
+  createPost,
+  type PostEntity,
   type PostTemplate,
   type ScopeNodeMinimal,
   type CommunityScopeParams,
@@ -28,7 +25,6 @@ import "@/features/community/community.css";
 export function NoticeBoardContent() {
   const qc = useQueryClient();
   const { scope, lectureId, sessionId, effectiveLectureId } = useCommunityScope();
-  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
   const [showCreate, setShowCreate] = useState(false);
 
   const scopeParams = { scope, lectureId: effectiveLectureId ?? undefined, sessionId: sessionId ?? undefined };
@@ -49,25 +45,15 @@ export function NoticeBoardContent() {
     [scopeNodes, scope, effectiveLectureId, sessionId]
   );
 
-  const { data: categories = [], isLoading: loadingCats } = useQuery<BlockType[]>({
-    queryKey: ["community-block-types"],
-    queryFn: () => fetchBlockTypes(),
-    enabled: true,
-  });
-
   const { data: templates = [] } = useQuery<PostTemplate[]>({
     queryKey: ["community-post-templates"],
     queryFn: () => fetchPostTemplates(),
     enabled: showCreate,
   });
 
-  const { data: posts = [], isLoading: loadingPosts } = useQuery<BoardPost[]>({
-    queryKey: ["community-board-posts", scope, effectiveLectureId, sessionId, selectedCategoryId, nodeId],
-    queryFn: () =>
-      fetchCommunityBoardPosts({
-        ...scopeParams,
-        categoryId: selectedCategoryId ?? undefined,
-      }),
+  const { data: posts = [], isLoading: loadingPosts } = useQuery<PostEntity[]>({
+    queryKey: ["community-board-posts", scope, effectiveLectureId, sessionId, nodeId],
+    queryFn: () => fetchPosts({ nodeId: nodeId ?? undefined, pageSize: 500 }),
     enabled: scope === "all" || (scope === "lecture" && effectiveLectureId != null) || (scope === "session" && sessionId != null),
   });
 
@@ -106,28 +92,6 @@ export function NoticeBoardContent() {
         )}
       </div>
 
-      {categories.length > 0 && (
-        <div className="flex flex-wrap gap-2">
-          <Button
-            intent={selectedCategoryId === null ? "secondary" : "ghost"}
-            size="sm"
-            onClick={() => setSelectedCategoryId(null)}
-          >
-            전체
-          </Button>
-          {categories.map((c) => (
-            <Button
-              key={c.id}
-              intent={selectedCategoryId === c.id ? "secondary" : "ghost"}
-              size="sm"
-              onClick={() => setSelectedCategoryId(c.id)}
-            >
-              {c.label}
-            </Button>
-          ))}
-        </div>
-      )}
-
       {loadingPosts ? (
         <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
       ) : posts.length === 0 ? (
@@ -143,9 +107,9 @@ export function NoticeBoardContent() {
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <div className="community-card__title">{p.title}</div>
-                  {scope === "all" && p.lecture != null && p.lecture && (
+                  {scope === "all" && p.mappings?.[0]?.node_detail?.lecture != null && (
                     <span className="community-card__subtitle">
-                      {lectureTitleMap.get(p.lecture) ?? `강의 #${p.lecture}`}
+                      {p.mappings[0].node_detail.lecture_title ?? `강의 #${p.mappings[0].node_detail.lecture}`}
                     </span>
                   )}
                   <div className="community-card__meta">
@@ -165,7 +129,6 @@ export function NoticeBoardContent() {
           scopeParams={scopeParams}
           effectiveLectureId={effectiveLectureId ?? undefined}
           sessionId={sessionId ?? undefined}
-          blockTypes={categories}
           templates={templates}
           onClose={() => setShowCreate(false)}
           onSuccess={() => {
@@ -184,63 +147,35 @@ export function NoticeCreateModal({
   scopeParams,
   effectiveLectureId,
   sessionId,
-  blockTypes,
   templates,
   onClose,
   onSuccess,
-  defaultBlockTypeCode,
-  defaultBlockTypeId: defaultBlockTypeIdProp,
 }: {
   scope: "all" | "lecture" | "session";
   scopeNodes: ScopeNodeMinimal[];
   scopeParams: CommunityScopeParams;
   effectiveLectureId?: number;
   sessionId?: number | null;
-  blockTypes: BlockType[];
   templates: PostTemplate[];
   onClose: () => void;
   onSuccess: () => void;
-  defaultBlockTypeCode?: string;
-  defaultBlockTypeId?: number | null;
 }) {
-  const resolvedDefaultId =
-    defaultBlockTypeIdProp != null && defaultBlockTypeIdProp !== 0
-      ? defaultBlockTypeIdProp
-      : defaultBlockTypeCode != null
-      ? blockTypes.find((b) => (b.code || "").toLowerCase() === defaultBlockTypeCode.toLowerCase())?.id ?? blockTypes[0]?.id
-      : blockTypes[0]?.id;
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
-  const [blockTypeId, setBlockTypeId] = useState<number | null>(resolvedDefaultId ?? null);
   const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null);
   const [showSaveAsTemplate, setShowSaveAsTemplate] = useState(false);
   const [templateName, setTemplateName] = useState("");
   const qc = useQueryClient();
 
-  useEffect(() => {
-    if (defaultBlockTypeIdProp != null && defaultBlockTypeIdProp !== 0) {
-      setBlockTypeId(defaultBlockTypeIdProp);
-      return;
-    }
-    if (defaultBlockTypeCode != null && resolvedDefaultId != null) {
-      setBlockTypeId(resolvedDefaultId);
-    }
-  }, [defaultBlockTypeIdProp, defaultBlockTypeCode, resolvedDefaultId]);
-
-  const isNoticeContext =
-    defaultBlockTypeCode === "notice" || (defaultBlockTypeIdProp != null && defaultBlockTypeIdProp !== 0);
-
   const loadTemplate = (t: PostTemplate) => {
     setTitle(t.title ?? "");
     setContent(t.content ?? "");
-    if (t.block_type != null) setBlockTypeId(t.block_type);
   };
 
   const saveAsTemplateMut = useMutation({
     mutationFn: () =>
       createPostTemplate({
         name: templateName.trim(),
-        block_type: blockTypeId ?? undefined,
         title: title.trim() || undefined,
         content: content.trim() || undefined,
       }),
@@ -271,10 +206,10 @@ export function NoticeCreateModal({
 
   const createMut = useMutation({
     mutationFn: () =>
-      createCommunityBoardPost({
-        block_type: blockTypeId ?? blockTypes[0]!.id,
+      createPost({
+        post_type: "notice",
         title: title.trim(),
-        content: isNoticeContext ? "" : content.trim(),
+        content: content.trim(),
         node_ids: nodeIds,
       }),
     onSuccess: () => onSuccess(),
@@ -285,10 +220,7 @@ export function NoticeCreateModal({
 
   const canSubmit =
     title.trim() &&
-    blockTypes.length > 0 &&
-    (blockTypeId != null || blockTypes[0]?.id) &&
-    nodeIds.length > 0 &&
-    (isNoticeContext || content.trim());
+    nodeIds.length > 0;
 
   const courseNodes = useMemo(
     () => scopeNodes.filter((n) => n.level === "COURSE"),
@@ -333,83 +265,53 @@ export function NoticeCreateModal({
           </div>
         )}
 
-        {blockTypes.length === 0 ? (
-          <p className="community-field__hint">
-            블록 타입이 없습니다. 관리자 설정에서 확인하세요.
-          </p>
-        ) : (
-          <>
+        <>
+          {scope === "all" && (
             <div className="community-field">
-              <label className="community-field__label">유형</label>
+              <label className="community-field__label">노출 위치(강의)</label>
               <select
                 className="ds-input"
-                value={blockTypeId ?? ""}
-                onChange={(e) => setBlockTypeId(e.target.value ? Number(e.target.value) : null)}
+                value={selectedNodeId ?? ""}
+                onChange={(e) => setSelectedNodeId(e.target.value ? Number(e.target.value) : null)}
                 style={{ width: "100%" }}
               >
-                {blockTypes.map((b) => (
-                  <option key={b.id} value={b.id}>
-                    {b.label}
+                <option value="">선택하세요</option>
+                {courseNodes.map((n) => (
+                  <option key={n.id} value={n.id}>
+                    {n.lecture_title}
                   </option>
                 ))}
               </select>
             </div>
+          )}
 
-            {scope === "all" && (
-              <div className="community-field">
-                <label className="community-field__label">노출 위치(강의)</label>
-                <select
-                  className="ds-input"
-                  value={selectedNodeId ?? ""}
-                  onChange={(e) => setSelectedNodeId(e.target.value ? Number(e.target.value) : null)}
-                  style={{ width: "100%" }}
-                >
-                  <option value="">선택하세요</option>
-                  {courseNodes.map((n) => (
-                    <option key={n.id} value={n.id}>
-                      {n.lecture_title}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
+          <div className="community-field">
+            <label className="community-field__label">제목</label>
+            <input
+              className="ds-input"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="제목"
+              style={{ width: "100%" }}
+            />
+          </div>
 
-            <div className="community-field">
-              <label className="community-field__label">제목</label>
-              <input
-                className="ds-input"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="제목"
-                style={{ width: "100%" }}
-              />
-            </div>
-
-            {!isNoticeContext && (
-              <div className="community-field">
-                <label className="community-field__label">내용</label>
-                <textarea
-                  className="ds-input"
-                  value={content}
-                  onChange={(e) => setContent(e.target.value)}
-                  placeholder="내용"
-                  rows={4}
-                  style={{ width: "100%", resize: "vertical" }}
-                />
-              </div>
-            )}
-
-            {isNoticeContext && (
-              <p className="community-field__hint">
-                등록 후 오른쪽 상세 영역에서 내용을 작성할 수 있습니다.
-              </p>
-            )}
-          </>
-        )}
+          <div className="community-field">
+            <label className="community-field__label">내용</label>
+            <textarea
+              className="ds-input"
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              placeholder="내용"
+              rows={4}
+              style={{ width: "100%", resize: "vertical" }}
+            />
+          </div>
+        </>
 
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex gap-2">
-            {!isNoticeContext && (title.trim() || content.trim()) && (
+            {(title.trim() || content.trim()) && (
               <Button
                 intent="ghost"
                 size="sm"

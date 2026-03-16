@@ -55,8 +55,6 @@ export interface PostEntity {
   id: number;
   tenant?: number;
   post_type: PostType;
-  block_type: number;
-  block_type_label: string;
   title: string;
   content: string;
   created_by: number | null;
@@ -137,111 +135,6 @@ export async function deleteBlockType(id: number): Promise<void> {
   await api.delete(`${PREFIX}/block-types/${id}/`);
 }
 
-/**
- * counsel 블록 유형이 없으면 자동 생성, 있으면 기존 ID 반환.
- * 중복 호출 방지를 위한 in-flight promise 캐시 포함.
- */
-let _ensureCounselPromise: Promise<number> | null = null;
-export function ensureCounselBlockType(): Promise<number> {
-  if (_ensureCounselPromise) return _ensureCounselPromise;
-  _ensureCounselPromise = (async () => {
-    try {
-      const types = await fetchBlockTypes();
-      const existing = types.find((t) => (t.code || "").toLowerCase() === "counsel");
-      if (existing) return existing.id;
-      const created = await createBlockType({ label: "상담 신청", code: "counsel", order: 50 });
-      return created.id;
-    } catch (e) {
-      _ensureCounselPromise = null;
-      throw e;
-    }
-  })();
-  return _ensureCounselPromise;
-}
-
-/**
- * materials 블록 유형이 없으면 자동 생성, 있으면 기존 ID 반환.
- */
-let _ensureMaterialsPromise: Promise<number> | null = null;
-export function ensureMaterialsBlockType(): Promise<number> {
-  if (_ensureMaterialsPromise) return _ensureMaterialsPromise;
-  _ensureMaterialsPromise = (async () => {
-    try {
-      const types = await fetchBlockTypes();
-      const existing = types.find((t) => (t.code || "").toLowerCase() === "materials");
-      if (existing) return existing.id;
-      const created = await createBlockType({ label: "자료실", code: "materials", order: 60 });
-      return created.id;
-    } catch (e) {
-      _ensureMaterialsPromise = null;
-      throw e;
-    }
-  })();
-  return _ensureMaterialsPromise;
-}
-
-/**
- * notice 블록 유형이 없으면 자동 생성, 있으면 기존 ID 반환.
- */
-let _ensureNoticePromise: Promise<number> | null = null;
-export function ensureNoticeBlockType(): Promise<number> {
-  if (_ensureNoticePromise) return _ensureNoticePromise;
-  _ensureNoticePromise = (async () => {
-    try {
-      const types = await fetchBlockTypes();
-      const existing = types.find((t) => (t.code || "").toLowerCase() === "notice");
-      if (existing) return existing.id;
-      const created = await createBlockType({ label: "공지사항", code: "notice", order: 10 });
-      return created.id;
-    } catch (e) {
-      _ensureNoticePromise = null;
-      throw e;
-    }
-  })();
-  return _ensureNoticePromise;
-}
-
-/**
- * bug_report 블록 유형이 없으면 자동 생성, 있으면 기존 ID 반환.
- */
-let _ensureBugReportPromise: Promise<number> | null = null;
-export function ensureBugReportBlockType(): Promise<number> {
-  if (_ensureBugReportPromise) return _ensureBugReportPromise;
-  _ensureBugReportPromise = (async () => {
-    try {
-      const types = await fetchBlockTypes();
-      const existing = types.find((t) => (t.code || "").toLowerCase() === "bug_report");
-      if (existing) return existing.id;
-      const created = await createBlockType({ label: "버그 제보", code: "bug_report", order: 90 });
-      return created.id;
-    } catch (e) {
-      _ensureBugReportPromise = null;
-      throw e;
-    }
-  })();
-  return _ensureBugReportPromise;
-}
-
-/**
- * dev_feedback 블록 유형이 없으면 자동 생성, 있으면 기존 ID 반환.
- */
-let _ensureDevFeedbackPromise: Promise<number> | null = null;
-export function ensureDevFeedbackBlockType(): Promise<number> {
-  if (_ensureDevFeedbackPromise) return _ensureDevFeedbackPromise;
-  _ensureDevFeedbackPromise = (async () => {
-    try {
-      const types = await fetchBlockTypes();
-      const existing = types.find((t) => (t.code || "").toLowerCase() === "dev_feedback");
-      if (existing) return existing.id;
-      const created = await createBlockType({ label: "피드백", code: "dev_feedback", order: 91 });
-      return created.id;
-    } catch (e) {
-      _ensureDevFeedbackPromise = null;
-      throw e;
-    }
-  })();
-  return _ensureDevFeedbackPromise;
-}
 
 // ----------------------------------------
 // Post templates (양식 저장/불러오기)
@@ -314,7 +207,7 @@ export async function fetchPost(id: number): Promise<PostEntity | null> {
   }
 }
 
-/** 공지 목록 조회 — 학생앱·관리자 동일 (block_type code=notice). GET /community/posts/notices/ */
+/** 공지 목록 조회 — 학생앱·관리자 동일 (post_type=notice). GET /community/posts/notices/ */
 export async function fetchNoticePosts(params?: { page?: number; pageSize?: number }): Promise<PostEntity[]> {
   const search = new URLSearchParams();
   if (params?.page != null) search.set("page", String(params.page));
@@ -339,10 +232,9 @@ export async function fetchAllNoticePostsForCount(): Promise<PostEntity[]> {
   return all;
 }
 
-/** 관리자 목록: post_type, block_type_id, lecture_id, page, page_size */
+/** 관리자 목록: post_type, lecture_id, page, page_size */
 export async function fetchAdminPosts(params: {
   postType?: PostType | null;
-  blockTypeId?: number | null;
   lectureId?: number | null;
   page?: number;
   pageSize?: number;
@@ -350,7 +242,6 @@ export async function fetchAdminPosts(params: {
   const res = await api.get(`${PREFIX}/admin/posts/`, {
     params: {
       post_type: params.postType ?? undefined,
-      block_type_id: params.blockTypeId ?? undefined,
       lecture_id: params.lectureId ?? undefined,
       page: params.page ?? 1,
       page_size: params.pageSize ?? 20,
@@ -365,7 +256,6 @@ export async function fetchAdminPosts(params: {
 
 export async function createPost(data: {
   post_type?: PostType;
-  block_type?: number;
   title: string;
   content: string;
   created_by?: number | null;
@@ -391,101 +281,9 @@ export async function updatePost(
   return res.data as PostEntity;
 }
 
-// ----------------------------------------
-// 하위 호환용 별칭 (기존 페이지 점진 전환)
-// ----------------------------------------
-/** @deprecated use BlockType */
-export type BoardCategory = BlockType & { name?: string };
-
-/** @deprecated use PostEntity; 필드 매핑만 제공 */
-export interface BoardPost {
-  id: number;
-  tenant: number | null;
-  lecture: number | null;
-  session: number | null;
-  category: number;
-  title: string;
-  content: string;
-  created_by: number | null;
-  created_at: string;
-  attachments: { id: number; post: number; file: string }[];
-  lecture_title?: string;
-  category_name?: string;
-}
-
-function postEntityToBoardPost(p: PostEntity): BoardPost {
-  const firstNode = p.mappings?.[0]?.node_detail;
-  return {
-    id: p.id,
-    tenant: p.tenant ?? null,
-    lecture: firstNode?.lecture ?? null,
-    session: firstNode?.session ?? null,
-    category: p.block_type,
-    title: p.title,
-    content: p.content,
-    created_by: p.created_by ?? null,
-    created_at: p.created_at,
-    attachments: [],
-    lecture_title: firstNode?.lecture_title,
-    category_name: p.block_type_label,
-  };
-}
-
-/** scope/lecture/session에 맞는 node_id로 목록 조회 후 BoardPost[] 형태로 반환 (레거시 호환) */
-export async function fetchCommunityBoardPosts(
-  params: CommunityScopeParams & { categoryId?: number | null }
-): Promise<BoardPost[]> {
-  const nodes = await fetchScopeNodes();
-  const nodeId = resolveNodeIdFromScope(nodes, params);
-  const list = await fetchPosts({ nodeId: nodeId ?? undefined });
-  const filtered =
-    params.categoryId != null
-      ? list.filter((p) => p.block_type === params.categoryId)
-      : list;
-  return filtered.map(postEntityToBoardPost);
-}
-
-/** block-types를 카테고리 형태로 반환 (레거시 호환) */
-export async function fetchCommunityBoardCategories(
-  _params: CommunityScopeParams
-): Promise<BoardCategory[]> {
-  const list = await fetchBlockTypes();
-  return list.map((b) => ({
-    ...b,
-    name: b.label,
-    tenant: null,
-    lecture: null,
-  }));
-}
-
-/** block-types는 읽기 전용. 레거시 호출 시 no-op 또는 에러 방지용 */
-export async function createCommunityBoardCategory(_data: {
-  scope: CommunityScope;
-  lectureId?: number | null;
-  name: string;
-  order?: number;
-}): Promise<BoardCategory> {
-  throw new Error("block-types는 읽기 전용입니다. 관리자 설정을 사용하세요.");
-}
-
-/** JSON 기반 생성 (FormData 대체) */
-export async function createCommunityBoardPost(data: {
-  block_type: number;
-  title: string;
-  content: string;
-  node_ids: number[];
-}): Promise<BoardPost> {
-  const post = await createPost({
-    block_type: data.block_type,
-    title: data.title,
-    content: data.content,
-    node_ids: data.node_ids,
-  });
-  return postEntityToBoardPost(post);
-}
 
 // ----------------------------------------
-// QnA (block_type qna인 Post)
+// QnA (post_type=qna)
 // ----------------------------------------
 export interface Question {
   id: number;
@@ -519,19 +317,6 @@ function postEntityToQuestion(p: PostEntity): Omit<Question, "is_answered"> {
   };
 }
 
-/** 블록타입 code가 "qna"인 id 반환 (선생/학생 앱 공통). 없으면 null */
-export async function getQnaBlockTypeId(): Promise<number | null> {
-  const types = await fetchBlockTypes();
-  const qna = types.find((t) => (t.code || "").toLowerCase() === "qna");
-  return qna?.id ?? null;
-}
-
-/** 블록타입 code가 "notice"인 id 반환 (공지사항 관리용). 없으면 null */
-export async function getNoticeBlockTypeId(): Promise<number | null> {
-  const types = await fetchBlockTypes();
-  const notice = types.find((t) => (t.code || "").toLowerCase() === "notice");
-  return notice?.id ?? null;
-}
 
 /** QnA 목록 (post_type="qna" 기준) */
 export async function fetchCommunityQuestions(

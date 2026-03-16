@@ -1,7 +1,7 @@
 // src/features/lectures/components/BoardCategoryModal.tsx
 import { useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { createBoardCategory } from "../api/board";
+// createBoardCategory was removed — block types are managed via admin settings
 import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
 
@@ -22,7 +22,7 @@ export default function BoardCategoryModal({ lectureId, isOpen, onClose }: Props
     mutationFn: async () => {
       setBusy(true);
       try {
-        return await createBoardCategory({ lecture: lectureId, name });
+        throw new Error("블록 타입은 관리자 설정에서 관리합니다.");
       } finally {
         setBusy(false);
       }

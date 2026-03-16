@@ -222,19 +222,6 @@ export default function NoticesPage() {
                         {sessionTitle}
                       </span>
                     )}
-                    {notice.block_type_label && !lectureTitle && (
-                      <span
-                        className="stu-muted"
-                        style={{
-                          fontSize: 11,
-                          padding: "2px 8px",
-                          borderRadius: 4,
-                          background: "var(--stu-surface-soft)",
-                        }}
-                      >
-                        {notice.block_type_label}
-                      </span>
-                    )}
                   </div>
                   <span className="stu-muted" style={{ fontSize: 12, flexShrink: 0 }}>
                     {formatYmd(notice.created_at)}

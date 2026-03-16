@@ -4,7 +4,7 @@
  * - 클리닉 예약 신청 건수 (학생 예약 신청, status=pending)
  * - 가입 신청 대기 건수 (학생 회원가입 신청, status=pending)
  */
-import { fetchBlockTypes, fetchAdminPosts } from "@/features/community/api/community.api";
+import { fetchAdminPosts } from "@/features/community/api/community.api";
 import { fetchClinicParticipants } from "@/features/clinic/api/clinicParticipants.api";
 import { fetchRegistrationRequests } from "@/features/students/api/students";
 import { fetchAdminSubmissions } from "@/features/submissions/api/adminSubmissions";
@@ -29,12 +29,8 @@ export async function fetchAdminNotificationCounts(): Promise<AdminNotificationC
     const [participantsRes, typesAndPosts, registrationRes, submissionsRes] = await Promise.all([
       fetchClinicParticipants({ status: "pending" }).then((r) => r).catch(() => []),
       (async () => {
-        const types = await fetchBlockTypes();
-        const qnaType = types.find((t) => (t.code || "").toLowerCase() === "qna");
-        const posts = qnaType
-          ? (await fetchAdminPosts({ blockTypeId: qnaType.id, pageSize: 100 })).results
-          : [];
-        return posts.filter((p) => (p.replies_count ?? 0) === 0).length;
+        const { results } = await fetchAdminPosts({ postType: "qna", pageSize: 100 });
+        return results.filter((p) => (p.replies_count ?? 0) === 0).length;
       })().catch(() => 0),
       fetchRegistrationRequests({ status: "pending", page: 1, page_size: 1 }).then(
         (r) => r.count

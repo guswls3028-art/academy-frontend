@@ -7,9 +7,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCommunityScope } from "../context/CommunityScopeContext";
 import {
   fetchScopeNodes,
-  fetchCommunityBoardPosts,
   fetchAdminPosts,
-  ensureNoticeBlockType,
   fetchPost,
   updatePostNodes,
   updatePost,
@@ -17,7 +15,7 @@ import {
   createPost,
   fetchAllNoticePostsForCount,
   resolveNodeIdFromScope,
-  type BoardPost,
+  type PostEntity,
   type ScopeNodeMinimal,
   type CommunityScopeParams,
 } from "../api/community.api";
@@ -87,10 +85,6 @@ export default function NoticeAdminPage() {
     enabled: expandedLectureId != null && Number.isFinite(expandedLectureId),
   });
 
-  // post_type 기반: noticeTypeId 불필요 (레거시 호환용으로 유지)
-  const noticeTypeId = null as number | null;
-  const blockTypesError = false;
-
   /** 트리 노드별 공지 개수 집계용: 공지 전체 목록(매핑 포함) */
   const { data: allNoticePostsForCount = [] } = useQuery({
     queryKey: ["community-all-notice-posts-for-count"],
@@ -130,7 +124,7 @@ export default function NoticeAdminPage() {
     };
   }, [allNoticePostsForCount, scopeNodes, lectures]);
 
-  const { data: posts = [], isLoading, isError, error } = useQuery<BoardPost[]>({
+  const { data: posts = [], isLoading, isError, error } = useQuery<PostEntity[]>({
     queryKey: [
       "community-notice-posts",
       scope,
@@ -139,21 +133,7 @@ export default function NoticeAdminPage() {
     ],
     queryFn: async () => {
       const { results } = await fetchAdminPosts({ postType: "notice", pageSize: 500 });
-      // BoardPost 호환 매핑
-      return results.map((p) => ({
-        id: p.id,
-        tenant: p.tenant ?? null,
-        lecture: p.mappings?.[0]?.node_detail?.lecture ?? null,
-        session: p.mappings?.[0]?.node_detail?.session ?? null,
-        category: p.block_type,
-        title: p.title,
-        content: p.content,
-        created_by: p.created_by,
-        created_at: p.created_at,
-        attachments: [],
-        lecture_title: p.mappings?.[0]?.node_detail?.lecture_title,
-        category_name: p.block_type_label,
-      })) as BoardPost[];
+      return results;
     },
     enabled: scope === "all" ||
       (scope === "lecture" && effectiveLectureId != null) ||
@@ -422,7 +402,6 @@ export default function NoticeAdminPage() {
       <main className="qna-inbox__thread">
         {showCreate && true ? (
           <NoticeCreatePane
-            noticeTypeId={noticeTypeId}
             scopeNodes={scopeNodes}
             scopeParams={scopeParams}
             onCancel={() => setShowCreate(false)}
@@ -459,7 +438,7 @@ function NoticeCard({
   isActive,
   onClick,
 }: {
-  post: BoardPost;
+  post: PostEntity;
   isActive: boolean;
   onClick: () => void;
 }) {
@@ -471,6 +450,7 @@ function NoticeCard({
         day: "numeric",
       })
     : "—";
+  const lectureTitle = post.mappings?.[0]?.node_detail?.lecture_title;
 
   return (
     <button
@@ -486,10 +466,10 @@ function NoticeCard({
           {snippet && <div className="qna-inbox__card-snippet">{snippet}</div>}
           <div className="qna-inbox__card-meta">
             <span>{dateLabel}</span>
-            {post.lecture_title && (
+            {lectureTitle && (
               <>
                 <span className="qna-inbox__card-meta-dot" />
-                <span>{post.lecture_title}</span>
+                <span>{lectureTitle}</span>
               </>
             )}
           </div>
@@ -711,13 +691,11 @@ function NoticeDetailView({
 
 /* ─── Inline Notice Create Pane ──────────────────────── */
 function NoticeCreatePane({
-  noticeTypeId,
   scopeNodes,
   scopeParams,
   onCancel,
   onSuccess,
 }: {
-  noticeTypeId: number;
   scopeNodes: ScopeNodeMinimal[];
   scopeParams: CommunityScopeParams;
   onCancel: () => void;

@@ -7,7 +7,6 @@ import {
   fetchScopeNodes,
   createPost,
   uploadPostAttachments,
-  type BlockType,
   type ScopeNodeMinimal,
 } from "../api/community.api";
 import { Button } from "@/shared/ui/ds";
@@ -15,14 +14,11 @@ import { useModalKeyboard } from "@/shared/ui/modal";
 import "@/features/community/community.css";
 
 interface Props {
-  blockTypes: BlockType[];
-  initialBlockTypeId?: number;
   onClose: () => void;
   onSuccess: () => void;
 }
 
-export default function BoardCreateModal({ blockTypes, initialBlockTypeId, onClose, onSuccess }: Props) {
-  const [blockTypeId, setBlockTypeId] = useState<number | "">(initialBlockTypeId ?? (blockTypes.length === 1 ? blockTypes[0].id : ""));
+export default function BoardCreateModal({ onClose, onSuccess }: Props) {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [files, setFiles] = useState<File[]>([]);
@@ -54,7 +50,6 @@ export default function BoardCreateModal({ blockTypes, initialBlockTypeId, onClo
   };
 
   const canSubmit =
-    blockTypeId !== "" &&
     title.trim().length > 0 &&
     selectedNodeIds.length > 0 &&
     !submitting;
@@ -65,7 +60,7 @@ export default function BoardCreateModal({ blockTypes, initialBlockTypeId, onClo
     setError(null);
     try {
       const post = await createPost({
-        block_type: Number(blockTypeId),
+        post_type: "board",
         title: title.trim(),
         content: content.trim(),
         node_ids: selectedNodeIds,
@@ -101,26 +96,6 @@ export default function BoardCreateModal({ blockTypes, initialBlockTypeId, onClo
         <h3 id="board-create-title" className="community-modal-title">
           새 게시물
         </h3>
-
-        {/* Block type */}
-        <div className="community-field">
-          <label className="community-field__label community-field__label--required">유형</label>
-          <select
-            className="ds-input"
-            value={blockTypeId}
-            onChange={(e) =>
-              setBlockTypeId(e.target.value === "" ? "" : Number(e.target.value))
-            }
-            style={{ width: "100%" }}
-          >
-            <option value="">선택하세요</option>
-            {blockTypes.map((bt) => (
-              <option key={bt.id} value={bt.id}>
-                {bt.label}
-              </option>
-            ))}
-          </select>
-        </div>
 
         {/* Title */}
         <div className="community-field">

@@ -5,7 +5,7 @@ import api from "@/student/shared/api/studentApi";
 /**
  * ✅ Student Dashboard API (HOME 전용)
  *
- * - notices: 최신 공지 최대 5건 (Community block_type=notice)
+ * - notices: 최신 공지 최대 5건 (Community post_type=notice)
  * - today_sessions: 오늘 수업 일정 (SessionEnrollment 기준)
  * - 공지/일정 상세는 각 도메인(/student/notices, /student/sessions)에서 노출
  */

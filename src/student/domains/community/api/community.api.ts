@@ -1,16 +1,13 @@
 // PATH: src/student/domains/community/api/community.api.ts
-// 학생 커뮤니티 단일 API — block_type 개념은 내부에서만 처리, UI에 노출하지 않음
+// 학생 커뮤니티 단일 API — post_type 기반 분류
 
 import {
   fetchPosts,
   fetchPost,
-  fetchBlockTypes,
   fetchPostReplies as _fetchReplies,
   createPost as _createPost,
   uploadPostAttachments as _uploadAttachments,
   getAttachmentDownloadUrl as _getDownloadUrl,
-  ensureCounselBlockType,
-  ensureMaterialsBlockType,
   type PostEntity,
   type PostAttachment,
   type Answer,
@@ -23,22 +20,6 @@ export const uploadPostAttachments = _uploadAttachments;
 
 /** 첨부파일 다운로드 URL */
 export const getAttachmentDownloadUrl = _getDownloadUrl;
-
-// ── Block-type ID 캐시 (세션 동안 1회만 resolve) ──
-let _typeCache: { qna: number | null; notice: number | null; counsel: number | null; materials: number | null } | null = null;
-
-async function resolveTypeIds(): Promise<{ qna: number | null; notice: number | null; counsel: number | null; materials: number | null }> {
-  if (_typeCache) return _typeCache;
-  const types = await fetchBlockTypes();
-  const find = (code: string) => types.find((t) => (t.code || "").toLowerCase() === code)?.id ?? null;
-  _typeCache = { qna: find("qna"), notice: find("notice"), counsel: find("counsel"), materials: find("materials") };
-  return _typeCache;
-}
-
-/** 캐시 초기화 (테스트용) */
-export function resetTypeCache() {
-  _typeCache = null;
-}
 
 // ── QnA ──
 
@@ -61,7 +42,7 @@ export function isAnswered(post: PostEntity): boolean {
   return (post.replies_count ?? 0) > 0;
 }
 
-/** 질문 등록 — post_type 기반 (block_type 불필요) */
+/** 질문 등록 — post_type 기반 */
 export async function submitQuestion(
   title: string,
   content: string,

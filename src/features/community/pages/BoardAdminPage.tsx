@@ -9,7 +9,6 @@ import { useCommunityScope } from "../context/CommunityScopeContext";
 import {
   fetchPosts,
   fetchAdminPosts,
-  fetchBlockTypes,
   fetchScopeNodes,
   resolveNodeIdFromScope,
   fetchPost,
@@ -25,7 +24,6 @@ import {
   deletePostAttachment,
   type PostEntity,
   type PostAttachment,
-  type BlockType,
   type Answer,
   type ScopeNodeMinimal,
   type CommunityScopeParams,
@@ -116,32 +114,13 @@ export default function BoardAdminPage() {
     enabled: expandedLectureId != null && Number.isFinite(expandedLectureId),
   });
 
-  const blockTypesQ = useQuery<BlockType[]>({
-    queryKey: ["community-block-types"],
-    queryFn: fetchBlockTypes,
-  });
-  const blockTypes = blockTypesQ.data ?? [];
-
-  // 게시판 전용: 공지/자료실/QnA/상담 등 전용 유형 제외
-  const excludedCodes = useMemo(
-    () => new Set(["notice", "qna", "counsel", "materials", "bug_report", "dev_feedback"]),
-    []
-  );
-  const boardBlockTypeIds = useMemo(
-    () => new Set(blockTypes.filter((bt) => !excludedCodes.has((bt.code ?? "").toLowerCase())).map((bt) => bt.id)),
-    [blockTypes, excludedCodes]
-  );
-
   // ── All posts for tree counts (게시판 유형만) ──
   const { data: allPostsForCount = [] } = useQuery<PostEntity[]>({
-    queryKey: ["community-all-board-posts-for-count", [...boardBlockTypeIds].sort().join(",")],
+    queryKey: ["community-all-board-posts-for-count"],
     queryFn: async () => {
-      const { results } = await fetchAdminPosts({ blockTypeId: null, pageSize: 500 });
-      // 게시판 전용 유형만 필터
-      if (boardBlockTypeIds.size === 0) return results;
-      return results.filter((p) => boardBlockTypeIds.has(p.block_type));
+      const { results } = await fetchAdminPosts({ postType: "board", pageSize: 500 });
+      return results;
     },
-    enabled: blockTypes.length > 0,
   });
 
   const treeCounts = useMemo(() => {
@@ -193,9 +172,8 @@ export default function BoardAdminPage() {
 
   // 게시판 유형만 필터 + 검색
   const boardPosts = useMemo(() => {
-    if (boardBlockTypeIds.size === 0) return posts;
-    return posts.filter((p) => boardBlockTypeIds.has(p.block_type));
-  }, [posts, boardBlockTypeIds]);
+    return posts.filter((p) => p.post_type === "board");
+  }, [posts]);
 
   const filtered = useMemo(() => {
     if (!searchQuery.trim()) return boardPosts;
@@ -204,8 +182,7 @@ export default function BoardAdminPage() {
       (p) =>
         (p.title ?? "").toLowerCase().includes(q) ||
         stripHtml(p.content ?? "").toLowerCase().includes(q) ||
-        (p.created_by_display ?? "").toLowerCase().includes(q) ||
-        (p.block_type_label ?? "").toLowerCase().includes(q)
+        (p.created_by_display ?? "").toLowerCase().includes(q)
     );
   }, [boardPosts, searchQuery]);
 
@@ -447,10 +424,8 @@ export default function BoardAdminPage() {
       <main className="qna-inbox__thread">
         {showCreate ? (
           <BoardCreatePane
-            blockTypes={blockTypes.filter((bt) => ["notice", "board", "materials"].includes(bt.code || ""))}
             scopeNodes={scopeNodes}
             scopeParams={scopeParams}
-            initialBlockTypeId={blockTypes.find((bt) => bt.code === "board")?.id ?? blockTypes[0]?.id}
             onCancel={() => setShowCreate(false)}
             onSuccess={() => {
               qc.invalidateQueries({ queryKey: ["community-board-posts-scoped"] });
@@ -487,28 +462,16 @@ export default function BoardAdminPage() {
 
 /* ─── Inline Create Pane ──────────────────────────────── */
 function BoardCreatePane({
-  blockTypes,
   scopeNodes,
   scopeParams,
   onCancel,
   onSuccess,
-  initialBlockTypeId,
 }: {
-  blockTypes: BlockType[];
   scopeNodes: ScopeNodeMinimal[];
   scopeParams: CommunityScopeParams;
   onCancel: () => void;
   onSuccess: () => void;
-  initialBlockTypeId?: number;
 }) {
-  // 게시판 전용: 자동으로 첫 번째 게시판 유형 사용 (유형 선택 불필요)
-  const boardTypeId = useMemo(() => {
-    if (initialBlockTypeId) return initialBlockTypeId;
-    const excluded = new Set(["notice", "qna", "counsel", "materials", "bug_report", "dev_feedback"]);
-    const boardType = blockTypes.find((bt) => !excluded.has((bt.code ?? "").toLowerCase()));
-    return boardType?.id ?? blockTypes[0]?.id ?? "";
-  }, [blockTypes, initialBlockTypeId]);
-  const [blockTypeId] = useState<number | "">(boardTypeId);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [files, setFiles] = useState<File[]>([]);
@@ -537,7 +500,7 @@ function BoardCreatePane({
     ? scopeNodes.find((n) => n.lecture === scopeParams.lectureId)?.lecture_title ?? "선택된 강의"
     : "전체 게시물";
 
-  const canSubmit = blockTypeId !== "" && title.trim().length > 0 && !submitting;
+  const canSubmit = title.trim().length > 0 && !submitting;
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
@@ -546,7 +509,6 @@ function BoardCreatePane({
     try {
       const post = await createPost({
         post_type: "board",
-        block_type: Number(blockTypeId) || undefined,
         title: title.trim(),
         content,
         node_ids: autoNodeIds,
@@ -668,7 +630,7 @@ function BoardPostCard({
         <div className="qna-inbox__card-body">
           <div className="qna-inbox__card-title-row">
             <div className="qna-inbox__card-title">{post.title || "(제목 없음)"}</div>
-            <span className="ds-status-badge" data-tone="neutral">{post.block_type_label}</span>
+            <span className="ds-status-badge" data-tone="neutral">게시판</span>
           </div>
           {snippet && <div className="qna-inbox__card-snippet">{snippet}</div>}
           <div className="qna-inbox__card-meta">
@@ -776,7 +738,7 @@ function PostDetailView({
               </h1>
             )}
             <div className="qna-inbox__thread-meta">
-              <span className="ds-status-badge" data-tone="neutral" style={{ fontSize: 10 }}>{post.block_type_label}</span>
+              <span className="ds-status-badge" data-tone="neutral" style={{ fontSize: 10 }}>게시판</span>
               <span className="qna-inbox__thread-meta-dot" />
               <span>{authorName}</span>
               {lectureLabel && (<><span className="qna-inbox__thread-meta-dot" /><span>{lectureLabel}</span></>)}
@@ -797,7 +759,7 @@ function PostDetailView({
           <div className="qna-inbox__message-bubble" style={{ flex: 1, minWidth: 0 }}>
             <div className="qna-inbox__message-meta">
               <span className="qna-inbox__message-author">{authorName}</span>
-              <span className="qna-inbox__message-badge">{post.block_type_label}</span>
+              <span className="qna-inbox__message-badge">게시판</span>
               <span className="qna-inbox__message-date">
                 {new Date(post.created_at).toLocaleString("ko-KR", { month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" })}
               </span>

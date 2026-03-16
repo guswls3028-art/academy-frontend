@@ -1,7 +1,7 @@
 // PATH: src/features/lectures/components/BoardPostModal.tsx
 import { useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { BoardCategory, createBoardPost, getCourseNodeIdForLecture } from "../api/board";
+import { createBoardPost, getCourseNodeIdForLecture } from "../api/board";
 import { createPostTemplate, type PostTemplate } from "@/features/community/api/community.api";
 
 import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
@@ -10,12 +10,12 @@ import { feedback } from "@/shared/ui/feedback/feedback";
 
 interface Props {
   lectureId: number;
-  category: BoardCategory;
+  categoryLabel?: string;
   templates?: PostTemplate[];
   onClose: () => void;
 }
 
-export default function BoardPostModal({ lectureId, category, templates = [], onClose }: Props) {
+export default function BoardPostModal({ lectureId, categoryLabel, templates = [], onClose }: Props) {
   const qc = useQueryClient();
 
   const [titleInput, setTitleInput] = useState("");
@@ -33,7 +33,6 @@ export default function BoardPostModal({ lectureId, category, templates = [], on
     mutationFn: () =>
       createPostTemplate({
         name: templateName.trim(),
-        block_type: category.id,
         title: titleInput.trim() || undefined,
         content: content.trim() || undefined,
       }),
@@ -48,8 +47,8 @@ export default function BoardPostModal({ lectureId, category, templates = [], on
   });
 
   const title = useMemo(
-    () => `${"label" in category ? category.label : (category as { name?: string }).name ?? "글"} - 글 작성`,
-    [category]
+    () => `${categoryLabel ?? "글"} - 글 작성`,
+    [categoryLabel]
   );
 
   const { mutate } = useMutation({
@@ -59,7 +58,7 @@ export default function BoardPostModal({ lectureId, category, templates = [], on
         const nodeId = await getCourseNodeIdForLecture(lectureId);
         if (nodeId == null) throw new Error("이 강의에 대한 노드를 찾을 수 없습니다.");
         return await createBoardPost({
-          block_type: category.id,
+          post_type: "board",
           title: titleInput.trim(),
           content: content.trim(),
           node_ids: [nodeId],
@@ -69,7 +68,7 @@ export default function BoardPostModal({ lectureId, category, templates = [], on
       }
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["board-posts", lectureId, category.id] });
+      qc.invalidateQueries({ queryKey: ["board-posts", lectureId] });
       feedback.success("글이 등록되었습니다.");
       onClose();
     },
