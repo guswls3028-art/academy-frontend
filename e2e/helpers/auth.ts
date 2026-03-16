@@ -17,21 +17,22 @@ const CREDS: Record<TenantRole, { base: string; code: string; user: string; pass
 
 export async function loginViaUI(page: Page, role: TenantRole): Promise<void> {
   const c = CREDS[role];
-  await page.goto(`${c.base}/login/${c.code}`);
-  await page.waitForLoadState("networkidle");
+  // 호스트 기반 tenant 해석: /login만으로 충분 (code 불필요)
+  // /login/code → /login 리다이렉트 발생할 수 있으므로 /login 직접 사용
+  await page.goto(`${c.base}/login`);
+  await page.waitForLoadState("domcontentloaded");
 
-  const openBtn = page.locator("button").filter({ hasText: /로그인|시작/ }).first();
-  if (await openBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-    await openBtn.click();
-    await page.waitForTimeout(500);
-  }
-
+  // 로그인 폼이 보일 때까지 대기
   const idInput = page.locator('input[name="username"], input[placeholder*="아이디"], input[type="text"]').first();
-  await idInput.waitFor({ state: "visible", timeout: 5000 });
+  await idInput.waitFor({ state: "visible", timeout: 10000 });
   await idInput.fill(c.user);
   await page.locator('input[type="password"]').first().fill(c.pass);
+
+  // 제출
   await page.locator('button[type="submit"], button').filter({ hasText: /로그인/ }).first().click();
-  await page.waitForURL(/\/(admin|student|dev)/, { timeout: 15000 });
+
+  // 대시보드 도착 대기
+  await page.waitForURL(/\/(admin|student|dev)/, { timeout: 20000 });
 }
 
 export function getBaseUrl(role?: TenantRole | string): string {
