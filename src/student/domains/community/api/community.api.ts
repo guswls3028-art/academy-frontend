@@ -42,26 +42,18 @@ export function resetTypeCache() {
 
 // ── QnA ──
 
-/** 내가 작성한 질문 목록 */
+/** 내가 작성한 질문 목록 — post_type 기반 */
 export async function fetchMyQuestions(studentId: number, pageSize = 50): Promise<PostEntity[]> {
-  const [{ qna }, posts] = await Promise.all([
-    resolveTypeIds(),
-    fetchPosts({ nodeId: null, pageSize }),
-  ]);
+  const posts = await fetchPosts({ nodeId: null, pageSize });
   return posts
-    .filter((p) => {
-      const isQna = qna != null ? p.block_type === qna : (p.block_type_label || "").toLowerCase().includes("qna");
-      return isQna && Number(p.created_by) === Number(studentId);
-    })
+    .filter((p) => p.post_type === "qna" && Number(p.created_by) === Number(studentId))
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 }
 
-/** 질문 상세 (QnA 타입 검증 포함) */
+/** 질문 상세 */
 export async function fetchQuestionDetail(id: number): Promise<PostEntity | null> {
-  const [{ qna }, post] = await Promise.all([resolveTypeIds(), fetchPost(id)]);
-  if (!post) return null;
-  const isQna = qna != null ? post.block_type === qna : (post.block_type_label || "").toLowerCase().includes("qna");
-  return isQna ? post : null;
+  const post = await fetchPost(id);
+  return post;
 }
 
 /** 답변 여부 */
@@ -69,17 +61,15 @@ export function isAnswered(post: PostEntity): boolean {
   return (post.replies_count ?? 0) > 0;
 }
 
-/** 질문 등록 */
+/** 질문 등록 — post_type 기반 (block_type 불필요) */
 export async function submitQuestion(
   title: string,
   content: string,
   studentId: number,
   categoryLabel?: string | null,
 ): Promise<PostEntity> {
-  const { qna } = await resolveTypeIds();
-  if (qna == null) throw new Error("QnA 유형이 설정되지 않았습니다. 관리자에게 문의하세요.");
   return _createPost({
-    block_type: qna,
+    post_type: "qna",
     title,
     content,
     created_by: studentId,
@@ -90,45 +80,23 @@ export async function submitQuestion(
 
 // ── 상담 신청 ──
 
-/** counsel 블록 유형 ID를 확보 (목록에서 resolve, 없으면 생성 시도) */
-async function getCounselTypeId(): Promise<number> {
-  // 캐시에 있으면 바로 반환
-  const cached = _typeCache?.counsel;
-  if (cached != null) return cached;
-  // 먼저 목록에서 resolve 시도 (학생도 접근 가능)
-  const { counsel } = await resolveTypeIds();
-  if (counsel != null) return counsel;
-  // 목록에 없으면 생성 시도 (스태프만 가능, 학생은 403)
-  try {
-    const id = await ensureCounselBlockType();
-    if (_typeCache) _typeCache.counsel = id;
-    return id;
-  } catch {
-    throw new Error("상담 신청 유형이 설정되지 않았습니다. 관리자에게 문의하세요.");
-  }
-}
-
-/** 내가 작성한 상담 신청 목록 */
+/** 내가 작성한 상담 신청 목록 — post_type 기반 */
 export async function fetchMyCounselRequests(studentId: number, pageSize = 50): Promise<PostEntity[]> {
-  const [counselId, posts] = await Promise.all([
-    getCounselTypeId(),
-    fetchPosts({ nodeId: null, pageSize }),
-  ]);
+  const posts = await fetchPosts({ nodeId: null, pageSize });
   return posts
-    .filter((p) => p.block_type === counselId && Number(p.created_by) === Number(studentId))
+    .filter((p) => p.post_type === "counsel" && Number(p.created_by) === Number(studentId))
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 }
 
-/** 상담 신청 등록 */
+/** 상담 신청 등록 — post_type 기반 */
 export async function submitCounselRequest(
   title: string,
   content: string,
   studentId: number,
   categoryLabel?: string | null,
 ): Promise<PostEntity> {
-  const counselId = await getCounselTypeId();
   return _createPost({
-    block_type: counselId,
+    post_type: "counsel",
     title,
     content,
     created_by: studentId,
@@ -146,47 +114,23 @@ export async function fetchNoticePosts(pageSize = 100): Promise<PostEntity[]> {
   return posts.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 }
 
-// ── 게시판 (QnA·공지·상담·자료실 제외 일반 게시물) ──
+// ── 게시판 — post_type 기반 ──
 
 /** 일반 게시판 목록 */
 export async function fetchBoardPosts(pageSize = 100): Promise<PostEntity[]> {
-  const [{ qna, notice, counsel, materials }, posts] = await Promise.all([
-    resolveTypeIds(),
-    fetchPosts({ nodeId: null, pageSize }),
-  ]);
-  const excluded = new Set([qna, notice, counsel, materials].filter((v): v is number => v != null));
+  const posts = await fetchPosts({ nodeId: null, pageSize });
   return posts
-    .filter((p) => !excluded.has(p.block_type))
+    .filter((p) => p.post_type === "board")
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 }
 
-// ── 자료실 ──
-
-/** materials 블록 유형 ID를 확보 (목록에서 resolve, 없으면 생성 시도) */
-async function getMaterialsTypeId(): Promise<number> {
-  const cached = _typeCache?.materials;
-  if (cached != null) return cached;
-  // 먼저 목록에서 resolve 시도 (학생도 접근 가능)
-  const { materials } = await resolveTypeIds();
-  if (materials != null) return materials;
-  // 목록에 없으면 생성 시도 (스태프만 가능, 학생은 403)
-  try {
-    const id = await ensureMaterialsBlockType();
-    if (_typeCache) _typeCache.materials = id;
-    return id;
-  } catch {
-    throw new Error("자료실 유형이 설정되지 않았습니다. 관리자에게 문의하세요.");
-  }
-}
+// ── 자료실 — post_type 기반 ──
 
 /** 자료실 목록 */
 export async function fetchMaterialsPosts(pageSize = 100): Promise<PostEntity[]> {
-  const [materialsId, posts] = await Promise.all([
-    getMaterialsTypeId(),
-    fetchPosts({ nodeId: null, pageSize }),
-  ]);
+  const posts = await fetchPosts({ nodeId: null, pageSize });
   return posts
-    .filter((p) => p.block_type === materialsId)
+    .filter((p) => p.post_type === "materials")
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 }
 

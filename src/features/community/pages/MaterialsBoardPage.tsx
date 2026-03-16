@@ -493,7 +493,7 @@ function MatCreatePane({
     setSubmitting(true);
     setError(null);
     try {
-      const post = await createPost({ block_type: materialsTypeId, title: title.trim(), content, node_ids: autoNodeIds });
+      const post = await createPost({ post_type: "materials", block_type: materialsTypeId, title: title.trim(), content, node_ids: autoNodeIds });
       if (files.length > 0 && post?.id) {
         await uploadPostAttachments(post.id, files);
       }

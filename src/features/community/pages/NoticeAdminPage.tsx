@@ -752,6 +752,7 @@ function NoticeCreatePane({
     setError(null);
     try {
       await createPost({
+        post_type: "notice",
         block_type: noticeTypeId,
         title: title.trim(),
         content,

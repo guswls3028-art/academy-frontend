@@ -545,7 +545,8 @@ function BoardCreatePane({
     setError(null);
     try {
       const post = await createPost({
-        block_type: Number(blockTypeId),
+        post_type: "board",
+        block_type: Number(blockTypeId) || undefined,
         title: title.trim(),
         content,
         node_ids: autoNodeIds,

@@ -49,9 +49,12 @@ export interface PostAttachment {
   created_at: string;
 }
 
+export type PostType = "notice" | "board" | "materials" | "qna" | "counsel";
+
 export interface PostEntity {
   id: number;
   tenant?: number;
+  post_type: PostType;
   block_type: number;
   block_type_label: string;
   title: string;
@@ -336,8 +339,9 @@ export async function fetchAllNoticePostsForCount(): Promise<PostEntity[]> {
   return all;
 }
 
-/** 관리자 목록: block_type_id, lecture_id, page, page_size */
+/** 관리자 목록: post_type, block_type_id, lecture_id, page, page_size */
 export async function fetchAdminPosts(params: {
+  postType?: PostType | null;
   blockTypeId?: number | null;
   lectureId?: number | null;
   page?: number;
@@ -345,6 +349,7 @@ export async function fetchAdminPosts(params: {
 }): Promise<{ results: PostEntity[]; count: number }> {
   const res = await api.get(`${PREFIX}/admin/posts/`, {
     params: {
+      post_type: params.postType ?? undefined,
       block_type_id: params.blockTypeId ?? undefined,
       lecture_id: params.lectureId ?? undefined,
       page: params.page ?? 1,
@@ -359,7 +364,8 @@ export async function fetchAdminPosts(params: {
 }
 
 export async function createPost(data: {
-  block_type: number;
+  post_type?: PostType;
+  block_type?: number;
   title: string;
   content: string;
   created_by?: number | null;
@@ -527,27 +533,22 @@ export async function getNoticeBlockTypeId(): Promise<number | null> {
   return notice?.id ?? null;
 }
 
-/** QNA 블록타입만 필터한 질문 목록 (code "qna" 기준 — 선생 앱과 동일) */
+/** QnA 목록 (post_type="qna" 기준) */
 export async function fetchCommunityQuestions(
   params?: CommunityScopeParams | null
 ): Promise<Question[]> {
-  const qnaBlockTypeId = await getQnaBlockTypeId();
   const toQuestion = (p: PostEntity): Question => ({
     ...postEntityToQuestion(p),
     is_answered: (p.replies_count ?? 0) > 0,
   });
 
-  const isQnaPost = (p: PostEntity) =>
-    qnaBlockTypeId != null ? p.block_type === qnaBlockTypeId : (p.block_type_label || "").toLowerCase().includes("qna");
-
   // 관리자: 항상 admin API 사용 (학생 글은 node_ids=[] 이므로 scope 기반 조회에서 누락됨)
   const { results } = await fetchAdminPosts({
-    blockTypeId: qnaBlockTypeId ?? undefined,
+    postType: "qna",
     lectureId: params?.scope === "lecture" ? (params.lectureId ?? undefined) : undefined,
     pageSize: 500,
   });
-  const filtered = qnaBlockTypeId != null ? results : results.filter(isQnaPost);
-  return filtered.map(toQuestion);
+  return results.map(toQuestion);
 }
 
 export interface Answer {
