@@ -501,7 +501,14 @@ function BoardCreatePane({
   onSuccess: () => void;
   initialBlockTypeId?: number;
 }) {
-  const [blockTypeId, setBlockTypeId] = useState<number | "">(initialBlockTypeId ?? (blockTypes.length === 1 ? blockTypes[0].id : ""));
+  // 게시판 전용: 자동으로 첫 번째 게시판 유형 사용 (유형 선택 불필요)
+  const boardTypeId = useMemo(() => {
+    if (initialBlockTypeId) return initialBlockTypeId;
+    const excluded = new Set(["notice", "qna", "counsel", "materials", "bug_report", "dev_feedback"]);
+    const boardType = blockTypes.find((bt) => !excluded.has((bt.code ?? "").toLowerCase()));
+    return boardType?.id ?? blockTypes[0]?.id ?? "";
+  }, [blockTypes, initialBlockTypeId]);
+  const [blockTypeId] = useState<number | "">(boardTypeId);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [files, setFiles] = useState<File[]>([]);
@@ -521,7 +528,7 @@ function BoardCreatePane({
       const nodes = scopeNodes.filter((n) => n.lecture === scopeParams.lectureId && n.level === "COURSE");
       return nodes.map((n) => n.id);
     }
-    return scopeNodes.filter((n) => n.level === "COURSE").map((n) => n.id);
+    return []; // 전체 게시물: 매핑 없음
   }, [scopeNodes, scopeParams]);
 
   const scopeLabel = scopeParams.scope === "session"
@@ -530,7 +537,7 @@ function BoardCreatePane({
     ? scopeNodes.find((n) => n.lecture === scopeParams.lectureId)?.lecture_title ?? "선택된 강의"
     : "전체 게시물";
 
-  const canSubmit = blockTypeId !== "" && title.trim().length > 0 && autoNodeIds.length > 0 && !submitting;
+  const canSubmit = blockTypeId !== "" && title.trim().length > 0 && !submitting;
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
@@ -573,21 +580,6 @@ function BoardCreatePane({
       </header>
 
       <div className="qna-inbox__thread-body" style={{ padding: "var(--space-4, 16px) var(--space-5, 20px)" }}>
-        <div style={{ marginBottom: "var(--space-4, 16px)" }}>
-          <label className="community-field__label community-field__label--required" style={{ display: "block", marginBottom: 6 }}>유형</label>
-          <select
-            className="ds-input"
-            value={blockTypeId}
-            onChange={(e) => setBlockTypeId(e.target.value === "" ? "" : Number(e.target.value))}
-            style={{ width: "100%" }}
-          >
-            <option value="">선택하세요</option>
-            {blockTypes.map((bt) => (
-              <option key={bt.id} value={bt.id}>{bt.label}</option>
-            ))}
-          </select>
-        </div>
-
         <div style={{ marginBottom: "var(--space-4, 16px)" }}>
           <label className="community-field__label community-field__label--required" style={{ display: "block", marginBottom: 6 }}>제목</label>
           <input

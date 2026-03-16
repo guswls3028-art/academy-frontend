@@ -393,7 +393,7 @@ function QnaDetailContent({ question, onBack }: { question: PostEntity; onBack: 
                       className="stu-panel"
                       style={{ padding: "var(--stu-space-4)", background: "var(--stu-success-bg)", border: "1px solid var(--stu-success)" }}
                     >
-                      <div style={{ fontSize: 14, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{r.content}</div>
+                      <HtmlContent html={r.content} />
                       <div className="stu-muted" style={{ fontSize: 12, marginTop: "var(--stu-space-2)" }}>{formatYmd(r.created_at)}</div>
                     </div>
                   ))}
@@ -692,7 +692,7 @@ function CounselDetailContent({ request, onBack }: { request: PostEntity; onBack
                       className="stu-panel"
                       style={{ padding: "var(--stu-space-4)", background: "var(--stu-success-bg)", border: "1px solid var(--stu-success)" }}
                     >
-                      <div style={{ fontSize: 14, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{r.content}</div>
+                      <HtmlContent html={r.content} />
                       <div className="stu-muted" style={{ fontSize: 12, marginTop: "var(--stu-space-2)" }}>{formatYmd(r.created_at)}</div>
                     </div>
                   ))}
@@ -879,12 +879,47 @@ function AttachmentList({ postId, attachments }: { postId: number; attachments?:
     return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
   };
 
+  const isImage = (ct: string) => ct.startsWith("image/");
+
+  // 이미지 URL 캐시
+  const [imgUrls, setImgUrls] = useState<Record<number, string>>({});
+  useEffect(() => {
+    const images = attachments.filter((a) => isImage(a.content_type));
+    if (images.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      const urls: Record<number, string> = {};
+      for (const img of images) {
+        try {
+          const { url } = await getAttachmentDownloadUrl(postId, img.id);
+          if (!cancelled) urls[img.id] = url;
+        } catch { /* skip */ }
+      }
+      if (!cancelled) setImgUrls(urls);
+    })();
+    return () => { cancelled = true; };
+  }, [attachments, postId]);
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-2)" }}>
-      <div style={{ fontSize: 13, fontWeight: 600, color: "var(--stu-text-muted)" }}>
-        첨부파일 ({attachments.length})
-      </div>
-      {attachments.map((att) => (
+    <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-3)" }}>
+      {/* 이미지 미리보기 */}
+      {attachments.filter((a) => isImage(a.content_type)).map((att) => (
+        <div key={`img-${att.id}`} style={{ borderRadius: "var(--stu-radius)", overflow: "hidden", border: "1px solid var(--stu-border-subtle)" }}>
+          {imgUrls[att.id] ? (
+            <img src={imgUrls[att.id]} alt={att.original_name} style={{ width: "100%", maxHeight: 400, objectFit: "contain", display: "block", background: "var(--stu-surface-soft)" }} />
+          ) : (
+            <div style={{ height: 100, display: "grid", placeItems: "center", background: "var(--stu-surface-soft)", fontSize: 13, color: "var(--stu-text-muted)" }}>이미지 로딩 중…</div>
+          )}
+        </div>
+      ))}
+
+      {/* 파일 목록 */}
+      {attachments.filter((a) => !isImage(a.content_type)).length > 0 && (
+        <div style={{ fontSize: 13, fontWeight: 600, color: "var(--stu-text-muted)" }}>
+          첨부파일 ({attachments.filter((a) => !isImage(a.content_type)).length})
+        </div>
+      )}
+      {attachments.filter((a) => !isImage(a.content_type)).map((att) => (
         <button
           key={att.id}
           type="button"
