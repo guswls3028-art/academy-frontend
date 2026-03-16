@@ -1,5 +1,6 @@
 // PATH: src/shared/ui/ErrorBoundary.tsx
 import { Component, type ErrorInfo, type ReactNode } from "react";
+import * as Sentry from "@sentry/react";
 
 interface Props {
   children: ReactNode;
@@ -21,6 +22,10 @@ export default class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error("[ErrorBoundary]", error, info.componentStack);
+    // Sentry에 에러 보고 (DSN 설정 시에만 동작)
+    Sentry.captureException(error, {
+      contexts: { react: { componentStack: info.componentStack || "" } },
+    });
   }
 
   render() {
