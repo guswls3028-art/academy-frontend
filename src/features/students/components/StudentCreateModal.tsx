@@ -539,7 +539,13 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
         sendWelcomeMessage,
       });
       const loginId = (student?.psNumber ?? form.psNumber?.trim()) || "(자동 부여됨)";
-      feedback.success(`등록 완료. 로그인 아이디: ${loginId} (초기 비밀번호로 로그인하세요)`);
+      const parentPhone = String(form.parentPhone || "").trim();
+      feedback.success(
+        `등록 완료\n` +
+        `학생 아이디: ${loginId}\n` +
+        (parentPhone ? `학부모 아이디: ${parentPhone} (비밀번호: 0000)\n` : "") +
+        `학생·학부모 모두 초기 비밀번호로 로그인하세요.`
+      );
       onSuccess();
       onClose();
     } catch (e: unknown) {
@@ -611,7 +617,13 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
         sendWelcomeMessage,
       });
       const loginId = (student?.psNumber ?? deletedStudentConflict.formData.psNumber?.trim()) || "(자동 부여됨)";
-      feedback.success(`등록 완료. 로그인 아이디: ${loginId} (초기 비밀번호로 로그인하세요)`);
+      const parentPhone = String(deletedStudentConflict.formData.parentPhone || "").trim();
+      feedback.success(
+        `등록 완료\n` +
+        `학생 아이디: ${loginId}\n` +
+        (parentPhone ? `학부모 아이디: ${parentPhone} (비밀번호: 0000)\n` : "") +
+        `학생·학부모 모두 초기 비밀번호로 로그인하세요.`
+      );
       setDeletedStudentConflict(null);
       onSuccess();
       onClose();
@@ -842,7 +854,7 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
             />
             <div className="modal-phone-row">
               <span className="modal-phone-label">학부모 전화번호 (필수)</span>
-              <span className="modal-phone-desc">문자·연락 수신용입니다.</span>
+              <span className="modal-phone-desc">학부모 로그인 아이디로 사용됩니다. 초기 비밀번호는 0000입니다.</span>
               <PhoneInput010Blocks
                 value={form.parentPhone ?? ""}
                 onChange={(v) => setForm((p) => ({ ...p, parentPhone: v }))}
@@ -1005,6 +1017,11 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
             onClearFile={() => setSelectedExcelFile(null)}
             disabled={busy}
           />
+
+          <div className="modal-hint" style={{ marginTop: "var(--space-3)", lineHeight: 1.6 }}>
+            학생 아이디는 자동 부여됩니다.<br />
+            학부모 아이디는 학부모 전화번호이며, 초기 비밀번호는 0000입니다.
+          </div>
         </div>
         )}
       </ModalBody>
