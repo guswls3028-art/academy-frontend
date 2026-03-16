@@ -16,7 +16,7 @@ export type StudentTenantBranding = {
 /** 2번(박철과학) 전용 — TchulLogoIcon 사용 */
 const TCHUL_DESIGN_CODES = ["tchul"] as const;
 /** 1,3,4,9999 공통 — commonlogo 사용 (common=9999 로컬 경로) */
-const COMMON_LOGO_CODES = ["hakwonplus", "limglish", "ymath", "sswe", "9999", "common"] as const;
+const COMMON_LOGO_CODES = ["hakwonplus", "limglish", "ymath", "9999", "common"] as const;
 
 /**
  * 학생앱에서 사용할 테넌트별 브랜딩.

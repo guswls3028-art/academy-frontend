@@ -1,0 +1,240 @@
+/* PATH: src/student/shared/ui/theme/tenants/sswe.css
+ * SSWE 학생앱 전용 테마 — Navy #002357 + Orange #f18e2c
+ * 프리미엄 화이트 배경 + 네이비-오렌지 악센트
+ */
+[data-student-theme="sswe"] {
+  /* 배경·서페이스 */
+  --stu-bg: #f8f9fb;
+  --stu-surface: #ffffff;
+  --stu-surface-soft: #f1f3f7;
+  --stu-surface-0: #f8f9fb;
+  --stu-surface-1: #ffffff;
+  --stu-surface-2: #f1f3f7;
+  --stu-border: rgba(0, 35, 87, 0.08);
+  --stu-border-hover: rgba(0, 35, 87, 0.15);
+
+  --stu-bg-pattern:
+    radial-gradient(circle at 1px 1px, rgba(0, 35, 87, 0.012) 1px, transparent 0),
+    linear-gradient(to bottom, transparent, rgba(241, 142, 44, 0.005));
+  --stu-bg-pattern-size: 24px 24px, 100% 100%;
+
+  /* 텍스트 */
+  --stu-text: #0f172a;
+  --stu-text-muted: #64748b;
+  --stu-text-subtle: #94a3b8;
+
+  /* 프라이머리: 네이비 */
+  --stu-primary: #002357;
+  --stu-primary-hover: #001a42;
+  --stu-primary-contrast: #fff;
+  --stu-glow-primary: 0 0 20px rgba(0, 35, 87, 0.20);
+
+  /* 그라디언트: 네이비 → 오렌지 */
+  --stu-gradient: linear-gradient(135deg, #002357 0%, #003580 40%, #f18e2c 100%);
+  --stu-focus: rgba(241, 142, 44, 0.25);
+
+  /* 시맨틱 */
+  --stu-success: #22c55e;
+  --stu-success-bg: rgba(34, 197, 94, 0.10);
+  --stu-success-border: rgba(34, 197, 94, 0.30);
+  --stu-success-text: #16a34a;
+
+  --stu-warn: #f59e0b;
+  --stu-warn-bg: rgba(245, 158, 11, 0.10);
+  --stu-warn-border: rgba(245, 158, 11, 0.30);
+  --stu-warn-text: #d97706;
+
+  --stu-danger: #dc2626;
+  --stu-danger-hover: #b91c1c;
+  --stu-danger-bg: rgba(220, 38, 38, 0.10);
+  --stu-danger-border: rgba(220, 38, 38, 0.30);
+  --stu-danger-text: #dc2626;
+
+  /* 헤더/탭바 */
+  --stu-header-bg: rgba(248, 249, 251, 0.92);
+  --stu-tabbar-bg: rgba(248, 249, 251, 0.95);
+
+  --stu-tint-primary: color-mix(in srgb, var(--stu-primary) 5%, var(--stu-surface-1));
+  --stu-tint-hover: color-mix(in srgb, var(--stu-primary) 9%, var(--stu-surface-1));
+}
+
+/* 다크모드 강제 라이트 */
+@media (prefers-color-scheme: dark) {
+  [data-student-theme="sswe"] {
+    --stu-bg: #f8f9fb;
+    --stu-surface: #ffffff;
+    --stu-surface-soft: #f1f3f7;
+    --stu-surface-0: #f8f9fb;
+    --stu-surface-1: #ffffff;
+    --stu-surface-2: #f1f3f7;
+    --stu-text: #0f172a;
+    --stu-text-muted: #64748b;
+    --stu-text-subtle: #94a3b8;
+    --stu-header-bg: rgba(248, 249, 251, 0.92);
+    --stu-tabbar-bg: rgba(248, 249, 251, 0.95);
+  }
+}
+
+[data-student-theme="sswe"] :focus-visible {
+  outline: 3px solid var(--stu-focus);
+  outline-offset: 2px;
+  border-radius: 10px;
+}
+
+/* ── 탭바 액티브 인디케이터 ── */
+[data-student-theme="sswe"] .stu-tabbar .stu-tabbar__link[aria-current="page"] {
+  color: #002357;
+  font-weight: 800;
+  position: relative;
+}
+
+[data-student-theme="sswe"] .stu-tabbar .stu-tabbar__link[aria-current="page"]::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  transform: translateX(-50%);
+  width: 24px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--stu-gradient);
+}
+
+/* ── 프라이머리 버튼: 네이비→오렌지 그라디언트 ── */
+[data-student-theme="sswe"] .stu-btn--primary {
+  background: var(--stu-gradient);
+  box-shadow: 0 2px 8px rgba(0, 35, 87, 0.15);
+}
+
+[data-student-theme="sswe"] .stu-btn--primary:hover {
+  filter: brightness(1.05);
+  background: var(--stu-gradient);
+  box-shadow: 0 4px 16px rgba(0, 35, 87, 0.22);
+}
+
+/* 위험 버튼 */
+[data-student-theme="sswe"] .stu-btn--danger {
+  background: var(--stu-danger);
+  color: #fff;
+  border: none;
+}
+
+[data-student-theme="sswe"] .stu-btn--danger:hover {
+  background: var(--stu-danger-hover);
+  filter: brightness(0.95);
+}
+
+/* ── SVG 아이콘 그라디언트 ── */
+[data-student-theme="sswe"] .stu-icon,
+[data-student-theme="sswe"] .stu-icon path,
+[data-student-theme="sswe"] .stu-icon circle,
+[data-student-theme="sswe"] .stu-icon polygon,
+[data-student-theme="sswe"] .stu-icon rect {
+  stroke: url(#stu-gradient-sswe);
+}
+
+[data-student-theme="sswe"] .stu-icon path[fill="currentColor"],
+[data-student-theme="sswe"] .stu-icon circle[fill="currentColor"],
+[data-student-theme="sswe"] .stu-icon polygon[fill="currentColor"] {
+  fill: url(#stu-gradient-sswe);
+}
+
+/* ── 앱 배경 그라디언트 ── */
+[data-student-theme="sswe"] [data-app="student"] {
+  background-image:
+    linear-gradient(135deg, rgba(0, 35, 87, 0.035) 0%, rgba(0, 53, 128, 0.02) 50%, rgba(241, 142, 44, 0.015) 100%) !important,
+    var(--stu-bg-pattern) !important;
+  background-size: 100% 100%, var(--stu-bg-pattern-size) !important;
+  background-color: var(--stu-bg) !important;
+  background-repeat: no-repeat !important;
+  background-attachment: fixed !important;
+}
+
+/* 헤더 배경 미묘한 그라디언트 */
+[data-student-theme="sswe"] [data-app="student"] header {
+  background-image: linear-gradient(135deg, rgba(0, 35, 87, 0.06) 0%, rgba(0, 53, 128, 0.04) 50%, rgba(241, 142, 44, 0.02) 100%) !important;
+  background-size: 100% 100%;
+}
+
+/* 탭바 배경 */
+[data-student-theme="sswe"] [data-app="student"] .stu-tabbar {
+  background-image: linear-gradient(135deg, rgba(0, 35, 87, 0.06) 0%, rgba(0, 53, 128, 0.04) 50%, rgba(241, 142, 44, 0.02) 100%) !important;
+  background-size: 100% 100%;
+}
+
+/* ── 패널, 카드, 섹션 ── */
+[data-student-theme="sswe"] [data-app="student"] .stu-panel {
+  background-image:
+    linear-gradient(135deg, rgba(0, 35, 87, 0.04) 0%, rgba(0, 53, 128, 0.025) 50%, rgba(241, 142, 44, 0.015) 100%),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.02), rgba(0, 0, 0, 0.01));
+  background-color: var(--stu-surface-1);
+}
+
+[data-student-theme="sswe"] [data-app="student"] .stu-section,
+[data-student-theme="sswe"] [data-app="student"] .stu-card {
+  background-image:
+    linear-gradient(135deg, rgba(0, 35, 87, 0.035) 0%, rgba(0, 53, 128, 0.02) 50%, rgba(241, 142, 44, 0.012) 100%);
+  background-color: var(--stu-surface-1);
+}
+
+/* ── 액션 타일 ── */
+[data-app="student"][data-student-theme="sswe"] .stu-action-tile {
+  background-color: var(--stu-surface-1) !important;
+  background-image:
+    linear-gradient(135deg, rgba(0, 35, 87, 0.12) 0%, rgba(0, 53, 128, 0.08) 40%, rgba(241, 142, 44, 0.06) 100%),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.04), rgba(0, 0, 0, 0.02)) !important;
+  background-size: 100% 100%, 100% 100% !important;
+  background-repeat: no-repeat !important;
+  background-position: center center !important;
+  background-attachment: local !important;
+}
+
+[data-app="student"][data-student-theme="sswe"] .stu-action-tile::before {
+  background: linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.05) 0%,
+    transparent 50%,
+    rgba(0, 0, 0, 0.02) 100%
+  ) !important;
+  z-index: 0 !important;
+  opacity: 1 !important;
+}
+
+[data-app="student"][data-student-theme="sswe"] .stu-action-tile__icon {
+  background-color: var(--stu-tint-primary) !important;
+  background-image: linear-gradient(135deg, rgba(0, 35, 87, 0.15) 0%, rgba(0, 53, 128, 0.10) 40%, rgba(241, 142, 44, 0.08) 100%) !important;
+  background-size: 100% 100% !important;
+  background-repeat: no-repeat !important;
+  background-position: center center !important;
+}
+
+/* ── QnA 페이지 ── */
+[data-student-theme="sswe"] [data-page="qna"] .stu-emptystate__icon {
+  background: linear-gradient(135deg, rgba(0, 35, 87, 0.10) 0%, rgba(241, 142, 44, 0.06) 100%) !important;
+  border-color: rgba(0, 35, 87, 0.15) !important;
+}
+
+[data-student-theme="sswe"] [data-page="qna"] .stu-emptystate__icon-svg {
+  stroke: #002357;
+}
+
+[data-student-theme="sswe"] [data-page="qna"] .stu-btn--primary {
+  background: var(--stu-gradient);
+  box-shadow: 0 2px 8px rgba(0, 35, 87, 0.18);
+}
+
+[data-student-theme="sswe"] [data-page="qna"] .stu-panel.stu-panel--pressable {
+  background-image:
+    linear-gradient(135deg, rgba(0, 35, 87, 0.04) 0%, rgba(241, 142, 44, 0.02) 100%),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.03), rgba(0, 0, 0, 0.01));
+  border: 1px solid rgba(0, 35, 87, 0.10);
+}
+
+[data-student-theme="sswe"] [data-page="qna"] .stu-panel.stu-panel--pressable:hover {
+  border-color: rgba(0, 35, 87, 0.20);
+}
+
+[data-student-theme="sswe"] [data-page="qna"] .stu-section--nested > div:first-child {
+  color: #002357;
+  letter-spacing: -0.02em;
+}

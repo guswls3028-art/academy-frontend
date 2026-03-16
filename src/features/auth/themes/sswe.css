@@ -1,32 +1,37 @@
-/* sswe 테넌트 색상 SSOT — 화이트톤 + 퍼플-인디고 그라데이션 */
+/* PATH: src/features/auth/themes/sswe.css
+ * SSWE 테넌트 — 프리미엄 다크 네이비 + 오렌지 악센트
+ * 로고 컬러: Navy #002357, Orange #f18e2c
+ * 글라스모피즘 + 다크 배경으로 고급스러운 로그인 경험
+ */
 
 [data-app="auth"][data-tenant="sswe"] {
-  /* 화이트톤 */
-  --sswe-bg: #faf8ff;
-  --sswe-surface: #ffffff;
-  --sswe-border: #e4e0f0;
-  --sswe-border-hover: #c4b5fd;
+  /* ── 다크 네이비 배경 ── */
+  --sswe-navy: #002357;
+  --sswe-navy-deep: #001a42;
+  --sswe-navy-light: #003580;
+  --sswe-orange: #f18e2c;
+  --sswe-orange-hover: #e07d1a;
+  --sswe-gold: #f5a623;
 
-  /* 텍스트 */
-  --sswe-text: #1e1b4b;
-  --sswe-text-muted: #6b7280;
+  --sswe-bg: #001029;
+  --sswe-surface: rgba(255, 255, 255, 0.06);
+  --sswe-surface-solid: #0a1f3d;
+  --sswe-border: rgba(255, 255, 255, 0.10);
+  --sswe-border-hover: rgba(241, 142, 44, 0.35);
 
-  /* 로고 컬러 — 퍼플 계열 */
-  --sswe-primary: #7c3aed;
-  --sswe-primary-hover: #6d28d9;
+  --sswe-text: rgba(255, 255, 255, 0.95);
+  --sswe-text-muted: rgba(255, 255, 255, 0.55);
 
-  /* 포커스 / 에러 */
-  --sswe-focus: rgba(124, 58, 237, 0.2);
-  --sswe-error: #dc2626;
+  --sswe-focus: rgba(241, 142, 44, 0.30);
+  --sswe-error: #ff6b6b;
 
-  /* 그라데이션 모드 — Purple to Indigo */
-  --sswe-gradient: linear-gradient(135deg, #4c1d95 0%, #7c3aed 50%, #a78bfa 100%);
-  --sswe-gradient-hover: linear-gradient(135deg, #4c1d95 0%, #6d28d9 50%, #8b5cf6 100%);
+  --sswe-gradient: linear-gradient(135deg, #f18e2c 0%, #f5a623 50%, #f18e2c 100%);
+  --sswe-gradient-hover: linear-gradient(135deg, #e07d1a 0%, #e8961e 50%, #e07d1a 100%);
 
-  /* 공통 별칭 — LoginPage 에서 사용 */
-  --auth-accent: var(--sswe-primary);
+  /* ── 공통 별칭 ── */
+  --auth-accent: var(--sswe-orange);
   --auth-bg: var(--sswe-bg);
-  --auth-surface: var(--sswe-surface);
+  --auth-surface: var(--sswe-surface-solid);
   --auth-border: var(--sswe-border);
   --auth-border-hover: var(--sswe-border-hover);
   --auth-text: var(--sswe-text);
@@ -35,4 +40,234 @@
   --auth-error: var(--sswe-error);
   --auth-gradient: var(--sswe-gradient);
   --auth-gradient-hover: var(--sswe-gradient-hover);
+}
+
+/* ── 배경: 다크 네이비 + 미묘한 그라데이션 오브 ── */
+[data-app="auth"][data-tenant="sswe"] div[class*="root"] {
+  background:
+    radial-gradient(ellipse 80% 60% at 50% -10%, rgba(0, 35, 87, 0.7) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 50% at 70% 90%, rgba(241, 142, 44, 0.08) 0%, transparent 50%),
+    radial-gradient(ellipse 40% 30% at 20% 80%, rgba(0, 53, 128, 0.3) 0%, transparent 50%),
+    linear-gradient(180deg, #000d1f 0%, #001029 40%, #001a42 100%);
+}
+
+/* ── 로그인 카드: 글라스모피즘 ── */
+[data-app="auth"][data-tenant="sswe"] div[class*="center"] {
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 24px;
+  padding: 2.5rem 2rem;
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.3),
+    0 1px 0 rgba(255, 255, 255, 0.05) inset;
+}
+
+/* ── 로고 크기 ── */
+[data-app="auth"][data-tenant="sswe"] img[class*="logo"] {
+  max-height: 6rem;
+  max-width: min(100%, 16rem);
+  margin-bottom: 1.5rem;
+  filter: drop-shadow(0 2px 8px rgba(241, 142, 44, 0.15));
+}
+
+/* ── 타이틀 스타일 ── */
+[data-app="auth"][data-tenant="sswe"] h1[class*="title"] {
+  color: rgba(255, 255, 255, 0.95);
+  font-size: 1.5rem;
+  font-weight: 300;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+
+/* ── 입력 필드: 다크 글라스 ── */
+[data-app="auth"][data-tenant="sswe"] input[class*="input"] {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.95);
+  border-radius: 14px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+}
+
+[data-app="auth"][data-tenant="sswe"] input[class*="input"]::placeholder {
+  color: rgba(255, 255, 255, 0.35);
+}
+
+[data-app="auth"][data-tenant="sswe"] input[class*="input"]:hover {
+  border-color: rgba(255, 255, 255, 0.20);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+[data-app="auth"][data-tenant="sswe"] input[class*="input"]:focus {
+  border-color: var(--sswe-orange);
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 0 0 3px var(--sswe-focus), 0 0 20px rgba(241, 142, 44, 0.08);
+}
+
+/* ── 로그인 버튼: 오렌지 그라디언트 + 글로우 ── */
+[data-app="auth"][data-tenant="sswe"] button[class*="btnPrimary"] {
+  background: var(--sswe-gradient);
+  color: #fff;
+  border-radius: 14px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  box-shadow: 0 4px 20px rgba(241, 142, 44, 0.25);
+  transition: filter 0.2s, box-shadow 0.2s, transform 0.1s;
+}
+
+[data-app="auth"][data-tenant="sswe"] button[class*="btnPrimary"]:hover:not(:disabled) {
+  filter: brightness(1.08);
+  box-shadow: 0 6px 28px rgba(241, 142, 44, 0.35);
+}
+
+/* ── 폼 구분선 ── */
+[data-app="auth"][data-tenant="sswe"] div[class*="form"] {
+  border-top-color: rgba(255, 255, 255, 0.08);
+}
+
+/* ── 링크 ── */
+[data-app="auth"][data-tenant="sswe"] button[class*="link"] {
+  color: var(--sswe-orange);
+}
+[data-app="auth"][data-tenant="sswe"] button[class*="link"]:hover {
+  color: var(--sswe-gold);
+}
+
+/* ── 에러 메시지 ── */
+[data-app="auth"][data-tenant="sswe"] div[class*="error"] {
+  color: var(--sswe-error);
+}
+
+/* ── 하단 법적고지 ── */
+[data-app="auth"][data-tenant="sswe"] div[class*="legalFooter"] {
+  color: rgba(255, 255, 255, 0.3);
+}
+[data-app="auth"][data-tenant="sswe"] a[class*="legalLink"] {
+  color: rgba(255, 255, 255, 0.3);
+}
+[data-app="auth"][data-tenant="sswe"] a[class*="legalLink"]:hover {
+  color: rgba(255, 255, 255, 0.6);
+}
+[data-app="auth"][data-tenant="sswe"] span[class*="legalSep"] {
+  color: rgba(255, 255, 255, 0.15);
+}
+
+/* ── 모달 오버라이드 (회원가입/비밀번호찾기) ── */
+[data-app="auth"][data-tenant="sswe"] div[class*="overlayCard"] {
+  background: #0a1f3d;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  color: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+}
+
+[data-app="auth"][data-tenant="sswe"] div[class*="overlayTitle"] {
+  color: rgba(255, 255, 255, 0.95);
+}
+
+[data-app="auth"][data-tenant="sswe"] div[class*="overlaySubtitle"] {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+[data-app="auth"][data-tenant="sswe"] button[class*="overlayClose"] {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.5);
+}
+[data-app="auth"][data-tenant="sswe"] button[class*="overlayClose"]:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+[data-app="auth"][data-tenant="sswe"] input[class*="signupInput"] {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.95);
+}
+[data-app="auth"][data-tenant="sswe"] input[class*="signupInput"]::placeholder {
+  color: rgba(255, 255, 255, 0.3);
+}
+[data-app="auth"][data-tenant="sswe"] input[class*="signupInput"]:focus {
+  border-color: var(--sswe-orange);
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 0 0 3px var(--sswe-focus);
+}
+
+[data-app="auth"][data-tenant="sswe"] span[class*="signupSectionTitle"] {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+[data-app="auth"][data-tenant="sswe"] span[class*="signupInputLabel"] {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+[data-app="auth"][data-tenant="sswe"] div[class*="signupSectionDivider"] {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+[data-app="auth"][data-tenant="sswe"] div[class*="signupSegmentWrap"] {
+  background: rgba(255, 255, 255, 0.06);
+}
+[data-app="auth"][data-tenant="sswe"] button[class*="signupSegmentBtn"] {
+  color: rgba(255, 255, 255, 0.5);
+}
+[data-app="auth"][data-tenant="sswe"] button[class*="signupSegmentBtn"]:hover {
+  color: rgba(255, 255, 255, 0.7);
+}
+[data-app="auth"][data-tenant="sswe"] button[class*="signupSegmentBtn"][class*="isSelected"] {
+  background: rgba(241, 142, 44, 0.15);
+  border-color: var(--sswe-orange);
+  color: var(--sswe-orange);
+}
+
+[data-app="auth"][data-tenant="sswe"] button[class*="signupBtnCancel"] {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.6);
+}
+[data-app="auth"][data-tenant="sswe"] button[class*="signupBtnCancel"]:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+[data-app="auth"][data-tenant="sswe"] div[class*="signupLegalNotice"] {
+  color: rgba(255, 255, 255, 0.3);
+}
+[data-app="auth"][data-tenant="sswe"] div[class*="signupLegalNotice"] a {
+  color: rgba(255, 255, 255, 0.45);
+}
+
+/* ── 전화번호 블록 (회원가입) ── */
+[data-app="auth"][data-tenant="sswe"] div[class*="signupPhoneBlock"],
+[data-app="auth"][data-tenant="sswe"] input[class*="signupPhoneBlockInput"] {
+  background: rgba(255, 255, 255, 0.06) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  color: rgba(255, 255, 255, 0.95) !important;
+}
+[data-app="auth"][data-tenant="sswe"] input[class*="signupPhoneBlockInput"]:focus {
+  border-color: var(--sswe-orange) !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 0 0 3px var(--sswe-focus) !important;
+}
+
+/* ── 버튼 보조 (모달) ── */
+[data-app="auth"][data-tenant="sswe"] button[class*="btnSecondary"] {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.6);
+}
+[data-app="auth"][data-tenant="sswe"] button[class*="btnSecondary"]:hover {
+  border-color: rgba(255, 255, 255, 0.25);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+/* ── 반응형 ── */
+@media (max-width: 480px) {
+  [data-app="auth"][data-tenant="sswe"] div[class*="center"] {
+    padding: 2rem 1.25rem;
+    border-radius: 20px;
+  }
+  [data-app="auth"][data-tenant="sswe"] img[class*="logo"] {
+    max-height: 4.5rem;
+  }
 }
