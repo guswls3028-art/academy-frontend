@@ -141,6 +141,29 @@ export async function pollPptJob(
 }
 
 /**
+ * Full flow (PDF mode): submit PDF job → poll until done → return result.
+ */
+export async function generatePdfPpt(
+  pdfFile: File,
+  settings: PptSettings,
+  onProgress?: (pct: number) => void,
+): Promise<PptGenerateResponse> {
+  // Phase 1: Upload PDF and submit job
+  const jobResp = await submitPdfPptJob(pdfFile, settings, (pct) => {
+    onProgress?.(Math.round(pct * 0.5));
+  });
+
+  // Phase 2: Poll for completion
+  const result = await pollPptJob(jobResp.job_id, (progress) => {
+    if (progress?.percent != null) {
+      onProgress?.(50 + Math.round((progress.percent / 100) * 50));
+    }
+  });
+
+  return result;
+}
+
+/**
  * Full flow: submit job → poll until done → return result.
  * Compatible with the old generatePpt() signature for easy migration.
  */

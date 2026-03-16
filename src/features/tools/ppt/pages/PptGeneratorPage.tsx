@@ -1,13 +1,16 @@
 // PATH: src/features/tools/ppt/pages/PptGeneratorPage.tsx
-// PPT 생성기 메인 페이지 — 이미지 업로드/정렬 -> 설정 -> 생성/다운로드 (async worker)
+// PPT 생성기 메인 페이지 — 이미지/PDF 모드 선택 -> 설정 -> 생성/다운로드 (async worker)
 
 import { useState, useCallback } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { feedback } from "@/shared/ui/feedback/feedback";
-import { generatePpt, type PptSettings } from "../api/pptApi";
+import { generatePpt, generatePdfPpt, type PptSettings } from "../api/pptApi";
 import ImageUploadArea from "../components/ImageUploadArea";
+import PdfUploadArea from "../components/PdfUploadArea";
 import SortableImageGrid, { type ImageItem } from "../components/SortableImageGrid";
 import SlideSettingsPanel from "../components/SlideSettingsPanel";
+
+type InputMode = "image" | "pdf";
 
 let _idSeq = 0;
 function nextId() {
@@ -26,10 +29,17 @@ const DEFAULT_SETTINGS: PptSettings = {
 };
 
 export default function PptGeneratorPage() {
+  const [mode, setMode] = useState<InputMode>("image");
   const [images, setImages] = useState<ImageItem[]>([]);
+  const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [settings, setSettings] = useState<PptSettings>(DEFAULT_SETTINGS);
   const [progressPct, setProgressPct] = useState<number | null>(null);
   const [progressLabel, setProgressLabel] = useState<string>("");
+
+  // 모드 전환
+  const handleModeChange = useCallback((newMode: InputMode) => {
+    setMode(newMode);
+  }, []);
 
   // 이미지 추가
   const handleFilesAdd = useCallback((files: File[]) => {
@@ -75,13 +85,12 @@ export default function PptGeneratorPage() {
     setImages([]);
   }, [images]);
 
-  // PPT 생성 mutation (async worker pattern)
-  const generateMutation = useMutation({
+  // PPT 생성 mutation — 이미지 모드
+  const imageGenerateMutation = useMutation({
     mutationFn: async () => {
       const files = images.map((i) => i.file);
       const order = images.map((_, idx) => idx);
 
-      // 슬라이드별 설정 반영
       const perSlide = images.map((item) => ({
         invert: item.invert || settings.invert,
         grayscale: settings.grayscale,
@@ -101,63 +110,165 @@ export default function PptGeneratorPage() {
         }
       });
     },
-    onSuccess: (data) => {
-      setProgressPct(null);
-      setProgressLabel("");
-      feedback.success(`PPT 생성 완료 (${data.slide_count}장, ${formatBytes(data.size_bytes)})`);
-      // 자동 다운로드
-      const a = document.createElement("a");
-      a.href = data.download_url;
-      a.download = data.filename;
-      a.style.display = "none";
-      document.body.appendChild(a);
-      a.click();
-      setTimeout(() => a.remove(), 100);
-    },
-    onError: (err: any) => {
-      setProgressPct(null);
-      setProgressLabel("");
-      const msg = err?.response?.data?.detail || err?.message || "PPT 생성에 실패했습니다.";
-      feedback.error(msg);
-    },
+    onSuccess: handleGenerateSuccess,
+    onError: handleGenerateError,
   });
 
-  const isGenerating = generateMutation.isPending;
+  // PPT 생성 mutation — PDF 모드
+  const pdfGenerateMutation = useMutation({
+    mutationFn: async () => {
+      if (!pdfFile) throw new Error("PDF 파일을 선택해주세요.");
+
+      setProgressLabel("PDF 업로드 중...");
+
+      return generatePdfPpt(pdfFile, settings, (pct) => {
+        setProgressPct(pct);
+        if (pct <= 50) {
+          setProgressLabel(`업로드 중 ${Math.round(pct * 2)}%`);
+        } else {
+          setProgressLabel(`PPT 생성 중 ${Math.round((pct - 50) * 2)}%`);
+        }
+      });
+    },
+    onSuccess: handleGenerateSuccess,
+    onError: handleGenerateError,
+  });
+
+  function handleGenerateSuccess(data: { slide_count: number; size_bytes: number; download_url: string; filename: string }) {
+    setProgressPct(null);
+    setProgressLabel("");
+    feedback.success(`PPT 생성 완료 (${data.slide_count}장, ${formatBytes(data.size_bytes)})`);
+    const a = document.createElement("a");
+    a.href = data.download_url;
+    a.download = data.filename;
+    a.style.display = "none";
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => a.remove(), 100);
+  }
+
+  function handleGenerateError(err: any) {
+    setProgressPct(null);
+    setProgressLabel("");
+    const msg = err?.response?.data?.detail || err?.message || "PPT 생성에 실패했습니다.";
+    feedback.error(msg);
+  }
+
+  const isGenerating = imageGenerateMutation.isPending || pdfGenerateMutation.isPending;
+  const canGenerate = mode === "image" ? images.length > 0 : pdfFile !== null;
+
+  const handleGenerate = () => {
+    if (mode === "image") {
+      imageGenerateMutation.mutate();
+    } else {
+      pdfGenerateMutation.mutate();
+    }
+  };
 
   return (
     <div style={{ display: "flex", gap: 24, minHeight: "calc(100vh - 200px)" }}>
-      {/* 좌측: 이미지 업로드 + 그리드 */}
+      {/* 좌측: 모드 토글 + 업로드 영역 */}
       <div style={{ flex: 1, minWidth: 0 }}>
-        <ImageUploadArea onFilesAdd={handleFilesAdd} disabled={isGenerating} />
+        {/* 모드 토글 */}
+        <div style={{
+          display: "inline-flex",
+          borderRadius: "var(--radius-lg, 12px)",
+          border: "1px solid var(--color-border-divider)",
+          background: "var(--bg-surface)",
+          padding: 3,
+          marginBottom: 16,
+          gap: 2,
+        }}>
+          <ModeTab
+            active={mode === "image"}
+            onClick={() => handleModeChange("image")}
+            disabled={isGenerating}
+            icon={
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+                strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                <circle cx="8.5" cy="8.5" r="1.5" />
+                <polyline points="21 15 16 10 5 21" />
+              </svg>
+            }
+            label="이미지"
+          />
+          <ModeTab
+            active={mode === "pdf"}
+            onClick={() => handleModeChange("pdf")}
+            disabled={isGenerating}
+            icon={
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+                strokeLinecap="round" strokeLinejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+                <line x1="16" y1="13" x2="8" y2="13" />
+                <line x1="16" y1="17" x2="8" y2="17" />
+              </svg>
+            }
+            label="PDF"
+          />
+        </div>
 
-        <SortableImageGrid
-          items={images}
-          onReorder={handleReorder}
-          onRemove={handleRemove}
-          onToggleInvert={handleToggleInvert}
-          disabled={isGenerating}
-        />
+        {/* 이미지 모드 */}
+        {mode === "image" && (
+          <>
+            <ImageUploadArea onFilesAdd={handleFilesAdd} disabled={isGenerating} />
 
-        {images.length > 0 && (
-          <div style={{ marginTop: 12, display: "flex", justifyContent: "flex-end" }}>
-            <button
-              type="button"
-              onClick={handleClearAll}
+            <SortableImageGrid
+              items={images}
+              onReorder={handleReorder}
+              onRemove={handleRemove}
+              onToggleInvert={handleToggleInvert}
               disabled={isGenerating}
-              style={{
-                padding: "6px 14px",
-                fontSize: 12,
-                color: "var(--color-error, #ef4444)",
-                background: "transparent",
-                border: "1px solid var(--color-error, #ef4444)",
+            />
+
+            {images.length > 0 && (
+              <div style={{ marginTop: 12, display: "flex", justifyContent: "flex-end" }}>
+                <button
+                  type="button"
+                  onClick={handleClearAll}
+                  disabled={isGenerating}
+                  style={{
+                    padding: "6px 14px",
+                    fontSize: 12,
+                    color: "var(--color-error, #ef4444)",
+                    background: "transparent",
+                    border: "1px solid var(--color-error, #ef4444)",
+                    borderRadius: "var(--radius-md, 8px)",
+                    cursor: isGenerating ? "not-allowed" : "pointer",
+                    opacity: isGenerating ? 0.5 : 1,
+                  }}
+                >
+                  전체 삭제
+                </button>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* PDF 모드 */}
+        {mode === "pdf" && (
+          <>
+            <PdfUploadArea
+              file={pdfFile}
+              onFileSelect={setPdfFile}
+              disabled={isGenerating}
+            />
+            {pdfFile && (
+              <div style={{
+                marginTop: 16,
+                padding: "14px 18px",
+                background: "var(--bg-surface)",
                 borderRadius: "var(--radius-md, 8px)",
-                cursor: isGenerating ? "not-allowed" : "pointer",
-                opacity: isGenerating ? 0.5 : 1,
-              }}
-            >
-              전체 삭제
-            </button>
-          </div>
+                border: "1px solid var(--color-border-divider)",
+              }}>
+                <div style={{ fontSize: 13, color: "var(--color-text-secondary)", lineHeight: 1.6 }}>
+                  PDF의 각 페이지가 자동으로 슬라이드로 변환됩니다.
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
 
@@ -199,8 +310,8 @@ export default function PptGeneratorPage() {
           />
         </div>
 
-        {/* 미리보기 카드 */}
-        {images.length > 0 && (
+        {/* 미리보기 카드 — 이미지 모드만 */}
+        {mode === "image" && images.length > 0 && (
           <div style={{
             background: settings.background === "white" ? "#f8f8f8" : settings.background === "dark_gray" ? "#1e1e1e" : "#000",
             borderRadius: "var(--radius-lg, 12px)",
@@ -246,20 +357,20 @@ export default function PptGeneratorPage() {
         {/* 생성 버튼 */}
         <button
           type="button"
-          onClick={() => generateMutation.mutate()}
-          disabled={images.length === 0 || isGenerating}
+          onClick={handleGenerate}
+          disabled={!canGenerate || isGenerating}
           style={{
             width: "100%",
             padding: "14px 24px",
             fontSize: 15,
             fontWeight: 700,
             color: "#fff",
-            background: images.length === 0 || isGenerating
+            background: !canGenerate || isGenerating
               ? "var(--color-bg-disabled, #aaa)"
               : "var(--color-primary)",
             border: "none",
             borderRadius: "var(--radius-lg, 12px)",
-            cursor: images.length === 0 || isGenerating ? "not-allowed" : "pointer",
+            cursor: !canGenerate || isGenerating ? "not-allowed" : "pointer",
             transition: "background 0.15s",
             display: "flex",
             alignItems: "center",
@@ -306,7 +417,8 @@ export default function PptGeneratorPage() {
           )}
         </button>
 
-        {images.length > 0 && (
+        {/* 상태 요약 */}
+        {mode === "image" && images.length > 0 && (
           <div style={{ textAlign: "center", lineHeight: 1.6 }}>
             <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-secondary)" }}>
               {images.length}장 슬라이드
@@ -316,8 +428,58 @@ export default function PptGeneratorPage() {
             </div>
           </div>
         )}
+        {mode === "pdf" && pdfFile && (
+          <div style={{ textAlign: "center", lineHeight: 1.6 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-secondary)" }}>
+              PDF 변환 모드
+            </div>
+            <div style={{ fontSize: 11, color: "var(--color-text-muted)" }}>
+              {formatBytes(pdfFile.size)} · {settings.aspect_ratio} · {settings.background === "black" ? "검정" : settings.background === "white" ? "흰색" : "진회"} 배경
+            </div>
+          </div>
+        )}
       </div>
     </div>
+  );
+}
+
+function ModeTab({
+  active,
+  onClick,
+  disabled,
+  icon,
+  label,
+}: {
+  active: boolean;
+  onClick: () => void;
+  disabled?: boolean;
+  icon: React.ReactNode;
+  label: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 6,
+        padding: "8px 18px",
+        borderRadius: "var(--radius-md, 8px)",
+        border: "none",
+        background: active ? "var(--color-primary)" : "transparent",
+        color: active ? "#fff" : "var(--color-text-secondary)",
+        fontWeight: 600,
+        fontSize: 14,
+        cursor: disabled ? "not-allowed" : "pointer",
+        transition: "all 0.15s",
+        opacity: disabled ? 0.5 : 1,
+      }}
+    >
+      {icon}
+      {label}
+    </button>
   );
 }
 
