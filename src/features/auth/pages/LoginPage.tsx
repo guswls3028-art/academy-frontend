@@ -114,6 +114,7 @@ export default function LoginPage() {
             type="button"
             className={styles.btnPrimary}
             onClick={() => setFormExpanded(true)}
+            data-testid="login-expand-btn"
           >
             로그인
           </button>
@@ -122,19 +123,23 @@ export default function LoginPage() {
             <input
               className={styles.input}
               placeholder="아이디"
+              name="username"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               autoComplete="username"
+              data-testid="login-username"
             />
             <input
               className={styles.input}
               type="password"
               placeholder="비밀번호"
+              name="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               autoComplete="current-password"
+              data-testid="login-password"
             />
-            <button type="submit" className={styles.btnPrimary} disabled={pending}>
+            <button type="submit" className={styles.btnPrimary} disabled={pending} data-testid="login-submit">
               {pending ? "로그인 중..." : "로그인"}
             </button>
             {error && <div className={styles.error}>{error}</div>}

@@ -30,7 +30,7 @@ test.describe.serial("QnA 왕복: 학생→선생→학생", () => {
 
     // 커뮤니티 QnA 이동
     await studentPage.goto(`${BASE}/student/community`);
-    await studentPage.waitForLoadState("networkidle");
+    await studentPage.waitForLoadState("load");
 
     // "질문하기" 또는 QnA 탭 찾기
     const qnaTab = studentPage.locator("button, a, [role='tab']").filter({ hasText: /질문|Q&A|QnA/ }).first();
@@ -75,7 +75,7 @@ test.describe.serial("QnA 왕복: 학생→선생→학생", () => {
 
     // QnA 페이지 이동
     await adminPage.goto(`${BASE}/admin/community/qna`);
-    await adminPage.waitForLoadState("networkidle");
+    await adminPage.waitForLoadState("load");
 
     // 학생이 등록한 질문 찾기
     const question = adminPage.locator(`text=${Q_TITLE}`).first();
@@ -97,7 +97,7 @@ test.describe.serial("QnA 왕복: 학생→선생→학생", () => {
 
     // 관리자 QnA 목록 새로고침 → 답변 상태 반영 확인
     await adminPage.goto(`${BASE}/admin/community/qna`);
-    await adminPage.waitForLoadState("networkidle");
+    await adminPage.waitForLoadState("load");
     // 질문이 여전히 보이는지 확인
     await expect(adminPage.locator(`text=${Q_TITLE}`).first()).toBeVisible({ timeout: 5000 });
   });
@@ -105,7 +105,7 @@ test.describe.serial("QnA 왕복: 학생→선생→학생", () => {
   test("4. 학생이 질문 상세에서 답변을 확인한다", async () => {
     // 학생 페이지 새로고침하여 QnA로 돌아감
     await studentPage.goto(`${BASE}/student/community`);
-    await studentPage.waitForLoadState("networkidle");
+    await studentPage.waitForLoadState("load");
 
     // QnA 탭
     const qnaTab = studentPage.locator("button, a, [role='tab']").filter({ hasText: /질문|Q&A|QnA/ }).first();
@@ -131,7 +131,7 @@ test.describe.serial("QnA 왕복: 학생→선생→학생", () => {
       try {
         // QnA 목록에서 E2E 글 삭제
         await adminPage.goto(`${BASE}/admin/community/qna`);
-        await adminPage.waitForLoadState("networkidle");
+        await adminPage.waitForLoadState("load");
         const item = adminPage.locator(`text=${Q_TITLE}`).first();
         if (await item.isVisible({ timeout: 3000 }).catch(() => false)) {
           await item.click();

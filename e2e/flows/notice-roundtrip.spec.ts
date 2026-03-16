@@ -25,7 +25,7 @@ test.describe.serial("공지 왕복: 선생→학생", () => {
     await loginViaUI(adminPage, "admin");
 
     await adminPage.goto(`${BASE}/admin/community/notice`);
-    await adminPage.waitForLoadState("networkidle");
+    await adminPage.waitForLoadState("load");
 
     const resp = await apiCall(adminPage, "POST", "/community/posts/", {
       post_type: "notice", title: TITLE, content: CONTENT, node_ids: [],
@@ -40,7 +40,7 @@ test.describe.serial("공지 왕복: 선생→학생", () => {
     await loginViaUI(studentPage, "student");
 
     await studentPage.goto(`${BASE}/student/notices`);
-    await studentPage.waitForLoadState("networkidle");
+    await studentPage.waitForLoadState("load");
 
     const notice = studentPage.locator(`text=${TITLE}`).first();
     await expect(notice).toBeVisible({ timeout: 10000 });

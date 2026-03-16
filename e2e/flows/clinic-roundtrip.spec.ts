@@ -23,7 +23,7 @@ test.describe.serial("클리닉 왕복: 선생→학생→선생", () => {
     await loginViaUI(adminPage, "admin");
 
     await adminPage.goto(`${BASE}/admin/clinic/home`);
-    await adminPage.waitForLoadState("networkidle");
+    await adminPage.waitForLoadState("load");
 
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
@@ -43,14 +43,14 @@ test.describe.serial("클리닉 왕복: 선생→학생→선생", () => {
     await loginViaUI(studentPage, "student");
 
     await studentPage.goto(`${BASE}/student/clinic`);
-    await studentPage.waitForLoadState("networkidle");
+    await studentPage.waitForLoadState("load");
     await expect(studentPage.locator("text=Not Found")).not.toBeVisible();
     await expect(studentPage.locator("[data-app='student']").first()).toBeVisible();
   });
 
   test("3. 선생 클리닉 홈이 정상 로드된다", async () => {
     await adminPage.goto(`${BASE}/admin/clinic/home`);
-    await adminPage.waitForLoadState("networkidle");
+    await adminPage.waitForLoadState("load");
     await expect(adminPage.locator("text=Not Found")).not.toBeVisible();
   });
 
