@@ -20,7 +20,6 @@ import { styles } from "./VideoDetail.styles";
 import PermissionModal from "@/features/videos/components/features/video-detail/modals/PermissionModal";
 import VideoPreviewSection from "@/features/videos/components/features/video-detail/components/VideoPreviewSection";
 import VideoPolicySection from "@/features/videos/components/features/video-detail/components/VideoPolicySection";
-import AdminMemoSection from "@/features/videos/components/features/video-detail/components/AdminMemoSection";
 import VideoStudentsSection from "@/features/videos/components/features/video-detail/components/VideoStudentsSection";
 import VideoEngagementBar from "@/features/videos/components/features/video-detail/components/VideoEngagementBar";
 import AdminCommentSection from "@/features/videos/components/features/video-detail/components/AdminCommentSection";
@@ -80,7 +79,6 @@ export default function VideoDetailOverlay({
   const panelRef = useRef<HTMLDivElement>(null);
   const [permissionOpen, setPermissionOpen] = useState(false);
   const [permissionTab, setPermissionTab] = useState<TabKey>("permission");
-  const [memo, setMemo] = useState("");
   const [selectedEnrollmentId, setSelectedEnrollmentId] = useState<number | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
@@ -367,24 +365,6 @@ export default function VideoDetailOverlay({
                                 show_watermark: video.show_watermark,
                               }}
                             />
-                          </div>
-                          <div
-                            style={{
-                              borderTop: "1px solid var(--color-border-divider)",
-                              paddingTop: 20,
-                            }}
-                          >
-                            <div
-                              style={{
-                                fontSize: 13,
-                                fontWeight: 600,
-                                color: "var(--color-text-primary)",
-                                marginBottom: 12,
-                              }}
-                            >
-                              관리자 메모
-                            </div>
-                            <AdminMemoSection memo={memo} setMemo={setMemo} />
                           </div>
                         </div>
                       )}

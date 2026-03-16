@@ -186,8 +186,11 @@ function VideoAddModal({ open, onClose }: { open: boolean; onClose: () => void }
   function handleGo() {
     if (!selectedLecture) return;
     onClose();
-    // 강의 상세 > 차시 영상 탭으로 이동
-    navigate(`/admin/lectures/${selectedLecture.id}`);
+    if (selectedSession) {
+      navigate(`/admin/lectures/${selectedLecture.id}/sessions/${selectedSession.id}`);
+    } else {
+      navigate(`/admin/lectures/${selectedLecture.id}`);
+    }
   }
 
   return (

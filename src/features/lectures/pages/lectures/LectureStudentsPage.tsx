@@ -214,12 +214,6 @@ export default function LectureStudentsPage() {
       <Button intent="secondary" size="sm" onClick={() => downloadAttendanceExcel(lectureIdNum)}>
         엑셀 다운로드
       </Button>
-      <Button intent="secondary" size="sm" onClick={() => feedback.info("비밀번호 변경 기능 준비 중입니다.")}>
-        비밀번호 변경
-      </Button>
-      <Button intent="danger" size="sm" onClick={() => feedback.info("일괄 삭제 기능 준비 중입니다.")}>
-        삭제
-      </Button>
       </div>
     </div>
   );
