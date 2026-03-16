@@ -354,7 +354,8 @@ function NoticeCard({
         day: "numeric",
       })
     : "—";
-  const lectureTitle = post.mappings?.[0]?.node_detail?.lecture_title;
+  const nd = post.mappings?.[0]?.node_detail;
+  const scopeLabel = nd?.session_title || nd?.lecture_title || "전체";
 
   return (
     <button
@@ -370,12 +371,8 @@ function NoticeCard({
           {snippet && <div className="qna-inbox__card-snippet">{snippet}</div>}
           <div className="qna-inbox__card-meta">
             <span>{dateLabel}</span>
-            {lectureTitle && (
-              <>
-                <span className="qna-inbox__card-meta-dot" />
-                <span>{lectureTitle}</span>
-              </>
-            )}
+            <span className="qna-inbox__card-meta-dot" />
+            <span>{scopeLabel}</span>
           </div>
         </div>
       </div>

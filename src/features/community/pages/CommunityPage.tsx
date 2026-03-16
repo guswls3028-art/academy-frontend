@@ -4,7 +4,6 @@
 import { Outlet, useLocation } from "react-router-dom";
 import { DomainLayout } from "@/shared/ui/layout";
 import { CommunityScopeProvider } from "../context/CommunityScopeContext";
-import CommunityScopeSelector from "../components/CommunityScopeSelector";
 
 const COMMUNITY_TABS = [
   { key: "notice", label: "공지사항", path: "/admin/community/notice" },
@@ -17,15 +16,12 @@ const COMMUNITY_TABS = [
 
 function CommunityPageInner() {
   const location = useLocation();
-  const showScope = false; /* 각 탭이 자체 트리 내비게이션 보유 */
-
   return (
     <DomainLayout
       title="커뮤니티"
       description="게시판 · 공지사항 · QnA · 상담 신청 · 자료실"
       tabs={COMMUNITY_TABS}
     >
-      {showScope && <CommunityScopeSelector />}
       <Outlet />
     </DomainLayout>
   );

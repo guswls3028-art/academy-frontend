@@ -56,7 +56,6 @@ const VideoDetailPage = lazy(() => import("@/features/videos/pages/VideoDetailPa
 const CommunityPage = lazy(() => import("@/features/community/pages/CommunityPage"));
 const QnaInboxPage = lazy(() => import("@/features/community/pages/QnaInboxPage"));
 const MaterialsBoardPage = lazy(() => import("@/features/community/pages/MaterialsBoardPage"));
-const CommunityAdminPage = lazy(() => import("@/features/community/pages/CommunityAdminPage"));
 const BoardAdminPage = lazy(() => import("@/features/community/pages/BoardAdminPage"));
 const NoticeAdminPage = lazy(() => import("@/features/community/pages/NoticeAdminPage"));
 const CounselAdminPage = lazy(() => import("@/features/community/pages/CounselAdminPage"));
