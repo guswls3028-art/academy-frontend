@@ -4,7 +4,8 @@
 import { useState, useCallback } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { feedback } from "@/shared/ui/feedback/feedback";
-import { generatePpt, generatePdfPpt, type PptSettings } from "../api/pptApi";
+import { submitPptJob, submitPdfPptJob, pollPptJob, type PptSettings } from "../api/pptApi";
+import { asyncStatusStore } from "@/shared/ui/asyncStatus/asyncStatusStore";
 import ImageUploadArea from "../components/ImageUploadArea";
 import PdfUploadArea from "../components/PdfUploadArea";
 import SortableImageGrid, { type ImageItem } from "../components/SortableImageGrid";
@@ -101,14 +102,28 @@ export default function PptGeneratorPage() {
 
       setProgressLabel("파일 업로드 중...");
 
-      return generatePpt(files, order, { ...settings, per_slide: perSlide }, (pct) => {
-        setProgressPct(pct);
-        if (pct <= 50) {
-          setProgressLabel(`업로드 중 ${Math.round(pct * 2)}%`);
-        } else {
-          setProgressLabel(`PPT 생성 중 ${Math.round((pct - 50) * 2)}%`);
+      // Phase 1: Upload and submit job
+      const jobResp = await submitPptJob(files, order, { ...settings, per_slide: perSlide }, (pct) => {
+        setProgressPct(Math.round(pct * 0.5));
+        setProgressLabel(`업로드 중 ${Math.round(pct)}%`);
+      });
+
+      // Register in workbox for background tracking
+      asyncStatusStore.addWorkerJob(
+        `PPT 생성 (${images.length}장)`,
+        jobResp.job_id,
+        "ppt_generation",
+      );
+
+      // Phase 2: Poll for completion (page-level progress)
+      const result = await pollPptJob(jobResp.job_id, (progress) => {
+        if (progress?.percent != null) {
+          setProgressPct(50 + Math.round((progress.percent / 100) * 50));
+          setProgressLabel(`PPT 생성 중 ${Math.round(progress.percent)}%`);
         }
       });
+
+      return result;
     },
     onSuccess: handleGenerateSuccess,
     onError: handleGenerateError,
@@ -121,14 +136,28 @@ export default function PptGeneratorPage() {
 
       setProgressLabel("PDF 업로드 중...");
 
-      return generatePdfPpt(pdfFile, settings, (pct) => {
-        setProgressPct(pct);
-        if (pct <= 50) {
-          setProgressLabel(`업로드 중 ${Math.round(pct * 2)}%`);
-        } else {
-          setProgressLabel(`PPT 생성 중 ${Math.round((pct - 50) * 2)}%`);
+      // Phase 1: Upload PDF and submit job
+      const jobResp = await submitPdfPptJob(pdfFile, settings, (pct) => {
+        setProgressPct(Math.round(pct * 0.5));
+        setProgressLabel(`업로드 중 ${Math.round(pct)}%`);
+      });
+
+      // Register in workbox for background tracking
+      asyncStatusStore.addWorkerJob(
+        `PPT 생성 (PDF)`,
+        jobResp.job_id,
+        "ppt_generation",
+      );
+
+      // Phase 2: Poll for completion (page-level progress)
+      const result = await pollPptJob(jobResp.job_id, (progress) => {
+        if (progress?.percent != null) {
+          setProgressPct(50 + Math.round((progress.percent / 100) * 50));
+          setProgressLabel(`PPT 생성 중 ${Math.round(progress.percent)}%`);
         }
       });
+
+      return result;
     },
     onSuccess: handleGenerateSuccess,
     onError: handleGenerateError,

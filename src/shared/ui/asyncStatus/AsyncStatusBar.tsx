@@ -46,6 +46,15 @@ function IconOmr({ className, size = 18 }: { className?: string; size?: number }
   );
 }
 
+function IconPpt({ className, size = 18 }: { className?: string; size?: number }) {
+  return (
+    <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+      <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+    </svg>
+  );
+}
+
 function IconMessage({ className, size = 18 }: { className?: string; size?: number }) {
   return (
     <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -62,6 +71,7 @@ const JOB_TYPE_ICONS: Record<string, React.ComponentType<{ className?: string; s
   video_processing: IconVideo,
   omr: IconOmr,
   omr_scan: IconOmr,
+  ppt_generation: IconPpt,
 };
 
 /** 상태 뱃지: 완료/실패만 표시 (진행 중은 뱃지 없음) */
@@ -198,6 +208,10 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
     }
     if (jobType === "messaging") {
       navigate("/admin/message");
+      return;
+    }
+    if (jobType === "ppt_generation") {
+      navigate("/admin/tools/ppt");
       return;
     }
     navigate("/admin/dashboard");
@@ -613,6 +627,15 @@ export default function AsyncStatusBar() {
     },
     onVideoSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["session-videos"] });
+    },
+    onPptSuccess: (taskId: string, downloadUrl: string, filename: string) => {
+      const a = document.createElement("a");
+      a.href = downloadUrl;
+      a.download = filename;
+      a.style.display = "none";
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => a.remove(), 100);
     },
   });
 

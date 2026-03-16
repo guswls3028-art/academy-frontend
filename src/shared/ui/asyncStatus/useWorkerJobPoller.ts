@@ -122,6 +122,92 @@ function pollExcelJob(
     });
 }
 
+function pollPptJob(
+  taskId: string,
+  onSuccess?: (taskId: string, downloadUrl: string, filename: string) => void,
+) {
+  api
+    .get<{
+      job_id: string;
+      job_type: string;
+      status: string;
+      progress?: {
+        step?: string;
+        percent?: number;
+        step_index?: number | null;
+        step_total?: number | null;
+        step_name?: string | null;
+        step_name_display?: string | null;
+        step_percent?: number | null;
+      } | null;
+      result?: {
+        download_url?: string;
+        filename?: string;
+        slide_count?: number;
+        size_bytes?: number;
+      };
+      error_message?: string | null;
+    }>(`/jobs/${encodeURIComponent(taskId)}/progress/`)
+    .then((res) => {
+      const status = res.data?.status;
+
+      if (status === "UNKNOWN") return;
+
+      const progress = res.data?.progress;
+      const percent = progress?.percent;
+      const stepIndex = progress?.step_index;
+      const stepTotal = progress?.step_total;
+      const stepName = progress?.step_name_display || progress?.step_name;
+      const stepPercent = progress?.step_percent;
+
+      const encodingStep =
+        typeof stepIndex === "number" &&
+        typeof stepTotal === "number" &&
+        typeof stepName === "string" &&
+        typeof stepPercent === "number"
+          ? { index: stepIndex, total: stepTotal, name: stepName, percent: stepPercent }
+          : null;
+
+      if (status === "RUNNING") {
+        const finalPercent = typeof percent === "number"
+          ? percent
+          : encodingStep
+            ? Math.round((encodingStep.index - 1) / encodingStep.total * 100 + (encodingStep.percent / encodingStep.total))
+            : undefined;
+        if (finalPercent !== undefined || encodingStep) {
+          asyncStatusStore.updateProgress(taskId, finalPercent ?? 0, undefined, encodingStep);
+        } else {
+          asyncStatusStore.updateProgress(taskId, 0, undefined, null);
+        }
+      }
+
+      const errMsg = res.data?.error_message?.trim();
+      const isFailed = status === "FAILED" || (status === "DONE" && errMsg);
+
+      if (isFailed) {
+        asyncStatusStore.completeTask(taskId, "error", errMsg || "PPT 생성 실패");
+      } else if (status === "DONE") {
+        const result = res.data?.result;
+        if (result?.slide_count) {
+          const sizeLabel = result.size_bytes
+            ? result.size_bytes < 1024 * 1024
+              ? `${(result.size_bytes / 1024).toFixed(1)} KB`
+              : `${(result.size_bytes / (1024 * 1024)).toFixed(1)} MB`
+            : "";
+          const label = `PPT 생성 완료 (${result.slide_count}장${sizeLabel ? ", " + sizeLabel : ""})`;
+          asyncStatusStore.setTaskLabel(taskId, label);
+        }
+        asyncStatusStore.completeTask(taskId, "success");
+        if (result?.download_url && result?.filename) {
+          onSuccess?.(taskId, result.download_url, result.filename);
+        }
+      }
+    })
+    .catch(() => {
+      // Network error — retry on next poll
+    });
+}
+
 function pollVideoJob(taskId: string, videoId: string, onSuccess?: () => void) {
   // ✅ Redis-only 엔드포인트 사용 (DB 부하 0)
   api
@@ -203,7 +289,12 @@ function pollVideoJob(taskId: string, videoId: string, onSuccess?: () => void) {
 
 export function useWorkerJobPoller(
   tasks: { id: string; status: string; meta?: { jobId: string; jobType: string } }[],
-  options?: { onExcelSuccess?: () => void; onVideoSuccess?: () => void; onExcelProgress?: () => void }
+  options?: {
+    onExcelSuccess?: () => void;
+    onVideoSuccess?: () => void;
+    onExcelProgress?: () => void;
+    onPptSuccess?: (taskId: string, downloadUrl: string, filename: string) => void;
+  }
 ) {
   const pending = tasks.filter(
     (t) => t.status === "pending" && t.meta?.jobId
@@ -212,9 +303,11 @@ export function useWorkerJobPoller(
   const onExcelSuccessRef = useRef(options?.onExcelSuccess);
   const onVideoSuccessRef = useRef(options?.onVideoSuccess);
   const onExcelProgressRef = useRef(options?.onExcelProgress);
+  const onPptSuccessRef = useRef(options?.onPptSuccess);
   onExcelSuccessRef.current = options?.onExcelSuccess;
   onVideoSuccessRef.current = options?.onVideoSuccess;
   onExcelProgressRef.current = options?.onExcelProgress;
+  onPptSuccessRef.current = options?.onPptSuccess;
 
   const currentTenant = getTenantCodeForApiRequest() ?? "";
   const pollStartedAtRef = useRef<number | null>(null);
@@ -252,11 +345,14 @@ export function useWorkerJobPoller(
       const excelCb = onExcelSuccessRef.current;
       const excelProgressCb = onExcelProgressRef.current;
       const videoCb = onVideoSuccessRef.current;
+      const pptCb = onPptSuccessRef.current;
       forCurrentTenant.forEach((t) => {
         if (t.meta!.jobType === "excel_parsing") {
           pollExcelJob(t.id, excelCb, excelProgressCb);
         } else if (t.meta!.jobType === "video_processing") {
           pollVideoJob(t.id, t.meta!.jobId, videoCb);
+        } else if (t.meta!.jobType === "ppt_generation") {
+          pollPptJob(t.id, pptCb);
         } else if (t.meta!.jobType === "messaging") {
           // 메시지 발송은 동기 API 완료로만 완료 처리, 폴링 없음
         } else {
