@@ -1,19 +1,23 @@
 // PATH: src/shared/tenant/tenants/sswe.ts
-// 테넌트 5: SSWE (sswe.co.kr)
+// 테넌트 8: SSWE (sswe.co.kr)
 import type { TenantDef } from "./types";
 
 export const sswe: TenantDef = {
-  id: 5,
+  id: 8,
   code: "sswe",
-  name: "sswe.co.kr",
+  name: "SSWE",
   hostnames: ["sswe.co.kr", "www.sswe.co.kr"],
   loginPath: "/login/sswe",
   branding: {
-    loginTitle: "sswe.co.kr",
+    loginTitle: "SSWE",
     loginSubtitle: "sswe.co.kr",
-    windowTitle: "sswe.co.kr",
-    ogDescription: "sswe.co.kr 학습 플랫폼",
+    logoUrl: "/tenants/sswe/logo-full.png",
+    windowTitle: "SSWE",
+    faviconUrl: "/tenants/sswe/favicon.png",
+    headerLogoUrl: "/tenants/sswe/icon.png",
+    ogDescription: "SSWE 학습 플랫폼 – 학생·선생님 로그인",
+    ogImageUrl: "/tenants/sswe/logo-full.png",
   },
   dedicatedLoginPage: false,
-  hasCustomLogo: false,
+  hasCustomLogo: true,
 };

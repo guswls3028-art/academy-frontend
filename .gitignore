@@ -69,3 +69,6 @@ specs/
 temp/
 # 빌드에 필요한 도메인 SSOT만 예외
 !src/shared/ui/domain/tableColumnSpec.ts
+
+# 로컬 테스트 자료 (git 제외)
+로컬테스트자료/
