@@ -20,14 +20,14 @@ import {
   type CommunityScopeParams,
 } from "../api/community.api";
 import { fetchLectures, fetchSessions, type Lecture, type Session } from "@/features/lectures/api/sessions";
-import LectureChip from "@/shared/ui/chips/LectureChip";
-import { isSupplement } from "@/shared/ui/session-block/session-block.constants";
+import CmsTreeNav from "../components/CmsTreeNav";
 import { Button } from "@/shared/ui/ds";
 import { useConfirm } from "@/shared/ui/confirm";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import RichTextEditor from "@/shared/ui/editor/RichTextEditor";
 import "@/features/community/qna-inbox.css";
 import "@/features/community/notice-tree.css";
+import "@/features/community/board-admin.css";
 
 const SNIPPET_LEN = 72;
 
@@ -44,11 +44,8 @@ export default function NoticeAdminPage() {
 
   const {
     scope,
-    setScope,
     lectureId,
-    setLectureId,
     sessionId,
-    setSessionId,
     effectiveLectureId,
   } = useCommunityScope();
 
@@ -61,8 +58,6 @@ export default function NoticeAdminPage() {
     [scope, effectiveLectureId, sessionId]
   );
 
-  /** 강의목록 폴더 펼침 여부 */
-  const [expandedParent, setExpandedParent] = useState(false);
   /** 펼쳐진 강의(해당 강의의 차시 목록 표시) */
   const [expandedLectureId, setExpandedLectureId] = useState<number | null>(null);
 
@@ -211,15 +206,6 @@ export default function NoticeAdminPage() {
     [setSearchParams]
   );
 
-  const toggleParent = useCallback(() => {
-    setExpandedParent((p) => !p);
-    if (expandedParent) setExpandedLectureId(null);
-  }, [expandedParent]);
-
-  const toggleLecture = useCallback((lecId: number) => {
-    setExpandedLectureId((prev) => (prev === lecId ? null : lecId));
-  }, []);
-
   const hasScopeParam = searchParams.has("scope");
   const canShowList =
     hasScopeParam && (
@@ -230,116 +216,29 @@ export default function NoticeAdminPage() {
 
   return (
     <div className="notice-tree" style={{ minHeight: "calc(100vh - 180px)" }}>
-      {/* 좌측: 전체공지 + 강의목록(펼침) → 강의명(펼침) → 차시 (실제 DB 연동) */}
-      <nav className="notice-tree__nav">
-        <div className="notice-tree__nav-header">
-          <h2 className="notice-tree__nav-title">공지</h2>
-        </div>
-
-        <div className="notice-tree__tabs">
-          <button
-            type="button"
-            className={`notice-tree__tab ${scope === "all" ? "notice-tree__tab--active notice-tree__tab--selected" : ""}`}
-            onClick={selectAll}
-            aria-selected={scope === "all"}
-          >
-            <span className="notice-tree__tab-icon" aria-hidden>📋</span>
-            <span className="notice-tree__tab-label">전체공지</span>
-            {noticeCounts.totalNoticeCount > 0 && (
-              <span className="notice-tree__count" aria-label={`공지 ${noticeCounts.totalNoticeCount}건`}>
-                {noticeCounts.totalNoticeCount}
-              </span>
-            )}
-            <span className="notice-tree__tab-chevron" aria-hidden />
-          </button>
-          <button
-            type="button"
-            className={`notice-tree__tab ${expandedParent ? "notice-tree__tab--active" : ""}`}
-            onClick={toggleParent}
-            aria-expanded={expandedParent}
-          >
-            <span className="notice-tree__tab-icon" aria-hidden>📁</span>
-            <span className="notice-tree__tab-label">강의목록</span>
-            {noticeCounts.totalUnderScope > 0 && (
-              <span className="notice-tree__count" aria-label={`공지 ${noticeCounts.totalUnderScope}건`}>
-                {noticeCounts.totalUnderScope}
-              </span>
-            )}
-            <span className="notice-tree__tab-chevron">
-              {expandedParent ? "▼" : "▶"}
-            </span>
-          </button>
-        </div>
-
-        <div className="notice-tree__sub">
-          {expandedParent &&
-            lectures.map((lec) => (
-              <div key={`lec-${lec.id}`} className="notice-tree__branch">
-                <button
-                  type="button"
-                  className={`notice-tree__sub-item notice-tree__sub-item--parent ${expandedLectureId === lec.id ? "notice-tree__sub-item--active" : ""} ${scope === "lecture" && lectureId === lec.id ? "notice-tree__sub-item--selected" : ""}`}
-                  onClick={() => {
-                    toggleLecture(lec.id);
-                    selectLecture(lec.id);
-                  }}
-                  aria-expanded={expandedLectureId === lec.id}
-                  aria-selected={scope === "lecture" && lectureId === lec.id}
-                >
-                  <span className="notice-tree__sub-chevron">
-                    {expandedLectureId === lec.id ? "▼" : "▶"}
-                  </span>
-                  <LectureChip
-                    lectureName={lec.title || lec.name || ""}
-                    color={lec.color ?? undefined}
-                    size={20}
-                  />
-                  <span className="notice-tree__sub-label">{lec.title || lec.name || `강의 ${lec.id}`}</span>
-                  {noticeCounts.countByLecture[lec.id] != null && noticeCounts.countByLecture[lec.id] > 0 && (
-                    <span className="notice-tree__count" aria-label={`공지 ${noticeCounts.countByLecture[lec.id]}건`}>
-                      {noticeCounts.countByLecture[lec.id]}
-                    </span>
-                  )}
-                  <span className="notice-tree__sub-chevron-right" aria-hidden />
-                </button>
-                {expandedLectureId === lec.id && (
-                  <div className="notice-tree__children">
-                    {sessionsLoading ? (
-                      <div className="notice-tree__sub-item notice-tree__sub-item--child" style={{ color: "var(--color-text-muted)" }}>
-                        불러오는 중…
-                      </div>
-                    ) : (
-                      (sessionsOfLecture as Session[]).map((s) => {
-                        const sessionNodeId = scopeNodes.find(
-                          (n) => n.lecture === lec.id && n.session === s.id
-                        )?.id;
-                        const sessionCount =
-                          sessionNodeId != null ? noticeCounts.countByNodeId[sessionNodeId] ?? 0 : 0;
-                        const supplement = isSupplement(s.title);
-                        return (
-                          <button
-                            key={s.id}
-                            type="button"
-                            className={`notice-tree__sub-item notice-tree__sub-item--child ${supplement ? "notice-tree__sub-item--supplement" : "notice-tree__sub-item--n1"} ${scope === "session" && lectureId === lec.id && sessionId === s.id ? "notice-tree__sub-item--active notice-tree__sub-item--selected" : ""}`}
-                            onClick={() => selectSession(lec.id, s.id)}
-                            aria-selected={scope === "session" && lectureId === lec.id && sessionId === s.id}
-                          >
-                            <span className="notice-tree__sub-item-child-icon" aria-hidden>ㄴ</span>
-                            <span className="notice-tree__sub-label">{s.title || `${s.order}차시`}</span>
-                            {sessionCount > 0 && (
-                              <span className="notice-tree__count" aria-label={`공지 ${sessionCount}건`}>
-                                {sessionCount}
-                              </span>
-                            )}
-                          </button>
-                        );
-                      })
-                    )}
-                  </div>
-                )}
-              </div>
-            ))}
-        </div>
-      </nav>
+      <CmsTreeNav
+        title="공지"
+        allLabel="전체공지"
+        counts={{
+          totalCount: noticeCounts.totalNoticeCount,
+          totalUnderScope: noticeCounts.totalUnderScope,
+          countByNodeId: noticeCounts.countByNodeId,
+          countByLecture: noticeCounts.countByLecture,
+        }}
+        scope={scope}
+        lectureId={lectureId}
+        sessionId={sessionId}
+        effectiveLectureId={effectiveLectureId}
+        lectures={lectures}
+        scopeNodes={scopeNodes}
+        sessionsOfLecture={sessionsOfLecture}
+        sessionsLoading={sessionsLoading}
+        expandedLectureId={expandedLectureId}
+        onExpandLecture={setExpandedLectureId}
+        onSelectAll={selectAll}
+        onSelectLecture={selectLecture}
+        onSelectSession={selectSession}
+      />
 
       {/* 2번 영역: 공지 목록 — 상단에 공지 추가하기 고정, 아래로 목록 스크롤 */}
       <aside className="qna-inbox__list">
@@ -363,15 +262,17 @@ export default function NoticeAdminPage() {
           {!canShowList ? (
             <div className="qna-inbox__empty">
               <p className="qna-inbox__empty-title">
-                {expandedParent ? "차시를 선택하세요" : "전체공지 또는 강의목록에서 차시를 선택하세요"}
+                전체공지 또는 강의목록에서 차시를 선택하세요
               </p>
               <p className="qna-inbox__empty-desc">
                 강의목록을 펼친 뒤 강의명을 누르면 1차시, 2차시 등이 나옵니다. 차시를 클릭하면 해당 공지가 표시됩니다.
               </p>
             </div>
           ) : isLoading ? (
-            <div className="qna-inbox__empty">
-              <p className="qna-inbox__empty-title">불러오는 중…</p>
+            <div style={{ padding: 12 }}>
+              <div className="cms-skeleton cms-skeleton--card" />
+              <div className="cms-skeleton cms-skeleton--card" />
+              <div className="cms-skeleton cms-skeleton--card" />
             </div>
           ) : isError ? (
             <div className="qna-inbox__empty">
@@ -624,20 +525,18 @@ function NoticeDetailView({
         </div>
       </header>
 
-      <div className="qna-inbox__thread-body" style={{ padding: "var(--space-5, 20px)" }}>
-        <div style={{ marginBottom: "var(--space-4)" }}>
-          <div
-            className="text-xs font-semibold text-[var(--color-text-secondary)] mb-2"
-          >
-            내용
+      <div className="cms-detail__body">
+        <div className="cms-detail__section">
+          <div className="cms-detail__section-label">내용</div>
+          <div className="cms-detail__content-card">
+            <RichTextEditor
+              value={editingContent}
+              onChange={setEditingContent}
+              placeholder="공지 내용을 입력하세요."
+              minHeight={200}
+            />
           </div>
-          <RichTextEditor
-            value={editingContent}
-            onChange={setEditingContent}
-            placeholder="공지 내용을 입력하세요."
-            minHeight={200}
-          />
-          <div className="flex items-center gap-2 mt-2">
+          <div className="cms-detail__content-actions">
             <Button
               intent="primary"
               size="sm"
@@ -647,37 +546,32 @@ function NoticeDetailView({
               {updateContentMut.isPending ? "저장 중…" : "내용 저장"}
             </Button>
             {contentSaved && (
-              <span className="text-sm text-[var(--color-text-muted)]">저장되었습니다.</span>
+              <span className="cms-detail__saved-msg">저장되었습니다.</span>
             )}
           </div>
         </div>
 
-        <div style={{ marginTop: "var(--space-6)" }}>
-          <div
-            className="text-xs font-semibold text-[var(--color-text-secondary)] mb-2"
-          >
-            노출 대상
-          </div>
-          <select
-            className="ds-input w-full"
-            multiple
-            value={currentNodeIds.map(String)}
-            onChange={(e) => {
-              const selected = Array.from(
-                e.target.selectedOptions,
-                (o) => Number(o.value)
-              );
-              setInspectorNodeIds(selected);
-            }}
-            style={{ minHeight: 80 }}
-          >
+        <div className="cms-detail__section">
+          <div className="cms-detail__section-label">노출 대상</div>
+          <div className="cms-node-picker">
             {nodePickerOptions.map((opt) => (
-              <option key={opt.value} value={opt.value}>
+              <label key={opt.value} className="cms-node-picker__item">
+                <input
+                  type="checkbox"
+                  checked={currentNodeIds.includes(opt.value)}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      setInspectorNodeIds([...inspectorNodeIds, opt.value]);
+                    } else {
+                      setInspectorNodeIds(inspectorNodeIds.filter(id => id !== opt.value));
+                    }
+                  }}
+                />
                 {opt.label}
-              </option>
+              </label>
             ))}
-          </select>
-          <div className="flex gap-2 mt-2">
+          </div>
+          <div className="cms-detail__content-actions">
             <Button
               intent="primary"
               size="sm"
@@ -772,28 +666,28 @@ function NoticeCreatePane({
         </div>
       </header>
 
-      <div className="qna-inbox__thread-body" style={{ padding: "var(--space-4, 16px) var(--space-5, 20px)" }}>
-        <div style={{ marginBottom: "var(--space-4, 16px)" }}>
-          <label className="community-field__label community-field__label--required" style={{ display: "block", marginBottom: 6 }}>제목</label>
-          <input className="ds-input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="공지 제목을 입력하세요" style={{ width: "100%" }} autoFocus />
+      <div className="cms-form__body">
+        <div className="cms-form__field">
+          <label className="community-field__label community-field__label--required">제목</label>
+          <input className="ds-input cms-form__input--full" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="공지 제목을 입력하세요" autoFocus />
         </div>
 
-        <div style={{ marginBottom: "var(--space-4, 16px)" }}>
-          <label className="community-field__label" style={{ display: "block", marginBottom: 6 }}>내용</label>
+        <div className="cms-form__field">
+          <label className="community-field__label">내용</label>
           <RichTextEditor value={content} onChange={setContent} placeholder="공지 내용을 입력하세요..." minHeight={250} />
         </div>
 
-        <div style={{ marginBottom: "var(--space-4, 16px)", display: "flex", alignItems: "center", gap: 8 }}>
-          <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 14, fontWeight: 600, color: isUrgent ? "var(--color-error, #dc2626)" : "var(--color-text-secondary)" }}>
-            <input type="checkbox" checked={isUrgent} onChange={(e) => setIsUrgent(e.target.checked)} style={{ width: 18, height: 18, accentColor: "var(--color-error, #dc2626)" }} />
+        <div className="cms-form__field--inline">
+          <label className="cms-form__checkbox-label" style={{ color: isUrgent ? "var(--color-error)" : undefined }}>
+            <input type="checkbox" checked={isUrgent} onChange={(e) => setIsUrgent(e.target.checked)} />
             긴급 공지
           </label>
-          {isUrgent && <span style={{ fontSize: 12, color: "var(--color-text-muted)" }}>학생 앱에서 강조 표시됩니다</span>}
+          {isUrgent && <span className="cms-detail__saved-msg">학생 앱에서 강조 표시됩니다</span>}
         </div>
 
         {error && <p className="community-field__error">{error}</p>}
 
-        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+        <div className="cms-form__actions">
           <Button intent="secondary" size="sm" onClick={onCancel}>취소</Button>
           <Button intent="primary" size="sm" onClick={handleSubmit} disabled={!canSubmit}>
             {submitting ? "등록 중…" : "등록"}

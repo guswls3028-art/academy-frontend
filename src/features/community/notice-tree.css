@@ -104,6 +104,24 @@
   opacity: 0.8;
 }
 
+/* lucide SVG icon (replaces emoji tab-icon) */
+.cms-tree__icon {
+  flex-shrink: 0;
+  opacity: 0.8;
+  color: currentColor;
+}
+
+/* Chevron rotation for expand/collapse */
+.cms-tree__chevron {
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+  transition: transform 150ms ease;
+}
+
+.cms-tree__chevron--open {
+  transform: rotate(90deg);
+}
+
 .notice-tree__tab-chevron {
   flex-shrink: 0;
   width: 14px;

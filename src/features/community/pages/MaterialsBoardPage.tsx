@@ -29,12 +29,12 @@ import {
   type CommunityScopeParams,
 } from "../api/community.api";
 import { fetchLectures, fetchSessions, type Lecture, type Session } from "@/features/lectures/api/sessions";
-import LectureChip from "@/shared/ui/chips/LectureChip";
-import { isSupplement } from "@/shared/ui/session-block/session-block.constants";
+import CmsTreeNav from "../components/CmsTreeNav";
 import { Button } from "@/shared/ui/ds";
 import { useConfirm } from "@/shared/ui/confirm";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import RichTextEditor from "@/shared/ui/editor/RichTextEditor";
+import { stripHtml, getInitials, getAvatarSlot, timeAgo, formatFileSize } from "../utils/communityHelpers";
 import "@/features/community/qna-inbox.css";
 import "@/features/community/notice-tree.css";
 import "@/features/community/board-admin.css";
@@ -42,32 +42,13 @@ import "@/features/community/board-admin.css";
 const SNIPPET_LEN = 80;
 
 /* ─── helpers ─────────────────────────────────────────── */
-function initials(name: string): string {
-  if (!name) return "?";
-  const p = name.trim().split(/\s+/);
-  return p.length === 1 ? p[0].slice(0, 2) : p[0][0] + p[p.length - 1][0];
-}
-function avatarSlot(name: string): number {
-  return [...(name ?? "")].reduce((a, c) => a + c.charCodeAt(0), 0) % 5;
-}
 function MatAvatar({ name, size = 32 }: { name: string; size?: number }) {
   const style = size !== 32 ? { width: size, height: size, fontSize: size * 0.34 } : undefined;
   return (
-    <div className="qna-inbox__avatar" data-slot={avatarSlot(name)} style={style}>
-      {initials(name)}
+    <div className="qna-inbox__avatar" data-slot={getAvatarSlot(name)} style={style}>
+      {getInitials(name)}
     </div>
   );
-}
-function timeAgo(dateStr: string): string {
-  const diff = (Date.now() - new Date(dateStr).getTime()) / 60000;
-  if (diff < 60) return `${Math.max(1, Math.floor(diff))}분 전`;
-  if (diff < 1440) return `${Math.floor(diff / 60)}시간 전`;
-  return `${Math.floor(diff / 1440)}일 전`;
-}
-function stripHtml(html: string): string {
-  const div = document.createElement("div");
-  div.innerHTML = html;
-  return div.textContent || div.innerText || "";
 }
 
 /* ─── Main Page ─────────────────────────────────────── */
@@ -93,7 +74,6 @@ export default function MaterialsBoardPage() {
     [scope, effectiveLectureId, sessionId]
   );
 
-  const [expandedParent, setExpandedParent] = useState(false);
   const [expandedLectureId, setExpandedLectureId] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [showCreate, setShowCreate] = useState(false);
@@ -245,15 +225,6 @@ export default function MaterialsBoardPage() {
     [setSearchParams]
   );
 
-  const toggleParent = useCallback(() => {
-    setExpandedParent((p) => !p);
-    if (expandedParent) setExpandedLectureId(null);
-  }, [expandedParent]);
-
-  const toggleLecture = useCallback((lecId: number) => {
-    setExpandedLectureId((prev) => (prev === lecId ? null : lecId));
-  }, []);
-
   // j/k keyboard nav
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -271,79 +242,29 @@ export default function MaterialsBoardPage() {
 
   return (
     <div className="notice-tree" style={{ minHeight: "calc(100vh - 180px)" }}>
-      {/* ═══ 1st pane: Tree nav ═══ */}
-      <nav className="notice-tree__nav">
-        <div className="notice-tree__nav-header">
-          <h2 className="notice-tree__nav-title">자료실</h2>
-        </div>
-
-        <div className="notice-tree__tabs">
-          <button
-            type="button"
-            className={`notice-tree__tab ${scope === "all" ? "notice-tree__tab--active notice-tree__tab--selected" : ""}`}
-            onClick={selectAll}
-          >
-            <span className="notice-tree__tab-icon" aria-hidden>📋</span>
-            <span className="notice-tree__tab-label">전체 자료</span>
-            {treeCounts.total > 0 && <span className="notice-tree__count">{treeCounts.total}</span>}
-            <span className="notice-tree__tab-chevron" aria-hidden />
-          </button>
-          <button
-            type="button"
-            className={`notice-tree__tab ${expandedParent ? "notice-tree__tab--active" : ""}`}
-            onClick={toggleParent}
-            aria-expanded={expandedParent}
-          >
-            <span className="notice-tree__tab-icon" aria-hidden>📁</span>
-            <span className="notice-tree__tab-label">강의목록</span>
-            {treeCounts.totalUnderScope > 0 && <span className="notice-tree__count">{treeCounts.totalUnderScope}</span>}
-            <span className="notice-tree__tab-chevron">{expandedParent ? "▼" : "▶"}</span>
-          </button>
-        </div>
-
-        <div className="notice-tree__sub">
-          {expandedParent &&
-            lectures.map((lec) => (
-              <div key={`lec-${lec.id}`} className="notice-tree__branch">
-                <button
-                  type="button"
-                  className={`notice-tree__sub-item notice-tree__sub-item--parent ${expandedLectureId === lec.id ? "notice-tree__sub-item--active" : ""} ${scope === "lecture" && lectureId === lec.id ? "notice-tree__sub-item--selected" : ""}`}
-                  onClick={() => { toggleLecture(lec.id); selectLecture(lec.id); }}
-                  aria-expanded={expandedLectureId === lec.id}
-                >
-                  <span className="notice-tree__sub-chevron">{expandedLectureId === lec.id ? "▼" : "▶"}</span>
-                  <LectureChip lectureName={lec.title || lec.name || ""} color={lec.color ?? undefined} size={20} />
-                  <span className="notice-tree__sub-label">{lec.title || lec.name || `강의 ${lec.id}`}</span>
-                  {(treeCounts.countByLecture[lec.id] ?? 0) > 0 && <span className="notice-tree__count">{treeCounts.countByLecture[lec.id]}</span>}
-                </button>
-                {expandedLectureId === lec.id && (
-                  <div className="notice-tree__children">
-                    {sessionsLoading ? (
-                      <div className="notice-tree__sub-item notice-tree__sub-item--child" style={{ color: "var(--color-text-muted)" }}>불러오는 중…</div>
-                    ) : (
-                      sessionsOfLecture.map((s) => {
-                        const sessionNodeId = scopeNodes.find((n) => n.lecture === lec.id && n.session === s.id)?.id;
-                        const sessionCount = sessionNodeId != null ? treeCounts.countByNodeId[sessionNodeId] ?? 0 : 0;
-                        const supplement = isSupplement(s.title);
-                        return (
-                          <button
-                            key={s.id} type="button"
-                            className={`notice-tree__sub-item notice-tree__sub-item--child ${supplement ? "notice-tree__sub-item--supplement" : "notice-tree__sub-item--n1"} ${scope === "session" && lectureId === lec.id && sessionId === s.id ? "notice-tree__sub-item--active notice-tree__sub-item--selected" : ""}`}
-                            onClick={() => selectSession(lec.id, s.id)}
-                          >
-                            <span className="notice-tree__sub-item-child-icon" aria-hidden>ㄴ</span>
-                            <span className="notice-tree__sub-label">{s.title || `${s.order}차시`}</span>
-                            {sessionCount > 0 && <span className="notice-tree__count">{sessionCount}</span>}
-                          </button>
-                        );
-                      })
-                    )}
-                  </div>
-                )}
-              </div>
-            ))}
-        </div>
-      </nav>
+      <CmsTreeNav
+        title="자료실"
+        allLabel="전체 자료"
+        counts={{
+          totalCount: treeCounts.total,
+          totalUnderScope: treeCounts.totalUnderScope,
+          countByNodeId: treeCounts.countByNodeId,
+          countByLecture: treeCounts.countByLecture,
+        }}
+        scope={scope}
+        lectureId={lectureId}
+        sessionId={sessionId}
+        effectiveLectureId={effectiveLectureId}
+        lectures={lectures}
+        scopeNodes={scopeNodes}
+        sessionsOfLecture={sessionsOfLecture}
+        sessionsLoading={sessionsLoading}
+        expandedLectureId={expandedLectureId}
+        onExpandLecture={setExpandedLectureId}
+        onSelectAll={selectAll}
+        onSelectLecture={selectLecture}
+        onSelectSession={selectSession}
+      />
 
       {/* ═══ 2nd pane: List ═══ */}
       <aside className="qna-inbox__list">
@@ -360,7 +281,7 @@ export default function MaterialsBoardPage() {
         <div className="qna-inbox__list-body">
           {!canShowList ? (
             <div className="qna-inbox__empty">
-              <p className="qna-inbox__empty-title">{expandedParent ? "강의 또는 차시를 선택하세요" : "전체 자료 또는 강의를 선택하세요"}</p>
+              <p className="qna-inbox__empty-title">전체 자료 또는 강의를 선택하세요</p>
             </div>
           ) : postsQ.isError ? (
             <div className="qna-inbox__empty">
@@ -368,7 +289,12 @@ export default function MaterialsBoardPage() {
               <p className="qna-inbox__empty-desc">잠시 후 다시 시도해 주세요.</p>
             </div>
           ) : postsQ.isLoading ? (
-            <div className="qna-inbox__empty"><p className="qna-inbox__empty-title">불러오는 중…</p></div>
+            <>
+              <div className="cms-skeleton cms-skeleton--card" />
+              <div className="cms-skeleton cms-skeleton--card" />
+              <div className="cms-skeleton cms-skeleton--card" />
+              <div className="cms-skeleton cms-skeleton--card" />
+            </>
           ) : filtered.length === 0 ? (
             <div className="qna-inbox__empty">
               <p className="qna-inbox__empty-title">{searchQuery.trim() ? "검색 결과가 없습니다" : "등록된 자료가 없습니다"}</p>
@@ -491,26 +417,32 @@ function MatCreatePane({
           <div className="qna-inbox__thread-actions"><Button intent="ghost" size="sm" onClick={onCancel}>취소</Button></div>
         </div>
       </header>
-      <div className="qna-inbox__thread-body" style={{ padding: "var(--space-4, 16px) var(--space-5, 20px)" }}>
-        <div style={{ marginBottom: "var(--space-4, 16px)" }}>
-          <label className="community-field__label community-field__label--required" style={{ display: "block", marginBottom: 6 }}>제목</label>
-          <input className="ds-input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="자료 제목을 입력하세요" style={{ width: "100%" }} autoFocus />
+      <div className="cms-form__body">
+        <div className="cms-form__field">
+          <label className="community-field__label community-field__label--required">제목</label>
+          <input className="ds-input cms-form__input--full" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="자료 제목을 입력하세요" autoFocus />
         </div>
-        <div style={{ marginBottom: "var(--space-4, 16px)" }}>
-          <label className="community-field__label" style={{ display: "block", marginBottom: 6 }}>내용</label>
+        <div className="cms-form__field">
+          <label className="community-field__label">내용</label>
           <RichTextEditor value={content} onChange={setContent} placeholder="자료 내용을 입력하세요. 이미지를 삽입하거나 파일을 첨부할 수 있습니다." minHeight={250} />
         </div>
-        {/* 파일 첨부 */}
-        <div style={{ marginBottom: "var(--space-4, 16px)" }}>
-          <label className="community-field__label" style={{ display: "block", marginBottom: 6 }}>파일 첨부</label>
-          <input ref={fileInputRef} type="file" multiple style={{ display: "none" }} onChange={(e) => { if (e.target.files) setFiles((prev) => [...prev, ...Array.from(e.target.files!)]); e.target.value = ""; }} />
-          <Button intent="secondary" size="sm" onClick={() => fileInputRef.current?.click()}>파일 선택</Button>
+        <div className="cms-form__field">
+          <div className="cms-attach__header">
+            <label className="community-field__label" style={{ margin: 0 }}>
+              첨부파일 {files.length > 0 && `(${files.length}/10)`}
+            </label>
+            <Button intent="ghost" size="sm" onClick={() => fileInputRef.current?.click()} disabled={files.length >= 10}>
+              + 파일 추가
+            </Button>
+            <input ref={fileInputRef} type="file" multiple style={{ display: "none" }} onChange={(e) => { if (e.target.files) { setFiles((prev) => [...prev, ...Array.from(e.target.files!)].slice(0, 10)); e.target.value = ""; } }} />
+          </div>
           {files.length > 0 && (
-            <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 4 }}>
+            <div className="cms-attach__list">
               {files.map((f, i) => (
-                <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "var(--color-text-secondary)" }}>
-                  <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name} ({(f.size / 1024 / 1024).toFixed(1)}MB)</span>
-                  <button type="button" onClick={() => setFiles((prev) => prev.filter((_, j) => j !== i))} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-error, #dc2626)", fontSize: 12, fontWeight: 600 }}>삭제</button>
+                <div key={`${f.name}-${i}`} className="cms-attach__item">
+                  <span className="cms-attach__item-name">{f.name}</span>
+                  <span className="cms-attach__item-size">{formatFileSize(f.size)}</span>
+                  <button type="button" className="cms-attach__item-remove" onClick={() => setFiles((prev) => prev.filter((_, j) => j !== i))}>&times;</button>
                 </div>
               ))}
             </div>
@@ -518,7 +450,7 @@ function MatCreatePane({
         </div>
 
         {error && <p className="community-field__error">{error}</p>}
-        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+        <div className="cms-form__actions">
           <Button intent="secondary" size="sm" onClick={onCancel}>취소</Button>
           <Button intent="primary" size="sm" onClick={handleSubmit} disabled={!canSubmit}>{submitting ? "등록 중…" : "등록"}</Button>
         </div>
@@ -612,44 +544,38 @@ function MatDetailView({ postId, onClose, onDeleted }: { postId: number; onClose
         </div>
       </header>
 
-      <div className="qna-inbox__thread-body">
-        <div className="qna-inbox__message-row">
-          <MatAvatar name={authorName} size={32} />
-          <div className="qna-inbox__message-bubble" style={{ flex: 1, minWidth: 0 }}>
-            <div className="qna-inbox__message-meta">
-              <span className="qna-inbox__message-author">{authorName}</span>
-              <span className="qna-inbox__message-date">{new Date(post.created_at).toLocaleString("ko-KR", { month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span>
-            </div>
-            <RichTextEditor value={editContent} onChange={setEditContent} placeholder="내용을 입력하세요." minHeight={200} />
-            {contentDirty && (
-              <div style={{ marginTop: 8 }}>
-                <Button size="sm" intent="primary" onClick={() => updateMut.mutate({ content: editContent })} disabled={updateMut.isPending}>
-                  {updateMut.isPending ? "저장 중…" : "내용 저장"}
-                </Button>
-              </div>
-            )}
-          </div>
+      <div className="cms-detail__body">
+        {/* Author/date meta row */}
+        <div className="cms-detail__meta-row">
+          <span className={`qna-inbox__avatar qna-inbox__avatar--slot-${getAvatarSlot(authorName)}`}>
+            {getInitials(authorName)}
+          </span>
+          <span className="cms-detail__meta-author">{authorName}</span>
+          <span className="cms-detail__meta-dot" />
+          <span>{timeAgo(post.created_at)}</span>
         </div>
 
-        {/* 첨부파일 */}
-        {(post.attachments?.length ?? 0) > 0 && (
-          <div style={{ padding: "var(--space-4, 16px) var(--space-5, 20px)", borderTop: "1px solid var(--color-border-divider)" }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-secondary)", marginBottom: 8 }}>첨부파일 ({post.attachments!.length})</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              {post.attachments!.map((att: PostAttachment) => (
-                <div key={att.id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
-                  <button type="button" onClick={async () => { try { const { url } = await getAttachmentDownloadUrl(postId, att.id); window.open(url, "_blank"); } catch { feedback.error("다운로드 실패"); } }} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-brand-primary)", fontWeight: 600, fontSize: 13, textDecoration: "underline", textAlign: "left", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {att.original_name} ({(att.size_bytes / 1024 / 1024).toFixed(1)}MB)
-                  </button>
-                  <button type="button" onClick={async () => { if (!await confirm({ title: "첨부파일 삭제", message: "첨부파일을 삭제할까요?", confirmText: "삭제", danger: true })) return; try { await deletePostAttachment(postId, att.id); qc.invalidateQueries({ queryKey: ["community-post", postId] }); feedback.success("삭제 완료"); } catch { feedback.error("삭제 실패"); } }} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-error, #dc2626)", fontSize: 12, fontWeight: 600, flexShrink: 0 }}>
-                    삭제
-                  </button>
-                </div>
-              ))}
-            </div>
+        {/* Section: 내용 */}
+        <div className="cms-detail__section">
+          <div className="cms-detail__section-label">내용</div>
+          <div className="cms-detail__content-card">
+            <RichTextEditor value={editContent} onChange={setEditContent} placeholder="내용을 입력하세요." minHeight={200} />
           </div>
-        )}
+          {contentDirty && (
+            <div className="cms-detail__content-actions">
+              <Button size="sm" intent="primary" onClick={() => updateMut.mutate({ content: editContent })} disabled={updateMut.isPending}>
+                {updateMut.isPending ? "저장 중…" : "내용 저장"}
+              </Button>
+            </div>
+          )}
+        </div>
 
+        {/* Section: 첨부파일 */}
+        <div className="cms-detail__section">
+          <MatAttachmentSection postId={postId} attachments={post.attachments ?? []} />
+        </div>
+
+        {/* Comments — keep messenger-style pattern */}
         {(post.replies_count ?? 0) > 0 && (
           <div className="qna-inbox__thread-sep"><span className="qna-inbox__thread-sep-label">댓글 {post.replies_count}개</span></div>
         )}
@@ -657,6 +583,73 @@ function MatDetailView({ postId, onClose, onDeleted }: { postId: number; onClose
       </div>
       <MatCommentComposer postId={postId} />
     </>
+  );
+}
+
+/* ─── Attachment Section ─────────────────────────────── */
+function MatAttachmentSection({ postId, attachments }: { postId: number; attachments: PostAttachment[] }) {
+  const qc = useQueryClient();
+  const confirm = useConfirm();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const uploadMut = useMutation({
+    mutationFn: (files: File[]) => uploadPostAttachments(postId, files),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["community-post", postId] }); feedback.success("파일이 첨부되었습니다."); },
+    onError: (e: unknown) => { feedback.error((e as Error)?.message ?? "파일 업로드에 실패했습니다."); },
+  });
+
+  const deleteMut = useMutation({
+    mutationFn: (attId: number) => deletePostAttachment(postId, attId),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["community-post", postId] }); feedback.success("첨부파일이 삭제되었습니다."); },
+    onError: (e: unknown) => { feedback.error((e as Error)?.message ?? "삭제에 실패했습니다."); },
+  });
+
+  const handleDownload = async (att: PostAttachment) => {
+    try {
+      const { url } = await getAttachmentDownloadUrl(postId, att.id);
+      const { downloadPresignedUrl } = await import("@/shared/utils/safeDownload");
+      downloadPresignedUrl(url, att.original_name);
+    } catch {
+      feedback.error("다운로드 URL을 가져오지 못했습니다.");
+    }
+  };
+
+  return (
+    <div className="cms-attach__section">
+      <div className="cms-attach__header">
+        <div className="cms-detail__section-label">
+          첨부파일 {attachments.length > 0 && `(${attachments.length})`}
+        </div>
+        <Button intent="ghost" size="sm" onClick={() => fileInputRef.current?.click()} disabled={uploadMut.isPending || attachments.length >= 10}>
+          {uploadMut.isPending ? "업로드 중…" : "+ 파일 추가"}
+        </Button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          style={{ display: "none" }}
+          onChange={(e) => {
+            if (e.target.files && e.target.files.length > 0) {
+              uploadMut.mutate(Array.from(e.target.files));
+              e.target.value = "";
+            }
+          }}
+        />
+      </div>
+      {attachments.length > 0 && (
+        <div className="cms-attach__list">
+          {attachments.map((att) => (
+            <div key={att.id} className="cms-attach__item">
+              <button type="button" className="cms-attach__item-name" onClick={() => handleDownload(att)}>
+                {att.original_name}
+              </button>
+              <span className="cms-attach__item-size">{formatFileSize(att.size_bytes)}</span>
+              <button type="button" className="cms-attach__item-remove" onClick={async () => { if (await confirm({ title: "첨부파일 삭제", message: "이 파일을 삭제할까요?", confirmText: "삭제", danger: true })) deleteMut.mutate(att.id); }} disabled={deleteMut.isPending}>&times;</button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
