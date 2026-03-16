@@ -67,13 +67,13 @@ export const AUTO_SEND_SECTIONS: SectionDef[] = [
     label: TEMPLATE_CATEGORY_LABELS.signup,
     icon: <UserPlus size={16} aria-hidden />,
     triggers: [
-      "student_signup",
       "registration_approved_student",
       "registration_approved_parent",
       "withdrawal_complete",
     ],
     children: [
-      triggerChild("student_signup", <Bell size={14} aria-hidden />),
+      triggerChild("registration_approved_student", <Bell size={14} aria-hidden />),
+      triggerChild("registration_approved_parent", <Bell size={14} aria-hidden />),
       triggerChild("withdrawal_complete", <Bell size={14} aria-hidden />),
     ],
   },

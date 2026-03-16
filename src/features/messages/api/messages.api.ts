@@ -282,7 +282,6 @@ export async function sendMessage(payload: SendMessagePayload): Promise<SendMess
 // ----------------------------------------
 
 export type AutoSendTrigger =
-  | "student_signup"
   | "registration_approved_student"
   | "registration_approved_parent"
   | "withdrawal_complete"
@@ -330,9 +329,8 @@ export interface AutoSendConfigItem {
 }
 
 export const AUTO_SEND_TRIGGER_LABELS: Record<string, string> = {
-  student_signup: "가입 완료",
-  registration_approved_student: "가입 승인(학생)",
-  registration_approved_parent: "가입 승인(학부모)",
+  registration_approved_student: "가입 안내(학생)",
+  registration_approved_parent: "가입 안내(학부모)",
   withdrawal_complete: "퇴원 처리 완료",
   lecture_session_reminder: "수업 시작 N분 전",
   check_in_complete: "입실 완료",

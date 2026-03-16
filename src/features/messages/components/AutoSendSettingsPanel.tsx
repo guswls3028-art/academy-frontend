@@ -31,12 +31,10 @@ import "../styles/templateEditor.css";
 // ---------------------------------------------------------------------------
 
 const TRIGGER_DESCRIPTIONS: Record<string, string> = {
-  student_signup:
-    "학생이 가입하면 학생·학부모에게 ID/비밀번호 및 접속 안내를 자동 발송합니다.",
   registration_approved_student:
-    "가입 신청 승인 시 학생에게 ID/비밀번호 및 접속 안내를 발송합니다.",
+    "학생 등록·가입 승인 시 학생에게 아이디/비밀번호 및 접속 안내를 알림톡으로 발송합니다.",
   registration_approved_parent:
-    "가입 신청 승인 시 학부모에게 ID/비밀번호 및 접속 안내를 발송합니다.",
+    "학생 등록·가입 승인 시 학부모에게 학부모+학생 로그인 정보를 알림톡으로 발송합니다.",
   withdrawal_complete:
     "퇴원 처리가 완료되면 학생·학부모에게 퇴원 확인 메시지를 발송합니다.",
   lecture_session_reminder:

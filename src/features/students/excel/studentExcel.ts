@@ -137,56 +137,28 @@ function inferSchoolType(school: string): "HIGH" | "MIDDLE" {
  */
 export function downloadStudentExcelTemplate() {
   const wb = XLSX.utils.book_new();
-  const headers = EXCEL_HEADERS.map((h) => h.label);
-  const exampleRow1 = [
-    "예시(등록안됨)",
-    "홍길동",
-    "01087654321",
-    "01012345678",
-    "M",
-    "HIGH",
-    "OO고등학교",
-    "1",
-    "1",
-    "인문계",
-    "",
-  ];
-  const exampleRow2 = [
-    "예시(등록안됨)",
-    "김영희",
-    "01011112222",
-    "01098765432",
-    "F",
-    "MIDDLE",
-    "OO중학교",
-    "2",
-    "3",
-    "",
-    "",
-  ];
+  const headers = ["이름", "학부모전화번호", "학생전화번호", "성별", "학교", "학년", "반", "계열", "메모"];
+  const exampleRow1 = ["홍길동", "01087654321", "01012345678", "남", "OO고등학교", "1", "1", "인문계", ""];
+  const exampleRow2 = ["김영희", "01011112222", "", "여", "OO중학교", "2", "3", "", ""];
 
   const instructionRow1 = [
-    "◆ 필수 입력: 이름, 학부모전화번호. 학생전화번호는 선택(비워두면 학부모 전화 뒤 8자리로 OMR 식별). 아이디는 6자리 숫자로 자동 부여됩니다.",
+    "◆ 필수: 이름, 학부모전화번호   |   나머지는 자유롭게 채워주세요. AI가 자동 인식합니다.",
   ];
   const instructionRow2 = [
-    "◆ 양식 규칙: 학부모전화번호·학생전화번호 010XXXXXXXX 11자리, 성별(M 또는 F), 학교유형(HIGH 또는 MIDDLE). 학교 비우면 비움, XX중/XX고 적으면 자동 반영.",
-  ];
-  const instructionRow3 = [
-    "◆ 7~8행은 예시입니다. 9행부터 학생 정보를 작성하세요.",
+    "◆ 학생전화번호를 비워두면 학부모 전화 뒤 8자리로 OMR 식별합니다. 아이디는 자동 부여됩니다.",
   ];
   const emptyRow: string[] = [];
 
   const data = [
     instructionRow1,
     instructionRow2,
-    instructionRow3,
     emptyRow,
     headers,
     exampleRow1,
     exampleRow2,
   ];
   const sheet = XLSX.utils.aoa_to_sheet(data);
-  sheet["!cols"] = headers.map((_, i) => ({ wch: i === 0 ? 22 : i === 1 ? 12 : 14 }));
+  sheet["!cols"] = headers.map((_, i) => ({ wch: i === 0 ? 12 : i <= 2 ? 16 : 14 }));
   XLSX.utils.book_append_sheet(wb, sheet, "학생목록");
   XLSX.writeFile(wb, "학생_일괄등록_양식.xlsx");
 }
