@@ -635,11 +635,12 @@ function BoardPostCard({
         <div className="qna-inbox__card-body">
           <div className="qna-inbox__card-title-row">
             <div className="qna-inbox__card-title">{post.title || "(제목 없음)"}</div>
-            <span className="ds-status-badge" data-tone="neutral">게시판</span>
           </div>
           {snippet && <div className="qna-inbox__card-snippet">{snippet}</div>}
           <div className="qna-inbox__card-meta">
             <span>{authorName}</span>
+            <span className="qna-inbox__card-meta-dot" />
+            <span>{(() => { const m = post.mappings?.[0]?.node_detail; if (!m) return "전체"; return m.session_title || m.lecture_title || "전체"; })()}</span>
             <span className="qna-inbox__card-meta-dot" />
             <span>{timeAgo(post.created_at)}</span>
             {(post.replies_count ?? 0) > 0 && (
@@ -743,7 +744,7 @@ function PostDetailView({
               </h1>
             )}
             <div className="qna-inbox__thread-meta">
-              <span className="ds-status-badge" data-tone="neutral" style={{ fontSize: 10 }}>게시판</span>
+              <span className="ds-status-badge" data-tone="neutral" style={{ fontSize: 10 }}>{(() => { const m = post.mappings?.[0]?.node_detail; if (!m) return "전체"; return m.session_title || m.lecture_title || "전체"; })()}</span>
               <span className="qna-inbox__thread-meta-dot" />
               <span>{authorName}</span>
               {lectureLabel && (<><span className="qna-inbox__thread-meta-dot" /><span>{lectureLabel}</span></>)}
@@ -764,7 +765,7 @@ function PostDetailView({
           <div className="qna-inbox__message-bubble" style={{ flex: 1, minWidth: 0 }}>
             <div className="qna-inbox__message-meta">
               <span className="qna-inbox__message-author">{authorName}</span>
-              <span className="qna-inbox__message-badge">게시판</span>
+              <span className="qna-inbox__message-badge">{(() => { const m = post.mappings?.[0]?.node_detail; if (!m) return "전체"; return m.session_title || m.lecture_title || "전체"; })()}</span>
               <span className="qna-inbox__message-date">
                 {new Date(post.created_at).toLocaleString("ko-KR", { month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" })}
               </span>
