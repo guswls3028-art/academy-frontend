@@ -52,20 +52,21 @@ async function _setTokensAndNavigate(
   role: TenantRole,
   tokens: { access: string; refresh: string },
 ): Promise<void> {
-  // 2. 대시보드 URL로 직접 이동 (동일 origin에서 localStorage 설정)
-  const dashPath = role === "student" ? "/student" : "/admin";
-  await page.goto(`${base}${dashPath}`, { waitUntil: "commit" });
+  // 2. 동일 origin 확보 — about:blank에서는 localStorage 사용 불가하므로
+  //    빈 경로로 이동하여 origin 확보
+  await page.goto(base, { waitUntil: "commit" });
 
-  // 3. localStorage에 토큰 설정
+  // 3. SPA가 마운트되기 전에 localStorage에 토큰 주입
   await page.evaluate((t) => {
     localStorage.setItem("access", t.access);
     localStorage.setItem("refresh", t.refresh);
   }, tokens);
 
-  // 4. reload로 SPA가 토큰을 읽도록 강제
-  await page.reload({ waitUntil: "domcontentloaded" });
+  // 4. 이제 대시보드로 이동 — SPA 초기 마운트 시 이미 토큰이 있으므로 auth guard 통과
+  const dashPath = role === "student" ? "/student" : "/admin";
+  await page.goto(`${base}${dashPath}`, { waitUntil: "domcontentloaded" });
 
-  // 5. SPA 마운트 + 인증 상태 확인 (로그인으로 리다이렉트 안 되는지)
+  // 5. SPA 마운트 대기
   await page.waitForTimeout(3000);
 }
 
