@@ -137,28 +137,51 @@ function inferSchoolType(school: string): "HIGH" | "MIDDLE" {
  */
 export function downloadStudentExcelTemplate() {
   const wb = XLSX.utils.book_new();
+
+  // ── 헤더 & 데이터 구성 ──
   const headers = ["이름", "학부모전화번호", "학생전화번호", "성별", "학교", "학년", "반", "계열", "메모"];
-  const exampleRow1 = ["홍길동", "01087654321", "01012345678", "남", "OO고등학교", "1", "1", "인문계", ""];
-  const exampleRow2 = ["김영희", "01011112222", "", "여", "OO중학교", "2", "3", "", ""];
+  const exampleRow1 = ["홍길동", "01087654321", "01012345678", "M", "한국고등학교", "1", "3", "이과", ""];
+  const exampleRow2 = ["김영희", "01011112222", "", "F", "서울중학교", "2", "1", "", ""];
 
-  const instructionRow1 = [
-    "◆ 필수: 이름, 학부모전화번호   |   나머지는 자유롭게 채워주세요. AI가 자동 인식합니다.",
+  const guide = [
+    ["학생 일괄 등록 양식"],
+    [""],
+    ["작성 안내"],
+    ["  필수 항목: 이름, 학부모전화번호 (나머지는 선택)"],
+    ["  학생전화번호가 있으면 학생 아이디로 사용됩니다. 없으면 자동 부여."],
+    ["  학부모 아이디 = 학부모전화번호 (비밀번호: 0000)"],
+    ["  성별: M(남) 또는 F(여)  |  학교 입력 시 고/중 자동 판별"],
+    ["  아래 예시 행은 삭제하고 학생 정보를 입력해 주세요."],
+    [""],
   ];
-  const instructionRow2 = [
-    "◆ 학생전화번호를 비워두면 학부모 전화 뒤 8자리로 OMR 식별합니다. 아이디는 자동 부여됩니다.",
-  ];
-  const emptyRow: string[] = [];
 
-  const data = [
-    instructionRow1,
-    instructionRow2,
-    emptyRow,
-    headers,
-    exampleRow1,
-    exampleRow2,
-  ];
+  const data = [...guide, headers, exampleRow1, exampleRow2];
   const sheet = XLSX.utils.aoa_to_sheet(data);
-  sheet["!cols"] = headers.map((_, i) => ({ wch: i === 0 ? 12 : i <= 2 ? 16 : 14 }));
+
+  // ── 컬럼 너비 ──
+  sheet["!cols"] = [
+    { wch: 10 }, // 이름
+    { wch: 16 }, // 학부모전화
+    { wch: 16 }, // 학생전화
+    { wch: 6 },  // 성별
+    { wch: 14 }, // 학교
+    { wch: 6 },  // 학년
+    { wch: 6 },  // 반
+    { wch: 8 },  // 계열
+    { wch: 16 }, // 메모
+  ];
+
+  // ── 셀 스타일 (xlsx 기본 지원 범위) ──
+  // 제목 행 병합
+  sheet["!merges"] = [
+    { s: { r: 0, c: 0 }, e: { r: 0, c: headers.length - 1 } }, // 제목
+    { s: { r: 2, c: 0 }, e: { r: 2, c: headers.length - 1 } }, // "작성 안내"
+  ];
+  // 안내문 행 병합 (각 행)
+  for (let r = 3; r <= 7; r++) {
+    sheet["!merges"].push({ s: { r, c: 0 }, e: { r, c: headers.length - 1 } });
+  }
+
   XLSX.utils.book_append_sheet(wb, sheet, "학생목록");
   XLSX.writeFile(wb, "학생_일괄등록_양식.xlsx");
 }
