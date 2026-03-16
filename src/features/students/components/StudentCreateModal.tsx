@@ -105,7 +105,7 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
   const [selectedExcelFile, setSelectedExcelFile] = useState<File | null>(null);
   const [deletedStudentConflict, setDeletedStudentConflict] = useState<{ student: ClientStudent; formData: typeof form } | null>(null);
 
-  const [sendWelcomeMessage, setSendWelcomeMessage] = useState(false);
+  const [sendWelcomeMessage, setSendWelcomeMessage] = useState(true);
   const [form, setForm] = useState({
     name: "",
     psNumber: "",
