@@ -2,10 +2,9 @@
 // 학생 등록 모달 — 초기 선택(1명만 등록 / 엑셀 업로드) 후 해당 폼 표시
 
 import { useEffect, useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { Switch } from "antd";
 import { FiMessageSquare } from "react-icons/fi";
-import "@/features/messages/styles/templateEditor.css";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader, MODAL_WIDTH } from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
 import { SessionBlockView } from "@/shared/ui/session-block";
@@ -16,17 +15,6 @@ import { downloadStudentExcelTemplate } from "../excel/studentExcel";
 import { asyncStatusStore } from "@/shared/ui/asyncStatus";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import type { ClientStudent } from "../api/students";
-import {
-  fetchMessageTemplates,
-  fetchAutoSendConfigs,
-  updateAutoSendConfigs,
-  createMessageTemplate,
-  type AutoSendConfigItem,
-  type MessageTemplatePayload,
-  type MessageMode,
-} from "@/features/messages/api/messages.api";
-import { DEFAULT_MESSAGE_MODE, MESSAGE_MODE_LABELS } from "@/features/messages/constants/messageSendOptions";
-import TemplateEditModal from "@/features/messages/components/TemplateEditModal";
 
 interface Props {
   open: boolean;
@@ -37,298 +25,73 @@ interface Props {
 
 type RegisterMode = "choice" | "single" | "excel";
 
-/* ── 인라인 자동발송 설정 카드 ── */
+/* ── 가입 안내 알림톡 토글 (단순 on/off) ── */
 
-function AutoSendCard({
-  sendWelcomeMessage,
-  onToggleSend,
-  messageMode,
-  templateName,
-  templateId,
-  templates,
-  onToggleMode,
-  onSelectTemplate,
-  onCreateTemplate,
-  busy,
-  mutPending,
+function WelcomeMessageToggle({
+  checked,
+  onChange,
+  disabled,
 }: {
-  sendWelcomeMessage: boolean;
-  onToggleSend: (v: boolean) => void;
-  messageMode: MessageMode;
-  templateName: string | null;
-  templateId: number | null;
-  templates: { id: number; name: string; solapi_status?: string }[];
-  onToggleMode: (toggle: "sms" | "alimtalk") => void;
-  onSelectTemplate: (id: number | null) => void;
-  onCreateTemplate: () => void;
-  busy: boolean;
-  mutPending: boolean;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  disabled: boolean;
 }) {
-  const smsOn = messageMode === "sms" || messageMode === "both";
-  const alimOn = messageMode === "alimtalk" || messageMode === "both";
-  const [showConfig, setShowConfig] = useState(false);
-
   return (
     <div
       style={{
+        display: "flex",
+        alignItems: "center",
+        gap: "var(--space-3)",
+        padding: "var(--space-3) var(--space-4)",
         borderRadius: "var(--radius-lg)",
         border: "1px solid var(--color-border-divider)",
-        background: sendWelcomeMessage
+        background: checked
           ? "color-mix(in srgb, var(--color-primary) 5%, var(--color-bg-surface))"
           : "var(--color-bg-surface-soft)",
-        boxShadow: sendWelcomeMessage
-          ? "inset 3px 0 0 var(--color-primary)"
-          : undefined,
+        boxShadow: checked ? "inset 3px 0 0 var(--color-primary)" : undefined,
         transition: "background 0.15s, box-shadow 0.15s",
-        overflow: "hidden",
       }}
     >
-      {/* 헤더: 아이콘 + 라벨 + 모드 뱃지 + 스위치 */}
       <div
         style={{
+          width: 32,
+          height: 32,
+          borderRadius: "var(--radius-md)",
+          background: checked
+            ? "color-mix(in srgb, var(--color-primary) 12%, transparent)"
+            : "var(--color-bg-surface-soft)",
           display: "flex",
           alignItems: "center",
-          gap: "var(--space-3)",
-          padding: "var(--space-3) var(--space-4)",
-          cursor: "pointer",
+          justifyContent: "center",
+          color: checked ? "var(--color-primary)" : "var(--color-text-muted)",
+          flexShrink: 0,
+          transition: "background 0.15s, color 0.15s",
         }}
-        onClick={() => setShowConfig((v) => !v)}
       >
-        <div
+        <FiMessageSquare size={15} aria-hidden />
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <span
           style={{
-            width: 32,
-            height: 32,
-            borderRadius: "var(--radius-md)",
-            background: sendWelcomeMessage
-              ? "color-mix(in srgb, var(--color-primary) 12%, transparent)"
-              : "var(--color-bg-surface-soft)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            color: sendWelcomeMessage ? "var(--color-primary)" : "var(--color-text-muted)",
-            flexShrink: 0,
-            transition: "background 0.15s, color 0.15s",
+            fontSize: 13,
+            fontWeight: 600,
+            color: checked ? "var(--color-text-primary)" : "var(--color-text-muted)",
           }}
         >
-          <FiMessageSquare size={15} aria-hidden />
-        </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", flexWrap: "wrap" }}>
-            <span
-              style={{
-                fontSize: 13,
-                fontWeight: 600,
-                color: sendWelcomeMessage ? "var(--color-text-primary)" : "var(--color-text-muted)",
-              }}
-            >
-              가입 완료 메시지
-            </span>
-            {sendWelcomeMessage && (
-              <div style={{ display: "flex", gap: 4 }}>
-                <span
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    padding: "1px 7px",
-                    borderRadius: "var(--radius-sm)",
-                    fontSize: 11,
-                    fontWeight: 600,
-                    background: smsOn
-                      ? "color-mix(in srgb, var(--color-success, #22c55e) 14%, transparent)"
-                      : "var(--color-bg-surface-soft)",
-                    color: smsOn ? "var(--color-success, #16a34a)" : "var(--color-text-muted)",
-                    border: `1px solid ${smsOn ? "color-mix(in srgb, var(--color-success, #22c55e) 30%, transparent)" : "var(--color-border-divider)"}`,
-                    transition: "all 0.15s",
-                  }}
-                >
-                  {MESSAGE_MODE_LABELS.sms}
-                </span>
-                <span
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    padding: "1px 7px",
-                    borderRadius: "var(--radius-sm)",
-                    fontSize: 11,
-                    fontWeight: 600,
-                    background: alimOn
-                      ? "color-mix(in srgb, var(--color-primary) 14%, transparent)"
-                      : "var(--color-bg-surface-soft)",
-                    color: alimOn ? "var(--color-primary)" : "var(--color-text-muted)",
-                    border: `1px solid ${alimOn ? "color-mix(in srgb, var(--color-primary) 30%, transparent)" : "var(--color-border-divider)"}`,
-                    transition: "all 0.15s",
-                  }}
-                >
-                  {MESSAGE_MODE_LABELS.alimtalk}
-                </span>
-              </div>
-            )}
-          </div>
-          {sendWelcomeMessage && templateName && (
-            <div style={{ fontSize: 11, color: "var(--color-text-muted)", marginTop: 1, lineHeight: 1.3 }}>
-              {templateName}
-            </div>
-          )}
-        </div>
-        <div
-          style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <Switch
-            checked={sendWelcomeMessage}
-            onChange={onToggleSend}
-            disabled={busy}
-            size="small"
-          />
+          가입 안내 알림톡 발송
+        </span>
+        <div style={{ fontSize: 11, color: "var(--color-text-muted)", marginTop: 1, lineHeight: 1.3 }}>
+          {checked
+            ? "학생·학부모에게 로그인 정보를 알림톡으로 보냅니다"
+            : "켜면 학생·학부모에게 알림톡이 발송됩니다"}
         </div>
       </div>
-
-      {/* 확장 설정 영역 */}
-      {showConfig && sendWelcomeMessage && (
-        <div
-          style={{
-            borderTop: "1px solid var(--color-border-divider)",
-            padding: "var(--space-3) var(--space-4)",
-            display: "flex",
-            flexDirection: "column",
-            gap: "var(--space-3)",
-            animation: "fadeIn 0.15s ease",
-          }}
-        >
-          {/* 발송 유형 */}
-          <div>
-            <div
-              style={{
-                fontSize: 11,
-                fontWeight: 600,
-                color: "var(--color-text-muted)",
-                marginBottom: 6,
-                textTransform: "uppercase" as const,
-                letterSpacing: "0.04em",
-              }}
-            >
-              발송 유형
-            </div>
-            <div style={{ display: "flex", gap: 6 }}>
-              <button
-                type="button"
-                onClick={() => onToggleMode("sms")}
-                disabled={mutPending}
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 6,
-                  padding: "6px 14px",
-                  borderRadius: "var(--radius-md)",
-                  border: `1.5px solid ${smsOn ? "var(--color-success, #22c55e)" : "var(--color-border-divider)"}`,
-                  background: smsOn
-                    ? "color-mix(in srgb, var(--color-success, #22c55e) 10%, var(--color-bg-surface))"
-                    : "var(--color-bg-surface)",
-                  color: smsOn ? "var(--color-success, #16a34a)" : "var(--color-text-muted)",
-                  fontSize: 13,
-                  fontWeight: 600,
-                  cursor: mutPending ? "not-allowed" : "pointer",
-                  transition: "all 0.15s",
-                }}
-              >
-                <span
-                  style={{
-                    width: 8,
-                    height: 8,
-                    borderRadius: "50%",
-                    background: smsOn ? "var(--color-success, #22c55e)" : "var(--color-border-divider)",
-                    transition: "background 0.15s",
-                  }}
-                />
-                {MESSAGE_MODE_LABELS.sms}
-              </button>
-              <button
-                type="button"
-                onClick={() => onToggleMode("alimtalk")}
-                disabled={mutPending}
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 6,
-                  padding: "6px 14px",
-                  borderRadius: "var(--radius-md)",
-                  border: `1.5px solid ${alimOn ? "var(--color-primary)" : "var(--color-border-divider)"}`,
-                  background: alimOn
-                    ? "color-mix(in srgb, var(--color-primary) 10%, var(--color-bg-surface))"
-                    : "var(--color-bg-surface)",
-                  color: alimOn ? "var(--color-primary)" : "var(--color-text-muted)",
-                  fontSize: 13,
-                  fontWeight: 600,
-                  cursor: mutPending ? "not-allowed" : "pointer",
-                  transition: "all 0.15s",
-                }}
-              >
-                <span
-                  style={{
-                    width: 8,
-                    height: 8,
-                    borderRadius: "50%",
-                    background: alimOn ? "var(--color-primary)" : "var(--color-border-divider)",
-                    transition: "background 0.15s",
-                  }}
-                />
-                {MESSAGE_MODE_LABELS.alimtalk}
-              </button>
-            </div>
-            <div style={{ fontSize: 11, color: "var(--color-text-muted)", marginTop: 4, lineHeight: 1.4 }}>
-              둘 다 선택 시 모두로 발송됩니다.
-            </div>
-          </div>
-
-          {/* 템플릿 선택 */}
-          <div>
-            <div
-              style={{
-                fontSize: 11,
-                fontWeight: 600,
-                color: "var(--color-text-muted)",
-                marginBottom: 6,
-                textTransform: "uppercase" as const,
-                letterSpacing: "0.04em",
-              }}
-            >
-              발송 템플릿
-            </div>
-            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-              <select
-                className="ds-input"
-                style={{ flex: 1, fontSize: 13 }}
-                value={templateId ?? ""}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  onSelectTemplate(v ? Number(v) : null);
-                }}
-                disabled={mutPending}
-              >
-                <option value="">— 템플릿 선택 —</option>
-                {templates.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name}
-                    {t.solapi_status === "APPROVED"
-                      ? " \u2713"
-                      : t.solapi_status === "PENDING"
-                      ? " (검수대기)"
-                      : ""}
-                  </option>
-                ))}
-              </select>
-              <Button
-                intent="secondary"
-                size="sm"
-                onClick={onCreateTemplate}
-                disabled={mutPending}
-              >
-                + 생성
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      <Switch
+        checked={checked}
+        onChange={onChange}
+        disabled={disabled}
+        size="small"
+      />
     </div>
   );
 }
@@ -343,9 +106,6 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
   const [deletedStudentConflict, setDeletedStudentConflict] = useState<{ student: ClientStudent; formData: typeof form } | null>(null);
 
   const [sendWelcomeMessage, setSendWelcomeMessage] = useState(false);
-  const [templateModalOpen, setTemplateModalOpen] = useState(false);
-  const [localSignupMessageMode, setLocalSignupMessageMode] = useState<MessageMode>(DEFAULT_MESSAGE_MODE);
-  const [localSignupTemplateId, setLocalSignupTemplateId] = useState<number | null>(null);
   const [form, setForm] = useState({
     name: "",
     psNumber: "",
@@ -394,101 +154,6 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
   }, [open, onBulkProgress]);
 
   const qc = useQueryClient();
-  const needMessageConfig = open && (mode === "single" || mode === "excel");
-  const { data: messageTemplates = [] } = useQuery({
-    queryKey: ["messaging", "templates"],
-    queryFn: () => fetchMessageTemplates(),
-    enabled: needMessageConfig,
-    staleTime: 30 * 1000,
-  });
-  const { data: autoSendConfigs = [] } = useQuery({
-    queryKey: ["messaging", "auto-send"],
-    queryFn: fetchAutoSendConfigs,
-    enabled: needMessageConfig,
-    staleTime: 30 * 1000,
-  });
-  const signupConfig = autoSendConfigs.find((c) => c.trigger === "student_signup") ?? null;
-
-  useEffect(() => {
-    if (signupConfig) {
-      setLocalSignupMessageMode(signupConfig.message_mode ?? DEFAULT_MESSAGE_MODE);
-      setLocalSignupTemplateId(signupConfig.template ?? null);
-    }
-  }, [signupConfig?.message_mode, signupConfig?.template]);
-
-  const updateAutoSendMut = useMutation({
-    mutationFn: updateAutoSendConfigs,
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["messaging", "auto-send"] });
-    },
-    onError: (e: unknown) => {
-      const msg = e instanceof Error ? e.message : "자동발송 설정 저장에 실패했습니다.";
-      feedback.error(msg);
-    },
-  });
-
-  const createTemplateAndRegisterMut = useMutation({
-    mutationFn: async (payload: MessageTemplatePayload) => {
-      const created = await createMessageTemplate(payload);
-      const configs = await fetchAutoSendConfigs();
-      const next = configs.map((c) =>
-        c.trigger === "student_signup"
-          ? { ...c, template: created.id, template_name: created.name, enabled: true }
-          : c
-      );
-      await updateAutoSendConfigs(next);
-      return created;
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["messaging", "templates"] });
-      qc.invalidateQueries({ queryKey: ["messaging", "auto-send"] });
-      setTemplateModalOpen(false);
-      feedback.success("템플릿이 저장되었고, 가입 완료 시 자동 발송 메시지로 등록되었습니다.");
-    },
-    onError: (e: unknown) => {
-      const msg = e instanceof Error ? e.message : "템플릿 저장에 실패했습니다.";
-      feedback.error(msg);
-    },
-  });
-
-  function nextMessageMode(current: MessageMode, toggle: "sms" | "alimtalk"): MessageMode {
-    const sms = current === "sms" || current === "both";
-    const alim = current === "alimtalk" || current === "both";
-    if (toggle === "sms") {
-      const newSms = !sms;
-      if (newSms && alim) return "both";
-      if (newSms && !alim) return "sms";
-      return "alimtalk";
-    } else {
-      const newAlim = !alim;
-      if (sms && newAlim) return "both";
-      if (!sms && newAlim) return "alimtalk";
-      return "sms";
-    }
-  }
-
-  function handleSetSignupMessageMode(toggle: "sms" | "alimtalk") {
-    const nextMode = nextMessageMode(localSignupMessageMode, toggle);
-    setLocalSignupMessageMode(nextMode);
-    const configs: Partial<AutoSendConfigItem>[] = autoSendConfigs.map((c) =>
-      c.trigger === "student_signup" ? { ...c, message_mode: nextMode } : c
-    );
-    updateAutoSendMut.mutate(configs);
-  }
-
-  function handleSelectSignupTemplateFromDropdown(templateId: number | null) {
-    setLocalSignupTemplateId(templateId);
-    const configs: Partial<AutoSendConfigItem>[] = autoSendConfigs.map((c) =>
-      c.trigger === "student_signup"
-        ? { ...c, template: templateId, enabled: templateId != null }
-        : c
-    );
-    updateAutoSendMut.mutate(configs);
-  }
-
-  function handleTemplateSubmit(payload: MessageTemplatePayload) {
-    createTemplateAndRegisterMut.mutate(payload);
-  }
 
   function handleExcelFileSelect(file: File) {
     setSelectedExcelFile(file);
@@ -567,7 +232,6 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
       const data = err?.response?.data;
       let msg: string;
       if (data && typeof data === "object") {
-        // DRF returns field-level errors as {"field": ["error"]} or {"detail": "error"}
         const detail = data.detail;
         if (typeof detail === "string") {
           msg = detail;
@@ -691,23 +355,7 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
     onClose();
   };
 
-  /* 공통 AutoSendCard props */
-  const autoSendCardProps = {
-    sendWelcomeMessage,
-    onToggleSend: setSendWelcomeMessage,
-    messageMode: localSignupMessageMode,
-    templateName: signupConfig?.template_name ?? null,
-    templateId: localSignupTemplateId,
-    templates: messageTemplates,
-    onToggleMode: handleSetSignupMessageMode,
-    onSelectTemplate: handleSelectSignupTemplateFromDropdown,
-    onCreateTemplate: () => setTemplateModalOpen(true),
-    busy,
-    mutPending: updateAutoSendMut.isPending || createTemplateAndRegisterMut.isPending,
-  };
-
   return (
-    <>
     <AdminModal open={open} onClose={handleClose} type="action" width={MODAL_WIDTH.md} onEnterConfirm={!busy ? handleSubmit : undefined}>
       <ModalHeader
         type="action"
@@ -798,9 +446,9 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
           </div>
         ) : mode === "single" ? (
         <div className="modal-scroll-body modal-scroll-body--compact modal-scroll-body--no-scroll">
-          {/* 자동발송 설정 카드 */}
+          {/* 알림톡 토글 */}
           <div style={{ marginBottom: "var(--space-4)" }}>
-            <AutoSendCard {...autoSendCardProps} />
+            <WelcomeMessageToggle checked={sendWelcomeMessage} onChange={setSendWelcomeMessage} disabled={busy} />
           </div>
 
           {/* 첫 블록: 이름(우측에 성별) · 로그인 아이디 · 초기 비밀번호 · 학부모 전화 */}
@@ -854,7 +502,7 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
             />
             <div className="modal-phone-row">
               <span className="modal-phone-label">학부모 전화번호 (필수)</span>
-              <span className="modal-phone-desc">학부모 로그인 아이디로 사용됩니다. 초기 비밀번호는 0000입니다.</span>
+              <span className="modal-phone-desc">문자·연락 수신용입니다.</span>
               <PhoneInput010Blocks
                 value={form.parentPhone ?? ""}
                 onChange={(v) => setForm((p) => ({ ...p, parentPhone: v }))}
@@ -988,9 +636,9 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
             </button>
           </div>
 
-          {/* 자동발송 설정 카드 */}
+          {/* 알림톡 토글 */}
           <div style={{ marginBottom: "var(--space-4)" }}>
-            <AutoSendCard {...autoSendCardProps} />
+            <WelcomeMessageToggle checked={sendWelcomeMessage} onChange={setSendWelcomeMessage} disabled={busy} />
           </div>
 
           <div className="modal-form-row modal-form-row--1-auto" style={{ alignItems: "end" }}>
@@ -1055,16 +703,5 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
         }
       />
     </AdminModal>
-
-    <TemplateEditModal
-      open={templateModalOpen}
-      onClose={() => setTemplateModalOpen(false)}
-      category="default"
-      initial={null}
-      onSubmit={handleTemplateSubmit}
-      isPending={createTemplateAndRegisterMut.isPending}
-      zIndex={1100}
-    />
-    </>
   );
 }
