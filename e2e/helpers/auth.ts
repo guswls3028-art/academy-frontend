@@ -20,16 +20,20 @@ export async function loginViaUI(page: Page, role: TenantRole): Promise<void> {
   await page.goto(`${c.base}/login/${c.code}`);
   await page.waitForLoadState("load");
 
-  // "로그인" 버튼으로 폼 열기
-  const openBtn = page.locator("button").filter({ hasText: /로그인|시작/ }).first();
-  if (await openBtn.isVisible({ timeout: 15000 }).catch(() => false)) {
-    await openBtn.click();
-    await page.waitForTimeout(500);
+  // "로그인" 버튼으로 폼 열기 — React hydration 대기 후 클릭
+  const idInput = page.locator('input[name="username"]').first();
+
+  // 폼이 바로 보이면 확장 불필요, 아니면 버튼 클릭
+  for (let attempt = 0; attempt < 5; attempt++) {
+    if (await idInput.isVisible().catch(() => false)) break;
+    const openBtn = page.locator("button").filter({ hasText: /로그인|시작/ }).first();
+    if (await openBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await openBtn.click();
+    }
+    await page.waitForTimeout(2000);
   }
 
-  // 아이디 (type="" 또는 type 없음 — input[type="text"] 매치 안 됨)
-  const idInput = page.locator('input[name="username"]').first();
-  await idInput.waitFor({ state: "visible", timeout: 20000 });
+  await idInput.waitFor({ state: "visible", timeout: 10000 });
   await idInput.fill(c.user);
 
   // 비밀번호
