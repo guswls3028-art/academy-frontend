@@ -27,10 +27,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile --shamefully-hoist
 
-      # warning-only: 기존 타입 에러 20+건 존재. 0건 달성 후 차단으로 승격 예정.
-      - name: Typecheck (warning-only)
-        run: pnpm exec tsc --noEmit -p tsconfig.app.json || echo "::warning::TypeScript errors found"
-        continue-on-error: true
+      # 차단 게이트: 타입 에러 = 배포 차단
+      - name: Typecheck
+        run: pnpm exec tsc --noEmit -p tsconfig.app.json
 
       # warning-only: 기존 lint 에러 존재. 점진 수정 후 차단으로 승격 예정.
       - name: Lint (warning-only)
