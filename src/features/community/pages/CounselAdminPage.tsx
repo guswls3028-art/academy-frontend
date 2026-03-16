@@ -51,19 +51,16 @@ export default function CounselAdminPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const qc = useQueryClient();
 
-  // 자동 프로비저닝: counsel 블록 유형이 없으면 생성, 있으면 기존 ID 반환
-  const { data: counselTypeId, isLoading: typeLoading, isError: typeError } = useQuery({
-    queryKey: ["community-counsel-type-ensure"],
-    queryFn: ensureCounselBlockType,
-    staleTime: Infinity,
-    retry: 2,
-  });
+  // post_type 기반: counselTypeId 불필요
+  const counselTypeId = null as number | null;
+  const typeLoading = false;
+  const typeError = false;
 
   // Fetch counsel posts
   const { data: postsData, isLoading: postsLoading } = useQuery({
     queryKey: ["community-counsel-posts", counselTypeId],
-    queryFn: () => fetchAdminPosts({ blockTypeId: counselTypeId!, pageSize: 500 }),
-    enabled: counselTypeId != null,
+    queryFn: () => fetchAdminPosts({ postType: "counsel", pageSize: 500 }),
+    enabled: true,
   });
   const posts = postsData?.results ?? [];
 

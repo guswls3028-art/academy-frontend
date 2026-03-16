@@ -8,6 +8,7 @@ import { useCommunityScope } from "../context/CommunityScopeContext";
 import {
   fetchScopeNodes,
   fetchCommunityBoardPosts,
+  fetchAdminPosts,
   ensureNoticeBlockType,
   fetchPost,
   updatePostNodes,
@@ -86,12 +87,9 @@ export default function NoticeAdminPage() {
     enabled: expandedLectureId != null && Number.isFinite(expandedLectureId),
   });
 
-  const { data: noticeTypeId = null, isError: blockTypesError, refetch: refetchBlockTypes } = useQuery({
-    queryKey: ["community-notice-type-ensure"],
-    queryFn: ensureNoticeBlockType,
-    staleTime: Infinity,
-    retry: 2,
-  });
+  // post_type 기반: noticeTypeId 불필요 (레거시 호환용으로 유지)
+  const noticeTypeId = null as number | null;
+  const blockTypesError = false;
 
   /** 트리 노드별 공지 개수 집계용: 공지 전체 목록(매핑 포함) */
   const { data: allNoticePostsForCount = [] } = useQuery({
@@ -138,18 +136,28 @@ export default function NoticeAdminPage() {
       scope,
       effectiveLectureId,
       sessionId,
-      noticeTypeId ?? "all",
     ],
-    queryFn: () =>
-      fetchCommunityBoardPosts({
-        ...scopeParams,
-        categoryId: noticeTypeId ?? undefined,
-      }),
-    enabled:
-      (scope === "all" ||
-        (scope === "lecture" && effectiveLectureId != null) ||
-        (scope === "session" && sessionId != null)) &&
-      noticeTypeId != null,
+    queryFn: async () => {
+      const { results } = await fetchAdminPosts({ postType: "notice", pageSize: 500 });
+      // BoardPost 호환 매핑
+      return results.map((p) => ({
+        id: p.id,
+        tenant: p.tenant ?? null,
+        lecture: p.mappings?.[0]?.node_detail?.lecture ?? null,
+        session: p.mappings?.[0]?.node_detail?.session ?? null,
+        category: p.block_type,
+        title: p.title,
+        content: p.content,
+        created_by: p.created_by,
+        created_at: p.created_at,
+        attachments: [],
+        lecture_title: p.mappings?.[0]?.node_detail?.lecture_title,
+        category_name: p.block_type_label,
+      })) as BoardPost[];
+    },
+    enabled: scope === "all" ||
+      (scope === "lecture" && effectiveLectureId != null) ||
+      (scope === "session" && sessionId != null),
     retry: 1,
     staleTime: 30_000,
   });
@@ -351,7 +359,7 @@ export default function NoticeAdminPage() {
         <div className="qna-inbox__list-header">
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
             <h2 className="qna-inbox__list-title">공지사항</h2>
-            {noticeTypeId != null && (
+            {true && (
               <Button intent="primary" size="sm" onClick={() => { setShowCreate(true); setSelectedId(null); }}>+ 추가</Button>
             )}
           </div>
@@ -412,7 +420,7 @@ export default function NoticeAdminPage() {
       </aside>
 
       <main className="qna-inbox__thread">
-        {showCreate && noticeTypeId != null ? (
+        {showCreate && true ? (
           <NoticeCreatePane
             noticeTypeId={noticeTypeId}
             scopeNodes={scopeNodes}
@@ -753,7 +761,6 @@ function NoticeCreatePane({
     try {
       await createPost({
         post_type: "notice",
-        block_type: noticeTypeId,
         title: title.trim(),
         content,
         node_ids: autoNodeIds,

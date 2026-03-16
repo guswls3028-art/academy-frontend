@@ -99,13 +99,10 @@ export default function MaterialsBoardPage() {
   const [showCreate, setShowCreate] = useState(false);
   const qc = useQueryClient();
 
-  // Auto-provision materials block type
-  const { data: materialsTypeId, isLoading: typeLoading, isError: typeError } = useQuery({
-    queryKey: ["community-materials-type-ensure"],
-    queryFn: ensureMaterialsBlockType,
-    staleTime: Infinity,
-    retry: 2,
-  });
+  // post_type 기반: materialsTypeId 불필요
+  const materialsTypeId = null as number | null;
+  const typeLoading = false;
+  const typeError = false;
 
   const { data: scopeNodes = [] } = useQuery<ScopeNodeMinimal[]>({
     queryKey: ["community-scope-nodes"],
@@ -125,12 +122,12 @@ export default function MaterialsBoardPage() {
 
   // ── All materials posts for tree counts ──
   const { data: allMatPostsForCount = [] } = useQuery<PostEntity[]>({
-    queryKey: ["community-all-materials-posts-for-count", materialsTypeId],
+    queryKey: ["community-all-materials-posts-for-count"],
     queryFn: async () => {
-      const { results } = await fetchAdminPosts({ blockTypeId: materialsTypeId!, pageSize: 500 });
+      const { results } = await fetchAdminPosts({ postType: "materials", pageSize: 500 });
       return results;
     },
-    enabled: materialsTypeId != null,
+    enabled: true,
   });
 
   const treeCounts = useMemo(() => {
@@ -176,12 +173,12 @@ export default function MaterialsBoardPage() {
     );
 
   const postsQ = useQuery<PostEntity[]>({
-    queryKey: ["community-materials-posts-scoped", materialsTypeId, scope, nodeId],
+    queryKey: ["community-materials-posts-scoped", scope, nodeId],
     queryFn: async () => {
       const all = await fetchPosts({ nodeId: nodeId ?? undefined, pageSize: 500 });
-      return materialsTypeId != null ? all.filter((p) => p.block_type === materialsTypeId) : all;
+      return all.filter((p) => p.post_type === "materials");
     },
-    enabled: canShowList && materialsTypeId != null,
+    enabled: canShowList,
   });
   const posts = postsQ.data ?? [];
 
@@ -408,9 +405,9 @@ export default function MaterialsBoardPage() {
 
       {/* ═══ 3rd pane: Detail / Create ═══ */}
       <main className="qna-inbox__thread">
-        {showCreate && materialsTypeId != null ? (
+        {showCreate ? (
           <MatCreatePane
-            materialsTypeId={materialsTypeId}
+            materialsTypeId={materialsTypeId ?? 0}
             scopeNodes={scopeNodes}
             scopeParams={scopeParams}
             onCancel={() => setShowCreate(false)}
@@ -493,7 +490,7 @@ function MatCreatePane({
     setSubmitting(true);
     setError(null);
     try {
-      const post = await createPost({ post_type: "materials", block_type: materialsTypeId, title: title.trim(), content, node_ids: autoNodeIds });
+      const post = await createPost({ post_type: "materials", title: title.trim(), content, node_ids: autoNodeIds });
       if (files.length > 0 && post?.id) {
         await uploadPostAttachments(post.id, files);
       }
