@@ -433,7 +433,7 @@ export default function BoardAdminPage() {
             scopeParams={scopeParams}
             onCancel={() => setShowCreate(false)}
             onSuccess={() => {
-              qc.invalidateQueries({ queryKey: ["community-board-posts-scoped"] });
+              qc.invalidateQueries({ queryKey: ["community-board-posts-all"] });
               qc.invalidateQueries({ queryKey: ["community-all-board-posts-for-count"] });
               setShowCreate(false);
               feedback.success("게시물이 등록되었습니다.");
@@ -455,7 +455,7 @@ export default function BoardAdminPage() {
             onClose={() => setSelectedId(null)}
             onDeleted={() => {
               setSelectedId(null);
-              qc.invalidateQueries({ queryKey: ["community-board-posts-scoped"] });
+              qc.invalidateQueries({ queryKey: ["community-board-posts-all"] });
               qc.invalidateQueries({ queryKey: ["community-all-board-posts-for-count"] });
             }}
           />
@@ -686,7 +686,7 @@ function PostDetailView({
     mutationFn: (data: { title?: string; content?: string }) => updatePost(postId, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["community-post", postId] });
-      qc.invalidateQueries({ queryKey: ["community-board-posts-scoped"] });
+      qc.invalidateQueries({ queryKey: ["community-board-posts-all"] });
       qc.invalidateQueries({ queryKey: ["community-all-board-posts-for-count"] });
       setEditingTitle(false);
       feedback.success("수정되었습니다.");
@@ -947,7 +947,7 @@ function CommentComposer({ postId }: { postId: number }) {
     mutationFn: () => createAnswer(postId, content),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["post-replies", postId] });
-      qc.invalidateQueries({ queryKey: ["community-board-posts-scoped"] });
+      qc.invalidateQueries({ queryKey: ["community-board-posts-all"] });
       setContent("");
       feedback.success("댓글이 등록되었습니다.");
     },

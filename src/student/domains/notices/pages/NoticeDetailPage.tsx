@@ -3,6 +3,7 @@
  */
 import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
+import DOMPurify from "dompurify";
 import StudentPageShell from "@/student/shared/ui/pages/StudentPageShell";
 import { fetchNoticeDetail } from "../api/notices";
 import EmptyState from "@/student/shared/ui/layout/EmptyState";
@@ -70,17 +71,15 @@ export default function NoticeDetailPage() {
           </div>
 
           {/* 내용 */}
-          <div
-            style={{
-              fontSize: 15,
-              lineHeight: 1.6,
-              color: "var(--stu-text)",
-              whiteSpace: "pre-wrap",
-              wordBreak: "break-word",
-            }}
-          >
-            {notice.content || "내용이 없습니다."}
-          </div>
+          {notice.content ? (
+            <div
+              className="stu-html-content"
+              style={{ fontSize: 15, lineHeight: 1.7, wordBreak: "break-word" }}
+              dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(notice.content) }}
+            />
+          ) : (
+            <p style={{ color: "var(--stu-text-muted)", fontSize: 15 }}>내용이 없습니다.</p>
+          )}
 
           {/* 목록으로 돌아가기 */}
           <div style={{ marginTop: "var(--stu-space-4)", paddingTop: "var(--stu-space-4)", borderTop: "1px solid var(--stu-border)" }}>

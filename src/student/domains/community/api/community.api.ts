@@ -25,9 +25,9 @@ export const getAttachmentDownloadUrl = _getDownloadUrl;
 
 /** 내가 작성한 질문 목록 — post_type 기반 */
 export async function fetchMyQuestions(studentId: number, pageSize = 50): Promise<PostEntity[]> {
-  const posts = await fetchPosts({ nodeId: null, pageSize });
+  const posts = await fetchPosts({ nodeId: null, pageSize, postType: "qna" });
   return posts
-    .filter((p) => p.post_type === "qna" && Number(p.created_by) === Number(studentId))
+    .filter((p) => Number(p.created_by) === Number(studentId))
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 }
 
@@ -63,9 +63,9 @@ export async function submitQuestion(
 
 /** 내가 작성한 상담 신청 목록 — post_type 기반 */
 export async function fetchMyCounselRequests(studentId: number, pageSize = 50): Promise<PostEntity[]> {
-  const posts = await fetchPosts({ nodeId: null, pageSize });
+  const posts = await fetchPosts({ nodeId: null, pageSize, postType: "counsel" });
   return posts
-    .filter((p) => p.post_type === "counsel" && Number(p.created_by) === Number(studentId))
+    .filter((p) => Number(p.created_by) === Number(studentId))
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 }
 
@@ -99,20 +99,16 @@ export async function fetchNoticePosts(pageSize = 100): Promise<PostEntity[]> {
 
 /** 일반 게시판 목록 */
 export async function fetchBoardPosts(pageSize = 100): Promise<PostEntity[]> {
-  const posts = await fetchPosts({ nodeId: null, pageSize });
-  return posts
-    .filter((p) => p.post_type === "board")
-    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  const posts = await fetchPosts({ nodeId: null, pageSize, postType: "board" });
+  return posts.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 }
 
 // ── 자료실 — post_type 기반 ──
 
 /** 자료실 목록 */
 export async function fetchMaterialsPosts(pageSize = 100): Promise<PostEntity[]> {
-  const posts = await fetchPosts({ nodeId: null, pageSize });
-  return posts
-    .filter((p) => p.post_type === "materials")
-    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  const posts = await fetchPosts({ nodeId: null, pageSize, postType: "materials" });
+  return posts.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 }
 
 /** 게시물 상세 */

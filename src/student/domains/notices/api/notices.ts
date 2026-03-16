@@ -14,6 +14,6 @@ export async function fetchNotices(): Promise<PostEntity[]> {
 /**
  * 공지 상세 조회
  */
-export async function fetchNoticeDetail(id: number): Promise<PostEntity> {
+export async function fetchNoticeDetail(id: number): Promise<PostEntity | null> {
   return await fetchPost(id);
 }

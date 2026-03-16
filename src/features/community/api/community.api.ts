@@ -184,10 +184,11 @@ export async function deletePostTemplate(id: number): Promise<void> {
 // Posts (공지/질의 등)
 // ----------------------------------------
 /** node_id 있으면 해당 노드(및 상속) 게시물, 없으면 tenant 전체. DRF 페이지네이션(results) 지원. 학생 "내 질문" 시 pageSize 권장. */
-export async function fetchPosts(params: { nodeId?: number | null; pageSize?: number }): Promise<PostEntity[]> {
+export async function fetchPosts(params: { nodeId?: number | null; pageSize?: number; postType?: PostType }): Promise<PostEntity[]> {
   const search = new URLSearchParams();
   if (params.nodeId != null) search.set("node_id", String(params.nodeId));
   if (params.pageSize != null) search.set("page_size", String(params.pageSize));
+  if (params.postType) search.set("post_type", params.postType);
   const qs = search.toString();
   const url = qs ? `${PREFIX}/posts/?${qs}` : `${PREFIX}/posts/`;
   const res = await api.get(url);
@@ -203,8 +204,10 @@ export async function fetchPost(id: number): Promise<PostEntity | null> {
   try {
     const res = await api.get(`${PREFIX}/posts/${id}/`);
     return res.data as PostEntity;
-  } catch {
-    return null;
+  } catch (error: unknown) {
+    const status = (error as { response?: { status?: number } })?.response?.status;
+    if (status === 404) return null;
+    throw error;
   }
 }
 
@@ -353,8 +356,7 @@ export async function fetchPostReplies(postId: number): Promise<Answer[]> {
   try {
     const res = await api.get(`${PREFIX}/posts/${postId}/replies/`);
     return Array.isArray(res.data) ? res.data : [];
-  } catch (error) {
-    console.error("답변 목록 조회 실패:", error);
+  } catch {
     return [];
   }
 }

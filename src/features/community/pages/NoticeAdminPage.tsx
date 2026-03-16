@@ -345,9 +345,7 @@ export default function NoticeAdminPage() {
         <div className="qna-inbox__list-header">
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
             <h2 className="qna-inbox__list-title">공지사항</h2>
-            {true && (
-              <Button intent="primary" size="sm" onClick={() => { setShowCreate(true); setSelectedId(null); }}>+ 추가</Button>
-            )}
+            <Button intent="primary" size="sm" onClick={() => { setShowCreate(true); setSelectedId(null); }}>+ 추가</Button>
           </div>
           <div className="flex items-center gap-2">
             <input
@@ -406,7 +404,7 @@ export default function NoticeAdminPage() {
       </aside>
 
       <main className="qna-inbox__thread">
-        {showCreate && true ? (
+        {showCreate ? (
           <NoticeCreatePane
             scopeNodes={scopeNodes}
             scopeParams={scopeParams}
@@ -548,6 +546,21 @@ function NoticeDetailView({
     },
   });
 
+  const updateContentMut = useMutation({
+    mutationFn: (content: string) => updatePost(postId, { content }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["community-post", postId] });
+      qc.invalidateQueries({ queryKey: ["community-notice-posts"] });
+      qc.invalidateQueries({ queryKey: ["community-board-posts"] });
+      setContentSaved(true);
+      feedback.success("내용이 저장되었습니다.");
+      setTimeout(() => setContentSaved(false), 2000);
+    },
+    onError: (e: unknown) => {
+      feedback.error((e as Error)?.message ?? "저장에 실패했습니다.");
+    },
+  });
+
   const nodePickerOptions = useMemo(
     () =>
       scopeNodes.map((n) => ({
@@ -571,21 +584,6 @@ function NoticeDetailView({
 
   const lectureLabel = post.mappings?.[0]?.node_detail?.lecture_title ?? "—";
   const currentNodeIds = inspectorNodeIds.length ? inspectorNodeIds : initialNodeIds;
-
-  const updateContentMut = useMutation({
-    mutationFn: (content: string) => updatePost(postId, { content }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["community-post", postId] });
-      qc.invalidateQueries({ queryKey: ["community-notice-posts"] });
-      qc.invalidateQueries({ queryKey: ["community-board-posts"] });
-      setContentSaved(true);
-      feedback.success("내용이 저장되었습니다.");
-      setTimeout(() => setContentSaved(false), 2000);
-    },
-    onError: (e: unknown) => {
-      feedback.error((e as Error)?.message ?? "저장에 실패했습니다.");
-    },
-  });
 
   return (
     <>

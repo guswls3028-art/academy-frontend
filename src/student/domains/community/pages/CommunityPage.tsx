@@ -869,7 +869,8 @@ function AttachmentList({ postId, attachments }: { postId: number; attachments?:
       const { downloadPresignedUrl } = await import("@/shared/utils/safeDownload");
       downloadPresignedUrl(url, att.original_name);
     } catch {
-      // silent fail
+      const { studentToast } = await import("@/student/shared/ui/feedback/studentToast");
+      studentToast.error("파일을 다운로드하지 못했습니다.");
     }
   };
 
