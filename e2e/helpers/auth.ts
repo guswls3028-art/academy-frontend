@@ -15,7 +15,7 @@ const TCHUL = process.env.TCHUL_BASE_URL || "https://tchul.com";
 const SSWE = process.env.SSWE_BASE_URL || "https://sswe.co.kr";
 
 const CREDS: Record<TenantRole, { base: string; code: string; user: string; pass: string }> = {
-  admin:         { base: BASE,  code: "hakwonplus", user: process.env.E2E_ADMIN_USER || "admin97",       pass: process.env.E2E_ADMIN_PASS || "kjkszpj123" },
+  admin:         { base: BASE,  code: "hakwonplus", user: process.env.E2E_ADMIN_USER || "admin97",       pass: process.env.E2E_ADMIN_PASS || "test1234" },
   student:       { base: BASE,  code: "hakwonplus", user: process.env.E2E_STUDENT_USER || "3333",        pass: process.env.E2E_STUDENT_PASS || "test1234" },
   "tchul-admin": { base: TCHUL, code: "tchul",      user: process.env.TCHUL_ADMIN_USER || "01035023313", pass: process.env.TCHUL_ADMIN_PASS || "727258" },
 };
@@ -31,31 +31,15 @@ const CREDS: Record<TenantRole, { base: string; code: string; user: string; pass
 export async function loginViaUI(page: Page, role: TenantRole): Promise<void> {
   const c = CREDS[role];
 
-  // 1. JWT 토큰 획득 (API 직접 호출)
+  // 1. JWT 토큰 획득 (display username + X-Tenant-Code)
   const tokenResp = await page.request.post(`${API_BASE}/api/v1/token/`, {
-    data: {
-      username: `t1_${c.user}`,  // internal username format: t{tenant_id}_{ps_number}
-      password: c.pass,
-    },
-    headers: {
-      "Content-Type": "application/json",
-      "X-Tenant-Code": c.code,
-    },
+    data: { username: c.user, password: c.pass },
+    headers: { "Content-Type": "application/json", "X-Tenant-Code": c.code },
   });
 
   if (tokenResp.status() !== 200) {
-    // Tenant ID prefix 없이 재시도
-    const retryResp = await page.request.post(`${API_BASE}/api/v1/token/`, {
-      data: { username: c.user, password: c.pass },
-      headers: { "Content-Type": "application/json", "X-Tenant-Code": c.code },
-    });
-    if (retryResp.status() !== 200) {
-      const body = await retryResp.text();
-      throw new Error(`Login failed for ${role}: ${retryResp.status()} ${body}`);
-    }
-    const tokens = await retryResp.json();
-    await _setTokensAndNavigate(page, c.base, role, tokens);
-    return;
+    const body = await tokenResp.text();
+    throw new Error(`Login failed for ${role} (${c.user}): ${tokenResp.status()} ${body}`);
   }
 
   const tokens = await tokenResp.json();
