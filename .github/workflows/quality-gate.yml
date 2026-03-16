@@ -72,7 +72,7 @@ jobs:
 
   # ── 3. E2E 왕복 플로우 (배포 후, Tenant 2 대상) ──
   e2e-roundtrip:
-    name: E2E 왕복 테스트 (Tenant 2)
+    name: E2E 왕복 테스트 (Tenant 1 검증용)
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: [deploy]
@@ -94,8 +94,8 @@ jobs:
       - name: Run E2E tests
         run: pnpm exec playwright test e2e/smoke.spec.ts e2e/flows/ --reporter=list
         env:
-          # Tenant 2 (tchul.com) — 운영 테넌트 E2E 전용
-          E2E_BASE_URL: https://tchul.com
+          # Tenant 1 (hakwonplus) — production-like test tenant
+          E2E_BASE_URL: https://hakwonplus.com
           API_BASE_URL: https://api.hakwonplus.com
           E2E_ADMIN_USER: ${{ secrets.E2E_ADMIN_USER }}
           E2E_ADMIN_PASS: ${{ secrets.E2E_ADMIN_PASS }}

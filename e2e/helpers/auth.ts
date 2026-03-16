@@ -1,27 +1,28 @@
 /**
  * E2E Auth Helper — 실제 브라우저 로그인
  *
- * E2E 테스트는 Tenant 2 (tchul.com) 전용.
- * Tenant 1은 개발 전용이므로 E2E 대상에서 제외.
+ * Tenant 1 (hakwonplus) = 운영과 동일한 환경 검증용 전용 테스트 테넌트.
+ * 실제 운영 데이터가 아닌, production-like test tenant.
+ * E2E 테스트 데이터는 [E2E] prefix 사용, afterAll에서 cleanup.
  */
 import { type Page, expect } from "@playwright/test";
 
 export type TenantRole =
-  | "admin"      // T2 tchul admin (owner)
-  | "student";   // T2 tchul student
+  | "admin"      // T1 hakwonplus admin (E2E 검증용)
+  | "student";   // T1 hakwonplus student (E2E 검증용)
 
-const BASE = process.env.E2E_BASE_URL || "https://tchul.com";
+const BASE = process.env.E2E_BASE_URL || "https://hakwonplus.com";
 
 const CREDS: Record<TenantRole, { base: string; code: string; user: string; pass: string }> = {
   admin: {
     base: BASE,
-    code: "tchul",
+    code: "hakwonplus",
     user: process.env.E2E_ADMIN_USER || "",
     pass: process.env.E2E_ADMIN_PASS || "",
   },
   student: {
     base: BASE,
-    code: "tchul",
+    code: "hakwonplus",
     user: process.env.E2E_STUDENT_USER || "",
     pass: process.env.E2E_STUDENT_PASS || "",
   },
