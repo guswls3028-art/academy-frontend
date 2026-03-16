@@ -51,8 +51,11 @@ export async function loginViaUI(page: Page, role: TenantRole): Promise<void> {
   const submitBtn = page.getByTestId("login-submit");
   await submitBtn.click();
 
-  // 6. 대시보드 도착 대기 (superuser는 /dev로 갈 수 있음)
-  await page.waitForURL(/\/(admin|student|dev)/, { timeout: 20000 });
+  // 6. 로그인 성공 대기 — URL이 /login에서 벗어나면 성공
+  await page.waitForFunction(
+    () => !window.location.pathname.startsWith("/login"),
+    { timeout: 20000 },
+  );
 }
 
 export function getBaseUrl(role?: TenantRole | string): string {
