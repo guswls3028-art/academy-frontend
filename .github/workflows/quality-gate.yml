@@ -70,7 +70,7 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: pages deploy dist/ --project-name=${{ vars.CLOUDFLARE_PROJECT_NAME }}
 
-  # ── 3. E2E 왕복 플로우 (배포 후, Tenant 2 대상) ──
+  # ── 3. E2E 왕복 플로우 (배포 후, Tenant 1 검증용 테넌트) ──
   e2e-roundtrip:
     name: E2E 왕복 테스트 (Tenant 1 검증용)
     runs-on: ubuntu-latest
