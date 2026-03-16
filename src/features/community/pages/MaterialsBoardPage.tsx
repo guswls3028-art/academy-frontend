@@ -171,26 +171,36 @@ export default function MaterialsBoardPage() {
       (scope === "session" && sessionId != null)
     );
 
+  // 자료실 전체 목록 (post_type 기반, scope는 클라이언트 필터)
   const postsQ = useQuery<PostEntity[]>({
-    queryKey: ["community-materials-posts-scoped", scope, nodeId],
+    queryKey: ["community-materials-posts-all"],
     queryFn: async () => {
-      const all = await fetchPosts({ nodeId: nodeId ?? undefined, pageSize: 500 });
-      return all.filter((p) => p.post_type === "materials");
+      const { results } = await fetchAdminPosts({ postType: "materials", pageSize: 500 });
+      return results;
     },
-    enabled: canShowList,
   });
-  const posts = postsQ.data ?? [];
+  const allMaterialsPosts = postsQ.data ?? [];
+
+  const scopedPosts = useMemo(() => {
+    if (scope === "all" || !canShowList) return allMaterialsPosts;
+    return allMaterialsPosts.filter((p) => {
+      const hasNoMapping = !p.mappings || p.mappings.length === 0;
+      if (hasNoMapping) return true;
+      if (nodeId == null) return true;
+      return p.mappings.some((m) => m.node === nodeId);
+    });
+  }, [allMaterialsPosts, scope, nodeId, canShowList]);
 
   const filtered = useMemo(() => {
-    if (!searchQuery.trim()) return posts;
+    if (!searchQuery.trim()) return scopedPosts;
     const q = searchQuery.trim().toLowerCase();
-    return posts.filter(
+    return scopedPosts.filter(
       (p) =>
         (p.title ?? "").toLowerCase().includes(q) ||
         stripHtml(p.content ?? "").toLowerCase().includes(q) ||
         (p.created_by_display ?? "").toLowerCase().includes(q)
     );
-  }, [posts, searchQuery]);
+  }, [scopedPosts, searchQuery]);
 
   const setSelectedId = useCallback(
     (id: number | null) => {
@@ -411,7 +421,7 @@ export default function MaterialsBoardPage() {
             scopeParams={scopeParams}
             onCancel={() => setShowCreate(false)}
             onSuccess={() => {
-              qc.invalidateQueries({ queryKey: ["community-materials-posts-scoped"] });
+              qc.invalidateQueries({ queryKey: ["community-materials-posts-all"] });
               qc.invalidateQueries({ queryKey: ["community-all-materials-posts-for-count"] });
               setShowCreate(false);
               feedback.success("자료가 등록되었습니다.");
@@ -429,7 +439,7 @@ export default function MaterialsBoardPage() {
             onClose={() => setSelectedId(null)}
             onDeleted={() => {
               setSelectedId(null);
-              qc.invalidateQueries({ queryKey: ["community-materials-posts-scoped"] });
+              qc.invalidateQueries({ queryKey: ["community-materials-posts-all"] });
               qc.invalidateQueries({ queryKey: ["community-all-materials-posts-for-count"] });
             }}
           />
@@ -588,7 +598,7 @@ function MatDetailView({ postId, onClose, onDeleted }: { postId: number; onClose
     mutationFn: (data: { title?: string; content?: string }) => updatePost(postId, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["community-post", postId] });
-      qc.invalidateQueries({ queryKey: ["community-materials-posts-scoped"] });
+      qc.invalidateQueries({ queryKey: ["community-materials-posts-all"] });
       qc.invalidateQueries({ queryKey: ["community-all-materials-posts-for-count"] });
       setEditingTitle(false);
       feedback.success("수정되었습니다.");
@@ -742,7 +752,7 @@ function MatCommentComposer({ postId }: { postId: number }) {
   const qc = useQueryClient();
   const createMut = useMutation({
     mutationFn: () => createAnswer(postId, content),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["post-replies", postId] }); qc.invalidateQueries({ queryKey: ["community-materials-posts-scoped"] }); setContent(""); feedback.success("댓글이 등록되었습니다."); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["post-replies", postId] }); qc.invalidateQueries({ queryKey: ["community-materials-posts-all"] }); setContent(""); feedback.success("댓글이 등록되었습니다."); },
     onError: (e: unknown) => { feedback.error((e as Error)?.message ?? "등록에 실패했습니다."); },
   });
 

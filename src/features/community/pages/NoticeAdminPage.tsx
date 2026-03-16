@@ -124,23 +124,29 @@ export default function NoticeAdminPage() {
     };
   }, [allNoticePostsForCount, scopeNodes, lectures]);
 
-  const { data: posts = [], isLoading, isError, error } = useQuery<PostEntity[]>({
-    queryKey: [
-      "community-notice-posts",
-      scope,
-      effectiveLectureId,
-      sessionId,
-    ],
+  const { data: allNotices = [], isLoading, isError, error } = useQuery<PostEntity[]>({
+    queryKey: ["community-notice-posts"],
     queryFn: async () => {
       const { results } = await fetchAdminPosts({ postType: "notice", pageSize: 500 });
       return results;
     },
-    enabled: scope === "all" ||
-      (scope === "lecture" && effectiveLectureId != null) ||
-      (scope === "session" && sessionId != null),
     retry: 1,
     staleTime: 30_000,
   });
+
+  // scope 필터: 전체=모든 글, 강의/차시=해당 매핑+GLOBAL
+  const nodeId = useMemo(
+    () => resolveNodeIdFromScope(scopeNodes, scopeParams),
+    [scopeNodes, scopeParams]
+  );
+  const posts = useMemo(() => {
+    if (scope === "all") return allNotices;
+    return allNotices.filter((p) => {
+      if (!p.mappings || p.mappings.length === 0) return true; // GLOBAL
+      if (nodeId == null) return true;
+      return p.mappings.some((m) => m.node === nodeId);
+    });
+  }, [allNotices, scope, nodeId]);
 
   const filtered = useMemo(() => {
     if (!searchQuery.trim()) return posts;

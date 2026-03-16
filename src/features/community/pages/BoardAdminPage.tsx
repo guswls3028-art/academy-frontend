@@ -163,17 +163,26 @@ export default function BoardAdminPage() {
     (scope === "lecture" && effectiveLectureId != null) ||
     (scope === "session" && sessionId != null);
 
+  // 게시판 전체 목록 (post_type 기반, scope는 클라이언트 필터)
   const postsQ = useQuery<PostEntity[]>({
-    queryKey: ["community-board-posts-scoped", scope, nodeId],
-    queryFn: () => fetchPosts({ nodeId: nodeId ?? undefined, pageSize: 500 }),
-    enabled: canShowList,
+    queryKey: ["community-board-posts-all"],
+    queryFn: async () => {
+      const { results } = await fetchAdminPosts({ postType: "board", pageSize: 500 });
+      return results;
+    },
   });
-  const posts = postsQ.data ?? [];
+  const allBoardPosts = postsQ.data ?? [];
 
-  // 게시판 유형만 필터 + 검색
+  // scope 기반 클라이언트 필터: 전체=모든 글, 강의=해당 강의 매핑+GLOBAL, 차시=해당 차시 매핑+GLOBAL
   const boardPosts = useMemo(() => {
-    return posts.filter((p) => p.post_type === "board");
-  }, [posts]);
+    if (scope === "all" || !canShowList) return allBoardPosts;
+    return allBoardPosts.filter((p) => {
+      const hasNoMapping = !p.mappings || p.mappings.length === 0;
+      if (hasNoMapping) return true; // GLOBAL 글은 항상 표시
+      if (nodeId == null) return true;
+      return p.mappings.some((m) => m.node === nodeId);
+    });
+  }, [allBoardPosts, scope, nodeId, canShowList]);
 
   const filtered = useMemo(() => {
     if (!searchQuery.trim()) return boardPosts;
