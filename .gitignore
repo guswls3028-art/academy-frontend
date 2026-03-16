@@ -62,6 +62,7 @@ coverage
 *작업용*.ts
 *스펙.ts
 *spec.ts
+!e2e/**/*.spec.ts
 *prompt.ts
 docs/
 prompts/
