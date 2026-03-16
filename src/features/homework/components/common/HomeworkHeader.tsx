@@ -8,6 +8,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/shared/ui/ds";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter, MODAL_WIDTH } from "@/shared/ui/modal";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { useConfirm } from "@/shared/ui/confirm";
 import { saveHomeworkAsTemplate, updateAdminHomework } from "../../api/adminHomework";
 import { FiSave, FiChevronDown } from "react-icons/fi";
 import type { HomeworkSummary } from "../../types";
@@ -20,6 +21,7 @@ type Props = {
 
 export default function HomeworkHeader({ homework, sessionId }: Props) {
   const qc = useQueryClient();
+  const confirm = useConfirm();
   const [templateModalOpen, setTemplateModalOpen] = useState(false);
   const [templateDropdownOpen, setTemplateDropdownOpen] = useState(false);
   const templateDropdownRef = useRef<HTMLDivElement>(null);
@@ -57,8 +59,9 @@ export default function HomeworkHeader({ homework, sessionId }: Props) {
     },
   });
 
-  const handleCloseHomework = () => {
-    if (!window.confirm("과제를 종료하시겠습니까? 종료 이후엔 제출이 불가합니다.")) return;
+  const handleCloseHomework = async () => {
+    const ok = await confirm({ title: "종료 확인", message: "과제를 종료하시겠습니까? 종료 이후엔 제출이 불가합니다.", danger: true, confirmText: "종료" });
+    if (!ok) return;
     statusMut.mutate("CLOSED");
   };
 

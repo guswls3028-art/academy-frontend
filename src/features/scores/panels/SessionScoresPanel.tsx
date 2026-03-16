@@ -18,6 +18,7 @@ import StudentScoresDrawer from "../components/StudentScoresDrawer";
 import StudentResultDrawer from "@/features/results/components/StudentResultDrawer";
 import { EmptyState } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { useConfirm } from "@/shared/ui/confirm";
 import AdminOmrBatchUploadBox from "@/features/submissions/components/AdminOmrBatchUploadBox";
 import { reorderSession } from "../api/reorderSession";
 
@@ -67,6 +68,7 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
   selectedEnrollmentIds = [],
   onSelectionChange,
 }, ref) {
+  const confirm = useConfirm();
   /** Direct DOM focus — no React state cycle needed */
   const tableRef = useRef<ScoresTableHandle>(null);
   const qc = useQueryClient();
@@ -158,13 +160,13 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
     const attendanceRecordId = attendanceIdMap[enrollmentId];
     if (!attendanceRecordId) return;
     if (newStatus === "SECESSION") {
-      const ok = window.confirm(
-        "퇴원 처리하시겠습니까?\n\n" +
-        "• 수강등록이 비활성화됩니다\n" +
-        "• 시험/과제 응시 대상에서 제외됩니다\n" +
-        "• 기존 데이터(성적·출결)는 보관됩니다"
-      );
-      if (!ok) return;
+      const secOk = await confirm({
+        title: "확인",
+        message: "퇴원 처리하시겠습니까?\n\n• 수강등록이 비활성화됩니다\n• 시험/과제 응시 대상에서 제외됩니다\n• 기존 데이터(성적·출결)는 보관됩니다",
+        danger: true,
+        confirmText: "확인",
+      });
+      if (!secOk) return;
     }
     try {
       await updateAttendance(attendanceRecordId, { status: newStatus });

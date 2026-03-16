@@ -2,6 +2,7 @@
  * 영상 댓글 섹션 — 댓글 목록 + 작성 + 대댓글 + 수정/삭제
  */
 import { useState, useCallback } from "react";
+import { useConfirm } from "@/shared/ui/confirm";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   fetchVideoComments,
@@ -72,6 +73,7 @@ function CommentRow({
   onReply?: (parentId: number) => void;
 }) {
   const qc = useQueryClient();
+  const confirm = useConfirm();
   const [editMode, setEditMode] = useState(false);
   const [editContent, setEditContent] = useState(comment.content);
   const [showReplies, setShowReplies] = useState(false);
@@ -218,7 +220,7 @@ function CommentRow({
                   수정
                 </button>
                 <button
-                  onClick={() => { if (window.confirm("댓글을 삭제하시겠습니까?")) deleteMut.mutate(); }}
+                  onClick={async () => { const ok = await confirm({ title: "삭제 확인", message: "댓글을 삭제하시겠습니까?", danger: true, confirmText: "삭제" }); if (ok) deleteMut.mutate(); }}
                   style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", background: "none", border: "none", cursor: "pointer", padding: 0 }}
                 >
                   삭제

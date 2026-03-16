@@ -26,6 +26,7 @@ import {
 } from "@/features/messages/api/messages.api";
 import { Button, EmptyState } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { useConfirm } from "@/shared/ui/confirm";
 import AdminModal from "@/shared/ui/modal/AdminModal";
 import ModalHeader from "@/shared/ui/modal/ModalHeader";
 import ModalBody from "@/shared/ui/modal/ModalBody";
@@ -175,6 +176,7 @@ function RequestDetailModal({
 
 export default function StudentsRequestsPage() {
   const qc = useQueryClient();
+  const confirm = useConfirm();
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [detailRequest, setDetailRequest] =
     useState<ClientRegistrationRequest | null>(null);
@@ -371,12 +373,10 @@ export default function StudentsRequestsPage() {
     bulkApproveMutation.mutate(selectedList.map((r) => r.id));
   };
 
-  const handleBulkReject = () => {
+  const handleBulkReject = async () => {
     if (selectedList.length === 0) return;
-    if (
-      !window.confirm(`선택한 ${selectedList.length}건을 거절하시겠습니까?`)
-    )
-      return;
+    const ok = await confirm({ title: "거절 확인", message: `선택한 ${selectedList.length}건을 거절하시겠습니까?`, danger: true, confirmText: "거절" });
+    if (!ok) return;
     bulkRejectMutation.mutate(selectedList.map((r) => r.id));
   };
 

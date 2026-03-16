@@ -12,6 +12,7 @@ import { updateAdminHomework } from "@/features/homework/api/adminHomework";
 import { fetchHomeworkPolicyBySession } from "@/features/homework/api/homeworkPolicy";
 
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { useConfirm } from "@/shared/ui/confirm";
 import CreateRegularExamModal from "@/features/exams/components/create/CreateRegularExamModal";
 import CreateHomeworkModal from "@/features/homework/components/CreateHomeworkModal";
 
@@ -218,6 +219,7 @@ export default function SessionAssessmentSidePanel({
 }: Props) {
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const confirm = useConfirm();
   const [searchParams] = useSearchParams();
   const location = useLocation();
   const [openCreateExamLocal, setOpenCreateExamLocal] = useState(false);
@@ -429,7 +431,8 @@ export default function SessionAssessmentSidePanel({
   };
 
   const handleExamClose = async (id: number) => {
-    if (!window.confirm("시험을 종료하시겠습니까? 종료 이후엔 답안 제출이 불가합니다.")) return;
+    const ok = await confirm({ title: "종료 확인", message: "시험을 종료하시겠습니까? 종료 이후엔 답안 제출이 불가합니다.", danger: true, confirmText: "종료" });
+    if (!ok) return;
     setExamBusy({ id, action: "end" });
     try {
       await updateAdminExam(id, { status: "CLOSED" });

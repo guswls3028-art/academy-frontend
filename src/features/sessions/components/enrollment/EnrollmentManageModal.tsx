@@ -13,6 +13,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { EnrollmentRow } from "./types";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
 import { Button, EmptyState } from "@/shared/ui/ds";
+import { useConfirm } from "@/shared/ui/confirm";
 import { TABLE_COL } from "@/shared/ui/domain";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 
@@ -76,23 +77,27 @@ export default function EnrollmentManageModal({
   saving,
   dirty = true,
 }: Props) {
+  const confirm = useConfirm();
   const [keyword, setKeyword] = useState("");
 
   useEffect(() => {
     if (!open) setKeyword("");
   }, [open]);
 
-  const safeClose = useCallback(() => {
+  const safeClose = useCallback(async () => {
     if (saving) return;
     if (!dirty) {
       onClose();
       return;
     }
-    const ok = window.confirm(
-      "변경사항이 있습니다.\n저장하지 않고 닫을까요?"
-    );
+    const ok = await confirm({
+      title: "수강 해제",
+      message: "변경사항이 있습니다.\n저장하지 않고 닫을까요?",
+      danger: true,
+      confirmText: "해제",
+    });
     if (ok) onClose();
-  }, [saving, dirty, onClose]);
+  }, [saving, dirty, onClose, confirm]);
 
   const filtered = useMemo(() => {
     const k = keyword.trim().toLowerCase();

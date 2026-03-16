@@ -5,6 +5,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useConfirm } from "@/shared/ui/confirm";
 import StudentPageShell from "@/student/shared/ui/pages/StudentPageShell";
 import EmptyState from "@/student/shared/ui/layout/EmptyState";
 import { useStudentExam } from "@/student/domains/exams/hooks/useStudentExams";
@@ -19,6 +20,7 @@ export default function ExamSubmitPage() {
   const safeId = Number(examId);
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const confirm = useConfirm();
   const { user } = useAuthContext();
   const isParent = user?.tenantRole === "parent";
 
@@ -89,7 +91,8 @@ export default function ExamSubmitPage() {
     const confirmMsg = unanswered > 0
       ? `${unanswered}개 문항이 미입력 상태입니다. 제출하시겠습니까?`
       : "답안을 제출하시겠습니까? 제출 후에는 수정할 수 없습니다.";
-    if (!window.confirm(confirmMsg)) return;
+    const ok = await confirm({ title: "제출 확인", message: confirmMsg, danger: false, confirmText: "제출" });
+    if (!ok) return;
     setError(null);
     setSubmitting(true);
     try {

@@ -5,6 +5,7 @@
 import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { useConfirm } from "@/shared/ui/confirm";
 import { SessionBlockView } from "@/shared/ui/session-block";
 import { updateLecture, deleteLecture } from "../api/sessions";
 
@@ -37,9 +38,18 @@ export default function LectureSettingsModal({
   onAfterRestore,
   onAfterDelete,
 }: Props) {
+  const confirm = useConfirm();
+
   if (!open) return null;
 
   async function handleEnd() {
+    const ok = await confirm({
+      title: "강의 종료",
+      message: "강의를 종료하시겠습니까? 종료된 강의는 '지난강의' 탭에서 다시 복원할 수 있습니다.",
+      confirmText: "종료",
+      danger: true,
+    });
+    if (!ok) return;
     try {
       await updateLecture(lecture.id, { is_active: false });
       onAfterEnd?.();
@@ -60,7 +70,13 @@ export default function LectureSettingsModal({
   }
 
   async function handleDelete() {
-    if (!confirm(`"${lecture.title}" 강의를 완전히 삭제하시겠습니까? 차시·수강생·출결 등 모든 관련 정보가 제거됩니다.`)) return;
+    const ok = await confirm({
+      title: "강의 삭제",
+      message: `"${lecture.title}" 강의를 완전히 삭제하시겠습니까? 차시·수강생·출결 등 모든 관련 정보가 제거됩니다.`,
+      confirmText: "삭제",
+      danger: true,
+    });
+    if (!ok) return;
     try {
       await deleteLecture(lecture.id);
       onAfterDelete?.();

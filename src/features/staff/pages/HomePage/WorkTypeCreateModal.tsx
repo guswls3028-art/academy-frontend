@@ -14,6 +14,7 @@ import {
 import { ActionButton } from "@/shared/ui/ds";
 import { ColorPickerField } from "@/shared/ui/domain";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { useConfirm } from "@/shared/ui/confirm";
 import {
   fetchWorkTypes,
   updateWorkType,
@@ -43,6 +44,7 @@ export default function WorkTypeCreateModal({
   onClose: () => void;
 }) {
   const qc = useQueryClient();
+  const confirm = useConfirm();
 
   // --- state ---
   const [view, setView] = useState<"list" | "create" | "edit">("list");
@@ -223,8 +225,9 @@ export default function WorkTypeCreateModal({
                       data-intent="danger"
                       data-size="xs"
                       disabled={deleteM.isPending}
-                      onClick={() => {
-                        if (!window.confirm(`"${wt.name}" 시급태그를 삭제하시겠습니까?`)) return;
+                      onClick={async () => {
+                        const ok = await confirm({ title: "삭제 확인", message: `"${wt.name}" 시급태그를 삭제하시겠습니까?`, danger: true, confirmText: "삭제" });
+                        if (!ok) return;
                         deleteM.mutate(wt.id);
                       }}
                     >

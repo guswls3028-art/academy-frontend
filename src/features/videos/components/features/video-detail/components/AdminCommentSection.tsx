@@ -11,6 +11,7 @@ import {
   type VideoCommentItem,
 } from "@/features/videos/api/videos";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { useConfirm } from "@/shared/ui/confirm";
 
 /* ─── Relative time format ─── */
 function timeAgo(dateStr: string): string {
@@ -97,6 +98,7 @@ function CommentRow({
   onReply?: (parentId: number) => void;
 }) {
   const qc = useQueryClient();
+  const confirm = useConfirm();
   const [editMode, setEditMode] = useState(false);
   const [editContent, setEditContent] = useState(comment.content);
   const [showReplies, setShowReplies] = useState(false);
@@ -328,9 +330,10 @@ function CommentRow({
                 <ActionBtn
                   label="삭제"
                   danger
-                  onClick={() => {
-                    if (window.confirm("댓글을 삭제하시겠습니까?"))
-                      deleteMut.mutate();
+                  onClick={async () => {
+                    const ok = await confirm({ title: "삭제 확인", message: "댓글을 삭제하시겠습니까?", danger: true, confirmText: "삭제" });
+                    if (!ok) return;
+                    deleteMut.mutate();
                   }}
                 />
               </>

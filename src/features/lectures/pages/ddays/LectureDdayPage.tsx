@@ -6,6 +6,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchDdays, deleteDday, type Dday } from "@/features/lectures/api/ddays";
 import DdayModal from "@/features/lectures/components/DdayModal";
 import { EmptyState, Button } from "@/shared/ui/ds";
+import { useConfirm } from "@/shared/ui/confirm";
 
 const TH_STYLE = {
   background: "color-mix(in srgb, var(--color-primary) 12%, var(--bg-surface))",
@@ -16,6 +17,7 @@ export default function LectureDdayPage() {
   const { lectureId } = useParams<{ lectureId: string }>();
   const lectureIdNum = Number(lectureId);
   const qc = useQueryClient();
+  const confirm = useConfirm();
 
   const [showModal, setShowModal] = useState(false);
 
@@ -85,8 +87,10 @@ export default function LectureDdayPage() {
                       intent="danger"
                       size="sm"
                       disabled={deleteMutation.isPending}
-                      onClick={() => {
-                        if (window.confirm("삭제하시겠습니까?")) deleteMutation.mutate(d.id);
+                      onClick={async () => {
+                        const ok = await confirm({ title: "삭제 확인", message: "삭제하시겠습니까?", danger: true, confirmText: "삭제" });
+                        if (!ok) return;
+                        deleteMutation.mutate(d.id);
                       }}
                     >
                       삭제

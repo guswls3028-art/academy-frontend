@@ -9,6 +9,7 @@ import { deleteVideo, getRetryErrorMessage } from "../api/videos";
 import { canShowRetryButton } from "../constants/videoProcessing";
 import { logRetryAttempt, logRetryError } from "@/shared/api/retryLogger";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { useConfirm } from "@/shared/ui/confirm";
 import { asyncStatusStore } from "@/shared/ui/asyncStatus/asyncStatusStore";
 
 import { styles } from "./VideoDetail.styles";
@@ -70,6 +71,7 @@ export default function VideoDetailPage() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const qc = useQueryClient();
   const navigate = useNavigate();
+  const confirm = useConfirm();
 
   const deleteMutation = useMutation({
     mutationFn: () => deleteVideo(videoId),
@@ -205,10 +207,10 @@ export default function VideoDetailPage() {
                 <span style={{ flex: 1 }} />
                 <button
                   type="button"
-                  onClick={() => {
-                    if (window.confirm("정말 삭제하시겠습니까?")) {
-                      deleteMutation.mutate();
-                    }
+                  onClick={async () => {
+                    const ok = await confirm({ title: "삭제 확인", message: "정말 삭제하시겠습니까?", danger: true, confirmText: "삭제" });
+                    if (!ok) return;
+                    deleteMutation.mutate();
                   }}
                   disabled={deleteMutation.isPending}
                   style={{

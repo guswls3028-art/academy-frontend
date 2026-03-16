@@ -16,6 +16,7 @@ import { useSessionVideos } from "../hooks/useSessionVideos";
 import { Button, EmptyState } from "@/shared/ui/ds";
 import { DomainListToolbar } from "@/shared/ui/domain";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { useConfirm } from "@/shared/ui/confirm";
 
 /** 유튜브 스타일: 업로드 시각 → "N분 전", "N시간 전", "N일 전" */
 function formatTimeAgo(isoDate: string): string {
@@ -78,6 +79,7 @@ interface SessionVideosTabProps {
 
 export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
   const qc = useQueryClient();
+  const confirm = useConfirm();
   const [showModal, setShowModal] = useState(false);
   const asyncTasks = useAsyncStatus();
 
@@ -232,13 +234,12 @@ export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
               intent="primary"
               size="sm"
               disabled={retryMutation.isPending}
-              onClick={(e) => {
+              onClick={async (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                const msg = "재시도할까요? 진행 중인 작업이 있으면 취소 후 다시 제출됩니다.";
-                if (window.confirm(msg)) {
-                  retryMutation.mutate(video.id);
-                }
+                const ok = await confirm({ title: "확인", message: "재시도할까요? 진행 중인 작업이 있으면 취소 후 다시 제출됩니다.", danger: false, confirmText: "확인" });
+                if (!ok) return;
+                retryMutation.mutate(video.id);
               }}
             >
               {retryMutation.isPending ? "요청 중…" : "재시도"}
@@ -248,12 +249,12 @@ export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
             intent="ghost"
             size="sm"
             disabled={deleteMutation.isPending}
-            onClick={(e) => {
+            onClick={async (e) => {
               e.preventDefault();
               e.stopPropagation();
-              if (window.confirm("정말 삭제하시겠습니까?")) {
-                deleteMutation.mutate(video.id);
-              }
+              const ok = await confirm({ title: "삭제 확인", message: "정말 삭제하시겠습니까?", danger: true, confirmText: "삭제" });
+              if (!ok) return;
+              deleteMutation.mutate(video.id);
             }}
           >
             삭제

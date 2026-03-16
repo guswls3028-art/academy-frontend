@@ -18,11 +18,13 @@ import { downloadStaffExcel } from "../../excel/staffExcel";
 import { DomainListToolbar } from "@/shared/ui/domain";
 import { Button, EmptyState } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { useConfirm } from "@/shared/ui/confirm";
 import { useSendMessageModal } from "@/features/messages/context/SendMessageModalContext";
 
 export default function HomePage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const confirm = useConfirm();
   const { openSendMessageModal } = useSendMessageModal();
   const { data: staffData, isLoading } = useStaffs();
   const staffs = staffData?.staffs ?? [];
@@ -161,7 +163,8 @@ export default function HomePage() {
         onClick={async () => {
           const staffIds = selectedIds.filter((id) => id > 0);
           if (staffIds.length === 0) return;
-          if (!window.confirm(`선택한 직원 ${staffIds.length}명을 삭제하시겠습니까? (대표는 삭제되지 않습니다)`)) return;
+          const ok = await confirm({ title: "삭제 확인", message: `선택한 직원 ${staffIds.length}명을 삭제하시겠습니까? (대표는 삭제되지 않습니다)`, danger: true, confirmText: "삭제" });
+          if (!ok) return;
           setDeleting(true);
           try {
             for (const id of staffIds) {

@@ -21,6 +21,7 @@ import AttendanceStatusBadge, {
 } from "@/shared/ui/badges/AttendanceStatusBadge";
 import { formatPhone } from "@/shared/utils/formatPhone";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { useConfirm } from "@/shared/ui/confirm";
 import { useSendMessageModal } from "@/features/messages/context/SendMessageModalContext";
 import "./attendance-ui.css";
 
@@ -49,6 +50,7 @@ export default function SessionAttendancePage({
   onOpenEnrollModal,
 }: SessionAttendancePageProps) {
   const qc = useQueryClient();
+  const confirm = useConfirm();
   const { openSendMessageModal } = useSendMessageModal();
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [deleting, setDeleting] = useState(false);
@@ -241,12 +243,13 @@ export default function SessionAttendancePage({
 
   const handleBulkDelete = async () => {
     if (selectedIds.length === 0) return;
-    if (
-      !window.confirm(
-        `선택한 ${selectedIds.length}명을 이 차시 출결에서 제외하시겠습니까?\n(수강생 등록은 유지되며, 출결 기록만 제거됩니다.)`
-      )
-    )
-      return;
+    const ok = await confirm({
+      title: "삭제 확인",
+      message: `선택한 ${selectedIds.length}명을 이 차시 출결에서 제외하시겠습니까?\n(수강생 등록은 유지되며, 출결 기록만 제거됩니다.)`,
+      danger: true,
+      confirmText: "삭제",
+    });
+    if (!ok) return;
     const count = selectedIds.length;
     setDeleting(true);
     try {
@@ -322,7 +325,8 @@ export default function SessionAttendancePage({
   );
 
   const handleBulkSetPresent = async () => {
-    if (!window.confirm("모든 학생의 출석 상태를 '현장'으로 설정합니다.")) return;
+    const ok = await confirm({ title: "확인", message: "모든 학생의 출석 상태를 '현장'으로 설정합니다.", danger: false, confirmText: "확인" });
+    if (!ok) return;
     try {
       const result = await bulkSetPresent(sessionId);
       qc.invalidateQueries({ queryKey: ["attendance", sessionId] });
@@ -478,7 +482,7 @@ export default function SessionAttendancePage({
                     opacity: active ? 1 : 0.85,
                     boxShadow: active ? "0 0 0 2px var(--color-primary)" : undefined,
                   }}
-                  onClick={() => {
+                  onClick={async () => {
                     if (active) {
                       setOpenStatusRowAttId(null);
                       setStatusRowPopoverAnchor(null);
@@ -486,13 +490,13 @@ export default function SessionAttendancePage({
                       return;
                     }
                     if (code === "SECESSION") {
-                      const ok = window.confirm(
-                        `"${att.name}" 학생을 퇴원 처리하시겠습니까?\n\n` +
-                        "• 수강등록이 비활성화됩니다\n" +
-                        "• 시험/과제 응시 대상에서 제외됩니다\n" +
-                        "• 기존 데이터(성적·출결)는 보관됩니다"
-                      );
-                      if (!ok) return;
+                      const secOk = await confirm({
+                        title: "확인",
+                        message: `"${att.name}" 학생을 퇴원 처리하시겠습니까?\n\n• 수강등록이 비활성화됩니다\n• 시험/과제 응시 대상에서 제외됩니다\n• 기존 데이터(성적·출결)는 보관됩니다`,
+                        danger: true,
+                        confirmText: "확인",
+                      });
+                      if (!secOk) return;
                     }
                     updateStatus.mutate(
                       { id: att.id, status: code },

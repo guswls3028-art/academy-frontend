@@ -25,12 +25,10 @@ export const getAttachmentDownloadUrl = _getDownloadUrl;
 
 // ── QnA ──
 
-/** 내가 작성한 질문 목록 — post_type 기반 */
-export async function fetchMyQuestions(studentId: number, pageSize = 50): Promise<PostEntity[]> {
+/** 내가 작성한 질문 목록 — post_type 기반 (서버가 created_by 필터링 수행) */
+export async function fetchMyQuestions(_studentId: number, pageSize = 200): Promise<PostEntity[]> {
   const posts = await fetchPosts({ nodeId: null, pageSize, postType: "qna" });
-  return posts
-    .filter((p) => Number(p.created_by) === Number(studentId))
-    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  return posts.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 }
 
 /** 질문 상세 */
@@ -63,12 +61,10 @@ export async function submitQuestion(
 
 // ── 상담 신청 ──
 
-/** 내가 작성한 상담 신청 목록 — post_type 기반 */
-export async function fetchMyCounselRequests(studentId: number, pageSize = 50): Promise<PostEntity[]> {
+/** 내가 작성한 상담 신청 목록 — post_type 기반 (서버가 created_by 필터링 수행) */
+export async function fetchMyCounselRequests(_studentId: number, pageSize = 200): Promise<PostEntity[]> {
   const posts = await fetchPosts({ nodeId: null, pageSize, postType: "counsel" });
-  return posts
-    .filter((p) => Number(p.created_by) === Number(studentId))
-    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  return posts.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 }
 
 /** 상담 신청 등록 — post_type 기반 */

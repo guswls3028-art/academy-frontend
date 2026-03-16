@@ -5,6 +5,7 @@ import { saveExamAsTemplate, updateAdminExam } from "../../api/adminExam";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter, MODAL_WIDTH } from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { useConfirm } from "@/shared/ui/confirm";
 import { FiSave, FiChevronDown } from "react-icons/fi";
 import "./ExamHeader.css";
 
@@ -13,6 +14,7 @@ import "./ExamHeader.css";
  */
 export default function ExamHeader({ exam, sessionId }: { exam: Exam; sessionId?: number | null }) {
   const qc = useQueryClient();
+  const confirm = useConfirm();
   const [templateModalOpen, setTemplateModalOpen] = useState(false);
   const [templateName, setTemplateName] = useState("");
   const [templateDropdownOpen, setTemplateDropdownOpen] = useState(false);
@@ -67,8 +69,9 @@ export default function ExamHeader({ exam, sessionId }: { exam: Exam; sessionId?
   const statusLabel = isOpen ? "진행 중" : "마감";
   const statusTone = isOpen ? "success" : "danger";
 
-  const handleCloseExam = () => {
-    if (!window.confirm("시험을 종료하시겠습니까? 종료 이후엔 답안 제출이 불가합니다.")) return;
+  const handleCloseExam = async () => {
+    const ok = await confirm({ title: "종료 확인", message: "시험을 종료하시겠습니까? 종료 이후엔 답안 제출이 불가합니다.", danger: true, confirmText: "종료" });
+    if (!ok) return;
     statusMut.mutate("CLOSED");
   };
 

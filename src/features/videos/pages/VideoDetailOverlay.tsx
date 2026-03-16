@@ -14,6 +14,7 @@ import { logRetryAttempt, logRetryError } from "@/shared/api/retryLogger";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { asyncStatusStore } from "@/shared/ui/asyncStatus/asyncStatusStore";
 import { CloseButton } from "@/shared/ui/ds";
+import { useConfirm } from "@/shared/ui/confirm";
 
 import { styles } from "./VideoDetail.styles";
 
@@ -76,6 +77,7 @@ export default function VideoDetailOverlay({
   onClose,
 }: VideoDetailOverlayProps) {
   const qc = useQueryClient();
+  const confirm = useConfirm();
   const panelRef = useRef<HTMLDivElement>(null);
   const [permissionOpen, setPermissionOpen] = useState(false);
   const [permissionTab, setPermissionTab] = useState<TabKey>("permission");
@@ -257,10 +259,10 @@ export default function VideoDetailOverlay({
                         <span style={{ flex: 1 }} />
                         <button
                           type="button"
-                          onClick={() => {
-                            if (window.confirm("\uC815\uB9D0 \uC0AD\uC81C\uD558\uC2DC\uACA0\uC2B5\uB2C8\uAE4C?")) {
-                              deleteMutation.mutate();
-                            }
+                          onClick={async () => {
+                            const ok = await confirm({ title: "삭제 확인", message: "정말 삭제하시겠습니까?", danger: true, confirmText: "삭제" });
+                            if (!ok) return;
+                            deleteMutation.mutate();
                           }}
                           disabled={deleteMutation.isPending}
                           style={{

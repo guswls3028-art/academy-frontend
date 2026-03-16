@@ -131,8 +131,7 @@ function SessionBox({
               height: "100%",
               display: "grid",
               placeItems: "center",
-              // 2번 테넌트(tchul) 브랜드색 그라데이션
-              background: "linear-gradient(135deg, #0d47a1 0%, #00695c 50%, #004d40 100%)",
+              background: "var(--stu-gradient, linear-gradient(135deg, #6b7280, #4b5563))",
             }}
           >
             <IconPlay style={{ width: 32, height: 32, color: "rgba(255,255,255,0.9)", opacity: 0.8 }} />
@@ -265,12 +264,17 @@ export default function CourseDetailPage() {
     })),
   });
 
-  // 첫 번째 세션 데이터로 상단 요약 정보 표시 (기존 firstSessionVideos 대체)
-  const firstSessionVideos = sessionVideoQueries[0]?.data;
-  const totalVideos = useMemo(() => firstSessionVideos?.items?.length ?? 0, [firstSessionVideos]);
+  // 모든 세션의 영상 수/총 재생시간 집계
+  const totalVideos = useMemo(
+    () => sessionVideoQueries.reduce((sum, q) => sum + (q.data?.items?.length ?? 0), 0),
+    [sessionVideoQueries]
+  );
   const totalDuration = useMemo(
-    () => firstSessionVideos?.items?.reduce((sum, v) => sum + (v.duration ?? 0), 0) ?? 0,
-    [firstSessionVideos]
+    () => sessionVideoQueries.reduce(
+      (sum, q) => sum + (q.data?.items?.reduce((s, v) => s + (v.duration ?? 0), 0) ?? 0),
+      0
+    ),
+    [sessionVideoQueries]
   );
 
   // 전체공개영상 리다이렉트 (훅은 early return 이전에 호출)

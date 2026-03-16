@@ -117,7 +117,7 @@ export default function ExamResultPage() {
                   </div>
                   <div className="stu-muted" style={{ marginTop: 6, fontSize: 13 }}>
                     내 답: {it.student_answer ?? "-"}
-                    {it.correct_answer != null ? ` · 정답: ${it.correct_answer}` : ""}
+                    {r.answers_visible && it.correct_answer != null ? ` · 정답: ${it.correct_answer}` : ""}
                   </div>
                 </div>
               ))}

@@ -108,7 +108,7 @@ function CourseCard({
               height: "100%",
               display: "grid",
               placeItems: "center",
-              background: "linear-gradient(135deg, #0d47a1 0%, #00695c 50%, #004d40 100%)",
+              background: "var(--stu-gradient, linear-gradient(135deg, #6b7280, #4b5563))",
             }}
           >
             <IconPlay style={{ width: 48, height: 48, color: "rgba(255,255,255,0.9)", opacity: 0.8 }} />
