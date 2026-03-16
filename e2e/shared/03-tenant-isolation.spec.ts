@@ -1,13 +1,8 @@
 /**
- * Tenant Isolation E2E Tests
- *
- * CRITICAL: These tests verify the absolute tenant isolation boundary.
- * Cross-tenant data leakage is a security violation (CLAUDE.md §B).
- *
- * Uses separate browser contexts for each tenant to simulate
- * fully independent sessions with different auth tokens.
+ * 테넌트 격리 검증 E2E
+ * T1(hakwonplus) vs T2(tchul) 데이터 완전 격리 확인
  */
-import { test, expect, type Page, type Browser } from "@playwright/test";
+import { test, expect, type Browser } from "@playwright/test";
 import { loginViaUI, getBaseUrl } from "../helpers/auth";
 import { apiCall } from "../helpers/api";
 
@@ -16,170 +11,88 @@ const BASE_T2 = getBaseUrl("tchul-admin");
 
 test.describe("테넌트 격리 검증", () => {
 
-  test("a) Tenant 1과 Tenant 2의 학생 목록에 공통 ID가 없다", async ({ browser }) => {
-    // --- Tenant 1: fetch all student IDs ---
+  test("a) Tenant 1과 Tenant 2의 학생 ID가 겹치지 않는다", async ({ browser }) => {
+    // T1
     const ctx1 = await browser.newContext();
-    const page1 = await ctx1.newPage();
-    await loginViaUI(page1, "admin");
-
-    // Navigate so API calls work in correct origin
-    await page1.goto(`${BASE_T1}/admin/dashboard`);
-    await page1.waitForLoadState("networkidle");
-
-    const resp1 = await apiCall(page1, "GET", "/students/?page_size=200");
-    expect(resp1.status).toBe(200);
-    const students1 = resp1.body?.results || resp1.body || [];
-    const ids1 = new Set(students1.map((s: any) => s.id));
-
-    // Must have at least 1 student to make the test meaningful
+    const p1 = await ctx1.newPage();
+    await loginViaUI(p1, "admin");
+    const r1 = await apiCall(p1, "GET", "/students/?page_size=200");
+    expect(r1.status).toBe(200);
+    const ids1 = new Set((r1.body?.results || []).map((s: any) => s.id));
     expect(ids1.size).toBeGreaterThan(0);
-
     await ctx1.close();
 
-    // --- Tenant 2: fetch all student IDs ---
+    // T2
     const ctx2 = await browser.newContext();
-    const page2 = await ctx2.newPage();
-    await loginViaUI(page2, "tchul-admin");
-
-    await page2.goto(`${BASE_T2}/admin/dashboard`);
-    await page2.waitForLoadState("networkidle");
-
-    const resp2 = await apiCall(page2, "GET", "/students/?page_size=200");
-    expect(resp2.status).toBe(200);
-    const students2 = resp2.body?.results || resp2.body || [];
-    const ids2 = new Set(students2.map((s: any) => s.id));
-
+    const p2 = await ctx2.newPage();
+    await loginViaUI(p2, "tchul-admin");
+    const r2 = await apiCall(p2, "GET", "/students/?page_size=200");
+    expect(r2.status).toBe(200);
+    const ids2 = new Set((r2.body?.results || []).map((s: any) => s.id));
     expect(ids2.size).toBeGreaterThan(0);
-
     await ctx2.close();
 
-    // --- ISOLATION CHECK: zero overlap ---
-    const overlap: number[] = [];
-    for (const id of ids1) {
-      if (ids2.has(id)) overlap.push(id);
-    }
-    expect(
-      overlap,
-      `TENANT ISOLATION VIOLATION: ${overlap.length} shared student IDs: [${overlap.join(", ")}]`,
-    ).toHaveLength(0);
+    // 교집합 = 0
+    const overlap = [...ids1].filter((id) => ids2.has(id));
+    expect(overlap).toEqual([]);
   });
 
-  test("b) Tenant 1 관리자가 Tenant 2 학생 ID에 직접 접근하면 404 또는 403을 받는다", async ({ browser }) => {
-    // --- Tenant 2: get a student ID ---
+  test("b) T1 관리자가 T2 학생 ID에 직접 접근하면 404/403", async ({ browser }) => {
+    // T2 학생 ID 가져오기
     const ctx2 = await browser.newContext();
-    const page2 = await ctx2.newPage();
-    await loginViaUI(page2, "tchul-admin");
-
-    await page2.goto(`${BASE_T2}/admin/dashboard`);
-    await page2.waitForLoadState("networkidle");
-
-    const resp2 = await apiCall(page2, "GET", "/students/?page_size=10");
-    expect(resp2.status).toBe(200);
-    const students2 = resp2.body?.results || resp2.body || [];
-    expect(students2.length).toBeGreaterThan(0);
-    const tenant2StudentId = students2[0].id;
-
+    const p2 = await ctx2.newPage();
+    await loginViaUI(p2, "tchul-admin");
+    const r2 = await apiCall(p2, "GET", "/students/?page_size=1");
+    const t2sid = r2.body?.results?.[0]?.id;
+    expect(t2sid).toBeTruthy();
     await ctx2.close();
 
-    // --- Tenant 1: try to access that student directly ---
+    // T1 관리자로 T2 학생 접근 시도
     const ctx1 = await browser.newContext();
-    const page1 = await ctx1.newPage();
-    await loginViaUI(page1, "admin");
-
-    await page1.goto(`${BASE_T1}/admin/dashboard`);
-    await page1.waitForLoadState("networkidle");
-
-    const crossResp = await apiCall(page1, "GET", `/students/${tenant2StudentId}/`);
-
-    // Must be 404 or 403 — NOT 200
-    expect(
-      [403, 404],
-      `TENANT ISOLATION VIOLATION: T1 admin got status ${crossResp.status} for T2 student ${tenant2StudentId}`,
-    ).toContain(crossResp.status);
-
+    const p1 = await ctx1.newPage();
+    await loginViaUI(p1, "admin");
+    const r1 = await apiCall(p1, "GET", `/students/${t2sid}/`);
+    // 404 or 403 — 절대 200이면 안 됨
+    expect([403, 404]).toContain(r1.status);
     await ctx1.close();
   });
 
-  test("c) Tenant 1에서 생성한 게시물에 Tenant 2 관리자가 접근할 수 없다", async ({ browser }) => {
-    const TIMESTAMP = Date.now();
-    let createdPostId: number | null = null;
-
-    // --- Tenant 1: create a post ---
+  test("c) T1 게시물에 T2 관리자가 접근 불가", async ({ browser }) => {
+    // T1에서 게시물 생성
     const ctx1 = await browser.newContext();
-    const page1 = await ctx1.newPage();
-    await loginViaUI(page1, "admin");
-
-    await page1.goto(`${BASE_T1}/admin/dashboard`);
-    await page1.waitForLoadState("networkidle");
-
-    const createResp = await apiCall(page1, "POST", "/community/posts/", {
-      title: `[E2E-ISO] Isolation Test ${TIMESTAMP}`,
-      content: `Tenant isolation test — should not be visible cross-tenant (${TIMESTAMP})`,
-      post_type: "notice",
+    const p1 = await ctx1.newPage();
+    await loginViaUI(p1, "admin");
+    const createResp = await apiCall(p1, "POST", "/community/posts/", {
+      post_type: "notice", title: "[E2E] 격리테스트", content: "격리검증용", node_ids: [],
     });
     expect(createResp.status).toBe(201);
-    createdPostId = createResp.body?.id;
-    expect(createdPostId).toBeTruthy();
+    const postId = createResp.body.id;
 
-    // --- Tenant 2: try to access T1's post ---
+    // T2에서 접근 시도
     const ctx2 = await browser.newContext();
-    const page2 = await ctx2.newPage();
-    await loginViaUI(page2, "tchul-admin");
-
-    await page2.goto(`${BASE_T2}/admin/dashboard`);
-    await page2.waitForLoadState("networkidle");
-
-    const crossResp = await apiCall(page2, "GET", `/community/posts/${createdPostId}/`);
-
-    // Must NOT be 200
-    expect(
-      crossResp.status,
-      `TENANT ISOLATION VIOLATION: T2 admin accessed T1 post ${createdPostId} with status ${crossResp.status}`,
-    ).not.toBe(200);
-    expect([403, 404]).toContain(crossResp.status);
-
+    const p2 = await ctx2.newPage();
+    await loginViaUI(p2, "tchul-admin");
+    const accessResp = await apiCall(p2, "GET", `/community/posts/${postId}/`);
+    expect([403, 404]).toContain(accessResp.status);
     await ctx2.close();
 
-    // --- Cleanup: delete the T1 post ---
-    try {
-      if (createdPostId) {
-        const delResp = await apiCall(page1, "DELETE", `/community/posts/${createdPostId}/`);
-        // 204 or 200 = deleted, 404 = already gone — all fine
-        expect([200, 204, 404]).toContain(delResp.status);
-      }
-    } catch {
-      // Cleanup failure should not fail the test
-    }
-
+    // 정리
+    await apiCall(p1, "DELETE", `/community/posts/${postId}/`);
     await ctx1.close();
   });
 
-  test("d) 각 테넌트 도메인의 페이지 타이틀이 서로의 브랜드를 포함하지 않는다", async ({ browser }) => {
-    // --- tchul.com must show 박철과학 ---
-    const ctx1 = await browser.newContext();
-    const page1 = await ctx1.newPage();
-    await page1.goto("https://tchul.com");
-    await page1.waitForLoadState("domcontentloaded");
-    const tchulTitle = await page1.title();
-    expect(tchulTitle).toContain("박철과학");
-    await ctx1.close();
+  test("d) 테넌트별 페이지 타이틀이 올바르다", async ({ page }) => {
+    await page.goto("https://tchul.com");
+    await page.waitForLoadState("domcontentloaded");
+    expect(await page.title()).toContain("박철과학");
 
-    // --- hakwonplus.com must NOT show 박철과학 ---
-    const ctx2 = await browser.newContext();
-    const page2 = await ctx2.newPage();
-    await page2.goto("https://hakwonplus.com");
-    await page2.waitForLoadState("domcontentloaded");
-    const hpTitle = await page2.title();
+    await page.goto("https://hakwonplus.com");
+    await page.waitForLoadState("domcontentloaded");
+    const hpTitle = await page.title();
     expect(hpTitle).not.toContain("박철과학");
-    await ctx2.close();
 
-    // --- sswe.co.kr must show SSWE ---
-    const ctx3 = await browser.newContext();
-    const page3 = await ctx3.newPage();
-    await page3.goto("https://sswe.co.kr");
-    await page3.waitForLoadState("domcontentloaded");
-    const ssweTitle = await page3.title();
-    expect(ssweTitle).toContain("SSWE");
-    await ctx3.close();
+    await page.goto("https://sswe.co.kr");
+    await page.waitForLoadState("domcontentloaded");
+    expect(await page.title()).toContain("SSWE");
   });
 });
