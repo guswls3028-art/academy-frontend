@@ -1,6 +1,6 @@
 // PATH: src/features/exams/panels/RegularExamPanel.tsx
 import { useState } from "react";
-import { Exam } from "../api/examApi";
+import { Exam } from "../types";
 import { ExamAssetManager } from "../components/ExamAssetManager";
 import { AnswerKeyEditor } from "../components/AnswerKeyEditor";
 

@@ -61,7 +61,7 @@ export default function SessionDetailPage() {
         </ActionCard>
 
         <ActionCard title="시험/평가" desc="시험 목록 또는 해당 시험으로 이동합니다.">
-          <SessionExamAction examIds={data.exam_ids} />
+          <SessionExamAction examIds={data.exam_ids ?? undefined} />
         </ActionCard>
 
         <ActionCard title="과제 제출" desc="과제를 제출합니다.">

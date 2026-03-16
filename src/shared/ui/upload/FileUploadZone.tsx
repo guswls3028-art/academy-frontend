@@ -145,7 +145,7 @@ export default function FileUploadZone({
       />
       {isFilled ? (
         <div className="excel-upload-zone__filled">
-          <CheckCircleIcon size={56} style={{ color: "var(--color-status-success, #10b981)" }} />
+          <CheckCircleIcon size={56} className="text-[var(--color-status-success,#10b981)]" />
           <span className="excel-upload-zone__filled-filename">{selectedFile!.name}</span>
           {onClearFile && (
             <button
@@ -161,7 +161,7 @@ export default function FileUploadZone({
       ) : (
         <>
           <div className="excel-upload-zone__head">
-            <UploadIcon size={22} style={{ color: "var(--color-text-secondary)" }} />
+            <UploadIcon size={22} className="text-[var(--color-text-secondary)]" />
             <span className="excel-upload-zone__title">{titleLabel}</span>
           </div>
           <div className="excel-upload-zone__drag-label">Drag or Click</div>

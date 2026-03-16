@@ -63,7 +63,7 @@ export default function AdminModal({
           backdropFilter: "blur(3px)",
           backgroundColor: isConfirm ? "rgba(0,0,0,0.58)" : "rgba(0,0,0,0.42)",
         },
-      }}
+      } as any}
       className={className ? `admin-modal admin-modal--${type} ${className}` : `admin-modal admin-modal--${type}`}
     >
       <div

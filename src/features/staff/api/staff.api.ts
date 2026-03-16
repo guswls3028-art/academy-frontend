@@ -52,7 +52,7 @@ export async function fetchStaffs(params?: {
   is_manager?: boolean;
   pay_type?: string;
 }): Promise<StaffListResponse> {
-  const res = await api.get<{ results?: Staff[]; owner?: StaffListOwner | null } & Staff[]>("/staffs/", {
+  const res = await api.get<any>("/staffs/", {
     params,
   });
 

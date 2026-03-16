@@ -145,7 +145,7 @@ export default function AdminRouter() {
         {/* ================= Lectures (SSOT 동일 구조) ================= */}
         <Route path="lectures" element={wrapLazy(LecturesLayout)}>
           <Route index element={wrapLazy(LecturesPage)} />
-          <Route path="past" element={<Suspense fallback={<AdminRouteFallback />}><LecturesPage tab="past" /></Suspense>} />
+          <Route path="past" element={<Suspense fallback={<AdminRouteFallback />}>{(() => { const LP = LecturesPage as React.ComponentType<{ tab?: string }>; return <LP tab="past" />; })()}</Suspense>} />
         </Route>
 
         {/* 강의 상세 — 수강생만 표시 (탭 제거) */}

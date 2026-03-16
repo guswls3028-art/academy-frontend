@@ -317,7 +317,7 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
                     ) : (
                       <>
                         <div className="excel-upload-zone__head">
-                          <UploadIcon size={18} style={{ color: "var(--color-text-secondary)" }} />
+                          <UploadIcon size={18} className="text-[var(--color-text-secondary)]" />
                           <span className="excel-upload-zone__title">Video</span>
                         </div>
                         <div className="excel-upload-zone__drag-label">Drag or Click</div>

@@ -86,7 +86,7 @@ function LectureSortableTh({
   );
 }
 
-export default function LecturesPage({ tab = "active" }: LecturesPageProps = {}) {
+export default function LecturesPage({ tab = "active" }: LecturesPageProps) {
   const navigate = useNavigate();
   const [showModal, setShowModal] = useState(false);
   const [q, setQ] = useState("");
@@ -166,8 +166,8 @@ export default function LecturesPage({ tab = "active" }: LecturesPageProps = {})
         aVal = toTime(a.start_date);
         bVal = toTime(b.start_date);
       } else {
-        aVal = (a as Record<string, unknown>)[key] ?? "";
-        bVal = (b as Record<string, unknown>)[key] ?? "";
+        aVal = ((a as Record<string, unknown>)[key] ?? "") as string | number;
+        bVal = ((b as Record<string, unknown>)[key] ?? "") as string | number;
       }
       if (typeof aVal === "string" && typeof bVal === "string") {
         const cmp = aVal.localeCompare(String(bVal), "ko");
@@ -361,7 +361,7 @@ export default function LecturesPage({ tab = "active" }: LecturesPageProps = {})
         <LectureCreateModal
           isOpen
           onClose={() => setShowModal(false)}
-          usedColors={data?.map((l) => l.color).filter(Boolean) ?? []}
+          usedColors={data?.map((l) => l.color).filter((c): c is string => !!c) ?? []}
         />
       )}
 
@@ -370,7 +370,7 @@ export default function LecturesPage({ tab = "active" }: LecturesPageProps = {})
           isOpen
           lectureId={editLectureId}
           onClose={() => setEditLectureId(null)}
-          usedColors={data?.map((l) => l.color).filter(Boolean) ?? []}
+          usedColors={data?.map((l) => l.color).filter((c): c is string => !!c) ?? []}
         />
       )}
 

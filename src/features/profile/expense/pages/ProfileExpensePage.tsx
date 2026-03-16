@@ -51,7 +51,7 @@ export default function ProfileExpensePage() {
             <EmptyState
               title="지출 내역 없음"
               description="선택한 기간에 지출이 없습니다."
-              action={
+              actions={
                 <Button
                   intent="primary"
                   size="md"

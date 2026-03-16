@@ -1,6 +1,6 @@
 // PATH: src/student/domains/clinic-idcard/components/HistoryStrip.tsx
 
-import { ClinicHistoryItem } from "../pages/ClinicIDCardPage";
+import type { ClinicIdcardHistoryItem as ClinicHistoryItem } from "../api/idcard";
 
 export default function HistoryStrip({
   histories,
@@ -12,9 +12,9 @@ export default function HistoryStrip({
       {histories.map((h, idx) => (
         <div
           key={idx}
-          className={`history-item ${h.result.toLowerCase()}`}
+          className={`history-item ${h.clinic_required ? "fail" : "success"}`}
         >
-          {h.week}차
+          {h.session_order}차
         </div>
       ))}
     </div>

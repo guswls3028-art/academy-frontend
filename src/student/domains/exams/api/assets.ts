@@ -14,7 +14,7 @@ export type ExamAsset = {
 };
 
 export async function fetchExamAssets(examId: number): Promise<ExamAsset[]> {
-  const res = await api.get(`/exams/${examId}/assets/`);
+  const res = await api.get<any>(`/exams/${examId}/assets/`);
   const data = res.data;
   if (Array.isArray(data?.items)) return data.items as ExamAsset[];
   if (Array.isArray(data)) return data as ExamAsset[];

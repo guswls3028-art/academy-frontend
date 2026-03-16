@@ -26,6 +26,31 @@ export type HomeworkSummary = {
   template_homework_id?: number | null;
 };
 
+export type HomeworkScore = {
+  id: number;
+  enrollment_id: number;
+  session: number;
+  score: number | null;
+  max_score: number | null;
+  teacher_approved: boolean;
+  passed: boolean;
+  clinic_required: boolean;
+  is_locked: boolean;
+  lock_reason: string | null;
+  updated_by_user_id: number | null;
+  meta: Record<string, unknown> | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type SessionEnrollment = {
+  id: number;
+  session: number;
+  enrollment: number;
+  student_name: string;
+  created_at: string;
+};
+
 export type HomeworkPolicy = {
   id: number;
   session: number;

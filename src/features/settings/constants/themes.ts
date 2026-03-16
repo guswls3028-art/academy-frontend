@@ -24,7 +24,7 @@ export type ThemeMeta = {
   order: number; // 1..12 (grid order SSOT)
 };
 
-export const THEMES: ThemeMeta[] = [
+export const THEMES: ThemeMeta[] = ([
   // ================= WHITE 4 =================
   {
     key: "modern-white",
@@ -114,7 +114,7 @@ export const THEMES: ThemeMeta[] = [
     group: "BRAND",
     order: 12,
   },
-].sort((a, b) => a.order - b.order);
+] as ThemeMeta[]).sort((a, b) => a.order - b.order);
 
 export function getThemeMeta(key: ThemeKey): ThemeMeta {
   const found = THEMES.find((t) => t.key === key);

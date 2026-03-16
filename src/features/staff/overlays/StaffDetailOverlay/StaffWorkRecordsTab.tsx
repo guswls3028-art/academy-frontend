@@ -64,7 +64,7 @@ export default function StaffWorkRecordsTab({ staffId }: { staffId: number }) {
 
             <div className="flex items-center gap-3">
               <div className="font-semibold">
-                {r.amount.toLocaleString()}원
+                {(r.amount ?? 0).toLocaleString()}원
               </div>
 
               <ActionButton

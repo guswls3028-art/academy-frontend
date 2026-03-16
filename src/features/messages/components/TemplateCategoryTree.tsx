@@ -62,7 +62,7 @@ export default function TemplateCategoryTree({
                 <button
                   type="button"
                   className={`${styles.tab} ${isActive ? styles.tabActive : ""}`}
-                  onClick={() => onSelect(cat.id)}
+                  onClick={() => onSelect(cat.id as MessageTemplateCategory)}
                   aria-current={isActive ? "true" : undefined}
                 >
                   <span className={styles.tabIcon}>{cat.icon}</span>

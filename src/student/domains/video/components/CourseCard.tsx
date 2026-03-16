@@ -39,7 +39,7 @@ function CourseCard({
 
   return (
     <Component
-      {...props}
+      {...(props as any)}
       className="media-tile"
       style={{
         display: "block",

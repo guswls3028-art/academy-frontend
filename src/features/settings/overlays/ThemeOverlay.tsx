@@ -143,9 +143,9 @@ export default function ThemeOverlay({ onClose }: Props) {
           ) : (
             <ThemeGrid
               themes={themes}
-              current={currentTheme}
-              focused={focus}
-              isSaving={isSaving}
+              currentTheme={currentTheme}
+              previewTheme={focus}
+              isApplying={isSaving}
               onSelect={(k) => setFocus(k)}
             />
           )}

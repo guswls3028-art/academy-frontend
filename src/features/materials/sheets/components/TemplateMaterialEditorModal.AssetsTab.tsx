@@ -5,7 +5,7 @@
 
 import { useState } from "react";
 import { createPortal } from "react-dom";
-import { AssetsTab } from "./TemplateMaterialEditorModal.AssetsTab";
+import { AssetsTab } from "@/features/materials/components/TemplateMaterialEditorModal.AssetsTab";
 import { MetaPreviewTab } from "./TemplateMaterialEditorModal.MetaPreviewTab";
 
 type TabKey = "assets" | "meta" | "guide";

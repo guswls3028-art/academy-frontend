@@ -38,8 +38,8 @@ export default function LectureSessionsPage() {
     const key = sort.startsWith("-") ? sort.slice(1) : sort;
     const asc = !sort.startsWith("-");
     return [...sorted].sort((a, b) => {
-      let aVal: string | number = (a as Record<string, unknown>)[key] ?? "";
-      let bVal: string | number = (b as Record<string, unknown>)[key] ?? "";
+      let aVal: string | number = ((a as unknown as Record<string, unknown>)[key] ?? "") as string | number;
+      let bVal: string | number = ((b as unknown as Record<string, unknown>)[key] ?? "") as string | number;
       if (key === "date") {
         aVal = new Date(String(aVal)).getTime();
         bVal = new Date(String(bVal)).getTime();

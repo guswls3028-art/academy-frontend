@@ -178,7 +178,9 @@ async function htmlToPdfDownload(html: string, filename: string) {
 
   // 2) CDN 로드
   const [h2cMod, jpMod] = await Promise.all([
+    // @ts-expect-error CDN dynamic import
     import(/* @vite-ignore */ "https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/+esm"),
+    // @ts-expect-error CDN dynamic import
     import(/* @vite-ignore */ "https://cdn.jsdelivr.net/npm/jspdf@2.5.2/+esm"),
   ]);
   const html2canvas = h2cMod.default;

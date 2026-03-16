@@ -570,9 +570,9 @@ export default function VideoExplorerPage() {
         <AdminModal
           open={addChoiceModalOpen}
           onClose={() => setAddChoiceModalOpen(false)}
-          width={MODAL_WIDTH.smallModal}
+          width={MODAL_WIDTH.sm}
         >
-          <ModalHeader title="추가하기" onClose={() => setAddChoiceModalOpen(false)} />
+          <ModalHeader title="추가하기" />
           <ModalBody>
             <div className="space-y-3">
               <button
@@ -613,11 +613,13 @@ export default function VideoExplorerPage() {
               </button>
             </div>
           </ModalBody>
-          <ModalFooter>
-            <Button intent="secondary" onClick={() => setAddChoiceModalOpen(false)}>
-              취소
-            </Button>
-          </ModalFooter>
+          <ModalFooter
+            right={
+              <Button intent="secondary" onClick={() => setAddChoiceModalOpen(false)}>
+                취소
+              </Button>
+            }
+          />
         </AdminModal>
       )}
 
@@ -629,13 +631,10 @@ export default function VideoExplorerPage() {
             setNewFolderOpen(false);
             setNewFolderName("");
           }}
-          width={MODAL_WIDTH.smallModal}
+          width={MODAL_WIDTH.sm}
           onEnterConfirm={newFolderName.trim() ? handleCreateFolder : undefined}
         >
-          <ModalHeader title="새 폴더" onClose={() => {
-            setNewFolderOpen(false);
-            setNewFolderName("");
-          }} />
+          <ModalHeader title="새 폴더" />
           <ModalBody>
             <div className="space-y-3">
               <div>
@@ -660,20 +659,24 @@ export default function VideoExplorerPage() {
               </div>
             </div>
           </ModalBody>
-          <ModalFooter>
-            <Button
-              intent="secondary"
-              onClick={() => {
-                setNewFolderOpen(false);
-                setNewFolderName("");
-              }}
-            >
-              취소
-            </Button>
-            <Button intent="primary" onClick={handleCreateFolder} disabled={!newFolderName.trim()}>
-              생성
-            </Button>
-          </ModalFooter>
+          <ModalFooter
+            left={
+              <Button
+                intent="secondary"
+                onClick={() => {
+                  setNewFolderOpen(false);
+                  setNewFolderName("");
+                }}
+              >
+                취소
+              </Button>
+            }
+            right={
+              <Button intent="primary" onClick={handleCreateFolder} disabled={!newFolderName.trim()}>
+                생성
+              </Button>
+            }
+          />
         </AdminModal>
       )}
       {isOverlayOpen && (

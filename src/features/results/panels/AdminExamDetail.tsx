@@ -8,11 +8,12 @@
  * - exams 도메인은 results 내부 로직을 침범하지 않는다
  */
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
 export default function AdminExamDetail() {
   const [searchParams] = useSearchParams();
+  const [_activeTab, setActiveTab] = useState("setup");
 
   /**
    * Session 경로에서 진입한 경우
@@ -20,9 +21,10 @@ export default function AdminExamDetail() {
    */
   useEffect(() => {
     if (searchParams.get("from") === "session") {
-      setActiveTab("results"); // 기존 탭 상태 setter 유지
+      setActiveTab("results");
     }
   }, [searchParams]);
 
   // ... 기존 코드 전체 유지
+  return null;
 }

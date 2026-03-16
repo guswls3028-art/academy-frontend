@@ -1,6 +1,6 @@
 // PATH: src/student/domains/clinic-idcard/components/ResultBanner.tsx
 
-import { ClinicResult } from "../pages/ClinicIDCardPage";
+import type { ClinicIdcardResult as ClinicResult } from "../api/idcard";
 
 export default function ResultBanner({ result }: { result: ClinicResult }) {
   return (

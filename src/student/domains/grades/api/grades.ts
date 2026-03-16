@@ -32,7 +32,7 @@ export type MyGradesSummary = {
 
 export async function fetchMyGradesSummary(): Promise<MyGradesSummary> {
   const res = await api.get("/student/grades/");
-  const data = res.data ?? {};
+  const data: any = res.data ?? {};
   return {
     exams: Array.isArray(data.exams) ? data.exams : [],
     homeworks: Array.isArray(data.homeworks) ? data.homeworks : [],

@@ -13,7 +13,7 @@ export type SessionExamRow = {
   max_attempts: number;
 };
 
-export async function fetchAdminSessionExams(sessionId: number) {
+export async function fetchAdminSessionExams(sessionId: number): Promise<SessionExamRow[]> {
   const res = await api.get(
     `/results/admin/sessions/${sessionId}/exams/`
   );

@@ -3,6 +3,7 @@ import { useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
 import { VIDEO_STATUS_IN_PROGRESS } from "@/features/videos/constants/videoProcessing";
+import type { VideoStatus } from "@/features/videos/api/videos";
 
 const POLL_INTERVAL_MS = 2000;
 const POLL_BACKOFF_AFTER_MS = 3 * 60 * 1000; // 3 minutes
@@ -40,7 +41,7 @@ export function useSessionVideos(sessionId: number) {
       if (!videos || videos.length === 0) return false;
 
       const hasInProgress = videos.some((v) =>
-        v.status != null && VIDEO_STATUS_IN_PROGRESS.includes(v.status)
+        v.status != null && VIDEO_STATUS_IN_PROGRESS.includes(v.status as VideoStatus)
       );
 
       if (!hasInProgress) {

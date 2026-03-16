@@ -64,7 +64,7 @@ export default function ScoresReadonlyTable({
                   />
                 </td>
                 <td className="px-4 py-3">
-                  {row.final_score ?? "-"}
+                  {(row as any).final_score ?? "-"}
                 </td>
                 <td className="px-4 py-3 text-xs text-[var(--color-text-muted)]">
                   결과 상세에서 확인

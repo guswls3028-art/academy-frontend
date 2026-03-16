@@ -51,7 +51,7 @@ export default function ProfileAttendancePage() {
             <EmptyState
               title="근태 기록 없음"
               description="선택한 기간에 근태 기록이 없습니다."
-              action={
+              actions={
                 <Button
                   intent="primary"
                   size="md"

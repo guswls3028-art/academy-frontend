@@ -49,8 +49,8 @@ function ColorSelectModal({ open, onClose, onSelect, currentColor }: ColorSelect
   }, [customColor, onSelect, onClose]);
 
   return (
-    <AdminModal open={open} onClose={onClose} width={MODAL_WIDTH.mediumModal} onEnterConfirm={handleSelect}>
-      <ModalHeader title="색상 선택" onClose={onClose} />
+    <AdminModal open={open} onClose={onClose} width={MODAL_WIDTH.md} onEnterConfirm={handleSelect}>
+      <ModalHeader title="색상 선택" />
       <ModalBody>
         <div className="space-y-4">
           {/* 미리 정의된 팔레트 */}

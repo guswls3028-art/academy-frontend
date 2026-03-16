@@ -286,10 +286,10 @@ export default function SendMessageModal({
       ? (hasRecipients ? `선택한 직원 ${staffIds.length}명` : "수신자 없음")
       : (hasRecipients ? `선택한 학생 ${studentIds.length}명` : "수신자 없음"));
 
-  const editorTabItems = [
+  const editorTabItems: import("@/shared/ui/ds/Tabs").TabItem[] = [
     { key: "message", label: "메시지" },
     { key: "alimtalk", label: "알림톡" },
-  ] as const;
+  ];
 
   return (
     <AdminModal open={open} onClose={onClose} width={1000} onEnterConfirm={handleSend} className="send-message-modal">

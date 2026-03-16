@@ -208,7 +208,7 @@ function ClinicIdcardColorSettings() {
             <div className="space-y-3">
               <div className="flex items-center justify-between gap-3 flex-wrap">
                 <p className="text-xs font-semibold text-[var(--color-text-muted)]">색상 3개</p>
-                <Button intent="secondary" size="small" onClick={handleAutoAssign} className="shrink-0">
+                <Button intent="secondary" size="sm" onClick={handleAutoAssign} className="shrink-0">
                   자동 부여
                 </Button>
               </div>
@@ -308,8 +308,8 @@ function ColorSelectModal({
   }, [currentColor]);
 
   return (
-    <AdminModal open={open} onClose={onClose} width={MODAL_WIDTH.mediumModal} onEnterConfirm={() => onSelect(customColor)}>
-      <ModalHeader title="색상 선택" onClose={onClose} />
+    <AdminModal open={open} onClose={onClose} width={MODAL_WIDTH.md} onEnterConfirm={() => onSelect(customColor)}>
+      <ModalHeader title="색상 선택" />
       <ModalBody>
         <div className="p-5 space-y-4">
           {/* 기본 색상 팔레트 */}
@@ -367,11 +367,13 @@ function ColorSelectModal({
           </div>
         </div>
       </ModalBody>
-      <ModalFooter>
-        <Button intent="secondary" onClick={onClose}>
-          취소
-        </Button>
-      </ModalFooter>
+      <ModalFooter
+        right={
+          <Button intent="secondary" onClick={onClose}>
+            취소
+          </Button>
+        }
+      />
     </AdminModal>
   );
 }

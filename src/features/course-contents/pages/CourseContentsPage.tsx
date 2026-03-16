@@ -7,7 +7,7 @@
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueries } from "@tanstack/react-query";
 import { useState, useMemo } from "react";
-import { fetchLectures, fetchSessions } from "@/features/lectures/api/sessions";
+import { fetchLectures, fetchSessions, type Lecture, type Session } from "@/features/lectures/api/sessions";
 import { DomainLayout } from "@/shared/ui/layout";
 import LectureSessionTree from "../components/LectureSessionTree";
 import styles from "./CourseContentsPage.module.css";

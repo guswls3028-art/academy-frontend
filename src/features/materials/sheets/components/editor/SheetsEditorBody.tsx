@@ -112,7 +112,7 @@ export default function SheetsEditorBody({ sheetId }: { sheetId: number }) {
   });
 
   if (id <= 0) {
-    return <EmptyState title="잘못된 접근" message="유효하지 않은 시험지입니다." />;
+    return <EmptyState title="잘못된 접근" description="유효하지 않은 시험지입니다." />;
   }
 
   if (sheetQ.isLoading || qQ.isLoading) {
@@ -122,7 +122,7 @@ export default function SheetsEditorBody({ sheetId }: { sheetId: number }) {
   if (sheetQ.isError || qQ.isError) {
     return (
       <div className="p-4">
-        <EmptyState title="불러오기 실패" message="시험지 정보를 불러오지 못했습니다." />
+        <EmptyState title="불러오기 실패" description="시험지 정보를 불러오지 못했습니다." />
       </div>
     );
   }

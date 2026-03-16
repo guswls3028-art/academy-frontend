@@ -104,7 +104,7 @@ function getClinicReason(row: SessionScoreRow): { target: boolean; reason: strin
     row.homeworks?.some((h) => {
       const st = getHomeworkStatus({
         score: h.block.score,
-        metaStatus: h.block.meta?.status ?? null,
+        metaStatus: (h.block.meta?.status ?? null) as import("../utils/homeworkStatus").HomeworkMetaStatus,
       });
       return st === "NOT_SUBMITTED" || h.block.passed === false;
     }) ?? false;

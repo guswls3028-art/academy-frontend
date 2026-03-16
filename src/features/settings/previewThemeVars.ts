@@ -7,7 +7,7 @@ import type { ThemeKey } from "./constants/themes";
  * - 전역 디자인 시스템(var(--color-*)) 영향 차단 목적
  * - MiniAdminPreview는 pv-* 변수만 사용한다.
  */
-export const PREVIEW_THEME_VARS: Record<ThemeKey, React.CSSProperties> = {
+export const PREVIEW_THEME_VARS: Record<ThemeKey, React.CSSProperties & Record<string, string>> = {
   "modern-white": {
     "--pv-canvas": "#ffffff",
     "--pv-page": "#f6f8fc",
@@ -114,5 +114,41 @@ export const PREVIEW_THEME_VARS: Record<ThemeKey, React.CSSProperties> = {
     "--pv-sidebar-bg": "#0f0f10",
     "--pv-sidebar-active-bg": "rgba(255,0,0,0.22)",
     "--pv-sidebar-muted": "rgba(249,250,251,0.32)",
+  },
+
+  "ivory-office": {
+    "--pv-canvas": "#faf8f5",
+    "--pv-page": "#f5f0ea",
+    "--pv-panel": "#ffffff",
+    "--pv-border": "rgba(0,0,0,0.08)",
+    "--pv-primary": "#8b6914",
+
+    "--pv-sidebar-bg": "#faf8f5",
+    "--pv-sidebar-active-bg": "rgba(139,105,20,0.12)",
+    "--pv-sidebar-muted": "rgba(0,0,0,0.4)",
+  },
+
+  "modern-dark": {
+    "--pv-canvas": "#121212",
+    "--pv-page": "#121212",
+    "--pv-panel": "#1e1e1e",
+    "--pv-border": "rgba(255,255,255,0.1)",
+    "--pv-primary": "#2563eb",
+
+    "--pv-sidebar-bg": "#121212",
+    "--pv-sidebar-active-bg": "rgba(37,99,235,0.2)",
+    "--pv-sidebar-muted": "rgba(255,255,255,0.4)",
+  },
+
+  "terminal-neon": {
+    "--pv-canvas": "#0a0a0a",
+    "--pv-page": "#0a0a0a",
+    "--pv-panel": "#141414",
+    "--pv-border": "rgba(0,255,65,0.15)",
+    "--pv-primary": "#00ff41",
+
+    "--pv-sidebar-bg": "#0a0a0a",
+    "--pv-sidebar-active-bg": "rgba(0,255,65,0.15)",
+    "--pv-sidebar-muted": "rgba(0,255,65,0.4)",
   },
 };

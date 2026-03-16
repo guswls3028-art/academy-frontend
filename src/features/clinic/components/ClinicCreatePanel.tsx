@@ -329,7 +329,7 @@ export default function ClinicCreatePanel({
               className="flex-1 min-w-0"
             />
             <Button
-              size="small"
+              size="sm"
               intent="primary"
               onClick={() => {
                 const v = addLocationInput.trim();
@@ -396,7 +396,7 @@ export default function ClinicCreatePanel({
                 className="flex-1 min-w-0"
               />
               <Button
-                size="small"
+                size="sm"
                 intent="secondary"
                 onClick={() => {
                   const v = addLocationInput.trim();

@@ -29,6 +29,8 @@ function normalizeExam(raw: any): Exam {
 
     template_exam_id: raw.template_exam_id ?? null,
 
+    answer_visibility: raw.answer_visibility ?? "hidden",
+
     status: raw.status ?? "OPEN",
 
     created_at: String(raw.created_at ?? ""),

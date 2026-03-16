@@ -188,7 +188,7 @@ export async function fetchStudents(
   sort: string = "",
   page: number = 1,
   deleted: boolean = false
-): Promise<{ data: ReturnType<typeof mapStudent>[]; count: number }> {
+): Promise<{ data: ReturnType<typeof mapStudent>[]; count: number; pageSize: number }> {
   const ordering = buildOrdering(sort);
 
   const params: Record<string, unknown> = {
@@ -327,7 +327,7 @@ export async function uploadStudentBulkFromExcel(
   form.append("file", file);
   form.append("initial_password", initialPassword);
   const res = await api.post("/students/bulk_create_from_excel/", form, {
-    headers: { "Content-Type": undefined } as Record<string, unknown>,
+    headers: { "Content-Type": undefined } as any,
   });
   return res.data as { job_id: string; status: string };
 }
@@ -610,7 +610,7 @@ export async function submitRegistrationRequest(form: {
   if (form.phone && normalizePhone(String(form.phone)).length === 11) {
     (payload as any).phone = normalizePhone(String(form.phone));
   }
-  const res = await api.post("/students/registration_requests/", payload, { skipAuth: true as any });
+  const res = await api.post("/students/registration_requests/", payload, { skipAuth: true } as any);
   return mapRegistrationRequest(res.data);
 }
 
@@ -635,7 +635,7 @@ export async function checkSignupDuplicate(params: {
   const res = await api.post<DuplicateCheckResult>(
     "/students/registration_requests/check_duplicate/",
     body,
-    { skipAuth: true as any },
+    { skipAuth: true } as any,
   );
   return res.data;
 }
@@ -652,8 +652,8 @@ export async function sendExistingCredentials(params: {
     body.name = params.name.trim();
   }
   const res = await api.post<{ message: string }>("/students/send_existing_credentials/", body, {
-    skipAuth: true as any,
-  });
+    skipAuth: true,
+  } as any);
   return res.data;
 }
 
@@ -717,8 +717,8 @@ export async function sendPasswordReset(params: {
     body.temp_password = temp_password.trim();
   }
   const res = await api.post<{ message: string }>("/students/password_reset_send/", body, {
-    skipAuth: true as any,
-  });
+    skipAuth: true,
+  } as any);
   return res.data;
 }
 

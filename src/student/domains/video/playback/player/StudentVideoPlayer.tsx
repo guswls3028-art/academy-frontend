@@ -127,7 +127,7 @@ export default function StudentVideoPlayer({
   const fullscreenFallbackRef = useRef(false);
 
   const gestureLayerRef = useRef<HTMLDivElement | null>(null);
-  const hideControlsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hideControlsTimerRef = useRef<number | null>(null);
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const savedRateRef = useRef(1);
   const swipeHandledRef = useRef(false);

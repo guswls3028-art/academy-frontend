@@ -42,7 +42,7 @@ export async function lectureEnrollFromExcelUpload(
     form.append("session_id", String(options.sessionId));
   }
   const res = await api.post("/enrollments/lecture_enroll_from_excel/", form, {
-    headers: { "Content-Type": undefined } as Record<string, unknown>,
+    headers: { "Content-Type": undefined } as any,
   });
   return res.data as { job_id: string; status: string };
 }

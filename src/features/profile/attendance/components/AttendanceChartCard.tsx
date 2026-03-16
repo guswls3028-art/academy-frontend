@@ -54,7 +54,7 @@ export default function AttendanceChartCard({
             />
             <YAxis tick={{ fontSize: 12, fill: "var(--color-text-muted)" }} />
             <Tooltip
-              formatter={(v: number) => `${v} 시간`}
+              formatter={(v) => `${v} 시간`}
               contentStyle={{
                 background: "var(--color-bg-surface)",
                 border: "1px solid var(--color-border-divider)",

@@ -413,9 +413,9 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
               <div style={{ marginBottom: "var(--space-2)" }}>
                 <strong>학부모 전화:</strong> {deletedStudentConflict.student.parentPhone || "-"}
               </div>
-              {deletedStudentConflict.student.phone && (
+              {deletedStudentConflict.student.studentPhone && (
                 <div>
-                  <strong>학생 전화:</strong> {deletedStudentConflict.student.phone}
+                  <strong>학생 전화:</strong> {deletedStudentConflict.student.studentPhone}
                 </div>
               )}
             </div>

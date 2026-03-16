@@ -54,7 +54,7 @@ export default function ExpenseChartCard({
             />
             <YAxis tick={{ fontSize: 12, fill: "var(--color-text-muted)" }} />
             <Tooltip
-              formatter={(v: number) => `${Number(v).toLocaleString()} 원`}
+              formatter={(v) => `${Number(v).toLocaleString()} 원`}
               contentStyle={{
                 background: "var(--color-bg-surface)",
                 border: "1px solid var(--color-border-divider)",

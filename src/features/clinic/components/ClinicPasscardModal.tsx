@@ -21,7 +21,7 @@ export default function ClinicPasscardModal({ open, onClose }: Props) {
       width={MODAL_WIDTH.wide}
       className="clinic-passcard-modal"
     >
-      <ModalHeader title="클리닉 패스카드" onClose={onClose} />
+      <ModalHeader title="클리닉 패스카드" />
       <ModalBody>
         <div className="p-4 sm:p-5">
           <ClinicRemoteControl embedded />

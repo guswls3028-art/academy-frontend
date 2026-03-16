@@ -20,7 +20,7 @@ export default function StaffOperationTable({
   month,
 }: {
   selectedStaffId?: number;
-  basePath?: "operations" | "attendance" | "expenses" | "month-lock" | "reports";
+  basePath?: "operations" | "attendance" | "expenses" | "month-lock" | "reports" | "payroll-snapshot";
   year?: number;
   month?: number;
 }) {

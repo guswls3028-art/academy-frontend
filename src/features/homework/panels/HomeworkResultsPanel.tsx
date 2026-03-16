@@ -12,7 +12,7 @@ import { useHomeworkPolicy } from "../hooks/useHomeworkPolicy";
 import { EmptyState } from "@/shared/ui/ds";
 import { fetchSessionScores, type SessionScoreHomeworkEntry } from "@/features/scores/api/sessionScores";
 import { useQuery } from "@tanstack/react-query";
-import { getHomeworkStatus, homeworkStatusLabel, type HomeworkStatus } from "@/features/scores/utils/homeworkStatus";
+import { getHomeworkStatus, homeworkStatusLabel, type HomeworkStatus, type HomeworkMetaStatus } from "@/features/scores/utils/homeworkStatus";
 
 type HomeworkResultRow = {
   enrollment_id: number;
@@ -76,7 +76,7 @@ export default function HomeworkResultsPanel({ homeworkId }: { homeworkId: numbe
 
       const status = getHomeworkStatus({
         score: hw.block?.score ?? null,
-        metaStatus: hw.block?.meta?.status ?? null,
+        metaStatus: (hw.block?.meta?.status ?? null) as HomeworkMetaStatus,
       });
       if (status === "NOT_SUBMITTED") notSubmitted++;
       if (status === "SCORED" || status === "ZERO") graded++;

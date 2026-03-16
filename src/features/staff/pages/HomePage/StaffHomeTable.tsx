@@ -195,8 +195,8 @@ export function StaffHomeTable({
     const key = sort.startsWith("-") ? sort.slice(1) : sort;
     const asc = !sort.startsWith("-");
     return [...dataSource].sort((a, b) => {
-      let aVal: string | number = (a as Record<string, unknown>)[key] ?? "";
-      let bVal: string | number = (b as Record<string, unknown>)[key] ?? "";
+      let aVal: string | number = ((a as unknown as Record<string, unknown>)[key] ?? "") as string | number;
+      let bVal: string | number = ((b as unknown as Record<string, unknown>)[key] ?? "") as string | number;
       if (key === "name") {
         aVal = a.name ?? "";
         bVal = b.name ?? "";

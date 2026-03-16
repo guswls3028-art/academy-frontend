@@ -27,7 +27,7 @@ function normalizeListItem(raw: any): HomeworkListItem {
   };
 }
 
-export async function fetchHomeworks(params?: { session_id?: number }) {
+export async function fetchHomeworks(params?: { session_id?: number }): Promise<HomeworkListItem[]> {
   const res = await api.get("/homeworks/", { params });
   const d = res.data;
 

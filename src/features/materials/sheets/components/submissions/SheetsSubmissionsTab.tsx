@@ -152,7 +152,7 @@ export default function SheetsSubmissionsTab({ examId, sheetTitle, questions }: 
 
         {!listQ.isLoading && items.length === 0 && (
           <div className="p-4">
-            <EmptyState title="제출이 없습니다" message="아직 제출된 OMR이 없습니다." />
+            <EmptyState title="제출이 없습니다" description="아직 제출된 OMR이 없습니다." />
           </div>
         )}
 

@@ -564,7 +564,7 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
                     >
                       + 태그 추가
                     </Button>
-                    {tags?.filter((t: any) => !student.tags?.some((st: any) => st.id === t.id)).length > 0 && (
+                    {(tags?.filter((t: any) => !student.tags?.some((st: any) => st.id === t.id)).length ?? 0) > 0 && (
                       <select
                         className="ds-input"
                         style={{ fontSize: 13, minWidth: 140 }}
@@ -617,7 +617,7 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
                   <textarea
                     className="ds-textarea w-full"
                     rows={4}
-                    defaultValue={student.memo}
+                    defaultValue={student.memo ?? ""}
                     placeholder="메모를 입력하면 포커스 해제 시 자동 저장됩니다."
                     onBlur={(e) => updateMemo.mutate(e.target.value)}
                     style={{

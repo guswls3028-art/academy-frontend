@@ -210,7 +210,7 @@ function BrandingTab({ tenantId, tenantCode }: { tenantId: number; tenantCode: s
   const [initial, setInitial] = useState({ displayName: "", windowTitle: "", loginTitle: "", loginSubtitle: "" });
 
   if (!initialized && !isLoading && branding !== undefined) {
-    const d = branding?.displayName ?? fallback?.displayName ?? "";
+    const d = branding?.displayName ?? "";
     const w = branding?.windowTitle ?? "";
     const lt = branding?.loginTitle ?? fallback?.loginTitle ?? "";
     const ls = branding?.loginSubtitle ?? fallback?.loginSubtitle ?? "";

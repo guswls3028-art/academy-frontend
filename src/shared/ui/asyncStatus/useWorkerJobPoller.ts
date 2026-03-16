@@ -299,7 +299,7 @@ export function useWorkerJobPoller(
   const pending = tasks.filter(
     (t) => t.status === "pending" && t.meta?.jobId
   );
-  const intervalRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const intervalRef = useRef<number | null>(null);
   const onExcelSuccessRef = useRef(options?.onExcelSuccess);
   const onVideoSuccessRef = useRef(options?.onVideoSuccess);
   const onExcelProgressRef = useRef(options?.onExcelProgress);

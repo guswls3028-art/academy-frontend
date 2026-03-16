@@ -5,6 +5,7 @@ import type { ButtonIntent, ButtonSize } from "../Button";
 type Action =
   | "create"
   | "edit"
+  | "save"
   | "delete"
   | "close"
   | "manage";
@@ -15,6 +16,7 @@ const ACTION_PRESET: Record<
 > = {
   create: { intent: "primary", label: "생성" },
   edit: { intent: "secondary", label: "수정" },
+  save: { intent: "primary", label: "저장" },
   manage: { intent: "secondary", label: "관리" },
   close: { intent: "ghost", label: "닫기" },
   delete: { intent: "danger", label: "삭제" },

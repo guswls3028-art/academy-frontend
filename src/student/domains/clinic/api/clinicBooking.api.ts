@@ -57,7 +57,7 @@ export async function fetchAvailableClinicSessions(params?: {
   const dateFrom = params?.date_from || todayStr;
   const dateTo = params?.date_to || futureStr;
 
-  const res = await api.get("/clinic/sessions/", {
+  const res = await api.get<any>("/clinic/sessions/", {
     params: {
       date_from: dateFrom,
       date_to: dateTo,
@@ -80,7 +80,7 @@ export async function fetchAvailableClinicSessions(params?: {
  * 백엔드에서 자동으로 현재 로그인한 학생의 예약만 반환
  */
 export async function fetchMyClinicBookingRequests(): Promise<ClinicBookingRequest[]> {
-  const res = await api.get("/clinic/participants/", { params: { page_size: 200 } });
+  const res = await api.get<any>("/clinic/participants/", { params: { page_size: 200 } });
 
   const participants = Array.isArray(res.data)
     ? res.data
@@ -124,7 +124,7 @@ export async function createClinicBookingRequest(data: {
   if (!data.session) {
     throw new Error("등록 가능한 클리닉 시간을 선택해주세요.");
   }
-  const res = await api.post("/clinic/participants/", {
+  const res = await api.post<any>("/clinic/participants/", {
     source: "student_request",
     status: "pending",
     session: data.session,
@@ -165,7 +165,7 @@ export async function changeClinicBooking(
   newSessionId: number,
   memo?: string
 ): Promise<ClinicBookingRequest> {
-  const res = await api.post(
+  const res = await api.post<any>(
     `/clinic/participants/${oldParticipantId}/change-booking/`,
     {
       new_session_id: newSessionId,

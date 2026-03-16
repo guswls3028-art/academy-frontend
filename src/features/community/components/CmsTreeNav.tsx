@@ -20,7 +20,7 @@ interface CmsTreeNavProps {
   sessionId: number | null;
   effectiveLectureId: number | null;
   lectures: Array<{ id: number; title?: string; name?: string; color?: string | null }>;
-  scopeNodes: Array<{ id: number; lecture: number; session: number | null; session_title?: string }>;
+  scopeNodes: Array<{ id: number; lecture: number; session: number | null; session_title?: string | null }>;
   sessionsOfLecture: Array<{ id: number; title: string; order: number }>;
   sessionsLoading: boolean;
   expandedLectureId: number | null;

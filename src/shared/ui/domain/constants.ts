@@ -42,7 +42,7 @@ export function getDefaultColorForPicker(usedColors: string[]): string {
   const used = usedColors.filter(Boolean);
   if (used.length === 0) return DEFAULT_PRESET_COLOR;
 
-  let best = PRESET_COLORS[0];
+  let best: typeof PRESET_COLORS[number] = PRESET_COLORS[0];
   let bestMinDist = -1;
 
   for (const preset of PRESET_COLORS) {

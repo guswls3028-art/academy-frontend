@@ -18,6 +18,7 @@ type ResizableThProps = {
   children: ReactNode;
   className?: string;
   style?: CSSProperties;
+  title?: string;
   onClick?: () => void;
   "aria-sort"?: "ascending" | "descending" | "none";
   scope?: "col";
@@ -34,6 +35,7 @@ export default function ResizableTh({
   children,
   className,
   style,
+  title,
   onClick,
   "aria-sort": ariaSort,
   scope = "col",
@@ -103,6 +105,7 @@ export default function ResizableTh({
         position: "relative",
         userSelect: isResizing ? "none" : undefined,
       }}
+      title={title}
       onClick={onClick}
     >
       {noWrap ? children : <span className="inline-flex items-center justify-center gap-2">{children}</span>}

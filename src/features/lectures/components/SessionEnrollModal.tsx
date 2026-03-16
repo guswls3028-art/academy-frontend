@@ -198,6 +198,7 @@ type LectureChipInfo = { lectureName: string; color?: string | null; chipLabel?:
 type SelectedItem = {
   id: number;
   name: string;
+  displayName?: string;
   profilePhotoUrl?: string | null;
   enrollments?: LectureChipInfo[];
 };

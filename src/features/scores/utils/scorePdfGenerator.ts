@@ -321,7 +321,9 @@ export async function downloadScorePdf(params: ScorePdfParams): Promise<void> {
 
   // 3) CDN에서 html2canvas, jsPDF 로드
   const [html2canvasModule, jsPDFModule] = await Promise.all([
+    // @ts-expect-error CDN dynamic import
     import(/* @vite-ignore */ "https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/+esm"),
+    // @ts-expect-error CDN dynamic import
     import(/* @vite-ignore */ "https://cdn.jsdelivr.net/npm/jspdf@2.5.2/+esm"),
   ]);
   const html2canvas = html2canvasModule.default;

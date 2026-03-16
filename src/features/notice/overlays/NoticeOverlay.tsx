@@ -63,7 +63,7 @@ export default function NoticeOverlay({ onClose }: { onClose: () => void }) {
             {notices.map((n) => (
               <Panel
                 key={n.id}
-                header={
+                title={
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
                       <span

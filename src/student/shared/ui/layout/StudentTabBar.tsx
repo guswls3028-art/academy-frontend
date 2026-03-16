@@ -7,7 +7,7 @@ import { IconHome, IconPlay, IconCalendar, IconBell, IconBoard } from "../icons/
 import { useNotificationCounts } from "@/student/domains/notifications/hooks/useNotificationCounts";
 import NotificationBadge from "../components/NotificationBadge";
 
-const tabs: { to: string; label: string; icon: React.ReactNode; badgeKey?: keyof ReturnType<typeof useNotificationCounts>["data"] }[] = [
+const tabs: { to: string; label: string; icon: React.ReactNode; badgeKey?: keyof import("@/student/domains/notifications/api/notifications.api").NotificationCounts }[] = [
   { to: "/student/dashboard", label: "홈", icon: <IconHome /> },
   { to: "/student/video", label: "영상", icon: <IconPlay /> },
   { to: "/student/sessions", label: "일정", icon: <IconCalendar /> },

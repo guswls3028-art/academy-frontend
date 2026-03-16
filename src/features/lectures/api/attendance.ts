@@ -129,6 +129,7 @@ export type AttendanceMatrixStudent = {
   name: string;
   phone: string | null;
   parent_phone: string | null;
+  profile_photo_url?: string | null;
   /** session_id 문자열 키 → { attendance_id, status } */
   attendance: Record<string, { attendance_id: number; status: string }>;
 };

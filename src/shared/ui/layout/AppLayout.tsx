@@ -210,7 +210,7 @@ export default function AppLayout() {
         <NoticeProvider>
           <ConfigProvider
             theme={{
-              algorithm: false,
+              algorithm: undefined,
               token: {
                 colorPrimary: "var(--color-brand-primary)",
 

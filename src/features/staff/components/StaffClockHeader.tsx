@@ -72,7 +72,7 @@ export function StaffClockHeader() {
     tick();
     const interval = setInterval(tick, 1000);
     return () => clearInterval(interval);
-  }, [current?.status, current?.date, current?.started_at]);
+  }, [current?.status, current && "date" in current ? current.date : undefined, current && "started_at" in current ? current.started_at : undefined]);
 
   if (!staffId || defaultWorkTypeId == null) return null;
 

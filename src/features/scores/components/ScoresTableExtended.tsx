@@ -16,6 +16,7 @@ type Props = {
   sessionId: number;
   selectedEnrollmentId: number | null;
   onSelectRow: (row: SessionScoreRow) => void;
+  onSelectCell: (row: SessionScoreRow, type: "exam" | "homework", id: number, questionIdOrSub?: number | "total" | "objective" | "subjective") => void;
 };
 
 export default function ScoresTableExtended(props: Props) {

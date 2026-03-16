@@ -183,8 +183,8 @@ export default function VideoPlayerPage() {
       token: `student-${videoId}-${Date.now()}`,
       session_id: null,
       expires_at: null,
-      access_mode: playbackData.policy?.access_mode || "FREE_REVIEW",
-      monitoring_enabled: playbackData.policy?.monitoring_enabled ?? false,
+      access_mode: (playbackData.policy?.access_mode || "FREE_REVIEW") as "FREE_REVIEW" | "PROCTORED_CLASS",
+      monitoring_enabled: (playbackData.policy as any)?.monitoring_enabled ?? false,
       policy: playbackData.policy || {},
       play_url: playUrl,
     };

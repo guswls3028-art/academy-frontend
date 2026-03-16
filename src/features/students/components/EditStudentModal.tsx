@@ -188,7 +188,7 @@ export default function EditStudentModal({
                 disabled={busy}
                 blockClassName="modal-phone-block"
                 inputClassName="modal-phone-block-input"
-                data-invalid={!String(form.parentPhone || "").trim() ? "true" : "false"}
+                data-invalid={!String(form.parentPhone || "").trim()}
                 data-required="true"
                 aria-label="학부모 전화"
               />

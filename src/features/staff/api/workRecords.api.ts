@@ -126,7 +126,7 @@ export async function endBreak(workRecordId: number) {
 export type CurrentlyWorkingItem = {
   staff_id: number;
   staff_name: string;
-  role?: "owner" | "TEACHER" | "ASSISTANT";
+  role?: "owner" | "OWNER" | "TEACHER" | "ASSISTANT";
   /** 근무 시작일 (YYYY-MM-DD) — 드롭다운 근무시간 계산용 */
   date?: string;
   /** 근무 시작 시각 (HH:MM:SS) */

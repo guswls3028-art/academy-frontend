@@ -96,7 +96,7 @@ export default function TemplateEditModal({
     const b = body.trim();
     if (!n || !b) return;
     onSubmit({
-      category: selectedCategory,
+      category: selectedCategory as import("../api/messages.api").MessageTemplateCategory,
       name: n,
       subject: subject.trim(),
       body: b,
@@ -107,10 +107,10 @@ export default function TemplateEditModal({
   const badgeSubject = renderPreviewBadges(subject);
   const showSubject = activeTab === "alimtalk";
 
-  const editorTabItems = [
+  const editorTabItems: import("@/shared/ui/ds/Tabs").TabItem[] = [
     { key: "message", label: "메시지" },
     { key: "alimtalk", label: "알림톡" },
-  ] as const;
+  ];
 
   if (!open) return null;
 
