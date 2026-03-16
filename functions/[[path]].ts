@@ -46,8 +46,8 @@ const FALLBACK_META: Record<string, TenantMeta> = {
   "www.limglish.kr":    { title: "limglish",   description: "limglish 학습 플랫폼" },
   "hakwonplus.com":     { title: "학원플러스",  description: "학원플러스 – 학원 관리·학생 학습 플랫폼" },
   "www.hakwonplus.com": { title: "학원플러스",  description: "학원플러스 – 학원 관리·학생 학습 플랫폼" },
-  "sswe.co.kr":         { title: "sswe.co.kr", description: "sswe.co.kr 학습 플랫폼" },
-  "www.sswe.co.kr":     { title: "sswe.co.kr", description: "sswe.co.kr 학습 플랫폼" },
+  "sswe.co.kr":         { title: "SSWE", description: "SSWE 학습 플랫폼 – 학생·선생님 로그인", favicon: "/tenants/sswe/favicon.png", image: "/tenants/sswe/logo-full.png", imageWidth: 800, imageHeight: 380 },
+  "www.sswe.co.kr":     { title: "SSWE", description: "SSWE 학습 플랫폼 – 학생·선생님 로그인", favicon: "/tenants/sswe/favicon.png", image: "/tenants/sswe/logo-full.png", imageWidth: 800, imageHeight: 380 },
 };
 
 const API_BASE = "https://api.hakwonplus.com";
