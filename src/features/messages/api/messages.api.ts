@@ -388,6 +388,12 @@ export interface ProvisionDefaultsResult {
   linked: number;
   total_templates: number;
   total_configs: number;
+  /** 자동 검수 신청된 자유양식 템플릿 수 */
+  submitted_reviews?: number;
+  /** 검수 신청 실패 목록 */
+  review_errors?: string[];
+  /** 검수 신청 결과 안내 */
+  review_note?: string;
 }
 
 export async function provisionDefaultTemplates(): Promise<ProvisionDefaultsResult> {
