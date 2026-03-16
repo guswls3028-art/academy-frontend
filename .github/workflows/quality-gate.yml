@@ -64,11 +64,11 @@ jobs:
           path: dist/
 
       - name: Deploy to Cloudflare Pages
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy dist/ --project-name=${{ vars.CLOUDFLARE_PROJECT_NAME }}
+        run: npx wrangler pages deploy dist/ --project-name=${{ vars.CLOUDFLARE_PROJECT_NAME }}
+        env:
+          CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_KEY }}
+          CLOUDFLARE_EMAIL: ${{ secrets.CLOUDFLARE_EMAIL }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
   # ── 3. E2E 왕복 플로우 (배포 후, Tenant 1 검증용 테넌트) ──
   e2e-roundtrip:
