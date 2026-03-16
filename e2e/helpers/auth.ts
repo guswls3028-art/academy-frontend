@@ -1,11 +1,15 @@
 /**
- * E2E Auth Helper — 실제 UI 로그인 (브라우저 클릭)
+ * E2E Auth Helper — API 토큰 + localStorage 방식 (CI headless 안정)
+ *
+ * Tenant 1 (hakwonplus) = production-like test tenant.
+ * 브라우저 UI 로그인 대신 API로 JWT 획득 → localStorage 주입 → 페이지 로드.
  */
-import { type Page } from "@playwright/test";
+import { type Page, type APIRequestContext } from "@playwright/test";
 
 export type TenantRole = "admin" | "student" | "tchul-admin";
 
 const BASE = process.env.E2E_BASE_URL || "https://hakwonplus.com";
+const API_BASE = process.env.E2E_API_URL || process.env.API_BASE_URL || "https://api.hakwonplus.com";
 const TCHUL = process.env.TCHUL_BASE_URL || "https://tchul.com";
 const SSWE = process.env.SSWE_BASE_URL || "https://sswe.co.kr";
 
@@ -15,38 +19,53 @@ const CREDS: Record<TenantRole, { base: string; code: string; user: string; pass
   "tchul-admin": { base: TCHUL, code: "tchul",      user: process.env.TCHUL_ADMIN_USER || "01035023313", pass: process.env.TCHUL_ADMIN_PASS || "727258" },
 };
 
+/**
+ * API 기반 로그인
+ * 1. page.request로 JWT 토큰 API 직접 호출 (tenant_code body + X-Tenant-Code header)
+ * 2. 프론트앱 도메인에서 localStorage 토큰 주입
+ * 3. 대시보드 이동
+ */
 export async function loginViaUI(page: Page, role: TenantRole): Promise<void> {
   const c = CREDS[role];
-  await page.goto(`${c.base}/login/${c.code}`);
-  await page.waitForLoadState("load");
 
-  // "로그인" 버튼으로 폼 열기 — React hydration 대기 후 클릭
-  const idInput = page.locator('input[name="username"]').first();
+  // 1. JWT 토큰 획득 — API 직접 호출 (프론트 login 함수와 동일한 형태)
+  const resp = await page.request.post(`${API_BASE}/api/v1/token/`, {
+    data: { username: c.user, password: c.pass, tenant_code: c.code },
+    headers: {
+      "Content-Type": "application/json",
+      "X-Tenant-Code": c.code,
+    },
+  });
 
-  // 폼이 바로 보이면 확장 불필요, 아니면 버튼 클릭
-  for (let attempt = 0; attempt < 5; attempt++) {
-    if (await idInput.isVisible().catch(() => false)) break;
-    const openBtn = page.locator("button").filter({ hasText: /로그인|시작/ }).first();
-    if (await openBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await openBtn.click();
-    }
-    await page.waitForTimeout(2000);
+  if (resp.status() !== 200) {
+    const body = await resp.text();
+    throw new Error(`E2E login failed for ${role} (${c.user}@${c.code}): ${resp.status()} ${body}`);
   }
 
-  await idInput.waitFor({ state: "visible", timeout: 10000 });
-  await idInput.fill(c.user);
+  const tokens = await resp.json() as { access: string; refresh: string };
 
-  // 비밀번호
-  await page.locator('input[type="password"]').first().fill(c.pass);
+  // 2. 프론트앱 origin 확보 + localStorage 토큰 주입
+  //    Playwright goto는 동일 origin이어야 localStorage 접근 가능
+  const dashPath = role === "student" ? "/student" : "/admin";
 
-  // 로그인
-  await page.locator('button[type="submit"], button').filter({ hasText: /로그인/ }).first().click();
+  // about:blank에서는 origin이 없으므로 빈 페이지 로드
+  await page.goto(`${c.base}/login`, { waitUntil: "commit" });
 
-  // 대시보드 도착 대기
-  await page.waitForURL(/\/(admin|student|dev)/, { timeout: 20000 });
+  // localStorage에 토큰 설정 (SPA 마운트 전)
+  await page.evaluate(({ access, refresh, code }) => {
+    localStorage.setItem("access", access);
+    localStorage.setItem("refresh", refresh);
+    try { sessionStorage.setItem("tenantCode", code); } catch {}
+  }, { access: tokens.access, refresh: tokens.refresh, code: c.code });
+
+  // 3. 대시보드로 이동 — 이미 토큰이 있으므로 auth guard 통과
+  await page.goto(`${c.base}${dashPath}`, { waitUntil: "load", timeout: 20000 });
+
+  // SPA 마운트 대기
   await page.waitForTimeout(2000);
 }
 
+/** UI 기반 로그인 (로컬 개발용, CI에서는 사용하지 않음) */
 export async function loginDirect(page: Page, base: string, code: string, user: string, pass: string): Promise<void> {
   await page.goto(`${base}/login/${code}`);
   await page.waitForLoadState("load");
@@ -57,9 +76,9 @@ export async function loginDirect(page: Page, base: string, code: string, user: 
     await page.waitForTimeout(500);
   }
 
-  const idInput2 = page.locator('input[name="username"]').first();
-  await idInput2.waitFor({ state: "visible", timeout: 20000 });
-  await idInput2.fill(user);
+  const idInput = page.locator('input[name="username"]').first();
+  await idInput.waitFor({ state: "visible", timeout: 20000 });
+  await idInput.fill(user);
   await page.locator('input[name="password"], input[type="password"]').first().fill(pass);
   await page.locator('button[type="submit"], button').filter({ hasText: /로그인/ }).first().click();
   await page.waitForURL(/\/(admin|student|dev)/, { timeout: 20000 });
