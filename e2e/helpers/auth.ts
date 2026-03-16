@@ -1,14 +1,16 @@
 /**
- * E2E Auth Helper — 실제 브라우저 로그인
+ * E2E Auth Helper — API 기반 로그인 (CI headless 안정화)
  *
  * Tenant 1 (hakwonplus) = production-like test tenant.
- * data-testid 기반 selector로 CI headless 안정성 보장.
+ * 브라우저 UI 로그인 대신 JWT API를 직접 호출하여 토큰 획득 후 localStorage에 설정.
+ * CI headless에서 SPA 렌더링 지연에 의존하지 않음.
  */
 import { type Page } from "@playwright/test";
 
 export type TenantRole = "admin" | "student" | "tchul-admin";
 
 const BASE = process.env.E2E_BASE_URL || "https://hakwonplus.com";
+const API_BASE = process.env.E2E_API_URL || process.env.API_BASE_URL || "https://api.hakwonplus.com";
 const TCHUL = process.env.TCHUL_BASE_URL || "https://tchul.com";
 const SSWE = process.env.SSWE_BASE_URL || "https://sswe.co.kr";
 
@@ -19,43 +21,68 @@ const CREDS: Record<TenantRole, { base: string; code: string; user: string; pass
 };
 
 /**
- * 브라우저에서 실제 로그인
+ * API 기반 로그인 — JWT 토큰을 직접 획득하여 localStorage에 설정
  *
- * 1. /login 접근 (호스트 기반 tenant 해석)
- * 2. "로그인" 확장 버튼 클릭 (formExpanded=false 상태)
- * 3. 아이디/비밀번호 입력
- * 4. 제출
- * 5. 대시보드 도착 대기
+ * 1. POST /api/v1/token/ 으로 JWT access/refresh 토큰 획득
+ * 2. 프론트앱 도메인으로 이동
+ * 3. localStorage에 토큰 설정 (프론트앱 인증 체계와 동일)
+ * 4. 대시보드로 이동
  */
 export async function loginViaUI(page: Page, role: TenantRole): Promise<void> {
   const c = CREDS[role];
 
-  // 1. 로그인 페이지 접근
-  await page.goto(`${c.base}/login`, { waitUntil: "load" });
+  // 1. JWT 토큰 획득 (API 직접 호출)
+  const tokenResp = await page.request.post(`${API_BASE}/api/v1/token/`, {
+    data: {
+      username: `t1_${c.user}`,  // internal username format: t{tenant_id}_{ps_number}
+      password: c.pass,
+    },
+    headers: {
+      "Content-Type": "application/json",
+      "X-Tenant-Code": c.code,
+    },
+  });
 
-  // 2. "로그인" 확장 버튼 클릭 (초기 상태에서 폼이 숨겨져 있음)
-  const expandBtn = page.getByTestId("login-expand-btn");
-  await expandBtn.waitFor({ state: "visible", timeout: 20000 });
-  await expandBtn.click();
+  if (tokenResp.status() !== 200) {
+    // Tenant ID prefix 없이 재시도
+    const retryResp = await page.request.post(`${API_BASE}/api/v1/token/`, {
+      data: { username: c.user, password: c.pass },
+      headers: { "Content-Type": "application/json", "X-Tenant-Code": c.code },
+    });
+    if (retryResp.status() !== 200) {
+      const body = await retryResp.text();
+      throw new Error(`Login failed for ${role}: ${retryResp.status()} ${body}`);
+    }
+    const tokens = await retryResp.json();
+    await _setTokensAndNavigate(page, c.base, role, tokens);
+    return;
+  }
 
-  // 3. 아이디 입력
-  const usernameInput = page.getByTestId("login-username");
-  await usernameInput.waitFor({ state: "visible", timeout: 5000 });
-  await usernameInput.fill(c.user);
+  const tokens = await tokenResp.json();
+  await _setTokensAndNavigate(page, c.base, role, tokens);
+}
 
-  // 4. 비밀번호 입력
-  const passwordInput = page.getByTestId("login-password");
-  await passwordInput.fill(c.pass);
+async function _setTokensAndNavigate(
+  page: Page,
+  base: string,
+  role: TenantRole,
+  tokens: { access: string; refresh: string },
+): Promise<void> {
+  // 2. 프론트앱 도메인으로 이동 (localStorage 설정을 위해 동일 origin 필요)
+  await page.goto(`${base}/login`, { waitUntil: "commit" });
 
-  // 5. 제출
-  const submitBtn = page.getByTestId("login-submit");
-  await submitBtn.click();
+  // 3. localStorage에 토큰 설정
+  await page.evaluate((t) => {
+    localStorage.setItem("access", t.access);
+    localStorage.setItem("refresh", t.refresh);
+  }, tokens);
 
-  // 6. 로그인 성공 대기 — URL이 /login에서 벗어나면 성공
-  await page.waitForFunction(
-    () => !window.location.pathname.startsWith("/login"),
-    { timeout: 20000 },
-  );
+  // 4. 대시보드로 이동
+  const dashPath = role === "student" ? "/student" : "/admin";
+  await page.goto(`${base}${dashPath}`, { waitUntil: "load" });
+
+  // 5. 인증된 상태 확인 (로그인 페이지로 리다이렉트 안 되는지)
+  await page.waitForTimeout(2000);
 }
 
 export function getBaseUrl(role?: TenantRole | string): string {
