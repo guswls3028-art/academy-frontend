@@ -132,7 +132,7 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
     onBulkProgress?.(null);
     setExcelBulkPassword("");
     setSelectedExcelFile(null);
-    setSendWelcomeMessage(false);
+    setSendWelcomeMessage(true);
     setForm({
       name: "",
       psNumber: "",
