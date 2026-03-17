@@ -716,9 +716,7 @@ export async function sendPasswordReset(params: {
   if (temp_password?.trim()) {
     body.temp_password = temp_password.trim();
   }
-  const res = await api.post<{ message: string }>("/students/password_reset_send/", body, {
-    skipAuth: true,
-  } as any);
+  const res = await api.post<{ message: string }>("/students/password_reset_send/", body);
   return res.data;
 }
 
