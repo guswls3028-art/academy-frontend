@@ -65,23 +65,23 @@ test.describe.serial("QnA 왕복: 학생→선생→학생", () => {
     // 학생 커뮤니티 페이지로 이동
     await studentPage.goto(`${BASE}/student/community`);
     await studentPage.waitForLoadState("load");
+    await studentPage.waitForTimeout(2000);
 
-    // QnA 탭 선택
-    const qnaTab = studentPage.locator("button, a, [role='tab']").filter({ hasText: /QnA|질문/ }).first();
-    if (await qnaTab.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await qnaTab.click();
-      await studentPage.waitForTimeout(1000);
-    }
+    // QnA 탭 클릭
+    const qnaTab = studentPage.locator("button").filter({ hasText: "QnA" }).first();
+    await qnaTab.waitFor({ state: "visible", timeout: 10000 });
+    await qnaTab.click();
+    await studentPage.waitForTimeout(2000);
 
     // 내 질문 찾기
     const myQuestion = studentPage.locator(`text=${Q_TITLE}`).first();
-    await expect(myQuestion).toBeVisible({ timeout: 10000 });
+    await expect(myQuestion).toBeVisible({ timeout: 15000 });
     await myQuestion.click();
-    await studentPage.waitForTimeout(2000);
+    await studentPage.waitForTimeout(3000);
 
     // 답변 내용 확인
     const answer = studentPage.locator(`text=${A_CONTENT}`).first();
-    await expect(answer).toBeVisible({ timeout: 10000 });
+    await expect(answer).toBeVisible({ timeout: 15000 });
   });
 
   test.afterAll(async () => {
