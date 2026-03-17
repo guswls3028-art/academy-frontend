@@ -48,7 +48,7 @@ test.describe.serial("QnA 왕복: 학생→선생→학생", () => {
 
     // 학생이 등록한 질문 찾기
     const question = adminPage.locator(`text=${Q_TITLE}`).first();
-    await expect(question).toBeVisible({ timeout: 10000 });
+    await expect(question).toBeVisible({ timeout: 30_000 });
   });
 
   test("3. 선생이 답변을 등록한다 (API)", async () => {

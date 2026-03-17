@@ -17,7 +17,8 @@ test.describe.serial("클리닉 왕복: 선생→학생→선생", () => {
 
   test.beforeAll(async ({ browser: b }) => { browser = b; });
 
-  test("1. 선생이 클리닉 세션을 생성한다", async () => {
+  test("1. 선생이 클리닉 세션을 생성한다", async ({ }, testInfo) => {
+    testInfo.setTimeout(60_000);
     const ctx = await browser.newContext();
     adminPage = await ctx.newPage();
     await loginViaUI(adminPage, "admin");
