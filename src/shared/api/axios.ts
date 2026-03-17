@@ -50,6 +50,7 @@ function clearTokens() {
   try {
     localStorage.removeItem("access");
     localStorage.removeItem("refresh");
+    localStorage.removeItem("parent_selected_student_id");
   } catch {
     // ignore
   }

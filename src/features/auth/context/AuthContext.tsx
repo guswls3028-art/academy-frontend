@@ -10,6 +10,7 @@ import React, {
 import { useQueryClient } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { setParentStudentId } from "@/student/shared/api/parentStudentSelection";
 
 export type TenantRole =
   | "owner"
@@ -63,7 +64,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const clearAuth = useCallback(() => {
     localStorage.removeItem("access");
     localStorage.removeItem("refresh");
-    localStorage.removeItem("parent_selected_student_id");
+    setParentStudentId(null);  // localStorage + in-memory 모두 정리
     queryClient.clear();
     setUser(null);
 
@@ -126,7 +127,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (e.key === "access" || e.key === "refresh") {
         if (e.newValue == null) {
           queryClient.clear();
-          localStorage.removeItem("parent_selected_student_id");
+          setParentStudentId(null);
           setUser(null);
         }
       }
