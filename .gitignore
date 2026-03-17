@@ -82,3 +82,4 @@ e2e/.auth/
 .env.e2e
 test-results/
 .env.local
+.wrangler/
