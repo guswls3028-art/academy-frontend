@@ -82,7 +82,7 @@ export default function PasswordResetModal({ open, onClose }: PasswordResetModal
         setPhone("");
         setParentPhone("");
         setSuccess(false);
-      }, 2000);
+      }, 4000);
     } catch (err) {
       setError(err instanceof Error ? err.message : "임시 비밀번호 발송에 실패했습니다.");
     } finally {

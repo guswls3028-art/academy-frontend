@@ -82,6 +82,7 @@ export default function ProfilePage() {
     onSuccess: (_, variables) => {
       qc.invalidateQueries({ queryKey: ["student", "me"] });
       setEditing(false);
+      studentToast.success("저장되었습니다.");
       if (variables.username !== undefined) {
         setShowUsernameForm(false);
         setUsername("");
