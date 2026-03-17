@@ -1,7 +1,7 @@
 // PATH: src/features/clinic/components/ClinicTargetSelectModal.tsx
 // 클리닉 생성 — 대상자 선택 모달 (수강대상등록 스타일, 예약 대상자 | 전체 학생 탭)
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Input } from "antd";
 
@@ -49,26 +49,33 @@ type Props = {
   onConfirm: (result: ClinicTargetSelectResult) => void;
 };
 
+const EMPTY_IDS: number[] = [];
+
 export default function ClinicTargetSelectModal({
   open,
   onClose,
   initialMode = "targets",
-  initialSelectedIds = [],
+  initialSelectedIds,
   onConfirm,
 }: Props) {
+  const stableIds = initialSelectedIds ?? EMPTY_IDS;
   const [mode, setMode] = useState<"targets" | "students">(initialMode);
   const [keyword, setKeyword] = useState("");
-  const [selectedIds, setSelectedIds] = useState<number[]>(() => [...initialSelectedIds]);
+  const [selectedIds, setSelectedIds] = useState<number[]>(() => [...stableIds]);
   /** 선택된 id → 이름 (우측 목록 표시용, 검색/탭 변경 후에도 유지) */
   const [selectedIdToName, setSelectedIdToName] = useState<Map<number, string>>(new Map());
 
+  const prevOpenRef = useRef(false);
   useEffect(() => {
-    if (!open) return;
+    const wasOpen = prevOpenRef.current;
+    prevOpenRef.current = open;
+    if (!open || wasOpen) return;
+    // 모달이 닫힌→열린 전환 시에만 초기화
     setMode(initialMode);
     setKeyword("");
-    setSelectedIds([...initialSelectedIds]);
+    setSelectedIds([...stableIds]);
     setSelectedIdToName(new Map());
-  }, [open, initialMode, initialSelectedIds]);
+  }, [open, initialMode, stableIds]);
 
   const targetsQ = useClinicTargets();
   const studentsSearchQ = useClinicStudentSearch(keyword);
