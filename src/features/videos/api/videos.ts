@@ -319,6 +319,11 @@ export async function deleteVideoFolder(folderId: number): Promise<void> {
   await api.delete(`/media/videos/folders/${folderId}/`);
 }
 
+export async function renameVideo(videoId: number, title: string): Promise<Video> {
+  const res = await api.patch(`/media/videos/${videoId}/`, { title });
+  return normalizeVideo(res.data);
+}
+
 export async function deleteVideo(videoId: number): Promise<void> {
   try {
     await api.delete(`/media/videos/${videoId}/`);

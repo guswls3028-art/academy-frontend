@@ -5,7 +5,7 @@ import { useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
-import { deleteVideo, getRetryErrorMessage } from "../api/videos";
+import { deleteVideo, renameVideo, getRetryErrorMessage } from "../api/videos";
 import { canShowRetryButton } from "../constants/videoProcessing";
 import { logRetryAttempt, logRetryError } from "@/shared/api/retryLogger";
 import { feedback } from "@/shared/ui/feedback/feedback";
@@ -69,6 +69,8 @@ export default function VideoDetailPage() {
   const [permissionTab, setPermissionTab] = useState<TabKey>("permission");
   const [selectedEnrollmentId, setSelectedEnrollmentId] = useState<number | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [editTitle, setEditTitle] = useState("");
   const qc = useQueryClient();
   const navigate = useNavigate();
   const confirm = useConfirm();
@@ -86,6 +88,23 @@ export default function VideoDetailPage() {
         (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
         (e as Error)?.message ||
         "영상 삭제에 실패했습니다.";
+      feedback.error(msg);
+    },
+  });
+
+  const renameMutation = useMutation({
+    mutationFn: (title: string) => renameVideo(videoId, title),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["video-stats", videoId] });
+      qc.invalidateQueries({ queryKey: ["session-videos"] });
+      setIsEditingTitle(false);
+      feedback.success("제목이 변경되었습니다.");
+    },
+    onError: (e: unknown) => {
+      const msg =
+        (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
+        (e as Error)?.message ||
+        "제목 변경에 실패했습니다.";
       feedback.error(msg);
     },
   });
@@ -166,18 +185,68 @@ export default function VideoDetailPage() {
 
             {/* 2. Title + Meta — YouTube style below player */}
             <div style={{ padding: "4px 0" }}>
-              <h1
-                style={{
-                  fontSize: 20,
-                  fontWeight: 700,
-                  color: "var(--color-text-primary)",
-                  lineHeight: 1.4,
-                  letterSpacing: "-0.01em",
-                  margin: 0,
-                }}
-              >
-                {video.title}
-              </h1>
+              {isEditingTitle ? (
+                <form
+                  style={{ display: "flex", alignItems: "center", gap: 8, margin: 0 }}
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    const trimmed = editTitle.trim();
+                    if (trimmed && trimmed !== video.title) {
+                      renameMutation.mutate(trimmed);
+                    } else {
+                      setIsEditingTitle(false);
+                    }
+                  }}
+                >
+                  <input
+                    autoFocus
+                    className="ds-input"
+                    style={{ fontSize: 20, fontWeight: 700, flex: 1, padding: "4px 8px" }}
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Escape") setIsEditingTitle(false);
+                    }}
+                    onBlur={() => {
+                      const trimmed = editTitle.trim();
+                      if (trimmed && trimmed !== video.title) {
+                        renameMutation.mutate(trimmed);
+                      } else {
+                        setIsEditingTitle(false);
+                      }
+                    }}
+                    disabled={renameMutation.isPending}
+                  />
+                </form>
+              ) : (
+                <h1
+                  style={{
+                    fontSize: 20,
+                    fontWeight: 700,
+                    color: "var(--color-text-primary)",
+                    lineHeight: 1.4,
+                    letterSpacing: "-0.01em",
+                    margin: 0,
+                    cursor: "pointer",
+                    borderRadius: 6,
+                    padding: "2px 4px",
+                    transition: "background 0.15s",
+                  }}
+                  title="클릭하여 제목 변경"
+                  onClick={() => {
+                    setEditTitle(video.title);
+                    setIsEditingTitle(true);
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = "var(--color-bg-surface-soft)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = "transparent";
+                  }}
+                >
+                  {video.title}
+                </h1>
+              )}
               <div
                 style={{
                   display: "flex",

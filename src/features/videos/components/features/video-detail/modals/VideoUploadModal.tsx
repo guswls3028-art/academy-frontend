@@ -1,5 +1,5 @@
 // PATH: src/features/videos/components/features/video-detail/modals/VideoUploadModal.tsx
-// 영상 추가 모달 — 강의·차시·영상. 5개 슬롯 가로 배치, 엑셀 업로드 존 디자인·감성 동일, 병렬 업로드 및 제목 - 1 ~ - 5 자동 부여
+// 영상 추가 모달 — 동적 슬롯(1개 시작, 채울 때마다 자동 추가), 제한 없음
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -68,7 +68,6 @@ function ChevronRightIcon() {
   );
 }
 
-const SLOT_COUNT = 5;
 const VIDEO_ACCEPT = "video/*";
 const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024 * 1024; // 5 GB
 
@@ -84,7 +83,7 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
 
   const [baseTitle, setBaseTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [files, setFiles] = useState<(File | null)[]>(() => Array(SLOT_COUNT).fill(null));
+  const [files, setFiles] = useState<(File | null)[]>([null]);
   const [dragoverIndex, setDragoverIndex] = useState<number | null>(null);
   const [isUploading, setIsUploading] = useState(false);
 
@@ -96,7 +95,7 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
     if (!isOpen) return;
     setBaseTitle("");
     setDescription("");
-    setFiles(Array(SLOT_COUNT).fill(null));
+    setFiles([null]);
     setDragoverIndex(null);
     setShowWatermark(true);
     setAllowSkip(false);
@@ -129,6 +128,21 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
     setFiles((prev) => {
       const next = [...prev];
       next[index] = file;
+      // 파일을 채우면 빈 슬롯이 없을 때 새 슬롯 추가
+      if (file && !next.some((f, i) => !f && i !== index)) {
+        next.push(null);
+      }
+      return next;
+    });
+  }, []);
+
+  const removeSlot = useCallback((index: number) => {
+    setFiles((prev) => {
+      const next = prev.filter((_, i) => i !== index);
+      // 최소 1개 빈 슬롯 유지
+      if (next.length === 0 || next.every(Boolean)) {
+        next.push(null);
+      }
       return next;
     });
   }, []);
@@ -162,10 +176,12 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
 
   const handleUpload = async () => {
     const items: { file: File; title: string }[] = [];
-    for (let i = 0; i < SLOT_COUNT; i++) {
+    let seq = 0;
+    for (let i = 0; i < files.length; i++) {
       const file = files[i];
       if (!file) continue;
-      items.push({ file, title: `${baseTitle.trim()} - ${i + 1}` });
+      seq++;
+      items.push({ file, title: `${baseTitle.trim()} - ${seq}` });
     }
     if (items.length === 0) return;
 
@@ -246,7 +262,7 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
       <ModalHeader
         type="action"
         title="영상 추가"
-        description="파일 업로드 및 재생 정책을 설정합니다. 최대 5개까지 동시 업로드 가능합니다."
+        description="파일 업로드 및 재생 정책을 설정합니다. 파일을 추가하면 슬롯이 자동으로 늘어납니다."
       />
 
       <ModalBody>
@@ -255,84 +271,93 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
           <div className="modal-form-group video-upload-modal__row video-upload-modal__row--input-only">
             <input
               className="ds-input"
-              placeholder="제목 (예: 언남고 1학기 중간 과학 1강) — 아래 슬롯 순서대로 - 1, - 2, … 가 붙습니다"
+              placeholder="제목 (예: 언남고 1학기 중간 과학 1강) — 순서대로 - 1, - 2, … 가 붙습니다"
               value={baseTitle}
               onChange={(e) => setBaseTitle(e.target.value)}
               autoFocus
             />
           </div>
 
-          {/* 5개 가로 슬롯 — 엑셀 업로드 존과 동일 디자인(modal.css .excel-upload-zone) */}
+          {/* 동적 슬롯 */}
           <div className="modal-form-group video-upload-modal__row">
             <span className="modal-section-label video-upload-modal__slots-label">
-              파일: 클릭 또는 드래그 (mp4 등, 슬롯당 1개, 최대 5개)
+              파일: 클릭 또는 드래그 (mp4 등)
             </span>
             <div className="video-upload-modal__slots">
-              {Array.from({ length: SLOT_COUNT }, (_, i) => (
-                <div key={i} className="video-upload-modal__slot">
-                  <div
-                    role="button"
-                    tabIndex={0}
-                    className={`excel-upload-zone video-upload-modal__zone ${files[i] ? "excel-upload-zone--filled" : ""} ${dragoverIndex === i ? "excel-upload-zone--dragover" : ""}`}
-                    onClick={() => {
-                      if (files[i]) return;
-                      if (!isUploading) pickFile(i);
-                    }}
-                    onKeyDown={(e) => {
-                      if (files[i]) return;
-                      if ((e.key === "Enter" || e.key === " ") && !isUploading) {
+              {files.map((file, i) => {
+                // 채워진 파일 중 몇 번째인지 계산 (제목 번호용)
+                let seq = 0;
+                for (let j = 0; j <= i; j++) {
+                  if (files[j]) seq++;
+                }
+                const titleNum = file ? seq : i + 1;
+
+                return (
+                  <div key={i} className="video-upload-modal__slot">
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      className={`excel-upload-zone video-upload-modal__zone ${file ? "excel-upload-zone--filled" : ""} ${dragoverIndex === i ? "excel-upload-zone--dragover" : ""}`}
+                      onClick={() => {
+                        if (file) return;
+                        if (!isUploading) pickFile(i);
+                      }}
+                      onKeyDown={(e) => {
+                        if (file) return;
+                        if ((e.key === "Enter" || e.key === " ") && !isUploading) {
+                          e.preventDefault();
+                          pickFile(i);
+                        }
+                      }}
+                      onDragOver={(e) => {
                         e.preventDefault();
-                        pickFile(i);
-                      }
-                    }}
-                    onDragOver={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      if (!isUploading && !files[i]) setDragoverIndex(i);
-                    }}
-                    onDragLeave={() => setDragoverIndex(null)}
-                    onDrop={(e) => handleDrop(e, i)}
-                    aria-label={`영상 ${i + 1} 슬롯`}
-                  >
-                    <input
-                      ref={(el) => { inputRefs.current[i] = el; }}
-                      type="file"
-                      accept={VIDEO_ACCEPT}
-                      className="hidden"
-                      onChange={(e) => handleFileChange(i, e)}
-                    />
-                    {files[i] ? (
-                      <div className="excel-upload-zone__filled">
-                        <CheckCircleIcon size={36} />
-                        <span className="excel-upload-zone__filled-filename">{files[i]!.name}</span>
-                        <button
-                          type="button"
-                          className="excel-upload-zone__filled-clear"
-                          onClick={(e) => { e.stopPropagation(); setFileAt(i, null); }}
-                          disabled={isUploading}
-                        >
-                          파일 변경
-                        </button>
-                      </div>
-                    ) : (
-                      <>
-                        <div className="excel-upload-zone__head">
-                          <UploadIcon size={18} className="text-[var(--color-text-secondary)]" />
-                          <span className="excel-upload-zone__title">Video</span>
+                        e.stopPropagation();
+                        if (!isUploading && !file) setDragoverIndex(i);
+                      }}
+                      onDragLeave={() => setDragoverIndex(null)}
+                      onDrop={(e) => handleDrop(e, i)}
+                      aria-label={`영상 ${i + 1} 슬롯`}
+                    >
+                      <input
+                        ref={(el) => { inputRefs.current[i] = el; }}
+                        type="file"
+                        accept={VIDEO_ACCEPT}
+                        className="hidden"
+                        onChange={(e) => handleFileChange(i, e)}
+                      />
+                      {file ? (
+                        <div className="excel-upload-zone__filled">
+                          <CheckCircleIcon size={36} />
+                          <span className="excel-upload-zone__filled-filename">{file.name}</span>
+                          <button
+                            type="button"
+                            className="excel-upload-zone__filled-clear"
+                            onClick={(e) => { e.stopPropagation(); removeSlot(i); }}
+                            disabled={isUploading}
+                          >
+                            제거
+                          </button>
                         </div>
-                        <div className="excel-upload-zone__drag-label">Drag or Click</div>
-                        <div className="excel-upload-zone__upload">
-                          <UploadIcon size={14} className="excel-upload-zone__upload-icon" />
-                          <span className="excel-upload-zone__upload-label">업로드</span>
-                        </div>
-                      </>
-                    )}
+                      ) : (
+                        <>
+                          <div className="excel-upload-zone__head">
+                            <UploadIcon size={18} className="text-[var(--color-text-secondary)]" />
+                            <span className="excel-upload-zone__title">Video</span>
+                          </div>
+                          <div className="excel-upload-zone__drag-label">Drag or Click</div>
+                          <div className="excel-upload-zone__upload">
+                            <UploadIcon size={14} className="excel-upload-zone__upload-icon" />
+                            <span className="excel-upload-zone__upload-label">업로드</span>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                    <div className="video-upload-modal__slot-title" title={baseTitle.trim() ? `${baseTitle.trim()} - ${titleNum}` : undefined}>
+                      {baseTitle.trim() ? `${baseTitle.trim()} - ${titleNum}` : `— ${i + 1} —`}
+                    </div>
                   </div>
-                  <div className="video-upload-modal__slot-title" title={baseTitle.trim() ? `${baseTitle.trim()} - ${i + 1}` : undefined}>
-                    {baseTitle.trim() ? `${baseTitle.trim()} - ${i + 1}` : `— ${i + 1} —`}
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
