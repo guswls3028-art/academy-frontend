@@ -33,7 +33,7 @@ export default function ExamSubmitPage() {
   const questions = questionsQ.data ?? [];
   const loadingQuestions = questionsQ.isLoading;
 
-  const draftKey = `exam_draft_${safeId}`;
+  const draftKey = `exam_draft_${user?.id ?? "anon"}_${safeId}`;
 
   const [answers, setAnswers] = useState<Record<number, string>>(() => {
     // Restore draft from localStorage on mount

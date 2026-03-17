@@ -30,6 +30,15 @@ function MaintenanceGate({ enabled }: { enabled: boolean }) {
   return <Navigate to="/maintenance" replace />;
 }
 
+/** 홍보 테넌트(hakwonplus, 9999)만 /promo 접근 허용. 그 외 테넌트는 / 로 리다이렉트. */
+function PromoGuard() {
+  const { program, isLoading } = useProgram();
+  if (isLoading) return null;
+  const tc = program?.tenantCode;
+  if (tc === "hakwonplus" || tc === "9999") return <Outlet />;
+  return <Navigate to="/" replace />;
+}
+
 function RootRedirect() {
   const { user, isLoading } = useAuth();
   const { program, isLoading: programLoading } = useProgram();
@@ -98,20 +107,22 @@ export default function AppRouter() {
       <Route path="/login/*" element={<AuthRouter />} />
       <Route path="/terms" element={<TermsPage />} />
       <Route path="/privacy" element={<PrivacyPage />} />
-      <Route
-        path="/promo/*"
-        element={
-          <Suspense
-            fallback={
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: 200, color: "#666", fontSize: 14 }}>
-                불러오는 중…
-              </div>
-            }
-          >
-            <PromoRouter />
-          </Suspense>
-        }
-      />
+      <Route element={<PromoGuard />}>
+        <Route
+          path="/promo/*"
+          element={
+            <Suspense
+              fallback={
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: 200, color: "#666", fontSize: 14 }}>
+                  불러오는 중…
+                </div>
+              }
+            >
+              <PromoRouter />
+            </Suspense>
+          }
+        />
+      </Route>
       <Route path="/maintenance" element={<MaintenancePage />} />
 
       <Route

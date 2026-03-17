@@ -63,6 +63,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const clearAuth = useCallback(() => {
     localStorage.removeItem("access");
     localStorage.removeItem("refresh");
+    localStorage.removeItem("parent_selected_student_id");
     queryClient.clear();
     setUser(null);
 
@@ -123,12 +124,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const onStorage = (e: StorageEvent) => {
       if (e.key === "access" || e.key === "refresh") {
-        if (e.newValue == null) setUser(null);
+        if (e.newValue == null) {
+          queryClient.clear();
+          localStorage.removeItem("parent_selected_student_id");
+          setUser(null);
+        }
       }
     };
     window.addEventListener("storage", onStorage);
     return () => window.removeEventListener("storage", onStorage);
-  }, []);
+  }, [queryClient]);
 
   // 탭 포커스 시 인증 재검사 — 만료된 탭/다른 기기에서 열어둔 화면은 로그인으로 보냄
   useEffect(() => {
