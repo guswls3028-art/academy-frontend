@@ -95,7 +95,7 @@ jobs:
         run: pnpm exec playwright test e2e/smoke.spec.ts --reporter=list
 
       - name: Run 왕복 플로우 테스트 (차단 게이트)
-        run: pnpm exec playwright test e2e/flows/notice-roundtrip.spec.ts e2e/flows/qna-roundtrip.spec.ts e2e/flows/clinic-roundtrip.spec.ts --reporter=list
+        run: pnpm exec playwright test e2e/flows/notice-roundtrip.spec.ts e2e/flows/qna-roundtrip.spec.ts e2e/flows/clinic-roundtrip.spec.ts e2e/flows/password-reset-roundtrip.spec.ts --reporter=list
         env:
           # Tenant 1 (hakwonplus) — production-like test tenant
           E2E_BASE_URL: https://hakwonplus.com
