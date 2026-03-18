@@ -199,15 +199,15 @@ function Hero() {
                   {/* Stat cards */}
                   <div className="grid grid-cols-4 gap-3">
                     {[
-                      { label: "수강생", value: "128", color: "bg-blue-500" },
-                      { label: "오늘 수업", value: "6", color: "bg-emerald-500" },
-                      { label: "진행 시험", value: "3", color: "bg-amber-500" },
-                      { label: "미확인 메시지", value: "12", color: "bg-violet-500" },
+                      { label: "수강생", color: "bg-blue-500" },
+                      { label: "오늘 수업", color: "bg-emerald-500" },
+                      { label: "진행 시험", color: "bg-amber-500" },
+                      { label: "메시지", color: "bg-violet-500" },
                     ].map((s) => (
                       <div key={s.label} className="p-3 rounded-xl bg-gray-50/80 border border-gray-100/60">
                         <div className={`w-2 h-2 rounded-full ${s.color} mb-2`} />
                         <div className="text-xs text-gray-400 mb-0.5">{s.label}</div>
-                        <div className="text-lg font-bold text-gray-800">{s.value}</div>
+                        <div className="text-lg font-bold text-gray-800">—</div>
                       </div>
                     ))}
                   </div>
@@ -227,9 +227,9 @@ function Hero() {
                 </div>
               </div>
 
-              {/* Floating card — Grade result */}
+              {/* Floating card — Grade result (UI 예시) */}
               <div className="absolute -bottom-6 -left-8 bg-white rounded-xl shadow-xl shadow-gray-200/40 border border-gray-100 p-4 w-52">
-                <div className="text-xs text-gray-400 mb-2">성적 결과</div>
+                <div className="text-xs text-gray-400 mb-2">성적 추이</div>
                 <div className="flex items-end gap-1.5 mb-2">
                   {[40, 65, 55, 78, 90, 85, 92].map((h, i) => (
                     <div
@@ -239,21 +239,18 @@ function Hero() {
                     />
                   ))}
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-gray-500">평균 76점</span>
-                  <span className="text-xs font-medium text-emerald-600">+8.2%</span>
-                </div>
+                <div className="text-xs text-gray-400">시각적 성적 분석</div>
               </div>
 
-              {/* Floating card — Message sent */}
+              {/* Floating card — Message feature */}
               <div className="absolute -top-4 -right-6 bg-white rounded-xl shadow-xl shadow-gray-200/40 border border-gray-100 p-4 w-56">
                 <div className="flex items-center gap-2 mb-2">
                   <div className="w-7 h-7 rounded-full bg-blue-50 flex items-center justify-center">
                     <IconEnvelope className="w-3.5 h-3.5 text-blue-500" />
                   </div>
                   <div>
-                    <div className="text-xs font-medium text-gray-800">메시지 발송 완료</div>
-                    <div className="text-[10px] text-gray-400">학부모 32명에게 전달</div>
+                    <div className="text-xs font-medium text-gray-800">메시지 발송</div>
+                    <div className="text-[10px] text-gray-400">학부모 일괄 안내 가능</div>
                   </div>
                 </div>
                 <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
@@ -641,27 +638,26 @@ function BrandSection() {
             </ul>
           </div>
 
-          {/* Visual — Brand cards */}
+          {/* Visual — Brand concept cards (실제 학원명 아님) */}
           <div className="space-y-4">
             {[
-              { name: "한빛 수학학원", color: "from-blue-500 to-blue-600", students: 128, classes: 12 },
-              { name: "에듀플러스 종합학원", color: "from-emerald-500 to-teal-600", students: 85, classes: 8 },
-              { name: "스카이 영어학원", color: "from-violet-500 to-purple-600", students: 64, classes: 6 },
+              { label: "A 학원", color: "from-blue-500 to-blue-600", initial: "A" },
+              { label: "B 학원", color: "from-emerald-500 to-teal-600", initial: "B" },
+              { label: "C 학원", color: "from-violet-500 to-purple-600", initial: "C" },
             ].map((brand) => (
               <div
-                key={brand.name}
+                key={brand.label}
                 className="flex items-center gap-4 p-5 rounded-2xl bg-white border border-gray-100 shadow-sm hover:shadow-md transition-shadow"
               >
                 <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${brand.color} flex items-center justify-center text-white font-bold text-lg shadow-sm`}>
-                  {brand.name[0]}
+                  {brand.initial}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="font-semibold text-gray-900 text-sm">{brand.name}</div>
-                  <div className="text-xs text-gray-400 mt-0.5">독립 운영 중</div>
+                  <div className="font-semibold text-gray-900 text-sm">{brand.label}</div>
+                  <div className="text-xs text-gray-400 mt-0.5">독립 브랜드 운영</div>
                 </div>
                 <div className="flex items-center gap-4 text-xs text-gray-500">
-                  <span>수강생 <strong className="text-gray-700">{brand.students}</strong></span>
-                  <span>강의 <strong className="text-gray-700">{brand.classes}</strong></span>
+                  <span className="text-gray-400">각 학원별 독립 구성</span>
                 </div>
               </div>
             ))}
