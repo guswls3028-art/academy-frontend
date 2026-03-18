@@ -11,6 +11,10 @@ import QueryProvider from "@/app/providers/QueryProvider";
 import { AuthProvider } from "@/features/auth/context/AuthContext";
 import { ProgramProvider } from "@/shared/program";
 import { ThemeProvider } from "@/context/ThemeContext";
+// 테넌트 레지스트리를 엔트리에서 직접 사용 — Vite 메인 번들에 포함 강제
+import { TENANTS } from "@/shared/tenant/tenants/index";
+// side-effect guard: Rollup이 tree-shake하지 않도록 런타임 참조
+if (!TENANTS.length) throw new Error("Tenant registry empty");
 import { DevErrorBoundary, DevErrorLogger } from "@/app/DevErrorLogger";
 
 import "./index.css";
@@ -42,6 +46,7 @@ if (SENTRY_DSN && import.meta.env.PROD) {
           const map: Record<string, string> = {
             "tchul.com": "tchul", "hakwonplus.com": "hakwonplus",
             "limglish.kr": "limglish", "ymath.co.kr": "ymath", "sswe.co.kr": "sswe",
+            "dnbacademy.co.kr": "dnb",
           };
           return map[host] || host;
         })(),

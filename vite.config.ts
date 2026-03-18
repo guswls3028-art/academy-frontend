@@ -65,6 +65,10 @@ export default defineConfig({
             }
             if (id.includes("@tanstack/react-query")) return "vendor-query";
           }
+          // 테넌트 레지스트리: 앱 초기화 시 hostname→tenant 매핑 필수 — 메인 entry와 동일 청크
+          if (id.includes("shared/tenant")) {
+            return "index";
+          }
           if (id.includes("/student/") && (id.includes("VideoPlayerPage") || id.includes("playback/player/"))) {
             return "student-video-player";
           }
