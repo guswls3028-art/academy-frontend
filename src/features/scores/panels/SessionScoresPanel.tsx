@@ -95,7 +95,7 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
 
   const { data: attendanceList } = useQuery({
     queryKey: scoresQueryKeys.attendance(sessionId),
-    queryFn: () => fetchAttendance(sessionId),
+    queryFn: () => fetchAttendance(sessionId, { page_size: 500 }),
     enabled: Number.isFinite(sessionId) && sessionId > 0,
   });
 
@@ -132,8 +132,7 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
   }), []);
 
   const attendanceMap = useMemo(() => {
-    const raw = attendanceList;
-    const list = Array.isArray(raw) ? raw : (raw as { results?: unknown[] })?.results ?? [];
+    const list = attendanceList?.data ?? [];
     const map: Record<number, string> = {};
     for (const a of list) {
       const item = a as { enrollment_id?: number; enrollment?: number; status?: string };
@@ -145,8 +144,7 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
 
   /** enrollment_id → attendance record id (for PATCH API) */
   const attendanceIdMap = useMemo(() => {
-    const raw = attendanceList;
-    const list = Array.isArray(raw) ? raw : (raw as { results?: unknown[] })?.results ?? [];
+    const list = attendanceList?.data ?? [];
     const map: Record<number, number> = {};
     for (const a of list) {
       const item = a as { enrollment_id?: number; enrollment?: number; id?: number };
