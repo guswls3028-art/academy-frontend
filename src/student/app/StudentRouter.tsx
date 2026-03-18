@@ -38,6 +38,7 @@ const ClinicIDCardPage = lazy(() => import("@/student/domains/clinic-idcard/page
 const ClinicPage = lazy(() => import("@/student/domains/clinic/pages/ClinicPage"));
 const AttendancePage = lazy(() => import("@/student/domains/attendance/pages/AttendancePage"));
 const StudentSettingsPage = lazy(() => import("@/student/domains/settings/pages/StudentSettingsPage"));
+const GuidePage = lazy(() => import("@/student/domains/guide/pages/GuidePage"));
 
 /** /student/grades/exams/:examId → /student/exams/:examId/result redirect */
 function GradeDetailRedirect() {
@@ -105,6 +106,7 @@ export default function StudentRouter() {
         <Route path="idcard" element={<ClinicIDCardPage />} />
         <Route path="clinic" element={<ClinicPage />} />
         <Route path="attendance" element={<AttendancePage />} />
+        <Route path="guide" element={<GuidePage />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/student" replace />} />

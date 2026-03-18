@@ -19,6 +19,7 @@ import {
   IconCalendar,
   IconBell,
   IconNotice,
+  IconFileText,
 } from "@/student/shared/ui/icons/Icons";
 import type { ReactNode } from "react";
 
@@ -61,6 +62,7 @@ const NAV: { category: string; items: { label: string; to: string; icon: ReactNo
       { label: "알림", to: "/student/notifications", icon: <IconBell style={{ width: 20, height: 20, flexShrink: 0 }} /> },
       { label: "프로필", to: "/student/profile", icon: <IconUser style={{ width: 20, height: 20, flexShrink: 0 }} /> },
       { label: "설정", to: "/student/settings", icon: <IconSettings style={{ width: 20, height: 20, flexShrink: 0 }} /> },
+      { label: "사용 가이드", to: "/student/guide", icon: <IconFileText style={{ width: 20, height: 20, flexShrink: 0 }} /> },
     ],
   },
 ];

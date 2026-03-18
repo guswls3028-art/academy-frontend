@@ -84,6 +84,9 @@ const MessageRoutes = lazy(() => import("@/features/messages/routes").then((m) =
 /* ================= Lazy: Tools (도구) ================= */
 const ToolsRoutes = lazy(() => import("@/features/tools/ToolsRoutes"));
 
+/* ================= Lazy: Guide ================= */
+const AdminGuidePage = lazy(() => import("@/features/guide/pages/AdminGuidePage"));
+
 /* ================= Lazy: Developer ================= */
 const DeveloperPage = lazy(() => import("@/features/developer/pages/DeveloperPage"));
 
@@ -206,6 +209,9 @@ export default function AdminRouter() {
 
         {/* ================= Tools (도구) ================= */}
         <Route path="tools/*" element={wrapLazy(ToolsRoutes)} />
+
+        {/* ================= Guide (사용 가이드) ================= */}
+        <Route path="guide" element={wrapLazy(AdminGuidePage)} />
 
         {/* ================= Developer (To개발자) ================= */}
         <Route path="developer" element={wrapLazy(DeveloperPage)} />

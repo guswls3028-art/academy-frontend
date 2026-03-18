@@ -136,6 +136,16 @@ export default function StudentTopBar({ tenantCode, onMenuClick }: Props) {
       >
         설정
       </button>
+      <button
+        type="button"
+        className="stu-topbar__profileDropdownItem"
+        onClick={() => {
+          setProfileOpen(false);
+          navigate("/student/guide");
+        }}
+      >
+        사용 가이드
+      </button>
       <div className="stu-topbar__profileDropdownDivider" />
       <button
         type="button"
