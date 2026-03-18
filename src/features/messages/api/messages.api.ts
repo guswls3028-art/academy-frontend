@@ -27,6 +27,8 @@ export interface TenantMessagingInfo {
   sms_allowed?: boolean;
   /** 알림톡 채널 출처: 시스템 기본 채널 vs 학원 자체 연동 채널 */
   channel_source?: "system_default" | "tenant_override";
+  /** 알림톡 발송 가능 여부 (PFID + 승인 템플릿 존재). API 응답 기준만 사용 */
+  alimtalk_available?: boolean;
   /** 메시징 공급자: solapi(기본) 또는 ppurio */
   messaging_provider?: MessagingProvider;
   /** 자체 솔라피 API Key (마스킹됨, 읽기용) */

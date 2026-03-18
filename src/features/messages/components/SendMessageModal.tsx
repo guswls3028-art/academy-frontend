@@ -90,6 +90,7 @@ export default function SendMessageModal({
   );
   const { data: messagingInfo } = useMessagingInfo();
   const smsAllowed = messagingInfo?.sms_allowed ?? false;
+  const alimtalkAvailable = messagingInfo?.alimtalk_available ?? false;
 
   const isStaffMode = (initialStaffIds?.length ?? 0) > 0;
   const studentIds = initialStudentIds;
@@ -126,7 +127,7 @@ export default function SendMessageModal({
     body.trim().length > 0 &&
     sendToTargets.length > 0 &&
     messageModes.length > 0 &&
-    (!needsApprovedTemplate || hasApprovedTemplate || hasAnyApprovedTemplate) &&
+    (!needsApprovedTemplate || hasApprovedTemplate || hasAnyApprovedTemplate || alimtalkAvailable) &&
     !sending;
 
   const blocks = getBlocksForCategory(blockCategory);

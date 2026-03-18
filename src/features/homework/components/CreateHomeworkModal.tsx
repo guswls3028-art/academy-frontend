@@ -26,6 +26,8 @@ type Props = {
 
 type Stage = "choose" | "new" | "import";
 
+type CutlineMode = "PERCENT" | "COUNT";
+
 type BulkRow = {
   key: number;
   title: string;
@@ -50,6 +52,7 @@ export default function CreateHomeworkModal({
 
   // bulk rows for "new" stage
   const [rows, setRows] = useState<BulkRow[]>(() => [makeRow()]);
+  const [cutlineMode, setCutlineMode] = useState<CutlineMode>("PERCENT");
 
   // import stage state
   const [title, setTitle] = useState("");
@@ -64,6 +67,7 @@ export default function CreateHomeworkModal({
     setError(null);
     setSubmitting(false);
     setRows([makeRow()]);
+    setCutlineMode("PERCENT");
     setTitle("");
     setTemplates([]);
     setTemplatesLoading(false);
@@ -139,8 +143,8 @@ export default function CreateHomeworkModal({
       const policy = await fetchHomeworkPolicyBySession(sessionId);
       if (policy?.id) {
         await patchHomeworkPolicy(policy.id, {
-          cutline_mode: "PERCENT",
-          cutline_value: Number.isFinite(firstCutline) && firstCutline >= 0 ? firstCutline : 80,
+          cutline_mode: cutlineMode,
+          cutline_value: Number.isFinite(firstCutline) && firstCutline >= 0 ? firstCutline : (cutlineMode === "PERCENT" ? 80 : 40),
         });
         policyPatched = true;
       }
@@ -183,7 +187,7 @@ export default function CreateHomeworkModal({
 
     if (created.length > 0) {
       const msg = `${created.length}개 과제 생성 완료` +
-        (policyPatched ? ` (커트라인 ${firstCutline}%)` : "") +
+        (policyPatched ? ` (커트라인 ${firstCutline}${cutlineMode === "PERCENT" ? "%" : "점"})` : "") +
         (failed.length > 0 ? ` · ${failed.length}개 실패` : "");
       feedback.success(msg);
     }
@@ -337,7 +341,19 @@ export default function CreateHomeworkModal({
                   <tr>
                     <th className="text-left text-xs font-semibold" style={{ padding: "6px 8px" }}>제목</th>
                     <th className="text-left text-xs font-semibold" style={{ padding: "6px 8px" }}>만점</th>
-                    <th className="text-left text-xs font-semibold" style={{ padding: "6px 8px" }}>커트라인 (%)</th>
+                    <th className="text-left text-xs font-semibold" style={{ padding: "6px 4px" }}>
+                      <span className="inline-flex items-center gap-1">
+                        커트라인
+                        <button
+                          type="button"
+                          onClick={() => setCutlineMode((m) => m === "PERCENT" ? "COUNT" : "PERCENT")}
+                          className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold border border-[var(--color-border-divider)] hover:border-[var(--color-brand-primary)] text-[var(--color-brand-primary)] bg-[var(--color-bg-surface)]"
+                          title="클릭하여 전환"
+                        >
+                          {cutlineMode === "PERCENT" ? "%" : "점"}
+                        </button>
+                      </span>
+                    </th>
                     <th style={{ padding: "6px 8px" }} />
                   </tr>
                 </thead>
@@ -400,7 +416,7 @@ export default function CreateHomeworkModal({
 
               <div className="mt-3 rounded border border-[var(--color-border-divider)] bg-[color-mix(in_srgb,var(--color-brand-primary)_4%,var(--color-bg-surface))] p-3">
                 <div className="text-xs text-[var(--color-text-muted)]">
-                  대상자 자동 등록됨 (이 차시의 모든 수강생) · 커트라인은 첫 번째 행 기준으로 적용
+                  대상자 자동 등록됨 (이 차시의 모든 수강생) · 커트라인은 첫 번째 행 기준 · {cutlineMode === "PERCENT" ? "퍼센트(%) 기준" : "점수 기준"}
                 </div>
               </div>
             </div>
