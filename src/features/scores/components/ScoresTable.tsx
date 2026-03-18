@@ -964,8 +964,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                         }
 
                         if (col.sub === "total") {
-                          const examMaxScore = block?.max_score ?? ex.max_score ?? null;
-                          const scoreText = block?.score == null ? "-" : `${Math.round(block.score)}${examMaxScore != null ? ` / ${examMaxScore}` : ""}`;
+                          const scoreText = block?.score == null ? "-" : `${Math.round(block.score)}`;
                           const canEdit = isEditMode && examEditTotal && !block?.is_locked;
                           return (
                             <td
