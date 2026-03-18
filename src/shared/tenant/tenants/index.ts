@@ -9,6 +9,7 @@ import { tchul } from "./tchul";
 import { limglish } from "./limglish";
 import { ymath } from "./ymath";
 import { sswe } from "./sswe";
+import { dnb } from "./dnb";
 import { local } from "./local";
 
 export type { TenantId, TenantBranding, TenantDef };
@@ -19,6 +20,7 @@ export const TENANTS: readonly TenantDef[] = [
   limglish,
   ymath,
   sswe,
+  dnb,
   local,
 ] as const;
 

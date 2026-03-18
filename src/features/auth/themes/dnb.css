@@ -1,0 +1,128 @@
+/* PATH: src/features/auth/themes/dnb.css
+ * DNB Academy 테넌트 — 클린 블루 교육 플랫폼
+ */
+
+[data-app="auth"][data-tenant="dnb"] {
+  /* ── 블루 계열 ── */
+  --dnb-primary: #1e40af;
+  --dnb-primary-deep: #1e3a8a;
+  --dnb-primary-light: #3b82f6;
+  --dnb-accent: #2563eb;
+
+  /* ── 배경 ── */
+  --dnb-bg: #f0f4f8;
+  --dnb-surface: #ffffff;
+  --dnb-border: #d1d5db;
+  --dnb-border-hover: rgba(30, 64, 175, 0.20);
+
+  /* ── 텍스트 ── */
+  --dnb-text: #111827;
+  --dnb-text-muted: #6b7280;
+
+  /* ── 포커스/에러 ── */
+  --dnb-focus: rgba(37, 99, 235, 0.15);
+  --dnb-error: #dc2626;
+
+  /* ── 그라디언트 ── */
+  --dnb-gradient: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+  --dnb-gradient-hover: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
+
+  /* ── 공통 별칭 ── */
+  --auth-accent: var(--dnb-primary);
+  --auth-bg: var(--dnb-bg);
+  --auth-surface: var(--dnb-surface);
+  --auth-border: var(--dnb-border);
+  --auth-border-hover: var(--dnb-border-hover);
+  --auth-text: var(--dnb-text);
+  --auth-text-muted: var(--dnb-text-muted);
+  --auth-focus: var(--dnb-focus);
+  --auth-error: var(--dnb-error);
+  --auth-gradient: var(--dnb-gradient);
+  --auth-gradient-hover: var(--dnb-gradient-hover);
+}
+
+/* ── 배경 ── */
+[data-app="auth"][data-tenant="dnb"] div[class*="root"] {
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(30, 64, 175, 0.05) 0%, transparent 60%),
+    linear-gradient(180deg, #f0f4f8 0%, #e8edf4 50%, #f0f4f8 100%);
+}
+
+/* ── 로그인 카드 ── */
+[data-app="auth"][data-tenant="dnb"] div[class*="center"] {
+  background: #ffffff;
+  border: 1px solid rgba(30, 64, 175, 0.06);
+  border-radius: 20px;
+  padding: 2.5rem 2rem;
+  box-shadow:
+    0 1px 3px rgba(30, 64, 175, 0.04),
+    0 8px 32px rgba(30, 64, 175, 0.06);
+}
+
+/* ── 타이틀 ── */
+[data-app="auth"][data-tenant="dnb"] h1[class*="title"] {
+  color: var(--dnb-primary);
+  font-size: 1.375rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+/* ── 입력 필드 ── */
+[data-app="auth"][data-tenant="dnb"] input[class*="input"] {
+  background: #f8f9fb;
+  border: 1px solid var(--dnb-border);
+  color: var(--dnb-text);
+  border-radius: 12px;
+  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+}
+
+[data-app="auth"][data-tenant="dnb"] input[class*="input"]::placeholder {
+  color: #94a3b8;
+}
+
+[data-app="auth"][data-tenant="dnb"] input[class*="input"]:hover {
+  border-color: rgba(30, 64, 175, 0.18);
+}
+
+[data-app="auth"][data-tenant="dnb"] input[class*="input"]:focus {
+  border-color: var(--dnb-accent);
+  background: #ffffff;
+  box-shadow: 0 0 0 3px var(--dnb-focus);
+}
+
+/* ── 로그인 버튼 ── */
+[data-app="auth"][data-tenant="dnb"] button[class*="btnPrimary"] {
+  background: var(--dnb-gradient);
+  color: #fff;
+  border-radius: 12px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  box-shadow: 0 2px 12px rgba(30, 64, 175, 0.15);
+  transition: filter 0.2s, box-shadow 0.2s, transform 0.1s;
+}
+
+[data-app="auth"][data-tenant="dnb"] button[class*="btnPrimary"]:hover:not(:disabled) {
+  filter: brightness(1.05);
+  box-shadow: 0 4px 20px rgba(30, 64, 175, 0.22);
+}
+
+/* ── 폼 구분선 ── */
+[data-app="auth"][data-tenant="dnb"] div[class*="form"] {
+  border-top-color: var(--dnb-border);
+}
+
+/* ── 링크 ── */
+[data-app="auth"][data-tenant="dnb"] button[class*="link"] {
+  color: var(--dnb-primary);
+}
+[data-app="auth"][data-tenant="dnb"] button[class*="link"]:hover {
+  color: var(--dnb-primary-light);
+}
+
+/* ── 반응형 ── */
+@media (max-width: 480px) {
+  [data-app="auth"][data-tenant="dnb"] div[class*="center"] {
+    padding: 2rem 1.25rem;
+    border-radius: 16px;
+  }
+}

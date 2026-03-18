@@ -1,6 +1,6 @@
 // PATH: src/shared/tenant/tenants/types.ts
 /** 테넌트 ID (1=학원플러스, 2=tchul, 3=limglish, 4=ymath, 8=sswe, 9999=로컬개발) */
-export type TenantId = 1 | 2 | 3 | 4 | 8 | 9999;
+export type TenantId = 1 | 2 | 3 | 4 | 8 | 9 | 9999;
 
 export type TenantBranding = {
   loginTitle: string;
