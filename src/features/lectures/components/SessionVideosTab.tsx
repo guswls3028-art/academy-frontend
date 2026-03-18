@@ -18,6 +18,7 @@ import { DomainListToolbar } from "@/shared/ui/domain";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useConfirm } from "@/shared/ui/confirm";
 import VideoEditModal from "@/features/videos/components/features/video-detail/modals/VideoEditModal";
+import VideoReorderModal from "@/features/videos/components/VideoReorderModal";
 
 /** 유튜브 스타일: 업로드 시각 → "N분 전", "N시간 전", "N일 전" */
 function formatTimeAgo(isoDate: string): string {
@@ -85,6 +86,7 @@ export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
   const confirm = useConfirm();
   const [showModal, setShowModal] = useState(false);
   const [editTarget, setEditTarget] = useState<MediaVideo | null>(null);
+  const [reorderOpen, setReorderOpen] = useState(false);
   const asyncTasks = useAsyncStatus();
 
   const { data: rawVideos = [], isLoading } = useSessionVideos(sessionId);
@@ -416,9 +418,16 @@ export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
         totalLabel={isLoading ? "…" : `총 ${videos.length}개`}
         searchSlot={null}
         primaryAction={
-          <Button intent="primary" onClick={() => setShowModal(true)}>
-            영상 추가
-          </Button>
+          <div style={{ display: "flex", gap: 8 }}>
+            {videos.length > 1 && (
+              <Button intent="ghost" onClick={() => setReorderOpen(true)}>
+                순서 관리
+              </Button>
+            )}
+            <Button intent="primary" onClick={() => setShowModal(true)}>
+              영상 추가
+            </Button>
+          </div>
         }
       />
 
@@ -515,6 +524,14 @@ export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
           sessionId={sessionId}
         />
       )}
+      <VideoReorderModal
+        open={reorderOpen}
+        onClose={() => setReorderOpen(false)}
+        videos={videos}
+        onSaved={() => {
+          qc.invalidateQueries({ queryKey: ["session-videos", sessionId] });
+        }}
+      />
     </div>
   );
 }

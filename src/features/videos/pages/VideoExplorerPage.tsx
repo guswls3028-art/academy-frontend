@@ -7,7 +7,7 @@ import { useState, useMemo, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useQueries, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useConfirm } from "@/shared/ui/confirm";
-import { FilePlus, Video, Folder, Eye } from "lucide-react";
+import { FilePlus, Video, Folder, Eye, ArrowUpDown } from "lucide-react";
 import { Button, EmptyState } from "@/shared/ui/ds";
 import { DomainLayout } from "@/shared/ui/domain";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter, MODAL_WIDTH } from "@/shared/ui/modal";
@@ -41,6 +41,7 @@ import { feedback } from "@/shared/ui/feedback/feedback";
 import { asyncStatusStore } from "@/shared/ui/asyncStatus";
 import VideoDetailOverlay from "./VideoDetailOverlay";
 import VideoEditModal from "../components/features/video-detail/modals/VideoEditModal";
+import VideoReorderModal from "../components/VideoReorderModal";
 import panelStyles from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
 import styles from "../components/VideoExplorer.module.css";
 
@@ -110,6 +111,7 @@ export default function VideoExplorerPage() {
   const [newFolderOpen, setNewFolderOpen] = useState(false);
   const [addChoiceModalOpen, setAddChoiceModalOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<ApiVideo | null>(null);
+  const [reorderOpen, setReorderOpen] = useState(false);
 
   // Overlay state — driven by ?videoId=N&lectureId=N&sessionId=N search params
   const overlayVideoId = searchParams.get("videoId") ? Number(searchParams.get("videoId")) : null;
@@ -384,6 +386,16 @@ export default function VideoExplorerPage() {
             onSelect={(id) => handleBreadcrumbSelect(id)}
           />
           <div className={panelStyles.actions}>
+            {selectedFolderId != null && videos.length > 1 && (
+              <Button
+                intent="ghost"
+                size="sm"
+                onClick={() => setReorderOpen(true)}
+              >
+                <ArrowUpDown size={14} style={{ marginRight: 4 }} />
+                순서 관리
+              </Button>
+            )}
             <Button intent="primary" size="sm" onClick={() => navigate("/admin/lectures")}>
               강의 목록
             </Button>
@@ -719,6 +731,21 @@ export default function VideoExplorerPage() {
           onClose={closeOverlay}
         />
       )}
+      <VideoReorderModal
+        open={reorderOpen}
+        onClose={() => setReorderOpen(false)}
+        videos={videos}
+        sessionTitle={
+          selectedFolderId === "public"
+            ? "전체공개영상"
+            : selectedSession
+              ? `${selectedSession.session.order}차시`
+              : undefined
+        }
+        onSaved={() => {
+          queryClient.invalidateQueries({ queryKey: ["session-videos"] });
+        }}
+      />
     </DomainLayout>
   );
 }
