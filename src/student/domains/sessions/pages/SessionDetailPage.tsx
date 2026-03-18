@@ -29,15 +29,19 @@ export default function SessionDetailPage() {
   if (!Number.isFinite(safeId)) {
     return (
       <StudentPageShell title="차시" description="잘못된 접근입니다.">
-        <EmptyState title="세션 ID가 올바르지 않습니다." />
+        <EmptyState title="잘못된 주소입니다." />
       </StudentPageShell>
     );
   }
 
   if (isLoading) {
     return (
-      <StudentPageShell title="차시" description="불러오는 중...">
-        <div className="stu-muted" style={{ fontSize: 14 }}>불러오는 중...</div>
+      <StudentPageShell title="차시">
+        <div style={{ padding: "var(--stu-space-4)", display: "flex", flexDirection: "column", gap: "var(--stu-space-3)" }}>
+          <div className="stu-skel" style={{ height: 80, borderRadius: "var(--stu-radius)" }} />
+          <div className="stu-skel" style={{ height: 80, borderRadius: "var(--stu-radius)" }} />
+          <div className="stu-skel" style={{ height: 80, borderRadius: "var(--stu-radius)" }} />
+        </div>
       </StudentPageShell>
     );
   }

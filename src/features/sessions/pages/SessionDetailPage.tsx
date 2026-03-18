@@ -162,7 +162,11 @@ export default function SessionDetailPage() {
   }
 
   if (!session) {
-    return <div className="p-4 text-sm text-[var(--color-text-muted)]">로딩중...</div>;
+    return (
+      <div className="flex min-h-[200px] items-center justify-center">
+        <p className="text-sm text-[var(--color-text-muted)]">불러오는 중…</p>
+      </div>
+    );
   }
 
   const showAssessmentPanel =

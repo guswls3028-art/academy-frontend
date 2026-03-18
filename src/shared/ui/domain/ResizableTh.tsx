@@ -45,6 +45,8 @@ export default function ResizableTh({
   const startX = useRef(0);
   const startWidth = useRef(0);
   const [isResizing, setIsResizing] = useState(false);
+  /** 리사이즈 직후 click 이벤트 무시용 플래그 */
+  const didResize = useRef(false);
   /** 드래그 중 표시 너비 — 부모 상태 대기 없이 즉시 반영 */
   const [localWidth, setLocalWidth] = useState(width);
 
@@ -60,6 +62,7 @@ export default function ResizableTh({
       startWidth.current = width;
       setLocalWidth(width);
       setIsResizing(true);
+      didResize.current = false;
     },
     [width]
   );
@@ -68,6 +71,7 @@ export default function ResizableTh({
     (e: MouseEvent) => {
       if (!isResizing) return;
       const delta = e.clientX - startX.current;
+      if (Math.abs(delta) > 2) didResize.current = true;
       const next = Math.min(maxWidth, Math.max(minWidth, startWidth.current + delta));
       setLocalWidth(next);
       onWidthChange(columnKey, next);
@@ -106,7 +110,10 @@ export default function ResizableTh({
         userSelect: isResizing ? "none" : undefined,
       }}
       title={title}
-      onClick={onClick}
+      onClick={() => {
+        if (didResize.current) { didResize.current = false; return; }
+        onClick?.();
+      }}
     >
       {noWrap ? children : <span className="inline-flex items-center justify-center gap-2">{children}</span>}
       <span

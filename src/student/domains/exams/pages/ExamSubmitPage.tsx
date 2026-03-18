@@ -114,7 +114,7 @@ export default function ExamSubmitPage() {
   if (!Number.isFinite(safeId)) {
     return (
       <StudentPageShell title="시험 입력" description="잘못된 접근입니다.">
-        <EmptyState title="시험 ID가 올바르지 않습니다." />
+        <EmptyState title="잘못된 주소입니다." />
       </StudentPageShell>
     );
   }
@@ -141,6 +141,25 @@ export default function ExamSubmitPage() {
   }
 
   const exam = examQ.data;
+
+  // Already submitted guard: prevent direct URL access after submission
+  const hasResult = exam.status === "done" || exam.has_result;
+  const canRetake = exam.allow_retake && (exam.attempt_count ?? 0) < (exam.max_attempts ?? 1);
+  if (hasResult && !canRetake) {
+    return (
+      <StudentPageShell title={exam.title} description="이미 제출된 시험입니다.">
+        <EmptyState
+          title="이미 제출된 시험입니다"
+          description="결과 페이지에서 확인하세요."
+        />
+        <div style={{ padding: 16 }}>
+          <Link to={`/student/exams/${safeId}/result`} className="stu-cta-link">
+            결과 보기
+          </Link>
+        </div>
+      </StudentPageShell>
+    );
+  }
 
   // Closed exam guard: prevent submission after close_at
   const isClosed = exam.close_at

@@ -23,8 +23,10 @@ export default function GradeListPage() {
   return (
     <StudentPageShell title="성적 전체보기">
       {isLoading && (
-        <div className="stu-muted" style={{ padding: "var(--stu-space-4) 0" }}>
-          불러오는 중…
+        <div style={{ padding: "var(--stu-space-4)", display: "flex", flexDirection: "column", gap: "var(--stu-space-3)" }}>
+          <div className="stu-skel" style={{ height: 80, borderRadius: "var(--stu-radius)" }} />
+          <div className="stu-skel" style={{ height: 80, borderRadius: "var(--stu-radius)" }} />
+          <div className="stu-skel" style={{ height: 80, borderRadius: "var(--stu-radius)" }} />
         </div>
       )}
       {isError && (

@@ -73,7 +73,18 @@ export default function VideoHomePage() {
     );
   }
 
-  if (isError || !hasAny) {
+  if (isError) {
+    return (
+      <div className="video-page-content" style={{ padding: "var(--stu-space-4)" }}>
+        <EmptyState
+          title="영상을 불러오지 못했습니다"
+          description="네트워크 연결을 확인하고 잠시 후 다시 시도해 주세요."
+        />
+      </div>
+    );
+  }
+
+  if (!hasAny) {
     return (
       <div className="video-page-content" style={{ padding: "var(--stu-space-4)" }}>
         <EmptyState

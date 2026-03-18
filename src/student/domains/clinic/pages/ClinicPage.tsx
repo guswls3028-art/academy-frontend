@@ -251,7 +251,11 @@ export default function ClinicPage() {
   if (isLoading) {
     return (
       <StudentPageShell title="클리닉">
-        <div className="stu-muted">불러오는 중...</div>
+        <div style={{ padding: "var(--stu-space-4)", display: "flex", flexDirection: "column", gap: "var(--stu-space-3)" }}>
+          <div className="stu-skel" style={{ height: 80, borderRadius: "var(--stu-radius)" }} />
+          <div className="stu-skel" style={{ height: 80, borderRadius: "var(--stu-radius)" }} />
+          <div className="stu-skel" style={{ height: 80, borderRadius: "var(--stu-radius)" }} />
+        </div>
       </StudentPageShell>
     );
   }

@@ -96,6 +96,18 @@ function WelcomeMessageToggle({
   );
 }
 
+/* ── 백엔드 필드명 → 사용자 친화 이름 ── */
+const fieldLabel: Record<string, string> = {
+  ps_number: "아이디",
+  parent_phone: "학부모 연락처",
+  phone: "학생 연락처",
+  name: "이름",
+  omr_code: "OMR 코드",
+  school: "학교",
+  grade: "학년",
+  gender: "성별",
+};
+
 /* ── 메인 모달 ── */
 
 export default function StudentCreateModal({ open, onClose, onSuccess, onBulkProgress }: Props) {
@@ -239,8 +251,9 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
           const parts = (Object.entries(data) as [string, unknown][])
             .filter(([k]) => k !== "code" && k !== "deleted_student")
             .map(([k, v]) => {
+              const label = fieldLabel[k] ?? k;
               const val = Array.isArray(v) ? v.join(" ") : String(v ?? "");
-              return val ? `${k}: ${val}` : k;
+              return val ? `${label}: ${val}` : label;
             });
           msg = parts.length ? parts.join("\n") : "입력값을 확인해 주세요.";
         }
@@ -302,8 +315,9 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
         } else {
           const parts = (Object.entries(data) as [string, unknown][])
             .map(([k, v]) => {
+              const label = fieldLabel[k] ?? k;
               const val = Array.isArray(v) ? v.join(" ") : String(v ?? "");
-              return val ? `${k}: ${val}` : k;
+              return val ? `${label}: ${val}` : label;
             });
           msg = parts.length ? parts.join("\n") : "입력값을 확인해 주세요.";
         }

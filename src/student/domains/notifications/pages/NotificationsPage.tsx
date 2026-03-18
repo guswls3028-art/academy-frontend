@@ -21,9 +21,9 @@ import { formatYmd } from "@/student/shared/utils/date";
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 
 export default function NotificationsPage() {
-  const { data: counts, isLoading: countsLoading } = useNotificationCounts();
+  const { data: counts, isLoading: countsLoading, isError: countsError } = useNotificationCounts();
 
-  const { data: clinicBookings, isLoading: clinicLoading } = useQuery({
+  const { data: clinicBookings, isLoading: clinicLoading, isError: clinicError } = useQuery({
     queryKey: ["student", "clinic", "bookings"],
     queryFn: fetchMyClinicBookingRequests,
     staleTime: 30000,
@@ -31,7 +31,7 @@ export default function NotificationsPage() {
 
   const { data: profile } = useQuery({ queryKey: ["student", "me"], queryFn: fetchMyProfile });
 
-  const { data: myQnaQuestions = [], isLoading: qnaLoading } = useQuery({
+  const { data: myQnaQuestions = [], isLoading: qnaLoading, isError: qnaError } = useQuery({
     queryKey: ["student", "qna", "questions"],
     queryFn: () => fetchMyQuestions(profile!.id, 50),
     enabled: profile?.id != null,
@@ -39,6 +39,7 @@ export default function NotificationsPage() {
   });
 
   const isLoading = countsLoading || clinicLoading || qnaLoading;
+  const isError = countsError || clinicError || qnaError;
   const sevenDaysAgo = Date.now() - SEVEN_DAYS_MS;
 
   const approvedClinicBookings = (clinicBookings || []).filter((b) => {
@@ -82,6 +83,17 @@ export default function NotificationsPage() {
         <div className="stu-muted" style={{ padding: "var(--stu-space-4) 0" }}>
           불러오는 중…
         </div>
+      </StudentPageShell>
+    );
+  }
+
+  if (isError) {
+    return (
+      <StudentPageShell title="알림">
+        <EmptyState
+          title="알림을 불러오지 못했습니다"
+          description="네트워크 연결을 확인하고 잠시 후 다시 시도해 주세요."
+        />
       </StudentPageShell>
     );
   }

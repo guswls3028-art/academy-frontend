@@ -141,7 +141,7 @@ export default function VideoPlayerPage() {
         return { video: null, boot: null, loadError: String(msg) };
       }
       if (!videoId) {
-        return { video: null, boot: null, loadError: "video_id가 필요합니다." };
+        return { video: null, boot: null, loadError: "잘못된 주소입니다." };
       }
       return { video: null, boot: null, loadError: null };
     }
@@ -175,7 +175,7 @@ export default function VideoPlayerPage() {
       const detail = (playbackData as { detail?: string })?.detail ?? "";
       if (detail) return { video: null, boot: null, loadError: detail };
       if (videoStatus && videoStatus !== "READY")
-        return { video: null, boot: null, loadError: `비디오가 아직 준비되지 않았습니다. (상태: ${videoStatus})` };
+        return { video: null, boot: null, loadError: "영상이 아직 준비 중입니다. 잠시 후 다시 시도해 주세요." };
       return { video: null, boot: null, loadError: "재생 URL을 가져올 수 없습니다." };
     }
 

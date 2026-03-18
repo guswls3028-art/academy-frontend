@@ -61,11 +61,17 @@ export default function ExamListPage() {
 
   return (
     <StudentPageShell title="시험">
-      {isLoading && <div className="stu-muted">불러오는 중…</div>}
-      {isError && <EmptyState title="시험 목록 오류" />}
+      {isLoading && (
+        <div style={{ padding: "var(--stu-space-4)", display: "flex", flexDirection: "column", gap: "var(--stu-space-3)" }}>
+          <div className="stu-skel" style={{ height: 80, borderRadius: "var(--stu-radius)" }} />
+          <div className="stu-skel" style={{ height: 80, borderRadius: "var(--stu-radius)" }} />
+          <div className="stu-skel" style={{ height: 80, borderRadius: "var(--stu-radius)" }} />
+        </div>
+      )}
+      {isError && <EmptyState title="시험을 불러오지 못했습니다" description="네트워크 연결을 확인하고 잠시 후 다시 시도해 주세요." />}
 
       {!isLoading && !isError && items.length === 0 && (
-        <EmptyState title="시험이 없습니다." />
+        <EmptyState title="시험이 없습니다." description="등록된 시험이 있으면 여기에 표시됩니다." />
       )}
 
       <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-3)" }}>
