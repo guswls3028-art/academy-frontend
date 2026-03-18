@@ -205,6 +205,7 @@ export type ScoreColumnDef =
       width: number;
       editable: boolean;
     }
+  | { type: "exam_summary"; sub: "score" | "pass"; key: string; width: number; editable: false }
   | { type: "clinic_target"; key: "clinic_target"; width: number; editable: false }
   | { type: "clinic_reason"; key: "clinic_reason"; width: number; editable: false };
 
@@ -523,6 +524,12 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
         }
       }
     });
+    if (examOptions.length > 0) {
+      list.push(
+        { type: "exam_summary", sub: "score", key: "exam_summary_score", width: COL_SCORE + 20, editable: false },
+        { type: "exam_summary", sub: "pass", key: "exam_summary_pass", width: COL_PASS, editable: false }
+      );
+    }
     homeworkOptions.forEach((h) => {
       list.push(
         { type: "homework", homeworkId: h.homework_id, title: h.title, sub: "score", key: `hw_${h.homework_id}_score`, width: COL_SCORE, editable: isEditMode && homeworkEdit },
@@ -618,6 +625,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                 </td>
               );
             })}
+            {examOptions.length > 0 && <td colSpan={2} className="py-1 px-2" />}
             <td colSpan={homeworkOptions.length * 2} className="py-1 px-2" />
             <td colSpan={2} className="py-1 px-2" />
           </tr>
@@ -706,6 +714,20 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
               </th>
             );
           })}
+          {examOptions.length > 0 && (
+            <th
+              scope="col"
+              colSpan={2}
+              className="text-center font-medium text-[var(--color-text-primary)] py-2 px-3 border-l-2 border-[var(--color-border-divider)] bg-[color-mix(in_srgb,var(--color-brand-primary)_3%,transparent)]"
+            >
+              <span className="inline-flex items-center gap-1">
+                <span className="ds-status-badge ds-status-badge--1ch" data-tone="primary" aria-label="총점">
+                  &Sigma;
+                </span>
+                <span>총점</span>
+              </span>
+            </th>
+          )}
           {homeworkOptions.map((hw, idx) => (
             <th
               key={`head-hw-${hw.homework_id}`}
@@ -777,6 +799,24 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
               </Fragment>
             );
           })}
+          {examOptions.length > 0 && (
+            <>
+              <th
+                scope="col"
+                className="text-center text-xs font-medium text-[var(--color-text-secondary)] py-2 px-3 border-l-2 border-[var(--color-border-divider)] bg-[color-mix(in_srgb,var(--color-brand-primary)_3%,transparent)]"
+                style={{ width: columnWidths.exam_summary_score ?? COL_SCORE + 20, minWidth: 48 }}
+              >
+                점수
+              </th>
+              <th
+                scope="col"
+                className="text-center text-xs font-medium text-[var(--color-text-secondary)] py-2 px-3 bg-[color-mix(in_srgb,var(--color-brand-primary)_3%,transparent)]"
+                style={{ width: columnWidths.exam_summary_pass ?? COL_PASS, minWidth: 48 }}
+              >
+                합불
+              </th>
+            </>
+          )}
           {homeworkOptions.map((hw) => (
             <Fragment key={hw.homework_id}>
               <th
@@ -1152,6 +1192,40 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                     </Fragment>
                   );
                 })}
+
+                {/* 시험 총점 요약 */}
+                {examOptions.length > 0 && (() => {
+                  let totalScore = 0;
+                  let totalMaxScore = 0;
+                  let hasAnyScore = false;
+                  let allPassed: boolean | null = null; // null = no data
+                  for (const ex of examOptions) {
+                    const entry = row.exams?.find((e) => e.exam_id === ex.exam_id);
+                    if (!entry) continue;
+                    const block = entry.block;
+                    if (block?.score != null) {
+                      hasAnyScore = true;
+                      totalScore += Math.round(block.score);
+                      totalMaxScore += block.max_score ?? ex.max_score ?? 100;
+                    }
+                    if (block?.passed != null) {
+                      if (allPassed === null) allPassed = block.passed;
+                      else if (!block.passed) allPassed = false;
+                    }
+                  }
+                  return (
+                    <>
+                      <td className="min-w-0 text-center align-middle py-2.5 px-3 border-l-2 border-[var(--color-border-divider)] bg-[color-mix(in_srgb,var(--color-brand-primary)_3%,transparent)]">
+                        <span className="font-bold text-[var(--color-text-primary)] tabular-nums">
+                          {hasAnyScore ? `${totalScore}/${totalMaxScore}` : "-"}
+                        </span>
+                      </td>
+                      <td className="min-w-0 text-center align-middle py-2.5 px-3 bg-[color-mix(in_srgb,var(--color-brand-primary)_3%,transparent)]">
+                        {allPassed != null ? <PassFailText passed={allPassed} /> : null}
+                      </td>
+                    </>
+                  );
+                })()}
 
                 {/* 과제: 점수(점수만) | 합불 — canEditScore이면 block 없어도 입력 셀 표시 */}
                 {homeworkOptions.map((hw) => {

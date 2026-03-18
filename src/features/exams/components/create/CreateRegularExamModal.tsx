@@ -1,10 +1,11 @@
 // PATH: src/features/exams/components/create/CreateRegularExamModal.tsx
 // ------------------------------------------------------------
-// 시험 생성 모달 — 제목 → 생성 → 설정(만점/커트라인) → 연속 생성 가능
-// 대상자 자동 등록, 여러 시험 연속 생성 지원
+// 시험 생성 모달 — 신규: 일괄 생성 (제목/만점/커트라인 다중 행)
+//                     불러오기: 기존 템플릿 import (기존 로직 유지)
+// 대상자 자동 등록
 // ------------------------------------------------------------
 
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useState, useCallback, type CSSProperties } from "react";
 import api from "@/shared/api/axios";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter, MODAL_WIDTH } from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
@@ -14,7 +15,6 @@ import { updateAdminExam } from "@/features/exams/api/adminExam";
 import { fetchSessionEnrollments } from "@/features/exams/api/sessionEnrollments";
 import { updateExamEnrollmentRows } from "@/features/exams/api/examEnrollments";
 import { feedback } from "@/shared/ui/feedback/feedback";
-import type { AnswerVisibility } from "@/features/exams/types";
 
 type Props = {
   open: boolean;
@@ -24,7 +24,19 @@ type Props = {
   onCreated: (examId: number) => void;
 };
 
-type Stage = "choose" | "new" | "import" | "setup";
+type Stage = "choose" | "new" | "import";
+
+type BulkRow = {
+  id: number;
+  title: string;
+  maxScore: string;
+  passScore: string;
+};
+
+let rowIdCounter = 0;
+function makeRow(): BulkRow {
+  return { id: ++rowIdCounter, title: "", maxScore: "100", passScore: "0" };
+}
 
 export default function CreateRegularExamModal({
   open,
@@ -33,47 +45,34 @@ export default function CreateRegularExamModal({
   onCreated,
 }: Props) {
   const [stage, setStage] = useState<Stage>("choose");
-  const [title, setTitle] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  // bulk rows (new stage)
+  const [rows, setRows] = useState<BulkRow[]>(() => [makeRow()]);
+
+  // import stage
+  const [title, setTitle] = useState("");
   const [templates, setTemplates] = useState<TemplateWithUsage[]>([]);
   const [templatesLoading, setTemplatesLoading] = useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null);
   const [keyword, setKeyword] = useState("");
 
-  // post-creation setup
-  const [createdExamId, setCreatedExamId] = useState<number | null>(null);
-  const [maxScore, setMaxScore] = useState("100");
-  const [passScore, setPassScore] = useState("0");
-  const [savingSetup, setSavingSetup] = useState(false);
-  const [answerVisibility, setAnswerVisibility] = useState<AnswerVisibility>("hidden");
-
-  // sequential creation tracking
-  const [createdCount, setCreatedCount] = useState(0);
-  const [lastStage, setLastStage] = useState<"new" | "import">("new");
-
   useEffect(() => {
     if (!open) return;
     setStage("choose");
-    setTitle("");
     setError(null);
     setSubmitting(false);
+    setRows([makeRow()]);
+    setTitle("");
     setTemplates([]);
     setTemplatesLoading(false);
     setSelectedTemplateId(null);
     setKeyword("");
-    setCreatedExamId(null);
-    setMaxScore("100");
-    setPassScore("0");
-    setSavingSetup(false);
-    setAnswerVisibility("hidden");
-    setCreatedCount(0);
-    setLastStage("new");
   }, [open]);
 
   useEffect(() => {
-    if (!open) return;
-    if (stage !== "import") return;
+    if (!open || stage !== "import") return;
 
     let cancelled = false;
     setTemplatesLoading(true);
@@ -92,12 +91,10 @@ export default function CreateRegularExamModal({
         setTemplatesLoading(false);
       });
 
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [open, stage]);
 
-  const autoEnroll = async (examId: number) => {
+  const autoEnroll = useCallback(async (examId: number) => {
     try {
       const enrollments = await fetchSessionEnrollments(sessionId);
       const ids = enrollments.map((e) => e.enrollment);
@@ -107,18 +104,88 @@ export default function CreateRegularExamModal({
     } catch {
       feedback.warning("학생 자동 등록에 실패했습니다. 수동으로 등록해 주세요.");
     }
-  };
+  }, [sessionId]);
 
-  const handleSubmit = async () => {
+  // ── Bulk row helpers ──
+  const addRow = () => setRows((prev) => [...prev, makeRow()]);
+
+  const removeRow = (id: number) =>
+    setRows((prev) => (prev.length <= 1 ? prev : prev.filter((r) => r.id !== id)));
+
+  const updateRow = (id: number, field: keyof Omit<BulkRow, "id">, value: string) =>
+    setRows((prev) => prev.map((r) => (r.id === id ? { ...r, [field]: value } : r)));
+
+  // ── Bulk submit (new stage) ──
+  const handleBulkSubmit = async () => {
     if (!sessionId) {
       setError("세션 정보가 없습니다.");
       return;
     }
-    if (stage === "choose") {
-      setError("생성 방식을 선택하세요.");
+
+    const validRows = rows.filter((r) => r.title.trim());
+    if (validRows.length === 0) {
+      setError("시험 제목을 하나 이상 입력하세요.");
       return;
     }
-    if (stage === "import" && !selectedTemplateId) {
+
+    setError(null);
+    setSubmitting(true);
+
+    let successCount = 0;
+    const failedTitles: string[] = [];
+
+    for (const row of validRows) {
+      try {
+        const res = await api.post("/exams/", {
+          title: row.title.trim(),
+          description: "",
+          exam_type: "regular",
+          session_id: sessionId,
+        });
+        const newExamId = Number(res.data?.id);
+        if (!newExamId) throw new Error("생성 후 ID를 받지 못했습니다.");
+
+        // Save max_score, pass_score, answer_visibility
+        const ms = Number(row.maxScore);
+        const ps = Number(row.passScore);
+        await updateAdminExam(newExamId, {
+          max_score: Number.isFinite(ms) && ms > 0 ? ms : 100,
+          pass_score: Number.isFinite(ps) && ps >= 0 ? ps : 0,
+          answer_visibility: "hidden",
+        });
+
+        // Auto-enroll students (fire and forget)
+        void autoEnroll(newExamId);
+
+        onCreated(newExamId);
+        successCount++;
+      } catch (e: any) {
+        failedTitles.push(row.title.trim());
+      }
+    }
+
+    setSubmitting(false);
+
+    if (failedTitles.length === 0) {
+      feedback.success(`${successCount}개 시험 일괄 생성 완료`);
+      onClose();
+    } else if (successCount > 0) {
+      feedback.warning(
+        `${successCount}개 생성 완료, ${failedTitles.length}개 실패: ${failedTitles.join(", ")}`
+      );
+      onClose();
+    } else {
+      setError(`시험 생성 실패: ${failedTitles.join(", ")}`);
+    }
+  };
+
+  // ── Import submit (unchanged logic) ──
+  const handleImportSubmit = async () => {
+    if (!sessionId) {
+      setError("세션 정보가 없습니다.");
+      return;
+    }
+    if (!selectedTemplateId) {
       setError("불러올 템플릿을 선택하세요.");
       return;
     }
@@ -135,19 +202,15 @@ export default function CreateRegularExamModal({
         description: "",
         exam_type: "regular",
         session_id: sessionId,
-        ...(stage === "import" ? { template_exam_id: selectedTemplateId } : {}),
+        template_exam_id: selectedTemplateId,
       });
       const newExamId = Number(res.data?.id);
       if (!newExamId) throw new Error("생성 후 ID를 받지 못했습니다.");
 
-      // Auto-enroll students
       void autoEnroll(newExamId);
-
-      setCreatedExamId(newExamId);
-      setLastStage(stage === "import" ? "import" : "new");
-      setCreatedCount((c) => c + 1);
       onCreated(newExamId);
-      setStage("setup");
+      feedback.success(`"${title.trim()}" 시험 생성 완료`);
+      onClose();
     } catch (e: any) {
       setError(e?.response?.data?.detail ?? e?.message ?? "시험 생성 실패. 입력값을 확인하세요.");
     } finally {
@@ -155,60 +218,10 @@ export default function CreateRegularExamModal({
     }
   };
 
-  const handleSaveSetup = async () => {
-    if (!createdExamId) return;
-    setSavingSetup(true);
-    try {
-      const ms = Number(maxScore);
-      const ps = Number(passScore);
-      await updateAdminExam(createdExamId, {
-        max_score: Number.isFinite(ms) && ms > 0 ? ms : 100,
-        pass_score: Number.isFinite(ps) && ps >= 0 ? ps : 0,
-        answer_visibility: answerVisibility,
-      });
-      feedback.success(`"${title}" 만점·커트라인 저장 완료`);
-      onClose();
-    } catch (e: any) {
-      setError(e?.response?.data?.detail ?? e?.message ?? "설정 저장 실패");
-    } finally {
-      setSavingSetup(false);
-    }
-  };
+  const importDisabled =
+    submitting || !(sessionId > 0) || !title.trim() || !selectedTemplateId;
 
-  const handleSaveAndContinue = async () => {
-    if (!createdExamId) return;
-    setSavingSetup(true);
-    try {
-      const ms = Number(maxScore);
-      const ps = Number(passScore);
-      await updateAdminExam(createdExamId, {
-        max_score: Number.isFinite(ms) && ms > 0 ? ms : 100,
-        pass_score: Number.isFinite(ps) && ps >= 0 ? ps : 0,
-        answer_visibility: answerVisibility,
-      });
-      feedback.success(`"${title}" 저장 완료 (${createdCount}번째)`);
-      // Reset for next creation
-      setTitle("");
-      setSelectedTemplateId(null);
-      setCreatedExamId(null);
-      setMaxScore("100");
-      setPassScore("0");
-      setAnswerVisibility("hidden");
-      setError(null);
-      setStage(lastStage);
-    } catch (e: any) {
-      setError(e?.response?.data?.detail ?? e?.message ?? "설정 저장 실패");
-    } finally {
-      setSavingSetup(false);
-    }
-  };
-
-  const disabled =
-    submitting ||
-    !(sessionId > 0) ||
-    stage === "choose" ||
-    !title.trim() ||
-    (stage === "import" && !selectedTemplateId);
+  const bulkHasAnyTitle = rows.some((r) => r.title.trim());
 
   const selectedTemplate = templates.find((t) => t.id === selectedTemplateId) ?? null;
 
@@ -234,15 +247,6 @@ export default function CreateRegularExamModal({
   const headerTitle =
     stage === "choose" ? (
       "시험 생성"
-    ) : stage === "setup" ? (
-      <span>
-        시험 설정
-        {createdCount > 1 && (
-          <span className="ml-2 text-xs font-normal text-[var(--color-text-muted)]">
-            ({createdCount}번째)
-          </span>
-        )}
-      </span>
     ) : (
       <div className="flex items-center gap-2">
         <button
@@ -257,14 +261,7 @@ export default function CreateRegularExamModal({
         >
           ←
         </button>
-        <span>
-          {stage === "new" ? "신규시험" : "불러오기"}
-          {createdCount > 0 && (
-            <span className="ml-2 text-xs font-normal text-[var(--color-text-muted)]">
-              ({createdCount}개 생성됨)
-            </span>
-          )}
-        </span>
+        <span>{stage === "new" ? "일괄 생성" : "불러오기"}</span>
       </div>
     );
 
@@ -275,10 +272,10 @@ export default function CreateRegularExamModal({
       type="action"
       width={MODAL_WIDTH.default}
       onEnterConfirm={
-        stage === "setup"
-          ? handleSaveSetup
-          : stage !== "choose" && !disabled
-          ? handleSubmit
+        stage === "new" && bulkHasAnyTitle && !submitting
+          ? handleBulkSubmit
+          : stage === "import" && !importDisabled
+          ? handleImportSubmit
           : undefined
       }
     >
@@ -288,8 +285,8 @@ export default function CreateRegularExamModal({
         description={
           stage === "choose"
             ? "신규 시험을 만들거나, 기존 템플릿을 불러와 이 차시에 적용할 수 있습니다. 대상자는 자동 등록됩니다."
-            : stage === "setup"
-            ? `"${title}" 시험이 생성되었습니다. 만점·커트라인을 설정하세요.`
+            : stage === "new"
+            ? "여러 시험을 한번에 생성할 수 있습니다. 행을 추가한 뒤 일괄 생성하세요."
             : undefined
         }
       />
@@ -313,11 +310,10 @@ export default function CreateRegularExamModal({
                   selected={false}
                   showCheck
                   title="신규시험"
-                  desc="이 차시에 새 시험을 생성합니다."
+                  desc="여러 시험을 한번에 생성합니다."
                   onClick={() => {
                     setError(null);
-                    setTitle("");
-                    setSelectedTemplateId(null);
+                    setRows([makeRow()]);
                     setStage("new");
                   }}
                 />
@@ -337,11 +333,80 @@ export default function CreateRegularExamModal({
                   }}
                 />
               </div>
-              {createdCount > 0 && (
-                <p className="mt-3 text-sm text-[var(--color-brand-primary)] font-semibold">
-                  {createdCount}개 시험이 생성되었습니다.
-                </p>
-              )}
+            </div>
+          )}
+
+          {/* ── Stage: new (bulk rows) ── */}
+          {stage === "new" && (
+            <div className="modal-form-group">
+              {/* Header labels */}
+              <div className="flex items-center gap-2 mb-2">
+                <div className="flex-1 text-xs font-semibold text-[var(--color-text-muted)]">제목</div>
+                <div className="text-xs font-semibold text-[var(--color-text-muted)]" style={{ width: 80 }}>만점</div>
+                <div className="text-xs font-semibold text-[var(--color-text-muted)]" style={{ width: 80 }}>커트라인</div>
+                <div style={{ width: 32 }} />
+              </div>
+
+              {/* Rows */}
+              <div className="space-y-2">
+                {rows.map((row, idx) => (
+                  <div key={row.id} className="flex items-center gap-2">
+                    <input
+                      className="ds-input flex-1"
+                      value={row.title}
+                      onChange={(e) => updateRow(row.id, "title", e.target.value)}
+                      placeholder={`시험 ${idx + 1}`}
+                      autoFocus={idx === 0}
+                      aria-label={`시험 ${idx + 1} 제목`}
+                    />
+                    <input
+                      type="number"
+                      min={1}
+                      className="ds-input"
+                      style={{ width: 80 }}
+                      value={row.maxScore}
+                      onChange={(e) => updateRow(row.id, "maxScore", e.target.value)}
+                      placeholder="100"
+                      aria-label={`시험 ${idx + 1} 만점`}
+                    />
+                    <input
+                      type="number"
+                      min={0}
+                      className="ds-input"
+                      style={{ width: 80 }}
+                      value={row.passScore}
+                      onChange={(e) => updateRow(row.id, "passScore", e.target.value)}
+                      placeholder="0"
+                      aria-label={`시험 ${idx + 1} 커트라인`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeRow(row.id)}
+                      disabled={rows.length <= 1}
+                      className="flex items-center justify-center rounded text-[var(--color-text-muted)] hover:text-[var(--color-error)] disabled:opacity-30 disabled:cursor-not-allowed"
+                      style={{ width: 32, height: 32, flexShrink: 0 }}
+                      aria-label="행 삭제"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              {/* Add row button */}
+              <button
+                type="button"
+                onClick={addRow}
+                className="mt-3 w-full rounded border border-dashed border-[var(--color-border-divider)] py-2 text-sm text-[var(--color-text-muted)] hover:text-[var(--color-brand-primary)] hover:border-[var(--color-brand-primary)] transition-colors"
+              >
+                + 추가
+              </button>
+
+              <div className="mt-3 rounded border border-[var(--color-border-divider)] bg-[color-mix(in_srgb,var(--color-brand-primary)_4%,var(--color-bg-surface))] p-3">
+                <div className="text-xs text-[var(--color-text-muted)]">
+                  대상자 자동 등록됨 (이 차시의 모든 수강생)
+                </div>
+              </div>
             </div>
           )}
 
@@ -426,8 +491,8 @@ export default function CreateRegularExamModal({
             </div>
           )}
 
-          {/* ── Stage: new / import → title input ── */}
-          {(stage === "new" || stage === "import") && (
+          {/* ── Import: title input ── */}
+          {stage === "import" && (
             <div className="modal-form-group">
               <label className="modal-section-label">제목 (필수)</label>
               <input
@@ -438,70 +503,11 @@ export default function CreateRegularExamModal({
                 autoFocus
                 aria-label="시험 제목"
               />
-              {stage === "import" && selectedTemplate && (
+              {selectedTemplate && (
                 <p className="modal-hint modal-hint--block">
                   템플릿: {selectedTemplate.title}
                 </p>
               )}
-            </div>
-          )}
-
-          {/* ── Stage: setup (post-creation) ── */}
-          {stage === "setup" && (
-            <div className="space-y-5">
-              <div className="modal-form-group">
-                <div className="modal-section-label mb-2">만점 / 커트라인</div>
-                <div className="flex items-center gap-4">
-                  <div>
-                    <div className="mb-1 text-xs text-[var(--color-text-muted)]">만점</div>
-                    <input
-                      type="number"
-                      min={1}
-                      className="ds-input"
-                      style={{ width: 120 }}
-                      value={maxScore}
-                      onChange={(e) => setMaxScore(e.target.value)}
-                      placeholder="100"
-                      autoFocus
-                    />
-                  </div>
-                  <div>
-                    <div className="mb-1 text-xs text-[var(--color-text-muted)]">커트라인</div>
-                    <input
-                      type="number"
-                      min={0}
-                      className="ds-input"
-                      style={{ width: 120 }}
-                      value={passScore}
-                      onChange={(e) => setPassScore(e.target.value)}
-                      placeholder="0"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="modal-form-group">
-                <div className="modal-section-label mb-2">정답 공개</div>
-                <select
-                  className="ds-input"
-                  value={answerVisibility}
-                  onChange={(e) => setAnswerVisibility(e.target.value as AnswerVisibility)}
-                  style={{ width: "100%" }}
-                >
-                  <option value="hidden">비공개</option>
-                  <option value="after_closed">마감 후 공개</option>
-                  <option value="always">항상 공개</option>
-                </select>
-                <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-                  학생이 결과 화면에서 정답을 볼 수 있는 조건을 설정합니다.
-                </p>
-              </div>
-
-              <div className="rounded border border-[var(--color-border-divider)] bg-[color-mix(in_srgb,var(--color-brand-primary)_4%,var(--color-bg-surface))] p-3">
-                <div className="text-xs text-[var(--color-text-muted)]">
-                  대상자 자동 등록됨 (이 차시의 모든 수강생)
-                </div>
-              </div>
             </div>
           )}
         </div>
@@ -510,28 +516,29 @@ export default function CreateRegularExamModal({
       <ModalFooter
         right={
           <>
-            <Button intent="secondary" size="xl" onClick={onClose} disabled={submitting || savingSetup}>
-              {stage === "setup" ? (createdCount > 0 ? "닫기" : "건너뛰기") : "취소"}
+            <Button intent="secondary" size="xl" onClick={onClose} disabled={submitting}>
+              취소
             </Button>
-            {stage === "setup" ? (
-              <>
-                <Button
-                  intent="secondary"
-                  size="xl"
-                  onClick={handleSaveAndContinue}
-                  disabled={savingSetup}
-                >
-                  저장 후 계속 추가
-                </Button>
-                <Button intent="primary" size="xl" onClick={handleSaveSetup} disabled={savingSetup}>
-                  {savingSetup ? "저장 중…" : "완료"}
-                </Button>
-              </>
-            ) : stage !== "choose" ? (
-              <Button intent="primary" size="xl" onClick={handleSubmit} disabled={disabled}>
+            {stage === "new" && (
+              <Button
+                intent="primary"
+                size="xl"
+                onClick={handleBulkSubmit}
+                disabled={submitting || !bulkHasAnyTitle}
+              >
+                {submitting ? "생성 중…" : `일괄 생성${rows.filter((r) => r.title.trim()).length > 1 ? ` (${rows.filter((r) => r.title.trim()).length}개)` : ""}`}
+              </Button>
+            )}
+            {stage === "import" && (
+              <Button
+                intent="primary"
+                size="xl"
+                onClick={handleImportSubmit}
+                disabled={importDisabled}
+              >
                 {submitting ? "생성 중…" : "생성"}
               </Button>
-            ) : null}
+            )}
           </>
         }
       />
