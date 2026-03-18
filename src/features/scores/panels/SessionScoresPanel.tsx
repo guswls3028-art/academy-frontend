@@ -32,6 +32,10 @@ type Props = {
   homeworkEdit?: boolean;
   /** 읽기 모드 시험 표시: 합산(한 칸) | 객관식+주관식(두 칸) */
   scoreDisplayMode?: "total" | "breakdown";
+  /** 점수 표시 형식: raw(원점수) | fraction(50/100) */
+  scoreFormat?: "raw" | "fraction";
+  /** 뷰 필터: 시험만/과제만/전체 */
+  viewFilter?: "all" | "exam" | "homework";
   selectedEnrollmentIds?: number[];
   onSelectionChange?: (enrollmentIds: number[]) => void;
 };
@@ -65,6 +69,8 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
   examEditSubjective = false,
   homeworkEdit = false,
   scoreDisplayMode = "total",
+  scoreFormat = "raw",
+  viewFilter = "all",
   selectedEnrollmentIds = [],
   onSelectionChange,
 }, ref) {
@@ -402,6 +408,8 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
           examEditSubjective={examEditSubjective}
           homeworkEdit={homeworkEdit}
           scoreDisplayMode={scoreDisplayMode}
+          scoreFormat={scoreFormat}
+          viewFilter={viewFilter}
           selectedEnrollmentId={selectedEnrollmentId}
           selectedCell={selectedCell}
           onRequestMoveNext={onRequestMoveNext}
@@ -441,8 +449,6 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
           }}
           selectedEnrollmentIds={selectedEnrollmentIds}
           onSelectionChange={onSelectionChange}
-          onOpenOmrModal={handleOpenOmrModal}
-          onReorder={handleReorder}
         />
       </div>
 

@@ -40,6 +40,7 @@ import {
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { asyncStatusStore } from "@/shared/ui/asyncStatus";
 import VideoDetailOverlay from "./VideoDetailOverlay";
+import VideoEditModal from "../components/features/video-detail/modals/VideoEditModal";
 import panelStyles from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
 import styles from "../components/VideoExplorer.module.css";
 
@@ -108,6 +109,7 @@ export default function VideoExplorerPage() {
   const [newFolderName, setNewFolderName] = useState("");
   const [newFolderOpen, setNewFolderOpen] = useState(false);
   const [addChoiceModalOpen, setAddChoiceModalOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<ApiVideo | null>(null);
 
   // Overlay state — driven by ?videoId=N&lectureId=N&sessionId=N search params
   const overlayVideoId = searchParams.get("videoId") ? Number(searchParams.get("videoId")) : null;
@@ -541,6 +543,17 @@ export default function VideoExplorerPage() {
                         <Button
                           intent="ghost"
                           size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditTarget(v);
+                          }}
+                          title="수정"
+                        >
+                          수정
+                        </Button>
+                        <Button
+                          intent="ghost"
+                          size="sm"
                           disabled={deleteVideoMutation.isPending}
                           onClick={(e) => handleDeleteVideo(e, v.id)}
                           title="삭제"
@@ -678,6 +691,15 @@ export default function VideoExplorerPage() {
             }
           />
         </AdminModal>
+      )}
+      {editTarget && (
+        <VideoEditModal
+          open={!!editTarget}
+          onClose={() => setEditTarget(null)}
+          videoId={editTarget.id}
+          initialTitle={editTarget.title}
+          initialOrder={editTarget.order ?? 1}
+        />
       )}
       {isOverlayOpen && (
         <VideoDetailOverlay

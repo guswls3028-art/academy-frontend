@@ -25,6 +25,7 @@ import VideoStudentsSection from "@/features/videos/components/features/video-de
 import VideoEngagementBar from "@/features/videos/components/features/video-detail/components/VideoEngagementBar";
 import AdminCommentSection from "@/features/videos/components/features/video-detail/components/AdminCommentSection";
 import type { TabKey } from "@/features/videos/components/features/video-permission/permission.types";
+import VideoEditModal from "@/features/videos/components/features/video-detail/modals/VideoEditModal";
 
 function formatBytes(b?: number) {
   return b ? `${(Number(b) / 1024 / 1024).toFixed(1)} MB` : "\u2014";
@@ -83,6 +84,7 @@ export default function VideoDetailOverlay({
   const [permissionTab, setPermissionTab] = useState<TabKey>("permission");
   const [selectedEnrollmentId, setSelectedEnrollmentId] = useState<number | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
 
   // Close on Escape
   const handleKeyDown = useCallback(
@@ -259,6 +261,29 @@ export default function VideoDetailOverlay({
                         <span style={{ flex: 1 }} />
                         <button
                           type="button"
+                          onClick={() => setEditOpen(true)}
+                          style={{
+                            fontSize: 12,
+                            fontWeight: 600,
+                            color: "var(--color-text-secondary)",
+                            background: "none",
+                            border: "none",
+                            cursor: "pointer",
+                            padding: "4px 8px",
+                            borderRadius: 6,
+                            transition: "background 0.15s",
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.background = "var(--color-bg-surface-hover)";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = "none";
+                          }}
+                        >
+                          수정
+                        </button>
+                        <button
+                          type="button"
                           onClick={async () => {
                             const ok = await confirm({ title: "삭제 확인", message: "정말 삭제하시겠습니까?", danger: true, confirmText: "삭제" });
                             if (!ok) return;
@@ -425,6 +450,17 @@ export default function VideoDetailOverlay({
                     </section>
                   </div>
                 </div>
+
+                {video && (
+                  <VideoEditModal
+                    open={editOpen}
+                    onClose={() => setEditOpen(false)}
+                    videoId={videoId}
+                    initialTitle={video.title ?? ""}
+                    initialOrder={video.order ?? 1}
+                    sessionId={sessionId}
+                  />
+                )}
 
                 <PermissionModal
                   open={permissionOpen}

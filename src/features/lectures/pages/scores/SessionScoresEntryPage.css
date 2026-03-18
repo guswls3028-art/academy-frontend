@@ -156,11 +156,78 @@
 
 .scores-display-segment__btn[aria-pressed="true"] {
   color: var(--color-text-primary);
-  background: var(--color-bg-surface);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+  background: color-mix(in srgb, var(--color-brand-primary) 20%, var(--color-bg-surface));
+  border: 1px solid var(--color-brand-primary);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-brand-primary) 25%, transparent);
 }
 
 .scores-display-segment__btn:focus-visible {
   outline: none;
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-brand-primary) 35%, transparent);
+}
+
+/* ── 뷰 필터 토글 + 패널 ── */
+.scores-view-filter-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.scores-view-filter-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface);
+  cursor: pointer;
+  user-select: none;
+  transition: background 140ms ease, border-color 140ms ease;
+  align-self: flex-start;
+}
+
+.scores-view-filter-toggle:hover {
+  background: var(--color-bg-surface-hover);
+  border-color: color-mix(in srgb, var(--color-brand-primary) 40%, var(--color-border-divider));
+}
+
+.scores-view-filter-toggle[aria-expanded="true"] {
+  border-color: var(--color-brand-primary);
+  color: var(--color-text-primary);
+}
+
+.scores-view-filter-panel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.scores-view-filter-section {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.scores-view-filter-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.scores-view-filter-divider {
+  width: 1px;
+  height: 20px;
+  background: var(--color-border-divider);
+  flex-shrink: 0;
 }

@@ -17,6 +17,7 @@ import { Button, EmptyState } from "@/shared/ui/ds";
 import { DomainListToolbar } from "@/shared/ui/domain";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useConfirm } from "@/shared/ui/confirm";
+import VideoEditModal from "@/features/videos/components/features/video-detail/modals/VideoEditModal";
 
 /** 유튜브 스타일: 업로드 시각 → "N분 전", "N시간 전", "N일 전" */
 function formatTimeAgo(isoDate: string): string {
@@ -66,6 +67,8 @@ export interface MediaVideo {
   max_speed: number;
   show_watermark: boolean;
 
+  order?: number;
+
   status?: "PENDING" | "UPLOADED" | "PROCESSING" | "READY" | "FAILED";
 
   created_at: string;
@@ -81,6 +84,7 @@ export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
   const qc = useQueryClient();
   const confirm = useConfirm();
   const [showModal, setShowModal] = useState(false);
+  const [editTarget, setEditTarget] = useState<MediaVideo | null>(null);
   const asyncTasks = useAsyncStatus();
 
   const { data: videos = [], isLoading } = useSessionVideos(sessionId);
@@ -248,6 +252,17 @@ export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
           <Button
             intent="ghost"
             size="sm"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setEditTarget(video);
+            }}
+          >
+            수정
+          </Button>
+          <Button
+            intent="ghost"
+            size="sm"
             disabled={deleteMutation.isPending}
             onClick={async (e) => {
               e.preventDefault();
@@ -358,6 +373,17 @@ export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
       </div>
 
       <VideoUploadModal sessionId={sessionId} isOpen={showModal} onClose={() => setShowModal(false)} />
+
+      {editTarget && (
+        <VideoEditModal
+          open={!!editTarget}
+          onClose={() => setEditTarget(null)}
+          videoId={editTarget.id}
+          initialTitle={editTarget.title}
+          initialOrder={(editTarget as any).order ?? 1}
+          sessionId={sessionId}
+        />
+      )}
     </div>
   );
 }

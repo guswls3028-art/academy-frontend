@@ -58,6 +58,10 @@ export default function SessionScoresEntryPage(_props: Props) {
   const [homeworkEdit, setHomeworkEdit] = useState(true);
   /** 읽기 모드에서 시험 점수 표시: 합산(한 칸) | 객관식+주관식(두 칸) */
   const [scoreDisplayMode, setScoreDisplayMode] = useState<"total" | "breakdown">("total");
+  /** 뷰 필터: 시험만/과제만/전체 */
+  const [viewFilter, setViewFilter] = useState<"all" | "exam" | "homework">("all");
+  /** 점수 표시 형식: raw(원점수만) | fraction(50/100) */
+  const [scoreFormat, setScoreFormat] = useState<"raw" | "fraction">("raw");
   const { openSendMessageModal } = useSendMessageModal();
   const panelRef = useRef<SessionScoresPanelHandle>(null);
   const [showBulkScoreModal, setShowBulkScoreModal] = useState(false);
@@ -403,7 +407,7 @@ export default function SessionScoresEntryPage(_props: Props) {
 
   const primaryAction = (
     <div className="flex items-center gap-2">
-      {/* 핵심 액션: 편집 / 인쇄 */}
+      {/* 핵심 액션: 편집 모드 */}
       <Button
         type="button"
         intent="primary"
@@ -428,33 +432,6 @@ export default function SessionScoresEntryPage(_props: Props) {
       >
         {isSaving ? "저장 중…" : isEditMode ? "저장하기" : "편집 모드"}
       </Button>
-      <Button
-        type="button"
-        intent="secondary"
-        size="sm"
-        onClick={() => setShowPrintPreview(true)}
-        title="성적표 PDF 다운로드 (흑백 A4)"
-      >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: 4, display: "inline-block", verticalAlign: "-2px" }}>
-          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-          <polyline points="14 2 14 8 20 8" />
-          <line x1="16" y1="13" x2="8" y2="13" />
-          <line x1="16" y1="17" x2="8" y2="17" />
-        </svg>
-        성적표
-      </Button>
-      <Button
-        type="button"
-        intent="secondary"
-        size="sm"
-        onClick={() => setShowClinicPreview(true)}
-        title="클리닉 대상자 미리보기"
-      >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: 4, display: "inline-block", verticalAlign: "-2px" }}>
-          <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
-        </svg>
-        클리닉
-      </Button>
 
       <Button
         type="button"
@@ -467,7 +444,25 @@ export default function SessionScoresEntryPage(_props: Props) {
         {enrollingAll ? "등록 중…" : "대상자 전원등록"}
       </Button>
 
-      {/* 더보기 메뉴 (덜 쓰는 액션 그룹핑) */}
+      <Button
+        type="button"
+        intent="secondary"
+        size="sm"
+        onClick={() => { setShowCreateExam(true); }}
+      >
+        시험 추가
+      </Button>
+
+      <Button
+        type="button"
+        intent="secondary"
+        size="sm"
+        onClick={() => { setShowCreateHomework(true); }}
+      >
+        과제 추가
+      </Button>
+
+      {/* 더보기 메뉴 */}
       <div ref={moreMenuRef} className="relative">
         <Button
           type="button"
@@ -484,11 +479,11 @@ export default function SessionScoresEntryPage(_props: Props) {
           <div
             className="absolute right-0 top-full mt-1 z-50 bg-[var(--color-bg-surface)] border border-[var(--color-border-divider)] rounded-lg shadow-lg py-1 min-w-[180px]"
           >
-            <button type="button" className="w-full text-left px-4 py-2 text-sm hover:bg-[var(--color-bg-surface-hover)] flex items-center gap-2" onClick={() => { setShowCreateExam(true); setShowMoreMenu(false); }}>
-              <span className="text-[var(--color-text-muted)]">+</span> 시험 추가
+            <button type="button" className="w-full text-left px-4 py-2 text-sm hover:bg-[var(--color-bg-surface-hover)] flex items-center gap-2" onClick={() => { setShowPrintPreview(true); setShowMoreMenu(false); }}>
+              성적표 출력
             </button>
-            <button type="button" className="w-full text-left px-4 py-2 text-sm hover:bg-[var(--color-bg-surface-hover)] flex items-center gap-2" onClick={() => { setShowCreateHomework(true); setShowMoreMenu(false); }}>
-              <span className="text-[var(--color-text-muted)]">+</span> 과제 추가
+            <button type="button" className="w-full text-left px-4 py-2 text-sm hover:bg-[var(--color-bg-surface-hover)] flex items-center gap-2" onClick={() => { setShowClinicPreview(true); setShowMoreMenu(false); }}>
+              클리닉 대상 보기
             </button>
             <div className="border-t border-[var(--color-border-divider)] my-1" />
             <button type="button" className="w-full text-left px-4 py-2 text-sm text-[var(--color-error)] hover:bg-[var(--color-bg-surface-hover)]" disabled={closingExams} onClick={() => { void handleCloseAllExams(); setShowMoreMenu(false); }}>
@@ -578,83 +573,48 @@ export default function SessionScoresEntryPage(_props: Props) {
         </div>
       )}
 
-      {isEditMode && (
-        <div className="scores-edit-bar">
-          <span className="scores-edit-bar__label">편집 항목</span>
-          <div className="scores-edit-bar__group" role="group" aria-label="빠른 선택">
-            <button
-              type="button"
-              onClick={setPresetTotalHw}
-              className="scores-edit-segment__btn scores-edit-segment__btn--wide"
-              aria-pressed={examEditTotal && homeworkEdit && !examEditSubjective}
-            >
-              합산 + 과제
-            </button>
-            <button
-              type="button"
-              onClick={setPresetSubjectiveHw}
-              className="scores-edit-segment__btn scores-edit-segment__btn--wide"
-              aria-pressed={examEditSubjective && homeworkEdit && !examEditTotal}
-            >
-              주관식만 + 과제
-            </button>
+      {/* 설정 바 — 읽기 모드: 표시 설정 / 편집 모드: 편집 항목. 높이 고정으로 테이블 위치 불변 */}
+      <div className="scores-view-filter-panel">
+        {isEditMode ? (
+          <div className="scores-view-filter-section">
+            <span className="scores-view-filter-label">편집 항목</span>
+            <div className="scores-display-segment" role="group" aria-label="편집 항목 선택">
+              <button type="button" onClick={setPresetTotalHw} className="scores-display-segment__btn" aria-pressed={examEditTotal && homeworkEdit && !examEditSubjective}>합산+과제</button>
+              <button type="button" onClick={setPresetSubjectiveHw} className="scores-display-segment__btn" aria-pressed={examEditSubjective && homeworkEdit && !examEditTotal}>주관식+과제</button>
+              <button type="button" onClick={handleSelectTotal} className="scores-display-segment__btn" aria-pressed={examEditTotal && !homeworkEdit}>합산</button>
+              <button type="button" onClick={handleSelectSubjective} className="scores-display-segment__btn" aria-pressed={examEditSubjective && !homeworkEdit}>주관식</button>
+              <button type="button" onClick={handleSelectHomework} className="scores-display-segment__btn" aria-pressed={homeworkEdit && !examEditTotal && !examEditSubjective}>과제</button>
+            </div>
           </div>
-          <span className="scores-edit-bar__divider" aria-hidden="true">|</span>
-          <div className="scores-edit-bar__group" role="group" aria-label="시험">
-            <button
-              type="button"
-              onClick={handleSelectTotal}
-              className="scores-edit-segment__btn"
-              aria-pressed={examEditTotal}
-            >
-              합산
-            </button>
-            <button
-              type="button"
-              onClick={handleSelectSubjective}
-              className="scores-edit-segment__btn"
-              aria-pressed={examEditSubjective}
-            >
-              주관식만
-            </button>
-          </div>
-          <span className="scores-edit-bar__divider" aria-hidden="true">|</span>
-          <div className="scores-edit-bar__group" role="group" aria-label="과제">
-            <button
-              type="button"
-              onClick={handleSelectHomework}
-              className="scores-edit-segment__btn"
-              aria-pressed={homeworkEdit}
-            >
-              과제
-            </button>
-          </div>
-        </div>
-      )}
-
-      {!isEditMode && (
-        <div className="scores-display-bar">
-          <span className="scores-display-bar__label">시험 점수 표시</span>
-          <div className="scores-display-segment" role="group" aria-label="시험 점수 표시 방식">
-            <button
-              type="button"
-              onClick={() => setScoreDisplayMode("total")}
-              className="scores-display-segment__btn"
-              aria-pressed={scoreDisplayMode === "total"}
-            >
-              합산
-            </button>
-            <button
-              type="button"
-              onClick={() => setScoreDisplayMode("breakdown")}
-              className="scores-display-segment__btn"
-              aria-pressed={scoreDisplayMode === "breakdown"}
-            >
-              객관식 + 주관식
-            </button>
-          </div>
-        </div>
-      )}
+        ) : (
+          <>
+            <div className="scores-view-filter-section">
+              <span className="scores-view-filter-label">보기</span>
+              <div className="scores-display-segment" role="group" aria-label="컬럼 필터">
+                <button type="button" onClick={() => setViewFilter("all")} className="scores-display-segment__btn" aria-pressed={viewFilter === "all"}>전체</button>
+                <button type="button" onClick={() => setViewFilter("exam")} className="scores-display-segment__btn" aria-pressed={viewFilter === "exam"}>시험만</button>
+                <button type="button" onClick={() => setViewFilter("homework")} className="scores-display-segment__btn" aria-pressed={viewFilter === "homework"}>과제만</button>
+              </div>
+            </div>
+            {viewFilter !== "homework" && (
+              <div className="scores-view-filter-section">
+                <span className="scores-view-filter-label">시험 점수</span>
+                <div className="scores-display-segment" role="group" aria-label="시험 점수 표시 방식">
+                  <button type="button" onClick={() => setScoreDisplayMode("total")} className="scores-display-segment__btn" aria-pressed={scoreDisplayMode === "total"}>합산</button>
+                  <button type="button" onClick={() => setScoreDisplayMode("breakdown")} className="scores-display-segment__btn" aria-pressed={scoreDisplayMode === "breakdown"}>객관식 + 주관식</button>
+                </div>
+              </div>
+            )}
+            <div className="scores-view-filter-section">
+              <span className="scores-view-filter-label">점수 표시</span>
+              <div className="scores-display-segment" role="group" aria-label="점수 표시 형식">
+                <button type="button" onClick={() => setScoreFormat("raw")} className="scores-display-segment__btn" aria-pressed={scoreFormat === "raw"}>원점수</button>
+                <button type="button" onClick={() => setScoreFormat("fraction")} className="scores-display-segment__btn" aria-pressed={scoreFormat === "fraction"}>만점 표기</button>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
 
       {isLoading && (
         <EmptyState scope="panel" tone="loading" title="성적 불러오는 중…" />
@@ -685,6 +645,8 @@ export default function SessionScoresEntryPage(_props: Props) {
           examEditSubjective={examEditSubjective}
           homeworkEdit={homeworkEdit}
           scoreDisplayMode={scoreDisplayMode}
+          scoreFormat={scoreFormat}
+          viewFilter={viewFilter}
           selectedEnrollmentIds={selectedEnrollmentIds}
           onSelectionChange={setSelectedEnrollmentIds}
         />

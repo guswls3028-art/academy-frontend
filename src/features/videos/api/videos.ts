@@ -324,6 +324,14 @@ export async function renameVideo(videoId: number, title: string): Promise<Video
   return normalizeVideo(res.data);
 }
 
+export async function updateVideo(
+  videoId: number,
+  data: { title?: string; order?: number; allow_skip?: boolean; max_speed?: number; show_watermark?: boolean }
+): Promise<Video> {
+  const res = await api.patch(`/media/videos/${videoId}/`, data);
+  return normalizeVideo(res.data);
+}
+
 export async function deleteVideo(videoId: number): Promise<void> {
   try {
     await api.delete(`/media/videos/${videoId}/`);

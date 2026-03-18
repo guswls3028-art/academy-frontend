@@ -2,8 +2,10 @@
 /**
  * 성적 탭 메인 테이블 — 동적 컬럼 구조 (SSOT·UX 설계 문서 준수)
  * - 기본 Read-only, Edit Mode 시에만 입력
- * - 3행 헤더: Row1 그룹 | Row2 시험명/과제명 | Row3 점수/합불
+ * - 2행 헤더: Row1 그룹 헤더(rowSpan=2 고정 컬럼 + colSpan 시험/과제 그룹) | Row2 서브헤더(점수/합불)
  * - 시험/과제 컬럼: exam.title, homework.title 기반 1:1, 서브컬럼 score / pass_fail
+ * - 셀 패딩은 table.css의 .ds-scores-table 규칙으로 제어, 인라인 패딩 없음
+ * - data-col-type / data-group-start / data-section-start 속성으로 CSS 타겟팅
  * - 디자인 토큰만 사용, DomainTable 기반
  */
 
@@ -32,13 +34,13 @@ import AttendanceStatusBadge, {
 import { feedback } from "@/shared/ui/feedback/feedback";
 
 /** 컬럼 기본 너비 — 설계 문서 12️⃣ */
-const COL_EDIT = 44;
-const COL_NAME = 120;
-const COL_ATTENDANCE = 56;
-const COL_SCORE = 84;
-const COL_PASS = 64;
-const COL_CLINIC_TARGET = 80;
-const COL_REASON = 180;
+const COL_EDIT = 36;
+const COL_NAME = 88;
+const COL_ATTENDANCE = 32;
+const COL_SCORE = 68;
+const COL_PASS = 32;
+const COL_CLINIC_TARGET = 52;
+const COL_REASON = 52;
 
 
 function parseScoreInput(input: string, maxScore?: number | null): number | null {
@@ -64,16 +66,6 @@ function validateScore(value: number, maxScore?: number | null): boolean {
 
 function firstLine(text: string): string {
   return String(text ?? "").split("\n")[0]?.trim() ?? "";
-}
-
-/** 시험 헤더용 OMR 아이콘 — 클릭 시 OMR 업로드 모달 */
-function OmrIcon({ className, size = 18 }: { className?: string; size?: number }) {
-  return (
-    <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <path d="M9 11l3 3L22 4" />
-      <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
-    </svg>
-  );
 }
 
 /** 셀 키 생성 — pending/dirty 맵 키와 ref 키 일치 */
@@ -256,6 +248,10 @@ type Props = {
   homeworkEdit?: boolean;
   /** 읽기 모드 시험 표시: 합산(한 칸) | 객관식+주관식(두 칸) */
   scoreDisplayMode?: "total" | "breakdown";
+  /** 점수 표시 형식: raw(원점수) | fraction(50/100) */
+  scoreFormat?: "raw" | "fraction";
+  /** 뷰 필터: 시험만/과제만/전체 */
+  viewFilter?: "all" | "exam" | "homework";
 
   selectedEnrollmentId: number | null;
   selectedCell?: ({ enrollmentId: number } & (
@@ -275,11 +271,6 @@ type Props = {
   selectedEnrollmentIds?: number[];
   onSelectionChange?: (enrollmentIds: number[]) => void;
 
-  /** 시험 컬럼 헤더에서 OMR 업로드 모달 열기 */
-  onOpenOmrModal?: (examId: number, title: string) => void;
-
-  /** 시험/과제 표시 순서 변경 */
-  onReorder?: (type: "exam" | "homework", id: number, direction: "up" | "down") => void;
 };
 
 const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
@@ -295,6 +286,8 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
   examEditSubjective = false,
   homeworkEdit = false,
   scoreDisplayMode = "total",
+  scoreFormat = "raw",
+  viewFilter = "all",
   selectedEnrollmentId,
   selectedCell = null,
   onSelectCell,
@@ -305,8 +298,6 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
   onRequestMoveUp,
   selectedEnrollmentIds = [],
   onSelectionChange,
-  onOpenOmrModal,
-  onReorder,
 }: Props, ref) {
   const qc = useQueryClient();
   const homeworkInputRefs = useRef<Record<string, HTMLSpanElement | null>>({});
@@ -387,8 +378,8 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
     }
   }, []);
 
-  const examOptions = meta?.exams ?? [];
-  const homeworkOptions = meta?.homeworks ?? [];
+  const examOptions = viewFilter === "homework" ? [] : (meta?.exams ?? []);
+  const homeworkOptions = viewFilter === "exam" ? [] : (meta?.homeworks ?? []);
 
   /** 편집 모드 시 점수 셀 동기화: 포커스 아닐 때만 서버 값으로 contenteditable 텍스트 갱신 (pending 셀은 건드리지 않음) */
   useEffect(() => {
@@ -501,35 +492,29 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
     applyDraftPatch,
   }), [selectAllScoreCell, flushPendingChanges, getPendingSnapshot, applyDraftPatch]);
 
+  /**
+   * 컬럼 구조는 모드와 무관하게 항상 동일.
+   * scoreDisplayMode로 표시 형태만 결정, isEditMode로 editable 플래그만 결정.
+   * → 모드 전환 시 테이블 레이아웃 안 흔들림.
+   */
   const columns = useMemo((): ScoreColumnDef[] => {
     const list: ScoreColumnDef[] = [
       { type: "name", key: "name", width: COL_NAME, editable: false },
       { type: "attendance", key: "attendance", width: COL_ATTENDANCE, editable: false },
     ];
     examOptions.forEach((e) => {
-      const questions = (e as { questions?: { question_id: number; number: number; max_score: number }[] }).questions ?? [];
-      if (isEditMode) {
-        if (examEditTotal) list.push({ type: "exam", examId: e.exam_id, title: e.title, sub: "total", key: `exam_${e.exam_id}_total`, width: COL_SCORE, editable: true });
-        if (examEditObjective) list.push({ type: "exam", examId: e.exam_id, title: e.title, sub: "objective", key: `exam_${e.exam_id}_objective`, width: COL_SCORE, editable: true });
-        if (examEditSubjective) {
-          list.push({ type: "exam", examId: e.exam_id, title: e.title, sub: "subjective", key: `exam_${e.exam_id}_subjective`, width: COL_SCORE, editable: true });
-        }
-        list.push({ type: "exam", examId: e.exam_id, title: e.title, sub: "pass", key: `exam_${e.exam_id}_pass`, width: COL_PASS, editable: false });
+      if (scoreDisplayMode === "total") {
+        list.push({ type: "exam", examId: e.exam_id, title: e.title, sub: "total", key: `exam_${e.exam_id}_total`, width: COL_SCORE, editable: isEditMode && examEditTotal });
       } else {
-        if (scoreDisplayMode === "total") {
-          list.push({ type: "exam", examId: e.exam_id, title: e.title, sub: "total", key: `exam_${e.exam_id}_score`, width: COL_SCORE, editable: false });
-          list.push({ type: "exam", examId: e.exam_id, title: e.title, sub: "pass", key: `exam_${e.exam_id}_pass`, width: COL_PASS, editable: false });
-        } else {
-          list.push({ type: "exam", examId: e.exam_id, title: e.title, sub: "objective", key: `exam_${e.exam_id}_objective`, width: COL_SCORE, editable: false });
-          list.push({ type: "exam", examId: e.exam_id, title: e.title, sub: "subjective", key: `exam_${e.exam_id}_subjective`, width: COL_SCORE, editable: false });
-          list.push({ type: "exam", examId: e.exam_id, title: e.title, sub: "pass", key: `exam_${e.exam_id}_pass`, width: COL_PASS, editable: false });
-        }
+        list.push({ type: "exam", examId: e.exam_id, title: e.title, sub: "objective", key: `exam_${e.exam_id}_objective`, width: COL_SCORE, editable: isEditMode && examEditObjective });
+        list.push({ type: "exam", examId: e.exam_id, title: e.title, sub: "subjective", key: `exam_${e.exam_id}_subjective`, width: COL_SCORE, editable: isEditMode && examEditSubjective });
       }
+      list.push({ type: "exam", examId: e.exam_id, title: e.title, sub: "pass", key: `exam_${e.exam_id}_pass`, width: COL_PASS, editable: false });
     });
     if (examOptions.length > 0) {
       list.push(
-        { type: "exam_summary", sub: "score", key: "exam_summary_score", width: COL_SCORE + 20, editable: false },
-        { type: "exam_summary", sub: "pass", key: "exam_summary_pass", width: COL_PASS, editable: false }
+        { type: "exam_summary", sub: "score", key: "exam_summary_score", width: 96, editable: false },
+        { type: "exam_summary", sub: "pass", key: "exam_summary_pass", width: 32, editable: false }
       );
     }
     homeworkOptions.forEach((h) => {
@@ -601,38 +586,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
       </colgroup>
 
       <thead>
-        {/* Row0: OMR 업로드 아이콘 — 시험 컬럼 위에만 배치 */}
-        {onOpenOmrModal && examOptions.length > 0 && (
-          <tr className="border-b border-[var(--color-border-divider)] bg-[var(--color-bg-surface-hover)]">
-            <td colSpan={3} className="py-1 px-2 align-middle border-r-2 border-[var(--color-border-divider)]" />
-            {examOptions.map((ex) => {
-              const examColsList = examColsMap[ex.exam_id] ?? [];
-              const colSpan = examColsList.length || 1;
-              return (
-                <td
-                  key={`omr-exam-${ex.exam_id}`}
-                  colSpan={colSpan}
-                  className="py-1 px-2 align-middle text-center"
-                >
-                  <button
-                    type="button"
-                    onClick={() => onOpenOmrModal(ex.exam_id, ex.title ?? "")}
-                    className="inline-flex items-center justify-center gap-1.5 w-auto min-w-[7rem] h-7 rounded border-0 text-[var(--color-text-muted)] hover:text-[var(--color-brand-primary)] hover:bg-[var(--color-bg-surface)]"
-                    title={`OMR 스캔 업로드 — ${ex.title ?? ""}`}
-                    aria-label={`${ex.title ?? "시험"} OMR 업로드`}
-                  >
-                    <OmrIcon size={16} />
-                    <span>omr업로드</span>
-                  </button>
-                </td>
-              );
-            })}
-            {examOptions.length > 0 && <td colSpan={2} className="py-1 px-2" />}
-            <td colSpan={homeworkOptions.length * 2} className="py-1 px-2" />
-            <td colSpan={2} className="py-1 px-2" />
-          </tr>
-        )}
-        {/* Row1: 선택 | 이름 | 출석 | [시험 뱃지] 시험이름 (colSpan=2) 반복 | [과제 뱃지] 과제이름 (colSpan=2) 반복 | 클리닉 | 사유 — flat 스타일(students와 동일) */}
+        {/* Row1: 선택 | 이름 | 출석 | [시험 뱃지] 시험이름 | [과제 뱃지] 과제이름 | 클리닉 | 사유 */}
         <tr className="border-b border-[var(--color-border-divider)]">
           <ResizableTh
             columnKey="select"
@@ -671,7 +625,8 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
             maxWidth={400}
             onWidthChange={setColumnWidth}
             rowSpan={2}
-            className="text-center font-semibold text-[var(--color-text-primary)] py-2.5 px-3 border-l-2 border-[var(--color-border-divider)]"
+            className="text-center font-semibold text-[var(--color-text-primary)]"
+            data-col-type="name"
           >
             이름
           </ResizableTh>
@@ -682,7 +637,8 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
             maxWidth={120}
             onWidthChange={setColumnWidth}
             rowSpan={2}
-            className="text-center font-semibold text-[var(--color-text-primary)] py-2.5 px-3"
+            className="text-center font-semibold text-[var(--color-text-primary)]"
+            data-col-type="attendance"
           >
             출석
           </ResizableTh>
@@ -694,24 +650,14 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                 key={`head-exam-${ex.exam_id}`}
                 scope="col"
                 colSpan={colSpan}
-                className="group text-center font-medium text-[var(--color-text-primary)] py-2 px-3 truncate"
+                className="group text-center font-medium text-[var(--color-text-primary)] whitespace-nowrap"
                 title={ex.title}
+                data-col-type="score"
+                data-group-start=""
               >
                 <span className="inline-flex items-center gap-1">
-                  <span className="ds-status-badge ds-status-badge--1ch" data-tone="primary" aria-label="시험">
-                    시
-                  </span>
+                  <span className="ds-status-badge ds-status-badge--1ch" data-tone="primary" aria-label="시험">시</span>
                   <span className="truncate">{ex.title}</span>
-                  {onReorder && examOptions.length > 1 && (
-                    <span className="inline-flex items-center gap-0 ml-auto flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" style={{ opacity: undefined }}>
-                      <button type="button" disabled={idx === 0} onClick={(e) => { e.stopPropagation(); onReorder("exam", ex.exam_id, "up"); }} className="p-0.5 rounded hover:bg-[var(--color-bg-surface-hover)] text-[var(--color-text-muted)] hover:text-[var(--color-brand-primary)] disabled:opacity-20 disabled:pointer-events-none" aria-label="왼쪽으로" title="왼쪽으로">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
-                      </button>
-                      <button type="button" disabled={idx === examOptions.length - 1} onClick={(e) => { e.stopPropagation(); onReorder("exam", ex.exam_id, "down"); }} className="p-0.5 rounded hover:bg-[var(--color-bg-surface-hover)] text-[var(--color-text-muted)] hover:text-[var(--color-brand-primary)] disabled:opacity-20 disabled:pointer-events-none" aria-label="오른쪽으로" title="오른쪽으로">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
-                      </button>
-                    </span>
-                  )}
                 </span>
               </th>
             );
@@ -720,10 +666,11 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
             <th
               scope="col"
               colSpan={2}
-              className="text-center font-medium text-[var(--color-text-primary)] py-2 px-3"
+              className="text-center font-medium text-[var(--color-text-primary)]"
+              data-col-type="exam-summary"
             >
-              <span className="inline-flex items-center gap-1">
-                <span className="text-xs font-bold text-[var(--color-brand-primary)]">Σ</span>
+              <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                <span className="ds-status-badge ds-status-badge--1ch" data-tone="primary" aria-label="총점">Σ</span>
                 <span>총점</span>
               </span>
             </th>
@@ -733,24 +680,14 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
               key={`head-hw-${hw.homework_id}`}
               scope="col"
               colSpan={2}
-              className={`group text-center font-medium text-[var(--color-text-primary)] py-2 px-3 truncate${idx === 0 ? " border-l-2 border-[var(--color-border-divider)]" : ""}`}
+              className="group text-center font-medium text-[var(--color-text-primary)] whitespace-nowrap"
               title={hw.title}
+              data-col-type="score"
+              {...(idx === 0 ? { "data-section-start": "" } : {})}
             >
               <span className="inline-flex items-center gap-1">
-                <span className="ds-status-badge ds-status-badge--1ch" data-tone="complement" aria-label="과제">
-                  과
-                </span>
+                <span className="ds-status-badge ds-status-badge--1ch" data-tone="complement" aria-label="과제">과</span>
                 <span className="truncate">{hw.title}</span>
-                {onReorder && homeworkOptions.length > 1 && (
-                  <span className="inline-flex items-center gap-0 ml-auto flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" style={{ opacity: undefined }}>
-                    <button type="button" disabled={idx === 0} onClick={(e) => { e.stopPropagation(); onReorder("homework", hw.homework_id, "up"); }} className="p-0.5 rounded hover:bg-[var(--color-bg-surface-hover)] text-[var(--color-text-muted)] hover:text-[var(--color-brand-primary)] disabled:opacity-20 disabled:pointer-events-none" aria-label="왼쪽으로" title="왼쪽으로">
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
-                    </button>
-                    <button type="button" disabled={idx === homeworkOptions.length - 1} onClick={(e) => { e.stopPropagation(); onReorder("homework", hw.homework_id, "down"); }} className="p-0.5 rounded hover:bg-[var(--color-bg-surface-hover)] text-[var(--color-text-muted)] hover:text-[var(--color-brand-primary)] disabled:opacity-20 disabled:pointer-events-none" aria-label="오른쪽으로" title="오른쪽으로">
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
-                    </button>
-                  </span>
-                )}
               </span>
             </th>
           ))}
@@ -761,18 +698,20 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
             maxWidth={140}
             onWidthChange={setColumnWidth}
             rowSpan={2}
-            className="text-center font-semibold text-[var(--color-text-primary)] py-2.5 px-3"
+            className="text-center font-semibold text-[var(--color-text-primary)]"
+            data-col-type="clinic"
           >
             판정
           </ResizableTh>
           <ResizableTh
             columnKey="clinic_reason"
             width={columnWidths.clinic_reason ?? COL_REASON}
-            minWidth={140}
-            maxWidth={400}
+            minWidth={52}
+            maxWidth={200}
             onWidthChange={setColumnWidth}
             rowSpan={2}
-            className="text-center font-semibold text-[var(--color-text-primary)] py-2.5 px-3 min-w-0"
+            className="text-center font-semibold text-[var(--color-text-primary)] min-w-0"
+            data-col-type="clinic"
           >
             사유
           </ResizableTh>
@@ -784,12 +723,14 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
             const questions = (ex as { questions?: { question_id: number; number: number }[] }).questions ?? [];
             return (
               <Fragment key={ex.exam_id}>
-                {examColsList.map((c) => (
+                {examColsList.map((c, ci) => (
                   <th
                     key={c.key}
                     scope="col"
-                    className="text-center text-xs font-medium text-[var(--color-text-secondary)] py-2 px-3"
-                    style={{ width: c.sub === "pass" ? COL_PASS : COL_SCORE, minWidth: 48 }}
+                    className="text-center text-xs font-medium text-[var(--color-text-secondary)]"
+                    data-col-type={c.sub === "pass" ? "pass" : "score"}
+                    {...(ci === 0 ? { "data-group-start": "" } : {})}
+                    style={{ width: c.sub === "pass" ? COL_PASS : COL_SCORE, minWidth: c.sub === "pass" ? 28 : 48 }}
                   >
                     {c.sub === "total" ? "합산" : c.sub === "objective" ? "객관식" : c.sub === "subjective" ? "주관식" : c.sub === "item" && c.questionId != null
                       ? `${questions.find((q) => q.question_id === c.questionId)?.number ?? c.questionId}번`
@@ -803,15 +744,18 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
             <>
               <th
                 scope="col"
-                className="text-center text-xs font-medium text-[var(--color-text-secondary)] py-2 px-3"
-                style={{ width: columnWidths.exam_summary_score ?? COL_SCORE + 20, minWidth: 48 }}
+                className="text-center text-xs font-medium text-[var(--color-text-secondary)]"
+                data-col-type="exam-summary"
+                style={{ width: columnWidths.exam_summary_score ?? 96, minWidth: 72 }}
               >
                 점수
               </th>
               <th
                 scope="col"
-                className="text-center text-xs font-medium text-[var(--color-text-secondary)] py-2 px-3"
-                style={{ width: columnWidths.exam_summary_pass ?? COL_PASS, minWidth: 48 }}
+                className="text-center text-xs font-medium text-[var(--color-text-secondary)]"
+                data-col-type="pass"
+                data-summary=""
+                style={{ width: columnWidths.exam_summary_pass ?? 32, minWidth: 28 }}
               >
                 합불
               </th>
@@ -821,7 +765,9 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
             <Fragment key={hw.homework_id}>
               <th
                 scope="col"
-                className={`text-center text-xs font-medium text-[var(--color-text-secondary)] py-2 px-3${hwIdx === 0 ? " border-l-2 border-[var(--color-border-divider)]" : ""}`}
+                className="text-center text-xs font-medium text-[var(--color-text-secondary)]"
+                data-col-type="score"
+                {...(hwIdx === 0 ? { "data-section-start": "" } : {})}
                 style={{
                   width: columnWidths[`hw_${hw.homework_id}_score`] ?? COL_SCORE,
                   minWidth: 48,
@@ -832,7 +778,8 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
               </th>
               <th
                 scope="col"
-                className="text-center text-xs font-medium text-[var(--color-text-secondary)] py-2 px-3"
+                className="text-center text-xs font-medium text-[var(--color-text-secondary)]"
+                data-col-type="pass"
                 style={{
                   width: columnWidths[`hw_${hw.homework_id}_pass`] ?? COL_PASS,
                   minWidth: 48,
@@ -862,7 +809,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                 className={`cursor-pointer focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-[var(--color-brand-primary)] ${selected ? "ds-row-selected" : ""} ${rowChecked ? "ds-scores-table-row--checked" : ""} hover:bg-[var(--color-bg-surface-hover)] ${isEvenRow ? "ds-scores-table-row--alt" : ""}`}
               >
                 <td
-                  className="ds-checkbox-cell align-middle py-2.5 px-3 border-r-2 border-[var(--color-border-divider)] bg-[var(--color-bg-surface-hover)]"
+                  className="ds-checkbox-cell align-middle border-r-2 border-[var(--color-border-divider)] bg-[var(--color-bg-surface-hover)]"
                   onClick={(e) => e.stopPropagation()}
                 >
                   {onSelectionChange ? (
@@ -887,7 +834,8 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                 </td>
 
                 <td
-                  className="font-semibold min-w-0 text-[var(--color-text-primary)] py-2.5 px-3 align-middle border-l-2 border-[var(--color-border-divider)]"
+                  className="font-semibold min-w-0 text-[var(--color-text-primary)] align-middle"
+                  data-col-type="name"
                   onClick={() => onSelectRow(row)}
                 >
                   <StudentNameWithLectureChip
@@ -904,7 +852,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                   />
                 </td>
 
-                <td className="text-center py-2.5 px-1 align-middle">
+                <td className="text-center align-middle" data-col-type="attendance">
                   {(() => {
                     const status = attendanceMap[row.enrollment_id];
                     if (!status) return <span className="text-[var(--color-text-muted)]">-</span>;
@@ -924,13 +872,15 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                   const notEnrolledForExam = !entry;
                   return (
                     <Fragment key={ex.exam_id}>
-                      {examColsList.map((col) => {
+                      {examColsList.map((col, colIdx) => {
                         /* 시험 대상 미등록 → 회색 비활성 셀 */
                         if (notEnrolledForExam) {
                           return (
                             <td
                               key={col.key}
-                              className="min-w-0 align-middle py-2.5 px-3 bg-[var(--color-bg-surface-hover)]"
+                              className="min-w-0 align-middle bg-[var(--color-bg-surface-hover)]"
+                              data-col-type={col.sub === "pass" ? "pass" : "score"}
+                              {...(colIdx === 0 ? { "data-group-start": "" } : {})}
                             >
                               <span className="text-[var(--color-text-muted)] select-none">-</span>
                             </td>
@@ -945,19 +895,22 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
 
                         if (col.sub === "pass") {
                           return (
-                            <td key={col.key} className="min-w-0 text-center align-middle py-2.5 px-3" onClick={(e) => { if (isEditMode) e.stopPropagation(); onSelectCell(row, "exam", ex.exam_id); }}>
+                            <td key={col.key} data-col-type="pass" className="min-w-0 text-center align-middle" {...(colIdx === 0 ? { "data-group-start": "" } : {})} onClick={(e) => { if (isEditMode) e.stopPropagation(); onSelectCell(row, "exam", ex.exam_id); }}>
                               <PassFailText passed={block?.passed} />
                             </td>
                           );
                         }
 
                         if (col.sub === "total") {
-                          const scoreText = block?.score == null ? "-" : `${Math.round(block.score)}`;
+                          const examMaxScore = block?.max_score ?? ex.max_score ?? null;
+                          const scoreText = block?.score == null ? "-" : scoreFormat === "fraction" && examMaxScore != null ? `${Math.round(block.score)}/${examMaxScore}` : `${Math.round(block.score)}`;
                           const canEdit = isEditMode && examEditTotal && !block?.is_locked;
                           return (
                             <td
                               key={col.key}
-                              className={`min-w-0 text-center align-middle py-2.5 px-3 ${isSelected ? "outline-2 outline-[var(--color-brand-primary)] outline-offset-[-2px]" : ""} ${isEditMode ? "hover:bg-[var(--color-bg-surface-hover)]" : ""}`}
+                              data-col-type="score"
+                              {...(colIdx === 0 ? { "data-group-start": "" } : {})}
+                              className={`min-w-0 text-center align-middle ${isSelected ? "outline-2 outline-[var(--color-brand-primary)] outline-offset-[-2px]" : ""} ${isEditMode ? "hover:bg-[var(--color-bg-surface-hover)]" : ""}`}
                               onClick={(e) => { if (isEditMode) e.stopPropagation(); onSelectCell(row, "exam", ex.exam_id, "total"); }}
                             >
                               {canEdit ? (
@@ -1021,7 +974,9 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                           return (
                             <td
                               key={col.key}
-                              className={`min-w-0 text-center align-middle py-2.5 px-3 ${isSelected ? "outline-2 outline-[var(--color-brand-primary)] outline-offset-[-2px]" : ""} ${isEditMode ? "hover:bg-[var(--color-bg-surface-hover)]" : ""}`}
+                              data-col-type="score"
+                              {...(colIdx === 0 ? { "data-group-start": "" } : {})}
+                              className={`min-w-0 text-center align-middle ${isSelected ? "outline-2 outline-[var(--color-brand-primary)] outline-offset-[-2px]" : ""} ${isEditMode ? "hover:bg-[var(--color-bg-surface-hover)]" : ""}`}
                               onClick={(e) => { if (isEditMode) e.stopPropagation(); onSelectCell(row, "exam", ex.exam_id, "objective"); }}
                             >
                               {canEdit ? (
@@ -1085,7 +1040,9 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                           return (
                             <td
                               key={col.key}
-                              className={`min-w-0 text-center align-middle py-2.5 px-3 ${isSelected ? "outline-2 outline-[var(--color-brand-primary)] outline-offset-[-2px]" : ""} ${isEditMode ? "hover:bg-[var(--color-bg-surface-hover)]" : ""}`}
+                              data-col-type="score"
+                              {...(colIdx === 0 ? { "data-group-start": "" } : {})}
+                              className={`min-w-0 text-center align-middle ${isSelected ? "outline-2 outline-[var(--color-brand-primary)] outline-offset-[-2px]" : ""} ${isEditMode ? "hover:bg-[var(--color-bg-surface-hover)]" : ""}`}
                               onClick={(e) => { if (isEditMode) e.stopPropagation(); onSelectCell(row, "exam", ex.exam_id, "subjective"); }}
                             >
                               {canEdit ? (
@@ -1151,7 +1108,9 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                           return (
                             <td
                               key={col.key}
-                              className={`min-w-0 text-center align-middle py-2.5 px-3 ${isSelected ? "outline-2 outline-[var(--color-brand-primary)] outline-offset-[-2px]" : ""}`}
+                              data-col-type="score"
+                              {...(colIdx === 0 ? { "data-group-start": "" } : {})}
+                              className={`min-w-0 text-center align-middle ${isSelected ? "outline-2 outline-[var(--color-brand-primary)] outline-offset-[-2px]" : ""}`}
                               onClick={(e) => { if (isEditMode) e.stopPropagation(); onSelectCell(row, "exam", ex.exam_id, col.questionId); }}
                             >
                               {canEdit ? (
@@ -1202,12 +1161,12 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                   }
                   return (
                     <>
-                      <td className="min-w-0 text-center align-middle py-2.5 px-3">
+                      <td className="min-w-0 text-center align-middle" data-col-type="exam-summary">
                         <span className="font-bold text-[var(--color-text-primary)] tabular-nums">
                           {hasAnyScore ? `${totalScore}/${totalMaxScore}` : "-"}
                         </span>
                       </td>
-                      <td className="min-w-0 text-center align-middle py-2.5 px-3">
+                      <td className="min-w-0 text-center align-middle" data-col-type="pass" data-summary="">
                         {allPassed != null ? <PassFailText passed={allPassed} /> : null}
                       </td>
                     </>
@@ -1230,22 +1189,24 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                   const canEditScore = isEditMode && homeworkEdit && !notEnrolledForHw;
                   const isNotSubmitted = block?.meta?.status === "NOT_SUBMITTED";
 
-                  const hwBorderL = hwBodyIdx === 0 ? " border-l-2 border-[var(--color-border-divider)]" : "";
+                  // border는 CSS data-section-start로 처리
                   return (
                     <Fragment key={hw.homework_id}>
                       {notEnrolledForHw ? (
                         <>
-                          <td className={`min-w-0 align-middle py-2.5 px-3 bg-[var(--color-bg-surface-hover)]${hwBorderL}`}>
+                          <td className={`min-w-0 align-middle bg-[var(--color-bg-surface-hover)]`} data-col-type="score" {...(hwBodyIdx === 0 ? { "data-section-start": "" } : {})}>
                             <span className="text-[var(--color-text-muted)] select-none">-</span>
                           </td>
-                          <td className="min-w-0 align-middle py-2.5 px-3 bg-[var(--color-bg-surface-hover)]">
+                          <td className="min-w-0 align-middle bg-[var(--color-bg-surface-hover)]" data-col-type="pass">
                             <span className="text-[var(--color-text-muted)] select-none">-</span>
                           </td>
                         </>
                       ) : (
                       <>
                       <td
-                        className={`min-w-0 text-center align-middle py-2.5 px-3${hwBorderL} ${isSelected ? "ds-scores-cell-active" : ""} ${isEditMode ? "hover:bg-[var(--color-bg-surface-hover)]" : ""}`}
+                        className={`min-w-0 text-center align-middle ${isSelected ? "ds-scores-cell-active" : ""} ${isEditMode ? "hover:bg-[var(--color-bg-surface-hover)]" : ""}`}
+                        data-col-type="score"
+                        {...(hwBodyIdx === 0 ? { "data-section-start": "" } : {})}
                         onClick={(e) => {
                           if (isEditMode) e.stopPropagation();
                           onSelectCell(row, "homework", hw.homework_id);
@@ -1417,7 +1378,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                             />
                           ) : block ? (
                             <span className={`font-medium ${isNotSubmitted ? "text-[var(--color-text-muted)]" : "text-[var(--color-text-primary)]"}`}>
-                              {isNotSubmitted ? "미제출" : (block?.score != null ? `${block.score}${(block.max_score ?? hw.max_score) != null ? ` / ${block.max_score ?? hw.max_score}` : ""}` : "-")}
+                              {isNotSubmitted ? "미제출" : (block?.score != null ? (scoreFormat === "fraction" && (block.max_score ?? hw.max_score) != null ? `${block.score}/${block.max_score ?? hw.max_score}` : `${block.score}`) : "-")}
                             </span>
                           ) : (
                             <span className="text-[var(--color-text-muted)]">-</span>
@@ -1425,7 +1386,8 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                         </span>
                       </td>
                       <td
-                        className="min-w-0 text-center align-middle py-2.5 px-3"
+                        className="min-w-0 text-center align-middle"
+                        data-col-type="pass"
                         onClick={(e) => {
                           if (isEditMode) e.stopPropagation();
                           onSelectCell(row, "homework", hw.homework_id);
@@ -1440,7 +1402,8 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                 })}
 
                 <td
-                  className="text-center align-middle py-2.5 px-3"
+                  className="text-center align-middle"
+                  data-col-type="clinic"
                 >
                   {clinicTarget ? (
                     <span className="ds-scores-pass-fail-badge" data-tone="danger">
@@ -1454,7 +1417,8 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                 </td>
 
                 <td
-                  className="text-center align-middle py-2.5 px-3 min-w-0"
+                  className="text-center align-middle min-w-0"
+                  data-col-type="clinic"
                 >
                   {clinicReason ? (
                     <span className="text-xs font-semibold text-[var(--color-text-secondary)]">

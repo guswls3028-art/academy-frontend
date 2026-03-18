@@ -277,10 +277,48 @@ table.ds-table {
   display: block;
 }
 
-/* 성적 테이블 — 전체 셀 중앙정렬 (ds-table--center의 left 오버라이드) */
+/* 성적 테이블 — 전체 셀 중앙정렬 + 컴팩트 패딩 + 높이 통일 */
 .ds-table-wrap .ds-table.ds-table--flat.ds-scores-table thead th,
 .ds-table-wrap .ds-table.ds-table--flat.ds-scores-table tbody td {
   text-align: center;
+  line-height: 1.4;
+  padding: 6px 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* 합불 셀 — 최소 패딩, overflow 허용 */
+.ds-table-wrap .ds-table.ds-table--flat.ds-scores-table thead th[data-col-type="pass"],
+.ds-table-wrap .ds-table.ds-table--flat.ds-scores-table tbody td[data-col-type="pass"] {
+  padding: 6px 1px;
+  overflow: visible;
+}
+/* 총점 그룹 합불 — 총점 배경색 유지 */
+.ds-table-wrap .ds-table.ds-table--flat.ds-scores-table thead th[data-summary],
+.ds-table-wrap .ds-table.ds-table--flat.ds-scores-table tbody td[data-summary] {
+  background: color-mix(in srgb, var(--color-primary) 10%, var(--color-bg-surface));
+}
+/* 시험 그룹 첫 컬럼 — 좌측 구분선 */
+.ds-table-wrap .ds-table.ds-table--flat.ds-scores-table thead th[data-group-start],
+.ds-table-wrap .ds-table.ds-table--flat.ds-scores-table tbody td[data-group-start] {
+  border-left: 1px solid var(--color-border-divider);
+}
+/* 과제 첫 컬럼 — 두꺼운 구분선 */
+.ds-table-wrap .ds-table.ds-table--flat.ds-scores-table thead th[data-section-start],
+.ds-table-wrap .ds-table.ds-table--flat.ds-scores-table tbody td[data-section-start] {
+  border-left: 2px solid var(--color-border-divider);
+}
+/* 총점 셀 배경 */
+.ds-table-wrap .ds-table.ds-table--flat.ds-scores-table thead th[data-col-type="exam-summary"],
+.ds-table-wrap .ds-table.ds-table--flat.ds-scores-table tbody td[data-col-type="exam-summary"] {
+  background: color-mix(in srgb, var(--color-primary) 10%, var(--color-bg-surface));
+}
+/* 이름 셀 — 넉넉한 좌우 패딩 + 좌측 구분선 */
+.ds-table-wrap .ds-table.ds-table--flat.ds-scores-table th[data-col-type="name"],
+.ds-table-wrap .ds-table.ds-table--flat.ds-scores-table td[data-col-type="name"] {
+  padding: 6px 8px;
+  text-align: left;
+  border-left: 2px solid var(--color-border-divider);
 }
 
 /* 출결 테이블 — 패딩·세로 간격만 축소, 폰트는 students(SSOT)와 동일하게 셀 단위로 적용 */
@@ -456,10 +494,10 @@ table.ds-table {
 }
 
 .ds-scores-table tbody tr.ds-scores-table-row--alt {
-  background: color-mix(in srgb, var(--color-primary) 4%, var(--color-bg-surface));
+  background: color-mix(in srgb, var(--color-primary) 6%, var(--color-bg-surface));
 }
 .ds-scores-table tbody tr.ds-scores-table-row--alt:hover {
-  background: color-mix(in srgb, var(--color-primary) 8%, var(--color-bg-surface));
+  background: color-mix(in srgb, var(--color-primary) 10%, var(--color-bg-surface));
 }
 .ds-scores-table tbody tr.ds-scores-table-row--alt.ds-row-selected {
   background: color-mix(in srgb, var(--color-primary) 12%, var(--color-bg-surface));
@@ -478,12 +516,16 @@ table.ds-table {
 
 /* 합불 뱃지 — 합(초록)·불(빨강) 동일 디자인: solid 배경 + 흰 글자. 긍정=초록 */
 .ds-scores-table .ds-scores-pass-fail-badge {
-  display: inline-block;
-  padding: 2px 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  padding: 2px 6px;
   border-radius: 6px;
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 1.4;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  text-align: center;
 }
 .ds-scores-table .ds-scores-pass-fail-badge[data-tone="success"] {
   background: var(--color-success, #22c55e) !important;
