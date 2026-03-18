@@ -4,7 +4,7 @@
  */
 import { Suspense } from "react";
 import { lazyWithRetry as lazy } from "@/shared/utils/lazyWithRetry";
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, useParams } from "react-router-dom";
 import StudentLayout from "@/student/shared/ui/layout/StudentLayout";
 
 const DashboardPage = lazy(() => import("@/student/domains/dashboard/pages/DashboardPage"));
@@ -28,8 +28,6 @@ const SubmitAssignmentPage = lazy(() => import("@/student/domains/submit/pages/S
 const MyInventoryPage = lazy(() => import("@/student/domains/inventory/pages/MyInventoryPage"));
 
 const GradesPage = lazy(() => import("@/student/domains/grades/pages/GradesPage"));
-const GradeListPage = lazy(() => import("@/student/domains/grades/pages/GradeListPage"));
-const GradeDetailPage = lazy(() => import("@/student/domains/grades/pages/GradeDetailPage"));
 const MorePage = lazy(() => import("@/student/domains/more/pages/MorePage"));
 const ProfilePage = lazy(() => import("@/student/domains/profile/pages/ProfilePage"));
 const CommunityPage = lazy(() => import("@/student/domains/community/pages/CommunityPage"));
@@ -40,6 +38,12 @@ const ClinicIDCardPage = lazy(() => import("@/student/domains/clinic-idcard/page
 const ClinicPage = lazy(() => import("@/student/domains/clinic/pages/ClinicPage"));
 const AttendancePage = lazy(() => import("@/student/domains/attendance/pages/AttendancePage"));
 const StudentSettingsPage = lazy(() => import("@/student/domains/settings/pages/StudentSettingsPage"));
+
+/** /student/grades/exams/:examId → /student/exams/:examId/result redirect */
+function GradeDetailRedirect() {
+  const { examId } = useParams();
+  return <Navigate to={`/student/exams/${examId}/result`} replace />;
+}
 
 /** Suspense fallback: 로딩 중 표시 (가벼운 UI로 첫 페인트 빠르게) */
 function StudentRouteFallback() {
@@ -88,8 +92,8 @@ export default function StudentRouter() {
         <Route path="exams/:examId/result" element={<ExamResultPage />} />
 
         <Route path="grades" element={<GradesPage />} />
-        <Route path="grades/all" element={<GradeListPage />} />
-        <Route path="grades/exams/:examId" element={<GradeDetailPage />} />
+        <Route path="grades/all" element={<Navigate to="/student/grades" replace />} />
+        <Route path="grades/exams/:examId" element={<GradeDetailRedirect />} />
         <Route path="more" element={<MorePage />} />
         <Route path="profile" element={<ProfilePage />} />
         <Route path="settings" element={<StudentSettingsPage />} />

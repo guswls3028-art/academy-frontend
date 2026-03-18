@@ -1,14 +1,12 @@
-// src/student/domains/exams/pages/ExamResultPage.tsx
 /**
- * ✅ ExamResultPage (학생 결과)
- * - 대표 Result + ResultItem(문항별) 렌더링
- * - 판단/계산 ❌
- * - can_retake / is_pass 그대로 사용 ✅
+ * ExamResultPage — 시험 결과 상세
+ * 대표 Result + ResultItem(문항별) 렌더링
+ * 서버 권한 기반 정답 노출 (answer_visibility)
  */
-
+import { useMemo } from "react";
 import { Link, useParams } from "react-router-dom";
-import StudentPageShell from "../../../shared/ui/pages/StudentPageShell";
-import EmptyState from "../../../shared/ui/layout/EmptyState";
+import StudentPageShell from "@/student/shared/ui/pages/StudentPageShell";
+import EmptyState from "@/student/shared/ui/layout/EmptyState";
 import { useMyExamResult } from "@/student/domains/exams/hooks/useMyExamResult";
 import { useMyExamResultItems } from "@/student/domains/exams/hooks/useMyExamResultItems";
 import GradeBadge from "@/student/domains/grades/components/GradeBadge";
@@ -31,8 +29,8 @@ export default function ExamResultPage() {
   if (resultQ.isLoading) {
     return (
       <StudentPageShell title="시험 결과">
-        <div style={{ padding: "var(--stu-space-4)", display: "flex", flexDirection: "column", gap: "var(--stu-space-3)" }}>
-          <div className="stu-skel" style={{ height: 120, borderRadius: "var(--stu-radius)" }} />
+        <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-3)" }}>
+          <div className="stu-skel" style={{ height: 140, borderRadius: "var(--stu-radius)" }} />
           <div className="stu-skel" style={{ height: 80, borderRadius: "var(--stu-radius)" }} />
         </div>
       </StudentPageShell>
@@ -44,86 +42,102 @@ export default function ExamResultPage() {
       <StudentPageShell title="시험 결과" description="조회 실패">
         <EmptyState
           title="결과를 불러오지 못했습니다."
-          description="아직 채점 전이거나 권한/데이터가 없을 수 있습니다."
+          description="아직 채점 전이거나 권한이 없을 수 있습니다."
         />
       </StudentPageShell>
     );
   }
 
   const r = resultQ.data;
+  const items = itemsQ.data ?? [];
+  const pct = r.max_score > 0 ? Math.round((r.total_score / r.max_score) * 100) : 0;
+  const correctCount = items.filter((it) => it.is_correct).length;
+  const wrongCount = items.length - correctCount;
 
   return (
     <StudentPageShell
       title="시험 결과"
       actions={
-        <Link to={`/student/exams/${safeId}`} style={linkBtn}>
-          시험으로
-        </Link>
+        <div style={{ display: "flex", gap: "var(--stu-space-3)" }}>
+          <Link to="/student/grades" className="stu-cta-link">
+            성적
+          </Link>
+          <Link
+            to={`/student/exams/${safeId}`}
+            style={{
+              fontSize: 13,
+              fontWeight: 700,
+              color: "var(--stu-text-muted)",
+              textDecoration: "none",
+            }}
+          >
+            시험으로
+          </Link>
+        </div>
       }
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        {/* ===== Summary ===== */}
-        <div style={card}>
-          <div style={{ fontWeight: 900 }}>요약</div>
-
-          <div style={{ marginTop: 8, display: "flex", gap: 10, alignItems: "center" }}>
-            <div style={{ fontSize: 22, fontWeight: 900 }}>
-              {r.total_score} / {r.max_score}
-            </div>
-
-            <GradeBadge passed={r.is_pass} />
+      <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-8)" }}>
+        {/* ── Score Gauge ── */}
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "var(--stu-space-4)", padding: "var(--stu-space-4) 0" }}>
+          <ScoreGauge pct={pct} passed={r.is_pass} />
+          <div style={{ fontSize: 16, fontWeight: 800 }}>
+            {r.total_score} / {r.max_score}점
           </div>
-
+          <GradeBadge passed={r.is_pass} />
           {r.submitted_at && (
-            <div className="stu-muted" style={{ marginTop: 8, fontSize: 13 }}>
-              제출일: {new Date(r.submitted_at).toLocaleDateString("ko-KR")}
+            <div className="stu-muted" style={{ fontSize: 12 }}>
+              {new Date(r.submitted_at).toLocaleDateString("ko-KR")} 제출
             </div>
           )}
         </div>
 
-        {/* ===== Items ===== */}
-        <div style={card}>
-          <div style={{ fontWeight: 900, marginBottom: 8 }}>문항별 결과</div>
+        {/* ── Correct/Wrong Bar ── */}
+        {items.length > 0 && (
+          <CorrectBar correct={correctCount} wrong={wrongCount} />
+        )}
 
-          {itemsQ.isLoading && <div className="stu-muted" style={{ fontSize: 13 }}>문항 불러오는 중...</div>}
-          {itemsQ.isError && <div style={{ fontSize: 13, color: "var(--stu-danger)" }}>문항 조회 실패</div>}
+        {/* ── Per-question results ── */}
+        <div>
+          <div style={{ fontWeight: 700, fontSize: 14, marginBottom: "var(--stu-space-4)" }}>
+            문항별 결과
+          </div>
 
-          {itemsQ.data && itemsQ.data.length === 0 && (
-            <div className="stu-muted" style={{ fontSize: 13 }}>문항 데이터가 없습니다.</div>
+          {itemsQ.isLoading && (
+            <div className="stu-muted" style={{ fontSize: 13 }}>
+              불러오는 중...
+            </div>
+          )}
+          {itemsQ.isError && (
+            <div style={{ fontSize: 13, color: "var(--stu-danger)" }}>
+              문항 조회 실패
+            </div>
           )}
 
           {!r.answers_visible && (
-            <div className="stu-muted" style={{ fontSize: 13, padding: "6px 0" }}>
+            <div
+              className="stu-muted"
+              style={{ fontSize: 13, padding: "var(--stu-space-3) 0" }}
+            >
               정답은 비공개입니다.
               {r.answer_visibility === "after_closed" && " 시험 마감 후 공개됩니다."}
             </div>
           )}
 
-          {itemsQ.data && itemsQ.data.length > 0 && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {itemsQ.data.map((it) => (
-                <div
+          {items.length > 0 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-3)" }}>
+              {items.map((it) => (
+                <QuestionItem
                   key={`${it.question_id}-${it.question_number}`}
-                  style={{
-                    border: "1px solid var(--stu-border)",
-                    borderRadius: 10,
-                    padding: 10,
-                    background: it.is_correct ? "var(--stu-success-bg)" : "var(--stu-surface-soft)",
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{ fontWeight: 700, fontSize: 14 }}>{it.question_number}번</span>
-                    <GradeBadge passed={it.is_correct} label={{ pass: "정답", fail: "오답" }} />
-                    <span className="stu-muted" style={{ fontSize: 12, marginLeft: "auto" }}>
-                      {it.score} / {it.max_score}점
-                    </span>
-                  </div>
-                  <div className="stu-muted" style={{ marginTop: 6, fontSize: 13 }}>
-                    내 답: {it.student_answer ?? "-"}
-                    {r.answers_visible && it.correct_answer != null ? ` · 정답: ${it.correct_answer}` : ""}
-                  </div>
-                </div>
+                  item={it}
+                  showAnswer={!!r.answers_visible}
+                />
               ))}
+            </div>
+          )}
+
+          {items.length === 0 && !itemsQ.isLoading && !itemsQ.isError && (
+            <div className="stu-muted" style={{ fontSize: 13 }}>
+              문항 데이터가 없습니다.
             </div>
           )}
         </div>
@@ -132,20 +146,193 @@ export default function ExamResultPage() {
   );
 }
 
-const card: React.CSSProperties = {
-  border: "1px solid var(--stu-border)",
-  borderRadius: 12,
-  padding: 14,
-  background: "var(--stu-surface)",
-};
+/* ── Score Gauge (SVG) ── */
 
-const linkBtn: React.CSSProperties = {
-  display: "inline-block",
-  padding: "10px 12px",
-  borderRadius: 10,
-  border: "1px solid var(--stu-border)",
-  textDecoration: "none",
-  background: "var(--stu-surface-soft)",
-  color: "var(--stu-text)",
-  fontWeight: 700,
-};
+function ScoreGauge({ pct, passed }: { pct: number; passed: boolean }) {
+  const R = 44;
+  const C = 2 * Math.PI * R;
+  const offset = C - (pct / 100) * C;
+  const color = passed ? "var(--stu-success)" : "var(--stu-danger)";
+
+  return (
+    <svg width={108} height={108} viewBox="0 0 108 108">
+      <circle
+        cx={54}
+        cy={54}
+        r={R}
+        fill="none"
+        stroke="var(--stu-surface-soft)"
+        strokeWidth={10}
+      />
+      <circle
+        cx={54}
+        cy={54}
+        r={R}
+        fill="none"
+        stroke={color}
+        strokeWidth={10}
+        strokeLinecap="round"
+        strokeDasharray={C}
+        strokeDashoffset={offset}
+        transform="rotate(-90 54 54)"
+        style={{ transition: "stroke-dashoffset 0.6s ease" }}
+      />
+      <text
+        x={54}
+        y={54}
+        textAnchor="middle"
+        dominantBaseline="central"
+        style={{ fontSize: 24, fontWeight: 900, fill: "var(--stu-text)" }}
+      >
+        {pct}
+      </text>
+      <text
+        x={54}
+        y={72}
+        textAnchor="middle"
+        dominantBaseline="central"
+        style={{ fontSize: 11, fontWeight: 600, fill: "var(--stu-text-muted)" }}
+      >
+        %
+      </text>
+    </svg>
+  );
+}
+
+/* ── Correct/Wrong ratio bar ── */
+
+function CorrectBar({ correct, wrong }: { correct: number; wrong: number }) {
+  const total = correct + wrong;
+  if (total === 0) return null;
+  const cPct = (correct / total) * 100;
+
+  return (
+    <div
+      style={{
+        background: "var(--stu-surface-soft)",
+        borderRadius: "var(--stu-radius)",
+        padding: "var(--stu-space-5)",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          fontSize: 13,
+          fontWeight: 600,
+          marginBottom: "var(--stu-space-3)",
+        }}
+      >
+        <span style={{ color: "var(--stu-success-text)" }}>
+          정답 {correct}문항
+        </span>
+        <span style={{ color: "var(--stu-danger-text)" }}>
+          오답 {wrong}문항
+        </span>
+      </div>
+      <div
+        style={{
+          height: 8,
+          borderRadius: 4,
+          background: "var(--stu-danger)",
+          overflow: "hidden",
+          display: "flex",
+        }}
+      >
+        <div
+          style={{
+            width: `${cPct}%`,
+            background: "var(--stu-success)",
+            borderRadius: 4,
+            transition: "width 0.4s ease",
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
+/* ── Question item ── */
+
+function QuestionItem({
+  item,
+  showAnswer,
+}: {
+  item: {
+    question_id: number;
+    question_number: number;
+    student_answer: string | null;
+    correct_answer: string | null;
+    score: number;
+    max_score: number;
+    is_correct: boolean;
+  };
+  showAnswer: boolean;
+}) {
+  return (
+    <div
+      style={{
+        border: "1px solid var(--stu-border)",
+        borderRadius: "var(--stu-radius)",
+        padding: "var(--stu-space-5)",
+        background: item.is_correct
+          ? "var(--stu-success-bg)"
+          : "var(--stu-surface-soft)",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "var(--stu-space-3)",
+        }}
+      >
+        <span style={{ fontWeight: 700, fontSize: 14 }}>
+          {item.question_number}번
+        </span>
+        <GradeBadge
+          passed={item.is_correct}
+          label={{ pass: "정답", fail: "오답" }}
+        />
+        <span
+          className="stu-muted"
+          style={{ fontSize: 12, marginLeft: "auto" }}
+        >
+          {item.score}/{item.max_score}점
+        </span>
+      </div>
+
+      {/* Score bar */}
+      {item.max_score > 0 && (
+        <div
+          style={{
+            height: 4,
+            borderRadius: 2,
+            background: "var(--stu-border)",
+            marginTop: "var(--stu-space-3)",
+            overflow: "hidden",
+          }}
+        >
+          <div
+            style={{
+              width: `${(item.score / item.max_score) * 100}%`,
+              height: "100%",
+              borderRadius: 2,
+              background: item.is_correct
+                ? "var(--stu-success)"
+                : "var(--stu-danger)",
+              transition: "width 0.3s ease",
+            }}
+          />
+        </div>
+      )}
+
+      <div className="stu-muted" style={{ marginTop: "var(--stu-space-3)", fontSize: 13 }}>
+        내 답: {item.student_answer ?? "-"}
+        {showAnswer && item.correct_answer != null
+          ? ` \u00B7 정답: ${item.correct_answer}`
+          : ""}
+      </div>
+    </div>
+  );
+}
