@@ -1,34 +1,36 @@
 /* PATH: src/features/auth/themes/dnb.css
- * DNB Academy 테넌트 — 클린 블루 교육 플랫폼
+ * DnB 보습학원 테넌트 — 보라색 + 노란색 (PANTONE 3583 C + 109 C)
+ * 간판 컬러: Purple #612E8D, Yellow #F3EB40
  */
 
 [data-app="auth"][data-tenant="dnb"] {
-  /* ── 블루 계열 ── */
-  --dnb-primary: #1e40af;
-  --dnb-primary-deep: #1e3a8a;
-  --dnb-primary-light: #3b82f6;
-  --dnb-accent: #2563eb;
+  /* ── 브랜드 보라·노랑 ── */
+  --dnb-purple: #612e8d;
+  --dnb-purple-deep: #4a1f6e;
+  --dnb-purple-light: #7b3faa;
+  --dnb-yellow: #f3eb40;
+  --dnb-yellow-hover: #e6de2a;
 
   /* ── 배경 ── */
-  --dnb-bg: #f0f4f8;
+  --dnb-bg: #f5f3f8;
   --dnb-surface: #ffffff;
-  --dnb-border: #d1d5db;
-  --dnb-border-hover: rgba(30, 64, 175, 0.20);
+  --dnb-border: #d8d0e0;
+  --dnb-border-hover: rgba(97, 46, 141, 0.20);
 
   /* ── 텍스트 ── */
-  --dnb-text: #111827;
-  --dnb-text-muted: #6b7280;
+  --dnb-text: #1a0a2e;
+  --dnb-text-muted: #6b5b7b;
 
   /* ── 포커스/에러 ── */
-  --dnb-focus: rgba(37, 99, 235, 0.15);
+  --dnb-focus: rgba(97, 46, 141, 0.15);
   --dnb-error: #dc2626;
 
   /* ── 그라디언트 ── */
-  --dnb-gradient: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
-  --dnb-gradient-hover: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
+  --dnb-gradient: linear-gradient(135deg, #612e8d 0%, #7b3faa 100%);
+  --dnb-gradient-hover: linear-gradient(135deg, #4a1f6e 0%, #612e8d 100%);
 
   /* ── 공통 별칭 ── */
-  --auth-accent: var(--dnb-primary);
+  --auth-accent: var(--dnb-purple);
   --auth-bg: var(--dnb-bg);
   --auth-surface: var(--dnb-surface);
   --auth-border: var(--dnb-border);
@@ -41,27 +43,35 @@
   --auth-gradient-hover: var(--dnb-gradient-hover);
 }
 
-/* ── 배경 ── */
+/* ── 배경: 라벤더 그라디언트 ── */
 [data-app="auth"][data-tenant="dnb"] div[class*="root"] {
   background:
-    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(30, 64, 175, 0.05) 0%, transparent 60%),
-    linear-gradient(180deg, #f0f4f8 0%, #e8edf4 50%, #f0f4f8 100%);
+    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(97, 46, 141, 0.06) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 40% at 80% 100%, rgba(243, 235, 64, 0.04) 0%, transparent 50%),
+    linear-gradient(180deg, #f5f3f8 0%, #ede8f2 50%, #f5f3f8 100%);
 }
 
 /* ── 로그인 카드 ── */
 [data-app="auth"][data-tenant="dnb"] div[class*="center"] {
   background: #ffffff;
-  border: 1px solid rgba(30, 64, 175, 0.06);
+  border: 1px solid rgba(97, 46, 141, 0.08);
   border-radius: 20px;
   padding: 2.5rem 2rem;
   box-shadow:
-    0 1px 3px rgba(30, 64, 175, 0.04),
-    0 8px 32px rgba(30, 64, 175, 0.06);
+    0 1px 3px rgba(97, 46, 141, 0.04),
+    0 8px 32px rgba(97, 46, 141, 0.07);
+}
+
+/* ── 로고 ── */
+[data-app="auth"][data-tenant="dnb"] img[class*="logo"] {
+  max-height: 7rem;
+  max-width: min(100%, 14rem);
+  margin-bottom: 1rem;
 }
 
 /* ── 타이틀 ── */
 [data-app="auth"][data-tenant="dnb"] h1[class*="title"] {
-  color: var(--dnb-primary);
+  color: var(--dnb-purple);
   font-size: 1.375rem;
   font-weight: 700;
   letter-spacing: -0.02em;
@@ -69,7 +79,7 @@
 
 /* ── 입력 필드 ── */
 [data-app="auth"][data-tenant="dnb"] input[class*="input"] {
-  background: #f8f9fb;
+  background: #faf8fc;
   border: 1px solid var(--dnb-border);
   color: var(--dnb-text);
   border-radius: 12px;
@@ -77,33 +87,33 @@
 }
 
 [data-app="auth"][data-tenant="dnb"] input[class*="input"]::placeholder {
-  color: #94a3b8;
+  color: #9a8aab;
 }
 
 [data-app="auth"][data-tenant="dnb"] input[class*="input"]:hover {
-  border-color: rgba(30, 64, 175, 0.18);
+  border-color: rgba(97, 46, 141, 0.25);
 }
 
 [data-app="auth"][data-tenant="dnb"] input[class*="input"]:focus {
-  border-color: var(--dnb-accent);
+  border-color: var(--dnb-purple);
   background: #ffffff;
   box-shadow: 0 0 0 3px var(--dnb-focus);
 }
 
-/* ── 로그인 버튼 ── */
+/* ── 로그인 버튼: 보라 그라디언트 ── */
 [data-app="auth"][data-tenant="dnb"] button[class*="btnPrimary"] {
   background: var(--dnb-gradient);
   color: #fff;
   border-radius: 12px;
   font-weight: 700;
   letter-spacing: 0.01em;
-  box-shadow: 0 2px 12px rgba(30, 64, 175, 0.15);
+  box-shadow: 0 2px 12px rgba(97, 46, 141, 0.2);
   transition: filter 0.2s, box-shadow 0.2s, transform 0.1s;
 }
 
 [data-app="auth"][data-tenant="dnb"] button[class*="btnPrimary"]:hover:not(:disabled) {
-  filter: brightness(1.05);
-  box-shadow: 0 4px 20px rgba(30, 64, 175, 0.22);
+  filter: brightness(1.08);
+  box-shadow: 0 4px 20px rgba(97, 46, 141, 0.3);
 }
 
 /* ── 폼 구분선 ── */
@@ -113,10 +123,10 @@
 
 /* ── 링크 ── */
 [data-app="auth"][data-tenant="dnb"] button[class*="link"] {
-  color: var(--dnb-primary);
+  color: var(--dnb-purple);
 }
 [data-app="auth"][data-tenant="dnb"] button[class*="link"]:hover {
-  color: var(--dnb-primary-light);
+  color: var(--dnb-purple-light);
 }
 
 /* ── 반응형 ── */
@@ -124,5 +134,8 @@
   [data-app="auth"][data-tenant="dnb"] div[class*="center"] {
     padding: 2rem 1.25rem;
     border-radius: 16px;
+  }
+  [data-app="auth"][data-tenant="dnb"] img[class*="logo"] {
+    max-height: 5.5rem;
   }
 }
