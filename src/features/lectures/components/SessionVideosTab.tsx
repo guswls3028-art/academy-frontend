@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import api from "@/shared/api/axios";
-import { getRetryErrorMessage } from "@/features/videos/api/videos";
+import { getRetryErrorMessage, updateVideo } from "@/features/videos/api/videos";
 import { canShowRetryButton } from "@/features/videos/constants/videoProcessing";
 import { logRetryAttempt, logRetryError } from "@/shared/api/retryLogger";
 import VideoUploadModal from "@/features/videos/components/features/video-detail/modals/VideoUploadModal";
@@ -87,7 +87,17 @@ export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
   const [editTarget, setEditTarget] = useState<MediaVideo | null>(null);
   const asyncTasks = useAsyncStatus();
 
-  const { data: videos = [], isLoading } = useSessionVideos(sessionId);
+  const { data: rawVideos = [], isLoading } = useSessionVideos(sessionId);
+  const videos = useMemo(
+    () =>
+      [...rawVideos].sort((a: MediaVideo, b: MediaVideo) => {
+        const orderDiff = (a.order ?? 1) - (b.order ?? 1);
+        if (orderDiff !== 0) return orderDiff;
+        const titleCmp = (a.title ?? "").localeCompare(b.title ?? "", "ko");
+        return titleCmp !== 0 ? titleCmp : a.id - b.id;
+      }),
+    [rawVideos]
+  );
 
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
@@ -151,7 +161,59 @@ export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
     },
   });
 
-  const renderVideoCard = (video: MediaVideo) => {
+  /** Map video ID → index in flat sorted array (for reorder buttons) */
+  const videoIndexMap = useMemo(() => {
+    const m = new Map<number, number>();
+    videos.forEach((v, i) => m.set(v.id, i));
+    return m;
+  }, [videos]);
+
+  /** Swap order of two videos (optimistic) */
+  const reorderMutation = useMutation({
+    mutationFn: async ({ videoA, videoB }: { videoA: MediaVideo; videoB: MediaVideo }) => {
+      const orderA = videoA.order ?? 1;
+      const orderB = videoB.order ?? 1;
+      await Promise.all([
+        updateVideo(videoA.id, { order: orderB }),
+        updateVideo(videoB.id, { order: orderA }),
+      ]);
+    },
+    onMutate: async ({ videoA, videoB }) => {
+      await qc.cancelQueries({ queryKey: ["session-videos", sessionId] });
+      const prev = qc.getQueryData<MediaVideo[]>(["session-videos", sessionId]);
+      if (prev) {
+        const orderA = videoA.order ?? 1;
+        const orderB = videoB.order ?? 1;
+        qc.setQueryData<MediaVideo[]>(["session-videos", sessionId], (old) =>
+          (old ?? []).map((v) => {
+            if (v.id === videoA.id) return { ...v, order: orderB };
+            if (v.id === videoB.id) return { ...v, order: orderA };
+            return v;
+          })
+        );
+      }
+      return { prev };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev) qc.setQueryData(["session-videos", sessionId], ctx.prev);
+      feedback.error("순서 변경에 실패했습니다.");
+    },
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: ["session-videos", sessionId] });
+    },
+  });
+
+  const handleMoveUp = (index: number) => {
+    if (index <= 0 || reorderMutation.isPending) return;
+    reorderMutation.mutate({ videoA: videos[index], videoB: videos[index - 1] });
+  };
+
+  const handleMoveDown = (index: number) => {
+    if (index >= videos.length - 1 || reorderMutation.isPending) return;
+    reorderMutation.mutate({ videoA: videos[index], videoB: videos[index + 1] });
+  };
+
+  const renderVideoCard = (video: MediaVideo, globalIndex?: number) => {
     const videoTask = asyncTasks.find(
       (t) => t.meta?.jobType === "video_processing" && t.meta?.jobId === String(video.id)
     );
@@ -181,6 +243,75 @@ export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
           (e.currentTarget as HTMLDivElement).style.boxShadow = "none";
         }}
       >
+        {/* Order controls */}
+        {globalIndex != null && (
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+            <span
+              style={{
+                fontSize: 11,
+                fontWeight: 700,
+                color: "var(--color-text-muted)",
+                background: "var(--color-bg-surface-soft)",
+                borderRadius: 4,
+                padding: "1px 6px",
+                lineHeight: "18px",
+              }}
+            >
+              #{video.order ?? globalIndex + 1}
+            </span>
+            <div style={{ display: "flex", gap: 2 }}>
+              <button
+                type="button"
+                disabled={globalIndex === 0 || reorderMutation.isPending}
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleMoveUp(globalIndex); }}
+                style={{
+                  width: 24,
+                  height: 24,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  border: "1px solid var(--color-border-divider)",
+                  borderRadius: 4,
+                  background: globalIndex === 0 ? "var(--color-bg-surface-soft)" : "var(--color-bg-app)",
+                  color: globalIndex === 0 ? "var(--color-text-disabled)" : "var(--color-text-secondary)",
+                  cursor: globalIndex === 0 ? "not-allowed" : "pointer",
+                  fontSize: 12,
+                  lineHeight: 1,
+                  padding: 0,
+                  transition: "background 100ms",
+                }}
+                title="위로 이동"
+              >
+                ▲
+              </button>
+              <button
+                type="button"
+                disabled={globalIndex === videos.length - 1 || reorderMutation.isPending}
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleMoveDown(globalIndex); }}
+                style={{
+                  width: 24,
+                  height: 24,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  border: "1px solid var(--color-border-divider)",
+                  borderRadius: 4,
+                  background: globalIndex === videos.length - 1 ? "var(--color-bg-surface-soft)" : "var(--color-bg-app)",
+                  color: globalIndex === videos.length - 1 ? "var(--color-text-disabled)" : "var(--color-text-secondary)",
+                  cursor: globalIndex === videos.length - 1 ? "not-allowed" : "pointer",
+                  fontSize: 12,
+                  lineHeight: 1,
+                  padding: 0,
+                  transition: "background 100ms",
+                }}
+                title="아래로 이동"
+              >
+                ▼
+              </button>
+            </div>
+          </div>
+        )}
+
         <Link to={`${video.id}`} style={{ textDecoration: "none" }}>
           <VideoThumbnail
             title={video.title}
@@ -352,7 +483,7 @@ export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
                     gap: "var(--space-4)",
                   }}
                 >
-                  {groupVideos.map((video: MediaVideo) => renderVideoCard(video))}
+                  {groupVideos.map((video: MediaVideo) => renderVideoCard(video, videoIndexMap.get(video.id)))}
                 </div>
               </div>
             ))}
@@ -365,7 +496,7 @@ export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
                   gap: "var(--space-4)",
                 }}
               >
-                {groupedVideos.ungrouped.map((video: MediaVideo) => renderVideoCard(video))}
+                {groupedVideos.ungrouped.map((video: MediaVideo) => renderVideoCard(video, videoIndexMap.get(video.id)))}
               </div>
             )}
           </div>

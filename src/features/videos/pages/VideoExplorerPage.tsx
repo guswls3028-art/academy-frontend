@@ -207,7 +207,17 @@ export default function VideoExplorerPage() {
     enabled: selectedFolderId === "public" && !!publicSession?.session_id,
   });
 
-  const videos = selectedFolderId === "public" ? publicVideos : sessionVideos;
+  const unsortedVideos = selectedFolderId === "public" ? publicVideos : sessionVideos;
+  const videos = useMemo(
+    () =>
+      [...unsortedVideos].sort((a, b) => {
+        const orderDiff = (a.order ?? 1) - (b.order ?? 1);
+        if (orderDiff !== 0) return orderDiff;
+        const titleCmp = (a.title ?? "").localeCompare(b.title ?? "", "ko");
+        return titleCmp !== 0 ? titleCmp : a.id - b.id;
+      }),
+    [unsortedVideos]
+  );
   const videosLoading =
     selectedFolderId === "public"
       ? publicSessionLoading || publicVideosLoading || publicFoldersLoading
