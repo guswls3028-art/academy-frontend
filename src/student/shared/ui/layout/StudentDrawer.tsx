@@ -15,6 +15,10 @@ import {
   IconClinic,
   IconSettings,
   IconFolder,
+  IconPlay,
+  IconCalendar,
+  IconBell,
+  IconNotice,
 } from "@/student/shared/ui/icons/Icons";
 import type { ReactNode } from "react";
 
@@ -27,10 +31,10 @@ const NAV: { category: string; items: { label: string; to: string; icon: ReactNo
   {
     category: "학습",
     items: [
-      { label: "시험", to: "/student/exams", icon: <IconExam style={{ width: 20, height: 20, flexShrink: 0 }} /> },
-      { label: "제출", to: "/student/submit", icon: <IconClipboard style={{ width: 20, height: 20, flexShrink: 0 }} /> },
-      { label: "내 인벤토리", to: "/student/inventory", icon: <IconFolder style={{ width: 20, height: 20, flexShrink: 0 }} /> },
+      { label: "영상", to: "/student/video", icon: <IconPlay style={{ width: 20, height: 20, flexShrink: 0 }} /> },
       { label: "성적", to: "/student/grades", icon: <IconGrade style={{ width: 20, height: 20, flexShrink: 0 }} /> },
+      { label: "시험", to: "/student/exams", icon: <IconExam style={{ width: 20, height: 20, flexShrink: 0 }} /> },
+      { label: "과제", to: "/student/submit/assignment", icon: <IconClipboard style={{ width: 20, height: 20, flexShrink: 0 }} /> },
     ],
   },
   {
@@ -41,15 +45,20 @@ const NAV: { category: string; items: { label: string; to: string; icon: ReactNo
     ],
   },
   {
-    category: "커뮤니티",
+    category: "학원",
     items: [
+      { label: "일정", to: "/student/sessions", icon: <IconCalendar style={{ width: 20, height: 20, flexShrink: 0 }} /> },
+      { label: "공지사항", to: "/student/notices", icon: <IconNotice style={{ width: 20, height: 20, flexShrink: 0 }} /> },
       { label: "커뮤니티", to: "/student/community", icon: <IconBoard style={{ width: 20, height: 20, flexShrink: 0 }} /> },
+      { label: "출결 현황", to: "/student/attendance", icon: <IconClipboard style={{ width: 20, height: 20, flexShrink: 0 }} /> },
     ],
   },
   {
-    category: "기타",
+    category: "나",
     items: [
-      { label: "출결 현황", to: "/student/attendance", icon: <IconClipboard style={{ width: 20, height: 20, flexShrink: 0 }} /> },
+      { label: "제출", to: "/student/submit", icon: <IconClipboard style={{ width: 20, height: 20, flexShrink: 0 }} /> },
+      { label: "내 인벤토리", to: "/student/inventory", icon: <IconFolder style={{ width: 20, height: 20, flexShrink: 0 }} /> },
+      { label: "알림", to: "/student/notifications", icon: <IconBell style={{ width: 20, height: 20, flexShrink: 0 }} /> },
       { label: "프로필", to: "/student/profile", icon: <IconUser style={{ width: 20, height: 20, flexShrink: 0 }} /> },
       { label: "설정", to: "/student/settings", icon: <IconSettings style={{ width: 20, height: 20, flexShrink: 0 }} /> },
     ],
