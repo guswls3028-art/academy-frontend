@@ -19,7 +19,7 @@ export default defineConfig({
   use: {
     headless: true,
     screenshot: "on",
-    trace: "on",
+    trace: "retain-on-failure",
     video: "retain-on-failure",
     actionTimeout: 8_000,
     navigationTimeout: 15_000,

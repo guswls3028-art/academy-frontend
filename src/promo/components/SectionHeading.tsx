@@ -8,14 +8,18 @@ interface Props {
 
 export default function SectionHeading({ badge, title, subtitle }: Props) {
   return (
-    <div className="text-center mb-12">
+    <div className="text-center mb-14">
       {badge && (
-        <span className="inline-block px-3 py-1 text-xs font-semibold text-blue-600 bg-blue-50 rounded-full mb-4">
-          {badge}
-        </span>
+        <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-50 border border-blue-100/60 rounded-full mb-5">
+          <span className="text-xs font-semibold text-blue-600 tracking-wide">{badge}</span>
+        </div>
       )}
-      <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-4">{title}</h2>
-      {subtitle && <p className="text-gray-500 max-w-2xl mx-auto text-lg">{subtitle}</p>}
+      <h2 className="text-2xl sm:text-3xl lg:text-[2.125rem] font-bold text-gray-900 mb-4 leading-snug tracking-tight">
+        {title}
+      </h2>
+      {subtitle && (
+        <p className="text-gray-500 max-w-2xl mx-auto text-base sm:text-lg leading-relaxed">{subtitle}</p>
+      )}
     </div>
   );
 }

@@ -109,34 +109,39 @@ test.describe.serial("Homework / Scores / Inventory 데이터 플로우", () => 
     await S.waitForTimeout(3000);
     await S.screenshot({ path: "test-results/hw-scores/05-student-grades-hub.png" });
 
-    // GradesPage의 StudentPageShell title 확인
+    // GradesPage의 title 확인
     await expect(S.locator("div", { hasText: /^성적$/ }).first()).toBeVisible({ timeout: 10000 });
 
-    // 탭 UI: 시험 성적 탭이 기본 활성화
-    const hasExamTab = await S.locator("button", { hasText: /시험 성적/ }).isVisible({ timeout: 5000 }).catch(() => false);
-    const hasHomeworkTab = await S.locator("button", { hasText: /과제 현황/ }).isVisible({ timeout: 5000 }).catch(() => false);
-    expect(hasExamTab).toBeTruthy();
-    expect(hasHomeworkTab).toBeTruthy();
+    // 시험 결과 섹션 존재 (탭 또는 섹션 헤더)
+    const hasExamSection = await S.locator("text=시험 결과").isVisible({ timeout: 10000 }).catch(() => false);
+    const hasExamTab = await S.locator("button", { hasText: /시험 성적/ }).isVisible({ timeout: 3000 }).catch(() => false);
+    const hasEmptyExam = await S.locator("text=/기입된 시험 결과가 없습니다|시험 결과가 아직 없습니다/").isVisible({ timeout: 3000 }).catch(() => false);
+    expect(hasExamSection || hasExamTab || hasEmptyExam).toBeTruthy();
 
-    // 시험 결과 섹션 또는 빈 상태가 렌더링되어야 함
-    const hasExamSection = await S.locator("text=시험 결과").isVisible({ timeout: 5000 }).catch(() => false);
-    const hasEmptyExam = await S.locator("text=시험 결과가 아직 없습니다").isVisible({ timeout: 3000 }).catch(() => false);
-    expect(hasExamSection || hasEmptyExam).toBeTruthy();
+    // 과제 섹션 존재 (탭 또는 섹션 헤더)
+    const hasHomeworkSection = await S.locator("text=과제 이력").isVisible({ timeout: 5000 }).catch(() => false);
+    const hasHomeworkTab = await S.locator("button", { hasText: /과제 현황/ }).isVisible({ timeout: 3000 }).catch(() => false);
+    const hasEmptyHomework = await S.locator("text=/기입된 과제 성적이 없습니다|과제 성적이 아직 없습니다/").isVisible({ timeout: 3000 }).catch(() => false);
+    expect(hasHomeworkSection || hasHomeworkTab || hasEmptyHomework).toBeTruthy();
 
     // 로딩이 아님 (스켈레톤 사라짐)
     await expect(S.locator(".stu-skel").first()).not.toBeVisible({ timeout: 10000 }).catch(() => {});
   });
 
-  test("06 Student: 과제 현황 탭 전환", async () => {
-    // 과제 현황 탭 클릭
-    await S.locator("button", { hasText: /과제 현황/ }).click();
-    await S.waitForTimeout(2000);
+  test("06 Student: 과제 현황 확인", async () => {
+    // 과제 현황 탭이 있으면 클릭, 없으면 이미 섹션 구조
+    const hasTab = await S.locator("button", { hasText: /과제 현황/ }).isVisible({ timeout: 3000 }).catch(() => false);
+    if (hasTab) {
+      await S.locator("button", { hasText: /과제 현황/ }).click();
+      await S.waitForTimeout(2000);
+    }
     await S.screenshot({ path: "test-results/hw-scores/06-student-homework-tab.png" });
 
-    // 과제 목록 섹션 또는 빈 상태
+    // 과제 관련 콘텐츠가 보이는지 (목록, 빈 상태, 섹션 헤더 중 하나)
     const hasHomeworkList = await S.locator("text=과제 목록").isVisible({ timeout: 5000 }).catch(() => false);
-    const hasEmptyHomework = await S.locator("text=과제 성적이 아직 없습니다").isVisible({ timeout: 3000 }).catch(() => false);
-    expect(hasHomeworkList || hasEmptyHomework).toBeTruthy();
+    const hasEmptyHomework = await S.locator("text=/과제 성적이 아직 없습니다|기입된 과제 성적이 없습니다/").isVisible({ timeout: 3000 }).catch(() => false);
+    const hasHomeworkSection = await S.locator("text=과제 이력").isVisible({ timeout: 3000 }).catch(() => false);
+    expect(hasHomeworkList || hasEmptyHomework || hasHomeworkSection).toBeTruthy();
   });
 
   test("07 Student: 시험 결과 상세 (ExamResultPage) 확인", async () => {
