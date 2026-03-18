@@ -720,7 +720,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
             <th
               scope="col"
               colSpan={2}
-              className="text-center font-medium text-[var(--color-text-primary)] py-2 px-3 border-l border-[var(--color-border-divider)]"
+              className="text-center font-medium text-[var(--color-text-primary)] py-2 px-3"
             >
               <span className="inline-flex items-center gap-1">
                 <span className="text-xs font-bold text-[var(--color-brand-primary)]">Σ</span>
@@ -733,7 +733,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
               key={`head-hw-${hw.homework_id}`}
               scope="col"
               colSpan={2}
-              className="group text-center font-medium text-[var(--color-text-primary)] py-2 px-3 truncate"
+              className={`group text-center font-medium text-[var(--color-text-primary)] py-2 px-3 truncate${idx === 0 ? " border-l-2 border-[var(--color-border-divider)]" : ""}`}
               title={hw.title}
             >
               <span className="inline-flex items-center gap-1">
@@ -803,7 +803,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
             <>
               <th
                 scope="col"
-                className="text-center text-xs font-medium text-[var(--color-text-secondary)] py-2 px-3 border-l border-[var(--color-border-divider)]"
+                className="text-center text-xs font-medium text-[var(--color-text-secondary)] py-2 px-3"
                 style={{ width: columnWidths.exam_summary_score ?? COL_SCORE + 20, minWidth: 48 }}
               >
                 점수
@@ -817,11 +817,11 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
               </th>
             </>
           )}
-          {homeworkOptions.map((hw) => (
+          {homeworkOptions.map((hw, hwIdx) => (
             <Fragment key={hw.homework_id}>
               <th
                 scope="col"
-                className="text-center text-xs font-medium text-[var(--color-text-secondary)] py-2 px-3"
+                className={`text-center text-xs font-medium text-[var(--color-text-secondary)] py-2 px-3${hwIdx === 0 ? " border-l-2 border-[var(--color-border-divider)]" : ""}`}
                 style={{
                   width: columnWidths[`hw_${hw.homework_id}_score`] ?? COL_SCORE,
                   minWidth: 48,
@@ -1202,7 +1202,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                   }
                   return (
                     <>
-                      <td className="min-w-0 text-center align-middle py-2.5 px-3 border-l border-[var(--color-border-divider)]">
+                      <td className="min-w-0 text-center align-middle py-2.5 px-3">
                         <span className="font-bold text-[var(--color-text-primary)] tabular-nums">
                           {hasAnyScore ? `${totalScore}/${totalMaxScore}` : "-"}
                         </span>
@@ -1215,7 +1215,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                 })()}
 
                 {/* 과제: 점수(점수만) | 합불 — canEditScore이면 block 없어도 입력 셀 표시 */}
-                {homeworkOptions.map((hw) => {
+                {homeworkOptions.map((hw, hwBodyIdx) => {
                   const entry =
                     row.homeworks?.find(
                       (h) => h.homework_id === hw.homework_id
@@ -1230,11 +1230,12 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                   const canEditScore = isEditMode && homeworkEdit && !notEnrolledForHw;
                   const isNotSubmitted = block?.meta?.status === "NOT_SUBMITTED";
 
+                  const hwBorderL = hwBodyIdx === 0 ? " border-l-2 border-[var(--color-border-divider)]" : "";
                   return (
                     <Fragment key={hw.homework_id}>
                       {notEnrolledForHw ? (
                         <>
-                          <td className="min-w-0 align-middle py-2.5 px-3 bg-[var(--color-bg-surface-hover)]">
+                          <td className={`min-w-0 align-middle py-2.5 px-3 bg-[var(--color-bg-surface-hover)]${hwBorderL}`}>
                             <span className="text-[var(--color-text-muted)] select-none">-</span>
                           </td>
                           <td className="min-w-0 align-middle py-2.5 px-3 bg-[var(--color-bg-surface-hover)]">
@@ -1244,7 +1245,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                       ) : (
                       <>
                       <td
-                        className={`min-w-0 text-center align-middle py-2.5 px-3 ${isSelected ? "ds-scores-cell-active" : ""} ${isEditMode ? "hover:bg-[var(--color-bg-surface-hover)]" : ""}`}
+                        className={`min-w-0 text-center align-middle py-2.5 px-3${hwBorderL} ${isSelected ? "ds-scores-cell-active" : ""} ${isEditMode ? "hover:bg-[var(--color-bg-surface-hover)]" : ""}`}
                         onClick={(e) => {
                           if (isEditMode) e.stopPropagation();
                           onSelectCell(row, "homework", hw.homework_id);
