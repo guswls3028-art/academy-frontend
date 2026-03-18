@@ -718,12 +718,10 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
             <th
               scope="col"
               colSpan={2}
-              className="text-center font-medium text-[var(--color-text-primary)] py-2 px-3 border-l-2 border-[var(--color-border-divider)] bg-[color-mix(in_srgb,var(--color-brand-primary)_3%,transparent)]"
+              className="text-center font-medium text-[var(--color-text-primary)] py-2 px-3 border-l border-[var(--color-border-divider)]"
             >
               <span className="inline-flex items-center gap-1">
-                <span className="ds-status-badge ds-status-badge--1ch" data-tone="primary" aria-label="총점">
-                  &Sigma;
-                </span>
+                <span className="text-xs font-bold text-[var(--color-brand-primary)]">Σ</span>
                 <span>총점</span>
               </span>
             </th>
@@ -803,14 +801,14 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
             <>
               <th
                 scope="col"
-                className="text-center text-xs font-medium text-[var(--color-text-secondary)] py-2 px-3 border-l-2 border-[var(--color-border-divider)] bg-[color-mix(in_srgb,var(--color-brand-primary)_3%,transparent)]"
+                className="text-center text-xs font-medium text-[var(--color-text-secondary)] py-2 px-3 border-l border-[var(--color-border-divider)]"
                 style={{ width: columnWidths.exam_summary_score ?? COL_SCORE + 20, minWidth: 48 }}
               >
                 점수
               </th>
               <th
                 scope="col"
-                className="text-center text-xs font-medium text-[var(--color-text-secondary)] py-2 px-3 bg-[color-mix(in_srgb,var(--color-brand-primary)_3%,transparent)]"
+                className="text-center text-xs font-medium text-[var(--color-text-secondary)] py-2 px-3"
                 style={{ width: columnWidths.exam_summary_pass ?? COL_PASS, minWidth: 48 }}
               >
                 합불
@@ -1214,12 +1212,12 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                   }
                   return (
                     <>
-                      <td className="min-w-0 text-center align-middle py-2.5 px-3 border-l-2 border-[var(--color-border-divider)] bg-[color-mix(in_srgb,var(--color-brand-primary)_3%,transparent)]">
+                      <td className="min-w-0 text-center align-middle py-2.5 px-3 border-l border-[var(--color-border-divider)]">
                         <span className="font-bold text-[var(--color-text-primary)] tabular-nums">
                           {hasAnyScore ? `${totalScore}/${totalMaxScore}` : "-"}
                         </span>
                       </td>
-                      <td className="min-w-0 text-center align-middle py-2.5 px-3 bg-[color-mix(in_srgb,var(--color-brand-primary)_3%,transparent)]">
+                      <td className="min-w-0 text-center align-middle py-2.5 px-3">
                         {allPassed != null ? <PassFailText passed={allPassed} /> : null}
                       </td>
                     </>
