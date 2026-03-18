@@ -34,7 +34,7 @@ import { feedback } from "@/shared/ui/feedback/feedback";
 /** 컬럼 기본 너비 — 설계 문서 12️⃣ */
 const COL_EDIT = 44;
 const COL_NAME = 120;
-const COL_ATTENDANCE = 48;
+const COL_ATTENDANCE = 56;
 const COL_SCORE = 84;
 const COL_PASS = 64;
 const COL_CLINIC_TARGET = 80;
@@ -908,10 +908,10 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                   {(() => {
                     const status = attendanceMap[row.enrollment_id];
                     if (!status) return <span className="text-[var(--color-text-muted)]">-</span>;
-                    const short = getAttendanceShortLabel(status);
                     const tone = getAttendanceTone(status);
+                    const meta = { PRESENT: "현장", LATE: "지각", ONLINE: "영상", SUPPLEMENT: "보강", EARLY_LEAVE: "조퇴", ABSENT: "결석", RUNAWAY: "출튀", MATERIAL: "자료", INACTIVE: "부재", SECESSION: "퇴원" }[status] ?? status;
                     const color = tone === "success" ? "var(--color-success)" : tone === "danger" ? "var(--color-error)" : tone === "warning" ? "var(--color-warning)" : tone === "primary" ? "var(--color-brand-primary)" : tone === "teal" ? "var(--color-teal, #0d9488)" : "var(--color-text-muted)";
-                    return <span className="text-xs font-semibold" style={{ color }} title={status}>{short}</span>;
+                    return <span className="text-xs font-semibold" style={{ color }}>{meta}</span>;
                   })()}
                 </td>
 
