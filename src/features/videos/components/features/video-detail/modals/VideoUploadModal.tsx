@@ -8,6 +8,7 @@ import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { initVideoUpload, uploadFilesWithLimit } from "@/features/videos/utils/videoUpload";
 import AttendanceStatusBadge from "@/shared/ui/badges/AttendanceStatusBadge";
+import { blockAutoReload as blockAutoReloadFn } from "@/shared/ui/layout/VersionChecker";
 import "./VideoUploadModal.css";
 
 function UploadIcon({ className, size = 22 }: { className?: string; size?: number }) {
@@ -103,14 +104,21 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
     setIsUploading(false);
   }, [isOpen]);
 
-  // Warn user before closing tab/navigating away during active upload
+  // 업로드 중 자동 리로드 차단 + beforeunload
   useEffect(() => {
     if (!isUploading) return;
+
+    const unblock = blockAutoReloadFn();
+
     const handler = (e: BeforeUnloadEvent) => {
       e.preventDefault();
     };
     window.addEventListener("beforeunload", handler);
-    return () => window.removeEventListener("beforeunload", handler);
+
+    return () => {
+      window.removeEventListener("beforeunload", handler);
+      unblock(); // 업로드 완료/취소 시 자동 리로드 허용
+    };
   }, [isUploading]);
 
   const filledCount = useMemo(() => files.filter(Boolean).length, [files]);

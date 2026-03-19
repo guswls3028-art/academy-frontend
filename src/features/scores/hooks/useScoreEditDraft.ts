@@ -14,6 +14,7 @@ import {
   postScoreDraftCommit,
   type PendingChange,
 } from "../api/scoreDraft";
+import { blockAutoReload } from "@/shared/ui/layout/VersionChecker";
 
 const AUTOSAVE_CELL_THRESHOLD = 12;
 const AUTOSAVE_INTERVAL_MS = 40_000;
@@ -102,9 +103,14 @@ export function useScoreEditDraft({ sessionId, panelRef, isEditMode }: Options) 
     }
   }, [sessionId]);
 
-  // beforeunload when dirty and not recently saved
+  // 편집 모드 중 자동 리로드 차단 + beforeunload
   useEffect(() => {
     if (!isEditMode) return;
+
+    // 배포 자동 리로드 차단
+    const unblock = blockAutoReload();
+
+    // beforeunload when dirty and not recently saved
     const handler = (e: BeforeUnloadEvent) => {
       const snapshot = panelRef.current?.getPendingSnapshot?.() ?? [];
       if (snapshot.length === 0) return;
@@ -114,7 +120,11 @@ export function useScoreEditDraft({ sessionId, panelRef, isEditMode }: Options) 
       }
     };
     window.addEventListener("beforeunload", handler);
-    return () => window.removeEventListener("beforeunload", handler);
+
+    return () => {
+      window.removeEventListener("beforeunload", handler);
+      unblock(); // 편집 모드 해제 시 자동 리로드 허용
+    };
   }, [isEditMode, draftStatus, panelRef]);
 
   return {
