@@ -12,6 +12,9 @@ export type StudentExam = {
   pass_score: number;
   description?: string | null;
   session_id?: number | null;
+  status?: string;
+  has_result?: boolean;
+  attempt_count?: number;
 };
 
 export type ExamsListResponse = {
