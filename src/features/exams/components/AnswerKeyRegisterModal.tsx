@@ -19,6 +19,7 @@ import {
 import { patchQuestionScore } from "@/features/materials/api/sheetQuestions";
 import { useAdminExam } from "../hooks/useAdminExam";
 import { resolveTenantCode, getTenantIdFromCode, getTenantBranding } from "@/shared/tenant";
+import ExamPdfUploadModal from "./ExamPdfUploadModal";
 import "./AnswerKeyRegisterModal.css";
 
 type Props = {
@@ -68,8 +69,7 @@ export default function AnswerKeyRegisterModal({
   const qc = useQueryClient();
   const [activeTab, setActiveTab] = useState<"answer" | "image" | "omr">("answer");
   const { data: exam } = useAdminExam(examId);
-  const pdfInputRef = useRef<HTMLInputElement>(null);
-  const [pdfUploading, setPdfUploading] = useState(false);
+  const [pdfModalOpen, setPdfModalOpen] = useState(false);
 
   const { data: questions = [] } = useQuery({
     queryKey: ["exam-questions", examId],
@@ -366,64 +366,21 @@ export default function AnswerKeyRegisterModal({
             <Button
               intent="ghost"
               size="sm"
-              onClick={() => pdfInputRef.current?.click()}
-              disabled={pdfUploading}
+              onClick={() => setPdfModalOpen(true)}
               title="시험지 PDF를 올리면 AI가 문항을 자동 인식합니다"
             >
-              {pdfUploading ? "분석 중…" : "📄 PDF 업로드"}
+              시험지 PDF 업로드
             </Button>
           </div>
         }
         description="선택형·서술형 문항별 정답을 입력하고 저장합니다. 채점 시 사용됩니다."
       />
 
-      {/* Hidden PDF input */}
-      <input
-        ref={pdfInputRef}
-        type="file"
-        accept=".pdf,.png,.jpg,.jpeg"
-        style={{ display: "none" }}
-        onChange={async (e) => {
-          const f = e.target.files?.[0];
-          if (!f) return;
-          e.target.value = "";
-          setPdfUploading(true);
-          try {
-            const { default: api } = await import("@/shared/api/axios");
-            const formData = new FormData();
-            formData.append("file", f);
-            formData.append("exam_id", String(examId));
-            const res = await api.post("/exams/pdf-extract/", formData, {
-              headers: { "Content-Type": "multipart/form-data" },
-            });
-            const jobId = res.data?.job_id;
-            feedback.success("PDF 문항 분할이 시작되었습니다.");
-            if (jobId) {
-              const poll = setInterval(async () => {
-                try {
-                  const { default: api2 } = await import("@/shared/api/axios");
-                  const sr = await api2.get("/jobs/" + jobId + "/");
-                  const s = sr.data?.status;
-                  if (s === "DONE" || s === "done") {
-                    clearInterval(poll);
-                    setPdfUploading(false);
-                    feedback.success("문항 분할 완료!");
-                  } else if (s === "FAILED" || s === "failed") {
-                    clearInterval(poll);
-                    setPdfUploading(false);
-                    feedback.error("문항 분할 실패");
-                  }
-                } catch { clearInterval(poll); setPdfUploading(false); }
-              }, 3000);
-              setTimeout(() => { clearInterval(poll); setPdfUploading(false); }, 120000);
-            } else {
-              setPdfUploading(false);
-            }
-          } catch (err: any) {
-            feedback.error(err?.response?.data?.detail ?? "PDF 업로드 실패");
-            setPdfUploading(false);
-          }
-        }}
+      {/* PDF 업로드 공통 모달 */}
+      <ExamPdfUploadModal
+        open={pdfModalOpen}
+        onClose={() => setPdfModalOpen(false)}
+        examId={examId}
       />
 
       <ModalBody>
@@ -1283,106 +1240,3 @@ function OmrSettingsTab({
   );
 }
 
-/** PDF 업로드 → AI 문항 분할 섹션 */
-function PdfUploadSection({ examId, questionCount }: { examId: number; questionCount: number }) {
-  const [uploading, setUploading] = useState(false);
-  const [jobId, setJobId] = useState<string | null>(null);
-  const [jobStatus, setJobStatus] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
-
-  const handleUpload = async (file: File) => {
-    setUploading(true);
-    setError(null);
-    setJobId(null);
-    setJobStatus(null);
-
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("exam_id", String(examId));
-
-      const { default: api } = await import("@/shared/api/axios");
-      const res = await api.post("/exams/pdf-extract/", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-
-      const id = res.data?.job_id;
-      setJobId(id);
-      setJobStatus("submitted");
-
-      // Poll for job status
-      if (id) {
-        const poll = setInterval(async () => {
-          try {
-            const { default: api2 } = await import("@/shared/api/axios");
-            const statusRes = await api2.get("/jobs/" + id + "/");
-            const s = statusRes.data?.status;
-            setJobStatus(s);
-            if (s === "DONE" || s === "FAILED" || s === "done" || s === "failed") {
-              clearInterval(poll);
-              if (s === "DONE" || s === "done") {
-                feedback.success("PDF 문항 분할이 완료되었습니다.");
-              } else {
-                setError("문항 분할에 실패했습니다.");
-              }
-            }
-          } catch {
-            clearInterval(poll);
-          }
-        }, 3000);
-        setTimeout(() => clearInterval(poll), 120000);
-      }
-    } catch (e: any) {
-      setError(e?.response?.data?.detail ?? e?.message ?? "업로드 실패");
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  return (
-    <div
-      className="rounded border border-dashed border-[var(--color-border-divider)] p-4 mb-4"
-      style={{ background: "color-mix(in srgb, var(--color-brand-primary) 3%, var(--color-bg-surface))" }}
-    >
-      <div className="flex items-center justify-between mb-2">
-        <div>
-          <div className="text-sm font-semibold text-[var(--color-text-primary)]">PDF 업로드</div>
-          <div className="text-xs text-[var(--color-text-muted)]">
-            시험지 PDF를 올리면 AI가 문항을 자동 인식하여 이미지를 업로드합니다.
-          </div>
-        </div>
-        <Button
-          intent="primary"
-          size="sm"
-          onClick={() => fileRef.current?.click()}
-          disabled={uploading}
-        >
-          {uploading ? "업로드 중…" : "PDF 선택"}
-        </Button>
-        <input
-          ref={fileRef}
-          type="file"
-          accept=".pdf,.png,.jpg,.jpeg"
-          style={{ display: "none" }}
-          onChange={(e) => {
-            const f = e.target.files?.[0];
-            if (f) handleUpload(f);
-            e.target.value = "";
-          }}
-        />
-      </div>
-      {jobStatus && (
-        <div className="text-xs mt-2">
-          {(jobStatus === "submitted" || jobStatus === "PENDING" || jobStatus === "RUNNING") && (
-            <span className="text-[var(--color-brand-primary)]">AI 문항 분할 진행 중… ({jobStatus})</span>
-          )}
-          {(jobStatus === "DONE" || jobStatus === "done") && (
-            <span className="text-[var(--color-success)]">문항 분할 완료</span>
-          )}
-        </div>
-      )}
-      {error && <div className="text-xs mt-2 text-[var(--color-error)]">{error}</div>}
-    </div>
-  );
-}

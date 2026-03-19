@@ -3,6 +3,7 @@
  *
  * - 커트라인 / 진행 상태
  * - 답안 등록: "답안등록하기" 버튼 → 모달(문항 수·기본 점수·문항 반영 + 정답표)
+ * - PDF 업로드: "시험지 PDF 업로드" 버튼 → ExamPdfUploadModal
  */
 
 import { useEffect, useMemo, useState } from "react";
@@ -15,7 +16,7 @@ import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { resolveTenantCode, getTenantIdFromCode, getTenantBranding } from "@/shared/tenant";
 import AnswerKeyRegisterModal from "../../components/AnswerKeyRegisterModal";
-import { useRef } from "react";
+import ExamPdfUploadModal from "../../components/ExamPdfUploadModal";
 
 export default function ExamPolicyPanel({ examId }: { examId: number }) {
   const qc = useQueryClient();
@@ -24,8 +25,7 @@ export default function ExamPolicyPanel({ examId }: { examId: number }) {
   const [passScore, setPassScore] = useState<number | "">("");
   const [savedScore, setSavedScore] = useState<number | "">("");
   const [answerModalOpen, setAnswerModalOpen] = useState(false);
-  const pdfInputRef = useRef<HTMLInputElement>(null);
-  const [pdfUploading, setPdfUploading] = useState(false);
+  const [pdfModalOpen, setPdfModalOpen] = useState(false);
 
   useEffect(() => {
     if (!exam) return;
@@ -33,72 +33,53 @@ export default function ExamPolicyPanel({ examId }: { examId: number }) {
     const value = Number.isFinite(ps) && ps >= 0 ? ps : "";
     setPassScore(value);
     setSavedScore(value);
-  }, [exam?.id]);
-
-  const isDirty = useMemo(
-    () => passScore !== savedScore,
-    [passScore, savedScore]
-  );
+  }, [exam?.id, exam?.pass_score]);
 
   const numericPassScore = typeof passScore === "number" ? passScore : 0;
+  const isDirty = passScore !== savedScore;
 
   const patchMut = useMutation({
-    mutationFn: (payload: { pass_score: number }) => updateAdminExam(examId, payload),
-    onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: ["admin-exam", examId] });
-      feedback.success("저장되었습니다.");
+    mutationFn: (data: { pass_score: number }) => updateAdminExam(examId, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin-exam", examId] });
+      feedback.success("커트라인이 저장되었습니다.");
     },
-    onError: (e: any) => {
-      feedback.error(e?.response?.data?.detail ?? "저장에 실패했습니다.");
+    onError: (e: unknown) => {
+      feedback.error((e as Error)?.message ?? "저장에 실패했습니다.");
     },
   });
 
-  if (isLoading || !exam) {
-    return (
-      <section className="rounded border border-[var(--border-divider)] bg-[var(--bg-surface-soft)] p-4 text-sm text-[var(--text-muted)]">
-        시험 정책을 불러오는 중입니다…
-      </section>
-    );
-  }
-
-  const canEditQuestions = exam.exam_type === "template";
-
-  // ── OMR: 문항 수 파악 ──
-  const questionsQ = useQuery({
+  // Questions + AnswerKey for OMR spec
+  const { data: questions = [] } = useQuery({
     queryKey: ["exam-questions", examId],
     queryFn: () => fetchQuestionsByExam(examId).then((r) => r.data),
-    enabled: Number.isFinite(examId),
+    enabled: examId > 0,
   });
-  const answerKeyQ = useQuery({
+  const { data: answerKey } = useQuery({
     queryKey: ["answer-key", examId],
-    queryFn: () => fetchAnswerKeyByExam(examId).then((r) => r.data),
-    enabled: Number.isFinite(examId),
+    queryFn: () => fetchAnswerKeyByExam(examId).then((r) => r.data?.[0] ?? null),
+    enabled: examId > 0,
   });
 
+  const canEditQuestions = exam?.exam_type === "template";
+
+  // OMR spec
   const omrSpec = useMemo(() => {
-    const questions = questionsQ.data ?? [];
-    const ak = answerKeyQ.data?.[0];
-    if (!questions.length) return null;
-    const answers = ak?.answers ?? {};
-    // choice questions: answer is "1"~"5", essay: anything else
+    if (!questions || questions.length === 0) return null;
+    const answers = answerKey?.answers ?? {};
     let choiceCount = 0;
     let essayCount = 0;
     for (const q of questions) {
-      const ans = answers[String(q.id)] ?? "";
-      const isChoice = /^[1-5]$/.test(ans);
+      const ans = String(answers[String(q.id)] ?? "").trim();
+      const isChoice = ["1", "2", "3", "4", "5"].includes(ans);
       if (isChoice) choiceCount++;
       else essayCount++;
     }
-    // If no answer key, assume all choice
-    if (!ak) {
-      choiceCount = questions.length;
-      essayCount = 0;
-    }
-    return { choiceCount, essayCount, total: questions.length };
-  }, [questionsQ.data, answerKeyQ.data]);
+    return { choiceCount, essayCount, total: choiceCount + essayCount };
+  }, [questions, answerKey]);
 
   const openOmrSheet = () => {
-    if (!omrSpec) return;
+    if (!exam || !omrSpec) return;
     let logoUrl = "/omr-default-logo.svg";
     try {
       const r = resolveTenantCode();
@@ -131,6 +112,10 @@ export default function ExamPolicyPanel({ examId }: { examId: number }) {
     }
   };
 
+  if (!exam || isLoading) {
+    return null;
+  }
+
   return (
     <section className="rounded border border-[var(--border-divider)] bg-[var(--bg-surface)]">
       <div className="border-b border-[var(--border-divider)] px-4 py-3">
@@ -160,16 +145,12 @@ export default function ExamPolicyPanel({ examId }: { examId: number }) {
               }}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && (isDirty && !patchMut.isPending)) {
-                  e.preventDefault();
                   savePassScore();
                 }
               }}
-              placeholder="입력"
-              className="w-[180px] rounded border border-[var(--border-divider)] px-3 py-2 text-4xl font-bold"
-              disabled={patchMut.isPending}
+              className="w-24 rounded border border-[var(--border-divider)] px-2 py-1.5 text-sm text-[var(--text-primary)]"
             />
           </div>
-
           <Button
             type="button"
             intent="primary"
@@ -201,54 +182,10 @@ export default function ExamPolicyPanel({ examId }: { examId: number }) {
               type="button"
               intent="ghost"
               size="sm"
-              onClick={() => pdfInputRef.current?.click()}
-              disabled={pdfUploading}
+              onClick={() => setPdfModalOpen(true)}
             >
-              {pdfUploading ? "분석 중…" : "📄 PDF 업로드"}
+              시험지 PDF 업로드
             </Button>
-            <input
-              ref={pdfInputRef}
-              type="file"
-              accept=".pdf,.png,.jpg,.jpeg"
-              style={{ display: "none" }}
-              onChange={async (e) => {
-                const f = e.target.files?.[0];
-                if (!f) return;
-                e.target.value = "";
-                setPdfUploading(true);
-                try {
-                  const { default: api } = await import("@/shared/api/axios");
-                  const formData = new FormData();
-                  formData.append("file", f);
-                  formData.append("exam_id", String(examId));
-                  const res = await api.post("/exams/pdf-extract/", formData, {
-                    headers: { "Content-Type": "multipart/form-data" },
-                  });
-                  feedback.success("PDF 문항 분할이 시작되었습니다.");
-                  const jobId = res.data?.job_id;
-                  if (jobId) {
-                    const poll = setInterval(async () => {
-                      try {
-                        const { default: api2 } = await import("@/shared/api/axios");
-                        const sr = await api2.get("/jobs/" + jobId + "/");
-                        const s = sr.data?.status;
-                        if (s === "DONE" || s === "done") {
-                          clearInterval(poll); setPdfUploading(false);
-                          feedback.success("문항 분할 완료!");
-                        } else if (s === "FAILED" || s === "failed") {
-                          clearInterval(poll); setPdfUploading(false);
-                          feedback.error("문항 분할 실패");
-                        }
-                      } catch { clearInterval(poll); setPdfUploading(false); }
-                    }, 3000);
-                    setTimeout(() => { clearInterval(poll); setPdfUploading(false); }, 120000);
-                  } else { setPdfUploading(false); }
-                } catch (err: any) {
-                  feedback.error(err?.response?.data?.detail ?? "PDF 업로드 실패");
-                  setPdfUploading(false);
-                }
-              }}
-            />
           </div>
         </div>
 
@@ -258,6 +195,12 @@ export default function ExamPolicyPanel({ examId }: { examId: number }) {
           examId={examId}
           structureOwnerId={exam.id}
           canEditQuestions={canEditQuestions}
+        />
+
+        <ExamPdfUploadModal
+          open={pdfModalOpen}
+          onClose={() => setPdfModalOpen(false)}
+          examId={examId}
         />
 
         {/* ── OMR 답안지 출력 ── */}
