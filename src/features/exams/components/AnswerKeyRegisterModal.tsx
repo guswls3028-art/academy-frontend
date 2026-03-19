@@ -1240,14 +1240,9 @@ function OmrSettingsTab({
             size="md"
             className="w-full"
             onClick={() => {
-              // Call downloadOmrPdf() inside the iframe
-              const iframe = document.querySelector('iframe[title="OMR 답안지 미리보기"]') as HTMLIFrameElement;
-              if (iframe?.contentWindow && typeof (iframe.contentWindow as any).downloadOmrPdf === "function") {
-                (iframe.contentWindow as any).downloadOmrPdf();
-              } else {
-                // Fallback: open in new tab
-                window.open(buildPrintUrl(), "_blank");
-              }
+              // Open in new tab with auto-download mode
+              const url = buildPrintUrl() + "&action=download";
+              window.open(url, "_blank");
             }}
           >
             PDF 다운로드

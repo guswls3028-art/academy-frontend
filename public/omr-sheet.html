@@ -318,7 +318,17 @@ function gen(){
 function $(id){return document.getElementById(id)}
 function clamp(v,lo,hi){return Math.max(lo,Math.min(hi,v))}
 function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML}
-window.addEventListener('DOMContentLoaded',gen);
+window.addEventListener('DOMContentLoaded',function(){
+  gen();
+  // Auto-download PDF if action=download
+  var p=new URLSearchParams(window.location.search);
+  if(p.get('action')==='download'){
+    // Hide generator, wait for render, then download
+    var cfg=document.querySelector('.cfg');
+    if(cfg)cfg.style.display='none';
+    setTimeout(function(){ window.downloadOmrPdf(); }, 500);
+  }
+});
 
 // PDF download mode: auto-download PDF when mode=download
 window.downloadOmrPdf = async function() {

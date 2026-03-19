@@ -113,7 +113,7 @@ export default function ExamPolicyPanel({ examId, lectureId = 0, sessionId = 0 }
       choices: "5",
       logo: logoUrl,
     });
-    window.open(`/omr-sheet.html?${params.toString()}`, "_blank");
+    window.open(`/omr-sheet.html?${params.toString()}&action=download`, "_blank");
   };
 
   const savePassScore = async () => {
@@ -237,7 +237,7 @@ export default function ExamPolicyPanel({ examId, lectureId = 0, sessionId = 0 }
               size="sm"
               onClick={openOmrSheet}
             >
-              OMR 답안지 출력
+              OMR 답안지 PDF 다운로드
             </Button>
           </div>
         )}
