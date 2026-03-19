@@ -2,7 +2,8 @@
 // ------------------------------------------------------------
 // 과제 생성 모달 — 일괄 생성(bulk) 지원
 // 신규: 행 기반 폼으로 여러 과제를 한 번에 생성
-// 불러오기: 기존 템플릿 import 유지
+// 불러오기(템플릿): 기존 템플릿 import 유지
+// 불러오기(다른 차시): 다른 강의/차시에서 과제 복사
 // 대상자 자동 등록
 // ------------------------------------------------------------
 
@@ -15,6 +16,7 @@ import { fetchHomeworkTemplatesWithUsage, type HomeworkTemplateWithUsage } from 
 import { fetchHomeworkPolicyBySession, patchHomeworkPolicy } from "../api/homeworkPolicy";
 import { fetchSessionEnrollments } from "@/features/exams/api/sessionEnrollments";
 import { putHomeworkAssignments } from "../api/homeworkAssignments";
+import SessionItemBrowser, { type SelectedHomeworkItem } from "@/features/sessions/components/SessionItemBrowser";
 import { feedback } from "@/shared/ui/feedback/feedback";
 
 type Props = {
@@ -24,7 +26,7 @@ type Props = {
   onCreated: (newId: number) => void;
 };
 
-type Stage = "choose" | "new" | "import";
+type Stage = "choose" | "new" | "import" | "copy";
 
 type CutlineMode = "PERCENT" | "COUNT";
 
@@ -234,6 +236,58 @@ export default function CreateHomeworkModal({
     }
   };
 
+  // ── Copy submit (from other session) ──
+  const handleCopyHomeworks = async (items: SelectedHomeworkItem[]) => {
+    if (!sessionId || items.length === 0) return;
+
+    setError(null);
+    setSubmitting(true);
+
+    const created: { id: number; title: string }[] = [];
+    const failed: string[] = [];
+
+    for (const item of items) {
+      try {
+        const res = await api.post("/homeworks/", {
+          session_id: sessionId,
+          title: item.title,
+        });
+        const newId = Number(res.data?.id ?? res.data?.homework_id ?? res.data?.pk);
+        if (!Number.isFinite(newId) || newId <= 0) throw new Error("생성 후 ID를 받지 못했습니다.");
+
+        // Copy max_score from source
+        if (item.max_score > 0) {
+          try {
+            await api.patch(`/homeworks/${newId}/`, {
+              meta: { default_max_score: item.max_score },
+            });
+          } catch {
+            // best-effort
+          }
+        }
+
+        void autoEnroll(newId);
+        created.push({ id: newId, title: item.title });
+        onCreated(newId);
+      } catch {
+        failed.push(item.title);
+      }
+    }
+
+    setSubmitting(false);
+
+    if (created.length > 0) {
+      const msg = `${created.length}개 과제 불러오기 완료 (복사 생성)` +
+        (failed.length > 0 ? ` · ${failed.length}개 실패` : "");
+      feedback.success(msg);
+    }
+    if (failed.length > 0 && created.length === 0) {
+      setError(`모든 과제 복사에 실패했습니다: ${failed.join(", ")}`);
+      return;
+    }
+    onClose();
+  };
+
   const bulkDisabled = submitting || rows.every((r) => !r.title.trim());
   const importDisabled = submitting || !title.trim() || !selectedTemplateId;
 
@@ -249,9 +303,16 @@ export default function CreateHomeworkModal({
 
   if (!open) return null;
 
+  const stageLabels: Record<Stage, string> = {
+    choose: "과제 생성",
+    new: "일괄 과제 생성",
+    import: "템플릿 불러오기",
+    copy: "다른 차시에서 불러오기",
+  };
+
   const headerTitle =
     stage === "choose" ? (
-      "과제 생성"
+      stageLabels.choose
     ) : (
       <div className="flex items-center gap-2">
         <button
@@ -262,7 +323,7 @@ export default function CreateHomeworkModal({
         >
           ←
         </button>
-        <span>{stage === "new" ? "일괄 과제 생성" : "불러오기"}</span>
+        <span>{stageLabels[stage]}</span>
       </div>
     );
 
@@ -271,7 +332,7 @@ export default function CreateHomeworkModal({
       open
       onClose={onClose}
       type="action"
-      width={MODAL_WIDTH.default}
+      width={stage === "copy" ? MODAL_WIDTH.wide : MODAL_WIDTH.default}
       onEnterConfirm={
         stage === "new"
           ? (!bulkDisabled ? handleBulkSubmit : undefined)
@@ -285,9 +346,11 @@ export default function CreateHomeworkModal({
         title={headerTitle}
         description={
           stage === "choose"
-            ? "신규 과제를 만들거나, 기존 템플릿을 불러와 이 차시에 적용할 수 있습니다. 대상자는 자동 등록됩니다."
+            ? "신규 과제를 만들거나, 기존 과제를 불러와 이 차시에 적용할 수 있습니다. 대상자는 자동 등록됩니다."
             : stage === "new"
             ? "여러 과제를 한 번에 생성할 수 있습니다. 행을 추가하고 일괄 생성하세요."
+            : stage === "copy"
+            ? "다른 강의/차시의 과제를 선택하여 현재 차시에 복사 생성합니다."
             : undefined
         }
       />
@@ -304,7 +367,7 @@ export default function CreateHomeworkModal({
           {stage === "choose" && (
             <div className="modal-form-group">
               <div className="modal-section-label mb-3">생성 방식</div>
-              <div className="grid grid-cols-2 gap-5">
+              <div className="grid grid-cols-3 gap-4">
                 <SessionBlockView
                   variant="n1"
                   compact={false}
@@ -319,9 +382,18 @@ export default function CreateHomeworkModal({
                   compact={false}
                   selected={false}
                   showCheck
-                  title="불러오기"
-                  desc="다른 강의의 과제 템플릿을 불러옵니다."
+                  title="템플릿 불러오기"
+                  desc="과제 템플릿을 불러옵니다."
                   onClick={() => { setError(null); setKeyword(""); setSelectedTemplateId(null); setTitle(""); setStage("import"); }}
+                />
+                <SessionBlockView
+                  variant="n1"
+                  compact={false}
+                  selected={false}
+                  showCheck
+                  title="다른 차시에서"
+                  desc="다른 강의/차시의 과제를 복사합니다."
+                  onClick={() => { setError(null); setStage("copy"); }}
                 />
               </div>
             </div>
@@ -419,6 +491,23 @@ export default function CreateHomeworkModal({
                   대상자 자동 등록됨 (이 차시의 모든 수강생) · 커트라인은 첫 번째 행 기준 · {cutlineMode === "PERCENT" ? "퍼센트(%) 기준" : "점수 기준"}
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* ── Stage: copy (from other session) ── */}
+          {stage === "copy" && (
+            <div className="modal-form-group">
+              {submitting ? (
+                <div className="text-center py-8 text-sm text-[var(--color-text-muted)]">
+                  과제를 복사 생성하는 중…
+                </div>
+              ) : (
+                <SessionItemBrowser
+                  mode="homework"
+                  excludeSessionId={sessionId}
+                  onSelectHomeworks={handleCopyHomeworks}
+                />
+              )}
             </div>
           )}
 

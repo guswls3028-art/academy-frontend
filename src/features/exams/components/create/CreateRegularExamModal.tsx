@@ -1,7 +1,8 @@
 // PATH: src/features/exams/components/create/CreateRegularExamModal.tsx
 // ------------------------------------------------------------
 // 시험 생성 모달 — 신규: 일괄 생성 (제목/만점/커트라인 다중 행)
-//                     불러오기: 기존 템플릿 import (기존 로직 유지)
+//                     불러오기(템플릿): 기존 템플릿 import
+//                     불러오기(다른 차시): 다른 강의/차시에서 시험 복사
 // 대상자 자동 등록
 // ------------------------------------------------------------
 
@@ -14,6 +15,7 @@ import { fetchTemplatesWithUsage, type TemplateWithUsage } from "@/features/exam
 import { updateAdminExam } from "@/features/exams/api/adminExam";
 import { fetchSessionEnrollments } from "@/features/exams/api/sessionEnrollments";
 import { updateExamEnrollmentRows } from "@/features/exams/api/examEnrollments";
+import SessionItemBrowser, { type SelectedExamItem } from "@/features/sessions/components/SessionItemBrowser";
 import { feedback } from "@/shared/ui/feedback/feedback";
 
 type Props = {
@@ -24,7 +26,7 @@ type Props = {
   onCreated: (examId: number) => void;
 };
 
-type Stage = "choose" | "new" | "import";
+type Stage = "choose" | "new" | "import" | "copy";
 
 type BulkRow = {
   id: number;
@@ -179,7 +181,7 @@ export default function CreateRegularExamModal({
     }
   };
 
-  // ── Import submit (unchanged logic) ──
+  // ── Import submit (template) ──
   const handleImportSubmit = async () => {
     if (!sessionId) {
       setError("세션 정보가 없습니다.");
@@ -218,6 +220,58 @@ export default function CreateRegularExamModal({
     }
   };
 
+  // ── Copy submit (from other session) ──
+  const handleCopyExams = async (items: SelectedExamItem[]) => {
+    if (!sessionId || items.length === 0) return;
+
+    setError(null);
+    setSubmitting(true);
+
+    let successCount = 0;
+    const failedTitles: string[] = [];
+
+    for (const item of items) {
+      try {
+        // Create new exam in current session (copy — no template link)
+        const res = await api.post("/exams/", {
+          title: item.title,
+          description: "",
+          exam_type: "regular",
+          session_id: sessionId,
+        });
+        const newExamId = Number(res.data?.id);
+        if (!newExamId) throw new Error("생성 후 ID를 받지 못했습니다.");
+
+        // Copy max_score, pass_score from source
+        await updateAdminExam(newExamId, {
+          max_score: item.max_score,
+          pass_score: item.pass_score,
+          answer_visibility: "hidden",
+        });
+
+        void autoEnroll(newExamId);
+        onCreated(newExamId);
+        successCount++;
+      } catch {
+        failedTitles.push(item.title);
+      }
+    }
+
+    setSubmitting(false);
+
+    if (failedTitles.length === 0) {
+      feedback.success(`${successCount}개 시험 불러오기 완료 (복사 생성)`);
+      onClose();
+    } else if (successCount > 0) {
+      feedback.warning(
+        `${successCount}개 생성 완료, ${failedTitles.length}개 실패: ${failedTitles.join(", ")}`
+      );
+      onClose();
+    } else {
+      setError(`시험 복사 실패: ${failedTitles.join(", ")}`);
+    }
+  };
+
   const importDisabled =
     submitting || !(sessionId > 0) || !title.trim() || !selectedTemplateId;
 
@@ -244,9 +298,16 @@ export default function CreateRegularExamModal({
 
   if (!open) return null;
 
+  const stageLabels: Record<Stage, string> = {
+    choose: "시험 생성",
+    new: "일괄 생성",
+    import: "템플릿 불러오기",
+    copy: "다른 차시에서 불러오기",
+  };
+
   const headerTitle =
     stage === "choose" ? (
-      "시험 생성"
+      stageLabels.choose
     ) : (
       <div className="flex items-center gap-2">
         <button
@@ -261,7 +322,7 @@ export default function CreateRegularExamModal({
         >
           ←
         </button>
-        <span>{stage === "new" ? "일괄 생성" : "불러오기"}</span>
+        <span>{stageLabels[stage]}</span>
       </div>
     );
 
@@ -270,7 +331,7 @@ export default function CreateRegularExamModal({
       open
       onClose={onClose}
       type="action"
-      width={MODAL_WIDTH.default}
+      width={stage === "copy" ? MODAL_WIDTH.wide : MODAL_WIDTH.default}
       onEnterConfirm={
         stage === "new" && bulkHasAnyTitle && !submitting
           ? handleBulkSubmit
@@ -284,9 +345,11 @@ export default function CreateRegularExamModal({
         title={headerTitle}
         description={
           stage === "choose"
-            ? "신규 시험을 만들거나, 기존 템플릿을 불러와 이 차시에 적용할 수 있습니다. 대상자는 자동 등록됩니다."
+            ? "신규 시험을 만들거나, 기존 시험을 불러와 이 차시에 적용할 수 있습니다. 대상자는 자동 등록됩니다."
             : stage === "new"
             ? "여러 시험을 한번에 생성할 수 있습니다. 행을 추가한 뒤 일괄 생성하세요."
+            : stage === "copy"
+            ? "다른 강의/차시의 시험을 선택하여 현재 차시에 복사 생성합니다."
             : undefined
         }
       />
@@ -303,13 +366,13 @@ export default function CreateRegularExamModal({
           {stage === "choose" && (
             <div className="modal-form-group">
               <div className="modal-section-label mb-3">생성 방식</div>
-              <div className="grid grid-cols-2 gap-5">
+              <div className="grid grid-cols-3 gap-4">
                 <SessionBlockView
                   variant="n1"
                   compact={false}
                   selected={false}
                   showCheck
-                  title="신규시험"
+                  title="신규 시험"
                   desc="여러 시험을 한번에 생성합니다."
                   onClick={() => {
                     setError(null);
@@ -322,14 +385,26 @@ export default function CreateRegularExamModal({
                   compact={false}
                   selected={false}
                   showCheck
-                  title="불러오기"
-                  desc="다른 강의의 시험을 불러옵니다."
+                  title="템플릿 불러오기"
+                  desc="기존 시험 템플릿을 불러옵니다."
                   onClick={() => {
                     setError(null);
                     setTitle("");
                     setSelectedTemplateId(null);
                     setKeyword("");
                     setStage("import");
+                  }}
+                />
+                <SessionBlockView
+                  variant="n1"
+                  compact={false}
+                  selected={false}
+                  showCheck
+                  title="다른 차시에서"
+                  desc="다른 강의/차시의 시험을 복사합니다."
+                  onClick={() => {
+                    setError(null);
+                    setStage("copy");
                   }}
                 />
               </div>
@@ -410,6 +485,23 @@ export default function CreateRegularExamModal({
             </div>
           )}
 
+          {/* ── Stage: copy (from other session) ── */}
+          {stage === "copy" && (
+            <div className="modal-form-group">
+              {submitting ? (
+                <div className="text-center py-8 text-sm text-[var(--color-text-muted)]">
+                  시험을 복사 생성하는 중…
+                </div>
+              ) : (
+                <SessionItemBrowser
+                  mode="exam"
+                  excludeSessionId={sessionId}
+                  onSelectExams={handleCopyExams}
+                />
+              )}
+            </div>
+          )}
+
           {/* ── Stage: import ── */}
           {stage === "import" && (
             <div className="modal-form-group">
@@ -432,7 +524,7 @@ export default function CreateRegularExamModal({
                   <div className="grid gap-2" style={{ maxHeight: 240, overflowY: "auto" }}>
                     {filteredTemplates.map((t) => {
                       const active = t.id === selectedTemplateId;
-                      const lectures = [...(t.used_lectures ?? [])].sort((a, b) =>
+                      const lecturesList = [...(t.used_lectures ?? [])].sort((a, b) =>
                         String(b.last_used_date ?? "").localeCompare(String(a.last_used_date ?? ""))
                       );
                       return (
@@ -459,9 +551,9 @@ export default function CreateRegularExamModal({
                               </div>
                             </div>
                           </div>
-                          {lectures.length > 0 && (
+                          {lecturesList.length > 0 && (
                             <div className="mt-2 flex flex-wrap gap-1.5">
-                              {lectures.slice(0, 4).map((lec) => (
+                              {lecturesList.slice(0, 4).map((lec) => (
                                 <span
                                   key={lec.lecture_id}
                                   className="ds-badge"
@@ -477,8 +569,8 @@ export default function CreateRegularExamModal({
                                   {(lec.chip_label ? `${lec.chip_label} ` : "") + lec.lecture_title}
                                 </span>
                               ))}
-                              {lectures.length > 4 && (
-                                <span className="ds-badge">+{lectures.length - 4}</span>
+                              {lecturesList.length > 4 && (
+                                <span className="ds-badge">+{lecturesList.length - 4}</span>
                               )}
                             </div>
                           )}
