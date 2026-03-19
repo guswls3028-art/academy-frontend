@@ -68,6 +68,8 @@ export default function AnswerKeyRegisterModal({
   const qc = useQueryClient();
   const [activeTab, setActiveTab] = useState<"answer" | "image" | "omr">("answer");
   const { data: exam } = useAdminExam(examId);
+  const pdfInputRef = useRef<HTMLInputElement>(null);
+  const [pdfUploading, setPdfUploading] = useState(false);
 
   const { data: questions = [] } = useQuery({
     queryKey: ["exam-questions", examId],
@@ -351,7 +353,7 @@ export default function AnswerKeyRegisterModal({
       <ModalHeader
         type="action"
         title={
-          <div className="answer-key-modal-header-tabs">
+          <div className="answer-key-modal-header-tabs" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
             <Tabs
               value={activeTab}
               items={[
@@ -361,9 +363,67 @@ export default function AnswerKeyRegisterModal({
               ]}
               onChange={(key) => setActiveTab(key as "answer" | "image" | "omr")}
             />
+            <Button
+              intent="ghost"
+              size="sm"
+              onClick={() => pdfInputRef.current?.click()}
+              disabled={pdfUploading}
+              title="시험지 PDF를 올리면 AI가 문항을 자동 인식합니다"
+            >
+              {pdfUploading ? "분석 중…" : "📄 PDF 업로드"}
+            </Button>
           </div>
         }
         description="선택형·서술형 문항별 정답을 입력하고 저장합니다. 채점 시 사용됩니다."
+      />
+
+      {/* Hidden PDF input */}
+      <input
+        ref={pdfInputRef}
+        type="file"
+        accept=".pdf,.png,.jpg,.jpeg"
+        style={{ display: "none" }}
+        onChange={async (e) => {
+          const f = e.target.files?.[0];
+          if (!f) return;
+          e.target.value = "";
+          setPdfUploading(true);
+          try {
+            const { default: api } = await import("@/shared/api/axios");
+            const formData = new FormData();
+            formData.append("file", f);
+            formData.append("exam_id", String(examId));
+            const res = await api.post("/exams/pdf-extract/", formData, {
+              headers: { "Content-Type": "multipart/form-data" },
+            });
+            const jobId = res.data?.job_id;
+            feedback.success("PDF 문항 분할이 시작되었습니다.");
+            if (jobId) {
+              const poll = setInterval(async () => {
+                try {
+                  const { default: api2 } = await import("@/shared/api/axios");
+                  const sr = await api2.get("/jobs/" + jobId + "/");
+                  const s = sr.data?.status;
+                  if (s === "DONE" || s === "done") {
+                    clearInterval(poll);
+                    setPdfUploading(false);
+                    feedback.success("문항 분할 완료!");
+                  } else if (s === "FAILED" || s === "failed") {
+                    clearInterval(poll);
+                    setPdfUploading(false);
+                    feedback.error("문항 분할 실패");
+                  }
+                } catch { clearInterval(poll); setPdfUploading(false); }
+              }, 3000);
+              setTimeout(() => { clearInterval(poll); setPdfUploading(false); }, 120000);
+            } else {
+              setPdfUploading(false);
+            }
+          } catch (err: any) {
+            feedback.error(err?.response?.data?.detail ?? "PDF 업로드 실패");
+            setPdfUploading(false);
+          }
+        }}
       />
 
       <ModalBody>
@@ -668,8 +728,6 @@ export default function AnswerKeyRegisterModal({
                 </div>
               ) : (
                 <>
-                {/* PDF 업로드 영역 */}
-                <PdfUploadSection examId={examId} questionCount={sortedQuestions.length} />
                 <div className="answer-key-explanation-table-wrap">
                   <table className="answer-key-explanation-table">
                     <thead>
