@@ -16,9 +16,9 @@ function getTenantLogoUrl(): string {
 
 export default function OmrGeneratorPage() {
   const [examName, setExamName] = useState("제1회 단원평가");
-  const [lectureName, setLectureName] = useState("");
-  const [sessionName, setSessionName] = useState("");
-  const [mcCount, setMcCount] = useState(30);
+  const [lectureName, setLectureName] = useState("수학");
+  const [sessionName, setSessionName] = useState("1차시");
+  const [mcCount, setMcCount] = useState(20);
   const [essayCount, setEssayCount] = useState(5);
   const [choices, setChoices] = useState(5);
   const iframeRef = useRef<HTMLIFrameElement>(null);
