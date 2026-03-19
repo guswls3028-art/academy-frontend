@@ -46,7 +46,8 @@ function setAccessToken(token: string) {
   }
 }
 
-function clearTokens() {
+/** 토큰 정리 SSOT — 모든 로그아웃/세션만료 경로에서 이 함수를 사용 */
+export function clearTokens() {
   try {
     localStorage.removeItem("access");
     localStorage.removeItem("refresh");
@@ -54,6 +55,13 @@ function clearTokens() {
   } catch {
     // ignore
   }
+}
+
+/** 세션 종료 중복 방지 플래그 — axios interceptor가 이미 /login 리다이렉트 중이면 true */
+export let isSessionEnding = false;
+
+export function markSessionEnding() {
+  isSessionEnding = true;
 }
 
 /**
@@ -290,11 +298,14 @@ api.interceptors.response.use(
 
       if (!newAccess) {
         clearTokens();
-        // 세션 만료: 즉시 로그인 페이지로 이동
-        try {
-          sessionStorage.setItem("session_expired", "1");
-        } catch { /* ignore */ }
-        window.location.href = "/login";
+        // 세션 만료: 즉시 로그인 페이지로 이동 (중복 방지)
+        if (!isSessionEnding) {
+          markSessionEnding();
+          try {
+            sessionStorage.setItem("session_expired", "1");
+          } catch { /* ignore */ }
+          window.location.href = "/login";
+        }
         throw err;
       }
 

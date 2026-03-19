@@ -20,6 +20,7 @@ import { StaffRoleAvatar } from "@/shared/ui/avatars";
 import { HeaderCenterStaffClock } from "@/features/staff/components/HeaderCenterStaffClock";
 import { useDocumentTitle } from "@/shared/hooks/useDocumentTitle";
 import { resolveTenantCode, getTenantIdFromCode, getTenantBranding } from "@/shared/tenant";
+import useAuth from "@/features/auth/hooks/useAuth";
 import TchulLogoIcon from "@/features/auth/assets/TchulLogoIcon";
 import CommonLogoIcon from "@/features/auth/assets/CommonLogoIcon";
 
@@ -220,6 +221,7 @@ export default function Header() {
   const { program } = useProgram();
   const { data: messagingInfo } = useMessagingInfo();
   const { data: me } = useQuery({ queryKey: ["me"], queryFn: fetchMe });
+  const { clearAuth } = useAuth();
 
   const [openNotice, setOpenNotice] = useState(false);
   const [alarmDropdownOpen, setAlarmDropdownOpen] = useState(false);
@@ -290,7 +292,10 @@ export default function Header() {
       setProfileDropdownOpen(false);
       if (key === "profile") nav("/admin/settings/profile");
       if (key === "settings") nav("/admin/settings");
-      if (key === "logout") nav("/login");
+      if (key === "logout") {
+        clearAuth();
+        nav("/login");
+      }
     },
   };
 

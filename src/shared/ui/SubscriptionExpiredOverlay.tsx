@@ -2,6 +2,7 @@
 // 구독 만료 시 전체 화면 차단 오버레이 — 402 이벤트 수신
 
 import { useState, useEffect } from "react";
+import { clearTokens } from "@/shared/api/axios";
 
 type ExpiredDetail = {
   detail?: string;
@@ -100,12 +101,7 @@ export default function SubscriptionExpiredOverlay() {
 
         <button
           onClick={() => {
-            // Redirect to login (clear session)
-            try {
-              localStorage.removeItem("access");
-              localStorage.removeItem("refresh");
-              localStorage.removeItem("parent_selected_student_id");
-            } catch { /* ignore */ }
+            clearTokens();
             window.location.href = "/login";
           }}
           style={{

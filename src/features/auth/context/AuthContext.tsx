@@ -8,7 +8,7 @@ import React, {
   useState,
 } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import api from "@/shared/api/axios";
+import api, { clearTokens, isSessionEnding } from "@/shared/api/axios";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { setParentStudentId } from "@/student/shared/api/parentStudentSelection";
 
@@ -62,13 +62,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient();
 
   const clearAuth = useCallback(() => {
-    localStorage.removeItem("access");
-    localStorage.removeItem("refresh");
-    setParentStudentId(null);  // localStorage + in-memory 모두 정리
+    clearTokens();
+    setParentStudentId(null);  // in-memory 정리 (localStorage는 clearTokens가 처리)
     queryClient.clear();
     setUser(null);
 
-    // 세션 만료 시 로그인 페이지로 즉시 이동
+    // 세션 만료 시 로그인 페이지로 이동 — axios interceptor가 이미 리다이렉트 중이면 스킵
+    if (isSessionEnding) return;
     try {
       if (sessionStorage.getItem("session_expired") === "1") {
         sessionStorage.removeItem("session_expired");

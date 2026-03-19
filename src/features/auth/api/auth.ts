@@ -1,5 +1,5 @@
 // PATH: src/features/auth/api/auth.ts
-import api from "@/shared/api/axios";
+import api, { clearTokens } from "@/shared/api/axios";
 import { getTenantCodeForApiRequest } from "@/shared/tenant";
 
 export type LoginResponse = {
@@ -40,8 +40,6 @@ export const login = async (username: string, password: string) => {
 };
 
 export const logout = () => {
-  localStorage.removeItem("access");
-  localStorage.removeItem("refresh");
-  localStorage.removeItem("parent_selected_student_id");
+  clearTokens();
   window.location.href = "/";
 };
