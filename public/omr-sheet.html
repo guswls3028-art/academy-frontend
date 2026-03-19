@@ -188,6 +188,11 @@ body{background:#ccc;font-family:'Malgun Gothic','맑은 고딕',sans-serif;colo
   var p=new URLSearchParams(window.location.search);
   if(p.get('mode')==='embed'){
     document.documentElement.classList.add('embed-mode');
+    // Force hide cfg on DOMContentLoaded too
+    document.addEventListener('DOMContentLoaded',function(){
+      var cfg=document.querySelector('.cfg');
+      if(cfg)cfg.style.display='none';
+    });
   }
 })();
 // Logo upload handler
@@ -314,6 +319,31 @@ function $(id){return document.getElementById(id)}
 function clamp(v,lo,hi){return Math.max(lo,Math.min(hi,v))}
 function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML}
 window.addEventListener('DOMContentLoaded',gen);
+
+// PDF download mode: auto-download PDF when mode=download
+window.downloadOmrPdf = async function() {
+  var omr = document.querySelector('.omr');
+  if (!omr) return;
+  // Use html2canvas + jsPDF from CDN
+  if (!window.html2canvas) {
+    var s1 = document.createElement('script');
+    s1.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+    document.head.appendChild(s1);
+    await new Promise(function(r) { s1.onload = r; });
+  }
+  if (!window.jspdf) {
+    var s2 = document.createElement('script');
+    s2.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js';
+    document.head.appendChild(s2);
+    await new Promise(function(r) { s2.onload = r; });
+  }
+  var canvas = await html2canvas(omr, { scale: 2, useCORS: true, backgroundColor: '#fff' });
+  var imgData = canvas.toDataURL('image/png');
+  var pdf = new jspdf.jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+  pdf.addImage(imgData, 'PNG', 0, 0, 297, 210);
+  var exam = new URLSearchParams(window.location.search).get('exam') || 'OMR';
+  pdf.save(exam.replace(/[^a-zA-Z0-9가-힣_ -]/g, '') + '_답안지.pdf');
+};
 </script>
 </body>
 </html>

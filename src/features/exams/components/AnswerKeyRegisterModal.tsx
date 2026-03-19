@@ -1239,9 +1239,18 @@ function OmrSettingsTab({
             intent="primary"
             size="md"
             className="w-full"
-            onClick={() => window.open(buildPrintUrl(), "_blank")}
+            onClick={() => {
+              // Call downloadOmrPdf() inside the iframe
+              const iframe = document.querySelector('iframe[title="OMR 답안지 미리보기"]') as HTMLIFrameElement;
+              if (iframe?.contentWindow && typeof (iframe.contentWindow as any).downloadOmrPdf === "function") {
+                (iframe.contentWindow as any).downloadOmrPdf();
+              } else {
+                // Fallback: open in new tab
+                window.open(buildPrintUrl(), "_blank");
+              }
+            }}
           >
-            답안지 출력 / 다운로드
+            PDF 다운로드
           </Button>
         </div>
       </div>
