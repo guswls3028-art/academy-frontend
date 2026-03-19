@@ -371,15 +371,7 @@ export default function AnswerKeyRegisterModal({
         <div className="modal-scroll-body modal-scroll-body--compact answer-key-panel">
           {activeTab === "answer" && (
             <>
-            {answerKey && Object.keys(answerKey.answers ?? {}).length > 0 && (
-              <AnswerSummary
-                answerKey={answerKey}
-                sortedQuestions={sortedQuestions}
-                effectiveChoiceCount={effectiveChoiceCount}
-                effectiveEssayCount={effectiveEssayCount}
-                totalScore={totalScore}
-              />
-            )}
+            {/* 등록된 답안 요약 영역 제거 — 아래 문항 목록에서 동일 정보 제공 */}
             <div className="answer-key-two-panels">
               {/* 좌측: 선택형 — 문항 수 메뉴 상시 표시 */}
               <div className="answer-key-panel answer-key-panel--choice">
