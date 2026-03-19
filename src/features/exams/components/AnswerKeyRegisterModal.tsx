@@ -317,7 +317,6 @@ export default function AnswerKeyRegisterModal({
       feedback.success(
         canEditQuestions ? "저장되었습니다." : "정답이 저장되었습니다. 문항·배점 수정은 템플릿 시험에서만 가능합니다."
       );
-      onClose();
     } catch (e: any) {
       const raw = e?.response?.data;
       const detail = raw?.detail ?? raw ?? e?.message;

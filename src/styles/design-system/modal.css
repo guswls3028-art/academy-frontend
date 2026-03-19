@@ -774,3 +774,13 @@
   background: var(--color-bg-surface) !important;
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 20%, transparent) !important;
 }
+
+/* ========== 모달 wrapper 스크롤 차단 — 밖 영역 스크롤 시 모달이 올라가는 버그 방지 ========== */
+.admin-modal.ant-modal-wrap {
+  overflow: hidden !important;
+}
+/* centered 모달일 때 wrapper가 스크롤 가능해지는 것을 차단 */
+.ant-modal-centered .admin-modal.ant-modal-wrap,
+.ant-modal-centered .ant-modal-wrap:has(.admin-modal) {
+  overflow: hidden !important;
+}
