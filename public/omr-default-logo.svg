@@ -1,31 +1,26 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 120" fill="none">
-  <!-- 책 아이콘 -->
-  <g transform="translate(50, 15)">
-    <!-- 왼쪽 페이지 -->
-    <path d="M50 10 C35 8, 15 12, 5 18 L5 80 C15 74, 35 70, 50 72 Z" fill="#2a2a2a" opacity="0.08" stroke="#333" stroke-width="2.5" stroke-linejoin="round"/>
-    <!-- 오른쪽 페이지 -->
-    <path d="M50 10 C65 8, 85 12, 95 18 L95 80 C85 74, 65 70, 50 72 Z" fill="#2a2a2a" opacity="0.05" stroke="#333" stroke-width="2.5" stroke-linejoin="round"/>
-    <!-- 책등 -->
-    <line x1="50" y1="10" x2="50" y2="72" stroke="#333" stroke-width="2"/>
-    <!-- 졸업모 -->
-    <polygon points="50,0 15,15 50,28 85,15" fill="#333" stroke="#333" stroke-width="1.5" stroke-linejoin="round"/>
-    <line x1="50" y1="28" x2="50" y2="10" stroke="#333" stroke-width="1.5"/>
-    <rect x="48" y="0" width="4" height="4" rx="1" fill="#333"/>
-    <!-- 술 -->
-    <path d="M82 15 L90 22 L88 30" stroke="#333" stroke-width="1.8" stroke-linecap="round" fill="none"/>
-    <circle cx="88" cy="31" r="2" fill="#333"/>
-    <!-- 텍스트 줄 (책 내용 암시) -->
-    <line x1="22" y1="40" x2="45" y2="38" stroke="#ccc" stroke-width="1.5" stroke-linecap="round"/>
-    <line x1="24" y1="48" x2="44" y2="46" stroke="#ccc" stroke-width="1.5" stroke-linecap="round"/>
-    <line x1="26" y1="56" x2="43" y2="54" stroke="#ccc" stroke-width="1.5" stroke-linecap="round"/>
-    <line x1="56" y1="38" x2="78" y2="40" stroke="#ccc" stroke-width="1.5" stroke-linecap="round"/>
-    <line x1="56" y1="46" x2="76" y2="48" stroke="#ccc" stroke-width="1.5" stroke-linecap="round"/>
-    <line x1="56" y1="54" x2="74" y2="56" stroke="#ccc" stroke-width="1.5" stroke-linecap="round"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 100" fill="none">
+  <!-- 방패형 아이콘 -->
+  <g transform="translate(16, 4)">
+    <path d="M44 2 L82 14 L82 50 C82 68 63 82 44 90 C25 82 6 68 6 50 L6 14 Z"
+          fill="#1a1a2e"/>
+    <path d="M44 8 L76 18 L76 48 C76 64 60 76 44 83 C28 76 12 64 12 48 L12 18 Z"
+          fill="#16213e"/>
+    <!-- 펜촉 -->
+    <g transform="translate(44, 46)" fill="#e8d5b7">
+      <path d="M0-28 L7-6 L2.5-1.5 L0 5 L-2.5-1.5 L-7-6 Z"/>
+      <rect x="-2.5" y="3" width="5" height="3.5" rx="1"/>
+    </g>
+    <!-- 별 3개 -->
+    <circle cx="30" cy="24" r="2.2" fill="#e8d5b7" opacity="0.7"/>
+    <circle cx="58" cy="24" r="2.2" fill="#e8d5b7" opacity="0.7"/>
+    <circle cx="44" cy="16" r="2.8" fill="#e8d5b7" opacity="0.85"/>
   </g>
-  <!-- 연필 -->
-  <g transform="translate(148, 25) rotate(25)">
-    <rect x="-3" y="0" width="6" height="45" rx="1" fill="#555"/>
-    <polygon points="-3,45 3,45 0,55" fill="#ddd" stroke="#555" stroke-width="0.8"/>
-    <rect x="-3" y="0" width="6" height="5" rx="1" fill="#888"/>
-  </g>
+  <!-- ACADEMY 텍스트 -->
+  <text x="112" y="42" font-family="Georgia,'Times New Roman',serif"
+        font-size="34" font-weight="700" fill="#1a1a2e" letter-spacing="4">ACADEMY</text>
+  <line x1="112" y1="52" x2="300" y2="52" stroke="#c9a96e" stroke-width="1.8"/>
+  <text x="112" y="70" font-family="'Segoe UI',Helvetica,sans-serif"
+        font-size="12" font-weight="400" fill="#666" letter-spacing="6">ANSWER SHEET</text>
+  <text x="112" y="88" font-family="'Malgun Gothic',sans-serif"
+        font-size="10" fill="#999" letter-spacing="1">OMR 답안지</text>
 </svg>

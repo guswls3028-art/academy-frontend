@@ -1,18 +1,11 @@
 // PATH: src/features/tools/omr/pages/OmrGeneratorPage.tsx
 // OMR 답안지 생성 도구 — /admin/tools/omr
+// 백엔드 SSOT 기반: 미리보기(HTML) + PDF 다운로드
 
-import { useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/shared/ui/ds";
-import { resolveTenantCode, getTenantIdFromCode, getTenantBranding } from "@/shared/tenant";
-
-function getTenantLogoUrl(): string {
-  const r = resolveTenantCode();
-  if (!r.ok) return "/omr-default-logo.svg";
-  const id = getTenantIdFromCode(r.code);
-  if (!id) return "/omr-default-logo.svg";
-  const b = getTenantBranding(id);
-  return b?.logoUrl || "/omr-default-logo.svg";
-}
+import { feedback } from "@/shared/ui/feedback/feedback";
+import { fetchToolsOMRPreview, downloadToolsOMRPdf } from "@/features/exams/api/omrApi";
 
 export default function OmrGeneratorPage() {
   const [examName, setExamName] = useState("제1회 단원평가");
@@ -20,37 +13,47 @@ export default function OmrGeneratorPage() {
   const [sessionName, setSessionName] = useState("1차시");
   const [mcCount, setMcCount] = useState(20);
   const [essayCount, setEssayCount] = useState(5);
-  const [choices, setChoices] = useState(5);
+  const [previewHtml, setPreviewHtml] = useState<string | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [pdfLoading, setPdfLoading] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
-  const buildUrl = () => {
-    const logoUrl = getTenantLogoUrl();
-    const params = new URLSearchParams({
-      exam: examName,
-      lecture: lectureName,
-      session: sessionName,
-      mc: String(mcCount),
-      essay: String(essayCount),
-      choices: String(choices),
-      logo: logoUrl,
-    });
-    return `/omr-sheet.html?${params.toString()}`;
-  };
+  const getParams = useCallback(() => ({
+    exam_title: examName,
+    lecture_name: lectureName,
+    session_name: sessionName,
+    mc_count: mcCount,
+    essay_count: essayCount,
+    n_choices: 5,
+  }), [examName, lectureName, sessionName, mcCount, essayCount]);
 
-  const handleGenerate = () => {
-    if (iframeRef.current) {
-      iframeRef.current.src = buildUrl();
+  const loadPreview = useCallback(async () => {
+    if (mcCount + essayCount < 1) return;
+    setPreviewLoading(true);
+    try {
+      const html = await fetchToolsOMRPreview(getParams());
+      setPreviewHtml(html);
+    } catch {
+      setPreviewHtml("<html><body><p style='padding:20px;color:#999'>미리보기를 불러올 수 없습니다.</p></body></html>");
+    } finally {
+      setPreviewLoading(false);
     }
-  };
+  }, [getParams, mcCount, essayCount]);
 
-  const handlePrint = () => {
-    if (iframeRef.current?.contentWindow) {
-      iframeRef.current.contentWindow.print();
+  // Auto-load on mount
+  useEffect(() => { loadPreview(); }, []);  // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleDownload = async () => {
+    if (mcCount + essayCount < 1) return;
+    setPdfLoading(true);
+    try {
+      await downloadToolsOMRPdf(getParams());
+      feedback.success("PDF 다운로드 완료");
+    } catch {
+      feedback.error("PDF 다운로드 실패");
+    } finally {
+      setPdfLoading(false);
     }
-  };
-
-  const handleOpenNew = () => {
-    window.open(buildUrl(), "_blank");
   };
 
   return (
@@ -121,29 +124,14 @@ export default function OmrGeneratorPage() {
               />
             </div>
           </div>
-
-          <div>
-            <label className="block text-xs text-[var(--text-muted)] mb-1">보기 수</label>
-            <select
-              value={choices}
-              onChange={(e) => setChoices(Number(e.target.value))}
-              className="w-full rounded border border-[var(--border-divider)] px-2.5 py-1.5 text-sm"
-            >
-              <option value={4}>4지선다</option>
-              <option value={5}>5지선다</option>
-            </select>
-          </div>
         </section>
 
         <div className="space-y-2">
-          <Button type="button" intent="primary" size="md" className="w-full" onClick={handleGenerate}>
-            답안지 생성
+          <Button type="button" intent="primary" size="md" className="w-full" onClick={loadPreview} disabled={previewLoading || mcCount + essayCount < 1}>
+            {previewLoading ? "생성 중..." : "답안지 생성"}
           </Button>
-          <Button type="button" intent="secondary" size="md" className="w-full" onClick={handlePrint}>
-            인쇄 / PDF 저장
-          </Button>
-          <Button type="button" intent="ghost" size="sm" className="w-full" onClick={handleOpenNew}>
-            새 탭에서 열기
+          <Button type="button" intent="secondary" size="md" className="w-full" onClick={handleDownload} disabled={pdfLoading || mcCount + essayCount < 1}>
+            {pdfLoading ? "다운로드 중..." : "PDF 다운로드"}
           </Button>
         </div>
 
@@ -151,20 +139,27 @@ export default function OmrGeneratorPage() {
           <b>사용 안내</b><br />
           1. 시험 정보와 문항 수를 입력하세요.<br />
           2. "답안지 생성"을 클릭하면 미리보기가 갱신됩니다.<br />
-          3. "인쇄 / PDF 저장"으로 출력하세요.<br />
-          4. 시험 탭에서도 답안 등록 후 자동으로 OMR 출력 버튼이 나타납니다.
+          3. "PDF 다운로드"로 실제 PDF 파일을 받으세요.<br />
+          4. 시험 탭에서도 답안 등록 후 OMR 탭에서 다운로드 가능합니다.
         </div>
       </div>
 
       {/* ── 미리보기 ── */}
       <div className="flex-1 rounded border border-[var(--border-divider)] bg-[var(--bg-surface-soft)] overflow-hidden">
-        <iframe
-          ref={iframeRef}
-          src={buildUrl()}
-          className="w-full h-full border-0"
-          style={{ minHeight: 600 }}
-          title="OMR 답안지 미리보기"
-        />
+        {previewHtml ? (
+          <iframe
+            ref={iframeRef}
+            srcDoc={previewHtml}
+            className="w-full h-full border-0"
+            style={{ minHeight: 600 }}
+            title="OMR 답안지 미리보기"
+            sandbox="allow-same-origin"
+          />
+        ) : (
+          <div className="flex items-center justify-center h-full text-sm text-[var(--text-muted)]" style={{ minHeight: 600 }}>
+            {previewLoading ? "미리보기 로딩 중..." : "\"답안지 생성\"을 클릭하세요."}
+          </div>
+        )}
       </div>
     </div>
   );

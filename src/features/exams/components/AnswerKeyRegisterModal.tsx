@@ -18,7 +18,7 @@ import {
 } from "../api/answerKeyApi";
 import { patchQuestionScore } from "@/features/materials/api/sheetQuestions";
 import { useAdminExam } from "../hooks/useAdminExam";
-import { resolveTenantCode, getTenantIdFromCode, getTenantBranding } from "@/shared/tenant";
+import { fetchOMRPreview, downloadOMRPdf } from "../api/omrApi";
 import ExamPdfUploadModal from "./ExamPdfUploadModal";
 import "./AnswerKeyRegisterModal.css";
 
@@ -716,6 +716,7 @@ export default function AnswerKeyRegisterModal({
 
           {activeTab === "omr" && (
             <OmrSettingsTab
+              examId={examId}
               examTitle={exam?.title || ""}
               lectureName={lectureName}
               sessionName={sessionName}
@@ -1125,14 +1126,16 @@ function ExplanationRow({
   );
 }
 
-/** OMR 답안지 탭 — 설정 + 미리보기 + 다운로드 완결 */
+/** OMR 답안지 탭 — 백엔드 SSOT 기반 설정 + 미리보기 + PDF 다운로드 */
 function OmrSettingsTab({
+  examId,
   examTitle,
   lectureName,
   sessionName,
   choiceCount,
   essayCount,
 }: {
+  examId: number;
   examTitle: string;
   lectureName: string;
   sessionName: string;
@@ -1142,8 +1145,9 @@ function OmrSettingsTab({
   const [omrExam, setOmrExam] = useState(examTitle || "");
   const [omrLecture, setOmrLecture] = useState(lectureName || "");
   const [omrSession, setOmrSession] = useState(sessionName || "");
-  const [omrChoices, setOmrChoices] = useState(5);
-  const [logoBase64, setLogoBase64] = useState<string | null>(null);
+  const [previewHtml, setPreviewHtml] = useState<string | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [pdfLoading, setPdfLoading] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   // Sync props → state when they change
@@ -1151,62 +1155,42 @@ function OmrSettingsTab({
   useEffect(() => { if (lectureName) setOmrLecture(lectureName); }, [lectureName]);
   useEffect(() => { if (sessionName) setOmrSession(sessionName); }, [sessionName]);
 
-  // Load tenant logo as base64 (avoids cross-origin / SPA routing issues)
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        let logoPath = "/omr-default-logo.svg";
-        const r = resolveTenantCode();
-        if (r.ok) {
-          const id = getTenantIdFromCode(r.code);
-          if (id) {
-            const b = getTenantBranding(id);
-            if (b?.logoUrl) logoPath = b.logoUrl;
-          }
-        }
-        const resp = await fetch(logoPath);
-        if (!resp.ok) throw new Error("fetch failed");
-        const blob = await resp.blob();
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          if (!cancelled && typeof reader.result === "string") setLogoBase64(reader.result);
-        };
-        reader.readAsDataURL(blob);
-      } catch {
-        // fallback: no logo
-      }
-    })();
-    return () => { cancelled = true; };
-  }, []);
+  const getParams = useCallback(() => ({
+    exam_title: omrExam,
+    lecture_name: omrLecture,
+    session_name: omrSession,
+    mc_count: choiceCount,
+    essay_count: essayCount,
+    n_choices: 5,
+  }), [omrExam, omrLecture, omrSession, choiceCount, essayCount]);
 
-  const buildOmrUrl = () => {
-    const params = new URLSearchParams({
-      exam: omrExam,
-      lecture: omrLecture,
-      session: omrSession,
-      mc: String(choiceCount),
-      essay: String(essayCount),
-      choices: String(omrChoices),
-      mode: "embed",
-    });
-    if (logoBase64) params.set("logo", logoBase64);
-    return `/omr-sheet.html?${params.toString()}`;
-  };
+  // Auto-load preview when tab opens or params change
+  const loadPreview = useCallback(async () => {
+    if (choiceCount + essayCount < 1) return;
+    setPreviewLoading(true);
+    try {
+      const html = await fetchOMRPreview(examId, getParams());
+      setPreviewHtml(html);
+    } catch {
+      setPreviewHtml("<html><body><p style='padding:20px;color:#999'>미리보기를 불러올 수 없습니다.</p></body></html>");
+    } finally {
+      setPreviewLoading(false);
+    }
+  }, [examId, getParams, choiceCount, essayCount]);
 
-  const handleDownload = () => {
-    // Open in new tab with download action (no embed mode)
-    const params = new URLSearchParams({
-      exam: omrExam,
-      lecture: omrLecture,
-      session: omrSession,
-      mc: String(choiceCount),
-      essay: String(essayCount),
-      choices: String(omrChoices),
-      action: "download",
-    });
-    if (logoBase64) params.set("logo", logoBase64);
-    window.open(`/omr-sheet.html?${params.toString()}`, "_blank");
+  useEffect(() => { loadPreview(); }, [loadPreview]);
+
+  const handleDownload = async () => {
+    if (choiceCount + essayCount < 1) return;
+    setPdfLoading(true);
+    try {
+      await downloadOMRPdf(examId, getParams(), omrExam);
+      feedback.success("PDF 다운로드 완료");
+    } catch {
+      feedback.error("PDF 다운로드 실패");
+    } finally {
+      setPdfLoading(false);
+    }
   };
 
   return (
@@ -1239,36 +1223,32 @@ function OmrSettingsTab({
           <span> · 총 {choiceCount + essayCount}문항</span>
         </div>
 
-        <div>
-          <label className="block text-xs text-[var(--text-muted)] mb-1">보기 수</label>
-          <select value={omrChoices} onChange={(e) => setOmrChoices(Number(e.target.value))} className="w-full rounded border border-[var(--border-divider)] px-2.5 py-1.5 text-sm">
-            <option value={4}>4지선다</option>
-            <option value={5}>5지선다</option>
-          </select>
-        </div>
-
         <div className="space-y-2 pt-1">
-          <Button type="button" intent="primary" size="md" className="w-full" onClick={handleDownload}>
-            PDF 다운로드
+          <Button type="button" intent="primary" size="md" className="w-full" onClick={handleDownload} disabled={pdfLoading || choiceCount + essayCount < 1}>
+            {pdfLoading ? "다운로드 중..." : "PDF 다운로드"}
           </Button>
-          <Button type="button" intent="ghost" size="sm" className="w-full" onClick={() => {
-            if (iframeRef.current) iframeRef.current.src = buildOmrUrl();
-          }}>
-            미리보기 새로고침
+          <Button type="button" intent="ghost" size="sm" className="w-full" onClick={loadPreview} disabled={previewLoading}>
+            {previewLoading ? "로딩 중..." : "미리보기 새로고침"}
           </Button>
         </div>
       </div>
 
       {/* 우측: 미리보기 */}
       <div style={{ flex: 1, minWidth: 0 }} className="rounded border border-[var(--border-divider)] bg-[var(--bg-surface-soft)] overflow-hidden">
-        <iframe
-          ref={iframeRef}
-          key={buildOmrUrl()}
-          src={buildOmrUrl()}
-          className="w-full border-0"
-          style={{ height: 480 }}
-          title="OMR 답안지 미리보기"
-        />
+        {previewHtml ? (
+          <iframe
+            ref={iframeRef}
+            srcDoc={previewHtml}
+            className="w-full border-0"
+            style={{ height: 480 }}
+            title="OMR 답안지 미리보기"
+            sandbox="allow-same-origin"
+          />
+        ) : (
+          <div className="flex items-center justify-center h-[480px] text-sm text-[var(--text-muted)]">
+            {previewLoading ? "미리보기 로딩 중..." : "문항을 설정하면 미리보기가 표시됩니다."}
+          </div>
+        )}
       </div>
     </div>
   );
