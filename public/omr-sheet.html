@@ -20,6 +20,9 @@ body{background:#ccc;font-family:'Malgun Gothic','맑은 고딕',sans-serif;colo
 .cg{background:#333;color:#fff}.cg:hover{background:#222}
 .cp{background:#666;color:#fff}.cp:hover{background:#555}
 @media print{.cfg{display:none!important}}
+.embed-mode .cfg{display:none!important}
+.embed-mode body{background:#fff}
+.embed-mode .omr{margin:0;box-shadow:none}
 @media print{
   @page{size:A4 landscape;margin:0}
   body{background:#fff;margin:0;padding:0}
@@ -180,6 +183,13 @@ body{background:#ccc;font-family:'Malgun Gothic','맑은 고딕',sans-serif;colo
 <div id="out"></div>
 
 <script>
+// Embed mode: hide generator UI when loaded in iframe with mode=embed
+(function(){
+  var p=new URLSearchParams(window.location.search);
+  if(p.get('mode')==='embed'){
+    document.documentElement.classList.add('embed-mode');
+  }
+})();
 // Logo upload handler
 window._customLogo=null;
 document.addEventListener('DOMContentLoaded',function(){

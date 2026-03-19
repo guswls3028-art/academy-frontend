@@ -17,8 +17,9 @@ import { feedback } from "@/shared/ui/feedback/feedback";
 import { resolveTenantCode, getTenantIdFromCode, getTenantBranding } from "@/shared/tenant";
 import AnswerKeyRegisterModal from "../../components/AnswerKeyRegisterModal";
 import ExamPdfUploadModal from "../../components/ExamPdfUploadModal";
+import { fetchLectures, fetchSessions } from "@/features/lectures/api/sessions";
 
-export default function ExamPolicyPanel({ examId }: { examId: number }) {
+export default function ExamPolicyPanel({ examId, lectureId = 0, sessionId = 0 }: { examId: number; lectureId?: number; sessionId?: number }) {
   const qc = useQueryClient();
   const { data: exam, isLoading } = useAdminExam(examId);
 
@@ -26,6 +27,20 @@ export default function ExamPolicyPanel({ examId }: { examId: number }) {
   const [savedScore, setSavedScore] = useState<number | "">("");
   const [answerModalOpen, setAnswerModalOpen] = useState(false);
   const [pdfModalOpen, setPdfModalOpen] = useState(false);
+
+  // 강의명/차시명 조회 (OMR 기본값 주입용)
+  const { data: lectureData } = useQuery({
+    queryKey: ["lectures-for-omr"],
+    queryFn: () => fetchLectures(),
+    enabled: lectureId > 0,
+  });
+  const { data: sessionData } = useQuery({
+    queryKey: ["sessions-for-omr", lectureId],
+    queryFn: () => fetchSessions(lectureId),
+    enabled: lectureId > 0,
+  });
+  const resolvedLectureName = lectureData?.find((l: any) => l.id === lectureId)?.title ?? "";
+  const resolvedSessionName = sessionData?.find((s: any) => s.id === sessionId)?.title ?? "";
 
   useEffect(() => {
     if (!exam) return;
@@ -195,6 +210,8 @@ export default function ExamPolicyPanel({ examId }: { examId: number }) {
           examId={examId}
           structureOwnerId={exam.id}
           canEditQuestions={canEditQuestions}
+          lectureName={resolvedLectureName}
+          sessionName={resolvedSessionName}
         />
 
         <ExamPdfUploadModal

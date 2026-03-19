@@ -1142,10 +1142,17 @@ function OmrSettingsTab({
   const [omrExam, setOmrExam] = useState(examTitle);
   const [omrLecture, setOmrLecture] = useState(lectureName);
   const [omrSession, setOmrSession] = useState(sessionName);
+  const [omrChoices, setOmrChoices] = useState(5);
 
   useEffect(() => { setOmrExam(examTitle); }, [examTitle]);
   useEffect(() => { setOmrLecture(lectureName); }, [lectureName]);
   useEffect(() => { setOmrSession(sessionName); }, [sessionName]);
+
+  const buildPrintUrl = () => {
+    const p = new URLSearchParams(buildOmrUrl().split("?")[1] || "");
+    p.delete("mode");
+    return "/omr-sheet.html?" + p.toString();
+  };
 
   const buildOmrUrl = () => {
     let logoUrl = "/omr-default-logo.svg";
@@ -1166,8 +1173,9 @@ function OmrSettingsTab({
       session: omrSession,
       mc: String(choiceCount),
       essay: String(essayCount),
-      choices: "5",
+      choices: String(omrChoices),
       logo: logoUrl,
+      mode: "embed",
     });
     return `/omr-sheet.html?${params.toString()}`;
   };
@@ -1176,7 +1184,7 @@ function OmrSettingsTab({
     <div style={{ display: "flex", gap: 24 }}>
       {/* 좌측: 정보 편집 */}
       <div style={{ width: 260, flexShrink: 0 }} className="space-y-3">
-        <div className="text-sm font-semibold text-[var(--text-primary)]">OMR 답안지 설정</div>
+        <div className="text-sm font-semibold text-[var(--text-primary)]">답안지 설정</div>
         <div className="text-xs text-[var(--text-muted)]">
           답안지에 인쇄될 정보를 확인하고 필요시 수정하세요.
         </div>
@@ -1213,15 +1221,27 @@ function OmrSettingsTab({
           객관식 {choiceCount}문항 · 서술형 {essayCount}문항 · 총 {choiceCount + essayCount}문항
         </div>
 
+        <div>
+          <label className="block text-xs text-[var(--text-muted)] mb-1">보기 수</label>
+          <select
+            value={omrChoices}
+            onChange={(e) => setOmrChoices(Number(e.target.value))}
+            className="w-full rounded border border-[var(--border-divider)] px-2.5 py-1.5 text-sm"
+          >
+            <option value={4}>4지선다</option>
+            <option value={5}>5지선다</option>
+          </select>
+        </div>
+
         <div className="space-y-2 pt-1">
           <Button
             type="button"
             intent="primary"
             size="md"
             className="w-full"
-            onClick={() => window.open(buildOmrUrl(), "_blank")}
+            onClick={() => window.open(buildPrintUrl(), "_blank")}
           >
-            답안지 다운로드 (PDF)
+            답안지 출력 / 다운로드
           </Button>
         </div>
       </div>
