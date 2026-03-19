@@ -24,17 +24,15 @@ import { Button } from "@/shared/ui/ds";
 import { useConfirm } from "@/shared/ui/confirm";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import RichTextEditor from "@/shared/ui/editor/RichTextEditor";
+import ScopeBadge from "../components/ScopeBadge";
+import PostReadView from "../components/PostReadView";
+import ContextHeader from "../components/ContextHeader";
+import { stripHtml } from "../utils/communityHelpers";
 import "@/features/community/qna-inbox.css";
 import "@/features/community/notice-tree.css";
 import "@/features/community/board-admin.css";
 
 const SNIPPET_LEN = 72;
-
-function stripHtml(html: string): string {
-  const div = document.createElement("div");
-  div.innerHTML = html;
-  return div.textContent || div.innerText || "";
-}
 
 export default function NoticeAdminPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -217,7 +215,7 @@ export default function NoticeAdminPage() {
     <div className="notice-tree" style={{ minHeight: "calc(100vh - 180px)" }}>
       <CmsTreeNav
         title="공지"
-        allLabel="전체공지"
+        allLabel="전체 보기"
         counts={{
           totalCount: noticeCounts.totalNoticeCount,
           totalUnderScope: noticeCounts.totalUnderScope,
@@ -257,11 +255,17 @@ export default function NoticeAdminPage() {
             />
           </div>
         </div>
+        <ContextHeader
+          tabLabel="공지사항"
+          scope={scope as any}
+          lectureName={lectures.find((l) => l.id === lectureId)?.title ?? null}
+          sessionName={sessionsOfLecture.find((s) => s.id === sessionId)?.title ?? null}
+        />
         <div className="qna-inbox__list-body">
           {!canShowList ? (
             <div className="qna-inbox__empty">
               <p className="qna-inbox__empty-title">
-                전체공지 또는 강의목록에서 차시를 선택하세요
+                좌측에서 조회 범위를 선택하세요
               </p>
               <p className="qna-inbox__empty-desc">
                 강의목록을 펼친 뒤 강의명을 누르면 1차시, 2차시 등이 나옵니다. 차시를 클릭하면 해당 공지가 표시됩니다.
@@ -354,9 +358,6 @@ function NoticeCard({
         day: "numeric",
       })
     : "—";
-  const nd = post.mappings?.[0]?.node_detail;
-  const scopeLabel = nd?.session_title || nd?.lecture_title || "전체";
-
   return (
     <button
       type="button"
@@ -365,15 +366,17 @@ function NoticeCard({
     >
       <div className="qna-inbox__card-top">
         <div className="qna-inbox__card-body">
+          <div className="qna-inbox__card-meta" style={{ marginBottom: 2 }}>
+            <ScopeBadge post={post} />
+            {post.is_pinned && <span className="ds-badge ds-badge--warning">고정</span>}
+            {post.is_urgent && <span className="ds-badge ds-badge--danger">중요</span>}
+            <span className="qna-inbox__card-meta-dot" />
+            <span>{dateLabel}</span>
+          </div>
           <div className="qna-inbox__card-title-row">
-            <div className="qna-inbox__card-title">{post.title || "(제목 없음)"}</div>
+            <div className="qna-inbox__card-title" style={{ fontWeight: 600, fontSize: "0.938rem" }}>{post.title || "(제목 없음)"}</div>
           </div>
           {snippet && <div className="qna-inbox__card-snippet">{snippet}</div>}
-          <div className="qna-inbox__card-meta">
-            <span>{dateLabel}</span>
-            <span className="qna-inbox__card-meta-dot" />
-            <span>{scopeLabel}</span>
-          </div>
         </div>
       </div>
     </button>
@@ -398,10 +401,12 @@ function NoticeDetailView({
   });
 
   const [editingContent, setEditingContent] = useState("");
+  const [isEditing, setIsEditing] = useState(false);
   const [contentSaved, setContentSaved] = useState(false);
 
   useEffect(() => {
     setEditingContent(post?.content ?? "");
+    setIsEditing(false);
   }, [post?.id, post?.content]);
 
   const deleteMut = useMutation({
@@ -416,6 +421,19 @@ function NoticeDetailView({
     },
     onError: (e: unknown) => {
       feedback.error((e as Error)?.message ?? "삭제에 실패했습니다.");
+    },
+  });
+
+  const updateMut = useMutation({
+    mutationFn: (data: Record<string, unknown>) => updatePost(postId, data as any),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["community-post", postId] });
+      qc.invalidateQueries({ queryKey: ["community-notice-posts"] });
+      qc.invalidateQueries({ queryKey: ["community-all-notice-posts-for-count"] });
+      feedback.success("수정되었습니다.");
+    },
+    onError: (e: unknown) => {
+      feedback.error((e as Error)?.message ?? "수정에 실패했습니다.");
     },
   });
 
@@ -444,12 +462,6 @@ function NoticeDetailView({
     );
   }
 
-  const scopeBadgeLabel = (() => {
-    const m = post.mappings?.[0]?.node_detail;
-    if (!m) return "전체";
-    return m.session_title || m.lecture_title || "전체";
-  })();
-
   return (
     <>
       <header className="qna-inbox__thread-header">
@@ -457,7 +469,7 @@ function NoticeDetailView({
           <div className="qna-inbox__thread-title-group">
             <h1 className="qna-inbox__thread-title">{post.title}</h1>
             <div className="qna-inbox__thread-meta">
-              <span className="ds-status-badge" data-tone="neutral" style={{ fontSize: 10 }}>{scopeBadgeLabel}</span>
+              <ScopeBadge post={post} />
               <span className="qna-inbox__thread-meta-dot" />
               <span>
                 {new Date(post.created_at).toLocaleString("ko-KR", {
@@ -470,6 +482,24 @@ function NoticeDetailView({
             </div>
           </div>
           <div className="qna-inbox__thread-actions">
+            <Button
+              intent={post.is_pinned ? "primary" : "ghost"}
+              size="sm"
+              onClick={() => updateMut.mutate({ is_pinned: !post.is_pinned })}
+              disabled={updateMut.isPending}
+              title={post.is_pinned ? "고정 해제" : "상단 고정"}
+            >
+              {post.is_pinned ? "📌 고정됨" : "📌 고정"}
+            </Button>
+            <Button
+              intent={post.is_urgent ? "danger" : "ghost"}
+              size="sm"
+              onClick={() => updateMut.mutate({ is_urgent: !post.is_urgent })}
+              disabled={updateMut.isPending}
+              title={post.is_urgent ? "중요 해제" : "중요 표시"}
+            >
+              {post.is_urgent ? "🔴 중요" : "중요"}
+            </Button>
             <Button intent="ghost" size="sm" onClick={onClose}>
               목록
             </Button>
@@ -489,28 +519,53 @@ function NoticeDetailView({
 
       <div className="cms-detail__body">
         <div className="cms-detail__section">
-          <div className="cms-detail__section-label">내용</div>
-          <div className="cms-detail__content-card">
-            <RichTextEditor
-              value={editingContent}
-              onChange={setEditingContent}
-              placeholder="공지 내용을 입력하세요."
-              minHeight={200}
-            />
-          </div>
-          <div className="cms-detail__content-actions">
-            <Button
-              intent="primary"
-              size="sm"
-              onClick={() => updateContentMut.mutate(editingContent)}
-              disabled={updateContentMut.isPending || editingContent === (post.content ?? "")}
-            >
-              {updateContentMut.isPending ? "저장 중…" : "내용 저장"}
-            </Button>
-            {contentSaved && (
-              <span className="cms-detail__saved-msg">저장되었습니다.</span>
+          <div className="cms-detail__section-label" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span>내용</span>
+            {!isEditing && (
+              <Button intent="ghost" size="sm" onClick={() => { setEditingContent(post.content ?? ""); setIsEditing(true); }}>
+                수정
+              </Button>
             )}
           </div>
+          <div className="cms-detail__content-card">
+            {isEditing ? (
+              <RichTextEditor
+                value={editingContent}
+                onChange={setEditingContent}
+                placeholder="공지 내용을 입력하세요."
+                minHeight={200}
+              />
+            ) : (
+              <PostReadView html={post.content ?? ""} />
+            )}
+          </div>
+          {isEditing && (
+            <div className="cms-detail__content-actions">
+              <Button
+                intent="primary"
+                size="sm"
+                onClick={() => {
+                  updateContentMut.mutate(editingContent, {
+                    onSuccess: () => setIsEditing(false),
+                  });
+                }}
+                disabled={updateContentMut.isPending || editingContent === (post.content ?? "")}
+              >
+                {updateContentMut.isPending ? "저장 중…" : "저장"}
+              </Button>
+              <Button
+                intent="ghost"
+                size="sm"
+                onClick={() => { setEditingContent(post.content ?? ""); setIsEditing(false); }}
+                disabled={updateContentMut.isPending}
+              >
+                취소
+              </Button>
+              {contentSaved && (
+                <span className="cms-detail__saved-msg">저장되었습니다.</span>
+              )}
+            </div>
+          )}
         </div>
 
       </div>
@@ -589,6 +644,9 @@ function NoticeCreatePane({
             <h1 className="qna-inbox__thread-title">새 공지 작성</h1>
             <div className="qna-inbox__thread-meta">
               <span>대상: {scopeLabel}</span>
+              <span className="text-xs text-[var(--color-text-muted)]" style={{ marginLeft: 8 }}>
+                이 공지는 {scopeLabel} 학생에게 보입니다.
+              </span>
             </div>
           </div>
           <div className="qna-inbox__thread-actions">

@@ -19,6 +19,7 @@ import {
 import { Button } from "@/shared/ui/ds";
 import { useConfirm } from "@/shared/ui/confirm";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import PostReadView from "../components/PostReadView";
 import "@/features/community/qna-inbox.css";
 
 type FilterKind = "all" | "pending" | "resolved";
@@ -382,7 +383,7 @@ function CounselThreadView({
                 })}
               </span>
             </div>
-            <div className="qna-inbox__message-body">{post.content}</div>
+            <div className="qna-inbox__message-body"><PostReadView html={post.content} /></div>
           </div>
         </div>
 
@@ -476,7 +477,7 @@ function CounselReplyBlock({ postId, answer }: { postId: number; answer: Answer 
           </div>
         ) : (
           <>
-            <div className="qna-inbox__message-body">{answer.content}</div>
+            <div className="qna-inbox__message-body"><PostReadView html={answer.content} /></div>
             <div className="qna-inbox__message-actions">
               <Button size="sm" intent="ghost" onClick={() => setEditing(true)}>수정</Button>
               <Button

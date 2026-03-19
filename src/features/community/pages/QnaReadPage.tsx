@@ -17,6 +17,7 @@ import {
 import { EmptyState, Button } from "@/shared/ui/ds";
 import { useConfirm } from "@/shared/ui/confirm";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import PostReadView from "../components/PostReadView";
 
 export default function QnaReadPage() {
   const { id } = useParams<{ id: string }>();
@@ -131,12 +132,7 @@ export default function QnaReadPage() {
           </p>
         </header>
         <div className="ds-section__body">
-          <div
-            className="whitespace-pre-wrap text-[var(--color-text-primary)]"
-            style={{ fontSize: "var(--text-sm)" }}
-          >
-            {post.content}
-          </div>
+          <PostReadView html={post.content} />
         </div>
       </section>
 
@@ -309,9 +305,7 @@ function AnswerBlock({ postId, answer }: { postId: number; answer: Answer }) {
         </div>
       ) : (
         <>
-          <div className="whitespace-pre-wrap mt-2 text-[var(--color-text-primary)]" style={{ fontSize: "var(--text-sm)" }}>
-            {answer.content}
-          </div>
+          <PostReadView html={answer.content} />
           <div className="flex gap-2 mt-3">
             <Button size="sm" intent="secondary" onClick={() => setEditing(true)}>
               답변 수정

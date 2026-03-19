@@ -34,6 +34,9 @@ import { Button } from "@/shared/ui/ds";
 import { useConfirm } from "@/shared/ui/confirm";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import RichTextEditor from "@/shared/ui/editor/RichTextEditor";
+import ScopeBadge from "../components/ScopeBadge";
+import PostReadView from "../components/PostReadView";
+import ContextHeader from "../components/ContextHeader";
 import { stripHtml, getInitials, getAvatarSlot, timeAgo, formatFileSize } from "../utils/communityHelpers";
 import "@/features/community/qna-inbox.css";
 import "@/features/community/notice-tree.css";
@@ -244,7 +247,7 @@ export default function MaterialsBoardPage() {
     <div className="notice-tree" style={{ minHeight: "calc(100vh - 180px)" }}>
       <CmsTreeNav
         title="자료실"
-        allLabel="전체 자료"
+        allLabel="전체 보기"
         counts={{
           totalCount: treeCounts.total,
           totalUnderScope: treeCounts.totalUnderScope,
@@ -268,6 +271,7 @@ export default function MaterialsBoardPage() {
 
       {/* ═══ 2nd pane: List ═══ */}
       <aside className="qna-inbox__list">
+        <ContextHeader tabLabel="자료실" scope={scope as any} lectureName={lectures.find((l) => l.id === lectureId)?.title ?? null} sessionName={sessionsOfLecture.find((s) => s.id === sessionId)?.title ?? null} />
         <div className="qna-inbox__list-header">
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
             <h2 className="qna-inbox__list-title">자료</h2>
@@ -281,7 +285,7 @@ export default function MaterialsBoardPage() {
         <div className="qna-inbox__list-body">
           {!canShowList ? (
             <div className="qna-inbox__empty">
-              <p className="qna-inbox__empty-title">전체 자료 또는 강의를 선택하세요</p>
+              <p className="qna-inbox__empty-title">좌측에서 조회 범위를 선택하세요</p>
             </div>
           ) : postsQ.isError ? (
             <div className="qna-inbox__empty">
@@ -411,8 +415,11 @@ function MatCreatePane({
           <div className="qna-inbox__thread-title-group">
             <h1 className="qna-inbox__thread-title">새 자료 등록</h1>
             <div className="qna-inbox__thread-meta">
-              <span>대상: {scopeLabel}</span>
+              <span className="ds-badge ds-badge--primary">게시 대상: {scopeLabel}</span>
             </div>
+            <p className="text-xs text-[var(--color-text-muted)] mt-1">
+              이 글은 <strong>{scopeLabel}</strong> 학생에게{scopeLabel === "전체 대상" ? " 모두" : "만"} 보입니다.
+            </p>
           </div>
           <div className="qna-inbox__thread-actions"><Button intent="ghost" size="sm" onClick={onCancel}>취소</Button></div>
         </div>
@@ -474,6 +481,7 @@ function MatPostCard({ post, isActive, onClick }: { post: PostEntity; isActive: 
           {snippet && <div className="qna-inbox__card-snippet">{snippet}</div>}
           <div className="qna-inbox__card-meta">
             <span>{authorName}</span><span className="qna-inbox__card-meta-dot" /><span>{timeAgo(post.created_at)}</span>
+            {(post.attachments?.length ?? 0) > 0 && (<><span className="qna-inbox__card-meta-dot" /><span>파일 {post.attachments!.length}개</span></>)}
             {(post.replies_count ?? 0) > 0 && (<><span className="qna-inbox__card-meta-dot" /><span>댓글 {post.replies_count}</span></>)}
           </div>
         </div>
@@ -489,10 +497,11 @@ function MatDetailView({ postId, onClose, onDeleted }: { postId: number; onClose
   const { data: post, isLoading } = useQuery({ queryKey: ["community-post", postId], queryFn: () => fetchPost(postId), enabled: postId != null });
 
   const [editingTitle, setEditingTitle] = useState(false);
+  const [editingContent, setEditingContent] = useState(false);
   const [editTitle, setEditTitle] = useState("");
   const [editContent, setEditContent] = useState("");
 
-  useEffect(() => { setEditingTitle(false); if (post) { setEditTitle(post.title ?? ""); setEditContent(post.content ?? ""); } }, [post?.id]);
+  useEffect(() => { setEditingTitle(false); setEditingContent(false); if (post) { setEditTitle(post.title ?? ""); setEditContent(post.content ?? ""); } }, [post?.id]);
 
   const updateMut = useMutation({
     mutationFn: (data: { title?: string; content?: string }) => updatePost(postId, data),
@@ -515,7 +524,6 @@ function MatDetailView({ postId, onClose, onDeleted }: { postId: number; onClose
   if (isLoading || !post) return <div className="qna-inbox__empty"><p className="qna-inbox__empty-title">{isLoading ? "불러오는 중…" : "자료를 찾을 수 없습니다."}</p></div>;
 
   const authorName = post.created_by_deleted ? "삭제된 사용자" : (post.created_by_display ?? "관리자");
-  const contentDirty = editContent !== (post.content ?? "");
 
   return (
     <>
@@ -532,7 +540,7 @@ function MatDetailView({ postId, onClose, onDeleted }: { postId: number; onClose
               <h1 className="qna-inbox__thread-title" style={{ cursor: "text" }} title="클릭하여 제목 수정" onClick={() => setEditingTitle(true)}>{post.title}</h1>
             )}
             <div className="qna-inbox__thread-meta">
-              <span className="ds-status-badge" data-tone="neutral" style={{ fontSize: 10 }}>{(() => { const m = post.mappings?.[0]?.node_detail; if (!m) return "전체"; return m.session_title || m.lecture_title || "전체"; })()}</span>
+              <ScopeBadge post={post} />
               <span className="qna-inbox__thread-meta-dot" />
               <span>{authorName}</span>
               <span className="qna-inbox__thread-meta-dot" />
@@ -554,29 +562,39 @@ function MatDetailView({ postId, onClose, onDeleted }: { postId: number; onClose
           </span>
           <span className="cms-detail__meta-author">{authorName}</span>
           <span className="cms-detail__meta-dot" />
-          <span>{(() => { const m = post.mappings?.[0]?.node_detail; if (!m) return "전체"; return m.session_title || m.lecture_title || "전체"; })()}</span>
+          <ScopeBadge post={post} />
           <span className="cms-detail__meta-dot" />
           <span>{timeAgo(post.created_at)}</span>
+        </div>
+
+        {/* Section: 첨부파일 (파일 우선 노출) */}
+        <div className="cms-detail__section">
+          <MatAttachmentSection postId={postId} attachments={post.attachments ?? []} />
         </div>
 
         {/* Section: 내용 */}
         <div className="cms-detail__section">
           <div className="cms-detail__section-label">내용</div>
           <div className="cms-detail__content-card">
-            <RichTextEditor value={editContent} onChange={setEditContent} placeholder="내용을 입력하세요." minHeight={200} />
+            {editingContent ? (
+              <>
+                <RichTextEditor value={editContent} onChange={setEditContent} placeholder="내용을 입력하세요." minHeight={200} />
+                <div className="cms-detail__content-actions">
+                  <Button size="sm" intent="primary" onClick={() => updateMut.mutate({ content: editContent })} disabled={updateMut.isPending}>
+                    {updateMut.isPending ? "저장 중…" : "저장"}
+                  </Button>
+                  <Button size="sm" intent="secondary" onClick={() => { setEditContent(post.content ?? ""); setEditingContent(false); }}>취소</Button>
+                </div>
+              </>
+            ) : (
+              <>
+                <PostReadView html={post.content ?? ""} />
+                <div className="cms-detail__content-actions">
+                  <Button size="sm" intent="ghost" onClick={() => setEditingContent(true)}>수정</Button>
+                </div>
+              </>
+            )}
           </div>
-          {contentDirty && (
-            <div className="cms-detail__content-actions">
-              <Button size="sm" intent="primary" onClick={() => updateMut.mutate({ content: editContent })} disabled={updateMut.isPending}>
-                {updateMut.isPending ? "저장 중…" : "내용 저장"}
-              </Button>
-            </div>
-          )}
-        </div>
-
-        {/* Section: 첨부파일 */}
-        <div className="cms-detail__section">
-          <MatAttachmentSection postId={postId} attachments={post.attachments ?? []} />
         </div>
 
         {/* Comments — keep messenger-style pattern */}
@@ -622,7 +640,7 @@ function MatAttachmentSection({ postId, attachments }: { postId: number; attachm
     <div className="cms-attach__section">
       <div className="cms-attach__header">
         <div className="cms-detail__section-label">
-          첨부파일 {attachments.length > 0 && `(${attachments.length})`}
+          첨부파일{attachments.length > 0 ? ` (${attachments.length}개)` : ""}
         </div>
         <Button intent="ghost" size="sm" onClick={() => fileInputRef.current?.click()} disabled={uploadMut.isPending || attachments.length >= 10}>
           {uploadMut.isPending ? "업로드 중…" : "+ 파일 추가"}
@@ -641,13 +659,13 @@ function MatAttachmentSection({ postId, attachments }: { postId: number; attachm
         />
       </div>
       {attachments.length > 0 && (
-        <div className="cms-attach__list">
+        <div className="cms-attach__list" style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           {attachments.map((att) => (
-            <div key={att.id} className="cms-attach__item">
-              <button type="button" className="cms-attach__item-name" onClick={() => handleDownload(att)}>
-                {att.original_name}
-              </button>
-              <span className="cms-attach__item-size">{formatFileSize(att.size_bytes)}</span>
+            <div key={att.id} className="cms-attach__item" style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", background: "var(--color-bg-subtle, #f8f9fa)", borderRadius: "var(--stu-radius, 8px)", border: "1px solid var(--color-border, #e5e7eb)" }}>
+              <span style={{ fontSize: 20, lineHeight: 1, flexShrink: 0, color: "var(--color-text-muted)" }} aria-hidden="true">📎</span>
+              <span className="cms-attach__item-name" style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontWeight: 500, fontSize: 13 }}>{att.original_name}</span>
+              <span className="cms-attach__item-size" style={{ flexShrink: 0, fontSize: 12, color: "var(--color-text-muted)" }}>{formatFileSize(att.size_bytes)}</span>
+              <Button intent="ghost" size="sm" onClick={() => handleDownload(att)} style={{ flexShrink: 0 }}>다운로드</Button>
               <button type="button" className="cms-attach__item-remove" onClick={async () => { if (await confirm({ title: "첨부파일 삭제", message: "이 파일을 삭제할까요?", confirmText: "삭제", danger: true })) deleteMut.mutate(att.id); }} disabled={deleteMut.isPending}>&times;</button>
             </div>
           ))}
@@ -701,7 +719,7 @@ function MatCommentBlock({ postId, reply }: { postId: number; reply: Answer }) {
           </div>
         ) : (
           <>
-            <div className="qna-inbox__message-body">{reply.content}</div>
+            <div className="qna-inbox__message-body"><PostReadView html={reply.content} /></div>
             <div className="qna-inbox__message-actions">
               <Button size="sm" intent="ghost" onClick={() => setEditing(true)}>수정</Button>
               <Button size="sm" intent="ghost" onClick={async () => { if (await confirm({ title: "댓글 삭제", message: "이 댓글을 삭제할까요?", confirmText: "삭제", danger: true })) deleteMut.mutate(); }} disabled={deleteMut.isPending}>삭제</Button>

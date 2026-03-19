@@ -196,6 +196,95 @@
   background: var(--color-bg-error-subtle, rgba(220,38,38,0.08));
 }
 
+/* ─── File Card (detail view attachment) ─── */
+.cms-attach__file-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3, 12px);
+  padding: var(--space-3, 12px);
+  background: var(--color-bg-subtle, #f8fafc);
+  border: 1px solid var(--color-border-divider, #e5e7eb);
+  border-radius: var(--radius-md, 8px);
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+.cms-attach__file-card:hover {
+  border-color: var(--color-primary, #3b82f6);
+  box-shadow: 0 1px 4px rgba(59,130,246,0.08);
+}
+
+.cms-attach__file-ext {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-sm, 6px);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: #fff;
+  flex-shrink: 0;
+  text-transform: uppercase;
+  background: var(--color-text-muted, #94a3b8);
+}
+.cms-attach__file-ext--image { background: #8b5cf6; }
+.cms-attach__file-ext--pdf   { background: #ef4444; }
+.cms-attach__file-ext--doc   { background: #3b82f6; }
+.cms-attach__file-ext--sheet { background: #22c55e; }
+.cms-attach__file-ext--slide { background: #f97316; }
+.cms-attach__file-ext--archive { background: #a3a3a3; }
+.cms-attach__file-ext--video { background: #ec4899; }
+.cms-attach__file-ext--audio { background: #06b6d4; }
+.cms-attach__file-ext--etc   { background: var(--color-text-muted, #94a3b8); }
+
+.cms-attach__file-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cms-attach__file-name {
+  font-size: var(--text-sm, 13px);
+  font-weight: 500;
+  color: var(--color-text-primary, #1e293b);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cms-attach__file-size {
+  font-size: var(--text-xs, 11px);
+  color: var(--color-text-muted, #94a3b8);
+}
+
+.cms-attach__file-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2, 8px);
+  flex-shrink: 0;
+}
+
+.cms-attach__download-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  font-size: var(--text-xs, 12px);
+  font-weight: 600;
+  color: var(--color-primary, #3b82f6);
+  background: var(--color-bg-surface, #fff);
+  border: 1px solid var(--color-primary, #3b82f6);
+  border-radius: var(--radius-sm, 6px);
+  cursor: pointer;
+  transition: background 150ms ease, color 150ms ease;
+  white-space: nowrap;
+}
+.cms-attach__download-btn:hover {
+  background: var(--color-primary, #3b82f6);
+  color: #fff;
+}
+
 /* ─────────────────────────────────────────────────────
    CMS Tree Nav Icons
 ───────────────────────────────────────────────────── */

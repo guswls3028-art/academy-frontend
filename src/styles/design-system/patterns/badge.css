@@ -53,3 +53,34 @@
     0 0 0 2px var(--bg-surface),
     0 0 0 4px color-mix(in srgb, var(--color-border-focus) 55%, transparent);
 }
+
+/* ── Semantic variants ────────────────────────────────── */
+.ds-badge--primary {
+  --badge-bg: color-mix(in srgb, var(--color-primary) 14%, var(--bg-surface, #fff));
+  --badge-text: var(--color-primary);
+}
+
+.ds-badge--success {
+  --badge-bg: color-mix(in srgb, var(--color-success, #22c55e) 14%, var(--bg-surface, #fff));
+  --badge-text: var(--color-success, #16a34a);
+}
+
+.ds-badge--warning {
+  --badge-bg: color-mix(in srgb, var(--color-warning, #f59e0b) 14%, var(--bg-surface, #fff));
+  --badge-text: var(--color-warning, #d97706);
+}
+
+.ds-badge--danger {
+  --badge-bg: color-mix(in srgb, var(--color-danger, #ef4444) 14%, var(--bg-surface, #fff));
+  --badge-text: var(--color-danger, #dc2626);
+}
+
+.ds-badge--neutral {
+  --badge-bg: var(--bg-surface-soft, #f3f4f6);
+  --badge-text: var(--text-secondary, #6b7280);
+}
+
+.ds-badge--info {
+  --badge-bg: color-mix(in srgb, #3b82f6 14%, var(--bg-surface, #fff));
+  --badge-text: #2563eb;
+}

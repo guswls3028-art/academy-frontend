@@ -218,7 +218,7 @@ function NoticeTab({ onDetail }: { onDetail: (id: number) => void }) {
     <PostList>
       {posts.map((p) => {
         const nd = p.mappings?.[0]?.node_detail;
-        const lecture = nd?.session_title || nd?.lecture_title || "전체";
+        const lecture = getScopeLabel(p);
         return (
           <PostRow
             key={p.id}
@@ -250,7 +250,7 @@ function NoticeDetail({ id, onBack }: { id: number; onBack: () => void }) {
         <div>
           <h1 style={{ fontWeight: 700, fontSize: 20, marginBottom: "var(--stu-space-3)" }}>{post.title}</h1>
           <div style={{ display: "flex", gap: "var(--stu-space-2)", alignItems: "center", flexWrap: "wrap" }}>
-            <Tag>{node?.session_title || node?.lecture_title || "전체"}</Tag>
+            <Tag>{getScopeLabel(post)}</Tag>
             <span className="stu-muted" style={{ fontSize: 13 }}>{formatYmd(post.created_at)}</span>
           </div>
         </div>
@@ -519,7 +519,7 @@ function BoardTab({ onDetail }: { onDetail: (id: number) => void }) {
     <PostList>
       {posts.map((p) => {
         const nd = p.mappings?.[0]?.node_detail;
-        const lecture = nd?.session_title || nd?.lecture_title || "전체";
+        const lecture = getScopeLabel(p);
         return (
           <PostRow
             key={p.id}
@@ -551,7 +551,7 @@ function BoardDetail({ id, onBack }: { id: number; onBack: () => void }) {
         <div>
           <h1 style={{ fontWeight: 700, fontSize: 20, marginBottom: "var(--stu-space-3)" }}>{post.title}</h1>
           <div style={{ display: "flex", gap: "var(--stu-space-2)", alignItems: "center", flexWrap: "wrap" }}>
-            <Tag>{node?.session_title || node?.lecture_title || "전체"}</Tag>
+            <Tag>{getScopeLabel(post)}</Tag>
             <span className="stu-muted" style={{ fontSize: 13 }}>{formatYmd(post.created_at)}</span>
             {post.created_by_display && <span className="stu-muted" style={{ fontSize: 13 }}>· {post.created_by_display}</span>}
           </div>
@@ -821,7 +821,7 @@ function MaterialsTab({ onDetail }: { onDetail: (id: number) => void }) {
     <PostList>
       {posts.map((p) => {
         const nd = p.mappings?.[0]?.node_detail;
-        const lecture = nd?.session_title || nd?.lecture_title || "전체";
+        const lecture = getScopeLabel(p);
         return (
           <PostRow
             key={p.id}
@@ -853,7 +853,7 @@ function MaterialsDetail({ id, onBack }: { id: number; onBack: () => void }) {
         <div>
           <h1 style={{ fontWeight: 700, fontSize: 20, marginBottom: "var(--stu-space-3)" }}>{post.title}</h1>
           <div style={{ display: "flex", gap: "var(--stu-space-2)", alignItems: "center", flexWrap: "wrap" }}>
-            <Tag>{node?.session_title || node?.lecture_title || "전체"}</Tag>
+            <Tag>{getScopeLabel(post)}</Tag>
             <span className="stu-muted" style={{ fontSize: 13 }}>{formatYmd(post.created_at)}</span>
           </div>
         </div>
@@ -1076,6 +1076,17 @@ function HtmlContent({ html }: { html: string }) {
       dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(html) }}
     />
   );
+}
+
+// ═══════════════════════════════════════════
+// Scope label helper (SSOT — canonical scope label for student app)
+// ═══════════════════════════════════════════
+function getScopeLabel(post: { mappings?: Array<{ node_detail?: { session_title?: string | null; lecture_title?: string | null } | null }> }): string {
+  const nd = post.mappings?.[0]?.node_detail;
+  if (!nd) return "전체";
+  if (nd.session_title) return nd.session_title;
+  if (nd.lecture_title) return nd.lecture_title;
+  return "전체";
 }
 
 // ═══════════════════════════════════════════

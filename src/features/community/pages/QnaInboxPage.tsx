@@ -25,6 +25,7 @@ import {
 import { Button } from "@/shared/ui/ds";
 import { useConfirm } from "@/shared/ui/confirm";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import PostReadView from "../components/PostReadView";
 import "@/features/community/qna-inbox.css";
 
 type FilterKind = "all" | "pending" | "resolved";
@@ -171,7 +172,10 @@ export default function QnaInboxPage() {
     <div className="qna-inbox" style={{ minHeight: "calc(100vh - 180px)" }}>
       <aside className="qna-inbox__list" ref={listRef}>
         <div className="qna-inbox__list-header">
-          <h2 className="qna-inbox__list-title">질의응답</h2>
+          <h2 className="qna-inbox__list-title">
+            질의응답
+            {pendingCount > 0 && <span className="ds-badge ds-badge--warning" style={{ marginLeft: 8, verticalAlign: 'middle' }}>답변 대기 {pendingCount}</span>}
+          </h2>
           <div className="qna-inbox__filter-group">
             <button
               type="button"
@@ -462,7 +466,7 @@ function ThreadView({
                 })}
               </span>
             </div>
-            <div className="qna-inbox__message-body">{post.content}</div>
+            <div className="qna-inbox__message-body"><PostReadView html={post.content} /></div>
           </div>
         </div>
 
@@ -586,7 +590,7 @@ function ReplyBlock({ postId, answer }: { postId: number; answer: Answer }) {
           </div>
         ) : (
           <>
-            <div className="qna-inbox__message-body">{answer.content}</div>
+            <div className="qna-inbox__message-body"><PostReadView html={answer.content} /></div>
             <div className="qna-inbox__message-actions">
               <Button size="sm" intent="ghost" onClick={() => setEditing(true)}>
                 수정
