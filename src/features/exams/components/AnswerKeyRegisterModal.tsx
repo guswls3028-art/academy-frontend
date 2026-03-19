@@ -1125,7 +1125,7 @@ function ExplanationRow({
   );
 }
 
-/** ── OMR 설정 탭 ── */
+/** OMR 답안지 탭 — 설정 + 미리보기 + 다운로드 완결 */
 function OmrSettingsTab({
   examTitle,
   lectureName,
@@ -1139,34 +1139,48 @@ function OmrSettingsTab({
   choiceCount: number;
   essayCount: number;
 }) {
-  const [omrExam, setOmrExam] = useState(examTitle);
-  const [omrLecture, setOmrLecture] = useState(lectureName);
-  const [omrSession, setOmrSession] = useState(sessionName);
+  const [omrExam, setOmrExam] = useState(examTitle || "");
+  const [omrLecture, setOmrLecture] = useState(lectureName || "");
+  const [omrSession, setOmrSession] = useState(sessionName || "");
   const [omrChoices, setOmrChoices] = useState(5);
+  const [logoBase64, setLogoBase64] = useState<string | null>(null);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
 
-  useEffect(() => { setOmrExam(examTitle); }, [examTitle]);
-  useEffect(() => { setOmrLecture(lectureName); }, [lectureName]);
-  useEffect(() => { setOmrSession(sessionName); }, [sessionName]);
+  // Sync props → state when they change
+  useEffect(() => { if (examTitle) setOmrExam(examTitle); }, [examTitle]);
+  useEffect(() => { if (lectureName) setOmrLecture(lectureName); }, [lectureName]);
+  useEffect(() => { if (sessionName) setOmrSession(sessionName); }, [sessionName]);
 
-  const buildPrintUrl = () => {
-    const p = new URLSearchParams(buildOmrUrl().split("?")[1] || "");
-    p.delete("mode");
-    return "/omr-sheet.html?" + p.toString();
-  };
+  // Load tenant logo as base64 (avoids cross-origin / SPA routing issues)
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        let logoPath = "/omr-default-logo.svg";
+        const r = resolveTenantCode();
+        if (r.ok) {
+          const id = getTenantIdFromCode(r.code);
+          if (id) {
+            const b = getTenantBranding(id);
+            if (b?.logoUrl) logoPath = b.logoUrl;
+          }
+        }
+        const resp = await fetch(logoPath);
+        if (!resp.ok) throw new Error("fetch failed");
+        const blob = await resp.blob();
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          if (!cancelled && typeof reader.result === "string") setLogoBase64(reader.result);
+        };
+        reader.readAsDataURL(blob);
+      } catch {
+        // fallback: no logo
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   const buildOmrUrl = () => {
-    let logoUrl = "/omr-default-logo.svg";
-    try {
-      const r = resolveTenantCode();
-      if (r.ok) {
-        const id = getTenantIdFromCode(r.code);
-        if (id) {
-          const b = getTenantBranding(id);
-          if (b?.logoUrl) logoUrl = b.logoUrl;
-        }
-      }
-    } catch { /* fallback to default */ }
-
     const params = new URLSearchParams({
       exam: omrExam,
       lecture: omrLecture,
@@ -1174,15 +1188,30 @@ function OmrSettingsTab({
       mc: String(choiceCount),
       essay: String(essayCount),
       choices: String(omrChoices),
-      logo: logoUrl,
       mode: "embed",
     });
+    if (logoBase64) params.set("logo", logoBase64);
     return `/omr-sheet.html?${params.toString()}`;
+  };
+
+  const handleDownload = () => {
+    // Open in new tab with download action (no embed mode)
+    const params = new URLSearchParams({
+      exam: omrExam,
+      lecture: omrLecture,
+      session: omrSession,
+      mc: String(choiceCount),
+      essay: String(essayCount),
+      choices: String(omrChoices),
+      action: "download",
+    });
+    if (logoBase64) params.set("logo", logoBase64);
+    window.open(`/omr-sheet.html?${params.toString()}`, "_blank");
   };
 
   return (
     <div style={{ display: "flex", gap: 24 }}>
-      {/* 좌측: 정보 편집 */}
+      {/* 좌측: 설정 */}
       <div style={{ width: 260, flexShrink: 0 }} className="space-y-3">
         <div className="text-sm font-semibold text-[var(--text-primary)]">답안지 설정</div>
         <div className="text-xs text-[var(--text-muted)]">
@@ -1191,61 +1220,41 @@ function OmrSettingsTab({
 
         <div>
           <label className="block text-xs text-[var(--text-muted)] mb-1">시험명</label>
-          <input
-            type="text"
-            value={omrExam}
-            onChange={(e) => setOmrExam(e.target.value)}
-            className="w-full rounded border border-[var(--border-divider)] px-2.5 py-1.5 text-sm"
-          />
+          <input type="text" value={omrExam} onChange={(e) => setOmrExam(e.target.value)} className="w-full rounded border border-[var(--border-divider)] px-2.5 py-1.5 text-sm" placeholder="시험명 입력" />
         </div>
         <div>
           <label className="block text-xs text-[var(--text-muted)] mb-1">강의명</label>
-          <input
-            type="text"
-            value={omrLecture}
-            onChange={(e) => setOmrLecture(e.target.value)}
-            className="w-full rounded border border-[var(--border-divider)] px-2.5 py-1.5 text-sm"
-          />
+          <input type="text" value={omrLecture} onChange={(e) => setOmrLecture(e.target.value)} className="w-full rounded border border-[var(--border-divider)] px-2.5 py-1.5 text-sm" placeholder="강의명 입력" />
         </div>
         <div>
           <label className="block text-xs text-[var(--text-muted)] mb-1">차시명</label>
-          <input
-            type="text"
-            value={omrSession}
-            onChange={(e) => setOmrSession(e.target.value)}
-            className="w-full rounded border border-[var(--border-divider)] px-2.5 py-1.5 text-sm"
-          />
+          <input type="text" value={omrSession} onChange={(e) => setOmrSession(e.target.value)} className="w-full rounded border border-[var(--border-divider)] px-2.5 py-1.5 text-sm" placeholder="차시명 입력" />
         </div>
 
         <div className="rounded bg-[var(--bg-surface-soft)] p-2.5 text-xs text-[var(--text-muted)]">
-          객관식 {choiceCount}문항 · 서술형 {essayCount}문항 · 총 {choiceCount + essayCount}문항
+          {choiceCount > 0 && <span>객관식 {choiceCount}문항</span>}
+          {choiceCount > 0 && essayCount > 0 && <span> · </span>}
+          {essayCount > 0 && <span>서술형 {essayCount}문항</span>}
+          {choiceCount === 0 && essayCount === 0 && <span>문항 없음</span>}
+          <span> · 총 {choiceCount + essayCount}문항</span>
         </div>
 
         <div>
           <label className="block text-xs text-[var(--text-muted)] mb-1">보기 수</label>
-          <select
-            value={omrChoices}
-            onChange={(e) => setOmrChoices(Number(e.target.value))}
-            className="w-full rounded border border-[var(--border-divider)] px-2.5 py-1.5 text-sm"
-          >
+          <select value={omrChoices} onChange={(e) => setOmrChoices(Number(e.target.value))} className="w-full rounded border border-[var(--border-divider)] px-2.5 py-1.5 text-sm">
             <option value={4}>4지선다</option>
             <option value={5}>5지선다</option>
           </select>
         </div>
 
         <div className="space-y-2 pt-1">
-          <Button
-            type="button"
-            intent="primary"
-            size="md"
-            className="w-full"
-            onClick={() => {
-              // Open in new tab with auto-download mode
-              const url = buildPrintUrl() + "&action=download";
-              window.open(url, "_blank");
-            }}
-          >
+          <Button type="button" intent="primary" size="md" className="w-full" onClick={handleDownload}>
             PDF 다운로드
+          </Button>
+          <Button type="button" intent="ghost" size="sm" className="w-full" onClick={() => {
+            if (iframeRef.current) iframeRef.current.src = buildOmrUrl();
+          }}>
+            미리보기 새로고침
           </Button>
         </div>
       </div>
@@ -1253,6 +1262,7 @@ function OmrSettingsTab({
       {/* 우측: 미리보기 */}
       <div style={{ flex: 1, minWidth: 0 }} className="rounded border border-[var(--border-divider)] bg-[var(--bg-surface-soft)] overflow-hidden">
         <iframe
+          ref={iframeRef}
           key={buildOmrUrl()}
           src={buildOmrUrl()}
           className="w-full border-0"
