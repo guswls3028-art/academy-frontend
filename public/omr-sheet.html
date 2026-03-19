@@ -326,7 +326,7 @@ window.addEventListener('DOMContentLoaded',function(){
     // Hide generator, wait for render, then download
     var cfg=document.querySelector('.cfg');
     if(cfg)cfg.style.display='none';
-    setTimeout(function(){ window.downloadOmrPdf(); }, 500);
+    setTimeout(function(){ window.downloadOmrPdf(); }, 1500);
   }
 });
 
@@ -343,7 +343,7 @@ window.downloadOmrPdf = async function() {
   }
   if (!window.jspdf) {
     var s2 = document.createElement('script');
-    s2.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js';
+    s2.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
     document.head.appendChild(s2);
     await new Promise(function(r) { s2.onload = r; });
   }
