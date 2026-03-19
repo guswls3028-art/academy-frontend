@@ -16,6 +16,8 @@ import { TENANTS } from "@/shared/tenant/tenants/index";
 // side-effect guard: Rollup이 tree-shake하지 않도록 런타임 참조
 if (!TENANTS.length) throw new Error("Tenant registry empty");
 import { DevErrorBoundary, DevErrorLogger } from "@/app/DevErrorLogger";
+import { useVersionChecker } from "@/shared/ui/layout/VersionChecker";
+import SubscriptionExpiredOverlay from "@/shared/ui/SubscriptionExpiredOverlay";
 
 import "./index.css";
 import "antd/dist/reset.css";
@@ -55,6 +57,17 @@ if (SENTRY_DSN && import.meta.env.PROD) {
   });
 }
 
+/** BrowserRouter 내부 최상위 — hook 호출 + 라우터 + 오버레이 */
+function AppInner() {
+  useVersionChecker(); // 배포 자동 업데이트 (visibilitychange + pageshow + 폴링)
+  return (
+    <>
+      <AppRouter />
+      <SubscriptionExpiredOverlay />
+    </>
+  );
+}
+
 const AppContent = (
   <ThemeProvider>
     <BrowserRouter
@@ -66,7 +79,7 @@ const AppContent = (
       <QueryProvider>
         <ProgramProvider>
           <AuthProvider>
-            <AppRouter />
+            <AppInner />
           </AuthProvider>
         </ProgramProvider>
       </QueryProvider>
