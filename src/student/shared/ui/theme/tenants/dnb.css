@@ -1,0 +1,240 @@
+/* PATH: src/student/shared/ui/theme/tenants/dnb.css
+ * DnB 보습학원 학생앱 전용 테마 — Purple #612E8D + Yellow #F3EB40
+ * PANTONE 3583 C (보라) + PANTONE 109 C (노랑)
+ */
+[data-student-theme="dnb"] {
+  /* 배경·서페이스 */
+  --stu-bg: #f7f5fa;
+  --stu-surface: #ffffff;
+  --stu-surface-soft: #f0ecf5;
+  --stu-surface-0: #f7f5fa;
+  --stu-surface-1: #ffffff;
+  --stu-surface-2: #f0ecf5;
+  --stu-border: rgba(97, 46, 141, 0.08);
+  --stu-border-hover: rgba(97, 46, 141, 0.16);
+
+  --stu-bg-pattern:
+    radial-gradient(circle at 1px 1px, rgba(97, 46, 141, 0.012) 1px, transparent 0),
+    linear-gradient(to bottom, transparent, rgba(243, 235, 64, 0.005));
+  --stu-bg-pattern-size: 24px 24px, 100% 100%;
+
+  /* 텍스트 */
+  --stu-text: #1a0a2e;
+  --stu-text-muted: #6b5b7b;
+  --stu-text-subtle: #9a8aab;
+
+  /* 프라이머리: 보라 */
+  --stu-primary: #612e8d;
+  --stu-primary-hover: #4a1f6e;
+  --stu-primary-contrast: #fff;
+  --stu-glow-primary: 0 0 20px rgba(97, 46, 141, 0.22);
+
+  /* 그라디언트: 보라 → 노랑 포인트 */
+  --stu-gradient: linear-gradient(135deg, #612e8d 0%, #7b3faa 50%, #c9a82e 100%);
+  --stu-focus: rgba(243, 235, 64, 0.30);
+
+  /* 시맨틱 */
+  --stu-success: #22c55e;
+  --stu-success-bg: rgba(34, 197, 94, 0.10);
+  --stu-success-border: rgba(34, 197, 94, 0.30);
+  --stu-success-text: #16a34a;
+
+  --stu-warn: #f3eb40;
+  --stu-warn-bg: rgba(243, 235, 64, 0.12);
+  --stu-warn-border: rgba(243, 235, 64, 0.40);
+  --stu-warn-text: #a89200;
+
+  --stu-danger: #dc2626;
+  --stu-danger-hover: #b91c1c;
+  --stu-danger-bg: rgba(220, 38, 38, 0.10);
+  --stu-danger-border: rgba(220, 38, 38, 0.30);
+  --stu-danger-text: #dc2626;
+
+  /* 헤더/탭바 */
+  --stu-header-bg: rgba(247, 245, 250, 0.92);
+  --stu-tabbar-bg: rgba(247, 245, 250, 0.95);
+
+  --stu-tint-primary: color-mix(in srgb, var(--stu-primary) 5%, var(--stu-surface-1));
+  --stu-tint-hover: color-mix(in srgb, var(--stu-primary) 9%, var(--stu-surface-1));
+}
+
+/* 다크모드 강제 라이트 */
+@media (prefers-color-scheme: dark) {
+  [data-student-theme="dnb"] {
+    --stu-bg: #f7f5fa;
+    --stu-surface: #ffffff;
+    --stu-surface-soft: #f0ecf5;
+    --stu-surface-0: #f7f5fa;
+    --stu-surface-1: #ffffff;
+    --stu-surface-2: #f0ecf5;
+    --stu-text: #1a0a2e;
+    --stu-text-muted: #6b5b7b;
+    --stu-text-subtle: #9a8aab;
+    --stu-header-bg: rgba(247, 245, 250, 0.92);
+    --stu-tabbar-bg: rgba(247, 245, 250, 0.95);
+  }
+}
+
+[data-student-theme="dnb"] :focus-visible {
+  outline: 3px solid var(--stu-focus);
+  outline-offset: 2px;
+  border-radius: 10px;
+}
+
+/* ── 탭바 액티브 인디케이터 ── */
+[data-student-theme="dnb"] .stu-tabbar .stu-tabbar__link[aria-current="page"] {
+  color: #612e8d;
+  font-weight: 800;
+  position: relative;
+}
+
+[data-student-theme="dnb"] .stu-tabbar .stu-tabbar__link[aria-current="page"]::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  transform: translateX(-50%);
+  width: 24px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--stu-gradient);
+}
+
+/* ── 프라이머리 버튼: 보라 그라디언트 ── */
+[data-student-theme="dnb"] .stu-btn--primary {
+  background: var(--stu-gradient);
+  box-shadow: 0 2px 8px rgba(97, 46, 141, 0.18);
+}
+
+[data-student-theme="dnb"] .stu-btn--primary:hover {
+  filter: brightness(1.06);
+  background: var(--stu-gradient);
+  box-shadow: 0 4px 16px rgba(97, 46, 141, 0.25);
+}
+
+/* 위험 버튼 */
+[data-student-theme="dnb"] .stu-btn--danger {
+  background: var(--stu-danger);
+  color: #fff;
+  border: none;
+}
+
+[data-student-theme="dnb"] .stu-btn--danger:hover {
+  background: var(--stu-danger-hover);
+  filter: brightness(0.95);
+}
+
+/* ── SVG 아이콘 그라디언트 ── */
+[data-student-theme="dnb"] .stu-icon,
+[data-student-theme="dnb"] .stu-icon path,
+[data-student-theme="dnb"] .stu-icon circle,
+[data-student-theme="dnb"] .stu-icon polygon,
+[data-student-theme="dnb"] .stu-icon rect {
+  stroke: url(#stu-gradient-dnb);
+}
+
+[data-student-theme="dnb"] .stu-icon path[fill="currentColor"],
+[data-student-theme="dnb"] .stu-icon circle[fill="currentColor"],
+[data-student-theme="dnb"] .stu-icon polygon[fill="currentColor"] {
+  fill: url(#stu-gradient-dnb);
+}
+
+/* ── 앱 배경 그라디언트 ── */
+[data-student-theme="dnb"] [data-app="student"] {
+  background-image:
+    linear-gradient(135deg, rgba(97, 46, 141, 0.035) 0%, rgba(123, 63, 170, 0.02) 50%, rgba(243, 235, 64, 0.012) 100%) !important,
+    var(--stu-bg-pattern) !important;
+  background-size: 100% 100%, var(--stu-bg-pattern-size) !important;
+  background-color: var(--stu-bg) !important;
+  background-repeat: no-repeat !important;
+  background-attachment: fixed !important;
+}
+
+/* 헤더 배경 미묘한 그라디언트 */
+[data-student-theme="dnb"] [data-app="student"] header {
+  background-image: linear-gradient(135deg, rgba(97, 46, 141, 0.06) 0%, rgba(123, 63, 170, 0.04) 50%, rgba(243, 235, 64, 0.015) 100%) !important;
+  background-size: 100% 100%;
+}
+
+/* 탭바 배경 */
+[data-student-theme="dnb"] [data-app="student"] .stu-tabbar {
+  background-image: linear-gradient(135deg, rgba(97, 46, 141, 0.06) 0%, rgba(123, 63, 170, 0.04) 50%, rgba(243, 235, 64, 0.015) 100%) !important;
+  background-size: 100% 100%;
+}
+
+/* ── 패널, 카드, 섹션 ── */
+[data-student-theme="dnb"] [data-app="student"] .stu-panel {
+  background-image:
+    linear-gradient(135deg, rgba(97, 46, 141, 0.04) 0%, rgba(123, 63, 170, 0.025) 50%, rgba(243, 235, 64, 0.012) 100%),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.02), rgba(0, 0, 0, 0.01));
+  background-color: var(--stu-surface-1);
+}
+
+[data-student-theme="dnb"] [data-app="student"] .stu-section,
+[data-student-theme="dnb"] [data-app="student"] .stu-card {
+  background-image:
+    linear-gradient(135deg, rgba(97, 46, 141, 0.035) 0%, rgba(123, 63, 170, 0.02) 50%, rgba(243, 235, 64, 0.010) 100%);
+  background-color: var(--stu-surface-1);
+}
+
+/* ── 액션 타일 ── */
+[data-app="student"][data-student-theme="dnb"] .stu-action-tile {
+  background-color: var(--stu-surface-1) !important;
+  background-image:
+    linear-gradient(135deg, rgba(97, 46, 141, 0.12) 0%, rgba(123, 63, 170, 0.08) 40%, rgba(243, 235, 64, 0.05) 100%),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.04), rgba(0, 0, 0, 0.02)) !important;
+  background-size: 100% 100%, 100% 100% !important;
+  background-repeat: no-repeat !important;
+  background-position: center center !important;
+  background-attachment: local !important;
+}
+
+[data-app="student"][data-student-theme="dnb"] .stu-action-tile::before {
+  background: linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.05) 0%,
+    transparent 50%,
+    rgba(0, 0, 0, 0.02) 100%
+  ) !important;
+  z-index: 0 !important;
+  opacity: 1 !important;
+}
+
+[data-app="student"][data-student-theme="dnb"] .stu-action-tile__icon {
+  background-color: var(--stu-tint-primary) !important;
+  background-image: linear-gradient(135deg, rgba(97, 46, 141, 0.15) 0%, rgba(123, 63, 170, 0.10) 40%, rgba(243, 235, 64, 0.06) 100%) !important;
+  background-size: 100% 100% !important;
+  background-repeat: no-repeat !important;
+  background-position: center center !important;
+}
+
+/* ── QnA 페이지 ── */
+[data-student-theme="dnb"] [data-page="qna"] .stu-emptystate__icon {
+  background: linear-gradient(135deg, rgba(97, 46, 141, 0.10) 0%, rgba(243, 235, 64, 0.05) 100%) !important;
+  border-color: rgba(97, 46, 141, 0.15) !important;
+}
+
+[data-student-theme="dnb"] [data-page="qna"] .stu-emptystate__icon-svg {
+  stroke: #612e8d;
+}
+
+[data-student-theme="dnb"] [data-page="qna"] .stu-btn--primary {
+  background: var(--stu-gradient);
+  box-shadow: 0 2px 8px rgba(97, 46, 141, 0.20);
+}
+
+[data-student-theme="dnb"] [data-page="qna"] .stu-panel.stu-panel--pressable {
+  background-image:
+    linear-gradient(135deg, rgba(97, 46, 141, 0.04) 0%, rgba(243, 235, 64, 0.015) 100%),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.03), rgba(0, 0, 0, 0.01));
+  border: 1px solid rgba(97, 46, 141, 0.10);
+}
+
+[data-student-theme="dnb"] [data-page="qna"] .stu-panel.stu-panel--pressable:hover {
+  border-color: rgba(97, 46, 141, 0.22);
+}
+
+[data-student-theme="dnb"] [data-page="qna"] .stu-section--nested > div:first-child {
+  color: #612e8d;
+  letter-spacing: -0.02em;
+}

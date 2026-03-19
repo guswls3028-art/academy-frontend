@@ -23,6 +23,8 @@ const TCHUL_THEME_TENANTS = ["tchul"];
 const YMATH_THEME_TENANTS = ["ymath"];
 /** 8번(SSWE) 전용 테마 — 네이비+오렌지 */
 const SSWE_THEME_TENANTS = ["sswe"];
+/** 9번(DnB) 전용 테마 — 보라+노랑 */
+const DNB_THEME_TENANTS = ["dnb"];
 /** 1,3,9999번 공통 — commonlogo + 2번 색상 (common=9999 로컬 경로) */
 const COMMON_THEME_TENANTS = ["hakwonplus", "limglish", "9999", "common"];
 
@@ -65,6 +67,7 @@ export default function StudentLayout() {
   const useTchulTheme = tenantCode != null && TCHUL_THEME_TENANTS.includes(String(tenantCode));
   const useYmathTheme = tenantCode != null && YMATH_THEME_TENANTS.includes(String(tenantCode));
   const useSsweTheme = tenantCode != null && SSWE_THEME_TENANTS.includes(String(tenantCode));
+  const useDnbTheme = tenantCode != null && DNB_THEME_TENANTS.includes(String(tenantCode));
   const useCommonTheme = tenantCode != null && COMMON_THEME_TENANTS.includes(String(tenantCode));
 
   // 모바일 체감 속도: 첫 화면 로드 후 자주 가는 탭 청크 미리 로드 (영상·일정·시험)
@@ -97,7 +100,7 @@ export default function StudentLayout() {
     <div
       data-app="student"
       data-student-tenant={tenantCode || undefined}
-      data-student-theme={useTchulTheme ? "tchul" : useYmathTheme ? "ymath" : useSsweTheme ? "sswe" : useCommonTheme ? "common" : undefined}
+      data-student-theme={useTchulTheme ? "tchul" : useYmathTheme ? "ymath" : useSsweTheme ? "sswe" : useDnbTheme ? "dnb" : useCommonTheme ? "common" : undefined}
       data-video-page={isVideoPage ? "true" : undefined}
       style={{
         minHeight: "100dvh",
@@ -111,7 +114,7 @@ export default function StudentLayout() {
         // 배경 그라데이션은 CSS에서 적용 (tchul.css)
       }}
     >
-      {(useTchulTheme || useYmathTheme || useSsweTheme || useCommonTheme) && (
+      {(useTchulTheme || useYmathTheme || useSsweTheme || useDnbTheme || useCommonTheme) && (
         <svg aria-hidden width={0} height={0} style={{ position: "absolute" }}>
           <defs>
             <linearGradient id="stu-gradient-tchul" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -133,6 +136,11 @@ export default function StudentLayout() {
               <stop offset="0%" stopColor="#002357" />
               <stop offset="40%" stopColor="#003580" />
               <stop offset="100%" stopColor="#f18e2c" />
+            </linearGradient>
+            <linearGradient id="stu-gradient-dnb" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#612e8d" />
+              <stop offset="50%" stopColor="#7b3faa" />
+              <stop offset="100%" stopColor="#c9a82e" />
             </linearGradient>
           </defs>
         </svg>
