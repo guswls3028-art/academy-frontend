@@ -1294,14 +1294,14 @@ function PdfUploadSection({ examId, questionCount }: { examId: number; questionC
             시험지 PDF를 올리면 AI가 문항을 자동 인식하여 이미지를 업로드합니다.
           </div>
         </div>
-        <button
-          type="button"
-          className="px-4 py-2 rounded-lg text-sm font-semibold bg-[var(--color-brand-primary)] text-white hover:opacity-90 transition-opacity disabled:opacity-50"
+        <Button
+          intent="primary"
+          size="sm"
           onClick={() => fileRef.current?.click()}
           disabled={uploading}
         >
           {uploading ? "업로드 중…" : "PDF 선택"}
-        </button>
+        </Button>
         <input
           ref={fileRef}
           type="file"
