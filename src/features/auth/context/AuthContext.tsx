@@ -68,12 +68,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     queryClient.clear();
     setUser(null);
 
-    // 세션 만료 플래그가 있으면 안내 메시지 표시 후 루트로 이동 (RootRedirect가 적절한 곳으로 보냄)
+    // 세션 만료 시 로그인 페이지로 즉시 이동
     try {
       if (sessionStorage.getItem("session_expired") === "1") {
         sessionStorage.removeItem("session_expired");
-        feedback.warn("액세스 토큰이 만료되었습니다. 다시 로그인 해주세요.");
-        window.location.href = "/";
+        feedback.warn("세션이 만료되었습니다. 다시 로그인해 주세요.");
+        window.location.href = "/login";
       }
     } catch { /* ignore */ }
   }, [queryClient]);
@@ -142,11 +142,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (document.visibilityState !== "visible") return;
       const access = getAccessToken();
       if (!access) {
-        // 이전에 로그인 상태였으면 세션 만료 안내
+        // 이전에 로그인 상태였으면 세션 만료 → 로그인으로
         if (user) {
           setUser(null);
-          feedback.warn("액세스 토큰이 만료되었습니다. 다시 로그인 해주세요.");
-          window.location.href = "/";
+          feedback.warn("세션이 만료되었습니다. 다시 로그인해 주세요.");
+          window.location.href = "/login";
         }
         return;
       }
