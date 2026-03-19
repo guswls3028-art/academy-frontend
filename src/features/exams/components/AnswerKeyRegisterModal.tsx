@@ -667,6 +667,9 @@ export default function AnswerKeyRegisterModal({
                   먼저 &quot;답안 등록&quot; 탭에서 문항 수를 입력하고 문항 반영을 해주세요.
                 </div>
               ) : (
+                <>
+                {/* PDF 업로드 영역 */}
+                <PdfUploadSection examId={examId} questionCount={sortedQuestions.length} />
                 <div className="answer-key-explanation-table-wrap">
                   <table className="answer-key-explanation-table">
                     <thead>
@@ -691,6 +694,7 @@ export default function AnswerKeyRegisterModal({
                     </tbody>
                   </table>
                 </div>
+                </>
               )}
             </div>
           )}
@@ -1202,7 +1206,7 @@ function OmrSettingsTab({
             className="w-full"
             onClick={() => window.open(buildOmrUrl(), "_blank")}
           >
-            OMR 답안지 열기 (인쇄/PDF)
+            답안지 다운로드 (PDF)
           </Button>
         </div>
       </div>
@@ -1217,6 +1221,110 @@ function OmrSettingsTab({
           title="OMR 답안지 미리보기"
         />
       </div>
+    </div>
+  );
+}
+
+/** PDF 업로드 → AI 문항 분할 섹션 */
+function PdfUploadSection({ examId, questionCount }: { examId: number; questionCount: number }) {
+  const [uploading, setUploading] = useState(false);
+  const [jobId, setJobId] = useState<string | null>(null);
+  const [jobStatus, setJobStatus] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const handleUpload = async (file: File) => {
+    setUploading(true);
+    setError(null);
+    setJobId(null);
+    setJobStatus(null);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("exam_id", String(examId));
+
+      const { default: api } = await import("@/shared/api/axios");
+      const res = await api.post("/exams/pdf-extract/", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+
+      const id = res.data?.job_id;
+      setJobId(id);
+      setJobStatus("submitted");
+
+      // Poll for job status
+      if (id) {
+        const poll = setInterval(async () => {
+          try {
+            const { default: api2 } = await import("@/shared/api/axios");
+            const statusRes = await api2.get("/jobs/" + id + "/");
+            const s = statusRes.data?.status;
+            setJobStatus(s);
+            if (s === "DONE" || s === "FAILED" || s === "done" || s === "failed") {
+              clearInterval(poll);
+              if (s === "DONE" || s === "done") {
+                feedback.success("PDF 문항 분할이 완료되었습니다.");
+              } else {
+                setError("문항 분할에 실패했습니다.");
+              }
+            }
+          } catch {
+            clearInterval(poll);
+          }
+        }, 3000);
+        setTimeout(() => clearInterval(poll), 120000);
+      }
+    } catch (e: any) {
+      setError(e?.response?.data?.detail ?? e?.message ?? "업로드 실패");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <div
+      className="rounded border border-dashed border-[var(--color-border-divider)] p-4 mb-4"
+      style={{ background: "color-mix(in srgb, var(--color-brand-primary) 3%, var(--color-bg-surface))" }}
+    >
+      <div className="flex items-center justify-between mb-2">
+        <div>
+          <div className="text-sm font-semibold text-[var(--color-text-primary)]">PDF 업로드</div>
+          <div className="text-xs text-[var(--color-text-muted)]">
+            시험지 PDF를 올리면 AI가 문항을 자동 인식하여 이미지를 업로드합니다.
+          </div>
+        </div>
+        <button
+          type="button"
+          className="px-4 py-2 rounded-lg text-sm font-semibold bg-[var(--color-brand-primary)] text-white hover:opacity-90 transition-opacity disabled:opacity-50"
+          onClick={() => fileRef.current?.click()}
+          disabled={uploading}
+        >
+          {uploading ? "업로드 중…" : "PDF 선택"}
+        </button>
+        <input
+          ref={fileRef}
+          type="file"
+          accept=".pdf,.png,.jpg,.jpeg"
+          style={{ display: "none" }}
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) handleUpload(f);
+            e.target.value = "";
+          }}
+        />
+      </div>
+      {jobStatus && (
+        <div className="text-xs mt-2">
+          {(jobStatus === "submitted" || jobStatus === "PENDING" || jobStatus === "RUNNING") && (
+            <span className="text-[var(--color-brand-primary)]">AI 문항 분할 진행 중… ({jobStatus})</span>
+          )}
+          {(jobStatus === "DONE" || jobStatus === "done") && (
+            <span className="text-[var(--color-success)]">문항 분할 완료</span>
+          )}
+        </div>
+      )}
+      {error && <div className="text-xs mt-2 text-[var(--color-error)]">{error}</div>}
     </div>
   );
 }
