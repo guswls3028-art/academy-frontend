@@ -6,11 +6,14 @@
  */
 
 import { useEffect, useMemo, useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAdminExam } from "../../hooks/useAdminExam";
 import { updateAdminExam } from "../../api/adminExam";
+import { fetchQuestionsByExam } from "../../api/questionApi";
+import { fetchAnswerKeyByExam } from "../../api/answerKeyApi";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { resolveTenantCode, getTenantIdFromCode, getTenantBranding } from "@/shared/tenant";
 import AnswerKeyRegisterModal from "../../components/AnswerKeyRegisterModal";
 
 export default function ExamPolicyPanel({ examId }: { examId: number }) {
@@ -56,6 +59,63 @@ export default function ExamPolicyPanel({ examId }: { examId: number }) {
   }
 
   const canEditQuestions = exam.exam_type === "template";
+
+  // ── OMR: 문항 수 파악 ──
+  const questionsQ = useQuery({
+    queryKey: ["exam-questions", examId],
+    queryFn: () => fetchQuestionsByExam(examId).then((r) => r.data),
+    enabled: Number.isFinite(examId),
+  });
+  const answerKeyQ = useQuery({
+    queryKey: ["answer-key", examId],
+    queryFn: () => fetchAnswerKeyByExam(examId).then((r) => r.data),
+    enabled: Number.isFinite(examId),
+  });
+
+  const omrSpec = useMemo(() => {
+    const questions = questionsQ.data ?? [];
+    const ak = answerKeyQ.data?.[0];
+    if (!questions.length) return null;
+    const answers = ak?.answers ?? {};
+    // choice questions: answer is "1"~"5", essay: anything else
+    let choiceCount = 0;
+    let essayCount = 0;
+    for (const q of questions) {
+      const ans = answers[String(q.id)] ?? "";
+      const isChoice = /^[1-5]$/.test(ans);
+      if (isChoice) choiceCount++;
+      else essayCount++;
+    }
+    // If no answer key, assume all choice
+    if (!ak) {
+      choiceCount = questions.length;
+      essayCount = 0;
+    }
+    return { choiceCount, essayCount, total: questions.length };
+  }, [questionsQ.data, answerKeyQ.data]);
+
+  const openOmrSheet = () => {
+    if (!omrSpec) return;
+    let logoUrl = "/omr-default-logo.svg";
+    try {
+      const r = resolveTenantCode();
+      if (r.ok) {
+        const id = getTenantIdFromCode(r.code);
+        if (id) {
+          const b = getTenantBranding(id);
+          if (b?.logoUrl) logoUrl = b.logoUrl;
+        }
+      }
+    } catch { /* fallback */ }
+    const params = new URLSearchParams({
+      exam: exam.title || "시험",
+      mc: String(omrSpec.choiceCount),
+      essay: String(omrSpec.essayCount),
+      choices: "5",
+      logo: logoUrl,
+    });
+    window.open(`/omr-sheet.html?${params.toString()}`, "_blank");
+  };
 
   const savePassScore = async () => {
     try {
@@ -142,6 +202,28 @@ export default function ExamPolicyPanel({ examId }: { examId: number }) {
           structureOwnerId={exam.id}
           canEditQuestions={canEditQuestions}
         />
+
+        {/* ── OMR 답안지 출력 ── */}
+        {omrSpec && omrSpec.total > 0 && (
+          <div className="space-y-3 border-t border-[var(--border-divider)] pt-4">
+            <div>
+              <div className="text-sm font-semibold text-[var(--text-primary)]">OMR 답안지</div>
+              <div className="mt-0.5 text-xs text-[var(--text-muted)]">
+                객관식 {omrSpec.choiceCount}문항
+                {omrSpec.essayCount > 0 && ` · 서술형 ${omrSpec.essayCount}문항`}
+                {" "}· 총 {omrSpec.total}문항 기준으로 답안지를 출력합니다.
+              </div>
+            </div>
+            <Button
+              type="button"
+              intent="secondary"
+              size="sm"
+              onClick={openOmrSheet}
+            >
+              OMR 답안지 출력
+            </Button>
+          </div>
+        )}
       </div>
     </section>
   );

@@ -7,6 +7,7 @@ import { lazyWithRetry as lazy } from "@/shared/utils/lazyWithRetry";
 
 const ToolsLayout = lazy(() => import("./ToolsLayout"));
 const PptGeneratorPage = lazy(() => import("./ppt/pages/PptGeneratorPage"));
+const OmrGeneratorPage = lazy(() => import("./omr/pages/OmrGeneratorPage"));
 
 function Fallback() {
   return (
@@ -23,6 +24,7 @@ export default function ToolsRoutes() {
         <Route element={<ToolsLayout />}>
           <Route index element={<Navigate to="ppt" replace />} />
           <Route path="ppt" element={<Suspense fallback={<Fallback />}><PptGeneratorPage /></Suspense>} />
+          <Route path="omr" element={<Suspense fallback={<Fallback />}><OmrGeneratorPage /></Suspense>} />
         </Route>
       </Routes>
     </Suspense>

@@ -6,9 +6,7 @@ import { DomainLayout, type DomainTab } from "@/shared/ui/layout";
 
 const TOOLS_TABS: DomainTab[] = [
   { key: "ppt", label: "PPT 생성", path: "/admin/tools/ppt" },
-  // 향후 확장:
-  // { key: "pdf", label: "PDF 생성", path: "/admin/tools/pdf" },
-  // { key: "worksheet", label: "학습지 제작", path: "/admin/tools/worksheet" },
+  { key: "omr", label: "OMR 생성", path: "/admin/tools/omr" },
 ];
 
 export default function ToolsLayout() {

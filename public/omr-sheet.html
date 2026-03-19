@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OMR 답안지</title>
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+body{background:#ccc;font-family:'Malgun Gothic','맑은 고딕',sans-serif;color:#000}
+
+.cfg{max-width:540px;margin:16px auto;padding:14px 18px;background:#fff;border-radius:8px;border:1px solid #ddd;font-family:'Segoe UI',sans-serif;font-size:12px}
+.cfg-t{font-size:14px;font-weight:700;margin-bottom:10px}
+.cfg-g{display:grid;grid-template-columns:80px 1fr 80px 1fr;gap:5px 8px;align-items:center}
+.cfg-g label{font-weight:600;color:#555;font-size:11px}
+.cfg-g input,.cfg-g select{padding:3px 6px;border:1px solid #ccc;border-radius:3px;font-size:11px;width:100%}
+.cfg-g .sp2{grid-column:span 3}
+.cfg-g .ht{font-size:9px;color:#aaa;grid-column:span 4;text-align:right;margin-top:-2px}
+.cfg-b{display:flex;gap:6px;margin-top:10px}
+.cfg-b button{flex:1;padding:7px;border:none;border-radius:5px;font-size:12px;font-weight:600;cursor:pointer}
+.cg{background:#333;color:#fff}.cg:hover{background:#222}
+.cp{background:#666;color:#fff}.cp:hover{background:#555}
+@media print{.cfg{display:none!important}}
+@media print{
+  @page{size:A4 landscape;margin:0}
+  body{background:#fff;margin:0;padding:0}
+}
+
+.omr{width:297mm;height:210mm;margin:14px auto;background:#fff;position:relative;overflow:hidden;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+@media print{.omr{margin:0}}
+@media screen{.omr{box-shadow:0 3px 20px rgba(0,0,0,.15)}}
+
+.cm{position:absolute;z-index:20}.cm b{position:absolute;background:#000;display:block}
+.cm-tl{top:3mm;left:3mm}.cm-tl .h{width:5mm;height:0.5mm;top:0;left:0}.cm-tl .v{width:0.5mm;height:5mm;top:0;left:0}
+.cm-tr{top:3mm;right:3mm}.cm-tr .h{width:5mm;height:0.5mm;top:0;right:0}.cm-tr .v{width:0.5mm;height:5mm;top:0;right:0}
+.cm-bl{bottom:3mm;left:3mm}.cm-bl .h{width:5mm;height:0.5mm;bottom:0;left:0}.cm-bl .v{width:0.5mm;height:5mm;bottom:0;left:0}
+.cm-br{bottom:3mm;right:3mm}.cm-br .h{width:5mm;height:0.5mm;bottom:0;right:0}.cm-br .v{width:0.5mm;height:5mm;bottom:0;right:0}
+
+.omr-c{position:absolute;top:9mm;left:10mm;right:10mm;bottom:6mm;display:flex;gap:3mm}
+
+/* ═══ LEFT PANEL ═══ */
+.lp{
+  width:62mm;flex-shrink:0;
+  border:1.5px solid #000;border-radius:2mm;
+  display:flex;flex-direction:column;overflow:hidden;
+}
+.lp-top{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  flex:1;padding:2mm 2mm;
+}
+.lp-top img{max-width:95%;max-height:26mm;object-fit:contain;margin-bottom:2.5mm}
+.lp-ttl-exam{font-size:12pt;font-weight:800;line-height:1.4;overflow-wrap:break-word;word-break:break-all;text-align:center}
+.lp-ttl-sub{font-size:6.5pt;color:#555;margin-top:0.8mm;line-height:1.3;text-align:center}
+.lp-bottom{
+  display:flex;flex-direction:column;
+  justify-content:flex-end;
+}
+.lp-bottom .sec:first-child{border-top:1.5px solid #000}
+.sec{border-bottom:1.5px solid #000}
+.sec:last-of-type{border-bottom:none}
+.sec-h{background:#f0f0f0;border-bottom:0.8px solid #000;padding:1mm 2mm;font-size:6.5pt;font-weight:700;letter-spacing:1px;text-align:center}
+.sec-b{padding:2mm 2.5mm}
+
+.nm-area{height:10mm}
+
+/* Phone: write boxes + bubbles (no guide text here) */
+.ph-write{display:flex;justify-content:center;gap:0;margin-bottom:1.5mm}
+.ph-cell{width:5.8mm;height:7mm;border:0.7px solid #000;display:flex;align-items:center;justify-content:center}
+.ph-cell+.ph-cell{border-left:none}
+.ph-sep{width:3.5mm;display:flex;align-items:center;justify-content:center;font-size:10pt;font-weight:800}
+.ph-bub-row{display:flex;justify-content:center;gap:0}
+.ph-bub-col{display:flex;flex-direction:column;align-items:center;width:5.8mm}
+.ph-bub-sep{width:3.5mm}
+.ph-bub{width:3.6mm;height:5.2mm;border:0.5px solid #000;border-radius:40%;display:flex;align-items:center;justify-content:center;font-size:4.5pt;color:#aaa;margin:0.12mm 0;background:#fff}
+
+/* Note — compact */
+.lp-note{
+  padding:1.5mm 2mm;
+  font-size:5pt;color:#333;line-height:1.6;
+  border-top:1.5px solid #000;
+  margin-top:auto;
+}
+
+/* ═══ ANSWER AREA ═══ */
+.ans{flex:1;display:flex;gap:2.5mm;min-width:0}
+
+/* MC column — fixed width */
+.ac{
+  width:44mm;flex-shrink:0;flex-grow:0;
+  border:1.5px solid #000;border-radius:2mm;
+  display:flex;flex-direction:column;overflow:hidden;
+}
+/* header uses same structure as rows for alignment */
+.ac-h{
+  display:flex;align-items:center;
+  height:5.5mm;
+  background:#f0f0f0;
+  border-bottom:1px solid #000;
+}
+.ac-h-n{
+  width:8mm;text-align:center;flex-shrink:0;
+  font-size:5.5pt;font-weight:700;
+  border-right:0.5px solid #999;
+  align-self:stretch;display:flex;align-items:center;justify-content:center;
+}
+.ac-h-a{
+  flex:1;text-align:center;
+  font-size:5.5pt;font-weight:700;letter-spacing:0.5px;
+}
+.ac-b{flex:1;display:flex;flex-direction:column}
+
+.ar{display:flex;align-items:center;flex:1;min-height:4mm;border-bottom:0.2px solid #ddd}
+.ar-g5{border-bottom:0.8px solid #999!important}
+.ar:last-child{border-bottom:none}
+.ar-n{
+  width:8mm;text-align:center;font-size:7pt;font-weight:700;
+  border-right:0.5px solid #ccc;flex-shrink:0;
+  align-self:stretch;display:flex;align-items:center;justify-content:center;
+}
+.ar-bs{flex:1;display:flex;justify-content:space-evenly;align-items:center;padding:0 0.5mm}
+.bu{width:3.6mm;height:5.2mm;border:0.55px solid #000;border-radius:40%;display:inline-flex;align-items:center;justify-content:center;font-size:5pt;color:#aaa;background:#fff;flex-shrink:0}
+
+/* 서술형 column — flex */
+.dc{
+  flex:1;min-width:40mm;
+  border:1.5px solid #000;border-radius:2mm;
+  display:flex;flex-direction:column;overflow:hidden;
+}
+.dc-h{
+  display:flex;align-items:center;
+  height:5.5mm;background:#f0f0f0;
+  border-bottom:1px solid #000;
+}
+.dc-h-n{
+  width:8mm;text-align:center;flex-shrink:0;
+  font-size:5.5pt;font-weight:700;
+  border-right:0.5px solid #999;
+  align-self:stretch;display:flex;align-items:center;justify-content:center;
+}
+.dc-h-a{
+  flex:1;text-align:center;
+  font-size:5.5pt;font-weight:700;letter-spacing:0.5px;
+}
+.dc-b{flex:1;display:flex;flex-direction:column}
+.dr{display:flex;align-items:stretch;flex:1;border-bottom:0.5px solid #ccc}
+.dr-g5{border-bottom:0.8px solid #999!important}
+.dr:last-child{border-bottom:none}
+.dr-n{
+  width:8mm;display:flex;align-items:center;justify-content:center;
+  font-size:7pt;font-weight:700;flex-shrink:0;
+  border-right:0.5px solid #ccc;
+}
+.dr-bx{flex:1}
+</style>
+</head>
+<body>
+
+<div class="cfg">
+  <div class="cfg-t">OMR 답안지 생성기</div>
+  <div class="cfg-g">
+    <label>시험명</label><input type="text" id="cfNm" class="sp2" placeholder="예: 제1회 단원평가" value="제1회 단원평가">
+    <label>강의명</label><input type="text" id="cfLec" class="sp2" placeholder="자동 또는 직접 입력">
+    <label>차시명</label><input type="text" id="cfSes" class="sp2" placeholder="자동 또는 직접 입력">
+    <label>객관식</label><input type="number" id="cfMc" min="0" max="45" value="30">
+    <label>서술형</label><input type="number" id="cfEs" min="0" max="10" value="5">
+    <label>보기 수</label>
+    <select id="cfCh"><option value="4">4지선다</option><option value="5" selected>5지선다</option></select><span></span>
+    <label>로고</label>
+    <div class="sp2" style="display:flex;gap:6px;align-items:center">
+      <input type="file" id="cfLogoFile" accept="image/*" style="font-size:10px;width:140px">
+      <button type="button" onclick="document.getElementById('cfLogoFile').value='';window._customLogo=null;gen()" style="font-size:10px;padding:2px 6px;border:1px solid #ccc;border-radius:3px;background:#fff;cursor:pointer">기본</button>
+    </div>
+    <div class="ht">URL: ?exam=...&lecture=...&session=...&mc=30&essay=5&choices=5&logo=URL</div>
+  </div>
+  <div class="cfg-b">
+    <button class="cg" onclick="gen()">답안지 생성</button>
+    <button class="cp" onclick="window.print()">인쇄 / PDF</button>
+  </div>
+</div>
+
+<div id="out"></div>
+
+<script>
+// Logo upload handler
+window._customLogo=null;
+document.addEventListener('DOMContentLoaded',function(){
+  var fi=document.getElementById('cfLogoFile');
+  if(fi)fi.addEventListener('change',function(e){
+    var f=e.target.files&&e.target.files[0];
+    if(!f)return;
+    var r=new FileReader();
+    r.onload=function(ev){window._customLogo=ev.target.result;gen()};
+    r.readAsDataURL(f);
+  });
+});
+
+(function(){
+  const p=new URLSearchParams(location.search);
+  const m={lecture:'cfLec',session:'cfSes',exam:'cfNm',mc:'cfMc',essay:'cfEs',choices:'cfCh'};
+  for(const[k,id]of Object.entries(m)){const v=p.get(k);if(v)document.getElementById(id).value=v}
+  // URL logo param
+  const logoParam=p.get('logo');
+  if(logoParam)window._urlLogo=logoParam;
+})();
+
+function gen(){
+  const mc=clamp(+$('cfMc').value||0,0,45);
+  const nC=+$('cfCh').value||5;
+  const ess=clamp(+$('cfEs').value||0,0,10);
+  const lb=['1','2','3','4','5'].slice(0,nC);
+  // Logo resolution: 사용자 업로드 > URL param > 기본 로고
+  const logo=window._customLogo||window._urlLogo||'/omr-default-logo.svg';
+  const lecName=$('cfLec').value.trim();
+  const sesName=$('cfSes').value.trim();
+  const examNm=$('cfNm').value.trim()||'\uC2DC\uD5D8 \uB2F5\uC548\uC9C0';
+
+  const cm=['tl','tr','bl','br'].map(p=>`<div class="cm cm-${p}"><b class="h"></b><b class="v"></b></div>`).join('');
+
+  // Phone write cells
+  let phW='';
+  for(let i=0;i<8;i++){
+    if(i===4)phW+=`<div class="ph-sep">\u2013</div>`;
+    phW+=`<div class="ph-cell"></div>`;
+  }
+  // Phone bubbles
+  let phB='';
+  for(let d=0;d<8;d++){
+    if(d===4)phB+=`<div class="ph-bub-sep"></div>`;
+    let col='';for(let n=0;n<10;n++)col+=`<div class="ph-bub">${n}</div>`;
+    phB+=`<div class="ph-bub-col">${col}</div>`;
+  }
+
+  // Sub info
+  let sub=[];
+  if(lecName)sub.push(esc(lecName));
+  if(sesName)sub.push(esc(sesName));
+  const subLine=sub.join(' / ');
+
+  // Note text — all guidance here
+  const note=`<b>\u270D \uB2F5\uC548\uC9C0 \uC791\uC131 \uC548\uB0B4</b>
+<div style="margin-top:0.5mm">
+<div style="display:flex;margin-bottom:0.3mm"><span style="min-width:2.5mm">1.</span><span>\uC804\uD654\uBC88\uD638\uB294 \uBCF8\uC778 \uD734\uB300\uD3F0 \uBC88\uD638 \uB4A4 8\uC790\uB9AC\uB97C \uC801\uC5B4\uC8FC\uC138\uC694. \uD734\uB300\uD3F0\uC774 \uC5C6\uB294 \uD559\uC0DD\uC740 \uBD80\uBAA8\uB2D8 \uBC88\uD638 \uB4A4 8\uC790\uB9AC\uB97C \uC801\uC5B4\uC8FC\uC138\uC694.</span></div>
+<div style="display:flex;margin-bottom:0.3mm"><span style="min-width:2.5mm">2.</span><span>\uAC1D\uAD00\uC2DD\uC740 \uCEF4\uD4E8\uD130\uC6A9 \uC0AC\uC778\uD39C\uC73C\uB85C \uBC84\uBE14\uC744 \uBE48\uD2C8\uC5C6\uC774 \uCE60\uD574\uC8FC\uC138\uC694.</span></div>
+<div style="display:flex;margin-bottom:0.3mm"><span style="min-width:2.5mm">3.</span><span>\uC11C\uC220\uD615\uC740 \uB2F5\uC744 \uC815\uC790\uB85C \uAE54\uB054\uD558\uAC8C \uC801\uC5B4\uC8FC\uC138\uC694.</span></div>
+<div style="display:flex"><span style="min-width:2.5mm">4.</span><span>\uC218\uC815\uD560 \uB54C\uB294 \uC218\uC815\uD14C\uC774\uD504\uB97C \uC0AC\uC6A9\uD574\uC8FC\uC138\uC694.</span></div>
+</div>`;
+
+  const leftPanel=`
+    <div class="lp">
+      <div class="lp-top">
+        <img src="${logo}" alt="" onerror="this.style.display='none'">
+        <div class="lp-ttl-exam">${esc(examNm)}</div>
+        ${subLine?`<div class="lp-ttl-sub">${subLine}</div>`:''}
+      </div>
+      <div class="lp-bottom">
+        <div class="sec">
+          <div class="sec-h">\uC131 \uBA85</div>
+          <div class="sec-b"><div class="nm-area"></div></div>
+        </div>
+        <div class="sec">
+          <div class="sec-h">\uC804\uD654\uBC88\uD638 \uB4A4 8\uC790\uB9AC</div>
+          <div class="sec-b">
+            <div class="ph-write">${phW}</div>
+            <div class="ph-bub-row">${phB}</div>
+          </div>
+        </div>
+      </div>
+      <div class="lp-note">${note}</div>
+    </div>`;
+
+  // MC columns
+  let mcCols='';
+  if(mc>0){
+    const perCol=mc<=20?mc:mc<=40?Math.ceil(mc/2):Math.ceil(mc/3);
+    const numCols=Math.ceil(mc/perCol);
+    for(let c=0;c<numCols;c++){
+      const s=c*perCol+1,e=Math.min(s+perCol-1,mc);
+      let rows='';
+      for(let q=s;q<=e;q++){
+        let bubs='';for(let i=0;i<nC;i++)bubs+=`<span class="bu">${lb[i]}</span>`;
+        const g5=((q-s+1)%5===0&&q!==e)?' ar-g5':'';
+        rows+=`<div class="ar${g5}"><div class="ar-n">${q}</div><div class="ar-bs">${bubs}</div></div>`;
+      }
+      const label=numCols>1?`${s}\uBC88 ~ ${e}\uBC88`:'\uAC1D\uAD00\uC2DD';
+      mcCols+=`<div class="ac"><div class="ac-h"><div class="ac-h-n">\uBC88\uD638</div><div class="ac-h-a">${label}</div></div><div class="ac-b">${rows}</div></div>`;
+    }
+  }
+
+  // 서술형
+  let essCol='';
+  if(ess>0){
+    let rows='';
+    for(let i=1;i<=ess;i++){
+      const g5=(i%5===0&&i!==ess)?' dr-g5':'';
+      rows+=`<div class="dr${g5}"><div class="dr-n">${i}</div><div class="dr-bx"></div></div>`;
+    }
+    const essLabel=`\uC11C\uC220\uD615 ${ess}\uBB38\uD56D`;
+    essCol=`<div class="dc"><div class="dc-h"><div class="dc-h-n">\uBC88\uD638</div><div class="dc-h-a">${essLabel}</div></div><div class="dc-b">${rows}</div></div>`;
+  }
+
+  $('out').innerHTML=`<div class="omr">${cm}<div class="omr-c">${leftPanel}<div class="ans">${mcCols}${essCol}</div></div></div>`;
+}
+
+function $(id){return document.getElementById(id)}
+function clamp(v,lo,hi){return Math.max(lo,Math.min(hi,v))}
+function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML}
+window.addEventListener('DOMContentLoaded',gen);
+</script>
+</body>
+</html>

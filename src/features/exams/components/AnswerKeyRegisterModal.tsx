@@ -17,6 +17,8 @@ import {
   type AnswerKey,
 } from "../api/answerKeyApi";
 import { patchQuestionScore } from "@/features/materials/api/sheetQuestions";
+import { useAdminExam } from "../hooks/useAdminExam";
+import { resolveTenantCode, getTenantIdFromCode, getTenantBranding } from "@/shared/tenant";
 import "./AnswerKeyRegisterModal.css";
 
 type Props = {
@@ -26,6 +28,10 @@ type Props = {
   structureOwnerId: number;
   /** false면 문항/배점 PATCH 생략(regular 시험에서 403 방지). 정답만 저장됨. */
   canEditQuestions?: boolean;
+  /** 시험이 속한 강의명 (OMR 자동 주입) */
+  lectureName?: string;
+  /** 시험이 속한 차시명 (OMR 자동 주입) */
+  sessionName?: string;
 };
 
 const CHOICES = ["1", "2", "3", "4", "5"];
@@ -56,9 +62,12 @@ export default function AnswerKeyRegisterModal({
   examId,
   structureOwnerId,
   canEditQuestions = true,
+  lectureName = "",
+  sessionName = "",
 }: Props) {
   const qc = useQueryClient();
-  const [activeTab, setActiveTab] = useState<"answer" | "image">("answer");
+  const [activeTab, setActiveTab] = useState<"answer" | "image" | "omr">("answer");
+  const { data: exam } = useAdminExam(examId);
 
   const { data: questions = [] } = useQuery({
     queryKey: ["exam-questions", examId],
@@ -349,8 +358,9 @@ export default function AnswerKeyRegisterModal({
               items={[
                 { key: "answer", label: "답안 등록" },
                 { key: "image", label: "이미지 등록" },
+                { key: "omr", label: "OMR 답안지" },
               ]}
-              onChange={(key) => setActiveTab(key as "answer" | "image")}
+              onChange={(key) => setActiveTab(key as "answer" | "image" | "omr")}
             />
           </div>
         }
@@ -692,6 +702,16 @@ export default function AnswerKeyRegisterModal({
                 </div>
               )}
             </div>
+          )}
+
+          {activeTab === "omr" && (
+            <OmrSettingsTab
+              examTitle={exam?.title || ""}
+              lectureName={lectureName}
+              sessionName={sessionName}
+              choiceCount={effectiveChoiceCount}
+              essayCount={effectiveEssayCount}
+            />
           )}
         </div>
       </ModalBody>
@@ -1092,5 +1112,120 @@ function ExplanationRow({
         </div>
       </td>
     </tr>
+  );
+}
+
+/** ── OMR 설정 탭 ── */
+function OmrSettingsTab({
+  examTitle,
+  lectureName,
+  sessionName,
+  choiceCount,
+  essayCount,
+}: {
+  examTitle: string;
+  lectureName: string;
+  sessionName: string;
+  choiceCount: number;
+  essayCount: number;
+}) {
+  const [omrExam, setOmrExam] = useState(examTitle);
+  const [omrLecture, setOmrLecture] = useState(lectureName);
+  const [omrSession, setOmrSession] = useState(sessionName);
+
+  useEffect(() => { setOmrExam(examTitle); }, [examTitle]);
+  useEffect(() => { setOmrLecture(lectureName); }, [lectureName]);
+  useEffect(() => { setOmrSession(sessionName); }, [sessionName]);
+
+  const buildOmrUrl = () => {
+    let logoUrl = "/omr-default-logo.svg";
+    try {
+      const r = resolveTenantCode();
+      if (r.ok) {
+        const id = getTenantIdFromCode(r.code);
+        if (id) {
+          const b = getTenantBranding(id);
+          if (b?.logoUrl) logoUrl = b.logoUrl;
+        }
+      }
+    } catch { /* fallback to default */ }
+
+    const params = new URLSearchParams({
+      exam: omrExam,
+      lecture: omrLecture,
+      session: omrSession,
+      mc: String(choiceCount),
+      essay: String(essayCount),
+      choices: "5",
+      logo: logoUrl,
+    });
+    return `/omr-sheet.html?${params.toString()}`;
+  };
+
+  return (
+    <div style={{ display: "flex", gap: 24 }}>
+      {/* 좌측: 정보 편집 */}
+      <div style={{ width: 260, flexShrink: 0 }} className="space-y-3">
+        <div className="text-sm font-semibold text-[var(--text-primary)]">OMR 답안지 설정</div>
+        <div className="text-xs text-[var(--text-muted)]">
+          답안지에 인쇄될 정보를 확인하고 필요시 수정하세요.
+        </div>
+
+        <div>
+          <label className="block text-xs text-[var(--text-muted)] mb-1">시험명</label>
+          <input
+            type="text"
+            value={omrExam}
+            onChange={(e) => setOmrExam(e.target.value)}
+            className="w-full rounded border border-[var(--border-divider)] px-2.5 py-1.5 text-sm"
+          />
+        </div>
+        <div>
+          <label className="block text-xs text-[var(--text-muted)] mb-1">강의명</label>
+          <input
+            type="text"
+            value={omrLecture}
+            onChange={(e) => setOmrLecture(e.target.value)}
+            className="w-full rounded border border-[var(--border-divider)] px-2.5 py-1.5 text-sm"
+          />
+        </div>
+        <div>
+          <label className="block text-xs text-[var(--text-muted)] mb-1">차시명</label>
+          <input
+            type="text"
+            value={omrSession}
+            onChange={(e) => setOmrSession(e.target.value)}
+            className="w-full rounded border border-[var(--border-divider)] px-2.5 py-1.5 text-sm"
+          />
+        </div>
+
+        <div className="rounded bg-[var(--bg-surface-soft)] p-2.5 text-xs text-[var(--text-muted)]">
+          객관식 {choiceCount}문항 · 서술형 {essayCount}문항 · 총 {choiceCount + essayCount}문항
+        </div>
+
+        <div className="space-y-2 pt-1">
+          <Button
+            type="button"
+            intent="primary"
+            size="md"
+            className="w-full"
+            onClick={() => window.open(buildOmrUrl(), "_blank")}
+          >
+            OMR 답안지 열기 (인쇄/PDF)
+          </Button>
+        </div>
+      </div>
+
+      {/* 우측: 미리보기 */}
+      <div style={{ flex: 1, minWidth: 0 }} className="rounded border border-[var(--border-divider)] bg-[var(--bg-surface-soft)] overflow-hidden">
+        <iframe
+          key={buildOmrUrl()}
+          src={buildOmrUrl()}
+          className="w-full border-0"
+          style={{ height: 480 }}
+          title="OMR 답안지 미리보기"
+        />
+      </div>
+    </div>
   );
 }
