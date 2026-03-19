@@ -15,6 +15,7 @@ import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { resolveTenantCode, getTenantIdFromCode, getTenantBranding } from "@/shared/tenant";
 import AnswerKeyRegisterModal from "../../components/AnswerKeyRegisterModal";
+import { useRef } from "react";
 
 export default function ExamPolicyPanel({ examId }: { examId: number }) {
   const qc = useQueryClient();
@@ -23,6 +24,8 @@ export default function ExamPolicyPanel({ examId }: { examId: number }) {
   const [passScore, setPassScore] = useState<number | "">("");
   const [savedScore, setSavedScore] = useState<number | "">("");
   const [answerModalOpen, setAnswerModalOpen] = useState(false);
+  const pdfInputRef = useRef<HTMLInputElement>(null);
+  const [pdfUploading, setPdfUploading] = useState(false);
 
   useEffect(() => {
     if (!exam) return;
@@ -185,14 +188,68 @@ export default function ExamPolicyPanel({ examId }: { examId: number }) {
               문항별 정답을 입력하고 저장합니다. 채점 시 사용됩니다.
             </div>
           </div>
-          <Button
-            type="button"
-            intent="secondary"
-            size="sm"
-            onClick={() => setAnswerModalOpen(true)}
-          >
-            답안등록하기
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              intent="secondary"
+              size="sm"
+              onClick={() => setAnswerModalOpen(true)}
+            >
+              답안등록하기
+            </Button>
+            <Button
+              type="button"
+              intent="ghost"
+              size="sm"
+              onClick={() => pdfInputRef.current?.click()}
+              disabled={pdfUploading}
+            >
+              {pdfUploading ? "분석 중…" : "📄 PDF 업로드"}
+            </Button>
+            <input
+              ref={pdfInputRef}
+              type="file"
+              accept=".pdf,.png,.jpg,.jpeg"
+              style={{ display: "none" }}
+              onChange={async (e) => {
+                const f = e.target.files?.[0];
+                if (!f) return;
+                e.target.value = "";
+                setPdfUploading(true);
+                try {
+                  const { default: api } = await import("@/shared/api/axios");
+                  const formData = new FormData();
+                  formData.append("file", f);
+                  formData.append("exam_id", String(examId));
+                  const res = await api.post("/exams/pdf-extract/", formData, {
+                    headers: { "Content-Type": "multipart/form-data" },
+                  });
+                  feedback.success("PDF 문항 분할이 시작되었습니다.");
+                  const jobId = res.data?.job_id;
+                  if (jobId) {
+                    const poll = setInterval(async () => {
+                      try {
+                        const { default: api2 } = await import("@/shared/api/axios");
+                        const sr = await api2.get("/jobs/" + jobId + "/");
+                        const s = sr.data?.status;
+                        if (s === "DONE" || s === "done") {
+                          clearInterval(poll); setPdfUploading(false);
+                          feedback.success("문항 분할 완료!");
+                        } else if (s === "FAILED" || s === "failed") {
+                          clearInterval(poll); setPdfUploading(false);
+                          feedback.error("문항 분할 실패");
+                        }
+                      } catch { clearInterval(poll); setPdfUploading(false); }
+                    }, 3000);
+                    setTimeout(() => { clearInterval(poll); setPdfUploading(false); }, 120000);
+                  } else { setPdfUploading(false); }
+                } catch (err: any) {
+                  feedback.error(err?.response?.data?.detail ?? "PDF 업로드 실패");
+                  setPdfUploading(false);
+                }
+              }}
+            />
+          </div>
         </div>
 
         <AnswerKeyRegisterModal
