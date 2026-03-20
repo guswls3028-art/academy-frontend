@@ -4898,3 +4898,519 @@ details[open] > .clinic-tree__summary {
 .clinic-ops__remediation-btn--navigate:hover {
   background: var(--color-neutral-50, #fafafa);
 }
+
+/* ══════════════════════════════════════════════════════════
+ * CLINIC HUB — 미해결 항목 허브
+ * ══════════════════════════════════════════════════════════ */
+
+.clinic-hub {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4, 16px);
+}
+
+/* ── KPI Row ── */
+.clinic-hub__kpi-row {
+  display: flex;
+  gap: var(--space-3, 12px);
+  flex-wrap: wrap;
+}
+
+.clinic-hub__kpi {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2, 8px);
+  padding: 12px 16px;
+  border-radius: var(--radius-lg, 12px);
+  border: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface);
+  flex: 1;
+  min-width: 140px;
+  color: var(--color-text-secondary);
+}
+
+.clinic-hub__kpi--primary {
+  border-color: var(--color-brand-primary);
+  background: color-mix(in srgb, var(--color-brand-primary) 5%, var(--color-bg-surface));
+  color: var(--color-brand-primary);
+}
+
+.clinic-hub__kpi--danger {
+  border-color: var(--color-error);
+  background: color-mix(in srgb, var(--color-error) 5%, var(--color-bg-surface));
+  color: var(--color-error);
+}
+
+.clinic-hub__kpi-value {
+  display: block;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: inherit;
+}
+
+.clinic-hub__kpi-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+
+/* ── Toolbar ── */
+.clinic-hub__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3, 12px);
+  flex-wrap: wrap;
+}
+
+.clinic-hub__toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3, 12px);
+}
+
+.clinic-hub__view-toggle {
+  display: flex;
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-md, 8px);
+  overflow: hidden;
+}
+
+.clinic-hub__view-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  border: none;
+  background: var(--color-bg-surface);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.clinic-hub__view-btn--active {
+  background: var(--color-brand-primary);
+  color: #fff;
+}
+
+.clinic-hub__filter-chips {
+  display: flex;
+  gap: 4px;
+}
+
+.clinic-hub__filter-chip {
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 999px;
+  border: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.clinic-hub__filter-chip--active {
+  border-color: var(--color-brand-primary);
+  background: var(--color-brand-primary);
+  color: #fff;
+}
+
+.clinic-hub__search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-md, 8px);
+  background: var(--color-bg-surface-soft);
+  color: var(--color-text-muted);
+}
+
+.clinic-hub__search-input {
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 13px;
+  color: var(--color-text-primary);
+  width: 180px;
+}
+
+/* ── Empty ── */
+.clinic-hub__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  text-align: center;
+}
+
+.clinic-hub__empty-icon { color: var(--color-success); opacity: 0.5; }
+.clinic-hub__empty-title { font-size: 15px; font-weight: 600; color: var(--color-text-primary); margin-top: 12px; }
+.clinic-hub__empty-desc { font-size: 13px; color: var(--color-text-muted); margin-top: 4px; }
+
+/* ── Loading ── */
+.clinic-hub__loading { display: flex; flex-direction: column; gap: 12px; }
+.clinic-hub__skeleton {
+  height: 64px;
+  border-radius: var(--radius-lg, 12px);
+  background: var(--color-bg-surface-soft);
+  animation: pulse 1.5s infinite;
+}
+
+/* ── Student Card ── */
+.clinic-hub__student-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2, 8px);
+}
+
+.clinic-hub__student-card {
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-lg, 12px);
+  background: var(--color-bg-surface);
+  overflow: hidden;
+  transition: border-color 0.15s;
+}
+
+.clinic-hub__student-card--expanded {
+  border-color: var(--color-brand-primary);
+}
+
+.clinic-hub__student-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2, 8px);
+  width: 100%;
+  padding: 12px 16px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+}
+
+.clinic-hub__student-expand { color: var(--color-text-muted); flex-shrink: 0; }
+
+.clinic-hub__student-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+}
+
+.clinic-hub__student-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-error) 10%, transparent);
+  color: var(--color-error);
+  white-space: nowrap;
+}
+
+.clinic-hub__student-reasons {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+
+.clinic-hub__reason-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 500;
+  border: 1px solid var(--color-border-divider);
+  border-radius: 999px;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.clinic-hub__reason-chip--more {
+  background: var(--color-bg-surface-soft);
+  border-color: transparent;
+  color: var(--color-text-muted);
+}
+
+/* ── Items Panel (expanded) ── */
+.clinic-hub__items-panel {
+  border-top: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface-soft);
+  padding: 4px;
+}
+
+/* ── Item Row ── */
+.clinic-hub__item-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3, 12px);
+  padding: 10px 12px;
+  border-radius: var(--radius-md, 8px);
+  transition: background 0.15s;
+}
+
+.clinic-hub__item-row:hover {
+  background: color-mix(in srgb, var(--color-brand-primary) 4%, transparent);
+}
+
+.clinic-hub__item-row--resolved {
+  opacity: 0.5;
+}
+
+.clinic-hub__item-indicator {
+  width: 3px;
+  height: 32px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.clinic-hub__item-info { flex: 1; min-width: 0; }
+
+.clinic-hub__item-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.clinic-hub__item-breadcrumb {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.clinic-hub__item-reason {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.clinic-hub__item-cycle {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-divider);
+  color: var(--color-text-muted);
+}
+
+.clinic-hub__item-resolved {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-success);
+}
+
+.clinic-hub__item-bottom { margin-top: 4px; }
+
+.clinic-hub__item-score {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.clinic-hub__score-bar {
+  display: inline-block;
+  height: 4px;
+  border-radius: 2px;
+  min-width: 20px;
+  max-width: 60px;
+}
+
+.clinic-hub__item-score--missing {
+  color: var(--color-warning);
+  font-style: italic;
+}
+
+/* ── Item Actions ── */
+.clinic-hub__item-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.clinic-hub__action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-sm, 6px);
+  background: var(--color-bg-surface);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.clinic-hub__action-btn:hover:not(:disabled) {
+  border-color: var(--color-brand-primary);
+  color: var(--color-brand-primary);
+}
+
+.clinic-hub__action-btn--resolve {
+  border-color: var(--color-success);
+  color: var(--color-success);
+}
+
+.clinic-hub__action-btn--resolve:hover:not(:disabled) {
+  background: var(--color-success);
+  color: #fff;
+}
+
+.clinic-hub__action-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.clinic-hub__action-more-wrap { position: relative; }
+
+.clinic-hub__action-more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-sm, 6px);
+  background: var(--color-bg-surface);
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.clinic-hub__action-dropdown {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  margin-top: 4px;
+  z-index: 10;
+  min-width: 140px;
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-md, 8px);
+  background: var(--color-bg-surface);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+  padding: 4px;
+}
+
+.clinic-hub__action-dropdown button {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  font-size: 13px;
+  text-align: left;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-sm, 6px);
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.clinic-hub__action-dropdown button:hover {
+  background: var(--color-bg-surface-soft);
+}
+
+.clinic-hub__action-dropdown button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.clinic-hub__resolved-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--color-success);
+}
+
+/* ── Item Table (항목 중심 뷰) ── */
+.clinic-hub__item-table-wrap {
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-lg, 12px);
+  overflow: hidden;
+}
+
+.clinic-hub__item-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.clinic-hub__item-table thead th {
+  padding: 10px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-align: left;
+  border-bottom: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface-soft);
+}
+
+.clinic-hub__item-table tbody td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--color-border-divider);
+  vertical-align: middle;
+}
+
+.clinic-hub__item-table tbody tr:last-child td { border-bottom: none; }
+
+.clinic-hub__item-table tbody tr:hover {
+  background: color-mix(in srgb, var(--color-brand-primary) 3%, transparent);
+}
+
+.clinic-hub__cell-name { font-weight: 600; color: var(--color-text-primary); }
+.clinic-hub__cell-session { color: var(--color-text-secondary); }
+.clinic-hub__cell-score { font-variant-numeric: tabular-nums; }
+.clinic-hub__cell-cycle { font-size: 12px; color: var(--color-text-muted); }
+.clinic-hub__cell-muted { color: var(--color-text-muted); }
+
+.clinic-hub__reason-badge {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.clinic-hub__inline-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.clinic-hub__action-sm {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-sm, 6px);
+  background: var(--color-bg-surface);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.clinic-hub__action-sm:hover:not(:disabled) {
+  border-color: var(--color-brand-primary);
+  color: var(--color-brand-primary);
+}
+
+.clinic-hub__action-sm--resolve {
+  color: var(--color-success);
+  border-color: var(--color-success);
+}
+
+.clinic-hub__action-sm--resolve:hover:not(:disabled) {
+  background: var(--color-success);
+  color: #fff;
+}
+
+.clinic-hub__action-sm:disabled { opacity: 0.5; cursor: not-allowed; }
