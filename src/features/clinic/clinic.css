@@ -3783,3 +3783,1118 @@ details[open] > .clinic-tree__summary {
   color: var(--color-success);
   padding: 10px 0;
 }
+
+/* ══════════════════════════════════════════════════════════════════
+   클리닉 진행: 운영 워크스페이스 재설계
+   clinic-ops__ 네임스페이스 — 처리 큐 + 운영 헤더 + 상태 필터
+   ══════════════════════════════════════════════════════════════════ */
+
+/* ── A. 운영 헤더 ── */
+.clinic-ops__header {
+  margin-bottom: var(--space-5);
+  padding: var(--space-5);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.clinic-ops__header-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.clinic-ops__header-info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.clinic-ops__header-date {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+
+.clinic-ops__header-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.clinic-ops__header-meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+
+.clinic-ops__header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+.clinic-ops__action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease, opacity 0.12s ease;
+  line-height: 1;
+}
+
+.clinic-ops__action-btn--secondary {
+  border: 1px dashed var(--color-brand-primary);
+  background: transparent;
+  color: var(--color-brand-primary);
+}
+
+.clinic-ops__action-btn--secondary:hover {
+  background: color-mix(in srgb, var(--color-brand-primary) 8%, transparent);
+}
+
+.clinic-ops__action-btn--primary {
+  border: 1px solid color-mix(in srgb, #22c55e 40%, var(--color-border-divider));
+  background: color-mix(in srgb, #22c55e 8%, var(--color-bg-surface));
+  color: #16a34a;
+}
+
+.clinic-ops__action-btn--primary:hover:not(:disabled) {
+  background: color-mix(in srgb, #22c55e 16%, var(--color-bg-surface));
+  border-color: color-mix(in srgb, #22c55e 60%, var(--color-border-divider));
+}
+
+.clinic-ops__action-btn--primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ── KPI counters ── */
+.clinic-ops__kpi-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.clinic-ops__kpi-counters {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.clinic-ops__kpi {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.clinic-ops__kpi-value {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.clinic-ops__kpi-label {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.clinic-ops__kpi--attended { color: var(--color-success); }
+.clinic-ops__kpi--noshow { color: var(--color-error); }
+.clinic-ops__kpi--pending { color: var(--color-text-muted); }
+
+/* Progress bar */
+.clinic-ops__progress-bar {
+  display: flex;
+  height: 5px;
+  border-radius: 3px;
+  overflow: hidden;
+  background: var(--color-border-divider);
+}
+
+.clinic-ops__progress-seg {
+  height: 100%;
+  transition: width 0.3s ease;
+}
+
+.clinic-ops__progress-seg--attended { background: var(--color-success); }
+.clinic-ops__progress-seg--noshow { background: var(--color-error); }
+.clinic-ops__progress-seg--pending {
+  background: var(--color-text-muted);
+  opacity: 0.3;
+}
+
+.clinic-ops__all-done {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-success);
+  letter-spacing: -0.01em;
+}
+
+/* ── B. 상태 필터 칩 ── */
+.clinic-ops__filters {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  border-top: 1px solid var(--color-border-divider);
+  padding-top: var(--space-3);
+}
+
+.clinic-ops__filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  border: 1px solid var(--color-border-divider);
+  border-radius: 100px;
+  background: var(--color-bg-surface);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: all 0.12s ease;
+  line-height: 1.3;
+}
+
+.clinic-ops__filter-chip:hover {
+  border-color: var(--color-text-muted);
+  color: var(--color-text-secondary);
+}
+
+.clinic-ops__filter-chip--active {
+  border-color: var(--color-brand-primary);
+  background: color-mix(in srgb, var(--color-brand-primary) 8%, var(--color-bg-surface));
+  color: var(--color-brand-primary);
+}
+
+.clinic-ops__filter-chip--pending.clinic-ops__filter-chip--active {
+  border-color: var(--color-text-secondary);
+  background: color-mix(in srgb, var(--color-text-secondary) 8%, var(--color-bg-surface));
+  color: var(--color-text-secondary);
+}
+
+.clinic-ops__filter-chip--attended.clinic-ops__filter-chip--active {
+  border-color: var(--color-success);
+  background: color-mix(in srgb, var(--color-success) 8%, var(--color-bg-surface));
+  color: var(--color-success);
+}
+
+.clinic-ops__filter-chip--no_show.clinic-ops__filter-chip--active {
+  border-color: var(--color-error);
+  background: color-mix(in srgb, var(--color-error) 8%, var(--color-bg-surface));
+  color: var(--color-error);
+}
+
+.clinic-ops__filter-count {
+  font-size: 11px;
+  font-weight: 700;
+  min-width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: color-mix(in srgb, currentColor 12%, transparent);
+  line-height: 1;
+}
+
+/* ── C. 처리 큐 ── */
+.clinic-ops__queue {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.clinic-ops__card {
+  display: flex;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface);
+  overflow: hidden;
+  transition: box-shadow 0.15s ease, border-color 0.15s ease, opacity 0.2s ease;
+}
+
+.clinic-ops__card:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+/* Status indicator (left bar) */
+.clinic-ops__card-indicator {
+  width: 4px;
+  flex-shrink: 0;
+  transition: background 0.2s ease;
+}
+
+.clinic-ops__card-indicator--pending {
+  background: var(--color-warning, #eab308);
+}
+
+.clinic-ops__card-indicator--attended {
+  background: var(--color-success);
+}
+
+.clinic-ops__card-indicator--noshow {
+  background: var(--color-error);
+}
+
+.clinic-ops__card-body {
+  flex: 1;
+  padding: var(--space-4) var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.clinic-ops__card--attended {
+  opacity: 0.65;
+  border-color: color-mix(in srgb, var(--color-success) 25%, var(--color-border-divider));
+}
+
+.clinic-ops__card--noshow {
+  border-color: color-mix(in srgb, var(--color-error) 25%, var(--color-border-divider));
+}
+
+.clinic-ops__card--pending {
+  border-color: color-mix(in srgb, var(--color-warning, #eab308) 25%, var(--color-border-divider));
+}
+
+.clinic-ops__card-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.clinic-ops__card-identity {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.clinic-ops__card-name {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  text-decoration: none;
+  font-family: inherit;
+  transition: color 0.12s ease;
+}
+
+.clinic-ops__card-name:hover {
+  color: var(--color-brand-primary);
+}
+
+/* Status badge */
+.clinic-ops__status-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 100px;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+
+.clinic-ops__status-badge--attended {
+  color: var(--color-success);
+  background: color-mix(in srgb, var(--color-success) 12%, transparent);
+}
+
+.clinic-ops__status-badge--noshow {
+  color: var(--color-error);
+  background: color-mix(in srgb, var(--color-error) 12%, transparent);
+}
+
+.clinic-ops__status-badge--pending {
+  color: var(--color-warning, #d97706);
+  background: color-mix(in srgb, var(--color-warning, #d97706) 12%, transparent);
+}
+
+.clinic-ops__status-badge--lg {
+  font-size: 13px;
+  padding: 3px 12px;
+}
+
+/* Attendance buttons */
+.clinic-ops__card-actions {
+  display: inline-flex;
+  gap: 0;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  border: 1px solid var(--color-border-divider);
+  flex-shrink: 0;
+}
+
+.clinic-ops__att-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  border: none;
+  background: var(--color-bg-surface);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.clinic-ops__att-btn:hover:not(:disabled) {
+  background: var(--color-bg-surface-soft);
+  color: var(--color-text-secondary);
+}
+
+.clinic-ops__att-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.clinic-ops__att-btn + .clinic-ops__att-btn {
+  border-left: 1px solid var(--color-border-divider);
+}
+
+.clinic-ops__att-btn--attend.clinic-ops__att-btn--active {
+  background: color-mix(in srgb, #22c55e 14%, var(--color-bg-surface));
+  color: #16a34a;
+}
+
+.clinic-ops__att-btn--attend.clinic-ops__att-btn--active:hover:not(:disabled) {
+  background: color-mix(in srgb, #22c55e 22%, var(--color-bg-surface));
+}
+
+.clinic-ops__att-btn--noshow.clinic-ops__att-btn--active {
+  background: color-mix(in srgb, #ef4444 14%, var(--color-bg-surface));
+  color: #dc2626;
+}
+
+.clinic-ops__att-btn--noshow.clinic-ops__att-btn--active:hover:not(:disabled) {
+  background: color-mix(in srgb, #ef4444 22%, var(--color-bg-surface));
+}
+
+/* Detail row: reasons + detail button */
+.clinic-ops__card-detail-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.clinic-ops__card-reasons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+}
+
+.clinic-ops__reason-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: var(--radius-sm, 4px);
+  line-height: 1.3;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.clinic-ops__reason-tag--exam {
+  color: var(--color-error);
+  background: color-mix(in srgb, var(--color-error) 8%, transparent);
+}
+
+.clinic-ops__reason-tag--homework {
+  color: var(--color-warning, #d97706);
+  background: color-mix(in srgb, var(--color-warning, #d97706) 8%, transparent);
+}
+
+.clinic-ops__reason-tag--both {
+  color: var(--color-error);
+  background: color-mix(in srgb, var(--color-error) 8%, transparent);
+}
+
+.clinic-ops__reason-tag--self {
+  color: var(--color-text-muted);
+  background: var(--color-bg-surface-soft);
+}
+
+.clinic-ops__card-detail-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  background: none;
+  border: none;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  border-radius: var(--radius-sm, 4px);
+  transition: background 0.12s ease, color 0.12s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.clinic-ops__card-detail-btn:hover {
+  background: var(--color-bg-surface-soft);
+  color: var(--color-brand-primary);
+}
+
+.clinic-ops__card-memo {
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--color-border-divider);
+  font-size: 12px;
+  color: var(--color-text-muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  line-height: 1.5;
+}
+
+/* Loading skeleton */
+.clinic-ops__loading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.clinic-ops__skeleton {
+  height: 72px;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(
+    90deg,
+    var(--color-bg-surface-soft) 25%,
+    color-mix(in srgb, var(--color-border-divider) 60%, var(--color-bg-surface-soft)) 50%,
+    var(--color-bg-surface-soft) 75%
+  );
+  background-size: 200% 100%;
+  animation: panelShimmer 1.5s ease-in-out infinite;
+}
+
+/* Empty filter state */
+.clinic-ops__empty-filter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-8);
+  text-align: center;
+}
+
+.clinic-ops__empty-filter-text {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+/* ── D. 상세/처리 드로어 (재설계) ── */
+.clinic-ops__drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  z-index: 900;
+  animation: clinic-drawer-fade-in 0.15s ease;
+}
+
+.clinic-ops__drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 380px;
+  max-width: 100vw;
+  background: var(--color-bg-surface);
+  z-index: 901;
+  display: flex;
+  flex-direction: column;
+  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.12);
+  animation: clinic-drawer-slide-in 0.2s ease;
+}
+
+.clinic-ops__drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-5);
+  border-bottom: 1px solid var(--color-border-divider);
+  flex-shrink: 0;
+}
+
+.clinic-ops__drawer-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+
+.clinic-ops__drawer-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+  font-family: inherit;
+}
+
+.clinic-ops__drawer-close:hover {
+  background: var(--color-bg-surface-soft);
+  color: var(--color-text-primary);
+}
+
+/* Status section — 처리 공간 (드로어 상단) */
+.clinic-ops__drawer-status-section {
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface-soft);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  flex-shrink: 0;
+}
+
+.clinic-ops__drawer-status-current {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.clinic-ops__drawer-status-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.clinic-ops__drawer-status-actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.clinic-ops__drawer-status-btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.clinic-ops__drawer-status-btn:hover:not(:disabled) {
+  border-color: var(--color-text-muted);
+  color: var(--color-text-secondary);
+}
+
+.clinic-ops__drawer-status-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.clinic-ops__drawer-status-btn--attend.clinic-ops__drawer-status-btn--active {
+  background: color-mix(in srgb, #22c55e 12%, var(--color-bg-surface));
+  border-color: color-mix(in srgb, #22c55e 50%, var(--color-border-divider));
+  color: #16a34a;
+}
+
+.clinic-ops__drawer-status-btn--noshow.clinic-ops__drawer-status-btn--active {
+  background: color-mix(in srgb, #ef4444 12%, var(--color-bg-surface));
+  border-color: color-mix(in srgb, #ef4444 50%, var(--color-border-divider));
+  color: #dc2626;
+}
+
+/* Drawer body */
+.clinic-ops__drawer-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.clinic-ops__drawer-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.clinic-ops__drawer-section-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: 0;
+}
+
+.clinic-ops__drawer-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.clinic-ops__drawer-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.clinic-ops__drawer-value {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+.clinic-ops__drawer-student-link {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-size: inherit;
+  font-weight: inherit;
+  font-family: inherit;
+  color: var(--color-brand-primary);
+  text-decoration: none;
+  transition: text-decoration-color 0.12s ease;
+}
+
+.clinic-ops__drawer-student-link:hover {
+  text-decoration: underline;
+}
+
+.clinic-ops__drawer-empty {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+/* Reason cards in drawer */
+.clinic-ops__drawer-reasons {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.clinic-ops__drawer-reason-card {
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface-soft);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.clinic-ops__drawer-reason-header {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.clinic-ops__reason-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-md);
+  flex-shrink: 0;
+}
+
+.clinic-ops__reason-icon--exam {
+  color: var(--color-error);
+  background: color-mix(in srgb, var(--color-error) 12%, transparent);
+}
+
+.clinic-ops__reason-icon--homework {
+  color: var(--color-warning, #d97706);
+  background: color-mix(in srgb, var(--color-warning, #d97706) 12%, transparent);
+}
+
+.clinic-ops__drawer-reason-info {
+  min-width: 0;
+  flex: 1;
+}
+
+.clinic-ops__drawer-reason-session {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.clinic-ops__drawer-reason-type {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  line-height: 1.3;
+}
+
+/* Score visualization in drawer */
+.clinic-ops__drawer-score {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.clinic-ops__drawer-score-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+
+.clinic-ops__drawer-score-val {
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.clinic-ops__drawer-score-val--fail {
+  color: var(--color-error);
+}
+
+.clinic-ops__drawer-score-bar-wrap {
+  position: relative;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--color-border-divider);
+  margin-top: var(--space-1);
+  overflow: visible;
+}
+
+.clinic-ops__drawer-score-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.clinic-ops__drawer-score-fill--fail {
+  background: var(--color-error);
+  opacity: 0.7;
+}
+
+.clinic-ops__drawer-score-cutline {
+  position: absolute;
+  top: -3px;
+  width: 2px;
+  height: 12px;
+  background: var(--color-text-primary);
+  border-radius: 1px;
+  transform: translateX(-1px);
+}
+
+/* Memo in drawer */
+.clinic-ops__drawer-memo-text {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--color-text-secondary);
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* ── E. 좌측 사이드바 강화 ── */
+.clinic-sidebar__section-label {
+  padding: var(--space-2) var(--space-4);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.clinic-sidebar__session-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+}
+
+.clinic-sidebar__mini-progress {
+  height: 2px;
+  border-radius: 1px;
+  background: var(--color-border-divider);
+  overflow: hidden;
+}
+
+.clinic-sidebar__mini-progress-fill {
+  height: 100%;
+  border-radius: 1px;
+  background: var(--color-success);
+  transition: width 0.3s ease;
+}
+
+/* Session meta: pending dot + count */
+.clinic-console__sidebar-session-meta {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.clinic-console__sidebar-session-pending-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-warning, #eab308);
+  flex-shrink: 0;
+}
+
+/* ── 운영 헤더 강화 ── */
+.clinic-ops__header-title-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+}
+
+.clinic-ops__header-session-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  letter-spacing: -0.01em;
+}
+
+.clinic-ops__header-meta-item--count {
+  color: var(--color-text-primary);
+}
+
+/* KPI highlight — 미확인이 있으면 강조 */
+.clinic-ops__kpi--highlight {
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-warning, #eab308) 10%, transparent);
+}
+
+/* 필터 칩 인디케이터 도트 */
+.clinic-ops__filter-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.clinic-ops__filter-dot--pending {
+  background: var(--color-warning, #eab308);
+}
+
+.clinic-ops__filter-dot--noshow {
+  background: var(--color-error);
+}
+
+/* 미확인 카드 좌측 바 강화 — 더 넓게 */
+.clinic-ops__card--pending .clinic-ops__card-indicator {
+  width: 5px;
+}
+
+/* 출석 완료 카드 — 더 차분하게 */
+.clinic-ops__card--attended {
+  opacity: 0.55;
+}
+
+.clinic-ops__card--attended:hover {
+  opacity: 0.75;
+}
+
+/* ═══ V1.1.1 Remediation styles ═══ */
+
+/* Resolution status in drawer */
+.clinic-ops__drawer-resolved {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: var(--color-success-50, #f0fdf4);
+  border-radius: 8px;
+  color: var(--color-success-700, #15803d);
+  font-size: 13px;
+  font-weight: 500;
+  margin-top: 8px;
+}
+
+.clinic-ops__resolved-date {
+  color: var(--color-success-500, #22c55e);
+  font-weight: 400;
+}
+
+.clinic-ops__drawer-unresolved {
+  margin-top: 8px;
+}
+
+.clinic-ops__unresolved-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  background: var(--color-warning-50, #fffbeb);
+  border: 1px solid var(--color-warning-200, #fde68a);
+  border-radius: 6px;
+  color: var(--color-warning-700, #b45309);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* Cycle badge */
+.clinic-ops__cycle-badge {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 6px;
+  padding: 1px 6px;
+  background: var(--color-primary-100, #dbeafe);
+  border-radius: 4px;
+  color: var(--color-primary-700, #1d4ed8);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.clinic-ops__cycle-badge-inline {
+  margin-right: 4px;
+  padding: 0 4px;
+  background: var(--color-primary-100, #dbeafe);
+  border-radius: 3px;
+  color: var(--color-primary-700, #1d4ed8);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+/* Resolved tag in card */
+.clinic-ops__reason-tag--resolved {
+  background: var(--color-success-50, #f0fdf4) !important;
+  color: var(--color-success-700, #15803d) !important;
+  border-color: var(--color-success-200, #bbf7d0) !important;
+}
+
+/* Remediation action buttons in drawer */
+.clinic-ops__drawer-remediation-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+.clinic-ops__remediation-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border: 1px solid var(--color-border, #e5e7eb);
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+  background: white;
+}
+
+.clinic-ops__remediation-btn:hover {
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.clinic-ops__remediation-btn--resolve {
+  color: var(--color-success-700, #15803d);
+  border-color: var(--color-success-300, #86efac);
+}
+
+.clinic-ops__remediation-btn--resolve:hover {
+  background: var(--color-success-50, #f0fdf4);
+}
+
+.clinic-ops__remediation-btn--waive {
+  color: var(--color-neutral-600, #525252);
+  border-color: var(--color-neutral-300, #d4d4d4);
+}
+
+.clinic-ops__remediation-btn--waive:hover {
+  background: var(--color-neutral-50, #fafafa);
+}
+
+.clinic-ops__remediation-btn--carryover {
+  color: var(--color-primary-700, #1d4ed8);
+  border-color: var(--color-primary-300, #93c5fd);
+}
+
+.clinic-ops__remediation-btn--carryover:hover {
+  background: var(--color-primary-50, #eff6ff);
+}
+
+.clinic-ops__remediation-btn--retake {
+  color: var(--color-warning-700, #b45309);
+  border-color: var(--color-warning-300, #fcd34d);
+  font-weight: 600;
+}
+
+.clinic-ops__remediation-btn--retake:hover {
+  background: var(--color-warning-50, #fffbeb);
+}
+
+.clinic-ops__remediation-btn--navigate {
+  color: var(--color-neutral-700, #404040);
+  border-color: var(--color-neutral-300, #d4d4d4);
+}
+
+.clinic-ops__remediation-btn--navigate:hover {
+  background: var(--color-neutral-50, #fafafa);
+}

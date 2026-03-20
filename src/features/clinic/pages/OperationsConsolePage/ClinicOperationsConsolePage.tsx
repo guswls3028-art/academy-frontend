@@ -74,7 +74,7 @@ export default function ClinicOperationsConsolePage() {
     }
   }, [sessionsForDay, selectedSessionId, sessionParam]);
 
-  const headerDesc = "출석 확인하고 학생 관리하세요.";
+  const headerDesc = "출석 확인, 실패 사유 확인, 해소 처리까지.";
 
   return (
     <div className="clinic-page">
@@ -117,7 +117,7 @@ export default function ClinicOperationsConsolePage() {
           </aside>
 
           <div className={panelStyles.content}>
-            <div className={panelStyles.contentInner}>
+            <div className={panelStyles.contentInner} style={{ maxWidth: "none" }}>
               {!selectedSessionId ? (
                 <div className="clinic-console__empty-workspace">
                   {sessionsForDay.length === 0 ? (
