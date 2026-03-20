@@ -46,7 +46,7 @@ function AppLayoutContent() {
         color: "var(--color-text-primary)",
       }}
     >
-      <NoticeBanner />
+      {/* 수동 새로고침 배너 제거 — useVersionChecker가 자동 리로드 처리 */}
       <div
         style={{
           display: "grid",
