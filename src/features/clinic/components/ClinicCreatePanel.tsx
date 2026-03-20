@@ -245,13 +245,17 @@ export default function ClinicCreatePanel({
       });
 
       // B-01: 선택된 학생들을 참가자로 등록
+      // mode=targets → selected는 enrollment_id 배열
+      // mode=students → selected는 student.id 배열
       if (selected.length > 0) {
         const results = await Promise.allSettled(
-          selected.map((enrollmentId) => {
-            const reason = targetReasonMap.get(enrollmentId);
+          selected.map((id) => {
+            const reason = targetReasonMap.get(id);
             return createClinicParticipant({
               session: created.id,
-              enrollment_id: enrollmentId,
+              ...(mode === "targets"
+                ? { enrollment_id: id }
+                : { student: id }),
               status: "booked",
               ...(reason ? { clinic_reason: reason } : {}),
             });

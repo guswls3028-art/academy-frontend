@@ -46,7 +46,8 @@ export async function fetchClinicParticipants(params: {
 
 export async function createClinicParticipant(payload: {
   session: number;
-  enrollment_id: number;
+  enrollment_id?: number;
+  student?: number;
   status?: ClinicParticipantStatus;
   memo?: string;
   source?: string;
