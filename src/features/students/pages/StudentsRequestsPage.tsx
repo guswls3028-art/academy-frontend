@@ -219,7 +219,7 @@ export default function StudentsRequestsPage() {
   });
 
   const bulkApproveMutation = useMutation({
-    mutationFn: (ids: number[]) => bulkApproveRegistrationRequests(ids),
+    mutationFn: (requestIds: number[]) => bulkApproveRegistrationRequests(requestIds),
     onSuccess: (res) => {
       qc.invalidateQueries({ queryKey: ["students", "registration_requests"] });
       qc.invalidateQueries({ queryKey: ["students"] });
@@ -258,7 +258,7 @@ export default function StudentsRequestsPage() {
   });
 
   const bulkRejectMutation = useMutation({
-    mutationFn: (ids: number[]) => bulkRejectRegistrationRequests(ids),
+    mutationFn: (requestIds: number[]) => bulkRejectRegistrationRequests(requestIds),
     onSuccess: (res) => {
       qc.invalidateQueries({ queryKey: ["students", "registration_requests"] });
       qc.invalidateQueries({ queryKey: ["admin", "notification-counts"] });

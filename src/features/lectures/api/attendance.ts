@@ -45,7 +45,7 @@ export async function fetchAttendance(
 export async function fetchAttendanceEnrolledStudentIds(
   sessionId: number
 ): Promise<number[]> {
-  const ids: number[] = [];
+  const studentIds: number[] = [];
   let page = 1;
   const pageSize = 500;
   while (true) {
@@ -53,13 +53,13 @@ export async function fetchAttendanceEnrolledStudentIds(
     const items = res.data ?? [];
     for (const row of items) {
       const sid = row?.student_id ?? row?.enrollment?.student_id;
-      if (typeof sid === "number" && Number.isFinite(sid)) ids.push(sid);
+      if (typeof sid === "number" && Number.isFinite(sid)) studentIds.push(sid);
     }
     const count = res.count ?? 0;
-    if (items.length < pageSize || ids.length >= count) break;
+    if (items.length < pageSize || studentIds.length >= count) break;
     page += 1;
   }
-  return ids;
+  return studentIds;
 }
 
 /* =========================================================

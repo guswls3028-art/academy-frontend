@@ -72,7 +72,7 @@ export default function StudentsTable({
   onSortChange: (v: string) => void;
   onRowClick: (id: number) => void;
   selectedIds?: number[];
-  onSelectionChange?: (ids: number[]) => void;
+  onSelectionChange?: (studentIds: number[]) => void;
   isDeletedTab?: boolean;
   onToggleActive?: (id: number, nextActive: boolean) => void;
   togglingId?: number | null;

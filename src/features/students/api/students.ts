@@ -403,20 +403,20 @@ export async function deleteStudent(id: number) {
 }
 
 /** 선택 학생 일괄 소프트 삭제 (30일 보관) */
-export async function bulkDeleteStudents(ids: number[]) {
-  const res = await api.post("/students/bulk_delete/", { ids });
+export async function bulkDeleteStudents(studentIds: number[]) {
+  const res = await api.post("/students/bulk_delete/", { ids: studentIds });
   return res.data as { deleted: number };
 }
 
 /** 삭제된 학생 일괄 복원 */
-export async function bulkRestoreStudents(ids: number[]) {
-  const res = await api.post("/students/bulk_restore/", { ids });
+export async function bulkRestoreStudents(studentIds: number[]) {
+  const res = await api.post("/students/bulk_restore/", { ids: studentIds });
   return res.data as { restored: number };
 }
 
 /** 삭제된 학생 즉시 영구 삭제 */
-export async function bulkPermanentDeleteStudents(ids: number[]) {
-  const res = await api.post("/students/bulk_permanent_delete/", { ids });
+export async function bulkPermanentDeleteStudents(studentIds: number[]) {
+  const res = await api.post("/students/bulk_permanent_delete/", { ids: studentIds });
   return res.data as { deleted: number };
 }
 
@@ -533,9 +533,9 @@ export async function approveRegistrationRequest(id: number): Promise<ClientStud
 
 /** 스태프: 가입 신청 일괄 승인 */
 export async function bulkApproveRegistrationRequests(
-  ids: number[]
+  requestIds: number[]
 ): Promise<{ approved: number; failed: Array<{ id: number; detail: string }> }> {
-  const res = await api.post("/students/registration_requests/bulk_approve/", { ids });
+  const res = await api.post("/students/registration_requests/bulk_approve/", { ids: requestIds });
   return res.data as { approved: number; failed: Array<{ id: number; detail: string }> };
 }
 
@@ -547,9 +547,9 @@ export async function rejectRegistrationRequest(id: number): Promise<{ status: s
 
 /** 스태프: 가입 신청 일괄 거절 */
 export async function bulkRejectRegistrationRequests(
-  ids: number[]
+  requestIds: number[]
 ): Promise<{ rejected: number }> {
-  const res = await api.post("/students/registration_requests/bulk_reject/", { ids });
+  const res = await api.post("/students/registration_requests/bulk_reject/", { ids: requestIds });
   return res.data as { rejected: number };
 }
 

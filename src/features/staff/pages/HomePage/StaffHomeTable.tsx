@@ -99,7 +99,7 @@ interface Props {
   onDetail: (staffId: number) => void;
   canManage: boolean;
   selectedIds?: number[];
-  onSelectionChange?: (ids: number[]) => void;
+  onSelectionChange?: (staffIds: number[]) => void;
 }
 
 const COL = {

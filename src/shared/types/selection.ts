@@ -53,10 +53,10 @@ export type SelectionResult =
 
 // ── Helpers ──
 
-export function enrollmentSelection(ids: number[]): EnrollmentSelection {
-  return { kind: "enrollment", enrollmentIds: ids };
+export function enrollmentSelection(enrollmentIds: number[]): EnrollmentSelection {
+  return { kind: "enrollment", enrollmentIds };
 }
 
-export function studentSelection(ids: number[]): StudentSelection {
-  return { kind: "student", studentIds: ids };
+export function studentSelection(studentIds: number[]): StudentSelection {
+  return { kind: "student", studentIds };
 }

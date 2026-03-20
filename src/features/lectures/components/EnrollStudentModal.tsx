@@ -37,7 +37,7 @@ export default function EnrollStudentModal({ sessionId, isOpen, onClose, onSucce
   }, [keyword]);
 
   const mutation = useMutation({
-    mutationFn: (ids: number[]) => bulkCreateAttendance(sessionId, ids),
+    mutationFn: (studentIds: number[]) => bulkCreateAttendance(sessionId, studentIds),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["attendance", sessionId] });
       feedback.success("수강생이 추가되었습니다.");

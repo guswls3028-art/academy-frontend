@@ -4,7 +4,7 @@ import PermissionRow from "./PermissionRow";
 
 export default function PermissionTable({
   students,
-  selected,
+  selected: selectedEnrollmentIds,
   toggle,
   toggleAll,
 }: {
@@ -13,8 +13,8 @@ export default function PermissionTable({
   toggle: (id: number) => void;
   toggleAll: () => void;
 }) {
-  const allSelected = students.length > 0 && selected.length === students.length;
-  const someSelected = selected.length > 0 && selected.length < students.length;
+  const allSelected = students.length > 0 && selectedEnrollmentIds.length === students.length;
+  const someSelected = selectedEnrollmentIds.length > 0 && selectedEnrollmentIds.length < students.length;
 
   return (
     <>
@@ -45,7 +45,7 @@ export default function PermissionTable({
           <PermissionRow
             key={s.enrollment}
             student={s}
-            selected={selected.includes(s.enrollment)}
+            selected={selectedEnrollmentIds.includes(s.enrollment)}
             onToggle={() => toggle(s.enrollment)}
             isAlt={idx % 2 === 1}
           />
