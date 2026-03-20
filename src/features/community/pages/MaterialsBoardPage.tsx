@@ -148,15 +148,34 @@ export default function MaterialsBoardPage() {
   });
   const allMaterialsPosts = postsQ.data ?? [];
 
+  // ✅ V1.1.1 fix: 강의/차시 scope에서 전체글(GLOBAL)을 제외
+  const visibleNodeIds = useMemo(() => {
+    if (scope === "all" || nodeId == null) return null;
+    const ids = new Set<number>();
+    ids.add(nodeId);
+    const selected = scopeNodes.find((n) => n.id === nodeId);
+    if (selected) {
+      if (selected.level === "COURSE") {
+        for (const n of scopeNodes) {
+          if (n.lecture === selected.lecture && n.level === "SESSION") ids.add(n.id);
+        }
+      } else if (selected.level === "SESSION") {
+        for (const n of scopeNodes) {
+          if (n.lecture === selected.lecture && n.level === "COURSE") ids.add(n.id);
+        }
+      }
+    }
+    return ids;
+  }, [scope, nodeId, scopeNodes]);
+
   const scopedPosts = useMemo(() => {
     if (scope === "all" || !canShowList) return allMaterialsPosts;
+    if (!visibleNodeIds) return allMaterialsPosts;
     return allMaterialsPosts.filter((p) => {
-      const hasNoMapping = !p.mappings || p.mappings.length === 0;
-      if (hasNoMapping) return true;
-      if (nodeId == null) return true;
-      return p.mappings.some((m) => m.node === nodeId);
+      if (!p.mappings || p.mappings.length === 0) return false;
+      return p.mappings.some((m) => visibleNodeIds.has(m.node));
     });
-  }, [allMaterialsPosts, scope, nodeId, canShowList]);
+  }, [allMaterialsPosts, scope, visibleNodeIds, canShowList]);
 
   const filtered = useMemo(() => {
     if (!searchQuery.trim()) return scopedPosts;

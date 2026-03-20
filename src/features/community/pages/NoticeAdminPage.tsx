@@ -128,19 +128,47 @@ export default function NoticeAdminPage() {
     staleTime: 30_000,
   });
 
-  // scope 필터: 전체=모든 글, 강의/차시=해당 매핑+GLOBAL
+  // scope 필터: 전체=모든 글, 강의=해당 강의+하위 차시, 차시=해당 차시+상위 강의
+  // ✅ V1.1.1 fix: 강의/차시 scope에서 전체공지(GLOBAL)를 제외
   const nodeId = useMemo(
     () => resolveNodeIdFromScope(scopeNodes, scopeParams),
     [scopeNodes, scopeParams]
   );
+  const visibleNodeIds = useMemo(() => {
+    if (scope === "all" || nodeId == null) return null;
+    const ids = new Set<number>();
+    ids.add(nodeId);
+    // 선택된 노드 찾기
+    const selected = scopeNodes.find((n) => n.id === nodeId);
+    if (selected) {
+      if (selected.level === "COURSE") {
+        // 강의 scope: 하위 SESSION 노드도 포함
+        for (const n of scopeNodes) {
+          if (n.lecture === selected.lecture && n.level === "SESSION") {
+            ids.add(n.id);
+          }
+        }
+      } else if (selected.level === "SESSION") {
+        // 차시 scope: 상위 COURSE 노드도 포함
+        for (const n of scopeNodes) {
+          if (n.lecture === selected.lecture && n.level === "COURSE") {
+            ids.add(n.id);
+          }
+        }
+      }
+    }
+    return ids;
+  }, [scope, nodeId, scopeNodes]);
+
   const posts = useMemo(() => {
     if (scope === "all") return allNotices;
+    if (!visibleNodeIds) return allNotices;
     return allNotices.filter((p) => {
-      if (!p.mappings || p.mappings.length === 0) return true; // GLOBAL
-      if (nodeId == null) return true;
-      return p.mappings.some((m) => m.node === nodeId);
+      // 매핑 없는 글(전체공지)은 강의/차시 scope에서 제외
+      if (!p.mappings || p.mappings.length === 0) return false;
+      return p.mappings.some((m) => visibleNodeIds.has(m.node));
     });
-  }, [allNotices, scope, nodeId]);
+  }, [allNotices, scope, visibleNodeIds]);
 
   const filtered = useMemo(() => {
     if (!searchQuery.trim()) return posts;

@@ -145,16 +145,35 @@ export default function BoardAdminPage() {
   });
   const allBoardPosts = postsQ.data ?? [];
 
-  // scope 기반 클라이언트 필터: 전체=모든 글, 강의=해당 강의 매핑+GLOBAL, 차시=해당 차시 매핑+GLOBAL
+  // scope 기반 클라이언트 필터: 전체=모든 글, 강의=해당 강의+하위 차시, 차시=해당 차시+상위 강의
+  // ✅ V1.1.1 fix: 강의/차시 scope에서 전체글(GLOBAL)을 제외
+  const visibleNodeIds = useMemo(() => {
+    if (scope === "all" || nodeId == null) return null;
+    const ids = new Set<number>();
+    ids.add(nodeId);
+    const selected = scopeNodes.find((n: ScopeNodeMinimal) => n.id === nodeId);
+    if (selected) {
+      if (selected.level === "COURSE") {
+        for (const n of scopeNodes) {
+          if (n.lecture === selected.lecture && n.level === "SESSION") ids.add(n.id);
+        }
+      } else if (selected.level === "SESSION") {
+        for (const n of scopeNodes) {
+          if (n.lecture === selected.lecture && n.level === "COURSE") ids.add(n.id);
+        }
+      }
+    }
+    return ids;
+  }, [scope, nodeId, scopeNodes]);
+
   const boardPosts = useMemo(() => {
     if (scope === "all" || !canShowList) return allBoardPosts;
+    if (!visibleNodeIds) return allBoardPosts;
     return allBoardPosts.filter((p) => {
-      const hasNoMapping = !p.mappings || p.mappings.length === 0;
-      if (hasNoMapping) return true; // GLOBAL 글은 항상 표시
-      if (nodeId == null) return true;
-      return p.mappings.some((m) => m.node === nodeId);
+      if (!p.mappings || p.mappings.length === 0) return false;
+      return p.mappings.some((m) => visibleNodeIds.has(m.node));
     });
-  }, [allBoardPosts, scope, nodeId, canShowList]);
+  }, [allBoardPosts, scope, visibleNodeIds, canShowList]);
 
   const filtered = useMemo(() => {
     if (!searchQuery.trim()) return boardPosts;
