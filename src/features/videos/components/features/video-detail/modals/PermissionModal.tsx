@@ -87,8 +87,8 @@ export default function PermissionModal({
     return list;
   }, [studentsRaw, focusEnrollment, search]);
 
-  const toggle = (id: number) => {
-    setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  const toggle = (enrollmentId: number) => {
+    setSelected((prev) => (prev.includes(enrollmentId) ? prev.filter((x) => x !== enrollmentId) : [...prev, enrollmentId]));
   };
 
   const toggleAll = () => {

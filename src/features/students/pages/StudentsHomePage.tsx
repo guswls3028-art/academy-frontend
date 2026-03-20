@@ -157,7 +157,7 @@ export default function StudentsHomePage() {
           <Button intent="secondary" size="sm" onClick={() => {
             // 현재 테이블에 표시된 학생만 발송 대상에 포함 (이전 검색의 잔여 선택 제외)
             const visibleIds = new Set((data ?? []).map((s) => s.id));
-            const validIds = selectedIds.filter((id) => visibleIds.has(id));
+            const validIds = selectedIds.filter((studentId) => visibleIds.has(studentId));
             if (validIds.length === 0) {
               feedback.info("현재 목록에 선택된 학생이 없습니다.");
               return;

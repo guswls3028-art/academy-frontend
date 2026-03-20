@@ -11,6 +11,7 @@ const REASON_LABEL: Record<string, string> = {
   exam: "시험 불합",
   homework: "과제 불합",
   both: "시험·과제 불합",
+  missing: "미응시",
 };
 
 export default function ClinicTargetTable({
@@ -106,9 +107,12 @@ export default function ClinicTargetTable({
         )}
         {rows.map((r) => {
           const isBooked = bookedEnrollmentIds?.has(r.enrollment_id) ?? false;
-          const reasonLabel = r.clinic_reason
-            ? REASON_LABEL[r.clinic_reason] ?? r.clinic_reason
-            : undefined;
+          const isMissing = r.reason === "missing";
+          const reasonLabel = isMissing
+            ? REASON_LABEL.missing
+            : r.clinic_reason
+              ? REASON_LABEL[r.clinic_reason] ?? r.clinic_reason
+              : undefined;
 
           return (
             <label
@@ -121,7 +125,7 @@ export default function ClinicTargetTable({
                   onChangeSelected(
                     e.target.checked
                       ? [...selected, r.enrollment_id]
-                      : selected.filter((id) => id !== r.enrollment_id)
+                      : selected.filter((enrollmentId) => enrollmentId !== r.enrollment_id)
                   )
                 }
               />
@@ -135,7 +139,7 @@ export default function ClinicTargetTable({
                       {r.session_title}
                     </span>
                   )}
-                  {r.exam_score != null && r.cutline_score != null && (
+                  {r.exam_score != null && r.cutline_score != null && !isMissing && (
                     <span className="clinic-target__score">
                       시험 {r.exam_score}/{r.cutline_score}점
                     </span>
@@ -148,7 +152,7 @@ export default function ClinicTargetTable({
                 </div>
                 {reasonLabel && (
                   <Tag
-                    color={r.clinic_reason === "both" ? "red" : "orange"}
+                    color={isMissing ? "volcano" : r.clinic_reason === "both" ? "red" : "orange"}
                     className="clinic-bookings__target-reason"
                   >
                     {reasonLabel}

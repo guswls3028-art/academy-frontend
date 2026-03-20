@@ -56,7 +56,7 @@ export default function LectureSessionsPage() {
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
   const allIds = useMemo(() => sessions.map((s) => s.id), [sessions]);
   const allSelected = useMemo(
-    () => sessions.length > 0 && allIds.length > 0 && allIds.every((id) => selectedIds.includes(id)),
+    () => sessions.length > 0 && allIds.length > 0 && allIds.every((sessionId) => selectedIds.includes(sessionId)),
     [sessions.length, allIds, selectedIds]
   );
 

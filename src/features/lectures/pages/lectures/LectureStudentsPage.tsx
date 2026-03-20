@@ -170,7 +170,7 @@ export default function LectureStudentsPage() {
 
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
   const allIds = useMemo(() => sortedFiltered.map((s) => s.student_id), [sortedFiltered]);
-  const allSelected = sortedFiltered.length > 0 && allIds.every((id) => selectedSet.has(id));
+  const allSelected = sortedFiltered.length > 0 && allIds.every((studentId) => selectedSet.has(studentId));
 
   function toggleSelect(id: number) {
     if (selectedSet.has(id)) setSelectedIds(selectedIds.filter((x) => x !== id));

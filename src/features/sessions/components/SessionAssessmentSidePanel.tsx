@@ -384,12 +384,12 @@ export default function SessionAssessmentSidePanel({
   const invalidateSessionScores = () => qc.invalidateQueries({ queryKey: ["session-scores", sessionId] });
   const invalidateHomeworks = () => qc.invalidateQueries({ queryKey: ["session-homeworks", sessionId] });
 
-  const onSelectExam = (id: number) => {
-    navigate({ pathname: `${base}/exams`, search: `?examId=${id}` });
+  const onSelectExam = (examId: number) => {
+    navigate({ pathname: `${base}/exams`, search: `?examId=${examId}` });
   };
 
-  const onSelectHomework = (id: number) => {
-    navigate({ pathname: `${base}/assignments`, search: `?homeworkId=${id}` });
+  const onSelectHomework = (homeworkId: number) => {
+    navigate({ pathname: `${base}/assignments`, search: `?homeworkId=${homeworkId}` });
   };
 
   const handleHomeworkProgress = async (hw: HomeworkItem) => {

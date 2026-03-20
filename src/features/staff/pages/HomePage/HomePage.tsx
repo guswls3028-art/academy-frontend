@@ -57,7 +57,7 @@ export default function HomePage() {
 
   /** 선택된 직원 ID만 (원장 sentinel 제외) */
   const selectedStaffIds = useMemo(
-    () => selectedIds.filter((id) => id > 0),
+    () => selectedIds.filter((staffId) => staffId > 0),
     [selectedIds]
   );
 
@@ -159,9 +159,9 @@ export default function HomePage() {
       <Button
         intent="danger"
         size="sm"
-        disabled={selectedIds.filter((id) => id > 0).length === 0 || deleting}
+        disabled={selectedIds.filter((staffId) => staffId > 0).length === 0 || deleting}
         onClick={async () => {
-          const staffIds = selectedIds.filter((id) => id > 0);
+          const staffIds = selectedIds.filter((staffId) => staffId > 0);
           if (staffIds.length === 0) return;
           const ok = await confirm({ title: "삭제 확인", message: `선택한 직원 ${staffIds.length}명을 삭제하시겠습니까? (대표는 삭제되지 않습니다)`, danger: true, confirmText: "삭제" });
           if (!ok) return;
@@ -170,7 +170,7 @@ export default function HomePage() {
             for (const id of staffIds) {
               await deleteStaff(id);
             }
-            setSelectedIds(selectedIds.filter((id) => id <= 0));
+            setSelectedIds(selectedIds.filter((staffId) => staffId <= 0));
             qc.invalidateQueries({ queryKey: ["staffs"] });
             qc.invalidateQueries({ queryKey: ["staff"] });
             feedback.success(`${staffIds.length}명 삭제되었습니다.`);

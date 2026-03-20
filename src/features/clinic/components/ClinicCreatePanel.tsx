@@ -262,10 +262,10 @@ export default function ClinicCreatePanel({
       // Dispatch on selection.kind to prevent ID domain confusion
       if (selected.length > 0 && selection) {
         const results = await Promise.allSettled(
-          selected.map((id) => {
-            const reason = selection.kind === "enrollment" ? targetReasonMap.get(id) : undefined;
+          selected.map((selectedId) => {
+            const reason = selection.kind === "enrollment" ? targetReasonMap.get(selectedId) : undefined;
             return createClinicParticipant(
-              buildParticipantPayload(created.id, id, selection, reason)
+              buildParticipantPayload(created.id, selectedId, selection, reason)
             );
           })
         );

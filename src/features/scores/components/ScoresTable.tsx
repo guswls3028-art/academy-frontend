@@ -821,7 +821,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                         if (e.target.checked) {
                           onSelectionChange([...selectedEnrollmentIds, row.enrollment_id]);
                         } else {
-                          onSelectionChange(selectedEnrollmentIds.filter((id) => id !== row.enrollment_id));
+                          onSelectionChange(selectedEnrollmentIds.filter((enrollmentId) => enrollmentId !== row.enrollment_id));
                         }
                       }}
                       onClick={(e) => e.stopPropagation()}

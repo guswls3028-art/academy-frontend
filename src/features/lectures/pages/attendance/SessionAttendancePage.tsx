@@ -209,7 +209,7 @@ export default function SessionAttendancePage({
   if (attendanceResult == null) return <EmptyState scope="panel" tone="error" title="출결 데이터를 불러올 수 없습니다." />;
 
   const allIds = sorted.map((att: any) => att.id);
-  const allSelected = sorted.length > 0 && allIds.every((id: number) => selectedSet.has(id));
+  const allSelected = sorted.length > 0 && allIds.every((attendanceId: number) => selectedSet.has(attendanceId));
 
   function toggleSelect(id: number) {
     if (selectedSet.has(id)) setSelectedIds(selectedIds.filter((x) => x !== id));
@@ -253,7 +253,7 @@ export default function SessionAttendancePage({
     const count = selectedIds.length;
     setDeleting(true);
     try {
-      await Promise.all(selectedIds.map((id) => deleteAttendance(id)));
+      await Promise.all(selectedIds.map((attendanceId) => deleteAttendance(attendanceId)));
       setSelectedIds([]);
       qc.invalidateQueries({ queryKey: ["attendance", sessionId] });
       qc.invalidateQueries({ queryKey: ["session-enrollments", sessionId] });

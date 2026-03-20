@@ -60,9 +60,9 @@ export default function StaffOperationTable({
     [filtered]
   );
 
-  const pick = (id: number) => {
+  const pick = (staffId: number) => {
     const next = new URLSearchParams(params);
-    next.set("staffId", String(id));
+    next.set("staffId", String(staffId));
     const now = new Date();
     if (!next.has("year")) next.set("year", String(now.getFullYear()));
     if (!next.has("month")) next.set("month", String(now.getMonth() + 1));

@@ -121,10 +121,10 @@ export default function HomeworkEnrollmentPanel({
     return false;
   }, [selectedIds, originSelectedIds]);
 
-  const toggleOne = (id: number) => {
+  const toggleOne = (enrollmentId: number) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
+      next.has(enrollmentId) ? next.delete(enrollmentId) : next.add(enrollmentId);
       return next;
     });
   };

@@ -71,8 +71,8 @@ export default function SessionHomeworkOpsBoard({ lectureId, sessionId, onAddHom
 
   const basePath = `/admin/lectures/${lectureId}/sessions/${sessionId}/assignments`;
 
-  const handleSelect = (id: number) => {
-    navigate(`${basePath}?homeworkId=${id}`);
+  const handleSelect = (homeworkId: number) => {
+    navigate(`${basePath}?homeworkId=${homeworkId}`);
   };
 
   const hasNoHomeworks =

@@ -135,7 +135,7 @@ export default function EnrollmentManageModal({
 
   const removeSelected = (enrollmentId: number) => {
     if (onSetSelectedIds) {
-      onSetSelectedIds(new Set([...selectedIds].filter((id) => id !== enrollmentId)));
+      onSetSelectedIds(new Set([...selectedIds].filter((existingId) => existingId !== enrollmentId)));
     } else {
       onToggle?.(enrollmentId);
     }

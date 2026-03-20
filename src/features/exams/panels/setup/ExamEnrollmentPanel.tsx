@@ -63,10 +63,10 @@ export default function ExamEnrollmentPanel({ examId }: { examId: number }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  const toggle = (id: number) => {
+  const toggle = (enrollmentId: number) => {
     setSelected((prev) => {
       const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
+      next.has(enrollmentId) ? next.delete(enrollmentId) : next.add(enrollmentId);
       return next;
     });
   };

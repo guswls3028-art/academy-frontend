@@ -101,7 +101,7 @@ export default function ClinicBookingsPage() {
   // Phase 8: 미예약 전체 선택
   const selectAllUnbooked = () => {
     const current = new Set(selected);
-    requiredEnrollmentIds.forEach((id) => current.add(id));
+    requiredEnrollmentIds.forEach((enrollmentId) => current.add(enrollmentId));
     setSelected(Array.from(current));
   };
 

@@ -634,9 +634,9 @@ export class StudentHlsController {
 
     this.listeners.clear();
 
-    this.intervals.forEach((id) => clearInterval(id));
+    this.intervals.forEach((intervalId) => clearInterval(intervalId));
     this.intervals = [];
-    this.timeouts.forEach((id) => clearTimeout(id));
+    this.timeouts.forEach((timeoutId) => clearTimeout(timeoutId));
     this.timeouts = [];
 
     this.removeAllVideoListeners();

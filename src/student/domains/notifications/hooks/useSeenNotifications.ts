@@ -41,7 +41,7 @@ export function isNotificationSeen(type: string, id: number | string): boolean {
 /** 현재 알림 목록의 seen 필터링된 카운트 반환 */
 export function getUnseenCount(type: string, ids: (number | string)[]): number {
   const seen = new Set(loadSeen().map((e) => e.id));
-  return ids.filter((id) => !seen.has(`${type}:${id}`)).length;
+  return ids.filter((notificationId) => !seen.has(`${type}:${notificationId}`)).length;
 }
 
 /** 알림 페이지에서 사용: 현재 보이는 알림들을 seen으로 마킹 + 카운트 갱신 */

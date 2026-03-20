@@ -17,6 +17,7 @@ import { useClinicTargets } from "../../hooks/useClinicTargets";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import ClinicTargetSelectModal from "../../components/ClinicTargetSelectModal";
 import type { ClinicTargetSelectResult } from "../../components/ClinicTargetSelectModal";
+import { buildParticipantPayload } from "../../utils/buildParticipantPayload";
 
 const StudentsDetailOverlay = lazy(() => import("@/features/students/overlays/StudentsDetailOverlay"));
 
@@ -117,7 +118,7 @@ export default function ClinicConsoleWorkspace({
   const bulkAttendMutation = useMutation({
     mutationFn: async (ids: number[]) => {
       const results = await Promise.allSettled(
-        ids.map((id) => patchClinicParticipantStatus(id, { status: "attended" }))
+        ids.map((participantId) => patchClinicParticipantStatus(participantId, { status: "attended" }))
       );
       const failed = results.filter((r) => r.status === "rejected");
       if (failed.length > 0) {
@@ -584,26 +585,25 @@ export default function ClinicConsoleWorkspace({
         initialMode="targets"
         onConfirm={async (result: ClinicTargetSelectResult) => {
           setAddStudentModalOpen(false);
-          if (!session || result.ids.length === 0) return;
+          const ids = result.kind === "enrollment" ? [...result.enrollmentIds] : [...result.studentIds];
+          if (!session || ids.length === 0) return;
           const results = await Promise.allSettled(
-            result.ids.map((enrollmentId) => {
-              const reason = clinicTargets?.find((t) => t.enrollment_id === enrollmentId)?.clinic_reason;
-              return createClinicParticipant({
-                session: session.id,
-                enrollment_id: enrollmentId,
-                status: "booked",
-                ...(reason ? { clinic_reason: reason } : {}),
-              });
-            }
-            )
+            ids.map((selectedId) => {
+              const reason = result.kind === "enrollment"
+                ? clinicTargets?.find((t) => t.enrollment_id === selectedId)?.clinic_reason
+                : undefined;
+              return createClinicParticipant(
+                buildParticipantPayload(session.id, selectedId, result, reason)
+              );
+            })
           );
           const failed = results.filter((r) => r.status === "rejected").length;
           qc.invalidateQueries({ queryKey: ["clinic-participants"] });
           qc.invalidateQueries({ queryKey: ["clinic-sessions-tree"] });
           if (failed > 0) {
-            feedback.warning(`${result.ids.length - failed}명 추가, ${failed}명 실패`);
+            feedback.warning(`${ids.length - failed}명 추가, ${failed}명 실패`);
           } else {
-            feedback.success(`${result.ids.length}명이 추가되었습니다.`);
+            feedback.success(`${ids.length}명이 추가되었습니다.`);
           }
         }}
       />

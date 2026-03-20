@@ -39,9 +39,9 @@ export default function BoardCreateModal({ onClose, onSuccess }: Props) {
 
   const allSelected = courseNodes.length > 0 && selectedNodeIds.length === courseNodes.length;
 
-  const toggleNode = (id: number) => {
+  const toggleNode = (nodeId: number) => {
     setSelectedNodeIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+      prev.includes(nodeId) ? prev.filter((x) => x !== nodeId) : [...prev, nodeId]
     );
   };
 

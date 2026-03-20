@@ -84,7 +84,7 @@ export default function StudentsTable({
 }) {
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
   const allIds = useMemo(() => data.map((s) => s.id), [data]);
-  const allSelected = data.length > 0 && allIds.every((id) => selectedSet.has(id));
+  const allSelected = data.length > 0 && allIds.every((studentId) => selectedSet.has(studentId));
 
   function toggleSelect(id: number) {
     if (!onSelectionChange) return;
@@ -99,7 +99,7 @@ export default function StudentsTable({
   function toggleSelectAll() {
     if (!onSelectionChange) return;
     if (allSelected) {
-      onSelectionChange(selectedIds.filter((id) => !allIds.includes(id)));
+      onSelectionChange(selectedIds.filter((studentId) => !allIds.includes(studentId)));
     } else {
       const merged = new Set([...selectedIds, ...allIds]);
       onSelectionChange([...merged]);

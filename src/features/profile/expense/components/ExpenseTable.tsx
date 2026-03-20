@@ -75,7 +75,7 @@ export default function ExpenseTable({
     (columnWidths.actions ?? TABLE_COL.actions);
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
   const allIds = useMemo(() => rows.map((r) => r.id), [rows]);
-  const allSelected = rows.length > 0 && allIds.every((id) => selectedSet.has(id));
+  const allSelected = rows.length > 0 && allIds.every((expenseId) => selectedSet.has(expenseId));
 
   const sortedRows = useMemo(() => {
     if (!sort) return rows;
@@ -96,12 +96,12 @@ export default function ExpenseTable({
     setSort((prev) => (prev === colKey ? `-${colKey}` : prev === `-${colKey}` ? "" : colKey));
   }, []);
 
-  const toggleSelect = (id: number) => {
-    if (selectedSet.has(id)) setSelectedIds((prev) => prev.filter((x) => x !== id));
-    else setSelectedIds((prev) => [...prev, id]);
+  const toggleSelect = (expenseId: number) => {
+    if (selectedSet.has(expenseId)) setSelectedIds((prev) => prev.filter((x) => x !== expenseId));
+    else setSelectedIds((prev) => [...prev, expenseId]);
   };
   const toggleSelectAll = () => {
-    if (allSelected) setSelectedIds((prev) => prev.filter((id) => !allIds.includes(id)));
+    if (allSelected) setSelectedIds((prev) => prev.filter((expenseId) => !allIds.includes(expenseId)));
     else setSelectedIds((prev) => [...new Set([...prev, ...allIds])]);
   };
 

@@ -138,17 +138,17 @@ export default function ClinicTargetSelectModal({
     });
   };
 
-  const removeSelected = (id: number) => {
-    setSelectedIds((prev) => prev.filter((x) => x !== id));
+  const removeSelected = (selectedId: number) => {
+    setSelectedIds((prev) => prev.filter((x) => x !== selectedId));
     setSelectedIdToName((prev) => {
       const next = new Map(prev);
-      next.delete(id);
+      next.delete(selectedId);
       return next;
     });
   };
 
   const selectedRowsForDisplay = useMemo(() => {
-    return selectedIds.map((id) => ({ id, name: selectedIdToName.get(id) ?? "(이름 없음)" }));
+    return selectedIds.map((selectedId) => ({ id: selectedId, name: selectedIdToName.get(selectedId) ?? "(이름 없음)" }));
   }, [selectedIds, selectedIdToName]);
 
   const handleConfirm = () => {

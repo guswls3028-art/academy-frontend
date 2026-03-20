@@ -305,7 +305,7 @@ export default function SessionEnrollModal({
 
   /** 이미 등록된 학생 ID 집합 — 출결(attendance) 목록 전체 기준. 표기/등록 모두에서 제외. */
   const alreadyEnrolledStudentIds = useMemo(
-    () => new Set(attendanceEnrolledIds.filter((id) => Number.isFinite(id))),
+    () => new Set(attendanceEnrolledIds.filter((studentId) => Number.isFinite(studentId))),
     [attendanceEnrolledIds]
   );
 
@@ -337,7 +337,7 @@ export default function SessionEnrollModal({
   const selectedIds = useMemo(() => new Set(selectedItems.map((s) => s.id)), [selectedItems]);
 
   const idsToAdd = useMemo(
-    () => selectedItems.map((s) => s.id).filter((id) => !alreadyEnrolledStudentIds.has(id)),
+    () => selectedItems.map((s) => s.id).filter((studentId) => !alreadyEnrolledStudentIds.has(studentId)),
     [selectedItems, alreadyEnrolledStudentIds]
   );
 

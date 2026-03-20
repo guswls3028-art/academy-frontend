@@ -111,11 +111,11 @@ export default function CreateRegularExamModal({
   // ── Bulk row helpers ──
   const addRow = () => setRows((prev) => [...prev, makeRow()]);
 
-  const removeRow = (id: number) =>
-    setRows((prev) => (prev.length <= 1 ? prev : prev.filter((r) => r.id !== id)));
+  const removeRow = (rowId: number) =>
+    setRows((prev) => (prev.length <= 1 ? prev : prev.filter((r) => r.id !== rowId)));
 
-  const updateRow = (id: number, field: keyof Omit<BulkRow, "id">, value: string) =>
-    setRows((prev) => prev.map((r) => (r.id === id ? { ...r, [field]: value } : r)));
+  const updateRow = (rowId: number, field: keyof Omit<BulkRow, "id">, value: string) =>
+    setRows((prev) => prev.map((r) => (r.id === rowId ? { ...r, [field]: value } : r)));
 
   // ── Bulk submit (new stage) ──
   const handleBulkSubmit = async () => {

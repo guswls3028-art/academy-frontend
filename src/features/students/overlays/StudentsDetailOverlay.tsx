@@ -249,8 +249,8 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
     setInventorySelectedFolderIds(new Set());
 
     const toDelete = Array.from(selectedIds);
-    toDelete.forEach((id) => {
-      const item = [...uploadedScoreItems, ...uploadedMiscItems].find((i) => i.id === id);
+    toDelete.forEach((itemId) => {
+      const item = [...uploadedScoreItems, ...uploadedMiscItems].find((i) => i.id === itemId);
       if (item?.fileUrl.startsWith("blob:")) URL.revokeObjectURL(item.fileUrl);
     });
     setCurrentList((prev) => prev.filter((i) => !toDelete.includes(i.id)));

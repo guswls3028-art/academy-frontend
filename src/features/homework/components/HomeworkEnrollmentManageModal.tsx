@@ -135,7 +135,7 @@ export default function HomeworkEnrollmentManageModal({
   };
 
   const removeSelected = (enrollmentId: number) => {
-    onSetSelectedIds(new Set([...selectedIds].filter((id) => id !== enrollmentId)));
+    onSetSelectedIds(new Set([...selectedIds].filter((existingId) => existingId !== enrollmentId)));
   };
 
   return (

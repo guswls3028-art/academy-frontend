@@ -68,8 +68,8 @@ export default function EnrollStudentModal({ sessionId, isOpen, onClose, onSucce
 
   if (!isOpen) return null;
 
-  const toggleSelect = (id: number) => {
-    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  const toggleSelect = (studentId: number) => {
+    setSelectedIds((prev) => (prev.includes(studentId) ? prev.filter((x) => x !== studentId) : [...prev, studentId]));
   };
 
   return (

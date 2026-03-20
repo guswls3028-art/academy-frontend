@@ -188,7 +188,7 @@ export function StaffHomeTable({
     () => (hasOwner ? [OWNER_SELECTION_ID] : []).concat(dataSource.map((r) => r.id)),
     [hasOwner, dataSource]
   );
-  const allSelected = allIds.length > 0 && allIds.every((id) => selectedSet.has(id));
+  const allSelected = allIds.length > 0 && allIds.every((staffId) => selectedSet.has(staffId));
 
   const sortedDataSource = useMemo(() => {
     if (!sort) return dataSource;
@@ -228,12 +228,12 @@ export function StaffHomeTable({
     (columnWidths.payType ?? COL.payType) +
     (columnWidths.workTypeTags ?? COL.workTypeTags);
 
-  const toggleSelect = (id: number) => {
-    if (selectedSet.has(id)) setSelectedIds(selectedIds.filter((x) => x !== id));
-    else setSelectedIds([...selectedIds, id]);
+  const toggleSelect = (staffId: number) => {
+    if (selectedSet.has(staffId)) setSelectedIds(selectedIds.filter((x) => x !== staffId));
+    else setSelectedIds([...selectedIds, staffId]);
   };
   const toggleSelectAll = () => {
-    if (allSelected) setSelectedIds(selectedIds.filter((id) => !allIds.includes(id)));
+    if (allSelected) setSelectedIds(selectedIds.filter((staffId) => !allIds.includes(staffId)));
     else setSelectedIds([...new Set([...selectedIds, ...allIds])]);
   };
 

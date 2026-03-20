@@ -195,7 +195,7 @@ export default function ClinicHomePage() {
   const bulkApproveMutation = useMutation({
     mutationFn: async (ids: number[]) => {
       const results = await Promise.allSettled(
-        ids.map((id) => patchClinicParticipantStatus(id, { status: "booked" }))
+        ids.map((participantId) => patchClinicParticipantStatus(participantId, { status: "booked" }))
       );
       const failed = results.filter((r) => r.status === "rejected");
       if (failed.length > 0) {

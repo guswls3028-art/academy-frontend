@@ -75,7 +75,7 @@ export default function AttendanceTable({
   const { columnWidths, setColumnWidth } = useTableColumnPrefs("profile-attendance", PROFILE_ATTENDANCE_COLUMN_DEFS);
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
   const allIds = useMemo(() => rows.map((r) => r.id), [rows]);
-  const allSelected = rows.length > 0 && allIds.every((id) => selectedSet.has(id));
+  const allSelected = rows.length > 0 && allIds.every((attendanceId) => selectedSet.has(attendanceId));
 
   const sortedRows = useMemo(() => {
     if (!sort) return rows;
@@ -108,12 +108,12 @@ export default function AttendanceTable({
     (columnWidths.amount ?? TABLE_COL.medium) +
     (columnWidths.actions ?? TABLE_COL.actions);
 
-  const toggleSelect = (id: number) => {
-    if (selectedSet.has(id)) setSelectedIds((prev) => prev.filter((x) => x !== id));
-    else setSelectedIds((prev) => [...prev, id]);
+  const toggleSelect = (attendanceId: number) => {
+    if (selectedSet.has(attendanceId)) setSelectedIds((prev) => prev.filter((x) => x !== attendanceId));
+    else setSelectedIds((prev) => [...prev, attendanceId]);
   };
   const toggleSelectAll = () => {
-    if (allSelected) setSelectedIds((prev) => prev.filter((id) => !allIds.includes(id)));
+    if (allSelected) setSelectedIds((prev) => prev.filter((attendanceId) => !allIds.includes(attendanceId)));
     else setSelectedIds((prev) => [...new Set([...prev, ...allIds])]);
   };
 
