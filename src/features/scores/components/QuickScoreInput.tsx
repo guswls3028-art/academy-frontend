@@ -51,6 +51,8 @@ const QuickScoreInput = React.forwardRef<HTMLInputElement, Props>(
     const commitScore = async () => {
       const n = Number(value);
       if (!Number.isFinite(n)) return;
+      if (n < 0) { setValue(initial); return; }
+      if (maxScore != null && n > maxScore) { setValue(initial); return; }
 
       try {
         setSaving(true);

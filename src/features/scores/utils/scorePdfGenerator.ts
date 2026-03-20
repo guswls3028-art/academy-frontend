@@ -222,10 +222,10 @@ export function buildScorePdfHtml(params: ScorePdfParams): string {
     }
 
     // 판정
-    const allPassed = row.exams.every((e) => e.block.passed !== false)
-      && row.homeworks.every((h) => h.block.passed !== false);
-    const hasAnyScore = row.exams.some((e) => e.block.score != null)
-      || row.homeworks.some((h) => h.block.score != null);
+    const allPassed = (row.exams ?? []).every((e) => e.block.passed !== false)
+      && (row.homeworks ?? []).every((h) => h.block.passed !== false);
+    const hasAnyScore = (row.exams ?? []).some((e) => e.block.score != null)
+      || (row.homeworks ?? []).some((h) => h.block.score != null);
     let verdict = "-";
     if (hasAnyScore) verdict = allPassed ? "통과" : "미달";
     const verdictClass = verdict === "미달" ? "verdict-fail" : "verdict-pass";
@@ -251,8 +251,8 @@ export function buildScorePdfHtml(params: ScorePdfParams): string {
     summaryStats.push(`<td class="num">${avg != null ? avg.toFixed(1) : "-"}</td>`);
   }
   const totalPassed = rows.filter((r) =>
-    r.exams.every((e) => e.block.passed !== false) && r.homeworks.every((h) => h.block.passed !== false)
-    && (r.exams.some((e) => e.block.score != null) || r.homeworks.some((h) => h.block.score != null))
+    (r.exams ?? []).every((e) => e.block.passed !== false) && (r.homeworks ?? []).every((h) => h.block.passed !== false)
+    && ((r.exams ?? []).some((e) => e.block.score != null) || (r.homeworks ?? []).some((h) => h.block.score != null))
   ).length;
   summaryStats.push(`<td class="num">${totalPassed}/${rows.length}</td>`);
 

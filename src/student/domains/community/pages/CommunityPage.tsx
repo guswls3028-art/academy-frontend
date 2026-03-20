@@ -433,7 +433,16 @@ function QnaForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () => v
       if (!profile?.id) throw new Error("로그인 정보를 불러오는 중입니다.");
       const post = await submitQuestion(title.trim(), content.trim(), profile.id, categoryLabel || null);
       if (files.length > 0) {
-        await uploadPostAttachments(post.id, files);
+        try {
+          await uploadPostAttachments(post.id, files);
+        } catch {
+          // 게시글은 생성됨 — 첨부파일만 실패. 목록 갱신 후 사용자에게 알림.
+          qc.invalidateQueries({ queryKey: ["student", "qna", "questions"] });
+          const { studentToast } = await import("@/student/shared/ui/feedback/studentToast");
+          studentToast.info("질문은 등록되었으나 첨부파일 업로드에 실패했습니다.");
+          onSuccess();
+          return post;
+        }
       }
       return post;
     },
@@ -735,7 +744,15 @@ function CounselForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () 
       if (!profile?.id) throw new Error("로그인 정보를 불러오는 중입니다.");
       const post = await submitCounselRequest(title.trim(), content.trim(), profile.id, categoryLabel || null);
       if (files.length > 0) {
-        await uploadPostAttachments(post.id, files);
+        try {
+          await uploadPostAttachments(post.id, files);
+        } catch {
+          qc.invalidateQueries({ queryKey: ["student", "counsel", "requests"] });
+          const { studentToast } = await import("@/student/shared/ui/feedback/studentToast");
+          studentToast.info("상담 요청은 등록되었으나 첨부파일 업로드에 실패했습니다.");
+          onSuccess();
+          return post;
+        }
       }
       return post;
     },

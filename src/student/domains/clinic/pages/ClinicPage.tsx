@@ -162,6 +162,11 @@ export default function ClinicPage() {
       return;
     }
 
+    if (selectedSessionId === existingBooking.session) {
+      studentToast.info("현재 예약과 같은 시간입니다. 다른 시간을 선택해주세요.");
+      return;
+    }
+
     changeMutation.mutate({
       oldId: existingBooking.id,
       newSessionId: selectedSessionId,

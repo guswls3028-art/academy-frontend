@@ -18,6 +18,7 @@ if (!TENANTS.length) throw new Error("Tenant registry empty");
 import { DevErrorBoundary, DevErrorLogger } from "@/app/DevErrorLogger";
 import { useVersionChecker } from "@/shared/ui/layout/VersionChecker";
 import SubscriptionExpiredOverlay from "@/shared/ui/SubscriptionExpiredOverlay";
+import { ConfirmProvider } from "@/shared/ui/confirm/ConfirmProvider";
 
 import "./index.css";
 import "antd/dist/reset.css";
@@ -79,7 +80,9 @@ const AppContent = (
       <QueryProvider>
         <ProgramProvider>
           <AuthProvider>
-            <AppInner />
+            <ConfirmProvider>
+              <AppInner />
+            </ConfirmProvider>
           </AuthProvider>
         </ProgramProvider>
       </QueryProvider>

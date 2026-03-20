@@ -373,6 +373,23 @@ export default function SessionScoresTab() {
         );
       })()}
 
+      {/* ── 편집 모드 안내 ── */}
+      {isEditMode && (
+        <div
+          className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg px-3 py-2 text-xs border border-[var(--color-border-divider)] bg-[var(--color-bg-surface-soft)] text-[var(--color-text-secondary)]"
+        >
+          <span><kbd className="score-help-kbd">숫자</kbd> + <kbd className="score-help-kbd">Enter</kbd> 점수 입력</span>
+          <span className="text-[var(--color-border-divider)]" aria-hidden>|</span>
+          <span><kbd className="score-help-kbd">/</kbd> + <kbd className="score-help-kbd">Enter</kbd> 미제출 처리 (과제)</span>
+          <span className="text-[var(--color-border-divider)]" aria-hidden>|</span>
+          <span><kbd className="score-help-kbd">Tab</kbd> 다음 칸 · <kbd className="score-help-kbd">Enter</kbd> 다음 학생</span>
+          <span className="text-[var(--color-border-divider)]" aria-hidden>|</span>
+          <span><kbd className="score-help-kbd">Esc</kbd> 입력 취소</span>
+          <span className="text-[var(--color-border-divider)]" aria-hidden>|</span>
+          <span><kbd className="score-help-kbd">80%</kbd> → 배점 비율 자동 계산</span>
+        </div>
+      )}
+
       {/* ── Scores Panel ── */}
       <SessionScoresPanel
         ref={panelRef}

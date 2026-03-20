@@ -102,16 +102,18 @@ export default function CounselAdminPage() {
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       if (filtered.length === 0) return;
-      const tag = (e.target as HTMLElement).tagName;
-      if (tag === "TEXTAREA" || tag === "INPUT") return;
+      const el = e.target as HTMLElement;
+      if (el.tagName === "TEXTAREA" || el.tagName === "INPUT" || el.tagName === "SELECT" || el.isContentEditable) return;
       if (e.ctrlKey || e.metaKey || e.altKey) return;
       const idx = selectedId != null ? filtered.findIndex((q) => q.id === selectedId) : -1;
       if (e.key === "j") {
         e.preventDefault();
-        setSelectedId(filtered[Math.min(idx + 1, filtered.length - 1)].id);
+        const next = Math.min(idx + 1, filtered.length - 1);
+        if (filtered[next]) setSelectedId(filtered[next].id);
       } else if (e.key === "k") {
         e.preventDefault();
-        setSelectedId(filtered[Math.max(idx <= 0 ? filtered.length : idx - 1, 0)].id);
+        const prev = idx <= 0 ? filtered.length - 1 : idx - 1;
+        if (filtered[prev]) setSelectedId(filtered[prev].id);
       }
     };
     window.addEventListener("keydown", handleKey);

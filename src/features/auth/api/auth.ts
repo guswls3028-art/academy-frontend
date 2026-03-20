@@ -1,5 +1,5 @@
 // PATH: src/features/auth/api/auth.ts
-import api, { clearTokens } from "@/shared/api/axios";
+import api, { clearTokens, resetSessionEnding } from "@/shared/api/axios";
 import { getTenantCodeForApiRequest } from "@/shared/tenant";
 
 export type LoginResponse = {
@@ -35,6 +35,7 @@ export const login = async (username: string, password: string) => {
 
   localStorage.setItem("access", access);
   localStorage.setItem("refresh", refresh);
+  resetSessionEnding(); // 재로그인 시 세션 종료 플래그 초기화
 
   return res.data;
 };

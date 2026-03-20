@@ -528,6 +528,12 @@ function ReplyBlock({ postId, answer }: { postId: number; answer: Answer }) {
   const confirm = useConfirm();
   const [editing, setEditing] = useState(false);
   const [editContent, setEditContent] = useState(answer.content);
+  // 서버 데이터 갱신 시 편집 중이 아니면 동기화
+  const prevContent = useRef(answer.content);
+  if (prevContent.current !== answer.content && !editing) {
+    prevContent.current = answer.content;
+    setEditContent(answer.content);
+  }
 
   const updateMut = useMutation({
     mutationFn: () => updateReply(postId, answer.id, editContent),

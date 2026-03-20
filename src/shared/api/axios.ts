@@ -64,6 +64,10 @@ export function markSessionEnding() {
   isSessionEnding = true;
 }
 
+export function resetSessionEnding() {
+  isSessionEnding = false;
+}
+
 /**
  * Enterprise Refresh Concurrency Control
  * - multiple requests may fail with 401 simultaneously

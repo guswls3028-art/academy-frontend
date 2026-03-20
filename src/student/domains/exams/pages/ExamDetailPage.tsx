@@ -63,10 +63,11 @@ export default function ExamDetailPage() {
   // While result is loading: hide submit button (unknown state).
   // On error (no prior submission = 404): allow submit (first attempt).
   // On success: trust can_retake from backend.
+  // 404 = 미제출(첫 시도 가능), 그 외 에러 = 상태 불명(버튼 숨김)
   const canRetake = resultQ.isLoading
     ? null
     : resultQ.isError
-      ? true
+      ? ((resultQ.error as { response?: { status?: number } })?.response?.status === 404 ? true : null)
       : (typeof resultQ.data?.can_retake === "boolean" ? resultQ.data.can_retake : true);
 
   return (

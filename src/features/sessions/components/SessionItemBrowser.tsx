@@ -9,6 +9,7 @@ import { fetchLectures, fetchSessions, type Lecture, type Session } from "@/feat
 import { fetchExams } from "@/features/exams/api/exams";
 import type { Exam } from "@/features/exams/types";
 import { fetchHomeworks, type HomeworkListItem } from "@/features/homework/api/homeworks";
+import type { ExamSelection, HomeworkSelection } from "@/shared/types/selection";
 
 export type BrowseMode = "exam" | "homework";
 
@@ -29,9 +30,11 @@ type Props = {
   mode: BrowseMode;
   /** 현재 세션 ID — 목록에서 제외 */
   excludeSessionId: number;
-  /** 선택 완료 콜백 */
+  /** 선택 완료 콜백 (rich typed items) */
   onSelectExams?: (items: SelectedExamItem[]) => void;
   onSelectHomeworks?: (items: SelectedHomeworkItem[]) => void;
+  /** 선택 완료 콜백 (discriminated union — type-safe ID selection) */
+  onSelect?: (selection: ExamSelection | HomeworkSelection) => void;
 };
 
 export default function SessionItemBrowser({
@@ -39,6 +42,7 @@ export default function SessionItemBrowser({
   excludeSessionId,
   onSelectExams,
   onSelectHomeworks,
+  onSelect,
 }: Props) {
   // cascade state
   const [lectures, setLectures] = useState<Lecture[]>([]);
@@ -154,27 +158,35 @@ export default function SessionItemBrowser({
 
   // Notify parent on selection change
   const handleConfirm = useCallback(() => {
-    if (mode === "exam" && onSelectExams) {
-      const selected = exams
-        .filter((e) => selectedIds.has(e.id))
-        .map((e) => ({
-          id: e.id,
-          title: e.title,
-          max_score: e.max_score ?? 100,
-          pass_score: e.pass_score ?? 0,
-        }));
-      onSelectExams(selected);
-    } else if (mode === "homework" && onSelectHomeworks) {
-      const selected = homeworks
-        .filter((h) => selectedIds.has(h.id))
-        .map((h) => ({
-          id: h.id,
-          title: h.title,
-          max_score: 100, // homework doesn't have max_score in list — default
-        }));
-      onSelectHomeworks(selected);
+    const idArray = [...selectedIds];
+
+    if (mode === "exam") {
+      if (onSelectExams) {
+        const selected = exams
+          .filter((e) => selectedIds.has(e.id))
+          .map((e) => ({
+            id: e.id,
+            title: e.title,
+            max_score: e.max_score ?? 100,
+            pass_score: e.pass_score ?? 0,
+          }));
+        onSelectExams(selected);
+      }
+      onSelect?.({ kind: "exam", examIds: idArray });
+    } else if (mode === "homework") {
+      if (onSelectHomeworks) {
+        const selected = homeworks
+          .filter((h) => selectedIds.has(h.id))
+          .map((h) => ({
+            id: h.id,
+            title: h.title,
+            max_score: 100, // homework doesn't have max_score in list — default
+          }));
+        onSelectHomeworks(selected);
+      }
+      onSelect?.({ kind: "homework", homeworkIds: idArray });
     }
-  }, [mode, exams, homeworks, selectedIds, onSelectExams, onSelectHomeworks]);
+  }, [mode, exams, homeworks, selectedIds, onSelectExams, onSelectHomeworks, onSelect]);
 
   const selectedLecture = lectures.find((l) => l.id === selectedLectureId);
   const selectedSession = sessions.find((s) => s.id === selectedSessionId);

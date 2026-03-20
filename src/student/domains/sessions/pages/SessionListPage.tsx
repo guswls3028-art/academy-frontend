@@ -30,7 +30,7 @@ export default function SessionListPage() {
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(s);
     });
-    map.forEach((arr) => arr.sort((a, b) => (a.date || "").localeCompare(b.date || "")));
+    map.forEach((arr) => arr.sort((a, b) => (a.start_time || "").localeCompare(b.start_time || "")));
     return map;
   }, [sessions]);
 

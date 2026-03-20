@@ -184,12 +184,13 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
 
   const handleUpload = async () => {
     const items: { file: File; title: string }[] = [];
+    const filledFiles = files.filter((f): f is File => f != null);
     let seq = 0;
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       if (!file) continue;
       seq++;
-      items.push({ file, title: `${baseTitle.trim()} - ${seq}` });
+      items.push({ file, title: filledFiles.length === 1 ? baseTitle.trim() : `${baseTitle.trim()} - ${seq}` });
     }
     if (items.length === 0) return;
 

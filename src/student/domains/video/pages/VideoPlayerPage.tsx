@@ -248,9 +248,10 @@ export default function VideoPlayerPage() {
   // Defer comments to reduce bandwidth contention during player initialization
   const [showComments, setShowComments] = useState(false);
   useEffect(() => {
+    setShowComments(false);
     const t = setTimeout(() => setShowComments(true), 2000);
     return () => clearTimeout(t);
-  }, []);
+  }, [videoId]);
 
   const [fatalError, setFatalError] = useState<string | null>(null);
   const onFatal = useCallback((reason: string) => setFatalError(reason), []);
@@ -291,8 +292,16 @@ export default function VideoPlayerPage() {
     [videoId]
   );
 
-  // Reset fatalError when videoId changes
-  useEffect(() => { setFatalError(null); }, [videoId]);
+  // Reset state when videoId changes
+  useEffect(() => {
+    setFatalError(null);
+    // 자동재생 카운트다운 초기화 — 다른 영상으로 수동 이동 시 이전 타이머 방지
+    setAutoPlayCountdown(null);
+    if (autoPlayTimerRef.current) {
+      clearInterval(autoPlayTimerRef.current);
+      autoPlayTimerRef.current = null;
+    }
+  }, [videoId]);
 
   useEffect(() => {
     return () => {
@@ -378,7 +387,20 @@ export default function VideoPlayerPage() {
                     {drawerOpen ? "목록 닫기 ▼" : `재생목록 ▲ (${currentIndex + 1}/${items.length})`}
                   </button>
                 )}
-                {nextVideo && (
+                {nextVideo && autoPlayCountdown != null && autoPlayCountdown > 0 && (
+                  <button
+                    type="button"
+                    className="vpp-next-link"
+                    onClick={() => {
+                      setAutoPlayCountdown(null);
+                      if (autoPlayTimerRef.current) { clearInterval(autoPlayTimerRef.current); autoPlayTimerRef.current = null; }
+                    }}
+                    style={{ fontWeight: 600 }}
+                  >
+                    다음 영상 {autoPlayCountdown}초 (취소)
+                  </button>
+                )}
+                {nextVideo && (autoPlayCountdown === null || autoPlayCountdown <= 0) && (
                   <Link
                     to={`/student/video/play?video=${nextVideo.id}${enrollmentId ? `&enrollment=${enrollmentId}` : ""}`}
                     className="vpp-next-link"

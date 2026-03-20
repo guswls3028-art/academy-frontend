@@ -24,7 +24,7 @@ export type ClinicTarget = {
 
   clinic_reason?: ClinicReason;
 
-  reason?: "score" | "confidence"; // legacy (시험-only)
+  reason?: "score" | "confidence" | "missing"; // score=불합, confidence=신뢰도낮음, missing=미응시
   exam_score?: number;
   cutline_score?: number;
 

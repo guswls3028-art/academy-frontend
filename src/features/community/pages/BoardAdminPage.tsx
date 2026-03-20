@@ -2,7 +2,7 @@
 // 게시판 — 3-pane (좌측 강의/차시 트리 | 목록 | 상세·글쓰기)
 // 공지사항과 동일한 카테고리(트리) 디자인
 
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCommunityScope } from "../context/CommunityScopeContext";
@@ -232,17 +232,18 @@ export default function BoardAdminPage() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (filtered.length === 0) return;
-      const tag = (e.target as HTMLElement).tagName;
-      if (tag === "TEXTAREA" || tag === "INPUT") return;
+      const el = e.target as HTMLElement;
+      if (el.tagName === "TEXTAREA" || el.tagName === "INPUT" || el.tagName === "SELECT" || el.isContentEditable) return;
       if (e.ctrlKey || e.metaKey || e.altKey) return;
       const idx = selectedId != null ? filtered.findIndex((p) => p.id === selectedId) : -1;
       if (e.key === "j") {
         e.preventDefault();
-        setSelectedId(filtered[Math.min(idx + 1, filtered.length - 1)].id);
+        const next = Math.min(idx + 1, filtered.length - 1);
+        if (filtered[next]) setSelectedId(filtered[next].id);
       } else if (e.key === "k") {
         e.preventDefault();
-        const target = idx <= 0 ? filtered.length - 1 : idx - 1;
-        setSelectedId(filtered[Math.max(target, 0)].id);
+        const prev = idx <= 0 ? filtered.length - 1 : idx - 1;
+        if (filtered[prev]) setSelectedId(filtered[prev].id);
       }
     };
     window.addEventListener("keydown", onKey);
@@ -704,7 +705,7 @@ function PostDetailView({
                 <RichTextEditor value={editContent} onChange={setEditContent} placeholder="내용을 입력하세요." minHeight={150} />
               </div>
               <div className="cms-detail__content-actions" style={{ display: "flex", gap: 6, marginTop: 8 }}>
-                <Button size="sm" intent="primary" onClick={() => { updateMut.mutate({ content: editContent }); setEditingContent(false); }} disabled={updateMut.isPending}>
+                <Button size="sm" intent="primary" onClick={() => { updateMut.mutate({ content: editContent }, { onSuccess: () => setEditingContent(false) }); }} disabled={updateMut.isPending}>
                   {updateMut.isPending ? "저장 중…" : "내용 저장"}
                 </Button>
                 <Button size="sm" intent="secondary" onClick={() => { setEditContent(post.content ?? ""); setEditingContent(false); }}>취소</Button>
@@ -753,16 +754,27 @@ function CommentBlock({ postId, reply }: { postId: number; reply: Answer }) {
   const confirm = useConfirm();
   const [editing, setEditing] = useState(false);
   const [editContent, setEditContent] = useState(reply.content);
+  // 서버 데이터 갱신 시 편집 중이 아니면 동기화
+  const prevReplyContent = useRef(reply.content);
+  if (prevReplyContent.current !== reply.content && !editing) {
+    prevReplyContent.current = reply.content;
+    setEditContent(reply.content);
+  }
   const authorName = reply.created_by_display ?? "관리자";
 
+  const invalidatePost = () => {
+    qc.invalidateQueries({ queryKey: ["post-replies", postId] });
+    qc.invalidateQueries({ queryKey: ["community-post", postId] });
+    qc.invalidateQueries({ queryKey: ["community-board-posts-all"] });
+  };
   const updateMut = useMutation({
     mutationFn: () => updateReplyApi(postId, reply.id, editContent),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["post-replies", postId] }); setEditing(false); feedback.success("댓글이 수정되었습니다."); },
+    onSuccess: () => { invalidatePost(); setEditing(false); feedback.success("댓글이 수정되었습니다."); },
     onError: (e: unknown) => { feedback.error((e as Error)?.message ?? "수정에 실패했습니다."); },
   });
   const deleteMut = useMutation({
     mutationFn: () => deleteReplyApi(postId, reply.id),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["post-replies", postId] }); feedback.success("댓글이 삭제되었습니다."); },
+    onSuccess: () => { invalidatePost(); feedback.success("댓글이 삭제되었습니다."); },
     onError: (e: unknown) => { feedback.error((e as Error)?.message ?? "삭제에 실패했습니다."); },
   });
 
