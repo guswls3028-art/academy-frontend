@@ -14,6 +14,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchClinicSessionTree } from "../api/clinicSessions.api";
 import { fetchLectures, type Lecture } from "@/features/lectures/api/sessions";
 import ClinicTargetSelectModal, { type ClinicTargetSelectResult } from "./ClinicTargetSelectModal";
+import type { EnrollmentSelection, StudentSelection } from "@/shared/types/selection";
+import { buildParticipantPayload } from "../utils/buildParticipantPayload";
 
 import api from "@/shared/api/axios";
 import { createClinicParticipant } from "../api/clinicParticipants.api";
@@ -145,14 +147,25 @@ export default function ClinicCreatePanel({
     if (date) setSelectedDate(dayjs(date));
   }, [date]);
 
-  const [mode, setMode] = useState<"targets" | "students">(defaultMode);
+  const [selection, setSelection] = useState<ClinicTargetSelectResult | null>(null);
   const [targetModalOpen, setTargetModalOpen] = useState(false);
+
+  // Derive mode and selected IDs from the discriminated union
+  const mode: "targets" | "students" = selection?.kind === "student" ? "students" : "targets";
+
+  const selectedFromSelection: number[] = selection
+    ? selection.kind === "enrollment"
+      ? [...selection.enrollmentIds]
+      : [...selection.studentIds]
+    : [];
 
   const [internalSelected, setInternalSelected] = useState<number[]>([]);
   const selected =
     mode === "targets" && Array.isArray(selectedTargetEnrollmentIds)
       ? selectedTargetEnrollmentIds
-      : internalSelected;
+      : selection
+        ? selectedFromSelection
+        : internalSelected;
 
   const setSelected = (next: number[] | ((prev: number[]) => number[])) => {
     const resolved =
@@ -162,14 +175,15 @@ export default function ClinicCreatePanel({
       return;
     }
     setInternalSelected(resolved);
+    setSelection(null);
   };
 
   const handleTargetModalConfirm = (result: ClinicTargetSelectResult) => {
-    setMode(result.mode);
-    if (result.mode === "targets" && onChangeSelectedTargetEnrollmentIds) {
-      onChangeSelectedTargetEnrollmentIds(result.ids);
-    } else {
-      setInternalSelected(result.ids);
+    setSelection(result);
+    if (result.kind === "enrollment" && onChangeSelectedTargetEnrollmentIds) {
+      onChangeSelectedTargetEnrollmentIds([...result.enrollmentIds]);
+    } else if (result.kind === "student") {
+      setInternalSelected([...result.studentIds]);
     }
   };
 
@@ -245,22 +259,15 @@ export default function ClinicCreatePanel({
       });
 
       // B-01: 선택된 학생들을 참가자로 등록
-      // mode=targets → selected는 enrollment_id 배열
-      // mode=students → selected는 student.id 배열
-      if (selected.length > 0) {
+      // Dispatch on selection.kind to prevent ID domain confusion
+      if (selected.length > 0 && selection) {
         const results = await Promise.allSettled(
           selected.map((id) => {
-            const reason = mode === "targets" ? targetReasonMap.get(id) : undefined;
-            return createClinicParticipant({
-              session: created.id,
-              ...(mode === "targets"
-                ? { enrollment_id: id }
-                : { student: id }),
-              status: "booked",
-              ...(reason ? { clinic_reason: reason } : {}),
-            });
-          }
-          )
+            const reason = selection.kind === "enrollment" ? targetReasonMap.get(id) : undefined;
+            return createClinicParticipant(
+              buildParticipantPayload(created.id, id, selection, reason)
+            );
+          })
         );
         const failed = results.filter((r) => r.status === "rejected");
         if (failed.length > 0) {

@@ -36,10 +36,14 @@ function TrashIcon({ className }: { className?: string }) {
   );
 }
 
-export type ClinicTargetSelectResult = {
-  mode: "targets" | "students";
-  ids: number[];
-};
+import {
+  type EnrollmentSelection,
+  type StudentSelection,
+  enrollmentSelection,
+  studentSelection,
+} from "@/shared/types/selection";
+
+export type ClinicTargetSelectResult = EnrollmentSelection | StudentSelection;
 
 type Props = {
   open: boolean;
@@ -148,7 +152,11 @@ export default function ClinicTargetSelectModal({
   }, [selectedIds, selectedIdToName]);
 
   const handleConfirm = () => {
-    onConfirm({ mode, ids: selectedIds });
+    if (mode === "targets") {
+      onConfirm(enrollmentSelection(selectedIds));
+    } else {
+      onConfirm(studentSelection(selectedIds));
+    }
     onClose();
   };
 
