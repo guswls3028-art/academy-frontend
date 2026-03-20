@@ -250,7 +250,7 @@ export default function ClinicCreatePanel({
       if (selected.length > 0) {
         const results = await Promise.allSettled(
           selected.map((id) => {
-            const reason = targetReasonMap.get(id);
+            const reason = mode === "targets" ? targetReasonMap.get(id) : undefined;
             return createClinicParticipant({
               session: created.id,
               ...(mode === "targets"
