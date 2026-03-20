@@ -585,8 +585,24 @@ export default function ClinicConsoleWorkspace({
         initialMode="targets"
         onConfirm={async (result: ClinicTargetSelectResult) => {
           setAddStudentModalOpen(false);
-          const ids = result.kind === "enrollment" ? [...result.enrollmentIds] : [...result.studentIds];
-          if (!session || ids.length === 0) return;
+          const allIds = result.kind === "enrollment" ? [...result.enrollmentIds] : [...result.studentIds];
+          if (!session || allIds.length === 0) return;
+
+          // 이미 등록된 학생 자동 제외
+          const existingStudentIds = new Set(participants.map((p) => p.student));
+          const existingEnrollmentIds = new Set(participants.filter((p) => p.enrollment_id).map((p) => p.enrollment_id!));
+          const ids = allIds.filter((selectedId) =>
+            result.kind === "student"
+              ? !existingStudentIds.has(selectedId)
+              : !existingEnrollmentIds.has(selectedId)
+          );
+          const skipped = allIds.length - ids.length;
+
+          if (ids.length === 0) {
+            feedback.info(`선택한 ${allIds.length}명은 이미 등록되어 있습니다.`);
+            return;
+          }
+
           const results = await Promise.allSettled(
             ids.map((selectedId) => {
               const reason = result.kind === "enrollment"
@@ -600,8 +616,13 @@ export default function ClinicConsoleWorkspace({
           const failed = results.filter((r) => r.status === "rejected").length;
           qc.invalidateQueries({ queryKey: ["clinic-participants"] });
           qc.invalidateQueries({ queryKey: ["clinic-sessions-tree"] });
-          if (failed > 0) {
-            feedback.warning(`${ids.length - failed}명 추가, ${failed}명 실패`);
+          const added = ids.length - failed;
+          if (skipped > 0 && failed > 0) {
+            feedback.warning(`${added}명 추가 (${skipped}명 이미 등록, ${failed}명 실패)`);
+          } else if (skipped > 0) {
+            feedback.success(`${added}명 추가 (${skipped}명은 이미 등록되어 건너뜀)`);
+          } else if (failed > 0) {
+            feedback.warning(`${added}명 추가, ${failed}명 실패`);
           } else {
             feedback.success(`${ids.length}명이 추가되었습니다.`);
           }
