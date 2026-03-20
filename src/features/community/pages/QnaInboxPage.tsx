@@ -26,50 +26,13 @@ import { Button } from "@/shared/ui/ds";
 import { useConfirm } from "@/shared/ui/confirm";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import PostReadView from "../components/PostReadView";
+import CommunityContextBar from "../components/CommunityContextBar";
+import CommunityEmptyState from "../components/CommunityEmptyState";
+import CommunityAvatar from "../components/CommunityAvatar";
 import "@/features/community/qna-inbox.css";
 
 type FilterKind = "all" | "pending" | "resolved";
 const SNIPPET_LEN = 72;
-
-/* ── Avatar helpers ─────────────────────────────── */
-function getInitials(name: string): string {
-  if (!name) return "?";
-  const parts = name.trim().split(/\s+/);
-  if (parts.length === 1) return parts[0].slice(0, 2);
-  return parts[0][0] + parts[parts.length - 1][0];
-}
-
-function getAvatarSlot(name: string): number {
-  return [...(name ?? "")].reduce((acc, c) => acc + c.charCodeAt(0), 0) % 5;
-}
-
-function QnaAvatar({
-  name,
-  role = "student",
-  size = 32,
-}: {
-  name: string;
-  role?: "student" | "teacher";
-  size?: number;
-}) {
-  const style = size !== 32 ? { width: size, height: size, fontSize: size * 0.34 } : undefined;
-  if (role === "teacher") {
-    return (
-      <div className="qna-inbox__avatar qna-inbox__avatar--teacher" style={style}>
-        {getInitials(name)}
-      </div>
-    );
-  }
-  return (
-    <div
-      className="qna-inbox__avatar"
-      data-slot={getAvatarSlot(name)}
-      style={style}
-    >
-      {getInitials(name)}
-    </div>
-  );
-}
 
 export default function QnaInboxPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -155,27 +118,25 @@ export default function QnaInboxPage() {
     (scope === "session" && (!effectiveLectureId || sessionId == null))
   ) {
     return (
-      <div className="qna-inbox__empty">
-        <p className="qna-inbox__empty-title">
-          {scope === "session" ? "강의·차시를 선택하세요" : "강의를 선택하세요"}
-        </p>
-        <p className="qna-inbox__empty-desc">
-          {scope === "session"
-            ? "노출 범위를 차시별로 두고 강의와 차시를 선택하면 해당 차시 QnA를 볼 수 있습니다."
-            : "노출 범위를 강의별로 두고 위에서 강의를 선택하면 해당 강의의 QnA를 관리할 수 있습니다."}
-        </p>
-      </div>
+      <CommunityEmptyState
+        variant="no-scope"
+        postType="qna"
+        description={scope === "session"
+          ? "상단에서 노출 범위를 차시별로 두고 강의와 차시를 선택하면 해당 차시 QnA를 볼 수 있습니다."
+          : "상단에서 노출 범위를 강의별로 두고 강의를 선택하면 해당 강의의 QnA를 관리할 수 있습니다."}
+      />
     );
   }
 
   return (
     <div className="qna-inbox" style={{ minHeight: "calc(100vh - 180px)" }}>
       <aside className="qna-inbox__list" ref={listRef}>
+        <CommunityContextBar
+          scope={scope as any}
+          extra={pendingCount > 0 ? `답변 대기 ${pendingCount}건` : undefined}
+        />
         <div className="qna-inbox__list-header">
-          <h2 className="qna-inbox__list-title">
-            질의응답
-            {pendingCount > 0 && <span className="ds-badge ds-badge--warning" style={{ marginLeft: 8, verticalAlign: 'middle' }}>답변 대기 {pendingCount}</span>}
-          </h2>
+          <h2 className="qna-inbox__list-title">질의응답</h2>
           <div className="qna-inbox__filter-group">
             <button
               type="button"
@@ -215,16 +176,13 @@ export default function QnaInboxPage() {
         </div>
         <div className="qna-inbox__list-body">
           {isLoading ? (
-            <div className="qna-inbox__empty">
-              <p className="qna-inbox__empty-title">불러오는 중…</p>
-            </div>
+            <CommunityEmptyState variant="loading" postType="qna" />
           ) : filtered.length === 0 ? (
-            <div className="qna-inbox__empty">
-              <p className="qna-inbox__empty-title">질문이 없습니다</p>
-              <p className="qna-inbox__empty-desc">
-                {searchQuery.trim() || filter !== "all" ? "필터를 바꿔 보세요." : "학생 질문이 여기에 표시됩니다."}
-              </p>
-            </div>
+            <CommunityEmptyState
+              variant={searchQuery.trim() || filter !== "all" ? "no-results" : "no-posts"}
+              postType="qna"
+              description={searchQuery.trim() || filter !== "all" ? "필터를 바꾸거나 다른 검색어를 입력해 보세요." : "학생이 질문을 등록하면 여기에 표시됩니다."}
+            />
           ) : (
             filtered.map((q) => (
               <QuestionCard
@@ -241,13 +199,7 @@ export default function QnaInboxPage() {
 
       <main className="qna-inbox__thread">
         {selectedId == null ? (
-          <div className="qna-inbox__empty">
-            <p className="qna-inbox__empty-title">질문을 선택하세요</p>
-            <p className="qna-inbox__empty-desc">왼쪽 목록에서 질문을 클릭하면 여기에 내용이 표시됩니다.</p>
-            <p className="qna-inbox__keyboard-hint">
-              <kbd>j</kbd> 다음 질문 · <kbd>k</kbd> 이전 질문
-            </p>
-          </div>
+          <CommunityEmptyState variant="no-selection" postType="qna" showKeyboardHint />
         ) : (
           <ThreadView
             postId={selectedId}
@@ -298,7 +250,7 @@ function QuestionCard({
     >
       <div className="qna-inbox__card-top">
         <div className="qna-inbox__card-avatar-wrap">
-          <QnaAvatar name={question.created_by_deleted ? "삭제된 학생입니다." : (question.student_name ?? "?")} role="student" size={30} />
+          <CommunityAvatar name={question.created_by_deleted ? "삭제된 학생입니다." : (question.student_name ?? "?")} role="student" size={30} />
         </div>
         <div className="qna-inbox__card-body">
           <div className="qna-inbox__card-title-row">
@@ -319,7 +271,7 @@ function QuestionCard({
             {question.category_label && (
               <>
                 <span className="qna-inbox__card-meta-dot" />
-                <span style={{ color: "var(--color-primary)" }}>{question.category_label}</span>
+                <span className="cms-category-label">{question.category_label}</span>
               </>
             )}
           </div>
@@ -396,7 +348,7 @@ function ThreadView({
               {post.category_label && (
                 <>
                   <span className="qna-inbox__thread-meta-dot" />
-                  <span style={{ color: "var(--color-primary)", fontWeight: 600 }}>{post.category_label}</span>
+                  <span className="cms-category-label--bold">{post.category_label}</span>
                 </>
               )}
               <span className="qna-inbox__thread-meta-dot" />
@@ -438,7 +390,7 @@ function ThreadView({
       </header>
 
       <div className="qna-inbox__student-panel">
-        <QnaAvatar name={post.created_by_deleted ? "삭제된 학생입니다." : (post.created_by_display ?? "?")} role="student" size={28} />
+        <CommunityAvatar name={post.created_by_deleted ? "삭제된 학생입니다." : (post.created_by_display ?? "?")} role="student" size={28} />
         <div className="qna-inbox__student-info">
           <div className="qna-inbox__student-panel-label">학생</div>
           <div className="qna-inbox__student-name">{post.created_by_deleted ? "삭제된 학생입니다." : (post.created_by_display ?? "—")}</div>
@@ -452,7 +404,7 @@ function ThreadView({
       <div className="qna-inbox__thread-body">
         {/* Student question */}
         <div className="qna-inbox__message-row">
-          <QnaAvatar name={post.created_by_deleted ? "삭제된 학생입니다." : (post.created_by_display ?? "?")} role="student" />
+          <CommunityAvatar name={post.created_by_deleted ? "삭제된 학생입니다." : (post.created_by_display ?? "?")} role="student" />
           <div className="qna-inbox__message-bubble">
             <div className="qna-inbox__message-meta">
               <span className="qna-inbox__message-author">{post.created_by_deleted ? "삭제된 학생입니다." : (post.created_by_display ?? "학생")}</span>
@@ -564,7 +516,7 @@ function ReplyBlock({ postId, answer }: { postId: number; answer: Answer }) {
 
   return (
     <div className="qna-inbox__message-row qna-inbox__message-row--teacher">
-      <QnaAvatar name={teacherName} role="teacher" />
+      <CommunityAvatar name={teacherName} role="teacher" />
       <div className="qna-inbox__message-bubble">
         <div className="qna-inbox__message-meta">
           <span className="qna-inbox__message-author">{teacherName}</span>

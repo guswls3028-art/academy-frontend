@@ -84,3 +84,8 @@
   --badge-bg: color-mix(in srgb, #3b82f6 14%, var(--bg-surface, #fff));
   --badge-text: #2563eb;
 }
+
+.ds-badge--complement {
+  --badge-bg: color-mix(in srgb, var(--color-brand-complement, #8b5cf6) 14%, var(--bg-surface, #fff));
+  --badge-text: var(--color-brand-complement, #7c3aed);
+}

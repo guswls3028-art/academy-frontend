@@ -101,6 +101,13 @@
   margin: 0;
 }
 
+.qna-inbox__list-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2, 8px);
+}
+
 /* ── Filter tabs: horizontal segmented control ── */
 .qna-inbox__filter-group {
   display: flex;

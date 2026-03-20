@@ -36,23 +36,15 @@ import { feedback } from "@/shared/ui/feedback/feedback";
 import RichTextEditor from "@/shared/ui/editor/RichTextEditor";
 import ScopeBadge from "../components/ScopeBadge";
 import PostReadView from "../components/PostReadView";
-import ContextHeader from "../components/ContextHeader";
-import { stripHtml, getInitials, getAvatarSlot, timeAgo, formatFileSize } from "../utils/communityHelpers";
+import CommunityContextBar from "../components/CommunityContextBar";
+import CommunityEmptyState from "../components/CommunityEmptyState";
+import CommunityAvatar from "../components/CommunityAvatar";
+import { stripHtml, timeAgo, formatFileSize } from "../utils/communityHelpers";
 import "@/features/community/qna-inbox.css";
 import "@/features/community/notice-tree.css";
 import "@/features/community/board-admin.css";
 
 const SNIPPET_LEN = 80;
-
-/* ─── helpers ─────────────────────────────────────────── */
-function BoardAvatar({ name, size = 32 }: { name: string; size?: number }) {
-  const style = size !== 32 ? { width: size, height: size, fontSize: size * 0.34 } : undefined;
-  return (
-    <div className="qna-inbox__avatar" data-slot={getAvatarSlot(name)} style={style}>
-      {getInitials(name)}
-    </div>
-  );
-}
 
 /* ─── Main Page ─────────────────────────────────────── */
 export default function BoardAdminPage() {
@@ -278,14 +270,13 @@ export default function BoardAdminPage() {
 
       {/* ═══ 2nd pane: List ═══ */}
       <aside className="qna-inbox__list">
-        <ContextHeader
-          tabLabel="게시판"
+        <CommunityContextBar
           scope={scope as any}
           lectureName={lectures.find((l) => l.id === lectureId)?.title ?? null}
           sessionName={sessionsOfLecture.find((s) => s.id === sessionId)?.title ?? null}
         />
         <div className="qna-inbox__list-header">
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+          <div className="qna-inbox__list-title-row">
             <h2 className="qna-inbox__list-title">게시물</h2>
             {canShowList && <Button intent="primary" size="sm" onClick={() => { setShowCreate(true); setSelectedId(null); }}>+ 글쓰기</Button>}
           </div>
@@ -303,34 +294,17 @@ export default function BoardAdminPage() {
 
         <div className="qna-inbox__list-body">
           {!canShowList ? (
-            <div className="qna-inbox__empty">
-              <p className="qna-inbox__empty-title">
-                좌측에서 조회 범위를 선택하세요
-              </p>
-            </div>
+            <CommunityEmptyState variant="no-scope" postType="board" />
           ) : postsQ.isError ? (
-            <div className="qna-inbox__empty">
-              <p className="qna-inbox__empty-title">목록을 불러오지 못했습니다</p>
-              <p className="qna-inbox__empty-desc">잠시 후 다시 시도해 주세요.</p>
-            </div>
+            <CommunityEmptyState variant="error" postType="board" />
           ) : postsQ.isLoading ? (
-            <>
-              <div className="cms-skeleton cms-skeleton--card" />
-              <div className="cms-skeleton cms-skeleton--card" />
-              <div className="cms-skeleton cms-skeleton--card" />
-              <div className="cms-skeleton cms-skeleton--card" />
-            </>
+            <CommunityEmptyState variant="loading" postType="board" />
           ) : filtered.length === 0 ? (
-            <div className="qna-inbox__empty">
-              <p className="qna-inbox__empty-title">
-                {searchQuery.trim() ? "검색 결과가 없습니다" : "게시물이 없습니다"}
-              </p>
-              <p className="qna-inbox__empty-desc">
-                {searchQuery.trim()
-                  ? "다른 검색어를 입력해 보세요."
-                  : "'글쓰기' 버튼으로 첫 게시물을 등록하세요."}
-              </p>
-            </div>
+            <CommunityEmptyState
+              variant={searchQuery.trim() ? "no-results" : "no-posts"}
+              postType="board"
+              description={searchQuery.trim() ? undefined : "'+ 글쓰기' 버튼으로 첫 게시물을 등록하세요."}
+            />
           ) : (
             filtered.map((p) => (
               <BoardPostCard
@@ -359,15 +333,7 @@ export default function BoardAdminPage() {
             }}
           />
         ) : selectedId == null ? (
-          <div className="qna-inbox__empty">
-            <p className="qna-inbox__empty-title">게시물을 선택하세요</p>
-            <p className="qna-inbox__empty-desc">
-              왼쪽 목록에서 게시물을 클릭하면 내용이 표시됩니다.
-            </p>
-            <p className="qna-inbox__keyboard-hint">
-              <kbd>j</kbd> 다음 · <kbd>k</kbd> 이전
-            </p>
-          </div>
+          <CommunityEmptyState variant="no-selection" postType="board" showKeyboardHint />
         ) : (
           <PostDetailView
             postId={selectedId}
@@ -460,7 +426,9 @@ function BoardCreatePane({
               <span className="ds-badge ds-badge--primary">게시 대상: {scopeLabel}</span>
             </div>
             <p className="text-xs text-[var(--color-text-muted)] mt-1">
-              이 글은 <strong>{scopeLabel}</strong> 학생에게{scopeLabel === "전체 대상" ? " 모두" : "만"} 보입니다.
+              {scopeParams.scope === "all"
+                ? "모든 강의의 학생에게 보이는 게시물입니다."
+                : <>이 글은 <strong>{scopeLabel}</strong> 학생에게만 보입니다.</>}
             </p>
           </div>
           <div className="qna-inbox__thread-actions">
@@ -488,7 +456,7 @@ function BoardCreatePane({
 
         <div className="cms-form__field">
           <div className="cms-attach__header">
-            <label className="community-field__label" style={{ margin: 0 }}>
+            <label className="community-field__label" className="cms-form__label--no-margin">
               첨부파일 {files.length > 0 && `(${files.length}/10)`}
             </label>
             <Button intent="ghost" size="sm" onClick={() => fileInputRef.current?.click()} disabled={files.length >= 10}>
@@ -498,7 +466,7 @@ function BoardCreatePane({
               ref={(el) => { fileInputRef.current = el; }}
               type="file"
               multiple
-              style={{ display: "none" }}
+              className="cms-form__file-input--hidden"
               onChange={(e) => {
                 if (e.target.files) {
                   setFiles((prev) => [...prev, ...Array.from(e.target.files!)].slice(0, 10));
@@ -551,7 +519,7 @@ function BoardPostCard({
     <button type="button" onClick={onClick} className={`qna-inbox__card ${isActive ? "qna-inbox__card--active" : ""}`}>
       <div className="qna-inbox__card-top">
         <div className="qna-inbox__card-avatar-wrap">
-          <BoardAvatar name={authorName} size={30} />
+          <CommunityAvatar name={authorName} size={30} />
         </div>
         <div className="qna-inbox__card-body">
           <div className="qna-inbox__card-title-row">
@@ -650,12 +618,12 @@ function PostDetailView({
     <>
       <header className="qna-inbox__thread-header">
         <div className="qna-inbox__thread-title-row">
-          <div className="qna-inbox__thread-title-group" style={{ flex: 1, minWidth: 0 }}>
+          <div className="qna-inbox__thread-title-group cms-detail__title-group">
             {editingTitle ? (
-              <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 4 }}>
+              <div className="cms-detail__title-edit-row">
                 <input
-                  className="ds-input" value={editTitle} onChange={(e) => setEditTitle(e.target.value)}
-                  style={{ flex: 1, fontSize: 15, fontWeight: 600 }} autoFocus
+                  className="ds-input cms-detail__title-input" value={editTitle} onChange={(e) => setEditTitle(e.target.value)}
+                  autoFocus
                   onKeyDown={(e) => {
                     if (e.key === "Enter") updateMut.mutate({ title: editTitle });
                     if (e.key === "Escape") setEditingTitle(false);
@@ -665,7 +633,7 @@ function PostDetailView({
                 <Button size="sm" intent="secondary" onClick={() => setEditingTitle(false)}>취소</Button>
               </div>
             ) : (
-              <h1 className="qna-inbox__thread-title" style={{ cursor: "text" }} title="클릭하여 제목 수정" onClick={() => setEditingTitle(true)}>
+              <h1 className="qna-inbox__thread-title cms-detail__title-clickable" title="클릭하여 제목 수정" onClick={() => setEditingTitle(true)}>
                 {post.title}
               </h1>
             )}
@@ -745,7 +713,7 @@ function CommentThread({ postId }: { postId: number }) {
     queryKey: ["post-replies", postId],
     queryFn: () => fetchPostReplies(postId),
   });
-  if (isLoading) return <div style={{ padding: "12px 0" }}><p className="qna-inbox__empty-desc">댓글 불러오는 중…</p></div>;
+  if (isLoading) return <div className="cms-detail__comment-thread"><p className="qna-inbox__empty-desc">댓글 불러오는 중…</p></div>;
   return <>{replies.map((r) => <CommentBlock key={r.id} postId={postId} reply={r} />)}</>;
 }
 
@@ -780,7 +748,7 @@ function CommentBlock({ postId, reply }: { postId: number; reply: Answer }) {
 
   return (
     <div className="qna-inbox__message-row qna-inbox__message-row--teacher">
-      <BoardAvatar name={authorName} size={32} />
+      <CommunityAvatar name={authorName} size={32} />
       <div className="qna-inbox__message-bubble">
         <div className="qna-inbox__message-meta">
           <span className="qna-inbox__message-author">{authorName}</span>
@@ -884,7 +852,7 @@ function AdminAttachmentSection({
           ref={(el) => { fileInputRef.current = el; }}
           type="file"
           multiple
-          style={{ display: "none" }}
+          className="cms-form__file-input--hidden"
           onChange={(e) => {
             if (e.target.files && e.target.files.length > 0) {
               uploadMut.mutate(Array.from(e.target.files));

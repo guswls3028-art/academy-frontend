@@ -146,7 +146,9 @@ export function NoticeAdminCreateModal({
         {/* Scope description */}
         <div className="community-field" style={{ padding: "8px 12px", background: "color-mix(in srgb, var(--color-brand-primary) 6%, var(--color-bg-surface))", borderRadius: "var(--radius-md)", border: "1px solid color-mix(in srgb, var(--color-brand-primary) 12%, transparent)" }}>
           <p style={{ fontSize: 13, color: "var(--color-text-muted)", margin: 0 }}>
-            이 공지는 <strong style={{ color: "var(--color-text-primary)" }}>{scopeLabel}</strong> 학생에게{scope === "all" && !selectedExposureNodeId ? " 모두" : "만"} 보입니다.
+            {scope === "all" && !selectedExposureNodeId
+              ? "모든 강의의 학생에게 보이는 공지입니다. 특정 강의를 선택하면 해당 수강생에게만 보입니다."
+              : <>이 공지는 <strong style={{ color: "var(--color-text-primary)" }}>{scopeLabel}</strong> 수강생에게만 보입니다.</>}
           </p>
         </div>
 

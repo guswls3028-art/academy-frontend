@@ -33,8 +33,10 @@ export default function ScopeBadge({ post, className }: Props) {
 
   const toneClass =
     scopeType === "global"
+      ? "ds-badge--neutral"
+      : scopeType === "lecture"
       ? "ds-badge--primary"
-      : "ds-badge--neutral";
+      : "ds-badge--complement";
 
   return (
     <span className={`ds-badge ${toneClass} ${className ?? ""}`}>

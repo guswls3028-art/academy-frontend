@@ -272,6 +272,90 @@
   color: #fff;
 }
 
+/* ---- Context Bar (scope-aware) ---- */
+.community-context-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2, 8px);
+  padding: var(--space-2, 8px) var(--space-4, 16px);
+  border-bottom: 1px solid var(--color-border-divider, #e5e7eb);
+  font-size: 12px;
+  min-height: 36px;
+  flex-shrink: 0;
+  border-left: 3px solid transparent;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+
+.community-context-bar--all {
+  background: var(--color-bg-surface, #fff);
+  border-left-color: var(--color-text-muted, #94a3b8);
+}
+
+.community-context-bar--lecture {
+  background: color-mix(in srgb, var(--color-brand-primary) 5%, var(--color-bg-surface, #fff));
+  border-left-color: var(--color-brand-primary);
+}
+
+.community-context-bar--session {
+  background: color-mix(in srgb, var(--color-brand-complement, #8b5cf6) 5%, var(--color-bg-surface, #fff));
+  border-left-color: var(--color-brand-complement, #8b5cf6);
+}
+
+.community-context-bar__icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+
+.community-context-bar--lecture .community-context-bar__icon {
+  color: var(--color-brand-primary);
+  opacity: 1;
+}
+
+.community-context-bar--session .community-context-bar__icon {
+  color: var(--color-brand-complement, #8b5cf6);
+  opacity: 1;
+}
+
+.community-context-bar__scope-label {
+  font-weight: 700;
+  color: var(--color-text-primary, #1e293b);
+  white-space: nowrap;
+}
+
+.community-context-bar__dot {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--color-text-muted, #94a3b8);
+  flex-shrink: 0;
+}
+
+.community-context-bar__detail {
+  color: var(--color-text-secondary, #64748b);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.community-context-bar--lecture .community-context-bar__detail {
+  color: var(--color-brand-primary);
+}
+
+.community-context-bar--session .community-context-bar__detail {
+  color: var(--color-brand-complement, #8b5cf6);
+}
+
+.community-context-bar__extra {
+  margin-left: auto;
+  font-weight: 600;
+  color: var(--color-brand-primary);
+  white-space: nowrap;
+}
+
 /* ---- Link style ---- */
 .community-link {
   color: var(--color-brand-primary);

@@ -36,8 +36,10 @@ import { feedback } from "@/shared/ui/feedback/feedback";
 import RichTextEditor from "@/shared/ui/editor/RichTextEditor";
 import ScopeBadge from "../components/ScopeBadge";
 import PostReadView from "../components/PostReadView";
-import ContextHeader from "../components/ContextHeader";
-import { stripHtml, getInitials, getAvatarSlot, timeAgo, formatFileSize } from "../utils/communityHelpers";
+import CommunityContextBar from "../components/CommunityContextBar";
+import CommunityEmptyState from "../components/CommunityEmptyState";
+import CommunityAvatar from "../components/CommunityAvatar";
+import { stripHtml, timeAgo, formatFileSize } from "../utils/communityHelpers";
 import "@/features/community/qna-inbox.css";
 import "@/features/community/notice-tree.css";
 import "@/features/community/board-admin.css";
@@ -45,14 +47,6 @@ import "@/features/community/board-admin.css";
 const SNIPPET_LEN = 80;
 
 /* ─── helpers ─────────────────────────────────────────── */
-function MatAvatar({ name, size = 32 }: { name: string; size?: number }) {
-  const style = size !== 32 ? { width: size, height: size, fontSize: size * 0.34 } : undefined;
-  return (
-    <div className="qna-inbox__avatar" data-slot={getAvatarSlot(name)} style={style}>
-      {getInitials(name)}
-    </div>
-  );
-}
 
 /* ─── Main Page ─────────────────────────────────────── */
 export default function MaterialsBoardPage() {
@@ -271,9 +265,9 @@ export default function MaterialsBoardPage() {
 
       {/* ═══ 2nd pane: List ═══ */}
       <aside className="qna-inbox__list">
-        <ContextHeader tabLabel="자료실" scope={scope as any} lectureName={lectures.find((l) => l.id === lectureId)?.title ?? null} sessionName={sessionsOfLecture.find((s) => s.id === sessionId)?.title ?? null} />
+        <CommunityContextBar scope={scope as any} lectureName={lectures.find((l) => l.id === lectureId)?.title ?? null} sessionName={sessionsOfLecture.find((s) => s.id === sessionId)?.title ?? null} />
         <div className="qna-inbox__list-header">
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+          <div className="qna-inbox__list-title-row">
             <h2 className="qna-inbox__list-title">자료</h2>
             {canShowList && <Button intent="primary" size="sm" onClick={() => { setShowCreate(true); setSelectedId(null); }}>+ 자료 등록</Button>}
           </div>
@@ -284,26 +278,17 @@ export default function MaterialsBoardPage() {
 
         <div className="qna-inbox__list-body">
           {!canShowList ? (
-            <div className="qna-inbox__empty">
-              <p className="qna-inbox__empty-title">좌측에서 조회 범위를 선택하세요</p>
-            </div>
+            <CommunityEmptyState variant="no-scope" postType="materials" />
           ) : postsQ.isError ? (
-            <div className="qna-inbox__empty">
-              <p className="qna-inbox__empty-title">목록을 불러오지 못했습니다</p>
-              <p className="qna-inbox__empty-desc">잠시 후 다시 시도해 주세요.</p>
-            </div>
+            <CommunityEmptyState variant="error" postType="materials" />
           ) : postsQ.isLoading ? (
-            <>
-              <div className="cms-skeleton cms-skeleton--card" />
-              <div className="cms-skeleton cms-skeleton--card" />
-              <div className="cms-skeleton cms-skeleton--card" />
-              <div className="cms-skeleton cms-skeleton--card" />
-            </>
+            <CommunityEmptyState variant="loading" postType="materials" />
           ) : filtered.length === 0 ? (
-            <div className="qna-inbox__empty">
-              <p className="qna-inbox__empty-title">{searchQuery.trim() ? "검색 결과가 없습니다" : "등록된 자료가 없습니다"}</p>
-              <p className="qna-inbox__empty-desc">{searchQuery.trim() ? "다른 검색어를 입력해 보세요." : "'자료 등록' 버튼으로 첫 자료를 등록하세요."}</p>
-            </div>
+            <CommunityEmptyState
+              variant={searchQuery.trim() ? "no-results" : "no-posts"}
+              postType="materials"
+              description={searchQuery.trim() ? undefined : "'+ 자료 등록' 버튼으로 첫 자료를 등록하세요."}
+            />
           ) : (
             filtered.map((p) => (
               <MatPostCard key={p.id} post={p} isActive={p.id === selectedId} onClick={() => setSelectedId(p.id)} />
@@ -327,11 +312,7 @@ export default function MaterialsBoardPage() {
             }}
           />
         ) : selectedId == null ? (
-          <div className="qna-inbox__empty">
-            <p className="qna-inbox__empty-title">자료를 선택하세요</p>
-            <p className="qna-inbox__empty-desc">왼쪽 목록에서 자료를 클릭하면 내용이 표시됩니다.</p>
-            <p className="qna-inbox__keyboard-hint"><kbd>j</kbd> 다음 · <kbd>k</kbd> 이전</p>
-          </div>
+          <CommunityEmptyState variant="no-selection" postType="materials" showKeyboardHint />
         ) : (
           <MatDetailView
             postId={selectedId}
@@ -418,7 +399,9 @@ function MatCreatePane({
               <span className="ds-badge ds-badge--primary">게시 대상: {scopeLabel}</span>
             </div>
             <p className="text-xs text-[var(--color-text-muted)] mt-1">
-              이 글은 <strong>{scopeLabel}</strong> 학생에게{scopeLabel === "전체 대상" ? " 모두" : "만"} 보입니다.
+              {scopeParams.scope === "all"
+                ? "모든 강의의 학생에게 보이는 자료입니다."
+                : <>이 자료는 <strong>{scopeLabel}</strong> 학생에게만 보입니다.</>}
             </p>
           </div>
           <div className="qna-inbox__thread-actions"><Button intent="ghost" size="sm" onClick={onCancel}>취소</Button></div>
@@ -435,13 +418,13 @@ function MatCreatePane({
         </div>
         <div className="cms-form__field">
           <div className="cms-attach__header">
-            <label className="community-field__label" style={{ margin: 0 }}>
+            <label className="community-field__label" className="cms-form__label--no-margin">
               첨부파일 {files.length > 0 && `(${files.length}/10)`}
             </label>
             <Button intent="ghost" size="sm" onClick={() => fileInputRef.current?.click()} disabled={files.length >= 10}>
               + 파일 추가
             </Button>
-            <input ref={fileInputRef} type="file" multiple style={{ display: "none" }} onChange={(e) => { if (e.target.files) { setFiles((prev) => [...prev, ...Array.from(e.target.files!)].slice(0, 10)); e.target.value = ""; } }} />
+            <input ref={fileInputRef} type="file" multiple className="cms-form__file-input--hidden" onChange={(e) => { if (e.target.files) { setFiles((prev) => [...prev, ...Array.from(e.target.files!)].slice(0, 10)); e.target.value = ""; } }} />
           </div>
           {files.length > 0 && (
             <div className="cms-attach__list">
@@ -475,7 +458,7 @@ function MatPostCard({ post, isActive, onClick }: { post: PostEntity; isActive: 
   return (
     <button type="button" onClick={onClick} className={`qna-inbox__card ${isActive ? "qna-inbox__card--active" : ""}`}>
       <div className="qna-inbox__card-top">
-        <div className="qna-inbox__card-avatar-wrap"><MatAvatar name={authorName} size={30} /></div>
+        <div className="qna-inbox__card-avatar-wrap"><CommunityAvatar name={authorName} size={30} /></div>
         <div className="qna-inbox__card-body">
           <div className="qna-inbox__card-title-row"><div className="qna-inbox__card-title">{post.title || "(제목 없음)"}</div></div>
           {snippet && <div className="qna-inbox__card-snippet">{snippet}</div>}
@@ -529,15 +512,15 @@ function MatDetailView({ postId, onClose, onDeleted }: { postId: number; onClose
     <>
       <header className="qna-inbox__thread-header">
         <div className="qna-inbox__thread-title-row">
-          <div className="qna-inbox__thread-title-group" style={{ flex: 1, minWidth: 0 }}>
+          <div className="qna-inbox__thread-title-group cms-detail__title-group">
             {editingTitle ? (
-              <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 4 }}>
-                <input className="ds-input" value={editTitle} onChange={(e) => setEditTitle(e.target.value)} style={{ flex: 1, fontSize: 15, fontWeight: 600 }} autoFocus onKeyDown={(e) => { if (e.key === "Enter") updateMut.mutate({ title: editTitle }); if (e.key === "Escape") setEditingTitle(false); }} />
+              <div className="cms-detail__title-edit-row">
+                <input className="ds-input cms-detail__title-input" value={editTitle} onChange={(e) => setEditTitle(e.target.value)} autoFocus onKeyDown={(e) => { if (e.key === "Enter") updateMut.mutate({ title: editTitle }); if (e.key === "Escape") setEditingTitle(false); }} />
                 <Button size="sm" intent="primary" onClick={() => updateMut.mutate({ title: editTitle })} disabled={updateMut.isPending || !editTitle.trim()}>저장</Button>
                 <Button size="sm" intent="secondary" onClick={() => setEditingTitle(false)}>취소</Button>
               </div>
             ) : (
-              <h1 className="qna-inbox__thread-title" style={{ cursor: "text" }} title="클릭하여 제목 수정" onClick={() => setEditingTitle(true)}>{post.title}</h1>
+              <h1 className="qna-inbox__thread-title cms-detail__title-clickable" title="클릭하여 제목 수정" onClick={() => setEditingTitle(true)}>{post.title}</h1>
             )}
             <div className="qna-inbox__thread-meta">
               <ScopeBadge post={post} />
@@ -649,7 +632,7 @@ function MatAttachmentSection({ postId, attachments }: { postId: number; attachm
           ref={fileInputRef}
           type="file"
           multiple
-          style={{ display: "none" }}
+          className="cms-form__file-input--hidden"
           onChange={(e) => {
             if (e.target.files && e.target.files.length > 0) {
               uploadMut.mutate(Array.from(e.target.files));
@@ -659,13 +642,13 @@ function MatAttachmentSection({ postId, attachments }: { postId: number; attachm
         />
       </div>
       {attachments.length > 0 && (
-        <div className="cms-attach__list" style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        <div className="cms-attach__inline-list">
           {attachments.map((att) => (
-            <div key={att.id} className="cms-attach__item" style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", background: "var(--color-bg-subtle, #f8f9fa)", borderRadius: "var(--stu-radius, 8px)", border: "1px solid var(--color-border, #e5e7eb)" }}>
-              <span style={{ fontSize: 20, lineHeight: 1, flexShrink: 0, color: "var(--color-text-muted)" }} aria-hidden="true">📎</span>
-              <span className="cms-attach__item-name" style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontWeight: 500, fontSize: 13 }}>{att.original_name}</span>
-              <span className="cms-attach__item-size" style={{ flexShrink: 0, fontSize: 12, color: "var(--color-text-muted)" }}>{formatFileSize(att.size_bytes)}</span>
-              <Button intent="ghost" size="sm" onClick={() => handleDownload(att)} style={{ flexShrink: 0 }}>다운로드</Button>
+            <div key={att.id} className="cms-attach__inline-item">
+              <span className="cms-attach__inline-icon" aria-hidden="true">📎</span>
+              <span className="cms-attach__inline-name">{att.original_name}</span>
+              <span className="cms-attach__inline-size">{formatFileSize(att.size_bytes)}</span>
+              <Button intent="ghost" size="sm" className="cms-attach__inline-actions" onClick={() => handleDownload(att)}>다운로드</Button>
               <button type="button" className="cms-attach__item-remove" onClick={async () => { if (await confirm({ title: "첨부파일 삭제", message: "이 파일을 삭제할까요?", confirmText: "삭제", danger: true })) deleteMut.mutate(att.id); }} disabled={deleteMut.isPending}>&times;</button>
             </div>
           ))}
@@ -678,7 +661,7 @@ function MatAttachmentSection({ postId, attachments }: { postId: number; attachm
 /* ─── Comment Thread ─────────────────────────────────── */
 function MatCommentThread({ postId }: { postId: number }) {
   const { data: replies = [], isLoading } = useQuery<Answer[]>({ queryKey: ["post-replies", postId], queryFn: () => fetchPostReplies(postId) });
-  if (isLoading) return <div style={{ padding: "12px 0" }}><p className="qna-inbox__empty-desc">댓글 불러오는 중…</p></div>;
+  if (isLoading) return <div className="cms-detail__comment-thread"><p className="qna-inbox__empty-desc">댓글 불러오는 중…</p></div>;
   return <>{replies.map((r) => <MatCommentBlock key={r.id} postId={postId} reply={r} />)}</>;
 }
 
@@ -702,7 +685,7 @@ function MatCommentBlock({ postId, reply }: { postId: number; reply: Answer }) {
 
   return (
     <div className="qna-inbox__message-row qna-inbox__message-row--teacher">
-      <MatAvatar name={authorName} size={32} />
+      <CommunityAvatar name={authorName} size={32} />
       <div className="qna-inbox__message-bubble">
         <div className="qna-inbox__message-meta">
           <span className="qna-inbox__message-author">{authorName}</span>

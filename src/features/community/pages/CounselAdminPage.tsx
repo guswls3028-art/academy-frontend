@@ -20,28 +20,13 @@ import { Button } from "@/shared/ui/ds";
 import { useConfirm } from "@/shared/ui/confirm";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import PostReadView from "../components/PostReadView";
+import CommunityContextBar from "../components/CommunityContextBar";
+import CommunityEmptyState from "../components/CommunityEmptyState";
+import CommunityAvatar from "../components/CommunityAvatar";
 import "@/features/community/qna-inbox.css";
 
 type FilterKind = "all" | "pending" | "resolved";
 const SNIPPET_LEN = 72;
-
-/* ── Avatar helpers ─────────────────────── */
-function getInitials(name: string): string {
-  if (!name) return "?";
-  const parts = name.trim().split(/\s+/);
-  if (parts.length === 1) return parts[0].slice(0, 2);
-  return parts[0][0] + parts[parts.length - 1][0];
-}
-function getAvatarSlot(name: string): number {
-  return [...(name ?? "")].reduce((acc, c) => acc + c.charCodeAt(0), 0) % 5;
-}
-function CounselAvatar({ name, role = "student", size = 32 }: { name: string; role?: "student" | "teacher"; size?: number }) {
-  const style = size !== 32 ? { width: size, height: size, fontSize: size * 0.34 } : undefined;
-  if (role === "teacher") {
-    return <div className="qna-inbox__avatar qna-inbox__avatar--teacher" style={style}>{getInitials(name)}</div>;
-  }
-  return <div className="qna-inbox__avatar" data-slot={getAvatarSlot(name)} style={style}>{getInitials(name)}</div>;
-}
 
 export default function CounselAdminPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -123,6 +108,10 @@ export default function CounselAdminPage() {
   return (
     <div className="qna-inbox" style={{ minHeight: "calc(100vh - 180px)" }}>
       <aside className="qna-inbox__list">
+        <CommunityContextBar
+          scope="all"
+          extra={pendingCount > 0 ? `답변 대기 ${pendingCount}건` : undefined}
+        />
         <div className="qna-inbox__list-header">
           <h2 className="qna-inbox__list-title">상담 신청</h2>
           <div className="qna-inbox__filter-group">
@@ -164,18 +153,13 @@ export default function CounselAdminPage() {
         </div>
         <div className="qna-inbox__list-body">
           {isLoading ? (
-            <div className="qna-inbox__empty">
-              <p className="qna-inbox__empty-title">불러오는 중…</p>
-            </div>
+            <CommunityEmptyState variant="loading" postType="counsel" />
           ) : filtered.length === 0 ? (
-            <div className="qna-inbox__empty">
-              <p className="qna-inbox__empty-title">상담 신청이 없습니다</p>
-              <p className="qna-inbox__empty-desc">
-                {searchQuery.trim() || filter !== "all"
-                  ? "필터를 바꿔 보세요."
-                  : "학생이 상담을 신청하면 여기에 표시됩니다."}
-              </p>
-            </div>
+            <CommunityEmptyState
+              variant={searchQuery.trim() || filter !== "all" ? "no-results" : "no-posts"}
+              postType="counsel"
+              description={searchQuery.trim() || filter !== "all" ? "필터를 바꾸거나 다른 검색어를 입력해 보세요." : "학생이 상담을 신청하면 여기에 표시됩니다."}
+            />
           ) : (
             filtered.map((q) => (
               <CounselCard
@@ -192,13 +176,7 @@ export default function CounselAdminPage() {
 
       <main className="qna-inbox__thread">
         {selectedId == null ? (
-          <div className="qna-inbox__empty">
-            <p className="qna-inbox__empty-title">상담 신청을 선택하세요</p>
-            <p className="qna-inbox__empty-desc">왼쪽 목록에서 상담 신청을 클릭하면 내용이 표시됩니다.</p>
-            <p className="qna-inbox__keyboard-hint">
-              <kbd>j</kbd> 다음 · <kbd>k</kbd> 이전
-            </p>
-          </div>
+          <CommunityEmptyState variant="no-selection" postType="counsel" showKeyboardHint />
         ) : (
           <CounselThreadView
             postId={selectedId}
@@ -251,7 +229,7 @@ function CounselCard({
     >
       <div className="qna-inbox__card-top">
         <div className="qna-inbox__card-avatar-wrap">
-          <CounselAvatar name={studentName} role="student" size={30} />
+          <CommunityAvatar name={studentName} role="student" size={30} />
         </div>
         <div className="qna-inbox__card-body">
           <div className="qna-inbox__card-title-row">
@@ -266,7 +244,7 @@ function CounselCard({
             {post.category_label && (
               <>
                 <span className="qna-inbox__card-meta-dot" />
-                <span style={{ color: "var(--color-primary)" }}>{post.category_label}</span>
+                <span className="cms-category-label">{post.category_label}</span>
               </>
             )}
           </div>
@@ -327,7 +305,7 @@ function CounselThreadView({
               {post.category_label && (
                 <>
                   <span className="qna-inbox__thread-meta-dot" />
-                  <span style={{ color: "var(--color-primary)", fontWeight: 600 }}>{post.category_label}</span>
+                  <span className="cms-category-label--bold">{post.category_label}</span>
                 </>
               )}
               <span className="qna-inbox__thread-meta-dot" />
@@ -362,7 +340,7 @@ function CounselThreadView({
       </header>
 
       <div className="qna-inbox__student-panel">
-        <CounselAvatar name={studentName} role="student" size={28} />
+        <CommunityAvatar name={studentName} role="student" size={28} />
         <div className="qna-inbox__student-info">
           <div className="qna-inbox__student-panel-label">학생</div>
           <div className="qna-inbox__student-name">{studentName}</div>
@@ -371,7 +349,7 @@ function CounselThreadView({
 
       <div className="qna-inbox__thread-body">
         <div className="qna-inbox__message-row">
-          <CounselAvatar name={studentName} role="student" />
+          <CommunityAvatar name={studentName} role="student" />
           <div className="qna-inbox__message-bubble">
             <div className="qna-inbox__message-meta">
               <span className="qna-inbox__message-author">{studentName}</span>
@@ -411,7 +389,7 @@ function CounselAnswerThread({ postId }: { postId: number }) {
   });
 
   if (isLoading) {
-    return <div style={{ padding: "12px 0" }}><p className="qna-inbox__empty-desc">답변 불러오는 중…</p></div>;
+    return <div className="cms-detail__comment-thread"><p className="qna-inbox__empty-desc">답변 불러오는 중…</p></div>;
   }
 
   return (
@@ -455,7 +433,7 @@ function CounselReplyBlock({ postId, answer }: { postId: number; answer: Answer 
 
   return (
     <div className="qna-inbox__message-row qna-inbox__message-row--teacher">
-      <CounselAvatar name={teacherName} role="teacher" />
+      <CommunityAvatar name={teacherName} role="teacher" />
       <div className="qna-inbox__message-bubble">
         <div className="qna-inbox__message-meta">
           <span className="qna-inbox__message-author">{teacherName}</span>

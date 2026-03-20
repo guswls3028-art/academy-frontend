@@ -26,7 +26,8 @@ import { feedback } from "@/shared/ui/feedback/feedback";
 import RichTextEditor from "@/shared/ui/editor/RichTextEditor";
 import ScopeBadge from "../components/ScopeBadge";
 import PostReadView from "../components/PostReadView";
-import ContextHeader from "../components/ContextHeader";
+import CommunityContextBar from "../components/CommunityContextBar";
+import CommunityEmptyState from "../components/CommunityEmptyState";
 import { stripHtml } from "../utils/communityHelpers";
 import "@/features/community/qna-inbox.css";
 import "@/features/community/notice-tree.css";
@@ -240,7 +241,7 @@ export default function NoticeAdminPage() {
       {/* 2번 영역: 공지 목록 — 상단에 공지 추가하기 고정, 아래로 목록 스크롤 */}
       <aside className="qna-inbox__list">
         <div className="qna-inbox__list-header">
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+          <div className="qna-inbox__list-title-row">
             <h2 className="qna-inbox__list-title">공지사항</h2>
             <Button intent="primary" size="sm" onClick={() => { setShowCreate(true); setSelectedId(null); }}>+ 추가</Button>
           </div>
@@ -255,46 +256,24 @@ export default function NoticeAdminPage() {
             />
           </div>
         </div>
-        <ContextHeader
-          tabLabel="공지사항"
+        <CommunityContextBar
           scope={scope as any}
           lectureName={lectures.find((l) => l.id === lectureId)?.title ?? null}
           sessionName={sessionsOfLecture.find((s) => s.id === sessionId)?.title ?? null}
         />
         <div className="qna-inbox__list-body">
           {!canShowList ? (
-            <div className="qna-inbox__empty">
-              <p className="qna-inbox__empty-title">
-                좌측에서 조회 범위를 선택하세요
-              </p>
-              <p className="qna-inbox__empty-desc">
-                강의목록을 펼친 뒤 강의명을 누르면 1차시, 2차시 등이 나옵니다. 차시를 클릭하면 해당 공지가 표시됩니다.
-              </p>
-            </div>
+            <CommunityEmptyState variant="no-scope" postType="notice" />
           ) : isLoading ? (
-            <div style={{ padding: 12 }}>
-              <div className="cms-skeleton cms-skeleton--card" />
-              <div className="cms-skeleton cms-skeleton--card" />
-              <div className="cms-skeleton cms-skeleton--card" />
-            </div>
+            <CommunityEmptyState variant="loading" postType="notice" />
           ) : isError ? (
-            <div className="qna-inbox__empty">
-              <p className="qna-inbox__empty-title">목록을 불러오지 못했습니다</p>
-              <p className="qna-inbox__empty-desc">
-                {(error as Error)?.message || "잠시 후 다시 시도해 주세요."}
-              </p>
-            </div>
+            <CommunityEmptyState variant="error" postType="notice" description={(error as Error)?.message} />
           ) : filtered.length === 0 ? (
-            <div className="qna-inbox__empty">
-              <p className="qna-inbox__empty-title">
-                {searchQuery.trim() ? "검색 결과가 없습니다" : "등록된 공지가 없습니다"}
-              </p>
-              <p className="qna-inbox__empty-desc">
-                {searchQuery.trim()
-                  ? "다른 검색어를 입력해 보세요."
-                  : "위 '공지 추가하기' 버튼을 누르면 이 범위에 공지를 등록할 수 있습니다. 목록 로딩을 기다리지 않아도 됩니다."}
-              </p>
-            </div>
+            <CommunityEmptyState
+              variant={searchQuery.trim() ? "no-results" : "no-posts"}
+              postType="notice"
+              description={searchQuery.trim() ? undefined : "'+ 추가' 버튼으로 이 범위에 공지를 등록할 수 있습니다."}
+            />
           ) : (
             filtered.map((p) => (
               <NoticeCard
@@ -323,12 +302,7 @@ export default function NoticeAdminPage() {
             }}
           />
         ) : selectedId == null ? (
-          <div className="qna-inbox__empty">
-            <p className="qna-inbox__empty-title">공지를 선택하세요</p>
-            <p className="qna-inbox__empty-desc">
-              왼쪽 목록에서 공지를 클릭하면 여기에 내용이 표시됩니다.
-            </p>
-          </div>
+          <CommunityEmptyState variant="no-selection" postType="notice" />
         ) : (
           <NoticeDetailView
             postId={selectedId}
@@ -366,7 +340,7 @@ function NoticeCard({
     >
       <div className="qna-inbox__card-top">
         <div className="qna-inbox__card-body">
-          <div className="qna-inbox__card-meta" style={{ marginBottom: 2 }}>
+          <div className="qna-inbox__card-meta">
             <ScopeBadge post={post} />
             {post.is_pinned && <span className="ds-badge ds-badge--warning">고정</span>}
             {post.is_urgent && <span className="ds-badge ds-badge--danger">중요</span>}
@@ -374,7 +348,7 @@ function NoticeCard({
             <span>{dateLabel}</span>
           </div>
           <div className="qna-inbox__card-title-row">
-            <div className="qna-inbox__card-title" style={{ fontWeight: 600, fontSize: "0.938rem" }}>{post.title || "(제목 없음)"}</div>
+            <div className="qna-inbox__card-title">{post.title || "(제목 없음)"}</div>
           </div>
           {snippet && <div className="qna-inbox__card-snippet">{snippet}</div>}
         </div>
@@ -643,9 +617,13 @@ function NoticeCreatePane({
           <div className="qna-inbox__thread-title-group">
             <h1 className="qna-inbox__thread-title">새 공지 작성</h1>
             <div className="qna-inbox__thread-meta">
-              <span>대상: {scopeLabel}</span>
+              <span className="ds-badge ds-badge--primary">대상: {scopeLabel}</span>
               <span className="text-xs text-[var(--color-text-muted)]" style={{ marginLeft: 8 }}>
-                이 공지는 {scopeLabel} 학생에게 보입니다.
+                {scopeParams.scope === "all"
+                  ? "모든 강의의 학생에게 보이는 공지입니다."
+                  : scopeParams.scope === "lecture"
+                  ? `${scopeLabel} 수강생에게만 보입니다.`
+                  : `${scopeLabel} 학생에게만 보입니다.`}
               </span>
             </div>
           </div>
