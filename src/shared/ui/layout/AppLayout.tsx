@@ -1,5 +1,5 @@
 // PATH: src/shared/ui/layout/AppLayout.tsx
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useEffect } from "react";
 import { Outlet } from "react-router-dom";
 import { ConfigProvider, App } from "antd";
 import Sidebar from "./Sidebar";
@@ -17,94 +17,7 @@ import { SendMessageModalProvider } from "@/features/messages/context/SendMessag
 import { useIsMobile } from "@/shared/hooks/useIsMobile";
 import { useFavicon } from "@/shared/hooks/useFavicon";
 
-// 빌드마다 새 키 → 배포 후 배너 1회 노출, 새로고침 후 사라짐
-const BUILD_ID = String(import.meta.env.VITE_APP_VERSION || __BUILD_TIMESTAMP__ || "dev");
-const NOTICE_DISMISS_KEY = `admin_refresh_${BUILD_ID}`;
-
-function useNoticeBannerHeight() {
-  const bannerRef = useRef<HTMLDivElement>(null);
-
-  const syncHeight = useCallback(() => {
-    const h = bannerRef.current?.offsetHeight ?? 0;
-    document.documentElement.style.setProperty("--notice-banner-height", `${h}px`);
-  }, []);
-
-  useEffect(() => {
-    // Sync immediately + watch for resize
-    syncHeight();
-    const el = bannerRef.current;
-    if (el) {
-      const ro = new ResizeObserver(syncHeight);
-      ro.observe(el);
-      return () => { ro.disconnect(); document.documentElement.style.setProperty("--notice-banner-height", "0px"); };
-    }
-    return () => { document.documentElement.style.setProperty("--notice-banner-height", "0px"); };
-  }, [syncHeight]);
-
-  return { bannerRef, syncHeight };
-}
-
-function NoticeBanner() {
-  const [dismissed, setDismissed] = useState(
-    () => localStorage.getItem(NOTICE_DISMISS_KEY) === "1",
-  );
-  const { bannerRef, syncHeight } = useNoticeBannerHeight();
-
-  useEffect(() => {
-    if (dismissed) {
-      document.documentElement.style.setProperty("--notice-banner-height", "0px");
-    } else {
-      syncHeight();
-    }
-  }, [dismissed, syncHeight]);
-
-  if (dismissed) return null;
-
-  return (
-    <div
-      ref={bannerRef}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 8,
-        padding: "8px 16px",
-        background: "color-mix(in srgb, var(--color-success) 10%, var(--color-bg-surface))",
-        borderBottom: "1px solid color-mix(in srgb, var(--color-success) 30%, var(--color-border-divider))",
-        color: "var(--color-text-primary)",
-        fontSize: 13,
-        fontWeight: 500,
-        lineHeight: 1.5,
-        position: "relative",
-        zIndex: 100,
-      }}
-    >
-      <span style={{ flex: 1, textAlign: "center" }}>
-        🔄 시스템이 업데이트되었습니다. 원활한 이용을 위해 <button onClick={() => { localStorage.setItem(NOTICE_DISMISS_KEY, "1"); window.location.reload(); }} style={{ background: "none", border: "none", cursor: "pointer", textDecoration: "underline", fontWeight: 700, color: "inherit", padding: 0, fontSize: "inherit" }}>새로고침</button>해 주세요.
-      </span>
-      <button
-        onClick={() => {
-          localStorage.setItem(NOTICE_DISMISS_KEY, "1");
-          setDismissed(true);
-        }}
-        style={{
-          background: "none",
-          border: "none",
-          cursor: "pointer",
-          padding: "2px 6px",
-          fontSize: 16,
-          lineHeight: 1,
-          color: "var(--color-text-secondary)",
-          borderRadius: 4,
-          flexShrink: 0,
-        }}
-        aria-label="닫기"
-      >
-        ✕
-      </button>
-    </div>
-  );
-}
+// useVersionChecker가 자동 리로드 처리 — 수동 새로고침 배너 제거됨
 
 function AppLayoutContent() {
   const isMobile = useIsMobile();
@@ -115,7 +28,7 @@ function AppLayoutContent() {
       {isMobile ? (
         <AdminLayoutProvider>
           <WorkboxProvider>
-            <NoticeBanner />
+            {/* 수동 새로고침 배너 제거 — useVersionChecker가 자동 리로드 처리 */}
             <AppLayoutMobile />
           </WorkboxProvider>
         </AdminLayoutProvider>

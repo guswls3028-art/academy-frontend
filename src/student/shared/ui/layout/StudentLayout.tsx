@@ -2,7 +2,7 @@
  * 학생 앱 전역 레이아웃 — 전체화면 고정, 모바일 특화
  * 테넌트별 테마: data-student-tenant 에 따라 theme/tenants/{code}.css 적용
  */
-import { useState, useEffect, useCallback, type CSSProperties } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import { getTenantCodeForApiRequest } from "@/shared/tenant";
 import { useAuthContext } from "@/features/auth/context/AuthContext";
@@ -28,36 +28,7 @@ const DNB_THEME_TENANTS = ["dnb"];
 /** 1,3,9999번 공통 — commonlogo + 2번 색상 (common=9999 로컬 경로) */
 const COMMON_THEME_TENANTS = ["hakwonplus", "limglish", "9999", "common"];
 
-const STU_NOTICE_KEY = "stu_notice_update_20260315";
-
-function StudentUpdateBanner() {
-  const [dismissed, setDismissed] = useState(
-    () => localStorage.getItem(STU_NOTICE_KEY) === "1",
-  );
-  if (dismissed) return null;
-
-  const bar: CSSProperties = {
-    display: "flex", alignItems: "center", justifyContent: "center",
-    gap: 8, padding: "8px 16px",
-    background: "var(--stu-primary, #1976d2)", color: "#fff",
-    fontSize: 13, fontWeight: 500, lineHeight: 1.5,
-    position: "relative", zIndex: 200,
-  };
-  const btn: CSSProperties = {
-    background: "none", border: "none", cursor: "pointer",
-    padding: "2px 6px", fontSize: 16, color: "rgba(255,255,255,0.8)",
-    flexShrink: 0,
-  };
-
-  return (
-    <div style={bar}>
-      <span style={{ flex: 1, textAlign: "center" }}>
-        업데이트가 있습니다. 새로고침해주세요.
-      </span>
-      <button onClick={() => { localStorage.setItem(STU_NOTICE_KEY, "1"); setDismissed(true); }} style={btn} aria-label="닫기">✕</button>
-    </div>
-  );
-}
+// useVersionChecker가 자동 리로드 처리 — 수동 새로고침 배너 제거됨
 
 export default function StudentLayout() {
   const location = useLocation();
@@ -145,7 +116,7 @@ export default function StudentLayout() {
           </defs>
         </svg>
       )}
-      <StudentUpdateBanner />
+      {/* 수동 새로고침 배너 제거 — useVersionChecker가 자동 리로드 처리 */}
       <header
         style={{
           flexShrink: 0,
