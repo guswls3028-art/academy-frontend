@@ -221,7 +221,7 @@ export default function LectureStudentsPage() {
   if (!Number.isFinite(lectureIdNum)) {
     return (
       <div className="p-2 text-sm" style={{ color: "var(--color-error)" }}>
-        잘못된 lectureId
+        강의 정보를 찾을 수 없습니다.
       </div>
     );
   }

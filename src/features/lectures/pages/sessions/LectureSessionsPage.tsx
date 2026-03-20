@@ -13,7 +13,7 @@ const LECTURE_SESSIONS_COLUMN_DEFS: TableColumnDef[] = [
   { key: "order", label: "차시", defaultWidth: TABLE_COL.mediumAlt, minWidth: 60 },
   { key: "title", label: "제목", defaultWidth: TABLE_COL.title, minWidth: 80 },
   { key: "date", label: "날짜", defaultWidth: TABLE_COL.timeRange, minWidth: 90 },
-  { key: "id", label: "ID", defaultWidth: TABLE_COL.tag, minWidth: 50 },
+  // ID 컬럼 제거 — 선생님에게 내부 ID 노출 불필요
 ];
 
 export default function LectureSessionsPage() {
@@ -162,7 +162,7 @@ export default function LectureSessionsPage() {
   }
 
   if (!Number.isFinite(lecId)) {
-    return <div className="p-2 text-sm" style={{ color: "var(--color-error)" }}>잘못된 강의 ID</div>;
+    return <div className="p-2 text-sm" style={{ color: "var(--color-error)" }}>강의 정보를 찾을 수 없습니다.</div>;
   }
 
   return (

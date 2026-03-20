@@ -175,7 +175,7 @@ export default function SessionScoresEntryPage(_props: Props) {
       invalidateScores();
       feedback.success(`수강생 ${enrollmentIds.length}명이 모든 시험/과제에 등록되었습니다.`);
     } catch (e: any) {
-      feedback.error(e?.response?.data?.detail ?? e?.message ?? "대상자 등록 실패");
+      feedback.error("대상자 등록에 실패했습니다. 수강생 등록 상태를 확인해 주세요.");
     } finally {
       setEnrollingAll(false);
     }
@@ -198,7 +198,7 @@ export default function SessionScoresEntryPage(_props: Props) {
       invalidateScores();
       feedback.success(`시험 ${openExams.length}건 종료 완료`);
     } catch (e: any) {
-      feedback.error(e?.response?.data?.detail ?? "시험 종료 실패");
+      feedback.error("시험 종료에 실패했습니다. 잠시 후 다시 시도해 주세요.");
     } finally {
       setClosingExams(false);
     }
@@ -219,7 +219,7 @@ export default function SessionScoresEntryPage(_props: Props) {
       invalidateScores();
       feedback.success(`과제 ${openHws.length}건 종료 완료`);
     } catch (e: any) {
-      feedback.error(e?.response?.data?.detail ?? "과제 종료 실패");
+      feedback.error("과제 종료에 실패했습니다. 잠시 후 다시 시도해 주세요.");
     } finally {
       setClosingHomeworks(false);
     }
@@ -400,7 +400,7 @@ export default function SessionScoresEntryPage(_props: Props) {
   if (!Number.isFinite(numericSessionId)) {
     return (
       <div className="p-6 text-sm" style={{ color: "var(--color-error)" }}>
-        유효하지 않은 sessionId 입니다.
+        차시 정보를 찾을 수 없습니다.
       </div>
     );
   }

@@ -145,14 +145,14 @@ export default function SessionAttendancePage({
       qc.invalidateQueries({ queryKey: ["attendance", sessionId] });
       qc.invalidateQueries({ queryKey: ["session-scores"] });
     },
-    onError: () => { feedback.error("출석 변경에 실패했습니다."); },
+    onError: () => { feedback.error("출석 상태 변경에 실패했습니다. 다시 시도해 주세요."); },
   });
 
   const updateMemo = useMutation({
     mutationFn: ({ id, memo }: { id: number; memo: string }) =>
       updateAttendance(id, { memo }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["attendance", sessionId] }),
-    onError: () => { feedback.error("출석 변경에 실패했습니다."); },
+    onError: () => { feedback.error("메모 저장에 실패했습니다."); },
   });
 
   const filtered = useMemo(() => pageData, [pageData]);

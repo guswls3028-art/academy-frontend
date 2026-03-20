@@ -38,7 +38,7 @@ export default function OperationsPage() {
     <div className="flex flex-col gap-4">
       <SectionHeader
         title="작업"
-        description={`${monthText} · 근무/비용 입력 및 월 마감(급여 확정) 처리. 합계/급여/시간/상태 판정은 백엔드 단일진실입니다.`}
+        description={`${monthText} · 근무 기록, 비용 입력, 월 마감을 처리합니다.`}
       />
 
       <div className="grid grid-cols-[320px_1fr] gap-6">
@@ -55,7 +55,7 @@ export default function OperationsPage() {
           </div>
 
           <div className="px-4 pb-4 pt-2 text-[11px] text-[var(--color-text-muted)]">
-            * 직원 선택은 “선택” UI이며, 계산/추론이 아닙니다.
+            좌측에서 직원을 선택하면 우측에서 작업할 수 있습니다.
           </div>
         </div>
 
@@ -73,7 +73,7 @@ export default function OperationsPage() {
                 </div>
               </div>
               <div className="text-xs text-[var(--color-text-muted)]">
-                {staffId ? <>직원 ID: <span className="font-semibold">{staffId}</span></> : <>상태: <span className="font-semibold">대기</span></>}
+                {staffId ? <>선택됨</> : <>대기</>}
               </div>
             </div>
           </div>
