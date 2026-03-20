@@ -292,7 +292,7 @@ export default function SubmitAssignmentPage() {
         {selected && (
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <div style={{ fontSize: 13, color: "var(--stu-text-muted)" }}>
-              제출 대상: <b>{selected.type === "exam" ? "시" : "과"} {selected.title}</b>
+              제출 대상: <b>{selected.type === "exam" ? "시험" : "과제"} · {selected.title}</b>
             </div>
             <button
               type="button"

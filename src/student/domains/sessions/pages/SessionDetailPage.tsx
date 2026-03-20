@@ -48,8 +48,8 @@ export default function SessionDetailPage() {
 
   if (isError || !data) {
     return (
-      <StudentPageShell title="차시" description="불러오지 못했습니다.">
-        <EmptyState title="차시 상세를 불러오지 못했습니다." />
+      <StudentPageShell title="차시">
+        <EmptyState title="수업 정보를 불러오지 못했어요." description="잠시 후 다시 시도해 주세요." />
       </StudentPageShell>
     );
   }

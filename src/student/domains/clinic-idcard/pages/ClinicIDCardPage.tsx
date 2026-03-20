@@ -62,7 +62,7 @@ export default function ClinicIDCardPage() {
     return (
       <div className="idcard-page idcard-page--black">
         <div className="idcard-page__error">
-          {queryError instanceof Error ? queryError.message : "데이터를 불러올 수 없습니다."}
+          인증 정보를 불러올 수 없어요. 잠시 후 다시 시도해 주세요.
         </div>
       </div>
     );

@@ -39,10 +39,10 @@ export default function ExamResultPage() {
 
   if (resultQ.isError || !resultQ.data) {
     return (
-      <StudentPageShell title="시험 결과" description="조회 실패">
+      <StudentPageShell title="시험 결과">
         <EmptyState
-          title="결과를 불러오지 못했습니다."
-          description="아직 채점 전이거나 권한이 없을 수 있습니다."
+          title="결과를 불러오지 못했어요."
+          description="아직 채점 전이거나, 시험에 응시하지 않았을 수 있어요."
         />
       </StudentPageShell>
     );
@@ -109,7 +109,7 @@ export default function ExamResultPage() {
           )}
           {itemsQ.isError && (
             <div style={{ fontSize: 13, color: "var(--stu-danger)" }}>
-              문항 조회 실패
+              문항별 결과를 불러오지 못했어요.
             </div>
           )}
 
@@ -137,7 +137,7 @@ export default function ExamResultPage() {
 
           {items.length === 0 && !itemsQ.isLoading && !itemsQ.isError && (
             <div className="stu-muted" style={{ fontSize: 13 }}>
-              문항 데이터가 없습니다.
+              문항별 결과가 아직 없어요.
             </div>
           )}
         </div>

@@ -47,8 +47,8 @@ export default function ExamDetailPage() {
 
   if (examQ.isError || !examQ.data) {
     return (
-      <StudentPageShell title="시험" description="불러오지 못했습니다.">
-        <EmptyState title="시험 정보를 불러오지 못했습니다." />
+      <StudentPageShell title="시험">
+        <EmptyState title="시험 정보를 불러오지 못했어요." description="잠시 후 다시 시도해 주세요." />
       </StudentPageShell>
     );
   }
@@ -87,7 +87,7 @@ export default function ExamDetailPage() {
         {/* ===== Actions ===== */}
         <div className="stu-section">
           <div className="stu-section-header" style={{ fontWeight: 700, fontSize: 15 }}>
-            응시 / 결과
+            시험 응시 및 결과
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-4)" }}>
@@ -104,11 +104,11 @@ export default function ExamDetailPage() {
               <div className="stu-muted" style={{ fontSize: 13 }}>확인 중…</div>
             ) : canRetake ? (
               <Link to={`/student/exams/${exam.id}/submit`} className="stu-cta-link">
-                입력하기
+                답안 입력하기
               </Link>
             ) : (
               <div className="stu-muted" style={{ fontSize: 13 }}>
-                재시험 불가
+                재시험 기회가 없습니다.
               </div>
             )}
           </div>

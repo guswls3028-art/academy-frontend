@@ -336,7 +336,7 @@ export default function VideoPlayerPage() {
         </div>
       ) : (loadError || fatalError) ? (
         <div className="vpp-error">
-          <EmptyState title="재생을 시작할 수 없습니다" description={fatalError || loadError!} />
+          <EmptyState title="영상을 재생할 수 없어요" description="네트워크 연결을 확인하고 다시 시도해 주세요." />
           <button type="button" className="vpp-back-btn" onClick={() => nav(-1)}>
             ← 뒤로가기
           </button>
@@ -474,7 +474,7 @@ export default function VideoPlayerPage() {
           )}
         </>
       ) : (
-        <EmptyState title="데이터가 없습니다" description="다시 시도해주세요." />
+        <EmptyState title="영상 정보를 불러올 수 없어요." description="뒤로 가서 다시 시도해 주세요." />
       )}
     </div>
   );
