@@ -34,7 +34,7 @@ import { Button } from "@/shared/ui/ds";
 import { useConfirm } from "@/shared/ui/confirm";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import RichTextEditor from "@/shared/ui/editor/RichTextEditor";
-import ScopeBadge from "../components/ScopeBadge";
+import ScopeBadge, { resolveScopeType } from "../components/ScopeBadge";
 import PostReadView from "../components/PostReadView";
 import CommunityContextBar from "../components/CommunityContextBar";
 import CommunityEmptyState from "../components/CommunityEmptyState";
@@ -265,10 +265,17 @@ export default function MaterialsBoardPage() {
 
       {/* ═══ 2nd pane: List ═══ */}
       <aside className="qna-inbox__list">
-        <CommunityContextBar scope={scope as any} lectureName={lectures.find((l) => l.id === lectureId)?.title ?? null} sessionName={sessionsOfLecture.find((s) => s.id === sessionId)?.title ?? null} />
         <div className="qna-inbox__list-header">
           <div className="qna-inbox__list-title-row">
-            <h2 className="qna-inbox__list-title">자료</h2>
+            <div className="qna-inbox__list-title-group">
+              <h2 className="qna-inbox__list-title">자료</h2>
+              <CommunityContextBar
+                scope={scope as any}
+                lectureName={lectures.find((l) => l.id === lectureId)?.title ?? null}
+                sessionName={sessionsOfLecture.find((s) => s.id === sessionId)?.title ?? null}
+                inline
+              />
+            </div>
             {canShowList && <Button intent="primary" size="sm" onClick={() => { setShowCreate(true); setSelectedId(null); }}>+ 자료 등록</Button>}
           </div>
           <div className="flex items-center gap-2">
@@ -418,7 +425,7 @@ function MatCreatePane({
         </div>
         <div className="cms-form__field">
           <div className="cms-attach__header">
-            <label className="community-field__label" className="cms-form__label--no-margin">
+            <label className="community-field__label cms-form__label--no-margin">
               첨부파일 {files.length > 0 && `(${files.length}/10)`}
             </label>
             <Button intent="ghost" size="sm" onClick={() => fileInputRef.current?.click()} disabled={files.length >= 10}>
@@ -455,18 +462,31 @@ function MatPostCard({ post, isActive, onClick }: { post: PostEntity; isActive: 
   const snippet = plainText.length > SNIPPET_LEN ? plainText.slice(0, SNIPPET_LEN).trim() + "…" : plainText;
   const authorName = post.created_by_deleted ? "삭제된 사용자" : (post.created_by_display ?? "관리자");
 
+  const scopeType = resolveScopeType(post);
+  const nd = post.mappings?.[0]?.node_detail;
+  const scopePath = scopeType === "global"
+    ? "모든 강의 대상"
+    : nd?.session_title
+    ? `${nd.lecture_title} > ${nd.session_title}`
+    : nd?.lecture_title ?? "";
+
   return (
-    <button type="button" onClick={onClick} className={`qna-inbox__card ${isActive ? "qna-inbox__card--active" : ""}`}>
-      <div className="qna-inbox__card-top">
-        <div className="qna-inbox__card-avatar-wrap"><CommunityAvatar name={authorName} size={30} /></div>
-        <div className="qna-inbox__card-body">
-          <div className="qna-inbox__card-title-row"><div className="qna-inbox__card-title">{post.title || "(제목 없음)"}</div></div>
-          {snippet && <div className="qna-inbox__card-snippet">{snippet}</div>}
-          <div className="qna-inbox__card-meta">
-            <span>{authorName}</span><span className="qna-inbox__card-meta-dot" /><span>{timeAgo(post.created_at)}</span>
-            {(post.attachments?.length ?? 0) > 0 && (<><span className="qna-inbox__card-meta-dot" /><span>파일 {post.attachments!.length}개</span></>)}
-            {(post.replies_count ?? 0) > 0 && (<><span className="qna-inbox__card-meta-dot" /><span>댓글 {post.replies_count}</span></>)}
-          </div>
+    <button type="button" onClick={onClick} className={`cms-list-card ${isActive ? "cms-list-card--active" : ""} cms-list-card--${scopeType}`}>
+      <div className={`cms-list-card__bar cms-list-card__bar--${scopeType}`} />
+      <div className="cms-list-card__inner">
+        <div className="cms-list-card__header">
+          <span className={`cms-list-card__type cms-list-card__type--${scopeType}`}>
+            {scopeType === "global" ? "전체" : scopeType === "session" ? "차시" : "강의"}
+          </span>
+          <span className="cms-list-card__scope">{scopePath}</span>
+          <span className="cms-list-card__date">{timeAgo(post.created_at)}</span>
+        </div>
+        <div className="cms-list-card__title">{post.title || "(제목 없음)"}</div>
+        {snippet && <div className="cms-list-card__snippet">{snippet}</div>}
+        <div className="cms-list-card__meta">
+          <span>{authorName}</span>
+          {(post.attachments?.length ?? 0) > 0 && <span className="cms-list-card__meta-tag">파일 {post.attachments!.length}개</span>}
+          {(post.replies_count ?? 0) > 0 && <span className="cms-list-card__meta-tag">댓글 {post.replies_count}</span>}
         </div>
       </div>
     </button>
@@ -540,9 +560,7 @@ function MatDetailView({ postId, onClose, onDeleted }: { postId: number; onClose
       <div className="cms-detail__body">
         {/* Author/date meta row */}
         <div className="cms-detail__meta-row">
-          <span className={`qna-inbox__avatar qna-inbox__avatar--slot-${getAvatarSlot(authorName)}`}>
-            {getInitials(authorName)}
-          </span>
+          <CommunityAvatar name={authorName} size={32} />
           <span className="cms-detail__meta-author">{authorName}</span>
           <span className="cms-detail__meta-dot" />
           <ScopeBadge post={post} />

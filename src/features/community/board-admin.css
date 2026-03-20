@@ -1,5 +1,5 @@
 /* PATH: src/features/community/board-admin.css
- * Board admin — minimal overrides on top of qna-inbox.css
+ * Board admin — shared CMS patterns for Notice/Board/Materials detail+list
  * Tokens: --color-*, --space-*, --text-*
  */
 
@@ -39,21 +39,27 @@
 
 .cms-detail__title-input {
   flex: 1;
-  font-size: 15px;
-  font-weight: 600;
+  font-size: 16px;
+  font-weight: 700;
 }
 
 .cms-detail__title-clickable {
   cursor: text;
+  transition: color 120ms ease;
+}
+
+.cms-detail__title-clickable:hover {
+  color: var(--color-primary);
 }
 
 /* ─── Category label (QnA/Counsel card inline category) ─── */
 .cms-category-label {
   color: var(--color-primary, #3b82f6);
+  font-weight: 500;
 }
 .cms-category-label--bold {
   color: var(--color-primary, #3b82f6);
-  font-weight: 600;
+  font-weight: 700;
 }
 
 /* ─── Attachment item (shared for Materials inline items) ─── */
@@ -67,14 +73,20 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 8px 12px;
-  background: var(--color-bg-subtle, #f8f9fa);
-  border-radius: var(--radius-sm, 8px);
+  padding: 10px 14px;
+  background: var(--color-bg-surface, #fff);
+  border-radius: var(--radius-md, 8px);
   border: 1px solid var(--color-border-divider, #e5e7eb);
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.cms-attach__inline-item:hover {
+  border-color: color-mix(in srgb, var(--color-primary) 30%, var(--color-border-divider));
+  box-shadow: 0 1px 4px rgba(59,130,246,0.06);
 }
 
 .cms-attach__inline-icon {
-  font-size: 20px;
+  font-size: 18px;
   line-height: 1;
   flex-shrink: 0;
   color: var(--color-text-muted, #94a3b8);
@@ -86,8 +98,9 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-weight: 500;
+  font-weight: 600;
   font-size: 13px;
+  color: var(--color-text-primary, #1e293b);
 }
 
 .cms-attach__inline-size {
@@ -105,63 +118,79 @@
   padding: 12px 0;
 }
 
-/* ─────────────────────────────────────────────────────
-   CMS Detail Body
-───────────────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════
+   CMS Detail Body — 상세 뷰 본문
+═══════════════════════════════════════════════════════ */
 .cms-detail__body {
   padding: var(--space-5, 20px);
   overflow-y: auto;
   max-height: calc(100vh - 260px);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5, 20px);
 }
 
 .cms-detail__section {
-  padding-bottom: var(--space-5, 20px);
-  margin-bottom: var(--space-5, 20px);
-  border-bottom: 1px solid var(--color-border-divider, #e5e7eb);
+  padding: var(--space-5, 20px);
+  border-radius: var(--radius-lg, 12px);
+  border: 1px solid var(--color-border-divider, #e5e7eb);
+  background: var(--color-bg-surface, #fff);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
 }
+
 .cms-detail__section:last-child {
-  border-bottom: none;
   margin-bottom: 0;
 }
 
 .cms-detail__section-label {
-  font-size: var(--text-xs, 12px);
-  font-weight: 600;
-  color: var(--color-text-secondary, #64748b);
-  margin-bottom: var(--space-2, 8px);
-  letter-spacing: 0.02em;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--color-text-muted, #94a3b8);
+  margin-bottom: var(--space-3, 12px);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding-bottom: var(--space-2, 8px);
+  border-bottom: 1px solid var(--color-border-divider, #e5e7eb);
 }
 
 .cms-detail__content-card {
   border: 1px solid var(--color-border-divider, #e5e7eb);
   border-radius: var(--radius-md, 8px);
+  background: var(--color-bg-surface-soft, #fafafa);
   overflow: hidden;
+  padding: var(--space-4, 16px);
 }
 
 .cms-detail__content-actions {
   display: flex;
   align-items: center;
   gap: var(--space-2, 8px);
-  margin-top: var(--space-2, 8px);
+  margin-top: var(--space-3, 12px);
 }
 
 .cms-detail__saved-msg {
   font-size: var(--text-sm, 13px);
-  color: var(--color-text-muted, #94a3b8);
+  color: var(--color-success, #22c55e);
+  font-weight: 500;
 }
 
 .cms-detail__meta-row {
   display: flex;
   align-items: center;
-  gap: var(--space-2, 8px);
+  gap: var(--space-3, 12px);
   margin-bottom: var(--space-4, 16px);
+  padding: var(--space-3, 12px) var(--space-4, 16px);
   font-size: var(--text-sm, 13px);
   color: var(--color-text-secondary, #64748b);
+  background: var(--color-bg-surface, #fff);
+  border-radius: var(--radius-lg, 12px);
+  border: 1px solid var(--color-border-divider, #e5e7eb);
 }
 
 .cms-detail__meta-author {
-  font-weight: 600;
+  font-weight: 700;
   color: var(--color-text-primary, #1e293b);
+  font-size: 14px;
 }
 
 .cms-detail__meta-dot {
@@ -172,15 +201,239 @@
   flex-shrink: 0;
 }
 
-/* ─────────────────────────────────────────────────────
-   CMS Form
-───────────────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════
+   cms-list-card — 목록 아이템 전면 재설계
+   header(유형+대상+날짜) → title → snippet → flags
+   좌측 컬러바로 유형 즉시 구분
+═══════════════════════════════════════════════════════ */
+
+.cms-list-card {
+  display: flex;
+  width: 100%;
+  border: 1px solid var(--color-border-divider, #e5e7eb);
+  border-radius: var(--radius-lg, 12px);
+  background: var(--color-bg-surface, #fff);
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+  overflow: hidden;
+  transition: border-color 120ms ease, box-shadow 120ms ease, background 120ms ease, transform 80ms ease;
+}
+
+.cms-list-card:hover {
+  border-color: color-mix(in srgb, var(--color-text-muted) 35%, var(--color-border-divider));
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+  transform: translateY(-1px);
+}
+
+/* ── 선택 상태: 배경 + 보더 + 그림자 + 타이포 강화 ── */
+.cms-list-card--active {
+  border-color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 4%, var(--color-bg-surface));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-primary) 20%, transparent),
+              0 4px 12px color-mix(in srgb, var(--color-primary) 8%, transparent);
+  transform: translateY(-1px);
+}
+
+.cms-list-card--active .cms-list-card__title {
+  color: var(--color-primary);
+}
+
+.cms-list-card--active .cms-list-card__header {
+  background: color-mix(in srgb, var(--color-primary) 14%, var(--color-bg-surface));
+}
+
+.cms-list-card--active .cms-list-card__type {
+  color: var(--color-primary);
+}
+
+.cms-list-card--active .cms-list-card__scope {
+  color: color-mix(in srgb, var(--color-primary) 70%, var(--color-text-muted));
+}
+
+/* ── 좌측 유형 컬러바 (5px, 더 두껍게) ── */
+.cms-list-card__bar {
+  width: 5px;
+  flex-shrink: 0;
+}
+
+.cms-list-card__bar--global {
+  background: var(--color-text-secondary, #64748b);
+}
+
+.cms-list-card__bar--lecture {
+  background: var(--color-brand-primary);
+}
+
+.cms-list-card__bar--session {
+  background: var(--color-brand-complement, #7c3aed);
+}
+
+/* ── 내부 레이아웃 ── */
+.cms-list-card__inner {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 1층: 유형 헤더 — 배경색으로 공지 종류 즉시 구분 */
+.cms-list-card__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  font-size: 11px;
+  line-height: 1;
+}
+
+/* 전체공지 헤더: 차분한 슬레이트 */
+.cms-list-card--global .cms-list-card__header {
+  background: color-mix(in srgb, var(--color-text-secondary, #64748b) 8%, var(--color-bg-surface));
+}
+
+/* 강의공지 헤더: 브랜드 컬러 틴트 */
+.cms-list-card--lecture .cms-list-card__header {
+  background: color-mix(in srgb, var(--color-brand-primary) 8%, var(--color-bg-surface));
+}
+
+/* 차시공지 헤더: 보라 틴트 */
+.cms-list-card--session .cms-list-card__header {
+  background: color-mix(in srgb, var(--color-brand-complement, #7c3aed) 8%, var(--color-bg-surface));
+}
+
+.cms-list-card__type {
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  flex-shrink: 0;
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.cms-list-card__type--global {
+  color: var(--color-text-secondary, #64748b);
+}
+
+.cms-list-card__type--lecture {
+  color: var(--color-brand-primary);
+}
+
+.cms-list-card__type--session {
+  color: var(--color-brand-complement, #7c3aed);
+}
+
+.cms-list-card__scope {
+  color: var(--color-text-muted, #94a3b8);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+/* 강의/차시 공지일 때 scope 경로도 유형색 따라감 */
+.cms-list-card--lecture .cms-list-card__scope {
+  color: color-mix(in srgb, var(--color-brand-primary) 60%, var(--color-text-muted));
+}
+
+.cms-list-card--session .cms-list-card__scope {
+  color: color-mix(in srgb, var(--color-brand-complement, #7c3aed) 60%, var(--color-text-muted));
+}
+
+.cms-list-card__date {
+  margin-left: auto;
+  color: var(--color-text-muted, #94a3b8);
+  font-weight: 500;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* 2층: 제목 */
+.cms-list-card__title {
+  padding: 10px 14px 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-text-primary, #1e293b);
+  line-height: 1.4;
+  letter-spacing: -0.015em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 3층: 본문 미리보기 */
+.cms-list-card__snippet {
+  padding: 4px 14px 0;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--color-text-muted, #94a3b8);
+  line-height: 1.5;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 4층: 플래그 (고정/중요) */
+.cms-list-card__flags {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px 0;
+}
+
+.cms-list-card__flag {
+  font-size: 10px;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 999px;
+  letter-spacing: 0.03em;
+}
+
+.cms-list-card__flag--pinned {
+  color: var(--color-warning, #d97706);
+  background: color-mix(in srgb, var(--color-warning, #d97706) 12%, transparent);
+}
+
+.cms-list-card__flag--urgent {
+  color: var(--color-error, #dc2626);
+  background: color-mix(in srgb, var(--color-error, #dc2626) 12%, transparent);
+}
+
+/* 5층: 메타 (작성자, 댓글, 파일) */
+.cms-list-card__meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px 0;
+  font-size: 11px;
+  color: var(--color-text-muted, #94a3b8);
+  font-weight: 500;
+}
+
+.cms-list-card__meta-tag {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-primary) 8%, transparent);
+  color: var(--color-primary, #3b82f6);
+}
+
+/* 하단 여백 — inner 마지막 자식 */
+.cms-list-card__inner > :last-child {
+  padding-bottom: 12px;
+}
+
+/* ═══════════════════════════════════════════════════════
+   CMS Form — 작성/편집 폼
+═══════════════════════════════════════════════════════ */
 .cms-form__body {
-  padding: var(--space-4, 16px) var(--space-5, 20px);
+  padding: var(--space-5, 20px);
 }
 
 .cms-form__field {
-  margin-bottom: var(--space-4, 16px);
+  margin-bottom: var(--space-5, 20px);
 }
 
 .cms-form__field--inline {
@@ -208,31 +461,33 @@
   display: flex;
   gap: var(--space-2, 8px);
   justify-content: flex-end;
-  padding-top: var(--space-3, 12px);
+  padding-top: var(--space-4, 16px);
+  border-top: 1px solid var(--color-border-divider, #e5e7eb);
+  margin-top: var(--space-2, 8px);
 }
 
 .cms-form__input--full {
   width: 100%;
 }
 
-/* ─────────────────────────────────────────────────────
+/* ═══════════════════════════════════════════════════════
    CMS Attachments
-───────────────────────────────────────────────────── */
+═══════════════════════════════════════════════════════ */
 .cms-attach__section {
-  margin-top: var(--space-3, 12px);
+  margin-top: 0;
 }
 
 .cms-attach__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: var(--space-2, 8px);
+  margin-bottom: var(--space-3, 12px);
 }
 
 .cms-attach__list {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1, 4px);
+  gap: 6px;
 }
 
 .cms-attach__item {
@@ -240,8 +495,9 @@
   align-items: center;
   gap: var(--space-2, 8px);
   padding: var(--space-2, 8px) var(--space-3, 12px);
-  background: var(--color-bg-subtle, #f8fafc);
-  border-radius: var(--radius-sm, 6px);
+  background: var(--color-bg-surface, #fff);
+  border: 1px solid var(--color-border-divider, #e5e7eb);
+  border-radius: var(--radius-md, 8px);
   font-size: var(--text-sm, 13px);
 }
 
@@ -251,12 +507,8 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--color-primary, #3b82f6);
-  cursor: pointer;
-  text-decoration: none;
-}
-.cms-attach__item-name:hover {
-  text-decoration: underline;
+  color: var(--color-text-primary, #1e293b);
+  font-weight: 500;
 }
 
 .cms-attach__item-size {
@@ -268,12 +520,13 @@
 .cms-attach__item-remove {
   color: var(--color-text-muted, #94a3b8);
   cursor: pointer;
-  padding: 2px;
+  padding: 2px 6px;
   border: none;
   background: none;
   font-size: 16px;
   line-height: 1;
   border-radius: var(--radius-sm, 6px);
+  transition: color 100ms ease, background 100ms ease;
 }
 .cms-attach__item-remove:hover {
   color: var(--color-error, #dc2626);
@@ -285,26 +538,26 @@
   display: flex;
   align-items: center;
   gap: var(--space-3, 12px);
-  padding: var(--space-3, 12px);
-  background: var(--color-bg-subtle, #f8fafc);
+  padding: var(--space-3, 12px) var(--space-4, 16px);
+  background: var(--color-bg-surface, #fff);
   border: 1px solid var(--color-border-divider, #e5e7eb);
   border-radius: var(--radius-md, 8px);
   transition: border-color 150ms ease, box-shadow 150ms ease;
 }
 .cms-attach__file-card:hover {
-  border-color: var(--color-primary, #3b82f6);
-  box-shadow: 0 1px 4px rgba(59,130,246,0.08);
+  border-color: color-mix(in srgb, var(--color-primary, #3b82f6) 40%, var(--color-border-divider));
+  box-shadow: 0 2px 8px rgba(59,130,246,0.08);
 }
 
 .cms-attach__file-ext {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
-  border-radius: var(--radius-sm, 6px);
+  width: 42px;
+  height: 42px;
+  border-radius: var(--radius-md, 8px);
   font-size: 10px;
-  font-weight: 700;
+  font-weight: 800;
   letter-spacing: 0.03em;
   color: #fff;
   flex-shrink: 0;
@@ -331,7 +584,7 @@
 
 .cms-attach__file-name {
   font-size: var(--text-sm, 13px);
-  font-weight: 500;
+  font-weight: 600;
   color: var(--color-text-primary, #1e293b);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -353,13 +606,13 @@
 .cms-attach__download-btn {
   display: inline-flex;
   align-items: center;
-  padding: 4px 12px;
+  padding: 5px 14px;
   font-size: var(--text-xs, 12px);
-  font-weight: 600;
+  font-weight: 700;
   color: var(--color-primary, #3b82f6);
   background: var(--color-bg-surface, #fff);
-  border: 1px solid var(--color-primary, #3b82f6);
-  border-radius: var(--radius-sm, 6px);
+  border: 1px solid color-mix(in srgb, var(--color-primary, #3b82f6) 40%, var(--color-border-divider));
+  border-radius: var(--radius-md, 8px);
   cursor: pointer;
   transition: background 150ms ease, color 150ms ease;
   white-space: nowrap;
@@ -369,9 +622,9 @@
   color: #fff;
 }
 
-/* ─────────────────────────────────────────────────────
+/* ═══════════════════════════════════════════════════════
    CMS Tree Nav Icons
-───────────────────────────────────────────────────── */
+═══════════════════════════════════════════════════════ */
 .cms-tree__icon {
   width: 16px;
   height: 16px;
@@ -390,9 +643,9 @@
   transform: rotate(90deg);
 }
 
-/* ─────────────────────────────────────────────────────
+/* ═══════════════════════════════════════════════════════
    CMS Node Picker (checkbox list for NoticeAdminPage)
-───────────────────────────────────────────────────── */
+═══════════════════════════════════════════════════════ */
 .cms-node-picker {
   display: flex;
   flex-direction: column;
@@ -424,9 +677,9 @@
   accent-color: var(--color-primary, #3b82f6);
 }
 
-/* ─────────────────────────────────────────────────────
+/* ═══════════════════════════════════════════════════════
    CMS Loading Skeletons
-───────────────────────────────────────────────────── */
+═══════════════════════════════════════════════════════ */
 @keyframes cms-shimmer {
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }

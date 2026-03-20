@@ -1,7 +1,7 @@
 // PATH: src/features/community/components/CommunityEmptyState.tsx
-// Rich empty states for community domain — replaces plain text empty blocks
+// Rich empty states for community domain — premium SaaS quality
 
-import EmptyState from "@/shared/ui/ds/EmptyState";
+import { Inbox, Search, AlertTriangle, Loader2, MousePointerClick, FolderSearch } from "lucide-react";
 
 type CommunityEmptyVariant =
   | "no-scope"
@@ -32,7 +32,7 @@ const POST_TYPE_LABEL: Record<PostTypeHint, string> = {
 
 function defaults(
   variant: CommunityEmptyVariant,
-  postType?: PostTypeHint,
+  postType?: PostTypeHint
 ): { title: string; description?: string } {
   const label = postType ? POST_TYPE_LABEL[postType] : "항목";
 
@@ -40,7 +40,8 @@ function defaults(
     case "no-scope":
       return {
         title: "조회 범위를 선택하세요",
-        description: "좌측 트리에서 전체 보기 또는 강의/차시를 선택하면\n해당 범위의 목록이 표시됩니다.",
+        description:
+          "좌측 트리에서 전체 보기 또는 강의/차시를 선택하면\n해당 범위의 목록이 표시됩니다.",
       };
     case "no-selection":
       return {
@@ -55,7 +56,6 @@ function defaults(
     case "no-posts":
       return {
         title: `${label}이(가) 없습니다`,
-        description: `아직 등록된 ${label}이(가) 없습니다.`,
       };
     case "loading":
       return { title: "불러오는 중…" };
@@ -67,6 +67,15 @@ function defaults(
   }
 }
 
+const VARIANT_ICON: Record<CommunityEmptyVariant, React.ComponentType<{ size?: number; className?: string }>> = {
+  "no-scope": FolderSearch,
+  "no-selection": MousePointerClick,
+  "no-results": Search,
+  "no-posts": Inbox,
+  loading: Loader2,
+  error: AlertTriangle,
+};
+
 export default function CommunityEmptyState({
   variant,
   title,
@@ -76,7 +85,9 @@ export default function CommunityEmptyState({
   showKeyboardHint,
 }: CommunityEmptyStateProps) {
   const d = defaults(variant, postType);
-  const tone = variant === "error" ? "error" as const : variant === "loading" ? "loading" as const : "empty" as const;
+  const IconComp = VARIANT_ICON[variant];
+  const isLoading = variant === "loading";
+  const isError = variant === "error";
 
   const keyboardHint = showKeyboardHint ? (
     <span className="qna-inbox__keyboard-hint">
@@ -86,15 +97,36 @@ export default function CommunityEmptyState({
 
   return (
     <div className="qna-inbox__empty">
-      <EmptyState
-        title={title ?? d.title}
-        description={description ?? d.description}
-        tone={tone}
-        scope="panel"
-        mode="embedded"
-        actions={action}
-        extra={keyboardHint}
-      />
+      <div
+        style={{
+          width: 56,
+          height: 56,
+          borderRadius: 16,
+          background: isError
+            ? "color-mix(in srgb, var(--color-error) 10%, transparent)"
+            : "color-mix(in srgb, var(--color-primary) 8%, transparent)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          color: isError
+            ? "var(--color-error)"
+            : "var(--color-primary)",
+          marginBottom: 4,
+        }}
+      >
+        <IconComp
+          size={24}
+          className={isLoading ? "community-empty__spinner" : undefined}
+        />
+      </div>
+      <p className="qna-inbox__empty-title">{title ?? d.title}</p>
+      {(description ?? d.description) && (
+        <p className="qna-inbox__empty-desc">
+          {description ?? d.description}
+        </p>
+      )}
+      {action}
+      {keyboardHint}
     </div>
   );
 }

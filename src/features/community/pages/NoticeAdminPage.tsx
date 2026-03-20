@@ -24,7 +24,7 @@ import { Button } from "@/shared/ui/ds";
 import { useConfirm } from "@/shared/ui/confirm";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import RichTextEditor from "@/shared/ui/editor/RichTextEditor";
-import ScopeBadge from "../components/ScopeBadge";
+import ScopeBadge, { resolveScopeType } from "../components/ScopeBadge";
 import PostReadView from "../components/PostReadView";
 import CommunityContextBar from "../components/CommunityContextBar";
 import CommunityEmptyState from "../components/CommunityEmptyState";
@@ -238,11 +238,19 @@ export default function NoticeAdminPage() {
         onSelectSession={selectSession}
       />
 
-      {/* 2번 영역: 공지 목록 — 상단에 공지 추가하기 고정, 아래로 목록 스크롤 */}
+      {/* 2번 영역: 공지 목록 */}
       <aside className="qna-inbox__list">
         <div className="qna-inbox__list-header">
           <div className="qna-inbox__list-title-row">
-            <h2 className="qna-inbox__list-title">공지사항</h2>
+            <div className="qna-inbox__list-title-group">
+              <h2 className="qna-inbox__list-title">공지사항</h2>
+              <CommunityContextBar
+                scope={scope as any}
+                lectureName={lectures.find((l) => l.id === lectureId)?.title ?? null}
+                sessionName={sessionsOfLecture.find((s) => s.id === sessionId)?.title ?? null}
+                inline
+              />
+            </div>
             <Button intent="primary" size="sm" onClick={() => { setShowCreate(true); setSelectedId(null); }}>+ 추가</Button>
           </div>
           <div className="flex items-center gap-2">
@@ -256,11 +264,6 @@ export default function NoticeAdminPage() {
             />
           </div>
         </div>
-        <CommunityContextBar
-          scope={scope as any}
-          lectureName={lectures.find((l) => l.id === lectureId)?.title ?? null}
-          sessionName={sessionsOfLecture.find((s) => s.id === sessionId)?.title ?? null}
-        />
         <div className="qna-inbox__list-body">
           {!canShowList ? (
             <CommunityEmptyState variant="no-scope" postType="notice" />
@@ -332,26 +335,50 @@ function NoticeCard({
         day: "numeric",
       })
     : "—";
+
+  // scope 해석
+  const scopeType = resolveScopeType(post);
+  const isGlobal = scopeType === "global";
+  const nd = post.mappings?.[0]?.node_detail;
+  const scopePath = isGlobal
+    ? "모든 강의 대상"
+    : nd?.session_title
+    ? `${nd.lecture_title} > ${nd.session_title}`
+    : nd?.lecture_title ?? "";
+  const typeLabel = isGlobal ? "전체 공지" : nd?.session_title ? "차시 공지" : "강의 공지";
+
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`qna-inbox__card ${isActive ? "qna-inbox__card--active" : ""}`}
+      className={`cms-list-card ${isActive ? "cms-list-card--active" : ""} cms-list-card--${scopeType}`}
     >
-      <div className="qna-inbox__card-top">
-        <div className="qna-inbox__card-body">
-          <div className="qna-inbox__card-meta">
-            <ScopeBadge post={post} />
-            {post.is_pinned && <span className="ds-badge ds-badge--warning">고정</span>}
-            {post.is_urgent && <span className="ds-badge ds-badge--danger">중요</span>}
-            <span className="qna-inbox__card-meta-dot" />
-            <span>{dateLabel}</span>
-          </div>
-          <div className="qna-inbox__card-title-row">
-            <div className="qna-inbox__card-title">{post.title || "(제목 없음)"}</div>
-          </div>
-          {snippet && <div className="qna-inbox__card-snippet">{snippet}</div>}
+      {/* 좌측 유형 컬러 바 */}
+      <div className={`cms-list-card__bar cms-list-card__bar--${scopeType}`} />
+
+      <div className="cms-list-card__inner">
+        {/* 1층: 유형 헤더 — 공지 종류 + 대상 + 날짜 */}
+        <div className="cms-list-card__header">
+          <span className={`cms-list-card__type cms-list-card__type--${scopeType}`}>
+            {typeLabel}
+          </span>
+          <span className="cms-list-card__scope">{scopePath}</span>
+          <span className="cms-list-card__date">{dateLabel}</span>
         </div>
+
+        {/* 2층: 제목 */}
+        <div className="cms-list-card__title">{post.title || "(제목 없음)"}</div>
+
+        {/* 3층: 본문 미리보기 */}
+        {snippet && <div className="cms-list-card__snippet">{snippet}</div>}
+
+        {/* 4층: 플래그 (고정/중요) — 있을 때만 */}
+        {(post.is_pinned || post.is_urgent) && (
+          <div className="cms-list-card__flags">
+            {post.is_pinned && <span className="cms-list-card__flag cms-list-card__flag--pinned">고정</span>}
+            {post.is_urgent && <span className="cms-list-card__flag cms-list-card__flag--urgent">중요</span>}
+          </div>
+        )}
       </div>
     </button>
   );

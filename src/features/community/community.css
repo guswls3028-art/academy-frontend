@@ -6,6 +6,16 @@
  * ============================================================================ */
 @reference "tailwindcss";
 
+/* ── Empty state spinner ── */
+@keyframes community-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.community-empty__spinner {
+  animation: community-spin 1s linear infinite;
+}
+
 /* ---- Modal Overlay (SSOT) ---- */
 .community-modal-overlay {
   position: fixed;
@@ -40,7 +50,7 @@
 .community-modal-title {
   margin: 0;
   font-size: var(--text-xl, 18px);
-  font-weight: 700;
+  font-weight: 800;
   color: var(--color-text-primary);
 }
 
@@ -53,9 +63,10 @@
 
 .community-field__label {
   font-size: var(--text-xs, 11px);
-  font-weight: 600;
+  font-weight: 700;
   color: var(--color-text-tertiary);
-  letter-spacing: 0.01em;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
 }
 
 .community-field__label--required::after {
@@ -73,6 +84,7 @@
   font-size: var(--text-xs, 11px);
   color: var(--color-error, var(--color-danger));
   margin: 0;
+  font-weight: 600;
 }
 
 /* ---- Card / List Item (SSOT) ---- */
@@ -136,7 +148,7 @@
 
 .community-section__title {
   font-size: var(--text-lg, 16px);
-  font-weight: 700;
+  font-weight: 800;
   color: var(--color-text-primary);
   margin: 0;
 }
@@ -149,6 +161,7 @@
   padding: 3px;
   border-radius: var(--radius-md);
   background: var(--color-bg-surface-soft, var(--bg-surface-soft));
+  border: 1px solid var(--color-border-divider, #e5e7eb);
 }
 
 .community-tab {
@@ -171,7 +184,7 @@
 
 .community-tab--active {
   color: var(--color-text-primary);
-  font-weight: 600;
+  font-weight: 700;
   background: var(--color-bg-surface);
   box-shadow: var(--elevation-1);
 }
@@ -189,7 +202,7 @@
 
 .community-scope-bar__label {
   font-size: var(--text-sm, 12px);
-  font-weight: 600;
+  font-weight: 700;
   color: var(--color-text-secondary);
 }
 
@@ -228,8 +241,8 @@
   align-items: center;
   gap: 4px;
   font-size: 10px;
-  font-weight: 600;
-  padding: 2px 8px;
+  font-weight: 700;
+  padding: 3px 8px;
   border-radius: var(--radius-full, 999px);
   white-space: nowrap;
   line-height: 1.5;
@@ -277,51 +290,57 @@
   display: flex;
   align-items: center;
   gap: var(--space-2, 8px);
-  padding: var(--space-2, 8px) var(--space-4, 16px);
+  padding: var(--space-3, 12px) var(--space-4, 16px);
   border-bottom: 1px solid var(--color-border-divider, #e5e7eb);
   font-size: 12px;
-  min-height: 36px;
+  min-height: 42px;
   flex-shrink: 0;
-  border-left: 3px solid transparent;
-  transition: background 120ms ease, border-color 120ms ease;
+  transition: background 120ms ease;
 }
 
 .community-context-bar--all {
   background: var(--color-bg-surface, #fff);
-  border-left-color: var(--color-text-muted, #94a3b8);
 }
 
 .community-context-bar--lecture {
-  background: color-mix(in srgb, var(--color-brand-primary) 5%, var(--color-bg-surface, #fff));
-  border-left-color: var(--color-brand-primary);
+  background: color-mix(in srgb, var(--color-brand-primary) 4%, var(--color-bg-surface, #fff));
 }
 
 .community-context-bar--session {
-  background: color-mix(in srgb, var(--color-brand-complement, #8b5cf6) 5%, var(--color-bg-surface, #fff));
-  border-left-color: var(--color-brand-complement, #8b5cf6);
+  background: color-mix(in srgb, var(--color-brand-complement, #8b5cf6) 4%, var(--color-bg-surface, #fff));
 }
 
 .community-context-bar__icon {
-  width: 14px;
-  height: 14px;
+  width: 15px;
+  height: 15px;
   flex-shrink: 0;
-  opacity: 0.7;
+  opacity: 0.55;
+  color: var(--color-text-muted);
 }
 
 .community-context-bar--lecture .community-context-bar__icon {
   color: var(--color-brand-primary);
-  opacity: 1;
+  opacity: 0.8;
 }
 
 .community-context-bar--session .community-context-bar__icon {
   color: var(--color-brand-complement, #8b5cf6);
-  opacity: 1;
+  opacity: 0.8;
 }
 
 .community-context-bar__scope-label {
   font-weight: 700;
-  color: var(--color-text-primary, #1e293b);
+  color: var(--color-text-secondary, #64748b);
   white-space: nowrap;
+  letter-spacing: -0.01em;
+}
+
+.community-context-bar--lecture .community-context-bar__scope-label {
+  color: var(--color-brand-primary);
+}
+
+.community-context-bar--session .community-context-bar__scope-label {
+  color: var(--color-brand-complement, #8b5cf6);
 }
 
 .community-context-bar__dot {
@@ -330,6 +349,7 @@
   border-radius: 50%;
   background: var(--color-text-muted, #94a3b8);
   flex-shrink: 0;
+  opacity: 0.5;
 }
 
 .community-context-bar__detail {
@@ -343,17 +363,61 @@
 
 .community-context-bar--lecture .community-context-bar__detail {
   color: var(--color-brand-primary);
+  opacity: 0.85;
 }
 
 .community-context-bar--session .community-context-bar__detail {
   color: var(--color-brand-complement, #8b5cf6);
+  opacity: 0.85;
 }
 
 .community-context-bar__extra {
   margin-left: auto;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--color-brand-primary);
   white-space: nowrap;
+}
+
+/* ── Inline scope chip — 헤더 제목 옆에 자연스럽게 붙는 뱃지 ── */
+.community-scope-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.3;
+  white-space: nowrap;
+  letter-spacing: -0.01em;
+  vertical-align: middle;
+}
+
+.community-scope-chip__icon {
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+
+.community-scope-chip__label {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.community-scope-chip--all {
+  color: var(--color-text-secondary);
+  background: color-mix(in srgb, var(--color-text-muted) 10%, transparent);
+}
+
+.community-scope-chip--lecture {
+  color: var(--color-brand-primary);
+  background: color-mix(in srgb, var(--color-brand-primary) 10%, transparent);
+}
+
+.community-scope-chip--session {
+  color: var(--color-brand-complement, #7c3aed);
+  background: color-mix(in srgb, var(--color-brand-complement, #7c3aed) 10%, transparent);
 }
 
 /* ---- Link style ---- */
