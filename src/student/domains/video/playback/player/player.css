@@ -406,191 +406,104 @@
 }
 
 /* ═══════════════════════════════════════════════
-   External Control Bar (플레이어 하단 독립 툴바)
+   Speed Popover (배속 팝오버 — 플레이어 내 통합)
    ═══════════════════════════════════════════════ */
 
-.svpExtBar {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 10px;
-  margin-top: 8px;
-  border-radius: 14px;
-  background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));
-  border: 1px solid rgba(255,255,255,0.07);
-  overflow: hidden;
+.svpSpeedPop {
+  position: relative;
 }
 
-.svpExtSvg {
-  width: 18px;
-  height: 18px;
-  flex-shrink: 0;
-}
-
-.svpExtGroup {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.svpExtDivider {
-  width: 1px;
-  height: 22px;
-  background: rgba(255,255,255,0.10);
-  margin: 0 6px;
-  flex-shrink: 0;
-}
-
-.svpExtBtn {
+.svpSpeedPopBtn {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 7px 14px;
-  border-radius: 10px;
-  border: 1px solid rgba(255,255,255,0.08);
-  background: rgba(255,255,255,0.05);
-  color: rgba(255,255,255,0.78);
+  justify-content: center;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.08);
+  color: rgba(255,255,255,0.92);
   font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 120ms ease;
-  white-space: nowrap;
-  font-family: var(--svp-font);
-  flex-shrink: 0;
-  min-height: 36px;
-}
-
-.svpExtBtn:hover {
-  background: rgba(255,255,255,0.10);
-  color: rgba(255,255,255,0.95);
-  border-color: rgba(255,255,255,0.14);
-}
-
-.svpExtBtn:active {
-  transform: scale(0.97);
-}
-
-.svpExtBtnLabel {
-  font-size: 12px;
-  font-weight: 800;
-}
-
-/* 극장 모드 active */
-.svpExtTheater--active {
-  background: rgba(255,255,255,0.12);
-  border-color: rgba(255,255,255,0.18);
-  color: rgba(255,255,255,0.95);
-}
-
-/* ── 배속 pill 버튼 ── */
-
-.svpExtSpeedGroup {
-  gap: 3px;
-  flex-wrap: nowrap;
-  overflow-x: auto;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-
-.svpExtSpeedGroup::-webkit-scrollbar {
-  display: none;
-}
-
-.svpExtSpeedPill {
-  padding: 6px 11px;
-  border-radius: 8px;
-  border: 1px solid rgba(255,255,255,0.06);
-  background: transparent;
-  color: rgba(255,255,255,0.55);
-  font-size: 12px;
   font-weight: 800;
   cursor: pointer;
   transition: all 120ms ease;
   white-space: nowrap;
   font-family: var(--svp-font);
   letter-spacing: -0.2px;
-  flex-shrink: 0;
+  min-width: 44px;
   min-height: 32px;
 }
 
-.svpExtSpeedPill--normal {
-  color: rgba(255,255,255,0.70);
-  font-weight: 900;
-}
-
-.svpExtSpeedPill:hover {
-  color: rgba(255,255,255,0.85);
-  background: rgba(255,255,255,0.06);
-}
-
-.svpExtSpeedPill--active {
+.svpSpeedPopBtn:hover {
   background: rgba(255,255,255,0.14);
-  color: #fff;
   border-color: rgba(255,255,255,0.20);
-  box-shadow: 0 0 0 1px rgba(255,255,255,0.06);
 }
 
-.svpExtSpeedPill--active:hover {
-  background: rgba(255,255,255,0.18);
-}
-
-.svpExtSpeedPill--disabled {
-  opacity: 0.4;
+.svpSpeedPopBtn--disabled {
+  opacity: 0.45;
   cursor: not-allowed;
 }
 
-/* ── 모바일 대응 ── */
+.svpSpeedPopMenu {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  right: 0;
+  min-width: 130px;
+  padding: 6px 0;
+  border-radius: 12px;
+  background: rgba(20, 20, 22, 0.96);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255,255,255,0.12);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.55);
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+}
 
-/* 터치 디바이스: 외부 바 버튼 터치 영역 확대 */
+.svpSpeedPopItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px 16px;
+  border: none;
+  background: transparent;
+  color: rgba(255,255,255,0.78);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 100ms ease;
+  font-family: var(--svp-font);
+  text-align: left;
+}
+
+.svpSpeedPopItem:hover {
+  background: rgba(255,255,255,0.08);
+}
+
+.svpSpeedPopItem--active {
+  color: #fff;
+  font-weight: 900;
+}
+
+.svpSpeedPopCheck {
+  color: rgba(255,255,255,0.9);
+  font-size: 14px;
+  font-weight: 900;
+  margin-left: 12px;
+}
+
+/* 터치 디바이스: 팝오버 아이템 터치 영역 확대 */
 @media (hover: none) and (pointer: coarse) {
-  .svpExtBtn {
+  .svpSpeedPopBtn {
     min-height: 44px;
-    padding: 8px 14px;
+    padding: 6px 14px;
+    font-size: 14px;
   }
-  .svpExtSpeedPill {
-    min-height: 38px;
-    padding: 7px 12px;
+  .svpSpeedPopItem {
+    padding: 13px 18px;
+    font-size: 15px;
   }
-}
-
-@media (max-width: 768px) {
-  .svpExtBar {
-    padding: 6px 8px;
-    gap: 4px;
-    margin-top: 6px;
-    border-radius: 12px;
-  }
-  .svpExtBtn {
-    padding: 6px 10px;
-    font-size: 12px;
-  }
-  .svpExtSvg {
-    width: 16px;
-    height: 16px;
-  }
-  .svpExtSpeedPill {
-    padding: 5px 9px;
-    font-size: 11px;
-  }
-  .svpExtDivider {
-    margin: 0 4px;
-    height: 18px;
-  }
-}
-
-@media (max-width: 480px) {
-  .svpExtBar {
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 4px;
-  }
-  .svpExtDivider {
-    display: none;
-  }
-  .svpExtSpeedGroup {
-    order: 2;
-    width: 100%;
-    justify-content: center;
+  .svpSpeedPopMenu {
+    min-width: 160px;
   }
 }
 

@@ -10,24 +10,13 @@ import { loginViaUI } from "./helpers/auth";
 const SCREENSHOT_DIR = "e2e/screenshots/player-controls";
 
 async function navigateToVideo(page: Page) {
-  // 학생앱 → 전체공개영상 or 첫번째 세션의 비디오로 이동
-  // Tenant 1의 video 284가 유일하게 남아있음
-  await page.goto("https://hakwonplus.com/student", { waitUntil: "load" });
-  await page.waitForTimeout(2000);
-
-  // 세션 목록에서 영상이 있는 세션 클릭
-  const sessionLink = page.locator("a[href*='/student/sessions/'], a[href*='/student/video']").first();
-  if (await sessionLink.isVisible({ timeout: 5000 }).catch(() => false)) {
-    await sessionLink.click();
-    await page.waitForTimeout(2000);
-  }
-
-  // 영상 링크 클릭 (video player 페이지로 이동)
-  const videoLink = page.locator("a[href*='/student/video/'], a[href*='video']").first();
-  if (await videoLink.isVisible({ timeout: 5000 }).catch(() => false)) {
-    await videoLink.click();
-    await page.waitForTimeout(3000);
-  }
+  // 학생앱 → 영상 플레이어 직접 이동 (video 284)
+  await page.goto("https://hakwonplus.com/student/video/play?video=284", {
+    waitUntil: "load",
+    timeout: 20000,
+  });
+  // HLS 로딩 + 플레이어 마운트 대기
+  await page.waitForTimeout(5000);
 }
 
 test.describe("플레이어 외부 컨트롤바", () => {
@@ -35,65 +24,46 @@ test.describe("플레이어 외부 컨트롤바", () => {
     await loginViaUI(page, "student");
   });
 
-  test("외부 컨트롤바가 플레이어 아래에 렌더링됨", async ({ page }) => {
-    await navigateToVideo(page);
-
-    // 외부 컨트롤바 존재 확인
-    const extBar = page.locator(".svpExtBar");
-    await expect(extBar).toBeVisible({ timeout: 10000 });
-    await page.screenshot({ path: `${SCREENSHOT_DIR}/01-ext-bar-visible.png`, fullPage: false });
-
-    // 건너뛰기 버튼 2개 확인
-    const skipBtns = extBar.locator("button.svpExtBtn").filter({ hasText: /뒤로|앞으로/ });
-    await expect(skipBtns).toHaveCount(2);
-
-    // 배속 pill 버튼 확인
-    const speedPills = extBar.locator("button.svpExtSpeedPill");
-    const pillCount = await speedPills.count();
-    expect(pillCount).toBeGreaterThanOrEqual(3); // 최소 0.5, 1, 2
-
-    // 극장 버튼 확인
-    const theaterBtn = extBar.locator("button.svpExtTheater");
-    await expect(theaterBtn).toBeVisible();
-
-    // 1x가 기본 활성 상태
-    const activePill = extBar.locator(".svpExtSpeedPill--active");
-    await expect(activePill).toHaveText("1x");
-  });
-
-  test("플레이어 내부에서 건너뛰기/배속/극장 버튼이 제거됨", async ({ page }) => {
+  test("플레이어 컨트롤바 통합 레이아웃", async ({ page }) => {
     await navigateToVideo(page);
 
     const controls = page.locator(".svpControls");
     await expect(controls).toBeVisible({ timeout: 10000 });
+    await page.screenshot({ path: `${SCREENSHOT_DIR}/01-controls-visible.png`, fullPage: false });
 
-    // 내부에 재생/일시정지 버튼 있음
+    // 재생/일시정지 버튼 있음
     const playBtn = controls.locator('button[aria-label="재생"], button[aria-label="일시정지"]');
     await expect(playBtn.first()).toBeVisible();
 
-    // 내부에 전체화면 버튼 있음
+    // 10초 뒤로/앞으로 아이콘 버튼 있음 (플레이어 내부)
+    const skipBack = controls.locator('button[aria-label="10초 뒤로"]');
+    const skipFwd = controls.locator('button[aria-label="10초 앞으로"]');
+    await expect(skipBack).toBeVisible();
+    await expect(skipFwd).toBeVisible();
+
+    // 전체화면 버튼 있음
     const fsBtn = controls.locator('button[aria-label*="전체화면"]');
     await expect(fsBtn.first()).toBeVisible();
 
-    // 내부에 음소거 버튼 있음
-    const muteBtn = controls.locator('button[aria-label="음소거"]');
-    await expect(muteBtn.first()).toBeVisible();
+    // 배속 팝오버 버튼 있음 (현재 배속만 표시)
+    const speedBtn = controls.locator(".svpSpeedPopBtn");
+    await expect(speedBtn).toBeVisible();
+    await expect(speedBtn).toHaveText("1x");
 
-    // 내부에 -10초/+10초 버튼 없음 (외부로 이동됨)
-    const skip10 = controls.locator('button[aria-label="-10초"], button[aria-label="+10초"]');
-    await expect(skip10).toHaveCount(0);
+    // 극장 모드 버튼 있음
+    const theaterBtn = controls.locator('button[aria-label*="극장"]');
+    await expect(theaterBtn.first()).toBeVisible();
 
-    // 내부에 배속 메뉴 없음 (외부로 이동됨)
-    const rateMenu = controls.locator(".svpRate");
-    await expect(rateMenu).toHaveCount(0);
+    // 외부 바는 없어야 함
+    const extBar = page.locator(".svpExtBar");
+    await expect(extBar).toHaveCount(0);
 
-    await page.screenshot({ path: `${SCREENSHOT_DIR}/02-internal-controls-minimal.png`, fullPage: false });
+    await page.screenshot({ path: `${SCREENSHOT_DIR}/02-controls-layout.png`, fullPage: false });
   });
 
   test("건너뛰기 버튼 동작 확인", async ({ page }) => {
     await navigateToVideo(page);
 
-    // 영상 재생 대기
     const video = page.locator("video.svpVideo");
     await video.waitFor({ state: "attached", timeout: 10000 });
     await page.waitForTimeout(2000);
@@ -105,22 +75,24 @@ test.describe("플레이어 외부 컨트롤바", () => {
       await page.waitForTimeout(1500);
     }
 
-    // 현재 시간 기록
+    // 컨트롤 표시 (마우스 이동)
+    await page.locator(".svpVideoStage").hover();
+    await page.waitForTimeout(500);
+
     const timeBefore = await video.evaluate((v: HTMLVideoElement) => v.currentTime);
 
-    // +10초 앞으로 클릭
-    const fwdBtn = page.locator('.svpExtBtn[aria-label="10초 앞으로"]');
+    // +10초 앞으로 클릭 (플레이어 내부)
+    const fwdBtn = page.locator('button[aria-label="10초 앞으로"]');
     await fwdBtn.click();
     await page.waitForTimeout(500);
 
     const timeAfter = await video.evaluate((v: HTMLVideoElement) => v.currentTime);
-    // 10초 앞으로 이동했는지 확인 (오차 허용)
     expect(timeAfter - timeBefore).toBeGreaterThanOrEqual(8);
 
     await page.screenshot({ path: `${SCREENSHOT_DIR}/03-skip-forward-works.png`, fullPage: false });
   });
 
-  test("배속 pill 클릭으로 배속 변경", async ({ page }) => {
+  test("배속 팝오버로 배속 변경", async ({ page }) => {
     await navigateToVideo(page);
 
     const video = page.locator("video.svpVideo");
@@ -133,72 +105,79 @@ test.describe("플레이어 외부 컨트롤바", () => {
       await page.waitForTimeout(1000);
     }
 
-    // 1.5x pill 클릭
-    const pill15 = page.locator(".svpExtSpeedPill").filter({ hasText: "1.5x" });
-    await pill15.click();
+    // 컨트롤 표시
+    await page.locator(".svpVideoStage").hover();
     await page.waitForTimeout(500);
 
-    // 활성 pill 확인
-    const activePill = page.locator(".svpExtSpeedPill--active");
-    await expect(activePill).toHaveText("1.5x");
+    // 배속 버튼 클릭 → 팝오버 열기
+    const speedBtn = page.locator(".svpSpeedPopBtn");
+    await speedBtn.click();
+    await page.waitForTimeout(300);
 
-    // 실제 playbackRate 확인
+    // 팝오버 메뉴 보임
+    const popMenu = page.locator(".svpSpeedPopMenu");
+    await expect(popMenu).toBeVisible();
+    await page.screenshot({ path: `${SCREENSHOT_DIR}/04-speed-popover-open.png`, fullPage: false });
+
+    // 1.5x 선택
+    const item15 = popMenu.locator("button").filter({ hasText: "1.5x" });
+    await item15.click();
+    await page.waitForTimeout(500);
+
+    // 팝오버 닫힘 + 배속 변경 확인
+    await expect(popMenu).not.toBeVisible();
     const rate = await video.evaluate((v: HTMLVideoElement) => v.playbackRate);
     expect(rate).toBeCloseTo(1.5, 1);
 
-    // 2x pill 클릭
-    const pill2 = page.locator(".svpExtSpeedPill").filter({ hasText: "2x" });
-    await pill2.click();
+    // 버튼 텍스트가 1.5x로 변경
+    await page.locator(".svpVideoStage").hover();
     await page.waitForTimeout(500);
+    await expect(speedBtn).toHaveText("1.50x");
 
-    const rate2 = await video.evaluate((v: HTMLVideoElement) => v.playbackRate);
-    expect(rate2).toBeCloseTo(2, 1);
-
-    // 1x로 복귀
-    const pill1 = page.locator(".svpExtSpeedPill").filter({ hasText: "1x" });
-    await pill1.click();
-    await page.waitForTimeout(500);
-
-    const rate3 = await video.evaluate((v: HTMLVideoElement) => v.playbackRate);
-    expect(rate3).toBeCloseTo(1, 1);
-
-    await page.screenshot({ path: `${SCREENSHOT_DIR}/04-speed-change-works.png`, fullPage: false });
+    await page.screenshot({ path: `${SCREENSHOT_DIR}/04-speed-changed.png`, fullPage: false });
   });
 
   test("극장 모드 토글", async ({ page }) => {
     await navigateToVideo(page);
-    await page.waitForTimeout(2000);
 
-    // 극장 버튼 클릭
-    const theaterBtn = page.locator("button.svpExtTheater");
+    // 컨트롤 표시
+    await page.locator(".svpVideoStage").hover();
+    await page.waitForTimeout(500);
+
+    // 극장 버튼 클릭 (플레이어 내부)
+    const theaterBtn = page.locator('button[aria-label*="극장"]').first();
     await theaterBtn.click();
     await page.waitForTimeout(500);
 
-    // svpTheater 클래스 활성 확인
     const root = page.locator(".svpRoot");
     await expect(root).toHaveClass(/svpTheater/);
     await page.screenshot({ path: `${SCREENSHOT_DIR}/05-theater-mode-on.png`, fullPage: false });
 
     // 다시 클릭 → 비활성
-    await theaterBtn.click();
+    await page.locator(".svpVideoStage").hover();
+    await page.waitForTimeout(500);
+    const basicBtn = page.locator('button[aria-label*="기본"]').first();
+    await basicBtn.click();
     await page.waitForTimeout(500);
     await expect(root).not.toHaveClass(/svpTheater/);
     await page.screenshot({ path: `${SCREENSHOT_DIR}/06-theater-mode-off.png`, fullPage: false });
   });
 
-  test("모바일 뷰포트에서 외부 컨트롤바 레이아웃", async ({ page }) => {
-    // 모바일 뷰포트 설정
+  test("모바일 뷰포트에서 컨트롤 레이아웃", async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 812 });
     await navigateToVideo(page);
 
-    const extBar = page.locator(".svpExtBar");
-    await expect(extBar).toBeVisible({ timeout: 10000 });
+    // 컨트롤 표시
+    await page.locator(".svpVideoStage").hover();
+    await page.waitForTimeout(500);
 
-    // 배속 pill이 여전히 보이는지
-    const speedPills = extBar.locator("button.svpExtSpeedPill");
-    const pillCount = await speedPills.count();
-    expect(pillCount).toBeGreaterThanOrEqual(3);
+    const controls = page.locator(".svpControls");
+    await expect(controls).toBeVisible({ timeout: 10000 });
 
-    await page.screenshot({ path: `${SCREENSHOT_DIR}/07-mobile-layout.png`, fullPage: false });
+    // 배속 팝오버 버튼 보임
+    const speedBtn = page.locator(".svpSpeedPopBtn");
+    await expect(speedBtn).toBeVisible();
+
+    await page.screenshot({ path: `${SCREENSHOT_DIR}/07-mobile-layout.png`, fullPage: true });
   });
 });
