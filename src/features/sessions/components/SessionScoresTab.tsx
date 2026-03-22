@@ -246,7 +246,7 @@ export default function SessionScoresTab() {
               onClick={handleOpenPdfModal}
               className="h-8 rounded-lg px-3 text-xs font-semibold border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface-hover)] hover:text-[var(--color-text-primary)] transition-colors whitespace-nowrap"
             >
-              성적 PDF
+              클리닉 대상 보기
             </button>
           )}
 
