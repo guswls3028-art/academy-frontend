@@ -124,7 +124,7 @@ function RequestDetailModal({
       onClose={onClose}
       type="action"
       width={480}
-      onEnterConfirm={!approving && !rejecting ? onApprove : undefined}
+      onEnterConfirm={undefined}
     >
       <ModalHeader
         type="action"
@@ -368,8 +368,10 @@ export default function StudentsRequestsPage() {
     setDetailOpen(true);
   };
 
-  const handleBulkApprove = () => {
+  const handleBulkApprove = async () => {
     if (selectedList.length === 0) return;
+    const ok = await confirm({ title: "승인 확인", message: `선택한 ${selectedList.length}건을 승인하시겠습니까?`, confirmText: "승인" });
+    if (!ok) return;
     bulkApproveMutation.mutate(selectedList.map((r) => r.id));
   };
 
@@ -604,9 +606,10 @@ export default function StudentsRequestsPage() {
                         title="승인"
                         aria-label="승인"
                         disabled={isApproving || isRejecting}
-                        onClick={(e) => {
+                        onClick={async (e) => {
                           e.stopPropagation();
-                          approveMutation.mutate(r.id);
+                          const ok = await confirm({ title: "승인 확인", message: `${r.name} 학생의 가입을 승인하시겠습니까?`, confirmText: "승인" });
+                          if (ok) approveMutation.mutate(r.id);
                         }}
                       >
                         <FiUserCheck size={15} />
@@ -617,9 +620,10 @@ export default function StudentsRequestsPage() {
                         title="거절"
                         aria-label="거절"
                         disabled={isApproving || isRejecting}
-                        onClick={(e) => {
+                        onClick={async (e) => {
                           e.stopPropagation();
-                          rejectMutation.mutate(r.id);
+                          const ok = await confirm({ title: "거절 확인", message: `${r.name} 학생의 가입을 거절하시겠습니까?`, danger: true, confirmText: "거절" });
+                          if (ok) rejectMutation.mutate(r.id);
                         }}
                       >
                         <FiUserX size={15} />
@@ -643,12 +647,16 @@ export default function StudentsRequestsPage() {
           setDetailOpen(false);
           setDetailRequest(null);
         }}
-        onApprove={() =>
-          detailRequest && approveMutation.mutate(detailRequest.id)
-        }
-        onReject={() =>
-          detailRequest && rejectMutation.mutate(detailRequest.id)
-        }
+        onApprove={async () => {
+          if (!detailRequest) return;
+          const ok = await confirm({ title: "승인 확인", message: `${detailRequest.name} 학생의 가입을 승인하시겠습니까?`, confirmText: "승인" });
+          if (ok) approveMutation.mutate(detailRequest.id);
+        }}
+        onReject={async () => {
+          if (!detailRequest) return;
+          const ok = await confirm({ title: "거절 확인", message: `${detailRequest.name} 학생의 가입을 거절하시겠습니까?`, danger: true, confirmText: "거절" });
+          if (ok) rejectMutation.mutate(detailRequest.id);
+        }}
         approving={
           approveMutation.isPending &&
           detailRequest != null &&

@@ -46,10 +46,6 @@ export default function DashboardPage() {
     queryFn: () => fetchAdminSubmissions({ limit: 50 }),
     staleTime: 60 * 1000,
   });
-  const isDashLoading = qLoading || lLoading || eLoading || sLoading;
-  const isDashError = qError || lError || eError || sError;
-
-  const loadingLabel = isDashLoading ? "로딩 중…" : null;
   const pendingQnaCount = questions.filter((q) => !q.is_answered).length;
   const activeExams = exams.filter((e) => e.is_active);
   const pendingSubs = recentSubs.filter((s) =>
@@ -66,11 +62,6 @@ export default function DashboardPage() {
       title="대시보드"
       description="학원 운영 현황을 한눈에 확인하세요."
     >
-      {isDashError && (
-        <div style={{ padding: 24, textAlign: "center", color: "var(--color-text-muted)", marginBottom: 16 }}>
-          데이터를 불러올 수 없습니다. 잠시 후 다시 시도해 주세요.
-        </div>
-      )}
       <div className="flex flex-col gap-6" style={{ padding: 0 }}>
         <DashboardWidget
           title="바로가기"
@@ -124,12 +115,12 @@ export default function DashboardPage() {
           <div className="ds-section__grid">
             <TodoRow
               label="미답변 질의"
-              value={loadingLabel ?? `${pendingQnaCount}건`}
+              value={qError ? "불러오기 실패" : qLoading ? "로딩 중…" : `${pendingQnaCount}건`}
               onClick={() => navigate("/admin/community/qna")}
             />
             <TodoRow
               label="학생 제출 (처리 대기)"
-              value={loadingLabel ?? `${pendingSubs.length}건`}
+              value={sError ? "불러오기 실패" : sLoading ? "로딩 중…" : `${pendingSubs.length}건`}
               onClick={() => navigate("/admin/results")}
             />
             <TodoRow
@@ -139,7 +130,7 @@ export default function DashboardPage() {
             />
             <TodoRow
               label="시험 운영"
-              value={`${activeExams.length}건`}
+              value={eError ? "불러오기 실패" : eLoading ? "로딩 중…" : `${activeExams.length}건`}
               onClick={() => navigate("/admin/exams")}
             />
             <TodoRow
@@ -174,10 +165,10 @@ export default function DashboardPage() {
           description="운영 현황"
         >
           <div className="ds-section__kpi-list">
-            <KpiRow label="운영 강의" value={loadingLabel ?? `${lectures.length}개`} />
-            <KpiRow label="운영 중 시험" value={loadingLabel ?? `${activeExams.length}건`} />
-            <KpiRow label="오늘 학생 제출" value={loadingLabel ?? `${todaySubs.length}건`} />
-            <KpiRow label="미답변 질의" value={loadingLabel ?? `${pendingQnaCount}건`} />
+            <KpiRow label="운영 강의" value={lError ? "불러오기 실패" : lLoading ? "로딩 중…" : `${lectures.length}개`} />
+            <KpiRow label="운영 중 시험" value={eError ? "불러오기 실패" : eLoading ? "로딩 중…" : `${activeExams.length}건`} />
+            <KpiRow label="오늘 학생 제출" value={sError ? "불러오기 실패" : sLoading ? "로딩 중…" : `${todaySubs.length}건`} />
+            <KpiRow label="미답변 질의" value={qError ? "불러오기 실패" : qLoading ? "로딩 중…" : `${pendingQnaCount}건`} />
           </div>
         </DashboardWidget>
       </div>
