@@ -205,20 +205,36 @@
   cursor: not-allowed;
 }
 
+/* 배속 드롭업 메뉴 */
 .svpSpeedMenu {
   position: absolute;
-  bottom: calc(100% + 8px);
-  right: 0;
-  min-width: 120px;
-  padding: 6px;
-  border-radius: 12px;
-  background: rgba(15, 15, 18, 0.95);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: 0 14px 44px rgba(0, 0, 0, 0.55);
+  bottom: calc(100% + 12px);
+  right: -4px;
+  min-width: 140px;
+  padding: 8px 0;
+  border-radius: 14px;
+  background: rgba(12, 12, 15, 0.96);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.50), 0 0 0 1px rgba(0, 0, 0, 0.3);
   z-index: 60;
   display: flex;
   flex-direction: column;
+}
+
+/* 하단 꼬리 삼각형 */
+.svpSpeedMenu::after {
+  content: "";
+  position: absolute;
+  bottom: -6px;
+  right: 16px;
+  width: 12px;
+  height: 12px;
+  background: rgba(12, 12, 15, 0.96);
+  border-right: 1px solid rgba(255, 255, 255, 0.14);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+  transform: rotate(45deg);
 }
 
 .svpSpeedMenuItem {
@@ -226,11 +242,10 @@
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  padding: 10px 14px;
+  padding: 11px 20px;
   border: none;
-  border-radius: 8px;
   background: transparent;
-  color: rgba(255, 255, 255, 0.72);
+  color: rgba(255, 255, 255, 0.65);
   font-size: 14px;
   font-weight: 600;
   font-family: inherit;
@@ -242,35 +257,35 @@
 
 .svpSpeedMenuItem:hover {
   background: rgba(255, 255, 255, 0.08);
-  color: rgba(255, 255, 255, 0.95);
+  color: #fff;
 }
 
 .svpSpeedMenuItem--active {
   color: #fff;
   font-weight: 800;
-  background: rgba(255, 255, 255, 0.06);
 }
 
 .svpSpeedCheck {
-  font-size: 13px;
-  font-weight: 800;
-  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  color: rgba(100, 200, 255, 0.95);
 }
 
 /* 터치 디바이스 */
 @media (hover: none) and (pointer: coarse) {
   .svpSpeedBtn {
-    height: 38px;
+    height: 42px;
     min-width: 54px;
     font-size: 14px;
     padding: 0 14px;
   }
   .svpSpeedMenuItem {
-    padding: 14px 16px;
+    padding: 15px 22px;
     font-size: 16px;
   }
   .svpSpeedMenu {
-    min-width: 150px;
-    padding: 8px;
+    min-width: 160px;
+    padding: 10px 0;
+    border-radius: 16px;
   }
 }
