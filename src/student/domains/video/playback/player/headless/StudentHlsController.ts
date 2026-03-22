@@ -441,12 +441,12 @@ export class StudentHlsController {
 
       if (Hls && Hls.isSupported()) {
         const hls = new Hls({
-          lowLatencyMode: false,        // VOD 전용 — 저지연 모드 OFF로 ABR 안정화
+          lowLatencyMode: false,
           backBufferLength: 30,
           maxBufferLength: 60,
           maxMaxBufferLength: 120,
-          startLevel: -1,               // auto: 대역폭 추정으로 초기 variant 선택
-          abrEwmaDefaultEstimate: 20_000_000,  // 초기 대역폭 추정 20Mbps → v2(고화질) 즉시 시작. 학원/가정 WiFi 기준 보수적.
+          startLevel: -1,
+          abrEwmaDefaultEstimate: 20_000_000,
           abrEwmaDefaultEstimateMax: 50_000_000,
         });
         this.hls = hls;

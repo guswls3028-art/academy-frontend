@@ -1,14 +1,12 @@
 /* PATH: src/student/domains/video/playback/player/design/ui.css */
-
-/* ── Policy Pills ── */
 .svpPill {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 5px 9px;
+  padding: 6px 9px;
   border-radius: 999px;
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 900;
   color: rgba(255, 255, 255, 0.92);
   background: rgba(255, 255, 255, 0.09);
   border: 1px solid rgba(255, 255, 255, 0.12);
@@ -26,82 +24,66 @@
   border-color: rgba(255, 90, 110, 0.78);
 }
 
-/* ── Icon Button (통일된 36×36 터치 타겟) ── */
 .svpBtn {
-  width: 36px;
-  height: 36px;
-  border-radius: 8px;
-  border: none;
-  background: transparent;
-  color: rgba(255, 255, 255, 0.88);
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.92);
   cursor: pointer;
   display: grid;
   place-items: center;
-  padding: 0;
-  transition: color 100ms ease, background 100ms ease;
-  flex-shrink: 0;
-}
-
-.svpBtn svg {
-  width: 20px;
-  height: 20px;
+  transition: transform 120ms ease, background 120ms ease, border-color 120ms ease;
 }
 
 .svpBtn:hover {
-  color: #fff;
-  background: rgba(255, 255, 255, 0.08);
+  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.11);
+  border-color: rgba(255, 255, 255, 0.2);
 }
 
 .svpBtn:active {
-  background: rgba(255, 255, 255, 0.12);
+  transform: translateY(0px);
 }
 
 .svpBtn:disabled {
   cursor: not-allowed;
-  opacity: 0.4;
+  opacity: 0.6;
 }
 
-/* 터치 디바이스: 44px 터치 타겟 */
-@media (hover: none) and (pointer: coarse) {
-  .svpBtn {
-    width: 44px;
-    height: 44px;
-  }
-  .svpBtn svg {
-    width: 22px;
-    height: 22px;
-  }
+.svpBtnIcon {
+  font-weight: 900;
+  font-size: 12px;
+  letter-spacing: -0.2px;
 }
 
-/* ── Range Slider ── */
+.svpBtnKebab .svpBtnIcon {
+  font-size: 16px;
+  transform: translateY(-1px);
+}
+
 .svpRange {
   width: 100%;
-  accent-color: #fff;
+  accent-color: rgba(255, 255, 255, 0.92);
   cursor: pointer;
-  height: 4px;
 }
 
-/* ── Kebab Menu ── */
 .svpMenu {
   position: relative;
-}
-
-.svpBtnKebab svg {
-  width: 18px;
-  height: 18px;
 }
 
 .svpMenuPanel {
   position: absolute;
   top: 44px;
   left: 0;
-  width: 200px;
-  border-radius: 12px;
-  padding: 4px;
-  background: rgba(15, 15, 18, 0.95);
-  border: 1px solid rgba(255, 255, 255, 0.10);
-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.55);
-  backdrop-filter: blur(16px);
+  width: 220px;
+  border-radius: 14px;
+  padding: 6px;
+  background: rgba(12, 12, 14, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.48);
+  backdrop-filter: blur(12px);
   z-index: 50;
 }
 
@@ -113,38 +95,37 @@
 .svpMenuItem {
   width: 100%;
   text-align: left;
-  padding: 10px 12px;
+  padding: 10px 10px;
   border: 0;
-  border-radius: 8px;
+  border-radius: 10px;
   background: transparent;
-  color: rgba(255, 255, 255, 0.85);
-  font-weight: 700;
+  color: rgba(255, 255, 255, 0.88);
+  font-weight: 900;
   cursor: pointer;
-  font-size: 13px;
-  font-family: inherit;
-  transition: background 80ms ease;
+  font-size: 12px;
 }
 
 .svpMenuItem:hover {
   background: rgba(255, 255, 255, 0.08);
 }
 
-/* ── Toast ── */
 .svpToast {
   position: fixed;
   left: 50%;
-  bottom: 24px;
+  bottom: 18px;
   transform: translateX(-50%);
   z-index: 1000;
+
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 14px;
-  border-radius: 12px;
-  background: rgba(15, 15, 18, 0.94);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.50);
-  backdrop-filter: blur(16px);
+
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(15, 15, 18, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: 0 18px 70px rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(12px);
 }
 
 .svpToastWarn {
@@ -156,8 +137,8 @@
 }
 
 .svpToastText {
-  font-size: 13px;
-  font-weight: 700;
+  font-size: 12px;
+  font-weight: 900;
   color: rgba(255, 255, 255, 0.92);
   max-width: min(680px, 86vw);
   overflow: hidden;
@@ -166,20 +147,14 @@
 }
 
 .svpToastClose {
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
-  border: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
   background: rgba(255, 255, 255, 0.06);
-  color: rgba(255, 255, 255, 0.8);
+  color: rgba(255, 255, 255, 0.9);
   cursor: pointer;
   display: grid;
   place-items: center;
-  font-size: 12px;
-  font-weight: 700;
-  transition: background 80ms ease;
-}
-
-.svpToastClose:hover {
-  background: rgba(255, 255, 255, 0.12);
+  font-weight: 900;
 }

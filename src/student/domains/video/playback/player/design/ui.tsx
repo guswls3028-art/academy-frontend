@@ -1,72 +1,6 @@
 // PATH: src/student/domains/video/playback/player/design/ui.tsx
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { clamp } from "./utils";
-
-/* ═══════════════════════════════════════════════
-   SVG Icons — 플레이어 전용, 통일된 stroke 아이콘
-   ═══════════════════════════════════════════════ */
-const ICONS: Record<string, JSX.Element> = {
-  play: (
-    <svg viewBox="0 0 24 24" fill="currentColor" stroke="none">
-      <path d="M6.5 4.5v15l13-7.5z" />
-    </svg>
-  ),
-  pause: (
-    <svg viewBox="0 0 24 24" fill="currentColor" stroke="none">
-      <rect x="5" y="4" width="4.5" height="16" rx="1" />
-      <rect x="14.5" y="4" width="4.5" height="16" rx="1" />
-    </svg>
-  ),
-  replay10: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M1 4v6h6" />
-      <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
-      <text x="12" y="15.5" textAnchor="middle" fontSize="7" fontWeight="700" fill="currentColor" stroke="none">10</text>
-    </svg>
-  ),
-  forward10: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M23 4v6h-6" />
-      <path d="M20.49 15a9 9 0 1 1-2.13-9.36L23 10" />
-      <text x="12" y="15.5" textAnchor="middle" fontSize="7" fontWeight="700" fill="currentColor" stroke="none">10</text>
-    </svg>
-  ),
-  volume: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="currentColor" stroke="none" />
-      <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
-      <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
-    </svg>
-  ),
-  mute: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="currentColor" stroke="none" />
-      <line x1="23" y1="9" x2="17" y2="15" />
-      <line x1="17" y1="9" x2="23" y2="15" />
-    </svg>
-  ),
-  fullscreen: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="15 3 21 3 21 9" />
-      <polyline points="9 21 3 21 3 15" />
-      <line x1="21" y1="3" x2="14" y2="10" />
-      <line x1="3" y1="21" x2="10" y2="14" />
-    </svg>
-  ),
-  shrink: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="4 14 10 14 10 20" />
-      <polyline points="20 10 14 10 14 4" />
-      <line x1="14" y1="10" x2="21" y2="3" />
-      <line x1="3" y1="21" x2="10" y2="14" />
-    </svg>
-  ),
-  theater: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="2" y="7" width="20" height="10" rx="2" />
-    </svg>
-  ),
-};
 
 export function Pill({
   children,
@@ -90,9 +24,19 @@ export function IconButton({
   onClick,
   onPointerDown,
 }: {
-  icon: keyof typeof ICONS;
+  icon:
+    | "play"
+    | "pause"
+    | "replay10"
+    | "forward10"
+    | "volume"
+    | "mute"
+    | "fullscreen"
+    | "theater"
+    | "shrink";
   label: string;
   onClick?: () => void;
+  /** 모바일에서 전체화면 등 사용자 제스처 직후 API 호출용. 전달 시 pointerdown에서 호출하고 preventDefault로 click 중복 방지 */
   onPointerDown?: (e: React.PointerEvent) => void;
 }) {
   const handlePointerDown = (e: React.PointerEvent) => {
@@ -110,7 +54,17 @@ export function IconButton({
       aria-label={label}
       title={label}
     >
-      {ICONS[icon] || null}
+      <span className="svpBtnIcon" aria-hidden="true">
+        {icon === "play" ? "▶" : null}
+        {icon === "pause" ? "❚❚" : null}
+        {icon === "replay10" ? "↺10" : null}
+        {icon === "forward10" ? "10↻" : null}
+        {icon === "volume" ? "🔊" : null}
+        {icon === "mute" ? "🔇" : null}
+        {icon === "fullscreen" ? "⛶" : null}
+        {icon === "theater" ? "▭" : null}
+        {icon === "shrink" ? "▢" : null}
+      </span>
     </button>
   );
 }
@@ -189,11 +143,9 @@ export function KebabMenu({
         title={label}
         disabled={!!disabled}
       >
-        <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
-          <circle cx="12" cy="5" r="1.5" />
-          <circle cx="12" cy="12" r="1.5" />
-          <circle cx="12" cy="19" r="1.5" />
-        </svg>
+        <span className="svpBtnIcon" aria-hidden="true">
+          ⋮
+        </span>
       </button>
 
       {open && !disabled && (
