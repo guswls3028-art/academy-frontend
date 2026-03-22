@@ -46,6 +46,11 @@ export function useChargeCredits() {
   return useMutation({
     mutationFn: (amount: string) => chargeCredits(amount),
     onSuccess: () => qc.invalidateQueries({ queryKey: KEY }),
+    onError: () => {
+      import("@/shared/ui/feedback/feedback").then(({ feedback }) =>
+        feedback.error("크레딧 충전에 실패했습니다.")
+      );
+    },
   });
 }
 
@@ -54,6 +59,11 @@ export function useUpdateKakaoPfid() {
   return useMutation({
     mutationFn: (pfid: string) => updateKakaoPfid(pfid),
     onSuccess: () => qc.invalidateQueries({ queryKey: KEY }),
+    onError: () => {
+      import("@/shared/ui/feedback/feedback").then(({ feedback }) =>
+        feedback.error("카카오 PFID 저장에 실패했습니다.")
+      );
+    },
   });
 }
 
@@ -70,6 +80,11 @@ export function useUpdateMessagingInfo() {
       }
     ) => updateMessagingInfo(payload),
     onSuccess: () => qc.invalidateQueries({ queryKey: KEY }),
+    onError: () => {
+      import("@/shared/ui/feedback/feedback").then(({ feedback }) =>
+        feedback.error("메시징 설정 저장에 실패했습니다.")
+      );
+    },
   });
 }
 
@@ -77,6 +92,11 @@ export function useUpdateMessagingInfo() {
 export function useVerifySender() {
   return useMutation({
     mutationFn: (phoneNumber: string) => verifySender(phoneNumber),
+    onError: () => {
+      import("@/shared/ui/feedback/feedback").then(({ feedback }) =>
+        feedback.error("발신번호 인증에 실패했습니다.")
+      );
+    },
   });
 }
 
@@ -86,5 +106,10 @@ export function useTestCredentials() {
   return useMutation({
     mutationFn: () => testCredentials(),
     onSuccess: () => qc.invalidateQueries({ queryKey: KEY }),
+    onError: () => {
+      import("@/shared/ui/feedback/feedback").then(({ feedback }) =>
+        feedback.error("연동 테스트에 실패했습니다.")
+      );
+    },
   });
 }

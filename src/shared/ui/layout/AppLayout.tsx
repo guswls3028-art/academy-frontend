@@ -37,8 +37,8 @@ function AppLayoutContent() {
     <div
       data-app="admin"
       style={{
-        height: "100vh",
-        minHeight: "100vh",
+        height: "100dvh",
+        minHeight: "100dvh",
         overflow: "hidden",
         display: "flex",
         flexDirection: "column",
@@ -77,7 +77,7 @@ function AppLayoutContent() {
             gridRow: "2",
             position: "sticky",
             top: "var(--panel-header)",
-            height: "calc(100vh - var(--panel-header) - var(--notice-banner-height, 0px))",
+            height: "calc(100dvh - var(--panel-header) - var(--notice-banner-height, 0px))",
             overflow: "hidden",
           }}
         >

@@ -115,7 +115,7 @@ export default function StudentDrawer({ open, onClose }: DrawerProps) {
           top: 0,
           left: 0,
           bottom: 0,
-          zIndex: 9999,
+          zIndex: 10000,
           width: "min(280px, 80vw)",
           background: "var(--stu-bg)",
           borderRight: "1px solid var(--stu-border)",
@@ -127,6 +127,7 @@ export default function StudentDrawer({ open, onClose }: DrawerProps) {
           display: "flex",
           flexDirection: "column",
           paddingTop: "var(--stu-safe-top)",
+          paddingBottom: "var(--stu-safe-bottom)",
         }}
       >
         {/* 헤더 */}

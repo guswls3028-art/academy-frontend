@@ -30,6 +30,7 @@ const DEV_FALLBACK_PROGRAM: Program = {
 type ProgramState = {
   program: Program | null;
   isLoading: boolean;
+  error: boolean;
   refetch: () => Promise<void>;
 };
 
@@ -38,8 +39,10 @@ const ProgramContext = createContext<ProgramState | null>(null);
 export function ProgramProvider({ children }: { children: React.ReactNode }) {
   const [program, setProgram] = useState<Program | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   const load = useCallback(async () => {
+    setError(false);
     try {
       const res = await api.get<Program>("/core/program/", { skipAuth: true } as ApiRequestConfig);
       setProgram(res.data ?? null);
@@ -57,6 +60,7 @@ export function ProgramProvider({ children }: { children: React.ReactNode }) {
         }
       }
       setProgram(null);
+      setError(true);
     }
   }, []);
 
@@ -71,8 +75,8 @@ export function ProgramProvider({ children }: { children: React.ReactNode }) {
   }, [load]);
 
   const value = useMemo<ProgramState>(
-    () => ({ program, isLoading, refetch: load }),
-    [program, isLoading, load],
+    () => ({ program, isLoading, error, refetch: load }),
+    [program, isLoading, error, load],
   );
 
   return (

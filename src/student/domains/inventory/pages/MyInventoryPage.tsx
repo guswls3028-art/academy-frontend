@@ -120,6 +120,10 @@ export default function MyInventoryPage() {
       qc.invalidateQueries({ queryKey });
       if (fileInputRef.current) fileInputRef.current.value = "";
     },
+    onError: async (e: Error) => {
+      const { studentToast } = await import("@/student/shared/ui/feedback/studentToast");
+      studentToast.error(e.message || "파일 업로드에 실패했습니다.");
+    },
   });
 
   const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -141,6 +145,10 @@ export default function MyInventoryPage() {
       qc.invalidateQueries({ queryKey });
       setConfirmDelete(null);
     },
+    onError: async () => {
+      const { studentToast } = await import("@/student/shared/ui/feedback/studentToast");
+      studentToast.error("삭제에 실패했습니다.");
+    },
   });
 
   // 폴더 생성
@@ -154,6 +162,10 @@ export default function MyInventoryPage() {
       setShowNewFolder(false);
       setNewFolderName("");
     },
+    onError: async () => {
+      const { studentToast } = await import("@/student/shared/ui/feedback/studentToast");
+      studentToast.error("폴더 생성에 실패했습니다.");
+    },
   });
 
   // 다운로드
@@ -165,7 +177,8 @@ export default function MyInventoryPage() {
         downloadPresignedUrl(url, file.name || "download");
       }
     } catch {
-      // silently fail
+      const { studentToast } = await import("@/student/shared/ui/feedback/studentToast");
+      studentToast.error("파일 다운로드에 실패했습니다.");
     }
   };
 

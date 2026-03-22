@@ -15,8 +15,8 @@ export default function AppLayoutMobile() {
     <div
       data-app="admin"
       style={{
-        height: "100vh",
-        minHeight: "100vh",
+        height: "100dvh",
+        minHeight: "100dvh",
         overflow: "hidden",
         background: "var(--layout-canvas-bg)",
         color: "var(--color-text-primary)",

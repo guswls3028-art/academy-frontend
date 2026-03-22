@@ -32,7 +32,9 @@ export function getAvatarSlot(name: string): number {
  * Relative time string in Korean (e.g. "3분 전", "2시간 전", "5일 전").
  */
 export function timeAgo(dateStr: string): string {
-  const diff = (Date.now() - new Date(dateStr).getTime()) / 60000;
+  const ts = new Date(dateStr).getTime();
+  if (Number.isNaN(ts)) return "";
+  const diff = (Date.now() - ts) / 60000;
   if (diff < 60) return `${Math.max(1, Math.floor(diff))}분 전`;
   if (diff < 1440) return `${Math.floor(diff / 60)}시간 전`;
   return `${Math.floor(diff / 1440)}일 전`;

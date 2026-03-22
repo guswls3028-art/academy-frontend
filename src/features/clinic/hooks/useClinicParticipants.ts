@@ -33,6 +33,11 @@ export function useClinicParticipants(params: {
       qc.invalidateQueries({ queryKey: ["clinic-participants"] });
       qc.invalidateQueries({ queryKey: ["admin", "notification-counts"] });
     },
+    onError: () => {
+      import("@/shared/ui/feedback/feedback").then(({ feedback }) =>
+        feedback.error("클리닉 참가자 상태 변경에 실패했습니다.")
+      );
+    },
   });
 
   return { listQ, patchM };

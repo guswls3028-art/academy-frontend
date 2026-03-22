@@ -89,7 +89,7 @@ export default function SessionDetailPage() {
   const [openCreateExam, setOpenCreateExam] = useState(false);
   const [openCreateHomework, setOpenCreateHomework] = useState(false);
 
-  const { data: session } = useQuery({
+  const { data: session, isError: sessionError } = useQuery({
     queryKey: ["session", sId],
     queryFn: () => fetchSession(sId),
     enabled: Number.isFinite(sId),
@@ -159,6 +159,14 @@ export default function SessionDetailPage() {
   const isIndexPath = location.pathname === basePath || location.pathname === basePath + "/";
   if (isIndexPath) {
     return <Navigate to={`${basePath}/attendance`} replace />;
+  }
+
+  if (sessionError) {
+    return (
+      <div className="flex min-h-[200px] items-center justify-center">
+        <p className="text-sm text-[var(--color-error)]">세션 정보를 불러올 수 없습니다. 새로고침해 주세요.</p>
+      </div>
+    );
   }
 
   if (!session) {

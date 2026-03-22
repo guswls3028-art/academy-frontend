@@ -18,14 +18,16 @@ export default function ProtectedRoute({ allow }: { allow: Role[] }) {
   const { user, isLoading } = useAuth();
   const { program, isLoading: programLoading } = useProgram();
 
-  if (programLoading) return null;
+  if (programLoading || isLoading) {
+    return (
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh", color: "#888", fontSize: 14 }}>
+        불러오는 중…
+      </div>
+    );
+  }
 
   if (!program) {
     return <Navigate to="/error/tenant-required" replace />;
-  }
-
-  if (isLoading) {
-    return null;
   }
 
   // 홍보 테넌트는 /promo 로그인 모달로, 그 외는 /login 페이지로

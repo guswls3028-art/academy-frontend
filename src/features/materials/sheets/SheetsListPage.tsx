@@ -35,7 +35,20 @@ export default function SheetsListPage() {
             </Button>
           </div>
 
-          {items.length === 0 && !sheetsQ.isLoading && (
+          {sheetsQ.isError && (
+            <EmptyState
+              tone="error"
+              title="시험지를 불러오지 못했습니다"
+              description="잠시 후 다시 시도하세요."
+              actions={
+                <Button type="button" intent="secondary" size="sm" onClick={() => sheetsQ.refetch()}>
+                  다시 불러오기
+                </Button>
+              }
+            />
+          )}
+
+          {!sheetsQ.isError && items.length === 0 && !sheetsQ.isLoading && (
             <EmptyState
               title="시험지가 없습니다"
               description="시험지를 먼저 생성하세요."
