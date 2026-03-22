@@ -55,7 +55,7 @@
   border-left-color: var(--color-primary);
 }
 
-/* 전체공개영상 최상단 항목 — 눈에 잘 띄도록 크기·색상 강조 */
+/* 공개 영상 최상단 항목 — 눈에 잘 띄도록 크기·색상 강조 */
 .itemPublic {
   font-weight: 700;
   font-size: 15px;

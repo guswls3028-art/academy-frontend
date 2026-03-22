@@ -1,6 +1,6 @@
 /**
  * 영상 홈 — 프리미엄 SaaS 인강 느낌의 코스 카드 UI
- * 전체공개영상(맨위) + 강의별 코스 카드
+ * 공개 영상(맨위) + 강의별 코스 카드
  *
  * 성능 최적화: /student/video/me/ 응답의 video_count, total_duration,
  * thumbnail_url 요약을 사용하여 추가 API 호출 없이 카드 렌더링.
@@ -16,7 +16,7 @@ function PublicCourseCard({ pub }: { pub: StudentVideoMePublic }) {
   if (!pub?.video_count) return null;
   return (
     <CourseCard
-      title="전체공개영상"
+      title="공개 영상"
       thumbnailUrl={pub?.thumbnail_url ?? null}
       videoCount={pub?.video_count ?? 0}
       totalDuration={pub?.total_duration ?? 0}
@@ -89,7 +89,7 @@ export default function VideoHomePage() {
       <div className="video-page-content" style={{ padding: "var(--stu-space-4)" }}>
         <EmptyState
           title="등록된 영상이 없습니다"
-          description="전체공개 영상이나 수강 중인 강의의 차시 영상이 여기에 표시됩니다."
+          description="공개 영상이나 수강 중인 강의의 차시 영상이 여기에 표시됩니다."
         />
       </div>
     );
@@ -117,7 +117,7 @@ export default function VideoHomePage() {
           gap: 16,
         }}
       >
-        {/* 전체공개영상 코스 카드 */}
+        {/* 공개 영상 코스 카드 */}
         <PublicCourseCard pub={videoMe?.public ?? null} />
 
         {/* 강의별 코스 카드 */}

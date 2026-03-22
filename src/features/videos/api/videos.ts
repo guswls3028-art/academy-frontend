@@ -55,7 +55,7 @@ export type VideoSourceType = "s3" | "unknown";
 export interface Video {
   id: number;
   session_id: number;
-  folder?: number | null; // 전체공개영상 폴더 ID
+  folder?: number | null; // 공개 영상 폴더 ID
   title: string;
 
   file_key: string;
@@ -171,7 +171,7 @@ export async function fetchSessionVideos(
   return [];
 }
 
-/** 전체공개영상 전용 세션 조회/생성 — 업로드·목록에 사용 (테넌트당 1개). 테넌트 미확인 시 null 반환(전역 에러 없음). */
+/** 공개 영상 전용 세션 조회/생성 — 업로드·목록에 사용 (테넌트당 1개). 테넌트 미확인 시 null 반환(전역 에러 없음). */
 export async function fetchPublicSession(): Promise<{
   session_id: number;
   lecture_id: number;
@@ -282,7 +282,7 @@ export async function uploadComplete(
 }
 
 // ========================================================
-// Video Folders (전체공개영상 폴더 구조)
+// Video Folders (공개 영상 폴더 구조)
 // ========================================================
 
 export type VideoFolder = {

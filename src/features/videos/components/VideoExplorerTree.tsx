@@ -1,4 +1,4 @@
-// 좌측 폴더 트리 — 영상: 전체공개영상(맨위) + 강의명 > 1~n차시
+// 좌측 폴더 트리 — 영상: 공개 영상(맨위) + 강의명 > 1~n차시
 
 import { FolderOpen } from "lucide-react";
 import type { Lecture } from "@/features/lectures/api/sessions";
@@ -92,7 +92,7 @@ export default function VideoExplorerTree({
         onClick={() => onSelectFolder("public")}
       >
         <FolderOpen size={20} aria-hidden />
-        <span>전체공개영상</span>
+        <span>공개 영상</span>
       </button>
       {currentFolderId === "public" && rootFolders.length > 0 && (
         <div className={styles.children}>

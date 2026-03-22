@@ -1,6 +1,6 @@
-/* 영상 탐색기 — 레이아웃은 PanelWithTreeLayout.module.css SSOT, 여기는 그리드·카드·전체공개 구분만 */
+/* 영상 탐색기 — 레이아웃은 PanelWithTreeLayout.module.css SSOT, 여기는 그리드·카드·공개 영상 구분만 */
 
-/* 전체공개영상 영역 시각적 구분 */
+/* 공개 영상 영역 시각적 구분 */
 .gridWrapPublic {
   background: color-mix(in srgb, var(--color-brand-primary) 4%, var(--color-bg-surface));
   border-left: 3px solid var(--color-brand-primary);
@@ -9,7 +9,7 @@
 }
 
 .gridWrapPublic::before {
-  content: "전체공개영상";
+  content: "공개 영상";
   position: absolute;
   top: var(--space-4);
   left: var(--space-4);

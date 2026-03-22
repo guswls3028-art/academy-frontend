@@ -223,7 +223,7 @@ export default function CourseDetailPage() {
   const { lectureId } = useParams<{ lectureId?: string }>();
   const location = useLocation();
   const nav = useNavigate();
-  // 전체공개영상: 정적 라우트 video/courses/public 또는 pathname에 courses/public 포함 시
+  // 공개 영상: 정적 라우트 video/courses/public 또는 pathname에 courses/public 포함 시
   const pathname = location.pathname.replace(/\/$/, "");
   const isPublic =
     lectureId === "public" ||
@@ -247,8 +247,8 @@ export default function CourseDetailPage() {
     if (!isPublic && !lecture) return [];
     return isPublic
       ? (videoMe?.public?.session_id
-          ? [{ id: videoMe.public.session_id, title: "전체공개영상", order: 1, date: null }]
-          : [{ id: 0, title: "전체공개영상", order: 1, date: null }])
+          ? [{ id: videoMe.public.session_id, title: "공개 영상", order: 1, date: null }]
+          : [{ id: 0, title: "공개 영상", order: 1, date: null }])
       : (lecture?.sessions ?? []);
   }, [isLoading, isPublic, lecture, videoMe]);
   const firstSessionIdForQuery = sessionsForQuery[0]?.id ?? 0;
@@ -277,7 +277,7 @@ export default function CourseDetailPage() {
     [sessionVideoQueries]
   );
 
-  // 전체공개영상 리다이렉트 (훅은 early return 이전에 호출)
+  // 공개 영상 리다이렉트 (훅은 early return 이전에 호출)
   const [publicRedirected, setPublicRedirected] = useState(false);
   useEffect(() => {
     if (isPublic && firstSessionIdForQuery > 0 && !publicRedirected) {
@@ -297,7 +297,7 @@ export default function CourseDetailPage() {
     );
   }
 
-  // 전체공개영상이 아닐 때만 수업 없음 오류 표시
+  // 공개 영상이 아닐 때만 수업 없음 오류 표시
   if (!isPublic && !lecture) {
     return (
       <StudentPageShell title="" noSectionFrame>
@@ -331,7 +331,7 @@ export default function CourseDetailPage() {
               letterSpacing: "-0.01em",
             }}
           >
-            {isPublic ? "전체공개영상" : lecture?.title ?? "수업"}
+            {isPublic ? "공개 영상" : lecture?.title ?? "수업"}
           </h1>
 
           <div
@@ -382,7 +382,7 @@ export default function CourseDetailPage() {
               }}
             >
               {sessions.map((session, idx) => {
-                // 전체공개영상이지만 실제 세션이 없는 경우 (id === 0)
+                // 공개 영상이지만 실제 세션이 없는 경우 (id === 0)
                 if (isPublic && session.id === 0) {
                   return (
                     <div
@@ -396,8 +396,8 @@ export default function CourseDetailPage() {
                       }}
                     >
                       <EmptyState
-                        title="전체공개영상이 없습니다"
-                        description="전체공개영상이 등록되면 여기에 표시됩니다."
+                        title="공개 영상이 없습니다"
+                        description="공개 영상이 등록되면 여기에 표시됩니다."
                       />
                     </div>
                   );

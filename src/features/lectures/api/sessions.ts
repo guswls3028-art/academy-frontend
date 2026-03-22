@@ -16,6 +16,7 @@ export interface Lecture {
   color?: string | null;
   chip_label?: string | null;
   is_active: boolean;
+  is_system?: boolean;
   tenant: number;
   created_at: string;
   updated_at: string;
