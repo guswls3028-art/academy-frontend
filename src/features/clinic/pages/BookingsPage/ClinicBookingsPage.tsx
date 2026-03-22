@@ -24,7 +24,7 @@ import {
   ExternalLink,
   MoreHorizontal,
   Search,
-  Send,
+  ArrowRight,
 } from "lucide-react";
 
 import { useClinicTargets } from "../../hooks/useClinicTargets";
@@ -547,7 +547,7 @@ function RetakeTableRow({
               disabled={disabled || !scoreInput.trim()}
               title="저장"
             >
-              <Send size={13} />
+              <ArrowRight size={13} />
             </button>
           </div>
         ) : isResolved ? (
@@ -756,7 +756,7 @@ function RemediationItemRow({
                   disabled={disabled || !scoreInput.trim()}
                   title="저장"
                 >
-                  <Send size={13} />
+                  <ArrowRight size={13} />
                 </button>
               </div>
             </div>

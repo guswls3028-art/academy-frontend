@@ -3,8 +3,8 @@
 import type { Achievement } from "../api/grades";
 
 type GradeBadgeProps = {
-  passed: boolean;
-  achievement?: Achievement;
+  passed: boolean | null;
+  achievement?: Achievement | null;
   label?: { pass?: string; fail?: string };
 };
 
@@ -12,7 +12,12 @@ export default function GradeBadge({ passed, achievement, label }: GradeBadgePro
   const passText = label?.pass ?? "합격";
   const failText = label?.fail ?? "불합격";
 
-  // achievement 기반 표시
+  // 합격 기준 미설정 → 뱃지 미표시
+  if (passed === null || passed === undefined) {
+    return null;
+  }
+
+  // 보강 합격
   if (achievement === "REMEDIATED") {
     return (
       <span

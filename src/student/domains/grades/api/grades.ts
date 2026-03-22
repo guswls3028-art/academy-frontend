@@ -11,8 +11,8 @@ export type MyExamGradeSummary = {
   title: string;
   total_score: number;
   max_score: number;
-  is_pass: boolean;
-  achievement?: Achievement;
+  is_pass: boolean | null;  // null = 합격 기준 미설정
+  achievement?: Achievement | null;
   retake_count?: number;
   session_title: string | null;
   lecture_title: string | null;
