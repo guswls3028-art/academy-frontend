@@ -575,3 +575,181 @@
   outline: none;
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-brand-primary) 35%, transparent);
 }
+
+/* ================================================================
+   차수별 이력 타임라인 + 재시도 입력
+   ================================================================ */
+
+.ssd-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 4px 0 8px 0;
+}
+
+.ssd-timeline__item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 6px 0;
+  position: relative;
+}
+
+/* 세로선 */
+.ssd-timeline__item:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  left: 5px;
+  top: 20px;
+  bottom: -6px;
+  width: 1px;
+  background: var(--color-border, #e5e7eb);
+}
+
+.ssd-timeline__dot {
+  width: 11px;
+  height: 11px;
+  min-width: 11px;
+  border-radius: 50%;
+  margin-top: 3px;
+  background: var(--color-error, #ef4444);
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 1px var(--color-error, #ef4444);
+  z-index: 1;
+}
+
+.ssd-timeline__item--passed .ssd-timeline__dot {
+  background: var(--color-success, #10b981);
+  box-shadow: 0 0 0 1px var(--color-success, #10b981);
+}
+
+.ssd-timeline__content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.ssd-timeline__label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-primary, #111827);
+  white-space: nowrap;
+}
+
+.ssd-timeline__score {
+  font-size: 12px;
+  color: var(--color-text-secondary, #6b7280);
+  font-variant-numeric: tabular-nums;
+}
+
+.ssd-timeline__badge {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.ssd-timeline__badge--pass {
+  background: color-mix(in srgb, var(--color-success, #10b981) 12%, transparent);
+  color: var(--color-success, #10b981);
+}
+
+.ssd-timeline__badge--fail {
+  background: color-mix(in srgb, var(--color-error, #ef4444) 12%, transparent);
+  color: var(--color-error, #ef4444);
+}
+
+/* ── 재시도 입력 ── */
+.ssd-retake {
+  margin-top: 8px;
+  padding: 10px 12px;
+  background: color-mix(in srgb, var(--color-brand-primary, #6366f1) 5%, var(--color-bg-surface, #fff));
+  border: 1px solid color-mix(in srgb, var(--color-brand-primary, #6366f1) 20%, transparent);
+  border-radius: 8px;
+}
+
+.ssd-retake__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.ssd-retake__label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-brand-primary, #6366f1);
+}
+
+.ssd-retake__cutline {
+  font-size: 11px;
+  color: var(--color-text-secondary, #6b7280);
+}
+
+.ssd-retake__input-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ssd-retake__input {
+  width: 72px;
+  height: 32px;
+  padding: 4px 8px;
+  border: 1px solid var(--color-border, #d1d5db);
+  border-radius: 6px;
+  font-size: 14px;
+  text-align: right;
+  background: var(--color-bg-surface, #fff);
+  transition: border-color 0.15s;
+}
+
+.ssd-retake__input:focus {
+  outline: none;
+  border-color: var(--color-brand-primary, #6366f1);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-brand-primary, #6366f1) 15%, transparent);
+}
+
+.ssd-retake__input::-webkit-outer-spin-button,
+.ssd-retake__input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.ssd-retake__input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+.ssd-retake__max {
+  font-size: 13px;
+  color: var(--color-text-secondary, #6b7280);
+}
+
+.ssd-retake__submit {
+  height: 32px;
+  padding: 0 14px;
+  border: none;
+  border-radius: 6px;
+  background: var(--color-brand-primary, #6366f1);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.ssd-retake__submit:hover:not(:disabled) { opacity: 0.85; }
+.ssd-retake__submit:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.ssd-resolved-banner {
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: color-mix(in srgb, var(--color-success, #10b981) 8%, var(--color-bg-surface, #fff));
+  border: 1px solid color-mix(in srgb, var(--color-success, #10b981) 25%, transparent);
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-success, #10b981);
+  text-align: center;
+}

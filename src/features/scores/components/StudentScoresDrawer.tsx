@@ -8,12 +8,15 @@
  */
 
 import { useState, useCallback, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
-import type { SessionScoreRow, SessionScoreExamEntry, SessionScoreMeta } from "../api/sessionScores";
+import type { SessionScoreRow, SessionScoreExamEntry, SessionScoreHomeworkEntry, SessionScoreMeta } from "../api/sessionScores";
 import { fetchAdminExamResultDetail } from "@/features/results/api/adminExamResultDetail";
+import { fetchAttemptHistory, type AttemptHistoryResponse } from "../api/attemptHistory";
+import { submitClinicRetake } from "@/features/clinic/api/clinicLinks.api";
 import { generateScoreReport } from "../utils/generateScoreReport";
 import { useSendMessageModal } from "@/features/messages/context/SendMessageModalContext";
+import { feedback } from "@/shared/ui/feedback/feedback";
 import CloseButton from "@/shared/ui/ds/CloseButton";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import "./StudentScoresDrawer.css";
@@ -33,6 +36,7 @@ function pctNum(score: number | null | undefined, max: number | null | undefined
 
 export default function StudentScoresDrawer({ row, meta, onClose, onOpenAnswerDetail }: Props) {
   const [expandedExamId, setExpandedExamId] = useState<number | null>(null);
+  const [expandedHwId, setExpandedHwId] = useState<number | null>(null);
   const { openSendMessageModal } = useSendMessageModal();
 
   const toggleExpand = useCallback((examId: number) => {
@@ -209,7 +213,7 @@ export default function StudentScoresDrawer({ row, meta, onClose, onOpenAnswerDe
             </div>
           )}
 
-          {/* ── Homework results ── */}
+          {/* ── Homework results (expandable with retake) ── */}
           {row.homeworks && row.homeworks.length > 0 && (
             <section className="student-scores-drawer__section">
               <h3 className="student-scores-drawer__section-title">
@@ -218,32 +222,14 @@ export default function StudentScoresDrawer({ row, meta, onClose, onOpenAnswerDe
               </h3>
               <ul className="student-scores-drawer__hw-list">
                 {row.homeworks.map((hw) => (
-                  <li key={hw.homework_id} className="student-scores-drawer__hw-card" data-passed={hw.block.passed === true ? "true" : hw.block.passed === false ? "false" : undefined}>
-                    <div className="student-scores-drawer__hw-header">
-                      <span className="student-scores-drawer__hw-title">{hw.title}</span>
-                      <PassBadge passed={hw.block.passed} />
-                    </div>
-                    <div className="student-scores-drawer__hw-score" data-tone={hw.block.passed === true ? "success" : hw.block.passed === false ? "danger" : undefined}>
-                      {hw.block.score != null ? (
-                        (() => {
-                          const metaHw = meta?.homeworks?.find((h) => h.homework_id === hw.homework_id);
-                          const hwMaxScore = hw.block.max_score ?? metaHw?.max_score ?? null;
-                          return (
-                            <span>
-                              {hw.block.score}
-                              {hwMaxScore != null && <span className="student-scores-drawer__max-score"> / {hwMaxScore}</span>}
-                              {(() => {
-                                const p = pctNum(hw.block.score, hwMaxScore);
-                                return p != null ? <PercentBadge value={p} passed={hw.block.passed} /> : null;
-                              })()}
-                            </span>
-                          );
-                        })()
-                      ) : (
-                        <span className="student-scores-drawer__no-score">미제출</span>
-                      )}
-                    </div>
-                  </li>
+                  <HomeworkResultCard
+                    key={hw.homework_id}
+                    hw={hw}
+                    meta={meta}
+                    enrollmentId={row.enrollment_id}
+                    expanded={expandedHwId === hw.homework_id}
+                    onToggle={() => setExpandedHwId((prev) => (prev === hw.homework_id ? null : hw.homework_id))}
+                  />
                 ))}
               </ul>
             </section>
@@ -323,9 +309,10 @@ function ExamResultCard({
       </div>
 
       {expanded && (
-        <ExamRetryHistory
-          examId={exam.exam_id}
+        <AttemptTimeline
           enrollmentId={enrollmentId}
+          sourceType="exam"
+          sourceId={exam.exam_id}
           onOpenDetail={onOpenDetail}
         />
       )}
@@ -333,22 +320,125 @@ function ExamResultCard({
   );
 }
 
-/* ── Retry History (fetched on expand) ── */
+/* ── Homework Result Card (expandable with retake) ── */
 
-function ExamRetryHistory({
-  examId,
+function HomeworkResultCard({
+  hw,
+  meta,
   enrollmentId,
+  expanded,
+  onToggle,
+}: {
+  hw: SessionScoreHomeworkEntry;
+  meta: SessionScoreMeta | null;
+  enrollmentId: number;
+  expanded: boolean;
+  onToggle: () => void;
+}) {
+  const metaHw = meta?.homeworks?.find((h) => h.homework_id === hw.homework_id);
+  const hwMaxScore = hw.block.max_score ?? metaHw?.max_score ?? null;
+  const percent = pctNum(hw.block.score, hwMaxScore);
+
+  return (
+    <li className="student-scores-drawer__hw-card" data-passed={hw.block.passed === true ? "true" : hw.block.passed === false ? "false" : undefined}>
+      <div className="student-scores-drawer__hw-header" onClick={onToggle} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onToggle(); } }} role="button" tabIndex={0} style={{ cursor: "pointer" }}>
+        <div className="student-scores-drawer__hw-title-row" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
+          <span className="student-scores-drawer__hw-title">{hw.title}</span>
+          <PassBadge passed={hw.block.passed} />
+        </div>
+        <div className="student-scores-drawer__hw-score" data-tone={hw.block.passed === true ? "success" : hw.block.passed === false ? "danger" : undefined} style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          {hw.block.score != null ? (
+            <span>
+              {hw.block.score}
+              {hwMaxScore != null && <span className="student-scores-drawer__max-score"> / {hwMaxScore}</span>}
+              {percent != null && <PercentBadge value={percent} passed={hw.block.passed} />}
+            </span>
+          ) : (
+            <span className="student-scores-drawer__no-score">미제출</span>
+          )}
+          <span className={`student-scores-drawer__expand-icon ${expanded ? "is-expanded" : ""}`} aria-hidden>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </span>
+        </div>
+      </div>
+
+      {expanded && (
+        <AttemptTimeline
+          enrollmentId={enrollmentId}
+          sourceType="homework"
+          sourceId={hw.homework_id}
+        />
+      )}
+    </li>
+  );
+}
+
+/* ── Attempt Timeline (shared for exam & homework) ── */
+
+function AttemptTimeline({
+  enrollmentId,
+  sourceType,
+  sourceId,
   onOpenDetail,
 }: {
-  examId: number;
   enrollmentId: number;
+  sourceType: "exam" | "homework";
+  sourceId: number;
   onOpenDetail?: () => void;
 }) {
+  const qc = useQueryClient();
+  const [retakeScore, setRetakeScore] = useState("");
+
+  const queryParams = sourceType === "exam"
+    ? { enrollment_id: enrollmentId, exam_id: sourceId }
+    : { enrollment_id: enrollmentId, homework_id: sourceId };
+
   const { data, isLoading, error } = useQuery({
-    queryKey: ["admin-exam-detail", examId, enrollmentId],
-    queryFn: () => fetchAdminExamResultDetail(examId, enrollmentId),
-    enabled: Number.isFinite(examId) && Number.isFinite(enrollmentId),
+    queryKey: ["attempt-history", sourceType, sourceId, enrollmentId],
+    queryFn: () => fetchAttemptHistory(queryParams),
+    enabled: Number.isFinite(sourceId) && Number.isFinite(enrollmentId),
   });
+
+  const retakeMutation = useMutation({
+    mutationFn: (params: { clinicLinkId: number; score: number; maxScore?: number }) =>
+      submitClinicRetake(params.clinicLinkId, {
+        score: params.score,
+        max_score: params.maxScore,
+      }),
+    onSuccess: (result) => {
+      // 관련 쿼리 모두 갱신
+      qc.invalidateQueries({ queryKey: ["attempt-history", sourceType, sourceId, enrollmentId] });
+      qc.invalidateQueries({ queryKey: ["clinic-targets"] });
+      qc.invalidateQueries({ queryKey: ["session-scores"] });
+      setRetakeScore("");
+      if (result.passed) {
+        feedback.success(`${result.attempt_index}차 합격! (${result.score}점) — 자동 해소`);
+      } else {
+        feedback.warning(`${result.attempt_index}차 미통과 (${result.score}점)`);
+      }
+    },
+    onError: () => feedback.error("점수 저장에 실패했습니다."),
+  });
+
+  function handleRetakeSubmit() {
+    if (!data?.clinic_link_id) return;
+    const val = parseFloat(retakeScore);
+    if (isNaN(val) || val < 0) {
+      feedback.error("올바른 점수를 입력해주세요.");
+      return;
+    }
+    if (val > (data.max_score ?? 100)) {
+      feedback.error(`최대 점수(${data.max_score})를 초과할 수 없습니다.`);
+      return;
+    }
+    retakeMutation.mutate({
+      clinicLinkId: data.clinic_link_id,
+      score: val,
+      maxScore: sourceType === "homework" ? data.max_score : undefined,
+    });
+  }
 
   return (
     <div className="student-scores-drawer__retry-section">
@@ -356,34 +446,76 @@ function ExamRetryHistory({
         <div className="student-scores-drawer__retry-loading">불러오는 중...</div>
       )}
       {error && (
-        <div className="student-scores-drawer__retry-error">상세 조회 실패</div>
+        <div className="student-scores-drawer__retry-error">이력 조회 실패</div>
       )}
       {data && !error && (
         <div className="student-scores-drawer__retry-content">
-          <div className="student-scores-drawer__retry-row">
-            <span className="student-scores-drawer__retry-label">제출 시각</span>
-            <span className="student-scores-drawer__retry-value">
-              {data.submitted_at ? formatDateTime(data.submitted_at) : "—"}
-            </span>
+          {/* ── 차수별 이력 타임라인 ── */}
+          <div className="ssd-timeline">
+            {data.attempts.map((a) => (
+              <div
+                key={a.attempt_index}
+                className={`ssd-timeline__item ${a.passed ? "ssd-timeline__item--passed" : "ssd-timeline__item--failed"}`}
+              >
+                <div className="ssd-timeline__dot" />
+                <div className="ssd-timeline__content">
+                  <span className="ssd-timeline__label">
+                    {a.attempt_index}차{a.source === "clinic" ? " (재시험)" : ""}
+                  </span>
+                  <span className="ssd-timeline__score">
+                    {a.score != null ? `${a.score} / ${data.max_score}` : "—"}
+                  </span>
+                  <span className={`ssd-timeline__badge ${a.passed ? "ssd-timeline__badge--pass" : "ssd-timeline__badge--fail"}`}>
+                    {a.passed ? "합격" : "불합격"}
+                  </span>
+                </div>
+              </div>
+            ))}
           </div>
-          <div className="student-scores-drawer__retry-row">
-            <span className="student-scores-drawer__retry-label">응시 회차</span>
-            <span className="student-scores-drawer__retry-value">
-              {data.attempt_id != null ? `${data.attempt_id}회차` : "—"}
-            </span>
-          </div>
-          <div className="student-scores-drawer__retry-row">
-            <span className="student-scores-drawer__retry-label">총점</span>
-            <span className="student-scores-drawer__retry-value">
-              {data.total_score} / {data.max_score}
-            </span>
-          </div>
-          <div className="student-scores-drawer__retry-row">
-            <span className="student-scores-drawer__retry-label">문항 수</span>
-            <span className="student-scores-drawer__retry-value">
-              {data.items?.length ?? 0}문항
-            </span>
-          </div>
+
+          {/* ── 재시도 입력 (미해소 ClinicLink가 있을 때만) ── */}
+          {data.clinic_link_id && !data.resolved && (
+            <div className="ssd-retake">
+              <div className="ssd-retake__header">
+                <span className="ssd-retake__label">
+                  {(data.attempts.length || 0) + 1}차 {sourceType === "exam" ? "재시험" : "재제출"} 점수 입력
+                </span>
+                <span className="ssd-retake__cutline">
+                  합격 기준: {data.pass_score ?? "—"}
+                </span>
+              </div>
+              <div className="ssd-retake__input-row">
+                <input
+                  type="number"
+                  className="ssd-retake__input"
+                  value={retakeScore}
+                  onChange={(e) => setRetakeScore(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleRetakeSubmit(); } }}
+                  placeholder="점수"
+                  min={0}
+                  max={data.max_score ?? undefined}
+                  step="any"
+                  disabled={retakeMutation.isPending}
+                />
+                <span className="ssd-retake__max">/ {data.max_score}</span>
+                <button
+                  type="button"
+                  className="ssd-retake__submit"
+                  onClick={handleRetakeSubmit}
+                  disabled={retakeMutation.isPending || !retakeScore.trim()}
+                >
+                  {retakeMutation.isPending ? "저장 중..." : "저장"}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* 해소 완료 표시 */}
+          {data.clinic_link_id && data.resolved && (
+            <div className="ssd-resolved-banner">
+              클리닉 해소 완료
+            </div>
+          )}
 
           {onOpenDetail && (
             <button
