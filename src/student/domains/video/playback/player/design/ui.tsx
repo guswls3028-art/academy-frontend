@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { clamp } from "./utils";
+import "./ui.css";
 
 export function Pill({
   children,
