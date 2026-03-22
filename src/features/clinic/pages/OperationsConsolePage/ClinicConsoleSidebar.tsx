@@ -1,7 +1,7 @@
 /**
  * PATH: src/features/clinic/pages/OperationsConsolePage/ClinicConsoleSidebar.tsx
- * 운영 콘솔 좌측 — 미니 달력 + 해당일 클리닉 수업 목록 (SSOT: clinic.css 미니캘 그리드)
- * Phase 6: 시간 + 장소 인라인 표시, 인원 수 뱃지
+ * 운영 콘솔 좌측 — 미니 달력 + 해당일 클리닉 수업 목록
+ * 재설계: 세션 항목에 출석 진행 미니 바 + 인원 상세 표시
  */
 
 import { useMemo } from "react";
@@ -22,7 +22,8 @@ function buildMonthGrid(year: number, month: number): (string | null)[] {
   const totalCells = Math.ceil((leadingEmpty + daysInMonth) / 7) * 7;
   const grid: (string | null)[] = [];
   for (let i = 0; i < leadingEmpty; i++) grid.push(null);
-  for (let i = 0; i < daysInMonth; i++) grid.push(first.add(i, "day").format("YYYY-MM-DD"));
+  for (let i = 0; i < daysInMonth; i++)
+    grid.push(first.add(i, "day").format("YYYY-MM-DD"));
   while (grid.length < totalCells) grid.push(null);
   return grid;
 }
@@ -67,17 +68,22 @@ export default function ClinicConsoleSidebar({
   }, [sessions]);
 
   const sessionsForDay = useMemo(() => {
-    return (sessionsByDate[selectedDay] ?? []).sort(
-      (a, b) => (a.start_time || "").localeCompare(b.start_time || "")
+    return (sessionsByDate[selectedDay] ?? []).sort((a, b) =>
+      (a.start_time || "").localeCompare(b.start_time || "")
     );
   }, [sessionsByDate, selectedDay]);
 
-  const monthLabelShort = dayjs(`${year}-${String(month).padStart(2, "0")}-01`).format("M월");
+  const monthLabelShort = dayjs(
+    `${year}-${String(month).padStart(2, "0")}-01`
+  ).format("M월");
   const grid = useMemo(() => buildMonthGrid(year, month), [year, month]);
 
   return (
     <>
-      <div className="clinic-scheduler-panel__nav" style={{ padding: "0 var(--space-4) var(--space-3)" }}>
+      <div
+        className="clinic-scheduler-panel__nav"
+        style={{ padding: "0 var(--space-4) var(--space-3)" }}
+      >
         <button
           type="button"
           className="clinic-scheduler-panel__nav-btn"
@@ -86,7 +92,9 @@ export default function ClinicConsoleSidebar({
         >
           ◀
         </button>
-        <span className="clinic-scheduler-panel__month-label">{monthLabelShort}</span>
+        <span className="clinic-scheduler-panel__month-label">
+          {monthLabelShort}
+        </span>
         <button
           type="button"
           className="clinic-scheduler-panel__nav-btn"
@@ -96,7 +104,10 @@ export default function ClinicConsoleSidebar({
           ▶
         </button>
       </div>
-      <div className="clinic-scheduler-panel__mini-cal" style={{ padding: "0 var(--space-4) var(--space-4)" }}>
+      <div
+        className="clinic-scheduler-panel__mini-cal"
+        style={{ padding: "0 var(--space-4) var(--space-4)" }}
+      >
         <div className="clinic-scheduler-panel__mini-cal-dow">
           {DOW.map((d) => (
             <span key={d} className="clinic-scheduler-panel__mini-cal-dow-cell">
@@ -126,8 +137,10 @@ export default function ClinicConsoleSidebar({
                 onClick={() => onSelectDay(date)}
                 className={cx(
                   "clinic-scheduler-panel__mini-cal-cell",
-                  hasClinic && "clinic-scheduler-panel__mini-cal-cell--status-normal",
-                  isSelected && "clinic-scheduler-panel__mini-cal-cell--selected",
+                  hasClinic &&
+                    "clinic-scheduler-panel__mini-cal-cell--status-normal",
+                  isSelected &&
+                    "clinic-scheduler-panel__mini-cal-cell--selected",
                   isToday && "clinic-scheduler-panel__mini-cal-cell--today",
                   isPast && "clinic-scheduler-panel__mini-cal-cell--past"
                 )}
@@ -139,17 +152,13 @@ export default function ClinicConsoleSidebar({
         </div>
       </div>
 
-      <div style={{ borderTop: "1px solid var(--color-border-divider)", padding: "var(--space-2) 0" }}>
-        <div
-          style={{
-            padding: "var(--space-2) var(--space-4)",
-            fontSize: 12,
-            fontWeight: 700,
-            color: "var(--color-text-muted)",
-            textTransform: "uppercase",
-            letterSpacing: "0.04em",
-          }}
-        >
+      <div
+        style={{
+          borderTop: "1px solid var(--color-border-divider)",
+          padding: "var(--space-2) 0",
+        }}
+      >
+        <div className="clinic-sidebar__section-label">
           클리닉 수업
         </div>
         {sessionsForDay.length === 0 ? (
@@ -160,10 +169,26 @@ export default function ClinicConsoleSidebar({
             {selectedDay === todayISO ? "오늘 일정 없음" : "해당 날짜 일정 없음"}
           </p>
         ) : (
-          <ul style={{ listStyle: "none", margin: 0, padding: "0 var(--space-2) var(--space-2)" }}>
+          <ul
+            style={{
+              listStyle: "none",
+              margin: 0,
+              padding: "0 var(--space-2) var(--space-2)",
+            }}
+          >
             {sessionsForDay.map((s) => {
               const time = (s.start_time || "").slice(0, 5) || "—";
               const isActive = selectedSessionId === s.id;
+              const booked = s.booked_count ?? 0;
+              const total = s.participant_count ?? booked;
+              const noShow = s.no_show_count ?? 0;
+              // Derive attended from participant_count minus others
+              // participant_count = all non-cancelled; booked = pending; no_show is separate
+              // attended ≈ total - booked - no_show (approximate from tree data)
+              const attended = Math.max(0, total - booked - noShow);
+              const progressPct =
+                total > 0 ? ((attended + noShow) / total) * 100 : 0;
+
               return (
                 <li key={s.id}>
                   <button
@@ -174,21 +199,43 @@ export default function ClinicConsoleSidebar({
                       isActive && "clinic-console__sidebar-session--active"
                     )}
                   >
-                    <div className="clinic-console__sidebar-session-top">
-                      <Clock size={13} aria-hidden />
-                      <span className="clinic-console__sidebar-session-time">{time}</span>
-                      {s.location && (
-                        <>
-                          <MapPin size={11} aria-hidden style={{ opacity: 0.6 }} />
-                          <span className="clinic-console__sidebar-session-location">
-                            {s.location}
-                          </span>
-                        </>
+                    <div className="clinic-sidebar__session-content">
+                      <div className="clinic-console__sidebar-session-top">
+                        <Clock size={13} aria-hidden />
+                        <span className="clinic-console__sidebar-session-time">
+                          {time}
+                        </span>
+                        {s.location && (
+                          <>
+                            <MapPin
+                              size={11}
+                              aria-hidden
+                              style={{ opacity: 0.6 }}
+                            />
+                            <span className="clinic-console__sidebar-session-location">
+                              {s.location}
+                            </span>
+                          </>
+                        )}
+                      </div>
+                      {/* Mini progress bar */}
+                      {total > 0 && (
+                        <div className="clinic-sidebar__mini-progress">
+                          <div
+                            className="clinic-sidebar__mini-progress-fill"
+                            style={{ width: `${Math.min(100, progressPct)}%` }}
+                          />
+                        </div>
                       )}
                     </div>
-                    <span className="clinic-console__sidebar-session-badge">
-                      {s.booked_count ?? 0}명
-                    </span>
+                    <div className="clinic-console__sidebar-session-meta">
+                      {booked > 0 && (
+                        <span className="clinic-console__sidebar-session-pending-dot" aria-label={`미확인 ${booked}명`} />
+                      )}
+                      <span className="clinic-console__sidebar-session-badge">
+                        {total}명
+                      </span>
+                    </div>
                   </button>
                 </li>
               );
