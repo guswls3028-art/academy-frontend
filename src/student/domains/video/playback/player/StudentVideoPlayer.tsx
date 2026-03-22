@@ -12,7 +12,6 @@ import {
 } from "./design/utils";
 import {
   IconButton,
-  KebabMenu,
   Pill,
   PlayerToast,
   RangeSlider,
@@ -111,7 +110,7 @@ function SpeedPopover({
     return () => document.removeEventListener("pointerdown", onClick);
   }, [open]);
 
-  const label = Math.abs(rate - 1) < 0.001 ? "1x" : `${rate % 1 === 0 ? rate : rate.toFixed(2)}x`;
+  const label = rate % 1 === 0 ? `${rate}x` : `${rate.toFixed(2)}x`;
 
   return (
     <div className="svpSpeedPop" ref={ref}>
@@ -126,14 +125,14 @@ function SpeedPopover({
       </button>
       {open && !speedLocked && (
         <div className="svpSpeedPopMenu">
-          {rateMenu.filter(r => r <= 3).map((r) => (
+          {[0.75, 1, 1.25, 1.5, 2].filter(r => r <= maxRate + 0.001).map((r) => (
             <button
               key={r}
               type="button"
               className={`svpSpeedPopItem${Math.abs(r - rate) < 0.001 ? " svpSpeedPopItem--active" : ""}`}
               onClick={() => { onSelect(r); setOpen(false); }}
             >
-              <span>{r === 1 ? "1x (기본)" : `${r}x`}</span>
+              <span>{r}x</span>
               {Math.abs(r - rate) < 0.001 && <span className="svpSpeedPopCheck">✓</span>}
             </button>
           ))}
@@ -643,11 +642,6 @@ export default function StudentVideoPlayer({
             <div className="svpTopBar">
               <div className="svpTopLeft">
                 <div className="svpTitle" title={video.title}>{video.title}</div>
-                <div className="svpMeta">
-                  <span className="svpMetaItem">video#{video.id}</span>
-                  <span className="svpDot">•</span>
-                  <span className="svpMetaItem">enrollment#{enrollmentId ?? "-"}</span>
-                </div>
               </div>
               <div className="svpTopRight">
                 <div className="svpPills">
@@ -655,20 +649,6 @@ export default function StudentVideoPlayer({
                     <Pill key={idx} tone={p.tone}>{p.text}</Pill>
                   ))}
                 </div>
-                <KebabMenu
-                  align="right"
-                  label="메뉴"
-                  items={[
-                    {
-                      label: "세션 새로고침",
-                      onClick: () => controllerRef.current?.refreshSession(),
-                    },
-                    {
-                      label: "이 영상 정보",
-                      onClick: () => controllerRef.current?.showToast(shareText, "info"),
-                    },
-                  ]}
-                />
               </div>
             </div>
 
@@ -724,7 +704,7 @@ export default function StudentVideoPlayer({
               )}
 
               <div className="svpControls">
-                <div className="svpProgressRow">
+                <div className="svpSeekBar">
                   <RangeSlider
                     value={current}
                     min={0}
@@ -733,11 +713,6 @@ export default function StudentVideoPlayer({
                     onChange={(v) => onScrub(v)}
                     ariaLabel="진행 바"
                   />
-                  <div className="svpTime">
-                    <span className="svpTimeCur">{formatClock(current)}</span>
-                    <span className="svpTimeSep">/</span>
-                    <span className="svpTimeDur">{formatClock(duration)}</span>
-                  </div>
                 </div>
 
                 <div className="svpControlRow">
@@ -751,6 +726,11 @@ export default function StudentVideoPlayer({
                         <RangeSlider value={muted ? 0 : volume} min={0} max={1} step={0.01} onChange={(v) => onVolume(v)} ariaLabel="볼륨" />
                       </div>
                     </div>
+                    <div className="svpTime">
+                      <span>{formatClock(current)}</span>
+                      <span className="svpTimeSep">/</span>
+                      <span>{formatClock(duration)}</span>
+                    </div>
                   </div>
                   <div className="svpRightControls">
                     <SpeedPopover
@@ -759,7 +739,6 @@ export default function StudentVideoPlayer({
                       speedLocked={speedLocked}
                       onSelect={setPlaybackRate}
                     />
-                    <IconButton icon={theater ? "shrink" : "theater"} label={theater ? "기본 보기" : "극장 모드"} onClick={() => setTheater((v) => !v)} />
                     <IconButton
                       icon={isFullscreen ? "shrink" : "fullscreen"}
                       label={isFullscreen ? "전체화면 종료" : "전체화면"}
@@ -767,15 +746,6 @@ export default function StudentVideoPlayer({
                     />
                   </div>
                 </div>
-
-                {(!allowSeek || speedLocked) && (
-                  <div className="svpPolicyHint">
-                    {(!allowSeek || seekMode === "blocked") && (
-                      <span className="svpPolicyHintItem">• 탐색이 제한됩니다{boundedForward ? " (시청한 구간만 이동 가능)" : ""}</span>
-                    )}
-                    {speedLocked && <span className="svpPolicyHintItem">• 배속 변경이 제한됩니다</span>}
-                  </div>
-                )}
               </div>
             </div>
           </div>

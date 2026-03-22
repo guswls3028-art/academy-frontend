@@ -282,47 +282,31 @@
   left: 0;
   right: 0;
   bottom: 0;
-  padding: 10px 12px 12px 12px;
-  background: linear-gradient(180deg, rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.62) 50%, rgba(0, 0, 0, 0.85));
+  padding: 0 12px 10px 12px;
+  background: linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.55) 40%, rgba(0,0,0,0.82) 100%);
   z-index: 20;
 }
 
-.svpProgressRow {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 10px;
+.svpSeekBar {
+  padding: 10px 0 6px 0;
 }
 
-/* 모바일: 컨트롤 영역 축소, 선택 옵션 일부 숨김, 줄바꿈 방지 */
+/* 모바일: 컨트롤 영역, 볼륨 슬라이더 숨김 */
 @media (max-width: 768px), (hover: none) {
   .svpControls {
-    padding: 6px 8px 8px 8px;
-  }
-  .svpProgressRow {
-    gap: 6px;
-    margin-bottom: 6px;
+    padding: 0 8px 8px 8px;
   }
   .svpControlRow {
-    gap: 4px;
+    gap: 2px;
     flex-wrap: nowrap;
     overflow: hidden;
   }
   .svpLeftControls,
   .svpRightControls {
-    gap: 2px;
-    flex-shrink: 0;
+    gap: 0;
   }
   .svpVolumeSlider {
     display: none;
-  }
-  .svpVolume {
-    min-width: 0;
-  }
-  .svpPolicyHint,
-  .svpPolicyHintMuted {
-    display: none !important;
   }
   .svpTopBar {
     padding: 8px 10px 6px 10px;
@@ -330,15 +314,11 @@
   .svpTitle {
     font-size: 13px;
   }
-  .svpMeta {
-    display: none;
-  }
   .svpPills {
     display: none;
   }
   .svpTime {
     font-size: 11px;
-    padding: 2px 6px;
   }
 }
 
@@ -356,19 +336,20 @@
 }
 
 .svpTime {
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.86);
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.75);
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 8px;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.07);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  gap: 3px;
+  white-space: nowrap;
+  margin-left: 4px;
+  font-variant-numeric: tabular-nums;
 }
 
 .svpTimeSep {
-  color: rgba(255, 255, 255, 0.55);
+  color: rgba(255, 255, 255, 0.40);
+  margin: 0 1px;
 }
 
 .svpControlRow {
@@ -417,43 +398,43 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 4px 10px;
+  padding: 4px 12px;
   border-radius: 6px;
-  border: 1px solid rgba(255,255,255,0.12);
-  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.15);
+  background: rgba(255,255,255,0.10);
   color: rgba(255,255,255,0.92);
-  font-size: 13px;
-  font-weight: 800;
+  font-size: 14px;
+  font-weight: 700;
   cursor: pointer;
-  transition: all 120ms ease;
+  transition: all 100ms ease;
   white-space: nowrap;
   font-family: var(--svp-font);
-  letter-spacing: -0.2px;
-  min-width: 44px;
-  min-height: 32px;
+  font-variant-numeric: tabular-nums;
+  min-width: 50px;
+  height: 32px;
 }
 
 .svpSpeedPopBtn:hover {
-  background: rgba(255,255,255,0.14);
-  border-color: rgba(255,255,255,0.20);
+  background: rgba(255,255,255,0.16);
+  color: #fff;
 }
 
 .svpSpeedPopBtn--disabled {
-  opacity: 0.45;
+  opacity: 0.35;
   cursor: not-allowed;
 }
 
 .svpSpeedPopMenu {
   position: absolute;
-  bottom: calc(100% + 8px);
+  bottom: calc(100% + 10px);
   right: 0;
-  min-width: 130px;
-  padding: 6px 0;
-  border-radius: 12px;
-  background: rgba(20, 20, 22, 0.96);
-  backdrop-filter: blur(16px);
-  border: 1px solid rgba(255,255,255,0.12);
-  box-shadow: 0 12px 40px rgba(0,0,0,0.55);
+  min-width: 120px;
+  padding: 6px;
+  border-radius: 10px;
+  background: rgba(18, 18, 20, 0.97);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255,255,255,0.10);
+  box-shadow: 0 12px 36px rgba(0,0,0,0.60), 0 0 0 1px rgba(0,0,0,0.2);
   z-index: 50;
   display: flex;
   flex-direction: column;
@@ -463,47 +444,52 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 9px 16px;
+  padding: 10px 14px;
   border: none;
+  border-radius: 6px;
   background: transparent;
-  color: rgba(255,255,255,0.78);
-  font-size: 13px;
-  font-weight: 700;
+  color: rgba(255,255,255,0.72);
+  font-size: 14px;
+  font-weight: 600;
   cursor: pointer;
-  transition: background 100ms ease;
+  transition: background 80ms ease, color 80ms ease;
   font-family: var(--svp-font);
+  font-variant-numeric: tabular-nums;
   text-align: left;
 }
 
 .svpSpeedPopItem:hover {
   background: rgba(255,255,255,0.08);
+  color: rgba(255,255,255,0.95);
 }
 
 .svpSpeedPopItem--active {
   color: #fff;
-  font-weight: 900;
+  font-weight: 700;
+  background: rgba(255,255,255,0.06);
 }
 
 .svpSpeedPopCheck {
-  color: rgba(255,255,255,0.9);
-  font-size: 14px;
-  font-weight: 900;
-  margin-left: 12px;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
 }
 
 /* 터치 디바이스: 팝오버 아이템 터치 영역 확대 */
 @media (hover: none) and (pointer: coarse) {
   .svpSpeedPopBtn {
-    min-height: 44px;
-    padding: 6px 14px;
-    font-size: 14px;
+    height: 40px;
+    padding: 6px 16px;
+    font-size: 15px;
+    min-width: 56px;
   }
   .svpSpeedPopItem {
-    padding: 13px 18px;
-    font-size: 15px;
+    padding: 14px 18px;
+    font-size: 16px;
   }
   .svpSpeedPopMenu {
-    min-width: 160px;
+    min-width: 150px;
+    padding: 8px;
   }
 }
 
