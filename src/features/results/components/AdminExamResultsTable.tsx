@@ -14,6 +14,7 @@
 import { AdminExamResultRow } from "../types/results.types";
 import { deriveFrontResultStatus } from "../utils/deriveFrontResultStatus";
 import FrontResultStatusBadge from "./FrontResultStatusBadge";
+import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 
 function scoreCell(r: AdminExamResultRow) {
   // 대표 attempt 기준 final_score가 단일 진실
@@ -52,7 +53,14 @@ export default function AdminExamResultsTable({
                 className="cursor-pointer"
                 onClick={() => onSelectEnrollment(r.enrollment_id)}
               >
-                <td style={{ textAlign: "left" }}>{r.student_name}</td>
+                <td style={{ textAlign: "left" }}>
+                  <StudentNameWithLectureChip
+                    name={r.student_name}
+                    lectures={r.lecture_title ? [{ lectureName: r.lecture_title, color: r.lecture_color, chipLabel: r.lecture_chip_label }] : undefined}
+                    profilePhotoUrl={r.profile_photo_url}
+                    avatarSize={24}
+                  />
+                </td>
 
                 <td style={{ fontWeight: 600 }}>
                   {scoreCell(r)}

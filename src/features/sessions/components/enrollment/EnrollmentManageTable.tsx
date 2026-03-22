@@ -1,6 +1,7 @@
 // PATH: src/features/sessions/components/enrollment/EnrollmentManageTable.tsx
 
 import type { EnrollmentRow } from "./types";
+import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 
 export default function EnrollmentManageTable({
   rows,
@@ -33,7 +34,6 @@ export default function EnrollmentManageTable({
             <tr>
               <th className="w-12 px-3 py-2 text-left">선택</th>
               <th className="px-3 py-2 text-left">학생</th>
-              <th className="px-3 py-2 text-left">enrollment_id</th>
             </tr>
           </thead>
           <tbody>
@@ -53,10 +53,12 @@ export default function EnrollmentManageTable({
                     />
                   </td>
                   <td className="px-3 py-2 font-medium text-[var(--text-primary)]">
-                    {r.student_name || "(이름 없음)"}
-                  </td>
-                  <td className="px-3 py-2 text-[var(--text-muted)]">
-                    {r.enrollment_id}
+                    <StudentNameWithLectureChip
+                      name={r.student_name || "(이름 없음)"}
+                      lectures={r.lectures}
+                      profilePhotoUrl={r.profile_photo_url}
+                      avatarSize={20}
+                    />
                   </td>
                 </tr>
               );

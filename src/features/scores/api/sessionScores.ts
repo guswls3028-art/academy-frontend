@@ -56,6 +56,8 @@ export type SessionScoreRow = {
   lecture_title?: string | null;
   /** 강의 색상 (API 확장 시 제공) */
   lecture_color?: string | null;
+  /** 강의 딱지 라벨 (API 확장 시 제공) */
+  lecture_chip_label?: string | null;
 
   // 시험 1:N
   exams: SessionScoreExamEntry[];

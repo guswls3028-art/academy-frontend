@@ -63,6 +63,8 @@ export type ClinicTarget = {
   source_id?: number | null;
   source_title?: string | null;
   lecture_title?: string | null;
+  lecture_color?: string | null;
+  lecture_chip_label?: string | null;
   max_score?: number | null;
   latest_attempt_index?: number;
   attempt_history?: AttemptHistoryEntry[];

@@ -6,6 +6,7 @@ import { Checkbox, Input, Tag } from "antd";
 import { useMemo, useState } from "react";
 import { Search } from "lucide-react";
 import { useClinicTargets } from "../../hooks/useClinicTargets";
+import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 
 const REASON_LABEL: Record<string, string> = {
   exam: "시험 불합",
@@ -131,7 +132,10 @@ export default function ClinicTargetTable({
               />
               <div className="clinic-bookings__target-info">
                 <span className="clinic-bookings__target-name">
-                  {r.student_name}
+                  <StudentNameWithLectureChip
+                    name={r.student_name}
+                    lectures={r.lecture_title ? [{ lectureName: r.lecture_title, color: r.lecture_color, chipLabel: r.lecture_chip_label }] : undefined}
+                  />
                 </span>
                 <div className="clinic-bookings__target-detail">
                   {r.session_title && (

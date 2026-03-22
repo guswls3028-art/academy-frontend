@@ -11,6 +11,7 @@ import { useAdminHomework } from "../hooks/useAdminHomework";
 import { useHomeworkPolicy } from "../hooks/useHomeworkPolicy";
 import { EmptyState } from "@/shared/ui/ds";
 import { fetchSessionScores, type SessionScoreHomeworkEntry } from "@/features/scores/api/sessionScores";
+import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { useQuery } from "@tanstack/react-query";
 import { getHomeworkStatus, homeworkStatusLabel, type HomeworkStatus, type HomeworkMetaStatus } from "@/features/scores/utils/homeworkStatus";
 
@@ -24,6 +25,12 @@ type HomeworkResultRow = {
   clinic_required: boolean;
   is_locked: boolean;
   lock_reason?: string | null;
+  // 학생 SSOT 표시용
+  profile_photo_url?: string | null;
+  lecture_title?: string | null;
+  lecture_color?: string | null;
+  lecture_chip_label?: string | null;
+  name_highlight_clinic_target?: boolean;
 };
 
 function KpiCard({ label, value }: { label: string; value: string }) {
@@ -94,6 +101,12 @@ export default function HomeworkResultsPanel({ homeworkId }: { homeworkId: numbe
         clinic_required: hw.block?.clinic_required ?? false,
         is_locked: hw.block?.is_locked ?? false,
         lock_reason: hw.block?.lock_reason ?? null,
+        // 학생 SSOT 표시용 pass-through
+        profile_photo_url: row.profile_photo_url,
+        lecture_title: row.lecture_title,
+        lecture_color: row.lecture_color,
+        lecture_chip_label: (row as any).lecture_chip_label,
+        name_highlight_clinic_target: row.name_highlight_clinic_target,
       });
     }
 
@@ -268,7 +281,15 @@ export default function HomeworkResultsPanel({ homeworkId }: { homeworkId: numbe
                           ].join(" ")}
                           onClick={() => setSelectedEnrollmentId((prev) => (prev === r.enrollment_id ? null : r.enrollment_id))}
                         >
-                          <td className="px-3 py-2 font-medium text-[var(--color-text-primary)]">{r.student_name}</td>
+                          <td className="px-3 py-2 font-medium text-[var(--color-text-primary)]">
+                            <StudentNameWithLectureChip
+                              name={r.student_name}
+                              lectures={r.lecture_title ? [{ lectureName: r.lecture_title, color: r.lecture_color, chipLabel: r.lecture_chip_label }] : undefined}
+                              profilePhotoUrl={r.profile_photo_url}
+                              avatarSize={24}
+                              clinicHighlight={r.name_highlight_clinic_target}
+                            />
+                          </td>
                           <td className="px-3 py-2">
                             <StatusBadge status={r.status} />
                           </td>

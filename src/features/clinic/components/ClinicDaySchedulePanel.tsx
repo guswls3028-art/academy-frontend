@@ -4,6 +4,7 @@
 import { Trash2 } from "lucide-react";
 import type { ClinicSessionTreeNode } from "../api/clinicSessions.api";
 import { ClinicParticipant } from "../api/clinicParticipants.api";
+import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 
 function formatTime(s: string | undefined) {
   if (!s) return "—";
@@ -180,7 +181,12 @@ export default function ClinicDaySchedulePanel({
                       key={r.id}
                       className="ds-section__item rounded-lg border border-[var(--color-border-divider)] bg-[var(--color-bg-surface-soft)] px-4 py-3 cursor-default"
                     >
-                      <div className="ds-section__item-label">{r.student_name}</div>
+                      <div className="ds-section__item-label">
+                        <StudentNameWithLectureChip
+                          name={r.student_name}
+                          lectures={r.lecture_title ? [{ lectureName: r.lecture_title, color: r.lecture_color, chipLabel: r.lecture_chip_label }] : undefined}
+                        />
+                      </div>
                       {r.session_location && (
                         <div className="ds-section__item-meta">{r.session_location}</div>
                       )}

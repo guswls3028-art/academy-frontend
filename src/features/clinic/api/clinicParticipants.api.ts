@@ -28,6 +28,11 @@ export type ClinicParticipant = {
 
   status: ClinicParticipantStatus;
   memo?: string;
+
+  // 학생 SSOT 표시용
+  lecture_title?: string | null;
+  lecture_color?: string | null;
+  lecture_chip_label?: string | null;
 };
 
 export async function fetchClinicParticipants(params: {

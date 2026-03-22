@@ -46,6 +46,7 @@ import { feedback } from "@/shared/ui/feedback/feedback";
 import ClinicTargetSelectModal from "../../components/ClinicTargetSelectModal";
 import type { ClinicTargetSelectResult } from "../../components/ClinicTargetSelectModal";
 import { buildParticipantPayload } from "../../utils/buildParticipantPayload";
+import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 
 dayjs.locale("ko");
 
@@ -530,7 +531,11 @@ export default function ClinicConsoleWorkspace({
                         }}
                         title="학생 정보 보기"
                       >
-                        {p.student_name}
+                        <StudentNameWithLectureChip
+                          name={p.student_name}
+                          lectures={p.lecture_title ? [{ lectureName: p.lecture_title, color: p.lecture_color, chipLabel: p.lecture_chip_label }] : undefined}
+                          avatarSize={24}
+                        />
                       </button>
                       <span
                         className={`clinic-ops__status-badge ${
@@ -731,7 +736,10 @@ export default function ClinicConsoleWorkspace({
                         }
                       }}
                     >
-                      {drawerParticipant.student_name}
+                      <StudentNameWithLectureChip
+                        name={drawerParticipant.student_name}
+                        lectures={drawerParticipant.lecture_title ? [{ lectureName: drawerParticipant.lecture_title, color: drawerParticipant.lecture_color, chipLabel: drawerParticipant.lecture_chip_label }] : undefined}
+                      />
                     </button>
                   </span>
                 </div>

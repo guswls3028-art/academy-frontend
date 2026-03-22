@@ -36,6 +36,7 @@ import {
   submitClinicRetake,
 } from "../../api/clinicLinks.api";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 
 /* ── Types ── */
 
@@ -376,7 +377,12 @@ export default function ClinicBookingsPage() {
                     <span className="clinic-hub__student-expand">
                       {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                     </span>
-                    <span className="clinic-hub__student-name">{group.studentName}</span>
+                    <span className="clinic-hub__student-name">
+                      <StudentNameWithLectureChip
+                        name={group.studentName}
+                        lectures={group.items[0]?.lecture_title ? [{ lectureName: group.items[0].lecture_title, color: group.items[0].lecture_color, chipLabel: group.items[0].lecture_chip_label }] : undefined}
+                      />
+                    </span>
                     <span className="clinic-hub__student-badge">
                       미해결 {group.openCount}건
                     </span>
@@ -488,7 +494,12 @@ function RetakeTableRow({
 
   return (
     <tr className={isResolved ? "clinic-hub__row--resolved" : ""}>
-      <td className="clinic-hub__cell-name">{item.student_name}</td>
+      <td className="clinic-hub__cell-name">
+        <StudentNameWithLectureChip
+          name={item.student_name}
+          lectures={item.lecture_title ? [{ lectureName: item.lecture_title, color: item.lecture_color, chipLabel: item.lecture_chip_label }] : undefined}
+        />
+      </td>
       <td className="clinic-hub__cell-lecture">{item.lecture_title || "-"}</td>
       <td className="clinic-hub__cell-session">{item.session_title || "-"}</td>
       <td className="clinic-hub__cell-source">
