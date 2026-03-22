@@ -83,17 +83,35 @@ const BASE_STYLE = `
     border-radius: 0 0 10px 10px; padding: 3px 0;
   }
 
-  /* ── Name items: LARGE for wall visibility ── */
-  .name-item {
+  /* ── Name rows ── */
+  .name-row {
+    display: flex; border-bottom: 1px solid #f1f5f9;
+  }
+  .name-row:last-child { border-bottom: none; }
+  .name-row:nth-child(even) { background: #f8fafc; }
+
+  /* 1명/줄 (15명 이하): 큰 글씨 */
+  .name-row.single {
     display: flex; align-items: center; justify-content: center;
     padding: 7px 8px;
     font-size: 20px; font-weight: 800;
-    color: #0f172a; border-bottom: 1px solid #f1f5f9;
+    color: #0f172a; gap: 5px; letter-spacing: 0.5px;
+    line-height: 1.3; white-space: nowrap;
+  }
+
+  /* 2명/줄 (16명 이상) */
+  .name-cell {
+    flex: 1; display: flex; align-items: center; justify-content: center;
+    padding: 7px 8px;
+    font-size: 20px; font-weight: 800;
+    color: #0f172a;
     gap: 5px; letter-spacing: 0.5px;
     line-height: 1.3;
+    white-space: nowrap;
   }
-  .name-item:last-child { border-bottom: none; }
-  .name-item:nth-child(even) { background: #f8fafc; }
+  .name-cell .suffix, .name-row.single .suffix {
+    font-size: 14px; font-weight: 700; color: #64748b;
+  }
 
   .checkbox {
     font-size: 16px; color: #cbd5e1; margin-right: 8px;
@@ -101,7 +119,11 @@ const BASE_STYLE = `
   }
   .highlight { background: #fefce8 !important; }
   .star { color: #eab308; font-size: 16px; font-weight: 900; }
-  .empty-item { color: #94a3b8; font-size: 14px; font-weight: 500; }
+  .empty-item {
+    display: flex; align-items: center; justify-content: center;
+    padding: 7px 8px;
+    color: #94a3b8; font-size: 14px; font-weight: 500;
+  }
 
   /* ── Schedule box ── */
   .schedule-box {
@@ -118,25 +140,6 @@ const BASE_STYLE = `
   }
   .schedule-empty {
     font-size: 12px; color: #94a3b8; font-style: italic;
-  }
-
-  /* ── Memo box ── */
-  .memo-box {
-    margin-top: 8px; padding: 8px 16px;
-    border: 1.5px solid #cbd5e1; border-radius: 10px;
-    background: #fff;
-  }
-  .memo-title {
-    font-size: 11px; font-weight: 700; color: #64748b;
-    margin-bottom: 6px; letter-spacing: 0.5px;
-  }
-  .memo-lines {
-    height: 36mm;
-    display: flex; flex-direction: column; justify-content: space-evenly;
-  }
-  .memo-line {
-    border-bottom: 1px solid #e2e8f0;
-    height: 25%;
   }
 
   /* ── Footer: clean & professional ── */
@@ -290,16 +293,41 @@ function analyze(rows: SessionScoreRow[], meta: SessionScoreMeta, attendanceMap?
 
 // ── HTML 빌드 ──
 
+/** 이름에 알파벳 접미사(A, B 등)가 있으면 작은 폰트로 분리 */
+function formatName(name: string): string {
+  const m = name.match(/^(.+?)([A-Z])$/);
+  if (m) return `${m[1]}<span class="suffix">${m[2]}</span>`;
+  return name;
+}
+
+function buildNameCell(s: ClinicStudent): string {
+  const cls = s.almostPassed ? ' class="name-cell highlight"' : ' class="name-cell"';
+  const star = s.almostPassed ? ' <span class="star">★</span>' : "";
+  return `<div${cls}><span class="checkbox">☐</span>${formatName(s.name)}${star}</div>`;
+}
+
+function buildNameSingle(s: ClinicStudent): string {
+  const cls = s.almostPassed ? ' class="name-row single highlight"' : ' class="name-row single"';
+  const star = s.almostPassed ? ' <span class="star">★</span>' : "";
+  return `<div${cls}><span class="checkbox">☐</span>${formatName(s.name)}${star}</div>`;
+}
+
+/** 15명 이하: 1명/줄 큰글씨, 16명 이상: 2명/줄 */
 function buildNameItems(students: ClinicStudent[]): string {
-  return students.map((s) => {
-    const cls = s.almostPassed ? ' class="name-item highlight"' : ' class="name-item"';
-    const star = s.almostPassed ? ' <span class="star">★</span>' : "";
-    return `<div${cls}><span class="checkbox">☐</span>${s.name}${star}</div>`;
-  }).join("\n");
+  if (students.length <= 15) {
+    return students.map((s) => buildNameSingle(s)).join("\n");
+  }
+  const rows: string[] = [];
+  for (let i = 0; i < students.length; i += 2) {
+    const cell1 = buildNameCell(students[i]);
+    const cell2 = i + 1 < students.length ? buildNameCell(students[i + 1]) : '<div class="name-cell"></div>';
+    rows.push(`<div class="name-row">${cell1}${cell2}</div>`);
+  }
+  return rows.join("\n");
 }
 
 function emptyCell(): string {
-  return '<div class="name-item empty-item">해당 없음</div>';
+  return '<div class="empty-item">해당 없음</div>';
 }
 
 function buildHtml(data: AnalysisResult, sessionTitle: string, lectureTitle: string, date: string, schedule?: string): string {
@@ -313,8 +341,6 @@ function buildHtml(data: AnalysisResult, sessionTitle: string, lectureTitle: str
 
   const scheduleHtml = `<div class="schedule-box"><div class="schedule-title">클리닉 일정</div>${scheduleContent}</div>`;
 
-  const memoHtml = `<div class="memo-box"><div class="memo-title">메모</div><div class="memo-lines"><div class="memo-line"></div><div class="memo-line"></div><div class="memo-line"></div><div class="memo-line"></div></div></div>`;
-
   return `<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>클리닉 대상자 안내</title>
 <style>${BASE_STYLE}</style></head><body>
 <div class="page">
@@ -326,7 +352,6 @@ function buildHtml(data: AnalysisResult, sessionTitle: string, lectureTitle: str
     <div class="col"><div class="section-header hw">과제 미통과 <span class="cnt">(${data.hwOnly.length}명)</span></div><div class="name-list">${data.hwOnly.length > 0 ? buildNameItems(data.hwOnly) : emptyCell()}</div></div>
   </div>
   ${scheduleHtml}
-  ${memoHtml}
   <div class="footer"><div class="footer-left">클리닉 대상 <strong>${data.clinicTotal}명</strong> / 전체 출석 ${data.totalStudents}명</div><div class="footer-right">${date}</div></div>
 </div></body></html>`;
 }
