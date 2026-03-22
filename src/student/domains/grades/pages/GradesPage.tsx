@@ -427,7 +427,7 @@ function LectureExamGroup({ group }: { group: ExamGroup }) {
                 </div>
               </div>
               <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 }}>
-                <GradeBadge passed={e.is_pass} />
+                <GradeBadge passed={e.is_pass} achievement={e.achievement} />
                 {e.max_score > 0 && (
                   <span style={{ fontSize: 11, fontWeight: 700, color: "var(--stu-text-muted)" }}>
                     {Math.round((e.total_score / e.max_score) * 100)}%
@@ -466,7 +466,7 @@ function LectureHwGroup({ group }: { group: HwGroup }) {
                     : `${h.score}점`}
                 </div>
               </div>
-              <GradeBadge passed={h.passed} />
+              <GradeBadge passed={h.passed} achievement={h.achievement} />
             </div>
           </div>
         ))}

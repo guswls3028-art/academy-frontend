@@ -2,6 +2,9 @@
 
 import api from "@/student/shared/api/studentApi";
 
+/** achievement: PASS=1차합격, REMEDIATED=보강후합격, FAIL=불합격 */
+export type Achievement = "PASS" | "REMEDIATED" | "FAIL";
+
 export type MyExamGradeSummary = {
   exam_id: number;
   enrollment_id: number;
@@ -9,6 +12,8 @@ export type MyExamGradeSummary = {
   total_score: number;
   max_score: number;
   is_pass: boolean;
+  achievement?: Achievement;
+  retake_count?: number;
   session_title: string | null;
   lecture_title: string | null;
   submitted_at: string | null;
@@ -21,6 +26,8 @@ export type MyHomeworkGradeSummary = {
   score: number;
   max_score: number | null;
   passed: boolean;
+  achievement?: Achievement;
+  retake_count?: number;
   session_title: string | null;
   lecture_title: string | null;
 };
