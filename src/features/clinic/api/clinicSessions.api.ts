@@ -61,3 +61,56 @@ export async function fetchClinicLocations(): Promise<string[]> {
 export async function deleteClinicSession(sessionId: number): Promise<void> {
   await api.delete(`/clinic/sessions/${sessionId}/`);
 }
+
+/**
+ * 클리닉 세션 수정
+ * PATCH /clinic/sessions/{id}/
+ */
+export async function updateClinicSession(
+  sessionId: number,
+  payload: {
+    title?: string;
+    date?: string;
+    start_time?: string;
+    duration_minutes?: number;
+    location?: string;
+    max_participants?: number;
+    target_grade?: number | null;
+    target_school_type?: string | null;
+    target_lecture_ids?: number[];
+  }
+): Promise<void> {
+  await api.patch(`/clinic/sessions/${sessionId}/`, payload);
+}
+
+/**
+ * 특정 날짜 범위의 세션 목록 조회 (이전 주 불러오기용)
+ * GET /clinic/sessions/?date_from=...&date_to=...
+ */
+export async function fetchClinicSessions(params: {
+  date_from?: string;
+  date_to?: string;
+}): Promise<ClinicSessionDetail[]> {
+  const res = await api.get("/clinic/sessions/", { params });
+  const raw = Array.isArray(res.data)
+    ? res.data
+    : Array.isArray(res.data?.results)
+    ? res.data.results
+    : [];
+  return raw;
+}
+
+export type ClinicSessionDetail = {
+  id: number;
+  title: string;
+  date: string;
+  start_time: string;
+  duration_minutes: number;
+  location: string;
+  max_participants: number;
+  target_grade: number | null;
+  target_school_type: string | null;
+  target_lecture_ids?: number[];
+  participant_count: number;
+  booked_count: number;
+};

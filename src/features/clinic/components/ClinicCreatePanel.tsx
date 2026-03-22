@@ -11,7 +11,7 @@ import { TimeRangeInput } from "@/shared/ui/time";
 import { Button } from "@/shared/ui/ds";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { fetchClinicSessionTree } from "../api/clinicSessions.api";
+import { fetchClinicSessionTree, updateClinicSession } from "../api/clinicSessions.api";
 import { fetchLectures, type Lecture } from "@/features/lectures/api/sessions";
 import ClinicTargetSelectModal, { type ClinicTargetSelectResult } from "./ClinicTargetSelectModal";
 import type { EnrollmentSelection, StudentSelection } from "@/shared/types/selection";
@@ -110,6 +110,20 @@ type Props = {
   onCreated?: (createdDate?: string) => void;
   /** When true, renders as a flat form (no card shell) — use inside AdminModal */
   asModal?: boolean;
+  /** Edit mode: pass existing session to pre-fill form */
+  editSession?: {
+    id: number;
+    title?: string;
+    date: string;
+    start_time: string; // "HH:MM" or "HH:MM:SS"
+    duration_minutes: number;
+    location: string;
+    max_participants: number;
+    target_grade?: number | null;
+    target_school_type?: string | null;
+    target_lecture_ids?: number[];
+  };
+  onUpdated?: () => void;
 };
 
 export default function ClinicCreatePanel({
@@ -121,6 +135,8 @@ export default function ClinicCreatePanel({
   onDateChange,
   onCreated,
   asModal = false,
+  editSession,
+  onUpdated,
 }: Props) {
   const { message } = App.useApp();
   const qc = useQueryClient();
@@ -138,7 +154,7 @@ export default function ClinicCreatePanel({
     return map;
   }, [clinicTargets]);
 
-  const initialDate = date ?? todayISO();
+  const initialDate = editSession?.date ?? date ?? todayISO();
   const [selectedDate, setSelectedDate] = useState(dayjs(initialDate));
 
   const isPastDate = (selectedDate.format("YYYY-MM-DD") < todayISO());
@@ -187,15 +203,26 @@ export default function ClinicCreatePanel({
     }
   };
 
-  const [title, setTitle] = useState("");
-  const [targetGrade, setTargetGrade] = useState<number | null>(null);
-  const [targetSchoolType, setTargetSchoolType] = useState<string | null>(null);
-  const [targetLectureIds, setTargetLectureIds] = useState<number[]>([]);
+  const isEdit = !!editSession;
+
+  const [title, setTitle] = useState(editSession?.title ?? "");
+  const [targetGrade, setTargetGrade] = useState<number | null>(editSession?.target_grade ?? null);
+  const [targetSchoolType, setTargetSchoolType] = useState<string | null>(editSession?.target_school_type ?? null);
+  const [targetLectureIds, setTargetLectureIds] = useState<number[]>(editSession?.target_lecture_ids ?? []);
   const [showFilters, setShowFilters] = useState(false);
-  const [timeRange, setTimeRange] = useState("");
-  const [room, setRoom] = useState("");
+  const [timeRange, setTimeRange] = useState(() => {
+    if (!editSession) return "";
+    const st = editSession.start_time.slice(0, 5);
+    const dur = editSession.duration_minutes;
+    const [h, m] = st.split(":").map(Number);
+    const endMin = h * 60 + m + dur;
+    const eh = Math.floor(endMin / 60).toString().padStart(2, "0");
+    const em = (endMin % 60).toString().padStart(2, "0");
+    return `${st} ~ ${eh}:${em}`;
+  });
+  const [room, setRoom] = useState(editSession?.location ?? "");
   const [memo, setMemo] = useState("");
-  const [maxParticipants, setMaxParticipants] = useState<number>(10);
+  const [maxParticipants, setMaxParticipants] = useState<number>(editSession?.max_participants ?? 10);
 
   const [savedLocations, setSavedLocations] = useState<string[]>(() => getSavedLocations());
   const [loadPopoverOpen, setLoadPopoverOpen] = useState(false);
@@ -241,6 +268,44 @@ export default function ClinicCreatePanel({
     if (duration <= 0)
       return message.error("종료 시간은 시작 시간 이후여야 합니다.");
     if (!room.trim()) return message.warning("장소/룸을 입력해주세요.");
+
+    if (isEdit && editSession) {
+      try {
+        await updateClinicSession(editSession.id, {
+          title: title.trim() || undefined,
+          date: selectedDate.format("YYYY-MM-DD"),
+          start_time: toHHmmss(start),
+          duration_minutes: duration,
+          location: room.trim(),
+          max_participants: maxParticipants,
+          target_grade: targetGrade,
+          target_school_type: targetSchoolType,
+          target_lecture_ids: targetLectureIds.length > 0 ? targetLectureIds : [],
+        });
+        message.success("클리닉이 수정되었습니다.");
+        qc.invalidateQueries({ queryKey: ["clinic-sessions-tree"] });
+        qc.invalidateQueries({ queryKey: ["clinic-participants"] });
+        onUpdated?.();
+      } catch (e: any) {
+        const res = e?.response?.data;
+        let detail = "클리닉을 수정하지 못했습니다.";
+        if (res) {
+          if (typeof res.detail === "string") detail = res.detail;
+          else if (Array.isArray(res.detail))
+            detail = res.detail.map((x: any) => x?.msg ?? JSON.stringify(x)).join(", ");
+          else if (res.detail && typeof res.detail === "object")
+            detail = JSON.stringify(res.detail);
+          else if (typeof res === "object" && !res.detail) {
+            const parts = Object.entries(res).map(
+              ([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : v}`
+            );
+            if (parts.length) detail = parts.join(" · ");
+          }
+        }
+        message.error(detail);
+      }
+      return;
+    }
 
     const cap = selected.length > 0 ? selected.length : maxParticipants;
     if (cap < 1) return message.warning("정원을 1명 이상으로 설정하거나 학생을 선택해주세요.");
@@ -709,9 +774,11 @@ export default function ClinicCreatePanel({
     >
       {isPastDate
         ? "지난 날짜입니다"
-        : selected.length > 0
-          ? `${selected.length}명 클리닉 만들기`
-          : `클리닉 만들기 (정원 ${maxParticipants}명)`}
+        : isEdit
+          ? "클리닉 수정"
+          : selected.length > 0
+            ? `${selected.length}명 클리닉 만들기`
+            : `클리닉 만들기 (정원 ${maxParticipants}명)`}
     </Button>
   );
 
@@ -747,7 +814,7 @@ export default function ClinicCreatePanel({
       <div className="ds-card-modal__header flex items-center justify-between">
         <div className="ds-card-modal__accent" aria-hidden />
         <div className="ds-card-modal__header-inner">
-          <h2 className="ds-card-modal__header-title">클리닉 만들기</h2>
+          <h2 className="ds-card-modal__header-title">{isEdit ? "클리닉 수정" : "클리닉 만들기"}</h2>
           <p className="ds-card-modal__header-description">시간, 장소, 대상자를 설정하세요.</p>
         </div>
         <div className="ds-card-modal__header-right">

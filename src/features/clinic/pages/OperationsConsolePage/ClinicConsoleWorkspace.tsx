@@ -27,12 +27,16 @@ import {
   RotateCcw,
   ArrowRightCircle,
   Ban,
+  CircleCheckBig,
+  Undo2,
 } from "lucide-react";
 import type { ClinicSessionTreeNode } from "../../api/clinicSessions.api";
 import type { ClinicParticipant } from "../../api/clinicParticipants.api";
 import {
   patchClinicParticipantStatus,
   createClinicParticipant,
+  completeClinicParticipant,
+  uncompleteClinicParticipant,
 } from "../../api/clinicParticipants.api";
 import type { ClinicTarget } from "../../api/clinicTargets";
 import { useClinicTargets } from "../../hooks/useClinicTargets";
@@ -40,6 +44,7 @@ import {
   resolveClinicLink,
   waiveClinicLink,
   carryOverClinicLink,
+  submitClinicRetake,
 } from "../../api/clinicLinks.api";
 import { updateAdminExam } from "@/features/exams/api/adminExam";
 import { feedback } from "@/shared/ui/feedback/feedback";
@@ -142,6 +147,11 @@ export default function ClinicConsoleWorkspace({
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   // Per-participant pending tracking for rapid processing
   const [mutatingIds, setMutatingIds] = useState<Set<number>>(new Set());
+
+  // Inline retake score input: clinic_link_id → score string
+  const [retakeScores, setRetakeScores] = useState<Map<number, string>>(new Map());
+  const [retakingIds, setRetakingIds] = useState<Set<number>>(new Set());
+  const [completingIds, setCompletingIds] = useState<Set<number>>(new Set());
 
   const { data: clinicTargets } = useClinicTargets();
 
@@ -285,6 +295,77 @@ export default function ClinicConsoleWorkspace({
         setMutatingIds((prev) => {
           const next = new Set(prev);
           next.delete(p.id);
+          return next;
+        });
+      });
+  }
+
+  /* ── 자율학습 완료/취소 ── */
+  function handleComplete(p: ClinicParticipant) {
+    if (completingIds.has(p.id)) return;
+    setCompletingIds((prev) => new Set(prev).add(p.id));
+    completeClinicParticipant(p.id)
+      .then(() => {
+        invalidateAll();
+        feedback.success(`${p.student_name} 자율학습 완료`);
+      })
+      .catch(() => feedback.error("완료 처리에 실패했습니다."))
+      .finally(() => {
+        setCompletingIds((prev) => {
+          const next = new Set(prev);
+          next.delete(p.id);
+          return next;
+        });
+      });
+  }
+
+  function handleUncomplete(p: ClinicParticipant) {
+    if (completingIds.has(p.id)) return;
+    setCompletingIds((prev) => new Set(prev).add(p.id));
+    uncompleteClinicParticipant(p.id)
+      .then(() => {
+        invalidateAll();
+        feedback.success("완료 취소됨");
+      })
+      .catch(() => feedback.error("완료 취소에 실패했습니다."))
+      .finally(() => {
+        setCompletingIds((prev) => {
+          const next = new Set(prev);
+          next.delete(p.id);
+          return next;
+        });
+      });
+  }
+
+  /* ── 인라인 재시험/과제 점수 입력 ── */
+  function handleRetakeSubmit(clinicLinkId: number) {
+    const scoreStr = retakeScores.get(clinicLinkId);
+    const score = parseFloat(scoreStr ?? "");
+    if (isNaN(score) || score < 0) {
+      feedback.error("올바른 점수를 입력하세요.");
+      return;
+    }
+    setRetakingIds((prev) => new Set(prev).add(clinicLinkId));
+    submitClinicRetake(clinicLinkId, { score })
+      .then((result) => {
+        if (result.passed) {
+          feedback.success(`통과! (${result.score}점)`);
+        } else {
+          feedback.warning(`미통과 (${result.score}점) — 재도전 필요`);
+        }
+        qc.invalidateQueries({ queryKey: ["clinic-targets"] });
+        qc.invalidateQueries({ queryKey: ["clinic-participants"] });
+        setRetakeScores((prev) => {
+          const next = new Map(prev);
+          next.delete(clinicLinkId);
+          return next;
+        });
+      })
+      .catch(() => feedback.error("점수 입력에 실패했습니다."))
+      .finally(() => {
+        setRetakingIds((prev) => {
+          const next = new Set(prev);
+          next.delete(clinicLinkId);
           return next;
         });
       });
@@ -632,6 +713,91 @@ export default function ClinicConsoleWorkspace({
                     </button>
                   </div>
 
+                  {/* Row 3: Inline actions — 자율학습 완료 / 미해소 점수입력 */}
+                  {(() => {
+                    const isSelfStudy = targets.length === 0;
+                    const unresolvedTargets = targets.filter((t) => !t.resolved_at && t.clinic_link_id);
+                    const isCompleted = !!p.completed_at;
+
+                    if (isSelfStudy) {
+                      // 자율학습: 완료 토글 버튼
+                      return (
+                        <div className="clinic-ops__card-inline-actions">
+                          {isCompleted ? (
+                            <button
+                              type="button"
+                              className="clinic-ops__inline-btn clinic-ops__inline-btn--completed"
+                              onClick={() => handleUncomplete(p)}
+                              disabled={completingIds.has(p.id)}
+                            >
+                              <CircleCheckBig size={14} aria-hidden />
+                              자율학습 완료
+                              <span className="clinic-ops__inline-btn-sub">
+                                {dayjs(p.completed_at).format("HH:mm")}
+                              </span>
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              className="clinic-ops__inline-btn clinic-ops__inline-btn--complete"
+                              onClick={() => handleComplete(p)}
+                              disabled={completingIds.has(p.id)}
+                            >
+                              <CircleCheckBig size={14} aria-hidden />
+                              {completingIds.has(p.id) ? "처리 중…" : "자율학습 완료"}
+                            </button>
+                          )}
+                        </div>
+                      );
+                    }
+
+                    if (unresolvedTargets.length > 0) {
+                      // 미해소: 인라인 점수 입력
+                      return (
+                        <div className="clinic-ops__card-inline-actions">
+                          {unresolvedTargets.map((t) => (
+                            <div
+                              key={t.clinic_link_id}
+                              className="clinic-ops__inline-retake"
+                            >
+                              <span className="clinic-ops__inline-retake-label">
+                                {t.source_type === "homework" ? "과제" : "시험"} 점수
+                              </span>
+                              <input
+                                type="number"
+                                className="clinic-ops__inline-retake-input"
+                                placeholder="점수"
+                                min={0}
+                                value={retakeScores.get(t.clinic_link_id!) ?? ""}
+                                onChange={(e) => {
+                                  setRetakeScores((prev) => {
+                                    const next = new Map(prev);
+                                    next.set(t.clinic_link_id!, e.target.value);
+                                    return next;
+                                  });
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") handleRetakeSubmit(t.clinic_link_id!);
+                                }}
+                                disabled={retakingIds.has(t.clinic_link_id!)}
+                              />
+                              <button
+                                type="button"
+                                className="clinic-ops__inline-retake-submit"
+                                onClick={() => handleRetakeSubmit(t.clinic_link_id!)}
+                                disabled={retakingIds.has(t.clinic_link_id!) || !(retakeScores.get(t.clinic_link_id!) ?? "").trim()}
+                              >
+                                {retakingIds.has(t.clinic_link_id!) ? "…" : "제출"}
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    }
+
+                    return null;
+                  })()}
+
                   {/* Optional: memo */}
                   {p.memo && (
                     <div className="clinic-ops__card-memo">메모: {p.memo}</div>
@@ -751,7 +917,34 @@ export default function ClinicConsoleWorkspace({
               <div className="clinic-ops__drawer-section">
                 <h4 className="clinic-ops__drawer-section-title">대상 사유 · 해소 상태</h4>
                 {drawerTargets.length === 0 ? (
-                  <p className="clinic-ops__drawer-empty">자율 학습 참여</p>
+                  <div className="clinic-ops__drawer-self-study">
+                    <p className="clinic-ops__drawer-empty">자율 학습 참여</p>
+                    {drawerParticipant.completed_at ? (
+                      <div className="clinic-ops__drawer-completed">
+                        <CircleCheckBig size={14} aria-hidden />
+                        <span>완료 ({dayjs(drawerParticipant.completed_at).format("M/D HH:mm")})</span>
+                        <button
+                          type="button"
+                          className="clinic-ops__remediation-btn clinic-ops__remediation-btn--waive"
+                          onClick={() => handleUncomplete(drawerParticipant)}
+                          disabled={completingIds.has(drawerParticipant.id)}
+                        >
+                          <Undo2 size={13} aria-hidden />
+                          완료 취소
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        className="clinic-ops__remediation-btn clinic-ops__remediation-btn--resolve"
+                        onClick={() => handleComplete(drawerParticipant)}
+                        disabled={completingIds.has(drawerParticipant.id)}
+                      >
+                        <CircleCheckBig size={13} aria-hidden />
+                        자율학습 완료
+                      </button>
+                    )}
+                  </div>
                 ) : (
                   <div className="clinic-ops__drawer-reasons">
                     {drawerTargets.map((t, idx) => (

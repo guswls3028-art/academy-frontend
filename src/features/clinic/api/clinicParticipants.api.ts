@@ -34,6 +34,9 @@ export type ClinicParticipant = {
   lecture_color?: string | null;
   lecture_chip_label?: string | null;
   name_highlight_clinic_target?: boolean;
+
+  completed_at?: string | null;
+  completed_by_name?: string | null;
 };
 
 export async function fetchClinicParticipants(params: {
@@ -68,5 +71,15 @@ export async function patchClinicParticipantStatus(
   payload: { status: ClinicParticipantStatus; memo?: string }
 ) {
   const res = await api.patch(`/clinic/participants/${id}/set_status/`, payload);
+  return res.data as ClinicParticipant;
+}
+
+export async function completeClinicParticipant(id: number) {
+  const res = await api.post(`/clinic/participants/${id}/complete/`);
+  return res.data as ClinicParticipant;
+}
+
+export async function uncompleteClinicParticipant(id: number) {
+  const res = await api.post(`/clinic/participants/${id}/uncomplete/`);
   return res.data as ClinicParticipant;
 }

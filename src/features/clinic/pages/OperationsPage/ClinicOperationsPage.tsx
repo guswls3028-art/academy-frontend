@@ -6,17 +6,19 @@ import { useNavigate } from "react-router-dom";
 import dayjs from "dayjs";
 import "dayjs/locale/ko";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Pencil, Copy } from "lucide-react";
 import {
   fetchClinicSessionTree,
   deleteClinicSession,
 } from "../../api/clinicSessions.api";
-import type { ClinicSessionTreeNode } from "../../api/clinicSessions.api";
+import type { ClinicSessionTreeNode, ClinicSessionDetail } from "../../api/clinicSessions.api";
 import OperationsSessionTree from "../../components/OperationsSessionTree";
 import ClinicCreatePanel from "../../components/ClinicCreatePanel";
+import PreviousWeekImportModal from "../../components/PreviousWeekImportModal";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import AdminModal from "@/shared/ui/modal/AdminModal";
+import api from "@/shared/api/axios";
 
 dayjs.locale("ko");
 
@@ -65,6 +67,9 @@ export default function ClinicOperationsPage() {
     label: string;
   } | null>(null);
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editSession, setEditSession] = useState<ClinicSessionDetail | null>(null);
+  const [importModalOpen, setImportModalOpen] = useState(false);
 
   const ym = useMemo(() => {
     const d = dayjs(baseDate);
@@ -165,15 +170,26 @@ export default function ClinicOperationsPage() {
               )}
             </div>
             {!isPastDate && (
-              <Button
-                intent="primary"
-                size="md"
-                onClick={() => setCreateModalOpen(true)}
-                className="clinic-schedule__create-btn"
-              >
-                <Plus size={16} strokeWidth={2.5} />
-                클리닉 만들기
-              </Button>
+              <div className="clinic-schedule__toolbar-actions">
+                <Button
+                  intent="secondary"
+                  size="md"
+                  onClick={() => setImportModalOpen(true)}
+                  className="clinic-schedule__import-btn"
+                >
+                  <Copy size={16} strokeWidth={2} />
+                  이전 주 불러오기
+                </Button>
+                <Button
+                  intent="primary"
+                  size="md"
+                  onClick={() => setCreateModalOpen(true)}
+                  className="clinic-schedule__create-btn"
+                >
+                  <Plus size={16} strokeWidth={2.5} />
+                  클리닉 만들기
+                </Button>
+              </div>
             )}
           </div>
 
@@ -301,6 +317,24 @@ export default function ClinicOperationsPage() {
                       <div className="clinic-schedule__card-actions">
                         <button
                           type="button"
+                          className="clinic-schedule__card-edit"
+                          title="클리닉 수정"
+                          aria-label={`${s.location} 클리닉 수정`}
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            try {
+                              const res = await api.get(`/clinic/sessions/${s.id}/`);
+                              setEditSession(res.data);
+                              setEditModalOpen(true);
+                            } catch {
+                              feedback.error("세션 정보를 불러올 수 없습니다.");
+                            }
+                          }}
+                        >
+                          <Pencil size={16} strokeWidth={2} aria-hidden />
+                        </button>
+                        <button
+                          type="button"
                           className="clinic-schedule__card-delete"
                           title="클리닉 삭제"
                           aria-label={`${s.location} 클리닉 삭제`}
@@ -344,6 +378,32 @@ export default function ClinicOperationsPage() {
           }}
         />
       </AdminModal>
+
+      {/* Edit modal */}
+      <AdminModal
+        open={editModalOpen}
+        onClose={() => { setEditModalOpen(false); setEditSession(null); }}
+        width={520}
+      >
+        {editSession && (
+          <ClinicCreatePanel
+            asModal
+            editSession={editSession}
+            onUpdated={() => {
+              setEditModalOpen(false);
+              setEditSession(null);
+              qc.invalidateQueries({ queryKey: ["clinic-sessions-tree"] });
+            }}
+          />
+        )}
+      </AdminModal>
+
+      {/* Previous week import modal */}
+      <PreviousWeekImportModal
+        open={importModalOpen}
+        onClose={() => setImportModalOpen(false)}
+        currentDate={baseDate}
+      />
 
       {/* Delete confirmation modal */}
       {deleteConfirm && (
