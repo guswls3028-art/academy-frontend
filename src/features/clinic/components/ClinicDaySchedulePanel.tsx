@@ -185,6 +185,7 @@ export default function ClinicDaySchedulePanel({
                         <StudentNameWithLectureChip
                           name={r.student_name}
                           lectures={r.lecture_title ? [{ lectureName: r.lecture_title, color: r.lecture_color, chipLabel: r.lecture_chip_label }] : undefined}
+                          clinicHighlight={r.name_highlight_clinic_target}
                         />
                       </div>
                       {r.session_location && (

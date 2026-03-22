@@ -59,6 +59,7 @@ export default function AdminExamResultsTable({
                     lectures={r.lecture_title ? [{ lectureName: r.lecture_title, color: r.lecture_color, chipLabel: r.lecture_chip_label }] : undefined}
                     profilePhotoUrl={r.profile_photo_url}
                     avatarSize={24}
+                    clinicHighlight={r.name_highlight_clinic_target}
                   />
                 </td>
 

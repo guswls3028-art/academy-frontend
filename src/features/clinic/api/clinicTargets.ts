@@ -65,6 +65,7 @@ export type ClinicTarget = {
   lecture_title?: string | null;
   lecture_color?: string | null;
   lecture_chip_label?: string | null;
+  name_highlight_clinic_target?: boolean;
   max_score?: number | null;
   latest_attempt_index?: number;
   attempt_history?: AttemptHistoryEntry[];

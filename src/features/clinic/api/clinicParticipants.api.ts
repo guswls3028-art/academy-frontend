@@ -33,6 +33,7 @@ export type ClinicParticipant = {
   lecture_title?: string | null;
   lecture_color?: string | null;
   lecture_chip_label?: string | null;
+  name_highlight_clinic_target?: boolean;
 };
 
 export async function fetchClinicParticipants(params: {

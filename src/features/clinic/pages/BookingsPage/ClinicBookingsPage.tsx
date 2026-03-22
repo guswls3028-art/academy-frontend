@@ -381,6 +381,7 @@ export default function ClinicBookingsPage() {
                       <StudentNameWithLectureChip
                         name={group.studentName}
                         lectures={group.items[0]?.lecture_title ? [{ lectureName: group.items[0].lecture_title, color: group.items[0].lecture_color, chipLabel: group.items[0].lecture_chip_label }] : undefined}
+                        clinicHighlight={group.items.some(i => i.name_highlight_clinic_target)}
                       />
                     </span>
                     <span className="clinic-hub__student-badge">
@@ -498,6 +499,7 @@ function RetakeTableRow({
         <StudentNameWithLectureChip
           name={item.student_name}
           lectures={item.lecture_title ? [{ lectureName: item.lecture_title, color: item.lecture_color, chipLabel: item.lecture_chip_label }] : undefined}
+          clinicHighlight={item.name_highlight_clinic_target}
         />
       </td>
       <td className="clinic-hub__cell-lecture">{item.lecture_title || "-"}</td>

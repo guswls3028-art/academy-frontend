@@ -91,11 +91,12 @@ export type AdminExamResultRow = {
   // ❌ 더 이상 exam_score/exam_max_score는 list contract에 없음
   // - 상세(detail)에서만 total_score/max_score 확인
 
-  // ✅ 학생 SSOT 표시용 (아바타 + 강의 딱지)
+  // ✅ 학생 SSOT 표시용 (아바타 + 강의 딱지 + 클리닉 하이라이트)
   profile_photo_url?: string | null;
   lecture_title?: string | null;
   lecture_color?: string | null;
   lecture_chip_label?: string | null;
+  name_highlight_clinic_target?: boolean;
 };
 
 // ---------- 3) Exam summary ----------

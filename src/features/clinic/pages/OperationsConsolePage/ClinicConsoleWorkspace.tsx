@@ -535,6 +535,7 @@ export default function ClinicConsoleWorkspace({
                           name={p.student_name}
                           lectures={p.lecture_title ? [{ lectureName: p.lecture_title, color: p.lecture_color, chipLabel: p.lecture_chip_label }] : undefined}
                           avatarSize={24}
+                          clinicHighlight={p.name_highlight_clinic_target}
                         />
                       </button>
                       <span
@@ -739,6 +740,7 @@ export default function ClinicConsoleWorkspace({
                       <StudentNameWithLectureChip
                         name={drawerParticipant.student_name}
                         lectures={drawerParticipant.lecture_title ? [{ lectureName: drawerParticipant.lecture_title, color: drawerParticipant.lecture_color, chipLabel: drawerParticipant.lecture_chip_label }] : undefined}
+                        clinicHighlight={drawerParticipant.name_highlight_clinic_target}
                       />
                     </button>
                   </span>
