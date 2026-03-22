@@ -1,9 +1,9 @@
 /* 답안 등록 모달 — 좌(객관식) / 우(주관식) 2패널, 한국식 OMR 세로 버블. 모달 한눈에 보이게, 주관식 영역 내 스크롤. */
 
-/* 본문 여백 축소 → 선택형·주관식 영역을 더 넓게. 문항 수 늘어나도 모달 높이 고정, 내부 스크롤만. 16문항+ 기준 크기 고정으로 이미지 등록 탭 전환 시에도 동일 크기 유지 */
+/* 답안 등록 모달 본문 — 모든 탭에서 동일 크기 고정 (height, not max-height) */
 .modal-body:has(> .answer-key-panel) {
   padding: var(--space-2) var(--space-3);
-  max-height: min(90vh, 720px);
+  height: min(85vh, 680px);
   min-height: 0;
   overflow: hidden;
   display: flex;
@@ -14,6 +14,7 @@
   min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;
+  overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
 }
 
@@ -36,13 +37,13 @@
   gap: var(--space-2);
 }
 
-/* 좌우 2패널: 좌측 객관식 | 우측 주관식, 높이 제한 — 세로 조금 더 길게 */
+/* 좌우 2패널 — 부모(.answer-key-panel)의 flex:1로 남은 공간 전부 사용 */
 .answer-key-two-panels {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: var(--space-3);
   align-items: stretch;
-  max-height: min(90vh, 840px);
+  flex: 1;
   min-height: 0;
   overflow: hidden;
 }
@@ -164,20 +165,21 @@
   flex-direction: column;
 }
 
-/* 선택형 리스트: 스크롤 없음(첫 페이지에 맞춤) 또는 필요 시 스크롤 — 세로 조금 더 */
+/* 선택형 리스트: flex:1로 부모 높이 채움, 내부 스크롤 */
 .answer-key-panel--choice .answer-key-list--choice-scroll {
   overflow-y: auto;
-  max-height: 600px;
+  overscroll-behavior: contain;
+  flex: 1;
   min-height: 0;
 }
 
-/* 주관식 영역만 스크롤: 첫 페이지에 1~15번까지 보이게(~15행), 5문항 단위 구분선, 세로 조금 더 */
+/* 주관식 리스트: flex:1로 부모 높이 채움, 내부 스크롤 */
 .answer-key-panel--essay .answer-key-list--essay-scroll {
   overflow-y: auto;
   overflow-x: hidden;
-  max-height: 600px;
-  min-height: 0;
+  overscroll-behavior: contain;
   flex: 1;
+  min-height: 0;
 }
 
 .answer-key-section--full {
@@ -490,7 +492,7 @@
   color: var(--color-text-muted);
 }
 
-/* ========== 이미지 등록 탭 — 문제 이미지 | 해설 이미지 | 해설 텍스트 3열, 모달 높이 고정 ========== */
+/* ========== 이미지 등록 탭 — flex:1로 모달 높이 채움 ========== */
 .answer-key-image-tab {
   display: flex;
   flex-direction: column;
@@ -498,6 +500,7 @@
   flex: 1;
   min-height: 0;
   overflow: auto;
+  overscroll-behavior: contain;
 }
 
 .answer-key-explanation-table-wrap {
