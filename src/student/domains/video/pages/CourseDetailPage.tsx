@@ -247,8 +247,8 @@ export default function CourseDetailPage() {
     if (!isPublic && !lecture) return [];
     return isPublic
       ? (videoMe?.public?.session_id
-          ? [{ id: videoMe.public.session_id, title: "공개 영상", order: 1, date: null }]
-          : [{ id: 0, title: "공개 영상", order: 1, date: null }])
+          ? [{ id: videoMe.public.session_id, title: "전체공개영상", order: 1, date: null }]
+          : [{ id: 0, title: "전체공개영상", order: 1, date: null }])
       : (lecture?.sessions ?? []);
   }, [isLoading, isPublic, lecture, videoMe]);
   const firstSessionIdForQuery = sessionsForQuery[0]?.id ?? 0;
@@ -331,7 +331,7 @@ export default function CourseDetailPage() {
               letterSpacing: "-0.01em",
             }}
           >
-            {isPublic ? "공개 영상" : lecture?.title ?? "수업"}
+            {isPublic ? "전체공개영상" : lecture?.title ?? "수업"}
           </h1>
 
           <div
@@ -396,8 +396,8 @@ export default function CourseDetailPage() {
                       }}
                     >
                       <EmptyState
-                        title="공개 영상이 없습니다"
-                        description="공개 영상이 등록되면 여기에 표시됩니다."
+                        title="전체공개영상이 없습니다"
+                        description="전체공개영상이 등록되면 여기에 표시됩니다."
                       />
                     </div>
                   );

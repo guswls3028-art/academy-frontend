@@ -19,7 +19,7 @@ test.describe("학생 세션/영상/클리닉", () => {
     await page.goto(`${BASE}/student/video`);
     await page.waitForLoadState("networkidle");
     await expect(page.locator("text=Not Found")).not.toBeVisible();
-    const publicCard = page.locator("text=공개 영상");
+    const publicCard = page.locator("text=전체공개영상");
     const visible = await publicCard.isVisible({ timeout: 3000 }).catch(() => false);
     if (visible) {
       await expect(page.locator("text=0개 영상")).not.toBeVisible();

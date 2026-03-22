@@ -16,7 +16,7 @@ function PublicCourseCard({ pub }: { pub: StudentVideoMePublic }) {
   if (!pub?.video_count) return null;
   return (
     <CourseCard
-      title="공개 영상"
+      title="전체공개영상"
       thumbnailUrl={pub?.thumbnail_url ?? null}
       videoCount={pub?.video_count ?? 0}
       totalDuration={pub?.total_duration ?? 0}

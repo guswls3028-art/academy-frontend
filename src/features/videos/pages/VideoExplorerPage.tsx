@@ -240,7 +240,7 @@ export default function VideoExplorerPage() {
   const breadcrumbPath = useMemo(() => {
     const path: { id: string | null; name: string }[] = [{ id: null, name: "영상" }];
     if (selectedFolderId === "public") {
-      path.push({ id: "public", name: "공개 영상" });
+      path.push({ id: "public", name: "전체공개영상" });
     } else if (selectedSession) {
       path.push({
         id: String(selectedSession.lecture.id),
@@ -426,12 +426,12 @@ export default function VideoExplorerPage() {
               <div className={panelStyles.placeholder}>
                 <p className={panelStyles.placeholderTitle}>좌측에서 폴더를 선택하세요</p>
                 <p className={panelStyles.placeholderDesc}>
-                  왼쪽 목록에서 공개 영상 또는 강의·차시를 선택하면 여기에 영상 목록이 표시됩니다.
+                  왼쪽 목록에서 전체공개영상 또는 강의·차시를 선택하면 여기에 영상 목록이 표시됩니다.
                 </p>
               </div>
             ) : selectedFolderId === "public" && publicSessionError ? (
               <div className={panelStyles.placeholder} style={{ color: "var(--color-text-error, #b91c1c)" }}>
-                <p className={panelStyles.placeholderTitle}>공개 영상 영역을 불러오지 못했습니다</p>
+                <p className={panelStyles.placeholderTitle}>전체공개영상 영역을 불러오지 못했습니다</p>
                 <p className={panelStyles.placeholderDesc}>
                   같은 도메인(예: tchul.com)으로 로그인했는지, 관리자·스태프 권한이 있는지 확인하세요.
                 </p>
@@ -455,7 +455,7 @@ export default function VideoExplorerPage() {
                   }
                   description={
                     selectedFolderId === "public"
-                      ? "아래 버튼으로 공개 영상을 업로드하세요. 프로그램에 등록된 모든 학생이 시청할 수 있습니다."
+                      ? "아래 버튼으로 전체공개영상을 업로드하세요. 프로그램에 등록된 모든 학생이 시청할 수 있습니다."
                       : "아래 버튼으로 이 차시에 영상을 추가하세요."
                   }
                   actions={
@@ -737,7 +737,7 @@ export default function VideoExplorerPage() {
         videos={videos}
         sessionTitle={
           selectedFolderId === "public"
-            ? "공개 영상"
+            ? "전체공개영상"
             : selectedSession
               ? `${selectedSession.session.order}차시`
               : undefined

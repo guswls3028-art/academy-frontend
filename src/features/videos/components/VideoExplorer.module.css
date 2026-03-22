@@ -9,7 +9,7 @@
 }
 
 .gridWrapPublic::before {
-  content: "공개 영상";
+  content: "전체공개영상";
   position: absolute;
   top: var(--space-4);
   left: var(--space-4);
