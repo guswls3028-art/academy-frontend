@@ -341,15 +341,17 @@
   }
 }
 
-/* 터치 디바이스: 48px 터치 타겟 */
+/* 터치 디바이스: 44px 터치 타겟 */
 @media (hover: none) and (pointer: coarse) {
   .svpControls .svpBtn {
-    width: 48px;
-    height: 48px;
+    min-width: 44px;
+    min-height: 44px;
+    width: 44px;
+    height: 44px;
   }
   .svpControls .svpBtn svg {
-    width: 26px;
-    height: 26px;
+    width: 22px;
+    height: 22px;
   }
 }
 

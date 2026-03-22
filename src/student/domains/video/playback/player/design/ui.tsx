@@ -45,7 +45,7 @@ export function IconButton({
       e.preventDefault();
     }
   };
-  const S = 28; // 아이콘 크기 (px)
+  const S = 20; // 아이콘 크기 (px)
   const svgMap: Record<string, JSX.Element> = {
     play: <svg width={S} height={S} viewBox="0 0 24 24" fill="currentColor"><path d="M6.5 4.5v15l13-7.5z"/></svg>,
     pause: <svg width={S} height={S} viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="4" width="4.5" height="16" rx="1"/><rect x="14.5" y="4" width="4.5" height="16" rx="1"/></svg>,

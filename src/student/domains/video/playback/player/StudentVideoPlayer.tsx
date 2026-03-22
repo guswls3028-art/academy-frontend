@@ -686,7 +686,6 @@ export default function StudentVideoPlayer({
                       disabled={speedLocked}
                       onSelect={setPlaybackRate}
                     />
-                    <IconButton icon={theater ? "shrink" : "theater"} label={theater ? "기본 보기" : "극장 모드"} onClick={() => setTheater((v) => !v)} />
                     <IconButton
                       icon={isFullscreen ? "shrink" : "fullscreen"}
                       label={isFullscreen ? "전체화면 종료" : "전체화면"}
