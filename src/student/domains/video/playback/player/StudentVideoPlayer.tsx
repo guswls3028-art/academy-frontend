@@ -16,6 +16,7 @@ import {
   Pill,
   PlayerToast,
   RangeSlider,
+  SpeedButton,
 } from "./design/ui";
 import {
   StudentHlsController,
@@ -679,18 +680,12 @@ export default function StudentVideoPlayer({
                     </div>
                   </div>
                   <div className="svpRightControls">
-                    <div className="svpRate">
-                      <KebabMenu
-                        align="right"
-                        label={speedLocked ? "배속 제한" : `배속 ${rate.toFixed(2)}x`}
-                        disabled={speedLocked}
-                        items={rateMenu.map((r) => ({
-                          label: `${r}x${Math.abs(r - rate) < 0.001 ? " ✓" : ""}`,
-                          onClick: () => setPlaybackRate(r),
-                        }))}
-                        buttonClassName={speedLocked ? "svpRateDisabled" : ""}
-                      />
-                    </div>
+                    <SpeedButton
+                      rate={rate}
+                      speeds={rateMenu}
+                      disabled={speedLocked}
+                      onSelect={setPlaybackRate}
+                    />
                     <IconButton icon={theater ? "shrink" : "theater"} label={theater ? "기본 보기" : "극장 모드"} onClick={() => setTheater((v) => !v)} />
                     <IconButton
                       icon={isFullscreen ? "shrink" : "fullscreen"}
