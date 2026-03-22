@@ -376,11 +376,11 @@ export default function AnswerKeyRegisterModal({
         description="선택형·서술형 문항별 정답을 입력하고 저장합니다. 채점 시 사용됩니다."
       />
 
-      {/* PDF 업로드 공통 모달 */}
+      {/* PDF 업로드 통합 모달 — 자산은 template에만 업로드 가능하므로 structureOwnerId 사용 */}
       <ExamPdfUploadModal
         open={pdfModalOpen}
         onClose={() => setPdfModalOpen(false)}
-        examId={examId}
+        examId={structureOwnerId}
       />
 
       <ModalBody>

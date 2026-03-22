@@ -1,96 +1,51 @@
 // PATH: src/features/exams/hooks/usePdfQuestionExtract.ts
-// 공통 hook — PDF 업로드 → AI 문항 분할 job 제출 → 상태 폴링
+// 통합 hook — 시험지 PDF 업로드 (POST /exams/{examId}/assets/ asset_type="problem_pdf")
+// 진입점 2개(자산 탭, 답안 등록 모달)에서 동일하게 사용
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
 import { feedback } from "@/shared/ui/feedback/feedback";
 
-export type PdfExtractStatus = "idle" | "uploading" | "processing" | "done" | "failed";
+export type PdfExtractStatus = "idle" | "uploading" | "done" | "failed";
 
 export function usePdfQuestionExtract(examId: number) {
   const qc = useQueryClient();
   const [status, setStatus] = useState<PdfExtractStatus>("idle");
-  const [jobId, setJobId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  const cleanup = useCallback(() => {
-    if (pollRef.current) {
-      clearInterval(pollRef.current);
-      pollRef.current = null;
-    }
-  }, []);
 
   const upload = useCallback(async (file: File) => {
-    cleanup();
     setStatus("uploading");
     setError(null);
-    setJobId(null);
 
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("exam_id", String(examId));
+      const fd = new FormData();
+      fd.append("asset_type", "problem_pdf");
+      fd.append("file", file);
 
-      const res = await api.post("/exams/pdf-extract/", formData, {
+      await api.post(`/exams/${examId}/assets/`, fd, {
         headers: { "Content-Type": "multipart/form-data" },
       });
 
-      const id = res.data?.job_id;
-      if (!id) throw new Error("job_id not returned");
+      setStatus("done");
+      feedback.success("시험지 PDF 업로드 완료");
 
-      setJobId(id);
-      setStatus("processing");
-      feedback.info("PDF 문항 분할이 시작되었습니다.");
-
-      // Poll for completion
-      pollRef.current = setInterval(async () => {
-        try {
-          const sr = await api.get(`/jobs/${id}/`);
-          const s = (sr.data?.status ?? "").toUpperCase();
-
-          if (s === "DONE") {
-            cleanup();
-            setStatus("done");
-            feedback.success("문항 분할이 완료되었습니다.");
-            // Invalidate related queries
-            qc.invalidateQueries({ queryKey: ["exam-questions", examId] });
-          } else if (s === "FAILED") {
-            cleanup();
-            setStatus("failed");
-            setError(sr.data?.error_message ?? "문항 분할에 실패했습니다.");
-            feedback.error("문항 분할에 실패했습니다.");
-          }
-        } catch {
-          cleanup();
-          setStatus("failed");
-          setError("상태 조회 중 오류 발생");
-        }
-      }, 3000);
-
-      // Safety timeout: 2 minutes
-      setTimeout(() => {
-        if (pollRef.current) {
-          cleanup();
-          setStatus("failed");
-          setError("시간 초과 — 관리자에게 문의하세요.");
-        }
-      }, 120000);
-
+      // 자산 목록 즉시 반영
+      qc.invalidateQueries({ queryKey: ["exam-assets", examId] });
+      qc.invalidateQueries({ queryKey: ["exam-questions", examId] });
     } catch (e: any) {
       setStatus("failed");
-      setError(e?.response?.data?.detail ?? e?.message ?? "PDF 업로드 실패");
-      feedback.error(e?.response?.data?.detail ?? "PDF 업로드 실패");
+      const detail = e?.response?.data?.detail;
+      const msg = detail ?? "시험지 PDF 업로드 실패";
+      setError(msg);
+      feedback.error(msg);
     }
-  }, [examId, cleanup, qc]);
+  }, [examId, qc]);
 
   const reset = useCallback(() => {
-    cleanup();
     setStatus("idle");
-    setJobId(null);
     setError(null);
-  }, [cleanup]);
+  }, []);
 
-  return { status, jobId, error, upload, reset };
+  return { status, error, upload, reset };
 }

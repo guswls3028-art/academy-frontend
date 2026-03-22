@@ -162,7 +162,7 @@ export default function ExamPolicyPanel({ examId, lectureId = 0, sessionId = 0 }
           open={answerModalOpen}
           onClose={() => setAnswerModalOpen(false)}
           examId={examId}
-          structureOwnerId={exam.id}
+          structureOwnerId={exam.template_exam_id ?? exam.id}
           canEditQuestions={canEditQuestions}
           lectureName={resolvedLectureName}
           sessionName={resolvedSessionName}
@@ -171,7 +171,7 @@ export default function ExamPolicyPanel({ examId, lectureId = 0, sessionId = 0 }
         <ExamPdfUploadModal
           open={pdfModalOpen}
           onClose={() => setPdfModalOpen(false)}
-          examId={examId}
+          examId={exam?.template_exam_id ?? examId}
         />
 
         {/* ── OMR 답안지 ── */}
