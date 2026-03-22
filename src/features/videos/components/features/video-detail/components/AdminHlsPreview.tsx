@@ -24,7 +24,10 @@ export default function AdminHlsPreview({ src }: { src: string }) {
     }
 
     if (Hls.isSupported()) {
-      const hls = new Hls();
+      const hls = new Hls({
+        startLevel: -1,
+        abrEwmaDefaultEstimate: 20_000_000,
+      });
       hls.loadSource(src);
       hls.attachMedia(video);
       return () => hls.destroy();

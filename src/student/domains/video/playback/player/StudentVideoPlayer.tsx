@@ -524,10 +524,27 @@ export default function StudentVideoPlayer({
       if (e.key === "ArrowRight") { skip(5); return; }
       if (e.key === "j" || e.key === "J") { skip(-10); return; }
       if (e.key === "l" || e.key === "L") { skip(10); return; }
+      // 배속 스텝: < 감소, > 증가 (전체화면에서도 사용 가능)
+      if (e.key === ">" || e.key === ".") {
+        e.preventDefault();
+        const steps = [0.5, 0.75, 1, 1.25, 1.5, 2, 2.5, 3];
+        const cur = steps.findIndex((s) => Math.abs(s - rate) < 0.01);
+        const next = Math.min(steps.length - 1, cur + 1);
+        setPlaybackRate(steps[next]);
+        return;
+      }
+      if (e.key === "<" || e.key === ",") {
+        e.preventDefault();
+        const steps = [0.5, 0.75, 1, 1.25, 1.5, 2, 2.5, 3];
+        const cur = steps.findIndex((s) => Math.abs(s - rate) < 0.01);
+        const prev = Math.max(0, cur <= 0 ? 0 : cur - 1);
+        setPlaybackRate(steps[prev]);
+        return;
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [requestFullscreen, skip, toggleMute, togglePlay]);
+  }, [requestFullscreen, skip, toggleMute, togglePlay, rate, setPlaybackRate]);
 
   const policyPills = useMemo(() => {
     const pills: Array<{ text: string; tone?: "neutral" | "warn" | "danger" }> = [];
@@ -669,8 +686,6 @@ export default function StudentVideoPlayer({
                 <div className="svpControlRow">
                   <div className="svpLeftControls">
                     <IconButton icon={playing ? "pause" : "play"} label={playing ? "일시정지" : "재생"} onClick={togglePlay} />
-                    <IconButton icon="replay10" label="-10초" onClick={() => skip(-10)} />
-                    <IconButton icon="forward10" label="+10초" onClick={() => skip(10)} />
                     <div className="svpVolume">
                       <IconButton icon={muted || volume <= 0.0001 ? "mute" : "volume"} label="음소거" onClick={toggleMute} />
                       <div className="svpVolumeSlider">
@@ -679,19 +694,6 @@ export default function StudentVideoPlayer({
                     </div>
                   </div>
                   <div className="svpRightControls">
-                    <div className="svpRate">
-                      <KebabMenu
-                        align="right"
-                        label={speedLocked ? "배속 제한" : `배속 ${rate.toFixed(2)}x`}
-                        disabled={speedLocked}
-                        items={rateMenu.map((r) => ({
-                          label: `${r}x${Math.abs(r - rate) < 0.001 ? " ✓" : ""}`,
-                          onClick: () => setPlaybackRate(r),
-                        }))}
-                        buttonClassName={speedLocked ? "svpRateDisabled" : ""}
-                      />
-                    </div>
-                    <IconButton icon={theater ? "shrink" : "theater"} label={theater ? "기본 보기" : "극장 모드"} onClick={() => setTheater((v) => !v)} />
                     <IconButton
                       icon={isFullscreen ? "shrink" : "fullscreen"}
                       label={isFullscreen ? "전체화면 종료" : "전체화면"}
@@ -705,18 +707,60 @@ export default function StudentVideoPlayer({
                     {(!allowSeek || seekMode === "blocked") && (
                       <span className="svpPolicyHintItem">• 탐색이 제한됩니다{boundedForward ? " (시청한 구간만 이동 가능)" : ""}</span>
                     )}
-                    {allowSeek && seekMode !== "blocked" && boundedForward && (
-                      <span className="svpPolicyHintItem">• 앞으로 탐색이 제한됩니다</span>
-                    )}
                     {speedLocked && <span className="svpPolicyHintItem">• 배속 변경이 제한됩니다</span>}
                   </div>
                 )}
-                {allowSeek && !speedLocked && (
-                  <div className="svpPolicyHint svpPolicyHintMuted">
-                    키보드: Space/K(재생), J/L(±10s), ←/→(±5s), F(전체화면), M(음소거), T(극장)
-                  </div>
-                )}
               </div>
+            </div>
+          </div>
+
+          {/* ── 외부 컨트롤바: 건너뛰기 · 배속 · 극장모드 ── */}
+          <div className="svpExtBar">
+            <div className="svpExtGroup">
+              <button type="button" className="svpExtBtn" onClick={() => skip(-10)} aria-label="10초 뒤로">
+                <svg className="svpExtSvg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/><text x="12" y="15.5" textAnchor="middle" fontSize="7.5" fontWeight="700" fill="currentColor" stroke="none">10</text></svg>
+                <span className="svpExtBtnLabel">뒤로</span>
+              </button>
+              <button type="button" className="svpExtBtn" onClick={() => skip(10)} aria-label="10초 앞으로">
+                <svg className="svpExtSvg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.13-9.36L23 10"/><text x="12" y="15.5" textAnchor="middle" fontSize="7.5" fontWeight="700" fill="currentColor" stroke="none">10</text></svg>
+                <span className="svpExtBtnLabel">앞으로</span>
+              </button>
+            </div>
+
+            <div className="svpExtDivider" />
+
+            <div className="svpExtGroup svpExtSpeedGroup">
+              {(speedLocked ? [1] : [0.5, 0.75, 1, 1.25, 1.5, 2].filter(r => r <= maxRate + 0.001)).map((r) => (
+                <button
+                  key={r}
+                  type="button"
+                  className={`svpExtSpeedPill${Math.abs(r - rate) < 0.001 ? " svpExtSpeedPill--active" : ""}${r === 1 ? " svpExtSpeedPill--normal" : ""}${speedLocked ? " svpExtSpeedPill--disabled" : ""}`}
+                  onClick={() => !speedLocked && setPlaybackRate(r)}
+                  disabled={speedLocked}
+                  aria-label={`배속 ${r}배`}
+                >
+                  {r === 1 ? "1x" : `${r}x`}
+                </button>
+              ))}
+            </div>
+
+            <div className="svpExtDivider" />
+
+            <div className="svpExtGroup">
+              <button
+                type="button"
+                className={`svpExtBtn svpExtTheater${theater ? " svpExtTheater--active" : ""}`}
+                onClick={() => setTheater((v) => !v)}
+                aria-label={theater ? "기본 보기" : "극장 모드"}
+              >
+                <svg className="svpExtSvg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  {theater
+                    ? <><rect x="3" y="5" width="18" height="14" rx="2"/><line x1="8" y1="5" x2="8" y2="19"/><line x1="16" y1="5" x2="16" y2="19"/></>
+                    : <><rect x="2" y="7" width="20" height="10" rx="2"/></>
+                  }
+                </svg>
+                <span className="svpExtBtnLabel">{theater ? "기본" : "극장"}</span>
+              </button>
             </div>
           </div>
 
