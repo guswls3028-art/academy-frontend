@@ -5414,3 +5414,151 @@ details[open] > .clinic-tree__summary {
 }
 
 .clinic-hub__action-sm:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ══════════════════════════════════════════════════════════
+   Clinic Retake — 인라인 점수 입력 스타일
+   ══════════════════════════════════════════════════════════ */
+
+/* ── Table extra columns ── */
+.clinic-hub__cell-lecture,
+.clinic-hub__cell-source {
+  max-width: 120px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.clinic-hub__cell-input { min-width: 140px; }
+
+.clinic-hub__type-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.5;
+}
+.clinic-hub__type-badge[data-type="exam"] {
+  background: var(--color-bg-info, #eff6ff);
+  color: var(--color-info, #3b82f6);
+}
+.clinic-hub__type-badge[data-type="homework"] {
+  background: var(--color-bg-warning, #fffbeb);
+  color: var(--color-warning, #f59e0b);
+}
+
+/* ── Score input group ── */
+.clinic-hub__score-input-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.clinic-hub__score-input {
+  width: 64px;
+  height: 28px;
+  padding: 2px 6px;
+  border: 1px solid var(--color-border, #d1d5db);
+  border-radius: 4px;
+  font-size: 13px;
+  text-align: right;
+  background: var(--color-bg-surface, #fff);
+  transition: border-color 0.15s;
+}
+
+.clinic-hub__score-input:focus {
+  outline: none;
+  border-color: var(--color-brand-primary, #6366f1);
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.15);
+}
+
+.clinic-hub__score-input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Hide spinner arrows for number input */
+.clinic-hub__score-input::-webkit-outer-spin-button,
+.clinic-hub__score-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.clinic-hub__score-input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+.clinic-hub__score-submit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--color-brand-primary, #6366f1);
+  border-radius: 4px;
+  background: var(--color-brand-primary, #6366f1);
+  color: #fff;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.clinic-hub__score-submit:hover:not(:disabled) { opacity: 0.85; }
+.clinic-hub__score-submit:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ── Resolved inline label ── */
+.clinic-hub__resolved-inline {
+  font-size: 12px;
+  color: var(--color-success, #10b981);
+  font-weight: 500;
+}
+
+/* ── Row resolved state ── */
+.clinic-hub__row--resolved td {
+  opacity: 0.5;
+  background: var(--color-bg-muted, #f9fafb);
+}
+
+/* ── Item row: source title ── */
+.clinic-hub__item-source-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--color-text-primary, #111827);
+}
+
+/* ── Item row: retake input area ── */
+.clinic-hub__item-retake {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 12px;
+}
+
+.clinic-hub__retake-label {
+  font-size: 12px;
+  color: var(--color-text-secondary, #6b7280);
+  white-space: nowrap;
+}
+
+/* ── Attempt history chips ── */
+.clinic-hub__item-attempts {
+  display: inline-flex;
+  gap: 4px;
+  margin-left: 8px;
+}
+
+.clinic-hub__attempt-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  background: var(--color-bg-error, #fef2f2);
+  color: var(--color-error, #ef4444);
+}
+
+.clinic-hub__attempt-chip--passed {
+  background: var(--color-bg-success, #f0fdf4);
+  color: var(--color-success, #10b981);
+}

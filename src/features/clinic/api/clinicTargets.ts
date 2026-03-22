@@ -25,6 +25,14 @@ export type ResolutionType =
   | "BOOKING_LEGACY"
   | null;
 
+export type AttemptHistoryEntry = {
+  attempt_index: number;
+  score: number | null;
+  max_score: number | null;
+  passed: boolean;
+  at: string | null;
+};
+
 export type ClinicTarget = {
   enrollment_id: number;
   student_name: string;
@@ -33,7 +41,7 @@ export type ClinicTarget = {
   clinic_reason?: ClinicReason;
 
   reason?: "score" | "confidence" | "missing"; // score=불합, confidence=신뢰도낮음, missing=미응시
-  exam_score?: number;
+  exam_score?: number | null;
   cutline_score?: number;
 
   homework_score?: number;
@@ -50,7 +58,26 @@ export type ClinicTarget = {
   lecture_id?: number;
   exam_id?: number | null;
 
+  // ✅ V1.1.1 clinic retake fields
+  source_type?: "exam" | "homework" | null;
+  source_id?: number | null;
+  source_title?: string | null;
+  lecture_title?: string | null;
+  max_score?: number | null;
+  latest_attempt_index?: number;
+  attempt_history?: AttemptHistoryEntry[];
+
   created_at: string;
+};
+
+export type RetakeResponse = {
+  passed: boolean;
+  score: number;
+  max_score: number;
+  attempt_index: number;
+  resolution_type: ResolutionType;
+  resolved_at: string | null;
+  clinic_link_id: number;
 };
 
 /**

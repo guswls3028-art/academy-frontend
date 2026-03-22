@@ -3,7 +3,7 @@
  * ClinicLink (remediation case) CRUD & resolution actions
  */
 import api from "@/shared/api/axios";
-import type { ResolutionType } from "./clinicTargets";
+import type { ResolutionType, RetakeResponse } from "./clinicTargets";
 
 export type ClinicLink = {
   id: number;
@@ -67,4 +67,19 @@ export async function carryOverClinicLink(id: number) {
 export async function unresolveClinicLink(id: number) {
   const res = await api.post(`/progress/clinic-links/${id}/unresolve/`);
   return res.data as ClinicLink;
+}
+
+/**
+ * POST /progress/clinic-links/{id}/submit-retake/
+ * 클리닉 재시도 점수 입력
+ */
+export async function submitClinicRetake(
+  id: number,
+  payload: { score: number; max_score?: number },
+) {
+  const res = await api.post(
+    `/progress/clinic-links/${id}/submit-retake/`,
+    payload,
+  );
+  return res.data as RetakeResponse;
 }

@@ -1,12 +1,15 @@
 // PATH: src/features/clinic/pages/BookingsPage/ClinicBookingsPage.tsx
 /**
- * 미해결 항목 허브 — 학생 중심 뷰 + 항목 중심 뷰
+ * 클리닉 해소 워크스페이스
  *
- * 정보 우선순위: 미해결 항목 > 출석/예약
- * 핵심 UX: 학생별 미해결 실패 항목을 한눈에 보고, 바로 해결 액션 수행
+ * 핵심 UX:
+ * - 모든 미해결 항목을 한 화면에서 보고 점수 입력으로 즉시 해소
+ * - 항목별 뷰: 시험/과제 재시도 점수를 인라인으로 입력
+ * - 학생별 뷰: 학생 단위로 묶어서 보기
+ * - Tab/Enter로 빠른 이동
  */
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
@@ -14,7 +17,6 @@ import {
   Clock,
   FileQuestion,
   BookOpen,
-  Filter,
   Users,
   List,
   ChevronDown,
@@ -22,6 +24,7 @@ import {
   ExternalLink,
   MoreHorizontal,
   Search,
+  Send,
 } from "lucide-react";
 
 import { useClinicTargets } from "../../hooks/useClinicTargets";
@@ -30,6 +33,7 @@ import {
   resolveClinicLink,
   waiveClinicLink,
   carryOverClinicLink,
+  submitClinicRetake,
 } from "../../api/clinicLinks.api";
 import { feedback } from "@/shared/ui/feedback/feedback";
 
@@ -64,46 +68,73 @@ function formatCycle(n?: number): string {
   return `${n}차`;
 }
 
+function formatNextAttempt(latestIndex?: number): string {
+  const next = (latestIndex ?? 1) + 1;
+  return `${next}차`;
+}
+
+function formatScoreDisplay(item: ClinicTarget): string {
+  if (item.reason === "missing") return "미응시";
+  const score = item.exam_score;
+  const cutline = item.cutline_score;
+  if (score == null) return "-";
+  return `${score}/${cutline ?? "-"}`;
+}
+
 /* ══════════════════════════════════════════ */
 
 export default function ClinicBookingsPage() {
   const qc = useQueryClient();
   const { data: targets = [], isLoading } = useClinicTargets();
 
-  const [viewMode, setViewMode] = useState<ViewMode>("students");
+  const [viewMode, setViewMode] = useState<ViewMode>("items");
   const [search, setSearch] = useState("");
   const [reasonFilter, setReasonFilter] = useState<ReasonFilter>("all");
   const [expandedStudents, setExpandedStudents] = useState<Set<number>>(new Set());
 
   /* ── Mutations ── */
+  const invalidateAll = () => {
+    qc.invalidateQueries({ queryKey: ["clinic-targets"] });
+    qc.invalidateQueries({ queryKey: ["clinic-participants"] });
+  };
+
   const resolveMutation = useMutation({
     mutationFn: (id: number) => resolveClinicLink(id),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["clinic-targets"] });
-      feedback.success("해소 처리되었습니다.");
-    },
+    onSuccess: () => { invalidateAll(); feedback.success("해소 처리되었습니다."); },
     onError: () => feedback.error("해소 처리에 실패했습니다."),
   });
 
   const waiveMutation = useMutation({
     mutationFn: (id: number) => waiveClinicLink(id),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["clinic-targets"] });
-      feedback.success("면제 처리되었습니다.");
-    },
+    onSuccess: () => { invalidateAll(); feedback.success("면제 처리되었습니다."); },
     onError: () => feedback.error("면제 처리에 실패했습니다."),
   });
 
   const carryOverMutation = useMutation({
     mutationFn: (id: number) => carryOverClinicLink(id),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["clinic-targets"] });
-      feedback.success("다음 차수로 이월되었습니다.");
-    },
+    onSuccess: () => { invalidateAll(); feedback.success("다음 차수로 이월되었습니다."); },
     onError: () => feedback.error("이월 처리에 실패했습니다."),
   });
 
-  const isMutating = resolveMutation.isPending || waiveMutation.isPending || carryOverMutation.isPending;
+  const retakeMutation = useMutation({
+    mutationFn: (params: { id: number; score: number; max_score?: number }) =>
+      submitClinicRetake(params.id, { score: params.score, max_score: params.max_score }),
+    onSuccess: (data) => {
+      invalidateAll();
+      if (data.passed) {
+        feedback.success(`합격! (${data.score}점, ${data.attempt_index}차) — 자동 해소`);
+      } else {
+        feedback.warning(`미통과 (${data.score}점, ${data.attempt_index}차) — 재시도 가능`);
+      }
+    },
+    onError: () => feedback.error("점수 저장에 실패했습니다."),
+  });
+
+  const isMutating =
+    resolveMutation.isPending ||
+    waiveMutation.isPending ||
+    carryOverMutation.isPending ||
+    retakeMutation.isPending;
 
   /* ── Filtered data ── */
   const filtered = useMemo(() => {
@@ -113,7 +144,9 @@ export default function ClinicBookingsPage() {
       list = list.filter(
         (t) =>
           t.student_name.toLowerCase().includes(q) ||
-          (t.session_title || "").toLowerCase().includes(q)
+          (t.session_title || "").toLowerCase().includes(q) ||
+          (t.source_title || "").toLowerCase().includes(q) ||
+          (t.lecture_title || "").toLowerCase().includes(q),
       );
     }
     if (reasonFilter !== "all") {
@@ -139,7 +172,6 @@ export default function ClinicBookingsPage() {
         });
       }
     }
-    // Sort: more open items first
     return Array.from(map.values()).sort((a, b) => b.openCount - a.openCount);
   }, [filtered]);
 
@@ -172,7 +204,7 @@ export default function ClinicBookingsPage() {
     if (t.lecture_id && t.session_id) {
       window.open(
         `/admin/lectures/${t.lecture_id}/sessions/${t.session_id}/scores`,
-        "_blank"
+        "_blank",
       );
     }
   }
@@ -219,16 +251,7 @@ export default function ClinicBookingsPage() {
         {/* ── Toolbar: view switch + filters ── */}
         <div className="clinic-hub__toolbar">
           <div className="clinic-hub__toolbar-left">
-            {/* View mode toggle */}
             <div className="clinic-hub__view-toggle">
-              <button
-                type="button"
-                className={`clinic-hub__view-btn ${viewMode === "students" ? "clinic-hub__view-btn--active" : ""}`}
-                onClick={() => setViewMode("students")}
-              >
-                <Users size={14} />
-                학생별
-              </button>
               <button
                 type="button"
                 className={`clinic-hub__view-btn ${viewMode === "items" ? "clinic-hub__view-btn--active" : ""}`}
@@ -237,9 +260,16 @@ export default function ClinicBookingsPage() {
                 <List size={14} />
                 항목별
               </button>
+              <button
+                type="button"
+                className={`clinic-hub__view-btn ${viewMode === "students" ? "clinic-hub__view-btn--active" : ""}`}
+                onClick={() => setViewMode("students")}
+              >
+                <Users size={14} />
+                학생별
+              </button>
             </div>
 
-            {/* Reason filter chips */}
             <div className="clinic-hub__filter-chips">
               {(["all", "score", "missing", "confidence"] as ReasonFilter[]).map((r) => (
                 <button
@@ -254,14 +284,13 @@ export default function ClinicBookingsPage() {
             </div>
           </div>
 
-          {/* Search */}
           <div className="clinic-hub__search">
             <Search size={14} />
             <input
               type="search"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="학생 또는 차시 검색"
+              placeholder="학생, 강의, 시험명 검색"
               className="clinic-hub__search-input"
             />
           </div>
@@ -288,7 +317,48 @@ export default function ClinicBookingsPage() {
                 : "모든 학생이 시험/과제를 통과했습니다."}
             </p>
           </div>
-        ) : viewMode === "students" ? (
+        ) : viewMode === "items" ? (
+          /* ═══ ITEM VIEW (table with inline score input) ═══ */
+          <div className="clinic-hub__item-table-wrap">
+            <table className="clinic-hub__item-table">
+              <thead>
+                <tr>
+                  <th>학생</th>
+                  <th>강의</th>
+                  <th>차시</th>
+                  <th>항목</th>
+                  <th>유형</th>
+                  <th>1차 점수</th>
+                  <th>기준</th>
+                  <th>재시도</th>
+                  <th>점수 입력</th>
+                  <th>액션</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((item, idx) => (
+                  <RetakeTableRow
+                    key={`${item.clinic_link_id ?? item.enrollment_id}-${idx}`}
+                    item={item}
+                    onRetake={(score, maxScore) =>
+                      item.clinic_link_id &&
+                      retakeMutation.mutate({
+                        id: item.clinic_link_id,
+                        score,
+                        max_score: maxScore,
+                      })
+                    }
+                    onResolve={() => item.clinic_link_id && resolveMutation.mutate(item.clinic_link_id)}
+                    onWaive={() => item.clinic_link_id && waiveMutation.mutate(item.clinic_link_id)}
+                    onCarryOver={() => item.clinic_link_id && carryOverMutation.mutate(item.clinic_link_id)}
+                    onNavigate={() => navigateToSource(item)}
+                    disabled={isMutating}
+                  />
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
           /* ═══ STUDENT VIEW ═══ */
           <div className="clinic-hub__student-list">
             {studentGroups.map((group) => {
@@ -298,7 +368,6 @@ export default function ClinicBookingsPage() {
                   key={group.enrollmentId}
                   className={`clinic-hub__student-card ${isExpanded ? "clinic-hub__student-card--expanded" : ""}`}
                 >
-                  {/* Student header */}
                   <button
                     type="button"
                     className="clinic-hub__student-header"
@@ -311,20 +380,19 @@ export default function ClinicBookingsPage() {
                     <span className="clinic-hub__student-badge">
                       미해결 {group.openCount}건
                     </span>
-                    {/* Reason summary chips */}
                     <div className="clinic-hub__student-reasons">
                       {group.items.slice(0, 3).map((item, idx) => (
                         <span
-                          key={`${item.enrollment_id}-${item.session_title}-${idx}`}
+                          key={`${item.enrollment_id}-${item.clinic_link_id}-${idx}`}
                           className="clinic-hub__reason-chip"
                           style={{ borderColor: REASON_COLOR[item.reason ?? "score"] }}
                         >
-                          {item.reason === "missing" ? (
-                            <Clock size={11} />
+                          {item.source_type === "homework" ? (
+                            <BookOpen size={11} />
                           ) : (
                             <FileQuestion size={11} />
                           )}
-                          {item.session_title ? `${item.session_title}` : REASON_LABEL[item.reason ?? "score"]}
+                          {item.source_title || item.session_title || REASON_LABEL[item.reason ?? "score"]}
                         </span>
                       ))}
                       {group.items.length > 3 && (
@@ -335,13 +403,20 @@ export default function ClinicBookingsPage() {
                     </div>
                   </button>
 
-                  {/* Expanded: item list */}
                   {isExpanded && (
                     <div className="clinic-hub__items-panel">
                       {group.items.map((item, idx) => (
                         <RemediationItemRow
-                          key={`${item.enrollment_id}-${item.session_title}-${idx}`}
+                          key={`${item.clinic_link_id ?? item.enrollment_id}-${idx}`}
                           item={item}
+                          onRetake={(score, maxScore) =>
+                            item.clinic_link_id &&
+                            retakeMutation.mutate({
+                              id: item.clinic_link_id,
+                              score,
+                              max_score: maxScore,
+                            })
+                          }
                           onResolve={() => item.clinic_link_id && resolveMutation.mutate(item.clinic_link_id)}
                           onWaive={() => item.clinic_link_id && waiveMutation.mutate(item.clinic_link_id)}
                           onCarryOver={() => item.clinic_link_id && carryOverMutation.mutate(item.clinic_link_id)}
@@ -355,69 +430,6 @@ export default function ClinicBookingsPage() {
               );
             })}
           </div>
-        ) : (
-          /* ═══ ITEM VIEW (table) ═══ */
-          <div className="clinic-hub__item-table-wrap">
-            <table className="clinic-hub__item-table">
-              <thead>
-                <tr>
-                  <th>학생</th>
-                  <th>차시</th>
-                  <th>사유</th>
-                  <th>점수</th>
-                  <th>차수</th>
-                  <th>액션</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((item, idx) => (
-                  <tr key={`${item.enrollment_id}-${item.session_title}-${idx}`}>
-                    <td className="clinic-hub__cell-name">{item.student_name}</td>
-                    <td className="clinic-hub__cell-session">{item.session_title || "-"}</td>
-                    <td>
-                      <span
-                        className="clinic-hub__reason-badge"
-                        style={{ color: REASON_COLOR[item.reason ?? "score"] }}
-                      >
-                        {REASON_LABEL[item.reason ?? "score"]}
-                      </span>
-                    </td>
-                    <td className="clinic-hub__cell-score">
-                      {item.reason === "missing"
-                        ? "—"
-                        : `${item.exam_score ?? 0}/${item.cutline_score ?? 0}`}
-                    </td>
-                    <td className="clinic-hub__cell-cycle">{formatCycle(item.cycle_no)}</td>
-                    <td className="clinic-hub__cell-actions">
-                      {item.clinic_link_id ? (
-                        <div className="clinic-hub__inline-actions">
-                          <button
-                            type="button"
-                            className="clinic-hub__action-sm clinic-hub__action-sm--resolve"
-                            onClick={() => resolveMutation.mutate(item.clinic_link_id!)}
-                            disabled={isMutating}
-                            title="수동 해소"
-                          >
-                            <CheckCircle2 size={13} />
-                          </button>
-                          <button
-                            type="button"
-                            className="clinic-hub__action-sm"
-                            onClick={() => navigateToSource(item)}
-                            title="원본 보기"
-                          >
-                            <ExternalLink size={13} />
-                          </button>
-                        </div>
-                      ) : (
-                        <span className="clinic-hub__cell-muted">—</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
         )}
       </div>
     </div>
@@ -425,11 +437,12 @@ export default function ClinicBookingsPage() {
 }
 
 /* ══════════════════════════════════════════ */
-/* RemediationItemRow — 학생 중심 뷰의 항목 행 */
+/* RetakeTableRow — 항목별 뷰의 테이블 행 (인라인 점수 입력) */
 /* ══════════════════════════════════════════ */
 
-function RemediationItemRow({
+function RetakeTableRow({
   item,
+  onRetake,
   onResolve,
   onWaive,
   onCarryOver,
@@ -437,6 +450,170 @@ function RemediationItemRow({
   disabled,
 }: {
   item: ClinicTarget;
+  onRetake: (score: number, maxScore?: number) => void;
+  onResolve: () => void;
+  onWaive: () => void;
+  onCarryOver: () => void;
+  onNavigate: () => void;
+  disabled: boolean;
+}) {
+  const [scoreInput, setScoreInput] = useState("");
+  const [showMore, setShowMore] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const isResolved = !!item.resolved_at;
+  const typeLabel = item.source_type === "homework" ? "과제" : "시험";
+  const maxScore = item.max_score ?? (item.cutline_score ? undefined : 100);
+
+  function handleSubmit() {
+    const val = parseFloat(scoreInput);
+    if (isNaN(val) || val < 0) {
+      feedback.error("올바른 점수를 입력해주세요.");
+      return;
+    }
+    if (maxScore != null && val > maxScore) {
+      feedback.error(`최대 점수(${maxScore})를 초과할 수 없습니다.`);
+      return;
+    }
+    onRetake(val, item.source_type === "homework" ? maxScore : undefined);
+    setScoreInput("");
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent) {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleSubmit();
+    }
+  }
+
+  return (
+    <tr className={isResolved ? "clinic-hub__row--resolved" : ""}>
+      <td className="clinic-hub__cell-name">{item.student_name}</td>
+      <td className="clinic-hub__cell-lecture">{item.lecture_title || "-"}</td>
+      <td className="clinic-hub__cell-session">{item.session_title || "-"}</td>
+      <td className="clinic-hub__cell-source">
+        <span title={item.source_title || "-"}>
+          {item.source_title || "-"}
+        </span>
+      </td>
+      <td>
+        <span
+          className="clinic-hub__type-badge"
+          data-type={item.source_type}
+        >
+          {typeLabel}
+        </span>
+      </td>
+      <td className="clinic-hub__cell-score">
+        {formatScoreDisplay(item)}
+      </td>
+      <td className="clinic-hub__cell-score">
+        {item.cutline_score ?? "-"}
+      </td>
+      <td className="clinic-hub__cell-cycle">
+        {formatNextAttempt(item.latest_attempt_index)}
+      </td>
+      <td className="clinic-hub__cell-input">
+        {!isResolved && item.clinic_link_id ? (
+          <div className="clinic-hub__score-input-group">
+            <input
+              ref={inputRef}
+              type="number"
+              value={scoreInput}
+              onChange={(e) => setScoreInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="점수"
+              className="clinic-hub__score-input"
+              min={0}
+              max={maxScore ?? undefined}
+              step="any"
+              disabled={disabled}
+            />
+            <button
+              type="button"
+              className="clinic-hub__score-submit"
+              onClick={handleSubmit}
+              disabled={disabled || !scoreInput.trim()}
+              title="저장"
+            >
+              <Send size={13} />
+            </button>
+          </div>
+        ) : isResolved ? (
+          <span className="clinic-hub__resolved-inline">
+            {item.resolution_type === "EXAM_PASS"
+              ? "시험 통과"
+              : item.resolution_type === "HOMEWORK_PASS"
+                ? "과제 통과"
+                : item.resolution_type === "MANUAL_OVERRIDE"
+                  ? "수동 해소"
+                  : item.resolution_type === "WAIVED"
+                    ? "면제"
+                    : "해소됨"}
+          </span>
+        ) : (
+          <span className="clinic-hub__cell-muted">-</span>
+        )}
+      </td>
+      <td className="clinic-hub__cell-actions">
+        {!isResolved && item.clinic_link_id ? (
+          <div className="clinic-hub__inline-actions">
+            <button
+              type="button"
+              className="clinic-hub__action-sm clinic-hub__action-sm--resolve"
+              onClick={onResolve}
+              disabled={disabled}
+              title="수동 해소"
+            >
+              <CheckCircle2 size={13} />
+            </button>
+            <div className="clinic-hub__action-more-wrap">
+              <button
+                type="button"
+                className="clinic-hub__action-more"
+                onClick={() => setShowMore(!showMore)}
+                title="더보기"
+              >
+                <MoreHorizontal size={13} />
+              </button>
+              {showMore && (
+                <div className="clinic-hub__action-dropdown">
+                  <button type="button" onClick={() => { onWaive(); setShowMore(false); }} disabled={disabled}>
+                    면제
+                  </button>
+                  <button type="button" onClick={() => { onCarryOver(); setShowMore(false); }} disabled={disabled}>
+                    다음 차수 이월
+                  </button>
+                  <button type="button" onClick={() => { onNavigate(); setShowMore(false); }}>
+                    원본 성적 보기
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          <span className="clinic-hub__cell-muted">-</span>
+        )}
+      </td>
+    </tr>
+  );
+}
+
+/* ══════════════════════════════════════════ */
+/* RemediationItemRow — 학생 중심 뷰의 항목 행 (인라인 점수 입력 포함) */
+/* ══════════════════════════════════════════ */
+
+function RemediationItemRow({
+  item,
+  onRetake,
+  onResolve,
+  onWaive,
+  onCarryOver,
+  onNavigate,
+  disabled,
+}: {
+  item: ClinicTarget;
+  onRetake: (score: number, maxScore?: number) => void;
   onResolve: () => void;
   onWaive: () => void;
   onCarryOver: () => void;
@@ -444,9 +621,32 @@ function RemediationItemRow({
   disabled: boolean;
 }) {
   const [showActions, setShowActions] = useState(false);
+  const [scoreInput, setScoreInput] = useState("");
 
   const isResolved = !!item.resolved_at;
   const isMissing = item.reason === "missing";
+  const maxScore = item.max_score ?? 100;
+
+  function handleSubmit() {
+    const val = parseFloat(scoreInput);
+    if (isNaN(val) || val < 0) {
+      feedback.error("올바른 점수를 입력해주세요.");
+      return;
+    }
+    if (val > maxScore) {
+      feedback.error(`최대 점수(${maxScore})를 초과할 수 없습니다.`);
+      return;
+    }
+    onRetake(val, item.source_type === "homework" ? maxScore : undefined);
+    setScoreInput("");
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent) {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleSubmit();
+    }
+  }
 
   return (
     <div className={`clinic-hub__item-row ${isResolved ? "clinic-hub__item-row--resolved" : ""}`}>
@@ -459,9 +659,20 @@ function RemediationItemRow({
       {/* Center: item info */}
       <div className="clinic-hub__item-info">
         <div className="clinic-hub__item-top">
-          {/* Session/lecture breadcrumb */}
+          {/* Source title (exam/homework name) */}
+          <span className="clinic-hub__item-source-title">
+            {item.source_type === "homework" ? (
+              <BookOpen size={12} />
+            ) : (
+              <FileQuestion size={12} />
+            )}
+            {item.source_title || item.session_title || "알 수 없는 항목"}
+          </span>
+
+          {/* Lecture / Session breadcrumb */}
           <span className="clinic-hub__item-breadcrumb">
-            {item.session_title || "알 수 없는 차시"}
+            {item.lecture_title ? `${item.lecture_title} · ` : ""}
+            {item.session_title || ""}
           </span>
 
           {/* Reason badge */}
@@ -469,22 +680,9 @@ function RemediationItemRow({
             className="clinic-hub__item-reason"
             style={{ color: REASON_COLOR[item.reason ?? "score"] }}
           >
-            {item.clinic_reason === "homework" ? (
-              <BookOpen size={12} />
-            ) : (
-              <FileQuestion size={12} />
-            )}
             {REASON_LABEL[item.reason ?? "score"]}
           </span>
 
-          {/* Cycle */}
-          {(item.cycle_no ?? 1) > 1 && (
-            <span className="clinic-hub__item-cycle">
-              {formatCycle(item.cycle_no)}
-            </span>
-          )}
-
-          {/* Resolved badge */}
           {isResolved && (
             <span className="clinic-hub__item-resolved">
               <CheckCircle2 size={12} />
@@ -493,24 +691,65 @@ function RemediationItemRow({
           )}
         </div>
 
-        {/* Score detail */}
+        {/* Score detail + inline input */}
         <div className="clinic-hub__item-bottom">
-          {!isMissing && item.exam_score != null && item.cutline_score != null ? (
+          {/* Original score */}
+          {!isMissing && item.exam_score != null ? (
             <span className="clinic-hub__item-score">
-              시험 {item.exam_score}/{item.cutline_score}점
-              <span
-                className="clinic-hub__score-bar"
-                style={{
-                  width: `${Math.min(100, (item.exam_score / Math.max(item.cutline_score, 1)) * 100)}%`,
-                  backgroundColor: REASON_COLOR[item.reason ?? "score"],
-                }}
-              />
+              1차: {item.exam_score}/{item.cutline_score ?? "-"}점
             </span>
           ) : isMissing ? (
             <span className="clinic-hub__item-score clinic-hub__item-score--missing">
               시험 미응시
             </span>
           ) : null}
+
+          {/* Attempt history */}
+          {item.attempt_history && item.attempt_history.length > 1 && (
+            <span className="clinic-hub__item-attempts">
+              {item.attempt_history.slice(1).map((a) => (
+                <span
+                  key={a.attempt_index}
+                  className={`clinic-hub__attempt-chip ${a.passed ? "clinic-hub__attempt-chip--passed" : ""}`}
+                >
+                  {a.attempt_index}차: {a.score ?? "-"}점
+                  {a.passed ? " 합격" : ""}
+                </span>
+              ))}
+            </span>
+          )}
+
+          {/* Inline score input */}
+          {!isResolved && item.clinic_link_id && (
+            <div className="clinic-hub__item-retake">
+              <span className="clinic-hub__retake-label">
+                {formatNextAttempt(item.latest_attempt_index)} 점수:
+              </span>
+              <div className="clinic-hub__score-input-group">
+                <input
+                  type="number"
+                  value={scoreInput}
+                  onChange={(e) => setScoreInput(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="점수"
+                  className="clinic-hub__score-input"
+                  min={0}
+                  max={maxScore}
+                  step="any"
+                  disabled={disabled}
+                />
+                <button
+                  type="button"
+                  className="clinic-hub__score-submit"
+                  onClick={handleSubmit}
+                  disabled={disabled || !scoreInput.trim()}
+                  title="저장"
+                >
+                  <Send size={13} />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -556,11 +795,15 @@ function RemediationItemRow({
         )}
         {isResolved && (
           <span className="clinic-hub__resolved-label">
-            {item.resolution_type === "EXAM_PASS" ? "시험 통과"
-              : item.resolution_type === "HOMEWORK_PASS" ? "과제 통과"
-              : item.resolution_type === "MANUAL_OVERRIDE" ? "수동 해소"
-              : item.resolution_type === "WAIVED" ? "면제"
-              : "해소됨"}
+            {item.resolution_type === "EXAM_PASS"
+              ? "시험 통과"
+              : item.resolution_type === "HOMEWORK_PASS"
+                ? "과제 통과"
+                : item.resolution_type === "MANUAL_OVERRIDE"
+                  ? "수동 해소"
+                  : item.resolution_type === "WAIVED"
+                    ? "면제"
+                    : "해소됨"}
           </span>
         )}
       </div>
