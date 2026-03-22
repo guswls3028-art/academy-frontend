@@ -283,7 +283,7 @@
   right: 0;
   bottom: 0;
   padding: 10px 12px 12px 12px;
-  background: linear-gradient(180deg, rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.62) 50%, rgba(0, 0, 0, 0.85));
+  background: linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.6) 30%, rgba(0,0,0,0.92) 100%);
   z-index: 20;
 }
 
@@ -355,9 +355,9 @@
 
 /* YouTube-style: 배경 없는 순수 텍스트 */
 .svpTime {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
-  color: rgba(255, 255, 255, 0.85);
+  color: #fff;
   display: flex;
   align-items: center;
   gap: 3px;
