@@ -183,33 +183,55 @@ export function SpeedButton({
   onSelect: (r: number) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement | null>(null);
+  const btnRef = useRef<HTMLButtonElement | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  const [pos, setPos] = useState<{ bottom: number; right: number } | null>(null);
 
   useEffect(() => {
     if (!open) return;
     const onDown = (e: any) => {
-      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+      if (btnRef.current?.contains(e.target)) return;
+      if (menuRef.current?.contains(e.target)) return;
+      setOpen(false);
     };
     window.addEventListener("pointerdown", onDown);
     return () => window.removeEventListener("pointerdown", onDown);
   }, [open]);
 
+  const handleOpen = () => {
+    if (disabled) return;
+    if (open) { setOpen(false); return; }
+    if (btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect();
+      setPos({
+        bottom: window.innerHeight - r.top + 8,
+        right: window.innerWidth - r.right,
+      });
+    }
+    setOpen(true);
+  };
+
   const label = rate % 1 === 0 ? `${rate}x` : `${rate.toFixed(2)}x`;
 
   return (
-    <div className="svpSpeedWrap" ref={ref}>
+    <>
       <button
+        ref={btnRef}
         type="button"
         className={`svpSpeedBtn${disabled ? " svpSpeedBtn--disabled" : ""}`}
-        onClick={() => !disabled && setOpen((v) => !v)}
+        onClick={handleOpen}
         aria-label={disabled ? "배속 제한" : `배속 ${label}`}
         title={disabled ? "배속 제한" : `배속 ${label}`}
         disabled={!!disabled}
       >
         {label}
       </button>
-      {open && !disabled && (
-        <div className="svpSpeedMenu">
+      {open && !disabled && pos && (
+        <div
+          ref={menuRef}
+          className="svpSpeedMenu"
+          style={{ position: "fixed", bottom: pos.bottom, right: pos.right }}
+        >
           {speeds.filter((r) => r <= 3).map((r) => (
             <button
               key={r}
@@ -223,7 +245,7 @@ export function SpeedButton({
           ))}
         </div>
       )}
-    </div>
+    </>
   );
 }
 

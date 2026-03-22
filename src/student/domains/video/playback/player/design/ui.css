@@ -167,10 +167,6 @@
    Speed Button + Popover
    ═══════════════════════════════════════════════ */
 
-.svpSpeedWrap {
-  position: relative;
-}
-
 .svpSpeedBtn {
   display: inline-flex;
   align-items: center;
@@ -205,11 +201,8 @@
   cursor: not-allowed;
 }
 
-/* 배속 드롭업 메뉴 */
+/* 배속 드롭업 메뉴 (position: fixed — overflow:hidden 우회) */
 .svpSpeedMenu {
-  position: absolute;
-  bottom: calc(100% + 12px);
-  right: -4px;
   min-width: 140px;
   padding: 8px 0;
   border-radius: 14px;
