@@ -1,5 +1,6 @@
 // PATH: src/student/domains/video/playback/player/design/ui.tsx
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { clamp } from "./utils";
 
 export function Pill({
@@ -226,11 +227,11 @@ export function SpeedButton({
       >
         {label}
       </button>
-      {open && !disabled && pos && (
+      {open && !disabled && pos && createPortal(
         <div
           ref={menuRef}
           className="svpSpeedMenu"
-          style={{ position: "fixed", bottom: pos.bottom, right: pos.right }}
+          style={{ position: "fixed", bottom: pos.bottom, right: pos.right, zIndex: 9999 }}
         >
           {speeds.filter((r) => r <= 3).map((r) => (
             <button
@@ -243,7 +244,8 @@ export function SpeedButton({
               {Math.abs(r - rate) < 0.001 && <span className="svpSpeedCheck">✓</span>}
             </button>
           ))}
-        </div>
+        </div>,
+        document.body,
       )}
     </>
   );
