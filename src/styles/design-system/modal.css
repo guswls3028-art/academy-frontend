@@ -778,9 +778,16 @@
 /* ========== 모달 wrapper 스크롤 차단 — 밖 영역 스크롤 시 모달이 올라가는 버그 방지 ========== */
 .admin-modal.ant-modal-wrap {
   overflow: hidden !important;
+  overscroll-behavior: contain;
 }
 /* centered 모달일 때 wrapper가 스크롤 가능해지는 것을 차단 */
 .ant-modal-centered .admin-modal.ant-modal-wrap,
 .ant-modal-centered .ant-modal-wrap:has(.admin-modal) {
   overflow: hidden !important;
+  overscroll-behavior: contain;
+}
+/* 모달 열림 시 body 스크롤 완전 차단 */
+body:has(.admin-modal.ant-modal-wrap) {
+  overflow: hidden !important;
+  overscroll-behavior: none;
 }

@@ -1193,29 +1193,31 @@ function OmrSettingsTab({
     }
   };
 
+  /* OMR 탭: 답안등록/이미지등록 탭과 동일한 모달 높이 사용.
+     미리보기는 A4 가로(297:210 = 1.414:1) 비율 유지. */
   return (
-    <div style={{ display: "flex", gap: 24 }}>
+    <div className="answer-key-two-panels" style={{ gridTemplateColumns: "240px 1fr" }}>
       {/* 좌측: 설정 */}
-      <div style={{ width: 260, flexShrink: 0 }} className="space-y-3">
-        <div className="text-sm font-semibold text-[var(--text-primary)]">답안지 설정</div>
-        <div className="text-xs text-[var(--text-muted)]">
+      <div className="answer-key-panel--choice" style={{ gap: "var(--space-3)" }}>
+        <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>답안지 설정</div>
+        <div style={{ fontSize: 12, color: "var(--color-text-muted)" }}>
           답안지에 인쇄될 정보를 확인하고 필요시 수정하세요.
         </div>
 
         <div>
-          <label className="block text-xs text-[var(--text-muted)] mb-1">시험명</label>
-          <input type="text" value={omrExam} onChange={(e) => setOmrExam(e.target.value)} className="w-full rounded border border-[var(--border-divider)] px-2.5 py-1.5 text-sm" placeholder="시험명 입력" />
+          <label style={{ display: "block", fontSize: 12, color: "var(--color-text-muted)", marginBottom: 4 }}>시험명</label>
+          <input type="text" value={omrExam} onChange={(e) => setOmrExam(e.target.value)} className="ds-input" style={{ width: "100%" }} placeholder="시험명 입력" />
         </div>
         <div>
-          <label className="block text-xs text-[var(--text-muted)] mb-1">강의명</label>
-          <input type="text" value={omrLecture} onChange={(e) => setOmrLecture(e.target.value)} className="w-full rounded border border-[var(--border-divider)] px-2.5 py-1.5 text-sm" placeholder="강의명 입력" />
+          <label style={{ display: "block", fontSize: 12, color: "var(--color-text-muted)", marginBottom: 4 }}>강의명</label>
+          <input type="text" value={omrLecture} onChange={(e) => setOmrLecture(e.target.value)} className="ds-input" style={{ width: "100%" }} placeholder="강의명 입력" />
         </div>
         <div>
-          <label className="block text-xs text-[var(--text-muted)] mb-1">차시명</label>
-          <input type="text" value={omrSession} onChange={(e) => setOmrSession(e.target.value)} className="w-full rounded border border-[var(--border-divider)] px-2.5 py-1.5 text-sm" placeholder="차시명 입력" />
+          <label style={{ display: "block", fontSize: 12, color: "var(--color-text-muted)", marginBottom: 4 }}>차시명</label>
+          <input type="text" value={omrSession} onChange={(e) => setOmrSession(e.target.value)} className="ds-input" style={{ width: "100%" }} placeholder="차시명 입력" />
         </div>
 
-        <div className="rounded bg-[var(--bg-surface-soft)] p-2.5 text-xs text-[var(--text-muted)]">
+        <div style={{ borderRadius: "var(--radius-md)", background: "var(--color-bg-surface-soft)", padding: "8px 10px", fontSize: 12, color: "var(--color-text-muted)" }}>
           {choiceCount > 0 && <span>객관식 {choiceCount}문항</span>}
           {choiceCount > 0 && essayCount > 0 && <span> · </span>}
           {essayCount > 0 && <span>서술형 {essayCount}문항</span>}
@@ -1223,7 +1225,7 @@ function OmrSettingsTab({
           <span> · 총 {choiceCount + essayCount}문항</span>
         </div>
 
-        <div className="space-y-2 pt-1">
+        <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)", paddingTop: 4 }}>
           <Button type="button" intent="primary" size="md" className="w-full" onClick={handleDownload} disabled={pdfLoading || choiceCount + essayCount < 1}>
             {pdfLoading ? "다운로드 중..." : "PDF 다운로드"}
           </Button>
@@ -1233,19 +1235,18 @@ function OmrSettingsTab({
         </div>
       </div>
 
-      {/* 우측: 미리보기 */}
-      <div style={{ flex: 1, minWidth: 0 }} className="rounded border border-[var(--border-divider)] bg-[var(--bg-surface-soft)] overflow-hidden">
+      {/* 우측: 미리보기 (A4 가로 비율) */}
+      <div className="answer-key-panel--essay" style={{ padding: 0, overflow: "hidden" }}>
         {previewHtml ? (
           <iframe
             ref={iframeRef}
             srcDoc={previewHtml}
-            className="w-full border-0"
-            style={{ height: 480 }}
+            style={{ width: "100%", height: "100%", border: "none", display: "block" }}
             title="OMR 답안지 미리보기"
             sandbox="allow-same-origin"
           />
         ) : (
-          <div className="flex items-center justify-center h-[480px] text-sm text-[var(--text-muted)]">
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", fontSize: 13, color: "var(--color-text-muted)" }}>
             {previewLoading ? "미리보기 로딩 중..." : "문항을 설정하면 미리보기가 표시됩니다."}
           </div>
         )}
