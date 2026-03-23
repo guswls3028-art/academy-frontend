@@ -100,7 +100,9 @@ const SecuritySettingsPage = lazy(() => import("@/features/settings/pages/Securi
 const BillingSettingsPage = lazy(() => import("@/features/settings/pages/BillingSettingsPage"));
 
 /* ================= Lazy: Learning (시험·성적·영상) ================= */
+const ExamDomainLayout = lazy(() => import("@/features/exams/pages/ExamDomainLayout"));
 const ExamExplorerPage = lazy(() => import("@/features/exams/pages/ExamExplorerPage"));
+const ExamTemplatesPage = lazy(() => import("@/features/exams/pages/ExamTemplatesPage"));
 const ResultsExplorerPage = lazy(() => import("@/features/results/pages/ResultsExplorerPage"));
 const VideoExplorerPage = lazy(() => import("@/features/videos/pages/VideoExplorerPage"));
 import VideoIdToSessionRedirect from "@/features/videos/pages/VideoIdToSessionRedirect";
@@ -185,7 +187,10 @@ export default function AdminRouter() {
         <Route path="clinic/*" element={wrapLazy(ClinicRoutes)} />
 
         {/* ================= Learning (시험·성적·영상) ================= */}
-        <Route path="exams" element={wrapLazy(ExamExplorerPage)} />
+        <Route path="exams" element={wrapLazy(ExamDomainLayout)}>
+          <Route index element={wrapLazy(ExamExplorerPage)} />
+          <Route path="templates" element={wrapLazy(ExamTemplatesPage)} />
+        </Route>
         <Route path="results" element={wrapLazy(ResultsExplorerPage)} />
         <Route path="videos" element={wrapLazy(VideoExplorerPage)} />
         <Route path="videos/:videoId" element={<VideoIdToSessionRedirect />} />
