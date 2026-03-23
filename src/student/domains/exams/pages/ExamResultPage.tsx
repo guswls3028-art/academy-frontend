@@ -3,7 +3,7 @@
  * 대표 Result + ResultItem(문항별) 렌더링
  * 서버 권한 기반 정답 노출 (answer_visibility)
  */
-import { useMemo } from "react";
+import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import StudentPageShell from "@/student/shared/ui/pages/StudentPageShell";
 import EmptyState from "@/student/shared/ui/layout/EmptyState";
@@ -96,7 +96,7 @@ export default function ExamResultPage() {
           <CorrectBar correct={correctCount} wrong={wrongCount} />
         )}
 
-        {/* ── Per-question results ── */}
+        {/* ── Per-question results (OMR Grid) ── */}
         <div>
           <div style={{ fontWeight: 700, fontSize: 14, marginBottom: "var(--stu-space-4)" }}>
             문항별 결과
@@ -124,15 +124,11 @@ export default function ExamResultPage() {
           )}
 
           {items.length > 0 && (
-            <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-3)" }}>
-              {items.map((it) => (
-                <QuestionItem
-                  key={`${it.question_id}-${it.question_number}`}
-                  item={it}
-                  showAnswer={!!r.answers_visible}
-                />
-              ))}
-            </div>
+            <QuestionGrid
+              items={items}
+              showAnswer={!!r.answers_visible}
+              answersVisible={!!r.answers_visible}
+            />
           )}
 
           {items.length === 0 && !itemsQ.isLoading && !itemsQ.isError && (
@@ -252,87 +248,137 @@ function CorrectBar({ correct, wrong }: { correct: number; wrong: number }) {
   );
 }
 
-/* ── Question item ── */
+/* ── Question Grid (OMR style) ── */
 
-function QuestionItem({
-  item,
+type QuestionItemData = {
+  question_id: number;
+  question_number: number;
+  student_answer: string | null;
+  correct_answer: string | null;
+  score: number;
+  max_score: number;
+  is_correct: boolean;
+};
+
+function QuestionGrid({
+  items,
   showAnswer,
+  answersVisible,
 }: {
-  item: {
-    question_id: number;
-    question_number: number;
-    student_answer: string | null;
-    correct_answer: string | null;
-    score: number;
-    max_score: number;
-    is_correct: boolean;
-  };
+  items: QuestionItemData[];
   showAnswer: boolean;
+  answersVisible: boolean;
 }) {
+  const [selected, setSelected] = useState<number | null>(null);
+  const selectedItem = items.find((it) => it.question_number === selected);
+
   return (
-    <div
-      style={{
-        border: "1px solid var(--stu-border)",
-        borderRadius: "var(--stu-radius)",
-        padding: "var(--stu-space-5)",
-        background: item.is_correct
-          ? "var(--stu-success-bg)"
-          : "var(--stu-surface-soft)",
-      }}
-    >
+    <div>
+      {/* Grid — 한 줄에 5개 */}
       <div
         style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "var(--stu-space-3)",
+          display: "grid",
+          gridTemplateColumns: "repeat(5, 1fr)",
+          gap: 6,
         }}
       >
-        <span style={{ fontWeight: 700, fontSize: 14 }}>
-          {item.question_number}번
-        </span>
-        <GradeBadge
-          passed={item.is_correct}
-          label={{ pass: "정답", fail: "오답" }}
-        />
-        <span
-          className="stu-muted"
-          style={{ fontSize: 12, marginLeft: "auto" }}
-        >
-          {item.score}/{item.max_score}점
-        </span>
+        {items.map((it) => {
+          const isSelected = selected === it.question_number;
+          const chipBg = answersVisible
+            ? it.is_correct
+              ? "var(--stu-success-bg)"
+              : "var(--stu-surface-soft)"
+            : "var(--stu-surface-soft)";
+          const chipBorder = answersVisible
+            ? it.is_correct
+              ? "1.5px solid var(--stu-success)"
+              : "1.5px solid var(--stu-danger)"
+            : "1.5px solid var(--stu-border)";
+
+          return (
+            <button
+              key={`${it.question_id}-${it.question_number}`}
+              type="button"
+              onClick={() =>
+                setSelected(isSelected ? null : it.question_number)
+              }
+              aria-pressed={isSelected}
+              aria-label={`${it.question_number}번 ${answersVisible ? (it.is_correct ? "정답" : "오답") : ""}`}
+              style={{
+                width: "100%",
+                aspectRatio: "1 / 1",
+                maxWidth: 40,
+                borderRadius: 10,
+                border: chipBorder,
+                background: chipBg,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "pointer",
+                fontSize: 13,
+                fontWeight: 700,
+                color: "var(--stu-text)",
+                padding: 0,
+                outline: "none",
+                boxShadow: isSelected
+                  ? "0 0 0 2px var(--stu-primary)"
+                  : "none",
+                transform: isSelected ? "scale(1.08)" : "scale(1)",
+                transition: "all 0.15s ease",
+              }}
+            >
+              {it.question_number}
+            </button>
+          );
+        })}
       </div>
 
-      {/* Score bar */}
-      {item.max_score > 0 && (
+      {/* Expanded Detail */}
+      {selectedItem && (
         <div
           style={{
-            height: 4,
-            borderRadius: 2,
-            background: "var(--stu-border)",
             marginTop: "var(--stu-space-3)",
-            overflow: "hidden",
+            border: "1px solid var(--stu-border)",
+            borderRadius: "var(--stu-radius)",
+            padding: "var(--stu-space-4)",
+            background: selectedItem.is_correct
+              ? "var(--stu-success-bg)"
+              : "var(--stu-surface-soft)",
+            animation: "stuSlideDown 0.2s ease",
           }}
         >
           <div
             style={{
-              width: `${(item.score / item.max_score) * 100}%`,
-              height: "100%",
-              borderRadius: 2,
-              background: item.is_correct
-                ? "var(--stu-success)"
-                : "var(--stu-danger)",
-              transition: "width 0.3s ease",
+              display: "flex",
+              alignItems: "center",
+              gap: "var(--stu-space-3)",
             }}
-          />
+          >
+            <span style={{ fontWeight: 700, fontSize: 14 }}>
+              {selectedItem.question_number}번
+            </span>
+            <GradeBadge
+              passed={selectedItem.is_correct}
+              label={{ pass: "정답", fail: "오답" }}
+            />
+            <span
+              className="stu-muted"
+              style={{ fontSize: 12, marginLeft: "auto" }}
+            >
+              {selectedItem.score}/{selectedItem.max_score}점
+            </span>
+          </div>
+          <div
+            className="stu-muted"
+            style={{ marginTop: "var(--stu-space-2)", fontSize: 13 }}
+          >
+            내 답: {selectedItem.student_answer ?? "-"}
+            {showAnswer && selectedItem.correct_answer != null
+              ? ` \u00B7 정답: ${selectedItem.correct_answer}`
+              : ""}
+          </div>
         </div>
       )}
-
-      <div className="stu-muted" style={{ marginTop: "var(--stu-space-3)", fontSize: 13 }}>
-        내 답: {item.student_answer ?? "-"}
-        {showAnswer && item.correct_answer != null
-          ? ` \u00B7 정답: ${item.correct_answer}`
-          : ""}
-      </div>
     </div>
   );
 }
