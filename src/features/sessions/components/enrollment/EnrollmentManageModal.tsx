@@ -103,13 +103,16 @@ export default function EnrollmentManageModal({
   const filtered = useMemo(() => {
     const k = keyword.trim().toLowerCase();
     if (!k) return rows;
-    return rows.filter((r) =>
-      (r.student_name ?? "").toLowerCase().includes(k)
-      || (r.parent_phone ?? "").includes(k)
-      || (r.student_phone ?? "").includes(k)
-      || (r.school ?? "").toLowerCase().includes(k)
-      || (r.grade != null && `${r.grade}학년`.includes(k))
-    );
+    const kDigits = k.replace(/\D/g, ""); // 전화번호 검색용 숫자만
+    return rows.filter((r) => {
+      if ((r.student_name ?? "").toLowerCase().includes(k)) return true;
+      // 전화번호: 입력값의 숫자만 추출해서 raw 전화번호와 매칭
+      if (kDigits && (r.parent_phone ?? "").replace(/\D/g, "").includes(kDigits)) return true;
+      if (kDigits && (r.student_phone ?? "").replace(/\D/g, "").includes(kDigits)) return true;
+      if ((r.school ?? "").toLowerCase().includes(k)) return true;
+      if (r.grade != null && `${r.grade}학년`.includes(k)) return true;
+      return false;
+    });
   }, [rows, keyword]);
 
   const selectedRows = useMemo(
@@ -178,7 +181,7 @@ export default function EnrollmentManageModal({
                 <div className="flex items-center gap-2 flex-1 min-w-0" style={{ maxWidth: 420 }}>
                   <input
                     className="ds-input flex-1 min-w-0"
-                    placeholder="이름 / 전화번호 / 학교명 / 학년(예: 고1, 중2, 3학년)"
+                    placeholder="이름 / 전화번호 / 학교명 / 학년(예: 3학년)"
                     value={keyword}
                     onChange={(e) => setKeyword(e.target.value)}
                     style={{ maxWidth: 360 }}
