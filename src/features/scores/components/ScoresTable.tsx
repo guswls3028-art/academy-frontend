@@ -271,6 +271,8 @@ type Props = {
   selectedEnrollmentIds?: number[];
   onSelectionChange?: (enrollmentIds: number[]) => void;
 
+  /** 시험 컬럼 헤더 OMR 업로드 버튼 클릭 */
+  onOpenOmrModal?: (examId: number, title: string) => void;
 };
 
 const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
@@ -298,6 +300,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
   onRequestMoveUp,
   selectedEnrollmentIds = [],
   onSelectionChange,
+  onOpenOmrModal,
 }: Props, ref) {
   const qc = useQueryClient();
   const homeworkInputRefs = useRef<Record<string, HTMLSpanElement | null>>({});
@@ -658,6 +661,21 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                 <span className="inline-flex items-center gap-1">
                   <span className="ds-status-badge ds-status-badge--1ch" data-tone="primary" aria-label="시험">시</span>
                   <span className="truncate">{ex.title}</span>
+                  {onOpenOmrModal && (
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); onOpenOmrModal(ex.exam_id, ex.title); }}
+                      className="inline-flex items-center justify-center w-5 h-5 rounded opacity-0 group-hover:opacity-100 transition-opacity text-[var(--color-text-muted)] hover:text-[var(--color-brand-primary)] hover:bg-[var(--color-bg-surface-hover)]"
+                      title="OMR 업로드"
+                      aria-label={`OMR 업로드 — ${ex.title}`}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                        <polyline points="17 8 12 3 7 8" />
+                        <line x1="12" y1="3" x2="12" y2="15" />
+                      </svg>
+                    </button>
+                  )}
                 </span>
               </th>
             );

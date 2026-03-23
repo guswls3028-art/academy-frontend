@@ -449,6 +449,7 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
           }}
           selectedEnrollmentIds={selectedEnrollmentIds}
           onSelectionChange={onSelectionChange}
+          onOpenOmrModal={handleOpenOmrModal}
         />
       </div>
 
