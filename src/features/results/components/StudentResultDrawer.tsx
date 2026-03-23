@@ -248,6 +248,7 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
                       totalScore={totalScore}
                       maxScore={maxScore}
                       qNumMap={qNumMap}
+                      correctAnswers={correctAnswersMap}
                       isItemCorrect={isItemCorrect}
                       onEdit={enterEdit}
                     />
@@ -296,12 +297,13 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
 /* 읽기 모드 — 2단 (선택형 | 서술형) + 총점 상단         */
 /* ═══════════════════════════════════════════════════ */
 
-function ReadModeContent({ choiceItems, essayItems, totalScore, maxScore, qNumMap, isItemCorrect, onEdit }: {
+function ReadModeContent({ choiceItems, essayItems, totalScore, maxScore, qNumMap, correctAnswers, isItemCorrect, onEdit }: {
   choiceItems: ExamResultItem[];
   essayItems: ExamResultItem[];
   totalScore: number;
   maxScore: number;
   qNumMap: Map<number, number>;
+  correctAnswers: Record<string, string>;
   isItemCorrect: (it: ExamResultItem) => boolean;
   onEdit: () => void;
 }) {
@@ -333,10 +335,13 @@ function ReadModeContent({ choiceItems, essayItems, totalScore, maxScore, qNumMa
               {choiceItems.map((it) => {
                 const correct = isItemCorrect(it);
                 const num = qNumMap.get(it.question_id) ?? it.question_id;
+                const ca = correctAnswers[String(it.question_id)] ?? "";
+                const showCorrectAnswer = it.answer && !correct && ca;
                 return (
                   <div key={it.question_id} className={`srd-read__choice-cell ${it.answer ? (correct ? "srd-read__choice-cell--correct" : "srd-read__choice-cell--wrong") : "srd-read__choice-cell--empty"}`}>
                     <span className="srd-read__choice-num">{num}</span>
                     <span className="srd-read__choice-ans">{it.answer || "—"}</span>
+                    {showCorrectAnswer && <span className="srd-read__choice-correct">{ca}</span>}
                   </div>
                 );
               })}

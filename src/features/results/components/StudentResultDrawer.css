@@ -354,7 +354,15 @@
 .srd-read__choice-num { font-size: 9px; font-weight: 600; color: var(--color-text-muted, #9ca3af); line-height: 1; }
 .srd-read__choice-ans { font-size: 14px; font-weight: 700; line-height: 1; }
 .srd-read__choice-cell--correct .srd-read__choice-ans { color: var(--color-success, #10b981); }
-.srd-read__choice-cell--wrong .srd-read__choice-ans { color: var(--color-error, #ef4444); }
+.srd-read__choice-cell--wrong .srd-read__choice-ans { color: var(--color-error, #ef4444); text-decoration: line-through; font-size: 12px; }
+
+/* 오답 셀에 정답 표시 */
+.srd-read__choice-correct {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--color-success, #10b981);
+  line-height: 1;
+}
 
 /* 서술형 리스트 */
 .srd-read__essay-list { display: flex; flex-direction: column; gap: 4px; }
