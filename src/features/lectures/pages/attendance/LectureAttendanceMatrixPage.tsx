@@ -160,7 +160,7 @@ export default function LectureAttendanceMatrixPage() {
                       avatarSize={24}
                       lectures={
                         lectureInfo
-                          ? [{ lectureName: lectureInfo.title, color: lectureInfo.color }]
+                          ? [{ lectureName: lectureInfo.title, color: lectureInfo.color, chipLabel: (lectureInfo as any).chip_label }]
                           : undefined
                       }
                       chipSize={16}

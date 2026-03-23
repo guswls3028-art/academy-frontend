@@ -1379,9 +1379,9 @@ function StudentSummaryDashboard({
   );
 }
 
-/** 2글자 강의 딱지 — 강의명 앞 2자 추출 */
-function LectureChip({ name, color }: { name: string; color?: string }) {
-  const label = (name || "").replace(/\s/g, "").slice(0, 2) || "강의";
+/** 2글자 강의 딱지 — chipLabel > 강의명 앞 2자 */
+function LectureChip({ name, color, chipLabel }: { name: string; color?: string; chipLabel?: string | null }) {
+  const label = (chipLabel && chipLabel.length >= 1 ? chipLabel : (name || "").replace(/\s/g, "")).slice(0, 2) || "강의";
   return (
     <span
       className="inline-flex items-center justify-center rounded text-[10px] font-bold text-white select-none shrink-0"
@@ -1406,7 +1406,7 @@ function EnrollmentsTab({ enrollments }: { enrollments: any[] }) {
             className="flex items-center gap-2.5 rounded-xl bg-[var(--color-bg-surface)] border border-[var(--color-border-divider)] px-4 py-3 hover:border-[var(--color-primary)] hover:shadow-sm transition-all"
             style={{ opacity: isActive ? 1 : 0.6 }}
           >
-            <LectureChip name={en.lectureName || ""} color={en.lectureColor} />
+            <LectureChip name={en.lectureName || ""} color={en.lectureColor} chipLabel={en.lectureChipLabel} />
             <div className="flex flex-col gap-0.5 min-w-0 flex-1">
               <span className="text-sm font-semibold text-[var(--color-text-primary)] truncate">{en.lectureName || "-"}</span>
               {en.enrolledAt && (
@@ -1491,7 +1491,7 @@ function ScoreTab({ data }: { data: any[] }) {
         return (
           <div key={fact.id ?? i} className="flex items-center justify-between rounded-xl bg-[var(--color-bg-surface)] border border-[var(--color-border-divider)] px-4 py-3">
             <div className="flex items-center gap-2.5 min-w-0">
-              {lectureName && <LectureChip name={lectureName} color={fact.lecture_color} />}
+              {lectureName && <LectureChip name={lectureName} color={fact.lecture_color} chipLabel={fact.lecture_chip_label} />}
               <div className="flex flex-col gap-0.5 min-w-0">
                 <span className="text-sm font-semibold text-[var(--color-text-primary)] truncate">{fact.exam_title || fact.title || "시험"}</span>
                 <span className="text-xs text-[var(--color-text-muted)]">{fact.session_title || ""}</span>

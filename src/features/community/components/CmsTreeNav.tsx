@@ -137,6 +137,7 @@ export default function CmsTreeNav({
                     lectureName={lec.title || lec.name || ""}
                     color={lec.color ?? undefined}
                     size={20}
+                    chipLabel={(lec as any).chip_label}
                   />
                   <span className="notice-tree__sub-label">
                     {lec.title || lec.name || `강의 ${lec.id}`}

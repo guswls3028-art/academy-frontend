@@ -51,7 +51,7 @@ export default function PermissionRow({
           avatarSize={24}
           lectures={
             student.lecture_title
-              ? [{ lectureName: student.lecture_title, color: student.lecture_color }]
+              ? [{ lectureName: student.lecture_title, color: student.lecture_color, chipLabel: (student as any).lecture_chip_label }]
               : undefined
           }
           chipSize={14}

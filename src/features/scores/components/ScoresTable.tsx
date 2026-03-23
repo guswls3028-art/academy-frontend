@@ -32,6 +32,9 @@ import AttendanceStatusBadge, {
   getAttendanceTone,
 } from "@/shared/ui/badges/AttendanceStatusBadge";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import AdminModal from "@/shared/ui/modal/AdminModal";
+import ModalHeader from "@/shared/ui/modal/ModalHeader";
+import AdminOmrBatchUploadBox from "@/features/submissions/components/AdminOmrBatchUploadBox";
 
 /** 컬럼 기본 너비 — 설계 문서 12️⃣ */
 const COL_EDIT = 36;
@@ -86,6 +89,33 @@ function PassFailText({ passed }: { passed: boolean | null | undefined }) {
     >
       {passed ? "합" : "불"}
     </span>
+  );
+}
+
+/** OMR 업로드 — 시험 컬럼 헤더 위 간결한 버튼 + 드래그앤드롭 모달 */
+function OmrUploadButton({ examId, examTitle, onUploaded }: { examId: number; examTitle?: string; onUploaded?: () => void }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); setOpen(true); }}
+        className="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] font-medium leading-tight bg-[var(--color-bg-surface-soft)] border border-[var(--color-border-divider)] text-[var(--color-text-secondary)] hover:bg-[var(--color-brand-primary)]/10 hover:text-[var(--color-brand-primary)] hover:border-[var(--color-brand-primary)]/40 transition-colors whitespace-nowrap"
+        title="OMR 스캔 업로드"
+      >
+        <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M8 2v12M2 8h12" />
+        </svg>
+        OMR
+      </button>
+      <AdminModal open={open} onClose={() => setOpen(false)} width={520}>
+        <ModalHeader title={`OMR 업로드${examTitle ? ` — ${examTitle}` : ""}`} />
+        <div className="p-5">
+          <AdminOmrBatchUploadBox examId={examId} onUploaded={onUploaded} />
+        </div>
+      </AdminModal>
+    </>
   );
 }
 
@@ -574,7 +604,49 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
     rows.length > 0 &&
     rows.every((r) => selectedSet.has(r.enrollment_id));
 
+  /** OMR 버튼 위치 계산: 각 시험 그룹의 left offset + width */
+  const examPositions = useMemo(() => {
+    if (examOptions.length === 0) return [];
+    // tableCols[0] = select, tableCols[1..] = columns 순서와 1:1
+    const positions: { examId: number; title: string; left: number; width: number }[] = [];
+    for (const ex of examOptions) {
+      const examCols = examColsMap[ex.exam_id] ?? [];
+      if (examCols.length === 0) continue;
+      const firstIdx = columns.findIndex((c) => c.key === examCols[0].key);
+      const lastIdx = columns.findIndex((c) => c.key === examCols[examCols.length - 1].key);
+      if (firstIdx < 0) continue;
+      // +1 because tableCols[0] is "select" column (not in columns array)
+      let left = tableCols[0]; // select column width
+      for (let i = 0; i < firstIdx; i++) left += tableCols[i + 1];
+      let width = 0;
+      for (let i = firstIdx; i <= lastIdx; i++) width += tableCols[i + 1];
+      positions.push({ examId: ex.exam_id, title: ex.title, left, width });
+    }
+    return positions;
+  }, [examOptions, examColsMap, columns, tableCols]);
+
   return (
+    <div>
+      {/* OMR 업로드 버튼 — 테이블 밖, 시험 컬럼 위에 정렬 */}
+      {examPositions.length > 0 && (
+        <div className="relative" style={{ width: tableWidth, height: 24 }}>
+          {examPositions.map((pos) => (
+            <div
+              key={`omr-${pos.examId}`}
+              className="absolute flex items-center justify-center"
+              style={{ left: pos.left, width: pos.width, top: 0, height: 24 }}
+            >
+              <OmrUploadButton
+                examId={pos.examId}
+                examTitle={pos.title}
+                onUploaded={() => {
+                  qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
+                }}
+              />
+            </div>
+          ))}
+        </div>
+      )}
     <DomainTable
       tableClassName="ds-table--flat ds-table--center ds-scores-table"
       tableStyle={{ tableLayout: "fixed", width: tableWidth }}
@@ -845,7 +917,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                     clinicHighlight={row.name_highlight_clinic_target === true}
                     lectures={
                       row.lecture_title
-                        ? [{ lectureName: row.lecture_title, color: row.lecture_color }]
+                        ? [{ lectureName: row.lecture_title, color: row.lecture_color, chipLabel: row.lecture_chip_label }]
                         : undefined
                     }
                     chipSize={14}
@@ -1451,6 +1523,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
         })}
       </tbody>
     </DomainTable>
+    </div>
   );
 });
 

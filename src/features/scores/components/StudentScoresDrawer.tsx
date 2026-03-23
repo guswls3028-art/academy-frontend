@@ -131,7 +131,7 @@ export default function StudentScoresDrawer({ row, meta, sessionId, onClose, onO
                 name={row.student_name ?? ""}
                 lectures={
                   (row as any).lecture_title
-                    ? [{ lectureName: (row as any).lecture_title, color: (row as any).lecture_color }]
+                    ? [{ lectureName: (row as any).lecture_title, color: (row as any).lecture_color, chipLabel: (row as any).lecture_chip_label }]
                     : undefined
                 }
                 chipSize={12}

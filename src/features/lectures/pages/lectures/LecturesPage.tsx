@@ -35,6 +35,7 @@ type LectureItem = {
   end_date?: string | null;
   lecture_time?: string | null;
   color?: string | null;
+  chip_label?: string | null;
   is_active?: boolean;
 };
 
@@ -319,7 +320,7 @@ export default function LecturesPage({ tab = "active" }: LecturesPageProps) {
                               textShadow: "0 0 1px rgba(0,0,0,0.2)",
                             }}
                           >
-                            {(lec.title || "??").slice(0, 2)}
+                            {(lec.chip_label || lec.title || "??").slice(0, 2)}
                           </span>
                           {lec.title}
                         </span>

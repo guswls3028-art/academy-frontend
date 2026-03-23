@@ -624,9 +624,9 @@ export default function SessionAttendancePage({
                         avatarSize={24}
                         lectures={
                           att.lecture_title
-                            ? [{ lectureName: att.lecture_title, color: att.lecture_color }]
+                            ? [{ lectureName: att.lecture_title, color: att.lecture_color, chipLabel: (att as any).lecture_chip_label }]
                             : lecture
-                              ? [{ lectureName: lecture.title, color: lecture.color }]
+                              ? [{ lectureName: lecture.title, color: lecture.color, chipLabel: (lecture as any).chip_label }]
                               : undefined
                         }
                         chipSize={16}

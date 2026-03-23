@@ -94,7 +94,7 @@ export default function StudentWatchPanel({
                   avatarSize={24}
                   lectures={
                     s.lecture_title
-                      ? [{ lectureName: s.lecture_title, color: s.lecture_color }]
+                      ? [{ lectureName: s.lecture_title, color: s.lecture_color, chipLabel: (s as any).lecture_chip_label }]
                       : undefined
                   }
                   chipSize={14}
