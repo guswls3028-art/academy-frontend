@@ -48,7 +48,7 @@ export function IconButton({
     }
   };
   const S = 20; // 아이콘 크기 (px)
-  const svgMap: Record<string, JSX.Element> = {
+  const svgMap: Record<string, React.ReactNode> = {
     play: <svg width={S} height={S} viewBox="0 0 24 24" fill="currentColor"><path d="M6.5 4.5v15l13-7.5z"/></svg>,
     pause: <svg width={S} height={S} viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="4" width="4.5" height="16" rx="1"/><rect x="14.5" y="4" width="4.5" height="16" rx="1"/></svg>,
     replay10: <svg width={S} height={S} viewBox="0 0 24 24" fill="currentColor"><path d="M11 5L4 12l7 7" opacity="0.5"/><path d="M18 5l-7 7 7 7"/><text x="11" y="24" textAnchor="middle" fontSize="7" fontWeight="800">10</text></svg>,

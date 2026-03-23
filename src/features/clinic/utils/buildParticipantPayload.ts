@@ -1,10 +1,11 @@
 import type { EnrollmentSelection, StudentSelection } from "@/shared/types/selection";
+import type { ClinicParticipantStatus } from "../api/clinicParticipants.api";
 
 export type ClinicParticipantPayload = {
   session: number;
   enrollment_id?: number;
   student?: number;
-  status: string;
+  status: ClinicParticipantStatus;
   clinic_reason?: "exam" | "homework" | "both";
 };
 
