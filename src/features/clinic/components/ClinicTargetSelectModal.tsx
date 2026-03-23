@@ -13,8 +13,7 @@ import type { LectureInfo } from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { formatPhone } from "@/shared/utils/formatPhone";
 
 import { useClinicTargets } from "../hooks/useClinicTargets";
-import { useClinicStudentSearch } from "../hooks/useClinicStudentSearch";
-import { fetchClinicStudentsDefault } from "../api/clinicStudents.api";
+import { fetchClinicStudentsPaginated } from "../api/clinicStudents.api";
 import type { ClinicTarget } from "../api/clinicTargets";
 import type { ClinicStudent } from "../api/clinicStudents.api";
 
@@ -54,6 +53,21 @@ function TrashIcon({ className }: { className?: string }) {
   );
 }
 
+/* ── Pagination Icons (SessionEnrollModal SSOT) ── */
+const PG_ICON = 20;
+function FirstPageIcon() {
+  return <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden width={PG_ICON} height={PG_ICON}><path d="M18.41 16.59L13.82 12l4.59-4.59L17 6l-6 6 6 6zM6 6h2v12H6z" /></svg>;
+}
+function PrevPageIcon() {
+  return <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden width={PG_ICON} height={PG_ICON}><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z" /></svg>;
+}
+function NextPageIcon() {
+  return <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden width={PG_ICON} height={PG_ICON}><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z" /></svg>;
+}
+function LastPageIcon() {
+  return <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden width={PG_ICON} height={PG_ICON}><path d="M5.59 7.41L10.18 12l-4.59 4.59L7 18l6-6-6-6zM18 6v12h-2V6z" /></svg>;
+}
+
 import {
   type EnrollmentSelection,
   type StudentSelection,
@@ -72,6 +86,7 @@ type Props = {
 };
 
 const EMPTY_IDS: number[] = [];
+const PAGE_SIZE = 50;
 
 /** 학년 표시 (school_type + grade) */
 function gradeLabel(schoolType?: string, grade?: number | null): string {
@@ -92,7 +107,7 @@ function targetToRow(t: ClinicTarget): UnifiedRow {
     studentPhone: t.student_phone || "",
     school: t.school || "",
     grade: t.grade ?? null,
-    schoolType: "HIGH", // clinic targets don't expose school_type yet
+    schoolType: "HIGH",
     profilePhotoUrl: t.profile_photo_url ?? null,
     lectures,
     clinicHighlight: t.name_highlight_clinic_target ?? false,
@@ -125,60 +140,108 @@ export default function ClinicTargetSelectModal({
   const stableIds = initialSelectedIds ?? EMPTY_IDS;
   const [mode, setMode] = useState<"targets" | "students">(initialMode);
   const [keyword, setKeyword] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [page, setPage] = useState(1);
   const [selectedIds, setSelectedIds] = useState<number[]>(() => [...stableIds]);
-  /** 선택된 id → 이름 (우측 목록 표시용, 검색/탭 변경 후에도 유지) */
   const [selectedIdToName, setSelectedIdToName] = useState<Map<number, string>>(new Map());
+  const tableRef = useRef<HTMLDivElement>(null);
 
   const prevOpenRef = useRef(false);
   useEffect(() => {
     const wasOpen = prevOpenRef.current;
     prevOpenRef.current = open;
     if (!open || wasOpen) return;
-    // 모달이 닫힌→열린 전환 시에만 초기화
     setMode(initialMode);
     setKeyword("");
+    setDebouncedSearch("");
+    setPage(1);
     setSelectedIds([...stableIds]);
     setSelectedIdToName(new Map());
   }, [open, initialMode, stableIds]);
 
+  // 검색 디바운스
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setDebouncedSearch(keyword.trim());
+      setPage(1);
+    }, 300);
+    return () => clearTimeout(t);
+  }, [keyword]);
+
+  // ── 대상자 탭: 전체 로드 + 클라이언트 필터/페이징 ──
   const targetsQ = useClinicTargets();
-  const studentsSearchQ = useClinicStudentSearch(keyword);
-  const studentsDefaultQ = useQuery({
-    queryKey: ["clinic-students-default"],
-    queryFn: fetchClinicStudentsDefault,
-    enabled: open && mode === "students" && keyword.trim().length < 2,
+
+  const allTargetRows: UnifiedRow[] = useMemo(() => {
+    const arr = (targetsQ.data ?? []) as ClinicTarget[];
+    const filtered = debouncedSearch
+      ? arr.filter((t) => (t.student_name || "").includes(debouncedSearch))
+      : arr;
+    return filtered.map(targetToRow);
+  }, [targetsQ.data, debouncedSearch]);
+
+  const targetTotalPages = Math.max(1, Math.ceil(allTargetRows.length / PAGE_SIZE));
+  const targetPageRows = useMemo(
+    () => allTargetRows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    [allTargetRows, page],
+  );
+
+  // ── 전체 학생 탭: 서버 페이지네이션 ──
+  const studentsQ = useQuery({
+    queryKey: ["clinic-students-paginated", page, debouncedSearch],
+    queryFn: () =>
+      fetchClinicStudentsPaginated({
+        page,
+        page_size: PAGE_SIZE,
+        ...(debouncedSearch.length >= 2 ? { search: debouncedSearch } : {}),
+      }),
+    enabled: open && mode === "students",
     staleTime: 10_000,
     retry: 0,
   });
 
-  const rows: UnifiedRow[] = useMemo(() => {
-    if (mode === "targets") {
-      const arr = (targetsQ.data ?? []) as ClinicTarget[];
-      const filtered = keyword.trim()
-        ? arr.filter((t) => (t.student_name || "").includes(keyword.trim()))
-        : arr;
-      return filtered.map(targetToRow);
-    }
-    const raw = keyword.trim().length >= 2
-      ? (studentsSearchQ.data ?? []) as ClinicStudent[]
-      : (studentsDefaultQ.data ?? []) as ClinicStudent[];
-    return raw.map(studentToRow);
-  }, [mode, targetsQ.data, keyword, studentsSearchQ.data, studentsDefaultQ.data]);
+  const studentRows: UnifiedRow[] = useMemo(
+    () => (studentsQ.data?.data ?? []).map(studentToRow),
+    [studentsQ.data],
+  );
+  const studentTotalCount = studentsQ.data?.count ?? 0;
+  const studentTotalPages = Math.max(1, Math.ceil(studentTotalCount / PAGE_SIZE));
 
+  // ── 통합 ──
+  const rows = mode === "targets" ? targetPageRows : studentRows;
+  const totalCount = mode === "targets" ? allTargetRows.length : studentTotalCount;
+  const totalPages = mode === "targets" ? targetTotalPages : studentTotalPages;
   const isLoading =
     (mode === "targets" && targetsQ.isLoading) ||
-    (mode === "students" && (keyword.trim().length < 2 ? studentsDefaultQ.isLoading : studentsSearchQ.isLoading));
+    (mode === "students" && studentsQ.isLoading);
 
   const allChecked = rows.length > 0 && rows.every((r) => selectedIds.includes(r.id));
 
+  // 페이지 변경 시 테이블 스크롤 맨 위로
+  useEffect(() => {
+    tableRef.current?.scrollTo({ top: 0 });
+  }, [page]);
+
   const toggleAll = () => {
     if (allChecked) {
-      setSelectedIds([]);
-      setSelectedIdToName(new Map());
+      const pageIds = new Set(rows.map((r) => r.id));
+      setSelectedIds((prev) => prev.filter((id) => !pageIds.has(id)));
+      setSelectedIdToName((prev) => {
+        const next = new Map(prev);
+        pageIds.forEach((id) => next.delete(id));
+        return next;
+      });
       return;
     }
-    setSelectedIds(rows.map((r) => r.id));
-    setSelectedIdToName(new Map(rows.map((r) => [r.id, r.name ?? ""])));
+    setSelectedIds((prev) => {
+      const existing = new Set(prev);
+      const added = rows.filter((r) => !existing.has(r.id)).map((r) => r.id);
+      return [...prev, ...added];
+    });
+    setSelectedIdToName((prev) => {
+      const next = new Map(prev);
+      rows.forEach((r) => next.set(r.id, r.name));
+      return next;
+    });
   };
 
   const toggleOne = (id: number, checked: boolean) => {
@@ -230,19 +293,20 @@ export default function ClinicTargetSelectModal({
           className="grid gap-4 min-h-0 overflow-hidden ds-split-layout"
           style={{
             gridTemplateColumns: "1fr 220px",
-            maxHeight: "min(78vh, 600px)",
-            minHeight: 420,
+            height: "min(78vh, 600px)",
           }}
         >
-          {/* 좌측: 탭(예약 대상자 | 전체 학생) + 검색 + 툴바 + 테이블 */}
+          {/* 좌측: 탭 + 검색 + 테이블 + 페이지네이션 */}
           <div className="flex flex-col gap-2 min-h-0 overflow-hidden">
-            <div className="flex gap-2">
+            <div className="flex gap-2 shrink-0">
               <button
                 type="button"
                 className={`ds-choice-btn ds-choice-btn--primary flex-1 ${mode === "targets" ? "is-selected" : ""}`}
                 onClick={() => {
                   setMode("targets");
                   setKeyword("");
+                  setDebouncedSearch("");
+                  setPage(1);
                   setSelectedIds([]);
                   setSelectedIdToName(new Map());
                 }}
@@ -256,6 +320,8 @@ export default function ClinicTargetSelectModal({
                 onClick={() => {
                   setMode("students");
                   setKeyword("");
+                  setDebouncedSearch("");
+                  setPage(1);
                   setSelectedIds([]);
                   setSelectedIdToName(new Map());
                 }}
@@ -265,7 +331,7 @@ export default function ClinicTargetSelectModal({
               </button>
             </div>
 
-            <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center justify-between gap-2 shrink-0">
               <span className="text-[13px] font-semibold text-[var(--color-text-primary)]">
                 {mode === "targets" ? "예약 대상자 명단" : "전체 학생 명단"}
               </span>
@@ -281,13 +347,13 @@ export default function ClinicTargetSelectModal({
               onChange={(e) => setKeyword(e.target.value)}
               placeholder={mode === "students" ? "이름 / 전화번호 / 학교명 / 학년(예: 고1, 중2)" : "대상자 내 검색"}
               allowClear
-              className="ds-input w-full text-sm"
+              className="ds-input w-full text-sm shrink-0"
               aria-label={mode === "students" ? "학생 검색" : "대상자 검색"}
             />
 
-            <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-2 shrink-0">
               <span className="text-[13px] text-[var(--color-text-secondary)]">
-                선택된 {selectedIds.length}명 / 전체 {rows.length}명
+                선택된 {selectedIds.length}명 / 전체 {totalCount}명
               </span>
               <div className="flex gap-2">
                 <Button
@@ -297,7 +363,7 @@ export default function ClinicTargetSelectModal({
                   onClick={toggleAll}
                   disabled={isLoading || rows.length === 0}
                 >
-                  현재 목록 전체 선택
+                  현재 페이지 전체 선택
                 </Button>
                 <Button
                   type="button"
@@ -314,6 +380,7 @@ export default function ClinicTargetSelectModal({
               </div>
             </div>
 
+            {/* 테이블 컨테이너 — 내부 스크롤 */}
             <div
               className="rounded-xl border overflow-hidden flex flex-col flex-1 min-h-0"
               style={{
@@ -321,7 +388,10 @@ export default function ClinicTargetSelectModal({
                 background: "var(--color-bg-surface)",
               }}
             >
-              <div className="shrink-0 modal-inner-table overflow-auto flex-1 min-h-0">
+              <div
+                ref={tableRef}
+                className="modal-inner-table overflow-auto flex-1 min-h-0"
+              >
                 {isLoading ? (
                   <EmptyState
                     mode="embedded"
@@ -349,57 +419,26 @@ export default function ClinicTargetSelectModal({
                         className="sticky top-0 z-10"
                         style={{ background: "var(--color-bg-surface)" }}
                       >
-                        <th
-                          className="modal-inner-table__checkbox-cell border-b py-1.5 pl-2 pr-1 text-left text-[var(--color-text-muted)]"
-                          style={{ borderColor: "var(--color-border-divider)" }}
-                        >
+                        <th className="modal-inner-table__checkbox-cell border-b py-1.5 pl-2 pr-1 text-left text-[var(--color-text-muted)]" style={{ borderColor: "var(--color-border-divider)" }}>
                           <input
                             type="checkbox"
                             checked={allChecked}
                             disabled={isLoading || rows.length === 0}
                             onChange={toggleAll}
-                            aria-label="현재 목록 전체 선택"
+                            aria-label="현재 페이지 전체 선택"
                           />
                         </th>
-                        <th
-                          className="modal-inner-table__name-th border-b py-1.5 px-3 text-left text-[var(--color-text-muted)]"
-                          style={{ borderColor: "var(--color-border-divider)" }}
-                        >
-                          이름
-                        </th>
-                        <th
-                          className="border-b py-1.5 px-3 text-left text-[var(--color-text-muted)]"
-                          style={{ borderColor: "var(--color-border-divider)" }}
-                        >
-                          부모님 전화
-                        </th>
-                        <th
-                          className="border-b py-1.5 px-3 text-left text-[var(--color-text-muted)]"
-                          style={{ borderColor: "var(--color-border-divider)" }}
-                        >
-                          학생 전화
-                        </th>
-                        <th
-                          className="border-b py-1.5 px-3 text-left text-[var(--color-text-muted)]"
-                          style={{ borderColor: "var(--color-border-divider)" }}
-                        >
-                          학교
-                        </th>
-                        <th
-                          className="border-b py-1.5 px-3 text-left text-[var(--color-text-muted)]"
-                          style={{ borderColor: "var(--color-border-divider)" }}
-                        >
-                          학년
-                        </th>
+                        <th className="modal-inner-table__name-th border-b py-1.5 px-3 text-left text-[var(--color-text-muted)]" style={{ borderColor: "var(--color-border-divider)" }}>이름</th>
+                        <th className="border-b py-1.5 px-3 text-left text-[var(--color-text-muted)]" style={{ borderColor: "var(--color-border-divider)" }}>부모님 전화</th>
+                        <th className="border-b py-1.5 px-3 text-left text-[var(--color-text-muted)]" style={{ borderColor: "var(--color-border-divider)" }}>학생 전화</th>
+                        <th className="border-b py-1.5 px-3 text-left text-[var(--color-text-muted)]" style={{ borderColor: "var(--color-border-divider)" }}>학교</th>
+                        <th className="border-b py-1.5 px-3 text-left text-[var(--color-text-muted)]" style={{ borderColor: "var(--color-border-divider)" }}>학년</th>
                       </tr>
                     </thead>
                     <tbody>
                       {rows.length === 0 ? (
                         <tr>
-                          <td
-                            colSpan={6}
-                            className="py-5 px-3 text-center text-[var(--color-text-muted)]"
-                          >
+                          <td colSpan={6} className="py-5 px-3 text-center text-[var(--color-text-muted)]">
                             {keyword.trim()
                               ? "검색 결과 없음. 검색어를 바꿔 보세요."
                               : "표시할 대상이 없습니다."}
@@ -414,10 +453,7 @@ export default function ClinicTargetSelectModal({
                               className={`border-b ${checked ? "bg-[var(--color-bg-surface-soft)]" : ""}`}
                               style={{ borderColor: "var(--color-border-divider)" }}
                             >
-                              <td
-                                className="modal-inner-table__checkbox-cell py-1.5 pl-2 pr-1"
-                                onClick={(e) => e.stopPropagation()}
-                              >
+                              <td className="modal-inner-table__checkbox-cell py-1.5 pl-2 pr-1" onClick={(e) => e.stopPropagation()}>
                                 <input
                                   type="checkbox"
                                   checked={checked}
@@ -436,18 +472,10 @@ export default function ClinicTargetSelectModal({
                                   clinicHighlight={r.clinicHighlight}
                                 />
                               </td>
-                              <td className="py-1.5 px-3 text-[var(--color-text-secondary)] truncate leading-6">
-                                {formatPhone(r.parentPhone)}
-                              </td>
-                              <td className="py-1.5 px-3 text-[var(--color-text-secondary)] truncate leading-6">
-                                {formatPhone(r.studentPhone)}
-                              </td>
-                              <td className="py-1.5 px-3 text-[var(--color-text-secondary)] truncate leading-6">
-                                {r.school || "-"}
-                              </td>
-                              <td className="py-1.5 px-3 text-[var(--color-text-secondary)] leading-6">
-                                {gradeLabel(r.schoolType, r.grade)}
-                              </td>
+                              <td className="py-1.5 px-3 text-[var(--color-text-secondary)] truncate leading-6">{formatPhone(r.parentPhone)}</td>
+                              <td className="py-1.5 px-3 text-[var(--color-text-secondary)] truncate leading-6">{formatPhone(r.studentPhone)}</td>
+                              <td className="py-1.5 px-3 text-[var(--color-text-secondary)] truncate leading-6">{r.school || "-"}</td>
+                              <td className="py-1.5 px-3 text-[var(--color-text-secondary)] leading-6">{gradeLabel(r.schoolType, r.grade)}</td>
                             </tr>
                           );
                         })
@@ -456,27 +484,48 @@ export default function ClinicTargetSelectModal({
                   </table>
                 )}
               </div>
+
+              {/* 페이지네이션 바 */}
+              {totalPages > 1 && (
+                <div
+                  className="flex items-center justify-between gap-3 py-2 px-3 border-t shrink-0"
+                  style={{ borderColor: "var(--color-border-divider)", background: "var(--color-bg-surface)" }}
+                >
+                  <span className="text-[13px] font-semibold text-[var(--color-text-primary)]">
+                    총 {totalCount}명
+                  </span>
+                  <div className="flex items-center gap-0.5">
+                    <Button type="button" intent="ghost" size="sm" disabled={page <= 1} onClick={() => setPage(1)} aria-label="첫 페이지"
+                      className="!min-w-8 !h-8 !p-0 flex items-center justify-center rounded-lg text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-surface-hover)] disabled:opacity-40"
+                    ><FirstPageIcon /></Button>
+                    <Button type="button" intent="ghost" size="sm" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))} aria-label="이전 페이지"
+                      className="!min-w-8 !h-8 !p-0 flex items-center justify-center rounded-lg text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-surface-hover)] disabled:opacity-40"
+                    ><PrevPageIcon /></Button>
+                    <span className="text-[13px] font-semibold text-[var(--color-text-primary)] px-2 min-w-[3.5rem] text-center">
+                      {page} / {totalPages}
+                    </span>
+                    <Button type="button" intent="ghost" size="sm" disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))} aria-label="다음 페이지"
+                      className="!min-w-8 !h-8 !p-0 flex items-center justify-center rounded-lg text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-surface-hover)] disabled:opacity-40"
+                    ><NextPageIcon /></Button>
+                    <Button type="button" intent="ghost" size="sm" disabled={page >= totalPages} onClick={() => setPage(totalPages)} aria-label="마지막 페이지"
+                      className="!min-w-8 !h-8 !p-0 flex items-center justify-center rounded-lg text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-surface-hover)] disabled:opacity-40"
+                    ><LastPageIcon /></Button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
           {/* 우측: 선택 목록 */}
           <div
             className="flex flex-col gap-4 rounded-xl border p-4 w-[220px] shrink-0 self-stretch min-h-0 overflow-hidden"
-            style={{
-              borderColor: "var(--color-border-divider)",
-              background: "var(--color-bg-surface)",
-            }}
+            style={{ borderColor: "var(--color-border-divider)", background: "var(--color-bg-surface)" }}
           >
             <section className="flex flex-col min-h-0 flex-1 overflow-hidden">
               <div className="flex flex-wrap items-center gap-2 mb-2 shrink-0 pl-0.5">
                 <span
                   className="text-[13px] font-semibold"
-                  style={{
-                    color:
-                      selectedIds.length > 0
-                        ? "var(--color-brand-primary)"
-                        : "var(--color-text-muted)",
-                  }}
+                  style={{ color: selectedIds.length > 0 ? "var(--color-brand-primary)" : "var(--color-text-muted)" }}
                 >
                   {selectedIds.length}명 선택됨
                 </span>
@@ -484,10 +533,7 @@ export default function ClinicTargetSelectModal({
                 <Button
                   intent="secondary"
                   size="sm"
-                  onClick={() => {
-                    setSelectedIds([]);
-                    setSelectedIdToName(new Map());
-                  }}
+                  onClick={() => { setSelectedIds([]); setSelectedIdToName(new Map()); }}
                   disabled={selectedIds.length === 0}
                   className="!text-[13px]"
                 >
@@ -495,7 +541,7 @@ export default function ClinicTargetSelectModal({
                 </Button>
               </div>
               <div
-                className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden rounded-lg border p-2 max-h-[310px]"
+                className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden rounded-lg border p-2"
                 style={{
                   borderColor: "var(--color-border-divider)",
                   background: "var(--color-bg-surface-soft)",
