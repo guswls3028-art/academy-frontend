@@ -6,6 +6,7 @@ import { getRejectionMessage } from "@/features/submissions/contracts/aiJobContr
 
 type Props = {
   examId: number;
+  onUploaded?: () => void;
 };
 
 type UploadItem = {
@@ -31,7 +32,7 @@ function humanizeBytes(bytes: number) {
  * - OMR 다건 업로드, FileUploadZone(드래그 or 클릭) SSOT 디자인 사용
  * - 서버: POST /submissions/exams/{examId}/omr/batch/
  */
-export default function AdminOmrBatchUploadBox({ examId }: Props) {
+export default function AdminOmrBatchUploadBox({ examId, onUploaded }: Props) {
   const [items, setItems] = useState<UploadItem[]>([]);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
@@ -71,6 +72,7 @@ export default function AdminOmrBatchUploadBox({ examId }: Props) {
 
     setBusy(true);
     setNotice(null);
+    let successCount = 0;
 
     for (let i = 0; i < items.length; i++) {
       const it = items[i];
@@ -91,6 +93,7 @@ export default function AdminOmrBatchUploadBox({ examId }: Props) {
         setItems((prev) =>
           prev.map((x, idx) => (idx === i ? { ...x, status: "done", message: "등록됨" } : x))
         );
+        successCount++;
       } catch (e: any) {
         const status = e?.response?.status;
         const data = e?.response?.data;
@@ -121,6 +124,7 @@ export default function AdminOmrBatchUploadBox({ examId }: Props) {
     }
 
     setBusy(false);
+    if (successCount > 0) onUploaded?.();
   };
 
   return (

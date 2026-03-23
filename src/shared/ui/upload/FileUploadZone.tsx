@@ -85,7 +85,22 @@ export default function FileUploadZone({
 
   const processFiles = (files: FileList | null) => {
     if (!files || files.length === 0) return;
-    const list = Array.from(files);
+    let list = Array.from(files);
+    // accept 기반 파일 타입 필터링 (드래그앤드롭 포함 — input.accept는 파일 선택기만 필터)
+    if (accept) {
+      const patterns = accept.split(",").map((s) => s.trim().toLowerCase());
+      list = list.filter((f) => {
+        const mime = (f.type || "").toLowerCase();
+        return patterns.some((p) => {
+          if (p.endsWith("/*")) return mime.startsWith(p.slice(0, -1));
+          return mime === p;
+        });
+      });
+      if (list.length === 0) {
+        onInvalidFile?.("허용된 형식의 파일만 업로드할 수 있습니다.");
+        return;
+      }
+    }
     if (multiple) {
       onFilesSelect(list);
     } else {
