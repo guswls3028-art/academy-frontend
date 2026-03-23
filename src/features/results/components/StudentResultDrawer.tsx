@@ -1,16 +1,20 @@
 /**
- * 답안 상세 모달 — 중앙 오버레이 (936px)
+ * 답안 상세 모달 — 성적 확인/입력 전용
  *
- * 시도 차수별 탭 (1차, 2차, 3차...) + 읽기/편집 모드
- * - 1차: ResultItem 기반 문항별 보기/편집. items 없으면 시험 문항으로 빈 슬롯 제공
- * - 2차+: 클리닉 재시험 총점 보기/편집
+ * 상태 분기 (중간 랜딩 없이 바로 콘텐츠):
+ * A. 기존 데이터 있음 → 읽기 모드(점수 리스트) + "수정" → 인라인 편집
+ * B. 데이터 없음 + 문항 존재 → 바로 편집 모드(빈 폼)
+ * C. 문항 미등록 → 안내 카드
+ *
+ * 편집 모드: 2단 레이아웃 (선택형 | 서술형), sticky 총점, 하단 완료 버튼
  */
 
 import { useState, useMemo, useRef, useCallback, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useNavigate, useParams } from "react-router-dom";
 import CloseButton from "@/shared/ui/ds/CloseButton";
-import { fetchAdminExamResultDetail, type ExamResultItem, type ExamResultDetail } from "../api/adminExamResultDetail";
-import { fetchAttemptHistory, type AttemptHistoryResponse, type AttemptEntry } from "@/features/scores/api/attemptHistory";
+import { fetchAdminExamResultDetail, type ExamResultItem } from "../api/adminExamResultDetail";
+import { fetchAttemptHistory, type AttemptEntry } from "@/features/scores/api/attemptHistory";
 import { patchExamItemScore } from "@/features/scores/api/patchItemScore";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import WrongNotePanel from "./WrongNotePanel";
@@ -46,22 +50,20 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
   const [mainTab, setMainTab] = useState<"answer" | "wrong">("answer");
   const [selectedAttempt, setSelectedAttempt] = useState(1);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [scanExpanded, setScanExpanded] = useState(false);
 
-  // 1차 상세 (ResultItem 기반)
   const { data: detail, isLoading: detailLoading, error: detailError } = useQuery({
     queryKey: ["admin-exam-detail", examId, enrollmentId],
     queryFn: () => fetchAdminExamResultDetail(examId, enrollmentId),
     enabled: Number.isFinite(examId) && Number.isFinite(enrollmentId),
   });
 
-  // 시도 이력 (1차, 2차, 3차...)
   const { data: attemptData } = useQuery({
     queryKey: ["attempt-history", "exam", examId, enrollmentId],
     queryFn: () => fetchAttemptHistory({ enrollment_id: enrollmentId, exam_id: examId }),
     enabled: Number.isFinite(examId) && Number.isFinite(enrollmentId),
   });
 
-  // 시험 문항 목록 (1차 items 비어있을 때 빈 슬롯용)
   const { data: examQuestions = [] } = useQuery({
     queryKey: ["exam-questions", examId],
     queryFn: async () => {
@@ -73,28 +75,42 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
 
   const attempts = attemptData?.attempts ?? [];
   const maxAttempt = attempts.length > 0 ? Math.max(...attempts.map((a) => a.attempt_index)) : 1;
-
   const items1st = detail?.items ?? [];
-  const choiceItems = useMemo(() => items1st.filter((it) => isChoiceAnswer(it.answer)), [items1st]);
-  const essayItems = useMemo(() => items1st.filter((it) => !isChoiceAnswer(it.answer)), [items1st]);
   const scanImageUrl = useMemo(() => getScanImageUrl(items1st), [items1st]);
 
-  // items 비어있을 때 시험 문항으로 빈 슬롯 생성
-  const emptySlotItems: ExamResultItem[] = useMemo(() => {
-    if (items1st.length > 0) return [];
-    return examQuestions.map((q) => ({
-      question_id: q.id,
-      answer: "",
-      is_correct: false,
-      score: 0,
-      max_score: q.score,
-      is_editable: true,
-    }));
-  }, [items1st, examQuestions]);
+  const mergedItems: ExamResultItem[] = useMemo(() => {
+    const itemMap = new Map(items1st.map((it) => [it.question_id, it]));
+    if (examQuestions.length > 0) {
+      return examQuestions.map((q) => itemMap.get(q.id) ?? {
+        question_id: q.id, answer: "", is_correct: false, score: 0, max_score: q.score, is_editable: true,
+      });
+    }
+    const ca = detail?.correct_answers ?? {};
+    const caKeys = Object.keys(ca).map(Number).filter((n) => !isNaN(n)).sort((a, b) => a - b);
+    if (caKeys.length > 0) {
+      const maxS = detail?.max_score ?? 0;
+      const perQ = caKeys.length > 0 ? maxS / caKeys.length : 1;
+      return caKeys.map((qid) => itemMap.get(qid) ?? {
+        question_id: qid, answer: "", is_correct: false, score: 0, max_score: perQ, is_editable: true,
+      });
+    }
+    return items1st;
+  }, [items1st, examQuestions, detail]);
 
-  const effectiveItems = items1st.length > 0 ? items1st : emptySlotItems;
-  const effectiveChoice = effectiveItems.filter((it) => isChoiceAnswer(it.answer));
-  const effectiveEssay = effectiveItems.filter((it) => !isChoiceAnswer(it.answer));
+  const hasData = items1st.length > 0 && items1st.some((it) => (it.answer && it.answer.trim() !== "") || it.score > 0);
+  const hasQuestions = mergedItems.length > 0;
+
+  const qNumMap = useMemo(() => {
+    const map = new Map<number, number>();
+    if (examQuestions.length > 0) {
+      for (const q of examQuestions) map.set(q.id, q.number);
+    } else {
+      mergedItems.forEach((it, idx) => map.set(it.question_id, idx + 1));
+    }
+    return map;
+  }, [examQuestions, mergedItems]);
+
+  const correctAnswersMap = detail?.correct_answers ?? {};
 
   const invalidateAll = useCallback(() => {
     qc.invalidateQueries({ queryKey: ["admin-exam-detail", examId, enrollmentId] });
@@ -102,8 +118,41 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
     qc.invalidateQueries({ queryKey: ["session-scores"] });
   }, [qc, examId, enrollmentId]);
 
-  // 선택된 시도의 데이터
   const selectedAttemptEntry = attempts.find((a) => a.attempt_index === selectedAttempt);
+
+  const enterEdit = () => { setMainTab("answer"); setIsEditMode(true); };
+  const exitEdit = () => { setIsEditMode(false); invalidateAll(); };
+
+  // 상태 B: 최초 로드 시 데이터 없으면 바로 편집 모드 진입
+  const initialAutoEdit = useRef(false);
+  useEffect(() => {
+    if (!detailLoading && !detailError && hasQuestions && !hasData && !initialAutoEdit.current) {
+      initialAutoEdit.current = true;
+      setIsEditMode(true);
+    }
+  }, [detailLoading, detailError, hasQuestions, hasData]);
+
+  // 정오답 로컬 판정
+  const isItemCorrect = useCallback((it: ExamResultItem) => {
+    const ca = correctAnswersMap[String(it.question_id)] ?? "";
+    if (ca && isChoiceAnswer(it.answer)) return String(it.answer).trim() === ca.trim();
+    return it.is_correct;
+  }, [correctAnswersMap]);
+
+  // 선택형/서술형 분리
+  const { choiceItems, essayItems } = useMemo(() => {
+    const choice: ExamResultItem[] = [];
+    const essay: ExamResultItem[] = [];
+    for (const it of mergedItems) {
+      const ca = correctAnswersMap[String(it.question_id)] ?? "";
+      if (ca === "" || isChoiceAnswer(ca)) choice.push(it);
+      else essay.push(it);
+    }
+    return { choiceItems: choice, essayItems: essay };
+  }, [mergedItems, correctAnswersMap]);
+
+  const totalScore = detail?.total_score ?? 0;
+  const maxScore = detail?.max_score ?? 0;
 
   return (
     <>
@@ -112,90 +161,118 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
         <div className="srd-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
           <CloseButton className="srd-modal__close" onClick={onClose} />
 
-          {/* Header */}
+          {/* ── 헤더 ── */}
           <header className="srd-modal__header">
             <div className="srd-modal__header-inner">
               <h1 className="srd-modal__title">{examTitle} 답안 상세</h1>
               <span className="srd-modal__student-badge">{studentName}</span>
             </div>
-            <div className="srd-modal__header-actions">
-              {selectedAttempt === 1 && !isEditMode ? (
-                <button
-                  type="button"
-                  className="srd-modal__edit-btn"
-                  onClick={() => { setMainTab("answer"); setIsEditMode(true); }}
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
-                  </svg>
-                  수정
-                </button>
-              ) : isEditMode ? (
-                <button type="button" className="srd-modal__view-btn" onClick={() => setIsEditMode(false)}>
-                  수정 완료
-                </button>
-              ) : null}
-            </div>
+            {/* 편집 모드 표시 */}
+            {isEditMode && !hasData && (
+              <span className="srd-modal__mode-label">새 입력</span>
+            )}
+            {/* 편집 모드에서 완료 */}
+            {isEditMode && (
+              <button type="button" className="srd-modal__done-btn" onClick={exitEdit}>완료</button>
+            )}
           </header>
 
-          {/* 시도 차수 탭 — 항상 표시 */}
-          <div className="srd-modal__attempt-tabs">
-            {Array.from({ length: maxAttempt }, (_, i) => i + 1).map((n) => {
-              const entry = attempts.find((a) => a.attempt_index === n);
-              return (
-                <button
-                  key={n}
-                  type="button"
-                  className={`srd-attempt-tab ${selectedAttempt === n ? "srd-attempt-tab--active" : ""} ${entry?.passed ? "srd-attempt-tab--pass" : ""}`}
-                  onClick={() => { setSelectedAttempt(n); setIsEditMode(false); }}
-                >
-                  {n}차{n === 1 ? " 응시" : " 재시험"}
-                  {entry && (
-                    <span className={`srd-attempt-tab__score ${entry.passed ? "srd-attempt-tab__score--pass" : "srd-attempt-tab__score--fail"}`}>
-                      {entry.score ?? "—"}점
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
+          {/* ── 시도 차수 탭 (2차 이상 있을 때만) ── */}
+          {maxAttempt >= 2 && (
+            <div className="srd-modal__attempt-tabs">
+              {Array.from({ length: maxAttempt }, (_, i) => i + 1).map((n) => {
+                const entry = attempts.find((a) => a.attempt_index === n);
+                return (
+                  <button
+                    key={n}
+                    type="button"
+                    className={`srd-attempt-tab ${selectedAttempt === n ? "srd-attempt-tab--active" : ""} ${entry?.passed ? "srd-attempt-tab--pass" : ""}`}
+                    onClick={() => { setSelectedAttempt(n); setIsEditMode(false); }}
+                  >
+                    {n}차{n === 1 ? " 응시" : " 재시험"}
+                    {entry && (
+                      <span className={`srd-attempt-tab__score ${entry.passed ? "srd-attempt-tab__score--pass" : "srd-attempt-tab__score--fail"}`}>
+                        {entry.score ?? "—"}점
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          )}
 
-          {/* 메인 탭 (답안지/오답노트) — 1차만 */}
-          {selectedAttempt === 1 && (
+          {/* ── 메인 탭 (답안지/오답노트) — 1차 + 읽기 모드 ── */}
+          {selectedAttempt === 1 && !isEditMode && hasData && (
             <div className="srd-modal__tabs">
               <div className="srd-modal__tab-bar">
-                <button type="button" className={`srd-modal__tab ${mainTab === "answer" ? "srd-modal__tab--active" : ""}`} onClick={() => { setMainTab("answer"); setIsEditMode(false); }}>
-                  답안지
-                </button>
-                <button type="button" className={`srd-modal__tab ${mainTab === "wrong" ? "srd-modal__tab--active" : ""}`} onClick={() => { setMainTab("wrong"); setIsEditMode(false); }}>
-                  오답노트
-                </button>
+                <button type="button" className={`srd-modal__tab ${mainTab === "answer" ? "srd-modal__tab--active" : ""}`} onClick={() => setMainTab("answer")}>답안지</button>
+                <button type="button" className={`srd-modal__tab ${mainTab === "wrong" ? "srd-modal__tab--active" : ""}`} onClick={() => setMainTab("wrong")}>오답노트</button>
               </div>
             </div>
           )}
 
-          {/* Body */}
+          {/* ── 스캔 이미지 접이식 배너 ── */}
+          {scanImageUrl && selectedAttempt === 1 && mainTab === "answer" && (
+            <div className={`srd-scan-banner ${scanExpanded ? "srd-scan-banner--expanded" : ""}`}>
+              <button type="button" className="srd-scan-banner__toggle" onClick={() => setScanExpanded(!scanExpanded)}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect width="18" height="18" x="3" y="3" rx="2" ry="2" /><circle cx="9" cy="9" r="2" /><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
+                </svg>
+                스캔 이미지
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={`srd-scan-banner__chevron ${scanExpanded ? "srd-scan-banner__chevron--up" : ""}`}>
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </button>
+              {scanExpanded && (
+                <div className="srd-scan-banner__content">
+                  <img src={scanImageUrl} alt="답안지 스캔" className="srd-scan-banner__img" />
+                  <a href={scanImageUrl} target="_blank" rel="noopener noreferrer" className="srd-scan-banner__link">새 창에서 보기</a>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── Body ── */}
           <div className="srd-modal__body">
             {selectedAttempt === 1 && mainTab === "answer" && (
               <>
                 {detailLoading && <div className="srd-modal__loading">불러오는 중…</div>}
                 {detailError && <div className="srd-modal__error">조회 실패</div>}
+
                 {!detailLoading && !detailError && !isEditMode && (
-                  <ReadModeContent
-                    scanImageUrl={scanImageUrl}
-                    items={effectiveItems}
-                    totalScore={detail?.total_score ?? 0}
-                    maxScore={detail?.max_score ?? 0}
-                    isEmpty={items1st.length === 0 && emptySlotItems.length === 0}
-                  />
+                  hasData ? (
+                    /* ── 상태 A: 읽기 모드 — 즉시 문항 리스트 ── */
+                    <ReadModeContent
+                      choiceItems={choiceItems}
+                      essayItems={essayItems}
+                      totalScore={totalScore}
+                      maxScore={maxScore}
+                      qNumMap={qNumMap}
+                      isItemCorrect={isItemCorrect}
+                      onEdit={enterEdit}
+                    />
+                  ) : hasQuestions ? (
+                    /* ── 상태 B: 데이터 없음 + 문항 있음 → 입력 유도 ── */
+                    <div className="srd-stateB">
+                      <p className="srd-stateB__desc">아직 입력된 답안이 없습니다.</p>
+                      <button type="button" className="srd-stateB__btn" onClick={enterEdit}>답안 입력 시작</button>
+                    </div>
+                  ) : (
+                    /* ── 상태 C: 문항 미등록 ── */
+                    <StateC_NoQuestions examId={examId} examTitle={examTitle} onClose={onClose} />
+                  )
                 )}
+
                 {!detailLoading && !detailError && isEditMode && (
                   <EditModeContent
                     examId={examId}
                     enrollmentId={enrollmentId}
-                    items={effectiveItems}
-                    scanImageUrl={scanImageUrl}
-                    onSaved={invalidateAll}
+                    choiceItems={choiceItems}
+                    essayItems={essayItems}
+                    allItems={mergedItems}
+                    correctAnswers={correctAnswersMap}
+                    qNumMap={qNumMap}
+                    onDone={exitEdit}
                   />
                 )}
               </>
@@ -216,95 +293,126 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
 }
 
 /* ═══════════════════════════════════════════════════ */
-/* 읽기 모드                                           */
+/* 읽기 모드 — 2단 (선택형 | 서술형) + 총점 상단         */
 /* ═══════════════════════════════════════════════════ */
 
-function ReadModeContent({ scanImageUrl, items, totalScore, maxScore, isEmpty }: {
-  scanImageUrl: string;
-  items: ExamResultItem[];
+function ReadModeContent({ choiceItems, essayItems, totalScore, maxScore, qNumMap, isItemCorrect, onEdit }: {
+  choiceItems: ExamResultItem[];
+  essayItems: ExamResultItem[];
   totalScore: number;
   maxScore: number;
-  isEmpty: boolean;
+  qNumMap: Map<number, number>;
+  isItemCorrect: (it: ExamResultItem) => boolean;
+  onEdit: () => void;
 }) {
-  const choiceItems = items.filter((it) => isChoiceAnswer(it.answer));
-  const essayItems = items.filter((it) => !isChoiceAnswer(it.answer));
-  const unansweredItems = items.filter((it) => !it.answer || it.answer.trim() === "");
+  const pct = maxScore > 0 ? Math.round((totalScore / maxScore) * 100) : 0;
+  const choiceCorrect = choiceItems.filter((it) => it.answer && isItemCorrect(it)).length;
 
   return (
     <div className="srd-read">
-      {/* 스캔 이미지 */}
-      <section className="srd-read__section">
-        <h3 className="srd-read__section-title">스캔 이미지</h3>
-        {scanImageUrl ? (
-          <div className="srd-read__scan">
-            <img src={scanImageUrl} alt="답안지 스캔" className="srd-read__scan-img" />
-            <a href={scanImageUrl} target="_blank" rel="noopener noreferrer" className="srd-read__scan-link">새 창에서 보기</a>
-          </div>
-        ) : (
-          <div className="srd-read__scan-empty">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
-              <circle cx="9" cy="9" r="2" />
-              <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
-            </svg>
-            <span>제출된 스캔 이미지가 없습니다</span>
-          </div>
-        )}
-      </section>
-
-      {isEmpty ? (
-        <div className="srd-modal__empty-edit">
-          <p>문항별 데이터가 아직 없습니다.</p>
-          <p className="srd-modal__empty-edit-sub">상단의 <strong>수정</strong> 버튼을 눌러 문항별 점수를 직접 입력할 수 있습니다.</p>
+      {/* 총점 요약 바 */}
+      <div className="srd-read__score-bar">
+        <div className="srd-read__score-main">
+          <span className="srd-read__score-val">{totalScore}</span>
+          <span className="srd-read__score-max">/ {maxScore}점</span>
+          <span className="srd-read__score-pct">({pct}%)</span>
         </div>
-      ) : (
-        <>
-          {/* 2컬럼 */}
-          <div className="srd-read__columns">
-            <section className="srd-read__column">
-              <h3 className="srd-read__section-title">선택형 답안 <span className="srd-read__count">{choiceItems.length}문항</span></h3>
-              {choiceItems.length > 0 ? (
-                <ul className="srd-read__choice-list">
-                  {choiceItems.map((it) => (
-                    <li key={it.question_id} className="srd-read__choice-row">
-                      <span className="srd-read__q-num">{it.question_id}</span>
-                      <div className="srd-read__bubbles">
-                        {CHOICES.map((c) => {
-                          const sel = String(it.answer ?? "").trim() === c;
-                          return (
-                            <span key={c} className={`srd-read__bubble ${sel ? (it.is_correct ? "srd-read__bubble--correct" : "srd-read__bubble--wrong") : ""}`}>
-                              {c}
-                              {sel && !it.is_correct && <span className="srd-read__bubble-x">✕</span>}
-                            </span>
-                          );
-                        })}
-                      </div>
-                      <span className={`srd-read__q-score ${it.is_correct ? "srd-read__q-score--pass" : "srd-read__q-score--fail"}`}>{it.score}/{it.max_score}</span>
-                    </li>
-                  ))}
-                </ul>
-              ) : <p className="srd-read__empty">선택형 문항 없음</p>}
-            </section>
+        <div className="srd-read__score-detail">
+          {choiceItems.length > 0 && <span>선택 {choiceCorrect}/{choiceItems.length}</span>}
+          {essayItems.length > 0 && <span>서술 {essayItems.reduce((s, it) => s + it.score, 0)}/{essayItems.reduce((s, it) => s + it.max_score, 0)}</span>}
+        </div>
+      </div>
 
-            <section className="srd-read__column">
-              <h3 className="srd-read__section-title">서술형 답안 <span className="srd-read__count">{essayItems.length + unansweredItems.length}문항</span></h3>
-              {(essayItems.length > 0 || unansweredItems.length > 0) ? (
-                <ul className="srd-read__essay-list">
-                  {[...essayItems, ...unansweredItems.filter((it) => !essayItems.includes(it))].map((it) => (
-                    <li key={it.question_id} className="srd-read__essay-row">
-                      <span className="srd-read__q-num">{it.question_id}</span>
-                      <span className="srd-read__essay-answer">{it.answer || "—"}</span>
-                      <span className={`srd-read__q-score ${it.is_correct ? "srd-read__q-score--pass" : "srd-read__q-score--fail"}`}>{it.score}/{it.max_score}</span>
-                    </li>
-                  ))}
-                </ul>
-              ) : <p className="srd-read__empty">서술형 문항 없음</p>}
-            </section>
-          </div>
+      {/* 2단 레이아웃 */}
+      <div className="srd-read__columns">
+        {/* 선택형 */}
+        {choiceItems.length > 0 && (
+          <section className="srd-read__panel">
+            <h3 className="srd-read__panel-title">선택형 <span className="srd-read__badge">{choiceItems.length}</span></h3>
+            <div className="srd-read__choice-grid">
+              {choiceItems.map((it) => {
+                const correct = isItemCorrect(it);
+                const num = qNumMap.get(it.question_id) ?? it.question_id;
+                return (
+                  <div key={it.question_id} className={`srd-read__choice-cell ${it.answer ? (correct ? "srd-read__choice-cell--correct" : "srd-read__choice-cell--wrong") : "srd-read__choice-cell--empty"}`}>
+                    <span className="srd-read__choice-num">{num}</span>
+                    <span className="srd-read__choice-ans">{it.answer || "—"}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
 
-          <div className="srd-read__total">총점 : {totalScore} / {maxScore}점</div>
-        </>
-      )}
+        {/* 서술형 */}
+        {essayItems.length > 0 && (
+          <section className="srd-read__panel">
+            <h3 className="srd-read__panel-title">서술형 <span className="srd-read__badge">{essayItems.length}</span></h3>
+            <div className="srd-read__essay-list">
+              {essayItems.map((it) => {
+                const num = qNumMap.get(it.question_id) ?? it.question_id;
+                return (
+                  <div key={it.question_id} className="srd-read__essay-row">
+                    <span className="srd-read__essay-num">{num}</span>
+                    <span className="srd-read__essay-ans">{it.answer || "—"}</span>
+                    <span className={`srd-read__essay-score ${it.score > 0 ? "srd-read__essay-score--has" : ""}`}>
+                      {it.score}/{it.max_score}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
+      </div>
+
+      {/* 하단 수정 CTA */}
+      <div className="srd-read__footer">
+        <button type="button" className="srd-read__edit-btn" onClick={onEdit}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+          </svg>
+          성적 수정
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════ */
+/* 상태 C: 문항 미등록                                  */
+/* ═══════════════════════════════════════════════════ */
+
+function StateC_NoQuestions({ examId, examTitle, onClose }: { examId: number; examTitle: string; onClose: () => void }) {
+  const navigate = useNavigate();
+  const { lectureId, sessionId } = useParams<{ lectureId: string; sessionId: string }>();
+
+  return (
+    <div className="srd-stateC">
+      <div className="srd-stateC__icon">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+          <polyline points="14 2 14 8 20 8" />
+          <line x1="12" y1="18" x2="12" y2="12" />
+          <line x1="9" y1="15" x2="15" y2="15" />
+        </svg>
+      </div>
+      <h3 className="srd-stateC__title">문항이 아직 등록되지 않았습니다</h3>
+      <p className="srd-stateC__desc">
+        성적을 입력하려면 먼저 시험 설정에서 문항과 답안을 등록해주세요.
+      </p>
+      <button
+        type="button"
+        className="srd-stateC__btn"
+        onClick={() => {
+          onClose();
+          if (lectureId && sessionId) navigate(`/admin/lectures/${lectureId}/sessions/${sessionId}/exams?examId=${examId}`);
+          else navigate("/admin/lectures");
+        }}
+      >
+        시험 설정으로 이동
+      </button>
+      <p className="srd-stateC__path">해당 강의 &gt; 차시 &gt; {examTitle} &gt; 시험 설정 &gt; 답안 등록</p>
     </div>
   );
 }
@@ -330,159 +438,178 @@ function RetakeAttemptView({ attempt, maxScore, passScore }: { attempt: AttemptE
             <span className="srd-retake-view__pct">{Math.round((attempt.score / maxScore) * 100)}%</span>
           )}
         </div>
-        {passScore != null && (
-          <div className="srd-retake-view__cutline">합격 기준: {passScore}점</div>
-        )}
-        <div className="srd-retake-view__note">
-          재시험은 총점만 기록됩니다. 문항별 상세는 1차 응시에서 확인하세요.
-        </div>
+        {passScore != null && <div className="srd-retake-view__cutline">합격 기준: {passScore}점</div>}
+        <div className="srd-retake-view__note">재시험은 총점만 기록됩니다. 문항별 상세는 1차 응시에서 확인하세요.</div>
       </div>
     </div>
   );
 }
 
 /* ═══════════════════════════════════════════════════ */
-/* 편집 모드 — 1차 응시 문항별 점수 수정                  */
+/* 편집 모드 — 2단 (선택형 | 서술형) + sticky 총점       */
 /* ═══════════════════════════════════════════════════ */
 
-const SCORE_COLORS: Record<number, string> = {
-  0: "#9ca3af", 1: "#b91c1c", 2: "#c2410c", 3: "#b45309", 4: "#a16207",
-  5: "#15803d", 6: "#0d9488", 7: "#0b7285", 8: "#1d4ed8", 9: "#6d28d9", 10: "#be185d",
-};
-
-function getScoreColor(s: number): string {
-  return SCORE_COLORS[Math.min(10, Math.max(0, Math.round(s)))] ?? SCORE_COLORS[5];
-}
-
-function EditModeContent({ examId, enrollmentId, items, scanImageUrl, onSaved }: {
+function EditModeContent({ examId, enrollmentId, choiceItems, essayItems, allItems, correctAnswers, qNumMap, onDone }: {
   examId: number;
   enrollmentId: number;
-  items: ExamResultItem[];
-  scanImageUrl: string;
-  onSaved: () => void;
+  choiceItems: ExamResultItem[];
+  essayItems: ExamResultItem[];
+  allItems: ExamResultItem[];
+  correctAnswers: Record<string, string>;
+  qNumMap: Map<number, number>;
+  onDone: () => void;
 }) {
+  const [answers, setAnswers] = useState<Record<number, string>>(() => {
+    const init: Record<number, string> = {};
+    for (const it of allItems) init[it.question_id] = it.answer ?? "";
+    return init;
+  });
   const [scores, setScores] = useState<Record<number, number>>(() => {
     const init: Record<number, number> = {};
-    for (const it of items) init[it.question_id] = it.score ?? 0;
+    for (const it of allItems) init[it.question_id] = it.score ?? 0;
     return init;
   });
 
-  const essayRefs = useRef<Record<number, HTMLInputElement | null>>({});
+  const scoreRefs = useRef<Record<number, HTMLInputElement | null>>({});
 
   const saveMutation = useMutation({
-    mutationFn: (params: { questionId: number; score: number }) =>
-      patchExamItemScore({ examId, enrollmentId, questionId: params.questionId, score: params.score }),
-    onSuccess: () => onSaved(),
-    onError: () => feedback.error("점수 저장에 실패했습니다."),
+    mutationFn: (params: { questionId: number; score: number; answer?: string }) =>
+      patchExamItemScore({ examId, enrollmentId, questionId: params.questionId, score: params.score, answer: params.answer }),
+    onError: () => feedback.error("저장에 실패했습니다."),
   });
 
-  const saveScore = useCallback((qid: number, val: number) => {
-    const item = items.find((it) => it.question_id === qid);
-    if (!item) return;
-    const clamped = Math.max(0, Math.min(val, item.max_score));
-    setScores((prev) => ({ ...prev, [qid]: clamped }));
-    saveMutation.mutate({ questionId: qid, score: clamped });
-  }, [items, saveMutation]);
+  const getCorrectAnswer = (qid: number) => correctAnswers[String(qid)] ?? "";
 
-  const adjustScore = useCallback((qid: number, delta: number) => {
-    saveScore(qid, (scores[qid] ?? 0) + delta);
-  }, [scores, saveScore]);
+  const handleBubbleClick = useCallback((qid: number, choice: string) => {
+    const currentAnswer = answers[qid] ?? "";
+    const newAnswer = currentAnswer === choice ? "" : choice;
+    setAnswers((prev) => ({ ...prev, [qid]: newAnswer }));
+
+    const correct = correctAnswers[String(qid)] ?? "";
+    const item = allItems.find((it) => it.question_id === qid);
+    const maxScore = item?.max_score ?? 0;
+    let newScore: number;
+    if (newAnswer === "") newScore = 0;
+    else if (!correct) newScore = scores[qid] ?? 0;
+    else if (newAnswer === correct) newScore = maxScore;
+    else newScore = 0;
+    setScores((prev) => ({ ...prev, [qid]: newScore }));
+    saveMutation.mutate({ questionId: qid, score: newScore, answer: newAnswer });
+  }, [answers, correctAnswers, allItems, scores, saveMutation]);
+
+  const handleEssayBlur = useCallback((qid: number) => {
+    saveMutation.mutate({ questionId: qid, score: scores[qid] ?? 0, answer: answers[qid] ?? "" });
+  }, [answers, scores, saveMutation]);
+
+  const handleScoreBlur = useCallback((qid: number) => {
+    saveMutation.mutate({ questionId: qid, score: scores[qid] ?? 0, answer: answers[qid] ?? "" });
+  }, [answers, scores, saveMutation]);
 
   const totalScore = Object.values(scores).reduce((a, b) => a + b, 0);
-  const totalMax = items.reduce((a, it) => a + it.max_score, 0);
-
-  // 문항 번호 순 정렬
-  const sorted = useMemo(() => [...items].sort((a, b) => a.question_id - b.question_id), [items]);
+  const totalMax = allItems.reduce((a, it) => a + it.max_score, 0);
 
   return (
     <div className="srd-edit">
-      {/* 스캔 이미지 */}
-      <div className="srd-edit__scan-ref">
-        {scanImageUrl ? (
-          <img src={scanImageUrl} alt="스캔 참고" className="srd-edit__scan-img" />
-        ) : (
-          <div className="srd-read__scan-empty">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <rect width="18" height="18" x="3" y="3" rx="2" ry="2" /><circle cx="9" cy="9" r="2" /><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
-            </svg>
-            <span>스캔 이미지 없음</span>
-          </div>
+      {/* sticky 총점 */}
+      <div className="srd-edit__total-bar">
+        <span className="srd-edit__total-label">총점</span>
+        <span className="srd-edit__total-score">{totalScore}</span>
+        <span className="srd-edit__total-max">/ {totalMax}점</span>
+        {totalMax > 0 && <span className="srd-edit__total-pct">({Math.round((totalScore / totalMax) * 100)}%)</span>}
+      </div>
+
+      {/* 2단 레이아웃 */}
+      <div className="srd-edit__columns">
+        {/* 선택형 패널 */}
+        {choiceItems.length > 0 && (
+          <section className="srd-edit__panel">
+            <h3 className="srd-edit__panel-title">선택형 <span className="srd-edit__panel-badge">{choiceItems.length}문항</span></h3>
+            <div className="srd-edit__choice-list">
+              {choiceItems.map((it, idx) => {
+                const qid = it.question_id;
+                const answer = answers[qid] ?? "";
+                const correct = getCorrectAnswer(qid);
+                const isDivider = (idx + 1) % 5 === 0 && idx < choiceItems.length - 1;
+                return (
+                  <div key={qid} className={`srd-edit__choice-row ${isDivider ? "srd-edit__choice-row--divider" : ""}`}>
+                    <span className="srd-edit__q-num">{qNumMap.get(qid) ?? (idx + 1)}</span>
+                    <div className="srd-edit__bubbles">
+                      {CHOICES.map((c) => {
+                        const sel = answer === c;
+                        const isWrong = answer !== "" && correct !== "" && answer !== correct;
+                        let cls = "";
+                        if (!correct && sel) cls = "srd-edit__bubble--neutral";
+                        else if (sel && answer === correct) cls = "srd-edit__bubble--correct";
+                        else if (sel && isWrong) cls = "srd-edit__bubble--wrong";
+                        else if (correct === c && isWrong) cls = "srd-edit__bubble--answer";
+                        return (
+                          <button key={c} type="button" className={`srd-edit__bubble ${cls}`} onClick={() => handleBubbleClick(qid, c)}>{c}</button>
+                        );
+                      })}
+                    </div>
+                    <span className="srd-edit__choice-result">
+                      {answer ? (correct ? (answer === correct ? <span className="srd-edit__mark--ok">○</span> : <span className="srd-edit__mark--x">✕</span>) : <span className="srd-edit__mark--score">{scores[qid] ?? 0}/{it.max_score}</span>) : <span className="srd-edit__mark--empty">—</span>}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
+        {/* 서술형 패널 */}
+        {essayItems.length > 0 && (
+          <section className="srd-edit__panel">
+            <h3 className="srd-edit__panel-title">서술형 <span className="srd-edit__panel-badge">{essayItems.length}문항</span></h3>
+            <div className="srd-edit__essay-list">
+              {essayItems.map((it, idx) => {
+                const qid = it.question_id;
+                const answer = answers[qid] ?? "";
+                const score = scores[qid] ?? 0;
+                const correct = getCorrectAnswer(qid);
+                return (
+                  <div key={qid} className="srd-edit__essay-row">
+                    <span className="srd-edit__q-num">{qNumMap.get(qid) ?? (idx + 1)}</span>
+                    <input
+                      type="text"
+                      className="srd-edit__essay-input"
+                      value={answer}
+                      onChange={(e) => setAnswers((prev) => ({ ...prev, [qid]: e.target.value }))}
+                      onBlur={() => handleEssayBlur(qid)}
+                      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); scoreRefs.current[qid]?.focus(); } }}
+                      placeholder="답안"
+                    />
+                    <div className="srd-edit__essay-score-wrap">
+                      <input
+                        ref={(el) => { scoreRefs.current[qid] = el; }}
+                        type="number"
+                        className="srd-edit__score-input"
+                        value={score}
+                        onChange={(e) => {
+                          const v = e.target.value === "" ? 0 : parseFloat(e.target.value);
+                          if (!isNaN(v)) setScores((prev) => ({ ...prev, [qid]: Math.max(0, Math.min(v, it.max_score)) }));
+                        }}
+                        onBlur={() => handleScoreBlur(qid)}
+                        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleScoreBlur(qid); } }}
+                        min={0} max={it.max_score} step="any"
+                      />
+                      <span className="srd-edit__score-max">/{it.max_score}</span>
+                    </div>
+                    {correct && (
+                      <div className="srd-edit__essay-hint">정답: {correct}</div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </section>
         )}
       </div>
 
-      {/* 문항별 점수 편집 — 단일 리스트 (문항 번호 순) */}
-      <div className="srd-edit__list-header">
-        <span className="srd-edit__list-header-num">번호</span>
-        <span className="srd-edit__list-header-answer">답안</span>
-        <span className="srd-edit__list-header-score">점수</span>
-        <span className="srd-edit__list-header-ctrl">조절</span>
-      </div>
-      <div className="srd-edit__list">
-        {sorted.map((it, idx) => {
-          const score = scores[it.question_id] ?? 0;
-          const isDivider = (idx + 1) % 5 === 0 && idx < sorted.length - 1;
-          return (
-            <div key={it.question_id} className={`srd-edit__row ${isDivider ? "srd-edit__row--divider" : ""}`}>
-              <span className="srd-edit__q-num">{it.question_id}</span>
-              <span className="srd-edit__q-answer" title={it.answer || "—"}>
-                {it.answer ? (isChoiceAnswer(it.answer) ? `${it.answer}번` : it.answer) : "—"}
-              </span>
-              <div className="srd-edit__essay-score-wrap">
-                <input
-                  ref={(el) => { essayRefs.current[it.question_id] = el; }}
-                  type="number"
-                  className="srd-edit__essay-input"
-                  value={score}
-                  onChange={(e) => {
-                    const v = e.target.value === "" ? 0 : parseFloat(e.target.value);
-                    if (!isNaN(v)) setScores((prev) => ({ ...prev, [it.question_id]: Math.max(0, Math.min(v, it.max_score)) }));
-                  }}
-                  onBlur={() => saveScore(it.question_id, scores[it.question_id] ?? 0)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      saveScore(it.question_id, scores[it.question_id] ?? 0);
-                      const nextItem = sorted[idx + 1];
-                      if (nextItem) essayRefs.current[nextItem.question_id]?.focus();
-                    } else if (e.key === "ArrowDown") {
-                      e.preventDefault();
-                      const nextItem = sorted[idx + 1];
-                      if (nextItem) essayRefs.current[nextItem.question_id]?.focus();
-                    } else if (e.key === "ArrowUp") {
-                      e.preventDefault();
-                      const prevItem = sorted[idx - 1];
-                      if (prevItem) essayRefs.current[prevItem.question_id]?.focus();
-                    }
-                  }}
-                  min={0}
-                  max={it.max_score}
-                  step="any"
-                />
-                <span className="srd-edit__essay-max">/ {it.max_score}</span>
-              </div>
-              <ScoreControl score={score} maxScore={it.max_score} onAdjust={(d) => adjustScore(it.question_id, d)} onReset={() => saveScore(it.question_id, it.score ?? 0)} />
-            </div>
-          );
-        })}
-      </div>
-
-      <div className="srd-edit__total">총점 : {totalScore} / {totalMax}점</div>
-    </div>
-  );
-}
-
-function ScoreControl({ score, maxScore, onAdjust, onReset }: { score: number; maxScore: number; onAdjust: (d: number) => void; onReset: () => void }) {
-  return (
-    <div className="srd-score-ctrl">
-      <span className="srd-score-ctrl__val" style={{ color: getScoreColor(score) }}>{score}점</span>
-      <div className="srd-score-ctrl__btns">
-        <button type="button" className="srd-score-btn srd-score-btn--p1" onClick={() => onAdjust(1)} disabled={score >= maxScore}>+1</button>
-        <button type="button" className="srd-score-btn srd-score-btn--p2" onClick={() => onAdjust(2)} disabled={score >= maxScore}>+2</button>
-        <button type="button" className="srd-score-btn srd-score-btn--p5" onClick={() => onAdjust(5)} disabled={score >= maxScore}>+5</button>
-        <button type="button" className="srd-score-btn srd-score-btn--reset" onClick={onReset} title="초기화">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" />
-          </svg>
+      {/* 하단 완료 버튼 */}
+      <div className="srd-edit__footer">
+        <button type="button" className="srd-edit__done-btn" onClick={onDone}>
+          수정 완료
         </button>
       </div>
     </div>
