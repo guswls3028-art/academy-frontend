@@ -13,7 +13,9 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { SessionScoreRow, SessionScoreExamEntry, SessionScoreHomeworkEntry, SessionScoreMeta } from "../api/sessionScores";
 import { fetchAdminExamResultDetail } from "@/features/results/api/adminExamResultDetail";
 import { fetchAttemptHistory, type AttemptHistoryResponse } from "../api/attemptHistory";
-import { submitClinicRetake } from "@/features/clinic/api/clinicLinks.api";
+import { submitClinicRetake, updateClinicRetake } from "@/features/clinic/api/clinicLinks.api";
+import { patchExamTotalScoreQuick } from "../api/patchExamTotalQuick";
+import { patchHomeworkQuick } from "../api/patchHomeworkQuick";
 import { generateScoreReport } from "../utils/generateScoreReport";
 import { useSendMessageModal } from "@/features/messages/context/SendMessageModalContext";
 import { feedback } from "@/shared/ui/feedback/feedback";
@@ -24,6 +26,7 @@ import "./StudentScoresDrawer.css";
 type Props = {
   row: SessionScoreRow;
   meta: SessionScoreMeta | null;
+  sessionId?: number;
   onClose: () => void;
   /** 답안 상세 드로어 열기 — 기존 StudentResultDrawer 연계 */
   onOpenAnswerDetail?: (examId: number, enrollmentId: number, examTitle: string) => void;
@@ -34,7 +37,7 @@ function pctNum(score: number | null | undefined, max: number | null | undefined
   return Math.round((score / max) * 100);
 }
 
-export default function StudentScoresDrawer({ row, meta, onClose, onOpenAnswerDetail }: Props) {
+export default function StudentScoresDrawer({ row, meta, sessionId, onClose, onOpenAnswerDetail }: Props) {
   const [expandedExamId, setExpandedExamId] = useState<number | null>(null);
   const [expandedHwId, setExpandedHwId] = useState<number | null>(null);
   const { openSendMessageModal } = useSendMessageModal();
@@ -197,6 +200,7 @@ export default function StudentScoresDrawer({ row, meta, onClose, onOpenAnswerDe
                     exam={exam}
                     meta={meta}
                     enrollmentId={row.enrollment_id}
+                    sessionId={sessionId}
                     expanded={expandedExamId === exam.exam_id}
                     onToggle={() => toggleExpand(exam.exam_id)}
                     onOpenDetail={
@@ -228,6 +232,7 @@ export default function StudentScoresDrawer({ row, meta, onClose, onOpenAnswerDe
                     hw={hw}
                     meta={meta}
                     enrollmentId={row.enrollment_id}
+                    sessionId={sessionId}
                     expanded={expandedHwId === hw.homework_id}
                     onToggle={() => setExpandedHwId((prev) => (prev === hw.homework_id ? null : hw.homework_id))}
                   />
@@ -262,6 +267,7 @@ function ExamResultCard({
   exam,
   meta,
   enrollmentId,
+  sessionId,
   expanded,
   onToggle,
   onOpenDetail,
@@ -269,6 +275,7 @@ function ExamResultCard({
   exam: SessionScoreExamEntry;
   meta: SessionScoreMeta | null;
   enrollmentId: number;
+  sessionId?: number;
   expanded: boolean;
   onToggle: () => void;
   onOpenDetail?: () => void;
@@ -314,6 +321,7 @@ function ExamResultCard({
           enrollmentId={enrollmentId}
           sourceType="exam"
           sourceId={exam.exam_id}
+          sessionId={sessionId}
           onOpenDetail={onOpenDetail}
         />
       )}
@@ -327,12 +335,14 @@ function HomeworkResultCard({
   hw,
   meta,
   enrollmentId,
+  sessionId,
   expanded,
   onToggle,
 }: {
   hw: SessionScoreHomeworkEntry;
   meta: SessionScoreMeta | null;
   enrollmentId: number;
+  sessionId?: number;
   expanded: boolean;
   onToggle: () => void;
 }) {
@@ -342,14 +352,14 @@ function HomeworkResultCard({
 
   return (
     <li className="student-scores-drawer__hw-card" data-passed={hw.block.passed === true ? "true" : hw.block.passed === false ? "false" : undefined}>
-      <div className="student-scores-drawer__hw-header" onClick={onToggle} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onToggle(); } }} role="button" tabIndex={0} style={{ cursor: "pointer" }}>
-        <div className="student-scores-drawer__hw-title-row" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
+      <div className="student-scores-drawer__hw-header" onClick={onToggle} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onToggle(); } }} role="button" tabIndex={0}>
+        <div className="student-scores-drawer__hw-title-row">
           <span className="student-scores-drawer__hw-title">{hw.title}</span>
           <PassBadge passed={hw.block.passed} />
         </div>
-        <div className="student-scores-drawer__hw-score" data-tone={hw.block.passed === true ? "success" : hw.block.passed === false ? "danger" : undefined} style={{ display: "flex", alignItems: "center", gap: 4 }}>
+        <div className="student-scores-drawer__hw-score-row">
           {hw.block.score != null ? (
-            <span>
+            <span className="student-scores-drawer__hw-score-val" data-tone={hw.block.passed === true ? "success" : hw.block.passed === false ? "danger" : undefined}>
               {hw.block.score}
               {hwMaxScore != null && <span className="student-scores-drawer__max-score"> / {hwMaxScore}</span>}
               {percent != null && <PercentBadge value={percent} passed={hw.block.passed} />}
@@ -370,6 +380,7 @@ function HomeworkResultCard({
           enrollmentId={enrollmentId}
           sourceType="homework"
           sourceId={hw.homework_id}
+          sessionId={sessionId}
         />
       )}
     </li>
@@ -382,16 +393,20 @@ function AttemptTimeline({
   enrollmentId,
   sourceType,
   sourceId,
+  sessionId,
   onOpenDetail,
 }: {
   enrollmentId: number;
   sourceType: "exam" | "homework";
   sourceId: number;
+  sessionId?: number;
   onOpenDetail?: () => void;
 }) {
   const qc = useQueryClient();
   const [showNewAttempt, setShowNewAttempt] = useState(false);
   const [retakeScore, setRetakeScore] = useState("");
+  const [editingAttempt, setEditingAttempt] = useState<number | null>(null);
+  const [editScore, setEditScore] = useState("");
 
   const isExam = sourceType === "exam";
   const retakeLabel = isExam ? "재시험" : "재시도";
@@ -428,6 +443,90 @@ function AttemptTimeline({
     onError: () => feedback.error("점수 저장에 실패했습니다."),
   });
 
+  // 2차+ 수정 mutation (update-retake API)
+  const updateMutation = useMutation({
+    mutationFn: (params: { clinicLinkId: number; attemptIndex: number; score: number; maxScore?: number }) =>
+      updateClinicRetake(params.clinicLinkId, {
+        attempt_index: params.attemptIndex,
+        score: params.score,
+        max_score: params.maxScore,
+      }),
+    onSuccess: (result) => {
+      qc.invalidateQueries({ queryKey: ["attempt-history", sourceType, sourceId, enrollmentId] });
+      qc.invalidateQueries({ queryKey: ["clinic-targets"] });
+      qc.invalidateQueries({ queryKey: ["session-scores"] });
+      setEditingAttempt(null);
+      setEditScore("");
+      if (result.passed) {
+        feedback.success(`${result.attempt_index}차 수정 → 합격! (${result.score}점)`);
+      } else {
+        feedback.info(`${result.attempt_index}차 점수가 ${result.score}점으로 수정되었습니다.`);
+      }
+    },
+    onError: () => feedback.error("점수 수정에 실패했습니다."),
+  });
+
+  // 1차 수정 mutation (기존 성적 PATCH API — progress pipeline 트리거)
+  const editFirstMutation = useMutation({
+    mutationFn: async (params: { score: number; maxScore?: number }) => {
+      if (isExam) {
+        return patchExamTotalScoreQuick({
+          examId: sourceId,
+          enrollmentId,
+          score: params.score,
+          maxScore: params.maxScore,
+        });
+      } else {
+        if (!sessionId) throw new Error("sessionId가 필요합니다.");
+        return patchHomeworkQuick({
+          sessionId,
+          enrollmentId,
+          homeworkId: sourceId,
+          score: params.score,
+          maxScore: params.maxScore,
+        });
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["attempt-history", sourceType, sourceId, enrollmentId] });
+      qc.invalidateQueries({ queryKey: ["clinic-targets"] });
+      qc.invalidateQueries({ queryKey: ["session-scores"] });
+      setEditingAttempt(null);
+      setEditScore("");
+      feedback.success("1차 점수가 수정되었습니다.");
+    },
+    onError: () => feedback.error("점수 수정에 실패했습니다."),
+  });
+
+  function handleEditSubmit(attemptIndex: number) {
+    const val = parseFloat(editScore);
+    if (isNaN(val) || val < 0) {
+      feedback.error("올바른 점수를 입력해주세요.");
+      return;
+    }
+    if (val > (data?.max_score ?? 100)) {
+      feedback.error(`최대 점수(${data?.max_score})를 초과할 수 없습니다.`);
+      return;
+    }
+
+    if (attemptIndex === 1) {
+      // 1차: 기존 성적 PATCH API (Result + ExamAttempt 동기화 + progress pipeline)
+      editFirstMutation.mutate({
+        score: val,
+        maxScore: data?.max_score ?? undefined,
+      });
+    } else {
+      // 2차+: update-retake API
+      if (!data?.clinic_link_id) return;
+      updateMutation.mutate({
+        clinicLinkId: data.clinic_link_id,
+        attemptIndex: attemptIndex,
+        score: val,
+        maxScore: sourceType === "homework" ? data?.max_score : undefined,
+      });
+    }
+  }
+
   function handleRetakeSubmit() {
     if (!data?.clinic_link_id) return;
     const val = parseFloat(retakeScore);
@@ -460,39 +559,96 @@ function AttemptTimeline({
       {data && !error && (
         <div className="ssd-attempts">
           {/* ── 차수별 카드 블록 ── */}
-          {data.attempts.map((a) => (
-            <div
-              key={a.attempt_index}
-              className={`ssd-attempt-card ${a.passed ? "ssd-attempt-card--passed" : "ssd-attempt-card--failed"}`}
-            >
-              <div className="ssd-attempt-card__header">
-                <span className="ssd-attempt-card__label">
-                  {a.attempt_index === 1
-                    ? `1차 ${sourceLabel}`
-                    : `${a.attempt_index}차 ${retakeLabel}`}
-                </span>
-                <span className={`ssd-attempt-card__badge ${a.passed ? "ssd-attempt-card__badge--pass" : "ssd-attempt-card__badge--fail"}`}>
-                  {a.passed ? "합격" : "불합격"}
-                </span>
-              </div>
-              <div className="ssd-attempt-card__score-row">
-                <span className="ssd-attempt-card__score">
-                  {a.score != null ? a.score : "—"}
-                </span>
-                <span className="ssd-attempt-card__max">/ {data.max_score}</span>
-                {a.score != null && data.max_score > 0 && (
-                  <span className={`ssd-attempt-card__pct ${a.passed ? "ssd-attempt-card__pct--pass" : "ssd-attempt-card__pct--fail"}`}>
-                    {Math.round((a.score / data.max_score) * 100)}%
+          {data.attempts.map((a) => {
+            const isEditing = editingAttempt === a.attempt_index;
+            const canEdit = a.attempt_index === 1 || (a.attempt_index >= 2 && data.clinic_link_id != null);
+            const isMutating = editFirstMutation.isPending || updateMutation.isPending || retakeMutation.isPending;
+
+            return (
+              <div
+                key={a.attempt_index}
+                className={`ssd-attempt-card ${a.passed ? "ssd-attempt-card--passed" : "ssd-attempt-card--failed"}`}
+              >
+                <div className="ssd-attempt-card__header">
+                  <span className="ssd-attempt-card__label">
+                    {a.attempt_index === 1
+                      ? `1차 ${sourceLabel}`
+                      : `${a.attempt_index}차 ${retakeLabel}`}
                   </span>
+                  <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    {canEdit && !isEditing && (
+                      <button
+                        type="button"
+                        className="ssd-attempt-card__edit-btn"
+                        onClick={() => { setEditingAttempt(a.attempt_index); setEditScore(a.score != null ? String(a.score) : ""); }}
+                        title="점수 수정"
+                      >
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+                        </svg>
+                      </button>
+                    )}
+                    <span className={`ssd-attempt-card__badge ${a.passed ? "ssd-attempt-card__badge--pass" : "ssd-attempt-card__badge--fail"}`}>
+                      {a.passed ? "합격" : "불합격"}
+                    </span>
+                  </span>
+                </div>
+
+                {isEditing ? (
+                  <div className="ssd-attempt-card__input-row">
+                    <input
+                      type="number"
+                      className="ssd-attempt-card__input"
+                      value={editScore}
+                      onChange={(e) => setEditScore(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleEditSubmit(a.attempt_index); } if (e.key === "Escape") { setEditingAttempt(null); setEditScore(""); } }}
+                      placeholder="점수"
+                      min={0}
+                      max={data.max_score ?? undefined}
+                      step="any"
+                      disabled={isMutating}
+                      autoFocus
+                    />
+                    <span className="ssd-attempt-card__max">/ {data.max_score}</span>
+                    <button
+                      type="button"
+                      className="ssd-attempt-card__save"
+                      onClick={() => handleEditSubmit(a.attempt_index)}
+                      disabled={isMutating || !editScore.trim()}
+                    >
+                      {isMutating ? "저장 중..." : "저장"}
+                    </button>
+                    <button
+                      type="button"
+                      className="ssd-attempt-card__cancel"
+                      onClick={() => { setEditingAttempt(null); setEditScore(""); }}
+                      disabled={isMutating}
+                    >
+                      취소
+                    </button>
+                  </div>
+                ) : (
+                  <div className="ssd-attempt-card__score-row">
+                    <span className="ssd-attempt-card__score">
+                      {a.score != null ? a.score : "—"}
+                    </span>
+                    <span className="ssd-attempt-card__max">/ {data.max_score}</span>
+                    {a.score != null && data.max_score > 0 && (
+                      <span className={`ssd-attempt-card__pct ${a.passed ? "ssd-attempt-card__pct--pass" : "ssd-attempt-card__pct--fail"}`}>
+                        {Math.round((a.score / data.max_score) * 100)}%
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                {data.pass_score != null && !isEditing && (
+                  <div className="ssd-attempt-card__cutline">
+                    합격 기준: {data.pass_score}점
+                  </div>
                 )}
               </div>
-              {data.pass_score != null && (
-                <div className="ssd-attempt-card__cutline">
-                  합격 기준: {data.pass_score}점
-                </div>
-              )}
-            </div>
-          ))}
+            );
+          })}
 
           {/* ── + 재시험/재시도 추가하기 ── */}
           {canAddRetake && !showNewAttempt && (
@@ -642,16 +798,3 @@ function PercentBadge({ value, passed }: { value: number; passed?: boolean | nul
   );
 }
 
-function formatDateTime(iso: string): string {
-  try {
-    const d = new Date(iso);
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, "0");
-    const day = String(d.getDate()).padStart(2, "0");
-    const h = String(d.getHours()).padStart(2, "0");
-    const min = String(d.getMinutes()).padStart(2, "0");
-    return `${y}-${m}-${day} ${h}:${min}`;
-  } catch {
-    return iso;
-  }
-}

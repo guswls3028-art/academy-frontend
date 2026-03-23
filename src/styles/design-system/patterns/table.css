@@ -549,3 +549,51 @@ table.ds-table {
   border-radius: 4px;
   box-shadow: 0 1px 0 var(--color-border-divider);
 }
+
+/* ═══ 차수별 편집 셀 UI (편집모드) ═══ */
+
+.ds-cell-attempt-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 0;
+}
+
+.ds-cell-score-locked {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-secondary, #6b7280);
+  font-variant-numeric: tabular-nums;
+}
+
+.ds-cell-retake-badge {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--color-brand-primary, #6366f1) 12%, transparent);
+  color: var(--color-brand-primary, #6366f1);
+  white-space: nowrap;
+  line-height: 1.4;
+}
+
+.ds-cell-add-retake {
+  display: inline-block;
+  margin-top: 1px;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--color-error, #ef4444) 10%, transparent);
+  color: var(--color-error, #ef4444);
+  cursor: pointer;
+  white-space: nowrap;
+  line-height: 1.4;
+  transition: background 0.15s;
+}
+
+.ds-cell-add-retake:hover {
+  background: color-mix(in srgb, var(--color-error, #ef4444) 20%, transparent);
+}

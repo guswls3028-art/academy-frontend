@@ -35,7 +35,7 @@ export async function fetchClinicLinks(params?: Record<string, string | number |
 
 /**
  * POST /progress/clinic-links/{id}/resolve/
- * 관리자 수동 해소
+ * 관리자 수동 통과
  */
 export async function resolveClinicLink(id: number, memo?: string) {
   const res = await api.post(`/progress/clinic-links/${id}/resolve/`, { memo });
@@ -62,7 +62,7 @@ export async function carryOverClinicLink(id: number) {
 
 /**
  * POST /progress/clinic-links/{id}/unresolve/
- * 해소 취소
+ * 통과 취소
  */
 export async function unresolveClinicLink(id: number) {
   const res = await api.post(`/progress/clinic-links/${id}/unresolve/`);
@@ -71,7 +71,7 @@ export async function unresolveClinicLink(id: number) {
 
 /**
  * POST /progress/clinic-links/{id}/submit-retake/
- * 클리닉 재시도 점수 입력
+ * 클리닉 재시도 점수 입력 (새 시도 추가)
  */
 export async function submitClinicRetake(
   id: number,
@@ -79,6 +79,21 @@ export async function submitClinicRetake(
 ) {
   const res = await api.post(
     `/progress/clinic-links/${id}/submit-retake/`,
+    payload,
+  );
+  return res.data as RetakeResponse;
+}
+
+/**
+ * POST /progress/clinic-links/{id}/update-retake/
+ * 기존 재시도(2차+)의 점수 수정
+ */
+export async function updateClinicRetake(
+  id: number,
+  payload: { attempt_index: number; score: number; max_score?: number },
+) {
+  const res = await api.post(
+    `/progress/clinic-links/${id}/update-retake/`,
     payload,
   );
   return res.data as RetakeResponse;

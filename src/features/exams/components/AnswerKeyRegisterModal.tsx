@@ -125,6 +125,7 @@ export default function AnswerKeyRegisterModal({
     [questions]
   );
 
+  const isCountConfigured = choiceCount !== "" || essayCount !== "";
   const effectiveChoiceCount =
     choiceCount !== "" && essayCount !== ""
       ? Math.max(0, Number(choiceCount) || 0)
@@ -132,7 +133,7 @@ export default function AnswerKeyRegisterModal({
         ? Math.max(0, Number(choiceCount) || 0)
         : essayCount !== ""
           ? Math.max(0, questions.length - (Number(essayCount) || 0))
-          : questions.length;
+          : 0;
   const effectiveEssayCount =
     choiceCount !== "" && essayCount !== ""
       ? Math.max(0, Number(essayCount) || 0)
@@ -155,6 +156,24 @@ export default function AnswerKeyRegisterModal({
   useEffect(() => {
     if (!answerKey || !answerKey.answers) return;
     setDraft(normalizeAnswers(answerKey.answers));
+
+    // 기존 답안키 기반으로 선택형/서술형 수 자동 계산 (미설정 시에만)
+    if (choiceCount === "" && essayCount === "" && sortedQuestions.length > 0) {
+      const normalized = normalizeAnswers(answerKey.answers);
+      let choiceCnt = 0;
+      for (const q of sortedQuestions) {
+        const ans = (normalized[String(q.id)] ?? "").trim();
+        if (ans === "1" || ans === "2" || ans === "3" || ans === "4" || ans === "5") {
+          choiceCnt++;
+        }
+      }
+      // 연속된 앞 N개가 선택형인 경우에만 자동 분할 (섞여 있으면 전체 선택형)
+      const essayCnt = sortedQuestions.length - choiceCnt;
+      setChoiceCount(choiceCnt > 0 ? choiceCnt : sortedQuestions.length);
+      setChoiceCountInput(choiceCnt > 0 ? choiceCnt : sortedQuestions.length);
+      setEssayCount(essayCnt > 0 ? essayCnt : 0);
+      setEssayCountInput(essayCnt > 0 ? essayCnt : 0);
+    }
   }, [answerKey?.id]);
 
   /** 문항 목록 로드 시 점수 드래프트 동기화 */
@@ -495,6 +514,9 @@ export default function AnswerKeyRegisterModal({
                   </Button>
                 </div>
                 <ul className="answer-key-list answer-key-list--choice-scroll">
+                  {choiceQuestions.length === 0 && !isCountConfigured && questions.length > 0 && (
+                    <li className="answer-key-empty-hint">문항 수를 입력하고 <strong>적용</strong>을 눌러주세요.</li>
+                  )}
                   {choiceQuestions.map((q, index) => (
                     <ChoiceRow
                       key={q.id}
@@ -644,6 +666,9 @@ export default function AnswerKeyRegisterModal({
                   </Button>
                 </div>
                 <ul className="answer-key-list answer-key-list--essay-scroll">
+                  {essayQuestions.length === 0 && !isCountConfigured && questions.length > 0 && (
+                    <li className="answer-key-empty-hint">문항 수를 입력하고 <strong>적용</strong>을 눌러주세요.</li>
+                  )}
                   {essayQuestions.map((q, index) => (
                     <EssayRow
                       key={q.id}

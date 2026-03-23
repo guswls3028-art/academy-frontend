@@ -904,7 +904,9 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                         if (col.sub === "total") {
                           const examMaxScore = block?.max_score ?? ex.max_score ?? null;
                           const scoreText = block?.score == null ? "-" : scoreFormat === "fraction" && examMaxScore != null ? `${Math.round(block.score)}/${examMaxScore}` : `${Math.round(block.score)}`;
-                          const canEdit = isEditMode && examEditTotal && !block?.is_locked;
+                          const hasRetakes = (entry?.attempt_count ?? 0) >= 2;
+                          const hasClinicLink = entry?.clinic_link_id != null;
+                          const canEdit = isEditMode && examEditTotal && !block?.is_locked && !hasRetakes;
                           return (
                             <td
                               key={col.key}
@@ -960,8 +962,22 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                     else if (e.key === "ArrowRight") { e.preventDefault(); e.stopPropagation(); onRequestMoveNext?.(); }
                                   }}
                                 />
+                              ) : isEditMode && hasRetakes ? (
+                                <div className="ds-cell-attempt-info" title="재시험 이력이 있습니다. 학생을 클릭하여 드로어에서 편집하세요.">
+                                  <span className="ds-cell-score-locked">{scoreText}</span>
+                                  <span className="ds-cell-retake-badge">{entry?.attempt_count}차 시도</span>
+                                </div>
                               ) : (
                                 <span className="font-medium text-[var(--color-text-primary)]">{scoreText}</span>
+                              )}
+                              {isEditMode && hasClinicLink && !hasRetakes && block?.passed === false && (
+                                <div
+                                  className="ds-cell-add-retake"
+                                  onClick={(e) => { e.stopPropagation(); onSelectRow(row); }}
+                                  title="드로어에서 재시험 추가"
+                                >
+                                  +{(entry?.attempt_count ?? 0) + 1}차
+                                </div>
                               )}
                             </td>
                           );

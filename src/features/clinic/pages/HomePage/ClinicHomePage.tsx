@@ -321,10 +321,10 @@ export default function ClinicHomePage() {
               <button
                 type="button"
                 className="clinic-home__empty-sessions-cta"
-                onClick={() => nav("/admin/clinic/schedule")}
+                onClick={() => nav("/admin/clinic/operations")}
               >
                 <CalendarPlus size={15} aria-hidden />
-                일정 관리에서 만들기
+                클리닉 진행에서 만들기
               </button>
             </div>
           )}

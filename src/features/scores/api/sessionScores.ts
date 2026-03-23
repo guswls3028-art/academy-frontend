@@ -37,12 +37,20 @@ export type SessionScoreExamEntry = {
   block: ScoreBlock;
   /** 주관식 점수 입력 모드용 문항별 점수 (서버가 내려줌) */
   items?: { question_id: number; score: number; max_score: number }[];
+  /** 시도 횟수 (0=미응시, 1=1차만, 2+=재시험 있음) */
+  attempt_count?: number;
+  /** 미통과 ClinicLink ID (재시도 입력/수정용) */
+  clinic_link_id?: number | null;
 };
 
 export type SessionScoreHomeworkEntry = {
   homework_id: number;
   title: string;
   block: ScoreBlock;
+  /** 시도 횟수 (0=미제출, 1=1차만, 2+=재시도 있음) */
+  attempt_count?: number;
+  /** 미통과 ClinicLink ID (재시도 입력/수정용) */
+  clinic_link_id?: number | null;
 };
 
 export type SessionScoreRow = {

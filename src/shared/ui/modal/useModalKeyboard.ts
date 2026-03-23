@@ -25,6 +25,9 @@ function shouldSkipEnter(): boolean {
   if (el.tagName === "TEXTAREA") return true;
   if (el.getAttribute?.("contenteditable") === "true") return true;
 
+  // input 포커스 중 → Enter = 폼 내 행 이동/값 확정 (모달 저장 아님)
+  if (el.tagName === "INPUT") return true;
+
   // antd Select/Picker/Dropdown 열린 상태 → Enter = 항목 선택
   if (
     document.querySelector(

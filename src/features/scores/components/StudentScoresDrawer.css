@@ -300,13 +300,27 @@
   transform: rotate(180deg);
 }
 
-/* ── Homework card ── */
+/* ── Homework card (시험 카드와 동일 구조) ── */
 .student-scores-drawer__hw-header {
+  padding: 10px 12px;
+  cursor: pointer;
+  user-select: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  transition: background 0.1s;
+}
+
+.student-scores-drawer__hw-header:hover {
+  background: var(--color-bg-surface-hover);
+}
+
+.student-scores-drawer__hw-title-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 12px 4px;
   gap: 8px;
+  min-height: 20px;
 }
 
 .student-scores-drawer__hw-title {
@@ -319,17 +333,23 @@
   white-space: nowrap;
 }
 
-.student-scores-drawer__hw-score {
-  padding: 0 12px 10px;
+.student-scores-drawer__hw-score-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-size: 13px;
+  min-height: 20px;
+}
+
+.student-scores-drawer__hw-score-val {
   font-weight: 700;
   color: var(--color-text-primary);
   font-variant-numeric: tabular-nums;
 }
-.student-scores-drawer__hw-score[data-tone="success"] {
+.student-scores-drawer__hw-score-val[data-tone="success"] {
   color: var(--color-success);
 }
-.student-scores-drawer__hw-score[data-tone="danger"] {
+.student-scores-drawer__hw-score-val[data-tone="danger"] {
   color: var(--color-error);
 }
 
@@ -353,36 +373,6 @@
 
 .student-scores-drawer__retry-error {
   color: var(--color-error);
-}
-
-.student-scores-drawer__retry-content {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-}
-
-.student-scores-drawer__retry-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 12px;
-  padding: 4px 0;
-}
-
-.student-scores-drawer__retry-row + .student-scores-drawer__retry-row {
-  border-top: 1px solid color-mix(in srgb, var(--color-border-divider) 50%, transparent);
-}
-
-.student-scores-drawer__retry-label {
-  font-weight: 600;
-  color: var(--color-text-secondary);
-  font-size: 11px;
-}
-
-.student-scores-drawer__retry-value {
-  font-weight: 600;
-  color: var(--color-text-primary);
-  font-variant-numeric: tabular-nums;
 }
 
 .student-scores-drawer__detail-btn {
@@ -577,158 +567,188 @@
 }
 
 /* ================================================================
-   차수별 이력 타임라인 + 재시도 입력
+   차수별 시도 카드 + 재시도 추가
    ================================================================ */
 
-.ssd-timeline {
+.ssd-attempts {
   display: flex;
   flex-direction: column;
-  gap: 0;
+  gap: 8px;
   padding: 4px 0 8px 0;
 }
 
-.ssd-timeline__item {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 6px 0;
-  position: relative;
-}
-
-/* 세로선 */
-.ssd-timeline__item:not(:last-child)::after {
-  content: "";
-  position: absolute;
-  left: 5px;
-  top: 20px;
-  bottom: -6px;
-  width: 1px;
-  background: var(--color-border, #e5e7eb);
-}
-
-.ssd-timeline__dot {
-  width: 11px;
-  height: 11px;
-  min-width: 11px;
-  border-radius: 50%;
-  margin-top: 3px;
-  background: var(--color-error, #ef4444);
-  border: 2px solid #fff;
-  box-shadow: 0 0 0 1px var(--color-error, #ef4444);
-  z-index: 1;
-}
-
-.ssd-timeline__item--passed .ssd-timeline__dot {
-  background: var(--color-success, #10b981);
-  box-shadow: 0 0 0 1px var(--color-success, #10b981);
-}
-
-.ssd-timeline__content {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex: 1;
-  min-width: 0;
-}
-
-.ssd-timeline__label {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--color-text-primary, #111827);
-  white-space: nowrap;
-}
-
-.ssd-timeline__score {
-  font-size: 12px;
-  color: var(--color-text-secondary, #6b7280);
-  font-variant-numeric: tabular-nums;
-}
-
-.ssd-timeline__badge {
-  font-size: 10px;
-  font-weight: 600;
-  padding: 1px 6px;
-  border-radius: 4px;
-  white-space: nowrap;
-}
-
-.ssd-timeline__badge--pass {
-  background: color-mix(in srgb, var(--color-success, #10b981) 12%, transparent);
-  color: var(--color-success, #10b981);
-}
-
-.ssd-timeline__badge--fail {
-  background: color-mix(in srgb, var(--color-error, #ef4444) 12%, transparent);
-  color: var(--color-error, #ef4444);
-}
-
-/* ── 재시도 입력 ── */
-.ssd-retake {
-  margin-top: 8px;
-  padding: 10px 12px;
-  background: color-mix(in srgb, var(--color-brand-primary, #6366f1) 5%, var(--color-bg-surface, #fff));
-  border: 1px solid color-mix(in srgb, var(--color-brand-primary, #6366f1) 20%, transparent);
+/* ── 시도 카드 (1차, 2차, ...) ── */
+.ssd-attempt-card {
+  border: 1px solid var(--color-border-divider, #e5e7eb);
   border-radius: 8px;
-}
-
-.ssd-retake__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 8px;
-}
-
-.ssd-retake__label {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--color-brand-primary, #6366f1);
-}
-
-.ssd-retake__cutline {
-  font-size: 11px;
-  color: var(--color-text-secondary, #6b7280);
-}
-
-.ssd-retake__input-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.ssd-retake__input {
-  width: 72px;
-  height: 32px;
-  padding: 4px 8px;
-  border: 1px solid var(--color-border, #d1d5db);
-  border-radius: 6px;
-  font-size: 14px;
-  text-align: right;
+  padding: 10px 12px;
   background: var(--color-bg-surface, #fff);
   transition: border-color 0.15s;
 }
 
-.ssd-retake__input:focus {
+.ssd-attempt-card--passed {
+  border-left: 3px solid var(--color-success, #10b981);
+  background: color-mix(in srgb, var(--color-success, #10b981) 4%, var(--color-bg-surface, #fff));
+}
+
+.ssd-attempt-card--failed {
+  border-left: 3px solid var(--color-error, #ef4444);
+  background: color-mix(in srgb, var(--color-error, #ef4444) 3%, var(--color-bg-surface, #fff));
+}
+
+.ssd-attempt-card--new {
+  border: 1.5px dashed color-mix(in srgb, var(--color-brand-primary, #6366f1) 40%, transparent);
+  background: color-mix(in srgb, var(--color-brand-primary, #6366f1) 4%, var(--color-bg-surface, #fff));
+}
+
+.ssd-attempt-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.ssd-attempt-card__label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-primary, #111827);
+}
+
+.ssd-attempt-card__badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.ssd-attempt-card__badge--pass {
+  background: var(--color-success, #10b981);
+  color: #fff;
+}
+
+.ssd-attempt-card__badge--fail {
+  background: var(--color-error, #ef4444);
+  color: #fff;
+}
+
+.ssd-attempt-card__badge--new {
+  background: color-mix(in srgb, var(--color-brand-primary, #6366f1) 12%, transparent);
+  color: var(--color-brand-primary, #6366f1);
+}
+
+.ssd-attempt-card__score-row {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.ssd-attempt-card__score {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--color-text-primary, #111827);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+.ssd-attempt-card--passed .ssd-attempt-card__score {
+  color: var(--color-success, #10b981);
+}
+
+.ssd-attempt-card--failed .ssd-attempt-card__score {
+  color: var(--color-error, #ef4444);
+}
+
+.ssd-attempt-card__max {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-muted, #9ca3af);
+  font-variant-numeric: tabular-nums;
+}
+
+.ssd-attempt-card__pct {
+  font-size: 12px;
+  font-weight: 700;
+  margin-left: 6px;
+  font-variant-numeric: tabular-nums;
+}
+
+.ssd-attempt-card__pct--pass {
+  color: var(--color-success, #10b981);
+}
+
+.ssd-attempt-card__pct--fail {
+  color: var(--color-error, #ef4444);
+}
+
+.ssd-attempt-card__cutline {
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--color-text-muted, #9ca3af);
+  font-weight: 500;
+}
+
+/* ── 수정 버튼 (2차+ 카드용) ── */
+.ssd-attempt-card__edit-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--color-border-divider, #e5e7eb);
+  border-radius: 4px;
+  background: var(--color-bg-surface, #fff);
+  color: var(--color-text-muted, #9ca3af);
+  cursor: pointer;
+  transition: all 0.15s;
+  padding: 0;
+}
+
+.ssd-attempt-card__edit-btn:hover {
+  border-color: var(--color-brand-primary, #6366f1);
+  color: var(--color-brand-primary, #6366f1);
+  background: color-mix(in srgb, var(--color-brand-primary, #6366f1) 6%, transparent);
+}
+
+/* ── 새 시도 입력 영역 ── */
+.ssd-attempt-card__input-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.ssd-attempt-card__input {
+  width: 80px;
+  height: 34px;
+  padding: 4px 8px;
+  border: 1px solid var(--color-border, #d1d5db);
+  border-radius: 6px;
+  font-size: 16px;
+  font-weight: 700;
+  text-align: right;
+  background: var(--color-bg-surface, #fff);
+  transition: border-color 0.15s;
+  font-variant-numeric: tabular-nums;
+}
+
+.ssd-attempt-card__input:focus {
   outline: none;
   border-color: var(--color-brand-primary, #6366f1);
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-brand-primary, #6366f1) 15%, transparent);
 }
 
-.ssd-retake__input::-webkit-outer-spin-button,
-.ssd-retake__input::-webkit-inner-spin-button {
+.ssd-attempt-card__input::-webkit-outer-spin-button,
+.ssd-attempt-card__input::-webkit-inner-spin-button {
   -webkit-appearance: none;
   margin: 0;
 }
-.ssd-retake__input[type="number"] {
+.ssd-attempt-card__input[type="number"] {
   -moz-appearance: textfield;
 }
 
-.ssd-retake__max {
-  font-size: 13px;
-  color: var(--color-text-secondary, #6b7280);
-}
-
-.ssd-retake__submit {
-  height: 32px;
+.ssd-attempt-card__save {
+  height: 34px;
   padding: 0 14px;
   border: none;
   border-radius: 6px;
@@ -739,11 +759,55 @@
   cursor: pointer;
   transition: opacity 0.15s;
 }
-.ssd-retake__submit:hover:not(:disabled) { opacity: 0.85; }
-.ssd-retake__submit:disabled { opacity: 0.4; cursor: not-allowed; }
+.ssd-attempt-card__save:hover:not(:disabled) { opacity: 0.85; }
+.ssd-attempt-card__save:disabled { opacity: 0.4; cursor: not-allowed; }
 
+.ssd-attempt-card__cancel {
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--color-border-divider, #e5e7eb);
+  border-radius: 6px;
+  background: var(--color-bg-surface, #fff);
+  color: var(--color-text-secondary, #6b7280);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.ssd-attempt-card__cancel:hover:not(:disabled) {
+  background: var(--color-bg-surface-hover, #f9fafb);
+}
+
+/* ── + 재시험/재시도 추가 버튼 ── */
+.ssd-add-attempt-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1.5px dashed color-mix(in srgb, var(--color-brand-primary, #6366f1) 35%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--color-brand-primary, #6366f1) 3%, transparent);
+  color: var(--color-brand-primary, #6366f1);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.ssd-add-attempt-btn:hover {
+  background: color-mix(in srgb, var(--color-brand-primary, #6366f1) 8%, transparent);
+  border-color: color-mix(in srgb, var(--color-brand-primary, #6366f1) 55%, transparent);
+}
+
+.ssd-add-attempt-btn:active {
+  transform: scale(0.98);
+}
+
+/* ── 통과 완료 배너 ── */
 .ssd-resolved-banner {
-  margin-top: 8px;
+  margin-top: 4px;
   padding: 8px 12px;
   background: color-mix(in srgb, var(--color-success, #10b981) 8%, var(--color-bg-surface, #fff));
   border: 1px solid color-mix(in srgb, var(--color-success, #10b981) 25%, transparent);

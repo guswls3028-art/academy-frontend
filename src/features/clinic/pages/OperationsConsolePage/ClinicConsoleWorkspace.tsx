@@ -20,7 +20,6 @@ import {
   Clock,
   MapPin,
   Users,
-  ChevronRight,
   CheckCheck,
   ShieldCheck,
   RotateCcw,
@@ -28,6 +27,8 @@ import {
   Ban,
   CircleCheckBig,
   Undo2,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 import type { ClinicSessionTreeNode } from "../../api/clinicSessions.api";
 import type { ClinicParticipant } from "../../api/clinicParticipants.api";
@@ -129,6 +130,8 @@ type Props = {
   session: ClinicSessionTreeNode | null;
   participants: ClinicParticipant[];
   isLoading: boolean;
+  onEditSession?: (sessionId: number) => void;
+  onDeleteSession?: (sessionId: number, label: string) => void;
 };
 
 export default function ClinicConsoleWorkspace({
@@ -136,6 +139,8 @@ export default function ClinicConsoleWorkspace({
   session,
   participants,
   isLoading,
+  onEditSession,
+  onDeleteSession,
 }: Props) {
   const qc = useQueryClient();
   // Drawer stores participant ID only — derive live data from participants prop
@@ -202,6 +207,7 @@ export default function ClinicConsoleWorkspace({
   const progress = useMemo(() => {
     const attended = participants.filter((p) => p.status === "attended").length;
     const noShow = participants.filter((p) => p.status === "no_show").length;
+    const completed = participants.filter((p) => !!p.completed_at).length;
     const pending = participants.filter(
       (p) =>
         p.status !== "attended" &&
@@ -210,7 +216,7 @@ export default function ClinicConsoleWorkspace({
         p.status !== "rejected"
     ).length;
     const total = attended + noShow + pending;
-    return { attended, noShow, pending, total };
+    return { attended, noShow, pending, completed, total };
   }, [participants]);
 
   const pendingIds = useMemo(
@@ -435,6 +441,31 @@ export default function ClinicConsoleWorkspace({
           </div>
 
           <div className="clinic-ops__header-actions">
+            {selectedDate >= dayjs().format("YYYY-MM-DD") && onEditSession && session && (
+              <button
+                type="button"
+                className="clinic-ops__action-btn clinic-ops__action-btn--ghost"
+                onClick={() => onEditSession(session.id)}
+                title="클리닉 수정"
+              >
+                <Pencil size={14} aria-hidden />
+                수정
+              </button>
+            )}
+            {selectedDate >= dayjs().format("YYYY-MM-DD") && onDeleteSession && session && (
+              <button
+                type="button"
+                className="clinic-ops__action-btn clinic-ops__action-btn--danger"
+                onClick={() => {
+                  const label = `${formatTime(session.start_time)} ${session.location || ""}`.trim();
+                  onDeleteSession(session.id, label);
+                }}
+                title="클리닉 삭제"
+              >
+                <Trash2 size={14} aria-hidden />
+                삭제
+              </button>
+            )}
             <button
               type="button"
               className="clinic-ops__action-btn clinic-ops__action-btn--secondary"
@@ -479,28 +510,52 @@ export default function ClinicConsoleWorkspace({
                   <span className="clinic-ops__kpi-label">불참</span>
                 </div>
               )}
+              <div className="clinic-ops__kpi clinic-ops__kpi--completed">
+                <span className="clinic-ops__kpi-value">{progress.completed}</span>
+                <span className="clinic-ops__kpi-label">완료</span>
+              </div>
             </div>
             {progress.total > 0 && (
-              <div className="clinic-ops__progress-bar">
-                {progress.attended > 0 && (
-                  <div
-                    className="clinic-ops__progress-seg clinic-ops__progress-seg--attended"
-                    style={{ width: `${(progress.attended / progress.total) * 100}%` }}
-                  />
-                )}
-                {progress.noShow > 0 && (
-                  <div
-                    className="clinic-ops__progress-seg clinic-ops__progress-seg--noshow"
-                    style={{ width: `${(progress.noShow / progress.total) * 100}%` }}
-                  />
-                )}
-                {progress.pending > 0 && (
-                  <div
-                    className="clinic-ops__progress-seg clinic-ops__progress-seg--pending"
-                    style={{ width: `${(progress.pending / progress.total) * 100}%` }}
-                  />
-                )}
-              </div>
+              <>
+                {/* 출석 현황 바 */}
+                <div className="clinic-ops__progress-row">
+                  <span className="clinic-ops__progress-label">출석</span>
+                  <div className="clinic-ops__progress-bar">
+                    {progress.attended > 0 && (
+                      <div
+                        className="clinic-ops__progress-seg clinic-ops__progress-seg--attended"
+                        style={{ width: `${(progress.attended / progress.total) * 100}%` }}
+                      />
+                    )}
+                    {progress.noShow > 0 && (
+                      <div
+                        className="clinic-ops__progress-seg clinic-ops__progress-seg--noshow"
+                        style={{ width: `${(progress.noShow / progress.total) * 100}%` }}
+                      />
+                    )}
+                    {progress.pending > 0 && (
+                      <div
+                        className="clinic-ops__progress-seg clinic-ops__progress-seg--pending"
+                        style={{ width: `${(progress.pending / progress.total) * 100}%` }}
+                      />
+                    )}
+                  </div>
+                  <span className="clinic-ops__progress-fraction">{progress.attended}/{progress.total}</span>
+                </div>
+                {/* 완료 현황 바 (자율학습 포함) */}
+                <div className="clinic-ops__progress-row">
+                  <span className="clinic-ops__progress-label">완료</span>
+                  <div className="clinic-ops__progress-bar">
+                    {progress.completed > 0 && (
+                      <div
+                        className="clinic-ops__progress-seg clinic-ops__progress-seg--completed"
+                        style={{ width: `${(progress.completed / progress.total) * 100}%` }}
+                      />
+                    )}
+                  </div>
+                  <span className="clinic-ops__progress-fraction">{progress.completed}/{progress.total}</span>
+                </div>
+              </>
             )}
             {progress.total > 0 && progress.pending === 0 && (
               <p className="clinic-ops__all-done">
@@ -579,13 +634,17 @@ export default function ClinicConsoleWorkspace({
             return (
               <div
                 key={p.id}
-                className={`clinic-ops__card ${
+                className={`clinic-ops__card clinic-ops__card--clickable ${
                   isAttended
                     ? "clinic-ops__card--attended"
                     : isNoShow
                     ? "clinic-ops__card--noshow"
                     : "clinic-ops__card--pending"
                 }`}
+                onClick={() => setDrawerParticipantId(p.id)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => { if (e.key === "Enter") setDrawerParticipantId(p.id); }}
               >
                 {/* Status indicator bar (left) */}
                 <div
@@ -605,7 +664,8 @@ export default function ClinicConsoleWorkspace({
                       <button
                         type="button"
                         className="clinic-ops__card-name"
-                        onClick={() => {
+                        onClick={(e) => {
+                          e.stopPropagation();
                           if (p.student) setStudentOverlayId(p.student);
                         }}
                         title="학생 정보 보기"
@@ -631,7 +691,7 @@ export default function ClinicConsoleWorkspace({
                       </span>
                     </div>
 
-                    <div className="clinic-ops__card-actions">
+                    <div className="clinic-ops__card-actions" onClick={(e) => e.stopPropagation()}>
                       <button
                         type="button"
                         className={`clinic-ops__att-btn clinic-ops__att-btn--attend ${
@@ -701,15 +761,6 @@ export default function ClinicConsoleWorkspace({
                         </span>
                       )}
                     </div>
-                    <button
-                      type="button"
-                      className="clinic-ops__card-detail-btn"
-                      onClick={() => setDrawerParticipantId(p.id)}
-                      aria-label="상세 보기"
-                    >
-                      상세
-                      <ChevronRight size={14} aria-hidden />
-                    </button>
                   </div>
 
                   {/* Row 3: Inline actions — 자율학습 완료 / 진행중 점수입력 */}
@@ -721,7 +772,7 @@ export default function ClinicConsoleWorkspace({
                     if (isSelfStudy) {
                       // 자율학습: 완료 토글 버튼
                       return (
-                        <div className="clinic-ops__card-inline-actions">
+                        <div className="clinic-ops__card-inline-actions" onClick={(e) => e.stopPropagation()}>
                           {isCompleted ? (
                             <button
                               type="button"
@@ -753,7 +804,7 @@ export default function ClinicConsoleWorkspace({
                     if (unresolvedTargets.length > 0) {
                       // 진행중: 인라인 점수 입력
                       return (
-                        <div className="clinic-ops__card-inline-actions">
+                        <div className="clinic-ops__card-inline-actions" onClick={(e) => e.stopPropagation()}>
                           {unresolvedTargets.map((t) => (
                             <div
                               key={t.clinic_link_id}

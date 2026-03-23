@@ -457,6 +457,7 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
         <StudentScoresDrawer
           row={drawerRow}
           meta={meta}
+          sessionId={sessionId}
           onClose={() => { setDrawerEnrollmentId(null); setAnswerDetail(null); }}
           onOpenAnswerDetail={(examId, enrollmentId, examTitle) => {
             setAnswerDetail({ examId, enrollmentId, examTitle });

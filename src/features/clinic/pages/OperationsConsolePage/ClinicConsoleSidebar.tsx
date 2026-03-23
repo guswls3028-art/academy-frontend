@@ -7,7 +7,7 @@
 import { useMemo } from "react";
 import dayjs from "dayjs";
 import "dayjs/locale/ko";
-import { Clock, MapPin } from "lucide-react";
+import { Clock, MapPin, Plus, Copy, Pencil, Trash2 } from "lucide-react";
 import type { ClinicSessionTreeNode } from "../../api/clinicSessions.api";
 
 dayjs.locale("ko");
@@ -43,6 +43,10 @@ type Props = {
   onNextMonth: () => void;
   selectedSessionId: number | null;
   onSelectSession: (id: number) => void;
+  onCreateClick?: () => void;
+  onImportClick?: () => void;
+  onEditSession?: (sessionId: number) => void;
+  onDeleteSession?: (sessionId: number, label: string) => void;
 };
 
 export default function ClinicConsoleSidebar({
@@ -56,6 +60,10 @@ export default function ClinicConsoleSidebar({
   onNextMonth,
   selectedSessionId,
   onSelectSession,
+  onCreateClick,
+  onImportClick,
+  onEditSession,
+  onDeleteSession,
 }: Props) {
   const sessionsByDate = useMemo(() => {
     const map: Record<string, ClinicSessionTreeNode[]> = {};
@@ -158,8 +166,34 @@ export default function ClinicConsoleSidebar({
           padding: "var(--space-2) 0",
         }}
       >
-        <div className="clinic-sidebar__section-label">
-          클리닉 수업
+        <div className="clinic-sidebar__section-header">
+          <div className="clinic-sidebar__section-label">
+            클리닉 수업
+          </div>
+          {selectedDay >= todayISO && (
+            <div className="clinic-sidebar__section-actions">
+              {onImportClick && (
+                <button
+                  type="button"
+                  className="clinic-sidebar__section-action-btn"
+                  title="이전 주 불러오기"
+                  onClick={onImportClick}
+                >
+                  <Copy size={13} aria-hidden />
+                </button>
+              )}
+              {onCreateClick && (
+                <button
+                  type="button"
+                  className="clinic-sidebar__section-action-btn clinic-sidebar__section-action-btn--primary"
+                  title="클리닉 만들기"
+                  onClick={onCreateClick}
+                >
+                  <Plus size={14} aria-hidden />
+                </button>
+              )}
+            </div>
+          )}
         </div>
         {sessionsForDay.length === 0 ? (
           <p
@@ -191,52 +225,85 @@ export default function ClinicConsoleSidebar({
 
               return (
                 <li key={s.id}>
-                  <button
-                    type="button"
-                    onClick={() => onSelectSession(s.id)}
-                    className={cx(
-                      "clinic-console__sidebar-session",
-                      isActive && "clinic-console__sidebar-session--active"
-                    )}
-                  >
-                    <div className="clinic-sidebar__session-content">
-                      <div className="clinic-console__sidebar-session-top">
-                        <Clock size={13} aria-hidden />
-                        <span className="clinic-console__sidebar-session-time">
-                          {time}
-                        </span>
-                        {s.location && (
-                          <>
-                            <MapPin
-                              size={11}
-                              aria-hidden
-                              style={{ opacity: 0.6 }}
+                  <div className={cx(
+                    "clinic-console__sidebar-session-wrap",
+                    isActive && "clinic-console__sidebar-session-wrap--active"
+                  )}>
+                    <button
+                      type="button"
+                      onClick={() => onSelectSession(s.id)}
+                      className={cx(
+                        "clinic-console__sidebar-session",
+                        isActive && "clinic-console__sidebar-session--active"
+                      )}
+                    >
+                      <div className="clinic-sidebar__session-content">
+                        <div className="clinic-console__sidebar-session-top">
+                          <Clock size={13} aria-hidden />
+                          <span className="clinic-console__sidebar-session-time">
+                            {time}
+                          </span>
+                          {s.location && (
+                            <>
+                              <MapPin
+                                size={11}
+                                aria-hidden
+                                style={{ opacity: 0.6 }}
+                              />
+                              <span className="clinic-console__sidebar-session-location">
+                                {s.location}
+                              </span>
+                            </>
+                          )}
+                        </div>
+                        {/* Mini progress bar */}
+                        {total > 0 && (
+                          <div className="clinic-sidebar__mini-progress">
+                            <div
+                              className="clinic-sidebar__mini-progress-fill"
+                              style={{ width: `${Math.min(100, progressPct)}%` }}
                             />
-                            <span className="clinic-console__sidebar-session-location">
-                              {s.location}
-                            </span>
-                          </>
+                          </div>
                         )}
                       </div>
-                      {/* Mini progress bar */}
-                      {total > 0 && (
-                        <div className="clinic-sidebar__mini-progress">
-                          <div
-                            className="clinic-sidebar__mini-progress-fill"
-                            style={{ width: `${Math.min(100, progressPct)}%` }}
-                          />
-                        </div>
-                      )}
-                    </div>
-                    <div className="clinic-console__sidebar-session-meta">
-                      {booked > 0 && (
-                        <span className="clinic-console__sidebar-session-pending-dot" aria-label={`미확인 ${booked}명`} />
-                      )}
-                      <span className="clinic-console__sidebar-session-badge">
-                        {total}명
-                      </span>
-                    </div>
-                  </button>
+                      <div className="clinic-console__sidebar-session-meta">
+                        {booked > 0 && (
+                          <span className="clinic-console__sidebar-session-pending-dot" aria-label={`미확인 ${booked}명`} />
+                        )}
+                        <span className="clinic-console__sidebar-session-badge">
+                          {total}명
+                        </span>
+                      </div>
+                    </button>
+                    {selectedDay >= todayISO && isActive && (onEditSession || onDeleteSession) && (
+                      <div className="clinic-sidebar__session-inline-actions">
+                        {onEditSession && (
+                          <button
+                            type="button"
+                            className="clinic-sidebar__session-inline-btn"
+                            title="수정"
+                            onClick={(e) => { e.stopPropagation(); onEditSession(s.id); }}
+                          >
+                            <Pencil size={12} aria-hidden />
+                          </button>
+                        )}
+                        {onDeleteSession && (
+                          <button
+                            type="button"
+                            className="clinic-sidebar__session-inline-btn clinic-sidebar__session-inline-btn--danger"
+                            title="삭제"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const label = `${time} ${s.location || ""}`.trim();
+                              onDeleteSession(s.id, label);
+                            }}
+                          >
+                            <Trash2 size={12} aria-hidden />
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </li>
               );
             })}

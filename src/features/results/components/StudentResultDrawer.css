@@ -1,168 +1,900 @@
-/* 시험 통계 학생 상세 드로어 — 답안지 탭 내부 */
+/* ================================================================
+   답안 상세 모달 — 중앙 오버레이 (936px, 답안등록 모달과 동일 사이즈)
+   ================================================================ */
 
-.student-result-drawer__answer {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-5);
+/* ── 백드롭 ── */
+.srd-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 200;
+  animation: srd-fadeIn 0.15s ease;
 }
 
-.student-result-drawer__section {
-  padding-bottom: var(--space-4);
-  border-bottom: 1px solid var(--color-border-divider);
+@keyframes srd-fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
-.student-result-drawer__section:last-of-type {
-  border-bottom: none;
-}
-
-.student-result-drawer__section-title {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--color-text-primary);
-  margin: 0 0 var(--space-3);
-}
-
-.student-result-drawer__scan {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-
-.student-result-drawer__scan-img {
-  max-width: 100%;
-  max-height: 160px;
-  object-fit: contain;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--color-border-divider);
-  background: var(--color-bg-surface-soft);
-}
-
-.student-result-drawer__scan-actions {
+/* ── 모달 래퍼 (중앙 정렬) ── */
+.srd-modal-wrap {
+  position: fixed;
+  inset: 0;
+  z-index: 201;
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  justify-content: center;
+  padding: 24px;
+  pointer-events: none;
 }
 
-.student-result-drawer__link {
+/* ── 모달 본체 ── */
+.srd-modal {
+  pointer-events: auto;
+  width: 936px;
+  max-width: 100%;
+  height: min(85vh, 720px);
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg-surface, #fff);
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(0, 0, 0, 0.05);
+  animation: srd-scaleIn 0.2s cubic-bezier(0.32, 0.72, 0, 1);
+  overflow: hidden;
+  position: relative;
+}
+
+@keyframes srd-scaleIn {
+  from { transform: scale(0.96); opacity: 0.8; }
+  to   { transform: scale(1);    opacity: 1; }
+}
+
+.srd-modal__close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 2;
+}
+
+/* ── 헤더 ── */
+.srd-modal__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px 12px;
+  border-bottom: 1px solid var(--color-border-divider, #e5e7eb);
+  flex-shrink: 0;
+  padding-right: 52px;
+}
+
+.srd-modal__header-inner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.srd-modal__title {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--color-text-primary, #111827);
+  margin: 0;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.srd-modal__student-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--color-brand-primary, #6366f1) 10%, transparent);
+  color: var(--color-brand-primary, #6366f1);
+  font-size: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.srd-modal__header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.srd-modal__edit-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 14px;
+  border: 1px solid var(--color-brand-primary, #6366f1);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--color-brand-primary, #6366f1) 8%, transparent);
+  color: var(--color-brand-primary, #6366f1);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.srd-modal__edit-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-brand-primary, #6366f1) 15%, transparent);
+}
+
+.srd-modal__edit-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.srd-modal__view-btn {
+  padding: 6px 14px;
+  border: none;
+  border-radius: 6px;
+  background: var(--color-brand-primary, #6366f1);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.srd-modal__view-btn:hover {
+  opacity: 0.85;
+}
+
+/* ── 시도 차수 탭 ── */
+.srd-modal__attempt-tabs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 20px;
+  border-bottom: 1px solid var(--color-border-divider, #e5e7eb);
+  flex-shrink: 0;
+  overflow-x: auto;
+  background: color-mix(in srgb, var(--color-brand-primary, #6366f1) 2%, var(--color-bg-surface, #fff));
+}
+
+.srd-attempt-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border: 1.5px solid var(--color-border-divider, #d1d5db);
+  border-radius: 8px;
+  background: var(--color-bg-surface, #fff);
   font-size: 13px;
   font-weight: 600;
-  color: var(--color-brand-primary);
+  color: var(--color-text-secondary, #6b7280);
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
-.student-result-drawer__link:hover {
+.srd-attempt-tab:hover {
+  border-color: var(--color-brand-primary, #6366f1);
+  color: var(--color-brand-primary, #6366f1);
+}
+
+.srd-attempt-tab--active {
+  border-color: var(--color-brand-primary, #6366f1);
+  background: color-mix(in srgb, var(--color-brand-primary, #6366f1) 10%, var(--color-bg-surface, #fff));
+  color: var(--color-brand-primary, #6366f1);
+  font-weight: 700;
+  box-shadow: 0 0 0 1px var(--color-brand-primary, #6366f1);
+}
+
+.srd-attempt-tab--pass {
+  border-color: color-mix(in srgb, var(--color-success, #10b981) 40%, var(--color-border-divider, #d1d5db));
+}
+
+.srd-attempt-tab__score {
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.srd-attempt-tab__score--pass { color: var(--color-success, #10b981); }
+.srd-attempt-tab__score--fail { color: var(--color-error, #ef4444); }
+
+/* ── 메인 탭 (답안지/오답노트) ── */
+.srd-modal__tabs {
+  padding: 0 20px;
+  border-bottom: 1px solid var(--color-border-divider, #e5e7eb);
+  flex-shrink: 0;
+}
+
+.srd-modal__tab-bar {
+  display: flex;
+  gap: 0;
+}
+
+.srd-modal__tab {
+  padding: 8px 16px;
+  border: none;
+  background: none;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-muted, #9ca3af);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.15s;
+}
+
+.srd-modal__tab:hover {
+  color: var(--color-text-primary, #111827);
+}
+
+.srd-modal__tab--active {
+  color: var(--color-brand-primary, #6366f1);
+  border-bottom-color: var(--color-brand-primary, #6366f1);
+}
+
+/* ── 본문 ── */
+.srd-modal__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px;
+}
+
+.srd-modal__loading,
+.srd-modal__error,
+.srd-modal__empty-edit {
+  padding: 32px 0;
+  text-align: center;
+  font-size: 13px;
+}
+
+.srd-modal__empty-edit-sub {
+  font-size: 12px;
+  color: var(--color-text-muted, #9ca3af);
+  margin-top: 4px;
+}
+
+.srd-modal__loading {
+  color: var(--color-text-muted, #9ca3af);
+}
+
+.srd-modal__error {
+  color: var(--color-error, #ef4444);
+}
+
+/* ================================================================
+   읽기 모드
+   ================================================================ */
+
+.srd-read {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.srd-read__section {
+  padding-bottom: 12px;
+}
+
+.srd-read__section-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-muted, #9ca3af);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 0 0 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.srd-read__count {
+  font-size: 10px;
+  font-weight: 600;
+  background: color-mix(in srgb, var(--color-brand-primary, #6366f1) 8%, transparent);
+  border-radius: 10px;
+  padding: 1px 7px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* 스캔 이미지 */
+.srd-read__scan {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.srd-read__scan-img {
+  max-width: 100%;
+  max-height: 200px;
+  object-fit: contain;
+  border-radius: 8px;
+  border: 1px solid var(--color-border-divider, #e5e7eb);
+  background: var(--color-bg-surface-soft, #f9fafb);
+}
+
+.srd-read__scan-link {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-brand-primary, #6366f1);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.srd-read__scan-link:hover {
   text-decoration: underline;
 }
 
-.student-result-drawer__choice-list,
-.student-result-drawer__essay-list {
+/* 스캔 이미지 없음 placeholder */
+.srd-read__scan-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 24px 16px;
+  background: var(--color-bg-surface-soft, #f9fafb);
+  border: 1.5px dashed var(--color-border-divider, #d1d5db);
+  border-radius: 8px;
+  color: var(--color-text-muted, #9ca3af);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+/* 2컬럼 레이아웃 */
+.srd-read__columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+@media (max-width: 720px) {
+  .srd-read__columns { grid-template-columns: 1fr; }
+}
+
+.srd-read__column {
+  min-width: 0;
+}
+
+.srd-read__empty {
+  font-size: 13px;
+  color: var(--color-text-muted, #9ca3af);
+  padding: 8px 0;
+}
+
+/* 선택형 답안 */
+.srd-read__choice-list,
+.srd-read__essay-list {
   list-style: none;
   margin: 0;
   padding: 0;
 }
 
-.student-result-drawer__choice-row {
+.srd-read__choice-row {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-2) 0;
-  border-bottom: 1px solid var(--color-border-divider);
+  gap: 10px;
+  padding: 5px 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border-divider, #e5e7eb) 60%, transparent);
   font-size: 13px;
 }
 
-.student-result-drawer__choice-row:last-child {
+.srd-read__choice-row:last-child {
   border-bottom: none;
 }
 
-.student-result-drawer__choice-num {
+.srd-read__q-num {
   width: 24px;
   flex-shrink: 0;
-  font-weight: 600;
-  color: var(--color-text-primary);
+  font-weight: 700;
+  color: var(--color-text-primary, #111827);
   text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
-.student-result-drawer__choice-bubbles {
+.srd-read__bubbles {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: 6px;
 }
 
-.student-result-drawer__bubble-wrap {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-}
-
-.student-result-drawer__bubble {
+.srd-read__bubble {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
-  border: 1.5px solid var(--color-border-divider);
-  background: var(--color-bg-surface);
+  border: 1.5px solid var(--color-border-divider, #d1d5db);
+  background: var(--color-bg-surface, #fff);
   font-size: 11px;
   font-weight: 600;
-  color: var(--color-text-secondary);
+  color: var(--color-text-muted, #9ca3af);
+  position: relative;
 }
 
-.student-result-drawer__bubble--correct {
-  border-color: var(--color-success);
-  background: color-mix(in srgb, var(--color-success) 18%, var(--color-bg-surface));
-  color: var(--color-success);
+.srd-read__bubble--correct {
+  border-color: var(--color-success, #10b981);
+  background: color-mix(in srgb, var(--color-success, #10b981) 15%, var(--color-bg-surface, #fff));
+  color: var(--color-success, #10b981);
 }
 
-.student-result-drawer__bubble--wrong {
-  border-color: var(--color-error);
-  background: color-mix(in srgb, var(--color-error) 12%, var(--color-bg-surface));
-  color: var(--color-error);
+.srd-read__bubble--wrong {
+  border-color: var(--color-error, #ef4444);
+  background: color-mix(in srgb, var(--color-error, #ef4444) 10%, var(--color-bg-surface, #fff));
+  color: var(--color-error, #ef4444);
 }
 
-.student-result-drawer__bubble-x {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--color-error);
+.srd-read__bubble-x {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--color-error, #ef4444);
   line-height: 1;
 }
 
-.student-result-drawer__essay-row {
+.srd-read__q-score {
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+.srd-read__q-score--pass { color: var(--color-success, #10b981); }
+.srd-read__q-score--fail { color: var(--color-error, #ef4444); }
+
+/* 서술형 답안 */
+.srd-read__essay-row {
   display: flex;
   align-items: flex-start;
-  gap: var(--space-3);
-  padding: var(--space-2) 0;
-  border-bottom: 1px solid var(--color-border-divider);
+  gap: 10px;
+  padding: 6px 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border-divider, #e5e7eb) 60%, transparent);
   font-size: 13px;
 }
 
-.student-result-drawer__essay-row:last-child {
+.srd-read__essay-row:last-child {
   border-bottom: none;
 }
 
-.student-result-drawer__essay-num {
-  flex-shrink: 0;
-  font-weight: 600;
-  color: var(--color-text-primary);
-}
-
-.student-result-drawer__essay-answer {
+.srd-read__essay-answer {
   flex: 1;
   min-width: 0;
-  color: var(--color-text-primary);
+  color: var(--color-text-primary, #111827);
   word-break: break-word;
 }
 
-.student-result-drawer__essay-score {
-  flex-shrink: 0;
-  font-size: 12px;
-  color: var(--color-text-muted);
+/* 총점 */
+.srd-read__total {
+  padding-top: 12px;
+  border-top: 1px solid var(--color-border-divider, #e5e7eb);
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--color-text-primary, #111827);
 }
 
-.student-result-drawer__total {
-  margin-top: var(--space-4);
-  padding-top: var(--space-4);
-  border-top: 1px solid var(--color-border-divider);
+/* ================================================================
+   편집 모드 — 답안등록 모달과 동일 디자인
+   ================================================================ */
+
+.srd-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.srd-edit__scan-ref {
+  padding: 8px;
+  background: var(--color-bg-surface-soft, #f9fafb);
+  border: 1px solid var(--color-border-divider, #e5e7eb);
+  border-radius: 8px;
+  text-align: center;
+}
+
+.srd-edit__scan-img {
+  max-width: 100%;
+  max-height: 160px;
+  object-fit: contain;
+  border-radius: 6px;
+}
+
+/* 2컬럼 (답안등록 모달과 동일) — 모달 body가 스크롤 담당 */
+.srd-edit__columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+@media (max-width: 720px) {
+  .srd-edit__columns { grid-template-columns: 1fr; }
+}
+
+.srd-edit__column {
+  min-width: 0;
+}
+
+.srd-edit__column-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text-primary, #111827);
+  margin: 0 0 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--color-border-divider, #e5e7eb);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.srd-edit__column-count {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--color-text-muted, #9ca3af);
+  background: color-mix(in srgb, var(--color-brand-primary, #6366f1) 8%, transparent);
+  border-radius: 10px;
+  padding: 1px 7px;
+}
+
+.srd-edit__scroll-list {
+  /* 모달 body가 스크롤 — 여기선 컨텐츠 자연 높이 */
+}
+
+/* ── 행 (선택형/서술형 공통) ── */
+.srd-edit__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border-divider, #e5e7eb) 40%, transparent);
+}
+
+.srd-edit__row--divider {
+  border-bottom: 1.5px solid var(--color-border-divider, #e5e7eb);
+  padding-bottom: 10px;
+  margin-bottom: 4px;
+}
+
+.srd-edit__q-num {
+  width: 26px;
+  flex-shrink: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text-primary, #111827);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── 버블 (답안등록 모달과 동일) ── */
+.srd-edit__bubbles {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.srd-edit__bubble {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 14px;
+  border: 1.5px solid var(--color-border-divider, #d1d5db);
+  background: var(--color-bg-surface, #fff);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary, #6b7280);
+  cursor: pointer;
+  transition: all 0.12s;
+  outline: none;
+  padding: 0;
+}
+
+.srd-edit__bubble:hover {
+  border-color: var(--color-brand-primary, #6366f1);
+  background: color-mix(in srgb, var(--color-brand-primary, #6366f1) 6%, transparent);
+}
+
+.srd-edit__bubble:focus-visible {
+  box-shadow: 0 0 0 2px var(--color-bg-surface, #fff), 0 0 0 4px var(--color-brand-primary, #6366f1);
+  border-color: var(--color-brand-primary, #6366f1);
+}
+
+.srd-edit__bubble--selected {
+  border-color: var(--color-brand-primary, #6366f1);
+  background: color-mix(in srgb, var(--color-brand-primary, #6366f1) 22%, var(--color-bg-surface, #fff));
+  color: var(--color-brand-primary, #6366f1);
+  font-weight: 800;
+  box-shadow: 0 0 0 1px var(--color-brand-primary, #6366f1);
+}
+
+/* ── 서술형 답안 미리보기 + 점수 입력 ── */
+.srd-edit__essay-answer-preview {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  color: var(--color-text-secondary, #6b7280);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.srd-edit__essay-score-wrap {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.srd-edit__essay-input {
+  width: 56px;
+  height: 28px;
+  padding: 2px 6px;
+  border: 1px solid var(--color-border, #d1d5db);
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  text-align: right;
+  background: var(--color-bg-surface, #fff);
+  font-variant-numeric: tabular-nums;
+  transition: border-color 0.15s;
+}
+
+.srd-edit__essay-input:focus {
+  outline: none;
+  border-color: var(--color-brand-primary, #6366f1);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-brand-primary, #6366f1) 15%, transparent);
+}
+
+.srd-edit__essay-input::-webkit-outer-spin-button,
+.srd-edit__essay-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.srd-edit__essay-input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+.srd-edit__essay-max {
+  font-size: 12px;
+  color: var(--color-text-muted, #9ca3af);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── 총점 ── */
+.srd-edit__total {
+  padding-top: 12px;
+  border-top: 1px solid var(--color-border-divider, #e5e7eb);
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--color-text-primary, #111827);
+  flex-shrink: 0;
+}
+
+/* ════════════════════════════════════════════
+   2차+ 재시험 뷰
+   ════════════════════════════════════════════ */
+
+.srd-retake-view {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 16px;
+}
+
+.srd-retake-view__card {
+  width: 100%;
+  max-width: 400px;
+  padding: 24px;
+  border-radius: 12px;
+  border: 1.5px solid var(--color-border-divider, #e5e7eb);
+  background: var(--color-bg-surface, #fff);
+  text-align: center;
+}
+
+.srd-retake-view__card--pass {
+  border-color: color-mix(in srgb, var(--color-success, #10b981) 40%, transparent);
+  background: color-mix(in srgb, var(--color-success, #10b981) 4%, var(--color-bg-surface, #fff));
+}
+
+.srd-retake-view__card--fail {
+  border-color: color-mix(in srgb, var(--color-error, #ef4444) 30%, transparent);
+  background: color-mix(in srgb, var(--color-error, #ef4444) 3%, var(--color-bg-surface, #fff));
+}
+
+.srd-retake-view__header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.srd-retake-view__label {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-text-primary, #111827);
+}
+
+.srd-retake-view__badge {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 2px 10px;
+  border-radius: 6px;
+  color: #fff;
+}
+.srd-retake-view__badge--pass { background: var(--color-success, #10b981); }
+.srd-retake-view__badge--fail { background: var(--color-error, #ef4444); }
+
+.srd-retake-view__score {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.srd-retake-view__score-val {
+  font-size: 36px;
+  font-weight: 800;
+  color: var(--color-text-primary, #111827);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.srd-retake-view__card--pass .srd-retake-view__score-val { color: var(--color-success, #10b981); }
+.srd-retake-view__card--fail .srd-retake-view__score-val { color: var(--color-error, #ef4444); }
+
+.srd-retake-view__score-max {
+  font-size: 16px;
+  color: var(--color-text-muted, #9ca3af);
+  font-weight: 500;
+}
+
+.srd-retake-view__pct {
   font-size: 14px;
   font-weight: 700;
-  color: var(--color-text-primary);
+  color: var(--color-text-secondary, #6b7280);
+  margin-left: 4px;
+}
+
+.srd-retake-view__cutline {
+  font-size: 13px;
+  color: var(--color-text-muted, #9ca3af);
+  margin-bottom: 12px;
+}
+
+.srd-retake-view__note {
+  font-size: 12px;
+  color: var(--color-text-muted, #9ca3af);
+  padding-top: 12px;
+  border-top: 1px solid var(--color-border-divider, #e5e7eb);
+}
+
+/* ════════════════════════════════════════════
+   편집 리스트 헤더
+   ════════════════════════════════════════════ */
+
+.srd-edit__list-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 2px solid var(--color-border-divider, #e5e7eb);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-text-muted, #9ca3af);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.srd-edit__list-header-num { width: 32px; text-align: right; flex-shrink: 0; }
+.srd-edit__list-header-answer { flex: 1; min-width: 0; }
+.srd-edit__list-header-score { width: 90px; flex-shrink: 0; }
+.srd-edit__list-header-ctrl { width: 160px; flex-shrink: 0; text-align: right; }
+
+.srd-edit__list {
+  /* 모달 body가 스크롤 담당 */
+}
+
+.srd-edit__q-answer {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  color: var(--color-text-secondary, #6b7280);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ════════════════════════════════════════════
+   점수 조절 컨트롤 (답안등록 모달과 동일 디자인)
+   ════════════════════════════════════════════ */
+
+.srd-score-ctrl {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.srd-score-ctrl__val {
+  font-size: 12px;
+  font-weight: 700;
+  min-width: 32px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.srd-score-ctrl__btns {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.srd-score-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 24px;
+  padding: 0 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.12s;
+  outline: none;
+  line-height: 1;
+}
+
+.srd-score-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.srd-score-btn--p1 {
+  background: #dbeafe;
+  border: 1px solid #93c5fd;
+  color: #1d4ed8;
+}
+.srd-score-btn--p1:hover:not(:disabled) {
+  background: #93c5fd;
+  color: #fff;
+}
+
+.srd-score-btn--p2 {
+  background: #d1fae5;
+  border: 1px solid #6ee7b7;
+  color: #047857;
+}
+.srd-score-btn--p2:hover:not(:disabled) {
+  background: #6ee7b7;
+  color: #fff;
+}
+
+.srd-score-btn--p5 {
+  background: #fce7f3;
+  border: 1px solid #f9a8d4;
+  color: #be185d;
+}
+.srd-score-btn--p5:hover:not(:disabled) {
+  background: #f9a8d4;
+  color: #fff;
+}
+
+.srd-score-btn--reset {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  background: transparent;
+  border: 1px solid var(--color-border-divider, #e5e7eb);
+  color: var(--color-text-muted, #9ca3af);
+  border-radius: 4px;
+}
+.srd-score-btn--reset:hover:not(:disabled) {
+  border-color: var(--color-error, #ef4444);
+  color: var(--color-error, #ef4444);
+  background: color-mix(in srgb, var(--color-error, #ef4444) 8%, transparent);
 }

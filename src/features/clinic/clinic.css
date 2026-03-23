@@ -4122,6 +4122,10 @@ details[open] > .clinic-tree__summary {
   transition: box-shadow 0.15s ease, border-color 0.15s ease, opacity 0.2s ease;
 }
 
+.clinic-ops__card--clickable {
+  cursor: pointer;
+}
+
 .clinic-ops__card:hover {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
