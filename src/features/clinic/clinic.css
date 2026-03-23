@@ -5987,6 +5987,156 @@ details[open] > .clinic-tree__summary {
 .clinic-hub__score-submit:hover:not(:disabled) { opacity: 0.85; }
 .clinic-hub__score-submit:disabled { opacity: 0.4; cursor: not-allowed; }
 
+/* ══════════════════════════════════════════════════════════
+   Clinic Session Block — 주간 요약 차시블록 (hover 편집)
+   ══════════════════════════════════════════════════════════ */
+
+.clinic-session-block {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: var(--radius-md, 8px);
+  border: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface);
+  font-size: 11px;
+  font-weight: 500;
+  transition: border-color 0.15s, background-color 0.15s;
+}
+
+.clinic-session-block:hover {
+  border-color: color-mix(in srgb, var(--color-brand-primary) 40%, var(--color-border-divider));
+  background: color-mix(in srgb, var(--color-brand-primary) 4%, var(--color-bg-surface));
+}
+
+.clinic-session-block__text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 톱니 아이콘 — hover 시에만 표시 */
+.clinic-session-block__gear {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: none;
+  border-radius: var(--radius-sm, 4px);
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.12s, background-color 0.12s, color 0.12s;
+}
+
+.clinic-session-block:hover .clinic-session-block__gear {
+  opacity: 1;
+}
+
+.clinic-session-block__gear:hover {
+  background: color-mix(in srgb, var(--color-brand-primary) 12%, var(--color-bg-surface));
+  color: var(--color-brand-primary);
+}
+
+/* 액션 드롭다운 */
+.clinic-session-block__menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 50;
+  margin-top: 4px;
+  min-width: 100px;
+  padding: 4px;
+  border-radius: var(--radius-md, 8px);
+  border: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface);
+  box-shadow: var(--elevation-2);
+}
+
+.clinic-session-block__menu button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 6px 10px;
+  border: none;
+  border-radius: var(--radius-sm, 4px);
+  background: transparent;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: background-color 0.12s, color 0.12s;
+}
+
+.clinic-session-block__menu button:hover {
+  background: var(--color-bg-surface-hover);
+  color: var(--color-text-primary);
+}
+
+.clinic-session-block__menu-danger {
+  color: var(--color-error) !important;
+}
+
+.clinic-session-block__menu-danger:hover {
+  background: color-mix(in srgb, var(--color-error) 8%, var(--color-bg-surface)) !important;
+  color: var(--color-error) !important;
+}
+
+/* 삭제 경고 */
+.clinic-session-block__delete-warn {
+  display: flex;
+  gap: var(--space-4);
+  padding: var(--space-2) 0;
+}
+
+.clinic-session-block__delete-warn-icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-lg, 12px);
+  background: color-mix(in srgb, var(--color-error) 10%, var(--color-bg-surface));
+  color: var(--color-error);
+}
+
+.clinic-session-block__delete-warn-body {
+  flex: 1;
+}
+
+.clinic-session-block__delete-warn-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin: 0 0 var(--space-2) 0;
+}
+
+.clinic-session-block__delete-warn-desc {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+  margin: 0 0 var(--space-3) 0;
+}
+
+.clinic-session-block__delete-warn-detail {
+  display: inline-flex;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm, 4px);
+  background: color-mix(in srgb, var(--color-error) 8%, var(--color-bg-surface));
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-error);
+}
+
 /* ── Resolved inline label ── */
 .clinic-hub__resolved-inline {
   font-size: 12px;
