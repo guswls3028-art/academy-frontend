@@ -3862,6 +3862,30 @@ details[open] > .clinic-tree__summary {
   line-height: 1;
 }
 
+.clinic-ops__action-btn--ghost {
+  border: 1px solid var(--color-border-divider);
+  background: transparent;
+  color: var(--color-text-secondary);
+}
+
+.clinic-ops__action-btn--ghost:hover {
+  border-color: var(--color-brand-primary);
+  color: var(--color-brand-primary);
+  background: color-mix(in srgb, var(--color-brand-primary) 6%, transparent);
+}
+
+.clinic-ops__action-btn--danger {
+  border: 1px solid color-mix(in srgb, var(--color-error) 30%, var(--color-border-divider));
+  background: transparent;
+  color: var(--color-text-muted);
+}
+
+.clinic-ops__action-btn--danger:hover {
+  border-color: var(--color-error);
+  color: var(--color-error);
+  background: color-mix(in srgb, var(--color-error) 6%, transparent);
+}
+
 .clinic-ops__action-btn--secondary {
   border: 1px dashed var(--color-brand-primary);
   background: transparent;
@@ -4978,6 +5002,13 @@ details[open] > .clinic-tree__summary {
 }
 
 /* ── E. 좌측 사이드바 강화 ── */
+.clinic-sidebar__section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-right: var(--space-3);
+}
+
 .clinic-sidebar__section-label {
   padding: var(--space-2) var(--space-4);
   font-size: 12px;
@@ -4985,6 +5016,78 @@ details[open] > .clinic-tree__summary {
   color: var(--color-text-muted);
   text-transform: uppercase;
   letter-spacing: 0.04em;
+}
+
+.clinic-sidebar__section-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.clinic-sidebar__section-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-sm, 6px);
+  background: var(--color-bg-surface);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.clinic-sidebar__section-action-btn:hover {
+  border-color: var(--color-brand-primary);
+  color: var(--color-brand-primary);
+  background: color-mix(in srgb, var(--color-brand-primary) 6%, transparent);
+}
+
+.clinic-sidebar__section-action-btn--primary {
+  border-color: var(--color-brand-primary);
+  color: var(--color-brand-primary);
+  background: color-mix(in srgb, var(--color-brand-primary) 8%, transparent);
+}
+
+.clinic-sidebar__section-action-btn--primary:hover {
+  background: var(--color-brand-primary);
+  color: #fff;
+}
+
+/* 세션 항목 인라인 액션 (수정/삭제) */
+.clinic-sidebar__session-inline-actions {
+  display: flex;
+  gap: 2px;
+  margin-top: 4px;
+  padding: 0 var(--space-3) var(--space-1);
+  justify-content: flex-end;
+}
+
+.clinic-sidebar__session-inline-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: var(--radius-sm, 4px);
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+  opacity: 0.6;
+}
+
+.clinic-sidebar__session-inline-btn:hover {
+  opacity: 1;
+  background: color-mix(in srgb, var(--color-brand-primary) 10%, transparent);
+  color: var(--color-brand-primary);
+}
+
+.clinic-sidebar__session-inline-btn--danger:hover {
+  background: color-mix(in srgb, var(--color-error) 10%, transparent);
+  color: var(--color-error);
 }
 
 .clinic-sidebar__session-content {
@@ -5309,12 +5412,18 @@ details[open] > .clinic-tree__summary {
   background: var(--color-bg-surface);
   color: var(--color-text-muted);
   cursor: pointer;
-  transition: all 0.15s;
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.clinic-hub__view-btn:hover:not(.clinic-hub__view-btn--active) {
+  background: var(--color-bg-surface-hover);
+  color: var(--color-text-primary);
 }
 
 .clinic-hub__view-btn--active {
-  background: var(--color-brand-primary);
-  color: #fff;
+  background: color-mix(in srgb, var(--color-brand-primary) 16%, var(--color-bg-surface));
+  color: var(--color-brand-primary);
+  font-weight: 600;
 }
 
 .clinic-hub__filter-chips {
@@ -5331,13 +5440,19 @@ details[open] > .clinic-tree__summary {
   background: var(--color-bg-surface);
   color: var(--color-text-secondary);
   cursor: pointer;
-  transition: all 0.15s;
+  transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.clinic-hub__filter-chip:hover:not(.clinic-hub__filter-chip--active) {
+  background: var(--color-bg-surface-hover);
+  color: var(--color-text-primary);
 }
 
 .clinic-hub__filter-chip--active {
   border-color: var(--color-brand-primary);
-  background: var(--color-brand-primary);
-  color: #fff;
+  background: color-mix(in srgb, var(--color-brand-primary) 14%, var(--color-bg-surface));
+  color: var(--color-brand-primary);
+  font-weight: 600;
 }
 
 .clinic-hub__search {
@@ -5654,38 +5769,14 @@ details[open] > .clinic-tree__summary {
 }
 
 /* ── Item Table (항목 중심 뷰) ── */
-.clinic-hub__item-table-wrap {
-  border: 1px solid var(--color-border-divider);
-  border-radius: var(--radius-lg, 12px);
-  overflow: hidden;
-}
-
-.clinic-hub__item-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
-}
-
+/* clinic-hub__item-table: 기본 구조는 ds-table SSOT 위임, 여기는 보조 스타일만 */
 .clinic-hub__item-table thead th {
-  padding: 10px 12px;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--color-text-muted);
   text-align: left;
-  border-bottom: 1px solid var(--color-border-divider);
-  background: var(--color-bg-surface-soft);
 }
 
 .clinic-hub__item-table tbody td {
-  padding: 10px 12px;
-  border-bottom: 1px solid var(--color-border-divider);
+  text-align: left;
   vertical-align: middle;
-}
-
-.clinic-hub__item-table tbody tr:last-child td { border-bottom: none; }
-
-.clinic-hub__item-table tbody tr:hover {
-  background: color-mix(in srgb, var(--color-brand-primary) 3%, transparent);
 }
 
 .clinic-hub__cell-name { font-weight: 600; color: var(--color-text-primary); }

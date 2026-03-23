@@ -14,7 +14,6 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
   CheckCircle2,
-  Clock,
   FileQuestion,
   BookOpen,
   Users,
@@ -47,19 +46,17 @@ type StudentGroup = {
 };
 
 type ViewMode = "students" | "items";
-type ReasonFilter = "all" | "score" | "missing" | "confidence";
+type ReasonFilter = "all" | "score" | "confidence";
 
 /* ── Helpers ── */
 
 const REASON_LABEL: Record<string, string> = {
   score: "불합격",
-  missing: "미응시",
   confidence: "신뢰도 낮음",
 };
 
 const REASON_COLOR: Record<string, string> = {
   score: "var(--color-error)",
-  missing: "var(--color-warning)",
   confidence: "var(--color-info, #3b82f6)",
 };
 
@@ -74,7 +71,6 @@ function formatNextAttempt(latestIndex?: number): string {
 }
 
 function formatScoreDisplay(item: ClinicTarget): string {
-  if (item.reason === "missing") return "미응시";
   const score = item.exam_score;
   const cutline = item.cutline_score;
   if (score == null) return "-";
@@ -179,13 +175,11 @@ export default function ClinicBookingsPage() {
   const kpi = useMemo(() => {
     const openItems = targets.filter((t) => !t.resolved_at);
     const scoreItems = openItems.filter((t) => t.reason === "score");
-    const missingItems = openItems.filter((t) => t.reason === "missing");
     const uniqueStudents = new Set(openItems.map((t) => t.enrollment_id));
     return {
       totalStudents: uniqueStudents.size,
       totalItems: openItems.length,
       scoreItems: scoreItems.length,
-      missingItems: missingItems.length,
     };
   }, [targets]);
 
@@ -229,13 +223,6 @@ export default function ClinicBookingsPage() {
               <span className="clinic-hub__kpi-label">시험 불합격</span>
             </div>
           </div>
-          <div className="clinic-hub__kpi">
-            <Clock size={16} />
-            <div>
-              <span className="clinic-hub__kpi-value">{kpi.missingItems}</span>
-              <span className="clinic-hub__kpi-label">미응시</span>
-            </div>
-          </div>
         </div>
 
         {/* ── Toolbar: view switch + filters ── */}
@@ -261,7 +248,7 @@ export default function ClinicBookingsPage() {
             </div>
 
             <div className="clinic-hub__filter-chips">
-              {(["all", "score", "missing", "confidence"] as ReasonFilter[]).map((r) => (
+              {(["all", "score", "confidence"] as ReasonFilter[]).map((r) => (
                 <button
                   key={r}
                   type="button"
@@ -309,8 +296,8 @@ export default function ClinicBookingsPage() {
           </div>
         ) : viewMode === "items" ? (
           /* ═══ ITEM VIEW (table with inline score input) ═══ */
-          <div className="clinic-hub__item-table-wrap">
-            <table className="clinic-hub__item-table">
+          <div className="ds-table-wrap">
+            <table className="ds-table ds-table--flat clinic-hub__item-table">
               <thead>
                 <tr>
                   <th>학생</th>
@@ -621,7 +608,6 @@ function RemediationItemRow({
   const [scoreInput, setScoreInput] = useState("");
 
   const isResolved = !!item.resolved_at;
-  const isMissing = item.reason === "missing";
   const maxScore = item.max_score ?? 100;
 
   function handleSubmit() {
@@ -691,13 +677,9 @@ function RemediationItemRow({
         {/* Score detail + inline input */}
         <div className="clinic-hub__item-bottom">
           {/* Original score */}
-          {!isMissing && item.exam_score != null ? (
+          {item.exam_score != null ? (
             <span className="clinic-hub__item-score">
               1차: {item.exam_score}/{item.cutline_score ?? "-"}점
-            </span>
-          ) : isMissing ? (
-            <span className="clinic-hub__item-score clinic-hub__item-score--missing">
-              시험 미응시
             </span>
           ) : null}
 
