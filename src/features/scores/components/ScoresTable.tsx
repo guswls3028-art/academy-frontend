@@ -541,7 +541,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
       }
       list.push({ type: "exam", examId: e.exam_id, title: e.title, sub: "pass", key: `exam_${e.exam_id}_pass`, width: COL_PASS, editable: false });
     });
-    if (examOptions.length > 0) {
+    if (examOptions.length > 1) {
       list.push(
         { type: "exam_summary", sub: "score", key: "exam_summary_score", width: 96, editable: false },
         { type: "exam_summary", sub: "pass", key: "exam_summary_pass", width: 32, editable: false }
@@ -629,7 +629,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
     <div>
       {/* OMR 업로드 버튼 — 테이블 밖, 시험 컬럼 위에 정렬 */}
       {examPositions.length > 0 && (
-        <div className="relative" style={{ width: tableWidth, height: 24 }}>
+        <div className="relative" style={{ width: tableWidth, height: 24, zIndex: 10 }}>
           {examPositions.map((pos) => (
             <div
               key={`omr-${pos.examId}`}
@@ -734,7 +734,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
               </th>
             );
           })}
-          {examOptions.length > 0 && (
+          {examOptions.length > 1 && (
             <th
               scope="col"
               colSpan={2}
@@ -812,7 +812,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
               </Fragment>
             );
           })}
-          {examOptions.length > 0 && (
+          {examOptions.length > 1 && (
             <>
               <th
                 scope="col"
@@ -1227,8 +1227,8 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                   );
                 })}
 
-                {/* 시험 총점 요약 */}
-                {examOptions.length > 0 && (() => {
+                {/* 시험 총점 요약 — 시험 2개 이상일 때만 표시 */}
+                {examOptions.length > 1 && (() => {
                   let totalScore = 0;
                   let totalMaxScore = 0;
                   let hasAnyScore = false;
