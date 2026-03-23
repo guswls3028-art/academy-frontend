@@ -19,7 +19,6 @@ import StudentResultDrawer from "@/features/results/components/StudentResultDraw
 import { EmptyState } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useConfirm } from "@/shared/ui/confirm";
-import AdminOmrBatchUploadBox from "@/features/submissions/components/AdminOmrBatchUploadBox";
 import { reorderSession } from "../api/reorderSession";
 
 type Props = {
@@ -78,20 +77,10 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
   /** Direct DOM focus — no React state cycle needed */
   const tableRef = useRef<ScoresTableHandle>(null);
   const qc = useQueryClient();
-  const [openOmrForExam, setOpenOmrForExam] = useState<{ examId: number; title: string } | null>(null);
   /** 읽기 모드 — 학생 상세 드로어 (이름 클릭) */
   const [drawerEnrollmentId, setDrawerEnrollmentId] = useState<number | null>(null);
   /** 답안 상세 드로어 (StudentScoresDrawer → 답안 상세 보기) */
   const [answerDetail, setAnswerDetail] = useState<{ examId: number; enrollmentId: number; examTitle: string } | null>(null);
-
-  const handleOpenOmrModal = useCallback((examId: number, title: string) => {
-    setOpenOmrForExam({ examId, title });
-  }, []);
-
-  const handleCloseOmrModal = useCallback(() => {
-    setOpenOmrForExam(null);
-    qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
-  }, [qc, sessionId]);
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: scoresQueryKeys.sessionScores(sessionId),
@@ -449,7 +438,6 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
           }}
           selectedEnrollmentIds={selectedEnrollmentIds}
           onSelectionChange={onSelectionChange}
-          onOpenOmrModal={handleOpenOmrModal}
         />
       </div>
 
@@ -477,45 +465,6 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
         />
       )}
 
-      {openOmrForExam && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="omr-upload-modal-title"
-        >
-          <div className="bg-[var(--color-bg-surface)] rounded-lg shadow-lg border border-[var(--color-border-divider)] max-w-2xl w-full mx-4 max-h-[90vh] flex flex-col">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--color-border-divider)]">
-              <h2 id="omr-upload-modal-title" className="text-base font-semibold text-[var(--color-text-primary)]">
-                OMR 업로드 — {openOmrForExam.title}
-              </h2>
-              <button
-                type="button"
-                onClick={handleCloseOmrModal}
-                className="p-2 rounded text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-surface-hover)]"
-                aria-label="닫기"
-              >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="18" y1="6" x2="6" y2="18" />
-                  <line x1="6" y1="6" x2="18" y2="18" />
-                </svg>
-              </button>
-            </div>
-            <div className="p-4 overflow-y-auto flex-1">
-              <AdminOmrBatchUploadBox examId={openOmrForExam.examId} />
-            </div>
-            <div className="px-4 py-3 border-t border-[var(--color-border-divider)] flex justify-end">
-              <button
-                type="button"
-                onClick={handleCloseOmrModal}
-                className="h-9 px-4 rounded text-sm font-medium bg-[var(--color-brand-primary)] text-white hover:opacity-90"
-              >
-                닫기
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 });
