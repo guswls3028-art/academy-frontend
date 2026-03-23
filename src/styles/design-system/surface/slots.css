@@ -23,4 +23,10 @@
   --ui-control-border:       var(--color-border-divider);
   --ui-control-border-hover: var(--color-border-focus);
   --ui-control-border-focus: var(--color-border-focus);
+
+  /* CONTROL PRIMARY (antd btn-primary 등) */
+  --ui-control-primary-bg:        color-mix(in srgb, var(--color-brand-primary) 22%, var(--scale-Neutral0, #fff));
+  --ui-control-primary-bg-hover:  color-mix(in srgb, var(--color-brand-primary) 28%, var(--scale-Neutral0, #fff));
+  --ui-control-primary-bg-active: color-mix(in srgb, var(--color-brand-primary) 34%, var(--scale-Neutral0, #fff));
+  --ui-control-primary-text:      var(--color-text-primary);
 }
