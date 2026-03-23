@@ -70,17 +70,17 @@ export default function ClinicWeeklySummary({
   });
 
   return (
-    <div className="rounded-2xl border bg-[var(--bg-surface)] overflow-hidden">
-      <div className="px-5 py-4 border-b bg-[var(--bg-surface-soft)]">
+    <div className="rounded-2xl border bg-[var(--color-bg-surface)] overflow-hidden">
+      <div className="px-5 py-4 border-b bg-[var(--color-bg-surface-soft)]">
         <div className="text-sm font-semibold">주간 요약</div>
-        <div className="text-xs text-[var(--text-muted)]">
+        <div className="text-xs text-[var(--color-text-muted)]">
           {from} ~ {to}
         </div>
       </div>
 
       <div className="p-5">
         {loading && (
-          <div className="text-xs text-[var(--text-muted)]">불러오는 중...</div>
+          <div className="text-xs text-[var(--color-text-muted)]">불러오는 중...</div>
         )}
 
         {!loading && (
@@ -97,12 +97,12 @@ export default function ClinicWeeklySummary({
                   key={d}
                   type="button"
                   onClick={() => onSelectDay(d)}
-                  className="rounded-xl border border-[var(--border-divider)] bg-[var(--bg-surface-soft)] p-3 text-left hover:bg-[var(--bg-surface)]"
+                  className="rounded-xl border border-[var(--color-border-divider)] bg-[var(--color-bg-surface-soft)] p-3 text-left hover:bg-[var(--color-bg-surface)]"
                 >
                   {/* 요일 헤더 */}
                   <div className="flex items-center justify-between">
                     <div className="text-sm font-semibold">{dow}</div>
-                    <div className="text-[11px] text-[var(--text-muted)]">
+                    <div className="text-[11px] text-[var(--color-text-muted)]">
                       {sessionCount}회 | {participantCount}명
                     </div>
                   </div>
@@ -112,7 +112,7 @@ export default function ClinicWeeklySummary({
                     {blocks.map((b) => (
                       <div
                         key={b.sessionId}
-                        className="text-[11px] rounded-lg border border-[var(--border-divider)] bg-[var(--bg-surface)] px-2 py-1 font-medium"
+                        className="text-[11px] rounded-lg border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] px-2 py-1 font-medium"
                       >
                         [{b.start}
                         {b.end ? ` ~ ${b.end}` : ""} | {b.count}명]
@@ -120,7 +120,7 @@ export default function ClinicWeeklySummary({
                     ))}
 
                     {blocks.length === 0 && (
-                      <div className="text-[11px] text-[var(--text-muted)]">
+                      <div className="text-[11px] text-[var(--color-text-muted)]">
                         일정 없음
                       </div>
                     )}
@@ -133,7 +133,7 @@ export default function ClinicWeeklySummary({
       </div>
 
       <div className="px-5 pb-4">
-        <div className="text-[11px] text-[var(--text-muted)]">
+        <div className="text-[11px] text-[var(--color-text-muted)]">
           * 날짜 클릭 시 해당 일자의 운영 화면으로 이동합니다.
         </div>
       </div>

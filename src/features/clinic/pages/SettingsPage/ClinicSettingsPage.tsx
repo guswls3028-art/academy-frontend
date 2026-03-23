@@ -324,7 +324,7 @@ function ColorSelectModal({
                   className={`h-12 rounded-lg border-2 transition-all hover:scale-105 ${
                     currentColor === item.color
                       ? "border-[var(--color-brand-primary)] ring-2 ring-[var(--color-brand-primary)] ring-offset-2"
-                      : "border-[var(--border-divider)] hover:border-[var(--color-brand-primary)]"
+                      : "border-[var(--color-border-divider)] hover:border-[var(--color-brand-primary)]"
                   }`}
                   style={{ background: item.color }}
                   title={item.name}
@@ -343,7 +343,7 @@ function ColorSelectModal({
                 type="color"
                 value={customColor}
                 onChange={(e) => setCustomColor(e.target.value)}
-                className="h-12 w-12 rounded-lg border-2 border-[var(--border-divider)] cursor-pointer"
+                className="h-12 w-12 rounded-lg border-2 border-[var(--color-border-divider)] cursor-pointer"
               />
               <input
                 type="text"
@@ -353,7 +353,7 @@ function ColorSelectModal({
                     setCustomColor(e.target.value);
                   }
                 }}
-                className="flex-1 h-12 px-3 rounded-lg border border-[var(--border-divider)] bg-[var(--bg-surface)] font-mono text-sm"
+                className="flex-1 h-12 px-3 rounded-lg border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] font-mono text-sm"
                 placeholder="#RRGGBB"
               />
               <Button

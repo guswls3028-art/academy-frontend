@@ -3968,6 +3968,64 @@ details[open] > .clinic-tree__summary {
   background: var(--color-text-muted);
   opacity: 0.3;
 }
+.clinic-ops__progress-seg--completed { background: var(--color-brand-primary, #6366f1); }
+
+/* 프로그레스 행 (라벨 + 바 + 분수) */
+.clinic-ops__progress-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.clinic-ops__progress-row .clinic-ops__progress-bar {
+  flex: 1;
+}
+
+.clinic-ops__progress-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  width: 28px;
+  flex-shrink: 0;
+}
+
+.clinic-ops__progress-fraction {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+  min-width: 32px;
+  text-align: right;
+}
+
+/* KPI 완료 */
+.clinic-ops__kpi--completed {
+  color: var(--color-brand-primary, #6366f1);
+}
+
+/* ── 삭제 확인 모달 ── */
+.clinic-delete-modal__title {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin: 0 0 8px;
+}
+
+.clinic-delete-modal__desc {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+  margin: 0 0 6px;
+  line-height: 1.5;
+}
+
+.clinic-delete-modal__warning {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-error, #ef4444);
+  margin: 0 0 4px;
+  line-height: 1.5;
+}
 
 .clinic-ops__all-done {
   display: flex;
@@ -4002,7 +4060,7 @@ details[open] > .clinic-tree__summary {
   background: var(--color-bg-surface);
   color: var(--color-text-muted);
   cursor: pointer;
-  transition: all 0.12s ease;
+  transition: background-color 0.12s ease, color 0.12s ease, border-color 0.12s ease;
   line-height: 1.3;
 }
 
@@ -4336,7 +4394,7 @@ details[open] > .clinic-tree__summary {
   font-weight: 600;
   border: 1.5px solid transparent;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
 
 .clinic-ops__inline-btn--complete {
@@ -4471,7 +4529,7 @@ details[open] > .clinic-tree__summary {
   background: transparent;
   color: var(--color-text-muted);
   cursor: pointer;
-  transition: all 0.15s;
+  transition: background-color 0.15s, color 0.15s, border-color 0.15s;
 }
 .clinic-schedule__card-edit:hover {
   background: color-mix(in srgb, var(--color-brand-primary) 12%, var(--color-bg-surface));
@@ -4552,7 +4610,7 @@ details[open] > .clinic-tree__summary {
   border: 1.5px solid var(--color-border);
   background: var(--color-bg-surface);
   flex-shrink: 0;
-  transition: all 0.15s;
+  transition: background-color 0.15s, color 0.15s, border-color 0.15s;
 }
 .clinic-import__checkbox--checked {
   background: var(--color-brand-primary);
@@ -4589,7 +4647,7 @@ details[open] > .clinic-tree__summary {
   border: 1.5px solid var(--color-border-divider);
   background: var(--color-bg-surface);
   cursor: pointer;
-  transition: all 0.15s;
+  transition: background-color 0.15s, color 0.15s, border-color 0.15s;
   text-align: left;
   width: 100%;
 }
@@ -4778,7 +4836,7 @@ details[open] > .clinic-tree__summary {
   background: var(--color-bg-surface);
   color: var(--color-text-muted);
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
 
 .clinic-ops__drawer-status-btn:hover:not(:disabled) {
@@ -5035,7 +5093,7 @@ details[open] > .clinic-tree__summary {
   background: var(--color-bg-surface);
   color: var(--color-text-muted);
   cursor: pointer;
-  transition: all 0.15s;
+  transition: background-color 0.15s, color 0.15s, border-color 0.15s;
 }
 
 .clinic-sidebar__section-action-btn:hover {
@@ -5055,13 +5113,25 @@ details[open] > .clinic-tree__summary {
   color: #fff;
 }
 
-/* 세션 항목 인라인 액션 (수정/삭제) */
+/* 세션 항목 래퍼: 버튼 + 인라인 액션 가로 배치 */
+.clinic-console__sidebar-session-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+
+.clinic-console__sidebar-session-wrap > .clinic-console__sidebar-session {
+  flex: 1;
+  min-width: 0;
+}
+
+/* 세션 항목 인라인 액션 (수정/삭제) — 우측 세로 배치 */
 .clinic-sidebar__session-inline-actions {
   display: flex;
-  gap: 2px;
-  margin-top: 4px;
-  padding: 0 var(--space-3) var(--space-1);
-  justify-content: flex-end;
+  flex-direction: column;
+  gap: 1px;
+  flex-shrink: 0;
+  padding-right: 2px;
 }
 
 .clinic-sidebar__session-inline-btn {
@@ -5075,12 +5145,10 @@ details[open] > .clinic-tree__summary {
   background: transparent;
   color: var(--color-text-muted);
   cursor: pointer;
-  transition: all 0.15s;
-  opacity: 0.6;
+  transition: background-color 0.15s, color 0.15s, border-color 0.15s;
 }
 
 .clinic-sidebar__session-inline-btn:hover {
-  opacity: 1;
   background: color-mix(in srgb, var(--color-brand-primary) 10%, transparent);
   color: var(--color-brand-primary);
 }
@@ -5268,7 +5336,7 @@ details[open] > .clinic-tree__summary {
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: background-color 0.15s, color 0.15s, border-color 0.15s;
   background: white;
 }
 
@@ -5691,7 +5759,7 @@ details[open] > .clinic-tree__summary {
   background: var(--color-bg-surface);
   color: var(--color-text-secondary);
   cursor: pointer;
-  transition: all 0.15s;
+  transition: background-color 0.15s, color 0.15s, border-color 0.15s;
 }
 
 .clinic-hub__action-btn:hover:not(:disabled) {
@@ -5806,7 +5874,7 @@ details[open] > .clinic-tree__summary {
   background: var(--color-bg-surface);
   color: var(--color-text-muted);
   cursor: pointer;
-  transition: all 0.15s;
+  transition: background-color 0.15s, color 0.15s, border-color 0.15s;
 }
 
 .clinic-hub__action-sm:hover:not(:disabled) {

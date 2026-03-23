@@ -19,12 +19,12 @@ export default function TodayScheduleGrid({
         return (
           <div
             key={t}
-            className="rounded-xl border border-[var(--border-divider)] bg-[var(--bg-surface)] p-3"
+            className="rounded-xl border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] p-3"
           >
             <div className="text-xs font-semibold mb-2">{t}</div>
 
             {items.length === 0 && (
-              <div className="text-[11px] text-[var(--text-muted)]">
+              <div className="text-[11px] text-[var(--color-text-muted)]">
                 예약 없음
               </div>
             )}
@@ -33,7 +33,7 @@ export default function TodayScheduleGrid({
               {items.map((r) => (
                 <div
                   key={r.id}
-                  className="rounded-lg border border-[var(--border-divider)] bg-[var(--bg-surface-soft)] px-2 py-1"
+                  className="rounded-lg border border-[var(--color-border-divider)] bg-[var(--color-bg-surface-soft)] px-2 py-1"
                 >
                   <div className="text-xs font-semibold">
                     <StudentNameWithLectureChip
@@ -45,7 +45,7 @@ export default function TodayScheduleGrid({
                       chipSize={12}
                     />
                   </div>
-                  <div className="text-[11px] text-[var(--text-muted)]">
+                  <div className="text-[11px] text-[var(--color-text-muted)]">
                     {r.session_location}
                   </div>
                 </div>

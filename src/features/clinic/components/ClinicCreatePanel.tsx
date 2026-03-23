@@ -91,13 +91,15 @@ function toHHmmss(s: string): string {
 const filterBtnStyle = (active: boolean) => ({
   padding: "4px 10px",
   fontSize: 12,
-  fontWeight: active ? 700 : 500,
+  fontWeight: active ? 600 : 500,
   borderRadius: 6,
   border: `1px solid ${active ? "var(--color-brand-primary)" : "var(--color-border-divider)"}`,
-  background: active ? "var(--color-brand-primary)" : "var(--color-bg-surface)",
-  color: active ? "#fff" : "var(--color-text-secondary)",
+  background: active
+    ? "color-mix(in srgb, var(--color-brand-primary) 14%, var(--color-bg-surface))"
+    : "var(--color-bg-surface)",
+  color: active ? "var(--color-brand-primary)" : "var(--color-text-secondary)",
   cursor: "pointer",
-  transition: "all 0.15s",
+  transition: "background-color 0.15s, color 0.15s, border-color 0.15s",
 });
 
 type Props = {
