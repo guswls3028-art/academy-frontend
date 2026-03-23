@@ -55,6 +55,7 @@ export default function PermissionRow({
               : undefined
           }
           chipSize={14}
+          clinicHighlight={(student as any).name_highlight_clinic_target === true}
         />
       </div>
 

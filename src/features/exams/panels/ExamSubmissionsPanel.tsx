@@ -12,7 +12,7 @@ import AdminOmrUploadSection from "@/features/submissions/components/AdminOmrUpl
 import { fetchExamSubmissions } from "@/features/submissions/api/adminSubmissionsApi";
 import { useAdminExam } from "../hooks/useAdminExam";
 import { SUBMISSION_STATUS_LABEL, SUBMISSION_STATUS_TONE } from "@/features/submissions/statusMaps";
-import LectureChip from "@/shared/ui/chips/LectureChip";
+import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { Button, EmptyState } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import api from "@/shared/api/axios";
@@ -121,31 +121,15 @@ export default function ExamSubmissionsPanel({ examId }: Props) {
                   key={r.id}
                   className="flex items-center gap-3 px-4 py-3"
                 >
-                  {/* 아바타 */}
-                  <div
-                    className="flex-shrink-0 w-8 h-8 rounded-full bg-[var(--color-bg-surface-soft)] flex items-center justify-center overflow-hidden"
-                  >
-                    {r.profile_photo_url ? (
-                      <img src={r.profile_photo_url} alt="" className="w-full h-full object-cover" />
-                    ) : (
-                      <span className="text-xs font-bold text-[var(--color-text-muted)]">
-                        {(r.student_name || "?").slice(0, 1)}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* 이름 + 강의칩 */}
-                  <div className="flex items-center gap-1.5 min-w-0">
-                    <span className="text-sm font-medium truncate">{r.student_name}</span>
-                    {r.lecture_title && (
-                      <LectureChip
-                        lectureName={r.lecture_title}
-                        color={r.lecture_color ?? undefined}
-                        chipLabel={r.lecture_chip_label ?? undefined}
-                        size={18}
-                      />
-                    )}
-                  </div>
+                  {/* 아바타 + 이름 + 강의칩 (SSOT: StudentNameWithLectureChip) */}
+                  <StudentNameWithLectureChip
+                    name={r.student_name}
+                    profilePhotoUrl={r.profile_photo_url}
+                    avatarSize={32}
+                    lectures={r.lecture_title ? [{ lectureName: r.lecture_title, color: r.lecture_color, chipLabel: r.lecture_chip_label }] : undefined}
+                    chipSize={18}
+                    clinicHighlight={(r as any).name_highlight_clinic_target === true}
+                  />
 
                   {/* 시+시험명 뱃지 */}
                   <span

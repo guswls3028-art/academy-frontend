@@ -364,6 +364,7 @@ export default function LectureStudentsPage() {
                                 : undefined
                             }
                             chipSize={16}
+                            clinicHighlight={(row as any).name_highlight_clinic_target === true}
                           />
                         </td>
                         <td className="text-[14px] leading-6 text-[var(--color-text-secondary)] truncate align-middle" style={{ width: columnWidths.parentPhone ?? STUDENTS_TABLE_COL.parentPhone }}>

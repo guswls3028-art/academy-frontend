@@ -228,6 +228,7 @@ export default function PermissionSidePanel({
                             : undefined
                         }
                         chipSize={14}
+                        clinicHighlight={(s as any).name_highlight_clinic_target === true}
                       />
                     </div>
                     <div

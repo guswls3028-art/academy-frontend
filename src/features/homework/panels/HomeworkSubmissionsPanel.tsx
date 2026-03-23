@@ -106,6 +106,7 @@ export default function HomeworkSubmissionsPanel({
                   profilePhotoUrl={r.profile_photo_url}
                   avatarSize={32}
                   chipSize={18}
+                  clinicHighlight={(r as any).name_highlight_clinic_target === true}
                 />
 
                 {/* 과+과제명 뱃지 */}

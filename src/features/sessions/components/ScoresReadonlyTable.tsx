@@ -61,6 +61,13 @@ export default function ScoresReadonlyTable({
                   <StudentNameWithLectureChip
                     name={row.student_name ?? ""}
                     clinicHighlight={row.name_highlight_clinic_target === true}
+                    profilePhotoUrl={(row as any).profile_photo_url ?? undefined}
+                    avatarSize={20}
+                    lectures={
+                      (row as any).lecture_title
+                        ? [{ lectureName: (row as any).lecture_title, color: (row as any).lecture_color }]
+                        : undefined
+                    }
                   />
                 </td>
                 <td className="px-4 py-3">

@@ -630,6 +630,7 @@ export default function SessionAttendancePage({
                               : undefined
                         }
                         chipSize={16}
+                        clinicHighlight={(att as any).name_highlight_clinic_target === true}
                       />
                     </td>
                     <td className="text-center align-middle" style={{ width: columnWidths.status ?? col.statusBadge }}>

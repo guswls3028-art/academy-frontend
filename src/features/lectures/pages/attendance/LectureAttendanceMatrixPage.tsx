@@ -164,6 +164,7 @@ export default function LectureAttendanceMatrixPage() {
                           : undefined
                       }
                       chipSize={16}
+                      clinicHighlight={(row as any).name_highlight_clinic_target === true}
                     />
                   </td>
                   <td

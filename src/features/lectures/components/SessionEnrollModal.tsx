@@ -817,6 +817,7 @@ export default function SessionEnrollModal({
                                             : undefined
                                         }
                                         chipSize={14}
+                                        clinicHighlight={(row as any).name_highlight_clinic_target === true}
                                       />
                                     </td>
                                     <td
@@ -1080,6 +1081,7 @@ export default function SessionEnrollModal({
                                   : undefined
                               }
                               className="text-[13px] font-semibold leading-6 text-[var(--color-text-primary)]"
+                              clinicHighlight={(s as any).name_highlight_clinic_target === true}
                             />
                           </span>
                           <button

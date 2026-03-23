@@ -1,9 +1,9 @@
 // PATH: src/features/clinic/pages/BookingsPage/ClinicBookingsPage.tsx
 /**
- * 클리닉 해소 워크스페이스
+ * 클리닉 통과 워크스페이스
  *
  * 핵심 UX:
- * - 모든 미해결 항목을 한 화면에서 보고 점수 입력으로 즉시 해소
+ * - 모든 진행중 항목을 한 화면에서 보고 점수 입력으로 즉시 통과 처리
  * - 항목별 뷰: 시험/과제 재시도 점수를 인라인으로 입력
  * - 학생별 뷰: 학생 단위로 묶어서 보기
  * - Tab/Enter로 빠른 이동
@@ -21,7 +21,6 @@ import {
   List,
   ChevronDown,
   ChevronRight,
-  ExternalLink,
   MoreHorizontal,
   Search,
   ArrowRight,
@@ -101,8 +100,8 @@ export default function ClinicBookingsPage() {
 
   const resolveMutation = useMutation({
     mutationFn: (id: number) => resolveClinicLink(id),
-    onSuccess: () => { invalidateAll(); feedback.success("해소 처리되었습니다."); },
-    onError: () => feedback.error("해소 처리에 실패했습니다."),
+    onSuccess: () => { invalidateAll(); feedback.success("통과 처리되었습니다."); },
+    onError: () => feedback.error("통과 처리에 실패했습니다."),
   });
 
   const waiveMutation = useMutation({
@@ -123,7 +122,7 @@ export default function ClinicBookingsPage() {
     onSuccess: (data) => {
       invalidateAll();
       if (data.passed) {
-        feedback.success(`합격! (${data.score}점, ${data.attempt_index}차) — 자동 해소`);
+        feedback.success(`합격! (${data.score}점, ${data.attempt_index}차) — 자동 통과`);
       } else {
         feedback.warning(`미통과 (${data.score}점, ${data.attempt_index}차) — 재시도 가능`);
       }
@@ -200,16 +199,6 @@ export default function ClinicBookingsPage() {
     });
   }
 
-  /* ── Navigate to exam/session ── */
-  function navigateToSource(t: ClinicTarget) {
-    if (t.lecture_id && t.session_id) {
-      window.open(
-        `/admin/lectures/${t.lecture_id}/sessions/${t.session_id}/scores`,
-        "_blank",
-      );
-    }
-  }
-
   /* ══════════════════════════════════════════ */
   /* RENDER */
   /* ══════════════════════════════════════════ */
@@ -223,14 +212,14 @@ export default function ClinicBookingsPage() {
             <Users size={16} />
             <div>
               <span className="clinic-hub__kpi-value">{kpi.totalStudents}</span>
-              <span className="clinic-hub__kpi-label">미해결 학생</span>
+              <span className="clinic-hub__kpi-label">진행중 학생</span>
             </div>
           </div>
           <div className="clinic-hub__kpi clinic-hub__kpi--danger">
             <AlertTriangle size={16} />
             <div>
               <span className="clinic-hub__kpi-value">{kpi.totalItems}</span>
-              <span className="clinic-hub__kpi-label">미해결 항목</span>
+              <span className="clinic-hub__kpi-label">진행중 항목</span>
             </div>
           </div>
           <div className="clinic-hub__kpi">
@@ -310,7 +299,7 @@ export default function ClinicBookingsPage() {
             <p className="clinic-hub__empty-title">
               {search.trim() || reasonFilter !== "all"
                 ? "검색 결과가 없습니다"
-                : "미해결 항목이 없습니다"}
+                : "진행중 항목이 없습니다"}
             </p>
             <p className="clinic-hub__empty-desc">
               {search.trim() || reasonFilter !== "all"
@@ -352,7 +341,6 @@ export default function ClinicBookingsPage() {
                     onResolve={() => item.clinic_link_id && resolveMutation.mutate(item.clinic_link_id)}
                     onWaive={() => item.clinic_link_id && waiveMutation.mutate(item.clinic_link_id)}
                     onCarryOver={() => item.clinic_link_id && carryOverMutation.mutate(item.clinic_link_id)}
-                    onNavigate={() => navigateToSource(item)}
                     disabled={isMutating}
                   />
                 ))}
@@ -382,10 +370,12 @@ export default function ClinicBookingsPage() {
                         name={group.studentName}
                         lectures={group.items[0]?.lecture_title ? [{ lectureName: group.items[0].lecture_title, color: group.items[0].lecture_color, chipLabel: group.items[0].lecture_chip_label }] : undefined}
                         clinicHighlight={group.items.some(i => i.name_highlight_clinic_target)}
+                        profilePhotoUrl={group.items[0]?.profile_photo_url}
+                        avatarSize={20}
                       />
                     </span>
                     <span className="clinic-hub__student-badge">
-                      미해결 {group.openCount}건
+                      진행중 {group.openCount}건
                     </span>
                     <div className="clinic-hub__student-reasons">
                       {group.items.slice(0, 3).map((item, idx) => (
@@ -427,8 +417,7 @@ export default function ClinicBookingsPage() {
                           onResolve={() => item.clinic_link_id && resolveMutation.mutate(item.clinic_link_id)}
                           onWaive={() => item.clinic_link_id && waiveMutation.mutate(item.clinic_link_id)}
                           onCarryOver={() => item.clinic_link_id && carryOverMutation.mutate(item.clinic_link_id)}
-                          onNavigate={() => navigateToSource(item)}
-                          disabled={isMutating}
+                                disabled={isMutating}
                         />
                       ))}
                     </div>
@@ -453,7 +442,6 @@ function RetakeTableRow({
   onResolve,
   onWaive,
   onCarryOver,
-  onNavigate,
   disabled,
 }: {
   item: ClinicTarget;
@@ -461,7 +449,6 @@ function RetakeTableRow({
   onResolve: () => void;
   onWaive: () => void;
   onCarryOver: () => void;
-  onNavigate: () => void;
   disabled: boolean;
 }) {
   const [scoreInput, setScoreInput] = useState("");
@@ -500,6 +487,8 @@ function RetakeTableRow({
           name={item.student_name}
           lectures={item.lecture_title ? [{ lectureName: item.lecture_title, color: item.lecture_color, chipLabel: item.lecture_chip_label }] : undefined}
           clinicHighlight={item.name_highlight_clinic_target}
+          profilePhotoUrl={item.profile_photo_url}
+          avatarSize={20}
         />
       </td>
       <td className="clinic-hub__cell-lecture">{item.lecture_title || "-"}</td>
@@ -559,10 +548,10 @@ function RetakeTableRow({
               : item.resolution_type === "HOMEWORK_PASS"
                 ? "과제 통과"
                 : item.resolution_type === "MANUAL_OVERRIDE"
-                  ? "수동 해소"
+                  ? "수동 통과"
                   : item.resolution_type === "WAIVED"
                     ? "면제"
-                    : "해소됨"}
+                    : "통과 완료"}
           </span>
         ) : (
           <span className="clinic-hub__cell-muted">-</span>
@@ -576,7 +565,7 @@ function RetakeTableRow({
               className="clinic-hub__action-sm clinic-hub__action-sm--resolve"
               onClick={onResolve}
               disabled={disabled}
-              title="수동 해소"
+              title="수동 통과"
             >
               <CheckCircle2 size={13} />
             </button>
@@ -596,9 +585,6 @@ function RetakeTableRow({
                   </button>
                   <button type="button" onClick={() => { onCarryOver(); setShowMore(false); }} disabled={disabled}>
                     다음 차수 이월
-                  </button>
-                  <button type="button" onClick={() => { onNavigate(); setShowMore(false); }}>
-                    원본 성적 보기
                   </button>
                 </div>
               )}
@@ -622,7 +608,6 @@ function RemediationItemRow({
   onResolve,
   onWaive,
   onCarryOver,
-  onNavigate,
   disabled,
 }: {
   item: ClinicTarget;
@@ -630,7 +615,6 @@ function RemediationItemRow({
   onResolve: () => void;
   onWaive: () => void;
   onCarryOver: () => void;
-  onNavigate: () => void;
   disabled: boolean;
 }) {
   const [showActions, setShowActions] = useState(false);
@@ -699,7 +683,7 @@ function RemediationItemRow({
           {isResolved && (
             <span className="clinic-hub__item-resolved">
               <CheckCircle2 size={12} />
-              해결
+              통과
             </span>
           )}
         </div>
@@ -775,10 +759,10 @@ function RemediationItemRow({
               className="clinic-hub__action-btn clinic-hub__action-btn--resolve"
               onClick={onResolve}
               disabled={disabled}
-              title="수동 해소"
+              title="수동 통과"
             >
               <CheckCircle2 size={14} />
-              해소
+              통과
             </button>
 
             <div className="clinic-hub__action-more-wrap">
@@ -798,9 +782,6 @@ function RemediationItemRow({
                   <button type="button" onClick={() => { onCarryOver(); setShowActions(false); }} disabled={disabled}>
                     다음 차수 이월
                   </button>
-                  <button type="button" onClick={() => { onNavigate(); setShowActions(false); }}>
-                    원본 성적 보기
-                  </button>
                 </div>
               )}
             </div>
@@ -813,10 +794,10 @@ function RemediationItemRow({
               : item.resolution_type === "HOMEWORK_PASS"
                 ? "과제 통과"
                 : item.resolution_type === "MANUAL_OVERRIDE"
-                  ? "수동 해소"
+                  ? "수동 통과"
                   : item.resolution_type === "WAIVED"
                     ? "면제"
-                    : "해소됨"}
+                    : "통과 완료"}
           </span>
         )}
       </div>

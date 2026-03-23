@@ -1,5 +1,6 @@
 import { ClinicParticipant } from "../api/clinicParticipants.api";
 import { buildTimeSlots } from "../utils/timeSlots";
+import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 
 export default function TodayScheduleGrid({
   rows,
@@ -34,7 +35,16 @@ export default function TodayScheduleGrid({
                   key={r.id}
                   className="rounded-lg border border-[var(--border-divider)] bg-[var(--bg-surface-soft)] px-2 py-1"
                 >
-                  <div className="text-xs font-semibold">{r.student_name}</div>
+                  <div className="text-xs font-semibold">
+                    <StudentNameWithLectureChip
+                      name={r.student_name}
+                      lectures={r.lecture_title ? [{ lectureName: r.lecture_title, color: r.lecture_color, chipLabel: r.lecture_chip_label }] : undefined}
+                      clinicHighlight={r.name_highlight_clinic_target}
+                      profilePhotoUrl={r.profile_photo_url}
+                      avatarSize={16}
+                      chipSize={12}
+                    />
+                  </div>
                   <div className="text-[11px] text-[var(--text-muted)]">
                     {r.session_location}
                   </div>

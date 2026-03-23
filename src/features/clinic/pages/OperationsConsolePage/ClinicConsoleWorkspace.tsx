@@ -6,7 +6,6 @@
 
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { useNavigate } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
 import "dayjs/locale/ko";
@@ -112,7 +111,7 @@ function getStatusLabel(status: string): string {
 function getResolutionLabel(type: string | null | undefined): string {
   if (type === "EXAM_PASS") return "시험 통과";
   if (type === "HOMEWORK_PASS") return "과제 통과";
-  if (type === "MANUAL_OVERRIDE") return "수동 해소";
+  if (type === "MANUAL_OVERRIDE") return "수동 통과";
   if (type === "WAIVED") return "면제";
   if (type === "BOOKING_LEGACY") return "레거시";
   return "";
@@ -139,7 +138,6 @@ export default function ClinicConsoleWorkspace({
   isLoading,
 }: Props) {
   const qc = useQueryClient();
-  const navigate = useNavigate();
   // Drawer stores participant ID only — derive live data from participants prop
   const [drawerParticipantId, setDrawerParticipantId] = useState<number | null>(null);
   const [studentOverlayId, setStudentOverlayId] = useState<number | null>(null);
@@ -616,6 +614,7 @@ export default function ClinicConsoleWorkspace({
                           name={p.student_name}
                           lectures={p.lecture_title ? [{ lectureName: p.lecture_title, color: p.lecture_color, chipLabel: p.lecture_chip_label }] : undefined}
                           avatarSize={24}
+                          profilePhotoUrl={p.profile_photo_url}
                           clinicHighlight={p.name_highlight_clinic_target}
                         />
                       </button>
@@ -690,7 +689,7 @@ export default function ClinicConsoleWorkspace({
                               </span>
                             )}
                             {t.resolved_at
-                              ? getResolutionLabel(t.resolution_type) + " 해소"
+                              ? getResolutionLabel(t.resolution_type) + " 통과"
                               : t.session_title
                               ? `${t.session_title} · ${formatScoreDetail(t)}`
                               : formatScoreDetail(t)}
@@ -713,7 +712,7 @@ export default function ClinicConsoleWorkspace({
                     </button>
                   </div>
 
-                  {/* Row 3: Inline actions — 자율학습 완료 / 미해소 점수입력 */}
+                  {/* Row 3: Inline actions — 자율학습 완료 / 진행중 점수입력 */}
                   {(() => {
                     const isSelfStudy = targets.length === 0;
                     const unresolvedTargets = targets.filter((t) => !t.resolved_at && t.clinic_link_id);
@@ -752,7 +751,7 @@ export default function ClinicConsoleWorkspace({
                     }
 
                     if (unresolvedTargets.length > 0) {
-                      // 미해소: 인라인 점수 입력
+                      // 진행중: 인라인 점수 입력
                       return (
                         <div className="clinic-ops__card-inline-actions">
                           {unresolvedTargets.map((t) => (
@@ -906,6 +905,8 @@ export default function ClinicConsoleWorkspace({
                       <StudentNameWithLectureChip
                         name={drawerParticipant.student_name}
                         lectures={drawerParticipant.lecture_title ? [{ lectureName: drawerParticipant.lecture_title, color: drawerParticipant.lecture_color, chipLabel: drawerParticipant.lecture_chip_label }] : undefined}
+                        avatarSize={24}
+                        profilePhotoUrl={drawerParticipant.profile_photo_url}
                         clinicHighlight={drawerParticipant.name_highlight_clinic_target}
                       />
                     </button>
@@ -915,7 +916,7 @@ export default function ClinicConsoleWorkspace({
 
               {/* Clinic reasons + remediation status */}
               <div className="clinic-ops__drawer-section">
-                <h4 className="clinic-ops__drawer-section-title">대상 사유 · 해소 상태</h4>
+                <h4 className="clinic-ops__drawer-section-title">대상 사유 · 통과 상태</h4>
                 {drawerTargets.length === 0 ? (
                   <div className="clinic-ops__drawer-self-study">
                     <p className="clinic-ops__drawer-empty">자율 학습 참여</p>
@@ -988,7 +989,7 @@ export default function ClinicConsoleWorkspace({
                           <div className="clinic-ops__drawer-resolved">
                             <ShieldCheck size={14} aria-hidden />
                             <span>
-                              {getResolutionLabel(t.resolution_type)} 해소
+                              {getResolutionLabel(t.resolution_type)} 통과
                               {t.resolved_at && (
                                 <span className="clinic-ops__resolved-date">
                                   {" "}({dayjs(t.resolved_at).format("M/D HH:mm")})
@@ -998,7 +999,7 @@ export default function ClinicConsoleWorkspace({
                           </div>
                         ) : (
                           <div className="clinic-ops__drawer-unresolved">
-                            <span className="clinic-ops__unresolved-badge">미해소</span>
+                            <span className="clinic-ops__unresolved-badge">진행중</span>
                           </div>
                         )}
 
@@ -1077,7 +1078,7 @@ export default function ClinicConsoleWorkspace({
                             </div>
                           )}
 
-                        {/* ✅ Remediation actions — 미해소 case에만 표시 */}
+                        {/* ✅ Remediation actions — 진행중 case에만 표시 */}
                         {!t.resolved_at && t.clinic_link_id && (
                           <div className="clinic-ops__drawer-remediation-actions">
                             {/* 재시험 허용 + 시험 페이지 이동 */}
@@ -1103,51 +1104,22 @@ export default function ClinicConsoleWorkspace({
                               </button>
                             )}
 
-                            {/* 시험 관리 페이지 이동 */}
-                            {t.lecture_id && t.session_id && (t.clinic_reason === "exam" || t.clinic_reason === "both") && (
-                              <button
-                                type="button"
-                                className="clinic-ops__remediation-btn clinic-ops__remediation-btn--navigate"
-                                onClick={() => {
-                                  const url = `/admin/lectures/${t.lecture_id}/sessions/${t.session_id}/exams${t.exam_id ? `?examId=${t.exam_id}` : ""}`;
-                                  navigate(url);
-                                }}
-                              >
-                                <FileQuestion size={13} aria-hidden />
-                                시험 관리
-                              </button>
-                            )}
-
-                            {/* 과제 채점 페이지 이동 */}
-                            {t.lecture_id && t.session_id && (t.clinic_reason === "homework" || t.clinic_reason === "both") && (
-                              <button
-                                type="button"
-                                className="clinic-ops__remediation-btn clinic-ops__remediation-btn--navigate"
-                                onClick={() => {
-                                  navigate(`/admin/lectures/${t.lecture_id}/sessions/${t.session_id}/scores`);
-                                }}
-                              >
-                                <BookOpen size={13} aria-hidden />
-                                과제 채점
-                              </button>
-                            )}
-
                             <button
                               type="button"
                               className="clinic-ops__remediation-btn clinic-ops__remediation-btn--resolve"
                               onClick={async () => {
                                 try {
-                                  await resolveClinicLink(t.clinic_link_id!, "수동 해소");
-                                  feedback.success("해소 처리되었습니다.");
+                                  await resolveClinicLink(t.clinic_link_id!, "수동 통과");
+                                  feedback.success("통과 처리되었습니다.");
                                   qc.invalidateQueries({ queryKey: ["clinic-targets"] });
                                   qc.invalidateQueries({ queryKey: ["clinic-participants"] });
                                 } catch {
-                                  feedback.error("해소 처리에 실패했습니다.");
+                                  feedback.error("통과 처리에 실패했습니다.");
                                 }
                               }}
                             >
                               <ShieldCheck size={13} aria-hidden />
-                              수동 해소
+                              수동 통과
                             </button>
                             <button
                               type="button"

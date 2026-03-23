@@ -132,6 +132,7 @@ export default function StudentScoresDrawer({ row, meta, onClose, onOpenAnswerDe
                     : undefined
                 }
                 chipSize={12}
+                clinicHighlight={row.name_highlight_clinic_target === true}
               />
             </h2>
             <span className="student-scores-drawer__header-id">ID {row.enrollment_id}</span>
@@ -389,7 +390,12 @@ function AttemptTimeline({
   onOpenDetail?: () => void;
 }) {
   const qc = useQueryClient();
+  const [showNewAttempt, setShowNewAttempt] = useState(false);
   const [retakeScore, setRetakeScore] = useState("");
+
+  const isExam = sourceType === "exam";
+  const retakeLabel = isExam ? "재시험" : "재시도";
+  const sourceLabel = isExam ? "시험" : "과제";
 
   const queryParams = sourceType === "exam"
     ? { enrollment_id: enrollmentId, exam_id: sourceId }
@@ -408,13 +414,13 @@ function AttemptTimeline({
         max_score: params.maxScore,
       }),
     onSuccess: (result) => {
-      // 관련 쿼리 모두 갱신
       qc.invalidateQueries({ queryKey: ["attempt-history", sourceType, sourceId, enrollmentId] });
       qc.invalidateQueries({ queryKey: ["clinic-targets"] });
       qc.invalidateQueries({ queryKey: ["session-scores"] });
       setRetakeScore("");
+      setShowNewAttempt(false);
       if (result.passed) {
-        feedback.success(`${result.attempt_index}차 합격! (${result.score}점) — 자동 해소`);
+        feedback.success(`${result.attempt_index}차 합격! (${result.score}점) — 자동 통과`);
       } else {
         feedback.warning(`${result.attempt_index}차 미통과 (${result.score}점)`);
       }
@@ -440,6 +446,9 @@ function AttemptTimeline({
     });
   }
 
+  const nextAttemptIndex = (data?.attempts.length ?? 0) + 1;
+  const canAddRetake = data?.clinic_link_id && !data?.resolved;
+
   return (
     <div className="student-scores-drawer__retry-section">
       {isLoading && (
@@ -449,45 +458,72 @@ function AttemptTimeline({
         <div className="student-scores-drawer__retry-error">이력 조회 실패</div>
       )}
       {data && !error && (
-        <div className="student-scores-drawer__retry-content">
-          {/* ── 차수별 이력 타임라인 ── */}
-          <div className="ssd-timeline">
-            {data.attempts.map((a) => (
-              <div
-                key={a.attempt_index}
-                className={`ssd-timeline__item ${a.passed ? "ssd-timeline__item--passed" : "ssd-timeline__item--failed"}`}
-              >
-                <div className="ssd-timeline__dot" />
-                <div className="ssd-timeline__content">
-                  <span className="ssd-timeline__label">
-                    {a.attempt_index}차{a.source === "clinic" ? " (재시험)" : ""}
+        <div className="ssd-attempts">
+          {/* ── 차수별 카드 블록 ── */}
+          {data.attempts.map((a) => (
+            <div
+              key={a.attempt_index}
+              className={`ssd-attempt-card ${a.passed ? "ssd-attempt-card--passed" : "ssd-attempt-card--failed"}`}
+            >
+              <div className="ssd-attempt-card__header">
+                <span className="ssd-attempt-card__label">
+                  {a.attempt_index === 1
+                    ? `1차 ${sourceLabel}`
+                    : `${a.attempt_index}차 ${retakeLabel}`}
+                </span>
+                <span className={`ssd-attempt-card__badge ${a.passed ? "ssd-attempt-card__badge--pass" : "ssd-attempt-card__badge--fail"}`}>
+                  {a.passed ? "합격" : "불합격"}
+                </span>
+              </div>
+              <div className="ssd-attempt-card__score-row">
+                <span className="ssd-attempt-card__score">
+                  {a.score != null ? a.score : "—"}
+                </span>
+                <span className="ssd-attempt-card__max">/ {data.max_score}</span>
+                {a.score != null && data.max_score > 0 && (
+                  <span className={`ssd-attempt-card__pct ${a.passed ? "ssd-attempt-card__pct--pass" : "ssd-attempt-card__pct--fail"}`}>
+                    {Math.round((a.score / data.max_score) * 100)}%
                   </span>
-                  <span className="ssd-timeline__score">
-                    {a.score != null ? `${a.score} / ${data.max_score}` : "—"}
-                  </span>
-                  <span className={`ssd-timeline__badge ${a.passed ? "ssd-timeline__badge--pass" : "ssd-timeline__badge--fail"}`}>
-                    {a.passed ? "합격" : "불합격"}
-                  </span>
+                )}
+              </div>
+              {data.pass_score != null && (
+                <div className="ssd-attempt-card__cutline">
+                  합격 기준: {data.pass_score}점
                 </div>
-              </div>
-            ))}
-          </div>
+              )}
+            </div>
+          ))}
 
-          {/* ── 재시도 입력 (미해소 ClinicLink가 있을 때만) ── */}
-          {data.clinic_link_id && !data.resolved && (
-            <div className="ssd-retake">
-              <div className="ssd-retake__header">
-                <span className="ssd-retake__label">
-                  {(data.attempts.length || 0) + 1}차 {sourceType === "exam" ? "재시험" : "재제출"} 점수 입력
+          {/* ── + 재시험/재시도 추가하기 ── */}
+          {canAddRetake && !showNewAttempt && (
+            <button
+              type="button"
+              className="ssd-add-attempt-btn"
+              onClick={() => setShowNewAttempt(true)}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+              {nextAttemptIndex}차 {retakeLabel} 추가하기
+            </button>
+          )}
+
+          {/* ── 새 시도 입력 카드 (동일 디자인) ── */}
+          {canAddRetake && showNewAttempt && (
+            <div className="ssd-attempt-card ssd-attempt-card--new">
+              <div className="ssd-attempt-card__header">
+                <span className="ssd-attempt-card__label">
+                  {nextAttemptIndex}차 {retakeLabel}
                 </span>
-                <span className="ssd-retake__cutline">
-                  합격 기준: {data.pass_score ?? "—"}
+                <span className="ssd-attempt-card__badge ssd-attempt-card__badge--new">
+                  점수 입력
                 </span>
               </div>
-              <div className="ssd-retake__input-row">
+              <div className="ssd-attempt-card__input-row">
                 <input
                   type="number"
-                  className="ssd-retake__input"
+                  className="ssd-attempt-card__input"
                   value={retakeScore}
                   onChange={(e) => setRetakeScore(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleRetakeSubmit(); } }}
@@ -496,24 +532,38 @@ function AttemptTimeline({
                   max={data.max_score ?? undefined}
                   step="any"
                   disabled={retakeMutation.isPending}
+                  autoFocus
                 />
-                <span className="ssd-retake__max">/ {data.max_score}</span>
+                <span className="ssd-attempt-card__max">/ {data.max_score}</span>
                 <button
                   type="button"
-                  className="ssd-retake__submit"
+                  className="ssd-attempt-card__save"
                   onClick={handleRetakeSubmit}
                   disabled={retakeMutation.isPending || !retakeScore.trim()}
                 >
                   {retakeMutation.isPending ? "저장 중..." : "저장"}
                 </button>
+                <button
+                  type="button"
+                  className="ssd-attempt-card__cancel"
+                  onClick={() => { setShowNewAttempt(false); setRetakeScore(""); }}
+                  disabled={retakeMutation.isPending}
+                >
+                  취소
+                </button>
               </div>
+              {data.pass_score != null && (
+                <div className="ssd-attempt-card__cutline">
+                  합격 기준: {data.pass_score}점
+                </div>
+              )}
             </div>
           )}
 
-          {/* 해소 완료 표시 */}
+          {/* 통과 완료 표시 */}
           {data.clinic_link_id && data.resolved && (
             <div className="ssd-resolved-banner">
-              클리닉 해소 완료
+              클리닉 통과 완료
             </div>
           )}
 

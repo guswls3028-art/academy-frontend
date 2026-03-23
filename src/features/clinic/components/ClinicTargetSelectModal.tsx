@@ -8,13 +8,31 @@ import { Input } from "antd";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
 import { Button, EmptyState } from "@/shared/ui/ds";
 import { TABLE_COL } from "@/shared/ui/domain";
+import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
+import type { LectureInfo } from "@/shared/ui/chips/StudentNameWithLectureChip";
+import { formatPhone } from "@/shared/utils/formatPhone";
 
 import { useClinicTargets } from "../hooks/useClinicTargets";
 import { useClinicStudentSearch } from "../hooks/useClinicStudentSearch";
 import { fetchClinicStudentsDefault } from "../api/clinicStudents.api";
+import type { ClinicTarget } from "../api/clinicTargets";
+import type { ClinicStudent } from "../api/clinicStudents.api";
 
-type TargetRow = { enrollment_id: number; student_name: string };
-type StudentRow = { id: number; name: string };
+/**
+ * 통합 행 타입 — 양쪽 탭에서 동일한 테이블 컬럼 렌더링에 사용
+ */
+type UnifiedRow = {
+  id: number; // targets: enrollment_id, students: student id
+  name: string;
+  parentPhone: string;
+  studentPhone: string;
+  school: string;
+  grade: number | null;
+  schoolType: string;
+  profilePhotoUrl: string | null;
+  lectures: LectureInfo[];
+  clinicHighlight: boolean;
+};
 
 function TrashIcon({ className }: { className?: string }) {
   return (
@@ -55,6 +73,48 @@ type Props = {
 
 const EMPTY_IDS: number[] = [];
 
+/** 학년 표시 (school_type + grade) */
+function gradeLabel(schoolType?: string, grade?: number | null): string {
+  if (grade == null) return "-";
+  const prefix = schoolType === "MIDDLE" ? "중" : "고";
+  return `${prefix}${grade}`;
+}
+
+/** ClinicTarget → UnifiedRow */
+function targetToRow(t: ClinicTarget): UnifiedRow {
+  const lectures: LectureInfo[] = t.lecture_title
+    ? [{ lectureName: t.lecture_title, color: t.lecture_color, chipLabel: t.lecture_chip_label }]
+    : [];
+  return {
+    id: t.enrollment_id,
+    name: t.student_name,
+    parentPhone: t.parent_phone || "",
+    studentPhone: t.student_phone || "",
+    school: t.school || "",
+    grade: t.grade ?? null,
+    schoolType: "HIGH", // clinic targets don't expose school_type yet
+    profilePhotoUrl: t.profile_photo_url ?? null,
+    lectures,
+    clinicHighlight: t.name_highlight_clinic_target ?? false,
+  };
+}
+
+/** ClinicStudent → UnifiedRow */
+function studentToRow(s: ClinicStudent): UnifiedRow {
+  return {
+    id: s.id,
+    name: s.name,
+    parentPhone: s.parent_phone || "",
+    studentPhone: s.student_phone || "",
+    school: s.school || "",
+    grade: s.grade ?? null,
+    schoolType: s.school_type || "HIGH",
+    profilePhotoUrl: s.profile_photo_url ?? null,
+    lectures: s.lectures || [],
+    clinicHighlight: false,
+  };
+}
+
 export default function ClinicTargetSelectModal({
   open,
   onClose,
@@ -91,21 +151,25 @@ export default function ClinicTargetSelectModal({
     retry: 0,
   });
 
-  const rows = useMemo(() => {
+  const rows: UnifiedRow[] = useMemo(() => {
     if (mode === "targets") {
-      const arr = (targetsQ.data ?? []) as TargetRow[];
-      if (!keyword.trim()) return arr;
-      return arr.filter((t) => (t.student_name || "").includes(keyword.trim()));
+      const arr = (targetsQ.data ?? []) as ClinicTarget[];
+      const filtered = keyword.trim()
+        ? arr.filter((t) => (t.student_name || "").includes(keyword.trim()))
+        : arr;
+      return filtered.map(targetToRow);
     }
-    if (keyword.trim().length >= 2) return (studentsSearchQ.data ?? []) as StudentRow[];
-    return (studentsDefaultQ.data ?? []) as StudentRow[];
+    const raw = keyword.trim().length >= 2
+      ? (studentsSearchQ.data ?? []) as ClinicStudent[]
+      : (studentsDefaultQ.data ?? []) as ClinicStudent[];
+    return raw.map(studentToRow);
   }, [mode, targetsQ.data, keyword, studentsSearchQ.data, studentsDefaultQ.data]);
 
   const isLoading =
     (mode === "targets" && targetsQ.isLoading) ||
     (mode === "students" && (keyword.trim().length < 2 ? studentsDefaultQ.isLoading : studentsSearchQ.isLoading));
 
-  const allChecked = rows.length > 0 && rows.every((r) => selectedIds.includes(mode === "targets" ? (r as TargetRow).enrollment_id : (r as StudentRow).id));
+  const allChecked = rows.length > 0 && rows.every((r) => selectedIds.includes(r.id));
 
   const toggleAll = () => {
     if (allChecked) {
@@ -113,15 +177,8 @@ export default function ClinicTargetSelectModal({
       setSelectedIdToName(new Map());
       return;
     }
-    if (mode === "targets") {
-      const rowsT = rows as TargetRow[];
-      setSelectedIds(rowsT.map((r) => r.enrollment_id));
-      setSelectedIdToName(new Map(rowsT.map((r) => [r.enrollment_id, r.student_name ?? ""])));
-    } else {
-      const rowsS = rows as StudentRow[];
-      setSelectedIds(rowsS.map((r) => r.id));
-      setSelectedIdToName(new Map(rowsS.map((r) => [r.id, r.name ?? ""])));
-    }
+    setSelectedIds(rows.map((r) => r.id));
+    setSelectedIdToName(new Map(rows.map((r) => [r.id, r.name ?? ""])));
   };
 
   const toggleOne = (id: number, checked: boolean) => {
@@ -129,10 +186,8 @@ export default function ClinicTargetSelectModal({
     setSelectedIdToName((prev) => {
       const next = new Map(prev);
       if (checked) {
-        const name = mode === "targets"
-          ? (rows as TargetRow[]).find((r) => r.enrollment_id === id)?.student_name
-          : (rows as StudentRow[]).find((r) => r.id === id)?.name;
-        if (name != null) next.set(id, name);
+        const row = rows.find((r) => r.id === id);
+        if (row) next.set(id, row.name);
       } else next.delete(id);
       return next;
     });
@@ -224,7 +279,7 @@ export default function ClinicTargetSelectModal({
             <Input
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
-              placeholder={mode === "students" ? "학생 검색 (2글자 이상)" : "대상자 내 검색"}
+              placeholder={mode === "students" ? "이름 / 전화번호 / 학교명 / 학년(예: 고1, 중2)" : "대상자 내 검색"}
               allowClear
               className="ds-input w-full text-sm"
               aria-label={mode === "students" ? "학생 검색" : "대상자 검색"}
@@ -284,6 +339,10 @@ export default function ClinicTargetSelectModal({
                     <colgroup>
                       <col style={{ width: TABLE_COL.checkbox }} />
                       <col style={{ width: TABLE_COL.nameCompactModal }} />
+                      <col style={{ width: TABLE_COL.phoneCompact }} />
+                      <col style={{ width: TABLE_COL.phoneCompact }} />
+                      <col style={{ width: TABLE_COL.mediumModal }} />
+                      <col style={{ width: TABLE_COL.shortModal }} />
                     </colgroup>
                     <thead>
                       <tr
@@ -308,13 +367,37 @@ export default function ClinicTargetSelectModal({
                         >
                           이름
                         </th>
+                        <th
+                          className="border-b py-1.5 px-3 text-left text-[var(--color-text-muted)]"
+                          style={{ borderColor: "var(--color-border-divider)" }}
+                        >
+                          부모님 전화
+                        </th>
+                        <th
+                          className="border-b py-1.5 px-3 text-left text-[var(--color-text-muted)]"
+                          style={{ borderColor: "var(--color-border-divider)" }}
+                        >
+                          학생 전화
+                        </th>
+                        <th
+                          className="border-b py-1.5 px-3 text-left text-[var(--color-text-muted)]"
+                          style={{ borderColor: "var(--color-border-divider)" }}
+                        >
+                          학교
+                        </th>
+                        <th
+                          className="border-b py-1.5 px-3 text-left text-[var(--color-text-muted)]"
+                          style={{ borderColor: "var(--color-border-divider)" }}
+                        >
+                          학년
+                        </th>
                       </tr>
                     </thead>
                     <tbody>
                       {rows.length === 0 ? (
                         <tr>
                           <td
-                            colSpan={2}
+                            colSpan={6}
                             className="py-5 px-3 text-center text-[var(--color-text-muted)]"
                           >
                             {keyword.trim()
@@ -323,13 +406,11 @@ export default function ClinicTargetSelectModal({
                           </td>
                         </tr>
                       ) : (
-                        rows.map((r: TargetRow | StudentRow) => {
-                          const id = mode === "targets" ? (r as TargetRow).enrollment_id : (r as StudentRow).id;
-                          const name = mode === "targets" ? (r as TargetRow).student_name : (r as StudentRow).name;
-                          const checked = selectedIds.includes(id);
+                        rows.map((r) => {
+                          const checked = selectedIds.includes(r.id);
                           return (
                             <tr
-                              key={id}
+                              key={r.id}
                               className={`border-b ${checked ? "bg-[var(--color-bg-surface-soft)]" : ""}`}
                               style={{ borderColor: "var(--color-border-divider)" }}
                             >
@@ -341,12 +422,31 @@ export default function ClinicTargetSelectModal({
                                   type="checkbox"
                                   checked={checked}
                                   disabled={isLoading}
-                                  onChange={(e) => toggleOne(id, e.target.checked)}
-                                  aria-label={`${name} 선택`}
+                                  onChange={(e) => toggleOne(r.id, e.target.checked)}
+                                  aria-label={`${r.name} 선택`}
                                 />
                               </td>
-                              <td className="modal-inner-table__name py-1.5 px-3 text-[var(--color-text-primary)] truncate font-medium">
-                                {name || "(이름 없음)"}
+                              <td className="modal-inner-table__name py-1.5 px-3 text-[var(--color-text-primary)] truncate font-medium leading-6">
+                                <StudentNameWithLectureChip
+                                  name={r.name || "(이름 없음)"}
+                                  profilePhotoUrl={r.profilePhotoUrl}
+                                  avatarSize={20}
+                                  lectures={r.lectures}
+                                  chipSize={14}
+                                  clinicHighlight={r.clinicHighlight}
+                                />
+                              </td>
+                              <td className="py-1.5 px-3 text-[var(--color-text-secondary)] truncate leading-6">
+                                {formatPhone(r.parentPhone)}
+                              </td>
+                              <td className="py-1.5 px-3 text-[var(--color-text-secondary)] truncate leading-6">
+                                {formatPhone(r.studentPhone)}
+                              </td>
+                              <td className="py-1.5 px-3 text-[var(--color-text-secondary)] truncate leading-6">
+                                {r.school || "-"}
+                              </td>
+                              <td className="py-1.5 px-3 text-[var(--color-text-secondary)] leading-6">
+                                {gradeLabel(r.schoolType, r.grade)}
                               </td>
                             </tr>
                           );

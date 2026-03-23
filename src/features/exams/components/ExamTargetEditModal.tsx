@@ -2,10 +2,16 @@
 
 import { useEffect, useState } from "react";
 import api from "@/shared/api/axios";
+import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 
 type SessionEnrollment = {
   enrollment: number;
   student_name: string;
+  profile_photo_url?: string | null;
+  lecture_title?: string | null;
+  lecture_color?: string | null;
+  lecture_chip_label?: string | null;
+  name_highlight_clinic_target?: boolean;
 };
 
 export default function ExamTargetEditModal({
@@ -56,7 +62,13 @@ export default function ExamTargetEditModal({
                   key={r.enrollment}
                   className="flex justify-between rounded border px-3 py-2"
                 >
-                  <span>{r.student_name}</span>
+                  <StudentNameWithLectureChip
+                    name={r.student_name}
+                    profilePhotoUrl={r.profile_photo_url}
+                    avatarSize={20}
+                    lectures={r.lecture_title ? [{ lectureName: r.lecture_title, color: r.lecture_color, chipLabel: r.lecture_chip_label }] : undefined}
+                    clinicHighlight={r.name_highlight_clinic_target === true}
+                  />
                 </li>
               ))}
             </ul>

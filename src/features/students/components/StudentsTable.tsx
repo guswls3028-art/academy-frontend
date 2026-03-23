@@ -209,6 +209,7 @@ export default function StudentsTable({
             }
             chipSize={16}
             highlight={(text) => highlight(text, search)}
+            clinicHighlight={(s as any).name_highlight_clinic_target === true}
           />
         );
       case "parentPhone":

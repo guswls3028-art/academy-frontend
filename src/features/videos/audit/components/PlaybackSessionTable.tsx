@@ -1,5 +1,7 @@
 // PATH: src/features/videos/audit/components/PlaybackSessionTable.tsx
 
+import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
+
 type PlaybackSession = {
   id: number;
   student_name: string;
@@ -55,7 +57,9 @@ export default function PlaybackSessionTable({
                     : "hover:bg-[var(--bg-surface-soft)]"
                 }`}
               >
-                <td className="px-3 py-2 font-medium">{s.student_name}</td>
+                <td className="px-3 py-2 font-medium">
+                  <StudentNameWithLectureChip name={s.student_name} />
+                </td>
                 <td className="px-3 py-2 text-xs text-[var(--text-secondary)]">
                   {s.device_id}
                 </td>
