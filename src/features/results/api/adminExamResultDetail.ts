@@ -28,6 +28,9 @@ export type ExamResultItem = {
    */
   is_editable: boolean;
 
+  /** 정답 (AnswerKey 기반, 선택형="1"~"5", 서술형=텍스트) */
+  correct_answer?: string;
+
   meta?: any;
 };
 
@@ -50,6 +53,9 @@ export type ExamResultDetail = {
    * - 없으면 프론트는 Fail Closed
    */
   edit_state: EditState;
+
+  /** 정답표: key=ExamQuestion.id(string), value=정답 */
+  correct_answers?: Record<string, string>;
 };
 
 export async function fetchAdminExamResultDetail(
