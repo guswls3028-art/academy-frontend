@@ -346,4 +346,32 @@
   transform: scale(1);
 }
 
+/* ----- 톱니바퀴 (hover 시 우상단) ----- */
+.session-block__gear {
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--color-bg-surface) 85%, transparent);
+  border: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 140ms ease, background 140ms ease, color 140ms ease;
+  backdrop-filter: blur(4px);
+}
+
+.group:hover .session-block__gear,
+.session-block__gear:focus-visible {
+  opacity: 1;
+}
+
+.session-block__gear:hover {
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
 /* 날짜/시간 옵션 행 스타일 → styles/design-system/modal.css (.modal-option-row) SSOT */
