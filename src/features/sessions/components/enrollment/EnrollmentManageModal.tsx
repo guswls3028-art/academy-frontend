@@ -16,6 +16,7 @@ import { Button, EmptyState } from "@/shared/ui/ds";
 import { useConfirm } from "@/shared/ui/confirm";
 import { TABLE_COL } from "@/shared/ui/domain";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
+import { formatPhone } from "@/shared/utils/formatPhone";
 
 function TrashIcon({ className }: { className?: string }) {
   return (
@@ -104,6 +105,10 @@ export default function EnrollmentManageModal({
     if (!k) return rows;
     return rows.filter((r) =>
       (r.student_name ?? "").toLowerCase().includes(k)
+      || (r.parent_phone ?? "").includes(k)
+      || (r.student_phone ?? "").includes(k)
+      || (r.school ?? "").toLowerCase().includes(k)
+      || (r.grade != null && `${r.grade}학년`.includes(k))
     );
   }, [rows, keyword]);
 
@@ -346,16 +351,16 @@ export default function EnrollmentManageModal({
                                 />
                               </td>
                               <td className="py-1.5 px-3 text-[var(--color-text-secondary)] truncate leading-6">
-                                -
+                                {formatPhone(r.parent_phone)}
                               </td>
                               <td className="py-1.5 px-3 text-[var(--color-text-secondary)] truncate leading-6">
-                                -
+                                {formatPhone(r.student_phone)}
                               </td>
                               <td className="py-1.5 px-3 text-[var(--color-text-secondary)] truncate leading-6">
-                                -
+                                {r.school || "-"}
                               </td>
                               <td className="py-1.5 px-3 text-[var(--color-text-secondary)] leading-6">
-                                -
+                                {r.grade != null ? `${r.grade}학년` : "-"}
                               </td>
                             </tr>
                           );

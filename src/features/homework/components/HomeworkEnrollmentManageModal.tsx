@@ -22,6 +22,7 @@ import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/mod
 import { Button, EmptyState } from "@/shared/ui/ds";
 import { TABLE_COL } from "@/shared/ui/domain";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
+import { formatPhone } from "@/shared/utils/formatPhone";
 
 function TrashIcon({ className }: { className?: string }) {
   return (
@@ -106,6 +107,10 @@ export default function HomeworkEnrollmentManageModal({
     if (!k) return rows;
     return rows.filter((r) =>
       (r.student_name ?? "").toLowerCase().includes(k)
+      || (r.parent_phone ?? "").includes(k)
+      || (r.student_phone ?? "").includes(k)
+      || (r.school ?? "").toLowerCase().includes(k)
+      || (r.grade != null && `${r.grade}학년`.includes(k))
     );
   }, [rows, keyword]);
 
@@ -331,16 +336,16 @@ export default function HomeworkEnrollmentManageModal({
                                 />
                               </td>
                               <td className="py-1.5 px-3 text-[var(--color-text-secondary)] truncate leading-6">
-                                -
+                                {formatPhone(r.parent_phone)}
                               </td>
                               <td className="py-1.5 px-3 text-[var(--color-text-secondary)] truncate leading-6">
-                                -
+                                {formatPhone(r.student_phone)}
                               </td>
                               <td className="py-1.5 px-3 text-[var(--color-text-secondary)] truncate leading-6">
-                                -
+                                {r.school || "-"}
                               </td>
                               <td className="py-1.5 px-3 text-[var(--color-text-secondary)] leading-6">
-                                -
+                                {r.grade != null ? `${r.grade}학년` : "-"}
                               </td>
                             </tr>
                           );

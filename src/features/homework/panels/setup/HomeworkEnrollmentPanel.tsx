@@ -78,6 +78,10 @@ export default function HomeworkEnrollmentPanel({
               },
             ]
           : undefined,
+      parent_phone: x.parent_phone ?? null,
+      student_phone: x.student_phone ?? null,
+      school: x.school ?? null,
+      grade: x.grade ?? null,
     }));
     const initSelected = new Set<number>(q?.selected_ids ?? []);
     setRows(normalizedRows);

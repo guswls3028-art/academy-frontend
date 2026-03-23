@@ -8,6 +8,10 @@ export type ExamEnrollmentRow = {
   lecture_title?: string | null;
   lecture_color?: string | null;
   lecture_chip_label?: string | null;
+  parent_phone?: string | null;
+  student_phone?: string | null;
+  school?: string | null;
+  grade?: number | null;
 };
 
 export type ExamEnrollmentManageResponse = {

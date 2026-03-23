@@ -20,6 +20,10 @@ export type HomeworkAssignmentItem = {
   lecture_title?: string | null;
   lecture_color?: string | null;
   lecture_chip_label?: string | null;
+  parent_phone?: string | null;
+  student_phone?: string | null;
+  school?: string | null;
+  grade?: number | null;
 };
 
 export type HomeworkAssignmentsResponse = {
@@ -37,6 +41,10 @@ function normalizeItems(raw: any): HomeworkAssignmentItem[] {
     lecture_title: r?.lecture_title ?? undefined,
     lecture_color: r?.lecture_color ?? undefined,
     lecture_chip_label: r?.lecture_chip_label ?? undefined,
+    parent_phone: r?.parent_phone ?? null,
+    student_phone: r?.student_phone ?? null,
+    school: r?.school ?? null,
+    grade: r?.grade ?? null,
   }));
 }
 

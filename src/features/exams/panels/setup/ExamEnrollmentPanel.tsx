@@ -101,6 +101,10 @@ export default function ExamEnrollmentPanel({ examId }: { examId: number }) {
                 },
               ]
             : undefined,
+        parent_phone: r.parent_phone ?? null,
+        student_phone: r.student_phone ?? null,
+        school: r.school ?? null,
+        grade: r.grade ?? null,
       })),
     [serverRows]
   );

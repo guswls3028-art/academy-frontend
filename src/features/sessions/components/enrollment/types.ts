@@ -23,4 +23,9 @@ export type EnrollmentRow = {
   profile_photo_url?: string | null;
   /** 강의 딱지 표시용 (1개: 해당 수강 강의, 있으면 StudentNameWithLectureChip에 전달) */
   lectures?: EnrollmentRowLecture[] | null;
+  /** 학생 상세 — 대상자 관리 테이블 표시용 */
+  parent_phone?: string | null;
+  student_phone?: string | null;
+  school?: string | null;
+  grade?: number | null;
 };
