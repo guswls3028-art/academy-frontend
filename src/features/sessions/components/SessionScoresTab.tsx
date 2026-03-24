@@ -21,7 +21,7 @@ import { useScoreEditDraft } from "@/features/scores/hooks/useScoreEditDraft";
 import { postScoreDraftCommit } from "@/features/scores/api/scoreDraft";
 import { scoresQueryKeys } from "@/features/scores/api/queryKeys";
 import { downloadClinicPdf, getClinicStats } from "@/features/scores/utils/clinicPdfGenerator";
-import { generateScoreReport } from "@/features/scores/utils/generateScoreReport";
+import { generateScoreReport, buildScoreDetail } from "@/features/scores/utils/generateScoreReport";
 import { useSendMessageModal } from "@/features/messages/context/SendMessageModalContext";
 import type { SessionScoresResponse } from "@/features/scores/api/sessionScores";
 
@@ -180,35 +180,15 @@ export default function SessionScoresTab() {
       initialBody = generateScoreReport(selectedRows[0], scoresData.meta);
     }
 
-    // 알림톡 상세 성적 데이터 (1명 선택 시 상세, 다수 선택 시 요약)
-    const allExams = scoresData.meta?.exams ?? [];
-    const allHw = scoresData.meta?.homeworks ?? [];
     const lecture = qc.getQueryData<{ title?: string; name?: string }>(["lecture", lectureId]);
     const lectureName = lecture?.title ?? lecture?.name ?? "";
-    const today = new Date();
-    const dateLabel = `${today.getMonth() + 1}월 ${today.getDate()}일`;
+    const session = qc.getQueryData<{ title?: string }>(["session", sessionId]);
+    const sessionTitle = session?.title ?? "";
 
-    let scoreDetail = `시험 ${allExams.length}건, 과제 ${allHw.length}건`;
-    if (selectedRows.length === 1) {
-      const r = selectedRows[0];
-      const lines: string[] = [];
-      for (const e of r.exams ?? []) {
-        const max = e.block.max_score ?? null;
-        const pct = max && e.block.score != null ? Math.round((e.block.score / max) * 100) : null;
-        const pass = e.block.passed === true ? "합격" : e.block.passed === false ? "불합격" : "";
-        lines.push(`- ${e.title}: ${e.block.score ?? "미응시"}${max ? `/${max}` : ""}${pct != null ? ` (${pct}%)` : ""}${pass ? ` [${pass}]` : ""}`);
-      }
-      if ((r.homeworks ?? []).length > 0) {
-        lines.push("");
-        for (const h of r.homeworks ?? []) {
-          const max = h.block.max_score ?? null;
-          const pct = max && h.block.score != null ? Math.round((h.block.score / max) * 100) : null;
-          const pass = h.block.passed === true ? "합격" : h.block.passed === false ? "불합격" : "";
-          lines.push(`- ${h.title}: ${h.block.score ?? "미제출"}${max ? `/${max}` : ""}${pct != null ? ` (${pct}%)` : ""}${pass ? ` [${pass}]` : ""}`);
-        }
-      }
-      scoreDetail = lines.join("\n");
-    }
+    // 1명이면 상세 성적, 다수면 빈칸 (직접 입력)
+    const scoreDetail = selectedRows.length === 1
+      ? buildScoreDetail(selectedRows[0], scoresData.meta)
+      : "";
 
     openSendMessageModal({
       studentIds,
@@ -216,8 +196,8 @@ export default function SessionScoresTab() {
       blockCategory: "grades",
       initialBody,
       alimtalkExtraVars: {
-        시험명: `${dateLabel} 종합 성적`,
         강의명: lectureName,
+        차시명: sessionTitle,
         시험성적: scoreDetail,
       },
     });
