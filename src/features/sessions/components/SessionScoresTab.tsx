@@ -23,6 +23,7 @@ import { scoresQueryKeys } from "@/features/scores/api/queryKeys";
 import { downloadClinicPdf, getClinicStats } from "@/features/scores/utils/clinicPdfGenerator";
 import { generateScoreReport, buildScoreDetail } from "@/features/scores/utils/generateScoreReport";
 import { useSendMessageModal } from "@/features/messages/context/SendMessageModalContext";
+import AutoSendToggle from "@/features/messages/components/AutoSendToggle";
 import type { SessionScoresResponse } from "@/features/scores/api/sessionScores";
 
 type EditConfig = {
@@ -287,6 +288,20 @@ export default function SessionScoresTab() {
 
         {/* 우측: 액션 버튼 */}
         <div className="flex items-center gap-2">
+          {!isEditMode && (
+            <AutoSendToggle
+              trigger="exam_score_published"
+              label="성적 알림"
+              compact
+              previewContext={{
+                학생이름2: "김학생",
+                시험명: "중간고사",
+                강의명: "수학 기초",
+                시험성적: "92점",
+                사이트링크: "https://hakwonplus.com",
+              }}
+            />
+          )}
           {!isEditMode && selectedIds.length > 0 && (
             <button
               type="button"

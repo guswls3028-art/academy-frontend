@@ -5,6 +5,7 @@ import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Switch } from "antd";
 import { FiZap, FiEdit3 } from "react-icons/fi";
+import { Eye } from "lucide-react";
 import {
   fetchAutoSendConfigs,
   fetchMessageTemplates,
@@ -21,6 +22,7 @@ import { useMessagingInfo } from "../hooks/useMessagingInfo";
 import { MESSAGE_MODE_LABELS } from "../constants/messageSendOptions";
 import { AUTO_SEND_SECTIONS } from "./AutoSendSectionTree";
 import TemplateEditModal from "./TemplateEditModal";
+import AutoSendPreviewPopup from "./AutoSendPreviewPopup";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import panelStyles from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
@@ -131,6 +133,7 @@ function TriggerCard({
   onEditTemplate?: (trigger: string, templateId: number | null) => void;
   smsConnected: boolean;
 }) {
+  const [showPreview, setShowPreview] = useState(false);
   const hasTemplate = !!config.template;
   const status = config.template_solapi_status;
 
@@ -256,6 +259,32 @@ function TriggerCard({
           >
             {config.enabled ? "활성화" : "비활성화"}
           </span>
+          {config.template_body && (
+            <button
+              type="button"
+              onClick={() => setShowPreview(true)}
+              aria-label="미리보기"
+              title="알림톡 미리보기"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+                padding: "2px 8px",
+                fontSize: 11,
+                fontWeight: 600,
+                color: "var(--color-primary)",
+                background: "color-mix(in srgb, var(--color-primary) 8%, transparent)",
+                border: "1px solid color-mix(in srgb, var(--color-primary) 20%, transparent)",
+                borderRadius: "var(--radius-sm, 4px)",
+                cursor: "pointer",
+                transition: "background 0.12s",
+                whiteSpace: "nowrap",
+              }}
+            >
+              <Eye size={12} />
+              미리보기
+            </button>
+          )}
         </div>
       </div>
 
@@ -437,6 +466,14 @@ function TriggerCard({
           </select>
         </div>
       </div>
+      <AutoSendPreviewPopup
+        open={showPreview}
+        onClose={() => setShowPreview(false)}
+        trigger={config.trigger}
+        subject={config.template_subject ?? ""}
+        body={config.template_body ?? ""}
+        previewContext={{}}
+      />
     </div>
   );
 }

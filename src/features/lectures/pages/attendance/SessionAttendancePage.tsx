@@ -23,6 +23,7 @@ import { formatPhone } from "@/shared/utils/formatPhone";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useConfirm } from "@/shared/ui/confirm";
 import { useSendMessageModal } from "@/features/messages/context/SendMessageModalContext";
+import AutoSendToggle from "@/features/messages/components/AutoSendToggle";
 import "./attendance-ui.css";
 
 const STATUS_LIST = ORDERED_ATTENDANCE_STATUS;
@@ -340,6 +341,31 @@ export default function SessionAttendancePage({
 
   const primaryAction = (
     <div className="flex items-center gap-2">
+      <AutoSendToggle
+        trigger="check_in_complete"
+        label="입실 알림"
+        compact
+        previewContext={{
+          학생이름2: "김학생",
+          강의명: "수학 기초",
+          차시명: "1차시",
+          날짜: "2026-03-24",
+          시간: "14:00",
+          사이트링크: "https://hakwonplus.com",
+        }}
+      />
+      <AutoSendToggle
+        trigger="absent_occurred"
+        label="결석 알림"
+        compact
+        previewContext={{
+          학생이름2: "김학생",
+          강의명: "수학 기초",
+          차시명: "1차시",
+          날짜: "2026-03-24",
+          사이트링크: "https://hakwonplus.com",
+        }}
+      />
       <Button type="button" intent="secondary" size="sm" onClick={handleBulkSetPresent}>
         전체 현장 출석
       </Button>

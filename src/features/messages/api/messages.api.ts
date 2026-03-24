@@ -323,6 +323,8 @@ export interface AutoSendConfigItem {
   trigger: string;
   template: number | null;
   template_name: string;
+  template_subject: string;
+  template_body: string;
   template_solapi_status: string;
   enabled: boolean;
   message_mode: MessageMode;

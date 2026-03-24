@@ -11,6 +11,7 @@ import { feedback } from "@/shared/ui/feedback/feedback";
 import { useConfirm } from "@/shared/ui/confirm";
 import { saveHomeworkAsTemplate, updateAdminHomework } from "../../api/adminHomework";
 import { FiSave, FiChevronDown } from "react-icons/fi";
+import AutoSendToggle from "@/features/messages/components/AutoSendToggle";
 import type { HomeworkSummary } from "../../types";
 import "../../../exams/components/common/ExamHeader.css";
 
@@ -99,6 +100,18 @@ export default function HomeworkHeader({ homework, sessionId }: Props) {
         </div>
 
         <div className="flex items-center gap-2">
+          <AutoSendToggle
+            trigger="assignment_registered"
+            label="과제 알림"
+            compact
+            previewContext={{
+              학생이름2: "김학생",
+              과제명: homework.title || "과제",
+              강의명: "수학 기초",
+              차시명: "1차시",
+              사이트링크: "https://hakwonplus.com",
+            }}
+          />
           {canSaveAsTemplate && (
             <Button
               type="button"

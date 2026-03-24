@@ -7,6 +7,7 @@ import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useConfirm } from "@/shared/ui/confirm";
 import { FiSave, FiChevronDown } from "react-icons/fi";
+import AutoSendToggle from "@/features/messages/components/AutoSendToggle";
 import "./ExamHeader.css";
 
 /**
@@ -101,6 +102,17 @@ export default function ExamHeader({ exam, sessionId }: { exam: Exam; sessionId?
         </div>
 
         <div className="flex items-center gap-2">
+          <AutoSendToggle
+            trigger="exam_not_taken"
+            label="미응시 알림"
+            compact
+            previewContext={{
+              학생이름2: "김학생",
+              시험명: exam.title || "시험",
+              강의명: "수학 기초",
+              사이트링크: "https://hakwonplus.com",
+            }}
+          />
           {canSaveAsTemplate && (
             <Button
               type="button"
