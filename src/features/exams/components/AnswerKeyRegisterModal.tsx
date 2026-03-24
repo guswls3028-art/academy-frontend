@@ -40,6 +40,14 @@ type Props = {
   sessionName?: string;
 };
 
+type ExplanationState = {
+  text: string;
+  problemImageUrl: string | null;
+  problemImageKey: string | null;
+  imageUrl: string | null;
+  imageKey: string | null;
+};
+
 const CHOICES = ["1", "2", "3", "4", "5"];
 
 /** 총점을 문항 수만큼 정수로 균등 분배. 나누어떨어지지 않으면 낮은 점수가 앞문항부터 (예: 80점 17문항 → 4점×5문항, 5점×12문항) */
@@ -119,7 +127,7 @@ export default function AnswerKeyRegisterModal({
   const [scoreDraft, setScoreDraft] = useState<Record<number, number>>({});
   /** 이미지 등록 탭: 문항별 해설 — 해설 텍스트, 문제 이미지 URL, 해설 이미지 URL(객체 URL) */
   const [explanationDraft, setExplanationDraft] = useState<
-    Record<number, { text: string; problemImageUrl: string | null; imageUrl: string | null }>
+    Record<number, ExplanationState>
   >({});
   const [explanationSaveBusy, setExplanationSaveBusy] = useState(false);
 
@@ -1088,13 +1096,7 @@ function AnswerSummary({
   );
 }
 
-type ExplanationState = {
-  text: string;
-  problemImageUrl: string | null;
-  problemImageKey: string | null;
-  imageUrl: string | null;
-  imageKey: string | null;
-};
+// ExplanationState is defined at top level, above the component
 
 /** 문제 이미지·해설 이미지 공통 셀 — 클릭: 포커스(Ctrl+V 붙여넣기), 더블클릭: 파일 선택 */
 function ImageCell({
