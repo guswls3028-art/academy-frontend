@@ -1,12 +1,15 @@
 // PATH: src/features/exams/components/ExamPdfUploadModal.tsx
-// 통합 모달 — 시험지 PDF 업로드 (POST /exams/{examId}/assets/)
+// 통합 모달 — 시험지 PDF 업로드 + AI 문항 분할 진행률 + 결과 표시
 // 진입점: ExamAssetsPanel(자산 탭), AnswerKeyRegisterModal(답안 등록)
 
 import { useState, useEffect } from "react";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter, MODAL_WIDTH } from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
 import FileUploadZone from "@/shared/ui/upload/FileUploadZone";
-import { usePdfQuestionExtract, type PdfExtractStatus } from "../hooks/usePdfQuestionExtract";
+import {
+  usePdfQuestionExtract,
+  type PdfExtractStatus,
+} from "../hooks/usePdfQuestionExtract";
 
 type Props = {
   open: boolean;
@@ -17,12 +20,13 @@ type Props = {
 const STATUS_LABELS: Record<PdfExtractStatus, string> = {
   idle: "",
   uploading: "시험지 업로드 중…",
-  done: "업로드 완료",
-  failed: "업로드 실패",
+  processing: "AI 문항 분할 처리 중…",
+  done: "문항 분할 완료",
+  failed: "처리 실패",
 };
 
 export default function ExamPdfUploadModal({ open, onClose, examId }: Props) {
-  const { status, error, upload, reset } = usePdfQuestionExtract(examId);
+  const { status, error, progress, result, upload, reset } = usePdfQuestionExtract(examId);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   useEffect(() => {
@@ -43,8 +47,10 @@ export default function ExamPdfUploadModal({ open, onClose, examId }: Props) {
   };
 
   const isUploading = status === "uploading";
+  const isProcessing = status === "processing";
   const isDone = status === "done";
   const isFailed = status === "failed";
+  const isBusy = isUploading || isProcessing;
 
   return (
     <AdminModal
@@ -56,7 +62,7 @@ export default function ExamPdfUploadModal({ open, onClose, examId }: Props) {
       <ModalHeader
         type="action"
         title="시험지 PDF 업로드"
-        description="시험지 PDF 파일을 업로드합니다. 업로드된 파일은 시험 자산으로 저장됩니다."
+        description="시험지 PDF를 업로드하면 AI가 문항을 자동으로 인식합니다."
       />
 
       <ModalBody>
@@ -71,7 +77,7 @@ export default function ExamPdfUploadModal({ open, onClose, examId }: Props) {
               setSelectedFile(null);
               reset();
             }}
-            disabled={isUploading}
+            disabled={isBusy}
             validateFile={(f) => {
               const ext = f.name.toLowerCase();
               return ext.endsWith(".pdf") || ext.endsWith(".png") || ext.endsWith(".jpg") || ext.endsWith(".jpeg");
@@ -82,8 +88,9 @@ export default function ExamPdfUploadModal({ open, onClose, examId }: Props) {
           {/* 진행 상태 표시 */}
           {status !== "idle" && (
             <div className="mt-4 rounded border border-[var(--color-border-divider)] p-3">
+              {/* 상태 아이콘 + 라벨 */}
               <div className="flex items-center gap-2">
-                {isUploading && (
+                {isBusy && (
                   <div className="w-4 h-4 border-2 border-[var(--color-brand-primary)] border-t-transparent rounded-full animate-spin" />
                 )}
                 {isDone && (
@@ -104,12 +111,52 @@ export default function ExamPdfUploadModal({ open, onClose, examId }: Props) {
                   {STATUS_LABELS[status]}
                 </span>
               </div>
+
+              {/* 프로그레스 바 (처리 중일 때) */}
+              {isBusy && (
+                <div className="mt-2">
+                  <div className="h-1.5 rounded-full bg-[var(--color-bg-secondary)] overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-[var(--color-brand-primary)] transition-all duration-500"
+                      style={{ width: `${progress.percent}%` }}
+                    />
+                  </div>
+                  {progress.stepName && (
+                    <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+                      {progress.stepName}
+                      {progress.stepIndex && progress.stepTotal
+                        ? ` (${progress.stepIndex}/${progress.stepTotal})`
+                        : ""}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* 에러 메시지 */}
               {error && (
                 <p className="mt-1 text-xs text-[var(--color-error)]">{error}</p>
               )}
-              {isDone && (
+
+              {/* 성공 결과 */}
+              {isDone && result && (
+                <div className="mt-2 text-xs text-[var(--color-text-muted)] space-y-0.5">
+                  <p>인식된 문항 수: <strong className="text-[var(--color-text-primary)]">{result.totalQuestions}개</strong></p>
+                  {result.explanationCount > 0 && (
+                    <p>인식된 해설: <strong className="text-[var(--color-text-primary)]">{result.explanationCount}개</strong></p>
+                  )}
+                  {result.pageCount > 1 && (
+                    <p>페이지 수: {result.pageCount}페이지</p>
+                  )}
+                  <p className="mt-1 text-[var(--color-text-tertiary)]">
+                    문항 목록에서 결과를 확인하고 수정할 수 있습니다.
+                  </p>
+                </div>
+              )}
+
+              {/* 파일만 저장된 경우 (AI 분할 전) */}
+              {isUploading && (
                 <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-                  시험지 PDF가 자산으로 저장되었습니다.
+                  파일 업로드 후 AI 문항 분할이 자동으로 시작됩니다.
                 </p>
               )}
             </div>
@@ -124,17 +171,17 @@ export default function ExamPdfUploadModal({ open, onClose, examId }: Props) {
               <Button intent="primary" onClick={onClose}>확인</Button>
             ) : (
               <div className="flex items-center gap-2">
-                <Button intent="secondary" onClick={onClose} disabled={isUploading}>
+                <Button intent="secondary" onClick={onClose} disabled={isBusy}>
                   닫기
                 </Button>
                 {selectedFile && status === "idle" && (
                   <Button intent="primary" onClick={handleUpload}>
-                    업로드
+                    업로드 및 문항 분석
                   </Button>
                 )}
-                {isUploading && (
+                {isBusy && (
                   <Button intent="primary" disabled>
-                    업로드 중…
+                    {isProcessing ? "분석 중…" : "업로드 중…"}
                   </Button>
                 )}
                 {isFailed && selectedFile && (

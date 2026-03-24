@@ -13,6 +13,8 @@ export interface ExamQuestion {
     w: number;
     h: number;
   };
+  explanation_text?: string;
+  explanation_source?: "ai_extracted" | "manual" | null;
 }
 
 export function fetchQuestionsByExam(examId: number) {
