@@ -26,11 +26,11 @@ import { formatPhone, formatStudentPhoneDisplay, formatOmrCode, formatGenderDisp
 import { useSendMessageModal } from "@/features/messages/context/SendMessageModalContext";
 
 const TABS = [
-  { key: "enroll", label: "수강 이력" },
-  { key: "clinic", label: "클리닉/상담 이력" },
-  { key: "question", label: "질문 이력" },
-  { key: "score", label: "성적 이력" },
-  { key: "schoolScore", label: "학교 성적" },
+  { key: "enroll", label: "수강" },
+  { key: "score", label: "시험 성적" },
+  { key: "homework", label: "과제" },
+  { key: "clinic", label: "클리닉" },
+  { key: "question", label: "질문" },
 ];
 
 /** 인벤토리 아이콘 프리셋 — 시험/자료 종류별 시각 구분 */
@@ -270,14 +270,17 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
   });
 
   // 공유 데이터: 대시보드 + 탭에서 중복 호출 제거
-  const { data: scoreFacts } = useQuery({
-    queryKey: ["student", id, "result-facts"],
+  const { data: gradesData } = useQuery({
+    queryKey: ["student", id, "grades"],
     queryFn: async () => {
-      const res = await api.get("/results/admin/facts/", { params: { student: id, page_size: 100 } });
-      return Array.isArray(res.data?.results) ? res.data.results : Array.isArray(res.data) ? res.data : [];
+      const res = await api.get("/results/admin/student-grades/", { params: { student_id: id } });
+      return res.data as { exams: any[]; homeworks: any[] };
     },
     enabled: id > 0,
   });
+  const examGrades = gradesData?.exams ?? [];
+  const homeworkGrades = gradesData?.homeworks ?? [];
+
   const { data: clinicData } = useQuery({
     queryKey: ["student", id, "clinic"],
     queryFn: async () => {
@@ -641,7 +644,8 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
                 {/* 한눈에 요약 */}
                 <StudentSummaryDashboard
                   enrollments={student.enrollments}
-                  scoreFacts={scoreFacts ?? []}
+                  examGrades={examGrades}
+                  homeworkGrades={homeworkGrades}
                   clinicData={clinicData ?? []}
                   questionsData={questionsData ?? []}
                 />
@@ -662,11 +666,11 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
                 </div>
 
                 <div style={{ minHeight: 260, marginTop: 16 }}>
-                  {tab === "enroll" && <EnrollmentsTab enrollments={student.enrollments} />}
-                  {tab === "clinic" && <ClinicTab data={clinicData ?? []} />}
-                  {tab === "question" && <QuestionTab data={questionsData ?? []} />}
-                  {tab === "score" && <ScoreTab data={scoreFacts ?? []} />}
-                  {tab === "schoolScore" && <EmptyState scope="panel" tone="empty" title="학교 성적 기능 준비 중" description="추후 업데이트 예정입니다." />}
+                  {tab === "enroll" && <EnrollmentsTab enrollments={student.enrollments} onNavigate={(path) => { onClose(); navigate(path); }} />}
+                  {tab === "score" && <ScoreTab data={examGrades} onNavigate={(path) => { onClose(); navigate(path); }} />}
+                  {tab === "homework" && <HomeworkTab data={homeworkGrades} onNavigate={(path) => { onClose(); navigate(path); }} />}
+                  {tab === "clinic" && <ClinicTab data={clinicData ?? []} onNavigate={(path) => { onClose(); navigate(path); }} />}
+                  {tab === "question" && <QuestionTab data={questionsData ?? []} onNavigate={(path) => { onClose(); navigate(path); }} />}
                 </div>
               </div>
             </div>
@@ -1298,42 +1302,54 @@ function InventoryTreeFolder({
 /** 한눈에 보는 학생 요약 대시보드 */
 function StudentSummaryDashboard({
   enrollments,
-  scoreFacts,
+  examGrades,
+  homeworkGrades,
   clinicData,
   questionsData,
 }: {
   enrollments: any[];
-  scoreFacts: any[];
+  examGrades: any[];
+  homeworkGrades: any[];
   clinicData: any[];
   questionsData: any[];
 }) {
-  const facts = scoreFacts;
-  const passCount = facts.filter((f: any) => f.is_pass === true || f.passed === true).length;
-  const failCount = facts.filter((f: any) => f.is_pass === false || f.passed === false).length;
-  const avgScore = facts.length > 0
-    ? Math.round(facts.reduce((s: number, f: any) => s + (f.total_score ?? f.score ?? 0), 0) / facts.length)
+  const examPassCount = examGrades.filter((e: any) => e.is_pass === true).length;
+  const examFailCount = examGrades.filter((e: any) => e.is_pass === false).length;
+  const examJudged = examPassCount + examFailCount;
+  const avgScore = examGrades.length > 0
+    ? Math.round(examGrades.reduce((s: number, e: any) => s + (e.total_score ?? 0), 0) / examGrades.length)
     : null;
 
+  const hwPassCount = homeworkGrades.filter((h: any) => h.passed === true).length;
+  const hwTotal = homeworkGrades.length;
+
   const clinicCount = (clinicData ?? []).length;
-  const clinicAttended = (clinicData ?? []).filter((c: any) => c.status === "ATTENDED").length;
+  const clinicAttended = (clinicData ?? []).filter((c: any) => c.status === "ATTENDED" || c.status === "attended").length;
   const questionCount = (questionsData ?? []).length;
+
+  const activeEnrollments = (enrollments ?? []).filter((en: any) => (en.status ?? "ACTIVE") === "ACTIVE").length;
 
   const cards: { label: string; value: string; sub?: string; tone?: string }[] = [
     {
       label: "수강",
-      value: `${enrollments?.length ?? 0}개`,
-      sub: "강의",
+      value: `${activeEnrollments}`,
+      sub: enrollments?.length !== activeEnrollments ? `전체 ${enrollments?.length ?? 0}` : "강의",
     },
     {
       label: "시험",
-      value: `${facts.length}건`,
+      value: `${examGrades.length}건`,
       sub: avgScore != null ? `평균 ${avgScore}점` : undefined,
     },
     {
       label: "합격률",
-      value: passCount + failCount > 0 ? `${Math.round((passCount / (passCount + failCount)) * 100)}%` : "-",
-      sub: `합 ${passCount} · 불 ${failCount}`,
-      tone: passCount >= failCount ? "success" : "danger",
+      value: examJudged > 0 ? `${Math.round((examPassCount / examJudged) * 100)}%` : "-",
+      sub: examJudged > 0 ? `합 ${examPassCount} · 불 ${examFailCount}` : undefined,
+      tone: examJudged > 0 ? (examPassCount >= examFailCount ? "success" : "danger") : undefined,
+    },
+    {
+      label: "과제",
+      value: `${hwTotal}건`,
+      sub: hwTotal > 0 ? `완료 ${hwPassCount}건` : undefined,
     },
     {
       label: "클리닉",
@@ -1347,13 +1363,13 @@ function StudentSummaryDashboard({
   ];
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: `repeat(${cards.length}, 1fr)`, gap: 8, marginBottom: 12 }}>
+    <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(cards.length, 6)}, 1fr)`, gap: 8, marginBottom: 12 }}>
       {cards.map((c) => (
         <div
           key={c.label}
           style={{
             borderRadius: 10,
-            padding: "10px 12px",
+            padding: "10px 8px",
             background: "var(--color-bg-surface)",
             border: "1px solid var(--color-border-divider)",
             textAlign: "center",
@@ -1362,7 +1378,7 @@ function StudentSummaryDashboard({
           <div style={{ fontSize: 11, fontWeight: 600, color: "var(--color-text-muted)", marginBottom: 4 }}>{c.label}</div>
           <div
             style={{
-              fontSize: 18,
+              fontSize: 17,
               fontWeight: 800,
               lineHeight: 1.2,
               color: c.tone === "success" ? "var(--color-success)" : c.tone === "danger" ? "var(--color-error)" : "var(--color-text-primary)",
@@ -1371,7 +1387,7 @@ function StudentSummaryDashboard({
             {c.value}
           </div>
           {c.sub && (
-            <div style={{ fontSize: 11, fontWeight: 500, color: "var(--color-text-muted)", marginTop: 2 }}>{c.sub}</div>
+            <div style={{ fontSize: 10, fontWeight: 500, color: "var(--color-text-muted)", marginTop: 2 }}>{c.sub}</div>
           )}
         </div>
       ))}
@@ -1392,33 +1408,42 @@ function LectureChip({ name, color, chipLabel }: { name: string; color?: string;
   );
 }
 
-function EnrollmentsTab({ enrollments }: { enrollments: any[] }) {
+function EnrollmentsTab({ enrollments, onNavigate }: { enrollments: any[]; onNavigate: (path: string) => void }) {
   if (!enrollments?.length) return <EmptyState scope="panel" tone="empty" title="수강 이력이 없습니다." />;
+
+  const statusLabel: Record<string, string> = { ACTIVE: "수강중", DROPPED: "탈퇴", COMPLETED: "수료" };
+  const statusTone: Record<string, string> = { ACTIVE: "success", DROPPED: "muted", COMPLETED: "info" };
 
   return (
     <div style={{ display: "grid", gap: 8 }}>
       {enrollments.map((en: any) => {
-        const status = en.status ?? en.enrollment_status ?? "ACTIVE";
+        const status = en.status ?? "ACTIVE";
         const isActive = status === "ACTIVE";
+        const lectureId = en.lectureId;
+        const canNav = !!lectureId;
         return (
           <div
             key={en.id}
-            className="flex items-center gap-2.5 rounded-xl bg-[var(--color-bg-surface)] border border-[var(--color-border-divider)] px-4 py-3 hover:border-[var(--color-primary)] hover:shadow-sm transition-all"
-            style={{ opacity: isActive ? 1 : 0.6 }}
+            className="flex items-center gap-2.5 rounded-xl bg-[var(--color-bg-surface)] border border-[var(--color-border-divider)] px-4 py-3 hover:border-[var(--color-brand-primary)] hover:shadow-sm transition-all"
+            style={{ opacity: isActive ? 1 : 0.6, cursor: canNav ? "pointer" : "default" }}
+            onClick={canNav ? () => onNavigate(`/admin/lectures/${lectureId}`) : undefined}
           >
             <LectureChip name={en.lectureName || ""} color={en.lectureColor} chipLabel={en.lectureChipLabel} />
             <div className="flex flex-col gap-0.5 min-w-0 flex-1">
               <span className="text-sm font-semibold text-[var(--color-text-primary)] truncate">{en.lectureName || "-"}</span>
               {en.enrolledAt && (
                 <span className="text-[11px] text-[var(--color-text-muted)]">
-                  {en.enrolledAt?.slice(0, 10)} 수강 시작
+                  {en.enrolledAt?.slice(0, 10)} 등록
                 </span>
               )}
             </div>
-            {!isActive && (
-              <span className="text-[11px] font-semibold text-[var(--color-text-muted)] px-2 py-0.5 rounded bg-[var(--color-bg-surface-soft)]">
-                비활성
-              </span>
+            <span className="ds-status-badge text-[11px]" data-tone={statusTone[status] || "muted"}>
+              {statusLabel[status] || status}
+            </span>
+            {canNav && (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, opacity: 0.5 }}>
+                <polyline points="9 18 15 12 9 6" />
+              </svg>
             )}
           </div>
         );
@@ -1428,85 +1453,211 @@ function EnrollmentsTab({ enrollments }: { enrollments: any[] }) {
 }
 
 /** 클리닉/상담 이력 탭 */
-function ClinicTab({ data }: { data: any[] }) {
+function ClinicTab({ data, onNavigate }: { data: any[]; onNavigate: (path: string) => void }) {
   if (!data?.length) return <EmptyState scope="panel" tone="empty" title="클리닉/상담 이력이 없습니다." />;
 
+  // 백엔드 ParticipantSerializer: status는 소문자 (booked, attended, no_show, cancelled, pending)
+  const normalize = (s: string) => (s || "").toUpperCase();
   const statusLabel: Record<string, string> = { BOOKED: "예약", ATTENDED: "출석", NO_SHOW: "결석", CANCELLED: "취소", PENDING: "대기" };
   const statusTone: Record<string, string> = { BOOKED: "info", ATTENDED: "success", NO_SHOW: "danger", CANCELLED: "muted", PENDING: "warning" };
 
   return (
     <div style={{ display: "grid", gap: 8 }}>
-      {data.map((p: any) => (
-        <div key={p.id} className="flex items-center justify-between rounded-xl bg-[var(--color-bg-surface)] border border-[var(--color-border-divider)] px-4 py-3">
-          <div className="flex flex-col gap-0.5 min-w-0">
-            <span className="text-sm font-semibold text-[var(--color-text-primary)] truncate">{p.session_title || p.session?.title || "클리닉"}</span>
-            <span className="text-xs text-[var(--color-text-muted)]">{p.session_date || p.session?.date || ""}</span>
+      {data.map((p: any) => {
+        const st = normalize(p.status);
+        const lectureName = p.lecture_title;
+        const lectureColor = p.lecture_color;
+        const lectureChip = p.lecture_chip_label;
+        return (
+          <div
+            key={p.id}
+            className="flex items-center gap-2.5 rounded-xl bg-[var(--color-bg-surface)] border border-[var(--color-border-divider)] px-4 py-3 hover:border-[var(--color-brand-primary)] hover:shadow-sm transition-all cursor-pointer"
+            onClick={() => onNavigate("/admin/clinic/operations")}
+          >
+            {lectureName && <LectureChip name={lectureName} color={lectureColor} chipLabel={lectureChip} />}
+            <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+              <span className="text-sm font-semibold text-[var(--color-text-primary)] truncate">
+                {p.student_name ? `${p.student_name} 클리닉` : "클리닉"}
+              </span>
+              <div className="flex items-center gap-2 text-[11px] text-[var(--color-text-muted)]">
+                {p.session_date && <span>{p.session_date}</span>}
+                {p.session_start_time && <span>{String(p.session_start_time).slice(0, 5)}</span>}
+                {p.session_location && <span>· {p.session_location}</span>}
+              </div>
+              {p.clinic_reason && (
+                <span className="text-[11px] text-[var(--color-text-muted)] truncate">{p.clinic_reason}</span>
+              )}
+            </div>
+            <span className="ds-status-badge text-xs" data-tone={statusTone[st] || "muted"}>
+              {statusLabel[st] || p.status}
+            </span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, opacity: 0.5 }}>
+              <polyline points="9 18 15 12 9 6" />
+            </svg>
           </div>
-          <span className={`ds-status-badge text-xs`} data-tone={statusTone[p.status] || "muted"}>
-            {statusLabel[p.status] || p.status}
-          </span>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
 
 /** 질문 이력 탭 */
-function QuestionTab({ data }: { data: any[] }) {
+function QuestionTab({ data, onNavigate }: { data: any[]; onNavigate: (path: string) => void }) {
   if (!data?.length) return <EmptyState scope="panel" tone="empty" title="질문 이력이 없습니다." />;
+
+  const typeLabel: Record<string, string> = { qna: "질문", board: "게시글", notice: "공지", counsel: "상담", materials: "자료" };
 
   return (
     <div style={{ display: "grid", gap: 8 }}>
-      {data.map((post: any) => (
-        <div key={post.id} className="rounded-xl bg-[var(--color-bg-surface)] border border-[var(--color-border-divider)] px-4 py-3">
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-sm font-semibold text-[var(--color-text-primary)] truncate">{post.title || "(제목 없음)"}</span>
-            <span className="text-xs text-[var(--color-text-muted)] shrink-0">
-              {post.reply_count != null ? `답변 ${post.reply_count}` : ""}
+      {data.map((post: any) => {
+        const repliesCount = post.replies_count ?? post.reply_count ?? 0;
+        const postType = post.post_type || "qna";
+        // 질문 → QnA 인박스, 그 외 → 게시판
+        const navPath = postType === "qna"
+          ? `/admin/community/qna?id=${post.id}`
+          : `/admin/community/board`;
+        return (
+          <div
+            key={post.id}
+            className="rounded-xl bg-[var(--color-bg-surface)] border border-[var(--color-border-divider)] px-4 py-3 hover:border-[var(--color-brand-primary)] hover:shadow-sm transition-all cursor-pointer"
+            onClick={() => onNavigate(navPath)}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 min-w-0 flex-1">
+                <span className="ds-badge text-[10px] shrink-0" style={{ padding: "2px 6px" }}>
+                  {typeLabel[postType] || postType}
+                </span>
+                <span className="text-sm font-semibold text-[var(--color-text-primary)] truncate">{post.title || "(제목 없음)"}</span>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                {repliesCount > 0 && (
+                  <span className="text-xs text-[var(--color-brand-primary)] font-semibold">
+                    답변 {repliesCount}
+                  </span>
+                )}
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.5 }}>
+                  <polyline points="9 18 15 12 9 6" />
+                </svg>
+              </div>
+            </div>
+            <span className="text-[11px] text-[var(--color-text-muted)] mt-1 block">
+              {post.created_at ? new Date(post.created_at).toLocaleDateString("ko-KR") : ""}
+              {post.created_by_display ? ` · ${post.created_by_display}` : ""}
             </span>
           </div>
-          {post.body_preview && (
-            <p className="text-xs text-[var(--color-text-muted)] mt-1 line-clamp-2">{post.body_preview}</p>
-          )}
-          <span className="text-[11px] text-[var(--color-text-muted)] mt-1 block">
-            {post.created_at ? new Date(post.created_at).toLocaleDateString("ko-KR") : ""}
-          </span>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
 
-/** 성적 이력 탭 */
-function ScoreTab({ data }: { data: any[] }) {
-  if (!data?.length) return <EmptyState scope="panel" tone="empty" title="성적 이력이 없습니다." />;
+/** 시험 성적 탭 — admin/student-grades API 기반 */
+function ScoreTab({ data, onNavigate }: { data: any[]; onNavigate: (path: string) => void }) {
+  if (!data?.length) return <EmptyState scope="panel" tone="empty" title="시험 성적이 없습니다." />;
+
+  const achievementLabel: Record<string, string> = { PASS: "합격", FAIL: "불합격", REMEDIATED: "보강합격" };
+  const achievementTone: Record<string, string> = { PASS: "success", FAIL: "danger", REMEDIATED: "warning" };
 
   return (
     <div style={{ display: "grid", gap: 8 }}>
-      {data.map((fact: any, i: number) => {
-        const passed = fact.is_pass ?? fact.passed;
-        const score = fact.total_score ?? fact.score;
-        const maxScore = fact.max_score ?? 100;
-        const lectureName = fact.lecture_title || fact.lecture_name || "";
+      {data.map((exam: any, i: number) => {
+        const lectureId = exam.lecture_id;
+        const sessionId = exam.session_id;
+        const canNav = !!lectureId && !!sessionId;
+        const navPath = canNav ? `/admin/lectures/${lectureId}/sessions/${sessionId}/scores` : "";
         return (
-          <div key={fact.id ?? i} className="flex items-center justify-between rounded-xl bg-[var(--color-bg-surface)] border border-[var(--color-border-divider)] px-4 py-3">
-            <div className="flex items-center gap-2.5 min-w-0">
-              {lectureName && <LectureChip name={lectureName} color={fact.lecture_color} chipLabel={fact.lecture_chip_label} />}
-              <div className="flex flex-col gap-0.5 min-w-0">
-                <span className="text-sm font-semibold text-[var(--color-text-primary)] truncate">{fact.exam_title || fact.title || "시험"}</span>
-                <span className="text-xs text-[var(--color-text-muted)]">{fact.session_title || ""}</span>
+          <div
+            key={exam.exam_id ?? i}
+            className="flex items-center gap-2.5 rounded-xl bg-[var(--color-bg-surface)] border border-[var(--color-border-divider)] px-4 py-3 hover:border-[var(--color-brand-primary)] hover:shadow-sm transition-all"
+            style={{ cursor: canNav ? "pointer" : "default" }}
+            onClick={canNav ? () => onNavigate(navPath) : undefined}
+          >
+            {exam.lecture_title && (
+              <LectureChip name={exam.lecture_title} color={exam.lecture_color} chipLabel={exam.lecture_chip_label} />
+            )}
+            <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+              <span className="text-sm font-semibold text-[var(--color-text-primary)] truncate">{exam.title}</span>
+              <div className="flex items-center gap-1.5 text-[11px] text-[var(--color-text-muted)]">
+                {exam.session_title && <span>{exam.session_title}</span>}
+                {exam.retake_count > 1 && <span>· 재시도 {exam.retake_count - 1}회</span>}
+                {exam.submitted_at && <span>· {exam.submitted_at.slice(0, 10)}</span>}
               </div>
             </div>
-            <div className="flex items-center gap-3 shrink-0">
-              {score != null && (
+            <div className="flex items-center gap-2 shrink-0">
+              {exam.total_score != null && (
                 <span className="text-sm font-bold tabular-nums text-[var(--color-text-primary)]">
-                  {Math.round(score)}<span className="text-xs font-normal text-[var(--color-text-muted)]">/{maxScore}</span>
+                  {Math.round(exam.total_score)}<span className="text-xs font-normal text-[var(--color-text-muted)]">/{exam.max_score ?? 100}</span>
                 </span>
               )}
-              {passed != null && (
-                <span className="ds-scores-pass-fail-badge" data-tone={passed ? "success" : "danger"}>
-                  {passed ? "합" : "불"}
+              {exam.achievement && (
+                <span className="ds-status-badge text-[11px]" data-tone={achievementTone[exam.achievement] || "muted"}>
+                  {achievementLabel[exam.achievement] || exam.achievement}
                 </span>
+              )}
+              {exam.is_pass != null && !exam.achievement && (
+                <span className="ds-scores-pass-fail-badge" data-tone={exam.is_pass ? "success" : "danger"}>
+                  {exam.is_pass ? "합" : "불"}
+                </span>
+              )}
+              {canNav && (
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.5 }}>
+                  <polyline points="9 18 15 12 9 6" />
+                </svg>
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/** 과제 탭 — admin/student-grades API 기반 */
+function HomeworkTab({ data, onNavigate }: { data: any[]; onNavigate: (path: string) => void }) {
+  if (!data?.length) return <EmptyState scope="panel" tone="empty" title="과제 성적이 없습니다." />;
+
+  const achievementLabel: Record<string, string> = { PASS: "완료", FAIL: "미완료", REMEDIATED: "보강완료" };
+  const achievementTone: Record<string, string> = { PASS: "success", FAIL: "danger", REMEDIATED: "warning" };
+
+  return (
+    <div style={{ display: "grid", gap: 8 }}>
+      {data.map((hw: any, i: number) => {
+        const lectureId = hw.lecture_id;
+        const sessionId = hw.session_id;
+        const canNav = !!lectureId && !!sessionId;
+        const navPath = canNav ? `/admin/lectures/${lectureId}/sessions/${sessionId}/scores` : "";
+        return (
+          <div
+            key={`${hw.homework_id}-${hw.enrollment_id}-${i}`}
+            className="flex items-center gap-2.5 rounded-xl bg-[var(--color-bg-surface)] border border-[var(--color-border-divider)] px-4 py-3 hover:border-[var(--color-brand-primary)] hover:shadow-sm transition-all"
+            style={{ cursor: canNav ? "pointer" : "default" }}
+            onClick={canNav ? () => onNavigate(navPath) : undefined}
+          >
+            {hw.lecture_title && (
+              <LectureChip name={hw.lecture_title} color={hw.lecture_color} chipLabel={hw.lecture_chip_label} />
+            )}
+            <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+              <span className="text-sm font-semibold text-[var(--color-text-primary)] truncate">{hw.title}</span>
+              <div className="flex items-center gap-1.5 text-[11px] text-[var(--color-text-muted)]">
+                {hw.session_title && <span>{hw.session_title}</span>}
+                {hw.retake_count > 1 && <span>· 재시도 {hw.retake_count - 1}회</span>}
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              {hw.score != null && (
+                <span className="text-sm font-bold tabular-nums text-[var(--color-text-primary)]">
+                  {Math.round(hw.score)}<span className="text-xs font-normal text-[var(--color-text-muted)]">/{hw.max_score ?? 100}</span>
+                </span>
+              )}
+              {hw.achievement && (
+                <span className="ds-status-badge text-[11px]" data-tone={achievementTone[hw.achievement] || "muted"}>
+                  {achievementLabel[hw.achievement] || hw.achievement}
+                </span>
+              )}
+              {canNav && (
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.5 }}>
+                  <polyline points="9 18 15 12 9 6" />
+                </svg>
               )}
             </div>
           </div>

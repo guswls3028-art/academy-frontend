@@ -13,8 +13,12 @@ export interface ClientStudentTag {
 
 export interface ClientEnrollmentLite {
   id: number;
+  lectureId: number | null;
   lectureName: string | null;
   lectureColor: string | null;
+  lectureChipLabel: string | null;
+  status: "ACTIVE" | "DROPPED" | "COMPLETED" | null;
+  enrolledAt: string | null;
 }
 
 export interface ClientStudent {
@@ -139,9 +143,12 @@ export function mapStudent(item: any): ClientStudent {
     enrollments: Array.isArray(item?.enrollments)
       ? item.enrollments.map((en: any) => ({
           id: Number(en?.id),
+          lectureId: en?.lecture ?? en?.lecture_id ?? null,
           lectureName: en?.lecture_name ?? null,
           lectureColor: en?.lecture_color ?? "#3b82f6",
           lectureChipLabel: en?.lecture_chip_label ?? null,
+          status: en?.status ?? null,
+          enrolledAt: en?.enrolled_at ?? null,
         }))
       : [],
     deletedAt: item?.deleted_at ?? null,
