@@ -54,6 +54,8 @@ export type SendMessageModalProps = {
   blockCategory?: TemplateCategory;
   /** 본문 사전 입력 (성적 발송 등) */
   initialBody?: string;
+  /** 알림톡 추가 치환 변수 (성적 발송 시 시험명/강의명/시험성적 등) */
+  alimtalkExtraVars?: Record<string, string>;
 };
 
 type ContentMode = "free" | "template";
@@ -68,6 +70,7 @@ export default function SendMessageModal({
   recipientLabel,
   blockCategory = "default",
   initialBody,
+  alimtalkExtraVars,
 }: SendMessageModalProps) {
   const queryClient = useQueryClient();
   const [contentMode, setContentMode] = useState<ContentMode>("free");
@@ -243,6 +246,9 @@ export default function SendMessageModal({
             };
             if (subject.trim()) payload.raw_subject = subject.trim();
             if (selectedTemplateId) payload.template_id = selectedTemplateId;
+            if (alimtalkExtraVars && (messageMode === "alimtalk" || messageMode === "both")) {
+              payload.alimtalk_extra_vars = alimtalkExtraVars;
+            }
             const res = await sendMessage(payload);
             totalEnqueued += res.enqueued ?? 0;
             totalSkipped += res.skipped_no_phone ?? 0;

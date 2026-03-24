@@ -266,6 +266,8 @@ export interface SendMessagePayload {
   template_id?: number | null;
   raw_body?: string;
   raw_subject?: string;
+  /** 알림톡 추가 치환 변수 (성적 발송 등) */
+  alimtalk_extra_vars?: Record<string, string>;
 }
 
 export interface SendMessageResponse {

@@ -13,7 +13,7 @@
  * - scores 도메인의 SessionScoresPanel이 실제 렌더링 단일 진실
  */
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSessionParams } from "../hooks/useSessionParams";
 import SessionScoresPanel, { type SessionScoresPanelHandle } from "@/features/scores/panels/SessionScoresPanel";
@@ -21,6 +21,8 @@ import { useScoreEditDraft } from "@/features/scores/hooks/useScoreEditDraft";
 import { postScoreDraftCommit } from "@/features/scores/api/scoreDraft";
 import { scoresQueryKeys } from "@/features/scores/api/queryKeys";
 import { downloadClinicPdf, getClinicStats } from "@/features/scores/utils/clinicPdfGenerator";
+import { generateScoreReport } from "@/features/scores/utils/generateScoreReport";
+import { useSendMessageModal } from "@/features/messages/context/SendMessageModalContext";
 import type { SessionScoresResponse } from "@/features/scores/api/sessionScores";
 
 type EditConfig = {
@@ -49,6 +51,7 @@ export default function SessionScoresTab() {
   const [showPdfModal, setShowPdfModal] = useState(false);
   const [pdfSchedule, setPdfSchedule] = useState("");
   const panelRef = useRef<SessionScoresPanelHandle>(null);
+  const { openSendMessageModal } = useSendMessageModal();
 
   const numericSessionId = sessionId != null ? Number(sessionId) : 0;
   const draft = useScoreEditDraft({
@@ -156,6 +159,49 @@ export default function SessionScoresTab() {
     setShowPdfModal(false);
   }
 
+  /** 체크박스 선택 학생 → 성적 발송 */
+  const handleBulkScoreSend = useCallback(() => {
+    if (selectedIds.length === 0) return;
+    const scoresData = qc.getQueryData<SessionScoresResponse>(
+      scoresQueryKeys.sessionScores(numericSessionId),
+    );
+    if (!scoresData) return;
+    const selectedRows = scoresData.rows.filter(
+      (r) => selectedIds.includes(r.enrollment_id),
+    );
+    const studentIds = selectedRows
+      .map((r) => r.student_id)
+      .filter((id): id is number => id != null);
+    if (studentIds.length === 0) return;
+
+    // 1명이면 성적 리포트 자동 생성, 여러 명이면 비워서 직접 입력
+    let initialBody: string | undefined;
+    if (selectedRows.length === 1) {
+      initialBody = generateScoreReport(selectedRows[0], scoresData.meta);
+    }
+
+    // 알림톡 변수: 세션의 시험/과제 요약
+    const allExams = scoresData.meta?.exams ?? [];
+    const allHw = scoresData.meta?.homeworks ?? [];
+    const examLabel = allExams.length > 1
+      ? `${allExams[0]?.title ?? ""} 외 ${allExams.length - 1}건`
+      : allExams[0]?.title ?? "";
+    const lecture = qc.getQueryData<{ title?: string; name?: string }>(["lecture", lectureId]);
+    const lectureName = lecture?.title ?? lecture?.name ?? "";
+
+    openSendMessageModal({
+      studentIds,
+      recipientLabel: `선택한 학생 ${studentIds.length}명 성적 발송`,
+      blockCategory: "grades",
+      initialBody,
+      alimtalkExtraVars: {
+        시험명: examLabel,
+        강의명: lectureName,
+        시험성적: `시험 ${allExams.length}건, 과제 ${allHw.length}건`,
+      },
+    });
+  }, [selectedIds, numericSessionId, lectureId, qc, openSendMessageModal]);
+
   const editTypes: { key: keyof EditConfig; label: string }[] = [
     { key: "examEditTotal", label: "합산" },
     { key: "examEditSubjective", label: "주관식만" },
@@ -240,6 +286,19 @@ export default function SessionScoresTab() {
 
         {/* 우측: 액션 버튼 */}
         <div className="flex items-center gap-2">
+          {!isEditMode && selectedIds.length > 0 && (
+            <button
+              type="button"
+              onClick={handleBulkScoreSend}
+              className="h-8 rounded-lg px-3 text-xs font-semibold bg-[var(--color-brand-primary)] text-white hover:opacity-90 transition-colors whitespace-nowrap flex items-center gap-1.5"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M22 2L11 13" />
+                <path d="M22 2L15 22L11 13L2 9L22 2Z" />
+              </svg>
+              성적 발송 ({selectedIds.length})
+            </button>
+          )}
           {!isEditMode && (
             <button
               type="button"

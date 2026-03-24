@@ -99,11 +99,29 @@ export default function StudentScoresDrawer({ row, meta, sessionId, onClose, onO
 
   const handleSendScoreReport = useCallback(() => {
     const body = generateScoreReport(row, meta);
+    // 알림톡 템플릿 변수 (성적 공개 안내 승인 템플릿용)
+    const examNames = (row.exams ?? []).map((e) => e.title).join(", ");
+    const examScores = (row.exams ?? [])
+      .map((e) => (e.block.score != null ? `${e.block.score}` : "미응시"))
+      .join("/");
+    const hwScores = (row.homeworks ?? [])
+      .map((h) => (h.block.score != null ? `${h.block.score}` : "미제출"))
+      .join("/");
+    const scoreSummary = hwScores
+      ? `시험 ${examScores} / 과제 ${hwScores}`
+      : examScores;
     openSendMessageModal({
       studentIds: row.student_id != null ? [row.student_id] : [],
       recipientLabel: `${row.student_name} 성적 발송`,
       blockCategory: "grades",
       initialBody: body,
+      alimtalkExtraVars: {
+        시험명: (row.exams ?? []).length > 1
+          ? `${(row.exams ?? [])[0]?.title ?? ""} 외 ${(row.exams ?? []).length - 1}건`
+          : examNames,
+        강의명: (row as any).lecture_title ?? "",
+        시험성적: scoreSummary,
+      },
     });
   }, [row, meta, openSendMessageModal]);
 

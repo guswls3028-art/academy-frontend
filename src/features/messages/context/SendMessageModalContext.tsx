@@ -14,6 +14,8 @@ export type OpenSendMessageOptions = {
   blockCategory?: TemplateCategory;
   /** 본문 사전 입력 (성적 발송 등) */
   initialBody?: string;
+  /** 알림톡 추가 치환 변수 (성적 발송 시 시험명/강의명/시험성적 등) */
+  alimtalkExtraVars?: Record<string, string>;
 };
 
 type ContextValue = {
@@ -38,6 +40,7 @@ export function SendMessageModalProvider({ children }: { children: ReactNode }) 
   const [recipientLabel, setRecipientLabel] = useState<string | undefined>();
   const [blockCategory, setBlockCategory] = useState<TemplateCategory | undefined>();
   const [initialBody, setInitialBody] = useState<string | undefined>();
+  const [alimtalkExtraVars, setAlimtalkExtraVars] = useState<Record<string, string> | undefined>();
 
   const openSendMessageModal = useCallback((options: OpenSendMessageOptions) => {
     setStudentIds(options.studentIds ?? []);
@@ -45,6 +48,7 @@ export function SendMessageModalProvider({ children }: { children: ReactNode }) 
     setRecipientLabel(options.recipientLabel);
     setBlockCategory(options.blockCategory);
     setInitialBody(options.initialBody);
+    setAlimtalkExtraVars(options.alimtalkExtraVars);
     setOpen(true);
   }, []);
 
@@ -55,6 +59,7 @@ export function SendMessageModalProvider({ children }: { children: ReactNode }) 
     setRecipientLabel(undefined);
     setBlockCategory(undefined);
     setInitialBody(undefined);
+    setAlimtalkExtraVars(undefined);
   }, []);
 
   return (
@@ -68,6 +73,7 @@ export function SendMessageModalProvider({ children }: { children: ReactNode }) 
         recipientLabel={recipientLabel}
         blockCategory={blockCategory}
         initialBody={initialBody}
+        alimtalkExtraVars={alimtalkExtraVars}
       />
     </SendMessageModalContext.Provider>
   );
