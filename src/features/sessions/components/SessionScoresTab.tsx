@@ -180,14 +180,35 @@ export default function SessionScoresTab() {
       initialBody = generateScoreReport(selectedRows[0], scoresData.meta);
     }
 
-    // 알림톡 변수: 세션의 시험/과제 요약
+    // 알림톡 상세 성적 데이터 (1명 선택 시 상세, 다수 선택 시 요약)
     const allExams = scoresData.meta?.exams ?? [];
     const allHw = scoresData.meta?.homeworks ?? [];
-    const examLabel = allExams.length > 1
-      ? `${allExams[0]?.title ?? ""} 외 ${allExams.length - 1}건`
-      : allExams[0]?.title ?? "";
     const lecture = qc.getQueryData<{ title?: string; name?: string }>(["lecture", lectureId]);
     const lectureName = lecture?.title ?? lecture?.name ?? "";
+    const today = new Date();
+    const dateLabel = `${today.getMonth() + 1}월 ${today.getDate()}일`;
+
+    let scoreDetail = `시험 ${allExams.length}건, 과제 ${allHw.length}건`;
+    if (selectedRows.length === 1) {
+      const r = selectedRows[0];
+      const lines: string[] = [];
+      for (const e of r.exams ?? []) {
+        const max = e.block.max_score ?? null;
+        const pct = max && e.block.score != null ? Math.round((e.block.score / max) * 100) : null;
+        const pass = e.block.passed === true ? "합격" : e.block.passed === false ? "불합격" : "";
+        lines.push(`- ${e.title}: ${e.block.score ?? "미응시"}${max ? `/${max}` : ""}${pct != null ? ` (${pct}%)` : ""}${pass ? ` [${pass}]` : ""}`);
+      }
+      if ((r.homeworks ?? []).length > 0) {
+        lines.push("");
+        for (const h of r.homeworks ?? []) {
+          const max = h.block.max_score ?? null;
+          const pct = max && h.block.score != null ? Math.round((h.block.score / max) * 100) : null;
+          const pass = h.block.passed === true ? "합격" : h.block.passed === false ? "불합격" : "";
+          lines.push(`- ${h.title}: ${h.block.score ?? "미제출"}${max ? `/${max}` : ""}${pct != null ? ` (${pct}%)` : ""}${pass ? ` [${pass}]` : ""}`);
+        }
+      }
+      scoreDetail = lines.join("\n");
+    }
 
     openSendMessageModal({
       studentIds,
@@ -195,9 +216,9 @@ export default function SessionScoresTab() {
       blockCategory: "grades",
       initialBody,
       alimtalkExtraVars: {
-        시험명: examLabel,
+        시험명: `${dateLabel} 종합 성적`,
         강의명: lectureName,
-        시험성적: `시험 ${allExams.length}건, 과제 ${allHw.length}건`,
+        시험성적: scoreDetail,
       },
     });
   }, [selectedIds, numericSessionId, lectureId, qc, openSendMessageModal]);

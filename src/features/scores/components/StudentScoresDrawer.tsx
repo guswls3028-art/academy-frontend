@@ -99,28 +99,56 @@ export default function StudentScoresDrawer({ row, meta, sessionId, onClose, onO
 
   const handleSendScoreReport = useCallback(() => {
     const body = generateScoreReport(row, meta);
-    // 알림톡 템플릿 변수 (성적 공개 안내 승인 템플릿용)
-    const examNames = (row.exams ?? []).map((e) => e.title).join(", ");
-    const examScores = (row.exams ?? [])
-      .map((e) => (e.block.score != null ? `${e.block.score}` : "미응시"))
-      .join("/");
-    const hwScores = (row.homeworks ?? [])
-      .map((h) => (h.block.score != null ? `${h.block.score}` : "미제출"))
-      .join("/");
-    const scoreSummary = hwScores
-      ? `시험 ${examScores} / 과제 ${hwScores}`
-      : examScores;
+    // 알림톡 상세 성적 데이터 생성
+    const lines: string[] = [];
+    if ((row.exams ?? []).length > 0) {
+      lines.push("■ 시험");
+      for (const e of row.exams ?? []) {
+        const metaExam = meta?.exams?.find((m) => m.exam_id === e.exam_id);
+        const max = e.block.max_score ?? metaExam?.max_score ?? null;
+        if (e.block.score != null) {
+          const pct = max ? Math.round((e.block.score / max) * 100) : null;
+          const pass = e.block.passed === true ? "합격" : e.block.passed === false ? "불합격" : "";
+          lines.push(`- ${e.title}: ${e.block.score}${max ? `/${max}` : ""}${pct != null ? ` (${pct}%)` : ""}${pass ? ` [${pass}]` : ""}`);
+        } else {
+          lines.push(`- ${e.title}: 미응시`);
+        }
+      }
+    }
+    if ((row.homeworks ?? []).length > 0) {
+      lines.push("");
+      lines.push("■ 과제");
+      for (const h of row.homeworks ?? []) {
+        const max = h.block.max_score ?? null;
+        if (h.block.score != null) {
+          const pct = max ? Math.round((h.block.score / max) * 100) : null;
+          const pass = h.block.passed === true ? "합격" : h.block.passed === false ? "불합격" : "";
+          lines.push(`- ${h.title}: ${h.block.score}${max ? `/${max}` : ""}${pct != null ? ` (${pct}%)` : ""}${pass ? ` [${pass}]` : ""}`);
+        } else {
+          lines.push(`- ${h.title}: 미제출`);
+        }
+      }
+    }
+    const failed = [
+      ...(row.exams ?? []).filter((e) => e.block.passed === false || e.block.score == null).map((e) => e.title),
+      ...(row.homeworks ?? []).filter((h) => h.block.passed === false || h.block.score == null).map((h) => h.title),
+    ];
+    if (failed.length > 0) {
+      lines.push("");
+      lines.push(`■ 미달: ${failed.join(", ")}`);
+    }
+
+    const today = new Date();
+    const dateLabel = `${today.getMonth() + 1}월 ${today.getDate()}일`;
     openSendMessageModal({
       studentIds: row.student_id != null ? [row.student_id] : [],
       recipientLabel: `${row.student_name} 성적 발송`,
       blockCategory: "grades",
       initialBody: body,
       alimtalkExtraVars: {
-        시험명: (row.exams ?? []).length > 1
-          ? `${(row.exams ?? [])[0]?.title ?? ""} 외 ${(row.exams ?? []).length - 1}건`
-          : examNames,
+        시험명: `${dateLabel} 종합 성적`,
         강의명: (row as any).lecture_title ?? "",
-        시험성적: scoreSummary,
+        시험성적: lines.join("\n"),
       },
     });
   }, [row, meta, openSendMessageModal]);
