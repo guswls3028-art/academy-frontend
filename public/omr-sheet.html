@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>OMR 답안지</title>
+<title>OMR 답안지 v9</title>
 <style>
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
 body{background:#ccc;font-family:'Malgun Gothic','맑은 고딕',sans-serif;color:#000}
@@ -32,11 +32,34 @@ body{background:#ccc;font-family:'Malgun Gothic','맑은 고딕',sans-serif;colo
 @media print{.omr{margin:0}}
 @media screen{.omr{box-shadow:0 3px 20px rgba(0,0,0,.15)}}
 
-.cm{position:absolute;z-index:20}.cm b{position:absolute;background:#000;display:block}
-.cm-tl{top:3mm;left:3mm}.cm-tl .h{width:5mm;height:0.5mm;top:0;left:0}.cm-tl .v{width:0.5mm;height:5mm;top:0;left:0}
-.cm-tr{top:3mm;right:3mm}.cm-tr .h{width:5mm;height:0.5mm;top:0;right:0}.cm-tr .v{width:0.5mm;height:5mm;top:0;right:0}
-.cm-bl{bottom:3mm;left:3mm}.cm-bl .h{width:5mm;height:0.5mm;bottom:0;left:0}.cm-bl .v{width:0.5mm;height:5mm;bottom:0;left:0}
-.cm-br{bottom:3mm;right:3mm}.cm-br .h{width:5mm;height:0.5mm;bottom:0;right:0}.cm-br .v{width:0.5mm;height:5mm;bottom:0;right:0}
+/* ═══ CORNER MARKERS (v9 asymmetric) ═══ */
+/* TL: solid black square */
+.cm-tl{position:absolute;top:3mm;left:3mm;width:4mm;height:4mm;background:#000;z-index:20}
+
+/* TR: L-shape (kept from v8) */
+.cm-tr{position:absolute;top:3mm;right:3mm;z-index:20}
+.cm-tr b{position:absolute;background:#000;display:block}
+.cm-tr .h{width:5mm;height:0.5mm;top:0;right:0}
+.cm-tr .v{width:0.5mm;height:5mm;top:0;right:0}
+
+/* BL: Inverted T — horizontal bar + vertical drop from center */
+.cm-bl{position:absolute;bottom:3mm;left:3mm;z-index:20;width:5mm;height:3.5mm}
+.cm-bl .h{position:absolute;background:#000;display:block;width:5mm;height:0.5mm;top:0;left:0}
+.cm-bl .v{position:absolute;background:#000;display:block;width:0.5mm;height:3mm;top:0.5mm;left:2.25mm}
+
+/* BR: Plus/cross — centered horizontal + vertical */
+.cm-br{position:absolute;bottom:3mm;right:3mm;z-index:20;width:5mm;height:5mm}
+.cm-br .h{position:absolute;background:#000;display:block;width:5mm;height:0.5mm;top:2.25mm;left:0}
+.cm-br .v{position:absolute;background:#000;display:block;width:0.5mm;height:5mm;top:0;left:2.25mm}
+
+/* ═══ ID block anchors ═══ */
+.id-anchor{position:absolute;width:2mm;height:2mm;background:#000;z-index:10}
+
+/* ═══ Column anchors ═══ */
+.col-anchor{position:absolute;width:1.5mm;height:1.5mm;border-radius:50%;background:#000;z-index:10}
+
+/* ═══ Column separator line ═══ */
+.col-sep{position:absolute;top:0;bottom:0;width:0.3mm;background:#ccc;z-index:5}
 
 .omr-c{position:absolute;top:9mm;left:10mm;right:10mm;bottom:6mm;display:flex;gap:3mm}
 
@@ -65,11 +88,12 @@ body{background:#ccc;font-family:'Malgun Gothic','맑은 고딕',sans-serif;colo
 
 .nm-area{height:10mm}
 
-/* Phone: write boxes + bubbles (no guide text here) */
+/* Phone: write boxes + bubbles */
 .ph-write{display:flex;justify-content:center;gap:0;margin-bottom:1.5mm}
 .ph-cell{width:5.8mm;height:7mm;border:0.7px solid #000;display:flex;align-items:center;justify-content:center}
 .ph-cell+.ph-cell{border-left:none}
 .ph-sep{width:3.5mm;display:flex;align-items:center;justify-content:center;font-size:10pt;font-weight:800}
+.ph-grid-wrap{position:relative;display:inline-block}
 .ph-bub-row{display:flex;justify-content:center;gap:0}
 .ph-bub-col{display:flex;flex-direction:column;align-items:center;width:5.8mm}
 .ph-bub-sep{width:3.5mm}
@@ -91,6 +115,7 @@ body{background:#ccc;font-family:'Malgun Gothic','맑은 고딕',sans-serif;colo
   width:44mm;flex-shrink:0;flex-grow:0;
   border:1.5px solid #000;border-radius:2mm;
   display:flex;flex-direction:column;overflow:hidden;
+  position:relative;
 }
 /* header uses same structure as rows for alignment */
 .ac-h{
@@ -109,7 +134,7 @@ body{background:#ccc;font-family:'Malgun Gothic','맑은 고딕',sans-serif;colo
   flex:1;text-align:center;
   font-size:5.5pt;font-weight:700;letter-spacing:0.5px;
 }
-.ac-b{flex:1;display:flex;flex-direction:column}
+.ac-b{flex:1;display:flex;flex-direction:column;position:relative}
 
 .ar{display:flex;align-items:center;flex:1;min-height:4mm;border-bottom:0.2px solid #ddd}
 .ar-g5{border-bottom:0.8px solid #999!important}
@@ -158,7 +183,7 @@ body{background:#ccc;font-family:'Malgun Gothic','맑은 고딕',sans-serif;colo
 <body>
 
 <div class="cfg">
-  <div class="cfg-t">OMR 답안지 생성기</div>
+  <div class="cfg-t">OMR 답안지 생성기 v9</div>
   <div class="cfg-g">
     <label>시험명</label><input type="text" id="cfNm" class="sp2" placeholder="예: 제1회 단원평가" value="제1회 단원평가">
     <label>강의명</label><input type="text" id="cfLec" class="sp2" placeholder="자동 또는 직접 입력">
@@ -228,7 +253,12 @@ function gen(){
   const sesName=$('cfSes').value.trim();
   const examNm=$('cfNm').value.trim()||'\uC2DC\uD5D8 \uB2F5\uC548\uC9C0';
 
-  const cm=['tl','tr','bl','br'].map(p=>`<div class="cm cm-${p}"><b class="h"></b><b class="v"></b></div>`).join('');
+  // v9 asymmetric corner markers
+  const cm=
+    '<div class="cm-tl"></div>'+
+    '<div class="cm-tr"><b class="h"></b><b class="v"></b></div>'+
+    '<div class="cm-bl"><b class="h"></b><b class="v"></b></div>'+
+    '<div class="cm-br"><b class="h"></b><b class="v"></b></div>';
 
   // Phone write cells
   let phW='';
@@ -236,7 +266,7 @@ function gen(){
     if(i===4)phW+=`<div class="ph-sep">\u2013</div>`;
     phW+=`<div class="ph-cell"></div>`;
   }
-  // Phone bubbles
+  // Phone bubbles with ID anchors
   let phB='';
   for(let d=0;d<8;d++){
     if(d===4)phB+=`<div class="ph-bub-sep"></div>`;
@@ -275,7 +305,11 @@ function gen(){
           <div class="sec-h">\uC804\uD654\uBC88\uD638 \uB4A4 8\uC790\uB9AC</div>
           <div class="sec-b">
             <div class="ph-write">${phW}</div>
-            <div class="ph-bub-row">${phB}</div>
+            <div class="ph-grid-wrap">
+              <div class="id-anchor" style="top:-1mm;left:-1mm"></div>
+              <div class="ph-bub-row">${phB}</div>
+              <div class="id-anchor" style="bottom:-1mm;right:-1mm"></div>
+            </div>
           </div>
         </div>
       </div>
@@ -296,7 +330,13 @@ function gen(){
         rows+=`<div class="ar${g5}"><div class="ar-n">${q}</div><div class="ar-bs">${bubs}</div></div>`;
       }
       const label=numCols>1?`${s}\uBC88 ~ ${e}\uBC88`:'\uAC1D\uAD00\uC2DD';
-      mcCols+=`<div class="ac"><div class="ac-h"><div class="ac-h-n">\uBC88\uD638</div><div class="ac-h-a">${label}</div></div><div class="ac-b">${rows}</div></div>`;
+      // Column anchors: top-right and bottom-left of bubble area
+      // Column separator: 0.3mm line at left edge of bubble area (after 8mm number col)
+      const colAnchors=
+        '<div class="col-anchor" style="top:1mm;right:1mm"></div>'+
+        '<div class="col-anchor" style="bottom:1mm;left:1mm"></div>'+
+        '<div class="col-sep" style="left:8mm"></div>';
+      mcCols+=`<div class="ac"><div class="ac-h"><div class="ac-h-n">\uBC88\uD638</div><div class="ac-h-a">${label}</div></div><div class="ac-b">${colAnchors}${rows}</div></div>`;
     }
   }
 
