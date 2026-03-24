@@ -19,6 +19,11 @@ import {
 import { patchQuestionScore } from "@/features/materials/api/sheetQuestions";
 import { useAdminExam } from "../hooks/useAdminExam";
 import { fetchOMRPreview, downloadOMRPdf } from "../api/omrApi";
+import {
+  fetchExplanations,
+  saveExplanationsBulk,
+  type QuestionExplanation as ExplanationData,
+} from "../api/explanationApi";
 import ExamPdfUploadModal from "./ExamPdfUploadModal";
 import "./AnswerKeyRegisterModal.css";
 
@@ -116,6 +121,14 @@ export default function AnswerKeyRegisterModal({
   const [explanationDraft, setExplanationDraft] = useState<
     Record<number, { text: string; problemImageUrl: string | null; imageUrl: string | null }>
   >({});
+  const [explanationSaveBusy, setExplanationSaveBusy] = useState(false);
+
+  /** 해설 데이터 로드 — AI 추출 결과 포함 */
+  const { data: explanationsFromApi = [] } = useQuery({
+    queryKey: ["exam-explanations", examId],
+    queryFn: () => fetchExplanations(examId),
+    enabled: open && Number.isFinite(examId) && questions.length > 0,
+  });
 
   const choiceBubbleRefs = useRef<(HTMLDivElement | null)[]>([]);
   const essayInputRefs = useRef<(HTMLInputElement | null)[]>([]);
@@ -188,6 +201,32 @@ export default function AnswerKeyRegisterModal({
       return next;
     });
   }, [questionIdsKey, sortedQuestions.length]);
+
+  /** AI 추출 해설 + 문항 이미지를 explanationDraft에 자동 반영 */
+  useEffect(() => {
+    if (sortedQuestions.length === 0) return;
+    setExplanationDraft((prev) => {
+      const next = { ...prev };
+      // 해설 API 데이터 → question_id 기준으로 매핑
+      const explByQuestionId: Record<number, ExplanationData> = {};
+      for (const e of explanationsFromApi) {
+        explByQuestionId[e.question] = e;
+      }
+      for (const q of sortedQuestions) {
+        // 이미 사용자가 수동 수정한 draft가 있으면 유지
+        if (prev[q.id] && (prev[q.id].text || prev[q.id].problemImageUrl || prev[q.id].imageUrl)) continue;
+        const apiExpl = explByQuestionId[q.id];
+        next[q.id] = {
+          text: apiExpl?.text ?? "",
+          problemImageUrl: q.image_url ?? q.image ?? null,
+          problemImageKey: q.image_key ?? null,
+          imageUrl: apiExpl?.image_url ?? null,
+          imageKey: apiExpl?.image_key ?? null,
+        };
+      }
+      return next;
+    });
+  }, [questionIdsKey, explanationsFromApi, sortedQuestions.length]);
 
   const initMut = useMutation({
     mutationFn: async (overrides?: { choiceCount?: number | ""; essayCount?: number | "" }) => {
@@ -725,7 +764,8 @@ export default function AnswerKeyRegisterModal({
                         <ExplanationRow
                           key={q.id}
                           question={q}
-                          explanation={explanationDraft[q.id] ?? { text: "", problemImageUrl: null, imageUrl: null }}
+                          examId={examId}
+                          explanation={explanationDraft[q.id] ?? { text: "", problemImageUrl: null, problemImageKey: null, imageUrl: null, imageKey: null }}
                           onChange={(next) =>
                             setExplanationDraft((prev) => ({ ...prev, [q.id]: next }))
                           }
@@ -772,9 +812,41 @@ export default function AnswerKeyRegisterModal({
             {activeTab === "image" && sortedQuestions.length > 0 && (
               <Button
                 intent="primary"
-                onClick={() => feedback.info("해설 저장 기능은 API 연동 후 제공됩니다.")}
+                disabled={explanationSaveBusy}
+                loading={explanationSaveBusy}
+                onClick={async () => {
+                  setExplanationSaveBusy(true);
+                  try {
+                    const items = sortedQuestions
+                      .filter((q) => {
+                        const d = explanationDraft[q.id];
+                        return d && (d.text || d.imageUrl || d.imageKey);
+                      })
+                      .map((q) => {
+                        const d = explanationDraft[q.id];
+                        const item: { question_id: number; text: string; image_key?: string } = {
+                          question_id: q.id,
+                          text: d?.text ?? "",
+                        };
+                        if (d?.imageKey) item.image_key = d.imageKey;
+                        return item;
+                      });
+                    if (items.length === 0) {
+                      feedback.info("저장할 해설이 없습니다.");
+                      return;
+                    }
+                    await saveExplanationsBulk(examId, items);
+                    qc.invalidateQueries({ queryKey: ["exam-explanations", examId] });
+                    qc.invalidateQueries({ queryKey: ["exam-questions", examId] });
+                    feedback.success(`해설 ${items.length}건 저장 완료`);
+                  } catch (e: any) {
+                    feedback.error(e?.response?.data?.detail ?? "해설 저장 실패");
+                  } finally {
+                    setExplanationSaveBusy(false);
+                  }
+                }}
               >
-                저장
+                해설 저장
               </Button>
             )}
           </>
@@ -1016,7 +1088,13 @@ function AnswerSummary({
   );
 }
 
-type ExplanationState = { text: string; problemImageUrl: string | null; imageUrl: string | null };
+type ExplanationState = {
+  text: string;
+  problemImageUrl: string | null;
+  problemImageKey: string | null;
+  imageUrl: string | null;
+  imageKey: string | null;
+};
 
 /** 문제 이미지·해설 이미지 공통 셀 — 클릭: 포커스(Ctrl+V 붙여넣기), 더블클릭: 파일 선택 */
 function ImageCell({
@@ -1024,28 +1102,48 @@ function ImageCell({
   imageUrl,
   onImageChange,
   onClear,
+  examId,
 }: {
   label: string;
   imageUrl: string | null;
-  onImageChange: (url: string) => void;
+  onImageChange: (url: string, key?: string) => void;
   onClear: () => void;
+  examId?: number;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+
+  const uploadAndSet = useCallback(async (file: File) => {
+    if (!examId) {
+      onImageChange(URL.createObjectURL(file));
+      return;
+    }
+    setUploading(true);
+    try {
+      const { uploadExamImage } = await import("../api/examAssetApi");
+      const { image_url, image_key } = await uploadExamImage(examId, file);
+      onImageChange(image_url, image_key);
+    } catch {
+      onImageChange(URL.createObjectURL(file));
+    } finally {
+      setUploading(false);
+    }
+  }, [examId, onImageChange]);
 
   const handlePaste = useCallback((e: React.ClipboardEvent) => {
     const file = e.clipboardData?.files?.[0];
     if (!file?.type.startsWith("image/")) return;
     e.preventDefault();
-    onImageChange(URL.createObjectURL(file));
-  }, [onImageChange]);
+    uploadAndSet(file);
+  }, [uploadAndSet]);
 
   const handleFile = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    onImageChange(URL.createObjectURL(file));
+    uploadAndSet(file);
     e.target.value = "";
-  }, [onImageChange]);
+  }, [uploadAndSet]);
 
   const handleClick = useCallback(() => {
     containerRef.current?.focus();
@@ -1087,12 +1185,18 @@ function ImageCell({
     >
       <input ref={fileInputRef} type="file" accept="image/*" className="ds-sr-only" onChange={handleFile} />
       <div className="answer-key-explanation-cell__placeholder answer-key-explanation-cell__placeholder--no-label">
-        <span className="answer-key-explanation-cell__placeholder-text">{label}</span>
-        <span className="answer-key-explanation-cell__placeholder-hint">
-          클릭 후 Ctrl+V 붙여넣기
-          <br />
-          더블클릭으로 파일 선택
-        </span>
+        {uploading ? (
+          <span className="answer-key-explanation-cell__placeholder-text" style={{ color: "var(--color-brand-primary)" }}>업로드 중…</span>
+        ) : (
+          <>
+            <span className="answer-key-explanation-cell__placeholder-text">{label}</span>
+            <span className="answer-key-explanation-cell__placeholder-hint">
+              클릭 후 Ctrl+V 붙여넣기
+              <br />
+              더블클릭으로 파일 선택
+            </span>
+          </>
+        )}
       </div>
     </div>
   );
@@ -1100,15 +1204,17 @@ function ImageCell({
 
 function ExplanationRow({
   question,
+  examId,
   explanation,
   onChange,
 }: {
   question: ExamQuestion;
+  examId: number;
   explanation: ExplanationState;
   onChange: (next: ExplanationState) => void;
 }) {
   const label = typeof question.number === "number" ? String(question.number) : `S${question.number}`;
-  const problemUrl = explanation.problemImageUrl ?? question.image ?? null;
+  const problemUrl = explanation.problemImageUrl ?? question.image_url ?? question.image ?? null;
   const explanationUrl = explanation.imageUrl;
 
   return (
@@ -1121,8 +1227,9 @@ function ExplanationRow({
           <ImageCell
             label="문제 이미지"
             imageUrl={problemUrl}
-            onImageChange={(url) => onChange({ ...explanation, problemImageUrl: url })}
-            onClear={() => onChange({ ...explanation, problemImageUrl: null })}
+            examId={examId}
+            onImageChange={(url, key) => onChange({ ...explanation, problemImageUrl: url, problemImageKey: key ?? explanation.problemImageKey })}
+            onClear={() => onChange({ ...explanation, problemImageUrl: null, problemImageKey: null })}
           />
         </div>
       </td>
@@ -1131,8 +1238,9 @@ function ExplanationRow({
           <ImageCell
             label="해설 이미지"
             imageUrl={explanationUrl}
-            onImageChange={(url) => onChange({ ...explanation, imageUrl: url })}
-            onClear={() => onChange({ ...explanation, imageUrl: null })}
+            examId={examId}
+            onImageChange={(url, key) => onChange({ ...explanation, imageUrl: url, imageKey: key ?? explanation.imageKey })}
+            onClear={() => onChange({ ...explanation, imageUrl: null, imageKey: null })}
           />
         </div>
       </td>

@@ -7,6 +7,8 @@ export interface ExamQuestion {
   number: number;
   score: number;
   image?: string;
+  image_key?: string;
+  image_url?: string | null;
   region_meta?: {
     x: number;
     y: number;

@@ -34,3 +34,18 @@ export async function uploadExamAsset(params: {
     headers: { "Content-Type": "multipart/form-data" },
   });
 }
+
+/** 문항/해설 이미지 업로드 → R2 저장 후 image_key + image_url 반환 */
+export async function uploadExamImage(
+  examId: number,
+  file: File,
+): Promise<{ image_key: string; image_url: string }> {
+  const fd = new FormData();
+  fd.append("file", file);
+  const resp = await api.post<{ image_key: string; image_url: string }>(
+    `/exams/${examId}/upload-image/`,
+    fd,
+    { headers: { "Content-Type": "multipart/form-data" } },
+  );
+  return resp.data;
+}
