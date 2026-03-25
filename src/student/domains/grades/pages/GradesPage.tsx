@@ -62,7 +62,7 @@ function groupExams(exams: MyExamGradeSummary[]): ExamGroup[] {
     const avgPct =
       withMax.length > 0
         ? Math.round(
-            withMax.reduce((s, e) => s + (e.total_score / e.max_score) * 100, 0) /
+            withMax.reduce((s, e) => s + ((e.total_score ?? 0) / e.max_score) * 100, 0) /
               withMax.length,
           )
         : 0;
@@ -75,7 +75,7 @@ function groupExams(exams: MyExamGradeSummary[]): ExamGroup[] {
     const avgPct =
       withMax.length > 0
         ? Math.round(
-            withMax.reduce((s, e) => s + (e.total_score / e.max_score) * 100, 0) /
+            withMax.reduce((s, e) => s + ((e.total_score ?? 0) / e.max_score) * 100, 0) /
               withMax.length,
           )
         : 0;
@@ -176,7 +176,7 @@ export default function GradesPage() {
       .map((e) => ({
         name:
           e.title.length > 6 ? e.title.slice(0, 6) + "\u2026" : e.title,
-        득점률: Math.round((e.total_score / e.max_score) * 100),
+        득점률: Math.round(((e.total_score ?? 0) / e.max_score) * 100),
       }));
   }, [exams, lectureFilter]);
 
@@ -428,14 +428,14 @@ function LectureExamGroup({ group }: { group: ExamGroup }) {
                 <div style={{ fontWeight: 600, fontSize: 14 }}>{e.title}</div>
                 <div className="stu-muted" style={{ fontSize: 13, marginTop: 2 }}>
                   {e.session_title && `${e.session_title} · `}
-                  {fmtScore(e.total_score, e.max_score)}
+                  {fmtScore(e.total_score ?? 0, e.max_score)}
                 </div>
               </div>
               <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 }}>
                 <GradeBadge passed={e.is_pass} achievement={e.achievement} />
                 {e.max_score > 0 && (
                   <span style={{ fontSize: 11, fontWeight: 700, color: "var(--stu-text-muted)" }}>
-                    {Math.round((e.total_score / e.max_score) * 100)}%
+                    {Math.round(((e.total_score ?? 0) / e.max_score) * 100)}%
                   </span>
                 )}
               </div>
