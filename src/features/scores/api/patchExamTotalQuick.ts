@@ -14,15 +14,23 @@ import api from "@/shared/api/axios";
 export async function patchExamTotalScoreQuick(params: {
   examId: number;
   enrollmentId: number;
-  score: number;
+  score: number | null;
   maxScore?: number | null;
+  /** "NOT_SUBMITTED" = 미응시 (/ + Enter) */
+  metaStatus?: "NOT_SUBMITTED" | null;
 }) {
+  const payload: Record<string, unknown> = {};
+
+  if (params.metaStatus === "NOT_SUBMITTED") {
+    payload.meta_status = "NOT_SUBMITTED";
+  } else {
+    payload.score = params.score;
+    payload.max_score = params.maxScore ?? null;
+  }
+
   const res = await api.patch(
     `/results/admin/exams/${params.examId}/enrollments/${params.enrollmentId}/score/`,
-    {
-      score: params.score,
-      max_score: params.maxScore ?? null,
-    }
+    payload,
   );
   return res.data;
 }

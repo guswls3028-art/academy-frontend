@@ -9,7 +9,8 @@ export type MyExamResult = {
   attempt_id: number;
   total_score: number;
   max_score: number;
-  is_pass: boolean;
+  is_pass: boolean | null;
+  meta_status?: string | null;  // "NOT_SUBMITTED" = 미응시
   submitted_at: string | null;
   can_retake: boolean;
   answer_visibility?: AnswerVisibility;

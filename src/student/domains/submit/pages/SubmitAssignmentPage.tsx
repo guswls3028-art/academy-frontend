@@ -13,7 +13,8 @@ import { Link } from "react-router-dom";
 import StudentPageShell from "@/student/shared/ui/pages/StudentPageShell";
 import { useMyGradesSummary } from "@/student/domains/grades/hooks/useMyGradesSummary";
 import type { MyExamGradeSummary, MyHomeworkGradeSummary } from "@/student/domains/grades/api/grades";
-import { createSubmission } from "@/features/submissions/api";
+import studentApi from "@/student/shared/api/studentApi";
+import type { Submission } from "@/features/submissions/types";
 import { IconExam, IconClipboard, IconImage, IconVideo } from "@/student/shared/ui/icons/Icons";
 
 const ACCEPT = "image/*,video/*";
@@ -39,7 +40,7 @@ export default function SubmitAssignmentPage() {
     [grades?.homeworks],
   );
   const unfinishedExams = useMemo(
-    () => (grades?.exams ?? []).filter((e) => !e.is_pass),
+    () => (grades?.exams ?? []).filter((e) => e.is_pass === false),
     [grades?.exams],
   );
 
@@ -62,7 +63,12 @@ export default function SubmitAssignmentPage() {
       fd.append("enrollment_id", String(selected.enrollmentId));
       fd.append("file", selectedFile);
 
-      return createSubmission(fd);
+      const res = await studentApi.post<Submission>(
+        "/submissions/submissions/",
+        fd,
+        { headers: { "Content-Type": "multipart/form-data" } },
+      );
+      return res.data;
     },
     onSuccess: () => {
       setSelectedFile(null);

@@ -2,17 +2,18 @@
 
 import api from "@/student/shared/api/studentApi";
 
-/** achievement: PASS=1차합격, REMEDIATED=보강후합격, FAIL=불합격 */
-export type Achievement = "PASS" | "REMEDIATED" | "FAIL";
+/** achievement: PASS=1차합격, REMEDIATED=보강후합격, FAIL=불합격, NOT_SUBMITTED=미응시 */
+export type Achievement = "PASS" | "REMEDIATED" | "FAIL" | "NOT_SUBMITTED";
 
 export type MyExamGradeSummary = {
   exam_id: number;
   enrollment_id: number;
   title: string;
-  total_score: number;
+  total_score: number | null;  // null = 미응시
   max_score: number;
-  is_pass: boolean | null;  // null = 합격 기준 미설정
+  is_pass: boolean | null;  // null = 합격 기준 미설정 또는 미응시
   achievement?: Achievement | null;
+  meta_status?: string | null;  // "NOT_SUBMITTED" = 미응시
   retake_count?: number;
   session_title: string | null;
   lecture_title: string | null;

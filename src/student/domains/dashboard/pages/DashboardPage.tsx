@@ -155,8 +155,8 @@ export default function DashboardPage() {
     return best;
   })();
 
-  const failedExamCount = grades?.exams?.filter((e) => !e.is_pass).length ?? 0;
-  const failedHomeworkCount = grades?.homeworks?.filter((h) => !h.passed).length ?? 0;
+  const failedExamCount = grades?.exams?.filter((e) => e.is_pass === false).length ?? 0;
+  const failedHomeworkCount = grades?.homeworks?.filter((h) => h.passed === false).length ?? 0;
   const clinicUpcoming = dashboard?.badges?.clinic_upcoming === true;
   const hasTodos = failedExamCount > 0 || failedHomeworkCount > 0 || clinicUpcoming;
 

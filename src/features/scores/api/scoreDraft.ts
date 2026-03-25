@@ -6,7 +6,7 @@
 import api from "@/shared/api/axios";
 
 export type PendingChange =
-  | { type: "examTotal"; examId: number; enrollmentId: number; score: number; maxScore?: number }
+  | { type: "examTotal"; examId: number; enrollmentId: number; score: number; maxScore?: number; metaStatus?: "NOT_SUBMITTED" }
   | { type: "examObjective"; examId: number; enrollmentId: number; score: number }
   | { type: "examSubjective"; examId: number; enrollmentId: number; score: number }
   | {

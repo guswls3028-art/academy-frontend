@@ -353,7 +353,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
     for (const p of list) {
       try {
         if (p.type === "examTotal") {
-          await patchExamTotalScoreQuick({ examId: p.examId, enrollmentId: p.enrollmentId, score: p.score, maxScore: p.maxScore ?? 100 });
+          await patchExamTotalScoreQuick({ examId: p.examId, enrollmentId: p.enrollmentId, score: p.score, maxScore: p.maxScore ?? 100, metaStatus: p.metaStatus ?? undefined });
         } else if (p.type === "examObjective") {
           await patchExamObjectiveScoreQuick({ examId: p.examId, enrollmentId: p.enrollmentId, score: p.score });
         } else if (p.type === "examSubjective") {
@@ -394,7 +394,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
     for (const p of changes) {
       if (p.type === "examTotal") {
         const el = examInputRefs.current[`${p.enrollmentId}-${p.examId}`];
-        if (el) el.innerText = String(Math.round(p.score));
+        if (el) el.innerText = p.metaStatus === "NOT_SUBMITTED" ? "미응시" : String(Math.round(p.score));
       } else if (p.type === "examObjective") {
         const el = examObjectiveInputRefs.current[`${p.enrollmentId}-${p.examId}-objective`];
         if (el) el.innerText = String(Math.round(p.score));
@@ -442,8 +442,13 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
         const el = examInputRefs.current[key];
         if (!el || el === document.activeElement) return;
         const entry = row.exams?.find((e) => e.exam_id === ex.exam_id);
-        const score = entry?.block?.score;
-        el.innerText = score != null ? String(Math.round(score)) : "";
+        const metaStatus = entry?.block?.meta?.status;
+        if (metaStatus === "NOT_SUBMITTED") {
+          el.innerText = "미응시";
+        } else {
+          const score = entry?.block?.score;
+          el.innerText = score != null ? String(Math.round(score)) : "";
+        }
       });
     });
   }, [rows, examOptions]);
@@ -975,7 +980,8 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
 
                         if (col.sub === "total") {
                           const examMaxScore = block?.max_score ?? ex.max_score ?? null;
-                          const scoreText = block?.score == null ? "-" : scoreFormat === "fraction" && examMaxScore != null ? `${Math.round(block.score)}/${examMaxScore}` : `${Math.round(block.score)}`;
+                          const isExamNotSubmitted = block?.meta?.status === "NOT_SUBMITTED";
+                          const scoreText = isExamNotSubmitted ? "미응시" : block?.score == null ? "-" : scoreFormat === "fraction" && examMaxScore != null ? `${Math.round(block.score)}/${examMaxScore}` : `${Math.round(block.score)}`;
                           const hasRetakes = (entry?.attempt_count ?? 0) >= 2;
                           const hasClinicLink = entry?.clinic_link_id != null;
                           const canEdit = isEditMode && examEditTotal && !block?.is_locked && !hasRetakes;
@@ -992,27 +998,37 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                   ref={(el) => {
                                     const k = `${row.enrollment_id}-${ex.exam_id}`;
                                     examInputRefs.current[k] = el;
-                                    if (el && el !== document.activeElement && !dirtyKeysRef.current.has(`examTotal:${row.enrollment_id}:${ex.exam_id}`)) el.innerText = block?.score != null ? String(Math.round(block.score)) : "";
+                                    if (el && el !== document.activeElement && !dirtyKeysRef.current.has(`examTotal:${row.enrollment_id}:${ex.exam_id}`)) {
+                                      if (isExamNotSubmitted) el.innerText = "미응시";
+                                      else el.innerText = block?.score != null ? String(Math.round(block.score)) : "";
+                                    }
                                   }}
                                   contentEditable
                                   suppressContentEditableWarning
-                                  className="ds-scores-cell-editable font-medium text-center tabular-nums text-sm outline-none inline-block w-full min-w-0"
+                                  className={`ds-scores-cell-editable font-medium text-center tabular-nums text-sm outline-none inline-block w-full min-w-0 ${isExamNotSubmitted ? "text-[var(--color-text-muted)]" : ""}`}
                                   onFocus={(e) => {
                                     const el = e.currentTarget;
-                                    examScoreValueOnFocusRef.current[`${row.enrollment_id}-${ex.exam_id}`] = block?.score != null ? String(Math.round(block.score)) : "";
+                                    examScoreValueOnFocusRef.current[`${row.enrollment_id}-${ex.exam_id}`] = isExamNotSubmitted ? "미응시" : (block?.score != null ? String(Math.round(block.score)) : "");
                                     requestAnimationFrame(() => selectAllScoreCell(el));
                                   }}
                                   onBlur={async () => {
                                     const el = examInputRefs.current[`${row.enrollment_id}-${ex.exam_id}`];
                                     if (!el) return;
                                     const raw = firstLine(el.innerText);
+                                    const cellKey = `examTotal:${row.enrollment_id}:${ex.exam_id}`;
+                                    // "/" or "미응시" → NOT_SUBMITTED
+                                    if (raw === "/" || raw === "미응시") {
+                                      el.innerText = "미응시";
+                                      pendingRef.current.set(cellKey, { type: "examTotal", examId: ex.exam_id, enrollmentId: row.enrollment_id, score: 0, metaStatus: "NOT_SUBMITTED" });
+                                      dirtyKeysRef.current.add(cellKey);
+                                      return;
+                                    }
                                     const metaMax = block?.max_score ?? ex.max_score ?? 100;
                                     const parsed = parseScoreInput(raw, metaMax);
                                     if (parsed != null && validateScore(parsed, metaMax)) {
-                                      const key = `examTotal:${row.enrollment_id}:${ex.exam_id}`;
-                                      pendingRef.current.set(key, { type: "examTotal", examId: ex.exam_id, enrollmentId: row.enrollment_id, score: parsed, maxScore: metaMax });
-                                      dirtyKeysRef.current.add(key);
-                                    } else if (raw !== "") el.innerText = block?.score != null ? String(Math.round(block.score)) : "";
+                                      pendingRef.current.set(cellKey, { type: "examTotal", examId: ex.exam_id, enrollmentId: row.enrollment_id, score: parsed, maxScore: metaMax });
+                                      dirtyKeysRef.current.add(cellKey);
+                                    } else if (raw !== "") el.innerText = isExamNotSubmitted ? "미응시" : (block?.score != null ? String(Math.round(block.score)) : "");
                                   }}
                                   onKeyDown={(e) => {
                                     const el = examInputRefs.current[`${row.enrollment_id}-${ex.exam_id}`];
@@ -1023,6 +1039,27 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                       el?.blur();
                                     } else if (e.key === "Enter") {
                                       e.preventDefault(); e.stopPropagation();
+                                      const raw = el?.innerText?.trim() ?? "";
+                                      // "/" + Enter → 미응시
+                                      if (raw === "/") {
+                                        if (el) el.innerText = "미응시";
+                                        const cellKey = `examTotal:${row.enrollment_id}:${ex.exam_id}`;
+                                        pendingRef.current.set(cellKey, { type: "examTotal", examId: ex.exam_id, enrollmentId: row.enrollment_id, score: 0, metaStatus: "NOT_SUBMITTED" });
+                                        dirtyKeysRef.current.add(cellKey);
+                                      } else if (raw === "미응시") {
+                                        const cellKey = `examTotal:${row.enrollment_id}:${ex.exam_id}`;
+                                        pendingRef.current.set(cellKey, { type: "examTotal", examId: ex.exam_id, enrollmentId: row.enrollment_id, score: 0, metaStatus: "NOT_SUBMITTED" });
+                                        dirtyKeysRef.current.add(cellKey);
+                                      } else {
+                                        // 숫자 입력 → 점수 저장
+                                        const metaMax = block?.max_score ?? ex.max_score ?? 100;
+                                        const parsed = parseScoreInput(raw, metaMax);
+                                        if (parsed != null && validateScore(parsed, metaMax)) {
+                                          const cellKey = `examTotal:${row.enrollment_id}:${ex.exam_id}`;
+                                          pendingRef.current.set(cellKey, { type: "examTotal", examId: ex.exam_id, enrollmentId: row.enrollment_id, score: parsed, maxScore: metaMax });
+                                          dirtyKeysRef.current.add(cellKey);
+                                        }
+                                      }
                                       onRequestMoveDown?.();
                                     } else if (e.key === "Tab") {
                                       e.preventDefault(); e.stopPropagation();
@@ -1040,7 +1077,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                   <span className="ds-cell-retake-badge">{entry?.attempt_count}차 시도</span>
                                 </div>
                               ) : (
-                                <span className="font-medium text-[var(--color-text-primary)]">{scoreText}</span>
+                                <span className={`font-medium ${isExamNotSubmitted ? "text-[var(--color-text-muted)]" : "text-[var(--color-text-primary)]"}`}>{scoreText}</span>
                               )}
                               {isEditMode && hasClinicLink && !hasRetakes && block?.passed === false && (
                                 <div

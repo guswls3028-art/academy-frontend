@@ -141,14 +141,19 @@ export default function GradesPage() {
 
   const examStats = useMemo(() => {
     if (exams.length === 0) return null;
-    const avgPct =
-      exams.reduce(
-        (s, e) =>
-          s + (e.max_score > 0 ? (e.total_score / e.max_score) * 100 : 0),
-        0,
-      ) / exams.length;
-    const passRate =
-      (exams.filter((e) => e.is_pass).length / exams.length) * 100;
+    // 미응시(total_score=null) 제외하고 평균 계산
+    const scoredExams = exams.filter((e) => e.total_score != null);
+    const avgPct = scoredExams.length > 0
+      ? scoredExams.reduce(
+          (s, e) =>
+            s + (e.max_score > 0 ? ((e.total_score ?? 0) / e.max_score) * 100 : 0),
+          0,
+        ) / scoredExams.length
+      : 0;
+    const examsWithCriteria = exams.filter((e) => e.is_pass !== null);
+    const passRate = examsWithCriteria.length > 0
+      ? (examsWithCriteria.filter((e) => e.is_pass).length / examsWithCriteria.length) * 100
+      : 0;
     return {
       avgPct: Math.round(avgPct),
       passRate: Math.round(passRate),
