@@ -3,6 +3,7 @@
 /tenants/*         /tenants/:splat    200
 /omr-default-logo.svg  /omr-default-logo.svg  200
 /version.json      /version.json      200
+/robots.txt        /robots.txt        200
 
 # SPA fallback — all other routes → index.html
 /*    /index.html    200

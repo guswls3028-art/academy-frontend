@@ -1,4 +1,10 @@
 :root {
+  /* ── Layer tokens (surface hierarchy) ── */
+  --layer-page-bg:   var(--color-bg-canvas);
+  --layer-panel-bg:  var(--color-bg-surface);
+  --layer-card-bg:   var(--color-bg-surface-hover);
+  --layer-focus-bg:  var(--color-bg-accent-subtle);
+
   /* PAGE */
   --ui-page-bg: var(--layer-page-bg);
 
@@ -23,6 +29,7 @@
   --ui-control-border:       var(--color-border-divider);
   --ui-control-border-hover: var(--color-border-focus);
   --ui-control-border-focus: var(--color-border-focus);
+  --ui-control-shadow:       none;
 
   /* CONTROL PRIMARY (antd btn-primary 등) */
   --ui-control-primary-bg:        color-mix(in srgb, var(--color-brand-primary) 22%, var(--scale-Neutral0, #fff));

@@ -10,6 +10,7 @@ export type StudentExam = {
   allow_retake: boolean;
   max_attempts: number;
   pass_score: number;
+  max_score: number;
   description?: string | null;
   session_id?: number | null;
   status?: string;

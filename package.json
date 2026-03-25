@@ -27,7 +27,9 @@
     "test:e2e:ui": "npx playwright test --ui"
   },
   "dependencies": {
+    "@rollup/rollup-linux-x64-gnu": "^4.60.0",
     "@sentry/react": "^10.43.0",
+    "@swc/core-linux-x64-gnu": "^1.15.21",
     "@tanstack/react-query": "^5.90.12",
     "@tiptap/extension-color": "^2.12.0",
     "@tiptap/extension-image": "^2.12.0",
@@ -44,6 +46,7 @@
     "dayjs": "^1.11.19",
     "dompurify": "^3.3.2",
     "hls.js": "^1.6.15",
+    "lightningcss-linux-x64-gnu": "^1.32.0",
     "lucide-react": "^0.563.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",

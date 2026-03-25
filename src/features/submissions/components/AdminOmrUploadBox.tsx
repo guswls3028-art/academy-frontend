@@ -1,6 +1,7 @@
 // src/features/submissions/components/AdminOmrUploadBox.tsx
 import { useRef, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
+import { Button } from "@/shared/ui/ds";
 import { adminOmrUpload } from "@/features/submissions/api/adminOmrUpload";
 import { getRejectionMessage } from "@/features/submissions/contracts/aiJobContract";
 
@@ -34,27 +35,25 @@ export default function AdminOmrUploadBox({
   });
 
   return (
-    <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-4">
-      <div className="text-sm font-semibold text-neutral-100 mb-1">
+    <div className="rounded-xl p-4" style={{ border: '1px solid var(--color-border-divider)', background: 'var(--color-bg-surface)' }}>
+      <div className="text-sm font-semibold mb-1" style={{ color: 'var(--color-text-primary)' }}>
         OMR 답안 업로드
       </div>
-      <div className="text-xs text-neutral-400 mb-3">
+      <div className="text-xs mb-3" style={{ color: 'var(--color-text-muted)' }}>
         휴대폰 번호 뒤 8자리를 입력하고 스캔 파일을 올리세요.
       </div>
 
       <input
-        className="w-full mb-3 rounded border px-3 py-2 text-sm bg-neutral-900 text-neutral-100"
+        className="w-full mb-3 rounded border px-3 py-2 text-sm"
+        style={{ borderColor: 'var(--color-border-default)', background: 'var(--color-bg-canvas)', color: 'var(--color-text-primary)' }}
         placeholder="예: 12345678"
         value={enrollmentId}
         onChange={(e) => setEnrollmentId(e.target.value)}
       />
 
-      <button
-        className="w-full rounded-lg bg-neutral-100 px-4 py-2 text-sm text-neutral-950"
-        onClick={() => inputRef.current?.click()}
-      >
+      <Button type="button" intent="primary" size="md" className="w-full" onClick={() => inputRef.current?.click()}>
         스캔 파일 선택
-      </button>
+      </Button>
 
       <input
         ref={inputRef}
@@ -70,11 +69,11 @@ export default function AdminOmrUploadBox({
       />
 
       {rejectMessage && (
-        <div className="mt-2 rounded border border-amber-600/40 bg-amber-950/40 px-3 py-2 text-xs text-amber-200">
+        <div className="mt-2 rounded border px-3 py-2 text-xs" style={{ borderColor: 'color-mix(in srgb, var(--color-warning) 40%, var(--color-border-divider))', background: 'color-mix(in srgb, var(--color-warning) 8%, var(--color-bg-surface))', color: 'var(--color-text-primary)' }}>
           {rejectMessage}
         </div>
       )}
-      <div className="mt-2 text-xs text-neutral-400">
+      <div className="mt-2 text-xs" style={{ color: 'var(--color-text-muted)' }}>
         {uploadMut.isPending
           ? "업로드 중입니다. 잠시만 기다려주세요."
           : "업로드 후 자동으로 인식·채점이 시작됩니다."}

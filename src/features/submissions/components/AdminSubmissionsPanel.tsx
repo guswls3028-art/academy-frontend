@@ -31,34 +31,35 @@ export default function AdminSubmissionsPanel({
   const rows = q.data ?? [];
 
   return (
-    <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-4 space-y-3">
+    <div className="ds-surface rounded-xl p-4 space-y-3" style={{ border: '1px solid var(--color-border-divider)', background: 'var(--color-bg-surface)' }}>
       <div className="flex justify-between items-center">
-        <div className="text-sm font-semibold text-neutral-100">
+        <div className="text-sm font-semibold" style={{ color: 'var(--color-text-primary)' }}>
           제출 / 처리 상태
         </div>
 
-        <Button type="button" intent="ghost" size="sm" onClick={() => q.refetch()} className="text-xs bg-neutral-800 text-neutral-200">
+        <Button type="button" intent="ghost" size="sm" onClick={() => q.refetch()} className="text-xs">
           새로고침
         </Button>
       </div>
 
       {rows.length === 0 && (
-        <div className="text-xs text-neutral-400">
+        <div className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
           아직 제출된 OMR이 없습니다.
         </div>
       )}
 
-      <div className="divide-y divide-neutral-800">
+      <div className="divide-y" style={{ borderColor: 'var(--color-border-divider)' }}>
         {rows.map((r) => (
           <div
             key={r.id}
-            className="flex justify-between items-center py-2 text-xs text-neutral-200"
+            className="flex justify-between items-center py-2 text-xs"
+            style={{ color: 'var(--color-text-primary)' }}
           >
             <div>
               <div className="font-medium">
                 {r.student_name} (#{r.enrollment_id})
               </div>
-              <div className="text-neutral-400">
+              <div style={{ color: 'var(--color-text-muted)' }}>
                 {new Date(r.created_at).toLocaleString()}
               </div>
             </div>

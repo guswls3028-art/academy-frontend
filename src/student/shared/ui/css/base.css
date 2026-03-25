@@ -992,6 +992,17 @@ html:has([data-app="student"]) {
   }
 }
 
+@keyframes stuSlideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 /* =========================
    8) Toast Host (future)
    ========================= */

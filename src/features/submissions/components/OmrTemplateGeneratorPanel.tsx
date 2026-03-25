@@ -7,6 +7,7 @@
  * - PDF/PNG 다운로드
  */
 import { useMutation } from "@tanstack/react-query";
+import { Button } from "@/shared/ui/ds";
 import api from "@/shared/api/axios";
 import { downloadBlob } from "@/shared/utils/safeDownload";
 
@@ -25,26 +26,31 @@ export default function OmrTemplateGeneratorPanel({ examId }: { examId: number }
   });
 
   return (
-    <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-4">
-      <div className="mb-2 text-sm font-semibold text-neutral-100">OMR 답안지 생성</div>
-      <div className="text-xs text-neutral-400 mb-3">
+    <div className="rounded-xl p-4" style={{ border: '1px solid var(--color-border-divider)', background: 'var(--color-bg-surface)' }}>
+      <div className="mb-2 text-sm font-semibold" style={{ color: 'var(--color-text-primary)' }}>OMR 답안지 생성</div>
+      <div className="text-xs mb-3" style={{ color: 'var(--color-text-muted)' }}>
         프린트 후 그림판 마킹 → 업로드 테스트 가능
       </div>
       <div className="flex gap-2">
-        <button
-          className="rounded-lg bg-neutral-100 px-3 py-2 text-sm text-neutral-950 disabled:opacity-40"
+        <Button
+          type="button"
+          intent="primary"
+          size="sm"
           onClick={() => gen.mutate("pdf")}
           disabled={gen.isPending}
+          loading={gen.isPending}
         >
           PDF 다운로드
-        </button>
-        <button
-          className="rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2 text-sm text-neutral-100 disabled:opacity-40"
+        </Button>
+        <Button
+          type="button"
+          intent="secondary"
+          size="sm"
           onClick={() => gen.mutate("png")}
           disabled={gen.isPending}
         >
           PNG 다운로드
-        </button>
+        </Button>
       </div>
     </div>
   );

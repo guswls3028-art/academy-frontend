@@ -144,11 +144,11 @@ export default function ExamResultPage() {
 
 /* ── Score Gauge (SVG) ── */
 
-function ScoreGauge({ pct, passed }: { pct: number; passed: boolean }) {
+function ScoreGauge({ pct, passed }: { pct: number; passed: boolean | null }) {
   const R = 44;
   const C = 2 * Math.PI * R;
   const offset = C - (pct / 100) * C;
-  const color = passed ? "var(--stu-success)" : "var(--stu-danger)";
+  const color = passed === null ? "var(--stu-primary)" : passed ? "var(--stu-success)" : "var(--stu-danger)";
 
   return (
     <svg width={108} height={108} viewBox="0 0 108 108">

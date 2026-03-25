@@ -121,7 +121,7 @@ export default function EmptyState({
       ? {
           borderRadius: "var(--radius-xl)",
           border: "1px solid var(--color-border-divider)",
-          background: "var(--ui-log-bg)",
+          background: "var(--ui-work-bg)",
           boxShadow: "var(--elevation-1)",
           overflow: "hidden",
         }

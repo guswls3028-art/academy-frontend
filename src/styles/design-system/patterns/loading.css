@@ -1,6 +1,11 @@
 /* PATH: src/styles/design-system/patterns/loading.css */
 /* Skeleton */
 
+:root {
+  --color-skeleton-base:      var(--color-bg-surface-hover, #e5e7eb);
+  --color-skeleton-highlight: var(--color-bg-surface, #f3f4f6);
+}
+
 .skeleton {
   background: linear-gradient(
     90deg,

@@ -1,0 +1,17 @@
+User-agent: *
+Allow: /login
+Allow: /login/
+Allow: /promo
+Allow: /promo/
+Allow: /terms
+Allow: /privacy
+Disallow: /admin
+Disallow: /admin/
+Disallow: /student
+Disallow: /student/
+Disallow: /dev
+Disallow: /dev/
+Disallow: /api
+Disallow: /api/
+
+Sitemap: https://hakwonplus.com/sitemap.xml
