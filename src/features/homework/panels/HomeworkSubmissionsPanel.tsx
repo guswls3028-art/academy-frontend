@@ -65,14 +65,6 @@ export default function HomeworkSubmissionsPanel({
           제출관리 · <span className="text-[var(--color-text-muted)]">{rows.length}건</span>
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            intent="secondary"
-            size="sm"
-            onClick={() => feedback.info("주관식 과제 자동채점 기능 준비 중입니다. (TODO)")}
-          >
-            주관식 과제 자동채점
-          </Button>
           <Button type="button" intent="ghost" size="sm" onClick={() => q.refetch()}>
             새로고침
           </Button>

@@ -104,6 +104,7 @@ const ExamDomainLayout = lazy(() => import("@/features/exams/pages/ExamDomainLay
 const ExamExplorerPage = lazy(() => import("@/features/exams/pages/ExamExplorerPage"));
 const ExamTemplatesPage = lazy(() => import("@/features/exams/pages/ExamTemplatesPage"));
 const ResultsExplorerPage = lazy(() => import("@/features/results/pages/ResultsExplorerPage"));
+const SubmissionsInboxPage = lazy(() => import("@/features/submissions/pages/SubmissionsInboxPage"));
 const VideoExplorerPage = lazy(() => import("@/features/videos/pages/VideoExplorerPage"));
 import VideoIdToSessionRedirect from "@/features/videos/pages/VideoIdToSessionRedirect";
 
@@ -191,6 +192,7 @@ export default function AdminRouter() {
           <Route index element={wrapLazy(ExamExplorerPage)} />
           <Route path="templates" element={wrapLazy(ExamTemplatesPage)} />
         </Route>
+        <Route path="results/submissions" element={wrapLazy(SubmissionsInboxPage)} />
         <Route path="results" element={wrapLazy(ResultsExplorerPage)} />
         <Route path="videos" element={wrapLazy(VideoExplorerPage)} />
         <Route path="videos/:videoId" element={<VideoIdToSessionRedirect />} />

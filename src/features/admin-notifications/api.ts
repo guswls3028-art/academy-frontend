@@ -96,7 +96,7 @@ export function buildAdminNotificationItems(
       type: "submissions",
       label: "처리 대기 제출",
       count: counts.recentSubmissions,
-      to: "/admin/results",
+      to: "/admin/results/submissions",
     });
   }
   return items;
