@@ -8,7 +8,7 @@ import api from "@/shared/api/axios";
 export type AttemptEntry = {
   attempt_index: number;
   score: number | null;
-  passed: boolean;
+  passed: boolean | null;
   at: string | null;
   source: "grade" | "clinic";
 };

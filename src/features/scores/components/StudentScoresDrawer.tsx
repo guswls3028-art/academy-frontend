@@ -573,7 +573,7 @@ function AttemptTimeline({
             return (
               <div
                 key={a.attempt_index}
-                className={`ssd-attempt-card ${a.passed ? "ssd-attempt-card--passed" : "ssd-attempt-card--failed"}`}
+                className={`ssd-attempt-card ${a.passed === null ? "" : a.passed ? "ssd-attempt-card--passed" : "ssd-attempt-card--failed"}`}
               >
                 <div className="ssd-attempt-card__header">
                   <span className="ssd-attempt-card__label">
@@ -594,8 +594,8 @@ function AttemptTimeline({
                         </svg>
                       </button>
                     )}
-                    <span className={`ssd-attempt-card__badge ${a.passed ? "ssd-attempt-card__badge--pass" : "ssd-attempt-card__badge--fail"}`}>
-                      {a.passed ? "합격" : "불합격"}
+                    <span className={`ssd-attempt-card__badge ${a.passed === null ? "" : a.passed ? "ssd-attempt-card__badge--pass" : "ssd-attempt-card__badge--fail"}`}>
+                      {a.passed === null ? "-" : a.passed ? "합격" : "불합격"}
                     </span>
                   </span>
                 </div>
