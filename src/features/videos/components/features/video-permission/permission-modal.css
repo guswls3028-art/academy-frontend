@@ -262,7 +262,7 @@
 
 .permission-apply-btn[data-tone="warning"] {
   background: var(--color-warning);
-  color: #fff;
+  color: #713f12; /* yellow-900 — 노란 배경에 흰 글자는 대비 부족 */
 }
 .permission-apply-btn[data-tone="warning"]:hover:not(:disabled) {
   background: color-mix(in srgb, var(--color-warning) 85%, black);
