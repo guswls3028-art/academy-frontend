@@ -12,19 +12,20 @@ import { SessionBlockView, isSupplement } from "@/shared/ui/session-block";
 export default function SessionBar() {
   const { lectureId } = useLectureParams();
   const location = useLocation();
-
-  if (!Number.isFinite(lectureId)) return null;
-
   const [showModal, setShowModal] = useState(false);
 
+  const enabled = Number.isFinite(lectureId);
   const { data: rawSessions = [] } = useQuery({
     queryKey: ["lecture-sessions", lectureId],
     queryFn: async () => {
       const res = await api.get(`/lectures/sessions/?lecture=${lectureId}`);
       return res.data.results ?? res.data;
     },
+    enabled,
   });
   const sessions = sortSessionsByDateDesc(Array.isArray(rawSessions) ? rawSessions : []);
+
+  if (!enabled) return null;
 
   return (
     <div style={{ marginBottom: 14 }}>

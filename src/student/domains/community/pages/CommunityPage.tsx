@@ -885,6 +885,28 @@ function MaterialsDetail({ id, onBack }: { id: number; onBack: () => void }) {
 // Attachments — display + download
 // ═══════════════════════════════════════════
 function AttachmentList({ postId, attachments }: { postId: number; attachments?: PostAttachment[] }) {
+  const isImage = (ct: string) => ct.startsWith("image/");
+
+  // 이미지 URL 캐시 — hooks must be called unconditionally
+  const [imgUrls, setImgUrls] = useState<Record<number, string>>({});
+  useEffect(() => {
+    if (!attachments || attachments.length === 0) return;
+    const images = attachments.filter((a) => isImage(a.content_type));
+    if (images.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      const urls: Record<number, string> = {};
+      for (const img of images) {
+        try {
+          const { url } = await getAttachmentDownloadUrl(postId, img.id);
+          if (!cancelled) urls[img.id] = url;
+        } catch { /* skip */ }
+      }
+      if (!cancelled) setImgUrls(urls);
+    })();
+    return () => { cancelled = true; };
+  }, [attachments, postId]);
+
   if (!attachments || attachments.length === 0) return null;
 
   const handleDownload = async (att: PostAttachment) => {
@@ -903,27 +925,6 @@ function AttachmentList({ postId, attachments }: { postId: number; attachments?:
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`;
     return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
   };
-
-  const isImage = (ct: string) => ct.startsWith("image/");
-
-  // 이미지 URL 캐시
-  const [imgUrls, setImgUrls] = useState<Record<number, string>>({});
-  useEffect(() => {
-    const images = attachments.filter((a) => isImage(a.content_type));
-    if (images.length === 0) return;
-    let cancelled = false;
-    (async () => {
-      const urls: Record<number, string> = {};
-      for (const img of images) {
-        try {
-          const { url } = await getAttachmentDownloadUrl(postId, img.id);
-          if (!cancelled) urls[img.id] = url;
-        } catch { /* skip */ }
-      }
-      if (!cancelled) setImgUrls(urls);
-    })();
-    return () => { cancelled = true; };
-  }, [attachments, postId]);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-3)" }}>
