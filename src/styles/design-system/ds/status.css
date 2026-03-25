@@ -80,7 +80,7 @@ button.ds-status-badge:disabled {
 
 .ds-status-badge[data-tone="warning"] {
   background: var(--color-warning);
-  color: #fff;
+  color: #713f12; /* yellow-900 — 노란 배경에 흰 글자는 대비 부족 */
 }
 
 .ds-status-badge[data-tone="primary"] {

@@ -37,6 +37,26 @@ function colorDistance(a: string, b: string): number {
   return Math.sqrt((r1 - r2) ** 2 + (g1 - g2) ** 2 + (b1 - b2) ** 2);
 }
 
+/**
+ * 배경색이 밝은지 판별 — 흰 글자가 안 보이는 밝은 색이면 true.
+ * WCAG 상대 휘도(relative luminance) 기반. 임계값 0.4 이상이면 밝은 색.
+ */
+export function isLightColor(hex: string): boolean {
+  const [r, g, b] = hexToRgb(hex);
+  // sRGB → linear
+  const toLinear = (c: number) => {
+    const s = c / 255;
+    return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+  };
+  const luminance = 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
+  return luminance > 0.4;
+}
+
+/** 배경색에 맞는 글자색 반환 — 밝은 배경이면 어두운 글자, 어두운 배경이면 흰 글자 */
+export function contrastTextColor(bgHex: string): string {
+  return isLightColor(bgHex) ? "#1a1a1a" : "#ffffff";
+}
+
 /** 사용 중인 색상과 최대한 차이나는 프리셋을 기본값으로 반환 */
 export function getDefaultColorForPicker(usedColors: string[]): string {
   const used = usedColors.filter(Boolean);

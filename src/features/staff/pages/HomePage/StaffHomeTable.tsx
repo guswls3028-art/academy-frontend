@@ -16,10 +16,7 @@ import { feedback } from "@/shared/ui/feedback/feedback";
 /** 직원 목록 선택 시 원장 행용 sentinel id (삭제 제외) */
 export const OWNER_SELECTION_ID = -1;
 
-const LIGHT_TAG_COLORS = ["#eab308", "#06b6d4"];
-function isLightTagColor(c: string) {
-  return LIGHT_TAG_COLORS.some((x) => String(c || "").toLowerCase() === x);
-}
+import { contrastTextColor } from "@/shared/ui/domain/constants";
 
 /** 시급태그 — 학생 태그 디자인 카피 (이름 + 색상 뱃지). 빈 목록이면 아무것도 표시하지 않음 */
 function WorkTypeTags({ workTypes }: { workTypes: Staff["staff_work_types"] }) {
@@ -41,7 +38,7 @@ function WorkTypeTags({ workTypes }: { workTypes: Staff["staff_work_types"] }) {
             className="inline-flex items-center shrink-0 px-1.5 py-0.5 rounded text-[11px] font-semibold whitespace-nowrap"
             style={{
               backgroundColor: color,
-              color: isLightTagColor(color) ? "#1a1a1a" : "#fff",
+              color: contrastTextColor(color),
               border: "none",
               boxShadow: "0 1px 2px rgba(0,0,0,0.12)",
             }}
@@ -82,7 +79,7 @@ function WorkTypeOption({
         className="inline-flex items-center shrink-0 px-2 py-1 rounded text-[12px] font-semibold"
         style={{
           backgroundColor: color,
-          color: isLightTagColor(color) ? "#1a1a1a" : "#fff",
+          color: contrastTextColor(color),
           boxShadow: "0 1px 2px rgba(0,0,0,0.12)",
         }}
       >

@@ -86,7 +86,7 @@ export function TemplateEditor({ examId }: Props) {
           className={`px-4 py-2 rounded text-sm ${
             validation?.ok
               ? "bg-blue-600 text-white"
-              : "bg-gray-300 text-gray-500 cursor-not-allowed"
+              : "bg-gray-200 text-gray-600 cursor-not-allowed"
           }`}
         >
           실제 시험 생성

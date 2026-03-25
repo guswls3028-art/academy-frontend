@@ -12,10 +12,7 @@ import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { fetchWorkTypes, createStaffWorkType, type WorkType } from "../../api/staffWorkType.api";
 
-const LIGHT_TAG_COLORS = ["#eab308", "#06b6d4"];
-function isLightTagColor(c: string) {
-  return LIGHT_TAG_COLORS.some((x) => String(c || "").toLowerCase() === x);
-}
+import { contrastTextColor } from "@/shared/ui/domain/constants";
 
 type Props = {
   open: boolean;
@@ -98,7 +95,7 @@ export default function AddWorkTypeBulkModal({ open, onClose, staffIds }: Props)
                   className="inline-flex items-center shrink-0 px-3 py-2 rounded-lg text-sm font-semibold transition-opacity disabled:opacity-50"
                   style={{
                     backgroundColor: color,
-                    color: isLightTagColor(color) ? "#1a1a1a" : "#fff",
+                    color: contrastTextColor(color),
                     boxShadow: "0 1px 2px rgba(0,0,0,0.12)",
                   }}
                 >

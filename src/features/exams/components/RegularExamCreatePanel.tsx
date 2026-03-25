@@ -70,7 +70,7 @@ export function RegularExamCreatePanel({
           onClick={submit}
           className={`px-3 py-2 rounded text-sm ${
             busy || !title
-              ? "bg-gray-300 text-gray-500"
+              ? "bg-gray-200 text-gray-600 cursor-not-allowed"
               : "bg-black text-white"
           }`}
         >

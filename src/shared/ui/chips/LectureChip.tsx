@@ -1,12 +1,9 @@
 // PATH: src/shared/ui/chips/LectureChip.tsx
 // 수강 강의 딱지 — 네모(정사각형), 두 글자 중앙정렬, 아바타와 동일 크기로 맞출 때 size=avatarSize
 
-const DEFAULT_LECTURE_COLOR = "#3b82f6";
+import { contrastTextColor } from "@/shared/ui/domain/constants";
 
-function isLightColor(hex: string): boolean {
-  const c = String(hex || "").toLowerCase();
-  return ["#eab308", "#06b6d4"].includes(c);
-}
+const DEFAULT_LECTURE_COLOR = "#3b82f6";
 
 export default function LectureChip({
   lectureName,
@@ -21,7 +18,7 @@ export default function LectureChip({
   chipLabel?: string | null;
 }) {
   const bg = color || DEFAULT_LECTURE_COLOR;
-  const textColor = isLightColor(bg) ? "#1a1a1a" : "#fff";
+  const textColor = contrastTextColor(bg);
   const two = (chipLabel && chipLabel.length >= 1)
     ? String(chipLabel).slice(0, 2)
     : (lectureName || "??").slice(0, 2);

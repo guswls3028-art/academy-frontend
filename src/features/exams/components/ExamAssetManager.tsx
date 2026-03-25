@@ -97,7 +97,7 @@ export function ExamAssetManager({ examId, disabled }: Props) {
               )}
 
               <label className={`text-sm px-3 py-2 rounded border cursor-pointer ${
-                disabled || busy ? "bg-gray-100 text-gray-400 cursor-not-allowed" : "bg-white"
+                disabled || busy ? "bg-gray-200 text-gray-600 cursor-not-allowed" : "bg-white"
               }`}>
                 교체 업로드
                 <input

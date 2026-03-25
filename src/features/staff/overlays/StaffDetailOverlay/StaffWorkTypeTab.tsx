@@ -9,9 +9,7 @@ import {
 } from "../../api/staffWorkType.api";
 import type { StaffWorkType } from "../../api/staffWorkType.api";
 
-const LIGHT_COLORS = ["#eab308", "#06b6d4"];
-const isLight = (c: string) =>
-  LIGHT_COLORS.some((x) => String(c || "").toLowerCase() === x);
+import { isLightColor, contrastTextColor } from "@/shared/ui/domain/constants";
 
 function WageBadge({
   st,
@@ -39,10 +37,10 @@ function WageBadge({
         fontSize: 12,
         fontWeight: 700,
         background: color,
-        color: isLight(color) ? "#1a1a1a" : "#fff",
+        color: contrastTextColor(color),
         border: "none",
         boxShadow: "0 1px 3px rgba(0,0,0,0.15)",
-        textShadow: isLight(color) ? "none" : "0 0 1px rgba(0,0,0,0.2)",
+        textShadow: isLightColor(color) ? "none" : "0 0 1px rgba(0,0,0,0.2)",
       }}
       title={wage != null ? `${wage.toLocaleString()}원/시` : name}
     >
