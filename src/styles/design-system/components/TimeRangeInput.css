@@ -159,3 +159,18 @@
   opacity: 0.45;
   cursor: not-allowed;
 }
+
+/* 익일 배지 — 자정 넘김 표시 */
+.shared-time-range-next-day {
+  display: inline-block;
+  margin-left: 4px;
+  padding: 0 5px;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 16px;
+  color: var(--color-brand-primary);
+  background: color-mix(in srgb, var(--color-brand-primary) 12%, transparent);
+  border-radius: var(--radius-sm, 4px);
+  vertical-align: middle;
+  white-space: nowrap;
+}

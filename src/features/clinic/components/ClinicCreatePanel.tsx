@@ -75,7 +75,9 @@ function durationMinutes(start: string, end: string): number {
   if (!start || !end) return 0;
   const [sh, sm] = start.split(":").map(Number);
   const [eh, em] = end.split(":").map(Number);
-  return eh * 60 + em - (sh * 60 + sm);
+  let diff = eh * 60 + em - (sh * 60 + sm);
+  if (diff < 0) diff += 24 * 60; // 자정 넘김 (익일)
+  return diff;
 }
 
 /** API용: "HH:mm" → "HH:mm:00" (백엔드 TimeField 호환) */
@@ -217,7 +219,7 @@ export default function ClinicCreatePanel({
     const st = editSession.start_time.slice(0, 5);
     const dur = editSession.duration_minutes;
     const [h, m] = st.split(":").map(Number);
-    const endMin = h * 60 + m + dur;
+    const endMin = (h * 60 + m + dur) % 1440;
     const eh = Math.floor(endMin / 60).toString().padStart(2, "0");
     const em = (endMin % 60).toString().padStart(2, "0");
     return `${st} ~ ${eh}:${em}`;

@@ -58,15 +58,31 @@ function addMinutes(timeStr: string, minutes: number): string {
   return d.format("HH:mm");
 }
 
-/** end에서 분을 빼되, start보다 작아지지 않도록 함 */
+/** start→end 간 duration(분) 계산. 자정 넘김 시 +24h */
+function durationBetween(startStr: string, endStr: string): number {
+  const [sh, sm] = startStr.split(":").map(Number);
+  const [eh, em] = endStr.split(":").map(Number);
+  let diff = eh * 60 + em - (sh * 60 + sm);
+  if (diff < 0) diff += 24 * 60;
+  return diff;
+}
+
+/** end에서 분을 빼되, start보다 작아지지 않도록 함 (자정 넘김 지원) */
 function clampEndAboveStart(endStr: string, startStr: string, deltaMinutes: number): string {
   if (!endStr) return "";
-  const next = addMinutes(endStr, -deltaMinutes);
-  if (!startStr) return next;
-  const startM = dayjs().hour(parseInt(startStr.slice(0, 2), 10)).minute(parseInt(startStr.slice(3), 10));
-  const nextM = dayjs().hour(parseInt(next.slice(0, 2), 10)).minute(parseInt(next.slice(3), 10));
-  if (nextM.isBefore(startM) || nextM.isSame(startM)) return startStr;
-  return next;
+  if (!startStr) return addMinutes(endStr, -deltaMinutes);
+  const curDuration = durationBetween(startStr, endStr);
+  const newDuration = curDuration - deltaMinutes;
+  if (newDuration <= 0) return startStr;
+  return addMinutes(startStr, newDuration);
+}
+
+/** 종료 시간이 시작보다 이른 값이면 자정 넘김(익일) */
+function isCrossingMidnight(startStr: string, endStr: string): boolean {
+  if (!startStr || !endStr) return false;
+  const [sh, sm] = startStr.split(":").map(Number);
+  const [eh, em] = endStr.split(":").map(Number);
+  return eh * 60 + em < sh * 60 + sm;
 }
 
 const SLOT_MINUTES = 30; // 30분 단위 순환 선택
@@ -210,6 +226,9 @@ export default function TimeRangeInput({
               <Clock className="shared-time-range-trigger-clock" size={20} aria-hidden />
               <span className="shared-time-range-trigger-text">
                 {end ? format24To12Display(end) : endTriggerPlaceholder}
+                {end && start && isCrossingMidnight(start, end) && (
+                  <span className="shared-time-range-next-day">익일</span>
+                )}
               </span>
               <ChevronDown className="shared-time-range-trigger-icon" size={18} aria-hidden />
             </div>
