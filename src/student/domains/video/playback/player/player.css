@@ -461,14 +461,15 @@
 
 .svpSide {
   min-width: 0;
+  color: var(--stu-text, rgba(17, 17, 17, 0.95));
 }
 
 .svpSideCard {
   border-radius: var(--svp-radius);
   padding: 14px;
-  background: linear-gradient(180deg, #121214, #0e0e10);
-  border: 1px solid rgba(0, 0, 0, 0.48);
-  box-shadow: 0 12px 42px rgba(0, 0, 0, 0.28);
+  background: var(--stu-surface, #fff);
+  border: 1px solid var(--stu-border, rgba(17, 17, 17, 0.08));
+  box-shadow: var(--stu-shadow-1, 0 2px 8px rgba(0, 0, 0, 0.08));
 }
 
 .svpSideTitle {
@@ -483,7 +484,7 @@
   justify-content: space-between;
   gap: 10px;
   padding: 8px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid var(--stu-border, rgba(17, 17, 17, 0.06));
 }
 
 .svpSideRow:last-of-type {
@@ -491,27 +492,27 @@
 }
 
 .svpSideLabel {
-  color: rgba(255, 255, 255, 0.62);
+  color: var(--stu-text-muted, rgba(17, 17, 17, 0.65));
   font-size: 12px;
   font-weight: 800;
 }
 
 .svpSideValue {
-  color: rgba(255, 255, 255, 0.92);
+  color: var(--stu-text, rgba(17, 17, 17, 0.95));
   font-size: 12px;
   font-weight: 900;
 }
 
 .svpSideDivider {
   height: 1px;
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--stu-border, rgba(17, 17, 17, 0.08));
   margin: 12px 0;
 }
 
 .svpSideTitle2 {
   font-weight: 900;
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.86);
+  color: var(--stu-text, rgba(17, 17, 17, 0.95));
   margin-bottom: 10px;
 }
 
@@ -531,12 +532,12 @@
   width: 8px;
   height: 8px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.55);
+  background: var(--stu-text-subtle, rgba(17, 17, 17, 0.45));
 }
 
 .svpSideTxt {
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.72);
+  color: var(--stu-text-muted, rgba(17, 17, 17, 0.65));
   font-weight: 700;
 }
 
@@ -545,7 +546,7 @@
   width: 100%;
   padding: 10px 12px;
   border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  border: 1px solid var(--stu-border, rgba(17, 17, 17, 0.08));
   background: rgba(255, 255, 255, 0.1);
   color: rgba(255, 255, 255, 0.92);
   font-weight: 900;
@@ -555,7 +556,7 @@
 
 .svpSideButton:hover {
   transform: translateY(-1px);
-  background: rgba(255, 255, 255, 0.13);
+  background: var(--stu-tint-hover, rgba(17, 17, 17, 0.04));
 }
 
 .svpSideButton:active {
@@ -563,11 +564,11 @@
 }
 
 .svpSideButtonGhost {
-  background: rgba(0, 0, 0, 0.35);
+  background: var(--stu-surface-soft, #f1f5f9);
 }
 
 .svpSideButtonGhost:hover {
-  background: rgba(0, 0, 0, 0.45);
+  background: var(--stu-tint-hover, rgba(17, 17, 17, 0.06));
 }
 
 /* ═══════════════════════════════════════════════
