@@ -67,8 +67,8 @@ export default function VideoHomePage() {
   if (isLoading && videoMe == null) {
     return (
       <div className="video-page-content" style={{ padding: "var(--stu-space-4)" }}>
-        <div className="stu-skel stu-skel--dark" style={{ height: 200, borderRadius: "var(--stu-radius-lg)" }} />
-        <div className="stu-skel stu-skel--dark" style={{ height: 200, marginTop: 16, borderRadius: "var(--stu-radius-lg)" }} />
+        <div className="stu-skel" style={{ height: 200, borderRadius: "var(--stu-radius-lg)" }} />
+        <div className="stu-skel" style={{ height: 200, marginTop: 16, borderRadius: "var(--stu-radius-lg)" }} />
       </div>
     );
   }

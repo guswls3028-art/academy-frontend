@@ -89,17 +89,15 @@ function VideoListItem({
         gap: 12,
         padding: "var(--stu-space-3)",
         borderRadius: 10,
-        background: isCurrent ? "rgba(255,255,255,0.04)" : "#1a1a1a",
-        border: isCurrent 
-          ? "2px solid rgba(255,255,255,0.2)" 
-          : "2px solid rgba(255,255,255,0.15)",
-        borderLeft: isCurrent ? "3px solid var(--stu-primary)" : "2px solid rgba(255,255,255,0.15)",
+        background: isCurrent ? "var(--stu-tint-primary, var(--stu-surface-soft))" : "var(--stu-surface)",
+        border: "1px solid var(--stu-border)",
+        borderLeft: isCurrent ? "3px solid var(--stu-primary)" : "1px solid var(--stu-border)",
         textDecoration: "none",
         color: "inherit",
         transition: "transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, background 0.2s ease",
         cursor: isPlayable ? "pointer" : "default",
         opacity: isPlayable ? 1 : 0.7,
-        boxShadow: "0 4px 12px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05)",
+        boxShadow: "var(--stu-shadow-1)",
         position: "relative",
       }}
       onTouchStart={() => { if (isPlayable && onPrefetch) onPrefetch(video.id); }}
@@ -107,16 +105,16 @@ function VideoListItem({
         if (!isPlayable) return;
         if (onPrefetch) onPrefetch(video.id);
         e.currentTarget.style.transform = "translateY(-4px)";
-        e.currentTarget.style.boxShadow = "0 8px 20px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.1)";
-        e.currentTarget.style.background = "#222";
-        e.currentTarget.style.borderColor = "rgba(255,255,255,0.25)";
+        e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.06)";
+        e.currentTarget.style.background = "var(--stu-tint-hover)";
+        e.currentTarget.style.borderColor = "var(--stu-border-strong)";
       }}
       onMouseLeave={(e) => {
         if (!isPlayable) return;
         e.currentTarget.style.transform = "translateY(0)";
-        e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05)";
-        e.currentTarget.style.background = "#1a1a1a";
-        e.currentTarget.style.borderColor = "rgba(255,255,255,0.15)";
+        e.currentTarget.style.boxShadow = "var(--stu-shadow-1)";
+        e.currentTarget.style.background = isCurrent ? "var(--stu-tint-primary, var(--stu-surface-soft))" : "var(--stu-surface)";
+        e.currentTarget.style.borderColor = "var(--stu-border)";
       }}
       onMouseDown={(e) => {
         if (!isPlayable) return;
@@ -127,17 +125,6 @@ function VideoListItem({
         e.currentTarget.style.transform = "translateY(-4px)";
       }}
     >
-      {/* 질감 오버레이 */}
-      <div
-        style={{
-          position: "absolute",
-          inset: 0,
-          background: "linear-gradient(180deg, rgba(255,255,255,0.03) 0%, transparent 50%, rgba(0,0,0,0.2) 100%)",
-          pointerEvents: "none",
-          zIndex: 1,
-          borderRadius: 10,
-        }}
-      />
       {/* 썸네일 */}
       <div
         style={{
@@ -146,7 +133,7 @@ function VideoListItem({
           aspectRatio: "16 / 9",
           borderRadius: 8,
           overflow: "hidden",
-          background: "#111",
+          background: "var(--stu-surface-soft)",
           flexShrink: 0,
           zIndex: 0,
         }}
@@ -267,14 +254,13 @@ function VideoListItem({
           style={{
             fontSize: 15,
             fontWeight: isCurrent ? 700 : 600,
-            color: "#fff",
+            color: "var(--stu-text)",
             marginBottom: 4,
             display: "-webkit-box",
             WebkitLineClamp: 2,
             WebkitBoxOrient: "vertical",
             overflow: "hidden",
             lineHeight: 1.4,
-            textShadow: "0 1px 2px rgba(0,0,0,0.5)",
           }}
         >
           {video.title}
@@ -407,7 +393,7 @@ export default function SessionDetailPage() {
             style={{
               fontSize: 18,
               fontWeight: 700,
-              color: "#fff",
+              color: "var(--stu-text)",
               marginBottom: "var(--stu-space-4)",
             }}
           >

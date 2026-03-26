@@ -47,22 +47,22 @@ function CourseCard({
         textAlign: "left",
         borderRadius: 12,
         overflow: "hidden",
-        background: "#1a1a1a",
-        border: "2px solid rgba(255,255,255,0.15)",
-        boxShadow: "0 4px 12px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05)",
+        background: "var(--stu-surface)",
+        border: "1px solid var(--stu-border)",
+        boxShadow: "var(--stu-shadow-1)",
         transition: "transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease",
         cursor: "pointer",
         position: "relative",
       }}
       onMouseEnter={(e) => {
         e.currentTarget.style.transform = "translateY(-6px)";
-        e.currentTarget.style.boxShadow = "0 12px 24px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.1)";
-        e.currentTarget.style.borderColor = "rgba(255,255,255,0.25)";
+        e.currentTarget.style.boxShadow = "0 8px 20px rgba(0,0,0,0.08)";
+        e.currentTarget.style.borderColor = "var(--stu-border-strong)";
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.transform = "translateY(0)";
-        e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05)";
-        e.currentTarget.style.borderColor = "rgba(255,255,255,0.15)";
+        e.currentTarget.style.boxShadow = "var(--stu-shadow-1)";
+        e.currentTarget.style.borderColor = "var(--stu-border)";
       }}
       onMouseDown={(e) => {
         e.currentTarget.style.transform = "translateY(-3px) scale(0.98)";
@@ -71,23 +71,12 @@ function CourseCard({
         e.currentTarget.style.transform = "translateY(-6px)";
       }}
     >
-      {/* 질감 오버레이 */}
-      <div
-        style={{
-          position: "absolute",
-          inset: 0,
-          background: "linear-gradient(180deg, rgba(255,255,255,0.03) 0%, transparent 50%, rgba(0,0,0,0.2) 100%)",
-          pointerEvents: "none",
-          zIndex: 1,
-        }}
-      />
-      
       {/* 썸네일 영역 */}
       <div
         className="media-tile__thumb"
         style={{
           position: "relative",
-          background: "#111",
+          background: "var(--stu-surface-soft)",
           zIndex: 0,
           aspectRatio: "16 / 9",
           overflow: "hidden",
@@ -224,7 +213,7 @@ function CourseCard({
 
       {/* 정보 영역 */}
       <div style={{ marginTop: 6, padding: "0 4px 8px", position: "relative", zIndex: 1 }}>
-        <div className="media-tile__title" style={{ fontWeight: 600, color: "#fff", textShadow: "0 1px 2px rgba(0,0,0,0.5)" }}>
+        <div className="media-tile__title" style={{ fontWeight: 600, color: "var(--stu-text)" }}>
           {title}
         </div>
       </div>

@@ -61,26 +61,26 @@ function SessionBox({
         gap: 12,
         padding: "var(--stu-space-3)",
         borderRadius: 10,
-        background: "#1a1a1a",
-        border: "2px solid rgba(255,255,255,0.15)",
+        background: "var(--stu-surface)",
+        border: "1px solid var(--stu-border)",
         textDecoration: "none",
         color: "inherit",
         transition: "transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, background 0.2s ease",
         cursor: "pointer",
-        boxShadow: "0 4px 12px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05)",
+        boxShadow: "var(--stu-shadow-1)",
         position: "relative",
       }}
       onMouseEnter={(e) => {
         e.currentTarget.style.transform = "translateY(-4px)";
-        e.currentTarget.style.boxShadow = "0 8px 20px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.1)";
-        e.currentTarget.style.background = "#222";
-        e.currentTarget.style.borderColor = "rgba(255,255,255,0.25)";
+        e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.06)";
+        e.currentTarget.style.background = "var(--stu-tint-hover)";
+        e.currentTarget.style.borderColor = "var(--stu-border-strong)";
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.transform = "translateY(0)";
-        e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05)";
-        e.currentTarget.style.background = "#1a1a1a";
-        e.currentTarget.style.borderColor = "rgba(255,255,255,0.15)";
+        e.currentTarget.style.boxShadow = "var(--stu-shadow-1)";
+        e.currentTarget.style.background = "var(--stu-surface)";
+        e.currentTarget.style.borderColor = "var(--stu-border)";
       }}
       onMouseDown={(e) => {
         e.currentTarget.style.transform = "translateY(-2px) scale(0.98)";
@@ -89,18 +89,6 @@ function SessionBox({
         e.currentTarget.style.transform = "translateY(-4px)";
       }}
     >
-      {/* 질감 오버레이 */}
-      <div
-        style={{
-          position: "absolute",
-          inset: 0,
-          background: "linear-gradient(180deg, rgba(255,255,255,0.03) 0%, transparent 50%, rgba(0,0,0,0.2) 100%)",
-          pointerEvents: "none",
-          zIndex: 1,
-          borderRadius: 10,
-        }}
-      />
-
       {/* 좌측: 작은 플레이 아이콘 */}
       <div
         style={{
@@ -109,7 +97,7 @@ function SessionBox({
           aspectRatio: "16 / 9",
           borderRadius: 8,
           overflow: "hidden",
-          background: "#111",
+          background: "var(--stu-surface-soft)",
           flexShrink: 0,
           zIndex: 0,
         }}
@@ -202,14 +190,13 @@ function SessionBox({
           style={{
             fontSize: 15,
             fontWeight: 600,
-            color: "#fff",
+            color: "var(--stu-text)",
             marginBottom: 4,
             display: "-webkit-box",
             WebkitLineClamp: 2,
             WebkitBoxOrient: "vertical",
             overflow: "hidden",
             lineHeight: 1.4,
-            textShadow: "0 1px 2px rgba(0,0,0,0.5)",
           }}
         >
           {isPublic ? sessionTitle : `${order}차시 · ${sessionTitle}`}
@@ -326,7 +313,7 @@ export default function CourseDetailPage() {
             style={{
               fontSize: 22,
               fontWeight: 700,
-              color: "#fff",
+              color: "var(--stu-text)",
               marginBottom: "var(--stu-space-3)",
               letterSpacing: "-0.01em",
             }}
@@ -340,7 +327,7 @@ export default function CourseDetailPage() {
               flexDirection: "column",
               gap: 6,
               fontSize: 14,
-              color: "rgba(255,255,255,0.7)",
+              color: "var(--stu-text-muted)",
               marginBottom: "var(--stu-space-4)",
             }}
           >
@@ -361,7 +348,7 @@ export default function CourseDetailPage() {
             style={{
               fontSize: 18,
               fontWeight: 700,
-              color: "#fff",
+              color: "var(--stu-text)",
               marginBottom: "var(--stu-space-4)",
             }}
           >
@@ -390,8 +377,8 @@ export default function CourseDetailPage() {
                       style={{
                         padding: "var(--stu-space-6)",
                         borderRadius: 10,
-                        background: "#1a1a1a",
-                        border: "2px solid rgba(255,255,255,0.15)",
+                        background: "var(--stu-surface)",
+                        border: "1px solid var(--stu-border)",
                         textAlign: "center",
                       }}
                     >

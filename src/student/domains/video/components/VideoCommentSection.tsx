@@ -41,18 +41,18 @@ function CommentAvatar({ name, photoUrl, size = 32 }: { name: string; photoUrl?:
         height: size,
         borderRadius: "50%",
         overflow: "hidden",
-        background: "#2a2a2a",
+        background: "var(--stu-surface-soft)",
         flexShrink: 0,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        border: "1px solid rgba(255,255,255,0.1)",
+        border: "1px solid var(--stu-border)",
       }}
     >
       {photoUrl ? (
         <img src={photoUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
       ) : (
-        <span style={{ fontSize: size * 0.45, fontWeight: 700, color: "rgba(255,255,255,0.6)" }}>
+        <span style={{ fontSize: size * 0.45, fontWeight: 700, color: "var(--stu-text-muted)" }}>
           {(name || "?")[0]}
         </span>
       )}
@@ -103,7 +103,7 @@ function CommentRow({
 
   if (comment.is_deleted) {
     return (
-      <div style={{ padding: "8px 0", fontSize: 13, color: "rgba(255,255,255,0.3)", fontStyle: "italic" }}>
+      <div style={{ padding: "8px 0", fontSize: 13, color: "var(--stu-text-subtle)", fontStyle: "italic" }}>
         삭제된 댓글입니다.
       </div>
     );
@@ -117,7 +117,7 @@ function CommentRow({
       <div style={{ flex: 1, minWidth: 0 }}>
         {/* 작성자 + 시간 */}
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
-          <span style={{ fontSize: 13, fontWeight: 700, color: isTeacher ? "var(--stu-primary)" : "#fff" }}>
+          <span style={{ fontSize: 13, fontWeight: 700, color: isTeacher ? "var(--stu-primary)" : "var(--stu-text)" }}>
             {comment.author_name}
           </span>
           {isTeacher && (
@@ -134,11 +134,11 @@ function CommentRow({
               선생님
             </span>
           )}
-          <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>
+          <span style={{ fontSize: 11, color: "var(--stu-text-subtle)" }}>
             {timeAgo(comment.created_at)}
           </span>
           {comment.is_edited && (
-            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>(수정됨)</span>
+            <span style={{ fontSize: 10, color: "var(--stu-text-subtle)" }}>(수정됨)</span>
           )}
         </div>
 
@@ -150,11 +150,11 @@ function CommentRow({
               onChange={(e) => setEditContent(e.target.value)}
               style={{
                 flex: 1,
-                background: "#2a2a2a",
-                border: "1px solid rgba(255,255,255,0.15)",
+                background: "var(--stu-surface-soft)",
+                border: "1px solid var(--stu-border)",
                 borderRadius: 6,
                 padding: "6px 10px",
-                color: "#fff",
+                color: "var(--stu-text)",
                 fontSize: 13,
               }}
               autoFocus
@@ -185,9 +185,9 @@ function CommentRow({
                 padding: "4px 8px",
                 borderRadius: 6,
                 background: "transparent",
-                color: "rgba(255,255,255,0.5)",
+                color: "var(--stu-text-muted)",
                 fontSize: 12,
-                border: "1px solid rgba(255,255,255,0.15)",
+                border: "1px solid var(--stu-border)",
                 cursor: "pointer",
               }}
             >
@@ -195,7 +195,7 @@ function CommentRow({
             </button>
           </div>
         ) : (
-          <div style={{ fontSize: 13, color: "rgba(255,255,255,0.85)", lineHeight: 1.5, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+          <div style={{ fontSize: 13, color: "var(--stu-text)", lineHeight: 1.5, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
             {comment.content}
           </div>
         )}
@@ -206,7 +206,7 @@ function CommentRow({
             {!isReply && onReply && (
               <button
                 onClick={() => { onReply(comment.id); setShowReplies(true); }}
-                style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", background: "none", border: "none", cursor: "pointer", padding: 0 }}
+                style={{ fontSize: 11, color: "var(--stu-text-subtle)", background: "none", border: "none", cursor: "pointer", padding: 0 }}
               >
                 답글
               </button>
@@ -215,13 +215,13 @@ function CommentRow({
               <>
                 <button
                   onClick={() => { setEditContent(comment.content); setEditMode(true); }}
-                  style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", background: "none", border: "none", cursor: "pointer", padding: 0 }}
+                  style={{ fontSize: 11, color: "var(--stu-text-subtle)", background: "none", border: "none", cursor: "pointer", padding: 0 }}
                 >
                   수정
                 </button>
                 <button
                   onClick={async () => { const ok = await confirm({ title: "삭제 확인", message: "댓글을 삭제하시겠습니까?", danger: true, confirmText: "삭제" }); if (ok) deleteMut.mutate(); }}
-                  style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", background: "none", border: "none", cursor: "pointer", padding: 0 }}
+                  style={{ fontSize: 11, color: "var(--stu-text-subtle)", background: "none", border: "none", cursor: "pointer", padding: 0 }}
                 >
                   삭제
                 </button>
@@ -292,7 +292,7 @@ export default function VideoCommentSection({ videoId }: { videoId: number }) {
 
   return (
     <div style={{ marginTop: "var(--stu-space-4)" }}>
-      <h3 style={{ fontSize: 16, fontWeight: 700, color: "#fff", marginBottom: 12 }}>
+      <h3 style={{ fontSize: 16, fontWeight: 700, color: "var(--stu-text)", marginBottom: 12 }}>
         댓글 {data?.total ?? 0}
       </h3>
 
@@ -304,11 +304,11 @@ export default function VideoCommentSection({ videoId }: { videoId: number }) {
           placeholder={replyTo ? "답글을 입력하세요..." : "댓글을 입력하세요..."}
           style={{
             flex: 1,
-            background: "#1a1a1a",
-            border: "1px solid rgba(255,255,255,0.15)",
+            background: "var(--stu-surface-soft)",
+            border: "1px solid var(--stu-border)",
             borderRadius: 8,
             padding: "10px 14px",
-            color: "#fff",
+            color: "var(--stu-text)",
             fontSize: 14,
           }}
           onKeyDown={(e) => {
@@ -325,8 +325,8 @@ export default function VideoCommentSection({ videoId }: { videoId: number }) {
               padding: "8px",
               borderRadius: 8,
               background: "transparent",
-              color: "rgba(255,255,255,0.4)",
-              border: "1px solid rgba(255,255,255,0.15)",
+              color: "var(--stu-text-subtle)",
+              border: "1px solid var(--stu-border)",
               cursor: "pointer",
               fontSize: 12,
             }}
@@ -340,8 +340,8 @@ export default function VideoCommentSection({ videoId }: { videoId: number }) {
           style={{
             padding: "8px 16px",
             borderRadius: 8,
-            background: newComment.trim() ? "var(--stu-primary)" : "#333",
-            color: "#fff",
+            background: newComment.trim() ? "var(--stu-primary)" : "var(--stu-surface-soft)",
+            color: newComment.trim() ? "#fff" : "var(--stu-text-subtle)",
             fontSize: 14,
             fontWeight: 600,
             border: "none",
@@ -356,15 +356,15 @@ export default function VideoCommentSection({ videoId }: { videoId: number }) {
 
       {/* 댓글 목록 */}
       {isLoading ? (
-        <div style={{ padding: "16px 0", color: "rgba(255,255,255,0.4)", fontSize: 13 }}>
+        <div style={{ padding: "16px 0", color: "var(--stu-text-subtle)", fontSize: 13 }}>
           불러오는 중...
         </div>
       ) : comments.length === 0 ? (
-        <div style={{ padding: "24px 0", textAlign: "center", color: "rgba(255,255,255,0.3)", fontSize: 13 }}>
+        <div style={{ padding: "24px 0", textAlign: "center", color: "var(--stu-text-subtle)", fontSize: 13 }}>
           아직 댓글이 없습니다. 첫 댓글을 남겨보세요!
         </div>
       ) : (
-        <div style={{ borderTop: "1px solid rgba(255,255,255,0.08)" }}>
+        <div style={{ borderTop: "1px solid var(--stu-border)" }}>
           {comments.map((c) => (
             <CommentRow
               key={c.id}
