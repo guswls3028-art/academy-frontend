@@ -53,21 +53,7 @@
   --stu-tint-hover: color-mix(in srgb, var(--stu-primary) 10%, var(--stu-surface-1));
 }
 
-@media (prefers-color-scheme: dark) {
-  [data-student-theme="common"] {
-    --stu-bg: #fafbfc;
-    --stu-surface: #ffffff;
-    --stu-surface-soft: #f3f4f6;
-    --stu-surface-0: #fafbfc;
-    --stu-surface-1: #ffffff;
-    --stu-surface-2: #f3f4f6;
-    --stu-text: #1a1d21;
-    --stu-text-muted: #6b7280;
-    --stu-text-subtle: #9ca3af;
-    --stu-header-bg: rgba(250, 251, 252, 0.92);
-    --stu-tabbar-bg: rgba(250, 251, 252, 0.95);
-  }
-}
+/* 다크모드는 dark.css에서 전역 처리 */
 
 [data-student-theme="common"] :focus-visible {
   outline: 3px solid var(--stu-focus);

@@ -63,31 +63,29 @@
   --stu-tint-hover: color-mix(in srgb, var(--stu-primary) 10%, var(--stu-surface-1));
 }
 
-/* Dark Mode (선택적) */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --stu-bg: #0b0f19;
-    --stu-surface: #121827;
-    --stu-surface-soft: #1a2235;
-    --stu-surface-0: #0b0f19;
-    --stu-surface-1: #121827;
-    --stu-surface-2: #1a2235;
-    
-    --stu-border: rgba(255, 255, 255, 0.1);
-    --stu-border-subtle: rgba(255, 255, 255, 0.08);
-    --stu-border-normal: rgba(255, 255, 255, 0.12);
-    --stu-border-strong: rgba(255, 255, 255, 0.16);
-    
-    --stu-text: rgba(255, 255, 255, 0.95);
-    --stu-text-muted: rgba(255, 255, 255, 0.65);
-    --stu-text-subtle: rgba(255, 255, 255, 0.45);
-    
-    --stu-header-bg: rgba(11, 15, 25, 0.85);
-    --stu-tabbar-bg: rgba(18, 24, 39, 0.92);
-    
-    --stu-tint-primary: color-mix(in srgb, var(--stu-primary) 8%, var(--stu-surface-1));
-    --stu-tint-hover: color-mix(in srgb, var(--stu-primary) 12%, var(--stu-surface-1));
-  }
+/* Dark Mode — data-student-dark="true" 속성으로 제어 (StudentThemeContext) */
+[data-student-dark="true"] {
+  --stu-bg: #0b0f19;
+  --stu-surface: #121827;
+  --stu-surface-soft: #1a2235;
+  --stu-surface-0: #0b0f19;
+  --stu-surface-1: #121827;
+  --stu-surface-2: #1a2235;
+
+  --stu-border: rgba(255, 255, 255, 0.1);
+  --stu-border-subtle: rgba(255, 255, 255, 0.08);
+  --stu-border-normal: rgba(255, 255, 255, 0.12);
+  --stu-border-strong: rgba(255, 255, 255, 0.16);
+
+  --stu-text: rgba(255, 255, 255, 0.95);
+  --stu-text-muted: rgba(255, 255, 255, 0.65);
+  --stu-text-subtle: rgba(255, 255, 255, 0.45);
+
+  --stu-header-bg: rgba(11, 15, 25, 0.85);
+  --stu-tabbar-bg: rgba(18, 24, 39, 0.92);
+
+  --stu-tint-primary: color-mix(in srgb, var(--stu-primary) 8%, var(--stu-surface-1));
+  --stu-tint-hover: color-mix(in srgb, var(--stu-primary) 12%, var(--stu-surface-1));
 }
 
 /* ========== 2. Typography ========== */

@@ -1,0 +1,254 @@
+/* PATH: src/student/shared/ui/theme/dark.css
+ * 학생앱 전역 다크 모드 — 테넌트 CSS 이후 로드하여 테넌트 오버라이드를 확실히 덮음
+ * data-student-dark="true" 속성이 StudentLayout 루트 div에 설정됨
+ */
+
+/* =========================
+   테넌트 오버라이드 후 다크모드 강제 적용
+   (tokens.css의 [data-student-dark] 보다 높은 specificity)
+   ========================= */
+[data-app="student"][data-student-dark="true"] {
+  --stu-bg: #0b0f19;
+  --stu-surface: #121827;
+  --stu-surface-soft: #1a2235;
+  --stu-surface-0: #0b0f19;
+  --stu-surface-1: #121827;
+  --stu-surface-2: #1a2235;
+
+  --stu-border: rgba(255, 255, 255, 0.1);
+  --stu-border-subtle: rgba(255, 255, 255, 0.08);
+  --stu-border-normal: rgba(255, 255, 255, 0.12);
+  --stu-border-strong: rgba(255, 255, 255, 0.16);
+
+  --stu-text: rgba(255, 255, 255, 0.95);
+  --stu-text-muted: rgba(255, 255, 255, 0.65);
+  --stu-text-subtle: rgba(255, 255, 255, 0.45);
+
+  --stu-header-bg: rgba(11, 15, 25, 0.85);
+  --stu-tabbar-bg: rgba(18, 24, 39, 0.92);
+
+  --stu-tint-primary: color-mix(in srgb, var(--stu-primary) 10%, var(--stu-surface-1));
+  --stu-tint-hover: color-mix(in srgb, var(--stu-primary) 15%, var(--stu-surface-1));
+
+  /* 다크모드 그림자 조정 */
+  --stu-shadow-1: 0 2px 8px rgba(0, 0, 0, 0.5);
+  --stu-shadow-2: 0 6px 20px rgba(0, 0, 0, 0.6);
+  --stu-shadow-3: 0 10px 32px rgba(0, 0, 0, 0.7);
+}
+
+/* =========================
+   body 배경 (base.css 오버라이드)
+   ========================= */
+body:has([data-app="student"][data-student-dark="true"]) {
+  background-color: #0b0f19;
+  color: rgba(255, 255, 255, 0.95);
+  /* 다크모드에서는 배경 패턴 제거 */
+  background-image: none;
+}
+
+/* =========================
+   헤더 다크모드
+   ========================= */
+[data-app="student"][data-student-dark="true"] header {
+  background: var(--stu-header-bg) !important;
+  backdrop-filter: blur(20px) !important;
+  border-bottom-color: var(--stu-border) !important;
+  background-image: none !important;
+}
+
+/* =========================
+   탭바 다크모드
+   ========================= */
+[data-app="student"][data-student-dark="true"] nav.stu-tabbar {
+  background: var(--stu-tabbar-bg) !important;
+  backdrop-filter: blur(20px) !important;
+  border-top-color: var(--stu-border) !important;
+  background-image: none !important;
+}
+
+/* =========================
+   패널/섹션/카드 — 테넌트 background-image 오버라이드
+   ========================= */
+[data-app="student"][data-student-dark="true"] .stu-panel,
+[data-app="student"][data-student-dark="true"] .stu-section,
+[data-app="student"][data-student-dark="true"] .stu-card {
+  background-color: var(--stu-surface-1);
+  background-image: none !important;
+  border-color: var(--stu-border);
+  color: var(--stu-text);
+}
+
+/* 중첩 섹션 */
+[data-app="student"][data-student-dark="true"] .stu-section--nested {
+  background-color: var(--stu-surface-2);
+}
+
+/* =========================
+   액션 타일 (대시보드)
+   ========================= */
+[data-app="student"][data-student-dark="true"] .stu-action-tile {
+  background-color: var(--stu-surface-1) !important;
+  background-image: none !important;
+  border-color: var(--stu-border) !important;
+  color: var(--stu-text) !important;
+}
+
+[data-app="student"][data-student-dark="true"] .stu-action-tile::before {
+  background: linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.02) 0%,
+    transparent 50%,
+    rgba(0, 0, 0, 0.05) 100%
+  ) !important;
+}
+
+[data-app="student"][data-student-dark="true"] .stu-action-tile__icon {
+  background-color: var(--stu-tint-primary) !important;
+  background-image: none !important;
+}
+
+[data-app="student"][data-student-dark="true"] .stu-action-tile__label {
+  color: var(--stu-text) !important;
+}
+
+/* =========================
+   EmptyState
+   ========================= */
+[data-app="student"][data-student-dark="true"] .stu-emptystate__icon {
+  background: var(--stu-surface-2);
+  border-color: var(--stu-border);
+}
+
+[data-app="student"][data-student-dark="true"] .stu-emptystate__icon-svg {
+  stroke: var(--stu-text-muted);
+}
+
+[data-app="student"][data-student-dark="true"] .stu-emptystate__title {
+  color: var(--stu-text);
+}
+
+[data-app="student"][data-student-dark="true"] .stu-emptystate__description {
+  color: var(--stu-text-muted);
+}
+
+/* =========================
+   아이콘
+   ========================= */
+[data-app="student"][data-student-dark="true"] .stu-icon {
+  opacity: 0.95;
+}
+
+/* =========================
+   프로필 드롭다운
+   ========================= */
+[data-app="student"][data-student-dark="true"] .stu-topbar__profileBtn {
+  background: var(--stu-surface-2);
+  border-color: var(--stu-border);
+  color: var(--stu-text);
+}
+
+[data-app="student"][data-student-dark="true"] .stu-topbar__profileBtn:hover {
+  background: var(--stu-tint-hover);
+  border-color: var(--stu-border-normal);
+}
+
+[data-app="student"][data-student-dark="true"] .stu-topbar__profileDropdownOverlay .stu-topbar__profileDropdown {
+  background: var(--stu-surface-1);
+  border-color: var(--stu-border);
+  box-shadow: var(--stu-shadow-2);
+}
+
+[data-app="student"][data-student-dark="true"] .stu-topbar__profileDropdownOverlay .stu-topbar__profileDropdownItem {
+  color: var(--stu-text);
+}
+
+[data-app="student"][data-student-dark="true"] .stu-topbar__profileDropdownOverlay .stu-topbar__profileDropdownItem:hover {
+  background: var(--stu-tint-hover);
+}
+
+[data-app="student"][data-student-dark="true"] .stu-topbar__profileDropdownOverlay .stu-topbar__profileDropdownItem--danger {
+  color: #f87171;
+}
+
+[data-app="student"][data-student-dark="true"] .stu-topbar__profileDropdownOverlay .stu-topbar__profileDropdownItem--danger:hover {
+  background: rgba(248, 113, 113, 0.15);
+}
+
+[data-app="student"][data-student-dark="true"] .stu-topbar__profileDropdownOverlay .stu-topbar__profileDropdownDivider {
+  background: var(--stu-border);
+}
+
+/* =========================
+   사이드 드로어
+   ========================= */
+[data-app="student"][data-student-dark="true"] ~ div[style*="position: fixed"] {
+  /* 드로어는 var(--stu-bg) 사용하므로 자동 적용 */
+}
+
+/* =========================
+   입력 필드
+   ========================= */
+[data-app="student"][data-student-dark="true"] input,
+[data-app="student"][data-student-dark="true"] textarea,
+[data-app="student"][data-student-dark="true"] select {
+  background-color: var(--stu-surface-2);
+  color: var(--stu-text);
+  border-color: var(--stu-border);
+}
+
+[data-app="student"][data-student-dark="true"] input::placeholder,
+[data-app="student"][data-student-dark="true"] textarea::placeholder {
+  color: var(--stu-text-subtle);
+}
+
+/* =========================
+   버튼 (ghost/outline 계열)
+   ========================= */
+[data-app="student"][data-student-dark="true"] .stu-btn--ghost {
+  color: var(--stu-text);
+}
+
+[data-app="student"][data-student-dark="true"] .stu-btn--ghost:hover {
+  background: var(--stu-tint-hover);
+}
+
+/* =========================
+   링크/CTA
+   ========================= */
+[data-app="student"][data-student-dark="true"] .stu-cta-link {
+  color: var(--stu-text);
+}
+
+/* =========================
+   배지/태그
+   ========================= */
+[data-app="student"][data-student-dark="true"] .stu-badge {
+  border-color: var(--stu-border);
+}
+
+/* =========================
+   스켈레톤/로딩
+   ========================= */
+[data-app="student"][data-student-dark="true"] .stu-skel,
+[data-app="student"][data-student-dark="true"] .stu-skel--media {
+  background: linear-gradient(90deg, var(--stu-surface-2), var(--stu-surface-1), var(--stu-surface-2));
+  background-size: 200% 100%;
+  border-color: var(--stu-border);
+}
+
+/* =========================
+   다크모드 전환 애니메이션 (부드러운 전환)
+   ========================= */
+[data-app="student"] {
+  transition: background-color 200ms ease, color 200ms ease;
+}
+
+[data-app="student"] header,
+[data-app="student"] nav.stu-tabbar,
+[data-app="student"] .stu-panel,
+[data-app="student"] .stu-section,
+[data-app="student"] .stu-card,
+[data-app="student"] .stu-action-tile,
+[data-app="student"] .stu-topbar__profileBtn {
+  transition: background-color 200ms ease, color 200ms ease, border-color 200ms ease, background 200ms ease;
+}

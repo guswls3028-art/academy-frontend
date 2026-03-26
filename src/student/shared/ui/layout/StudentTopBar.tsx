@@ -2,7 +2,7 @@
  * 상단 바 — 좌: 로고·타이틀 / 우: 프로필(아바타+이름) 클릭 시 내정보·설정·로그아웃
  */
 import { useState, useEffect, useRef } from "react";
-import { Link, useNavigate, useLocation } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getStudentTenantBranding } from "@/student/shared/tenant/studentTenantBranding";
 import { fetchMyProfile } from "@/student/domains/profile/api/profile";
@@ -10,6 +10,7 @@ import { getTenantCodeForApiRequest, getTenantIdFromCode, getTenantBranding } fr
 import { logout } from "@/features/auth/api/auth";
 import { useAuthContext } from "@/features/auth/context/AuthContext";
 import { setParentStudentId, getParentStudentId } from "@/student/shared/api/parentStudentSelection";
+import { useStudentTheme } from "@/student/shared/context/StudentThemeContext";
 import CommonLogoIcon from "@/features/auth/assets/CommonLogoIcon";
 import TchulLogoIcon from "@/features/auth/assets/TchulLogoIcon";
 import "@/student/shared/ui/theme/student-topbar.css";
@@ -40,12 +41,35 @@ function StudentAvatar({ profile }: { profile: { name?: string; profile_photo_ur
   );
 }
 
+function IconSun({ style }: { style?: React.CSSProperties }) {
+  return (
+    <svg style={style} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="5" />
+      <line x1="12" y1="1" x2="12" y2="3" />
+      <line x1="12" y1="21" x2="12" y2="23" />
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+      <line x1="1" y1="12" x2="3" y2="12" />
+      <line x1="21" y1="12" x2="23" y2="12" />
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+    </svg>
+  );
+}
+
+function IconMoon({ style }: { style?: React.CSSProperties }) {
+  return (
+    <svg style={style} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+    </svg>
+  );
+}
+
 export default function StudentTopBar({ tenantCode, onMenuClick }: Props) {
   const navigate = useNavigate();
-  const location = useLocation();
   const qc = useQueryClient();
   const { user } = useAuthContext();
-  const isVideoPage = location.pathname.startsWith("/student/video");
+  const { isDark, toggleMode } = useStudentTheme();
   const branding = getStudentTenantBranding(tenantCode);
   const { data: profile } = useQuery({
     queryKey: ["student", "me"],
@@ -125,6 +149,17 @@ export default function StudentTopBar({ tenantCode, onMenuClick }: Props) {
         }}
       >
         내 정보
+      </button>
+      <button
+        type="button"
+        className="stu-topbar__profileDropdownItem"
+        onClick={() => {
+          toggleMode();
+        }}
+        style={{ display: "flex", alignItems: "center", gap: 8 }}
+      >
+        {isDark ? <IconSun style={{ width: 16, height: 16, flexShrink: 0 }} /> : <IconMoon style={{ width: 16, height: 16, flexShrink: 0 }} />}
+        {isDark ? "라이트 모드" : "다크 모드"}
       </button>
       <button
         type="button"
@@ -300,7 +335,7 @@ export default function StudentTopBar({ tenantCode, onMenuClick }: Props) {
         </button>
         {profileOpen && (
           <div
-            className={`stu-topbar__profileDropdownOverlay${isVideoPage ? " stu-topbar__profileDropdownOverlay--video" : ""}`}
+            className="stu-topbar__profileDropdownOverlay"
             style={{
               position: "absolute",
               top: "calc(100% + 4px)",

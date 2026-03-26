@@ -7,8 +7,10 @@ import { Outlet, useLocation } from "react-router-dom";
 import { getTenantCodeForApiRequest } from "@/shared/tenant";
 import { useAuthContext } from "@/features/auth/context/AuthContext";
 import { initParentStudentId } from "@/student/shared/api/parentStudentSelection";
+import { StudentThemeProvider, useStudentTheme } from "@/student/shared/context/StudentThemeContext";
 import "../theme/tokens.css";
 import "../theme/tenants/index.css";
+import "../theme/dark.css";
 import "../theme/video.css";
 
 import StudentTopBar from "./StudentTopBar";
@@ -31,8 +33,17 @@ const COMMON_THEME_TENANTS = ["hakwonplus", "limglish", "9999", "common"];
 // useVersionChecker가 자동 리로드 처리 — 수동 새로고침 배너 제거됨
 
 export default function StudentLayout() {
+  return (
+    <StudentThemeProvider>
+      <StudentLayoutInner />
+    </StudentThemeProvider>
+  );
+}
+
+function StudentLayoutInner() {
   const location = useLocation();
   const tenantCode = getTenantCodeForApiRequest();
+  const { isDark } = useStudentTheme();
   useFavicon();
   useDocumentTitle(); // 브라우저 타이틀 설정
   const useTchulTheme = tenantCode != null && TCHUL_THEME_TENANTS.includes(String(tenantCode));
@@ -58,7 +69,7 @@ export default function StudentLayout() {
       initParentStudentId(user.linkedStudents.map((s) => s.id));
     }
   }, [user?.tenantRole, user?.linkedStudents]);
-  
+
   // 사이드 드로어 상태
   const [drawerOpen, setDrawerOpen] = useState(false);
   const openDrawer = useCallback(() => setDrawerOpen(true), []);
@@ -73,16 +84,16 @@ export default function StudentLayout() {
       data-student-tenant={tenantCode || undefined}
       data-student-theme={useTchulTheme ? "tchul" : useYmathTheme ? "ymath" : useSsweTheme ? "sswe" : useDnbTheme ? "dnb" : useCommonTheme ? "common" : undefined}
       data-video-page={isVideoPage ? "true" : undefined}
+      data-student-dark={isDark ? "true" : undefined}
       style={{
         minHeight: "100dvh",
-        height: "100dvh", // 높이 고정으로 스크롤 방지
+        height: "100dvh",
         overflow: "visible",
-        backgroundColor: isVideoPage ? "#000" : "var(--stu-bg)",
-        color: isVideoPage ? "#fff" : "var(--stu-text)",
+        backgroundColor: "var(--stu-bg)",
+        color: "var(--stu-text)",
         display: "flex",
         flexDirection: "column",
         paddingTop: "var(--stu-safe-top)",
-        // 배경 그라데이션은 CSS에서 적용 (tchul.css)
       }}
     >
       {(useTchulTheme || useYmathTheme || useSsweTheme || useDnbTheme || useCommonTheme) && (
@@ -116,7 +127,6 @@ export default function StudentLayout() {
           </defs>
         </svg>
       )}
-      {/* 수동 새로고침 배너 제거 — useVersionChecker가 자동 리로드 처리 */}
       <header
         style={{
           flexShrink: 0,
@@ -126,7 +136,6 @@ export default function StudentLayout() {
           background: "var(--stu-header-bg)",
           backdropFilter: "blur(12px)",
           borderBottom: "1px solid var(--stu-border)",
-          /* 프리미엄: 헤더에 미묘한 그림자 */
           boxShadow: "0 1px 2px rgba(0, 0, 0, 0.02), 0 2px 4px rgba(0, 0, 0, 0.03)",
         }}
       >
@@ -134,17 +143,16 @@ export default function StudentLayout() {
       </header>
 
       <main
-        className={isVideoPage ? "video-page-main" : ""}
         style={{
           flex: 1,
           overflow: "auto",
-          scrollbarWidth: "none" as any, // 스크롤바 숨김
+          scrollbarWidth: "none" as any,
           paddingBottom: "calc(var(--stu-tabbar-h) + var(--stu-safe-bottom) + var(--stu-space-4))",
         }}
       >
-        <div style={{ 
-          maxWidth: isVideoPage ? "100%" : "var(--stu-page-max-w)", 
-          margin: "0 auto", 
+        <div style={{
+          maxWidth: isVideoPage ? "100%" : "var(--stu-page-max-w)",
+          margin: "0 auto",
           padding: isVideoPage ? 0 : "var(--stu-space-4)",
           overflow: "visible",
           height: "auto",
