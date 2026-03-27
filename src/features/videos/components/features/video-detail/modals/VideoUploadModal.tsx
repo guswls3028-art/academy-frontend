@@ -70,8 +70,6 @@ function ChevronRightIcon() {
 }
 
 const VIDEO_ACCEPT = "video/*";
-const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024 * 1024; // 5 GB
-
 type Props = {
   sessionId: number;
   isOpen: boolean;
@@ -128,11 +126,6 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
   );
 
   const setFileAt = useCallback((index: number, file: File | null) => {
-    if (file && file.size > MAX_FILE_SIZE_BYTES) {
-      const sizeMB = (file.size / 1024 / 1024).toFixed(0);
-      feedback.error(`파일 크기가 너무 큽니다 (${sizeMB}MB). 최대 5GB까지 업로드 가능합니다.`);
-      return;
-    }
     setFiles((prev) => {
       const next = [...prev];
       next[index] = file;
