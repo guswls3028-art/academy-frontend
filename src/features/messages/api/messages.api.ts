@@ -318,6 +318,8 @@ export type AutoSendTrigger =
   | "staff_payroll_snapshot"
   | "staff_payroll_report";
 
+export type PolicyMode = "SYSTEM_AUTO" | "AUTO_DEFAULT" | "MANUAL_DEFAULT" | "DISABLED";
+
 export interface AutoSendConfigItem {
   id: number | null;
   trigger: string;
@@ -332,6 +334,8 @@ export interface AutoSendConfigItem {
   minutes_before: number | null;
   created_at: string | null;
   updated_at: string | null;
+  /** 정책 분류: SYSTEM_AUTO / AUTO_DEFAULT / MANUAL_DEFAULT / DISABLED */
+  policy_mode?: PolicyMode;
 }
 
 export const AUTO_SEND_TRIGGER_LABELS: Record<string, string> = {
@@ -353,6 +357,10 @@ export const AUTO_SEND_TRIGGER_LABELS: Record<string, string> = {
   clinic_reminder: "클리닉 시작 N분 전",
   clinic_reservation_created: "클리닉 예약 완료",
   clinic_reservation_changed: "클리닉 예약 변경",
+  clinic_cancelled: "클리닉 예약 취소",
+  clinic_check_in: "클리닉 입실",
+  clinic_check_out: "클리닉 퇴실(완료)",
+  clinic_absent: "클리닉 결석",
   counseling_reservation_created: "상담 예약 완료",
   payment_complete: "결제 완료",
   payment_due_days_before: "납부 예정일 N일 전",

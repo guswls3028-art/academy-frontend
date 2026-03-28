@@ -53,8 +53,12 @@ const TRIGGER_DESCRIPTIONS: Record<string, string> = {
   assignment_not_submitted: "과제 미제출이 확인되면 학생·학부모에게 미제출 알림을 발송합니다.",
   monthly_report_generated: "월간 성적 리포트가 생성되면 학부모에게 성적 요약을 발송합니다.",
   clinic_reminder: "클리닉 시작 N분 전에 학생에게 예약 일시/장소를 리마인드합니다.",
-  clinic_reservation_created: "클리닉 예약이 완료되면 학생·학부모에게 예약 일시를 확인 안내합니다.",
-  clinic_reservation_changed: "클리닉 예약이 변경/취소되면 학생·학부모에게 변경 내용을 안내합니다.",
+  clinic_reservation_created: "클리닉 예약이 완료되면 학부모에게 예약 일시를 확인 안내합니다.",
+  clinic_reservation_changed: "클리닉 예약이 변경되면 학부모에게 변경 내용을 안내합니다.",
+  clinic_cancelled: "클리닉 예약이 취소되면 학부모에게 취소 안내를 발송합니다.",
+  clinic_check_in: "클리닉에 입실하면 학부모에게 입실 알림을 발송합니다.",
+  clinic_check_out: "클리닉 자율학습이 완료(퇴실)되면 학부모에게 퇴실 알림을 발송합니다.",
+  clinic_absent: "클리닉에 결석하면 학부모에게 결석 알림을 발송합니다.",
   counseling_reservation_created: "상담 예약이 완료되면 학부모에게 상담 일시/장소를 확인 안내합니다.",
   payment_complete: "결제가 완료되면 학부모에게 결제 금액/내역을 확인 안내합니다.",
   payment_due_days_before: "납부 예정일 N일 전에 학부모에게 납부 금액/기한을 안내합니다.",
@@ -102,7 +106,19 @@ function TriggerCard({
 }) {
   const [showPreview, setShowPreview] = useState(false);
 
-  const isComingSoon = false;
+  const policy = (config as AutoSendConfigItem & { policy_mode?: string }).policy_mode || "DISABLED";
+  const isSystem = policy === "SYSTEM_AUTO";
+  const isDisabled = policy === "DISABLED";
+
+  const POLICY_BADGE: Record<string, { label: string; color: string; bg: string }> = {
+    SYSTEM_AUTO: { label: "시스템", color: "#6366f1", bg: "rgba(99,102,241,.1)" },
+    AUTO_DEFAULT: { label: "자동", color: "#16a34a", bg: "rgba(22,163,74,.1)" },
+    MANUAL_DEFAULT: { label: "수동", color: "#d97706", bg: "rgba(217,119,6,.1)" },
+    DISABLED: { label: "비활성", color: "#9ca3af", bg: "rgba(156,163,175,.1)" },
+  };
+  const badge = POLICY_BADGE[policy] || POLICY_BADGE.DISABLED;
+
+  if (isDisabled) return null;
 
   return (
     <div
@@ -114,11 +130,10 @@ function TriggerCard({
         boxShadow: config.enabled
           ? "inset 3px 0 0 var(--color-primary)"
           : undefined,
-        opacity: isComingSoon ? 0.65 : 1,
         transition: "background 0.15s, box-shadow 0.15s, opacity 0.15s",
       }}
     >
-      {/* 헤더: 트리거 이름 + 활성화 토글 */}
+      {/* 헤더: 트리거 이름 + 정책 배지 + 활성화 토글 */}
       <div className={panelStyles.contentCardHeader}>
         <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)" }}>
           <div
@@ -140,47 +155,41 @@ function TriggerCard({
             <FiZap size={16} aria-hidden />
           </div>
           <div>
-            <div
-              style={{
-                fontSize: 14,
-                fontWeight: 600,
-                color: "var(--color-text-primary)",
-                letterSpacing: "-0.1px",
-              }}
-            >
-              {AUTO_SEND_TRIGGER_LABELS[config.trigger] ?? config.trigger}
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <span style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text-primary)", letterSpacing: "-0.1px" }}>
+                {AUTO_SEND_TRIGGER_LABELS[config.trigger] ?? config.trigger}
+              </span>
+              <span style={{
+                fontSize: 10, fontWeight: 700, padding: "2px 6px", borderRadius: 8,
+                color: badge.color, background: badge.bg, lineHeight: 1,
+              }}>
+                {badge.label}
+              </span>
             </div>
-            <div
-              style={{
-                fontSize: 12,
-                color: "var(--color-text-muted)",
-                marginTop: 2,
-                lineHeight: 1.45,
-              }}
-            >
+            <div style={{ fontSize: 12, color: "var(--color-text-muted)", marginTop: 2, lineHeight: 1.45 }}>
               {TRIGGER_DESCRIPTIONS[config.trigger] ?? "해당 이벤트 발생 시 자동 발송합니다."}
             </div>
           </div>
         </div>
 
-        {/* 활성화 토글 */}
+        {/* 활성화 토글 — SYSTEM_AUTO는 항상 켜짐, 토글 비활성화 */}
         <div style={{ display: "inline-flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
           <Switch
-            checked={config.enabled}
+            checked={isSystem ? true : config.enabled}
             onChange={(checked) => onUpdate({ ...config, enabled: checked })}
-            disabled={saving || isComingSoon}
+            disabled={saving || isSystem}
             size="small"
           />
           <span
             style={{
               fontSize: 13,
               fontWeight: 600,
-              color: config.enabled
+              color: (isSystem || config.enabled)
                 ? "var(--color-text-primary)"
                 : "var(--color-text-muted)",
             }}
           >
-            {config.enabled ? "활성화" : "비활성화"}
+            {isSystem ? "항상 활성" : config.enabled ? "활성화" : "비활성화"}
           </span>
           {config.template_body && (
             <button
@@ -245,15 +254,12 @@ function TriggerCard({
               alignItems: "start",
             }}
           >
-            {/* 템플릿 — 클릭하면 수정 모달 */}
+            {/* 템플릿 — 읽기 전용 */}
             <div>
               <div style={{ fontSize: 11, fontWeight: 600, color: "var(--color-text-muted)", marginBottom: 6, textTransform: "uppercase" as const, letterSpacing: "0.04em" }}>
                 템플릿
               </div>
-              <button
-                type="button"
-                onClick={handleEditClick}
-                disabled={saving}
+              <div
                 style={{
                   display: "flex",
                   alignItems: "center",
@@ -263,19 +269,14 @@ function TriggerCard({
                   padding: "0 12px",
                   fontSize: 13,
                   fontWeight: 500,
-                  textAlign: "left",
                   color: "var(--color-text-primary)",
                   background: "color-mix(in srgb, var(--color-border-divider) 10%, var(--color-bg-surface))",
                   border: "1px solid var(--color-border-divider)",
                   borderRadius: "var(--radius-md)",
-                  boxShadow: "inset 0 2px 4px rgba(0,0,0,.06), inset 0 -1px 0 0 rgba(255,255,255,.04)",
-                  cursor: "pointer",
-                  transition: "border-color 120ms, box-shadow 120ms",
                 }}
               >
-                <FiEdit3 size={13} style={{ flexShrink: 0, color: "var(--color-primary)" }} aria-hidden />
                 <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  수정하기
+                  {config.template_name || "(템플릿 없음)"}
                 </span>
                 {hasTemplate && status && (
                   <span
@@ -294,7 +295,7 @@ function TriggerCard({
                     {statusLabel}
                   </span>
                 )}
-              </button>
+              </div>
             </div>
 
             {/* 발송 시점 */}
