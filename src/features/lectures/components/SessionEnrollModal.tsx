@@ -552,7 +552,7 @@ export default function SessionEnrollModal({
       if (!isOpen) return;
       if (e.key === "Escape") onClose();
       const isTextarea = (e.target as HTMLElement)?.tagName === "TEXTAREA";
-      if (e.key === "Enter" && !isTextarea && idsToAdd.length > 0 && !addByStudentMutation.isPending) {
+      if (e.key === "Enter" && !isTextarea && idsToAdd.length > 0 && !addByStudentMutation.isPending && !copyFromPrevLoading) {
         e.preventDefault();
         addByStudentMutation.mutate({
           studentIds: idsToAdd,
@@ -1118,12 +1118,14 @@ export default function SessionEnrollModal({
                     statusByStudentId: excelStatusByStudentId,
                   })
                 }
-                disabled={addByStudentMutation.isPending || idsToAdd.length === 0}
-                title={idsToAdd.length === 0 ? "왼쪽 테이블에서 학생을 선택하세요" : undefined}
+                disabled={addByStudentMutation.isPending || copyFromPrevLoading || idsToAdd.length === 0}
+                title={copyFromPrevLoading ? "직전 차시 불러오기 진행 중…" : idsToAdd.length === 0 ? "왼쪽 테이블에서 학생을 선택하세요" : undefined}
               >
                 {addByStudentMutation.isPending
                   ? "등록 중…"
-                  : `${idsToAdd.length}명 추가`}
+                  : copyFromPrevLoading
+                    ? "불러오는 중…"
+                    : `${idsToAdd.length}명 추가`}
               </Button>
             </>
           }
