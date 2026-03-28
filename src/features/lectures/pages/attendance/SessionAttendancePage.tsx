@@ -699,6 +699,7 @@ export default function SessionAttendancePage({
       <NotificationPreviewModal
         open={notifModal.open}
         onClose={() => setNotifModal((s) => ({ ...s, open: false }))}
+        mode="attendance"
         sessionId={sessionId}
         notificationType={notifModal.type}
         sendTo="parent"

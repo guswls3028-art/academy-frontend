@@ -23,6 +23,7 @@ import { scoresQueryKeys } from "@/features/scores/api/queryKeys";
 import { downloadClinicPdf, getClinicStats } from "@/features/scores/utils/clinicPdfGenerator";
 import { generateScoreReport, buildScoreDetail } from "@/features/scores/utils/generateScoreReport";
 import { useSendMessageModal } from "@/features/messages/context/SendMessageModalContext";
+import NotificationPreviewModal from "@/features/messages/components/NotificationPreviewModal";
 import type { SessionScoresResponse } from "@/features/scores/api/sessionScores";
 
 type EditConfig = {
@@ -48,6 +49,7 @@ export default function SessionScoresTab() {
   const [scoreDisplayMode, setScoreDisplayMode] = useState<ScoreDisplayMode>("total");
   const [search, setSearch] = useState("");
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [scoreNotifModal, setScoreNotifModal] = useState(false);
   const [showPdfModal, setShowPdfModal] = useState(false);
   const [pdfSchedule, setPdfSchedule] = useState("");
   const panelRef = useRef<SessionScoresPanelHandle>(null);
@@ -287,7 +289,16 @@ export default function SessionScoresTab() {
 
         {/* 우측: 액션 버튼 */}
         <div className="flex items-center gap-2">
-          {/* 성적 알림은 수동 발송으로 전환됨 — AutoSendToggle 제거 */}
+          {/* 성적 알림 수동 발송 */}
+          {!isEditMode && selectedIds.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setScoreNotifModal(true)}
+              className="h-8 rounded-lg px-3 text-xs font-semibold border border-[var(--color-border-divider)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface-soft)] transition-colors whitespace-nowrap"
+            >
+              성적 알림 발송
+            </button>
+          )}
           {!isEditMode && selectedIds.length > 0 && (
             <button
               type="button"
@@ -464,6 +475,17 @@ export default function SessionScoresTab() {
         scoreDisplayMode={scoreDisplayMode}
         selectedEnrollmentIds={selectedIds}
         onSelectionChange={setSelectedIds}
+      />
+
+      {/* 성적 수동 발송 모달 */}
+      <NotificationPreviewModal
+        open={scoreNotifModal}
+        onClose={() => setScoreNotifModal(false)}
+        mode="manual"
+        trigger="exam_score_published"
+        studentIds={selectedIds}
+        label="성적 공개 알림"
+        sendTo="parent"
       />
     </div>
   );

@@ -46,3 +46,23 @@ export async function confirmAttendanceNotification(
   });
   return data;
 }
+
+// 범용 수동 알림 발송 (시험/과제/퇴원 등)
+export async function previewManualNotification(params: {
+  trigger: string;
+  student_ids: number[];
+  send_to?: "parent" | "student";
+  context?: Record<string, string>;
+}): Promise<NotificationPreviewResponse> {
+  const { data } = await api.post("/messaging/manual-notification/preview/", params);
+  return data;
+}
+
+export async function confirmManualNotification(
+  preview_token: string,
+): Promise<NotificationConfirmResponse> {
+  const { data } = await api.post("/messaging/manual-notification/confirm/", {
+    preview_token,
+  });
+  return data;
+}

@@ -118,19 +118,19 @@ function TriggerCard({
   };
   const badge = POLICY_BADGE[policy] || POLICY_BADGE.DISABLED;
 
-  if (isDisabled) return null;
-
   return (
     <div
       className={panelStyles.contentCard}
       style={{
-        background: config.enabled
-          ? "color-mix(in srgb, var(--color-primary) 6%, var(--color-bg-surface))"
-          : "var(--color-bg-surface-soft)",
-        boxShadow: config.enabled
-          ? "inset 3px 0 0 var(--color-primary)"
-          : undefined,
+        background: isDisabled
+          ? "var(--color-bg-surface-soft)"
+          : config.enabled
+            ? "color-mix(in srgb, var(--color-primary) 6%, var(--color-bg-surface))"
+            : "var(--color-bg-surface-soft)",
+        boxShadow: isDisabled ? undefined : config.enabled ? "inset 3px 0 0 var(--color-primary)" : undefined,
+        opacity: isDisabled ? 0.55 : 1,
         transition: "background 0.15s, box-shadow 0.15s, opacity 0.15s",
+        pointerEvents: isDisabled ? "none" : undefined,
       }}
     >
       {/* 헤더: 트리거 이름 + 정책 배지 + 활성화 토글 */}
@@ -177,19 +177,21 @@ function TriggerCard({
           <Switch
             checked={isSystem ? true : config.enabled}
             onChange={(checked) => onUpdate({ ...config, enabled: checked })}
-            disabled={saving || isSystem}
+            disabled={saving || isSystem || isDisabled}
             size="small"
           />
           <span
             style={{
               fontSize: 13,
               fontWeight: 600,
-              color: (isSystem || config.enabled)
-                ? "var(--color-text-primary)"
-                : "var(--color-text-muted)",
+              color: isDisabled
+                ? "var(--color-text-muted)"
+                : (isSystem || config.enabled)
+                  ? "var(--color-text-primary)"
+                  : "var(--color-text-muted)",
             }}
           >
-            {isSystem ? "항상 활성" : config.enabled ? "활성화" : "비활성화"}
+            {isDisabled ? "정책상 비활성" : isSystem ? "항상 활성" : config.enabled ? "활성화" : "비활성화"}
           </span>
           {config.template_body && (
             <button
@@ -220,8 +222,8 @@ function TriggerCard({
         </div>
       </div>
 
-      {/* 컨트롤 영역 */}
-      {!isComingSoon && (() => {
+      {/* 컨트롤 영역 — DISABLED는 표시 안 함 */}
+      {!isDisabled && (() => {
         const hasTemplate = !!config.template;
         const status = config.template_solapi_status;
 
