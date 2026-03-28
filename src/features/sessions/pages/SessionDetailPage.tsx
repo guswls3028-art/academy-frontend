@@ -115,7 +115,11 @@ export default function SessionDetailPage() {
   const prevSession = useMemo(() => {
     const idx = sortedSessions.findIndex((s) => s.id === sId);
     if (idx <= 0) return null;
-    return sortedSessions[idx - 1];
+    // 보강 세션은 건너뛰고 가장 가까운 정규 차시를 찾음 (SessionEnrollModal과 동일 로직)
+    for (let i = idx - 1; i >= 0; i--) {
+      if (!(sortedSessions[i] as { title?: string }).title?.includes?.("보강")) return sortedSessions[i];
+    }
+    return sortedSessions[idx - 1]; // 전부 보강이면 직전 세션 사용
   }, [sortedSessions, sId]);
 
   const copyFromPrevMutation = useMutation({
