@@ -23,7 +23,7 @@ import { formatPhone } from "@/shared/utils/formatPhone";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useConfirm } from "@/shared/ui/confirm";
 import { useSendMessageModal } from "@/features/messages/context/SendMessageModalContext";
-import AutoSendToggle from "@/features/messages/components/AutoSendToggle";
+import NotificationPreviewModal from "@/features/messages/components/NotificationPreviewModal";
 import "./attendance-ui.css";
 
 const STATUS_LIST = ORDERED_ATTENDANCE_STATUS;
@@ -65,6 +65,7 @@ export default function SessionAttendancePage({
   const statusPopoverRef = useRef<HTMLDivElement>(null);
   const [statusPopoverAnchor, setStatusPopoverAnchor] = useState<{ left: number; top: number } | null>(null);
   /** 상태 뱃지 클릭 시 테이블 외부 가로 팝오버로 표시. null이면 닫힘 */
+  const [notifModal, setNotifModal] = useState<{ type: "check_in" | "absent"; open: boolean }>({ type: "check_in", open: false });
   const [openStatusRowAttId, setOpenStatusRowAttId] = useState<number | null>(null);
   /** 팝오버 위치(트리거 버튼 기준). createPortal로 body에 그릴 때 사용 */
   const [statusRowPopoverAnchor, setStatusRowPopoverAnchor] = useState<{ left: number; top: number } | null>(null);
@@ -341,31 +342,22 @@ export default function SessionAttendancePage({
 
   const primaryAction = (
     <div className="flex items-center gap-2">
-      <AutoSendToggle
-        trigger="check_in_complete"
-        label="입실 알림"
-        compact
-        previewContext={{
-          학생이름2: "김학생",
-          강의명: "수학 기초",
-          차시명: "1차시",
-          날짜: "2026-03-24",
-          시간: "14:00",
-          사이트링크: "https://hakwonplus.com",
-        }}
-      />
-      <AutoSendToggle
-        trigger="absent_occurred"
-        label="결석 알림"
-        compact
-        previewContext={{
-          학생이름2: "김학생",
-          강의명: "수학 기초",
-          차시명: "1차시",
-          날짜: "2026-03-24",
-          사이트링크: "https://hakwonplus.com",
-        }}
-      />
+      <Button
+        type="button"
+        intent="ghost"
+        size="sm"
+        onClick={() => setNotifModal({ type: "check_in", open: true })}
+      >
+        입실 알림 발송
+      </Button>
+      <Button
+        type="button"
+        intent="ghost"
+        size="sm"
+        onClick={() => setNotifModal({ type: "absent", open: true })}
+      >
+        결석 알림 발송
+      </Button>
       <Button type="button" intent="secondary" size="sm" onClick={handleBulkSetPresent}>
         전체 현장 출석
       </Button>
@@ -702,6 +694,15 @@ export default function SessionAttendancePage({
           </div>
         )}
       </div>
+
+      {/* 수동 알림 발송 모달 */}
+      <NotificationPreviewModal
+        open={notifModal.open}
+        onClose={() => setNotifModal((s) => ({ ...s, open: false }))}
+        sessionId={sessionId}
+        notificationType={notifModal.type}
+        sendTo="parent"
+      />
     </div>
   );
 }
