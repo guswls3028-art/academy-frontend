@@ -5,6 +5,7 @@
  * - 주관식 과제 자동채점 TODO 버튼
  */
 
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchHomeworkSubmissions } from "@/features/submissions/api/adminHomeworkSubmissionsApi";
 import { useAdminHomework } from "../hooks/useAdminHomework";
@@ -12,6 +13,7 @@ import { SUBMISSION_STATUS_LABEL, SUBMISSION_STATUS_TONE } from "@/features/subm
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { Button, EmptyState } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import NotificationPreviewModal from "@/features/messages/components/NotificationPreviewModal";
 import api from "@/shared/api/axios";
 
 function formatDate(iso: string): string {
@@ -56,20 +58,47 @@ export default function HomeworkSubmissionsPanel({
   }
 
   const rows = q.data ?? [];
+  const [notSubmittedNotif, setNotSubmittedNotif] = useState(false);
+
+  // 미제출 학생 ID 추출 (status가 "not_submitted" 또는 제출 기록 없는 학생)
+  const notSubmittedIds = rows
+    .filter((r: any) => r.status === "not_submitted" || r.status === "NOT_SUBMITTED")
+    .map((r: any) => r.student_id)
+    .filter(Boolean) as number[];
 
   return (
     <div className="space-y-4">
-      {/* 상단: 자동채점 버튼 */}
+      {/* 상단 */}
       <div className="flex items-center justify-between">
         <div className="text-sm font-semibold text-[var(--color-text-primary)]">
           제출관리 · <span className="text-[var(--color-text-muted)]">{rows.length}건</span>
+          {notSubmittedIds.length > 0 && (
+            <span className="ml-2 text-[var(--color-text-muted)]">(미제출 {notSubmittedIds.length}명)</span>
+          )}
         </div>
         <div className="flex items-center gap-2">
+          {notSubmittedIds.length > 0 && (
+            <Button type="button" intent="ghost" size="sm" onClick={() => setNotSubmittedNotif(true)}>
+              미제출 알림 발송
+            </Button>
+          )}
           <Button type="button" intent="ghost" size="sm" onClick={() => q.refetch()}>
             새로고침
           </Button>
         </div>
       </div>
+
+      {/* 미제출 알림 모달 */}
+      <NotificationPreviewModal
+        open={notSubmittedNotif}
+        onClose={() => setNotSubmittedNotif(false)}
+        mode="manual"
+        trigger="assignment_not_submitted"
+        studentIds={notSubmittedIds}
+        label="과제 미제출 알림"
+        sendTo="parent"
+        context={{ 과제명: homeworkTitle }}
+      />
 
       {q.isError && (
         <div className="rounded border border-red-600/30 bg-red-600/10 p-3 text-sm text-red-700">

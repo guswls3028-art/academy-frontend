@@ -28,6 +28,7 @@ import PasswordResetModal, { type PwResetTarget } from "../components/PasswordRe
 import { Button, EmptyState } from "@/shared/ui/ds";
 import { DomainListToolbar, useTableColumnPrefs, TableColumnPicker } from "@/shared/ui/domain";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import NotificationPreviewModal from "@/features/messages/components/NotificationPreviewModal";
 import { getApiErrorMessage } from "@/shared/api/errorMessage";
 import { useSendMessageModal } from "@/features/messages/context/SendMessageModalContext";
 import { useIsMobile } from "@/shared/hooks/useIsMobile";
@@ -61,6 +62,7 @@ export default function StudentsHomePage() {
     return [];
   });
   const [deleting, setDeleting] = useState(false);
+  const [withdrawalNotif, setWithdrawalNotif] = useState<{ open: boolean; ids: number[] }>({ open: false, ids: [] });
   const [duplicateFixing, setDuplicateFixing] = useState(false);
   const [bulkUploadProgress, setBulkUploadProgress] = useState<{ current: number; total: number } | null>(null);
   const [showTagModal, setShowTagModal] = useState(false);
@@ -217,10 +219,12 @@ export default function StudentsHomePage() {
               if (!(await confirm({ title: "학생 삭제", message: msg, confirmText: "삭제", danger: true }))) return;
               setDeleting(true);
               try {
+                const deletedIds = [...selectedIds];
                 const { deleted } = await bulkDeleteStudents(selectedIds);
                 setSelectedIds([]);
                 qc.invalidateQueries({ queryKey: ["students"] });
                 feedback.success(`${deleted}명 삭제되었습니다.`);
+                if (deleted > 0) setWithdrawalNotif({ open: true, ids: deletedIds });
               } catch (e: unknown) {
                 feedback.error(e instanceof Error ? e.message : "삭제 중 오류가 발생했습니다.");
               } finally {
@@ -542,6 +546,17 @@ export default function StudentsHomePage() {
         }}
         resetting={passwordResetting}
         setResetting={setPasswordResetting}
+      />
+
+      {/* 퇴원 알림 수동 발송 모달 */}
+      <NotificationPreviewModal
+        open={withdrawalNotif.open}
+        onClose={() => setWithdrawalNotif({ open: false, ids: [] })}
+        mode="manual"
+        trigger="withdrawal_complete"
+        studentIds={withdrawalNotif.ids}
+        label="퇴원 처리 완료 안내"
+        sendTo="parent"
       />
     </>
   );
