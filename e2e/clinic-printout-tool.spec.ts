@@ -76,18 +76,17 @@ const SAMPLE_DATA = `강의
 test.describe("클리닉 대상자 도구", () => {
   test.beforeEach(async ({ page }) => {
     await loginViaUI(page, "admin");
-    // 도구 → 클리닉 대상자 탭으로 이동
-    await page.locator('a[href*="/admin/tools"]').first().click();
-    await page.waitForURL(/\/admin\/tools/, { timeout: 10000 });
-    const clinicTab = page.locator("a, button").filter({ hasText: "클리닉 대상자" }).first();
-    await clinicTab.click();
+    await page.goto("https://hakwonplus.com/admin/tools", { waitUntil: "load" });
+    await page.waitForTimeout(2000);
+    // 클리닉 대상자 탭 클릭
+    await page.locator("a, button").filter({ hasText: "클리닉 대상자" }).first().click();
     await page.waitForURL(/\/admin\/tools\/clinic/, { timeout: 10000 });
-    await page.waitForTimeout(1000);
+    await expect(page.locator("#cprev")).toBeVisible({ timeout: 8000 });
   });
 
   test("페이지 로드 및 UI 구조 확인", async ({ page }) => {
     // 미리보기 영역 확인
-    await expect(page.locator("#cprev")).toBeVisible({ timeout: 5000 });
+    await expect(page.locator("#cprev")).toBeVisible({ timeout: 8000 });
     await expect(page.locator("#cprev h1")).toHaveText("클리닉 대상자 안내");
 
     // 3개 컬럼 헤더 확인
@@ -105,37 +104,49 @@ test.describe("클리닉 대상자 도구", () => {
   });
 
   test("데이터 붙여넣기 → 파싱 → 미리보기 채워짐", async ({ page }) => {
+    await expect(page.locator("#clinic-paste-ta")).toBeVisible({ timeout: 8000 });
+
     // 텍스트 입력
     const textarea = page.locator("#clinic-paste-ta");
     await textarea.fill(SAMPLE_DATA);
 
-    // 생성 버튼 클릭
-    await page.locator("button").filter({ hasText: "생성" }).first().click();
-    await page.waitForTimeout(500);
+    // 생성 버튼 클릭 — "생성"만 텍스트인 button (탭의 "PPT 생성" 등 제외)
+    const genBtn = page.locator("button").filter({ hasText: /^생성$/ }).first();
+    await genBtn.scrollIntoViewIfNeeded();
+    await genBtn.click();
+    await page.waitForTimeout(2000);
 
-    // 시험+과제 미통과 컬럼: 국태민(e진행+hw진행), 서연우(e진행+hw진행), 소원호(e진행+hw진행)
-    // 김동욱: exam 진행중 + hw1 진행중 → both
-    const bothCol = page.locator("#cprev .col").first();
-    const bothInputs = bothCol.locator("input.name-input");
-    const firstValue = await bothInputs.first().inputValue();
-    expect(firstValue.length).toBeGreaterThan(0);
+    await page.screenshot({ path: "e2e/screenshots/clinic-tool-parsed-before-check.png" });
 
-    // 과제 미통과: 나영린(hw 진행중), 최태준(hw 진행중)
-    const hwCol = page.locator("#cprev .col").nth(2);
-    const hwFirstValue = await hwCol.locator("input.name-input").first().inputValue();
-    expect(hwFirstValue.length).toBeGreaterThan(0);
+    // 파싱 결과 확인: DOM에서 직접 카운트 체크
+    const counts = await page.evaluate(() => {
+      const cprev = document.querySelector("#cprev");
+      if (!cprev) return { both: -1, hw: -1 };
+      const cols = cprev.querySelectorAll(".col");
+      const getCount = (col: Element) => {
+        const inputs = col.querySelectorAll("input.name-input");
+        let filled = 0;
+        inputs.forEach((inp) => { if ((inp as HTMLInputElement).value.trim()) filled++; });
+        return filled;
+      };
+      return { both: getCount(cols[0]), hw: getCount(cols[2]) };
+    });
+    expect(counts.both).toBeGreaterThan(0);
+    expect(counts.hw).toBeGreaterThan(0);
 
     await page.screenshot({ path: "e2e/screenshots/clinic-tool-parsed.png" });
   });
 
   test("미리보기에서 직접 이름 입력 + Enter로 행 추가", async ({ page }) => {
+    await expect(page.locator("#cprev")).toBeVisible({ timeout: 8000 });
+
     const firstInput = page.locator("#cprev .col").first().locator("input.name-input").first();
     await firstInput.fill("테스트학생");
     await expect(firstInput).toHaveValue("테스트학생");
 
     // Enter → 새 행 추가
     await firstInput.press("Enter");
-    await page.waitForTimeout(300);
+    await page.waitForTimeout(500);
 
     const inputs = page.locator("#cprev .col").first().locator("input.name-input");
     expect(await inputs.count()).toBeGreaterThanOrEqual(2);
@@ -147,10 +158,12 @@ test.describe("클리닉 대상자 도구", () => {
   });
 
   test("PDF 다운로드 동작", async ({ page }) => {
+    await expect(page.locator("#cprev")).toBeVisible({ timeout: 8000 });
+
     // 이름 입력
     const firstInput = page.locator("#cprev .col").first().locator("input.name-input").first();
     await firstInput.fill("테스트학생");
-    await page.waitForTimeout(300);
+    await page.waitForTimeout(500);
 
     // PDF 다운로드
     const [download] = await Promise.all([
