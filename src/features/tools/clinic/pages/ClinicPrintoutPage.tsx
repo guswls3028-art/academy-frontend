@@ -414,9 +414,9 @@ export default function ClinicPrintoutPage() {
   };
 
   return (
-    <div className="flex gap-4" style={{ height: "calc(100vh - 180px)" }}>
+    <div className="flex gap-4">
       {/* ── 좌측: 편집 가능 미리보기 ── */}
-      <div className="flex-1 overflow-auto" style={{ background: "#e2e8f0", borderRadius: 8, padding: 16 }}>
+      <div className="flex-1" style={{ background: "#e2e8f0", borderRadius: 8, padding: 16 }}>
         <style>{PREVIEW_CSS}</style>
         <div id={SCOPE}>
           {/* Header */}
@@ -492,7 +492,7 @@ export default function ClinicPrintoutPage() {
       </div>
 
       {/* ── 우측: 데이터 입력 패널 ── */}
-      <div className="w-[300px] flex-shrink-0 flex flex-col gap-3">
+      <div className="w-[300px] flex-shrink-0 flex flex-col gap-3" style={{ position: "sticky", top: 16, alignSelf: "flex-start", maxHeight: "calc(100vh - 200px)" }}>
         <section className="rounded-lg border border-[var(--border-divider)] bg-[var(--bg-surface)] p-4 flex flex-col gap-3 flex-1">
           <div className="text-sm font-semibold text-[var(--text-primary)]">데이터 붙여넣기</div>
           <p className="text-xs text-[var(--text-muted)] leading-relaxed">
