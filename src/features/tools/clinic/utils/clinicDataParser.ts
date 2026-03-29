@@ -39,15 +39,16 @@ function tryCategoryFormat(lines: string[]): ParsedClinicData | null {
   const cats: Record<string, string[]> = { both: [], examOnly: [], hwOnly: [] };
   let matched = 0;
   for (const l of lines) {
-    const m =
-      l.match(/^(?:시험\s*\+\s*과제|시험과제|both)\s*[:：]\s*(.+)/i) ||
-      l.match(/^(?:시험\s*미통과|시험만|exam)\s*[:：]\s*(.+)/i) ||
-      l.match(/^(?:과제\s*미통과|과제만|hw|homework)\s*[:：]\s*(.+)/i);
+    // 시험+과제 먼저 매칭 (시험+과제 > 시험 > 과제 순서 중요)
+    const mBoth = l.match(/^(?:시험\s*\+\s*과제|시험과제|both)\s*[:：]\s*(.+)/i);
+    const mExam = !mBoth && l.match(/^(?:시험\s*미통과|시험만|시험|exam)\s*[:：]\s*(.+)/i);
+    const mHw = !mBoth && !mExam && l.match(/^(?:과제\s*미통과|과제만|과제|hw|homework)\s*[:：]\s*(.+)/i);
+    const m = mBoth || mExam || mHw;
     if (!m) continue;
-    const names = m[1].split(/[,，\s]+/).map((n) => n.trim()).filter(Boolean);
-    if (l.match(/시험\s*\+\s*과제|시험과제|both/i)) cats.both = names;
-    else if (l.match(/과제/i)) cats.hwOnly = names;
-    else cats.examOnly = names;
+    const names = m[1].split(/[,，]+/).map((n) => n.trim()).filter(Boolean);
+    if (mBoth) cats.both = names;
+    else if (mHw) cats.hwOnly = names;
+    else if (mExam) cats.examOnly = names;
     matched++;
   }
   if (matched === 0) return null;
