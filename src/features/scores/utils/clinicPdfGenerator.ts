@@ -9,7 +9,7 @@ import { feedback } from "@/shared/ui/feedback/feedback";
 
 // ── 공통 ──
 
-const BASE_STYLE = `
+export const BASE_STYLE = `
   @page { size: A4; margin: 8mm 10mm; }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
@@ -162,7 +162,7 @@ const BASE_STYLE = `
   }
 `;
 
-async function htmlToPdfDownload(html: string, filename: string) {
+export async function htmlToPdfDownload(html: string, filename: string) {
   // 1) hidden iframe 렌더
   const iframe = document.createElement("iframe");
   iframe.style.cssText = "position:fixed;left:0;top:0;width:794px;height:1123px;opacity:0;pointer-events:none;z-index:-1";
@@ -294,7 +294,7 @@ function analyze(rows: SessionScoreRow[], meta: SessionScoreMeta, attendanceMap?
 // ── HTML 빌드 ──
 
 /** 이름에 알파벳 접미사(A, B 등)가 있으면 작은 폰트로 분리 */
-function formatName(name: string): string {
+export function formatName(name: string): string {
   const m = name.match(/^(.+?)([A-Z])$/);
   if (m) return `${m[1]}<span class="suffix">${m[2]}</span>`;
   return name;
