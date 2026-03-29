@@ -1,7 +1,7 @@
 // PATH: src/features/tools/clinic/pages/ClinicPrintoutPage.tsx
 // 클리닉 대상자 인쇄물 도구 — 편집 가능 미리보기 + 데이터 복붙 파서 + PDF 다운로드
 
-import { useState, useRef, useCallback, type ChangeEvent, type KeyboardEvent } from "react";
+import { useState, useRef, useCallback, useEffect, type ChangeEvent, type KeyboardEvent } from "react";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { parseClinicData } from "../utils/clinicDataParser";
@@ -29,9 +29,8 @@ const PREVIEW_CSS = `
   #${SCOPE} {
     width: 794px; margin: 0 auto; padding: 38px 45px;
     background: #fff; font-family: 'Pretendard','Malgun Gothic','맑은 고딕',sans-serif;
-    color: #0f172a; min-height: 1123px;
+    color: #0f172a;
     box-shadow: 0 2px 24px rgba(0,0,0,0.10);
-    display: flex; flex-direction: column;
   }
   #${SCOPE} .header {
     text-align: center; margin-bottom: 10px; padding: 12px 0 10px;
@@ -72,8 +71,8 @@ const PREVIEW_CSS = `
   }
   #${SCOPE} .tip-text { font-size: 11px; color: #713f12; line-height: 1.5; font-weight: 600; }
 
-  #${SCOPE} .columns { display: flex; gap: 8px; flex: 1; }
-  #${SCOPE} .col { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  #${SCOPE} .columns { display: flex; gap: 8px; align-items: flex-start; }
+  #${SCOPE} .col { flex: 1; min-width: 0; }
 
   #${SCOPE} .section-hdr {
     text-align: center; padding: 8px 0; border-radius: 10px 10px 0 0;
@@ -85,7 +84,7 @@ const PREVIEW_CSS = `
   #${SCOPE} .section-hdr .cnt { font-weight: 500; font-size: 11px; opacity: 0.9; margin-left: 4px; }
 
   #${SCOPE} .name-list {
-    flex: 1; border: 2px solid #e2e8f0; border-top: none;
+    border: 2px solid #e2e8f0; border-top: none;
     border-radius: 0 0 10px 10px; padding: 3px 0; min-height: 60px;
   }
   #${SCOPE} .name-row {
@@ -130,10 +129,13 @@ const PREVIEW_CSS = `
   #${SCOPE} .schedule-ta {
     font-size: 14px; color: #0f172a; line-height: 1.7; font-weight: 600;
     border: none; outline: none; background: transparent; width: 100%;
-    resize: none; font-family: inherit; min-height: 24px;
+    resize: none; font-family: inherit; min-height: 28px;
+    overflow: hidden; white-space: pre-wrap; word-wrap: break-word;
+    padding: 4px 0;
   }
   #${SCOPE} .schedule-ta::placeholder { color: #94a3b8; font-style: italic; font-weight: 400; }
   #${SCOPE} .schedule-ta:focus { background: #f8fafc; border-radius: 4px; }
+  #${SCOPE} .schedule-ta:hover { background: #f8fafc; border-radius: 4px; }
 
   #${SCOPE} .footer {
     margin-top: 10px; padding-top: 8px; border-top: 4px solid #0f172a;
@@ -331,12 +333,14 @@ export default function ClinicPrintoutPage() {
 
   // ── 스케줄 textarea 자동 높이 ──
 
-  const autoGrowSchedule = () => {
+  const autoGrowSchedule = useCallback(() => {
     const ta = scheduleRef.current;
     if (!ta) return;
-    ta.style.height = "auto";
-    ta.style.height = ta.scrollHeight + "px";
-  };
+    ta.style.height = "0";
+    ta.style.height = Math.max(28, ta.scrollHeight) + "px";
+  }, []);
+
+  useEffect(() => { autoGrowSchedule(); }, [schedule, autoGrowSchedule]);
 
   // ── 렌더링 헬퍼 ──
 
@@ -458,8 +462,8 @@ export default function ClinicPrintoutPage() {
               ref={scheduleRef}
               className="schedule-ta"
               value={schedule}
-              onChange={(e) => { setSchedule(e.target.value); autoGrowSchedule(); }}
-              placeholder="클리닉 일정을 입력하세요..."
+              onChange={(e) => setSchedule(e.target.value)}
+              placeholder="클리닉 일정을 입력하세요... (Enter로 줄바꿈)"
               rows={1}
             />
           </div>
