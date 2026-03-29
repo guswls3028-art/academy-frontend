@@ -40,21 +40,24 @@ function buildEditableHtml(p: {
 }): string {
   const clinicTotal = p.both.length + p.examOnly.length + p.hwOnly.length;
   const tipText = "아래 학생들은 클리닉 수업 대상입니다. 해당 시간에 참석하여 미통과 항목을 보완하세요.";
-  const sub = [p.sessionTitle, p.lectureTitle].filter(Boolean).join(" &nbsp;|&nbsp; ") || '<span style="color:#94a3b8">차시명 | 강의명</span>';
 
   const scheduleContent = p.schedule
     ? `<div class="schedule-content" contenteditable="true" data-field="schedule">${p.schedule.replace(/\n/g, "<br>")}</div>`
-    : `<div class="schedule-content" contenteditable="true" data-field="schedule" style="color:#94a3b8;font-style:italic">클리닉 일정을 입력하세요...</div>`;
+    : `<div class="schedule-content" contenteditable="true" data-field="schedule" data-placeholder="클리닉 일정을 입력하세요..."></div>`;
 
-  const bothHtml = p.both.length > 0 ? buildNameItems(p.both) : emptyCell();
-  const examHtml = p.examOnly.length > 0 ? buildNameItems(p.examOnly) : emptyCell();
-  const hwHtml = p.hwOnly.length > 0 ? buildNameItems(p.hwOnly) : emptyCell();
+  const bothHtml = p.both.length > 0 ? buildNameItems(p.both) : "";
+  const examHtml = p.examOnly.length > 0 ? buildNameItems(p.examOnly) : "";
+  const hwHtml = p.hwOnly.length > 0 ? buildNameItems(p.hwOnly) : "";
 
-  // 편집 가능 영역 추가 스타일
+  // 편집 가능 영역 스타일 + placeholder
   const editStyle = `
-    [contenteditable]:hover { outline: 1px dashed #94a3b8; outline-offset: 2px; border-radius: 4px; }
+    [contenteditable]:hover { outline: 1px dashed #94a3b8; outline-offset: 2px; border-radius: 4px; cursor: text; }
     [contenteditable]:focus { outline: 2px solid #3b82f6; outline-offset: 2px; border-radius: 4px; background: #fefce8; }
-    .sub [contenteditable] { display: inline; }
+    .sub [contenteditable] { display: inline; min-width: 40px; }
+    [data-placeholder]:empty:before { content: attr(data-placeholder); color: #94a3b8; font-style: italic; }
+    .name-list[contenteditable] { min-height: 40px; cursor: text; }
+    .name-list[contenteditable]:empty:before { content: "이름을 입력하세요 (한 줄에 한 명)"; color: #94a3b8; font-size: 13px; font-weight: 400; font-style: italic; padding: 8px; display: block; text-align: center; }
+    .name-list[contenteditable] div { font-size: 20px; font-weight: 800; padding: 4px 8px; text-align: center; }
   `;
 
   return `<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>클리닉 대상자 안내</title>
@@ -63,13 +66,13 @@ function buildEditableHtml(p: {
   <div class="header">
     <div class="badge">CLINIC</div>
     <h1>클리닉 대상자 안내</h1>
-    <div class="sub"><span contenteditable="true" data-field="sessionTitle">${p.sessionTitle || '<span style="color:#cbd5e1">차시명</span>'}</span> &nbsp;|&nbsp; <span contenteditable="true" data-field="lectureTitle">${p.lectureTitle || '<span style="color:#cbd5e1">강의명</span>'}</span></div>
+    <div class="sub"><span contenteditable="true" data-field="lectureTitle" data-placeholder="강의명">${p.lectureTitle}</span> &nbsp;|&nbsp; <span contenteditable="true" data-field="sessionTitle" data-placeholder="차시명">${p.sessionTitle}</span></div>
   </div>
   <div class="tip-box"><div class="icon">!</div><div class="text">${tipText}</div></div>
   <div class="columns">
-    <div class="col"><div class="section-header both">시험+과제 미통과 <span class="cnt">(${p.both.length}명)</span></div><div class="name-list">${bothHtml}</div></div>
-    <div class="col"><div class="section-header exam">시험 미통과 <span class="cnt">(${p.examOnly.length}명)</span></div><div class="name-list">${examHtml}</div></div>
-    <div class="col"><div class="section-header hw">과제 미통과 <span class="cnt">(${p.hwOnly.length}명)</span></div><div class="name-list">${hwHtml}</div></div>
+    <div class="col"><div class="section-header both">시험+과제 미통과 <span class="cnt">(${p.both.length}명)</span></div><div class="name-list" contenteditable="true" data-field="both">${bothHtml}</div></div>
+    <div class="col"><div class="section-header exam">시험 미통과 <span class="cnt">(${p.examOnly.length}명)</span></div><div class="name-list" contenteditable="true" data-field="examOnly">${examHtml}</div></div>
+    <div class="col"><div class="section-header hw">과제 미통과 <span class="cnt">(${p.hwOnly.length}명)</span></div><div class="name-list" contenteditable="true" data-field="hwOnly">${hwHtml}</div></div>
   </div>
   <div class="schedule-box"><div class="schedule-title">클리닉 일정</div>${scheduleContent}</div>
   <div class="footer">
@@ -88,7 +91,7 @@ function buildPdfHtml(p: {
 }): string {
   const clinicTotal = p.both.length + p.examOnly.length + p.hwOnly.length;
   const tipText = "아래 학생들은 클리닉 수업 대상입니다. 해당 시간에 참석하여 미통과 항목을 보완하세요.";
-  const sub = [p.sessionTitle, p.lectureTitle].filter(Boolean).join(" &nbsp;|&nbsp; ");
+  const sub = [p.lectureTitle, p.sessionTitle].filter(Boolean).join(" &nbsp;|&nbsp; ");
 
   const scheduleContent = p.schedule
     ? `<div class="schedule-content">${p.schedule.replace(/\n/g, "<br>")}</div>`
@@ -149,23 +152,41 @@ export default function ClinicPrintoutPage() {
   const readIframeEdits = useCallback(() => {
     const doc = iframeRef.current?.contentDocument;
     if (!doc) return;
+
+    // 이름 목록 읽기 (contentEditable name-list에서)
+    const readNames = (field: string): string[] => {
+      const el = doc.querySelector(`[data-field="${field}"]`);
+      if (!el) return [];
+      // 텍스트 콘텐츠에서 이름 추출 (한 줄에 한 명, ☐ 제거)
+      const text = el.innerText || el.textContent || "";
+      return text.split("\n").map((l) => l.replace(/☐/g, "").trim()).filter(Boolean);
+    };
+    const newBoth = readNames("both");
+    const newExam = readNames("examOnly");
+    const newHw = readNames("hwOnly");
+    if (newBoth.length > 0 || newExam.length > 0 || newHw.length > 0) {
+      setBoth(newBoth);
+      setExamOnly(newExam);
+      setHwOnly(newHw);
+    }
+
     // 스케줄
     const scheduleEl = doc.querySelector('[data-field="schedule"]');
     if (scheduleEl) {
       const text = scheduleEl.innerHTML.replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]*>/g, "").trim();
-      if (text && text !== "클리닉 일정을 입력하세요...") setSchedule(text);
+      if (text) setSchedule(text);
     }
     // 세션 타이틀
     const stEl = doc.querySelector('[data-field="sessionTitle"]');
     if (stEl) {
       const t = stEl.textContent?.trim() || "";
-      if (t && t !== "차시명") setSessionTitle(t);
+      if (t) setSessionTitle(t);
     }
     // 강의 타이틀
     const ltEl = doc.querySelector('[data-field="lectureTitle"]');
     if (ltEl) {
       const t = ltEl.textContent?.trim() || "";
-      if (t && t !== "강의명") setLectureTitle(t);
+      if (t) setLectureTitle(t);
     }
     // 날짜
     const dateEl = doc.querySelector('[data-field="date"]');
@@ -191,6 +212,7 @@ export default function ClinicPrintoutPage() {
     setExamOnly(r.examOnly);
     setHwOnly(r.hwOnly);
     if (r.sessionTitle) setSessionTitle(r.sessionTitle);
+    if (r.lectureTitle) setLectureTitle(r.lectureTitle);
     if (r.date) setDate(r.date);
     setTotalPresent(r.totalPresent);
     feedback.success(`클리닉 대상자 ${total}명 파싱 완료`);
@@ -285,6 +307,7 @@ export default function ClinicPrintoutPage() {
             placeholder={"성적 탭 데이터를 붙여넣으세요.\n\n또는 카테고리 형식:\n시험+과제: 이름1, 이름2\n시험: 이름3\n과제: 이름4, 이름5"}
           />
           <Button
+            intent="primary"
             onClick={() => generateFromText(pasteText)}
             disabled={!pasteText.trim()}
           >
@@ -294,6 +317,7 @@ export default function ClinicPrintoutPage() {
 
         <div className="flex gap-2">
           <Button
+            intent="primary"
             onClick={handleDownload}
             disabled={pdfLoading || clinicTotal === 0}
             className="flex-1"

@@ -68,10 +68,17 @@ type Assessment = { isExam: boolean; isHw: boolean; status: string };
 function parseScoreTabFormat(lines: string[]): ParsedClinicData {
   // ── 메타데이터 추출 ──
   let sessionTitle = "";
+  let lectureTitle = "";
   let date = "";
-  for (const l of lines) {
-    if (!sessionTitle && /^20\d{2}\s/.test(l) && /[가-힣]/.test(l)) sessionTitle = l;
-    if (!date && /^\d{2}\/\d{2}$/.test(l)) date = l;
+  for (let i = 0; i < lines.length; i++) {
+    if (!sessionTitle && /^20\d{2}\s/.test(lines[i]) && /[가-힣]/.test(lines[i])) {
+      sessionTitle = lines[i];
+      // sessionTitle 바로 위 줄이 강의 약칭 (2~10글자 한글)
+      if (i > 0 && /^[가-힣a-zA-Z0-9\s]{1,10}$/.test(lines[i - 1])) {
+        lectureTitle = lines[i - 1];
+      }
+    }
+    if (!date && /^\d{2}\/\d{2}$/.test(lines[i])) date = lines[i];
   }
 
   // ── 학생 블록 파싱 ──
@@ -130,7 +137,7 @@ function parseScoreTabFormat(lines: string[]): ParsedClinicData {
   sort(examOnly);
   sort(hwOnly);
 
-  return { both, examOnly, hwOnly, sessionTitle, lectureTitle: "", date, totalPresent: presentCount };
+  return { both, examOnly, hwOnly, sessionTitle, lectureTitle, date, totalPresent: presentCount };
 }
 
 /** 단순 이름 목록 (한 줄에 한 명) → 전부 "시험+과제"로 분류 */
