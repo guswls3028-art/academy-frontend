@@ -630,7 +630,7 @@ function ItemsEditor({ sectionType, items, updateSection }: { sectionType: strin
   };
 
   const removeItem = (idx: number) => {
-    updateSection((s) => ({ ...s, items: (s.items || []).filter((_: any, i: number) => i !== idx) }));
+    updateSection((s) => ({ ...s, items: ((s.items || []) as any[]).filter((_: any, i: number) => i !== idx) }));
   };
 
   return (
