@@ -1,29 +1,29 @@
 /* PATH: src/features/auth/themes/limglish.css
- * limglish 테넌트 색상 SSOT — 화이트톤 + 남색~청록색 그라데이션
+ * limglish 테넌트 색상 SSOT — 로고 네이비 (#14263e ~ #1a2e47) 기반 프리미엄 테마
  */
 
 [data-app="auth"][data-tenant="limglish"] {
     /* 화이트톤 */
-    --limglish-bg: #f8fafc;
+    --limglish-bg: #f7f9fb;
     --limglish-surface: #ffffff;
-    --limglish-border: #e2e8f0;
-    --limglish-border-hover: #cbd5e1;
+    --limglish-border: #dfe4eb;
+    --limglish-border-hover: #c5cdd8;
 
     /* 텍스트 */
-    --limglish-text: #0f172a;
-    --limglish-text-muted: #64748b;
+    --limglish-text: #0f1a2a;
+    --limglish-text-muted: #56657a;
 
-    /* 로고 컬러 — 단색 */
-    --limglish-blue: #4f46e5;
-    --limglish-blue-hover: #4338ca;
+    /* 로고 컬러 — 네이비 */
+    --limglish-blue: #1a2e47;
+    --limglish-blue-hover: #14263e;
 
     /* 포커스 / 에러 */
-    --limglish-focus: rgba(79, 70, 229, 0.2);
+    --limglish-focus: rgba(26, 46, 71, 0.18);
     --limglish-error: #dc2626;
 
-    /* 그라데이션 모드 — 로고 컬러패턴 (Indigo to Cyan) */
-    --limglish-gradient: linear-gradient(135deg, #312e81 0%, #4f46e5 50%, #06b6d4 100%);
-    --limglish-gradient-hover: linear-gradient(135deg, #312e81 0%, #4338ca 50%, #0891b2 100%);
+    /* 그라데이션 — 네이비 계열 */
+    --limglish-gradient: linear-gradient(135deg, #0f1c30 0%, #1a2e47 40%, #2a4a6b 100%);
+    --limglish-gradient-hover: linear-gradient(135deg, #0f1c30 0%, #14263e 40%, #234060 100%);
 
     /* EnhancedCommonLoginPage 공통 별칭 */
     --auth-accent: var(--limglish-blue);

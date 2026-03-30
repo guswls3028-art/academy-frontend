@@ -9,7 +9,7 @@ export const limglish: TenantDef = {
   hostnames: ["limglish.kr", "www.limglish.kr"],
   loginPath: "/login/limglish",
   branding: {
-    loginTitle: "limglish",
+    loginTitle: "임근혁 영어",
     loginSubtitle: "limglish.kr",
     logoUrl: "/tenants/limglish/logo.png",
     logoDarkUrl: "/tenants/limglish/logo-dark.png",
