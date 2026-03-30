@@ -46,6 +46,7 @@ export default function LandingEditorPage() {
   const [templateKey, setTemplateKey] = useState<TemplateKey>("minimal_tutor");
   const [templates, setTemplates] = useState<TemplateMeta[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [saving, setSaving] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("edit");
@@ -67,7 +68,7 @@ export default function LandingEditorPage() {
         setTemplates(tpls);
         setLoading(false);
       })
-      .catch(() => { if (mountedRef.current) setLoading(false); });
+      .catch(() => { if (mountedRef.current) { setLoading(false); setLoadError(true); } });
     return () => { mountedRef.current = false; };
   }, []);
 
@@ -102,6 +103,7 @@ export default function LandingEditorPage() {
   };
 
   const handlePublish = async () => {
+    if (saving) return; // save 진행 중이면 무시
     if (dirty) await handleSave();
     setPublishing(true);
     try {
@@ -147,6 +149,17 @@ export default function LandingEditorPage() {
     };
     input.click();
   };
+
+  if (loadError) {
+    return (
+      <div style={{ padding: 40, textAlign: "center" }}>
+        <p style={{ color: "#dc2626", fontSize: 15, fontWeight: 600, margin: "0 0 12px" }}>랜딩페이지 설정을 불러오지 못했습니다</p>
+        <button onClick={() => { setLoadError(false); setLoading(true); window.location.reload(); }} style={{ padding: "8px 20px", borderRadius: 8, border: "1px solid #e2e8f0", background: "#fff", cursor: "pointer", fontSize: 13, fontWeight: 600 }}>
+          다시 시도
+        </button>
+      </div>
+    );
+  }
 
   if (loading || !draft) {
     return (
@@ -210,8 +223,8 @@ export default function LandingEditorPage() {
               게시 중단
             </button>
           ) : (
-            <button onClick={handlePublish} disabled={publishing} style={{ padding: "7px 16px", borderRadius: 8, border: "none", background: "var(--color-primary, #2563EB)", cursor: "pointer", fontSize: 13, fontWeight: 700, color: "#fff" }}>
-              {publishing ? "게시 중…" : "게시하기"}
+            <button onClick={handlePublish} disabled={publishing || saving} style={{ padding: "7px 16px", borderRadius: 8, border: "none", background: "var(--color-primary, #2563EB)", cursor: "pointer", fontSize: 13, fontWeight: 700, color: "#fff", opacity: (publishing || saving) ? 0.6 : 1 }}>
+              {publishing ? "게시 중…" : saving ? "저장 중…" : "게시하기"}
             </button>
           )}
         </div>
