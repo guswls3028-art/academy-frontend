@@ -23,6 +23,8 @@ import { resolveTenantCode, getTenantIdFromCode, getTenantBranding } from "@/sha
 import useAuth from "@/features/auth/hooks/useAuth";
 import TchulLogoIcon from "@/features/auth/assets/TchulLogoIcon";
 import CommonLogoIcon from "@/features/auth/assets/CommonLogoIcon";
+import { useTheme } from "@/context/ThemeContext";
+import { getThemeMeta } from "@/features/settings/constants/themes";
 
 function IconMenu() {
   return (
@@ -278,9 +280,14 @@ export default function Header() {
   const isTchul = tenantResult.ok && (tenantResult.code === "tchul" || tenantId === 2);
   const tenantBranding = tenantId ? getTenantBranding(tenantId) : null;
 
+  const { theme } = useTheme();
+  const isDarkTheme = getThemeMeta(theme).group === "DARK";
+
   const logoUrl = program?.ui_config?.logo_url ?? null;
-  // 커스텀 헤더 로고: tenant branding의 headerLogoUrl (아이콘 전용 크롭)
-  const headerLogoUrl = tenantBranding?.headerLogoUrl ?? null;
+  // 커스텀 헤더 로고: tenant branding의 headerLogoUrl (아이콘 전용 크롭), 다크 테마 시 dark 변형 우선
+  const headerLogoUrl = isDarkTheme
+    ? (tenantBranding?.headerLogoDarkUrl ?? tenantBranding?.headerLogoUrl ?? null)
+    : (tenantBranding?.headerLogoUrl ?? null);
 
   const userMenu = {
     items: [

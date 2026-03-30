@@ -11,9 +11,15 @@ export const limglish: TenantDef = {
   branding: {
     loginTitle: "limglish",
     loginSubtitle: "limglish.kr",
+    logoUrl: "/tenants/limglish/logo.png",
+    logoDarkUrl: "/tenants/limglish/logo-dark.png",
     windowTitle: "limglish",
+    faviconUrl: "/tenants/limglish/favicon.png",
+    headerLogoUrl: "/tenants/limglish/icon.png",
+    headerLogoDarkUrl: "/tenants/limglish/icon-dark.png",
     ogDescription: "limglish 학습 플랫폼",
+    ogImageUrl: "/tenants/limglish/og-image.png",
   },
   dedicatedLoginPage: true,
-  hasCustomLogo: false,
+  hasCustomLogo: true,
 };

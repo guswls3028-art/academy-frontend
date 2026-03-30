@@ -13,6 +13,10 @@ export type TenantBranding = {
   faviconUrl?: string;
   /** 헤더(관리자/학생 상단바) 로고 URL — 아이콘 전용, 텍스트 제외 (없으면 SVG 컴포넌트 사용) */
   headerLogoUrl?: string;
+  /** 다크모드용 로그인 로고 URL (색반전, 투명 배경) */
+  logoDarkUrl?: string;
+  /** 다크모드용 헤더 아이콘 URL (색반전, 투명 배경) */
+  headerLogoDarkUrl?: string;
   /** OG/트위터 카드 설명 (없으면 기본 문구) */
   ogDescription?: string;
   /** OG/트위터 카드 이미지 URL — 카카오톡·페이스북 링크 미리보기용 (상대경로, origin은 런타임 부착) */

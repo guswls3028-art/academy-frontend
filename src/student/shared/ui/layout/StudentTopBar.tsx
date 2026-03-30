@@ -98,7 +98,9 @@ export default function StudentTopBar({ tenantCode, onMenuClick }: Props) {
   // 테넌트 브랜딩에서 헤더 전용 로고 URL 가져오기
   const currentTenantId = currentTenantCode ? getTenantIdFromCode(currentTenantCode) : null;
   const tenantBrandingData = currentTenantId ? getTenantBranding(currentTenantId) : null;
-  const headerLogoUrl = tenantBrandingData?.headerLogoUrl ?? null;
+  const headerLogoUrl = isDark
+    ? (tenantBrandingData?.headerLogoDarkUrl ?? tenantBrandingData?.headerLogoUrl ?? null)
+    : (tenantBrandingData?.headerLogoUrl ?? null);
 
   const [logoSrc, setLogoSrc] = useState<string | null>(null);
   useEffect(() => {
