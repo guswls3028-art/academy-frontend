@@ -58,9 +58,11 @@ function RootRedirect() {
       setLandingChecked(true);
       return;
     }
+    // 3초 타임아웃: 느린 네트워크에서 빈 화면 방지, 실패 시 /login fallback
+    const timer = setTimeout(() => { setLandingChecked(true); }, 3000);
     fetchLandingHasPublished()
-      .then((has) => { setHasLanding(has); setLandingChecked(true); })
-      .catch(() => { setLandingChecked(true); });
+      .then((has) => { clearTimeout(timer); setHasLanding(has); setLandingChecked(true); })
+      .catch(() => { clearTimeout(timer); setLandingChecked(true); });
   }, [programLoading, program]);
 
   useEffect(() => {
