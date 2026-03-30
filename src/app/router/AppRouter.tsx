@@ -1,6 +1,6 @@
 // PATH: src/app/router/AppRouter.tsx
 import { Routes, Route, Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { Suspense, useEffect, useRef } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { lazyWithRetry as lazy } from "@/shared/utils/lazyWithRetry";
 import ProtectedRoute from "./ProtectedRoute";
 
@@ -13,10 +13,12 @@ import MaintenancePage from "@/features/maintenance/pages/MaintenancePage";
 import { TermsPage, PrivacyPage } from "@/features/legal";
 import useAuth from "@/features/auth/hooks/useAuth";
 import { useProgram } from "@/shared/program";
+import { fetchLandingHasPublished } from "@/features/landing/api";
 
 const AdminRouter = lazy(() => import("@/app/router/AdminRouter"));
 const DevAppRouter = lazy(() => import("@/dev_app/router/DevAppRouter"));
 const PromoRouter = lazy(() => import("@/promo/PromoRouter"));
+const PublicLandingPage = lazy(() => import("@/features/landing/pages/PublicLandingPage"));
 
 function MaintenanceGate({ enabled }: { enabled: boolean }) {
   const location = useLocation();
@@ -45,21 +47,35 @@ function RootRedirect() {
   const navigate = useNavigate();
 
   const redirectedRef = useRef(false);
+  const [landingChecked, setLandingChecked] = useState(false);
+  const [hasLanding, setHasLanding] = useState(false);
+
+  // 비hakwonplus tenant의 랜딩 게시 여부 사전 체크
+  useEffect(() => {
+    if (programLoading || !program) return;
+    const tc = program.tenantCode;
+    if (tc === "hakwonplus" || tc === "9999") {
+      setLandingChecked(true);
+      return;
+    }
+    fetchLandingHasPublished()
+      .then((has) => { setHasLanding(has); setLandingChecked(true); })
+      .catch(() => { setLandingChecked(true); });
+  }, [programLoading, program]);
 
   useEffect(() => {
-    if (programLoading) return;
-    if (!program) return;
-
-    if (isLoading) return;
+    if (programLoading || !program || isLoading || !landingChecked) return;
     if (redirectedRef.current) return;
 
     redirectedRef.current = true;
 
-    // 비로그인: 홍보 테넌트(1번/9999)면 홍보 앱, 그 외는 로그인 페이지
+    // 비로그인: 홍보 테넌트(1번/9999)면 홍보 앱, 랜딩 있으면 랜딩, 그 외 로그인
     if (!user) {
       const tc = program.tenantCode;
       if (tc === "hakwonplus" || tc === "9999") {
         navigate("/promo", { replace: true });
+      } else if (hasLanding) {
+        navigate("/landing", { replace: true });
       } else {
         navigate("/login", { replace: true });
       }
@@ -85,7 +101,7 @@ function RootRedirect() {
     }
 
     navigate("/login", { replace: true });
-  }, [programLoading, program, isLoading, user, navigate]);
+  }, [programLoading, program, isLoading, user, navigate, landingChecked, hasLanding]);
 
   if (programLoading) return null;
 
@@ -123,6 +139,15 @@ export default function AppRouter() {
           }
         />
       </Route>
+      {/* 공개 랜딩페이지 (인증 불필요, tenant resolved) */}
+      <Route
+        path="/landing"
+        element={
+          <Suspense fallback={<div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}><span style={{ color: "#666", fontSize: 14 }}>불러오는 중…</span></div>}>
+            <PublicLandingPage />
+          </Suspense>
+        }
+      />
       <Route path="/maintenance" element={<MaintenancePage />} />
 
       <Route

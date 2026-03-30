@@ -98,6 +98,7 @@ const OrganizationSettingsPage = lazy(() => import("@/features/settings/pages/Or
 const AppearancePage = lazy(() => import("@/features/settings/pages/AppearancePage"));
 const SecuritySettingsPage = lazy(() => import("@/features/settings/pages/SecuritySettingsPage"));
 const BillingSettingsPage = lazy(() => import("@/features/settings/pages/BillingSettingsPage"));
+const LandingEditorPage = lazy(() => import("@/features/landing/editor/LandingEditorPage"));
 
 /* ================= Lazy: Learning (시험·성적·영상) ================= */
 const ExamDomainLayout = lazy(() => import("@/features/exams/pages/ExamDomainLayout"));
@@ -233,6 +234,7 @@ export default function AdminRouter() {
           <Route path="organization" element={wrapLazy(OrganizationSettingsPage)} />
           <Route path="messaging" element={<Navigate to="/admin/message/settings" replace />} />
           <Route path="appearance" element={wrapLazy(AppearancePage)} />
+          <Route path="landing" element={wrapLazy(LandingEditorPage)} />
           <Route path="billing" element={wrapLazy(BillingSettingsPage)} />
           <Route path="security" element={<Navigate to="/admin/settings/profile" replace />} />
           {/* 하위 호환 리디렉트 */}

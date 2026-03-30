@@ -829,7 +829,61 @@ function TrustSection() {
 
 
 /* ═══════════════════════════════════════════════════════
-   10. FINAL CTA (override defaults)
+   10. LANDING SAMPLES PROMO
+   ═══════════════════════════════════════════════════════ */
+
+function LandingSamplesPromo() {
+  return (
+    <section className="py-24 px-6 bg-gradient-to-b from-slate-50 to-white">
+      <div className="max-w-5xl mx-auto text-center">
+        <SectionHeading
+          badge="NEW"
+          title="선생님 전용 랜딩 페이지"
+          subtitle="각 선생님 도메인에 세련된 브랜드 랜딩 페이지를 제공합니다. 비개발자도 쉽게 꾸밀 수 있는 구조화된 편집 시스템."
+        />
+        <div className="mt-12 grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-3xl mx-auto">
+          {[
+            { name: "Minimal Tutor", mood: "깔끔 · 신뢰", color: "#2563EB", desc: "밝은 배경과 넓은 여백의 미니멀 디자인" },
+            { name: "Premium Dark", mood: "프리미엄 · 세련", color: "#1E3A5F", desc: "다크 톤의 세련된 프리미엄 디자인" },
+            { name: "Academic Trust", mood: "체계 · 관리", color: "#4F46E5", desc: "성적·관리 시스템을 강조하는 신뢰형" },
+            { name: "Program Promo", mood: "홍보 · 활기", color: "#F97316", desc: "프로그램 홍보와 CTA 중심의 활기찬 디자인" },
+          ].map((t) => (
+            <Link
+              key={t.name}
+              to="/promo/landing-samples"
+              className="flex items-center gap-4 p-5 rounded-xl border border-slate-200 bg-white hover:shadow-lg hover:border-slate-300 transition-all text-left no-underline group"
+            >
+              <div className="relative" style={{ width: 48, height: 48, borderRadius: 12, background: t.color, flexShrink: 0 }}>
+                <svg className="absolute inset-0 m-auto text-white/80" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" /></svg>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-slate-900 group-hover:text-blue-600 transition-colors">{t.name}</p>
+                <p className="text-xs text-slate-400 mt-0.5">{t.mood}</p>
+                <p className="text-xs text-slate-500 mt-1 leading-relaxed">{t.desc}</p>
+              </div>
+              <svg className="text-slate-300 group-hover:text-blue-500 transition-colors flex-shrink-0" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 18l6-6-6-6" /></svg>
+            </Link>
+          ))}
+        </div>
+        <div className="mt-10 flex flex-col sm:flex-row gap-3 justify-center items-center">
+          <Link
+            to="/promo/landing-samples"
+            className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl font-bold text-white transition-all hover:shadow-lg hover:shadow-blue-600/25"
+            style={{ background: "linear-gradient(135deg, #2563EB, #4F46E5)" }}
+          >
+            모든 샘플 미리보기
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
+          </Link>
+          <p className="text-xs text-slate-400">설정에서 바로 적용 가능</p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+
+/* ═══════════════════════════════════════════════════════
+   11. FINAL CTA (override defaults)
    ═══════════════════════════════════════════════════════ */
 
 function FinalCta() {
@@ -858,6 +912,7 @@ export default function LandingPage() {
       <Differentiation />
       <UxSection />
       <TrustSection />
+      <LandingSamplesPromo />
       <FinalCta />
     </>
   );

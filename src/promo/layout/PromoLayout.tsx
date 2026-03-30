@@ -5,6 +5,7 @@ import LoginModal from "../components/LoginModal";
 
 const NAV_ITEMS = [
   { label: "기능 소개", path: "/promo/features" },
+  { label: "랜딩 샘플", path: "/promo/landing-samples" },
   { label: "요금제", path: "/promo/pricing" },
   { label: "FAQ", path: "/promo/faq" },
   { label: "문의하기", path: "/promo/contact" },
