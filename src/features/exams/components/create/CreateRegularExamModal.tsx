@@ -331,7 +331,7 @@ export default function CreateRegularExamModal({
       open
       onClose={onClose}
       type="action"
-      width={stage === "copy" ? MODAL_WIDTH.wide : MODAL_WIDTH.default}
+      width={stage === "copy" ? MODAL_WIDTH.wide : stage === "choose" ? MODAL_WIDTH.form : MODAL_WIDTH.default}
       onEnterConfirm={
         stage === "new" && bulkHasAnyTitle && !submitting
           ? handleBulkSubmit
