@@ -158,8 +158,8 @@ export default function ClinicPrintoutPage() {
       const el = doc.querySelector(`[data-field="${field}"]`);
       if (!el) return [];
       // 텍스트 콘텐츠에서 이름 추출 (한 줄에 한 명, ☐ 제거)
-      const text = el.innerText || el.textContent || "";
-      return text.split("\n").map((l) => l.replace(/☐/g, "").trim()).filter(Boolean);
+      const text = (el as HTMLElement).innerText || el.textContent || "";
+      return text.split("\n").map((l: string) => l.replace(/☐/g, "").trim()).filter(Boolean);
     };
     const newBoth = readNames("both");
     const newExam = readNames("examOnly");
