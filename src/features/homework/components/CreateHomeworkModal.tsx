@@ -367,12 +367,13 @@ export default function CreateHomeworkModal({
           {stage === "choose" && (
             <div className="modal-form-group">
               <div className="modal-section-label mb-3">생성 방식</div>
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-3 gap-3">
                 <SessionBlockView
                   variant="n1"
                   compact={false}
                   selected={false}
                   showCheck
+                  className="session-block--card-sm"
                   title="신규 과제"
                   desc="이 차시에 새 과제를 생성합니다."
                   onClick={() => { setError(null); setRows([makeRow()]); setStage("new"); }}
@@ -382,6 +383,7 @@ export default function CreateHomeworkModal({
                   compact={false}
                   selected={false}
                   showCheck
+                  className="session-block--card-sm"
                   title="템플릿 불러오기"
                   desc="과제 템플릿을 불러옵니다."
                   onClick={() => { setError(null); setKeyword(""); setSelectedTemplateId(null); setTitle(""); setStage("import"); }}
@@ -391,6 +393,7 @@ export default function CreateHomeworkModal({
                   compact={false}
                   selected={false}
                   showCheck
+                  className="session-block--card-sm"
                   title="다른 차시에서"
                   desc="다른 강의/차시의 과제를 복사합니다."
                   onClick={() => { setError(null); setStage("copy"); }}

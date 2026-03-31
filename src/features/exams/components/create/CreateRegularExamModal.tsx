@@ -366,12 +366,13 @@ export default function CreateRegularExamModal({
           {stage === "choose" && (
             <div className="modal-form-group">
               <div className="modal-section-label mb-3">생성 방식</div>
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-3 gap-3">
                 <SessionBlockView
                   variant="n1"
                   compact={false}
                   selected={false}
                   showCheck
+                  className="session-block--card-sm"
                   title="신규 시험"
                   desc="여러 시험을 한번에 생성합니다."
                   onClick={() => {
@@ -385,6 +386,7 @@ export default function CreateRegularExamModal({
                   compact={false}
                   selected={false}
                   showCheck
+                  className="session-block--card-sm"
                   title="템플릿 불러오기"
                   desc="기존 시험 템플릿을 불러옵니다."
                   onClick={() => {
@@ -400,6 +402,7 @@ export default function CreateRegularExamModal({
                   compact={false}
                   selected={false}
                   showCheck
+                  className="session-block--card-sm"
                   title="다른 차시에서"
                   desc="다른 강의/차시의 시험을 복사합니다."
                   onClick={() => {

@@ -322,6 +322,27 @@
   text-align: center;
 }
 
+/* 모달 내 선택 카드: 3열 그리드 등 좁은 영역에서 텍스트가 넘치지 않도록 축소 */
+.session-block--card-sm {
+  aspect-ratio: unset;
+  min-height: 80px;
+  padding: var(--space-4) var(--space-3);
+}
+
+.session-block--card-sm .session-block__title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1.3;
+  word-break: keep-all;
+}
+
+.session-block--card-sm .session-block__desc {
+  font-size: 11px;
+  margin-top: 4px;
+  opacity: 0.85;
+  line-height: 1.4;
+}
+
 .session-block__check {
   position: absolute;
   top: var(--space-3);
