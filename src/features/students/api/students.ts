@@ -55,6 +55,8 @@ export interface ClientStudent {
   tags: ClientStudentTag[];
   enrollments: ClientEnrollmentLite[];
   deletedAt?: string | null;
+  /** 클리닉 대상(미수강) 하이라이트 — 백엔드 computed */
+  nameHighlightClinicTarget?: boolean;
 }
 
 export interface StudentTag {
@@ -152,6 +154,7 @@ export function mapStudent(item: any): ClientStudent {
         }))
       : [],
     deletedAt: item?.deleted_at ?? null,
+    nameHighlightClinicTarget: item?.name_highlight_clinic_target === true,
   };
 }
 
