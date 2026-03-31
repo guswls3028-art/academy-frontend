@@ -354,7 +354,7 @@ export default function MessageSettingsPage() {
               label: "공급자",
               content: (
                 <span style={{ fontSize: 14, fontWeight: 600 }}>
-                  {(info.messaging_provider ?? "solapi") === "ppurio" ? "뿌리오" : "솔라피"}
+                  {(info.messaging_provider ?? "solapi") === "ppurio" ? "비즈뿌리오" : "솔라피"}
                 </span>
               ),
             },
@@ -484,7 +484,7 @@ export default function MessageSettingsPage() {
           >
             {([
               { key: "solapi" as const, label: "솔라피(Solapi)" },
-              { key: "ppurio" as const, label: "뿌리오(Ppurio)" },
+              { key: "ppurio" as const, label: "비즈뿌리오(BizPpurio)" },
             ]).map((opt) => (
               <button
                 key={opt.key}
@@ -516,7 +516,7 @@ export default function MessageSettingsPage() {
             ))}
           </div>
           <span style={{ fontSize: 12, color: "var(--color-text-muted)", marginLeft: 4 }}>
-            현재: <strong style={{ color: "var(--color-text-primary)" }}>{provider === "ppurio" ? "뿌리오" : "솔라피"}</strong>
+            현재: <strong style={{ color: "var(--color-text-primary)" }}>{provider === "ppurio" ? "비즈뿌리오" : "솔라피"}</strong>
           </span>
         </div>
       </Card>
@@ -531,7 +531,7 @@ export default function MessageSettingsPage() {
           <Desc>
             {provider === "solapi"
               ? "솔라피(Solapi) 콘솔에서 발급받은 API Key와 API Secret을 입력하세요. 저장 후 이 학원의 메시지는 입력한 계정으로 발송됩니다."
-              : "뿌리오(Ppurio) 관리자 페이지에서 발급받은 API Key와 Account ID를 입력하세요."}
+              : "비즈뿌리오(BizPpurio) 연동 페이지에서 발급받은 계정 ID와 API Key를 입력하세요. 저장 후 이 학원의 메시지는 비즈뿌리오를 통해 발송됩니다."}
           </Desc>
 
           {provider === "solapi" ? (
@@ -556,19 +556,28 @@ export default function MessageSettingsPage() {
             </div>
           ) : (
             <div className="flex flex-col gap-3">
+              <div style={{ fontSize: 12, color: "var(--color-text-muted)", padding: "8px 12px", background: "var(--color-bg-surface-soft)", borderRadius: "var(--radius-md)", lineHeight: 1.6 }}>
+                <strong>비즈뿌리오 연동 방법:</strong><br />
+                1. <a href="https://bizppurio.com" target="_blank" rel="noopener noreferrer" style={{ color: "var(--color-primary)", textDecoration: "underline" }}>bizppurio.com</a> 에서 기업 회원 가입 (사업자등록증 필요)<br />
+                2. 로그인 후 <strong>[환경설정 → 연동 관리]</strong>에서 API Key 발급<br />
+                3. 아래에 <strong>계정 ID</strong>(로그인 아이디)와 <strong>API Key</strong>를 입력<br />
+                4. 발신번호는 비즈뿌리오에서 별도로 등록·인증해야 합니다<br />
+                5. 알림톡 사용 시: 카카오비즈니스 채널 개설 → 비즈뿌리오에서 발신프로필 등록 → 템플릿 승인 필요
+              </div>
               <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                 <Input
-                  placeholder={info?.own_ppurio_api_key ? `현재: ${info.own_ppurio_api_key}` : "Ppurio API Key"}
-                  value={ownPpurioKey}
-                  onChange={(e) => setOwnPpurioKey(e.target.value)}
+                  placeholder={info?.own_ppurio_account ? `현재: ${info.own_ppurio_account}` : "비즈뿌리오 계정 ID (로그인 아이디)"}
+                  value={ownPpurioAccount}
+                  onChange={(e) => setOwnPpurioAccount(e.target.value)}
                   style={{ maxWidth: 300 }}
                 />
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                 <Input
-                  placeholder="뿌리오 계정 ID"
-                  value={ownPpurioAccount}
-                  onChange={(e) => setOwnPpurioAccount(e.target.value)}
+                  placeholder={info?.own_ppurio_api_key ? `현재: ${info.own_ppurio_api_key}` : "비즈뿌리오 API Key"}
+                  value={ownPpurioKey}
+                  onChange={(e) => setOwnPpurioKey(e.target.value)}
+                  type="password"
                   style={{ maxWidth: 300 }}
                 />
               </div>
@@ -902,11 +911,11 @@ export default function MessageSettingsPage() {
         ) : (
           <>
             <Desc>
-              기존에 사용하던 {provider === "ppurio" ? "뿌리오(Ppurio)" : "솔라피(Solapi)"} 계정이 있다면 아래 순서로 연동하세요.
+              기존에 사용하던 {provider === "ppurio" ? "비즈뿌리오(BizPpurio)" : "솔라피(Solapi)"} 계정이 있다면 아래 순서로 연동하세요.
             </Desc>
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
               <GuideStep step={1}>
-                <strong>공급자 선택</strong> — 위에서 사용 중인 메시징 공급자({provider === "ppurio" ? "뿌리오" : "솔라피"})를 선택합니다.
+                <strong>공급자 선택</strong> — 위에서 사용 중인 메시징 공급자({provider === "ppurio" ? "비즈뿌리오" : "솔라피"})를 선택합니다.
               </GuideStep>
               <GuideStep step={2}>
                 <strong>API 키 등록</strong> —{" "}
@@ -918,12 +927,13 @@ export default function MessageSettingsPage() {
                   </>
                 ) : (
                   <>
-                    뿌리오 관리자 페이지에서 API Key와 Account ID를 확인하여 위에 입력합니다.
+                    비즈뿌리오(<code>bizppurio.com</code>) → 로그인 → [환경설정 → 연동 관리]에서 API Key를 확인하고, 계정 ID(로그인 아이디)와 함께 위에 입력합니다.
+                    <br />※ 비즈뿌리오에서 발신번호를 별도로 등록·인증해야 합니다.
                   </>
                 )}
               </GuideStep>
               <GuideStep step={3}>
-                <strong>발신번호 등록</strong> — {provider === "solapi" ? "솔라피" : "뿌리오"} 계정에 등록된 발신번호를
+                <strong>발신번호 등록</strong> — {provider === "solapi" ? "솔라피" : "비즈뿌리오"} 계정에 등록된 발신번호를
                 위 발신번호란에 입력합니다. 등록되지 않은 번호로는 발송이 실패합니다.
               </GuideStep>
               <GuideStep step={4}>
