@@ -417,7 +417,7 @@ export default function MessageSettingsPage() {
                 key: "self" as const,
                 icon: FiKey,
                 title: "직접 연동 (본인 계정)",
-                desc: "기존에 사용하던 솔라피/뿌리오 계정이 있다면 API 키를 등록하여 직접 발송합니다.",
+                desc: "기존에 사용하던 솔라피/비즈뿌리오 계정이 있다면 API 키를 등록하여 직접 발송합니다.",
               },
             ] as const
           ).map((opt) => (
