@@ -4689,6 +4689,28 @@ details[open] > .clinic-tree__summary {
   font-size: 12px;
   color: var(--color-text-muted);
 }
+.clinic-import__session-mapped {
+  font-size: 11px;
+  color: var(--color-brand-primary);
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.clinic-import__dup-badge {
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--color-danger) 12%, transparent);
+  color: var(--color-danger);
+  font-weight: 600;
+}
+.clinic-import__session-item--duplicate {
+  opacity: 0.55;
+}
+.clinic-import__session-item--duplicate .clinic-import__session-mapped {
+  color: var(--color-text-muted);
+}
 
 .clinic-import__footer {
   display: flex;

@@ -40,17 +40,56 @@ export default function PreviousWeekImportModal({ open, onClose, currentDate }: 
     };
   }, [currentDate]);
 
-  // 이전 주 세션 조회
+  // 이전 주 + 이번 주 세션 조회 (중복 감지용)
   const prevWeekYM = useMemo(() => {
     const d = dayjs(prevWeek.start);
     return { year: d.year(), month: d.month() + 1 };
   }, [prevWeek.start]);
+
+  const currentWeekYM = useMemo(() => {
+    const d = dayjs(currentDate);
+    return { year: d.year(), month: d.month() + 1 };
+  }, [currentDate]);
 
   const sessionsQ = useQuery({
     queryKey: ["clinic-sessions-tree", prevWeekYM.year, prevWeekYM.month, "import"],
     queryFn: () => fetchClinicSessionTree({ year: prevWeekYM.year, month: prevWeekYM.month }),
     enabled: open,
   });
+
+  // 이번 주 세션도 조회 (다른 월일 수 있으므로 별도)
+  const currentWeekSessionsQ = useQuery({
+    queryKey: ["clinic-sessions-tree", currentWeekYM.year, currentWeekYM.month, "import-current"],
+    queryFn: () => fetchClinicSessionTree({ year: currentWeekYM.year, month: currentWeekYM.month }),
+    enabled: open,
+  });
+
+  // 이번 주 기존 세션의 날짜+시간+장소 키 세트 (중복 감지용)
+  const currentWeekKeys = useMemo(() => {
+    const keys = new Set<string>();
+    const weekStart = dayjs(currentDate).startOf("week");
+    const weekEnd = weekStart.add(6, "day").format("YYYY-MM-DD");
+    const weekStartStr = weekStart.format("YYYY-MM-DD");
+    for (const s of currentWeekSessionsQ.data ?? []) {
+      if (s.date >= weekStartStr && s.date <= weekEnd) {
+        keys.add(`${s.date}|${s.start_time.slice(0, 5)}|${s.location}`);
+      }
+    }
+    // 같은 월 데이터도 포함
+    for (const s of sessionsQ.data ?? []) {
+      if (s.date >= weekStartStr && s.date <= weekEnd) {
+        keys.add(`${s.date}|${s.start_time.slice(0, 5)}|${s.location}`);
+      }
+    }
+    return keys;
+  }, [currentWeekSessionsQ.data, sessionsQ.data, currentDate]);
+
+  // 이전 주 세션 → 이번 주 매핑 날짜 계산 + 중복 여부
+  const mapToCurrentWeek = (sessionDate: string) => {
+    const prevDay = dayjs(sessionDate);
+    const currentWeekStart = dayjs(currentDate).startOf("week");
+    return currentWeekStart.add(prevDay.day(), "day").format("YYYY-MM-DD");
+  };
 
   // 이전 주 날짜에 해당하는 세션만 필터
   const prevWeekSessions = useMemo(() => {
@@ -62,6 +101,13 @@ export default function PreviousWeekImportModal({ open, onClose, currentDate }: 
           a.date.localeCompare(b.date) || a.start_time.localeCompare(b.start_time)
       );
   }, [sessionsQ.data, prevWeek]);
+
+  // 세션별 중복 여부
+  const isDuplicate = (s: ClinicSessionTreeNode) => {
+    const newDate = mapToCurrentWeek(s.date);
+    const key = `${newDate}|${s.start_time.slice(0, 5)}|${s.location}`;
+    return currentWeekKeys.has(key);
+  };
 
   // 날짜별 그룹핑
   const groupedByDate = useMemo(() => {
@@ -97,19 +143,23 @@ export default function PreviousWeekImportModal({ open, onClose, currentDate }: 
 
     try {
       const selected = prevWeekSessions.filter((s) => selectedIds.has(s.id));
-      const results = await Promise.allSettled(
-        selected.map(async (s) => {
-          // 같은 요일 → 이번 주로 매핑
-          const prevDay = dayjs(s.date);
-          const currentWeekStart = dayjs(currentDate).startOf("week");
-          const dayOfWeek = prevDay.day(); // 0=Sun, 1=Mon, ...
-          const newDate = currentWeekStart.add(dayOfWeek, "day").format("YYYY-MM-DD");
+      const toCreate = selected.filter((s) => !isDuplicate(s));
+      const skipped = selected.length - toCreate.length;
 
+      if (toCreate.length === 0) {
+        feedback.warning("선택한 클리닉이 모두 이번 주에 이미 있습니다.");
+        setCreating(false);
+        return;
+      }
+
+      const results = await Promise.allSettled(
+        toCreate.map(async (s) => {
+          const newDate = mapToCurrentWeek(s.date);
           return api.post("/clinic/sessions/", {
             title: s.title || "",
             date: newDate,
             start_time: s.start_time.length === 5 ? s.start_time + ":00" : s.start_time,
-            duration_minutes: 60, // default, tree doesn't have this
+            duration_minutes: 60,
             location: s.location,
             max_participants: s.max_participants ?? 20,
             target_grade: s.target_grade ?? null,
@@ -122,10 +172,15 @@ export default function PreviousWeekImportModal({ open, onClose, currentDate }: 
 
       qc.invalidateQueries({ queryKey: ["clinic-sessions-tree"] });
 
-      if (fail > 0) {
-        feedback.warning(`${ok}건 생성, ${fail}건 실패 (중복 시간/장소 확인)`);
-      } else {
+      if (ok > 0 && fail === 0 && skipped === 0) {
         feedback.success(`${ok}건의 클리닉이 생성되었습니다.`);
+      } else if (ok > 0) {
+        const parts = [`${ok}건 생성`];
+        if (skipped > 0) parts.push(`${skipped}건 중복 건너뜀`);
+        if (fail > 0) parts.push(`${fail}건 실패`);
+        feedback.warning(parts.join(", "));
+      } else {
+        feedback.error("클리닉 생성에 실패했습니다. 시간/장소가 중복되었는지 확인하세요.");
       }
       setSelectedIds(new Set());
       onClose();
@@ -183,13 +238,15 @@ export default function PreviousWeekImportModal({ open, onClose, currentDate }: 
                     </div>
                     {sessions.map((s) => {
                       const checked = selectedIds.has(s.id);
+                      const dup = isDuplicate(s);
+                      const mappedDate = mapToCurrentWeek(s.date);
                       return (
                         <button
                           key={s.id}
                           type="button"
                           className={`clinic-import__session-item ${
                             checked ? "clinic-import__session-item--selected" : ""
-                          }`}
+                          } ${dup ? "clinic-import__session-item--duplicate" : ""}`}
                           onClick={() => toggleSession(s.id)}
                         >
                           <span
@@ -216,6 +273,10 @@ export default function PreviousWeekImportModal({ open, onClose, currentDate }: 
                             <span className="clinic-import__session-capacity">
                               <Users size={12} aria-hidden />
                               {s.max_participants ?? "—"}명
+                            </span>
+                            <span className="clinic-import__session-mapped">
+                              → {dayjs(mappedDate).format("M/D(dd)")}
+                              {dup && <span className="clinic-import__dup-badge">이미 있음</span>}
                             </span>
                           </div>
                         </button>
