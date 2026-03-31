@@ -556,13 +556,25 @@ export default function MessageSettingsPage() {
             </div>
           ) : (
             <div className="flex flex-col gap-3">
-              <div style={{ fontSize: 12, color: "var(--color-text-muted)", padding: "8px 12px", background: "var(--color-bg-surface-soft)", borderRadius: "var(--radius-md)", lineHeight: 1.6 }}>
-                <strong>비즈뿌리오 연동 방법:</strong><br />
-                1. <a href="https://bizppurio.com" target="_blank" rel="noopener noreferrer" style={{ color: "var(--color-primary)", textDecoration: "underline" }}>bizppurio.com</a> 에서 기업 회원 가입 (사업자등록증 필요)<br />
-                2. 로그인 후 <strong>[환경설정 → 연동 관리]</strong>에서 API Key 발급<br />
-                3. 아래에 <strong>계정 ID</strong>(로그인 아이디)와 <strong>API Key</strong>를 입력<br />
-                4. 발신번호는 비즈뿌리오에서 별도로 등록·인증해야 합니다<br />
-                5. 알림톡 사용 시: 카카오비즈니스 채널 개설 → 비즈뿌리오에서 발신프로필 등록 → 템플릿 승인 필요
+              <div style={{ fontSize: 12, color: "var(--color-text-muted)", padding: "10px 14px", background: "var(--color-bg-surface-soft)", borderRadius: "var(--radius-md)", lineHeight: 1.8 }}>
+                <strong style={{ fontSize: 13 }}>비즈뿌리오 연동 방법</strong><br /><br />
+                <strong>1단계. 회원가입</strong><br />
+                <a href="https://bizppurio.com" target="_blank" rel="noopener noreferrer" style={{ color: "var(--color-primary)", textDecoration: "underline" }}>bizppurio.com</a> 접속 → 상단 [회원가입] → 기업 회원으로 가입합니다.<br />
+                사업자등록증 사본이 필요하며, 가입 후 <strong>1~2영업일 내 승인</strong>됩니다.<br /><br />
+                <strong>2단계. API Key 확인</strong><br />
+                승인 완료 후 로그인 → 상단 메뉴 <strong>[환경설정] → [연동 관리]</strong> → API Key를 복사합니다.<br /><br />
+                <strong>3단계. 아래에 입력</strong><br />
+                <strong>계정 ID</strong> = 비즈뿌리오 로그인할 때 쓰는 아이디<br />
+                <strong>API Key</strong> = 2단계에서 복사한 키<br />
+                입력 후 [API 키 저장] 버튼을 누르면 연동 완료입니다.<br /><br />
+                <strong>4단계. 발신번호 등록</strong><br />
+                비즈뿌리오에서 <strong>[환경설정] → [발신번호 관리]</strong> → 학원 전화번호를 등록하고 서류 인증을 완료하세요.<br />
+                인증된 번호만 발송에 사용할 수 있습니다.<br /><br />
+                <strong>5단계. 알림톡 (선택사항, SMS만 쓴다면 건너뛰세요)</strong><br />
+                ① <a href="https://business.kakao.com" target="_blank" rel="noopener noreferrer" style={{ color: "var(--color-primary)", textDecoration: "underline" }}>카카오비즈니스</a>에서 채널 개설<br />
+                ② 비즈뿌리오 → [카카오톡] → [발신프로필] → 채널 연결<br />
+                ③ [템플릿 관리]에서 알림톡 양식 작성 → 카카오 검수 승인 (1~3일)<br />
+                ④ 승인되면 이 페이지 상단 [카카오 채널 PFID]에 발신프로필키를 입력
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                 <Input
@@ -927,8 +939,9 @@ export default function MessageSettingsPage() {
                   </>
                 ) : (
                   <>
-                    비즈뿌리오(<code>bizppurio.com</code>) → 로그인 → [환경설정 → 연동 관리]에서 API Key를 확인하고, 계정 ID(로그인 아이디)와 함께 위에 입력합니다.
-                    <br />※ 비즈뿌리오에서 발신번호를 별도로 등록·인증해야 합니다.
+                    <a href="https://bizppurio.com" target="_blank" rel="noopener noreferrer" style={{ color: "var(--color-primary)" }}>bizppurio.com</a> 로그인 → [환경설정 → 연동 관리]에서 API Key를 복사하고, 계정 ID(로그인 아이디)와 함께 위에 입력합니다.
+                    <br />※ 발신번호: [환경설정 → 발신번호 관리]에서 등록·서류인증을 완료해야 발송됩니다.
+                    <br />※ 비즈뿌리오 회원가입 후 승인까지 1~2영업일 소요됩니다.
                   </>
                 )}
               </GuideStep>

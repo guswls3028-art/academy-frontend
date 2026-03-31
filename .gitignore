@@ -79,7 +79,11 @@ temp/
 test-results/
 playwright-report/
 e2e/.auth/
+e2e/screenshots/
+e2e/fixtures/
 .env.e2e
-test-results/
 .env.local
+
+# Local-only directories
+node_modules_win/
 .wrangler/

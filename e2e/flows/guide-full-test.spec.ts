@@ -40,7 +40,7 @@ test.describe.serial("가이드 기반 전체 테스트", () => {
     await expect(T.locator("text=Not Found")).not.toBeVisible();
   });
 
-  test("T03 학생 등록 (단건, 알림톡 ON)", async () => {
+  test("T03 학생 등록 (단건)", async () => {
     // 기존 0317테스트학생이 있으면 삭제 후 재생성
     const existing = await apiCall(T, "GET", "/students/?page_size=200");
     const old = (existing.body?.results || []).find((s: any) => s.phone === "01034137466");
@@ -58,13 +58,10 @@ test.describe.serial("가이드 기반 전체 테스트", () => {
       school_type: "HIGH",
       grade: 2,
       gender: "M",
-      send_welcome_message: true,
+      send_welcome_message: false,
     });
     console.log(`  학생등록: ${resp.status} ${resp.status === 201 ? `id=${resp.body.id} ps=${resp.body.ps_number}` : JSON.stringify(resp.body)?.substring(0, 100)}`);
     expect([201, 409]).toContain(resp.status);
-    if (resp.status === 201) {
-      console.log("  📱 알림톡 발송 요청됨 → 01034137466(학생), 01031217466(학부모)");
-    }
 
     await T.goto(`${BASE}/admin/students`);
     await T.waitForLoadState("load");

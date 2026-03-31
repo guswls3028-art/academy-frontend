@@ -42,11 +42,10 @@ test.describe.serial("실제 운영 시나리오 (0317테스트학생)", () => {
       parent_phone: "01031217466",
       initial_password: "0000",
       school_type: "HIGH",
-      send_welcome_message: true,
+      send_welcome_message: false,
     });
     if (stuResp.status === 201) {
       console.log(`  학생 생성: id=${stuResp.body.id}, ps=${stuResp.body.ps_number}`);
-      console.log(`  알림톡 발송 요청됨 → 01034137466(학생), 01031217466(학부모)`);
     } else if (stuResp.status === 409) {
       console.log(`  학생 이미 존재 (409) — 기존 학생 사용`);
     } else {
