@@ -38,16 +38,18 @@ function normalizeImagePath(image: string): string {
 
 /** 하드코딩 폴백 — API 장애 시 사용. imageWidth/imageHeight는 카카오톡 크롤러 힌트용. */
 const FALLBACK_META: Record<string, TenantMeta> = {
-  "tchul.com":          { title: "박철과학",  description: "박철과학 학습 플랫폼 – 학생·선생님 로그인", favicon: "/tenants/tchul/favicon.png", image: "/tenants/tchul/logo-full.png", imageWidth: 800, imageHeight: 427 },
-  "www.tchul.com":      { title: "박철과학",  description: "박철과학 학습 플랫폼 – 학생·선생님 로그인", favicon: "/tenants/tchul/favicon.png", image: "/tenants/tchul/logo-full.png", imageWidth: 800, imageHeight: 427 },
+  "tchul.com":          { title: "박철 과학",  description: "박철 과학(tchul.com) – 대치동 과학 전문 학원. 생명과학·화학·물리·지구과학 학습 플랫폼", favicon: "/tenants/tchul/favicon.png", image: "/tenants/tchul/og-image.png", imageWidth: 800, imageHeight: 427 },
+  "www.tchul.com":      { title: "박철 과학",  description: "박철 과학(tchul.com) – 대치동 과학 전문 학원. 생명과학·화학·물리·지구과학 학습 플랫폼", favicon: "/tenants/tchul/favicon.png", image: "/tenants/tchul/og-image.png", imageWidth: 800, imageHeight: 427 },
   "ymath.co.kr":        { title: "Y_math",     description: "Y_math 학습 플랫폼", favicon: "/tenants/ymath/favicon.png", image: "/tenants/ymath/og-image.png", imageWidth: 800, imageHeight: 420 },
   "www.ymath.co.kr":    { title: "Y_math",     description: "Y_math 학습 플랫폼", favicon: "/tenants/ymath/favicon.png", image: "/tenants/ymath/og-image.png", imageWidth: 800, imageHeight: 420 },
-  "limglish.kr":        { title: "limglish",   description: "limglish 학습 플랫폼" },
-  "www.limglish.kr":    { title: "limglish",   description: "limglish 학습 플랫폼" },
+  "limglish.kr":        { title: "임근혁 영어", description: "임근혁 영어(limglish) – 영어 전문 학습 플랫폼. 학생·선생님 로그인", favicon: "/tenants/limglish/favicon.png", image: "/tenants/limglish/og-image.png", imageWidth: 800, imageHeight: 420 },
+  "www.limglish.kr":    { title: "임근혁 영어", description: "임근혁 영어(limglish) – 영어 전문 학습 플랫폼. 학생·선생님 로그인", favicon: "/tenants/limglish/favicon.png", image: "/tenants/limglish/og-image.png", imageWidth: 800, imageHeight: 420 },
   "hakwonplus.com":     { title: "학원플러스",  description: "학원플러스 – 학원 관리·학생 학습 플랫폼" },
   "www.hakwonplus.com": { title: "학원플러스",  description: "학원플러스 – 학원 관리·학생 학습 플랫폼" },
   "sswe.co.kr":         { title: "SSWE", description: "SSWE 학습 플랫폼 – 학생·선생님 로그인", favicon: "/tenants/sswe/favicon.png", image: "/tenants/sswe/logo-full.png", imageWidth: 800, imageHeight: 380 },
   "www.sswe.co.kr":     { title: "SSWE", description: "SSWE 학습 플랫폼 – 학생·선생님 로그인", favicon: "/tenants/sswe/favicon.png", image: "/tenants/sswe/logo-full.png", imageWidth: 800, imageHeight: 380 },
+  "dnbacademy.co.kr":   { title: "DnB 보습학원", description: "DnB 보습학원 – 보습 전문 학습 플랫폼. 학생·선생님 로그인", favicon: "/tenants/dnb/favicon.png", image: "/tenants/dnb/og-image.png", imageWidth: 800, imageHeight: 420 },
+  "www.dnbacademy.co.kr": { title: "DnB 보습학원", description: "DnB 보습학원 – 보습 전문 학습 플랫폼. 학생·선생님 로그인", favicon: "/tenants/dnb/favicon.png", image: "/tenants/dnb/og-image.png", imageWidth: 800, imageHeight: 420 },
 };
 
 const API_BASE = "https://api.hakwonplus.com";
