@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
+import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import JsonViewerModal from "./JsonViewerModal";
 
 type RangeKey = "24h" | "7d" | "all";
@@ -277,7 +278,7 @@ export default function VideoLogTab({ videoId, onClickRiskStudent }: Props) {
                         color: "var(--color-text-primary)",
                       }}
                     >
-                      {r.student_name}
+                      <StudentNameWithLectureChip name={r.student_name} enrollmentId={r.enrollment_id} />
                     </span>
                     <span
                       className="ds-status-badge ds-status-badge--1ch"
@@ -472,7 +473,7 @@ export default function VideoLogTab({ videoId, onClickRiskStudent }: Props) {
                   className="col-span-2 truncate font-medium"
                   style={{ color: "var(--color-text-primary)" }}
                 >
-                  {e.student_name}
+                  <StudentNameWithLectureChip name={e.student_name ?? "-"} enrollmentId={e.enrollment_id} />
                 </div>
                 <div className="col-span-3 flex items-center gap-2">
                   <SeverityBadge severity={e.severity} />

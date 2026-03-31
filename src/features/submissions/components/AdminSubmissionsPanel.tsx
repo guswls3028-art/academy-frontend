@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/shared/ui/ds";
+import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { fetchExamSubmissions } from "../api/adminSubmissionsApi";
 import { SUBMISSION_STATUS_LABEL } from "../statusMaps";
 
@@ -57,7 +58,7 @@ export default function AdminSubmissionsPanel({
           >
             <div>
               <div className="font-medium">
-                {r.student_name} (#{r.enrollment_id})
+                <StudentNameWithLectureChip name={`${r.student_name} (#${r.enrollment_id})`} enrollmentId={r.enrollment_id} />
               </div>
               <div style={{ color: 'var(--color-text-muted)' }}>
                 {new Date(r.created_at).toLocaleString()}

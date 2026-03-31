@@ -1,6 +1,7 @@
 // PATH: src/features/materials/sheets/components/submissions/SubmissionRow.tsx
 
 import { Button } from "@/shared/ui/ds";
+import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { SUBMISSION_STATUS_LABEL, SUBMISSION_STATUS_COLOR } from "@/features/submissions/statusMaps";
 import type { ExamSubmissionRow } from "./submissions.api";
 
@@ -37,7 +38,7 @@ export default function SubmissionRow({
   return (
     <tr>
       <td>#{row.id}</td>
-      <td>{student}</td>
+      <td><StudentNameWithLectureChip name={student} enrollmentId={row.enrollment_id} /></td>
       <td className={statusClass}>{statusLabel}</td>
       <td>{row.score == null ? "-" : row.score}</td>
       <td className="text-xs text-gray-600">{row.created_at}</td>

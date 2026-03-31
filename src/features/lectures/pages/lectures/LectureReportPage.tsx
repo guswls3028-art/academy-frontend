@@ -2,6 +2,7 @@
 import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { EmptyState } from "@/shared/ui/ds";
+import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { fetchLectureReport, type LectureReportResponse } from "@/features/lectures/api/report";
 
 const TH_STYLE = {
@@ -90,7 +91,7 @@ export default function LectureReportPage() {
               {students.map((s) => (
                 <tr key={s.student_id} className="hover:bg-[var(--color-bg-surface-soft)]">
                   <td className="px-4 py-3 text-left text-[15px] font-bold text-[var(--color-text-primary)] truncate">
-                    {s.student_name}
+                    <StudentNameWithLectureChip name={s.student_name} enrollmentId={s.enrollment} />
                   </td>
                   <td className="px-4 py-3 text-center text-[14px] text-[var(--color-text-secondary)]">
                     {s.avg_progress ?? 0}%

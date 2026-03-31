@@ -17,6 +17,7 @@ import { fetchAdminExamResultDetail, type ExamResultItem } from "../api/adminExa
 import { fetchAttemptHistory, type AttemptEntry } from "@/features/scores/api/attemptHistory";
 import { patchExamItemScore } from "@/features/scores/api/patchItemScore";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import WrongNotePanel from "./WrongNotePanel";
 import "./StudentResultDrawer.css";
 
@@ -165,7 +166,7 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
           <header className="srd-modal__header">
             <div className="srd-modal__header-inner">
               <h1 className="srd-modal__title">{examTitle} 답안 상세</h1>
-              <span className="srd-modal__student-badge">{studentName}</span>
+              <span className="srd-modal__student-badge"><StudentNameWithLectureChip name={studentName} enrollmentId={enrollmentId} /></span>
             </div>
             {/* 편집 모드 표시 */}
             {isEditMode && !hasData && (

@@ -6,6 +6,7 @@ import { fetchLectureEnrollments } from "../api/enrollments";
 
 import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
 import { Button, EmptyState } from "@/shared/ui/ds";
+import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 
 interface Props {
   lectureId: number;
@@ -168,7 +169,7 @@ export default function BoardPostDetail({ lectureId, post, onClose }: Props) {
                             textOverflow: "ellipsis",
                           }}
                         >
-                          {name}
+                          <StudentNameWithLectureChip name={name} enrollmentId={en.id} />
                         </div>
 
                         <div

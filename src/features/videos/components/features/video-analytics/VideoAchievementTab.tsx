@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
+import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 
 import {
   ResponsiveContainer,
@@ -495,7 +496,7 @@ export default function VideoAchievementTab({
                       color: "var(--color-text-primary)",
                     }}
                   >
-                    {s.student_name}
+                    <StudentNameWithLectureChip name={s.student_name} enrollmentId={s.enrollment} />
                   </div>
                   <div className="col-span-2 flex justify-center">
                     <StatusBadge status={s.status} />

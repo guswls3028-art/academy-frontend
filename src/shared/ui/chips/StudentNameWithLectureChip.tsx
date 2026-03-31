@@ -4,6 +4,7 @@
 
 import React from "react";
 import LectureChip from "./LectureChip";
+import { useClinicHighlight } from "@/shared/contexts/ClinicHighlightContext";
 
 export type LectureInfo = {
   lectureName: string;
@@ -26,6 +27,8 @@ type Props = {
   highlight?: (text: string) => React.ReactNode;
   /** 클리닉 대상(미수강) 시 이름만 노란 형광펜 하이라이트 — 백엔드 name_highlight_clinic_target */
   clinicHighlight?: boolean;
+  /** enrollment ID — clinicHighlight 미지정 시 전역 컨텍스트에서 자동 조회 */
+  enrollmentId?: number | null;
 };
 
 const DEFAULT_COLOR = "#3b82f6";
@@ -38,8 +41,11 @@ export default function StudentNameWithLectureChip({
   avatarSize,
   className,
   highlight,
-  clinicHighlight = false,
+  clinicHighlight,
+  enrollmentId,
 }: Props) {
+  const contextHighlight = useClinicHighlight(enrollmentId);
+  const isClinicHighlight = clinicHighlight ?? contextHighlight;
   const list = Array.isArray(lectures) && lectures.length > 0
     ? lectures
     : [];
@@ -60,7 +66,7 @@ export default function StudentNameWithLectureChip({
           )}
         </span>
       )}
-      <span className={`truncate ${clinicHighlight ? "ds-student-name--clinic-highlight" : ""}`}>
+      <span className={`truncate ${isClinicHighlight ? "ds-student-name--clinic-highlight" : ""}`}>
         {highlight ? highlight(name || "-") : (name || "-")}
       </span>
       {list.map((lec, i) => (

@@ -14,6 +14,7 @@ import { ThemeProvider } from "@/context/ThemeContext";
 import { ProgramProvider } from "@/shared/program";
 import { NoticeProvider } from "@/features/notice/context/NoticeContext";
 import { SendMessageModalProvider } from "@/features/messages/context/SendMessageModalContext";
+import { ClinicHighlightProvider } from "@/shared/contexts/ClinicHighlightContext";
 import { useIsMobile } from "@/shared/hooks/useIsMobile";
 import { useFavicon } from "@/shared/hooks/useFavicon";
 
@@ -172,9 +173,11 @@ export default function AppLayout() {
           >
             <App>
             <FeedbackBridge />
+            <ClinicHighlightProvider>
             <SendMessageModalProvider>
               <AppLayoutContent />
             </SendMessageModalProvider>
+            </ClinicHighlightProvider>
             </App>
           </ConfigProvider>
         </NoticeProvider>
