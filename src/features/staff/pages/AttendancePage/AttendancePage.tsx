@@ -43,8 +43,8 @@ function DailyWorkDetailSection({
   }
 
   const dayLabel = `${selectedDate.slice(5, 7)}월 ${selectedDate.slice(8)}일`;
-  const totalHours = dayRecords.reduce((s, r) => s + (r.work_hours ?? 0), 0);
-  const totalAmount = dayRecords.reduce((s, r) => s + (r.amount ?? 0), 0);
+  const totalHours = dayRecords.reduce((s, r) => s + (Number(r.work_hours) || 0), 0);
+  const totalAmount = dayRecords.reduce((s, r) => s + (Number(r.amount) || 0), 0);
 
   return (
     <section className="staff-area staff-section-card">
