@@ -350,7 +350,6 @@ function TriggerCard({
               >
                 {smsConnected && <option value="sms">{MESSAGE_MODE_LABELS.sms}</option>}
                 <option value="alimtalk">{MESSAGE_MODE_LABELS.alimtalk}</option>
-                {smsConnected && <option value="both">{MESSAGE_MODE_LABELS.both}</option>}
               </select>
             </div>
           </div>

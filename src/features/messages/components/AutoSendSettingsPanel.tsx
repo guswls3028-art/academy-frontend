@@ -137,26 +137,20 @@ const EMPTY_CONFIGS: AutoSendConfigItem[] = [];
 
 /** channel-aware 활성 상태 판별 */
 function isChannelActive(mode: string, channel: "alimtalk" | "sms"): boolean {
-  if (channel === "alimtalk") return mode === "alimtalk" || mode === "both";
-  return mode === "sms" || mode === "both";
+  return mode === channel;
 }
 
-/** channel toggle → message_mode 도출 */
+/** channel toggle → message_mode 도출 (채널은 상호 배타적) */
 function deriveMessageMode(
   currentMode: string,
-  currentEnabled: boolean,
+  _currentEnabled: boolean,
   channel: "alimtalk" | "sms",
   turnOn: boolean,
-): { message_mode: "sms" | "alimtalk" | "both"; enabled: boolean } {
-  const otherActive = isChannelActive(currentMode, channel === "alimtalk" ? "sms" : "alimtalk") && currentEnabled;
-
+): { message_mode: "sms" | "alimtalk"; enabled: boolean } {
   if (turnOn) {
-    if (otherActive) return { message_mode: "both", enabled: true };
     return { message_mode: channel, enabled: true };
   } else {
-    // turning off this channel
-    if (otherActive) return { message_mode: channel === "alimtalk" ? "sms" : "alimtalk", enabled: true };
-    return { message_mode: currentMode as "sms" | "alimtalk" | "both", enabled: false };
+    return { message_mode: currentMode as "sms" | "alimtalk", enabled: false };
   }
 }
 
@@ -529,9 +523,6 @@ function TriggerCard({
               <option value="alimtalk">
                 {MESSAGE_MODE_LABELS.alimtalk}
               </option>
-              {smsConnected && (
-                <option value="both">{MESSAGE_MODE_LABELS.both}</option>
-              )}
             </select>
           </div>
         )}

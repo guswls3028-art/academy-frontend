@@ -60,7 +60,7 @@ export type SendMessageModalProps = {
 
 type ContentMode = "free" | "template";
 type EditorTab = "message" | "alimtalk";
-type SendMode = "sms" | "alimtalk" | "both";
+type SendMode = "sms" | "alimtalk";
 
 export default function SendMessageModal({
   open,
@@ -82,7 +82,7 @@ export default function SendMessageModal({
   const [sendToParent, setSendToParent] = useState(true);
   const [sendToStudent, setSendToStudent] = useState(true);
   /** 발송 방식: 단일 sendMode 드롭다운 */
-  const [sendMode, setSendMode] = useState<SendMode>("both");
+  const [sendMode, setSendMode] = useState<SendMode>("alimtalk");
   const [sending, setSending] = useState(false);
   const sendingRef = useRef(false); // ref guard against double-submit
   const [templates, setTemplates] = useState<MessageTemplateItem[]>([]);
@@ -111,14 +111,14 @@ export default function SendMessageModal({
   // Derive messageModes from sendMode
   const messageModes: MessageMode[] = (() => {
     const modes: MessageMode[] = [];
-    if ((sendMode === "sms" || sendMode === "both") && smsAllowed) modes.push("sms");
-    if (sendMode === "alimtalk" || sendMode === "both") modes.push("alimtalk");
+    if (sendMode === "sms" && smsAllowed) modes.push("sms");
+    if (sendMode === "alimtalk") modes.push("alimtalk");
     return modes;
   })();
 
   // Alimtalk template resolution: auto-select freeform template if user typed freely
   const needsApprovedTemplate =
-    sendMode === "alimtalk" || sendMode === "both";
+    sendMode === "alimtalk";
   const selectedTemplate = templates.find((t) => t.id === selectedTemplateId);
   const hasApprovedTemplate =
     !!selectedTemplate && selectedTemplate.solapi_status === "APPROVED";
@@ -148,14 +148,14 @@ export default function SendMessageModal({
       setActiveTab("message");
       setSendToParent(true);
       setSendToStudent(true);
-      setSendMode(smsAllowed ? "both" : "alimtalk");
+      setSendMode("alimtalk");
       sendingRef.current = false;
     }
   }, [open, smsAllowed, initialBody]);
 
   // Guard: if smsAllowed becomes false while sms-related mode is selected
   useEffect(() => {
-    if (open && !smsAllowed && (sendMode === "sms" || sendMode === "both")) {
+    if (open && !smsAllowed && sendMode === "sms") {
       setSendMode("alimtalk");
     }
   }, [open, smsAllowed, sendMode]);
@@ -246,7 +246,7 @@ export default function SendMessageModal({
             };
             if (subject.trim()) payload.raw_subject = subject.trim();
             if (selectedTemplateId) payload.template_id = selectedTemplateId;
-            if (alimtalkExtraVars && (messageMode === "alimtalk" || messageMode === "both")) {
+            if (alimtalkExtraVars && messageMode === "alimtalk") {
               payload.alimtalk_extra_vars = alimtalkExtraVars;
             }
             const res = await sendMessage(payload);
@@ -395,9 +395,6 @@ export default function SendMessageModal({
                     cursor: "pointer",
                   }}
                 >
-                  <option value="both" disabled={!smsAllowed}>
-                    둘 다 (모두){!smsAllowed ? " — SMS 미연동" : ""}
-                  </option>
                   <option value="alimtalk">알림톡</option>
                   <option value="sms" disabled={!smsAllowed}>
                     SMS (메시지){!smsAllowed ? " — SMS 미연동" : ""}

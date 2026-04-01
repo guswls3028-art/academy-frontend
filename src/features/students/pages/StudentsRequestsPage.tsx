@@ -327,7 +327,7 @@ export default function StudentsRequestsPage() {
           trigger,
           enabled,
           template: existing?.template ?? null,
-          message_mode: existing?.message_mode ?? "both",
+          message_mode: existing?.message_mode ?? "alimtalk",
           minutes_before: existing?.minutes_before ?? null,
         },
       ]);

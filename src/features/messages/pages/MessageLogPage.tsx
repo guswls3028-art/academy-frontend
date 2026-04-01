@@ -45,7 +45,7 @@ function formatDateFull(iso: string) {
 const MESSAGE_MODE_LABELS: Record<string, string> = {
   sms: "SMS",
   alimtalk: "알림톡",
-  both: "알림톡 → SMS",
+  both: "알림톡 (레거시)",
 };
 
 type StatusFilter = "all" | "success" | "failure";
