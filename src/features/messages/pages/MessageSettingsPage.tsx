@@ -490,6 +490,11 @@ export default function MessageSettingsPage() {
                 key={opt.key}
                 type="button"
                 onClick={() => {
+                  if (opt.key === provider) return;
+                  const confirmed = window.confirm(
+                    `메시징 공급자를 ${opt.label}(으)로 변경하시겠습니까?\n\n변경 시 현재 설정된 발송 흐름에 영향을 줄 수 있습니다.`
+                  );
+                  if (!confirmed) return;
                   setProvider(opt.key);
                   updateInfo(
                     { messaging_provider: opt.key },

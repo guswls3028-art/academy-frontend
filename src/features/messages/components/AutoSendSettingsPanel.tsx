@@ -97,6 +97,16 @@ const TRIGGER_DESCRIPTIONS: Record<string, string> = {
 // Props
 // ---------------------------------------------------------------------------
 
+/** 리마인더 트리거 — "N분 전" 발송 시점 설정이 의미 있는 트리거만 */
+const REMINDER_TRIGGERS = new Set([
+  "clinic_reminder",
+  "lecture_session_reminder",
+  "exam_start_minutes_before",
+  "exam_scheduled_days_before",
+  "assignment_due_hours_before",
+  "payment_due_days_before",
+]);
+
 export type AutoSendSettingsPanelProps = {
   /** Which triggers to show (filter from all auto-send configs) */
   triggerKeys: string[];
@@ -104,6 +114,13 @@ export type AutoSendSettingsPanelProps = {
   title?: string;
   /** Section description */
   description?: string;
+  /**
+   * Channel filter mode. When set, the panel manages only the specified channel:
+   * - "alimtalk": shows alimtalk channel state per trigger
+   * - "sms": shows SMS channel state per trigger
+   * - undefined: unified mode (original behavior with message_mode dropdown)
+   */
+  channelMode?: "alimtalk" | "sms";
 };
 
 // ---------------------------------------------------------------------------
@@ -118,6 +135,31 @@ const EMPTY_CONFIGS: AutoSendConfigItem[] = [];
 // TriggerCard (inner component — same pattern as MessageAutoSendPage)
 // ---------------------------------------------------------------------------
 
+/** channel-aware 활성 상태 판별 */
+function isChannelActive(mode: string, channel: "alimtalk" | "sms"): boolean {
+  if (channel === "alimtalk") return mode === "alimtalk" || mode === "both";
+  return mode === "sms" || mode === "both";
+}
+
+/** channel toggle → message_mode 도출 */
+function deriveMessageMode(
+  currentMode: string,
+  currentEnabled: boolean,
+  channel: "alimtalk" | "sms",
+  turnOn: boolean,
+): { message_mode: "sms" | "alimtalk" | "both"; enabled: boolean } {
+  const otherActive = isChannelActive(currentMode, channel === "alimtalk" ? "sms" : "alimtalk") && currentEnabled;
+
+  if (turnOn) {
+    if (otherActive) return { message_mode: "both", enabled: true };
+    return { message_mode: channel, enabled: true };
+  } else {
+    // turning off this channel
+    if (otherActive) return { message_mode: channel === "alimtalk" ? "sms" : "alimtalk", enabled: true };
+    return { message_mode: currentMode as "sms" | "alimtalk" | "both", enabled: false };
+  }
+}
+
 function TriggerCard({
   config,
   templates,
@@ -125,6 +167,7 @@ function TriggerCard({
   saving,
   onEditTemplate,
   smsConnected,
+  channelMode,
 }: {
   config: AutoSendConfigItem;
   templates: MessageTemplateItem[];
@@ -132,6 +175,7 @@ function TriggerCard({
   saving: boolean;
   onEditTemplate?: (trigger: string, templateId: number | null) => void;
   smsConnected: boolean;
+  channelMode?: "alimtalk" | "sms";
 }) {
   const [showPreview, setShowPreview] = useState(false);
   const hasTemplate = !!config.template;
@@ -164,14 +208,36 @@ function TriggerCard({
     onEditTemplate?.(config.trigger, config.template);
   };
 
+  // channel-aware: is THIS channel active for this trigger?
+  const channelActive = channelMode
+    ? config.enabled && isChannelActive(config.message_mode, channelMode)
+    : config.enabled;
+
+  const handleChannelToggle = (checked: boolean) => {
+    if (!channelMode) {
+      // unified mode — simple enable/disable
+      onUpdate({ ...config, enabled: checked });
+      return;
+    }
+    const { message_mode, enabled } = deriveMessageMode(
+      config.message_mode,
+      config.enabled,
+      channelMode,
+      checked,
+    );
+    onUpdate({ ...config, message_mode, enabled });
+  };
+
+  const isReminder = REMINDER_TRIGGERS.has(config.trigger);
+
   return (
     <div
       className={panelStyles.contentCard}
       style={{
-        background: config.enabled
+        background: channelActive
           ? "color-mix(in srgb, var(--color-primary) 6%, var(--color-bg-surface))"
           : "var(--color-bg-surface-soft)",
-        boxShadow: config.enabled
+        boxShadow: channelActive
           ? "inset 3px 0 0 var(--color-primary)"
           : undefined,
         transition: "background 0.15s, box-shadow 0.15s",
@@ -191,13 +257,13 @@ function TriggerCard({
               width: 36,
               height: 36,
               borderRadius: "var(--radius-md)",
-              background: config.enabled
+              background: channelActive
                 ? "color-mix(in srgb, var(--color-primary) 12%, transparent)"
                 : "var(--color-bg-surface-soft)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              color: config.enabled
+              color: channelActive
                 ? "var(--color-primary)"
                 : "var(--color-text-muted)",
               flexShrink: 0,
@@ -241,10 +307,8 @@ function TriggerCard({
           }}
         >
           <Switch
-            checked={config.enabled}
-            onChange={(checked) =>
-              onUpdate({ ...config, enabled: checked })
-            }
+            checked={channelActive}
+            onChange={handleChannelToggle}
             disabled={saving}
             size="small"
           />
@@ -252,12 +316,12 @@ function TriggerCard({
             style={{
               fontSize: 13,
               fontWeight: 600,
-              color: config.enabled
+              color: channelActive
                 ? "var(--color-text-primary)"
                 : "var(--color-text-muted)",
             }}
           >
-            {config.enabled ? "활성화" : "비활성화"}
+            {channelActive ? "활성화" : "비활성화"}
           </span>
           {config.template_body && (
             <button
@@ -292,7 +356,9 @@ function TriggerCard({
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "1fr 120px 160px",
+          gridTemplateColumns: channelMode
+            ? isReminder ? "1fr 120px" : "1fr"
+            : isReminder ? "1fr 120px 160px" : "1fr 160px",
           gap: 16,
           alignItems: "start",
         }}
@@ -371,100 +437,104 @@ function TriggerCard({
           </button>
         </div>
 
-        {/* Send timing (minutes before) */}
-        <div>
-          <div
-            style={{
-              fontSize: 11,
-              fontWeight: 600,
-              color: "var(--color-text-muted)",
-              marginBottom: 6,
-              textTransform: "uppercase" as const,
-              letterSpacing: "0.04em",
-            }}
-          >
-            발송 시점
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-            <input
-              type="number"
-              min={0}
-              step={5}
-              placeholder="0"
-              className="ds-input"
+        {/* Send timing (minutes before) — only for reminder triggers */}
+        {isReminder && (
+          <div>
+            <div
               style={{
-                width: 72,
-                fontSize: 13,
-                textAlign: "right",
-                paddingRight: 8,
-              }}
-              value={config.minutes_before ?? ""}
-              onChange={(e) => {
-                const v = e.target.value;
-                onUpdate(
-                  {
-                    ...config,
-                    minutes_before:
-                      v === ""
-                        ? null
-                        : Math.max(0, parseInt(v, 10) || 0),
-                  },
-                  true,
-                );
-              }}
-              disabled={saving}
-              aria-label="발송 시점 (분 전)"
-            />
-            <span
-              style={{
-                fontSize: 12,
+                fontSize: 11,
+                fontWeight: 600,
                 color: "var(--color-text-muted)",
-                whiteSpace: "nowrap",
+                marginBottom: 6,
+                textTransform: "uppercase" as const,
+                letterSpacing: "0.04em",
               }}
             >
-              분 전
-            </span>
+              발송 시점
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <input
+                type="number"
+                min={0}
+                step={5}
+                placeholder="0"
+                className="ds-input"
+                style={{
+                  width: 72,
+                  fontSize: 13,
+                  textAlign: "right",
+                  paddingRight: 8,
+                }}
+                value={config.minutes_before ?? ""}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  onUpdate(
+                    {
+                      ...config,
+                      minutes_before:
+                        v === ""
+                          ? null
+                          : Math.max(0, parseInt(v, 10) || 0),
+                    },
+                    true,
+                  );
+                }}
+                disabled={saving}
+                aria-label="발송 시점 (분 전)"
+              />
+              <span
+                style={{
+                  fontSize: 12,
+                  color: "var(--color-text-muted)",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                분 전
+              </span>
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* Send mode (sms / alimtalk / both) */}
-        <div>
-          <div
-            style={{
-              fontSize: 11,
-              fontWeight: 600,
-              color: "var(--color-text-muted)",
-              marginBottom: 6,
-              textTransform: "uppercase" as const,
-              letterSpacing: "0.04em",
-            }}
-          >
-            발송 방식
+        {/* Send mode (sms / alimtalk / both) — only in unified mode (no channelMode) */}
+        {!channelMode && (
+          <div>
+            <div
+              style={{
+                fontSize: 11,
+                fontWeight: 600,
+                color: "var(--color-text-muted)",
+                marginBottom: 6,
+                textTransform: "uppercase" as const,
+                letterSpacing: "0.04em",
+              }}
+            >
+              발송 방식
+            </div>
+            <select
+              className="ds-select"
+              style={{ width: "100%", fontSize: 13 }}
+              value={config.message_mode}
+              onChange={(e) =>
+                onUpdate({
+                  ...config,
+                  message_mode: e.target
+                    .value as AutoSendConfigItem["message_mode"],
+                })
+              }
+              disabled={saving}
+            >
+              {smsConnected && (
+                <option value="sms">{MESSAGE_MODE_LABELS.sms}</option>
+              )}
+              <option value="alimtalk">
+                {MESSAGE_MODE_LABELS.alimtalk}
+              </option>
+              {smsConnected && (
+                <option value="both">{MESSAGE_MODE_LABELS.both}</option>
+              )}
+            </select>
           </div>
-          <select
-            className="ds-select"
-            style={{ width: "100%", fontSize: 13 }}
-            value={config.message_mode}
-            onChange={(e) =>
-              onUpdate({
-                ...config,
-                message_mode: e.target
-                  .value as AutoSendConfigItem["message_mode"],
-              })
-            }
-            disabled={saving}
-          >
-            {smsConnected && (
-              <option value="sms">{MESSAGE_MODE_LABELS.sms}</option>
-            )}
-            <option value="alimtalk">
-              {MESSAGE_MODE_LABELS.alimtalk}
-            </option>
-            {smsConnected && (
-              <option value="both">{MESSAGE_MODE_LABELS.both}</option>
-            )}
-          </select>
-        </div>
+        )}
       </div>
       <AutoSendPreviewPopup
         open={showPreview}
@@ -486,6 +556,7 @@ export default function AutoSendSettingsPanel({
   triggerKeys,
   title = "자동발송 설정",
   description = "이벤트 발생 시 자동 발송하는 메시지를 설정합니다.",
+  channelMode,
 }: AutoSendSettingsPanelProps) {
   const qc = useQueryClient();
   const { data: messagingInfo } = useMessagingInfo();
@@ -517,8 +588,9 @@ export default function AutoSendSettingsPanel({
     triggerKeys.includes(c.trigger),
   );
 
-  const sectionEnabled =
-    filteredConfigs.length > 0 && filteredConfigs.some((c) => c.enabled);
+  const sectionEnabled = channelMode
+    ? filteredConfigs.length > 0 && filteredConfigs.some((c) => c.enabled && isChannelActive(c.message_mode, channelMode))
+    : filteredConfigs.length > 0 && filteredConfigs.some((c) => c.enabled);
 
   // ---- Mutations ----
   const updateMut = useMutation({
@@ -602,9 +674,21 @@ export default function AutoSendSettingsPanel({
   };
 
   const handleSectionToggle = (checked: boolean) => {
-    const next = localConfigs.map((c) =>
-      triggerKeys.includes(c.trigger) ? { ...c, enabled: checked } : c,
-    );
+    const next = localConfigs.map((c) => {
+      if (!triggerKeys.includes(c.trigger)) return c;
+      if (!channelMode) {
+        // unified mode: simple enable/disable
+        return { ...c, enabled: checked };
+      }
+      // channel mode: toggle this channel for all triggers
+      const { message_mode, enabled } = deriveMessageMode(
+        c.message_mode,
+        c.enabled,
+        channelMode,
+        checked,
+      );
+      return { ...c, message_mode, enabled };
+    });
     setLocalConfigs(next);
     updateMut.mutate(next);
   };
@@ -742,6 +826,7 @@ export default function AutoSendSettingsPanel({
                 saving={updateMut.isPending}
                 onEditTemplate={handleEditTemplate}
                 smsConnected={smsConnected}
+                channelMode={channelMode}
               />
             ))}
           </div>

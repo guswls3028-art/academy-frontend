@@ -1,5 +1,5 @@
 // PATH: src/features/clinic/pages/MsgSettingsPage/ClinicMsgSettingsPage.tsx
-// 클리닉 메시지 설정 — 자동발송 트리거 on/off 및 템플릿 관리
+// 클리닉 메시지 설정 — 알림톡/SMS 분리 설정
 
 import AutoSendSettingsPanel from "@/features/messages/components/AutoSendSettingsPanel";
 
@@ -12,10 +12,19 @@ const CLINIC_TRIGGERS = [
 
 export default function ClinicMsgSettingsPage() {
   return (
-    <AutoSendSettingsPanel
-      triggerKeys={CLINIC_TRIGGERS}
-      title="클리닉 자동발송 설정"
-      description="클리닉 예약 완료, 예약 변경, 시작 전 리마인드, 상담 예약 완료 시 학생·학부모에게 자동 발송하는 메시지를 설정합니다."
-    />
+    <div className="flex flex-col gap-6">
+      <AutoSendSettingsPanel
+        triggerKeys={CLINIC_TRIGGERS}
+        channelMode="alimtalk"
+        title="알림톡 자동발송"
+        description="클리닉 이벤트 발생 시 알림톡(카카오)으로 자동 발송합니다. SMS와 독립적으로 설정할 수 있습니다."
+      />
+      <AutoSendSettingsPanel
+        triggerKeys={CLINIC_TRIGGERS}
+        channelMode="sms"
+        title="SMS 자동발송"
+        description="클리닉 이벤트 발생 시 문자(SMS/LMS)로 자동 발송합니다. 알림톡과 독립적으로 설정할 수 있습니다."
+      />
+    </div>
   );
 }

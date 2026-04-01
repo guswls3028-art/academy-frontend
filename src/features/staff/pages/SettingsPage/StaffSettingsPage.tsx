@@ -1,5 +1,5 @@
 // PATH: src/features/staff/pages/SettingsPage/StaffSettingsPage.tsx
-// 직원 관리 설정 — 자동발송 트리거 on/off 및 템플릿 관리
+// 직원 관리 설정 — 알림톡/SMS 분리 자동발송
 
 import AutoSendSettingsPanel from "@/features/messages/components/AutoSendSettingsPanel";
 
@@ -13,10 +13,19 @@ const STAFF_TRIGGERS = [
 
 export default function StaffSettingsPage() {
   return (
-    <AutoSendSettingsPanel
-      triggerKeys={STAFF_TRIGGERS}
-      title="직원 자동발송 설정"
-      description="근태 요약, 비용/경비 리포트, 월 마감 완료, 급여 스냅샷, 급여 명세서 발행 시 해당 직원에게 자동 발송하는 메시지를 설정합니다."
-    />
+    <div className="flex flex-col gap-6">
+      <AutoSendSettingsPanel
+        triggerKeys={STAFF_TRIGGERS}
+        channelMode="alimtalk"
+        title="알림톡 자동발송"
+        description="근태 요약, 비용/경비 리포트, 급여 명세서 발행 시 알림톡(카카오)으로 자동 발송합니다."
+      />
+      <AutoSendSettingsPanel
+        triggerKeys={STAFF_TRIGGERS}
+        channelMode="sms"
+        title="SMS 자동발송"
+        description="근태 요약, 비용/경비 리포트, 급여 명세서 발행 시 문자(SMS/LMS)로 자동 발송합니다."
+      />
+    </div>
   );
 }
