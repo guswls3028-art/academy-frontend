@@ -797,55 +797,68 @@ export default function SendMessageModal({
               </>
             )}
 
-            {/* ══════ 알림톡 모드 ══════ */}
+            {/* ══════ 알림톡 모드 — 컴팩트 접이식 ══════ */}
             {sendMode === "alimtalk" && (
-              <>
-                {selectedTemplate ? (
-                  /* ── 템플릿 선택됨 — readOnly 미리보기 + 자유 내용 ── */
-                  <div className="flex-1 min-h-0 flex flex-col gap-3">
-                    {/* 헤더: 뒤로가기 + 이름 */}
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <button type="button" onClick={() => { setSelectedTemplateId(null); setTemplateSearch(""); }}
+              <div className="flex-1 min-h-0 flex flex-col gap-3">
+                <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-secondary)" }}>
+                  알림톡은 승인된 템플릿으로만 발송합니다. 템플릿을 선택하면 미리보기가 좌측에 표시됩니다.
+                </div>
+
+                {approvedTemplates.length === 0 ? (
+                  <div style={{ padding: "30px 20px", textAlign: "center", color: "var(--color-text-muted)" }}>
+                    <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 6 }}>승인된 템플릿이 없습니다</div>
+                    <div style={{ fontSize: 12 }}>메시지 &gt; 템플릿 관리에서 생성 후 검수 신청해 주세요.</div>
+                  </div>
+                ) : (
+                  <>
+                    {/* 템플릿 드롭다운 선택 */}
+                    <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                      <select
+                        value={selectedTemplateId ?? ""}
+                        onChange={(e) => {
+                          const id = e.target.value ? Number(e.target.value) : null;
+                          if (id) {
+                            const t = approvedTemplates.find((x) => x.id === id);
+                            if (t) selectTemplate(t);
+                          } else {
+                            setSelectedTemplateId(null);
+                          }
+                        }}
+                        disabled={sending}
                         style={{
-                          display: "flex", alignItems: "center", gap: 4, padding: "4px 10px", borderRadius: 6,
-                          border: "1px solid var(--color-border-divider)", background: "var(--color-bg-surface)",
-                          color: "var(--color-text-secondary)", fontSize: 12, fontWeight: 600, cursor: "pointer",
-                        }}>
-                        <FiChevronLeft size={14} />다른 템플릿
-                      </button>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: "var(--color-text-primary)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {selectedTemplate.name}
-                      </span>
-                      <span style={{
-                        padding: "2px 8px", borderRadius: 6, fontSize: 10, fontWeight: 700,
-                        color: "var(--color-success)", background: "color-mix(in srgb, var(--color-success) 10%, transparent)",
-                      }}>승인됨</span>
+                          flex: 1, maxWidth: 400, padding: "8px 12px", fontSize: 13, fontWeight: 600,
+                          borderRadius: 8, border: "1px solid var(--color-border-divider)",
+                          background: "var(--color-bg-surface)", color: "var(--color-text-primary)",
+                          cursor: "pointer",
+                        }}
+                      >
+                        <option value="">— 템플릿 선택 —</option>
+                        {approvedTemplates.map((t) => (
+                          <option key={t.id} value={t.id}>{t.name}</option>
+                        ))}
+                      </select>
+                      {selectedTemplate && (
+                        <span style={{ fontSize: 11, fontWeight: 700, color: "var(--color-success)", display: "flex", alignItems: "center", gap: 3 }}>
+                          <FiCheck size={12} /> 선택됨
+                        </span>
+                      )}
                     </div>
 
-                    {/* 제목 (readOnly) */}
-                    {selectedTemplate.subject && (
+                    {/* 선택된 템플릿 readOnly 미리보기 (접이식) */}
+                    {selectedTemplate && (
                       <div style={{
-                        padding: "8px 14px", borderRadius: "var(--radius-md)",
-                        background: "color-mix(in srgb, var(--color-primary) 4%, var(--color-bg-surface))",
-                        border: "1px solid var(--color-border-divider)", fontSize: 13, fontWeight: 700,
-                        color: "var(--color-text-primary)",
+                        padding: "12px 16px", borderRadius: 8,
+                        background: "var(--color-bg-surface-soft)", border: "1px solid var(--color-border-divider)",
+                        fontSize: 12, lineHeight: 1.7, color: "var(--color-text-secondary)",
+                        whiteSpace: "pre-wrap", wordBreak: "break-word",
+                        maxHeight: 200, overflowY: "auto",
                       }}>
-                        {renderPreviewBadges(selectedTemplate.subject)}
+                        {renderPreviewBadges(selectedTemplate.body)}
                       </div>
                     )}
 
-                    {/* 본문 (readOnly) */}
-                    <div style={{
-                      flex: 1, minHeight: 140, padding: "14px 16px", borderRadius: "var(--radius-md)",
-                      background: "var(--color-bg-surface)", border: "1px solid var(--color-border-divider)",
-                      fontSize: 13, lineHeight: 1.8, color: "var(--color-text-primary)",
-                      whiteSpace: "pre-wrap", wordBreak: "break-word", overflowY: "auto",
-                    }}>
-                      {renderPreviewBadges(selectedTemplate.body)}
-                    </div>
-
                     {/* 자유 내용 (#{내용} 포함 시) */}
-                    {templateHasContentVar && (
+                    {selectedTemplate && templateHasContentVar && (
                       <div>
                         <div style={{ fontSize: 11, fontWeight: 700, color: "var(--color-text-muted)", marginBottom: 4 }}>
                           자유 내용 입력 <span style={{ fontWeight: 400 }}>— 템플릿의 {"#{내용}"} 위치에 삽입</span>
@@ -855,58 +868,13 @@ export default function SendMessageModal({
                           value={freeContent}
                           onChange={(e) => setFreeContent(e.target.value)}
                           disabled={sending}
-                          style={{ minHeight: 80, fontSize: 13, lineHeight: 1.6, padding: 10 }}
+                          style={{ minHeight: 60, fontSize: 13, lineHeight: 1.6, padding: 10 }}
                         />
                       </div>
                     )}
-
-                    {/* 누락 경고 */}
-                    {hasMissingVars && (
-                      <div style={{
-                        display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", borderRadius: "var(--radius-md)",
-                        background: "color-mix(in srgb, #d97706 8%, var(--color-bg-surface))",
-                        border: "1px solid color-mix(in srgb, #d97706 20%, var(--color-border-divider))",
-                      }}>
-                        <FiAlertCircle size={14} style={{ color: "#d97706", flexShrink: 0 }} />
-                        <span style={{ fontSize: 12, color: "#92400e" }}>일부 변수가 현재 도메인에서 제공되지 않습니다. 발송 시 빈 값으로 처리됩니다.</span>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  /* ── 템플릿 미선택 — 템플릿 브라우저 ── */
-                  <div className="flex-1 min-h-0 flex flex-col gap-3">
-                    {/* 안내 */}
-                    <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-secondary)" }}>
-                      알림톡은 승인된 템플릿으로만 발송할 수 있습니다. 템플릿을 선택해 주세요.
-                    </div>
-
-                    {/* 검색 */}
-                    <div style={{ position: "relative" }}>
-                      <FiSearch size={14} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "var(--color-text-muted)", pointerEvents: "none" }} />
-                      <Input placeholder="템플릿 검색…" value={templateSearch} onChange={(e) => setTemplateSearch(e.target.value)} style={{ paddingLeft: 30, fontSize: 13 }} />
-                    </div>
-
-                    {/* 목록 */}
-                    <div style={{ flex: 1, minHeight: 0, overflowY: "auto", display: "flex", flexDirection: "column", gap: 6, paddingRight: 2 }}>
-                      {approvedTemplates.length === 0 ? (
-                        <div style={{ padding: "40px 20px", textAlign: "center", color: "var(--color-text-muted)" }}>
-                          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8 }}>승인된 알림톡 템플릿이 없습니다</div>
-                          <div style={{ fontSize: 12, lineHeight: 1.6 }}>메시지 &gt; 템플릿 관리에서 템플릿을 만들고<br/>검수 신청 후 승인받아 주세요.</div>
-                        </div>
-                      ) : (
-                        <>
-                          {renderAlimtalkSection("최근 사용", categorizedTemplates.recent)}
-                          {renderAlimtalkSection("기본 템플릿", categorizedTemplates.defaults)}
-                          {renderAlimtalkSection("내 템플릿", categorizedTemplates.custom)}
-                          {categorizedTemplates.recent.length === 0 && categorizedTemplates.defaults.length === 0 && categorizedTemplates.custom.length === 0 && templateSearch && (
-                            <div style={{ padding: 20, textAlign: "center", color: "var(--color-text-muted)", fontSize: 13 }}>검색 결과가 없습니다</div>
-                          )}
-                        </>
-                      )}
-                    </div>
-                  </div>
+                  </>
                 )}
-              </>
+              </div>
             )}
           </div>
         </div>
