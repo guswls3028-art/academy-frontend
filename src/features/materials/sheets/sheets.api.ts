@@ -333,11 +333,10 @@ export async function autoGenerateQuestionsApi(input: {
  * ===================================================================================== */
 
 export async function fetchOmrObjectiveMeta(questionCount: 10 | 20 | 30): Promise<OmrObjectiveMetaV1> {
-  const res = await fetch(`/api/v1/assets/omr/objective/meta/?question_count=${questionCount}`, {
-    credentials: "include",
+  const res = await api.get<OmrObjectiveMetaV1>(`/assets/omr/objective/meta/`, {
+    params: { question_count: questionCount },
   });
-  if (!res.ok) throw new Error(await res.text());
-  return (await res.json()) as OmrObjectiveMetaV1;
+  return res.data;
 }
 
 /* =====================================================================================

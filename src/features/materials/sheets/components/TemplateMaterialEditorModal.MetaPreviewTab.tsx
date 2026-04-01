@@ -5,6 +5,7 @@
 // - exams generate-omr/question_auto는 10|20|30 스펙에 맞춘다.
 
 import { useEffect, useState } from "react";
+import api from "@/shared/api/axios";
 
 const QUESTION_COUNTS = [10, 20, 30] as const;
 
@@ -18,15 +19,12 @@ export function MetaPreviewTab() {
     (async () => {
       try {
         setError(null);
-        const res = await fetch(
-          `/api/v1/assets/omr/objective/meta/?question_count=${questionCount}`,
-          { credentials: "include" }
-        );
-        if (!res.ok) throw new Error(await res.text());
-        const json = await res.json();
-        if (alive) setData(json);
+        const res = await api.get(`/assets/omr/objective/meta/`, {
+          params: { question_count: questionCount },
+        });
+        if (alive) setData(res.data);
       } catch (e: any) {
-        if (alive) setError(e?.message || "meta 조회 실패");
+        if (alive) setError(e?.response?.data?.detail || e?.message || "meta 조회 실패");
       }
     })();
     return () => {
