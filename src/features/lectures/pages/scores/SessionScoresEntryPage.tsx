@@ -353,9 +353,9 @@ export default function SessionScoresEntryPage(_props: Props) {
             const rows = data?.rows ?? [];
             const selectedRows = rows.filter((r) => selectedEnrollmentIds.includes(r.enrollment_id));
             const meta = data?.meta ?? null;
-            const lecture = qc.getQueryData<{ title?: string; name?: string }>(["lecture", Number(lectureId)]);
+            const lecture = qc.getQueryData<{ title?: string; name?: string }>(["lecture", numericLectureId]);
             const lectureName = lecture?.title ?? lecture?.name ?? "";
-            const session = qc.getQueryData<{ title?: string }>(["session-detail", Number(sessionId)]);
+            const session = qc.getQueryData<{ title?: string }>(["session-detail", numericSessionId]);
             const sessionTitle = session?.title ?? "";
             const reportOptions = { lectureName, sessionTitle };
 

@@ -651,9 +651,9 @@ export default function SendMessageModal({
                 <span style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-muted)", whiteSpace: "nowrap" }}>채널</span>
                 <div style={{ display: "flex", gap: 0, borderRadius: 8, overflow: "hidden", border: "1px solid var(--color-border-divider)" }}>
                   {([
-                    { key: "sms" as const, label: "SMS", disabled: !smsAllowed },
-                    { key: "alimtalk" as const, label: "알림톡" },
-                  ] as const).map((opt) => (
+                    { key: "sms" as SendMode, label: "SMS", disabled: !smsAllowed },
+                    { key: "alimtalk" as SendMode, label: "알림톡", disabled: false },
+                  ]).map((opt) => (
                     <button
                       key={opt.key}
                       type="button"
