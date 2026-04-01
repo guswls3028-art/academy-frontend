@@ -397,9 +397,12 @@ export default function SendMessageModal({
     }
   }, [open, initialBody]);
 
+  // smsAllowed 비동기 로딩 대응 — 양방향 보정
   useEffect(() => {
-    if (open && !smsAllowed && sendMode === "sms") setSendMode("alimtalk");
-  }, [open, smsAllowed, sendMode]);
+    if (!open) return;
+    if (!smsAllowed && sendMode === "sms") setSendMode("alimtalk");
+    if (smsAllowed && sendMode === "alimtalk" && !selectedTemplateId) setSendMode("sms");
+  }, [open, smsAllowed, sendMode, selectedTemplateId]);
 
   // Load templates
   useEffect(() => {

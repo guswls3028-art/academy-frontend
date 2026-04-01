@@ -239,10 +239,11 @@ export function substituteScoreVars(
   }
 
   // 시험 변수 (번호 기반, 실제 데이터로 덮어쓰기)
+  const exams = row.exams ?? [];
   let examSumScore = 0;
   let examSumMax = 0;
-  for (let i = 0; i < (row.exams?.length ?? 0); i++) {
-    const exam = row.exams[i];
+  for (let i = 0; i < exams.length; i++) {
+    const exam = exams[i];
     const metaExam = meta?.exams?.find((e) => e.exam_id === exam.exam_id);
     const max = exam.block.max_score ?? metaExam?.max_score ?? 0;
     const n = i + 1;
@@ -258,8 +259,9 @@ export function substituteScoreVars(
   vars["시험총만점"] = String(examSumMax);
 
   // 과제 변수 (번호 기반, 실제 데이터로 덮어쓰기)
-  for (let i = 0; i < (row.homeworks?.length ?? 0); i++) {
-    const hw = row.homeworks[i];
+  const homeworks = row.homeworks ?? [];
+  for (let i = 0; i < homeworks.length; i++) {
+    const hw = homeworks[i];
     const metaHw = meta?.homeworks?.find((h) => h.homework_id === hw.homework_id);
     const max = hw.block.max_score ?? metaHw?.max_score ?? 0;
     const n = i + 1;
