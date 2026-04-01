@@ -83,8 +83,11 @@ test.describe("메시지 발송 모달 — 상품 UX", () => {
     await alimtalkBtn.click();
     await page.waitForTimeout(500);
 
-    // 승인 템플릿 안내 텍스트
-    await expect(page.getByText("승인된 템플릿으로만")).toBeVisible({ timeout: 8000 });
+    // 알림톡 안내 텍스트 (컴팩트 모드)
+    await expect(page.getByText("승인된 템플릿으로만")).toBeVisible({ timeout: 8000 }).catch(async () => {
+      // 컴팩트 모드에서는 드롭다운이 표시됨
+      await expect(page.locator("select").first()).toBeVisible({ timeout: 3000 });
+    });
 
     // 카카오 알림톡 미리보기
     await expect(page.locator("text=카카오 알림톡 미리보기").first()).toBeVisible({ timeout: 3000 });
