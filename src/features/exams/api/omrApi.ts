@@ -42,14 +42,8 @@ export async function downloadOMRPdf(examId: number, params: OMRParams, filename
   const { data } = await api.post(`/exams/${examId}/omr/pdf/`, params, {
     responseType: "blob",
   });
-  const url = URL.createObjectURL(data as Blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `${filename || params.exam_title || "OMR"}_OMR.pdf`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  const { downloadBlob } = await import("@/shared/utils/safeDownload");
+  downloadBlob(data as Blob, `${filename || params.exam_title || "OMR"}_OMR.pdf`);
 }
 
 /** 도구 페이지용 OMR HTML 프리뷰 */
@@ -66,12 +60,6 @@ export async function downloadToolsOMRPdf(params: OMRParams & { exam_title: stri
   const { data } = await api.post("/tools/omr/pdf/", params, {
     responseType: "blob",
   });
-  const url = URL.createObjectURL(data as Blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `${params.exam_title || "OMR"}_OMR.pdf`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  const { downloadBlob } = await import("@/shared/utils/safeDownload");
+  downloadBlob(data as Blob, `${params.exam_title || "OMR"}_OMR.pdf`);
 }

@@ -19,16 +19,12 @@ import { patchHomeworkQuick } from "../api/patchHomeworkQuick";
 import { patchExamTotalScoreQuick } from "../api/patchExamTotalQuick";
 import { patchExamObjectiveScoreQuick } from "../api/patchExamObjectiveQuick";
 import { patchExamSubjectiveScoreQuick } from "../api/patchExamSubjectiveQuick";
-import { patchExamItemScore } from "../api/patchItemScore";
 import { getHomeworkStatus } from "../utils/homeworkStatus";
 import ScoreInputCell from "./ScoreInputCell";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { DomainTable, ResizableTh, useTableColumnPrefs } from "@/shared/ui/domain";
 import type { TableColumnDef } from "@/shared/ui/domain";
-import AttendanceStatusBadge, {
-  type AttendanceStatus,
-  ORDERED_ATTENDANCE_STATUS,
-  getAttendanceShortLabel,
+import {
   getAttendanceTone,
 } from "@/shared/ui/badges/AttendanceStatusBadge";
 import { feedback } from "@/shared/ui/feedback/feedback";
@@ -138,75 +134,6 @@ function getClinicReason(row: SessionScoreRow): { target: boolean; reason: strin
   return { target: true, reason: "대상" };
 }
 
-/** 출결 셀 팝오버 — 클릭 시 상태 선택 드롭다운 */
-function AttendanceCellPopover({
-  currentStatus,
-  enrollmentId,
-  hasAttendanceRecord,
-  onSelect,
-}: {
-  currentStatus: string | undefined;
-  enrollmentId: number;
-  hasAttendanceRecord: boolean;
-  onSelect: (enrollmentId: number, status: string) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const wrapperRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [open]);
-
-  if (!hasAttendanceRecord) {
-    return <span className="text-[var(--color-text-muted)]">-</span>;
-  }
-
-  return (
-    <div ref={wrapperRef} className="relative inline-block">
-      <button
-        type="button"
-        onClick={(e) => { e.stopPropagation(); setOpen((v) => !v); }}
-        className="cursor-pointer hover:opacity-80 transition-opacity"
-        title="출결 변경"
-      >
-        {currentStatus ? (
-          <AttendanceStatusBadge status={currentStatus as AttendanceStatus} variant="2ch" />
-        ) : (
-          <span className="text-[var(--color-text-muted)]">-</span>
-        )}
-      </button>
-      {open && (
-        <div
-          className="absolute left-0 top-full mt-1 z-50 bg-[var(--color-bg-surface)] border border-[var(--color-border-divider)] rounded-md shadow-lg py-1 min-w-[88px]"
-          style={{ maxHeight: 240, overflowY: "auto" }}
-        >
-          {ORDERED_ATTENDANCE_STATUS.map((s) => (
-            <button
-              key={s}
-              type="button"
-              className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-sm hover:bg-[var(--color-bg-surface-hover)] transition-colors ${s === currentStatus ? "bg-[var(--color-bg-surface-hover)]" : ""}`}
-              onClick={(e) => {
-                e.stopPropagation();
-                onSelect(enrollmentId, s);
-                setOpen(false);
-              }}
-            >
-              <AttendanceStatusBadge status={s} variant="2ch" />
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
 export type ScoreColumnDef =
   | { type: "name"; key: "name"; width: number; editable: false }
   | { type: "attendance"; key: "attendance"; width: number; editable: false }
@@ -308,8 +235,6 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
   meta,
   sessionId,
   attendanceMap = {},
-  attendanceIdMap = {},
-  onAttendanceChange,
   isEditMode = false,
   examEditTotal = false,
   examEditObjective = false,
@@ -349,7 +274,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
     pendingRef.current.clear();
     dirtyKeysRef.current.clear();
     if (list.length === 0) return;
-    let hasError = false;
+    const failed: PendingChange[] = [];
     for (const p of list) {
       try {
         if (p.type === "examTotal") {
@@ -368,13 +293,19 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
           });
         }
       } catch {
-        hasError = true;
+        failed.push(p);
       }
+    }
+    // 실패한 항목은 pending에 복원하여 다음 flush에서 재시도
+    for (const p of failed) {
+      const key = pendingKeyForChange(p);
+      pendingRef.current.set(key, p);
+      dirtyKeysRef.current.add(key);
     }
     qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
     qc.invalidateQueries({ queryKey: ["clinic-targets"] });
     qc.invalidateQueries({ queryKey: ["exam-results"] });
-    if (hasError) feedback.error("일부 점수 저장에 실패했습니다.");
+    if (failed.length > 0) feedback.error(`${failed.length}건의 점수 저장에 실패했습니다. 다시 저장해 주세요.`);
   }, [qc, sessionId]);
 
   /** 현재 pending 변경 목록 스냅샷 — 자동 저장/복원용 */
@@ -719,7 +650,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
           >
             출석
           </ResizableTh>
-          {examOptions.map((ex, idx) => {
+          {examOptions.map((ex) => {
             const examColsList = examColsMap[ex.exam_id] ?? [];
             const colSpan = examColsList.length || 1;
             return (
