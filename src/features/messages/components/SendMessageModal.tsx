@@ -6,7 +6,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Input } from "antd";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter } from "@/shared/ui/modal";
-import { Button, Tabs } from "@/shared/ui/ds";
+import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { asyncStatusStore } from "@/shared/ui/asyncStatus/asyncStatusStore";
 import {
@@ -59,7 +59,6 @@ export type SendMessageModalProps = {
 };
 
 type ContentMode = "free" | "template";
-type EditorTab = "message" | "alimtalk";
 type SendMode = "sms" | "alimtalk";
 
 export default function SendMessageModal({
@@ -77,7 +76,6 @@ export default function SendMessageModal({
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
   const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null);
-  const [activeTab, setActiveTab] = useState<EditorTab>("message");
   /** 수신자: 학부모·학생 둘 다 선택 가능 (최소 1개). 직원 모드일 때는 사용 안 함 */
   const [sendToParent, setSendToParent] = useState(true);
   const [sendToStudent, setSendToStudent] = useState(true);
@@ -136,7 +134,6 @@ export default function SendMessageModal({
   const blocks = getBlocksForCategory(blockCategory);
   const badgeBody = renderPreviewBadges(body);
   const badgeSubject = renderPreviewBadges(subject);
-  const showSubject = activeTab === "alimtalk";
 
   // Reset state when modal opens
   useEffect(() => {
@@ -145,7 +142,6 @@ export default function SendMessageModal({
       setBody(initialBody ?? "");
       setSelectedTemplateId(null);
       setContentMode("free");
-      setActiveTab("message");
       setSendToParent(true);
       setSendToStudent(true);
       setSendMode("alimtalk");
@@ -260,8 +256,7 @@ export default function SendMessageModal({
       const sendToLabel = isStaffMode
         ? "직원"
         : sendToTargets.length === 2 ? "학부모·학생" : sendToTargets[0] === "parent" ? "학부모" : "학생";
-      const modeLabel =
-        messageModes.length === 2 ? "모두" : messageModes[0] === "sms" ? "메시지" : "알림톡";
+      const modeLabel = sendMode === "sms" ? "메시지" : "알림톡";
       feedback.success(
         `${sendToLabel} ${modeLabel} 발송 예정 ${totalEnqueued}건입니다.`
       );
@@ -293,10 +288,8 @@ export default function SendMessageModal({
       ? (hasRecipients ? `선택한 직원 ${staffIds.length}명` : "수신자 없음")
       : (hasRecipients ? `선택한 학생 ${studentIds.length}명` : "수신자 없음"));
 
-  const editorTabItems: import("@/shared/ui/ds/Tabs").TabItem[] = [
-    { key: "message", label: "메시지" },
-    { key: "alimtalk", label: "알림톡" },
-  ];
+  // 탭은 발송 방식(sendMode)과 연동 — 별도 탭 불필요
+  const showSubjectField = sendMode === "alimtalk";
 
   return (
     <AdminModal open={open} onClose={onClose} width={1000} onEnterConfirm={handleSend} className="send-message-modal">
@@ -336,7 +329,7 @@ export default function SendMessageModal({
               <div className="template-editor__preview-title mb-2">
                 실제 수신자에게 이렇게 보입니다
               </div>
-              {activeTab === "message" ? (
+              {sendMode === "sms" ? (
                 <div className="template-preview-phone" aria-label="아이폰 메시지 미리보기">
                   <div className="template-preview-phone__screen">
                     <div className="template-preview-phone__bubble" style={{ lineHeight: 1.7 }}>
@@ -362,22 +355,13 @@ export default function SendMessageModal({
                 </div>
               )}
               <p className="mt-2 text-[10px] text-[var(--color-text-muted)]">
-                {activeTab === "message" ? "아이폰 메시지 예시" : "카카오톡 알림톡 예시"} (치환 변수는 샘플 값)
+                {sendMode === "sms" ? "아이폰 메시지 예시" : "카카오톡 알림톡 예시"} (치환 변수는 샘플 값)
               </p>
             </section>
           </div>
 
           {/* ── 우측: 편집 영역 ── */}
           <div className="template-editor__right flex-1 min-w-0 flex flex-col gap-2 p-4">
-            {/* 메시지/알림톡 탭 */}
-            <div className="modal-tabs-elevated template-editor__tabs template-editor__tabs--top">
-              <Tabs
-                value={activeTab}
-                onChange={(k) => setActiveTab(k as EditorTab)}
-                items={editorTabItems}
-              />
-            </div>
-
             {/* 발송 방식 + 수신 대상 — 가로 배치 */}
             <div className="flex items-start gap-6">
               {/* 발송 방식: select dropdown */}
@@ -516,8 +500,8 @@ export default function SendMessageModal({
             )}
 
             {/* 제목 (알림톡 탭에서만 표시) — 고정 높이 슬롯 */}
-            <div className={`template-editor__subject-slot ${showSubject ? "template-editor__subject-slot--has-subject" : ""}`}>
-              {showSubject ? (
+            <div className={`template-editor__subject-slot ${showSubjectField ? "template-editor__subject-slot--has-subject" : ""}`}>
+              {showSubjectField ? (
                 <>
                   <label className="template-editor__editor-title block mb-1">제목 (알림톡)</label>
                   <Input
