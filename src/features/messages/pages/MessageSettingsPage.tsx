@@ -252,8 +252,32 @@ export default function MessageSettingsPage() {
   const hasOwnCreds = info?.has_own_credentials ?? false;
   const providerLabel = provider === "ppurio" ? "뿌리오" : "솔라피";
 
+  const setupSteps = [
+    { done: hasOwnCreds, label: "API 연동" },
+    { done: hasSender, label: "발신번호" },
+  ];
+  const allSetupDone = setupSteps.every((s) => s.done);
+
   return (
     <div className="flex flex-col gap-5" style={{ maxWidth: 720 }}>
+
+      {/* ─── 설정 완료 안내 ─── */}
+      {!allSetupDone && info && (
+        <div style={{
+          display: "flex", alignItems: "center", gap: 10,
+          padding: "12px 16px", borderRadius: 12,
+          background: "color-mix(in srgb, var(--color-status-warning, #d97706) 6%, var(--color-bg-surface))",
+          border: "1px solid color-mix(in srgb, var(--color-status-warning, #d97706) 18%, var(--color-border-divider))",
+        }}>
+          <FiAlertCircle size={16} style={{ color: "var(--color-status-warning, #d97706)", flexShrink: 0 }} />
+          <div style={{ fontSize: 13, color: "var(--color-text-secondary)", lineHeight: 1.5 }}>
+            <strong style={{ color: "var(--color-text-primary)" }}>메시지 발송 설정을 완료해 주세요.</strong>
+            <span style={{ marginLeft: 8 }}>
+              {setupSteps.filter((s) => !s.done).map((s) => s.label).join(", ")} 설정이 필요합니다.
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* ─── KPI 요약 ─── */}
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
@@ -438,8 +462,9 @@ export default function MessageSettingsPage() {
       <Card>
         <SectionTitle icon={<FiMessageCircle size={15} />}>카카오 알림톡 채널 <span style={{ fontSize: 12, fontWeight: 400, color: "var(--color-text-muted)" }}>선택</span></SectionTitle>
         <Desc>
-          SMS만 사용한다면 이 항목은 건너뛰세요.
-          알림톡을 사용하려면 카카오 비즈니스 채널 PFID를 입력합니다.
+          {hasPfid
+            ? "카카오 알림톡 채널이 연동되어 있습니다. 알림톡 템플릿을 통해 카카오톡으로 알림을 발송할 수 있습니다."
+            : "SMS만 사용한다면 이 항목은 건너뛰세요. 알림톡을 사용하려면 카카오 비즈니스 채널 PFID를 입력합니다."}
         </Desc>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
           <Input

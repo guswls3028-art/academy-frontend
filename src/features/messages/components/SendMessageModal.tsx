@@ -6,7 +6,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Input } from "antd";
-import { FiSearch, FiSave, FiChevronLeft, FiCheck, FiAlertCircle } from "react-icons/fi";
+import { FiSearch, FiSave, FiChevronLeft, FiCheck, FiAlertCircle, FiAlertTriangle } from "react-icons/fi";
 import { Shield } from "lucide-react";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter } from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
@@ -51,14 +51,15 @@ type SendMode = "sms" | "alimtalk";
 
 const RECENT_KEY = "sendModal_recentTpls";
 const MAX_RECENT = 5;
+const SMS_MAX_CHARS = 2000;
 
 // ─── Helpers ───
 
 function getCharLabel(len: number) {
   if (len === 0) return null;
   if (len <= 90) return { label: `SMS ${len}/90자`, tone: "ok" as const };
-  if (len <= 2000) return { label: `LMS ${len}/2,000자`, tone: "lms" as const };
-  return { label: `${len}자 (초과)`, tone: "over" as const };
+  if (len <= SMS_MAX_CHARS) return { label: `LMS ${len}/2,000자`, tone: "lms" as const };
+  return { label: `${len}/2,000자 초과`, tone: "over" as const };
 }
 
 function isDefaultTpl(t: MessageTemplateItem): boolean {
@@ -358,9 +359,11 @@ export default function SendMessageModal({
     return [];
   }, [sendMode, smsAllowed]);
 
+  const smsOverLimit = sendMode === "sms" && body.length > SMS_MAX_CHARS;
+
   const canSend = (() => {
     if (!hasRecipients || sendToTargets.length === 0 || messageModes.length === 0 || sending) return false;
-    if (sendMode === "sms") return body.trim().length > 0;
+    if (sendMode === "sms") return body.trim().length > 0 && !smsOverLimit;
     if (sendMode === "alimtalk") {
       if (!selectedTemplate || selectedTemplate.solapi_status !== "APPROVED") return false;
       if (templateHasContentVar && !freeContent.trim()) return false;
@@ -380,6 +383,9 @@ export default function SendMessageModal({
     ? renderPreviewWithActualData(selectedTemplate.subject || "", alimtalkExtraVars)
     : renderPreviewBadges(subject);
 
+  // ─── Confirmation step ───
+  const [showConfirm, setShowConfirm] = useState(false);
+
   // ─── Reset on open ───
   useEffect(() => {
     if (open) {
@@ -389,13 +395,14 @@ export default function SendMessageModal({
       setSelectedTemplateId(null);
       setSendToParent(true);
       setSendToStudent(true);
-      setSendMode("sms");
+      setSendMode(smsAllowed ? "sms" : "alimtalk");
       setTemplateSearch("");
       setShowSaveForm(false);
       setSaveTemplateName("");
+      setShowConfirm(false);
       sendingRef.current = false;
     }
-  }, [open, initialBody]);
+  }, [open, initialBody, smsAllowed]);
 
   // Load templates
   useEffect(() => {
@@ -445,8 +452,14 @@ export default function SendMessageModal({
     }
   };
 
+  const requestSend = () => {
+    if (!canSend) return;
+    setShowConfirm(true);
+  };
+
   const handleSend = async () => {
     if (!canSend || sendingRef.current) return;
+    setShowConfirm(false);
     sendingRef.current = true;
     setSending(true);
     const modeLabel = sendMode === "sms" ? "문자" : "알림톡";
@@ -528,6 +541,7 @@ export default function SendMessageModal({
     if (!hasRecipients) return "수신자를 선택해 주세요";
     if (sendToTargets.length === 0) return "발송 대상을 선택해 주세요";
     if (sendMode === "sms" && !body.trim()) return "본문을 입력해 주세요";
+    if (sendMode === "sms" && smsOverLimit) return `본문이 ${SMS_MAX_CHARS}자를 초과합니다`;
     if (sendMode === "alimtalk" && !selectedTemplate) return "템플릿을 선택해 주세요";
     if (sendMode === "alimtalk" && selectedTemplate?.solapi_status !== "APPROVED") return "승인된 템플릿만 발송 가능합니다";
     if (sendMode === "alimtalk" && templateHasContentVar && !freeContent.trim()) return "자유 내용을 입력해 주세요";
@@ -551,7 +565,7 @@ export default function SendMessageModal({
 
   // ─── Render ───
   return (
-    <AdminModal open={open} onClose={onClose} width={920} onEnterConfirm={handleSend} className="send-message-modal">
+    <AdminModal open={open} onClose={onClose} width={920} onEnterConfirm={requestSend} className="send-message-modal">
       <ModalHeader title={
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <span>메시지 발송</span>
@@ -580,6 +594,14 @@ export default function SendMessageModal({
               <div style={{ fontSize: 14, fontWeight: 700, color: "var(--color-primary)" }}>{label}</div>
               {!hasRecipients && (
                 <div style={{ fontSize: 11, color: "var(--color-status-warning, #d97706)", marginTop: 4 }}>수신자를 선택한 뒤 발송해 주세요.</div>
+              )}
+              {hasRecipients && !isStaffMode && (
+                <div style={{ fontSize: 11, color: "var(--color-text-muted)", marginTop: 4, lineHeight: 1.6 }}>
+                  {sendToParent && sendToStudent ? "학부모·학생 모두에게 발송" :
+                   sendToParent ? "학부모에게만 발송" :
+                   sendToStudent ? "학생에게만 발송" :
+                   "대상을 선택해 주세요"}
+                </div>
               )}
             </div>
 
@@ -653,7 +675,14 @@ export default function SendMessageModal({
                     <button
                       key={opt.key}
                       type="button"
-                      onClick={() => !opt.disabled && setSendMode(opt.key)}
+                      onClick={() => {
+                        if (opt.disabled || opt.key === sendMode) return;
+                        setSendMode(opt.key);
+                        setSelectedTemplateId(null);
+                        setSubject("");
+                        setBody(opt.key === "sms" ? (initialBody ?? "") : "");
+                        setFreeContent("");
+                      }}
                       disabled={sending || opt.disabled}
                       style={{
                         padding: "6px 16px", fontSize: 13, fontWeight: 700, border: "none",
@@ -769,8 +798,20 @@ export default function SendMessageModal({
                     onChange={(e) => setBody(e.target.value)}
                     disabled={sending}
                     className="message-domain-input"
-                    style={{ resize: "vertical", fontFamily: "inherit", minHeight: 200, flex: 1, fontSize: 14, lineHeight: 1.7, padding: 12 }}
+                    style={{
+                      resize: "vertical", fontFamily: "inherit", minHeight: 200, flex: 1, fontSize: 14, lineHeight: 1.7, padding: 12,
+                      borderColor: smsOverLimit ? "var(--color-error)" : undefined,
+                    }}
                   />
+                  {smsOverLimit && (
+                    <div style={{
+                      display: "flex", alignItems: "center", gap: 6, marginTop: 4,
+                      fontSize: 12, fontWeight: 600, color: "var(--color-error)",
+                    }}>
+                      <FiAlertCircle size={12} />
+                      본문이 {SMS_MAX_CHARS}자를 초과하여 발송할 수 없습니다 ({body.length}자)
+                    </div>
+                  )}
                 </div>
 
                 {/* 변수 블록 */}
@@ -876,6 +917,82 @@ export default function SendMessageModal({
         </div>
       </ModalBody>
 
+      {/* ─── 발송 확인 오버레이 ─── */}
+      {showConfirm && (
+        <div style={{
+          position: "absolute", inset: 0, zIndex: 20,
+          background: "color-mix(in srgb, var(--color-bg-surface) 94%, transparent)", backdropFilter: "blur(4px)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          borderRadius: "inherit",
+        }}>
+          <div style={{
+            width: 380, padding: "32px 28px", textAlign: "center",
+            display: "flex", flexDirection: "column", gap: 20,
+          }}>
+            <div style={{ fontSize: 15, fontWeight: 700, color: "var(--color-text-primary)" }}>
+              발송을 확인해 주세요
+            </div>
+            <div style={{
+              display: "flex", flexDirection: "column", gap: 8, padding: "16px 20px",
+              borderRadius: 12, background: "var(--color-bg-surface-soft)",
+              border: "1px solid var(--color-border-divider)",
+              textAlign: "left",
+            }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
+                <span style={{ color: "var(--color-text-muted)" }}>채널</span>
+                <span style={{ fontWeight: 700, color: "var(--color-text-primary)" }}>
+                  {sendMode === "sms" ? (body.length > 90 ? "LMS (장문)" : "SMS (단문)") : "카카오 알림톡"}
+                </span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
+                <span style={{ color: "var(--color-text-muted)" }}>대상</span>
+                <span style={{ fontWeight: 700, color: "var(--color-text-primary)" }}>
+                  {isStaffMode ? `직원 ${staffIds.length}명` : (() => {
+                    const parts: string[] = [];
+                    if (sendToParent) parts.push(`학부모 ${recipientCount}명`);
+                    if (sendToStudent) parts.push(`학생 ${recipientCount}명`);
+                    return parts.join(" + ");
+                  })()}
+                </span>
+              </div>
+              {sendMode === "alimtalk" && selectedTemplate && (
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
+                  <span style={{ color: "var(--color-text-muted)" }}>템플릿</span>
+                  <span style={{ fontWeight: 600, color: "var(--color-text-secondary)", maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {selectedTemplate.name}
+                  </span>
+                </div>
+              )}
+              {sendMode === "sms" && (
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
+                  <span style={{ color: "var(--color-text-muted)" }}>본문 길이</span>
+                  <span style={{ fontWeight: 600, color: "var(--color-text-secondary)" }}>{body.length}자</span>
+                </div>
+              )}
+            </div>
+            {sendMode === "sms" && body.length > 90 && (
+              <div style={{
+                display: "flex", alignItems: "center", gap: 6, padding: "8px 12px",
+                borderRadius: 8, fontSize: 12,
+                background: "color-mix(in srgb, var(--color-status-warning, #d97706) 8%, transparent)",
+                color: "var(--color-status-warning, #d97706)",
+              }}>
+                <FiAlertTriangle size={13} style={{ flexShrink: 0 }} />
+                90자 초과 — LMS 요금이 적용됩니다
+              </div>
+            )}
+            <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
+              <Button intent="secondary" onClick={() => setShowConfirm(false)} style={{ minWidth: 100 }}>
+                돌아가기
+              </Button>
+              <Button intent="primary" onClick={handleSend} disabled={sending} style={{ minWidth: 140, fontSize: 14 }}>
+                {sending ? "발송 중…" : "발송하기"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <ModalFooter
         right={
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
@@ -887,7 +1004,7 @@ export default function SendMessageModal({
             <Button intent="secondary" onClick={onClose} disabled={sending}>취소</Button>
             <Button
               intent="primary"
-              onClick={handleSend}
+              onClick={requestSend}
               disabled={!canSend || sending}
               style={{ minWidth: 160, fontSize: 14, padding: "8px 24px" }}
             >

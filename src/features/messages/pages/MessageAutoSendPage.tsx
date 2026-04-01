@@ -394,6 +394,7 @@ export default function MessageAutoSendPage() {
   const [localConfigs, setLocalConfigs] = useState<AutoSendConfigItem[]>([]);
   const globalEnabled = localConfigs.length > 0 && localConfigs.some((c) => c.enabled);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingConfigsRef = useRef<AutoSendConfigItem[]>([]);
   const autoProvisionedRef = useRef(false);
   useEffect(() => {
     setLocalConfigs(configs);
@@ -483,9 +484,10 @@ export default function MessageAutoSendPage() {
       c.trigger === updated.trigger ? { ...c, ...updated } : c
     );
     setLocalConfigs(next);
+    pendingConfigsRef.current = next;
     if (debounce) {
       if (debounceRef.current) clearTimeout(debounceRef.current);
-      debounceRef.current = setTimeout(() => updateMut.mutate(next), 600);
+      debounceRef.current = setTimeout(() => updateMut.mutate(pendingConfigsRef.current), 600);
     } else {
       if (debounceRef.current) clearTimeout(debounceRef.current);
       updateMut.mutate(next);
