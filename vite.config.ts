@@ -49,6 +49,7 @@ export default defineConfig({
   },
 
   build: {
+    sourcemap: true,
     target: ["es2020", "chrome92", "edge92", "safari14", "firefox90"],
     rollupOptions: {
       output: {
