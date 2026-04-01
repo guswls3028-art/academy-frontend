@@ -232,7 +232,13 @@ export function substituteScoreVars(
   vars["차시명"] = options.sessionTitle || (row as any).session_title || "";
   vars["날짜"] = formatDate(options.date);
 
-  // 시험 변수 (번호 기반)
+  // 시험/과제 슬롯 10개 미리 초기화 (미사용 슬롯에 #{시험6} 등이 원문 노출되지 않게)
+  for (let n = 1; n <= 10; n++) {
+    vars[`시험${n}`] = "-"; vars[`시험${n}만점`] = "-"; vars[`시험${n}명`] = "";
+    vars[`과제${n}`] = "-"; vars[`과제${n}만점`] = "-"; vars[`과제${n}명`] = "";
+  }
+
+  // 시험 변수 (번호 기반, 실제 데이터로 덮어쓰기)
   let examSumScore = 0;
   let examSumMax = 0;
   for (let i = 0; i < (row.exams?.length ?? 0); i++) {
@@ -251,7 +257,7 @@ export function substituteScoreVars(
   vars["시험총점"] = String(examSumScore);
   vars["시험총만점"] = String(examSumMax);
 
-  // 과제 변수 (번호 기반)
+  // 과제 변수 (번호 기반, 실제 데이터로 덮어쓰기)
   for (let i = 0; i < (row.homeworks?.length ?? 0); i++) {
     const hw = row.homeworks[i];
     const metaHw = meta?.homeworks?.find((h) => h.homework_id === hw.homework_id);

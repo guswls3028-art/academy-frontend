@@ -81,17 +81,13 @@ const CATEGORY_BLOCKS: Record<string, TemplateBlock[]> = {
   exam:       [...COMMON, B.lecture_name, B.session_name, B.exam_name, B.score],
   assignment: [...COMMON, B.lecture_name, B.session_name, B.assignment_name, B.score],
   grades:     [...COMMON, B.lecture_name, B.session_name, B.exam_name, B.assignment_name, B.exam_score, B.assignment_score, B.clinic_result,
-    // 번호 기반 시험/과제 변수 — 성적 양식 템플릿용
-    ...[1,2,3,4,5,6,7,8,9,10].flatMap((n) => [
-      { id: `exam_${n}`, label: `시험${n} 점수`, insertText: `#{시험${n}}`, previewValue: `${80+n}` },
-      { id: `exam_${n}_max`, label: `시험${n} 만점`, insertText: `#{시험${n}만점}`, previewValue: "100" },
-      { id: `exam_${n}_name`, label: `시험${n} 명`, insertText: `#{시험${n}명}`, previewValue: `시험${n}` },
+    // 번호 기반 핵심 변수 (점수+만점 쌍) — UI에서 삽입 가능한 대표 블록
+    ...[1,2,3,4,5,6].flatMap((n) => [
+      { id: `exam_${n}`, label: `시험${n}`, insertText: `#{시험${n}}`, previewValue: `${80+n}` },
+      { id: `exam_${n}_max`, label: `시험${n}만점`, insertText: `#{시험${n}만점}`, previewValue: "100" },
     ]),
-    ...[1,2,3].flatMap((n) => [
-      { id: `hw_${n}`, label: `과제${n} 점수`, insertText: `#{과제${n}}`, previewValue: `${85+n}` },
-    ]),
-    { id: "exam_total", label: "시험 총점", insertText: "#{시험총점}", previewValue: "285" },
-    { id: "exam_total_max", label: "시험 총만점", insertText: "#{시험총만점}", previewValue: "350" },
+    { id: "exam_total", label: "시험총점", insertText: "#{시험총점}", previewValue: "285" },
+    { id: "exam_total_max", label: "시험총만점", insertText: "#{시험총만점}", previewValue: "350" },
     { id: "hw_completion", label: "숙제완성도", insertText: "#{숙제완성도}", previewValue: "3/3 완료" },
   ],
   clinic:     [...COMMON, B.clinic_name, B.clinic_place, B.clinic_result],
