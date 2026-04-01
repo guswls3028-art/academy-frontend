@@ -149,58 +149,58 @@ export default function ClinicPrintoutPage() {
 
   // ── iframe에서 편집된 값 읽기 ──
 
-  const readIframeEdits = useCallback(() => {
+  /** iframe DOM에서 현재 편집 상태를 직접 읽어 반환 (setState 없이) */
+  const readIframeValues = useCallback(() => {
     const doc = iframeRef.current?.contentDocument;
-    if (!doc) return;
+    if (!doc) return null;
 
-    // 이름 목록 읽기 (contentEditable name-list에서)
     const readNames = (field: string): string[] => {
       const el = doc.querySelector(`[data-field="${field}"]`);
       if (!el) return [];
-      // 텍스트 콘텐츠에서 이름 추출 (한 줄에 한 명, ☐ 제거)
       const text = (el as HTMLElement).innerText || el.textContent || "";
       return text.split("\n").map((l: string) => l.replace(/☐/g, "").trim()).filter(Boolean);
     };
-    const newBoth = readNames("both");
-    const newExam = readNames("examOnly");
-    const newHw = readNames("hwOnly");
-    if (newBoth.length > 0 || newExam.length > 0 || newHw.length > 0) {
-      setBoth(newBoth);
-      setExamOnly(newExam);
-      setHwOnly(newHw);
-    }
 
-    // 스케줄
+    const readText = (field: string) => {
+      const el = doc.querySelector(`[data-field="${field}"]`);
+      return el?.textContent?.trim() || "";
+    };
+
     const scheduleEl = doc.querySelector('[data-field="schedule"]');
-    if (scheduleEl) {
-      const text = scheduleEl.innerHTML.replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]*>/g, "").trim();
-      if (text) setSchedule(text);
-    }
-    // 세션 타이틀
-    const stEl = doc.querySelector('[data-field="sessionTitle"]');
-    if (stEl) {
-      const t = stEl.textContent?.trim() || "";
-      if (t) setSessionTitle(t);
-    }
-    // 강의 타이틀
-    const ltEl = doc.querySelector('[data-field="lectureTitle"]');
-    if (ltEl) {
-      const t = ltEl.textContent?.trim() || "";
-      if (t) setLectureTitle(t);
-    }
-    // 날짜
-    const dateEl = doc.querySelector('[data-field="date"]');
-    if (dateEl) {
-      const t = dateEl.textContent?.trim() || "";
-      if (t) setDate(t);
-    }
-    // 전체출석
-    const tpEl = doc.querySelector('[data-field="totalPresent"]');
-    if (tpEl) {
-      const n = parseInt(tpEl.textContent?.trim() || "0", 10);
-      if (!isNaN(n)) setTotalPresent(n);
-    }
+    const scheduleText = scheduleEl
+      ? scheduleEl.innerHTML.replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]*>/g, "").trim()
+      : "";
+
+    const tpText = readText("totalPresent");
+    const tp = parseInt(tpText || "0", 10);
+
+    return {
+      both: readNames("both"),
+      examOnly: readNames("examOnly"),
+      hwOnly: readNames("hwOnly"),
+      sessionTitle: readText("sessionTitle"),
+      lectureTitle: readText("lectureTitle"),
+      date: readText("date"),
+      schedule: scheduleText,
+      totalPresent: isNaN(tp) ? 0 : tp,
+    };
   }, []);
+
+  /** iframe 편집 값을 React state에 동기화 */
+  const readIframeEdits = useCallback(() => {
+    const vals = readIframeValues();
+    if (!vals) return;
+    if (vals.both.length > 0 || vals.examOnly.length > 0 || vals.hwOnly.length > 0) {
+      setBoth(vals.both);
+      setExamOnly(vals.examOnly);
+      setHwOnly(vals.hwOnly);
+    }
+    if (vals.schedule) setSchedule(vals.schedule);
+    if (vals.sessionTitle) setSessionTitle(vals.sessionTitle);
+    if (vals.lectureTitle) setLectureTitle(vals.lectureTitle);
+    if (vals.date) setDate(vals.date);
+    setTotalPresent(vals.totalPresent);
+  }, [readIframeValues]);
 
   // ── 파싱 ──
 
@@ -228,26 +228,39 @@ export default function ClinicPrintoutPage() {
   // ── PDF 다운로드 ──
 
   const handleDownload = async () => {
-    // iframe에서 편집된 값 먼저 읽기
-    readIframeEdits();
+    // iframe DOM에서 직접 현재 값을 읽음 (setState 클로저 문제 회피)
+    const vals = readIframeValues();
+    const bNames = vals?.both ?? both;
+    const eNames = vals?.examOnly ?? examOnly;
+    const hNames = vals?.hwOnly ?? hwOnly;
+    const curSession = vals?.sessionTitle || sessionTitle;
+    const curLecture = vals?.lectureTitle || lectureTitle;
+    const curDate = vals?.date || date;
+    const curSchedule = vals?.schedule || schedule;
+    const curPresent = vals?.totalPresent || totalPresent;
 
-    await new Promise((r) => setTimeout(r, 100)); // state 반영 대기
-
-    const bNames = both;
-    const eNames = examOnly;
-    const hNames = hwOnly;
     if (bNames.length + eNames.length + hNames.length === 0) {
       feedback.warning("학생 이름을 입력하세요.");
       return;
     }
+
+    // state도 동기화
+    setBoth(bNames); setExamOnly(eNames); setHwOnly(hNames);
+    if (curSession) setSessionTitle(curSession);
+    if (curLecture) setLectureTitle(curLecture);
+    if (curDate) setDate(curDate);
+    if (curSchedule) setSchedule(curSchedule);
+    setTotalPresent(curPresent);
+
     setPdfLoading(true);
     try {
       const html = buildPdfHtml({
         both: bNames, examOnly: eNames, hwOnly: hNames,
-        sessionTitle, lectureTitle, date, schedule,
-        totalPresent: totalPresent || bNames.length + eNames.length + hNames.length,
+        sessionTitle: curSession, lectureTitle: curLecture,
+        date: curDate, schedule: curSchedule,
+        totalPresent: curPresent || bNames.length + eNames.length + hNames.length,
       });
-      const fname = `클리닉대상자_${sessionTitle || "인쇄물"}_${date.replace(/\//g, "")}.pdf`;
+      const fname = `클리닉대상자_${curSession || "인쇄물"}_${curDate.replace(/\//g, "")}.pdf`;
       await htmlToPdfDownload(html, fname);
       feedback.success("PDF 다운로드 완료");
     } catch {
