@@ -23,6 +23,9 @@ import { formatPhone } from "@/shared/utils/formatPhone";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useConfirm } from "@/shared/ui/confirm";
 import { useSendMessageModal } from "@/features/messages/context/SendMessageModalContext";
+import { fetchMessageTemplates } from "@/features/messages/api/messages.api";
+import { substituteScoreVars, generateScoreReport, buildScoreDetail } from "@/features/scores/utils/generateScoreReport";
+import { fetchSessionScores } from "@/features/scores/api/sessionScores";
 import NotificationPreviewModal from "@/features/messages/components/NotificationPreviewModal";
 import "./attendance-ui.css";
 
@@ -285,6 +288,42 @@ export default function SessionAttendancePage({
       <span className="text-[var(--color-border-divider)]">|</span>
       <Button intent="secondary" size="sm" onClick={handleMessageSend} disabled={selectedIds.length === 0}>
         메시지 발송
+      </Button>
+      <Button intent="secondary" size="sm" disabled={selectedIds.length === 0} onClick={async () => {
+        const selectedRows = sorted.filter((att: any) => selectedSet.has(att.id));
+        const studentIds = selectedRows.map((att: any) => att.student_id).filter((id: unknown) => id != null && Number.isFinite(id));
+        if (studentIds.length === 0) return;
+        const lecture = qc.getQueryData<{ title?: string; name?: string }>(["lecture", lectureId]);
+        const lectureName = lecture?.title ?? lecture?.name ?? "";
+        const session = qc.getQueryData<{ title?: string }>(["session-detail", sessionId]);
+        const sessionTitle = session?.title ?? "";
+        let initialBody: string | undefined;
+        let scoreDetail = "";
+        if (studentIds.length === 1) {
+          try {
+            const [templates, scoresData] = await Promise.all([
+              fetchMessageTemplates("grades"),
+              fetchSessionScores(sessionId),
+            ]);
+            const row = scoresData.rows.find((r) => r.student_id === studentIds[0]);
+            if (row) {
+              const customTpl = templates.find((t) => !t.name.startsWith("[학원플러스]"));
+              initialBody = customTpl
+                ? substituteScoreVars(customTpl.body, row, scoresData.meta, { lectureName, sessionTitle })
+                : generateScoreReport(row, scoresData.meta, { lectureName, sessionTitle });
+              scoreDetail = buildScoreDetail(row, scoresData.meta);
+            }
+          } catch { /* fallback: empty body */ }
+        }
+        openSendMessageModal({
+          studentIds,
+          recipientLabel: `수업결과 발송 — ${selectedIds.length}명`,
+          blockCategory: "grades",
+          initialBody,
+          alimtalkExtraVars: { 강의명: lectureName, 차시명: sessionTitle, 시험성적: scoreDetail },
+        });
+      }}>
+        수업결과 발송
       </Button>
       <Button intent="secondary" size="sm" onClick={handleExcelDownload}>
         엑셀 다운로드
