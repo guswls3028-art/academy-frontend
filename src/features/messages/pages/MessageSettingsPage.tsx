@@ -1,5 +1,5 @@
 // PATH: src/features/messages/pages/MessageSettingsPage.tsx
-// 설정 — 두 가지 모드(대행요청 / 직접연동) + 발신번호 인라인 + 카카오 채널
+// 설정 — 직접연동 + 발신번호 인라인 + 카카오 채널
 
 import { useState, useEffect } from "react";
 import { Input } from "antd";
@@ -8,25 +8,20 @@ import {
   FiAlertCircle,
   FiMessageCircle,
   FiPhone,
-  FiPlusCircle,
   FiSettings,
   FiKey,
-  FiShield,
 } from "react-icons/fi";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import {
   useMessagingInfo,
   useUpdateKakaoPfid,
-  useChargeCredits,
   useUpdateMessagingInfo,
   useVerifySender,
   useTestCredentials,
 } from "../hooks/useMessagingInfo";
 import type { TestCredentialsResult } from "../api/messages.api";
 import type { MessagingProvider } from "../api/messages.api";
-
-type IntegrationMode = "agency" | "self";
 
 /** KPI용 상태 칩 */
 function StatusChip({ ok, label }: { ok: boolean; label: string }) {
@@ -165,16 +160,13 @@ function Desc({ children }: { children: React.ReactNode }) {
 export default function MessageSettingsPage() {
   const { data: info } = useMessagingInfo();
   const { mutate: updatePfid, isPending } = useUpdateKakaoPfid();
-  const { mutate: chargeCredits, isPending: isCharging } = useChargeCredits();
   const { mutate: updateInfo, isPending: isUpdatingInfo } = useUpdateMessagingInfo();
   const { mutate: verify, isPending: isVerifying } = useVerifySender();
   const { mutate: runTest, isPending: isTesting } = useTestCredentials();
 
   const [pfid, setPfid] = useState("");
   const [testResult, setTestResult] = useState<TestCredentialsResult | null>(null);
-  const [chargeAmount, setChargeAmount] = useState("");
   const [provider, setProvider] = useState<MessagingProvider>("solapi");
-  const [mode, setMode] = useState<IntegrationMode>("agency");
 
   // 발신번호 인라인
   const [sender, setSender] = useState("");
@@ -198,12 +190,6 @@ export default function MessageSettingsPage() {
     setSender(info?.messaging_sender ?? "");
   }, [info?.messaging_sender]);
 
-  useEffect(() => {
-    if (info?.has_own_credentials) {
-      setMode("self");
-    }
-  }, [info?.has_own_credentials]);
-
   // 자체 키 필드는 마스킹된 값을 placeholder처럼 사용 (입력 시 새 값)
   useEffect(() => {
     setOwnPpurioAccount(info?.own_ppurio_account ?? "");
@@ -213,27 +199,6 @@ export default function MessageSettingsPage() {
     const value = pfid.trim();
     if (!value) return;
     updatePfid(value);
-  };
-
-  const handleCharge = () => {
-    const amt = chargeAmount.replace(/,/g, "").trim();
-    if (!amt || isNaN(Number(amt)) || Number(amt) <= 0) {
-      feedback.error("올바른 충전 금액을 입력하세요.");
-      return;
-    }
-    chargeCredits(amt, {
-      onSuccess: () => {
-        feedback.success(`${Number(amt).toLocaleString()}원 충전 요청이 완료되었습니다.`);
-        setChargeAmount("");
-      },
-      onError: (err: unknown) => {
-        const msg =
-          err && typeof err === "object" && "response" in err
-            ? (err as { response?: { data?: { detail?: string } } }).response?.data?.detail
-            : null;
-        feedback.error(msg || "충전에 실패했습니다.");
-      },
-    });
   };
 
   const handleVerifySender = () => {
@@ -313,8 +278,6 @@ export default function MessageSettingsPage() {
   const hasPfid = !!(info?.kakao_pfid);
   const hasSender = !!(info?.messaging_sender);
   const smsAllowed = info?.sms_allowed ?? false;
-  const creditBalance = info?.credit_balance ? `${Number(info.credit_balance).toLocaleString()}원` : "0원";
-  const isActive = info?.is_active ?? false;
   const hasOwnCreds = info?.has_own_credentials ?? false;
 
   return (
@@ -329,7 +292,6 @@ export default function MessageSettingsPage() {
           }}
         >
           {[
-            { label: "크레딧 잔액", content: <span style={{ fontSize: 22, fontWeight: 700, letterSpacing: "-0.5px" }}>{creditBalance}</span> },
             {
               label: "발신번호",
               content: (
@@ -358,18 +320,6 @@ export default function MessageSettingsPage() {
                 </span>
               ),
             },
-            {
-              label: "연동 방식",
-              content: (
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <span style={{ fontSize: 14, fontWeight: 600 }}>
-                    {hasOwnCreds ? "직접 연동" : "대행 (플랫폼)"}
-                  </span>
-                  <StatusChip ok={true} label={hasOwnCreds ? "자체 키" : "기본 키"} />
-                </div>
-              ),
-            },
-            { label: "서비스 상태", content: <StatusChip ok={isActive} label={isActive ? "활성화" : "비활성화"} /> },
           ].map(({ label, content }) => (
             <div
               key={label}
@@ -398,78 +348,11 @@ export default function MessageSettingsPage() {
         </div>
       )}
 
-      {/* 연동 방식 선택 (대행요청 vs 직접연동) */}
-      <Card>
-        <SectionTitle>연동 방식</SectionTitle>
-        <Desc>
-          메시지 발송에 사용할 API 연동 방식을 선택하세요.
-        </Desc>
-        <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-          {(
-            [
-              {
-                key: "agency" as const,
-                icon: FiShield,
-                title: "대행 요청 (플랫폼 기본)",
-                desc: "별도 API 키 없이 플랫폼이 제공하는 기본 연동을 사용합니다. 발신번호·채널만 설정하면 바로 사용 가능합니다.",
-              },
-              {
-                key: "self" as const,
-                icon: FiKey,
-                title: "직접 연동 (본인 계정)",
-                desc: "기존에 사용하던 솔라피/뿌리오 계정이 있다면 API 키를 등록하여 직접 발송합니다.",
-              },
-            ] as const
-          ).map((opt) => (
-            <button
-              key={opt.key}
-              type="button"
-              onClick={() => setMode(opt.key)}
-              style={{
-                flex: "1 1 240px",
-                padding: "16px 20px",
-                borderRadius: "var(--radius-lg)",
-                border: `2px solid ${mode === opt.key ? "var(--color-primary)" : "var(--color-border-divider)"}`,
-                background:
-                  mode === opt.key
-                    ? "color-mix(in srgb, var(--color-primary) 6%, var(--color-bg-surface))"
-                    : "var(--color-bg-surface)",
-                cursor: "pointer",
-                textAlign: "left",
-                transition: "border-color 0.15s, background 0.15s",
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                <opt.icon
-                  size={16}
-                  style={{
-                    color: mode === opt.key ? "var(--color-primary)" : "var(--color-text-muted)",
-                  }}
-                />
-                <span
-                  style={{
-                    fontSize: 14,
-                    fontWeight: 600,
-                    color: mode === opt.key ? "var(--color-primary)" : "var(--color-text-primary)",
-                  }}
-                >
-                  {opt.title}
-                </span>
-              </div>
-              <div style={{ fontSize: 12, color: "var(--color-text-muted)", lineHeight: 1.5 }}>{opt.desc}</div>
-            </button>
-          ))}
-        </div>
-      </Card>
-
       {/* 메시징 공급자 선택 */}
       <Card>
         <SectionTitle>메시징 공급자</SectionTitle>
         <Desc>
-          SMS·알림톡 발송에 사용할 공급자입니다.
-          {mode === "agency"
-            ? " 일반적으로 운영자가 지정하며, 변경이 필요하면 운영자에게 문의하세요."
-            : " 직접 연동 시 본인 계정의 공급자를 선택하세요."}
+          SMS·알림톡 발송에 사용할 공급자입니다. 본인 계정의 공급자를 선택하세요.
         </Desc>
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
           <FiSettings size={16} style={{ color: "var(--color-primary)" }} aria-hidden />
@@ -499,7 +382,7 @@ export default function MessageSettingsPage() {
                   updateInfo(
                     { messaging_provider: opt.key },
                     {
-                      onSuccess: () => feedback.success(`메시징 공급자가 ${opt.label}(으)로 변경되었습니다.`),
+                      onSuccess: () => feedback.success(`메시징 공급자가 ${opt.label}(으)로 변경되었습니다.${opt.key === "ppurio" ? " 자체 API 키를 등록해 주세요." : ""}`),
                       onError: () => feedback.error("공급자 변경에 실패했습니다."),
                     },
                   );
@@ -526,9 +409,8 @@ export default function MessageSettingsPage() {
         </div>
       </Card>
 
-      {/* 직접 연동 모드: 자체 API 키 입력 */}
-      {mode === "self" && (
-        <Card>
+      {/* 자체 API 키 입력 */}
+      <Card>
           <SectionTitle>
             <FiKey size={14} style={{ marginRight: 6, verticalAlign: "middle" }} />
             자체 API 키 등록
@@ -623,34 +505,13 @@ export default function MessageSettingsPage() {
             </p>
           )}
         </Card>
-      )}
-
-      {/* 대행 모드 안내 */}
-      {mode === "agency" && (
-        <Card>
-          <SectionTitle>
-            <FiShield size={14} style={{ marginRight: 6, verticalAlign: "middle" }} />
-            플랫폼 대행 안내
-          </SectionTitle>
-          <Desc>
-            별도 API 키 입력 없이 플랫폼에서 연동된 기본 계정으로 메시지가 발송됩니다.
-            발신번호와 알림톡 채널만 설정하면 바로 사용할 수 있습니다.
-          </Desc>
-          <p style={{ fontSize: 12, color: "var(--color-text-muted)" }}>
-            발신번호 등록, 알림톡 채널 파트너 등록 등은 운영자가 처리합니다.
-            궁금한 점이 있으면 운영자에게 문의하세요.
-          </p>
-        </Card>
-      )}
 
       {/* 발신번호 설정 (인라인) */}
       <Card>
         <SectionTitle>발신번호</SectionTitle>
         <Desc>
           SMS·알림톡 발송 시 수신자에게 표시되는 학원 발신번호입니다.
-          {mode === "agency"
-            ? " 학원 전화번호를 사용하려면 운영자에게 해당 번호의 등록을 요청한 뒤 아래에 입력하세요."
-            : " 직접 연동 계정에 등록된 발신번호를 입력하세요."}
+          직접 연동 계정에 등록된 발신번호를 입력하세요.
         </Desc>
         <div className="flex flex-col gap-3">
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
@@ -703,36 +564,8 @@ export default function MessageSettingsPage() {
           )}
           <p style={{ fontSize: 12, color: "var(--color-text-muted)", margin: 0 }}>
             미설정 시 플랫폼 기본 번호로 발송됩니다.
-            {mode === "agency" && " 발신번호 등록은 운영자에게 요청해 주세요."}
           </p>
         </div>
-      </Card>
-
-      {/* 크레딧 충전 */}
-      <Card>
-        <SectionTitle>크레딧 충전</SectionTitle>
-        <Desc>
-          메시지 발송에 사용할 크레딧을 충전합니다. 현재 잔액:{" "}
-          <strong style={{ color: "var(--color-text-primary)" }}>{creditBalance}</strong>
-        </Desc>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-          <FiPlusCircle size={16} style={{ color: "var(--color-primary)" }} aria-hidden />
-          <Input
-            placeholder="충전 금액 입력 (예: 10000)"
-            value={chargeAmount}
-            onChange={(e) => setChargeAmount(e.target.value.replace(/[^0-9]/g, ""))}
-            onPressEnter={handleCharge}
-            disabled={isCharging}
-            style={{ maxWidth: 200 }}
-            suffix="원"
-          />
-          <Button intent="primary" onClick={handleCharge} disabled={!chargeAmount.trim() || isCharging}>
-            {isCharging ? "충전 중…" : "충전 요청"}
-          </Button>
-        </div>
-        <p style={{ fontSize: 12, color: "var(--color-text-muted)", marginTop: 8 }}>
-          충전 후 잔액은 자동으로 업데이트됩니다. 실제 결제는 운영자 확인 후 처리됩니다.
-        </p>
       </Card>
 
       {/* 연동 테스트 */}
@@ -808,12 +641,6 @@ export default function MessageSettingsPage() {
         <SectionTitle>연동 상태</SectionTitle>
         <Desc>현재 이 학원의 메시징 설정 상태입니다.</Desc>
         <div>
-          <StatusRow
-            label="연동 방식"
-            value={hasOwnCreds ? "직접 연동 (본인 계정)" : "대행 (플랫폼 기본)"}
-            ok={true}
-            okLabel={hasOwnCreds ? "자체 키" : "기본 키"}
-          />
           <StatusRow
             label="알림톡 채널"
             value={info?.channel_source === "tenant_override" ? "자체 채널 사용 중" : "기본 채널 사용 중"}
@@ -895,81 +722,46 @@ export default function MessageSettingsPage() {
         </div>
       </Card>
 
-      {/* 연동 가이드 — 모드에 따라 다른 가이드 */}
+      {/* 연동 가이드 */}
       <Card>
         <SectionTitle>연동 가이드</SectionTitle>
-        {mode === "agency" ? (
-          <>
-            <Desc>
-              처음 사용하시는 경우 아래 순서대로 진행하세요.
-              별도 설정 없이도 플랫폼 기본 번호·채널로 바로 발송할 수 있습니다.
-            </Desc>
-            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              <GuideStep step={1}>
-                <strong>바로 시작하기</strong> — 설정 없이도 플랫폼 기본 발신번호와 기본 알림톡 채널로 메시지를 발송할 수 있습니다.
-                「자동발송」 탭에서 트리거를 활성화하면 바로 동작합니다.
-              </GuideStep>
-              <GuideStep step={2}>
-                <strong>학원 발신번호 사용하기 (선택)</strong> — 학원 전화번호로 발송하고 싶다면,
-                운영자에게 번호 등록을 요청하세요. 등록 완료 후 위 발신번호란에서 해당 번호를 입력·저장하면 적용됩니다.
-              </GuideStep>
-              <GuideStep step={3}>
-                <strong>학원 알림톡 채널 사용하기 (선택)</strong> — 학원 이름으로 알림톡을 보내고 싶다면:
-                <br />① 카카오 비즈니스 센터에서 학원 채널을 개설합니다.
-                <br />② 운영자에게 해당 채널의 파트너 등록을 요청합니다.
-                <br />③ 등록 완료 후 발급받은 PFID를 위 입력란에 저장합니다.
-              </GuideStep>
-              <GuideStep step={4}>
-                <strong>템플릿 작성</strong> — 「템플릿 저장」 탭에서 알림톡 양식을 작성하고 검수 신청합니다.
-                카카오 검수 승인(영업일 1~3일) 후 알림톡 발송이 가능합니다.
-              </GuideStep>
-              <GuideStep step={5}>
-                <strong>자동발송 설정</strong> — 「자동발송」 탭에서 구간별 트리거를 활성화하고,
-                템플릿·발송 방식(알림톡/SMS/모두)·발송 시점을 설정합니다.
-              </GuideStep>
-            </div>
-          </>
-        ) : (
-          <>
-            <Desc>
-              기존에 사용하던 {provider === "ppurio" ? "뿌리오(Ppurio)" : "솔라피(Solapi)"} 계정이 있다면 아래 순서로 연동하세요.
-            </Desc>
-            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              <GuideStep step={1}>
-                <strong>공급자 선택</strong> — 위에서 사용 중인 메시징 공급자({provider === "ppurio" ? "뿌리오" : "솔라피"})를 선택합니다.
-              </GuideStep>
-              <GuideStep step={2}>
-                <strong>API 키 등록</strong> —{" "}
-                {provider === "solapi" ? (
-                  <>
-                    솔라피 콘솔(<code>console.solapi.com</code>) → 설정 → API Key에서
-                    API Key와 API Secret을 복사하여 위에 입력합니다.
-                    <br />※ 허용 IP 설정에서 <strong>0.0.0.0</strong> (전체 허용)을 추가해야 발송이 정상 동작합니다.
-                  </>
-                ) : (
-                  <>
-                    <a href="https://www.ppurio.com" target="_blank" rel="noopener noreferrer" style={{ color: "var(--color-primary)" }}>ppurio.com</a> 로그인 → [환경설정 → 연동 관리]에서 API Key를 복사하고, 계정 ID(로그인 아이디)와 함께 위에 입력합니다.
-                    <br />※ 발신번호: [환경설정 → 발신번호 관리]에서 등록·서류인증을 완료해야 발송됩니다.
-                    <br />※ IP 허용: [환경설정 → 접속 IP 관리]에서 허용 IP를 <strong>0.0.0.0</strong> (전체 허용)으로 설정해야 발송됩니다.
-                    <br />※ 뿌리오 회원가입 후 승인까지 1~2영업일 소요됩니다.
-                  </>
-                )}
-              </GuideStep>
-              <GuideStep step={3}>
-                <strong>발신번호 등록</strong> — {provider === "solapi" ? "솔라피" : "뿌리오"} 계정에 등록된 발신번호를
-                위 발신번호란에 입력합니다. 등록되지 않은 번호로는 발송이 실패합니다.
-              </GuideStep>
-              <GuideStep step={4}>
-                <strong>알림톡 채널 (선택)</strong> — 알림톡을 사용하려면 카카오 비즈니스 채널 PFID를 등록합니다.
-                SMS만 사용한다면 이 단계는 생략해도 됩니다.
-              </GuideStep>
-              <GuideStep step={5}>
-                <strong>템플릿·자동발송 설정</strong> — 「템플릿 저장」 탭에서 양식을 작성하고,
-                「자동발송」 탭에서 트리거를 활성화합니다.
-              </GuideStep>
-            </div>
-          </>
-        )}
+        <Desc>
+          기존에 사용하던 {provider === "ppurio" ? "뿌리오(Ppurio)" : "솔라피(Solapi)"} 계정이 있다면 아래 순서로 연동하세요.
+        </Desc>
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <GuideStep step={1}>
+            <strong>공급자 선택</strong> — 위에서 사용 중인 메시징 공급자({provider === "ppurio" ? "뿌리오" : "솔라피"})를 선택합니다.
+          </GuideStep>
+          <GuideStep step={2}>
+            <strong>API 키 등록</strong> —{" "}
+            {provider === "solapi" ? (
+              <>
+                솔라피 콘솔(<code>console.solapi.com</code>) → 설정 → API Key에서
+                API Key와 API Secret을 복사하여 위에 입력합니다.
+                <br />※ 허용 IP 설정에서 <strong>0.0.0.0</strong> (전체 허용)을 추가해야 발송이 정상 동작합니다.
+              </>
+            ) : (
+              <>
+                <a href="https://www.ppurio.com" target="_blank" rel="noopener noreferrer" style={{ color: "var(--color-primary)" }}>ppurio.com</a> 로그인 → [환경설정 → 연동 관리]에서 API Key를 복사하고, 계정 ID(로그인 아이디)와 함께 위에 입력합니다.
+                <br />※ 발신번호: [환경설정 → 발신번호 관리]에서 등록·서류인증을 완료해야 발송됩니다.
+                <br />※ IP 허용: [환경설정 → 접속 IP 관리]에서 허용 IP를 <strong>0.0.0.0</strong> (전체 허용)으로 설정해야 발송됩니다.
+                <br />※ 뿌리오 회원가입 후 승인까지 1~2영업일 소요됩니다.
+              </>
+            )}
+          </GuideStep>
+          <GuideStep step={3}>
+            <strong>발신번호 등록</strong> — {provider === "solapi" ? "솔라피" : "뿌리오"} 계정에 등록된 발신번호를
+            위 발신번호란에 입력합니다. 등록되지 않은 번호로는 발송이 실패합니다.
+          </GuideStep>
+          <GuideStep step={4}>
+            <strong>알림톡 채널 (선택)</strong> — 알림톡을 사용하려면 카카오 비즈니스 채널 PFID를 등록합니다.
+            SMS만 사용한다면 이 단계는 생략해도 됩니다.
+          </GuideStep>
+          <GuideStep step={5}>
+            <strong>템플릿·자동발송 설정</strong> — 「템플릿 저장」 탭에서 양식을 작성하고,
+            「자동발송」 탭에서 트리거를 활성화합니다.
+          </GuideStep>
+        </div>
         <div
           style={{
             marginTop: 16,
@@ -979,9 +771,7 @@ export default function MessageSettingsPage() {
             color: "var(--color-text-muted)",
           }}
         >
-          {mode === "agency"
-            ? "발신번호 등록, 알림톡 채널 파트너 등록 등은 운영자가 처리합니다. 궁금한 점이 있으면 운영자에게 문의하세요."
-            : "직접 연동 시 API 키 관리, 발신번호 등록, 비용 청구 등은 본인 계정에서 직접 관리합니다."}
+          직접 연동 시 API 키 관리, 발신번호 등록, 비용 청구 등은 본인 계정에서 직접 관리합니다.
         </div>
       </Card>
     </div>

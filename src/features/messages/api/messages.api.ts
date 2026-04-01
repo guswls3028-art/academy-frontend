@@ -17,12 +17,6 @@ export interface TenantMessagingInfo {
   kakao_pfid: string | null;
   /** 테넌트별 SMS/알림톡 발신번호 (예: 01031217466) */
   messaging_sender: string | null;
-  /** 선불 충전 잔액 */
-  credit_balance: string;
-  /** 알림톡 기능 활성화 여부 */
-  is_active: boolean;
-  /** 건당 발송 단가 (학원별 책정) */
-  base_price: string;
   /** 문자(SMS) 발송 허용 여부 (OWNER_TENANT_ID 전용 정책). API 응답 기준만 사용 */
   sms_allowed?: boolean;
   /** 알림톡 채널 출처: 시스템 기본 채널 vs 학원 자체 연동 채널 */
@@ -58,7 +52,7 @@ export interface NotificationLogItem {
   failure_reason?: string | null;
   /** 실제 발송된 메시지 본문 */
   message_body?: string;
-  /** 발송 방식: sms | alimtalk | both */
+  /** 발송 방식: sms | alimtalk */
   message_mode?: string;
 }
 
@@ -79,14 +73,6 @@ export interface NotificationLogResponse {
 /** 테넌트 메시징 정보 (잔액, PFID, 활성화, 단가) */
 export async function fetchMessagingInfo(): Promise<TenantMessagingInfo> {
   const res = await api.get<TenantMessagingInfo>(`${PREFIX}/info/`);
-  return res.data;
-}
-
-/** 크레딧 충전 (결제 완료 후 호출) */
-export async function chargeCredits(amount: string): Promise<{ credit_balance: string }> {
-  const res = await api.post<{ credit_balance: string }>(`${PREFIX}/charge/`, {
-    amount,
-  });
   return res.data;
 }
 
@@ -254,14 +240,14 @@ export async function submitMessageTemplateReview(
 
 export type SendToType = "student" | "parent" | "staff";
 
-/** sms=SMS만, alimtalk=알림톡만, both=알림톡→SMS폴백 */
-export type MessageMode = "sms" | "alimtalk" | "both";
+/** sms=SMS만, alimtalk=알림톡만 */
+export type MessageMode = "sms" | "alimtalk";
 
 export interface SendMessagePayload {
   student_ids?: number[];
   staff_ids?: number[];
   send_to: SendToType;
-  /** sms | alimtalk | both */
+  /** sms | alimtalk */
   message_mode?: MessageMode;
   template_id?: number | null;
   raw_body?: string;

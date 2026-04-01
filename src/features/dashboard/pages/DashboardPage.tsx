@@ -18,11 +18,9 @@ import DashboardShortcutWidget from "../components/DashboardShortcutWidget";
 import DashboardWidget from "../components/DashboardWidget";
 
 const ClinicPasscardModal = lazy(() => import("@/features/clinic/components/ClinicPasscardModal"));
-const ChargeCreditsModal = lazy(() => import("@/features/messages/components/ChargeCreditsModal"));
 
 export default function DashboardPage() {
   const navigate = useNavigate();
-  const [chargeModalOpen, setChargeModalOpen] = useState(false);
   const [clinicPasscardModalOpen, setClinicPasscardModalOpen] = useState(false);
 
   const { data: messagingInfo } = useMessagingInfo();
@@ -142,20 +140,18 @@ export default function DashboardPage() {
         </DashboardWidget>
 
         <DashboardWidget
-          title="알림톡"
-          description="잔액 및 충전"
+          title="메시지"
+          description="연동 상태"
         >
           <div className="flex flex-wrap items-center gap-4">
             <div>
-              <div className="ds-section__kpi-label">현재 잔액</div>
+              <div className="ds-section__kpi-label">발송 상태</div>
               <div className="ds-section__kpi-value" style={{ marginTop: 6 }}>
-                {messagingInfo
-                  ? `${Number(messagingInfo.credit_balance).toLocaleString()}원`
-                  : "—"}
+                {messagingInfo?.sms_allowed ? "연동됨" : "미연동"}
               </div>
             </div>
-            <Button size="sm" intent="primary" onClick={() => setChargeModalOpen(true)}>
-              충전하기
+            <Button size="sm" intent="secondary" onClick={() => navigate("/admin/message/settings")}>
+              설정
             </Button>
           </div>
         </DashboardWidget>
@@ -173,12 +169,6 @@ export default function DashboardPage() {
         </DashboardWidget>
       </div>
 
-      <Suspense fallback={null}>
-        <ChargeCreditsModal
-          open={chargeModalOpen}
-          onClose={() => setChargeModalOpen(false)}
-        />
-      </Suspense>
 
       <Suspense fallback={null}>
         <ClinicPasscardModal

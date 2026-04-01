@@ -3,7 +3,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   fetchMessagingInfo,
-  chargeCredits,
   updateKakaoPfid,
   updateMessagingInfo,
   verifySender,
@@ -17,9 +16,6 @@ const KEY = ["messaging", "info"] as const;
 const MOCK_INFO: TenantMessagingInfo = {
   kakao_pfid: null,
   messaging_sender: null,
-  credit_balance: "0",
-  is_active: false,
-  base_price: "8.5",
   sms_allowed: false,
   channel_source: "system_default",
 };
@@ -39,19 +35,6 @@ export function useMessagingInfo() {
     staleTime: 60 * 1000,
   });
   return q;
-}
-
-export function useChargeCredits() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (amount: string) => chargeCredits(amount),
-    onSuccess: () => qc.invalidateQueries({ queryKey: KEY }),
-    onError: () => {
-      import("@/shared/ui/feedback/feedback").then(({ feedback }) =>
-        feedback.error("크레딧 충전에 실패했습니다.")
-      );
-    },
-  });
 }
 
 export function useUpdateKakaoPfid() {

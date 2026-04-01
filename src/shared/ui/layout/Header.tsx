@@ -14,7 +14,6 @@ import { WorkboxPanelContent } from "@/shared/ui/asyncStatus";
 import { asyncStatusStore } from "@/shared/ui/asyncStatus/asyncStatusStore";
 import { getTenantCodeForApiRequest } from "@/shared/tenant";
 import { Button } from "@/shared/ui/ds";
-import { useMessagingInfo } from "@/features/messages/hooks/useMessagingInfo";
 import { fetchMe, displayUsername, meToStaffRole } from "@/features/profile/api/profile.api";
 import { StaffRoleAvatar } from "@/shared/ui/avatars";
 import { HeaderCenterStaffClock } from "@/features/staff/components/HeaderCenterStaffClock";
@@ -131,15 +130,6 @@ function IconPalette() {
   );
 }
 
-function IconCredit() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="10" />
-      <path d="M12 6v12M8 10h8M8 14h8" />
-    </svg>
-  );
-}
-
 /** 작업박스(진행 상황) 아이콘 */
 function IconWorkbox() {
   return (
@@ -221,7 +211,6 @@ export default function Header() {
   const adminLayout = useAdminLayout();
   const isMobile = adminLayout != null;
   const { program } = useProgram();
-  const { data: messagingInfo } = useMessagingInfo();
   const { data: me } = useQuery({ queryKey: ["me"], queryFn: fetchMe });
   const { clearAuth } = useAuth();
 
@@ -360,18 +349,8 @@ export default function Header() {
           </div>
         )}
 
-        {/* RIGHT: 크레딧 | 알람 | 프로필 */}
+        {/* RIGHT: 알람 | 프로필 */}
         <div className="app-header__right">
-          {!isMobile && (
-            <div className="app-header__credit" title="알림톡 크레딧">
-              <span className="app-header__creditIcon"><IconCredit /></span>
-              <span className="app-header__creditValue">
-                {messagingInfo != null
-                  ? Number(messagingInfo.credit_balance).toLocaleString()
-                  : "0"}
-              </span>
-            </div>
-          )}
 
           {workbox && (
             <Dropdown
