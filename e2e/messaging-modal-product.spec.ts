@@ -85,14 +85,11 @@ test.describe("메시지 발송 모달 — 상품 UX", () => {
     // 알림톡 버튼이 active 상태인지 (primary 색상)
     await expect(alimtalkBtn).toBeVisible({ timeout: 3000 });
 
-    // 알림톡 모드에서는 textarea가 없어야 함 (readOnly)
-    const textarea = page.locator("textarea");
-    // 템플릿 선택 안내 텍스트가 보여야 함
-    const selectPrompt = page.locator("text=템플릿을 선택해 주세요");
-    await expect(selectPrompt).toBeVisible({ timeout: 5000 });
+    // 알림톡 모드: 승인 템플릿 안내 텍스트 확인
+    await expect(page.getByText("승인된 템플릿으로만")).toBeVisible({ timeout: 8000 });
 
-    // 검색 입력 필드 존재
-    const searchInput = page.locator('input[placeholder*="검색"]');
+    // 모달 내 검색 입력 필드 존재
+    const searchInput = page.getByRole("textbox", { name: "템플릿 검색" });
     await expect(searchInput).toBeVisible({ timeout: 5000 });
 
     // 카카오 알림톡 미리보기 영역
