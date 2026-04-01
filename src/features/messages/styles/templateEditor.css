@@ -341,7 +341,7 @@
 
 /* ----- SendMessageModal: 모달 셸 높이 고정 (체크박스 토글 시 리사이즈 방지) ----- */
 .send-message-modal .ant-modal-content {
-  height: 720px;
+  max-height: min(720px, calc(100vh - 80px));
   display: flex;
   flex-direction: column;
 }

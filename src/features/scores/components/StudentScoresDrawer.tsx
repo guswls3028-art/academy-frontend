@@ -16,7 +16,8 @@ import { fetchAttemptHistory, type AttemptHistoryResponse } from "../api/attempt
 import { submitClinicRetake, updateClinicRetake } from "@/features/clinic/api/clinicLinks.api";
 import { patchExamTotalScoreQuick } from "../api/patchExamTotalQuick";
 import { patchHomeworkQuick } from "../api/patchHomeworkQuick";
-import { generateScoreReport, buildScoreDetail } from "../utils/generateScoreReport";
+import { generateScoreReport, buildScoreDetail, substituteScoreVars } from "../utils/generateScoreReport";
+import { fetchMessageTemplates } from "@/features/messages/api/messages.api";
 import { useSendMessageModal } from "@/features/messages/context/SendMessageModalContext";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import CloseButton from "@/shared/ui/ds/CloseButton";
@@ -97,8 +98,23 @@ export default function StudentScoresDrawer({ row, meta, sessionId, onClose, onO
     };
   }, [row, meta]);
 
-  const handleSendScoreReport = useCallback(() => {
-    const body = generateScoreReport(row, meta);
+  const handleSendScoreReport = useCallback(async () => {
+    const lectureName = (row as any).lecture_title ?? "";
+    const sessionTitle = (row as any).session_title ?? "";
+    const reportOptions = { lectureName, sessionTitle };
+
+    // 성적 카테고리 템플릿이 있으면 템플릿 기반 치환
+    let body: string;
+    try {
+      const templates = await fetchMessageTemplates("grades");
+      const customTpl = templates.find((t) => !t.name.startsWith("[학원플러스]"));
+      body = customTpl
+        ? substituteScoreVars(customTpl.body, row, meta, reportOptions)
+        : generateScoreReport(row, meta, reportOptions);
+    } catch {
+      body = generateScoreReport(row, meta, reportOptions);
+    }
+
     const scoreDetail = buildScoreDetail(row, meta);
     openSendMessageModal({
       studentIds: row.student_id != null ? [row.student_id] : [],
@@ -106,8 +122,8 @@ export default function StudentScoresDrawer({ row, meta, sessionId, onClose, onO
       blockCategory: "grades",
       initialBody: body,
       alimtalkExtraVars: {
-        강의명: (row as any).lecture_title ?? "",
-        차시명: (row as any).session_title ?? "",
+        강의명: lectureName,
+        차시명: sessionTitle,
         시험성적: scoreDetail,
       },
     });

@@ -199,6 +199,86 @@ export function generateScoreReport(
  *
  * 구조: [시험] → [과제] → [요약] (시험평균, 과제평균, 최종 합불, 보충 대상)
  */
+/**
+ * 템플릿 본문의 번호 변수(#{시험1}, #{시험1만점}, #{시험1명} 등)를 실제 성적 데이터로 치환.
+ * 템플릿이 저장된 양식을 유지하면서 학생별 점수만 채워넣는다.
+ *
+ * 지원 변수:
+ * - #{학생이름} → student_name
+ * - #{강의명} → lectureName
+ * - #{차시명} → sessionTitle
+ * - #{날짜} → 오늘 날짜
+ * - #{시험N} → exams[N-1].block.score (N=1~10)
+ * - #{시험N만점} → exams[N-1] max_score
+ * - #{시험N명} → exams[N-1].title
+ * - #{과제N} → homeworks[N-1].block.score
+ * - #{과제N만점} → homeworks[N-1] max_score
+ * - #{과제N명} → homeworks[N-1].title
+ * - #{시험총점} → 시험 점수 합계
+ * - #{시험총만점} → 시험 만점 합계
+ * - #{숙제완성도} → 과제 점수/만점 또는 "미제출"
+ */
+export function substituteScoreVars(
+  templateBody: string,
+  row: SessionScoreRow,
+  meta: SessionScoreMeta | null,
+  options: ScoreReportOptions = {},
+): string {
+  const vars: Record<string, string> = {};
+
+  // 기본 변수
+  vars["학생이름"] = row.student_name || "";
+  vars["강의명"] = options.lectureName || (row as any).lecture_title || "";
+  vars["차시명"] = options.sessionTitle || (row as any).session_title || "";
+  vars["날짜"] = formatDate(options.date);
+
+  // 시험 변수 (번호 기반)
+  let examSumScore = 0;
+  let examSumMax = 0;
+  for (let i = 0; i < (row.exams?.length ?? 0); i++) {
+    const exam = row.exams[i];
+    const metaExam = meta?.exams?.find((e) => e.exam_id === exam.exam_id);
+    const max = exam.block.max_score ?? metaExam?.max_score ?? 0;
+    const n = i + 1;
+    vars[`시험${n}`] = exam.block.score != null ? String(exam.block.score) : "미응시";
+    vars[`시험${n}만점`] = String(max);
+    vars[`시험${n}명`] = exam.title || "";
+    if (exam.block.score != null) {
+      examSumScore += exam.block.score;
+      examSumMax += max;
+    }
+  }
+  vars["시험총점"] = String(examSumScore);
+  vars["시험총만점"] = String(examSumMax);
+
+  // 과제 변수 (번호 기반)
+  for (let i = 0; i < (row.homeworks?.length ?? 0); i++) {
+    const hw = row.homeworks[i];
+    const metaHw = meta?.homeworks?.find((h) => h.homework_id === hw.homework_id);
+    const max = hw.block.max_score ?? metaHw?.max_score ?? 0;
+    const n = i + 1;
+    vars[`과제${n}`] = hw.block.score != null ? String(hw.block.score) : "미제출";
+    vars[`과제${n}만점`] = String(max);
+    vars[`과제${n}명`] = hw.title || "";
+  }
+
+  // 숙제완성도 (전체 과제 요약)
+  if (row.homeworks && row.homeworks.length > 0) {
+    const completed = row.homeworks.filter((h) => h.block.score != null).length;
+    vars["숙제완성도"] = `${completed}/${row.homeworks.length} 완료`;
+  } else {
+    vars["숙제완성도"] = "-";
+  }
+
+  // 시험성적 블록 (기존 buildScoreDetail과 동일)
+  vars["시험성적"] = buildScoreDetail(row, meta);
+
+  // 치환 수행
+  return templateBody.replace(/#\{([^}]+)\}/g, (match, varName) => {
+    return vars[varName] !== undefined ? vars[varName] : match;
+  });
+}
+
 export function buildScoreDetail(
   row: SessionScoreRow,
   meta: SessionScoreMeta | null,

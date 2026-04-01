@@ -21,7 +21,8 @@ import { useScoreEditDraft } from "@/features/scores/hooks/useScoreEditDraft";
 import { postScoreDraftCommit } from "@/features/scores/api/scoreDraft";
 import { scoresQueryKeys } from "@/features/scores/api/queryKeys";
 import { downloadClinicPdf, getClinicStats } from "@/features/scores/utils/clinicPdfGenerator";
-import { generateScoreReport, buildScoreDetail } from "@/features/scores/utils/generateScoreReport";
+import { generateScoreReport, buildScoreDetail, substituteScoreVars } from "@/features/scores/utils/generateScoreReport";
+import { fetchMessageTemplates } from "@/features/messages/api/messages.api";
 import { useSendMessageModal } from "@/features/messages/context/SendMessageModalContext";
 import NotificationPreviewModal from "@/features/messages/components/NotificationPreviewModal";
 import type { SessionScoresResponse } from "@/features/scores/api/sessionScores";
@@ -162,7 +163,7 @@ export default function SessionScoresTab() {
   }
 
   /** 체크박스 선택 학생 → 성적 발송 */
-  const handleBulkScoreSend = useCallback(() => {
+  const handleBulkScoreSend = useCallback(async () => {
     if (selectedIds.length === 0) return;
     const scoresData = qc.getQueryData<SessionScoresResponse>(
       scoresQueryKeys.sessionScores(numericSessionId),
@@ -176,18 +177,29 @@ export default function SessionScoresTab() {
       .filter((id): id is number => id != null);
     if (studentIds.length === 0) return;
 
-    // 1명이면 성적 리포트 자동 생성, 여러 명이면 비워서 직접 입력
-    let initialBody: string | undefined;
-    if (selectedRows.length === 1) {
-      initialBody = generateScoreReport(selectedRows[0], scoresData.meta);
-    }
-
     const lecture = qc.getQueryData<{ title?: string; name?: string }>(["lecture", lectureId]);
     const lectureName = lecture?.title ?? lecture?.name ?? "";
     const session = qc.getQueryData<{ title?: string }>(["session", sessionId]);
     const sessionTitle = session?.title ?? "";
+    const reportOptions = { lectureName, sessionTitle };
 
-    // 1명이면 상세 성적, 다수면 빈칸 (직접 입력)
+    // 성적 카테고리 템플릿이 있으면 템플릿 기반 치환, 없으면 기본 생성
+    let initialBody: string | undefined;
+    if (selectedRows.length === 1) {
+      try {
+        const templates = await fetchMessageTemplates("grades");
+        // 사용자 커스텀 템플릿 우선, 없으면 기본 생성
+        const customTpl = templates.find((t) => !t.name.startsWith("[학원플러스]"));
+        if (customTpl) {
+          initialBody = substituteScoreVars(customTpl.body, selectedRows[0], scoresData.meta, reportOptions);
+        } else {
+          initialBody = generateScoreReport(selectedRows[0], scoresData.meta, reportOptions);
+        }
+      } catch {
+        initialBody = generateScoreReport(selectedRows[0], scoresData.meta, reportOptions);
+      }
+    }
+
     const scoreDetail = selectedRows.length === 1
       ? buildScoreDetail(selectedRows[0], scoresData.meta)
       : "";
