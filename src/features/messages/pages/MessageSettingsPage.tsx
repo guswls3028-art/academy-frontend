@@ -354,7 +354,7 @@ export default function MessageSettingsPage() {
               label: "공급자",
               content: (
                 <span style={{ fontSize: 14, fontWeight: 600 }}>
-                  {(info.messaging_provider ?? "solapi") === "ppurio" ? "비즈뿌리오" : "솔라피"}
+                  {(info.messaging_provider ?? "solapi") === "ppurio" ? "뿌리오" : "솔라피"}
                 </span>
               ),
             },
@@ -417,7 +417,7 @@ export default function MessageSettingsPage() {
                 key: "self" as const,
                 icon: FiKey,
                 title: "직접 연동 (본인 계정)",
-                desc: "기존에 사용하던 솔라피/비즈뿌리오 계정이 있다면 API 키를 등록하여 직접 발송합니다.",
+                desc: "기존에 사용하던 솔라피/뿌리오 계정이 있다면 API 키를 등록하여 직접 발송합니다.",
               },
             ] as const
           ).map((opt) => (
@@ -484,7 +484,7 @@ export default function MessageSettingsPage() {
           >
             {([
               { key: "solapi" as const, label: "솔라피(Solapi)" },
-              { key: "ppurio" as const, label: "비즈뿌리오(BizPpurio)" },
+              { key: "ppurio" as const, label: "뿌리오(Ppurio)" },
             ]).map((opt) => (
               <button
                 key={opt.key}
@@ -516,7 +516,7 @@ export default function MessageSettingsPage() {
             ))}
           </div>
           <span style={{ fontSize: 12, color: "var(--color-text-muted)", marginLeft: 4 }}>
-            현재: <strong style={{ color: "var(--color-text-primary)" }}>{provider === "ppurio" ? "비즈뿌리오" : "솔라피"}</strong>
+            현재: <strong style={{ color: "var(--color-text-primary)" }}>{provider === "ppurio" ? "뿌리오" : "솔라피"}</strong>
           </span>
         </div>
       </Card>
@@ -531,7 +531,7 @@ export default function MessageSettingsPage() {
           <Desc>
             {provider === "solapi"
               ? "솔라피(Solapi) 콘솔에서 발급받은 API Key와 API Secret을 입력하세요. 저장 후 이 학원의 메시지는 입력한 계정으로 발송됩니다."
-              : "비즈뿌리오(BizPpurio) 연동 페이지에서 발급받은 계정 ID와 API Key를 입력하세요. 저장 후 이 학원의 메시지는 비즈뿌리오를 통해 발송됩니다."}
+              : "뿌리오(Ppurio) 계정의 ID와 API Key를 입력하세요. 저장하면 이 학원의 메시지는 뿌리오를 통해 발송됩니다."}
           </Desc>
 
           {provider === "solapi" ? (
@@ -557,28 +557,32 @@ export default function MessageSettingsPage() {
           ) : (
             <div className="flex flex-col gap-3">
               <div style={{ fontSize: 12, color: "var(--color-text-muted)", padding: "10px 14px", background: "var(--color-bg-surface-soft)", borderRadius: "var(--radius-md)", lineHeight: 1.8 }}>
-                <strong style={{ fontSize: 13 }}>비즈뿌리오 연동 방법</strong><br /><br />
+                <strong style={{ fontSize: 13 }}>뿌리오 연동 방법 (처음이라면 차근차근 따라하세요)</strong><br /><br />
                 <strong>1단계. 회원가입</strong><br />
-                <a href="https://bizppurio.com" target="_blank" rel="noopener noreferrer" style={{ color: "var(--color-primary)", textDecoration: "underline" }}>bizppurio.com</a> 접속 → 상단 [회원가입] → 기업 회원으로 가입합니다.<br />
+                <a href="https://www.ppurio.com" target="_blank" rel="noopener noreferrer" style={{ color: "var(--color-primary)", textDecoration: "underline" }}>ppurio.com</a> 접속 → 상단 [회원가입] → 기업 회원으로 가입합니다.<br />
                 사업자등록증 사본이 필요하며, 가입 후 <strong>1~2영업일 내 승인</strong>됩니다.<br /><br />
                 <strong>2단계. API Key 확인</strong><br />
                 승인 완료 후 로그인 → 상단 메뉴 <strong>[환경설정] → [연동 관리]</strong> → API Key를 복사합니다.<br /><br />
                 <strong>3단계. 아래에 입력</strong><br />
-                <strong>계정 ID</strong> = 비즈뿌리오 로그인할 때 쓰는 아이디<br />
+                <strong>계정 ID</strong> = 뿌리오 로그인할 때 쓰는 아이디<br />
                 <strong>API Key</strong> = 2단계에서 복사한 키<br />
                 입력 후 [API 키 저장] 버튼을 누르면 연동 완료입니다.<br /><br />
                 <strong>4단계. 발신번호 등록</strong><br />
-                비즈뿌리오에서 <strong>[환경설정] → [발신번호 관리]</strong> → 학원 전화번호를 등록하고 서류 인증을 완료하세요.<br />
+                뿌리오에서 <strong>[환경설정] → [발신번호 관리]</strong> → 학원 전화번호를 등록하고 서류 인증을 완료하세요.<br />
                 인증된 번호만 발송에 사용할 수 있습니다.<br /><br />
-                <strong>5단계. 알림톡 (선택사항, SMS만 쓴다면 건너뛰세요)</strong><br />
+                <strong>5단계. IP 허용 등록 (중요!)</strong><br />
+                뿌리오에서 <strong>[환경설정] → [접속 IP 관리]</strong> 또는 <strong>[IP 제한 설정]</strong>에서<br />
+                허용 IP를 <strong style={{ color: "var(--color-text-primary)" }}>0.0.0.0</strong> (전체 허용)으로 설정해 주세요.<br />
+                IP 제한이 걸려 있으면 메시지 발송이 차단됩니다.<br /><br />
+                <strong>6단계. 알림톡 (선택사항, SMS만 쓴다면 건너뛰세요)</strong><br />
                 ① <a href="https://business.kakao.com" target="_blank" rel="noopener noreferrer" style={{ color: "var(--color-primary)", textDecoration: "underline" }}>카카오비즈니스</a>에서 채널 개설<br />
-                ② 비즈뿌리오 → [카카오톡] → [발신프로필] → 채널 연결<br />
+                ② 뿌리오 → [카카오톡] → [발신프로필] → 채널 연결<br />
                 ③ [템플릿 관리]에서 알림톡 양식 작성 → 카카오 검수 승인 (1~3일)<br />
                 ④ 승인되면 이 페이지 상단 [카카오 채널 PFID]에 발신프로필키를 입력
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                 <Input
-                  placeholder={info?.own_ppurio_account ? `현재: ${info.own_ppurio_account}` : "비즈뿌리오 계정 ID (로그인 아이디)"}
+                  placeholder={info?.own_ppurio_account ? `현재: ${info.own_ppurio_account}` : "뿌리오 계정 ID (로그인 아이디)"}
                   value={ownPpurioAccount}
                   onChange={(e) => setOwnPpurioAccount(e.target.value)}
                   style={{ maxWidth: 300 }}
@@ -586,7 +590,7 @@ export default function MessageSettingsPage() {
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                 <Input
-                  placeholder={info?.own_ppurio_api_key ? `현재: ${info.own_ppurio_api_key}` : "비즈뿌리오 API Key"}
+                  placeholder={info?.own_ppurio_api_key ? `현재: ${info.own_ppurio_api_key}` : "뿌리오 API Key"}
                   value={ownPpurioKey}
                   onChange={(e) => setOwnPpurioKey(e.target.value)}
                   type="password"
@@ -923,11 +927,11 @@ export default function MessageSettingsPage() {
         ) : (
           <>
             <Desc>
-              기존에 사용하던 {provider === "ppurio" ? "비즈뿌리오(BizPpurio)" : "솔라피(Solapi)"} 계정이 있다면 아래 순서로 연동하세요.
+              기존에 사용하던 {provider === "ppurio" ? "뿌리오(Ppurio)" : "솔라피(Solapi)"} 계정이 있다면 아래 순서로 연동하세요.
             </Desc>
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
               <GuideStep step={1}>
-                <strong>공급자 선택</strong> — 위에서 사용 중인 메시징 공급자({provider === "ppurio" ? "비즈뿌리오" : "솔라피"})를 선택합니다.
+                <strong>공급자 선택</strong> — 위에서 사용 중인 메시징 공급자({provider === "ppurio" ? "뿌리오" : "솔라피"})를 선택합니다.
               </GuideStep>
               <GuideStep step={2}>
                 <strong>API 키 등록</strong> —{" "}
@@ -935,18 +939,19 @@ export default function MessageSettingsPage() {
                   <>
                     솔라피 콘솔(<code>console.solapi.com</code>) → 설정 → API Key에서
                     API Key와 API Secret을 복사하여 위에 입력합니다.
-                    <br />※ 허용 IP에 서버 IP를 추가해야 발송이 정상 동작합니다.
+                    <br />※ 허용 IP 설정에서 <strong>0.0.0.0</strong> (전체 허용)을 추가해야 발송이 정상 동작합니다.
                   </>
                 ) : (
                   <>
-                    <a href="https://bizppurio.com" target="_blank" rel="noopener noreferrer" style={{ color: "var(--color-primary)" }}>bizppurio.com</a> 로그인 → [환경설정 → 연동 관리]에서 API Key를 복사하고, 계정 ID(로그인 아이디)와 함께 위에 입력합니다.
+                    <a href="https://www.ppurio.com" target="_blank" rel="noopener noreferrer" style={{ color: "var(--color-primary)" }}>ppurio.com</a> 로그인 → [환경설정 → 연동 관리]에서 API Key를 복사하고, 계정 ID(로그인 아이디)와 함께 위에 입력합니다.
                     <br />※ 발신번호: [환경설정 → 발신번호 관리]에서 등록·서류인증을 완료해야 발송됩니다.
-                    <br />※ 비즈뿌리오 회원가입 후 승인까지 1~2영업일 소요됩니다.
+                    <br />※ IP 허용: [환경설정 → 접속 IP 관리]에서 허용 IP를 <strong>0.0.0.0</strong> (전체 허용)으로 설정해야 발송됩니다.
+                    <br />※ 뿌리오 회원가입 후 승인까지 1~2영업일 소요됩니다.
                   </>
                 )}
               </GuideStep>
               <GuideStep step={3}>
-                <strong>발신번호 등록</strong> — {provider === "solapi" ? "솔라피" : "비즈뿌리오"} 계정에 등록된 발신번호를
+                <strong>발신번호 등록</strong> — {provider === "solapi" ? "솔라피" : "뿌리오"} 계정에 등록된 발신번호를
                 위 발신번호란에 입력합니다. 등록되지 않은 번호로는 발송이 실패합니다.
               </GuideStep>
               <GuideStep step={4}>

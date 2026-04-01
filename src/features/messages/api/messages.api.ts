@@ -9,7 +9,7 @@ const PREFIX = "/messaging";
 // 타입 (1~4단계 백엔드 스키마와 맞춤)
 // ----------------------------------------
 
-/** 메시징 공급자 (솔라피 또는 비즈뿌리오) */
+/** 메시징 공급자 (솔라피 또는 뿌리오) */
 export type MessagingProvider = "solapi" | "ppurio";
 
 export interface TenantMessagingInfo {
@@ -29,15 +29,15 @@ export interface TenantMessagingInfo {
   channel_source?: "system_default" | "tenant_override";
   /** 알림톡 발송 가능 여부 (PFID + 승인 템플릿 존재). API 응답 기준만 사용 */
   alimtalk_available?: boolean;
-  /** 메시징 공급자: solapi(기본) 또는 ppurio(비즈뿌리오) */
+  /** 메시징 공급자: solapi(기본) 또는 ppurio(뿌리오) */
   messaging_provider?: MessagingProvider;
   /** 자체 솔라피 API Key (마스킹됨, 읽기용) */
   own_solapi_api_key?: string;
   /** 자체 솔라피 API Secret (마스킹됨, 읽기용) */
   own_solapi_api_secret?: string;
-  /** 자체 비즈뿌리오 API Key (마스킹됨, 읽기용) */
+  /** 자체 뿌리오 API Key (마스킹됨, 읽기용) */
   own_ppurio_api_key?: string;
-  /** 자체 비즈뿌리오 계정 ID */
+  /** 자체 뿌리오 계정 ID */
   own_ppurio_account?: string;
   /** 자체 연동 키가 설정되어 있는지 여부 */
   has_own_credentials?: boolean;
