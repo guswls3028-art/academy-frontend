@@ -237,3 +237,69 @@ export function renderPreviewBadges(text: string): React.ReactNode[] {
     return React.createElement("span", { key: i }, part);
   });
 }
+
+// ─── 백엔드 자동 치환 변수 (항상 제공) ───
+
+export const ALWAYS_AVAILABLE_VARS = new Set([
+  "학생이름", "학생이름2", "학생이름3", "사이트링크", "날짜", "시간",
+  "학생아이디", "학부모아이디", "학생비밀번호", "학부모비밀번호", "비밀번호안내",
+  "직원명", "부서", "직급",
+]);
+
+/**
+ * 알림톡 미리보기용 — 실제 데이터 치환.
+ * extraVars에 값이 있으면 실제 값으로, 없으면 미리보기 값/경고 표시.
+ */
+export function renderPreviewWithActualData(
+  body: string,
+  extraVars?: Record<string, string>,
+  freeContent?: string,
+): React.ReactNode[] {
+  const parts = body.split(/(#\{[^}]*\})/g);
+  return parts.map((part, i) => {
+    const match = part.match(/^#\{(.+)\}$/);
+    if (!match) {
+      if (!part) return null;
+      return React.createElement("span", { key: i }, part);
+    }
+    const varName = match[1];
+
+    // #{내용} — 자유 입력
+    if (varName === "내용") {
+      const val = freeContent?.trim();
+      if (val) return React.createElement("span", { key: i, style: { fontWeight: 600 } }, val);
+      return React.createElement("span", { key: i, style: { color: "#999", fontStyle: "italic" } }, "(직접 입력 내용)");
+    }
+
+    // extraVars에서 실제 값 제공
+    if (extraVars && varName in extraVars && extraVars[varName]) {
+      return React.createElement("span", { key: i, style: { fontWeight: 700, color: "#059669" } }, extraVars[varName]);
+    }
+
+    // 자동 치환 변수 — 미리보기 값 사용
+    const block = INSERT_TEXT_TO_BLOCK[part];
+    if (block && ALWAYS_AVAILABLE_VARS.has(varName)) {
+      const bc = BLOCK_COLORS[block.id] ?? FALLBACK_COLOR;
+      return React.createElement("span", {
+        key: i,
+        style: {
+          display: "inline-flex", alignItems: "center", padding: "1px 6px",
+          borderRadius: 4, fontSize: "0.85em", fontWeight: 600, lineHeight: 1.4,
+          background: bc.bg, color: bc.color, borderWidth: 1, borderStyle: "solid",
+          borderColor: bc.border, whiteSpace: "nowrap" as const, verticalAlign: "middle",
+        },
+      }, block.previewValue);
+    }
+
+    // 미제공 변수 — 경고 스타일
+    return React.createElement("span", {
+      key: i,
+      style: {
+        display: "inline-flex", alignItems: "center", padding: "1px 6px",
+        borderRadius: 4, fontSize: "0.85em", fontWeight: 600,
+        background: "#fef3c7", color: "#92400e", border: "1px solid #fcd34d",
+        whiteSpace: "nowrap" as const, verticalAlign: "middle",
+      },
+    }, `${varName}?`);
+  });
+}
