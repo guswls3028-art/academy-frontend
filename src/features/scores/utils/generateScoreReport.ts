@@ -280,9 +280,14 @@ export function substituteScoreVars(
   vars["시험성적"] = buildScoreDetail(row, meta);
 
   // 치환 수행
-  return templateBody.replace(/#\{([^}]+)\}/g, (match, varName) => {
+  let result = templateBody.replace(/#\{([^}]+)\}/g, (match, varName) => {
     return vars[varName] !== undefined ? vars[varName] : match;
   });
+
+  // 미사용 시험/과제 행 제거 — "- : -/-" 또는 "- : -" 패턴의 줄 삭제
+  result = result.replace(/^- *: *-\/-\s*$/gm, "").replace(/\n{3,}/g, "\n\n");
+
+  return result;
 }
 
 export function buildScoreDetail(
