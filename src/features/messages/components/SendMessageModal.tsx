@@ -389,18 +389,13 @@ export default function SendMessageModal({
       setSelectedTemplateId(null);
       setSendToParent(true);
       setSendToStudent(true);
-      setSendMode(smsAllowed ? "sms" : "alimtalk");
+      setSendMode("sms");
       setTemplateSearch("");
       setShowSaveForm(false);
       setSaveTemplateName("");
       sendingRef.current = false;
     }
   }, [open, initialBody]);
-
-  // smsAllowed 비동기 로딩 대응 — SMS 불가 시 alimtalk으로 전환
-  useEffect(() => {
-    if (open && !smsAllowed && sendMode === "sms") setSendMode("alimtalk");
-  }, [open, smsAllowed, sendMode]);
 
   // Load templates
   useEffect(() => {
