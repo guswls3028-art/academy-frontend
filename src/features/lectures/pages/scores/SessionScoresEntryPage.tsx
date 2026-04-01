@@ -22,6 +22,8 @@ import { Button, EmptyState } from "@/shared/ui/ds";
 import { DomainListToolbar } from "@/shared/ui/domain";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter } from "@/shared/ui/modal";
 import { useSendMessageModal } from "@/features/messages/context/SendMessageModalContext";
+import { fetchMessageTemplates } from "@/features/messages/api/messages.api";
+import { substituteScoreVars, generateScoreReport, buildScoreDetail } from "@/features/scores/utils/generateScoreReport";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import CreateRegularExamModal from "@/features/exams/components/create/CreateRegularExamModal";
 import CreateHomeworkModal from "@/features/homework/components/CreateHomeworkModal";
@@ -347,13 +349,38 @@ export default function SessionScoresEntryPage(_props: Props) {
         <Button
           intent="secondary"
           size="sm"
-          onClick={() =>
+          onClick={async () => {
+            const rows = data?.rows ?? [];
+            const selectedRows = rows.filter((r) => selectedEnrollmentIds.includes(r.enrollment_id));
+            const meta = data?.meta ?? null;
+            const lecture = qc.getQueryData<{ title?: string; name?: string }>(["lecture", Number(lectureId)]);
+            const lectureName = lecture?.title ?? lecture?.name ?? "";
+            const session = qc.getQueryData<{ title?: string }>(["session-detail", Number(sessionId)]);
+            const sessionTitle = session?.title ?? "";
+            const reportOptions = { lectureName, sessionTitle };
+
+            let initialBody: string | undefined;
+            let scoreDetail = "";
+            if (selectedRows.length === 1) {
+              try {
+                const templates = await fetchMessageTemplates("grades");
+                const customTpl = templates.find((t) => !t.name.startsWith("[학원플러스]"));
+                initialBody = customTpl
+                  ? substituteScoreVars(customTpl.body, selectedRows[0], meta, reportOptions)
+                  : generateScoreReport(selectedRows[0], meta, reportOptions);
+              } catch {
+                initialBody = generateScoreReport(selectedRows[0], meta, reportOptions);
+              }
+              scoreDetail = buildScoreDetail(selectedRows[0], meta);
+            }
             openSendMessageModal({
               studentIds: selectedStudentIds,
               recipientLabel: `수업결과 발송 — 선택한 수강생 ${selectedEnrollmentIds.length}명`,
               blockCategory: "grades",
-            })
-          }
+              initialBody,
+              alimtalkExtraVars: { 강의명: lectureName, 차시명: sessionTitle, 시험성적: scoreDetail },
+            });
+          }}
           disabled={selectedEnrollmentIds.length === 0}
         >
           수업결과 발송
