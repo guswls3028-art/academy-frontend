@@ -1,5 +1,5 @@
 // PATH: src/features/messages/pages/MessageSettingsPage.tsx
-// 메시지 설정 — 공급자 선택 · API 키 · 발신번호 · 연동 테스트
+// 메시지 설정 — KPI 요약 + 공급자 선택 + API 키 + 발신번호 + 연동 테스트
 
 import { useState, useEffect } from "react";
 import { Input } from "antd";
@@ -11,6 +11,9 @@ import {
   FiSettings,
   FiKey,
   FiCopy,
+  FiZap,
+  FiSend,
+  FiShield,
 } from "react-icons/fi";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
@@ -27,6 +30,66 @@ import type { MessagingProvider } from "../api/messages.api";
 // 메시징 워커 서버 IP (뿌리오 연동 IP 등록용)
 const SERVER_IP = "43.201.119.172";
 
+// ─── Sub-components ───
+
+function KpiCard({
+  icon,
+  label,
+  value,
+  status,
+  color,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  status?: "ok" | "warn" | "none";
+  color?: string;
+}) {
+  const statusColor =
+    status === "ok" ? "var(--color-success)" : status === "warn" ? "var(--color-status-warning, #d97706)" : "var(--color-text-muted)";
+  return (
+    <div
+      style={{
+        flex: "1 1 0",
+        minWidth: 160,
+        padding: "16px 20px",
+        borderRadius: 12,
+        background: "var(--color-bg-surface)",
+        border: "1px solid var(--color-border-divider)",
+        display: "flex",
+        flexDirection: "column",
+        gap: 8,
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <div
+          style={{
+            width: 32,
+            height: 32,
+            borderRadius: 8,
+            display: "grid",
+            placeItems: "center",
+            background: `color-mix(in srgb, ${color ?? "var(--color-primary)"} 10%, transparent)`,
+            color: color ?? "var(--color-primary)",
+          }}
+        >
+          {icon}
+        </div>
+        <span style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-muted)" }}>{label}</span>
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        <span style={{ fontSize: 16, fontWeight: 700, color: "var(--color-text-primary)" }}>{value}</span>
+        {status && status !== "none" && (
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 11, fontWeight: 600, color: statusColor }}>
+            {status === "ok" ? <FiCheckCircle size={11} /> : <FiAlertCircle size={11} />}
+            {status === "ok" ? "연동됨" : "미설정"}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function StatusChip({ ok, label }: { ok: boolean; label: string }) {
   return (
     <span
@@ -34,8 +97,8 @@ function StatusChip({ ok, label }: { ok: boolean; label: string }) {
         display: "inline-flex",
         alignItems: "center",
         gap: 4,
-        padding: "2px 8px",
-        borderRadius: "var(--radius-md)",
+        padding: "3px 10px",
+        borderRadius: 20,
         fontSize: 12,
         fontWeight: 600,
         color: ok ? "var(--color-success)" : "var(--color-status-warning, #d97706)",
@@ -50,14 +113,15 @@ function StatusChip({ ok, label }: { ok: boolean; label: string }) {
   );
 }
 
-function Card({ children }: { children: React.ReactNode }) {
+function Card({ children, accent }: { children: React.ReactNode; accent?: string }) {
   return (
     <div
       style={{
-        borderRadius: "var(--radius-lg)",
-        padding: "var(--space-5)",
+        borderRadius: 12,
+        padding: "20px 24px",
         border: "1px solid var(--color-border-divider)",
         background: "var(--color-bg-surface)",
+        borderLeft: accent ? `3px solid ${accent}` : undefined,
       }}
     >
       {children}
@@ -65,26 +129,28 @@ function Card({ children }: { children: React.ReactNode }) {
   );
 }
 
-function SectionTitle({ children }: { children: React.ReactNode }) {
-  return <div style={{ fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 4 }}>{children}</div>;
+function SectionTitle({ icon, children }: { icon?: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 700, fontSize: 15, color: "var(--color-text-primary)", marginBottom: 6 }}>
+      {icon && <span style={{ color: "var(--color-primary)", display: "flex" }}>{icon}</span>}
+      {children}
+    </div>
+  );
 }
 
 function Desc({ children }: { children: React.ReactNode }) {
-  return <p style={{ fontSize: 13, color: "var(--color-text-muted)", marginBottom: 12 }}>{children}</p>;
+  return <p style={{ fontSize: 13, color: "var(--color-text-muted)", marginBottom: 16, lineHeight: 1.5 }}>{children}</p>;
 }
 
 function CopyButton({ text }: { text: string }) {
   return (
     <button
       type="button"
-      onClick={() => {
-        navigator.clipboard.writeText(text);
-        feedback.success("복사되었습니다.");
-      }}
+      onClick={() => { navigator.clipboard.writeText(text); feedback.success("복사되었습니다."); }}
       style={{
         background: "none",
         border: "1px solid var(--color-border-divider)",
-        borderRadius: "var(--radius-sm)",
+        borderRadius: 4,
         padding: "2px 6px",
         cursor: "pointer",
         display: "inline-flex",
@@ -99,6 +165,8 @@ function CopyButton({ text }: { text: string }) {
     </button>
   );
 }
+
+// ─── Main ───
 
 export default function MessageSettingsPage() {
   const { data: info } = useMessagingInfo();
@@ -182,22 +250,52 @@ export default function MessageSettingsPage() {
   const hasPfid = !!(info?.kakao_pfid);
   const hasSender = !!(info?.messaging_sender);
   const hasOwnCreds = info?.has_own_credentials ?? false;
+  const providerLabel = provider === "ppurio" ? "뿌리오" : "솔라피";
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-5" style={{ maxWidth: 720 }}>
 
-      {/* ① 공급자 선택 */}
-      <Card>
-        <SectionTitle>
-          <FiSettings size={14} style={{ marginRight: 6, verticalAlign: "middle" }} />
-          메시징 공급자
-        </SectionTitle>
+      {/* ─── KPI 요약 ─── */}
+      <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+        <KpiCard
+          icon={<FiZap size={16} />}
+          label="공급자"
+          value={providerLabel}
+          status={hasOwnCreds ? "ok" : "warn"}
+          color="#6366f1"
+        />
+        <KpiCard
+          icon={<FiPhone size={16} />}
+          label="발신번호"
+          value={info?.messaging_sender || "미등록"}
+          status={hasSender ? "ok" : "warn"}
+          color="#0ea5e9"
+        />
+        <KpiCard
+          icon={<FiSend size={16} />}
+          label="알림톡"
+          value={hasPfid ? "사용 가능" : "미설정"}
+          status={hasPfid ? "ok" : "none"}
+          color="#f59e0b"
+        />
+        <KpiCard
+          icon={<FiShield size={16} />}
+          label="SMS"
+          value={info?.sms_allowed ? "사용 가능" : "미설정"}
+          status={info?.sms_allowed ? "ok" : "warn"}
+          color="#10b981"
+        />
+      </div>
+
+      {/* ─── ① 공급자 선택 ─── */}
+      <Card accent="var(--color-primary)">
+        <SectionTitle icon={<FiSettings size={15} />}>메시징 공급자</SectionTitle>
         <Desc>SMS·알림톡 발송에 사용할 공급자를 선택하세요.</Desc>
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-          <div style={{ display: "flex", gap: 0, borderRadius: "var(--radius-md)", overflow: "hidden", border: "1px solid var(--color-border-divider)" }}>
+          <div style={{ display: "flex", gap: 0, borderRadius: 8, overflow: "hidden", border: "1px solid var(--color-border-divider)" }}>
             {([
-              { key: "solapi" as const, label: "솔라피" },
-              { key: "ppurio" as const, label: "뿌리오" },
+              { key: "solapi" as const, label: "솔라피(Solapi)" },
+              { key: "ppurio" as const, label: "뿌리오(Ppurio)" },
             ]).map((opt) => (
               <button
                 key={opt.key}
@@ -215,7 +313,7 @@ export default function MessageSettingsPage() {
                 style={{
                   padding: "8px 20px",
                   fontSize: 13,
-                  fontWeight: 600,
+                  fontWeight: 700,
                   border: "none",
                   cursor: isUpdatingInfo ? "not-allowed" : "pointer",
                   color: provider === opt.key ? "#fff" : "var(--color-text-secondary)",
@@ -230,12 +328,9 @@ export default function MessageSettingsPage() {
         </div>
       </Card>
 
-      {/* ② API 키 등록 */}
+      {/* ─── ② API 키 등록 ─── */}
       <Card>
-        <SectionTitle>
-          <FiKey size={14} style={{ marginRight: 6, verticalAlign: "middle" }} />
-          API 연동 설정
-        </SectionTitle>
+        <SectionTitle icon={<FiKey size={15} />}>API 연동 설정</SectionTitle>
 
         {provider === "solapi" ? (
           <>
@@ -255,42 +350,47 @@ export default function MessageSettingsPage() {
               처음이라면 아래 가이드를 따라 진행하세요.
             </Desc>
 
-            {/* 뿌리오 가이드 (접이식) */}
-            <details style={{ marginBottom: 12 }}>
+            <details style={{ marginBottom: 16 }}>
               <summary style={{ fontSize: 13, fontWeight: 600, color: "var(--color-primary)", cursor: "pointer", marginBottom: 8 }}>
                 뿌리오 연동 가이드 (처음이라면 펼쳐보세요)
               </summary>
-              <div style={{ fontSize: 12, color: "var(--color-text-muted)", padding: "12px 14px", background: "var(--color-bg-surface-soft)", borderRadius: "var(--radius-md)", lineHeight: 1.9 }}>
+              <div style={{ fontSize: 12, color: "var(--color-text-muted)", padding: "14px 16px", background: "var(--color-bg-surface-soft)", borderRadius: 8, lineHeight: 2 }}>
                 <strong>1. 회원가입</strong> — <a href="https://www.ppurio.com" target="_blank" rel="noopener noreferrer" style={{ color: "var(--color-primary)" }}>ppurio.com</a> → 기업 회원 가입 (사업자등록증 필요, 1~2영업일 승인)<br />
                 <strong>2. 인증키 확인</strong> — 로그인 → <strong>[연동] → [연동개발(API)]</strong> → 인증키 복사<br />
                 <strong>3. 연동 IP 등록</strong> — <strong>[연동] → [연동관리]</strong> → 연동IP 등록에 아래 IP 추가:<br />
-                <span style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 10px", background: "var(--color-bg-surface)", borderRadius: "var(--radius-sm)", fontFamily: "monospace", fontWeight: 600, fontSize: 13, margin: "4px 0" }}>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 10px", background: "var(--color-bg-surface)", borderRadius: 4, fontFamily: "monospace", fontWeight: 700, fontSize: 13, margin: "4px 0" }}>
                   {SERVER_IP} <CopyButton text={SERVER_IP} />
                 </span><br />
                 <strong>4. 발신번호 등록</strong> — [문자 발신번호] → 학원 전화번호 등록 + 서류 인증<br />
-                <strong>5. 아래에 입력</strong> — 계정 ID + 인증키 입력 후 [저장]
+                <strong>5. 아래에 입력</strong> — 계정 ID + 인증키(API Key) 입력 후 [저장]
               </div>
             </details>
 
             <div className="flex flex-col gap-3">
-              <Input
-                placeholder={info?.own_ppurio_account ? `현재: ${info.own_ppurio_account}` : "뿌리오 계정 ID (로그인 아이디)"}
-                value={ownPpurioAccount}
-                onChange={(e) => setOwnPpurioAccount(e.target.value)}
-                style={{ maxWidth: 380 }}
-              />
-              <Input
-                placeholder={info?.own_ppurio_api_key ? `현재: ${info.own_ppurio_api_key}` : "뿌리오 인증키 (연동개발 API 인증키)"}
-                value={ownPpurioKey}
-                onChange={(e) => setOwnPpurioKey(e.target.value)}
-                type="password"
-                style={{ maxWidth: 380 }}
-              />
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-muted)", marginBottom: 4, display: "block" }}>계정 ID (뿌리오 로그인 아이디)</label>
+                <Input
+                  placeholder={info?.own_ppurio_account ? `현재: ${info.own_ppurio_account}` : "예: myacademy"}
+                  value={ownPpurioAccount}
+                  onChange={(e) => setOwnPpurioAccount(e.target.value)}
+                  style={{ maxWidth: 380 }}
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-muted)", marginBottom: 4, display: "block" }}>API 인증키 (연동개발 메뉴에서 복사)</label>
+                <Input
+                  placeholder={info?.own_ppurio_api_key ? "현재 인증키가 저장되어 있습니다" : "뿌리오 연동개발 API 인증키"}
+                  value={ownPpurioKey}
+                  onChange={(e) => setOwnPpurioKey(e.target.value)}
+                  type="password"
+                  style={{ maxWidth: 380 }}
+                />
+              </div>
             </div>
           </>
         )}
 
-        <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap", alignItems: "center" }}>
+        <div style={{ display: "flex", gap: 8, marginTop: 16, flexWrap: "wrap", alignItems: "center" }}>
           <Button intent="primary" onClick={handleSaveOwnCredentials} disabled={isUpdatingInfo}>
             {isUpdatingInfo ? "저장 중…" : "저장"}
           </Button>
@@ -299,19 +399,14 @@ export default function MessageSettingsPage() {
               초기화
             </Button>
           )}
-          {hasOwnCreds && (
-            <StatusChip ok label="연동됨" />
-          )}
+          {hasOwnCreds && <StatusChip ok label="연동됨" />}
         </div>
       </Card>
 
-      {/* ③ 발신번호 */}
+      {/* ─── ③ 발신번호 ─── */}
       <Card>
-        <SectionTitle>
-          <FiPhone size={14} style={{ marginRight: 6, verticalAlign: "middle" }} />
-          발신번호
-        </SectionTitle>
-        <Desc>{provider === "solapi" ? "솔라피" : "뿌리오"}에 등록된 발신번호를 입력하세요.</Desc>
+        <SectionTitle icon={<FiPhone size={15} />}>발신번호</SectionTitle>
+        <Desc>{providerLabel}에 등록된 발신번호를 입력하세요.</Desc>
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
           <input
             type="tel"
@@ -339,23 +434,20 @@ export default function MessageSettingsPage() {
         )}
       </Card>
 
-      {/* ④ 카카오 알림톡 (선택) */}
+      {/* ─── ④ 카카오 알림톡 (선택) ─── */}
       <Card>
-        <SectionTitle>
-          <FiMessageCircle size={14} style={{ marginRight: 6, verticalAlign: "middle" }} />
-          카카오 알림톡 채널 (선택)
-        </SectionTitle>
+        <SectionTitle icon={<FiMessageCircle size={15} />}>카카오 알림톡 채널 <span style={{ fontSize: 12, fontWeight: 400, color: "var(--color-text-muted)" }}>선택</span></SectionTitle>
         <Desc>
           SMS만 사용한다면 이 항목은 건너뛰세요.
           알림톡을 사용하려면 카카오 비즈니스 채널 PFID를 입력합니다.
         </Desc>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
           <Input
-            placeholder="예: @xxxxx"
+            placeholder="예: @yourChannel"
             value={pfid}
             onChange={(e) => setPfid(e.target.value)}
             disabled={isPending}
-            style={{ maxWidth: 280 }}
+            style={{ maxWidth: 300 }}
             onPressEnter={handleSavePfid}
           />
           <Button intent="primary" onClick={handleSavePfid} disabled={!pfid.trim() || isPending}>
@@ -365,14 +457,14 @@ export default function MessageSettingsPage() {
         </div>
         {hasPfid && (
           <p style={{ fontSize: 12, color: "var(--color-text-muted)", margin: "8px 0 0" }}>
-            현재 PFID: {info?.kakao_pfid}
+            현재 PFID: <code style={{ fontSize: 11, padding: "1px 4px", borderRadius: 3, background: "var(--color-bg-surface-soft)" }}>{info?.kakao_pfid}</code>
           </p>
         )}
       </Card>
 
-      {/* ⑤ 연동 테스트 */}
-      <Card>
-        <SectionTitle>연동 테스트</SectionTitle>
+      {/* ─── ⑤ 연동 테스트 ─── */}
+      <Card accent="var(--color-success)">
+        <SectionTitle icon={<FiCheckCircle size={15} />}>연동 테스트</SectionTitle>
         <Desc>설정이 완료되면 아래 버튼으로 연동 상태를 확인하세요.</Desc>
         <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
           <Button
@@ -392,9 +484,7 @@ export default function MessageSettingsPage() {
           >
             {isTesting ? "테스트 중…" : "연동 상태 테스트"}
           </Button>
-          {testResult && (
-            <StatusChip ok={testResult.all_ok} label={testResult.all_ok ? "정상" : "확인 필요"} />
-          )}
+          {testResult && <StatusChip ok={testResult.all_ok} label={testResult.all_ok ? "모두 정상" : "확인 필요"} />}
         </div>
         {testResult && (
           <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 6 }}>
@@ -405,11 +495,12 @@ export default function MessageSettingsPage() {
                   display: "flex",
                   alignItems: "flex-start",
                   gap: 8,
-                  padding: "8px 12px",
-                  borderRadius: "var(--radius-md)",
+                  padding: "10px 14px",
+                  borderRadius: 8,
                   background: c.ok
                     ? "color-mix(in srgb, var(--color-success) 6%, transparent)"
                     : "color-mix(in srgb, var(--color-error) 6%, transparent)",
+                  border: `1px solid ${c.ok ? "color-mix(in srgb, var(--color-success) 15%, transparent)" : "color-mix(in srgb, var(--color-error) 15%, transparent)"}`,
                 }}
               >
                 {c.ok ? (
@@ -422,6 +513,11 @@ export default function MessageSettingsPage() {
                 </span>
               </div>
             ))}
+            {provider === "ppurio" && testResult.checks.some((c) => !c.ok && c.message.includes("토큰")) && (
+              <div style={{ fontSize: 12, color: "var(--color-text-muted)", padding: "8px 14px", background: "var(--color-bg-surface-soft)", borderRadius: 8, lineHeight: 1.6 }}>
+                <strong>참고:</strong> 뿌리오 토큰 테스트는 API 서버에서 실행됩니다. 실제 문자 발송은 메시징 워커(IP: {SERVER_IP})를 통해 이루어지므로, 워커 IP가 뿌리오에 등록되어 있으면 발송은 정상 작동합니다.
+              </div>
+            )}
           </div>
         )}
       </Card>
