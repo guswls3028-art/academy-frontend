@@ -25,7 +25,7 @@ import type { TestCredentialsResult } from "../api/messages.api";
 import type { MessagingProvider } from "../api/messages.api";
 
 // 메시징 워커 서버 IP (뿌리오 연동 IP 등록용)
-const SERVER_IP = "13.209.70.143";
+const SERVER_IP = "43.201.119.172";
 
 function StatusChip({ ok, label }: { ok: boolean; label: string }) {
   return (
@@ -181,7 +181,6 @@ export default function MessageSettingsPage() {
 
   const hasPfid = !!(info?.kakao_pfid);
   const hasSender = !!(info?.messaging_sender);
-  const smsAllowed = info?.sms_allowed ?? false;
   const hasOwnCreds = info?.has_own_credentials ?? false;
 
   return (
