@@ -1465,11 +1465,19 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                     <span className="ds-scores-pass-fail-badge" data-tone="danger">
                       불합
                     </span>
-                  ) : (
-                    <span className="ds-scores-pass-fail-badge" data-tone="success">
-                      합격
-                    </span>
-                  )}
+                  ) : (() => {
+                    // 시험/과제 중 하나라도 점수가 입력되었는지 확인
+                    const hasAnyExamScore = row.exams?.some((e) => e.block.score != null) ?? false;
+                    const hasAnyHwScore = row.homeworks?.some((h) => h.block.score != null) ?? false;
+                    if (!hasAnyExamScore && !hasAnyHwScore) {
+                      return <span className="text-[var(--color-text-muted)]">-</span>;
+                    }
+                    return (
+                      <span className="ds-scores-pass-fail-badge" data-tone="success">
+                        합격
+                      </span>
+                    );
+                  })()}
                 </td>
 
                 <td
