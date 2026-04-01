@@ -63,10 +63,18 @@ function DailyWorkDetailSection({
         ) : (
           <div className="space-y-3">
             {dayRecords.map((r) => {
-              const startMin = r.start_time ? parseInt(r.start_time.split(":")[0]) * 60 + parseInt(r.start_time.split(":")[1]) : 0;
-              const endMin = r.end_time ? parseInt(r.end_time.split(":")[0]) * 60 + parseInt(r.end_time.split(":")[1]) : startMin;
-              const pctStart = Math.max(0, (startMin - 360) / (1080)) * 100; // 6:00~0:00 range (18h)
-              const pctWidth = Math.max(2, ((endMin - startMin) / 1080) * 100);
+              let pctStart = 0;
+              let pctWidth = 0;
+              try {
+                const sp = (r.start_time ?? "").split(":");
+                const ep = (r.end_time ?? "").split(":");
+                const startMin = sp.length >= 2 ? parseInt(sp[0]) * 60 + parseInt(sp[1]) : 0;
+                const endMin = ep.length >= 2 ? parseInt(ep[0]) * 60 + parseInt(ep[1]) : startMin;
+                if (!isNaN(startMin) && !isNaN(endMin)) {
+                  pctStart = Math.max(0, Math.min(100, ((startMin - 360) / 1080) * 100));
+                  pctWidth = Math.max(2, Math.min(100 - pctStart, ((endMin - startMin) / 1080) * 100));
+                }
+              } catch { /* 파싱 실패 시 바 미표시 */ }
 
               return (
                 <div
