@@ -284,7 +284,7 @@ export default function SendMessageModal({
   const smsAllowed = messagingInfo?.sms_allowed ?? false;
 
   // ─── State ───
-  const [sendMode, setSendMode] = useState<SendMode>("alimtalk");
+  const [sendMode, setSendMode] = useState<SendMode>("sms");
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
   const [freeContent, setFreeContent] = useState("");
@@ -298,6 +298,7 @@ export default function SendMessageModal({
   const [showSaveForm, setShowSaveForm] = useState(false);
   const [saveTemplateName, setSaveTemplateName] = useState("");
   const [savingTemplate, setSavingTemplate] = useState(false);
+  const [alimtalkCategory, setAlimtalkCategory] = useState<string | null>(null);
   const bodyWrapRef = useRef<HTMLDivElement>(null);
   const getNativeTextarea = useCallback(
     () => bodyWrapRef.current?.querySelector("textarea") ?? null, [],
@@ -389,8 +390,9 @@ export default function SendMessageModal({
       setSelectedTemplateId(null);
       setSendToParent(true);
       setSendToStudent(true);
-      setSendMode("alimtalk");
+      setSendMode(smsAllowed ? "sms" : "alimtalk");
       setTemplateSearch("");
+      setAlimtalkCategory(null);
       setShowSaveForm(false);
       setSaveTemplateName("");
       sendingRef.current = false;
@@ -538,20 +540,31 @@ export default function SendMessageModal({
     return null;
   })();
 
-  // AlimTalk template section renderer
-  function renderAlimtalkSection(title: string, items: MessageTemplateItem[]) {
-    if (items.length === 0) return null;
-    return (
-      <div>
-        <div style={{ fontSize: 11, fontWeight: 700, color: "var(--color-text-muted)", padding: "8px 0 4px", letterSpacing: "0.5px" }}>{title}</div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          {items.map((t) => (
-            <TemplateCard key={t.id} template={t} isSelected={selectedTemplateId === t.id} onClick={() => selectTemplate(t)} />
-          ))}
-        </div>
-      </div>
-    );
-  }
+  // AlimTalk: group approved templates by category
+  const alimtalkByCategory = useMemo(() => {
+    const map: Record<string, MessageTemplateItem[]> = {};
+    for (const t of approvedTemplates) {
+      const cat = t.category || "default";
+      if (!map[cat]) map[cat] = [];
+      map[cat].push(t);
+    }
+    return map;
+  }, [approvedTemplates]);
+
+  const alimtalkCategories = useMemo(() => {
+    return Object.keys(alimtalkByCategory).sort((a, b) => {
+      const order = ["default", "signup", "attendance", "lecture", "exam", "assignment", "grades", "clinic", "payment", "notice", "community", "staff"];
+      return order.indexOf(a) - order.indexOf(b);
+    });
+  }, [alimtalkByCategory]);
+
+  // Filtered templates for selected category
+  const alimtalkCategoryTemplates = useMemo(() => {
+    if (!alimtalkCategory) return [];
+    const list = alimtalkByCategory[alimtalkCategory] ?? [];
+    const search = templateSearch.toLowerCase().trim();
+    return search ? list.filter((t) => t.name.toLowerCase().includes(search) || t.body.toLowerCase().includes(search)) : list;
+  }, [alimtalkCategory, alimtalkByCategory, templateSearch]);
 
   // ─── Render ───
   return (
@@ -651,8 +664,8 @@ export default function SendMessageModal({
                 <span style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-muted)", whiteSpace: "nowrap" }}>채널</span>
                 <div style={{ display: "flex", gap: 0, borderRadius: 8, overflow: "hidden", border: "1px solid var(--color-border-divider)" }}>
                   {([
-                    { key: "alimtalk" as const, label: "알림톡" },
                     { key: "sms" as const, label: "SMS", disabled: !smsAllowed },
+                    { key: "alimtalk" as const, label: "알림톡" },
                   ] as const).map((opt) => (
                     <button
                       key={opt.key}
@@ -805,7 +818,7 @@ export default function SendMessageModal({
                   <div className="flex-1 min-h-0 flex flex-col gap-3">
                     {/* 헤더: 뒤로가기 + 이름 */}
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <button type="button" onClick={() => { setSelectedTemplateId(null); setTemplateSearch(""); }}
+                      <button type="button" onClick={() => { setSelectedTemplateId(null); setTemplateSearch(""); setAlimtalkCategory(null); }}
                         style={{
                           display: "flex", alignItems: "center", gap: 4, padding: "4px 10px", borderRadius: 6,
                           border: "1px solid var(--color-border-divider)", background: "var(--color-bg-surface)",
@@ -872,12 +885,24 @@ export default function SendMessageModal({
                       </div>
                     )}
                   </div>
-                ) : (
-                  /* ── 템플릿 미선택 — 템플릿 브라우저 ── */
+                ) : alimtalkCategory ? (
+                  /* ── 카테고리 선택됨 — 해당 카테고리 템플릿 목록 ── */
                   <div className="flex-1 min-h-0 flex flex-col gap-3">
-                    {/* 안내 */}
-                    <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-secondary)" }}>
-                      알림톡은 승인된 템플릿으로만 발송할 수 있습니다. 템플릿을 선택해 주세요.
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <button type="button" onClick={() => { setAlimtalkCategory(null); setTemplateSearch(""); }}
+                        style={{
+                          display: "flex", alignItems: "center", gap: 4, padding: "4px 10px", borderRadius: 6,
+                          border: "1px solid var(--color-border-divider)", background: "var(--color-bg-surface)",
+                          color: "var(--color-text-secondary)", fontSize: 12, fontWeight: 600, cursor: "pointer",
+                        }}>
+                        <FiChevronLeft size={14} />전체 카테고리
+                      </button>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: "var(--color-text-primary)" }}>
+                        {TEMPLATE_CATEGORY_LABELS[alimtalkCategory as TemplateCategory] ?? alimtalkCategory}
+                      </span>
+                      <span style={{ fontSize: 11, color: "var(--color-text-muted)" }}>
+                        {alimtalkCategoryTemplates.length}개
+                      </span>
                     </div>
 
                     {/* 검색 */}
@@ -886,24 +911,64 @@ export default function SendMessageModal({
                       <Input placeholder="템플릿 검색…" value={templateSearch} onChange={(e) => setTemplateSearch(e.target.value)} style={{ paddingLeft: 30, fontSize: 13 }} />
                     </div>
 
-                    {/* 목록 */}
                     <div style={{ flex: 1, minHeight: 0, overflowY: "auto", display: "flex", flexDirection: "column", gap: 6, paddingRight: 2 }}>
-                      {approvedTemplates.length === 0 ? (
-                        <div style={{ padding: "40px 20px", textAlign: "center", color: "var(--color-text-muted)" }}>
-                          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8 }}>승인된 알림톡 템플릿이 없습니다</div>
-                          <div style={{ fontSize: 12, lineHeight: 1.6 }}>메시지 &gt; 템플릿 관리에서 템플릿을 만들고<br/>검수 신청 후 승인받아 주세요.</div>
+                      {alimtalkCategoryTemplates.length === 0 ? (
+                        <div style={{ padding: 20, textAlign: "center", color: "var(--color-text-muted)", fontSize: 13 }}>
+                          {templateSearch ? "검색 결과가 없습니다" : "이 카테고리에 승인된 템플릿이 없습니다"}
                         </div>
                       ) : (
-                        <>
-                          {renderAlimtalkSection("최근 사용", categorizedTemplates.recent)}
-                          {renderAlimtalkSection("기본 템플릿", categorizedTemplates.defaults)}
-                          {renderAlimtalkSection("내 템플릿", categorizedTemplates.custom)}
-                          {categorizedTemplates.recent.length === 0 && categorizedTemplates.defaults.length === 0 && categorizedTemplates.custom.length === 0 && templateSearch && (
-                            <div style={{ padding: 20, textAlign: "center", color: "var(--color-text-muted)", fontSize: 13 }}>검색 결과가 없습니다</div>
-                          )}
-                        </>
+                        alimtalkCategoryTemplates.map((t) => (
+                          <TemplateCard key={t.id} template={t} isSelected={selectedTemplateId === t.id} onClick={() => selectTemplate(t)} />
+                        ))
                       )}
                     </div>
+                  </div>
+                ) : (
+                  /* ── 카테고리 미선택 — 카테고리 목록 ── */
+                  <div className="flex-1 min-h-0 flex flex-col gap-3">
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-secondary)" }}>
+                      알림톡은 승인된 템플릿으로만 발송할 수 있습니다. 카테고리를 선택해 주세요.
+                    </div>
+
+                    {approvedTemplates.length === 0 ? (
+                      <div style={{ padding: "40px 20px", textAlign: "center", color: "var(--color-text-muted)" }}>
+                        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8 }}>승인된 알림톡 템플릿이 없습니다</div>
+                        <div style={{ fontSize: 12, lineHeight: 1.6 }}>메시지 &gt; 템플릿 관리에서 템플릿을 만들고<br/>검수 신청 후 승인받아 주세요.</div>
+                      </div>
+                    ) : (
+                      <div style={{ flex: 1, minHeight: 0, overflowY: "auto", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, alignContent: "start", paddingRight: 2 }}>
+                        {alimtalkCategories.map((cat) => {
+                          const count = alimtalkByCategory[cat]?.length ?? 0;
+                          const catLabel = TEMPLATE_CATEGORY_LABELS[cat as TemplateCategory] ?? cat;
+                          return (
+                            <button
+                              key={cat}
+                              type="button"
+                              onClick={() => setAlimtalkCategory(cat)}
+                              style={{
+                                display: "flex", flexDirection: "column", gap: 4, padding: "14px 16px",
+                                borderRadius: 10, border: "1px solid var(--color-border-divider)",
+                                background: "var(--color-bg-surface)", cursor: "pointer", textAlign: "left" as const,
+                                transition: "border-color 0.15s, background 0.15s, box-shadow 0.15s",
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.borderColor = "var(--color-primary)";
+                                e.currentTarget.style.background = "color-mix(in srgb, var(--color-primary) 4%, var(--color-bg-surface))";
+                                e.currentTarget.style.boxShadow = "0 2px 8px color-mix(in srgb, var(--color-primary) 8%, transparent)";
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.borderColor = "var(--color-border-divider)";
+                                e.currentTarget.style.background = "var(--color-bg-surface)";
+                                e.currentTarget.style.boxShadow = "none";
+                              }}
+                            >
+                              <span style={{ fontSize: 14, fontWeight: 700, color: "var(--color-text-primary)" }}>{catLabel}</span>
+                              <span style={{ fontSize: 11, color: "var(--color-text-muted)" }}>{count}개 템플릿</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 )}
               </>
