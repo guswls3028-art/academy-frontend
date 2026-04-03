@@ -36,6 +36,7 @@ export default function HomeworkSubmissionsPanel({
 }) {
   const hwQ = useAdminHomework(homeworkId);
   const homeworkTitle = hwQ.data?.title ?? "";
+  const [notSubmittedNotif, setNotSubmittedNotif] = useState(false);
 
   const q = useQuery({
     queryKey: ["homework-submissions", homeworkId],
@@ -58,7 +59,6 @@ export default function HomeworkSubmissionsPanel({
   }
 
   const rows = q.data ?? [];
-  const [notSubmittedNotif, setNotSubmittedNotif] = useState(false);
 
   // 미제출 학생 ID 추출 (status가 "not_submitted" 또는 제출 기록 없는 학생)
   const notSubmittedIds = rows

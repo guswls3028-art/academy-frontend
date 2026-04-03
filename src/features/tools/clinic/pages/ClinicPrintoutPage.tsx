@@ -76,7 +76,7 @@ function buildEditableHtml(p: {
   </div>
   <div class="schedule-box"><div class="schedule-title">클리닉 일정</div>${scheduleContent}</div>
   <div class="footer">
-    <div class="footer-left">클리닉 대상 <strong>${clinicTotal}명</strong> / 전체 출석 <span contenteditable="true" data-field="totalPresent">${p.totalPresent || clinicTotal}</span>명</div>
+    <div class="footer-left">클리닉 대상 <strong>${clinicTotal}명</strong> / 전체 출석 <span contenteditable="true" data-field="totalPresent">${p.totalPresent ?? clinicTotal}</span>명</div>
     <div class="footer-right"><span contenteditable="true" data-field="date">${p.date}</span></div>
   </div>
 </div></body></html>`;
@@ -108,7 +108,7 @@ function buildPdfHtml(p: {
     <div class="col"><div class="section-header hw">과제 미통과 <span class="cnt">(${p.hwOnly.length}명)</span></div><div class="name-list">${p.hwOnly.length > 0 ? buildNameItems(p.hwOnly) : emptyCell()}</div></div>
   </div>
   <div class="schedule-box"><div class="schedule-title">클리닉 일정</div>${scheduleContent}</div>
-  <div class="footer"><div class="footer-left">클리닉 대상 <strong>${clinicTotal}명</strong> / 전체 출석 ${p.totalPresent || clinicTotal}명</div><div class="footer-right">${p.date}</div></div>
+  <div class="footer"><div class="footer-left">클리닉 대상 <strong>${clinicTotal}명</strong> / 전체 출석 ${p.totalPresent ?? clinicTotal}명</div><div class="footer-right">${p.date}</div></div>
 </div></body></html>`;
 }
 
@@ -190,15 +190,13 @@ export default function ClinicPrintoutPage() {
   const readIframeEdits = useCallback(() => {
     const vals = readIframeValues();
     if (!vals) return;
-    if (vals.both.length > 0 || vals.examOnly.length > 0 || vals.hwOnly.length > 0) {
-      setBoth(vals.both);
-      setExamOnly(vals.examOnly);
-      setHwOnly(vals.hwOnly);
-    }
-    if (vals.schedule) setSchedule(vals.schedule);
-    if (vals.sessionTitle) setSessionTitle(vals.sessionTitle);
-    if (vals.lectureTitle) setLectureTitle(vals.lectureTitle);
-    if (vals.date) setDate(vals.date);
+    setBoth(vals.both);
+    setExamOnly(vals.examOnly);
+    setHwOnly(vals.hwOnly);
+    setSchedule(vals.schedule);
+    setSessionTitle(vals.sessionTitle);
+    setLectureTitle(vals.lectureTitle);
+    setDate(vals.date);
     setTotalPresent(vals.totalPresent);
   }, [readIframeValues]);
 
@@ -237,7 +235,7 @@ export default function ClinicPrintoutPage() {
     const curLecture = vals?.lectureTitle || lectureTitle;
     const curDate = vals?.date || date;
     const curSchedule = vals?.schedule || schedule;
-    const curPresent = vals?.totalPresent || totalPresent;
+    const curPresent = vals?.totalPresent ?? totalPresent;
 
     if (bNames.length + eNames.length + hNames.length === 0) {
       feedback.warning("학생 이름을 입력하세요.");
@@ -258,7 +256,7 @@ export default function ClinicPrintoutPage() {
         both: bNames, examOnly: eNames, hwOnly: hNames,
         sessionTitle: curSession, lectureTitle: curLecture,
         date: curDate, schedule: curSchedule,
-        totalPresent: curPresent || bNames.length + eNames.length + hNames.length,
+        totalPresent: curPresent ?? (bNames.length + eNames.length + hNames.length),
       });
       const fname = `클리닉대상자_${curSession || "인쇄물"}_${curDate.replace(/\//g, "")}.pdf`;
       await htmlToPdfDownload(html, fname);

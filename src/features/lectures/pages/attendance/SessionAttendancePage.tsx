@@ -1,5 +1,6 @@
 // PATH: src/features/lectures/pages/attendance/SessionAttendancePage.tsx
 // Design: students 도메인과 동일 — 검색·필터·컬럼정렬·툴바(수강생 등록만)
+// 메모 제거, 강의 전체 차시 출결을 인라인 매트릭스로 표시
 import React, { useState, useMemo, useEffect, useLayoutEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -9,7 +10,10 @@ import {
   deleteAttendance,
   downloadAttendanceExcel,
   bulkSetPresent,
+  fetchAttendanceMatrix,
+  type AttendanceMatrixResponse,
 } from "@/features/lectures/api/attendance";
+import { sortSessionsByDateDesc } from "@/features/lectures/api/sessions";
 import api from "@/shared/api/axios";
 import { EmptyState, Button } from "@/shared/ui/ds";
 import { DomainListToolbar, DomainTable, STUDENTS_TABLE_COL, useTableColumnPrefs, ResizableTh } from "@/shared/ui/domain";
@@ -140,7 +144,7 @@ export default function SessionAttendancePage({
   const { data: lecture } = useQuery({
     queryKey: ["lecture", lectureId],
     queryFn: async () => (await api.get(`/lectures/lectures/${lectureId}/`)).data,
-    enabled: Number.isFinite(lectureId ?? 0),
+    enabled: lectureId != null && Number.isFinite(lectureId),
   });
 
   const updateStatus = useMutation({
@@ -153,12 +157,35 @@ export default function SessionAttendancePage({
     onError: () => { feedback.error("출석 상태 변경에 실패했습니다. 다시 시도해 주세요."); },
   });
 
-  const updateMemo = useMutation({
-    mutationFn: ({ id, memo }: { id: number; memo: string }) =>
-      updateAttendance(id, { memo }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["attendance", sessionId] }),
-    onError: () => { feedback.error("메모 저장에 실패했습니다."); },
+  // 강의 전체 차시 출결 매트릭스
+  const { data: matrixData } = useQuery<AttendanceMatrixResponse>({
+    queryKey: ["attendance-matrix", lectureId],
+    queryFn: () => fetchAttendanceMatrix(lectureId!),
+    enabled: lectureId != null && Number.isFinite(lectureId),
   });
+
+  const matrixSessions = useMemo(() => {
+    if (!matrixData?.sessions) return [];
+    // 날짜 오름차순 (1차시 → N차시)
+    return [...matrixData.sessions].sort((a, b) => {
+      const da = a.date || "";
+      const db = b.date || "";
+      if (!da) return 1;
+      if (!db) return -1;
+      return da.localeCompare(db);
+    });
+  }, [matrixData]);
+
+  // student_id → matrix row lookup
+  const matrixByStudentId = useMemo(() => {
+    const map = new Map<number, Record<string, { attendance_id: number; status: string }>>();
+    if (matrixData?.students) {
+      for (const s of matrixData.students) {
+        map.set(s.student_id, s.attendance);
+      }
+    }
+    return map;
+  }, [matrixData]);
 
   const filtered = useMemo(() => pageData, [pageData]);
 
@@ -193,22 +220,23 @@ export default function SessionAttendancePage({
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
 
   const col = STUDENTS_TABLE_COL;
+  const SESSION_COL_WIDTH = col.sessionCol; // 34px per session
   const attendanceColumnDefs: TableColumnDef[] = useMemo(
     () => [
-      { key: "checkbox", label: "선택", defaultWidth: col.checkbox, minWidth: 40, maxWidth: 120 },
+      { key: "checkbox", label: "선택", defaultWidth: col.checkbox, minWidth: 28, maxWidth: 28 },
       { key: "name", label: "이름", defaultWidth: col.name, minWidth: 80, maxWidth: 400 },
       { key: "status", label: "상태", defaultWidth: col.statusBadge, minWidth: 60, maxWidth: 140 },
       { key: "parent_phone", label: "학부모 전화번호", defaultWidth: col.parentPhone, minWidth: 90, maxWidth: 200 },
       { key: "phone", label: "학생 전화번호", defaultWidth: col.studentPhone, minWidth: 90, maxWidth: 200 },
-      { key: "memo", label: "메모", defaultWidth: col.memo, minWidth: 140, maxWidth: 500 },
     ],
     []
   );
   const { columnWidths, setColumnWidth } = useTableColumnPrefs("session-attendance", attendanceColumnDefs);
-  const tableWidth = useMemo(
+  const fixedColsWidth = useMemo(
     () => attendanceColumnDefs.reduce((sum, c) => sum + (columnWidths[c.key] ?? c.defaultWidth), 0),
     [attendanceColumnDefs, columnWidths]
   );
+  const tableWidth = fixedColsWidth + matrixSessions.length * SESSION_COL_WIDTH;
 
   if (isLoading) return <EmptyState scope="panel" tone="loading" title="불러오는 중…" />;
   if (attendanceResult == null) return <EmptyState scope="panel" tone="error" title="출결 데이터를 불러올 수 없습니다." />;
@@ -307,9 +335,12 @@ export default function SessionAttendancePage({
             ]);
             const row = scoresData.rows.find((r) => r.student_id === studentIds[0]);
             if (row) {
-              const customTpl = templates.find((t) => !t.name.startsWith("[학원플러스]"));
-              initialBody = customTpl
-                ? substituteScoreVars(customTpl.body, row, scoresData.meta, { lectureName, sessionTitle })
+              const hasScoreVars = (body: string) => /#{(시험\d|과제\d|시험성적|시험총점|학생이름)}/.test(body);
+              const userDefault = templates.find((t: any) => t.is_user_default && !t.is_system);
+              const userWithScoreVars = templates.find((t: any) => !t.is_system && hasScoreVars(t.body));
+              const chosenTpl = userDefault ?? userWithScoreVars;
+              initialBody = chosenTpl
+                ? substituteScoreVars(chosenTpl.body, row, scoresData.meta, { lectureName, sessionTitle })
                 : generateScoreReport(row, scoresData.meta, { lectureName, sessionTitle });
               scoreDetail = buildScoreDetail(row, scoresData.meta);
             }
@@ -623,20 +654,15 @@ export default function SessionAttendancePage({
             <DomainTable tableClassName="ds-table--flat ds-table--attendance" tableStyle={{ minWidth: tableWidth, width: tableWidth, tableLayout: "fixed" }}>
               <colgroup>
                 {attendanceColumnDefs.map((c) => (
-                  <col key={c.key} style={{ width: columnWidths[c.key] ?? c.defaultWidth }} />
+                  <col key={c.key} style={{ width: c.key === "checkbox" ? col.checkbox : (columnWidths[c.key] ?? c.defaultWidth) }} />
+                ))}
+                {matrixSessions.map((ms) => (
+                  <col key={ms.id} style={{ width: SESSION_COL_WIDTH }} />
                 ))}
               </colgroup>
               <thead>
                 <tr>
-                  <ResizableTh
-                    columnKey="checkbox"
-                    width={columnWidths.checkbox ?? col.checkbox}
-                    minWidth={40}
-                    maxWidth={120}
-                    onWidthChange={setColumnWidth}
-                    scope="col"
-                    className="ds-checkbox-cell"
-                  >
+                  <th scope="col" className="ds-checkbox-cell" style={{ width: col.checkbox, minWidth: col.checkbox, maxWidth: col.checkbox }}>
                     <input
                       type="checkbox"
                       checked={allSelected}
@@ -644,27 +670,41 @@ export default function SessionAttendancePage({
                       aria-label="전체 선택"
                       className="cursor-pointer"
                     />
-                  </ResizableTh>
+                  </th>
                   {sortHeader("name", "이름")}
                   {sortHeader("status", "상태")}
                   {sortHeader("parent_phone", "학부모 전화번호")}
                   {sortHeader("phone", "학생 전화번호")}
-                  <ResizableTh
-                    columnKey="memo"
-                    width={columnWidths.memo ?? col.memo}
-                    minWidth={140}
-                    maxWidth={500}
-                    onWidthChange={setColumnWidth}
-                    scope="col"
-                  >
-                    메모
-                  </ResizableTh>
+                  {matrixSessions.map((ms) => {
+                    const isCurrent = ms.id === sessionId;
+                    return (
+                      <th
+                        key={ms.id}
+                        scope="col"
+                        className="text-center"
+                        style={{
+                          width: SESSION_COL_WIDTH,
+                          minWidth: SESSION_COL_WIDTH,
+                          maxWidth: SESSION_COL_WIDTH,
+                          paddingLeft: 0,
+                          paddingRight: 0,
+                          fontWeight: isCurrent ? 800 : 500,
+                          fontSize: 12,
+                          color: isCurrent ? "var(--color-brand-primary)" : "var(--color-text-muted)",
+                          borderBottom: isCurrent ? "2px solid var(--color-brand-primary)" : undefined,
+                        }}
+                        title={`${ms.order ?? "-"}차시${ms.date ? ` (${ms.date})` : ""}`}
+                      >
+                        {ms.order ?? "-"}
+                      </th>
+                    );
+                  })}
                 </tr>
               </thead>
               <tbody>
                 {sorted.map((att: any) => (
                   <tr key={att.id} className={selectedSet.has(att.id) ? "ds-row-selected" : ""}>
-                    <td className="ds-checkbox-cell" style={{ width: columnWidths.checkbox ?? col.checkbox }} onClick={(e) => e.stopPropagation()}>
+                    <td className="ds-checkbox-cell" style={{ width: col.checkbox }} onClick={(e) => e.stopPropagation()}>
                       <input
                         type="checkbox"
                         checked={selectedSet.has(att.id)}
@@ -718,14 +758,30 @@ export default function SessionAttendancePage({
                     <td className="text-[14px] leading-6 text-[var(--color-text-secondary)] truncate align-middle" style={{ width: columnWidths.phone ?? col.studentPhone }}>
                       {formatPhone(att.phone ?? att.student_phone)}
                     </td>
-                    <td className="align-middle" style={{ width: columnWidths.memo ?? col.memo }}>
-                      <input
-                        defaultValue={att.memo || ""}
-                        placeholder="메모 입력"
-                        className="ds-input w-full min-w-0 text-[14px] leading-6 py-1.5 text-[var(--color-text-secondary)]"
-                        onBlur={(e) => updateMemo.mutate({ id: att.id, memo: e.target.value })}
-                      />
-                    </td>
+                    {matrixSessions.map((ms) => {
+                      const studentAttendance = matrixByStudentId.get(att.student_id);
+                      const cell = studentAttendance?.[String(ms.id)];
+                      const isCurrent = ms.id === sessionId;
+                      return (
+                        <td
+                          key={ms.id}
+                          className="text-center align-middle px-0"
+                          style={{
+                            width: SESSION_COL_WIDTH,
+                            background: isCurrent ? "color-mix(in srgb, var(--color-brand-primary) 6%, transparent)" : undefined,
+                          }}
+                        >
+                          {cell?.status ? (
+                            <AttendanceStatusBadge
+                              status={cell.status as AttendanceStatus}
+                              variant="1ch"
+                            />
+                          ) : (
+                            <span className="text-[var(--color-text-muted)] text-[10px]">－</span>
+                          )}
+                        </td>
+                      );
+                    })}
                   </tr>
                 ))}
               </tbody>

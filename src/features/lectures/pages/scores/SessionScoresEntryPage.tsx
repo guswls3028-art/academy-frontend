@@ -364,9 +364,12 @@ export default function SessionScoresEntryPage(_props: Props) {
             if (selectedRows.length === 1) {
               try {
                 const templates = await fetchMessageTemplates("grades");
-                const customTpl = templates.find((t) => !t.name.startsWith("[학원플러스]"));
-                initialBody = customTpl
-                  ? substituteScoreVars(customTpl.body, selectedRows[0], meta, reportOptions)
+                const hasScoreVars = (body: string) => /#{(시험\d|과제\d|시험성적|시험총점|학생이름)}/.test(body);
+                const userDefault = templates.find((t: any) => t.is_user_default && !t.is_system);
+                const userWithScoreVars = templates.find((t: any) => !t.is_system && hasScoreVars(t.body));
+                const chosenTpl = userDefault ?? userWithScoreVars;
+                initialBody = chosenTpl
+                  ? substituteScoreVars(chosenTpl.body, selectedRows[0], meta, reportOptions)
                   : generateScoreReport(selectedRows[0], meta, reportOptions);
               } catch {
                 initialBody = generateScoreReport(selectedRows[0], meta, reportOptions);
@@ -763,10 +766,20 @@ export default function SessionScoresEntryPage(_props: Props) {
           for (const enrollmentId of selectedEnrollmentIds) {
             if (bulkScoreTarget === "exam") {
               for (const exam of meta?.exams ?? []) {
-                changes.push({ type: "examTotal", examId: exam.exam_id, enrollmentId, score });
+                const maxScore = exam.max_score ?? 100;
+                if (score > maxScore) {
+                  feedback.error(`${exam.title}의 최대 점수(${maxScore})를 초과합니다.`);
+                  return;
+                }
+                changes.push({ type: "examTotal", examId: exam.exam_id, enrollmentId, score, maxScore });
               }
             } else {
               for (const hw of meta?.homeworks ?? []) {
+                const maxScore = hw.max_score ?? 100;
+                if (score > maxScore) {
+                  feedback.error(`${hw.title}의 최대 점수(${maxScore})를 초과합니다.`);
+                  return;
+                }
                 changes.push({ type: "homework", homeworkId: hw.homework_id, enrollmentId, score });
               }
             }
@@ -868,10 +881,20 @@ export default function SessionScoresEntryPage(_props: Props) {
                   for (const enrollmentId of selectedEnrollmentIds) {
                     if (bulkScoreTarget === "exam") {
                       for (const exam of meta?.exams ?? []) {
-                        changes.push({ type: "examTotal", examId: exam.exam_id, enrollmentId, score });
+                        const maxScore = exam.max_score ?? 100;
+                        if (score > maxScore) {
+                          feedback.error(`${exam.title}의 최대 점수(${maxScore})를 초과합니다.`);
+                          return;
+                        }
+                        changes.push({ type: "examTotal", examId: exam.exam_id, enrollmentId, score, maxScore });
                       }
                     } else {
                       for (const hw of meta?.homeworks ?? []) {
+                        const maxScore = hw.max_score ?? 100;
+                        if (score > maxScore) {
+                          feedback.error(`${hw.title}의 최대 점수(${maxScore})를 초과합니다.`);
+                          return;
+                        }
                         changes.push({ type: "homework", homeworkId: hw.homework_id, enrollmentId, score });
                       }
                     }

@@ -242,7 +242,7 @@ type AnalysisResult = {
 
 function analyze(rows: SessionScoreRow[], meta: SessionScoreMeta, attendanceMap?: Record<number, string>): AnalysisResult {
   const passScoreMap = new Map<number, number>();
-  for (const e of meta.exams) passScoreMap.set(e.exam_id, e.pass_score);
+  for (const e of meta?.exams ?? []) passScoreMap.set(e.exam_id, e.pass_score);
 
   const passed: string[] = [];
   const both: ClinicStudent[] = [];
@@ -252,8 +252,8 @@ function analyze(rows: SessionScoreRow[], meta: SessionScoreMeta, attendanceMap?
   const filteredRows = filterPresent(rows, attendanceMap);
 
   for (const row of filteredRows) {
-    const examFailed = row.exams.some((e) => e.block.passed === false);
-    const hwFailed = row.homeworks.some((h) => h.block.passed === false);
+    const examFailed = (row.exams ?? []).some((e) => e.block.passed === false);
+    const hwFailed = (row.homeworks ?? []).some((h) => h.block.passed === false);
 
     if (!examFailed && !hwFailed) {
       passed.push(row.student_name);
@@ -262,7 +262,7 @@ function analyze(rows: SessionScoreRow[], meta: SessionScoreMeta, attendanceMap?
 
     let almostPassed = false;
     if (examFailed) {
-      const failedExams = row.exams.filter((e) => e.block.passed === false);
+      const failedExams = (row.exams ?? []).filter((e) => e.block.passed === false);
       almostPassed = failedExams.every((e) => {
         const ps = passScoreMap.get(e.exam_id) ?? 70;
         const score = e.block.score;
