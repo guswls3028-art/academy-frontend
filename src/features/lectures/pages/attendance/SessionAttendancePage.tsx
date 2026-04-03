@@ -166,12 +166,14 @@ export default function SessionAttendancePage({
 
   const matrixSessions = useMemo(() => {
     if (!matrixData?.sessions) return [];
-    // 날짜 오름차순 (1차시 → N차시)
+    // order 오름차순 (1차시 → 2차시 → N차시), order 없으면 뒤로
     return [...matrixData.sessions].sort((a, b) => {
+      const oa = a.order ?? 9999;
+      const ob = b.order ?? 9999;
+      if (oa !== ob) return oa - ob;
+      // order 같으면 날짜 오름차순
       const da = a.date || "";
       const db = b.date || "";
-      if (!da) return 1;
-      if (!db) return -1;
       return da.localeCompare(db);
     });
   }, [matrixData]);

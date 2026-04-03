@@ -1,7 +1,8 @@
 // PATH: src/features/sessions/components/SessionBlock.tsx
 // 차시 = 세션 — lecture 기준 세션 목록 + 추가 (LectureLayout, SessionLayout 공용). 차시 블록 SSOT 사용
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useLayoutEffect } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Settings } from "lucide-react";
@@ -20,7 +21,7 @@ interface Props {
 
 type SessionItem = { id: number; order?: number; date?: string | null; title?: string | null };
 
-/** 차시 블록 우상단 톱니바퀴 → 수정/삭제 팝오버 */
+/** 차시 블록 우상단 톱니바퀴 → 수정/삭제 팝오버 (createPortal로 body에 렌더) */
 function SessionGearMenu({
   session,
   lectureId,
@@ -35,16 +36,26 @@ function SessionGearMenu({
   const [editTitle, setEditTitle] = useState(session.title ?? "");
   const [editDate, setEditDate] = useState(session.date ?? "");
   const [busy, setBusy] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
+  const gearRef = useRef<HTMLButtonElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [anchor, setAnchor] = useState<{ left: number; top: number } | null>(null);
   const confirm = useConfirm();
+
+  // 드롭다운 위치 계산: 톱니 버튼 아래 중앙 정렬
+  useLayoutEffect(() => {
+    if (!open || !gearRef.current) { setAnchor(null); return; }
+    const rect = gearRef.current.getBoundingClientRect();
+    // 버튼 아래에 표시, 오른쪽 정렬
+    setAnchor({ left: rect.right, top: rect.bottom + 4 });
+  }, [open, editing]);
 
   useEffect(() => {
     if (!open) return;
     const handler = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setOpen(false);
-        setEditing(false);
-      }
+      const target = e.target as Node;
+      if (gearRef.current?.contains(target) || dropdownRef.current?.contains(target)) return;
+      setOpen(false);
+      setEditing(false);
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
@@ -89,24 +100,18 @@ function SessionGearMenu({
     }
   };
 
-  return (
-    <div
-      ref={menuRef}
-      className="absolute top-1 right-1 z-10"
-      style={{ opacity: open ? 1 : undefined }}
-    >
-      <button
-        type="button"
-        onClick={(e) => { e.stopPropagation(); setOpen((v) => !v); setEditing(false); }}
-        className="session-block__gear"
-        aria-label="차시 설정"
-      >
-        <Settings size={14} strokeWidth={2.5} />
-      </button>
-
-      {open && !editing && (
+  const dropdownContent = open && anchor ? (
+    <>
+      {!editing && createPortal(
         <div
-          className="absolute right-0 top-full mt-1 bg-[var(--color-bg-surface)] border border-[var(--color-border-divider)] rounded-lg shadow-lg py-1 min-w-[120px]"
+          ref={dropdownRef}
+          className="fixed bg-[var(--color-bg-surface)] border border-[var(--color-border-divider)] rounded-lg shadow-lg py-1 min-w-[120px]"
+          style={{
+            left: anchor.left,
+            top: anchor.top,
+            transform: "translateX(-100%)",
+            zIndex: 9999,
+          }}
           onClick={(e) => e.stopPropagation()}
         >
           <button
@@ -124,12 +129,19 @@ function SessionGearMenu({
           >
             삭제
           </button>
-        </div>
+        </div>,
+        document.body
       )}
-
-      {open && editing && (
+      {editing && createPortal(
         <div
-          className="absolute right-0 top-full mt-1 bg-[var(--color-bg-surface)] border border-[var(--color-border-divider)] rounded-lg shadow-lg p-3 min-w-[200px]"
+          ref={dropdownRef}
+          className="fixed bg-[var(--color-bg-surface)] border border-[var(--color-border-divider)] rounded-lg shadow-lg p-3 min-w-[200px]"
+          style={{
+            left: anchor.left,
+            top: anchor.top,
+            transform: "translateX(-100%)",
+            zIndex: 9999,
+          }}
           onClick={(e) => e.stopPropagation()}
         >
           <div className="flex flex-col gap-2">
@@ -166,8 +178,24 @@ function SessionGearMenu({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
+    </>
+  ) : null;
+
+  return (
+    <div className="absolute top-1 right-1 z-10" style={{ opacity: open ? 1 : undefined }}>
+      <button
+        ref={gearRef}
+        type="button"
+        onClick={(e) => { e.stopPropagation(); setOpen((v) => !v); setEditing(false); }}
+        className="session-block__gear"
+        aria-label="차시 설정"
+      >
+        <Settings size={14} strokeWidth={2.5} />
+      </button>
+      {dropdownContent}
     </div>
   );
 }
