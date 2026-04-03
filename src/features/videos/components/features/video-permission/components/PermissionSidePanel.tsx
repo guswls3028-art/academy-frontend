@@ -188,7 +188,7 @@ export default function PermissionSidePanel({
                   <div className="col-span-2 flex justify-center">
                     <AttendanceStatusBadge
                       status={(s.attendance_status ?? "INACTIVE") as AttendanceStatus}
-                      variant="1ch"
+                      variant="2ch"
                     />
                   </div>
 
@@ -205,10 +205,10 @@ export default function PermissionSidePanel({
                   {/* 완료 */}
                   <div className="col-span-1 flex justify-center">
                     <span
-                      className="ds-status-badge ds-status-badge--1ch"
+                      className="ds-status-badge"
                       data-tone={s.completed ? "success" : "neutral"}
                     >
-                      {s.completed ? "완료" : "미완료"}
+                      {s.completed ? "완료" : "미완"}
                     </span>
                   </div>
 

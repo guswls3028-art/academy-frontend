@@ -102,11 +102,11 @@ export default function StudentWatchPanel({
                 />
               </div>
 
-              {/* BADGES */}
-              <div className="w-[140px] flex items-center gap-1 shrink-0">
+              {/* BADGES — 전부 2ch 사이즈로 통일 */}
+              <div className="flex items-center gap-1 shrink-0">
                 <AttendanceStatusBadge
                   status={(s.attendance_status ?? "INACTIVE") as AttendanceStatus}
-                  variant="1ch"
+                  variant="2ch"
                 />
                 <span
                   className="ds-status-badge"

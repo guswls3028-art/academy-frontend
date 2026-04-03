@@ -63,7 +63,7 @@ export default function PermissionRow({
       <div className="w-[90px] flex justify-center">
         <AttendanceStatusBadge
           status={(student.attendance_status ?? "INACTIVE") as AttendanceStatus}
-          variant="1ch"
+          variant="2ch"
         />
       </div>
 
@@ -80,10 +80,10 @@ export default function PermissionRow({
       {/* COMPLETED */}
       <div className="w-[80px] flex justify-center">
         <span
-          className="ds-status-badge ds-status-badge--1ch"
+          className="ds-status-badge"
           data-tone={student.completed ? "success" : "neutral"}
         >
-          {student.completed ? "완료" : "미완료"}
+          {student.completed ? "완료" : "미완"}
         </span>
       </div>
 
