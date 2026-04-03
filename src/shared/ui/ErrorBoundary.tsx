@@ -22,6 +22,23 @@ export default class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error("[ErrorBoundary]", error, info.componentStack);
+
+    // 배포 후 chunk hash 불일치 — 자동 리로드 (10초 내 1회 제한)
+    const isChunkError =
+      error.message?.includes("dynamically imported module") ||
+      error.message?.includes("Failed to fetch") ||
+      error.message?.includes("Loading chunk") ||
+      error.message?.includes("Loading CSS chunk");
+    if (isChunkError) {
+      const key = "chunk_reload_ts";
+      const last = Number(sessionStorage.getItem(key) || "0");
+      if (Date.now() - last > 10_000) {
+        sessionStorage.setItem(key, String(Date.now()));
+        window.location.reload();
+        return;
+      }
+    }
+
     // Sentry에 에러 보고 (DSN 설정 시에만 동작)
     Sentry.captureException(error, {
       contexts: { react: { componentStack: info.componentStack || "" } },
