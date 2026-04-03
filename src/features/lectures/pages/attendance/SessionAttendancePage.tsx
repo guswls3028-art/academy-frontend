@@ -742,9 +742,10 @@ export default function SessionAttendancePage({
                       return (
                         <td
                           key={ms.id}
-                          className="text-center align-middle px-0"
+                          className="text-center align-middle"
                           style={{
                             width: SESSION_COL_WIDTH,
+                            padding: "4px 0",
                             borderLeft: idx === 0 ? "1px solid var(--color-border-divider)" : undefined,
                             background: isCurrent
                               ? "color-mix(in srgb, var(--color-brand-primary) 6%, transparent)"

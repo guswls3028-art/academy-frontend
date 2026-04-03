@@ -1,6 +1,6 @@
 // PATH: src/features/lectures/pages/attendance/LectureAttendanceMatrixPage.tsx
 // Design: docs/DESIGN_SSOT.md
-// 컬럼: 체크박스, 이름, 학부모 전화, 학생 전화, 출결블록(N차 → 1차 역순, 1글자)
+// 컬럼: 이름, 학부모 전화, 학생 전화, 출결블록(1차 → N차 순서, 1글자)
 import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -8,20 +8,21 @@ import {
   downloadAttendanceExcel,
   type AttendanceMatrixResponse,
 } from "@/features/lectures/api/attendance";
-import { sortSessionsByDateDesc } from "@/features/lectures/api/sessions";
 import AttendanceStatusBadge from "@/shared/ui/badges/AttendanceStatusBadge";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { EmptyState, Button } from "@/shared/ui/ds";
 import { DomainListToolbar, DomainTable, STUDENTS_TABLE_COL, ResizableTh, useTableColumnPrefs } from "@/shared/ui/domain";
 import type { TableColumnDef } from "@/shared/ui/domain";
 import { formatPhone } from "@/shared/utils/formatPhone";
+import { useMemo } from "react";
 
 const LECTURE_ATTENDANCE_MATRIX_COLUMNS: TableColumnDef[] = [
   { key: "name", label: "이름", defaultWidth: STUDENTS_TABLE_COL.name, minWidth: 80 },
   { key: "parentPhone", label: "학부모 전화", defaultWidth: STUDENTS_TABLE_COL.parentPhone, minWidth: 90 },
   { key: "studentPhone", label: "학생 전화", defaultWidth: STUDENTS_TABLE_COL.studentPhone, minWidth: 90 },
-  { key: "session", label: "차시", defaultWidth: STUDENTS_TABLE_COL.sessionCol, minWidth: 34 },
 ];
+
+const SESSION_COL_WIDTH = 40;
 
 export default function LectureAttendanceMatrixPage() {
   const { lectureId } = useParams<{ lectureId: string }>();
@@ -34,7 +35,18 @@ export default function LectureAttendanceMatrixPage() {
     enabled: Number.isFinite(lectureIdNum),
   });
 
-  if (isLoading) return <EmptyState scope="panel" tone="loading" title="불러오는 중…" />;
+  // 차시 블록: order 오름차순 (1차시 → N차시)
+  const sessionsAsc = useMemo(() => {
+    if (!data?.sessions) return [];
+    return [...data.sessions].sort((a, b) => {
+      const oa = a.order ?? 9999;
+      const ob = b.order ?? 9999;
+      if (oa !== ob) return oa - ob;
+      return (a.date || "").localeCompare(b.date || "");
+    });
+  }, [data]);
+
+  if (isLoading) return <EmptyState scope="panel" tone="loading" title="불러오는 중..." />;
   if (!data?.students?.length)
     return (
       <EmptyState
@@ -45,19 +57,15 @@ export default function LectureAttendanceMatrixPage() {
       />
     );
 
-  const { lecture: lectureInfo, sessions, students } = data;
-  // 차시 블록: sortSessionsByDateDesc (날짜 내림차순)
-  const sessionsByDateDesc = sortSessionsByDateDesc(sessions);
-
+  const { lecture: lectureInfo, students } = data;
   const col = STUDENTS_TABLE_COL;
-  const sessionColWidth = columnWidths.session ?? STUDENTS_TABLE_COL.sessionCol;
-  const sessionColsTotal = sessionsByDateDesc.length * sessionColWidth;
-  const tableMinWidth =
-    col.checkbox +
+
+  const fixedWidth =
     (columnWidths.name ?? col.name) +
     (columnWidths.parentPhone ?? col.parentPhone) +
-    (columnWidths.studentPhone ?? col.studentPhone) +
-    sessionColsTotal;
+    (columnWidths.studentPhone ?? col.studentPhone);
+  const sessionColsTotal = sessionsAsc.length * SESSION_COL_WIDTH;
+  const tableMinWidth = fixedWidth + sessionColsTotal;
 
   const primaryAction = (
     <Button
@@ -84,19 +92,15 @@ export default function LectureAttendanceMatrixPage() {
             tableStyle={{ width: tableMinWidth, minWidth: tableMinWidth, tableLayout: "fixed" }}
           >
             <colgroup>
-              <col style={{ width: col.checkbox }} />
               <col style={{ width: columnWidths.name ?? col.name }} />
               <col style={{ width: columnWidths.parentPhone ?? col.parentPhone }} />
               <col style={{ width: columnWidths.studentPhone ?? col.studentPhone }} />
-              {sessionsByDateDesc.map((s) => (
-                <col key={s.id} style={{ width: sessionColWidth }} />
+              {sessionsAsc.map((s) => (
+                <col key={s.id} style={{ width: SESSION_COL_WIDTH }} />
               ))}
             </colgroup>
             <thead>
               <tr>
-                <th scope="col" className="ds-checkbox-cell" style={{ width: col.checkbox }}>
-                  <span className="sr-only">선택</span>
-                </th>
                 <ResizableTh
                   columnKey="name"
                   width={columnWidths.name ?? col.name}
@@ -113,9 +117,9 @@ export default function LectureAttendanceMatrixPage() {
                   minWidth={90}
                   maxWidth={400}
                   onWidthChange={setColumnWidth}
-                  className="text-left"
+                  className="text-center"
                 >
-                  학부모 전화번호
+                  학부모
                 </ResizableTh>
                 <ResizableTh
                   columnKey="studentPhone"
@@ -123,34 +127,34 @@ export default function LectureAttendanceMatrixPage() {
                   minWidth={90}
                   maxWidth={400}
                   onWidthChange={setColumnWidth}
-                  className="text-left"
+                  className="text-center"
                 >
-                  학생 전화번호
+                  학생
                 </ResizableTh>
-                {sessionsByDateDesc.map((s) => (
-                  <ResizableTh
+                {sessionsAsc.map((s, idx) => (
+                  <th
                     key={s.id}
-                    columnKey="session"
-                    width={sessionColWidth}
-                    minWidth={34}
-                    maxWidth={80}
-                    onWidthChange={setColumnWidth}
+                    scope="col"
                     className="text-center"
-                    style={{ paddingLeft: 0, paddingRight: 0 }}
+                    style={{
+                      width: SESSION_COL_WIDTH,
+                      padding: "6px 0",
+                      fontWeight: 600,
+                      fontSize: 12,
+                      color: "var(--color-text-muted)",
+                      borderLeft: idx === 0 ? "1px solid var(--color-border-divider)" : undefined,
+                    }}
                     title={`${s.order ?? "-"}차시${s.date ? ` (${s.date})` : ""}`}
                   >
-                    {s.order ?? "-"}차
-                  </ResizableTh>
+                    {s.order ?? "-"}
+                  </th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {students.map((row) => (
                 <tr key={row.student_id} className="hover:bg-[var(--color-bg-surface-hover)]">
-                  <td className="ds-checkbox-cell align-middle" style={{ width: col.checkbox }}>
-                    <span className="sr-only">{row.name} 선택</span>
-                  </td>
-                    <td
+                  <td
                     className="text-[15px] font-bold leading-6 text-[var(--color-text-primary)] truncate align-middle"
                     style={{ width: columnWidths.name ?? col.name }}
                   >
@@ -168,24 +172,28 @@ export default function LectureAttendanceMatrixPage() {
                     />
                   </td>
                   <td
-                    className="text-[14px] leading-6 text-[var(--color-text-secondary)] truncate align-middle"
+                    className="text-[13px] leading-6 text-[var(--color-text-secondary)] truncate align-middle text-center"
                     style={{ width: columnWidths.parentPhone ?? col.parentPhone }}
                   >
                     {formatPhone(row.parent_phone)}
                   </td>
                   <td
-                    className="text-[14px] leading-6 text-[var(--color-text-secondary)] truncate align-middle"
+                    className="text-[13px] leading-6 text-[var(--color-text-secondary)] truncate align-middle text-center"
                     style={{ width: columnWidths.studentPhone ?? col.studentPhone }}
                   >
                     {formatPhone(row.phone)}
                   </td>
-                  {sessionsByDateDesc.map((s) => {
+                  {sessionsAsc.map((s, idx) => {
                     const cell = row.attendance[String(s.id)];
                     return (
                       <td
                         key={s.id}
-                        className="text-center align-middle px-0"
-                        style={{ width: sessionColWidth }}
+                        className="text-center align-middle"
+                        style={{
+                          width: SESSION_COL_WIDTH,
+                          padding: "4px 0",
+                          borderLeft: idx === 0 ? "1px solid var(--color-border-divider)" : undefined,
+                        }}
                       >
                         {cell?.status ? (
                           <AttendanceStatusBadge
@@ -193,7 +201,7 @@ export default function LectureAttendanceMatrixPage() {
                             variant="1ch"
                           />
                         ) : (
-                          <span className="text-[var(--color-text-muted)] text-[10px]">－</span>
+                          <span style={{ color: "var(--color-border-divider)", fontSize: 8 }}>·</span>
                         )}
                       </td>
                     );

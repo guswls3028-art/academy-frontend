@@ -6,7 +6,6 @@ import SessionLayout from "./layout/SessionLayout";
 
 // 탭 라우트들
 import SessionOverviewRoute from "./routes/SessionOverviewRoute";
-import SessionAttendanceRoute from "./routes/SessionAttendanceRoute";
 import SessionExamsRoute from "./routes/SessionExamsRoute";
 import SessionScoresRoute from "./routes/SessionScoresRoute";
 import SessionAssignmentsRoute from "./routes/SessionAssignmentsRoute";
@@ -24,7 +23,6 @@ export const sessionRoutes: RouteObject[] = [
     children: [
       { index: true, element: <SessionOverviewRoute /> },
       { path: "overview", element: <SessionOverviewRoute /> },
-      { path: "attendance", element: <SessionAttendanceRoute /> },
       { path: "exams", element: <SessionExamsRoute /> },
       { path: "assignments", element: <SessionAssignmentsRoute /> },
       { path: "scores", element: <SessionScoresRoute /> },

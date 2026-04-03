@@ -33,7 +33,6 @@ export default function SessionLayout() {
     () =>
       base
         ? [
-            { key: "attendance", label: "출결", path: `${base}/attendance`, exact: false },
             { key: "scores", label: "성적", path: `${base}/scores` },
             { key: "exams", label: "시험", path: `${base}/exams` },
             { key: "assignments", label: "과제", path: `${base}/assignments` },
