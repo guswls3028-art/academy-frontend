@@ -1025,7 +1025,7 @@ export default function SendMessageModal({
                             onSetDefault={() => handleSetDefault(t.id)}
                             onDuplicate={() => handleDuplicate(t.id)}
                             onDelete={() => handleDeleteTemplate(t.id)}
-                            onEdit={null}
+                            /* onEdit removed — not in TemplatePickerCard props */
                           />
                         ))}
                       </>
@@ -1042,7 +1042,7 @@ export default function SendMessageModal({
                             onSetDefault={() => handleSetDefault(t.id)}
                             onDuplicate={() => handleDuplicate(t.id)}
                             onDelete={null}
-                            onEdit={null}
+                            /* onEdit removed — not in TemplatePickerCard props */
                           />
                         ))}
                       </>
