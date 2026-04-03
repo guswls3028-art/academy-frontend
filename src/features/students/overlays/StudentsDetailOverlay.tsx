@@ -285,13 +285,14 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
                     <InfoRow label="식별코드" value={formatOmrCode(student.omrCode)} accent copyable />
                     <InfoRow label="학부모 전화" value={formatPhone(student.parentPhone)} copyable />
                     <InfoRow label="학생 전화" value={formatStudentPhoneDisplay(student.studentPhone)} copyable />
-                    <InfoRow label="성별" value={formatGenderDisplay(student.gender)} />
+                    {student.gender && <InfoRow label="성별" value={formatGenderDisplay(student.gender)} />}
                     <InfoRow label="등록일" value={student.registeredAt?.slice(0, 10)} />
                     {student.address && <InfoRow label="주소" value={student.address} />}
                   </div>
                 </div>
 
-                {/* 학교 정보 섹션 */}
+                {/* 학교 정보 섹션 — 값이 하나라도 있을 때만 표시 */}
+                {(student.school || student.grade || student.schoolClass || student.major || (student.schoolType === "HIGH" && student.originMiddleSchool)) && (
                 <div className="ds-overlay-section">
                   <div className="ds-overlay-section__title">
                     <span className="ds-overlay-section__title-icon">
@@ -300,15 +301,16 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
                     학교 정보
                   </div>
                   <div className="ds-overlay-info-rows">
-                    <InfoRow label="학교" value={student.school} />
-                    {student.schoolType === "HIGH" && (
+                    {student.school && <InfoRow label="학교" value={student.school} />}
+                    {student.schoolType === "HIGH" && student.originMiddleSchool && (
                       <InfoRow label="출신중학교" value={student.originMiddleSchool} />
                     )}
-                    <InfoRow label="학년" value={student.grade ? `${student.grade}학년` : "-"} />
-                    <InfoRow label="반" value={student.schoolClass} />
-                    <InfoRow label="계열" value={student.major} />
+                    {student.grade && <InfoRow label="학년" value={`${student.grade}학년`} />}
+                    {student.schoolClass && <InfoRow label="반" value={student.schoolClass} />}
+                    {student.major && <InfoRow label="계열" value={student.major} />}
                   </div>
                 </div>
+                )}
 
                 {/* 태그 섹션 */}
                 <div className="ds-overlay-section">
@@ -631,10 +633,12 @@ function StudentSummaryDashboard({
     },
   ];
 
+  const isZero = (v: string) => v === "0" || v === "0건" || v === "-";
+
   return (
     <div className="ds-overlay-stat-grid" style={{ gridTemplateColumns: `repeat(${Math.min(cards.length, 6)}, 1fr)` }}>
       {cards.map((c) => (
-        <div key={c.label} className="ds-overlay-stat-card">
+        <div key={c.label} className={`ds-overlay-stat-card${isZero(c.value) ? " ds-overlay-stat-card--muted" : ""}`}>
           <div className="ds-overlay-stat-card__label">{c.label}</div>
           <div className={`ds-overlay-stat-card__value${c.tone === "success" ? " ds-overlay-stat-card__value--success" : c.tone === "danger" ? " ds-overlay-stat-card__value--danger" : ""}`}>
             {c.value}
