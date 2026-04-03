@@ -52,6 +52,23 @@ export const ACCESS_MODE_LABELS: Record<string, string> = {
   BLOCKED: "제한",
 };
 
+// Short labels for 1ch badge (상세 페이지 등 좁은 공간)
+export const ACCESS_MODE_SHORT: Record<string, string> = {
+  FREE_REVIEW: "복",
+  PROCTORED_CLASS: "1회",
+  BLOCKED: "제",
+};
+const RULE_SHORT: Record<string, string> = {
+  free: "복",
+  once: "1회",
+  blocked: "제",
+};
+export const getAccessShortLabel = (accessMode?: string, rule?: string): string => {
+  if (accessMode && ACCESS_MODE_SHORT[accessMode]) return ACCESS_MODE_SHORT[accessMode];
+  if (rule && RULE_SHORT[rule]) return RULE_SHORT[rule];
+  return "—";
+};
+
 // Combined labels (access_mode takes precedence)
 export const getAccessLabel = (accessMode?: string, rule?: string): string => {
   if (accessMode && ACCESS_MODE_LABELS[accessMode]) {

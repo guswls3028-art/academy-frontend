@@ -7,7 +7,7 @@ import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLecture
 import AttendanceStatusBadge from "@/shared/ui/badges/AttendanceStatusBadge";
 import type { AttendanceStatus } from "@/shared/ui/badges/AttendanceStatusBadge";
 import {
-  getAccessLabel,
+  getAccessShortLabel,
   getAccessTone,
 } from "@/features/videos/components/features/video-permission/permission.constants";
 
@@ -102,17 +102,17 @@ export default function StudentWatchPanel({
                 />
               </div>
 
-              {/* BADGES — 전부 2ch 사이즈로 통일 */}
+              {/* BADGES — 전부 1ch 사이즈로 통일 */}
               <div className="flex items-center gap-1 shrink-0">
                 <AttendanceStatusBadge
                   status={(s.attendance_status ?? "INACTIVE") as AttendanceStatus}
-                  variant="2ch"
+                  variant="1ch"
                 />
                 <span
-                  className="ds-status-badge"
+                  className="ds-status-badge ds-status-badge--1ch"
                   data-tone={getAccessTone(s.access_mode, s.effective_rule)}
                 >
-                  {getAccessLabel(s.access_mode, s.effective_rule)}
+                  {getAccessShortLabel(s.access_mode, s.effective_rule)}
                 </span>
               </div>
 
