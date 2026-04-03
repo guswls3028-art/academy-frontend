@@ -28,7 +28,11 @@ export const getAttachmentDownloadUrl = _getDownloadUrl;
 /** 내가 작성한 질문 목록 — post_type 기반 (서버가 created_by 필터링 수행) */
 export async function fetchMyQuestions(_studentId: number, pageSize = 200): Promise<PostEntity[]> {
   const posts = await fetchPosts({ nodeId: null, pageSize, postType: "qna" });
-  return posts.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  return posts.sort((a, b) => {
+    // is_pinned 우선 (고정 글이 위로)
+    if ((a.is_pinned ?? false) !== (b.is_pinned ?? false)) return a.is_pinned ? -1 : 1;
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+  });
 }
 
 /** 질문 상세 */
@@ -64,7 +68,11 @@ export async function submitQuestion(
 /** 내가 작성한 상담 신청 목록 — post_type 기반 (서버가 created_by 필터링 수행) */
 export async function fetchMyCounselRequests(_studentId: number, pageSize = 200): Promise<PostEntity[]> {
   const posts = await fetchPosts({ nodeId: null, pageSize, postType: "counsel" });
-  return posts.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  return posts.sort((a, b) => {
+    // is_pinned 우선 (고정 글이 위로)
+    if ((a.is_pinned ?? false) !== (b.is_pinned ?? false)) return a.is_pinned ? -1 : 1;
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+  });
 }
 
 /** 상담 신청 등록 — post_type 기반 */
@@ -90,7 +98,11 @@ export async function submitCounselRequest(
 export async function fetchNoticePosts(pageSize = 100): Promise<PostEntity[]> {
   const { fetchNoticePosts: _fetchNotices } = await import("@/features/community/api/community.api");
   const posts = await _fetchNotices({ pageSize });
-  return posts.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  return posts.sort((a, b) => {
+    // is_pinned 우선 (고정 글이 위로)
+    if ((a.is_pinned ?? false) !== (b.is_pinned ?? false)) return a.is_pinned ? -1 : 1;
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+  });
 }
 
 // ── 게시판 — post_type 기반 ──
@@ -98,7 +110,11 @@ export async function fetchNoticePosts(pageSize = 100): Promise<PostEntity[]> {
 /** 일반 게시판 목록 — 전용 엔드포인트 사용 (선생 글 포함) */
 export async function fetchBoardPosts(pageSize = 100): Promise<PostEntity[]> {
   const posts = await fetchBoardPostsByEndpoint({ pageSize });
-  return posts.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  return posts.sort((a, b) => {
+    // is_pinned 우선 (고정 글이 위로)
+    if ((a.is_pinned ?? false) !== (b.is_pinned ?? false)) return a.is_pinned ? -1 : 1;
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+  });
 }
 
 // ── 자료실 ──
@@ -106,7 +122,11 @@ export async function fetchBoardPosts(pageSize = 100): Promise<PostEntity[]> {
 /** 자료실 목록 — 전용 엔드포인트 사용 (선생 글 포함) */
 export async function fetchMaterialsPosts(pageSize = 100): Promise<PostEntity[]> {
   const posts = await fetchMaterialsPostsByEndpoint({ pageSize });
-  return posts.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  return posts.sort((a, b) => {
+    // is_pinned 우선 (고정 글이 위로)
+    if ((a.is_pinned ?? false) !== (b.is_pinned ?? false)) return a.is_pinned ? -1 : 1;
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+  });
 }
 
 /** 게시물 상세 */
