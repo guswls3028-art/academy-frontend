@@ -14,7 +14,7 @@ export type Program = {
     window_title?: string;
   };
 
-  feature_flags: Record<string, boolean>;
+  feature_flags: Record<string, boolean | string | number>;
   is_active: boolean;
 };
 

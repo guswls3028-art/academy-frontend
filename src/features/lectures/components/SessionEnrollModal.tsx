@@ -21,6 +21,7 @@ import { TABLE_COL } from "@/shared/ui/domain";
 import { formatPhone } from "@/shared/utils/formatPhone";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { asyncStatusStore } from "@/shared/ui/asyncStatus";
+import { useSchoolLevelMode } from "@/shared/hooks/useSchoolLevelMode";
 
 const PAGE_SIZE = 100;
 /** 탭 디자인 유지. '신규 학생 추가' 클릭 시 탭 전환 없이 학생추가 모달만 연다 */
@@ -29,18 +30,6 @@ const ENROLL_TABS = [
   { key: "new", label: "신규 학생 추가" },
 ];
 
-const SCHOOL_OPTIONS = [
-  { value: "", label: "전체" },
-  { value: "HIGH", label: "고등" },
-  { value: "MIDDLE", label: "중등" },
-] as const;
-
-const GRADE_OPTIONS = [
-  { value: 0, label: "전체" },
-  { value: 1, label: "1학년" },
-  { value: 2, label: "2학년" },
-  { value: 3, label: "3학년" },
-] as const;
 
 /** 정렬 옵션 (드롭다운용 단일 select) */
 const SORT_SELECT_OPTIONS = [
@@ -59,6 +48,8 @@ type FilterDropdownContentProps = {
   sort: string;
   schoolType: string;
   grade: number;
+  schoolOptions: { value: string; label: string }[];
+  gradeOptions: { value: number; label: string }[];
   onSortChange: (key: string) => void;
   onSchoolTypeChange: (v: string) => void;
   onGradeChange: (v: number) => void;
@@ -69,6 +60,8 @@ function FilterDropdownContent({
   sort,
   schoolType,
   grade,
+  schoolOptions,
+  gradeOptions,
   onSortChange,
   onSchoolTypeChange,
   onGradeChange,
@@ -101,7 +94,7 @@ function FilterDropdownContent({
           onChange={(e) => onSchoolTypeChange(e.target.value)}
           aria-label="구분"
         >
-          {SCHOOL_OPTIONS.map((opt) => (
+          {schoolOptions.map((opt) => (
             <option key={opt.value || "all"} value={opt.value}>
               {opt.label}
             </option>
@@ -113,7 +106,7 @@ function FilterDropdownContent({
           onChange={(e) => onGradeChange(Number(e.target.value))}
           aria-label="학년"
         >
-          {GRADE_OPTIONS.map((opt) => (
+          {gradeOptions.map((opt) => (
             <option key={opt.value} value={opt.value}>
               {opt.label}
             </option>
@@ -212,6 +205,7 @@ export default function SessionEnrollModal({
   onSuccess,
 }: Props) {
   const qc = useQueryClient();
+  const slm = useSchoolLevelMode();
   const [overlayStudentId, setOverlayStudentId] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState("existing");
   const [keyword, setKeyword] = useState("");
@@ -228,17 +222,35 @@ export default function SessionEnrollModal({
   const [excelInitialPassword, setExcelInitialPassword] = useState("");
   const [copyFromPrevLoading, setCopyFromPrevLoading] = useState(false);
 
+  // Dynamic school/grade options from school level mode
+  const schoolOptions = useMemo(() => [
+    { value: "", label: "전체" },
+    ...slm.schoolTypes.map((st) => ({ value: st, label: slm.getLabel(st) })),
+  ], [slm]);
+
+  const gradeOptions = useMemo(() => {
+    const grades = schoolType
+      ? slm.gradeRange(schoolType as Parameters<typeof slm.gradeRange>[0])
+      : Array.from(new Set(slm.schoolTypes.flatMap((st) => slm.gradeRange(st)))).sort((a, b) => a - b);
+    return [
+      { value: 0, label: "전체" },
+      ...grades.map((g) => ({ value: g, label: `${g}학년` })),
+    ];
+  }, [slm, schoolType]);
+
   // Debounced search — 학년/구분 키워드 패턴을 필터로 자동 전환
-  // 지원 패턴: "1학년"/"2학년"/"3학년", "고1"/"고2"/"고3", "중1"/"중2"/"중3"
+  // 지원 패턴: "1학년"/"2~6학년", "고N"/"중N"/"초N"
   useEffect(() => {
     const t = setTimeout(() => {
       const trimmed = keyword.trim();
       // "N학년" 패턴
-      const gradeOnlyMatch = trimmed.match(/^([1-3])\s*학년?$/);
+      const gradeOnlyMatch = trimmed.match(/^([1-6])\s*학년?$/);
       // "고N" 패턴 (고등)
       const highMatch = trimmed.match(/^고\s*([1-3])$/);
       // "중N" 패턴 (중등)
       const midMatch = trimmed.match(/^중\s*([1-3])$/);
+      // "초N" 패턴 (초등)
+      const elemMatch = trimmed.match(/^초\s*([1-6])$/);
 
       if (gradeOnlyMatch) {
         setGrade(Number(gradeOnlyMatch[1]));
@@ -252,6 +264,11 @@ export default function SessionEnrollModal({
       } else if (midMatch) {
         setSchoolType("MIDDLE");
         setGrade(Number(midMatch[1]));
+        setSearch("");
+        setPage(1);
+      } else if (elemMatch) {
+        setSchoolType("ELEMENTARY");
+        setGrade(Number(elemMatch[1]));
         setSearch("");
         setPage(1);
       } else {
@@ -645,6 +662,8 @@ export default function SessionEnrollModal({
                                     sort={sort}
                                     schoolType={schoolType}
                                     grade={grade}
+                                    schoolOptions={schoolOptions}
+                                    gradeOptions={gradeOptions}
                                     onSortChange={handleSortChange}
                                     onSchoolTypeChange={handleSchoolTypeChange}
                                     onGradeChange={handleGradeChange}

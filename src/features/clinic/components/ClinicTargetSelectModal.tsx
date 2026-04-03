@@ -16,6 +16,7 @@ import { useClinicTargets } from "../hooks/useClinicTargets";
 import { fetchClinicStudentsPaginated } from "../api/clinicStudents.api";
 import type { ClinicTarget } from "../api/clinicTargets";
 import type { ClinicStudent } from "../api/clinicStudents.api";
+import { useSchoolLevelMode } from "@/shared/hooks/useSchoolLevelMode";
 
 /**
  * 통합 행 타입 — 양쪽 탭에서 동일한 테이블 컬럼 렌더링에 사용
@@ -91,7 +92,10 @@ const PAGE_SIZE = 50;
 /** 학년 표시 (school_type + grade) */
 function gradeLabel(schoolType?: string, grade?: number | null): string {
   if (grade == null) return "-";
-  const prefix = schoolType === "MIDDLE" ? "중" : "고";
+  const prefix =
+    schoolType === "MIDDLE" ? "중" :
+    schoolType === "ELEMENTARY" ? "초" :
+    "고";
   return `${prefix}${grade}`;
 }
 
@@ -137,6 +141,7 @@ export default function ClinicTargetSelectModal({
   initialSelectedIds,
   onConfirm,
 }: Props) {
+  useSchoolLevelMode(); // ensures school level context is consistent with other clinic components
   const stableIds = initialSelectedIds ?? EMPTY_IDS;
   const [mode, setMode] = useState<"targets" | "students">(initialMode);
   const [keyword, setKeyword] = useState("");

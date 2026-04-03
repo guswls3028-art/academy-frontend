@@ -124,9 +124,10 @@ function parseSchoolGrade(value: string): { school: string; grade: string } {
   return { school, grade };
 }
 
-/** 학교명에서 학교유형 추론 (여고/부고/고→HIGH, 중→MIDDLE) */
-function inferSchoolType(school: string): "HIGH" | "MIDDLE" {
+/** 학교명에서 학교유형 추론 (초등학교/초→ELEMENTARY, 중→MIDDLE, 고→HIGH) */
+function inferSchoolType(school: string): "ELEMENTARY" | "MIDDLE" | "HIGH" {
   const s = school.trim();
+  if (/(초등학교|초등|초\b)/.test(s)) return "ELEMENTARY";
   if (/(중학교|중등|중\b)/.test(s)) return "MIDDLE";
   if (/(여고|부고|고등|고등학교)/.test(s)) return "HIGH";
   return "HIGH";
@@ -298,7 +299,8 @@ export function parseStudentExcel(file: File): Promise<ParseStudentExcelResult> 
           const grade = parsedGrade || gradeCell;
           const schoolTypeRaw = cellStr(map, row, "schoolType").toUpperCase();
           const schoolType =
-            schoolTypeRaw === "MIDDLE" ? "MIDDLE" : school ? inferSchoolType(school) : "HIGH";
+            (["ELEMENTARY", "MIDDLE", "HIGH"].includes(schoolTypeRaw) ? schoolTypeRaw : null)
+            || (school ? inferSchoolType(school) : "HIGH");
 
           result.push({
             name,

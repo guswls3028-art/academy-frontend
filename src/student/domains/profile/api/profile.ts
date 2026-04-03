@@ -12,7 +12,7 @@ export type MyProfile = {
   phone?: string | null;
   gender?: string | null;
   address?: string | null;
-  school_type?: "HIGH" | "MIDDLE";
+  school_type?: "HIGH" | "MIDDLE" | "ELEMENTARY";
   high_school?: string | null;
   middle_school?: string | null;
   origin_middle_school?: string | null;
@@ -48,7 +48,7 @@ export async function updateMyProfile(data: {
   parent_phone?: string;
   gender?: string | null;
   address?: string | null;
-  school_type?: "HIGH" | "MIDDLE";
+  school_type?: "HIGH" | "MIDDLE" | "ELEMENTARY";
   high_school?: string | null;
   middle_school?: string | null;
   origin_middle_school?: string | null;

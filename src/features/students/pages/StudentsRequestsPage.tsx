@@ -2,6 +2,7 @@
 // 선생용: 가입 신청 — 패널형 카드 UI (PanelWithTreeLayout SSOT 준수, 학생 도메인 정합)
 
 import { useState, useMemo } from "react";
+import { useSchoolLevelMode } from "@/shared/hooks/useSchoolLevelMode";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Checkbox, Switch } from "antd";
 import {
@@ -99,6 +100,8 @@ function RequestDetailModal({
   approving: boolean;
   rejecting: boolean;
 }) {
+  const slm = useSchoolLevelMode();
+
   if (!request) return null;
 
   const isHigh = request.schoolType === "HIGH";
@@ -106,7 +109,7 @@ function RequestDetailModal({
     { label: "이름", value: request.name },
     { label: "학부모 전화", value: request.parentPhone || null },
     { label: "학생 전화", value: request.phone || null },
-    { label: "구분", value: isHigh ? "고등" : "중등" },
+    { label: "구분", value: slm.getLabel(request.schoolType as "ELEMENTARY" | "MIDDLE" | "HIGH") },
     { label: "학교", value: request.highSchool || request.middleSchool || null },
     { label: "학년", value: request.grade != null ? `${request.grade}학년` : null },
     ...(isHigh ? [{ label: "반", value: request.highSchoolClass || null }] : []),

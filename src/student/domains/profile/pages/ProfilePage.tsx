@@ -10,6 +10,8 @@ import EmptyState from "@/student/shared/ui/layout/EmptyState";
 import { IconPencil } from "@/student/shared/ui/icons/Icons";
 import { PhoneInput010Blocks } from "@/shared/ui/PhoneInput010Blocks";
 import { studentToast } from "@/student/shared/ui/feedback/studentToast";
+import { useSchoolLevelMode } from "@/shared/hooks/useSchoolLevelMode";
+import type { SchoolType } from "@/shared/hooks/useSchoolLevelMode";
 
 function formatPhone(phone: string | null | undefined): string {
   if (!phone || !phone.trim()) return "-";
@@ -37,8 +39,9 @@ export default function ProfilePage() {
   const [editPhone, setEditPhone] = useState("");
   const [editGender, setEditGender] = useState<string>("");
   const [editAddress, setEditAddress] = useState("");
-  const [editSchoolType, setEditSchoolType] = useState<"HIGH" | "MIDDLE">("HIGH");
+  const [editSchoolType, setEditSchoolType] = useState<SchoolType>("HIGH");
   const [editHighSchool, setEditHighSchool] = useState("");
+  const [editElementarySchool, setEditElementarySchool] = useState("");
   const [editMiddleSchool, setEditMiddleSchool] = useState("");
   const [editOriginMiddleSchool, setEditOriginMiddleSchool] = useState("");
   const [editGrade, setEditGrade] = useState("");
@@ -51,6 +54,8 @@ export default function ProfilePage() {
   const [password, setPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+
+  const slm = useSchoolLevelMode();
 
   const { data: profile, isLoading, isError } = useQuery({
     queryKey: ["student", "me"],
@@ -66,8 +71,12 @@ export default function ProfilePage() {
       setEditPhone(ph.length >= 8 ? "010" + ph.slice(-8) : profile.phone || "");
       setEditGender(profile.gender || "");
       setEditAddress(profile.address || "");
-      setEditSchoolType(profile.school_type === "MIDDLE" ? "MIDDLE" : "HIGH");
+      setEditSchoolType(
+        profile.school_type === "ELEMENTARY" ? "ELEMENTARY" :
+        profile.school_type === "MIDDLE" ? "MIDDLE" : "HIGH"
+      );
       setEditHighSchool(profile.high_school || "");
+      setEditElementarySchool(profile.elementary_school || "");
       setEditMiddleSchool(profile.middle_school || "");
       setEditOriginMiddleSchool(profile.origin_middle_school || "");
       setEditGrade(profile.grade != null ? String(profile.grade) : "");
@@ -133,8 +142,12 @@ export default function ProfilePage() {
       setEditPhone(profile.phone || "");
       setEditGender(profile.gender || "");
       setEditAddress(profile.address || "");
-      setEditSchoolType(profile.school_type === "MIDDLE" ? "MIDDLE" : "HIGH");
+      setEditSchoolType(
+        profile.school_type === "ELEMENTARY" ? "ELEMENTARY" :
+        profile.school_type === "MIDDLE" ? "MIDDLE" : "HIGH"
+      );
       setEditHighSchool(profile.high_school || "");
+      setEditElementarySchool(profile.elementary_school || "");
       setEditMiddleSchool(profile.middle_school || "");
       setEditOriginMiddleSchool(profile.origin_middle_school || "");
       setEditGrade(profile.grade != null ? String(profile.grade) : "");
@@ -149,7 +162,8 @@ export default function ProfilePage() {
     const parentRaw = editParentPhone.replace(/\D/g, "");
     const phoneRaw = editPhone.replace(/\D/g, "");
     const gradeNum = editGrade.trim() ? parseInt(editGrade, 10) : null;
-    const gradeValid = gradeNum != null && !isNaN(gradeNum) && gradeNum >= 1 && gradeNum <= 3;
+    const validGrades = slm.gradeRange(editSchoolType);
+    const gradeValid = gradeNum != null && !isNaN(gradeNum) && validGrades.includes(gradeNum);
     updateProfileMutation.mutate({
       name: editName.trim() || undefined,
       parent_phone: parentRaw.length >= 10 ? "010" + parentRaw.slice(-8) : undefined,
@@ -158,11 +172,12 @@ export default function ProfilePage() {
       address: editAddress.trim() || null,
       school_type: editSchoolType,
       high_school: editSchoolType === "HIGH" ? (editHighSchool.trim() || null) : null,
+      elementary_school: editSchoolType === "ELEMENTARY" ? (editElementarySchool.trim() || null) : null,
       middle_school: editSchoolType === "MIDDLE" ? (editMiddleSchool.trim() || null) : null,
-      origin_middle_school: editSchoolType === "HIGH" ? (editOriginMiddleSchool.trim() || null) : null,
+      origin_middle_school: slm.showOriginMiddleSchool(editSchoolType) ? (editOriginMiddleSchool.trim() || null) : null,
       grade: gradeValid ? gradeNum! : null,
       high_school_class: editHighSchoolClass.trim() || null,
-      major: editSchoolType === "HIGH" ? (editMajor.trim() || null) : null,
+      major: slm.showTrack(editSchoolType) ? (editMajor.trim() || null) : null,
       memo: editMemo.trim() || null,
     });
   };
@@ -401,24 +416,21 @@ export default function ProfilePage() {
               <div className="stu-muted" style={{ fontSize: 12, marginBottom: 4 }}>학교 유형</div>
               {editing && !profile.isParentReadOnly ? (
                 <div style={{ display: "flex", gap: "var(--stu-space-2)" }}>
-                  {[
-                    { key: "HIGH" as const, label: "고등" },
-                    { key: "MIDDLE" as const, label: "중등" },
-                  ].map((s) => (
+                  {slm.schoolTypes.map((key) => (
                     <button
-                      key={s.key}
+                      key={key}
                       type="button"
-                      className={`stu-btn stu-btn--secondary ${editSchoolType === s.key ? "stu-btn--primary" : ""}`}
-                      onClick={() => setEditSchoolType(s.key)}
+                      className={`stu-btn stu-btn--secondary ${editSchoolType === key ? "stu-btn--primary" : ""}`}
+                      onClick={() => setEditSchoolType(key)}
                       style={{ padding: "var(--stu-space-2) var(--stu-space-4)" }}
                     >
-                      {s.label}
+                      {slm.labels[key]}
                     </button>
                   ))}
                 </div>
               ) : (
                 <div style={{ fontWeight: 600, fontSize: 16 }}>
-                  {profile.school_type === "MIDDLE" ? "중등" : "고등"}
+                  {slm.getLabel(profile.school_type as SchoolType)}
                 </div>
               )}
             </div>
@@ -440,21 +452,23 @@ export default function ProfilePage() {
                     <div style={{ fontWeight: 600, fontSize: 16 }}>{profile.high_school || "-"}</div>
                   )}
                 </div>
-                <div>
-                  <div className="stu-muted" style={{ fontSize: 12, marginBottom: 4 }}>출신중학교</div>
-                  {editing && !profile.isParentReadOnly ? (
-                    <input
-                      type="text"
-                      value={editOriginMiddleSchool}
-                      onChange={(e) => setEditOriginMiddleSchool(e.target.value)}
-                      className="stu-input"
-                      style={{ width: "100%", maxWidth: 280 }}
-                      placeholder="출신중학교"
-                    />
-                  ) : (
-                    <div style={{ fontWeight: 600, fontSize: 16 }}>{profile.origin_middle_school || "-"}</div>
-                  )}
-                </div>
+                {slm.showOriginMiddleSchool(editSchoolType) && (
+                  <div>
+                    <div className="stu-muted" style={{ fontSize: 12, marginBottom: 4 }}>출신중학교</div>
+                    {editing && !profile.isParentReadOnly ? (
+                      <input
+                        type="text"
+                        value={editOriginMiddleSchool}
+                        onChange={(e) => setEditOriginMiddleSchool(e.target.value)}
+                        className="stu-input"
+                        style={{ width: "100%", maxWidth: 280 }}
+                        placeholder="출신중학교"
+                      />
+                    ) : (
+                      <div style={{ fontWeight: 600, fontSize: 16 }}>{profile.origin_middle_school || "-"}</div>
+                    )}
+                  </div>
+                )}
               </>
             )}
             {editSchoolType === "MIDDLE" && (
@@ -474,6 +488,23 @@ export default function ProfilePage() {
                 )}
               </div>
             )}
+            {editSchoolType === "ELEMENTARY" && (
+              <div>
+                <div className="stu-muted" style={{ fontSize: 12, marginBottom: 4 }}>초등학교명</div>
+                {editing && !profile.isParentReadOnly ? (
+                  <input
+                    type="text"
+                    value={editElementarySchool}
+                    onChange={(e) => setEditElementarySchool(e.target.value)}
+                    className="stu-input"
+                    style={{ width: "100%", maxWidth: 280 }}
+                    placeholder="초등학교명"
+                  />
+                ) : (
+                  <div style={{ fontWeight: 600, fontSize: 16 }}>{(profile as any).elementary_school || "-"}</div>
+                )}
+              </div>
+            )}
 
             <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--stu-space-4)" }}>
               <div style={{ minWidth: 80 }}>
@@ -486,7 +517,7 @@ export default function ProfilePage() {
                     onChange={(e) => setEditGrade(e.target.value.replace(/\D/g, "").slice(0, 1))}
                     className="stu-input"
                     style={{ width: 56 }}
-                    placeholder="1~3"
+                    placeholder={`1~${slm.gradeRange(editSchoolType).length > 0 ? slm.gradeRange(editSchoolType)[slm.gradeRange(editSchoolType).length - 1] : 3}`}
                   />
                 ) : (
                   <div style={{ fontWeight: 600, fontSize: 16 }}>{profile.grade != null ? `${profile.grade}학년` : "-"}</div>
@@ -507,7 +538,7 @@ export default function ProfilePage() {
                   <div style={{ fontWeight: 600, fontSize: 16 }}>{profile.high_school_class || "-"}</div>
                 )}
               </div>
-              {editSchoolType === "HIGH" && (
+              {slm.showTrack(editSchoolType) && (
                 <div style={{ minWidth: 120 }}>
                   <div className="stu-muted" style={{ fontSize: 12, marginBottom: 4 }}>계열</div>
                   {editing && !profile.isParentReadOnly ? (
@@ -572,7 +603,10 @@ export default function ProfilePage() {
                   className="stu-btn stu-btn--ghost"
                   onClick={() => {
                     setEditing(false);
-                    setEditSchoolType(profile.school_type === "MIDDLE" ? "MIDDLE" : "HIGH");
+                    setEditSchoolType(
+                      profile.school_type === "ELEMENTARY" ? "ELEMENTARY" :
+                      profile.school_type === "MIDDLE" ? "MIDDLE" : "HIGH"
+                    );
                   }}
                 >
                   취소

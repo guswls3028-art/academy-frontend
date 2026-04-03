@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader, MODAL_WIDTH } from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
+import { useSchoolLevelMode } from "@/shared/hooks/useSchoolLevelMode";
 
 interface Props {
   open: boolean;
@@ -41,6 +42,7 @@ export default function StudentFilterModal({
   filters,
   onApply,
 }: Props) {
+  const slm = useSchoolLevelMode();
   const [local, setLocal] = useState<any>(filters || {});
   const title = useMemo(() => "고급 필터", []);
 
@@ -125,8 +127,9 @@ export default function StudentFilterModal({
               onChange={(e) => update("school_type", e.target.value)}
             >
               <option value="">학교급 전체</option>
-              <option value="HIGH">고등</option>
-              <option value="MIDDLE">중등</option>
+              {slm.schoolTypes.map((st) => (
+                <option key={st} value={st}>{slm.labels[st]}</option>
+              ))}
             </select>
             <input
               className="ds-input"

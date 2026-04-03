@@ -20,6 +20,7 @@ import { buildParticipantPayload } from "../utils/buildParticipantPayload";
 import api from "@/shared/api/axios";
 import { createClinicParticipant } from "../api/clinicParticipants.api";
 import { useClinicTargets } from "../hooks/useClinicTargets";
+import { useSchoolLevelMode } from "@/shared/hooks/useSchoolLevelMode";
 
 const SAVED_LOCATIONS_KEY = "academy-clinic-saved-locations";
 
@@ -145,6 +146,7 @@ export default function ClinicCreatePanel({
   const { message } = App.useApp();
   const qc = useQueryClient();
   const { data: clinicTargets } = useClinicTargets();
+  const slm = useSchoolLevelMode();
 
   // enrollment_id → clinic_reason 매핑 (참가자 등록 시 사유 전달용)
   const targetReasonMap = useMemo(() => {
@@ -243,7 +245,7 @@ export default function ClinicCreatePanel({
   const hasActiveFilter = targetGrade !== null || targetSchoolType !== null || targetLectureIds.length > 0;
   const filterSummary = [
     targetGrade !== null ? `${targetGrade}학년` : null,
-    targetSchoolType ? (targetSchoolType === "HIGH" ? "고등" : "중등") : null,
+    targetSchoolType ? slm.getLabel(targetSchoolType as Parameters<typeof slm.getLabel>[0]) : null,
     targetLectureIds.length > 0 ? `강의 ${targetLectureIds.length}개` : null,
   ].filter(Boolean).join(" · ");
 
@@ -658,11 +660,11 @@ export default function ClinicCreatePanel({
             <div className="clinic-create__filter-row">
               <span className="clinic-create__filter-row-label">학년</span>
               <div className="clinic-create__filter-chips">
-                {([null, 1, 2, 3] as const).map((g) => (
+                {([null, ...Array.from(new Set(slm.schoolTypes.flatMap((st) => slm.gradeRange(st))))] as const).map((g) => (
                   <button
                     key={g ?? "all"}
                     type="button"
-                    onClick={() => setTargetGrade(g)}
+                    onClick={() => setTargetGrade(g as number | null)}
                     style={filterBtnStyle(targetGrade === g)}
                   >
                     {g === null ? "전체" : `${g}학년`}
@@ -675,14 +677,14 @@ export default function ClinicCreatePanel({
             <div className="clinic-create__filter-row">
               <span className="clinic-create__filter-row-label">학교</span>
               <div className="clinic-create__filter-chips">
-                {([null, "HIGH", "MIDDLE"] as const).map((s) => (
+                {([null, ...slm.schoolTypes] as const).map((s) => (
                   <button
                     key={s ?? "all"}
                     type="button"
                     onClick={() => setTargetSchoolType(s)}
                     style={filterBtnStyle(targetSchoolType === s)}
                   >
-                    {s === null ? "전체" : s === "HIGH" ? "고등" : "중등"}
+                    {s === null ? "전체" : slm.getLabel(s)}
                   </button>
                 ))}
               </div>

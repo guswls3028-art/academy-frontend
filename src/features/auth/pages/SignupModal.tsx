@@ -5,6 +5,8 @@ import {
   checkSignupDuplicate,
 } from "@/features/students/api/students";
 import { PhoneInput010Blocks } from "@/shared/ui/PhoneInput010Blocks";
+import { useSchoolLevelMode } from "@/shared/hooks/useSchoolLevelMode";
+import type { SchoolType } from "@/shared/hooks/useSchoolLevelMode";
 import styles from "./LoginPage.module.css";
 
 interface SignupModalProps {
@@ -18,7 +20,8 @@ const INITIAL_FORM = {
   initialPassword: "",
   parentPhone: "",
   phone: "",
-  schoolType: "HIGH" as "HIGH" | "MIDDLE",
+  schoolType: "HIGH" as SchoolType,
+  elementarySchool: "",
   highSchool: "",
   middleSchool: "",
   highSchoolClass: "",
@@ -31,7 +34,8 @@ const INITIAL_FORM = {
 };
 
 export default function SignupModal({ open, onClose }: SignupModalProps) {
-  const [form, setForm] = useState(INITIAL_FORM);
+  const slm = useSchoolLevelMode();
+  const [form, setForm] = useState<typeof INITIAL_FORM>({ ...INITIAL_FORM, schoolType: slm.defaultSchoolType });
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -42,10 +46,10 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
   const [checkingUsername, setCheckingUsername] = useState(false);
   const [checkingPhone, setCheckingPhone] = useState(false);
 
-  // 모달 열릴 때 폼 초기화
+  // 모달 열릴 때 폼 초기화 (defaultSchoolType 반영)
   useEffect(() => {
     if (open) {
-      setForm(INITIAL_FORM);
+      setForm({ ...INITIAL_FORM, schoolType: slm.defaultSchoolType });
       setError("");
       setSuccess(false);
       setDuplicateInfo(null);
@@ -53,7 +57,7 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
       setUsernameCheck(null);
       setPhoneCheck(null);
     }
-  }, [open]);
+  }, [open, slm.defaultSchoolType]);
 
   async function handleCheckUsername() {
     const val = form.username.trim();
@@ -124,13 +128,18 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
     if (!form.gender.trim()) { setError("성별을 선택해 주세요."); return; }
     if (form.schoolType === "HIGH") {
       if (!form.highSchool.trim()) { setError("고등학교명을 입력해 주세요."); return; }
-      if (!form.originMiddleSchool.trim()) { setError("출신중학교를 입력해 주세요."); return; }
-    } else {
+      if (slm.showOriginMiddleSchool("HIGH") && !form.originMiddleSchool.trim()) {
+        setError("출신중학교를 입력해 주세요."); return;
+      }
+    } else if (form.schoolType === "MIDDLE") {
       if (!form.middleSchool.trim()) { setError("중학교명을 입력해 주세요."); return; }
+    } else if (form.schoolType === "ELEMENTARY") {
+      if (!form.elementarySchool.trim()) { setError("초등학교명을 입력해 주세요."); return; }
     }
+    const allowedGrades = slm.gradeRange(form.schoolType);
     const gradeNum = form.grade.trim() ? Number(form.grade) : NaN;
-    if (!form.grade.trim() || isNaN(gradeNum) || gradeNum < 1 || gradeNum > 3) {
-      setError("학년을 입력해 주세요. (1~3)"); return;
+    if (!form.grade.trim() || isNaN(gradeNum) || !allowedGrades.includes(gradeNum)) {
+      setError(`학년을 입력해 주세요. (1~${allowedGrades[allowedGrades.length - 1]})`); return;
     }
     if (!form.address.trim()) { setError("주소를 입력해 주세요."); return; }
 
@@ -344,7 +353,7 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
                 />
                 {checkingUsername && <span style={{ fontSize: "0.75rem", color: "var(--auth-text-muted)" }}>확인 중...</span>}
                 {usernameCheck && !checkingUsername && (
-                  <span style={{ fontSize: "0.75rem", fontWeight: 600, color: usernameCheck.available ? "#16a34a" : "#dc2626" }}>
+                  <span style={{ fontSize: "0.75rem", fontWeight: 600, color: usernameCheck.available ? "var(--color-success, #16a34a)" : "var(--color-error, #dc2626)" }}>
                     {usernameCheck.available ? "사용 가능한 아이디입니다." : usernameCheck.reason}
                   </span>
                 )}
@@ -383,7 +392,7 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
                 />
                 {checkingPhone && <span style={{ fontSize: "0.75rem", color: "var(--auth-text-muted)" }}>확인 중...</span>}
                 {phoneCheck && !checkingPhone && (
-                  <span style={{ fontSize: "0.75rem", fontWeight: 600, color: phoneCheck.available ? "#16a34a" : "#dc2626" }}>
+                  <span style={{ fontSize: "0.75rem", fontWeight: 600, color: phoneCheck.available ? "var(--color-success, #16a34a)" : "var(--color-error, #dc2626)" }}>
                     {phoneCheck.available ? "사용 가능한 전화번호입니다." : phoneCheck.reason}
                   </span>
                 )}
@@ -405,51 +414,61 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
             <section className={styles.signupSection} aria-labelledby="signup-school">
               <h3 id="signup-school" className={styles.signupSectionTitle}>학교 정보</h3>
               <div className={styles.signupSegmentWrap} role="group" aria-label="학교 유형">
-                <button
-                  type="button"
-                  className={`${styles.signupSegmentBtn} ${form.schoolType === "HIGH" ? styles.isSelected : ""}`}
-                  aria-pressed={form.schoolType === "HIGH"}
-                  onClick={() => setForm((f) => ({ ...f, schoolType: "HIGH" }))}
-                >
-                  고등학교
-                </button>
-                <button
-                  type="button"
-                  className={`${styles.signupSegmentBtn} ${form.schoolType === "MIDDLE" ? styles.isSelected : ""}`}
-                  aria-pressed={form.schoolType === "MIDDLE"}
-                  onClick={() => setForm((f) => ({ ...f, schoolType: "MIDDLE" }))}
-                >
-                  중학교
-                </button>
+                {slm.schoolTypes.map((st) => (
+                  <button
+                    key={st}
+                    type="button"
+                    className={`${styles.signupSegmentBtn} ${form.schoolType === st ? styles.isSelected : ""}`}
+                    aria-pressed={form.schoolType === st}
+                    onClick={() => setForm((f) => ({ ...f, schoolType: st, grade: "" }))}
+                  >
+                    {slm.labels[st]}
+                  </button>
+                ))}
               </div>
-              {form.schoolType === "HIGH" ? (
+              {form.schoolType === "ELEMENTARY" && (
                 <div className={styles.signupGrid2}>
                   <div className={styles.signupGrid2Full}>
-                    <label htmlFor="signup-high" className={styles.signupInputLabel}>고등학교명 <span className={styles.signupRequired}>*</span></label>
-                    <input id="signup-high" className={styles.signupInput} placeholder="선택" value={form.highSchool} onChange={(e) => setForm((f) => ({ ...f, highSchool: e.target.value }))} />
+                    <label htmlFor="signup-elementary" className={styles.signupInputLabel}>초등학교명 <span className={styles.signupRequired}>*</span></label>
+                    <input id="signup-elementary" className={styles.signupInput} placeholder="학교명 입력" value={form.elementarySchool} onChange={(e) => setForm((f) => ({ ...f, elementarySchool: e.target.value }))} />
                   </div>
                   <div>
-                    <label htmlFor="signup-grade" className={styles.signupInputLabel}>학년 <span className={styles.signupRequired}>*</span></label>
-                    <input id="signup-grade" className={styles.signupInput} placeholder="선택" value={form.grade} onChange={(e) => setForm((f) => ({ ...f, grade: e.target.value }))} />
+                    <label htmlFor="signup-grade-elem" className={styles.signupInputLabel}>학년 <span className={styles.signupRequired}>*</span></label>
+                    <div className={styles.signupSegmentWrap} role="group" aria-label="학년">
+                      {slm.gradeRange("ELEMENTARY").map((g) => (
+                        <button key={g} type="button"
+                          className={`${styles.signupSegmentBtn} ${form.grade === String(g) ? styles.isSelected : ""}`}
+                          aria-pressed={form.grade === String(g)}
+                          onClick={() => setForm((f) => ({ ...f, grade: String(g) }))}>
+                          {g}학년
+                        </button>
+                      ))}
+                    </div>
                   </div>
                   <div>
-                    <label htmlFor="signup-class" className={styles.signupInputLabel}>반</label>
-                    <input id="signup-class" className={styles.signupInput} placeholder="선택" value={form.highSchoolClass} onChange={(e) => setForm((f) => ({ ...f, highSchoolClass: e.target.value }))} />
-                  </div>
-                  <div className={styles.signupGrid2Full}>
-                    <label htmlFor="signup-major" className={styles.signupInputLabel}>계열</label>
-                    <input id="signup-major" className={styles.signupInput} placeholder="선택" value={form.major} onChange={(e) => setForm((f) => ({ ...f, major: e.target.value }))} />
+                    <label htmlFor="signup-class-elem" className={styles.signupInputLabel}>반</label>
+                    <input id="signup-class-elem" className={styles.signupInput} placeholder="선택" value={form.highSchoolClass} onChange={(e) => setForm((f) => ({ ...f, highSchoolClass: e.target.value }))} />
                   </div>
                 </div>
-              ) : (
+              )}
+              {form.schoolType === "MIDDLE" && (
                 <div className={styles.signupGrid2}>
                   <div className={styles.signupGrid2Full}>
                     <label htmlFor="signup-middle" className={styles.signupInputLabel}>중학교명 <span className={styles.signupRequired}>*</span></label>
-                    <input id="signup-middle" className={styles.signupInput} placeholder="선택" value={form.middleSchool} onChange={(e) => setForm((f) => ({ ...f, middleSchool: e.target.value }))} />
+                    <input id="signup-middle" className={styles.signupInput} placeholder="학교명 입력" value={form.middleSchool} onChange={(e) => setForm((f) => ({ ...f, middleSchool: e.target.value }))} />
                   </div>
                   <div>
                     <label htmlFor="signup-grade-middle" className={styles.signupInputLabel}>학년 <span className={styles.signupRequired}>*</span></label>
-                    <input id="signup-grade-middle" className={styles.signupInput} placeholder="선택" value={form.grade} onChange={(e) => setForm((f) => ({ ...f, grade: e.target.value }))} />
+                    <div className={styles.signupSegmentWrap} role="group" aria-label="학년">
+                      {slm.gradeRange("MIDDLE").map((g) => (
+                        <button key={g} type="button"
+                          className={`${styles.signupSegmentBtn} ${form.grade === String(g) ? styles.isSelected : ""}`}
+                          aria-pressed={form.grade === String(g)}
+                          onClick={() => setForm((f) => ({ ...f, grade: String(g) }))}>
+                          {g}학년
+                        </button>
+                      ))}
+                    </div>
                   </div>
                   <div>
                     <label htmlFor="signup-class-middle" className={styles.signupInputLabel}>반</label>
@@ -457,12 +476,43 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
                   </div>
                 </div>
               )}
+              {form.schoolType === "HIGH" && (
+                <div className={styles.signupGrid2}>
+                  <div className={styles.signupGrid2Full}>
+                    <label htmlFor="signup-high" className={styles.signupInputLabel}>고등학교명 <span className={styles.signupRequired}>*</span></label>
+                    <input id="signup-high" className={styles.signupInput} placeholder="학교명 입력" value={form.highSchool} onChange={(e) => setForm((f) => ({ ...f, highSchool: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label htmlFor="signup-grade" className={styles.signupInputLabel}>학년 <span className={styles.signupRequired}>*</span></label>
+                    <div className={styles.signupSegmentWrap} role="group" aria-label="학년">
+                      {slm.gradeRange("HIGH").map((g) => (
+                        <button key={g} type="button"
+                          className={`${styles.signupSegmentBtn} ${form.grade === String(g) ? styles.isSelected : ""}`}
+                          aria-pressed={form.grade === String(g)}
+                          onClick={() => setForm((f) => ({ ...f, grade: String(g) }))}>
+                          {g}학년
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <label htmlFor="signup-class" className={styles.signupInputLabel}>반</label>
+                    <input id="signup-class" className={styles.signupInput} placeholder="선택" value={form.highSchoolClass} onChange={(e) => setForm((f) => ({ ...f, highSchoolClass: e.target.value }))} />
+                  </div>
+                  {slm.showTrack("HIGH") && (
+                    <div className={styles.signupGrid2Full}>
+                      <label htmlFor="signup-major" className={styles.signupInputLabel}>계열</label>
+                      <input id="signup-major" className={styles.signupInput} placeholder="선택" value={form.major} onChange={(e) => setForm((f) => ({ ...f, major: e.target.value }))} />
+                    </div>
+                  )}
+                </div>
+              )}
             </section>
 
             {/* 추가 정보 */}
             <section className={styles.signupSection} aria-labelledby="signup-extra">
               <h3 id="signup-extra" className={styles.signupSectionTitle}>추가 정보</h3>
-              {form.schoolType === "HIGH" && (
+              {slm.showOriginMiddleSchool(form.schoolType) && (
                 <div className={styles.signupInputRow}>
                   <label htmlFor="signup-origin" className={styles.signupInputLabel}>출신중학교 <span className={styles.signupRequired}>*</span></label>
                   <input id="signup-origin" className={styles.signupInput} placeholder="선택" value={form.originMiddleSchool} onChange={(e) => setForm((f) => ({ ...f, originMiddleSchool: e.target.value }))} />

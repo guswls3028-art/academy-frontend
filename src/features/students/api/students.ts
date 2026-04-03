@@ -50,7 +50,7 @@ export interface ClientStudent {
   memo?: string | null;
   address?: string | null;
 
-  schoolType: "MIDDLE" | "HIGH" | null;
+  schoolType: "MIDDLE" | "HIGH" | "ELEMENTARY" | null;
 
   tags: ClientStudentTag[];
   enrollments: ClientEnrollmentLite[];
@@ -102,7 +102,7 @@ export function mapStudent(item: any): ClientStudent {
   // 🔧 변경: UI에는 항상 phone만 전달
   const displayPhone = phone ?? null;
 
-  const schoolType: "MIDDLE" | "HIGH" | null =
+  const schoolType: "MIDDLE" | "HIGH" | "ELEMENTARY" | null =
     item?.school_type ??
     (item?.middle_school ? "MIDDLE" : item?.high_school ? "HIGH" : null);
 
@@ -297,7 +297,7 @@ export async function bulkCreateStudents(
     parentPhone: string;
     usesIdentifier?: boolean;
     gender?: string | null;
-    schoolType?: "HIGH" | "MIDDLE";
+    schoolType?: "HIGH" | "MIDDLE" | "ELEMENTARY";
     school?: string | null;
     grade?: number | null;
     schoolClass?: string | null;
@@ -590,7 +590,7 @@ export async function submitRegistrationRequest(form: {
   initialPassword: string;
   parentPhone: string;
   phone?: string;
-  schoolType?: "HIGH" | "MIDDLE";
+  schoolType?: "HIGH" | "MIDDLE" | "ELEMENTARY";
   highSchool?: string;
   middleSchool?: string;
   highSchoolClass?: string;

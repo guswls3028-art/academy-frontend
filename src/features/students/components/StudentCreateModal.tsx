@@ -13,6 +13,7 @@ import ExcelUploadZone from "@/shared/ui/excel/ExcelUploadZone";
 import { createStudent, uploadStudentBulkFromExcel, bulkRestoreStudents, bulkPermanentDeleteStudents } from "../api/students";
 import { downloadStudentExcelTemplate } from "../excel/studentExcel";
 import { asyncStatusStore } from "@/shared/ui/asyncStatus";
+import { useSchoolLevelMode } from "@/shared/hooks/useSchoolLevelMode";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import type { ClientStudent } from "../api/students";
 
@@ -111,6 +112,7 @@ const fieldLabel: Record<string, string> = {
 /* ── 메인 모달 ── */
 
 export default function StudentCreateModal({ open, onClose, onSuccess, onBulkProgress }: Props) {
+  const slm = useSchoolLevelMode();
   const [mode, setMode] = useState<RegisterMode>("choice");
   const [busy, setBusy] = useState(false);
   const [excelBulkPassword, setExcelBulkPassword] = useState("");
@@ -553,33 +555,27 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
                 disabled={busy}
               />
               <div className="modal-actions-inline" style={{ height: 36 }}>
-                <button
-                  type="button"
-                  className={`ds-choice-btn ds-choice-btn--primary${form.schoolType === "HIGH" ? " is-selected" : ""}`}
-                  aria-pressed={form.schoolType === "HIGH"}
-                  onClick={() => setForm((p) => ({ ...p, schoolType: "HIGH" }))}
-                  disabled={busy}
-                >
-                  고등
-                </button>
-                <button
-                  type="button"
-                  className={`ds-choice-btn ds-choice-btn--primary${form.schoolType === "MIDDLE" ? " is-selected" : ""}`}
-                  aria-pressed={form.schoolType === "MIDDLE"}
-                  onClick={() => setForm((p) => ({ ...p, schoolType: "MIDDLE" }))}
-                  disabled={busy}
-                >
-                  중등
-                </button>
+                {slm.schoolTypes.map((st) => (
+                  <button
+                    key={st}
+                    type="button"
+                    className={`ds-choice-btn ds-choice-btn--primary${form.schoolType === st ? " is-selected" : ""}`}
+                    aria-pressed={form.schoolType === st}
+                    onClick={() => setForm((p) => ({ ...p, schoolType: st, grade: "" }))}
+                    disabled={busy}
+                  >
+                    {slm.getLabel(st)}
+                  </button>
+                ))}
               </div>
               <div className="modal-actions-inline" style={{ height: 36 }}>
-                {["1", "2", "3"].map((g) => (
+                {slm.gradeRange(form.schoolType as any || slm.defaultSchoolType).map((g) => (
                   <button
                     key={g}
                     type="button"
-                    className={`ds-choice-btn ds-choice-btn--primary${form.grade === g ? " is-selected" : ""}`}
-                    aria-pressed={form.grade === g}
-                    onClick={() => setForm((p) => ({ ...p, grade: g }))}
+                    className={`ds-choice-btn ds-choice-btn--primary${form.grade === String(g) ? " is-selected" : ""}`}
+                    aria-pressed={form.grade === String(g)}
+                    onClick={() => setForm((p) => ({ ...p, grade: String(g) }))}
                     disabled={busy}
                   >
                     {g}학년
@@ -587,7 +583,7 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
                 ))}
               </div>
             </div>
-            {form.schoolType === "HIGH" && (
+            {slm.showOriginMiddleSchool(form.schoolType as any) && (
               <input
                 name="originMiddleSchool"
                 placeholder="출신중학교 (선택)"
@@ -606,14 +602,16 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
                 className="ds-input"
                 disabled={busy}
               />
-              <input
-                name="major"
-                placeholder="계열(고등만)"
-                value={form.major ?? ""}
-                onChange={handleChange}
-                className="ds-input"
-                disabled={busy}
-              />
+              {slm.showTrack(form.schoolType as any) && (
+                <input
+                  name="major"
+                  placeholder="계열"
+                  value={form.major ?? ""}
+                  onChange={handleChange}
+                  className="ds-input"
+                  disabled={busy}
+                />
+              )}
             </div>
             <input
               name="address"
