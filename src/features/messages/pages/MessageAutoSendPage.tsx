@@ -334,12 +334,12 @@ function TriggerCard({
             {/* 발송 방식 */}
             <div>
               <div style={{ fontSize: 11, fontWeight: 600, color: "var(--color-text-muted)", marginBottom: 6, textTransform: "uppercase" as const, letterSpacing: "0.04em" }}>
-                발송 방식
+                발송 채널
               </div>
               <select
                 className="ds-select"
                 style={{ width: "100%", fontSize: 13 }}
-                value={config.message_mode}
+                value={!smsConnected && config.message_mode !== "alimtalk" ? "alimtalk" : config.message_mode}
                 onChange={(e) =>
                   onUpdate({
                     ...config,
@@ -348,8 +348,9 @@ function TriggerCard({
                 }
                 disabled={saving}
               >
-                {smsConnected && <option value="sms">{MESSAGE_MODE_LABELS.sms}</option>}
                 <option value="alimtalk">{MESSAGE_MODE_LABELS.alimtalk}</option>
+                {smsConnected && <option value="sms">{MESSAGE_MODE_LABELS.sms}</option>}
+                {smsConnected && <option value="both">{MESSAGE_MODE_LABELS.both}</option>}
               </select>
             </div>
           </div>

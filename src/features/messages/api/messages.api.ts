@@ -175,6 +175,10 @@ export interface MessageTemplateItem {
   name: string;
   subject: string;
   body: string;
+  /** 시스템 기본 양식 여부 — true이면 수정/삭제 불가 */
+  is_system: boolean;
+  /** 사용자가 해당 카테고리에서 기본으로 지정한 양식 */
+  is_user_default: boolean;
   /** 솔라피에서 발급된 템플릿 ID (검수 신청 후) */
   solapi_template_id?: string;
   /** 검수 상태: 미신청 / PENDING / APPROVED / REJECTED */
@@ -224,6 +228,21 @@ export async function deleteMessageTemplate(id: number): Promise<void> {
   await api.delete(`${PREFIX}/templates/${id}/`);
 }
 
+/** 기본 양식 지정/해제 토글 */
+export async function setTemplateDefault(id: number): Promise<MessageTemplateItem> {
+  const res = await api.post<MessageTemplateItem>(`${PREFIX}/templates/${id}/set-default/`);
+  return res.data;
+}
+
+/** 양식 복제 (시스템 양식 → 내 양식) */
+export async function duplicateMessageTemplate(
+  id: number,
+  name?: string
+): Promise<MessageTemplateItem> {
+  const res = await api.post<MessageTemplateItem>(`${PREFIX}/templates/${id}/duplicate/`, { name });
+  return res.data;
+}
+
 /** 템플릿 검수 신청 (솔라피 알림톡 템플릿 등록 → 카카오 검수 대기) */
 export async function submitMessageTemplateReview(
   id: number
@@ -240,8 +259,8 @@ export async function submitMessageTemplateReview(
 
 export type SendToType = "student" | "parent" | "staff";
 
-/** sms=SMS만, alimtalk=알림톡만 */
-export type MessageMode = "sms" | "alimtalk";
+/** sms=SMS만, alimtalk=알림톡만, both=둘 다 */
+export type MessageMode = "sms" | "alimtalk" | "both";
 
 export interface SendMessagePayload {
   student_ids?: number[];

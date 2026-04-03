@@ -3,16 +3,18 @@
 
 import type { MessageMode } from "../api/messages.api";
 
-/** 발송 방식 라벨 (SSOT). 백엔드 sms | alimtalk */
+/** 발송 방식 라벨 (SSOT). 백엔드 sms | alimtalk | both */
 export const MESSAGE_MODE_LABELS: Record<MessageMode, string> = {
-  sms: "메시지",
+  sms: "메시지(SMS)",
   alimtalk: "알림톡",
+  both: "알림톡 + SMS",
 };
 
 /** 발송 유형 표시명 (단일 선택 UI 공용) */
 export const SEND_TYPE_OPTIONS = [
-  { key: "sms" as const, label: "메시지" },
+  { key: "sms" as const, label: "메시지(SMS)" },
   { key: "alimtalk" as const, label: "알림톡" },
+  { key: "both" as const, label: "알림톡 + SMS" },
 ] as const;
 
 /**

@@ -135,21 +135,32 @@ const EMPTY_CONFIGS: AutoSendConfigItem[] = [];
 // TriggerCard (inner component — same pattern as MessageAutoSendPage)
 // ---------------------------------------------------------------------------
 
-/** channel-aware 활성 상태 판별 */
+/** channel-aware 활성 상태 판별 — "both" 모드는 두 채널 모두 활성 */
 function isChannelActive(mode: string, channel: "alimtalk" | "sms"): boolean {
+  if (mode === "both") return true;
   return mode === channel;
 }
 
-/** channel toggle → message_mode 도출 (채널은 상호 배타적) */
+/** channel toggle → message_mode 도출 */
 function deriveMessageMode(
   currentMode: string,
   _currentEnabled: boolean,
   channel: "alimtalk" | "sms",
   turnOn: boolean,
-): { message_mode: "sms" | "alimtalk"; enabled: boolean } {
+): { message_mode: "sms" | "alimtalk" | "both"; enabled: boolean } {
   if (turnOn) {
+    // 다른 채널이 이미 활성이면 "both"로, 아니면 해당 채널만
+    const otherChannel = channel === "alimtalk" ? "sms" : "alimtalk";
+    if (currentMode === otherChannel || currentMode === "both") {
+      return { message_mode: "both", enabled: true };
+    }
     return { message_mode: channel, enabled: true };
   } else {
+    // 끄기: "both"에서 하나 빼면 나머지 채널만, 단일이면 비활성화
+    if (currentMode === "both") {
+      const remaining = channel === "alimtalk" ? "sms" : "alimtalk";
+      return { message_mode: remaining, enabled: true };
+    }
     return { message_mode: currentMode as "sms" | "alimtalk", enabled: false };
   }
 }
@@ -502,12 +513,12 @@ function TriggerCard({
                 letterSpacing: "0.04em",
               }}
             >
-              발송 방식
+              발송 채널
             </div>
             <select
               className="ds-select"
               style={{ width: "100%", fontSize: 13 }}
-              value={config.message_mode}
+              value={!smsConnected && config.message_mode !== "alimtalk" ? "alimtalk" : config.message_mode}
               onChange={(e) =>
                 onUpdate({
                   ...config,
@@ -517,12 +528,15 @@ function TriggerCard({
               }
               disabled={saving}
             >
-              {smsConnected && (
-                <option value="sms">{MESSAGE_MODE_LABELS.sms}</option>
-              )}
               <option value="alimtalk">
                 {MESSAGE_MODE_LABELS.alimtalk}
               </option>
+              {smsConnected && (
+                <option value="sms">{MESSAGE_MODE_LABELS.sms}</option>
+              )}
+              {smsConnected && (
+                <option value="both">{MESSAGE_MODE_LABELS.both}</option>
+              )}
             </select>
           </div>
         )}
