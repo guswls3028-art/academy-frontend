@@ -292,7 +292,7 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
                 </div>
 
                 {/* 학교 정보 섹션 — 값이 하나라도 있을 때만 표시 */}
-                {(student.school || student.grade || student.schoolClass || student.major || (student.schoolType === "HIGH" && student.originMiddleSchool)) && (
+                {(student.school || student.grade != null || student.schoolClass != null || student.major || (student.schoolType === "HIGH" && student.originMiddleSchool)) && (
                 <div className="ds-overlay-section">
                   <div className="ds-overlay-section__title">
                     <span className="ds-overlay-section__title-icon">
@@ -305,8 +305,8 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
                     {student.schoolType === "HIGH" && student.originMiddleSchool && (
                       <InfoRow label="출신중학교" value={student.originMiddleSchool} />
                     )}
-                    {student.grade && <InfoRow label="학년" value={`${student.grade}학년`} />}
-                    {student.schoolClass && <InfoRow label="반" value={student.schoolClass} />}
+                    {student.grade != null && <InfoRow label="학년" value={`${student.grade}학년`} />}
+                    {student.schoolClass != null && student.schoolClass !== "" && <InfoRow label="반" value={student.schoolClass} />}
                     {student.major && <InfoRow label="계열" value={student.major} />}
                   </div>
                 </div>
@@ -394,6 +394,7 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
                     )}
                   </div>
                   <textarea
+                    key={`memo-${student.memo ?? ""}`}
                     className="ds-textarea w-full"
                     rows={4}
                     defaultValue={student.memo ?? ""}

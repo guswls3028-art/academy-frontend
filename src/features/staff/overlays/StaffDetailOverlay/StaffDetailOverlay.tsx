@@ -117,14 +117,16 @@ export default function StaffDetailOverlay() {
 
   if (!sid || !staffQ.data) return null;
 
+  // 권한 확인 완료 전 렌더 차단 — 비관리자에게 급여 데이터 노출 방지
+  if (!meQ.data) return null;
+  if (!meQ.data.is_payroll_manager) {
+    return <Navigate to="/admin/dashboard" replace />;
+  }
+
   const staff = staffQ.data;
   const summary = summaryQ.data;
   const locked = isLockedFromLocks(locksQ.data);
-  const canManage = !!meQ.data?.is_payroll_manager;
-
-  if (meQ.data && !meQ.data.is_payroll_manager) {
-    return <Navigate to="/admin/dashboard" replace />;
-  }
+  const canManage = true; // meQ guard 통과 = payroll manager 확정
 
   const tabItems = [
     { key: "summary", label: "요약", children: <StaffSummaryTab staffId={sid} /> },
