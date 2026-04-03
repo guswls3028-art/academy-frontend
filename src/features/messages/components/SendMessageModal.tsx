@@ -1103,7 +1103,11 @@ export default function SendMessageModal({
                 </div>
 
                 {/* ── 변수 블록 삽입 ── */}
-                <div>
+                <div style={{
+                  padding: "10px 12px", borderRadius: "var(--radius-md)",
+                  background: "var(--color-bg-surface-soft)",
+                  border: "1px solid var(--color-border-divider)",
+                }}>
                   <div style={{ fontSize: 11, fontWeight: 700, color: "var(--color-text-muted)", marginBottom: 6 }}>변수 삽입</div>
                   {blockCategory === "grades" ? (
                     <GradesBlockPanel blocks={blocks} onInsert={insertBlock} disabled={sending} currentBody={body} />
