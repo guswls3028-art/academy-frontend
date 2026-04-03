@@ -22,19 +22,39 @@ type CommunityEmptyStateProps = {
   showKeyboardHint?: boolean;
 };
 
-const POST_TYPE_LABEL: Record<PostTypeHint, string> = {
-  notice: "공지",
-  board: "게시물",
-  materials: "자료",
-  qna: "질문",
-  counsel: "상담 신청",
+// Natural Korean particles per post type (을/를, 이/가 handled correctly)
+const POST_TYPE_SELECT: Record<PostTypeHint | "_default", string> = {
+  notice: "공지사항을 선택하세요",
+  board: "게시물을 선택하세요",
+  materials: "자료를 선택하세요",
+  qna: "질문을 선택하세요",
+  counsel: "상담을 선택하세요",
+  _default: "항목을 선택하세요",
+};
+
+const POST_TYPE_CLICK: Record<PostTypeHint | "_default", string> = {
+  notice: "왼쪽 목록에서 공지사항을 클릭하면 내용이 표시됩니다.",
+  board: "왼쪽 목록에서 게시물을 클릭하면 내용이 표시됩니다.",
+  materials: "왼쪽 목록에서 자료를 클릭하면 내용이 표시됩니다.",
+  qna: "왼쪽 목록에서 질문을 클릭하면 내용이 표시됩니다.",
+  counsel: "왼쪽 목록에서 상담을 클릭하면 내용이 표시됩니다.",
+  _default: "왼쪽 목록에서 항목을 클릭하면 내용이 표시됩니다.",
+};
+
+const POST_TYPE_EMPTY: Record<PostTypeHint | "_default", string> = {
+  notice: "공지사항이 없습니다",
+  board: "게시물이 없습니다",
+  materials: "자료가 없습니다",
+  qna: "질문이 없습니다",
+  counsel: "상담이 없습니다",
+  _default: "항목이 없습니다",
 };
 
 function defaults(
   variant: CommunityEmptyVariant,
   postType?: PostTypeHint
 ): { title: string; description?: string } {
-  const label = postType ? POST_TYPE_LABEL[postType] : "항목";
+  const key = postType ?? "_default";
 
   switch (variant) {
     case "no-scope":
@@ -45,8 +65,8 @@ function defaults(
       };
     case "no-selection":
       return {
-        title: `${label}을(를) 선택하세요`,
-        description: `왼쪽 목록에서 ${label}을(를) 클릭하면 내용이 표시됩니다.`,
+        title: POST_TYPE_SELECT[key],
+        description: POST_TYPE_CLICK[key],
       };
     case "no-results":
       return {
@@ -55,7 +75,7 @@ function defaults(
       };
     case "no-posts":
       return {
-        title: `${label}이(가) 없습니다`,
+        title: POST_TYPE_EMPTY[key],
       };
     case "loading":
       return { title: "불러오는 중…" };

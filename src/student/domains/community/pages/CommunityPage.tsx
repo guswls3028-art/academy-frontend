@@ -50,7 +50,7 @@ const TABS: { key: Tab; label: string }[] = [
   { key: "board", label: "게시판" },
   { key: "materials", label: "자료실" },
   { key: "qna", label: "QnA" },
-  { key: "counsel", label: "상담 신청" },
+  { key: "counsel", label: "상담" },
 ];
 
 // ─── Shared tab bar ───
@@ -85,6 +85,7 @@ function SegmentedTabs<T extends string>({
               cursor: "pointer",
               transition: "all var(--stu-motion-fast)",
               letterSpacing: "-0.01em",
+              whiteSpace: "nowrap",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -492,7 +493,7 @@ function QnaForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () => v
         )}
         <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-2)", flex: 1 }}>
           <span style={{ fontSize: 14, fontWeight: 600, color: "var(--stu-text-muted)" }}>내용</span>
-          <RichTextEditor value={content} onChange={setContent} placeholder="질문 내용을 적어 주세요." minHeight={200} />
+          <RichTextEditor value={content} onChange={setContent} placeholder="질문 내용을 적어 주세요." minHeight={200} compact />
         </div>
         <FilePickerSection files={files} onChange={setFiles} />
         <button
@@ -802,7 +803,7 @@ function CounselForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () 
         )}
         <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-2)", flex: 1 }}>
           <span style={{ fontSize: 14, fontWeight: 600, color: "var(--stu-text-muted)" }}>상담 내용</span>
-          <RichTextEditor value={content} onChange={setContent} placeholder="상담받고 싶은 내용을 자세히 적어 주세요." minHeight={200} />
+          <RichTextEditor value={content} onChange={setContent} placeholder="상담받고 싶은 내용을 자세히 적어 주세요." minHeight={200} compact />
         </div>
         <FilePickerSection files={files} onChange={setFiles} />
         <button

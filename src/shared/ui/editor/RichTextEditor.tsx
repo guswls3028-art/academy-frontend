@@ -30,6 +30,8 @@ type RichTextEditorProps = {
   /** List of already attached files to display */
   attachedFiles?: { name: string; url?: string }[];
   readOnly?: boolean;
+  /** Show only essential toolbar buttons (Bold, Italic, Bullet list, Link, Image) */
+  compact?: boolean;
 };
 
 // ---------------------------------------------------------------------------
@@ -121,6 +123,7 @@ export default function RichTextEditor({
   onFileAttach,
   attachedFiles,
   readOnly = false,
+  compact = false,
 }: RichTextEditorProps) {
   const imageInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -301,88 +304,102 @@ export default function RichTextEditor({
           >
             I
           </button>
-          <button
-            type="button"
-            className={btnCls(isActive("underline"))}
-            onClick={() => editor.chain().focus().toggleUnderline().run()}
-            title="밑줄 (Ctrl+U)"
-            style={{ textDecoration: "underline" }}
-          >
-            U
-          </button>
-          <button
-            type="button"
-            className={btnCls(isActive("strike"))}
-            onClick={() => editor.chain().focus().toggleStrike().run()}
-            title="취소선"
-            style={{ textDecoration: "line-through" }}
-          >
-            S
-          </button>
+          {!compact && (
+            <button
+              type="button"
+              className={btnCls(isActive("underline"))}
+              onClick={() => editor.chain().focus().toggleUnderline().run()}
+              title="밑줄 (Ctrl+U)"
+              style={{ textDecoration: "underline" }}
+            >
+              U
+            </button>
+          )}
+          {!compact && (
+            <button
+              type="button"
+              className={btnCls(isActive("strike"))}
+              onClick={() => editor.chain().focus().toggleStrike().run()}
+              title="취소선"
+              style={{ textDecoration: "line-through" }}
+            >
+              S
+            </button>
+          )}
 
-          <span className="rich-editor__toolbar-divider" />
+          {!compact && <span className="rich-editor__toolbar-divider" />}
 
           {/* --- Font color with palette --- */}
-          <ColorPalette
-            currentColor={currentColor}
-            onColorChange={(c) => editor.chain().focus().setColor(c).run()}
-          />
+          {!compact && (
+            <ColorPalette
+              currentColor={currentColor}
+              onColorChange={(c) => editor.chain().focus().setColor(c).run()}
+            />
+          )}
 
-          <span className="rich-editor__toolbar-divider" />
+          {!compact && <span className="rich-editor__toolbar-divider" />}
 
           {/* --- Text align --- */}
-          <button
-            type="button"
-            className={btnCls(editor.isActive({ textAlign: "left" }))}
-            onClick={() => editor.chain().focus().setTextAlign("left").run()}
-            title="왼쪽 정렬"
-          >
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-              <path d="M1 2h12M1 5h8M1 8h12M1 11h8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-            </svg>
-          </button>
-          <button
-            type="button"
-            className={btnCls(editor.isActive({ textAlign: "center" }))}
-            onClick={() => editor.chain().focus().setTextAlign("center").run()}
-            title="가운데 정렬"
-          >
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-              <path d="M1 2h12M3 5h8M1 8h12M3 11h8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-            </svg>
-          </button>
-          <button
-            type="button"
-            className={btnCls(editor.isActive({ textAlign: "right" }))}
-            onClick={() => editor.chain().focus().setTextAlign("right").run()}
-            title="오른쪽 정렬"
-          >
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-              <path d="M1 2h12M5 5h8M1 8h12M5 11h8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-            </svg>
-          </button>
+          {!compact && (
+            <>
+              <button
+                type="button"
+                className={btnCls(editor.isActive({ textAlign: "left" }))}
+                onClick={() => editor.chain().focus().setTextAlign("left").run()}
+                title="왼쪽 정렬"
+              >
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                  <path d="M1 2h12M1 5h8M1 8h12M1 11h8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+                </svg>
+              </button>
+              <button
+                type="button"
+                className={btnCls(editor.isActive({ textAlign: "center" }))}
+                onClick={() => editor.chain().focus().setTextAlign("center").run()}
+                title="가운데 정렬"
+              >
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                  <path d="M1 2h12M3 5h8M1 8h12M3 11h8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+                </svg>
+              </button>
+              <button
+                type="button"
+                className={btnCls(editor.isActive({ textAlign: "right" }))}
+                onClick={() => editor.chain().focus().setTextAlign("right").run()}
+                title="오른쪽 정렬"
+              >
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                  <path d="M1 2h12M5 5h8M1 8h12M5 11h8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+                </svg>
+              </button>
+            </>
+          )}
 
-          <span className="rich-editor__toolbar-divider" />
+          {!compact && <span className="rich-editor__toolbar-divider" />}
 
           {/* --- Headings --- */}
-          <button
-            type="button"
-            className={btnCls(isActive("heading", { level: 2 }))}
-            onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-            title="제목 2"
-          >
-            H2
-          </button>
-          <button
-            type="button"
-            className={btnCls(isActive("heading", { level: 3 }))}
-            onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
-            title="제목 3"
-          >
-            H3
-          </button>
+          {!compact && (
+            <>
+              <button
+                type="button"
+                className={btnCls(isActive("heading", { level: 2 }))}
+                onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+                title="제목 2"
+              >
+                H2
+              </button>
+              <button
+                type="button"
+                className={btnCls(isActive("heading", { level: 3 }))}
+                onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
+                title="제목 3"
+              >
+                H3
+              </button>
+            </>
+          )}
 
-          <span className="rich-editor__toolbar-divider" />
+          {!compact && <span className="rich-editor__toolbar-divider" />}
 
           {/* --- Lists --- */}
           <button
@@ -398,19 +415,21 @@ export default function RichTextEditor({
               <path d="M5.5 3h7M5.5 7h7M5.5 11h7" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
             </svg>
           </button>
-          <button
-            type="button"
-            className={btnCls(isActive("orderedList"))}
-            onClick={() => editor.chain().focus().toggleOrderedList().run()}
-            title="번호 목록"
-          >
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-              <text x="1" y="4.5" fontSize="4.5" fontWeight="700" fill="currentColor">1</text>
-              <text x="1" y="8.5" fontSize="4.5" fontWeight="700" fill="currentColor">2</text>
-              <text x="1" y="12.5" fontSize="4.5" fontWeight="700" fill="currentColor">3</text>
-              <path d="M5.5 3h7M5.5 7h7M5.5 11h7" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
-            </svg>
-          </button>
+          {!compact && (
+            <button
+              type="button"
+              className={btnCls(isActive("orderedList"))}
+              onClick={() => editor.chain().focus().toggleOrderedList().run()}
+              title="번호 목록"
+            >
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <text x="1" y="4.5" fontSize="4.5" fontWeight="700" fill="currentColor">1</text>
+                <text x="1" y="8.5" fontSize="4.5" fontWeight="700" fill="currentColor">2</text>
+                <text x="1" y="12.5" fontSize="4.5" fontWeight="700" fill="currentColor">3</text>
+                <path d="M5.5 3h7M5.5 7h7M5.5 11h7" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+              </svg>
+            </button>
+          )}
 
           <span className="rich-editor__toolbar-divider" />
 
@@ -483,35 +502,39 @@ export default function RichTextEditor({
             </>
           )}
 
-          <span className="rich-editor__toolbar-divider" />
+          {!compact && <span className="rich-editor__toolbar-divider" />}
 
           {/* --- Undo / Redo --- */}
-          <button
-            type="button"
-            className="rich-editor__toolbar-btn"
-            onClick={() => editor.chain().focus().undo().run()}
-            disabled={!editor.can().undo()}
-            title="실행 취소 (Ctrl+Z)"
-          >
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-              <path d="M3 5l-2 2 2 2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
-              <path d="M1 7h8a4 4 0 010 0" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
-              <path d="M5 7h4a3 3 0 110 6H6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
-            </svg>
-          </button>
-          <button
-            type="button"
-            className="rich-editor__toolbar-btn"
-            onClick={() => editor.chain().focus().redo().run()}
-            disabled={!editor.can().redo()}
-            title="다시 실행 (Ctrl+Y)"
-          >
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-              <path d="M11 5l2 2-2 2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
-              <path d="M13 7H5a4 4 0 000 0" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
-              <path d="M9 7H5a3 3 0 100 6h3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
-            </svg>
-          </button>
+          {!compact && (
+            <>
+              <button
+                type="button"
+                className="rich-editor__toolbar-btn"
+                onClick={() => editor.chain().focus().undo().run()}
+                disabled={!editor.can().undo()}
+                title="실행 취소 (Ctrl+Z)"
+              >
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                  <path d="M3 5l-2 2 2 2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M1 7h8a4 4 0 010 0" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+                  <path d="M5 7h4a3 3 0 110 6H6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+                </svg>
+              </button>
+              <button
+                type="button"
+                className="rich-editor__toolbar-btn"
+                onClick={() => editor.chain().focus().redo().run()}
+                disabled={!editor.can().redo()}
+                title="다시 실행 (Ctrl+Y)"
+              >
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                  <path d="M11 5l2 2-2 2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M13 7H5a4 4 0 000 0" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+                  <path d="M9 7H5a3 3 0 100 6h3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+                </svg>
+              </button>
+            </>
+          )}
         </div>
       )}
 
