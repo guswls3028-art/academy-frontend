@@ -185,6 +185,10 @@ export default function ClinicPage() {
     () => myRequests.filter((r) => r.status === "booked" || r.status === "approved"),
     [myRequests]
   );
+  const rejectedBookings = useMemo(
+    () => myRequests.filter((r) => r.status === "rejected"),
+    [myRequests]
+  );
 
   // 예약 가능한 날짜 목록: 해당 날짜에 클리닉(세션)이 있거나, 내 예약이 있는 날
   const availableDates = useMemo(() => {
@@ -689,7 +693,52 @@ export default function ClinicPage() {
             </div>
           )}
 
-          {pendingBookings.length === 0 && approvedBookings.length === 0 && (
+          {/* 거절됨 */}
+          {rejectedBookings.length > 0 && (
+            <div style={{ marginTop: "var(--stu-space-4)" }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: "var(--stu-text-muted)", marginBottom: "var(--stu-space-2)" }}>
+                거절됨 ({rejectedBookings.length})
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-2)" }}>
+                {rejectedBookings.map((request) => (
+                  <div
+                    key={request.id}
+                    className="stu-panel"
+                    style={{
+                      padding: "var(--stu-space-3)",
+                      background: "var(--stu-danger-bg, rgba(239, 68, 68, 0.08))",
+                      border: "1px solid var(--stu-danger)",
+                    }}
+                  >
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+                      <div>
+                        <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4 }}>
+                          {formatYmd(request.session_date)} {formatTime(request.session_start_time)}
+                        </div>
+                        {request.session_location && (
+                          <div className="stu-muted" style={{ fontSize: 12 }}>
+                            {request.session_location}
+                          </div>
+                        )}
+                      </div>
+                      <span
+                        style={{
+                          fontSize: 12, fontWeight: 600, padding: "3px 10px",
+                          borderRadius: 6,
+                          background: "var(--stu-danger-bg, rgba(239, 68, 68, 0.08))",
+                          color: "var(--stu-danger)", whiteSpace: "nowrap",
+                        }}
+                      >
+                        거절됨
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {pendingBookings.length === 0 && approvedBookings.length === 0 && rejectedBookings.length === 0 && (
             <EmptyState
               title="예약 내역이 없습니다"
               description="예약 탭에서 클리닉을 신청해 보세요."

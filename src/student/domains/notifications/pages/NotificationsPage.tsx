@@ -127,7 +127,7 @@ export default function NotificationsPage() {
                       클리닉 예약이 승인되었습니다
                     </div>
                     <div className="stu-muted" style={{ fontSize: 12 }}>
-                      {formatYmd(booking.session_date)} {booking.session_start_time?.slice(0, 5)} @ {booking.session_location}
+                      {formatYmd(booking.session_date)} {booking.session_start_time?.slice(0, 5)}{booking.session_location ? ` @ ${booking.session_location}` : ""}
                     </div>
                   </Link>
                 ))}
