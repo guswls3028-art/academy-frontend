@@ -21,6 +21,7 @@ import { LockBadge } from "../../components/StatusBadge";
 import { StaffRoleAvatar } from "@/shared/ui/avatars";
 import { Button, CloseButton } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { formatPhone } from "@/shared/utils/formatPhone";
 
 import StaffSummaryTab from "./StaffSummaryTab";
 import StaffWorkTypeTab from "./StaffWorkTypeTab";
@@ -261,7 +262,7 @@ export default function StaffDetailOverlay() {
                   </div>
                   <div className="ds-overlay-info-rows">
                     <InfoRow label="계정" value={staff.user_username || "계정 없음"} />
-                    <InfoRow label="전화번호" value={staff.phone} />
+                    <InfoRow label="전화번호" value={formatPhone(staff.phone)} />
                     <InfoRow label="급여유형" value={staff.pay_type === "HOURLY" ? "시급" : "월급"} />
                     <InfoRow
                       label="역할"
@@ -285,6 +286,7 @@ export default function StaffDetailOverlay() {
                         )}
                       </span>
                     </div>
+                    <InfoRow label="등록일" value={(staff as any).created_at?.slice(0, 10)} />
                   </div>
                 </div>
 

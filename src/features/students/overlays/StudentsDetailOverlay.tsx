@@ -281,11 +281,13 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
                     연락처
                   </div>
                   <div className="ds-overlay-info-rows">
+                    <InfoRow label="아이디" value={student.psNumber} accent copyable />
                     <InfoRow label="식별코드" value={formatOmrCode(student.omrCode)} accent copyable />
                     <InfoRow label="학부모 전화" value={formatPhone(student.parentPhone)} copyable />
                     <InfoRow label="학생 전화" value={formatStudentPhoneDisplay(student.studentPhone)} copyable />
                     <InfoRow label="성별" value={formatGenderDisplay(student.gender)} />
                     <InfoRow label="등록일" value={student.registeredAt?.slice(0, 10)} />
+                    {student.address && <InfoRow label="주소" value={student.address} />}
                   </div>
                 </div>
 
