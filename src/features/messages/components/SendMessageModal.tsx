@@ -6,7 +6,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Input } from "antd";
-import { FiSearch, FiSave, FiChevronLeft, FiCheck, FiAlertCircle, FiAlertTriangle } from "react-icons/fi";
+import { FiSearch, FiSave, FiChevronLeft, FiCheck, FiAlertCircle, FiAlertTriangle, FiCopy, FiTrash2, FiStar, FiEdit3 } from "react-icons/fi";
 import { Shield } from "lucide-react";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter } from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
@@ -16,6 +16,10 @@ import {
   fetchMessageTemplates,
   sendMessage,
   createMessageTemplate,
+  updateMessageTemplate,
+  deleteMessageTemplate,
+  setTemplateDefault,
+  duplicateMessageTemplate,
   type MessageTemplateItem,
   type MessageMode,
   type SendToType,
@@ -30,6 +34,7 @@ import {
   ALWAYS_AVAILABLE_VARS,
 } from "../constants/templateBlocks";
 import type { TemplateCategory } from "../constants/templateBlocks";
+import GradesBlockPanel from "./GradesBlockPanel";
 import "../styles/templateEditor.css";
 
 // ─── Types ───
@@ -62,8 +67,8 @@ function getCharLabel(len: number) {
   return { label: `${len}/2,000자 초과`, tone: "over" as const };
 }
 
-function isDefaultTpl(t: MessageTemplateItem): boolean {
-  return t.name.startsWith("[학원플러스]");
+function isSystemTpl(t: MessageTemplateItem): boolean {
+  return t.is_system || t.name.startsWith("[학원플러스]");
 }
 
 function getRecentIds(): number[] {
@@ -111,7 +116,7 @@ function TemplateCard({
   isSelected: boolean;
   onClick: () => void;
 }) {
-  const isDef = isDefaultTpl(t);
+  const isDef = isSystemTpl(t);
   return (
     <button
       type="button"
@@ -227,7 +232,7 @@ function TemplatePickerDropdown({
               if (selectedId !== t.id) e.currentTarget.style.background = "transparent";
             }}
           >
-            {isDefaultTpl(t) ? <Shield size={12} style={{ color: "var(--color-status-info, #2563eb)", flexShrink: 0 }} /> : <span style={{ width: 12, flexShrink: 0 }} />}
+            {isSystemTpl(t) ? <Shield size={12} style={{ color: "var(--color-status-info, #2563eb)", flexShrink: 0 }} /> : <span style={{ width: 12, flexShrink: 0 }} />}
             <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.name}</span>
             {t.solapi_status === "APPROVED" && <span style={{ fontSize: 9, color: "var(--color-success)", fontWeight: 700 }}>승인</span>}
           </button>
@@ -258,6 +263,125 @@ function TemplatePickerDropdown({
           {allEmpty && (
             <div style={{ padding: 20, textAlign: "center", fontSize: 12, color: "var(--color-text-muted)" }}>
               {search ? "검색 결과 없음" : "저장된 템플릿이 없습니다"}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Template Picker Card (SMS 양식 관리 패널) ───
+
+function TemplatePickerCard({
+  template: t,
+  isSelected,
+  onSelect,
+  onSetDefault,
+  onDuplicate,
+  onDelete,
+}: {
+  template: MessageTemplateItem;
+  isSelected: boolean;
+  onSelect: () => void;
+  onSetDefault: (() => void) | null;
+  onDuplicate: (() => void) | null;
+  onDelete: (() => void) | null;
+}) {
+  const isSys = isSystemTpl(t);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [menuOpen]);
+
+  return (
+    <div
+      style={{
+        display: "flex", alignItems: "flex-start", gap: 8, width: "100%",
+        padding: "8px 10px", borderRadius: 8,
+        border: isSelected ? "2px solid var(--color-primary)" : "1px solid var(--color-border-divider)",
+        background: isSelected
+          ? "color-mix(in srgb, var(--color-primary) 6%, transparent)"
+          : "var(--color-bg-surface)",
+        transition: "border-color 0.15s, background 0.15s",
+      }}
+    >
+      {/* 클릭 영역 — 선택 */}
+      <button
+        type="button"
+        onClick={onSelect}
+        style={{ flex: 1, minWidth: 0, border: "none", background: "transparent", padding: 0, cursor: "pointer", textAlign: "left" as const }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 2 }}>
+          {isSys && <Shield size={10} style={{ color: "var(--color-status-info, #2563eb)", flexShrink: 0 }} />}
+          <span style={{ fontSize: 12, fontWeight: 700, color: "var(--color-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {t.name}
+          </span>
+          {t.is_user_default && (
+            <span style={{ fontSize: 9, fontWeight: 700, padding: "0 4px", borderRadius: 3, background: "color-mix(in srgb, var(--color-primary) 12%, transparent)", color: "var(--color-primary)" }}>기본</span>
+          )}
+        </div>
+        <div style={{
+          fontSize: 11, color: "var(--color-text-muted)", lineHeight: 1.4,
+          overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
+        }}>
+          {t.body.slice(0, 100)}
+        </div>
+      </button>
+
+      {/* 더보기 메뉴 (⋯) */}
+      {(onSetDefault || onDuplicate || onDelete) && (
+        <div ref={menuRef} style={{ position: "relative", flexShrink: 0 }}>
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); setMenuOpen(!menuOpen); }}
+            style={{ padding: "4px 6px", border: "none", background: "transparent", cursor: "pointer", borderRadius: 4, color: "var(--color-text-muted)", fontSize: 16, lineHeight: 1 }}
+          >
+            ⋯
+          </button>
+          {menuOpen && (
+            <div style={{
+              position: "absolute", right: 0, top: "100%", marginTop: 4, width: 160,
+              background: "var(--color-bg-surface)", border: "1px solid var(--color-border-divider)",
+              borderRadius: 8, boxShadow: "0 4px 12px rgba(0,0,0,0.1)", zIndex: 10, overflow: "hidden",
+            }}>
+              {onSetDefault && (
+                <button type="button" onClick={() => { onSetDefault(); setMenuOpen(false); }}
+                  style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "8px 12px", border: "none", background: "transparent", cursor: "pointer", fontSize: 12, fontWeight: 500, color: "var(--color-text-primary)", textAlign: "left" as const }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = "var(--color-bg-surface-soft)"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+                >
+                  <FiStar size={13} style={t.is_user_default ? { color: "var(--color-primary)", fill: "var(--color-primary)" } : { color: "var(--color-text-muted)" }} />
+                  {t.is_user_default ? "기본 해제" : "기본으로 지정"}
+                </button>
+              )}
+              {onDuplicate && (
+                <button type="button" onClick={() => { onDuplicate(); setMenuOpen(false); }}
+                  style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "8px 12px", border: "none", background: "transparent", cursor: "pointer", fontSize: 12, fontWeight: 500, color: "var(--color-text-primary)", textAlign: "left" as const }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = "var(--color-bg-surface-soft)"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+                >
+                  <FiCopy size={13} style={{ color: "var(--color-text-muted)" }} />
+                  {isSys ? "복제해서 내 양식으로" : "다른 이름으로 복제"}
+                </button>
+              )}
+              {onDelete && !isSys && (
+                <button type="button" onClick={() => { onDelete(); setMenuOpen(false); }}
+                  style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "8px 12px", border: "none", background: "transparent", cursor: "pointer", fontSize: 12, fontWeight: 500, color: "var(--color-error, #dc2626)", textAlign: "left" as const }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = "color-mix(in srgb, var(--color-error) 6%, transparent)"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+                >
+                  <FiTrash2 size={13} />
+                  삭제
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -299,6 +423,8 @@ export default function SendMessageModal({
   const [showSaveForm, setShowSaveForm] = useState(false);
   const [saveTemplateName, setSaveTemplateName] = useState("");
   const [savingTemplate, setSavingTemplate] = useState(false);
+  const [showTemplatePanel, setShowTemplatePanel] = useState(false);
+  const [templateBodySnapshot, setTemplateBodySnapshot] = useState<string | null>(null);
   const bodyWrapRef = useRef<HTMLDivElement>(null);
   const getNativeTextarea = useCallback(
     () => bodyWrapRef.current?.querySelector("textarea") ?? null, [],
@@ -320,6 +446,7 @@ export default function SendMessageModal({
       })();
 
   const selectedTemplate = templates.find((t) => t.id === selectedTemplateId);
+  const bodyModified = selectedTemplate != null && templateBodySnapshot != null && body !== templateBodySnapshot;
   const approvedTemplates = useMemo(() => templates.filter((t) => t.solapi_status === "APPROVED"), [templates]);
   const recentIds = useMemo(() => getRecentIds(), [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -336,7 +463,7 @@ export default function SendMessageModal({
     const recentSet = new Set(recentIds);
     for (const t of filtered) {
       if (recentSet.has(t.id)) recent.push(t);
-      else if (isDefaultTpl(t)) defaults.push(t);
+      else if (isSystemTpl(t)) defaults.push(t);
       else custom.push(t);
     }
     recent.sort((a, b) => recentIds.indexOf(a.id) - recentIds.indexOf(b.id));
@@ -399,6 +526,8 @@ export default function SendMessageModal({
       setTemplateSearch("");
       setShowSaveForm(false);
       setSaveTemplateName("");
+      setShowTemplatePanel(false);
+      setTemplateBodySnapshot(null);
       setShowConfirm(false);
       sendingRef.current = false;
     }
@@ -427,12 +556,13 @@ export default function SendMessageModal({
     setSelectedTemplateId(t.id);
     setSubject(t.subject ?? "");
     setBody(t.body ?? "");
+    setTemplateBodySnapshot(t.body ?? "");
     setFreeContent("");
     addRecentId(t.id);
   }, []);
 
   const handleSaveTemplate = async () => {
-    if (!saveTemplateName.trim() || savingTemplate) return;
+    if (!saveTemplateName.trim() || !body.trim() || savingTemplate) return;
     setSavingTemplate(true);
     try {
       const created = await createMessageTemplate({
@@ -441,14 +571,72 @@ export default function SendMessageModal({
         subject: subject || "",
         body,
       });
-      setTemplates((prev) => [...prev, created]);
-      feedback.success("템플릿이 저장되었습니다.");
+      setTemplates((prev) => [created, ...prev]);
+      setSelectedTemplateId(created.id);
+      setTemplateBodySnapshot(created.body);
+      feedback.success(`"${created.name}" 양식이 저장되었습니다.`);
       setShowSaveForm(false);
       setSaveTemplateName("");
     } catch {
-      feedback.error("템플릿 저장에 실패했습니다.");
+      feedback.error("양식 저장에 실패했습니다.");
     } finally {
       setSavingTemplate(false);
+    }
+  };
+
+  const handleUpdateTemplate = async () => {
+    if (!selectedTemplate || isSystemTpl(selectedTemplate) || !body.trim()) return;
+    try {
+      const updated = await updateMessageTemplate(selectedTemplate.id, { body, subject });
+      setTemplates((prev) => prev.map((t) => t.id === updated.id ? updated : t));
+      setTemplateBodySnapshot(updated.body);
+      feedback.success(`"${updated.name}" 양식이 업데이트되었습니다.`);
+    } catch {
+      feedback.error("양식 업데이트에 실패했습니다.");
+    }
+  };
+
+  const handleSetDefault = async (id: number) => {
+    try {
+      const updated = await setTemplateDefault(id);
+      setTemplates((prev) => prev.map((t) => {
+        if (t.id === id) return updated;
+        // 같은 카테고리의 다른 것은 기본 해제
+        if (t.category === updated.category && t.is_user_default && t.id !== id) {
+          return { ...t, is_user_default: false };
+        }
+        return t;
+      }));
+      feedback.success(updated.is_user_default ? `"${updated.name}" 을(를) 기본 양식으로 지정했습니다.` : "기본 양식 지정을 해제했습니다.");
+    } catch {
+      feedback.error("기본 양식 지정에 실패했습니다.");
+    }
+  };
+
+  const handleDuplicate = async (id: number) => {
+    try {
+      const dup = await duplicateMessageTemplate(id);
+      setTemplates((prev) => [dup, ...prev]);
+      feedback.success(`"${dup.name}" 양식이 복제되었습니다.`);
+    } catch {
+      feedback.error("양식 복제에 실패했습니다.");
+    }
+  };
+
+  const handleDeleteTemplate = async (id: number) => {
+    const target = templates.find((t) => t.id === id);
+    if (!target) return;
+    if (!window.confirm(`"${target.name}" 양식을 삭제할까요?\n삭제하면 복구할 수 없습니다.`)) return;
+    try {
+      await deleteMessageTemplate(id);
+      setTemplates((prev) => prev.filter((t) => t.id !== id));
+      if (selectedTemplateId === id) {
+        setSelectedTemplateId(null);
+        setTemplateBodySnapshot(null);
+      }
+      feedback.success("양식이 삭제되었습니다.");
+    } catch {
+      feedback.error("양식 삭제에 실패했습니다.");
     }
   };
 
@@ -583,7 +771,7 @@ export default function SendMessageModal({
         <div className="flex gap-5" style={{ minHeight: 500 }}>
 
           {/* ═══ 좌측: 수신자 + 미리보기 + 변수 상태 ═══ */}
-          <div className="shrink-0 flex flex-col gap-3" style={{ width: 260 }}>
+          <div className="shrink-0 flex flex-col gap-3" style={{ width: 260, maxHeight: "100%", overflowY: "auto" }}>
             {/* 수신자 카드 */}
             <div style={{
               padding: "12px 16px", borderRadius: "var(--radius-md)",
@@ -741,56 +929,156 @@ export default function SendMessageModal({
             {/* ══════ SMS 모드 ══════ */}
             {sendMode === "sms" && (
               <>
-                {/* 템플릿 바 */}
-                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                  <TemplatePickerDropdown
-                    templates={categorizedTemplates}
-                    search={templateSearch}
-                    onSearchChange={setTemplateSearch}
-                    onSelect={(t) => { selectTemplate(t); setTemplateSearch(""); }}
-                    selectedId={selectedTemplateId}
-                    disabled={sending}
-                  />
-                  {selectedTemplate && (
-                    <span style={{ fontSize: 12, color: "var(--color-text-secondary)", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {selectedTemplate.name}
-                    </span>
-                  )}
-                  <div style={{ flex: 1 }} />
-                  {!showSaveForm && body.trim() && (
+                {/* ── 양식 요약 바 ── */}
+                <div style={{
+                  display: "flex", alignItems: "center", gap: 8, padding: "8px 12px",
+                  borderRadius: "var(--radius-md)", background: "var(--color-bg-surface-soft)",
+                  border: "1px solid var(--color-border-divider)", minHeight: 40,
+                }}>
+                  {/* 왼쪽: 양식 정보 */}
+                  <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 6 }}>
+                    {selectedTemplate ? (
+                      <>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: "var(--color-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {selectedTemplate.name}
+                        </span>
+                        {selectedTemplate.is_user_default && (
+                          <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 5px", borderRadius: 3, background: "color-mix(in srgb, var(--color-primary) 12%, transparent)", color: "var(--color-primary)", whiteSpace: "nowrap" }}>기본</span>
+                        )}
+                        {isSystemTpl(selectedTemplate) && (
+                          <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 5px", borderRadius: 3, background: "color-mix(in srgb, var(--color-status-info) 12%, transparent)", color: "var(--color-status-info, #2563eb)", whiteSpace: "nowrap" }}>시스템</span>
+                        )}
+                        {bodyModified && (
+                          <span style={{ fontSize: 10, color: "var(--color-status-warning, #d97706)", fontWeight: 600, whiteSpace: "nowrap" }}>· 수정됨</span>
+                        )}
+                      </>
+                    ) : (
+                      <span style={{ fontSize: 12, color: "var(--color-text-muted)", fontWeight: 500 }}>양식 없이 직접 작성 중</span>
+                    )}
+                  </div>
+
+                  {/* 오른쪽: 핵심 버튼 (최소) */}
+                  <div style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>
+                    {/* 현재 양식에 저장 (내 양식 수정 시만) */}
+                    {!showSaveForm && bodyModified && selectedTemplate && !isSystemTpl(selectedTemplate) && (
+                      <Button size="sm" intent="primary" onClick={handleUpdateTemplate} disabled={sending}>
+                        현재 양식에 저장
+                      </Button>
+                    )}
+                    {/* 새 이름으로 저장 */}
+                    {!showSaveForm && body.trim() && (
+                      <Button size="sm" intent="secondary" onClick={() => { setShowSaveForm(true); setSaveTemplateName(""); }} disabled={sending}>
+                        새 이름으로 저장
+                      </Button>
+                    )}
+                    {/* 양식 바꾸기 */}
                     <Button
                       size="sm"
-                      intent="secondary"
-                      leftIcon={<FiSave size={13} />}
-                      onClick={() => {
-                        setShowSaveForm(true);
-                        setSaveTemplateName(selectedTemplate ? `복사 - ${selectedTemplate.name}` : "");
-                      }}
+                      intent={showTemplatePanel ? "primary" : "secondary"}
+                      onClick={() => setShowTemplatePanel(!showTemplatePanel)}
                       disabled={sending}
                     >
-                      템플릿 저장
+                      {showTemplatePanel ? "닫기" : "양식 바꾸기"}
                     </Button>
-                  )}
+                  </div>
                 </div>
 
-                {/* 저장 폼 */}
-                {showSaveForm && (
+                {/* ── 양식 패널 (접이식) ── */}
+                {showTemplatePanel && (
                   <div style={{
-                    display: "flex", gap: 8, alignItems: "center", padding: "8px 12px", borderRadius: "var(--radius-md)",
-                    background: "color-mix(in srgb, var(--color-primary) 4%, var(--color-bg-surface))",
-                    border: "1px solid color-mix(in srgb, var(--color-primary) 20%, var(--color-border-divider))",
+                    borderRadius: 10, border: "1px solid var(--color-border-divider)",
+                    background: "var(--color-bg-surface)", maxHeight: 280, overflowY: "auto",
+                    padding: 10, display: "flex", flexDirection: "column", gap: 6,
                   }}>
-                    <Input size="small" placeholder="템플릿 이름" value={saveTemplateName}
-                      onChange={(e) => setSaveTemplateName(e.target.value)} onPressEnter={handleSaveTemplate}
-                      style={{ flex: 1, fontSize: 13 }} autoFocus />
-                    <Button size="sm" intent="primary" onClick={handleSaveTemplate} disabled={!saveTemplateName.trim() || savingTemplate}>
-                      {savingTemplate ? "저장 중…" : "저장"}
-                    </Button>
-                    <Button size="sm" intent="secondary" onClick={() => setShowSaveForm(false)}>취소</Button>
+                    {/* 검색 */}
+                    <div style={{ position: "relative", marginBottom: 2 }}>
+                      <FiSearch size={13} style={{ position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)", color: "var(--color-text-muted)", pointerEvents: "none" }} />
+                      <Input size="small" placeholder="양식 검색…" value={templateSearch} onChange={(e) => setTemplateSearch(e.target.value)} style={{ paddingLeft: 28, fontSize: 12 }} />
+                    </div>
+
+                    {/* 직접 입력 옵션 */}
+                    <button
+                      type="button"
+                      onClick={() => { setSelectedTemplateId(null); setBody(""); setSubject(""); setShowTemplatePanel(false); }}
+                      style={{
+                        display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "8px 10px",
+                        borderRadius: 8, border: selectedTemplateId == null ? "2px solid var(--color-primary)" : "1px solid var(--color-border-divider)",
+                        background: selectedTemplateId == null ? "color-mix(in srgb, var(--color-primary) 6%, transparent)" : "transparent",
+                        cursor: "pointer", textAlign: "left" as const, fontSize: 12, fontWeight: 600,
+                        color: "var(--color-text-primary)", transition: "all 0.15s",
+                      }}
+                    >
+                      <FiEdit3 size={13} style={{ color: "var(--color-text-muted)", flexShrink: 0 }} />
+                      직접 입력 (양식 없이 자유 작성)
+                    </button>
+
+                    {/* 기본 양식 섹션 */}
+                    {categorizedTemplates.custom.length > 0 && (
+                      <>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: "var(--color-text-muted)", padding: "6px 4px 2px", letterSpacing: "0.5px" }}>내 양식</div>
+                        {categorizedTemplates.custom.map((t) => (
+                          <TemplatePickerCard
+                            key={t.id}
+                            template={t}
+                            isSelected={selectedTemplateId === t.id}
+                            onSelect={() => { selectTemplate(t); setShowTemplatePanel(false); }}
+                            onSetDefault={() => handleSetDefault(t.id)}
+                            onDuplicate={() => handleDuplicate(t.id)}
+                            onDelete={() => handleDeleteTemplate(t.id)}
+                            onEdit={null}
+                          />
+                        ))}
+                      </>
+                    )}
+                    {categorizedTemplates.defaults.length > 0 && (
+                      <>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: "var(--color-text-muted)", padding: "6px 4px 2px", letterSpacing: "0.5px" }}>시스템 기본 양식</div>
+                        {categorizedTemplates.defaults.map((t) => (
+                          <TemplatePickerCard
+                            key={t.id}
+                            template={t}
+                            isSelected={selectedTemplateId === t.id}
+                            onSelect={() => { selectTemplate(t); setShowTemplatePanel(false); }}
+                            onSetDefault={() => handleSetDefault(t.id)}
+                            onDuplicate={() => handleDuplicate(t.id)}
+                            onDelete={null}
+                            onEdit={null}
+                          />
+                        ))}
+                      </>
+                    )}
+                    {categorizedTemplates.recent.length === 0 && categorizedTemplates.custom.length === 0 && categorizedTemplates.defaults.length === 0 && (
+                      <div style={{ padding: 20, textAlign: "center", fontSize: 12, color: "var(--color-text-muted)" }}>
+                        {templateSearch ? "검색 결과 없음" : "저장된 양식이 없습니다. 본문 작성 후 '양식 저장'으로 나만의 양식을 만들어 보세요."}
+                      </div>
+                    )}
                   </div>
                 )}
 
-                {/* 본문 */}
+                {/* ── 저장 폼 ── */}
+                {showSaveForm && (
+                  <div style={{
+                    display: "flex", flexDirection: "column", gap: 8, padding: "10px 14px", borderRadius: "var(--radius-md)",
+                    background: "color-mix(in srgb, var(--color-primary) 4%, var(--color-bg-surface))",
+                    border: "1px solid color-mix(in srgb, var(--color-primary) 20%, var(--color-border-divider))",
+                  }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: "var(--color-text-secondary)" }}>지금 작성한 내용을 양식으로 저장합니다</div>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                      <Input size="small" placeholder="양식 이름을 입력하세요 (예: 림글리쉬 성적표)" value={saveTemplateName}
+                        onChange={(e) => setSaveTemplateName(e.target.value)} onPressEnter={handleSaveTemplate}
+                        style={{ flex: 1, fontSize: 13 }} autoFocus />
+                      <Button size="sm" intent="primary" onClick={handleSaveTemplate} disabled={!saveTemplateName.trim() || !body.trim() || savingTemplate}>
+                        {savingTemplate ? "저장 중…" : "저장"}
+                      </Button>
+                      <Button size="sm" intent="secondary" onClick={() => setShowSaveForm(false)}>취소</Button>
+                    </div>
+                    {!body.trim() && (
+                      <div style={{ fontSize: 11, color: "var(--color-status-warning, #d97706)" }}>본문이 비어있어 저장할 수 없습니다.</div>
+                    )}
+                  </div>
+                )}
+
+                {/* ── 본문 편집 ── */}
                 <div ref={bodyWrapRef} className="flex-1 min-h-0 flex flex-col">
                   <Input.TextArea
                     placeholder="내용을 입력하세요"
@@ -814,22 +1102,26 @@ export default function SendMessageModal({
                   )}
                 </div>
 
-                {/* 변수 블록 */}
+                {/* ── 변수 블록 삽입 ── */}
                 <div>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: "var(--color-text-muted)", marginBottom: 6 }}>치환 변수 삽입</div>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-                    {blocks.map((block) => {
-                      const bc = getBlockColor(block.id);
-                      return (
-                        <button key={block.id} type="button" onMouseDown={(e) => e.preventDefault()}
-                          onClick={() => insertBlock(block.insertText)} disabled={sending}
-                          className="template-editor__block-tag"
-                          style={{ background: bc.bg, color: bc.color, borderColor: bc.border, padding: "4px 10px", fontSize: 11 }}>
-                          {block.label}
-                        </button>
-                      );
-                    })}
-                  </div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: "var(--color-text-muted)", marginBottom: 6 }}>변수 삽입</div>
+                  {blockCategory === "grades" ? (
+                    <GradesBlockPanel blocks={blocks} onInsert={insertBlock} disabled={sending} currentBody={body} />
+                  ) : (
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                      {blocks.map((block) => {
+                        const bc = getBlockColor(block.id);
+                        return (
+                          <button key={block.id} type="button" onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => insertBlock(block.insertText)} disabled={sending}
+                            className="template-editor__block-tag"
+                            style={{ background: bc.bg, color: bc.color, borderColor: bc.border, padding: "4px 10px", fontSize: 11 }}>
+                            {block.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               </>
             )}

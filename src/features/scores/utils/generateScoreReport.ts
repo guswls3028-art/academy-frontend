@@ -278,6 +278,61 @@ export function substituteScoreVars(
     vars["숙제완성도"] = "-";
   }
 
+  // ── 목록형 변수 (시험/과제 개수에 맞게 자동 생성) ──
+
+  // #{시험목록} — 모든 시험을 한 줄씩 나열
+  if (exams.length > 0) {
+    const lines: string[] = [];
+    for (let i = 0; i < exams.length; i++) {
+      const exam = exams[i];
+      const metaExam = meta?.exams?.find((e) => e.exam_id === exam.exam_id);
+      const max = exam.block.max_score ?? metaExam?.max_score ?? 0;
+      const scoreStr = exam.block.score != null ? `${exam.block.score}/${max}` : "미응시";
+      const pctStr = exam.block.score != null && max > 0 ? ` (${Math.round((exam.block.score / max) * 100)}%)` : "";
+      const passStr = exam.block.passed === true ? " 합격" : exam.block.passed === false ? " 불합격" : "";
+      lines.push(`- ${exam.title}: ${scoreStr}${pctStr}${passStr}`);
+    }
+    vars["시험목록"] = lines.join("\n");
+  } else {
+    vars["시험목록"] = "(시험 없음)";
+  }
+
+  // #{과제목록} — 모든 과제를 한 줄씩 나열
+  if (homeworks.length > 0) {
+    const lines: string[] = [];
+    for (let i = 0; i < homeworks.length; i++) {
+      const hw = homeworks[i];
+      const metaHw = meta?.homeworks?.find((h) => h.homework_id === hw.homework_id);
+      const max = hw.block.max_score ?? metaHw?.max_score ?? 0;
+      const scoreStr = hw.block.score != null ? `${hw.block.score}/${max}` : "미제출";
+      const pctStr = hw.block.score != null && max > 0 ? ` (${Math.round((hw.block.score / max) * 100)}%)` : "";
+      lines.push(`- ${hw.title}: ${scoreStr}${pctStr}`);
+    }
+    vars["과제목록"] = lines.join("\n");
+  } else {
+    vars["과제목록"] = "";
+  }
+
+  // #{전체요약} — 시험+과제 통합 요약 블록
+  {
+    const stats = collectStats(row, meta);
+    const lines: string[] = [];
+    if (stats.examTotal > 0) {
+      const avgPct = stats.examSumMax > 0 ? Math.round((stats.examSumScore / stats.examSumMax) * 100) : null;
+      lines.push(`시험: ${stats.examPassed}/${stats.examTotal} 합격${avgPct != null ? ` (평균 ${avgPct}점)` : ""}`);
+    }
+    if (stats.hwTotal > 0) {
+      const completed = row.homeworks?.filter((h) => h.block.score != null).length ?? 0;
+      lines.push(`과제: ${completed}/${stats.hwTotal} 완료`);
+    }
+    if (stats.failedItems.length === 0 && (stats.examTotal + stats.hwTotal) > 0) {
+      lines.push("최종: 합격");
+    } else if (stats.failedItems.length > 0) {
+      lines.push(`보충 대상: ${stats.failedItems.join(", ")}`);
+    }
+    vars["전체요약"] = lines.join("\n");
+  }
+
   // 시험성적 블록 (기존 buildScoreDetail과 동일)
   vars["시험성적"] = buildScoreDetail(row, meta);
 
@@ -286,8 +341,13 @@ export function substituteScoreVars(
     return vars[varName] !== undefined ? vars[varName] : match;
   });
 
-  // 미사용 시험/과제 행 제거 — "- : -/-" 또는 "- : -" 패턴의 줄 삭제
-  result = result.replace(/^- *: *-\/-\s*$/gm, "").replace(/\n{3,}/g, "\n\n");
+  // 미사용 시험/과제 행 제거 — 치환 후 빈 슬롯("- : -/-", ": -/-", ": -/") 줄 정리
+  result = result
+    .replace(/^[^\n]*: *-\/-\s*$/gm, "")  // "시험명: -/-" 패턴 줄 삭제
+    .replace(/^- *: *-\s*$/gm, "")         // "- : -" 패턴 줄 삭제
+    .replace(/^\s*$/gm, "")                // 빈 줄 제거
+    .replace(/\n{3,}/g, "\n\n")            // 연속 빈 줄 → 최대 1줄
+    .trim();
 
   return result;
 }

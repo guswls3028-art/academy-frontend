@@ -222,7 +222,7 @@ export default function SessionAttendancePage({
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
 
   const col = STUDENTS_TABLE_COL;
-  const SESSION_COL_WIDTH = col.sessionCol; // 34px per session
+  const SESSION_COL_WIDTH = 40; // 프리미엄 UX: 34→40px 여유
   const attendanceColumnDefs: TableColumnDef[] = useMemo(
     () => [
       { key: "checkbox", label: "선택", defaultWidth: col.checkbox, minWidth: 28, maxWidth: 28 },
@@ -510,35 +510,9 @@ export default function SessionAttendancePage({
     </>
   );
 
-  function sortHeader(colKey: string, label: string) {
-    const isAsc = sort === colKey;
-    const isDesc = sort === `-${colKey}`;
-    const next = isAsc ? `-${colKey}` : isDesc ? "" : colKey;
-    const def = attendanceColumnDefs.find((c) => c.key === colKey);
-    const w = columnWidths[colKey] ?? def?.defaultWidth ?? 100;
-    return (
-      <ResizableTh
-        columnKey={colKey}
-        width={w}
-        minWidth={def?.minWidth ?? 40}
-        maxWidth={def?.maxWidth ?? 500}
-        onWidthChange={setColumnWidth}
-        scope="col"
-        onClick={() => setSort(next || "name")}
-        className="cursor-pointer select-none"
-        aria-sort={isAsc ? "ascending" : isDesc ? "descending" : "none"}
-      >
-        <span className="inline-flex items-center gap-2">
-          {label}
-          <span
-            aria-hidden
-            style={{ fontSize: 11, opacity: isAsc || isDesc ? 1 : 0.35, color: "var(--color-primary)" }}
-          >
-            {isAsc ? "▲" : isDesc ? "▼" : "⇅"}
-          </span>
-        </span>
-      </ResizableTh>
-    );
+  /** 정렬 토글 핸들러 */
+  function toggleSort(colKey: string) {
+    setSort(sort === colKey ? `-${colKey}` : sort === `-${colKey}` ? "" : colKey);
   }
 
   return (
@@ -663,8 +637,14 @@ export default function SessionAttendancePage({
                 ))}
               </colgroup>
               <thead>
+                {/* Row 1: 그룹 헤더 — 학생정보 rowSpan=2, 차시 그룹 colSpan */}
                 <tr>
-                  <th scope="col" className="ds-checkbox-cell" style={{ width: col.checkbox, minWidth: col.checkbox, maxWidth: col.checkbox }}>
+                  <th
+                    scope="col"
+                    rowSpan={2}
+                    className="ds-checkbox-cell"
+                    style={{ width: col.checkbox, minWidth: col.checkbox, maxWidth: col.checkbox, verticalAlign: "middle" }}
+                  >
                     <input
                       type="checkbox"
                       checked={allSelected}
@@ -673,12 +653,109 @@ export default function SessionAttendancePage({
                       className="cursor-pointer"
                     />
                   </th>
-                  {sortHeader("name", "이름")}
-                  {sortHeader("status", "상태")}
-                  {sortHeader("parent_phone", "학부모 전화번호")}
-                  {sortHeader("phone", "학생 전화번호")}
-                  {matrixSessions.map((ms) => {
+                  <ResizableTh
+                    columnKey="name"
+                    width={columnWidths.name ?? col.name}
+                    minWidth={80}
+                    maxWidth={400}
+                    onWidthChange={setColumnWidth}
+                    scope="col"
+                    rowSpan={2}
+                    onClick={() => toggleSort("name")}
+                    className="cursor-pointer select-none"
+                    aria-sort={sort === "name" ? "ascending" : sort === "-name" ? "descending" : "none"}
+                  >
+                    <span className="inline-flex items-center gap-2">
+                      이름
+                      <span aria-hidden style={{ fontSize: 11, opacity: sort === "name" || sort === "-name" ? 1 : 0.35, color: "var(--color-primary)" }}>
+                        {sort === "name" ? "▲" : sort === "-name" ? "▼" : "⇅"}
+                      </span>
+                    </span>
+                  </ResizableTh>
+                  <ResizableTh
+                    columnKey="status"
+                    width={columnWidths.status ?? col.statusBadge}
+                    minWidth={60}
+                    maxWidth={140}
+                    onWidthChange={setColumnWidth}
+                    scope="col"
+                    rowSpan={2}
+                    onClick={() => toggleSort("status")}
+                    className="cursor-pointer select-none"
+                    aria-sort={sort === "status" ? "ascending" : sort === "-status" ? "descending" : "none"}
+                  >
+                    <span className="inline-flex items-center gap-2">
+                      상태
+                      <span aria-hidden style={{ fontSize: 11, opacity: sort === "status" || sort === "-status" ? 1 : 0.35, color: "var(--color-primary)" }}>
+                        {sort === "status" ? "▲" : sort === "-status" ? "▼" : "⇅"}
+                      </span>
+                    </span>
+                  </ResizableTh>
+                  <ResizableTh
+                    columnKey="parent_phone"
+                    width={columnWidths.parent_phone ?? col.parentPhone}
+                    minWidth={90}
+                    maxWidth={200}
+                    onWidthChange={setColumnWidth}
+                    scope="col"
+                    rowSpan={2}
+                    onClick={() => toggleSort("parent_phone")}
+                    className="cursor-pointer select-none"
+                    aria-sort={sort === "parent_phone" ? "ascending" : sort === "-parent_phone" ? "descending" : "none"}
+                  >
+                    <span className="inline-flex items-center gap-2">
+                      학부모 전화번호
+                      <span aria-hidden style={{ fontSize: 11, opacity: sort === "parent_phone" || sort === "-parent_phone" ? 1 : 0.35, color: "var(--color-primary)" }}>
+                        {sort === "parent_phone" ? "▲" : sort === "-parent_phone" ? "▼" : "⇅"}
+                      </span>
+                    </span>
+                  </ResizableTh>
+                  <ResizableTh
+                    columnKey="phone"
+                    width={columnWidths.phone ?? col.studentPhone}
+                    minWidth={90}
+                    maxWidth={200}
+                    onWidthChange={setColumnWidth}
+                    scope="col"
+                    rowSpan={2}
+                    onClick={() => toggleSort("phone")}
+                    className="cursor-pointer select-none"
+                    aria-sort={sort === "phone" ? "ascending" : sort === "-phone" ? "descending" : "none"}
+                  >
+                    <span className="inline-flex items-center gap-2">
+                      학생 전화번호
+                      <span aria-hidden style={{ fontSize: 11, opacity: sort === "phone" || sort === "-phone" ? 1 : 0.35, color: "var(--color-primary)" }}>
+                        {sort === "phone" ? "▲" : sort === "-phone" ? "▼" : "⇅"}
+                      </span>
+                    </span>
+                  </ResizableTh>
+                  {matrixSessions.length > 0 && (
+                    <th
+                      colSpan={matrixSessions.length}
+                      className="text-center"
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 700,
+                        color: "var(--color-text-secondary)",
+                        letterSpacing: "0.04em",
+                        padding: "6px 0 2px",
+                        borderLeft: "1px solid var(--color-border-divider)",
+                        background: "color-mix(in srgb, var(--color-brand-primary) 3%, var(--color-bg-surface))",
+                      }}
+                    >
+                      차시별 출결
+                    </th>
+                  )}
+                </tr>
+                {/* Row 2: 개별 차시 번호 + 날짜 약어 */}
+                <tr>
+                  {matrixSessions.map((ms, idx) => {
                     const isCurrent = ms.id === sessionId;
+                    // 날짜 약어: "2026-03-24" → "3/24"
+                    const dateShort = ms.date ? (() => {
+                      const parts = ms.date.split("-");
+                      return parts.length >= 3 ? `${Number(parts[1])}/${Number(parts[2])}` : "";
+                    })() : "";
                     return (
                       <th
                         key={ms.id}
@@ -688,16 +765,33 @@ export default function SessionAttendancePage({
                           width: SESSION_COL_WIDTH,
                           minWidth: SESSION_COL_WIDTH,
                           maxWidth: SESSION_COL_WIDTH,
-                          paddingLeft: 0,
-                          paddingRight: 0,
+                          padding: "2px 0 4px",
                           fontWeight: isCurrent ? 800 : 500,
-                          fontSize: 12,
+                          fontSize: isCurrent ? 13 : 12,
                           color: isCurrent ? "var(--color-brand-primary)" : "var(--color-text-muted)",
-                          borderBottom: isCurrent ? "2px solid var(--color-brand-primary)" : undefined,
+                          borderLeft: idx === 0 ? "1px solid var(--color-border-divider)" : undefined,
+                          background: isCurrent
+                            ? "color-mix(in srgb, var(--color-brand-primary) 8%, var(--color-bg-surface))"
+                            : "color-mix(in srgb, var(--color-brand-primary) 3%, var(--color-bg-surface))",
+                          borderBottom: isCurrent ? "2.5px solid var(--color-brand-primary)" : undefined,
+                          position: "relative",
                         }}
                         title={`${ms.order ?? "-"}차시${ms.date ? ` (${ms.date})` : ""}`}
                       >
-                        {ms.order ?? "-"}
+                        <div style={{ lineHeight: 1.1 }}>
+                          <div>{ms.order ?? "-"}</div>
+                          {dateShort && (
+                            <div style={{
+                              fontSize: 9,
+                              fontWeight: 400,
+                              color: isCurrent ? "var(--color-brand-primary)" : "var(--color-text-muted)",
+                              opacity: 0.7,
+                              marginTop: 1,
+                            }}>
+                              {dateShort}
+                            </div>
+                          )}
+                        </div>
                       </th>
                     );
                   })}
@@ -760,7 +854,7 @@ export default function SessionAttendancePage({
                     <td className="text-[14px] leading-6 text-[var(--color-text-secondary)] truncate align-middle" style={{ width: columnWidths.phone ?? col.studentPhone }}>
                       {formatPhone(att.phone ?? att.student_phone)}
                     </td>
-                    {matrixSessions.map((ms) => {
+                    {matrixSessions.map((ms, idx) => {
                       const studentAttendance = matrixByStudentId.get(att.student_id);
                       const cell = studentAttendance?.[String(ms.id)];
                       const isCurrent = ms.id === sessionId;
@@ -770,7 +864,10 @@ export default function SessionAttendancePage({
                           className="text-center align-middle px-0"
                           style={{
                             width: SESSION_COL_WIDTH,
-                            background: isCurrent ? "color-mix(in srgb, var(--color-brand-primary) 6%, transparent)" : undefined,
+                            borderLeft: idx === 0 ? "1px solid var(--color-border-divider)" : undefined,
+                            background: isCurrent
+                              ? "color-mix(in srgb, var(--color-brand-primary) 6%, transparent)"
+                              : undefined,
                           }}
                         >
                           {cell?.status ? (
@@ -779,7 +876,7 @@ export default function SessionAttendancePage({
                               variant="1ch"
                             />
                           ) : (
-                            <span className="text-[var(--color-text-muted)] text-[10px]">－</span>
+                            <span style={{ color: "var(--color-border-divider)", fontSize: 8 }}>·</span>
                           )}
                         </td>
                       );

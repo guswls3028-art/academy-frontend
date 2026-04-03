@@ -14,6 +14,7 @@ import {
   TEMPLATE_CATEGORY_LABELS,
   type TemplateCategory,
 } from "../constants/templateBlocks";
+import GradesBlockPanel from "./GradesBlockPanel";
 import type { MessageTemplateItem, MessageTemplatePayload } from "../api/messages.api";
 
 import "../styles/templateEditor.css";
@@ -275,25 +276,31 @@ export default function TemplateEditModal({
                   style={{ resize: "vertical", fontFamily: "inherit", minHeight: 280 }}
                 />
               </div>
-              <div className="template-editor__body-blocks shrink-0 flex flex-col" style={{ width: 220 }}>
-                <div className="template-editor__blocks-title mb-2">삽입 블록</div>
-                <div className="template-editor__block-list flex flex-wrap gap-2 content-start overflow-auto p-1">
-                  {blocks.map((block) => {
-                    const bc = getBlockColor(block.id);
-                    return (
-                      <button
-                        key={block.id}
-                        type="button"
-                        onMouseDown={(e) => e.preventDefault()}
-                        onClick={() => insertBlock(block.insertText)}
-                        disabled={isPending}
-                        className="template-editor__block-tag"
-                        style={{ background: bc.bg, color: bc.color, borderColor: bc.border }}
-                      >
-                        {block.label}
-                      </button>
-                    );
-                  })}
+              <div className="template-editor__body-blocks shrink-0 flex flex-col" style={{ width: 240 }}>
+                <div className="template-editor__blocks-title mb-2">변수 삽입</div>
+                <div className="template-editor__block-list flex flex-col content-start overflow-auto p-1">
+                  {selectedCategory === "grades" ? (
+                    <GradesBlockPanel blocks={blocks} onInsert={insertBlock} disabled={isPending} currentBody={body} />
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      {blocks.map((block) => {
+                        const bc = getBlockColor(block.id);
+                        return (
+                          <button
+                            key={block.id}
+                            type="button"
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => insertBlock(block.insertText)}
+                            disabled={isPending}
+                            className="template-editor__block-tag"
+                            style={{ background: bc.bg, color: bc.color, borderColor: bc.border }}
+                          >
+                            {block.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

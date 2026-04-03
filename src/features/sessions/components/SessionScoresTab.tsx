@@ -183,19 +183,25 @@ export default function SessionScoresTab() {
     const sessionTitle = session?.title ?? "";
     const reportOptions = { lectureName, sessionTitle };
 
-    // 성적 카테고리 템플릿이 있으면 템플릿 기반 치환, 없으면 기본 생성
+    // 성적 양식 우선순위:
+    // ① 사용자 기본(is_user_default) → ② 성적변수 포함 사용자 양식 → ③ 코드 fallback(generateScoreReport)
+    // 시스템 양식은 자유양식(#{공지내용})일 수 있으므로, 성적 변수가 있는 것만 사용
     let initialBody: string | undefined;
     if (selectedRows.length === 1) {
       try {
         const templates = await fetchMessageTemplates("grades");
-        // 사용자 커스텀 템플릿 우선, 없으면 기본 생성
-        const customTpl = templates.find((t) => !t.name.startsWith("[학원플러스]"));
-        if (customTpl) {
-          initialBody = substituteScoreVars(customTpl.body, selectedRows[0], scoresData.meta, reportOptions);
+        const hasScoreVars = (body: string) => /#{(시험\d|과제\d|시험성적|시험총점|학생이름)}/.test(body);
+        const userDefault = templates.find((t) => t.is_user_default && !t.is_system);
+        const userWithScoreVars = templates.find((t) => !t.is_system && hasScoreVars(t.body));
+        const chosenTpl = userDefault ?? userWithScoreVars;
+        if (chosenTpl) {
+          initialBody = substituteScoreVars(chosenTpl.body, selectedRows[0], scoresData.meta, reportOptions);
         } else {
+          // fallback: 코드 기반 성적표 생성 (항상 안전하게 동작)
           initialBody = generateScoreReport(selectedRows[0], scoresData.meta, reportOptions);
         }
-      } catch {
+      } catch (err) {
+        console.warn("[ScoresSend] 템플릿 로드 실패, 코드 fallback 사용:", err);
         initialBody = generateScoreReport(selectedRows[0], scoresData.meta, reportOptions);
       }
     }
