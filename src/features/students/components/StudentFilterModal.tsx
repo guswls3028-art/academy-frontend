@@ -131,12 +131,21 @@ export default function StudentFilterModal({
                 <option key={st} value={st}>{slm.labels[st]}</option>
               ))}
             </select>
-            <input
-              className="ds-input"
-              placeholder="고등학교"
-              value={local.high_school || ""}
-              onChange={(e) => update("high_school", e.target.value)}
-            />
+            {slm.mode === "elementary_middle" ? (
+              <input
+                className="ds-input"
+                placeholder="초등학교"
+                value={local.elementary_school || ""}
+                onChange={(e) => update("elementary_school", e.target.value)}
+              />
+            ) : (
+              <input
+                className="ds-input"
+                placeholder="고등학교"
+                value={local.high_school || ""}
+                onChange={(e) => update("high_school", e.target.value)}
+              />
+            )}
             <input
               className="ds-input"
               placeholder="중학교"

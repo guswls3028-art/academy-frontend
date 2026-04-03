@@ -548,7 +548,7 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
             <div className="modal-form-row modal-form-row--1-auto-auto">
               <input
                 name="school"
-                placeholder="학교명 (XX고·XX중 입력 시 자동 선택)"
+                placeholder={slm.mode === "elementary_middle" ? "학교명 (XX초·XX중 입력 시 자동 선택)" : "학교명 (XX고·XX중 입력 시 자동 선택)"}
                 value={form.school ?? ""}
                 onChange={handleChange}
                 className="ds-input"
@@ -661,7 +661,7 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
                 style={{ width: "100%" }}
               />
             </div>
-            <Button intent="secondary" onClick={downloadStudentExcelTemplate} disabled={busy}>
+            <Button intent="secondary" onClick={() => downloadStudentExcelTemplate(slm.mode)} disabled={busy}>
               엑셀 양식 다운로드
             </Button>
           </div>

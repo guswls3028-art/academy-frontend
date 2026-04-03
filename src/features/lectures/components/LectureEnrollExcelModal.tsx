@@ -13,6 +13,7 @@ import {
 } from "@/features/students/excel/studentExcel";
 import { lectureEnrollFromExcelUpload } from "../api/enrollments";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { useSchoolLevelMode } from "@/shared/hooks/useSchoolLevelMode";
 import { asyncStatusStore } from "@/shared/ui/asyncStatus";
 
 interface Props {
@@ -31,6 +32,7 @@ export default function LectureEnrollExcelModal({
   onClose,
   onSuccess,
 }: Props) {
+  const slm = useSchoolLevelMode();
   const [busy, setBusy] = useState(false);
   const [parsed, setParsed] = useState<ParseStudentExcelResult | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -115,7 +117,7 @@ export default function LectureEnrollExcelModal({
             <>
               <div className="modal-form-row modal-form-row--1-auto" style={{ alignItems: "end" }}>
                 <div />
-                <Button intent="secondary" onClick={downloadStudentExcelTemplate} disabled={busy}>
+                <Button intent="secondary" onClick={() => downloadStudentExcelTemplate(slm.mode)} disabled={busy}>
                   엑셀 양식 다운로드
                 </Button>
               </div>

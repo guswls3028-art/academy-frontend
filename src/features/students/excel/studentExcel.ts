@@ -136,14 +136,22 @@ function inferSchoolType(school: string): "ELEMENTARY" | "MIDDLE" | "HIGH" {
 /**
  * 엑셀 양식 다운로드 — 상단 안내문, 헤더, 예시 행 (xlsx 패키지로 동작 보장)
  */
-export function downloadStudentExcelTemplate() {
+export function downloadStudentExcelTemplate(mode?: "middle_high" | "elementary_middle") {
+  const isElemMode = mode === "elementary_middle";
   const wb = XLSX.utils.book_new();
 
   // ── 헤더 & 데이터 구성 ──
-  const headers = ["이름", "학부모전화번호", "학생전화번호", "성별", "학교", "학년", "반", "계열", "메모"];
-  const exampleRow1 = ["홍길동", "01087654321", "01012345678", "M", "한국고등학교", "1", "3", "이과", ""];
-  const exampleRow2 = ["김영희", "01011112222", "", "F", "서울중학교", "2", "1", "", ""];
+  const headers = isElemMode
+    ? ["이름", "학부모전화번호", "학생전화번호", "성별", "학교", "학년", "반", "메모"]
+    : ["이름", "학부모전화번호", "학생전화번호", "성별", "학교", "학년", "반", "계열", "메모"];
+  const exampleRow1 = isElemMode
+    ? ["홍길동", "01087654321", "01012345678", "M", "한빛초등학교", "3", "2", ""]
+    : ["홍길동", "01087654321", "01012345678", "M", "한국고등학교", "1", "3", "이과", ""];
+  const exampleRow2 = isElemMode
+    ? ["김영희", "01011112222", "", "F", "서울중학교", "2", "1", ""]
+    : ["김영희", "01011112222", "", "F", "서울중학교", "2", "1", "", ""];
 
+  const schoolHint = isElemMode ? "학교 입력 시 초/중 자동 판별" : "학교 입력 시 고/중 자동 판별";
   const guide = [
     ["학생 일괄 등록 양식"],
     [""],
@@ -151,7 +159,7 @@ export function downloadStudentExcelTemplate() {
     ["  필수 항목: 이름, 학부모전화번호 (나머지는 선택)"],
     ["  학생전화번호가 있으면 학생 아이디로 사용됩니다. 없으면 자동 부여."],
     ["  학부모 아이디 = 학부모전화번호 (비밀번호: 0000)"],
-    ["  성별: M(남) 또는 F(여)  |  학교 입력 시 고/중 자동 판별"],
+    [`  성별: M(남) 또는 F(여)  |  ${schoolHint}`],
     ["  아래 예시 행은 삭제하고 학생 정보를 입력해 주세요."],
     [""],
   ];
