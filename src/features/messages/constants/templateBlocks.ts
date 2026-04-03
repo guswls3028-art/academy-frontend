@@ -19,45 +19,47 @@ export interface TemplateBlock {
   label: string;
   insertText: string;
   previewValue: string;
+  /** 사용자에게 보여줄 한 줄 설명 */
+  description?: string;
 }
 
 // ─── 블록 정의 ───
 
 const B = {
   // 공통
-  student_name_2:    { id: "student_name_2",    label: "이름 2글자",       insertText: "#{학생이름2}",         previewValue: "길동" },
-  student_name_3:    { id: "student_name_3",    label: "이름 3글자",       insertText: "#{학생이름3}",         previewValue: "홍길동" },
-  site_link:         { id: "site_link",         label: "사이트 링크",      insertText: "#{사이트링크}",        previewValue: getTenantSiteUrl() },
-  date:              { id: "date",              label: "날짜",             insertText: "#{날짜}",              previewValue: "2026-03-11" },
-  time:              { id: "time",              label: "시간",             insertText: "#{시간}",              previewValue: "14:00" },
+  student_name_2:    { id: "student_name_2",    label: "이름 2글자",       insertText: "#{학생이름2}",         previewValue: "길동",        description: "학생 이름 앞 2자 (예: 길동)" },
+  student_name_3:    { id: "student_name_3",    label: "이름 3글자",       insertText: "#{학생이름3}",         previewValue: "홍길동",      description: "학생 이름 전체 (예: 홍길동)" },
+  site_link:         { id: "site_link",         label: "사이트 링크",      insertText: "#{사이트링크}",        previewValue: getTenantSiteUrl(), description: "학원 홈페이지 주소" },
+  date:              { id: "date",              label: "날짜",             insertText: "#{날짜}",              previewValue: "2026-03-11",  description: "발송일 날짜" },
+  time:              { id: "time",              label: "시간",             insertText: "#{시간}",              previewValue: "14:00",       description: "발송 시간" },
   // 가입/등록
-  student_name:      { id: "student_name",      label: "이름 (전체)",      insertText: "#{학생이름}",          previewValue: "홍길동" },
-  student_id:        { id: "student_id",        label: "학생 아이디",      insertText: "#{학생아이디}",        previewValue: "S20250001" },
+  student_name:      { id: "student_name",      label: "학생 이름",        insertText: "#{학생이름}",          previewValue: "홍길동",      description: "학생 전체 이름" },
+  student_id:        { id: "student_id",        label: "학생 아이디",      insertText: "#{학생아이디}",        previewValue: "S20250001",   description: "학생 로그인 아이디" },
   student_password:  { id: "student_password",  label: "학생 비밀번호",    insertText: "#{학생비밀번호}",      previewValue: "****" },
   parent_id:         { id: "parent_id",         label: "학부모 아이디",    insertText: "#{학부모아이디}",      previewValue: "010****1234" },
   parent_password:   { id: "parent_password",   label: "학부모 비밀번호",  insertText: "#{학부모비밀번호}",    previewValue: "****" },
   pw_notice:         { id: "pw_notice",         label: "비밀번호 변경 안내", insertText: "#{비밀번호안내}",    previewValue: "보안을 위해 비밀번호를 변경해 주세요." },
   // 강의/출결
-  lecture_name:      { id: "lecture_name",      label: "강의명",           insertText: "#{강의명}",            previewValue: "수학 심화반" },
-  session_name:      { id: "session_name",      label: "차시명",           insertText: "#{차시명}",            previewValue: "3회차" },
+  lecture_name:      { id: "lecture_name",      label: "강의명",           insertText: "#{강의명}",            previewValue: "수학 심화반",  description: "해당 강의 이름" },
+  session_name:      { id: "session_name",      label: "차시명",           insertText: "#{차시명}",            previewValue: "3회차",       description: "해당 차시 이름" },
   // 시험
-  exam_name:         { id: "exam_name",         label: "시험명",           insertText: "#{시험명}",            previewValue: "3월 모의고사" },
+  exam_name:         { id: "exam_name",         label: "시험명",           insertText: "#{시험명}",            previewValue: "3월 모의고사", description: "시험 이름" },
   score:             { id: "score",             label: "성적",             insertText: "#{성적}",              previewValue: "85점" },
   // 과제
-  assignment_name:   { id: "assignment_name",   label: "과제명",           insertText: "#{과제명}",            previewValue: "단원 복습 과제" },
+  assignment_name:   { id: "assignment_name",   label: "과제명",           insertText: "#{과제명}",            previewValue: "단원 복습 과제", description: "과제 이름" },
   // 성적
-  exam_score:        { id: "exam_score",        label: "시험 성적",        insertText: "#{시험성적}",          previewValue: "85점" },
-  assignment_score:  { id: "assignment_score",  label: "과제 성적",        insertText: "#{과제성적}",          previewValue: "90점" },
+  exam_score:        { id: "exam_score",        label: "시험 성적",        insertText: "#{시험성적}",          previewValue: "85점",        description: "시험 성적 상세" },
+  assignment_score:  { id: "assignment_score",  label: "과제 성적",        insertText: "#{과제성적}",          previewValue: "90점",        description: "과제 성적 상세" },
   // 클리닉
   clinic_name:       { id: "clinic_name",       label: "클리닉명",         insertText: "#{클리닉명}",          previewValue: "수학 보충 클리닉" },
   clinic_place:      { id: "clinic_place",      label: "클리닉 장소",      insertText: "#{장소}",              previewValue: "3층 세미나실" },
-  clinic_result:     { id: "clinic_result",     label: "클리닉 합불",      insertText: "#{클리닉합불}",        previewValue: "합격" },
+  clinic_result:     { id: "clinic_result",     label: "클리닉 합불",      insertText: "#{클리닉합불}",        previewValue: "합격",        description: "합격/불합격 결과" },
   // 커뮤니티
   post_title:        { id: "post_title",        label: "게시글 제목",      insertText: "#{게시글제목}",        previewValue: "수학 문제 질문" },
   answer_summary:    { id: "answer_summary",    label: "답변 요약",        insertText: "#{답변요약}",          previewValue: "풀이 방법을 안내드립니다." },
   counsel_type:      { id: "counsel_type",      label: "상담 유형",        insertText: "#{상담유형}",          previewValue: "학습 상담" },
   // 자유 입력 (알림톡 자유양식 템플릿용)
-  free_content:      { id: "free_content",      label: "자유 내용",        insertText: "#{내용}",              previewValue: "(직접 입력한 내용이 여기에 표시됩니다)" },
+  free_content:      { id: "free_content",      label: "자유 내용",        insertText: "#{내용}",              previewValue: "(직접 입력한 내용이 여기에 표시됩니다)", description: "직접 입력한 텍스트" },
   // 직원
   staff_name:        { id: "staff_name",        label: "직원명",           insertText: "#{직원명}",            previewValue: "김영희" },
   department:        { id: "department",         label: "부서",             insertText: "#{부서}",              previewValue: "수학과" },
@@ -84,13 +86,13 @@ const CATEGORY_BLOCKS: Record<string, TemplateBlock[]> = {
     // ── 공통 ──
     ...COMMON, B.student_name, B.lecture_name, B.session_name,
     // ── 목록형 변수 (시험/과제 개수에 맞게 자동 렌더링 — 간단 양식에 추천) ──
-    { id: "exam_list",    label: "시험 목록",  insertText: "#{시험목록}",  previewValue: "- 단원평가: 92/100 (92%) 합격\n- 쪽지시험: 45/50 (90%) 합격" },
-    { id: "hw_list",      label: "과제 목록",  insertText: "#{과제목록}",  previewValue: "- 복습과제: 90/100 (90%)" },
-    { id: "full_summary", label: "전체 요약",  insertText: "#{전체요약}",  previewValue: "시험: 2/2 합격 (평균 91점)\n과제: 1/1 완료\n최종: 합격" },
+    { id: "exam_list",    label: "시험 목록",  insertText: "#{시험목록}",  previewValue: "- 단원평가: 92/100 (92%) 합격\n- 쪽지시험: 45/50 (90%) 합격", description: "모든 시험 점수 자동 나열 (추천)" },
+    { id: "hw_list",      label: "과제 목록",  insertText: "#{과제목록}",  previewValue: "- 복습과제: 90/100 (90%)", description: "모든 과제 점수 자동 나열 (추천)" },
+    { id: "full_summary", label: "전체 요약",  insertText: "#{전체요약}",  previewValue: "시험: 2/2 합격 (평균 91점)\n과제: 1/1 완료\n최종: 합격", description: "합격률·완성도·최종판정 요약" },
     // ── 요약 수치 ──
-    { id: "exam_total",     label: "시험 총점",     insertText: "#{시험총점}",   previewValue: "285" },
-    { id: "exam_total_max", label: "시험 총만점",   insertText: "#{시험총만점}", previewValue: "350" },
-    { id: "hw_completion",  label: "숙제 완성도",   insertText: "#{숙제완성도}", previewValue: "3/3 완료" },
+    { id: "exam_total",     label: "시험 총점",     insertText: "#{시험총점}",   previewValue: "285",       description: "시험 점수 합계" },
+    { id: "exam_total_max", label: "시험 총만점",   insertText: "#{시험총만점}", previewValue: "350",       description: "시험 만점 합계" },
+    { id: "hw_completion",  label: "숙제 완성도",   insertText: "#{숙제완성도}", previewValue: "3/3 완료",  description: "완료한 과제 수 / 전체" },
     // ── 시험 개별 (번호별: 이름·점수·만점) ──
     // 시험 개수는 차시마다 다름. 양식에 필요한 만큼 삽입. 미사용 번호는 발송 시 자동 제거.
     ...[1,2,3,4,5].flatMap((n) => [

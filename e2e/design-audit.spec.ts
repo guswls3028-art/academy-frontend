@@ -60,7 +60,7 @@ test("디자인 감사 — grades 모달 전 상태", async ({ page }) => {
   await page.screenshot({ path: `${DIR}/01-default.png` });
 
   // ── 2. 양식 패널 열기 ──
-  const tplBtn = page.locator("button").filter({ hasText: /양식 바꾸기/ }).first();
+  const tplBtn = page.locator("button").filter({ hasText: /양식 선택|양식 변경/ }).first();
   await tplBtn.click();
   await page.waitForTimeout(1000);
   await page.screenshot({ path: `${DIR}/02-panel-open.png` });

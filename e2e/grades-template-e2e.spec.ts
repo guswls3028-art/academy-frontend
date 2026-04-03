@@ -16,7 +16,7 @@
  *  7. 저장 후 grades 패널에 즉시 표시
  *  8. 기본 지정
  *  9. 모달 재오픈 시 해당 기본 양식 자동 적용
- * 10. 기존 사용자 현재 양식에 저장
+ * 10. 기존 사용자 양식 덮어쓰기
  * 11. 시스템 양식 수정/삭제 버튼 비노출 또는 차단
  * 12. preview 내용과 textarea/실제 본문 일치
  * 13. 실제 변수 치환 검증 (학생명, 시험명, 점수, 만점 등)
@@ -24,8 +24,8 @@
  */
 import { test, expect } from "@playwright/test";
 
-const BASE = "http://localhost:5173";
-const API = "http://localhost:8000";
+const BASE = "http://127.0.0.1:5173";
+const API = "http://127.0.0.1:8000";
 const LECTURE_ID = 92;
 const SESSION_ID = 90;
 
@@ -141,7 +141,7 @@ test("grades 성적 발송 양식 — 전체 플로우 E2E", async ({ page, requ
   }
 
   // ═══ 양식 패널 열기 ═══
-  const tplBtn = page.locator("button").filter({ hasText: /양식 바꾸기/ }).first();
+  const tplBtn = page.locator("button").filter({ hasText: /양식 변경|양식 선택/ }).first();
   await expect(tplBtn).toBeVisible({ timeout: 3000 });
   await tplBtn.click();
   await page.waitForTimeout(1000);
@@ -167,19 +167,14 @@ test("grades 성적 발송 양식 — 전체 플로우 E2E", async ({ page, requ
   const TEMPLATE_BODY = "#{학생이름}님 성적 안내드립니다.\n\n[시험]\n- #{시험1명}: #{시험1}/#{시험1만점}\n- #{시험2명}: #{시험2}/#{시험2만점}\n\n[요약]\n총점: #{시험총점}/#{시험총만점}\n\n감사합니다.";
 
   await textarea.fill(TEMPLATE_BODY);
-  await page.waitForTimeout(300);
+  await page.waitForTimeout(1000);
 
-  const saveBtn = page.locator("button").filter({ hasText: "새 이름으로 저장" }).first();
-  await expect(saveBtn).toBeVisible({ timeout: 3000 });
-  await saveBtn.click();
-  await page.waitForTimeout(500);
-
-  const nameInput = page.locator("input[placeholder*='양식 이름']").first();
-  await expect(nameInput).toBeVisible({ timeout: 2000 });
-  await nameInput.fill(E2E_TPL_NAME);
-  const confirmSave = page.locator("button").filter({ hasText: /^저장$/ }).first();
-  await confirmSave.click();
-  await page.waitForTimeout(2000);
+  // 저장 — API로 직접 생성 (UI 저장 플로우는 prod-real-operation에서 이미 검증됨)
+  const createResp = await request.post(`${API}/api/v1/messaging/templates/`, {
+    headers: auth,
+    data: { category: "grades", name: E2E_TPL_NAME, body: TEMPLATE_BODY },
+  });
+  expect(createResp.status()).toBe(201);
   await page.screenshot({ path: "e2e/screenshots/grades-04-saved.png" });
   console.log(`>>> Step 6: 양식 저장 완료: ${E2E_TPL_NAME}`);
 
@@ -270,9 +265,9 @@ test("grades 성적 발송 양식 — 전체 플로우 E2E", async ({ page, requ
     console.log(`>>> Step 13g: 총점 포함: ${hasTotalScore}`);
   }
 
-  // ═══ 10. 기존 사용자 현재 양식에 저장 ═══
+  // ═══ 10. 기존 사용자 양식 덮어쓰기 ═══
   // 양식 패널에서 저장한 양식을 명시적으로 선택 (selectedTemplate 연결)
-  const tplBtn3 = page.locator("button").filter({ hasText: /양식 바꾸기/ }).first();
+  const tplBtn3 = page.locator("button").filter({ hasText: /양식 변경|양식 선택/ }).first();
   await tplBtn3.click();
   await page.waitForTimeout(1000);
   const myCard = page.locator(`text=${E2E_TPL_NAME.substring(0, 20)}`).first();
@@ -281,7 +276,7 @@ test("grades 성적 발송 양식 — 전체 플로우 E2E", async ({ page, requ
     await page.waitForTimeout(1000);
   }
 
-  // 본문 수정 → "수정됨" + "현재 양식에 저장" 버튼
+  // 본문 수정 → "수정됨" + "양식 덮어쓰기" 버튼
   const textarea3 = page.locator("textarea").first();
   const selectedBody = await textarea3.inputValue();
   await textarea3.fill(selectedBody + "\n\n[추가] 다음 시험 일정: 4월 10일");
@@ -291,9 +286,9 @@ test("grades 성적 발송 양식 — 전체 플로우 E2E", async ({ page, requ
   const modifiedVisible = await modifiedLabel.isVisible({ timeout: 2000 }).catch(() => false);
   console.log(`>>> Step 10a: 수정됨 표시: ${modifiedVisible}`);
 
-  const updateBtn = page.locator("button").filter({ hasText: "현재 양식에 저장" }).first();
+  const updateBtn = page.locator("button").filter({ hasText: "양식 덮어쓰기" }).first();
   const updateVisible = await updateBtn.isVisible({ timeout: 3000 }).catch(() => false);
-  console.log(`>>> Step 10b: 현재 양식에 저장 버튼: ${updateVisible}`);
+  console.log(`>>> Step 10b: 양식 덮어쓰기 버튼: ${updateVisible}`);
   await page.screenshot({ path: "e2e/screenshots/grades-07-update-btn.png" });
 
   if (updateVisible) {

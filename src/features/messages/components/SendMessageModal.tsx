@@ -932,104 +932,55 @@ export default function SendMessageModal({
             {/* ══════ SMS 모드 ══════ */}
             {sendMode === "sms" && (
               <>
-                {/* ── 양식 요약 바 ── */}
+                {/* ── 양식 선택 바 ── */}
                 <div style={{
                   display: "flex", alignItems: "center", gap: 10, padding: "10px 14px",
-                  borderRadius: 10, background: "color-mix(in srgb, var(--color-primary) 4%, var(--color-bg-surface))",
-                  border: "1px solid color-mix(in srgb, var(--color-primary) 15%, var(--color-border-divider))", minHeight: 44,
+                  borderRadius: 10, background: "color-mix(in srgb, var(--color-primary) 5%, var(--color-bg-surface))",
+                  border: "1.5px solid color-mix(in srgb, var(--color-primary) 18%, var(--color-border-divider))",
                 }}>
-                  {/* 왼쪽: 양식 정보 */}
-                  <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 6 }}>
+                  <FiChevronLeft size={16} style={{ color: "var(--color-primary)", flexShrink: 0, transform: "rotate(-90deg)" }} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
                     {selectedTemplate ? (
-                      <>
-                        <span style={{ fontSize: 12, fontWeight: 700, color: "var(--color-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: "var(--color-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                           {selectedTemplate.name}
                         </span>
-                        {selectedTemplate.is_user_default && (
-                          <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 5px", borderRadius: 3, background: "color-mix(in srgb, var(--color-primary) 12%, transparent)", color: "var(--color-primary)", whiteSpace: "nowrap" }}>기본</span>
-                        )}
-                        {isSystemTpl(selectedTemplate) && (
-                          <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 5px", borderRadius: 3, background: "color-mix(in srgb, var(--color-status-info) 12%, transparent)", color: "var(--color-status-info, #2563eb)", whiteSpace: "nowrap" }}>시스템</span>
-                        )}
-                        {bodyModified && (
-                          <span style={{ fontSize: 10, color: "var(--color-status-warning, #d97706)", fontWeight: 600, whiteSpace: "nowrap" }}>· 수정됨</span>
-                        )}
-                      </>
+                        {selectedTemplate.is_user_default && <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 5px", borderRadius: 3, background: "color-mix(in srgb, var(--color-primary) 14%, transparent)", color: "var(--color-primary)" }}>기본</span>}
+                        {isSystemTpl(selectedTemplate) && <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 5px", borderRadius: 3, background: "color-mix(in srgb, #2563eb 12%, transparent)", color: "#2563eb" }}>시스템</span>}
+                        {bodyModified && <span style={{ fontSize: 10, color: "var(--color-status-warning, #d97706)", fontWeight: 600 }}>· 수정됨</span>}
+                      </div>
                     ) : (
-                      <span style={{ fontSize: 12, color: "var(--color-text-secondary)", fontWeight: 500 }}>직접 작성 중 — 양식을 선택하거나 그대로 발송하세요</span>
+                      <span style={{ fontSize: 13, color: "var(--color-text-muted)" }}>양식을 선택하거나 직접 작성하세요</span>
                     )}
                   </div>
-
-                  {/* 오른쪽: 핵심 버튼 (최소) */}
-                  <div style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>
-                    {/* 현재 양식에 저장 (내 양식 수정 시만) */}
-                    {!showSaveForm && bodyModified && selectedTemplate && !isSystemTpl(selectedTemplate) && (
-                      <Button size="sm" intent="primary" onClick={handleUpdateTemplate} disabled={sending}>
-                        현재 양식에 저장
-                      </Button>
-                    )}
-                    {/* 새 이름으로 저장 */}
-                    {!showSaveForm && body.trim() && (
-                      <Button size="sm" intent="secondary" onClick={() => { setShowSaveForm(true); setSaveTemplateName(""); }} disabled={sending}>
-                        새 이름으로 저장
-                      </Button>
-                    )}
-                    {/* 양식 바꾸기 */}
-                    <Button
-                      size="sm"
-                      intent={showTemplatePanel ? "primary" : "secondary"}
-                      onClick={() => setShowTemplatePanel(!showTemplatePanel)}
-                      disabled={sending}
-                    >
-                      {showTemplatePanel ? "닫기" : "양식 바꾸기"}
-                    </Button>
-                  </div>
+                  <Button
+                    size="sm"
+                    intent="primary"
+                    onClick={() => setShowTemplatePanel(!showTemplatePanel)}
+                    disabled={sending}
+                    style={{ fontWeight: 700 }}
+                  >
+                    {showTemplatePanel ? "닫기" : selectedTemplate ? "양식 변경" : "양식 선택"}
+                  </Button>
                 </div>
 
                 {/* ── 양식 패널 (접이식) ── */}
                 {showTemplatePanel && (
-                  <div style={{
-                    borderRadius: 10, border: "1px solid var(--color-border-divider)",
-                    background: "var(--color-bg-surface)", maxHeight: 280, overflowY: "auto",
-                    padding: 10, display: "flex", flexDirection: "column", gap: 6,
-                  }}>
-                    {/* 검색 */}
+                  <div style={{ borderRadius: 10, border: "1px solid var(--color-border-divider)", background: "var(--color-bg-surface)", maxHeight: 260, overflowY: "auto", padding: 10, display: "flex", flexDirection: "column", gap: 6 }}>
                     <div style={{ position: "relative", marginBottom: 2 }}>
                       <FiSearch size={13} style={{ position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)", color: "var(--color-text-muted)", pointerEvents: "none" }} />
                       <Input size="small" placeholder="양식 검색…" value={templateSearch} onChange={(e) => setTemplateSearch(e.target.value)} style={{ paddingLeft: 28, fontSize: 12 }} />
                     </div>
-
-                    {/* 직접 입력 옵션 */}
-                    <button
-                      type="button"
-                      onClick={() => { setSelectedTemplateId(null); setBody(""); setSubject(""); setShowTemplatePanel(false); }}
-                      style={{
-                        display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "8px 10px",
-                        borderRadius: 8, border: selectedTemplateId == null ? "2px solid var(--color-primary)" : "1px solid var(--color-border-divider)",
-                        background: selectedTemplateId == null ? "color-mix(in srgb, var(--color-primary) 6%, transparent)" : "transparent",
-                        cursor: "pointer", textAlign: "left" as const, fontSize: 12, fontWeight: 600,
-                        color: "var(--color-text-primary)", transition: "all 0.15s",
-                      }}
-                    >
+                    <button type="button" onClick={() => { setSelectedTemplateId(null); setBody(""); setSubject(""); setShowTemplatePanel(false); setTemplateBodySnapshot(null); }}
+                      style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "8px 10px", borderRadius: 8, border: selectedTemplateId == null ? "2px solid var(--color-primary)" : "1px solid var(--color-border-divider)", background: selectedTemplateId == null ? "color-mix(in srgb, var(--color-primary) 6%, transparent)" : "transparent", cursor: "pointer", textAlign: "left" as const, fontSize: 12, fontWeight: 600, color: "var(--color-text-primary)", transition: "all 0.15s" }}>
                       <FiEdit3 size={14} style={{ color: selectedTemplateId == null ? "var(--color-primary)" : "var(--color-text-muted)", flexShrink: 0 }} />
                       직접 작성하기
                     </button>
-
-                    {/* 기본 양식 섹션 */}
                     {categorizedTemplates.custom.length > 0 && (
                       <>
                         <div style={{ fontSize: 10, fontWeight: 700, color: "var(--color-text-muted)", padding: "6px 4px 2px", letterSpacing: "0.5px" }}>내 양식</div>
                         {categorizedTemplates.custom.map((t) => (
-                          <TemplatePickerCard
-                            key={t.id}
-                            template={t}
-                            isSelected={selectedTemplateId === t.id}
-                            onSelect={() => { selectTemplate(t); setShowTemplatePanel(false); }}
-                            onSetDefault={() => handleSetDefault(t.id)}
-                            onDuplicate={() => handleDuplicate(t.id)}
-                            onDelete={() => handleDeleteTemplate(t.id)}
-                            /* onEdit removed — not in TemplatePickerCard props */
-                          />
+                          <TemplatePickerCard key={t.id} template={t} isSelected={selectedTemplateId === t.id} onSelect={() => { selectTemplate(t); setShowTemplatePanel(false); }} onSetDefault={() => handleSetDefault(t.id)} onDuplicate={() => handleDuplicate(t.id)} onDelete={() => handleDeleteTemplate(t.id)} />
                         ))}
                       </>
                     )}
@@ -1037,98 +988,103 @@ export default function SendMessageModal({
                       <>
                         <div style={{ fontSize: 10, fontWeight: 700, color: "var(--color-text-muted)", padding: "6px 4px 2px", letterSpacing: "0.5px" }}>시스템 기본 양식</div>
                         {categorizedTemplates.defaults.map((t) => (
-                          <TemplatePickerCard
-                            key={t.id}
-                            template={t}
-                            isSelected={selectedTemplateId === t.id}
-                            onSelect={() => { selectTemplate(t); setShowTemplatePanel(false); }}
-                            onSetDefault={() => handleSetDefault(t.id)}
-                            onDuplicate={() => handleDuplicate(t.id)}
-                            onDelete={null}
-                            /* onEdit removed — not in TemplatePickerCard props */
-                          />
+                          <TemplatePickerCard key={t.id} template={t} isSelected={selectedTemplateId === t.id} onSelect={() => { selectTemplate(t); setShowTemplatePanel(false); }} onSetDefault={() => handleSetDefault(t.id)} onDuplicate={() => handleDuplicate(t.id)} onDelete={null} />
                         ))}
                       </>
                     )}
                     {categorizedTemplates.recent.length === 0 && categorizedTemplates.custom.length === 0 && categorizedTemplates.defaults.length === 0 && (
                       <div style={{ padding: 20, textAlign: "center", fontSize: 12, color: "var(--color-text-muted)" }}>
-                        {templateSearch ? "검색 결과 없음" : "저장된 양식이 없습니다. 본문 작성 후 '양식 저장'으로 나만의 양식을 만들어 보세요."}
+                        {templateSearch ? "검색 결과 없음" : "저장된 양식이 없습니다."}
                       </div>
                     )}
                   </div>
                 )}
 
-                {/* ── 저장 폼 ── */}
-                {showSaveForm && (
-                  <div style={{
-                    display: "flex", flexDirection: "column", gap: 8, padding: "10px 14px", borderRadius: "var(--radius-md)",
-                    background: "color-mix(in srgb, var(--color-primary) 4%, var(--color-bg-surface))",
-                    border: "1px solid color-mix(in srgb, var(--color-primary) 20%, var(--color-border-divider))",
-                  }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: "var(--color-text-secondary)" }}>지금 작성한 내용을 양식으로 저장합니다</div>
-                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                      <Input size="small" placeholder="양식 이름을 입력하세요 (예: 림글리쉬 성적표)" value={saveTemplateName}
-                        onChange={(e) => setSaveTemplateName(e.target.value)} onPressEnter={handleSaveTemplate}
-                        style={{ flex: 1, fontSize: 13 }} autoFocus />
-                      <Button size="sm" intent="primary" onClick={handleSaveTemplate} disabled={!saveTemplateName.trim() || !body.trim() || savingTemplate}>
-                        {savingTemplate ? "저장 중…" : "저장"}
-                      </Button>
-                      <Button size="sm" intent="secondary" onClick={() => setShowSaveForm(false)}>취소</Button>
-                    </div>
-                    {!body.trim() && (
-                      <div style={{ fontSize: 11, color: "var(--color-status-warning, #d97706)" }}>본문이 비어있어 저장할 수 없습니다.</div>
+                {/* ── 저장 바 (상황에 따라 한 가지만 표시) ── */}
+                {!showSaveForm && body.trim() && !showTemplatePanel && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 12px", borderRadius: 8, background: "var(--color-bg-surface-soft)", border: "1px solid var(--color-border-divider)" }}>
+                    {bodyModified && selectedTemplate && !isSystemTpl(selectedTemplate) ? (
+                      <>
+                        <Button size="sm" intent="primary" onClick={handleUpdateTemplate} disabled={sending}>양식 덮어쓰기</Button>
+                        <button type="button" onClick={() => { setShowSaveForm(true); setSaveTemplateName(""); }} disabled={sending} style={{ fontSize: 12, color: "var(--color-primary)", background: "none", border: "none", cursor: "pointer", fontWeight: 600, textDecoration: "underline", textUnderlineOffset: 2 }}>
+                          다른 이름으로 저장
+                        </button>
+                      </>
+                    ) : (
+                      <Button size="sm" intent="secondary" onClick={() => { setShowSaveForm(true); setSaveTemplateName(""); }} disabled={sending}>양식으로 저장</Button>
+                    )}
+                    <div style={{ flex: 1 }} />
+                    {charInfo && (
+                      <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 4, background: charInfo.tone === "ok" ? "color-mix(in srgb, var(--color-success) 12%, transparent)" : charInfo.tone === "lms" ? "color-mix(in srgb, var(--color-primary) 12%, transparent)" : "color-mix(in srgb, var(--color-error) 12%, transparent)", color: charInfo.tone === "ok" ? "var(--color-success)" : charInfo.tone === "lms" ? "var(--color-primary)" : "var(--color-error)" }}>
+                        {charInfo.label}
+                      </span>
                     )}
                   </div>
                 )}
-
-                {/* ── 본문 편집 ── */}
-                <div ref={bodyWrapRef} className="flex-1 min-h-0 flex flex-col">
-                  <Input.TextArea
-                    placeholder="내용을 입력하세요"
-                    value={body}
-                    onChange={(e) => setBody(e.target.value)}
-                    disabled={sending}
-                    className="message-domain-input"
-                    style={{
-                      resize: "vertical", fontFamily: "inherit", minHeight: 200, flex: 1, fontSize: 14, lineHeight: 1.7, padding: 12,
-                      borderColor: smsOverLimit ? "var(--color-error)" : undefined,
-                    }}
-                  />
-                  {smsOverLimit && (
-                    <div style={{
-                      display: "flex", alignItems: "center", gap: 6, marginTop: 4,
-                      fontSize: 12, fontWeight: 600, color: "var(--color-error)",
-                    }}>
-                      <FiAlertCircle size={12} />
-                      본문이 {SMS_MAX_CHARS}자를 초과하여 발송할 수 없습니다 ({body.length}자)
+                {showSaveForm && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6, padding: "10px 14px", borderRadius: 8, background: "color-mix(in srgb, var(--color-primary) 4%, var(--color-bg-surface))", border: "1px solid color-mix(in srgb, var(--color-primary) 20%, var(--color-border-divider))" }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-secondary)" }}>양식 이름을 입력하세요</div>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                      <Input size="small" placeholder="예: 3월 성적표, 림글리쉬 양식" value={saveTemplateName} onChange={(e) => setSaveTemplateName(e.target.value)} onPressEnter={handleSaveTemplate} style={{ flex: 1, fontSize: 13 }} autoFocus />
+                      <Button size="sm" intent="primary" onClick={handleSaveTemplate} disabled={!saveTemplateName.trim() || !body.trim() || savingTemplate}>{savingTemplate ? "저장 중…" : "저장"}</Button>
+                      <Button size="sm" intent="secondary" onClick={() => setShowSaveForm(false)}>취소</Button>
                     </div>
-                  )}
-                </div>
+                  </div>
+                )}
 
-                {/* ── 변수 블록 삽입 ── */}
-                <div style={{
-                  padding: "12px 14px", borderRadius: 10, marginTop: 4,
-                  background: "color-mix(in srgb, var(--color-bg-surface-soft) 80%, var(--color-bg-surface))",
-                  border: "1px solid var(--color-border-divider)",
-                }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: "var(--color-text-secondary)", marginBottom: 8 }}>변수 삽입 — 클릭하면 본문에 추가됩니다</div>
-                  {blockCategory === "grades" ? (
-                    <GradesBlockPanel blocks={blocks} onInsert={insertBlock} disabled={sending} currentBody={body} />
-                  ) : (
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-                      {blocks.map((block) => {
-                        const bc = getBlockColor(block.id);
-                        return (
-                          <button key={block.id} type="button" onMouseDown={(e) => e.preventDefault()}
-                            onClick={() => insertBlock(block.insertText)} disabled={sending}
-                            className="template-editor__block-tag"
-                            style={{ background: bc.bg, color: bc.color, borderColor: bc.border, padding: "4px 10px", fontSize: 11 }}>
-                            {block.label}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
+                {/* ── 편집 영역: 본문(좌) + 변수 팔레트(우) ── */}
+                <div style={{ display: "flex", gap: 12, flex: 1, minHeight: 0 }}>
+                  {/* 본문 */}
+                  <div ref={bodyWrapRef} style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", position: "relative" }}>
+                    {/* 빈 상태 오버레이 */}
+                    {!body && !selectedTemplate && (
+                      <div style={{ position: "absolute", inset: 0, zIndex: 2, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, background: "var(--color-bg-surface)", borderRadius: 8, border: "1px solid var(--color-border-divider)" }}>
+                        <FiEdit3 size={28} style={{ color: "var(--color-text-muted)", opacity: 0.4 }} />
+                        <div style={{ textAlign: "center" }}>
+                          <div style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text-secondary)", marginBottom: 4 }}>양식을 선택하거나</div>
+                          <div style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text-secondary)" }}>직접 내용을 작성하세요</div>
+                        </div>
+                        <Button size="sm" intent="primary" onClick={() => setShowTemplatePanel(true)} style={{ marginTop: 4 }}>양식 선택하기</Button>
+                      </div>
+                    )}
+                    <Input.TextArea
+                      placeholder="내용을 입력하세요"
+                      value={body}
+                      onChange={(e) => setBody(e.target.value)}
+                      disabled={sending}
+                      className="message-domain-input"
+                      style={{ resize: "none", fontFamily: "inherit", minHeight: 240, flex: 1, fontSize: 14, lineHeight: 1.7, padding: 12, borderColor: smsOverLimit ? "var(--color-error)" : undefined }}
+                    />
+                    {smsOverLimit && (
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4, fontSize: 12, fontWeight: 600, color: "var(--color-error)" }}>
+                        <FiAlertCircle size={12} />
+                        {SMS_MAX_CHARS}자 초과 ({body.length}자)
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 변수 팔레트 */}
+                  <div style={{ width: 195, flexShrink: 0, overflowY: "auto", padding: "10px 10px 10px 12px", borderRadius: 10, background: "color-mix(in srgb, var(--color-bg-surface-soft) 70%, var(--color-bg-surface))", border: "1px solid var(--color-border-divider)", borderLeft: "2.5px solid var(--color-primary)" }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: "var(--color-text-secondary)", marginBottom: 2 }}>변수 삽입</div>
+                    <div style={{ fontSize: 10, color: "var(--color-text-muted)", marginBottom: 10, lineHeight: 1.4 }}>클릭하면 커서 위치에 추가됩니다</div>
+                    {blockCategory === "grades" ? (
+                      <GradesBlockPanel blocks={blocks} onInsert={insertBlock} disabled={sending} currentBody={body} />
+                    ) : (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                        {blocks.map((block) => {
+                          const bc = getBlockColor(block.id);
+                          return (
+                            <div key={block.id}>
+                              <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => insertBlock(block.insertText)} disabled={sending} className="template-editor__block-tag" style={{ background: bc.bg, color: bc.color, borderColor: bc.border, padding: "4px 10px", fontSize: 11, width: "100%" }}>
+                                {block.label}
+                              </button>
+                              {block.description && <div style={{ fontSize: 9.5, color: "var(--color-text-muted)", paddingLeft: 2, lineHeight: 1.3, marginTop: 1 }}>{block.description}</div>}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </>
             )}
