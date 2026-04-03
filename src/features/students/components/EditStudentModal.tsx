@@ -238,34 +238,29 @@ export default function EditStudentModal({
                 className="ds-input"
                 disabled={busy}
               />
-              <div className="modal-actions-inline" style={{ height: 36 }}>
+              <select
+                className="ds-select"
+                value={form.schoolType || slm.defaultSchoolType}
+                onChange={(e) => setForm((p) => ({ ...p, schoolType: e.target.value, grade: "" }))}
+                disabled={busy}
+                style={{ minWidth: 80 }}
+              >
                 {slm.schoolTypes.map((st) => (
-                  <button
-                    key={st}
-                    type="button"
-                    className={`ds-choice-btn ds-choice-btn--primary${form.schoolType === st ? " is-selected" : ""}`}
-                    aria-pressed={form.schoolType === st}
-                    onClick={() => setForm((p) => ({ ...p, schoolType: st, grade: "" }))}
-                    disabled={busy}
-                  >
-                    {slm.getLabel(st)}
-                  </button>
+                  <option key={st} value={st}>{slm.getLabel(st)}</option>
                 ))}
-              </div>
-              <div className="modal-actions-inline" style={{ height: 36 }}>
+              </select>
+              <select
+                className="ds-select"
+                value={form.grade}
+                onChange={(e) => setForm((p) => ({ ...p, grade: e.target.value }))}
+                disabled={busy}
+                style={{ minWidth: 80 }}
+              >
+                <option value="">학년</option>
                 {slm.gradeRange(form.schoolType as any || slm.defaultSchoolType).map((g) => (
-                  <button
-                    key={g}
-                    type="button"
-                    className={`ds-choice-btn ds-choice-btn--primary${form.grade === String(g) ? " is-selected" : ""}`}
-                    aria-pressed={form.grade === String(g)}
-                    onClick={() => setForm((p) => ({ ...p, grade: String(g) }))}
-                    disabled={busy}
-                  >
-                    {g}학년
-                  </button>
+                  <option key={g} value={String(g)}>{g}학년</option>
                 ))}
-              </div>
+              </select>
             </div>
             <div className="modal-form-row modal-form-row--2">
               <input

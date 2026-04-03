@@ -434,16 +434,17 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
                   </div>
                   <div>
                     <label htmlFor="signup-grade-elem" className={styles.signupInputLabel}>학년 <span className={styles.signupRequired}>*</span></label>
-                    <div className={styles.signupSegmentWrap} role="group" aria-label="학년">
+                    <select
+                      className={styles.signupInput}
+                      value={form.grade}
+                      onChange={(e) => setForm((f) => ({ ...f, grade: e.target.value }))}
+                      style={{ width: "100%" }}
+                    >
+                      <option value="">학년 선택</option>
                       {slm.gradeRange("ELEMENTARY").map((g) => (
-                        <button key={g} type="button"
-                          className={`${styles.signupSegmentBtn} ${form.grade === String(g) ? styles.isSelected : ""}`}
-                          aria-pressed={form.grade === String(g)}
-                          onClick={() => setForm((f) => ({ ...f, grade: String(g) }))}>
-                          {g}학년
-                        </button>
+                        <option key={g} value={String(g)}>{g}학년</option>
                       ))}
-                    </div>
+                    </select>
                   </div>
                   <div>
                     <label htmlFor="signup-class-elem" className={styles.signupInputLabel}>반</label>
@@ -459,16 +460,17 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
                   </div>
                   <div>
                     <label htmlFor="signup-grade-middle" className={styles.signupInputLabel}>학년 <span className={styles.signupRequired}>*</span></label>
-                    <div className={styles.signupSegmentWrap} role="group" aria-label="학년">
+                    <select
+                      className={styles.signupInput}
+                      value={form.grade}
+                      onChange={(e) => setForm((f) => ({ ...f, grade: e.target.value }))}
+                      style={{ width: "100%" }}
+                    >
+                      <option value="">학년 선택</option>
                       {slm.gradeRange("MIDDLE").map((g) => (
-                        <button key={g} type="button"
-                          className={`${styles.signupSegmentBtn} ${form.grade === String(g) ? styles.isSelected : ""}`}
-                          aria-pressed={form.grade === String(g)}
-                          onClick={() => setForm((f) => ({ ...f, grade: String(g) }))}>
-                          {g}학년
-                        </button>
+                        <option key={g} value={String(g)}>{g}학년</option>
                       ))}
-                    </div>
+                    </select>
                   </div>
                   <div>
                     <label htmlFor="signup-class-middle" className={styles.signupInputLabel}>반</label>
@@ -484,16 +486,17 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
                   </div>
                   <div>
                     <label htmlFor="signup-grade" className={styles.signupInputLabel}>학년 <span className={styles.signupRequired}>*</span></label>
-                    <div className={styles.signupSegmentWrap} role="group" aria-label="학년">
+                    <select
+                      className={styles.signupInput}
+                      value={form.grade}
+                      onChange={(e) => setForm((f) => ({ ...f, grade: e.target.value }))}
+                      style={{ width: "100%" }}
+                    >
+                      <option value="">학년 선택</option>
                       {slm.gradeRange("HIGH").map((g) => (
-                        <button key={g} type="button"
-                          className={`${styles.signupSegmentBtn} ${form.grade === String(g) ? styles.isSelected : ""}`}
-                          aria-pressed={form.grade === String(g)}
-                          onClick={() => setForm((f) => ({ ...f, grade: String(g) }))}>
-                          {g}학년
-                        </button>
+                        <option key={g} value={String(g)}>{g}학년</option>
                       ))}
-                    </div>
+                    </select>
                   </div>
                   <div>
                     <label htmlFor="signup-class" className={styles.signupInputLabel}>반</label>

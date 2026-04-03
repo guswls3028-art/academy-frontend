@@ -415,19 +415,15 @@ export default function ProfilePage() {
             <div>
               <div className="stu-muted" style={{ fontSize: 12, marginBottom: 4 }}>학교 유형</div>
               {editing && !profile.isParentReadOnly ? (
-                <div style={{ display: "flex", gap: "var(--stu-space-2)" }}>
+                <select
+                  className="ds-select"
+                  value={editSchoolType}
+                  onChange={(e) => setEditSchoolType(e.target.value as SchoolType)}
+                >
                   {slm.schoolTypes.map((key) => (
-                    <button
-                      key={key}
-                      type="button"
-                      className={`stu-btn stu-btn--secondary ${editSchoolType === key ? "stu-btn--primary" : ""}`}
-                      onClick={() => setEditSchoolType(key)}
-                      style={{ padding: "var(--stu-space-2) var(--stu-space-4)" }}
-                    >
-                      {slm.labels[key]}
-                    </button>
+                    <option key={key} value={key}>{slm.getLabel(key)}</option>
                   ))}
-                </div>
+                </select>
               ) : (
                 <div style={{ fontWeight: 600, fontSize: 16 }}>
                   {slm.getLabel(profile.school_type as SchoolType)}
@@ -510,15 +506,16 @@ export default function ProfilePage() {
               <div style={{ minWidth: 80 }}>
                 <div className="stu-muted" style={{ fontSize: 12, marginBottom: 4 }}>학년</div>
                 {editing && !profile.isParentReadOnly ? (
-                  <input
-                    type="text"
-                    inputMode="numeric"
+                  <select
+                    className="ds-select"
                     value={editGrade}
-                    onChange={(e) => setEditGrade(e.target.value.replace(/\D/g, "").slice(0, 1))}
-                    className="stu-input"
-                    style={{ width: 56 }}
-                    placeholder={`1~${slm.gradeRange(editSchoolType).length > 0 ? slm.gradeRange(editSchoolType)[slm.gradeRange(editSchoolType).length - 1] : 3}`}
-                  />
+                    onChange={(e) => setEditGrade(e.target.value)}
+                  >
+                    <option value="">학년</option>
+                    {slm.gradeRange(editSchoolType).map((g) => (
+                      <option key={g} value={g}>{g}학년</option>
+                    ))}
+                  </select>
                 ) : (
                   <div style={{ fontWeight: 600, fontSize: 16 }}>{profile.grade != null ? `${profile.grade}학년` : "-"}</div>
                 )}
