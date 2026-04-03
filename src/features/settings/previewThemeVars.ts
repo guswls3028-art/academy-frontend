@@ -22,22 +22,22 @@ export const PREVIEW_THEME_VARS: Record<ThemeKey, React.CSSProperties & Record<s
 
   "navy-pro": {
     "--pv-canvas": "#ffffff",
-    "--pv-page": "#f3f6fb",
+    "--pv-page": "#f0f4fa",
     "--pv-panel": "#ffffff",
     "--pv-border": "rgba(0,0,0,0.08)",
-    "--pv-primary": "#3b82f6",
+    "--pv-primary": "#2563eb",
 
-    "--pv-sidebar-bg": "#f2f6ff",
-    "--pv-sidebar-active-bg": "rgba(59,130,246,0.18)",
-    "--pv-sidebar-muted": "rgba(11,23,48,0.42)",
+    "--pv-sidebar-bg": "#1e3a5f",
+    "--pv-sidebar-active-bg": "rgba(255,255,255,0.15)",
+    "--pv-sidebar-muted": "rgba(176,192,216,0.7)",
   },
 
   "kakao-business": {
     "--pv-canvas": "#ffffff",
-    "--pv-page": "#ffffff",
+    "--pv-page": "#f8fafc",
     "--pv-panel": "#ffffff",
-    "--pv-border": "rgba(59,30,30,0.18)",
-    "--pv-primary": "#3B1E1E",
+    "--pv-border": "rgba(0,0,0,0.08)",
+    "--pv-primary": "#5c2d0e",
 
     "--pv-sidebar-bg": "#FBE300",
     "--pv-sidebar-active-bg": "#3B1E1E",
@@ -46,14 +46,14 @@ export const PREVIEW_THEME_VARS: Record<ThemeKey, React.CSSProperties & Record<s
 
   "naver-works": {
     "--pv-canvas": "#ffffff",
-    "--pv-page": "#ffffff",
+    "--pv-page": "#f8fafc",
     "--pv-panel": "#ffffff",
     "--pv-border": "rgba(0,0,0,0.08)",
-    "--pv-primary": "#14532d",
+    "--pv-primary": "#0aba90",
 
     "--pv-sidebar-bg": "#14532d",
     "--pv-sidebar-active-bg": "#ffffff",
-    "--pv-sidebar-muted": "rgba(244,255,248,0.55)",
+    "--pv-sidebar-muted": "rgba(240,253,244,0.55)",
   },
 
   "samsung-admin": {
@@ -93,38 +93,38 @@ export const PREVIEW_THEME_VARS: Record<ThemeKey, React.CSSProperties & Record<s
   },
 
   "dark-navy": {
-    "--pv-canvas": "#071024",
-    "--pv-page": "#071024",
-    "--pv-panel": "#102044",
-    "--pv-border": "rgba(229,239,255,0.14)",
+    "--pv-canvas": "#0a1628",
+    "--pv-page": "#0a1628",
+    "--pv-panel": "#132d4f",
+    "--pv-border": "rgba(207,224,255,0.14)",
     "--pv-primary": "#3b82f6",
 
-    "--pv-sidebar-bg": "#06102a",
-    "--pv-sidebar-active-bg": "rgba(59,130,246,0.22)",
-    "--pv-sidebar-muted": "rgba(229,239,255,0.35)",
+    "--pv-sidebar-bg": "#0f2847",
+    "--pv-sidebar-active-bg": "rgba(96,165,250,0.22)",
+    "--pv-sidebar-muted": "rgba(207,224,255,0.40)",
   },
 
   "youtube-studio": {
-    "--pv-canvas": "#0b0b0c",
-    "--pv-page": "#0b0b0c",
-    "--pv-panel": "#17171a",
-    "--pv-border": "rgba(249,250,251,0.14)",
-    "--pv-primary": "#ff0000",
+    "--pv-canvas": "#121214",
+    "--pv-page": "#121214",
+    "--pv-panel": "#1a1a1e",
+    "--pv-border": "rgba(250,250,250,0.12)",
+    "--pv-primary": "#8b7cf8",
 
-    "--pv-sidebar-bg": "#0f0f10",
-    "--pv-sidebar-active-bg": "rgba(255,0,0,0.22)",
-    "--pv-sidebar-muted": "rgba(249,250,251,0.32)",
+    "--pv-sidebar-bg": "#16161a",
+    "--pv-sidebar-active-bg": "rgba(139,124,248,0.20)",
+    "--pv-sidebar-muted": "rgba(250,250,250,0.35)",
   },
 
   "ivory-office": {
-    "--pv-canvas": "#faf8f5",
-    "--pv-page": "#f5f0ea",
+    "--pv-canvas": "#ffffff",
+    "--pv-page": "#faf9f7",
     "--pv-panel": "#ffffff",
     "--pv-border": "rgba(0,0,0,0.08)",
-    "--pv-primary": "#8b6914",
+    "--pv-primary": "#b5651d",
 
-    "--pv-sidebar-bg": "#faf8f5",
-    "--pv-sidebar-active-bg": "rgba(139,105,20,0.12)",
+    "--pv-sidebar-bg": "#f5f2ed",
+    "--pv-sidebar-active-bg": "rgba(181,101,29,0.14)",
     "--pv-sidebar-muted": "rgba(0,0,0,0.4)",
   },
 
@@ -141,14 +141,14 @@ export const PREVIEW_THEME_VARS: Record<ThemeKey, React.CSSProperties & Record<s
   },
 
   "terminal-neon": {
-    "--pv-canvas": "#0a0a0a",
-    "--pv-page": "#0a0a0a",
-    "--pv-panel": "#141414",
-    "--pv-border": "rgba(0,255,65,0.15)",
-    "--pv-primary": "#00ff41",
+    "--pv-canvas": "#0a0e1a",
+    "--pv-page": "#0a0e1a",
+    "--pv-panel": "#0f1525",
+    "--pv-border": "rgba(196,216,232,0.14)",
+    "--pv-primary": "#38bdf8",
 
-    "--pv-sidebar-bg": "#0a0a0a",
-    "--pv-sidebar-active-bg": "rgba(0,255,65,0.15)",
-    "--pv-sidebar-muted": "rgba(0,255,65,0.4)",
+    "--pv-sidebar-bg": "#0d1220",
+    "--pv-sidebar-active-bg": "rgba(56,189,248,0.18)",
+    "--pv-sidebar-muted": "rgba(196,216,232,0.40)",
   },
 };

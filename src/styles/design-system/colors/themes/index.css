@@ -74,9 +74,9 @@
   --color-modal-bg: #ffffff;
 }
 
-/* 2) Navy Pro (cool enterprise light) */
+/* 2) Navy Pro (네이비 사이드바 엔터프라이즈) */
 [data-theme="navy-pro"] {
-  /* Scale (cool ink) */
+  /* Scale: 쿨톤 슬레이트 */
   --scale-Neutral0:   #ffffff;
   --scale-Neutral50:  #f6f8fb;
   --scale-Neutral100: #edf2f7;
@@ -93,62 +93,70 @@
   --scale-Primary100: #e0e7ff;
   --scale-Primary200: #c7d2fe;
   --scale-Primary300: #a5b4fc;
-  --scale-Primary400: #818cf8;
-  --scale-Primary500: #3b82f6;
-  --scale-Primary600: #2563eb;
-  --scale-Primary700: #1d4ed8;
-  --color-primary-rgb: 59, 130, 246;
+  --scale-Primary400: #60a5fa;
+  --scale-Primary500: #2563eb;
+  --scale-Primary600: #1d4ed8;
+  --scale-Primary700: #1e40af;
+  --color-primary-rgb: 37, 99, 235;
   --scale-Complement500: #0d9488;
 
   /* Space */
-  --layout-page-bg: #f3f6fb;
-  --layout-header-bg: color-mix(in srgb, #ffffff 84%, transparent);
+  --layout-page-bg: #f0f4fa;
+  --layout-header-bg: color-mix(in srgb, #ffffff 86%, transparent);
 
-  /* Sidebar (slight ink tint, not loud) */
-  --sidebar-bg: #f2f6ff;
-  --sidebar-border: color-mix(in srgb, var(--color-border-divider) 92%, #8aa4d6);
-  --sidebar-header-bg: color-mix(in srgb, #f2f6ff 82%, #dbe8ff);
-  --sidebar-item-hover-bg: color-mix(in srgb, #dbe8ff 56%, transparent);
-  --sidebar-item-active-bg: color-mix(in srgb, var(--color-brand-primary) 16%, transparent);
-  --sidebar-item-active-text: var(--color-brand-primary);
+  /* Sidebar: 딥 네이비 (Modern White와 확실히 차별화) */
+  --sidebar-bg: #1e3a5f;
+  --sidebar-border: #163050;
+  --sidebar-header-bg: #1a3458;
+  --sidebar-header-border: #163050;
+
+  --sidebar-text: #e8edf4;
+  --sidebar-muted: #b0c0d8;
+  --sidebar-group-title: #8aa0c0;
+
+  --sidebar-item-hover-bg: #264d73;
+  --sidebar-item-active-bg: rgba(255, 255, 255, 0.15);
+  --sidebar-item-active-text: #ffffff;
 
   --color-modal-bg: #ffffff;
 }
 
-/* 3) Ivory Office */
+/* 3) Ivory Office (따뜻한 모카 톤, 프리미엄 오피스) */
 [data-theme="ivory-office"] {
-  /* Scale (warm neutral) */
-  --scale-Neutral0:   #fffdf8;
-  --scale-Neutral50:  #fbf7f0;
-  --scale-Neutral100: #f4efe6;
-  --scale-Neutral200: #e7dfd3;
-  --scale-Neutral300: #d8cfbf;
-  --scale-Neutral400: #a8a29e;
-  --scale-Neutral500: #78716c;
-  --scale-Neutral600: #57534e;
-  --scale-Neutral700: #44403c;
-  --scale-Neutral800: #292524;
-  --scale-Neutral900: #1c1917;
+  /* Scale: 따뜻한 웜그레이 (크림X, 은은한 따뜻함만) */
+  --scale-Neutral0:   #ffffff;
+  --scale-Neutral50:  #faf9f7;
+  --scale-Neutral100: #f3f1ee;
+  --scale-Neutral200: #e5e2dd;
+  --scale-Neutral300: #d1cdc6;
+  --scale-Neutral400: #a39e96;
+  --scale-Neutral500: #706b63;
+  --scale-Neutral600: #565149;
+  --scale-Neutral700: #403c36;
+  --scale-Neutral800: #2a2723;
+  --scale-Neutral900: #1a1816;
 
-  --scale-Primary50:  #fff7ed;
-  --scale-Primary100: #ffedd5;
-  --scale-Primary200: #fed7aa;
-  --scale-Primary300: #fdba74;
-  --scale-Primary400: #fb923c;
-  --scale-Primary500: #b45309;
-  --scale-Primary600: #92400e;
-  --scale-Primary700: #78350f;
+  /* Primary: 웜 코퍼 (탁하지 않은 따뜻한 CTA, 프리미엄 카페 톤) */
+  --scale-Primary50:  #fdf6ee;
+  --scale-Primary100: #faebd4;
+  --scale-Primary200: #f2d0a4;
+  --scale-Primary300: #e5ac6a;
+  --scale-Primary400: #d08a3e;
+  --scale-Primary500: #b5651d;
+  --scale-Primary600: #9a5518;
+  --scale-Primary700: #7a4313;
+  --color-primary-rgb: 181, 101, 29;
   --scale-Complement500: #0284c7;
 
   /* Space */
-  --layout-page-bg: #fbfaf7;
-  --layout-header-bg: color-mix(in srgb, #faf7f2 86%, transparent);
+  --layout-page-bg: #faf9f7;
+  --layout-header-bg: color-mix(in srgb, #ffffff 88%, transparent);
 
-  /* Sidebar */
-  --sidebar-bg: #f6f2ea;
-  --sidebar-border: color-mix(in srgb, var(--color-border-divider) 92%, #d8cfbf);
-  --sidebar-header-bg: color-mix(in srgb, #f6f2ea 82%, #ffffff);
-  --sidebar-item-hover-bg: color-mix(in srgb, #e7dfd3 72%, transparent);
+  /* Sidebar: 은은한 웜톤 */
+  --sidebar-bg: #f5f2ed;
+  --sidebar-border: #e5e2dd;
+  --sidebar-header-bg: color-mix(in srgb, #f5f2ed 82%, #ffffff);
+  --sidebar-item-hover-bg: color-mix(in srgb, #e5e2dd 60%, transparent);
   --sidebar-item-active-bg: color-mix(in srgb, var(--color-brand-primary) 14%, transparent);
   --sidebar-item-active-text: var(--color-brand-primary);
 
@@ -246,16 +254,16 @@
   --color-modal-bg: var(--color-bg-surface);
 }
 
-/* 6) Dark Navy (premium navy) */
+/* 6) Dark Navy (눈에 띄게 파란 다크, Modern Dark와 확실히 구분) */
 [data-theme="dark-navy"] {
-  --scale-Neutral0:   #071024;
-  --scale-Neutral50:  #0b1730;
-  --scale-Neutral100: #102044;
-  --scale-Neutral200: #1a2d57;
-  --scale-Neutral300: #29406f;
-  --scale-Neutral400: #3b5687;
-  --scale-Neutral500: #5b74a3;
-  --scale-Neutral600: #9fb4d6;
+  --scale-Neutral0:   #0a1628;
+  --scale-Neutral50:  #0f1d38;
+  --scale-Neutral100: #132d4f;
+  --scale-Neutral200: #1e3f6e;
+  --scale-Neutral300: #2d5388;
+  --scale-Neutral400: #3f6a9f;
+  --scale-Neutral500: #5b88b8;
+  --scale-Neutral600: #9fb8d8;
   --scale-Neutral700: #cfe0ff;
   --scale-Neutral800: #e5efff;
   --scale-Neutral900: #f8fbff;
@@ -268,111 +276,116 @@
   --scale-Primary500: #3b82f6;
   --scale-Primary600: #60a5fa;
   --scale-Primary700: #93c5fd;
+  --color-primary-rgb: 59, 130, 246;
   --scale-Complement500: #0d9488;
 
-  --layout-page-bg: color-mix(in srgb, #071024 92%, #0b1730);
-  --layout-header-bg: color-mix(in srgb, #0b1730 78%, transparent);
+  --layout-page-bg: color-mix(in srgb, #0a1628 92%, #0f1d38);
+  --layout-header-bg: color-mix(in srgb, #0f1d38 78%, transparent);
 
-  --sidebar-bg: #06102a;
-  --sidebar-border: #1a2d57;
-  --sidebar-header-bg: color-mix(in srgb, #06102a 82%, #102044);
-  --sidebar-header-border: #1a2d57;
+  /* Sidebar: 눈에 띄게 푸른 네이비 (Modern Dark의 무채색 사이드바와 확실히 다름) */
+  --sidebar-bg: #0f2847;
+  --sidebar-border: #1e3f6e;
+  --sidebar-header-bg: color-mix(in srgb, #0f2847 82%, #132d4f);
+  --sidebar-header-border: #1e3f6e;
 
   --sidebar-text: #e5efff;
   --sidebar-muted: #cfe0ff;
-  --sidebar-group-title: #9fb4d6;
+  --sidebar-group-title: #9fb8d8;
 
-  --sidebar-item-hover-bg: color-mix(in srgb, #102044 86%, transparent);
-  --sidebar-item-active-bg: color-mix(in srgb, var(--color-brand-primary) 18%, transparent);
-  --sidebar-item-active-text: var(--color-brand-primary);
-
-  --color-modal-bg: var(--color-bg-surface);
-}
-
-/* 7) YouTube Studio (charcoal studio, NOT gray-active) */
-[data-theme="youtube-studio"] {
-  --scale-Neutral0:   #0b0b0c;
-  --scale-Neutral50:  #111113;
-  --scale-Neutral100: #17171a;
-  --scale-Neutral200: #232328;
-  --scale-Neutral300: #2f2f36;
-  --scale-Neutral400: #3f3f46;
-  --scale-Neutral500: #6b7280;
-  --scale-Neutral600: #9ca3af;
-  --scale-Neutral700: #d1d5db;
-  --scale-Neutral800: #e5e7eb;
-  --scale-Neutral900: #f9fafb;
-
-  /* Primary = YouTube red (high visibility), but used with restraint */
-  --scale-Primary50:  #2a0b0b;
-  --scale-Primary100: #3a0d0d;
-  --scale-Primary200: #5a1111;
-  --scale-Primary300: #7a1414;
-  --scale-Primary400: #c81e1e;
-  --scale-Primary500: #ff0000;
-  --scale-Primary600: #ff3b3b;
-  --scale-Primary700: #ff6b6b;
-  --scale-Complement500: #22c55e;
-
-  --layout-page-bg: color-mix(in srgb, #0b0b0c 92%, #111113);
-  --layout-header-bg: color-mix(in srgb, #111113 78%, transparent);
-
-  --sidebar-bg: #0f0f10;
-  --sidebar-border: #232328;
-  --sidebar-header-bg: color-mix(in srgb, #0f0f10 82%, #17171a);
-  --sidebar-header-border: #232328;
-
-  --sidebar-text: #f9fafb;
-  --sidebar-muted: #d1d5db;
-  --sidebar-group-title: #9ca3af;
-
-  /* 핵심: active가 회색으로 죽지 않게, 레드 톤 “면”으로 강조 */
-  --sidebar-item-hover-bg: color-mix(in srgb, #17171a 92%, transparent);
-  --sidebar-item-active-bg: color-mix(in srgb, var(--color-brand-primary) 18%, transparent);
-  --sidebar-item-active-text: #ff6b6b;
-
-  --color-modal-bg: var(--color-bg-surface);
-}
-
-/* 8) Terminal Neon (developer neon dark) */
-[data-theme="terminal-neon"] {
-  --scale-Neutral0:   #030407;
-  --scale-Neutral50:  #050507;
-  --scale-Neutral100: #0a0c11;
-  --scale-Neutral200: #111827;
-  --scale-Neutral300: #1f2937;
-  --scale-Neutral400: #334155;
-  --scale-Neutral500: #64748b;
-  --scale-Neutral600: #a3b8d6;
-  --scale-Neutral700: #d8e6ff;
-  --scale-Neutral800: #ebf4ff;
-  --scale-Neutral900: #f8fbff;
-
-  /* Primary = neon cyan */
-  --scale-Primary50:  #001318;
-  --scale-Primary100: #00242c;
-  --scale-Primary200: #003a45;
-  --scale-Primary300: #005c6b;
-  --scale-Primary400: #00a3b8;
-  --scale-Primary500: #00ffcc;
-  --scale-Primary600: #22d3ee;
-  --scale-Primary700: #7dd3fc;
-  --scale-Complement500: #f97316;
-
-  --layout-page-bg: color-mix(in srgb, #030407 92%, #050507);
-  --layout-header-bg: color-mix(in srgb, #050507 78%, transparent);
-
-  --sidebar-bg: #050507;
-  --sidebar-border: #111827;
-  --sidebar-header-bg: color-mix(in srgb, #050507 84%, #0a0c11);
-  --sidebar-header-border: #111827;
-
-  --sidebar-text: #d8e6ff;
-  --sidebar-muted: #a3b8d6;
-  --sidebar-group-title: #7aa0c7;
-
-  --sidebar-item-hover-bg: color-mix(in srgb, #0a0c11 92%, transparent);
+  --sidebar-item-hover-bg: color-mix(in srgb, #132d4f 80%, transparent);
   --sidebar-item-active-bg: color-mix(in srgb, var(--color-brand-primary) 20%, transparent);
+  --sidebar-item-active-text: #60a5fa;
+
+  --color-modal-bg: var(--color-bg-surface);
+}
+
+/* 7) Graphite Studio (따뜻한 차콜 + 인디고 악센트, 프리미엄 스튜디오) */
+[data-theme="youtube-studio"] {
+  /* Scale: 따뜻한 차콜 (쿨그레이 X, 웜 차콜) */
+  --scale-Neutral0:   #121214;
+  --scale-Neutral50:  #1a1a1e;
+  --scale-Neutral100: #222226;
+  --scale-Neutral200: #2e2e34;
+  --scale-Neutral300: #3a3a42;
+  --scale-Neutral400: #52525c;
+  --scale-Neutral500: #71717a;
+  --scale-Neutral600: #a1a1aa;
+  --scale-Neutral700: #d4d4d8;
+  --scale-Neutral800: #e4e4e7;
+  --scale-Neutral900: #fafafa;
+
+  /* Primary: 소프트 인디고 (error/warning 충돌 없음, 고급스러운 보라빛 블루) */
+  --scale-Primary50:  #1e1b3a;
+  --scale-Primary100: #2a2554;
+  --scale-Primary200: #3b3480;
+  --scale-Primary300: #5548b8;
+  --scale-Primary400: #7168e0;
+  --scale-Primary500: #8b7cf8;
+  --scale-Primary600: #a594fd;
+  --scale-Primary700: #c4b5fd;
+  --color-primary-rgb: 139, 124, 248;
+  --scale-Complement500: #34d399;
+
+  --layout-page-bg: color-mix(in srgb, #121214 92%, #1a1a1e);
+  --layout-header-bg: color-mix(in srgb, #1a1a1e 78%, transparent);
+
+  --sidebar-bg: #16161a;
+  --sidebar-border: #2e2e34;
+  --sidebar-header-bg: color-mix(in srgb, #16161a 82%, #222226);
+  --sidebar-header-border: #2e2e34;
+
+  --sidebar-text: #fafafa;
+  --sidebar-muted: #d4d4d8;
+  --sidebar-group-title: #a1a1aa;
+
+  --sidebar-item-hover-bg: color-mix(in srgb, #222226 88%, transparent);
+  --sidebar-item-active-bg: color-mix(in srgb, var(--color-brand-primary) 18%, transparent);
+  --sidebar-item-active-text: #a594fd;
+
+  --color-modal-bg: var(--color-bg-surface);
+}
+
+/* 8) Deep Ocean (깊은 바다 톤 다크, 차분한 스카이블루 악센트) */
+[data-theme="terminal-neon"] {
+  /* Scale: 깊은 남색 계열 (네온 X, 차분한 깊이감) */
+  --scale-Neutral0:   #0a0e1a;
+  --scale-Neutral50:  #0f1525;
+  --scale-Neutral100: #141c30;
+  --scale-Neutral200: #1e2a44;
+  --scale-Neutral300: #2a3a5c;
+  --scale-Neutral400: #3d5278;
+  --scale-Neutral500: #5b7498;
+  --scale-Neutral600: #8faabe;
+  --scale-Neutral700: #c4d8e8;
+  --scale-Neutral800: #e2edf5;
+  --scale-Neutral900: #f5f9fc;
+
+  /* Primary: 스카이블루 (차분하고 선명, semantic 충돌 없음) */
+  --scale-Primary50:  #0c1929;
+  --scale-Primary100: #122640;
+  --scale-Primary200: #1a3a60;
+  --scale-Primary300: #2560a0;
+  --scale-Primary400: #3090e0;
+  --scale-Primary500: #38bdf8;
+  --scale-Primary600: #7dd3fc;
+  --scale-Primary700: #bae6fd;
+  --color-primary-rgb: 56, 189, 248;
+  --scale-Complement500: #fb923c;
+
+  --layout-page-bg: color-mix(in srgb, #0a0e1a 92%, #0f1525);
+  --layout-header-bg: color-mix(in srgb, #0f1525 78%, transparent);
+
+  --sidebar-bg: #0d1220;
+  --sidebar-border: #1e2a44;
+  --sidebar-header-bg: color-mix(in srgb, #0d1220 82%, #141c30);
+  --sidebar-header-border: #1e2a44;
+
+  --sidebar-text: #e2edf5;
+  --sidebar-muted: #c4d8e8;
+  --sidebar-group-title: #8faabe;
+
+  --sidebar-item-hover-bg: color-mix(in srgb, #141c30 88%, transparent);
+  --sidebar-item-active-bg: color-mix(in srgb, var(--color-brand-primary) 18%, transparent);
   --sidebar-item-active-text: var(--color-brand-primary);
 
   --color-modal-bg: var(--color-bg-surface);
@@ -381,40 +394,41 @@
    BRAND / PREMIUM THEMES (4)
    - Sidebar background MUST be brand fill for Samsung/Naver/Kakao
 ========================================================= */
-/* 9) Kakao Business (FIXED RULE: yellow + brown, 강·약 차이만) */
-/* 사이드바=강한 노랑, 콘텐츠=약한 노랑·크림 (같은 톤, 농도만 다름) */
+/* 9) Kakao Business (사이드바=카카오 옐로우, 콘텐츠=중성 화이트) */
 [data-theme="kakao-business"] {
   --kakao-yellow: #FBE300;
   --kakao-brown: #3B1E1E;
 
-  /* Neutral: 카카오 톤 유지, 강(사이드바)→약(콘텐츠) 그라데이션 */
+  /* Neutral: 표준 슬레이트 그레이 (콘텐츠 영역 중성 유지) */
   --scale-Neutral0:   #ffffff;
-  --scale-Neutral50:  #fffef7;   /* 아주 은은한 크림 */
-  --scale-Neutral100: #fffde8;   /* 연한 노랑톤 */
-  --scale-Neutral200: #fff8cc;   /* 살짝 더 강한 노랑 */
-  --scale-Neutral300: #f5e699;   /* 황금빛 계열 */
-  --scale-Neutral400: #c9ab3a;   /* 갈색 노랑 */
-  --scale-Neutral500: #7c4a2d;   /* 브라운 */
-  --scale-Neutral600: #5b3a24;
-  --scale-Neutral700: var(--kakao-brown);
-  --scale-Neutral800: #2b1414;
-  --scale-Neutral900: #1a0d0d;
+  --scale-Neutral50:  #f8fafc;
+  --scale-Neutral100: #f1f5f9;
+  --scale-Neutral200: #e2e8f0;
+  --scale-Neutral300: #cbd5e1;
+  --scale-Neutral400: #94a3b8;
+  --scale-Neutral500: #64748b;
+  --scale-Neutral600: #475569;
+  --scale-Neutral700: #334155;
+  --scale-Neutral800: #1e293b;
+  --scale-Neutral900: #0f172a;
 
-  /* Primary: brown (사이드바 accent와 동일) */
-  --scale-Primary50:  color-mix(in srgb, var(--kakao-brown) 8%, #ffffff);
-  --scale-Primary100: color-mix(in srgb, var(--kakao-brown) 16%, #ffffff);
-  --scale-Primary200: color-mix(in srgb, var(--kakao-brown) 28%, #ffffff);
-  --scale-Primary300: color-mix(in srgb, var(--kakao-brown) 45%, #ffffff);
-  --scale-Primary400: #8a3f3f;
-  --scale-Primary500: var(--kakao-brown);
-  --scale-Primary600: #2b1414;
-  --scale-Primary700: #1a0d0d;
+  /* Primary: 카카오 브라운 (CTA로 사용 가능한 농도) */
+  --scale-Primary50:  #faf5f0;
+  --scale-Primary100: #f0e0d0;
+  --scale-Primary200: #dbbfa5;
+  --scale-Primary300: #b8876a;
+  --scale-Primary400: #8a5a3a;
+  --scale-Primary500: #5c2d0e;
+  --scale-Primary600: #4a2208;
+  --scale-Primary700: #3a1a06;
+  --color-primary-rgb: 92, 45, 14;
+  --scale-Complement500: #0d9488;
 
-  /* Page·Header: 카카오 톤 (노랑 베이스, 회색 X) */
-  --layout-page-bg: var(--scale-Neutral50);
-  --layout-header-bg: var(--scale-Neutral100);
+  /* Page·Header: 깨끗한 화이트 */
+  --layout-page-bg: #f8fafc;
+  --layout-header-bg: color-mix(in srgb, #ffffff 88%, transparent);
 
-  /* Sidebar: 토큰 기준 (--kakao-yellow, --kakao-brown) */
+  /* Sidebar: 카카오 옐로우 아이덴티티 유지 */
   --sidebar-bg: var(--kakao-yellow);
   --sidebar-border: color-mix(in srgb, var(--kakao-brown) 18%, var(--kakao-yellow));
 
@@ -429,50 +443,51 @@
   --sidebar-item-active-bg: var(--kakao-brown);
   --sidebar-item-active-text: #ffffff;
 
-  --scale-Complement500: #0d9488; /* teal (갈색 보색 톤) */
   --color-modal-bg: #ffffff;
 }
 
 
-/* 10) Naver Works (brand fill green → darker mung bean) */
+/* 10) Naver Works (사이드바=네이버 다크그린, 콘텐츠=중성 화이트) */
 [data-theme="naver-works"] {
-  --scale-Neutral0:   #f4fff8;
-  --scale-Neutral50:  #ecfff4;
-  --scale-Neutral100: #e0ffef;
-  --scale-Neutral200: #c7f9df;
-  --scale-Neutral300: #9beec4;
-  --scale-Neutral400: #62d89a;
-  --scale-Neutral500: #16a34a;
-  --scale-Neutral600: #15803d;
-  --scale-Neutral700: #14532d;
-  --scale-Neutral800: #0f3d21;
-  --scale-Neutral900: #0b2b17;
+  /* Neutral: 표준 슬레이트 그레이 */
+  --scale-Neutral0:   #ffffff;
+  --scale-Neutral50:  #f8fafc;
+  --scale-Neutral100: #f1f5f9;
+  --scale-Neutral200: #e2e8f0;
+  --scale-Neutral300: #cbd5e1;
+  --scale-Neutral400: #94a3b8;
+  --scale-Neutral500: #64748b;
+  --scale-Neutral600: #475569;
+  --scale-Neutral700: #334155;
+  --scale-Neutral800: #1e293b;
+  --scale-Neutral900: #0f172a;
 
-  /* Primary = Naver green (kept for accents, darker) */
-  --scale-Primary50:  #e9fff2;
-  --scale-Primary100: #93b991;
-  --scale-Primary200: #9ef7bf;
-  --scale-Primary300: #5ee79a;
-  --scale-Primary400: #2da15d;
-  --scale-Primary500: #013619;
-  --scale-Primary600: #14532d;
-  --scale-Primary700: #0b2b17;
+  /* Primary: 네이버 틸그린 (Success #22c55e와 충돌 없음, 네이버페이 인접 톤) */
+  --scale-Primary50:  #ecfdf8;
+  --scale-Primary100: #d1fae5;
+  --scale-Primary200: #a7f3d0;
+  --scale-Primary300: #6ee7b7;
+  --scale-Primary400: #2dd4a8;
+  --scale-Primary500: #0aba90;
+  --scale-Primary600: #099b78;
+  --scale-Primary700: #087a60;
+  --color-primary-rgb: 10, 186, 144;
   --scale-Complement500: #c026d3;
 
-  /* 👉 필터 제거 */
-  --layout-page-bg: #ffffff;
-  --layout-header-bg: color-mix(in srgb, #ffffff 90%, transparent);
+  /* Page·Header: 깨끗한 화이트 */
+  --layout-page-bg: #f8fafc;
+  --layout-header-bg: color-mix(in srgb, #ffffff 88%, transparent);
 
-  /* Sidebar brand fill (녹두톤, 더 어둡게) */
+  /* Sidebar: 네이버 다크그린 유지 */
   --sidebar-bg: color-mix(in srgb, #14532d 68%, #0b2b17);
   --sidebar-border: color-mix(in srgb, #0b2b17 36%, #14532d);
 
   --sidebar-header-bg: color-mix(in srgb, #14532d 60%, #0b2b17);
   --sidebar-header-border: color-mix(in srgb, #0b2b17 32%, #14532d);
 
-  --sidebar-text: #f4fff8;
-  --sidebar-muted: color-mix(in srgb, #f4fff8 68%, #14532d);
-  --sidebar-group-title: color-mix(in srgb, #f4fff8 54%, #14532d);
+  --sidebar-text: #f0fdf4;
+  --sidebar-muted: color-mix(in srgb, #f0fdf4 68%, #14532d);
+  --sidebar-group-title: color-mix(in srgb, #f0fdf4 54%, #14532d);
 
   --sidebar-item-hover-bg: color-mix(in srgb, #0b2b17 22%, #14532d);
   --sidebar-item-active-bg: #ffffff;
@@ -481,36 +496,38 @@
   --color-modal-bg: #ffffff;
 }
 
-/* 11) Samsung Admin (brand fill samsung blue) */
+/* 11) Samsung Admin (사이드바=삼성 블루, 콘텐츠=중성 화이트) */
 [data-theme="samsung-admin"] {
-  --scale-Neutral0:   #f6f9ff;
-  --scale-Neutral50:  #f0f6ff;
-  --scale-Neutral100: #e6efff;
-  --scale-Neutral200: #d7e4ff;
-  --scale-Neutral300: #b8ccff;
-  --scale-Neutral400: #7ea6ff;
-  --scale-Neutral500: #2b6df0;
-  --scale-Neutral600: #1e40af;
-  --scale-Neutral700: #142b73;
-  --scale-Neutral800: #0f204f;
-  --scale-Neutral900: #0b1533;
+  /* Neutral: 표준 슬레이트 그레이 */
+  --scale-Neutral0:   #ffffff;
+  --scale-Neutral50:  #f8fafc;
+  --scale-Neutral100: #f1f5f9;
+  --scale-Neutral200: #e2e8f0;
+  --scale-Neutral300: #cbd5e1;
+  --scale-Neutral400: #94a3b8;
+  --scale-Neutral500: #64748b;
+  --scale-Neutral600: #475569;
+  --scale-Neutral700: #334155;
+  --scale-Neutral800: #1e293b;
+  --scale-Neutral900: #0f172a;
 
-  /* Primary = Samsung blue */
-  --scale-Primary50:  #e6efff;
-  --scale-Primary100: #d7e4ff;
-  --scale-Primary200: #b8ccff;
-  --scale-Primary300: #7ea6ff;
-  --scale-Primary400: #2b6df0;
+  /* Primary: 삼성 블루 */
+  --scale-Primary50:  #eff6ff;
+  --scale-Primary100: #dbeafe;
+  --scale-Primary200: #bfdbfe;
+  --scale-Primary300: #93c5fd;
+  --scale-Primary400: #3b82f6;
   --scale-Primary500: #0057d9;
   --scale-Primary600: #0046b3;
   --scale-Primary700: #003ea8;
+  --color-primary-rgb: 0, 87, 217;
   --scale-Complement500: #ea580c;
 
-  /* 👉 필터 제거 */
-  --layout-page-bg: #ffffff;
-  --layout-header-bg: color-mix(in srgb, #ffffff 90%, transparent);
+  /* Page·Header: 깨끗한 화이트 */
+  --layout-page-bg: #f8fafc;
+  --layout-header-bg: color-mix(in srgb, #ffffff 88%, transparent);
 
-  /* Sidebar brand fill (Samsung blue restrained) */
+  /* Sidebar: 삼성 블루 유지 */
   --sidebar-bg: color-mix(in srgb, #0057d9 54%, #0b1533);
   --sidebar-border: color-mix(in srgb, #0b1533 32%, #0057d9);
 
@@ -528,20 +545,22 @@
   --color-modal-bg: #ffffff;
 }
 
-/* 12) Purple Insight (premium) */
+/* 12) Purple Insight (사이드바=로열 퍼플, 콘텐츠=중성 화이트) */
 [data-theme="purple-insight"] {
-  --scale-Neutral0:   #faf7ff;
-  --scale-Neutral50:  #f5f3ff;
-  --scale-Neutral100: #ede9fe;
-  --scale-Neutral200: #ddd6fe;
-  --scale-Neutral300: #c4b5fd;
-  --scale-Neutral400: #a78bfa;
-  --scale-Neutral500: #7c3aed;
-  --scale-Neutral600: #6d28d9;
-  --scale-Neutral700: #5b21b6;
-  --scale-Neutral800: #3b0f7a;
-  --scale-Neutral900: #24074f;
+  /* Neutral: 표준 슬레이트 그레이 */
+  --scale-Neutral0:   #ffffff;
+  --scale-Neutral50:  #f8fafc;
+  --scale-Neutral100: #f1f5f9;
+  --scale-Neutral200: #e2e8f0;
+  --scale-Neutral300: #cbd5e1;
+  --scale-Neutral400: #94a3b8;
+  --scale-Neutral500: #64748b;
+  --scale-Neutral600: #475569;
+  --scale-Neutral700: #334155;
+  --scale-Neutral800: #1e293b;
+  --scale-Neutral900: #0f172a;
 
+  /* Primary: 퍼플 */
   --scale-Primary50:  #f5f3ff;
   --scale-Primary100: #ede9fe;
   --scale-Primary200: #ddd6fe;
@@ -550,13 +569,14 @@
   --scale-Primary500: #7c3aed;
   --scale-Primary600: #6d28d9;
   --scale-Primary700: #5b21b6;
+  --color-primary-rgb: 124, 58, 237;
   --scale-Complement500: #65a30d;
 
-  /* 👉 필터 제거 */
-  --layout-page-bg: #ffffff;
-  --layout-header-bg: color-mix(in srgb, #ffffff 90%, transparent);
+  /* Page·Header: 깨끗한 화이트 */
+  --layout-page-bg: #f8fafc;
+  --layout-header-bg: color-mix(in srgb, #ffffff 88%, transparent);
 
-  /* Sidebar: lighter royal plum */
+  /* Sidebar: 로열 퍼플 유지 */
   --sidebar-bg: color-mix(in srgb, #4c1d95 56%, #24074f);
   --sidebar-border: color-mix(in srgb, #24074f 36%, #4c1d95);
 
