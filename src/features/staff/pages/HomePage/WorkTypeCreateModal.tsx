@@ -214,7 +214,7 @@ export default function WorkTypeCreateModal({
                       type="button"
                       className="ds-button"
                       data-intent="secondary"
-                      data-size="xs"
+                      data-size="sm"
                       onClick={() => openEdit(wt)}
                     >
                       수정
@@ -223,7 +223,7 @@ export default function WorkTypeCreateModal({
                       type="button"
                       className="ds-button"
                       data-intent="danger"
-                      data-size="xs"
+                      data-size="sm"
                       disabled={deleteM.isPending}
                       onClick={async () => {
                         const ok = await confirm({ title: "삭제 확인", message: `"${wt.name}" 시급태그를 삭제하시겠습니까?`, danger: true, confirmText: "삭제" });

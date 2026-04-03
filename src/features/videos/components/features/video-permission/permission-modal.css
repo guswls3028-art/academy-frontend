@@ -241,6 +241,7 @@
   border-radius: var(--radius-sm);
   border: none;
   cursor: pointer;
+  white-space: nowrap;
   transition: background 140ms ease, transform 100ms ease, box-shadow 140ms ease;
 }
 .permission-apply-btn:active:not(:disabled) {

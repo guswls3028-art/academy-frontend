@@ -108,9 +108,8 @@ export default function ExamHeader({ exam, sessionId }: { exam: Exam; sessionId?
               size="xl"
               onClick={() => setTemplateModalOpen(true)}
               disabled={saveAsTemplateMut.isPending}
-              className="flex items-center gap-2"
+              leftIcon={<FiSave size={18} />}
             >
-              <FiSave className="shrink-0" size={22} aria-hidden />
               템플릿으로 저장
             </Button>
           )}
@@ -121,12 +120,11 @@ export default function ExamHeader({ exam, sessionId }: { exam: Exam; sessionId?
                 intent="secondary"
                 size="xl"
                 onClick={() => setTemplateDropdownOpen((v) => !v)}
-                className="flex items-center gap-2"
                 aria-expanded={templateDropdownOpen}
                 aria-haspopup="true"
+                rightIcon={<FiChevronDown size={16} />}
               >
                 템플릿으로 저장됨
-                <FiChevronDown className="shrink-0" size={20} aria-hidden />
               </Button>
               {templateDropdownOpen && (
                 <div

@@ -2,6 +2,7 @@
 
 import ToggleSwitch from "@/features/videos/ui/ToggleSwitch";
 import { useVideoPolicy } from "@/features/videos/hooks/useVideoPolicy";
+import { Button } from "@/shared/ui/ds";
 
 interface Props {
   videoId: number;
@@ -61,15 +62,15 @@ export default function VideoPolicySection({ videoId, initial }: Props) {
             </span>
           </label>
 
-          <button
+          <Button
+            intent="primary"
+            size="sm"
             onClick={() => save()}
             disabled={!canSave}
-            className="ml-auto rounded px-4 py-1.5 text-xs font-semibold text-white disabled:opacity-40 transition-opacity"
-            style={{ background: "var(--color-primary)" }}
-            type="button"
+            className="ml-auto"
           >
             저장
-          </button>
+          </Button>
         </div>
       </div>
     </div>

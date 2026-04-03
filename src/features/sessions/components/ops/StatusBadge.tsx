@@ -1,14 +1,15 @@
 /**
- * 상태 배지 — 시험/과제 상태 표시
+ * 상태 배지 — 시험/과제 상태 표시 (DS badge 통일)
  */
 import type { ExamStatus } from "../../utils/examStatus";
 import { EXAM_STATUS_LABEL, EXAM_STATUS_COLOR } from "../../utils/examStatus";
 
-const badgeClass: Record<string, string> = {
-  gray: "bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600",
-  blue: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-700",
-  yellow: "bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-900/30 dark:text-amber-200 dark:border-amber-700",
-  green: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-700",
+/** DS badge tone 매핑 */
+const COLOR_TO_TONE: Record<string, string> = {
+  gray: "neutral",
+  blue: "info",
+  yellow: "warning",
+  green: "success",
 };
 
 type Props = {
@@ -19,10 +20,9 @@ type Props = {
 export function ExamStatusBadge({ status, className = "" }: Props) {
   const color = EXAM_STATUS_COLOR[status];
   const label = EXAM_STATUS_LABEL[status];
+  const tone = COLOR_TO_TONE[color] ?? "neutral";
   return (
-    <span
-      className={`inline-flex items-center rounded border px-2 py-0.5 text-xs font-medium ${badgeClass[color]} ${className}`}
-    >
+    <span className={`ds-badge ds-badge--${tone} ${className}`.trim()}>
       {label}
     </span>
   );
@@ -33,9 +33,9 @@ const HW_LABEL: Record<string, string> = {
   OPEN: "진행 중",
   CLOSED: "마감",
 };
-const HW_CLASS: Record<string, string> = {
-  OPEN: badgeClass.blue,
-  CLOSED: badgeClass.green,
+const HW_TONE: Record<string, string> = {
+  OPEN: "info",
+  CLOSED: "success",
 };
 
 type HWProps = {
@@ -45,11 +45,9 @@ type HWProps = {
 
 export function HomeworkStatusBadge({ status, className = "" }: HWProps) {
   const label = HW_LABEL[status] ?? status;
-  const c = HW_CLASS[status] ?? badgeClass.gray;
+  const tone = HW_TONE[status] ?? "neutral";
   return (
-    <span
-      className={`inline-flex items-center rounded border px-2 py-0.5 text-xs font-medium ${c} ${className}`}
-    >
+    <span className={`ds-badge ds-badge--${tone} ${className}`.trim()}>
       {label}
     </span>
   );

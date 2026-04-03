@@ -2,9 +2,8 @@
 
 import { useMemo, useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { FiX } from "react-icons/fi";
-
 import api from "@/shared/api/axios";
+import { CloseButton } from "@/shared/ui/ds";
 
 import PermissionHeader from "../../video-permission/components/PermissionHeader";
 import PermissionTable from "../../video-permission/components/PermissionTable";
@@ -157,14 +156,7 @@ export default function PermissionModal({
               </p>
             </div>
 
-            <button
-              type="button"
-              onClick={onClose}
-              className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-surface-hover)] transition"
-              aria-label="닫기"
-            >
-              <FiX size={18} />
-            </button>
+            <CloseButton onClick={onClose} />
           </div>
 
           <div className="mt-3">

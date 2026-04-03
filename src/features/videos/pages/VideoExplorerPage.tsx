@@ -391,8 +391,8 @@ export default function VideoExplorerPage() {
                 intent="ghost"
                 size="sm"
                 onClick={() => setReorderOpen(true)}
+                leftIcon={<ArrowUpDown size={14} />}
               >
-                <ArrowUpDown size={14} style={{ marginRight: 4 }} />
                 순서 관리
               </Button>
             )}

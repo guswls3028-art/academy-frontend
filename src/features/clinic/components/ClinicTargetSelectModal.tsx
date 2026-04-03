@@ -495,21 +495,13 @@ export default function ClinicTargetSelectModal({
                     총 {totalCount}명
                   </span>
                   <div className="flex items-center gap-0.5">
-                    <Button type="button" intent="ghost" size="sm" disabled={page <= 1} onClick={() => setPage(1)} aria-label="첫 페이지"
-                      className="!min-w-8 !h-8 !p-0 flex items-center justify-center rounded-lg text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-surface-hover)] disabled:opacity-40"
-                    ><FirstPageIcon /></Button>
-                    <Button type="button" intent="ghost" size="sm" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))} aria-label="이전 페이지"
-                      className="!min-w-8 !h-8 !p-0 flex items-center justify-center rounded-lg text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-surface-hover)] disabled:opacity-40"
-                    ><PrevPageIcon /></Button>
+                    <Button type="button" intent="ghost" size="sm" iconOnly leftIcon={<FirstPageIcon />} disabled={page <= 1} onClick={() => setPage(1)} aria-label="첫 페이지" />
+                    <Button type="button" intent="ghost" size="sm" iconOnly leftIcon={<PrevPageIcon />} disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))} aria-label="이전 페이지" />
                     <span className="text-[13px] font-semibold text-[var(--color-text-primary)] px-2 min-w-[3.5rem] text-center">
                       {page} / {totalPages}
                     </span>
-                    <Button type="button" intent="ghost" size="sm" disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))} aria-label="다음 페이지"
-                      className="!min-w-8 !h-8 !p-0 flex items-center justify-center rounded-lg text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-surface-hover)] disabled:opacity-40"
-                    ><NextPageIcon /></Button>
-                    <Button type="button" intent="ghost" size="sm" disabled={page >= totalPages} onClick={() => setPage(totalPages)} aria-label="마지막 페이지"
-                      className="!min-w-8 !h-8 !p-0 flex items-center justify-center rounded-lg text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-surface-hover)] disabled:opacity-40"
-                    ><LastPageIcon /></Button>
+                    <Button type="button" intent="ghost" size="sm" iconOnly leftIcon={<NextPageIcon />} disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))} aria-label="다음 페이지" />
+                    <Button type="button" intent="ghost" size="sm" iconOnly leftIcon={<LastPageIcon />} disabled={page >= totalPages} onClick={() => setPage(totalPages)} aria-label="마지막 페이지" />
                   </div>
                 </div>
               )}

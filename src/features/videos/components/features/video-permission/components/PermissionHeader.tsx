@@ -1,6 +1,7 @@
 // PATH: src/features/videos/components/features/video-permission/components/PermissionHeader.tsx
 
 import type { TabKey } from "../permission.types";
+import { Button } from "@/shared/ui/ds";
 
 const TAB_ITEMS: { key: TabKey; label: string }[] = [
   { key: "permission", label: "권한 설정" },
@@ -52,24 +53,9 @@ export default function PermissionHeader({
       )}
 
       {focusEnrollment && tab === "permission" && (
-        <button
-          type="button"
-          style={{
-            height: 24,
-            padding: "0 var(--space-3)",
-            fontSize: "var(--text-xs, 11px)",
-            fontWeight: 600,
-            color: "var(--color-text-secondary)",
-            background: "var(--color-bg-surface)",
-            border: "1px solid var(--color-border-default)",
-            borderRadius: "var(--radius-sm)",
-            cursor: "pointer",
-            transition: "all 140ms ease",
-          }}
-          onClick={onClearFocus}
-        >
+        <Button intent="ghost" size="sm" onClick={onClearFocus}>
           학생 필터 해제
-        </button>
+        </Button>
       )}
     </div>
   );

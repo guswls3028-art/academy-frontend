@@ -1,6 +1,7 @@
 // PATH: src/features/videos/components/features/video-permission/components/PermissionFilter.tsx
 
 import { useEffect, useState } from "react";
+import { Button } from "@/shared/ui/ds";
 
 interface Props {
   filters: any;
@@ -137,24 +138,9 @@ export default function PermissionFilter({
                 선택 즉시 반영됩니다
               </div>
             </div>
-            <button
-              onClick={onClose}
-              type="button"
-              style={{
-                height: 28,
-                padding: "0 var(--space-3)",
-                fontSize: "var(--text-xs, 11px)",
-                fontWeight: 600,
-                color: "var(--color-text-secondary)",
-                background: "var(--color-bg-surface)",
-                border: "1px solid var(--color-border-default)",
-                borderRadius: "var(--radius-sm)",
-                cursor: "pointer",
-                transition: "all 140ms ease",
-              }}
-            >
+            <Button intent="ghost" size="sm" onClick={onClose}>
               닫기
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -296,26 +282,13 @@ export default function PermissionFilter({
 
             {/* RESET */}
             <div className="flex justify-end pt-1">
-              <button
+              <Button
+                intent={activeCount > 0 ? "danger" : "ghost"}
+                size="sm"
                 onClick={reset}
-                type="button"
-                style={{
-                  height: 32,
-                  padding: "0 var(--space-4)",
-                  fontSize: "var(--text-xs, 11px)",
-                  fontWeight: 600,
-                  color: activeCount > 0
-                    ? "var(--color-danger)"
-                    : "var(--color-text-secondary)",
-                  background: "var(--color-bg-surface)",
-                  border: `1px solid ${activeCount > 0 ? "var(--color-danger)" : "var(--color-border-default)"}`,
-                  borderRadius: "var(--radius-sm)",
-                  cursor: "pointer",
-                  transition: "all 140ms ease",
-                }}
               >
                 전체 초기화{activeCount > 0 ? ` (${activeCount})` : ""}
-              </button>
+              </Button>
             </div>
           </div>
         </div>

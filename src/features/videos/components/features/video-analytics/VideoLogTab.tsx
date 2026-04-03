@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
+import { Button } from "@/shared/ui/ds";
 import JsonViewerModal from "./JsonViewerModal";
 
 type RangeKey = "24h" | "7d" | "all";
@@ -176,39 +177,9 @@ export default function VideoLogTab({ videoId, onClickRiskStudent }: Props) {
             ))}
           </div>
 
-          <button
-            className="w-full mt-2"
-            type="button"
-            style={{
-              height: 32,
-              fontSize: "var(--text-xs, 11px)",
-              fontWeight: 600,
-              color: "var(--color-text-secondary)",
-              background: "var(--color-bg-surface)",
-              border: "1px solid var(--color-border-default)",
-              borderRadius: "var(--radius-sm)",
-              cursor: "pointer",
-              transition: "all 140ms ease",
-            }}
-            onMouseEnter={(e) => {
-              (e.currentTarget as HTMLButtonElement).style.background =
-                "var(--color-bg-surface-hover, var(--bg-surface-soft))";
-              (e.currentTarget as HTMLButtonElement).style.borderColor =
-                "var(--color-brand-primary)";
-              (e.currentTarget as HTMLButtonElement).style.color =
-                "var(--color-brand-primary)";
-            }}
-            onMouseLeave={(e) => {
-              (e.currentTarget as HTMLButtonElement).style.background =
-                "var(--color-bg-surface)";
-              (e.currentTarget as HTMLButtonElement).style.borderColor =
-                "var(--color-border-default)";
-              (e.currentTarget as HTMLButtonElement).style.color =
-                "var(--color-text-secondary)";
-            }}
-          >
+          <Button intent="secondary" size="sm" className="w-full mt-2">
             CSV Export
-          </button>
+          </Button>
         </div>
 
         {/* Hint */}
@@ -555,46 +526,12 @@ export default function VideoLogTab({ videoId, onClickRiskStudent }: Props) {
               : "0건"}
           </span>
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              disabled={!canPrev}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              style={{
-                height: 28,
-                padding: "0 var(--space-3)",
-                fontSize: "var(--text-xs, 11px)",
-                fontWeight: 600,
-                color: "var(--color-text-secondary)",
-                background: "var(--color-bg-surface)",
-                border: "1px solid var(--color-border-default)",
-                borderRadius: "var(--radius-sm)",
-                cursor: canPrev ? "pointer" : "not-allowed",
-                opacity: canPrev ? 1 : 0.45,
-                transition: "all 140ms ease",
-              }}
-            >
+            <Button intent="ghost" size="sm" disabled={!canPrev} onClick={() => setPage((p) => Math.max(1, p - 1))}>
               이전
-            </button>
-            <button
-              type="button"
-              disabled={!canNext}
-              onClick={() => setPage((p) => p + 1)}
-              style={{
-                height: 28,
-                padding: "0 var(--space-3)",
-                fontSize: "var(--text-xs, 11px)",
-                fontWeight: 600,
-                color: "var(--color-text-secondary)",
-                background: "var(--color-bg-surface)",
-                border: "1px solid var(--color-border-default)",
-                borderRadius: "var(--radius-sm)",
-                cursor: canNext ? "pointer" : "not-allowed",
-                opacity: canNext ? 1 : 0.45,
-                transition: "all 140ms ease",
-              }}
-            >
+            </Button>
+            <Button intent="ghost" size="sm" disabled={!canNext} onClick={() => setPage((p) => p + 1)}>
               다음
-            </button>
+            </Button>
           </div>
         </div>
       </div>
