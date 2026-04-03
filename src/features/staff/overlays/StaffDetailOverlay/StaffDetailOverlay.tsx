@@ -249,133 +249,80 @@ export default function StaffDetailOverlay() {
 
           <div className="ds-overlay-body">
             <div className="ds-overlay-body__grid">
-              {/* 좌측 — 정보·이번달 요약 (학생 상세와 동일 카드 톤) */}
-              <div
-                style={{
-                  borderRadius: 12,
-                  padding: 16,
-                  background: "var(--bg-surface-soft)",
-                  border: "1px solid var(--color-border-divider)",
-                }}
-              >
-                <div className="ds-overlay-info-rows">
-                  <InfoRow label="계정" value={staff.user_username || "계정 없음"} />
-                  <InfoRow label="전화번호" value={staff.phone} />
-                  <InfoRow
-                    label="급여유형"
-                    value={staff.pay_type === "HOURLY" ? "시급" : "월급"}
-                  />
-                  <InfoRow
-                    label="역할"
-                    value={
-                      (staff as { role?: string }).role === "OWNER"
-                        ? "대표"
-                        : (staff as { role?: string }).role === "TEACHER"
-                          ? "강사"
-                          : "조교"
-                    }
-                  />
-                  <div
-                    className="ds-overlay-info-row"
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "1fr auto",
-                      alignItems: "center",
-                      padding: "6px 10px",
-                      borderRadius: 8,
-                      background: "var(--color-bg-surface)",
-                      border: "1px solid var(--color-border-divider)",
-                      fontSize: 13,
-                    }}
-                  >
-                    <span
-                      style={{
-                        fontWeight: 600,
-                        color: "var(--color-text-muted)",
-                        fontSize: 12,
-                      }}
-                    >
-                      관리자
+              {/* 좌측 — 정보·이번달 요약 (섹션별 그룹화) */}
+              <div className="ds-overlay-sidebar">
+                {/* 기본 정보 섹션 */}
+                <div className="ds-overlay-section">
+                  <div className="ds-overlay-section__title">
+                    <span className="ds-overlay-section__title-icon">
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                     </span>
-                    {canManage ? (
-                      <StaffManagerToggle
-                        staffId={staff.id}
-                        isManager={!!staff.is_manager}
-                      />
-                    ) : (
-                      <span
-                        className="ds-status-badge"
-                        data-status={staff.is_manager ? "active" : "inactive"}
-                      >
-                        {staff.is_manager ? "ON" : "OFF"}
+                    기본 정보
+                  </div>
+                  <div className="ds-overlay-info-rows">
+                    <InfoRow label="계정" value={staff.user_username || "계정 없음"} />
+                    <InfoRow label="전화번호" value={staff.phone} />
+                    <InfoRow label="급여유형" value={staff.pay_type === "HOURLY" ? "시급" : "월급"} />
+                    <InfoRow
+                      label="역할"
+                      value={
+                        (staff as { role?: string }).role === "OWNER"
+                          ? "대표"
+                          : (staff as { role?: string }).role === "TEACHER"
+                            ? "강사"
+                            : "조교"
+                      }
+                    />
+                    <div className="ds-overlay-info-row">
+                      <span className="ds-overlay-info-row__label">관리자</span>
+                      <span className="ds-overlay-info-row__value">
+                        {canManage ? (
+                          <StaffManagerToggle staffId={staff.id} isManager={!!staff.is_manager} />
+                        ) : (
+                          <span className="ds-status-badge" data-status={staff.is_manager ? "active" : "inactive"}>
+                            {staff.is_manager ? "ON" : "OFF"}
+                          </span>
+                        )}
                       </span>
-                    )}
+                    </div>
                   </div>
                 </div>
 
-                <div
-                  style={{
-                    marginTop: 20,
-                    padding: 14,
-                    borderRadius: 12,
-                    background: "var(--color-bg-surface)",
-                    border: "1px solid var(--color-border-divider)",
-                  }}
-                >
-                  <div
-                    style={{
-                      fontSize: 11,
-                      fontWeight: 800,
-                      marginBottom: 10,
-                      color: "var(--color-text-muted)",
-                      letterSpacing: "0.04em",
-                      textTransform: "uppercase",
-                    }}
-                  >
+                {/* 이번달 요약 섹션 */}
+                <div className="ds-overlay-section">
+                  <div className="ds-overlay-section__title">
+                    <span className="ds-overlay-section__title-icon">
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                    </span>
                     이번달 요약
                   </div>
-                  <InfoRow
-                    label="근무시간"
-                    value={`${summary?.work_hours ?? 0} h`}
-                  />
-                  <InfoRow
-                    label="지급액"
-                    value={`${(summary?.total_amount ?? 0).toLocaleString()} 원`}
-                  />
-                  <div
-                    className="ds-overlay-info-row"
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "1fr auto",
-                      alignItems: "center",
-                      padding: "6px 10px",
-                      borderRadius: 8,
-                      background: "var(--color-bg-surface)",
-                      border: "1px solid var(--color-border-divider)",
-                      fontSize: 13,
-                      marginTop: 6,
-                    }}
-                  >
-                    <span
-                      style={{
-                        fontWeight: 600,
-                        color: "var(--color-text-muted)",
-                        fontSize: 12,
-                      }}
-                    >
-                      마감상태
-                    </span>
-                    <div className="flex items-center gap-2">
-                      <LockBadge state={locked ? "LOCKED" : "OPEN"} compact />
-                      <span
-                        className="font-semibold"
-                        style={{
-                          color: locked
-                            ? "var(--color-danger)"
-                            : "var(--color-success)",
-                        }}
-                      >
-                        {locked ? "급여 확정" : "진행중"}
+                  <div className="ds-overlay-stat-grid" style={{ gridTemplateColumns: "1fr 1fr" }}>
+                    <div className="ds-overlay-stat-card">
+                      <div className="ds-overlay-stat-card__label">근무시간</div>
+                      <div className="ds-overlay-stat-card__value ds-overlay-stat-card__value--brand">
+                        {summary?.work_hours ?? 0}<span style={{ fontSize: 12, fontWeight: 600, marginLeft: 2 }}>h</span>
+                      </div>
+                    </div>
+                    <div className="ds-overlay-stat-card">
+                      <div className="ds-overlay-stat-card__label">지급액</div>
+                      <div className="ds-overlay-stat-card__value">
+                        {(summary?.total_amount ?? 0).toLocaleString()}<span style={{ fontSize: 11, fontWeight: 600, marginLeft: 2 }}>원</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="ds-overlay-info-rows" style={{ marginTop: 4 }}>
+                    <div className="ds-overlay-info-row">
+                      <span className="ds-overlay-info-row__label">마감상태</span>
+                      <span className="ds-overlay-info-row__value">
+                        <div className="flex items-center gap-2">
+                          <LockBadge state={locked ? "LOCKED" : "OPEN"} compact />
+                          <span
+                            className="font-semibold"
+                            style={{ color: locked ? "var(--color-danger)" : "var(--color-success)" }}
+                          >
+                            {locked ? "급여 확정" : "진행중"}
+                          </span>
+                        </div>
                       </span>
                     </div>
                   </div>
@@ -383,15 +330,7 @@ export default function StaffDetailOverlay() {
               </div>
 
               {/* 우측 — 탭 + 콘텐츠 (학생 상세와 동일 플랫탭) */}
-              <div
-                style={{
-                  borderRadius: 12,
-                  padding: 16,
-                  background:
-                    "color-mix(in srgb, var(--color-brand-primary) 4%, var(--bg-surface-soft))",
-                  border: "1px solid var(--color-border-divider)",
-                }}
-              >
+              <div className="ds-overlay-content-panel">
                 <div className="ds-overlay-tabs">
                   <div className="ds-tabs ds-tabs--flat" role="tablist">
                     {tabItems.map((t) => (
@@ -446,37 +385,9 @@ function InfoRow({
   accent?: boolean;
 }) {
   return (
-    <div
-      className="ds-overlay-info-row"
-      style={{
-        display: "grid",
-        gridTemplateColumns: "1fr auto",
-        alignItems: "center",
-        padding: "6px 10px",
-        borderRadius: 8,
-        background: accent
-          ? "color-mix(in srgb, var(--color-brand-primary) 10%, var(--color-bg-surface))"
-          : "var(--color-bg-surface)",
-        border: "1px solid var(--color-border-divider)",
-        fontSize: 13,
-      }}
-    >
-      <span
-        style={{
-          fontWeight: 600,
-          color: "var(--color-text-muted)",
-          fontSize: 12,
-        }}
-      >
-        {label}
-      </span>
-      <span
-        style={{
-          fontWeight: 700,
-          color: "var(--color-text-primary)",
-          textAlign: "right",
-        }}
-      >
+    <div className="ds-overlay-info-row">
+      <span className="ds-overlay-info-row__label">{label}</span>
+      <span className={`ds-overlay-info-row__value${accent ? " ds-overlay-info-row__value--accent" : ""}`}>
         {value ?? "-"}
       </span>
     </div>

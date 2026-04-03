@@ -63,7 +63,7 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
   }, [onClose]);
   const [inventoryOpen, setInventoryOpen] = useState(false);
 
-  const { data: student, isLoading } = useQuery({
+  const { data: student, isLoading, isError } = useQuery({
     queryKey: ["student", id],
     queryFn: () => getStudentDetail(id),
     enabled: !!id,
@@ -132,6 +132,26 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
     },
     onError: () => { feedback.error("처리에 실패했습니다."); },
   });
+
+  // 에러 상태 (존재하지 않는 학생 ID 등)
+  if (isError || (!isLoading && !student && !!id)) {
+    return (
+      <>
+        <div className="ds-overlay-backdrop" onClick={onClose} aria-hidden />
+        <div className="ds-overlay-wrap">
+          <div className="ds-overlay-panel ds-overlay-panel--student-detail" onClick={(e) => e.stopPropagation()}>
+            <CloseButton className="ds-overlay-panel__close" onClick={onClose} />
+            <div className="ds-overlay-body" style={{ padding: 24 }}>
+              <EmptyState scope="panel" tone="error" title="학생 정보를 찾을 수 없습니다" description="삭제되었거나 잘못된 학생 ID입니다." />
+              <div style={{ display: "flex", justifyContent: "center", marginTop: 16 }}>
+                <Button intent="secondary" size="sm" onClick={onClose}>닫기</Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </>
+    );
+  }
 
   // 로딩 스켈레톤
   if (isLoading || !student) {
@@ -250,126 +270,88 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
 
           <div className="ds-overlay-body">
             <div className="ds-overlay-body__grid">
-              {/* Left panel — 정보·태그·메모 */}
-              <div
-                style={{
-                  borderRadius: 12,
-                  padding: 16,
-                  background: "var(--bg-surface-soft)",
-                  border: "1px solid var(--color-border-divider)",
-                }}
-              >
-                <div className="ds-overlay-info-rows">
-                  <InfoRow
-                    label="식별코드"
-                    value={formatOmrCode(student.omrCode)}
-                    accent
-                    copyable
-                  />
-                  <InfoRow label="학부모 전화" value={formatPhone(student.parentPhone)} copyable />
-                  <InfoRow
-                    label="학생 전화"
-                    value={formatStudentPhoneDisplay(student.studentPhone)}
-                    copyable
-                  />
-                  <InfoRow label="성별" value={formatGenderDisplay(student.gender)} />
-                  <InfoRow label="학교" value={student.school} />
-                  {student.schoolType === "HIGH" && (
-                    <InfoRow label="출신중학교" value={student.originMiddleSchool} />
-                  )}
-                  <InfoRow
-                    label="학년"
-                    value={student.grade ? `${student.grade}학년` : "-"}
-                  />
-                  <InfoRow label="반" value={student.schoolClass} />
-                  <InfoRow label="계열" value={student.major} />
-                  <InfoRow label="등록일" value={student.registeredAt?.slice(0, 10)} />
+              {/* Left panel — 정보·태그·메모 (섹션별 그룹화) */}
+              <div className="ds-overlay-sidebar">
+                {/* 연락처 섹션 */}
+                <div className="ds-overlay-section">
+                  <div className="ds-overlay-section__title">
+                    <span className="ds-overlay-section__title-icon">
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                    </span>
+                    연락처
+                  </div>
+                  <div className="ds-overlay-info-rows">
+                    <InfoRow label="식별코드" value={formatOmrCode(student.omrCode)} accent copyable />
+                    <InfoRow label="학부모 전화" value={formatPhone(student.parentPhone)} copyable />
+                    <InfoRow label="학생 전화" value={formatStudentPhoneDisplay(student.studentPhone)} copyable />
+                    <InfoRow label="성별" value={formatGenderDisplay(student.gender)} />
+                    <InfoRow label="등록일" value={student.registeredAt?.slice(0, 10)} />
+                  </div>
                 </div>
 
-                <div style={{ marginTop: 20 }}>
-                  <div
-                    style={{
-                      fontSize: 11,
-                      fontWeight: 800,
-                      marginBottom: 8,
-                      color: "var(--color-text-muted)",
-                      letterSpacing: "0.04em",
-                      textTransform: "uppercase",
-                    }}
-                  >
+                {/* 학교 정보 섹션 */}
+                <div className="ds-overlay-section">
+                  <div className="ds-overlay-section__title">
+                    <span className="ds-overlay-section__title-icon">
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+                    </span>
+                    학교 정보
+                  </div>
+                  <div className="ds-overlay-info-rows">
+                    <InfoRow label="학교" value={student.school} />
+                    {student.schoolType === "HIGH" && (
+                      <InfoRow label="출신중학교" value={student.originMiddleSchool} />
+                    )}
+                    <InfoRow label="학년" value={student.grade ? `${student.grade}학년` : "-"} />
+                    <InfoRow label="반" value={student.schoolClass} />
+                    <InfoRow label="계열" value={student.major} />
+                  </div>
+                </div>
+
+                {/* 태그 섹션 */}
+                <div className="ds-overlay-section">
+                  <div className="ds-overlay-section__title">
+                    <span className="ds-overlay-section__title-icon">
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+                    </span>
                     태그
                   </div>
-                  <div className="flex flex-wrap gap-2 mb-3">
+                  <div className="ds-overlay-tags">
                     {student.tags?.length ? (
                       student.tags.map((t: any) => {
                         const c = String(t.color || "").toLowerCase();
                         const lightColors = ["#eab308", "#06b6d4"];
                         const isLight = lightColors.some((x) => c === x);
                         return (
-                        <span
-                          key={t.id}
-                          className="inline-flex items-center gap-1 group cursor-default"
-                          style={{
-                            padding: "6px 10px 6px 12px",
-                            borderRadius: "6px 6px 6px 2px",
-                            fontSize: 12,
-                            fontWeight: 700,
-                            background: t.color,
-                            color: isLight ? "#1a1a1a" : "#fff",
-                            border: "none",
-                            boxShadow: "0 1px 3px rgba(0,0,0,0.15)",
-                            textShadow: isLight ? "none" : "0 0 1px rgba(0,0,0,0.2)",
-                          }}
-                        >
-                          {t.name}
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              removeTag.mutate(t.id);
-                            }}
-                            disabled={removeTag.isPending}
-                            aria-label={`${t.name} 태그 제거`}
+                          <span
+                            key={t.id}
+                            className="ds-overlay-tag"
                             style={{
-                              marginLeft: 4,
-                              padding: 0,
-                              width: 16,
-                              height: 16,
-                              borderRadius: 999,
-                              border: "none",
-                              background: "rgba(0,0,0,0.2)",
-                              color: "#fff",
-                              fontSize: 12,
-                              cursor: removeTag.isPending ? "wait" : "pointer",
-                              display: "grid",
-                              placeItems: "center",
-                              lineHeight: 1,
+                              background: t.color,
+                              color: isLight ? "#1a1a1a" : "#fff",
+                              textShadow: isLight ? "none" : "0 0 1px rgba(0,0,0,0.2)",
                             }}
                           >
-                            ×
-                          </button>
-                        </span>
+                            {t.name}
+                            <button
+                              type="button"
+                              className="ds-overlay-tag__remove"
+                              onClick={(e) => { e.stopPropagation(); removeTag.mutate(t.id); }}
+                              disabled={removeTag.isPending}
+                              aria-label={`${t.name} 태그 제거`}
+                              style={{ cursor: removeTag.isPending ? "wait" : "pointer" }}
+                            >
+                              ×
+                            </button>
+                          </span>
                         );
                       })
                     ) : (
-                      <span
-                        style={{
-                          fontSize: 12,
-                          color: "var(--color-text-muted)",
-                          fontWeight: 600,
-                        }}
-                      >
-                        태그 없음
-                      </span>
+                      <span className="ds-overlay-info-row__label">태그 없음</span>
                     )}
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    <Button
-                      type="button"
-                      intent="primary"
-                      size="sm"
-                      onClick={() => setTagCreateOpen(true)}
-                    >
+                    <Button type="button" intent="primary" size="sm" onClick={() => setTagCreateOpen(true)}>
                       + 태그 추가
                     </Button>
                     {(tags?.filter((t: any) => !student.tags?.some((st: any) => st.id === t.id)).length ?? 0) > 0 && (
@@ -386,40 +368,25 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
                         {tags
                           ?.filter((t: any) => !student.tags?.some((st: any) => st.id === t.id))
                           .map((tag: any) => (
-                            <option key={tag.id} value={tag.id}>
-                              {tag.name}
-                            </option>
+                            <option key={tag.id} value={tag.id}>{tag.name}</option>
                           ))}
                       </select>
                     )}
                   </div>
                 </div>
 
-                <div style={{ marginTop: 20 }}>
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      marginBottom: 8,
-                    }}
-                  >
-                    <span
-                      style={{
-                        fontSize: 11,
-                        fontWeight: 800,
-                        color: "var(--color-text-muted)",
-                        letterSpacing: "0.04em",
-                        textTransform: "uppercase",
-                      }}
-                    >
-                      메모
+                {/* 메모 섹션 */}
+                <div className="ds-overlay-section">
+                  <div className="ds-overlay-section__title" style={{ marginBottom: 8 }}>
+                    <span className="ds-overlay-section__title-icon">
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
                     </span>
+                    메모
                     {updateMemo.isPending && (
-                      <span style={{ fontSize: 11, color: "var(--color-primary)", fontWeight: 600 }}>저장 중...</span>
+                      <span className="ds-overlay-memo__status ds-overlay-memo__status--saving" style={{ marginLeft: "auto" }}>저장 중...</span>
                     )}
                     {updateMemo.isSuccess && !updateMemo.isPending && (
-                      <span style={{ fontSize: 11, color: "var(--color-success)", fontWeight: 600 }}>저장됨</span>
+                      <span className="ds-overlay-memo__status ds-overlay-memo__status--saved" style={{ marginLeft: "auto" }}>저장됨</span>
                     )}
                   </div>
                   <textarea
@@ -428,24 +395,13 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
                     defaultValue={student.memo ?? ""}
                     placeholder="메모를 입력하면 포커스 해제 시 자동 저장됩니다."
                     onBlur={(e) => updateMemo.mutate(e.target.value)}
-                    style={{
-                      fontSize: 13,
-                      borderRadius: 12,
-                      border: "1px solid var(--color-border-divider)",
-                    }}
+                    style={{ fontSize: 13, borderRadius: 10, border: "1px solid var(--color-border-divider)" }}
                   />
                 </div>
               </div>
 
               {/* Right panel — 탭 + 콘텐츠 (페이지형 플랫탭) */}
-              <div
-                style={{
-                  borderRadius: 12,
-                  padding: 16,
-                  background: "color-mix(in srgb, var(--color-brand-primary) 4%, var(--bg-surface-soft))",
-                  border: "1px solid var(--color-border-divider)",
-                }}
-              >
+              <div className="ds-overlay-content-panel">
                 {/* 한눈에 요약 */}
                 <StudentSummaryDashboard
                   enrollments={student.enrollments}
@@ -573,7 +529,7 @@ function InfoRow({
   copyable,
 }: {
   label: string;
-  value: any;
+  value: React.ReactNode;
   accent?: boolean;
   copyable?: boolean;
 }) {
@@ -592,45 +548,15 @@ function InfoRow({
   return (
     <div
       className="ds-overlay-info-row"
-      style={{
-        display: "grid",
-        gridTemplateColumns: "1fr auto",
-        alignItems: "center",
-        padding: "6px 10px",
-        borderRadius: 8,
-        background: accent
-          ? "color-mix(in srgb, var(--color-brand-primary) 10%, var(--color-bg-surface))"
-          : "var(--color-bg-surface)",
-        border: "1px solid var(--color-border-divider)",
-        fontSize: 13,
-        cursor: canCopy ? "pointer" : undefined,
-        transition: "background 0.15s",
-      }}
+      data-copyable={canCopy ? "" : undefined}
       onClick={canCopy ? handleCopy : undefined}
       title={canCopy ? "클릭하여 복사" : undefined}
     >
-      <span
-        style={{
-          fontWeight: 600,
-          color: "var(--color-text-muted)",
-          fontSize: 12,
-        }}
-      >
-        {label}
-      </span>
-      <span
-        style={{
-          fontWeight: 700,
-          color: "var(--color-text-primary)",
-          textAlign: "right",
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 4,
-        }}
-      >
+      <span className="ds-overlay-info-row__label">{label}</span>
+      <span className={`ds-overlay-info-row__value${accent ? " ds-overlay-info-row__value--accent" : ""}`}>
         {displayValue}
         {canCopy && (
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.5 }}>
+          <svg className="ds-overlay-info-row__copy-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
             <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
           </svg>
@@ -704,32 +630,14 @@ function StudentSummaryDashboard({
   ];
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(cards.length, 6)}, 1fr)`, gap: 8, marginBottom: 12 }}>
+    <div className="ds-overlay-stat-grid" style={{ gridTemplateColumns: `repeat(${Math.min(cards.length, 6)}, 1fr)` }}>
       {cards.map((c) => (
-        <div
-          key={c.label}
-          style={{
-            borderRadius: 10,
-            padding: "10px 8px",
-            background: "var(--color-bg-surface)",
-            border: "1px solid var(--color-border-divider)",
-            textAlign: "center",
-          }}
-        >
-          <div style={{ fontSize: 11, fontWeight: 600, color: "var(--color-text-muted)", marginBottom: 4 }}>{c.label}</div>
-          <div
-            style={{
-              fontSize: 17,
-              fontWeight: 800,
-              lineHeight: 1.2,
-              color: c.tone === "success" ? "var(--color-success)" : c.tone === "danger" ? "var(--color-error)" : "var(--color-text-primary)",
-            }}
-          >
+        <div key={c.label} className="ds-overlay-stat-card">
+          <div className="ds-overlay-stat-card__label">{c.label}</div>
+          <div className={`ds-overlay-stat-card__value${c.tone === "success" ? " ds-overlay-stat-card__value--success" : c.tone === "danger" ? " ds-overlay-stat-card__value--danger" : ""}`}>
             {c.value}
           </div>
-          {c.sub && (
-            <div style={{ fontSize: 10, fontWeight: 500, color: "var(--color-text-muted)", marginTop: 2 }}>{c.sub}</div>
-          )}
+          {c.sub && <div className="ds-overlay-stat-card__sub">{c.sub}</div>}
         </div>
       ))}
     </div>

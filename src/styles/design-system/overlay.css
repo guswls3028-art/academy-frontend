@@ -341,10 +341,218 @@
   align-items: start;
 }
 
-/* 좌측 정보 행 — 타이트한 위아래 간격 */
+@media (max-width: 768px) {
+  .ds-overlay-body__grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── 좌측 사이드바 — 섹션 그룹 컨테이너 ── */
+.ds-overlay-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+/* ── 섹션 — 정보 그룹 카드 ── */
+.ds-overlay-section {
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-divider);
+}
+
+.ds-overlay-section__title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--color-text-secondary);
+  letter-spacing: 0.02em;
+  margin-bottom: var(--space-3);
+  padding-bottom: var(--space-2);
+  border-bottom: 2px solid color-mix(in srgb, var(--color-brand-primary) 20%, var(--color-border-divider));
+}
+
+.ds-overlay-section__title-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--color-brand-primary) 12%, transparent);
+  color: var(--color-brand-primary);
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+/* ── 정보 행 (개선) — 그룹 내 구분선, 개별 border 제거 ── */
 .ds-overlay-info-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.ds-overlay-info-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  padding: 8px 2px;
+  font-size: 13px;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border-divider) 50%, transparent);
+  transition: background 0.12s;
+}
+
+.ds-overlay-info-row:last-child {
+  border-bottom: none;
+}
+
+.ds-overlay-info-row:hover {
+  background: color-mix(in srgb, var(--color-brand-primary) 4%, transparent);
+  border-radius: var(--radius-sm);
+}
+
+.ds-overlay-info-row[data-copyable]:hover {
+  cursor: pointer;
+}
+
+.ds-overlay-info-row__label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.ds-overlay-info-row__value {
+  font-weight: 700;
+  color: var(--color-text-primary);
+  text-align: right;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ds-overlay-info-row__value--accent {
+  color: var(--color-brand-primary);
+  font-weight: 800;
+}
+
+.ds-overlay-info-row__copy-icon {
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.ds-overlay-info-row:hover .ds-overlay-info-row__copy-icon {
+  opacity: 0.5;
+}
+
+/* ── 통계 카드 그리드 — 대시보드 요약 ── */
+.ds-overlay-stat-grid {
   display: grid;
   gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+
+.ds-overlay-stat-card {
+  border-radius: var(--radius-lg);
+  padding: 14px 12px;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-divider);
+  text-align: center;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.ds-overlay-stat-card:hover {
+  border-color: color-mix(in srgb, var(--color-brand-primary) 25%, var(--color-border-divider));
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.ds-overlay-stat-card__label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  margin-bottom: 6px;
+  letter-spacing: 0.01em;
+}
+
+.ds-overlay-stat-card__value {
+  font-size: 20px;
+  font-weight: 900;
+  line-height: 1.1;
+  color: var(--color-text-primary);
+  letter-spacing: -0.02em;
+}
+
+.ds-overlay-stat-card__value--success { color: var(--color-success); }
+.ds-overlay-stat-card__value--danger { color: var(--color-error); }
+.ds-overlay-stat-card__value--brand { color: var(--color-brand-primary); }
+
+.ds-overlay-stat-card__sub {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  margin-top: 4px;
+}
+
+/* ── 태그 영역 ── */
+.ds-overlay-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.ds-overlay-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px 5px 12px;
+  border-radius: 6px 6px 6px 2px;
+  font-size: 12px;
+  font-weight: 700;
+  border: none;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  cursor: default;
+}
+
+.ds-overlay-tag__remove {
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  margin-left: 2px;
+  border-radius: 999px;
+  border: none;
+  background: rgba(0, 0, 0, 0.2);
+  color: #fff;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.ds-overlay-tag__remove:hover {
+  background: rgba(0, 0, 0, 0.35);
+}
+
+/* ── 메모 영역 ── */
+.ds-overlay-memo {
+  position: relative;
+}
+
+.ds-overlay-memo__status {
+  font-size: 11px;
+  font-weight: 600;
+}
+.ds-overlay-memo__status--saving { color: var(--color-brand-primary); }
+.ds-overlay-memo__status--saved { color: var(--color-success); }
+
+/* ── 우측 콘텐츠 패널 ── */
+.ds-overlay-content-panel {
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  background: color-mix(in srgb, var(--color-brand-primary) 3%, var(--color-bg-surface));
+  border: 1px solid var(--color-border-divider);
 }
 
 /* 오버레이 내 탭 — 페이지 플랫탭과 동일 */
