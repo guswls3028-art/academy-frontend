@@ -84,9 +84,9 @@ const CATEGORY_BLOCKS: Record<string, TemplateBlock[]> = {
     // ── 공통 ──
     ...COMMON, B.student_name, B.lecture_name, B.session_name,
     // ── 목록형 변수 (시험/과제 개수에 맞게 자동 렌더링 — 간단 양식에 추천) ──
-    { id: "exam_list",    label: "📋 시험 목록",  insertText: "#{시험목록}",  previewValue: "- 단원평가: 92/100 (92%) 합격\n- 쪽지시험: 45/50 (90%) 합격" },
-    { id: "hw_list",      label: "📋 과제 목록",  insertText: "#{과제목록}",  previewValue: "- 복습과제: 90/100 (90%)" },
-    { id: "full_summary", label: "📋 전체 요약",  insertText: "#{전체요약}",  previewValue: "시험: 2/2 합격 (평균 91점)\n과제: 1/1 완료\n최종: 합격" },
+    { id: "exam_list",    label: "시험 목록",  insertText: "#{시험목록}",  previewValue: "- 단원평가: 92/100 (92%) 합격\n- 쪽지시험: 45/50 (90%) 합격" },
+    { id: "hw_list",      label: "과제 목록",  insertText: "#{과제목록}",  previewValue: "- 복습과제: 90/100 (90%)" },
+    { id: "full_summary", label: "전체 요약",  insertText: "#{전체요약}",  previewValue: "시험: 2/2 합격 (평균 91점)\n과제: 1/1 완료\n최종: 합격" },
     // ── 요약 수치 ──
     { id: "exam_total",     label: "시험 총점",     insertText: "#{시험총점}",   previewValue: "285" },
     { id: "exam_total_max", label: "시험 총만점",   insertText: "#{시험총만점}", previewValue: "350" },

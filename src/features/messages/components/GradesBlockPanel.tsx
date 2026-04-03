@@ -95,11 +95,11 @@ export default function GradesBlockPanel({
       <div style={TAG_ROW}>{commonBlocks.map(renderTag)}</div>
 
       {/* 목록형 (추천) */}
-      <div style={GROUP_LABEL}>📋 자동 생성 (시험/과제 개수에 맞게)</div>
+      <div style={GROUP_LABEL}>자동 목록 — 시험/과제 개수에 맞게 자동 생성됩니다</div>
       <div style={TAG_ROW}>{listBlocks.map(renderTag)}</div>
 
       {/* 시험/과제 동적 추가 */}
-      <div style={GROUP_LABEL}>시험 / 과제 개별 추가</div>
+      <div style={GROUP_LABEL}>개별 추가</div>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
         <button
           type="button"

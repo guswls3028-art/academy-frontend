@@ -329,10 +329,11 @@ function TemplatePickerCard({
           )}
         </div>
         <div style={{
-          fontSize: 11, color: "var(--color-text-muted)", lineHeight: 1.4,
+          fontSize: 11.5, color: "var(--color-text-secondary)", lineHeight: 1.5,
           overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
+          opacity: 0.8,
         }}>
-          {t.body.slice(0, 100)}
+          {t.body.replace(/#\{[^}]+\}/g, "•").slice(0, 80)}
         </div>
       </button>
 
@@ -342,7 +343,9 @@ function TemplatePickerCard({
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); setMenuOpen(!menuOpen); }}
-            style={{ padding: "4px 6px", border: "none", background: "transparent", cursor: "pointer", borderRadius: 4, color: "var(--color-text-muted)", fontSize: 16, lineHeight: 1 }}
+            style={{ padding: "6px 8px", border: "none", background: "transparent", cursor: "pointer", borderRadius: 6, color: "var(--color-text-muted)", fontSize: 18, lineHeight: 1, transition: "background 0.15s" }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = "var(--color-bg-surface-soft)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
           >
             ⋯
           </button>
@@ -931,9 +934,9 @@ export default function SendMessageModal({
               <>
                 {/* ── 양식 요약 바 ── */}
                 <div style={{
-                  display: "flex", alignItems: "center", gap: 8, padding: "8px 12px",
-                  borderRadius: "var(--radius-md)", background: "var(--color-bg-surface-soft)",
-                  border: "1px solid var(--color-border-divider)", minHeight: 40,
+                  display: "flex", alignItems: "center", gap: 10, padding: "10px 14px",
+                  borderRadius: 10, background: "color-mix(in srgb, var(--color-primary) 4%, var(--color-bg-surface))",
+                  border: "1px solid color-mix(in srgb, var(--color-primary) 15%, var(--color-border-divider))", minHeight: 44,
                 }}>
                   {/* 왼쪽: 양식 정보 */}
                   <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 6 }}>
@@ -953,7 +956,7 @@ export default function SendMessageModal({
                         )}
                       </>
                     ) : (
-                      <span style={{ fontSize: 12, color: "var(--color-text-muted)", fontWeight: 500 }}>양식 없이 직접 작성 중</span>
+                      <span style={{ fontSize: 12, color: "var(--color-text-secondary)", fontWeight: 500 }}>직접 작성 중 — 양식을 선택하거나 그대로 발송하세요</span>
                     )}
                   </div>
 
@@ -1008,8 +1011,8 @@ export default function SendMessageModal({
                         color: "var(--color-text-primary)", transition: "all 0.15s",
                       }}
                     >
-                      <FiEdit3 size={13} style={{ color: "var(--color-text-muted)", flexShrink: 0 }} />
-                      직접 입력 (양식 없이 자유 작성)
+                      <FiEdit3 size={14} style={{ color: selectedTemplateId == null ? "var(--color-primary)" : "var(--color-text-muted)", flexShrink: 0 }} />
+                      직접 작성하기
                     </button>
 
                     {/* 기본 양식 섹션 */}
@@ -1104,11 +1107,11 @@ export default function SendMessageModal({
 
                 {/* ── 변수 블록 삽입 ── */}
                 <div style={{
-                  padding: "10px 12px", borderRadius: "var(--radius-md)",
-                  background: "var(--color-bg-surface-soft)",
+                  padding: "12px 14px", borderRadius: 10, marginTop: 4,
+                  background: "color-mix(in srgb, var(--color-bg-surface-soft) 80%, var(--color-bg-surface))",
                   border: "1px solid var(--color-border-divider)",
                 }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: "var(--color-text-muted)", marginBottom: 6 }}>변수 삽입</div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: "var(--color-text-secondary)", marginBottom: 8 }}>변수 삽입 — 클릭하면 본문에 추가됩니다</div>
                   {blockCategory === "grades" ? (
                     <GradesBlockPanel blocks={blocks} onInsert={insertBlock} disabled={sending} currentBody={body} />
                   ) : (
