@@ -7,7 +7,7 @@ import api from "@/shared/api/axios";
 import SessionCreateModal from "./SessionCreateModal";
 import { useLectureParams } from "../hooks/useLectureParams";
 import { sortSessionsByDateDesc } from "../api/sessions";
-import { SessionBlockView, isSupplement } from "@/shared/ui/session-block";
+import { SessionBlockView, isSupplement, formatSessionOrderLabel } from "@/shared/ui/session-block";
 
 export default function SessionBar() {
   const { lectureId } = useLectureParams();
@@ -48,7 +48,7 @@ export default function SessionBar() {
               compact
               to={`sessions/${s.id}`}
               selected={active}
-              title={`${s.order ?? "?"}차시`}
+              title={formatSessionOrderLabel(s.order, s.title)}
               desc={s.date || "-"}
             />
           );

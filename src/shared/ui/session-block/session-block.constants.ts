@@ -22,3 +22,23 @@ export type SessionBlockVariant = "n1" | "supplement" | "add";
 export function isSupplement(title: string | null | undefined): boolean {
   return Boolean(title?.includes?.("보강"));
 }
+
+/**
+ * 차시 표시 SSOT — "1", "2" 같은 숫자만이 아니라 항상 `N차시` 형태 (보강은 "보강").
+ * - order가 있으면 우선 `${order}차시`
+ * - order 없고 title이 순수 숫자면 `${title}차시`
+ * - 그 외 비보강 커스텀 제목은 title 그대로
+ */
+export function formatSessionOrderLabel(
+  order: number | null | undefined,
+  title?: string | null
+): string {
+  if (isSupplement(title)) return "보강";
+  if (order != null && Number.isFinite(Number(order)) && Number(order) > 0) {
+    return `${Number(order)}차시`;
+  }
+  const t = (title ?? "").trim();
+  if (/^\d+$/.test(t)) return `${t}차시`;
+  if (t) return t;
+  return "-차시";
+}

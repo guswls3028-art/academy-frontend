@@ -4,7 +4,7 @@
 import { useState, useCallback } from "react";
 import { ChevronRight, ClipboardList, Folder, FolderOpen } from "lucide-react";
 import LectureChip from "@/shared/ui/chips/LectureChip";
-import { isSupplement } from "@/shared/ui/session-block/session-block.constants";
+import { isSupplement, formatSessionOrderLabel } from "@/shared/ui/session-block/session-block.constants";
 
 interface CmsTreeNavProps {
   title: string;
@@ -187,7 +187,7 @@ export default function CmsTreeNav({
                               ·
                             </span>
                             <span className="notice-tree__sub-label">
-                              {s.title || `${s.order}차시`}
+                              {formatSessionOrderLabel(s.order, s.title)}
                             </span>
                             {sessionCount > 0 && (
                               <span

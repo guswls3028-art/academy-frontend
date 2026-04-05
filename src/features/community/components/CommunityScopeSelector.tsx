@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useCommunityScope } from "../context/CommunityScopeContext";
 import { fetchLectures } from "@/features/lectures/api/sessions";
 import { fetchSessions } from "@/features/lectures/api/sessions";
+import { formatSessionOrderLabel } from "@/shared/ui/session-block";
 import "@/features/community/community.css";
 
 export default function CommunityScopeSelector() {
@@ -75,8 +76,7 @@ export default function CommunityScopeSelector() {
           {[...sessions]
             .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
             .map((s) => {
-              const isSupplement = (s.title ?? "").includes("보강");
-              const label = isSupplement ? "보강" : `${s.order}차시`;
+              const label = formatSessionOrderLabel(s.order, s.title);
               const dateStr = s.date ? ` (${new Date(s.date).toLocaleDateString("ko-KR", { month: "2-digit", day: "2-digit" })})` : "";
               return (
                 <option key={s.id} value={s.id}>

@@ -20,6 +20,7 @@ import type { TableColumnDef } from "@/shared/ui/domain";
 import { formatPhone } from "@/shared/utils/formatPhone";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useSendMessageModal } from "@/features/messages/context/SendMessageModalContext";
+import { formatSessionOrderLabel } from "@/shared/ui/session-block";
 
 const LECTURE_STUDENTS_FIXED_COLUMNS: TableColumnDef[] = [
   { key: "name", label: "이름", defaultWidth: STUDENTS_TABLE_COL.name, minWidth: 80 },
@@ -327,7 +328,7 @@ export default function LectureStudentsPage() {
                           onWidthChange={setColumnWidth}
                           className="text-center"
                           style={{ paddingLeft: 0, paddingRight: 0 }}
-                          title={`${s.order ?? "-"}차시${s.date ? ` (${s.date})` : ""}`}
+                          title={`${formatSessionOrderLabel(s.order, s.title)}${s.date ? ` (${s.date})` : ""}`}
                         >
                           {s.order ?? "-"}차
                         </ResizableTh>

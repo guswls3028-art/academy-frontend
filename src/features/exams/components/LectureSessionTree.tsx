@@ -3,6 +3,7 @@
 import { FolderOpen } from "lucide-react";
 import type { Lecture } from "@/features/lectures/api/sessions";
 import type { Session } from "@/features/lectures/api/sessions";
+import { formatSessionOrderLabel } from "@/shared/ui/session-block";
 import styles from "./LectureSessionTree.module.css";
 
 type LectureWithSessions = Lecture & { sessions?: Session[] };
@@ -14,9 +15,7 @@ type Props = {
 };
 
 function formatSessionTitle(s: Session): string {
-  const title = (s.title ?? "").trim();
-  const isSupplement = title.includes("보강");
-  const label = isSupplement ? "보강" : `${s.order ?? 0}차시`;
+  const label = formatSessionOrderLabel(s.order, s.title);
   const date = s.date ? new Date(s.date).toLocaleDateString("ko-KR", { month: "2-digit", day: "2-digit" }) : "";
   return date ? `${label} ${date}` : label;
 }

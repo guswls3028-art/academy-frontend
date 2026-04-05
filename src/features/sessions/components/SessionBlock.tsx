@@ -9,7 +9,7 @@ import { Plus, Settings } from "lucide-react";
 
 import { fetchSessions, sortSessionsByDateDesc, updateSession, deleteSession } from "@/features/lectures/api/sessions";
 import SessionCreateModal from "@/features/lectures/components/SessionCreateModal";
-import { SessionBlockView, isSupplement } from "@/shared/ui/session-block";
+import { SessionBlockView, isSupplement, formatSessionOrderLabel } from "@/shared/ui/session-block";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useConfirm } from "@/shared/ui/confirm";
 
@@ -24,11 +24,9 @@ type SessionItem = { id: number; order?: number; date?: string | null; title?: s
 /** 차시 블록 우상단 톱니바퀴 → 수정/삭제 팝오버 (createPortal로 body에 렌더) */
 function SessionGearMenu({
   session,
-  lectureId,
   onDone,
 }: {
   session: SessionItem;
-  lectureId: number;
   onDone: () => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -250,7 +248,7 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
                     variant={supplement ? "supplement" : "n1"}
                     compact
                     selected={isActive}
-                    title={supplement ? "보강" : `${s.order ?? "-"}차시`}
+                    title={formatSessionOrderLabel(s.order, s.title)}
                     desc={s.date ?? "-"}
                     onClick={() =>
                       navigate(`/admin/lectures/${lectureId}/sessions/${s.id}`)
@@ -258,7 +256,6 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
                   />
                   <SessionGearMenu
                     session={s}
-                    lectureId={lectureId}
                     onDone={() => {
                       invalidate();
                       // 삭제된 세션이 현재 세션이면 강의 페이지로 이동

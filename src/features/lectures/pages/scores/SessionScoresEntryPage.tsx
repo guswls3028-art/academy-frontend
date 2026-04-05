@@ -38,6 +38,7 @@ import { fetchAdminSessionExams } from "@/features/results/api/adminSessionExams
 import ScorePrintPreviewModal from "@/features/scores/components/ScorePrintPreviewModal";
 import ClinicPrintPreviewModal from "@/features/scores/components/ClinicPrintPreviewModal";
 import { fetchAttendance } from "@/features/lectures/api/attendance";
+import { formatSessionOrderLabel } from "@/shared/ui/session-block";
 import "./SessionScoresEntryPage.css";
 
 type Props = {
@@ -113,8 +114,9 @@ export default function SessionScoresEntryPage(_props: Props) {
     return map;
   }, [attendanceForPdf]);
 
-  const sessionTitle = sessionData?.title
-    || (sessionData?.order != null ? `${sessionData.order}차시` : `차시 #${numericSessionId}`);
+  const sessionTitle = sessionData
+    ? formatSessionOrderLabel(sessionData.order, sessionData.title)
+    : `차시 #${numericSessionId}`;
   const lectureTitle = lectureData?.title || "강의";
 
   // 더보기 메뉴 외부 클릭 닫기

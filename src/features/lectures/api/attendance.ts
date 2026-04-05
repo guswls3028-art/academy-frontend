@@ -122,6 +122,8 @@ export type AttendanceMatrixSession = {
   id: number;
   order: number | null;
   date: string | null;
+  /** 있으면 표시용 (숫자-only 레거시 제목 등) */
+  title?: string | null;
 };
 
 export type AttendanceMatrixStudent = {

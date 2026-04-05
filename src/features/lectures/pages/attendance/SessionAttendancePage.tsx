@@ -31,6 +31,7 @@ import { fetchMessageTemplates } from "@/features/messages/api/messages.api";
 import { substituteScoreVars, generateScoreReport, buildScoreDetail } from "@/features/scores/utils/generateScoreReport";
 import { fetchSessionScores } from "@/features/scores/api/sessionScores";
 import NotificationPreviewModal from "@/features/messages/components/NotificationPreviewModal";
+import { formatSessionOrderLabel } from "@/shared/ui/session-block";
 import "./attendance-ui.css";
 
 const STATUS_LIST = ORDERED_ATTENDANCE_STATUS;
@@ -670,7 +671,7 @@ export default function SessionAttendancePage({
                           background: isCurrent ? "color-mix(in srgb, var(--color-brand-primary) 7%, var(--color-bg-surface))" : undefined,
                           boxShadow: isCurrent ? "inset 0 -2.5px 0 var(--color-brand-primary)" : undefined,
                         }}
-                        title={`${ms.order ?? "-"}차시${ms.date ? ` (${ms.date})` : ""}`}
+                        title={`${formatSessionOrderLabel(ms.order, ms.title)}${ms.date ? ` (${ms.date})` : ""}`}
                       >
                         {ms.order ?? "-"}
                       </th>

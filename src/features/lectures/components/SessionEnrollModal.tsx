@@ -22,6 +22,7 @@ import { formatPhone } from "@/shared/utils/formatPhone";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { asyncStatusStore } from "@/shared/ui/asyncStatus";
 import { useSchoolLevelMode } from "@/shared/hooks/useSchoolLevelMode";
+import { formatSessionOrderLabel } from "@/shared/ui/session-block";
 
 const PAGE_SIZE = 100;
 /** 탭 디자인 유지. '신규 학생 추가' 클릭 시 탭 전환 없이 학생추가 모달만 연다 */
@@ -977,13 +978,13 @@ export default function SessionEnrollModal({
                       className="w-full font-semibold flex-1 min-w-0"
                       disabled={!prevSession || copyFromPrevLoading}
                       onClick={() => prevSession && handleCopyFromPrevToSelection()}
-                      title={prevSession ? `직전 차시(${prevSession.order ?? "?"}차시) 수강생을 선택 목록에만 넣습니다.` : undefined}
-                      aria-label={prevSession ? `직전 차시 ${prevSession.order ?? "?"}차시 수강생 선택 목록에 추가` : "직전 차시에서 (1차시는 해당 없음)"}
+                      title={prevSession ? `직전 차시(${formatSessionOrderLabel(prevSession.order, prevSession.title)}) 수강생을 선택 목록에만 넣습니다.` : undefined}
+                      aria-label={prevSession ? `직전 차시 ${formatSessionOrderLabel(prevSession.order, prevSession.title)} 수강생 선택 목록에 추가` : "직전 차시에서 (1차시는 해당 없음)"}
                     >
                       {copyFromPrevLoading
                         ? "직전 차시에서 가져오는 중…"
                         : prevSession
-                          ? `직전 차시(${prevSession.order ?? "?"}차시)에서 불러오기`
+                          ? `직전 차시(${formatSessionOrderLabel(prevSession.order, prevSession.title)})에서 불러오기`
                           : "직전 차시에서 불러오기"}
                     </Button>
                     <span

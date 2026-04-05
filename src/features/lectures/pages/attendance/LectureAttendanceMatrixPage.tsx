@@ -15,6 +15,7 @@ import { DomainListToolbar, DomainTable, STUDENTS_TABLE_COL, ResizableTh, useTab
 import type { TableColumnDef } from "@/shared/ui/domain";
 import { formatPhone } from "@/shared/utils/formatPhone";
 import { useMemo } from "react";
+import { formatSessionOrderLabel } from "@/shared/ui/session-block";
 
 const LECTURE_ATTENDANCE_MATRIX_COLUMNS: TableColumnDef[] = [
   { key: "name", label: "이름", defaultWidth: STUDENTS_TABLE_COL.name, minWidth: 80 },
@@ -144,7 +145,7 @@ export default function LectureAttendanceMatrixPage() {
                       color: "var(--color-text-muted)",
                       borderLeft: idx === 0 ? "1px solid var(--color-border-divider)" : undefined,
                     }}
-                    title={`${s.order ?? "-"}차시${s.date ? ` (${s.date})` : ""}`}
+                    title={`${formatSessionOrderLabel(s.order, s.title)}${s.date ? ` (${s.date})` : ""}`}
                   >
                     {s.order ?? "-"}
                   </th>

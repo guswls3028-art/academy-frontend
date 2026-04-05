@@ -8,6 +8,7 @@ import SessionCreateModal from "../../components/SessionCreateModal";
 import { EmptyState, Button } from "@/shared/ui/ds";
 import { DomainListToolbar, DomainTable, TABLE_COL, ResizableTh, useTableColumnPrefs } from "@/shared/ui/domain";
 import type { TableColumnDef } from "@/shared/ui/domain";
+import { formatSessionOrderLabel } from "@/shared/ui/session-block";
 
 const LECTURE_SESSIONS_COLUMN_DEFS: TableColumnDef[] = [
   { key: "order", label: "차시", defaultWidth: TABLE_COL.mediumAlt, minWidth: 60 },
@@ -260,7 +261,7 @@ export default function LectureSessionsPage() {
                         checked={selectedSet.has(s.id)}
                         onChange={() => toggleSelect(s.id)}
                         onClick={(e) => e.stopPropagation()}
-                        aria-label={`${s.title} 선택`}
+                        aria-label={`${formatSessionOrderLabel(s.order, s.title)} 선택`}
                         className="cursor-pointer"
                       />
                     </td>
@@ -270,7 +271,7 @@ export default function LectureSessionsPage() {
                         style={{ color: "inherit", textDecoration: "none" }}
                         onClick={(e) => e.stopPropagation()}
                       >
-                        {s.order ?? "-"}차시
+                        {formatSessionOrderLabel(s.order, s.title)}
                       </Link>
                     </td>
                     <td className="text-[14px] text-[var(--color-text-secondary)] truncate">

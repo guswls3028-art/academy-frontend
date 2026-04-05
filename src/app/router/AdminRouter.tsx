@@ -171,7 +171,7 @@ export default function AdminRouter() {
             </SendMessageModalProvider>
           }
         >
-          <Route index element={<SessionDetailPage />} />
+          <Route index element={<Navigate to="attendance" replace />} />
           <Route path="attendance" element={<SessionDetailPage />} />
           <Route path="scores" element={<SessionDetailPage />} />
           <Route path="exams" element={<SessionDetailPage />} />
