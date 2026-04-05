@@ -176,6 +176,18 @@ export default function ClinicPrintoutPage() {
     const readNames = (field: string): string[] => {
       const el = doc.querySelector(`[data-field="${field}"]`);
       if (!el) return [];
+      // name-cell 단위로 읽어야 함 — innerText + split("\n")은
+      // display:flex 내부의 <span class="suffix">가 별도 줄로 분리되는 버그 발생
+      const cells = el.querySelectorAll(".name-cell, .name-row.single");
+      if (cells.length > 0) {
+        const names: string[] = [];
+        cells.forEach((cell) => {
+          const t = (cell.textContent || "").replace(/☐/g, "").trim();
+          if (t) names.push(t);
+        });
+        return names;
+      }
+      // 사용자가 contenteditable에서 직접 편집한 경우 fallback
       const text = (el as HTMLElement).innerText || el.textContent || "";
       return text.split("\n").map((l: string) => l.replace(/☐/g, "").trim()).filter(Boolean);
     };
