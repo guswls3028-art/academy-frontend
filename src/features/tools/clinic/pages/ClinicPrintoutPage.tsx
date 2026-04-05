@@ -55,7 +55,7 @@ function buildEditableHtml(p: {
     [contenteditable]:focus { outline: 2px solid #3b82f6; outline-offset: 2px; border-radius: 4px; background: #fefce8; }
     .sub [contenteditable] { display: inline; min-width: 40px; }
     [data-placeholder]:empty:before { content: attr(data-placeholder); color: #94a3b8; font-style: italic; }
-    .name-list[contenteditable] { min-height: 40px; cursor: text; font-size: 20px; font-weight: 800; color: #0f172a; text-align: center; line-height: 1.3; letter-spacing: 0.5px; }
+    .name-list[contenteditable] { min-height: 40px; cursor: text; font-size: 20px; font-weight: 800; color: #0f172a; text-align: center; line-height: 1.3; }
     .name-list[contenteditable]:empty:before { content: "해당 없음"; color: #94a3b8; font-size: 14px; font-weight: 500; padding: 7px 8px; display: flex; align-items: center; justify-content: center; }
     .name-list[contenteditable] div { padding: 7px 8px; border-bottom: 1px solid #f1f5f9; }
   `;

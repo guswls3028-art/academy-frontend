@@ -90,31 +90,31 @@ export const BASE_STYLE = `
   .name-row:last-child { border-bottom: none; }
   .name-row:nth-child(even) { background: #f8fafc; }
 
-  /* 1명/줄 (15명 이하): 큰 글씨 */
+  /* 1명/줄 (15명 이하): 큰 글씨 — inline layout (flex 사용 금지: A/B 분리·간격 버그) */
   .name-row.single {
-    display: flex; align-items: center; justify-content: center;
-    padding: 7px 8px;
-    font-size: 20px; font-weight: 800;
-    color: #0f172a; gap: 5px; letter-spacing: 0.5px;
-    line-height: 1.3; white-space: nowrap;
-  }
-
-  /* 2명/줄 (16명 이상) */
-  .name-cell {
-    flex: 1; display: flex; align-items: center; justify-content: center;
     padding: 7px 8px;
     font-size: 20px; font-weight: 800;
     color: #0f172a;
-    gap: 5px; letter-spacing: 0.5px;
+    line-height: 1.3; white-space: nowrap;
+    text-align: center;
+  }
+
+  /* 2명/줄 (16명 이상) — inline layout */
+  .name-cell {
+    flex: 1;
+    padding: 7px 8px;
+    font-size: 20px; font-weight: 800;
+    color: #0f172a;
     line-height: 1.3;
     white-space: nowrap;
+    text-align: center;
   }
   .name-cell .suffix, .name-row.single .suffix {
     font-size: 14px; font-weight: 700; color: #64748b;
   }
 
   .checkbox {
-    font-size: 16px; color: #cbd5e1; margin-right: 8px;
+    font-size: 16px; color: #cbd5e1; margin-right: 4px;
     font-weight: 400; line-height: 1;
   }
   .highlight { background: #fefce8 !important; }
