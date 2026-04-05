@@ -80,7 +80,6 @@ test-results/
 playwright-report/
 e2e/.auth/
 e2e/screenshots/
-e2e/fixtures/
 .env.e2e
 .env.local
 

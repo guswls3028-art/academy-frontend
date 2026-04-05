@@ -1,7 +1,6 @@
 // 사이드바 전메뉴 순회 — URL 변경 + 콘텐츠 렌더링 + 콘솔 에러 전수 확인
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures/strictTest";
 import { loginViaUI, getBaseUrl } from "./helpers/auth";
-import { attachStrictBrowserGuards } from "./helpers/strictBrowser";
 
 const MENUS = [
   { href: "/admin/students", name: "학생", contentSelector: "table, .student" },
@@ -21,7 +20,6 @@ const MENUS = [
 
 test("production: full sidebar menu verification with content check", async ({ page }) => {
   test.setTimeout(240_000);
-  const strict = attachStrictBrowserGuards(page);
 
   await loginViaUI(page, "admin");
   await page.waitForSelector(".sidebar .nav-item", { timeout: 15000 });
@@ -107,12 +105,9 @@ test("production: full sidebar menu verification with content check", async ({ p
     `사이드바 메뉴 실패: ${failures.map((f) => `${f.name}(${f.error})`).join("; ")}`
   ).toHaveLength(0);
   expect(results.every((r) => r.urlOk && r.contentLoaded && r.mainHasContent)).toBe(true);
-
-  strict.assertZeroDefects();
 });
 
 test("production: click same menu twice check", async ({ page }) => {
-  const strict = attachStrictBrowserGuards(page);
   await loginViaUI(page, "admin");
   await page.waitForSelector(".sidebar .nav-item", { timeout: 15000 });
 
@@ -135,12 +130,10 @@ test("production: click same menu twice check", async ({ page }) => {
   console.log("Third click (different menu):", url3);
 
   expect(url3).toContain("/clinic");
-  strict.assertZeroDefects();
 });
 
 test("production: verify AdminRouter routes exist", async ({ page }) => {
   test.setTimeout(180_000);
-  const strict = attachStrictBrowserGuards(page);
   const base = getBaseUrl("admin");
   await loginViaUI(page, "admin");
   await page.waitForTimeout(3000);
@@ -174,5 +167,4 @@ test("production: verify AdminRouter routes exist", async ({ page }) => {
   }
 
   expect(problems, problems.join("\n")).toEqual([]);
-  strict.assertZeroDefects();
 });

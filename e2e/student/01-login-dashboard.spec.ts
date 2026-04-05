@@ -1,8 +1,8 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "../fixtures/strictTest";
 import { loginViaUI } from "../helpers/auth";
 
 test.describe("학생 로그인 → 대시보드", () => {
-  test("tchul 학생이 로그인하면 학생 대시보드가 표시된다", async ({ page }) => {
+  test("hakwonplus 테넌트 학생이 로그인하면 학생 대시보드가 표시된다", async ({ page }) => {
     await loginViaUI(page, "student");
     expect(page.url()).toContain("/student");
     // 학생 앱 탭바가 보이는지
