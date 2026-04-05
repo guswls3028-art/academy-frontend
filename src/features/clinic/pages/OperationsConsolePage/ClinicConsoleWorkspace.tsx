@@ -48,6 +48,8 @@ import {
 } from "../../api/clinicLinks.api";
 import { updateAdminExam } from "@/features/exams/api/adminExam";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { useAutoSendConfig } from "@/features/messages/hooks/useAutoSendConfig";
+import { Bell, BellOff } from "lucide-react";
 import ClinicTargetSelectModal from "../../components/ClinicTargetSelectModal";
 import type { ClinicTargetSelectResult } from "../../components/ClinicTargetSelectModal";
 import { buildParticipantPayload } from "../../utils/buildParticipantPayload";
@@ -158,6 +160,7 @@ export default function ClinicConsoleWorkspace({
   // Prevent double-click on remediation actions (resolve/waive/carryover/retake)
   const [remediatingLinkIds, setRemediatingLinkIds] = useState<Set<number>>(new Set());
 
+  const { configs: autoSendConfigs } = useAutoSendConfig();
   const { data: clinicTargets } = useClinicTargets();
 
   // Build enrollment_id → ClinicTarget[] map for O(1) lookup
@@ -567,6 +570,42 @@ export default function ClinicConsoleWorkspace({
             )}
           </div>
         )}
+
+        {/* ═══ 알림 트리거 상태 — ON/OFF 인디케이터 ═══ */}
+        {!isLoading && session && (() => {
+          const CLINIC_TRIGGERS = [
+            { key: "clinic_reservation_created", label: "예약 완료" },
+            { key: "clinic_check_in", label: "입실" },
+            { key: "clinic_check_out", label: "퇴실" },
+            { key: "clinic_absent", label: "결석" },
+            { key: "clinic_self_study_completed", label: "자율학습 완료" },
+            { key: "clinic_cancelled", label: "취소" },
+            { key: "clinic_reminder", label: "리마인더" },
+          ] as const;
+          const triggerMap = new Map(autoSendConfigs.map((c) => [c.trigger, c]));
+          const enabledCount = CLINIC_TRIGGERS.filter((t) => triggerMap.get(t.key)?.enabled).length;
+          return (
+            <div className="clinic-ops__trigger-status">
+              <span className="clinic-ops__trigger-status-icon">
+                {enabledCount > 0 ? <Bell size={13} /> : <BellOff size={13} />}
+              </span>
+              <span className="clinic-ops__trigger-status-label">문자 알림</span>
+              {CLINIC_TRIGGERS.map((t) => {
+                const cfg = triggerMap.get(t.key);
+                const on = cfg?.enabled ?? false;
+                return (
+                  <span
+                    key={t.key}
+                    className={`clinic-ops__trigger-badge ${on ? "clinic-ops__trigger-badge--on" : "clinic-ops__trigger-badge--off"}`}
+                    title={`${t.label}: ${on ? "활성" : "비활성"} (${cfg?.message_mode || "미설정"})`}
+                  >
+                    {t.label}
+                  </span>
+                );
+              })}
+            </div>
+          );
+        })()}
 
         {/* ═══ B. 상태 필터 칩 — 미확인 우선 강조 ═══ */}
         {!isLoading && participants.length > 0 && (
