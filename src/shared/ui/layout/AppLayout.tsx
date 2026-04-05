@@ -1,6 +1,6 @@
 // PATH: src/shared/ui/layout/AppLayout.tsx
 import { useEffect } from "react";
-import { Outlet } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
 import { ConfigProvider, App } from "antd";
 import Sidebar from "./Sidebar";
 import Header from "./Header";
@@ -22,6 +22,7 @@ import { useFavicon } from "@/shared/hooks/useFavicon";
 
 function AppLayoutContent() {
   const isMobile = useIsMobile();
+  const location = useLocation();
   useFavicon();
 
   return (
@@ -104,7 +105,7 @@ function AppLayoutContent() {
               margin: "0 auto",
             }}
           >
-            <Outlet />
+            <Outlet key={location.pathname} />
           </div>
         </main>
       </div>

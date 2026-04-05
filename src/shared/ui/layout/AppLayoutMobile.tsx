@@ -1,7 +1,7 @@
 /**
  * 선생앱 모바일 전용 레이아웃: 상단 헤더 + 메인 스크롤 + 하단 탭바. 네비는 드로어로.
  */
-import { Outlet } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
 import Header from "./Header";
 import AdminNavDrawer from "./AdminNavDrawer";
 import TeacherBottomBar from "./TeacherBottomBar";
@@ -11,6 +11,7 @@ const TABBAR_HEIGHT = 56;
 const SAFE_BOTTOM = "env(safe-area-inset-bottom, 0)";
 
 export default function AppLayoutMobile() {
+  const location = useLocation();
   return (
     <div
       data-app="admin"
@@ -50,7 +51,7 @@ export default function AppLayoutMobile() {
           paddingBottom: `calc(${TABBAR_HEIGHT}px + ${SAFE_BOTTOM} + var(--space-4))`,
         }}
       >
-        <Outlet />
+        <Outlet key={location.pathname} />
       </main>
 
       <AdminNavDrawer />
