@@ -36,9 +36,9 @@ import "../styles/templateEditor.css";
 
 const QUERY_KEY = ["messaging", "templates"] as const;
 
-/** 기본 템플릿 식별 — 이름이 [학원플러스]로 시작 */
+/** 기본 템플릿 식별 — is_system 플래그 또는 이름 접두어 기준 */
 function isDefaultTemplate(t: MessageTemplateItem): boolean {
-  return t.name.startsWith("[학원플러스]");
+  return t.is_system || t.name.startsWith("[HakwonPlus]") || t.name.startsWith("[학원플러스]");
 }
 
 function formatDate(iso: string) {
@@ -441,14 +441,16 @@ export default function TemplateExplorer() {
                     }
                   />
                 )}
-              <IconAction
-                icon={<FiTrash2 size={14} />}
-                label="삭제"
-                onClick={() =>
-                  setConfirmAction({ type: "delete", id: t.id })
-                }
-                danger
-              />
+              {!t.is_system && (
+                <IconAction
+                  icon={<FiTrash2 size={14} />}
+                  label="삭제"
+                  onClick={() =>
+                    setConfirmAction({ type: "delete", id: t.id })
+                  }
+                  danger
+                />
+              )}
             </div>
           )}
 
@@ -668,6 +670,10 @@ export default function TemplateExplorer() {
         }}
         isPending={createMut.isPending || updateMut.isPending}
         smsConnected={smsConnected}
+        onDelete={(id) => {
+          deleteMut.mutate(id, { onSuccess: () => setModalOpen(null) });
+        }}
+        isDeleting={deleteMut.isPending}
       />
     </div>
   );

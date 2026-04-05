@@ -48,6 +48,8 @@ export type SendMessageModalProps = {
   blockCategory?: TemplateCategory;
   initialBody?: string;
   alimtalkExtraVars?: Record<string, string>;
+  /** 학생별 개별 치환 변수 — key: student_id (대량 성적 발송 등) */
+  alimtalkExtraVarsPerStudent?: Record<number, Record<string, string>>;
 };
 
 type SendMode = "sms" | "alimtalk";
@@ -68,7 +70,7 @@ function getCharLabel(len: number) {
 }
 
 function isSystemTpl(t: MessageTemplateItem): boolean {
-  return t.is_system || t.name.startsWith("[학원플러스]");
+  return t.is_system || t.name.startsWith("[HakwonPlus]") || t.name.startsWith("[학원플러스]");
 }
 
 function getRecentIds(): number[] {
@@ -406,6 +408,7 @@ export default function SendMessageModal({
   blockCategory = "default",
   initialBody,
   alimtalkExtraVars,
+  alimtalkExtraVarsPerStudent,
 }: SendMessageModalProps) {
   const queryClient = useQueryClient();
   const { data: messagingInfo } = useMessagingInfo();
@@ -536,11 +539,11 @@ export default function SendMessageModal({
     }
   }, [open, initialBody, smsAllowed]);
 
-  // Load templates
+  // Load templates (시스템 기본 승인 템플릿 포함 — 알림톡 기본 채널 폴백용)
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
-    fetchMessageTemplates().then((list) => { if (!cancelled) setTemplates(list); }).catch(() => { if (!cancelled) setTemplates([]); });
+    fetchMessageTemplates(undefined, true).then((list) => { if (!cancelled) setTemplates(list); }).catch(() => { if (!cancelled) setTemplates([]); });
     return () => { cancelled = true; };
   }, [open]);
 
@@ -670,6 +673,9 @@ export default function SendMessageModal({
           payload.raw_body = templateHasContentVar && freeContent.trim() ? freeContent.trim() : body.trim();
           if (subject.trim()) payload.raw_subject = subject.trim();
           if (alimtalkExtraVars) payload.alimtalk_extra_vars = alimtalkExtraVars;
+          if (alimtalkExtraVarsPerStudent && Object.keys(alimtalkExtraVarsPerStudent).length > 0) {
+            payload.alimtalk_extra_vars_per_student = alimtalkExtraVarsPerStudent;
+          }
         } else {
           payload.raw_body = body.trim();
           if (subject.trim()) payload.raw_subject = subject.trim();
@@ -1126,7 +1132,7 @@ export default function SendMessageModal({
                       >
                         <option value="">— 템플릿 선택 —</option>
                         {approvedTemplates.map((t) => (
-                          <option key={t.id} value={t.id}>{t.name}</option>
+                          <option key={t.id} value={t.id}>{t.is_system ? `[기본] ${t.name}` : t.name}</option>
                         ))}
                       </select>
                       {selectedTemplate && (
