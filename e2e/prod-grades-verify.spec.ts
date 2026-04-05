@@ -50,10 +50,10 @@ test("운영: 성적 발송 모달 + 양식 기능 검증", async ({ page }) => 
   await expect(textarea).toBeVisible({ timeout: 8000 });
   console.log(">>> 운영 모달 오픈 ✓");
 
-  // 양식 바꾸기 버튼
-  const tplBtn = page.locator("button").filter({ hasText: /양식 바꾸기/ }).first();
+  // 양식 변경|양식 선택 버튼
+  const tplBtn = page.locator("button").filter({ hasText: /양식 변경|양식 선택/ }).first();
   const tplVisible = await tplBtn.isVisible({ timeout: 3000 }).catch(() => false);
-  console.log(`>>> 양식 바꾸기 버튼: ${tplVisible}`);
+  console.log(`>>> 양식 변경|양식 선택 버튼: ${tplVisible}`);
 
   if (tplVisible) {
     await tplBtn.click();
@@ -75,12 +75,12 @@ test("운영: 성적 발송 모달 + 양식 기능 검증", async ({ page }) => 
   const varVisible = await varSection.isVisible({ timeout: 3000 }).catch(() => false);
   console.log(`>>> 변수 삽입 영역: ${varVisible}`);
 
-  // 새 이름으로 저장 버튼
+  // 양식으로 저장 버튼
   await textarea.fill("운영 테스트 본문");
   await page.waitForTimeout(300);
-  const saveBtn = page.locator("button").filter({ hasText: "새 이름으로 저장" }).first();
+  const saveBtn = page.locator("button").filter({ hasText: "양식으로 저장" }).first();
   const saveVisible = await saveBtn.isVisible({ timeout: 2000 }).catch(() => false);
-  console.log(`>>> 새 이름으로 저장 버튼: ${saveVisible}`);
+  console.log(`>>> 양식으로 저장 버튼: ${saveVisible}`);
 
   await page.screenshot({ path: "e2e/screenshots/prod-03-final.png" });
 

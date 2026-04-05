@@ -70,7 +70,7 @@ test("운영: hakwonplus 성적 발송 grades 모달", async ({ page }) => {
   console.log(`>>> + 시험 추가 버튼: ${addVisible}`);
 
   // 양식 패널
-  const tplBtn = page.locator("button").filter({ hasText: /양식 바꾸기/ }).first();
+  const tplBtn = page.locator("button").filter({ hasText: /양식 변경|양식 선택/ }).first();
   await tplBtn.click();
   await page.waitForTimeout(1000);
   await page.screenshot({ path: "e2e/screenshots/prod-hwp-03-panel.png" });

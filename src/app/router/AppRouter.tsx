@@ -131,7 +131,7 @@ export default function AppRouter() {
           element={
             <Suspense
               fallback={
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: 200, color: "#666", fontSize: 14 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: 200, color: "var(--color-text-tertiary, #666)", fontSize: "var(--text-sm, 13px)" }}>
                   불러오는 중…
                 </div>
               }
@@ -145,7 +145,7 @@ export default function AppRouter() {
       <Route
         path="/landing"
         element={
-          <Suspense fallback={<div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}><span style={{ color: "#666", fontSize: 14 }}>불러오는 중…</span></div>}>
+          <Suspense fallback={<div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}><span style={{ color: "var(--color-text-tertiary, #666)", fontSize: "var(--text-sm, 13px)" }}>불러오는 중…</span></div>}>
             <PublicLandingPage />
           </Suspense>
         }
@@ -174,8 +174,8 @@ export default function AppRouter() {
                       alignItems: "center",
                       justifyContent: "center",
                       minHeight: 200,
-                      color: "#666",
-                      fontSize: 14,
+                      color: "var(--color-text-tertiary, #666)",
+                      fontSize: "var(--text-sm, 13px)",
                     }}
                   >
                     불러오는 중…
@@ -202,8 +202,8 @@ export default function AppRouter() {
                       alignItems: "center",
                       justifyContent: "center",
                       minHeight: 200,
-                      color: "#666",
-                      fontSize: 14,
+                      color: "var(--color-text-tertiary, #666)",
+                      fontSize: "var(--text-sm, 13px)",
                     }}
                   >
                     불러오는 중…

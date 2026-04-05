@@ -42,8 +42,8 @@ function normalizeScore(raw: any): HomeworkScore {
 
     teacher_approved: Boolean(raw?.teacher_approved ?? false),
 
-    // ✅ backend 단일 진실
-    passed: Boolean(raw?.passed ?? false),
+    // ✅ backend 단일 진실 — null=판정기준없음, 그대로 유지
+    passed: raw?.passed == null ? null : Boolean(raw.passed),
     clinic_required: Boolean(raw?.clinic_required ?? false),
 
     is_locked: Boolean(raw?.is_locked ?? false),

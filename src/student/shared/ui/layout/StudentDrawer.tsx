@@ -98,7 +98,7 @@ export default function StudentDrawer({ open, onClose }: DrawerProps) {
         style={{
           position: "fixed",
           inset: 0,
-          zIndex: 9998,
+          zIndex: 8999,
           background: "rgba(0, 0, 0, 0.4)",
           backdropFilter: "blur(2px)",
           opacity: open ? 1 : 0,
@@ -115,7 +115,7 @@ export default function StudentDrawer({ open, onClose }: DrawerProps) {
           top: 0,
           left: 0,
           bottom: 0,
-          zIndex: 10000,
+          zIndex: 9000,
           width: "min(280px, 80vw)",
           background: "var(--stu-bg)",
           borderRight: "1px solid var(--stu-border)",

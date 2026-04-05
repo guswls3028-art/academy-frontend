@@ -1,6 +1,7 @@
 // PATH: src/shared/ui/confirm/ConfirmDialog.tsx
 import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
+import { useDraggableModal } from "@/shared/ui/modal/useDraggableModal";
 import "./confirm-dialog.css";
 
 export type ConfirmOptions = {
@@ -26,6 +27,10 @@ export default function ConfirmDialog({
   onCancel,
 }: Props) {
   const confirmBtnRef = useRef<HTMLButtonElement>(null);
+  const { offset, onMouseDown, onTouchStart } = useDraggableModal(
+    ".confirm-drag-handle",
+    { enableMinimize: false },
+  );
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -46,10 +51,17 @@ export default function ConfirmDialog({
     confirmBtnRef.current?.focus();
   }, []);
 
+  const hasOffset = offset.x !== 0 || offset.y !== 0;
+
   return createPortal(
     <div style={backdropStyle} onClick={onCancel}>
-      <div style={cardStyle} onClick={(e) => e.stopPropagation()}>
-        <h3 style={titleStyle}>{title}</h3>
+      <div
+        style={hasOffset ? { transform: `translate(${offset.x}px, ${offset.y}px)` } : undefined}
+        onMouseDown={onMouseDown}
+        onTouchStart={onTouchStart}
+      >
+        <div style={cardStyle} onClick={(e) => e.stopPropagation()}>
+          <h3 className="confirm-drag-handle" style={titleStyle}>{title}</h3>
         <p style={messageStyle}>{message}</p>
         <div style={actionsStyle}>
           <button type="button" style={cancelBtnStyle} onClick={onCancel}>
@@ -64,6 +76,7 @@ export default function ConfirmDialog({
             {confirmText}
           </button>
         </div>
+        </div>
       </div>
     </div>,
     document.body,
@@ -75,7 +88,7 @@ export default function ConfirmDialog({
 const backdropStyle: React.CSSProperties = {
   position: "fixed",
   inset: 0,
-  zIndex: 9999,
+  zIndex: 9500,
   display: "flex",
   alignItems: "center",
   justifyContent: "center",

@@ -1,0 +1,229 @@
+/* PATH: src/styles/design-system/modal-taskbar.css
+   모달 태스크바 + 최소화 존 인디케이터 + 드래그 커서 SSOT */
+
+/* ========== 드래그 핸들 커서 — 모달 헤더 ========== */
+.modal-header {
+  cursor: grab;
+  user-select: none;
+}
+.modal-header:active {
+  cursor: grabbing;
+}
+
+/* ========== 최소화 버튼 (−) — 닫기(X) 좌측 ========== */
+.admin-modal__inner {
+  position: relative;
+}
+
+.modal-minimize-btn {
+  position: absolute;
+  top: var(--space-4);
+  inset-inline-end: calc(var(--space-4) + 36px + var(--space-2));
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface);
+  color: var(--color-text-secondary);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  z-index: 1;
+  transition:
+    color var(--motion-fast) ease,
+    background var(--motion-fast) ease,
+    border-color var(--motion-fast) ease;
+}
+.modal-minimize-btn:hover {
+  color: var(--color-text-primary);
+  background: var(--color-bg-surface-hover);
+  border-color: color-mix(
+    in srgb,
+    var(--color-brand-primary) 30%,
+    var(--color-border-divider)
+  );
+}
+
+/* ========== 최소화 존 인디케이터 (드래그 중 하단) ========== */
+.modal-minimize-zone {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 80px;
+  pointer-events: none;
+  z-index: var(--z-minimize-zone, 9800);
+  opacity: 0.35;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    color-mix(in srgb, var(--color-brand-primary) 18%, transparent)
+  );
+  transition: opacity var(--motion-base) var(--ease-out);
+}
+
+.modal-minimize-zone--active {
+  opacity: 1;
+  background: linear-gradient(
+    to bottom,
+    transparent 10%,
+    color-mix(in srgb, var(--color-brand-primary) 35%, transparent)
+  );
+}
+
+/* ========== 태스크바 ========== */
+.modal-taskbar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: var(--z-taskbar, 9700);
+  padding: 0 var(--space-4) var(--space-3);
+  pointer-events: none;
+  display: flex;
+  justify-content: center;
+  animation: modal-taskbar-slide-up var(--motion-slow) var(--ease-out);
+}
+
+.modal-taskbar__inner {
+  display: flex;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: color-mix(in srgb, var(--color-bg-surface) 82%, transparent);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-xl);
+  box-shadow:
+    0 -4px 20px rgba(0, 0, 0, 0.1),
+    0 -1px 4px rgba(0, 0, 0, 0.04),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.25);
+  pointer-events: auto;
+  max-width: calc(100vw - var(--space-8));
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.modal-taskbar__inner::-webkit-scrollbar {
+  display: none;
+}
+
+/* 탭 */
+.modal-taskbar__tab {
+  display: flex;
+  align-items: center;
+  border-radius: var(--radius-md);
+  background: color-mix(
+    in srgb,
+    var(--color-border-divider) 10%,
+    var(--color-bg-surface)
+  );
+  border: 1px solid var(--color-border-divider);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.2),
+    0 1px 2px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+  flex-shrink: 0;
+  transition:
+    box-shadow var(--motion-base) ease,
+    transform var(--motion-fast) ease;
+}
+
+.modal-taskbar__tab:hover {
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.3),
+    0 2px 8px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+}
+
+/* 복원 버튼 (탭 본체) */
+.modal-taskbar__tab-restore {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 6px var(--space-3);
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: var(--color-text-primary);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: -0.1px;
+  max-width: 180px;
+  white-space: nowrap;
+  line-height: 1.3;
+}
+
+.modal-taskbar__tab-restore:hover {
+  background: color-mix(
+    in srgb,
+    var(--color-brand-primary) 8%,
+    transparent
+  );
+}
+
+/* 타입별 도트 */
+.modal-taskbar__tab-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+}
+
+.modal-taskbar__tab-dot--action {
+  background: var(--color-brand-primary);
+  box-shadow: 0 0 0 2px
+    color-mix(in srgb, var(--color-brand-primary) 22%, transparent);
+}
+
+.modal-taskbar__tab-dot--confirm {
+  background: var(--color-error);
+  box-shadow: 0 0 0 2px
+    color-mix(in srgb, var(--color-error) 22%, transparent);
+}
+
+.modal-taskbar__tab-dot--inspect {
+  background: var(--color-text-muted);
+  box-shadow: 0 0 0 2px
+    color-mix(in srgb, var(--color-text-muted) 22%, transparent);
+}
+
+.modal-taskbar__tab-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 닫기 버튼 (탭 우측) */
+.modal-taskbar__tab-close {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-left: 1px solid var(--color-border-divider);
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition:
+    color var(--motion-fast) ease,
+    background var(--motion-fast) ease;
+}
+
+.modal-taskbar__tab-close:hover {
+  color: var(--color-error);
+  background: color-mix(in srgb, var(--color-error) 8%, transparent);
+}
+
+/* ========== 애니메이션 ========== */
+@keyframes modal-taskbar-slide-up {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}

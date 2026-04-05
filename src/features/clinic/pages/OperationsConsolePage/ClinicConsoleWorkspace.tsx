@@ -155,6 +155,8 @@ export default function ClinicConsoleWorkspace({
   const [retakeScores, setRetakeScores] = useState<Map<number, string>>(new Map());
   const [retakingIds, setRetakingIds] = useState<Set<number>>(new Set());
   const [completingIds, setCompletingIds] = useState<Set<number>>(new Set());
+  // Prevent double-click on remediation actions (resolve/waive/carryover/retake)
+  const [remediatingLinkIds, setRemediatingLinkIds] = useState<Set<number>>(new Set());
 
   const { data: clinicTargets } = useClinicTargets();
 
@@ -1137,7 +1139,10 @@ export default function ClinicConsoleWorkspace({
                               <button
                                 type="button"
                                 className="clinic-ops__remediation-btn clinic-ops__remediation-btn--retake"
+                                disabled={remediatingLinkIds.has(t.clinic_link_id!)}
                                 onClick={async () => {
+                                  const linkId = t.clinic_link_id!;
+                                  setRemediatingLinkIds((prev) => new Set(prev).add(linkId));
                                   try {
                                     await updateAdminExam(t.exam_id!, {
                                       allow_retake: true,
@@ -1147,6 +1152,8 @@ export default function ClinicConsoleWorkspace({
                                     qc.invalidateQueries({ queryKey: ["clinic-targets"] });
                                   } catch {
                                     feedback.error("재시험 허용에 실패했습니다.");
+                                  } finally {
+                                    setRemediatingLinkIds((prev) => { const next = new Set(prev); next.delete(linkId); return next; });
                                   }
                                 }}
                               >
@@ -1158,14 +1165,19 @@ export default function ClinicConsoleWorkspace({
                             <button
                               type="button"
                               className="clinic-ops__remediation-btn clinic-ops__remediation-btn--resolve"
+                              disabled={remediatingLinkIds.has(t.clinic_link_id!)}
                               onClick={async () => {
+                                const linkId = t.clinic_link_id!;
+                                setRemediatingLinkIds((prev) => new Set(prev).add(linkId));
                                 try {
-                                  await resolveClinicLink(t.clinic_link_id!, "수동 통과");
+                                  await resolveClinicLink(linkId, "수동 통과");
                                   feedback.success("통과 처리되었습니다.");
                                   qc.invalidateQueries({ queryKey: ["clinic-targets"] });
                                   qc.invalidateQueries({ queryKey: ["clinic-participants"] });
                                 } catch {
                                   feedback.error("통과 처리에 실패했습니다.");
+                                } finally {
+                                  setRemediatingLinkIds((prev) => { const next = new Set(prev); next.delete(linkId); return next; });
                                 }
                               }}
                             >
@@ -1175,14 +1187,19 @@ export default function ClinicConsoleWorkspace({
                             <button
                               type="button"
                               className="clinic-ops__remediation-btn clinic-ops__remediation-btn--waive"
+                              disabled={remediatingLinkIds.has(t.clinic_link_id!)}
                               onClick={async () => {
+                                const linkId = t.clinic_link_id!;
+                                setRemediatingLinkIds((prev) => new Set(prev).add(linkId));
                                 try {
-                                  await waiveClinicLink(t.clinic_link_id!, "면제");
+                                  await waiveClinicLink(linkId, "면제");
                                   feedback.success("면제 처리되었습니다.");
                                   qc.invalidateQueries({ queryKey: ["clinic-targets"] });
                                   qc.invalidateQueries({ queryKey: ["clinic-participants"] });
                                 } catch {
                                   feedback.error("면제 처리에 실패했습니다.");
+                                } finally {
+                                  setRemediatingLinkIds((prev) => { const next = new Set(prev); next.delete(linkId); return next; });
                                 }
                               }}
                             >
@@ -1192,14 +1209,19 @@ export default function ClinicConsoleWorkspace({
                             <button
                               type="button"
                               className="clinic-ops__remediation-btn clinic-ops__remediation-btn--carryover"
+                              disabled={remediatingLinkIds.has(t.clinic_link_id!)}
                               onClick={async () => {
+                                const linkId = t.clinic_link_id!;
+                                setRemediatingLinkIds((prev) => new Set(prev).add(linkId));
                                 try {
-                                  await carryOverClinicLink(t.clinic_link_id!);
+                                  await carryOverClinicLink(linkId);
                                   feedback.success("다음 차수로 이월되었습니다.");
                                   qc.invalidateQueries({ queryKey: ["clinic-targets"] });
                                   qc.invalidateQueries({ queryKey: ["clinic-participants"] });
                                 } catch {
                                   feedback.error("이월 처리에 실패했습니다.");
+                                } finally {
+                                  setRemediatingLinkIds((prev) => { const next = new Set(prev); next.delete(linkId); return next; });
                                 }
                               }}
                             >

@@ -120,14 +120,22 @@ updated: 2026-04-01
 ### 주의사항
 - "연동 테스트" 버튼은 API 서버에서 실행 → 워커 IP와 다르면 토큰 발급 실패
 - 실제 발송은 워커를 통해 실행되므로 워커 IP만 등록되면 발송 정상 동작
-- 워커 EIP 분리 주의: ASG 교체 시 EIP 재연결 필요
+- ASG 교체 시 EIP 자동 연결: UserData에서 `aws ec2 associate-address` 실행 (IAM 권한 `academy-messaging-eip-associate` 정책으로 허용)
+
+### EIP 고정 IP 구조
+- **EIP:** `43.201.119.172` (AllocationId: `eipalloc-0082867a367f33507`)
+- **용도:** 뿌리오 IP 화이트리스트 등록용 — 이 IP에서만 토큰 발급 가능
+- **자동 연결:** Launch Template UserData에서 부팅 시 자동 associate
+- **IAM 권한:** `academy-ec2-role` → 인라인 정책 `academy-messaging-eip-associate` (ec2:AssociateAddress, ec2:DescribeAddresses)
+- **삭제 금지:** 이 EIP를 release하면 IP 번호 영구 상실 → 뿌리오 재등록 필요
 
 ## 주의사항
 
-### 워커 EIP 분리 장애 (2026-04-01)
-- EIP 43.201.119.172가 워커에서 분리되어 뿌리오 토큰 발급 실패
-- `aws ec2 associate-address`로 재연결하여 해결
-- ASG 인스턴스 교체 시 EIP가 자동 분리될 수 있으므로 모니터링 필요
+### 워커 EIP 분리 장애 (2026-04-01 ~ 04-03)
+- **원인:** IAM 역할 `academy-ec2-role`에 `ec2:AssociateAddress` 권한 누락
+- UserData의 EIP 자동 연결 코드가 매 부팅마다 실패 → 워커가 랜덤 IP로 뜸
+- **해결 (2026-04-03):** IAM 인라인 정책 `academy-messaging-eip-associate` 추가 + 수동 재연결
+- 이후 ASG 교체 시 자동 연결 정상 동작 예상
 
 ### 프로덕션 React 크래시 (2026-04-01)  
 - 알림톡 카테고리 그리드 코드가 프로덕션 빌드에서 React #310 에러 발생

@@ -430,11 +430,11 @@ function StateC_NoQuestions({ examId, examTitle, onClose }: { examId: number; ex
 function RetakeAttemptView({ attempt, maxScore, passScore }: { attempt: AttemptEntry; maxScore: number; passScore: number | null }) {
   return (
     <div className="srd-retake-view">
-      <div className={`srd-retake-view__card ${attempt.passed ? "srd-retake-view__card--pass" : "srd-retake-view__card--fail"}`}>
+      <div className={`srd-retake-view__card ${attempt.passed === null ? "" : attempt.passed ? "srd-retake-view__card--pass" : "srd-retake-view__card--fail"}`}>
         <div className="srd-retake-view__header">
           <span className="srd-retake-view__label">{attempt.attempt_index}차 재시험 결과</span>
-          <span className={`srd-retake-view__badge ${attempt.passed ? "srd-retake-view__badge--pass" : "srd-retake-view__badge--fail"}`}>
-            {attempt.passed ? "합격" : "불합격"}
+          <span className={`srd-retake-view__badge ${attempt.passed === null ? "" : attempt.passed ? "srd-retake-view__badge--pass" : "srd-retake-view__badge--fail"}`}>
+            {attempt.passed === null ? "미정" : attempt.passed ? "합격" : "불합격"}
           </span>
         </div>
         <div className="srd-retake-view__score">

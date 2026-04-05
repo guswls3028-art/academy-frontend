@@ -20,7 +20,7 @@ export default function ProtectedRoute({ allow }: { allow: Role[] }) {
 
   if (programLoading || isLoading) {
     return (
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh", color: "#888", fontSize: 14 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh", color: "var(--color-text-muted, #888)", fontSize: "var(--text-sm, 13px)" }}>
         불러오는 중…
       </div>
     );

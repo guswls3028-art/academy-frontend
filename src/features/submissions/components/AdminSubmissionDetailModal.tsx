@@ -98,7 +98,7 @@ export default function AdminSubmissionDetailModal({
                 </tbody>
               </table>
 
-              <Button type="button" intent="primary" size="md" onClick={() => save.mutate()}>
+              <Button type="button" intent="primary" size="md" loading={save.isPending} disabled={save.isPending} onClick={() => save.mutate()}>
                 저장 후 재채점
               </Button>
             </>

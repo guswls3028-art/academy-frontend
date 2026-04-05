@@ -7,3 +7,12 @@
   from { opacity: 0; transform: scale(0.95); }
   to { opacity: 1; transform: scale(1); }
 }
+
+/* 드래그 핸들 */
+.confirm-drag-handle {
+  cursor: grab;
+  user-select: none;
+}
+.confirm-drag-handle:active {
+  cursor: grabbing;
+}

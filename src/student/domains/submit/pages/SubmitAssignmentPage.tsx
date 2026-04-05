@@ -36,7 +36,7 @@ export default function SubmitAssignmentPage() {
 
   // 미합격 과제·시험 필터
   const unfinishedHomeworks = useMemo(
-    () => (grades?.homeworks ?? []).filter((h) => !h.passed),
+    () => (grades?.homeworks ?? []).filter((h) => h.passed === false),
     [grades?.homeworks],
   );
   const unfinishedExams = useMemo(

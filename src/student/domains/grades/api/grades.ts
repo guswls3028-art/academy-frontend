@@ -26,7 +26,7 @@ export type MyHomeworkGradeSummary = {
   title: string;
   score: number;
   max_score: number | null;
-  passed: boolean;
+  passed: boolean | null;
   achievement?: Achievement;
   retake_count?: number;
   session_title: string | null;

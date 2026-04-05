@@ -1,0 +1,26 @@
+/* PATH: src/styles/design-system/density/z-index.css */
+/* Z-index SSOT — all z-index values in the app should reference these tokens */
+
+:root {
+  /* Base layers */
+  --z-base: 0;
+  --z-sticky: 100;
+  --z-header: 200;
+
+  /* Overlay layers */
+  --z-overlay: 1000;          /* AdminModal, Ant Modal default */
+  --z-popover: 1200;          /* DatePicker, TimeScrollPopover, AutoSendPreviewPopup */
+  --z-dropdown: 1200;
+
+  /* Panel overlays */
+  --z-panel-overlay: 2000;    /* ThemeOverlay, NoticeOverlay, WorkStatusOverlay */
+
+  /* Critical overlays */
+  --z-drawer: 9000;           /* StudentDrawer, AdminNavDrawer */
+  --z-drawer-backdrop: 8999;
+  --z-confirm: 9500;          /* ConfirmDialog — must be above drawers */
+  --z-async-status: 9600;     /* AsyncStatusBar — above confirm for progress visibility */
+  --z-taskbar: 9700;          /* ModalTaskbar — minimized modal tabs */
+  --z-minimize-zone: 9800;    /* Drag minimize zone indicator */
+  --z-subscription: 99999;    /* SubscriptionExpiredOverlay — blocks everything */
+}

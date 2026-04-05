@@ -19,6 +19,7 @@ import { DevErrorBoundary, DevErrorLogger } from "@/app/DevErrorLogger";
 import { useVersionChecker } from "@/shared/ui/layout/VersionChecker";
 import SubscriptionExpiredOverlay from "@/shared/ui/SubscriptionExpiredOverlay";
 import { ConfirmProvider } from "@/shared/ui/confirm/ConfirmProvider";
+import { ModalWindowProvider, ModalTaskbar } from "@/shared/ui/modal";
 
 import "./index.css";
 import "antd/dist/reset.css";
@@ -80,9 +81,12 @@ const AppContent = (
       <QueryProvider>
         <ProgramProvider>
           <AuthProvider>
-            <ConfirmProvider>
-              <AppInner />
-            </ConfirmProvider>
+            <ModalWindowProvider>
+              <ConfirmProvider>
+                <AppInner />
+              </ConfirmProvider>
+              <ModalTaskbar />
+            </ModalWindowProvider>
           </AuthProvider>
         </ProgramProvider>
       </QueryProvider>

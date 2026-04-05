@@ -31,6 +31,9 @@ export type TemplateEditModalProps = {
   zIndex?: number;
   /** SMS/메시지 발송 연동 여부. false이면 메시지 탭에 연동 안내 표시 */
   smsConnected?: boolean;
+  /** 삭제 콜백. 주어지면 수정 모드에서 삭제 버튼 표시 */
+  onDelete?: (id: number) => void;
+  isDeleting?: boolean;
 };
 
 type EditorTab = "message" | "alimtalk";
@@ -44,6 +47,8 @@ export default function TemplateEditModal({
   isPending = false,
   zIndex,
   smsConnected = true,
+  onDelete,
+  isDeleting = false,
 }: TemplateEditModalProps) {
   const navigate = useNavigate();
   const [name, setName] = useState("");
@@ -57,6 +62,7 @@ export default function TemplateEditModal({
     () => bodyWrapRef.current?.querySelector("textarea") ?? null,
     []
   );
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const blocks = getBlocksForCategory(selectedCategory);
 
   useEffect(() => {
@@ -66,6 +72,7 @@ export default function TemplateEditModal({
       setBody(initial?.body ?? "");
       setActiveTab("message");
       setSelectedCategory(initial?.category ?? category);
+      setConfirmDelete(false);
     }
   }, [open, initial?.id, initial?.name, initial?.subject, initial?.body, initial?.category, category]);
 
@@ -308,15 +315,52 @@ export default function TemplateEditModal({
         </div>
       </ModalBody>
       <ModalFooter
+        left={
+          initial && onDelete && !initial.is_system ? (
+            confirmDelete ? (
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 13, color: "var(--color-status-danger, #dc2626)" }}>
+                  정말 삭제할까요?
+                </span>
+                <Button
+                  intent="danger"
+                  size="sm"
+                  onClick={() => onDelete(initial.id)}
+                  disabled={isDeleting}
+                >
+                  {isDeleting ? "삭제 중…" : "삭제"}
+                </Button>
+                <Button
+                  intent="secondary"
+                  size="sm"
+                  onClick={() => setConfirmDelete(false)}
+                  disabled={isDeleting}
+                >
+                  취소
+                </Button>
+              </div>
+            ) : (
+              <Button
+                intent="secondary"
+                size="sm"
+                onClick={() => setConfirmDelete(true)}
+                disabled={isPending || isDeleting}
+                style={{ color: "var(--color-status-danger, #dc2626)" }}
+              >
+                삭제
+              </Button>
+            )
+          ) : undefined
+        }
         right={
           <>
-            <Button intent="secondary" onClick={onClose} disabled={isPending}>
+            <Button intent="secondary" onClick={onClose} disabled={isPending || isDeleting}>
               취소
             </Button>
             <Button
               intent="primary"
               onClick={handleSubmit}
-              disabled={!name.trim() || !body.trim() || isPending}
+              disabled={!name.trim() || !body.trim() || isPending || isDeleting}
             >
               {isPending ? "저장 중…" : initial ? "수정" : "저장"}
             </Button>

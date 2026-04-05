@@ -21,3 +21,7 @@ export { default as ModalTimeSection } from "./ModalTimeSection";
 export type { ModalTimeSectionProps } from "./ModalTimeSection";
 export { MODAL_DEFAULT_WIDTH, MODAL_WIDTH } from "./constants";
 export { useModalKeyboard } from "./useModalKeyboard";
+export { useDraggableModal } from "./useDraggableModal";
+export { ModalWindowProvider, useModalWindow } from "./ModalWindowContext";
+export type { MinimizedModal } from "./ModalWindowContext";
+export { default as ModalTaskbar } from "./ModalTaskbar";

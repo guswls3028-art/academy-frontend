@@ -33,7 +33,7 @@ export type HomeworkScore = {
   score: number | null;
   max_score: number | null;
   teacher_approved: boolean;
-  passed: boolean;
+  passed: boolean | null;
   clinic_required: boolean;
   is_locked: boolean;
   lock_reason: string | null;
