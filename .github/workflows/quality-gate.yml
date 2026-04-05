@@ -96,6 +96,14 @@ jobs:
     timeout-minutes: 10
     needs: [deploy]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    env:
+      # Tenant 1 (hakwonplus) — production-like test tenant
+      E2E_BASE_URL: https://hakwonplus.com
+      API_BASE_URL: https://api.hakwonplus.com
+      E2E_ADMIN_USER: ${{ secrets.E2E_ADMIN_USER }}
+      E2E_ADMIN_PASS: ${{ secrets.E2E_ADMIN_PASS }}
+      E2E_STUDENT_USER: ${{ secrets.E2E_STUDENT_USER }}
+      E2E_STUDENT_PASS: ${{ secrets.E2E_STUDENT_PASS }}
 
     steps:
       - uses: actions/checkout@v4
@@ -118,14 +126,6 @@ jobs:
 
       - name: Run 비밀번호 변경 테스트 (전용 계정, 차단 게이트)
         run: pnpm exec playwright test e2e/flows/password-reset-roundtrip.spec.ts --reporter=list
-        env:
-          # Tenant 1 (hakwonplus) — production-like test tenant
-          E2E_BASE_URL: https://hakwonplus.com
-          API_BASE_URL: https://api.hakwonplus.com
-          E2E_ADMIN_USER: ${{ secrets.E2E_ADMIN_USER }}
-          E2E_ADMIN_PASS: ${{ secrets.E2E_ADMIN_PASS }}
-          E2E_STUDENT_USER: ${{ secrets.E2E_STUDENT_USER }}
-          E2E_STUDENT_PASS: ${{ secrets.E2E_STUDENT_PASS }}
 
       - name: Upload Playwright report
         if: always()
