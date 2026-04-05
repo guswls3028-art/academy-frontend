@@ -5,6 +5,7 @@ import { Outlet } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
 import { DomainLayout } from "@/shared/ui/layout";
+import { formatSessionOrderLabel } from "@/shared/ui/session-block";
 import { useSessionParams } from "../hooks/useSessionParams";
 
 export default function SessionLayout() {
@@ -33,6 +34,7 @@ export default function SessionLayout() {
     () =>
       base
         ? [
+            { key: "attendance", label: "출결", path: `${base}/attendance` },
             { key: "scores", label: "성적", path: `${base}/scores` },
             { key: "exams", label: "시험", path: `${base}/exams` },
             { key: "assignments", label: "과제", path: `${base}/assignments` },
@@ -53,15 +55,16 @@ export default function SessionLayout() {
   if (isLoading || !session) return null;
 
   const lectureTitle = lecture?.title ?? lecture?.name ?? "강의";
+  const sessionHeading = formatSessionOrderLabel(session.order, session.title);
   const breadcrumbs = [
     { label: "강의", to: "/admin/lectures" },
     { label: lectureTitle, to: `/admin/lectures/${lectureId}` },
-    { label: session.title },
+    { label: sessionHeading },
   ];
 
   return (
     <DomainLayout
-      title={session.title}
+      title={sessionHeading}
       description={session.date ?? undefined}
       breadcrumbs={breadcrumbs}
       tabs={tabs}
