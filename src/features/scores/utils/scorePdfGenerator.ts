@@ -5,6 +5,7 @@ import type {
   SessionScoreRow,
   SessionScoreMeta,
 } from "../api/sessionScores";
+import { getSessionScoresTableVerdict } from "./sessionScoreRowVerdict";
 
 // ── 공통 스타일 (흑백 최적화) ──
 
@@ -84,6 +85,7 @@ const BW_STYLE = `
   /* 판정 열 */
   td.verdict-pass { font-weight: 800; }
   td.verdict-fail { font-weight: 900; background: #ddd !important; }
+  td.verdict-clinic { font-weight: 900; background: #e8e8e8 !important; }
 
   /* 요약 행 */
   .summary-row td {
@@ -221,14 +223,20 @@ export function buildScorePdfHtml(params: ScorePdfParams): string {
       }
     }
 
-    // 판정
-    const allPassed = (row.exams ?? []).every((e) => e.block.passed !== false)
-      && (row.homeworks ?? []).every((h) => h.block.passed !== false);
-    const hasAnyScore = (row.exams ?? []).some((e) => e.block.score != null)
-      || (row.homeworks ?? []).some((h) => h.block.score != null);
+    // 판정 — 화면 ScoresTable·드로어와 동일 규칙(sessionScoreRowVerdict)
+    const vk = getSessionScoresTableVerdict(row);
     let verdict = "-";
-    if (hasAnyScore) verdict = allPassed ? "통과" : "미달";
-    const verdictClass = verdict === "미달" ? "verdict-fail" : "verdict-pass";
+    let verdictClass = "";
+    if (vk === "clinic_target") {
+      verdict = "클리닉";
+      verdictClass = "verdict-clinic";
+    } else if (vk === "fail") {
+      verdict = "미달";
+      verdictClass = "verdict-fail";
+    } else if (vk === "pass") {
+      verdict = "통과";
+      verdictClass = "verdict-pass";
+    }
     cells.push(`<td class="${verdictClass}">${verdict}</td>`);
 
     return `<tr>${cells.join("")}</tr>`;
@@ -250,10 +258,7 @@ export function buildScorePdfHtml(params: ScorePdfParams): string {
     const avg = scores.length > 0 ? (scores.reduce((a, b) => a + b, 0) / scores.length) : null;
     summaryStats.push(`<td class="num">${avg != null ? avg.toFixed(1) : "-"}</td>`);
   }
-  const totalPassed = rows.filter((r) =>
-    (r.exams ?? []).every((e) => e.block.passed !== false) && (r.homeworks ?? []).every((h) => h.block.passed !== false)
-    && ((r.exams ?? []).some((e) => e.block.score != null) || (r.homeworks ?? []).some((h) => h.block.score != null))
-  ).length;
+  const totalPassed = rows.filter((r) => getSessionScoresTableVerdict(r) === "pass").length;
   summaryStats.push(`<td class="num">${totalPassed}/${rows.length}</td>`);
 
   return `<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>성적표 — ${lectureTitle} ${sessionTitle}</title>

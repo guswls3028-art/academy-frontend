@@ -1,5 +1,5 @@
 /**
- * 배포 후 운영 검증: 차시 출결탭 제거 + 매트릭스 테이블 정렬
+ * 배포 후 운영 검증: 차시 DomainLayout에 출결 탭 노출 + 출결 화면·매트릭스 테이블 정렬
  */
 import { test, expect } from "@playwright/test";
 import { loginViaUI } from "./helpers/auth";
@@ -11,7 +11,7 @@ test.describe("운영 검증: 출결 수정", () => {
     await loginViaUI(page, "admin");
   });
 
-  test("1. 차시 상세 — 출결 탭 미노출 + 출결 화면 정상 표시", async ({ page }) => {
+  test("1. 차시 상세 — 출결 탭 노출 + 출결 화면 정상 표시", async ({ page }) => {
     // 강의 목록
     await page.goto(`${BASE}/admin/lectures`, { waitUntil: "load" });
     await page.waitForTimeout(2000);
@@ -33,7 +33,7 @@ test.describe("운영 검증: 출결 수정", () => {
     console.log("Session URL:", url);
     await page.screenshot({ path: "e2e/screenshots/att-prod-01-session.png", fullPage: true });
 
-    // 탭 확인 — 출결 탭이 없어야 함
+    // 탭 확인 — 세션 상세는 출결·성적·시험·과제·영상 모두 노출 (SessionLayout SSOT)
     const tabs = page.locator("[role='tab'], .ds-tab");
     const tabCount = await tabs.count();
     const tabTexts: string[] = [];
@@ -46,7 +46,7 @@ test.describe("운영 검증: 출결 수정", () => {
     if (url.includes("/sessions/")) {
       const sessionTabs = tabTexts.filter(t => ["성적", "시험", "과제", "영상", "출결"].includes(t));
       console.log("Filtered session tabs:", sessionTabs);
-      expect(sessionTabs).not.toContain("출결");
+      expect(sessionTabs).toContain("출결");
       expect(sessionTabs).toContain("성적");
       expect(sessionTabs).toContain("시험");
       expect(sessionTabs).toContain("과제");

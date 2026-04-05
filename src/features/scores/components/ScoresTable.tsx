@@ -20,6 +20,7 @@ import { patchExamTotalScoreQuick } from "../api/patchExamTotalQuick";
 import { patchExamObjectiveScoreQuick } from "../api/patchExamObjectiveQuick";
 import { patchExamSubjectiveScoreQuick } from "../api/patchExamSubjectiveQuick";
 import { getHomeworkStatus } from "../utils/homeworkStatus";
+import { getSessionScoresTableVerdict } from "../utils/sessionScoreRowVerdict";
 import ScoreInputCell from "./ScoreInputCell";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { DomainTable, ResizableTh, useTableColumnPrefs } from "@/shared/ui/domain";
@@ -824,7 +825,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
         {rows.map((row, rowIndex) => {
           const selected = selectedEnrollmentId === row.enrollment_id;
           const rowChecked = selectedSet.has(row.enrollment_id);
-          const { target: clinicTarget, reason: clinicReason } = getClinicReason(row);
+          const { reason: clinicReason } = getClinicReason(row);
           const isEvenRow = rowIndex % 2 === 1;
 
           return (
@@ -1481,32 +1482,22 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                   data-col-type="clinic"
                 >
                   {(() => {
-                    if (clinicTarget) {
+                    const verdict = getSessionScoresTableVerdict(row);
+                    if (verdict === "clinic_target") {
+                      return (
+                        <span className="ds-scores-pass-fail-badge" data-tone="warning" title="클리닉 미해소 대상">
+                          대상
+                        </span>
+                      );
+                    }
+                    if (verdict === "fail") {
                       return (
                         <span className="ds-scores-pass-fail-badge" data-tone="danger">
                           불합
                         </span>
                       );
                     }
-                    // 시험/과제의 실제 passed 값을 확인
-                    const allExams = row.exams ?? [];
-                    const allHws = row.homeworks ?? [];
-                    const hasAnyScore = allExams.some((e) => e.block.score != null) || allHws.some((h) => h.block.score != null);
-                    if (!hasAnyScore) {
-                      return <span className="text-[var(--color-text-muted)]">-</span>;
-                    }
-                    // 불합격이 하나라도 있으면 불합
-                    const anyFailed = allExams.some((e) => e.block.passed === false) || allHws.some((h) => h.block.passed === false);
-                    if (anyFailed) {
-                      return (
-                        <span className="ds-scores-pass-fail-badge" data-tone="danger">
-                          불합
-                        </span>
-                      );
-                    }
-                    // 모든 판정이 null(기준 미설정)이면 판정 불가
-                    const allNull = allExams.every((e) => e.block.passed == null) && allHws.every((h) => h.block.passed == null);
-                    if (allNull) {
+                    if (verdict === "dash") {
                       return <span className="text-[var(--color-text-muted)]">-</span>;
                     }
                     return (

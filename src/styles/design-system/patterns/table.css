@@ -535,6 +535,10 @@ table.ds-table {
   background: var(--color-danger, #dc2626) !important;
   color: #fff !important;
 }
+.ds-scores-table .ds-scores-pass-fail-badge[data-tone="warning"] {
+  background: var(--color-warning) !important;
+  color: var(--color-text-primary) !important;
+}
 
 /* ── Score Edit Help Bar ── */
 .score-help-kbd {

@@ -17,6 +17,7 @@ import { submitClinicRetake, updateClinicRetake } from "@/features/clinic/api/cl
 import { patchExamTotalScoreQuick } from "../api/patchExamTotalQuick";
 import { patchHomeworkQuick } from "../api/patchHomeworkQuick";
 import { generateScoreReport, buildScoreDetail, substituteScoreVars } from "../utils/generateScoreReport";
+import { getSessionRowFailedItemTitles } from "../utils/sessionScoreRowVerdict";
 import { fetchMessageTemplates } from "@/features/messages/api/messages.api";
 import { useSendMessageModal } from "@/features/messages/context/SendMessageModalContext";
 import { feedback } from "@/shared/ui/feedback/feedback";
@@ -47,17 +48,10 @@ export default function StudentScoresDrawer({ row, meta, sessionId, onClose, onO
     setExpandedExamId((prev) => (prev === examId ? null : examId));
   }, []);
 
-  // Compute failed items summary
-  const failedItems = useMemo(() => {
-    const items: string[] = [];
-    for (const exam of row.exams ?? []) {
-      if (exam.block.passed === false || exam.block.score == null) items.push(exam.title);
-    }
-    for (const hw of row.homeworks ?? []) {
-      if (hw.block.passed === false || hw.block.score == null) items.push(hw.title);
-    }
-    return items;
-  }, [row]);
+  const failedItems = useMemo(
+    () => getSessionRowFailedItemTitles(row),
+    [row],
+  );
 
   // Overall stats + completion rates
   const stats = useMemo(() => {
