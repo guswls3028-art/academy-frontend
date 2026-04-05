@@ -141,7 +141,20 @@ export function getBlocksForCategory(category: TemplateCategory): TemplateBlock[
 
 // ─── 미리보기 치환 ───
 
-const ALL_BLOCKS = Object.values(B);
+/** 모든 카테고리의 블록을 하나로 합침 (B + 인라인 블록). insertText 기준 중복 제거. */
+const ALL_BLOCKS: TemplateBlock[] = (() => {
+  const seen = new Set<string>();
+  const result: TemplateBlock[] = [];
+  const push = (b: TemplateBlock) => {
+    if (!seen.has(b.insertText)) { seen.add(b.insertText); result.push(b); }
+  };
+  for (const b of Object.values(B)) push(b);
+  for (const blocks of Object.values(CATEGORY_BLOCKS)) {
+    for (const b of blocks) push(b);
+  }
+  return result;
+})();
+
 export function renderPreviewText(text: string): string {
   const map: Record<string, string> = Object.fromEntries(
     ALL_BLOCKS.map((b) => [b.insertText, b.previewValue]),
@@ -202,6 +215,25 @@ const BLOCK_COLORS: Record<string, { bg: string; color: string; border: string }
   counsel_type:     { bg: "color-mix(in srgb, #c084fc 16%, transparent)", color: "#9333ea", border: "color-mix(in srgb, #c084fc 40%, transparent)" },
   // 자유 입력 — 그린/에메랄드
   free_content:     { bg: "color-mix(in srgb, #059669 14%, transparent)", color: "#047857", border: "color-mix(in srgb, #059669 35%, transparent)" },
+  // 성적 — 목록형/요약 블록
+  exam_list:        { bg: "color-mix(in srgb, #6366f1 16%, transparent)", color: "#4f46e5", border: "color-mix(in srgb, #6366f1 40%, transparent)" },
+  hw_list:          { bg: "color-mix(in srgb, #8b5cf6 16%, transparent)", color: "#7c3aed", border: "color-mix(in srgb, #8b5cf6 40%, transparent)" },
+  full_summary:     { bg: "color-mix(in srgb, #0ea5e9 16%, transparent)", color: "#0284c7", border: "color-mix(in srgb, #0ea5e9 40%, transparent)" },
+  exam_total:       { bg: "color-mix(in srgb, #f43f5e 16%, transparent)", color: "#e11d48", border: "color-mix(in srgb, #f43f5e 40%, transparent)" },
+  exam_total_max:   { bg: "color-mix(in srgb, #fb7185 16%, transparent)", color: "#e11d48", border: "color-mix(in srgb, #fb7185 40%, transparent)" },
+  hw_completion:    { bg: "color-mix(in srgb, #a855f7 16%, transparent)", color: "#9333ea", border: "color-mix(in srgb, #a855f7 40%, transparent)" },
+  // 성적 — 시험 개별 (번호별)
+  ...Object.fromEntries([1,2,3,4,5].flatMap((n) => [
+    [`exam_${n}_name`, { bg: "color-mix(in srgb, #f97316 16%, transparent)", color: "#ea580c", border: "color-mix(in srgb, #f97316 40%, transparent)" }],
+    [`exam_${n}`,      { bg: "color-mix(in srgb, #ef4444 16%, transparent)", color: "#dc2626", border: "color-mix(in srgb, #ef4444 40%, transparent)" }],
+    [`exam_${n}_max`,  { bg: "color-mix(in srgb, #fb923c 16%, transparent)", color: "#ea580c", border: "color-mix(in srgb, #fb923c 40%, transparent)" }],
+  ])),
+  // 성적 — 과제 개별 (번호별)
+  ...Object.fromEntries([1,2,3].flatMap((n) => [
+    [`hw_${n}_name`, { bg: "color-mix(in srgb, #fbbf24 16%, transparent)", color: "#d97706", border: "color-mix(in srgb, #fbbf24 40%, transparent)" }],
+    [`hw_${n}`,      { bg: "color-mix(in srgb, #f59e0b 16%, transparent)", color: "#d97706", border: "color-mix(in srgb, #f59e0b 40%, transparent)" }],
+    [`hw_${n}_max`,  { bg: "color-mix(in srgb, #fcd34d 16%, transparent)", color: "#ca8a04", border: "color-mix(in srgb, #fcd34d 40%, transparent)" }],
+  ])),
   // 직원 — 앰버/브라운 계열
   staff_name:       { bg: "color-mix(in srgb, #fb923c 16%, transparent)", color: "#ea580c", border: "color-mix(in srgb, #fb923c 40%, transparent)" },
   department:       { bg: "color-mix(in srgb, #fbbf24 16%, transparent)", color: "#d97706", border: "color-mix(in srgb, #fbbf24 40%, transparent)" },

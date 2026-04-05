@@ -64,6 +64,7 @@ export default function TemplateEditModal({
   );
   const [confirmDelete, setConfirmDelete] = useState(false);
   const blocks = getBlocksForCategory(selectedCategory);
+  const isSystem = !!initial?.is_system;
 
   useEffect(() => {
     if (open) {
@@ -122,10 +123,11 @@ export default function TemplateEditModal({
 
   if (!open) return null;
 
-  const title = initial ? "템플릿 수정" : "템플릿 추가";
+  const title = isSystem ? "기본 템플릿 보기" : initial ? "템플릿 수정" : "템플릿 추가";
+  const fieldsDisabled = isPending || isSystem;
 
   return (
-    <AdminModal open={open} onClose={onClose} width={1000} zIndex={zIndex} onEnterConfirm={!isPending ? handleSubmit : undefined}>
+    <AdminModal open={open} onClose={onClose} width={1000} zIndex={zIndex} onEnterConfirm={!isPending && !isSystem ? handleSubmit : undefined}>
       <ModalHeader title={title} />
       <ModalBody>
         <div className="template-editor flex gap-5" style={{ minHeight: 420 }}>
@@ -189,6 +191,19 @@ export default function TemplateEditModal({
 
           {/* 우측: 편집 영역 */}
           <div className="template-editor__right flex-1 min-w-0 flex flex-col gap-2 p-4" style={{ position: "relative" }}>
+            {/* 시스템 기본 템플릿 안내 */}
+            {isSystem && (
+              <div style={{
+                display: "flex", alignItems: "center", gap: 8,
+                padding: "8px 14px", borderRadius: 8,
+                background: "color-mix(in srgb, var(--color-status-info, #2563eb) 8%, transparent)",
+                border: "1px solid color-mix(in srgb, var(--color-status-info, #2563eb) 25%, transparent)",
+                fontSize: 13, color: "var(--color-status-info, #2563eb)", fontWeight: 600,
+              }}>
+                <FiAlertCircle size={14} style={{ flexShrink: 0 }} />
+                기본 템플릿은 수정할 수 없습니다. 복제하여 사용해 주세요.
+              </div>
+            )}
             {/* 메시지/알림톡 탭 */}
             <div className="modal-tabs-elevated template-editor__tabs template-editor__tabs--top">
               <Tabs
@@ -242,7 +257,7 @@ export default function TemplateEditModal({
                 placeholder="예: 출석 안내, 시험 일정 공지"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                disabled={isPending}
+                disabled={fieldsDisabled}
                 className="template-editor__textarea message-domain-input"
               />
             </div>
@@ -258,7 +273,7 @@ export default function TemplateEditModal({
                     placeholder="알림톡 제목"
                     value={subject}
                     onChange={(e) => setSubject(e.target.value)}
-                    disabled={isPending}
+                    disabled={fieldsDisabled}
                     className="template-editor__textarea message-domain-input"
                   />
                 </>
@@ -278,7 +293,7 @@ export default function TemplateEditModal({
                   value={body}
                   onChange={(e) => setBody(e.target.value)}
                   rows={14}
-                  disabled={isPending}
+                  disabled={fieldsDisabled}
                   className="template-editor__textarea message-domain-input w-full p-3"
                   style={{ resize: "vertical", fontFamily: "inherit", minHeight: 280 }}
                 />
@@ -287,7 +302,7 @@ export default function TemplateEditModal({
                 <div className="template-editor__blocks-title mb-2">변수 삽입</div>
                 <div className="template-editor__block-list flex flex-col content-start overflow-auto p-1">
                   {selectedCategory === "grades" ? (
-                    <GradesBlockPanel blocks={blocks} onInsert={insertBlock} disabled={isPending} currentBody={body} />
+                    <GradesBlockPanel blocks={blocks} onInsert={insertBlock} disabled={fieldsDisabled} currentBody={body} />
                   ) : (
                     <div className="flex flex-wrap gap-2">
                       {blocks.map((block) => {
@@ -298,7 +313,7 @@ export default function TemplateEditModal({
                             type="button"
                             onMouseDown={(e) => e.preventDefault()}
                             onClick={() => insertBlock(block.insertText)}
-                            disabled={isPending}
+                            disabled={fieldsDisabled}
                             className="template-editor__block-tag"
                             style={{ background: bc.bg, color: bc.color, borderColor: bc.border }}
                           >
@@ -355,15 +370,17 @@ export default function TemplateEditModal({
         right={
           <>
             <Button intent="secondary" onClick={onClose} disabled={isPending || isDeleting}>
-              취소
+              {isSystem ? "닫기" : "취소"}
             </Button>
-            <Button
-              intent="primary"
-              onClick={handleSubmit}
-              disabled={!name.trim() || !body.trim() || isPending || isDeleting}
-            >
-              {isPending ? "저장 중…" : initial ? "수정" : "저장"}
-            </Button>
+            {!isSystem && (
+              <Button
+                intent="primary"
+                onClick={handleSubmit}
+                disabled={!name.trim() || !body.trim() || isPending || isDeleting}
+              >
+                {isPending ? "저장 중…" : initial ? "수정" : "저장"}
+              </Button>
+            )}
           </>
         }
       />
