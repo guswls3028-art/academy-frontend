@@ -37,6 +37,8 @@ function normalizeOne(s: any): ClinicStudent {
   const schoolType = s.school_type || "HIGH";
   const school = schoolType === "HIGH"
     ? (s.high_school || "")
+    : schoolType === "ELEMENTARY"
+    ? (s.elementary_school || "")
     : (s.middle_school || "");
 
   return {

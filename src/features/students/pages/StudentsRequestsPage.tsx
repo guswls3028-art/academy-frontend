@@ -68,7 +68,7 @@ function formatDateShort(s: string | null) {
 }
 
 function schoolLabel(r: ClientRegistrationRequest) {
-  const school = r.highSchool || r.middleSchool || "-";
+  const school = r.highSchool || r.middleSchool || r.elementarySchool || "-";
   const grade = r.grade != null ? ` ${r.grade}학년` : "";
   return `${school}${grade}`.trim() || "-";
 }
@@ -110,7 +110,7 @@ function RequestDetailModal({
     { label: "학부모 전화", value: request.parentPhone || null },
     { label: "학생 전화", value: request.phone || null },
     { label: "구분", value: slm.getLabel(request.schoolType as "ELEMENTARY" | "MIDDLE" | "HIGH") },
-    { label: "학교", value: request.highSchool || request.middleSchool || null },
+    { label: "학교", value: request.highSchool || request.middleSchool || request.elementarySchool || null },
     { label: "학년", value: request.grade != null ? `${request.grade}학년` : null },
     ...(isHigh ? [{ label: "반", value: request.highSchoolClass || null }] : []),
     ...(isHigh ? [{ label: "계열", value: request.major || null }] : []),

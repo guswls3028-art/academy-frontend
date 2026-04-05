@@ -33,7 +33,7 @@ export default function EditStudentModal({
     psNumber: initialValue.psNumber || "",
     studentPhone: initialValue.studentPhone || "",
     parentPhone: initialValue.parentPhone || "",
-    schoolType: initialValue.schoolType || "HIGH",
+    schoolType: initialValue.schoolType || slm.defaultSchoolType,
     school: initialValue.school || "",
     grade: initialValue.grade ? String(initialValue.grade) : "",
     schoolClass: initialValue.schoolClass || "",
@@ -54,7 +54,7 @@ export default function EditStudentModal({
       psNumber: initialValue.psNumber || "",
       studentPhone: initialValue.studentPhone || "",
       parentPhone: initialValue.parentPhone || "",
-      schoolType: initialValue.schoolType || "HIGH",
+      schoolType: initialValue.schoolType || slm.defaultSchoolType,
       school: initialValue.school || "",
       grade: initialValue.grade ? String(initialValue.grade) : "",
       schoolClass: initialValue.schoolClass || "",
@@ -83,6 +83,7 @@ export default function EditStudentModal({
         const t = String(value ?? "").trim();
         if (t.endsWith("고")) next.schoolType = "HIGH";
         else if (t.endsWith("중")) next.schoolType = "MIDDLE";
+        else if (t.endsWith("초")) next.schoolType = "ELEMENTARY";
       }
       return next;
     });

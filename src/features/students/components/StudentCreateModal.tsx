@@ -128,7 +128,7 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
     studentPhone: "",
     omrCode: "",
     parentPhone: "",
-    schoolType: "HIGH",
+    schoolType: slm.defaultSchoolType as string,
     school: "",
     grade: "",
     schoolClass: "",
@@ -155,7 +155,7 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
       studentPhone: "",
       omrCode: "",
       parentPhone: "",
-      schoolType: "HIGH",
+      schoolType: slm.defaultSchoolType,
       school: "",
       grade: "",
       schoolClass: "",
@@ -165,7 +165,7 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
       memo: "",
       active: true,
     });
-  }, [open, onBulkProgress]);
+  }, [open, onBulkProgress, slm.defaultSchoolType]);
 
   const qc = useQueryClient();
 
@@ -181,6 +181,7 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
         const t = String(value ?? "").trim();
         if (t.endsWith("고")) next.schoolType = "HIGH";
         else if (t.endsWith("중")) next.schoolType = "MIDDLE";
+        else if (t.endsWith("초")) next.schoolType = "ELEMENTARY";
       }
       return next;
     });

@@ -111,7 +111,7 @@ function targetToRow(t: ClinicTarget): UnifiedRow {
     studentPhone: t.student_phone || "",
     school: t.school || "",
     grade: t.grade ?? null,
-    schoolType: "HIGH",
+    schoolType: t.school_type || "HIGH",
     profilePhotoUrl: t.profile_photo_url ?? null,
     lectures,
     clinicHighlight: t.name_highlight_clinic_target ?? false,

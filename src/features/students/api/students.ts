@@ -104,7 +104,7 @@ export function mapStudent(item: any): ClientStudent {
 
   const schoolType: "MIDDLE" | "HIGH" | "ELEMENTARY" | null =
     item?.school_type ??
-    (item?.middle_school ? "MIDDLE" : item?.high_school ? "HIGH" : null);
+    (item?.elementary_school ? "ELEMENTARY" : item?.middle_school ? "MIDDLE" : item?.high_school ? "HIGH" : null);
 
   return {
     id: Number(item?.id),
@@ -119,7 +119,7 @@ export function mapStudent(item: any): ClientStudent {
     parentPhone: item?.parent_phone ?? null,
     usesIdentifier: !!item?.uses_identifier,
 
-    school: item?.high_school ?? item?.middle_school ?? null,
+    school: item?.high_school ?? item?.middle_school ?? item?.elementary_school ?? null,
     schoolClass: item?.high_school_class ?? null,
     major: item?.major ?? null,
     originMiddleSchool: item?.origin_middle_school ?? null,
@@ -265,6 +265,7 @@ export async function createStudent(form: any) {
     school_type: form?.schoolType ?? "HIGH",
     high_school: form?.schoolType === "HIGH" ? (form?.school?.trim() || null) : null,
     middle_school: form?.schoolType === "MIDDLE" ? (form?.school?.trim() || null) : null,
+    elementary_school: form?.schoolType === "ELEMENTARY" ? (form?.school?.trim() || null) : null,
     high_school_class: form?.schoolType === "HIGH" ? (form?.schoolClass?.trim() || null) : null,
     major: form?.schoolType === "HIGH" ? (form?.major?.trim() || null) : null,
     grade: form?.grade ? Number(form.grade) : null,
@@ -381,6 +382,7 @@ export async function updateStudent(id: number, form: any) {
     payload.school_type = form.schoolType;
     payload.high_school = form.schoolType === "HIGH" ? (form?.school?.trim() || null) : null;
     payload.middle_school = form.schoolType === "MIDDLE" ? (form?.school?.trim() || null) : null;
+    payload.elementary_school = form.schoolType === "ELEMENTARY" ? (form?.school?.trim() || null) : null;
     payload.high_school_class =
       form.schoolType === "HIGH" ? (form?.schoolClass?.trim() || null) : null;
     payload.major = form.schoolType === "HIGH" ? (form?.major?.trim() || null) : null;
@@ -477,6 +479,7 @@ export interface ClientRegistrationRequest {
   parentPhone: string;
   phone: string | null;
   schoolType: string;
+  elementarySchool: string | null;
   highSchool: string | null;
   middleSchool: string | null;
   highSchoolClass: string | null;
@@ -498,6 +501,7 @@ function mapRegistrationRequest(item: any): ClientRegistrationRequest {
     parentPhone: safeStr(item?.parent_phone),
     phone: item?.phone ?? null,
     schoolType: item?.school_type ?? "HIGH",
+    elementarySchool: item?.elementary_school ?? null,
     highSchool: item?.high_school ?? null,
     middleSchool: item?.middle_school ?? null,
     highSchoolClass: item?.high_school_class ?? null,
@@ -593,6 +597,7 @@ export async function submitRegistrationRequest(form: {
   schoolType?: "HIGH" | "MIDDLE" | "ELEMENTARY";
   highSchool?: string;
   middleSchool?: string;
+  elementarySchool?: string;
   highSchoolClass?: string;
   major?: string;
   grade?: number | null;
@@ -609,6 +614,7 @@ export async function submitRegistrationRequest(form: {
     school_type: form.schoolType ?? "HIGH",
     high_school: form.highSchool?.trim() || null,
     middle_school: form.middleSchool?.trim() || null,
+    elementary_school: form.elementarySchool?.trim() || null,
     high_school_class: form.highSchoolClass?.trim() || null,
     major: form.major?.trim() || null,
     grade: form.grade ?? null,

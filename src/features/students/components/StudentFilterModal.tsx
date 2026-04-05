@@ -160,16 +160,21 @@ export default function StudentFilterModal({
               onChange={(e) => update("grade", e.target.value)}
             >
               <option value="">학년 전체</option>
-              <option value="1">1학년</option>
-              <option value="2">2학년</option>
-              <option value="3">3학년</option>
+              {(() => {
+                const maxGrade = slm.mode === "elementary_middle" ? 6 : 3;
+                return Array.from({ length: maxGrade }, (_, i) => i + 1).map((g) => (
+                  <option key={g} value={String(g)}>{g}학년</option>
+                ));
+              })()}
             </select>
-            <input
-              className="ds-input"
-              placeholder="계열"
-              value={local.major || ""}
-              onChange={(e) => update("major", e.target.value)}
-            />
+            {slm.mode !== "elementary_middle" && (
+              <input
+                className="ds-input"
+                placeholder="계열"
+                value={local.major || ""}
+                onChange={(e) => update("major", e.target.value)}
+              />
+            )}
             <span />
           </div>
         </div>

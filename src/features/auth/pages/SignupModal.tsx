@@ -154,6 +154,7 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
         schoolType: form.schoolType,
         highSchool: form.highSchool.trim() || undefined,
         middleSchool: form.middleSchool.trim() || undefined,
+        elementarySchool: form.elementarySchool.trim() || undefined,
         highSchoolClass: form.highSchoolClass.trim(),
         major: form.major.trim() || undefined,
         grade: gradeNum,

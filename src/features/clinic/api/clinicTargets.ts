@@ -69,6 +69,7 @@ export type ClinicTarget = {
   parent_phone?: string;
   student_phone?: string;
   school?: string;
+  school_type?: string;
   grade?: number | null;
   profile_photo_url?: string | null;
   max_score?: number | null;
