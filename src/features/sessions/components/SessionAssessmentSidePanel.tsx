@@ -15,6 +15,7 @@ import { feedback } from "@/shared/ui/feedback/feedback";
 import { useConfirm } from "@/shared/ui/confirm";
 import CreateRegularExamModal from "@/features/exams/components/create/CreateRegularExamModal";
 import CreateHomeworkModal from "@/features/homework/components/CreateHomeworkModal";
+import ApplyBundleModal from "@/features/exams/components/create/ApplyBundleModal";
 
 type Props = {
   lectureId: number;
@@ -232,6 +233,7 @@ export default function SessionAssessmentSidePanel({
   const setOpenCreateHomework = onOpenCreateHomeworkProp ?? (() => setOpenCreateHomeworkLocal(true));
   const handleCloseCreateHomework = onCloseCreateHomework ?? (() => setOpenCreateHomeworkLocal(false));
 
+  const [openApplyBundle, setOpenApplyBundle] = useState(false);
   const [examBusy, setExamBusy] = useState<{ id: number; action: "start" | "end" } | null>(null);
 
   const examId = useMemo(() => {
@@ -450,6 +452,18 @@ export default function SessionAssessmentSidePanel({
 
   return (
     <aside style={S.aside}>
+      {/* ── Bundle apply button ── */}
+      <button
+        type="button"
+        onClick={() => setOpenApplyBundle(true)}
+        className="w-full flex items-center justify-center gap-2 rounded-lg border border-dashed border-[var(--color-border-divider)] py-2 text-xs font-semibold text-[var(--color-text-muted)] hover:text-[var(--color-brand-primary)] hover:border-[var(--color-brand-primary)] transition-colors bg-[var(--color-bg-surface)]"
+      >
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style={{ opacity: 0.7 }}>
+          <path d="M2 3.5A1.5 1.5 0 013.5 2h3.379a1.5 1.5 0 011.06.44l.622.621a1.5 1.5 0 001.06.44H12.5A1.5 1.5 0 0114 5v7.5a1.5 1.5 0 01-1.5 1.5h-9A1.5 1.5 0 012 12.5v-9z" fill="currentColor"/>
+        </svg>
+        묶음 불러오기
+      </button>
+
       {/* ── Exams Section ── */}
       <section style={S.section}>
         <div style={S.sectionHeader}>
@@ -553,6 +567,19 @@ export default function SessionAssessmentSidePanel({
           invalidateSessionScores();
           feedback.success("과제가 생성되어 진행 상태로 전환되었습니다.");
           onSelectHomework(id);
+        }}
+      />
+      <ApplyBundleModal
+        open={openApplyBundle}
+        onClose={() => setOpenApplyBundle(false)}
+        sessionId={sessionId}
+        onApplied={({ examIds, homeworkIds }) => {
+          invalidateExams();
+          invalidateExamsSummary();
+          invalidateHomeworks();
+          invalidateSessionScores();
+          if (examIds.length > 0) onSelectExam(examIds[0]);
+          else if (homeworkIds.length > 0) onSelectHomework(homeworkIds[0]);
         }}
       />
     </aside>

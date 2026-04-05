@@ -35,11 +35,18 @@ type BulkRow = {
   title: string;
   maxScore: string;
   cutline: string;
+  dueDate: string;
 };
+
+function getDefaultDueDate(): string {
+  const d = new Date();
+  d.setDate(d.getDate() + 7);
+  return d.toISOString().slice(0, 10);
+}
 
 let rowKeyCounter = 0;
 function makeRow(): BulkRow {
-  return { key: ++rowKeyCounter, title: "", maxScore: "100", cutline: "80" };
+  return { key: ++rowKeyCounter, title: "", maxScore: "100", cutline: "80", dueDate: getDefaultDueDate() };
 }
 
 export default function CreateHomeworkModal({
@@ -56,11 +63,10 @@ export default function CreateHomeworkModal({
   const [rows, setRows] = useState<BulkRow[]>(() => [makeRow()]);
   const [cutlineMode, setCutlineMode] = useState<CutlineMode>("PERCENT");
 
-  // import stage state
-  const [title, setTitle] = useState("");
+  // import stage state — multi-select
   const [templates, setTemplates] = useState<HomeworkTemplateWithUsage[]>([]);
   const [templatesLoading, setTemplatesLoading] = useState(false);
-  const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null);
+  const [selectedTemplateIds, setSelectedTemplateIds] = useState<Set<number>>(new Set());
   const [keyword, setKeyword] = useState("");
 
   useEffect(() => {
@@ -70,10 +76,9 @@ export default function CreateHomeworkModal({
     setSubmitting(false);
     setRows([makeRow()]);
     setCutlineMode("PERCENT");
-    setTitle("");
     setTemplates([]);
     setTemplatesLoading(false);
-    setSelectedTemplateId(null);
+    setSelectedTemplateIds(new Set());
     setKeyword("");
   }, [open]);
 
@@ -163,13 +168,14 @@ export default function CreateHomeworkModal({
         const newId = Number(res.data?.id ?? res.data?.homework_id ?? res.data?.pk);
         if (!Number.isFinite(newId) || newId <= 0) throw new Error("생성 후 ID를 받지 못했습니다.");
 
-        // Save max_score
+        // Save max_score + due_date
         const ms = Number(row.maxScore);
-        if (Number.isFinite(ms) && ms > 0) {
+        const metaPatch: Record<string, any> = {};
+        if (Number.isFinite(ms) && ms > 0) metaPatch.default_max_score = ms;
+        if (row.dueDate) metaPatch.due_date = row.dueDate;
+        if (Object.keys(metaPatch).length > 0) {
           try {
-            await api.patch(`/homeworks/${newId}/`, {
-              meta: { default_max_score: ms },
-            });
+            await api.patch(`/homeworks/${newId}/`, { meta: metaPatch });
           } catch {
             // best-effort
           }
@@ -200,39 +206,55 @@ export default function CreateHomeworkModal({
     onClose();
   };
 
-  // ── Import submit (single homework from template) ──
+  // ── Import submit (multi-template) ──
   const handleImportSubmit = async () => {
     if (!sessionId) {
       setError("세션 정보가 없습니다.");
       return;
     }
-    if (!selectedTemplateId) {
+    if (selectedTemplateIds.size === 0) {
       setError("불러올 템플릿을 선택하세요.");
-      return;
-    }
-    if (!title.trim()) {
-      setError("과제 제목을 입력하세요.");
       return;
     }
     setError(null);
     setSubmitting(true);
-    try {
-      const res = await api.post("/homeworks/", {
-        session_id: sessionId,
-        title: title.trim(),
-        template_homework_id: selectedTemplateId,
-      });
-      const newId = Number(res.data?.id ?? res.data?.homework_id ?? res.data?.pk);
-      if (!Number.isFinite(newId) || newId <= 0) throw new Error("생성 후 ID를 받지 못했습니다.");
 
-      void autoEnroll(newId);
-      onCreated(newId);
-      feedback.success(`"${title.trim()}" 과제 생성 완료`);
+    const selected = templates.filter((t) => selectedTemplateIds.has(t.id));
+    const createdIds: number[] = [];
+    const failedTitles: string[] = [];
+
+    for (const tpl of selected) {
+      try {
+        const res = await api.post("/homeworks/", {
+          session_id: sessionId,
+          title: tpl.title,
+          template_homework_id: tpl.id,
+        });
+        const newId = Number(res.data?.id ?? res.data?.homework_id ?? res.data?.pk);
+        if (!Number.isFinite(newId) || newId <= 0) throw new Error("생성 후 ID를 받지 못했습니다.");
+
+        void autoEnroll(newId);
+        createdIds.push(newId);
+      } catch {
+        failedTitles.push(tpl.title);
+      }
+    }
+
+    setSubmitting(false);
+
+    if (createdIds.length > 0) {
+      // onCreated 한 번만 호출 — 마지막 생성된 과제로 네비게이션
+      onCreated(createdIds[createdIds.length - 1]);
+    }
+
+    if (failedTitles.length === 0) {
+      feedback.success(`${createdIds.length}개 템플릿 과제 생성 완료`);
       onClose();
-    } catch (e: any) {
-      setError(e?.response?.data?.detail ?? e?.message ?? "과제 생성 실패.");
-    } finally {
-      setSubmitting(false);
+    } else if (createdIds.length > 0) {
+      feedback.warning(`${createdIds.length}개 생성 완료, ${failedTitles.length}개 실패: ${failedTitles.join(", ")}`);
+      onClose();
+    } else {
+      setError(`과제 생성 실패: ${failedTitles.join(", ")}`);
     }
   };
 
@@ -289,9 +311,7 @@ export default function CreateHomeworkModal({
   };
 
   const bulkDisabled = submitting || rows.every((r) => !r.title.trim());
-  const importDisabled = submitting || !title.trim() || !selectedTemplateId;
-
-  const selectedTemplate = templates.find((t) => t.id === selectedTemplateId) ?? null;
+  const importDisabled = submitting || selectedTemplateIds.size === 0;
   const filteredTemplates = useMemo(() => {
     const k = keyword.trim().toLowerCase();
     const base = [...templates].sort((a, b) =>
@@ -385,8 +405,8 @@ export default function CreateHomeworkModal({
                   showCheck
                   className="session-block--card-sm"
                   title="템플릿 불러오기"
-                  desc="과제 템플릿을 불러옵니다."
-                  onClick={() => { setError(null); setKeyword(""); setSelectedTemplateId(null); setTitle(""); setStage("import"); }}
+                  desc="과제 템플릿을 여러 개 선택하여 일괄 생성합니다."
+                  onClick={() => { setError(null); setKeyword(""); setSelectedTemplateIds(new Set()); setStage("import"); }}
                 />
                 <SessionBlockView
                   variant="n1"
@@ -408,8 +428,9 @@ export default function CreateHomeworkModal({
               <table className="ds-table w-full" style={{ tableLayout: "fixed" }}>
                 <colgroup>
                   <col />
+                  <col style={{ width: 80 }} />
                   <col style={{ width: 90 }} />
-                  <col style={{ width: 100 }} />
+                  <col style={{ width: 120 }} />
                   <col style={{ width: 40 }} />
                 </colgroup>
                 <thead>
@@ -429,6 +450,7 @@ export default function CreateHomeworkModal({
                         </button>
                       </span>
                     </th>
+                    <th className="text-left text-xs font-semibold" style={{ padding: "6px 8px" }}>제출기한</th>
                     <th style={{ padding: "6px 8px" }} />
                   </tr>
                 </thead>
@@ -463,6 +485,15 @@ export default function CreateHomeworkModal({
                           value={row.cutline}
                           onChange={(e) => updateRow(row.key, "cutline", e.target.value)}
                           aria-label={`과제 ${idx + 1} 커트라인`}
+                        />
+                      </td>
+                      <td style={{ padding: "4px 8px" }}>
+                        <input
+                          type="date"
+                          className="ds-input w-full"
+                          value={row.dueDate}
+                          onChange={(e) => updateRow(row.key, "dueDate", e.target.value)}
+                          aria-label={`과제 ${idx + 1} 제출기한`}
                         />
                       </td>
                       <td style={{ padding: "4px 8px", textAlign: "center" }}>
@@ -514,10 +545,17 @@ export default function CreateHomeworkModal({
             </div>
           )}
 
-          {/* ── Stage: import ── */}
+          {/* ── Stage: import (multi-select) ── */}
           {stage === "import" && (
             <div className="modal-form-group">
-              <label className="modal-section-label">템플릿 선택</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="modal-section-label">템플릿 선택</label>
+                {selectedTemplateIds.size > 0 && (
+                  <span className="text-xs font-semibold text-[var(--color-brand-primary)]">
+                    {selectedTemplateIds.size}개 선택됨
+                  </span>
+                )}
+              </div>
               <div className="rounded border border-[var(--border-divider)] bg-[var(--bg-surface)] p-3 space-y-2">
                 <input
                   className="ds-input"
@@ -531,23 +569,37 @@ export default function CreateHomeworkModal({
                   <div className="text-sm text-[var(--text-muted)]">사용 가능한 템플릿이 없습니다.</div>
                 )}
                 {!templatesLoading && filteredTemplates.length > 0 && (
-                  <div className="grid gap-2" style={{ maxHeight: 240, overflowY: "auto" }}>
+                  <div className="grid gap-2" style={{ maxHeight: 320, overflowY: "auto" }}>
                     {filteredTemplates.map((t) => {
-                      const active = t.id === selectedTemplateId;
+                      const checked = selectedTemplateIds.has(t.id);
                       return (
                         <button
                           key={t.id}
                           type="button"
-                          onClick={() => { setSelectedTemplateId(t.id); setTitle(t.title); }}
+                          onClick={() => {
+                            setSelectedTemplateIds((prev) => {
+                              const next = new Set(prev);
+                              if (next.has(t.id)) next.delete(t.id);
+                              else next.add(t.id);
+                              return next;
+                            });
+                          }}
                           className={`w-full text-left rounded border px-3 py-2 transition-colors ${
-                            active ? "border-[var(--color-brand-primary)] bg-[var(--state-selected-bg)]" : "border-[var(--border-divider)] hover:bg-[var(--bg-surface-soft)]"
+                            checked ? "border-[var(--color-brand-primary)] bg-[var(--state-selected-bg)]" : "border-[var(--border-divider)] hover:bg-[var(--bg-surface-soft)]"
                           }`}
                         >
-                          <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              readOnly
+                              className="accent-[var(--color-brand-primary)] pointer-events-none"
+                              tabIndex={-1}
+                            />
                             <div className="text-sm font-semibold text-[var(--text-primary)] truncate">{t.title}</div>
                           </div>
                           {(t.used_lectures?.length ?? 0) > 0 && (
-                            <div className="mt-2 flex flex-wrap gap-1.5">
+                            <div className="mt-2 flex flex-wrap gap-1.5 ml-6">
                               {t.used_lectures!.slice(0, 4).map((lec) => (
                                 <span key={lec.lecture_id} className="ds-badge">{lec.lecture_title}</span>
                               ))}
@@ -560,24 +612,9 @@ export default function CreateHomeworkModal({
                   </div>
                 )}
               </div>
-            </div>
-          )}
-
-          {/* ── Import: title input ── */}
-          {stage === "import" && (
-            <div className="modal-form-group">
-              <label className="modal-section-label">제목 (필수)</label>
-              <input
-                className="ds-input"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="예) 1주차 과제"
-                autoFocus
-                aria-label="과제 제목"
-              />
-              {selectedTemplate && (
-                <p className="modal-hint modal-hint--block">템플릿: {selectedTemplate.title}</p>
-              )}
+              <p className="modal-hint modal-hint--block mt-2">
+                템플릿 제목이 과제 이름으로 사용됩니다. 여러 개를 선택하여 일괄 생성할 수 있습니다.
+              </p>
             </div>
           )}
         </div>
@@ -596,7 +633,7 @@ export default function CreateHomeworkModal({
             )}
             {stage === "import" && (
               <Button intent="primary" size="xl" onClick={handleImportSubmit} disabled={importDisabled}>
-                {submitting ? "생성 중…" : "생성"}
+                {submitting ? "생성 중…" : `일괄 생성${selectedTemplateIds.size > 1 ? ` (${selectedTemplateIds.size}개)` : ""}`}
               </Button>
             )}
           </>

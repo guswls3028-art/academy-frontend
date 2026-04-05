@@ -53,11 +53,10 @@ export default function CreateRegularExamModal({
   // bulk rows (new stage)
   const [rows, setRows] = useState<BulkRow[]>(() => [makeRow()]);
 
-  // import stage
-  const [title, setTitle] = useState("");
+  // import stage — multi-select
   const [templates, setTemplates] = useState<TemplateWithUsage[]>([]);
   const [templatesLoading, setTemplatesLoading] = useState(false);
-  const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null);
+  const [selectedTemplateIds, setSelectedTemplateIds] = useState<Set<number>>(new Set());
   const [keyword, setKeyword] = useState("");
 
   useEffect(() => {
@@ -66,10 +65,9 @@ export default function CreateRegularExamModal({
     setError(null);
     setSubmitting(false);
     setRows([makeRow()]);
-    setTitle("");
     setTemplates([]);
     setTemplatesLoading(false);
-    setSelectedTemplateId(null);
+    setSelectedTemplateIds(new Set());
     setKeyword("");
   }, [open]);
 
@@ -181,42 +179,58 @@ export default function CreateRegularExamModal({
     }
   };
 
-  // ── Import submit (template) ──
+  // ── Import submit (multi-template) ──
   const handleImportSubmit = async () => {
     if (!sessionId) {
       setError("세션 정보가 없습니다.");
       return;
     }
-    if (!selectedTemplateId) {
+    if (selectedTemplateIds.size === 0) {
       setError("불러올 템플릿을 선택하세요.");
-      return;
-    }
-    if (!title.trim()) {
-      setError("시험 제목을 입력하세요.");
       return;
     }
 
     setError(null);
     setSubmitting(true);
-    try {
-      const res = await api.post("/exams/", {
-        title: title.trim(),
-        description: "",
-        exam_type: "regular",
-        session_id: sessionId,
-        template_exam_id: selectedTemplateId,
-      });
-      const newExamId = Number(res.data?.id);
-      if (!newExamId) throw new Error("생성 후 ID를 받지 못했습니다.");
 
-      void autoEnroll(newExamId);
-      onCreated(newExamId);
-      feedback.success(`"${title.trim()}" 시험 생성 완료`);
+    const selected = templates.filter((t) => selectedTemplateIds.has(t.id));
+    const createdIds: number[] = [];
+    const failedTitles: string[] = [];
+
+    for (const tpl of selected) {
+      try {
+        const res = await api.post("/exams/", {
+          title: tpl.title,
+          description: "",
+          exam_type: "regular",
+          session_id: sessionId,
+          template_exam_id: tpl.id,
+        });
+        const newExamId = Number(res.data?.id);
+        if (!newExamId) throw new Error("생성 후 ID를 받지 못했습니다.");
+
+        void autoEnroll(newExamId);
+        createdIds.push(newExamId);
+      } catch {
+        failedTitles.push(tpl.title);
+      }
+    }
+
+    setSubmitting(false);
+
+    if (createdIds.length > 0) {
+      // onCreated 한 번만 호출 — 마지막 생성된 시험으로 네비게이션
+      onCreated(createdIds[createdIds.length - 1]);
+    }
+
+    if (failedTitles.length === 0) {
+      feedback.success(`${createdIds.length}개 템플릿 시험 생성 완료`);
       onClose();
-    } catch (e: any) {
-      setError(e?.response?.data?.detail ?? e?.message ?? "시험 생성 실패. 입력값을 확인하세요.");
-    } finally {
-      setSubmitting(false);
+    } else if (createdIds.length > 0) {
+      feedback.warning(`${createdIds.length}개 생성 완료, ${failedTitles.length}개 실패: ${failedTitles.join(", ")}`);
+      onClose();
+    } else {
+      setError(`시험 생성 실패: ${failedTitles.join(", ")}`);
     }
   };
 
@@ -272,12 +286,9 @@ export default function CreateRegularExamModal({
     }
   };
 
-  const importDisabled =
-    submitting || !(sessionId > 0) || !title.trim() || !selectedTemplateId;
+  const importDisabled = submitting || !(sessionId > 0) || selectedTemplateIds.size === 0;
 
   const bulkHasAnyTitle = rows.some((r) => r.title.trim());
-
-  const selectedTemplate = templates.find((t) => t.id === selectedTemplateId) ?? null;
 
   const filteredTemplates = useMemo(() => {
     const k = keyword.trim().toLowerCase();
@@ -388,11 +399,10 @@ export default function CreateRegularExamModal({
                   showCheck
                   className="session-block--card-sm"
                   title="템플릿 불러오기"
-                  desc="기존 시험 템플릿을 불러옵니다."
+                  desc="시험 템플릿을 여러 개 선택하여 일괄 생성합니다."
                   onClick={() => {
                     setError(null);
-                    setTitle("");
-                    setSelectedTemplateId(null);
+                    setSelectedTemplateIds(new Set());
                     setKeyword("");
                     setStage("import");
                   }}
@@ -417,65 +427,77 @@ export default function CreateRegularExamModal({
           {/* ── Stage: new (bulk rows) ── */}
           {stage === "new" && (
             <div className="modal-form-group">
-              {/* Header labels */}
-              <div className="flex items-center gap-2 mb-2">
-                <div className="flex-1 text-xs font-semibold text-[var(--color-text-muted)]">제목</div>
-                <div className="text-xs font-semibold text-[var(--color-text-muted)]" style={{ width: 80 }}>만점</div>
-                <div className="text-xs font-semibold text-[var(--color-text-muted)]" style={{ width: 80 }}>커트라인</div>
-                <div style={{ width: 32 }} />
-              </div>
-
-              {/* Rows */}
-              <div className="space-y-2">
-                {rows.map((row, idx) => (
-                  <div key={row.id} className="flex items-center gap-2">
-                    <input
-                      className="ds-input flex-1"
-                      value={row.title}
-                      onChange={(e) => updateRow(row.id, "title", e.target.value)}
-                      placeholder={`시험 ${idx + 1}`}
-                      autoFocus={idx === 0}
-                      aria-label={`시험 ${idx + 1} 제목`}
-                    />
-                    <input
-                      type="number"
-                      min={1}
-                      className="ds-input"
-                      style={{ width: 80 }}
-                      value={row.maxScore}
-                      onChange={(e) => updateRow(row.id, "maxScore", e.target.value)}
-                      placeholder="100"
-                      aria-label={`시험 ${idx + 1} 만점`}
-                    />
-                    <input
-                      type="number"
-                      min={0}
-                      className="ds-input"
-                      style={{ width: 80 }}
-                      value={row.passScore}
-                      onChange={(e) => updateRow(row.id, "passScore", e.target.value)}
-                      placeholder="0"
-                      aria-label={`시험 ${idx + 1} 커트라인`}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => removeRow(row.id)}
-                      disabled={rows.length <= 1}
-                      className="flex items-center justify-center rounded text-[var(--color-text-muted)] hover:text-[var(--color-error)] disabled:opacity-30 disabled:cursor-not-allowed"
-                      style={{ width: 32, height: 32, flexShrink: 0 }}
-                      aria-label="행 삭제"
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))}
-              </div>
+              <table className="ds-table w-full" style={{ tableLayout: "fixed" }}>
+                <colgroup>
+                  <col />
+                  <col style={{ width: 90 }} />
+                  <col style={{ width: 90 }} />
+                  <col style={{ width: 40 }} />
+                </colgroup>
+                <thead>
+                  <tr>
+                    <th className="text-left text-xs font-semibold" style={{ padding: "6px 8px" }}>제목</th>
+                    <th className="text-left text-xs font-semibold" style={{ padding: "6px 8px" }}>만점</th>
+                    <th className="text-left text-xs font-semibold" style={{ padding: "6px 8px" }}>커트라인</th>
+                    <th style={{ padding: "6px 8px" }} />
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((row, idx) => (
+                    <tr key={row.id}>
+                      <td style={{ padding: "4px 8px" }}>
+                        <input
+                          className="ds-input w-full"
+                          value={row.title}
+                          onChange={(e) => updateRow(row.id, "title", e.target.value)}
+                          placeholder={`시험 ${idx + 1}`}
+                          autoFocus={idx === 0}
+                          aria-label={`시험 ${idx + 1} 제목`}
+                        />
+                      </td>
+                      <td style={{ padding: "4px 8px" }}>
+                        <input
+                          type="number"
+                          min={1}
+                          className="ds-input w-full"
+                          value={row.maxScore}
+                          onChange={(e) => updateRow(row.id, "maxScore", e.target.value)}
+                          placeholder="100"
+                          aria-label={`시험 ${idx + 1} 만점`}
+                        />
+                      </td>
+                      <td style={{ padding: "4px 8px" }}>
+                        <input
+                          type="number"
+                          min={0}
+                          className="ds-input w-full"
+                          value={row.passScore}
+                          onChange={(e) => updateRow(row.id, "passScore", e.target.value)}
+                          placeholder="0"
+                          aria-label={`시험 ${idx + 1} 커트라인`}
+                        />
+                      </td>
+                      <td style={{ padding: "4px 8px", textAlign: "center" }}>
+                        <button
+                          type="button"
+                          onClick={() => removeRow(row.id)}
+                          disabled={rows.length <= 1}
+                          className="text-lg leading-none text-[var(--color-text-muted)] hover:text-[var(--color-error)] disabled:opacity-30 disabled:cursor-not-allowed"
+                          aria-label="행 삭제"
+                        >
+                          ×
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
 
               {/* Add row button */}
               <button
                 type="button"
                 onClick={addRow}
-                className="mt-3 w-full rounded border border-dashed border-[var(--color-border-divider)] py-2 text-sm text-[var(--color-text-muted)] hover:text-[var(--color-brand-primary)] hover:border-[var(--color-brand-primary)] transition-colors"
+                className="mt-2 w-full rounded border border-dashed border-[var(--color-border-divider)] py-1.5 text-sm text-[var(--color-text-muted)] hover:text-[var(--color-brand-primary)] hover:border-[var(--color-brand-primary)] transition-colors"
               >
                 + 추가
               </button>
@@ -505,10 +527,17 @@ export default function CreateRegularExamModal({
             </div>
           )}
 
-          {/* ── Stage: import ── */}
+          {/* ── Stage: import (multi-select) ── */}
           {stage === "import" && (
             <div className="modal-form-group">
-              <label className="modal-section-label">템플릿 선택</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="modal-section-label">템플릿 선택</label>
+                {selectedTemplateIds.size > 0 && (
+                  <span className="text-xs font-semibold text-[var(--color-brand-primary)]">
+                    {selectedTemplateIds.size}개 선택됨
+                  </span>
+                )}
+              </div>
               <div className="rounded border border-[var(--border-divider)] bg-[var(--bg-surface)] p-3 space-y-2">
                 <input
                   className="ds-input"
@@ -524,9 +553,9 @@ export default function CreateRegularExamModal({
                   <div className="text-sm text-[var(--text-muted)]">사용 가능한 템플릿이 없습니다.</div>
                 )}
                 {!templatesLoading && filteredTemplates.length > 0 && (
-                  <div className="grid gap-2" style={{ maxHeight: 240, overflowY: "auto" }}>
+                  <div className="grid gap-2" style={{ maxHeight: 320, overflowY: "auto" }}>
                     {filteredTemplates.map((t) => {
-                      const active = t.id === selectedTemplateId;
+                      const checked = selectedTemplateIds.has(t.id);
                       const lecturesList = [...(t.used_lectures ?? [])].sort((a, b) =>
                         String(b.last_used_date ?? "").localeCompare(String(a.last_used_date ?? ""))
                       );
@@ -535,17 +564,28 @@ export default function CreateRegularExamModal({
                           key={t.id}
                           type="button"
                           onClick={() => {
-                            setSelectedTemplateId(t.id);
-                            setTitle(t.title);
+                            setSelectedTemplateIds((prev) => {
+                              const next = new Set(prev);
+                              if (next.has(t.id)) next.delete(t.id);
+                              else next.add(t.id);
+                              return next;
+                            });
                           }}
                           className={`w-full text-left rounded border px-3 py-2 transition-colors ${
-                            active
+                            checked
                               ? "border-[var(--color-brand-primary)] bg-[var(--state-selected-bg)]"
                               : "border-[var(--border-divider)] hover:bg-[var(--bg-surface-soft)]"
                           }`}
                         >
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              readOnly
+                              className="accent-[var(--color-brand-primary)] pointer-events-none"
+                              tabIndex={-1}
+                            />
+                            <div className="min-w-0 flex-1">
                               <div className="text-sm font-semibold text-[var(--text-primary)] truncate">
                                 {t.title}
                               </div>
@@ -555,7 +595,7 @@ export default function CreateRegularExamModal({
                             </div>
                           </div>
                           {lecturesList.length > 0 && (
-                            <div className="mt-2 flex flex-wrap gap-1.5">
+                            <div className="mt-2 flex flex-wrap gap-1.5 ml-6">
                               {lecturesList.slice(0, 4).map((lec) => (
                                 <span
                                   key={lec.lecture_id}
@@ -583,26 +623,9 @@ export default function CreateRegularExamModal({
                   </div>
                 )}
               </div>
-            </div>
-          )}
-
-          {/* ── Import: title input ── */}
-          {stage === "import" && (
-            <div className="modal-form-group">
-              <label className="modal-section-label">제목 (필수)</label>
-              <input
-                className="ds-input"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="예) 3월 모의고사"
-                autoFocus
-                aria-label="시험 제목"
-              />
-              {selectedTemplate && (
-                <p className="modal-hint modal-hint--block">
-                  템플릿: {selectedTemplate.title}
-                </p>
-              )}
+              <p className="modal-hint modal-hint--block mt-2">
+                템플릿 제목이 시험 이름으로 사용됩니다. 여러 개를 선택하여 일괄 생성할 수 있습니다.
+              </p>
             </div>
           )}
         </div>
@@ -631,7 +654,7 @@ export default function CreateRegularExamModal({
                 onClick={handleImportSubmit}
                 disabled={importDisabled}
               >
-                {submitting ? "생성 중…" : "생성"}
+                {submitting ? "생성 중…" : `일괄 생성${selectedTemplateIds.size > 1 ? ` (${selectedTemplateIds.size}개)` : ""}`}
               </Button>
             )}
           </>

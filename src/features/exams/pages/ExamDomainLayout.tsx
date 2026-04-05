@@ -10,6 +10,7 @@ import { DomainLayout, type DomainTab } from "@/shared/ui/domain";
 const EXAM_TABS: DomainTab[] = [
   { key: "by-session", label: "강의별 시험", path: "/admin/exams", exact: true },
   { key: "templates", label: "템플릿 관리", path: "/admin/exams/templates", exact: true },
+  { key: "bundles", label: "묶음 관리", path: "/admin/exams/bundles", exact: true },
 ];
 
 export default function ExamDomainLayout() {

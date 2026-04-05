@@ -104,6 +104,7 @@ const LandingEditorPage = lazy(() => import("@/features/landing/editor/LandingEd
 const ExamDomainLayout = lazy(() => import("@/features/exams/pages/ExamDomainLayout"));
 const ExamExplorerPage = lazy(() => import("@/features/exams/pages/ExamExplorerPage"));
 const ExamTemplatesPage = lazy(() => import("@/features/exams/pages/ExamTemplatesPage"));
+const ExamBundlesPage = lazy(() => import("@/features/exams/pages/ExamBundlesPage"));
 const ResultsExplorerPage = lazy(() => import("@/features/results/pages/ResultsExplorerPage"));
 const SubmissionsInboxPage = lazy(() => import("@/features/submissions/pages/SubmissionsInboxPage"));
 const VideoExplorerPage = lazy(() => import("@/features/videos/pages/VideoExplorerPage"));
@@ -192,6 +193,7 @@ export default function AdminRouter() {
         <Route path="exams" element={wrapLazy(ExamDomainLayout)}>
           <Route index element={wrapLazy(ExamExplorerPage)} />
           <Route path="templates" element={wrapLazy(ExamTemplatesPage)} />
+          <Route path="bundles" element={wrapLazy(ExamBundlesPage)} />
         </Route>
         <Route path="results/submissions" element={wrapLazy(SubmissionsInboxPage)} />
         <Route path="results" element={wrapLazy(ResultsExplorerPage)} />
@@ -249,6 +251,9 @@ export default function AdminRouter() {
           <Route path="attendance" element={wrapLazy(ProfileAttendancePage)} />
           <Route path="expense" element={wrapLazy(ProfileExpensePage)} />
         </Route>
+
+        {/* 매칭되지 않는 admin 하위 경로 → 대시보드로 리디렉트 */}
+        <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
       </Route>
     </Routes>
   );
