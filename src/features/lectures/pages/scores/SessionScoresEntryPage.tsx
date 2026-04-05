@@ -64,7 +64,7 @@ export default function SessionScoresEntryPage(_props: Props) {
   /** 뷰 필터: 시험만/과제만/전체 */
   const [viewFilter, setViewFilter] = useState<"all" | "exam" | "homework">("all");
   /** 점수 표시 형식: raw(원점수만) | fraction(50/100) */
-  const [scoreFormat, setScoreFormat] = useState<"raw" | "fraction">("raw");
+  const [scoreFormat, setScoreFormat] = useState<"raw" | "fraction">("fraction");
   const { openSendMessageModal } = useSendMessageModal();
   const panelRef = useRef<SessionScoresPanelHandle>(null);
   const [showBulkScoreModal, setShowBulkScoreModal] = useState(false);
