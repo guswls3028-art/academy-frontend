@@ -431,6 +431,8 @@ export default function SendMessageModal({
   const [savingTemplate, setSavingTemplate] = useState(false);
   const [showTemplatePanel, setShowTemplatePanel] = useState(false);
   const [templateBodySnapshot, setTemplateBodySnapshot] = useState<string | null>(null);
+  /** 빈 본문 안내 오버레이를 닫음 — "직접 작성하기" 후에도 본문이 비어 있으면 오버레이가 다시 덮여 입력 불가가 되던 버그 방지 */
+  const [smsEmptyHintDismissed, setSmsEmptyHintDismissed] = useState(false);
   const bodyWrapRef = useRef<HTMLDivElement>(null);
   const getNativeTextarea = useCallback(
     () => bodyWrapRef.current?.querySelector("textarea") ?? null, [],
@@ -534,6 +536,7 @@ export default function SendMessageModal({
       setSaveTemplateName("");
       setShowTemplatePanel(false);
       setTemplateBodySnapshot(null);
+      setSmsEmptyHintDismissed(false);
       setShowConfirm(false);
       sendingRef.current = false;
     }
@@ -977,7 +980,7 @@ export default function SendMessageModal({
                       <FiSearch size={13} style={{ position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)", color: "var(--color-text-muted)", pointerEvents: "none" }} />
                       <Input size="small" placeholder="양식 검색…" value={templateSearch} onChange={(e) => setTemplateSearch(e.target.value)} style={{ paddingLeft: 28, fontSize: 12 }} />
                     </div>
-                    <button type="button" onClick={() => { setSelectedTemplateId(null); setBody(""); setSubject(""); setShowTemplatePanel(false); setTemplateBodySnapshot(null); }}
+                    <button type="button" onClick={() => { setSelectedTemplateId(null); setBody(""); setSubject(""); setShowTemplatePanel(false); setTemplateBodySnapshot(null); setSmsEmptyHintDismissed(true); }}
                       style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "8px 10px", borderRadius: 8, border: selectedTemplateId == null ? "2px solid var(--color-primary)" : "1px solid var(--color-border-divider)", background: selectedTemplateId == null ? "color-mix(in srgb, var(--color-primary) 6%, transparent)" : "transparent", cursor: "pointer", textAlign: "left" as const, fontSize: 12, fontWeight: 600, color: "var(--color-text-primary)", transition: "all 0.15s" }}>
                       <FiEdit3 size={14} style={{ color: selectedTemplateId == null ? "var(--color-primary)" : "var(--color-text-muted)", flexShrink: 0 }} />
                       직접 작성하기
@@ -1043,14 +1046,14 @@ export default function SendMessageModal({
                   {/* 본문 */}
                   <div ref={bodyWrapRef} style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", position: "relative" }}>
                     {/* 빈 상태 오버레이 */}
-                    {!body && !selectedTemplate && (
-                      <div style={{ position: "absolute", inset: 0, zIndex: 2, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, background: "var(--color-bg-surface)", borderRadius: 8, border: "1px solid var(--color-border-divider)" }}>
+                    {!body && !selectedTemplate && !smsEmptyHintDismissed && (
+                      <div style={{ position: "absolute", inset: 0, zIndex: 2, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, background: "var(--color-bg-surface)", borderRadius: 8, border: "1px solid var(--color-border-divider)", pointerEvents: "auto" }}>
                         <FiEdit3 size={28} style={{ color: "var(--color-text-muted)", opacity: 0.4 }} />
                         <div style={{ textAlign: "center" }}>
                           <div style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text-secondary)", marginBottom: 4 }}>양식을 선택하거나</div>
                           <div style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text-secondary)" }}>직접 내용을 작성하세요</div>
                         </div>
-                        <Button size="sm" intent="primary" onClick={() => setShowTemplatePanel(true)} style={{ marginTop: 4 }}>양식 선택하기</Button>
+                        <Button size="sm" intent="primary" onClick={() => { setSmsEmptyHintDismissed(true); setShowTemplatePanel(true); }} style={{ marginTop: 4 }}>양식 선택하기</Button>
                       </div>
                     )}
                     <Input.TextArea
@@ -1059,7 +1062,17 @@ export default function SendMessageModal({
                       onChange={(e) => setBody(e.target.value)}
                       disabled={sending}
                       className="message-domain-input"
-                      style={{ resize: "none", fontFamily: "inherit", minHeight: 240, flex: 1, fontSize: 14, lineHeight: 1.7, padding: 12, borderColor: smsOverLimit ? "var(--color-error)" : undefined }}
+                      style={{
+                        resize: "none",
+                        fontFamily: "inherit",
+                        minHeight: 240,
+                        flex: 1,
+                        fontSize: 14,
+                        lineHeight: 1.7,
+                        padding: 12,
+                        borderColor: smsOverLimit ? "var(--color-error)" : undefined,
+                        pointerEvents: !body && !selectedTemplate && !smsEmptyHintDismissed ? "none" : undefined,
+                      }}
                     />
                     {smsOverLimit && (
                       <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4, fontSize: 12, fontWeight: 600, color: "var(--color-error)" }}>
