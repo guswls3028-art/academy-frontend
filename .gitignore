@@ -80,6 +80,8 @@ test-results/
 playwright-report/
 e2e/.auth/
 e2e/screenshots/
+# exam-pdf-extract E2E가 런타임에 생성
+e2e/fixtures/test-exam.pdf
 .env.e2e
 .env.local
 
