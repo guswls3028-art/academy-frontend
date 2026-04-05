@@ -17,6 +17,17 @@ const PCT_RE = /^(\d+)%$/;
 const STATUS_VALS = ["진행중", "완료", "-"];
 const NAME_RE = /^[가-힣]{2,5}[A-Za-z0-9]?$/;
 
+/** 미제출/미응시 — 유효한 성적 값으로 인식해야 함 (이전엔 인식 못해 파싱 중단됨) */
+const SPECIAL_VALS = ["미제출", "미응시"];
+const isSpecialVal = (v: string) => SPECIAL_VALS.includes(v);
+
+/** UI 텍스트 차단 — 이름으로 오인 방지 (복붙 시 포함되는 노이즈) */
+const UI_NOISE = new Set([
+  "숨김", "공개", "전체", "현장", "영상", "부재", "미정", "검색어",
+  "이름", "출석", "날짜", "강의", "학생", "클리닉", "상담", "공지",
+  "메시지", "관리자", "완료", "진행중", "질의응답",
+]);
+
 /** 텍스트에서 탭 구분 행 → 라인별로 전개 */
 function expandTabs(text: string): string[] {
   const raw = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
@@ -82,7 +93,7 @@ function parseScoreTabFormat(lines: string[]): ParsedClinicData {
   }
 
   // ── 학생 블록 파싱 (1차: 원시 값 보존) ──
-  type RawAssessment = { val: string; isScore: boolean; isPct: boolean; isDash: boolean; status: string };
+  type RawAssessment = { val: string; isScore: boolean; isPct: boolean; isDash: boolean; isSpecial: boolean; status: string };
   type RawStudentBlock = { name: string; attendance: string; assessments: RawAssessment[] };
   const rawStudents: RawStudentBlock[] = [];
 
@@ -91,6 +102,9 @@ function parseScoreTabFormat(lines: string[]): ParsedClinicData {
     if (i === 0 || !NAME_RE.test(lines[i - 1])) continue;
 
     const name = lines[i - 1];
+    // UI 노이즈 차단: "공개", "숨김" 등 복붙 시 포함되는 텍스트는 이름 아님
+    if (UI_NOISE.has(name)) continue;
+
     const attendance = lines[i];
 
     // 이미 파싱된 학생의 이름이면 스킵 (중복 방지)
@@ -104,8 +118,9 @@ function parseScoreTabFormat(lines: string[]): ParsedClinicData {
       const isScore = SCORE_RE.test(val);
       const isPct = PCT_RE.test(val);
       const isDash = val === "-";
-      if ((isScore || isPct || isDash) && STATUS_VALS.includes(st)) {
-        assessments.push({ val, isScore, isPct, isDash, status: st });
+      const isSpecial = isSpecialVal(val);
+      if ((isScore || isPct || isDash || isSpecial) && STATUS_VALS.includes(st)) {
+        assessments.push({ val, isScore, isPct, isDash, isSpecial, status: st });
         j += 2;
       } else {
         break;
@@ -134,9 +149,11 @@ function parseScoreTabFormat(lines: string[]): ParsedClinicData {
     assessments: rs.assessments.map((a, idx) => {
       // 실제 점수가 있으면 그대로 사용
       if (a.isScore || a.isPct) return { isExam: a.isScore, isHw: a.isPct, status: a.status };
-      // "-"인 경우 컬럼 타입으로 보정
+      // "-" 또는 "미제출"/"미응시"인 경우 컬럼 타입으로 보정
       const ct = idx < colTypes.length ? colTypes[idx] : "unknown";
-      return { isExam: ct === "exam", isHw: ct === "hw", status: a.status };
+      // 미제출/미응시는 무조건 "진행중"(미통과)으로 판정
+      const effectiveStatus = a.isSpecial ? "진행중" : a.status;
+      return { isExam: ct === "exam", isHw: ct === "hw", status: effectiveStatus };
     }),
   }));
 
@@ -173,7 +190,7 @@ function parseScoreTabFormat(lines: string[]): ParsedClinicData {
 
 /** 단순 이름 목록 (한 줄에 한 명) → 전부 "시험+과제"로 분류 */
 function parseSimpleNameList(lines: string[]): ParsedClinicData {
-  const names = lines.filter((l) => NAME_RE.test(l));
+  const names = lines.filter((l) => NAME_RE.test(l) && !UI_NOISE.has(l) && !SPECIAL_VALS.includes(l));
   if (names.length === 0) return { both: [], examOnly: [], hwOnly: [], sessionTitle: "", lectureTitle: "", date: "", totalPresent: 0 };
   names.sort((a, b) => a.localeCompare(b, "ko"));
   return { both: names, examOnly: [], hwOnly: [], sessionTitle: "", lectureTitle: "", date: "", totalPresent: names.length };
