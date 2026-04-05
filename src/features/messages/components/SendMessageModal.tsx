@@ -530,7 +530,7 @@ export default function SendMessageModal({
       setSelectedTemplateId(null);
       setSendToParent(true);
       setSendToStudent(true);
-      setSendMode(smsAllowed ? "sms" : "alimtalk");
+      setSendMode(initialBody ? "sms" : smsAllowed ? "sms" : "alimtalk");
       setTemplateSearch("");
       setShowSaveForm(false);
       setSaveTemplateName("");
@@ -699,9 +699,17 @@ export default function SendMessageModal({
       }
 
       const sendToLabel = isStaffMode ? "직원" : sendToTargets.length === 2 ? "학부모·학생" : sendToTargets[0] === "parent" ? "학부모" : "학생";
-      feedback.success(`${sendToLabel} ${modeLabel} 발송 예정 ${totalEnqueued}건입니다.`);
+      if (totalEnqueued > 0) {
+        feedback.success(`${sendToLabel} ${modeLabel} 발송 예정 ${totalEnqueued}건입니다.`);
+        asyncStatusStore.completeTask(taskId, "success");
+      } else {
+        const hint = totalSkipped > 0
+          ? `${sendToLabel} 대상 중 전화번호가 없어 큐에 등록된 건이 0건입니다.`
+          : `${sendToLabel} ${modeLabel} 발송이 큐에 등록되지 않았습니다. 발신번호·메시지 연동(SMS/알림톡)·수신 번호를 확인해 주세요.`;
+        feedback.warning(hint);
+        asyncStatusStore.completeTask(taskId, "error", "발송 큐 0건");
+      }
       if (totalSkipped > 0) feedback.info(`전화번호 없음으로 ${totalSkipped}건 제외되었습니다.`);
-      asyncStatusStore.completeTask(taskId, "success");
       queryClient.invalidateQueries({ queryKey: ["messaging", "info"] });
       onClose();
     } catch (e: unknown) {
@@ -740,6 +748,7 @@ export default function SendMessageModal({
   const disableReason = (() => {
     if (!hasRecipients) return "수신자를 선택해 주세요";
     if (sendToTargets.length === 0) return "발송 대상을 선택해 주세요";
+    if (sendMode === "sms" && !smsAllowed) return "SMS 연동 후 발송 가능합니다 (설정 > 메시지)";
     if (sendMode === "sms" && !body.trim()) return "본문을 입력해 주세요";
     if (sendMode === "sms" && smsOverLimit) return `본문이 ${SMS_MAX_CHARS}자를 초과합니다`;
     if (sendMode === "alimtalk" && !selectedTemplate) return "템플릿을 선택해 주세요";
@@ -869,7 +878,7 @@ export default function SendMessageModal({
                 <span style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-muted)", whiteSpace: "nowrap" }}>채널</span>
                 <div style={{ display: "flex", gap: 0, borderRadius: 8, overflow: "hidden", border: "1px solid var(--color-border-divider)" }}>
                   {([
-                    { key: "sms" as SendMode, label: "SMS", disabled: !smsAllowed },
+                    { key: "sms" as SendMode, label: "SMS", disabled: false },
                     { key: "alimtalk" as SendMode, label: "알림톡", disabled: false },
                   ]).map((opt) => (
                     <button
@@ -896,7 +905,7 @@ export default function SendMessageModal({
                     </button>
                   ))}
                 </div>
-                {!smsAllowed && <span style={{ fontSize: 10, color: "var(--color-text-muted)" }}>SMS 미설정</span>}
+                {!smsAllowed && sendMode === "sms" && <span style={{ fontSize: 10, color: "var(--color-status-warning, #d97706)" }}>SMS 미연동 — 양식 작성만 가능, 발송은 알림톡으로 전환하세요</span>}
               </div>
 
               <div style={{ width: 1, height: 24, background: "var(--color-border-divider)" }} />
