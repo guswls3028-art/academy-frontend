@@ -497,7 +497,7 @@ export default function ProfilePage() {
                     placeholder="초등학교명"
                   />
                 ) : (
-                  <div style={{ fontWeight: 600, fontSize: 16 }}>{(profile as any).elementary_school || "-"}</div>
+                  <div style={{ fontWeight: 600, fontSize: 16 }}>{profile.elementary_school || "-"}</div>
                 )}
               </div>
             )}

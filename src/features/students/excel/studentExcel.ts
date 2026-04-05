@@ -27,7 +27,7 @@ export interface ParsedStudentRow {
   parentPhone: string;
   /** 학생 전화가 없어 식별자(010+8자리)로 대체한 경우 true */
   usesIdentifier?: boolean;
-  schoolType: "HIGH" | "MIDDLE";
+  schoolType: "HIGH" | "MIDDLE" | "ELEMENTARY";
   school: string;
   grade: string;
   schoolClass: string;
@@ -131,6 +131,12 @@ function inferSchoolType(school: string): "ELEMENTARY" | "MIDDLE" | "HIGH" {
   if (/(중학교|중등|중\b)/.test(s)) return "MIDDLE";
   if (/(여고|부고|고등|고등학교)/.test(s)) return "HIGH";
   return "HIGH";
+}
+
+function parseSchoolTypeFromCell(raw: string): "ELEMENTARY" | "MIDDLE" | "HIGH" | null {
+  const u = String(raw ?? "").trim().toUpperCase();
+  if (u === "ELEMENTARY" || u === "MIDDLE" || u === "HIGH") return u;
+  return null;
 }
 
 /**
@@ -305,9 +311,8 @@ export function parseStudentExcel(file: File): Promise<ParseStudentExcelResult> 
           const { school: parsedSchool, grade: parsedGrade } = parseSchoolGrade(schoolCell);
           const school = parsedSchool || schoolCell; // 학교(학년) 파싱 결과 또는 원본
           const grade = parsedGrade || gradeCell;
-          const schoolTypeRaw = cellStr(map, row, "schoolType").toUpperCase();
           const schoolType =
-            (["ELEMENTARY", "MIDDLE", "HIGH"].includes(schoolTypeRaw) ? schoolTypeRaw : null)
+            parseSchoolTypeFromCell(cellStr(map, row, "schoolType"))
             || (school ? inferSchoolType(school) : "HIGH");
 
           result.push({
