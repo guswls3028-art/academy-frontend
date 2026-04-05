@@ -131,7 +131,7 @@ export default function CreateRegularExamModal({
     setError(null);
     setSubmitting(true);
 
-    let successCount = 0;
+    const createdIds: number[] = [];
     const failedTitles: string[] = [];
 
     for (const row of validRows) {
@@ -157,8 +157,7 @@ export default function CreateRegularExamModal({
         // Auto-enroll students (fire and forget)
         void autoEnroll(newExamId);
 
-        onCreated(newExamId);
-        successCount++;
+        createdIds.push(newExamId);
       } catch (e: any) {
         failedTitles.push(row.title.trim());
       }
@@ -166,12 +165,17 @@ export default function CreateRegularExamModal({
 
     setSubmitting(false);
 
+    // onCreated 한 번만 호출 — 마지막 생성된 시험으로 네비게이션
+    if (createdIds.length > 0) {
+      onCreated(createdIds[createdIds.length - 1]);
+    }
+
     if (failedTitles.length === 0) {
-      feedback.success(`${successCount}개 시험 일괄 생성 완료`);
+      feedback.success(`${createdIds.length}개 시험 일괄 생성 완료`);
       onClose();
-    } else if (successCount > 0) {
+    } else if (createdIds.length > 0) {
       feedback.warning(
-        `${successCount}개 생성 완료, ${failedTitles.length}개 실패: ${failedTitles.join(", ")}`
+        `${createdIds.length}개 생성 완료, ${failedTitles.length}개 실패: ${failedTitles.join(", ")}`
       );
       onClose();
     } else {
@@ -241,7 +245,7 @@ export default function CreateRegularExamModal({
     setError(null);
     setSubmitting(true);
 
-    let successCount = 0;
+    const createdIds: number[] = [];
     const failedTitles: string[] = [];
 
     for (const item of items) {
@@ -264,8 +268,7 @@ export default function CreateRegularExamModal({
         });
 
         void autoEnroll(newExamId);
-        onCreated(newExamId);
-        successCount++;
+        createdIds.push(newExamId);
       } catch {
         failedTitles.push(item.title);
       }
@@ -273,12 +276,17 @@ export default function CreateRegularExamModal({
 
     setSubmitting(false);
 
+    // onCreated 한 번만 호출 — 마지막 생성된 시험으로 네비게이션
+    if (createdIds.length > 0) {
+      onCreated(createdIds[createdIds.length - 1]);
+    }
+
     if (failedTitles.length === 0) {
-      feedback.success(`${successCount}개 시험 불러오기 완료 (복사 생성)`);
+      feedback.success(`${createdIds.length}개 시험 불러오기 완료 (복사 생성)`);
       onClose();
-    } else if (successCount > 0) {
+    } else if (createdIds.length > 0) {
       feedback.warning(
-        `${successCount}개 생성 완료, ${failedTitles.length}개 실패: ${failedTitles.join(", ")}`
+        `${createdIds.length}개 생성 완료, ${failedTitles.length}개 실패: ${failedTitles.join(", ")}`
       );
       onClose();
     } else {

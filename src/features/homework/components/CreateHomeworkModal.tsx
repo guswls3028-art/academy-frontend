@@ -142,7 +142,7 @@ export default function CreateHomeworkModal({
     setError(null);
     setSubmitting(true);
 
-    const created: { id: number; title: string }[] = [];
+    const createdIds: number[] = [];
     const failed: string[] = [];
 
     // Apply cutline from the first row
@@ -187,8 +187,7 @@ export default function CreateHomeworkModal({
         // Auto-enroll
         void autoEnroll(newId);
 
-        created.push({ id: newId, title: row.title.trim() });
-        onCreated(newId);
+        createdIds.push(newId);
       } catch (e: any) {
         failed.push(row.title.trim());
       }
@@ -196,13 +195,18 @@ export default function CreateHomeworkModal({
 
     setSubmitting(false);
 
-    if (created.length > 0) {
-      const msg = `${created.length}개 과제 생성 완료` +
+    // onCreated 한 번만 호출 — 마지막 생성된 과제로 네비게이션
+    if (createdIds.length > 0) {
+      onCreated(createdIds[createdIds.length - 1]);
+    }
+
+    if (createdIds.length > 0) {
+      const msg = `${createdIds.length}개 과제 생성 완료` +
         (policyPatched ? ` (커트라인 ${firstCutline}${cutlineMode === "PERCENT" ? "%" : "점"})` : "") +
         (failed.length > 0 ? ` · ${failed.length}개 실패` : "");
       feedback.success(msg);
     }
-    if (failed.length > 0 && created.length === 0) {
+    if (failed.length > 0 && createdIds.length === 0) {
       setError(`모든 과제 생성에 실패했습니다: ${failed.join(", ")}`);
       return;
     }
@@ -268,7 +272,7 @@ export default function CreateHomeworkModal({
     setError(null);
     setSubmitting(true);
 
-    const created: { id: number; title: string }[] = [];
+    const createdIds: number[] = [];
     const failed: string[] = [];
 
     for (const item of items) {
@@ -292,8 +296,7 @@ export default function CreateHomeworkModal({
         }
 
         void autoEnroll(newId);
-        created.push({ id: newId, title: item.title });
-        onCreated(newId);
+        createdIds.push(newId);
       } catch {
         failed.push(item.title);
       }
@@ -301,12 +304,17 @@ export default function CreateHomeworkModal({
 
     setSubmitting(false);
 
-    if (created.length > 0) {
-      const msg = `${created.length}개 과제 불러오기 완료 (복사 생성)` +
+    // onCreated 한 번만 호출 — 마지막 생성된 과제로 네비게이션
+    if (createdIds.length > 0) {
+      onCreated(createdIds[createdIds.length - 1]);
+    }
+
+    if (createdIds.length > 0) {
+      const msg = `${createdIds.length}개 과제 불러오기 완료 (복사 생성)` +
         (failed.length > 0 ? ` · ${failed.length}개 실패` : "");
       feedback.success(msg);
     }
-    if (failed.length > 0 && created.length === 0) {
+    if (failed.length > 0 && createdIds.length === 0) {
       setError(`모든 과제 복사에 실패했습니다: ${failed.join(", ")}`);
       return;
     }
