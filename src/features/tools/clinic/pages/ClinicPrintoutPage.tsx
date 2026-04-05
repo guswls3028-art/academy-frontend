@@ -82,6 +82,25 @@ function buildEditableHtml(p: {
 </div></body></html>`;
 }
 
+// ── PDF 전용 이름 빌더 (html2canvas가 <span class="suffix"> 렌더링 실패 → 접미사 분리 안 함) ──
+
+function buildPdfNameSingle(name: string): string {
+  return `<div class="name-row single"><span class="checkbox">☐</span>${name}</div>`;
+}
+function buildPdfNameCell(name: string): string {
+  return `<div class="name-cell"><span class="checkbox">☐</span>${name}</div>`;
+}
+function buildPdfNameItems(names: string[]): string {
+  if (names.length <= 15) return names.map(buildPdfNameSingle).join("\n");
+  const rows: string[] = [];
+  for (let i = 0; i < names.length; i += 2) {
+    const c1 = buildPdfNameCell(names[i]);
+    const c2 = i + 1 < names.length ? buildPdfNameCell(names[i + 1]) : '<div class="name-cell"></div>';
+    rows.push(`<div class="name-row">${c1}${c2}</div>`);
+  }
+  return rows.join("\n");
+}
+
 // ── PDF 전용 HTML 빌드 (contentEditable 없음, 원본과 100% 동일) ──
 
 function buildPdfHtml(p: {
@@ -103,9 +122,9 @@ function buildPdfHtml(p: {
   <div class="header"><div class="badge">CLINIC</div><h1>클리닉 대상자 안내</h1><div class="sub">${sub}</div></div>
   <div class="tip-box"><div class="icon">!</div><div class="text">${tipText}</div></div>
   <div class="columns">
-    <div class="col"><div class="section-header both">시험+과제 미통과 <span class="cnt">(${p.both.length}명)</span></div><div class="name-list">${p.both.length > 0 ? buildNameItems(p.both) : emptyCell()}</div></div>
-    <div class="col"><div class="section-header exam">시험 미통과 <span class="cnt">(${p.examOnly.length}명)</span></div><div class="name-list">${p.examOnly.length > 0 ? buildNameItems(p.examOnly) : emptyCell()}</div></div>
-    <div class="col"><div class="section-header hw">과제 미통과 <span class="cnt">(${p.hwOnly.length}명)</span></div><div class="name-list">${p.hwOnly.length > 0 ? buildNameItems(p.hwOnly) : emptyCell()}</div></div>
+    <div class="col"><div class="section-header both">시험+과제 미통과 <span class="cnt">(${p.both.length}명)</span></div><div class="name-list">${p.both.length > 0 ? buildPdfNameItems(p.both) : emptyCell()}</div></div>
+    <div class="col"><div class="section-header exam">시험 미통과 <span class="cnt">(${p.examOnly.length}명)</span></div><div class="name-list">${p.examOnly.length > 0 ? buildPdfNameItems(p.examOnly) : emptyCell()}</div></div>
+    <div class="col"><div class="section-header hw">과제 미통과 <span class="cnt">(${p.hwOnly.length}명)</span></div><div class="name-list">${p.hwOnly.length > 0 ? buildPdfNameItems(p.hwOnly) : emptyCell()}</div></div>
   </div>
   <div class="schedule-box"><div class="schedule-title">클리닉 일정</div>${scheduleContent}</div>
   <div class="footer"><div class="footer-left">클리닉 대상 <strong>${clinicTotal}명</strong> / 전체 출석 ${p.totalPresent ?? clinicTotal}명</div><div class="footer-right">${p.date}</div></div>
