@@ -187,12 +187,12 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
                   <button
                     key={n}
                     type="button"
-                    className={`srd-attempt-tab ${selectedAttempt === n ? "srd-attempt-tab--active" : ""} ${entry?.passed ? "srd-attempt-tab--pass" : ""}`}
+                    className={`srd-attempt-tab ${selectedAttempt === n ? "srd-attempt-tab--active" : ""} ${entry?.passed === true ? "srd-attempt-tab--pass" : ""}`}
                     onClick={() => { setSelectedAttempt(n); setIsEditMode(false); }}
                   >
                     {n}차{n === 1 ? " 응시" : " 재시험"}
                     {entry && (
-                      <span className={`srd-attempt-tab__score ${entry.passed ? "srd-attempt-tab__score--pass" : "srd-attempt-tab__score--fail"}`}>
+                      <span className={`srd-attempt-tab__score ${entry.passed === true ? "srd-attempt-tab__score--pass" : entry.passed === false ? "srd-attempt-tab__score--fail" : ""}`}>
                         {entry.score ?? "—"}점
                       </span>
                     )}

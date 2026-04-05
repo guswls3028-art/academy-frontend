@@ -563,6 +563,25 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
 
   return (
     <div>
+      {/* 편집 모드 안내 배너 */}
+      {isEditMode && (
+        <div
+          className="flex items-center gap-3 px-3 py-1.5 mb-2 rounded-md text-xs"
+          style={{
+            background: "color-mix(in srgb, var(--color-brand-primary) 6%, var(--color-bg-surface))",
+            border: "1px solid color-mix(in srgb, var(--color-brand-primary) 15%, var(--color-border-divider))",
+            color: "var(--color-text-secondary)",
+          }}
+        >
+          <span style={{ color: "var(--color-brand-primary)", fontWeight: 600 }}>편집 모드</span>
+          <span className="opacity-40">|</span>
+          <span>숫자 입력 → <kbd className="px-1 py-0.5 rounded text-[10px] font-mono" style={{ background: "var(--color-bg-elevated)", border: "1px solid var(--color-border-divider)" }}>Enter</kbd> 저장</span>
+          <span className="opacity-40">·</span>
+          <span><kbd className="px-1 py-0.5 rounded text-[10px] font-mono" style={{ background: "var(--color-bg-elevated)", border: "1px solid var(--color-border-divider)" }}>/</kbd> + <kbd className="px-1 py-0.5 rounded text-[10px] font-mono" style={{ background: "var(--color-bg-elevated)", border: "1px solid var(--color-border-divider)" }}>Enter</kbd> = 미제출</span>
+          <span className="opacity-40">·</span>
+          <span><kbd className="px-1 py-0.5 rounded text-[10px] font-mono" style={{ background: "var(--color-bg-elevated)", border: "1px solid var(--color-border-divider)" }}>Tab</kbd> 다음 셀 · <kbd className="px-1 py-0.5 rounded text-[10px] font-mono" style={{ background: "var(--color-bg-elevated)", border: "1px solid var(--color-border-divider)" }}>Esc</kbd> 취소</span>
+        </div>
+      )}
       {/* OMR 업로드 버튼 — 테이블 밖, 시험 컬럼 위에 정렬 */}
       {examPositions.length > 0 && (
         <div className="relative" style={{ width: tableWidth, height: 24, zIndex: 10 }}>
@@ -1461,15 +1480,33 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                   className="text-center align-middle"
                   data-col-type="clinic"
                 >
-                  {clinicTarget ? (
-                    <span className="ds-scores-pass-fail-badge" data-tone="danger">
-                      불합
-                    </span>
-                  ) : (() => {
-                    // 시험/과제 중 하나라도 점수가 입력되었는지 확인
-                    const hasAnyExamScore = row.exams?.some((e) => e.block.score != null) ?? false;
-                    const hasAnyHwScore = row.homeworks?.some((h) => h.block.score != null) ?? false;
-                    if (!hasAnyExamScore && !hasAnyHwScore) {
+                  {(() => {
+                    if (clinicTarget) {
+                      return (
+                        <span className="ds-scores-pass-fail-badge" data-tone="danger">
+                          불합
+                        </span>
+                      );
+                    }
+                    // 시험/과제의 실제 passed 값을 확인
+                    const allExams = row.exams ?? [];
+                    const allHws = row.homeworks ?? [];
+                    const hasAnyScore = allExams.some((e) => e.block.score != null) || allHws.some((h) => h.block.score != null);
+                    if (!hasAnyScore) {
+                      return <span className="text-[var(--color-text-muted)]">-</span>;
+                    }
+                    // 불합격이 하나라도 있으면 불합
+                    const anyFailed = allExams.some((e) => e.block.passed === false) || allHws.some((h) => h.block.passed === false);
+                    if (anyFailed) {
+                      return (
+                        <span className="ds-scores-pass-fail-badge" data-tone="danger">
+                          불합
+                        </span>
+                      );
+                    }
+                    // 모든 판정이 null(기준 미설정)이면 판정 불가
+                    const allNull = allExams.every((e) => e.block.passed == null) && allHws.every((h) => h.block.passed == null);
+                    if (allNull) {
                       return <span className="text-[var(--color-text-muted)]">-</span>;
                     }
                     return (

@@ -249,11 +249,18 @@ function analyze(rows: SessionScoreRow[], meta: SessionScoreMeta, attendanceMap?
   const filteredRows = filterPresent(rows, attendanceMap);
 
   for (const row of filteredRows) {
-    const examFailed = (row.exams ?? []).some((e) => e.block.passed === false);
-    const hwFailed = (row.homeworks ?? []).some((h) => h.block.passed === false);
+    const allExams = row.exams ?? [];
+    const allHws = row.homeworks ?? [];
+    const examFailed = allExams.some((e) => e.block.passed === false);
+    const hwFailed = allHws.some((h) => h.block.passed === false);
 
     if (!examFailed && !hwFailed) {
-      passed.push(row.student_name);
+      // passed===null(미입력/기준미설정)만 있고 passed===true가 없으면 통과로 카운트하지 않음
+      const hasAnyTruePass = allExams.some((e) => e.block.passed === true) || allHws.some((h) => h.block.passed === true);
+      const hasAnyScore = allExams.some((e) => e.block.score != null) || allHws.some((h) => h.block.score != null);
+      if (hasAnyTruePass || hasAnyScore) {
+        passed.push(row.student_name);
+      }
       continue;
     }
 
