@@ -4,9 +4,11 @@
 import AutoSendSettingsPanel from "@/features/messages/components/AutoSendSettingsPanel";
 
 const CLINIC_TRIGGERS = [
-  "clinic_reminder",
   "clinic_reservation_created",
+  "clinic_reminder",
   "clinic_reservation_changed",
+  "clinic_self_study_completed",
+  "clinic_result_notification",
   "counseling_reservation_created",
 ];
 

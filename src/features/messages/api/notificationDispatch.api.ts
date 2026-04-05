@@ -53,6 +53,7 @@ export async function previewManualNotification(params: {
   student_ids: number[];
   send_to?: "parent" | "student";
   context?: Record<string, string>;
+  context_per_student?: Record<number, Record<string, string>>;
 }): Promise<NotificationPreviewResponse> {
   const { data } = await api.post("/messaging/manual-notification/preview/", params);
   return data;

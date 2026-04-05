@@ -38,6 +38,8 @@ type Props = {
       trigger: string;
       studentIds: number[];
       context?: Record<string, string>;
+      /** 학생별 개별 변수 (성적 등) — key: student_id */
+      contextPerStudent?: Record<number, Record<string, string>>;
     }
 );
 
@@ -69,6 +71,7 @@ export default function NotificationPreviewModal(props: Props) {
         student_ids: props.studentIds,
         send_to: sendTo,
         context: props.context,
+        context_per_student: props.contextPerStudent,
       });
     },
     onSuccess: (data) => {

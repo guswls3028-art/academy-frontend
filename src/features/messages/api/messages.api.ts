@@ -197,9 +197,13 @@ export interface MessageTemplatePayload {
 }
 
 export async function fetchMessageTemplates(
-  category?: MessageTemplateCategory
+  category?: MessageTemplateCategory,
+  /** true이면 오너 테넌트의 승인 알림톡 템플릿도 포함 (시스템 기본 채널 폴백용) */
+  includeSystem?: boolean,
 ): Promise<MessageTemplateItem[]> {
-  const params = category ? { category } : {};
+  const params: Record<string, string> = {};
+  if (category) params.category = category;
+  if (includeSystem) params.include_system = "true";
   const res = await api.get<MessageTemplateItem[]>(`${PREFIX}/templates/`, { params });
   return res.data;
 }
@@ -273,6 +277,8 @@ export interface SendMessagePayload {
   raw_subject?: string;
   /** 알림톡 추가 치환 변수 (성적 발송 등) */
   alimtalk_extra_vars?: Record<string, string>;
+  /** 학생별 개별 치환 변수 — key: student_id (대량 성적 발송 등) */
+  alimtalk_extra_vars_per_student?: Record<number, Record<string, string>>;
 }
 
 export interface SendMessageResponse {
@@ -309,6 +315,12 @@ export type AutoSendTrigger =
   | "clinic_reminder"
   | "clinic_reservation_created"
   | "clinic_reservation_changed"
+  | "clinic_cancelled"
+  | "clinic_check_in"
+  | "clinic_check_out"
+  | "clinic_absent"
+  | "clinic_self_study_completed"
+  | "clinic_result_notification"
   | "counseling_reservation_created"
   | "payment_complete"
   | "payment_due_days_before"
@@ -366,6 +378,8 @@ export const AUTO_SEND_TRIGGER_LABELS: Record<string, string> = {
   clinic_check_in: "클리닉 입실",
   clinic_check_out: "클리닉 퇴실(완료)",
   clinic_absent: "클리닉 결석",
+  clinic_self_study_completed: "자율학습 완료",
+  clinic_result_notification: "클리닉 대상 해소(완료)",
   counseling_reservation_created: "상담 예약 완료",
   payment_complete: "결제 완료",
   payment_due_days_before: "납부 예정일 N일 전",

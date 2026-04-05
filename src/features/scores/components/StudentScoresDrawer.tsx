@@ -103,13 +103,17 @@ export default function StudentScoresDrawer({ row, meta, sessionId, onClose, onO
     const sessionTitle = (row as any).session_title ?? "";
     const reportOptions = { lectureName, sessionTitle };
 
-    // 성적 카테고리 템플릿이 있으면 템플릿 기반 치환
+    // 성적 양식 우선순위:
+    // ① 사용자 기본(is_user_default) → ② 성적변수 포함 사용자 양식 → ③ 코드 fallback(generateScoreReport)
     let body: string;
     try {
       const templates = await fetchMessageTemplates("grades");
-      const customTpl = templates.find((t) => !t.name.startsWith("[학원플러스]"));
-      body = customTpl
-        ? substituteScoreVars(customTpl.body, row, meta, reportOptions)
+      const hasScoreVars = (b: string) => /#{(시험\d|과제\d|시험성적|시험총점|학생이름)}/.test(b);
+      const userDefault = templates.find((t) => t.is_user_default && !t.is_system);
+      const userWithScoreVars = templates.find((t) => !t.is_system && hasScoreVars(t.body));
+      const chosenTpl = userDefault ?? userWithScoreVars;
+      body = chosenTpl
+        ? substituteScoreVars(chosenTpl.body, row, meta, reportOptions)
         : generateScoreReport(row, meta, reportOptions);
     } catch {
       body = generateScoreReport(row, meta, reportOptions);

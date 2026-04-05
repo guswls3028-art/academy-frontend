@@ -13,6 +13,7 @@ import {
   updateAutoSendConfigs,
   updateMessageTemplate,
   createMessageTemplate,
+  deleteMessageTemplate,
   type AutoSendConfigItem,
   AUTO_SEND_TRIGGER_LABELS,
   type MessageTemplateItem,
@@ -69,6 +70,10 @@ const TRIGGER_DESCRIPTIONS: Record<string, string> = {
     "클리닉 예약이 완료되면 학생·학부모에게 예약 일시를 확인 안내합니다.",
   clinic_reservation_changed:
     "클리닉 예약이 변경/취소되면 학생·학부모에게 변경 내용을 안내합니다.",
+  clinic_self_study_completed:
+    "자율학습이 완료되면 학생·학부모에게 완료 안내를 발송합니다.",
+  clinic_result_notification:
+    "클리닉 대상이 해소(시험통과/과제통과/수동해소)되면 학생·학부모에게 결과를 안내합니다.",
   counseling_reservation_created:
     "상담 예약이 완료되면 학부모에게 상담 일시/장소를 확인 안내합니다.",
   payment_complete:
@@ -638,6 +643,19 @@ export default function AutoSendSettingsPanel({
     },
   });
 
+  const deleteTemplateMut = useMutation({
+    mutationFn: (id: number) => deleteMessageTemplate(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: TEMPLATES_KEY });
+      qc.invalidateQueries({ queryKey: QUERY_KEY });
+      setEditingTemplate(null);
+      feedback.success("템플릿이 삭제되었습니다.");
+    },
+    onError: () => {
+      feedback.error("삭제에 실패했습니다.");
+    },
+  });
+
   const createTemplateMut = useMutation({
     mutationFn: (payload: MessageTemplatePayload) =>
       createMessageTemplate(payload),
@@ -847,6 +865,8 @@ export default function AutoSendSettingsPanel({
         onSubmit={(payload) => editTemplateMut.mutate(payload)}
         isPending={editTemplateMut.isPending}
         smsConnected={smsConnected}
+        onDelete={(id) => deleteTemplateMut.mutate(id)}
+        isDeleting={deleteTemplateMut.isPending}
       />
 
       {/* Create template modal (for triggers without a linked template) */}

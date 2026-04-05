@@ -59,6 +59,8 @@ const TRIGGER_DESCRIPTIONS: Record<string, string> = {
   clinic_check_in: "클리닉에 입실하면 학생·학부모에게 입실 알림을 발송합니다.",
   clinic_check_out: "클리닉 자율학습이 완료(퇴실)되면 학생·학부모에게 퇴실 알림을 발송합니다.",
   clinic_absent: "클리닉에 결석하면 학생·학부모에게 결석 알림을 발송합니다.",
+  clinic_self_study_completed: "자율학습이 완료되면 학생·학부모에게 완료 안내를 발송합니다.",
+  clinic_result_notification: "클리닉 대상이 해소(시험통과/과제통과/수동해소)되면 학생·학부모에게 결과를 안내합니다.",
   counseling_reservation_created: "상담 예약이 완료되면 학생·학부모에게 상담 일시/장소를 확인 안내합니다.",
   payment_complete: "결제가 완료되면 학부모에게 결제 금액/내역을 확인 안내합니다.",
   payment_due_days_before: "납부 예정일 N일 전에 학부모에게 납부 금액/기한을 안내합니다.",

@@ -13,7 +13,7 @@
  * - scores 도메인의 SessionScoresPanel이 실제 렌더링 단일 진실
  */
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSessionParams } from "../hooks/useSessionParams";
 import SessionScoresPanel, { type SessionScoresPanelHandle } from "@/features/scores/panels/SessionScoresPanel";
@@ -210,6 +210,19 @@ export default function SessionScoresTab() {
       ? buildScoreDetail(selectedRows[0], scoresData.meta)
       : "";
 
+    // 다중 학생: 학생별 성적 개별 변수 조립
+    let perStudent: Record<number, Record<string, string>> | undefined;
+    if (selectedRows.length > 1) {
+      perStudent = {};
+      for (const r of selectedRows) {
+        if (r.student_id != null) {
+          perStudent[r.student_id] = {
+            시험성적: buildScoreDetail(r, scoresData.meta),
+          };
+        }
+      }
+    }
+
     openSendMessageModal({
       studentIds,
       recipientLabel: `선택한 학생 ${studentIds.length}명 성적 발송`,
@@ -220,8 +233,28 @@ export default function SessionScoresTab() {
         차시명: sessionTitle,
         시험성적: scoreDetail,
       },
+      alimtalkExtraVarsPerStudent: perStudent,
     });
   }, [selectedIds, numericSessionId, lectureId, qc, openSendMessageModal]);
+
+  // 성적 알림 발송 모달용: enrollment_id → student_id 매핑 + 학생별 성적 context
+  const { notifStudentIds, notifContextPerStudent } = useMemo(() => {
+    const scoresData = qc.getQueryData<SessionScoresResponse>(
+      scoresQueryKeys.sessionScores(numericSessionId),
+    );
+    if (!scoresData) return { notifStudentIds: [] as number[], notifContextPerStudent: {} };
+    const selectedRows = scoresData.rows.filter((r) => selectedIds.includes(r.enrollment_id));
+    const ids: number[] = [];
+    const ctxMap: Record<number, Record<string, string>> = {};
+    for (const row of selectedRows) {
+      if (row.student_id == null) continue;
+      ids.push(row.student_id);
+      ctxMap[row.student_id] = {
+        시험성적: buildScoreDetail(row, scoresData.meta),
+      };
+    }
+    return { notifStudentIds: ids, notifContextPerStudent: ctxMap };
+  }, [selectedIds, numericSessionId, qc]);
 
   const editTypes: { key: keyof EditConfig; label: string }[] = [
     { key: "examEditTotal", label: "합산" },
@@ -501,9 +534,10 @@ export default function SessionScoresTab() {
         onClose={() => setScoreNotifModal(false)}
         mode="manual"
         trigger="exam_score_published"
-        studentIds={selectedIds}
+        studentIds={notifStudentIds}
         label="성적 공개 알림"
         sendTo="parent"
+        contextPerStudent={notifContextPerStudent}
       />
     </div>
   );

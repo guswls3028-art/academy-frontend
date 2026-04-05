@@ -18,6 +18,8 @@ import {
   LayoutGrid,
   MessageCircle,
   Users,
+  CheckCircle,
+  BookCheck,
 } from "lucide-react";
 import { AUTO_SEND_TRIGGER_LABELS } from "../api/messages.api";
 import { TEMPLATE_CATEGORY_LABELS } from "../constants/templateBlocks";
@@ -150,6 +152,8 @@ export const AUTO_SEND_SECTIONS: SectionDef[] = [
       "clinic_check_out",
       "clinic_absent",
       "clinic_reminder",
+      "clinic_self_study_completed",
+      "clinic_result_notification",
       "counseling_reservation_created",
     ],
     children: [
@@ -160,6 +164,8 @@ export const AUTO_SEND_SECTIONS: SectionDef[] = [
       triggerChild("clinic_check_out", <Bell size={14} aria-hidden />),
       triggerChild("clinic_absent", <Bell size={14} aria-hidden />),
       triggerChild("clinic_reminder", <Bell size={14} aria-hidden />),
+      triggerChild("clinic_self_study_completed", <BookCheck size={14} aria-hidden />),
+      triggerChild("clinic_result_notification", <CheckCircle size={14} aria-hidden />),
       triggerChild("counseling_reservation_created", <CalendarPlus size={14} aria-hidden />),
     ],
   },
