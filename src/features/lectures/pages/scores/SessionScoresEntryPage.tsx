@@ -361,20 +361,52 @@ export default function SessionScoresEntryPage(_props: Props) {
 
             let initialBody: string | undefined;
             let scoreDetail = "";
-            if (selectedRows.length === 1) {
-              try {
-                const templates = await fetchMessageTemplates("grades");
-                const hasScoreVars = (body: string) => /#{(시험\d|과제\d|시험성적|시험총점|학생이름)}/.test(body);
-                const userDefault = templates.find((t: any) => t.is_user_default && !t.is_system);
-                const userWithScoreVars = templates.find((t: any) => !t.is_system && hasScoreVars(t.body));
-                const chosenTpl = userDefault ?? userWithScoreVars;
+            let perStudentVars: Record<number, Record<string, string>> | undefined;
+
+            try {
+              const templates = await fetchMessageTemplates("grades");
+              const hasScoreVars = (body: string) => /#{(시험\d|과제\d|시험성적|시험총점|학생이름)}/.test(body);
+              const userDefault = templates.find((t: any) => t.is_user_default && !t.is_system);
+              const userWithScoreVars = templates.find((t: any) => !t.is_system && hasScoreVars(t.body));
+              const chosenTpl = userDefault ?? userWithScoreVars;
+
+              if (selectedRows.length === 1) {
                 initialBody = chosenTpl
                   ? substituteScoreVars(chosenTpl.body, selectedRows[0], meta, reportOptions)
                   : generateScoreReport(selectedRows[0], meta, reportOptions);
-              } catch {
-                initialBody = generateScoreReport(selectedRows[0], meta, reportOptions);
+                scoreDetail = buildScoreDetail(selectedRows[0], meta);
+              } else {
+                // 대량 발송: 학생별 개별 성적 변수 생성
+                perStudentVars = {};
+                for (const sRow of selectedRows) {
+                  if (sRow.student_id == null) continue;
+                  perStudentVars[sRow.student_id] = {
+                    시험성적: buildScoreDetail(sRow, meta),
+                    학생이름: sRow.student_name || "",
+                  };
+                }
+                // 첫 번째 학생 기준 미리보기 본문
+                initialBody = chosenTpl
+                  ? substituteScoreVars(chosenTpl.body, selectedRows[0], meta, reportOptions)
+                  : generateScoreReport(selectedRows[0], meta, reportOptions);
+                scoreDetail = buildScoreDetail(selectedRows[0], meta);
               }
-              scoreDetail = buildScoreDetail(selectedRows[0], meta);
+            } catch {
+              if (selectedRows.length === 1) {
+                initialBody = generateScoreReport(selectedRows[0], meta, reportOptions);
+                scoreDetail = buildScoreDetail(selectedRows[0], meta);
+              } else {
+                perStudentVars = {};
+                for (const sRow of selectedRows) {
+                  if (sRow.student_id == null) continue;
+                  perStudentVars[sRow.student_id] = {
+                    시험성적: buildScoreDetail(sRow, meta),
+                    학생이름: sRow.student_name || "",
+                  };
+                }
+                initialBody = generateScoreReport(selectedRows[0], meta, reportOptions);
+                scoreDetail = buildScoreDetail(selectedRows[0], meta);
+              }
             }
             openSendMessageModal({
               studentIds: selectedStudentIds,
@@ -382,6 +414,7 @@ export default function SessionScoresEntryPage(_props: Props) {
               blockCategory: "grades",
               initialBody,
               alimtalkExtraVars: { 강의명: lectureName, 차시명: sessionTitle, 시험성적: scoreDetail },
+              alimtalkExtraVarsPerStudent: perStudentVars,
             });
           }}
           disabled={selectedEnrollmentIds.length === 0}

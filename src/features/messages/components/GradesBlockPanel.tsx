@@ -80,13 +80,13 @@ export default function GradesBlockPanel({
   const handleAddExam = useCallback(() => {
     const body = currentBody ?? "";
     const next = findMaxUsedNumber(body, "시험") + 1;
-    onInsert(`\n#{시험${next}명}: #{시험${next}}/#{시험${next}만점}`);
+    onInsert(`#{시험${next}명}: #{시험${next}}/#{시험${next}만점}`);
   }, [currentBody, onInsert]);
 
   const handleAddHomework = useCallback(() => {
     const body = currentBody ?? "";
     const next = findMaxUsedNumber(body, "과제") + 1;
-    onInsert(`\n#{과제${next}명}: #{과제${next}}/#{과제${next}만점}`);
+    onInsert(`#{과제${next}명}: #{과제${next}}/#{과제${next}만점}`);
   }, [currentBody, onInsert]);
 
   return (
