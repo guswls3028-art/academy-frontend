@@ -23,7 +23,8 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test:e2e": "npx playwright test",
-    "test:e2e:gate": "npx playwright test e2e/sidebar-full-verify.spec.ts e2e/admin/01-login-dashboard.spec.ts e2e/student/01-login-dashboard.spec.ts",
+    "test:e2e:gate": "npx playwright test e2e/admin/01-login-dashboard.spec.ts e2e/student/01-login-dashboard.spec.ts",
+    "test:e2e:prod-sidebar": "npx playwright test e2e/sidebar-full-verify.spec.ts",
     "test:e2e:headed": "npx playwright test --headed",
     "test:e2e:ui": "npx playwright test --ui"
   },
