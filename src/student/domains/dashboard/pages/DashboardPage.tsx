@@ -189,26 +189,36 @@ export default function DashboardPage() {
             background: "var(--stu-surface)",
             overflow: "hidden",
           }}>
-            {failedHomeworkCount > 0 && (
-              <TodoRow
-                to="/student/grades"
-                icon={<IconClipboard style={{ width: 18, height: 18, color: "var(--stu-warn, #f59e0b)" }} />}
-                iconBg="rgba(245,158,11,0.1)"
-                label={`과제 미통과 ${failedHomeworkCount}건`}
-                labelColor="var(--stu-warn-text, #b45309)"
-                hasBorder={failedExamCount > 0 || clinicUpcoming}
-              />
-            )}
-            {failedExamCount > 0 && (
-              <TodoRow
-                to="/student/exams"
-                icon={<IconExam style={{ width: 18, height: 18, color: "var(--stu-danger)" }} />}
-                iconBg="rgba(239,68,68,0.1)"
-                label={`재시험 필요 ${failedExamCount}건`}
-                labelColor="var(--stu-danger)"
-                hasBorder={clinicUpcoming}
-              />
-            )}
+            {failedHomeworkCount > 0 && (() => {
+              const failedHws = grades?.homeworks?.filter((h) => h.passed === false) ?? [];
+              const preview = failedHws.slice(0, 2).map((h) => h.title);
+              return (
+                <TodoRow
+                  to="/student/grades"
+                  icon={<IconClipboard style={{ width: 18, height: 18, color: "var(--stu-warn, #f59e0b)" }} />}
+                  iconBg="rgba(245,158,11,0.1)"
+                  label={`과제 미통과 ${failedHomeworkCount}건`}
+                  labelColor="var(--stu-warn-text, #b45309)"
+                  detail={preview.join(", ") + (failedHomeworkCount > 2 ? ` 외 ${failedHomeworkCount - 2}건` : "")}
+                  hasBorder={failedExamCount > 0 || clinicUpcoming}
+                />
+              );
+            })()}
+            {failedExamCount > 0 && (() => {
+              const failedExams = grades?.exams?.filter((e) => e.is_pass === false) ?? [];
+              const preview = failedExams.slice(0, 2).map((e) => e.title);
+              return (
+                <TodoRow
+                  to="/student/exams"
+                  icon={<IconExam style={{ width: 18, height: 18, color: "var(--stu-danger)" }} />}
+                  iconBg="rgba(239,68,68,0.1)"
+                  label={`재시험 필요 ${failedExamCount}건`}
+                  labelColor="var(--stu-danger)"
+                  detail={preview.join(", ") + (failedExamCount > 2 ? ` 외 ${failedExamCount - 2}건` : "")}
+                  hasBorder={clinicUpcoming}
+                />
+              );
+            })()}
             {clinicUpcoming && (
               <TodoRow
                 to="/student/clinic"
@@ -270,24 +280,24 @@ export default function DashboardPage() {
           padding: "var(--stu-space-4) 0",
         }}>
           <AppIcon to="/student/video" label="영상"
-            icon={<IconPlay style={{ width: 24, height: 24, color: "var(--stu-primary)" }} />}
+            icon={<IconPlay style={{ width: 24, height: 24, color: "#6366f1" }} />}
             badge={!countsLoading ? notificationCounts?.video : undefined} />
           <AppIcon to="/student/grades" label="성적"
             icon={<IconGrade style={{ width: 24, height: 24, color: "var(--stu-primary)" }} />}
             badge={!countsLoading ? notificationCounts?.grade : undefined} />
           <AppIcon to="/student/exams" label="시험"
-            icon={<IconExam style={{ width: 24, height: 24, color: "var(--stu-primary)" }} />} />
+            icon={<IconExam style={{ width: 24, height: 24, color: "var(--stu-danger)" }} />} />
           <AppIcon to="/student/submit/assignment" label="과제"
-            icon={<IconClipboard style={{ width: 24, height: 24, color: "var(--stu-primary)" }} />} />
+            icon={<IconClipboard style={{ width: 24, height: 24, color: "var(--stu-warn)" }} />} />
           <AppIcon to="/student/sessions" label="일정"
-            icon={<IconCalendar style={{ width: 24, height: 24, color: "var(--stu-primary)" }} />} />
+            icon={<IconCalendar style={{ width: 24, height: 24, color: "#8b5cf6" }} />} />
           <AppIcon to="/student/clinic" label="클리닉"
-            icon={<IconClinic style={{ width: 24, height: 24, color: "var(--stu-primary)" }} />}
+            icon={<IconClinic style={{ width: 24, height: 24, color: "var(--stu-success)" }} />}
             badge={!countsLoading ? notificationCounts?.clinic : undefined} />
           <AppIcon to="/student/community" label="커뮤니티"
-            icon={<IconBoard style={{ width: 24, height: 24, color: "var(--stu-primary)" }} />} />
+            icon={<IconBoard style={{ width: 24, height: 24, color: "#0ea5e9" }} />} />
           <AppIcon to="/student/inventory" label="보관함"
-            icon={<IconFolder style={{ width: 24, height: 24, color: "var(--stu-primary)" }} />} />
+            icon={<IconFolder style={{ width: 24, height: 24, color: "#64748b" }} />} />
         </div>
       </section>
 
@@ -327,9 +337,9 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
-function TodoRow({ to, icon, iconBg, label, labelColor, hasBorder }: {
+function TodoRow({ to, icon, iconBg, label, labelColor, detail, hasBorder }: {
   to: string; icon: React.ReactNode; iconBg: string;
-  label: string; labelColor: string; hasBorder: boolean;
+  label: string; labelColor: string; detail?: string; hasBorder: boolean;
 }) {
   return (
     <Link
@@ -345,6 +355,11 @@ function TodoRow({ to, icon, iconBg, label, labelColor, hasBorder }: {
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontWeight: 600, fontSize: 14, color: labelColor }}>{label}</div>
+        {detail && (
+          <div style={{ fontSize: 12, color: "var(--stu-text-muted)", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {detail}
+          </div>
+        )}
       </div>
       <IconChevronRight style={{ width: 16, height: 16, color: "var(--stu-text-muted)", flexShrink: 0 }} />
     </Link>

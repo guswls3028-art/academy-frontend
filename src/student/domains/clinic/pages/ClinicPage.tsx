@@ -616,12 +616,18 @@ export default function ClinicPage() {
           {/* 승인 대기 */}
           {pendingBookings.length > 0 && (
             <div style={{ marginBottom: "var(--stu-space-4)" }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: "var(--stu-text-muted)", marginBottom: "var(--stu-space-2)" }}>
-                승인 대기 ({pendingBookings.length})
+              <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 600, color: "var(--stu-text-muted)", marginBottom: "var(--stu-space-2)" }}>
+                승인 대기
+                <span className="stu-badge stu-badge--warn stu-badge--sm">{pendingBookings.length}</span>
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-2)" }}>
                 {pendingBookings.map((request) => (
-                  <div key={request.id} className="stu-panel" style={{ padding: "var(--stu-space-3)" }}>
+                  <div key={request.id} className="stu-panel" style={{
+                    padding: "var(--stu-space-3)",
+                    background: "var(--stu-warn-bg)",
+                    borderStyle: "dashed",
+                    borderColor: "var(--stu-warn-border)",
+                  }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
                       <div>
                         <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4 }}>
@@ -654,8 +660,9 @@ export default function ClinicPage() {
           {/* 승인됨 — 취소 불가 (백엔드 정책: 승인 후 취소는 선생님만 가능) */}
           {approvedBookings.length > 0 && (
             <div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: "var(--stu-text-muted)", marginBottom: "var(--stu-space-2)" }}>
-                승인됨 ({approvedBookings.length})
+              <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 600, color: "var(--stu-text-muted)", marginBottom: "var(--stu-space-2)" }}>
+                승인됨
+                <span className="stu-badge stu-badge--success stu-badge--sm">{approvedBookings.length}</span>
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-2)" }}>
                 {approvedBookings.map((request) => (

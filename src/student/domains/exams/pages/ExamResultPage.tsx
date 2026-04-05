@@ -83,7 +83,11 @@ export default function ExamResultPage() {
           <div style={{ fontSize: 16, fontWeight: 800 }}>
             {r.total_score} / {r.max_score}점
           </div>
-          <GradeBadge passed={r.is_pass} />
+          <GradeBadge
+            passed={r.is_pass}
+            achievement={r.meta_status === "NOT_SUBMITTED" ? "NOT_SUBMITTED" : undefined}
+            showNotSubmitted={r.total_score == null}
+          />
           {r.submitted_at && (
             <div className="stu-muted" style={{ fontSize: 12 }}>
               {new Date(r.submitted_at).toLocaleDateString("ko-KR")} 제출

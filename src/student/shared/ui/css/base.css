@@ -903,6 +903,13 @@ html:has([data-app="student"]) {
   color: var(--stu-danger-text);
 }
 
+/* Badge size variants */
+.stu-badge--sm {
+  padding: 3px 7px;
+  font-size: 11px;
+  gap: 3px;
+}
+
 /* =========================
    6) CTA Link (프리미엄 스타일)
    ========================= */
