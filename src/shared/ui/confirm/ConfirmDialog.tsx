@@ -54,7 +54,7 @@ export default function ConfirmDialog({
   const hasOffset = offset.x !== 0 || offset.y !== 0;
 
   return createPortal(
-    <div style={backdropStyle} onClick={onCancel}>
+    <div data-confirm-dialog style={backdropStyle} onClick={onCancel}>
       <div
         style={hasOffset ? { transform: `translate(${offset.x}px, ${offset.y}px)` } : undefined}
         onMouseDown={onMouseDown}
@@ -62,20 +62,20 @@ export default function ConfirmDialog({
       >
         <div style={cardStyle} onClick={(e) => e.stopPropagation()}>
           <h3 className="confirm-drag-handle" style={titleStyle}>{title}</h3>
-        <p style={messageStyle}>{message}</p>
-        <div style={actionsStyle}>
-          <button type="button" style={cancelBtnStyle} onClick={onCancel}>
-            {cancelText}
-          </button>
-          <button
-            ref={confirmBtnRef}
-            type="button"
-            style={danger ? dangerBtnStyle : confirmBtnStyle}
-            onClick={onConfirm}
-          >
-            {confirmText}
-          </button>
-        </div>
+          <p style={messageStyle}>{message}</p>
+          <div style={actionsStyle}>
+            <button type="button" style={cancelBtnStyle} onClick={onCancel}>
+              {cancelText}
+            </button>
+            <button
+              ref={confirmBtnRef}
+              type="button"
+              style={danger ? dangerBtnStyle : confirmBtnStyle}
+              onClick={onConfirm}
+            >
+              {confirmText}
+            </button>
+          </div>
         </div>
       </div>
     </div>,

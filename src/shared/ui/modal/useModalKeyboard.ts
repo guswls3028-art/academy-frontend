@@ -62,6 +62,10 @@ function autoClickPrimary(): boolean {
 
 function globalKeyHandler(e: KeyboardEvent) {
   if (stack.length === 0) return;
+
+  // ConfirmDialog가 열려 있으면 ConfirmDialog 자체 핸들러에 위임
+  if (document.querySelector("[data-confirm-dialog]")) return;
+
   const top = stack[stack.length - 1];
 
   if (e.key === "Escape") {
