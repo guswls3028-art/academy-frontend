@@ -58,6 +58,8 @@ const B = {
   academy_name:      { id: "academy_name",      label: "학원이름",         insertText: "#{학원이름}",          previewValue: "학원플러스",   description: "학원 이름 (알림톡 헤더에 자동)" },
   clinic_date:       { id: "clinic_date",       label: "클리닉 날짜",      insertText: "#{클리닉날짜}",        previewValue: "2026-04-06",  description: "클리닉 일시 날짜 (리스트 자동)" },
   clinic_time:       { id: "clinic_time",       label: "클리닉 시간",      insertText: "#{클리닉시간}",        previewValue: "14:00",       description: "클리닉 일시 시간 (리스트 자동)" },
+  lecture_date:      { id: "lecture_date",      label: "강의 날짜",        insertText: "#{강의날짜}",          previewValue: "2026-04-06",  description: "수업 날짜 (출석 알림톡 리스트 자동)" },
+  lecture_time:      { id: "lecture_time",      label: "강의 시간",        insertText: "#{강의시간}",          previewValue: "14:00",       description: "수업 시간 (출석 알림톡 리스트 자동)" },
   clinic_old_sched:  { id: "clinic_old_sched",  label: "기존일정",         insertText: "#{클리닉기존일정}",    previewValue: "4/6(일) 14:00 3층", description: "변경 전 일정 (리스트 자동)" },
   clinic_changes:    { id: "clinic_changes",    label: "변동사항",         insertText: "#{클리닉변동사항}",    previewValue: "4/7(월) 15:00으로 변경", description: "변경 내용 (리스트 자동)" },
   clinic_modifier:   { id: "clinic_modifier",   label: "수정자",           insertText: "#{클리닉수정자}",      previewValue: "김선생님",    description: "일정 수정한 선생님 (리스트 자동)" },
@@ -85,7 +87,7 @@ const COMMON: TemplateBlock[] = [B.student_name_2, B.student_name_3, B.free_cont
 const CATEGORY_BLOCKS: Record<string, TemplateBlock[]> = {
   student:    [...COMMON, B.student_name, B.student_id],
   signup:     [...COMMON, B.student_name, B.student_id, B.student_password, B.parent_id, B.parent_password, B.pw_notice],
-  attendance: [...COMMON, B.lecture_name, B.session_name],
+  attendance: [...COMMON, B.lecture_name, B.session_name, B.lecture_date, B.lecture_time],
   lecture:    [...COMMON, B.lecture_name, B.session_name],
   exam:       [...COMMON, B.lecture_name, B.session_name, B.exam_name, B.score],
   assignment: [...COMMON, B.lecture_name, B.session_name, B.assignment_name, B.score],
@@ -220,6 +222,8 @@ const BLOCK_COLORS: Record<string, { bg: string; color: string; border: string }
   academy_name:     { bg: "color-mix(in srgb, #1e40af 16%, transparent)", color: "#1e3a8a", border: "color-mix(in srgb, #1e40af 40%, transparent)" },
   clinic_date:      { bg: "color-mix(in srgb, #0d9488 16%, transparent)", color: "#0f766e", border: "color-mix(in srgb, #0d9488 40%, transparent)" },
   clinic_time:      { bg: "color-mix(in srgb, #059669 16%, transparent)", color: "#047857", border: "color-mix(in srgb, #059669 40%, transparent)" },
+  lecture_date:     { bg: "color-mix(in srgb, #ec4899 16%, transparent)", color: "#db2777", border: "color-mix(in srgb, #ec4899 40%, transparent)" },
+  lecture_time:     { bg: "color-mix(in srgb, #f43f5e 16%, transparent)", color: "#e11d48", border: "color-mix(in srgb, #f43f5e 40%, transparent)" },
   clinic_old_sched: { bg: "color-mix(in srgb, #7c3aed 16%, transparent)", color: "#6d28d9", border: "color-mix(in srgb, #7c3aed 40%, transparent)" },
   clinic_changes:   { bg: "color-mix(in srgb, #dc2626 16%, transparent)", color: "#b91c1c", border: "color-mix(in srgb, #dc2626 40%, transparent)" },
   clinic_modifier:  { bg: "color-mix(in srgb, #ca8a04 16%, transparent)", color: "#a16207", border: "color-mix(in srgb, #ca8a04 40%, transparent)" },
@@ -321,7 +325,7 @@ export const ALWAYS_AVAILABLE_VARS = new Set([
   // 통합 알림톡 자동 변수 (솔라피 리스트형 템플릿에서 자동 채움)
   "학원이름", "클리닉장소", "클리닉날짜", "클리닉시간",
   "클리닉기존일정", "클리닉변동사항", "클리닉수정자",
-  "강의명", "차시명",
+  "강의명", "차시명", "강의날짜", "강의시간",
 ]);
 
 /**

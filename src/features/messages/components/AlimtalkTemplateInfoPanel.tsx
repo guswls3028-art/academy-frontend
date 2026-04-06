@@ -6,18 +6,20 @@ import { getBlockColor, type TemplateBlock } from "../constants/templateBlocks";
 
 // ── 템플릿 타입별 자동 채움 변수 ──
 
-type AlimtalkTemplateType = "clinic_info" | "clinic_change" | "score" | null;
+type AlimtalkTemplateType = "clinic_info" | "clinic_change" | "score" | "attendance" | null;
 
 const TEMPLATE_TYPE_LABELS: Record<string, string> = {
   clinic_info: "클리닉 안내",
   clinic_change: "클리닉 일정 변경",
-  score: "성적/출결 안내",
+  score: "성적 안내",
+  attendance: "출석 안내",
 };
 
 const TEMPLATE_TYPE_DESCRIPTIONS: Record<string, string> = {
   clinic_info: "학원이름, 학생이름, 장소, 날짜, 시간이 자동으로 표시됩니다. 아래 본문에는 안내 문구만 작성하세요.",
   clinic_change: "학원이름, 학생이름, 기존일정, 변동사항, 수정자가 자동으로 표시됩니다. 아래 본문에는 안내 문구만 작성하세요.",
   score: "학원이름, 학생이름, 강의명, 차시명이 자동으로 표시됩니다. 아래 본문에는 안내 문구만 작성하세요.",
+  attendance: "학원이름, 학생이름, 강의명, 차시명, 날짜, 시간이 자동으로 표시됩니다. 아래 본문에는 안내 문구만 작성하세요.",
 };
 
 type AutoVar = { label: string; example: string; color: string; bg: string; border: string };
@@ -43,6 +45,14 @@ const TEMPLATE_AUTO_VARS: Record<string, AutoVar[]> = {
     { label: "강의명", example: "수학 심화반", ...getBlockColor("lecture_name") },
     { label: "차시명", example: "3회차", ...getBlockColor("session_name") },
   ],
+  attendance: [
+    { label: "학원이름", example: "학원플러스", ...getBlockColor("academy_name") },
+    { label: "학생이름", example: "홍길동", ...getBlockColor("student_name") },
+    { label: "강의명", example: "수학 심화반", ...getBlockColor("lecture_name") },
+    { label: "차시명", example: "3회차", ...getBlockColor("session_name") },
+    { label: "날짜", example: "2026-04-06", ...getBlockColor("date") },
+    { label: "시간", example: "14:00", ...getBlockColor("time") },
+  ],
 };
 
 /** 트리거명으로 알림톡 템플릿 타입 판별 */
@@ -54,8 +64,8 @@ export function getAlimtalkTemplateType(trigger?: string): AlimtalkTemplateType 
     "counseling_reservation_created",
   ];
   const CLINIC_CHANGE = ["clinic_reservation_changed", "clinic_cancelled"];
+  const ATTENDANCE = ["check_in_complete", "absent_occurred", "lecture_session_reminder"];
   const SCORE = [
-    "check_in_complete", "absent_occurred", "lecture_session_reminder",
     "exam_scheduled_days_before", "exam_start_minutes_before", "exam_not_taken",
     "exam_score_published", "retake_assigned",
     "assignment_registered", "assignment_due_hours_before", "assignment_not_submitted",
@@ -63,6 +73,7 @@ export function getAlimtalkTemplateType(trigger?: string): AlimtalkTemplateType 
   ];
   if (CLINIC_INFO.includes(trigger)) return "clinic_info";
   if (CLINIC_CHANGE.includes(trigger)) return "clinic_change";
+  if (ATTENDANCE.includes(trigger)) return "attendance";
   if (SCORE.includes(trigger)) return "score";
   return null;
 }
@@ -101,6 +112,19 @@ export function renderAlimtalkFullPreview(
       `기존일정\n4/6(일) 14:00 3층\n\n` +
       `변동사항\n4/7(월) 15:00으로 변경\n\n` +
       `수정자\n김선생님\n\n` +
+      `${contentBody || "(안내 문구를 작성하세요)"}\n` +
+      url
+    );
+  }
+  if (templateType === "attendance") {
+    return (
+      `학원플러스입니다.\n\n` +
+      `홍길동학생님.\n\n` +
+      `출석 안내 드립니다.\n` +
+      `강의\n수학 심화반\n\n` +
+      `차시\n3회차\n\n` +
+      `날짜\n2026-04-06\n\n` +
+      `시간\n14:00\n\n` +
       `${contentBody || "(안내 문구를 작성하세요)"}\n` +
       url
     );
