@@ -282,6 +282,22 @@ function TriggerCard({
                 <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {config.template_name || "(템플릿 없음)"}
                 </span>
+                <button
+                  type="button"
+                  onClick={handleEditClick}
+                  style={{
+                    background: "none", border: "none", cursor: "pointer",
+                    padding: 4, borderRadius: 4, flexShrink: 0,
+                    color: "var(--color-text-muted)",
+                    transition: "color 0.15s",
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.color = "var(--color-primary)"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.color = "var(--color-text-muted)"; }}
+                  title="템플릿 편집"
+                  aria-label="템플릿 편집"
+                >
+                  <FiEdit3 size={14} />
+                </button>
                 {hasTemplate && status && (
                   <span
                     style={{
