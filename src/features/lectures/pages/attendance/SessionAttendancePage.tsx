@@ -10,8 +10,6 @@ import {
   deleteAttendance,
   downloadAttendanceExcel,
   bulkSetPresent,
-  fetchAttendanceMatrix,
-  type AttendanceMatrixResponse,
 } from "@/features/lectures/api/attendance";
 import { sortSessionsByDateDesc } from "@/features/lectures/api/sessions";
 import api from "@/shared/api/axios";
@@ -158,37 +156,7 @@ export default function SessionAttendancePage({
     onError: () => { feedback.error("출석 상태 변경에 실패했습니다. 다시 시도해 주세요."); },
   });
 
-  // 강의 전체 차시 출결 매트릭스
-  const { data: matrixData } = useQuery<AttendanceMatrixResponse>({
-    queryKey: ["attendance-matrix", lectureId],
-    queryFn: () => fetchAttendanceMatrix(lectureId!),
-    enabled: lectureId != null && Number.isFinite(lectureId),
-  });
-
-  const matrixSessions = useMemo(() => {
-    if (!matrixData?.sessions) return [];
-    // order 오름차순 (1차시 → 2차시 → N차시), order 없으면 뒤로
-    return [...matrixData.sessions].sort((a, b) => {
-      const oa = a.order ?? 9999;
-      const ob = b.order ?? 9999;
-      if (oa !== ob) return oa - ob;
-      // order 같으면 날짜 오름차순
-      const da = a.date || "";
-      const db = b.date || "";
-      return da.localeCompare(db);
-    });
-  }, [matrixData]);
-
-  // student_id → matrix row lookup
-  const matrixByStudentId = useMemo(() => {
-    const map = new Map<number, Record<string, { attendance_id: number; status: string }>>();
-    if (matrixData?.students) {
-      for (const s of matrixData.students) {
-        map.set(s.student_id, s.attendance);
-      }
-    }
-    return map;
-  }, [matrixData]);
+  // 강의 전체 차시 출결 매트릭스 — 차시 내부 출결탭에서는 불필요 (강의 수강생 페이지에서만 표시)
 
   const filtered = useMemo(() => pageData, [pageData]);
 
@@ -223,7 +191,7 @@ export default function SessionAttendancePage({
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
 
   const col = STUDENTS_TABLE_COL;
-  const SESSION_COL_WIDTH = 40; // 프리미엄 UX: 34→40px 여유
+  // SESSION_COL_WIDTH 제거 — 매트릭스 컬럼 삭제
   const attendanceColumnDefs: TableColumnDef[] = useMemo(
     () => [
       { key: "checkbox", label: "선택", defaultWidth: col.checkbox, minWidth: 28, maxWidth: 28 },
@@ -239,7 +207,11 @@ export default function SessionAttendancePage({
     () => attendanceColumnDefs.reduce((sum, c) => sum + (columnWidths[c.key] ?? c.defaultWidth), 0),
     [attendanceColumnDefs, columnWidths]
   );
-  const tableWidth = fixedColsWidth + matrixSessions.length * SESSION_COL_WIDTH;
+  const tableWidth = fixedColsWidth;
+
+  // 영상(ONLINE) 학생 — 전체 페이지 데이터 기준 (hook은 early return 앞에 배치)
+  const onlineRows = useMemo(() => sorted.filter((att: any) => att.status === "ONLINE"), [sorted]);
+  const onlineCount = onlineRows.length;
 
   if (isLoading) return <EmptyState scope="panel" tone="loading" title="불러오는 중…" />;
   if (attendanceResult == null) return <EmptyState scope="panel" tone="error" title="출결 데이터를 불러올 수 없습니다." />;
@@ -266,6 +238,37 @@ export default function SessionAttendancePage({
       studentIds,
       recipientLabel: `선택한 출결 ${selectedIds.length}명`,
       blockCategory: "attendance",
+    });
+  };
+
+  /** 영상 학생 선택: ONLINE 상태 학생만 체크 */
+  const handleSelectOnlineStudents = () => {
+    const onlineIds = onlineRows.map((att: any) => att.id);
+    setSelectedIds(onlineIds);
+  };
+
+  /** 영상 시청 메시지 발송 */
+  const handleVideoMessageSend = () => {
+    // 선택된 학생 중 발송 (선택이 없으면 전체 ONLINE 학생)
+    const targetRows = selectedIds.length > 0
+      ? sorted.filter((att: any) => selectedSet.has(att.id))
+      : onlineRows;
+    const studentIds = targetRows
+      .map((att: any) => att.student_id)
+      .filter((id: unknown) => id != null && Number.isFinite(id));
+    if (studentIds.length === 0) {
+      feedback.info("영상 수강 학생이 없습니다.");
+      return;
+    }
+    const lectureName = lecture?.title ?? lecture?.name ?? "";
+    const sessionQuery = qc.getQueryData<{ title?: string; order?: number }>(["session-detail", sessionId]);
+    const sessionTitle = sessionQuery?.title ?? "";
+    openSendMessageModal({
+      studentIds,
+      recipientLabel: `영상 시청 안내 — ${studentIds.length}명`,
+      blockCategory: "attendance",
+      initialBody: `[${lectureName}] ${sessionTitle ? sessionTitle + " " : ""}영상 수업 안내\n\n안녕하세요, #{학생이름} 학생 학부모님.\n금일 영상 수업이 등록되었습니다.\n학생 앱에서 영상을 시청해 주세요.\n\n감사합니다.`,
+      alimtalkExtraVars: { 강의명: lectureName, 차시명: sessionTitle },
     });
   };
 
@@ -320,6 +323,14 @@ export default function SessionAttendancePage({
       <Button intent="secondary" size="sm" onClick={handleMessageSend} disabled={selectedIds.length === 0}>
         메시지 발송
       </Button>
+      <span className="text-[var(--color-border-divider)]">|</span>
+      <Button intent="secondary" size="sm" onClick={handleSelectOnlineStudents} disabled={onlineCount === 0}>
+        영상 학생 선택 ({onlineCount})
+      </Button>
+      <Button intent="secondary" size="sm" onClick={handleVideoMessageSend} disabled={onlineCount === 0 && selectedIds.length === 0}>
+        영상 시청 메시지 발송
+      </Button>
+      <span className="text-[var(--color-border-divider)]">|</span>
       <Button intent="secondary" size="sm" disabled={selectedIds.length === 0} onClick={async () => {
         const selectedRows = sorted.filter((att: any) => selectedSet.has(att.id));
         const studentIds = selectedRows.map((att: any) => att.student_id).filter((id: unknown) => id != null && Number.isFinite(id));
@@ -633,9 +644,6 @@ export default function SessionAttendancePage({
                 {attendanceColumnDefs.map((c) => (
                   <col key={c.key} style={{ width: c.key === "checkbox" ? col.checkbox : (columnWidths[c.key] ?? c.defaultWidth) }} />
                 ))}
-                {matrixSessions.map((ms) => (
-                  <col key={ms.id} style={{ width: SESSION_COL_WIDTH }} />
-                ))}
               </colgroup>
               <thead>
                 <tr>
@@ -654,29 +662,6 @@ export default function SessionAttendancePage({
                   <ResizableTh columnKey="phone" width={columnWidths.phone ?? col.studentPhone} minWidth={90} maxWidth={200} onWidthChange={setColumnWidth} scope="col" onClick={() => toggleSort("phone")} className="cursor-pointer select-none text-center" aria-sort={sort === "phone" ? "ascending" : sort === "-phone" ? "descending" : "none"}>
                     <span className="inline-flex items-center gap-1">학생 <span aria-hidden style={{ fontSize: 10, opacity: sort === "phone" || sort === "-phone" ? 1 : 0.3, color: "var(--color-primary)" }}>{sort === "phone" ? "▲" : sort === "-phone" ? "▼" : "⇅"}</span></span>
                   </ResizableTh>
-                  {matrixSessions.map((ms, idx) => {
-                    const isCurrent = ms.id === sessionId;
-                    return (
-                      <th
-                        key={ms.id}
-                        scope="col"
-                        className="text-center"
-                        style={{
-                          width: SESSION_COL_WIDTH,
-                          padding: "6px 0",
-                          fontWeight: isCurrent ? 800 : 600,
-                          fontSize: 12,
-                          color: isCurrent ? "var(--color-brand-primary)" : "var(--color-text-muted)",
-                          borderLeft: idx === 0 ? "1px solid var(--color-border-divider)" : undefined,
-                          background: isCurrent ? "color-mix(in srgb, var(--color-brand-primary) 7%, var(--color-bg-surface))" : undefined,
-                          boxShadow: isCurrent ? "inset 0 -2.5px 0 var(--color-brand-primary)" : undefined,
-                        }}
-                        title={`${formatSessionOrderLabel(ms.order, ms.title)}${ms.date ? ` (${ms.date})` : ""}`}
-                      >
-                        {ms.order ?? "-"}
-                      </th>
-                    );
-                  })}
                 </tr>
               </thead>
               <tbody>
@@ -736,34 +721,6 @@ export default function SessionAttendancePage({
                     <td className="text-[13px] leading-6 text-[var(--color-text-secondary)] truncate align-middle text-center" style={{ width: columnWidths.phone ?? col.studentPhone }}>
                       {formatPhone(att.phone ?? att.student_phone)}
                     </td>
-                    {matrixSessions.map((ms, idx) => {
-                      const studentAttendance = matrixByStudentId.get(att.student_id);
-                      const cell = studentAttendance?.[String(ms.id)];
-                      const isCurrent = ms.id === sessionId;
-                      return (
-                        <td
-                          key={ms.id}
-                          className="text-center align-middle"
-                          style={{
-                            width: SESSION_COL_WIDTH,
-                            padding: "4px 0",
-                            borderLeft: idx === 0 ? "1px solid var(--color-border-divider)" : undefined,
-                            background: isCurrent
-                              ? "color-mix(in srgb, var(--color-brand-primary) 6%, transparent)"
-                              : undefined,
-                          }}
-                        >
-                          {cell?.status ? (
-                            <AttendanceStatusBadge
-                              status={cell.status as AttendanceStatus}
-                              variant="1ch"
-                            />
-                          ) : (
-                            <span style={{ color: "var(--color-border-divider)", fontSize: 8 }}>·</span>
-                          )}
-                        </td>
-                      );
-                    })}
                   </tr>
                 ))}
               </tbody>
