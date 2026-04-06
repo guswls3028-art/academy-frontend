@@ -13,6 +13,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
 const srcRoot = path.join(root, "src");
 
+/** StudentRouter.tsx 의 lazy(() => import(...)) 대상과 동기화 */
 const STUDENT_LAZY_PATHS = [
   "student/domains/dashboard/pages/DashboardPage.tsx",
   "student/domains/video/pages/VideoHomePage.tsx",
@@ -28,16 +29,19 @@ const STUDENT_LAZY_PATHS = [
   "student/domains/submit/pages/SubmitHubPage.tsx",
   "student/domains/submit/pages/SubmitScorePage.tsx",
   "student/domains/submit/pages/SubmitAssignmentPage.tsx",
+  "student/domains/inventory/pages/MyInventoryPage.tsx",
   "student/domains/grades/pages/GradesPage.tsx",
   "student/domains/more/pages/MorePage.tsx",
   "student/domains/profile/pages/ProfilePage.tsx",
-  "student/domains/qna/pages/QnaPage.tsx",
+  "student/domains/community/pages/CommunityPage.tsx",
   "student/domains/notices/pages/NoticesPage.tsx",
   "student/domains/notices/pages/NoticeDetailPage.tsx",
   "student/domains/notifications/pages/NotificationsPage.tsx",
   "student/domains/clinic-idcard/pages/ClinicIDCardPage.tsx",
   "student/domains/clinic/pages/ClinicPage.tsx",
   "student/domains/attendance/pages/AttendancePage.tsx",
+  "student/domains/settings/pages/StudentSettingsPage.tsx",
+  "student/domains/guide/pages/GuidePage.tsx",
 ];
 
 let failed = 0;
