@@ -5,16 +5,14 @@
  * 디자인 원칙: 인간은 전체를 훑는다 — 카드 한 장에 템플릿 정체성 + 연결 강의가 한눈에 읽혀야 한다.
  */
 
-import { useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import { FileText, Plus } from "lucide-react";
-import { EmptyState, Button } from "@/shared/ui/ds";
+import { FileText } from "lucide-react";
+import { EmptyState } from "@/shared/ui/ds";
 import {
   fetchTemplatesWithUsage,
   type TemplateWithUsage,
 } from "../api/templatesWithUsage";
-import CreateTemplateExamModal from "./create/CreateTemplateExamModal";
 import styles from "./TemplateManagementPanel.module.css";
 
 function formatDate(s: string | null | undefined): string {
@@ -32,31 +30,15 @@ function formatDate(s: string | null | undefined): string {
 
 export default function TemplateManagementPanel() {
   const navigate = useNavigate();
-  const qc = useQueryClient();
-  const [showCreate, setShowCreate] = useState(false);
 
   const { data: templates = [], isLoading } = useQuery({
     queryKey: ["templates-with-usage"],
     queryFn: fetchTemplatesWithUsage,
   });
 
-  const handleCreated = (_examId: number) => {
-    qc.invalidateQueries({ queryKey: ["templates-with-usage"] });
-  };
-
-  const createButton = (
-    <Button intent="primary" size="md" onClick={() => setShowCreate(true)}>
-      <Plus size={16} />
-      새 템플릿
-    </Button>
-  );
-
   if (isLoading) {
     return (
       <div className={styles.root}>
-        <div style={{ display: "flex", justifyContent: "flex-end", padding: "0 0 var(--space-3)" }}>
-          {createButton}
-        </div>
         {[1, 2, 3].map((i) => (
           <div key={i} className={styles.skeleton} />
         ))}
@@ -67,19 +49,11 @@ export default function TemplateManagementPanel() {
   if (templates.length === 0) {
     return (
       <div className={styles.emptyWrap}>
-        <div style={{ display: "flex", justifyContent: "flex-end", padding: "0 0 var(--space-4)" }}>
-          {createButton}
-        </div>
         <EmptyState
           scope="panel"
           tone="empty"
           title="생성된 템플릿이 없습니다"
-          description="새 템플릿 버튼을 눌러 직접 생성하거나, 강의 > 차시 > 시험에서 템플릿으로 저장할 수 있습니다."
-        />
-        <CreateTemplateExamModal
-          open={showCreate}
-          onClose={() => setShowCreate(false)}
-          onCreated={handleCreated}
+          description="강의 > 차시 > 시험에서 템플릿을 만들면 여기에 표시됩니다."
         />
       </div>
     );
@@ -87,17 +61,9 @@ export default function TemplateManagementPanel() {
 
   return (
     <div className={styles.root}>
-      <div style={{ display: "flex", justifyContent: "flex-end", padding: "0 0 var(--space-3)" }}>
-        {createButton}
-      </div>
       {templates.map((tpl) => (
         <TemplateCard key={tpl.id} template={tpl} onNavigate={navigate} />
       ))}
-      <CreateTemplateExamModal
-        open={showCreate}
-        onClose={() => setShowCreate(false)}
-        onCreated={handleCreated}
-      />
     </div>
   );
 }

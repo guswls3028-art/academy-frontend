@@ -313,24 +313,6 @@ export default function SessionScoresEntryPage(_props: Props) {
       .filter((id): id is number => id != null && Number.isFinite(id));
   }, [data?.rows, selectedEnrollmentIds]);
 
-  /** 클리닉 대상자 enrollment IDs & student IDs (버튼 카운트 + 원클릭 선택용) */
-  const clinicTargetRows = useMemo(() => {
-    const rows = data?.rows ?? [];
-    return rows.filter((r) => r.clinic_required === true);
-  }, [data?.rows]);
-
-  const clinicTargetEnrollmentIds = useMemo(
-    () => clinicTargetRows.map((r) => r.enrollment_id),
-    [clinicTargetRows],
-  );
-
-  const clinicTargetStudentIds = useMemo(
-    () => clinicTargetRows
-      .map((r) => r.student_id)
-      .filter((id): id is number => id != null && Number.isFinite(id)),
-    [clinicTargetRows],
-  );
-
   const selectionBar = (
     <div className="flex flex-col gap-2">
       <div className="flex flex-wrap items-center gap-2 pl-1">
@@ -351,30 +333,6 @@ export default function SessionScoresEntryPage(_props: Props) {
         >
           선택 해제
         </Button>
-        {clinicTargetEnrollmentIds.length > 0 && (
-          <>
-            <Button
-              intent="secondary"
-              size="sm"
-              onClick={() => setSelectedEnrollmentIds(clinicTargetEnrollmentIds)}
-            >
-              클리닉 대상자 선택 ({clinicTargetEnrollmentIds.length}명)
-            </Button>
-            <Button
-              intent="secondary"
-              size="sm"
-              onClick={() =>
-                openSendMessageModal({
-                  studentIds: clinicTargetStudentIds,
-                  recipientLabel: `클리닉 대상자 ${clinicTargetEnrollmentIds.length}명`,
-                  blockCategory: "clinic",
-                })
-              }
-            >
-              클리닉 문자 발송
-            </Button>
-          </>
-        )}
         <span className="text-[var(--color-border-divider)]">|</span>
         <Button
           intent="secondary"

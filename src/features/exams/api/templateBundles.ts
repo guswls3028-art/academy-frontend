@@ -43,9 +43,7 @@ export type BundleCreateInput = {
 export type ApplyBundleResult = {
   created_exams: { id: number; title: string }[];
   created_homeworks: { id: number; title: string }[];
-  skipped_items: { item_id: number; item_type: string; reason: string }[];
   total: number;
-  enrolled_students: number;
 };
 
 export async function fetchBundles(): Promise<TemplateBundle[]> {

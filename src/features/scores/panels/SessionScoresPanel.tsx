@@ -68,7 +68,7 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
   examEditSubjective = false,
   homeworkEdit = false,
   scoreDisplayMode = "total",
-  scoreFormat = "fraction",
+  scoreFormat = "raw",
   viewFilter = "all",
   selectedEnrollmentIds = [],
   onSelectionChange,
