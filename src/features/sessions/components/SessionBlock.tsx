@@ -1,17 +1,19 @@
 // PATH: src/features/sessions/components/SessionBlock.tsx
 // 차시 = 세션 — lecture 기준 세션 목록 + 추가 (LectureLayout, SessionLayout 공용). 차시 블록 SSOT 사용
 
-import { useState, useRef, useEffect, useCallback, useLayoutEffect } from "react";
+import { useState, useMemo, useRef, useEffect, useCallback, useLayoutEffect } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Settings } from "lucide-react";
 
-import { fetchSessions, sortSessionsByDateDesc, updateSession, deleteSession } from "@/features/lectures/api/sessions";
+import { fetchSessions, sortSessionsByDateDesc, updateSession, deleteSession, type Session } from "@/features/lectures/api/sessions";
+import { fetchSections, type Section as SectionType } from "@/features/lectures/api/sections";
 import SessionCreateModal from "@/features/lectures/components/SessionCreateModal";
 import { SessionBlockView, isSupplement, formatSessionOrderLabel } from "@/shared/ui/session-block";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useConfirm } from "@/shared/ui/confirm";
+import { useSectionMode } from "@/shared/hooks/useSectionMode";
 
 interface Props {
   lectureId: number;
@@ -202,16 +204,25 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
+  const { sectionMode } = useSectionMode();
 
   const { data: rawSessions = [], isLoading } = useQuery({
     queryKey: ["lecture-sessions", lectureId],
     queryFn: () => fetchSessions(lectureId),
     enabled: Number.isFinite(lectureId),
   });
+
+  const { data: sections = [] } = useQuery<SectionType[]>({
+    queryKey: ["lecture-sections", lectureId],
+    queryFn: () => fetchSections(lectureId),
+    enabled: Number.isFinite(lectureId) && sectionMode,
+  });
+
   const sessions = sortSessionsByDateDesc(rawSessions);
 
   const invalidate = useCallback(() => {
     qc.invalidateQueries({ queryKey: ["lecture-sessions", lectureId] });
+    qc.invalidateQueries({ queryKey: ["lecture-sections", lectureId] });
     qc.invalidateQueries({ queryKey: ["session"] });
   }, [qc, lectureId]);
 
@@ -220,6 +231,125 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
     invalidate();
   };
 
+  // section_mode: 반별로 세션 그룹핑
+  const sectionRows = useMemo(() => {
+    if (!sectionMode || sections.length === 0) return null;
+    const activeSections = sections
+      .filter((s) => s.is_active)
+      .sort((a, b) => {
+        // CLASS 먼저, 그 다음 CLINIC. 같은 타입이면 label 순
+        const typeOrder = (a.section_type === "CLASS" ? 0 : 1) - (b.section_type === "CLASS" ? 0 : 1);
+        if (typeOrder !== 0) return typeOrder;
+        return a.label.localeCompare(b.label);
+      });
+
+    return activeSections.map((sec) => {
+      const sectionSessions = (rawSessions as Session[])
+        .filter((s) => s.section === sec.id)
+        .sort((a, b) => a.order - b.order);
+      return { section: sec, sessions: sectionSessions };
+    });
+  }, [sectionMode, sections, rawSessions]);
+
+  // section_mode ON — 반별 두 줄
+  if (sectionMode && sectionRows && sectionRows.length > 0) {
+    return (
+      <>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "var(--space-2)",
+            paddingBottom: "var(--space-4)",
+            marginBottom: "var(--space-4)",
+            borderBottom: "1px solid var(--color-border-divider)",
+          }}
+        >
+          {isLoading ? (
+            <span style={{ fontSize: 14, color: "var(--color-text-muted)" }}>불러오는 중…</span>
+          ) : (
+            sectionRows.map(({ section: sec, sessions: secSessions }) => (
+              <div
+                key={sec.id}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "var(--space-2)",
+                  flexWrap: "wrap",
+                }}
+              >
+                {/* 반 라벨 */}
+                <span
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 700,
+                    minWidth: 48,
+                    padding: "2px 8px",
+                    borderRadius: 6,
+                    textAlign: "center",
+                    background: sec.section_type === "CLASS"
+                      ? "var(--color-primary-light, #e0e7ff)"
+                      : "var(--color-warning-light, #fef3c7)",
+                    color: sec.section_type === "CLASS"
+                      ? "var(--color-primary)"
+                      : "var(--color-warning, #d97706)",
+                  }}
+                >
+                  {sec.label}반
+                </span>
+
+                {/* 차시 블록들 */}
+                {secSessions.map((s) => {
+                  const isActive =
+                    currentSessionId != null && Number(s.id) === Number(currentSessionId);
+                  const supplement = isSupplement(s.title);
+                  return (
+                    <div key={s.id} className="relative group">
+                      <SessionBlockView
+                        variant={supplement ? "supplement" : "n1"}
+                        compact
+                        selected={isActive}
+                        title={formatSessionOrderLabel(s.order, s.title)}
+                        desc={s.date ?? "-"}
+                        onClick={() =>
+                          navigate(`/admin/lectures/${lectureId}/sessions/${s.id}`)
+                        }
+                      />
+                      <SessionGearMenu
+                        session={s}
+                        onDone={() => {
+                          invalidate();
+                          if (currentSessionId === s.id) {
+                            navigate(`/admin/lectures/${lectureId}`);
+                          }
+                        }}
+                      />
+                    </div>
+                  );
+                })}
+
+                {/* + 버튼 (반별 차시 추가) */}
+                <SessionBlockView
+                  variant="add"
+                  compact
+                  onClick={() => setShowCreate(true)}
+                  ariaLabel={`${sec.label}반 차시 추가`}
+                >
+                  <Plus size={18} strokeWidth={2.5} />
+                </SessionBlockView>
+              </div>
+            ))
+          )}
+        </div>
+
+        {showCreate && (
+          <SessionCreateModal lectureId={lectureId} onClose={handleClose} />
+        )}
+      </>
+    );
+  }
+
+  // section_mode OFF — 기존 한 줄
   return (
     <>
       <div
@@ -258,7 +388,6 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
                     session={s}
                     onDone={() => {
                       invalidate();
-                      // 삭제된 세션이 현재 세션이면 강의 페이지로 이동
                       if (currentSessionId === s.id) {
                         navigate(`/admin/lectures/${lectureId}`);
                       }
