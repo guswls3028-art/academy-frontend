@@ -1,5 +1,5 @@
 // 통합 로그인 페이지 — 테넌트별 테마는 data-tenant + themes/*.css 로 적용
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useParams, Navigate, Link } from "react-router-dom";
 import { login } from "@/features/auth/api/auth";
 import useAuth from "@/features/auth/hooks/useAuth";
@@ -12,6 +12,7 @@ import {
   resolveTenantCode,
 } from "@/shared/tenant";
 import CommonLogoIcon from "@/features/auth/assets/CommonLogoIcon";
+import { fetchLandingHasPublished } from "@/features/landing/api";
 import { useFavicon } from "@/shared/hooks/useFavicon";
 import SignupModal from "./SignupModal";
 import PasswordResetModal from "./PasswordResetModal";
@@ -50,9 +51,20 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [showSignup, setShowSignup] = useState(false);
   const [showPwReset, setShowPwReset] = useState(false);
+  const [hasLanding, setHasLanding] = useState(false);
 
   const navigate = useNavigate();
   const { refreshMe } = useAuth();
+
+  // 랜딩 페이지 존재 여부 체크 (홈 버튼 표시용)
+  useEffect(() => {
+    if (isLoading || !program) return;
+    const tc = program.tenantCode;
+    if (tc === "hakwonplus" || tc === "9999") return;
+    fetchLandingHasPublished()
+      .then((has) => setHasLanding(has))
+      .catch(() => {});
+  }, [isLoading, program]);
 
   // program 로딩 중이면 아무것도 렌더하지 않음 (기본값→실제값 플래시 방지)
   if (isLoading) return null;
@@ -101,6 +113,15 @@ export default function LoginPage() {
 
   return (
     <div data-app="auth" data-tenant={themeAttr} className={styles.root}>
+      {hasLanding && (
+        <Link to="/landing" className={styles.homeBtn} aria-label="홈페이지">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M3 10L10 3L17 10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M5 8.5V16C5 16.2761 5.22386 16.5 5.5 16.5H8.5V12.5C8.5 12.2239 8.72386 12 9 12H11C11.2761 12 11.5 12.2239 11.5 12.5V16.5H14.5C14.7761 16.5 15 16.2761 15 16V8.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+          홈페이지
+        </Link>
+      )}
       <div className={styles.center}>
         {logoUrl ? (
           <img src={logoUrl} alt={title} className={styles.logo} />
@@ -148,7 +169,7 @@ export default function LoginPage() {
               <button type="button" className={styles.link} onClick={() => setShowSignup(true)}>
                 회원가입
               </button>
-              <span style={{ color: "var(--auth-text-muted, #6b7280)" }}>|</span>
+              <span style={{ color: "var(--auth-border, #d1d5db)", fontSize: "0.75rem" }}>|</span>
               <button type="button" className={styles.link} onClick={() => setShowPwReset(true)}>
                 비밀번호 찾기
               </button>
