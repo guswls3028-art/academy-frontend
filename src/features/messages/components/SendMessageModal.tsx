@@ -434,6 +434,8 @@ export default function SendMessageModal({
   /** 빈 본문 안내 오버레이를 닫음 — "직접 작성하기" 후에도 본문이 비어 있으면 오버레이가 다시 덮여 입력 불가가 되던 버그 방지 */
   const [smsEmptyHintDismissed, setSmsEmptyHintDismissed] = useState(false);
   const bodyWrapRef = useRef<HTMLDivElement>(null);
+  /** open 전환 감지용 — smsAllowed 변경 시 body 리셋 방지 */
+  const prevOpenRef = useRef(false);
   const getNativeTextarea = useCallback(
     () => bodyWrapRef.current?.querySelector("textarea") ?? null, [],
   );
@@ -521,28 +523,41 @@ export default function SendMessageModal({
   // ─── Confirmation step ───
   const [showConfirm, setShowConfirm] = useState(false);
 
-  // ─── Reset on open ───
+  // ─── Reset on open (open 전환 시에만 전체 리셋) ───
   useEffect(() => {
-    if (open) {
-      setSubject("");
-      setBody(initialBody ?? "");
-      setFreeContent("");
-      setSelectedTemplateId(null);
-      setSendToParent(true);
-      setSendToStudent(true);
-      // 범용 카테고리는 카카오 정책상 알림톡 불가 → SMS 전용
-      const smsOnlyCategory = ["student", "lecture", "attendance", "staff", "default"].includes(blockCategory);
-      setSendMode(smsOnlyCategory || initialBody ? "sms" : smsAllowed ? "sms" : "alimtalk");
-      setTemplateSearch("");
-      setShowSaveForm(false);
-      setSaveTemplateName("");
-      setShowTemplatePanel(false);
-      setTemplateBodySnapshot(null);
-      setSmsEmptyHintDismissed(false);
-      setShowConfirm(false);
-      sendingRef.current = false;
-    }
+    const justOpened = open && !prevOpenRef.current;
+    prevOpenRef.current = open;
+    if (!justOpened) return;
+    setSubject("");
+    setBody(initialBody ?? "");
+    setFreeContent("");
+    setSelectedTemplateId(null);
+    setSendToParent(true);
+    setSendToStudent(true);
+    // 범용 카테고리는 카카오 정책상 알림톡 불가 → SMS 전용
+    const smsOnlyCategory = ["student", "lecture", "attendance", "staff", "default"].includes(blockCategory);
+    setSendMode(smsOnlyCategory || initialBody ? "sms" : smsAllowed ? "sms" : "alimtalk");
+    setTemplateSearch("");
+    setShowSaveForm(false);
+    setSaveTemplateName("");
+    setShowTemplatePanel(false);
+    setTemplateBodySnapshot(null);
+    setSmsEmptyHintDismissed(false);
+    setShowConfirm(false);
+    sendingRef.current = false;
   }, [open, initialBody, smsAllowed]);
+
+  // smsAllowed가 뒤늦게 로드되면 sendMode만 보정 (body·subject 등 사용자 입력은 건드리지 않음)
+  useEffect(() => {
+    if (!open || !smsAllowed) return;
+    setSendMode((prev) => {
+      if (prev === "alimtalk") {
+        const smsOnlyCategory = ["student", "lecture", "attendance", "staff", "default"].includes(blockCategory);
+        if (smsOnlyCategory || initialBody) return "sms";
+      }
+      return prev;
+    });
+  }, [open, smsAllowed, blockCategory, initialBody]);
 
   // Load templates (시스템 기본 승인 템플릿 포함 — 알림톡 기본 채널 폴백용)
   useEffect(() => {
