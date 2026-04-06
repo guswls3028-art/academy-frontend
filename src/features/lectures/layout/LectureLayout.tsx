@@ -4,9 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import api from "@/shared/api/axios";
 import { DomainLayout } from "@/shared/ui/layout";
-import type { DomainTab } from "@/shared/ui/layout";
 import SessionBlock from "@/features/sessions/components/SessionBlock";
-import { useSectionMode } from "@/shared/hooks/useSectionMode";
 
 function safeStr(v: any) {
   return typeof v === "string" ? v : v == null ? "" : String(v);
@@ -15,8 +13,6 @@ function safeStr(v: any) {
 export default function LectureLayout() {
   const { lectureId } = useParams<{ lectureId: string }>();
   const lectureIdNum = Number(lectureId);
-  const { sectionMode } = useSectionMode();
-
   if (!Number.isFinite(lectureIdNum)) {
     return (
       <DomainLayout title="강의" description="잘못된 강의 ID">
@@ -54,20 +50,8 @@ export default function LectureLayout() {
     [title]
   );
 
-  const base = `/admin/lectures/${lectureIdNum}`;
-  const tabs = useMemo<DomainTab[]>(() => {
-    const t: DomainTab[] = [
-      { key: "students", label: "수강생", path: base, exact: true },
-      { key: "sessions", label: "차시", path: `${base}/sessions` },
-    ];
-    if (sectionMode) {
-      t.push({ key: "sections", label: "반 편성", path: `${base}/sections` });
-    }
-    return t;
-  }, [base, sectionMode]);
-
   return (
-    <DomainLayout title={title} description={desc} breadcrumbs={breadcrumbs} tabs={tabs}>
+    <DomainLayout title={title} description={desc} breadcrumbs={breadcrumbs}>
       <SessionBlock lectureId={lectureIdNum} />
       <Outlet />
     </DomainLayout>

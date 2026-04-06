@@ -8,7 +8,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Settings } from "lucide-react";
 
 import { fetchSessions, sortSessionsByDateDesc, updateSession, deleteSession, type Session } from "@/features/lectures/api/sessions";
-import { fetchSections, type Section as SectionType } from "@/features/lectures/api/sections";
+import { fetchSections, createSection, type Section as SectionType } from "@/features/lectures/api/sections";
 import SessionCreateModal from "@/features/lectures/components/SessionCreateModal";
 import { SessionBlockView, isSupplement, formatSessionOrderLabel } from "@/shared/ui/session-block";
 import { feedback } from "@/shared/ui/feedback/feedback";
@@ -251,8 +251,38 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
     });
   }, [sectionMode, sections, rawSessions]);
 
-  // section_mode ON — 반별 두 줄
-  if (sectionMode && sectionRows && sectionRows.length > 0) {
+  // 인라인 반 빠른 추가
+  const [addingSection, setAddingSection] = useState(false);
+  const [newLabel, setNewLabel] = useState("");
+  const [newDay, setNewDay] = useState(0);
+  const [newTime, setNewTime] = useState("17:00");
+  const [newType, setNewType] = useState<"CLASS" | "CLINIC">("CLASS");
+  const [creating, setCreating] = useState(false);
+
+  const handleCreateSection = async () => {
+    if (!newLabel.trim()) return;
+    setCreating(true);
+    try {
+      await createSection({
+        lecture: lectureId,
+        label: newLabel.trim(),
+        section_type: newType,
+        day_of_week: newDay,
+        start_time: newTime,
+      });
+      setNewLabel("");
+      setAddingSection(false);
+      invalidate();
+    } catch { /* 중복 등 에러 무시 */ }
+    setCreating(false);
+  };
+
+  const DAY_LABELS = ["월", "화", "수", "목", "금", "토", "일"];
+
+  // section_mode ON
+  if (sectionMode) {
+    const hasSections = sectionRows && sectionRows.length > 0;
+
     return (
       <>
         <div
@@ -267,78 +297,204 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
         >
           {isLoading ? (
             <span style={{ fontSize: 14, color: "var(--color-text-muted)" }}>불러오는 중…</span>
-          ) : (
-            sectionRows.map(({ section: sec, sessions: secSessions }) => (
-              <div
-                key={sec.id}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "var(--space-2)",
-                  flexWrap: "wrap",
-                }}
-              >
-                {/* 반 라벨 */}
-                <span
+          ) : hasSections ? (
+            <>
+              {sectionRows!.map(({ section: sec, sessions: secSessions }) => (
+                <div
+                  key={sec.id}
                   style={{
-                    fontSize: 12,
-                    fontWeight: 700,
-                    minWidth: 48,
-                    padding: "2px 8px",
-                    borderRadius: 6,
-                    textAlign: "center",
-                    background: sec.section_type === "CLASS"
-                      ? "var(--color-primary-light, #e0e7ff)"
-                      : "var(--color-warning-light, #fef3c7)",
-                    color: sec.section_type === "CLASS"
-                      ? "var(--color-primary)"
-                      : "var(--color-warning, #d97706)",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "var(--space-2)",
+                    flexWrap: "wrap",
                   }}
                 >
-                  {sec.label}반
-                </span>
+                  {/* 반 라벨 */}
+                  <span
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 700,
+                      minWidth: 52,
+                      padding: "3px 8px",
+                      borderRadius: 6,
+                      textAlign: "center",
+                      background: sec.section_type === "CLASS"
+                        ? "var(--color-primary-light, #e0e7ff)"
+                        : "var(--color-warning-light, #fef3c7)",
+                      color: sec.section_type === "CLASS"
+                        ? "var(--color-primary)"
+                        : "var(--color-warning, #d97706)",
+                    }}
+                    title={`${sec.day_of_week_display} ${sec.start_time?.slice(0, 5) ?? ""}`}
+                  >
+                    {sec.label}반
+                  </span>
 
-                {/* 차시 블록들 */}
-                {secSessions.map((s) => {
-                  const isActive =
-                    currentSessionId != null && Number(s.id) === Number(currentSessionId);
-                  const supplement = isSupplement(s.title);
-                  return (
-                    <div key={s.id} className="relative group">
-                      <SessionBlockView
-                        variant={supplement ? "supplement" : "n1"}
-                        compact
-                        selected={isActive}
-                        title={formatSessionOrderLabel(s.order, s.title)}
-                        desc={s.date ?? "-"}
-                        onClick={() =>
-                          navigate(`/admin/lectures/${lectureId}/sessions/${s.id}`)
-                        }
-                      />
-                      <SessionGearMenu
-                        session={s}
-                        onDone={() => {
-                          invalidate();
-                          if (currentSessionId === s.id) {
-                            navigate(`/admin/lectures/${lectureId}`);
+                  {/* 차시 블록들 */}
+                  {secSessions.map((s) => {
+                    const isActive =
+                      currentSessionId != null && Number(s.id) === Number(currentSessionId);
+                    const supplement = isSupplement(s.title);
+                    return (
+                      <div key={s.id} className="relative group">
+                        <SessionBlockView
+                          variant={supplement ? "supplement" : "n1"}
+                          compact
+                          selected={isActive}
+                          title={formatSessionOrderLabel(s.order, s.title)}
+                          desc={s.date ?? "-"}
+                          onClick={() =>
+                            navigate(`/admin/lectures/${lectureId}/sessions/${s.id}`)
                           }
-                        }}
-                      />
-                    </div>
-                  );
-                })}
+                        />
+                        <SessionGearMenu
+                          session={s}
+                          onDone={() => {
+                            invalidate();
+                            if (currentSessionId === s.id) {
+                              navigate(`/admin/lectures/${lectureId}`);
+                            }
+                          }}
+                        />
+                      </div>
+                    );
+                  })}
 
-                {/* + 버튼 (반별 차시 추가) */}
-                <SessionBlockView
-                  variant="add"
-                  compact
-                  onClick={() => setShowCreate(true)}
-                  ariaLabel={`${sec.label}반 차시 추가`}
+                  <SessionBlockView
+                    variant="add"
+                    compact
+                    onClick={() => setShowCreate(true)}
+                    ariaLabel={`${sec.label}반 차시 추가`}
+                  >
+                    <Plus size={18} strokeWidth={2.5} />
+                  </SessionBlockView>
+                </div>
+              ))}
+
+              {/* 반 추가 버튼 (하단) */}
+              {!addingSection && (
+                <button
+                  onClick={() => setAddingSection(true)}
+                  style={{
+                    fontSize: 12,
+                    color: "var(--color-text-muted)",
+                    background: "none",
+                    border: "1px dashed var(--color-border-divider)",
+                    borderRadius: 6,
+                    padding: "4px 12px",
+                    cursor: "pointer",
+                    alignSelf: "flex-start",
+                  }}
                 >
-                  <Plus size={18} strokeWidth={2.5} />
-                </SessionBlockView>
-              </div>
-            ))
+                  + 반 추가
+                </button>
+              )}
+            </>
+          ) : (
+            /* 반이 아직 없음 — 안내 + 빠른 생성 */
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <span style={{ fontSize: 13, color: "var(--color-text-muted)" }}>
+                반이 없습니다. 반을 추가하면 반별 차시가 표시됩니다.
+              </span>
+              {!addingSection && (
+                <button
+                  onClick={() => setAddingSection(true)}
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: "var(--color-primary)",
+                    background: "var(--color-primary-light, #e0e7ff)",
+                    border: "none",
+                    borderRadius: 8,
+                    padding: "8px 16px",
+                    cursor: "pointer",
+                    alignSelf: "flex-start",
+                  }}
+                >
+                  + 반 추가하기
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* 인라인 반 추가 폼 */}
+          {addingSection && (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                padding: "8px 12px",
+                borderRadius: 8,
+                background: "var(--color-bg-surface-sunken)",
+                flexWrap: "wrap",
+              }}
+            >
+              <input
+                className="ds-input"
+                placeholder="반 이름 (A, B...)"
+                value={newLabel}
+                onChange={(e) => setNewLabel(e.target.value)}
+                style={{ width: 80, fontSize: 13 }}
+                autoFocus
+                onKeyDown={(e) => e.key === "Enter" && handleCreateSection()}
+              />
+              <select
+                className="ds-input"
+                value={newType}
+                onChange={(e) => setNewType(e.target.value as "CLASS" | "CLINIC")}
+                style={{ width: 80, fontSize: 13 }}
+              >
+                <option value="CLASS">수업</option>
+                <option value="CLINIC">클리닉</option>
+              </select>
+              <select
+                className="ds-input"
+                value={newDay}
+                onChange={(e) => setNewDay(Number(e.target.value))}
+                style={{ width: 60, fontSize: 13 }}
+              >
+                {DAY_LABELS.map((d, i) => (
+                  <option key={i} value={i}>{d}</option>
+                ))}
+              </select>
+              <input
+                className="ds-input"
+                type="time"
+                value={newTime}
+                onChange={(e) => setNewTime(e.target.value)}
+                style={{ width: 100, fontSize: 13 }}
+              />
+              <button
+                onClick={handleCreateSection}
+                disabled={creating || !newLabel.trim()}
+                style={{
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: "#fff",
+                  background: "var(--color-primary)",
+                  border: "none",
+                  borderRadius: 6,
+                  padding: "5px 14px",
+                  cursor: "pointer",
+                  opacity: creating || !newLabel.trim() ? 0.5 : 1,
+                }}
+              >
+                {creating ? "..." : "추가"}
+              </button>
+              <button
+                onClick={() => setAddingSection(false)}
+                style={{
+                  fontSize: 12,
+                  color: "var(--color-text-muted)",
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                }}
+              >
+                취소
+              </button>
+            </div>
           )}
         </div>
 
