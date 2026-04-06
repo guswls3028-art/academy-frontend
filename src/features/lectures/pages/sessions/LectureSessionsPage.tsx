@@ -5,6 +5,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { fetchSessions, sortSessionsByDateDesc, type Session } from "../../api/sessions";
 import SessionCreateModal from "../../components/SessionCreateModal";
+import SectionGroupedSessionList from "../../components/SectionGroupedSessionList";
+import { useSectionMode } from "@/shared/hooks/useSectionMode";
 import { EmptyState, Button } from "@/shared/ui/ds";
 import { DomainListToolbar, DomainTable, TABLE_COL, ResizableTh, useTableColumnPrefs } from "@/shared/ui/domain";
 import type { TableColumnDef } from "@/shared/ui/domain";
@@ -18,6 +20,18 @@ const LECTURE_SESSIONS_COLUMN_DEFS: TableColumnDef[] = [
 ];
 
 export default function LectureSessionsPage() {
+  const { sectionMode } = useSectionMode();
+
+  // section_mode=true → 그룹핑 뷰로 전환
+  if (sectionMode) {
+    return <SectionGroupedSessionList />;
+  }
+
+  return <ClassicSessionList />;
+}
+
+/** section_mode=false (기존) 차시 리스트 — 기존 코드 그대로 */
+function ClassicSessionList() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { lectureId } = useParams<{ lectureId: string }>();

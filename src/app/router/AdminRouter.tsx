@@ -41,6 +41,7 @@ const LectureLayout = lazy(() => import("@/features/lectures/layout/LectureLayou
 const LectureStudentsPage = lazy(() => import("@/features/lectures/pages/lectures/LectureStudentsPage"));
 const LectureReportPage = lazy(() => import("@/features/lectures/pages/lectures/LectureReportPage"));
 const LectureSessionsPage = lazy(() => import("@/features/lectures/pages/sessions/LectureSessionsPage"));
+const SectionManagementPage = lazy(() => import("@/features/lectures/pages/sections/SectionManagementPage"));
 const LectureDdayPage = lazy(() => import("@/features/lectures/pages/ddays/LectureDdayPage"));
 const LectureAttendanceMatrixPage = lazy(() => import("@/features/lectures/pages/attendance/LectureAttendanceMatrixPage"));
 
@@ -163,6 +164,7 @@ export default function AdminRouter() {
         <Route path="lectures/:lectureId" element={wrapLazy(LectureLayout)}>
           <Route index element={wrapLazy(LectureStudentsPage)} />
           <Route path="sessions" element={wrapLazy(LectureSessionsPage)} />
+          <Route path="sections" element={wrapLazy(SectionManagementPage)} />
         </Route>
 
         {/* ================= Sessions ================= */}

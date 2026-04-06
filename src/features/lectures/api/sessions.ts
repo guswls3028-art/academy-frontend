@@ -25,6 +25,9 @@ export interface Lecture {
 export interface Session {
   id: number;
   lecture: number;
+  section?: number | null;
+  section_label?: string | null;
+  section_type?: string | null;
   order: number;
   title: string;
   date?: string | null;
