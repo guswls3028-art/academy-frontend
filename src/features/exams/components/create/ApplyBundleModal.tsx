@@ -11,6 +11,7 @@ import { Package } from "lucide-react";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter, MODAL_WIDTH } from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { useConfirm } from "@/shared/ui/confirm";
 import { fetchBundles, applyBundle, type TemplateBundle } from "../../api/templateBundles";
 
 type Props = {
@@ -21,9 +22,12 @@ type Props = {
 };
 
 export default function ApplyBundleModal({ open, onClose, sessionId, onApplied }: Props) {
+  const confirm = useConfirm();
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** 이전에 이 세션에 적용한 번들 ID 기록 (모달 열린 동안 유지) */
+  const [appliedBundleIds, setAppliedBundleIds] = useState<Set<number>>(new Set());
 
   const { data: bundles = [], isLoading } = useQuery({
     queryKey: ["template-bundles"],
@@ -36,11 +40,12 @@ export default function ApplyBundleModal({ open, onClose, sessionId, onApplied }
     setSelectedId(null);
     setError(null);
     setSubmitting(false);
+    setAppliedBundleIds(new Set());
   }, [open]);
 
   const selected = bundles.find((b) => b.id === selectedId) ?? null;
 
-  const handleApply = async () => {
+  const doApply = async () => {
     if (!selectedId || !sessionId) return;
 
     setError(null);
@@ -50,8 +55,13 @@ export default function ApplyBundleModal({ open, onClose, sessionId, onApplied }
       const examIds = result.created_exams.map((e) => e.id);
       const hwIds = result.created_homeworks.map((h) => h.id);
 
-      const skipped = (result as any).skipped_items?.length ?? 0;
+      // 적용 기록 갱신
+      setAppliedBundleIds((prev) => new Set(prev).add(selectedId));
+
+      const skipped = result.skipped_items?.length ?? 0;
+      const enrolled = result.enrolled_students ?? 0;
       const msg = `묶음 적용 완료: 시험 ${result.created_exams.length}개, 과제 ${result.created_homeworks.length}개 생성` +
+        (enrolled > 0 ? ` (수강생 ${enrolled}명 자동 등록)` : "") +
         (skipped > 0 ? ` (삭제된 템플릿 ${skipped}개 건너뜀)` : "");
       if (skipped > 0) feedback.warning(msg);
       else feedback.success(msg);
@@ -62,6 +72,24 @@ export default function ApplyBundleModal({ open, onClose, sessionId, onApplied }
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleApply = async () => {
+    if (!selectedId || !sessionId) return;
+
+    // 같은 세션에서 이미 적용한 번들이면 중복 경고
+    if (appliedBundleIds.has(selectedId)) {
+      const ok = await confirm({
+        title: "묶음 중복 적용",
+        message: "이 차시에 이미 동일 묶음이 적용되었습니다. 중복 생성하시겠습니까?",
+        confirmText: "중복 생성",
+        cancelText: "취소",
+        danger: true,
+      });
+      if (!ok) return;
+    }
+
+    await doApply();
   };
 
   if (!open) return null;

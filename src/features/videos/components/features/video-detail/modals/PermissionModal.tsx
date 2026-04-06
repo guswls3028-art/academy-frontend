@@ -1,9 +1,10 @@
 // PATH: src/features/videos/components/features/video-detail/modals/PermissionModal.tsx
 
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
 import { CloseButton } from "@/shared/ui/ds";
+import { Video } from "lucide-react";
 
 import PermissionHeader from "../../video-permission/components/PermissionHeader";
 import PermissionTable from "../../video-permission/components/PermissionTable";
@@ -32,6 +33,9 @@ export default function PermissionModal({
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<number[]>([]);
   const [focusEnrollment, setFocusEnrollment] = useState<number | null>(null);
+  const [onlineOnly, setOnlineOnly] = useState(false);
+
+  const toggleOnlineOnly = useCallback(() => setOnlineOnly((v) => !v), []);
 
   /* focus + initialTab sync */
   useEffect(() => {
@@ -76,6 +80,10 @@ export default function PermissionModal({
       list = list.filter((s: any) => s.enrollment === focusEnrollment);
     }
 
+    if (onlineOnly) {
+      list = list.filter((s: any) => s.attendance_status === "ONLINE");
+    }
+
     const q = search.trim().toLowerCase();
     if (q) {
       list = list.filter((s: any) =>
@@ -84,7 +92,7 @@ export default function PermissionModal({
     }
 
     return list;
-  }, [studentsRaw, focusEnrollment, search]);
+  }, [studentsRaw, focusEnrollment, onlineOnly, search]);
 
   const toggle = (enrollmentId: number) => {
     setSelected((prev) => (prev.includes(enrollmentId) ? prev.filter((x) => x !== enrollmentId) : [...prev, enrollmentId]));
@@ -185,6 +193,35 @@ export default function PermissionModal({
                       value={search}
                       onChange={(e) => setSearch(e.target.value)}
                     />
+
+                    <button
+                      type="button"
+                      onClick={toggleOnlineOnly}
+                      className="ml-2 inline-flex items-center gap-1 shrink-0"
+                      style={{
+                        height: 30,
+                        padding: "0 10px",
+                        fontSize: "var(--text-xs, 11px)",
+                        fontWeight: 600,
+                        borderRadius: "var(--radius-full, 9999px)",
+                        border: onlineOnly
+                          ? "1.5px solid var(--color-brand-primary)"
+                          : "1px solid var(--color-border-default)",
+                        background: onlineOnly
+                          ? "color-mix(in srgb, var(--color-brand-primary) 10%, var(--color-bg-surface))"
+                          : "var(--color-bg-surface)",
+                        color: onlineOnly
+                          ? "var(--color-brand-primary)"
+                          : "var(--color-text-secondary)",
+                        cursor: "pointer",
+                        transition: "all 140ms ease",
+                        whiteSpace: "nowrap",
+                      }}
+                      title="영상(ONLINE) 출석 학생만 필터"
+                    >
+                      <Video size={12} />
+                      영상 학생만
+                    </button>
 
                     <div
                       className="ml-auto text-[var(--color-text-secondary)]"

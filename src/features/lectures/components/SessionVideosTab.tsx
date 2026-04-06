@@ -1,7 +1,8 @@
 // PATH: src/features/lectures/components/SessionVideosTab.tsx
-import { useMemo, useState } from "react";
+import { useMemo, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Shield } from "lucide-react";
 
 import api from "@/shared/api/axios";
 import { getRetryErrorMessage, updateVideo } from "@/features/videos/api/videos";
@@ -18,6 +19,7 @@ import { DomainListToolbar } from "@/shared/ui/domain";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useConfirm } from "@/shared/ui/confirm";
 import VideoEditModal from "@/features/videos/components/features/video-detail/modals/VideoEditModal";
+import PermissionModal from "@/features/videos/components/features/video-detail/modals/PermissionModal";
 import VideoReorderModal from "@/features/videos/components/VideoReorderModal";
 
 /** 유튜브 스타일: 업로드 시각 → "N분 전", "N시간 전", "N일 전" */
@@ -87,7 +89,15 @@ export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
   const [showModal, setShowModal] = useState(false);
   const [editTarget, setEditTarget] = useState<MediaVideo | null>(null);
   const [reorderOpen, setReorderOpen] = useState(false);
+  const [permissionVideoId, setPermissionVideoId] = useState<number | null>(null);
   const asyncTasks = useAsyncStatus();
+
+  const openPermission = useCallback((videoId: number) => {
+    setPermissionVideoId(videoId);
+  }, []);
+  const closePermission = useCallback(() => {
+    setPermissionVideoId(null);
+  }, []);
 
   const { data: rawVideos = [], isLoading } = useSessionVideos(sessionId);
   const videos = useMemo(
@@ -366,6 +376,21 @@ export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
         </div>
 
         <div style={{ marginTop: 10, display: "flex", justifyContent: "flex-end", gap: 8 }}>
+          {video.status === "READY" && (
+            <Button
+              intent="ghost"
+              size="sm"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                openPermission(video.id);
+              }}
+              title="권한 관리"
+            >
+              <Shield size={13} style={{ marginRight: 3, verticalAlign: "middle" }} />
+              권한
+            </Button>
+          )}
           {canShowRetryButton(video) && (
             <Button
               intent="primary"
@@ -532,6 +557,14 @@ export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
           qc.invalidateQueries({ queryKey: ["session-videos", sessionId] });
         }}
       />
+
+      {permissionVideoId != null && (
+        <PermissionModal
+          videoId={permissionVideoId}
+          open={true}
+          onClose={closePermission}
+        />
+      )}
     </div>
   );
 }

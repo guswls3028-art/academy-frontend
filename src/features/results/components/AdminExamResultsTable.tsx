@@ -16,19 +16,23 @@ import { deriveFrontResultStatus } from "../utils/deriveFrontResultStatus";
 import FrontResultStatusBadge from "./FrontResultStatusBadge";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 
-function scoreCell(r: AdminExamResultRow) {
+function scoreCell(r: AdminExamResultRow, maxScore?: number) {
   // 대표 attempt 기준 final_score가 단일 진실
   const fs = r.final_score;
   if (fs === null || fs === undefined) return "—";
-  if (typeof fs === "number") return String(fs);
+  if (typeof fs === "number") {
+    return maxScore != null ? `${fs}/${maxScore}` : String(fs);
+  }
   return "—";
 }
 
 export default function AdminExamResultsTable({
   rows,
+  maxScore,
   onSelectEnrollment,
 }: {
   rows: AdminExamResultRow[];
+  maxScore?: number;
   onSelectEnrollment: (id: number) => void;
 }) {
   return (
@@ -64,7 +68,7 @@ export default function AdminExamResultsTable({
                 </td>
 
                 <td style={{ fontWeight: 600 }}>
-                  {scoreCell(r)}
+                  {scoreCell(r, maxScore)}
                 </td>
 
                 <td>

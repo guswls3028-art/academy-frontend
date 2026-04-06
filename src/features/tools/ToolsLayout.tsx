@@ -8,6 +8,7 @@ const TOOLS_TABS: DomainTab[] = [
   { key: "ppt", label: "PPT 생성", path: "/admin/tools/ppt" },
   { key: "omr", label: "OMR 생성", path: "/admin/tools/omr" },
   { key: "clinic", label: "클리닉 대상자", path: "/admin/tools/clinic" },
+  { key: "stopwatch", label: "스톱워치", path: "/admin/tools/stopwatch" },
 ];
 
 export default function ToolsLayout() {

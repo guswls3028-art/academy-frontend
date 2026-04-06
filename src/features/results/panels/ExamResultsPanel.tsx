@@ -98,6 +98,7 @@ export default function ExamResultsPanel({ examId }: Props) {
       <div className="w-[420px] shrink-0 overflow-auto border-r">
         <AdminExamResultsTable
           rows={rows}
+          maxScore={exam?.max_score}
           onSelectEnrollment={setSelectedEnrollmentId}
         />
       </div>

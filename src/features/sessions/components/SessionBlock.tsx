@@ -5,7 +5,7 @@ import { useState, useMemo, useRef, useEffect, useCallback, useLayoutEffect } fr
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
-import { Plus, Settings } from "lucide-react";
+import { Plus, Settings, BookOpen, Stethoscope, ArrowRightLeft, Layers } from "lucide-react";
 
 import { fetchSessions, sortSessionsByDateDesc, updateSession, deleteSession, type Session } from "@/features/lectures/api/sessions";
 import { fetchSections, createSection, type Section as SectionType } from "@/features/lectures/api/sections";
@@ -271,7 +271,7 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
           style={{
             display: "flex",
             flexDirection: "column",
-            gap: 6,
+            gap: 2,
             paddingBottom: "var(--space-4)",
             marginBottom: "var(--space-4)",
             borderBottom: "1px solid var(--color-border-divider)",
@@ -284,8 +284,8 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
               {/* 반 미지정 차시 (section=null) — 기존 차시 보존 */}
               {commonSessions.length > 0 && (
                 <SessionRow
-                  label={hasAnySections ? "반 미지정" : ""}
-                  labelBg="var(--color-bg-surface-sunken)"
+                  label={hasAnySections ? "반 미지정" : "전체"}
+                  labelBg="color-mix(in srgb, var(--color-text-muted) 10%, var(--color-bg-surface))"
                   labelColor="var(--color-text-muted)"
                   sessions={commonSessions}
                   sections={sections}
@@ -294,6 +294,7 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
                   navigate={navigate}
                   invalidate={invalidate}
                   onAdd={() => setCreateForSection({ id: null, label: null })}
+                  isUnassigned={hasAnySections}
                 />
               )}
 
@@ -306,8 +307,10 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
                     key={sec.id}
                     label={`${sec.label}반`}
                     sublabel={`${sec.day_of_week_display} ${sec.start_time?.slice(0, 5) ?? ""}`}
-                    labelBg={sec.section_type === "CLASS" ? "var(--color-primary-light, #e0e7ff)" : "var(--color-warning-light, #fef3c7)"}
-                    labelColor={sec.section_type === "CLASS" ? "var(--color-primary)" : "var(--color-warning, #d97706)"}
+                    labelBg={sec.section_type === "CLASS"
+                      ? "color-mix(in srgb, var(--color-brand-primary) 12%, var(--color-bg-surface))"
+                      : "color-mix(in srgb, var(--color-warning) 12%, var(--color-bg-surface))"}
+                    labelColor={sec.section_type === "CLASS" ? "var(--color-brand-primary)" : "var(--color-warning, #d97706)"}
                     sessions={secSessions}
                     sections={sections}
                     lectureId={lectureId}
@@ -315,49 +318,116 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
                     navigate={navigate}
                     invalidate={invalidate}
                     onAdd={() => setCreateForSection({ id: sec.id, label: `${sec.label}반` })}
+                    sectionType={sec.section_type}
                   />
                 );
               })}
 
               {/* 공통 차시도 없고 반도 없으면 안내 */}
               {commonSessions.length === 0 && !hasAnySections && (
-                <span style={{ fontSize: 13, color: "var(--color-text-muted)", padding: "4px 0" }}>
-                  차시가 없습니다.
-                </span>
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    gap: 8,
+                    padding: "20px 16px",
+                    borderRadius: 12,
+                    border: "1.5px dashed var(--color-border-subtle)",
+                    color: "var(--color-text-muted)",
+                  }}
+                >
+                  <Layers size={20} strokeWidth={1.8} style={{ opacity: 0.5 }} />
+                  <span style={{ fontSize: 13, fontWeight: 500 }}>
+                    차시가 없습니다. 반을 추가하고 차시를 만들어보세요.
+                  </span>
+                </div>
               )}
 
               {/* 반 추가 버튼들 */}
-              <div style={{ display: "flex", gap: 8, paddingTop: 4 }}>
+              <div style={{ display: "flex", gap: 8, paddingTop: 6 }}>
                 <button
                   onClick={() => { setAddingType("CLASS"); setAddDay(2); setAddTime("17:00"); }}
                   style={{
-                    fontSize: 12, fontWeight: 600, color: "var(--color-primary)",
-                    background: "none", border: "1px dashed var(--color-primary)",
-                    borderRadius: 6, padding: "4px 12px", cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 5,
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: "var(--color-brand-primary)",
+                    background: "color-mix(in srgb, var(--color-brand-primary) 6%, transparent)",
+                    border: "1.5px dashed color-mix(in srgb, var(--color-brand-primary) 40%, transparent)",
+                    borderRadius: 8,
+                    padding: "6px 14px",
+                    cursor: "pointer",
+                    transition: "background 160ms ease, border-color 160ms ease",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = "color-mix(in srgb, var(--color-brand-primary) 12%, transparent)";
+                    e.currentTarget.style.borderColor = "var(--color-brand-primary)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = "color-mix(in srgb, var(--color-brand-primary) 6%, transparent)";
+                    e.currentTarget.style.borderColor = "color-mix(in srgb, var(--color-brand-primary) 40%, transparent)";
                   }}
                 >
-                  + 수업 반 추가
+                  <BookOpen size={13} strokeWidth={2.2} />
+                  수업 반 추가
                 </button>
                 <button
                   onClick={() => { setAddingType("CLINIC"); setAddDay(5); setAddTime("19:00"); }}
                   style={{
-                    fontSize: 12, fontWeight: 600, color: "var(--color-warning, #d97706)",
-                    background: "none", border: "1px dashed var(--color-warning, #d97706)",
-                    borderRadius: 6, padding: "4px 12px", cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 5,
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: "var(--color-warning, #d97706)",
+                    background: "color-mix(in srgb, var(--color-warning, #d97706) 6%, transparent)",
+                    border: "1.5px dashed color-mix(in srgb, var(--color-warning, #d97706) 40%, transparent)",
+                    borderRadius: 8,
+                    padding: "6px 14px",
+                    cursor: "pointer",
+                    transition: "background 160ms ease, border-color 160ms ease",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = "color-mix(in srgb, var(--color-warning, #d97706) 12%, transparent)";
+                    e.currentTarget.style.borderColor = "var(--color-warning, #d97706)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = "color-mix(in srgb, var(--color-warning, #d97706) 6%, transparent)";
+                    e.currentTarget.style.borderColor = "color-mix(in srgb, var(--color-warning, #d97706) 40%, transparent)";
                   }}
                 >
-                  + 클리닉 반 추가
+                  <Stethoscope size={13} strokeWidth={2.2} />
+                  클리닉 반 추가
                 </button>
               </div>
 
               {/* 인라인 반 추가 폼 */}
               {addingType && (
                 <div style={{
-                  display: "flex", alignItems: "center", gap: 8,
-                  padding: "8px 12px", borderRadius: 8,
-                  background: "var(--color-bg-surface-sunken)",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  padding: "10px 14px",
+                  borderRadius: 10,
+                  background: "var(--color-bg-surface)",
+                  border: "1px solid var(--color-border-subtle)",
+                  boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
                 }}>
-                  <span style={{ fontSize: 13, fontWeight: 600, minWidth: 60 }}>
+                  <span
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 4,
+                      fontSize: 13,
+                      fontWeight: 700,
+                      minWidth: 80,
+                      color: addingType === "CLASS" ? "var(--color-brand-primary)" : "var(--color-warning, #d97706)",
+                    }}
+                  >
+                    {addingType === "CLASS" ? <BookOpen size={14} strokeWidth={2.2} /> : <Stethoscope size={14} strokeWidth={2.2} />}
                     {addingType === "CLASS" ? "수업" : "클리닉"} {nextSectionLabel(sections, addingType)}반
                   </span>
                   <select
@@ -379,16 +449,31 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
                     onClick={handleQuickAddSection}
                     disabled={addSectionMut.isPending}
                     style={{
-                      fontSize: 13, fontWeight: 600, color: "#fff",
-                      background: "var(--color-primary)", border: "none",
-                      borderRadius: 6, padding: "5px 14px", cursor: "pointer",
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: "#fff",
+                      background: addingType === "CLASS" ? "var(--color-brand-primary)" : "var(--color-warning, #d97706)",
+                      border: "none",
+                      borderRadius: 8,
+                      padding: "6px 16px",
+                      cursor: "pointer",
+                      transition: "opacity 160ms ease",
+                      opacity: addSectionMut.isPending ? 0.6 : 1,
                     }}
                   >
                     {addSectionMut.isPending ? "..." : "추가"}
                   </button>
                   <button
                     onClick={() => setAddingType(null)}
-                    style={{ fontSize: 12, color: "var(--color-text-muted)", background: "none", border: "none", cursor: "pointer" }}
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 500,
+                      color: "var(--color-text-muted)",
+                      background: "none",
+                      border: "none",
+                      cursor: "pointer",
+                      padding: "4px 8px",
+                    }}
                   >
                     취소
                   </button>
@@ -441,6 +526,7 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
 /** 한 줄: 라벨 + 차시 블록들 + 추가 버튼 */
 function SessionRow({
   label, sublabel, labelBg, labelColor, sessions, sections, lectureId, currentSessionId, navigate, invalidate, onAdd,
+  sectionType, isUnassigned,
 }: {
   label: string;
   sublabel?: string;
@@ -453,24 +539,95 @@ function SessionRow({
   navigate: (path: string) => void;
   invalidate: () => void;
   onAdd: () => void;
+  sectionType?: "CLASS" | "CLINIC";
+  isUnassigned?: boolean;
 }) {
+  const [hovered, setHovered] = useState(false);
+  const LabelIcon = sectionType === "CLINIC" ? Stethoscope : isUnassigned ? Layers : BookOpen;
+  const iconSize = 13;
+
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", flexWrap: "wrap" }}>
-      <span
+    <div
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: "var(--space-2)",
+        flexWrap: "wrap",
+        padding: "8px 10px",
+        borderRadius: 10,
+        background: hovered ? "var(--color-bg-surface-hover)" : "transparent",
+        transition: "background 160ms ease",
+        marginLeft: -10,
+        marginRight: -10,
+      }}
+    >
+      {/* Lane header: icon + label + schedule */}
+      <div
         style={{
-          fontSize: 12, fontWeight: 700, minWidth: 52,
-          padding: "3px 8px", borderRadius: 6, textAlign: "center",
-          background: labelBg, color: labelColor,
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+          minWidth: isUnassigned ? 80 : 120,
+          flexShrink: 0,
         }}
-        title={sublabel}
       >
-        {label}
-      </span>
-      {sublabel && (
-        <span style={{ fontSize: 11, color: "var(--color-text-muted)", minWidth: 60 }}>
-          {sublabel}
+        <span
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 5,
+            fontSize: 12,
+            fontWeight: 700,
+            padding: "4px 10px",
+            borderRadius: 8,
+            background: labelBg,
+            color: labelColor,
+            letterSpacing: "-0.01em",
+            lineHeight: 1,
+            border: `1px solid color-mix(in srgb, ${labelColor} 15%, transparent)`,
+            boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+          }}
+        >
+          <LabelIcon size={iconSize} strokeWidth={2.2} style={{ opacity: 0.85, flexShrink: 0 }} />
+          {label}
         </span>
-      )}
+        {sublabel && (
+          <span
+            style={{
+              fontSize: 11,
+              fontWeight: 600,
+              color: "var(--color-text-tertiary)",
+              letterSpacing: "-0.01em",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {sublabel}
+          </span>
+        )}
+        {isUnassigned && sessions.length > 0 && (
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 3,
+              fontSize: 10,
+              fontWeight: 500,
+              color: "var(--color-text-muted)",
+              background: "var(--color-bg-surface-hover)",
+              padding: "2px 6px",
+              borderRadius: 4,
+              whiteSpace: "nowrap",
+            }}
+          >
+            <ArrowRightLeft size={10} strokeWidth={2} />
+            반 이동
+          </span>
+        )}
+      </div>
+
+      {/* Session blocks */}
       {sessions.map((s) => {
         const isActive = currentSessionId != null && Number(s.id) === Number(currentSessionId);
         const supplement = isSupplement(s.title);
@@ -481,9 +638,46 @@ function SessionRow({
           </div>
         );
       })}
-      <SessionBlockView variant="add" compact onClick={onAdd} ariaLabel={`${label} 차시 추가`}>
-        <Plus size={18} strokeWidth={2.5} />
-      </SessionBlockView>
+
+      {/* Empty state or add button */}
+      {sessions.length === 0 ? (
+        <button
+          onClick={onAdd}
+          aria-label={`${label} 차시 추가`}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            padding: "10px 16px",
+            borderRadius: 10,
+            border: "1.5px dashed var(--color-border-subtle)",
+            background: "transparent",
+            color: "var(--color-text-muted)",
+            fontSize: 12,
+            fontWeight: 500,
+            cursor: "pointer",
+            transition: "border-color 160ms ease, color 160ms ease, background 160ms ease",
+            minHeight: 52,
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.borderColor = labelColor;
+            e.currentTarget.style.color = labelColor;
+            e.currentTarget.style.background = "var(--color-bg-surface-hover)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.borderColor = "var(--color-border-subtle)";
+            e.currentTarget.style.color = "var(--color-text-muted)";
+            e.currentTarget.style.background = "transparent";
+          }}
+        >
+          <Plus size={15} strokeWidth={2.2} />
+          차시를 추가하세요
+        </button>
+      ) : (
+        <SessionBlockView variant="add" compact onClick={onAdd} ariaLabel={`${label} 차시 추가`}>
+          <Plus size={18} strokeWidth={2.5} />
+        </SessionBlockView>
+      )}
     </div>
   );
 }
