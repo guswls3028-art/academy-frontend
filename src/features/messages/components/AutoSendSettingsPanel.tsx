@@ -80,8 +80,7 @@ const TRIGGER_DESCRIPTIONS: Record<string, string> = {
     "결제가 완료되면 학부모에게 결제 금액/내역을 확인 안내합니다.",
   payment_due_days_before:
     "납부 예정일 N일 전에 학부모에게 납부 금액/기한을 안내합니다.",
-  urgent_notice:
-    "긴급 공지 발송 시 전체 학생·학부모에게 즉시 안내합니다.",
+  // urgent_notice: 카카오 알림톡 정책 위반으로 제거
   qna_answer_registered:
     "QnA 답변이 등록되면 질문 작성 학생·학부모에게 답변 안내를 발송합니다.",
   counsel_approved:
@@ -621,6 +620,7 @@ export default function AutoSendSettingsPanel({
 
   const [editingTemplate, setEditingTemplate] =
     useState<MessageTemplateItem | null>(null);
+  const [editingTrigger, setEditingTrigger] = useState<string | null>(null);
   const [creatingForTrigger, setCreatingForTrigger] = useState<string | null>(
     null,
   );
@@ -721,6 +721,7 @@ export default function AutoSendSettingsPanel({
       setCreatingForTrigger(trigger);
       return;
     }
+    setEditingTrigger(trigger);
     const cached = templates.find((t) => t.id === templateId);
     if (cached) {
       setEditingTemplate(cached);
@@ -859,7 +860,7 @@ export default function AutoSendSettingsPanel({
       {/* Edit template modal */}
       <TemplateEditModal
         open={editingTemplate !== null}
-        onClose={() => setEditingTemplate(null)}
+        onClose={() => { setEditingTemplate(null); setEditingTrigger(null); }}
         category={editingTemplate?.category ?? "default"}
         initial={editingTemplate}
         onSubmit={(payload) => editTemplateMut.mutate(payload)}
@@ -867,6 +868,7 @@ export default function AutoSendSettingsPanel({
         smsConnected={smsConnected}
         onDelete={(id) => deleteTemplateMut.mutate(id)}
         isDeleting={deleteTemplateMut.isPending}
+        trigger={editingTrigger ?? undefined}
       />
 
       {/* Create template modal (for triggers without a linked template) */}
@@ -882,6 +884,7 @@ export default function AutoSendSettingsPanel({
         onSubmit={(payload) => createTemplateMut.mutate(payload)}
         isPending={createTemplateMut.isPending}
         smsConnected={smsConnected}
+        trigger={creatingForTrigger ?? undefined}
       />
     </>
   );

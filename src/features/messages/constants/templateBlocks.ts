@@ -54,6 +54,13 @@ const B = {
   clinic_name:       { id: "clinic_name",       label: "클리닉명",         insertText: "#{클리닉명}",          previewValue: "수학 보충 클리닉" },
   clinic_place:      { id: "clinic_place",      label: "클리닉 장소",      insertText: "#{장소}",              previewValue: "3층 세미나실" },
   clinic_result:     { id: "clinic_result",     label: "클리닉 합불",      insertText: "#{클리닉합불}",        previewValue: "합격",        description: "합격/불합격 결과" },
+  // 통합 알림톡 변수 (솔라피 리스트형 템플릿 — 자동 채움, #{내용} 편집 참고용)
+  academy_name:      { id: "academy_name",      label: "학원이름",         insertText: "#{학원이름}",          previewValue: "학원플러스",   description: "학원 이름 (알림톡 헤더에 자동)" },
+  clinic_date:       { id: "clinic_date",       label: "클리닉 날짜",      insertText: "#{클리닉날짜}",        previewValue: "2026-04-06",  description: "클리닉 일시 날짜 (리스트 자동)" },
+  clinic_time:       { id: "clinic_time",       label: "클리닉 시간",      insertText: "#{클리닉시간}",        previewValue: "14:00",       description: "클리닉 일시 시간 (리스트 자동)" },
+  clinic_old_sched:  { id: "clinic_old_sched",  label: "기존일정",         insertText: "#{클리닉기존일정}",    previewValue: "4/6(일) 14:00 3층", description: "변경 전 일정 (리스트 자동)" },
+  clinic_changes:    { id: "clinic_changes",    label: "변동사항",         insertText: "#{클리닉변동사항}",    previewValue: "4/7(월) 15:00으로 변경", description: "변경 내용 (리스트 자동)" },
+  clinic_modifier:   { id: "clinic_modifier",   label: "수정자",           insertText: "#{클리닉수정자}",      previewValue: "김선생님",    description: "일정 수정한 선생님 (리스트 자동)" },
   // 커뮤니티
   post_title:        { id: "post_title",        label: "게시글 제목",      insertText: "#{게시글제목}",        previewValue: "수학 문제 질문" },
   answer_summary:    { id: "answer_summary",    label: "답변 요약",        insertText: "#{답변요약}",          previewValue: "풀이 방법을 안내드립니다." },
@@ -109,7 +116,7 @@ const CATEGORY_BLOCKS: Record<string, TemplateBlock[]> = {
     // ── 기타 ──
     B.exam_score, B.assignment_score, B.clinic_result,
   ],
-  clinic:     [...COMMON, B.clinic_name, B.clinic_place, B.clinic_result],
+  clinic:     [...COMMON, B.clinic_name, B.clinic_place, B.clinic_result, B.clinic_date, B.clinic_time, B.academy_name, B.clinic_old_sched, B.clinic_changes, B.clinic_modifier],
   payment:    [...COMMON],
   notice:     [...COMMON],
   community:  [...COMMON, B.post_title, B.answer_summary, B.counsel_type],
@@ -209,6 +216,13 @@ const BLOCK_COLORS: Record<string, { bg: string; color: string; border: string }
   clinic_name:      { bg: "color-mix(in srgb, #d946ef 16%, transparent)", color: "#c026d3", border: "color-mix(in srgb, #d946ef 40%, transparent)" },
   clinic_place:     { bg: "color-mix(in srgb, #a78bfa 16%, transparent)", color: "#7c3aed", border: "color-mix(in srgb, #a78bfa 40%, transparent)" },
   clinic_result:    { bg: "color-mix(in srgb, #22c55e 16%, transparent)", color: "#16a34a", border: "color-mix(in srgb, #22c55e 40%, transparent)" },
+  // 통합 알림톡 — 다크블루/틸 계열
+  academy_name:     { bg: "color-mix(in srgb, #1e40af 16%, transparent)", color: "#1e3a8a", border: "color-mix(in srgb, #1e40af 40%, transparent)" },
+  clinic_date:      { bg: "color-mix(in srgb, #0d9488 16%, transparent)", color: "#0f766e", border: "color-mix(in srgb, #0d9488 40%, transparent)" },
+  clinic_time:      { bg: "color-mix(in srgb, #059669 16%, transparent)", color: "#047857", border: "color-mix(in srgb, #059669 40%, transparent)" },
+  clinic_old_sched: { bg: "color-mix(in srgb, #7c3aed 16%, transparent)", color: "#6d28d9", border: "color-mix(in srgb, #7c3aed 40%, transparent)" },
+  clinic_changes:   { bg: "color-mix(in srgb, #dc2626 16%, transparent)", color: "#b91c1c", border: "color-mix(in srgb, #dc2626 40%, transparent)" },
+  clinic_modifier:  { bg: "color-mix(in srgb, #ca8a04 16%, transparent)", color: "#a16207", border: "color-mix(in srgb, #ca8a04 40%, transparent)" },
   // 커뮤니티 — 인디고/블루 계열
   post_title:       { bg: "color-mix(in srgb, #818cf8 16%, transparent)", color: "#6366f1", border: "color-mix(in srgb, #818cf8 40%, transparent)" },
   answer_summary:   { bg: "color-mix(in srgb, #38bdf8 16%, transparent)", color: "#0284c7", border: "color-mix(in srgb, #38bdf8 40%, transparent)" },
@@ -304,6 +318,10 @@ export const ALWAYS_AVAILABLE_VARS = new Set([
   "학생이름", "학생이름2", "학생이름3", "사이트링크", "날짜", "시간",
   "학생아이디", "학부모아이디", "학생비밀번호", "학부모비밀번호", "비밀번호안내",
   "직원명", "부서", "직급",
+  // 통합 알림톡 자동 변수 (솔라피 리스트형 템플릿에서 자동 채움)
+  "학원이름", "클리닉장소", "클리닉날짜", "클리닉시간",
+  "클리닉기존일정", "클리닉변동사항", "클리닉수정자",
+  "강의명", "차시명",
 ]);
 
 /**

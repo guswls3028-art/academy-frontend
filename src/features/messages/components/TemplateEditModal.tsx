@@ -15,6 +15,7 @@ import {
   type TemplateCategory,
 } from "../constants/templateBlocks";
 import GradesBlockPanel from "./GradesBlockPanel";
+import AlimtalkTemplateInfoPanel, { getAlimtalkTemplateType, renderAlimtalkFullPreview } from "./AlimtalkTemplateInfoPanel";
 import type { MessageTemplateItem, MessageTemplatePayload } from "../api/messages.api";
 
 import "../styles/templateEditor.css";
@@ -34,6 +35,8 @@ export type TemplateEditModalProps = {
   /** 삭제 콜백. 주어지면 수정 모드에서 삭제 버튼 표시 */
   onDelete?: (id: number) => void;
   isDeleting?: boolean;
+  /** 자동발송 트리거명 (통합 알림톡 템플릿 타입 판별용) */
+  trigger?: string;
 };
 
 type EditorTab = "message" | "alimtalk";
@@ -49,6 +52,7 @@ export default function TemplateEditModal({
   smsConnected = true,
   onDelete,
   isDeleting = false,
+  trigger,
 }: TemplateEditModalProps) {
   const navigate = useNavigate();
   const [name, setName] = useState("");
@@ -56,6 +60,7 @@ export default function TemplateEditModal({
   const [body, setBody] = useState("");
   const [activeTab, setActiveTab] = useState<EditorTab>("message");
   const [selectedCategory, setSelectedCategory] = useState<TemplateCategory>(category);
+  const alimtalkType = getAlimtalkTemplateType(trigger);
   // Ant Design Input.TextArea ref는 래퍼 객체 — native textarea를 직접 찾는다
   const bodyWrapRef = useRef<HTMLDivElement>(null);
   const getNativeTextarea = useCallback(
@@ -116,9 +121,12 @@ export default function TemplateEditModal({
   const badgeSubject = renderPreviewBadges(subject);
   const showSubject = activeTab === "alimtalk";
 
+  // 범용 카테고리(알림톡 사용 불가)에서는 알림톡 탭 숨김
+  const smsOnlyCategories = new Set(["default", "student", "lecture", "attendance", "staff"]);
+  const showAlimtalkTab = !smsOnlyCategories.has(selectedCategory) || !!alimtalkType;
   const editorTabItems: import("@/shared/ui/ds/Tabs").TabItem[] = [
     { key: "message", label: "메시지" },
-    { key: "alimtalk", label: "알림톡" },
+    ...(showAlimtalkTab ? [{ key: "alimtalk", label: "알림톡" }] : []),
   ];
 
   if (!open) return null;
@@ -172,14 +180,28 @@ export default function TemplateEditModal({
               ) : (
                 <div className="template-preview-kakao" aria-label="카카오톡 알림톡 미리보기">
                   <div className="template-preview-kakao__card">
-                    {subject && (
-                      <div className="template-preview-kakao__title" style={{ lineHeight: 1.7 }}>{badgeSubject}</div>
+                    {alimtalkType ? (
+                      /* 통합 알림톡 — 전체 템플릿 구조 미리보기 */
+                      <>
+                        <div style={{ fontSize: 10, color: "var(--color-text-muted)", marginBottom: 4, fontStyle: "italic" }}>
+                          예시 데이터로 표시됩니다. 실제 발송 시 학원/학생 정보가 자동으로 채워집니다.
+                        </div>
+                        <div className="template-preview-kakao__body" style={{ lineHeight: 1.7, whiteSpace: "pre-wrap", fontSize: 12 }}>
+                          {renderAlimtalkFullPreview(alimtalkType, body)}
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        {subject && (
+                          <div className="template-preview-kakao__title" style={{ lineHeight: 1.7 }}>{badgeSubject}</div>
+                        )}
+                        <div className="template-preview-kakao__body" style={{ lineHeight: 1.7 }}>
+                          {body ? badgeBody : (
+                            <span className="template-editor__preview-placeholder">본문을 입력하면 미리보기가 표시됩니다.</span>
+                          )}
+                        </div>
+                      </>
                     )}
-                    <div className="template-preview-kakao__body" style={{ lineHeight: 1.7 }}>
-                      {body ? badgeBody : (
-                        <span className="template-editor__preview-placeholder">본문을 입력하면 미리보기가 표시됩니다.</span>
-                      )}
-                    </div>
                   </div>
                 </div>
               )}
@@ -286,7 +308,9 @@ export default function TemplateEditModal({
             <div className="template-editor__body-row flex-1 min-h-0 flex gap-4">
               <div ref={bodyWrapRef} className="template-editor__body-input flex-1 min-w-0 flex flex-col">
                 <label className="template-editor__editor-title block mb-1">
-                  본문 (직접 입력 또는 오른쪽 블록 클릭하여 삽입)
+                  {alimtalkType && activeTab === "alimtalk"
+                    ? "안내 문구 (알림톡 #{내용} 영역)"
+                    : "본문 (직접 입력 또는 오른쪽 블록 클릭하여 삽입)"}
                 </label>
                 <Input.TextArea
                   placeholder="내용을 입력하세요. 오른쪽 블록을 클릭하면 치환 변수가 삽입됩니다."
@@ -301,7 +325,9 @@ export default function TemplateEditModal({
               <div className="template-editor__body-blocks shrink-0 flex flex-col" style={{ width: 240 }}>
                 <div className="template-editor__blocks-title mb-2">변수 삽입</div>
                 <div className="template-editor__block-list flex flex-col content-start overflow-auto p-1">
-                  {selectedCategory === "grades" ? (
+                  {alimtalkType && activeTab === "alimtalk" ? (
+                    <AlimtalkTemplateInfoPanel templateType={alimtalkType} disabled={fieldsDisabled} />
+                  ) : selectedCategory === "grades" ? (
                     <GradesBlockPanel blocks={blocks} onInsert={insertBlock} disabled={fieldsDisabled} currentBody={body} />
                   ) : (
                     <div className="flex flex-wrap gap-2">

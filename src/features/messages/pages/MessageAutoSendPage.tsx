@@ -64,7 +64,7 @@ const TRIGGER_DESCRIPTIONS: Record<string, string> = {
   counseling_reservation_created: "상담 예약이 완료되면 학생·학부모에게 상담 일시/장소를 확인 안내합니다.",
   payment_complete: "결제가 완료되면 학부모에게 결제 금액/내역을 확인 안내합니다.",
   payment_due_days_before: "납부 예정일 N일 전에 학부모에게 납부 금액/기한을 안내합니다.",
-  urgent_notice: "긴급 공지 발송 시 전체 학생·학부모에게 즉시 안내합니다.",
+  // urgent_notice: 카카오 알림톡 정책 위반으로 제거
   // 커뮤니티
   qna_answer_registered: "QnA 답변이 등록되면 질문 작성 학생·학부모에게 답변 안내를 발송합니다.",
   counsel_approved: "상담 신청이 승인되면 신청 학생·학부모에게 승인 안내를 발송합니다.",
@@ -86,7 +86,7 @@ const SECTION_DESCRIPTIONS: Record<AutoSendSectionId, string> = {
   grades: "성적 공개 안내, 월간 성적 리포트 발송을 설정합니다.",
   clinic: "클리닉 예약 완료/변경, 시작 전 리마인드, 상담 예약 완료 알림을 설정합니다.",
   payment: "결제 완료 확인, 납부 예정일 리마인드를 설정합니다.",
-  notice: "휴강, 보강, 강의실 변경, 시간표 변경, 긴급 공지 등 운영 공지를 설정합니다.",
+  // notice: 카카오 알림톡 정책 위반으로 제거
   community: "QnA 답변 등록, 상담 신청 승인 시 학생·학부모에게 자동 발송합니다.",
   staff: "근태 요약, 비용/경비, 월 마감, 급여 스냅샷, 급여 명세서 발송을 설정합니다.",
 };
@@ -374,6 +374,7 @@ export default function MessageAutoSendPage() {
   const qc = useQueryClient();
   const [selectedSection, setSelectedSection] = useState<AutoSendSectionId>("signup");
   const [editingTemplate, setEditingTemplate] = useState<MessageTemplateItem | null>(null);
+  const [editingTrigger, setEditingTrigger] = useState<string | null>(null);
   const [creatingForTrigger, setCreatingForTrigger] = useState<string | null>(null);
   const { data: messagingInfo } = useMessagingInfo();
   const smsConnected = !!(messagingInfo?.sms_allowed);
@@ -694,6 +695,7 @@ export default function MessageAutoSendPage() {
                         setCreatingForTrigger(trigger);
                         return;
                       }
+                      setEditingTrigger(trigger);
                       const cached = templates.find((t) => t.id === templateId);
                       if (cached) {
                         setEditingTemplate(cached);
@@ -716,12 +718,13 @@ export default function MessageAutoSendPage() {
     {/* 수정 모달 */}
     <TemplateEditModal
       open={editingTemplate !== null}
-      onClose={() => setEditingTemplate(null)}
+      onClose={() => { setEditingTemplate(null); setEditingTrigger(null); }}
       category={editingTemplate?.category ?? "default"}
       initial={editingTemplate}
       onSubmit={(payload) => editTemplateMut.mutate(payload)}
       isPending={editTemplateMut.isPending}
       smsConnected={smsConnected}
+      trigger={editingTrigger ?? undefined}
     />
 
     {/* 생성 모달 (템플릿 미연결 trigger) */}
@@ -737,6 +740,7 @@ export default function MessageAutoSendPage() {
       onSubmit={(payload) => createTemplateMut.mutate(payload)}
       isPending={createTemplateMut.isPending}
       smsConnected={smsConnected}
+      trigger={creatingForTrigger ?? undefined}
     />
   </>
   );

@@ -11,7 +11,6 @@ import {
   BarChart2,
   Stethoscope,
   CreditCard,
-  Megaphone,
   Bell,
   CalendarPlus,
   CalendarSync,
@@ -36,7 +35,7 @@ export type AutoSendSectionId =
   | "grades"
   | "clinic"
   | "payment"
-  | "notice"
+  // notice: 제거 (카카오 알림톡 정책 위반)
   | "community"
   | "staff";
 
@@ -179,13 +178,7 @@ export const AUTO_SEND_SECTIONS: SectionDef[] = [
       triggerChild("payment_due_days_before", <Bell size={14} aria-hidden />),
     ],
   },
-  {
-    id: "notice",
-    label: TEMPLATE_CATEGORY_LABELS.notice,
-    icon: <Megaphone size={16} aria-hidden />,
-    triggers: ["urgent_notice"],
-    children: [triggerChild("urgent_notice", <Bell size={14} aria-hidden />)],
-  },
+  // notice 구간: urgent_notice 제거 (카카오 알림톡 정책 위반)
   {
     id: "community",
     label: TEMPLATE_CATEGORY_LABELS.community,

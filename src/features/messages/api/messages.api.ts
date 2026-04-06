@@ -324,7 +324,7 @@ export type AutoSendTrigger =
   | "counseling_reservation_created"
   | "payment_complete"
   | "payment_due_days_before"
-  | "urgent_notice"
+  // urgent_notice: 카카오 알림톡 정책 위반으로 제거
   // 커뮤니티 자동발송
   | "qna_answer_registered"
   | "counsel_approved"
@@ -383,7 +383,7 @@ export const AUTO_SEND_TRIGGER_LABELS: Record<string, string> = {
   counseling_reservation_created: "상담 예약 완료",
   payment_complete: "결제 완료",
   payment_due_days_before: "납부 예정일 N일 전",
-  urgent_notice: "긴급 공지",
+  // urgent_notice: 카카오 알림톡 정책 위반으로 제거
   // 커뮤니티
   qna_answer_registered: "QnA 답변 등록",
   counsel_approved: "상담 신청 승인",
