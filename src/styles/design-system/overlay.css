@@ -324,9 +324,17 @@
   padding: var(--space-5);
 }
 
-/* 학생 상세: 헤더 버튼 아래 여백 최소화 */
+/* 학생 상세: 고정 높이 모달 — body가 남은 높이를 채움, 내부 그리드가 독립 스크롤 */
+.ds-overlay-panel--student-detail {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - var(--panel-header, 64px) - var(--notice-banner-height, 0px) - 24px);
+}
 .ds-overlay-panel--student-detail .ds-overlay-body {
   padding-top: var(--space-3);
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
 /* 직원 상세: 탭 많아서 패널 너비 확대 */
@@ -336,9 +344,10 @@
 
 .ds-overlay-body__grid {
   display: grid;
-  grid-template-columns: 280px 1fr;
-  gap: var(--space-5);
-  align-items: start;
+  grid-template-columns: 260px 1fr;
+  gap: var(--space-4);
+  height: 100%;
+  min-height: 0;
 }
 
 @media (max-width: 768px) {
@@ -347,17 +356,20 @@
   }
 }
 
-/* ── 좌측 사이드바 — 섹션 그룹 컨테이너 ── */
+/* ── 좌측 사이드바 — 독립 스크롤 ── */
 .ds-overlay-sidebar {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: var(--space-3);
+  overflow-y: auto;
+  min-height: 0;
+  padding-right: var(--space-2);
 }
 
-/* ── 섹션 — 정보 그룹 카드 ── */
+/* ── 섹션 — 접기/펼치기 카드 ── */
 .ds-overlay-section {
   border-radius: var(--radius-lg);
-  padding: var(--space-4);
+  padding: var(--space-3) var(--space-3);
   background: var(--color-bg-surface);
   border: 1px solid var(--color-border-divider);
 }
@@ -370,9 +382,36 @@
   font-weight: 800;
   color: var(--color-text-secondary);
   letter-spacing: 0.02em;
-  margin-bottom: var(--space-3);
+  cursor: pointer;
+  user-select: none;
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+/* 접힌 상태: 타이틀만 보임 */
+.ds-overlay-section[data-collapsed] .ds-overlay-section__body {
+  display: none;
+}
+
+/* 펼쳐진 상태: 타이틀 아래 구분선 + 본문 */
+.ds-overlay-section:not([data-collapsed]) .ds-overlay-section__title {
+  margin-bottom: var(--space-2);
   padding-bottom: var(--space-2);
   border-bottom: 2px solid color-mix(in srgb, var(--color-brand-primary) 20%, var(--color-border-divider));
+}
+
+/* 토글 화살표 */
+.ds-overlay-section__toggle {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  transition: transform 0.2s ease;
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+.ds-overlay-section[data-collapsed] .ds-overlay-section__toggle {
+  transform: rotate(-90deg);
 }
 
 .ds-overlay-section__title-icon {
@@ -446,16 +485,17 @@
   opacity: 0.5;
 }
 
-/* ── 통계 카드 그리드 — 대시보드 요약 ── */
+/* ── 통계 카드 그리드 — 대시보드 요약 (컴팩트) ── */
 .ds-overlay-stat-grid {
   display: grid;
-  gap: var(--space-2);
-  margin-bottom: var(--space-4);
+  gap: 6px;
+  margin-bottom: var(--space-3);
+  flex-shrink: 0;
 }
 
 .ds-overlay-stat-card {
-  border-radius: var(--radius-lg);
-  padding: 14px 12px;
+  border-radius: var(--radius-md);
+  padding: 10px 8px;
   background: var(--color-bg-surface);
   border: 1px solid var(--color-border-divider);
   text-align: center;
@@ -468,15 +508,15 @@
 }
 
 .ds-overlay-stat-card__label {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
   color: var(--color-text-muted);
-  margin-bottom: 6px;
+  margin-bottom: 3px;
   letter-spacing: 0.01em;
 }
 
 .ds-overlay-stat-card__value {
-  font-size: 20px;
+  font-size: 17px;
   font-weight: 900;
   line-height: 1.1;
   color: var(--color-text-primary);
@@ -558,27 +598,51 @@
 /* ── 우측 콘텐츠 패널 ── */
 .ds-overlay-content-panel {
   border-radius: var(--radius-lg);
-  padding: var(--space-4);
+  padding: var(--space-3);
   background: color-mix(in srgb, var(--color-brand-primary) 3%, var(--color-bg-surface));
   border: 1px solid var(--color-border-divider);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
 }
 
-/* 오버레이 내 탭 — 페이지 플랫탭과 동일 */
+.ds-overlay-content-panel__scrollable {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-top: var(--space-3);
+}
+
+/* 오버레이 내 탭 — 균등 배분, full-width, 하단 보더로 구분 */
 .ds-overlay-tabs {
-  margin-top: var(--space-4);
-  padding: var(--space-1) 0 0;
-  border-radius: var(--radius-md) var(--radius-md) 0 0;
-  background: var(--color-bg-surface);
-  width: fit-content;
+  margin-top: var(--space-3);
+  padding: 0;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--color-border-divider);
 }
 
 .ds-overlay-tabs .ds-tabs {
-  gap: var(--space-1);
+  gap: 0;
+  display: flex;
+  width: 100%;
 }
 
 .ds-overlay-tabs .ds-tab {
-  padding: var(--space-2) var(--space-3);
-  font-size: 13px;
+  flex: 1;
+  padding: 8px 4px;
+  font-size: 12.5px;
+  font-weight: 700;
+  text-align: center;
+  justify-content: center;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.ds-overlay-tabs .ds-tab.is-active {
+  border-bottom-color: var(--color-brand-primary);
+  color: var(--color-brand-primary);
 }
 
 /* 학생 상세 오버레이 — 우하단 인벤토리 트리거 (아이콘만 큼지막하게) */

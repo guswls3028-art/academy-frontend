@@ -27,11 +27,11 @@ import { useSendMessageModal } from "@/features/messages/context/SendMessageModa
 import StudentStorageExplorer from "@/features/storage/components/StudentStorageExplorer";
 
 const TABS = [
-  { key: "enroll", label: "수강" },
+  { key: "enroll", label: "수강 이력" },
   { key: "score", label: "시험 성적" },
-  { key: "homework", label: "과제" },
-  { key: "clinic", label: "클리닉" },
-  { key: "question", label: "질문" },
+  { key: "homework", label: "과제 이력" },
+  { key: "clinic", label: "클리닉 이력" },
+  { key: "question", label: "질문 이력" },
 ];
 
 type StudentsDetailOverlayProps = {
@@ -52,6 +52,9 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
   const [editOpen, setEditOpen] = useState(false);
   const [tagCreateOpen, setTagCreateOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  // 사이드바 아코디언: 연락처만 기본 열림
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({ contact: true });
+  const toggleSection = (key: string) => setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
 
   // Escape 키로 오버레이 닫기
   useEffect(() => {
@@ -270,118 +273,134 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
 
           <div className="ds-overlay-body">
             <div className="ds-overlay-body__grid">
-              {/* Left panel — 정보·태그·메모 (섹션별 그룹화) */}
+              {/* Left panel — 정보·태그·메모 (아코디언 섹션) */}
               <div className="ds-overlay-sidebar">
                 {/* 연락처 섹션 */}
-                <div className="ds-overlay-section">
-                  <div className="ds-overlay-section__title">
+                <div className="ds-overlay-section" data-collapsed={openSections.contact ? undefined : ""}>
+                  <div className="ds-overlay-section__title" onClick={() => toggleSection("contact")}>
                     <span className="ds-overlay-section__title-icon">
                       <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
                     </span>
                     연락처
+                    <span className="ds-overlay-section__toggle">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                    </span>
                   </div>
-                  <div className="ds-overlay-info-rows">
-                    <InfoRow label="아이디" value={student.psNumber} accent copyable />
-                    <InfoRow label="식별코드" value={formatOmrCode(student.omrCode)} accent copyable />
-                    <InfoRow label="학부모 전화" value={formatPhone(student.parentPhone)} copyable />
-                    <InfoRow label="학생 전화" value={formatStudentPhoneDisplay(student.studentPhone)} copyable />
-                    {student.gender && <InfoRow label="성별" value={formatGenderDisplay(student.gender)} />}
-                    <InfoRow label="등록일" value={student.registeredAt?.slice(0, 10)} />
-                    {student.address && <InfoRow label="주소" value={student.address} />}
+                  <div className="ds-overlay-section__body">
+                    <div className="ds-overlay-info-rows">
+                      <InfoRow label="아이디" value={student.psNumber} accent copyable />
+                      <InfoRow label="식별코드" value={formatOmrCode(student.omrCode)} accent copyable />
+                      <InfoRow label="학부모 전화" value={formatPhone(student.parentPhone)} copyable />
+                      <InfoRow label="학생 전화" value={formatStudentPhoneDisplay(student.studentPhone)} copyable />
+                      {student.gender && <InfoRow label="성별" value={formatGenderDisplay(student.gender)} />}
+                      <InfoRow label="등록일" value={student.registeredAt?.slice(0, 10)} />
+                      {student.address && <InfoRow label="주소" value={student.address} />}
+                    </div>
                   </div>
                 </div>
 
-                {/* 학교 정보 섹션 — 값이 하나라도 있을 때만 표시 */}
+                {/* 학교 정보 섹션 */}
                 {(student.school || student.grade != null || student.schoolClass != null || student.major || (student.schoolType === "HIGH" && student.originMiddleSchool)) && (
-                <div className="ds-overlay-section">
-                  <div className="ds-overlay-section__title">
+                <div className="ds-overlay-section" data-collapsed={openSections.school ? undefined : ""}>
+                  <div className="ds-overlay-section__title" onClick={() => toggleSection("school")}>
                     <span className="ds-overlay-section__title-icon">
                       <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
                     </span>
                     학교 정보
+                    <span className="ds-overlay-section__toggle">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                    </span>
                   </div>
-                  <div className="ds-overlay-info-rows">
-                    {student.school && <InfoRow label="학교" value={student.school} />}
-                    {student.schoolType === "HIGH" && student.originMiddleSchool && (
-                      <InfoRow label="출신중학교" value={student.originMiddleSchool} />
-                    )}
-                    {student.grade != null && <InfoRow label="학년" value={`${student.grade}학년`} />}
-                    {student.schoolClass != null && student.schoolClass !== "" && <InfoRow label="반" value={student.schoolClass} />}
-                    {student.major && <InfoRow label="계열" value={student.major} />}
+                  <div className="ds-overlay-section__body">
+                    <div className="ds-overlay-info-rows">
+                      {student.school && <InfoRow label="학교" value={student.school} />}
+                      {student.schoolType === "HIGH" && student.originMiddleSchool && (
+                        <InfoRow label="출신중학교" value={student.originMiddleSchool} />
+                      )}
+                      {student.grade != null && <InfoRow label="학년" value={`${student.grade}학년`} />}
+                      {student.schoolClass != null && student.schoolClass !== "" && <InfoRow label="반" value={student.schoolClass} />}
+                      {student.major && <InfoRow label="계열" value={student.major} />}
+                    </div>
                   </div>
                 </div>
                 )}
 
                 {/* 태그 섹션 */}
-                <div className="ds-overlay-section">
-                  <div className="ds-overlay-section__title">
+                <div className="ds-overlay-section" data-collapsed={openSections.tags ? undefined : ""}>
+                  <div className="ds-overlay-section__title" onClick={() => toggleSection("tags")}>
                     <span className="ds-overlay-section__title-icon">
                       <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
                     </span>
                     태그
+                    {student.tags?.length > 0 && <span style={{ fontSize: 11, color: "var(--color-text-muted)", fontWeight: 600 }}>{student.tags.length}</span>}
+                    <span className="ds-overlay-section__toggle">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                    </span>
                   </div>
-                  <div className="ds-overlay-tags">
-                    {student.tags?.length ? (
-                      student.tags.map((t: any) => {
-                        const c = String(t.color || "").toLowerCase();
-                        const lightColors = ["#eab308", "#06b6d4"];
-                        const isLight = lightColors.some((x) => c === x);
-                        return (
-                          <span
-                            key={t.id}
-                            className="ds-overlay-tag"
-                            style={{
-                              background: t.color,
-                              color: isLight ? "#1a1a1a" : "#fff",
-                              textShadow: isLight ? "none" : "0 0 1px rgba(0,0,0,0.2)",
-                            }}
-                          >
-                            {t.name}
-                            <button
-                              type="button"
-                              className="ds-overlay-tag__remove"
-                              onClick={(e) => { e.stopPropagation(); removeTag.mutate(t.id); }}
-                              disabled={removeTag.isPending}
-                              aria-label={`${t.name} 태그 제거`}
-                              style={{ cursor: removeTag.isPending ? "wait" : "pointer" }}
+                  <div className="ds-overlay-section__body">
+                    <div className="ds-overlay-tags">
+                      {student.tags?.length ? (
+                        student.tags.map((t: any) => {
+                          const c = String(t.color || "").toLowerCase();
+                          const lightColors = ["#eab308", "#06b6d4"];
+                          const isLight = lightColors.some((x) => c === x);
+                          return (
+                            <span
+                              key={t.id}
+                              className="ds-overlay-tag"
+                              style={{
+                                background: t.color,
+                                color: isLight ? "#1a1a1a" : "#fff",
+                                textShadow: isLight ? "none" : "0 0 1px rgba(0,0,0,0.2)",
+                              }}
                             >
-                              ×
-                            </button>
-                          </span>
-                        );
-                      })
-                    ) : (
-                      <span className="ds-overlay-info-row__label">태그 없음</span>
-                    )}
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <Button type="button" intent="primary" size="sm" onClick={() => setTagCreateOpen(true)}>
-                      + 태그 추가
-                    </Button>
-                    {(tags?.filter((t: any) => !student.tags?.some((st: any) => st.id === t.id)).length ?? 0) > 0 && (
-                      <select
-                        className="ds-input"
-                        style={{ fontSize: 13, minWidth: 140 }}
-                        onChange={(e) => {
-                          const tagId = Number(e.target.value);
-                          if (tagId) addTag.mutate(tagId);
-                          e.currentTarget.value = "";
-                        }}
-                      >
-                        <option value="">기존 태그 선택…</option>
-                        {tags
-                          ?.filter((t: any) => !student.tags?.some((st: any) => st.id === t.id))
-                          .map((tag: any) => (
-                            <option key={tag.id} value={tag.id}>{tag.name}</option>
-                          ))}
-                      </select>
-                    )}
+                              {t.name}
+                              <button
+                                type="button"
+                                className="ds-overlay-tag__remove"
+                                onClick={(e) => { e.stopPropagation(); removeTag.mutate(t.id); }}
+                                disabled={removeTag.isPending}
+                                aria-label={`${t.name} 태그 제거`}
+                                style={{ cursor: removeTag.isPending ? "wait" : "pointer" }}
+                              >
+                                ×
+                              </button>
+                            </span>
+                          );
+                        })
+                      ) : (
+                        <span className="ds-overlay-info-row__label">태그 없음</span>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <Button type="button" intent="primary" size="sm" onClick={() => setTagCreateOpen(true)}>
+                        + 태그 추가
+                      </Button>
+                      {(tags?.filter((t: any) => !student.tags?.some((st: any) => st.id === t.id)).length ?? 0) > 0 && (
+                        <select
+                          className="ds-input"
+                          style={{ fontSize: 13, minWidth: 140 }}
+                          onChange={(e) => {
+                            const tagId = Number(e.target.value);
+                            if (tagId) addTag.mutate(tagId);
+                            e.currentTarget.value = "";
+                          }}
+                        >
+                          <option value="">기존 태그 선택…</option>
+                          {tags
+                            ?.filter((t: any) => !student.tags?.some((st: any) => st.id === t.id))
+                            .map((tag: any) => (
+                              <option key={tag.id} value={tag.id}>{tag.name}</option>
+                            ))}
+                        </select>
+                      )}
+                    </div>
                   </div>
                 </div>
 
                 {/* 메모 섹션 */}
-                <div className="ds-overlay-section">
-                  <div className="ds-overlay-section__title" style={{ marginBottom: 8 }}>
+                <div className="ds-overlay-section" data-collapsed={openSections.memo ? undefined : ""}>
+                  <div className="ds-overlay-section__title" onClick={() => toggleSection("memo")}>
                     <span className="ds-overlay-section__title-icon">
                       <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
                     </span>
@@ -392,16 +411,21 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
                     {updateMemo.isSuccess && !updateMemo.isPending && (
                       <span className="ds-overlay-memo__status ds-overlay-memo__status--saved" style={{ marginLeft: "auto" }}>저장됨</span>
                     )}
+                    <span className="ds-overlay-section__toggle">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                    </span>
                   </div>
-                  <textarea
-                    key={`memo-${student.memo ?? ""}`}
-                    className="ds-textarea w-full"
-                    rows={4}
-                    defaultValue={student.memo ?? ""}
-                    placeholder="메모를 입력하면 포커스 해제 시 자동 저장됩니다."
-                    onBlur={(e) => updateMemo.mutate(e.target.value)}
-                    style={{ fontSize: 13, borderRadius: 10, border: "1px solid var(--color-border-divider)" }}
-                  />
+                  <div className="ds-overlay-section__body">
+                    <textarea
+                      key={`memo-${student.memo ?? ""}`}
+                      className="ds-textarea w-full"
+                      rows={3}
+                      defaultValue={student.memo ?? ""}
+                      placeholder="메모를 입력하면 포커스 해제 시 자동 저장됩니다."
+                      onBlur={(e) => updateMemo.mutate(e.target.value)}
+                      style={{ fontSize: 13, borderRadius: 10, border: "1px solid var(--color-border-divider)" }}
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -431,12 +455,12 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
                   </div>
                 </div>
 
-                <div style={{ minHeight: 260, marginTop: 16 }}>
-                  {tab === "enroll" && <EnrollmentsTab enrollments={student.enrollments} onNavigate={(path) => { onClose(); navigate(path); }} />}
-                  {tab === "score" && <ScoreTab data={examGrades} onNavigate={(path) => { onClose(); navigate(path); }} />}
-                  {tab === "homework" && <HomeworkTab data={homeworkGrades} onNavigate={(path) => { onClose(); navigate(path); }} />}
-                  {tab === "clinic" && <ClinicTab data={clinicData ?? []} onNavigate={(path) => { onClose(); navigate(path); }} />}
-                  {tab === "question" && <QuestionTab data={questionsData ?? []} onNavigate={(path) => { onClose(); navigate(path); }} />}
+                <div className="ds-overlay-content-panel__scrollable">
+                  {tab === "enroll" && <EnrollmentsTab enrollments={student.enrollments} onNavigate={(path) => { if (props?.onClose) props.onClose(); navigate(path); }} />}
+                  {tab === "score" && <ScoreTab data={examGrades} onNavigate={(path) => { if (props?.onClose) props.onClose(); navigate(path); }} />}
+                  {tab === "homework" && <HomeworkTab data={homeworkGrades} onNavigate={(path) => { if (props?.onClose) props.onClose(); navigate(path); }} />}
+                  {tab === "clinic" && <ClinicTab data={clinicData ?? []} onNavigate={(path) => { if (props?.onClose) props.onClose(); navigate(path); }} />}
+                  {tab === "question" && <QuestionTab data={questionsData ?? []} onNavigate={(path) => { if (props?.onClose) props.onClose(); navigate(path); }} />}
                 </div>
               </div>
             </div>
