@@ -1,0 +1,197 @@
+// PATH: src/features/developer/pages/patchNotesData.ts
+// 패치노트 데이터 — git log 기반 정리
+
+export type NoteCategory = "new" | "fix" | "improve" | "security";
+
+export interface PatchEntry {
+  text: string;
+  category: NoteCategory;
+}
+
+export interface PatchNote {
+  version: string;
+  codename: string;
+  date: string;
+  summary: string;
+  entries: PatchEntry[];
+}
+
+export const PATCH_NOTES: PatchNote[] = [
+  {
+    version: "V1.1.1d",
+    codename: "통합 완성",
+    date: "2026-04-06",
+    summary: "알림톡 템플릿 통합, 성적→클리닉 논리 안정화, 학교급 버그 일소",
+    entries: [
+      { category: "new", text: "통합 알림톡 템플릿 시스템 — 도메인별 분산 템플릿을 단일 관리 콘솔로 통합" },
+      { category: "new", text: "자동발송 트리거 카드에 템플릿 편집 버튼 추가" },
+      { category: "fix", text: "성적→클리닉 논리 버그 8건 일괄 수정 — 합불 판정, 미달 트리거, 해소 처리 정합성" },
+      { category: "fix", text: "ELEMENTARY school_type 전체 경로 버그 수정 (프론트+백엔드)" },
+      { category: "fix", text: "urgent_notice 레거시 제거 — 범용 발송 SMS 전용으로 정리" },
+    ],
+  },
+  {
+    version: "V1.1.1c",
+    codename: "학교급 + 번들",
+    date: "2026-04-04",
+    summary: "초등/중등 학원 분리 지원, 시험 템플릿 묶음, 12종 테마 리뉴얼",
+    entries: [
+      { category: "new", text: "school_level_mode — 초등/중등 학원 분리 지원 (DNB). 새 테넌트 DB 1줄로 즉시 적용" },
+      { category: "new", text: "시험/과제 템플릿 다중 선택 + 묶음(Bundle) — 한 번에 여러 시험·과제 세팅" },
+      { category: "new", text: "TemplateBundle 모델 + CRUD/Apply API — 차시에 묶음 적용 시 수강생 자동 등록" },
+      { category: "new", text: "학생앱 상태 표시 UX 고도화 — 시험/과제/클리닉 상태를 직관적으로" },
+      { category: "new", text: "클리닉 운영 콘솔에 문자 알림 트리거 ON/OFF 인디케이터 추가" },
+      { category: "improve", text: "12종 테마 프리미엄 리뉴얼 — semantic 충돌 해결, 테마별 차별화 강화" },
+      { category: "improve", text: "차시 블록 SSOT — 클래스·라벨 포맷 공통화 (formatSessionOrderLabel)" },
+      { category: "fix", text: "판정·미달 로직 SSOT(sessionScoreRowVerdict) + 성적 PDF 정합" },
+      { category: "fix", text: "pass_score=0 합격 불가 + submission_id 팬텀 참조 수정" },
+      { category: "fix", text: "커뮤니티 parent 권한 누락 + replies_count 뻥튀기 수정" },
+      { category: "fix", text: "SMS 미연동 테넌트에서 양식 선택/직접 작성 접근 허용" },
+      { category: "fix", text: "사이드바 네비 시 URL만 바뀌고 화면이 갱신되지 않는 문제 완화" },
+    ],
+  },
+  {
+    version: "V1.1.1b",
+    codename: "메시징 프리미엄",
+    date: "2026-03-30",
+    summary: "메시지 발송 모달 상용 레벨 완성, 오버레이 개편, 멀티테넌트 안정화",
+    entries: [
+      { category: "new", text: "메시지 발송 모달 상용 완성 — SMS/알림톡 UX 완전 분리, 탭 제거 + 단일 플로우" },
+      { category: "new", text: "성적 발송 양식 관리 — 저장/편집/기본지정/동적변수/미리보기" },
+      { category: "new", text: "학생/직원 상세 오버레이 UI/UX 전면 개선" },
+      { category: "new", text: "메시지 설정 페이지 KPI 요약 카드 + 디자인 리파인" },
+      { category: "new", text: "성적 발송 템플릿 기반 변수 치환 시스템" },
+      { category: "new", text: "알림톡 탭 컴팩트 구조 — 접이식 드롭다운 + readOnly 미리보기" },
+      { category: "new", text: "출결 탭에 수업결과 발송 버튼 추가" },
+      { category: "improve", text: "출결 매트릭스 UX 개선 — 1행 헤더, 원형 뱃지, 중앙 정렬" },
+      { category: "improve", text: "뱃지 규격 컨텍스트별 통일 — 상세=1ch, 권한모달=2ch" },
+      { category: "improve", text: "메시징 UX 친절함 전면 개선 — 2컬럼 레이아웃 + 빈 상태 오버레이 + 변수 설명" },
+      { category: "fix", text: "뿌리오 알림톡 엔드포인트 /v1/kakao 규격서 payload 정확 반영" },
+      { category: "fix", text: "성적 대량발송 per-student 변수 생성 + 시험/과제 변수 줄바꿈 제거" },
+      { category: "fix", text: "모달 드래그/최소화 + 클리닉 이중클릭 방지 + passed null 확장" },
+      { category: "fix", text: "성적탭 점수 표시 기본값을 원점수/총점(fraction) 형식으로 변경" },
+      { category: "fix", text: "알림톡 미승인 시 SMS fallback + 학생이름3 변수 추가" },
+      { category: "fix", text: "클리닉 PDF 출력물 이름 규격 통일 + A/B 접미사 깨짐 수정" },
+      { category: "fix", text: "성적탭 — 미입력 학생 \"합격\" 오표시 수정" },
+      { category: "security", text: "멀티테넌트 격리/데이터 정합성 전면 안정화" },
+      { category: "security", text: "AI/Video internal API tenant 교차검증 추가 + 테넌트 격리 테스트" },
+      { category: "security", text: "submissions dispatcher에 tenant_id 전달 + messaging receive_message tenant_id 포함" },
+      { category: "fix", text: "비밀번호 재설정 + 클리닉 알림 변수 미치환 수정" },
+      { category: "fix", text: "미치환 변수(#{공지내용} 등) 원문 노출 방지" },
+      { category: "fix", text: "video encoding stuck — worker settings 누락 + DDB lock 누수 방지" },
+    ],
+  },
+  {
+    version: "V1.1.1a",
+    codename: "메시징 기반",
+    date: "2026-03-22",
+    summary: "메시징 4분류 체계, 뿌리오 API 전환, 근태 대폭 개선, 랜딩페이지",
+    entries: [
+      { category: "new", text: "메시징 정책 4분류 + 클리닉 트리거 세분화 + 설정 콘솔 재정렬" },
+      { category: "new", text: "수동 알림 발송 구조 — preview → confirm 2단계" },
+      { category: "new", text: "범용 수동발송 API + 클리닉 예약변경 알림 연결" },
+      { category: "new", text: "도메인별 알림톡/SMS 분리 설정 + UX 개선" },
+      { category: "new", text: "직원 근태 UIUX 대폭 개선 — KPI 배너 + 타임라인 바" },
+      { category: "new", text: "LandingPage 모델 + API — 선생님별 랜딩페이지 시스템" },
+      { category: "new", text: "OMR 하드닝 v10 — 레이아웃 안전제한, 타이밍마크, 엔진 강건성" },
+      { category: "improve", text: "뿌리오 → 비즈뿌리오 v3 API 전환 + 리브랜딩" },
+      { category: "improve", text: "커뮤니티 상품 레벨 UI/UX 개선 3건" },
+      { category: "improve", text: "ErrorBoundary 배포 후 chunk hash 불일치 자동 리로드" },
+      { category: "fix", text: "차시 학생 등록(bulk_create)에서 입실 알림톡 오발송 제거" },
+      { category: "fix", text: "오너 테넌트 fallback을 가입 안내 트리거에만 제한 — 전 테넌트 알림톡 오발송 방지" },
+      { category: "fix", text: "SessionEnrollment list API 페이지네이션 제거 — 20명 초과 시 잘림 버그 수정" },
+      { category: "fix", text: "클리닉 AUTO_DEFAULT 수신자 학생+학부모 동시 발송" },
+      { category: "fix", text: "일반 강의 출결 알림 제거 + dry-run 모드 + 행정작업 알림 전면 비활성화" },
+      { category: "fix", text: "랜딩 API 심층 버그 수정 3건 + owner/admin 역할 제한 추가" },
+      { category: "fix", text: "출결 차시 순서 정렬 + 톱니 드롭다운 포탈 전환" },
+      { category: "fix", text: "SessionEnrollment bulk_create에서 INACTIVE enrollment 재활성화 추가" },
+      { category: "security", text: "메시징 구조적 안전장치 — time guard, idempotency, recipient whitelist" },
+      { category: "fix", text: "ExpenseRecord/WorkRecord 생성 시 tenant_id NULL 버그 수정" },
+    ],
+  },
+  {
+    version: "V1.1.1",
+    codename: "클리닉 리부트",
+    date: "2026-03-16",
+    summary: "클리닉 UX 전면 재설계, 학생 대시보드 개편, 영상 인코딩 시스템 강화",
+    entries: [
+      { category: "new", text: "클리닉 UX 전면 재설계 — 오늘/일정 관리/예약/클리닉 진행 4단 구조" },
+      { category: "new", text: "클리닉 진행: 미통과 항목 인라인 표시 + 학생 상세 오버레이" },
+      { category: "new", text: "학생 대시보드 개편 — 다음 일정 카운트다운, 오늘 할 일" },
+      { category: "new", text: "학생 클리닉 2탭 (예약/내 일정 분리)" },
+      { category: "new", text: "클리닉 PDF 미리보기 + 프리미엄 디자인" },
+      { category: "new", text: "에이전트 모니터 (/dev/agents) — 실시간 병렬 에이전트 대시보드" },
+      { category: "improve", text: "영상 인코딩 상태 표시 + 오름차순 정렬" },
+      { category: "improve", text: "새 배포 감지 → 새로고침 안내 배너" },
+      { category: "fix", text: "선생님 대상자 등록 400 에러 — enrollment_id→student 자동 resolve" },
+      { category: "fix", text: "학생 클리닉 재예약 차단 — 중복 체크에서 cancelled 제외" },
+      { category: "fix", text: "로그인 페이지 프로모 무한 리다이렉트 제거" },
+      { category: "fix", text: "참가자 0명 클리닉 세션 오늘 탭 미표시" },
+      { category: "fix", text: "시험 카드 클릭 네비게이션 오류 수정" },
+      { category: "fix", text: "시험 생성 후 목록 미갱신" },
+      { category: "fix", text: "출석 토글 뮤테이션 추적 누락" },
+      { category: "fix", text: "일괄 승인 부분 실패 피드백 추가" },
+      { category: "fix", text: "학생앱 API 에러 삼킴 수정 (빈 배열 → 에러 전파)" },
+      { category: "fix", text: "캘린더 날짜 하루 밀림 (타임존)" },
+    ],
+  },
+  {
+    version: "V1.1.0",
+    codename: "무중단 배포",
+    date: "2026-03-15",
+    summary: "인프라 전환 — Zero-Downtime Deployment, 학생 ID SSOT 감사, 고스트 데이터 정리",
+    entries: [
+      { category: "new", text: "무중단 배포 인프라 전환 (Zero-Downtime Deployment)" },
+      { category: "improve", text: "학생 ID SSOT 감사 — ps_number/username 동기화 통일" },
+      { category: "improve", text: "삭제 학생 고스트 데이터 제거 (커뮤니티, 영상 댓글, 클리닉)" },
+      { category: "improve", text: "학부모 초기 비밀번호 0000 통일 및 전체 초기화" },
+      { category: "fix", text: "클리닉 예약 서버 오류 (500) — 세션 카운트 어노테이션 JOIN 충돌" },
+      { category: "fix", text: "학생 삭제 시 클리닉 예약 미취소 → CANCELLED 자동 처리" },
+      { category: "fix", text: "동시 예약 시 IntegrityError → 409 응답 처리" },
+      { category: "fix", text: "학부모 비밀번호 메시지-DB 불일치" },
+      { category: "security", text: "클리닉 예약 테넌트 격리 강화" },
+      { category: "security", text: "클리닉 세션 FK 테넌트 미검증 → serializer + view 이중 체크" },
+      { category: "security", text: "select_for_update 범위 확장 (학생+선생 모두 세션 락)" },
+    ],
+  },
+  {
+    version: "V1.0.3+",
+    codename: "격리 하드닝",
+    date: "2026-03-14",
+    summary: "테넌트 격리 전면 점검, 영상 좋아요 race condition 해소",
+    entries: [
+      { category: "security", text: "커뮤니티/대시보드 테넌트 fallback 제거 (격리 위반)" },
+      { category: "security", text: "시험 등록 enrollment 테넌트 교차 검증" },
+      { category: "security", text: "학생 영상 조회 lecture tenant 교차 검증" },
+      { category: "fix", text: "영상 좋아요 select_for_update race condition" },
+      { category: "fix", text: "ExamListPage 로딩 중 빈 상태 렌더링" },
+      { category: "fix", text: "ExamResultPage 디버그 필드 노출" },
+      { category: "fix", text: "프로필 쿼리 키 정규화 ([\"student\", \"me\"])" },
+      { category: "fix", text: "QnaPage 죽은 파일 업로드 UI 제거" },
+      { category: "improve", text: "StudentTopBar 쿼리 키 정규화" },
+    ],
+  },
+  {
+    version: "V1.0.3",
+    codename: "영상 인프라",
+    date: "2026-03-13",
+    summary: "영상 처리 daemon/batch 이중 모드, R2 병렬 퍼블리시, 복구 커맨드",
+    entries: [
+      { category: "new", text: "영상 처리 인프라 하드닝 — daemon/batch 이중 모드" },
+      { category: "new", text: "영상 복구 커맨드 추가" },
+      { category: "improve", text: "R2 publish 병렬화 (ThreadPoolExecutor 16)" },
+    ],
+  },
+  {
+    version: "V1.0.2",
+    codename: "소셜 + 결제",
+    date: "2026-03-12",
+    summary: "구독/결제 시스템, 영상 소셜 기능, 직원 프로필, 동명이인 넘버링",
+    entries: [
+      { category: "new", text: "구독/결제 시스템" },
+      { category: "new", text: "영상 소셜 기능 (좋아요, 댓글, 조회수)" },
+      { category: "new", text: "직원 프로필 사진" },
+      { category: "new", text: "동명이인 넘버링" },
+    ],
+  },
+];

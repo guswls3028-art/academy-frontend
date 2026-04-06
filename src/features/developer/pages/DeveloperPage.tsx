@@ -1,9 +1,9 @@
 // PATH: src/features/developer/pages/DeveloperPage.tsx
-// To개발자 — 버그 제보 / 피드백 페이지
+// To개발자 — 패치노트 / 버그 제보 / 피드백 페이지
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Bug, MessageSquare, ImagePlus, Send, Trash2, Paperclip, Sparkles, Wrench } from "lucide-react";
+import { Bug, MessageSquare, ImagePlus, Send, Trash2, Paperclip, ScrollText, X, Zap, Wrench, Shield, ArrowUpCircle } from "lucide-react";
 import { DomainLayout } from "@/shared/ui/layout";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
@@ -16,34 +16,27 @@ import {
 } from "@/features/community/api/community.api";
 import tabStyles from "@/shared/ui/domain/StorageStyleTabs.module.css";
 import styles from "./DeveloperPage.module.css";
+import { PATCH_NOTES, type PatchNote, type NoteCategory } from "./patchNotesData";
 
-type Tab = "bug" | "feedback" | "updates" | "bugfixes";
+type Tab = "patchnotes" | "bug" | "feedback";
 
 export default function DeveloperPage() {
-  const [tab, setTab] = useState<Tab>("updates");
+  const [tab, setTab] = useState<Tab>("patchnotes");
 
   return (
     <DomainLayout
       title="To개발자"
-      description="업데이트 내역, 버그 수정 기록, 제보 및 피드백"
+      description="패치노트, 버그 제보, 피드백"
     >
       <div className={tabStyles.wrap}>
         <div className={tabStyles.tabs}>
           <button
             type="button"
-            className={tabStyles.tab + (tab === "updates" ? " " + tabStyles.tabActive : "")}
-            onClick={() => setTab("updates")}
+            className={tabStyles.tab + (tab === "patchnotes" ? " " + tabStyles.tabActive : "")}
+            onClick={() => setTab("patchnotes")}
           >
-            <Sparkles size={14} style={{ marginRight: 6, verticalAlign: -2 }} />
-            업데이트
-          </button>
-          <button
-            type="button"
-            className={tabStyles.tab + (tab === "bugfixes" ? " " + tabStyles.tabActive : "")}
-            onClick={() => setTab("bugfixes")}
-          >
-            <Wrench size={14} style={{ marginRight: 6, verticalAlign: -2 }} />
-            버그픽스
+            <ScrollText size={14} style={{ marginRight: 6, verticalAlign: -2 }} />
+            패치노트
           </button>
           <button
             type="button"
@@ -63,8 +56,7 @@ export default function DeveloperPage() {
           </button>
         </div>
 
-        {tab === "updates" && <UpdatesPanel />}
-        {tab === "bugfixes" && <BugfixesPanel />}
+        {tab === "patchnotes" && <PatchNotesPanel />}
         {tab === "bug" && <BugReportPanel />}
         {tab === "feedback" && <FeedbackPanel />}
       </div>
@@ -72,132 +64,134 @@ export default function DeveloperPage() {
   );
 }
 
-// ═══════════════════ 업데이트 기록 ═══════════════════
+// ═══════════════════ 패치노트 패널 ═══════════════════
 
-function UpdatesPanel() {
+const CATEGORY_META: Record<NoteCategory, { label: string; icon: typeof Zap }> = {
+  new:      { label: "NEW",      icon: Zap },
+  fix:      { label: "FIX",      icon: Wrench },
+  improve:  { label: "IMPROVE",  icon: ArrowUpCircle },
+  security: { label: "SECURITY", icon: Shield },
+};
+
+function PatchNotesPanel() {
+  const [selected, setSelected] = useState<PatchNote | null>(null);
+
   return (
-    <div className={styles.changelog}>
-      <div className={styles.changelogEntry}>
-        <div className={styles.changelogDate}>
-          2026-03-16 <span className={styles.changelogVersion}>V1.1.1</span>
-        </div>
-        <ul className={styles.changelogItems}>
-          <li>클리닉 UX 전면 재설계 (오늘/일정 관리/예약/클리닉 진행)</li>
-          <li>클리닉 진행: 미통과 항목 인라인 표시 + 학생 상세 오버레이</li>
-          <li>학생 대시보드 개편 (다음 일정 카운트다운, 오늘 할 일)</li>
-          <li>학생 클리닉 2탭 (예약/내 일정 분리)</li>
-          <li>클리닉 PDF 미리보기 + 프리미엄 디자인</li>
-          <li>영상 인코딩 상태 표시 + 오름차순 정렬</li>
-          <li>에이전트 모니터 (/dev/agents) — 실시간 병렬 에이전트 대시보드</li>
-          <li>새 배포 감지 → 새로고침 안내 배너</li>
-        </ul>
+    <>
+      {/* ── 타임라인 카드 목록 ── */}
+      <div className={styles.pnTimeline}>
+        {PATCH_NOTES.map((note, i) => {
+          const counts = { new: 0, fix: 0, improve: 0, security: 0 };
+          note.entries.forEach((e) => counts[e.category]++);
+          const isLatest = i === 0;
+
+          return (
+            <button
+              key={note.version}
+              type="button"
+              className={styles.pnCard + (isLatest ? " " + styles.pnCardLatest : "")}
+              onClick={() => setSelected(note)}
+            >
+              <div className={styles.pnCardHead}>
+                <span className={styles.pnCardVersion}>{note.version}</span>
+                {isLatest && <span className={styles.pnCardNew}>LATEST</span>}
+                <span className={styles.pnCardDate}>{note.date}</span>
+              </div>
+              <div className={styles.pnCardCodename}>{note.codename}</div>
+              <p className={styles.pnCardSummary}>{note.summary}</p>
+              <div className={styles.pnCardTags}>
+                {counts.new > 0 && <span className={styles.pnTag} data-cat="new">+{counts.new} NEW</span>}
+                {counts.fix > 0 && <span className={styles.pnTag} data-cat="fix">{counts.fix} FIX</span>}
+                {counts.improve > 0 && <span className={styles.pnTag} data-cat="improve">{counts.improve} IMPROVE</span>}
+                {counts.security > 0 && <span className={styles.pnTag} data-cat="security">{counts.security} SECURITY</span>}
+              </div>
+            </button>
+          );
+        })}
       </div>
-      <div className={styles.changelogEntry}>
-        <div className={styles.changelogDate}>
-          2026-03-15 <span className={styles.changelogVersion}>V1.1.0</span>
-        </div>
-        <ul className={styles.changelogItems}>
-          <li>무중단 배포 인프라 전환 (Zero-Downtime Deployment)</li>
-          <li>학생 ID SSOT 감사 — ps_number/username 동기화 통일</li>
-          <li>삭제 학생 고스트 데이터 제거 (커뮤니티, 영상 댓글, 클리닉)</li>
-          <li>학부모 초기 비밀번호 0000 통일 및 전체 초기화</li>
-          <li>클리닉 예약 테넌트 격리 강화</li>
-        </ul>
-      </div>
-      <div className={styles.changelogEntry}>
-        <div className={styles.changelogDate}>
-          2026-03-14 <span className={styles.changelogVersion}>V1.0.3+</span>
-        </div>
-        <ul className={styles.changelogItems}>
-          <li>테넌트 격리 하드닝 (커뮤니티/대시보드 fallback 제거)</li>
-          <li>영상 좋아요 race condition 수정</li>
-          <li>StudentTopBar 쿼리 키 정규화</li>
-        </ul>
-      </div>
-      <div className={styles.changelogEntry}>
-        <div className={styles.changelogDate}>
-          2026-03-13 <span className={styles.changelogVersion}>V1.0.3</span>
-        </div>
-        <ul className={styles.changelogItems}>
-          <li>영상 처리 인프라 하드닝 (daemon/batch 이중 모드)</li>
-          <li>R2 publish 병렬화 (ThreadPoolExecutor 16)</li>
-          <li>영상 복구 커맨드 추가</li>
-        </ul>
-      </div>
-      <div className={styles.changelogEntry}>
-        <div className={styles.changelogDate}>
-          2026-03-12 <span className={styles.changelogVersion}>V1.0.2</span>
-        </div>
-        <ul className={styles.changelogItems}>
-          <li>구독/결제 시스템</li>
-          <li>영상 소셜 기능 (좋아요, 댓글, 조회수)</li>
-          <li>직원 프로필 사진</li>
-          <li>동명이인 넘버링</li>
-        </ul>
-      </div>
-    </div>
+
+      {/* ── 패치노트 모달 ── */}
+      {selected && (
+        <PatchNoteModal note={selected} onClose={() => setSelected(null)} />
+      )}
+    </>
   );
 }
 
-// ═══════════════════ 버그픽스 기록 ═══════════════════
+function PatchNoteModal({ note, onClose }: { note: PatchNote; onClose: () => void }) {
+  // ESC 키 닫기 + body scroll lock
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    document.addEventListener("keydown", handler);
+    return () => {
+      document.body.style.overflow = prev;
+      document.removeEventListener("keydown", handler);
+    };
+  }, [onClose]);
 
-function BugfixesPanel() {
+  // 카테고리별 그룹화
+  const grouped: Record<NoteCategory, string[]> = { new: [], fix: [], improve: [], security: [] };
+  note.entries.forEach((e) => grouped[e.category].push(e.text));
+
+  const order: NoteCategory[] = ["new", "improve", "fix", "security"];
+  const total = note.entries.length;
+
   return (
-    <div className={styles.changelog}>
-      <div className={styles.changelogEntry}>
-        <div className={styles.changelogDate}>
-          2026-03-16 <span className={styles.changelogVersion}>V1.1.1</span>
+    <div className={styles.pnOverlay} data-testid="pn-overlay" onClick={onClose}>
+      <div className={styles.pnModal} data-testid="pn-modal" onClick={(e) => e.stopPropagation()}>
+        {/* 헤더 */}
+        <div className={styles.pnModalHeader}>
+          <div className={styles.pnModalHeaderLeft}>
+            <span className={styles.pnModalVersion}>{note.version}</span>
+            <span className={styles.pnModalCodename}>&ldquo;{note.codename}&rdquo;</span>
+          </div>
+          <div className={styles.pnModalHeaderRight}>
+            <span className={styles.pnModalDate}>{note.date}</span>
+            <button type="button" className={styles.pnModalClose} onClick={onClose}>
+              <X size={16} />
+            </button>
+          </div>
         </div>
-        <ul className={styles.changelogItems}>
-          <li data-type="fix">선생님 대상자 등록 400 에러 — enrollment_id→student 자동 resolve</li>
-          <li data-type="fix">학생 클리닉 재예약 차단 — 중복 체크에서 cancelled 제외</li>
-          <li data-type="fix">로그인 페이지 프로모 무한 리다이렉트 제거</li>
-          <li data-type="fix">참가자 0명 클리닉 세션 오늘 탭 미표시</li>
-          <li data-type="fix">시험 카드 클릭 네비게이션 오류 수정</li>
-          <li data-type="fix">시험 생성 후 목록 미갱신</li>
-          <li data-type="fix">출석 토글 뮤테이션 추적 누락</li>
-          <li data-type="fix">일괄 승인 부분 실패 피드백 추가</li>
-          <li data-type="fix">학생앱 API 에러 삼킴 수정 (빈 배열 → 에러 전파)</li>
-          <li data-type="fix">점수 편집모드 기본 활성화</li>
-          <li data-type="fix">드로어/오버레이 배너 오프셋</li>
-          <li data-type="fix">캘린더 날짜 하루 밀림 (타임존)</li>
-          <li data-type="fix">React hooks 규칙 위반 수정</li>
-        </ul>
-      </div>
-      <div className={styles.changelogEntry}>
-        <div className={styles.changelogDate}>
-          2026-03-15
+
+        {/* 요약 + 통계 */}
+        <div className={styles.pnModalSummary}>
+          <p className={styles.pnModalSummaryText}>{note.summary}</p>
+          <div className={styles.pnModalStats}>
+            <span className={styles.pnModalStatsTotal}>{total}건 변경</span>
+            {grouped.new.length > 0 && <span className={styles.pnTag} data-cat="new">+{grouped.new.length} NEW</span>}
+            {grouped.improve.length > 0 && <span className={styles.pnTag} data-cat="improve">{grouped.improve.length} IMPROVE</span>}
+            {grouped.fix.length > 0 && <span className={styles.pnTag} data-cat="fix">{grouped.fix.length} FIX</span>}
+            {grouped.security.length > 0 && <span className={styles.pnTag} data-cat="security">{grouped.security.length} SECURITY</span>}
+          </div>
         </div>
-        <ul className={styles.changelogItems}>
-          <li data-type="fix">클리닉 예약 서버 오류 (500) — 세션 카운트 어노테이션 JOIN 충돌</li>
-          <li data-type="fix">학생 삭제 시 클리닉 예약 미취소 → CANCELLED 자동 처리</li>
-          <li data-type="security">클리닉 세션 FK 테넌트 미검증 → serializer + view 이중 체크</li>
-          <li data-type="fix">동시 예약 시 IntegrityError → 409 응답 처리</li>
-          <li data-type="fix">학부모 비밀번호 메시지-DB 불일치 (메시지: 학생 비밀번호 → 0000 통일)</li>
-          <li data-type="fix">select_for_update 범위 확장 (학생+선생 모두 세션 락)</li>
-        </ul>
-      </div>
-      <div className={styles.changelogEntry}>
-        <div className={styles.changelogDate}>
-          2026-03-14
+
+        {/* 카테고리별 엔트리 */}
+        <div className={styles.pnModalBody}>
+          {order.map((cat) => {
+            const items = grouped[cat];
+            if (items.length === 0) return null;
+            const meta = CATEGORY_META[cat];
+            const Icon = meta.icon;
+            return (
+              <div key={cat} className={styles.pnSection} data-cat={cat}>
+                <div className={styles.pnSectionHead}>
+                  <Icon size={13} />
+                  <span>{meta.label}</span>
+                  <span className={styles.pnSectionCount}>{items.length}</span>
+                </div>
+                <ul className={styles.pnSectionList}>
+                  {items.map((text, i) => (
+                    <li key={i}>{text}</li>
+                  ))}
+                </ul>
+              </div>
+            );
+          })}
         </div>
-        <ul className={styles.changelogItems}>
-          <li data-type="fix">커뮤니티/대시보드 테넌트 fallback 제거 (격리 위반)</li>
-          <li data-type="fix">시험 등록 enrollment 테넌트 교차 검증</li>
-          <li data-type="fix">학생 영상 조회 lecture tenant 교차 검증</li>
-          <li data-type="fix">영상 좋아요 select_for_update race condition</li>
-        </ul>
-      </div>
-      <div className={styles.changelogEntry}>
-        <div className={styles.changelogDate}>
-          2026-03-09
-        </div>
-        <ul className={styles.changelogItems}>
-          <li data-type="fix">ExamListPage 로딩 중 빈 상태 렌더링</li>
-          <li data-type="fix">ExamResultPage 디버그 필드 노출</li>
-          <li data-type="fix">프로필 쿼리 키 정규화 (["student", "me"])</li>
-          <li data-type="fix">QnaPage 죽은 파일 업로드 UI 제거</li>
-        </ul>
       </div>
     </div>
   );
