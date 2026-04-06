@@ -297,23 +297,27 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
                 />
               )}
 
-              {/* 반별 차시 */}
-              {rows.map(({ section: sec, sessions: secSessions }) => (
-                <SessionRow
-                  key={sec.id}
-                  label={`${sec.label}반`}
-                  sublabel={`${sec.day_of_week_display} ${sec.start_time?.slice(0, 5) ?? ""}`}
-                  labelBg={sec.section_type === "CLASS" ? "var(--color-primary-light, #e0e7ff)" : "var(--color-warning-light, #fef3c7)"}
-                  labelColor={sec.section_type === "CLASS" ? "var(--color-primary)" : "var(--color-warning, #d97706)"}
-                  sessions={secSessions}
-                  sections={sections}
-                  lectureId={lectureId}
-                  currentSessionId={currentSessionId}
-                  navigate={navigate}
-                  invalidate={invalidate}
-                  onAdd={() => setCreateForSection({ id: sec.id, label: `${sec.label}반` })}
-                />
-              ))}
+              {/* 반별 차시 — 차시가 있는 반 또는 수업반은 항상 표시, 빈 클리닉반은 축소 */}
+              {rows.map(({ section: sec, sessions: secSessions }) => {
+                // 차시 없는 클리닉 반은 숨김 (클리닉 반 추가 버튼으로 접근)
+                if (secSessions.length === 0 && sec.section_type === "CLINIC") return null;
+                return (
+                  <SessionRow
+                    key={sec.id}
+                    label={`${sec.label}반`}
+                    sublabel={`${sec.day_of_week_display} ${sec.start_time?.slice(0, 5) ?? ""}`}
+                    labelBg={sec.section_type === "CLASS" ? "var(--color-primary-light, #e0e7ff)" : "var(--color-warning-light, #fef3c7)"}
+                    labelColor={sec.section_type === "CLASS" ? "var(--color-primary)" : "var(--color-warning, #d97706)"}
+                    sessions={secSessions}
+                    sections={sections}
+                    lectureId={lectureId}
+                    currentSessionId={currentSessionId}
+                    navigate={navigate}
+                    invalidate={invalidate}
+                    onAdd={() => setCreateForSection({ id: sec.id, label: `${sec.label}반` })}
+                  />
+                );
+              })}
 
               {/* 공통 차시도 없고 반도 없으면 안내 */}
               {commonSessions.length === 0 && !hasAnySections && (

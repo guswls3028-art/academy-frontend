@@ -78,10 +78,15 @@ export default function SessionCreateModal({ lectureId, sectionId, sectionLabel,
   }, [sessionsData]);
 
   const sortedSessions = useMemo(
-    () => (sessionsList as { order?: number; date?: string | null }[]).slice().sort((a, b) => (a.order ?? 0) - (b.order ?? 0)),
+    () => (sessionsList as { order?: number; date?: string | null; section?: number | null }[]).slice().sort((a, b) => (a.order ?? 0) - (b.order ?? 0)),
     [sessionsList]
   );
-  const nextOrder = sortedSessions.length + 1;
+  // section_mode: 해당 반 내 차시만 카운트
+  const sectionSessions = useMemo(() => {
+    if (sectionId == null) return sortedSessions;
+    return sortedSessions.filter((s) => (s as { section?: number | null }).section === sectionId);
+  }, [sortedSessions, sectionId]);
+  const nextOrder = sectionSessions.length + 1;
   // 정규 차시 기본 날짜: 강의 생성 모달 start_date 연결
   // — 기존 정규 차시 없음 → 강의 시작일(lecture.start_date) / 있음 → 마지막 정규 차시 날짜 + 7일
   const lastRegularSessionWithDate = useMemo(() => {
