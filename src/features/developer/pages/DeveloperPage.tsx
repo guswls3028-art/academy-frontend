@@ -1,10 +1,9 @@
 // PATH: src/features/developer/pages/DeveloperPage.tsx
-// To개발자 — 패치노트 / 버그 제보 / 피드백 페이지
+// To개발자 — 패치노트 / 버그 제보 / 피드백 페이지 (각 탭 = 별도 라우트)
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Bug, MessageSquare, ImagePlus, Send, Trash2, Paperclip, ScrollText, X, Zap, Wrench, Shield, ArrowUpCircle } from "lucide-react";
-import { DomainLayout } from "@/shared/ui/layout";
+import { Bug, MessageSquare, ImagePlus, Send, Trash2, Paperclip, X, Zap, Wrench, Shield, ArrowUpCircle } from "lucide-react";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import {
@@ -14,57 +13,10 @@ import {
   deletePost,
   type PostEntity,
 } from "@/features/community/api/community.api";
-import tabStyles from "@/shared/ui/domain/StorageStyleTabs.module.css";
 import styles from "./DeveloperPage.module.css";
 import { PATCH_NOTES, type PatchNote, type NoteCategory } from "./patchNotesData";
 
-type Tab = "patchnotes" | "bug" | "feedback";
-
-export default function DeveloperPage() {
-  const [tab, setTab] = useState<Tab>("patchnotes");
-
-  return (
-    <DomainLayout
-      title="To개발자"
-      description="패치노트, 버그 제보, 피드백"
-    >
-      <div className={tabStyles.wrap}>
-        <div className={tabStyles.tabs}>
-          <button
-            type="button"
-            className={tabStyles.tab + (tab === "patchnotes" ? " " + tabStyles.tabActive : "")}
-            onClick={() => setTab("patchnotes")}
-          >
-            <ScrollText size={14} style={{ marginRight: 6, verticalAlign: -2 }} />
-            패치노트
-          </button>
-          <button
-            type="button"
-            className={tabStyles.tab + (tab === "bug" ? " " + tabStyles.tabActive : "")}
-            onClick={() => setTab("bug")}
-          >
-            <Bug size={14} style={{ marginRight: 6, verticalAlign: -2 }} />
-            버그 제보
-          </button>
-          <button
-            type="button"
-            className={tabStyles.tab + (tab === "feedback" ? " " + tabStyles.tabActive : "")}
-            onClick={() => setTab("feedback")}
-          >
-            <MessageSquare size={14} style={{ marginRight: 6, verticalAlign: -2 }} />
-            피드백
-          </button>
-        </div>
-
-        {tab === "patchnotes" && <PatchNotesPanel />}
-        {tab === "bug" && <BugReportPanel />}
-        {tab === "feedback" && <FeedbackPanel />}
-      </div>
-    </DomainLayout>
-  );
-}
-
-// ═══════════════════ 패치노트 패널 ═══════════════════
+// ═══════════════════ 패치노트 페이지 (기본) ═══════════════════
 
 const CATEGORY_META: Record<NoteCategory, { label: string; icon: typeof Zap }> = {
   new:      { label: "NEW",      icon: Zap },
@@ -73,12 +25,11 @@ const CATEGORY_META: Record<NoteCategory, { label: string; icon: typeof Zap }> =
   security: { label: "SECURITY", icon: Shield },
 };
 
-function PatchNotesPanel() {
+export default function PatchNotesPage() {
   const [selected, setSelected] = useState<PatchNote | null>(null);
 
   return (
     <>
-      {/* ── 타임라인 카드 목록 ── */}
       <div className={styles.pnTimeline}>
         {PATCH_NOTES.map((note, i) => {
           const counts = { new: 0, fix: 0, improve: 0, security: 0 };
@@ -110,7 +61,6 @@ function PatchNotesPanel() {
         })}
       </div>
 
-      {/* ── 패치노트 모달 ── */}
       {selected && (
         <PatchNoteModal note={selected} onClose={() => setSelected(null)} />
       )}
@@ -119,7 +69,6 @@ function PatchNotesPanel() {
 }
 
 function PatchNoteModal({ note, onClose }: { note: PatchNote; onClose: () => void }) {
-  // ESC 키 닫기 + body scroll lock
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -133,7 +82,6 @@ function PatchNoteModal({ note, onClose }: { note: PatchNote; onClose: () => voi
     };
   }, [onClose]);
 
-  // 카테고리별 그룹화
   const grouped: Record<NoteCategory, string[]> = { new: [], fix: [], improve: [], security: [] };
   note.entries.forEach((e) => grouped[e.category].push(e.text));
 
@@ -143,7 +91,6 @@ function PatchNoteModal({ note, onClose }: { note: PatchNote; onClose: () => voi
   return (
     <div className={styles.pnOverlay} data-testid="pn-overlay" onClick={onClose}>
       <div className={styles.pnModal} data-testid="pn-modal" onClick={(e) => e.stopPropagation()}>
-        {/* 헤더 */}
         <div className={styles.pnModalHeader}>
           <div className={styles.pnModalHeaderLeft}>
             <span className={styles.pnModalVersion}>{note.version}</span>
@@ -157,7 +104,6 @@ function PatchNoteModal({ note, onClose }: { note: PatchNote; onClose: () => voi
           </div>
         </div>
 
-        {/* 요약 + 통계 */}
         <div className={styles.pnModalSummary}>
           <p className={styles.pnModalSummaryText}>{note.summary}</p>
           <div className={styles.pnModalStats}>
@@ -169,7 +115,6 @@ function PatchNoteModal({ note, onClose }: { note: PatchNote; onClose: () => voi
           </div>
         </div>
 
-        {/* 카테고리별 엔트리 */}
         <div className={styles.pnModalBody}>
           {order.map((cat) => {
             const items = grouped[cat];
@@ -197,9 +142,9 @@ function PatchNoteModal({ note, onClose }: { note: PatchNote; onClose: () => voi
   );
 }
 
-// ═══════════════════ 버그 제보 패널 ═══════════════════
+// ═══════════════════ 버그 제보 페이지 ═══════════════════
 
-function BugReportPanel() {
+export function BugReportPage() {
   const qc = useQueryClient();
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
@@ -208,7 +153,6 @@ function BugReportPanel() {
   const contentRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  // 기존 버그 리포트 목록 — post_type "board" + title prefix "[BUG]"
   const { data: posts } = useQuery({
     queryKey: ["dev-posts", "bug_report"],
     queryFn: async () => {
@@ -217,7 +161,6 @@ function BugReportPanel() {
     },
   });
 
-  // 이미지 붙여넣기 핸들러
   const handlePaste = useCallback((e: React.ClipboardEvent) => {
     const items = e.clipboardData?.items;
     if (!items) return;
@@ -254,7 +197,6 @@ function BugReportPanel() {
     e.target.value = "";
   };
 
-  // cleanup previews on unmount
   const previewsRef = useRef(previews);
   previewsRef.current = previews;
   useEffect(() => {
@@ -298,7 +240,6 @@ function BugReportPanel() {
 
   return (
     <div className={styles.panel}>
-      {/* 안내 */}
       <div className={styles.guide}>
         <Bug size={18} className={styles.guideIcon} />
         <div>
@@ -310,7 +251,6 @@ function BugReportPanel() {
         </div>
       </div>
 
-      {/* 작성 폼 */}
       <div className={styles.form}>
         <input
           type="text"
@@ -367,7 +307,6 @@ function BugReportPanel() {
         </div>
       </div>
 
-      {/* 내 제보 목록 */}
       <PostList
         posts={posts?.results ?? []}
         emptyText="아직 제보한 버그가 없습니다."
@@ -378,9 +317,9 @@ function BugReportPanel() {
   );
 }
 
-// ═══════════════════ 피드백 패널 ═══════════════════
+// ═══════════════════ 피드백 페이지 ═══════════════════
 
-function FeedbackPanel() {
+export function FeedbackPage() {
   const qc = useQueryClient();
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");

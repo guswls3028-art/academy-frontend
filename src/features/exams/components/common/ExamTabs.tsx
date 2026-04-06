@@ -27,7 +27,7 @@ export default function ExamTabs({ activeTab, onChange, mode = "design" }: Props
   const tabs = mode === "operate" ? TABS_OPERATE : TABS_DESIGN;
   const effectiveTab = mode === "operate" && activeTab === "assets" ? "setup" : activeTab;
   return (
-    <div className="ds-tabs ds-tabs--flat border-b border-[var(--color-border-divider)]" role="tablist">
+    <div className="ds-tabs ds-tabs--flat" role="tablist">
       {tabs.map((t) => (
         <button
           key={t.key}

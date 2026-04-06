@@ -43,7 +43,7 @@ export default function StudentInventoryManage({
   const handleSelectStudent = (student: ClientStudent) => {
     setSelectedPs(student.psNumber);
     onOpenStudent?.(student.psNumber);
-    navigate(`/admin/storage/student/${student.psNumber}`, { replace: true });
+    navigate(`/admin/storage/students/${student.psNumber}`, { replace: true });
   };
 
   return (

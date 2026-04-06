@@ -88,7 +88,10 @@ const ToolsRoutes = lazy(() => import("@/features/tools/ToolsRoutes"));
 const AdminGuidePage = lazy(() => import("@/features/guide/pages/AdminGuidePage"));
 
 /* ================= Lazy: Developer ================= */
-const DeveloperPage = lazy(() => import("@/features/developer/pages/DeveloperPage"));
+const DeveloperLayout = lazy(() => import("@/features/developer/layout/DeveloperLayout"));
+const PatchNotesPage = lazy(() => import("@/features/developer/pages/DeveloperPage"));
+const BugReportPage = lazy(() => import("@/features/developer/pages/DeveloperPage").then(m => ({ default: m.BugReportPage })));
+const FeedbackPage = lazy(() => import("@/features/developer/pages/DeveloperPage").then(m => ({ default: m.FeedbackPage })));
 
 /* ================= Lazy: Settings ================= */
 const SettingsLayout = lazy(() => import("@/features/settings/SettingsLayout"));
@@ -224,7 +227,11 @@ export default function AdminRouter() {
         <Route path="guide" element={wrapLazy(AdminGuidePage)} />
 
         {/* ================= Developer (To개발자) ================= */}
-        <Route path="developer" element={wrapLazy(DeveloperPage)} />
+        <Route path="developer" element={wrapLazy(DeveloperLayout)}>
+          <Route index element={wrapLazy(PatchNotesPage)} />
+          <Route path="bug" element={wrapLazy(BugReportPage)} />
+          <Route path="feedback" element={wrapLazy(FeedbackPage)} />
+        </Route>
 
         {/* ================= Staff ================= */}
         <Route path="staff/*" element={wrapLazy(StaffRoutes)} />

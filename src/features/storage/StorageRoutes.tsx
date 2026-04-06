@@ -1,15 +1,27 @@
 // PATH: src/features/storage/StorageRoutes.tsx
-// 저장소 통합 관리 — 내 저장소(선생님) / 학생 인벤토리 관리
+// 저장소 통합 관리 — DomainLayout 탭 SSOT
 
-import { Routes, Route, Navigate } from "react-router-dom";
-import StoragePage from "./pages/StoragePage";
+import { Routes, Route, Navigate, useParams } from "react-router-dom";
+import StorageLayout from "./layout/StorageLayout";
+import MyStoragePage from "./pages/MyStoragePage";
+import StudentInventoryPage from "./pages/StudentInventoryPage";
+
+function StudentRedirect() {
+  const { studentPs } = useParams<{ studentPs: string }>();
+  return <Navigate to={`/admin/storage/students/${studentPs}`} replace />;
+}
 
 export default function StorageRoutes() {
   return (
     <Routes>
-      <Route index element={<StoragePage />} />
-      <Route path="student/:studentPs" element={<StoragePage />} />
-      <Route path="*" element={<Navigate to="/admin/storage" replace />} />
+      <Route element={<StorageLayout />}>
+        <Route index element={<MyStoragePage />} />
+        <Route path="students" element={<StudentInventoryPage />} />
+        <Route path="students/:studentPs" element={<StudentInventoryPage />} />
+        {/* 하위 호환: 기존 /student/:ps → /students/:ps */}
+        <Route path="student/:studentPs" element={<StudentRedirect />} />
+        <Route path="*" element={<Navigate to="/admin/storage" replace />} />
+      </Route>
     </Routes>
   );
 }

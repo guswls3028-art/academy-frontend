@@ -30,7 +30,7 @@ export default function HomeworkTabs({ activeTab, onChange, mode = "design" }: P
       : activeTab;
 
   return (
-    <div className="ds-tabs ds-tabs--flat border-b border-[var(--color-border-divider)]" role="tablist">
+    <div className="ds-tabs ds-tabs--flat" role="tablist">
       {tabs.map((tab) => (
         <button
           key={tab.key}
