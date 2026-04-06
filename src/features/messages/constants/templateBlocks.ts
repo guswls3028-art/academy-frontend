@@ -27,13 +27,13 @@ export interface TemplateBlock {
 
 const B = {
   // 공통
-  student_name_2:    { id: "student_name_2",    label: "이름 2글자",       insertText: "#{학생이름2}",         previewValue: "길동",        description: "학생 이름 앞 2자 (예: 길동)" },
-  student_name_3:    { id: "student_name_3",    label: "이름 3글자",       insertText: "#{학생이름3}",         previewValue: "홍길동",      description: "학생 이름 전체 (예: 홍길동)" },
+  student_name:      { id: "student_name",      label: "학생 이름",        insertText: "#{학생이름}",          previewValue: "홍길동",      description: "학생 전체 이름" },
+  student_name_2:    { id: "student_name_2",    label: "이름(성 제외)",    insertText: "#{학생이름2}",         previewValue: "길동",        description: "성 제외 이름 (예: 홍길동→길동, 유현진→현진, 이준→준)" },
+  student_name_3:    { id: "student_name_3",    label: "이름 3글자",       insertText: "#{학생이름3}",         previewValue: "홍길동",      description: "이름 앞 3자 (3글자 이름은 전체)" },
   site_link:         { id: "site_link",         label: "사이트 링크",      insertText: "#{사이트링크}",        previewValue: getTenantSiteUrl(), description: "학원 홈페이지 주소" },
   date:              { id: "date",              label: "날짜",             insertText: "#{날짜}",              previewValue: "2026-03-11",  description: "발송일 날짜" },
   time:              { id: "time",              label: "시간",             insertText: "#{시간}",              previewValue: "14:00",       description: "발송 시간" },
   // 가입/등록
-  student_name:      { id: "student_name",      label: "학생 이름",        insertText: "#{학생이름}",          previewValue: "홍길동",      description: "학생 전체 이름" },
   student_id:        { id: "student_id",        label: "학생 아이디",      insertText: "#{학생아이디}",        previewValue: "S20250001",   description: "학생 로그인 아이디" },
   student_password:  { id: "student_password",  label: "학생 비밀번호",    insertText: "#{학생비밀번호}",      previewValue: "****" },
   parent_id:         { id: "parent_id",         label: "학부모 아이디",    insertText: "#{학부모아이디}",      previewValue: "010****1234" },
@@ -82,18 +82,19 @@ const B = {
 
 // ─── 카테고리별 블록 조합 ───
 
-const COMMON: TemplateBlock[] = [B.student_name_2, B.student_name_3, B.free_content, B.site_link, B.date, B.time];
+/** SMS 수동 발송에서 실제 치환 가능한 공통 변수만 */
+const COMMON_SMS: TemplateBlock[] = [B.student_name, B.site_link];
 
 const CATEGORY_BLOCKS: Record<string, TemplateBlock[]> = {
-  student:    [...COMMON, B.student_name, B.student_id],
-  signup:     [...COMMON, B.student_name, B.student_id, B.student_password, B.parent_id, B.parent_password, B.pw_notice],
-  attendance: [...COMMON, B.lecture_name, B.session_name, B.lecture_date, B.lecture_time],
-  lecture:    [...COMMON, B.lecture_name, B.session_name],
-  exam:       [...COMMON, B.lecture_name, B.session_name, B.exam_name, B.score],
-  assignment: [...COMMON, B.lecture_name, B.session_name, B.assignment_name, B.score],
+  student:    [...COMMON_SMS],
+  signup:     [...COMMON_SMS, B.student_id, B.student_password, B.parent_id, B.parent_password, B.pw_notice],
+  attendance: [...COMMON_SMS, B.lecture_name, B.session_name],
+  lecture:    [...COMMON_SMS, B.lecture_name, B.session_name],
+  exam:       [...COMMON_SMS, B.lecture_name, B.session_name, B.exam_name, B.score],
+  assignment: [...COMMON_SMS, B.lecture_name, B.session_name, B.assignment_name, B.score],
   grades:     [
     // ── 공통 ──
-    ...COMMON, B.student_name, B.lecture_name, B.session_name,
+    ...COMMON_SMS, B.lecture_name, B.session_name,
     // ── 목록형 변수 (시험/과제 개수에 맞게 자동 렌더링 — 간단 양식에 추천) ──
     { id: "exam_list",    label: "시험 목록",  insertText: "#{시험목록}",  previewValue: "- 단원평가: 92/100 (92%) 합격\n- 쪽지시험: 45/50 (90%) 합격", description: "모든 시험 점수 자동 나열 (추천)" },
     { id: "hw_list",      label: "과제 목록",  insertText: "#{과제목록}",  previewValue: "- 복습과제: 90/100 (90%)", description: "모든 과제 점수 자동 나열 (추천)" },
@@ -118,11 +119,11 @@ const CATEGORY_BLOCKS: Record<string, TemplateBlock[]> = {
     // ── 기타 ──
     B.exam_score, B.assignment_score, B.clinic_result,
   ],
-  clinic:     [...COMMON, B.clinic_name, B.clinic_place, B.clinic_result, B.clinic_date, B.clinic_time, B.academy_name, B.clinic_old_sched, B.clinic_changes, B.clinic_modifier],
-  payment:    [...COMMON],
-  notice:     [...COMMON],
-  community:  [...COMMON, B.post_title, B.answer_summary, B.counsel_type],
-  staff:      [B.staff_name, B.department, B.position, B.site_link, B.date, B.time, B.pay_period, B.pay_amount, B.expense_amount, B.work_hours, B.work_days],
+  clinic:     [...COMMON_SMS, B.clinic_name, B.clinic_place, B.clinic_result],
+  payment:    [...COMMON_SMS],
+  notice:     [...COMMON_SMS],
+  community:  [...COMMON_SMS, B.post_title, B.answer_summary, B.counsel_type],
+  staff:      [B.staff_name, B.site_link],
 };
 
 // ─── 카테고리 타입 ───
@@ -144,8 +145,8 @@ export type TemplateCategory =
 
 /** "default" (사용자) 카테고리는 어디서든 쓸 수 있는 공통 블록만 제공 */
 export function getBlocksForCategory(category: TemplateCategory): TemplateBlock[] {
-  if (category === "default") return [...COMMON];
-  return CATEGORY_BLOCKS[category] ?? [...COMMON];
+  if (category === "default") return [...COMMON_SMS];
+  return CATEGORY_BLOCKS[category] ?? [...COMMON_SMS];
 }
 
 // ─── 미리보기 치환 ───

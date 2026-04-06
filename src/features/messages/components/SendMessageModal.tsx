@@ -441,6 +441,7 @@ export default function SendMessageModal({
   );
 
   // ─── Derived ───
+  const smsOnlyCategory = ["student", "lecture", "attendance", "staff", "default"].includes(blockCategory);
   const isStaffMode = (initialStaffIds?.length ?? 0) > 0;
   const studentIds = initialStudentIds;
   const staffIds = initialStaffIds ?? [];
@@ -534,8 +535,6 @@ export default function SendMessageModal({
     setSelectedTemplateId(null);
     setSendToParent(true);
     setSendToStudent(true);
-    // 범용 카테고리는 카카오 정책상 알림톡 불가 → SMS 전용
-    const smsOnlyCategory = ["student", "lecture", "attendance", "staff", "default"].includes(blockCategory);
     setSendMode(smsOnlyCategory || initialBody ? "sms" : smsAllowed ? "sms" : "alimtalk");
     setTemplateSearch("");
     setShowSaveForm(false);
@@ -551,10 +550,7 @@ export default function SendMessageModal({
   useEffect(() => {
     if (!open || !smsAllowed) return;
     setSendMode((prev) => {
-      if (prev === "alimtalk") {
-        const smsOnlyCategory = ["student", "lecture", "attendance", "staff", "default"].includes(blockCategory);
-        if (smsOnlyCategory || initialBody) return "sms";
-      }
+      if (prev === "alimtalk" && (smsOnlyCategory || initialBody)) return "sms";
       return prev;
     });
   }, [open, smsAllowed, blockCategory, initialBody]);
@@ -890,41 +886,47 @@ export default function SendMessageModal({
               background: "var(--color-bg-surface-soft)", borderRadius: "var(--radius-md)",
               border: "1px solid var(--color-border-divider)",
             }}>
-              {/* 채널 탭 */}
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-muted)", whiteSpace: "nowrap" }}>채널</span>
-                <div style={{ display: "flex", gap: 0, borderRadius: 8, overflow: "hidden", border: "1px solid var(--color-border-divider)" }}>
-                  {/* 범용 카테고리(student, lecture, attendance, staff)는 카카오 정책상 알림톡 불가 → SMS 전용 */}
-                  {([
-                    { key: "sms" as SendMode, label: "SMS", disabled: false },
-                    { key: "alimtalk" as SendMode, label: "알림톡", disabled: ["student", "lecture", "attendance", "staff", "default"].includes(blockCategory) },
-                  ]).map((opt) => (
-                    <button
-                      key={opt.key}
-                      type="button"
-                      onClick={() => {
-                        if (opt.disabled || opt.key === sendMode) return;
-                        setSendMode(opt.key);
-                        setSelectedTemplateId(null);
-                        setSubject("");
-                        setBody(opt.key === "sms" ? (initialBody ?? "") : "");
-                        setFreeContent("");
-                      }}
-                      disabled={sending || opt.disabled}
-                      style={{
-                        padding: "6px 16px", fontSize: 13, fontWeight: 700, border: "none",
-                        cursor: opt.disabled ? "not-allowed" : "pointer",
-                        color: sendMode === opt.key ? "#fff" : opt.disabled ? "var(--color-text-muted)" : "var(--color-text-secondary)",
-                        background: sendMode === opt.key ? "var(--color-primary)" : "var(--color-bg-surface)",
-                        opacity: opt.disabled ? 0.45 : 1, transition: "all 0.15s",
-                      }}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
+              {/* 채널 — SMS 전용 카테고리는 탭 대신 라벨만 표시 */}
+              {smsOnlyCategory ? (
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: "var(--color-primary)" }}>SMS</span>
+                  {!smsAllowed && <span style={{ fontSize: 10, color: "var(--color-status-warning, #d97706)" }}>미연동 — 설정 &gt; 메시지에서 연동하세요</span>}
                 </div>
-                {!smsAllowed && sendMode === "sms" && <span style={{ fontSize: 10, color: "var(--color-status-warning, #d97706)" }}>SMS 미연동 — 양식 작성만 가능, 발송은 알림톡으로 전환하세요</span>}
-              </div>
+              ) : (
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-muted)", whiteSpace: "nowrap" }}>채널</span>
+                  <div style={{ display: "flex", gap: 0, borderRadius: 8, overflow: "hidden", border: "1px solid var(--color-border-divider)" }}>
+                    {([
+                      { key: "sms" as SendMode, label: "SMS" },
+                      { key: "alimtalk" as SendMode, label: "알림톡" },
+                    ]).map((opt) => (
+                      <button
+                        key={opt.key}
+                        type="button"
+                        onClick={() => {
+                          if (opt.key === sendMode) return;
+                          setSendMode(opt.key);
+                          setSelectedTemplateId(null);
+                          setSubject("");
+                          setBody(opt.key === "sms" ? (initialBody ?? "") : "");
+                          setFreeContent("");
+                        }}
+                        disabled={sending}
+                        style={{
+                          padding: "6px 16px", fontSize: 13, fontWeight: 700, border: "none",
+                          cursor: "pointer",
+                          color: sendMode === opt.key ? "#fff" : "var(--color-text-secondary)",
+                          background: sendMode === opt.key ? "var(--color-primary)" : "var(--color-bg-surface)",
+                          transition: "all 0.15s",
+                        }}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                  {!smsAllowed && sendMode === "sms" && <span style={{ fontSize: 10, color: "var(--color-status-warning, #d97706)" }}>SMS 미연동</span>}
+                </div>
+              )}
 
               <div style={{ width: 1, height: 24, background: "var(--color-border-divider)" }} />
 
