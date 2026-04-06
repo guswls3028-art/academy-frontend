@@ -6,7 +6,7 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueries } from "@tanstack/react-query";
-import { BarChart2 } from "lucide-react";
+import { BarChart2, MousePointerClick } from "lucide-react";
 import { Button } from "@/shared/ui/ds";
 import { DomainLayout } from "@/shared/ui/domain";
 import Breadcrumb from "@/features/storage/components/Breadcrumb";
@@ -123,10 +123,27 @@ export default function ResultsExplorerPage() {
               </div>
             ) : !selectedSessionId ? (
               <div className={panelStyles.placeholder}>
-                <p className={panelStyles.placeholderTitle}>좌측에서 차시를 선택하세요</p>
+                <div className={panelStyles.placeholderIcon}>
+                  <BarChart2 size={28} />
+                </div>
+                <p className={panelStyles.placeholderTitle}>차시를 선택하세요</p>
                 <p className={panelStyles.placeholderDesc}>
-                  왼쪽 목록에서 강의·차시를 선택하면 여기에 해당 차시의 성적 정보가 표시됩니다.
+                  왼쪽 목록에서 강의·차시를 선택하면 해당 차시의 성적을 확인할 수 있습니다.
                 </p>
+                <div className={panelStyles.placeholderSteps}>
+                  <div className={panelStyles.placeholderStep}>
+                    <span className={panelStyles.placeholderStepNum}>1</span>
+                    <span>좌측에서 강의 선택</span>
+                  </div>
+                  <div className={panelStyles.placeholderStep}>
+                    <span className={panelStyles.placeholderStepNum}>2</span>
+                    <span>차시 클릭</span>
+                  </div>
+                  <div className={panelStyles.placeholderStep}>
+                    <span className={panelStyles.placeholderStepNum}>3</span>
+                    <span>성적 확인·입력</span>
+                  </div>
+                </div>
               </div>
             ) : !selectedSession ? (
               <div className={panelStyles.placeholder}>

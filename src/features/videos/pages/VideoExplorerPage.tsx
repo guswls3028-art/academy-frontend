@@ -7,7 +7,7 @@ import { useState, useMemo, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useQueries, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useConfirm } from "@/shared/ui/confirm";
-import { FilePlus, Video, Folder, Eye, ArrowUpDown } from "lucide-react";
+import { FilePlus, Video, Folder, Eye, ArrowUpDown, Play } from "lucide-react";
 import { Button, EmptyState } from "@/shared/ui/ds";
 import { DomainLayout } from "@/shared/ui/domain";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter, MODAL_WIDTH } from "@/shared/ui/modal";
@@ -424,10 +424,23 @@ export default function VideoExplorerPage() {
               <div className={panelStyles.placeholder}>불러오는 중…</div>
             ) : selectedFolderId === null ? (
               <div className={panelStyles.placeholder}>
-                <p className={panelStyles.placeholderTitle}>좌측에서 폴더를 선택하세요</p>
+                <div className={panelStyles.placeholderIcon}>
+                  <Play size={28} />
+                </div>
+                <p className={panelStyles.placeholderTitle}>폴더를 선택하세요</p>
                 <p className={panelStyles.placeholderDesc}>
-                  왼쪽 목록에서 전체공개영상 또는 강의·차시를 선택하면 여기에 영상 목록이 표시됩니다.
+                  왼쪽 목록에서 전체공개영상 또는 강의·차시를 선택하면 영상을 확인할 수 있습니다.
                 </p>
+                <div className={panelStyles.placeholderSteps}>
+                  <div className={panelStyles.placeholderStep}>
+                    <span className={panelStyles.placeholderStepNum}>1</span>
+                    <span>좌측에서 강의 또는 전체공개영상 선택</span>
+                  </div>
+                  <div className={panelStyles.placeholderStep}>
+                    <span className={panelStyles.placeholderStepNum}>2</span>
+                    <span>영상 확인·업로드·관리</span>
+                  </div>
+                </div>
               </div>
             ) : selectedFolderId === "public" && publicSessionError ? (
               <div className={panelStyles.placeholder} style={{ color: "var(--color-text-error, #b91c1c)" }}>

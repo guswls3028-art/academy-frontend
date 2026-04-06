@@ -7,7 +7,7 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueries } from "@tanstack/react-query";
-import { FileText, FilePlus } from "lucide-react";
+import { FileText, FilePlus, ClipboardList, MousePointerClick } from "lucide-react";
 import { Button, EmptyState } from "@/shared/ui/ds";
 import Breadcrumb from "@/features/storage/components/Breadcrumb";
 import LectureSessionTree from "../components/LectureSessionTree";
@@ -137,13 +137,27 @@ export default function ExamExplorerPage() {
         <div className={panelStyles.gridWrap}>
           {!selectedSessionId ? (
             <div className={panelStyles.placeholder}>
+              <div className={panelStyles.placeholderIcon}>
+                <ClipboardList size={28} />
+              </div>
               <p className={panelStyles.placeholderTitle}>차시를 선택하세요</p>
               <p className={panelStyles.placeholderDesc}>
-                왼쪽 목록에서 강의·차시를 선택하면 여기에 해당 차시의 시험 목록이 표시됩니다.
+                왼쪽 목록에서 강의·차시를 선택하면 해당 차시의 시험을 확인할 수 있습니다.
               </p>
-              <p className={panelStyles.placeholderHint}>
-                시험 추가·관리는 강의 → 차시 → 시험 탭에서 진행하세요.
-              </p>
+              <div className={panelStyles.placeholderSteps}>
+                <div className={panelStyles.placeholderStep}>
+                  <span className={panelStyles.placeholderStepNum}>1</span>
+                  <span>좌측에서 강의 선택</span>
+                </div>
+                <div className={panelStyles.placeholderStep}>
+                  <span className={panelStyles.placeholderStepNum}>2</span>
+                  <span>차시 클릭</span>
+                </div>
+                <div className={panelStyles.placeholderStep}>
+                  <span className={panelStyles.placeholderStepNum}>3</span>
+                  <span>시험 확인·관리</span>
+                </div>
+              </div>
             </div>
           ) : examsLoading ? (
             <div className={panelStyles.placeholder}>
