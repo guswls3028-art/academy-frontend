@@ -23,6 +23,10 @@ type TimeMode = "default" | "custom";
 
 interface Props {
   lectureId: number;
+  /** 반별 차시 생성 시 연결할 section ID */
+  sectionId?: number | null;
+  /** 반 라벨 (모달 타이틀 표시용) */
+  sectionLabel?: string | null;
   onClose: () => void;
 }
 
@@ -46,7 +50,7 @@ function nextWeekDate(lastDateStr: string | null | undefined): string {
   return `${y}-${m}-${day}`;
 }
 
-export default function SessionCreateModal({ lectureId, onClose }: Props) {
+export default function SessionCreateModal({ lectureId, sectionId, sectionLabel, onClose }: Props) {
   const [busy, setBusy] = useState(false);
   const [sessionType, setSessionType] = useState<SessionType | null>(null);
   const [dateMode, setDateMode] = useState<DateMode>("default");
@@ -153,7 +157,7 @@ export default function SessionCreateModal({ lectureId, onClose }: Props) {
 
     setBusy(true);
     try {
-      await createSession(lectureId, title, effectiveDate || undefined, nextOrder);
+      await createSession(lectureId, title, effectiveDate || undefined, nextOrder, sectionId);
       feedback.success("차시가 추가되었습니다.");
       onClose();
     } catch (e: any) {
@@ -171,7 +175,7 @@ export default function SessionCreateModal({ lectureId, onClose }: Props) {
     <AdminModal open={true} onClose={onClose} type="action" width={620} onEnterConfirm={!busy ? handleSubmit : undefined}>
       <ModalHeader
         type="action"
-        title="차시 추가"
+        title={sectionLabel ? `${sectionLabel} 차시 추가` : "차시 추가"}
       />
 
       <ModalBody>

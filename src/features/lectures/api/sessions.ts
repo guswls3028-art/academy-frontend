@@ -143,20 +143,13 @@ export async function createSession(
   lectureId: number,
   title: string,
   date?: string | null,
-  order?: number | null
+  order?: number | null,
+  sectionId?: number | null,
 ): Promise<Session> {
-  const payload: {
-    lecture: number;
-    title: string;
-    date?: string | null;
-    order?: number | null;
-  } = {
-    lecture: lectureId,
-    title,
-  };
-  
+  const payload: Record<string, unknown> = { lecture: lectureId, title };
   if (date !== undefined) payload.date = date;
   if (order !== undefined) payload.order = order;
+  if (sectionId != null) payload.section = sectionId;
 
   const res = await api.post(`/lectures/sessions/`, payload);
   return res.data;
@@ -167,7 +160,7 @@ export async function createSession(
 // ----------------------------------------
 export async function updateSession(
   sessionId: number,
-  payload: Partial<Pick<Session, "title" | "date" | "order">>
+  payload: Partial<Pick<Session, "title" | "date" | "order" | "section">>
 ): Promise<Session> {
   const res = await api.patch(`/lectures/sessions/${sessionId}/`, payload);
   return res.data;
