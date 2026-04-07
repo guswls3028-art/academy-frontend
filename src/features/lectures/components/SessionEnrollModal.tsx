@@ -286,14 +286,14 @@ export default function SessionEnrollModal({
     queryKey: ["attendance-enrolled-ids", sessionId],
     queryFn: () => fetchAttendanceEnrolledStudentIds(sessionId),
     enabled: isOpen && Number.isFinite(sessionId),
-    staleTime: 0,
+    staleTime: 10_000, // 10초 — 모달 내 탭 전환 시 불필요한 refetch 방지
   });
 
   const { data: sessionEnrollments = [] } = useQuery({
     queryKey: ["session-enrollments", sessionId],
     queryFn: () => fetchSessionEnrollments(sessionId),
     enabled: isOpen && Number.isFinite(sessionId),
-    staleTime: 0,
+    staleTime: 10_000,
   });
 
   const { data: sessions = [] } = useQuery({

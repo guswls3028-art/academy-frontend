@@ -517,6 +517,7 @@ export default function SessionScoresTab() {
       <SessionScoresPanel
         ref={panelRef}
         sessionId={sessionId}
+        lectureId={lectureId}
         search={search}
         isEditMode={isEditMode}
         examEditTotal={editConfig.examEditTotal}

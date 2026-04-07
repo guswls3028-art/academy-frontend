@@ -765,6 +765,7 @@ export default function SessionScoresEntryPage(_props: Props) {
         <SessionScoresPanel
           ref={panelRef}
           sessionId={numericSessionId}
+          lectureId={numericLectureId}
           search={searchInput}
           isEditMode={isEditMode}
           examEditTotal={examEditTotal}

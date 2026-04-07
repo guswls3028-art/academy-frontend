@@ -48,9 +48,11 @@ export async function fetchAttendanceEnrolledStudentIds(
   const studentIds: number[] = [];
   let page = 1;
   const pageSize = 500;
-  while (true) {
+  const MAX_PAGES = 100; // 안전 한계: 최대 50,000명
+  while (page <= MAX_PAGES) {
     const res = await fetchAttendance(sessionId, { page, page_size: pageSize });
     const items = res.data ?? [];
+    if (items.length === 0) break;
     for (const row of items) {
       const sid = row?.student_id ?? row?.enrollment?.student_id;
       if (typeof sid === "number" && Number.isFinite(sid)) studentIds.push(sid);

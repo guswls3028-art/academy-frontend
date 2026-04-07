@@ -23,6 +23,7 @@ import { reorderSession } from "../api/reorderSession";
 
 type Props = {
   sessionId: number;
+  lectureId?: number;
   search?: string;
   isEditMode?: boolean;
   examEditTotal?: boolean;
@@ -61,6 +62,7 @@ type FocusScoreCell = {
 
 export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScoresPanel({
   sessionId,
+  lectureId,
   search = "",
   isEditMode = false,
   examEditTotal = false,
@@ -165,8 +167,8 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
       await updateAttendance(attendanceRecordId, { status: newStatus });
       qc.invalidateQueries({ queryKey: scoresQueryKeys.attendance(sessionId) });
       if (newStatus === "SECESSION") {
-        qc.invalidateQueries({ queryKey: ["attendance-matrix"] });
-        qc.invalidateQueries({ queryKey: ["session-enrollments"] });
+        qc.invalidateQueries({ queryKey: ["attendance-matrix", lectureId] });
+        qc.invalidateQueries({ queryKey: ["session-enrollments", sessionId] });
         feedback.success("퇴원 처리되었습니다.");
       }
     } catch {

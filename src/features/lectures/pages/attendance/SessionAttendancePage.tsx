@@ -416,7 +416,7 @@ export default function SessionAttendancePage({
     try {
       const result = await bulkSetPresent(sessionId);
       qc.invalidateQueries({ queryKey: ["attendance", sessionId] });
-      qc.invalidateQueries({ queryKey: ["attendance-matrix"] });
+      qc.invalidateQueries({ queryKey: ["attendance-matrix", lectureId] });
       qc.invalidateQueries({ queryKey: ["session-scores"] });
       feedback.success(result.updated > 0 ? `${result.updated}명 현장 출석으로 변경` : "이미 전원 현장 출석입니다.");
     } catch {
@@ -579,8 +579,8 @@ export default function SessionAttendancePage({
                       code === "SECESSION"
                         ? {
                             onSuccess: () => {
-                              qc.invalidateQueries({ queryKey: ["attendance-matrix"] });
-                              qc.invalidateQueries({ queryKey: ["session-enrollments"] });
+                              qc.invalidateQueries({ queryKey: ["attendance-matrix", lectureId] });
+                              qc.invalidateQueries({ queryKey: ["session-enrollments", sessionId] });
                               feedback.success(`${att.name} 학생이 퇴원 처리되었습니다.`);
                             },
                           }
