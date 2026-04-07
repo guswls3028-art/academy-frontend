@@ -3,12 +3,11 @@
  * AdminOmrUploadSection - 조교용 업로드 작업대 (단건/다건)
  * - 입력칸 없음
  * - 드롭/선택만 하면 서버가 제출을 생성하고 워커 파이프라인 돌림
- * - 엔드포인트 후보를 여러 개 시도(404면 자동 fallback)
+ * - SSOT 엔드포인트: POST /submissions/submissions/exams/{examId}/omr/batch/
  */
 
 import { useMemo, useRef, useState } from "react";
 import api from "@/shared/api/axios";
-import axios from "axios";
 
 type Props = {
   examId: number;
@@ -38,42 +37,18 @@ function humanizeBytes(bytes: number) {
   return `${v.toFixed(i === 0 ? 0 : 1)} ${units[i]}`;
 }
 
-async function postWithFallback(examId: number, form: FormData) {
+async function uploadOmrFiles(examId: number, form: FormData) {
   /**
-   * ✅ 프로젝트마다 엔드포인트가 다를 수 있어서 후보를 순서대로 시도한다.
-   * - 404면 다음 후보로 넘어감
-   * - 400/403/500은 그대로 throw (진짜 에러)
+   * OMR 파일 업로드 SSOT 엔드포인트.
+   * batch endpoint가 multipart file upload를 받는 유일한 엔드포인트.
+   * (단건 /omr/ 는 JSON body로 file_key를 받는 별도 용도)
    */
-  const candidates = [
-    // 현재 백엔드 (apps/domains/submissions/urls.py)
-    `/submissions/submissions/exams/${examId}/omr/`,
+  const res = await api.post(
     `/submissions/submissions/exams/${examId}/omr/batch/`,
-    // 레거시/다른 형태
-    `/submissions/exams/${examId}/omr/upload/`,
-    `/submissions/exams/${examId}/omr/batch/`,
-    `/submissions/exams/${examId}/omr/files/`,
-    `/submissions/exams/${examId}/omr/`,
-  ];
-
-  let last404: any = null;
-
-  for (const url of candidates) {
-    try {
-      const res = await api.post(url, form, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-      return res;
-    } catch (e: any) {
-      if (axios.isAxiosError(e) && e.response?.status === 404) {
-        last404 = e;
-        continue;
-      }
-      throw e;
-    }
-  }
-
-  // 후보 전부 404
-  throw last404 ?? new Error("업로드 엔드포인트를 찾지 못했습니다 (404).");
+    form,
+    { headers: { "Content-Type": "multipart/form-data" } },
+  );
+  return res;
 }
 
 export default function AdminOmrUploadSection({ examId, onUploaded }: Props) {
@@ -118,7 +93,7 @@ export default function AdminOmrUploadSection({ examId, onUploaded }: Props) {
       files.forEach((f) => form.append("files", f));
       if (files.length === 1) form.append("file", files[0]);
 
-      const res = await postWithFallback(examId, form);
+      const res = await uploadOmrFiles(examId, form);
 
       // 서버가 반환하는 형태가 제각각이라 안전하게 파싱
       const data = res.data as any;
