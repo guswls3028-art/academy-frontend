@@ -7,6 +7,7 @@ import { AdminModal, ModalHeader, ModalBody, ModalFooter, MODAL_WIDTH } from "@/
 import { Button } from "@/shared/ui/ds";
 import { patchStaffDetail, type StaffDetail } from "../api/staff.detail.api";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { extractApiError } from "@/shared/utils/extractApiError";
 
 interface Props {
   open: boolean;
@@ -56,8 +57,8 @@ export default function StaffEditModal({
       feedback.success("저장되었습니다.");
       onSuccess();
       onClose();
-    } catch (e: any) {
-      feedback.error(e?.response?.data?.detail ?? e?.message ?? "저장에 실패했습니다.");
+    } catch (e: unknown) {
+      feedback.error(extractApiError(e, "저장에 실패했습니다."));
     } finally {
       setBusy(false);
     }
@@ -121,6 +122,16 @@ export default function StaffEditModal({
               >
                 월급
               </button>
+            </div>
+          </div>
+
+          <div className="modal-form-group">
+            <label className="modal-section-label">역할</label>
+            <div className="ds-input" style={{ background: "var(--color-bg-surface-hover)", cursor: "default", color: "var(--color-text-secondary)" }}>
+              {(staff as { role?: string })?.role === "OWNER" ? "대표" : (staff as { role?: string })?.role === "TEACHER" ? "강사" : "조교"}
+              <span style={{ fontSize: 11, marginLeft: 8, color: "var(--color-text-muted)" }}>
+                (역할은 생성 시에만 설정 가능)
+              </span>
             </div>
           </div>
 

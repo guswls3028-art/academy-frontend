@@ -11,6 +11,7 @@ import {
 } from "@/shared/ui/modal";
 import { ActionButton } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { extractApiError } from "@/shared/utils/extractApiError";
 
 type Props = {
   open: boolean;
@@ -54,12 +55,8 @@ export default function StaffCreateModal({ open, onClose }: Props) {
         permission_role: "ASSISTANT",
       });
     },
-    onError: (e: any) => {
-      const msg =
-        e?.response?.data?.detail ||
-        e?.response?.data?.message ||
-        "직원 생성에 실패했습니다.";
-      feedback.error(msg);
+    onError: (e: unknown) => {
+      feedback.error(extractApiError(e, "직원 생성에 실패했습니다."));
     },
   });
 

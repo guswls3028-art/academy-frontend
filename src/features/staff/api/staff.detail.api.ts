@@ -29,6 +29,17 @@ export async function patchStaffDetail(
 }
 
 /**
+ * POST /staffs/{id}/change-password/
+ */
+export async function changeStaffPassword(
+  staffId: number,
+  password: string,
+) {
+  const res = await api.post(`/staffs/${staffId}/change-password/`, { password });
+  return res.data as { detail: string };
+}
+
+/**
  * 🔒 집계 단일진실
  */
 export async function fetchStaffSummaryByRange(

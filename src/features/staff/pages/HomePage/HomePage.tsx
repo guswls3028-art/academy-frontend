@@ -10,6 +10,7 @@ import { useStaffs } from "../../hooks/useStaffs";
 import StaffCreateModal from "./StaffCreateModal";
 import WorkTypeCreateModal from "./WorkTypeCreateModal";
 import AddWorkTypeBulkModal from "./AddWorkTypeBulkModal";
+import StaffPasswordModal from "../../components/StaffPasswordModal";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchStaffMe } from "../../api/staffMe.api";
 import { deleteStaff } from "../../api/staff.api";
@@ -18,6 +19,7 @@ import { downloadStaffExcel } from "../../excel/staffExcel";
 import { DomainListToolbar } from "@/shared/ui/domain";
 import { Button, EmptyState } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { extractApiError } from "@/shared/utils/extractApiError";
 import { useConfirm } from "@/shared/ui/confirm";
 import { useSendMessageModal } from "@/features/messages/context/SendMessageModalContext";
 
@@ -50,6 +52,7 @@ export default function HomePage() {
   const [openCreate, setOpenCreate] = useState(false);
   const [openWorkType, setOpenWorkType] = useState(false);
   const [openAddWorkTypeBulk, setOpenAddWorkTypeBulk] = useState(false);
+  const [openPasswordModal, setOpenPasswordModal] = useState(false);
   const [q, setQ] = useState("");
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [deleting, setDeleting] = useState(false);
@@ -151,7 +154,17 @@ export default function HomePage() {
         >
           시급 태그 추가
         </Button>
-        <Button intent="secondary" size="sm" onClick={() => feedback.info("비밀번호 변경 기능 준비 중입니다.")}>
+        <Button
+          intent="secondary"
+          size="sm"
+          onClick={() => {
+            if (selectedStaffIds.length === 0) {
+              feedback.info("직원을 선택한 뒤 비밀번호 변경을 눌러 주세요.");
+              return;
+            }
+            setOpenPasswordModal(true);
+          }}
+        >
           비밀번호 변경
         </Button>
       </div>
@@ -159,26 +172,56 @@ export default function HomePage() {
       <Button
         intent="danger"
         size="sm"
-        disabled={selectedIds.filter((staffId) => staffId > 0).length === 0 || deleting}
+        disabled={selectedStaffIds.length === 0 || deleting}
         onClick={async () => {
-          const staffIds = selectedIds.filter((staffId) => staffId > 0);
-          if (staffIds.length === 0) return;
-          const ok = await confirm({ title: "삭제 확인", message: `선택한 직원 ${staffIds.length}명을 삭제하시겠습니까? (대표는 삭제되지 않습니다)`, danger: true, confirmText: "삭제" });
+          if (selectedStaffIds.length === 0) return;
+
+          // Owner sentinel이 선택에 포함되어 있으면 사전 안내
+          const hasOwnerSelected = selectedIds.includes(-1);
+          const ownerNote = hasOwnerSelected ? "\n(대표는 삭제 대상에서 제외됩니다)" : "";
+
+          const ok = await confirm({
+            title: "삭제 확인",
+            message: `선택한 직원 ${selectedStaffIds.length}명을 삭제하시겠습니까?${ownerNote}\n연결된 근무기록, 비용 등 모든 데이터가 함께 삭제됩니다.`,
+            danger: true,
+            confirmText: "삭제",
+          });
           if (!ok) return;
+
           setDeleting(true);
-          try {
-            for (const id of staffIds) {
+          let successCount = 0;
+          let failCount = 0;
+          const failNames: string[] = [];
+
+          for (const id of selectedStaffIds) {
+            try {
               await deleteStaff(id);
+              successCount++;
+            } catch (e: unknown) {
+              failCount++;
+              const staff = rows.find((r) => r.id === id);
+              const reason = extractApiError(e, "삭제 실패");
+              failNames.push(`${staff?.name ?? `ID:${id}`} (${reason})`);
             }
-            setSelectedIds(selectedIds.filter((staffId) => staffId <= 0));
+          }
+
+          if (successCount > 0) {
             qc.invalidateQueries({ queryKey: ["staffs"] });
             qc.invalidateQueries({ queryKey: ["staff"] });
-            feedback.success(`${staffIds.length}명 삭제되었습니다.`);
-          } catch (e: unknown) {
-            feedback.error(e instanceof Error ? e.message : "삭제 중 오류가 발생했습니다.");
-          } finally {
-            setDeleting(false);
+            // 성공한 ID만 선택 해제
+            const deletedIds = new Set(selectedStaffIds.filter((id) => !failNames.some((n) => n.includes(`ID:${id}`))));
+            setSelectedIds(selectedIds.filter((sid) => sid <= 0 || !deletedIds.has(sid)));
           }
+
+          if (failCount === 0) {
+            feedback.success(`${successCount}명 삭제되었습니다.`);
+          } else if (successCount === 0) {
+            feedback.error(`삭제 실패: ${failNames.join(", ")}`);
+          } else {
+            feedback.warning(`${successCount}명 삭제, ${failCount}명 실패: ${failNames.join(", ")}`);
+          }
+
+          setDeleting(false);
         }}
       >
         {deleting ? "삭제 중…" : "삭제"}
@@ -241,6 +284,7 @@ export default function HomePage() {
           onDetail={(id) => navigate(`/admin/staff/${id}`)}
           selectedIds={selectedIds}
           onSelectionChange={setSelectedIds}
+          searchQuery={q}
         />
       )}
 
@@ -253,6 +297,13 @@ export default function HomePage() {
         open={openAddWorkTypeBulk}
         onClose={() => setOpenAddWorkTypeBulk(false)}
         staffIds={selectedStaffIds}
+      />
+      <StaffPasswordModal
+        open={openPasswordModal}
+        onClose={() => setOpenPasswordModal(false)}
+        staffList={rows
+          .filter((r) => selectedStaffIds.includes(r.id))
+          .map((r) => ({ id: r.id, name: r.name }))}
       />
     </div>
   );

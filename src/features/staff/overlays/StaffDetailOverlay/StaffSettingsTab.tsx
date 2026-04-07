@@ -1,18 +1,20 @@
 // PATH: src/features/staff/overlays/StaffDetailOverlay/StaffSettingsTab.tsx
 import { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { fetchStaffDetail, patchStaffDetail, StaffDetail } from "../../api/staff.detail.api";
 import { fetchStaffMe } from "../../api/staffMe.api";
-import api from "@/shared/api/axios";
+import { useDeleteStaff } from "../../hooks/useDeleteStaff";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { useConfirm } from "@/shared/ui/confirm";
 
 export default function StaffSettingsTab() {
   const { staffId } = useParams();
   const sid = Number(staffId);
-  const nav = useNavigate();
   const qc = useQueryClient();
+  const confirm = useConfirm();
+  const deleteMutation = useDeleteStaff();
 
   const meQ = useQuery({
     queryKey: ["staff-me"],
@@ -32,17 +34,6 @@ export default function StaffSettingsTab() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["staff", sid] });
       feedback.success("저장되었습니다.");
-    },
-  });
-
-  const deleteM = useMutation({
-    mutationFn: async () => {
-      await api.delete(`/staffs/${sid}/`);
-    },
-    onSuccess: async () => {
-      feedback.success("직원이 삭제되었습니다.");
-      await qc.invalidateQueries({ queryKey: ["staffs"] });
-      nav("/admin/staff");
     },
   });
 
@@ -139,13 +130,20 @@ export default function StaffSettingsTab() {
         </button>
 
         <button
-          onClick={() => {
-            if (!confirm("직원을 삭제할까요? 연결된 데이터도 함께 삭제됩니다.")) return;
-            deleteM.mutate();
+          onClick={async () => {
+            const ok = await confirm({
+              title: "직원 삭제",
+              message: "직원을 삭제할까요? 연결된 근무기록, 비용 등 모든 데이터가 함께 삭제됩니다.",
+              confirmText: "삭제",
+              danger: true,
+            });
+            if (!ok) return;
+            deleteMutation.mutate(sid);
           }}
           className="btn-danger"
+          disabled={deleteMutation.isPending}
         >
-          직원 삭제
+          {deleteMutation.isPending ? "삭제 중…" : "직원 삭제"}
         </button>
       </div>
     </div>

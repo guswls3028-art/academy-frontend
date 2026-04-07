@@ -16,12 +16,14 @@ import {
   isLockedFromLocks,
 } from "../../api/workMonthLocks.api";
 import { fetchStaffMe } from "../../api/staffMe.api";
+import { useDeleteStaff } from "../../hooks/useDeleteStaff";
 
 import { LockBadge } from "../../components/StatusBadge";
 import { StaffRoleAvatar } from "@/shared/ui/avatars";
 import { Button, CloseButton } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { formatPhone } from "@/shared/utils/formatPhone";
+import { useConfirm } from "@/shared/ui/confirm";
 
 import StaffSummaryTab from "./StaffSummaryTab";
 import StaffWorkTypeTab from "./StaffWorkTypeTab";
@@ -88,6 +90,8 @@ export default function StaffDetailOverlay() {
   const sid = Number(staffId);
   const [tab, setTab] = useState("summary");
   const [editOpen, setEditOpen] = useState(false);
+  const confirm = useConfirm();
+  const deleteMutation = useDeleteStaff();
   const onClose = () => navigate(-1);
 
   const { y, m, from, to } = getThisMonthRange();
@@ -230,19 +234,19 @@ export default function StaffDetailOverlay() {
                       type="button"
                       intent="danger"
                       size="sm"
-                      onClick={() => {
-                        if (
-                          !confirm(
-                            "직원을 삭제할까요? 연결된 데이터도 함께 삭제됩니다."
-                          )
-                        )
-                          return;
-                        feedback.info(
-                          "삭제 API 연결 필요 (StaffSettingsTab의 삭제 로직을 재사용하세요)."
-                        );
+                      disabled={deleteMutation.isPending}
+                      onClick={async () => {
+                        const ok = await confirm({
+                          title: "직원 삭제",
+                          message: `${staff.name}을(를) 삭제하시겠습니까?\n연결된 근무기록, 비용 등 모든 데이터가 함께 삭제됩니다.`,
+                          confirmText: "삭제",
+                          danger: true,
+                        });
+                        if (!ok) return;
+                        deleteMutation.mutate(sid);
                       }}
                     >
-                      삭제
+                      {deleteMutation.isPending ? "삭제 중…" : "삭제"}
                     </Button>
                   )}
                 </div>

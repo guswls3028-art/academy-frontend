@@ -12,6 +12,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { patchStaffDetail } from "../../api/staff.detail.api";
 import { fetchWorkTypes, createStaffWorkType, type WorkType } from "../../api/staffWorkType.api";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { extractApiError } from "@/shared/utils/extractApiError";
 
 /** 직원 목록 선택 시 원장 행용 sentinel id (삭제 제외) */
 export const OWNER_SELECTION_ID = -1;
@@ -97,6 +98,8 @@ interface Props {
   canManage: boolean;
   selectedIds?: number[];
   onSelectionChange?: (staffIds: number[]) => void;
+  /** 현재 검색어 — owner 행 필터링에 사용 */
+  searchQuery?: string;
 }
 
 const COL = {
@@ -169,9 +172,16 @@ export function StaffHomeTable({
   canManage,
   selectedIds: controlledSelectedIds,
   onSelectionChange,
+  searchQuery,
 }: Props) {
   const dataSource: Staff[] = Array.isArray(staffs) ? staffs : [];
-  const hasOwner = !!owner?.name;
+  // 검색어가 있을 때 owner 행은 이름/전화에 매칭될 때만 표시
+  const needle = (searchQuery ?? "").trim().toLowerCase();
+  const ownerMatchesSearch =
+    !needle ||
+    (owner?.name ?? "").toLowerCase().includes(needle) ||
+    (owner?.phone ?? "").toLowerCase().includes(needle);
+  const hasOwner = !!owner?.name && ownerMatchesSearch;
   const qc = useQueryClient();
   const [internalSelected, setInternalSelected] = useState<number[]>([]);
   const [sort, setSort] = useState("");
@@ -234,36 +244,38 @@ export function StaffHomeTable({
     else setSelectedIds([...new Set([...selectedIds, ...allIds])]);
   };
 
+  // --- 행별 inline mutation 상태 추적 ---
+  const [pendingPayType, setPendingPayType] = useState<number | null>(null);
+  const [pendingManager, setPendingManager] = useState<number | null>(null);
+
   const patchPayTypeM = useMutation({
-    mutationFn: ({ staffId, pay_type }: { staffId: number; pay_type: "HOURLY" | "MONTHLY" }) =>
-      patchStaffDetail(staffId, { pay_type }),
+    mutationFn: ({ staffId, pay_type }: { staffId: number; pay_type: "HOURLY" | "MONTHLY" }) => {
+      setPendingPayType(staffId);
+      return patchStaffDetail(staffId, { pay_type });
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["staffs"] });
       qc.invalidateQueries({ queryKey: ["staff"] });
     },
     onError: (e: unknown) => {
-      const msg =
-        (e as { response?: { data?: { detail?: string; message?: string } } })?.response?.data?.detail ||
-        (e as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-        "급여 유형 변경에 실패했습니다.";
-      feedback.error(msg);
+      feedback.error(extractApiError(e, "급여 유형 변경에 실패했습니다."));
     },
+    onSettled: () => setPendingPayType(null),
   });
 
   const patchManagerM = useMutation({
-    mutationFn: ({ staffId, is_manager }: { staffId: number; is_manager: boolean }) =>
-      patchStaffDetail(staffId, { is_manager }),
+    mutationFn: ({ staffId, is_manager }: { staffId: number; is_manager: boolean }) => {
+      setPendingManager(staffId);
+      return patchStaffDetail(staffId, { is_manager });
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["staffs"] });
       qc.invalidateQueries({ queryKey: ["staff"] });
     },
     onError: (e: unknown) => {
-      const msg =
-        (e as { response?: { data?: { detail?: string; message?: string } } })?.response?.data?.detail ||
-        (e as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-        "관리자 권한 변경에 실패했습니다.";
-      feedback.error(msg);
+      feedback.error(extractApiError(e, "관리자 권한 변경에 실패했습니다."));
     },
+    onSettled: () => setPendingManager(null),
   });
 
   const workTypesQ = useQuery({
@@ -281,10 +293,7 @@ export function StaffHomeTable({
       setOpenAddForStaffId(null);
     },
     onError: (e: unknown) => {
-      const msg =
-        (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
-        "시급태그 추가에 실패했습니다.";
-      feedback.error(msg);
+      feedback.error(extractApiError(e, "시급태그 추가에 실패했습니다."));
     },
   });
 
@@ -440,11 +449,11 @@ export function StaffHomeTable({
                     type="button"
                     className="ds-status-badge ds-status-badge--action"
                     data-status={r.is_manager ? "active" : "inactive"}
-                    disabled={patchManagerM.isPending}
+                    disabled={pendingManager === r.id}
                     onClick={() => patchManagerM.mutate({ staffId: r.id, is_manager: !r.is_manager })}
                     aria-label={r.is_manager ? "관리자 해제" : "관리자 부여"}
                   >
-                    {patchManagerM.isPending ? "…" : r.is_manager ? "ON" : "OFF"}
+                    {pendingManager === r.id ? "…" : r.is_manager ? "ON" : "OFF"}
                   </button>
                 ) : (
                   <span className="ds-status-badge ds-status-badge--action" data-status={r.is_manager ? "active" : "inactive"}>
@@ -463,27 +472,27 @@ export function StaffHomeTable({
                       type="button"
                       className="ds-status-badge ds-status-badge--action"
                       data-status={r.pay_type === "HOURLY" ? "active" : "inactive"}
-                      disabled={patchPayTypeM.isPending}
+                      disabled={pendingPayType === r.id}
                       onClick={() => {
                         if (r.pay_type === "HOURLY") return;
                         patchPayTypeM.mutate({ staffId: r.id, pay_type: "HOURLY" });
                       }}
                       aria-label={`${r.name} 시급`}
                     >
-                      {patchPayTypeM.isPending ? "…" : "시급"}
+                      {pendingPayType === r.id ? "…" : "시급"}
                     </button>
                     <button
                       type="button"
                       className="ds-status-badge ds-status-badge--action"
                       data-status={r.pay_type === "MONTHLY" ? "active" : "inactive"}
-                      disabled={patchPayTypeM.isPending}
+                      disabled={pendingPayType === r.id}
                       onClick={() => {
                         if (r.pay_type === "MONTHLY") return;
                         patchPayTypeM.mutate({ staffId: r.id, pay_type: "MONTHLY" });
                       }}
                       aria-label={`${r.name} 월급`}
                     >
-                      {patchPayTypeM.isPending ? "…" : "월급"}
+                      {pendingPayType === r.id ? "…" : "월급"}
                     </button>
                   </span>
                 )}
