@@ -323,160 +323,64 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
                 );
               })}
 
-              {/* 공통 차시도 없고 반도 없으면 안내 */}
-              {commonSessions.length === 0 && !hasAnySections && (
-                <div
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    gap: 8,
-                    padding: "20px 16px",
-                    borderRadius: 12,
-                    border: "1.5px dashed var(--color-border-subtle)",
-                    color: "var(--color-text-muted)",
-                  }}
-                >
-                  <Layers size={20} strokeWidth={1.8} style={{ opacity: 0.5 }} />
-                  <span style={{ fontSize: 13, fontWeight: 500 }}>
-                    차시가 없습니다. 반을 추가하고 차시를 만들어보세요.
-                  </span>
+              {/* 반 추가 — 차시블록 영역 안, 마지막 줄에 [+ 반] 블록 */}
+              {!addingType ? (
+                <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
+                  <SessionBlockView
+                    variant="add"
+                    compact
+                    onClick={() => { setAddingType("CLASS"); setAddDay(2); setAddTime("17:00"); }}
+                    ariaLabel="반 추가"
+                  >
+                    <span style={{ display: "flex", alignItems: "center", gap: 3, fontSize: 11, fontWeight: 600, whiteSpace: "nowrap" }}>
+                      <Plus size={14} strokeWidth={2.5} /> 반
+                    </span>
+                  </SessionBlockView>
                 </div>
-              )}
-
-              {/* 반 추가 버튼들 */}
-              <div style={{ display: "flex", gap: 8, paddingTop: 6 }}>
-                <button
-                  onClick={() => { setAddingType("CLASS"); setAddDay(2); setAddTime("17:00"); }}
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 5,
-                    fontSize: 12,
-                    fontWeight: 600,
-                    color: "var(--color-brand-primary)",
-                    background: "color-mix(in srgb, var(--color-brand-primary) 6%, transparent)",
-                    border: "1.5px dashed color-mix(in srgb, var(--color-brand-primary) 40%, transparent)",
-                    borderRadius: 8,
-                    padding: "6px 14px",
-                    cursor: "pointer",
-                    transition: "background 160ms ease, border-color 160ms ease",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = "color-mix(in srgb, var(--color-brand-primary) 12%, transparent)";
-                    e.currentTarget.style.borderColor = "var(--color-brand-primary)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = "color-mix(in srgb, var(--color-brand-primary) 6%, transparent)";
-                    e.currentTarget.style.borderColor = "color-mix(in srgb, var(--color-brand-primary) 40%, transparent)";
-                  }}
-                >
-                  <BookOpen size={13} strokeWidth={2.2} />
-                  수업 반 추가
-                </button>
-                <button
-                  onClick={() => { setAddingType("CLINIC"); setAddDay(5); setAddTime("19:00"); }}
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 5,
-                    fontSize: 12,
-                    fontWeight: 600,
-                    color: "var(--color-warning, #d97706)",
-                    background: "color-mix(in srgb, var(--color-warning, #d97706) 6%, transparent)",
-                    border: "1.5px dashed color-mix(in srgb, var(--color-warning, #d97706) 40%, transparent)",
-                    borderRadius: 8,
-                    padding: "6px 14px",
-                    cursor: "pointer",
-                    transition: "background 160ms ease, border-color 160ms ease",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = "color-mix(in srgb, var(--color-warning, #d97706) 12%, transparent)";
-                    e.currentTarget.style.borderColor = "var(--color-warning, #d97706)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = "color-mix(in srgb, var(--color-warning, #d97706) 6%, transparent)";
-                    e.currentTarget.style.borderColor = "color-mix(in srgb, var(--color-warning, #d97706) 40%, transparent)";
-                  }}
-                >
-                  <Stethoscope size={13} strokeWidth={2.2} />
-                  클리닉 반 추가
-                </button>
-              </div>
-
-              {/* 인라인 반 추가 폼 */}
-              {addingType && (
+              ) : (
+                /* 인라인 반 추가 폼 — 차시블록 줄과 동일한 위치 */
                 <div style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 10,
-                  padding: "10px 14px",
-                  borderRadius: 10,
-                  background: "var(--color-bg-surface)",
-                  border: "1px solid var(--color-border-subtle)",
-                  boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+                  display: "flex", alignItems: "center", gap: 8,
+                  padding: "6px 10px", borderRadius: 10,
+                  background: "var(--color-bg-surface-sunken)",
                 }}>
-                  <span
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: 4,
-                      fontSize: 13,
-                      fontWeight: 700,
-                      minWidth: 80,
-                      color: addingType === "CLASS" ? "var(--color-brand-primary)" : "var(--color-warning, #d97706)",
-                    }}
-                  >
-                    {addingType === "CLASS" ? <BookOpen size={14} strokeWidth={2.2} /> : <Stethoscope size={14} strokeWidth={2.2} />}
-                    {addingType === "CLASS" ? "수업" : "클리닉"} {nextSectionLabel(sections, addingType)}반
+                  {/* 타입 토글 */}
+                  <div style={{ display: "flex", gap: 2, borderRadius: 6, background: "var(--color-bg-surface)", padding: 2 }}>
+                    {(["CLASS", "CLINIC"] as const).map((t) => (
+                      <button
+                        key={t}
+                        onClick={() => {
+                          setAddingType(t);
+                          if (t === "CLASS") { setAddDay(2); setAddTime("17:00"); }
+                          else { setAddDay(5); setAddTime("19:00"); }
+                        }}
+                        style={{
+                          fontSize: 12, fontWeight: 600, padding: "3px 10px", borderRadius: 5,
+                          border: "none", cursor: "pointer",
+                          background: addingType === t ? (t === "CLASS" ? "var(--color-brand-primary)" : "var(--color-warning, #d97706)") : "transparent",
+                          color: addingType === t ? "#fff" : "var(--color-text-muted)",
+                          transition: "all 120ms",
+                        }}
+                      >
+                        {t === "CLASS" ? "수업" : "클리닉"}
+                      </button>
+                    ))}
+                  </div>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: "var(--color-text-primary)" }}>
+                    {nextSectionLabel(sections, addingType)}반
                   </span>
-                  <select
-                    className="ds-input"
-                    value={addDay}
-                    onChange={(e) => setAddDay(Number(e.target.value))}
-                    style={{ width: 64, fontSize: 13 }}
-                  >
+                  <select className="ds-input" value={addDay} onChange={(e) => setAddDay(Number(e.target.value))} style={{ width: 58, fontSize: 12, padding: "3px 4px" }}>
                     {DAY_LABELS.map((d, i) => <option key={i} value={i}>{d}</option>)}
                   </select>
-                  <input
-                    className="ds-input"
-                    type="time"
-                    value={addTime}
-                    onChange={(e) => setAddTime(e.target.value)}
-                    style={{ width: 100, fontSize: 13 }}
-                  />
-                  <button
-                    onClick={handleQuickAddSection}
-                    disabled={addSectionMut.isPending}
-                    style={{
-                      fontSize: 13,
-                      fontWeight: 600,
-                      color: "#fff",
-                      background: addingType === "CLASS" ? "var(--color-brand-primary)" : "var(--color-warning, #d97706)",
-                      border: "none",
-                      borderRadius: 8,
-                      padding: "6px 16px",
-                      cursor: "pointer",
-                      transition: "opacity 160ms ease",
-                      opacity: addSectionMut.isPending ? 0.6 : 1,
-                    }}
-                  >
+                  <input className="ds-input" type="time" value={addTime} onChange={(e) => setAddTime(e.target.value)} style={{ width: 90, fontSize: 12, padding: "3px 4px" }} />
+                  <button onClick={handleQuickAddSection} disabled={addSectionMut.isPending} style={{
+                    fontSize: 12, fontWeight: 600, color: "#fff", border: "none", borderRadius: 6, padding: "4px 12px", cursor: "pointer",
+                    background: addingType === "CLASS" ? "var(--color-brand-primary)" : "var(--color-warning, #d97706)",
+                    opacity: addSectionMut.isPending ? 0.5 : 1,
+                  }}>
                     {addSectionMut.isPending ? "..." : "추가"}
                   </button>
-                  <button
-                    onClick={() => setAddingType(null)}
-                    style={{
-                      fontSize: 12,
-                      fontWeight: 500,
-                      color: "var(--color-text-muted)",
-                      background: "none",
-                      border: "none",
-                      cursor: "pointer",
-                      padding: "4px 8px",
-                    }}
-                  >
-                    취소
-                  </button>
+                  <button onClick={() => setAddingType(null)} style={{ fontSize: 11, color: "var(--color-text-muted)", background: "none", border: "none", cursor: "pointer" }}>취소</button>
                 </div>
               )}
             </>
