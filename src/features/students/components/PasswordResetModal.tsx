@@ -1,7 +1,7 @@
 // PATH: src/features/students/components/PasswordResetModal.tsx
 // 선택한 학생에게 임시 비밀번호 일괄 설정 (학생/학부모/둘 다 + 알림톡 발송 토글)
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Switch } from "antd";
 import { FiMessageSquare } from "react-icons/fi";
 import type { ClientStudent } from "../api/students";
@@ -112,6 +112,14 @@ export default function PasswordResetModal({
 }: PasswordResetModalProps) {
   const [tempPassword, setTempPassword] = useState("");
   const [sendNotify, setSendNotify] = useState(true);
+
+  // 모달 열릴 때 상태 초기화
+  useEffect(() => {
+    if (open) {
+      setTempPassword("");
+      setSendNotify(true);
+    }
+  }, [open]);
 
   const handleSubmit = async () => {
     if (selectedStudents.length === 0) {

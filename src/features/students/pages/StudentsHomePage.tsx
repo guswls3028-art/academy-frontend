@@ -4,6 +4,8 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useConfirm } from "@/shared/ui/confirm";
 
+import { resolveTenantCode } from "@/shared/tenant";
+
 const STORAGE_KEY = "students-selected-ids";
 
 import { useStudentsQuery } from "../hooks/useStudentsQuery";
@@ -50,9 +52,10 @@ export default function StudentsHomePage() {
   const [showFilter, setShowFilter] = useState(false);
   const [sort, setSort] = useState("-registeredAt");
   const [page, setPage] = useState(1);
+  const tenantCode = resolveTenantCode().code ?? "unknown";
   const [selectedIds, setSelectedIds] = useState<number[]>(() => {
     try {
-      const k = `${STORAGE_KEY}-${isDeletedTab ? "deleted" : "home"}`;
+      const k = `${STORAGE_KEY}-${tenantCode}-${isDeletedTab ? "deleted" : "home"}`;
       const v = sessionStorage.getItem(k);
       if (v) {
         const arr = JSON.parse(v);
@@ -84,9 +87,9 @@ export default function StudentsHomePage() {
   }, [isDeletedTab]);
 
   useEffect(() => {
-    const k = `${STORAGE_KEY}-${isDeletedTab ? "deleted" : "home"}`;
+    const k = `${STORAGE_KEY}-${tenantCode}-${isDeletedTab ? "deleted" : "home"}`;
     sessionStorage.setItem(k, JSON.stringify(selectedIds));
-  }, [selectedIds, isDeletedTab]);
+  }, [selectedIds, isDeletedTab, tenantCode]);
 
   useEffect(() => {
     const t = setTimeout(() => setSearch(searchInput), 250);
@@ -337,8 +340,9 @@ export default function StudentsHomePage() {
                       setDuplicateFixing(true);
                       await fixDeletedStudentDuplicates();
                       qc.invalidateQueries({ queryKey: ["students"] });
-                    } catch {
-                      // 조용히 실패 — 사용자에게 버그 존재를 노출하지 않음
+                    } catch (err) {
+                      console.warn("중복 정리 실패:", err);
+                      feedback.error("중복 정리 중 오류가 발생했습니다.");
                     } finally {
                       setDuplicateFixing(false);
                     }

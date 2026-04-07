@@ -2,8 +2,16 @@
  * 학부모 로그인 시 "선택한 자녀" ID.
  * - 학생앱 API 호출 시 X-Student-Id 헤더로 전달
  * - localStorage에 저장해 새로고침 후에도 유지
+ * - 테넌트별로 분리하여 크로스 테넌트 오염 방지
  */
-const STORAGE_KEY = "parent_selected_student_id";
+import { resolveTenantCode } from "@/shared/tenant";
+
+const STORAGE_KEY_PREFIX = "parent_selected_student_id";
+
+function storageKey(): string {
+  const tc = resolveTenantCode().code ?? "unknown";
+  return `${STORAGE_KEY_PREFIX}_${tc}`;
+}
 
 let currentId: number | null = null;
 
@@ -14,10 +22,11 @@ export function getParentStudentId(): number | null {
 export function setParentStudentId(id: number | null): void {
   currentId = id;
   try {
+    const key = storageKey();
     if (id != null) {
-      localStorage.setItem(STORAGE_KEY, String(id));
+      localStorage.setItem(key, String(id));
     } else {
-      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(key);
     }
   } catch {
     // ignore
@@ -28,7 +37,7 @@ export function setParentStudentId(id: number | null): void {
 export function initParentStudentId(validIds: number[]): number | null {
   if (validIds.length === 0) return null;
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(storageKey());
     if (raw) {
       const id = parseInt(raw, 10);
       if (Number.isFinite(id) && validIds.includes(id)) {
@@ -41,7 +50,7 @@ export function initParentStudentId(validIds: number[]): number | null {
   }
   currentId = validIds[0];
   try {
-    localStorage.setItem(STORAGE_KEY, String(validIds[0]));
+    localStorage.setItem(storageKey(), String(validIds[0]));
   } catch {
     // ignore
   }

@@ -54,6 +54,9 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   // 사이드바 아코디언: 연락처만 기본 열림
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({ contact: true });
+
+  // 학생 전환 시 탭 초기화
+  useEffect(() => { setTab("enroll"); }, [id]);
   const toggleSection = (key: string) => setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
 
   // Escape 키로 오버레이 닫기
@@ -73,7 +76,7 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
   });
 
   const { data: tags } = useQuery({
-    queryKey: ["tags"],
+    queryKey: ["students", "tags"],
     queryFn: getTags,
   });
 
@@ -110,7 +113,7 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
     mutationFn: (tagId: number) => attachStudentTag(id, tagId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["student", id] });
-      qc.invalidateQueries({ queryKey: ["tags"] });
+      qc.invalidateQueries({ queryKey: ["students", "tags"] });
     },
     onError: () => { feedback.error("처리에 실패했습니다."); },
   });

@@ -14,6 +14,7 @@ import {
   submitStudentExamAnswers,
 } from "@/student/domains/exams/api/exams";
 import { useAuthContext } from "@/features/auth/context/AuthContext";
+import { resolveTenantCode } from "@/shared/tenant";
 
 export default function ExamSubmitPage() {
   const { examId } = useParams();
@@ -23,17 +24,18 @@ export default function ExamSubmitPage() {
   const confirm = useConfirm();
   const { user } = useAuthContext();
   const isParent = user?.tenantRole === "parent";
+  const tenantCode = resolveTenantCode().code ?? "unknown";
 
   const examQ = useStudentExam(Number.isFinite(safeId) ? safeId : undefined);
   const questionsQ = useQuery({
-    queryKey: ["student", "exams", "questions", safeId],
+    queryKey: ["student", "exams", "questions", tenantCode, safeId],
     queryFn: () => fetchStudentExamQuestions(safeId),
     enabled: Number.isFinite(safeId),
   });
   const questions = questionsQ.data ?? [];
   const loadingQuestions = questionsQ.isLoading;
 
-  const draftKey = `exam_draft_${user?.id ?? "anon"}_${safeId}`;
+  const draftKey = `exam_draft_${tenantCode}_${user?.id ?? "anon"}_${safeId}`;
 
   const [answers, setAnswers] = useState<Record<number, string>>(() => {
     // Restore draft from localStorage on mount

@@ -1,7 +1,7 @@
 // PATH: src/features/students/components/TagAddModal.tsx
 // 선택한 학생들에게 태그 일괄 부여 + 인라인 태그 생성
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getTags, attachStudentTag } from "../api/students";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter } from "@/shared/ui/modal";
@@ -9,6 +9,7 @@ import { MODAL_WIDTH } from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import TagCreateModal from "./TagCreateModal";
+import { resolveTenantCode } from "@/shared/tenant";
 
 type TagAddModalProps = {
   open: boolean;
@@ -30,11 +31,17 @@ export default function TagAddModal({
   const qc = useQueryClient();
   const [selectedTagId, setSelectedTagId] = useState<number | null>(null);
   const [showCreate, setShowCreate] = useState(false);
+  const tenantCode = resolveTenantCode().code ?? "unknown";
   const { data: tags = [], isLoading } = useQuery({
-    queryKey: ["students", "tags"],
+    queryKey: ["students", "tags", tenantCode],
     queryFn: getTags,
     enabled: open,
   });
+
+  // 모달 열릴 때 선택 초기화
+  useEffect(() => {
+    if (open) setSelectedTagId(null);
+  }, [open]);
 
   const handleSubmit = async () => {
     if (!selectedTagId || studentIds.length === 0) {
@@ -42,12 +49,25 @@ export default function TagAddModal({
       return;
     }
     setAdding(true);
+    let ok = 0;
+    let fail = 0;
+    const failNames: string[] = [];
     try {
       for (const id of studentIds) {
-        await attachStudentTag(id, selectedTagId);
+        try {
+          await attachStudentTag(id, selectedTagId);
+          ok++;
+        } catch {
+          fail++;
+          failNames.push(String(id));
+        }
       }
-      feedback.success(`${studentIds.length}명에게 태그를 추가했습니다.`);
-      onSuccess();
+      if (ok > 0) {
+        feedback.success(`${ok}명에게 태그를 추가했습니다.${fail > 0 ? ` (${fail}건 실패)` : ""}`);
+        onSuccess();
+      } else {
+        feedback.error(`태그 추가 실패: ${failNames.join(", ")}`);
+      }
     } catch (e) {
       feedback.error(e instanceof Error ? e.message : "태그 추가에 실패했습니다.");
     } finally {

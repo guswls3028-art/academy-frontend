@@ -221,8 +221,9 @@ export default function StudentsTable({
       case "schoolClass":
         return s.schoolClass || "-";
       case "registeredAt":
+        return s.registeredAt?.slice(0, 10) || "-";
       case "deletedAt":
-        return (s.deletedAt ?? s.registeredAt)?.slice(0, 10) || "-";
+        return s.deletedAt?.slice(0, 10) || "-";
       case "tags":
         return Array.isArray(s.tags) && s.tags.length > 0 ? (
           <span className="flex flex-wrap gap-1 justify-center">
