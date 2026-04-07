@@ -444,7 +444,7 @@ function RetakeTableRow({
 
   const isResolved = !!item.resolved_at;
   const typeLabel = item.source_type === "homework" ? "과제" : "시험";
-  const maxScore = item.max_score ?? (item.cutline_score ? undefined : 100);
+  const maxScore = item.max_score ?? 100;
 
   function handleSubmit() {
     const val = parseFloat(scoreInput);
