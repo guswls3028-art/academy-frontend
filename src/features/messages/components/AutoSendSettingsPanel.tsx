@@ -107,7 +107,7 @@ const TRIGGER_DESCRIPTIONS: Record<string, string> = {
 // Props
 // ---------------------------------------------------------------------------
 
-/** 리마인더 트리거 — "N분 전" 발송 시점 설정이 의미 있는 트리거만 */
+/** 리마인더 트리거 — "N분/시간/일 전" 발송 시점 설정이 의미 있는 트리거만 */
 const REMINDER_TRIGGERS = new Set([
   "clinic_reminder",
   "lecture_session_reminder",
@@ -116,6 +116,17 @@ const REMINDER_TRIGGERS = new Set([
   "assignment_due_hours_before",
   "payment_due_days_before",
 ]);
+
+/** 트리거별 시간 단위 라벨 */
+const REMINDER_UNIT_LABEL: Record<string, string> = {
+  exam_scheduled_days_before: "일 전",
+  assignment_due_hours_before: "시간 전",
+  payment_due_days_before: "일 전",
+};
+
+function getReminderUnit(trigger: string): string {
+  return REMINDER_UNIT_LABEL[trigger] ?? "분 전";
+}
 
 export type AutoSendSettingsPanelProps = {
   /** Which triggers to show (filter from all auto-send configs) */
@@ -495,7 +506,7 @@ function TriggerCard({
                   );
                 }}
                 disabled={saving}
-                aria-label="발송 시점 (분 전)"
+                aria-label={`발송 시점 (${getReminderUnit(config.trigger)})`}
               />
               <span
                 style={{
@@ -504,7 +515,7 @@ function TriggerCard({
                   whiteSpace: "nowrap",
                 }}
               >
-                분 전
+                {getReminderUnit(config.trigger)}
               </span>
             </div>
           </div>

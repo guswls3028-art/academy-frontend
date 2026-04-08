@@ -29,7 +29,7 @@ const B = {
   // 공통
   student_name:      { id: "student_name",      label: "이름 (전체)",      insertText: "#{학생이름}",          previewValue: "홍길동",      description: "학생 전체 이름 (예: 홍길동)" },
   student_name_2:    { id: "student_name_2",    label: "이름 (뒤 2자)",    insertText: "#{학생이름2}",         previewValue: "길동",        description: "이름 뒤 2글자 (예: 홍길동→길동, 유현진→현진)" },
-  student_name_3:    { id: "student_name_3",    label: "이름 (전체)",      insertText: "#{학생이름3}",         previewValue: "홍길동",      description: "학생 전체 이름 (#{학생이름}과 동일)" },
+  student_name_3:    { id: "student_name_3",    label: "이름 (호환)",       insertText: "#{학생이름3}",         previewValue: "홍길동",      description: "학생이름과 동일 (기존 양식 호환용)" },
   site_link:         { id: "site_link",         label: "사이트 링크",      insertText: "#{사이트링크}",        previewValue: getTenantSiteUrl(), description: "학원 홈페이지 주소" },
   date:              { id: "date",              label: "날짜",             insertText: "#{날짜}",              previewValue: "2026-03-11",  description: "발송일 날짜" },
   time:              { id: "time",              label: "시간",             insertText: "#{시간}",              previewValue: "14:00",       description: "발송 시간" },
@@ -324,7 +324,7 @@ export const ALWAYS_AVAILABLE_VARS = new Set([
   "학생아이디", "학부모아이디", "학생비밀번호", "학부모비밀번호", "비밀번호안내",
   "직원명", "부서", "직급",
   // 통합 알림톡 자동 변수 (솔라피 리스트형 템플릿에서 자동 채움)
-  "학원이름", "클리닉장소", "클리닉날짜", "클리닉시간",
+  "학원이름", "장소", "클리닉날짜", "클리닉시간",
   "클리닉기존일정", "클리닉변동사항", "클리닉수정자",
   "강의명", "차시명", "강의날짜", "강의시간",
 ]);
