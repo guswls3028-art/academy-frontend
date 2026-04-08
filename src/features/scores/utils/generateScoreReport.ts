@@ -339,6 +339,12 @@ export function substituteScoreVars(
   // 시험성적 블록 (기존 buildScoreDetail과 동일)
   vars["시험성적"] = buildScoreDetail(row, meta);
 
+  // 알림톡 전용 변수 — SMS 본문에서는 성적 상세로 치환 (#{선생님메모}는 Solapi 래퍼 변수)
+  vars["선생님메모"] = buildScoreDetail(row, meta);
+  // 기타 알림톡 전용 변수 — SMS에서 빈 문자열로 치환하여 원문 노출 방지
+  vars["내용"] = vars["내용"] ?? "";
+  vars["사이트링크"] = vars["사이트링크"] ?? "";
+
   // 치환 수행
   let result = templateBody.replace(/#\{([^}]+)\}/g, (match, varName) => {
     return vars[varName] !== undefined ? vars[varName] : match;
