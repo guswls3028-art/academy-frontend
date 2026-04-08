@@ -298,7 +298,7 @@ export default function ClinicTargetSelectModal({
           className="grid gap-4 min-h-0 overflow-hidden ds-split-layout"
           style={{
             gridTemplateColumns: "1fr 220px",
-            height: "min(78vh, 600px)",
+            minHeight: 380,
           }}
         >
           {/* 좌측: 탭 + 검색 + 테이블 + 페이지네이션 */}

@@ -98,7 +98,7 @@ export default function EnrollStudentModal({ sessionId, isOpen, onClose, onSucce
               overflow: "hidden",
             }}
           >
-            <div style={{ maxHeight: 320, overflow: "auto" }}>
+            <div style={{ maxHeight: "min(50vh, 320px)", overflow: "auto" }}>
               {isLoading ? (
                 <EmptyState mode="embedded" scope="panel" tone="loading" title="불러오는 중…" />
               ) : students.length === 0 ? (

@@ -56,6 +56,7 @@
   background: color-mix(in srgb, var(--color-brand-primary) 4%, var(--color-modal-bg));
   /* 상단 액센트 라인은 블록 하이라이트와 톤 맞춤 */
   box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.2);
+  flex-shrink: 0; /* flex 레이아웃에서 고정 크기 유지 */
 }
 
 .modal-header--confirm {
@@ -91,10 +92,32 @@
   background: var(--color-text-muted);
 }
 
+/* ========== 모달 내부 flex 레이아웃 — Header/Body/Footer 높이 분배 ========== */
+.admin-modal__inner {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 48px); /* viewport 상하 24px 여유 */
+  min-height: 0;
+}
+
 /* ========== 본문 ========== */
 .modal-body {
   padding: var(--space-4) var(--space-5);
   background: var(--color-modal-bg);
+  /* flex child: 남은 공간 채우되, 필요시 축소 가능 → Footer 접근 보장 */
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* split-layout을 가진 모달 body — 내부 grid가 남은 공간을 채움 */
+.modal-body:has(.ds-split-layout) {
+  display: flex;
+  flex-direction: column;
+}
+.modal-body > .ds-split-layout {
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 /* 탭 영역 (헤더와 본문 사이) — 모달 전용 입체감 탭 */
@@ -203,6 +226,7 @@
   background: color-mix(in srgb, var(--color-brand-primary) 2%, var(--color-modal-bg));
   position: relative;
   z-index: 1;
+  flex-shrink: 0; /* flex 레이아웃에서 고정 크기 유지 */
   box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.06);
 }
 

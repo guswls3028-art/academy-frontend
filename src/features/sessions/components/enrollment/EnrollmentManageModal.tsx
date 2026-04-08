@@ -158,8 +158,7 @@ export default function EnrollmentManageModal({
           className="grid gap-4 min-h-0 overflow-hidden ds-split-layout"
           style={{
             gridTemplateColumns: "1fr 220px",
-            maxHeight: "min(78vh, 600px)",
-            minHeight: 420,
+            minHeight: 380,
           }}
         >
           {/* 좌측: 검색 + 툴바 + 테이블 (차시 수강생 등록 모달과 동일) */}
@@ -423,7 +422,7 @@ export default function EnrollmentManageModal({
                 )}
               </div>
               <div
-                className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden rounded-lg border p-2 max-h-[310px]"
+                className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden rounded-lg border p-2"
                 style={{
                   borderColor: "var(--color-border-divider)",
                   background: "var(--color-bg-surface-soft)",
