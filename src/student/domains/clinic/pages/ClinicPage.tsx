@@ -272,7 +272,7 @@ export default function ClinicPage() {
   }
 
   // 두 쿼리 모두 실패한 경우 전체 에러 화면
-  if (sessionsError && requestsError) {
+  if (sessionsError || requestsError) {
     return (
       <StudentPageShell title="클리닉">
         <EmptyState
@@ -353,32 +353,6 @@ export default function ClinicPage() {
 
         {/* ===== 예약 탭 ===== */}
         {activeTab === "book" && (<>
-        {/* 세션 조회 에러 */}
-        {sessionsError && (
-          <div
-            className="stu-panel"
-            style={{
-              padding: "var(--stu-space-4)",
-              background: "var(--stu-danger-bg, rgba(239, 68, 68, 0.08))",
-              border: "1px solid var(--stu-danger)",
-              borderRadius: "var(--stu-radius-md)",
-              textAlign: "center",
-            }}
-          >
-            <div style={{ fontWeight: 600, fontSize: 14, color: "var(--stu-danger)", marginBottom: "var(--stu-space-2)" }}>
-              클리닉 정보를 불러오지 못했습니다.
-            </div>
-            <button
-              type="button"
-              className="stu-btn stu-btn--secondary"
-              style={{ fontSize: 13 }}
-              onClick={() => refetchSessions()}
-            >
-              다시 시도
-            </button>
-          </div>
-        )}
-
         {/* 달력 */}
         <ClinicCalendar
           selectedDate={selectedDate}
@@ -587,33 +561,6 @@ export default function ClinicPage() {
               </span>
             )}
           </div>
-
-          {/* 예약 조회 에러 */}
-          {requestsError && (
-            <div
-              className="stu-panel"
-              style={{
-                padding: "var(--stu-space-4)",
-                marginBottom: "var(--stu-space-4)",
-                background: "var(--stu-danger-bg, rgba(239, 68, 68, 0.08))",
-                border: "1px solid var(--stu-danger)",
-                borderRadius: "var(--stu-radius-md)",
-                textAlign: "center",
-              }}
-            >
-              <div style={{ fontWeight: 600, fontSize: 14, color: "var(--stu-danger)", marginBottom: "var(--stu-space-2)" }}>
-                예약 현황을 불러오지 못했습니다.
-              </div>
-              <button
-                type="button"
-                className="stu-btn stu-btn--secondary"
-                style={{ fontSize: 13 }}
-                onClick={() => refetchRequests()}
-              >
-                다시 시도
-              </button>
-            </div>
-          )}
 
           {/* 승인 대기 */}
           {pendingBookings.length > 0 && (

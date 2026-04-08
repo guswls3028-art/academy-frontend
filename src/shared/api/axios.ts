@@ -52,6 +52,8 @@ export function clearTokens() {
     localStorage.removeItem("access");
     localStorage.removeItem("refresh");
     localStorage.removeItem("parent_selected_student_id");
+    sessionStorage.removeItem("session_expired");
+    sessionStorage.removeItem("tenantCode");
   } catch {
     // ignore
   }
