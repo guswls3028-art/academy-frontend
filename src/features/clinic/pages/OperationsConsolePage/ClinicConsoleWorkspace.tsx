@@ -180,6 +180,21 @@ export default function ClinicConsoleWorkspace({
   } | null>(null);
   const [sendResultPreviewOpen, setSendResultPreviewOpen] = useState(false);
 
+  // 세션 변경 시 로컬 상태 초기화 — 이전 세션의 pending/mutating 상태가 남는 것을 방지
+  useEffect(() => {
+    setPendingStatuses(new Map());
+    setMutatingIds(new Set());
+    setCompletingIds(new Set());
+    setRetakingIds(new Set());
+    setRetakeScores(new Map());
+    setRemediatingLinkIds(new Set());
+    setDrawerParticipantId(null);
+    setSendResult(null);
+    setSendResultPreviewOpen(false);
+    setPreviewTrigger(null);
+    setStatusFilter("all");
+  }, [session?.id]);
+
   // ESC로 트리거 미리보기 닫기
   useEffect(() => {
     if (!previewTrigger) return;
@@ -188,17 +203,18 @@ export default function ClinicConsoleWorkspace({
     return () => document.removeEventListener("keydown", handler);
   }, [previewTrigger]);
 
-  // 발송 완료 팝업: Enter/ESC로 닫기
+  // 발송 완료 팝업: Enter/ESC로 닫기 (capture phase로 등록하여 drawer ESC보다 먼저 처리)
   useEffect(() => {
     if (!sendResult) return;
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape" || e.key === "Enter") {
+        e.stopImmediatePropagation();
         setSendResult(null);
         setSendResultPreviewOpen(false);
       }
     };
-    document.addEventListener("keydown", handler);
-    return () => document.removeEventListener("keydown", handler);
+    document.addEventListener("keydown", handler, true);
+    return () => document.removeEventListener("keydown", handler, true);
   }, [sendResult]);
 
   // Build enrollment_id → ClinicTarget[] map for O(1) lookup
@@ -382,6 +398,8 @@ export default function ClinicConsoleWorkspace({
   async function handleBulkConfirmStatuses() {
     const entries = Array.from(pendingStatuses.entries());
     if (entries.length === 0) return;
+    // Double-click guard: if any pending id is already mutating, bail out
+    if (entries.some(([id]) => mutatingIds.has(id))) return;
 
     const ids = entries.map(([id]) => id);
     setMutatingIds((prev) => {
@@ -878,12 +896,12 @@ export default function ClinicConsoleWorkspace({
               <div className="clinic-ops__confirm-bar-actions">
                 <div className="clinic-ops__confirm-bar-info" style={{ marginRight: 8 }}>
                   {pendingAttend.length > 0 && (
-                    <span className="clinic-ops__confirm-bar-badge clinic-ops__confirm-bar-badge--attend" style={{ opacity: 0.85, fontSize: "0.82rem" }}>
+                    <span className="clinic-ops__confirm-bar-badge clinic-ops__confirm-bar-badge--attend clinic-ops__confirm-bar-badge--delta">
                       +출석 {pendingAttend.length}명
                     </span>
                   )}
                   {pendingNoShow.length > 0 && (
-                    <span className="clinic-ops__confirm-bar-badge clinic-ops__confirm-bar-badge--noshow" style={{ opacity: 0.85, fontSize: "0.82rem" }}>
+                    <span className="clinic-ops__confirm-bar-badge clinic-ops__confirm-bar-badge--noshow clinic-ops__confirm-bar-badge--delta">
                       +결석 {pendingNoShow.length}명
                     </span>
                   )}
@@ -1663,7 +1681,14 @@ export default function ClinicConsoleWorkspace({
                       </div>
                       <div className="clinic-send-result__kakao-bubble">
                         <div className="clinic-send-result__kakao-body">
-                          {sendResult.messageBody}
+                          {(() => {
+                            let body = sendResult.messageBody;
+                            const studentName = sendResult.students[0]?.name ?? "";
+                            body = body.replace(/#{학생이름3}/g, studentName.length > 3 ? studentName.slice(0, 3) : studentName);
+                            body = body.replace(/#{학생이름}/g, studentName);
+                            if (session?.title) body = body.replace(/#{클리닉명}/g, session.title);
+                            return body;
+                          })()}
                         </div>
                       </div>
                     </div>

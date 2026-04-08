@@ -4062,9 +4062,9 @@ details[open] > .clinic-tree__summary {
 .clinic-ops__trigger-badge {
   display: inline-flex;
   align-items: center;
-  padding: 1px 6px;
+  padding: 2px 8px;
   border-radius: 4px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
   line-height: 1.6;
 }
@@ -4084,7 +4084,7 @@ details[open] > .clinic-tree__summary {
 }
 .clinic-ops__trigger-badge--off {
   background: #f3f4f6;
-  color: #9ca3af;
+  color: #6b7280;
   border: 1px solid #e5e7eb;
   text-decoration: line-through;
 }
@@ -4264,6 +4264,10 @@ details[open] > .clinic-tree__summary {
 .clinic-ops__confirm-bar-badge--noshow {
   background: color-mix(in srgb, #ef4444 14%, var(--color-bg-surface));
   color: #dc2626;
+}
+.clinic-ops__confirm-bar-badge--delta {
+  opacity: 0.85;
+  font-size: 0.82rem;
 }
 .clinic-ops__confirm-bar-hint {
   font-size: 11px;

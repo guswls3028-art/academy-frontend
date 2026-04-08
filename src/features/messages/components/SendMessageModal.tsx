@@ -681,9 +681,9 @@ export default function SendMessageModal({
 
   const handleSend = async () => {
     if (!canSend || sendingRef.current) return;
-    setShowConfirm(false);
     sendingRef.current = true;
     setSending(true);
+    setShowConfirm(false);
     const modeLabel = sendMode === "sms" ? "문자" : "알림톡";
     const taskId = `msg-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
     asyncStatusStore.addWorkerJob(`${modeLabel} 발송`, taskId, "messaging");
@@ -725,7 +725,8 @@ export default function SendMessageModal({
 
       const sendToLabel = isStaffMode ? "직원" : sendToTargets.length === 2 ? "학부모·학생" : sendToTargets[0] === "parent" ? "학부모" : "학생";
       if (totalEnqueued > 0) {
-        feedback.success(`${sendToLabel} ${modeLabel} 발송 예정 ${totalEnqueued}건입니다.`);
+        const skippedNote = totalSkipped > 0 ? ` (전화번호 없음 ${totalSkipped}건 제외)` : "";
+        feedback.success(`${sendToLabel} ${modeLabel} ${totalEnqueued}건 발송 예정${skippedNote} — 발송 내역에서 결과를 확인하세요.`);
         asyncStatusStore.completeTask(taskId, "success");
       } else {
         const hint = totalSkipped > 0
@@ -734,7 +735,6 @@ export default function SendMessageModal({
         feedback.warning(hint);
         asyncStatusStore.completeTask(taskId, "error", "발송 큐 0건");
       }
-      if (totalSkipped > 0) feedback.info(`전화번호 없음으로 ${totalSkipped}건 제외되었습니다.`);
       queryClient.invalidateQueries({ queryKey: ["messaging", "info"] });
       onClose();
     } catch (e: unknown) {
@@ -1013,7 +1013,7 @@ export default function SendMessageModal({
 
                 {/* ── 양식 패널 (접이식) ── */}
                 {showTemplatePanel && (
-                  <div style={{ borderRadius: 10, border: "1px solid var(--color-border-divider)", background: "var(--color-bg-surface)", maxHeight: 260, overflowY: "auto", padding: 10, display: "flex", flexDirection: "column", gap: 6 }}>
+                  <div style={{ borderRadius: 10, border: "1px solid var(--color-border-divider)", background: "var(--color-bg-surface)", maxHeight: 280, overflowY: "auto", padding: 10, display: "flex", flexDirection: "column", gap: 6 }}>
                     <div style={{ position: "relative", marginBottom: 2 }}>
                       <FiSearch size={13} style={{ position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)", color: "var(--color-text-muted)", pointerEvents: "none" }} />
                       <Input size="small" placeholder="양식 검색…" value={templateSearch} onChange={(e) => setTemplateSearch(e.target.value)} style={{ paddingLeft: 28, fontSize: 12 }} />
@@ -1072,7 +1072,7 @@ export default function SendMessageModal({
                   <div style={{ display: "flex", flexDirection: "column", gap: 6, padding: "10px 14px", borderRadius: 8, background: "color-mix(in srgb, var(--color-primary) 4%, var(--color-bg-surface))", border: "1px solid color-mix(in srgb, var(--color-primary) 20%, var(--color-border-divider))" }}>
                     <div style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-secondary)" }}>양식 이름을 입력하세요</div>
                     <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                      <Input size="small" placeholder="예: 3월 성적표, 림글리쉬 양식" value={saveTemplateName} onChange={(e) => setSaveTemplateName(e.target.value)} onPressEnter={handleSaveTemplate} style={{ flex: 1, fontSize: 13 }} autoFocus />
+                      <Input size="small" placeholder="예: 출결 알림, 성적표 양식" value={saveTemplateName} onChange={(e) => setSaveTemplateName(e.target.value)} onPressEnter={handleSaveTemplate} style={{ flex: 1, fontSize: 13 }} autoFocus />
                       <Button size="sm" intent="primary" onClick={handleSaveTemplate} disabled={!saveTemplateName.trim() || !body.trim() || savingTemplate}>{savingTemplate ? "저장 중…" : "저장"}</Button>
                       <Button size="sm" intent="secondary" onClick={() => setShowSaveForm(false)}>취소</Button>
                     </div>
@@ -1092,6 +1092,7 @@ export default function SendMessageModal({
                           <div style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text-secondary)" }}>직접 내용을 작성하세요</div>
                         </div>
                         <Button size="sm" intent="primary" onClick={() => { setSmsEmptyHintDismissed(true); setShowTemplatePanel(true); }} style={{ marginTop: 4 }}>양식 선택하기</Button>
+                        <button type="button" onClick={() => setSmsEmptyHintDismissed(true)} style={{ marginTop: 2, fontSize: 13, fontWeight: 600, color: "var(--color-text-muted)", background: "none", border: "none", cursor: "pointer", textDecoration: "underline", textUnderlineOffset: 2 }}>직접 작성하기</button>
                       </div>
                     )}
                     <Input.TextArea
@@ -1186,7 +1187,7 @@ export default function SendMessageModal({
 
                 {/* ── 양식 패널 (접이식) ── */}
                 {showAlimtalkPanel && (
-                  <div style={{ borderRadius: 10, border: "1px solid var(--color-border-divider)", background: "var(--color-bg-surface)", maxHeight: 300, overflowY: "auto", padding: 10, display: "flex", flexDirection: "column", gap: 6 }}>
+                  <div style={{ borderRadius: 10, border: "1px solid var(--color-border-divider)", background: "var(--color-bg-surface)", maxHeight: 280, overflowY: "auto", padding: 10, display: "flex", flexDirection: "column", gap: 6 }}>
                     <div style={{ position: "relative", marginBottom: 2 }}>
                       <FiSearch size={13} style={{ position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)", color: "var(--color-text-muted)", pointerEvents: "none" }} />
                       <Input size="small" placeholder="양식 검색…" value={templateSearch} onChange={(e) => setTemplateSearch(e.target.value)} style={{ paddingLeft: 28, fontSize: 12 }} />
@@ -1205,12 +1206,12 @@ export default function SendMessageModal({
                       <FiEdit3 size={14} style={{ color: alimtalkFreeForm && !selectedTemplate ? "var(--color-primary)" : "var(--color-text-muted)", flexShrink: 0 }} />
                       직접 작성하기
                     </button>
-                    {/* 내 양식 */}
+                    {/* 내 양식 — SMS와 동일한 관리 기능 (기본 지정/복제/삭제) */}
                     {categorizedTemplates.custom.length > 0 && (
                       <>
                         <div style={{ fontSize: 10, fontWeight: 700, color: "var(--color-text-muted)", padding: "6px 4px 2px", letterSpacing: "0.5px" }}>내 양식</div>
                         {categorizedTemplates.custom.map((t) => (
-                          <TemplateCard key={t.id} template={t} isSelected={selectedTemplateId === t.id} onClick={() => { selectTemplate(t); setShowAlimtalkPanel(false); setAlimtalkFreeForm(false); }} />
+                          <TemplatePickerCard key={t.id} template={t} isSelected={selectedTemplateId === t.id} onSelect={() => { selectTemplate(t); setShowAlimtalkPanel(false); setAlimtalkFreeForm(false); }} onSetDefault={() => handleSetDefault(t.id)} onDuplicate={() => handleDuplicate(t.id)} onDelete={() => handleDeleteTemplate(t.id)} />
                         ))}
                       </>
                     )}
@@ -1219,7 +1220,7 @@ export default function SendMessageModal({
                       <>
                         <div style={{ fontSize: 10, fontWeight: 700, color: "var(--color-text-muted)", padding: "6px 4px 2px", letterSpacing: "0.5px" }}>시스템 기본 양식</div>
                         {categorizedTemplates.defaults.map((t) => (
-                          <TemplateCard key={t.id} template={t} isSelected={selectedTemplateId === t.id} onClick={() => { selectTemplate(t); setShowAlimtalkPanel(false); setAlimtalkFreeForm(false); }} />
+                          <TemplatePickerCard key={t.id} template={t} isSelected={selectedTemplateId === t.id} onSelect={() => { selectTemplate(t); setShowAlimtalkPanel(false); setAlimtalkFreeForm(false); }} onSetDefault={() => handleSetDefault(t.id)} onDuplicate={() => handleDuplicate(t.id)} onDelete={null} />
                         ))}
                       </>
                     )}
@@ -1250,7 +1251,7 @@ export default function SendMessageModal({
                   <div style={{ display: "flex", flexDirection: "column", gap: 6, padding: "10px 14px", borderRadius: 8, background: "color-mix(in srgb, var(--color-primary) 4%, var(--color-bg-surface))", border: "1px solid color-mix(in srgb, var(--color-primary) 20%, var(--color-border-divider))" }}>
                     <div style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-secondary)" }}>양식 이름을 입력하세요</div>
                     <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                      <Input size="small" placeholder="예: 출결 알림, 성적 안내" value={saveTemplateName} onChange={(e) => setSaveTemplateName(e.target.value)} onPressEnter={handleSaveTemplate} style={{ flex: 1, fontSize: 13 }} autoFocus />
+                      <Input size="small" placeholder="예: 출결 알림, 성적표 양식" value={saveTemplateName} onChange={(e) => setSaveTemplateName(e.target.value)} onPressEnter={handleSaveTemplate} style={{ flex: 1, fontSize: 13 }} autoFocus />
                       <Button size="sm" intent="primary" onClick={handleSaveTemplate} disabled={!saveTemplateName.trim() || !body.trim() || savingTemplate}>{savingTemplate ? "저장 중…" : "저장"}</Button>
                       <Button size="sm" intent="secondary" onClick={() => setShowSaveForm(false)}>취소</Button>
                     </div>
@@ -1280,7 +1281,8 @@ export default function SendMessageModal({
                           <div style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text-secondary)", marginBottom: 4 }}>양식을 선택하거나</div>
                           <div style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text-secondary)" }}>직접 내용을 작성하세요</div>
                         </div>
-                        <Button size="sm" intent="primary" onClick={() => { setAlimtalkFreeForm(true); }} style={{ marginTop: 4 }}>직접 작성하기</Button>
+                        <Button size="sm" intent="primary" onClick={() => { setAlimtalkFreeForm(true); setShowAlimtalkPanel(true); }} style={{ marginTop: 4 }}>양식 선택하기</Button>
+                        <button type="button" onClick={() => setAlimtalkFreeForm(true)} style={{ marginTop: 2, fontSize: 13, fontWeight: 600, color: "var(--color-text-muted)", background: "none", border: "none", cursor: "pointer", textDecoration: "underline", textUnderlineOffset: 2 }}>직접 작성하기</button>
                       </div>
                     )}
                     <Input.TextArea
@@ -1368,12 +1370,19 @@ export default function SendMessageModal({
                   </span>
                 </div>
               )}
-              {sendMode === "sms" && (
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
-                  <span style={{ color: "var(--color-text-muted)" }}>본문 길이</span>
-                  <span style={{ fontWeight: 600, color: "var(--color-text-secondary)" }}>{body.length}자</span>
-                </div>
-              )}
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
+                <span style={{ color: "var(--color-text-muted)" }}>본문</span>
+                <span style={{ fontWeight: 600, color: "var(--color-text-secondary)" }}>{body.length}자</span>
+              </div>
+              {/* 본문 미리보기 */}
+              <div style={{
+                fontSize: 12, color: "var(--color-text-secondary)", lineHeight: 1.5,
+                padding: "8px 10px", borderRadius: 8, marginTop: 2,
+                background: "var(--color-bg-surface)", border: "1px solid var(--color-border-divider)",
+                maxHeight: 80, overflowY: "auto", whiteSpace: "pre-wrap", wordBreak: "break-word",
+              }}>
+                {body.slice(0, 200)}{body.length > 200 ? "…" : ""}
+              </div>
             </div>
             {sendMode === "sms" && body.length > 90 && (
               <div style={{
