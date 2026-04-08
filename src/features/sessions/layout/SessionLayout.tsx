@@ -7,9 +7,11 @@ import api from "@/shared/api/axios";
 import { DomainLayout } from "@/shared/ui/layout";
 import { formatSessionOrderLabel } from "@/shared/ui/session-block";
 import { useSessionParams } from "../hooks/useSessionParams";
+import { useSectionMode } from "@/shared/hooks/useSectionMode";
 
 export default function SessionLayout() {
   const { lectureId, sessionId } = useSessionParams();
+  const { sectionMode } = useSectionMode();
 
   const { data: session, isLoading } = useQuery({
     queryKey: ["session", sessionId],
@@ -30,19 +32,20 @@ export default function SessionLayout() {
       ? `/admin/lectures/${lectureId}/sessions/${sessionId}`
       : "";
 
-  const tabs = useMemo(
-    () =>
-      base
-        ? [
-            { key: "attendance", label: "출결", path: `${base}/attendance` },
-            { key: "scores", label: "성적", path: `${base}/scores` },
-            { key: "exams", label: "시험", path: `${base}/exams` },
-            { key: "assignments", label: "과제", path: `${base}/assignments` },
-            { key: "videos", label: "영상", path: `${base}/videos` },
-          ]
-        : [],
-    [base]
-  );
+  const tabs = useMemo(() => {
+    if (!base) return [];
+    const items = [
+      { key: "attendance", label: "출결", path: `${base}/attendance` },
+      { key: "scores", label: "성적", path: `${base}/scores` },
+      { key: "exams", label: "시험", path: `${base}/exams` },
+      { key: "assignments", label: "과제", path: `${base}/assignments` },
+      { key: "videos", label: "영상", path: `${base}/videos` },
+    ];
+    if (sectionMode) {
+      items.push({ key: "clinic", label: "정규 클리닉", path: `${base}/clinic` });
+    }
+    return items;
+  }, [base, sectionMode]);
 
   if (!lectureId || !sessionId) {
     return (
@@ -55,7 +58,7 @@ export default function SessionLayout() {
   if (isLoading || !session) return null;
 
   const lectureTitle = lecture?.title ?? lecture?.name ?? "강의";
-  const sectionLabel = session.section_label
+  const sectionLabel = sectionMode && session.section_label
     ? `${session.section_label}반`
     : null;
   const sectionType = session.section_type === "CLINIC" ? "클리닉" : null;

@@ -37,13 +37,15 @@ import AssessmentDeleteBar from "../components/AssessmentDeleteBar";
 import SessionAttendancePage from "@/features/lectures/pages/attendance/SessionAttendancePage";
 import SessionScoresEntryPage from "@/features/lectures/pages/scores/SessionScoresEntryPage";
 import SessionAssessmentWorkspace from "@/features/sessions/components/SessionAssessmentWorkspace";
+import SessionClinicTab from "@/features/sessions/components/SessionClinicTab";
 
 type SessionTab =
   | "attendance"
   | "scores"
   | "exams"
   | "assignments"
-  | "videos";
+  | "videos"
+  | "clinic";
 
 async function fetchSession(id: number) {
   const res = await api.get(`/lectures/sessions/${id}/`);
@@ -80,6 +82,7 @@ export default function SessionDetailPage() {
     if (p.includes("/exams")) return "exams";
     if (p.includes("/assignments")) return "assignments";
     if (p.includes("/videos")) return "videos";
+    if (p.includes("/clinic")) return "clinic";
     if (p.includes("/attendance")) return "attendance";
     return "attendance";
   }, [location.pathname, basePath]);
@@ -267,6 +270,10 @@ export default function SessionDetailPage() {
 
           {activeTab === "videos" && (
             <SessionVideosTab sessionId={sId} />
+          )}
+
+          {activeTab === "clinic" && (
+            <SessionClinicTab sessionId={sId} lectureId={lecId} />
           )}
         </div>
       </div>

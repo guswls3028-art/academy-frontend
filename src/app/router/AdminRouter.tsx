@@ -183,6 +183,7 @@ export default function AdminRouter() {
           <Route path="exams" element={<SessionDetailPage />} />
           <Route path="assignments" element={<SessionDetailPage />} />
           <Route path="videos" element={<SessionDetailPage />} />
+          <Route path="clinic" element={<SessionDetailPage />} />
           <Route path="videos/:videoId" element={wrapLazy(VideoDetailPage)} />
         </Route>
 
