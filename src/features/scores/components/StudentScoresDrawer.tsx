@@ -579,7 +579,7 @@ function AttemptTimeline({
       {data && !error && (
         <div className="ssd-attempts">
           {/* ── 차수별 카드 블록 ── */}
-          {data.attempts.map((a) => {
+          {(data.attempts ?? []).map((a) => {
             const isEditing = editingAttempt === a.attempt_index;
             const canEdit = a.attempt_index === 1 || (a.attempt_index >= 2 && data.clinic_link_id != null);
             const isMutating = editFirstMutation.isPending || updateMutation.isPending || retakeMutation.isPending;

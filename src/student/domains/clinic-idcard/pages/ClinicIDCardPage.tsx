@@ -116,10 +116,10 @@ export default function ClinicIDCardPage() {
       {/* 차시별 이력 (1~n) — 읽기 전용 */}
       <div className="idcard-page__history-label">차시별 이력 (합격/클리닉 대상)</div>
       <div className="idcard-page__history-grid">
-        {data.histories.length === 0 ? (
+        {(data.histories?.length ?? 0) === 0 ? (
           <div className="idcard-page__history-empty">차시 이력이 없습니다.</div>
         ) : (
-          data.histories.map((h) => (
+          (data.histories ?? []).map((h) => (
             <div
               key={h.session_order}
               className={`idcard-page__history-item ${h.clinic_required ? "idcard-page__history-item--clinic" : "idcard-page__history-item--pass"}`}

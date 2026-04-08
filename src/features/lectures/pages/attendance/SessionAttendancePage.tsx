@@ -391,27 +391,51 @@ export default function SessionAttendancePage({
       </div>
       {totalPages > 1 && (
         <div className="flex flex-wrap items-center gap-1 pl-1">
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-            <button
-              key={p}
-              type="button"
-              onClick={() => setPage(p)}
-              style={{
-                minWidth: 32,
-                height: 32,
-                padding: "0 8px",
-                fontSize: 13,
-                fontWeight: page === p ? 700 : 500,
-                borderRadius: 6,
-                border: page === p ? "2px solid var(--color-primary)" : "1px solid var(--color-border-divider)",
-                background: page === p ? "var(--state-selected-bg)" : "var(--color-bg-surface)",
-                color: page === p ? "var(--color-primary)" : "var(--color-text-secondary)",
-                cursor: "pointer",
-              }}
-            >
-              {p}
-            </button>
-          ))}
+          {(() => {
+            const maxVisible = 7;
+            let start = Math.max(1, page - Math.floor(maxVisible / 2));
+            let end = Math.min(totalPages, start + maxVisible - 1);
+            if (end - start + 1 < maxVisible) start = Math.max(1, end - maxVisible + 1);
+            const pages: number[] = [];
+            for (let i = start; i <= end; i++) pages.push(i);
+            return (
+              <>
+                {start > 1 && (
+                  <>
+                    <button type="button" onClick={() => setPage(1)} style={{ minWidth: 32, height: 32, padding: "0 8px", fontSize: 13, fontWeight: 500, borderRadius: 6, border: "1px solid var(--color-border-divider)", background: "var(--color-bg-surface)", color: "var(--color-text-secondary)", cursor: "pointer" }}>1</button>
+                    {start > 2 && <span style={{ fontSize: 13, color: "var(--color-text-muted)", padding: "0 4px" }}>…</span>}
+                  </>
+                )}
+                {pages.map((p) => (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => setPage(p)}
+                    style={{
+                      minWidth: 32,
+                      height: 32,
+                      padding: "0 8px",
+                      fontSize: 13,
+                      fontWeight: page === p ? 700 : 500,
+                      borderRadius: 6,
+                      border: page === p ? "2px solid var(--color-primary)" : "1px solid var(--color-border-divider)",
+                      background: page === p ? "var(--state-selected-bg)" : "var(--color-bg-surface)",
+                      color: page === p ? "var(--color-primary)" : "var(--color-text-secondary)",
+                      cursor: "pointer",
+                    }}
+                  >
+                    {p}
+                  </button>
+                ))}
+                {end < totalPages && (
+                  <>
+                    {end < totalPages - 1 && <span style={{ fontSize: 13, color: "var(--color-text-muted)", padding: "0 4px" }}>…</span>}
+                    <button type="button" onClick={() => setPage(totalPages)} style={{ minWidth: 32, height: 32, padding: "0 8px", fontSize: 13, fontWeight: 500, borderRadius: 6, border: "1px solid var(--color-border-divider)", background: "var(--color-bg-surface)", color: "var(--color-text-secondary)", cursor: "pointer" }}>{totalPages}</button>
+                  </>
+                )}
+              </>
+            );
+          })()}
         </div>
       )}
     </div>

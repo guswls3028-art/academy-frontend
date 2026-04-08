@@ -214,7 +214,7 @@ function CommentRow({
         )}
 
         {/* 대댓글 토글 */}
-        {!isReply && comment.replies.length > 0 && (
+        {!isReply && (comment.replies?.length ?? 0) > 0 && (
           <div style={{ marginTop: 6 }}>
             <button
               onClick={() => setShowReplies(!showReplies)}
@@ -228,13 +228,13 @@ function CommentRow({
                 fontWeight: 600,
               }}
             >
-              {showReplies ? "▲ 답글 숨기기" : `▼ 답글 ${comment.replies.length}개`}
+              {showReplies ? "▲ 답글 숨기기" : `▼ 답글 ${comment.replies?.length ?? 0}개`}
             </button>
           </div>
         )}
 
         {/* 대댓글 목록 */}
-        {showReplies && comment.replies.map((r) => (
+        {showReplies && (comment.replies ?? []).map((r) => (
           <CommentRow key={r.id} comment={r} videoId={videoId} isReply />
         ))}
       </div>

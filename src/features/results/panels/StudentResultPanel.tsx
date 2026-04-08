@@ -152,7 +152,7 @@ export default function StudentResultPanel({ examId, enrollmentId }: Props) {
       <div className="flex-1 overflow-auto p-4">
         {tab === "items" && (
           <ul className="space-y-1 text-sm">
-            {data.items.map((it) => {
+            {(data.items ?? []).map((it) => {
               const isEditableItem = it.is_editable === true;
 
               return (

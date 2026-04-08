@@ -88,10 +88,10 @@ export default function SessionExamSummaryPanel({
                 >
                   <td style={{ textAlign: "left", fontWeight: 600 }}>{row.title}</td>
                   <td>{row.participant_count}</td>
-                  <td>{row.avg_score.toFixed(1)}</td>
-                  <td>{row.min_score}</td>
-                  <td>{row.max_score}</td>
-                  <td>{(row.pass_rate * 100).toFixed(1)}%</td>
+                  <td>{row.avg_score != null ? row.avg_score.toFixed(1) : "-"}</td>
+                  <td>{row.min_score ?? "-"}</td>
+                  <td>{row.max_score ?? "-"}</td>
+                  <td>{row.pass_rate != null ? (row.pass_rate * 100).toFixed(1) + "%" : "-"}</td>
                   <td>{row.clinic_count}</td>
                 </tr>
               );
