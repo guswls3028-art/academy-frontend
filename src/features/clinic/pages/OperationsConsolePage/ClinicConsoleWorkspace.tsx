@@ -841,6 +841,9 @@ export default function ClinicConsoleWorkspace({
                     const isSelfStudy = targets.length === 0;
                     const unresolvedTargets = targets.filter((t) => !t.resolved_at && t.clinic_link_id);
                     const isCompleted = !!p.completed_at;
+                    // 결석/취소 상태에서는 완료 버튼 숨김
+                    const isAbsentOrCancelled = p.status === "no_show" || p.status === "cancelled" || p.status === "rejected";
+                    if (isAbsentOrCancelled) return null;
 
                     if (isSelfStudy) {
                       // 자율학습: 완료 토글 버튼
