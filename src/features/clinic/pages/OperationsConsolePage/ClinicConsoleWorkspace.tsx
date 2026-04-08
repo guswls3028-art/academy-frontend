@@ -1727,8 +1727,15 @@ export default function ClinicConsoleWorkspace({
                             let body = sendResult.messageBody;
                             const studentName = sendResult.students[0]?.name ?? "";
                             body = body.replace(/#{학생이름3}/g, studentName.length > 3 ? studentName.slice(0, 3) : studentName);
+                            body = body.replace(/#{학생이름2}/g, studentName.length >= 2 ? studentName.slice(-2) : studentName);
                             body = body.replace(/#{학생이름}/g, studentName);
-                            if (session?.title) body = body.replace(/#{클리닉명}/g, session.title);
+                            body = body.replace(/#{클리닉명}/g, session?.title || "");
+                            body = body.replace(/#{클리닉날짜}/g, session?.date || selectedDate || "");
+                            body = body.replace(/#{클리닉시간}/g, formatTime(session?.start_time));
+                            body = body.replace(/#{클리닉장소}/g, session?.location || "");
+                            body = body.replace(/#{장소}/g, session?.location || "");
+                            // 남은 미치환 변수 제거
+                            body = body.replace(/#\{[^}]+\}/g, "");
                             return body;
                           })()}
                         </div>
