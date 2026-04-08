@@ -27,9 +27,9 @@ export interface TemplateBlock {
 
 const B = {
   // 공통
-  student_name:      { id: "student_name",      label: "학생 이름",        insertText: "#{학생이름}",          previewValue: "홍길동",      description: "학생 전체 이름" },
-  student_name_2:    { id: "student_name_2",    label: "이름(성 제외)",    insertText: "#{학생이름2}",         previewValue: "길동",        description: "성 제외 이름 (예: 홍길동→길동, 유현진→현진, 이준→준)" },
-  student_name_3:    { id: "student_name_3",    label: "이름 3글자",       insertText: "#{학생이름3}",         previewValue: "홍길동",      description: "이름 앞 3자 (3글자 이름은 전체)" },
+  student_name:      { id: "student_name",      label: "이름 (전체)",      insertText: "#{학생이름}",          previewValue: "홍길동",      description: "학생 전체 이름 (예: 홍길동)" },
+  student_name_2:    { id: "student_name_2",    label: "이름 (뒤 2자)",    insertText: "#{학생이름2}",         previewValue: "길동",        description: "이름 뒤 2글자 (예: 홍길동→길동, 유현진→현진)" },
+  student_name_3:    { id: "student_name_3",    label: "이름 (전체)",      insertText: "#{학생이름3}",         previewValue: "홍길동",      description: "학생 전체 이름 (#{학생이름}과 동일)" },
   site_link:         { id: "site_link",         label: "사이트 링크",      insertText: "#{사이트링크}",        previewValue: getTenantSiteUrl(), description: "학원 홈페이지 주소" },
   date:              { id: "date",              label: "날짜",             insertText: "#{날짜}",              previewValue: "2026-03-11",  description: "발송일 날짜" },
   time:              { id: "time",              label: "시간",             insertText: "#{시간}",              previewValue: "14:00",       description: "발송 시간" },

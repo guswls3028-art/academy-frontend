@@ -227,7 +227,10 @@ export function substituteScoreVars(
   const vars: Record<string, string> = {};
 
   // 기본 변수
-  vars["학생이름"] = row.student_name || "";
+  const studentName = row.student_name || "";
+  vars["학생이름"] = studentName;
+  vars["학생이름2"] = studentName.length >= 2 ? studentName.slice(-2) : studentName;
+  vars["학생이름3"] = studentName;
   vars["강의명"] = options.lectureName || (row as any).lecture_title || "";
   vars["차시명"] = options.sessionTitle || (row as any).session_title || "";
   vars["날짜"] = formatDate(options.date);
