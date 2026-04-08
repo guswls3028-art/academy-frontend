@@ -3,7 +3,7 @@
 
 import { useParams, useNavigate, Navigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 
 import {
@@ -90,6 +90,9 @@ export default function StaffDetailOverlay() {
   const sid = Number(staffId);
   const [tab, setTab] = useState("summary");
   const [editOpen, setEditOpen] = useState(false);
+
+  // staffId 변경 시 탭을 기본값으로 리셋
+  useEffect(() => { setTab("summary"); }, [sid]);
   const confirm = useConfirm();
   const deleteMutation = useDeleteStaff();
   const onClose = () => navigate(-1);

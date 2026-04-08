@@ -37,7 +37,7 @@ export default function InspectOverlayShell({
       style={{
         position: "fixed",
         inset: 0,
-        zIndex: 50,
+        zIndex: 1000,
         background: "rgba(0,0,0,0.45)",
         display: "flex",
         justifyContent: "center",

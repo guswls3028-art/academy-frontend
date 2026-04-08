@@ -55,21 +55,27 @@ export default function SessionItemBrowser({
   const [homeworks, setHomeworks] = useState<HomeworkListItem[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
-  // loading
+  // loading & error
   const [lecturesLoading, setLecturesLoading] = useState(true);
   const [sessionsLoading, setSessionsLoading] = useState(false);
   const [itemsLoading, setItemsLoading] = useState(false);
+  const [lecturesError, setLecturesError] = useState(false);
+  const [sessionsError, setSessionsError] = useState(false);
+  const [itemsError, setItemsError] = useState(false);
   const [keyword, setKeyword] = useState("");
 
   // Load lectures
   useEffect(() => {
     let cancelled = false;
     setLecturesLoading(true);
+    setLecturesError(false);
     fetchLectures({ is_active: true })
       .then((items) => {
         if (!cancelled) setLectures(items);
       })
-      .catch(() => {})
+      .catch(() => {
+        if (!cancelled) setLecturesError(true);
+      })
       .finally(() => {
         if (!cancelled) setLecturesLoading(false);
       });
@@ -88,13 +94,16 @@ export default function SessionItemBrowser({
     setExams([]);
     setHomeworks([]);
     setSelectedIds(new Set());
+    setSessionsError(false);
     fetchSessions(selectedLectureId)
       .then((items) => {
         if (!cancelled) {
           setSessions(items.filter((s) => s.id !== excludeSessionId));
         }
       })
-      .catch(() => {})
+      .catch(() => {
+        if (!cancelled) setSessionsError(true);
+      })
       .finally(() => {
         if (!cancelled) setSessionsLoading(false);
       });
@@ -113,12 +122,15 @@ export default function SessionItemBrowser({
     setItemsLoading(true);
     setSelectedIds(new Set());
 
+    setItemsError(false);
     if (mode === "exam") {
       fetchExams({ session_id: selectedSessionId, exam_type: "regular" })
         .then((items) => {
           if (!cancelled) setExams(items);
         })
-        .catch(() => {})
+        .catch(() => {
+          if (!cancelled) setItemsError(true);
+        })
         .finally(() => {
           if (!cancelled) setItemsLoading(false);
         });
@@ -127,7 +139,9 @@ export default function SessionItemBrowser({
         .then((items) => {
           if (!cancelled) setHomeworks(items);
         })
-        .catch(() => {})
+        .catch(() => {
+          if (!cancelled) setItemsError(true);
+        })
         .finally(() => {
           if (!cancelled) setItemsLoading(false);
         });
@@ -198,6 +212,8 @@ export default function SessionItemBrowser({
         <label className="modal-section-label">강의 선택</label>
         {lecturesLoading ? (
           <div className="text-sm text-[var(--color-text-muted)]">불러오는 중…</div>
+        ) : lecturesError ? (
+          <div className="text-sm text-[var(--color-danger)]">강의 목록을 불러오지 못했습니다.</div>
         ) : lectures.length === 0 ? (
           <div className="text-sm text-[var(--color-text-muted)]">등록된 강의가 없습니다.</div>
         ) : (
@@ -222,6 +238,8 @@ export default function SessionItemBrowser({
           <label className="modal-section-label">차시 선택</label>
           {sessionsLoading ? (
             <div className="text-sm text-[var(--color-text-muted)]">불러오는 중…</div>
+          ) : sessionsError ? (
+            <div className="text-sm text-[var(--color-danger)]">차시 목록을 불러오지 못했습니다.</div>
           ) : sessions.length === 0 ? (
             <div className="text-sm text-[var(--color-text-muted)]">
               {selectedLecture ? `"${selectedLecture.title}"에 다른 차시가 없습니다.` : "차시가 없습니다."}
@@ -279,6 +297,10 @@ export default function SessionItemBrowser({
 
           {itemsLoading ? (
             <div className="text-sm text-[var(--color-text-muted)]">불러오는 중…</div>
+          ) : itemsError ? (
+            <div className="rounded border border-[var(--color-danger)] p-4 text-center text-sm text-[var(--color-danger)]">
+              {mode === "exam" ? "시험" : "과제"} 목록을 불러오지 못했습니다.
+            </div>
           ) : filteredItems.length === 0 ? (
             <div className="rounded border border-[var(--color-border-divider)] p-4 text-center text-sm text-[var(--color-text-muted)]">
               {keyword ? "검색 결과가 없습니다." : mode === "exam" ? "이 차시에 시험이 없습니다." : "이 차시에 과제가 없습니다."}

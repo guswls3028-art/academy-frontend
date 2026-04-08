@@ -29,7 +29,7 @@ function formatBytes(bytes: number): string {
 function formatDate(iso: string): string {
   if (!iso) return "";
   const d = new Date(iso);
-  return `${d.getMonth() + 1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2, "0")}`;
+  return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 
 export default function SubmitScorePage() {

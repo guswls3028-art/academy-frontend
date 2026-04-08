@@ -12,7 +12,7 @@
  * - HomeworkScore 생성 ❌
  */
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { HomeworkTabKey, HomeworkSummary } from "../types";
 
 import HomeworkHeader from "./common/HomeworkHeader";
@@ -39,6 +39,9 @@ export default function AdminHomeworkDetail({
 }) {
   const [activeTab, setActiveTab] = useState<HomeworkTabKey>("setup");
   const { data, isLoading, isError } = useAdminHomework(homeworkId);
+
+  // homeworkId 변경 시 탭 리셋
+  useEffect(() => { setActiveTab("setup"); }, [homeworkId]);
 
   if (!Number.isFinite(homeworkId) || homeworkId <= 0) {
     return <EmptyState scope="panel" tone="error" title="과제 ID가 올바르지 않습니다." />;

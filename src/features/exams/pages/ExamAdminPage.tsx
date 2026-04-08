@@ -2,7 +2,7 @@
  * 시험 (사이드바) — 아이콘 카드 그리드 + 추가 모달
  */
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchExams } from "../api/exams";
@@ -177,6 +177,17 @@ function ExamAddModal({ open, onClose, onSuccess }: { open: boolean; onClose: ()
   const [busy, setBusy] = useState(false);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+
+  // 모달 열릴 때 폼 상태 초기화
+  useEffect(() => {
+    if (open) {
+      setStep("select");
+      setSelectedLecture(null);
+      setSelectedSession(null);
+      setTitle("");
+      setSubject("");
+    }
+  }, [open]);
 
   const { data: lectures = [] } = useQuery({
     queryKey: ["admin-lectures-for-exam-add"],

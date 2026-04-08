@@ -235,6 +235,7 @@ export default function SessionAssessmentSidePanel({
 
   const [openApplyBundle, setOpenApplyBundle] = useState(false);
   const [examBusy, setExamBusy] = useState<{ id: number; action: "start" | "end" } | null>(null);
+  const [hwBusy, setHwBusy] = useState<{ id: number; action: "start" | "end" } | null>(null);
 
   const examId = useMemo(() => {
     const v = Number(searchParams.get("examId"));
@@ -246,7 +247,7 @@ export default function SessionAssessmentSidePanel({
     return Number.isFinite(v) ? v : null;
   }, [searchParams]);
 
-  const { data: exams = [], isLoading: examsLoading } = useQuery({
+  const { data: exams = [], isLoading: examsLoading, isError: examsError } = useQuery({
     queryKey: ["admin-session-exams", sessionId],
     queryFn: () => fetchAdminSessionExams(sessionId),
     enabled: !!sessionId,
@@ -276,7 +277,7 @@ export default function SessionAssessmentSidePanel({
     enabled: !!sessionId,
   });
 
-  const { data: homeworks = [], isLoading: hwLoading } = useQuery({
+  const { data: homeworks = [], isLoading: hwLoading, isError: hwError } = useQuery({
     queryKey: ["session-homeworks", sessionId],
     queryFn: async (): Promise<HomeworkItem[]> => {
       const res = await api.get("/homeworks/", { params: { session_id: sessionId } });
@@ -353,27 +354,35 @@ export default function SessionAssessmentSidePanel({
         if (cancelled) return;
 
         // Auto-close all OPEN exams and homeworks
+        let failCount = 0;
         const promises: Promise<any>[] = [];
         for (const exam of exams) {
           if (exam.status === "OPEN") {
-            promises.push(updateAdminExam(Number(exam.exam_id), { status: "CLOSED" }).catch(() => {}));
+            promises.push(
+              updateAdminExam(Number(exam.exam_id), { status: "CLOSED" }).catch(() => { failCount++; }),
+            );
           }
         }
         for (const hw of homeworks) {
           if (hw.status === "OPEN") {
-            promises.push(updateAdminHomework(hw.id, { status: "CLOSED" }).catch(() => {}));
+            promises.push(
+              updateAdminHomework(hw.id, { status: "CLOSED" }).catch(() => { failCount++; }),
+            );
           }
         }
         if (promises.length > 0) {
           await Promise.all(promises);
           if (!cancelled) {
+            if (failCount > 0) {
+              feedback.warning(`자동 마감 중 ${failCount}건이 실패했습니다. 수동으로 확인해 주세요.`);
+            }
             qc.invalidateQueries({ queryKey: ["admin-session-exams", sessionId] });
             qc.invalidateQueries({ queryKey: ["session-homeworks", sessionId] });
             qc.invalidateQueries({ queryKey: ["session-scores", sessionId] });
           }
         }
       } catch {
-        // best-effort
+        if (!cancelled) feedback.warning("자동 마감 처리 중 오류가 발생했습니다.");
       } finally {
         if (!cancelled) setAutoCloseDone(true);
       }
@@ -395,6 +404,8 @@ export default function SessionAssessmentSidePanel({
   };
 
   const handleHomeworkProgress = async (hw: HomeworkItem) => {
+    if (hwBusy) return;
+    setHwBusy({ id: hw.id, action: "start" });
     try {
       await updateAdminHomework(hw.id, { status: "OPEN" });
       invalidateHomeworks();
@@ -402,10 +413,14 @@ export default function SessionAssessmentSidePanel({
       feedback.success("과제를 진행 중으로 변경했습니다.");
     } catch (e: any) {
       feedback.error(e?.response?.data?.detail ?? "변경 실패");
+    } finally {
+      setHwBusy(null);
     }
   };
 
   const handleHomeworkClose = async (hw: HomeworkItem) => {
+    if (hwBusy) return;
+    setHwBusy({ id: hw.id, action: "end" });
     try {
       await updateAdminHomework(hw.id, { status: "CLOSED" });
       invalidateHomeworks();
@@ -413,6 +428,8 @@ export default function SessionAssessmentSidePanel({
       feedback.success("과제를 종료했습니다.");
     } catch (e: any) {
       feedback.error(e?.response?.data?.detail ?? "변경 실패");
+    } finally {
+      setHwBusy(null);
     }
   };
 
@@ -481,7 +498,8 @@ export default function SessionAssessmentSidePanel({
 
         <div style={S.itemList}>
           {examsLoading && <EmptyState>불러오는 중...</EmptyState>}
-          {!examsLoading && exams.length === 0 && <EmptyState>등록된 시험이 없습니다</EmptyState>}
+          {!examsLoading && examsError && <EmptyState>시험 목록을 불러오지 못했습니다</EmptyState>}
+          {!examsLoading && !examsError && exams.length === 0 && <EmptyState>등록된 시험이 없습니다</EmptyState>}
           {exams.map((exam: SessionExamRow) => {
             const active = examId != null && Number(exam.exam_id) === examId;
             const busy = examBusy?.id === Number(exam.exam_id) ? examBusy.action : null;
@@ -520,7 +538,8 @@ export default function SessionAssessmentSidePanel({
 
         <div style={S.itemList}>
           {hwLoading && <EmptyState>불러오는 중...</EmptyState>}
-          {!hwLoading && homeworks.length === 0 && <EmptyState>등록된 과제가 없습니다</EmptyState>}
+          {!hwLoading && hwError && <EmptyState>과제 목록을 불러오지 못했습니다</EmptyState>}
+          {!hwLoading && !hwError && homeworks.length === 0 && <EmptyState>등록된 과제가 없습니다</EmptyState>}
           {homeworks.map((hw) => {
             const active = homeworkId === hw.id;
             const cutlineMode = homeworkPolicy?.cutline_mode ?? "PERCENT";
@@ -533,6 +552,7 @@ export default function SessionAssessmentSidePanel({
                 status={hw.status ?? "OPEN"}
                 cutlineMode={cutlineMode}
                 cutlineValue={cutlineValue}
+                busy={hwBusy?.id === hw.id}
                 onSelect={() => onSelectHomework(hw.id)}
                 onStart={(e) => { e.stopPropagation(); handleHomeworkProgress(hw); }}
                 onEnd={(e) => { e.stopPropagation(); handleHomeworkClose(hw); }}
@@ -657,6 +677,7 @@ function HomeworkItemCard({
   status,
   cutlineMode,
   cutlineValue,
+  busy,
   onSelect,
   onStart,
   onEnd,
@@ -666,6 +687,7 @@ function HomeworkItemCard({
   status: "DRAFT" | "OPEN" | "CLOSED";
   cutlineMode: "PERCENT" | "COUNT";
   cutlineValue: number;
+  busy?: boolean;
   onSelect: () => void;
   onStart: (e: React.MouseEvent) => void;
   onEnd: (e: React.MouseEvent) => void;
@@ -702,8 +724,8 @@ function HomeworkItemCard({
         </div>
         <div style={S.actionsRow} onClick={(e) => e.stopPropagation()}>
           {isOpen && (
-            <Button type="button" size="sm" intent="secondary" onClick={onEnd}>
-              과제 종료
+            <Button type="button" size="sm" intent="secondary" onClick={onEnd} disabled={busy}>
+              {busy ? "처리 중…" : "과제 종료"}
             </Button>
           )}
         </div>

@@ -36,14 +36,26 @@ export default function ConfirmDialog({
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.preventDefault();
+        e.stopImmediatePropagation();
         onCancel();
       } else if (e.key === "Enter") {
+        // input/textarea/select/contenteditable에서는 Enter 무시
+        const tag = (e.target as HTMLElement)?.tagName;
+        if (
+          tag === "INPUT" ||
+          tag === "TEXTAREA" ||
+          tag === "SELECT" ||
+          (e.target as HTMLElement)?.isContentEditable
+        ) {
+          return;
+        }
         e.preventDefault();
+        e.stopImmediatePropagation();
         onConfirm();
       }
     };
-    document.addEventListener("keydown", handler);
-    return () => document.removeEventListener("keydown", handler);
+    document.addEventListener("keydown", handler, true);
+    return () => document.removeEventListener("keydown", handler, true);
   }, [onConfirm, onCancel]);
 
   // Focus confirm button on mount for accessibility
