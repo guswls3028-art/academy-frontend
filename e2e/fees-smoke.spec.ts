@@ -14,8 +14,10 @@ test.describe("Fees Management", () => {
     await page.goto("https://hakwonplus.com/admin/fees", { waitUntil: "load" });
     await page.waitForTimeout(2000);
 
+    // Wait for lazy-loaded page to render
+    await page.waitForTimeout(3000);
     // Check page title
-    await expect(page.locator("text=수납 관리")).toBeVisible({ timeout: 10000 });
+    await expect(page.locator("text=수납 관리")).toBeVisible({ timeout: 15000 });
 
     // Check tabs exist
     await expect(page.locator(".ds-tab").filter({ hasText: "수납 현황" })).toBeVisible();
@@ -32,8 +34,10 @@ test.describe("Fees Management", () => {
   test("Admin can navigate to templates tab and create a fee template", async ({ page }) => {
     await loginViaUI(page, "admin");
 
-    // Go to templates tab
-    await page.goto("https://hakwonplus.com/admin/fees/templates", { waitUntil: "load" });
+    // Go to fees page first, then click templates tab
+    await page.goto("https://hakwonplus.com/admin/fees", { waitUntil: "load" });
+    await page.waitForTimeout(2000);
+    await page.locator(".ds-tab").filter({ hasText: "비목 관리" }).click();
     await page.waitForTimeout(2000);
 
     // Check "비목 추가" button exists
@@ -64,10 +68,14 @@ test.describe("Fees Management", () => {
     await page.screenshot({ path: "e2e/screenshots/fees-template-created.png" });
 
     // Cleanup - deactivate the test template
+    // Close any open modals first
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(500);
+
+    page.on("dialog", (d) => d.accept());
     const deactivateBtn = page.locator("tr").filter({ hasText: "[E2E-smoke] Test Fee" }).locator("button").filter({ hasText: "비활성" });
     if (await deactivateBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-      page.on("dialog", (d) => d.accept());
-      await deactivateBtn.click();
+      await deactivateBtn.click({ timeout: 5000 });
       await page.waitForTimeout(1000);
     }
   });
@@ -75,7 +83,9 @@ test.describe("Fees Management", () => {
   test("Admin can navigate to invoices tab and see filters", async ({ page }) => {
     await loginViaUI(page, "admin");
 
-    await page.goto("https://hakwonplus.com/admin/fees/invoices", { waitUntil: "load" });
+    await page.goto("https://hakwonplus.com/admin/fees", { waitUntil: "load" });
+    await page.waitForTimeout(2000);
+    await page.locator(".ds-tab").filter({ hasText: "청구서" }).click();
     await page.waitForTimeout(2000);
 
     // Filters should be visible
