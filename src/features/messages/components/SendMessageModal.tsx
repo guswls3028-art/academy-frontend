@@ -441,7 +441,8 @@ export default function SendMessageModal({
   );
 
   // ─── Derived ───
-  const smsOnlyCategory = ["student", "lecture", "attendance", "staff", "default"].includes(blockCategory);
+  // 통합 4종 알림톡 전환 완료 — 모든 카테고리에서 SMS/알림톡 양쪽 사용 가능
+  const smsOnlyCategory = false;
   const isStaffMode = (initialStaffIds?.length ?? 0) > 0;
   const studentIds = initialStudentIds;
   const staffIds = initialStaffIds ?? [];
