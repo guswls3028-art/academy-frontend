@@ -120,6 +120,12 @@ export function resolveTenantCode(): TenantResolveResult {
   return { ok: false, reason: "missing" };
 }
 
+/** Convenience: returns the tenant code string, or "unknown" if resolution fails. */
+export function resolveTenantCodeString(): string {
+  const r = resolveTenantCode();
+  return r.ok ? r.code : "unknown";
+}
+
 /**
  * Header helper (API layer use):
  * - Must be deterministic and non-magical.

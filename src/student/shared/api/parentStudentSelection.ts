@@ -4,12 +4,12 @@
  * - localStorage에 저장해 새로고침 후에도 유지
  * - 테넌트별로 분리하여 크로스 테넌트 오염 방지
  */
-import { resolveTenantCode } from "@/shared/tenant";
+import { resolveTenantCodeString } from "@/shared/tenant";
 
 const STORAGE_KEY_PREFIX = "parent_selected_student_id";
 
 function storageKey(): string {
-  const tc = resolveTenantCode().code ?? "unknown";
+  const tc = resolveTenantCodeString();
   return `${STORAGE_KEY_PREFIX}_${tc}`;
 }
 

@@ -9,7 +9,7 @@ import { MODAL_WIDTH } from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import TagCreateModal from "./TagCreateModal";
-import { resolveTenantCode } from "@/shared/tenant";
+import { resolveTenantCodeString } from "@/shared/tenant";
 
 type TagAddModalProps = {
   open: boolean;
@@ -31,7 +31,7 @@ export default function TagAddModal({
   const qc = useQueryClient();
   const [selectedTagId, setSelectedTagId] = useState<number | null>(null);
   const [showCreate, setShowCreate] = useState(false);
-  const tenantCode = resolveTenantCode().code ?? "unknown";
+  const tenantCode = resolveTenantCodeString();
   const { data: tags = [], isLoading } = useQuery({
     queryKey: ["students", "tags", tenantCode],
     queryFn: getTags,

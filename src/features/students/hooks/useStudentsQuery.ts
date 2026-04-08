@@ -1,7 +1,7 @@
 // PATH: src/features/students/hooks/useStudentsQuery.ts
 import { useQuery } from "@tanstack/react-query";
 import { fetchStudents } from "../api/students";
-import { resolveTenantCode } from "@/shared/tenant";
+import { resolveTenantCodeString } from "@/shared/tenant";
 
 const PAGE_SIZE = 50;
 
@@ -12,7 +12,7 @@ export function useStudentsQuery(
   page: number = 1,
   deleted: boolean = false
 ) {
-  const tenantCode = resolveTenantCode().code ?? "unknown";
+  const tenantCode = resolveTenantCodeString();
   return useQuery({
     queryKey: ["students", tenantCode, search, filters, sort, page, deleted],
     queryFn: async () => {

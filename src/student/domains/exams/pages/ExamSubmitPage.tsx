@@ -14,7 +14,7 @@ import {
   submitStudentExamAnswers,
 } from "@/student/domains/exams/api/exams";
 import { useAuthContext } from "@/features/auth/context/AuthContext";
-import { resolveTenantCode } from "@/shared/tenant";
+import { resolveTenantCodeString } from "@/shared/tenant";
 
 export default function ExamSubmitPage() {
   const { examId } = useParams();
@@ -24,7 +24,7 @@ export default function ExamSubmitPage() {
   const confirm = useConfirm();
   const { user } = useAuthContext();
   const isParent = user?.tenantRole === "parent";
-  const tenantCode = resolveTenantCode().code ?? "unknown";
+  const tenantCode = resolveTenantCodeString();
 
   const examQ = useStudentExam(Number.isFinite(safeId) ? safeId : undefined);
   const questionsQ = useQuery({

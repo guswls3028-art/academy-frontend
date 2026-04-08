@@ -4,7 +4,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useConfirm } from "@/shared/ui/confirm";
 
-import { resolveTenantCode } from "@/shared/tenant";
+import { resolveTenantCodeString } from "@/shared/tenant";
 
 const STORAGE_KEY = "students-selected-ids";
 
@@ -52,7 +52,7 @@ export default function StudentsHomePage() {
   const [showFilter, setShowFilter] = useState(false);
   const [sort, setSort] = useState("-registeredAt");
   const [page, setPage] = useState(1);
-  const tenantCode = resolveTenantCode().code ?? "unknown";
+  const tenantCode = resolveTenantCodeString();
   const [selectedIds, setSelectedIds] = useState<number[]>(() => {
     try {
       const k = `${STORAGE_KEY}-${tenantCode}-${isDeletedTab ? "deleted" : "home"}`;
