@@ -33,6 +33,7 @@ export default function StaffSettingsTab() {
     mutationFn: (payload: Partial<StaffDetail>) => patchStaffDetail(sid, payload),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["staff", sid] });
+      qc.invalidateQueries({ queryKey: ["staffs"] });
       feedback.success("저장되었습니다.");
     },
   });
@@ -122,7 +123,7 @@ export default function StaffSettingsTab() {
 
       <div className="flex items-center justify-between pt-4 border-t border-[var(--border-divider)]">
         <button
-          onClick={() => patchM.mutate(form)}
+          onClick={() => patchM.mutate({ ...form, name: form.name.trim(), phone: form.phone.trim() })}
           className="btn-primary"
           disabled={patchM.isPending}
         >

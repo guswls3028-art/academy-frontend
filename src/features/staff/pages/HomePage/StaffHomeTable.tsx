@@ -244,38 +244,40 @@ export function StaffHomeTable({
     else setSelectedIds([...new Set([...selectedIds, ...allIds])]);
   };
 
-  // --- 행별 inline mutation 상태 추적 ---
-  const [pendingPayType, setPendingPayType] = useState<number | null>(null);
-  const [pendingManager, setPendingManager] = useState<number | null>(null);
+  // --- 행별 inline mutation 상태 추적 (Set으로 동시 mutation 지원) ---
+  const [pendingPayType, setPendingPayType] = useState<Set<number>>(new Set());
+  const [pendingManager, setPendingManager] = useState<Set<number>>(new Set());
 
   const patchPayTypeM = useMutation({
     mutationFn: ({ staffId, pay_type }: { staffId: number; pay_type: "HOURLY" | "MONTHLY" }) => {
-      setPendingPayType(staffId);
+      setPendingPayType((prev) => new Set(prev).add(staffId));
       return patchStaffDetail(staffId, { pay_type });
     },
-    onSuccess: () => {
+    onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: ["staffs"] });
       qc.invalidateQueries({ queryKey: ["staff"] });
+      setPendingPayType((prev) => { const n = new Set(prev); n.delete(vars.staffId); return n; });
     },
-    onError: (e: unknown) => {
+    onError: (e: unknown, vars) => {
       feedback.error(extractApiError(e, "급여 유형 변경에 실패했습니다."));
+      setPendingPayType((prev) => { const n = new Set(prev); n.delete(vars.staffId); return n; });
     },
-    onSettled: () => setPendingPayType(null),
   });
 
   const patchManagerM = useMutation({
     mutationFn: ({ staffId, is_manager }: { staffId: number; is_manager: boolean }) => {
-      setPendingManager(staffId);
+      setPendingManager((prev) => new Set(prev).add(staffId));
       return patchStaffDetail(staffId, { is_manager });
     },
-    onSuccess: () => {
+    onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: ["staffs"] });
       qc.invalidateQueries({ queryKey: ["staff"] });
+      setPendingManager((prev) => { const n = new Set(prev); n.delete(vars.staffId); return n; });
     },
-    onError: (e: unknown) => {
+    onError: (e: unknown, vars) => {
       feedback.error(extractApiError(e, "관리자 권한 변경에 실패했습니다."));
+      setPendingManager((prev) => { const n = new Set(prev); n.delete(vars.staffId); return n; });
     },
-    onSettled: () => setPendingManager(null),
   });
 
   const workTypesQ = useQuery({
@@ -449,11 +451,11 @@ export function StaffHomeTable({
                     type="button"
                     className="ds-status-badge ds-status-badge--action"
                     data-status={r.is_manager ? "active" : "inactive"}
-                    disabled={pendingManager === r.id}
+                    disabled={pendingManager.has(r.id)}
                     onClick={() => patchManagerM.mutate({ staffId: r.id, is_manager: !r.is_manager })}
                     aria-label={r.is_manager ? "관리자 해제" : "관리자 부여"}
                   >
-                    {pendingManager === r.id ? "…" : r.is_manager ? "ON" : "OFF"}
+                    {pendingManager.has(r.id) ? "…" : r.is_manager ? "ON" : "OFF"}
                   </button>
                 ) : (
                   <span className="ds-status-badge ds-status-badge--action" data-status={r.is_manager ? "active" : "inactive"}>
@@ -472,27 +474,27 @@ export function StaffHomeTable({
                       type="button"
                       className="ds-status-badge ds-status-badge--action"
                       data-status={r.pay_type === "HOURLY" ? "active" : "inactive"}
-                      disabled={pendingPayType === r.id}
+                      disabled={pendingPayType.has(r.id)}
                       onClick={() => {
                         if (r.pay_type === "HOURLY") return;
                         patchPayTypeM.mutate({ staffId: r.id, pay_type: "HOURLY" });
                       }}
                       aria-label={`${r.name} 시급`}
                     >
-                      {pendingPayType === r.id ? "…" : "시급"}
+                      {pendingPayType.has(r.id) ? "…" : "시급"}
                     </button>
                     <button
                       type="button"
                       className="ds-status-badge ds-status-badge--action"
                       data-status={r.pay_type === "MONTHLY" ? "active" : "inactive"}
-                      disabled={pendingPayType === r.id}
+                      disabled={pendingPayType.has(r.id)}
                       onClick={() => {
                         if (r.pay_type === "MONTHLY") return;
                         patchPayTypeM.mutate({ staffId: r.id, pay_type: "MONTHLY" });
                       }}
                       aria-label={`${r.name} 월급`}
                     >
-                      {pendingPayType === r.id ? "…" : "월급"}
+                      {pendingPayType.has(r.id) ? "…" : "월급"}
                     </button>
                   </span>
                 )}

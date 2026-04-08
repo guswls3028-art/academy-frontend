@@ -189,28 +189,28 @@ export default function HomePage() {
           if (!ok) return;
 
           setDeleting(true);
-          let successCount = 0;
-          let failCount = 0;
+          const successIds: number[] = [];
           const failNames: string[] = [];
 
           for (const id of selectedStaffIds) {
             try {
               await deleteStaff(id);
-              successCount++;
+              successIds.push(id);
             } catch (e: unknown) {
-              failCount++;
               const staff = rows.find((r) => r.id === id);
               const reason = extractApiError(e, "삭제 실패");
               failNames.push(`${staff?.name ?? `ID:${id}`} (${reason})`);
             }
           }
 
+          const successCount = successIds.length;
+          const failCount = failNames.length;
+
           if (successCount > 0) {
             qc.invalidateQueries({ queryKey: ["staffs"] });
             qc.invalidateQueries({ queryKey: ["staff"] });
-            // 성공한 ID만 선택 해제
-            const deletedIds = new Set(selectedStaffIds.filter((id) => !failNames.some((n) => n.includes(`ID:${id}`))));
-            setSelectedIds(selectedIds.filter((sid) => sid <= 0 || !deletedIds.has(sid)));
+            const deletedSet = new Set(successIds);
+            setSelectedIds(selectedIds.filter((sid) => sid <= 0 || !deletedSet.has(sid)));
           }
 
           if (failCount === 0) {
