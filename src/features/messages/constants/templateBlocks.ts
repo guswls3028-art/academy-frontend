@@ -88,7 +88,7 @@ const COMMON_SMS: TemplateBlock[] = [B.student_name, B.site_link];
 const CATEGORY_BLOCKS: Record<string, TemplateBlock[]> = {
   student:    [...COMMON_SMS],
   signup:     [...COMMON_SMS, B.student_id, B.student_password, B.parent_id, B.parent_password, B.pw_notice],
-  attendance: [...COMMON_SMS, B.lecture_name, B.session_name],
+  attendance: [...COMMON_SMS, B.lecture_name, B.session_name, B.lecture_date, B.lecture_time],
   lecture:    [...COMMON_SMS, B.lecture_name, B.session_name],
   exam:       [...COMMON_SMS, B.lecture_name, B.session_name, B.exam_name, B.score],
   assignment: [...COMMON_SMS, B.lecture_name, B.session_name, B.assignment_name, B.score],
@@ -119,7 +119,7 @@ const CATEGORY_BLOCKS: Record<string, TemplateBlock[]> = {
     // ── 기타 ──
     B.exam_score, B.assignment_score, B.clinic_result,
   ],
-  clinic:     [...COMMON_SMS, B.clinic_name, B.clinic_place, B.clinic_result],
+  clinic:     [...COMMON_SMS, B.clinic_name, B.clinic_place, B.clinic_date, B.clinic_time, B.clinic_result],
   payment:    [...COMMON_SMS],
   notice:     [...COMMON_SMS],
   community:  [...COMMON_SMS, B.post_title, B.answer_summary, B.counsel_type],
