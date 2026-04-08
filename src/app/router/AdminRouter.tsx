@@ -63,14 +63,7 @@ const CounselAdminPage = lazy(() => import("@/features/community/pages/CounselAd
 const CommunitySettingsPage = lazy(() => import("@/features/community/pages/CommunitySettingsPage"));
 
 /* ================= Lazy: Fees (수납 관리) ================= */
-import { useFeesEnabled } from "@/shared/hooks/useFeesEnabled";
-function FeesGate() {
-  const enabled = useFeesEnabled();
-  if (!enabled) return <Navigate to="/admin/dashboard" replace />;
-  return <Suspense fallback={<AdminRouteFallback />}><FeesPageLazy /></Suspense>;
-}
-const FeesPageLazy = lazy(() => import("@/features/fees/pages/FeesPage"));
-const FeesPage = FeesPageLazy;
+const FeesPage = lazy(() => import("@/features/fees/pages/FeesPage"));
 const FeesDashboardTab = lazy(() => import("@/features/fees/components/FeesDashboardTab"));
 const FeesInvoicesTab = lazy(() => import("@/features/fees/components/FeesInvoicesTab"));
 const FeesTemplatesTab = lazy(() => import("@/features/fees/components/FeesTemplatesTab"));
@@ -206,8 +199,8 @@ export default function AdminRouter() {
         {/* ================= Storage (저장소 통합) ================= */}
         <Route path="storage/*" element={wrapLazy(StorageRoutes)} />
 
-        {/* ================= Fees (수납 관리) — feature flag gate ================= */}
-        <Route path="fees" element={<FeesGate />}>
+        {/* ================= Fees (수납 관리) — feature flag gate in FeesPage ================= */}
+        <Route path="fees" element={wrapLazy(FeesPage)}>
           <Route index element={wrapLazy(FeesDashboardTab)} />
           <Route path="invoices" element={wrapLazy(FeesInvoicesTab)} />
           <Route path="templates" element={wrapLazy(FeesTemplatesTab)} />

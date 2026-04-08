@@ -1,8 +1,9 @@
 // PATH: src/features/fees/pages/FeesPage.tsx
 // 관리자 수납 관리 — DomainLayout (탭: 수납 현황 / 청구서 / 비목 관리)
 
-import { Outlet } from "react-router-dom";
+import { Navigate, Outlet } from "react-router-dom";
 import { DomainLayout, type DomainTab } from "@/shared/ui/domain";
+import { useFeesEnabled } from "@/shared/hooks/useFeesEnabled";
 
 const TABS: DomainTab[] = [
   { key: "dashboard", label: "수납 현황", path: "/admin/fees", exact: true },
@@ -11,6 +12,12 @@ const TABS: DomainTab[] = [
 ];
 
 export default function FeesPage() {
+  const enabled = useFeesEnabled();
+
+  if (!enabled) {
+    return <Navigate to="/admin/dashboard" replace />;
+  }
+
   return (
     <DomainLayout
       title="수납 관리"
