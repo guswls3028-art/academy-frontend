@@ -1,10 +1,11 @@
 // PATH: src/features/lectures/layout/LectureLayout.tsx
-import { Outlet, useParams } from "react-router-dom";
+import { Outlet, useParams, useNavigate, useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import api from "@/shared/api/axios";
 import { DomainLayout } from "@/shared/ui/layout";
 import SessionBlock from "@/features/sessions/components/SessionBlock";
+import { useSectionMode } from "@/shared/hooks/useSectionMode";
 
 function safeStr(v: any) {
   return typeof v === "string" ? v : v == null ? "" : String(v);
@@ -12,6 +13,9 @@ function safeStr(v: any) {
 
 export default function LectureLayout() {
   const { lectureId } = useParams<{ lectureId: string }>();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { sectionMode } = useSectionMode();
   const lectureIdNum = Number(lectureId);
   if (!Number.isFinite(lectureIdNum)) {
     return (
@@ -50,9 +54,37 @@ export default function LectureLayout() {
     [title]
   );
 
+  const isSectionsPage = location.pathname.endsWith("/sections");
+
   return (
     <DomainLayout title={title} description={desc} breadcrumbs={breadcrumbs}>
       <SessionBlock lectureId={lectureIdNum} />
+
+      {/* section_mode일 때: 반 편성 접근 버튼 */}
+      {sectionMode && !isSectionsPage && (
+        <div style={{ marginBottom: "var(--space-4)" }}>
+          <button
+            type="button"
+            onClick={() => navigate(`/admin/lectures/${lectureIdNum}/sections`)}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              fontSize: 13,
+              fontWeight: 600,
+              color: "var(--color-brand-primary)",
+              background: "color-mix(in srgb, var(--color-brand-primary) 6%, var(--color-bg-surface))",
+              border: "1px solid color-mix(in srgb, var(--color-brand-primary) 20%, var(--color-border-divider))",
+              borderRadius: 8,
+              padding: "8px 14px",
+              cursor: "pointer",
+              transition: "all 120ms",
+            }}
+          >
+            반 편성 관리
+          </button>
+        </div>
+      )}
       <Outlet />
     </DomainLayout>
   );

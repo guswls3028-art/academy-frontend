@@ -41,6 +41,7 @@ const LectureLayout = lazy(() => import("@/features/lectures/layout/LectureLayou
 const LectureStudentsPage = lazy(() => import("@/features/lectures/pages/lectures/LectureStudentsPage"));
 const LectureReportPage = lazy(() => import("@/features/lectures/pages/lectures/LectureReportPage"));
 const LectureSessionsPage = lazy(() => import("@/features/lectures/pages/sessions/LectureSessionsPage"));
+const SectionManagementPage = lazy(() => import("@/features/lectures/pages/sections/SectionManagementPage"));
 const LectureDdayPage = lazy(() => import("@/features/lectures/pages/ddays/LectureDdayPage"));
 const LectureAttendanceMatrixPage = lazy(() => import("@/features/lectures/pages/attendance/LectureAttendanceMatrixPage"));
 
@@ -92,6 +93,7 @@ const DeveloperLayout = lazy(() => import("@/features/developer/layout/Developer
 const PatchNotesPage = lazy(() => import("@/features/developer/pages/DeveloperPage"));
 const BugReportPage = lazy(() => import("@/features/developer/pages/DeveloperPage").then(m => ({ default: m.BugReportPage })));
 const FeedbackPage = lazy(() => import("@/features/developer/pages/DeveloperPage").then(m => ({ default: m.FeedbackPage })));
+const FeatureFlagsPage = lazy(() => import("@/features/developer/pages/FeatureFlagsPage"));
 
 /* ================= Lazy: Settings ================= */
 const SettingsLayout = lazy(() => import("@/features/settings/SettingsLayout"));
@@ -159,10 +161,11 @@ export default function AdminRouter() {
           <Route path="past" element={<Suspense fallback={<AdminRouteFallback />}>{(() => { const LP = LecturesPage as React.ComponentType<{ tab?: string }>; return <LP tab="past" />; })()}</Suspense>} />
         </Route>
 
-        {/* 강의 상세 — 수강생만 표시 (탭 제거) */}
+        {/* 강의 상세 — 수강생 + 반 편성 (section_mode) */}
         <Route path="lectures/:lectureId" element={wrapLazy(LectureLayout)}>
           <Route index element={wrapLazy(LectureStudentsPage)} />
           <Route path="sessions" element={wrapLazy(LectureSessionsPage)} />
+          <Route path="sections" element={wrapLazy(SectionManagementPage)} />
         </Route>
 
         {/* ================= Sessions ================= */}
@@ -231,6 +234,7 @@ export default function AdminRouter() {
           <Route index element={wrapLazy(PatchNotesPage)} />
           <Route path="bug" element={wrapLazy(BugReportPage)} />
           <Route path="feedback" element={wrapLazy(FeedbackPage)} />
+          <Route path="flags" element={wrapLazy(FeatureFlagsPage)} />
         </Route>
 
         {/* ================= Staff ================= */}

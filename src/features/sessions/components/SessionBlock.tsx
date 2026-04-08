@@ -174,7 +174,7 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [createForSection, setCreateForSection] = useState<{ id: number | null; label: string | null } | null>(null);
-  const { sectionMode } = useSectionMode();
+  const { sectionMode, clinicMode } = useSectionMode();
 
   const { data: rawSessions = [], isLoading } = useQuery({
     queryKey: ["lecture-sessions", lectureId],
@@ -298,14 +298,17 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
                 />
               )}
 
-              {/* 반별 차시 — 차시가 있는 반 또는 수업반은 항상 표시, 빈 클리닉반은 축소 */}
+              {/* 반별 차시 */}
               {rows.map(({ section: sec, sessions: secSessions }) => {
-                // 차시 없는 클리닉 반은 숨김 (클리닉 반 추가 버튼으로 접근)
-                if (secSessions.length === 0 && sec.section_type === "CLINIC") return null;
+                // remediation 모드: 차시 없는 클리닉 반은 숨김
+                // regular 모드: 클리닉 반은 항상 표시 (필수이므로)
+                if (secSessions.length === 0 && sec.section_type === "CLINIC" && clinicMode !== "regular") return null;
+                const isClinic = sec.section_type === "CLINIC";
+                const clinicTag = isClinic && clinicMode === "regular" ? " 필수" : "";
                 return (
                   <SessionRow
                     key={sec.id}
-                    label={`${sec.label}반`}
+                    label={`${isClinic ? "클리닉 " : ""}${sec.label}반${clinicTag}`}
                     sublabel={`${sec.day_of_week_display} ${sec.start_time?.slice(0, 5) ?? ""}`}
                     labelBg={sec.section_type === "CLASS"
                       ? "color-mix(in srgb, var(--color-brand-primary) 12%, var(--color-bg-surface))"
@@ -323,30 +326,42 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
                 );
               })}
 
-              {/* 반 추가 — 차시블록 영역 안, 마지막 줄에 [+ 반] 블록 */}
+              {/* 반 추가 — 차시블록 영역 안, 마지막 줄 */}
               {!addingType ? (
                 <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
                   <SessionBlockView
                     variant="add"
                     compact
                     onClick={() => { setAddingType("CLASS"); setAddDay(2); setAddTime("17:00"); }}
-                    ariaLabel="반 추가"
+                    ariaLabel="수업 반 추가"
                   >
                     <span style={{ display: "flex", alignItems: "center", gap: 3, fontSize: 11, fontWeight: 600, whiteSpace: "nowrap" }}>
-                      <Plus size={14} strokeWidth={2.5} /> 반
+                      <Plus size={14} strokeWidth={2.5} /> 수업반
                     </span>
                   </SessionBlockView>
+                  {clinicMode === "regular" && (
+                    <SessionBlockView
+                      variant="add"
+                      compact
+                      onClick={() => { setAddingType("CLINIC"); setAddDay(5); setAddTime("19:00"); }}
+                      ariaLabel="클리닉 반 추가"
+                    >
+                      <span style={{ display: "flex", alignItems: "center", gap: 3, fontSize: 11, fontWeight: 600, whiteSpace: "nowrap", color: "var(--color-warning, #d97706)" }}>
+                        <Plus size={14} strokeWidth={2.5} /> 클리닉반
+                      </span>
+                    </SessionBlockView>
+                  )}
                 </div>
               ) : (
-                /* 인라인 반 추가 폼 — 차시블록 줄과 동일한 위치 */
+                /* 인라인 반 추가 폼 */
                 <div style={{
                   display: "flex", alignItems: "center", gap: 8,
                   padding: "6px 10px", borderRadius: 10,
                   background: "var(--color-bg-surface-sunken)",
                 }}>
-                  {/* 타입 토글 */}
+                  {/* 타입 토글 — remediation 모드에서는 CLASS만 */}
                   <div style={{ display: "flex", gap: 2, borderRadius: 6, background: "var(--color-bg-surface)", padding: 2 }}>
-                    {(["CLASS", "CLINIC"] as const).map((t) => (
+                    {(clinicMode === "regular" ? (["CLASS", "CLINIC"] as const) : (["CLASS"] as const)).map((t) => (
                       <button
                         key={t}
                         onClick={() => {

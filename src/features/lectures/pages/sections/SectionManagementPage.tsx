@@ -20,6 +20,7 @@ import {
   type SectionAssignment,
 } from "../../api/sections";
 import { EmptyState, Button } from "@/shared/ui/ds";
+import { useSectionMode } from "@/shared/hooks/useSectionMode";
 
 const DAY_OPTIONS = [
   { value: 0, label: "월" },
@@ -55,6 +56,8 @@ export default function SectionManagementPage() {
   const { lectureId } = useParams<{ lectureId: string }>();
   const lecId = Number(lectureId);
   const qc = useQueryClient();
+  const { clinicMode } = useSectionMode();
+  const showClinic = clinicMode === "regular";
 
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [showForm, setShowForm] = useState(false);
@@ -189,17 +192,19 @@ export default function SectionManagementPage() {
           isLoading={isLoading}
         />
 
-        {/* 클리닉 반 */}
-        <SectionGroup
-          title="클리닉 반"
-          sections={clinicSections}
-          selectedId={selectedId}
-          onSelect={setSelectedId}
-          onEdit={openEdit}
-          onDelete={handleDelete}
-          onAdd={() => openCreate("CLINIC")}
-          isLoading={isLoading}
-        />
+        {/* 클리닉 반 — 정규형 클리닉 모드에서만 표시 */}
+        {showClinic && (
+          <SectionGroup
+            title="클리닉 반 (필수)"
+            sections={clinicSections}
+            selectedId={selectedId}
+            onSelect={setSelectedId}
+            onEdit={openEdit}
+            onDelete={handleDelete}
+            onAdd={() => openCreate("CLINIC")}
+            isLoading={isLoading}
+          />
+        )}
 
         {/* 자동배정 */}
         <div className="flex flex-col gap-2 pt-2" style={{ borderTop: "1px solid var(--color-border-divider)" }}>
@@ -211,14 +216,16 @@ export default function SectionManagementPage() {
           >
             {autoAssignMut.isPending ? "배정 중..." : "수업 반 자동배정"}
           </Button>
-          <Button
-            intent="secondary"
-            size="sm"
-            onClick={() => autoAssignMut.mutate("CLINIC")}
-            disabled={autoAssignMut.isPending || clinicSections.length === 0}
-          >
-            {autoAssignMut.isPending ? "배정 중..." : "클리닉 반 자동배정"}
-          </Button>
+          {showClinic && (
+            <Button
+              intent="secondary"
+              size="sm"
+              onClick={() => autoAssignMut.mutate("CLINIC")}
+              disabled={autoAssignMut.isPending || clinicSections.length === 0}
+            >
+              {autoAssignMut.isPending ? "배정 중..." : "클리닉 반 자동배정"}
+            </Button>
+          )}
           {autoAssignMut.isSuccess && autoAssignMut.data && (
             <p className="text-[12px] mt-1" style={{ color: "var(--color-success, #16a34a)" }}>
               {autoAssignMut.data.message}
@@ -259,7 +266,7 @@ export default function SectionManagementPage() {
                 <tr style={{ borderBottom: "1px solid var(--color-border-divider)" }}>
                   <th className="px-4 py-2 text-left font-medium" style={{ color: "var(--color-text-muted)" }}>학생</th>
                   <th className="px-3 py-2 text-center font-medium" style={{ color: "var(--color-text-muted)" }}>수업반</th>
-                  <th className="px-3 py-2 text-center font-medium" style={{ color: "var(--color-text-muted)" }}>클리닉반</th>
+                  {showClinic && <th className="px-3 py-2 text-center font-medium" style={{ color: "var(--color-text-muted)" }}>클리닉반</th>}
                   <th className="px-3 py-2 text-center font-medium" style={{ color: "var(--color-text-muted)" }}>배정방식</th>
                 </tr>
               </thead>
@@ -281,18 +288,20 @@ export default function SectionManagementPage() {
                         {a.class_section_label}반
                       </span>
                     </td>
-                    <td className="px-3 py-2 text-center">
-                      {a.clinic_section_label ? (
-                        <span
-                          className="px-2 py-0.5 rounded text-[12px] font-medium"
-                          style={{ background: "var(--color-warning-light, #fef3c7)", color: "var(--color-warning, #d97706)" }}
-                        >
-                          {a.clinic_section_label}반
-                        </span>
-                      ) : (
-                        <span className="text-[12px]" style={{ color: "var(--color-text-muted)" }}>-</span>
-                      )}
-                    </td>
+                    {showClinic && (
+                      <td className="px-3 py-2 text-center">
+                        {a.clinic_section_label ? (
+                          <span
+                            className="px-2 py-0.5 rounded text-[12px] font-medium"
+                            style={{ background: "var(--color-warning-light, #fef3c7)", color: "var(--color-warning, #d97706)" }}
+                          >
+                            {a.clinic_section_label}반
+                          </span>
+                        ) : (
+                          <span className="text-[12px]" style={{ color: "var(--color-text-muted)" }}>-</span>
+                        )}
+                      </td>
+                    )}
                     <td className="px-3 py-2 text-center text-[12px]" style={{ color: "var(--color-text-muted)" }}>
                       {a.source_display}
                     </td>

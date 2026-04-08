@@ -55,7 +55,14 @@ export default function SessionLayout() {
   if (isLoading || !session) return null;
 
   const lectureTitle = lecture?.title ?? lecture?.name ?? "강의";
-  const sessionHeading = formatSessionOrderLabel(session.order, session.title);
+  const sectionLabel = session.section_label
+    ? `${session.section_label}반`
+    : null;
+  const sectionType = session.section_type === "CLINIC" ? "클리닉" : null;
+  const sectionSuffix = sectionLabel
+    ? ` (${sectionType ? sectionType + " " : ""}${sectionLabel})`
+    : "";
+  const sessionHeading = formatSessionOrderLabel(session.order, session.title) + sectionSuffix;
   const breadcrumbs = [
     { label: "강의", to: "/admin/lectures" },
     { label: lectureTitle, to: `/admin/lectures/${lectureId}` },
@@ -65,7 +72,7 @@ export default function SessionLayout() {
   return (
     <DomainLayout
       title={sessionHeading}
-      description={session.date ?? undefined}
+      description={[session.date, sectionLabel].filter(Boolean).join(" · ") || undefined}
       breadcrumbs={breadcrumbs}
       tabs={tabs}
     >
