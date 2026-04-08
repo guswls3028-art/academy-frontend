@@ -86,7 +86,7 @@ export default function FeaturesPage() {
           {GROUPS.map((g) => (
             <div key={g.category}>
               <div className="flex items-center gap-3 mb-5">
-                <div className={`w-2.5 h-2.5 rounded-full ${g.color}`} />
+                <div className={`w-1 h-6 rounded-full ${g.color}`} />
                 <h2 className="text-lg font-bold text-gray-900">{g.category}</h2>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
