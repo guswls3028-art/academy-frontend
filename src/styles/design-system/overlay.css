@@ -6,10 +6,13 @@
  * - 아이디·식별코드 눈에 띄게 (.ds-overlay-header__id, __code)
  * ============================================================================ */
 
-/* 백드롭 */
+/* 백드롭 — 사이드바 영역 제외 (사이드바 클릭 허용) */
 .ds-overlay-backdrop {
   position: fixed;
-  inset: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: var(--sidebar-width, 0px);
   z-index: 90;
   background: rgba(0, 0, 0, 0.45);
   backdrop-filter: blur(8px);
@@ -17,11 +20,13 @@
   transition: opacity 0.2s ease;
 }
 
-/* 래퍼 — 패널 중앙, 하단 여백 없이 맞춤 */
-/* pointer-events: none → 사이드바 등 배경 요소 클릭 허용 */
+/* 래퍼 — 사이드바 영역 제외, 패널 중앙 */
 .ds-overlay-wrap {
   position: fixed;
-  inset: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: var(--sidebar-width, 0px);
   z-index: 100;
   display: flex;
   justify-content: center;
