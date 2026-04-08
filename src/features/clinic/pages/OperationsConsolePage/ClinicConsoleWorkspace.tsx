@@ -606,11 +606,12 @@ export default function ClinicConsoleWorkspace({
         {!isLoading && session && (() => {
           const CLINIC_TRIGGERS = [
             { key: "clinic_reservation_created", label: "예약 완료" },
-            { key: "clinic_check_in", label: "입실" },
-            { key: "clinic_check_out", label: "퇴실" },
+            { key: "clinic_check_in", label: "참석" },
             { key: "clinic_absent", label: "결석" },
             { key: "clinic_self_study_completed", label: "클리닉 완료" },
             { key: "clinic_cancelled", label: "취소" },
+            { key: "clinic_reservation_changed", label: "예약 변경" },
+            { key: "clinic_result_notification", label: "결과 안내" },
             { key: "clinic_reminder", label: "리마인더" },
           ] as const;
           const triggerMap = new Map(autoSendConfigs.map((c) => [c.trigger, c]));
@@ -620,7 +621,7 @@ export default function ClinicConsoleWorkspace({
               <span className="clinic-ops__trigger-status-icon">
                 {enabledCount > 0 ? <Bell size={13} /> : <BellOff size={13} />}
               </span>
-              <span className="clinic-ops__trigger-status-label">문자 알림</span>
+              <span className="clinic-ops__trigger-status-label">알림 설정</span>
               {CLINIC_TRIGGERS.map((t) => {
                 const cfg = triggerMap.get(t.key);
                 const on = cfg?.enabled ?? false;
