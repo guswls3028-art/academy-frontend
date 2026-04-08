@@ -1,8 +1,9 @@
 // PATH: src/student/shared/ui/layout/EmptyState.tsx
 /**
- * ✅ EmptyState (LOCK v3)
+ * EmptyState (v4)
  * - 학생 앱 전역 빈 상태 컴포넌트
- * - 간결하고 예쁜 디자인
+ * - 큰 원형 gradient 배경 + 아이콘
+ * - 미래지향적 톤 (곧 여기에 표시돼요)
  * - 다크 모드 지원 (CSS 기반)
  * - 아이콘 옵션 지원
  */
@@ -19,27 +20,43 @@ export default function EmptyState({
   icon,
   compact = false,
 }: EmptyStateProps) {
+  const iconSize = compact ? 52 : 72;
+  const svgSize = compact ? 26 : 34;
 
-  // 기본 아이콘 (없으면 간단한 원형 아이콘)
-  const defaultIcon = icon || (
+  // 기본 아이콘: 큰 원형 gradient 배경 + 아이콘
+  const renderedIcon = icon ? (
     <div
-      className="stu-emptystate__icon"
       style={{
-        width: compact ? 48 : 64,
-        height: compact ? 48 : 64,
+        width: iconSize,
+        height: iconSize,
         borderRadius: "50%",
-        background: "var(--stu-surface-soft)",
+        background: "linear-gradient(135deg, var(--stu-tint-primary), var(--stu-surface-soft))",
         border: "1px solid var(--stu-border-subtle)",
         display: "grid",
         placeItems: "center",
         margin: "0 auto",
-        opacity: 0.6,
+      }}
+    >
+      {icon}
+    </div>
+  ) : (
+    <div
+      className="stu-emptystate__icon"
+      style={{
+        width: iconSize,
+        height: iconSize,
+        borderRadius: "50%",
+        background: "linear-gradient(135deg, var(--stu-tint-primary), var(--stu-surface-soft))",
+        border: "1px solid var(--stu-border-subtle)",
+        display: "grid",
+        placeItems: "center",
+        margin: "0 auto",
       }}
     >
       <svg
         className="stu-emptystate__icon-svg"
-        width={compact ? 24 : 32}
-        height={compact ? 24 : 32}
+        width={svgSize}
+        height={svgSize}
         viewBox="0 0 24 24"
         fill="none"
         stroke="var(--stu-text-muted)"
@@ -59,14 +76,14 @@ export default function EmptyState({
         flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
-        padding: compact ? "var(--stu-space-5)" : "var(--stu-space-8)",
+        padding: compact ? "var(--stu-space-5)" : "var(--stu-space-10, 48px)",
         textAlign: "center",
-        minHeight: compact ? "auto" : 200,
+        minHeight: compact ? "auto" : 220,
       }}
     >
       {/* 아이콘 */}
-      <div style={{ marginBottom: compact ? "var(--stu-space-3)" : "var(--stu-space-4)" }}>
-        {defaultIcon}
+      <div style={{ marginBottom: compact ? "var(--stu-space-3)" : "var(--stu-space-5)" }}>
+        {renderedIcon}
       </div>
 
       {/* 제목 */}
@@ -90,8 +107,8 @@ export default function EmptyState({
           style={{
             fontSize: compact ? 13 : 14,
             color: "var(--stu-text-muted)",
-            lineHeight: 1.5,
-            maxWidth: compact ? "100%" : 400,
+            lineHeight: 1.6,
+            maxWidth: compact ? "100%" : 320,
             margin: 0,
           }}
         >

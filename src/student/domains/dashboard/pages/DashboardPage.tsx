@@ -99,12 +99,13 @@ const CountdownCard = memo(function CountdownCard({ session, dt }: { session: St
 
 /* ── iPhone-style app icon ── */
 function AppIcon({
-  to, icon, label, badge,
+  to, icon, label, badge, iconBg,
 }: {
   to: string;
   icon: React.ReactNode;
   label: string;
   badge?: number;
+  iconBg?: string;
 }) {
   return (
     <Link
@@ -117,7 +118,7 @@ function AppIcon({
     >
       <div style={{
         width: 56, height: 56, borderRadius: 16,
-        background: "var(--stu-surface)",
+        background: iconBg || "var(--stu-surface)",
         border: "1.5px solid var(--stu-border-subtle)",
         display: "grid", placeItems: "center",
         position: "relative",
@@ -127,7 +128,7 @@ function AppIcon({
         {icon}
         {badge != null && badge > 0 && <NotificationBadge count={badge} />}
       </div>
-      <span style={{ fontSize: 11, fontWeight: 600, color: "var(--stu-text)", letterSpacing: "-0.01em", textAlign: "center" }}>
+      <span style={{ fontSize: 12, fontWeight: 600, color: "var(--stu-text)", letterSpacing: "-0.01em", textAlign: "center" }}>
         {label}
       </span>
     </Link>
@@ -201,6 +202,9 @@ export default function DashboardPage() {
 
       {/* ─── 1. 공지사항 (최상단) ─── */}
       <NoticeSection notices={dashboard?.notices} />
+
+      {/* ─── 1.5. 나의 학습 현황 ─── */}
+      <LearningStatusCard grades={grades ?? null} sessions={sessions ?? null} />
 
       {/* ─── 2. 다음 일정 카운트다운 ─── */}
       {nextSession && <CountdownCard session={nextSession.session} dt={nextSession.dt} />}
@@ -307,23 +311,31 @@ export default function DashboardPage() {
         }}>
           <AppIcon to="/student/video" label="영상"
             icon={<IconPlay style={{ width: 24, height: 24, color: "#6366f1" }} />}
+            iconBg="rgba(99,102,241,0.1)"
             badge={!countsLoading ? notificationCounts?.video : undefined} />
           <AppIcon to="/student/grades" label="성적"
             icon={<IconGrade style={{ width: 24, height: 24, color: "var(--stu-primary)" }} />}
+            iconBg="rgba(59,130,246,0.1)"
             badge={!countsLoading ? notificationCounts?.grade : undefined} />
           <AppIcon to="/student/exams" label="시험"
-            icon={<IconExam style={{ width: 24, height: 24, color: "var(--stu-danger)" }} />} />
+            icon={<IconExam style={{ width: 24, height: 24, color: "var(--stu-danger)" }} />}
+            iconBg="rgba(239,68,68,0.1)" />
           <AppIcon to="/student/submit/assignment" label="과제"
-            icon={<IconClipboard style={{ width: 24, height: 24, color: "var(--stu-warn)" }} />} />
+            icon={<IconClipboard style={{ width: 24, height: 24, color: "var(--stu-warn)" }} />}
+            iconBg="rgba(245,158,11,0.1)" />
           <AppIcon to="/student/sessions" label="일정"
-            icon={<IconCalendar style={{ width: 24, height: 24, color: "#8b5cf6" }} />} />
+            icon={<IconCalendar style={{ width: 24, height: 24, color: "#8b5cf6" }} />}
+            iconBg="rgba(139,92,246,0.1)" />
           <AppIcon to="/student/clinic" label="클리닉"
             icon={<IconClinic style={{ width: 24, height: 24, color: "var(--stu-success)" }} />}
+            iconBg="rgba(16,185,129,0.1)"
             badge={!countsLoading ? notificationCounts?.clinic : undefined} />
           <AppIcon to="/student/community" label="커뮤니티"
-            icon={<IconBoard style={{ width: 24, height: 24, color: "#0ea5e9" }} />} />
+            icon={<IconBoard style={{ width: 24, height: 24, color: "#0ea5e9" }} />}
+            iconBg="rgba(14,165,233,0.1)" />
           <AppIcon to="/student/inventory" label="보관함"
-            icon={<IconFolder style={{ width: 24, height: 24, color: "#64748b" }} />} />
+            icon={<IconFolder style={{ width: 24, height: 24, color: "#64748b" }} />}
+            iconBg="rgba(100,116,139,0.1)" />
         </div>
       </section>
 
@@ -334,8 +346,13 @@ export default function DashboardPage() {
         const hasAny = academies.some((a: { name?: string; phone?: string }) => a.name || a.phone);
         if (!hasAny) return null;
         return (
-          <section style={{ paddingTop: "var(--stu-space-4)", borderTop: "1px solid var(--stu-border)" }}>
-            <div className="stu-muted" style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.04em", marginBottom: 8, textTransform: "uppercase" }}>학원문의</div>
+          <section style={{
+            borderRadius: "var(--stu-radius-lg, 12px)",
+            background: "var(--stu-surface)",
+            border: "1.5px solid var(--stu-border)",
+            padding: "14px 16px",
+          }}>
+            <div className="stu-muted" style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.04em", marginBottom: 10, textTransform: "uppercase" }}>학원문의</div>
             {academies.map((a: { name?: string; phone?: string }, i: number) => (
               <div key={i} style={{ marginBottom: academies.length > 1 ? 12 : 0 }}>
                 <div style={{ fontSize: 15, fontWeight: 700, letterSpacing: "-0.02em" }}>{a.name || "학원"}</div>
@@ -354,6 +371,122 @@ export default function DashboardPage() {
 }
 
 /* ── Sub-components ── */
+
+function LearningStatusCard({
+  grades,
+  sessions,
+}: {
+  grades: import("@/student/domains/grades/api/grades").MyGradesSummary | null;
+  sessions: StudentSession[] | null;
+}) {
+  const examCount = grades?.exams?.length ?? 0;
+  const hwCount = grades?.homeworks?.length ?? 0;
+  const sessionCount = sessions?.length ?? 0;
+
+  const hasData = examCount > 0 || hwCount > 0 || sessionCount > 0;
+
+  // Exam average
+  const scoredExams = grades?.exams?.filter((e) => e.total_score != null && e.max_score > 0) ?? [];
+  const examAvg = scoredExams.length > 0
+    ? Math.round(scoredExams.reduce((sum, e) => sum + ((e.total_score ?? 0) / e.max_score) * 100, 0) / scoredExams.length)
+    : null;
+
+  // Homework completion rate
+  const passedHw = grades?.homeworks?.filter((h) => h.passed === true).length ?? 0;
+  const hwRate = hwCount > 0 ? Math.round((passedHw / hwCount) * 100) : null;
+
+  const statItemStyle: React.CSSProperties = {
+    flex: 1,
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: 4,
+    padding: "8px 4px",
+  };
+
+  const statLabelStyle: React.CSSProperties = {
+    fontSize: 11,
+    fontWeight: 600,
+    color: "var(--stu-text-muted)",
+    letterSpacing: "0.02em",
+  };
+
+  const statValueStyle: React.CSSProperties = {
+    fontSize: 20,
+    fontWeight: 800,
+    letterSpacing: "-0.02em",
+    color: "var(--stu-text)",
+  };
+
+  const statUnitStyle: React.CSSProperties = {
+    fontSize: 12,
+    fontWeight: 600,
+    color: "var(--stu-text-muted)",
+    marginLeft: 1,
+  };
+
+  return (
+    <section style={{
+      borderRadius: "var(--stu-radius-lg, 12px)",
+      background: "var(--stu-surface)",
+      border: "1.5px solid var(--stu-border)",
+      padding: "16px",
+    }}>
+      <div style={{ fontSize: 13, fontWeight: 700, color: "var(--stu-text-muted)", letterSpacing: "0.02em", marginBottom: 12 }}>
+        나의 학습 현황
+      </div>
+      {hasData ? (
+        <div style={{ display: "flex", gap: 8 }}>
+          <div style={statItemStyle}>
+            <span style={statLabelStyle}>수업</span>
+            <div>
+              <span style={statValueStyle}>{sessionCount}</span>
+              <span style={statUnitStyle}>회</span>
+            </div>
+          </div>
+          <div style={{ width: 1, background: "var(--stu-border)", alignSelf: "stretch", margin: "4px 0" }} />
+          <div style={statItemStyle}>
+            <span style={statLabelStyle}>과제 완료</span>
+            <div>
+              <span style={{ ...statValueStyle, color: hwRate != null && hwRate >= 80 ? "var(--stu-success, #10b981)" : hwRate != null && hwRate < 50 ? "var(--stu-danger)" : "var(--stu-text)" }}>
+                {hwRate != null ? hwRate : "-"}
+              </span>
+              <span style={statUnitStyle}>{hwRate != null ? "%" : ""}</span>
+            </div>
+          </div>
+          <div style={{ width: 1, background: "var(--stu-border)", alignSelf: "stretch", margin: "4px 0" }} />
+          <div style={statItemStyle}>
+            <span style={statLabelStyle}>시험 평균</span>
+            <div>
+              <span style={{ ...statValueStyle, color: examAvg != null && examAvg >= 80 ? "var(--stu-success, #10b981)" : examAvg != null && examAvg < 50 ? "var(--stu-danger)" : "var(--stu-text)" }}>
+                {examAvg != null ? examAvg : "-"}
+              </span>
+              <span style={statUnitStyle}>{examAvg != null ? "점" : ""}</span>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: 8,
+          padding: "12px 0 4px",
+        }}>
+          {/* Simple CSS-only book illustration */}
+          <svg width="40" height="40" viewBox="0 0 40 40" fill="none" style={{ opacity: 0.5 }}>
+            <rect x="6" y="8" width="28" height="24" rx="3" stroke="var(--stu-text-muted)" strokeWidth="1.5" fill="none" />
+            <line x1="20" y1="8" x2="20" y2="32" stroke="var(--stu-text-muted)" strokeWidth="1.5" />
+            <path d="M10 14h6M10 18h5M24 14h6M24 18h5" stroke="var(--stu-text-muted)" strokeWidth="1.2" strokeLinecap="round" />
+          </svg>
+          <span style={{ fontSize: 13, color: "var(--stu-text-muted)", textAlign: "center", lineHeight: 1.5 }}>
+            수업에 참여하면 여기에 학습 현황이 표시돼요
+          </span>
+        </div>
+      )}
+    </section>
+  );
+}
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (

@@ -2,7 +2,7 @@
  * 프로필 — 회원가입 모달과 동일 필드 (이름, 로그인 아이디, 학부모/학생 전화, 성별, 학교 정보, 주소, 메모)
  * 아이디·비밀번호 변경은 별도 블록
  */
-import { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import StudentPageShell from "@/student/shared/ui/pages/StudentPageShell";
 import { fetchMyProfile, updateMyProfile, updateMyProfilePhoto } from "../api/profile";
@@ -13,8 +13,13 @@ import { studentToast } from "@/student/shared/ui/feedback/studentToast";
 import { useSchoolLevelMode } from "@/shared/hooks/useSchoolLevelMode";
 import type { SchoolType } from "@/shared/hooks/useSchoolLevelMode";
 
-function formatPhone(phone: string | null | undefined): string {
-  if (!phone || !phone.trim()) return "-";
+/** 미입력 표시 JSX — italic 회색 */
+const EMPTY_PLACEHOLDER = (
+  <span style={{ fontStyle: "italic", color: "var(--stu-text-muted)", fontWeight: 400 }}>미입력</span>
+);
+
+function formatPhone(phone: string | null | undefined): React.ReactNode {
+  if (!phone || !phone.trim()) return EMPTY_PLACEHOLDER;
   const digits = phone.replace(/\D/g, "");
   if (digits.length === 11 && digits.startsWith("010")) {
     return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
@@ -25,10 +30,16 @@ function formatPhone(phone: string | null | undefined): string {
   return phone;
 }
 
-function formatGender(g: string | null | undefined): string {
+function formatGender(g: string | null | undefined): React.ReactNode {
   if (g === "M") return "남";
   if (g === "F") return "여";
-  return "-";
+  return EMPTY_PLACEHOLDER;
+}
+
+/** 값이 없으면 미입력 placeholder, 있으면 그대로 반환 */
+function valueOrEmpty(val: string | null | undefined): React.ReactNode {
+  if (!val || !val.trim()) return EMPTY_PLACEHOLDER;
+  return val;
 }
 
 export default function ProfilePage() {
@@ -357,13 +368,13 @@ export default function ProfilePage() {
                   />
                 </div>
               ) : (
-                <div style={{ fontWeight: 600, fontSize: 16 }}>{profile.name || "-"}</div>
+                <div style={{ fontWeight: 600, fontSize: 16 }}>{valueOrEmpty(profile.name)}</div>
               )}
             </div>
 
             <div>
               <div className="stu-muted" style={{ fontSize: 12, marginBottom: 4 }}>로그인 아이디</div>
-              <div style={{ fontWeight: 600, fontSize: 16 }}>{profile.username || "-"}</div>
+              <div style={{ fontWeight: 600, fontSize: 16 }}>{valueOrEmpty(profile.username)}</div>
             </div>
 
             <div>
@@ -393,7 +404,7 @@ export default function ProfilePage() {
                   aria-label="학생 전화번호"
                 />
               ) : (
-                <div style={{ fontWeight: 600, fontSize: 16 }}>{profile.phone ? formatPhone(profile.phone) : "-"}</div>
+                <div style={{ fontWeight: 600, fontSize: 16 }}>{profile.phone ? formatPhone(profile.phone) : EMPTY_PLACEHOLDER}</div>
               )}
             </div>
 
@@ -455,7 +466,7 @@ export default function ProfilePage() {
                       placeholder="고등학교명"
                     />
                   ) : (
-                    <div style={{ fontWeight: 600, fontSize: 16 }}>{profile.high_school || "-"}</div>
+                    <div style={{ fontWeight: 600, fontSize: 16 }}>{valueOrEmpty(profile.high_school)}</div>
                   )}
                 </div>
                 {slm.showOriginMiddleSchool(editing ? editSchoolType : (profile.school_type as SchoolType)) && (
@@ -471,7 +482,7 @@ export default function ProfilePage() {
                         placeholder="출신중학교"
                       />
                     ) : (
-                      <div style={{ fontWeight: 600, fontSize: 16 }}>{profile.origin_middle_school || "-"}</div>
+                      <div style={{ fontWeight: 600, fontSize: 16 }}>{valueOrEmpty(profile.origin_middle_school)}</div>
                     )}
                   </div>
                 )}
@@ -490,7 +501,7 @@ export default function ProfilePage() {
                     placeholder="중학교명"
                   />
                 ) : (
-                  <div style={{ fontWeight: 600, fontSize: 16 }}>{profile.middle_school || "-"}</div>
+                  <div style={{ fontWeight: 600, fontSize: 16 }}>{valueOrEmpty(profile.middle_school)}</div>
                 )}
               </div>
             )}
@@ -507,7 +518,7 @@ export default function ProfilePage() {
                     placeholder="초등학교명"
                   />
                 ) : (
-                  <div style={{ fontWeight: 600, fontSize: 16 }}>{profile.elementary_school || "-"}</div>
+                  <div style={{ fontWeight: 600, fontSize: 16 }}>{valueOrEmpty(profile.elementary_school)}</div>
                 )}
               </div>
             )}
@@ -527,7 +538,7 @@ export default function ProfilePage() {
                     ))}
                   </select>
                 ) : (
-                  <div style={{ fontWeight: 600, fontSize: 16 }}>{profile.grade != null ? `${profile.grade}학년` : "-"}</div>
+                  <div style={{ fontWeight: 600, fontSize: 16 }}>{profile.grade != null ? `${profile.grade}학년` : EMPTY_PLACEHOLDER}</div>
                 )}
               </div>
               <div style={{ minWidth: 80 }}>
@@ -542,7 +553,7 @@ export default function ProfilePage() {
                     placeholder="반"
                   />
                 ) : (
-                  <div style={{ fontWeight: 600, fontSize: 16 }}>{profile.high_school_class || "-"}</div>
+                  <div style={{ fontWeight: 600, fontSize: 16 }}>{valueOrEmpty(profile.high_school_class)}</div>
                 )}
               </div>
               {slm.showTrack(editSchoolType) && (
@@ -558,7 +569,7 @@ export default function ProfilePage() {
                       placeholder="계열 (선택)"
                     />
                   ) : (
-                    <div style={{ fontWeight: 600, fontSize: 16 }}>{profile.major || "-"}</div>
+                    <div style={{ fontWeight: 600, fontSize: 16 }}>{valueOrEmpty(profile.major)}</div>
                   )}
                 </div>
               )}
@@ -576,7 +587,7 @@ export default function ProfilePage() {
                   placeholder="주소 (선택)"
                 />
               ) : (
-                <div style={{ fontWeight: 600, fontSize: 16 }}>{profile.address || "-"}</div>
+                <div style={{ fontWeight: 600, fontSize: 16 }}>{valueOrEmpty(profile.address)}</div>
               )}
             </div>
 
@@ -591,7 +602,7 @@ export default function ProfilePage() {
                   placeholder="메모 (선택)"
                 />
               ) : (
-                <div style={{ fontWeight: 600, fontSize: 16 }}>{profile.memo || "-"}</div>
+                <div style={{ fontWeight: 600, fontSize: 16 }}>{valueOrEmpty(profile.memo)}</div>
               )}
             </div>
 

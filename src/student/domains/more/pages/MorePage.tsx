@@ -24,15 +24,11 @@ const linkStyle: React.CSSProperties = {
   display: "flex",
   alignItems: "center",
   gap: "var(--stu-space-4)",
-  padding: "var(--stu-space-4) var(--stu-space-4)",
-  borderRadius: "var(--stu-radius-md)",
-  background: "var(--stu-surface)",
-  border: "1px solid var(--stu-border)",
+  padding: "var(--stu-space-3) var(--stu-space-4)",
   color: "var(--stu-text)",
   textDecoration: "none",
   fontWeight: 700,
   fontSize: 15,
-  marginBottom: "var(--stu-space-2)",
 };
 
 /** 라우터 기준 전체 메뉴 대장 — 카테고리별 네비게이션 (홈·영상·일정 제외 = TabBar에 있는 것 제외) */
@@ -72,45 +68,57 @@ const FULL_NAV: { category: string; items: { label: string; to: string; icon: Re
   },
 ];
 
-function Section({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section style={{ marginBottom: "var(--stu-space-8)" }}>
-      <h2 className="stu-muted" style={{ fontSize: 12, fontWeight: 800, marginBottom: "var(--stu-space-3)", paddingLeft: 4 }}>
-        {title}
-      </h2>
-      {children}
-    </section>
-  );
-}
-
 export default function MorePage() {
   return (
     <div style={{ padding: "var(--stu-space-2) 0" }}>
-      {/* 전체 메뉴 대장 — 카테고리별 모든 라우트 */}
-      <Section title="전체 메뉴">
-        {FULL_NAV.map((group) => (
-          <div key={group.category} style={{ marginBottom: "var(--stu-space-6)" }}>
-            <h3 className="stu-muted" style={{ fontSize: 11, fontWeight: 700, marginBottom: "var(--stu-space-2)", paddingLeft: 4 }}>
-              {group.category}
-            </h3>
-            {group.items.map((item) => (
-              <Link key={item.to} to={item.to} style={linkStyle}>
+      {/* 전체 메뉴 — 카테고리별 카드 그룹 */}
+      {FULL_NAV.map((group) => (
+        <div key={group.category} style={{ marginBottom: "var(--stu-space-5)" }}>
+          {/* 카테고리 헤더 — 카드 밖 */}
+          <h3
+            className="stu-muted"
+            style={{
+              fontSize: 12,
+              fontWeight: 800,
+              marginBottom: "var(--stu-space-2)",
+              paddingLeft: 4,
+              letterSpacing: "0.02em",
+              textTransform: "uppercase" as const,
+            }}
+          >
+            {group.category}
+          </h3>
+          {/* 카드 래퍼 */}
+          <div
+            style={{
+              background: "var(--stu-surface)",
+              border: "1px solid var(--stu-border)",
+              borderRadius: "var(--stu-radius-lg, 12px)",
+              overflow: "hidden",
+            }}
+          >
+            {group.items.map((item, idx) => (
+              <Link
+                key={item.to}
+                to={item.to}
+                style={{
+                  ...linkStyle,
+                  borderBottom:
+                    idx < group.items.length - 1
+                      ? "1px solid var(--stu-border-subtle)"
+                      : "none",
+                }}
+              >
                 {item.icon}
                 {item.label}
               </Link>
             ))}
           </div>
-        ))}
-      </Section>
+        </div>
+      ))}
 
       {/* 로그아웃 */}
-      <section>
+      <section style={{ marginTop: "var(--stu-space-4)" }}>
         <button
           type="button"
           className="stu-btn stu-btn--danger"
@@ -124,6 +132,7 @@ export default function MorePage() {
             padding: "var(--stu-space-4)",
             fontSize: 15,
             fontWeight: 700,
+            borderRadius: "var(--stu-radius-lg, 12px)",
           }}
           onClick={() => logout()}
         >
