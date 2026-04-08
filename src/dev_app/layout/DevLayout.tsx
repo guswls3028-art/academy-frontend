@@ -7,6 +7,7 @@ import s from "./DevLayout.module.css";
 const NAV_ITEMS = [
   { to: "/dev/dashboard", label: "대시보드", icon: IconDashboard },
   { to: "/dev/tenants", label: "테넌트", icon: IconTenants },
+  { to: "/dev/billing", label: "결제", icon: IconBilling },
   { to: "/dev/agents", label: "에이전트", icon: IconAgents },
 ];
 
@@ -180,6 +181,17 @@ function IconClose() {
   return (
     <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
       <path d="M5 5l10 10M15 5L5 15" />
+    </svg>
+  );
+}
+
+function IconBilling({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="4" width="14" height="10" rx="1.5" />
+      <path d="M2 8h14" />
+      <path d="M5 12h3" />
+      <path d="M11 12h2" />
     </svg>
   );
 }

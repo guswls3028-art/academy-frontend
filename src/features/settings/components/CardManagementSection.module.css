@@ -1,0 +1,238 @@
+/* PATH: src/features/settings/components/CardManagementSection.module.css */
+/* 결제 카드 관리 섹션 스타일 — 설정 페이지 디자인 시스템 */
+
+/* ── Section ── */
+.section {
+  display: flex;
+  flex-direction: column;
+}
+
+.sectionHeader {
+  margin-bottom: 14px;
+}
+
+.sectionTitle {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  margin: 0 0 4px;
+  line-height: 1.4;
+}
+
+.sectionDescription {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  margin: 0;
+  line-height: 1.55;
+}
+
+/* ── Card list ── */
+.cardList {
+  border: 1px solid var(--color-border-divider);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--color-bg-surface);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  margin-bottom: 12px;
+}
+
+.cardItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--color-border-divider);
+  transition: background 0.1s ease;
+}
+
+.cardItem:last-child {
+  border-bottom: none;
+}
+
+.cardItem:hover {
+  background: color-mix(in srgb, var(--color-primary) 2%, var(--color-bg-surface));
+}
+
+.cardInfo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.cardIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--color-primary) 8%, var(--color-bg-surface));
+  color: var(--color-primary, #6366f1);
+  flex-shrink: 0;
+}
+
+.cardDetails {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.cardNumber {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  letter-spacing: 0.02em;
+}
+
+.cardCompany {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+
+/* ── Delete button ── */
+.deleteBtn {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-semantic-danger, #ef4444);
+  background: transparent;
+  border: 1px solid color-mix(in srgb, var(--color-semantic-danger, #ef4444) 30%, transparent);
+  border-radius: 6px;
+  padding: 5px 12px;
+  cursor: pointer;
+  transition: all 0.12s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.deleteBtn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-semantic-danger, #ef4444) 8%, var(--color-bg-surface));
+  border-color: var(--color-semantic-danger, #ef4444);
+}
+
+.deleteBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ── Empty state ── */
+.emptyBox {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 20px;
+  border: 1px dashed var(--color-border-divider);
+  border-radius: 10px;
+  background: var(--color-bg-surface);
+  margin-bottom: 12px;
+}
+
+.emptyIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--color-primary) 6%, var(--color-bg-surface));
+  color: var(--color-text-muted);
+  margin-bottom: 12px;
+}
+
+.emptyText {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  margin: 0 0 4px;
+}
+
+.emptySubtext {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+/* ── Register button ── */
+.registerBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  align-self: flex-start;
+  padding: 9px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  background: var(--color-primary, #6366f1);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: opacity 0.12s ease, transform 0.1s ease;
+  line-height: 1.4;
+}
+
+.registerBtn:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.registerBtn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.registerBtn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.registerBtnLoading {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ── Error message ── */
+.errorMessage {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-semantic-danger, #ef4444);
+  background: color-mix(in srgb, var(--color-semantic-danger, #ef4444) 6%, var(--color-bg-surface));
+  border: 1px solid color-mix(in srgb, var(--color-semantic-danger, #ef4444) 20%, transparent);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  line-height: 1.5;
+}
+
+/* ── Error state box ── */
+.errorBox {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100px;
+  border: 1px solid color-mix(in srgb, var(--color-semantic-danger, #ef4444) 25%, var(--color-border-divider));
+  border-radius: 10px;
+  background: var(--color-bg-surface);
+  color: var(--color-semantic-danger, #ef4444);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* ── Loading state ── */
+.loadingBox {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100px;
+  border: 1px dashed var(--color-border-divider);
+  border-radius: 10px;
+  color: var(--color-text-muted);
+  font-size: 14px;
+  font-weight: 500;
+}

@@ -109,6 +109,7 @@ const OrganizationSettingsPage = lazy(() => import("@/features/settings/pages/Or
 const AppearancePage = lazy(() => import("@/features/settings/pages/AppearancePage"));
 const SecuritySettingsPage = lazy(() => import("@/features/settings/pages/SecuritySettingsPage"));
 const BillingSettingsPage = lazy(() => import("@/features/settings/pages/BillingSettingsPage"));
+const CardRegisterCallbackPage = lazy(() => import("@/features/settings/pages/CardRegisterCallbackPage"));
 const LandingEditorPage = lazy(() => import("@/features/landing/editor/LandingEditorPage"));
 
 /* ================= Lazy: Learning (시험·성적·영상) ================= */
@@ -253,6 +254,9 @@ export default function AdminRouter() {
 
         {/* ================= Staff ================= */}
         <Route path="staff/*" element={wrapLazy(StaffRoutes)} />
+
+        {/* ================= 결제 카드 등록 콜백 (Toss 리다이렉트) ================= */}
+        <Route path="billing/card/callback" element={wrapLazy(CardRegisterCallbackPage)} />
 
         {/* ================= 설정 — 사이드바 레이아웃 ================= */}
         <Route path="settings" element={wrapLazy(SettingsLayout)}>

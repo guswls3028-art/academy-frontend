@@ -1,8 +1,9 @@
 // PATH: src/features/settings/pages/BillingSettingsPage.tsx
-// 결제/구독 설정 페이지 — 요금제, 구독 상태, 남은 일수, 프로모션 할인
+// 결제/구독 설정 페이지 — 요금제, 구독 상태, 남은 일수, 프로모션 할인, 해지 예약
 
 import { useQuery } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
+import CardManagementSection from "../components/CardManagementSection";
 import styles from "./BillingSettingsPage.module.css";
 
 type SubscriptionInfo = {
@@ -19,6 +20,10 @@ type SubscriptionInfo = {
   is_subscription_active: boolean;
   days_remaining: number | null;
   billing_email: string;
+  billing_mode: string;
+  next_billing_at: string | null;
+  cancel_at_period_end: boolean;
+  canceled_at: string | null;
   tenant_code: string;
   tenant_name: string;
 };
@@ -47,13 +52,17 @@ const STATUS_COLORS: Record<string, string> = {
   active: "var(--color-semantic-success, #22c55e)",
   grace: "var(--color-semantic-warning, #f59e0b)",
   expired: "var(--color-semantic-danger, #ef4444)",
-  cancelled: "var(--color-text-muted, #9ca3af)",
 };
 
 const PLAN_COLORS: Record<string, string> = {
   standard: "#64748b",
   pro: "var(--color-primary, #6366f1)",
   max: "#f59e0b",
+};
+
+const BILLING_MODE_LABELS: Record<string, string> = {
+  AUTO_CARD: "카드 자동결제",
+  INVOICE_REQUEST: "세금계산서 청구",
 };
 
 export default function BillingSettingsPage() {
@@ -130,6 +139,15 @@ export default function BillingSettingsPage() {
           </span>
         </div>
 
+        {data.cancel_at_period_end && !isExpired && (
+          <div className={styles.cardRow}>
+            <span className={styles.cardLabel} />
+            <span style={{ fontSize: "0.85em", color: "var(--color-semantic-warning, #f59e0b)" }}>
+              현재 기간 종료 후 자동 해지 예정
+            </span>
+          </div>
+        )}
+
         <div className={styles.cardRow}>
           <span className={styles.cardLabel}>구독 시작일</span>
           <span className={styles.cardValue}>{formatDate(data.subscription_started_at)}</span>
@@ -154,6 +172,20 @@ export default function BillingSettingsPage() {
           </span>
         </div>
 
+        <div className={styles.cardRow}>
+          <span className={styles.cardLabel}>결제 방식</span>
+          <span className={styles.cardValue}>
+            {BILLING_MODE_LABELS[data.billing_mode] ?? data.billing_mode}
+          </span>
+        </div>
+
+        {data.next_billing_at && (
+          <div className={styles.cardRow}>
+            <span className={styles.cardLabel}>다음 결제 예정일</span>
+            <span className={styles.cardValue}>{formatDate(data.next_billing_at)}</span>
+          </div>
+        )}
+
         {data.billing_email && (
           <div className={styles.cardRow}>
             <span className={styles.cardLabel}>결제 이메일</span>
@@ -161,6 +193,9 @@ export default function BillingSettingsPage() {
           </div>
         )}
       </div>
+
+      {/* Card Management */}
+      <CardManagementSection />
 
       {/* Expired Warning */}
       {isExpired && (

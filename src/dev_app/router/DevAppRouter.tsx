@@ -5,6 +5,7 @@ import DashboardPage from "@/dev_app/pages/DashboardPage";
 import TenantsPage from "@/dev_app/pages/TenantsPage";
 import TenantDetailPage from "@/dev_app/pages/TenantDetailPage";
 import AgentMonitorPage from "@/dev_app/pages/AgentMonitorPage";
+import BillingPage from "@/dev_app/pages/BillingPage";
 
 export default function DevAppRouter() {
   return (
@@ -15,6 +16,7 @@ export default function DevAppRouter() {
           <Route path="dashboard" element={<DashboardPage />} />
           <Route path="tenants" element={<TenantsPage />} />
           <Route path="tenants/:tenantId" element={<TenantDetailPage />} />
+          <Route path="billing" element={<BillingPage />} />
           <Route path="agents" element={<AgentMonitorPage />} />
           {/* Legacy paths redirect to new structure */}
           <Route path="home" element={<Navigate to="/dev/dashboard" replace />} />
