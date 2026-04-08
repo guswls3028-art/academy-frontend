@@ -554,7 +554,7 @@ function MatDetailView({ postId, onClose, onDeleted }: { postId: number; onClose
           <div className="qna-inbox__thread-title-group cms-detail__title-group">
             {editingTitle ? (
               <div className="cms-detail__title-edit-row">
-                <input className="ds-input cms-detail__title-input" value={editTitle} onChange={(e) => setEditTitle(e.target.value)} autoFocus onKeyDown={(e) => { if (e.key === "Enter") updateMut.mutate({ title: editTitle }); if (e.key === "Escape") setEditingTitle(false); }} />
+                <input className="ds-input cms-detail__title-input" value={editTitle} onChange={(e) => setEditTitle(e.target.value)} autoFocus onKeyDown={(e) => { if (e.key === "Enter" && editTitle.trim() && !updateMut.isPending) updateMut.mutate({ title: editTitle }); if (e.key === "Escape") setEditingTitle(false); }} />
                 <Button size="sm" intent="primary" onClick={() => updateMut.mutate({ title: editTitle })} disabled={updateMut.isPending || !editTitle.trim()}>저장</Button>
                 <Button size="sm" intent="secondary" onClick={() => setEditingTitle(false)}>취소</Button>
               </div>

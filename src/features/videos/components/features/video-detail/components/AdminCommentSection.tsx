@@ -248,7 +248,7 @@ function CommentRow({
               }}
               autoFocus
               onKeyDown={(e) => {
-                if (e.key === "Enter" && editContent.trim())
+                if (e.key === "Enter" && editContent.trim() && !editMut.isPending)
                   editMut.mutate();
                 if (e.key === "Escape") setEditMode(false);
               }}
