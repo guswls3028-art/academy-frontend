@@ -119,10 +119,10 @@ function AppIcon({
       <div style={{
         width: 56, height: 56, borderRadius: 16,
         background: iconBg || "var(--stu-surface)",
-        border: "1.5px solid var(--stu-border-subtle)",
+        border: iconBg ? "none" : "1.5px solid var(--stu-border-subtle)",
         display: "grid", placeItems: "center",
         position: "relative",
-        boxShadow: "0 2px 8px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255,255,255,0.06)",
+        boxShadow: iconBg ? "0 1px 4px rgba(0,0,0,0.06)" : "0 2px 8px rgba(0,0,0,0.04)",
         transition: "transform var(--stu-motion-fast)",
       }}>
         {icon}
@@ -253,7 +253,7 @@ export default function DashboardPage() {
               <TodoRow
                 to="/student/clinic"
                 icon={<IconClinic style={{ width: 18, height: 18, color: "var(--stu-primary)" }} />}
-                iconBg="rgba(59,130,246,0.1)"
+                iconBg="rgba(59,130,246,0.18)"
                 label="클리닉 예약이 있습니다"
                 labelColor="var(--stu-primary)"
                 hasBorder={false}
@@ -311,31 +311,31 @@ export default function DashboardPage() {
         }}>
           <AppIcon to="/student/video" label="영상"
             icon={<IconPlay style={{ width: 24, height: 24, color: "#6366f1" }} />}
-            iconBg="rgba(99,102,241,0.1)"
+            iconBg="rgba(99,102,241,0.18)"
             badge={!countsLoading ? notificationCounts?.video : undefined} />
           <AppIcon to="/student/grades" label="성적"
             icon={<IconGrade style={{ width: 24, height: 24, color: "var(--stu-primary)" }} />}
-            iconBg="rgba(59,130,246,0.1)"
+            iconBg="rgba(59,130,246,0.18)"
             badge={!countsLoading ? notificationCounts?.grade : undefined} />
           <AppIcon to="/student/exams" label="시험"
             icon={<IconExam style={{ width: 24, height: 24, color: "var(--stu-danger)" }} />}
-            iconBg="rgba(239,68,68,0.1)" />
+            iconBg="rgba(239,68,68,0.15)" />
           <AppIcon to="/student/submit/assignment" label="과제"
             icon={<IconClipboard style={{ width: 24, height: 24, color: "var(--stu-warn)" }} />}
-            iconBg="rgba(245,158,11,0.1)" />
+            iconBg="rgba(245,158,11,0.15)" />
           <AppIcon to="/student/sessions" label="일정"
             icon={<IconCalendar style={{ width: 24, height: 24, color: "#8b5cf6" }} />}
-            iconBg="rgba(139,92,246,0.1)" />
+            iconBg="rgba(139,92,246,0.18)" />
           <AppIcon to="/student/clinic" label="클리닉"
             icon={<IconClinic style={{ width: 24, height: 24, color: "var(--stu-success)" }} />}
-            iconBg="rgba(16,185,129,0.1)"
+            iconBg="rgba(16,185,129,0.18)"
             badge={!countsLoading ? notificationCounts?.clinic : undefined} />
           <AppIcon to="/student/community" label="커뮤니티"
             icon={<IconBoard style={{ width: 24, height: 24, color: "#0ea5e9" }} />}
-            iconBg="rgba(14,165,233,0.1)" />
+            iconBg="rgba(14,165,233,0.18)" />
           <AppIcon to="/student/inventory" label="보관함"
             icon={<IconFolder style={{ width: 24, height: 24, color: "#64748b" }} />}
-            iconBg="rgba(100,116,139,0.1)" />
+            iconBg="rgba(100,116,139,0.15)" />
         </div>
       </section>
 
@@ -468,20 +468,29 @@ function LearningStatusCard({
       ) : (
         <div style={{
           display: "flex",
-          flexDirection: "column",
           alignItems: "center",
-          gap: 8,
-          padding: "12px 0 4px",
+          gap: 14,
+          padding: "8px 4px",
         }}>
-          {/* Simple CSS-only book illustration */}
-          <svg width="40" height="40" viewBox="0 0 40 40" fill="none" style={{ opacity: 0.5 }}>
-            <rect x="6" y="8" width="28" height="24" rx="3" stroke="var(--stu-text-muted)" strokeWidth="1.5" fill="none" />
-            <line x1="20" y1="8" x2="20" y2="32" stroke="var(--stu-text-muted)" strokeWidth="1.5" />
-            <path d="M10 14h6M10 18h5M24 14h6M24 18h5" stroke="var(--stu-text-muted)" strokeWidth="1.2" strokeLinecap="round" />
-          </svg>
-          <span style={{ fontSize: 13, color: "var(--stu-text-muted)", textAlign: "center", lineHeight: 1.5 }}>
-            수업에 참여하면 여기에 학습 현황이 표시돼요
-          </span>
+          <div style={{
+            width: 52, height: 52, borderRadius: 14, flexShrink: 0,
+            background: "linear-gradient(135deg, rgba(99,102,241,0.12), rgba(59,130,246,0.08))",
+            display: "grid", placeItems: "center",
+          }}>
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" stroke="var(--stu-primary)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" stroke="var(--stu-primary)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M9 7h6M9 11h4" stroke="var(--stu-primary)" strokeWidth="1.5" strokeLinecap="round" opacity="0.5"/>
+            </svg>
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 14, fontWeight: 600, color: "var(--stu-text)", marginBottom: 2 }}>
+              아직 학습 기록이 없어요
+            </div>
+            <div style={{ fontSize: 12, color: "var(--stu-text-muted)", lineHeight: 1.5 }}>
+              수업에 참여하면 현황이 여기에 표시돼요
+            </div>
+          </div>
         </div>
       )}
     </section>
