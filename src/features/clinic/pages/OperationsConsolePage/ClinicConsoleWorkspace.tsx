@@ -51,7 +51,8 @@ import { updateAdminExam } from "@/features/exams/api/adminExam";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useAutoSendConfig } from "@/features/messages/hooks/useAutoSendConfig";
 import { useSendMessageModal } from "@/features/messages/context/SendMessageModalContext";
-import { Bell, BellOff } from "lucide-react";
+import { Bell, BellOff, Send } from "lucide-react";
+import AutoSendPreviewPopup from "@/features/messages/components/AutoSendPreviewPopup";
 import ClinicTargetSelectModal from "../../components/ClinicTargetSelectModal";
 import type { ClinicTargetSelectResult } from "../../components/ClinicTargetSelectModal";
 import { buildParticipantPayload } from "../../utils/buildParticipantPayload";
@@ -162,9 +163,12 @@ export default function ClinicConsoleWorkspace({
   // Prevent double-click on remediation actions (resolve/waive/carryover/retake)
   const [remediatingLinkIds, setRemediatingLinkIds] = useState<Set<number>>(new Set());
 
-  const { configs: autoSendConfigs } = useAutoSendConfig();
+  const { configs: autoSendConfigs, toggleEnabled, isToggling } = useAutoSendConfig();
   const { data: clinicTargets } = useClinicTargets();
   const { openSendMessageModal } = useSendMessageModal();
+
+  // 알림 설정 미리보기 팝업
+  const [previewTrigger, setPreviewTrigger] = useState<string | null>(null);
 
   // Build enrollment_id → ClinicTarget[] map for O(1) lookup
   const targetsByEnrollment = useMemo(() => {
@@ -605,17 +609,19 @@ export default function ClinicConsoleWorkspace({
         {/* ═══ 알림 트리거 상태 — ON/OFF 인디케이터 ═══ */}
         {!isLoading && session && (() => {
           const CLINIC_TRIGGERS = [
-            { key: "clinic_reservation_created", label: "예약 완료" },
-            { key: "clinic_check_in", label: "참석" },
-            { key: "clinic_absent", label: "결석" },
-            { key: "clinic_self_study_completed", label: "클리닉 완료" },
-            { key: "clinic_cancelled", label: "취소" },
-            { key: "clinic_reservation_changed", label: "예약 변경" },
-            { key: "clinic_result_notification", label: "결과 안내" },
-            { key: "clinic_reminder", label: "리마인더" },
+            { key: "clinic_reservation_created", label: "예약 완료", desc: "클리닉 예약이 완료되면 학부모에게 예약 안내를 발송합니다." },
+            { key: "clinic_check_in", label: "참석", desc: "출석 버튼을 누르면 학부모에게 입실 알림을 발송합니다." },
+            { key: "clinic_absent", label: "결석", desc: "불참 버튼을 누르면 학부모에게 결석 알림을 발송합니다." },
+            { key: "clinic_self_study_completed", label: "클리닉 완료", desc: "완료 버튼을 누르면 학부모에게 하원 안내를 발송합니다." },
+            { key: "clinic_cancelled", label: "취소", desc: "클리닉 예약 취소 시 학부모에게 취소 안내를 발송합니다." },
+            { key: "clinic_reservation_changed", label: "예약 변경", desc: "클리닉 예약이 변경되면 학부모에게 변경 내용을 안내합니다." },
+            { key: "clinic_result_notification", label: "결과 안내", desc: "시험/과제 통과로 클리닉 대상이 해소되면 결과를 안내합니다." },
+            { key: "clinic_reminder", label: "리마인더", desc: "클리닉 시작 전 학생에게 예약 일시/장소를 리마인드합니다." },
           ] as const;
           const triggerMap = new Map(autoSendConfigs.map((c) => [c.trigger, c]));
           const enabledCount = CLINIC_TRIGGERS.filter((t) => triggerMap.get(t.key)?.enabled).length;
+          const previewCfg = previewTrigger ? triggerMap.get(previewTrigger) : null;
+          const previewMeta = previewTrigger ? CLINIC_TRIGGERS.find((t) => t.key === previewTrigger) : null;
           return (
             <div className="clinic-ops__trigger-status">
               <span className="clinic-ops__trigger-status-icon">
@@ -626,15 +632,75 @@ export default function ClinicConsoleWorkspace({
                 const cfg = triggerMap.get(t.key);
                 const on = cfg?.enabled ?? false;
                 return (
-                  <span
+                  <button
                     key={t.key}
-                    className={`clinic-ops__trigger-badge ${on ? "clinic-ops__trigger-badge--on" : "clinic-ops__trigger-badge--off"}`}
-                    title={`${t.label}: ${on ? "활성" : "비활성"} (${cfg?.message_mode || "미설정"})`}
+                    type="button"
+                    className={`clinic-ops__trigger-badge clinic-ops__trigger-badge--clickable ${on ? "clinic-ops__trigger-badge--on" : "clinic-ops__trigger-badge--off"}`}
+                    onClick={() => setPreviewTrigger(t.key)}
+                    title={t.desc}
                   >
                     {t.label}
-                  </span>
+                  </button>
                 );
               })}
+              {/* 트리거 미리보기 팝업 */}
+              {previewTrigger && previewMeta && (
+                <div
+                  className="clinic-ops__trigger-preview-overlay"
+                  onClick={(e) => { if (e.target === e.currentTarget) setPreviewTrigger(null); }}
+                >
+                  <div className="clinic-ops__trigger-preview-popup">
+                    <div className="clinic-ops__trigger-preview-header">
+                      <div>
+                        <div className="clinic-ops__trigger-preview-title">{previewMeta.label}</div>
+                        <div className="clinic-ops__trigger-preview-desc">{previewMeta.desc}</div>
+                      </div>
+                      <button type="button" onClick={() => setPreviewTrigger(null)} className="clinic-ops__trigger-preview-close" aria-label="닫기">
+                        <X size={16} />
+                      </button>
+                    </div>
+                    <div className="clinic-ops__trigger-preview-body">
+                      {/* ON/OFF + 발송 방식 */}
+                      <div className="clinic-ops__trigger-preview-toggle">
+                        <span className="clinic-ops__trigger-preview-toggle-label">자동 발송</span>
+                        <button
+                          type="button"
+                          className={`clinic-ops__trigger-toggle-btn ${previewCfg?.enabled ? "clinic-ops__trigger-toggle-btn--on" : "clinic-ops__trigger-toggle-btn--off"}`}
+                          disabled={isToggling}
+                          onClick={() => {
+                            if (previewCfg) {
+                              toggleEnabled({ trigger: previewTrigger, enabled: !previewCfg.enabled });
+                            }
+                          }}
+                        >
+                          {previewCfg?.enabled ? "ON" : "OFF"}
+                        </button>
+                        {previewCfg?.message_mode && (
+                          <span className="clinic-ops__trigger-preview-mode">
+                            {previewCfg.message_mode === "alimtalk" ? "알림톡" : previewCfg.message_mode === "sms" ? "SMS" : previewCfg.message_mode}
+                          </span>
+                        )}
+                      </div>
+                      {/* 알림톡 본문 미리보기 */}
+                      {previewCfg?.template_body ? (
+                        <div className="clinic-ops__trigger-preview-template">
+                          <div className="clinic-ops__trigger-preview-template-label">알림톡 본문</div>
+                          <div className="clinic-ops__trigger-preview-template-body">
+                            {previewCfg.template_body}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="clinic-ops__trigger-preview-empty">
+                          양식이 아직 설정되지 않았습니다.
+                        </div>
+                      )}
+                      <div className="clinic-ops__trigger-preview-hint">
+                        메시지 &gt; 자동발송 페이지에서 양식을 수정할 수 있습니다.
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           );
         })()}
@@ -841,9 +907,36 @@ export default function ClinicConsoleWorkspace({
                     const isSelfStudy = targets.length === 0;
                     const unresolvedTargets = targets.filter((t) => !t.resolved_at && t.clinic_link_id);
                     const isCompleted = !!p.completed_at;
-                    // 결석/취소 상태에서는 완료 버튼 숨김
-                    const isAbsentOrCancelled = p.status === "no_show" || p.status === "cancelled" || p.status === "rejected";
-                    if (isAbsentOrCancelled) return null;
+                    // 결석 상태 → 결석 알림 발송 버튼
+                    if (p.status === "no_show") {
+                      return (
+                        <div className="clinic-ops__card-inline-actions" onClick={(e) => e.stopPropagation()}>
+                          <button
+                            type="button"
+                            className="clinic-ops__inline-btn clinic-ops__inline-btn--absent-notify"
+                            onClick={() => {
+                              if (!p.student) return;
+                              openSendMessageModal({
+                                studentIds: [p.student],
+                                recipientLabel: `${p.student_name} 결석 알림`,
+                                blockCategory: "clinic",
+                                alimtalkExtraVars: {
+                                  학생이름: p.student_name,
+                                  클리닉장소: session?.location || "",
+                                  클리닉날짜: session?.date || selectedDate,
+                                  클리닉시간: formatTime(session?.start_time),
+                                },
+                              });
+                            }}
+                          >
+                            <Send size={14} aria-hidden />
+                            결석 알림 발송
+                          </button>
+                        </div>
+                      );
+                    }
+                    // 취소/거절 상태에서는 완료 버튼 숨김
+                    if (p.status === "cancelled" || p.status === "rejected") return null;
 
                     if (isSelfStudy) {
                       // 자율학습: 완료 토글 버튼

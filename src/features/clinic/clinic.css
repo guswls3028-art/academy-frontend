@@ -4068,6 +4068,15 @@ details[open] > .clinic-tree__summary {
   font-weight: 500;
   line-height: 1.6;
 }
+.clinic-ops__trigger-badge--clickable {
+  cursor: pointer;
+  font-family: inherit;
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+.clinic-ops__trigger-badge--clickable:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+}
 .clinic-ops__trigger-badge--on {
   background: #dbeafe;
   color: #1d4ed8;
@@ -4078,6 +4087,153 @@ details[open] > .clinic-tree__summary {
   color: #9ca3af;
   border: 1px solid #e5e7eb;
   text-decoration: line-through;
+}
+
+/* 트리거 미리보기 팝업 */
+.clinic-ops__trigger-preview-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1050;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.2);
+  backdrop-filter: blur(2px);
+}
+.clinic-ops__trigger-preview-popup {
+  width: 360px;
+  max-height: 80vh;
+  overflow: auto;
+  border-radius: 12px;
+  background: var(--color-bg-surface, #fff);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+}
+.clinic-ops__trigger-preview-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid var(--color-border-divider, #eee);
+}
+.clinic-ops__trigger-preview-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+.clinic-ops__trigger-preview-desc {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  margin-top: 3px;
+  line-height: 1.5;
+}
+.clinic-ops__trigger-preview-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  color: var(--color-text-muted);
+  border-radius: var(--radius-sm, 4px);
+  flex-shrink: 0;
+}
+.clinic-ops__trigger-preview-close:hover {
+  background: var(--color-bg-surface-soft, #f5f5f5);
+}
+.clinic-ops__trigger-preview-body {
+  padding: 12px 16px 16px;
+}
+.clinic-ops__trigger-preview-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.clinic-ops__trigger-preview-toggle-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+.clinic-ops__trigger-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 700;
+  font-family: inherit;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.clinic-ops__trigger-toggle-btn--on {
+  background: #22c55e;
+  color: #fff;
+}
+.clinic-ops__trigger-toggle-btn--on:hover {
+  background: #16a34a;
+}
+.clinic-ops__trigger-toggle-btn--off {
+  background: #e5e7eb;
+  color: #6b7280;
+}
+.clinic-ops__trigger-toggle-btn--off:hover {
+  background: #d1d5db;
+}
+.clinic-ops__trigger-toggle-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.clinic-ops__trigger-preview-mode {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  background: var(--color-bg-surface-soft, #f5f5f5);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+.clinic-ops__trigger-preview-template {
+  border: 1px solid var(--color-border-divider, #e5e7eb);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.clinic-ops__trigger-preview-template-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  padding: 6px 12px;
+  background: var(--color-bg-surface-soft, #f9fafb);
+  border-bottom: 1px solid var(--color-border-divider, #e5e7eb);
+}
+.clinic-ops__trigger-preview-template-body {
+  padding: 10px 12px;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--color-text-primary);
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 240px;
+  overflow-y: auto;
+}
+.clinic-ops__trigger-preview-empty {
+  padding: 16px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+.clinic-ops__trigger-preview-hint {
+  margin-top: 10px;
+  font-size: 11px;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+/* 결석 알림 발송 버튼 */
+.clinic-ops__inline-btn--absent-notify {
+  background: color-mix(in srgb, #ef4444 8%, var(--color-bg-surface));
+  color: #dc2626;
+  border: 1px solid color-mix(in srgb, #ef4444 20%, var(--color-border-divider));
+}
+.clinic-ops__inline-btn--absent-notify:hover:not(:disabled) {
+  background: color-mix(in srgb, #ef4444 16%, var(--color-bg-surface));
 }
 
 /* ── B. 상태 필터 칩 ── */
