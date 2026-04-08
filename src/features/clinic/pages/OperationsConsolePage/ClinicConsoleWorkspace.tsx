@@ -312,14 +312,14 @@ export default function ClinicConsoleWorkspace({
       });
   }
 
-  /* ── 자율학습 완료/취소 ── */
+  /* ── 클리닉 완료/취소 ── */
   function handleComplete(p: ClinicParticipant) {
     if (completingIds.has(p.id)) return;
     setCompletingIds((prev) => new Set(prev).add(p.id));
     completeClinicParticipant(p.id)
       .then(() => {
         invalidateAll();
-        feedback.success(`${p.student_name} 자율학습 완료`);
+        feedback.success(`${p.student_name} 클리닉 완료`);
       })
       .catch(() => feedback.error("완료 처리에 실패했습니다."))
       .finally(() => {
@@ -609,7 +609,7 @@ export default function ClinicConsoleWorkspace({
             { key: "clinic_check_in", label: "입실" },
             { key: "clinic_check_out", label: "퇴실" },
             { key: "clinic_absent", label: "결석" },
-            { key: "clinic_self_study_completed", label: "자율학습 완료" },
+            { key: "clinic_self_study_completed", label: "클리닉 완료" },
             { key: "clinic_cancelled", label: "취소" },
             { key: "clinic_reminder", label: "리마인더" },
           ] as const;
@@ -835,7 +835,7 @@ export default function ClinicConsoleWorkspace({
                     </div>
                   </div>
 
-                  {/* Row 3: Inline actions — 자율학습 완료 / 진행중 점수입력 */}
+                  {/* Row 3: Inline actions — 클리닉 완료 / 진행중 점수입력 */}
                   {(() => {
                     const isSelfStudy = targets.length === 0;
                     const unresolvedTargets = targets.filter((t) => !t.resolved_at && t.clinic_link_id);
@@ -853,7 +853,7 @@ export default function ClinicConsoleWorkspace({
                               disabled={completingIds.has(p.id)}
                             >
                               <CircleCheckBig size={14} aria-hidden />
-                              자율학습 완료
+                              클리닉 완료
                               <span className="clinic-ops__inline-btn-sub">
                                 {dayjs(p.completed_at).format("HH:mm")}
                               </span>
@@ -866,7 +866,7 @@ export default function ClinicConsoleWorkspace({
                               disabled={completingIds.has(p.id)}
                             >
                               <CircleCheckBig size={14} aria-hidden />
-                              {completingIds.has(p.id) ? "처리 중…" : "자율학습 완료"}
+                              {completingIds.has(p.id) ? "처리 중…" : "클리닉 완료"}
                             </button>
                           )}
                         </div>
@@ -1066,7 +1066,7 @@ export default function ClinicConsoleWorkspace({
                         disabled={completingIds.has(drawerParticipant.id)}
                       >
                         <CircleCheckBig size={13} aria-hidden />
-                        자율학습 완료
+                        클리닉 완료
                       </button>
                     )}
                   </div>

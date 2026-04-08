@@ -71,7 +71,7 @@ const TRIGGER_DESCRIPTIONS: Record<string, string> = {
   clinic_reservation_changed:
     "클리닉 예약이 변경/취소되면 학생·학부모에게 변경 내용을 안내합니다.",
   clinic_self_study_completed:
-    "자율학습이 완료되면 학생·학부모에게 완료 안내를 발송합니다.",
+    "클리닉 완료 시 학생·학부모에게 완료 안내를 발송합니다.",
   clinic_result_notification:
     "클리닉 대상이 해소(시험통과/과제통과/수동해소)되면 학생·학부모에게 결과를 안내합니다.",
   counseling_reservation_created:
