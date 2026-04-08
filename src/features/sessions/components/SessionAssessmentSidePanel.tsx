@@ -34,6 +34,14 @@ type HomeworkItem = {
   status?: "DRAFT" | "OPEN" | "CLOSED";
 };
 
+function getErrorDetail(error: unknown): string {
+  if (typeof error === "object" && error !== null) {
+    const maybeResponse = (error as { response?: { data?: { detail?: unknown } } }).response;
+    if (typeof maybeResponse?.data?.detail === "string") return maybeResponse.data.detail;
+  }
+  return "변경 실패";
+}
+
 /* ------------------------------------------------------------------ */
 /*  Inline styles (CSS-in-JS) — uses design tokens only               */
 /* ------------------------------------------------------------------ */
@@ -282,7 +290,8 @@ export default function SessionAssessmentSidePanel({
     queryFn: async (): Promise<HomeworkItem[]> => {
       const res = await api.get("/homeworks/", { params: { session_id: sessionId } });
       const arr = res.data?.results ?? res.data?.items ?? res.data ?? [];
-      return arr.map((x: any) => ({
+      const list = Array.isArray(arr) ? arr : [];
+      return list.map((x: { id?: unknown; title?: unknown; status?: unknown }) => ({
         id: Number(x.id),
         title: String(x.title ?? ""),
         status: (x.status ?? "OPEN") as HomeworkItem["status"],
@@ -355,18 +364,18 @@ export default function SessionAssessmentSidePanel({
 
         // Auto-close all OPEN exams and homeworks
         let failCount = 0;
-        const promises: Promise<any>[] = [];
+        const promises: Promise<void>[] = [];
         for (const exam of exams) {
           if (exam.status === "OPEN") {
             promises.push(
-              updateAdminExam(Number(exam.exam_id), { status: "CLOSED" }).catch(() => { failCount++; }),
+              updateAdminExam(Number(exam.exam_id), { status: "CLOSED" }).then(() => {}).catch(() => { failCount++; }),
             );
           }
         }
         for (const hw of homeworks) {
           if (hw.status === "OPEN") {
             promises.push(
-              updateAdminHomework(hw.id, { status: "CLOSED" }).catch(() => { failCount++; }),
+              updateAdminHomework(hw.id, { status: "CLOSED" }).then(() => {}).catch(() => { failCount++; }),
             );
           }
         }
@@ -411,8 +420,8 @@ export default function SessionAssessmentSidePanel({
       invalidateHomeworks();
       invalidateSessionScores();
       feedback.success("과제를 진행 중으로 변경했습니다.");
-    } catch (e: any) {
-      feedback.error(e?.response?.data?.detail ?? "변경 실패");
+    } catch (e: unknown) {
+      feedback.error(getErrorDetail(e));
     } finally {
       setHwBusy(null);
     }
@@ -426,8 +435,8 @@ export default function SessionAssessmentSidePanel({
       invalidateHomeworks();
       invalidateSessionScores();
       feedback.success("과제를 종료했습니다.");
-    } catch (e: any) {
-      feedback.error(e?.response?.data?.detail ?? "변경 실패");
+    } catch (e: unknown) {
+      feedback.error(getErrorDetail(e));
     } finally {
       setHwBusy(null);
     }
@@ -443,8 +452,8 @@ export default function SessionAssessmentSidePanel({
       invalidateExamsSummary();
       invalidateSessionScores();
       feedback.success("시험을 진행 중으로 변경했습니다.");
-    } catch (e: any) {
-      feedback.error(e?.response?.data?.detail ?? "변경 실패");
+    } catch (e: unknown) {
+      feedback.error(getErrorDetail(e));
     } finally {
       setExamBusy(null);
     }
@@ -461,8 +470,8 @@ export default function SessionAssessmentSidePanel({
       invalidateExamsSummary();
       invalidateSessionScores();
       feedback.success("시험을 종료했습니다.");
-    } catch (e: any) {
-      feedback.error(e?.response?.data?.detail ?? "변경 실패");
+    } catch (e: unknown) {
+      feedback.error(getErrorDetail(e));
     } finally {
       setExamBusy(null);
     }
@@ -570,7 +579,7 @@ export default function SessionAssessmentSidePanel({
         sessionId={sessionId}
         lectureId={lectureId}
         onCreated={async (id) => {
-          try { await updateAdminExam(id, { status: "OPEN" }); } catch {}
+          try { await updateAdminExam(id, { status: "OPEN" }); } catch { /* noop */ }
           invalidateExams();
           invalidateExamsSummary();
           invalidateSessionScores();
@@ -583,7 +592,7 @@ export default function SessionAssessmentSidePanel({
         onClose={handleCloseCreateHomework}
         sessionId={sessionId}
         onCreated={async (id) => {
-          try { await updateAdminHomework(id, { status: "OPEN" }); } catch {}
+          try { await updateAdminHomework(id, { status: "OPEN" }); } catch { /* noop */ }
           invalidateHomeworks();
           invalidateSessionScores();
           feedback.success("과제가 생성되어 진행 상태로 전환되었습니다.");
@@ -631,7 +640,7 @@ function ExamItemCard({
   busy: null | "start" | "end";
 }) {
   const isClosed = status === "CLOSED";
-  const isOpen = !isClosed;
+  const isOpen = status === "OPEN";
 
   const statusLabel = isOpen ? "진행" : "마감";
   const statusTone: StatusTone = isOpen ? "success" : "danger";
@@ -657,6 +666,11 @@ function ExamItemCard({
           {isClosed && <span style={{ marginLeft: 6, fontSize: 10, color: "var(--color-text-muted)" }}>종료됨</span>}
         </div>
         <div style={S.actionsRow} onClick={(e) => e.stopPropagation()}>
+          {!isOpen && (
+            <Button type="button" size="sm" intent="primary" onClick={onStart} disabled={busy != null} loading={busy === "start"}>
+              시험 시작
+            </Button>
+          )}
           {isOpen && (
             <Button type="button" size="sm" intent="danger" onClick={onEnd} disabled={busy != null} loading={busy === "end"}>
               시험 종료
@@ -694,7 +708,7 @@ function HomeworkItemCard({
   onEnd: (e: React.MouseEvent) => void;
 }) {
   const isClosed = status === "CLOSED";
-  const isOpen = !isClosed;
+  const isOpen = status === "OPEN";
   const statusLabel = isOpen ? "진행" : "마감";
   const statusTone: StatusTone = isOpen ? "success" : "danger";
 
@@ -724,6 +738,11 @@ function HomeworkItemCard({
           {isClosed && <span style={{ marginLeft: 6, fontSize: 10, color: "var(--color-text-muted)" }}>종료됨</span>}
         </div>
         <div style={S.actionsRow} onClick={(e) => e.stopPropagation()}>
+          {!isOpen && (
+            <Button type="button" size="sm" intent="primary" onClick={onStart} disabled={busy}>
+              과제 시작
+            </Button>
+          )}
           {isOpen && (
             <Button type="button" size="sm" intent="secondary" onClick={onEnd} disabled={busy}>
               {busy ? "처리 중…" : "과제 종료"}

@@ -62,6 +62,12 @@ const NoticeAdminPage = lazy(() => import("@/features/community/pages/NoticeAdmi
 const CounselAdminPage = lazy(() => import("@/features/community/pages/CounselAdminPage"));
 const CommunitySettingsPage = lazy(() => import("@/features/community/pages/CommunitySettingsPage"));
 
+/* ================= Lazy: Fees (수납 관리) ================= */
+const FeesPage = lazy(() => import("@/features/fees/pages/FeesPage"));
+const FeesDashboardTab = lazy(() => import("@/features/fees/components/FeesDashboardTab"));
+const FeesInvoicesTab = lazy(() => import("@/features/fees/components/FeesInvoicesTab"));
+const FeesTemplatesTab = lazy(() => import("@/features/fees/components/FeesTemplatesTab"));
+
 /* ================= Lazy: Clinic ================= */
 const ClinicRoutes = lazy(() => import("@/features/clinic/ClinicRoutes"));
 
@@ -192,6 +198,13 @@ export default function AdminRouter() {
 
         {/* ================= Storage (저장소 통합) ================= */}
         <Route path="storage/*" element={wrapLazy(StorageRoutes)} />
+
+        {/* ================= Fees (수납 관리) ================= */}
+        <Route path="fees" element={wrapLazy(FeesPage)}>
+          <Route index element={wrapLazy(FeesDashboardTab)} />
+          <Route path="invoices" element={wrapLazy(FeesInvoicesTab)} />
+          <Route path="templates" element={wrapLazy(FeesTemplatesTab)} />
+        </Route>
 
         {/* ================= Clinic ================= */}
         <Route path="clinic/*" element={wrapLazy(ClinicRoutes)} />

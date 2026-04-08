@@ -37,6 +37,7 @@ const NotificationsPage = lazy(() => import("@/student/domains/notifications/pag
 const ClinicIDCardPage = lazy(() => import("@/student/domains/clinic-idcard/pages/ClinicIDCardPage"));
 const ClinicPage = lazy(() => import("@/student/domains/clinic/pages/ClinicPage"));
 const AttendancePage = lazy(() => import("@/student/domains/attendance/pages/AttendancePage"));
+const StudentFeesPage = lazy(() => import("@/student/domains/fees/pages/StudentFeesPage"));
 const StudentSettingsPage = lazy(() => import("@/student/domains/settings/pages/StudentSettingsPage"));
 const GuidePage = lazy(() => import("@/student/domains/guide/pages/GuidePage"));
 
@@ -106,6 +107,7 @@ export default function StudentRouter() {
         <Route path="idcard" element={<ClinicIDCardPage />} />
         <Route path="clinic" element={<ClinicPage />} />
         <Route path="attendance" element={<AttendancePage />} />
+        <Route path="fees" element={<StudentFeesPage />} />
         <Route path="guide" element={<GuidePage />} />
       </Route>
 
