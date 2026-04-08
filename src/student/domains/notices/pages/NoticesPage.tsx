@@ -10,6 +10,11 @@ import EmptyState from "@/student/shared/ui/layout/EmptyState";
 import { formatYmd } from "@/student/shared/utils/date";
 import type { PostEntity } from "@/features/community/api/community.api";
 
+/** HTML 태그를 제거하고 순수 텍스트만 추출 */
+function stripHtml(html: string): string {
+  return html.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim();
+}
+
 type NoticeTab = "all" | "lecture" | "session";
 
 const TAB_CONFIG: { key: NoticeTab; label: string }[] = [
@@ -169,25 +174,34 @@ export default function NoticesPage() {
               >
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "var(--stu-space-3)" }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>
-                      {notice.title}
+                    <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4, display: "flex", alignItems: "center", gap: 6 }}>
+                      {notice.is_urgent && (
+                        <span style={{ flexShrink: 0, fontSize: 11, fontWeight: 700, color: "#fff", background: "var(--stu-danger, #ef4444)", borderRadius: 4, padding: "1px 6px", lineHeight: 1.5 }}>긴급</span>
+                      )}
+                      {notice.is_pinned && !notice.is_urgent && (
+                        <span style={{ flexShrink: 0, fontSize: 11, fontWeight: 700, color: "var(--stu-primary)", background: "rgba(59,130,246,0.1)", borderRadius: 4, padding: "1px 6px", lineHeight: 1.5 }}>고정</span>
+                      )}
+                      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{notice.title}</span>
                     </div>
-                    {notice.content && (
-                      <div
-                        className="stu-muted"
-                        style={{
-                          fontSize: 13,
-                          lineHeight: 1.4,
-                          display: "-webkit-box",
-                          WebkitLineClamp: 2,
-                          WebkitBoxOrient: "vertical",
-                          overflow: "hidden",
-                          marginTop: 4,
-                        }}
-                      >
-                        {notice.content}
-                      </div>
-                    )}
+                    {notice.content && (() => {
+                      const preview = stripHtml(notice.content);
+                      return preview ? (
+                        <div
+                          className="stu-muted"
+                          style={{
+                            fontSize: 13,
+                            lineHeight: 1.4,
+                            display: "-webkit-box",
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: "vertical",
+                            overflow: "hidden",
+                            marginTop: 4,
+                          }}
+                        >
+                          {preview}
+                        </div>
+                      ) : null;
+                    })()}
                   </div>
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "var(--stu-space-1)" }}>

@@ -2,12 +2,6 @@
  * 패스카드: 깡블랙 배경, 실시간 시계(위조 판별), 눈에 띄는 애니메이션
  */
 
-html,
-body {
-  margin: 0;
-  padding: 0;
-}
-
 /* ---------- 페이지 공통: 깡블랙 ---------- */
 .idcard-page {
   position: relative;

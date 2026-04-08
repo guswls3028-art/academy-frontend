@@ -346,9 +346,12 @@
   overflow: hidden;
 }
 
-/* 직원 상세: 탭 많아서 패널 너비 확대 */
+/* 직원 상세: 탭 많아서 패널 너비 확대 + 높이 제한으로 하단 잘림 방지 */
 .ds-overlay-panel--staff-detail {
   max-width: 1200px;
+  max-height: calc(100vh - 48px);
+  display: flex;
+  flex-direction: column;
 }
 
 .ds-overlay-body__grid {

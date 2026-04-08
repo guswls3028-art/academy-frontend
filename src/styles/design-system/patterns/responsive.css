@@ -300,8 +300,11 @@
   }
   [data-app="admin"] .ant-modal .ant-modal-body {
     flex: 1;
-    overflow-y: auto;
+    /* overflow는 admin-modal__inner의 flex 구조가 처리 — ant-modal-body에서 스크롤하면
+       footer(저장 버튼)가 스크롤 영역에 포함되어 모바일에서 접근 불가 */
+    overflow: hidden;
     -webkit-overflow-scrolling: touch;
+    min-height: 0;
   }
 }
 

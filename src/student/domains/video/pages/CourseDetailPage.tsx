@@ -106,6 +106,7 @@ function SessionBox({
           <img
             src={sessionData.thumbnailUrl}
             alt={sessionTitle}
+            loading="lazy"
             style={{
               width: "100%",
               height: "100%",

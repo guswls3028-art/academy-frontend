@@ -8,7 +8,7 @@ import { fetchNoticePosts, fetchPost, type PostEntity } from "@/features/communi
  * - 관리자 공지사항 탭에서 등록한 공지(post_type=notice)와 동일한 API 사용
  */
 export async function fetchNotices(): Promise<PostEntity[]> {
-  return await fetchNoticePosts({ pageSize: 50 });
+  return await fetchNoticePosts({ pageSize: 200 });
 }
 
 /**

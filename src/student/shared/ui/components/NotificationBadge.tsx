@@ -29,7 +29,7 @@ function NotificationBadge({ count, max = 99 }: Props) {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: "#ef4444",
+        background: "var(--stu-danger, #ef4444)",
         color: "#ffffff",
         borderRadius: 9,
         fontSize: 11,

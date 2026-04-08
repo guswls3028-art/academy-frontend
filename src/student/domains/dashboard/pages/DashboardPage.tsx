@@ -135,8 +135,8 @@ function AppIcon({
 }
 
 export default function DashboardPage() {
-  const { data: dashboard, isLoading: dashLoading } = useStudentDashboard();
-  const { data: sessions, isLoading: sessionsLoading } = useMySessions();
+  const { data: dashboard, isLoading: dashLoading, isError: dashError } = useStudentDashboard();
+  const { data: sessions, isLoading: sessionsLoading, isError: sessionsError } = useMySessions();
   const { data: grades } = useMyGradesSummary();
   const { data: notificationCounts, isLoading: countsLoading } = useNotificationCounts();
 
@@ -166,6 +166,32 @@ export default function DashboardPage() {
         <div className="stu-skel" style={{ height: 80, borderRadius: "var(--stu-radius-md)" }} />
         <div className="stu-skel" style={{ height: 100, marginTop: 12, borderRadius: "var(--stu-radius-md)" }} />
         <div className="stu-skel" style={{ height: 120, marginTop: 12, borderRadius: "var(--stu-radius-md)" }} />
+      </div>
+    );
+  }
+
+  if (dashError && sessionsError) {
+    return (
+      <div style={{ padding: "var(--stu-space-8) var(--stu-space-4)", textAlign: "center" }}>
+        <div style={{ fontSize: 14, color: "var(--stu-text-muted)", marginBottom: "var(--stu-space-4)" }}>
+          정보를 불러오지 못했어요.
+        </div>
+        <button
+          type="button"
+          onClick={() => window.location.reload()}
+          style={{
+            padding: "10px 20px",
+            borderRadius: "var(--stu-radius-md)",
+            border: "1px solid var(--stu-border)",
+            background: "var(--stu-surface)",
+            color: "var(--stu-text)",
+            fontWeight: 600,
+            fontSize: 14,
+            cursor: "pointer",
+          }}
+        >
+          다시 시도
+        </button>
       </div>
     );
   }

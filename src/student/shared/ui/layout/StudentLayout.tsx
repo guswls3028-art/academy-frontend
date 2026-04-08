@@ -29,8 +29,10 @@ const SSWE_THEME_TENANTS = ["sswe"];
 const DNB_THEME_TENANTS = ["dnb"];
 /** limglish 전용 테마 */
 const LIMGLISH_THEME_TENANTS = ["limglish"];
-/** 1,9999번 공통 — commonlogo + 2번 색상 (common=9999 로컬 경로) */
-const COMMON_THEME_TENANTS = ["hakwonplus", "9999", "common"];
+/** 1번(hakwonplus) 전용 테마 */
+const HAKWONPLUS_THEME_TENANTS = ["hakwonplus"];
+/** 9999번 공통 — commonlogo + 2번 색상 (common=9999 로컬 경로) */
+const COMMON_THEME_TENANTS = ["9999", "common"];
 
 // useVersionChecker가 자동 리로드 처리 — 수동 새로고침 배너 제거됨
 
@@ -53,6 +55,7 @@ function StudentLayoutInner() {
   const useSsweTheme = tenantCode != null && SSWE_THEME_TENANTS.includes(String(tenantCode));
   const useDnbTheme = tenantCode != null && DNB_THEME_TENANTS.includes(String(tenantCode));
   const useLimglishTheme = tenantCode != null && LIMGLISH_THEME_TENANTS.includes(String(tenantCode));
+  const useHakwonplusTheme = tenantCode != null && HAKWONPLUS_THEME_TENANTS.includes(String(tenantCode));
   const useCommonTheme = tenantCode != null && COMMON_THEME_TENANTS.includes(String(tenantCode));
 
   // 모바일 체감 속도: 첫 화면 로드 후 자주 가는 탭 청크 미리 로드 (영상·일정·시험)
@@ -85,7 +88,7 @@ function StudentLayoutInner() {
     <div
       data-app="student"
       data-student-tenant={tenantCode || undefined}
-      data-student-theme={useTchulTheme ? "tchul" : useYmathTheme ? "ymath" : useSsweTheme ? "sswe" : useDnbTheme ? "dnb" : useLimglishTheme ? "limglish" : useCommonTheme ? "common" : undefined}
+      data-student-theme={useTchulTheme ? "tchul" : useYmathTheme ? "ymath" : useSsweTheme ? "sswe" : useDnbTheme ? "dnb" : useLimglishTheme ? "limglish" : useHakwonplusTheme ? "hakwonplus" : useCommonTheme ? "common" : undefined}
       data-video-page={isVideoPage ? "true" : undefined}
       data-student-dark={isDark ? "true" : undefined}
       style={{
@@ -99,7 +102,7 @@ function StudentLayoutInner() {
         paddingTop: "var(--stu-safe-top)",
       }}
     >
-      {(useTchulTheme || useYmathTheme || useSsweTheme || useDnbTheme || useLimglishTheme || useCommonTheme) && (
+      {(useTchulTheme || useYmathTheme || useSsweTheme || useDnbTheme || useLimglishTheme || useHakwonplusTheme || useCommonTheme) && (
         <svg aria-hidden width={0} height={0} style={{ position: "absolute" }}>
           <defs>
             <linearGradient id="stu-gradient-tchul" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -126,6 +129,11 @@ function StudentLayoutInner() {
               <stop offset="0%" stopColor="#612e8d" />
               <stop offset="50%" stopColor="#7b3faa" />
               <stop offset="100%" stopColor="#c9a82e" />
+            </linearGradient>
+            <linearGradient id="stu-gradient-hakwonplus" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#1e3a8a" />
+              <stop offset="50%" stopColor="#2563eb" />
+              <stop offset="100%" stopColor="#60a5fa" />
             </linearGradient>
             <linearGradient id="stu-gradient-limglish" x1="0%" y1="0%" x2="100%" y2="100%">
               <stop offset="0%" stopColor="#0f1c30" />

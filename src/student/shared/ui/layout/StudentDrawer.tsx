@@ -94,12 +94,13 @@ export default function StudentDrawer({ open, onClose }: DrawerProps) {
     <>
       {/* 배경 오버레이 */}
       <div
+        role="presentation"
         onClick={onClose}
         style={{
           position: "fixed",
           inset: 0,
           zIndex: 8999,
-          background: "rgba(0, 0, 0, 0.4)",
+          background: "var(--stu-backdrop)",
           backdropFilter: "blur(2px)",
           opacity: open ? 1 : 0,
           pointerEvents: open ? "auto" : "none",
@@ -110,6 +111,9 @@ export default function StudentDrawer({ open, onClose }: DrawerProps) {
       {/* 드로어 패널 */}
       <div
         ref={panelRef}
+        role="dialog"
+        aria-label="메뉴"
+        aria-modal={open}
         style={{
           position: "fixed",
           top: 0,
@@ -226,8 +230,8 @@ export default function StudentDrawer({ open, onClose }: DrawerProps) {
               padding: "10px",
               borderRadius: "var(--stu-radius-md)",
               border: "none",
-              background: "color-mix(in srgb, #ef4444 8%, transparent)",
-              color: "#ef4444",
+              background: "var(--stu-danger-bg)",
+              color: "var(--stu-danger)",
               fontWeight: 700,
               fontSize: 14,
               cursor: "pointer",

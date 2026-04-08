@@ -186,7 +186,9 @@ export default function ClinicPage() {
     [myRequests]
   );
   const rejectedBookings = useMemo(
-    () => myRequests.filter((r) => r.status === "rejected"),
+    () => myRequests
+      .filter((r) => r.status === "rejected")
+      .sort((a, b) => b.session_date.localeCompare(a.session_date)),
     [myRequests]
   );
 
@@ -313,7 +315,7 @@ export default function ClinicPage() {
             }}
           >
             예약
-            {(pendingBookings.length + approvedBookings.length) > 0 && activeTab !== "schedule" && (
+            {(pendingBookings.length + approvedBookings.length) > 0 && activeTab !== "book" && (
               <span style={{
                 marginLeft: 6, fontSize: 11, fontWeight: 700,
                 background: "var(--stu-primary)", color: "#fff",
@@ -337,7 +339,7 @@ export default function ClinicPage() {
             }}
           >
             내 일정
-            {(pendingBookings.length + approvedBookings.length) > 0 && activeTab !== "book" && (
+            {(pendingBookings.length + approvedBookings.length) > 0 && activeTab !== "schedule" && (
               <span style={{
                 marginLeft: 6, fontSize: 11, fontWeight: 700,
                 background: "var(--stu-primary)", color: "#fff",

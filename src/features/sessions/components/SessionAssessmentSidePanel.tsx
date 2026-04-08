@@ -434,6 +434,7 @@ export default function SessionAssessmentSidePanel({
   };
 
   const handleExamProgress = async (id: number) => {
+    if (examBusy) return;
     setExamBusy({ id, action: "start" });
     try {
       await updateAdminExam(id, { status: "OPEN" });

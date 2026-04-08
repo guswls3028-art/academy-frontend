@@ -72,7 +72,7 @@ export default function ProfileEditModal({
         description="이름, 전화번호, 비밀번호를 수정할 수 있습니다."
       />
       <ModalBody>
-        <div className="flex flex-col gap-5">
+        <div className="modal-scroll-body modal-scroll-body--compact">
           {/* 이름 */}
           <div className="flex flex-col gap-1.5">
             <label className={`flex items-center gap-2 ${LABEL_CLASS}`}>

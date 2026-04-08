@@ -82,7 +82,7 @@ export default function BoardPostModal({ lectureId, categoryLabel, templates = [
       <ModalHeader type="action" title={title} />
 
       <ModalBody>
-        <div style={{ display: "grid", gap: 12 }}>
+        <div className="modal-scroll-body modal-scroll-body--compact">
           {templates.length > 0 && (
             <div style={{ display: "grid", gap: 8 }}>
               <div style={{ fontSize: 12, fontWeight: 900, color: "var(--color-text-secondary)" }}>

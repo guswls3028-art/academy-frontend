@@ -2,7 +2,7 @@
  * PATH: src/student/domains/community/pages/CommunityPage.tsx
  * 학생 커뮤니티 — QnA | 게시판 | 자료실
  */
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import StudentPageShell from "@/student/shared/ui/pages/StudentPageShell";
@@ -991,7 +991,7 @@ function FilePickerSection({
   files: File[];
   onChange: (files: File[]) => void;
 }) {
-  const inputRef = { current: null as HTMLInputElement | null };
+  const inputRef = useRef<HTMLInputElement | null>(null);
 
   const handleAdd = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newFiles = e.target.files;

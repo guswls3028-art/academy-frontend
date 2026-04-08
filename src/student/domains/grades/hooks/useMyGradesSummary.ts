@@ -7,5 +7,6 @@ export function useMyGradesSummary() {
   return useQuery({
     queryKey: ["student", "grades", "summary"],
     queryFn: fetchMyGradesSummary,
+    staleTime: 60 * 1000,
   });
 }

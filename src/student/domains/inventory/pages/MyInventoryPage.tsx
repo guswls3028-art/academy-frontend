@@ -126,12 +126,28 @@ export default function MyInventoryPage() {
     },
   });
 
-  const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const [uploadQueue, setUploadQueue] = useState<{ name: string; done: boolean; error: boolean }[]>([]);
+
+  const onFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files?.length) return;
-    // 다중 업로드
-    Array.from(files).forEach((f) => uploadMut.mutate(f));
+    const fileList = Array.from(files);
     e.target.value = "";
+
+    // Track upload queue for multiple files
+    const queue = fileList.map((f) => ({ name: f.name, done: false, error: false }));
+    setUploadQueue(queue);
+
+    for (let i = 0; i < fileList.length; i++) {
+      try {
+        await uploadMut.mutateAsync(fileList[i]);
+        setUploadQueue((prev) => prev.map((q, idx) => idx === i ? { ...q, done: true } : q));
+      } catch {
+        setUploadQueue((prev) => prev.map((q, idx) => idx === i ? { ...q, done: true, error: true } : q));
+      }
+    }
+    // Clear queue after a delay
+    setTimeout(() => setUploadQueue([]), 3000);
   };
 
   // 삭제
@@ -320,6 +336,34 @@ export default function MyInventoryPage() {
           }}
         >
           {uploadMut.error instanceof Error ? uploadMut.error.message : "업로드에 실패했습니다."}
+        </div>
+      )}
+
+      {/* 다중 업로드 진행 */}
+      {uploadQueue.length > 0 && (
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 4,
+            marginBottom: "var(--stu-space-3)",
+            padding: "var(--stu-space-3)",
+            background: "var(--stu-surface)",
+            border: "1px solid var(--stu-border)",
+            borderRadius: "var(--stu-radius)",
+          }}
+        >
+          <div style={{ fontSize: 13, fontWeight: 700, color: "var(--stu-text-muted)", marginBottom: 4 }}>
+            업로드 중... ({uploadQueue.filter((q) => q.done).length}/{uploadQueue.length})
+          </div>
+          {uploadQueue.map((q, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
+              <span style={{ color: q.error ? "var(--stu-danger-text)" : q.done ? "var(--stu-success-text)" : "var(--stu-text-muted)" }}>
+                {q.error ? "X" : q.done ? "V" : "..."}
+              </span>
+              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{q.name}</span>
+            </div>
+          ))}
         </div>
       )}
 

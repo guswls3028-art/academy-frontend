@@ -30,10 +30,20 @@
   --stu-tint-primary: color-mix(in srgb, var(--stu-primary) 10%, var(--stu-surface-1));
   --stu-tint-hover: color-mix(in srgb, var(--stu-primary) 15%, var(--stu-surface-1));
 
+  /* 시맨틱 색상 다크모드 보정 (어두운 테넌트 danger 대응) */
+  --stu-success-text: #4ade80;
+  --stu-warn-text: #fbbf24;
+  --stu-danger-text: #f87171;
+
   /* 다크모드 그림자 조정 */
   --stu-shadow-1: 0 2px 8px rgba(0, 0, 0, 0.5);
   --stu-shadow-2: 0 6px 20px rgba(0, 0, 0, 0.6);
   --stu-shadow-3: 0 10px 32px rgba(0, 0, 0, 0.7);
+
+  /* 다크모드 오버레이 */
+  --stu-backdrop: rgba(0, 0, 0, 0.55);
+  --stu-glass: rgba(18, 24, 39, 0.72);
+  --stu-glass-border: rgba(255, 255, 255, 0.12);
 }
 
 /* =========================
@@ -167,11 +177,11 @@ body:has([data-app="student"][data-student-dark="true"]) {
 }
 
 [data-app="student"][data-student-dark="true"] .stu-topbar__profileDropdownOverlay .stu-topbar__profileDropdownItem--danger {
-  color: #f87171;
+  color: var(--stu-danger-text, #f87171);
 }
 
 [data-app="student"][data-student-dark="true"] .stu-topbar__profileDropdownOverlay .stu-topbar__profileDropdownItem--danger:hover {
-  background: rgba(248, 113, 113, 0.15);
+  background: var(--stu-danger-bg, rgba(248, 113, 113, 0.15));
 }
 
 [data-app="student"][data-student-dark="true"] .stu-topbar__profileDropdownOverlay .stu-topbar__profileDropdownDivider {

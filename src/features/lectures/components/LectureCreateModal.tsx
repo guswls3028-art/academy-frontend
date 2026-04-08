@@ -416,7 +416,7 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [], l
             불러오는 중…
           </div>
         ) : (
-        <div className="lecture-create-modal-form" style={{ display: "grid", gap: 10, maxWidth: 400 }}>
+        <div className="modal-scroll-body modal-scroll-body--compact lecture-create-modal-form" style={{ maxWidth: 400 }}>
           {/* 딱지 영역 */}
           <div
             style={{

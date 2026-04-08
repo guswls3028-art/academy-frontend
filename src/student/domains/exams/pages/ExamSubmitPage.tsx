@@ -237,6 +237,34 @@ export default function ExamSubmitPage() {
 
         {!loadingQuestions && questions.length > 0 && (
           <>
+            {/* Progress indicator */}
+            {(() => {
+              const answered = questions.filter((q) => (answers[q.id] ?? "").trim() !== "").length;
+              const total = questions.length;
+              const pct = total > 0 ? Math.round((answered / total) * 100) : 0;
+              return (
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, fontWeight: 600 }}>
+                    <span style={{ color: "var(--stu-text-muted)" }}>입력 진행</span>
+                    <span style={{ color: answered === total ? "var(--stu-success-text)" : "var(--stu-primary)" }}>
+                      {answered}/{total}문항 ({pct}%)
+                    </span>
+                  </div>
+                  <div style={{ height: 6, borderRadius: 3, background: "var(--stu-surface-soft)", overflow: "hidden" }}>
+                    <div
+                      style={{
+                        width: `${pct}%`,
+                        height: "100%",
+                        borderRadius: 3,
+                        background: answered === total ? "var(--stu-success)" : "var(--stu-primary)",
+                        transition: "width 0.3s ease, background 0.3s ease",
+                      }}
+                    />
+                  </div>
+                </div>
+              );
+            })()}
+
             <div className="stu-section">
               <div
                 className="stu-section-header"

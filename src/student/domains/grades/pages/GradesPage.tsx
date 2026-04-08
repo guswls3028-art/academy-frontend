@@ -55,31 +55,27 @@ function groupExams(exams: MyExamGradeSummary[]): ExamGroup[] {
     if (arr) arr.push(e);
     else map.set(key, [e]);
   }
+
+  function calcAvgPct(items: MyExamGradeSummary[]): number {
+    // 미응시(total_score=null) 제외하고 평균 계산
+    const scored = items.filter((e) => e.total_score != null && e.max_score > 0);
+    return scored.length > 0
+      ? Math.round(
+          scored.reduce((s, e) => s + (e.total_score! / e.max_score) * 100, 0) /
+            scored.length,
+        )
+      : 0;
+  }
+
   const groups: ExamGroup[] = [];
   for (const [key, items] of map) {
     if (key === UNGROUPED_KEY) continue;
-    const withMax = items.filter((e) => e.max_score > 0);
-    const avgPct =
-      withMax.length > 0
-        ? Math.round(
-            withMax.reduce((s, e) => s + ((e.total_score ?? 0) / e.max_score) * 100, 0) /
-              withMax.length,
-          )
-        : 0;
-    groups.push({ key, label: key, exams: items, avgPct });
+    groups.push({ key, label: key, exams: items, avgPct: calcAvgPct(items) });
   }
   // "기타 시험" at bottom
   const ungrouped = map.get(UNGROUPED_KEY);
   if (ungrouped) {
-    const withMax = ungrouped.filter((e) => e.max_score > 0);
-    const avgPct =
-      withMax.length > 0
-        ? Math.round(
-            withMax.reduce((s, e) => s + ((e.total_score ?? 0) / e.max_score) * 100, 0) /
-              withMax.length,
-          )
-        : 0;
-    groups.push({ key: UNGROUPED_KEY, label: UNGROUPED_LABEL, exams: ungrouped, avgPct });
+    groups.push({ key: UNGROUPED_KEY, label: UNGROUPED_LABEL, exams: ungrouped, avgPct: calcAvgPct(ungrouped) });
   }
   return groups;
 }
@@ -167,7 +163,7 @@ export default function GradesPage() {
         ? exams
         : exams.filter((e) => e.lecture_title === lectureFilter);
     return filtered
-      .filter((e) => e.submitted_at && e.max_score > 0)
+      .filter((e) => e.submitted_at && e.max_score > 0 && e.total_score != null)
       .sort(
         (a, b) =>
           new Date(a.submitted_at!).getTime() -
@@ -232,7 +228,7 @@ export default function GradesPage() {
             <div style={statGrid}>
               <StatCard label="평균 점수" value={`${examStats.avgPct}점`} />
               <StatCard label="합격률" value={`${examStats.passRate}%`} />
-              <StatCard label="응시 횟수" value={`${examStats.count}회`} />
+              <StatCard label="시험 수" value={`${examStats.count}건`} />
             </div>
           )}
 
@@ -428,14 +424,14 @@ function LectureExamGroup({ group }: { group: ExamGroup }) {
                 <div style={{ fontWeight: 600, fontSize: 14 }}>{e.title}</div>
                 <div className="stu-muted" style={{ fontSize: 13, marginTop: 2 }}>
                   {e.session_title && `${e.session_title} · `}
-                  {fmtScore(e.total_score ?? 0, e.max_score)}
+                  {fmtScore(e.total_score, e.max_score)}
                 </div>
               </div>
               <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 }}>
                 <GradeBadge passed={e.is_pass} achievement={e.achievement} />
-                {e.max_score > 0 && (
+                {e.total_score != null && e.max_score > 0 && (
                   <span style={{ fontSize: 11, fontWeight: 700, color: "var(--stu-text-muted)" }}>
-                    {Math.round(((e.total_score ?? 0) / e.max_score) * 100)}%
+                    {Math.round((e.total_score / e.max_score) * 100)}%
                   </span>
                 )}
               </div>
@@ -578,7 +574,8 @@ function Skeletons() {
   );
 }
 
-function fmtScore(total: number, max: number): string {
+function fmtScore(total: number | null, max: number): string {
+  if (total == null) return "미응시";
   if (max <= 0) return `${total}점`;
   return `${total}/${max}점`;
 }

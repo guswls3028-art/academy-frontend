@@ -30,8 +30,11 @@ export default function ScheduleCalendar({
   datesWithSessions,
   dateStatusMap,
 }: Props) {
-  const now = new Date();
-  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  const today = useMemo(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  }, []);
+  const sessionsSet = useMemo(() => new Set(datesWithSessions), [datesWithSessions]);
   const [currentMonth, setCurrentMonth] = useState(() => {
     const base = selectedDate ? new Date(selectedDate) : new Date();
     return new Date(base.getFullYear(), base.getMonth(), 1);
@@ -70,13 +73,13 @@ export default function ScheduleCalendar({
         isToday: dateStr === today,
         isSelectable: cur.getMonth() === month,
         dateStr,
-        hasSession: datesWithSessions.includes(dateStr),
+        hasSession: sessionsSet.has(dateStr),
         statusColor: statusKey ? STATUS_COLORS[statusKey] : null,
       });
       cur.setDate(cur.getDate() + 1);
     }
     return days;
-  }, [currentMonth, datesWithSessions, dateStatusMap, today]);
+  }, [currentMonth, sessionsSet, dateStatusMap, today]);
 
   const monthLabel = `${currentMonth.getFullYear()}년 ${currentMonth.getMonth() + 1}월`;
 

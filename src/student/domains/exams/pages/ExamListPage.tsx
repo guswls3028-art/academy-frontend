@@ -5,39 +5,40 @@ import EmptyState from "@/student/shared/ui/layout/EmptyState";
 import { useStudentExams } from "../hooks/useStudentExams";
 import { StudentExam } from "../api/exams";
 import { IconExam, IconChevronRight } from "@/student/shared/ui/icons/Icons";
+import GradeBadge from "@/student/domains/grades/components/GradeBadge";
 
 export default function ExamListPage() {
   const { data, isLoading, isError } = useStudentExams();
   const items = data?.items ?? [];
 
-  // 상태 기반 Panel variant 결정 (deadline 기반)
+  // 상태 기반 Panel variant 결정 (제출 상태 + deadline 기반)
   const getExamPanelVariant = (exam: StudentExam): string => {
+    // 이미 제출 완료된 시험 → complete
+    if (exam.has_result) {
+      return "stu-panel--complete";
+    }
+
     const now = new Date();
     const closeAt = exam.close_at ? new Date(exam.close_at) : null;
-    
+
     if (!closeAt) {
-      return "stu-panel--nav";
+      return "stu-panel--action";
     }
 
     const hoursUntilClose = (closeAt.getTime() - now.getTime()) / (1000 * 60 * 60);
-    
-    // 마감 임박 (24시간 이내)
-    if (hoursUntilClose > 0 && hoursUntilClose <= 24) {
-      return "stu-panel--danger";
-    }
-    
+
     // 마감 지남
     if (hoursUntilClose <= 0) {
       return "stu-panel--complete";
     }
-    
-    // 응시 가능 (24시간 이상 남음)
-    const openAt = exam.open_at ? new Date(exam.open_at) : null;
-    if (openAt && now >= openAt) {
-      return "stu-panel--action";
+
+    // 마감 임박 (24시간 이내)
+    if (hoursUntilClose > 0 && hoursUntilClose <= 24) {
+      return "stu-panel--danger";
     }
-    
-    return "stu-panel--nav";
+
+    // 응시 가능 (24시간 이상 남음)
+    return "stu-panel--action";
   };
 
   // 시간 압박도 결정 (6시간 이내)
@@ -59,6 +60,22 @@ export default function ExamListPage() {
     return undefined;
   };
 
+  // 시험 상태 텍스트 + 배지
+  const getExamStatus = (exam: StudentExam): { label: string; variant: "success" | "danger" | "warn" | "neutral" } => {
+    if (exam.has_result) {
+      return { label: "채점완료", variant: "success" };
+    }
+    if ((exam.attempt_count ?? 0) > 0) {
+      return { label: "응시완료", variant: "neutral" };
+    }
+    const now = new Date();
+    const closeAt = exam.close_at ? new Date(exam.close_at) : null;
+    if (closeAt && closeAt < now) {
+      return { label: "마감", variant: "danger" };
+    }
+    return { label: "미응시", variant: "warn" };
+  };
+
   return (
     <StudentPageShell title="시험">
       {isLoading && (
@@ -78,7 +95,8 @@ export default function ExamListPage() {
         {items.map((e) => {
           const variant = getExamPanelVariant(e);
           const urgency = getUrgency(e);
-          
+          const status = getExamStatus(e);
+
           return (
             <Link
               key={e.id}
@@ -99,9 +117,12 @@ export default function ExamListPage() {
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontWeight: 700, fontSize: 15 }}>{e.title}</div>
               <div className="stu-muted" style={{ fontSize: 13, marginTop: 2 }}>
-                {e.close_at ? `마감: ${new Date(e.close_at).toLocaleDateString()}` : "마감일 미정"}
+                {e.close_at ? `마감: ${new Date(e.close_at).toLocaleDateString("ko-KR")}` : "마감일 미정"}
               </div>
             </div>
+            <span className={`stu-badge stu-badge--${status.variant} stu-badge--sm`}>
+              {status.label}
+            </span>
             <IconChevronRight style={{ width: 20, height: 20, color: "var(--stu-text-muted)" }} />
             </Link>
           );

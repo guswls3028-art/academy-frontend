@@ -138,7 +138,7 @@ export default function TemplateEditModal({
     <AdminModal open={open} onClose={onClose} width={1000} zIndex={zIndex} onEnterConfirm={!isPending && !isSystem ? handleSubmit : undefined}>
       <ModalHeader title={title} />
       <ModalBody>
-        <div className="template-editor flex gap-5" style={{ minHeight: 420 }}>
+        <div className="template-editor flex gap-5" style={{ minHeight: 0, flex: "1 1 auto" }}>
           {/* 좌측: 카테고리 + 미리보기 */}
           <div
             className="template-editor__left shrink-0 flex flex-col gap-4 p-4 overflow-hidden"

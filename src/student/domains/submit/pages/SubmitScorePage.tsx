@@ -151,7 +151,7 @@ export default function SubmitScorePage() {
         </button>
         {selectedFile && (
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "var(--stu-space-2) var(--stu-space-3)", background: "var(--stu-surface)", border: "1px solid var(--stu-border)", borderRadius: "var(--stu-radius)", fontSize: 14 }}>
-            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{selectedFile.name} ({(selectedFile.size / 1024).toFixed(1)}KB)</span>
+            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{selectedFile.name} ({formatBytes(selectedFile.size)})</span>
             <button type="button" className="stu-btn stu-btn--ghost stu-btn--sm" onClick={() => { setSelectedFile(null); setError(null); if (fileInputRef.current) fileInputRef.current.value = ""; }}>
               삭제
             </button>

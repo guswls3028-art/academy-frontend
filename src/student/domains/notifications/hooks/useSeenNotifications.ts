@@ -12,14 +12,25 @@ const MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000; // 30일
 
 type SeenEntry = { id: string; at: number };
 
+/** 캐시: 동일 이벤트 루프 틱 내 반복 파싱 방지 */
+let _seenCache: SeenEntry[] | null = null;
+let _seenCacheTime = 0;
+const CACHE_TTL_MS = 500; // 500ms 캐시
+
 function loadSeen(): SeenEntry[] {
+  const now = Date.now();
+  if (_seenCache && now - _seenCacheTime < CACHE_TTL_MS) return _seenCache;
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
+    if (!raw) { _seenCache = []; _seenCacheTime = now; return []; }
     const entries: SeenEntry[] = JSON.parse(raw);
-    const cutoff = Date.now() - MAX_AGE_MS;
-    return entries.filter((e) => e.at > cutoff);
+    const cutoff = now - MAX_AGE_MS;
+    _seenCache = entries.filter((e) => e.at > cutoff);
+    _seenCacheTime = now;
+    return _seenCache;
   } catch {
+    _seenCache = [];
+    _seenCacheTime = now;
     return [];
   }
 }
@@ -27,6 +38,8 @@ function loadSeen(): SeenEntry[] {
 function saveSeen(entries: SeenEntry[]) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+    _seenCache = entries;
+    _seenCacheTime = Date.now();
   } catch {
     // storage full — ignore
   }

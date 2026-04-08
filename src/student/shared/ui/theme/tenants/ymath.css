@@ -60,7 +60,12 @@
     --stu-tint-hover: color-mix(in srgb, var(--stu-primary) 10%, var(--stu-surface-1));
 }
 
-/* 다크모드는 dark.css에서 전역 처리 */
+/* 다크모드: primary를 밝게 조정하여 가독성 확보 */
+[data-app="student"][data-student-dark="true"][data-student-theme="ymath"] {
+  --stu-primary: #6db8e0;
+  --stu-primary-hover: #5ba8d0;
+  --stu-gradient: linear-gradient(135deg, #2a6a9e 0%, #5bb6e0 50%, #a0ddf5 100%);
+}
 
 [data-student-theme="ymath"] :focus-visible {
     outline: 3px solid var(--stu-focus);

@@ -61,6 +61,11 @@
   /* Primary Tint (멀티테넌트 브랜딩용) */
   --stu-tint-primary: color-mix(in srgb, var(--stu-primary) 6%, var(--stu-surface-1));
   --stu-tint-hover: color-mix(in srgb, var(--stu-primary) 10%, var(--stu-surface-1));
+
+  /* Overlay / Backdrop */
+  --stu-backdrop: rgba(0, 0, 0, 0.35);
+  --stu-glass: rgba(255, 255, 255, 0.72);
+  --stu-glass-border: rgba(255, 255, 255, 0.55);
 }
 
 /* Dark Mode — data-student-dark="true" 속성으로 제어 (StudentThemeContext) */
@@ -86,29 +91,18 @@
 
   --stu-tint-primary: color-mix(in srgb, var(--stu-primary) 8%, var(--stu-surface-1));
   --stu-tint-hover: color-mix(in srgb, var(--stu-primary) 12%, var(--stu-surface-1));
+
+  /* Overlay / Backdrop (dark) */
+  --stu-backdrop: rgba(0, 0, 0, 0.55);
+  --stu-glass: rgba(18, 24, 39, 0.72);
+  --stu-glass-border: rgba(255, 255, 255, 0.12);
 }
 
-/* ========== 2. Typography ========== */
-:root {
-  --stu-font-sans: "Pretendard", "Apple SD Gothic Neo", -apple-system, BlinkMacSystemFont, sans-serif;
-  --stu-font-size-12: 12px;
-  --stu-font-size-13: 13px;
-  --stu-font-size-14: 14px;
-  --stu-font-size-15: 15px;
-  --stu-font-size-16: 16px;
-  --stu-font-size-18: 18px;
-  --stu-font-size-20: 20px;
-  --stu-line-16: 1.35;
-  --stu-line-18: 1.4;
-  --stu-line-20: 1.45;
-}
+/* ========== 2. Typography — SSOT: typography.css ========== */
+/* typography.css에서 정의됨. 여기서 재선언하지 않음. */
 
-/* ========== 3. Shadow (shadow.css에서 상세 정의) ========== */
-:root {
-  --stu-shadow-1: 0 2px 8px rgba(0, 0, 0, 0.35);
-  --stu-shadow-2: 0 6px 20px rgba(0, 0, 0, 0.45);
-  --stu-shadow-3: 0 10px 32px rgba(0, 0, 0, 0.5);
-}
+/* ========== 3. Shadow — SSOT: shadow.css (상세 정의) ========== */
+/* shadow.css에서 정의됨. 여기서 재선언하지 않음. */
 
 /* ========== 4. Layout & spacing ========== */
 :root {

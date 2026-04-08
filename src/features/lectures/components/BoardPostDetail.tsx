@@ -54,7 +54,8 @@ export default function BoardPostDetail({ lectureId, post, onClose }: Props) {
               border: "1px solid var(--color-border-divider)",
               background: "var(--color-bg-surface)",
               padding: 16,
-              minHeight: 360,
+              minHeight: 0,
+              overflowY: "auto",
             }}
           >
             <div

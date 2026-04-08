@@ -43,6 +43,9 @@ export default function ClinicCalendar({
     return new Date(date.getFullYear(), date.getMonth(), 1);
   });
 
+  // availableDates를 Set으로 변환 (O(1) lookup)
+  const availableDateSet = useMemo(() => new Set(availableDates), [availableDates]);
+
   // 날짜별 예약 상태 매핑 — 활성 예약(pending/booked/approved)을 우선 표시
   const bookingByDate = useMemo(() => {
     const map = new Map<string, ClinicBookingRequest>();
@@ -95,7 +98,7 @@ export default function ClinicCalendar({
       const isCurrentMonth = current.getMonth() === month;
       const isToday = dateStr === today;
       const booking = bookingByDate.get(dateStr);
-      const isAvailable = availableDates.includes(dateStr);
+      const isAvailable = availableDateSet.has(dateStr);
       const isPast = dateStr < today;
       const isSelectable = isCurrentMonth && !isPast;
 
@@ -113,7 +116,7 @@ export default function ClinicCalendar({
     }
 
     return days;
-  }, [currentMonth, bookingByDate, availableDates, today]);
+  }, [currentMonth, bookingByDate, availableDateSet, today]);
 
   const monthLabel = `${currentMonth.getFullYear()}년 ${currentMonth.getMonth() + 1}월`;
 
@@ -273,7 +276,11 @@ export default function ClinicCalendar({
               }}
               onMouseLeave={(e) => {
                 if (isClickable && !statusColor) {
-                  e.currentTarget.style.background = day.isCurrentMonth ? "var(--stu-surface-soft)" : "transparent";
+                  e.currentTarget.style.background = isSelected
+                    ? "var(--stu-primary-bg)"
+                    : day.isCurrentMonth
+                      ? "var(--stu-surface-soft)"
+                      : "transparent";
                 }
               }}
             >

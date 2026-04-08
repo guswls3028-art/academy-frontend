@@ -58,7 +58,12 @@
   --stu-tint-hover: color-mix(in srgb, var(--stu-primary) 9%, var(--stu-surface-1));
 }
 
-/* 다크모드는 dark.css에서 전역 처리 */
+/* 다크모드: 어두운 네이비가 다크 배경에서 안 보이므로 primary를 밝게 */
+[data-app="student"][data-student-dark="true"][data-student-theme="sswe"] {
+  --stu-primary: #5b94d4;
+  --stu-primary-hover: #4a83c3;
+  --stu-gradient: linear-gradient(135deg, #1a3d6e 0%, #3568a8 40%, #f4a85a 100%);
+}
 
 [data-student-theme="sswe"] :focus-visible {
   outline: 3px solid var(--stu-focus);

@@ -54,6 +54,8 @@ export default function ProfilePage() {
   const [password, setPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  /** Track which form triggered the last mutation to show errors in the correct form only */
+  const [lastMutationSource, setLastMutationSource] = useState<"profile" | "username" | "password" | null>(null);
 
   const slm = useSchoolLevelMode();
 
@@ -103,8 +105,9 @@ export default function ProfilePage() {
         setConfirmPassword("");
       }
     },
-    onError: () => {
-      studentToast.error("저장에 실패했습니다.");
+    onError: (err: unknown) => {
+      const detail = (err as any)?.response?.data?.detail;
+      studentToast.error(typeof detail === "string" ? detail : "저장에 실패했습니다.");
     },
   });
 
@@ -164,6 +167,7 @@ export default function ProfilePage() {
     const gradeNum = editGrade.trim() ? parseInt(editGrade, 10) : null;
     const validGrades = slm.gradeRange(editSchoolType);
     const gradeValid = gradeNum != null && !isNaN(gradeNum) && validGrades.includes(gradeNum);
+    setLastMutationSource("profile");
     updateProfileMutation.mutate({
       name: editName.trim() || undefined,
       parent_phone: parentRaw.length >= 10 ? "010" + parentRaw.slice(-8) : undefined,
@@ -185,16 +189,22 @@ export default function ProfilePage() {
   const handleUsernameSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!username.trim()) return;
+    setLastMutationSource("username");
     updateProfileMutation.mutate({ username: username.trim() });
   };
 
   const handlePasswordSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!password.trim() || !newPassword.trim()) return;
+    if (newPassword.length < 4) {
+      studentToast.error("새 비밀번호는 4자 이상이어야 합니다.");
+      return;
+    }
     if (newPassword !== confirmPassword) {
       studentToast.error("새 비밀번호가 일치하지 않습니다.");
       return;
     }
+    setLastMutationSource("password");
     updateProfileMutation.mutate({
       current_password: password,
       new_password: newPassword,
@@ -431,7 +441,7 @@ export default function ProfilePage() {
               )}
             </div>
 
-            {editSchoolType === "HIGH" && (
+            {(editing ? editSchoolType : profile.school_type) === "HIGH" && (
               <>
                 <div>
                   <div className="stu-muted" style={{ fontSize: 12, marginBottom: 4 }}>고등학교명</div>
@@ -448,7 +458,7 @@ export default function ProfilePage() {
                     <div style={{ fontWeight: 600, fontSize: 16 }}>{profile.high_school || "-"}</div>
                   )}
                 </div>
-                {slm.showOriginMiddleSchool(editSchoolType) && (
+                {slm.showOriginMiddleSchool(editing ? editSchoolType : (profile.school_type as SchoolType)) && (
                   <div>
                     <div className="stu-muted" style={{ fontSize: 12, marginBottom: 4 }}>출신중학교</div>
                     {editing && !profile.isParentReadOnly ? (
@@ -467,7 +477,7 @@ export default function ProfilePage() {
                 )}
               </>
             )}
-            {editSchoolType === "MIDDLE" && (
+            {(editing ? editSchoolType : profile.school_type) === "MIDDLE" && (
               <div>
                 <div className="stu-muted" style={{ fontSize: 12, marginBottom: 4 }}>중학교명</div>
                 {editing && !profile.isParentReadOnly ? (
@@ -484,7 +494,7 @@ export default function ProfilePage() {
                 )}
               </div>
             )}
-            {editSchoolType === "ELEMENTARY" && (
+            {(editing ? editSchoolType : profile.school_type) === "ELEMENTARY" && (
               <div>
                 <div className="stu-muted" style={{ fontSize: 12, marginBottom: 4 }}>초등학교명</div>
                 {editing && !profile.isParentReadOnly ? (
@@ -651,7 +661,7 @@ export default function ProfilePage() {
                 {updateProfileMutation.isPending ? "변경 중…" : "아이디 변경"}
               </button>
             </div>
-            {updateProfileMutation.isError && (
+            {updateProfileMutation.isError && lastMutationSource === "username" && (
               <div className="stu-muted" style={{ fontSize: 13, color: "var(--stu-danger)" }}>
                 {(updateProfileMutation.error as any)?.response?.data?.detail || "아이디 변경에 실패했습니다."}
               </div>
@@ -714,7 +724,7 @@ export default function ProfilePage() {
                 {updateProfileMutation.isPending ? "변경 중…" : "비밀번호 변경"}
               </button>
             </div>
-            {updateProfileMutation.isError && (
+            {updateProfileMutation.isError && lastMutationSource === "password" && (
               <div className="stu-muted" style={{ fontSize: 13, color: "var(--stu-danger)" }}>
                 {(updateProfileMutation.error as any)?.response?.data?.detail || "비밀번호 변경에 실패했습니다."}
               </div>

@@ -164,7 +164,7 @@ export default function VideoReorderModal({
             순서를 변경할 영상이 없습니다
           </div>
         ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+          <div className="modal-scroll-body" style={{ display: "flex", flexDirection: "column", gap: 0 }}>
             {/* Header */}
             <div
               style={{

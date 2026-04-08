@@ -216,6 +216,20 @@ function CourseCard({
         <div className="media-tile__title" style={{ fontWeight: 600, color: "var(--stu-text)" }}>
           {title}
         </div>
+        {(videoCount > 0 || (totalDuration != null && totalDuration > 0)) && (
+          <div
+            style={{
+              fontSize: 12,
+              color: "var(--stu-text-muted)",
+              marginTop: 2,
+              fontWeight: 500,
+            }}
+          >
+            {videoCount > 0 && `${videoCount}개 영상`}
+            {videoCount > 0 && totalDuration != null && totalDuration > 0 && " · "}
+            {totalDuration != null && totalDuration > 0 && formatDuration(totalDuration)}
+          </div>
+        )}
       </div>
     </Component>
   );

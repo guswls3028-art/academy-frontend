@@ -462,7 +462,7 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
             </div>
           </div>
         ) : mode === "single" ? (
-        <div className="modal-scroll-body modal-scroll-body--compact modal-scroll-body--no-scroll">
+        <div className="modal-scroll-body modal-scroll-body--compact">
           {/* 알림톡 토글 */}
           <div style={{ marginBottom: "var(--space-4)" }}>
             <WelcomeMessageToggle checked={sendWelcomeMessage} onChange={setSendWelcomeMessage} disabled={busy} />
@@ -631,7 +631,7 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
 
         </div>
         ) : (
-        <div className="modal-scroll-body modal-scroll-body--compact modal-scroll-body--no-scroll" style={{ display: "flex", flexDirection: "column" }}>
+        <div className="modal-scroll-body modal-scroll-body--compact" style={{ display: "flex", flexDirection: "column" }}>
           {/* 상단: 등록방식 변경 */}
           <div style={{ marginBottom: "var(--space-3)" }}>
             <button

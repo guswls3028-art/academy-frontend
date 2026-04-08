@@ -805,7 +805,7 @@ export default function SendMessageModal({
       } />
 
       <ModalBody>
-        <div className="flex gap-5" style={{ minHeight: 500 }}>
+        <div className="flex gap-5" style={{ minHeight: 0, flex: "1 1 auto" }}>
 
           {/* ═══ 좌측: 수신자 + 미리보기 + 변수 상태 ═══ */}
           <div className="shrink-0 flex flex-col gap-3" style={{ width: 260, maxHeight: "100%", overflowY: "auto" }}>

@@ -14,6 +14,9 @@ import {
   IconClinic,
   IconSettings,
   IconFolder,
+  IconNotice,
+  IconBell,
+  IconFileText,
 } from "@/student/shared/ui/icons/Icons";
 import type { ReactNode } from "react";
 
@@ -32,7 +35,7 @@ const linkStyle: React.CSSProperties = {
   marginBottom: "var(--stu-space-2)",
 };
 
-/** 라우터 기준 전체 메뉴 대장 — 카테고리별 네비게이션 (홈·영상·일정·알림·공지 제외) */
+/** 라우터 기준 전체 메뉴 대장 — 카테고리별 네비게이션 (홈·영상·일정 제외 = TabBar에 있는 것 제외) */
 const FULL_NAV: { category: string; items: { label: string; to: string; icon: ReactNode }[] }[] = [
   {
     category: "학습",
@@ -45,7 +48,11 @@ const FULL_NAV: { category: string; items: { label: string; to: string; icon: Re
   },
   {
     category: "소통",
-    items: [{ label: "커뮤니티", to: "/student/community", icon: <IconBoard style={{ width: 22, height: 22, flexShrink: 0 }} /> }],
+    items: [
+      { label: "공지사항", to: "/student/notices", icon: <IconNotice style={{ width: 22, height: 22, flexShrink: 0 }} /> },
+      { label: "커뮤니티", to: "/student/community", icon: <IconBoard style={{ width: 22, height: 22, flexShrink: 0 }} /> },
+      { label: "알림", to: "/student/notifications", icon: <IconBell style={{ width: 22, height: 22, flexShrink: 0 }} /> },
+    ],
   },
   {
     category: "클리닉",
@@ -60,6 +67,7 @@ const FULL_NAV: { category: string; items: { label: string; to: string; icon: Re
       { label: "출결 현황", to: "/student/attendance", icon: <IconClipboard style={{ width: 22, height: 22, flexShrink: 0 }} /> },
       { label: "프로필", to: "/student/profile", icon: <IconUser style={{ width: 22, height: 22, flexShrink: 0 }} /> },
       { label: "설정", to: "/student/settings", icon: <IconSettings style={{ width: 22, height: 22, flexShrink: 0 }} /> },
+      { label: "사용 가이드", to: "/student/guide", icon: <IconFileText style={{ width: 22, height: 22, flexShrink: 0 }} /> },
     ],
   },
 ];

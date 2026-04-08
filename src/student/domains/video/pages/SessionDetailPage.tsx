@@ -142,6 +142,7 @@ function VideoListItem({
           <img
             src={video.thumbnail_url}
             alt={video.title}
+            loading="lazy"
             style={{
               width: "100%",
               height: "100%",

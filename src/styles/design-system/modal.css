@@ -108,6 +108,9 @@
   flex: 1 1 auto;
   min-height: 0;
   overflow: hidden;
+  /* 내부 자식(scroll-body 등)이 flex 기반으로 body 높이에 맞춰 스크롤하도록 */
+  display: flex;
+  flex-direction: column;
 }
 
 /* split-layout을 가진 모달 body — 내부 grid가 남은 공간을 채움 */
@@ -232,13 +235,16 @@
 
 /* ========== 스크롤 본문 · 옵션 행 ========== */
 
-/* 스크롤 가능한 모달 본문 (차시 추가 등 폼 모달) */
+/* 스크롤 가능한 모달 본문 (차시 추가 등 폼 모달)
+   flex child로 동작: modal-body(flex column)의 남은 공간을 채우고 overflow 시 스크롤.
+   이전의 max-height: calc(100vh - 200px) 하드코딩은 제거 — flex 레이아웃이 자동 계산. */
 .modal-scroll-body {
   width: 100%;
   min-width: 0;
   overflow-x: hidden;
   overflow-y: auto;
-  max-height: calc(100vh - 200px);
+  flex: 1 1 auto;
+  min-height: 0;
   display: grid;
   gap: var(--space-6);
 }
@@ -248,10 +254,12 @@
   gap: var(--space-4);
 }
 
-/* 스크롤 없음 — 본문이 모달 높이만큼 흐르도록 (학생 등록 등) */
+/* --no-scroll 폐기: 이전에는 overflow:visible로 스크롤을 제거했으나,
+   부모 modal-body의 overflow:hidden과 결합되어 콘텐츠 잘림 유발.
+   flex 기반 전환 후에는 불필요 — modal-scroll-body 자체가 flex child로 정확히 동작.
+   하위호환: 클래스가 남아있는 곳에서 기존 grid+gap 스타일은 유지하되, 스크롤은 auto로. */
 .modal-scroll-body--no-scroll {
-  overflow: visible;
-  max-height: none;
+  overflow-y: auto;
 }
 
 /* 폼 행 — 2열·3열·1+auto 등 SSOT 배치 (할당 크기에 맞게 정렬) */

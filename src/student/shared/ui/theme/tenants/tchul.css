@@ -61,7 +61,12 @@
   --stu-tint-hover: color-mix(in srgb, var(--stu-primary) 10%, var(--stu-surface-1));
 }
 
-/* 다크모드는 dark.css에서 전역 처리 (테넌트 @media dark 강제 라이트 제거됨) */
+/* 다크모드: 짙은 블루가 다크 배경에서 안 보이므로 primary를 밝게 */
+[data-app="student"][data-student-dark="true"][data-student-theme="tchul"] {
+  --stu-primary: #5b8cd4;
+  --stu-primary-hover: #4a7bc3;
+  --stu-gradient: linear-gradient(135deg, #2a6bc0 0%, #2e9e8a 50%, #1a7a6a 100%);
+}
 
 /* tchul 테마: 포커스 링 (auth와 동일) */
 [data-student-theme="tchul"] :focus-visible {

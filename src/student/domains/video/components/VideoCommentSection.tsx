@@ -13,24 +13,7 @@ import {
 } from "../api/video";
 import { studentToast } from "@/student/shared/ui/feedback/studentToast";
 
-/* ─── 상대 시간 포맷 ─── */
-function timeAgo(dateStr: string): string {
-  const now = Date.now();
-  const then = new Date(dateStr).getTime();
-  const diff = now - then;
-  if (diff < 0) return "방금";
-  const sec = Math.floor(diff / 1000);
-  if (sec < 60) return "방금";
-  const min = Math.floor(sec / 60);
-  if (min < 60) return `${min}분 전`;
-  const hr = Math.floor(min / 60);
-  if (hr < 24) return `${hr}시간 전`;
-  const day = Math.floor(hr / 24);
-  if (day < 30) return `${day}일 전`;
-  const month = Math.floor(day / 30);
-  if (month < 12) return `${month}개월 전`;
-  return `${Math.floor(month / 12)}년 전`;
-}
+import { timeAgo } from "../utils/timeAgo";
 
 /* ─── 아바타 ─── */
 function CommentAvatar({ name, photoUrl, size = 32 }: { name: string; photoUrl?: string | null; size?: number }) {
