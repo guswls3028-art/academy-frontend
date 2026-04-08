@@ -173,7 +173,7 @@ export default function StaffWorkTypeTab({ staffId }: { staffId: number }) {
               <option value="">기존 유형 선택…</option>
               {availableToAdd.map((wt) => (
                 <option key={wt.id} value={wt.id}>
-                  {wt.name} ({wt.base_hourly_wage?.toLocaleString()}원/시)
+                  {wt.name} ({wt.base_hourly_wage != null ? `${wt.base_hourly_wage.toLocaleString()}원/시` : "시급 미설정"})
                 </option>
               ))}
             </select>

@@ -15,6 +15,7 @@ import { ThemeProvider } from "@/context/ThemeContext";
 import { TENANTS } from "@/shared/tenant/tenants/index";
 // side-effect guard: Rollup이 tree-shake하지 않도록 런타임 참조
 if (!TENANTS.length) throw new Error("Tenant registry empty");
+import ErrorBoundary from "@/shared/ui/ErrorBoundary";
 import { DevErrorBoundary, DevErrorLogger } from "@/app/DevErrorLogger";
 import { useVersionChecker } from "@/shared/ui/layout/VersionChecker";
 import SubscriptionExpiredOverlay from "@/shared/ui/SubscriptionExpiredOverlay";
@@ -97,8 +98,10 @@ const AppContent = (
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <DevErrorBoundary>
-      {import.meta.env.DEV ? <DevErrorLogger>{AppContent}</DevErrorLogger> : AppContent}
-    </DevErrorBoundary>
+    <ErrorBoundary>
+      <DevErrorBoundary>
+        {import.meta.env.DEV ? <DevErrorLogger>{AppContent}</DevErrorLogger> : AppContent}
+      </DevErrorBoundary>
+    </ErrorBoundary>
   </React.StrictMode>
 );

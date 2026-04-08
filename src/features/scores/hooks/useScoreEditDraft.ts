@@ -110,13 +110,17 @@ export function useScoreEditDraft({ sessionId, panelRef, isEditMode }: Options) 
     // 배포 자동 리로드 차단
     const unblock = blockAutoReload();
 
-    // beforeunload when dirty and not recently saved
+    // beforeunload: 미저장 변경이 있으면 항상 경고 + 긴급 저장 시도
     const handler = (e: BeforeUnloadEvent) => {
       const snapshot = panelRef.current?.getPendingSnapshot?.() ?? [];
       if (snapshot.length === 0) return;
-      const elapsed = Date.now() - lastAutosaveAtRef.current;
-      if (draftStatus === "error" || elapsed > AUTOSAVE_INTERVAL_MS) {
-        e.preventDefault();
+      // 미저장 데이터가 있으면 항상 경고 (셀 수/경과 시간 무관)
+      e.preventDefault();
+      // 긴급 저장 시도 (브라우저가 허용하는 범위 내에서)
+      try {
+        void putScoreDraft(sessionId, snapshot);
+      } catch {
+        // 저장 실패해도 경고는 이미 표시됨
       }
     };
     window.addEventListener("beforeunload", handler);

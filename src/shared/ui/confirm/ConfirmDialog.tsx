@@ -27,6 +27,14 @@ export default function ConfirmDialog({
   onCancel,
 }: Props) {
   const confirmBtnRef = useRef<HTMLButtonElement>(null);
+  const confirmedRef = useRef(false);
+
+  const safeConfirm = () => {
+    if (confirmedRef.current) return;
+    confirmedRef.current = true;
+    onConfirm();
+  };
+
   const { offset, onMouseDown, onTouchStart } = useDraggableModal(
     ".confirm-drag-handle",
     { enableMinimize: false },
@@ -51,7 +59,7 @@ export default function ConfirmDialog({
         }
         e.preventDefault();
         e.stopImmediatePropagation();
-        onConfirm();
+        safeConfirm();
       }
     };
     document.addEventListener("keydown", handler, true);
@@ -83,7 +91,7 @@ export default function ConfirmDialog({
               ref={confirmBtnRef}
               type="button"
               style={danger ? dangerBtnStyle : confirmBtnStyle}
-              onClick={onConfirm}
+              onClick={safeConfirm}
             >
               {confirmText}
             </button>

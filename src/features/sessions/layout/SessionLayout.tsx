@@ -13,7 +13,7 @@ export default function SessionLayout() {
   const { lectureId, sessionId } = useSessionParams();
   const { sectionMode } = useSectionMode();
 
-  const { data: session, isLoading } = useQuery({
+  const { data: session, isLoading, isError } = useQuery({
     queryKey: ["session", sessionId],
     queryFn: async () =>
       (await api.get(`/lectures/sessions/${sessionId}/`)).data,
@@ -52,6 +52,14 @@ export default function SessionLayout() {
     return (
       <div className="p-6 text-sm text-[var(--color-error)]">
         잘못된 세션 접근입니다.
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="p-6 text-sm text-[var(--color-error)]">
+        세션 정보를 불러올 수 없습니다. 존재하지 않는 세션이거나 접근 권한이 없습니다.
       </div>
     );
   }
