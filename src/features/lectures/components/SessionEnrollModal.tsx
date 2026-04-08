@@ -691,7 +691,7 @@ export default function SessionEnrollModal({
                   })()}
 
                   <div
-                    className="rounded-xl border overflow-hidden flex flex-col"
+                    className="rounded-xl border overflow-hidden flex flex-col flex-1 min-h-0"
                     style={{
                       borderColor: "var(--color-border-divider)",
                       background: "var(--color-bg-surface)",

@@ -217,7 +217,7 @@ export default function EnrollmentManageModal({
                 background: "var(--color-bg-surface)",
               }}
             >
-              <div className="shrink-0 modal-inner-table overflow-auto flex-1 min-h-0">
+              <div className="modal-inner-table overflow-auto flex-1 min-h-0">
                 {loading ? (
                   <EmptyState
                     mode="embedded"
