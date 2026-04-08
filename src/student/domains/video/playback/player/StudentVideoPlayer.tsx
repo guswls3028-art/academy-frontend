@@ -26,6 +26,7 @@ import { useDoubleTapSeek } from "./gesture/useDoubleTapSeek";
 import SeekOverlay from "./gesture/SeekOverlay";
 
 import type { AccessMode } from "@/features/videos/types/access-mode";
+import { resolveTenantCode } from "@/shared/tenant";
 
 export type VideoMetaLite = {
   id: number;
@@ -644,7 +645,7 @@ export default function StudentVideoPlayer({
               {watermarkEnabled && (
                 <div className="svpWatermark">
                   <div className="svpWatermarkInner">
-                    <div className="svpWatermarkTop">hakwonplus</div>
+                    <div className="svpWatermarkTop">{resolveTenantCode().code || "academy"}</div>
                     <div className="svpWatermarkBottom">{deviceId.slice(0, 8)}…</div>
                   </div>
                 </div>

@@ -106,7 +106,7 @@ function SessionGearMenu({
         <div
           ref={dropdownRef}
           className="fixed bg-[var(--color-bg-surface)] border border-[var(--color-border-divider)] rounded-lg shadow-lg py-1 min-w-[120px]"
-          style={{ left: anchor.left, top: anchor.top, transform: "translateX(-100%)", zIndex: 9999 }}
+          style={{ left: anchor.left, top: anchor.top, transform: "translateX(-100%)", zIndex: 10000 }}
           onClick={(e) => e.stopPropagation()}
         >
           <button type="button" className="w-full text-left px-3 py-1.5 text-sm hover:bg-[var(--color-bg-surface-hover)]" onClick={() => setEditing(true)}>수정</button>
@@ -115,10 +115,10 @@ function SessionGearMenu({
               <div className="border-t my-0.5" style={{ borderColor: "var(--color-border-divider)" }} />
               <div className="px-3 py-1 text-[11px] text-[var(--color-text-muted)]">반 이동</div>
               {session.section && (
-                <button type="button" className="w-full text-left px-3 py-1.5 text-sm hover:bg-[var(--color-bg-surface-hover)]" onClick={async () => { setBusy(true); try { await updateSession(session.id, { section: null } as any); feedback.success("반 미지정으로 이동"); setOpen(false); onDone(); } catch { feedback.error("이동 실패"); } setBusy(false); }} disabled={busy}>미지정</button>
+                <button type="button" className="w-full text-left px-3 py-1.5 text-sm hover:bg-[var(--color-bg-surface-hover)]" onClick={async () => { setBusy(true); try { await updateSession(session.id, { section: null }); feedback.success("반 미지정으로 이동"); setOpen(false); onDone(); } catch { feedback.error("이동 실패"); } setBusy(false); }} disabled={busy}>미지정</button>
               )}
               {sections.filter(s => s.id !== session.section).map(s => (
-                <button key={s.id} type="button" className="w-full text-left px-3 py-1.5 text-sm hover:bg-[var(--color-bg-surface-hover)]" onClick={async () => { setBusy(true); try { await updateSession(session.id, { section: s.id } as any); feedback.success(`${s.label}반으로 이동`); setOpen(false); onDone(); } catch { feedback.error("이동 실패"); } setBusy(false); }} disabled={busy}>{s.section_type === "CLASS" ? "수업" : "클리닉"} {s.label}반</button>
+                <button key={s.id} type="button" className="w-full text-left px-3 py-1.5 text-sm hover:bg-[var(--color-bg-surface-hover)]" onClick={async () => { setBusy(true); try { await updateSession(session.id, { section: s.id }); feedback.success(`${s.label}반으로 이동`); setOpen(false); onDone(); } catch { feedback.error("이동 실패"); } setBusy(false); }} disabled={busy}>{s.section_type === "CLASS" ? "수업" : "클리닉"} {s.label}반</button>
               ))}
               <div className="border-t my-0.5" style={{ borderColor: "var(--color-border-divider)" }} />
             </>

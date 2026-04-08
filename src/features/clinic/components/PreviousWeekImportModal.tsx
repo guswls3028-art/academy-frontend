@@ -1,7 +1,7 @@
 // PATH: src/features/clinic/components/PreviousWeekImportModal.tsx
 // 이전 주 클리닉 불러오기 — 직전 주 세션 목록 → 선택 → 이번 주 동일 요일로 일괄 생성
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
 import "dayjs/locale/ko";
@@ -26,6 +26,11 @@ export default function PreviousWeekImportModal({ open, onClose, currentDate }: 
   const qc = useQueryClient();
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [creating, setCreating] = useState(false);
+
+  // 모달 열릴 때 선택 초기화 (이전 선택 잔존 방지)
+  useEffect(() => {
+    if (open) { setSelectedIds(new Set()); setCreating(false); }
+  }, [open]);
 
   // 이전 주 범위 계산
   const prevWeek = useMemo(() => {

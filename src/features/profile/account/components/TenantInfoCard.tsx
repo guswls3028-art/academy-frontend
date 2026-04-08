@@ -66,7 +66,7 @@ export default function TenantInfoCard({ canEdit }: { canEdit: boolean }) {
             <div className="ds-card-modal__header-title">소속 학원 등록</div>
             <div className="ds-card-modal__header-description">
               학생앱 홈 하단 "학원문의"에 표시되는 학원명·전화번호입니다. 메시지 연동은{" "}
-              <Link to="/admin/settings/messages" className="ds-link">
+              <Link to="/admin/message/settings" className="ds-link">
                 메시지 설정
               </Link>
               에서 할 수 있습니다.

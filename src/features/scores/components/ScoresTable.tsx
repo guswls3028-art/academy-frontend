@@ -305,7 +305,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
     }
     qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
     qc.invalidateQueries({ queryKey: ["clinic-targets"] });
-    qc.invalidateQueries({ queryKey: ["exam-results"] });
+    qc.invalidateQueries({ queryKey: ["admin-exam-results"] });
     if (failed.length > 0) feedback.error(`${failed.length}건의 점수 저장에 실패했습니다. 다시 저장해 주세요.`);
   }, [qc, sessionId]);
 

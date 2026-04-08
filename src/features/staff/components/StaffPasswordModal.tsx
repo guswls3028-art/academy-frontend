@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter } from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
 import { changeStaffPassword } from "../api/staff.detail.api";
@@ -15,6 +15,11 @@ interface Props {
 export default function StaffPasswordModal({ open, onClose, staffList }: Props) {
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
+
+  // 모달 열릴 때 상태 초기화 (이전 입력 잔존 방지)
+  React.useEffect(() => {
+    if (open) { setPassword(""); setBusy(false); }
+  }, [open]);
 
   if (!open) return null;
 

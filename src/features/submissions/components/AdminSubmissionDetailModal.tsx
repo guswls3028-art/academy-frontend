@@ -9,6 +9,7 @@ import {
   fetchSubmissionManualReview,
   saveSubmissionManualReview,
 } from "../api/adminSubmissions";
+import { feedback } from "@/shared/ui/feedback/feedback";
 
 export default function AdminSubmissionDetailModal({
   open,
@@ -34,8 +35,11 @@ export default function AdminSubmissionDetailModal({
   });
 
   useEffect(() => {
-    if (open) load.mutate();
-  }, [open]);
+    if (open) {
+      setAnswers([]);
+      load.mutate();
+    }
+  }, [open, submissionId]);
 
   const save = useMutation({
     mutationFn: () =>
@@ -46,7 +50,20 @@ export default function AdminSubmissionDetailModal({
           answer: a.answer,
         })),
       }),
-    onSuccess: () => qc.invalidateQueries(),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin-submissions"] });
+      qc.invalidateQueries({ queryKey: ["admin-pending-submissions"] });
+    },
+  });
+
+  const retryM = useMutation({
+    mutationFn: () => retryAnySubmission(submissionId),
+    onSuccess: () => {
+      feedback.success("재처리 요청을 보냈습니다.");
+      qc.invalidateQueries({ queryKey: ["admin-submissions"] });
+      qc.invalidateQueries({ queryKey: ["admin-pending-submissions"] });
+    },
+    onError: () => feedback.error("재처리 요청에 실패했습니다."),
   });
 
   if (!open || !submission) return null;
@@ -105,7 +122,7 @@ export default function AdminSubmissionDetailModal({
           )}
 
           {(submission.status === "failed" || submission.status === "needs_identification") && (
-            <Button type="button" intent="secondary" size="md" onClick={() => retryAnySubmission(submissionId)}>
+            <Button type="button" intent="secondary" size="md" loading={retryM.isPending} disabled={retryM.isPending} onClick={() => retryM.mutate()}>
               {submission.status === "needs_identification" ? "식별 확인 후 재채점" : "다시 처리"}
             </Button>
           )}

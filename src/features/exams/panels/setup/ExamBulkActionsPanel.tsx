@@ -12,9 +12,10 @@ export default function ExamBulkActionsPanel({ examId }: { examId: number }) {
     mutationFn: () => recalculateExam(examId),
     onSuccess: () => {
       feedback.success("재채점이 완료되었습니다.");
-      qc.invalidateQueries({ queryKey: ["exam", examId] });
-      qc.invalidateQueries({ queryKey: ["exam-results"] });
-      qc.invalidateQueries({ queryKey: ["exam-submissions"] });
+      qc.invalidateQueries({ queryKey: ["admin-exam", examId] });
+      qc.invalidateQueries({ queryKey: ["admin-exam-results", examId] });
+      qc.invalidateQueries({ queryKey: ["admin-submissions"] });
+      qc.invalidateQueries({ queryKey: ["admin-pending-submissions"] });
     },
     onError: (error: unknown) => {
       feedback.error((error as Error)?.message ?? "재채점에 실패했습니다.");

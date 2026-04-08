@@ -109,7 +109,7 @@ export default function WorkRecordsPanel() {
                     <div className="text-right">
                       <div className="staff-helper">금액</div>
                       <div className="staff-body font-semibold tabular-nums">
-                        {r.amount?.toLocaleString() ?? "-"}원
+                        {r.amount != null ? `${r.amount.toLocaleString()}원` : "-"}
                       </div>
                     </div>
 
