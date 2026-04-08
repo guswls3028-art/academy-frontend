@@ -22,7 +22,7 @@ function Hero() {
       <div className="absolute inset-0 bg-gradient-to-br from-blue-50 via-white to-indigo-50/40" />
       <div className="absolute top-0 right-0 w-[600px] h-[600px] rounded-full bg-blue-100/30 blur-[120px] -translate-y-1/2 translate-x-1/4" />
 
-      <div className="relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-28 sm:pt-32 sm:pb-36 text-center">
+      <div className="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-16 sm:pt-32 sm:pb-20 text-center">
         <h1 className="text-4xl sm:text-5xl lg:text-[3.5rem] font-extrabold text-gray-900 leading-[1.1] tracking-tight mb-6">
           수업부터 성적,
           <br className="sm:hidden" />
@@ -34,13 +34,13 @@ function Hero() {
           으로
         </h1>
 
-        <p className="text-lg sm:text-xl text-gray-500 leading-relaxed max-w-xl mx-auto mb-12">
+        <p className="text-lg sm:text-xl text-gray-500 leading-relaxed max-w-xl mx-auto mb-10">
           시험 · 과제 · 성적 · 클리닉 · 메시지를
           <br className="hidden sm:block" />
           끊김 없이 연결하는 학원 운영 SaaS
         </p>
 
-        <div className="flex flex-col sm:flex-row gap-3 justify-center">
+        <div className="flex flex-col sm:flex-row gap-3 justify-center mb-16">
           <Link
             to="/promo/demo"
             className="inline-flex items-center justify-center gap-2 px-8 py-4 text-base font-semibold text-white bg-blue-600 rounded-2xl hover:bg-blue-700 transition-all shadow-xl shadow-blue-600/20 hover:shadow-blue-600/30"
@@ -54,6 +54,23 @@ function Hero() {
           >
             기능 둘러보기
           </Link>
+        </div>
+
+        {/* 제품 스크린샷 */}
+        <div className="hidden sm:block relative mx-auto max-w-4xl">
+          <div className="rounded-2xl overflow-hidden shadow-2xl shadow-gray-300/40 border border-gray-200/60 bg-white">
+            <div className="flex items-center gap-1.5 px-4 py-2.5 bg-gray-50 border-b border-gray-100">
+              <div className="w-2.5 h-2.5 rounded-full bg-gray-300" />
+              <div className="w-2.5 h-2.5 rounded-full bg-gray-300" />
+              <div className="w-2.5 h-2.5 rounded-full bg-gray-300" />
+            </div>
+            <img
+              src="/promo/admin-home.png"
+              alt="학원플러스 관리자 대시보드"
+              className="w-full"
+              loading="lazy"
+            />
+          </div>
         </div>
       </div>
     </section>
@@ -85,7 +102,7 @@ const VALUES = [
 
 function ValueProps() {
   return (
-    <section className="relative -mt-14 z-10 pb-8">
+    <section className="relative -mt-6 sm:-mt-10 z-10 pb-8">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {VALUES.map((v) => (
