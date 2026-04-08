@@ -4,7 +4,7 @@
  * 재설계: 단순 카드 나열 → 운영/처리 워크스페이스
  */
 
-import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
@@ -181,7 +181,12 @@ export default function ClinicConsoleWorkspace({
   const [sendResultPreviewOpen, setSendResultPreviewOpen] = useState(false);
 
   // 세션 변경 시 로컬 상태 초기화 — 이전 세션의 pending/mutating 상태가 남는 것을 방지
+  // session?.id를 별도 변수로 추출하여 객체 참조 변경에 의한 불필요한 리셋 방지
+  const sessionId = session?.id;
+  const prevSessionIdRef = useRef(sessionId);
   useEffect(() => {
+    if (prevSessionIdRef.current === sessionId) return; // 같은 세션이면 스킵
+    prevSessionIdRef.current = sessionId;
     setPendingStatuses(new Map());
     setMutatingIds(new Set());
     setCompletingIds(new Set());
@@ -193,7 +198,7 @@ export default function ClinicConsoleWorkspace({
     setSendResultPreviewOpen(false);
     setPreviewTrigger(null);
     setStatusFilter("all");
-  }, [session?.id]);
+  }, [sessionId]);
 
   // ESC로 트리거 미리보기 닫기
   useEffect(() => {
