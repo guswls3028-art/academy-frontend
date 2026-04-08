@@ -367,6 +367,13 @@ export default function ClinicConsoleWorkspace({
     const pending = pendingStatuses.get(p.id);
     if (!pending || mutatingIds.has(p.id)) return;
 
+    // 이미 같은 상태면 API 호출 불필요 — 체크 해제하고 안내
+    if (p.status === pending) {
+      setPendingStatuses((prev) => { const n = new Map(prev); n.delete(p.id); return n; });
+      feedback.info(`${p.student_name}은(는) 이미 ${pending === "attended" ? "출석" : "결석"} 상태입니다.`);
+      return;
+    }
+
     setMutatingIds((prev) => new Set(prev).add(p.id));
     patchClinicParticipantStatus(p.id, { status: pending })
       .then(() => {
@@ -406,7 +413,28 @@ export default function ClinicConsoleWorkspace({
     // Double-click guard: if any pending id is already mutating, bail out
     if (entries.some(([id]) => mutatingIds.has(id))) return;
 
-    const ids = entries.map(([id]) => id);
+    // 이미 같은 상태인 항목 필터 — 불필요한 API 호출 방지
+    const actualEntries = entries.filter(([id, status]) => {
+      const p = participants.find((pp) => pp.id === id);
+      return p && p.status !== status;
+    });
+    if (actualEntries.length === 0) {
+      feedback.info("변경할 항목이 없습니다. 이미 같은 상태입니다.");
+      setPendingStatuses(new Map());
+      return;
+    }
+    // 스킵된 항목은 pending에서 제거
+    if (actualEntries.length < entries.length) {
+      const skippedNames = entries
+        .filter(([id, status]) => { const p = participants.find((pp) => pp.id === id); return p && p.status === status; })
+        .map(([id]) => participants.find((pp) => pp.id === id)?.student_name)
+        .filter(Boolean);
+      if (skippedNames.length > 0) {
+        feedback.info(`${skippedNames.join(', ')}은(는) 이미 같은 상태 — 건너뜀`);
+      }
+    }
+
+    const ids = actualEntries.map(([id]) => id);
     setMutatingIds((prev) => {
       const next = new Set(prev);
       ids.forEach((id) => next.add(id));
@@ -414,7 +442,7 @@ export default function ClinicConsoleWorkspace({
     });
 
     const results = await Promise.allSettled(
-      entries.map(([id, status]) => patchClinicParticipantStatus(id, { status }))
+      actualEntries.map(([id, status]) => patchClinicParticipantStatus(id, { status }))
     );
 
     const failed = results.filter((r) => r.status === "rejected").length;
@@ -886,15 +914,24 @@ export default function ClinicConsoleWorkspace({
           <div className="clinic-ops__confirm-bar">
             {/* 현재 상태 요약 */}
             <div className="clinic-ops__confirm-bar-info">
-              <span className="clinic-ops__confirm-bar-badge clinic-ops__confirm-bar-badge--attend">
-                출석 {progress.attended}명
-              </span>
-              <span className="clinic-ops__confirm-bar-badge clinic-ops__confirm-bar-badge--noshow">
-                결석 {progress.noShow}명
-              </span>
-              <span className="clinic-ops__confirm-bar-badge">
-                미확인 {progress.pending}명
-              </span>
+              {progress.attended > 0 && (
+                <span className="clinic-ops__confirm-bar-badge clinic-ops__confirm-bar-badge--attend">
+                  출석 {progress.attended}명
+                </span>
+              )}
+              {progress.noShow > 0 && (
+                <span className="clinic-ops__confirm-bar-badge clinic-ops__confirm-bar-badge--noshow">
+                  결석 {progress.noShow}명
+                </span>
+              )}
+              {progress.pending > 0 && (
+                <span className="clinic-ops__confirm-bar-badge">
+                  미확인 {progress.pending}명
+                </span>
+              )}
+              {progress.attended === 0 && progress.noShow === 0 && progress.pending === 0 && (
+                <span className="clinic-ops__confirm-bar-badge">참가자 없음</span>
+              )}
             </div>
             {/* 대기 중인 변경이 있을 때만 발송 액션 표시 */}
             {hasPendingChanges && (
