@@ -41,11 +41,12 @@ export default function SessionLayout() {
       { key: "assignments", label: "과제", path: `${base}/assignments` },
       { key: "videos", label: "영상", path: `${base}/videos` },
     ];
-    if (sectionMode) {
+    // P7: CLINIC 세션에서는 정규 클리닉 탭 불필요 (순환 방지)
+    if (sectionMode && session?.section_type !== "CLINIC") {
       items.push({ key: "clinic", label: "정규 클리닉", path: `${base}/clinic` });
     }
     return items;
-  }, [base, sectionMode]);
+  }, [base, sectionMode, session?.section_type]);
 
   if (!lectureId || !sessionId) {
     return (

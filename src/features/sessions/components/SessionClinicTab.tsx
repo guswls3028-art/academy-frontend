@@ -75,7 +75,7 @@ export default function SessionClinicTab({
   const navigate = useNavigate();
 
   // 현재 세션 정보
-  const { data: currentSession } = useQuery({
+  const { data: currentSession, isLoading: sessionLoading } = useQuery({
     queryKey: ["session", sessionId],
     queryFn: async () => {
       const { default: api } = await import("@/shared/api/axios");
@@ -85,21 +85,21 @@ export default function SessionClinicTab({
   });
 
   // 강의 전체 섹션 목록
-  const { data: allSections = [] } = useQuery<Section[]>({
+  const { data: allSections = [], isLoading: sectionsLoading, isError: sectionsError } = useQuery<Section[]>({
     queryKey: ["lecture-sections", lectureId],
     queryFn: () => fetchSections(lectureId),
     enabled: Number.isFinite(lectureId),
   });
 
   // 섹션 배정 현황
-  const { data: assignments = [] } = useQuery<SectionAssignment[]>({
+  const { data: assignments = [], isLoading: assignmentsLoading } = useQuery<SectionAssignment[]>({
     queryKey: ["section-assignments", lectureId],
     queryFn: () => fetchSectionAssignments(lectureId),
     enabled: Number.isFinite(lectureId),
   });
 
   // 차시 수강생 목록
-  const { data: sessionEnrollments = [] } = useQuery<SessionEnrollmentRow[]>({
+  const { data: sessionEnrollments = [], isLoading: enrollmentsLoading } = useQuery<SessionEnrollmentRow[]>({
     queryKey: ["session-enrollments", sessionId],
     queryFn: () => fetchSessionEnrollments(sessionId),
     enabled: Number.isFinite(sessionId),
@@ -113,7 +113,10 @@ export default function SessionClinicTab({
   });
 
   // 클리닉 대상자 (전체 → 이 세션 필터)
-  const { data: allTargets = [] } = useClinicTargets();
+  const { data: allTargets = [], isLoading: targetsLoading } = useClinicTargets();
+
+  // ── 로딩 상태 (P1/P2 fix: 데이터 로딩 중 잘못된 상태 표시 방지) ──
+  const isLoading = sessionLoading || sectionsLoading || assignmentsLoading || enrollmentsLoading;
 
   // ── 데이터 가공 ──
 
@@ -150,15 +153,21 @@ export default function SessionClinicTab({
   }, [assignments]);
 
   // 이 세션의 클리닉 대상자 맵 (enrollment_id → target)
+  // P6 fix: "both" 일 때 점수 표시 안 하도록 score 제거
   const sessionTargetMap = useMemo(() => {
     const map = new Map<number, ClinicTarget>();
     for (const t of allTargets) {
       if (t.session_id === sessionId) {
-        // 같은 enrollment의 기존 항목과 병합 (both 처리)
         const existing = map.get(t.enrollment_id);
         if (existing) {
           if (existing.clinic_reason !== t.clinic_reason) {
-            map.set(t.enrollment_id, { ...existing, clinic_reason: "both" });
+            map.set(t.enrollment_id, {
+              ...existing,
+              clinic_reason: "both",
+              exam_score: undefined, // P6: "both"일 때 개별 점수 의미 없음
+              cutline_score: undefined,
+              source_type: null,
+            });
           }
         } else {
           map.set(t.enrollment_id, t);
@@ -168,21 +177,15 @@ export default function SessionClinicTab({
     return map;
   }, [allTargets, sessionId]);
 
-  // 차시 수강생 enrollment ID set
-  const enrolledIds = useMemo(
-    () => new Set(sessionEnrollments.map((se) => se.enrollment)),
-    [sessionEnrollments],
-  );
-
   // 수강생을 EnrolledStudent으로 변환
   const enrolledStudents: EnrolledStudent[] = useMemo(
     () =>
       sessionEnrollments.map((se) => ({
         enrollmentId: se.enrollment,
         studentName: se.student_name,
-        clinicTarget: sessionTargetMap.get(se.enrollment) ?? null,
+        clinicTarget: targetsLoading ? null : (sessionTargetMap.get(se.enrollment) ?? null),
       })),
-    [sessionEnrollments, sessionTargetMap],
+    [sessionEnrollments, sessionTargetMap, targetsLoading],
   );
 
   // 섹션별 그룹핑
@@ -191,7 +194,6 @@ export default function SessionClinicTab({
       const students = enrolledStudents.filter(
         (s) => enrollmentClinicSectionMap.get(s.enrollmentId) === section.id,
       );
-      // 클리닉 대상 우선, 그 다음 이름 순
       students.sort((a, b) => {
         const aTarget = a.clinicTarget ? 0 : 1;
         const bTarget = b.clinicTarget ? 0 : 1;
@@ -233,7 +235,15 @@ export default function SessionClinicTab({
     return { total, assigned, unassigned: total - assigned, targets };
   }, [enrolledStudents, enrollmentClinicSectionMap, clinicSections]);
 
-  // ── 로딩 / 빈 상태 ──
+  // ── 로딩 / 에러 / 빈 상태 ── (P2 fix: 로딩 중 잘못된 empty state 방지)
+
+  if (isLoading) {
+    return <EmptyState scope="panel" tone="loading" title="불러오는 중..." />;
+  }
+
+  if (sectionsError) {
+    return <EmptyState scope="panel" tone="error" title="데이터를 불러올 수 없습니다" description="새로고침해 주세요." />;
+  }
 
   if (clinicSections.length === 0) {
     return (
@@ -289,6 +299,7 @@ export default function SessionClinicTab({
           label="클리닉 대상"
           value={stats.targets}
           color={stats.targets > 0 ? "var(--color-error, #ef4444)" : "var(--color-text-muted)"}
+          hint={targetsLoading ? "확인 중..." : undefined}
         />
       </div>
 
@@ -298,8 +309,8 @@ export default function SessionClinicTab({
           key={group.section.id}
           group={group}
           lectureId={lectureId}
-          onNavigateToClinicSession={(sessionId) =>
-            navigate(`/admin/lectures/${lectureId}/sessions/${sessionId}/attendance`)
+          onNavigateToClinicSession={(sid) =>
+            navigate(`/admin/lectures/${lectureId}/sessions/${sid}/attendance`)
           }
         />
       ))}
@@ -314,7 +325,6 @@ export default function SessionClinicTab({
             overflow: "hidden",
           }}
         >
-          {/* Header */}
           <div
             style={{
               display: "flex",
@@ -326,28 +336,13 @@ export default function SessionClinicTab({
             }}
           >
             <AlertCircle size={16} style={{ color: "var(--color-warning, #d97706)" }} />
-            <span
-              style={{
-                fontSize: 14,
-                fontWeight: 600,
-                color: "var(--color-warning, #d97706)",
-              }}
-            >
+            <span style={{ fontSize: 14, fontWeight: 600, color: "var(--color-warning, #d97706)" }}>
               클리닉반 미배정
             </span>
-            <span
-              style={{
-                marginLeft: "auto",
-                fontSize: 13,
-                fontWeight: 500,
-                color: "var(--color-text-secondary)",
-              }}
-            >
+            <span style={{ marginLeft: "auto", fontSize: 13, fontWeight: 500, color: "var(--color-text-secondary)" }}>
               {unassignedStudents.length}명
             </span>
           </div>
-
-          {/* Students */}
           <div style={{ padding: "4px 0" }}>
             {unassignedStudents.map((student) => (
               <StudentRow key={student.enrollmentId} student={student} />
@@ -366,11 +361,13 @@ function KPICard({
   label,
   value,
   color,
+  hint,
 }: {
   icon: React.ReactNode;
   label: string;
   value: number;
   color: string;
+  hint?: string;
 }) {
   return (
     <div
@@ -400,14 +397,7 @@ function KPICard({
         {icon}
       </div>
       <div>
-        <div
-          style={{
-            fontSize: 12,
-            color: "var(--color-text-muted)",
-            fontWeight: 500,
-            lineHeight: 1.3,
-          }}
-        >
+        <div style={{ fontSize: 12, color: "var(--color-text-muted)", fontWeight: 500, lineHeight: 1.3 }}>
           {label}
         </div>
         <div
@@ -422,6 +412,9 @@ function KPICard({
         >
           {value}
         </div>
+        {hint && (
+          <div style={{ fontSize: 11, color: "var(--color-text-muted)", marginTop: 2 }}>{hint}</div>
+        )}
       </div>
     </div>
   );
@@ -459,7 +452,6 @@ function SectionGroupCard({
           background: "var(--color-bg-surface-sunken)",
         }}
       >
-        {/* Section badge */}
         <div
           style={{
             display: "flex",
@@ -478,16 +470,9 @@ function SectionGroupCard({
           {section.label}
         </div>
 
-        {/* Section info */}
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <span
-              style={{
-                fontSize: 14,
-                fontWeight: 600,
-                color: "var(--color-text-primary)",
-              }}
-            >
+            <span style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text-primary)" }}>
               클리닉 {section.label}반
             </span>
             {targetCount > 0 && (
@@ -517,7 +502,7 @@ function SectionGroupCard({
           >
             <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
               <Calendar size={11} />
-              {DAY_LABELS[section.day_of_week]}요일
+              {DAY_LABELS[section.day_of_week] ?? "?"}요일
             </span>
             <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
               <Clock size={11} />
@@ -533,20 +518,14 @@ function SectionGroupCard({
           </div>
         </div>
 
-        {/* Student count + clinic session link */}
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <span
-            style={{
-              fontSize: 13,
-              fontWeight: 500,
-              color: "var(--color-text-secondary)",
-            }}
-          >
+          <span style={{ fontSize: 13, fontWeight: 500, color: "var(--color-text-secondary)" }}>
             {students.length}명
           </span>
           {clinicSession && (
             <button
               onClick={() => onNavigateToClinicSession(clinicSession.id)}
+              className="ds-btn-ghost"
               style={{
                 display: "inline-flex",
                 alignItems: "center",
@@ -559,17 +538,6 @@ function SectionGroupCard({
                 fontSize: 12,
                 fontWeight: 500,
                 cursor: "pointer",
-                transition: "all 0.15s",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = "var(--color-primary, #3b82f6)";
-                e.currentTarget.style.color = "#fff";
-                e.currentTarget.style.borderColor = "var(--color-primary, #3b82f6)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = "var(--color-bg-surface)";
-                e.currentTarget.style.color = "var(--color-primary, #3b82f6)";
-                e.currentTarget.style.borderColor = "var(--color-border-default)";
               }}
               title="클리닉 차시로 이동"
             >
@@ -582,14 +550,7 @@ function SectionGroupCard({
 
       {/* Student List */}
       {students.length === 0 ? (
-        <div
-          style={{
-            padding: "24px 18px",
-            textAlign: "center",
-            fontSize: 13,
-            color: "var(--color-text-muted)",
-          }}
-        >
+        <div style={{ padding: "24px 18px", textAlign: "center", fontSize: 13, color: "var(--color-text-muted)" }}>
           배정된 학생이 없습니다
         </div>
       ) : (
@@ -609,19 +570,13 @@ function StudentRow({ student }: { student: EnrolledStudent }) {
 
   return (
     <div
+      className="session-clinic-row"
       style={{
         display: "flex",
         alignItems: "center",
         gap: 12,
         padding: "10px 18px",
         borderBottom: "1px solid var(--color-border-divider)",
-        transition: "background 0.1s",
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.background = "var(--color-bg-surface-sunken)";
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.background = "transparent";
       }}
     >
       {/* 클리닉 대상 인디케이터 */}
@@ -650,8 +605,8 @@ function StudentRow({ student }: { student: EnrolledStudent }) {
       {/* 클리닉 사유 + 점수 */}
       {isTarget && target.clinic_reason && (
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          {/* 점수 표시 */}
-          {target.exam_score != null && target.cutline_score != null && (
+          {/* 점수 표시 — "both"일 때는 개별 점수 의미 없으므로 생략 */}
+          {target.clinic_reason !== "both" && target.exam_score != null && target.cutline_score != null && (
             <span
               style={{
                 fontSize: 12,
@@ -691,7 +646,7 @@ function StudentRow({ student }: { student: EnrolledStudent }) {
         </div>
       )}
 
-      {/* 정상 뱃지 (대상 아닌 경우) */}
+      {/* 정상 뱃지 */}
       {!isTarget && (
         <span
           style={{
