@@ -172,6 +172,14 @@ export default function ClinicConsoleWorkspace({
   // 알림 설정 미리보기 팝업
   const [previewTrigger, setPreviewTrigger] = useState<string | null>(null);
 
+  // 발송 완료 팝업
+  const [sendResult, setSendResult] = useState<{
+    type: "attended" | "no_show";
+    students: { name: string; id: number }[];
+    messageBody: string;
+  } | null>(null);
+  const [sendResultPreviewOpen, setSendResultPreviewOpen] = useState(false);
+
   // ESC로 트리거 미리보기 닫기
   useEffect(() => {
     if (!previewTrigger) return;
@@ -179,6 +187,19 @@ export default function ClinicConsoleWorkspace({
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
   }, [previewTrigger]);
+
+  // 발송 완료 팝업: Enter/ESC로 닫기
+  useEffect(() => {
+    if (!sendResult) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape" || e.key === "Enter") {
+        setSendResult(null);
+        setSendResultPreviewOpen(false);
+      }
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [sendResult]);
 
   // Build enrollment_id → ClinicTarget[] map for O(1) lookup
   const targetsByEnrollment = useMemo(() => {
@@ -334,7 +355,15 @@ export default function ClinicConsoleWorkspace({
           next.delete(p.id);
           return next;
         });
-        feedback.success(`${p.student_name} ${pending === "attended" ? "출석" : "결석"} 알림 발송 완료`);
+        // 발송 완료 팝업 — 알림톡 본문 조회
+        const trigger = pending === "attended" ? "clinic_check_in" : "clinic_absent";
+        const cfg = autoSendConfigs.find((c) => c.trigger === trigger);
+        setSendResultPreviewOpen(false);
+        setSendResult({
+          type: pending,
+          students: [{ name: p.student_name, id: p.student }],
+          messageBody: cfg?.template_body || "",
+        });
       })
       .catch(() => {
         invalidateAll();
@@ -379,7 +408,28 @@ export default function ClinicConsoleWorkspace({
     if (failed > 0) {
       feedback.error(`${succeeded}명 처리 완료, ${failed}명 실패`);
     } else {
-      feedback.success(`${succeeded}명 출석/결석 알림 발송 완료`);
+      // 발송 완료 팝업 — 일괄 발송
+      // 출석/결석 혼합이면 출석 기준으로 표시
+      const attendedStudents = entries
+        .filter(([, st]) => st === "attended")
+        .map(([id]) => participants.find((pp) => pp.id === id))
+        .filter(Boolean) as ClinicParticipant[];
+      const noShowStudents = entries
+        .filter(([, st]) => st === "no_show")
+        .map(([id]) => participants.find((pp) => pp.id === id))
+        .filter(Boolean) as ClinicParticipant[];
+      const primaryType: "attended" | "no_show" = attendedStudents.length >= noShowStudents.length ? "attended" : "no_show";
+      const allStudents = entries
+        .map(([id]) => participants.find((pp) => pp.id === id))
+        .filter(Boolean) as ClinicParticipant[];
+      const trigger = primaryType === "attended" ? "clinic_check_in" : "clinic_absent";
+      const cfg = autoSendConfigs.find((c) => c.trigger === trigger);
+      setSendResultPreviewOpen(false);
+      setSendResult({
+        type: primaryType,
+        students: allStudents.map((s) => ({ name: s.student_name, id: s.student })),
+        messageBody: cfg?.template_body || "",
+      });
     }
   }
 
@@ -803,44 +853,60 @@ export default function ClinicConsoleWorkspace({
         )}
       </div>
 
-      {/* ═══ B-2. 출석/결석 알림 발송 바 — 체크된 학생이 있을 때 ═══ */}
-      {pendingStatuses.size > 0 && (() => {
+      {/* ═══ B-2. 출석/결석 알림 발송 바 — 참가자가 있으면 상시 표시 ═══ */}
+      {participants.length > 0 && (() => {
         const pendingAttend = Array.from(pendingStatuses.entries()).filter(([, s]) => s === "attended");
         const pendingNoShow = Array.from(pendingStatuses.entries()).filter(([, s]) => s === "no_show");
         const isSending = Array.from(pendingStatuses.keys()).some((id) => mutatingIds.has(id));
+        const hasPendingChanges = pendingStatuses.size > 0;
         return (
           <div className="clinic-ops__confirm-bar">
+            {/* 현재 상태 요약 */}
             <div className="clinic-ops__confirm-bar-info">
-              {pendingAttend.length > 0 && (
-                <span className="clinic-ops__confirm-bar-badge clinic-ops__confirm-bar-badge--attend">
-                  출석 {pendingAttend.length}명
-                </span>
-              )}
-              {pendingNoShow.length > 0 && (
-                <span className="clinic-ops__confirm-bar-badge clinic-ops__confirm-bar-badge--noshow">
-                  결석 {pendingNoShow.length}명
-                </span>
-              )}
-              <span className="clinic-ops__confirm-bar-hint">체크를 취소하려면 버튼을 다시 누르세요</span>
+              <span className="clinic-ops__confirm-bar-badge clinic-ops__confirm-bar-badge--attend">
+                출석 {progress.attended}명
+              </span>
+              <span className="clinic-ops__confirm-bar-badge clinic-ops__confirm-bar-badge--noshow">
+                결석 {progress.noShow}명
+              </span>
+              <span className="clinic-ops__confirm-bar-badge">
+                미확인 {progress.pending}명
+              </span>
             </div>
-            <div className="clinic-ops__confirm-bar-actions">
-              <button
-                type="button"
-                className="clinic-ops__confirm-bar-cancel"
-                onClick={() => setPendingStatuses(new Map())}
-              >
-                전체 취소
-              </button>
-              <button
-                type="button"
-                className="clinic-ops__confirm-bar-send"
-                disabled={isSending}
-                onClick={handleBulkConfirmStatuses}
-              >
-                <Send size={14} aria-hidden />
-                {isSending ? "발송 중…" : `알림 발송 (${pendingStatuses.size}명)`}
-              </button>
-            </div>
+            {/* 대기 중인 변경이 있을 때만 발송 액션 표시 */}
+            {hasPendingChanges && (
+              <div className="clinic-ops__confirm-bar-actions">
+                <div className="clinic-ops__confirm-bar-info" style={{ marginRight: 8 }}>
+                  {pendingAttend.length > 0 && (
+                    <span className="clinic-ops__confirm-bar-badge clinic-ops__confirm-bar-badge--attend" style={{ opacity: 0.85, fontSize: "0.82rem" }}>
+                      +출석 {pendingAttend.length}명
+                    </span>
+                  )}
+                  {pendingNoShow.length > 0 && (
+                    <span className="clinic-ops__confirm-bar-badge clinic-ops__confirm-bar-badge--noshow" style={{ opacity: 0.85, fontSize: "0.82rem" }}>
+                      +결석 {pendingNoShow.length}명
+                    </span>
+                  )}
+                  <span className="clinic-ops__confirm-bar-hint">체크를 취소하려면 버튼을 다시 누르세요</span>
+                </div>
+                <button
+                  type="button"
+                  className="clinic-ops__confirm-bar-cancel"
+                  onClick={() => setPendingStatuses(new Map())}
+                >
+                  전체 취소
+                </button>
+                <button
+                  type="button"
+                  className="clinic-ops__confirm-bar-send"
+                  disabled={isSending}
+                  onClick={handleBulkConfirmStatuses}
+                >
+                  <Send size={14} aria-hidden />
+                  {isSending ? "발송 중…" : `알림 발송 (${pendingStatuses.size}명)`}
+                </button>
+              </div>
+            )}
           </div>
         );
       })()}
@@ -1536,6 +1602,90 @@ export default function ClinicConsoleWorkspace({
             </div>
           </div>
         </>
+      )}
+
+      {/* ═══ 발송 완료 팝업 ═══ */}
+      {sendResult && createPortal(
+        <div
+          className="clinic-send-result__overlay"
+          onClick={(e) => { if (e.target === e.currentTarget) { setSendResult(null); setSendResultPreviewOpen(false); } }}
+        >
+          <div className="clinic-send-result__popup">
+            {/* Header */}
+            <div className="clinic-send-result__header">
+              <div className="clinic-send-result__header-icon">
+                <CheckCircle size={22} />
+              </div>
+              <div className="clinic-send-result__header-text">
+                <h3 className="clinic-send-result__title">
+                  {sendResult.type === "attended" ? "출석 알림" : "결석 알림"} 발송 완료
+                </h3>
+                <span className="clinic-send-result__mode-badge">알림톡</span>
+              </div>
+              <button
+                type="button"
+                className="clinic-send-result__close"
+                onClick={() => { setSendResult(null); setSendResultPreviewOpen(false); }}
+                aria-label="닫기"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* 수신자 목록 */}
+            <div className="clinic-send-result__body">
+              <div className="clinic-send-result__section-label">수신 학생</div>
+              <div className="clinic-send-result__students">
+                {sendResult.students.map((s) => (
+                  <span key={s.id} className="clinic-send-result__student-chip">
+                    {s.name}
+                  </span>
+                ))}
+              </div>
+
+              {/* 미리보기 토글 */}
+              {sendResult.messageBody && (
+                <>
+                  <button
+                    type="button"
+                    className="clinic-send-result__preview-btn"
+                    onClick={() => setSendResultPreviewOpen((v) => !v)}
+                  >
+                    <MessageCircle size={14} />
+                    {sendResultPreviewOpen ? "미리보기 닫기" : "미리보기"}
+                  </button>
+
+                  {sendResultPreviewOpen && (
+                    <div className="clinic-send-result__kakao-wrap">
+                      <div className="clinic-send-result__kakao-header">
+                        <span className="clinic-send-result__kakao-logo">K</span>
+                        <span className="clinic-send-result__kakao-title">알림톡</span>
+                      </div>
+                      <div className="clinic-send-result__kakao-bubble">
+                        <div className="clinic-send-result__kakao-body">
+                          {sendResult.messageBody}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="clinic-send-result__footer">
+              <button
+                type="button"
+                className="clinic-send-result__confirm-btn"
+                onClick={() => { setSendResult(null); setSendResultPreviewOpen(false); }}
+              >
+                확인
+              </button>
+              <span className="clinic-send-result__hint">Enter 또는 ESC로 닫기</span>
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
 
       {/* Student detail overlay — portal to body for proper z-index layering */}
