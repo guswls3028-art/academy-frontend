@@ -91,7 +91,7 @@ const COMPARISON = [
 export default function PricingPage() {
   return (
     <>
-      <section className="bg-gradient-to-b from-blue-50 to-white pt-16 pb-12">
+      <section className="bg-gradient-to-b from-slate-50 to-white pt-16 pb-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h1 className="text-3xl sm:text-4xl font-extrabold text-gray-900 mb-4">요금제</h1>
           <p className="text-lg text-gray-500 max-w-2xl mx-auto">
