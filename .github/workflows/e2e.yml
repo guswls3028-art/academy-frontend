@@ -4,6 +4,7 @@ on:
   workflow_dispatch:
   pull_request:
     branches: [main]
+    types: [opened, synchronize, reopened]
     paths:
       - 'src/**'
       - 'e2e/**'
@@ -17,8 +18,8 @@ jobs:
   e2e:
     runs-on: ubuntu-latest
     timeout-minutes: 12
-    # secrets 미설정 시 skip (fork PR 등)
-    if: ${{ github.event_name == 'workflow_dispatch' || secrets.E2E_ADMIN_USER != '' }}
+    # PR 또는 수동 실행에서만 동작 (push에서는 quality-gate.yml이 처리)
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'pull_request'
     steps:
       - uses: actions/checkout@v4
 
