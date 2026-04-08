@@ -24,7 +24,7 @@ function Hero() {
 
       <div className="relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-28 sm:pt-32 sm:pb-36 text-center">
         <h1 className="text-4xl sm:text-5xl lg:text-[3.5rem] font-extrabold text-gray-900 leading-[1.1] tracking-tight mb-6">
-          수업부터 성적, 안내까지
+          <span className="whitespace-nowrap">수업부터 성적, 안내까지</span>
           <br />
           <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
             하나의 흐름
@@ -180,17 +180,17 @@ function PainPoints() {
    ═══════════════════════════════════════════════════════ */
 
 const DOMAINS = [
-  { title: "수업 · 학생 관리", desc: "강의/차시/수강생 구조 관리, 학생별 학습 흐름 파악", color: "bg-blue-500", light: "bg-blue-50" },
-  { title: "시험 · 과제 · 성적", desc: "시험 생성, 자동채점, 과제 운영, 문항별 분석까지 원스톱", color: "bg-indigo-500", light: "bg-indigo-50" },
-  { title: "클리닉 · 보강", desc: "성적 기반 대상자 판단, 클리닉 예약, 후속 학습 연결", color: "bg-rose-500", light: "bg-rose-50" },
-  { title: "메시지 · 알림", desc: "템플릿 기반 SMS/알림톡 발송, 학부모·학생 커뮤니케이션", color: "bg-amber-500", light: "bg-amber-50" },
-  { title: "커뮤니티 · 학생앱", desc: "Q&A 게시판, 학생 전용 앱에서 성적·과제·영상 확인", color: "bg-emerald-500", light: "bg-emerald-50" },
-  { title: "영상 학습", desc: "자체 플레이어, 이어보기, 시청 이력, 수업 연동", color: "bg-violet-500", light: "bg-violet-50" },
+  { title: "수업 · 학생 관리", desc: "강의/차시/수강생 구조 관리, 학생별 학습 흐름 파악", color: "bg-blue-500", text: "text-blue-600" },
+  { title: "시험 · 과제 · 성적", desc: "시험 생성, 자동채점, 과제 운영, 문항별 분석까지 원스톱", color: "bg-indigo-500", text: "text-indigo-600" },
+  { title: "클리닉 · 보강", desc: "성적 기반 대상자 판단, 클리닉 예약, 후속 학습 연결", color: "bg-rose-500", text: "text-rose-600" },
+  { title: "메시지 · 알림", desc: "템플릿 기반 SMS/알림톡 발송, 학부모·학생 커뮤니케이션", color: "bg-amber-500", text: "text-amber-600" },
+  { title: "커뮤니티 · 학생앱", desc: "Q&A 게시판, 학생 전용 앱에서 성적·과제·영상 확인", color: "bg-emerald-500", text: "text-emerald-600" },
+  { title: "영상 학습", desc: "자체 플레이어, 이어보기, 시청 이력, 수업 연동", color: "bg-violet-500", text: "text-violet-600" },
 ];
 
 function Features() {
   return (
-    <section className="py-24 bg-gray-50/60">
+    <section className="py-20 bg-gray-50/60">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
         <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 text-center mb-4">
           운영에 필요한 모든 도메인
@@ -207,8 +207,10 @@ function Features() {
             >
               {/* 상단 컬러 바 */}
               <div className={`absolute top-0 left-0 right-0 h-1 ${d.color}`} />
-              <div className={`w-9 h-9 rounded-xl ${d.light} flex items-center justify-center mb-4 mt-1`}>
-                <div className={`w-3 h-3 rounded-full ${d.color}`} />
+              <div className={`${d.text} mb-4 mt-1`}>
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25a2.25 2.25 0 0 1-2.25-2.25v-2.25Z" />
+                </svg>
               </div>
               <h3 className="text-[15px] font-bold text-gray-900 mb-2">{d.title}</h3>
               <p className="text-sm text-gray-500 leading-relaxed">{d.desc}</p>
@@ -216,7 +218,7 @@ function Features() {
           ))}
         </div>
 
-        <div className="mt-12 text-center">
+        <div className="mt-10 text-center">
           <Link
             to="/promo/features"
             className="inline-flex items-center gap-1.5 text-sm font-semibold text-blue-600 hover:text-blue-700 transition-colors"
@@ -245,12 +247,12 @@ const STEPS = [
 
 function Workflow() {
   return (
-    <section className="py-24 bg-white">
+    <section className="py-20 bg-white">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 text-center mb-4">
           끊기지 않는 운영 흐름
         </h2>
-        <p className="text-gray-500 text-center mb-16 max-w-md mx-auto">
+        <p className="text-gray-500 text-center mb-14 max-w-md mx-auto">
           수업부터 학부모 안내까지, 하나의 워크플로우로 연결됩니다
         </p>
 
@@ -258,7 +260,7 @@ function Workflow() {
         <div className="hidden md:block">
           <div className="relative">
             {/* 연결선 */}
-            <div className="absolute top-7 left-[10%] right-[10%] h-px bg-gradient-to-r from-blue-200 via-indigo-200 to-violet-200" />
+            <div className="absolute top-7 left-[10%] right-[10%] h-0.5 bg-gradient-to-r from-blue-200 via-indigo-200 to-violet-200" />
 
             <div className="grid grid-cols-5 gap-4 relative">
               {STEPS.map((s, i) => (
@@ -266,7 +268,7 @@ function Workflow() {
                   <div className={`relative z-10 w-14 h-14 rounded-2xl flex items-center justify-center text-sm font-bold shadow-md transition-transform hover:scale-105 ${
                     i === 0 ? "bg-blue-600 text-white shadow-blue-200" :
                     i === STEPS.length - 1 ? "bg-indigo-600 text-white shadow-indigo-200" :
-                    "bg-white text-gray-700 border-2 border-gray-100 shadow-gray-100"
+                    "bg-white text-gray-700 border-2 border-blue-100 shadow-gray-100"
                   }`}>
                     {s.n}
                   </div>
@@ -311,9 +313,9 @@ function Workflow() {
 
 function WhyUs() {
   return (
-    <section className="py-24 bg-gray-50/60">
+    <section className="py-20 bg-gray-50/60">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-        <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 text-center mb-14">
+        <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 text-center mb-12">
           왜 학원플러스인가
         </h2>
 
@@ -346,29 +348,16 @@ function WhyUs() {
 
         {/* Supporting 3 cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          <div className="p-7 rounded-2xl bg-white border border-gray-100">
-            <h3 className="text-base font-bold text-gray-900 mb-2">학생앱으로 결과 전달</h3>
-            <p className="text-sm text-gray-500 leading-relaxed">
-              시험 결과, 과제 현황, 성적 추이를
-              학생이 직접 확인하는 전용 앱으로 연결됩니다.
-            </p>
-          </div>
-
-          <div className="p-7 rounded-2xl bg-white border border-gray-100">
-            <h3 className="text-base font-bold text-gray-900 mb-2">멀티 브랜드 독립 운영</h3>
-            <p className="text-sm text-gray-500 leading-relaxed">
-              각 캠퍼스의 로고, 컬러, 운영 구성을 독립적으로 관리.
-              하나의 시스템으로 통합 운영합니다.
-            </p>
-          </div>
-
-          <div className="p-7 rounded-2xl bg-white border border-gray-100">
-            <h3 className="text-base font-bold text-gray-900 mb-2">실무자 중심 UX</h3>
-            <p className="text-sm text-gray-500 leading-relaxed">
-              최소 클릭으로 핵심 기능에 도달.
-              나이 불문 누구나 바로 쓸 수 있는 직관적 구조.
-            </p>
-          </div>
+          {[
+            { title: "학생앱으로 결과 전달", desc: "시험 결과, 과제 현황, 성적 추이를 학생이 직접 확인하는 전용 앱으로 연결됩니다.", accent: "border-t-violet-400" },
+            { title: "멀티 브랜드 독립 운영", desc: "각 캠퍼스의 로고, 컬러, 운영 구성을 독립적으로 관리. 하나의 시스템으로 통합 운영합니다.", accent: "border-t-emerald-400" },
+            { title: "실무자 중심 UX", desc: "최소 클릭으로 핵심 기능에 도달. 나이 불문 누구나 바로 쓸 수 있는 직관적 구조.", accent: "border-t-amber-400" },
+          ].map((c) => (
+            <div key={c.title} className={`p-7 rounded-2xl bg-white border border-gray-100 border-t-2 ${c.accent}`}>
+              <h3 className="text-base font-bold text-gray-900 mb-2">{c.title}</h3>
+              <p className="text-sm text-gray-500 leading-relaxed">{c.desc}</p>
+            </div>
+          ))}
         </div>
       </div>
     </section>
@@ -389,7 +378,7 @@ const TEMPLATES = [
 
 function LandingSamples() {
   return (
-    <section className="py-24 bg-white">
+    <section className="py-20 bg-white">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
         <div className="inline-flex items-center px-3 py-1 bg-blue-50 border border-blue-100 rounded-full mb-5">
           <span className="text-xs font-semibold text-blue-600">NEW</span>
