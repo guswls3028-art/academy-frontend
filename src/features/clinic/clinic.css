@@ -4226,14 +4226,158 @@ details[open] > .clinic-tree__summary {
   text-align: center;
 }
 
-/* 결석 알림 발송 버튼 */
-.clinic-ops__inline-btn--absent-notify {
-  background: color-mix(in srgb, #ef4444 8%, var(--color-bg-surface));
-  color: #dc2626;
-  border: 1px solid color-mix(in srgb, #ef4444 20%, var(--color-border-divider));
+/* ── 출석/결석 확정 바 (상단 고정) ── */
+.clinic-ops__confirm-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  margin: 0 -2px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--color-primary) 6%, var(--color-bg-surface));
+  border: 1px solid color-mix(in srgb, var(--color-primary) 20%, var(--color-border-divider));
+  animation: clinic-confirm-bar-slide 0.2s ease;
 }
-.clinic-ops__inline-btn--absent-notify:hover:not(:disabled) {
-  background: color-mix(in srgb, #ef4444 16%, var(--color-bg-surface));
+@keyframes clinic-confirm-bar-slide {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.clinic-ops__confirm-bar-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.clinic-ops__confirm-bar-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.clinic-ops__confirm-bar-badge--attend {
+  background: color-mix(in srgb, #22c55e 14%, var(--color-bg-surface));
+  color: #16a34a;
+}
+.clinic-ops__confirm-bar-badge--noshow {
+  background: color-mix(in srgb, #ef4444 14%, var(--color-bg-surface));
+  color: #dc2626;
+}
+.clinic-ops__confirm-bar-hint {
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+.clinic-ops__confirm-bar-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.clinic-ops__confirm-bar-cancel {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  border: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.clinic-ops__confirm-bar-cancel:hover {
+  background: var(--color-bg-surface-soft);
+}
+.clinic-ops__confirm-bar-send {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 18px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  font-family: inherit;
+  border: none;
+  background: var(--color-primary);
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.12s, transform 0.1s;
+}
+.clinic-ops__confirm-bar-send:hover:not(:disabled) {
+  filter: brightness(0.92);
+  transform: translateY(-1px);
+}
+.clinic-ops__confirm-bar-send:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* 개별 알림 발송 버튼 (카드 내) */
+.clinic-ops__att-btn--send {
+  border-left: 1px solid var(--color-border-divider);
+  animation: clinic-send-btn-appear 0.15s ease;
+}
+@keyframes clinic-send-btn-appear {
+  from { opacity: 0; max-width: 0; padding: 0; }
+  to { opacity: 1; max-width: 120px; }
+}
+.clinic-ops__att-btn--send-attend {
+  background: color-mix(in srgb, #22c55e 12%, var(--color-bg-surface));
+  color: #16a34a;
+}
+.clinic-ops__att-btn--send-attend:hover:not(:disabled) {
+  background: color-mix(in srgb, #22c55e 22%, var(--color-bg-surface));
+}
+.clinic-ops__att-btn--send-noshow {
+  background: color-mix(in srgb, #ef4444 12%, var(--color-bg-surface));
+  color: #dc2626;
+}
+.clinic-ops__att-btn--send-noshow:hover:not(:disabled) {
+  background: color-mix(in srgb, #ef4444 22%, var(--color-bg-surface));
+}
+
+/* 드로어 알림 발송 버튼 */
+.clinic-ops__drawer-status-btn--send {
+  flex: 1;
+  border: none;
+  border-radius: var(--radius-md, 8px);
+  padding: 10px 16px;
+  font-size: 13px;
+  font-weight: 700;
+  font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.clinic-ops__drawer-status-btn--send-attend {
+  background: #22c55e;
+  color: #fff;
+}
+.clinic-ops__drawer-status-btn--send-attend:hover:not(:disabled) {
+  background: #16a34a;
+}
+.clinic-ops__drawer-status-btn--send-noshow {
+  background: #ef4444;
+  color: #fff;
+}
+.clinic-ops__drawer-status-btn--send-noshow:hover:not(:disabled) {
+  background: #dc2626;
+}
+.clinic-ops__drawer-status-btn--send:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* 상태 뱃지 — pending indicator */
+.clinic-ops__status-badge-pending-indicator {
+  font-weight: 700;
+  font-size: inherit;
 }
 
 /* ── B. 상태 필터 칩 ── */
