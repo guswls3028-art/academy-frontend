@@ -207,6 +207,9 @@ export default function LectureStudentsPage() {
               studentIds: selectedIds,
               recipientLabel: `선택한 수강생 ${selectedIds.length}명`,
               blockCategory: "lecture",
+              alimtalkExtraVars: {
+                강의명: lecture?.title || lecture?.name || "",
+              },
             })
           }
         >

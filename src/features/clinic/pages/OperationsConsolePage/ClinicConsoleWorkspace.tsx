@@ -29,6 +29,7 @@ import {
   Undo2,
   Pencil,
   Trash2,
+  MessageCircle,
 } from "lucide-react";
 import type { ClinicSessionTreeNode } from "../../api/clinicSessions.api";
 import type { ClinicParticipant } from "../../api/clinicParticipants.api";
@@ -49,6 +50,7 @@ import {
 import { updateAdminExam } from "@/features/exams/api/adminExam";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useAutoSendConfig } from "@/features/messages/hooks/useAutoSendConfig";
+import { useSendMessageModal } from "@/features/messages/context/SendMessageModalContext";
 import { Bell, BellOff } from "lucide-react";
 import ClinicTargetSelectModal from "../../components/ClinicTargetSelectModal";
 import type { ClinicTargetSelectResult } from "../../components/ClinicTargetSelectModal";
@@ -162,6 +164,7 @@ export default function ClinicConsoleWorkspace({
 
   const { configs: autoSendConfigs } = useAutoSendConfig();
   const { data: clinicTargets } = useClinicTargets();
+  const { openSendMessageModal } = useSendMessageModal();
 
   // Build enrollment_id → ClinicTarget[] map for O(1) lookup
   const targetsByEnrollment = useMemo(() => {
@@ -484,6 +487,29 @@ export default function ClinicConsoleWorkspace({
               <UserPlus size={14} aria-hidden />
               학생 추가
             </button>
+            {participants.length > 0 && (
+              <button
+                type="button"
+                className="clinic-ops__action-btn clinic-ops__action-btn--secondary"
+                onClick={() => {
+                  const studentIds = [...new Set(participants.map((p) => p.student))].filter(Boolean);
+                  if (studentIds.length === 0) return;
+                  openSendMessageModal({
+                    studentIds,
+                    recipientLabel: `클리닉 참가 ${studentIds.length}명`,
+                    blockCategory: "clinic",
+                    alimtalkExtraVars: {
+                      클리닉장소: session.location || "",
+                      클리닉날짜: session.date || selectedDate,
+                      클리닉시간: formatTime(session.start_time),
+                    },
+                  });
+                }}
+              >
+                <MessageCircle size={14} aria-hidden />
+                메시지 발송
+              </button>
+            )}
             {!isLoading && pendingIds.length > 0 && (
               <button
                 type="button"

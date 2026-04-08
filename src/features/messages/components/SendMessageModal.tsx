@@ -539,7 +539,7 @@ export default function SendMessageModal({
     setSelectedTemplateId(null);
     setSendToParent(true);
     setSendToStudent(true);
-    setSendMode(smsOnlyCategory || initialBody ? "sms" : smsAllowed ? "sms" : "alimtalk");
+    setSendMode(initialBody ? "sms" : smsAllowed ? "sms" : "alimtalk");
     setTemplateSearch("");
     setShowSaveForm(false);
     setSaveTemplateName("");
@@ -554,7 +554,7 @@ export default function SendMessageModal({
   useEffect(() => {
     if (!open || !smsAllowed) return;
     setSendMode((prev) => {
-      if (prev === "alimtalk" && (smsOnlyCategory || initialBody)) return "sms";
+      if (prev === "alimtalk" && initialBody) return "sms";
       return prev;
     });
   }, [open, smsAllowed, blockCategory, initialBody]);
@@ -889,47 +889,42 @@ export default function SendMessageModal({
               background: "var(--color-bg-surface-soft)", borderRadius: "var(--radius-md)",
               border: "1px solid var(--color-border-divider)",
             }}>
-              {/* 채널 — SMS 전용 카테고리는 탭 대신 라벨만 표시 */}
-              {smsOnlyCategory ? (
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: "var(--color-primary)" }}>SMS</span>
-                  {!smsAllowed && <span style={{ fontSize: 10, color: "var(--color-status-warning, #d97706)" }}>미연동 — 설정 &gt; 메시지에서 연동하세요</span>}
+              {/* 채널 선택: SMS / 알림톡 / 둘 다 */}
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-muted)", whiteSpace: "nowrap" }}>채널</span>
+                <div style={{ display: "flex", gap: 0, borderRadius: 8, overflow: "hidden", border: "1px solid var(--color-border-divider)" }}>
+                  {([
+                    { key: "sms" as SendMode, label: "SMS", disabled: !smsAllowed },
+                    { key: "alimtalk" as SendMode, label: "알림톡", disabled: false },
+                  ]).map((opt) => (
+                    <button
+                      key={opt.key}
+                      type="button"
+                      onClick={() => {
+                        if (opt.key === sendMode || opt.disabled) return;
+                        setSendMode(opt.key);
+                        setSelectedTemplateId(null);
+                        setSubject("");
+                        setBody(opt.key === "sms" ? (initialBody ?? "") : "");
+                        setFreeContent("");
+                      }}
+                      disabled={sending || opt.disabled}
+                      title={opt.disabled ? "SMS 연동 후 사용 가능 (설정 > 메시지)" : undefined}
+                      style={{
+                        padding: "6px 16px", fontSize: 13, fontWeight: 700, border: "none",
+                        cursor: opt.disabled ? "not-allowed" : "pointer",
+                        color: sendMode === opt.key ? "#fff" : opt.disabled ? "var(--color-text-muted)" : "var(--color-text-secondary)",
+                        background: sendMode === opt.key ? "var(--color-primary)" : "var(--color-bg-surface)",
+                        opacity: opt.disabled ? 0.5 : 1,
+                        transition: "all 0.15s",
+                      }}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
                 </div>
-              ) : (
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-muted)", whiteSpace: "nowrap" }}>채널</span>
-                  <div style={{ display: "flex", gap: 0, borderRadius: 8, overflow: "hidden", border: "1px solid var(--color-border-divider)" }}>
-                    {([
-                      { key: "sms" as SendMode, label: "SMS" },
-                      { key: "alimtalk" as SendMode, label: "알림톡" },
-                    ]).map((opt) => (
-                      <button
-                        key={opt.key}
-                        type="button"
-                        onClick={() => {
-                          if (opt.key === sendMode) return;
-                          setSendMode(opt.key);
-                          setSelectedTemplateId(null);
-                          setSubject("");
-                          setBody(opt.key === "sms" ? (initialBody ?? "") : "");
-                          setFreeContent("");
-                        }}
-                        disabled={sending}
-                        style={{
-                          padding: "6px 16px", fontSize: 13, fontWeight: 700, border: "none",
-                          cursor: "pointer",
-                          color: sendMode === opt.key ? "#fff" : "var(--color-text-secondary)",
-                          background: sendMode === opt.key ? "var(--color-primary)" : "var(--color-bg-surface)",
-                          transition: "all 0.15s",
-                        }}
-                      >
-                        {opt.label}
-                      </button>
-                    ))}
-                  </div>
-                  {!smsAllowed && sendMode === "sms" && <span style={{ fontSize: 10, color: "var(--color-status-warning, #d97706)" }}>SMS 미연동</span>}
-                </div>
-              )}
+                {!smsAllowed && sendMode === "sms" && <span style={{ fontSize: 10, color: "var(--color-status-warning, #d97706)" }}>SMS 미연동</span>}
+              </div>
 
               <div style={{ width: 1, height: 24, background: "var(--color-border-divider)" }} />
 

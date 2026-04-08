@@ -342,6 +342,10 @@ export default function SessionScoresEntryPage(_props: Props) {
               studentIds: selectedStudentIds,
               recipientLabel: `선택한 수강생 ${selectedEnrollmentIds.length}명`,
               blockCategory: "exam",
+              alimtalkExtraVars: {
+                강의명: lectureTitle,
+                차시명: sessionTitle,
+              },
             })
           }
           disabled={selectedEnrollmentIds.length === 0}

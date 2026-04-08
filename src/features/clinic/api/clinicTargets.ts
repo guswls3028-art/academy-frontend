@@ -35,6 +35,7 @@ export type AttemptHistoryEntry = {
 
 export type ClinicTarget = {
   enrollment_id: number;
+  student_id?: number | null;
   student_name: string;
   session_title: string;
 

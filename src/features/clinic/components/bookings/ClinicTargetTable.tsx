@@ -4,9 +4,11 @@
 
 import { Checkbox, Input, Tag } from "antd";
 import { useMemo, useState } from "react";
-import { Search } from "lucide-react";
+import { Search, MessageCircle } from "lucide-react";
 import { useClinicTargets } from "../../hooks/useClinicTargets";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
+import { useSendMessageModal } from "@/features/messages/context/SendMessageModalContext";
+import { Button } from "@/shared/ui/ds";
 
 const REASON_LABEL: Record<string, string> = {
   exam: "시험 불합",
@@ -27,6 +29,7 @@ export default function ClinicTargetTable({
   unbookedEnrollmentIds?: number[];
 }) {
   const { data = [], isLoading } = useClinicTargets();
+  const { openSendMessageModal } = useSendMessageModal();
   const [q, setQ] = useState("");
 
   // Phase 8: 미예약 우선 정렬
@@ -84,6 +87,25 @@ export default function ClinicTargetTable({
         <span className="clinic-bookings__targets-count">
           {selected.length}명 선택
         </span>
+        {selected.length > 0 && (
+          <Button
+            size="sm"
+            intent="secondary"
+            onClick={() => {
+              const selectedRows = data.filter((r) => selected.includes(r.enrollment_id));
+              const studentIds = selectedRows.map((r) => r.student_id).filter((id): id is number => id != null);
+              if (studentIds.length === 0) return;
+              openSendMessageModal({
+                studentIds,
+                recipientLabel: `클리닉 대상 ${studentIds.length}명`,
+                blockCategory: "clinic",
+              });
+            }}
+            style={{ marginLeft: "auto" }}
+          >
+            <MessageCircle size={13} /> 메시지 발송
+          </Button>
+        )}
       </div>
 
       {/* List */}

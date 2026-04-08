@@ -234,10 +234,17 @@ export default function SessionAttendancePage({
     const studentIds = selectedRows
       .map((att: any) => att.student_id)
       .filter((id: unknown) => id != null && Number.isFinite(id));
+    const _lectureName = lecture?.title ?? lecture?.name ?? "";
+    const _sessionQ = qc.getQueryData<{ title?: string }>(["session-detail", sessionId]);
+    const _sessionTitle = _sessionQ?.title ?? "";
     openSendMessageModal({
       studentIds,
       recipientLabel: `선택한 출결 ${selectedIds.length}명`,
       blockCategory: "attendance",
+      alimtalkExtraVars: {
+        강의명: _lectureName,
+        차시명: _sessionTitle,
+      },
     });
   };
 
