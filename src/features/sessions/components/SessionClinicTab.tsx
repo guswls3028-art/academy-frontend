@@ -31,7 +31,7 @@ import {
 import { useClinicTargets } from "@/features/clinic/hooks/useClinicTargets";
 import type { ClinicTarget } from "@/features/clinic/api/clinicTargets";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
-import { EmptyState } from "@/shared/ui/ds";
+import { EmptyState, Button } from "@/shared/ui/ds";
 
 /* ─── Constants ─── */
 
@@ -41,12 +41,6 @@ const REASON_LABEL: Record<string, string> = {
   exam: "시험 미통과",
   homework: "과제 미통과",
   both: "시험·과제 미통과",
-};
-
-const REASON_COLOR: Record<string, string> = {
-  exam: "var(--color-error, #ef4444)",
-  homework: "var(--color-warning, #d97706)",
-  both: "var(--color-error, #ef4444)",
 };
 
 /* ─── Types ─── */
@@ -63,6 +57,236 @@ interface EnrolledStudent {
   clinicTarget: ClinicTarget | null;
 }
 
+/* ─── Styles (CSS-in-module 패턴) ─── */
+
+const styles = `
+.clinic-tab__kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-3, 12px);
+}
+@media (max-width: 1023px) {
+  .clinic-tab__kpi-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 639px) {
+  .clinic-tab__kpi-grid { grid-template-columns: 1fr; }
+}
+
+.clinic-tab__kpi {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3, 12px);
+  padding: var(--space-3, 12px) var(--space-4, 16px);
+  border-radius: var(--radius-lg, 14px);
+  border: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface);
+}
+.clinic-tab__kpi-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--control-md, 32px);
+  height: var(--control-md, 32px);
+  border-radius: var(--radius-md, 10px);
+  background: var(--color-bg-surface-sunken);
+  flex-shrink: 0;
+}
+.clinic-tab__kpi-label {
+  font-size: var(--text-sm, 12px);
+  color: var(--color-text-muted);
+  font-weight: 500;
+  line-height: 1.3;
+}
+.clinic-tab__kpi-value {
+  font-size: var(--text-xl, 18px);
+  font-weight: 700;
+  letter-spacing: -0.3px;
+  line-height: 1.3;
+  margin-top: 2px;
+}
+.clinic-tab__kpi-hint {
+  font-size: var(--text-xs, 11px);
+  color: var(--color-text-muted);
+  margin-top: 2px;
+}
+
+.clinic-tab__section {
+  border-radius: var(--radius-xl, 18px);
+  border: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface);
+  overflow: hidden;
+  box-shadow: var(--elevation-1);
+}
+.clinic-tab__section--warn {
+  border: 1px dashed var(--color-warning, #d97706);
+}
+
+.clinic-tab__section-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3, 12px);
+  padding: var(--space-3, 12px) var(--space-4, 16px);
+  border-bottom: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface-sunken);
+  flex-wrap: wrap;
+}
+.clinic-tab__section-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-md, 10px);
+  background: var(--color-brand-primary, #3b82f6);
+  color: #fff;
+  font-size: var(--text-sm, 12px);
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.clinic-tab__section-badge--warn {
+  background: var(--color-warning, #d97706);
+}
+.clinic-tab__section-info {
+  flex: 1;
+  min-width: 0;
+}
+.clinic-tab__section-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2, 8px);
+  flex-wrap: wrap;
+}
+.clinic-tab__section-name {
+  font-size: var(--text-md, 14px);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+}
+.clinic-tab__target-badge {
+  font-size: var(--text-xs, 11px);
+  font-weight: 600;
+  padding: 1px 8px;
+  border-radius: var(--radius-full, 999px);
+  background: color-mix(in srgb, var(--color-error) 10%, transparent);
+  color: var(--color-error, #ef4444);
+  white-space: nowrap;
+}
+.clinic-tab__section-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2, 8px);
+  margin-top: 3px;
+  font-size: var(--text-sm, 12px);
+  color: var(--color-text-muted);
+  flex-wrap: wrap;
+}
+.clinic-tab__meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  white-space: nowrap;
+}
+.clinic-tab__section-right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2, 8px);
+  flex-shrink: 0;
+}
+.clinic-tab__count {
+  font-size: var(--text-sm, 12px);
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.clinic-tab__section-empty {
+  padding: var(--space-6, 24px) var(--space-4, 16px);
+  text-align: center;
+  font-size: var(--text-sm, 12px);
+  color: var(--color-text-muted);
+}
+
+/* Student row */
+.clinic-tab__row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3, 12px);
+  padding: var(--space-2, 8px) var(--space-4, 16px);
+  border-bottom: 1px solid var(--color-border-divider);
+  transition: background 120ms ease;
+}
+.clinic-tab__row:last-child {
+  border-bottom: none;
+}
+.clinic-tab__row:hover {
+  background: var(--color-bg-surface-hover, rgba(0,0,0,0.02));
+}
+.clinic-tab__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-full, 999px);
+  flex-shrink: 0;
+}
+.clinic-tab__dot--ok { background: var(--color-success, #10b981); }
+.clinic-tab__dot--exam { background: var(--color-error, #ef4444); }
+.clinic-tab__dot--hw { background: var(--color-warning, #d97706); }
+.clinic-tab__dot--both { background: var(--color-error, #ef4444); }
+.clinic-tab__name { flex: 1; min-width: 0; }
+
+.clinic-tab__reason {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2, 8px);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.clinic-tab__score {
+  font-size: var(--text-sm, 12px);
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.clinic-tab__score-fail {
+  font-weight: 600;
+  color: var(--color-error, #ef4444);
+}
+.clinic-tab__score-cut {
+  color: var(--color-text-muted);
+}
+.clinic-tab__badge {
+  font-size: var(--text-xs, 11px);
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: var(--radius-full, 999px);
+  white-space: nowrap;
+}
+.clinic-tab__badge--exam {
+  background: color-mix(in srgb, var(--color-error) 8%, transparent);
+  color: var(--color-error, #ef4444);
+}
+.clinic-tab__badge--hw {
+  background: color-mix(in srgb, var(--color-warning) 8%, transparent);
+  color: var(--color-warning, #d97706);
+}
+.clinic-tab__badge--both {
+  background: color-mix(in srgb, var(--color-error) 8%, transparent);
+  color: var(--color-error, #ef4444);
+}
+.clinic-tab__badge--ok {
+  background: color-mix(in srgb, var(--color-success) 8%, transparent);
+  color: var(--color-success, #10b981);
+  font-weight: 500;
+}
+
+@media (max-width: 639px) {
+  .clinic-tab__section-header { padding: var(--space-3, 12px); }
+  .clinic-tab__row { padding: var(--space-2, 8px) var(--space-3, 12px); }
+  .clinic-tab__reason { gap: var(--space-1, 4px); }
+  .clinic-tab__score { font-size: var(--text-xs, 11px); }
+}
+`;
+
 /* ─── Component ─── */
 
 export default function SessionClinicTab({
@@ -74,7 +298,6 @@ export default function SessionClinicTab({
 }) {
   const navigate = useNavigate();
 
-  // 현재 세션 정보
   const { data: currentSession, isLoading: sessionLoading } = useQuery({
     queryKey: ["session", sessionId],
     queryFn: async () => {
@@ -84,76 +307,59 @@ export default function SessionClinicTab({
     enabled: Number.isFinite(sessionId),
   });
 
-  // 강의 전체 섹션 목록
   const { data: allSections = [], isLoading: sectionsLoading, isError: sectionsError } = useQuery<Section[]>({
     queryKey: ["lecture-sections", lectureId],
     queryFn: () => fetchSections(lectureId),
     enabled: Number.isFinite(lectureId),
   });
 
-  // 섹션 배정 현황
   const { data: assignments = [], isLoading: assignmentsLoading } = useQuery<SectionAssignment[]>({
     queryKey: ["section-assignments", lectureId],
     queryFn: () => fetchSectionAssignments(lectureId),
     enabled: Number.isFinite(lectureId),
   });
 
-  // 차시 수강생 목록
   const { data: sessionEnrollments = [], isLoading: enrollmentsLoading } = useQuery<SessionEnrollmentRow[]>({
     queryKey: ["session-enrollments", sessionId],
     queryFn: () => fetchSessionEnrollments(sessionId),
     enabled: Number.isFinite(sessionId),
   });
 
-  // 강의 전체 세션 목록 (CLINIC 세션 매칭용)
   const { data: allSessions = [] } = useQuery<LectureSession[]>({
     queryKey: ["lecture-sessions", lectureId],
     queryFn: () => fetchSessions(lectureId),
     enabled: Number.isFinite(lectureId),
   });
 
-  // 클리닉 대상자 (전체 → 이 세션 필터)
   const { data: allTargets = [], isLoading: targetsLoading } = useClinicTargets();
 
-  // ── 로딩 상태 (P1/P2 fix: 데이터 로딩 중 잘못된 상태 표시 방지) ──
   const isLoading = sessionLoading || sectionsLoading || assignmentsLoading || enrollmentsLoading;
 
   // ── 데이터 가공 ──
 
   const clinicSections = useMemo(
-    () =>
-      allSections
-        .filter((s) => s.section_type === "CLINIC" && s.is_active)
-        .sort((a, b) => a.label.localeCompare(b.label)),
+    () => allSections.filter((s) => s.section_type === "CLINIC" && s.is_active).sort((a, b) => a.label.localeCompare(b.label)),
     [allSections],
   );
 
   const currentOrder = currentSession?.order ?? 0;
 
-  // 같은 차시(order)의 CLINIC 세션 매핑 (section_id → session)
   const clinicSessionMap = useMemo(() => {
     const map = new Map<number, LectureSession>();
     if (!currentOrder) return map;
-    const sectionIdSet = new Set(clinicSections.map((s) => s.id));
+    const ids = new Set(clinicSections.map((s) => s.id));
     for (const s of allSessions) {
-      if (s.section && sectionIdSet.has(s.section) && s.order === currentOrder) {
-        map.set(s.section, s);
-      }
+      if (s.section && ids.has(s.section) && s.order === currentOrder) map.set(s.section, s);
     }
     return map;
   }, [allSessions, clinicSections, currentOrder]);
 
-  // enrollment → clinic_section 매핑
-  const enrollmentClinicSectionMap = useMemo(() => {
+  const enrollClinicMap = useMemo(() => {
     const map = new Map<number, number | null>();
-    for (const a of assignments) {
-      map.set(a.enrollment, a.clinic_section);
-    }
+    for (const a of assignments) map.set(a.enrollment, a.clinic_section);
     return map;
   }, [assignments]);
 
-  // 이 세션의 클리닉 대상자 맵 (enrollment_id → target)
-  // P6 fix: "both" 일 때 점수 표시 안 하도록 score 제거
   const sessionTargetMap = useMemo(() => {
     const map = new Map<number, ClinicTarget>();
     for (const t of allTargets) {
@@ -161,13 +367,7 @@ export default function SessionClinicTab({
         const existing = map.get(t.enrollment_id);
         if (existing) {
           if (existing.clinic_reason !== t.clinic_reason) {
-            map.set(t.enrollment_id, {
-              ...existing,
-              clinic_reason: "both",
-              exam_score: undefined, // P6: "both"일 때 개별 점수 의미 없음
-              cutline_score: undefined,
-              source_type: null,
-            });
+            map.set(t.enrollment_id, { ...existing, clinic_reason: "both", exam_score: undefined, cutline_score: undefined, source_type: null });
           }
         } else {
           map.set(t.enrollment_id, t);
@@ -177,423 +377,191 @@ export default function SessionClinicTab({
     return map;
   }, [allTargets, sessionId]);
 
-  // 수강생을 EnrolledStudent으로 변환
   const enrolledStudents: EnrolledStudent[] = useMemo(
-    () =>
-      sessionEnrollments.map((se) => ({
-        enrollmentId: se.enrollment,
-        studentName: se.student_name,
-        clinicTarget: targetsLoading ? null : (sessionTargetMap.get(se.enrollment) ?? null),
-      })),
+    () => sessionEnrollments.map((se) => ({
+      enrollmentId: se.enrollment,
+      studentName: se.student_name,
+      clinicTarget: targetsLoading ? null : (sessionTargetMap.get(se.enrollment) ?? null),
+    })),
     [sessionEnrollments, sessionTargetMap, targetsLoading],
   );
 
-  // 섹션별 그룹핑
-  const sectionGroups: ClinicSectionGroup[] = useMemo(() => {
-    return clinicSections.map((section) => {
-      const students = enrolledStudents.filter(
-        (s) => enrollmentClinicSectionMap.get(s.enrollmentId) === section.id,
-      );
-      students.sort((a, b) => {
-        const aTarget = a.clinicTarget ? 0 : 1;
-        const bTarget = b.clinicTarget ? 0 : 1;
-        if (aTarget !== bTarget) return aTarget - bTarget;
-        return a.studentName.localeCompare(b.studentName);
-      });
-      return {
-        section,
-        clinicSession: clinicSessionMap.get(section.id) ?? null,
-        students,
-      };
+  const sortStudents = (arr: EnrolledStudent[]) =>
+    [...arr].sort((a, b) => {
+      const at = a.clinicTarget ? 0 : 1;
+      const bt = b.clinicTarget ? 0 : 1;
+      return at !== bt ? at - bt : a.studentName.localeCompare(b.studentName);
     });
-  }, [clinicSections, enrolledStudents, enrollmentClinicSectionMap, clinicSessionMap]);
 
-  // 미배정 학생
+  const sectionGroups: ClinicSectionGroup[] = useMemo(
+    () => clinicSections.map((section) => ({
+      section,
+      clinicSession: clinicSessionMap.get(section.id) ?? null,
+      students: sortStudents(enrolledStudents.filter((s) => enrollClinicMap.get(s.enrollmentId) === section.id)),
+    })),
+    [clinicSections, enrolledStudents, enrollClinicMap, clinicSessionMap],
+  );
+
   const unassignedStudents = useMemo(() => {
-    const clinicSectionIds = new Set(clinicSections.map((s) => s.id));
-    return enrolledStudents
-      .filter((s) => {
-        const cs = enrollmentClinicSectionMap.get(s.enrollmentId);
-        return cs == null || !clinicSectionIds.has(cs);
-      })
-      .sort((a, b) => {
-        const aTarget = a.clinicTarget ? 0 : 1;
-        const bTarget = b.clinicTarget ? 0 : 1;
-        if (aTarget !== bTarget) return aTarget - bTarget;
-        return a.studentName.localeCompare(b.studentName);
-      });
-  }, [enrolledStudents, enrollmentClinicSectionMap, clinicSections]);
+    const ids = new Set(clinicSections.map((s) => s.id));
+    return sortStudents(enrolledStudents.filter((s) => {
+      const cs = enrollClinicMap.get(s.enrollmentId);
+      return cs == null || !ids.has(cs);
+    }));
+  }, [enrolledStudents, enrollClinicMap, clinicSections]);
 
-  // KPI 통계
   const stats = useMemo(() => {
     const total = enrolledStudents.length;
     const assigned = enrolledStudents.filter((s) => {
-      const cs = enrollmentClinicSectionMap.get(s.enrollmentId);
+      const cs = enrollClinicMap.get(s.enrollmentId);
       return cs != null && clinicSections.some((sec) => sec.id === cs);
     }).length;
     const targets = enrolledStudents.filter((s) => s.clinicTarget != null).length;
     return { total, assigned, unassigned: total - assigned, targets };
-  }, [enrolledStudents, enrollmentClinicSectionMap, clinicSections]);
+  }, [enrolledStudents, enrollClinicMap, clinicSections]);
 
-  // ── 로딩 / 에러 / 빈 상태 ── (P2 fix: 로딩 중 잘못된 empty state 방지)
+  // ── 로딩 / 에러 / 빈 상태 ──
 
-  if (isLoading) {
-    return <EmptyState scope="panel" tone="loading" title="불러오는 중..." />;
-  }
-
-  if (sectionsError) {
-    return <EmptyState scope="panel" tone="error" title="데이터를 불러올 수 없습니다" description="새로고침해 주세요." />;
-  }
-
-  if (clinicSections.length === 0) {
-    return (
-      <EmptyState
-        scope="panel"
-        tone="empty"
-        title="클리닉 반이 설정되지 않았습니다"
-        description="강의 상세 > 반 편성 관리에서 클리닉 반을 추가하세요."
-      />
-    );
-  }
-
-  if (enrolledStudents.length === 0) {
-    return (
-      <EmptyState
-        scope="panel"
-        tone="empty"
-        title="이 차시에 등록된 수강생이 없습니다"
-      />
-    );
-  }
+  if (isLoading) return <EmptyState scope="panel" tone="loading" title="불러오는 중..." />;
+  if (sectionsError) return <EmptyState scope="panel" tone="error" title="데이터를 불러올 수 없습니다" description="새로고침해 주세요." />;
+  if (clinicSections.length === 0) return <EmptyState scope="panel" tone="empty" title="클리닉 반이 설정되지 않았습니다" description="강의 상세 > 반 편성 관리에서 클리닉 반을 추가하세요." />;
+  if (enrolledStudents.length === 0) return <EmptyState scope="panel" tone="empty" title="이 차시에 등록된 수강생이 없습니다" />;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-      {/* ── KPI 요약 ── */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(4, 1fr)",
-          gap: 12,
-        }}
-      >
-        <KPICard
-          icon={<Users size={16} />}
-          label="전체 수강생"
-          value={stats.total}
-          color="var(--color-text-primary)"
-        />
-        <KPICard
-          icon={<UserCheck size={16} />}
-          label="클리닉반 배정"
-          value={stats.assigned}
-          color="var(--color-success, #10b981)"
-        />
-        <KPICard
-          icon={<UserMinus size={16} />}
-          label="미배정"
-          value={stats.unassigned}
-          color={stats.unassigned > 0 ? "var(--color-warning, #d97706)" : "var(--color-text-muted)"}
-        />
-        <KPICard
-          icon={<Stethoscope size={16} />}
-          label="클리닉 대상"
-          value={stats.targets}
-          color={stats.targets > 0 ? "var(--color-error, #ef4444)" : "var(--color-text-muted)"}
-          hint={targetsLoading ? "확인 중..." : undefined}
-        />
-      </div>
-
-      {/* ── 섹션별 그룹 ── */}
-      {sectionGroups.map((group) => (
-        <SectionGroupCard
-          key={group.section.id}
-          group={group}
-          lectureId={lectureId}
-          onNavigateToClinicSession={(sid) =>
-            navigate(`/admin/lectures/${lectureId}/sessions/${sid}/attendance`)
-          }
-        />
-      ))}
-
-      {/* ── 미배정 학생 ── */}
-      {unassignedStudents.length > 0 && (
-        <div
-          style={{
-            borderRadius: "var(--radius-xl, 12px)",
-            border: "1px dashed var(--color-warning, #d97706)",
-            background: "var(--color-bg-surface, #fff)",
-            overflow: "hidden",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              padding: "14px 18px",
-              borderBottom: "1px solid var(--color-border-divider)",
-              background: "rgba(217,119,6,0.04)",
-            }}
-          >
-            <AlertCircle size={16} style={{ color: "var(--color-warning, #d97706)" }} />
-            <span style={{ fontSize: 14, fontWeight: 600, color: "var(--color-warning, #d97706)" }}>
-              클리닉반 미배정
-            </span>
-            <span style={{ marginLeft: "auto", fontSize: 13, fontWeight: 500, color: "var(--color-text-secondary)" }}>
-              {unassignedStudents.length}명
-            </span>
-          </div>
-          <div style={{ padding: "4px 0" }}>
-            {unassignedStudents.map((student) => (
-              <StudentRow key={student.enrollmentId} student={student} />
-            ))}
-          </div>
+    <>
+      <style>{styles}</style>
+      <div className="flex flex-col gap-5">
+        {/* KPI */}
+        <div className="clinic-tab__kpi-grid">
+          <KPICard icon={<Users size={16} />} label="전체 수강생" value={stats.total} tone="default" />
+          <KPICard icon={<UserCheck size={16} />} label="클리닉반 배정" value={stats.assigned} tone="success" />
+          <KPICard icon={<UserMinus size={16} />} label="미배정" value={stats.unassigned} tone={stats.unassigned > 0 ? "warning" : "muted"} />
+          <KPICard icon={<Stethoscope size={16} />} label="클리닉 대상" value={stats.targets} tone={stats.targets > 0 ? "error" : "muted"} hint={targetsLoading ? "확인 중..." : undefined} />
         </div>
-      )}
-    </div>
+
+        {/* 섹션별 그룹 */}
+        {sectionGroups.map((g) => (
+          <SectionCard key={g.section.id} group={g} lectureId={lectureId} navigate={navigate} />
+        ))}
+
+        {/* 미배정 학생 */}
+        {unassignedStudents.length > 0 && (
+          <div className="clinic-tab__section clinic-tab__section--warn">
+            <div className="clinic-tab__section-header" style={{ background: "color-mix(in srgb, var(--color-warning) 4%, transparent)" }}>
+              <div className="clinic-tab__section-badge clinic-tab__section-badge--warn">
+                <AlertCircle size={14} />
+              </div>
+              <div className="clinic-tab__section-info">
+                <div className="clinic-tab__section-name" style={{ color: "var(--color-warning, #d97706)" }}>
+                  클리닉반 미배정
+                </div>
+              </div>
+              <div className="clinic-tab__section-right">
+                <span className="clinic-tab__count">{unassignedStudents.length}명</span>
+              </div>
+            </div>
+            <div>
+              {unassignedStudents.map((s) => <StudentRow key={s.enrollmentId} student={s} />)}
+            </div>
+          </div>
+        )}
+      </div>
+    </>
   );
 }
 
 /* ─── Sub-components ─── */
 
-function KPICard({
-  icon,
-  label,
-  value,
-  color,
-  hint,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: number;
-  color: string;
-  hint?: string;
+const TONE_COLORS: Record<string, string> = {
+  default: "var(--color-text-primary)",
+  success: "var(--color-success, #10b981)",
+  warning: "var(--color-warning, #d97706)",
+  error: "var(--color-error, #ef4444)",
+  muted: "var(--color-text-muted)",
+};
+
+function KPICard({ icon, label, value, tone, hint }: {
+  icon: React.ReactNode; label: string; value: number; tone: string; hint?: string;
 }) {
+  const color = TONE_COLORS[tone] ?? TONE_COLORS.default;
   return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 12,
-        padding: "14px 16px",
-        borderRadius: "var(--radius-lg, 10px)",
-        border: "1px solid var(--color-border-divider)",
-        background: "var(--color-bg-surface, #fff)",
-      }}
-    >
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          width: 32,
-          height: 32,
-          borderRadius: 8,
-          background: "var(--color-bg-surface-sunken)",
-          color,
-          flexShrink: 0,
-        }}
-      >
-        {icon}
-      </div>
+    <div className="clinic-tab__kpi">
+      <div className="clinic-tab__kpi-icon" style={{ color }}>{icon}</div>
       <div>
-        <div style={{ fontSize: 12, color: "var(--color-text-muted)", fontWeight: 500, lineHeight: 1.3 }}>
-          {label}
-        </div>
-        <div
-          style={{
-            fontSize: 20,
-            fontWeight: 700,
-            color,
-            letterSpacing: "-0.3px",
-            lineHeight: 1.3,
-            marginTop: 2,
-          }}
-        >
-          {value}
-        </div>
-        {hint && (
-          <div style={{ fontSize: 11, color: "var(--color-text-muted)", marginTop: 2 }}>{hint}</div>
-        )}
+        <div className="clinic-tab__kpi-label">{label}</div>
+        <div className="clinic-tab__kpi-value" style={{ color }}>{value}</div>
+        {hint && <div className="clinic-tab__kpi-hint">{hint}</div>}
       </div>
     </div>
   );
 }
 
-function SectionGroupCard({
-  group,
-  lectureId,
-  onNavigateToClinicSession,
-}: {
-  group: ClinicSectionGroup;
-  lectureId: number;
-  onNavigateToClinicSession: (sessionId: number) => void;
+function SectionCard({ group, lectureId, navigate }: {
+  group: ClinicSectionGroup; lectureId: number; navigate: ReturnType<typeof useNavigate>;
 }) {
   const { section, clinicSession, students } = group;
   const targetCount = students.filter((s) => s.clinicTarget != null).length;
 
   return (
-    <div
-      style={{
-        borderRadius: "var(--radius-xl, 12px)",
-        border: "1px solid var(--color-border-default)",
-        background: "var(--color-bg-surface, #fff)",
-        overflow: "hidden",
-      }}
-    >
-      {/* Section Header */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 12,
-          padding: "14px 18px",
-          borderBottom: "1px solid var(--color-border-divider)",
-          background: "var(--color-bg-surface-sunken)",
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            width: 28,
-            height: 28,
-            borderRadius: 8,
-            background: "var(--color-primary, #3b82f6)",
-            color: "#fff",
-            fontSize: 13,
-            fontWeight: 700,
-            flexShrink: 0,
-          }}
-        >
-          {section.label}
-        </div>
-
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text-primary)" }}>
-              클리닉 {section.label}반
-            </span>
-            {targetCount > 0 && (
-              <span
-                style={{
-                  fontSize: 11,
-                  fontWeight: 600,
-                  padding: "1px 7px",
-                  borderRadius: 10,
-                  background: "rgba(239,68,68,0.1)",
-                  color: "var(--color-error, #ef4444)",
-                }}
-              >
-                대상 {targetCount}명
-              </span>
-            )}
+    <div className="clinic-tab__section">
+      <div className="clinic-tab__section-header">
+        <div className="clinic-tab__section-badge">{section.label}</div>
+        <div className="clinic-tab__section-info">
+          <div className="clinic-tab__section-title">
+            <span className="clinic-tab__section-name">클리닉 {section.label}반</span>
+            {targetCount > 0 && <span className="clinic-tab__target-badge">대상 {targetCount}명</span>}
           </div>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              marginTop: 3,
-              fontSize: 12,
-              color: "var(--color-text-muted)",
-            }}
-          >
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
-              <Calendar size={11} />
-              {DAY_LABELS[section.day_of_week] ?? "?"}요일
+          <div className="clinic-tab__section-meta">
+            <span className="clinic-tab__meta-item">
+              <Calendar size={11} />{DAY_LABELS[section.day_of_week] ?? "?"}요일
             </span>
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
-              <Clock size={11} />
-              {section.start_time?.slice(0, 5)}
-              {section.end_time ? ` ~ ${section.end_time.slice(0, 5)}` : ""}
+            <span className="clinic-tab__meta-item">
+              <Clock size={11} />{section.start_time?.slice(0, 5)}{section.end_time ? ` ~ ${section.end_time.slice(0, 5)}` : ""}
             </span>
             {section.location && (
-              <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
-                <MapPin size={11} />
-                {section.location}
-              </span>
+              <span className="clinic-tab__meta-item"><MapPin size={11} />{section.location}</span>
             )}
           </div>
         </div>
-
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <span style={{ fontSize: 13, fontWeight: 500, color: "var(--color-text-secondary)" }}>
-            {students.length}명
-          </span>
+        <div className="clinic-tab__section-right">
+          <span className="clinic-tab__count">{students.length}명</span>
           {clinicSession && (
-            <button
-              onClick={() => onNavigateToClinicSession(clinicSession.id)}
-              className="ds-btn-ghost"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 4,
-                padding: "5px 10px",
-                borderRadius: 6,
-                border: "1px solid var(--color-border-default)",
-                background: "var(--color-bg-surface)",
-                color: "var(--color-primary, #3b82f6)",
-                fontSize: 12,
-                fontWeight: 500,
-                cursor: "pointer",
-              }}
-              title="클리닉 차시로 이동"
+            <Button
+              intent="ghost"
+              size="sm"
+              rightIcon={<ChevronRight size={12} />}
+              onClick={() => navigate(`/admin/lectures/${lectureId}/sessions/${clinicSession.id}/attendance`)}
             >
               클리닉 차시
-              <ChevronRight size={12} />
-            </button>
+            </Button>
           )}
         </div>
       </div>
 
-      {/* Student List */}
       {students.length === 0 ? (
-        <div style={{ padding: "24px 18px", textAlign: "center", fontSize: 13, color: "var(--color-text-muted)" }}>
-          배정된 학생이 없습니다
-        </div>
+        <div className="clinic-tab__section-empty">배정된 학생이 없습니다</div>
       ) : (
-        <div style={{ padding: "4px 0" }}>
-          {students.map((student) => (
-            <StudentRow key={student.enrollmentId} student={student} />
-          ))}
-        </div>
+        <div>{students.map((s) => <StudentRow key={s.enrollmentId} student={s} />)}</div>
       )}
     </div>
   );
 }
 
 function StudentRow({ student }: { student: EnrolledStudent }) {
-  const target = student.clinicTarget;
-  const isTarget = target != null;
+  const t = student.clinicTarget;
+  const isTarget = t != null;
+  const reason = t?.clinic_reason ?? "";
+
+  const dotClass = `clinic-tab__dot ${isTarget ? `clinic-tab__dot--${reason === "homework" ? "hw" : reason || "exam"}` : "clinic-tab__dot--ok"}`;
+
+  const badgeClass = isTarget
+    ? `clinic-tab__badge ${reason === "homework" ? "clinic-tab__badge--hw" : reason === "both" ? "clinic-tab__badge--both" : "clinic-tab__badge--exam"}`
+    : "clinic-tab__badge clinic-tab__badge--ok";
 
   return (
-    <div
-      className="session-clinic-row"
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 12,
-        padding: "10px 18px",
-        borderBottom: "1px solid var(--color-border-divider)",
-      }}
-    >
-      {/* 클리닉 대상 인디케이터 */}
-      <div
-        style={{
-          width: 6,
-          height: 6,
-          borderRadius: "50%",
-          background: isTarget
-            ? (target.clinic_reason ? REASON_COLOR[target.clinic_reason] : "var(--color-error)")
-            : "var(--color-success, #10b981)",
-          flexShrink: 0,
-        }}
-      />
-
-      {/* 학생 이름 */}
-      <div style={{ flex: 1, minWidth: 0 }}>
+    <div className="clinic-tab__row">
+      <div className={dotClass} />
+      <div className="clinic-tab__name">
         <StudentNameWithLectureChip
           name={student.studentName}
           clinicHighlight={isTarget}
@@ -601,66 +569,18 @@ function StudentRow({ student }: { student: EnrolledStudent }) {
           avatarSize={24}
         />
       </div>
-
-      {/* 클리닉 사유 + 점수 */}
-      {isTarget && target.clinic_reason && (
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          {/* 점수 표시 — "both"일 때는 개별 점수 의미 없으므로 생략 */}
-          {target.clinic_reason !== "both" && target.exam_score != null && target.cutline_score != null && (
-            <span
-              style={{
-                fontSize: 12,
-                color: "var(--color-text-secondary)",
-                fontVariantNumeric: "tabular-nums",
-              }}
-            >
-              {target.source_type === "homework" ? "과제" : "시험"}{" "}
-              <span style={{ fontWeight: 600, color: "var(--color-error, #ef4444)" }}>
-                {target.exam_score}
-              </span>
-              <span style={{ color: "var(--color-text-muted)" }}> / {target.cutline_score}</span>
-            </span>
-          )}
-
-          {/* 사유 뱃지 */}
-          <span
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              fontSize: 11,
-              fontWeight: 600,
-              padding: "2px 8px",
-              borderRadius: 10,
-              background:
-                target.clinic_reason === "both"
-                  ? "rgba(239,68,68,0.08)"
-                  : target.clinic_reason === "homework"
-                    ? "rgba(217,119,6,0.08)"
-                    : "rgba(239,68,68,0.08)",
-              color: REASON_COLOR[target.clinic_reason] ?? "var(--color-error)",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {REASON_LABEL[target.clinic_reason] ?? target.clinic_reason}
+      <div className="clinic-tab__reason">
+        {isTarget && reason !== "both" && t.exam_score != null && t.cutline_score != null && (
+          <span className="clinic-tab__score">
+            {t.source_type === "homework" ? "과제" : "시험"}{" "}
+            <span className="clinic-tab__score-fail">{t.exam_score}</span>
+            <span className="clinic-tab__score-cut"> / {t.cutline_score}</span>
           </span>
-        </div>
-      )}
-
-      {/* 정상 뱃지 */}
-      {!isTarget && (
-        <span
-          style={{
-            fontSize: 11,
-            fontWeight: 500,
-            padding: "2px 8px",
-            borderRadius: 10,
-            background: "rgba(16,185,129,0.08)",
-            color: "var(--color-success, #10b981)",
-          }}
-        >
-          정상
+        )}
+        <span className={badgeClass}>
+          {isTarget ? (REASON_LABEL[reason] ?? reason) : "정상"}
         </span>
-      )}
+      </div>
     </div>
   );
 }
