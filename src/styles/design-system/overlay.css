@@ -18,6 +18,7 @@
 }
 
 /* 래퍼 — 패널 중앙, 하단 여백 없이 맞춤 */
+/* pointer-events: none → 사이드바 등 배경 요소 클릭 허용 */
 .ds-overlay-wrap {
   position: fixed;
   inset: 0;
@@ -26,6 +27,7 @@
   justify-content: center;
   align-items: flex-start;
   overflow: auto;
+  pointer-events: none;
   padding-top: calc(var(--panel-header, 64px) + var(--notice-banner-height, 0px) + 8px);
   padding-bottom: 0;
   padding-left: 16px;
@@ -33,6 +35,7 @@
 }
 
 /* 패널 — 크기 맞춤, 하단 여백 없음 */
+/* pointer-events: auto → 패널 내부는 클릭 가능 */
 .ds-overlay-panel {
   position: relative;
   width: 100%;
@@ -47,6 +50,7 @@
     0 12px 24px rgba(0, 0, 0, 0.08);
   overflow: hidden;
   margin-bottom: 0;
+  pointer-events: auto;
 }
 
 /* 우측 드로어 — 시험 통계 학생 상세 등 */

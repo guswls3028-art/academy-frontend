@@ -17,7 +17,8 @@ import { useQuery } from "@tanstack/react-query";
 
 import { fetchSessions, type Session } from "../api/sessions";
 import { fetchSections, type Section as SectionType } from "../api/sections";
-import { EmptyState } from "@/shared/ui/ds";
+import { Button, EmptyState } from "@/shared/ui/ds";
+import SessionCreateModal from "./SessionCreateModal";
 
 const SECTION_TYPE_TABS = [
   { key: "CLASS", label: "수업" },
@@ -39,6 +40,7 @@ export default function SectionGroupedSessionList() {
   const lecId = Number(lectureId);
 
   const [typeFilter, setTypeFilter] = useState<SectionTypeFilter>("CLASS");
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   const { data: sections = [], isLoading: sectionsLoading } = useQuery<SectionType[]>({
     queryKey: ["lecture-sections", lecId],
@@ -107,6 +109,7 @@ export default function SectionGroupedSessionList() {
   const loading = isLoading || sectionsLoading;
 
   return (
+  <>
     <div className="flex flex-col gap-4">
       {/* 수업 / 클리닉 탭 + 반 범례 */}
       <div className="flex flex-wrap items-center gap-3">
@@ -174,6 +177,11 @@ export default function SectionGroupedSessionList() {
           tone="empty"
           title="등록된 차시가 없습니다."
           description="반별 차시를 추가하면 여기에 표시됩니다."
+          actions={
+            <Button intent="primary" onClick={() => setShowCreateModal(true)}>
+              + 차시 추가
+            </Button>
+          }
         />
       ) : (
         <div className="flex flex-col gap-2">
@@ -287,5 +295,13 @@ export default function SectionGroupedSessionList() {
         </div>
       )}
     </div>
+
+    {showCreateModal && (
+      <SessionCreateModal
+        lectureId={lecId}
+        onClose={() => setShowCreateModal(false)}
+      />
+    )}
+  </>
   );
 }

@@ -3,7 +3,7 @@
  * 영상 (사이드바 첫 페이지) — 저장소/메시지/시험과 동일한 폴더트리형 SSOT
  */
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useQueries, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useConfirm } from "@/shared/ui/confirm";
@@ -169,6 +169,18 @@ export default function VideoExplorerPage() {
     enabled: true,
     staleTime: 60_000,
   });
+
+  // 첫 진입 시 첫 번째 차시 자동 선택
+  useEffect(() => {
+    if (selectedFolderId === null && lecturesWithSessions.length > 0) {
+      for (const lec of lecturesWithSessions) {
+        if (lec.sessions.length > 0) {
+          setSelectedFolderId(lec.sessions[0].id);
+          break;
+        }
+      }
+    }
+  }, [lecturesWithSessions, selectedFolderId]);
 
   const { data: sessionVideos = [], isLoading: sessionVideosLoading } = useQuery({
     queryKey: ["session-videos", selectedFolderId],

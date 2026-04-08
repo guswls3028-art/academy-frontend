@@ -4,7 +4,7 @@
  * 탭은 DomainLayout SSOT로 ExamDomainLayout에서 제공.
  */
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueries } from "@tanstack/react-query";
 import { FileText, FilePlus, ClipboardList, MousePointerClick } from "lucide-react";
@@ -50,6 +50,18 @@ export default function ExamExplorerPage() {
       return { ...lec, sessions: sortSessionsByDateDesc(sessions) };
     });
   }, [lectures, sessionQueries]);
+
+  // 첫 진입 시 첫 번째 차시 자동 선택
+  useEffect(() => {
+    if (selectedSessionId === null && lecturesWithSessions.length > 0) {
+      for (const lec of lecturesWithSessions) {
+        if (lec.sessions.length > 0) {
+          setSelectedSessionId(lec.sessions[0].id);
+          break;
+        }
+      }
+    }
+  }, [lecturesWithSessions, selectedSessionId]);
 
   const { data: exams = [], isLoading: examsLoading } = useQuery({
     queryKey: ["admin-exams", selectedSessionId],

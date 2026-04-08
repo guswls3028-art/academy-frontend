@@ -3,7 +3,7 @@
  * 성적 (사이드바 첫 페이지) — 저장소/메시지/시험과 동일한 폴더트리형 SSOT
  */
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueries } from "@tanstack/react-query";
 import { BarChart2, MousePointerClick } from "lucide-react";
@@ -46,6 +46,18 @@ export default function ResultsExplorerPage() {
       return { ...lec, sessions: sortSessionsByDateDesc(sessions) };
     });
   }, [lectures, sessionQueries]);
+
+  // 첫 진입 시 첫 번째 차시 자동 선택
+  useEffect(() => {
+    if (selectedSessionId === null && lecturesWithSessions.length > 0) {
+      for (const lec of lecturesWithSessions) {
+        if (lec.sessions.length > 0) {
+          setSelectedSessionId(lec.sessions[0].id);
+          break;
+        }
+      }
+    }
+  }, [lecturesWithSessions, selectedSessionId]);
 
   const selectedSession = useMemo(() => {
     if (!selectedSessionId) return null;
