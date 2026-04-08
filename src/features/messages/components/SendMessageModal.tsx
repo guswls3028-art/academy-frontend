@@ -544,13 +544,15 @@ export default function SendMessageModal({
     setSelectedTemplateId(null);
     setSendToParent(true);
     setSendToStudent(true);
-    setSendMode(initialBody ? "sms" : smsAllowed ? "sms" : "alimtalk");
+    const mode = initialBody ? "sms" : smsAllowed ? "sms" : "alimtalk";
+    setSendMode(mode);
     setTemplateSearch("");
     setShowSaveForm(false);
     setSaveTemplateName("");
     setShowTemplatePanel(false);
     setShowAlimtalkPanel(false);
-    setAlimtalkFreeForm(false);
+    // 알림톡 모드로 진입하면 자동 직접작성 (편집영역+변수블록 즉시 표시)
+    setAlimtalkFreeForm(mode === "alimtalk");
     setTemplateBodySnapshot(null);
     setSmsEmptyHintDismissed(false);
     setShowConfirm(false);
@@ -915,7 +917,8 @@ export default function SendMessageModal({
                         setBody(opt.key === "sms" ? (initialBody ?? "") : "");
                         setFreeContent("");
                         setShowAlimtalkPanel(false);
-                        setAlimtalkFreeForm(false);
+                        // 알림톡 진입 시 자동으로 직접작성 모드 활성화 (편집영역+변수블록 즉시 표시)
+                        setAlimtalkFreeForm(opt.key === "alimtalk");
                         setShowTemplatePanel(false);
                       }}
                       disabled={sending || opt.disabled}
@@ -1306,17 +1309,12 @@ export default function SendMessageModal({
                   </div>
                 )}
 
-                {/* ── 양식 미선택 + 직접작성 아닌 초기 상태 ── */}
-                {!selectedTemplate && !alimtalkFreeForm && !showAlimtalkPanel && (
-                  <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, padding: "40px 20px", borderRadius: 8, border: "1px solid var(--color-border-divider)", background: "var(--color-bg-surface)" }}>
-                    <FiEdit3 size={28} style={{ color: "var(--color-text-muted)", opacity: 0.4 }} />
-                    <div style={{ textAlign: "center" }}>
-                      <div style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text-secondary)", marginBottom: 4 }}>양식을 선택하거나</div>
-                      <div style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text-secondary)" }}>직접 내용을 작성하세요</div>
-                    </div>
-                    <Button size="sm" intent="primary" onClick={() => setShowAlimtalkPanel(true)} style={{ marginTop: 4 }}>양식 선택하기</Button>
-                  </div>
-                )}
+                {/* 양식 미선택 + 직접작성 아닌 상태 → 자동 직접작성 활성화 */}
+                {!selectedTemplate && !alimtalkFreeForm && !showAlimtalkPanel && (() => {
+                  // 이 상태에 도달하면 자동으로 직접작성 모드 활성화
+                  setTimeout(() => setAlimtalkFreeForm(true), 0);
+                  return null;
+                })()}
               </>
             )}
           </div>
