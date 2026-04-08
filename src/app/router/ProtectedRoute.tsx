@@ -14,7 +14,7 @@ export type Role =
 const ADMIN_ROLES: Role[] = ["owner", "admin", "teacher", "staff"];
 const STUDENT_ROLES: Role[] = ["student", "parent"];
 
-export default function ProtectedRoute({ allow }: { allow: Role[] }) {
+export default function ProtectedRoute({ allow, tenantOnly }: { allow: Role[]; tenantOnly?: string[] }) {
   const { user, isLoading } = useAuth();
   const { program, isLoading: programLoading } = useProgram();
 
@@ -45,6 +45,17 @@ export default function ProtectedRoute({ allow }: { allow: Role[] }) {
 
   if (!role) {
     return loginRedirect;
+  }
+
+  // tenantOnly: 특정 테넌트만 허용 (e.g., dev 페이지)
+  if (tenantOnly && tenantOnly.length > 0) {
+    const tc = program?.tenantCode;
+    if (!tc || !tenantOnly.includes(tc)) {
+      if (ADMIN_ROLES.includes(role)) {
+        return <Navigate to="/admin" replace />;
+      }
+      return <Navigate to="/" replace />;
+    }
   }
 
   if (!allow.includes(role)) {

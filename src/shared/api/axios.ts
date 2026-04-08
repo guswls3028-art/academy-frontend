@@ -53,9 +53,32 @@ export function clearTokens() {
     localStorage.removeItem("refresh");
     localStorage.removeItem("parent_selected_student_id");
     sessionStorage.removeItem("session_expired");
+    sessionStorage.removeItem("session_return_path");
     sessionStorage.removeItem("tenantCode");
   } catch {
     // ignore
+  }
+}
+
+/** 세션 만료 시 현재 경로를 저장하여 재로그인 후 복귀할 수 있게 한다 */
+export function saveReturnPath() {
+  try {
+    const path = window.location.pathname + window.location.search + window.location.hash;
+    // /login 자체이거나 빈 경로는 저장하지 않음
+    if (path && path !== "/login" && !path.startsWith("/login")) {
+      sessionStorage.setItem("session_return_path", path);
+    }
+  } catch { /* ignore */ }
+}
+
+/** 저장된 복귀 경로를 꺼내고 삭제 (1회용) */
+export function consumeReturnPath(): string | null {
+  try {
+    const path = sessionStorage.getItem("session_return_path");
+    sessionStorage.removeItem("session_return_path");
+    return path || null;
+  } catch {
+    return null;
   }
 }
 
@@ -310,6 +333,7 @@ api.interceptors.response.use(
           try {
             sessionStorage.setItem("session_expired", "1");
           } catch { /* ignore */ }
+          saveReturnPath();
           window.location.href = "/login";
         }
         throw err;

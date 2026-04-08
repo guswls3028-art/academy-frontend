@@ -59,6 +59,10 @@ export default function CreateWorkRecordModal({ open, onClose }: Props) {
       feedback.warning("필수 항목을 입력하세요.");
       return;
     }
+    if (form.end_time <= form.start_time) {
+      feedback.warning("종료 시간은 시작 시간보다 늦어야 합니다.");
+      return;
+    }
     if (createM.isPending) return;
     createM.mutate(
       {

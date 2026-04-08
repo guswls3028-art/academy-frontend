@@ -44,7 +44,7 @@ export default function CreateExpenseModal({
   if (locked) return null;
 
   return (
-    <AdminModal open={open} onClose={onClose} type="action" onEnterConfirm={() => { if (!form.title.trim() || form.amount <= 0) { feedback.warning("항목과 금액을 입력하세요."); return; } if (!createM.isPending) createM.mutate({ staff: staffId, date: form.date, title: form.title, amount: form.amount, memo: form.memo }, { onSuccess: onClose }); }}>
+    <AdminModal open={open} onClose={onClose} type="action" onEnterConfirm={() => { if (!form.title.trim() || !Number.isFinite(form.amount) || form.amount <= 0) { feedback.warning("항목과 금액을 입력하세요."); return; } if (!createM.isPending) createM.mutate({ staff: staffId, date: form.date, title: form.title, amount: form.amount, memo: form.memo }, { onSuccess: onClose }); }}>
       <ModalHeader
         title="비용 추가"
         description="직원의 비용 항목을 추가합니다."
@@ -107,7 +107,7 @@ export default function CreateExpenseModal({
               action="create"
               loading={createM.isPending}
               onClick={() => {
-                if (!form.title.trim() || form.amount <= 0) {
+                if (!form.title.trim() || !Number.isFinite(form.amount) || form.amount <= 0) {
                   feedback.warning("항목과 금액을 입력하세요.");
                   return;
                 }

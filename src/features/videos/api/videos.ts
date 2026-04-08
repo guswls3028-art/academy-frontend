@@ -195,10 +195,14 @@ export async function fetchInProgressVideos(): Promise<Video[]> {
   const statuses = VIDEO_STATUS_IN_PROGRESS;
   const all: Video[] = [];
   for (const s of statuses) {
-    const res = await api.get("/media/videos/", { params: { status: s } });
-    const d = res?.data;
-    const list = Array.isArray(d) ? d : d?.results ?? [];
-    all.push(...list.map(normalizeVideo));
+    try {
+      const res = await api.get("/media/videos/", { params: { status: s } });
+      const d = res?.data;
+      const list = Array.isArray(d) ? d : d?.results ?? [];
+      all.push(...list.map(normalizeVideo));
+    } catch {
+      // 개별 상태 요청 실패는 무시 — 나머지 상태 결과는 유지
+    }
   }
   return all;
 }
@@ -207,9 +211,11 @@ export async function fetchVideoDetail(
   videoId: number
 ): Promise<VideoDetail> {
   const res = await api.get(`/media/videos/${videoId}/`);
-  return normalizeVideo(
-    safeData<VideoDetail>(res.data, {} as any)
-  );
+  const data = res.data;
+  if (!data || !data.id) {
+    throw new Error(`Video ${videoId} not found`);
+  }
+  return normalizeVideo(data);
 }
 
 export async function fetchVideoStats(

@@ -23,9 +23,9 @@ export function useExamAssets(examId?: number) {
     queryFn: async () => {
       const list = (await fetchExamAssets(examId as number)) as ExamAssetsList;
 
-      // ⚠️ UI 편의용 flag (서버 단일진실 = assets list)
-      (list as any).problem_pdf = list.some((a) => a.asset_type === "problem_pdf");
-      (list as any).omr_sheet = list.some((a) => a.asset_type === "omr_sheet");
+      // UI 편의용 flag (서버 단일진실 = assets list)
+      list.problem_pdf = list.some((a) => a.asset_type === "problem_pdf");
+      list.omr_sheet = list.some((a) => a.asset_type === "omr_sheet");
 
       return list;
     },

@@ -156,6 +156,10 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [], l
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["lectures"] });
+      if (isEditMode && lectureId != null) {
+        qc.invalidateQueries({ queryKey: ["lecture", lectureId] });
+        qc.invalidateQueries({ queryKey: ["lecture-sessions"] });
+      }
       onClose();
     },
     onError: (e: any) => {
@@ -165,7 +169,7 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [], l
 
   useEffect(() => {
     if (!isOpen) return;
-    if (isEditMode) return;
+    // 편집 모드든 생성 모드든 열릴 때 폼 초기화 (편집 모드는 existingLecture 로드 후 덮어씀)
     setTitle("");
     setName("");
     setSelectedInstructor(null);
@@ -178,7 +182,7 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [], l
     setChipLabel("");
     setAddSubjectInput("");
     setHasAttemptedSubmit(false);
-  }, [isOpen, isEditMode, usedColors]);
+  }, [isOpen, lectureId, usedColors]);
 
   if (!isOpen) return null;
 

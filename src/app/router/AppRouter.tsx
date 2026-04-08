@@ -3,6 +3,7 @@ import { Routes, Route, Navigate, Outlet, useLocation, useNavigate } from "react
 import { Suspense, useEffect, useRef } from "react";
 import { lazyWithRetry as lazy } from "@/shared/utils/lazyWithRetry";
 import ProtectedRoute from "./ProtectedRoute";
+import ErrorBoundary from "@/shared/ui/ErrorBoundary";
 
 const StudentRouter = lazy(() => import("@/student/app/StudentRouter"));
 import AuthRouter from "./AuthRouter";
@@ -140,30 +141,32 @@ export default function AppRouter() {
       <Route element={<MaintenanceGate enabled={maintenanceOn} />}>
         <Route
           element={
-            <ProtectedRoute allow={["owner"]} />
+            <ProtectedRoute allow={["owner"]} tenantOnly={["hakwonplus", "9999"]} />
           }
         >
           <Route
             path="/dev/*"
             element={
-              <Suspense
-                fallback={
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      minHeight: 200,
-                      color: "var(--color-text-tertiary, #666)",
-                      fontSize: "var(--text-sm, 13px)",
-                    }}
-                  >
-                    불러오는 중…
-                  </div>
-                }
-              >
-                <DevAppRouter />
-              </Suspense>
+              <ErrorBoundary>
+                <Suspense
+                  fallback={
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        minHeight: 200,
+                        color: "var(--color-text-tertiary, #666)",
+                        fontSize: "var(--text-sm, 13px)",
+                      }}
+                    >
+                      불러오는 중…
+                    </div>
+                  }
+                >
+                  <DevAppRouter />
+                </Suspense>
+              </ErrorBoundary>
             }
           />
         </Route>
@@ -174,24 +177,26 @@ export default function AppRouter() {
           <Route
             path="/student/*"
             element={
-              <Suspense
-                fallback={
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      minHeight: 200,
-                      color: "var(--color-text-tertiary, #666)",
-                      fontSize: "var(--text-sm, 13px)",
-                    }}
-                  >
-                    불러오는 중…
-                  </div>
-                }
-              >
-                <StudentRouter />
-              </Suspense>
+              <ErrorBoundary>
+                <Suspense
+                  fallback={
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        minHeight: 200,
+                        color: "var(--color-text-tertiary, #666)",
+                        fontSize: "var(--text-sm, 13px)",
+                      }}
+                    >
+                      불러오는 중…
+                    </div>
+                  }
+                >
+                  <StudentRouter />
+                </Suspense>
+              </ErrorBoundary>
             }
           />
         </Route>
@@ -204,26 +209,28 @@ export default function AppRouter() {
           <Route
             path="/admin/*"
             element={
-              <SendMessageModalProvider>
-                <Suspense
-                  fallback={
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        minHeight: 200,
-                        color: "#666",
-                        fontSize: 14,
-                      }}
-                    >
-                      불러오는 중…
-                    </div>
-                  }
-                >
-                  <AdminRouter />
-                </Suspense>
-              </SendMessageModalProvider>
+              <ErrorBoundary>
+                <SendMessageModalProvider>
+                  <Suspense
+                    fallback={
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          minHeight: 200,
+                          color: "#666",
+                          fontSize: 14,
+                        }}
+                      >
+                        불러오는 중…
+                      </div>
+                    }
+                  >
+                    <AdminRouter />
+                  </Suspense>
+                </SendMessageModalProvider>
+              </ErrorBoundary>
             }
           />
         </Route>

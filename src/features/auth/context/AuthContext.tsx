@@ -8,7 +8,7 @@ import React, {
   useState,
 } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import api, { clearTokens, isSessionEnding } from "@/shared/api/axios";
+import api, { clearTokens, isSessionEnding, saveReturnPath } from "@/shared/api/axios";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { setParentStudentId } from "@/student/shared/api/parentStudentSelection";
 
@@ -73,6 +73,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (sessionStorage.getItem("session_expired") === "1") {
         sessionStorage.removeItem("session_expired");
         feedback.warn("세션이 만료되었습니다. 다시 로그인해 주세요.");
+        saveReturnPath();
         window.location.href = "/login";
       }
     } catch { /* ignore */ }
@@ -146,6 +147,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (user) {
           setUser(null);
           feedback.warn("세션이 만료되었습니다. 다시 로그인해 주세요.");
+          saveReturnPath();
           window.location.href = "/login";
         }
         return;

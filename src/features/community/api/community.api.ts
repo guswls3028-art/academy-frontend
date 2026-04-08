@@ -223,7 +223,8 @@ export async function fetchNoticePosts(params?: { page?: number; pageSize?: numb
   const url = qs ? `${PREFIX}/posts/notices/?${qs}` : `${PREFIX}/posts/notices/`;
   const res = await api.get(url);
   const data = res.data;
-  return Array.isArray(data) ? data : [];
+  // 호환: 배열 또는 {count, results} 형식 모두 지원
+  return Array.isArray(data) ? data : Array.isArray(data?.results) ? data.results : [];
 }
 
 /** 공지 전체 목록을 페이지네이션으로 수집 (트리 노드별 개수 집계용, 최대 2000건) */
@@ -248,7 +249,7 @@ export async function fetchBoardPostsByEndpoint(params?: { page?: number; pageSi
   const url = qs ? `${PREFIX}/posts/board/?${qs}` : `${PREFIX}/posts/board/`;
   const res = await api.get(url);
   const data = res.data;
-  return Array.isArray(data) ? data : [];
+  return Array.isArray(data) ? data : Array.isArray(data?.results) ? data.results : [];
 }
 
 /** 자료실 목록 — GET /community/posts/materials/ */
@@ -260,7 +261,7 @@ export async function fetchMaterialsPostsByEndpoint(params?: { page?: number; pa
   const url = qs ? `${PREFIX}/posts/materials/?${qs}` : `${PREFIX}/posts/materials/`;
   const res = await api.get(url);
   const data = res.data;
-  return Array.isArray(data) ? data : [];
+  return Array.isArray(data) ? data : Array.isArray(data?.results) ? data.results : [];
 }
 
 /** 관리자 목록: post_type, lecture_id, page, page_size */

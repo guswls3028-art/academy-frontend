@@ -68,7 +68,7 @@ export default function StaffCreateModal({ open, onClose }: Props) {
   }, [open]);
 
   const invalidUsername = !String(form.username || "").trim();
-  const invalidPassword = !String(form.password || "").trim();
+  const invalidPassword = !String(form.password || "").trim() || String(form.password || "").trim().length < 4;
   const invalidName = !String(form.name || "").trim();
 
   return (
@@ -94,7 +94,7 @@ export default function StaffCreateModal({ open, onClose }: Props) {
             />
           </Field>
 
-          <Field label="비밀번호 *">
+          <Field label="비밀번호 * (4자 이상)">
             <input
               type="password"
               className="ds-input"

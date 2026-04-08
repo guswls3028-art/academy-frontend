@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useParams, Navigate, Link } from "react-router-dom";
 import { login } from "@/features/auth/api/auth";
 import useAuth from "@/features/auth/hooks/useAuth";
+import { consumeReturnPath } from "@/shared/api/axios";
 import { useDocumentTitle } from "@/shared/hooks/useDocumentTitle";
 import { useProgram } from "@/shared/program";
 import {
@@ -104,7 +105,8 @@ export default function LoginPage() {
     try {
       await login(username, password);
       await refreshMe();
-      navigate("/", { replace: true });
+      const returnPath = consumeReturnPath();
+      navigate(returnPath || "/", { replace: true });
     } catch (e) {
       setError(e instanceof Error ? e.message : "아이디 또는 비밀번호를 확인해주세요.");
       setPending(false);

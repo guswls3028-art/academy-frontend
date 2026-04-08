@@ -31,6 +31,14 @@ export default function InspectOverlayShell({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [onClose]);
 
+  useEffect(() => {
+    const prevBodyOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prevBodyOverflow;
+    };
+  }, []);
+
   return createPortal(
     <div
       data-overlay="inspect"
