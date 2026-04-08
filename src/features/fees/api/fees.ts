@@ -125,11 +125,19 @@ export async function fetchLectureOptions(): Promise<LectureOption[]> {
   return list.map((l: any) => ({ id: l.id, title: l.title }));
 }
 
+/* ────────── helpers ────────── */
+
+function unwrapList<T>(data: any): T[] {
+  if (Array.isArray(data)) return data;
+  if (data?.results && Array.isArray(data.results)) return data.results;
+  return [];
+}
+
 /* ────────── API: Fee Templates ────────── */
 
 export async function fetchFeeTemplates(params?: Record<string, string>) {
-  const res = await api.get<FeeTemplate[]>("/fees/templates/", { params });
-  return res.data;
+  const res = await api.get("/fees/templates/", { params });
+  return unwrapList<FeeTemplate>(res.data);
 }
 
 export async function createFeeTemplate(data: Partial<FeeTemplate>) {
@@ -149,8 +157,8 @@ export async function deleteFeeTemplate(id: number) {
 /* ────────── API: Student Fees ────────── */
 
 export async function fetchStudentFees(params?: Record<string, string>) {
-  const res = await api.get<StudentFee[]>("/fees/student-fees/", { params });
-  return res.data;
+  const res = await api.get("/fees/student-fees/", { params });
+  return unwrapList<StudentFee>(res.data);
 }
 
 export async function createStudentFee(data: { student: number; fee_template: number; enrollment?: number }) {
@@ -173,8 +181,8 @@ export async function deleteStudentFee(id: number) {
 /* ────────── API: Invoices ────────── */
 
 export async function fetchInvoices(params?: Record<string, string>) {
-  const res = await api.get<StudentInvoice[]>("/fees/invoices/", { params });
-  return res.data;
+  const res = await api.get("/fees/invoices/", { params });
+  return unwrapList<StudentInvoice>(res.data);
 }
 
 export async function fetchInvoiceDetail(id: number) {
@@ -197,8 +205,8 @@ export async function cancelInvoice(id: number) {
 /* ────────── API: Payments ────────── */
 
 export async function fetchPayments(params?: Record<string, string>) {
-  const res = await api.get<FeePayment[]>("/fees/payments/", { params });
-  return res.data;
+  const res = await api.get("/fees/payments/", { params });
+  return unwrapList<FeePayment>(res.data);
 }
 
 export async function recordPayment(data: {
@@ -226,6 +234,6 @@ export async function fetchDashboard(params?: { year?: number; month?: number })
 }
 
 export async function fetchOverdueInvoices() {
-  const res = await api.get<StudentInvoice[]>("/fees/dashboard/overdue/");
-  return res.data;
+  const res = await api.get("/fees/dashboard/overdue/");
+  return unwrapList<StudentInvoice>(res.data);
 }
