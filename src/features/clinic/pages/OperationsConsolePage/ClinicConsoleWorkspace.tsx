@@ -347,11 +347,16 @@ export default function ClinicConsoleWorkspace({
   }
 
   /* ── 인라인 재시험/과제 점수 입력 ── */
-  function handleRetakeSubmit(clinicLinkId: number) {
+  function handleRetakeSubmit(clinicLinkId: number, maxScore?: number | null) {
     const scoreStr = retakeScores.get(clinicLinkId);
     const score = parseFloat(scoreStr ?? "");
     if (isNaN(score) || score < 0) {
       feedback.error("올바른 점수를 입력하세요.");
+      return;
+    }
+    const effectiveMax = maxScore ?? 100;
+    if (effectiveMax > 0 && score > effectiveMax) {
+      feedback.error(`최대 점수(${effectiveMax})를 초과할 수 없습니다.`);
       return;
     }
     setRetakingIds((prev) => new Set(prev).add(clinicLinkId));
@@ -867,15 +872,16 @@ export default function ClinicConsoleWorkspace({
                                     return next;
                                   });
                                 }}
+                                max={t.max_score ?? undefined}
                                 onKeyDown={(e) => {
-                                  if (e.key === "Enter") handleRetakeSubmit(t.clinic_link_id!);
+                                  if (e.key === "Enter") handleRetakeSubmit(t.clinic_link_id!, t.max_score);
                                 }}
                                 disabled={retakingIds.has(t.clinic_link_id!)}
                               />
                               <button
                                 type="button"
                                 className="clinic-ops__inline-retake-submit"
-                                onClick={() => handleRetakeSubmit(t.clinic_link_id!)}
+                                onClick={() => handleRetakeSubmit(t.clinic_link_id!, t.max_score)}
                                 disabled={retakingIds.has(t.clinic_link_id!) || !(retakeScores.get(t.clinic_link_id!) ?? "").trim()}
                               >
                                 {retakingIds.has(t.clinic_link_id!) ? "…" : "제출"}
