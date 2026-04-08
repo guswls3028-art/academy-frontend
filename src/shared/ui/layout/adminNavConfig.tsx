@@ -24,6 +24,8 @@ export type AdminNavItem = {
   iconPath: string;
   /** true면 is_payroll_manager(관리자 권한 on)일 때만 메뉴 노출 */
   requiresStaffAdmin?: boolean;
+  /** feature_flags key — 해당 flag가 truthy일 때만 메뉴 노출 */
+  requiresFeatureFlag?: string;
 };
 
 export type AdminNavGroup = {
@@ -51,7 +53,7 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
   },
   {
     items: [
-      { to: `${ADMIN_NAV_BASE}/fees`, label: "수납", iconPath: "M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" },
+      { to: `${ADMIN_NAV_BASE}/fees`, label: "수납", iconPath: "M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6", requiresFeatureFlag: "fee_management" },
       { to: `${ADMIN_NAV_BASE}/community`, label: "커뮤니티", iconPath: "M4 4h16v12H7l-3 3z" },
       { to: `${ADMIN_NAV_BASE}/tools`, label: "도구", iconPath: "M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" },
       { to: `${ADMIN_NAV_BASE}/staff`, label: "직원관리", iconPath: "M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm-7 8a7 7 0 0 1 14 0", requiresStaffAdmin: true },

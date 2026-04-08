@@ -1,8 +1,10 @@
 /**
  * 더보기 — 카테고리별 메뉴 단일 목록 + 로그아웃
  */
+import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { logout } from "@/features/auth/api/auth";
+import { useFeesEnabled } from "@/shared/hooks/useFeesEnabled";
 import {
   IconUser,
   IconBoard,
@@ -31,8 +33,10 @@ const linkStyle: React.CSSProperties = {
   fontSize: 15,
 };
 
+type NavItem = { label: string; to: string; icon: ReactNode; featureFlag?: string };
+
 /** 라우터 기준 전체 메뉴 대장 — 카테고리별 네비게이션 (홈·영상·일정 제외 = TabBar에 있는 것 제외) */
-const FULL_NAV: { category: string; items: { label: string; to: string; icon: ReactNode }[] }[] = [
+const FULL_NAV: { category: string; items: NavItem[] }[] = [
   {
     category: "학습",
     items: [
@@ -60,7 +64,7 @@ const FULL_NAV: { category: string; items: { label: string; to: string; icon: Re
   {
     category: "기타",
     items: [
-      { label: "수납/결제", to: "/student/fees", icon: <IconFileText style={{ width: 22, height: 22, flexShrink: 0 }} /> },
+      { label: "수납/결제", to: "/student/fees", icon: <IconFileText style={{ width: 22, height: 22, flexShrink: 0 }} />, featureFlag: "fee_management" },
       { label: "출결 현황", to: "/student/attendance", icon: <IconClipboard style={{ width: 22, height: 22, flexShrink: 0 }} /> },
       { label: "프로필", to: "/student/profile", icon: <IconUser style={{ width: 22, height: 22, flexShrink: 0 }} /> },
       { label: "설정", to: "/student/settings", icon: <IconSettings style={{ width: 22, height: 22, flexShrink: 0 }} /> },
@@ -70,10 +74,22 @@ const FULL_NAV: { category: string; items: { label: string; to: string; icon: Re
 ];
 
 export default function MorePage() {
+  const feesEnabled = useFeesEnabled();
+
+  const filteredNav = useMemo(() => {
+    return FULL_NAV.map((g) => ({
+      ...g,
+      items: g.items.filter((it) => {
+        if (it.featureFlag === "fee_management" && !feesEnabled) return false;
+        return true;
+      }),
+    })).filter((g) => g.items.length > 0);
+  }, [feesEnabled]);
+
   return (
     <div style={{ padding: "var(--stu-space-2) 0" }}>
       {/* 전체 메뉴 — 카테고리별 카드 그룹 */}
-      {FULL_NAV.map((group) => (
+      {filteredNav.map((group) => (
         <div key={group.category} style={{ marginBottom: "var(--stu-space-5)" }}>
           {/* 카테고리 헤더 — 카드 밖 */}
           <h3

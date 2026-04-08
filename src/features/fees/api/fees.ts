@@ -127,6 +127,12 @@ export async function fetchLectureOptions(): Promise<LectureOption[]> {
 
 /* ────────── helpers ────────── */
 
+interface PaginatedResponse<T> {
+  count: number;
+  next: string | null;
+  results: T[];
+}
+
 function unwrapList<T>(data: any): T[] {
   if (Array.isArray(data)) return data;
   if (data?.results && Array.isArray(data.results)) return data.results;
@@ -181,8 +187,12 @@ export async function deleteStudentFee(id: number) {
 /* ────────── API: Invoices ────────── */
 
 export async function fetchInvoices(params?: Record<string, string>) {
-  const res = await api.get("/fees/invoices/", { params });
-  return unwrapList<StudentInvoice>(res.data);
+  const res = await api.get("/fees/invoices/", { params: { ...params, page_size: "500" } });
+  const data = res.data;
+  const list = unwrapList<StudentInvoice>(data);
+  // Attach total count for UI
+  (list as any).__totalCount = data?.count ?? list.length;
+  return list;
 }
 
 export async function fetchInvoiceDetail(id: number) {

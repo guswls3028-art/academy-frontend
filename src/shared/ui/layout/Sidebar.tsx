@@ -8,6 +8,7 @@ import {
   NavIcon,
 } from "./adminNavConfig";
 import { fetchStaffMe } from "@/features/staff/api/staffMe.api";
+import { useProgram } from "@/shared/program";
 
 const SIDEBAR_STORAGE_KEY = "ui.sidebar.collapsed";
 
@@ -41,16 +42,20 @@ export default function Sidebar() {
   const loc = useLocation();
   const [collapsed, setCollapsed] = useState<boolean>(() => safeGetCollapsed());
   const { data: staffMe } = useQuery({ queryKey: ["staff-me"], queryFn: fetchStaffMe });
+  const { program } = useProgram();
 
   const groups = useMemo(() => {
     const isStaffAdmin = !!staffMe?.is_payroll_manager;
+    const flags = program?.feature_flags ?? {};
     return ADMIN_NAV_GROUPS.map((g) => ({
       ...g,
-      items: g.items.filter(
-        (it) => !it.requiresStaffAdmin || (it.requiresStaffAdmin && isStaffAdmin)
-      ),
+      items: g.items.filter((it) => {
+        if (it.requiresStaffAdmin && !isStaffAdmin) return false;
+        if (it.requiresFeatureFlag && !flags[it.requiresFeatureFlag]) return false;
+        return true;
+      }),
     })).filter((g) => g.items.length > 0);
-  }, [staffMe?.is_payroll_manager]);
+  }, [staffMe?.is_payroll_manager, program?.feature_flags]);
 
   const isActive = (to: string) =>
     loc.pathname === to || loc.pathname.startsWith(to + "/");
