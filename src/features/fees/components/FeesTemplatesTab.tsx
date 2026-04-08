@@ -321,7 +321,7 @@ export default function FeesTemplatesTab() {
         <ModalFooter
           right={
             <>
-              <Button intent="ghost" onClick={closeModal}>취소</Button>
+              <Button intent="secondary" onClick={closeModal}>취소</Button>
               <Button intent="primary" onClick={handleSave} disabled={isPending}>
                 {isPending ? "저장 중..." : editing ? "수정" : "추가"}
               </Button>

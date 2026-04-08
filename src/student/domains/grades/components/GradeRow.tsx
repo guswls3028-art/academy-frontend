@@ -44,7 +44,7 @@ export default function GradeRow({
         {icon}
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontWeight: 600, fontSize: 14 }}>{title}</div>
+        <div style={{ fontWeight: 600, fontSize: 14, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{title}</div>
         <div className="stu-muted" style={{ fontSize: 13, marginTop: 2 }}>
           {subtitle && `${subtitle} · `}
           {score}

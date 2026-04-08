@@ -362,7 +362,7 @@ export default function FeesInvoicesTab() {
         <ModalFooter
           right={
             <>
-              <Button intent="ghost" onClick={() => setGenerateOpen(false)}>취소</Button>
+              <Button intent="secondary" onClick={() => setGenerateOpen(false)}>취소</Button>
               <Button
                 intent="primary"
                 onClick={() => genMutation.mutate({ billing_year: year, billing_month: month, due_date: genDueDate })}
@@ -537,7 +537,7 @@ export default function FeesInvoicesTab() {
         <ModalFooter
           right={
             <>
-              <Button intent="ghost" onClick={() => setPaymentOpen(false)}>취소</Button>
+              <Button intent="secondary" onClick={() => setPaymentOpen(false)}>취소</Button>
               <Button
                 intent="primary"
                 disabled={!payAmount || Number(payAmount) <= 0 || payMutation.isPending}

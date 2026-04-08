@@ -527,7 +527,7 @@ function NoticeDetailView({
               disabled={updateMut.isPending}
               title={post.is_urgent ? "중요 해제" : "중요 표시"}
             >
-              {post.is_urgent ? "🔴 중요" : "중요"}
+              {post.is_urgent ? "🔴 중요" : "🔴 중요"}
             </Button>
             <Button intent="ghost" size="sm" onClick={onClose}>
               목록
@@ -683,7 +683,7 @@ function NoticeCreatePane({
             </div>
           </div>
           <div className="qna-inbox__thread-actions">
-            <Button intent="ghost" size="sm" onClick={onCancel}>취소</Button>
+            <Button intent="secondary" size="sm" onClick={onCancel}>취소</Button>
           </div>
         </div>
       </header>

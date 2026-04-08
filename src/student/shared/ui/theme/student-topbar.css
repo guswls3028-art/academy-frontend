@@ -23,6 +23,7 @@
 
 .stu-topbar__profileDropdownOverlay .stu-topbar__profileDropdown {
   min-width: 200px;
+  max-width: calc(100vw - 32px);
   padding: var(--stu-space-2);
   background: var(--stu-surface-1);
   border-radius: var(--stu-radius-xl);

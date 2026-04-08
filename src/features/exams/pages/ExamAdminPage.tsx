@@ -11,7 +11,7 @@ import { DomainLayout } from "@/shared/ui/layout";
 import { EmptyState, Button } from "@/shared/ui/ds";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader, MODAL_WIDTH } from "@/shared/ui/modal";
 import { feedback } from "@/shared/ui/feedback/feedback";
-import { createRegularExam, createTemplateExam } from "../api/exams";
+import { createTemplateExam } from "../api/exams";
 
 /* ── 아이콘 SVG ── */
 const ExamIcon = ({ size = 40, color = "var(--color-primary)" }: { size?: number; color?: string }) => (
@@ -93,6 +93,8 @@ export default function ExamAdminPage() {
 
       {isLoading ? (
         <EmptyState scope="panel" tone="loading" title="불러오는 중..." />
+      ) : filtered.length === 0 ? (
+        <EmptyState scope="panel" tone="empty" title="시험이 없습니다." description={search ? "검색 조건을 변경해 보세요." : "새 시험을 생성해 주세요."} />
       ) : (
         <div
           style={{
@@ -123,6 +125,21 @@ export default function ExamAdminPage() {
                   opacity: isClosed ? 0.65 : 1,
                 }}
                 title={`${e.title} — ${e.subject || "과목 없음"}`}
+                onClick={() => {
+                  const examWithRefs = e as typeof e & {
+                    lecture_id?: number;
+                    lectureId?: number;
+                    session_id?: number;
+                    sessionId?: number;
+                  };
+                  const lectureId = Number(examWithRefs.lecture_id ?? examWithRefs.lectureId);
+                  const sessionId = Number(examWithRefs.session_id ?? examWithRefs.sessionId);
+                  if (Number.isFinite(lectureId) && Number.isFinite(sessionId)) {
+                    navigate(`/admin/lectures/${lectureId}/sessions/${sessionId}/exams?examId=${e.id}`);
+                    return;
+                  }
+                  feedback.info("시험 상세 이동 경로를 찾지 못했습니다. 강의별 시험에서 선택해 주세요.");
+                }}
               >
                 <ExamIcon color={iconColor} />
                 <div style={{
@@ -169,7 +186,6 @@ export default function ExamAdminPage() {
 
 /* ── 시험 추가 모달 ── */
 function ExamAddModal({ open, onClose, onSuccess }: { open: boolean; onClose: () => void; onSuccess: () => void }) {
-  const [step, setStep] = useState<"select" | "form">("select");
   const [selectedLecture, setSelectedLecture] = useState<Lecture | null>(null);
   const [selectedSession, setSelectedSession] = useState<Session | null>(null);
   const [title, setTitle] = useState("");
@@ -181,7 +197,6 @@ function ExamAddModal({ open, onClose, onSuccess }: { open: boolean; onClose: ()
   // 모달 열릴 때 폼 상태 초기화
   useEffect(() => {
     if (open) {
-      setStep("select");
       setSelectedLecture(null);
       setSelectedSession(null);
       setTitle("");

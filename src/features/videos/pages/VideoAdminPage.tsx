@@ -92,6 +92,8 @@ export default function VideoAdminPage() {
 
       {isLoading ? (
         <EmptyState scope="panel" tone="loading" title="불러오는 중..." />
+      ) : filtered.length === 0 ? (
+        <EmptyState scope="panel" tone="empty" title="영상 강의가 없습니다." description={search ? "검색 조건을 변경해 보세요." : "강의를 먼저 생성해 주세요."} />
       ) : (
         <div
           style={{

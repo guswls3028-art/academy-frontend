@@ -219,8 +219,8 @@ export default function StudentTopBar({ tenantCode, onMenuClick }: Props) {
           aria-label="메뉴 열기"
           className="stu-topbar__menuBtn"
           style={{
-            width: 34,
-            height: 34,
+            width: 44,
+            height: 44,
             display: "grid",
             placeItems: "center",
             background: "transparent",
@@ -243,11 +243,12 @@ export default function StudentTopBar({ tenantCode, onMenuClick }: Props) {
         to="/student/dashboard"
         className="stu-topbar__home-link"
         style={{
-          display: "inline-flex",
+          display: "flex",
           alignItems: "center",
           gap: 10,
           color: "var(--stu-text)",
           textDecoration: "none",
+          minWidth: 0,
         }}
         aria-label="홈"
       >
@@ -298,7 +299,7 @@ export default function StudentTopBar({ tenantCode, onMenuClick }: Props) {
             H
           </div>
         ) : null}
-        <span style={{ fontWeight: 800, fontSize: 15, letterSpacing: "-0.3px" }}>
+        <span style={{ fontWeight: 800, fontSize: 15, letterSpacing: "-0.3px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {branding.title}
         </span>
       </Link>

@@ -918,7 +918,8 @@ html:has([data-app="student"]) {
   font-weight: 700;
   font-size: var(--stu-font-size-13);
   text-decoration: none;
-  transition: 
+  white-space: nowrap;
+  transition:
     color 180ms cubic-bezier(0.4, 0, 0.2, 1),
     transform 180ms cubic-bezier(0.4, 0, 0.2, 1);
   display: inline-flex;

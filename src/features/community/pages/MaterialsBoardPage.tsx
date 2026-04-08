@@ -430,7 +430,7 @@ function MatCreatePane({
                 : <>이 자료는 <strong>{scopeLabel}</strong> 학생에게만 보입니다.</>}
             </p>
           </div>
-          <div className="qna-inbox__thread-actions"><Button intent="ghost" size="sm" onClick={onCancel}>취소</Button></div>
+          <div className="qna-inbox__thread-actions"><Button intent="secondary" size="sm" onClick={onCancel}>취소</Button></div>
         </div>
       </header>
       <div className="cms-form__body">

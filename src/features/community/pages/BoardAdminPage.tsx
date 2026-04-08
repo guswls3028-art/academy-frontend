@@ -454,7 +454,7 @@ function BoardCreatePane({
             </p>
           </div>
           <div className="qna-inbox__thread-actions">
-            <Button intent="ghost" size="sm" onClick={onCancel}>취소</Button>
+            <Button intent="secondary" size="sm" onClick={onCancel}>취소</Button>
           </div>
         </div>
       </header>

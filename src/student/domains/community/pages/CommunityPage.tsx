@@ -298,7 +298,7 @@ function QnaTab({
           onClick={onForm}
           style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "var(--stu-space-2)" }}
         >
-          <IconPlus style={{ width: 18, height: 18 }} />
+          <IconPlus style={{ width: 18, height: 18, flexShrink: 0 }} />
           질문하기
         </button>
       )}

@@ -216,7 +216,7 @@ export default function MyInventoryPage() {
               onClick={() => setShowNewFolder(true)}
               style={{ display: "flex", alignItems: "center", gap: 4 }}
             >
-              <IconPlus style={{ width: 14, height: 14 }} />
+              <IconPlus style={{ width: 14, height: 14, flexShrink: 0 }} />
               새 폴더
             </button>
             <button
@@ -434,7 +434,7 @@ export default function MyInventoryPage() {
               onKeyDown={(e) => { if (e.key === "Enter") navigateToFolder(folder); }}
             >
               <IconFolder style={{ width: 20, height: 20, color: "var(--stu-primary)", flexShrink: 0 }} />
-              <span style={{ flex: 1, fontWeight: 600, fontSize: 14, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              <span style={{ flex: 1, minWidth: 0, fontWeight: 600, fontSize: 14, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {folder.name}
               </span>
               {!isParentReadOnly && (

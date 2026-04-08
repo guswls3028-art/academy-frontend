@@ -186,6 +186,24 @@
 }
 
 /* ======================================================
+ * Icon / Label — 아이콘+텍스트 조합 시 줄바꿈·압축 방지
+ * ====================================================== */
+
+.ds-button__left,
+.ds-button__right {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.ds-button__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ======================================================
  * Loading
  * ====================================================== */
 
