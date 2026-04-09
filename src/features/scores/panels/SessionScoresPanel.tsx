@@ -174,7 +174,7 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
     } catch {
       feedback.error("출결 변경에 실패했습니다.");
     }
-  }, [attendanceIdMap, qc, sessionId]);
+  }, [attendanceIdMap, qc, sessionId, lectureId]);
 
   const rows = useMemo(() => {
     if (!search.trim()) return allRows;

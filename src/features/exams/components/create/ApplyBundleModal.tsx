@@ -152,7 +152,7 @@ export default function ApplyBundleModal({ open, onClose, sessionId, onApplied }
               intent="primary"
               size="xl"
               onClick={handleApply}
-              disabled={submitting || !selectedId}
+              disabled={submitting || !selectedId || bundles.length === 0}
             >
               {submitting ? "적용 중…" : "묶음 적용"}
             </Button>

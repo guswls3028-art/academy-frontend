@@ -30,15 +30,6 @@ export default function ExamEnrollmentPanel({ examId }: { examId: number }) {
     ? sessionIdFromQuery
     : (sessionIdFromPath ?? 0);
 
-  if (!sessionId) {
-    return (
-      <BlockReason
-        title="세션 컨텍스트 필요"
-        description="대상자 관리는 세션(Session) 기준으로만 가능합니다."
-      />
-    );
-  }
-
   const rowsQ = useExamEnrollmentRows(examId, sessionId);
   const updateMut = useUpdateExamEnrollmentRows(examId, sessionId);
 
@@ -54,7 +45,7 @@ export default function ExamEnrollmentPanel({ examId }: { examId: number }) {
     serverRows.forEach((r) => r.is_selected && init.add(r.enrollment_id));
     setSelected(new Set(init));
     setOriginSelected(new Set(init));
-  }, [serverRows]);
+  }, [open, serverRows]);
 
   useEffect(() => {
     if (!open) return;
@@ -113,6 +104,16 @@ export default function ExamEnrollmentPanel({ examId }: { examId: number }) {
     () => serverRows.filter((r) => r.is_selected).length,
     [serverRows]
   );
+
+  // 세션 컨텍스트 없으면 차단 (hooks 뒤에 배치 — React Rules of Hooks 준수)
+  if (!sessionId) {
+    return (
+      <BlockReason
+        title="세션 컨텍스트 필요"
+        description="대상자 관리는 세션(Session) 기준으로만 가능합니다."
+      />
+    );
+  }
 
   return (
     <section className="rounded border border-[var(--border-divider)] bg-[var(--bg-surface)]">

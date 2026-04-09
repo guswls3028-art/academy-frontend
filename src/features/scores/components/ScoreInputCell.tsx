@@ -10,7 +10,7 @@
  * - optimistic update 금지
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { patchExamItemScore } from "../api/patchItemScore";
 import { feedback } from "@/shared/ui/feedback/feedback";
 
@@ -45,13 +45,14 @@ export default function ScoreInputCell({
 }: Props) {
   const [draft, setDraft] = useState<string>(value == null ? "" : String(value));
   const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
 
   useEffect(() => {
     setDraft(value == null ? "" : String(value));
   }, [value]);
 
   const commit = async () => {
-    if (disabled) return false;
+    if (disabled || savingRef.current) return false;
 
     const next = Number(draft);
     if (!Number.isFinite(next) || next < 0 || next > maxScore) {
@@ -59,7 +60,11 @@ export default function ScoreInputCell({
       return false;
     }
 
+    // 변경 없으면 API 호출 스킵
+    if (next === value) return true;
+
     try {
+      savingRef.current = true;
       setSaving(true);
       await patchExamItemScore({
         examId,
@@ -74,6 +79,7 @@ export default function ScoreInputCell({
       setDraft(value == null ? "" : String(value));
       return false;
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   };

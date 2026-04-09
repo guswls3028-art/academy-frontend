@@ -446,7 +446,14 @@ export default function CreateRegularExamModal({
                   <tr>
                     <th className="text-left text-xs font-semibold" style={{ padding: "6px 8px" }}>제목</th>
                     <th className="text-left text-xs font-semibold" style={{ padding: "6px 8px" }}>만점</th>
-                    <th className="text-left text-xs font-semibold" style={{ padding: "6px 8px" }}>커트라인</th>
+                    <th className="text-left text-xs font-semibold" style={{ padding: "6px 8px" }}>
+                      <span className="inline-flex items-center gap-1">
+                        커트라인
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold border border-[var(--color-border-divider)] text-[var(--color-text-muted)] bg-[var(--color-bg-surface)]">
+                          점
+                        </span>
+                      </span>
+                    </th>
                     <th style={{ padding: "6px 8px" }} />
                   </tr>
                 </thead>
@@ -512,7 +519,7 @@ export default function CreateRegularExamModal({
 
               <div className="mt-3 rounded border border-[var(--color-border-divider)] bg-[color-mix(in_srgb,var(--color-brand-primary)_4%,var(--color-bg-surface))] p-3">
                 <div className="text-xs text-[var(--color-text-muted)]">
-                  대상자 자동 등록됨 (이 차시의 모든 수강생)
+                  대상자 자동 등록됨 (이 차시의 모든 수강생) · 커트라인 미만 시 클리닉 보강 대상
                 </div>
               </div>
             </div>

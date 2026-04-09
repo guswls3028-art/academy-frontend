@@ -3,14 +3,15 @@ export default function ExamCreateErrorBox({ error }: { error: any }) {
   if (!error) return null;
 
   const status = error?.response?.status;
-  const detail = error?.response?.data?.detail;
+  const rawDetail = error?.response?.data?.detail;
+  const detail = typeof rawDetail === "string" ? rawDetail : String(rawDetail ?? "");
 
   let message = "시험 생성에 실패했습니다.";
 
   if (status === 400) {
-    if (detail?.includes("template")) {
+    if (detail.includes("template")) {
       message = "템플릿 선택이 유효하지 않습니다.";
-    } else if (detail?.includes("session")) {
+    } else if (detail.includes("session")) {
       message = "차시(session) 선택이 유효하지 않습니다.";
     } else {
       message = "입력값을 다시 확인하세요.";

@@ -493,9 +493,12 @@ export default function CreateHomeworkModal({
                           type="number"
                           min={0}
                           className="ds-input w-full"
-                          value={row.cutline}
-                          onChange={(e) => updateRow(row.key, "cutline", e.target.value)}
+                          value={idx === 0 ? row.cutline : rows[0]?.cutline ?? row.cutline}
+                          onChange={(e) => { if (idx === 0) updateRow(row.key, "cutline", e.target.value); }}
+                          disabled={idx > 0}
+                          title={idx > 0 ? "커트라인은 첫 번째 행 값이 공통 적용됩니다" : undefined}
                           aria-label={`과제 ${idx + 1} 커트라인`}
+                          style={idx > 0 ? { opacity: 0.5 } : undefined}
                         />
                       </td>
                       <td style={{ padding: "4px 8px" }}>
@@ -533,7 +536,7 @@ export default function CreateHomeworkModal({
 
               <div className="mt-3 rounded border border-[var(--color-border-divider)] bg-[color-mix(in_srgb,var(--color-brand-primary)_4%,var(--color-bg-surface))] p-3">
                 <div className="text-xs text-[var(--color-text-muted)]">
-                  대상자 자동 등록됨 (이 차시의 모든 수강생) · 커트라인은 첫 번째 행 기준 · {cutlineMode === "PERCENT" ? "퍼센트(%) 기준" : "점수 기준"}
+                  대상자 자동 등록됨 (이 차시의 모든 수강생) · 커트라인은 첫 번째 행 값이 전체 과제에 공통 적용됩니다 · {cutlineMode === "PERCENT" ? "퍼센트(%) 기준" : "점수 기준"} · 커트라인 미만 시 클리닉 보강 대상
                 </div>
               </div>
             </div>

@@ -115,6 +115,14 @@ const QuickScoreInput = React.forwardRef<HTMLInputElement, Props>(
             onMoveDown?.();
           }
         }}
+        onBlur={async () => {
+          if (disabled || saving) return;
+          // "/" 입력은 Enter로만 커밋 (blur시 무시)
+          if (value.trim() === "/" || value.trim() === "") return;
+          // 변경 없으면 스킵
+          if (value === initial) return;
+          await commitScore();
+        }}
         disabled={disabled || saving}
         title={
           disabled
