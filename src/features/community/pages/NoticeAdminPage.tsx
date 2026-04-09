@@ -433,10 +433,15 @@ function NoticeDetailView({
   const [isEditing, setIsEditing] = useState(false);
   const [contentSaved, setContentSaved] = useState(false);
 
+  const [editingTitle, setEditingTitle] = useState("");
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+
   useEffect(() => {
     setEditingContent(post?.content ?? "");
+    setEditingTitle(post?.title ?? "");
     setIsEditing(false);
-  }, [post?.id, post?.content]);
+    setIsEditingTitle(false);
+  }, [post?.id, post?.content, post?.title]);
 
   const deleteMut = useMutation({
     mutationFn: () => deletePost(postId),
@@ -463,6 +468,19 @@ function NoticeDetailView({
     },
     onError: (e: unknown) => {
       feedback.error((e as Error)?.message ?? "수정에 실패했습니다.");
+    },
+  });
+
+  const updateTitleMut = useMutation({
+    mutationFn: (title: string) => updatePost(postId, { title }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["community-post", postId] });
+      qc.invalidateQueries({ queryKey: ["community-notice-posts"] });
+      qc.invalidateQueries({ queryKey: ["community-all-notice-posts-for-count"] });
+      feedback.success("제목이 수정되었습니다.");
+    },
+    onError: (e: unknown) => {
+      feedback.error((e as Error)?.message ?? "제목 수정에 실패했습니다.");
     },
   });
 
@@ -496,7 +514,56 @@ function NoticeDetailView({
       <header className="qna-inbox__thread-header">
         <div className="qna-inbox__thread-title-row">
           <div className="qna-inbox__thread-title-group">
-            <h1 className="qna-inbox__thread-title">{post.title}</h1>
+            {isEditingTitle ? (
+              <div style={{ display: "flex", alignItems: "center", gap: 8, width: "100%" }}>
+                <input
+                  className="ds-input"
+                  style={{ flex: 1, fontSize: "var(--text-lg, 18px)", fontWeight: 700 }}
+                  value={editingTitle}
+                  onChange={(e) => setEditingTitle(e.target.value)}
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && editingTitle.trim() && editingTitle.trim() !== post.title) {
+                      updateTitleMut.mutate(editingTitle.trim(), { onSuccess: () => setIsEditingTitle(false) });
+                    }
+                    if (e.key === "Escape") {
+                      setEditingTitle(post.title ?? "");
+                      setIsEditingTitle(false);
+                    }
+                  }}
+                />
+                <Button
+                  intent="primary"
+                  size="sm"
+                  onClick={() => {
+                    if (editingTitle.trim() && editingTitle.trim() !== post.title) {
+                      updateTitleMut.mutate(editingTitle.trim(), { onSuccess: () => setIsEditingTitle(false) });
+                    }
+                  }}
+                  disabled={updateTitleMut.isPending || !editingTitle.trim() || editingTitle.trim() === post.title}
+                >
+                  {updateTitleMut.isPending ? "저장 중…" : "저장"}
+                </Button>
+                <Button
+                  intent="ghost"
+                  size="sm"
+                  onClick={() => { setEditingTitle(post.title ?? ""); setIsEditingTitle(false); }}
+                  disabled={updateTitleMut.isPending}
+                >
+                  취소
+                </Button>
+              </div>
+            ) : (
+              <h1
+                className="qna-inbox__thread-title"
+                style={{ cursor: "pointer" }}
+                onClick={() => { setEditingTitle(post.title ?? ""); setIsEditingTitle(true); }}
+                title="클릭하여 제목 수정"
+              >
+                {post.title}
+                <span style={{ marginLeft: 6, fontSize: "var(--text-xs, 11px)", color: "var(--color-text-muted)", fontWeight: 400 }}>✎</span>
+              </h1>
+            )}
             <div className="qna-inbox__thread-meta">
               <ScopeBadge post={post} />
               <span className="qna-inbox__thread-meta-dot" />
@@ -527,7 +594,7 @@ function NoticeDetailView({
               disabled={updateMut.isPending}
               title={post.is_urgent ? "중요 해제" : "중요 표시"}
             >
-              {post.is_urgent ? "🔴 중요" : "🔴 중요"}
+              {post.is_urgent ? "🔴 중요 해제" : "🔴 중요"}
             </Button>
             <Button intent="ghost" size="sm" onClick={onClose}>
               목록

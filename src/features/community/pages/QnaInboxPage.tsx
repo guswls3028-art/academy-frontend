@@ -29,6 +29,7 @@ import PostReadView from "../components/PostReadView";
 import CommunityContextBar from "../components/CommunityContextBar";
 import CommunityEmptyState from "../components/CommunityEmptyState";
 import CommunityAvatar from "../components/CommunityAvatar";
+import { stripHtml } from "../utils/communityHelpers";
 import "@/features/community/qna-inbox.css";
 
 type FilterKind = "all" | "pending" | "resolved";
@@ -225,10 +226,11 @@ function QuestionCard({
   isUnread: boolean;
   onClick: () => void;
 }) {
+  const plainText = stripHtml(question.content ?? "");
   const snippet =
-    question.content && question.content.length > SNIPPET_LEN
-      ? question.content.slice(0, SNIPPET_LEN).trim() + "…"
-      : question.content || "";
+    plainText.length > SNIPPET_LEN
+      ? plainText.slice(0, SNIPPET_LEN).trim() + "…"
+      : plainText;
 
   const timeAgo = (() => {
     const d = new Date(question.created_at);

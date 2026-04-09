@@ -22,6 +22,7 @@ import { feedback } from "@/shared/ui/feedback/feedback";
 import PostReadView from "../components/PostReadView";
 import CommunityContextBar from "../components/CommunityContextBar";
 import CommunityEmptyState from "../components/CommunityEmptyState";
+import { stripHtml } from "../utils/communityHelpers";
 import CommunityAvatar from "../components/CommunityAvatar";
 import "@/features/community/qna-inbox.css";
 
@@ -204,10 +205,11 @@ function CounselCard({
   isUnread: boolean;
   onClick: () => void;
 }) {
+  const plainText = stripHtml(post.content ?? "");
   const snippet =
-    post.content && post.content.length > SNIPPET_LEN
-      ? post.content.slice(0, SNIPPET_LEN).trim() + "…"
-      : post.content || "";
+    plainText.length > SNIPPET_LEN
+      ? plainText.slice(0, SNIPPET_LEN).trim() + "…"
+      : plainText;
 
   const timeAgo = (() => {
     const d = new Date(post.created_at);
