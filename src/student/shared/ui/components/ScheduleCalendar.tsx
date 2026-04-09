@@ -99,7 +99,7 @@ export default function ScheduleCalendar({
       style={{
         background: "var(--stu-surface)",
         borderRadius: "var(--stu-radius-md)",
-        padding: "var(--stu-space-4)",
+        padding: "var(--stu-space-3) var(--stu-space-2)",
       }}
     >
       {/* 달력 헤더 — 클리닉과 동일 */}
@@ -135,7 +135,7 @@ export default function ScheduleCalendar({
         style={{
           display: "grid",
           gridTemplateColumns: "repeat(7, 1fr)",
-          gap: 4,
+          gap: 2,
           marginBottom: "var(--stu-space-2)",
         }}
       >
@@ -160,7 +160,7 @@ export default function ScheduleCalendar({
         style={{
           display: "grid",
           gridTemplateColumns: "repeat(7, 1fr)",
-          gap: 4,
+          gap: 2,
         }}
       >
         {calendarDays.map((day, idx) => {
@@ -180,7 +180,7 @@ export default function ScheduleCalendar({
               disabled={!isClickable}
               style={{
                 aspectRatio: "1",
-                minHeight: 44,
+                minHeight: 0,
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "center",
