@@ -94,7 +94,7 @@ export const PATCH_NOTES: PatchNote[] = [
       { category: "new", text: "직원 근태 UIUX 대폭 개선 — KPI 배너 + 타임라인 바" },
       { category: "new", text: "LandingPage 모델 + API — 선생님별 랜딩페이지 시스템" },
       { category: "new", text: "OMR 하드닝 v10 — 레이아웃 안전제한, 타이밍마크, 엔진 강건성" },
-      { category: "improve", text: "뿌리오 → 비즈뿌리오 v3 API 전환 + 리브랜딩" },
+      { category: "improve", text: "뿌리오 v3 API 전환" },
       { category: "improve", text: "커뮤니티 상품 레벨 UI/UX 개선 3건" },
       { category: "improve", text: "ErrorBoundary 배포 후 chunk hash 불일치 자동 리로드" },
       { category: "fix", text: "차시 학생 등록(bulk_create)에서 입실 알림톡 오발송 제거" },
