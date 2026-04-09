@@ -175,8 +175,8 @@ export default function HomeworkEnrollmentPanel({
         <div className="text-sm font-semibold text-[var(--text-primary)]">
           과제 대상 학생
         </div>
-        <div className="text-xs text-[var(--text-muted)]">
-          이 과제에 포함될 학생을 선택합니다.
+        <div className="text-xs text-[var(--text-muted)] leading-relaxed">
+          이 과제를 제출할 학생을 지정합니다. 대상으로 등록된 학생만 성적탭에 표시되고 점수 입력이 가능합니다.
         </div>
       </div>
 
@@ -189,13 +189,28 @@ export default function HomeworkEnrollmentPanel({
 
         {hasHomework && (
           <>
-            <div className="flex flex-wrap items-center justify-between gap-2 rounded border border-[var(--border-divider)] bg-[var(--bg-surface-soft)] px-3 py-2">
+            <div
+              className="flex flex-wrap items-center justify-between gap-2 rounded border px-3 py-2"
+              style={{
+                borderColor: !loadingAssignments && selectedCount === 0
+                  ? "color-mix(in srgb, var(--color-warning) 50%, var(--color-border-divider))"
+                  : "var(--color-border-divider)",
+                background: !loadingAssignments && selectedCount === 0
+                  ? "color-mix(in srgb, var(--color-warning) 8%, var(--color-bg-surface))"
+                  : "var(--bg-surface-soft)",
+              }}
+            >
               <div className="text-sm text-[var(--text-primary)]">
                 선택됨{" "}
-                <span className="font-semibold">
+                <span className={`font-semibold ${!loadingAssignments && selectedCount === 0 ? "text-[var(--color-warning)]" : ""}`}>
                   {loadingAssignments ? "..." : selectedCount}
                 </span>
                 명
+                {!loadingAssignments && selectedCount === 0 && (
+                  <span className="ml-2 text-xs text-[var(--color-warning)]">
+                    — 대상자를 등록해야 성적 입력이 가능합니다
+                  </span>
+                )}
                 {isAssignmentsError && (
                   <span className="ml-2 text-xs text-[var(--color-danger)]">
                     (불러오기 실패)
@@ -219,13 +234,13 @@ export default function HomeworkEnrollmentPanel({
                         await qc.invalidateQueries({ queryKey: QUERY_KEYS.SESSION_SCORES(sessionId) });
                         await qc.invalidateQueries({ queryKey: QUERY_KEYS.HOMEWORK_SESSION_ENROLLMENTS(sessionId) });
                       }
-                      feedback.success(`수강생 ${allIds.length}명 전체 등록 완료`);
+                      feedback.success(`수강생 ${allIds.length}명 일괄배정 완료`);
                     } catch {
                       feedback.error("전체 등록에 실패했습니다.");
                     }
                   }}
                 >
-                  수강생 전체 등록
+                  수강생 일괄배정
                 </Button>
                 <Button
                   type="button"

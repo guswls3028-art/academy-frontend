@@ -120,19 +120,34 @@ export default function ExamEnrollmentPanel({ examId }: { examId: number }) {
         <div className="text-sm font-semibold text-[var(--text-primary)]">
           시험 대상 학생
         </div>
-        <div className="text-xs text-[var(--text-muted)]">
-          이 시험에 포함될 학생을 선택합니다.
+        <div className="text-xs text-[var(--text-muted)] leading-relaxed">
+          이 시험에 응시할 학생을 지정합니다. 대상으로 등록된 학생만 성적탭에 표시되고 점수 입력이 가능합니다.
         </div>
       </div>
 
       <div className="space-y-3 p-4">
-        <div className="flex flex-wrap items-center justify-between gap-2 rounded border border-[var(--border-divider)] bg-[var(--bg-surface-soft)] px-3 py-2">
+        <div
+          className="flex flex-wrap items-center justify-between gap-2 rounded border px-3 py-2"
+          style={{
+            borderColor: !rowsQ.isLoading && selectedCountFromServer === 0
+              ? "color-mix(in srgb, var(--color-warning) 50%, var(--color-border-divider))"
+              : "var(--color-border-divider)",
+            background: !rowsQ.isLoading && selectedCountFromServer === 0
+              ? "color-mix(in srgb, var(--color-warning) 8%, var(--color-bg-surface))"
+              : "var(--bg-surface-soft)",
+          }}
+        >
           <div className="text-sm text-[var(--text-primary)]">
             선택됨{" "}
-            <span className="font-semibold">
+            <span className={`font-semibold ${!rowsQ.isLoading && selectedCountFromServer === 0 ? "text-[var(--color-warning)]" : ""}`}>
               {rowsQ.isLoading ? "..." : selectedCountFromServer}
             </span>
             명
+            {!rowsQ.isLoading && selectedCountFromServer === 0 && (
+              <span className="ml-2 text-xs text-[var(--color-warning)]">
+                — 대상자를 등록해야 성적 입력이 가능합니다
+              </span>
+            )}
             {rowsQ.isError && (
               <span className="ml-2 text-xs text-[var(--color-danger)]">
                 (불러오기 실패)
@@ -152,13 +167,13 @@ export default function ExamEnrollmentPanel({ examId }: { examId: number }) {
                 try {
                   await updateMut.mutateAsync({ enrollment_ids: allIds });
                   await qc.invalidateQueries({ queryKey: ["exam-enrollment", examId, sessionId] });
-                  feedback.success(`수강생 ${allIds.length}명 전체 등록 완료`);
+                  feedback.success(`수강생 ${allIds.length}명 일괄배정 완료`);
                 } catch {
                   feedback.error("전체 등록에 실패했습니다.");
                 }
               }}
             >
-              수강생 전체 등록
+              수강생 일괄배정
             </Button>
             <Button
               type="button"

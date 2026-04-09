@@ -26,9 +26,9 @@ export default function ExamBulkActionsPanel({ examId }: { examId: number }) {
     <section className="rounded-lg border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] overflow-hidden">
       <div className="flex items-center justify-between border-b border-[var(--color-border-divider)] px-4 py-3">
         <div>
-          <div className="text-sm font-semibold text-[var(--color-text-primary)]">OMR 업로드 · 운영</div>
-          <div className="mt-0.5 text-xs text-[var(--color-text-muted)]">
-            스캔 파일 업로드 및 일괄 재채점
+          <div className="text-sm font-semibold text-[var(--color-text-primary)]">OMR 업로드 · 재채점</div>
+          <div className="mt-0.5 text-xs text-[var(--color-text-muted)] leading-relaxed">
+            학생이 작성한 OMR 답안지를 스캔하여 업로드하면 객관식이 자동 채점됩니다. 답안 수정 후에는 재채점을 실행하세요.
           </div>
         </div>
         <Button

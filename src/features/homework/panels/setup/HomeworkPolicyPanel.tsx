@@ -44,7 +44,10 @@ export default function HomeworkPolicyPanel({ sessionId }: { sessionId: number }
   return (
     <section className="space-y-6 rounded border border-[var(--border-divider)] bg-[var(--bg-surface)] p-5">
       <div>
-        <div className="text-lg font-semibold">과제 설정</div>
+        <div className="text-lg font-semibold text-[var(--color-text-primary)]">과제 정책</div>
+        <div className="mt-1 text-xs text-[var(--color-text-muted)] leading-relaxed">
+          합격 기준(커트라인)을 설정합니다. 기준 미만이면 불합격 처리되며, 클리닉 보강 대상이 됩니다.
+        </div>
       </div>
 
       <div className="space-y-3">

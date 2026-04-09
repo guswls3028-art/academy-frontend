@@ -89,8 +89,8 @@ export default function ExamPolicyPanel({ examId, lectureId = 0, sessionId = 0 }
     <section className="rounded border border-[var(--border-divider)] bg-[var(--bg-surface)]">
       <div className="border-b border-[var(--border-divider)] px-4 py-3">
         <div className="text-sm font-semibold text-[var(--text-primary)]">시험 정책</div>
-        <div className="mt-0.5 text-xs text-[var(--text-muted)]">
-          커트라인을 설정합니다
+        <div className="mt-0.5 text-xs text-[var(--text-muted)] leading-relaxed">
+          합격 기준 점수(커트라인)를 설정합니다. 이 점수 미만이면 불합격 처리되며, 클리닉 보강 대상이 됩니다.
         </div>
       </div>
 
@@ -134,8 +134,8 @@ export default function ExamPolicyPanel({ examId, lectureId = 0, sessionId = 0 }
         <div className="space-y-3">
           <div>
             <div className="text-sm font-semibold text-[var(--text-primary)]">답안 등록</div>
-            <div className="mt-0.5 text-xs text-[var(--text-muted)]">
-              문항별 정답을 입력하고 저장합니다. 채점 시 사용됩니다.
+            <div className="mt-0.5 text-xs text-[var(--text-muted)] leading-relaxed">
+              문항별 정답을 입력하면 자동 채점에 사용됩니다. OMR 스캔 채점을 사용하려면 답안 등록이 필수입니다.
             </div>
           </div>
           <div className="flex items-center gap-2">

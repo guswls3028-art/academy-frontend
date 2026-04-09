@@ -488,9 +488,11 @@ export default function SessionScoresEntryPage(_props: Props) {
     );
   }
 
+  const hasExamsOrHomeworks = (data?.meta?.exams?.length ?? 0) > 0 || (data?.meta?.homeworks?.length ?? 0) > 0;
+
   const primaryAction = (
     <div className="flex items-center gap-2">
-      {/* 핵심 액션: 편집 모드 */}
+      {/* ── 그룹 1: 핵심 액션 ── */}
       <Button
         type="button"
         intent="primary"
@@ -516,24 +518,40 @@ export default function SessionScoresEntryPage(_props: Props) {
         {isSaving ? "저장 중…" : isEditMode ? "저장하기" : "편집 모드"}
       </Button>
 
-      <Button
-        type="button"
-        intent="secondary"
-        size="sm"
-        disabled={enrollingAll}
-        onClick={() => void handleEnrollAll()}
-        title="강의 수강생 전원을 이 차시에 등록"
-      >
-        {enrollingAll ? "등록 중…" : "대상자 전원등록"}
-      </Button>
+      {/* ── 구분선 ── */}
+      <span className="h-5 w-px bg-[var(--color-border-divider)]" aria-hidden="true" />
 
+      {/* ── 그룹 2: 추가 ── */}
       <Button
         type="button"
         intent="secondary"
         size="sm"
         onClick={() => { setShowCreateExam(true); }}
       >
-        시험 추가
+        + 시험
+      </Button>
+      <Button
+        type="button"
+        intent="secondary"
+        size="sm"
+        onClick={() => { setShowCreateHomework(true); }}
+      >
+        + 과제
+      </Button>
+
+      {/* ── 구분선 ── */}
+      <span className="h-5 w-px bg-[var(--color-border-divider)]" aria-hidden="true" />
+
+      {/* ── 그룹 3: 관리 ── */}
+      <Button
+        type="button"
+        intent="secondary"
+        size="sm"
+        disabled={enrollingAll || !hasExamsOrHomeworks}
+        onClick={() => void handleEnrollAll()}
+        title="이 차시의 수강생 전원을 모든 시험·과제의 응시/제출 대상으로 일괄 등록합니다"
+      >
+        {enrollingAll ? "등록 중…" : "수강생 일괄배정"}
       </Button>
 
       {/* OMR 업로드 — 시험이 1개면 바로 모달, 2개 이상이면 드롭다운 */}
@@ -559,7 +577,7 @@ export default function SessionScoresEntryPage(_props: Props) {
                 <polyline points="17 8 12 3 7 8" />
                 <line x1="12" y1="3" x2="12" y2="15" />
               </svg>
-              OMR 업로드
+              OMR
             </span>
           </Button>
           {showOmrPicker && (
@@ -584,15 +602,6 @@ export default function SessionScoresEntryPage(_props: Props) {
         </div>
       )}
 
-      <Button
-        type="button"
-        intent="secondary"
-        size="sm"
-        onClick={() => { setShowCreateHomework(true); }}
-      >
-        과제 추가
-      </Button>
-
       {/* 더보기 메뉴 */}
       <div ref={moreMenuRef} className="relative">
         <Button
@@ -611,16 +620,20 @@ export default function SessionScoresEntryPage(_props: Props) {
             className="absolute right-0 top-full mt-1 z-50 bg-[var(--color-bg-surface)] border border-[var(--color-border-divider)] rounded-lg shadow-lg py-1 min-w-[180px]"
           >
             <button type="button" className="w-full text-left px-4 py-2 text-sm hover:bg-[var(--color-bg-surface-hover)] flex items-center gap-2" onClick={() => { setShowPrintPreview(true); setShowMoreMenu(false); }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-[var(--color-text-muted)]"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
               성적표 출력
             </button>
             <button type="button" className="w-full text-left px-4 py-2 text-sm hover:bg-[var(--color-bg-surface-hover)] flex items-center gap-2" onClick={() => { setShowClinicPreview(true); setShowMoreMenu(false); }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-[var(--color-text-muted)]"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
               클리닉 대상 보기
             </button>
             <div className="border-t border-[var(--color-border-divider)] my-1" />
-            <button type="button" className="w-full text-left px-4 py-2 text-sm text-[var(--color-error)] hover:bg-[var(--color-bg-surface-hover)]" disabled={closingExams} onClick={() => { void handleCloseAllExams(); setShowMoreMenu(false); }}>
+            <button type="button" className="w-full text-left px-4 py-2 text-sm text-[var(--color-error)] hover:bg-[var(--color-bg-surface-hover)] flex items-center gap-2" disabled={closingExams} onClick={() => { void handleCloseAllExams(); setShowMoreMenu(false); }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
               {closingExams ? "종료 중…" : "전체 시험 종료"}
             </button>
-            <button type="button" className="w-full text-left px-4 py-2 text-sm text-[var(--color-error)] hover:bg-[var(--color-bg-surface-hover)]" disabled={closingHomeworks} onClick={() => { void handleCloseAllHomeworks(); setShowMoreMenu(false); }}>
+            <button type="button" className="w-full text-left px-4 py-2 text-sm text-[var(--color-error)] hover:bg-[var(--color-bg-surface-hover)] flex items-center gap-2" disabled={closingHomeworks} onClick={() => { void handleCloseAllHomeworks(); setShowMoreMenu(false); }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
               {closingHomeworks ? "종료 중…" : "전체 과제 종료"}
             </button>
           </div>
@@ -667,7 +680,7 @@ export default function SessionScoresEntryPage(_props: Props) {
             )}
           </div>
         }
-        belowSlot={selectionBar}
+        belowSlot={selectedEnrollmentIds.length > 0 ? selectionBar : undefined}
       />
 
       {draft.hasDraftToRestore && (
@@ -704,7 +717,8 @@ export default function SessionScoresEntryPage(_props: Props) {
         </div>
       )}
 
-      {/* 설정 바 — 읽기 모드: 표시 설정 / 편집 모드: 편집 항목. 높이 고정으로 테이블 위치 불변 */}
+      {/* 설정 바 — 읽기 모드: 표시 설정 / 편집 모드: 편집 항목 */}
+      {(isEditMode || hasExamsOrHomeworks) && (
       <div className="scores-view-filter-panel">
         {isEditMode ? (
           <div className="scores-view-filter-section">
@@ -716,6 +730,8 @@ export default function SessionScoresEntryPage(_props: Props) {
               <button type="button" onClick={handleSelectSubjective} className="scores-display-segment__btn" aria-pressed={examEditSubjective && !homeworkEdit}>주관식</button>
               <button type="button" onClick={handleSelectHomework} className="scores-display-segment__btn" aria-pressed={homeworkEdit && !examEditTotal && !examEditSubjective}>과제</button>
             </div>
+            <span className="h-4 w-px bg-[var(--color-border-divider)] mx-1 hidden sm:block" aria-hidden="true" />
+            <span className="text-[11px] text-[var(--color-text-muted)] hidden sm:inline">Tab·화살표로 셀 이동 · Enter로 다음 행</span>
           </div>
         ) : (
           <>
@@ -746,6 +762,7 @@ export default function SessionScoresEntryPage(_props: Props) {
           </>
         )}
       </div>
+      )}
 
       {isLoading && (
         <EmptyState scope="panel" tone="loading" title="성적 불러오는 중…" />
@@ -763,6 +780,92 @@ export default function SessionScoresEntryPage(_props: Props) {
             </Button>
           }
         />
+      )}
+
+      {/* ── 워크플로우 안내: 시험/과제가 없을 때 ── */}
+      {!isLoading && !isError && !hasExamsOrHomeworks && (
+        <div
+          className="rounded-xl border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] overflow-hidden"
+          style={{ boxShadow: "var(--elevation-1)" }}
+        >
+          <div className="px-6 pt-6 pb-2">
+            <h3 className="text-[15px] font-semibold text-[var(--color-text-primary)]">성적 관리 시작하기</h3>
+            <p className="mt-1 text-[13px] text-[var(--color-text-muted)]">아래 순서대로 진행하면 성적을 입력하고 관리할 수 있습니다.</p>
+          </div>
+          <div className="px-6 pb-6 pt-3 flex flex-col gap-3">
+            {[
+              {
+                step: "1",
+                title: "시험 또는 과제 추가",
+                desc: "상단의 '+ 시험' / '+ 과제' 버튼으로 이 차시에 시험이나 과제를 만드세요.",
+                active: true,
+              },
+              {
+                step: "2",
+                title: "수강생 일괄배정",
+                desc: "시험·과제를 추가한 뒤 '수강생 일괄배정'을 누르면 수강생 전원이 응시 대상이 됩니다.",
+                active: false,
+              },
+              {
+                step: "3",
+                title: "성적 입력",
+                desc: "'편집 모드'에서 각 학생의 점수를 직접 입력하거나, OMR 스캔으로 자동 채점하세요.",
+                active: false,
+              },
+            ].map((item) => (
+              <div
+                key={item.step}
+                className="flex items-start gap-3 rounded-lg border px-4 py-3"
+                style={{
+                  borderColor: item.active ? "var(--color-brand-primary)" : "var(--color-border-divider)",
+                  background: item.active
+                    ? "color-mix(in srgb, var(--color-brand-primary) 6%, var(--color-bg-surface))"
+                    : "var(--color-bg-surface-soft)",
+                }}
+              >
+                <span
+                  className="shrink-0 flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold"
+                  style={{
+                    background: item.active ? "var(--color-brand-primary)" : "var(--color-border-divider)",
+                    color: item.active ? "#fff" : "var(--color-text-muted)",
+                  }}
+                >
+                  {item.step}
+                </span>
+                <div className="min-w-0">
+                  <div className="text-[13px] font-semibold text-[var(--color-text-primary)]">{item.title}</div>
+                  <div className="mt-0.5 text-[12px] text-[var(--color-text-muted)] leading-relaxed">{item.desc}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── 안내 배너: 시험/과제는 있지만 대상자가 없을 때 ── */}
+      {!isLoading && !isError && hasExamsOrHomeworks && displayCount === 0 && (
+        <div
+          className="flex items-start gap-3 rounded-lg border px-4 py-3"
+          style={{
+            borderColor: "color-mix(in srgb, var(--color-warning) 50%, var(--color-border-divider))",
+            background: "color-mix(in srgb, var(--color-warning) 8%, var(--color-bg-surface))",
+          }}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-warning)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 mt-0.5">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="12" />
+            <line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg>
+          <div className="min-w-0">
+            <div className="text-[13px] font-semibold text-[var(--color-text-primary)]">
+              수강생이 아직 시험·과제에 배정되지 않았습니다
+            </div>
+            <div className="mt-0.5 text-[12px] text-[var(--color-text-muted)] leading-relaxed">
+              상단의 <strong>'수강생 일괄배정'</strong> 버튼을 누르면 이 차시의 수강생 전원이 모든 시험·과제의 응시 대상으로 등록됩니다.
+              개별 관리가 필요하면 시험/과제 상세에서 대상자를 선택할 수 있습니다.
+            </div>
+          </div>
+        </div>
       )}
 
       {!isLoading && !isError && (
