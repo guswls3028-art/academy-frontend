@@ -11,6 +11,7 @@ import type { StudentSession } from "@/student/domains/sessions/api/sessions";
 import EmptyState from "@/student/shared/ui/layout/EmptyState";
 import { formatYmd } from "@/student/shared/utils/date";
 import { IconCalendar, IconClinic, IconChevronRight } from "@/student/shared/ui/icons/Icons";
+import { getTenantCodeForApiRequest } from "@/shared/tenant";
 
 function toDateKey(d: string | null | undefined): string | null {
   if (!d) return null;
@@ -19,11 +20,19 @@ function toDateKey(d: string | null | undefined): string | null {
 
 type ScheduleTab = "calendar" | "upcoming" | "past";
 
-const TAB_ITEMS: { key: ScheduleTab; label: string }[] = [
-  { key: "calendar", label: "내 일정" },
-  { key: "upcoming", label: "예약" },
-  { key: "past", label: "지난 일정" },
-];
+/** 지난 일정 탭을 숨기는 테넌트 */
+const HIDE_PAST_TAB_TENANTS = ["limglish"];
+
+function getTabItems(): { key: ScheduleTab; label: string }[] {
+  const code = getTenantCodeForApiRequest();
+  const hidePast = code != null && HIDE_PAST_TAB_TENANTS.includes(String(code));
+  const items: { key: ScheduleTab; label: string }[] = [
+    { key: "calendar", label: "내 일정" },
+    { key: "upcoming", label: "예약" },
+  ];
+  if (!hidePast) items.push({ key: "past", label: "지난 일정" });
+  return items;
+}
 
 export default function SessionListPage() {
   const [tab, setTab] = useState<ScheduleTab>("calendar");
@@ -120,8 +129,8 @@ export default function SessionListPage() {
   return (
     <StudentPageShell title="일정" description="날짜를 누르면 해당 날의 일정을 볼 수 있어요.">
       <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-4)" }}>
-        {/* 3탭 */}
-        <TabBar items={TAB_ITEMS} value={tab} onChange={setTab} counts={{ upcoming: upcomingSessions.length, past: pastSessions.length }} />
+        {/* 탭 */}
+        <TabBar items={getTabItems()} value={tab} onChange={setTab} counts={{ upcoming: upcomingSessions.length, past: pastSessions.length }} />
 
         {/* 내 일정 탭: 달력 */}
         {tab === "calendar" && (
