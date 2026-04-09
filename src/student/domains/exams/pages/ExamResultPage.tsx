@@ -96,7 +96,7 @@ export default function ExamResultPage() {
         </div>
 
         {/* ── Rank & Comparison ── */}
-        {r.rank != null && r.cohort_size != null && r.cohort_size > 1 && (
+        {r.rank != null && r.cohort_size != null && r.cohort_size > 1 && r.meta_status !== "NOT_SUBMITTED" && (
           <RankComparisonCard
             rank={r.rank}
             cohortSize={r.cohort_size}
@@ -226,8 +226,8 @@ function RankComparisonCard({
   maxScore: number;
 }) {
   const topPct = cohortSize > 1
-    ? Math.round((rank / cohortSize) * 100)
-    : 0;
+    ? Math.round(rank / cohortSize * 100)
+    : 100;
   const diff = cohortAvg != null ? Math.round((myScore - cohortAvg) * 10) / 10 : null;
   const avgBarPct = cohortAvg != null && maxScore > 0 ? Math.round((cohortAvg / maxScore) * 100) : 0;
   const myBarPct = maxScore > 0 ? Math.round((myScore / maxScore) * 100) : 0;

@@ -151,7 +151,7 @@ export default function GradesPage() {
       ? (examsWithCriteria.filter((e) => e.is_pass).length / examsWithCriteria.length) * 100
       : 0;
     // 평균 석차 (석차가 있는 시험만)
-    const rankedExams = exams.filter((e) => e.rank != null && e.cohort_size != null && e.cohort_size > 1);
+    const rankedExams = exams.filter((e) => e.rank != null && e.cohort_size != null && e.cohort_size > 1 && e.meta_status !== "NOT_SUBMITTED");
     const avgRank = rankedExams.length > 0
       ? Math.round((rankedExams.reduce((s, e) => s + e.rank!, 0) / rankedExams.length) * 10) / 10
       : null;
@@ -460,7 +460,7 @@ function LectureExamGroup({ group }: { group: ExamGroup }) {
               <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 }}>
                 <GradeBadge passed={e.is_pass} achievement={e.achievement} />
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  {e.rank != null && e.cohort_size != null && e.cohort_size > 1 && (
+                  {e.rank != null && e.cohort_size != null && e.cohort_size > 1 && e.meta_status !== "NOT_SUBMITTED" && (
                     <span
                       style={{
                         fontSize: 11,
