@@ -523,8 +523,9 @@ function NoticeDetailView({
                   onChange={(e) => setEditingTitle(e.target.value)}
                   autoFocus
                   onKeyDown={(e) => {
-                    if (e.key === "Enter" && editingTitle.trim() && editingTitle.trim() !== post.title) {
-                      updateTitleMut.mutate(editingTitle.trim(), { onSuccess: () => setIsEditingTitle(false) });
+                    const val = (e.currentTarget as HTMLInputElement).value.trim();
+                    if (e.key === "Enter" && val && val !== post.title) {
+                      updateTitleMut.mutate(val, { onSuccess: () => setIsEditingTitle(false) });
                     }
                     if (e.key === "Escape") {
                       setEditingTitle(post.title ?? "");
