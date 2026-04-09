@@ -13,6 +13,6 @@ export function useAdminExam(examId?: number) {
   return useQuery({
     queryKey: ["admin-exam", safeId],
     queryFn: () => fetchAdminExam(safeId),
-    enabled: Number.isFinite(safeId),
+    enabled: Number.isFinite(safeId) && safeId > 0,
   });
 }

@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import api from "@/shared/api/axios";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
+import { AdminModal, ModalHeader, ModalBody, ModalFooter } from "@/shared/ui/modal";
+import { Button } from "@/shared/ui/ds";
 
 type SessionEnrollment = {
   enrollment: number;
@@ -40,27 +42,21 @@ export default function ExamTargetEditModal({
       .finally(() => setLoading(false));
   }, [open, sessionId]);
 
-  if (!open) return null;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="w-[520px] rounded bg-surface shadow">
-        <div className="border-b px-4 py-3 flex justify-between">
-          <div className="text-sm font-semibold">시험 대상 학생</div>
-          <button onClick={onClose} className="text-sm text-muted">
-            닫기
-          </button>
-        </div>
-
-        <div className="max-h-[60vh] overflow-auto px-4 py-3">
+    <AdminModal open={open} onClose={onClose} type="inspect" width={520}>
+      <ModalHeader type="inspect" title="시험 대상 학생" onClose={onClose} />
+      <ModalBody>
+        <div style={{ maxHeight: "60vh", overflowY: "auto" }}>
           {loading ? (
-            <div className="text-sm text-muted">불러오는 중...</div>
+            <div className="text-sm text-[var(--color-text-muted)] py-4 text-center">불러오는 중...</div>
+          ) : rows.length === 0 ? (
+            <div className="text-sm text-[var(--color-text-muted)] py-4 text-center">등록된 대상 학생이 없습니다.</div>
           ) : (
             <ul className="space-y-1 text-sm">
               {rows.map((r) => (
                 <li
                   key={r.enrollment}
-                  className="flex justify-between rounded border px-3 py-2"
+                  className="flex justify-between rounded border border-[var(--color-border-divider)] px-3 py-2"
                 >
                   <StudentNameWithLectureChip
                     name={r.student_name}
@@ -74,13 +70,10 @@ export default function ExamTargetEditModal({
             </ul>
           )}
         </div>
-
-        <div className="border-t px-4 py-2 text-right">
-          <button className="btn" onClick={onClose}>
-            닫기
-          </button>
-        </div>
-      </div>
-    </div>
+      </ModalBody>
+      <ModalFooter>
+        <Button intent="secondary" onClick={onClose}>닫기</Button>
+      </ModalFooter>
+    </AdminModal>
   );
 }
