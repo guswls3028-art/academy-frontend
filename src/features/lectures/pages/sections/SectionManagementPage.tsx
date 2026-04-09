@@ -56,7 +56,7 @@ export default function SectionManagementPage() {
   const { lectureId } = useParams<{ lectureId: string }>();
   const lecId = Number(lectureId);
   const qc = useQueryClient();
-  const { clinicMode } = useSectionMode();
+  const { sectionMode, clinicMode } = useSectionMode();
   const showClinic = clinicMode === "regular";
 
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -126,6 +126,18 @@ export default function SectionManagementPage() {
       (a) => a.class_section === selectedId || a.clinic_section === selectedId,
     );
   }, [assignments, selectedId]);
+
+  // 반 편성 모드가 꺼져 있으면 접근 차단 (hooks 뒤에 배치)
+  if (!sectionMode) {
+    return (
+      <EmptyState
+        scope="page"
+        tone="empty"
+        title="반 편성 모드가 비활성화되어 있습니다"
+        description="설정 > 개발자 콘솔 > 운영 설정에서 반 편성 모드를 활성화하세요."
+      />
+    );
+  }
 
   // -- Form handlers --
   const openCreate = (type: "CLASS" | "CLINIC") => {

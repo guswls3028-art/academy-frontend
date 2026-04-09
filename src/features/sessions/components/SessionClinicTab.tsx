@@ -32,6 +32,7 @@ import { useClinicTargets } from "@/features/clinic/hooks/useClinicTargets";
 import type { ClinicTarget } from "@/features/clinic/api/clinicTargets";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { EmptyState, Button } from "@/shared/ui/ds";
+import { useSectionMode } from "@/shared/hooks/useSectionMode";
 
 /* ─── Constants ─── */
 
@@ -297,6 +298,7 @@ export default function SessionClinicTab({
   lectureId: number;
 }) {
   const navigate = useNavigate();
+  const { sectionMode } = useSectionMode();
 
   const { data: currentSession, isLoading: sessionLoading } = useQuery({
     queryKey: ["session", sessionId],
@@ -419,6 +421,18 @@ export default function SessionClinicTab({
     const targets = enrolledStudents.filter((s) => s.clinicTarget != null).length;
     return { total, assigned, unassigned: total - assigned, targets };
   }, [enrolledStudents, enrollClinicMap, clinicSections]);
+
+  // 반 편성 모드가 꺼져 있으면 접근 차단 (hooks 뒤에 배치)
+  if (!sectionMode) {
+    return (
+      <EmptyState
+        scope="panel"
+        tone="empty"
+        title="반 편성 모드가 비활성화되어 있습니다"
+        description="이 탭은 반 편성 모드에서만 사용할 수 있습니다."
+      />
+    );
+  }
 
   // ── 로딩 / 에러 / 빈 상태 ──
 
