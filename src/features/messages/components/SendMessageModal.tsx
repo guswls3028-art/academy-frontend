@@ -415,7 +415,7 @@ export default function SendMessageModal({
   const smsAllowed = messagingInfo?.sms_allowed ?? false;
 
   // ─── State ───
-  const [sendMode, setSendMode] = useState<SendMode>("sms");
+  const [sendMode, setSendMode] = useState<SendMode>("alimtalk");
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
   const [freeContent, setFreeContent] = useState("");
