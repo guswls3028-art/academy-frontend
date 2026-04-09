@@ -64,7 +64,18 @@ function SegmentedTabs<T extends string>({
   onChange: (v: T) => void;
 }) {
   return (
-    <div style={{ display: "flex", gap: 4, padding: 4, background: "var(--stu-surface-soft)", borderRadius: 10 }}>
+    <div
+      style={{
+        display: "flex",
+        gap: 3,
+        padding: 3,
+        background: "var(--stu-surface-soft)",
+        borderRadius: 12,
+        overflowX: "auto",
+        WebkitOverflowScrolling: "touch",
+        scrollbarWidth: "none",
+      }}
+    >
       {items.map(({ key, label, count }) => {
         const active = value === key;
         return (
@@ -73,23 +84,24 @@ function SegmentedTabs<T extends string>({
             type="button"
             onClick={() => onChange(key)}
             style={{
-              flex: 1,
-              padding: "8px 6px",
+              flex: "1 0 auto",
+              minWidth: 0,
+              padding: "10px 12px",
               border: "none",
-              borderRadius: 7,
+              borderRadius: 9,
               background: active ? "var(--stu-surface)" : "transparent",
               fontSize: 13,
               fontWeight: active ? 700 : 500,
               color: active ? "var(--stu-text)" : "var(--stu-text-muted)",
-              boxShadow: active ? "0 1px 4px rgba(0,0,0,0.08)" : undefined,
+              boxShadow: active ? "0 1px 6px rgba(0,0,0,0.08), 0 0 0 0.5px rgba(0,0,0,0.04)" : undefined,
               cursor: "pointer",
-              transition: "all var(--stu-motion-fast)",
+              transition: "all 0.2s ease",
               letterSpacing: "-0.01em",
               whiteSpace: "nowrap",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              gap: 4,
+              gap: 5,
             }}
           >
             <span>{label}</span>
@@ -100,7 +112,7 @@ function SegmentedTabs<T extends string>({
                   height: 18,
                   padding: "0 5px",
                   borderRadius: 999,
-                  background: active ? "var(--stu-primary)" : "rgba(17,17,17,0.1)",
+                  background: active ? "var(--stu-primary)" : "rgba(17,17,17,0.08)",
                   color: active ? "#fff" : "var(--stu-text-muted)",
                   fontSize: 10,
                   fontWeight: 700,
@@ -126,14 +138,19 @@ function StatusChip({ answered }: { answered: boolean }) {
       style={{
         display: "inline-flex",
         alignItems: "center",
+        gap: 4,
         padding: "4px 10px",
-        borderRadius: 6,
-        fontSize: 12,
-        fontWeight: 600,
-        background: answered ? "var(--stu-success-bg)" : "var(--stu-surface-soft)",
-        color: answered ? "var(--stu-success-text)" : "var(--stu-text-muted)",
+        borderRadius: 999,
+        fontSize: 11,
+        fontWeight: 700,
+        letterSpacing: "-0.01em",
+        background: answered ? "rgba(22,163,106,0.1)" : "rgba(234,179,8,0.1)",
+        color: answered ? "#16a34a" : "#ca8a04",
+        border: answered ? "1px solid rgba(22,163,106,0.15)" : "1px solid rgba(234,179,8,0.15)",
+        flexShrink: 0,
       }}
     >
+      <span style={{ width: 6, height: 6, borderRadius: "50%", background: answered ? "#16a34a" : "#ca8a04" }} />
       {answered ? "답변 완료" : "답변 대기"}
     </span>
   );
@@ -244,18 +261,22 @@ function NoticeDetail({ id, onBack }: { id: number; onBack: () => void }) {
   if (!post) return <StudentPageShell title="공지사항" onBack={onBack}><EmptyState title="공지사항을 찾을 수 없습니다" /></StudentPageShell>;
 
   const node = post.mappings?.[0]?.node_detail;
+  const scopeVariant = node?.session_title ? "session" : node?.lecture_title ? "primary" : "default";
 
   return (
     <StudentPageShell title="공지사항" onBack={onBack}>
       <div className="stu-section stu-section--nested" style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-4)" }}>
         <div>
-          <h1 style={{ fontWeight: 700, fontSize: 20, marginBottom: "var(--stu-space-3)" }}>{post.title}</h1>
+          <h1 style={{ fontWeight: 700, fontSize: 20, marginBottom: "var(--stu-space-3)", lineHeight: 1.4, letterSpacing: "-0.02em" }}>{post.title}</h1>
           <div style={{ display: "flex", gap: "var(--stu-space-2)", alignItems: "center", flexWrap: "wrap" }}>
-            <Tag>{getScopeLabel(post)}</Tag>
+            <Tag variant={scopeVariant}>{getScopeLabel(post)}</Tag>
             <span className="stu-muted" style={{ fontSize: 13 }}>{formatYmd(post.created_at)}</span>
+            {post.created_by_display && <span className="stu-muted" style={{ fontSize: 13 }}>· {post.created_by_display}</span>}
           </div>
         </div>
-        <HtmlContent html={post.content} />
+        <div style={{ borderTop: "1px solid var(--stu-border-subtle, rgba(0,0,0,0.06))", paddingTop: "var(--stu-space-4)" }}>
+          <HtmlContent html={post.content} />
+        </div>
         <AttachmentList postId={post.id} attachments={post.attachments} />
       </div>
     </StudentPageShell>
@@ -554,19 +575,22 @@ function BoardDetail({ id, onBack }: { id: number; onBack: () => void }) {
   if (!post) return <StudentPageShell title="게시물" onBack={onBack}><EmptyState title="게시물을 찾을 수 없습니다" /></StudentPageShell>;
 
   const node = post.mappings?.[0]?.node_detail;
+  const scopeVariant = node?.session_title ? "session" as const : node?.lecture_title ? "primary" as const : "default" as const;
 
   return (
     <StudentPageShell title="게시물" onBack={onBack}>
       <div className="stu-section stu-section--nested" style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-4)" }}>
         <div>
-          <h1 style={{ fontWeight: 700, fontSize: 20, marginBottom: "var(--stu-space-3)" }}>{post.title}</h1>
+          <h1 style={{ fontWeight: 700, fontSize: 20, marginBottom: "var(--stu-space-3)", lineHeight: 1.4, letterSpacing: "-0.02em" }}>{post.title}</h1>
           <div style={{ display: "flex", gap: "var(--stu-space-2)", alignItems: "center", flexWrap: "wrap" }}>
-            <Tag>{getScopeLabel(post)}</Tag>
+            <Tag variant={scopeVariant}>{getScopeLabel(post)}</Tag>
             <span className="stu-muted" style={{ fontSize: 13 }}>{formatYmd(post.created_at)}</span>
             {post.created_by_display && <span className="stu-muted" style={{ fontSize: 13 }}>· {post.created_by_display}</span>}
           </div>
         </div>
-        <HtmlContent html={post.content} />
+        <div style={{ borderTop: "1px solid var(--stu-border-subtle, rgba(0,0,0,0.06))", paddingTop: "var(--stu-space-4)" }}>
+          <HtmlContent html={post.content} />
+        </div>
         <AttachmentList postId={post.id} attachments={post.attachments} />
       </div>
     </StudentPageShell>
@@ -864,18 +888,22 @@ function MaterialsDetail({ id, onBack }: { id: number; onBack: () => void }) {
   if (!post) return <StudentPageShell title="자료실" onBack={onBack}><EmptyState title="자료를 찾을 수 없습니다" /></StudentPageShell>;
 
   const node = post.mappings?.[0]?.node_detail;
+  const scopeVariant = node?.session_title ? "session" as const : node?.lecture_title ? "primary" as const : "default" as const;
 
   return (
     <StudentPageShell title="자료실" onBack={onBack}>
       <div className="stu-section stu-section--nested" style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-4)" }}>
         <div>
-          <h1 style={{ fontWeight: 700, fontSize: 20, marginBottom: "var(--stu-space-3)" }}>{post.title}</h1>
+          <h1 style={{ fontWeight: 700, fontSize: 20, marginBottom: "var(--stu-space-3)", lineHeight: 1.4, letterSpacing: "-0.02em" }}>{post.title}</h1>
           <div style={{ display: "flex", gap: "var(--stu-space-2)", alignItems: "center", flexWrap: "wrap" }}>
-            <Tag>{getScopeLabel(post)}</Tag>
+            <Tag variant={scopeVariant}>{getScopeLabel(post)}</Tag>
             <span className="stu-muted" style={{ fontSize: 13 }}>{formatYmd(post.created_at)}</span>
+            {post.created_by_display && <span className="stu-muted" style={{ fontSize: 13 }}>· {post.created_by_display}</span>}
           </div>
         </div>
-        <HtmlContent html={post.content} />
+        <div style={{ borderTop: "1px solid var(--stu-border-subtle, rgba(0,0,0,0.06))", paddingTop: "var(--stu-space-4)" }}>
+          <HtmlContent html={post.content} />
+        </div>
         <AttachmentList postId={post.id} attachments={post.attachments} />
       </div>
     </StudentPageShell>
@@ -1112,7 +1140,7 @@ function getScopeLabel(post: { mappings?: Array<{ node_detail?: { session_title?
 // Shared primitives
 // ═══════════════════════════════════════════
 function PostList({ children }: { children: React.ReactNode }) {
-  return <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-2)" }}>{children}</div>;
+  return <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>{children}</div>;
 }
 
 function PostRow({
@@ -1126,38 +1154,91 @@ function PostRow({
   right?: React.ReactNode;
   subtitle?: string;
 }) {
+  // 본문 미리보기 (HTML 태그 제거, 80자 제한)
+  const preview = useMemo(() => {
+    if (!post.content) return "";
+    const text = post.content.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim();
+    return text.length > 80 ? text.slice(0, 80) + "…" : text;
+  }, [post.content]);
+
   return (
     <button
       type="button"
       className="stu-panel stu-panel--pressable"
       onClick={onClick}
-      style={{ textAlign: "left", padding: "var(--stu-space-4)", display: "flex", alignItems: "center", gap: "var(--stu-space-3)" }}
+      style={{
+        textAlign: "left",
+        padding: "14px 16px",
+        display: "flex",
+        alignItems: "center",
+        gap: "var(--stu-space-3)",
+        borderLeft: post.is_urgent ? "3px solid var(--stu-danger, #ef4444)" : post.is_pinned ? "3px solid var(--stu-primary)" : "3px solid transparent",
+        transition: "transform 0.15s ease, box-shadow 0.15s ease",
+      }}
     >
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 6 }}>
+        {/* 제목 행 */}
+        <div style={{ fontWeight: 600, fontSize: 14, marginBottom: preview ? 6 : 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 6 }}>
           {post.is_urgent && (
-            <span style={{ flexShrink: 0, fontSize: 11, fontWeight: 700, color: "#fff", background: "var(--stu-danger, #ef4444)", borderRadius: 4, padding: "1px 6px", lineHeight: 1.5 }}>긴급</span>
+            <span style={{ flexShrink: 0, fontSize: 10, fontWeight: 700, color: "#fff", background: "var(--stu-danger, #ef4444)", borderRadius: 4, padding: "2px 6px", lineHeight: 1.4 }}>긴급</span>
+          )}
+          {post.is_pinned && !post.is_urgent && (
+            <span style={{ flexShrink: 0, fontSize: 10, fontWeight: 700, color: "var(--stu-primary)", background: "rgba(59,130,246,0.1)", borderRadius: 4, padding: "2px 6px", lineHeight: 1.4 }}>고정</span>
           )}
           <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{post.title}</span>
         </div>
-        <div className="stu-muted" style={{ fontSize: 12 }}>
-          {formatYmd(post.created_at)}
-          {subtitle && <> · {subtitle}</>}
-          {isAnswered(post) && post.replies_count != null && post.replies_count > 0 && <> · 답변 {post.replies_count}개</>}
+        {/* 본문 미리보기 */}
+        {preview && (
+          <div style={{ fontSize: 12.5, color: "var(--stu-text-muted)", marginBottom: 6, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", lineHeight: 1.4, opacity: 0.75 }}>
+            {preview}
+          </div>
+        )}
+        {/* 메타 행 */}
+        <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+          <span style={{ fontSize: 11.5, color: "var(--stu-text-subtle, var(--stu-text-muted))", opacity: 0.7 }}>
+            {formatYmd(post.created_at)}
+          </span>
+          {subtitle && (
+            <span style={{
+              fontSize: 11,
+              fontWeight: 600,
+              color: "var(--stu-primary)",
+              background: "rgba(59,130,246,0.08)",
+              padding: "1px 7px",
+              borderRadius: 4,
+              lineHeight: 1.5,
+            }}>
+              {subtitle}
+            </span>
+          )}
+          {isAnswered(post) && post.replies_count != null && post.replies_count > 0 && (
+            <span style={{ fontSize: 11, color: "var(--stu-success-text, #16a34a)", fontWeight: 600 }}>
+              답변 {post.replies_count}개
+            </span>
+          )}
           {(post.attachments?.length ?? 0) > 0 && (
-            <> · <svg width="12" height="12" viewBox="0 0 14 14" fill="none" style={{ display: "inline", verticalAlign: "-1px" }}><path d="M12 7.17l-4.59 4.59a3.25 3.25 0 01-4.6-4.6l5.3-5.3a2.17 2.17 0 013.06 3.07l-5.3 5.3a1.08 1.08 0 01-1.53-1.53l4.59-4.6" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" /></svg> {post.attachments!.length}</>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 2, fontSize: 11, color: "var(--stu-text-muted)", opacity: 0.7 }}>
+              <svg width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M12 7.17l-4.59 4.59a3.25 3.25 0 01-4.6-4.6l5.3-5.3a2.17 2.17 0 013.06 3.07l-5.3 5.3a1.08 1.08 0 01-1.53-1.53l4.59-4.6" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+              {post.attachments!.length}
+            </span>
           )}
         </div>
       </div>
       {right}
-      <IconChevronRight style={{ width: 16, height: 16, color: "var(--stu-text-muted)", flexShrink: 0 }} />
+      <IconChevronRight style={{ width: 16, height: 16, color: "var(--stu-text-muted)", flexShrink: 0, opacity: 0.5 }} />
     </button>
   );
 }
 
-function Tag({ children }: { children: React.ReactNode }) {
+function Tag({ children, variant }: { children: React.ReactNode; variant?: "default" | "primary" | "session" }) {
+  const v = variant ?? "default";
+  const styles: Record<string, React.CSSProperties> = {
+    default: { background: "var(--stu-surface-soft)", color: "var(--stu-text-muted)" },
+    primary: { background: "rgba(59,130,246,0.1)", color: "var(--stu-primary)" },
+    session: { background: "rgba(139,92,246,0.08)", color: "#7c3aed" },
+  };
   return (
-    <span className="stu-muted" style={{ fontSize: 12, padding: "4px 10px", borderRadius: 6, background: "var(--stu-surface-soft)" }}>
+    <span style={{ fontSize: 12, fontWeight: 600, padding: "3px 10px", borderRadius: 6, ...styles[v] }}>
       {children}
     </span>
   );
@@ -1169,8 +1250,10 @@ function Loading() {
 
 function SkeletonList() {
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-      {[1, 2, 3].map((i) => <div key={i} className="stu-skel" style={{ height: 72, borderRadius: "var(--stu-radius-md)" }} />)}
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      {[1, 2, 3].map((i) => (
+        <div key={i} className="stu-skel" style={{ height: 84, borderRadius: "var(--stu-radius-md)", opacity: 1 - (i - 1) * 0.2 }} />
+      ))}
     </div>
   );
 }
