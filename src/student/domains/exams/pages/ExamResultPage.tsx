@@ -95,6 +95,17 @@ export default function ExamResultPage() {
           )}
         </div>
 
+        {/* ── Rank & Comparison ── */}
+        {r.rank != null && r.cohort_size != null && r.cohort_size > 1 && (
+          <RankComparisonCard
+            rank={r.rank}
+            cohortSize={r.cohort_size}
+            cohortAvg={r.cohort_avg ?? null}
+            myScore={r.total_score}
+            maxScore={r.max_score}
+          />
+        )}
+
         {/* ── Correct/Wrong Bar ── */}
         {items.length > 0 && (
           <CorrectBar correct={correctCount} wrong={wrongCount} />
@@ -196,6 +207,108 @@ function ScoreGauge({ pct, passed }: { pct: number; passed: boolean | null }) {
         %
       </text>
     </svg>
+  );
+}
+
+/* ── Rank Comparison Card ── */
+
+function RankComparisonCard({
+  rank,
+  cohortSize,
+  cohortAvg,
+  myScore,
+  maxScore,
+}: {
+  rank: number;
+  cohortSize: number;
+  cohortAvg: number | null;
+  myScore: number;
+  maxScore: number;
+}) {
+  const topPct = cohortSize > 1
+    ? Math.round((rank / cohortSize) * 100)
+    : 0;
+  const diff = cohortAvg != null ? Math.round((myScore - cohortAvg) * 10) / 10 : null;
+  const avgBarPct = cohortAvg != null && maxScore > 0 ? Math.round((cohortAvg / maxScore) * 100) : 0;
+  const myBarPct = maxScore > 0 ? Math.round((myScore / maxScore) * 100) : 0;
+
+  return (
+    <div
+      style={{
+        background: "var(--stu-surface-soft)",
+        borderRadius: "var(--stu-radius)",
+        padding: "var(--stu-space-5)",
+      }}
+    >
+      <div style={{ fontWeight: 700, fontSize: 14, marginBottom: "var(--stu-space-4)" }}>
+        반 내 석차
+      </div>
+
+      {/* Rank badge */}
+      <div style={{ display: "flex", alignItems: "baseline", gap: "var(--stu-space-3)", marginBottom: "var(--stu-space-4)" }}>
+        <span style={{ fontSize: 28, fontWeight: 900, color: "var(--stu-primary)" }}>
+          {rank}등
+        </span>
+        <span className="stu-muted" style={{ fontSize: 13 }}>
+          / {cohortSize}명
+        </span>
+        {topPct > 0 && (
+          <span
+            style={{
+              fontSize: 12,
+              fontWeight: 700,
+              padding: "2px 8px",
+              borderRadius: 999,
+              background: topPct <= 30 ? "var(--stu-success-bg)" : "var(--stu-surface)",
+              color: topPct <= 30 ? "var(--stu-success-text)" : "var(--stu-text-muted)",
+              border: `1px solid ${topPct <= 30 ? "var(--stu-success)" : "var(--stu-border)"}`,
+            }}
+          >
+            상위 {topPct}%
+          </span>
+        )}
+      </div>
+
+      {/* Average comparison bar */}
+      {cohortAvg != null && (
+        <div>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: "var(--stu-space-2)" }}>
+            <span className="stu-muted">반 평균 {cohortAvg}점</span>
+            <span style={{ fontWeight: 700, color: diff != null && diff >= 0 ? "var(--stu-success-text)" : "var(--stu-danger-text)" }}>
+              {diff != null ? (diff >= 0 ? `+${diff}점` : `${diff}점`) : ""}
+            </span>
+          </div>
+          <div style={{ position: "relative", height: 8, borderRadius: 4, background: "var(--stu-border)", overflow: "hidden" }}>
+            {/* Average marker */}
+            <div
+              style={{
+                position: "absolute",
+                left: `${avgBarPct}%`,
+                top: 0,
+                bottom: 0,
+                width: 2,
+                background: "var(--stu-text-muted)",
+                zIndex: 2,
+              }}
+            />
+            {/* My score bar */}
+            <div
+              style={{
+                width: `${myBarPct}%`,
+                height: "100%",
+                borderRadius: 4,
+                background: myBarPct >= avgBarPct ? "var(--stu-success)" : "var(--stu-danger)",
+                transition: "width 0.4s ease",
+              }}
+            />
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginTop: 2 }}>
+            <span className="stu-muted">0</span>
+            <span className="stu-muted">{maxScore}</span>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 

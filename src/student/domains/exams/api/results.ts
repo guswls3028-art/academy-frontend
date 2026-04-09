@@ -15,6 +15,11 @@ export type MyExamResult = {
   can_retake: boolean;
   answer_visibility?: AnswerVisibility;
   answers_visible?: boolean;
+  // 석차 정보
+  rank?: number | null;
+  percentile?: number | null;
+  cohort_size?: number | null;
+  cohort_avg?: number | null;
 };
 
 export type MyExamResultItem = {

@@ -57,6 +57,15 @@ function computeTop10Avg(scores: number[]): number {
   return top.reduce((a, b) => a + b, 0) / top.length;
 }
 
+function computeMedian(scores: number[]): number {
+  if (scores.length === 0) return 0;
+  const sorted = [...scores].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 !== 0
+    ? sorted[mid]
+    : (sorted[mid - 1] + sorted[mid]) / 2;
+}
+
 export default function ExamResultsViewerPanel({ examId }: Props) {
   const { data: exam } = useAdminExam(examId);
   const summaryQ = useQuery({
@@ -88,6 +97,7 @@ export default function ExamResultsViewerPanel({ examId }: Props) {
   );
   const stdDev = useMemo(() => computeStdDev(scores), [scores]);
   const top10Avg = useMemo(() => computeTop10Avg(scores), [scores]);
+  const median = useMemo(() => computeMedian(scores), [scores]);
   const histogram = useMemo(() => {
     return BUCKETS.map((b) => ({
       ...b,
@@ -137,9 +147,9 @@ export default function ExamResultsViewerPanel({ examId }: Props) {
               <KpiCard label="평균" value={`${(summary?.avg_score ?? 0).toFixed(1)}점`} />
               <KpiCard label="상위 10% 평균" value={`${top10Avg.toFixed(1)}점`} />
               <KpiCard label="최고점" value={`${summary?.max_score ?? 0}점`} />
+              <KpiCard label="중앙값" value={`${median.toFixed(1)}점`} />
               <KpiCard label="표준편차" value={stdDev.toFixed(1)} />
               <KpiCard label="응시자 수" value={`${summary?.participant_count ?? 0}명`} />
-              <KpiCard label="미응시자 수" value="—" />
             </div>
 
             {passScore > 0 && (

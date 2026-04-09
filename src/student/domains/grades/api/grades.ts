@@ -18,6 +18,11 @@ export type MyExamGradeSummary = {
   session_title: string | null;
   lecture_title: string | null;
   submitted_at: string | null;
+  // 석차 정보
+  rank?: number | null;
+  percentile?: number | null;
+  cohort_size?: number | null;
+  cohort_avg?: number | null;
 };
 
 export type MyHomeworkGradeSummary = {

@@ -88,8 +88,11 @@ export type AdminExamResultRow = {
   submitted_at?: string | null;
   submission_id?: number | null;
 
-  // ❌ 더 이상 exam_score/exam_max_score는 list contract에 없음
-  // - 상세(detail)에서만 total_score/max_score 확인
+  // 석차 정보
+  rank?: number | null;
+  percentile?: number | null;
+  cohort_size?: number | null;
+  cohort_avg?: number | null;
 
   // ✅ 학생 SSOT 표시용 (아바타 + 강의 딱지 + 클리닉 하이라이트)
   profile_photo_url?: string | null;

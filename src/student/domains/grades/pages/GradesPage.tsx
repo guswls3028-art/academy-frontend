@@ -150,10 +150,16 @@ export default function GradesPage() {
     const passRate = examsWithCriteria.length > 0
       ? (examsWithCriteria.filter((e) => e.is_pass).length / examsWithCriteria.length) * 100
       : 0;
+    // 평균 석차 (석차가 있는 시험만)
+    const rankedExams = exams.filter((e) => e.rank != null && e.cohort_size != null && e.cohort_size > 1);
+    const avgRank = rankedExams.length > 0
+      ? Math.round((rankedExams.reduce((s, e) => s + e.rank!, 0) / rankedExams.length) * 10) / 10
+      : null;
     return {
       avgPct: Math.round(avgPct),
       passRate: Math.round(passRate),
       count: exams.length,
+      avgRank,
     };
   }, [exams]);
 
@@ -173,8 +179,14 @@ export default function GradesPage() {
         name:
           e.title.length > 6 ? e.title.slice(0, 6) + "\u2026" : e.title,
         득점률: Math.round(((e.total_score ?? 0) / e.max_score) * 100),
+        반평균: e.cohort_avg != null && e.max_score > 0
+          ? Math.round((e.cohort_avg / e.max_score) * 100)
+          : undefined,
       }));
   }, [exams, lectureFilter]);
+
+  // 반 평균 데이터 존재 여부
+  const hasAvgLine = trendData.some((d) => d.반평균 != null);
 
   const hwStats = useMemo(() => {
     if (homeworks.length === 0) return null;
@@ -228,7 +240,11 @@ export default function GradesPage() {
             <div style={statGrid}>
               <StatCard label="평균 점수" value={`${examStats.avgPct}점`} />
               <StatCard label="합격률" value={`${examStats.passRate}%`} />
-              <StatCard label="시험 수" value={`${examStats.count}건`} />
+              {examStats.avgRank != null ? (
+                <StatCard label="평균 석차" value={`${examStats.avgRank}등`} />
+              ) : (
+                <StatCard label="시험 수" value={`${examStats.count}건`} />
+              )}
             </div>
           )}
 
@@ -283,7 +299,10 @@ export default function GradesPage() {
                         fontSize: 13,
                         padding: "6px 10px",
                       }}
-                      formatter={(v) => [`${v}%`, "득점률"]}
+                      formatter={(v: number, name: string) => [
+                        `${v}%`,
+                        name === "반평균" ? "반 평균" : "내 득점률",
+                      ]}
                     />
                     <Line
                       type="monotone"
@@ -297,6 +316,17 @@ export default function GradesPage() {
                       }}
                       activeDot={{ r: 6 }}
                     />
+                    {hasAvgLine && (
+                      <Line
+                        type="monotone"
+                        dataKey="반평균"
+                        stroke="var(--stu-text-muted)"
+                        strokeWidth={1.5}
+                        strokeDasharray="4 3"
+                        dot={false}
+                        connectNulls
+                      />
+                    )}
                   </LineChart>
                 </ResponsiveContainer>
               </div>
@@ -429,11 +459,28 @@ function LectureExamGroup({ group }: { group: ExamGroup }) {
               </div>
               <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 }}>
                 <GradeBadge passed={e.is_pass} achievement={e.achievement} />
-                {e.total_score != null && e.max_score > 0 && (
-                  <span style={{ fontSize: 11, fontWeight: 700, color: "var(--stu-text-muted)" }}>
-                    {Math.round((e.total_score / e.max_score) * 100)}%
-                  </span>
-                )}
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  {e.rank != null && e.cohort_size != null && e.cohort_size > 1 && (
+                    <span
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 700,
+                        padding: "1px 6px",
+                        borderRadius: 999,
+                        background: "var(--stu-tint-primary)",
+                        color: "var(--stu-primary)",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {e.rank}/{e.cohort_size}등
+                    </span>
+                  )}
+                  {e.total_score != null && e.max_score > 0 && (
+                    <span style={{ fontSize: 11, fontWeight: 700, color: "var(--stu-text-muted)" }}>
+                      {Math.round((e.total_score / e.max_score) * 100)}%
+                    </span>
+                  )}
+                </div>
               </div>
               <IconChevronRight style={{ width: 18, height: 18, color: "var(--stu-text-muted)", flexShrink: 0 }} />
             </div>
