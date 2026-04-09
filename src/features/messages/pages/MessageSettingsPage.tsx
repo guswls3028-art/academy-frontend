@@ -250,10 +250,11 @@ export default function MessageSettingsPage() {
   const hasPfid = !!(info?.kakao_pfid);
   const hasSender = !!(info?.messaging_sender);
   const hasOwnCreds = info?.has_own_credentials ?? false;
+  const canSend = !!(info?.sms_allowed) || hasOwnCreds;  // 시스템 기본 키 또는 자체 키
   const providerLabel = provider === "ppurio" ? "뿌리오" : "솔라피";
 
   const setupSteps = [
-    { done: hasOwnCreds, label: "API 연동" },
+    { done: canSend, label: "API 연동" },
     { done: hasSender, label: "발신번호" },
   ];
   const allSetupDone = setupSteps.every((s) => s.done);
@@ -285,7 +286,7 @@ export default function MessageSettingsPage() {
           icon={<FiZap size={16} />}
           label="공급자"
           value={providerLabel}
-          status={hasOwnCreds ? "ok" : "warn"}
+          status={canSend ? "ok" : "warn"}
           color="#6366f1"
         />
         <KpiCard

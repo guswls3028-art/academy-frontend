@@ -201,7 +201,9 @@ function LogRow({
           whiteSpace: "nowrap",
         }}
       >
-        {item.template_summary || item.message_body || "—"}
+        {(item.template_summary && !item.template_summary.startsWith("KA01"))
+          ? item.template_summary
+          : item.message_body?.slice(0, 80) || "—"}
       </span>
 
       {/* 실패 사유 (짧게) */}
