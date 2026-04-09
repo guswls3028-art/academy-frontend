@@ -544,14 +544,13 @@ export default function SendMessageModal({
     setSelectedTemplateId(null);
     setSendToParent(true);
     setSendToStudent(true);
-    const mode = initialBody ? "sms" : smsAllowed ? "sms" : "alimtalk";
-    setSendMode(mode);
+    setSendMode("alimtalk");
     setTemplateSearch("");
     setShowSaveForm(false);
     setSaveTemplateName("");
     setShowTemplatePanel(false);
     setShowAlimtalkPanel(false);
-    setAlimtalkFreeForm(false);
+    setAlimtalkFreeForm(!!initialBody);
     setTemplateBodySnapshot(null);
     setSmsEmptyHintDismissed(false);
     setShowConfirm(false);
@@ -561,10 +560,8 @@ export default function SendMessageModal({
   // smsAllowed가 뒤늦게 로드되면 sendMode만 보정 (body·subject 등 사용자 입력은 건드리지 않음)
   useEffect(() => {
     if (!open || !smsAllowed) return;
-    setSendMode((prev) => {
-      if (prev === "alimtalk" && initialBody) return "sms";
-      return prev;
-    });
+    // smsAllowed 로드 시 모드 보정 — 알림톡 기본 유지
+    setSendMode((prev) => prev);
   }, [open, smsAllowed, blockCategory, initialBody]);
 
   // Load templates (시스템 기본 승인 템플릿 포함 — 알림톡 기본 채널 폴백용)
