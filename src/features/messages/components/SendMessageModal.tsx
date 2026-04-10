@@ -576,11 +576,12 @@ export default function SendMessageModal({
         const categoryMap: Record<string, string> = {
           clinic: "clinic", attendance: "attendance", exam: "exam",
           grades: "grades", assignment: "assignment", payment: "payment",
+          student: "default", default: "default",
         };
-        const targetCat = categoryMap[blockCategory] || "";
-        const match = targetCat
-          ? list.find((t) => t.is_system && t.category === targetCat)
-          : list.find((t) => t.is_system && t.is_user_default);
+        const targetCat = categoryMap[blockCategory] || "default";
+        const match = list.find((t) => t.is_system && t.category === targetCat)
+          || list.find((t) => t.is_system && t.is_user_default)
+          || list.find((t) => t.is_system);
         if (match) {
           setSelectedTemplateId(match.id);
           setBody(match.body);
