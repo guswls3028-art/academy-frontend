@@ -4,6 +4,8 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import styles from "./StopwatchCore.module.css";
 
+type Mode = "timer" | "stopwatch";
+
 interface Props {
   /** 학원 로고 URL (없으면 로고 미표시) */
   logoUrl?: string;
@@ -11,6 +13,10 @@ interface Props {
   academyName?: string;
   /** 전체화면 모드에서 시작 */
   startFullscreen?: boolean;
+  mode?: Mode;
+  onModeChange?: (mode: Mode) => void;
+  projector?: boolean;
+  onProjectorChange?: (v: boolean) => void;
 }
 
 function pad(n: number, d = 2) {
@@ -34,10 +40,16 @@ function formatTimeStr(ms: number) {
 
 type Lap = { n: number; split: number; total: number };
 
-export default function StopwatchCore({ logoUrl, academyName, startFullscreen }: Props) {
+export default function StopwatchCore({ logoUrl, academyName, startFullscreen, mode = "stopwatch", onModeChange, projector: projectorProp, onProjectorChange }: Props) {
   const [running, setRunning] = useState(false);
   const [elapsed, setElapsed] = useState(0);
-  const [projector, setProjector] = useState(false);
+  const [projectorLocal, setProjectorLocal] = useState(false);
+  const projector = projectorProp ?? projectorLocal;
+  const toggleProjector = () => {
+    const next = !projector;
+    if (onProjectorChange) onProjectorChange(next);
+    else setProjectorLocal(next);
+  };
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [laps, setLaps] = useState<Lap[]>([]);
 
@@ -118,7 +130,7 @@ export default function StopwatchCore({ logoUrl, academyName, startFullscreen }:
           doLap();
           break;
         case "KeyP":
-          setProjector((p) => !p);
+          toggleProjector();
           break;
         case "KeyF":
           toggleFullscreen();
@@ -177,10 +189,28 @@ export default function StopwatchCore({ logoUrl, academyName, startFullscreen }:
           {logoUrl && <img className={styles.brandLogo} src={logoUrl} alt="" draggable={false} />}
           {!logoUrl && academyName && <span className={styles.brandName}>{academyName}</span>}
         </div>
+        {onModeChange && (
+          <div className={styles.modeToggle}>
+            <button
+              className={`${styles.modeBtn} ${mode === "timer" ? styles.modeBtnActive : ""}`}
+              onClick={() => onModeChange("timer")}
+              type="button"
+            >
+              타이머
+            </button>
+            <button
+              className={`${styles.modeBtn} ${mode === "stopwatch" ? styles.modeBtnActive : ""}`}
+              onClick={() => onModeChange("stopwatch")}
+              type="button"
+            >
+              스톱워치
+            </button>
+          </div>
+        )}
         <div className={styles.topRight}>
           <button
             className={`${styles.projToggle} ${projector ? styles.projActive : ""}`}
-            onClick={() => setProjector((p) => !p)}
+            onClick={() => toggleProjector()}
             type="button"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

@@ -1,6 +1,6 @@
-/* PATH: src/features/tools/stopwatch/components/StopwatchCore.module.css */
-/* Premium Academy Stopwatch */
-/* Default = Light (white bg), Projector = Dark (black bg, bright text for beam onto blackboard) */
+/* PATH: src/features/tools/stopwatch/components/TimerCore.module.css */
+/* Premium Countdown Timer — 시험 남은시간 타이머 */
+/* Default = Light, Projector = Dark (beam onto blackboard) */
 
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap');
 
@@ -19,6 +19,7 @@
   --sw-danger: #e03131;
   --sw-success: #2b8a3e;
   --sw-gold: #e67700;
+  --sw-warning: #ff6b6b;
 
   position: relative;
   background: var(--sw-bg);
@@ -226,6 +227,18 @@
   box-shadow: 0 0 10px rgba(230,119,0,0.4);
 }
 
+.statusFinished .statusDot {
+  background: var(--sw-danger);
+  box-shadow: 0 0 14px rgba(224,49,49,0.6);
+  animation: pulse 0.6s ease-in-out infinite;
+}
+
+.statusWarning .statusDot {
+  background: var(--sw-warning);
+  box-shadow: 0 0 12px rgba(255,107,107,0.5);
+  animation: pulse 0.8s ease-in-out infinite;
+}
+
 @keyframes pulse {
   0%, 100% { opacity: 1; transform: scale(1); }
   50% { opacity: 0.3; transform: scale(0.6); }
@@ -243,6 +256,23 @@
   line-height: 1;
   transition: all 0.5s ease;
   padding: 20px 0;
+}
+
+.displayRunning .sep {
+  animation: blink 1s step-end infinite;
+}
+
+.displayWarning {
+  color: var(--sw-warning) !important;
+}
+
+.displayFinished {
+  animation: finishedPulse 0.8s ease-in-out infinite;
+}
+
+@keyframes finishedPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
 }
 
 .digit {
@@ -265,12 +295,126 @@
   min-width: 3ch;
 }
 
-.displayRunning .sep {
-  animation: blink 1s step-end infinite;
-}
-
 @keyframes blink {
   50% { opacity: 0.05; }
+}
+
+/* ── Time Setup ── */
+.setup {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  width: 100%;
+  max-width: 600px;
+}
+
+.setupLabel {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--sw-text-dim);
+  letter-spacing: 1px;
+}
+
+.presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+}
+
+.presetBtn {
+  padding: 14px 24px;
+  border-radius: 12px;
+  border: 1px solid var(--sw-border);
+  background: var(--sw-surface);
+  color: var(--sw-text);
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  font-family: inherit;
+  min-width: 80px;
+}
+
+.presetBtn:hover {
+  background: var(--sw-accent);
+  color: #fff;
+  border-color: var(--sw-accent);
+  transform: scale(1.04);
+  box-shadow: 0 4px 16px rgba(59,91,219,0.2);
+}
+
+.presetBtn:active {
+  transform: scale(0.96);
+}
+
+.customInput {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.timeInput {
+  width: 72px;
+  padding: 12px 8px;
+  border: 2px solid var(--sw-border);
+  border-radius: 10px;
+  font-size: 20px;
+  font-weight: 600;
+  font-family: 'JetBrains Mono', monospace;
+  text-align: center;
+  background: var(--sw-surface);
+  color: var(--sw-text);
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.timeInput:focus {
+  border-color: var(--sw-accent);
+  box-shadow: 0 0 0 3px rgba(59,91,219,0.1);
+}
+
+.timeInputLabel {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--sw-text-dim);
+}
+
+.timeInputSep {
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--sw-text-dim);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.startSetBtn {
+  padding: 14px 40px;
+  border-radius: 100px;
+  border: none;
+  background: var(--sw-accent);
+  color: #fff;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  font-family: inherit;
+  box-shadow: 0 4px 20px rgba(59,91,219,0.25);
+}
+
+.startSetBtn:hover {
+  background: #4c6ef5;
+  transform: scale(1.04);
+  box-shadow: 0 6px 28px rgba(59,91,219,0.35);
+}
+
+.startSetBtn:active {
+  transform: scale(0.96);
+}
+
+.startSetBtn:disabled {
+  opacity: 0.3;
+  pointer-events: none;
 }
 
 /* ── Controls ── */
@@ -337,56 +481,28 @@
 .btnSide:disabled { opacity: 0.2; cursor: default; pointer-events: none; }
 .btnSide:active { transform: scale(0.95); }
 
-.btnLap {
-  padding: 12px 28px;
+.btnAdd {
+  padding: 12px 24px;
   border-radius: 100px;
-  border: 1px solid rgba(230,119,0,0.15);
-  background: rgba(230,119,0,0.06);
-  color: var(--sw-gold);
+  border: 1px solid rgba(59,91,219,0.15);
+  background: rgba(59,91,219,0.06);
+  color: var(--sw-accent);
   cursor: pointer;
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
   transition: all 0.2s ease;
   font-family: inherit;
 }
 
-.btnLap:hover { background: rgba(230,119,0,0.12); }
-.btnLap:disabled { opacity: 0.2; cursor: default; pointer-events: none; }
-.btnLap:active { transform: scale(0.95); }
+.btnAdd:hover { background: rgba(59,91,219,0.12); }
+.btnAdd:disabled { opacity: 0.2; cursor: default; pointer-events: none; }
+.btnAdd:active { transform: scale(0.95); }
 
-/* ── Laps ── */
-.laps {
-  width: 100%;
-  max-width: 500px;
-  max-height: 200px;
-  overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(0,0,0,0.08) transparent;
-}
-
-.laps::-webkit-scrollbar { width: 3px; }
-.laps::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.08); border-radius: 2px; }
-
-.lap {
-  display: flex;
-  justify-content: space-between;
-  padding: 10px 18px;
-  border-bottom: 1px solid rgba(0,0,0,0.05);
+/* ── Total Time Label ── */
+.totalLabel {
   font-size: 13px;
-  animation: fadeUp 0.25s ease;
-}
-
-.lap:first-child { border-top: 1px solid rgba(0,0,0,0.05); }
-
-.lapN { color: var(--sw-text-dim); font-weight: 600; font-size: 11px; letter-spacing: 1.5px; min-width: 60px; }
-.lapS { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--sw-text-dim); }
-.lapT { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--sw-text); font-weight: 600; }
-.lapBest .lapT { color: var(--sw-success); }
-.lapWorst .lapT { color: var(--sw-danger); }
-
-@keyframes fadeUp {
-  from { opacity: 0; transform: translateY(-6px); }
-  to { opacity: 1; transform: translateY(0); }
+  color: var(--sw-text-dim);
+  font-weight: 500;
 }
 
 /* ── Keyboard Hints ── */
@@ -416,8 +532,6 @@
 
 /* ══════════════════════════════════════════════════════════
    PROJECTOR MODE — BLACK BG, BRIGHT BOLD TEXT
-   빔프로젝터로 칠판에 쏘면: 배경=칠판색, 글씨만 빛남
-   레이아웃/크기 동일, 색상+굵기만 변경
    ══════════════════════════════════════════════════════════ */
 
 .projector {
@@ -431,12 +545,12 @@
   --sw-danger: #ff6b6b;
   --sw-success: #51cf66;
   --sw-gold: #ffd43b;
+  --sw-warning: #ff6b6b;
 
   background: var(--sw-bg);
   color: var(--sw-text);
 }
 
-/* Projector: bold, high contrast — same size */
 .projector .display {
   font-weight: 700;
   color: #ffffff;
@@ -464,6 +578,16 @@
 .projector .statusPaused .statusDot {
   background: #ffd43b;
   box-shadow: 0 0 14px rgba(255,212,59,0.6);
+}
+
+.projector .statusFinished .statusDot {
+  background: #ff6b6b;
+  box-shadow: 0 0 18px rgba(255,107,107,0.8);
+}
+
+.projector .statusWarning .statusDot {
+  background: #ff6b6b;
+  box-shadow: 0 0 16px rgba(255,107,107,0.6);
 }
 
 /* Controls in projector: dimmed, show on hover */
@@ -497,10 +621,10 @@
   color: #fff;
 }
 
-.projector .btnLap {
-  border-color: rgba(255,212,59,0.2);
-  background: rgba(255,212,59,0.08);
-  color: #ffd43b;
+.projector .btnAdd {
+  border-color: rgba(116,143,252,0.2);
+  background: rgba(116,143,252,0.08);
+  color: #748ffc;
 }
 
 /* Top bar: hidden, show on hover */
@@ -551,20 +675,42 @@
   color: #fff;
 }
 
+/* Setup in projector */
+.projector .presetBtn {
+  border-color: rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.05);
+  color: #fff;
+}
+
+.projector .presetBtn:hover {
+  background: #748ffc;
+  border-color: #748ffc;
+}
+
+.projector .timeInput {
+  border-color: rgba(255,255,255,0.15);
+  background: rgba(255,255,255,0.05);
+  color: #fff;
+}
+
+.projector .timeInput:focus {
+  border-color: #748ffc;
+  box-shadow: 0 0 0 3px rgba(116,143,252,0.15);
+}
+
+.projector .startSetBtn {
+  background: #748ffc;
+  box-shadow: 0 4px 20px rgba(116,143,252,0.3);
+}
+
 /* Hints hidden in projector */
 .projector .hints { display: none; }
 
-/* Laps in projector */
-.projector .laps {
-  opacity: 0.6;
-  scrollbar-color: rgba(255,255,255,0.1) transparent;
+/* Warning state text color in projector */
+.projector .displayWarning {
+  color: #ff6b6b !important;
 }
 
-.projector .laps::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); }
-.projector .lap { border-color: rgba(255,255,255,0.06); }
-.projector .lap:first-child { border-top-color: rgba(255,255,255,0.06); }
-.projector .lapN { color: rgba(255,255,255,0.35); }
-.projector .lapS { color: rgba(255,255,255,0.35); }
-.projector .lapT { color: #fff; }
-.projector .lapBest .lapT { color: #51cf66; }
-.projector .lapWorst .lapT { color: #ff6b6b; }
+.projector .displayFinished {
+  color: #ff6b6b !important;
+}
