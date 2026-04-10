@@ -266,9 +266,9 @@ test.describe("C. Modals & Dialogs", () => {
       await createBtn.click();
       await page.waitForTimeout(1000);
 
-      // 모달 표시 확인
-      const modal = page.locator(".ant-modal, [class*='modal']").first();
-      await expect(modal).toBeVisible({ timeout: 5000 });
+      // ant-modal-root는 aria-hidden으로 dialog 역할이 안 잡힐 수 있음 — wrap + 제목 텍스트로 검증
+      const modalWrap = page.locator("div.ant-modal-wrap").filter({ hasText: /학생 등록/ });
+      await expect(modalWrap).toBeVisible({ timeout: 8000 });
       await page.screenshot({ path: SS("c1-student-create-modal"), fullPage: true });
 
       // Escape로 닫기

@@ -39,8 +39,11 @@ const ClinicPage = lazy(() => import("@/student/domains/clinic/pages/ClinicPage"
 const AttendancePage = lazy(() => import("@/student/domains/attendance/pages/AttendancePage"));
 const StudentFeesPage = lazy(() => import("@/student/domains/fees/pages/StudentFeesPage"));
 import { useFeesEnabled } from "@/shared/hooks/useFeesEnabled";
+import { useProgram } from "@/shared/program";
 function StudentFeesGate() {
+  const { isLoading } = useProgram();
   const enabled = useFeesEnabled();
+  if (isLoading) return <StudentRouteFallback />;
   if (!enabled) return <Navigate to="/student" replace />;
   return <Suspense fallback={<StudentRouteFallback />}><StudentFeesPage /></Suspense>;
 }

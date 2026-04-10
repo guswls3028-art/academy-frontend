@@ -4,6 +4,7 @@
 import { Navigate, Outlet } from "react-router-dom";
 import { DomainLayout, type DomainTab } from "@/shared/ui/domain";
 import { useFeesEnabled } from "@/shared/hooks/useFeesEnabled";
+import { useProgram } from "@/shared/program";
 
 const TABS: DomainTab[] = [
   { key: "dashboard", label: "수납 현황", path: "/admin/fees", exact: true },
@@ -12,7 +13,20 @@ const TABS: DomainTab[] = [
 ];
 
 export default function FeesPage() {
+  const { isLoading } = useProgram();
   const enabled = useFeesEnabled();
+
+  // program 로드 전에는 플래그 미확정 — 즉시 Navigate 금지 (대시보드 오탈리 다이렉트 방지)
+  if (isLoading) {
+    return (
+      <div
+        className="p-6"
+        style={{ color: "var(--color-text-secondary)", minHeight: 160 }}
+      >
+        불러오는 중…
+      </div>
+    );
+  }
 
   if (!enabled) {
     return <Navigate to="/admin/dashboard" replace />;
