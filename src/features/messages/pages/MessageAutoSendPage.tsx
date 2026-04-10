@@ -36,6 +36,9 @@ const QUERY_KEY = ["messaging", "auto-send"] as const;
 
 const EMPTY_CONFIGS: AutoSendConfigItem[] = [];
 
+/** 이벤트 후 발송 시점을 설정할 수 있는 트리거 (즉시/N분후/지정시각) */
+const DELAY_MODE_TRIGGERS = new Set(["video_encoding_complete"]);
+
 const TRIGGER_DESCRIPTIONS: Record<string, string> = {
   registration_approved_student: "학생 등록·가입 승인 시 학생에게 아이디/비밀번호 및 접속 안내를 알림톡으로 발송합니다.",
   registration_approved_parent: "학생 등록·가입 승인 시 학부모에게 학부모+학생 로그인 정보를 알림톡으로 발송합니다.",
@@ -63,6 +66,8 @@ const TRIGGER_DESCRIPTIONS: Record<string, string> = {
   counseling_reservation_created: "상담 예약이 완료되면 학생·학부모에게 상담 일시/장소를 확인 안내합니다.",
   payment_complete: "결제가 완료되면 학부모에게 결제 금액/내역을 확인 안내합니다.",
   payment_due_days_before: "납부 예정일 N일 전에 학부모에게 납부 금액/기한을 안내합니다.",
+  // 영상
+  video_encoding_complete: "영상 인코딩이 완료되면 업로드한 선생님에게 완료 알림을 발송합니다.",
   // urgent_notice: 카카오 알림톡 정책 위반으로 제거
   // 커뮤니티
   qna_answer_registered: "QnA 답변이 등록되면 질문 작성 학생·학부모에게 답변 안내를 발송합니다.",
@@ -79,7 +84,7 @@ const SECTION_DESCRIPTIONS: Record<AutoSendSectionId, string> = {
   default: "사용자가 직접 만든 커스텀 예약 발송용 템플릿입니다. 모든 블록을 자유롭게 사용할 수 있습니다.",
   signup: "회원가입, 가입 승인, 퇴원 등 등록 관련 이벤트를 설정합니다.",
   attendance: "수업 시작 N분 전 리마인드, 입실(출석) 확인, 결석 발생 알림을 설정합니다.",
-  lecture: "강의·차시 관련 알림을 설정합니다. 수업 리마인드는 출결 구간에서도 설정 가능합니다.",
+  lecture: "영상 인코딩 완료 등 강의·차시 관련 알림을 설정합니다.",
   exam: "시험 예정 안내, 시작 전 리마인드, 미응시, 성적 공개, 재시험 대상 지정을 설정합니다.",
   assignment: "과제 등록 안내, 마감 전 리마인드, 미제출 알림을 설정합니다.",
   grades: "성적 공개 안내, 월간 성적 리포트 발송을 설정합니다.",
@@ -322,30 +327,90 @@ function TriggerCard({
               <div style={{ fontSize: 11, fontWeight: 600, color: "var(--color-text-muted)", marginBottom: 6, textTransform: "uppercase" as const, letterSpacing: "0.04em" }}>
                 발송 시점
               </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                <input
-                  type="number"
-                  min={0}
-                  step={5}
-                  placeholder="0"
-                  className="ds-input"
-                  style={{ width: 72, fontSize: 13, textAlign: "right", paddingRight: 8 }}
-                  value={config.minutes_before ?? ""}
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    onUpdate(
-                      {
+              {DELAY_MODE_TRIGGERS.has(config.trigger) ? (
+                /* 이벤트 후 발송 트리거 — delay_mode 선택 */
+                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  <select
+                    className="ds-select"
+                    style={{ width: "100%", fontSize: 12 }}
+                    value={config.delay_mode || "immediate"}
+                    onChange={(e) => {
+                      const mode = e.target.value as "immediate" | "delay_minutes" | "scheduled_hour";
+                      onUpdate({
                         ...config,
-                        minutes_before: v === "" ? null : Math.max(0, parseInt(v, 10) || 0),
-                      },
-                      true,
-                    );
-                  }}
-                  disabled={saving}
-                  aria-label="발송 시점 (분 전)"
-                />
-                <span style={{ fontSize: 12, color: "var(--color-text-muted)", whiteSpace: "nowrap" }}>분 전</span>
-              </div>
+                        delay_mode: mode,
+                        delay_value: mode === "immediate" ? null : (config.delay_value ?? (mode === "scheduled_hour" ? 7 : 60)),
+                      });
+                    }}
+                    disabled={saving}
+                  >
+                    <option value="immediate">즉시 발송</option>
+                    <option value="delay_minutes">N분 후 발송</option>
+                    <option value="scheduled_hour">지정 시각 발송</option>
+                  </select>
+                  {config.delay_mode === "delay_minutes" && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                      <input
+                        type="number"
+                        min={1}
+                        step={10}
+                        placeholder="60"
+                        className="ds-input"
+                        style={{ width: 64, fontSize: 12, textAlign: "right", paddingRight: 6 }}
+                        value={config.delay_value ?? ""}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          onUpdate({ ...config, delay_value: v === "" ? null : Math.max(1, parseInt(v, 10) || 1) }, true);
+                        }}
+                        disabled={saving}
+                      />
+                      <span style={{ fontSize: 11, color: "var(--color-text-muted)", whiteSpace: "nowrap" }}>분 후</span>
+                    </div>
+                  )}
+                  {config.delay_mode === "scheduled_hour" && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                      <select
+                        className="ds-select"
+                        style={{ width: 80, fontSize: 12 }}
+                        value={config.delay_value ?? 7}
+                        onChange={(e) => onUpdate({ ...config, delay_value: parseInt(e.target.value, 10) })}
+                        disabled={saving}
+                      >
+                        {Array.from({ length: 24 }, (_, h) => (
+                          <option key={h} value={h}>{`${String(h).padStart(2, "0")}:00`}</option>
+                        ))}
+                      </select>
+                      <span style={{ fontSize: 11, color: "var(--color-text-muted)", whiteSpace: "nowrap" }}>발송</span>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                /* 이벤트 전 발송 트리거 — minutes_before */
+                <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                  <input
+                    type="number"
+                    min={0}
+                    step={5}
+                    placeholder="0"
+                    className="ds-input"
+                    style={{ width: 72, fontSize: 13, textAlign: "right", paddingRight: 8 }}
+                    value={config.minutes_before ?? ""}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      onUpdate(
+                        {
+                          ...config,
+                          minutes_before: v === "" ? null : Math.max(0, parseInt(v, 10) || 0),
+                        },
+                        true,
+                      );
+                    }}
+                    disabled={saving}
+                    aria-label="발송 시점 (분 전)"
+                  />
+                  <span style={{ fontSize: 12, color: "var(--color-text-muted)", whiteSpace: "nowrap" }}>분 전</span>
+                </div>
+              )}
             </div>
 
             {/* 발송 방식 */}

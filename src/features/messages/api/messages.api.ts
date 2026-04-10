@@ -324,6 +324,8 @@ export type AutoSendTrigger =
   | "counseling_reservation_created"
   | "payment_complete"
   | "payment_due_days_before"
+  // 영상
+  | "video_encoding_complete"
   // urgent_notice: 카카오 알림톡 정책 위반으로 제거
   // 커뮤니티 자동발송
   | "qna_answer_registered"
@@ -337,6 +339,8 @@ export type AutoSendTrigger =
 
 export type PolicyMode = "SYSTEM_AUTO" | "AUTO_DEFAULT" | "MANUAL_DEFAULT" | "DISABLED";
 
+export type DelayMode = "immediate" | "delay_minutes" | "scheduled_hour";
+
 export interface AutoSendConfigItem {
   id: number | null;
   trigger: string;
@@ -349,6 +353,10 @@ export interface AutoSendConfigItem {
   message_mode: MessageMode;
   /** N분 전/후 발송 (null = 이벤트 시점). 사용자 설정 가능. */
   minutes_before: number | null;
+  /** 발송 시점 모드: immediate=즉시, delay_minutes=N분 후, scheduled_hour=지정 시각 */
+  delay_mode?: DelayMode;
+  /** delay_minutes: 지연 분 수 / scheduled_hour: 시각(0-23) */
+  delay_value?: number | null;
   created_at: string | null;
   updated_at: string | null;
   /** 정책 분류: SYSTEM_AUTO / AUTO_DEFAULT / MANUAL_DEFAULT / DISABLED */
@@ -382,6 +390,8 @@ export const AUTO_SEND_TRIGGER_LABELS: Record<string, string> = {
   counseling_reservation_created: "상담 예약 완료",
   payment_complete: "결제 완료",
   payment_due_days_before: "납부 예정일 N일 전",
+  // 영상
+  video_encoding_complete: "영상 인코딩 완료",
   // urgent_notice: 카카오 알림톡 정책 위반으로 제거
   // 커뮤니티
   qna_answer_registered: "QnA 답변 등록",
@@ -406,6 +416,8 @@ export async function updateAutoSendConfigs(configs: Partial<AutoSendConfigItem>
     enabled: c.enabled,
     message_mode: c.message_mode,
     minutes_before: c.minutes_before ?? undefined,
+    delay_mode: c.delay_mode ?? undefined,
+    delay_value: c.delay_value ?? undefined,
   }));
   const res = await api.patch<AutoSendConfigItem[]>(`${PREFIX}/auto-send/`, {
     configs: payload,

@@ -93,8 +93,10 @@ export const AUTO_SEND_SECTIONS: SectionDef[] = [
     id: "lecture",
     label: TEMPLATE_CATEGORY_LABELS.lecture,
     icon: <BookOpen size={16} aria-hidden />,
-    triggers: [],
-    children: [],
+    triggers: ["video_encoding_complete"],
+    children: [
+      triggerChild("video_encoding_complete", <Bell size={14} aria-hidden />),
+    ],
   },
   {
     id: "exam",

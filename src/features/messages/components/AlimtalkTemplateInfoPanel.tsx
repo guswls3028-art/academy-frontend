@@ -70,6 +70,7 @@ export function getAlimtalkTemplateType(trigger?: string): AlimtalkTemplateType 
     "exam_score_published", "retake_assigned",
     "assignment_registered", "assignment_due_hours_before", "assignment_not_submitted",
     "monthly_report_generated",
+    "video_encoding_complete",
   ];
   if (CLINIC_INFO.includes(trigger)) return "clinic_info";
   if (CLINIC_CHANGE.includes(trigger)) return "clinic_change";
@@ -83,6 +84,7 @@ export function renderAlimtalkFullPreview(
   templateType: AlimtalkTemplateType,
   contentBody: string,
   siteUrl?: string,
+  trigger?: string,
 ): string {
   // 실제 테넌트 URL 사용 (없으면 도메인에서 추출)
   let url = siteUrl || "";
@@ -130,10 +132,13 @@ export function renderAlimtalkFullPreview(
     );
   }
   if (templateType === "score") {
+    const isVideo = trigger === "video_encoding_complete";
+    const recipientLabel = isVideo ? "김선생님." : "홍길동학생님.";
+    const introLabel = isVideo ? "영상 인코딩 안내 드립니다." : "성적표 안내 드립니다.";
     return (
       `학원플러스입니다.\n\n` +
-      `홍길동학생님.\n\n` +
-      `성적표 안내 드립니다.\n` +
+      `${recipientLabel}\n\n` +
+      `${introLabel}\n` +
       `강의\n수학 심화반\n\n` +
       `차시\n3회차\n\n` +
       `${contentBody || "(안내 문구를 작성하세요)"}\n` +

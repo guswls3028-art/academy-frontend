@@ -187,7 +187,7 @@ export default function TemplateEditModal({
                           예시 데이터로 표시됩니다. 실제 발송 시 학원/학생 정보가 자동으로 채워집니다.
                         </div>
                         <div className="template-preview-kakao__body" style={{ lineHeight: 1.7, whiteSpace: "pre-wrap", fontSize: 12 }}>
-                          {renderAlimtalkFullPreview(alimtalkType, body)}
+                          {renderAlimtalkFullPreview(alimtalkType, body, undefined, trigger)}
                         </div>
                       </>
                     ) : (
