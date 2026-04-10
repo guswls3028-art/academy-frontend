@@ -179,14 +179,14 @@ export default function GradesPage() {
         name:
           e.title.length > 6 ? e.title.slice(0, 6) + "\u2026" : e.title,
         득점률: Math.round(((e.total_score ?? 0) / e.max_score) * 100),
-        반평균: e.cohort_avg != null && e.max_score > 0
+        전체평균: e.cohort_avg != null && e.max_score > 0
           ? Math.round((e.cohort_avg / e.max_score) * 100)
           : undefined,
       }));
   }, [exams, lectureFilter]);
 
   // 반 평균 데이터 존재 여부
-  const hasAvgLine = trendData.some((d) => d.반평균 != null);
+  const hasAvgLine = trendData.some((d) => d.전체평균 != null);
 
   const hwStats = useMemo(() => {
     if (homeworks.length === 0) return null;
@@ -301,7 +301,7 @@ export default function GradesPage() {
                       }}
                       formatter={(v: number, name: string) => [
                         `${v}%`,
-                        name === "반평균" ? "반 평균" : "내 점수",
+                        name === "전체평균" ? "전체 평균" : "내 점수",
                       ]}
                     />
                     <Line
@@ -319,7 +319,7 @@ export default function GradesPage() {
                     {hasAvgLine && (
                       <Line
                         type="monotone"
-                        dataKey="반평균"
+                        dataKey="전체평균"
                         stroke="var(--stu-text-muted)"
                         strokeWidth={1.5}
                         strokeDasharray="4 3"

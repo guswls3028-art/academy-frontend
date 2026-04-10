@@ -241,7 +241,7 @@ function RankComparisonCard({
       }}
     >
       <div style={{ fontWeight: 700, fontSize: 14, marginBottom: "var(--stu-space-4)" }}>
-        우리 반 등수
+        내 등수
       </div>
 
       {/* Rank badge */}
@@ -273,7 +273,7 @@ function RankComparisonCard({
       {cohortAvg != null && (
         <div>
           <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: "var(--stu-space-2)" }}>
-            <span className="stu-muted">반 평균 {cohortAvg}점</span>
+            <span className="stu-muted">전체 평균 {cohortAvg}점</span>
             <span style={{ fontWeight: 700, color: diff != null && diff >= 0 ? "var(--stu-success-text)" : "var(--stu-danger-text)" }}>
               {diff != null ? (diff >= 0 ? `+${diff}점` : `${diff}점`) : ""}
             </span>
