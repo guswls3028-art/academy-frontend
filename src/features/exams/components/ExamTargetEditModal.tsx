@@ -44,7 +44,7 @@ export default function ExamTargetEditModal({
 
   return (
     <AdminModal open={open} onClose={onClose} type="inspect" width={520}>
-      <ModalHeader type="inspect" title="시험 대상 학생" onClose={onClose} />
+      <ModalHeader type="inspect" title="시험 대상 학생" />
       <ModalBody>
         <div style={{ maxHeight: "60vh", overflowY: "auto" }}>
           {loading ? (
@@ -71,9 +71,7 @@ export default function ExamTargetEditModal({
           )}
         </div>
       </ModalBody>
-      <ModalFooter>
-        <Button intent="secondary" onClick={onClose}>닫기</Button>
-      </ModalFooter>
+      <ModalFooter right={<Button intent="secondary" onClick={onClose}>닫기</Button>} />
     </AdminModal>
   );
 }

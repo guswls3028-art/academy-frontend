@@ -17,7 +17,7 @@ import ClinicCreatePanel from "../../components/ClinicCreatePanel";
 import PreviousWeekImportModal from "../../components/PreviousWeekImportModal";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
-import AdminModal from "@/shared/ui/modal/AdminModal";
+import { AdminModal, ModalHeader, ModalBody, ModalFooter } from "@/shared/ui/modal";
 import api from "@/shared/api/axios";
 
 dayjs.locale("ko");
@@ -406,32 +406,23 @@ export default function ClinicOperationsPage() {
       />
 
       {/* Delete confirmation modal */}
-      {deleteConfirm && (
-        <div
-          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="clinic-delete-title"
-          onClick={() => !deleteSessionM.isPending && setDeleteConfirm(null)}
-        >
-          <div
-            className="bg-[var(--color-surface)] rounded-xl shadow-lg max-w-md w-full p-6 border border-[var(--color-border)]"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2
-              id="clinic-delete-title"
-              className="text-lg font-semibold text-[var(--color-text-primary)] mb-2"
-            >
-              클리닉 삭제
-            </h2>
-            <p className="text-[var(--color-text-secondary)] mb-1">
-              <strong>{`「${deleteConfirm.label}」`}</strong> 클리닉을 정말로
-              삭제하시겠습니까?
-            </p>
-            <p className="text-sm text-[var(--color-status-danger)] font-medium mb-4">
-              주의: 삭제된 클리닉과 예약/출석 정보는 복구할 수 없습니다.
-            </p>
-            <div className="flex justify-end gap-2">
+      <AdminModal
+        open={!!deleteConfirm}
+        onClose={() => !deleteSessionM.isPending && setDeleteConfirm(null)}
+        type="confirm"
+      >
+        <ModalHeader type="confirm" title="클리닉 삭제" />
+        <ModalBody>
+          <p style={{ color: "var(--color-text-secondary)", marginBottom: 4 }}>
+            <strong>{deleteConfirm ? `「${deleteConfirm.label}」` : ""}</strong> 클리닉을 정말로 삭제하시겠습니까?
+          </p>
+          <p style={{ fontSize: 13, color: "var(--color-status-danger)", fontWeight: 500 }}>
+            주의: 삭제된 클리닉과 예약/출석 정보는 복구할 수 없습니다.
+          </p>
+        </ModalBody>
+        <ModalFooter
+          right={
+            <div className="flex gap-2">
               <Button
                 intent="secondary"
                 onClick={() => setDeleteConfirm(null)}
@@ -440,17 +431,16 @@ export default function ClinicOperationsPage() {
                 취소
               </Button>
               <Button
-                intent="primary"
+                intent="danger"
                 onClick={handleConfirmDelete}
                 disabled={deleteSessionM.isPending}
-                className="!bg-[var(--color-status-danger)] hover:!opacity-90"
               >
                 {deleteSessionM.isPending ? "삭제 중…" : "삭제"}
               </Button>
             </div>
-          </div>
-        </div>
-      )}
+          }
+        />
+      </AdminModal>
     </div>
   );
 }

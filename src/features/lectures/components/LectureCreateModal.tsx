@@ -146,7 +146,9 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [], l
     }
   }, [isOpen, isEditMode, instructorOptions, name]);
 
-  const { mutate, isPending, isError } = useMutation({
+  const [apiError, setApiError] = useState("");
+
+  const { mutate, isPending } = useMutation({
     mutationFn: async (payload: CreateLecturePayload) => {
       if (isEditMode && lectureId != null) {
         const { is_active, ...rest } = payload;
@@ -164,7 +166,8 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [], l
       onClose();
     },
     onError: (e: unknown) => {
-      feedback.error(extractApiError(e, "저장에 실패했습니다."));
+      const msg = extractApiError(e, "저장에 실패했습니다.");
+      setApiError(msg);
     },
   });
 
@@ -183,6 +186,7 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [], l
     setChipLabel("");
     setAddSubjectInput("");
     setHasAttemptedSubmit(false);
+    setApiError("");
   }, [isOpen, lectureId, usedColors]);
 
   if (!isOpen) return null;
@@ -190,6 +194,7 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [], l
   const effectiveChipLabel = (chipLabel.trim() || title.trim().slice(0, 2)).slice(0, 2);
 
   function submit() {
+    setApiError("");
     setHasAttemptedSubmit(true);
     const err = validateRequiredFields([
       { value: title, label: "강의 이름" },
@@ -410,9 +415,9 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [], l
       <ModalHeader type="action" title={modalTitle} />
 
       <ModalBody>
-        {isError && (
-          <div style={{ marginBottom: 8, fontSize: 12, fontWeight: 900, color: "var(--color-error)" }}>
-            {isEditMode ? "수정 중 오류가 발생했습니다." : "등록 중 오류가 발생했습니다."}
+        {apiError && (
+          <div style={{ marginBottom: 8, fontSize: 12, fontWeight: 900, color: "var(--color-error)", whiteSpace: "pre-line" }}>
+            {apiError}
           </div>
         )}
 

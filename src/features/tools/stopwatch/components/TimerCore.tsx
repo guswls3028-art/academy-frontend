@@ -103,7 +103,7 @@ export default function TimerCore({ logoUrl, academyName, startFullscreen, mode 
   const internalRef = useRef<HTMLDivElement>(null);
   const containerRef = externalContainerRef ?? internalRef;
   const alarmPlayedRef = useRef(false);
-  const alarmIntervalRef = useRef<ReturnType<typeof setInterval>>();
+  const alarmIntervalRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
 
   const tick = useCallback(() => {
     if (!runningRef.current) return;

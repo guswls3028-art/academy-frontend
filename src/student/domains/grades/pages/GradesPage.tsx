@@ -119,7 +119,7 @@ function groupHomeworks(homeworks: MyHomeworkGradeSummary[]): HwGroup[] {
 export default function GradesPage() {
   const [tab, setTab] = useState<Tab>("exams");
   const [lectureFilter, setLectureFilter] = useState<string>(ALL_FILTER);
-  const { data, isLoading, isError } = useMyGradesSummary();
+  const { data, isLoading, isError, refetch } = useMyGradesSummary();
   const exams = data?.exams ?? [];
   const homeworks = data?.homeworks ?? [];
 
@@ -230,6 +230,7 @@ export default function GradesPage() {
         <EmptyState
           title="성적을 불러올 수 없습니다."
           description="잠시 후 다시 시도해 주세요."
+          onRetry={() => refetch()}
         />
       )}
 
@@ -299,7 +300,7 @@ export default function GradesPage() {
                         fontSize: 13,
                         padding: "6px 10px",
                       }}
-                      formatter={(v: number, name: string) => [
+                      formatter={(v, name) => [
                         `${v}%`,
                         name === "전체평균" ? "전체 평균" : "내 점수",
                       ]}

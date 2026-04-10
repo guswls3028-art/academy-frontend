@@ -21,7 +21,7 @@ const ClinicHighlightContext = createContext<ClinicHighlightContextValue>({
 export function ClinicHighlightProvider({ children }: { children: React.ReactNode }) {
   const { data, isLoading } = useQuery({
     queryKey: ["clinic-highlight-ids"],
-    queryFn: fetchClinicTargets,
+    queryFn: () => fetchClinicTargets(),
     staleTime: 30_000,
     refetchInterval: 60_000,
     refetchOnWindowFocus: true,
