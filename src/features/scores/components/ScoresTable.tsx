@@ -607,6 +607,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
     <DomainTable
       tableClassName="ds-table--flat ds-table--center ds-scores-table"
       tableStyle={{ tableLayout: "fixed", width: tableWidth }}
+      dataAttributes={isEditMode ? { "data-edit-mode": "true" } : undefined}
     >
       <colgroup>
         {tableCols.map((w, i) => (
@@ -942,6 +943,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                               key={col.key}
                               data-col-type="score"
                               {...(colIdx === 0 ? { "data-group-start": "" } : {})}
+                              {...(canEdit ? { "data-editable": "true" } : {})}
                               className={`min-w-0 text-center align-middle ${isSelected ? "outline-2 outline-[var(--color-brand-primary)] outline-offset-[-2px]" : ""} ${isEditMode ? "hover:bg-[var(--color-bg-surface-hover)]" : ""}`}
                               onClick={(e) => { if (isEditMode) e.stopPropagation(); onSelectCell(row, "exam", ex.exam_id, "total"); }}
                             >
@@ -1187,6 +1189,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                               key={col.key}
                               data-col-type="score"
                               {...(colIdx === 0 ? { "data-group-start": "" } : {})}
+                              {...(canEdit ? { "data-editable": "true" } : {})}
                               className={`min-w-0 text-center align-middle ${isSelected ? "outline-2 outline-[var(--color-brand-primary)] outline-offset-[-2px]" : ""}`}
                               onClick={(e) => { if (isEditMode) e.stopPropagation(); onSelectCell(row, "exam", ex.exam_id, col.questionId); }}
                             >
@@ -1284,6 +1287,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                         className={`min-w-0 text-center align-middle ${isSelected ? "ds-scores-cell-active" : ""} ${isEditMode ? "hover:bg-[var(--color-bg-surface-hover)]" : ""}`}
                         data-col-type="score"
                         {...(hwBodyIdx === 0 ? { "data-section-start": "" } : {})}
+                        {...(canEditScore ? { "data-editable": "true" } : {})}
                         onClick={(e) => {
                           if (isEditMode) e.stopPropagation();
                           onSelectCell(row, "homework", hw.homework_id);

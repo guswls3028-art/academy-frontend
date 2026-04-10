@@ -461,6 +461,22 @@ table.ds-table {
 }
 
 /* 성적 테이블 행 교차 배경 (엑셀 가시성, flat과 동일 토큰 --color-primary) ========== */
+
+/* 편집 모드 — 편집 가능 셀 배경 구분 */
+.ds-scores-table[data-edit-mode="true"] td[data-editable="true"] {
+  background: color-mix(in srgb, var(--color-brand-primary) 4%, var(--color-bg-surface));
+  transition: background 120ms ease;
+}
+.ds-scores-table[data-edit-mode="true"] td[data-editable="true"]:hover {
+  background: color-mix(in srgb, var(--color-brand-primary) 10%, var(--color-bg-surface));
+}
+.ds-scores-table[data-edit-mode="true"] tbody tr.ds-scores-table-row--alt td[data-editable="true"] {
+  background: color-mix(in srgb, var(--color-brand-primary) 8%, var(--color-bg-surface));
+}
+.ds-scores-table[data-edit-mode="true"] tbody tr.ds-scores-table-row--alt td[data-editable="true"]:hover {
+  background: color-mix(in srgb, var(--color-brand-primary) 14%, var(--color-bg-surface));
+}
+
 /* 편집 모드 점수 셀(contenteditable) — 리스트 마커·가상 요소 제거(동그라미/고정 0 방지) */
 .ds-scores-table .ds-scores-cell-editable {
   list-style: none;

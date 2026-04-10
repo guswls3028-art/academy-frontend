@@ -659,7 +659,7 @@ export default function CreateRegularExamModal({
                 onClick={handleBulkSubmit}
                 disabled={submitting || !bulkHasAnyTitle}
               >
-                {submitting ? "생성 중…" : `일괄 생성${rows.filter((r) => r.title.trim()).length > 1 ? ` (${rows.filter((r) => r.title.trim()).length}개)` : ""}`}
+                {submitting ? "생성 중…" : `일괄 생성 (${rows.filter((r) => r.title.trim()).length})`}
               </Button>
             )}
             {stage === "import" && (
@@ -669,7 +669,7 @@ export default function CreateRegularExamModal({
                 onClick={handleImportSubmit}
                 disabled={importDisabled}
               >
-                {submitting ? "생성 중…" : `일괄 생성${selectedTemplateIds.size > 1 ? ` (${selectedTemplateIds.size}개)` : ""}`}
+                {submitting ? "생성 중…" : `일괄 생성 (${selectedTemplateIds.size})`}
               </Button>
             )}
           </>

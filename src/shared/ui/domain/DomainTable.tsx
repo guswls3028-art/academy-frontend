@@ -9,12 +9,15 @@ type DomainTableProps = {
   tableClassName?: string;
   /** table 인라인 스타일 (예: tableLayout: "fixed") */
   tableStyle?: CSSProperties;
+  /** data-* 속성 전달 (예: data-edit-mode) */
+  dataAttributes?: Record<string, string>;
 };
 
 export default function DomainTable({
   children,
   tableClassName,
   tableStyle,
+  dataAttributes,
 }: DomainTableProps) {
   const hasExplicitWidth = tableStyle?.width != null;
   return (
@@ -27,6 +30,7 @@ export default function DomainTable({
             ? { minWidth: tableStyle.width }
             : undefined),
         }}
+        {...dataAttributes}
       >
         {children}
       </table>
