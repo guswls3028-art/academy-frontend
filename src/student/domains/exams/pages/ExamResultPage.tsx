@@ -241,7 +241,7 @@ function RankComparisonCard({
       }}
     >
       <div style={{ fontWeight: 700, fontSize: 14, marginBottom: "var(--stu-space-4)" }}>
-        반 내 석차
+        우리 반 등수
       </div>
 
       {/* Rank badge */}

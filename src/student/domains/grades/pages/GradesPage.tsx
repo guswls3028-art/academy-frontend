@@ -241,7 +241,7 @@ export default function GradesPage() {
               <StatCard label="평균 점수" value={`${examStats.avgPct}점`} />
               <StatCard label="합격률" value={`${examStats.passRate}%`} />
               {examStats.avgRank != null ? (
-                <StatCard label="평균 석차" value={`${examStats.avgRank}등`} />
+                <StatCard label="평균 등수" value={`${examStats.avgRank}등`} />
               ) : (
                 <StatCard label="시험 수" value={`${examStats.count}건`} />
               )}
@@ -301,7 +301,7 @@ export default function GradesPage() {
                       }}
                       formatter={(v: number, name: string) => [
                         `${v}%`,
-                        name === "반평균" ? "반 평균" : "내 득점률",
+                        name === "반평균" ? "반 평균" : "내 점수",
                       ]}
                     />
                     <Line
