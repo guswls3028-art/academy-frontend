@@ -14,6 +14,8 @@ interface Props {
   onModeChange?: (mode: Mode) => void;
   projector?: boolean;
   onProjectorChange?: (v: boolean) => void;
+  /** External fullscreen container ref — if provided, fullscreen targets this element */
+  containerRef?: React.RefObject<HTMLDivElement | null>;
 }
 
 function pad(n: number, d = 2) {
@@ -68,7 +70,7 @@ function playAlarm() {
   }
 }
 
-export default function TimerCore({ logoUrl, academyName, startFullscreen, mode = "timer", onModeChange, projector: projectorProp, onProjectorChange }: Props) {
+export default function TimerCore({ logoUrl, academyName, startFullscreen, mode = "timer", onModeChange, projector: projectorProp, onProjectorChange, containerRef: externalContainerRef }: Props) {
   const [phase, setPhase] = useState<Phase>("setup");
   const [remaining, setRemaining] = useState(0);
   const [totalSet, setTotalSet] = useState(0); // original time set
@@ -89,7 +91,8 @@ export default function TimerCore({ logoUrl, academyName, startFullscreen, mode 
   const remainingRef = useRef(0);
   const runningRef = useRef(false);
   const afRef = useRef(0);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const internalRef = useRef<HTMLDivElement>(null);
+  const containerRef = externalContainerRef ?? internalRef;
   const alarmPlayedRef = useRef(false);
   const alarmIntervalRef = useRef<ReturnType<typeof setInterval>>();
 
@@ -309,10 +312,17 @@ export default function TimerCore({ logoUrl, academyName, startFullscreen, mode 
 
   return (
     <div
-      ref={containerRef}
+      ref={externalContainerRef ? undefined : internalRef}
       className={`${styles.root} ${projector ? styles.projector : ""} ${isFullscreen ? styles.fullscreen : ""}`}
     >
-      {logoUrl && <img className={styles.watermark} src={logoUrl} alt="" draggable={false} />}
+      {/* Tiled watermark — forgery-prevention style */}
+      {logoUrl && (
+        <div className={styles.watermarkTile}>
+          {Array.from({ length: 30 }, (_, i) => (
+            <img key={i} src={logoUrl} alt="" draggable={false} />
+          ))}
+        </div>
+      )}
 
       {/* Top bar */}
       <div className={styles.topBar}>

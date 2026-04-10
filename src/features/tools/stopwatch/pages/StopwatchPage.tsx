@@ -1,7 +1,8 @@
 // PATH: src/features/tools/stopwatch/pages/StopwatchPage.tsx
-// 타이머/스톱워치 도구 페이지 — 모드 전환, 프로젝터 상태 공유, 테넌트 로고 자동 적용
+// 타이머/스톱워치 도구 페이지 — 모드 전환, 프로젝터/전체화면 상태 공유
+// wrapper div가 fullscreen 대상 → 모드 전환 시에도 전체화면 유지
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef, useEffect } from "react";
 import {
   resolveTenantCode,
   getTenantIdFromCode,
@@ -16,6 +17,8 @@ type Mode = "timer" | "stopwatch";
 export default function StopwatchPage() {
   const [mode, setMode] = useState<Mode>("timer");
   const [projector, setProjector] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const wrapperRef = useRef<HTMLDivElement>(null);
 
   const { logoUrl, academyName } = useMemo(() => {
     const result = resolveTenantCode();
@@ -30,6 +33,13 @@ export default function StopwatchPage() {
     };
   }, []);
 
+  // Track fullscreen state on wrapper
+  useEffect(() => {
+    const handler = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", handler);
+    return () => document.removeEventListener("fullscreenchange", handler);
+  }, []);
+
   const shared = {
     logoUrl,
     academyName,
@@ -37,10 +47,18 @@ export default function StopwatchPage() {
     onModeChange: setMode,
     projector,
     onProjectorChange: setProjector,
+    containerRef: wrapperRef,
   };
 
   return (
-    <div style={{ height: "calc(100vh - 180px)", minHeight: 500 }}>
+    <div
+      ref={wrapperRef}
+      style={{
+        height: isFullscreen ? "100vh" : "calc(100vh - 180px)",
+        minHeight: 500,
+        background: isFullscreen ? (projector ? "#000" : "#f8f9fb") : undefined,
+      }}
+    >
       {mode === "timer" ? (
         <TimerCore {...shared} />
       ) : (

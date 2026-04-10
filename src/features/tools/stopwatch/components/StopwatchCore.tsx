@@ -17,6 +17,7 @@ interface Props {
   onModeChange?: (mode: Mode) => void;
   projector?: boolean;
   onProjectorChange?: (v: boolean) => void;
+  containerRef?: React.RefObject<HTMLDivElement | null>;
 }
 
 function pad(n: number, d = 2) {
@@ -40,7 +41,7 @@ function formatTimeStr(ms: number) {
 
 type Lap = { n: number; split: number; total: number };
 
-export default function StopwatchCore({ logoUrl, academyName, startFullscreen, mode = "stopwatch", onModeChange, projector: projectorProp, onProjectorChange }: Props) {
+export default function StopwatchCore({ logoUrl, academyName, startFullscreen, mode = "stopwatch", onModeChange, projector: projectorProp, onProjectorChange, containerRef: externalContainerRef }: Props) {
   const [running, setRunning] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const [projectorLocal, setProjectorLocal] = useState(false);
@@ -58,7 +59,8 @@ export default function StopwatchCore({ logoUrl, academyName, startFullscreen, m
   const runningRef = useRef(false);
   const lastLapRef = useRef(0);
   const afRef = useRef(0);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const internalRef = useRef<HTMLDivElement>(null);
+  const containerRef = externalContainerRef ?? internalRef;
 
   const tick = useCallback(() => {
     if (!runningRef.current) return;
@@ -177,11 +179,17 @@ export default function StopwatchCore({ logoUrl, academyName, startFullscreen, m
 
   return (
     <div
-      ref={containerRef}
+      ref={externalContainerRef ? undefined : internalRef}
       className={`${styles.root} ${projector ? styles.projector : ""} ${isFullscreen ? styles.fullscreen : ""}`}
     >
-      {/* Background logo watermark */}
-      {logoUrl && <img className={styles.watermark} src={logoUrl} alt="" draggable={false} />}
+      {/* Tiled watermark — forgery-prevention style */}
+      {logoUrl && (
+        <div className={styles.watermarkTile}>
+          {Array.from({ length: 30 }, (_, i) => (
+            <img key={i} src={logoUrl} alt="" draggable={false} />
+          ))}
+        </div>
+      )}
 
       {/* Top bar */}
       <div className={styles.topBar}>
