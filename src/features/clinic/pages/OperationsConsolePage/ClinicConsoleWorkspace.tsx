@@ -169,6 +169,14 @@ export default function ClinicConsoleWorkspace({
   const { data: clinicTargets } = useClinicTargets();
   const { openSendMessageModal } = useSendMessageModal();
 
+  // 메시지 발송 수신자 선택 — 세션 변경 시 초기화
+  const [selectedForMsg, setSelectedForMsg] = useState<Set<number>>(new Set());
+  const prevSessionId = useRef<number | null>(null);
+  if (session?.id !== prevSessionId.current) {
+    prevSessionId.current = session?.id ?? null;
+    if (selectedForMsg.size > 0) setSelectedForMsg(new Set());
+  }
+
   // 알림 설정 미리보기 팝업
   const [previewTrigger, setPreviewTrigger] = useState<string | null>(null);
 
@@ -659,29 +667,36 @@ export default function ClinicConsoleWorkspace({
               <UserPlus size={14} aria-hidden />
               학생 추가
             </button>
-            {participants.length > 0 && (
-              <button
-                type="button"
-                className="clinic-ops__action-btn clinic-ops__action-btn--secondary"
-                onClick={() => {
-                  const studentIds = [...new Set(participants.map((p) => p.student))].filter(Boolean);
-                  if (studentIds.length === 0) return;
-                  openSendMessageModal({
-                    studentIds,
-                    recipientLabel: `클리닉 참가 ${studentIds.length}명`,
-                    blockCategory: "clinic",
-                    alimtalkExtraVars: {
-                      클리닉장소: session.location || "",
-                      클리닉날짜: session.date || selectedDate,
-                      클리닉시간: formatTime(session.start_time),
-                    },
-                  });
-                }}
-              >
-                <MessageCircle size={14} aria-hidden />
-                메시지 발송
-              </button>
-            )}
+            {participants.length > 0 && (() => {
+              const allStudentIds = [...new Set(participants.map((p) => p.student))].filter(Boolean);
+              const selectedIds = allStudentIds.filter((id) => selectedForMsg.has(id));
+              const targetIds = selectedIds.length > 0 ? selectedIds : allStudentIds;
+              const label = selectedIds.length > 0
+                ? `선택 ${selectedIds.length}명에게 발송`
+                : `전체 ${allStudentIds.length}명에게 발송`;
+              return (
+                <button
+                  type="button"
+                  className="clinic-ops__action-btn clinic-ops__action-btn--secondary"
+                  onClick={() => {
+                    if (targetIds.length === 0) return;
+                    openSendMessageModal({
+                      studentIds: targetIds,
+                      recipientLabel: label,
+                      blockCategory: "clinic",
+                      alimtalkExtraVars: {
+                        클리닉장소: session.location || "",
+                        클리닉날짜: session.date || selectedDate,
+                        클리닉시간: formatTime(session.start_time),
+                      },
+                    });
+                  }}
+                >
+                  <MessageCircle size={14} aria-hidden />
+                  {selectedIds.length > 0 ? `메시지 발송 (${selectedIds.length}명)` : "메시지 발송"}
+                </button>
+              );
+            })()}
             {!isLoading && pendingIds.length > 0 && (
               <button
                 type="button"
@@ -1027,6 +1042,26 @@ export default function ClinicConsoleWorkspace({
                 tabIndex={0}
                 onKeyDown={(e) => { if (e.key === "Enter") setDrawerParticipantId(p.id); }}
               >
+                {/* 메시지 수신자 선택 체크박스 */}
+                <label
+                  className="clinic-ops__card-check"
+                  onClick={(e) => e.stopPropagation()}
+                  title="메시지 발송 대상 선택"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedForMsg.has(p.student)}
+                    onChange={(e) => {
+                      setSelectedForMsg((prev) => {
+                        const next = new Set(prev);
+                        if (e.target.checked) next.add(p.student);
+                        else next.delete(p.student);
+                        return next;
+                      });
+                    }}
+                  />
+                </label>
+
                 {/* Status indicator bar (left) */}
                 <div
                   className={`clinic-ops__card-indicator ${

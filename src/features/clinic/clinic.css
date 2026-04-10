@@ -4476,6 +4476,24 @@ details[open] > .clinic-tree__summary {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
+/* 메시지 수신자 선택 체크박스 */
+.clinic-ops__card-check {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 28px;
+  cursor: pointer;
+  padding: 0 2px;
+}
+.clinic-ops__card-check input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+  accent-color: var(--color-primary, #6366f1);
+  margin: 0;
+}
+
 /* Status indicator (left bar) */
 .clinic-ops__card-indicator {
   width: 4px;
