@@ -33,8 +33,8 @@ body{background:#ccc;font-family:'Malgun Gothic','맑은 고딕',sans-serif;colo
 @media screen{.omr{box-shadow:0 3px 20px rgba(0,0,0,.15)}}
 
 /* ═══ CORNER MARKERS v14 — ㄱ자 brackets + asymmetric filled markers ═══ */
-/* Brackets (visual) */
-.cm-bracket{position:absolute;z-index:20}
+/* Brackets (visual) — 명시적 크기 필요 (absolute children이 overflow) */
+.cm-bracket{position:absolute;z-index:20;width:8mm;height:8mm}
 .cm-bracket b{position:absolute;background:#333;display:block}
 .cm-bracket.tl{top:1.5mm;left:1.5mm}
 .cm-bracket.tl .h{width:8mm;height:0.3mm;top:0;left:0}
