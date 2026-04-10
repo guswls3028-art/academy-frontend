@@ -42,6 +42,14 @@ const PRESETS = [
   { label: "50분", ms: 50 * 60_000 },
   { label: "60분", ms: 60 * 60_000 },
   { label: "90분", ms: 90 * 60_000 },
+  { label: "120분", ms: 120 * 60_000 },
+];
+
+const FONT_OPTIONS = [
+  { label: "기본", value: "'JetBrains Mono', 'Consolas', monospace" },
+  { label: "클래식", value: "'Georgia', 'Times New Roman', serif" },
+  { label: "모던", value: "'SF Pro Display', 'Segoe UI', system-ui, sans-serif" },
+  { label: "둥근", value: "'Pretendard', 'Apple SD Gothic Neo', sans-serif" },
 ];
 
 /** Web Audio API beep for timer end */
@@ -73,7 +81,8 @@ function playAlarm() {
 export default function TimerCore({ logoUrl, academyName, startFullscreen, mode = "timer", onModeChange, projector: projectorProp, onProjectorChange, containerRef: externalContainerRef }: Props) {
   const [phase, setPhase] = useState<Phase>("setup");
   const [remaining, setRemaining] = useState(0);
-  const [totalSet, setTotalSet] = useState(0); // original time set
+  const [totalSet, setTotalSet] = useState(0);
+  const [fontFamily, setFontFamily] = useState(FONT_OPTIONS[0].value);
   const [projectorLocal, setProjectorLocal] = useState(false);
   const projector = projectorProp ?? projectorLocal;
   const toggleProjector = () => {
@@ -314,14 +323,7 @@ export default function TimerCore({ logoUrl, academyName, startFullscreen, mode 
       ref={externalContainerRef ? undefined : internalRef}
       className={`${styles.root} ${projector ? styles.projector : ""} ${isFullscreen ? styles.fullscreen : ""}`}
     >
-      {/* Tiled watermark — forgery-prevention style */}
-      {logoUrl && (
-        <div className={styles.watermarkTile}>
-          {Array.from({ length: 30 }, (_, i) => (
-            <img key={i} src={logoUrl} alt="" draggable={false} />
-          ))}
-        </div>
-      )}
+      {logoUrl && <img className={styles.watermark} src={logoUrl} alt="" draggable={false} />}
 
       {/* Top bar */}
       <div className={styles.topBar}>
@@ -428,11 +430,28 @@ export default function TimerCore({ logoUrl, academyName, startFullscreen, mode 
                 설정
               </button>
             </div>
+            {/* Font selector */}
+            <div className={styles.fontSelector}>
+              <span className={styles.fontSelectorLabel}>글꼴</span>
+              <div className={styles.fontOptions}>
+                {FONT_OPTIONS.map((f) => (
+                  <button
+                    key={f.label}
+                    className={`${styles.fontBtn} ${fontFamily === f.value ? styles.fontBtnActive : ""}`}
+                    onClick={() => setFontFamily(f.value)}
+                    type="button"
+                    style={{ fontFamily: f.value }}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         ) : (
           <>
             {/* Time display */}
-            <div className={displayCls}>
+            <div className={displayCls} style={{ fontFamily }}>
               <span className={styles.digit}>{t.h}</span>
               <span className={styles.sep}>:</span>
               <span className={styles.digit}>{t.m}</span>

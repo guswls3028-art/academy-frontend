@@ -45,39 +45,26 @@
   height: 56px;
 }
 
-.fullscreen .watermarkTile {
-  opacity: 0.055;
-  gap: 100px;
+.fullscreen .watermark {
+  opacity: 0.07;
+  width: 65%;
+  max-width: 700px;
 }
 
-.fullscreen .watermarkTile img {
-  width: 220px;
-}
-
-/* ── Logo Watermark (tiled, document-forgery-prevention style) ── */
-.watermarkTile {
+/* ── Logo Watermark (single, large, centered) ── */
+.watermark {
   position: absolute;
-  inset: -40%;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   pointer-events: none;
   z-index: 0;
-  overflow: hidden;
-  display: flex;
-  flex-wrap: wrap;
-  align-content: center;
-  justify-content: center;
-  gap: 80px;
-  padding: 40px;
-  opacity: 0.05;
-  transform: rotate(-22deg);
-  transform-origin: center center;
-  transition: opacity 0.5s ease;
-}
-
-.watermarkTile img {
-  width: 180px;
+  width: 55%;
+  max-width: 500px;
   height: auto;
   object-fit: contain;
-  flex-shrink: 0;
+  opacity: 0.06;
+  transition: opacity 0.5s ease;
 }
 
 /* ── Top Bar ── */
@@ -476,11 +463,8 @@
   color: rgba(255,255,255,0.2);
 }
 
-.projector .watermarkTile {
+.projector .watermark {
   opacity: 0.08;
-}
-
-.projector .watermarkTile img {
   filter: brightness(0) invert(1);
 }
 
@@ -495,9 +479,9 @@
   box-shadow: 0 0 14px rgba(255,212,59,0.6);
 }
 
-/* Controls in projector: dimmed, show on hover */
+/* Controls in projector: slightly dimmed, show on hover */
 .projector .controls {
-  opacity: 0.15;
+  opacity: 0.35;
   transition: opacity 0.3s ease;
 }
 

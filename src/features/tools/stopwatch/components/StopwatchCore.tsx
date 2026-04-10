@@ -180,14 +180,7 @@ export default function StopwatchCore({ logoUrl, academyName, startFullscreen, m
       ref={externalContainerRef ? undefined : internalRef}
       className={`${styles.root} ${projector ? styles.projector : ""} ${isFullscreen ? styles.fullscreen : ""}`}
     >
-      {/* Tiled watermark — forgery-prevention style */}
-      {logoUrl && (
-        <div className={styles.watermarkTile}>
-          {Array.from({ length: 30 }, (_, i) => (
-            <img key={i} src={logoUrl} alt="" draggable={false} />
-          ))}
-        </div>
-      )}
+      {logoUrl && <img className={styles.watermark} src={logoUrl} alt="" draggable={false} />}
 
       {/* Top bar */}
       <div className={styles.topBar}>
