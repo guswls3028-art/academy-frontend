@@ -133,6 +133,8 @@ export default function StopwatchCore({ logoUrl, academyName, startFullscreen, m
           toggleProjector();
           break;
         case "KeyF":
+        case "F11":
+          e.preventDefault();
           toggleFullscreen();
           break;
         case "Escape":
@@ -313,7 +315,7 @@ export default function StopwatchCore({ logoUrl, academyName, startFullscreen, m
         <span><kbd>R</kbd> 초기화</span>
         <span><kbd>L</kbd> 랩</span>
         <span><kbd>P</kbd> 프로젝터</span>
-        <span><kbd>F</kbd> 전체화면</span>
+        <span><kbd>F</kbd><kbd>F11</kbd> 전체화면</span>
       </div>
     </div>
   );

@@ -35,14 +35,13 @@ function formatTime(ms: number) {
 type Phase = "setup" | "ready" | "running" | "paused" | "finished";
 
 const PRESETS = [
+  { label: "1분", ms: 1 * 60_000 },
+  { label: "3분", ms: 3 * 60_000 },
+  { label: "5분", ms: 5 * 60_000 },
   { label: "10분", ms: 10 * 60_000 },
-  { label: "20분", ms: 20 * 60_000 },
+  { label: "15분", ms: 15 * 60_000 },
   { label: "30분", ms: 30 * 60_000 },
-  { label: "40분", ms: 40 * 60_000 },
-  { label: "50분", ms: 50 * 60_000 },
-  { label: "60분", ms: 60 * 60_000 },
-  { label: "90분", ms: 90 * 60_000 },
-  { label: "120분", ms: 120 * 60_000 },
+  { label: "1시간", ms: 60 * 60_000 },
 ];
 
 const FONT_OPTIONS = [
@@ -251,6 +250,8 @@ export default function TimerCore({ logoUrl, academyName, startFullscreen, mode 
           toggleProjector();
           break;
         case "KeyF":
+        case "F11":
+          e.preventDefault();
           toggleFullscreen();
           break;
         case "Escape":
@@ -386,7 +387,7 @@ export default function TimerCore({ logoUrl, academyName, startFullscreen, mode 
         {phase === "setup" ? (
           /* ── Time Setup ── */
           <div className={styles.setup}>
-            <span className={styles.setupLabel}>시험 시간을 선택하세요</span>
+            <span className={styles.setupLabel}>시간을 선택하세요</span>
             <div className={styles.presets}>
               {PRESETS.map((p) => (
                 <button
@@ -523,7 +524,7 @@ export default function TimerCore({ logoUrl, academyName, startFullscreen, mode 
         <span><kbd>R</kbd> 초기화</span>
         <span><kbd>A</kbd> +1분</span>
         <span><kbd>P</kbd> 프로젝터</span>
-        <span><kbd>F</kbd> 전체화면</span>
+        <span><kbd>F</kbd><kbd>F11</kbd> 전체화면</span>
       </div>
     </div>
   );

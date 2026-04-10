@@ -250,7 +250,7 @@
   justify-content: center;
   font-family: 'JetBrains Mono', 'Consolas', 'Courier New', monospace;
   font-weight: 600;
-  font-size: clamp(64px, 11vw, 120px);
+  font-size: clamp(72px, 13vw, 160px);
   letter-spacing: -2px;
   line-height: 1;
   transition: all 0.5s ease;
@@ -293,7 +293,7 @@
 }
 
 .btnMain {
-  width: 72px; height: 72px;
+  width: 80px; height: 80px;
   border-radius: 50%;
   border: none;
   cursor: pointer;
@@ -305,7 +305,7 @@
 }
 
 .btnMain:active { transform: scale(0.93); }
-.btnMain svg { width: 24px; height: 24px; }
+.btnMain svg { width: 28px; height: 28px; }
 
 .btnStart {
   background: var(--sw-accent);
@@ -329,13 +329,13 @@
 }
 
 .btnSide {
-  padding: 12px 28px;
+  padding: 14px 32px;
   border-radius: 100px;
   border: 1px solid var(--sw-border);
   background: var(--sw-surface);
   color: var(--sw-text-dim);
   cursor: pointer;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 500;
   transition: all 0.2s ease;
   font-family: inherit;
@@ -350,13 +350,13 @@
 .btnSide:active { transform: scale(0.95); }
 
 .btnLap {
-  padding: 12px 28px;
+  padding: 14px 32px;
   border-radius: 100px;
   border: 1px solid rgba(230,119,0,0.15);
   background: rgba(230,119,0,0.06);
   color: var(--sw-gold);
   cursor: pointer;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 500;
   transition: all 0.2s ease;
   font-family: inherit;
