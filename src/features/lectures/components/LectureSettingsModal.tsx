@@ -5,6 +5,7 @@
 import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { extractApiError } from "@/shared/utils/extractApiError";
 import { useConfirm } from "@/shared/ui/confirm";
 import { SessionBlockView } from "@/shared/ui/session-block";
 import { updateLecture, deleteLecture } from "../api/sessions";
@@ -54,8 +55,8 @@ export default function LectureSettingsModal({
       await updateLecture(lecture.id, { is_active: false });
       onAfterEnd?.();
       onClose();
-    } catch (e: any) {
-      feedback.error(e?.response?.data?.detail ?? "강의 종료에 실패했습니다.");
+    } catch (e: unknown) {
+      feedback.error(extractApiError(e, "강의 종료에 실패했습니다."));
     }
   }
 
@@ -64,8 +65,8 @@ export default function LectureSettingsModal({
       await updateLecture(lecture.id, { is_active: true });
       onAfterRestore?.();
       onClose();
-    } catch (e: any) {
-      feedback.error(e?.response?.data?.detail ?? "강의 복원에 실패했습니다.");
+    } catch (e: unknown) {
+      feedback.error(extractApiError(e, "강의 복원에 실패했습니다."));
     }
   }
 
@@ -81,8 +82,8 @@ export default function LectureSettingsModal({
       await deleteLecture(lecture.id);
       onAfterDelete?.();
       onClose();
-    } catch (e: any) {
-      feedback.error(e?.response?.data?.detail ?? "강의 삭제에 실패했습니다.");
+    } catch (e: unknown) {
+      feedback.error(extractApiError(e, "강의 삭제에 실패했습니다."));
     }
   }
 

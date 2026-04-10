@@ -4,6 +4,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
+import { extractApiError } from "@/shared/utils/extractApiError";
 import {
   AdminModal,
   ModalBody,
@@ -165,8 +166,8 @@ export default function SessionCreateModal({ lectureId, sectionId, sectionLabel,
       await createSession(lectureId, title, effectiveDate || undefined, nextOrder, sectionId);
       feedback.success("차시가 추가되었습니다.");
       onClose();
-    } catch (e: any) {
-      feedback.error(e?.response?.data?.detail ?? "차시 추가에 실패했습니다.");
+    } catch (e: unknown) {
+      feedback.error(extractApiError(e, "차시 추가에 실패했습니다."));
     } finally {
       setBusy(false);
     }

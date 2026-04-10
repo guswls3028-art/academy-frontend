@@ -7,6 +7,7 @@ import { fetchStudents } from "@/features/students/api/students";
 
 import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { extractApiError } from "@/shared/utils/extractApiError";
 import { Button, EmptyState } from "@/shared/ui/ds";
 import { formatPhone } from "@/shared/utils/formatPhone";
 
@@ -45,8 +46,8 @@ export default function EnrollStudentModal({ sessionId, isOpen, onClose, onSucce
       onClose();
       setSelectedIds([]);
     },
-    onError: (e: any) => {
-      feedback.error(e?.response?.data?.detail ?? "수강생 추가에 실패했습니다.");
+    onError: (e: unknown) => {
+      feedback.error(extractApiError(e, "수강생 추가에 실패했습니다."));
     },
   });
 

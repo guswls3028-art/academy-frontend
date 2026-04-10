@@ -378,7 +378,7 @@ export default function LectureStudentsPage() {
                           {formatPhone(row.phone)}
                         </td>
                         {sessionsByDateDesc.map((s) => {
-                          const cell = row.attendance[String(s.id)];
+                          const cell = row.attendance?.[String(s.id)];
                           return (
                             <td
                               key={s.id}

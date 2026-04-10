@@ -20,6 +20,7 @@ import { Button, EmptyState, Tabs } from "@/shared/ui/ds";
 import { TABLE_COL } from "@/shared/ui/domain";
 import { formatPhone } from "@/shared/utils/formatPhone";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { extractApiError } from "@/shared/utils/extractApiError";
 import { asyncStatusStore } from "@/shared/ui/asyncStatus";
 import { useSchoolLevelMode } from "@/shared/hooks/useSchoolLevelMode";
 import { formatSessionOrderLabel } from "@/shared/ui/session-block";
@@ -396,8 +397,8 @@ export default function SessionEnrollModal({
       onSuccess?.();
       onClose();
     },
-    onError: (e: any) => {
-      feedback.error(e?.response?.data?.detail ?? "수강생 추가에 실패했습니다.");
+    onError: (e: unknown) => {
+      feedback.error(extractApiError(e, "수강생 추가에 실패했습니다."));
     },
   });
 

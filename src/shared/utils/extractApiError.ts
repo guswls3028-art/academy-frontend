@@ -18,6 +18,12 @@ const FIELD_LABELS: Record<string, string> = {
   role: "역할",
   pay_type: "급여유형",
   is_active: "활성상태",
+  title: "강의 이름",
+  subject: "과목",
+  start_date: "시작일",
+  end_date: "종료일",
+  lecture_time: "강의 시간",
+  order: "차시 순번",
   detail: "",
   non_field_errors: "",
 };

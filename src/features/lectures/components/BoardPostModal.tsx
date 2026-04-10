@@ -7,6 +7,7 @@ import { createPostTemplate, type PostTemplate } from "@/features/community/api/
 import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { extractApiError } from "@/shared/utils/extractApiError";
 
 interface Props {
   lectureId: number;
@@ -41,8 +42,8 @@ export default function BoardPostModal({ lectureId, categoryLabel, templates = [
       setShowSaveAsTemplate(false);
       setTemplateName("");
     },
-    onError: (e: any) => {
-      feedback.error(e?.response?.data?.detail ?? "양식 저장에 실패했습니다.");
+    onError: (e: unknown) => {
+      feedback.error(extractApiError(e, "양식 저장에 실패했습니다."));
     },
   });
 
@@ -72,8 +73,8 @@ export default function BoardPostModal({ lectureId, categoryLabel, templates = [
       feedback.success("글이 등록되었습니다.");
       onClose();
     },
-    onError: (e: any) => {
-      feedback.error(e?.response?.data?.detail ?? "글 등록에 실패했습니다.");
+    onError: (e: unknown) => {
+      feedback.error(extractApiError(e, "글 등록에 실패했습니다."));
     },
   });
 

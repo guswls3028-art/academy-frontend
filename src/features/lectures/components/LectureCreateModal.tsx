@@ -15,6 +15,7 @@ import { StaffRoleAvatar } from "@/shared/ui/avatars";
 import { fetchLecture, fetchLectureInstructorOptions, updateLecture } from "@/features/lectures/api/sessions";
 import { fetchStaffMe } from "@/features/staff/api/staffMe.api";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { extractApiError } from "@/shared/utils/extractApiError";
 import { validateRequiredFields } from "@/shared/utils/modalValidation";
 import "./LectureCreateModal.css";
 
@@ -162,8 +163,8 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [], l
       }
       onClose();
     },
-    onError: (e: any) => {
-      feedback.error(e?.response?.data?.detail ?? "저장에 실패했습니다.");
+    onError: (e: unknown) => {
+      feedback.error(extractApiError(e, "저장에 실패했습니다."));
     },
   });
 
