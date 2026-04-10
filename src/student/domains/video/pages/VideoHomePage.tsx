@@ -53,7 +53,7 @@ export default function VideoHomePage() {
     import("hls.js").catch(() => {});
   }, []);
 
-  const { data: videoMe, isLoading, isError } = useQuery({
+  const { data: videoMe, isLoading, isError, refetch } = useQuery({
     queryKey: ["student-video-me"],
     queryFn: fetchVideoMe,
     staleTime: 60 * 1000,
@@ -79,6 +79,7 @@ export default function VideoHomePage() {
         <EmptyState
           title="영상을 불러오지 못했습니다"
           description="네트워크 연결을 확인하고 잠시 후 다시 시도해 주세요."
+          onRetry={() => refetch()}
         />
       </div>
     );

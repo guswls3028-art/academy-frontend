@@ -1,7 +1,7 @@
 /**
  * 좌측 사이드 드로어 — 더보기 메뉴 (모바일 슬라이드)
  */
-import { useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { logout } from "@/features/auth/api/auth";
 import {
@@ -69,6 +69,7 @@ const NAV: { category: string; items: { label: string; to: string; icon: ReactNo
 
 export default function StudentDrawer({ open, onClose }: DrawerProps) {
   const panelRef = useRef<HTMLDivElement>(null);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   // ESC 키로 닫기
   useEffect(() => {
@@ -221,7 +222,7 @@ export default function StudentDrawer({ open, onClose }: DrawerProps) {
         <div style={{ padding: "var(--stu-space-3) var(--stu-space-3)", borderTop: "1px solid var(--stu-border)" }}>
           <button
             type="button"
-            onClick={() => { onClose(); logout(); }}
+            onClick={() => setShowLogoutConfirm(true)}
             style={{
               width: "100%",
               display: "flex",
@@ -229,6 +230,7 @@ export default function StudentDrawer({ open, onClose }: DrawerProps) {
               justifyContent: "center",
               gap: "var(--stu-space-3)",
               padding: "10px",
+              minHeight: 44,
               borderRadius: "var(--stu-radius-md)",
               border: "none",
               background: "var(--stu-danger-bg)",
@@ -243,6 +245,20 @@ export default function StudentDrawer({ open, onClose }: DrawerProps) {
           </button>
         </div>
       </div>
+
+      {/* 로그아웃 확인 다이얼로그 */}
+      {showLogoutConfirm && (
+        <div className="stu-logout-dialog__overlay" onClick={() => setShowLogoutConfirm(false)}>
+          <div className="stu-logout-dialog__box" onClick={(e) => e.stopPropagation()}>
+            <div className="stu-logout-dialog__title">로그아웃</div>
+            <div className="stu-logout-dialog__desc">정말 로그아웃 하시겠어요?</div>
+            <div className="stu-logout-dialog__actions">
+              <button type="button" className="stu-logout-dialog__cancel" onClick={() => setShowLogoutConfirm(false)}>취소</button>
+              <button type="button" className="stu-logout-dialog__confirm" onClick={() => { setShowLogoutConfirm(false); onClose(); logout(); }}>로그아웃</button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

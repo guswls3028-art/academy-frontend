@@ -123,9 +123,13 @@ export default function ExamSubmitPage() {
 
   if (examQ.isLoading) {
     return (
-      <StudentPageShell title="시험 입력" description="불러오는 중...">
-        <div className="stu-muted" style={{ padding: 16 }}>
-          불러오는 중…
+      <StudentPageShell title="시험 입력">
+        <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-3)" }}>
+          <div className="stu-skel" style={{ height: 24, width: "60%", borderRadius: "var(--stu-radius-sm)" }} />
+          <div className="stu-skel" style={{ height: 6, borderRadius: 3 }} />
+          <div className="stu-skel" style={{ height: 52, borderRadius: "var(--stu-radius)" }} />
+          <div className="stu-skel" style={{ height: 52, borderRadius: "var(--stu-radius)" }} />
+          <div className="stu-skel" style={{ height: 52, borderRadius: "var(--stu-radius)" }} />
         </div>
       </StudentPageShell>
     );
@@ -137,6 +141,7 @@ export default function ExamSubmitPage() {
         <EmptyState
           title="시험 정보를 불러오지 못했습니다."
           description="잠시 후 다시 시도해 주세요."
+          onRetry={() => examQ.refetch()}
         />
       </StudentPageShell>
     );
@@ -211,8 +216,10 @@ export default function ExamSubmitPage() {
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
         {loadingQuestions && (
-          <div className="stu-muted" style={{ padding: 8 }}>
-            문항 불러오는 중…
+          <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-3)" }}>
+            {[1, 2, 3, 4, 5].map((i) => (
+              <div key={i} className="stu-skel" style={{ height: 52, borderRadius: "var(--stu-radius)" }} />
+            ))}
           </div>
         )}
 
@@ -331,24 +338,29 @@ export default function ExamSubmitPage() {
               </div>
             </div>
 
-            <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={submitting}
-              style={{
-                padding: "14px 20px",
-                borderRadius: 12,
-                border: "none",
-                background: "var(--stu-primary)",
-                color: "#fff",
-                fontWeight: 700,
-                fontSize: 16,
-                cursor: submitting ? "not-allowed" : "pointer",
-                opacity: submitting ? 0.8 : 1,
-              }}
-            >
-              {submitting ? "제출 중…" : "제출하기"}
-            </button>
+            <div className="stu-sticky-submit">
+              <button
+                type="button"
+                onClick={handleSubmit}
+                disabled={submitting}
+                style={{
+                  width: "100%",
+                  padding: "14px 20px",
+                  minHeight: 48,
+                  borderRadius: "var(--stu-radius-md)",
+                  border: "none",
+                  background: "var(--stu-primary)",
+                  color: "#fff",
+                  fontWeight: 700,
+                  fontSize: 16,
+                  cursor: submitting ? "not-allowed" : "pointer",
+                  opacity: submitting ? 0.8 : 1,
+                  transition: "opacity var(--stu-motion-fast)",
+                }}
+              >
+                {submitting ? "제출 중…" : "제출하기"}
+              </button>
+            </div>
           </>
         )}
       </div>

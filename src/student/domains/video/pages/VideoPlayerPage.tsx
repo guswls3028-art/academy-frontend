@@ -339,6 +339,7 @@ export default function VideoPlayerPage() {
           <EmptyState
             title="영상을 재생할 수 없어요"
             description={fatalError || loadError || "네트워크 연결을 확인하고 다시 시도해 주세요."}
+            onRetry={() => window.location.reload()}
           />
           <button type="button" className="vpp-back-btn" onClick={() => nav(-1)}>
             ← 뒤로가기

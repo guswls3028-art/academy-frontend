@@ -80,8 +80,11 @@ export default function NotificationsPage() {
   if (isLoading) {
     return (
       <StudentPageShell title="알림">
-        <div className="stu-muted" style={{ padding: "var(--stu-space-4) 0" }}>
-          불러오는 중…
+        <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-3)" }}>
+          <div className="stu-skel" style={{ height: 20, width: "30%", borderRadius: "var(--stu-radius-sm)" }} />
+          <div className="stu-skel" style={{ height: 72, borderRadius: "var(--stu-radius)" }} />
+          <div className="stu-skel" style={{ height: 72, borderRadius: "var(--stu-radius)" }} />
+          <div className="stu-skel" style={{ height: 72, borderRadius: "var(--stu-radius)" }} />
         </div>
       </StudentPageShell>
     );
@@ -93,6 +96,7 @@ export default function NotificationsPage() {
         <EmptyState
           title="알림을 불러오지 못했습니다"
           description="네트워크 연결을 확인하고 잠시 후 다시 시도해 주세요."
+          onRetry={() => window.location.reload()}
         />
       </StudentPageShell>
     );

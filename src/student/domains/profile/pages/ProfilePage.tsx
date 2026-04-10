@@ -70,7 +70,7 @@ export default function ProfilePage() {
 
   const slm = useSchoolLevelMode();
 
-  const { data: profile, isLoading, isError } = useQuery({
+  const { data: profile, isLoading, isError, refetch } = useQuery({
     queryKey: ["student", "me"],
     queryFn: fetchMyProfile,
   });
@@ -225,7 +225,12 @@ export default function ProfilePage() {
   if (isLoading) {
     return (
       <StudentPageShell title="내 정보">
-        <div className="stu-muted">불러오는 중...</div>
+        <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-4)", alignItems: "center" }}>
+          <div className="stu-skel" style={{ width: 80, height: 80, borderRadius: "50%" }} />
+          <div className="stu-skel" style={{ height: 20, width: "50%", borderRadius: "var(--stu-radius-sm)" }} />
+          <div className="stu-skel" style={{ height: 140, width: "100%", borderRadius: "var(--stu-radius)" }} />
+          <div className="stu-skel" style={{ height: 80, width: "100%", borderRadius: "var(--stu-radius)" }} />
+        </div>
       </StudentPageShell>
     );
   }
@@ -236,6 +241,7 @@ export default function ProfilePage() {
         <EmptyState
           title="프로필을 불러오지 못했습니다."
           description="잠시 후 다시 시도해주세요."
+          onRetry={() => refetch()}
         />
       </StudentPageShell>
     );
@@ -263,7 +269,11 @@ export default function ProfilePage() {
       {!profile.isParentReadOnly && (
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, marginBottom: "var(--stu-space-6)" }}>
           <div
+            role="button"
+            tabIndex={0}
+            aria-label="프로필 사진 변경"
             onClick={() => photoInputRef.current?.click()}
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); photoInputRef.current?.click(); } }}
             style={{
               width: 80,
               height: 80,
@@ -278,7 +288,6 @@ export default function ProfilePage() {
               position: "relative",
               transition: "border-color 0.2s",
             }}
-            title="프로필 사진 변경"
           >
             {profile.profile_photo_url ? (
               <img
@@ -294,18 +303,17 @@ export default function ProfilePage() {
             <div
               style={{
                 position: "absolute",
-                inset: 0,
-                background: "rgba(0,0,0,0.3)",
+                bottom: 0,
+                left: 0,
+                right: 0,
+                height: 24,
+                background: "rgba(0,0,0,0.45)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                opacity: 0,
-                transition: "opacity 0.2s",
               }}
-              onMouseEnter={(e) => { e.currentTarget.style.opacity = "1"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.opacity = "0"; }}
             >
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
                 <circle cx="12" cy="13" r="4" />
               </svg>
@@ -345,11 +353,19 @@ export default function ProfilePage() {
               position: "absolute",
               top: 0,
               right: 0,
-              padding: "var(--stu-space-2)",
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+              padding: "var(--stu-space-2) var(--stu-space-3)",
+              minHeight: 36,
+              borderRadius: "var(--stu-radius-sm)",
+              color: "var(--stu-primary)",
+              fontSize: 13,
+              fontWeight: 600,
             }}
-            title={editing ? "취소" : "편집"}
           >
-            <IconPencil style={{ width: 20, height: 20, color: "var(--stu-primary)" }} />
+            <IconPencil style={{ width: 16, height: 16 }} />
+            {editing ? "취소" : "편집"}
           </button>
           )}
 

@@ -1,7 +1,7 @@
 /**
  * 더보기 — 카테고리별 메뉴 단일 목록 + 로그아웃
  */
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { logout } from "@/features/auth/api/auth";
 import { useFeesEnabled } from "@/shared/hooks/useFeesEnabled";
@@ -75,6 +75,7 @@ const FULL_NAV: { category: string; items: NavItem[] }[] = [
 
 export default function MorePage() {
   const feesEnabled = useFeesEnabled();
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   const filteredNav = useMemo(() => {
     return FULL_NAV.map((g) => ({
@@ -151,12 +152,26 @@ export default function MorePage() {
             fontWeight: 700,
             borderRadius: "var(--stu-radius-lg, 12px)",
           }}
-          onClick={() => logout()}
+          onClick={() => setShowLogoutConfirm(true)}
         >
           <IconLogout style={{ width: 22, height: 22 }} />
           로그아웃
         </button>
       </section>
+
+      {/* 로그아웃 확인 다이얼로그 */}
+      {showLogoutConfirm && (
+        <div className="stu-logout-dialog__overlay" onClick={() => setShowLogoutConfirm(false)}>
+          <div className="stu-logout-dialog__box" onClick={(e) => e.stopPropagation()}>
+            <div className="stu-logout-dialog__title">로그아웃</div>
+            <div className="stu-logout-dialog__desc">정말 로그아웃 하시겠어요?</div>
+            <div className="stu-logout-dialog__actions">
+              <button type="button" className="stu-logout-dialog__cancel" onClick={() => setShowLogoutConfirm(false)}>취소</button>
+              <button type="button" className="stu-logout-dialog__confirm" onClick={() => { setShowLogoutConfirm(false); logout(); }}>로그아웃</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

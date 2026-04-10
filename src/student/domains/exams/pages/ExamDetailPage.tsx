@@ -48,7 +48,7 @@ export default function ExamDetailPage() {
   if (examQ.isError || !examQ.data) {
     return (
       <StudentPageShell title="시험">
-        <EmptyState title="시험 정보를 불러오지 못했어요." description="잠시 후 다시 시도해 주세요." />
+        <EmptyState title="시험 정보를 불러오지 못했어요." description="잠시 후 다시 시도해 주세요." onRetry={() => examQ.refetch()} />
       </StudentPageShell>
     );
   }

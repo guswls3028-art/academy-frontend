@@ -1163,3 +1163,134 @@ html:has([data-app="student"]) {
   border-left: 3px solid var(--stu-border-normal);
   color: var(--stu-text-muted);
 }
+
+/* =========================
+   Accessible Tab Bar
+   ========================= */
+[data-app="student"] [role="tablist"] {
+  display: flex;
+  gap: var(--stu-space-2);
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: var(--stu-space-2);
+}
+
+[data-app="student"] [role="tablist"]::-webkit-scrollbar {
+  display: none;
+}
+
+[data-app="student"] [role="tab"] {
+  min-height: 44px;
+  padding: 10px 14px;
+  border-radius: var(--stu-radius-md);
+  border: 1.5px solid var(--stu-border);
+  background: var(--stu-surface);
+  color: var(--stu-text-muted);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background var(--stu-motion-fast), border-color var(--stu-motion-fast), color var(--stu-motion-fast);
+  flex-shrink: 0;
+}
+
+[data-app="student"] [role="tab"][aria-selected="true"] {
+  background: var(--stu-tint-primary);
+  border-color: var(--stu-primary);
+  color: var(--stu-primary);
+  font-weight: 700;
+}
+
+[data-app="student"] [role="tab"]:active {
+  transform: scale(0.97);
+}
+
+/* =========================
+   Touch Target Enforcement (44px)
+   ========================= */
+[data-app="student"] .stu-btn {
+  min-height: 44px;
+}
+
+[data-app="student"] .stu-btn--sm {
+  min-height: 44px;
+}
+
+/* =========================
+   Sticky Submit Bar
+   ========================= */
+.stu-sticky-submit {
+  position: sticky;
+  bottom: 0;
+  z-index: 100;
+  padding: var(--stu-space-4);
+  background: var(--stu-surface);
+  border-top: 1px solid var(--stu-border);
+  backdrop-filter: blur(12px);
+}
+
+/* =========================
+   Logout Confirm Dialog
+   ========================= */
+.stu-logout-dialog__overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9100;
+  background: var(--stu-backdrop);
+  display: grid;
+  place-items: center;
+  padding: var(--stu-space-4);
+}
+
+.stu-logout-dialog__box {
+  background: var(--stu-surface);
+  border-radius: var(--stu-radius-xl);
+  padding: var(--stu-space-8);
+  max-width: 320px;
+  width: 100%;
+  text-align: center;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+}
+
+.stu-logout-dialog__title {
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--stu-text);
+  margin-bottom: var(--stu-space-3);
+}
+
+.stu-logout-dialog__desc {
+  font-size: 14px;
+  color: var(--stu-text-muted);
+  margin-bottom: var(--stu-space-6);
+  line-height: 1.5;
+}
+
+.stu-logout-dialog__actions {
+  display: flex;
+  gap: var(--stu-space-3);
+}
+
+.stu-logout-dialog__actions button {
+  flex: 1;
+  min-height: 44px;
+  border-radius: var(--stu-radius-md);
+  font-weight: 700;
+  font-size: 15px;
+  cursor: pointer;
+  transition: background var(--stu-motion-fast);
+}
+
+.stu-logout-dialog__cancel {
+  background: var(--stu-surface-soft);
+  color: var(--stu-text);
+  border: 1px solid var(--stu-border);
+}
+
+.stu-logout-dialog__confirm {
+  background: var(--stu-danger);
+  color: #fff;
+  border: none;
+}

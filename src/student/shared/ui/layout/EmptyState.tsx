@@ -12,6 +12,7 @@ type EmptyStateProps = {
   description?: string;
   icon?: React.ReactNode;
   compact?: boolean; // 작은 크기 (카드 내부용)
+  onRetry?: () => void; // 재시도 콜백 (에러 상태에서 사용)
 };
 
 export default function EmptyState({
@@ -19,6 +20,7 @@ export default function EmptyState({
   description,
   icon,
   compact = false,
+  onRetry,
 }: EmptyStateProps) {
   const iconSize = compact ? 52 : 72;
   const svgSize = compact ? 26 : 34;
@@ -114,6 +116,29 @@ export default function EmptyState({
         >
           {description}
         </p>
+      )}
+
+      {/* 재시도 버튼 */}
+      {onRetry && (
+        <button
+          type="button"
+          onClick={onRetry}
+          style={{
+            marginTop: compact ? "var(--stu-space-3)" : "var(--stu-space-5)",
+            padding: "10px 24px",
+            minHeight: 44,
+            borderRadius: "var(--stu-radius-md)",
+            border: "1.5px solid var(--stu-border)",
+            background: "var(--stu-surface)",
+            color: "var(--stu-text)",
+            fontWeight: 600,
+            fontSize: 14,
+            cursor: "pointer",
+            transition: "background var(--stu-motion-fast), border-color var(--stu-motion-fast)",
+          }}
+        >
+          다시 시도
+        </button>
       )}
     </div>
   );

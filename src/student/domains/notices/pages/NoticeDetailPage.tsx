@@ -2,7 +2,7 @@
  * 공지 상세 페이지
  */
 import { useState, useEffect } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import DOMPurify from "dompurify";
 import StudentPageShell from "@/student/shared/ui/pages/StudentPageShell";
@@ -13,9 +13,10 @@ import { getAttachmentDownloadUrl, type PostAttachment } from "@/features/commun
 
 export default function NoticeDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const noticeId = id ? Number(id) : null;
 
-  const { data: notice, isLoading, isError } = useQuery({
+  const { data: notice, isLoading, isError, refetch } = useQuery({
     queryKey: ["student-notice", noticeId],
     queryFn: () => (noticeId != null ? fetchNoticeDetail(noticeId) : Promise.resolve(null)),
     enabled: noticeId != null,
@@ -24,7 +25,12 @@ export default function NoticeDetailPage() {
   if (isLoading) {
     return (
       <StudentPageShell title="공지사항">
-        <div className="stu-muted">불러오는 중...</div>
+        <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-4)" }}>
+          <div className="stu-skel" style={{ height: 28, width: "70%", borderRadius: "var(--stu-radius)" }} />
+          <div className="stu-skel" style={{ height: 16, width: "40%", borderRadius: "var(--stu-radius-sm)" }} />
+          <div className="stu-skel" style={{ height: 120, borderRadius: "var(--stu-radius)" }} />
+          <div className="stu-skel" style={{ height: 60, borderRadius: "var(--stu-radius)" }} />
+        </div>
       </StudentPageShell>
     );
   }
@@ -35,6 +41,7 @@ export default function NoticeDetailPage() {
         <EmptyState
           title="공지를 불러오지 못했습니다."
           description="잠시 후 다시 시도해주세요."
+          onRetry={() => refetch()}
         />
       </StudentPageShell>
     );
@@ -44,7 +51,7 @@ export default function NoticeDetailPage() {
   const lectureTitle = firstNode?.lecture_title;
 
   return (
-    <StudentPageShell title="공지사항">
+    <StudentPageShell title="공지사항" onBack={() => navigate("/student/notices")}>
       <div className="stu-section stu-section--nested">
         <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-4)" }}>
           {/* 제목 */}

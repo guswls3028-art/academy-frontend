@@ -43,6 +43,7 @@ export default function ExamResultPage() {
         <EmptyState
           title="결과를 불러오지 못했어요."
           description="아직 채점 전이거나, 시험에 응시하지 않았을 수 있어요."
+          onRetry={() => resultQ.refetch()}
         />
       </StudentPageShell>
     );

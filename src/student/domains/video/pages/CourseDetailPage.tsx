@@ -219,7 +219,7 @@ export default function CourseDetailPage() {
     pathname.includes("/video/courses/public");
   const lectureIdNum = isPublic ? null : (lectureId ? parseInt(lectureId, 10) : null);
 
-  const { data: videoMe, isLoading } = useQuery({
+  const { data: videoMe, isLoading, refetch } = useQuery({
     queryKey: ["student-video-me"],
     queryFn: fetchVideoMe,
   });
@@ -293,6 +293,7 @@ export default function CourseDetailPage() {
           <EmptyState
             title="수업을 찾을 수 없습니다"
             description="수업이 존재하지 않거나 접근 권한이 없습니다."
+            onRetry={() => refetch()}
           />
         </div>
       </StudentPageShell>

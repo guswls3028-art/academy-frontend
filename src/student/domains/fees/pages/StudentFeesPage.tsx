@@ -4,6 +4,8 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
+import StudentPageShell from "@/student/shared/ui/pages/StudentPageShell";
+import EmptyState from "@/student/shared/ui/layout/EmptyState";
 
 type InvoiceStatus = "PENDING" | "PARTIAL" | "PAID" | "OVERDUE" | "CANCELLED";
 
@@ -41,16 +43,17 @@ function formatKRW(n: number) {
 }
 
 const STATUS_STYLE: Record<string, { bg: string; color: string }> = {
-  PENDING: { bg: "#fff3e0", color: "#e65100" },
-  PARTIAL: { bg: "#e3f2fd", color: "#1565c0" },
-  PAID: { bg: "#e8f5e9", color: "#2e7d32" },
-  OVERDUE: { bg: "#ffebee", color: "#c62828" },
+  PENDING: { bg: "var(--stu-warn-bg)", color: "var(--stu-warn-text)" },
+  PARTIAL: { bg: "color-mix(in srgb, var(--stu-primary) 12%, transparent)", color: "var(--stu-primary)" },
+  PAID: { bg: "var(--stu-success-bg)", color: "var(--stu-success-text)" },
+  OVERDUE: { bg: "var(--stu-danger-bg)", color: "var(--stu-danger-text)" },
+  CANCELLED: { bg: "var(--stu-surface-soft)", color: "var(--stu-text-muted)" },
 };
 
 export default function StudentFeesPage() {
   const [selectedId, setSelectedId] = useState<number | null>(null);
 
-  const { data: invoices, isLoading } = useQuery({
+  const { data: invoices, isLoading, isError, refetch } = useQuery({
     queryKey: ["student", "fees", "invoices"],
     queryFn: async () => {
       const res = await api.get<Invoice[]>("/student/fees/invoices/");
@@ -84,94 +87,88 @@ export default function StudentFeesPage() {
     (inv) => inv.billing_year === now.getFullYear() && inv.billing_month === now.getMonth() + 1,
   );
 
+  if (isLoading) {
+    return (
+      <StudentPageShell title="수납/결제" description="청구서 및 납부 내역">
+        <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-4)" }}>
+          <div className="stu-skel" style={{ height: 100, borderRadius: "var(--stu-radius)" }} />
+          <div className="stu-skel" style={{ height: 20, width: "30%", borderRadius: "var(--stu-radius-sm)" }} />
+          <div className="stu-skel" style={{ height: 64, borderRadius: "var(--stu-radius)" }} />
+          <div className="stu-skel" style={{ height: 64, borderRadius: "var(--stu-radius)" }} />
+        </div>
+      </StudentPageShell>
+    );
+  }
+
+  if (isError) {
+    return (
+      <StudentPageShell title="수납/결제" description="청구서 및 납부 내역">
+        <EmptyState
+          title="청구서를 불러오지 못했습니다"
+          description="네트워크 연결을 확인하고 다시 시도해 주세요."
+          onRetry={() => refetch()}
+        />
+      </StudentPageShell>
+    );
+  }
+
   return (
-    <div style={{ padding: "16px", maxWidth: 600, margin: "0 auto" }}>
-      <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16 }}>수납/결제</h2>
-
-      {isLoading ? (
-        <p style={{ color: "var(--stu-muted)" }}>불러오는 중...</p>
-      ) : (
-        <>
-          {/* Current Month Card */}
-          {current && (
-            <div
-              style={{
-                padding: 16,
-                borderRadius: 12,
-                background: "var(--stu-surface, #fff)",
-                border: "1px solid var(--stu-border, #e0e0e0)",
-                marginBottom: 20,
-              }}
-            >
-              <div style={{ fontSize: 13, color: "var(--stu-muted, #888)", marginBottom: 4 }}>
-                {current.billing_year}년 {current.billing_month}월
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div>
-                  <div style={{ fontSize: 24, fontWeight: 700 }}>{formatKRW(current.total_amount)}</div>
-                  {current.outstanding_amount > 0 && (
-                    <div style={{ fontSize: 13, color: "#c62828", marginTop: 4 }}>
-                      미납: {formatKRW(current.outstanding_amount)}
-                    </div>
-                  )}
-                </div>
-                <span
-                  style={{
-                    padding: "4px 10px",
-                    borderRadius: 6,
-                    fontSize: 13,
-                    fontWeight: 600,
-                    backgroundColor: STATUS_STYLE[current.status]?.bg ?? "#f5f5f5",
-                    color: STATUS_STYLE[current.status]?.color ?? "#666",
-                  }}
-                >
-                  {current.status_display}
-                </span>
-              </div>
-              <div style={{ fontSize: 12, color: "var(--stu-muted, #888)", marginTop: 8 }}>
-                납부기한: {current.due_date}
-              </div>
+    <StudentPageShell title="수납/결제" description="청구서 및 납부 내역">
+      <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-6)" }}>
+        {/* Current Month Card */}
+        {current && (
+          <div
+            style={{
+              padding: 16,
+              borderRadius: "var(--stu-radius-lg, 12px)",
+              background: "linear-gradient(135deg, rgba(59,130,246,0.07) 0%, var(--stu-surface) 55%)",
+              border: "1.5px solid rgba(59,130,246,0.18)",
+            }}
+          >
+            <div style={{ fontSize: 12, color: "var(--stu-text-muted)", fontWeight: 600, marginBottom: 6, letterSpacing: "0.03em" }}>
+              {current.billing_year}년 {current.billing_month}월
             </div>
-          )}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div>
+                <div style={{ fontSize: 24, fontWeight: 800, letterSpacing: "-0.02em" }}>{formatKRW(current.total_amount)}</div>
+                {current.outstanding_amount > 0 && (
+                  <div style={{ fontSize: 13, color: "var(--stu-danger)", marginTop: 4, fontWeight: 600 }}>
+                    미납: {formatKRW(current.outstanding_amount)}
+                  </div>
+                )}
+              </div>
+              <StatusBadge status={current.status} label={current.status_display} />
+            </div>
+            <div style={{ fontSize: 12, color: "var(--stu-text-muted)", marginTop: 8 }}>
+              납부기한: {current.due_date}
+            </div>
+          </div>
+        )}
 
-          {/* Invoice List */}
-          <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 12 }}>청구서 내역</h3>
+        {/* Invoice List */}
+        <section>
+          <div style={{ fontSize: 15, fontWeight: 700, marginBottom: "var(--stu-space-3)" }}>청구서 내역</div>
           {!invoices?.length ? (
-            <p style={{ color: "var(--stu-muted, #888)", fontSize: 14, textAlign: "center", padding: 24 }}>
-              청구서가 없습니다
-            </p>
+            <EmptyState
+              title="청구서가 없습니다"
+              description="등록된 청구서가 없어요."
+              compact
+            />
           ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-2)" }}>
               {invoices.map((inv) => (
-                <div
+                <button
                   key={inv.id}
+                  type="button"
                   onClick={() => setSelectedId(selectedId === inv.id ? null : inv.id)}
-                  style={{
-                    padding: 12,
-                    borderRadius: 8,
-                    background: "var(--stu-surface, #fff)",
-                    border: selectedId === inv.id
-                      ? "2px solid var(--stu-primary, #1976d2)"
-                      : "1px solid var(--stu-border, #e0e0e0)",
-                    cursor: "pointer",
-                  }}
+                  className="stu-panel stu-panel--pressable"
+                  style={{ textAlign: "left", cursor: "pointer", borderColor: selectedId === inv.id ? "var(--stu-primary)" : undefined }}
                 >
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <span style={{ fontWeight: 500 }}>
+                    <span style={{ fontWeight: 600, fontSize: 14 }}>
                       {inv.billing_year}.{String(inv.billing_month).padStart(2, "0")}
                     </span>
-                    <span
-                      style={{
-                        fontSize: 12,
-                        fontWeight: 600,
-                        padding: "2px 8px",
-                        borderRadius: 4,
-                        backgroundColor: STATUS_STYLE[inv.status]?.bg ?? "#f5f5f5",
-                        color: STATUS_STYLE[inv.status]?.color ?? "#666",
-                      }}
-                    >
-                      {inv.status_display}
-                    </span>
+                    <StatusBadge status={inv.status} label={inv.status_display} />
                   </div>
                   <div style={{ fontSize: 16, fontWeight: 700, marginTop: 4 }}>
                     {formatKRW(inv.total_amount)}
@@ -180,58 +177,73 @@ export default function StudentFeesPage() {
                   {/* Expanded detail */}
                   {selectedId === inv.id && detail && (
                     <div
-                      style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid var(--stu-border, #e0e0e0)" }}
+                      style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid var(--stu-border)" }}
                     >
                       {detail.items?.map((item) => (
                         <div
                           key={item.id}
                           style={{ display: "flex", justifyContent: "space-between", fontSize: 14, padding: "4px 0" }}
                         >
-                          <span>{item.description}</span>
-                          <span>{formatKRW(item.amount)}</span>
+                          <span style={{ color: "var(--stu-text-muted)" }}>{item.description}</span>
+                          <span style={{ fontWeight: 600 }}>{formatKRW(item.amount)}</span>
                         </div>
                       ))}
                     </div>
                   )}
-                </div>
+                </button>
               ))}
             </div>
           )}
+        </section>
 
-          {/* Payment History */}
-          {payments && payments.length > 0 && (
-            <>
-              <h3 style={{ fontSize: 16, fontWeight: 600, marginTop: 24, marginBottom: 12 }}>납부 내역</h3>
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {payments.map((pay) => (
-                  <div
-                    key={pay.id}
-                    style={{
-                      padding: 12,
-                      borderRadius: 8,
-                      background: "var(--stu-surface, #fff)",
-                      border: "1px solid var(--stu-border, #e0e0e0)",
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                    }}
-                  >
-                    <div>
-                      <div style={{ fontSize: 14, fontWeight: 500 }}>
-                        {formatKRW(pay.amount)}
-                      </div>
-                      <div style={{ fontSize: 12, color: "var(--stu-muted, #888)" }}>
-                        {pay.payment_method_display} · {new Date(pay.paid_at).toLocaleDateString("ko-KR")}
-                      </div>
+        {/* Payment History */}
+        {payments && payments.length > 0 && (
+          <section>
+            <div style={{ fontSize: 15, fontWeight: 700, marginBottom: "var(--stu-space-3)" }}>납부 내역</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-2)" }}>
+              {payments.map((pay) => (
+                <div
+                  key={pay.id}
+                  className="stu-panel"
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                  }}
+                >
+                  <div>
+                    <div style={{ fontSize: 14, fontWeight: 600 }}>
+                      {formatKRW(pay.amount)}
                     </div>
-                    <span style={{ fontSize: 12, color: "#2e7d32", fontWeight: 600 }}>완료</span>
+                    <div style={{ fontSize: 12, color: "var(--stu-text-muted)", marginTop: 2 }}>
+                      {pay.payment_method_display} · {new Date(pay.paid_at).toLocaleDateString("ko-KR")}
+                    </div>
                   </div>
-                ))}
-              </div>
-            </>
-          )}
-        </>
-      )}
-    </div>
+                  <span style={{ fontSize: 12, color: "var(--stu-success-text)", fontWeight: 700 }}>완료</span>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+      </div>
+    </StudentPageShell>
+  );
+}
+
+function StatusBadge({ status, label }: { status: string; label: string }) {
+  const style = STATUS_STYLE[status] ?? STATUS_STYLE.CANCELLED;
+  return (
+    <span
+      style={{
+        padding: "4px 10px",
+        borderRadius: 6,
+        fontSize: 12,
+        fontWeight: 700,
+        backgroundColor: style.bg,
+        color: style.color,
+      }}
+    >
+      {label}
+    </span>
   );
 }

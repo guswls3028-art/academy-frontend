@@ -117,7 +117,7 @@ const GUIDE_SECTIONS: GuideSection[] = [
     title: "설정",
     to: "/student/settings",
     description:
-      "앱 설정을 바꿀 수 있어요. 알림 설정 등을 여기서 관리해요.",
+      "앱 설정을 바꿀 수 있어요. 화면 모드(라이트/다크/시스템)를 변경할 수 있어요.",
   },
 ];
 

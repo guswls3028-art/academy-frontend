@@ -8,7 +8,7 @@ import { IconExam, IconChevronRight } from "@/student/shared/ui/icons/Icons";
 import GradeBadge from "@/student/domains/grades/components/GradeBadge";
 
 export default function ExamListPage() {
-  const { data, isLoading, isError } = useStudentExams();
+  const { data, isLoading, isError, refetch } = useStudentExams();
   const items = data?.items ?? [];
 
   // 상태 기반 Panel variant 결정 (제출 상태 + deadline 기반)
@@ -85,7 +85,7 @@ export default function ExamListPage() {
           <div className="stu-skel" style={{ height: 80, borderRadius: "var(--stu-radius)" }} />
         </div>
       )}
-      {isError && <EmptyState title="시험을 불러오지 못했습니다" description="네트워크 연결을 확인하고 잠시 후 다시 시도해 주세요." />}
+      {isError && <EmptyState title="시험을 불러오지 못했습니다" description="네트워크 연결을 확인하고 잠시 후 다시 시도해 주세요." onRetry={() => refetch()} />}
 
       {!isLoading && !isError && items.length === 0 && (
         <EmptyState title="시험이 없습니다." description="등록된 시험이 있으면 여기에 표시됩니다." />

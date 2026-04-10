@@ -305,9 +305,9 @@ export default function ClinicPage() {
             type="button"
             onClick={() => setActiveTab("book")}
             style={{
-              flex: 1, padding: "8px 0", borderRadius: 8,
+              flex: 1, padding: "12px 0", borderRadius: 8,
               border: "none", cursor: "pointer",
-              fontSize: 14, fontWeight: 600,
+              fontSize: 14, fontWeight: 600, minHeight: 44,
               background: activeTab === "book" ? "var(--stu-surface, #fff)" : "transparent",
               color: activeTab === "book" ? "var(--stu-text)" : "var(--stu-text-muted)",
               boxShadow: activeTab === "book" ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
@@ -329,9 +329,9 @@ export default function ClinicPage() {
             type="button"
             onClick={() => setActiveTab("schedule")}
             style={{
-              flex: 1, padding: "8px 0", borderRadius: 8,
+              flex: 1, padding: "12px 0", borderRadius: 8,
               border: "none", cursor: "pointer",
-              fontSize: 14, fontWeight: 600,
+              fontSize: 14, fontWeight: 600, minHeight: 44,
               background: activeTab === "schedule" ? "var(--stu-surface, #fff)" : "transparent",
               color: activeTab === "schedule" ? "var(--stu-text)" : "var(--stu-text-muted)",
               boxShadow: activeTab === "schedule" ? "0 1px 3px rgba(0,0,0,0.08)" : "none",

@@ -33,7 +33,7 @@ function filterNotices(notices: PostEntity[], tab: NoticeTab): PostEntity[] {
 export default function NoticesPage() {
   const [activeTab, setActiveTab] = useState<NoticeTab>("all");
 
-  const { data: notices, isLoading, isError } = useQuery({
+  const { data: notices, isLoading, isError, refetch } = useQuery({
     queryKey: ["student-notices"],
     queryFn: fetchNotices,
   });
@@ -68,6 +68,7 @@ export default function NoticesPage() {
         <EmptyState
           title="공지를 불러오지 못했습니다."
           description="잠시 후 다시 시도해주세요."
+          onRetry={() => refetch()}
         />
       </StudentPageShell>
     );
