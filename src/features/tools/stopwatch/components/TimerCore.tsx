@@ -287,7 +287,7 @@ export default function TimerCore({ logoUrl, academyName, startFullscreen, mode 
   }, []);
 
   const t = formatTime(remaining);
-  const isWarning = phase === "running" && remaining > 0 && remaining <= 60_000;
+  const isWarning = phase === "running" && remaining > 0 && remaining < 60_000;
   const totalMinSec = totalSet > 0
     ? `${Math.floor(totalSet / 60_000)}분 ${pad(Math.floor((totalSet % 60_000) / 1000))}초`
     : "";
