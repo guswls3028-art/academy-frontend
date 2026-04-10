@@ -4019,12 +4019,26 @@ details[open] > .clinic-tree__summary {
   line-height: 1.5;
 }
 
+.clinic-delete-modal__body {
+  padding: 24px;
+}
+
 .clinic-delete-modal__warning {
   font-size: 13px;
   font-weight: 600;
   color: var(--color-error, #ef4444);
   margin: 0 0 4px;
   line-height: 1.5;
+}
+
+.clinic-delete-modal__warning--last {
+  margin-bottom: 20px;
+}
+
+.clinic-delete-modal__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 .clinic-ops__all-done {
@@ -6808,4 +6822,35 @@ details[open] > .clinic-tree__summary {
 .clinic-send-result__hint {
   font-size: 11px;
   color: var(--color-text-muted, #aaa);
+}
+
+/* ── Section filter (반 필터) ── */
+.clinic-section-filter {
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: var(--radius-md, 8px);
+  border: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  min-width: 100px;
+}
+.clinic-section-filter:focus {
+  outline: none;
+  border-color: var(--color-brand-primary);
+}
+
+/* ── Resolved toggle chip ── */
+.clinic-hub__filter-chip--toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  margin-left: 4px;
+}
+.clinic-hub__filter-chip--toggle input[type="checkbox"] {
+  width: 13px;
+  height: 13px;
+  accent-color: var(--color-brand-primary);
 }

@@ -260,6 +260,7 @@ export default function ClinicCreatePanel({
       target_grade?: number | null;
       target_school_type?: string | null;
       target_lecture_ids?: number[];
+      memo?: string;
     }) => {
       const res = await api.post("/clinic/sessions/", payload);
       return res.data as { id: number };
@@ -327,6 +328,7 @@ export default function ClinicCreatePanel({
         target_grade: targetGrade,
         target_school_type: targetSchoolType,
         target_lecture_ids: targetLectureIds.length > 0 ? targetLectureIds : [],
+        memo: memo.trim() || undefined,
       });
 
       // B-01: 선택된 학생들을 참가자로 등록

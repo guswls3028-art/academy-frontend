@@ -158,8 +158,20 @@ export default function ClinicReportsPage() {
               불러오는 중…
             </span>
           )}
+          {sessionsQ.isError && (
+            <span className="text-xs text-[var(--color-error)]">
+              데이터를 불러오지 못했습니다.
+            </span>
+          )}
         </div>
 
+        {sessionsQ.isError ? (
+          <div className="clinic-reports-calendar-block__empty">
+            <p className="text-sm text-[var(--color-text-muted)]" style={{ textAlign: "center", padding: "48px 24px" }}>
+              클리닉 데이터를 불러오지 못했습니다. 네트워크를 확인한 뒤 새로고침해 주세요.
+            </p>
+          </div>
+        ) : (
         <div className="clinic-reports-calendar-block__grid">
             <div className="grid grid-cols-7 border-b border-[var(--color-border-divider)] bg-[var(--color-bg-surface-soft)] text-xs font-semibold text-[var(--color-text-primary)]">
               {["일", "월", "화", "수", "목", "금", "토"].map((d) => (
@@ -230,7 +242,14 @@ export default function ClinicReportsPage() {
               );
             })}
           </div>
+          {!sessionsQ.isLoading && sessions.length === 0 && (
+            <div style={{ textAlign: "center", padding: "40px 24px", color: "var(--color-text-muted)" }}>
+              <p style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>이 달에는 클리닉 일정이 없습니다.</p>
+              <p style={{ fontSize: 13 }}>클리닉 진행 탭에서 일정을 등록해 보세요.</p>
+            </div>
+          )}
         </div>
+        )}
       </div>
     </div>
   );

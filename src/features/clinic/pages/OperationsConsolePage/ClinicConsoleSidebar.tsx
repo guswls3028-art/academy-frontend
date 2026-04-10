@@ -7,7 +7,7 @@
 import { useMemo } from "react";
 import dayjs from "dayjs";
 import "dayjs/locale/ko";
-import { Clock, MapPin, Plus, Copy, Pencil, Trash2 } from "lucide-react";
+import { Clock, MapPin, Plus, Copy, Pencil, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
 import type { ClinicSessionTreeNode } from "../../api/clinicSessions.api";
 
 dayjs.locale("ko");
@@ -98,7 +98,7 @@ export default function ClinicConsoleSidebar({
           onClick={onPrevMonth}
           aria-label="이전 달"
         >
-          ◀
+          <ChevronLeft size={16} />
         </button>
         <span className="clinic-scheduler-panel__month-label">
           {monthLabelShort}
@@ -109,7 +109,7 @@ export default function ClinicConsoleSidebar({
           onClick={onNextMonth}
           aria-label="다음 달"
         >
-          ▶
+          <ChevronRight size={16} />
         </button>
       </div>
       <div

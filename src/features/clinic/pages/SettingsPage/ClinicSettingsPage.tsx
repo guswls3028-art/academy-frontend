@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Switch } from "antd";
+import { RefreshCw } from "lucide-react";
 import { fetchClinicMe } from "../../api/clinicMe.api";
 import { fetchClinicSettings, updateClinicSettings } from "../../api/clinicSettings.api";
 import Section from "@/shared/ui/ds/Section";
@@ -242,7 +243,7 @@ function ClinicIdcardColorSettings() {
                 disabled={updateMutation.isPending || isLoading}
                 className="w-full clinic-passcard-refresh-btn"
               >
-                🔄 새로고침 — 3색 랜덤 배치 즉시 반영
+                <RefreshCw size={14} aria-hidden /> 새로고침 — 3색 랜덤 배치 즉시 반영
               </Button>
               <Button
                 intent="primary"

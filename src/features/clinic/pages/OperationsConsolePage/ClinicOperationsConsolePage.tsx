@@ -264,7 +264,7 @@ export default function ClinicOperationsConsolePage() {
         width={420}
       >
         {deleteConfirm && (
-          <div style={{ padding: "24px" }}>
+          <div className="clinic-delete-modal__body">
             <h2 className="clinic-delete-modal__title">
               클리닉 삭제
             </h2>
@@ -275,10 +275,10 @@ export default function ClinicOperationsConsolePage() {
             <p className="clinic-delete-modal__warning">
               이 클리닉에 예약된 학생들의 출석/예약 기록도 함께 삭제됩니다.
             </p>
-            <p className="clinic-delete-modal__warning" style={{ marginBottom: 20 }}>
+            <p className="clinic-delete-modal__warning clinic-delete-modal__warning--last">
               삭제된 클리닉과 예약/출석 정보는 복구할 수 없습니다.
             </p>
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+            <div className="clinic-delete-modal__actions">
               <Button
                 intent="secondary"
                 onClick={() => setDeleteConfirm(null)}
