@@ -206,10 +206,9 @@ export default function TimerCore({ logoUrl, academyName, startFullscreen, mode 
   }, [inputMin, inputSec, startTimer]);
 
   const toggleFullscreen = useCallback(() => {
-    const el = containerRef.current;
-    if (!el) return;
     if (!document.fullscreenElement) {
-      el.requestFullscreen().catch(() => {});
+      // 전체 페이지 fullscreen — 윈도우 작업표시줄까지 가림
+      document.documentElement.requestFullscreen().catch(() => {});
     } else {
       document.exitFullscreen().catch(() => {});
     }
@@ -327,8 +326,7 @@ export default function TimerCore({ logoUrl, academyName, startFullscreen, mode 
       {/* Top bar */}
       <div className={styles.topBar}>
         <div className={styles.brand}>
-          {logoUrl && <img className={styles.brandLogo} src={logoUrl} alt="" draggable={false} />}
-          {!logoUrl && academyName && <span className={styles.brandName}>{academyName}</span>}
+          {academyName && <span className={styles.brandName}>{academyName}</span>}
         </div>
         {onModeChange && (
           <div className={styles.modeToggle}>

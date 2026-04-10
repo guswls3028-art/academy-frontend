@@ -105,10 +105,8 @@ export default function StopwatchCore({ logoUrl, academyName, startFullscreen, m
   }, []);
 
   const toggleFullscreen = useCallback(() => {
-    const el = containerRef.current;
-    if (!el) return;
     if (!document.fullscreenElement) {
-      el.requestFullscreen().catch(() => {});
+      document.documentElement.requestFullscreen().catch(() => {});
     } else {
       document.exitFullscreen().catch(() => {});
     }
@@ -194,8 +192,7 @@ export default function StopwatchCore({ logoUrl, academyName, startFullscreen, m
       {/* Top bar */}
       <div className={styles.topBar}>
         <div className={styles.brand}>
-          {logoUrl && <img className={styles.brandLogo} src={logoUrl} alt="" draggable={false} />}
-          {!logoUrl && academyName && <span className={styles.brandName}>{academyName}</span>}
+          {academyName && <span className={styles.brandName}>{academyName}</span>}
         </div>
         {onModeChange && (
           <div className={styles.modeToggle}>
