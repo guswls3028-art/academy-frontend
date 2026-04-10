@@ -674,27 +674,46 @@ export default function ClinicConsoleWorkspace({
               const label = selectedIds.length > 0
                 ? `선택 ${selectedIds.length}명에게 발송`
                 : `전체 ${allStudentIds.length}명에게 발송`;
+              const allSelected = allStudentIds.length > 0 && allStudentIds.every((id) => selectedForMsg.has(id));
               return (
-                <button
-                  type="button"
-                  className="clinic-ops__action-btn clinic-ops__action-btn--secondary"
-                  onClick={() => {
-                    if (targetIds.length === 0) return;
-                    openSendMessageModal({
-                      studentIds: targetIds,
-                      recipientLabel: label,
-                      blockCategory: "clinic",
-                      alimtalkExtraVars: {
-                        클리닉장소: session.location || "",
-                        클리닉날짜: session.date || selectedDate,
-                        클리닉시간: formatTime(session.start_time),
-                      },
-                    });
-                  }}
-                >
-                  <MessageCircle size={14} aria-hidden />
-                  {selectedIds.length > 0 ? `메시지 발송 (${selectedIds.length}명)` : "메시지 발송"}
-                </button>
+                <>
+                  {allStudentIds.length > 1 && (
+                    <button
+                      type="button"
+                      className="clinic-ops__action-btn clinic-ops__action-btn--ghost"
+                      onClick={() => {
+                        if (allSelected) {
+                          setSelectedForMsg(new Set());
+                        } else {
+                          setSelectedForMsg(new Set(allStudentIds));
+                        }
+                      }}
+                    >
+                      <CheckCheck size={14} aria-hidden />
+                      {allSelected ? "선택 해제" : "전체 선택"}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="clinic-ops__action-btn clinic-ops__action-btn--secondary"
+                    onClick={() => {
+                      if (targetIds.length === 0) return;
+                      openSendMessageModal({
+                        studentIds: targetIds,
+                        recipientLabel: label,
+                        blockCategory: "clinic",
+                        alimtalkExtraVars: {
+                          클리닉장소: session.location || "",
+                          클리닉날짜: session.date || selectedDate,
+                          클리닉시간: formatTime(session.start_time),
+                        },
+                      });
+                    }}
+                  >
+                    <MessageCircle size={14} aria-hidden />
+                    {selectedIds.length > 0 ? `메시지 발송 (${selectedIds.length}명)` : "메시지 발송"}
+                  </button>
+                </>
               );
             })()}
             {!isLoading && pendingIds.length > 0 && (

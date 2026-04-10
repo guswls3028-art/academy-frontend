@@ -568,9 +568,28 @@ export default function SendMessageModal({
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
-    fetchMessageTemplates(undefined, true).then((list) => { if (!cancelled) setTemplates(list); }).catch(() => { if (!cancelled) setTemplates([]); });
+    fetchMessageTemplates(undefined, true).then((list) => {
+      if (cancelled) return;
+      setTemplates(list);
+      // 알림톡 모드 + 양식 미선택 시: 카테고리에 맞는 기본 양식 자동 선택
+      if (!selectedTemplateId && !initialBody) {
+        const categoryMap: Record<string, string> = {
+          clinic: "clinic", attendance: "attendance", exam: "exam",
+          grades: "grades", assignment: "assignment", payment: "payment",
+        };
+        const targetCat = categoryMap[blockCategory] || "";
+        const match = targetCat
+          ? list.find((t) => t.is_system && t.category === targetCat)
+          : list.find((t) => t.is_system && t.is_user_default);
+        if (match) {
+          setSelectedTemplateId(match.id);
+          setBody(match.body);
+          setTemplateBodySnapshot(match.body);
+        }
+      }
+    }).catch(() => { if (!cancelled) setTemplates([]); });
     return () => { cancelled = true; };
-  }, [open]);
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ─── Actions ───
   const insertBlock = useCallback((insertText: string) => {
