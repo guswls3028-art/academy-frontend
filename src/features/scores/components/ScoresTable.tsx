@@ -83,6 +83,7 @@ function PassFailText({ passed }: { passed: boolean | null | undefined }) {
     <span
       className="ds-scores-pass-fail-badge"
       data-tone={passed ? "success" : "danger"}
+      title={passed ? "합격 (커트라인 이상)" : "불합격 (커트라인 미만)"}
     >
       {passed ? "합" : "불"}
     </span>
@@ -1492,16 +1493,16 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                     }
                     if (verdict === "fail") {
                       return (
-                        <span className="ds-scores-pass-fail-badge" data-tone="danger">
+                        <span className="ds-scores-pass-fail-badge" data-tone="danger" title="커트라인 미만 항목 있음">
                           불합
                         </span>
                       );
                     }
                     if (verdict === "dash") {
-                      return <span className="text-[var(--color-text-muted)]">-</span>;
+                      return <span className="text-[var(--color-text-muted)]" title="시험·과제 없음">-</span>;
                     }
                     return (
-                      <span className="ds-scores-pass-fail-badge" data-tone="success">
+                      <span className="ds-scores-pass-fail-badge" data-tone="success" title="전 항목 커트라인 이상">
                         합격
                       </span>
                     );

@@ -719,7 +719,7 @@ export default function SessionScoresEntryPage(_props: Props) {
 
       {/* 설정 바 — 읽기 모드: 표시 설정 / 편집 모드: 편집 항목 */}
       {(isEditMode || hasExamsOrHomeworks) && (
-      <div className="scores-view-filter-panel">
+      <div className={`scores-view-filter-panel${isEditMode ? " scores-view-filter-panel--edit" : ""}`}>
         {isEditMode ? (
           <div className="scores-view-filter-section">
             <span className="scores-view-filter-label">편집 항목</span>
