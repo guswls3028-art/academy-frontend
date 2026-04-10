@@ -12,17 +12,24 @@ test.describe("Fees Management", () => {
   test("Admin can navigate to fees page and see 3 tabs", async ({ page }) => {
     await loginViaUI(page, "admin");
 
-    await page.goto(`${BASE}/admin/fees`, { waitUntil: "load" });
-    await page.waitForTimeout(2000);
+    await page.goto(`${BASE}/admin/fees`, { waitUntil: "load", timeout: 45000 });
+    await page.waitForTimeout(1500);
+    await page
+      .waitForFunction(
+        () => {
+          const t = document.body?.innerText ?? "";
+          return t.includes("수납 관리") || t.includes("대시보드") || t.includes("불러오는 중");
+        },
+        { timeout: 35000 },
+      )
+      .catch(() => {});
 
-    // Wait for lazy-loaded page to render
-    await page.waitForTimeout(3000);
     const feesEnabled = await page.locator("text=수납 관리").isVisible({ timeout: 5000 }).catch(() => false);
     if (!feesEnabled) {
       await page.screenshot({ path: "e2e/screenshots/fees-feature-disabled-redirect.png", fullPage: true });
     }
     test.skip(!feesEnabled, "fee_management off — FeesPage redirects to dashboard (FeesPage.tsx)");
-    await expect(page.locator("text=수납 관리")).toBeVisible({ timeout: 15000 });
+    await expect(page.locator("text=수납 관리")).toBeVisible({ timeout: 10000 });
 
     // Check tabs exist
     await expect(page.locator(".ds-tab").filter({ hasText: "수납 현황" })).toBeVisible();

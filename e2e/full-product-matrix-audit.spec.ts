@@ -82,9 +82,23 @@ test.describe("Full product matrix A–L (screenshots)", () => {
       await shot(page, name);
     }
 
-    // I 수납 — 플래그 off 시 대시보드로 리다이렉트 (증거 캡처)
-    await page.goto(`${BASE}/admin/fees`, { waitUntil: "load", timeout: 30000 });
-    await settle(page, 2000);
+    // I 수납 — program 로드·lazy 청크 후 UI 안정화까지 대기 (빈 스크린샷 방지)
+    await page.goto(`${BASE}/admin/fees`, { waitUntil: "load", timeout: 45000 });
+    await page
+      .waitForFunction(
+        () => {
+          const body = document.body?.innerText ?? "";
+          return (
+            body.includes("수납 관리") ||
+            body.includes("대시보드") ||
+            body.includes("불러오는 중") ||
+            body.includes("미처리 일감")
+          );
+        },
+        { timeout: 35000 },
+      )
+      .catch(() => {});
+    await settle(page, 2500);
     await shot(page, "I-01-fees-route-result");
 
     // G-01 메시지 발송: 학생 선택 후 모달 시도

@@ -35,6 +35,7 @@ export async function loginViaUI(page: Page, role: TenantRole): Promise<void> {
       "Content-Type": "application/json",
       "X-Tenant-Code": c.code,
     },
+    timeout: 60_000,
   });
 
   if (resp.status() !== 200) {
