@@ -3,7 +3,7 @@
  * TeacherViewContext의 forceView가 있으면 그에 따름(모바일/PC 버전 강제 보기).
  */
 import { useEffect, useState } from "react";
-import { useTeacherView } from "@/shared/ui/layout/TeacherViewContext";
+import { useTeacherView } from "@admin/layout/TeacherViewContext";
 
 /** 1024px 이하 = 모바일 레이아웃. 폰에서 '데스크톱 사이트' 켜도 ~980px라 모바일로 감. */
 const QUERY = "(max-width: 1023px)";

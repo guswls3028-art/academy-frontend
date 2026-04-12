@@ -6,17 +6,17 @@ import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import * as Sentry from "@sentry/react";
 
-import AppRouter from "@/app/router/AppRouter";
-import QueryProvider from "@/app/providers/QueryProvider";
-import { AuthProvider } from "@/features/auth/context/AuthContext";
+import AppRouter from "@/core/router/AppRouter";
+import QueryProvider from "@/core/providers/QueryProvider";
+import { AuthProvider } from "@/auth/context/AuthContext";
 import { ProgramProvider } from "@/shared/program";
-import { ThemeProvider } from "@/context/ThemeContext";
+import { ThemeProvider } from "@/shared/contexts/ThemeContext";
 // 테넌트 레지스트리를 엔트리에서 직접 사용 — Vite 메인 번들에 포함 강제
 import { TENANTS } from "@/shared/tenant/tenants/index";
 // side-effect guard: Rollup이 tree-shake하지 않도록 런타임 참조
 if (!TENANTS.length) throw new Error("Tenant registry empty");
 import ErrorBoundary from "@/shared/ui/ErrorBoundary";
-import { DevErrorBoundary, DevErrorLogger } from "@/app/DevErrorLogger";
+import { DevErrorBoundary, DevErrorLogger } from "@/core/DevErrorLogger";
 import { useVersionChecker } from "@/shared/ui/layout/VersionChecker";
 import SubscriptionExpiredOverlay from "@/shared/ui/SubscriptionExpiredOverlay";
 import { ConfirmProvider } from "@/shared/ui/confirm/ConfirmProvider";

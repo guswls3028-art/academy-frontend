@@ -2,19 +2,14 @@
 
 /**
  * ======================================================
- * Layout Exports (SSOT)
+ * Shared Layout Exports
  *
- * ❗ Layout 은 레이아웃만 export 한다
- * ❗ Design System(ds)은 절대 여기서 export 하지 않는다
+ * Admin-specific layouts (AppLayout, Sidebar, Header)는
+ * @admin/layout/ 로 이동됨.
  *
- * - Sidebar
- * - Header
- * - AppLayout
+ * 여기에는 앱 간 공유되는 레이아웃만 export.
  * ======================================================
  */
 
-export { default as AppLayout } from "./AppLayout";
-export { default as Sidebar } from "./Sidebar";
-export { default as Header } from "./Header";
 export { default as DomainLayout } from "./DomainLayout";
 export type { DomainTab } from "./DomainLayout";

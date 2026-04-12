@@ -1,0 +1,280 @@
+/* PATH: src/features/videos/components/features/video-permission/permission-modal.css */
+/* ============================================================================
+ * PERMISSION MODAL — Design System (enterprise-grade tokens)
+ * - Colors: --color-* role tokens only (no hardcoding)
+ * - Spacing: --space-* density tokens
+ * - Radius: --radius-* tokens
+ * - Elevation: --elevation-* tokens
+ * ============================================================================ */
+@reference "tailwindcss";
+
+/* ---- Overlay ---- */
+.permission-modal-overlay {
+  @apply fixed inset-0 z-[200] flex items-center justify-center;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+/* ---- Modal Container ---- */
+.permission-modal {
+  @apply w-[1400px] h-[880px] flex flex-col overflow-hidden;
+  background: var(--color-bg-surface);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--elevation-3), 0 0 0 1px rgba(0, 0, 0, 0.04);
+}
+
+/* ---- Header ---- */
+.permission-modal-header {
+  padding: var(--space-5) var(--space-6);
+  border-bottom: 1px solid var(--color-border-subtle);
+  background: var(--color-bg-surface);
+}
+
+/* ---- Body (soft surface) ---- */
+.permission-modal-body {
+  @apply flex-1 min-h-0;
+  padding: 0 var(--space-5) var(--space-5);
+}
+
+.permission-modal-surface {
+  @apply h-full min-h-0 overflow-hidden;
+  background: var(--color-bg-surface-soft, var(--bg-surface-soft));
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+}
+
+/* ---- Left panel ---- */
+.permission-left {
+  @apply flex-1 flex flex-col min-h-0 overflow-hidden;
+  background: var(--color-bg-surface);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border-subtle);
+}
+
+.permission-header {
+  @apply flex items-center justify-between;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+/* ---- Table ---- */
+.permission-table-header {
+  @apply flex items-center;
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--text-xs, 11px);
+  font-weight: 600;
+  color: var(--color-text-tertiary);
+  letter-spacing: 0.01em;
+  border-bottom: 1px solid var(--color-border-subtle);
+  background: var(--color-bg-surface-soft, var(--bg-surface-soft));
+  user-select: none;
+}
+
+.permission-row {
+  @apply flex items-center;
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--text-sm, 12px);
+  border-bottom: 1px solid var(--color-border-subtle);
+  transition: background 120ms ease, box-shadow 120ms ease;
+  cursor: pointer;
+}
+.permission-row:hover {
+  background: var(--color-bg-surface-hover, var(--bg-surface-soft));
+}
+
+/* Focus-visible for keyboard navigation */
+.permission-row:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--color-brand-primary) 40%, transparent);
+}
+
+.permission-row-selected {
+  background: color-mix(in srgb, var(--color-brand-primary) 6%, var(--color-bg-surface));
+}
+.permission-row-selected:hover {
+  background: color-mix(in srgb, var(--color-brand-primary) 10%, var(--color-bg-surface));
+}
+
+/* ---- Right panel ---- */
+.permission-right {
+  @apply w-[480px] flex flex-col min-h-0 overflow-hidden;
+  background: var(--color-bg-surface);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border-subtle);
+}
+
+.permission-right-head {
+  padding: var(--space-4);
+  border-bottom: 1px solid var(--color-border-subtle);
+  background: var(--color-bg-surface);
+}
+
+.permission-right-actions {
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border-subtle);
+  background: var(--color-bg-surface-soft, var(--bg-surface-soft));
+}
+
+.permission-right-listWrap {
+  @apply flex-1 min-h-0 flex flex-col;
+  background: var(--color-bg-surface);
+}
+
+.permission-right-listHeader {
+  @apply flex items-center gap-3;
+  padding: var(--space-2) var(--space-4);
+  border-bottom: 1px solid var(--color-border-subtle);
+  background: var(--color-bg-surface-soft, var(--bg-surface-soft));
+  font-size: var(--text-xs, 11px);
+  font-weight: 600;
+  color: var(--color-text-tertiary);
+}
+
+.permission-right-listBody {
+  @apply flex-1 min-h-0 overflow-auto;
+}
+
+.permission-right-row {
+  @apply flex items-center gap-3;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border-subtle);
+  transition: background 120ms ease;
+}
+.permission-right-row:hover {
+  background: var(--color-bg-surface-hover, var(--bg-surface-soft));
+}
+
+.permission-right-footer {
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--color-border-subtle);
+  background: var(--color-bg-surface-soft, var(--bg-surface-soft));
+}
+
+/* ---- Checkbox ---- */
+.permission-checkbox {
+  @apply w-[28px] flex items-center justify-center;
+}
+
+.permission-checkbox input[type="checkbox"] {
+  @apply h-4 w-4 cursor-pointer rounded;
+  accent-color: var(--color-brand-primary);
+  transition: box-shadow 120ms ease;
+}
+
+.permission-checkbox input[type="checkbox"]:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-brand-primary) 20%, transparent);
+}
+
+/* ---- Column helpers ---- */
+.permission-name {
+  @apply w-[130px] truncate font-medium;
+}
+
+.permission-text-xs {
+  font-size: var(--text-xs, 11px);
+  color: var(--color-text-secondary);
+  @apply truncate;
+}
+
+/* ---- Tab bar ---- */
+.permission-tab-bar {
+  @apply flex items-center gap-1;
+  padding: var(--space-1);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface-soft, var(--bg-surface-soft));
+}
+
+.permission-tab {
+  @apply relative;
+  padding: var(--space-1) var(--space-4);
+  font-size: var(--text-sm, 12px);
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  border-radius: var(--radius-sm);
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  transition: color 140ms ease, background 140ms ease, box-shadow 140ms ease;
+}
+.permission-tab:hover {
+  color: var(--color-text-primary);
+  background: color-mix(in srgb, var(--color-bg-surface) 60%, transparent);
+}
+
+.permission-tab--active {
+  color: var(--color-text-primary);
+  font-weight: 600;
+  background: var(--color-bg-surface);
+  box-shadow: var(--elevation-1);
+}
+
+/* ---- Search input ---- */
+.permission-search {
+  height: 32px;
+  width: 220px;
+  padding: 0 var(--space-3);
+  font-size: var(--text-sm, 12px);
+  color: var(--color-text-primary);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-sm);
+  transition: border-color 140ms ease, box-shadow 140ms ease;
+}
+.permission-search::placeholder {
+  color: var(--color-text-muted);
+}
+.permission-search:focus {
+  outline: none;
+  border-color: var(--color-brand-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-brand-primary) 12%, transparent);
+}
+
+/* ---- Apply action buttons ---- */
+.permission-apply-btn {
+  @apply inline-flex items-center justify-center;
+  height: 30px;
+  padding: 0 var(--space-3);
+  font-size: var(--text-xs, 11px);
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  border: none;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 140ms ease, transform 100ms ease, box-shadow 140ms ease;
+}
+.permission-apply-btn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+.permission-apply-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.permission-apply-btn[data-tone="primary"] {
+  background: var(--color-brand-primary);
+  color: #fff;
+}
+.permission-apply-btn[data-tone="primary"]:hover:not(:disabled) {
+  background: var(--color-brand-primary-hover);
+  box-shadow: var(--elevation-1);
+}
+
+.permission-apply-btn[data-tone="warning"] {
+  background: var(--color-warning);
+  color: #713f12; /* yellow-900 — 노란 배경에 흰 글자는 대비 부족 */
+}
+.permission-apply-btn[data-tone="warning"]:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-warning) 85%, black);
+  box-shadow: var(--elevation-1);
+}
+
+.permission-apply-btn[data-tone="danger"] {
+  background: var(--color-danger, var(--color-error));
+  color: #fff;
+}
+.permission-apply-btn[data-tone="danger"]:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-danger, var(--color-error)) 85%, black);
+  box-shadow: var(--elevation-1);
+}

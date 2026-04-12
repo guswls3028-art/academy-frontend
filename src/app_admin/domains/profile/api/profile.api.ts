@@ -1,0 +1,190 @@
+// PATH: src/app_admin/domains/profile/api/profile.api.ts
+import api from "@/shared/api/axios";
+
+/* =====================
+ * User
+ * ===================== */
+export type Me = {
+  id: number;
+  username: string;
+  name?: string | null;
+  phone?: string | null;
+  is_staff: boolean;
+  is_superuser?: boolean;
+  tenantRole?: string | null;
+};
+
+/** Me → 직책 (직원관리·헤더·설정 등 사용자 정보 표시 시 StaffRoleAvatar용) */
+export type MeStaffRole = "owner" | "TEACHER" | "ASSISTANT";
+
+export function meToStaffRole(me: Me | null | undefined): MeStaffRole {
+  if (!me) return "ASSISTANT";
+  if (me.is_superuser) return "owner";
+  if (me.is_staff) return "TEACHER";
+  return "ASSISTANT";
+}
+
+/** API/화면 노출용 — 테넌트 접두어(t123_ 등) 제거 (백엔드 user_display_username 규칙과 동일) */
+export function displayUsername(username: string | null | undefined): string {
+  if (!username) return "";
+  return username.replace(/^t\d+_/, "");
+}
+
+export async function fetchMe() {
+  const { data } = await api.get<Me>("/core/me/");
+  return data;
+}
+
+export async function updateProfile(payload: { name?: string; phone?: string; username?: string }) {
+  const { data } = await api.patch("/core/profile/update_me/", payload);
+  return data as { id: number; name?: string | null; phone?: string | null; username?: string };
+}
+
+export async function changePassword(payload: {
+  old_password: string;
+  new_password: string;
+}) {
+  const { data } = await api.post("/core/profile/change-password/", payload);
+  return data as { message?: string };
+}
+
+/** 소속 학원(테넌트) 정보 — 설정 > 내 정보에서 학원문의(학원명·전화) 표시/수정 */
+export type AcademyEntry = { name: string; phone: string };
+
+export type TenantInfo = {
+  name: string;
+  phone: string;
+  headquarters_phone: string;
+  /** 소속 학원 목록 (여러 개 등록 가능). 비어 있으면 기존 name/headquarters_phone 단일 항목 */
+  academies: AcademyEntry[];
+  /** 카카오톡/SNS OG 미리보기 */
+  og_title?: string;
+  og_description?: string;
+  og_image_url?: string;
+};
+
+export async function fetchTenantInfo(): Promise<TenantInfo> {
+  const { data } = await api.get<TenantInfo>("/core/tenant-info/");
+  return data;
+}
+
+export async function updateTenantInfo(payload: Partial<Pick<TenantInfo, "name" | "phone" | "headquarters_phone" | "og_title" | "og_description" | "og_image_url">> & { academies?: AcademyEntry[] }): Promise<TenantInfo> {
+  const { data } = await api.patch<TenantInfo>("/core/tenant-info/", payload);
+  return data;
+}
+
+/* =====================
+ * Attendance
+ * ===================== */
+export type Attendance = {
+  id: number;
+  user?: number;
+  date: string;
+  start_time: string; // "HH:MM:SS"
+  end_time: string; // "HH:MM:SS"
+  work_type: string;
+  memo?: string | null;
+  duration_hours: number;
+  amount: number;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type AttendanceSummary = {
+  total_hours: number;
+  total_amount: number;
+  total_after_tax: number;
+};
+
+export async function fetchMyAttendance(month?: string) {
+  const { data } = await api.get<Attendance[]>("/core/profile/attendance/", {
+    params: month ? { month } : {},
+  });
+  return data;
+}
+
+export async function fetchAttendanceSummary(month?: string) {
+  const { data } = await api.get<AttendanceSummary>(
+    "/core/profile/attendance/summary/",
+    { params: month ? { month } : {} }
+  );
+  return data;
+}
+
+export async function createAttendance(payload: {
+  date: string;
+  start_time: string; // "HH:MM"
+  end_time: string; // "HH:MM"
+  work_type: string;
+  memo?: string;
+}) {
+  const { data } = await api.post<Attendance>("/core/profile/attendance/", payload);
+  return data;
+}
+
+export async function updateAttendance(
+  id: number,
+  payload: Partial<{
+    date: string;
+    start_time: string; // "HH:MM"
+    end_time: string; // "HH:MM"
+    work_type: string;
+    memo?: string;
+  }>
+) {
+  const { data } = await api.patch<Attendance>(`/core/profile/attendance/${id}/`, payload);
+  return data;
+}
+
+export async function deleteAttendance(id: number) {
+  await api.delete(`/core/profile/attendance/${id}/`);
+}
+
+/* =====================
+ * Expense
+ * ===================== */
+export type Expense = {
+  id: number;
+  user?: number;
+  date: string;
+  title: string;
+  amount: number;
+  memo?: string | null;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export async function fetchMyExpenses(month?: string) {
+  const { data } = await api.get<Expense[]>("/core/profile/expenses/", {
+    params: month ? { month } : {},
+  });
+  return data;
+}
+
+export async function createExpense(payload: {
+  date: string;
+  title: string;
+  amount: number;
+  memo?: string;
+}) {
+  const { data } = await api.post<Expense>("/core/profile/expenses/", payload);
+  return data;
+}
+
+// ✅ 실사용 핵심: 지출 수정(편집)
+export async function updateExpense(
+  id: number,
+  payload: Partial<{
+    date: string;
+    title: string;
+    amount: number;
+    memo?: string;
+  }>
+) {
+  const { data } = await api.patch<Expense>(`/core/profile/expenses/${id}/`, payload);
+  return data;
+}
+
+export async function deleteExpense(id: number) {
+  await api.delete(`/core/profile/expenses/${id}/`);
+}

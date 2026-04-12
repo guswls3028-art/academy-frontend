@@ -5,7 +5,7 @@
 
 import { createContext, useContext, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { fetchClinicTargets } from "@/features/clinic/api/clinicTargets";
+import { fetchClinicTargets } from "@admin/domains/clinic/api/clinicTargets";
 
 type ClinicHighlightContextValue = {
   /** 클리닉 대상(미수강) enrollment_id 집합 */

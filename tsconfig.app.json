@@ -22,7 +22,10 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"],
-      "@student/*": ["src/student/*"]
+      "@admin/*": ["src/app_admin/*"],
+      "@student/*": ["src/app_student/*"],
+      "@dev/*": ["src/app_dev/*"],
+      "@promo/*": ["src/app_promo/*"]
     }
   },
 
@@ -30,8 +33,8 @@
 
   "exclude": [
     "src/backend_spec",
-    "src/features/**/스펙.ts",
-    "src/features/**/specs",
-    "src/features/results/result 도메인 규칙"
+    "src/app_admin/domains/**/스펙.ts",
+    "src/app_admin/domains/**/specs",
+    "src/app_admin/domains/results/result 도메인 규칙"
   ]
 }

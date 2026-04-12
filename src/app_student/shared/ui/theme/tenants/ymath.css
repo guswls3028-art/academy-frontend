@@ -1,0 +1,224 @@
+/* PATH: src/student/shared/ui/theme/tenants/ymath.css
+ * 4번(ymath) 테마.
+ * 색상 SSOT: @/auth/themes/ymath.css (화이트 + 스카이블루, 로고 기반)
+ */
+[data-student-theme="ymath"] {
+    /* 배경·서페이스 (화이트톤) */
+    --stu-bg: #f8fafc;
+    --stu-surface: #ffffff;
+    --stu-surface-soft: #f1f5f9;
+    --stu-surface-0: #f8fafc;
+    --stu-surface-1: #ffffff;
+    --stu-surface-2: #f1f5f9;
+    --stu-border: #e2e8f0;
+    --stu-border-hover: #cbd5e1;
+
+    /* 프리미엄: 배경 질감 */
+    --stu-bg-pattern:
+        radial-gradient(circle at 1px 1px, rgba(11, 74, 130, 0.02) 1px, transparent 0),
+        linear-gradient(to bottom, transparent, rgba(91, 182, 224, 0.01));
+    --stu-bg-pattern-size: 24px 24px, 100% 100%;
+
+    /* 텍스트 */
+    --stu-text: #0f172a;
+    --stu-text-muted: #64748b;
+    --stu-text-subtle: #94a3b8;
+
+    /* 프라이머리 — 로고 네이비 블루 */
+    --stu-primary: #0B4A82;
+    --stu-primary-hover: #0D5A9E;
+    --stu-primary-contrast: #fff;
+    --stu-glow-primary: 0 0 20px rgba(11, 74, 130, 0.25);
+
+    /* 로고 그라데이션 (Navy → Sky Blue → Light Blue) */
+    --stu-gradient: linear-gradient(135deg, #0B4A82 0%, #4DAAD6 50%, #8ED0EE 100%);
+    --stu-focus: rgba(11, 74, 130, 0.2);
+
+    /* 성공/경고/에러 */
+    --stu-success: #16a34a;
+    --stu-success-bg: rgba(22, 163, 74, 0.12);
+    --stu-success-border: rgba(22, 163, 74, 0.35);
+    --stu-success-text: #16a34a;
+
+    --stu-warn: #d97706;
+    --stu-warn-bg: rgba(217, 119, 6, 0.12);
+    --stu-warn-border: rgba(217, 119, 6, 0.35);
+    --stu-warn-text: #d97706;
+
+    --stu-danger: #dc2626;
+    --stu-danger-hover: #b91c1c;
+    --stu-danger-bg: rgba(220, 38, 38, 0.12);
+    --stu-danger-border: rgba(220, 38, 38, 0.35);
+    --stu-danger-text: #dc2626;
+
+    /* 헤더/탭바 */
+    --stu-header-bg: rgba(248, 250, 252, 0.92);
+    --stu-tabbar-bg: rgba(248, 250, 252, 0.95);
+
+    /* Primary Tint */
+    --stu-tint-primary: color-mix(in srgb, var(--stu-primary) 6%, var(--stu-surface-1));
+    --stu-tint-hover: color-mix(in srgb, var(--stu-primary) 10%, var(--stu-surface-1));
+}
+
+/* 다크모드: primary를 밝게 조정하여 가독성 확보 */
+[data-app="student"][data-student-dark="true"][data-student-theme="ymath"] {
+  --stu-primary: #6db8e0;
+  --stu-primary-hover: #5ba8d0;
+  --stu-gradient: linear-gradient(135deg, #2a6a9e 0%, #5bb6e0 50%, #a0ddf5 100%);
+}
+
+[data-student-theme="ymath"] :focus-visible {
+    outline: 3px solid var(--stu-focus);
+    outline-offset: 2px;
+    border-radius: 10px;
+}
+
+[data-student-theme="ymath"] .stu-tabbar .stu-tabbar__link[aria-current="page"] {
+    color: #0B4A82;
+    font-weight: 800;
+    position: relative;
+}
+
+[data-student-theme="ymath"] .stu-tabbar .stu-tabbar__link[aria-current="page"]::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    bottom: 0;
+    transform: translateX(-50%);
+    width: 24px;
+    height: 3px;
+    border-radius: 2px;
+    background: var(--stu-gradient);
+}
+
+[data-student-theme="ymath"] .stu-btn--primary {
+    background: var(--stu-gradient);
+}
+
+[data-student-theme="ymath"] .stu-btn--primary:hover {
+    filter: brightness(0.92);
+    background: var(--stu-gradient);
+}
+
+[data-student-theme="ymath"] .stu-btn--danger {
+    background: var(--stu-danger);
+    color: #fff;
+    border: none;
+}
+
+[data-student-theme="ymath"] .stu-btn--danger:hover {
+    background: var(--stu-danger-hover);
+    filter: brightness(0.95);
+}
+
+[data-student-theme="ymath"] .stu-icon,
+[data-student-theme="ymath"] .stu-icon path,
+[data-student-theme="ymath"] .stu-icon circle,
+[data-student-theme="ymath"] .stu-icon polygon,
+[data-student-theme="ymath"] .stu-icon rect {
+    stroke: url(#stu-gradient-ymath);
+}
+
+[data-student-theme="ymath"] .stu-icon path[fill="currentColor"],
+[data-student-theme="ymath"] .stu-icon circle[fill="currentColor"],
+[data-student-theme="ymath"] .stu-icon polygon[fill="currentColor"] {
+    fill: url(#stu-gradient-ymath);
+}
+
+[data-student-theme="ymath"] [data-app="student"] {
+    background-image:
+        linear-gradient(135deg, rgba(11, 74, 130, 0.04) 0%, rgba(77, 170, 214, 0.03) 50%, rgba(142, 208, 238, 0.02) 100%) !important,
+        var(--stu-bg-pattern) !important;
+    background-size: 100% 100%, var(--stu-bg-pattern-size) !important;
+    background-color: var(--stu-bg) !important;
+    background-repeat: no-repeat !important;
+    background-attachment: fixed !important;
+}
+
+[data-student-theme="ymath"] [data-app="student"] header {
+    background-image: linear-gradient(135deg, rgba(11, 74, 130, 0.08) 0%, rgba(77, 170, 214, 0.06) 50%, rgba(142, 208, 238, 0.04) 100%) !important;
+    background-size: 100% 100%;
+}
+
+[data-student-theme="ymath"] [data-app="student"] .stu-tabbar {
+    background-image: linear-gradient(135deg, rgba(11, 74, 130, 0.08) 0%, rgba(77, 170, 214, 0.06) 50%, rgba(142, 208, 238, 0.04) 100%) !important;
+    background-size: 100% 100%;
+}
+
+[data-student-theme="ymath"] [data-app="student"] .stu-panel {
+    background-image:
+        linear-gradient(135deg, rgba(11, 74, 130, 0.06) 0%, rgba(77, 170, 214, 0.04) 50%, rgba(142, 208, 238, 0.03) 100%),
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.02), rgba(0, 0, 0, 0.02));
+    background-color: var(--stu-surface-1);
+}
+
+[data-student-theme="ymath"] [data-app="student"] .stu-section,
+[data-student-theme="ymath"] [data-app="student"] .stu-card {
+    background-image:
+        linear-gradient(135deg, rgba(11, 74, 130, 0.05) 0%, rgba(77, 170, 214, 0.03) 50%, rgba(142, 208, 238, 0.02) 100%);
+    background-color: var(--stu-surface-1);
+}
+
+[data-app="student"][data-student-theme="ymath"] .stu-action-tile {
+    background-color: var(--stu-surface-1) !important;
+    background-image:
+        linear-gradient(135deg, rgba(11, 74, 130, 0.15) 0%, rgba(77, 170, 214, 0.10) 50%, rgba(142, 208, 238, 0.08) 100%),
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.04), rgba(0, 0, 0, 0.03)) !important;
+    background-size: 100% 100%, 100% 100% !important;
+    background-repeat: no-repeat !important;
+    background-position: center center !important;
+    background-attachment: local !important;
+}
+
+[data-app="student"][data-student-theme="ymath"] .stu-action-tile::before {
+    background: linear-gradient(to bottom,
+            rgba(255, 255, 255, 0.05) 0%,
+            transparent 50%,
+            rgba(0, 0, 0, 0.03) 100%) !important;
+    z-index: 0 !important;
+    opacity: 1 !important;
+}
+
+[data-app="student"][data-student-theme="ymath"] .stu-action-tile__icon {
+    background-color: var(--stu-tint-primary) !important;
+    background-image: linear-gradient(135deg, rgba(11, 74, 130, 0.20) 0%, rgba(77, 170, 214, 0.15) 50%, rgba(142, 208, 238, 0.10) 100%) !important;
+    background-size: 100% 100% !important;
+    background-repeat: no-repeat !important;
+    background-position: center center !important;
+}
+
+/* QnA 페이지 예외처리 */
+[data-student-theme="ymath"] [data-page="qna"] .stu-emptystate__icon {
+    background: linear-gradient(135deg, rgba(11, 74, 130, 0.12) 0%, rgba(77, 170, 214, 0.10) 50%, rgba(142, 208, 238, 0.08) 100%) !important;
+    border-color: rgba(11, 74, 130, 0.2) !important;
+}
+
+[data-student-theme="ymath"] [data-page="qna"] .stu-emptystate__icon-svg {
+    stroke: #0B4A82;
+}
+
+[data-student-theme="ymath"] [data-page="qna"] .stu-btn--primary {
+    background: var(--stu-gradient);
+    box-shadow: 0 2px 8px rgba(11, 74, 130, 0.2);
+}
+
+[data-student-theme="ymath"] [data-page="qna"] .stu-btn--primary:hover {
+    filter: brightness(0.95);
+    box-shadow: 0 4px 12px rgba(11, 74, 130, 0.28);
+}
+
+[data-student-theme="ymath"] [data-page="qna"] .stu-panel.stu-panel--pressable {
+    background-image:
+        linear-gradient(135deg, rgba(11, 74, 130, 0.06) 0%, rgba(77, 170, 214, 0.04) 50%, rgba(142, 208, 238, 0.03) 100%),
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.03), rgba(0, 0, 0, 0.02));
+    border: 1px solid rgba(11, 74, 130, 0.12);
+}
+
+[data-student-theme="ymath"] [data-page="qna"] .stu-panel.stu-panel--pressable:hover {
+    border-color: rgba(11, 74, 130, 0.22);
+}
+
+[data-student-theme="ymath"] [data-page="qna"] .stu-section--nested>div:first-child {
+    color: #0B4A82;
+    letter-spacing: -0.02em;
+}

@@ -69,7 +69,7 @@ export default defineConfig({
           if (id.includes("shared/tenant")) {
             return "index";
           }
-          if (id.includes("/student/") && (id.includes("VideoPlayerPage") || id.includes("playback/player/"))) {
+          if (id.includes("/app_student/") && (id.includes("VideoPlayerPage") || id.includes("playback/player/"))) {
             return "student-video-player";
           }
           return undefined;
@@ -82,7 +82,10 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(process.cwd(), "src"),
-      "@student": path.resolve(process.cwd(), "src/student"),
+      "@admin": path.resolve(process.cwd(), "src/app_admin"),
+      "@student": path.resolve(process.cwd(), "src/app_student"),
+      "@dev": path.resolve(process.cwd(), "src/app_dev"),
+      "@promo": path.resolve(process.cwd(), "src/app_promo"),
     },
     dedupe: ["react", "react-dom"],
   },

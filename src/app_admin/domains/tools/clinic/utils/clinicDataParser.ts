@@ -1,0 +1,213 @@
+// PATH: src/app_admin/domains/tools/clinic/utils/clinicDataParser.ts
+// 성적 탭 복붙 데이터 → 클리닉 대상자 분류 파서
+
+export type ParsedClinicData = {
+  both: string[];
+  examOnly: string[];
+  hwOnly: string[];
+  sessionTitle: string;
+  lectureTitle: string;
+  date: string;
+  totalPresent: number;
+};
+
+const ATTENDANCE = ["현장", "온라인", "조퇴", "결석", "보강", "미정", "지각", "영상", "출튀", "자료", "부재", "퇴원"];
+const SCORE_RE = /^(\d+)점$/;
+const PCT_RE = /^(\d+)%$/;
+const STATUS_VALS = ["진행중", "완료", "-"];
+const NAME_RE = /^[가-힣]{2,5}[A-Za-z0-9]?$/;
+
+/** 미제출/미응시 — 유효한 성적 값으로 인식해야 함 (이전엔 인식 못해 파싱 중단됨) */
+const SPECIAL_VALS = ["미제출", "미응시"];
+const isSpecialVal = (v: string) => SPECIAL_VALS.includes(v);
+
+/** UI 텍스트 차단 — 이름으로 오인 방지 (복붙 시 포함되는 노이즈) */
+const UI_NOISE = new Set([
+  "숨김", "공개", "전체", "현장", "영상", "부재", "미정", "검색어",
+  "이름", "출석", "날짜", "강의", "학생", "클리닉", "상담", "공지",
+  "메시지", "관리자", "완료", "진행중", "질의응답",
+]);
+
+/** 텍스트에서 탭 구분 행 → 라인별로 전개 */
+function expandTabs(text: string): string[] {
+  const raw = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  const out: string[] = [];
+  for (const line of raw) {
+    if (line.includes("\t")) {
+      for (const cell of line.split("\t")) {
+        const t = cell.trim();
+        if (t) out.push(t);
+      }
+    } else {
+      out.push(line);
+    }
+  }
+  return out;
+}
+
+/** "시험+과제: 이름1, 이름2" 형태의 카테고리 리스트 감지 */
+function tryCategoryFormat(lines: string[]): ParsedClinicData | null {
+  const cats: Record<string, string[]> = { both: [], examOnly: [], hwOnly: [] };
+  let matched = 0;
+  for (const l of lines) {
+    // 시험+과제 먼저 매칭 (시험+과제 > 시험 > 과제 순서 중요)
+    const mBoth = l.match(/^(?:시험\s*\+\s*과제|시험과제|both)\s*[:：]\s*(.+)/i);
+    const mExam = !mBoth && l.match(/^(?:시험\s*미통과|시험만|시험|exam)\s*[:：]\s*(.+)/i);
+    const mHw = !mBoth && !mExam && l.match(/^(?:과제\s*미통과|과제만|과제|hw|homework)\s*[:：]\s*(.+)/i);
+    const m = mBoth || mExam || mHw;
+    if (!m) continue;
+    const names = m[1].split(/[,，]+/).map((n) => n.trim()).filter(Boolean);
+    if (mBoth) cats.both = names;
+    else if (mHw) cats.hwOnly = names;
+    else if (mExam) cats.examOnly = names;
+    matched++;
+  }
+  if (matched === 0) return null;
+  return {
+    both: cats.both,
+    examOnly: cats.examOnly,
+    hwOnly: cats.hwOnly,
+    sessionTitle: "",
+    lectureTitle: "",
+    date: "",
+    totalPresent: 0,
+  };
+}
+
+type Assessment = { isExam: boolean; isHw: boolean; status: string };
+
+function parseScoreTabFormat(lines: string[]): ParsedClinicData {
+  // ── 메타데이터 추출 ──
+  let sessionTitle = "";
+  let lectureTitle = "";
+  let date = "";
+  for (let i = 0; i < lines.length; i++) {
+    if (!sessionTitle && /^20\d{2}\s/.test(lines[i]) && /[가-힣]/.test(lines[i])) {
+      sessionTitle = lines[i];
+      // sessionTitle 바로 위 줄이 강의 약칭 (2~10글자 한글)
+      if (i > 0 && /^[가-힣a-zA-Z0-9\s]{1,10}$/.test(lines[i - 1])) {
+        lectureTitle = lines[i - 1];
+      }
+    }
+    if (!date && /^\d{2}\/\d{2}$/.test(lines[i])) date = lines[i];
+  }
+
+  // ── 학생 블록 파싱 (1차: 원시 값 보존) ──
+  type RawAssessment = { val: string; isScore: boolean; isPct: boolean; isDash: boolean; isSpecial: boolean; status: string };
+  type RawStudentBlock = { name: string; attendance: string; assessments: RawAssessment[] };
+  const rawStudents: RawStudentBlock[] = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    if (!ATTENDANCE.includes(lines[i])) continue;
+    if (i === 0 || !NAME_RE.test(lines[i - 1])) continue;
+
+    const name = lines[i - 1];
+    // UI 노이즈 차단: "공개", "숨김" 등 복붙 시 포함되는 텍스트는 이름 아님
+    if (UI_NOISE.has(name)) continue;
+
+    const attendance = lines[i];
+
+    // 이미 파싱된 학생의 이름이면 스킵 (중복 방지)
+    if (rawStudents.some((s) => s.name === name)) continue;
+
+    const assessments: RawAssessment[] = [];
+    let j = i + 1;
+    while (j + 1 < lines.length) {
+      const val = lines[j];
+      const st = lines[j + 1];
+      const isScore = SCORE_RE.test(val);
+      const isPct = PCT_RE.test(val);
+      const isDash = val === "-";
+      const isSpecial = isSpecialVal(val);
+      if ((isScore || isPct || isDash || isSpecial) && STATUS_VALS.includes(st)) {
+        assessments.push({ val, isScore, isPct, isDash, isSpecial, status: st });
+        j += 2;
+      } else {
+        break;
+      }
+    }
+
+    rawStudents.push({ name, attendance, assessments });
+  }
+
+  // ── 컬럼 타입 추론: 다른 학생의 실제 점수로 각 컬럼이 시험(점)/과제(%) 인지 판별 ──
+  const maxCols = Math.max(0, ...rawStudents.map((s) => s.assessments.length));
+  const colTypes: Array<"exam" | "hw" | "unknown"> = Array(maxCols).fill("unknown");
+  for (const s of rawStudents) {
+    for (let c = 0; c < s.assessments.length; c++) {
+      if (colTypes[c] !== "unknown") continue;
+      if (s.assessments[c].isScore) colTypes[c] = "exam";
+      else if (s.assessments[c].isPct) colTypes[c] = "hw";
+    }
+  }
+
+  // ── 2차: 컬럼 타입을 적용하여 최종 Assessment 생성 ──
+  type StudentBlock = { name: string; attendance: string; assessments: Assessment[] };
+  const students: StudentBlock[] = rawStudents.map((rs) => ({
+    name: rs.name,
+    attendance: rs.attendance,
+    assessments: rs.assessments.map((a, idx) => {
+      // 실제 점수가 있으면 그대로 사용
+      if (a.isScore || a.isPct) return { isExam: a.isScore, isHw: a.isPct, status: a.status };
+      // "-" 또는 "미제출"/"미응시"인 경우 컬럼 타입으로 보정
+      const ct = idx < colTypes.length ? colTypes[idx] : "unknown";
+      // 미제출/미응시는 무조건 "진행중"(미통과)으로 판정
+      const effectiveStatus = a.isSpecial ? "진행중" : a.status;
+      return { isExam: ct === "exam", isHw: ct === "hw", status: effectiveStatus };
+    }),
+  }));
+
+  // ── 분류 ──
+  const both: string[] = [];
+  const examOnly: string[] = [];
+  const hwOnly: string[] = [];
+  let presentCount = 0;
+
+  for (const s of students) {
+    if (s.attendance !== "현장" && s.attendance !== "지각") continue;
+    presentCount++;
+
+    // 미입력 학생 제외: 모든 항목이 대시+대시("-"/"-")면 안 온 학생
+    const allDashDash = s.assessments.length > 0 &&
+      s.assessments.every((a) => a.status === "-");
+    if (allDashDash) continue;
+
+    const examFailed = s.assessments.some((a) => a.isExam && a.status === "진행중");
+    const hwFailed = s.assessments.some((a) => a.isHw && a.status === "진행중");
+
+    if (examFailed && hwFailed) both.push(s.name);
+    else if (examFailed) examOnly.push(s.name);
+    else if (hwFailed) hwOnly.push(s.name);
+  }
+
+  const sort = (arr: string[]) => arr.sort((a, b) => a.localeCompare(b, "ko"));
+  sort(both);
+  sort(examOnly);
+  sort(hwOnly);
+
+  return { both, examOnly, hwOnly, sessionTitle, lectureTitle, date, totalPresent: presentCount };
+}
+
+/** 단순 이름 목록 (한 줄에 한 명) → 전부 "시험+과제"로 분류 */
+function parseSimpleNameList(lines: string[]): ParsedClinicData {
+  const names = lines.filter((l) => NAME_RE.test(l) && !UI_NOISE.has(l) && !SPECIAL_VALS.includes(l));
+  if (names.length === 0) return { both: [], examOnly: [], hwOnly: [], sessionTitle: "", lectureTitle: "", date: "", totalPresent: 0 };
+  names.sort((a, b) => a.localeCompare(b, "ko"));
+  return { both: names, examOnly: [], hwOnly: [], sessionTitle: "", lectureTitle: "", date: "", totalPresent: names.length };
+}
+
+export function parseClinicData(text: string): ParsedClinicData {
+  const lines = expandTabs(text);
+  if (lines.length === 0) return { both: [], examOnly: [], hwOnly: [], sessionTitle: "", lectureTitle: "", date: "", totalPresent: 0 };
+
+  // 1) 카테고리 리스트 형태 시도
+  const catResult = tryCategoryFormat(lines);
+  if (catResult && (catResult.both.length + catResult.examOnly.length + catResult.hwOnly.length > 0)) return catResult;
+
+  // 2) 성적탭 복붙 형태 시도
+  const scoreResult = parseScoreTabFormat(lines);
+  if (scoreResult.both.length + scoreResult.examOnly.length + scoreResult.hwOnly.length > 0) return scoreResult;
+
+  // 3) 단순 이름 목록
+  return parseSimpleNameList(lines);
+}
