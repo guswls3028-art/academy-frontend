@@ -123,7 +123,7 @@ export default function PermissionModal({
         payload.rule = ruleOrAccessMode;
       }
 
-      await api.post(`/media/video-permissions/bulk-set/`, payload);
+      await api.post(`/media/video-permissions/bulk_set/`, payload);
     },
     onSuccess: async () => {
       setSelected([]);
