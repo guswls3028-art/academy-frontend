@@ -17,7 +17,7 @@ export interface ClientEnrollmentLite {
   lectureName: string | null;
   lectureColor: string | null;
   lectureChipLabel: string | null;
-  status: "ACTIVE" | "DROPPED" | "COMPLETED" | null;
+  status: "ACTIVE" | "INACTIVE" | "PENDING" | null;
   enrolledAt: string | null;
 }
 

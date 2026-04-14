@@ -694,8 +694,8 @@ function LectureChip({ name, color, chipLabel }: { name: string; color?: string;
 function EnrollmentsTab({ enrollments, onNavigate }: { enrollments: any[]; onNavigate: (path: string) => void }) {
   if (!enrollments?.length) return <EmptyState scope="panel" tone="empty" title="수강 이력이 없습니다." />;
 
-  const statusLabel: Record<string, string> = { ACTIVE: "수강중", DROPPED: "탈퇴", COMPLETED: "수료" };
-  const statusTone: Record<string, string> = { ACTIVE: "success", DROPPED: "muted", COMPLETED: "info" };
+  const statusLabel: Record<string, string> = { ACTIVE: "수강중", INACTIVE: "비활성", PENDING: "대기" };
+  const statusTone: Record<string, string> = { ACTIVE: "success", INACTIVE: "muted", PENDING: "warning" };
 
   return (
     <div style={{ display: "grid", gap: 8 }}>
