@@ -1,10 +1,10 @@
 // PATH: src/shared/ui/feedback/BugReportButton.tsx
-// 플로팅 "문제 신고" 버튼 — 클릭 시 현재 컨텍스트 자동 수집 + Sentry User Feedback 전송
+// 문제 신고 모달 — 프로필 드롭다운 경유, 현재 컨텍스트 자동 수집 + Sentry User Feedback 전송
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import { Modal, Input, Typography, theme } from "antd";
-import { BugOutlined, SendOutlined } from "@ant-design/icons";
+import { SendOutlined } from "@ant-design/icons";
 import * as Sentry from "@sentry/react";
 import { feedback } from "./feedback";
 
@@ -26,12 +26,23 @@ function collectContext(pathname: string) {
   };
 }
 
+/**
+ * 문제 신고 모달 (플로팅 버튼 없음)
+ * 외부에서 `ui:bugreport:open` 커스텀 이벤트로 열기
+ */
 export default function BugReportButton() {
   const [open, setOpen] = useState(false);
   const [description, setDescription] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const location = useLocation();
   const { token: antToken } = theme.useToken();
+
+  // 외부 이벤트로 모달 열기 (프로필 드롭다운 등에서 호출)
+  useEffect(() => {
+    const handler = () => setOpen(true);
+    document.addEventListener("ui:bugreport:open", handler);
+    return () => document.removeEventListener("ui:bugreport:open", handler);
+  }, []);
 
   const handleSubmit = useCallback(async () => {
     const text = description.trim();
@@ -76,61 +87,26 @@ export default function BugReportButton() {
   }, [description, location.pathname]);
 
   return (
-    <>
-      {/* 플로팅 버튼 — 우하단 AsyncStatusBar 위 */}
-      <button
-        onClick={() => setOpen(true)}
-        aria-label="문제 신고"
-        style={{
-          position: "fixed",
-          bottom: 72,
-          right: 24,
-          zIndex: 1000,
-          width: 44,
-          height: 44,
-          borderRadius: "50%",
-          border: "none",
-          background: antToken.colorPrimary,
-          color: "#fff",
-          fontSize: 20,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          cursor: "pointer",
-          boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
-          transition: "transform 0.2s, box-shadow 0.2s",
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.transform = "scale(1.1)";
-          e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.25)";
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.transform = "scale(1)";
-          e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.15)";
-        }}
-      >
-        <BugOutlined />
-      </button>
-
-      {/* 문제 신고 모달 */}
-      <Modal
-        title="문제 신고"
-        open={open}
-        onCancel={() => { setOpen(false); setDescription(""); }}
-        okText="접수"
-        okButtonProps={{
-          icon: <SendOutlined />,
-          loading: submitting,
-          disabled: !description.trim(),
-        }}
-        onOk={handleSubmit}
-        destroyOnClose
-        width={480}
-      >
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          <Text type="secondary" style={{ fontSize: 13 }}>
-            어떤 문제가 있는지 알려주세요. 현재 화면 정보가 자동으로 첨부됩니다.
-          </Text>
+    <Modal
+      title="문제 신고"
+      open={open}
+      onCancel={() => { setOpen(false); setDescription(""); }}
+      okText="접수"
+      okButtonProps={{
+        icon: <SendOutlined />,
+        loading: submitting,
+        disabled: !description.trim(),
+      }}
+      onOk={handleSubmit}
+      destroyOnClose
+      width={480}
+      styles={{ body: { overflow: "visible" } }}
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 12, overflow: "visible" }}>
+        <Text type="secondary" style={{ fontSize: 13 }}>
+          어떤 문제가 있는지 알려주세요. 현재 화면 정보가 자동으로 첨부됩니다.
+        </Text>
+        <div>
           <TextArea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
@@ -139,20 +115,21 @@ export default function BugReportButton() {
             maxLength={1000}
             showCount
             autoFocus
+            style={{ width: "100%" }}
           />
-          <div
-            style={{
-              background: antToken.colorBgLayout,
-              borderRadius: 6,
-              padding: "8px 12px",
-              fontSize: 12,
-              color: antToken.colorTextSecondary,
-            }}
-          >
-            <div>자동 첨부: 현재 페이지, 화면 크기, 브라우저 정보, 시각</div>
-          </div>
         </div>
-      </Modal>
-    </>
+        <div
+          style={{
+            background: antToken.colorBgLayout,
+            borderRadius: 6,
+            padding: "8px 12px",
+            fontSize: 12,
+            color: antToken.colorTextSecondary,
+          }}
+        >
+          <div>자동 첨부: 현재 페이지, 화면 크기, 브라우저 정보, 시각</div>
+        </div>
+      </div>
+    </Modal>
   );
 }

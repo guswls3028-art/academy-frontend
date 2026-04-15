@@ -288,6 +288,10 @@ export default function Header() {
       setProfileDropdownOpen(false);
       if (key === "profile") nav("/admin/settings/profile");
       if (key === "settings") nav("/admin/settings");
+      if (key === "bugreport") {
+        document.dispatchEvent(new Event("ui:bugreport:open"));
+        return;
+      }
       if (key === "logout") {
         clearAuth();
         nav("/login");
@@ -299,6 +303,8 @@ export default function Header() {
     <div className="ds-header-dropdown app-header__profileDropdown">
       <button type="button" className="app-header__profileDropdownItem" onClick={() => userMenu.onClick({ key: "profile" })}>내정보</button>
       <button type="button" className="app-header__profileDropdownItem" onClick={() => userMenu.onClick({ key: "settings" })}>설정</button>
+      <div className="app-header__profileDropdownDivider" />
+      <button type="button" className="app-header__profileDropdownItem" onClick={() => userMenu.onClick({ key: "bugreport" })}>문제 신고</button>
       <div className="app-header__profileDropdownDivider" />
       <button type="button" className="app-header__profileDropdownItem app-header__profileDropdownItem--danger" onClick={() => userMenu.onClick({ key: "logout" })}>로그아웃</button>
     </div>

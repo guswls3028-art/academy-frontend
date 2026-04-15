@@ -184,6 +184,16 @@ export default function StudentTopBar({ tenantCode, onMenuClick }: Props) {
       >
         사용 가이드
       </button>
+      <button
+        type="button"
+        className="stu-topbar__profileDropdownItem"
+        onClick={() => {
+          setProfileOpen(false);
+          document.dispatchEvent(new Event("ui:bugreport:open"));
+        }}
+      >
+        문제 신고
+      </button>
       <div className="stu-topbar__profileDropdownDivider" />
       <button
         type="button"

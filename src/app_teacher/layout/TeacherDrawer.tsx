@@ -165,6 +165,30 @@ export default function TeacherDrawer({ open, onClose }: Props) {
           </button>
         </div>
 
+        {/* 문제 신고 */}
+        <div style={{ padding: "0 var(--tc-space-4)" }}>
+          <button
+            onClick={() => {
+              onClose();
+              document.dispatchEvent(new Event("ui:bugreport:open"));
+            }}
+            style={{
+              width: "100%",
+              padding: "12px",
+              border: "1px solid var(--tc-border)",
+              borderRadius: "var(--tc-radius)",
+              background: "transparent",
+              color: "var(--tc-text-secondary)",
+              fontSize: 14,
+              fontWeight: 500,
+              cursor: "pointer",
+              textAlign: "left",
+            }}
+          >
+            문제 신고
+          </button>
+        </div>
+
         {/* Logout */}
         <div style={{ padding: "var(--tc-space-4)", borderTop: "1px solid var(--tc-border)" }}>
           <button
