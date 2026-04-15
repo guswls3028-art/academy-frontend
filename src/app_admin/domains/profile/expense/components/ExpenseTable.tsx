@@ -240,9 +240,9 @@ export default function ExpenseTable({
                   type="button"
                   intent="ghost"
                   size="sm"
+                  iconOnly
                   onClick={() => onEdit(r)}
                   title="수정"
-                  className="!min-w-0 !w-8 !h-8 !p-0"
                 >
                   <FiEdit2 size={14} />
                 </Button>
@@ -250,9 +250,9 @@ export default function ExpenseTable({
                   type="button"
                   intent="danger"
                   size="sm"
+                  iconOnly
                   onClick={() => onDelete(r)}
                   title="삭제"
-                  className="!min-w-0 !w-8 !h-8 !p-0"
                 >
                   <FiTrash2 size={14} />
                 </Button>

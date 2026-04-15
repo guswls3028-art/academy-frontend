@@ -61,9 +61,8 @@ export default function ExpenseHeader({
             onClick={() =>
               downloadExpenseExcel({ month: monthValue, rows: rowsForExcel })
             }
-            className="inline-flex items-center gap-2"
+            leftIcon={<FiDownload size={14} />}
           >
-            <FiDownload size={14} />
             Excel
           </Button>
 
@@ -72,9 +71,8 @@ export default function ExpenseHeader({
             intent="primary"
             size="sm"
             onClick={onCreate}
-            className="inline-flex items-center gap-2"
+            leftIcon={<FiPlus size={14} />}
           >
-            <FiPlus size={14} />
             지출 등록
           </Button>
         </div>

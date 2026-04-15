@@ -565,8 +565,9 @@ export default function TemplateExplorer() {
               intent="primary"
               size="sm"
               onClick={() => setModalOpen("create")}
+              leftIcon={<FilePlus size={14} />}
             >
-              <FilePlus size={14} style={{ marginRight: 5 }} />새 템플릿
+              새 템플릿
             </Button>
           </div>
         </div>

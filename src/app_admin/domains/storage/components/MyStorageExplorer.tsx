@@ -330,8 +330,8 @@ export default function MyStorageExplorer() {
             onClick={() => !isLocked && setAddChoiceOpen(true)}
             disabled={isLocked}
             title={isLocked ? "Standard 플랜에서는 인벤토리를 사용할 수 없습니다." : undefined}
+            leftIcon={<FilePlus size={16} />}
           >
-            <FilePlus size={16} style={{ marginRight: 6 }} />
             추가
           </Button>
         </div>

@@ -61,9 +61,9 @@ export default function AttendanceHeader({
             onClick={() =>
               downloadAttendanceExcel({ month: monthValue, rows: rowsForExcel })
             }
-            className="inline-flex items-center gap-2"
+            leftIcon={<FiDownload size={14} />}
           >
-            <FiDownload size={14} /> Excel
+            Excel
           </Button>
 
           <Button
@@ -71,9 +71,9 @@ export default function AttendanceHeader({
             intent="primary"
             size="sm"
             onClick={onCreate}
-            className="inline-flex items-center gap-2"
+            leftIcon={<FiPlus size={14} />}
           >
-            <FiPlus size={14} /> 근태 등록
+            근태 등록
           </Button>
         </div>
       </div>

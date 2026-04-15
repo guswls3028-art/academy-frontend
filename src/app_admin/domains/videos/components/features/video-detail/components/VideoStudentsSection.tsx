@@ -53,9 +53,8 @@ export default function VideoStudentsSection({
           intent="secondary"
           size="sm"
           onClick={onOpenPermission}
-          className="inline-flex items-center gap-1.5"
+          leftIcon={<FiSettings size={14} />}
         >
-          <FiSettings size={14} />
           권한 설정
         </Button>
         {typeof onOpenAchievement === "function" && (
@@ -64,9 +63,8 @@ export default function VideoStudentsSection({
             intent="ghost"
             size="sm"
             onClick={onOpenAchievement}
-            className="inline-flex items-center gap-1.5"
+            leftIcon={<FiBarChart2 size={14} />}
           >
-            <FiBarChart2 size={14} />
             학습 성적표
           </Button>
         )}
@@ -76,9 +74,8 @@ export default function VideoStudentsSection({
             intent="ghost"
             size="sm"
             onClick={onOpenLog}
-            className="inline-flex items-center gap-1.5"
+            leftIcon={<FiClock size={14} />}
           >
-            <FiClock size={14} />
             시청 로그
           </Button>
         )}

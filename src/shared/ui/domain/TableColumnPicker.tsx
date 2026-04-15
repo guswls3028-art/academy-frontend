@@ -38,9 +38,8 @@ export default function TableColumnPicker({
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
         aria-haspopup="true"
-        className="inline-flex items-center gap-1.5"
+        leftIcon={<Columns3 size={16} />}
       >
-        <Columns3 size={16} aria-hidden />
         {triggerLabel}
       </Button>
       {open && (

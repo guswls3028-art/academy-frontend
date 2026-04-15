@@ -1017,8 +1017,8 @@ export default function ClinicConsoleWorkspace({
             className="clinic-console__empty-cta"
             onClick={() => setAddStudentModalOpen(true)}
           >
-            <UserPlus size={14} aria-hidden style={{ marginRight: 4 }} />
-            학생 추가하기
+            <UserPlus size={14} aria-hidden />
+            <span>학생 추가하기</span>
           </button>
         </div>
       ) : filteredParticipants.length === 0 ? (

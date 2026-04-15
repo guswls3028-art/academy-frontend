@@ -86,11 +86,11 @@ export function StaffWorkspaceHeader({ staffId, year, month }: Props) {
           </>
         )}
         <div className="flex items-center gap-0.5">
-          <Button intent="ghost" size="sm" aria-label="이전 달" onClick={() => goMonth(-1)}>
+          <Button intent="ghost" size="sm" iconOnly aria-label="이전 달" onClick={() => goMonth(-1)}>
             <ChevronLeft size={18} />
           </Button>
           <span className="staff-section-title min-w-[88px] text-center">{ymLabel(year, month)}</span>
-          <Button intent="ghost" size="sm" aria-label="다음 달" onClick={() => goMonth(1)}>
+          <Button intent="ghost" size="sm" iconOnly aria-label="다음 달" onClick={() => goMonth(1)}>
             <ChevronRight size={18} />
           </Button>
         </div>

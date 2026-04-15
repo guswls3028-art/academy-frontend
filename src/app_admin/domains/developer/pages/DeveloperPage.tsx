@@ -300,8 +300,8 @@ export function BugReportPage() {
             size="sm"
             onClick={() => submitMut.mutate()}
             disabled={submitMut.isPending || !title.trim()}
+            leftIcon={<Send size={14} />}
           >
-            <Send size={14} style={{ marginRight: 4 }} />
             {submitMut.isPending ? "등록 중..." : "제보하기"}
           </Button>
         </div>
@@ -435,8 +435,8 @@ export function FeedbackPage() {
             size="sm"
             onClick={() => submitMut.mutate()}
             disabled={submitMut.isPending || !title.trim()}
+            leftIcon={<Send size={14} />}
           >
-            <Send size={14} style={{ marginRight: 4 }} />
             {submitMut.isPending ? "등록 중..." : "보내기"}
           </Button>
         </div>

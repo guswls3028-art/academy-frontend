@@ -288,8 +288,7 @@ export default function StudentStorageExplorer({ studentPs }: StudentStorageExpl
               전체 선택
             </Button>
           )}
-          <Button type="button" intent="primary" size="sm" onClick={() => setAddChoiceOpen(true)}>
-            <FilePlus size={16} style={{ marginRight: 6 }} />
+          <Button type="button" intent="primary" size="sm" onClick={() => setAddChoiceOpen(true)} leftIcon={<FilePlus size={16} />}>
             추가
           </Button>
         </div>
