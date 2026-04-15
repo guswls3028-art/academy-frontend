@@ -143,7 +143,7 @@ export default function BoardAdminPage() {
       return results;
     },
   });
-  const allBoardPosts = postsQ.data ?? [];
+  const allBoardPosts = useMemo(() => postsQ.data ?? [], [postsQ.data]);
 
   // scope 기반 클라이언트 필터: 전체=모든 글, 강의=해당 강의+하위 차시, 차시=해당 차시+상위 강의
   // ✅ V1.1.1 fix: 강의/차시 scope에서 전체글(GLOBAL)을 제외
@@ -591,6 +591,9 @@ function PostDetailView({
   const [editTitle, setEditTitle] = useState("");
   const [editContent, setEditContent] = useState("");
 
+  // post?.id 변경 시에만 편집 상태 리셋 — post 객체 전체를 dep로 넣으면
+  // 뮤테이션 후 refetch마다 편집 중 상태가 초기화됨
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     setEditingTitle(false);
     setEditingContent(false);

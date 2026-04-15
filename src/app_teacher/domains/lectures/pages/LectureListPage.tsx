@@ -1,13 +1,10 @@
 // PATH: src/app_teacher/domains/lectures/pages/LectureListPage.tsx
+// 강의 목록 — 딱지 + 강사 + 시간 + 기간
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { EmptyState } from "@/shared/ui/ds";
+import LectureChip from "@/shared/ui/chips/LectureChip";
 import { fetchLectures } from "../api";
-
-const COLORS: Record<string, string> = {
-  blue: "#3b82f6", green: "#22c55e", red: "#ef4444", purple: "#8b5cf6",
-  orange: "#f97316", yellow: "#eab308", pink: "#ec4899", cyan: "#06b6d4",
-};
 
 export default function LectureListPage() {
   const navigate = useNavigate();
@@ -23,21 +20,49 @@ export default function LectureListPage() {
       {isLoading ? (
         <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
       ) : lectures && lectures.length > 0 ? (
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-2">
           {lectures.map((l: any) => {
-            const color = COLORS[l.color || ""] || "var(--tc-primary)";
+            const chipLabel = l.chip_label ?? l.chipLabel;
+            const instructor = l.name ?? l.instructor;
+            const time = l.lecture_time ?? l.lectureTime;
+            const dateRange = l.start_date && l.end_date
+              ? `${l.start_date} ~ ${l.end_date}`
+              : l.start_date;
+
             return (
               <button
                 key={l.id}
                 onClick={() => navigate(`/teacher/classes/${l.id}`)}
-                className="flex items-center gap-3 rounded-lg w-full text-left cursor-pointer"
-                style={{ padding: "var(--tc-space-3) var(--tc-space-4)", background: "var(--tc-surface)", border: "1px solid var(--tc-border)" }}
+                className="flex gap-3 rounded-xl w-full text-left cursor-pointer"
+                style={{
+                  padding: "var(--tc-space-3) var(--tc-space-4)",
+                  background: "var(--tc-surface)",
+                  border: "1px solid var(--tc-border)",
+                }}
               >
-                <div className="w-2 h-10 rounded shrink-0" style={{ background: color }} />
+                {/* Lecture chip (large) */}
+                <LectureChip
+                  lectureName={l.title}
+                  color={l.color}
+                  chipLabel={chipLabel}
+                  size={40}
+                />
+
+                {/* Info */}
                 <div className="flex-1 min-w-0">
-                  <div className="text-[15px] font-semibold" style={{ color: "var(--tc-text)" }}>{l.title}</div>
-                  <div className="text-xs mt-0.5" style={{ color: "var(--tc-text-muted)" }}>{l.subject}</div>
+                  <div className="text-[15px] font-semibold truncate" style={{ color: "var(--tc-text)" }}>
+                    {l.title}
+                  </div>
+                  <div className="text-[12px] mt-0.5" style={{ color: "var(--tc-text-muted)" }}>
+                    {l.subject}
+                  </div>
+                  <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-[11px]" style={{ color: "var(--tc-text-muted)" }}>
+                    {instructor && <span>{instructor}</span>}
+                    {time && <span>{time}</span>}
+                    {dateRange && <span>{dateRange}</span>}
+                  </div>
                 </div>
+
                 <ChevronRight />
               </button>
             );
@@ -52,7 +77,7 @@ export default function LectureListPage() {
 
 function ChevronRight() {
   return (
-    <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="var(--tc-text-muted)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="var(--tc-text-muted)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="shrink-0 self-center">
       <polyline points="9 18 15 12 9 6" />
     </svg>
   );

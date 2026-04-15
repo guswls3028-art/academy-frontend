@@ -43,14 +43,12 @@ export default function CounselAdminPage() {
     queryFn: () => fetchAdminPosts({ postType: "counsel", pageSize: 500 }),
     enabled: true,
   });
-  const posts = postsData?.results ?? [];
-
   const isLoading = postsLoading;
 
   // Derive answered status from replies_count
   const withStatus = useMemo(
-    () => posts.map((p) => ({ ...p, is_answered: (p.replies_count ?? 0) > 0 })),
-    [posts],
+    () => (postsData?.results ?? []).map((p) => ({ ...p, is_answered: (p.replies_count ?? 0) > 0 })),
+    [postsData?.results],
   );
 
   const filtered = useMemo(() => {

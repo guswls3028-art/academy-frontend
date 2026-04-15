@@ -31,3 +31,21 @@ export async function fetchSession(sessionId: number) {
   const res = await api.get(`/lectures/sessions/${sessionId}/`);
   return res.data;
 }
+
+/** 강의 수강생 목록 (enrollments 기반) */
+export async function fetchLectureEnrollments(lectureId: number) {
+  const res = await api.get("/lectures/enrollments/", {
+    params: { lecture: lectureId, page_size: 200 },
+  });
+  const raw = res.data;
+  return Array.isArray(raw?.results) ? raw.results : Array.isArray(raw) ? raw : [];
+}
+
+/** 세션 수강생 출석 목록 */
+export async function fetchSessionAttendance(sessionId: number) {
+  const res = await api.get("/lectures/attendances/", {
+    params: { session: sessionId, page_size: 200 },
+  });
+  const raw = res.data;
+  return Array.isArray(raw?.results) ? raw.results : Array.isArray(raw) ? raw : [];
+}

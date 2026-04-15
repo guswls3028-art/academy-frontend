@@ -146,7 +146,7 @@ export default function MaterialsBoardPage() {
       return results;
     },
   });
-  const allMaterialsPosts = postsQ.data ?? [];
+  const allMaterialsPosts = useMemo(() => postsQ.data ?? [], [postsQ.data]);
 
   // ✅ V1.1.1 fix: 강의/차시 scope에서 전체글(GLOBAL)을 제외
   const visibleNodeIds = useMemo(() => {

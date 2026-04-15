@@ -26,3 +26,21 @@ export async function fetchStudent(studentId: number) {
   const res = await api.get(`/students/${studentId}/`);
   return res.data;
 }
+
+/** 학생 시험 성적 */
+export async function fetchStudentExamResults(studentId: number) {
+  const res = await api.get("/results/", {
+    params: { student: studentId, page_size: 200, ordering: "-created_at" },
+  });
+  const raw = res.data;
+  return Array.isArray(raw?.results) ? raw.results : Array.isArray(raw) ? raw : [];
+}
+
+/** 학생 출석 이력 */
+export async function fetchStudentAttendance(studentId: number) {
+  const res = await api.get("/lectures/attendances/", {
+    params: { student: studentId, page_size: 200, ordering: "-date" },
+  });
+  const raw = res.data;
+  return Array.isArray(raw?.results) ? raw.results : Array.isArray(raw) ? raw : [];
+}
