@@ -42,7 +42,7 @@ test.describe("선생앱 가이드", () => {
       await card.click();
       await page.waitForTimeout(500);
       await expect(main.locator("text=학생 관리로 이동")).toBeVisible();
-      await expect(main.locator("text=직접 해보기")).toBeVisible();
+      await expect(main.getByRole("button", { name: "직접 해보기" }).first()).toBeVisible();
     }
   });
 });
@@ -78,7 +78,7 @@ test.describe("학생앱 가이드", () => {
       await card.click();
       await page.waitForTimeout(500);
       await expect(page.locator("text=시험 탭으로 이동")).toBeVisible();
-      await expect(page.locator("text=직접 해보기")).toBeVisible();
+      await expect(page.getByRole("button", { name: "직접 해보기" }).first()).toBeVisible();
     }
   });
 });
