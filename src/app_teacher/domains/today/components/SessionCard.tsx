@@ -1,18 +1,9 @@
 // PATH: src/app_teacher/domains/today/components/SessionCard.tsx
-// 수업 카드 — 오늘 화면 핵심 UI. 퀵 액션(출석/성적) 제공
+// 수업 카드 — LectureChip + 퀵 액션(출석/성적)
 import { useNavigate } from "react-router-dom";
+import LectureChip from "@/shared/ui/chips/LectureChip";
+import { Check, Edit3 } from "@teacher/shared/ui/Icons";
 import type { TodaySession } from "../api";
-
-const LECTURE_COLORS: Record<string, string> = {
-  blue: "#3b82f6",
-  green: "#22c55e",
-  red: "#ef4444",
-  purple: "#8b5cf6",
-  orange: "#f97316",
-  yellow: "#eab308",
-  pink: "#ec4899",
-  cyan: "#06b6d4",
-};
 
 interface Props {
   session: TodaySession;
@@ -20,8 +11,6 @@ interface Props {
 
 export default function SessionCard({ session }: Props) {
   const navigate = useNavigate();
-  const color =
-    LECTURE_COLORS[session.lecture_color || ""] || "var(--tc-primary)";
   const timeStr =
     session.start_time && session.end_time
       ? `${session.start_time.slice(0, 5)} – ${session.end_time.slice(0, 5)}`
@@ -38,47 +27,39 @@ export default function SessionCard({ session }: Props) {
         border: "1px solid var(--tc-border)",
       }}
     >
-      {/* Color accent top bar */}
-      <div style={{ height: 3, background: color }} />
-
       {/* Body — 탭하면 세션 상세 */}
       <button
-        className="w-full text-left"
+        className="w-full text-left flex items-center gap-3"
         onClick={() =>
-          navigate(
-            `/teacher/classes/${session.lecture}/sessions/${session.id}`,
-          )
+          navigate(`/teacher/classes/${session.lecture}/sessions/${session.id}`)
         }
-        style={{ padding: "var(--tc-space-3) var(--tc-space-4)" }}
+        style={{
+          padding: "var(--tc-space-3) var(--tc-space-4)",
+          background: "none",
+          border: "none",
+          cursor: "pointer",
+        }}
       >
-        <div className="flex items-center gap-2 mb-1">
-          <span
-            className="w-2 h-2 rounded-full shrink-0"
-            style={{ background: color }}
-          />
-          <span
-            className="text-[15px] font-bold"
-            style={{ color: "var(--tc-text)" }}
-          >
+        <LectureChip
+          lectureName={session.lecture_title ?? session.title}
+          color={session.lecture_color ?? undefined}
+          size={36}
+        />
+        <div className="flex-1 min-w-0">
+          <div className="text-[15px] font-bold" style={{ color: "var(--tc-text)" }}>
             {session.lecture_title || session.title}
             {session.section_label && (
-              <span
-                className="font-medium ml-1"
-                style={{ color: "var(--tc-text-secondary)" }}
-              >
+              <span className="font-medium ml-1" style={{ color: "var(--tc-text-secondary)" }}>
                 {session.section_label}
               </span>
             )}
-          </span>
-        </div>
-        {subtitle && (
-          <div
-            className="text-[13px] ml-4 mb-1"
-            style={{ color: "var(--tc-text-secondary)" }}
-          >
-            {subtitle}
           </div>
-        )}
+          {subtitle && (
+            <div className="text-[12px] mt-0.5" style={{ color: "var(--tc-text-muted)" }}>
+              {subtitle}
+            </div>
+          )}
+        </div>
       </button>
 
       {/* Quick action buttons */}
@@ -87,11 +68,13 @@ export default function SessionCard({ session }: Props) {
         style={{ padding: "0 var(--tc-space-4) var(--tc-space-3)" }}
       >
         <QuickBtn
+          icon={<Check size={14} />}
           label="출석"
           color="var(--tc-success)"
           onClick={() => navigate(`/teacher/attendance/${session.id}`)}
         />
         <QuickBtn
+          icon={<Edit3 size={14} />}
           label="성적"
           color="var(--tc-primary)"
           onClick={() => navigate(`/teacher/scores/${session.id}`)}
@@ -102,10 +85,12 @@ export default function SessionCard({ session }: Props) {
 }
 
 function QuickBtn({
+  icon,
   label,
   color,
   onClick,
 }: {
+  icon: React.ReactNode;
   label: string;
   color: string;
   onClick: () => void;
@@ -116,7 +101,7 @@ function QuickBtn({
         e.stopPropagation();
         onClick();
       }}
-      className="rounded-full text-[13px] font-semibold cursor-pointer"
+      className="flex items-center gap-1.5 rounded-full text-[13px] font-semibold cursor-pointer"
       style={{
         padding: "6px 16px",
         border: `1px solid ${color}`,
@@ -124,6 +109,7 @@ function QuickBtn({
         color,
       }}
     >
+      {icon}
       {label}
     </button>
   );

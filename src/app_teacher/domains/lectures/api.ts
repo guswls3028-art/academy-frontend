@@ -2,10 +2,10 @@
 // 강의/세션 API — 기존 lectures API 래핑
 import api from "@/shared/api/axios";
 
-/** 강의 목록 (활성만) */
-export async function fetchLectures() {
+/** 강의 목록 */
+export async function fetchLectures(active?: boolean) {
   const res = await api.get("/lectures/lectures/", {
-    params: { is_active: true, page_size: 100 },
+    params: { is_active: active, page_size: 100 },
   });
   const raw = res.data;
   return Array.isArray(raw?.results) ? raw.results : Array.isArray(raw) ? raw : [];

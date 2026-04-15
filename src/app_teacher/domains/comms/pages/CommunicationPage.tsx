@@ -1,16 +1,25 @@
 // PATH: src/app_teacher/domains/comms/pages/CommunicationPage.tsx
-// 소통 탭 — 공지사항 / Q&A / 등록요청 3탭 통합
+// 소통 — 5탭 (공지/Q&A/등록요청/게시판/자료) — 데스크톱 커뮤니티 1:1
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { EmptyState } from "@/shared/ui/ds";
 import { useAdminNotificationCounts } from "@admin/domains/admin-notifications/useAdminNotificationCounts";
+import { Badge } from "@teacher/shared/ui/Badge";
 import { fetchPosts, fetchRegistrationRequests } from "../api";
-import type { Post, RegistrationRequest } from "../api";
+import type { Post } from "../api";
 import PostListItem from "../components/PostListItem";
 import PostDetail from "../components/PostDetail";
 import RegistrationRequestList from "../components/RegistrationRequestList";
 
-type Tab = "notices" | "qna" | "requests";
+type Tab = "notices" | "qna" | "requests" | "board" | "materials";
+
+const POST_TYPE_MAP: Record<Tab, string> = {
+  notices: "notice",
+  qna: "qna",
+  requests: "",
+  board: "board",
+  materials: "materials",
+};
 
 export default function CommunicationPage() {
   const [tab, setTab] = useState<Tab>("notices");
@@ -18,10 +27,13 @@ export default function CommunicationPage() {
 
   const { counts } = useAdminNotificationCounts();
 
+  const postType = POST_TYPE_MAP[tab];
+  const isPostTab = tab !== "requests";
+
   const { data: posts, isLoading: postsLoading } = useQuery({
     queryKey: ["teacher-comms", tab],
-    queryFn: () => fetchPosts(tab === "notices" ? "notice" : "qna"),
-    enabled: tab !== "requests",
+    queryFn: () => fetchPosts(postType),
+    enabled: isPostTab,
   });
 
   const { data: reqData, isLoading: reqLoading } = useQuery({
@@ -31,45 +43,50 @@ export default function CommunicationPage() {
   });
 
   const tabs: { key: Tab; label: string; badge?: number }[] = [
-    { key: "notices", label: "공지사항" },
+    { key: "notices", label: "공지" },
     { key: "qna", label: "Q&A", badge: counts?.qnaPending },
     { key: "requests", label: "등록요청", badge: counts?.registrationRequestsPending },
+    { key: "board", label: "게시판" },
+    { key: "materials", label: "자료" },
   ];
 
-  // 게시글 상세 보기
   if (selectedPost) {
     return <PostDetail post={selectedPost} onBack={() => setSelectedPost(null)} />;
   }
 
   return (
     <div className="flex flex-col gap-0">
-      {/* Tabs */}
-      <div className="flex" style={{ borderBottom: "1px solid var(--tc-border)" }}>
+      {/* 5탭 — 가로 스크롤 */}
+      <div
+        className="flex overflow-x-auto"
+        style={{ borderBottom: "1px solid var(--tc-border)", WebkitOverflowScrolling: "touch" }}
+      >
         {tabs.map((t) => (
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
-            className="flex-1 text-sm cursor-pointer relative"
+            className="shrink-0 text-[13px] cursor-pointer relative"
             style={{
-              padding: 12,
+              padding: "12px 14px",
               background: "none",
               border: "none",
               borderBottom: tab === t.key ? "2px solid var(--tc-primary)" : "2px solid transparent",
               color: tab === t.key ? "var(--tc-primary)" : "var(--tc-text-secondary)",
               fontWeight: tab === t.key ? 700 : 500,
+              whiteSpace: "nowrap",
             }}
           >
             {t.label}
             {!!t.badge && t.badge > 0 && (
               <span
-                className="absolute text-[10px] font-bold text-white rounded-full"
+                className="absolute text-[9px] font-bold text-white rounded-full"
                 style={{
-                  top: 6,
-                  right: "calc(50% - 24px)",
-                  minWidth: 16,
-                  height: 16,
-                  lineHeight: "16px",
-                  padding: "0 4px",
+                  top: 4,
+                  right: 2,
+                  minWidth: 14,
+                  height: 14,
+                  lineHeight: "14px",
+                  padding: "0 3px",
                   background: "var(--tc-danger)",
                 }}
               >
@@ -104,13 +121,20 @@ export default function CommunicationPage() {
             ))}
           </div>
         ) : (
-          <EmptyState
-            scope="panel"
-            tone="empty"
-            title={tab === "notices" ? "공지사항이 없습니다" : "Q&A가 없습니다"}
-          />
+          <EmptyState scope="panel" tone="empty" title={emptyTitle(tab)} />
         )}
       </div>
     </div>
   );
+}
+
+function emptyTitle(tab: Tab): string {
+  const map: Record<Tab, string> = {
+    notices: "공지사항이 없습니다",
+    qna: "Q&A가 없습니다",
+    requests: "등록요청이 없습니다",
+    board: "게시글이 없습니다",
+    materials: "자료가 없습니다",
+  };
+  return map[tab];
 }

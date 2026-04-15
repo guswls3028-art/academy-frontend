@@ -28,6 +28,7 @@ const VideoListPage = lazy(() => import("@teacher/domains/videos/pages/VideoList
 const VideoDetailPage = lazy(() => import("@teacher/domains/videos/pages/VideoDetailPage"));
 const ClinicPage = lazy(() => import("@teacher/domains/clinic/pages/ClinicPage"));
 const CounselingPage = lazy(() => import("@teacher/domains/counseling/pages/CounselingPage"));
+const ResultsPage = lazy(() => import("@teacher/domains/results/pages/ResultsPage"));
 
 function TeacherFallback() {
   return (
@@ -88,6 +89,9 @@ export default function TeacherRouter() {
 
           {/* 상담 메모 (Phase 3) */}
           <Route path="counseling" element={<CounselingPage />} />
+
+          {/* 성적 조회 */}
+          <Route path="results" element={<ResultsPage />} />
 
           {/* 프로필 */}
           <Route path="profile" element={<ProfilePage />} />
