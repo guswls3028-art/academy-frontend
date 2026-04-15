@@ -107,11 +107,11 @@ export default function VideoStatsTab() {
                       borderRadius: 8, border: "1px solid var(--stu-border)",
                       background: "var(--stu-surface)", fontSize: 13, padding: "6px 10px",
                     }}
-                    formatter={(v: number, _name: string, props: any) => {
-                      const p = props.payload;
-                      return [`${v}% (${p.완료}/${p.영상수}개 완료)`, "진도율"];
+                    formatter={(v: any, _name: any, props: any) => {
+                      const p = props?.payload;
+                      return [`${v}% (${p?.완료 ?? 0}/${p?.영상수 ?? 0}개 완료)`, "진도율"];
                     }}
-                    labelFormatter={(_label: string, payload: any[]) => payload?.[0]?.payload?.fullName ?? _label}
+                    labelFormatter={(_label: any, payload: any) => (payload as any)?.[0]?.payload?.fullName ?? _label}
                   />
                   <Bar dataKey="진도" radius={[0, 4, 4, 0]} barSize={22}>
                     {lectureData.map((entry, i) => (
