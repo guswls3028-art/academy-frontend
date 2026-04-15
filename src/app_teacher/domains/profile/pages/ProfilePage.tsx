@@ -1,8 +1,9 @@
 // PATH: src/app_teacher/domains/profile/pages/ProfilePage.tsx
-// 내 프로필 — 간소 버전
+// 내 프로필 — 프로필 + PWA 설치 + 푸시 알림 설정
 import { useNavigate } from "react-router-dom";
 import useAuth from "@/auth/hooks/useAuth";
 import { useA2HS } from "@teacher/shared/hooks/useA2HS";
+import { usePushSubscription } from "@teacher/shared/hooks/usePushSubscription";
 
 const ROLE_LABELS: Record<string, string> = {
   owner: "원장",
@@ -15,6 +16,7 @@ export default function ProfilePage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { canInstall, isInstalled, promptInstall } = useA2HS();
+  const push = usePushSubscription();
   const name = user?.name || "사용자";
   const roleLabel = ROLE_LABELS[user?.tenantRole || ""] || "직원";
 
@@ -108,6 +110,47 @@ export default function ProfilePage() {
           <span className="text-[13px] font-medium" style={{ color: "var(--tc-success)" }}>
             앱이 설치되어 있습니다
           </span>
+        </div>
+      )}
+
+      {/* 푸시 알림 설정 */}
+      {push.supported && (
+        <div
+          className="rounded-xl"
+          style={{ background: "var(--tc-surface)", border: "1px solid var(--tc-border)", padding: "var(--tc-space-4)" }}
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-sm font-semibold" style={{ color: "var(--tc-text)" }}>
+                푸시 알림
+              </div>
+              <div className="text-[12px] mt-0.5" style={{ color: "var(--tc-text-muted)" }}>
+                {push.subscribed
+                  ? "새 알림을 푸시로 받고 있습니다"
+                  : "알림을 놓치지 않도록 푸시를 켜보세요"}
+              </div>
+            </div>
+            <button
+              onClick={push.subscribed ? push.unsubscribe : push.subscribe}
+              disabled={push.loading}
+              className="text-xs font-bold cursor-pointer shrink-0"
+              style={{
+                padding: "6px 14px",
+                borderRadius: "var(--tc-radius)",
+                border: "none",
+                background: push.subscribed ? "var(--tc-surface-soft)" : "var(--tc-primary)",
+                color: push.subscribed ? "var(--tc-text-secondary)" : "#fff",
+                opacity: push.loading ? 0.6 : 1,
+              }}
+            >
+              {push.loading ? "..." : push.subscribed ? "끄기" : "켜기"}
+            </button>
+          </div>
+          {push.permission === "denied" && (
+            <div className="text-[11px] mt-2" style={{ color: "var(--tc-danger)" }}>
+              브라우저에서 알림이 차단되어 있습니다. 브라우저 설정에서 허용해주세요.
+            </div>
+          )}
         </div>
       )}
     </div>

@@ -3,6 +3,7 @@
  * 하단 탭 — 오늘 | 수업 | 학생 | 소통 | 더보기
  */
 import { NavLink } from "react-router-dom";
+import { useAdminNotificationCounts } from "@admin/domains/admin-notifications/useAdminNotificationCounts";
 
 interface Props {
   onMoreClick: () => void;
@@ -25,6 +26,9 @@ const tabs: TabItem[] = [
 ];
 
 export default function TeacherTabBar({ onMoreClick }: Props) {
+  const { counts } = useAdminNotificationCounts();
+  const badge = counts?.total ?? 0;
+
   return (
     <nav
       aria-label="하단 메뉴"
@@ -100,8 +104,29 @@ export default function TeacherTabBar({ onMoreClick }: Props) {
                 borderRadius: "var(--tc-radius-sm)",
               })}
             >
-              <span style={{ width: 22, height: 22, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <span style={{ width: 22, height: 22, display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
                 <Icon />
+                {t.to === "/teacher/comms" && badge > 0 && (
+                  <span
+                    style={{
+                      position: "absolute",
+                      top: -4,
+                      right: -8,
+                      minWidth: 14,
+                      height: 14,
+                      lineHeight: "14px",
+                      fontSize: 9,
+                      fontWeight: 700,
+                      textAlign: "center",
+                      borderRadius: 7,
+                      padding: "0 3px",
+                      background: "#ef4444",
+                      color: "#fff",
+                    }}
+                  >
+                    {badge > 99 ? "99+" : badge}
+                  </span>
+                )}
               </span>
               <span style={{ fontSize: 10, fontWeight: 600 }}>{t.label}</span>
             </NavLink>

@@ -16,8 +16,8 @@ const SwipeAttendancePage = lazy(() => import("@teacher/domains/attendance/pages
 const MobileScoreEntryPage = lazy(() => import("@teacher/domains/scores/pages/MobileScoreEntryPage"));
 const StudentListPage = lazy(() => import("@teacher/domains/students/pages/StudentListPage"));
 const StudentDetailPage = lazy(() => import("@teacher/domains/students/pages/StudentDetailPage"));
-const CommunicationPage = lazy(() => import("@teacher/domains/today/pages/CommunicationPage"));
-const NotificationsPage = lazy(() => import("@teacher/domains/today/pages/NotificationsPage"));
+const CommunicationPage = lazy(() => import("@teacher/domains/comms/pages/CommunicationPage"));
+const NotificationsPage = lazy(() => import("@teacher/domains/notifications/pages/NotificationsPage"));
 const ProfilePage = lazy(() => import("@teacher/domains/profile/pages/ProfilePage"));
 
 function TeacherFallback() {
