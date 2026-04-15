@@ -75,11 +75,11 @@ const NAVER_HTML_VERIFY: Record<string, string> = {
 };
 
 /** 테넌트별 동적 sitemap.xml 생성 — 네이버 등 검색엔진이 해당 도메인 URL만 수집하도록 */
-function generateSitemap(host: string): string | null {
+function generateSitemap(host: string, origin: string): string | null {
   const seo = TENANT_SEO[host];
   if (!seo) return null;
-  const d = seo.domain;
-  const base = `https://${d}`;
+  // origin 사용: 네이버가 http:// 로 등록된 경우에도 프로토콜 일치
+  const base = origin;
   return [
     '<?xml version="1.0" encoding="UTF-8"?>',
     '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
@@ -254,7 +254,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
   // 네이버/구글 등 검색엔진용: 테넌트별 동적 sitemap.xml
   if (pathname === "/sitemap.xml") {
-    const xml = generateSitemap(host);
+    const xml = generateSitemap(host, url.origin);
     if (xml) {
       return new Response(xml, {
         status: 200,
