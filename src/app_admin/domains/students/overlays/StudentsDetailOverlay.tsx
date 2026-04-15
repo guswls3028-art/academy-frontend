@@ -274,8 +274,8 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
                   <div className="ds-overlay-sidebar-section">
                     <div className="ds-overlay-sidebar-section__title">연락처</div>
                     <div className="ds-overlay-info-rows">
-                      <InfoRow label="아이디" value={student.psNumber} accent copyable />
-                      <InfoRow label="식별코드" value={formatOmrCode(student.omrCode)} accent copyable />
+                      {student.psNumber && <InfoRow label="아이디" value={student.psNumber} accent copyable />}
+                      {student.omrCode && <InfoRow label="식별코드" value={formatOmrCode(student.omrCode)} accent copyable />}
                       <InfoRow label="학부모 전화" value={formatPhone(student.parentPhone)} copyable />
                       <InfoRow label="학생 전화" value={formatStudentPhoneDisplay(student.studentPhone)} copyable />
                       {student.gender && <InfoRow label="성별" value={formatGenderDisplay(student.gender)} />}

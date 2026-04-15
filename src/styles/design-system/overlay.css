@@ -529,12 +529,15 @@
   border-bottom-color: var(--color-brand-primary);
   background: color-mix(in srgb, var(--color-brand-primary) 6%, transparent);
 }
+.ds-stat-tab--active:hover {
+  background: color-mix(in srgb, var(--color-brand-primary) 6%, transparent);
+}
 
 .ds-stat-tab--muted {
-  opacity: 0.45;
+  opacity: 0.55;
 }
 .ds-stat-tab--muted:hover {
-  opacity: 0.75;
+  opacity: 0.8;
 }
 
 .ds-stat-tab__label {
