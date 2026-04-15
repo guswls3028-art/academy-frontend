@@ -5,6 +5,7 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import useAuth from "@/auth/hooks/useAuth";
+import { setPreferAdmin } from "@/core/router/MobileTeacherRedirect";
 
 interface Props {
   open: boolean;
@@ -38,6 +39,7 @@ export default function TeacherDrawer({ open, onClose }: Props) {
 
   const handleDesktopSwitch = () => {
     onClose();
+    setPreferAdmin(true);
     navigate("/admin");
   };
 

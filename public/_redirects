@@ -4,6 +4,9 @@
 /omr-default-logo.svg  /omr-default-logo.svg  200
 /version.json      /version.json      200
 /robots.txt        /robots.txt        200
+/teacher-manifest.json  /teacher-manifest.json  200
+/teacher-sw.js     /teacher-sw.js     200
+/teacher-icons/*   /teacher-icons/:splat  200
 
 # SPA fallback — all other routes → index.html
 /*    /index.html    200

@@ -3,6 +3,7 @@ import { Routes, Route, Navigate, Outlet, useLocation, useNavigate } from "react
 import { Suspense, useEffect, useRef } from "react";
 import { lazyWithRetry as lazy } from "@/shared/utils/lazyWithRetry";
 import ProtectedRoute from "./ProtectedRoute";
+import MobileTeacherRedirect from "./MobileTeacherRedirect";
 import ErrorBoundary from "@/shared/ui/ErrorBoundary";
 
 const StudentRouter = lazy(() => import("@student/app/StudentRouter"));
@@ -75,7 +76,15 @@ function RootRedirect() {
     }
 
     if (role && ["owner", "admin", "teacher", "staff"].includes(role)) {
-      navigate("/admin", { replace: true });
+      // 모바일 + staff역할 → 선생님 앱, standalone이면 이미 의도적 접근
+      const isMobile = window.matchMedia("(max-width: 1023px)").matches;
+      const isStandalone = window.matchMedia("(display-mode: standalone)").matches || (navigator as any).standalone;
+      const prefersAdmin = localStorage.getItem("teacher:preferAdmin") === "1";
+      if (isMobile && !isStandalone && !prefersAdmin) {
+        navigate("/teacher", { replace: true });
+      } else {
+        navigate("/admin", { replace: true });
+      }
       return;
     }
 
@@ -207,33 +216,35 @@ export default function AppRouter() {
             <ProtectedRoute allow={["owner", "admin", "teacher", "staff"]} />
           }
         >
-          <Route
-            path="/admin/*"
-            element={
-              <ErrorBoundary>
-                <SendMessageModalProvider>
-                  <Suspense
-                    fallback={
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          minHeight: 200,
-                          color: "#666",
-                          fontSize: 14,
-                        }}
-                      >
-                        불러오는 중…
-                      </div>
-                    }
-                  >
-                    <AdminRouter />
-                  </Suspense>
-                </SendMessageModalProvider>
-              </ErrorBoundary>
-            }
-          />
+          <Route element={<MobileTeacherRedirect />}>
+            <Route
+              path="/admin/*"
+              element={
+                <ErrorBoundary>
+                  <SendMessageModalProvider>
+                    <Suspense
+                      fallback={
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            minHeight: 200,
+                            color: "#666",
+                            fontSize: 14,
+                          }}
+                        >
+                          불러오는 중…
+                        </div>
+                      }
+                    >
+                      <AdminRouter />
+                    </Suspense>
+                  </SendMessageModalProvider>
+                </ErrorBoundary>
+              }
+            />
+          </Route>
           <Route
             path="/teacher/*"
             element={

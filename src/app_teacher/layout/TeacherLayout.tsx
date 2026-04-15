@@ -7,6 +7,7 @@ import { Outlet } from "react-router-dom";
 import { getTenantCodeForApiRequest } from "@/shared/tenant";
 import { useFavicon } from "@/shared/hooks/useFavicon";
 import { useDocumentTitle } from "@/shared/hooks/useDocumentTitle";
+import { useTeacherSW } from "../shared/hooks/useTeacherSW";
 import TeacherTopBar from "./TeacherTopBar";
 import TeacherTabBar from "./TeacherTabBar";
 import TeacherDrawer from "./TeacherDrawer";
@@ -35,6 +36,7 @@ export default function TeacherLayout() {
   const tenantCode = getTenantCodeForApiRequest();
   useFavicon();
   useDocumentTitle();
+  useTeacherSW();
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const openDrawer = useCallback(() => setDrawerOpen(true), []);
