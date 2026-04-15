@@ -44,18 +44,34 @@ interface TenantSeo {
 }
 
 const TENANT_SEO: Record<string, TenantSeo> = {
-  "hakwonplus.com":     { domain: "hakwonplus.com",     loginPath: "/promo" },
-  "www.hakwonplus.com": { domain: "hakwonplus.com",     loginPath: "/promo" },
-  "tchul.com":          { domain: "tchul.com",          loginPath: "/login/tchul" },
-  "www.tchul.com":      { domain: "tchul.com",          loginPath: "/login/tchul" },
-  "limglish.kr":        { domain: "limglish.kr",        loginPath: "/login/limglish" },
-  "www.limglish.kr":    { domain: "limglish.kr",        loginPath: "/login/limglish" },
-  "ymath.co.kr":        { domain: "ymath.co.kr",        loginPath: "/login/ymath" },
-  "www.ymath.co.kr":    { domain: "ymath.co.kr",        loginPath: "/login/ymath" },
-  "sswe.co.kr":         { domain: "sswe.co.kr",         loginPath: "/login/sswe" },
-  "www.sswe.co.kr":     { domain: "sswe.co.kr",         loginPath: "/login/sswe" },
-  "dnbacademy.co.kr":   { domain: "dnbacademy.co.kr",   loginPath: "/login/dnb" },
-  "www.dnbacademy.co.kr": { domain: "dnbacademy.co.kr", loginPath: "/login/dnb" },
+  "hakwonplus.com":     { domain: "hakwonplus.com",     loginPath: "/promo",          naver: "d2824e05fff2abca6dcc15a69de142bf3c1064bb" },
+  "www.hakwonplus.com": { domain: "hakwonplus.com",     loginPath: "/promo",          naver: "d2824e05fff2abca6dcc15a69de142bf3c1064bb" },
+  "tchul.com":          { domain: "tchul.com",          loginPath: "/login/tchul",    naver: "c7939870eaa36955e7516638b8ac8677da75e30d" },
+  "www.tchul.com":      { domain: "tchul.com",          loginPath: "/login/tchul",    naver: "c7939870eaa36955e7516638b8ac8677da75e30d" },
+  "limglish.kr":        { domain: "limglish.kr",        loginPath: "/login/limglish", naver: "5d45bf4681371272637101e231d53c5e94fbe62e" },
+  "www.limglish.kr":    { domain: "limglish.kr",        loginPath: "/login/limglish", naver: "5d45bf4681371272637101e231d53c5e94fbe62e" },
+  "ymath.co.kr":        { domain: "ymath.co.kr",        loginPath: "/login/ymath",    naver: "e03517c8855c685ee7859cd49de1886f61807f81" },
+  "www.ymath.co.kr":    { domain: "ymath.co.kr",        loginPath: "/login/ymath",    naver: "e03517c8855c685ee7859cd49de1886f61807f81" },
+  "sswe.co.kr":         { domain: "sswe.co.kr",         loginPath: "/login/sswe",     naver: "a529d17f8008421019d65e13be1efda83f84b65c" },
+  "www.sswe.co.kr":     { domain: "sswe.co.kr",         loginPath: "/login/sswe",     naver: "a529d17f8008421019d65e13be1efda83f84b65c" },
+  "dnbacademy.co.kr":   { domain: "dnbacademy.co.kr",   loginPath: "/login/dnb",      naver: "63724ceef8ef97b665e728a3f1e601788af8e2d3" },
+  "www.dnbacademy.co.kr": { domain: "dnbacademy.co.kr", loginPath: "/login/dnb",      naver: "63724ceef8ef97b665e728a3f1e601788af8e2d3" },
+};
+
+/** 네이버 Search Advisor HTML 파일 인증용 매핑 (도메인 → 인증 파일명) */
+const NAVER_HTML_VERIFY: Record<string, string> = {
+  "hakwonplus.com":     "navere58d27fb1be5a237409cd2afa105badf",
+  "www.hakwonplus.com": "navere58d27fb1be5a237409cd2afa105badf",
+  "tchul.com":          "naver074bf347ad90c08fae0b9c791cee4ecf",
+  "www.tchul.com":      "naver074bf347ad90c08fae0b9c791cee4ecf",
+  "limglish.kr":        "naver9740e279590adb84910985760fe05ff9",
+  "www.limglish.kr":    "naver9740e279590adb84910985760fe05ff9",
+  "ymath.co.kr":        "naver695ade48d0b47af9497f3a7112630c1e",
+  "www.ymath.co.kr":    "naver695ade48d0b47af9497f3a7112630c1e",
+  "sswe.co.kr":         "naverb15ee3063c6b2c218907df0835dfee5d",
+  "www.sswe.co.kr":     "naverb15ee3063c6b2c218907df0835dfee5d",
+  "dnbacademy.co.kr":   "naverecf2546ce8e867d0d40c2ec7ab686502",
+  "www.dnbacademy.co.kr": "naverecf2546ce8e867d0d40c2ec7ab686502",
 };
 
 /** 테넌트별 동적 sitemap.xml 생성 — 네이버 등 검색엔진이 해당 도메인 URL만 수집하도록 */
@@ -226,6 +242,15 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   const pathname = url.pathname;
   const host = url.hostname.toLowerCase();
   const accept = context.request.headers.get("Accept") ?? "";
+
+  // 네이버 Search Advisor HTML 파일 소유 확인 (/naver{hash}.html)
+  const naverVerifyId = NAVER_HTML_VERIFY[host];
+  if (naverVerifyId && pathname === `/${naverVerifyId}.html`) {
+    return new Response(naverVerifyId, {
+      status: 200,
+      headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "public, max-age=86400" },
+    });
+  }
 
   // 네이버/구글 등 검색엔진용: 테넌트별 동적 sitemap.xml
   if (pathname === "/sitemap.xml") {
