@@ -15,5 +15,8 @@ Disallow: /api
 Disallow: /api/
 
 Sitemap: https://hakwonplus.com/sitemap.xml
-Sitemap: https://limglish.kr/sitemap.xml
 Sitemap: https://tchul.com/sitemap.xml
+Sitemap: https://limglish.kr/sitemap.xml
+Sitemap: https://ymath.co.kr/sitemap.xml
+Sitemap: https://sswe.co.kr/sitemap.xml
+Sitemap: https://dnbacademy.co.kr/sitemap.xml

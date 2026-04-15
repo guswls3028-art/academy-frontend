@@ -36,6 +36,70 @@ function normalizeImagePath(image: string): string {
   return image.startsWith("/") ? image : "/" + image;
 }
 
+/** 테넌트별 사이트맵/SEO 설정. loginPath: 메인 로그인 경로, naver: 네이버 Search Advisor 인증 코드 */
+interface TenantSeo {
+  domain: string;
+  loginPath: string;
+  naver?: string; // naver-site-verification meta content
+}
+
+const TENANT_SEO: Record<string, TenantSeo> = {
+  "hakwonplus.com":     { domain: "hakwonplus.com",     loginPath: "/promo" },
+  "www.hakwonplus.com": { domain: "hakwonplus.com",     loginPath: "/promo" },
+  "tchul.com":          { domain: "tchul.com",          loginPath: "/login/tchul" },
+  "www.tchul.com":      { domain: "tchul.com",          loginPath: "/login/tchul" },
+  "limglish.kr":        { domain: "limglish.kr",        loginPath: "/login/limglish" },
+  "www.limglish.kr":    { domain: "limglish.kr",        loginPath: "/login/limglish" },
+  "ymath.co.kr":        { domain: "ymath.co.kr",        loginPath: "/login/ymath" },
+  "www.ymath.co.kr":    { domain: "ymath.co.kr",        loginPath: "/login/ymath" },
+  "sswe.co.kr":         { domain: "sswe.co.kr",         loginPath: "/login/sswe" },
+  "www.sswe.co.kr":     { domain: "sswe.co.kr",         loginPath: "/login/sswe" },
+  "dnbacademy.co.kr":   { domain: "dnbacademy.co.kr",   loginPath: "/login/dnb" },
+  "www.dnbacademy.co.kr": { domain: "dnbacademy.co.kr", loginPath: "/login/dnb" },
+};
+
+/** 테넌트별 동적 sitemap.xml 생성 — 네이버 등 검색엔진이 해당 도메인 URL만 수집하도록 */
+function generateSitemap(host: string): string | null {
+  const seo = TENANT_SEO[host];
+  if (!seo) return null;
+  const d = seo.domain;
+  const base = `https://${d}`;
+  return [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+    `  <url><loc>${base}${seo.loginPath}</loc><changefreq>monthly</changefreq><priority>1.0</priority></url>`,
+    `  <url><loc>${base}/terms</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>`,
+    `  <url><loc>${base}/privacy</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>`,
+    '</urlset>',
+  ].join("\n");
+}
+
+/** 테넌트별 동적 robots.txt 생성 */
+function generateRobots(host: string): string {
+  const seo = TENANT_SEO[host];
+  const domain = seo?.domain ?? host;
+  return [
+    "User-agent: *",
+    "Allow: /login",
+    "Allow: /login/",
+    "Allow: /promo",
+    "Allow: /promo/",
+    "Allow: /terms",
+    "Allow: /privacy",
+    "Disallow: /admin",
+    "Disallow: /admin/",
+    "Disallow: /student",
+    "Disallow: /student/",
+    "Disallow: /dev",
+    "Disallow: /dev/",
+    "Disallow: /api",
+    "Disallow: /api/",
+    "",
+    `Sitemap: https://${domain}/sitemap.xml`,
+    "",
+  ].join("\n");
+}
+
 /** 하드코딩 폴백 — API 장애 시 사용. imageWidth/imageHeight는 카카오톡 크롤러 힌트용. */
 const FALLBACK_META: Record<string, TenantMeta> = {
   "tchul.com":          { title: "박철 과학",  description: "박철 과학(tchul.com) – 대치동 과학 전문 학원. 생명과학·화학·물리·지구과학 학습 플랫폼", favicon: "/tenants/tchul/favicon.png", image: "/tenants/tchul/og-image.png", imageWidth: 800, imageHeight: 427 },
@@ -81,7 +145,7 @@ async function fetchOgMeta(host: string): Promise<TenantMeta | null> {
   }
 }
 
-function injectMeta(html: string, meta: TenantMeta, origin: string): string {
+function injectMeta(html: string, meta: TenantMeta, origin: string, host: string): string {
   const { title, description, favicon, image } = meta;
 
   // <title>
@@ -145,6 +209,15 @@ function injectMeta(html: string, meta: TenantMeta, origin: string): string {
     );
   }
 
+  // naver-site-verification — 테넌트별 네이버 Search Advisor 인증 코드
+  const seo = TENANT_SEO[host];
+  if (seo?.naver) {
+    html = html.replace(
+      "</head>",
+      `    <meta name="naver-site-verification" content="${seo.naver}" />\n  </head>`,
+    );
+  }
+
   return html;
 }
 
@@ -153,6 +226,26 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   const pathname = url.pathname;
   const host = url.hostname.toLowerCase();
   const accept = context.request.headers.get("Accept") ?? "";
+
+  // 네이버/구글 등 검색엔진용: 테넌트별 동적 sitemap.xml
+  if (pathname === "/sitemap.xml") {
+    const xml = generateSitemap(host);
+    if (xml) {
+      return new Response(xml, {
+        status: 200,
+        headers: { "Content-Type": "application/xml; charset=utf-8", "Cache-Control": "public, max-age=86400" },
+      });
+    }
+    // 알 수 없는 호스트면 정적 sitemap.xml 폴백
+  }
+
+  // 테넌트별 동적 robots.txt
+  if (pathname === "/robots.txt") {
+    return new Response(generateRobots(host), {
+      status: 200,
+      headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "public, max-age=86400" },
+    });
+  }
 
   // 정적 파일은 그대로 ASSETS에 위임
   if (STATIC_EXT.test(pathname)) {
@@ -209,7 +302,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     : fallback;
   if (meta) {
     const origin = url.origin;
-    html = injectMeta(html, meta, origin);
+    html = injectMeta(html, meta, origin, host);
   }
 
   return new Response(html, {
