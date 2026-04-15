@@ -122,7 +122,7 @@
 }
 
 /* 3) Ivory Office (따뜻한 모카 톤, 프리미엄 오피스) */
-[data-theme="ivory-office"] {
+[data-theme="mocha-office"] {
   /* Scale: 따뜻한 웜그레이 (크림X, 은은한 따뜻함만) */
   --scale-Neutral0:   #ffffff;
   --scale-Neutral50:  #faf9f7;
@@ -163,7 +163,7 @@
   --color-modal-bg: #ffffff;
 }
 
-/* 4) Minimal Mono */
+/* 4) Minimal Mono (B안: 미세한 블루잉크로 link/CTA 구분) */
 [data-theme="minimal-mono"] {
   --scale-Neutral0:   #ffffff;
   --scale-Neutral50:  #fafafa;
@@ -177,15 +177,16 @@
   --scale-Neutral800: #262626;
   --scale-Neutral900: #0a0a0a;
 
-  /* Primary becomes pure ink */
-  --scale-Primary50:  #f5f5f5;
-  --scale-Primary100: #e5e5e5;
-  --scale-Primary200: #d4d4d4;
-  --scale-Primary300: #a3a3a3;
-  --scale-Primary400: #737373;
-  --scale-Primary500: #0a0a0a;
-  --scale-Primary600: #0a0a0a;
-  --scale-Primary700: #0a0a0a;
+  /* Primary: 매우 진한 블루잉크 (모노 느낌 유지 + CTA/link 구분 가능) */
+  --scale-Primary50:  #f0f2f5;
+  --scale-Primary100: #dfe3ea;
+  --scale-Primary200: #c1c8d4;
+  --scale-Primary300: #8692a7;
+  --scale-Primary400: #4f5b73;
+  --scale-Primary500: #1e293b;
+  --scale-Primary600: #15202f;
+  --scale-Primary700: #0f172a;
+  --color-primary-rgb: 30, 41, 59;
   --scale-Complement500: #0d9488;
 
   --layout-page-bg: #ffffff;
@@ -200,7 +201,7 @@
   --sidebar-group-title: #525252;
 
   --sidebar-item-hover-bg: #f5f5f5;
-  --sidebar-item-active-bg: #0a0a0a;
+  --sidebar-item-active-bg: #1e293b;
   --sidebar-item-active-text: #ffffff;
 
   --color-modal-bg: #ffffff;
@@ -233,6 +234,7 @@
   --scale-Primary500: #60a5fa;
   --scale-Primary600: #7dd3fc;
   --scale-Primary700: #93c5fd;
+  --color-primary-rgb: 96, 165, 250;
   --scale-Complement500: #0d9488;
 
   --layout-page-bg: color-mix(in srgb, #0d1117 92%, #111827);
@@ -254,19 +256,19 @@
   --color-modal-bg: var(--color-bg-surface);
 }
 
-/* 6) Dark Navy (눈에 띄게 파란 다크, Modern Dark와 확실히 구분) */
+/* 6) Dark Navy (강한 블루 틴트 — Modern Dark 무채색과 확실 구분) */
 [data-theme="dark-navy"] {
-  --scale-Neutral0:   #0a1628;
-  --scale-Neutral50:  #0f1d38;
-  --scale-Neutral100: #132d4f;
-  --scale-Neutral200: #1e3f6e;
-  --scale-Neutral300: #2d5388;
-  --scale-Neutral400: #3f6a9f;
-  --scale-Neutral500: #5b88b8;
-  --scale-Neutral600: #9fb8d8;
-  --scale-Neutral700: #cfe0ff;
-  --scale-Neutral800: #e5efff;
-  --scale-Neutral900: #f8fbff;
+  --scale-Neutral0:   #081428;
+  --scale-Neutral50:  #0c1c3a;
+  --scale-Neutral100: #112850;
+  --scale-Neutral200: #1a3d6e;
+  --scale-Neutral300: #285590;
+  --scale-Neutral400: #3a6baa;
+  --scale-Neutral500: #5888c0;
+  --scale-Neutral600: #98bce0;
+  --scale-Neutral700: #c8dfff;
+  --scale-Neutral800: #e0edff;
+  --scale-Neutral900: #f5f9ff;
 
   --scale-Primary50:  #0b142a;
   --scale-Primary100: #0f1f3f;
@@ -279,28 +281,28 @@
   --color-primary-rgb: 59, 130, 246;
   --scale-Complement500: #0d9488;
 
-  --layout-page-bg: color-mix(in srgb, #0a1628 92%, #0f1d38);
-  --layout-header-bg: color-mix(in srgb, #0f1d38 78%, transparent);
+  --layout-page-bg: color-mix(in srgb, #081428 92%, #0c1c3a);
+  --layout-header-bg: color-mix(in srgb, #0c1c3a 78%, transparent);
 
-  /* Sidebar: 눈에 띄게 푸른 네이비 (Modern Dark의 무채색 사이드바와 확실히 다름) */
-  --sidebar-bg: #0f2847;
-  --sidebar-border: #1e3f6e;
-  --sidebar-header-bg: color-mix(in srgb, #0f2847 82%, #132d4f);
-  --sidebar-header-border: #1e3f6e;
+  /* Sidebar: 강한 블루 네이비 (Modern Dark 무채색과 확실 구분) */
+  --sidebar-bg: #0c2850;
+  --sidebar-border: #1a3d6e;
+  --sidebar-header-bg: color-mix(in srgb, #0c2850 82%, #112850);
+  --sidebar-header-border: #1a3d6e;
 
-  --sidebar-text: #e5efff;
-  --sidebar-muted: #cfe0ff;
-  --sidebar-group-title: #9fb8d8;
+  --sidebar-text: #e0edff;
+  --sidebar-muted: #c8dfff;
+  --sidebar-group-title: #98bce0;
 
-  --sidebar-item-hover-bg: color-mix(in srgb, #132d4f 80%, transparent);
-  --sidebar-item-active-bg: color-mix(in srgb, var(--color-brand-primary) 20%, transparent);
+  --sidebar-item-hover-bg: color-mix(in srgb, #112850 80%, transparent);
+  --sidebar-item-active-bg: color-mix(in srgb, var(--color-brand-primary) 22%, transparent);
   --sidebar-item-active-text: #60a5fa;
 
   --color-modal-bg: var(--color-bg-surface);
 }
 
 /* 7) Graphite Studio (따뜻한 차콜 + 인디고 악센트, 프리미엄 스튜디오) */
-[data-theme="youtube-studio"] {
+[data-theme="graphite-studio"] {
   /* Scale: 따뜻한 차콜 (쿨그레이 X, 웜 차콜) */
   --scale-Neutral0:   #121214;
   --scale-Neutral50:  #1a1a1e;
@@ -346,7 +348,7 @@
 }
 
 /* 8) Deep Ocean (깊은 바다 톤 다크, 차분한 스카이블루 악센트) */
-[data-theme="terminal-neon"] {
+[data-theme="deep-ocean"] {
   /* Scale: 깊은 남색 계열 (네온 X, 차분한 깊이감) */
   --scale-Neutral0:   #0a0e1a;
   --scale-Neutral50:  #0f1525;
@@ -462,16 +464,16 @@
   --scale-Neutral800: #1e293b;
   --scale-Neutral900: #0f172a;
 
-  /* Primary: 네이버 틸그린 (Success #22c55e와 충돌 없음, 네이버페이 인접 톤) */
-  --scale-Primary50:  #ecfdf8;
-  --scale-Primary100: #d1fae5;
-  --scale-Primary200: #a7f3d0;
-  --scale-Primary300: #6ee7b7;
-  --scale-Primary400: #2dd4a8;
-  --scale-Primary500: #0aba90;
-  --scale-Primary600: #099b78;
-  --scale-Primary700: #087a60;
-  --color-primary-rgb: 10, 186, 144;
+  /* Primary: 네이버 틸 (Success #22c55e와 확실히 다른 청록 방향, 네이버 브랜딩 유지) */
+  --scale-Primary50:  #ecfdf5;
+  --scale-Primary100: #ccfbea;
+  --scale-Primary200: #9ef5d5;
+  --scale-Primary300: #5ee4b8;
+  --scale-Primary400: #1cc798;
+  --scale-Primary500: #059e7e;
+  --scale-Primary600: #048068;
+  --scale-Primary700: #036655;
+  --color-primary-rgb: 5, 158, 126;
   --scale-Complement500: #c026d3;
 
   /* Page·Header: 깨끗한 화이트 */
@@ -606,4 +608,44 @@
   --color-bg-surface: #ffffff;
   --color-bg-surface-hover: #f8fafc;
   --color-bg-surface-soft: #f8fafc;
+}
+
+/* =========================================================
+   DARK THEMES: Semantic Color Correction
+   - 다크 배경 위에서 채도 과다 → 밝고 부드러운 톤으로 보정
+   - Light 기준 500→700 역전: 다크에서는 밝은 색이 기본, 진한 색이 hover
+========================================================= */
+[data-theme="modern-dark"],
+[data-theme="dark-navy"],
+[data-theme="graphite-studio"],
+[data-theme="deep-ocean"] {
+  --scale-Success100: #052e16;
+  --scale-Success500: #4ade80;
+  --scale-Success700: #22c55e;
+
+  --scale-Warning100: #422006;
+  --scale-Warning500: #facc15;
+  --scale-Warning700: #eab308;
+
+  --scale-Error100: #450a0a;
+  --scale-Error500: #f87171;
+  --scale-Error700: #ef4444;
+
+  --scale-Info100: #083344;
+  --scale-Info500: #22d3ee;
+  --scale-Info700: #06b6d4;
+}
+
+/* =========================================================
+   DARK THEMES: Elevation Correction
+   - rgba(0,0,0) 그림자가 다크 배경에서 보이지 않음
+   - border-highlight + 강한 shadow로 카드 구분 확보
+========================================================= */
+[data-theme="modern-dark"],
+[data-theme="dark-navy"],
+[data-theme="graphite-studio"],
+[data-theme="deep-ocean"] {
+  --elevation-1: 0 1px 3px rgba(0, 0, 0, 0.24), 0 0 0 1px rgba(255, 255, 255, 0.04);
+  --elevation-2: 0 4px 12px rgba(0, 0, 0, 0.32), 0 0 0 1px rgba(255, 255, 255, 0.06);
+  --elevation-3: 0 8px 24px rgba(0, 0, 0, 0.40), 0 0 0 1px rgba(255, 255, 255, 0.08);
 }

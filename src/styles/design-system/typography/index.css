@@ -16,6 +16,11 @@
 
   --letter-tight: -0.25px;
   --letter-base: -0.15px;
+
+  /* Line-height (수직 리듬 통일) */
+  --leading-tight: 1.25;
+  --leading-base: 1.5;
+  --leading-relaxed: 1.75;
 }
 
 [data-app="admin"] {

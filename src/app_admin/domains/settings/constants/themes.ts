@@ -3,12 +3,12 @@
 export type ThemeKey =
   | "modern-white"
   | "navy-pro"
-  | "ivory-office"
+  | "mocha-office"
   | "minimal-mono"
   | "modern-dark"
   | "dark-navy"
-  | "youtube-studio"
-  | "terminal-neon"
+  | "graphite-studio"
+  | "deep-ocean"
   | "kakao-business"
   | "naver-works"
   | "samsung-admin"
@@ -41,7 +41,7 @@ export const THEMES: ThemeMeta[] = ([
     order: 2,
   },
   {
-    key: "ivory-office",
+    key: "mocha-office",
     name: "Mocha Office",
     desc: "따뜻한 웜그레이 · 모카 톤",
     group: "WHITE",
@@ -71,14 +71,14 @@ export const THEMES: ThemeMeta[] = ([
     order: 6,
   },
   {
-    key: "youtube-studio",
+    key: "graphite-studio",
     name: "Graphite Studio",
     desc: "웜 차콜 · 인디고 악센트",
     group: "DARK",
     order: 7,
   },
   {
-    key: "terminal-neon",
+    key: "deep-ocean",
     name: "Deep Ocean",
     desc: "깊은 바다 · 스카이블루 다크",
     group: "DARK",

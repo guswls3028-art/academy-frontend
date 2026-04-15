@@ -3171,20 +3171,20 @@ details[open] > .clinic-tree__summary {
 
 /* 출석 활성 — 녹색 */
 .clinic-console__attendance-btn--attended.clinic-console__attendance-btn--active {
-  background: color-mix(in srgb, #22c55e 14%, var(--color-bg-surface));
-  color: #16a34a;
+  background: color-mix(in srgb, var(--color-success) 14%, var(--color-bg-surface));
+  color: var(--scale-Success700);
 }
 .clinic-console__attendance-btn--attended.clinic-console__attendance-btn--active:hover:not(:disabled) {
-  background: color-mix(in srgb, #22c55e 22%, var(--color-bg-surface));
+  background: color-mix(in srgb, var(--color-success) 22%, var(--color-bg-surface));
 }
 
 /* 불참 활성 — 적색 */
 .clinic-console__attendance-btn--no-show.clinic-console__attendance-btn--active {
-  background: color-mix(in srgb, #ef4444 14%, var(--color-bg-surface));
-  color: #dc2626;
+  background: color-mix(in srgb, var(--color-error) 14%, var(--color-bg-surface));
+  color: var(--scale-Error700);
 }
 .clinic-console__attendance-btn--no-show.clinic-console__attendance-btn--active:hover:not(:disabled) {
-  background: color-mix(in srgb, #ef4444 22%, var(--color-bg-surface));
+  background: color-mix(in srgb, var(--color-error) 22%, var(--color-bg-surface));
 }
 
 /* 전체 출석 버튼 */
@@ -3198,16 +3198,16 @@ details[open] > .clinic-tree__summary {
   font-size: 13px;
   font-weight: 600;
   font-family: inherit;
-  border: 1px solid color-mix(in srgb, #22c55e 40%, var(--color-border-divider));
+  border: 1px solid color-mix(in srgb, var(--color-success) 40%, var(--color-border-divider));
   border-radius: var(--radius-md);
-  background: color-mix(in srgb, #22c55e 8%, var(--color-bg-surface));
-  color: #16a34a;
+  background: color-mix(in srgb, var(--color-success) 8%, var(--color-bg-surface));
+  color: var(--scale-Success700);
   cursor: pointer;
   transition: background 0.12s ease, border-color 0.12s ease;
 }
 .clinic-console__bulk-attend:hover:not(:disabled) {
-  background: color-mix(in srgb, #22c55e 16%, var(--color-bg-surface));
-  border-color: color-mix(in srgb, #22c55e 60%, var(--color-border-divider));
+  background: color-mix(in srgb, var(--color-success) 16%, var(--color-bg-surface));
+  border-color: color-mix(in srgb, var(--color-success) 60%, var(--color-border-divider));
 }
 .clinic-console__bulk-attend:disabled {
   opacity: 0.5;
@@ -3897,14 +3897,14 @@ details[open] > .clinic-tree__summary {
 }
 
 .clinic-ops__action-btn--primary {
-  border: 1px solid color-mix(in srgb, #22c55e 40%, var(--color-border-divider));
-  background: color-mix(in srgb, #22c55e 8%, var(--color-bg-surface));
-  color: #16a34a;
+  border: 1px solid color-mix(in srgb, var(--color-success) 40%, var(--color-border-divider));
+  background: color-mix(in srgb, var(--color-success) 8%, var(--color-bg-surface));
+  color: var(--scale-Success700);
 }
 
 .clinic-ops__action-btn--primary:hover:not(:disabled) {
-  background: color-mix(in srgb, #22c55e 16%, var(--color-bg-surface));
-  border-color: color-mix(in srgb, #22c55e 60%, var(--color-border-divider));
+  background: color-mix(in srgb, var(--color-success) 16%, var(--color-bg-surface));
+  border-color: color-mix(in srgb, var(--color-success) 60%, var(--color-border-divider));
 }
 
 .clinic-ops__action-btn--primary:disabled {
@@ -4179,11 +4179,11 @@ details[open] > .clinic-tree__summary {
   transition: background 0.15s ease, color 0.15s ease;
 }
 .clinic-ops__trigger-toggle-btn--on {
-  background: #22c55e;
+  background: var(--color-success);
   color: #fff;
 }
 .clinic-ops__trigger-toggle-btn--on:hover {
-  background: #16a34a;
+  background: var(--scale-Success700);
 }
 .clinic-ops__trigger-toggle-btn--off {
   background: #e5e7eb;
@@ -4272,12 +4272,12 @@ details[open] > .clinic-tree__summary {
   font-weight: 700;
 }
 .clinic-ops__confirm-bar-badge--attend {
-  background: color-mix(in srgb, #22c55e 14%, var(--color-bg-surface));
-  color: #16a34a;
+  background: color-mix(in srgb, var(--color-success) 14%, var(--color-bg-surface));
+  color: var(--scale-Success700);
 }
 .clinic-ops__confirm-bar-badge--noshow {
-  background: color-mix(in srgb, #ef4444 14%, var(--color-bg-surface));
-  color: #dc2626;
+  background: color-mix(in srgb, var(--color-error) 14%, var(--color-bg-surface));
+  color: var(--scale-Error700);
 }
 .clinic-ops__confirm-bar-badge--delta {
   opacity: 0.85;
@@ -4343,18 +4343,18 @@ details[open] > .clinic-tree__summary {
   to { opacity: 1; max-width: 120px; }
 }
 .clinic-ops__att-btn--send-attend {
-  background: color-mix(in srgb, #22c55e 12%, var(--color-bg-surface));
-  color: #16a34a;
+  background: color-mix(in srgb, var(--color-success) 12%, var(--color-bg-surface));
+  color: var(--scale-Success700);
 }
 .clinic-ops__att-btn--send-attend:hover:not(:disabled) {
-  background: color-mix(in srgb, #22c55e 22%, var(--color-bg-surface));
+  background: color-mix(in srgb, var(--color-success) 22%, var(--color-bg-surface));
 }
 .clinic-ops__att-btn--send-noshow {
-  background: color-mix(in srgb, #ef4444 12%, var(--color-bg-surface));
-  color: #dc2626;
+  background: color-mix(in srgb, var(--color-error) 12%, var(--color-bg-surface));
+  color: var(--scale-Error700);
 }
 .clinic-ops__att-btn--send-noshow:hover:not(:disabled) {
-  background: color-mix(in srgb, #ef4444 22%, var(--color-bg-surface));
+  background: color-mix(in srgb, var(--color-error) 22%, var(--color-bg-surface));
 }
 
 /* 드로어 알림 발송 버튼 */
@@ -4374,18 +4374,18 @@ details[open] > .clinic-tree__summary {
   transition: background 0.12s;
 }
 .clinic-ops__drawer-status-btn--send-attend {
-  background: #22c55e;
+  background: var(--color-success);
   color: #fff;
 }
 .clinic-ops__drawer-status-btn--send-attend:hover:not(:disabled) {
-  background: #16a34a;
+  background: var(--scale-Success700);
 }
 .clinic-ops__drawer-status-btn--send-noshow {
-  background: #ef4444;
+  background: var(--color-error);
   color: #fff;
 }
 .clinic-ops__drawer-status-btn--send-noshow:hover:not(:disabled) {
-  background: #dc2626;
+  background: var(--scale-Error700);
 }
 .clinic-ops__drawer-status-btn--send:disabled {
   opacity: 0.6;
@@ -4653,21 +4653,21 @@ details[open] > .clinic-tree__summary {
 }
 
 .clinic-ops__att-btn--attend.clinic-ops__att-btn--active {
-  background: color-mix(in srgb, #22c55e 14%, var(--color-bg-surface));
-  color: #16a34a;
+  background: color-mix(in srgb, var(--color-success) 14%, var(--color-bg-surface));
+  color: var(--scale-Success700);
 }
 
 .clinic-ops__att-btn--attend.clinic-ops__att-btn--active:hover:not(:disabled) {
-  background: color-mix(in srgb, #22c55e 22%, var(--color-bg-surface));
+  background: color-mix(in srgb, var(--color-success) 22%, var(--color-bg-surface));
 }
 
 .clinic-ops__att-btn--noshow.clinic-ops__att-btn--active {
-  background: color-mix(in srgb, #ef4444 14%, var(--color-bg-surface));
-  color: #dc2626;
+  background: color-mix(in srgb, var(--color-error) 14%, var(--color-bg-surface));
+  color: var(--scale-Error700);
 }
 
 .clinic-ops__att-btn--noshow.clinic-ops__att-btn--active:hover:not(:disabled) {
-  background: color-mix(in srgb, #ef4444 22%, var(--color-bg-surface));
+  background: color-mix(in srgb, var(--color-error) 22%, var(--color-bg-surface));
 }
 
 /* Detail row: reasons + detail button */
@@ -5254,15 +5254,15 @@ details[open] > .clinic-tree__summary {
 }
 
 .clinic-ops__drawer-status-btn--attend.clinic-ops__drawer-status-btn--active {
-  background: color-mix(in srgb, #22c55e 12%, var(--color-bg-surface));
-  border-color: color-mix(in srgb, #22c55e 50%, var(--color-border-divider));
-  color: #16a34a;
+  background: color-mix(in srgb, var(--color-success) 12%, var(--color-bg-surface));
+  border-color: color-mix(in srgb, var(--color-success) 50%, var(--color-border-divider));
+  color: var(--scale-Success700);
 }
 
 .clinic-ops__drawer-status-btn--noshow.clinic-ops__drawer-status-btn--active {
-  background: color-mix(in srgb, #ef4444 12%, var(--color-bg-surface));
-  border-color: color-mix(in srgb, #ef4444 50%, var(--color-border-divider));
-  color: #dc2626;
+  background: color-mix(in srgb, var(--color-error) 12%, var(--color-bg-surface));
+  border-color: color-mix(in srgb, var(--color-error) 50%, var(--color-border-divider));
+  color: var(--scale-Error700);
 }
 
 /* Drawer body */

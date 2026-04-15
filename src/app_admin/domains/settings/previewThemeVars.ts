@@ -49,7 +49,7 @@ export const PREVIEW_THEME_VARS: Record<ThemeKey, React.CSSProperties & Record<s
     "--pv-page": "#f8fafc",
     "--pv-panel": "#ffffff",
     "--pv-border": "rgba(0,0,0,0.08)",
-    "--pv-primary": "#0aba90",
+    "--pv-primary": "#059e7e",
 
     "--pv-sidebar-bg": "#14532d",
     "--pv-sidebar-active-bg": "#ffffff",
@@ -85,26 +85,26 @@ export const PREVIEW_THEME_VARS: Record<ThemeKey, React.CSSProperties & Record<s
     "--pv-page": "#ffffff",
     "--pv-panel": "#ffffff",
     "--pv-border": "rgba(0,0,0,0.12)",
-    "--pv-primary": "#0a0a0a",
+    "--pv-primary": "#1e293b",
 
     "--pv-sidebar-bg": "#ffffff",
-    "--pv-sidebar-active-bg": "#0a0a0a",
-    "--pv-sidebar-muted": "rgba(10,10,10,0.45)",
+    "--pv-sidebar-active-bg": "#1e293b",
+    "--pv-sidebar-muted": "rgba(30,41,59,0.45)",
   },
 
   "dark-navy": {
-    "--pv-canvas": "#0a1628",
-    "--pv-page": "#0a1628",
-    "--pv-panel": "#132d4f",
-    "--pv-border": "rgba(207,224,255,0.14)",
+    "--pv-canvas": "#081428",
+    "--pv-page": "#081428",
+    "--pv-panel": "#112850",
+    "--pv-border": "rgba(200,223,255,0.14)",
     "--pv-primary": "#3b82f6",
 
-    "--pv-sidebar-bg": "#0f2847",
+    "--pv-sidebar-bg": "#0c2850",
     "--pv-sidebar-active-bg": "rgba(96,165,250,0.22)",
-    "--pv-sidebar-muted": "rgba(207,224,255,0.40)",
+    "--pv-sidebar-muted": "rgba(200,223,255,0.40)",
   },
 
-  "youtube-studio": {
+  "graphite-studio": {
     "--pv-canvas": "#121214",
     "--pv-page": "#121214",
     "--pv-panel": "#1a1a1e",
@@ -113,10 +113,10 @@ export const PREVIEW_THEME_VARS: Record<ThemeKey, React.CSSProperties & Record<s
 
     "--pv-sidebar-bg": "#16161a",
     "--pv-sidebar-active-bg": "rgba(139,124,248,0.20)",
-    "--pv-sidebar-muted": "rgba(250,250,250,0.35)",
+    "--pv-sidebar-muted": "rgba(212,212,216,0.40)",
   },
 
-  "ivory-office": {
+  "mocha-office": {
     "--pv-canvas": "#ffffff",
     "--pv-page": "#faf9f7",
     "--pv-panel": "#ffffff",
@@ -140,7 +140,7 @@ export const PREVIEW_THEME_VARS: Record<ThemeKey, React.CSSProperties & Record<s
     "--pv-sidebar-muted": "rgba(255,255,255,0.4)",
   },
 
-  "terminal-neon": {
+  "deep-ocean": {
     "--pv-canvas": "#0a0e1a",
     "--pv-page": "#0a0e1a",
     "--pv-panel": "#0f1525",
@@ -149,6 +149,6 @@ export const PREVIEW_THEME_VARS: Record<ThemeKey, React.CSSProperties & Record<s
 
     "--pv-sidebar-bg": "#0d1220",
     "--pv-sidebar-active-bg": "rgba(56,189,248,0.18)",
-    "--pv-sidebar-muted": "rgba(196,216,232,0.40)",
+    "--pv-sidebar-muted": "rgba(196,216,232,0.45)",
   },
 };

@@ -14,10 +14,22 @@ const ThemeContext = createContext<ThemeContextState | null>(null);
 
 const STORAGE_KEY = "hakwonplus:theme";
 
+/** Renamed theme key migration (구 key → 신 key) */
+const LEGACY_KEY_MAP: Record<string, ThemeKey> = {
+  "ivory-office": "mocha-office",
+  "youtube-studio": "graphite-studio",
+  "terminal-neon": "deep-ocean",
+};
+
 function loadThemeFromStorage(): ThemeKey {
   try {
     const v = localStorage.getItem(STORAGE_KEY);
     if (v && isThemeKey(v)) return v;
+    if (v && LEGACY_KEY_MAP[v]) {
+      const migrated = LEGACY_KEY_MAP[v];
+      try { localStorage.setItem(STORAGE_KEY, migrated); } catch {}
+      return migrated;
+    }
   } catch {
     // ignore
   }

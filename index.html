@@ -96,8 +96,10 @@
       (function () {
         try {
           var key = "hakwonplus:theme";
-          var valid = ["modern-white","navy-pro","ivory-office","minimal-mono","modern-dark","dark-navy","youtube-studio","terminal-neon","kakao-business","naver-works","samsung-admin","purple-insight"];
+          var valid = ["modern-white","navy-pro","mocha-office","minimal-mono","modern-dark","dark-navy","graphite-studio","deep-ocean","kakao-business","naver-works","samsung-admin","purple-insight"];
+          var migrate = {"ivory-office":"mocha-office","youtube-studio":"graphite-studio","terminal-neon":"deep-ocean"};
           var s = localStorage.getItem(key);
+          if (s && migrate[s]) { s = migrate[s]; try { localStorage.setItem(key, s); } catch(e2){} }
           if (s && valid.indexOf(s) !== -1) document.documentElement.setAttribute("data-theme", s);
         } catch (e) {}
       })();

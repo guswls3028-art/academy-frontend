@@ -9,7 +9,7 @@
 /* 브랜드/라이트 테마: Admin 제외한 AntD 모달만 흰색 (admin은 SSOT에서 처리) */
 html[data-theme="modern-white"] .ant-modal:not(.admin-modal) .ant-modal-content,
 html[data-theme="navy-pro"] .ant-modal:not(.admin-modal) .ant-modal-content,
-html[data-theme="ivory-office"] .ant-modal:not(.admin-modal) .ant-modal-content,
+html[data-theme="mocha-office"] .ant-modal:not(.admin-modal) .ant-modal-content,
 html[data-theme="minimal-mono"] .ant-modal:not(.admin-modal) .ant-modal-content,
 html[data-theme="kakao-business"] .ant-modal:not(.admin-modal) .ant-modal-content,
 html[data-theme="naver-works"] .ant-modal:not(.admin-modal) .ant-modal-content,

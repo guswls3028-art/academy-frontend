@@ -140,7 +140,7 @@
 }
 [data-theme="modern-dark"] .time-picker--portaled,
 [data-theme="dark-navy"] .time-picker--portaled,
-[data-theme="youtube-studio"] .time-picker--portaled,
-[data-theme="terminal-neon"] .time-picker--portaled {
+[data-theme="graphite-studio"] .time-picker--portaled,
+[data-theme="deep-ocean"] .time-picker--portaled {
   background-color: var(--scale-Neutral50) !important;
 }

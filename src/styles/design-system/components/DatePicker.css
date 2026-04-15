@@ -106,14 +106,14 @@
 /* 다크 테마: 모달 배경과 동일한 surface 사용 (불투명) */
 [data-theme="modern-dark"] .shared-date-picker-dropdown--portaled,
 [data-theme="dark-navy"] .shared-date-picker-dropdown--portaled,
-[data-theme="youtube-studio"] .shared-date-picker-dropdown--portaled,
-[data-theme="terminal-neon"] .shared-date-picker-dropdown--portaled {
+[data-theme="graphite-studio"] .shared-date-picker-dropdown--portaled,
+[data-theme="deep-ocean"] .shared-date-picker-dropdown--portaled {
   background-color: var(--scale-Neutral50) !important;
 }
 [data-theme="modern-dark"] .shared-date-picker-dropdown--portaled .shared-date-picker-dropdown__ds,
 [data-theme="dark-navy"] .shared-date-picker-dropdown--portaled .shared-date-picker-dropdown__ds,
-[data-theme="youtube-studio"] .shared-date-picker-dropdown--portaled .shared-date-picker-dropdown__ds,
-[data-theme="terminal-neon"] .shared-date-picker-dropdown--portaled .shared-date-picker-dropdown__ds {
+[data-theme="graphite-studio"] .shared-date-picker-dropdown--portaled .shared-date-picker-dropdown__ds,
+[data-theme="deep-ocean"] .shared-date-picker-dropdown--portaled .shared-date-picker-dropdown__ds {
   background: var(--scale-Neutral50);
 }
 

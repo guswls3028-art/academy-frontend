@@ -23,7 +23,7 @@ export const MODAL_WIDTH = {
 export const BRAND_AND_LIGHT_THEMES = new Set([
   "modern-white",
   "navy-pro",
-  "ivory-office",
+  "mocha-office",
   "minimal-mono",
   "kakao-business",
   "naver-works",

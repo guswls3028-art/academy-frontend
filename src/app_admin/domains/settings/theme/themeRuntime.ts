@@ -1,5 +1,6 @@
 // PATH: src/app_admin/domains/settings/theme/themeRuntime.ts
 import type { ThemeKey } from "../constants/themes";
+import { isThemeKey } from "../constants/themes";
 
 const STORAGE_KEY = "hakwonplus:theme";
 
@@ -9,6 +10,23 @@ const STORAGE_KEY = "hakwonplus:theme";
  * - localStorage = 단일 진실
  * - data-theme만 design-system에 전달
  */
+
+/** Renamed theme key migration (구 key → 신 key) */
+const LEGACY_KEY_MAP: Record<string, ThemeKey> = {
+  "ivory-office": "mocha-office",
+  "youtube-studio": "graphite-studio",
+  "terminal-neon": "deep-ocean",
+};
+
+function migrateThemeKey(raw: string): ThemeKey | null {
+  if (isThemeKey(raw)) return raw;
+  const migrated = LEGACY_KEY_MAP[raw];
+  if (migrated) {
+    try { localStorage.setItem(STORAGE_KEY, migrated); } catch {}
+    return migrated;
+  }
+  return null;
+}
 
 export function applyThemeToDom(theme: ThemeKey) {
   document.documentElement.setAttribute("data-theme", theme);
@@ -20,7 +38,8 @@ export function applyThemeToDom(theme: ThemeKey) {
 export function loadThemeFromStorage(): ThemeKey | null {
   try {
     const v = localStorage.getItem(STORAGE_KEY);
-    return v as ThemeKey | null;
+    if (!v) return null;
+    return migrateThemeKey(v);
   } catch {
     return null;
   }

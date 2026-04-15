@@ -39,7 +39,7 @@
   --pv-primary: #3b82f6;
 }
 
-.theme-preview[data-theme="ivory-office"] {
+.theme-preview[data-theme="mocha-office"] {
   --pv-page: #fbfaf7;
   --pv-panel: #ffffff;
   --pv-sidebar-bg: #f6f2ea;
@@ -52,8 +52,8 @@
   --pv-sidebar-bg: #ffffff;
   --pv-sidebar-text: #0a0a0a;
   --pv-sidebar-muted: #525252;
-  --pv-sidebar-active-bg: #0a0a0a;
-  --pv-primary: #0a0a0a;
+  --pv-sidebar-active-bg: #1e293b;
+  --pv-primary: #1e293b;
 }
 
 /* ================= DARK ================= */
@@ -72,42 +72,42 @@
 }
 
 .theme-preview[data-theme="dark-navy"] {
-  --pv-canvas: #071024;
-  --pv-page: #071024;
-  --pv-panel: #102044;
+  --pv-canvas: #081428;
+  --pv-page: #081428;
+  --pv-panel: #112850;
 
-  --pv-sidebar-bg: #06102a;
-  --pv-sidebar-text: #e5efff;
-  --pv-sidebar-muted: #9fb4d6;
-  --pv-sidebar-active-bg: #1e4b92;
+  --pv-sidebar-bg: #0c2850;
+  --pv-sidebar-text: #e0edff;
+  --pv-sidebar-muted: #98bce0;
+  --pv-sidebar-active-bg: rgba(96, 165, 250, 0.22);
 
   --pv-primary: #3b82f6;
 }
 
-.theme-preview[data-theme="youtube-studio"] {
-  --pv-canvas: #0b0b0c;
-  --pv-page: #0b0b0c;
-  --pv-panel: #17171a;
+.theme-preview[data-theme="graphite-studio"] {
+  --pv-canvas: #121214;
+  --pv-page: #121214;
+  --pv-panel: #1a1a1e;
 
-  --pv-sidebar-bg: #0f0f10;
-  --pv-sidebar-text: #f9fafb;
-  --pv-sidebar-muted: #9ca3af;
-  --pv-sidebar-active-bg: #3a0d0d;
+  --pv-sidebar-bg: #16161a;
+  --pv-sidebar-text: #fafafa;
+  --pv-sidebar-muted: #a1a1aa;
+  --pv-sidebar-active-bg: rgba(139, 124, 248, 0.20);
 
-  --pv-primary: #ff0000;
+  --pv-primary: #8b7cf8;
 }
 
-.theme-preview[data-theme="terminal-neon"] {
-  --pv-canvas: #030407;
-  --pv-page: #030407;
-  --pv-panel: #0a0c11;
+.theme-preview[data-theme="deep-ocean"] {
+  --pv-canvas: #0a0e1a;
+  --pv-page: #0a0e1a;
+  --pv-panel: #0f1525;
 
-  --pv-sidebar-bg: #050507;
-  --pv-sidebar-text: #d8e6ff;
-  --pv-sidebar-muted: #7aa0c7;
-  --pv-sidebar-active-bg: #003a45;
+  --pv-sidebar-bg: #0d1220;
+  --pv-sidebar-text: #e2edf5;
+  --pv-sidebar-muted: #8faabe;
+  --pv-sidebar-active-bg: rgba(56, 189, 248, 0.18);
 
-  --pv-primary: #00ffcc;
+  --pv-primary: #38bdf8;
 }
 
 /* ================= BRAND ================= */
@@ -133,7 +133,7 @@
   --pv-sidebar-muted: #cde8d6;
   --pv-sidebar-active-bg: #ffffff;
 
-  --pv-primary: #14532d;
+  --pv-primary: #059e7e;
 }
 
 .theme-preview[data-theme="samsung-admin"] {
