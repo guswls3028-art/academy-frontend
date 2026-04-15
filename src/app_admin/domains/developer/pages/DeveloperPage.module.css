@@ -532,8 +532,8 @@
   color: #b45309;
 }
 .pnTag[data-cat="fix"] {
-  background: color-mix(in srgb, #16a34a 10%, var(--color-bg-surface));
-  border-color: color-mix(in srgb, #16a34a 18%, var(--color-border-divider));
+  background: color-mix(in srgb, var(--scale-Success700) 10%, var(--color-bg-surface));
+  border-color: color-mix(in srgb, var(--scale-Success700) 18%, var(--color-border-divider));
   color: var(--color-success-text, #15803d);
 }
 .pnTag[data-cat="improve"] {
@@ -542,8 +542,8 @@
   color: #1d4ed8;
 }
 .pnTag[data-cat="security"] {
-  background: color-mix(in srgb, #dc2626 10%, var(--color-bg-surface));
-  border-color: color-mix(in srgb, #dc2626 18%, var(--color-border-divider));
+  background: color-mix(in srgb, var(--scale-Error700) 10%, var(--color-bg-surface));
+  border-color: color-mix(in srgb, var(--scale-Error700) 18%, var(--color-border-divider));
   color: var(--color-danger-text, #b91c1c);
 }
 
@@ -777,8 +777,8 @@
 }
 .pnSection[data-cat="fix"] .pnSectionHead {
   color: var(--color-success-text, #15803d);
-  background: color-mix(in srgb, #16a34a 8%, var(--color-bg-surface));
-  border: 1px solid color-mix(in srgb, #16a34a 15%, var(--color-border-divider));
+  background: color-mix(in srgb, var(--scale-Success700) 8%, var(--color-bg-surface));
+  border: 1px solid color-mix(in srgb, var(--scale-Success700) 15%, var(--color-border-divider));
 }
 .pnSection[data-cat="improve"] .pnSectionHead {
   color: #1e40af;
@@ -787,8 +787,8 @@
 }
 .pnSection[data-cat="security"] .pnSectionHead {
   color: var(--color-danger-text, #991b1b);
-  background: color-mix(in srgb, #dc2626 8%, var(--color-bg-surface));
-  border: 1px solid color-mix(in srgb, #dc2626 15%, var(--color-border-divider));
+  background: color-mix(in srgb, var(--scale-Error700) 8%, var(--color-bg-surface));
+  border: 1px solid color-mix(in srgb, var(--scale-Error700) 15%, var(--color-border-divider));
 }
 
 .pnSectionCount {
