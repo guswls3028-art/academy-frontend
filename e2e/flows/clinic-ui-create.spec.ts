@@ -10,7 +10,8 @@
  * Student sees it in clinic page without errors.
  * Cleanup via apiCall.
  */
-import { test, expect, type Page, type Browser } from "@playwright/test";
+import { test, expect } from "../fixtures/strictTest";
+import type { Page, Browser } from "@playwright/test";
 import { loginViaUI, getBaseUrl } from "../helpers/auth";
 import { apiCall } from "../helpers/api";
 

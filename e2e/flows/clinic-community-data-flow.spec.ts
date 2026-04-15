@@ -16,7 +16,7 @@
  *  9. API: 커뮤니티 게시글 조회 (tenant-scoped)
  * 10. Student: 커뮤니티/QnA 페이지
  */
-import { test, expect } from "@playwright/test";
+import { test, expect } from "../fixtures/strictTest";
 import { loginViaUI } from "../helpers/auth";
 import { apiCall } from "../helpers/api";
 

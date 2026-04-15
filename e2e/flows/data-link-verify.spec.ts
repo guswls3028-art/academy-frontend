@@ -4,7 +4,8 @@
  * 교사 데이터 생성 → 학생 화면에서 확인 → 학생 행동 → 교사 화면에 반영
  * 모든 확인은 DOM 요소 존재 여부로 검증 (API 아님)
  */
-import { test, expect, type Page, type Browser } from "@playwright/test";
+import { test, expect } from "../fixtures/strictTest";
+import type { Page, Browser } from "@playwright/test";
 import { loginViaUI, getBaseUrl } from "../helpers/auth";
 import { apiCall } from "../helpers/api";
 

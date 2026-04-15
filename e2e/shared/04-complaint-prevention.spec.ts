@@ -1,7 +1,7 @@
 /**
  * 불만 방지 테스트 — 실제 사용자 불만으로 이어지는 패턴 검증
  */
-import { test, expect } from "@playwright/test";
+import { test, expect } from "../fixtures/strictTest";
 import { loginViaUI, getBaseUrl } from "../helpers/auth";
 import { apiCall } from "../helpers/api";
 

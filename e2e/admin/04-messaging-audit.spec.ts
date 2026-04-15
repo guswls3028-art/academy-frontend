@@ -4,7 +4,8 @@
  * 모든 테스트는 실제 브라우저에서 사용자 클릭 경로로 수행.
  * API 직접 호출은 테스트 데이터 준비에만 사용.
  */
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect } from "../fixtures/strictTest";
+import type { Page } from "@playwright/test";
 import { loginViaUI } from "../helpers/auth";
 
 const BASE = process.env.E2E_BASE_URL || "https://hakwonplus.com";

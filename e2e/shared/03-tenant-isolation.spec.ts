@@ -2,7 +2,8 @@
  * 테넌트 격리 검증 E2E
  * T1(hakwonplus) vs T2(tchul) 데이터 완전 격리 확인
  */
-import { test, expect, type Browser } from "@playwright/test";
+import { test, expect } from "../fixtures/strictTest";
+import type { Browser } from "@playwright/test";
 import { loginViaUI, getBaseUrl } from "../helpers/auth";
 import { apiCall } from "../helpers/api";
 

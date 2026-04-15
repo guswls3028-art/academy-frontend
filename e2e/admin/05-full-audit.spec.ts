@@ -3,10 +3,12 @@
  * 실제 데이터 기반:
  *  - 강의 113, 차시 153, 수강생 E2E메시지3139 (parent_phone: 01031217466)
  */
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect } from "../fixtures/strictTest";
+import type { Page } from "@playwright/test";
 import { loginViaUI } from "../helpers/auth";
+import { FIXTURES } from "../helpers/test-fixtures";
 
-const BASE = "https://hakwonplus.com";
+const BASE = process.env.E2E_BASE_URL || "https://hakwonplus.com";
 
 async function snap(page: Page, name: string) {
   await page.screenshot({ path: `e2e/screenshots/${name}.png`, fullPage: false });
@@ -24,7 +26,7 @@ test.describe("메시징 미완 항목 완전 검증", () => {
   // ═══════════════════════════════════════════════════════════════
   test("1. 성적 발송 — 강의113/차시153 → 성적 탭 → 수업결과 발송", async ({ page }) => {
     // 직접 차시 성적 페이지로 이동
-    await page.goto(`${BASE}/admin/lectures/113/sessions/153/scores`, { waitUntil: "load", timeout: 30000 });
+    await page.goto(`${BASE}/admin/lectures/${FIXTURES.lectureId}/sessions/${FIXTURES.sessionId}/scores`, { waitUntil: "load", timeout: 30000 });
     await page.waitForTimeout(5000);
     await snap(page, "full-1-scores-page");
     console.log(`[성적] URL: ${page.url()}`);

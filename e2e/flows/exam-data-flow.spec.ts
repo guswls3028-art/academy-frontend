@@ -8,7 +8,8 @@
  *
  * Uses Tenant 1 (hakwonplus) — the dev/test tenant.
  */
-import { test, expect, type Page, type Browser } from "@playwright/test";
+import { test, expect } from "../fixtures/strictTest";
+import type { Page, Browser } from "@playwright/test";
 import { loginViaUI, getBaseUrl } from "../helpers/auth";
 import { apiCall } from "../helpers/api";
 

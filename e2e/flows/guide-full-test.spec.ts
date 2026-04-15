@@ -9,7 +9,8 @@
  *
  * 매 단계 스크린샷 저장
  */
-import { test, expect, type Page, type Browser } from "@playwright/test";
+import { test, expect } from "../fixtures/strictTest";
+import type { Page, Browser } from "@playwright/test";
 import { loginViaUI, getBaseUrl } from "../helpers/auth";
 import { apiCall } from "../helpers/api";
 

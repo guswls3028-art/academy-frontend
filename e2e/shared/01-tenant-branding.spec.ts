@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "../fixtures/strictTest";
 
 test.describe("테넌트 브랜딩 검증", () => {
   test("tchul.com 제목이 박철과학이다", async ({ page }) => {

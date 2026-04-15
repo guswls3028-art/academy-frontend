@@ -5,7 +5,8 @@
  * Student: 성적 허브, 성적 목록, 성적 상세, 성적표 제출, 과제 제출, 인벤토리
  * API: 과제 점수 데이터, 학생 성적 응답 형태 검증
  */
-import { test, expect, type Page, type Browser } from "@playwright/test";
+import { test, expect } from "../fixtures/strictTest";
+import type { Page, Browser } from "@playwright/test";
 import { loginViaUI, getBaseUrl } from "../helpers/auth";
 import { apiCall } from "../helpers/api";
 

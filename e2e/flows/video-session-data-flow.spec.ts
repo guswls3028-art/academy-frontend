@@ -4,7 +4,8 @@
  * 관리자/학생 양측에서 강의·차시·영상 데이터가 실제로 렌더되는지 검증.
  * 빈 데이터 상태는 실패가 아닌 경고(annotation)로 처리.
  */
-import { test, expect, type Page, type Browser } from "@playwright/test";
+import { test, expect } from "../fixtures/strictTest";
+import type { Page, Browser } from "@playwright/test";
 import { loginViaUI, getBaseUrl } from "../helpers/auth";
 import { apiCall } from "../helpers/api";
 

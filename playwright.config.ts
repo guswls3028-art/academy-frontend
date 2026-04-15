@@ -10,6 +10,7 @@ config({ path: resolve(__dirname, ".env.e2e") });
 
 export default defineConfig({
   testDir: "./e2e",
+  testIgnore: ["_local/**"],
   timeout: 30_000,
   expect: { timeout: 10_000 },
   fullyParallel: false,

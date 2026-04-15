@@ -6,7 +6,8 @@
  * 교사: QnA 답변 → 클리닉 출석 처리
  * 학생: 답변 확인
  */
-import { test, expect, type Page, type Browser } from "@playwright/test";
+import { test, expect } from "../fixtures/strictTest";
+import type { Page, Browser } from "@playwright/test";
 import { loginViaUI, getBaseUrl } from "../helpers/auth";
 import { apiCall } from "../helpers/api";
 

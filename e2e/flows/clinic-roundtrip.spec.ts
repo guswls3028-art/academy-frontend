@@ -2,7 +2,8 @@
  * 클리닉 왕복 플로우 E2E
  * 선생 세션 생성(API) → 학생 클리닉 화면 확인 → 선생 클리닉 화면 확인 → 정리
  */
-import { test, expect, type Page, type Browser } from "@playwright/test";
+import { test, expect } from "../fixtures/strictTest";
+import type { Page, Browser } from "@playwright/test";
 import { loginViaUI, getBaseUrl } from "../helpers/auth";
 import { apiCall } from "../helpers/api";
 

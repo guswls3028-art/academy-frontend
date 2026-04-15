@@ -4,7 +4,8 @@
  * 학생 질문 등록(API) → 선생 확인 → 선생 답변(API) → 학생 답변 확인
  * Tenant 1 (hakwonplus) 검증용 테넌트
  */
-import { test, expect, type Page, type Browser } from "@playwright/test";
+import { test, expect } from "../fixtures/strictTest";
+import type { Page, Browser } from "@playwright/test";
 import { loginViaUI, getBaseUrl } from "../helpers/auth";
 import { apiCall } from "../helpers/api";
 

@@ -4,7 +4,7 @@
  * - 관리자 강의 목록에서 시스템 강의가 제외되는지 확인
  * - 관리자 영상 탐색기에서 "전체공개영상" 라벨이 표시되는지 확인
  */
-import { test, expect } from "@playwright/test";
+import { test, expect } from "../fixtures/strictTest";
 import { loginViaUI } from "../helpers/auth";
 
 const BASE = process.env.E2E_BASE_URL || "https://hakwonplus.com";
