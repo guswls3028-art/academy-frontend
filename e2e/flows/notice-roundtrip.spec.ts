@@ -2,7 +2,8 @@
  * 공지 왕복 플로우 E2E
  * 선생 공지 작성(API) → 학생 목록에서 확인 → 학생 상세 진입 → 정리
  */
-import { test, expect, type Page, type Browser } from "@playwright/test";
+import { test, expect } from "../fixtures/strictTest";
+import type { Page, Browser } from "@playwright/test";
 import { loginViaUI, getBaseUrl } from "../helpers/auth";
 import { apiCall } from "../helpers/api";
 
@@ -48,10 +49,13 @@ test.describe.serial("공지 왕복: 선생→학생", () => {
 
   test("3. 학생이 공지 상세에서 내용을 확인한다", async () => {
     await studentPage.locator(`text=${TITLE}`).first().click();
-    await studentPage.waitForTimeout(1000);
+    await studentPage.waitForLoadState("load");
+    await studentPage.waitForTimeout(1500);
 
     await expect(studentPage.locator("text=Not Found")).not.toBeVisible();
-    await expect(studentPage.locator(`text=${CONTENT}`).first()).toBeVisible({ timeout: 5000 });
+    const content = studentPage.locator(`text=${CONTENT}`).first();
+    await content.scrollIntoViewIfNeeded();
+    await expect(content).toBeVisible({ timeout: 8000 });
   });
 
   test.afterAll(async () => {
