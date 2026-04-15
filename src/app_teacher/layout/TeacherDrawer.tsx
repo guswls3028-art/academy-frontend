@@ -15,7 +15,10 @@ interface Props {
 const MENU_ITEMS = [
   { label: "내 프로필", path: "/teacher/profile", icon: "person" },
   { label: "알림 센터", path: "/teacher/notifications", icon: "bell" },
-  { label: "시험 목록", path: "/teacher/exams", icon: "clipboard" },
+  { label: "시험 / 과제", path: "/teacher/exams", icon: "clipboard" },
+  { label: "영상 목록", path: "/teacher/videos", icon: "video" },
+  { label: "클리닉", path: "/teacher/clinic", icon: "clinic" },
+  { label: "상담 메모", path: "/teacher/counseling", icon: "note" },
 ] as const;
 
 export default function TeacherDrawer({ open, onClose }: Props) {

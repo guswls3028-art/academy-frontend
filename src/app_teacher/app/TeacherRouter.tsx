@@ -20,6 +20,15 @@ const CommunicationPage = lazy(() => import("@teacher/domains/comms/pages/Commun
 const NotificationsPage = lazy(() => import("@teacher/domains/notifications/pages/NotificationsPage"));
 const ProfilePage = lazy(() => import("@teacher/domains/profile/pages/ProfilePage"));
 
+/* Phase 3 */
+const ExamListPage = lazy(() => import("@teacher/domains/exams/pages/ExamListPage"));
+const ExamDetailPage = lazy(() => import("@teacher/domains/exams/pages/ExamDetailPage"));
+const HomeworkDetailPage = lazy(() => import("@teacher/domains/exams/pages/HomeworkDetailPage"));
+const VideoListPage = lazy(() => import("@teacher/domains/videos/pages/VideoListPage"));
+const VideoDetailPage = lazy(() => import("@teacher/domains/videos/pages/VideoDetailPage"));
+const ClinicPage = lazy(() => import("@teacher/domains/clinic/pages/ClinicPage"));
+const CounselingPage = lazy(() => import("@teacher/domains/counseling/pages/CounselingPage"));
+
 function TeacherFallback() {
   return (
     <div
@@ -64,6 +73,21 @@ export default function TeacherRouter() {
           {/* 소통 */}
           <Route path="comms" element={<CommunicationPage />} />
           <Route path="notifications" element={<NotificationsPage />} />
+
+          {/* 시험/과제 (Phase 3) */}
+          <Route path="exams" element={<ExamListPage />} />
+          <Route path="exams/:examId" element={<ExamDetailPage />} />
+          <Route path="homeworks/:homeworkId" element={<HomeworkDetailPage />} />
+
+          {/* 영상 (Phase 3) */}
+          <Route path="videos" element={<VideoListPage />} />
+          <Route path="videos/:videoId" element={<VideoDetailPage />} />
+
+          {/* 클리닉 (Phase 3, section_mode) */}
+          <Route path="clinic" element={<ClinicPage />} />
+
+          {/* 상담 메모 (Phase 3) */}
+          <Route path="counseling" element={<CounselingPage />} />
 
           {/* 프로필 */}
           <Route path="profile" element={<ProfilePage />} />
