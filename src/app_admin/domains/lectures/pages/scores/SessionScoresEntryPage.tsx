@@ -788,56 +788,55 @@ export default function SessionScoresEntryPage(_props: Props) {
           className="rounded-xl border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] overflow-hidden"
           style={{ boxShadow: "var(--elevation-1)" }}
         >
-          <div className="px-6 pt-6 pb-2">
-            <h3 className="text-[15px] font-semibold text-[var(--color-text-primary)]">성적 관리 시작하기</h3>
-            <p className="mt-1 text-[13px] text-[var(--color-text-muted)]">아래 순서대로 진행하면 성적을 입력하고 관리할 수 있습니다.</p>
-          </div>
-          <div className="px-6 pb-6 pt-3 flex flex-col gap-3">
-            {[
-              {
-                step: "1",
-                title: "시험 또는 과제 추가",
-                desc: "상단의 '+ 시험' / '+ 과제' 버튼으로 이 차시에 시험이나 과제를 만드세요.",
-                active: true,
-              },
-              {
-                step: "2",
-                title: "수강생 일괄배정",
-                desc: "시험·과제를 추가한 뒤 '수강생 일괄배정'을 누르면 수강생 전원이 응시 대상이 됩니다.",
-                active: false,
-              },
-              {
-                step: "3",
-                title: "성적 입력",
-                desc: "'편집 모드'에서 각 학생의 점수를 직접 입력하거나, OMR 스캔으로 자동 채점하세요.",
-                active: false,
-              },
-            ].map((item) => (
-              <div
-                key={item.step}
-                className="flex items-start gap-3 rounded-lg border px-4 py-3"
-                style={{
-                  borderColor: item.active ? "var(--color-brand-primary)" : "var(--color-border-divider)",
-                  background: item.active
-                    ? "color-mix(in srgb, var(--color-brand-primary) 6%, var(--color-bg-surface))"
-                    : "var(--color-bg-surface-soft)",
-                }}
-              >
-                <span
-                  className="shrink-0 flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold"
+          <div className="px-5 py-4">
+            <h3 className="text-[14px] font-semibold text-[var(--color-text-primary)]">성적 관리 시작하기</h3>
+            <div className="mt-3 grid grid-cols-3 gap-3">
+              {[
+                {
+                  step: "1",
+                  title: "시험 또는 과제 추가",
+                  desc: "'+ 시험' / '+ 과제' 버튼으로 만드세요.",
+                  active: true,
+                },
+                {
+                  step: "2",
+                  title: "수강생 일괄배정",
+                  desc: "'수강생 일괄배정'으로 전원 등록하세요.",
+                  active: false,
+                },
+                {
+                  step: "3",
+                  title: "성적 입력",
+                  desc: "편집 모드에서 점수 입력 또는 OMR 스캔.",
+                  active: false,
+                },
+              ].map((item) => (
+                <div
+                  key={item.step}
+                  className="flex items-start gap-2.5 rounded-lg border px-3 py-2.5"
                   style={{
-                    background: item.active ? "var(--color-brand-primary)" : "var(--color-border-divider)",
-                    color: item.active ? "#fff" : "var(--color-text-muted)",
+                    borderColor: item.active ? "var(--color-brand-primary)" : "var(--color-border-divider)",
+                    background: item.active
+                      ? "color-mix(in srgb, var(--color-brand-primary) 6%, var(--color-bg-surface))"
+                      : "var(--color-bg-surface-soft)",
                   }}
                 >
-                  {item.step}
-                </span>
-                <div className="min-w-0">
-                  <div className="text-[13px] font-semibold text-[var(--color-text-primary)]">{item.title}</div>
-                  <div className="mt-0.5 text-[12px] text-[var(--color-text-muted)] leading-relaxed">{item.desc}</div>
+                  <span
+                    className="shrink-0 flex items-center justify-center w-5 h-5 rounded-full text-[11px] font-bold mt-px"
+                    style={{
+                      background: item.active ? "var(--color-brand-primary)" : "var(--color-border-divider)",
+                      color: item.active ? "#fff" : "var(--color-text-muted)",
+                    }}
+                  >
+                    {item.step}
+                  </span>
+                  <div className="min-w-0">
+                    <div className="text-[12px] font-semibold text-[var(--color-text-primary)] leading-snug">{item.title}</div>
+                    <div className="mt-0.5 text-[11px] text-[var(--color-text-muted)] leading-normal">{item.desc}</div>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
       )}
