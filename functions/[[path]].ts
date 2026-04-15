@@ -271,7 +271,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     if (xml) {
       return new Response(xml, {
         status: 200,
-        headers: { "Content-Type": "application/xml; charset=utf-8", "Cache-Control": "public, max-age=86400" },
+        headers: { "Content-Type": "application/xml; charset=utf-8", "Cache-Control": "public, max-age=3600" },
       });
     }
     // 알 수 없는 호스트면 정적 sitemap.xml 폴백
