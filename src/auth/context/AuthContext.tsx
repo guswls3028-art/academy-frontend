@@ -37,6 +37,8 @@ export interface User {
   linkedStudentName?: string | null;
   /** 학부모일 때 연결된 자녀 목록 (삭제되지 않은 학생만) */
   linkedStudents?: { id: number; name: string }[] | null;
+  /** 초기 비밀번호 변경 강제 여부 */
+  must_change_password?: boolean;
 }
 
 type AuthState = {

@@ -92,6 +92,5 @@ export default defineConfig({
 
   optimizeDeps: {
     include: ["react", "react-dom"],
-    exclude: ["xlsx-js-style"],
   },
 });

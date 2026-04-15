@@ -2,6 +2,7 @@
 import { Navigate, Outlet } from "react-router-dom";
 import useAuth from "@/auth/hooks/useAuth";
 import { useProgram } from "@/shared/program";
+import ForcePasswordChangeModal from "@/auth/components/ForcePasswordChangeModal";
 
 export type Role =
   | "owner"
@@ -15,7 +16,7 @@ const ADMIN_ROLES: Role[] = ["owner", "admin", "teacher", "staff"];
 const STUDENT_ROLES: Role[] = ["student", "parent"];
 
 export default function ProtectedRoute({ allow, tenantOnly }: { allow: Role[]; tenantOnly?: string[] }) {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, refreshMe } = useAuth();
   const { program, isLoading: programLoading } = useProgram();
 
   if (programLoading || isLoading) {
@@ -68,6 +69,10 @@ export default function ProtectedRoute({ allow, tenantOnly }: { allow: Role[]; t
     }
 
     return loginRedirect;
+  }
+
+  if (user.must_change_password) {
+    return <ForcePasswordChangeModal onSuccess={() => refreshMe()} />;
   }
 
   return <Outlet />;
