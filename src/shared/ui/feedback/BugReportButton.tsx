@@ -100,7 +100,7 @@ export default function BugReportButton() {
       destroyOnClose
       width={480}
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         <Text type="secondary" style={{ fontSize: 13 }}>
           어떤 문제가 있는지 알려주세요. 현재 화면·브라우저 정보가 자동 첨부됩니다.
         </Text>
@@ -110,9 +110,14 @@ export default function BugReportButton() {
           placeholder="예: 학생 목록에서 검색이 안 돼요 / 버튼을 눌러도 반응이 없어요"
           autoSize={{ minRows: 3, maxRows: 6 }}
           maxLength={1000}
-          showCount
           autoFocus
         />
+        <Text
+          type="secondary"
+          style={{ fontSize: 12, textAlign: "right", marginTop: -4 }}
+        >
+          {description.length} / 1,000
+        </Text>
       </div>
     </Modal>
   );
