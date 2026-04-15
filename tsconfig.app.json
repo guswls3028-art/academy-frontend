@@ -25,7 +25,8 @@
       "@admin/*": ["src/app_admin/*"],
       "@student/*": ["src/app_student/*"],
       "@dev/*": ["src/app_dev/*"],
-      "@promo/*": ["src/app_promo/*"]
+      "@promo/*": ["src/app_promo/*"],
+      "@teacher/*": ["src/app_teacher/*"]
     }
   },
 

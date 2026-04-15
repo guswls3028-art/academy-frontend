@@ -1,0 +1,89 @@
+/* PATH: src/app_teacher/shared/ui/tokens.css
+ * 선생님 전용 모바일 앱 — 디자인 토큰
+ * Tailwind + CSS Variables. antd 없음.
+ */
+
+:root {
+  /* ===== Surface ===== */
+  --tc-bg: #f8fafc;
+  --tc-surface: #ffffff;
+  --tc-surface-soft: #f1f5f9;
+  --tc-surface-raised: #ffffff;
+
+  /* ===== Border ===== */
+  --tc-border: rgba(17, 17, 17, 0.08);
+  --tc-border-subtle: rgba(17, 17, 17, 0.05);
+  --tc-border-strong: rgba(17, 17, 17, 0.14);
+
+  /* ===== Text ===== */
+  --tc-text: rgba(17, 17, 17, 0.92);
+  --tc-text-secondary: rgba(17, 17, 17, 0.62);
+  --tc-text-muted: rgba(17, 17, 17, 0.42);
+
+  /* ===== Primary (Blue) ===== */
+  --tc-primary: #3b82f6;
+  --tc-primary-hover: #2563eb;
+  --tc-primary-bg: rgba(59, 130, 246, 0.08);
+  --tc-primary-contrast: #ffffff;
+
+  /* ===== Semantic ===== */
+  --tc-success: #22c55e;
+  --tc-success-bg: rgba(34, 197, 94, 0.1);
+  --tc-warn: #f59e0b;
+  --tc-warn-bg: rgba(245, 158, 11, 0.1);
+  --tc-danger: #ef4444;
+  --tc-danger-bg: rgba(239, 68, 68, 0.1);
+  --tc-info: #06b6d4;
+  --tc-info-bg: rgba(6, 182, 212, 0.1);
+
+  /* ===== Attendance Status ===== */
+  --tc-att-present: #22c55e;
+  --tc-att-present-bg: rgba(34, 197, 94, 0.12);
+  --tc-att-absent: #ef4444;
+  --tc-att-absent-bg: rgba(239, 68, 68, 0.12);
+  --tc-att-late: #f59e0b;
+  --tc-att-late-bg: rgba(245, 158, 11, 0.12);
+
+  /* ===== Header / TabBar ===== */
+  --tc-header-bg: rgba(255, 255, 255, 0.88);
+  --tc-tabbar-bg: rgba(255, 255, 255, 0.96);
+
+  /* ===== Layout ===== */
+  --tc-header-h: 52px;
+  --tc-tabbar-h: 56px;
+  --tc-page-max-w: 100%;
+  --tc-safe-top: env(safe-area-inset-top, 0px);
+  --tc-safe-bottom: env(safe-area-inset-bottom, 0px);
+
+  /* ===== Spacing ===== */
+  --tc-space-1: 4px;
+  --tc-space-2: 8px;
+  --tc-space-3: 12px;
+  --tc-space-4: 16px;
+  --tc-space-5: 20px;
+  --tc-space-6: 24px;
+  --tc-space-8: 32px;
+
+  /* ===== Radius ===== */
+  --tc-radius-sm: 6px;
+  --tc-radius: 8px;
+  --tc-radius-md: 10px;
+  --tc-radius-lg: 14px;
+  --tc-radius-xl: 20px;
+  --tc-radius-full: 9999px;
+
+  /* ===== Z-index ===== */
+  --tc-z-header: 200;
+  --tc-z-tabbar: 220;
+  --tc-z-bottom-sheet: 300;
+  --tc-z-overlay: 400;
+  --tc-z-snackbar: 500;
+
+  /* ===== Motion ===== */
+  --tc-motion-fast: 100ms cubic-bezier(0.4, 0, 0.2, 1);
+  --tc-motion-base: 160ms cubic-bezier(0.4, 0, 0.2, 1);
+  --tc-motion-slow: 260ms cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  /* ===== Touch ===== */
+  --tc-touch-min: 44px;
+}

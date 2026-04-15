@@ -86,6 +86,7 @@ export default defineConfig({
       "@student": path.resolve(process.cwd(), "src/app_student"),
       "@dev": path.resolve(process.cwd(), "src/app_dev"),
       "@promo": path.resolve(process.cwd(), "src/app_promo"),
+      "@teacher": path.resolve(process.cwd(), "src/app_teacher"),
     },
     dedupe: ["react", "react-dom"],
   },

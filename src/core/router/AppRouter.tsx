@@ -6,6 +6,7 @@ import ProtectedRoute from "./ProtectedRoute";
 import ErrorBoundary from "@/shared/ui/ErrorBoundary";
 
 const StudentRouter = lazy(() => import("@student/app/StudentRouter"));
+const TeacherRouter = lazy(() => import("@teacher/app/TeacherRouter"));
 import AuthRouter from "./AuthRouter";
 import { SendMessageModalProvider } from "@admin/domains/messages/context/SendMessageModalContext";
 
@@ -230,6 +231,31 @@ export default function AppRouter() {
                     <AdminRouter />
                   </Suspense>
                 </SendMessageModalProvider>
+              </ErrorBoundary>
+            }
+          />
+          <Route
+            path="/teacher/*"
+            element={
+              <ErrorBoundary>
+                <Suspense
+                  fallback={
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        minHeight: 200,
+                        color: "#666",
+                        fontSize: 14,
+                      }}
+                    >
+                      불러오는 중…
+                    </div>
+                  }
+                >
+                  <TeacherRouter />
+                </Suspense>
               </ErrorBoundary>
             }
           />

@@ -1,0 +1,76 @@
+/**
+ * PATH: src/app_teacher/app/TeacherRouter.tsx
+ * 선생님 전용 모바일 앱 라우터 — 5탭(오늘|수업|학생|소통|더보기)
+ */
+import { Suspense } from "react";
+import { lazyWithRetry as lazy } from "@/shared/utils/lazyWithRetry";
+import { Navigate, Route, Routes } from "react-router-dom";
+import TeacherLayout from "@teacher/layout/TeacherLayout";
+
+/* === Domain pages (lazy) === */
+const TodayPage = lazy(() => import("@teacher/domains/today/pages/TodayPage"));
+const LectureListPage = lazy(() => import("@teacher/domains/lectures/pages/LectureListPage"));
+const LectureDetailPage = lazy(() => import("@teacher/domains/lectures/pages/LectureDetailPage"));
+const SessionDetailPage = lazy(() => import("@teacher/domains/lectures/pages/SessionDetailPage"));
+const SwipeAttendancePage = lazy(() => import("@teacher/domains/attendance/pages/SwipeAttendancePage"));
+const MobileScoreEntryPage = lazy(() => import("@teacher/domains/scores/pages/MobileScoreEntryPage"));
+const StudentListPage = lazy(() => import("@teacher/domains/students/pages/StudentListPage"));
+const StudentDetailPage = lazy(() => import("@teacher/domains/students/pages/StudentDetailPage"));
+const CommunicationPage = lazy(() => import("@teacher/domains/today/pages/CommunicationPage"));
+const NotificationsPage = lazy(() => import("@teacher/domains/today/pages/NotificationsPage"));
+const ProfilePage = lazy(() => import("@teacher/domains/profile/pages/ProfilePage"));
+
+function TeacherFallback() {
+  return (
+    <div
+      role="status"
+      aria-label="불러오는 중"
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        minHeight: 200,
+        color: "var(--tc-text-muted)",
+        fontSize: 14,
+      }}
+    >
+      불러오는 중...
+    </div>
+  );
+}
+
+export default function TeacherRouter() {
+  return (
+    <Suspense fallback={<TeacherFallback />}>
+      <Routes>
+        <Route element={<TeacherLayout />}>
+          <Route index element={<TodayPage />} />
+
+          {/* 수업 */}
+          <Route path="classes" element={<LectureListPage />} />
+          <Route path="classes/:lectureId" element={<LectureDetailPage />} />
+          <Route path="classes/:lectureId/sessions/:sessionId" element={<SessionDetailPage />} />
+
+          {/* 출석 (세션 기반) */}
+          <Route path="attendance/:sessionId" element={<SwipeAttendancePage />} />
+
+          {/* 성적 입력 */}
+          <Route path="scores/:sessionId" element={<MobileScoreEntryPage />} />
+
+          {/* 학생 */}
+          <Route path="students" element={<StudentListPage />} />
+          <Route path="students/:studentId" element={<StudentDetailPage />} />
+
+          {/* 소통 */}
+          <Route path="comms" element={<CommunicationPage />} />
+          <Route path="notifications" element={<NotificationsPage />} />
+
+          {/* 프로필 */}
+          <Route path="profile" element={<ProfilePage />} />
+        </Route>
+
+        <Route path="*" element={<Navigate to="/teacher" replace />} />
+      </Routes>
+    </Suspense>
+  );
+}
