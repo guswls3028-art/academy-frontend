@@ -3,7 +3,7 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { useLocation } from "react-router-dom";
-import { Modal, Input, Typography, theme } from "antd";
+import { Modal, Input, Typography } from "antd";
 import { SendOutlined } from "@ant-design/icons";
 import * as Sentry from "@sentry/react";
 import { feedback } from "./feedback";
@@ -35,7 +35,6 @@ export default function BugReportButton() {
   const [description, setDescription] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const location = useLocation();
-  const { token: antToken } = theme.useToken();
 
   // 외부 이벤트로 모달 열기 (프로필 드롭다운 등에서 호출)
   useEffect(() => {
@@ -100,35 +99,20 @@ export default function BugReportButton() {
       onOk={handleSubmit}
       destroyOnClose
       width={480}
-      styles={{ body: { overflow: "visible" } }}
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 12, overflow: "visible" }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         <Text type="secondary" style={{ fontSize: 13 }}>
-          어떤 문제가 있는지 알려주세요. 현재 화면 정보가 자동으로 첨부됩니다.
+          어떤 문제가 있는지 알려주세요. 현재 화면·브라우저 정보가 자동 첨부됩니다.
         </Text>
-        <div>
-          <TextArea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="예: 학생 목록에서 검색이 안 돼요 / 버튼을 눌러도 반응이 없어요"
-            autoSize={{ minRows: 3, maxRows: 6 }}
-            maxLength={1000}
-            showCount
-            autoFocus
-            style={{ width: "100%" }}
-          />
-        </div>
-        <div
-          style={{
-            background: antToken.colorBgLayout,
-            borderRadius: 6,
-            padding: "8px 12px",
-            fontSize: 12,
-            color: antToken.colorTextSecondary,
-          }}
-        >
-          <div>자동 첨부: 현재 페이지, 화면 크기, 브라우저 정보, 시각</div>
-        </div>
+        <TextArea
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="예: 학생 목록에서 검색이 안 돼요 / 버튼을 눌러도 반응이 없어요"
+          autoSize={{ minRows: 3, maxRows: 6 }}
+          maxLength={1000}
+          showCount
+          autoFocus
+        />
       </div>
     </Modal>
   );
