@@ -75,19 +75,32 @@ const NAVER_HTML_VERIFY: Record<string, string> = {
 };
 
 /** 테넌트별 동적 sitemap.xml 생성 — 네이버 등 검색엔진이 해당 도메인 URL만 수집하도록 */
-function generateSitemap(host: string, origin: string): string | null {
+function generateSitemap(host: string): string | null {
   const seo = TENANT_SEO[host];
   if (!seo) return null;
-  // origin 사용: 네이버가 http:// 로 등록된 경우에도 프로토콜 일치
-  const base = origin;
-  return [
-    '<?xml version="1.0" encoding="UTF-8"?>',
-    '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
-    `  <url><loc>${base}${seo.loginPath}</loc><changefreq>monthly</changefreq><priority>1.0</priority></url>`,
-    `  <url><loc>${base}/terms</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>`,
-    `  <url><loc>${base}/privacy</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>`,
-    '</urlset>',
-  ].join("\n");
+  const base = `https://${seo.domain}`;
+  const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>${base}${seo.loginPath}</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>${base}/terms</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>${base}/privacy</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.3</priority>
+  </url>
+</urlset>`;
 }
 
 /** 테넌트별 동적 robots.txt 생성 */
@@ -254,7 +267,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
   // 네이버/구글 등 검색엔진용: 테넌트별 동적 sitemap.xml
   if (pathname === "/sitemap.xml") {
-    const xml = generateSitemap(host, url.origin);
+    const xml = generateSitemap(host);
     if (xml) {
       return new Response(xml, {
         status: 200,
