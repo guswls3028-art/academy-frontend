@@ -31,11 +31,12 @@ test.describe("Phase 3: 시험/과제 + 영상 + 클리닉 + 상담", () => {
     await tabBar.getByText("더보기").click();
     await page.waitForTimeout(500);
 
-    // Phase 3 메뉴 항목 확인
-    await expect(page.getByText("시험 / 과제")).toBeVisible({ timeout: 5_000 });
-    await expect(page.getByText("영상 목록")).toBeVisible();
-    await expect(page.getByText("클리닉")).toBeVisible();
-    await expect(page.getByText("상담 메모")).toBeVisible();
+    // Phase 3 메뉴 항목 확인 (드로어 내에서 검색)
+    await expect(page.getByRole("button", { name: "시험 / 과제" })).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByRole("button", { name: "영상 목록" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "클리닉" }).nth(1)).toBeVisible();
+    await expect(page.getByRole("button", { name: "상담 메모" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "성적 조회" })).toBeVisible();
 
     await page.screenshot({ path: "e2e/screenshots/teacher-phase3-01-drawer-menu.png" });
   });

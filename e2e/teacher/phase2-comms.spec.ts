@@ -21,23 +21,27 @@ test.describe("Phase 2: 소통탭 + 알림센터", () => {
     });
   });
 
-  test("소통탭 3탭 렌더링 (공지/Q&A/등록요청)", async ({ page }) => {
+  test("소통탭 5탭 렌더링 (공지/Q&A/등록요청/게시판/자료)", async ({ page }) => {
     await page.goto(`${BASE}/teacher/comms`, { waitUntil: "load", timeout: 20_000 });
     await page.waitForTimeout(2000);
 
-    // 3개 탭 버튼 확인
-    const tabs = page.locator("button").filter({ hasText: /공지사항|Q&A|등록요청/ });
-    await expect(tabs).toHaveCount(3);
-
-    // 공지사항 탭 활성 확인
-    await expect(page.getByText("공지사항").first()).toBeVisible();
+    // 5개 탭 확인 — 뱃지 숫자 포함 가능하므로 포함 매칭
+    await expect(page.getByRole("button", { name: /공지/ }).first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("button", { name: /Q&A/ }).first()).toBeVisible();
+    await expect(page.getByRole("button", { name: /등록요청/ }).first()).toBeVisible();
+    await expect(page.getByRole("button", { name: /게시판/ }).first()).toBeVisible();
+    await expect(page.getByRole("button", { name: /자료/ }).first()).toBeVisible();
 
     // Q&A 탭 클릭
-    await page.getByText("Q&A").first().click();
+    await page.getByRole("button", { name: /Q&A/ }).first().click();
     await page.waitForTimeout(1000);
 
-    // 등록요청 탭 클릭
-    await page.getByText("등록요청").first().click();
+    // 게시판 탭 클릭
+    await page.getByRole("button", { name: /게시판/ }).first().click();
+    await page.waitForTimeout(1000);
+
+    // 자료 탭 클릭
+    await page.getByRole("button", { name: /자료/ }).first().click();
     await page.waitForTimeout(1000);
 
     await page.screenshot({ path: "e2e/screenshots/teacher-phase2-01-comms-tabs.png" });
