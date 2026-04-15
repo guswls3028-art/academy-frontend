@@ -1,9 +1,9 @@
 // PATH: src/main.tsx
 // App Entry Point — Sentry 초기화 + 앱 마운트
 
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import ReactDOM from "react-dom/client";
-import { BrowserRouter } from "react-router-dom";
+import { BrowserRouter, useLocation } from "react-router-dom";
 import * as Sentry from "@sentry/react";
 
 import AppRouter from "@/core/router/AppRouter";
@@ -21,19 +21,44 @@ import { useVersionChecker } from "@/shared/ui/layout/VersionChecker";
 import SubscriptionExpiredOverlay from "@/shared/ui/SubscriptionExpiredOverlay";
 import { ConfirmProvider } from "@/shared/ui/confirm/ConfirmProvider";
 import { ModalWindowProvider, ModalTaskbar } from "@/shared/ui/modal";
+import { addNavigationBreadcrumb } from "@/shared/lib/sentryContext";
+import BugReportButton from "@/shared/ui/feedback/BugReportButton";
 
 import "./index.css";
 import "antd/dist/reset.css";
 
 // ── Sentry 초기화 (production only) ──
 const SENTRY_DSN = import.meta.env.VITE_SENTRY_DSN as string | undefined;
+
+function resolveTenantCode(): string {
+  const host = window.location.hostname.toLowerCase();
+  const map: Record<string, string> = {
+    "tchul.com": "tchul", "hakwonplus.com": "hakwonplus",
+    "limglish.kr": "limglish", "ymath.co.kr": "ymath", "sswe.co.kr": "sswe",
+    "dnbacademy.co.kr": "dnb",
+  };
+  return map[host] || host;
+}
+
 if (SENTRY_DSN && import.meta.env.PROD) {
   Sentry.init({
     dsn: SENTRY_DSN,
     environment: import.meta.env.MODE || "production",
     release: `academy-frontend@${import.meta.env.VITE_GIT_SHA || "unknown"}`,
+    integrations: [
+      // Session Replay — 에러 발생 시 세션 녹화 자동 캡처
+      Sentry.replayIntegration({
+        // 민감 정보 마스킹 (비밀번호, 전화번호 등)
+        maskAllText: false,
+        maskAllInputs: true,
+        blockAllMedia: false,
+      }),
+    ],
     // 성능 모니터링 — 10% 샘플링 (비용 절감)
     tracesSampleRate: 0.1,
+    // Session Replay 샘플링: 일반 세션 0%, 에러 세션 100%
+    replaysSessionSampleRate: 0,
+    replaysOnErrorSampleRate: 1.0,
     // 에러 필터: 네트워크 에러, 확장 프로그램 에러 제외
     beforeSend(event) {
       const msg = event.exception?.values?.[0]?.value || "";
@@ -45,17 +70,7 @@ if (SENTRY_DSN && import.meta.env.PROD) {
     },
     // 사용자 컨텍스트: tenant code 추가
     initialScope: {
-      tags: {
-        tenant: (() => {
-          const host = window.location.hostname.toLowerCase();
-          const map: Record<string, string> = {
-            "tchul.com": "tchul", "hakwonplus.com": "hakwonplus",
-            "limglish.kr": "limglish", "ymath.co.kr": "ymath", "sswe.co.kr": "sswe",
-            "dnbacademy.co.kr": "dnb",
-          };
-          return map[host] || host;
-        })(),
-      },
+      tags: { tenant: resolveTenantCode() },
     },
   });
 }
@@ -63,10 +78,22 @@ if (SENTRY_DSN && import.meta.env.PROD) {
 /** BrowserRouter 내부 최상위 — hook 호출 + 라우터 + 오버레이 */
 function AppInner() {
   useVersionChecker(); // 배포 자동 업데이트 (visibilitychange + pageshow + 폴링)
+
+  // Sentry breadcrumb: 라우트 변경 추적
+  const location = useLocation();
+  const prevPath = useRef(location.pathname);
+  useEffect(() => {
+    if (prevPath.current !== location.pathname) {
+      addNavigationBreadcrumb(prevPath.current, location.pathname);
+      prevPath.current = location.pathname;
+    }
+  }, [location.pathname]);
+
   return (
     <>
       <AppRouter />
       <SubscriptionExpiredOverlay />
+      <BugReportButton />
     </>
   );
 }

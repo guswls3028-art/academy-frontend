@@ -11,6 +11,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import api, { clearTokens, isSessionEnding, saveReturnPath } from "@/shared/api/axios";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { setParentStudentId } from "@student/shared/api/parentStudentSelection";
+import { setSentryUser, clearSentryUser } from "@/shared/lib/sentryContext";
 
 export type TenantRole =
   | "owner"
@@ -65,6 +66,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const clearAuth = useCallback(() => {
     clearTokens();
+    clearSentryUser();
     setParentStudentId(null);  // in-memory 정리 (localStorage는 clearTokens가 처리)
     queryClient.clear();
     setUser(null);
@@ -90,7 +92,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     try {
       const res = await api.get<User>("/core/me/");
-      setUser(res.data ?? null);
+      const u = res.data ?? null;
+      setUser(u);
+      if (u) setSentryUser(u);
     } catch (err: any) {
       const status = err?.response?.status;
       if (status === 401 || status === 403 || status === 404) {
@@ -111,7 +115,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         const res = await api.get<User>("/core/me/");
-        setUser(res.data ?? null);
+        const u = res.data ?? null;
+        setUser(u);
+        if (u) setSentryUser(u);
       } catch (err: any) {
         const status = err?.response?.status;
         if (status === 401 || status === 403 || status === 404) {

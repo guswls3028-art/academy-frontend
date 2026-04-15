@@ -7,6 +7,7 @@ import axios, {
 } from "axios";
 import { asyncStatusStore } from "@/shared/ui/asyncStatus/asyncStatusStore";
 import { getTenantCodeForApiRequest } from "@/shared/tenant";
+import { captureApiError } from "@/shared/lib/sentryContext";
 
 type RetryConfig = AxiosRequestConfig & {
   _retry?: boolean;
@@ -281,6 +282,17 @@ api.interceptors.response.use(
         err?.response?.data?.detail ?? err?.message ?? "오류"
       );
     if (!isAxiosError(err)) throw err;
+
+    // Sentry API 에러 추적: 4xx/5xx 응답을 자동 전송
+    const errStatus = err.response?.status;
+    if (errStatus && errStatus >= 400) {
+      captureApiError(
+        err.config?.method || "unknown",
+        err.config?.url || "unknown",
+        errStatus,
+        err.response?.data,
+      );
+    }
 
     const status = err.response?.status;
     const original = err.config as RetryConfig | undefined;
