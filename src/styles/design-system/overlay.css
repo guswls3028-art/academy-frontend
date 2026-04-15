@@ -497,61 +497,114 @@
   opacity: 0.5;
 }
 
-/* ── 통계 카드 그리드 — 대시보드 요약 (컴팩트) ── */
-.ds-overlay-stat-grid {
+/* ── Stat-Tab 네비게이터 — 요약 + 탭 전환 통합 ── */
+.ds-stat-tabs {
   display: grid;
-  gap: 6px;
-  margin-bottom: var(--space-3);
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0;
   flex-shrink: 0;
+  border-bottom: 2px solid var(--color-border-divider);
 }
 
-.ds-overlay-stat-card {
-  border-radius: var(--radius-md);
-  padding: 10px 8px;
-  background: var(--color-bg-surface);
-  border: 1px solid var(--color-border-divider);
+.ds-stat-tab {
+  all: unset;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 10px 4px 8px;
   text-align: center;
-  transition: border-color 0.15s, box-shadow 0.15s;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  transition: border-color 0.15s, background 0.15s;
 }
 
-.ds-overlay-stat-card:hover {
-  border-color: color-mix(in srgb, var(--color-brand-primary) 25%, var(--color-border-divider));
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+.ds-stat-tab:hover {
+  background: color-mix(in srgb, var(--color-brand-primary) 5%, transparent);
 }
 
-.ds-overlay-stat-card__label {
+.ds-stat-tab--active {
+  border-bottom-color: var(--color-brand-primary);
+  background: color-mix(in srgb, var(--color-brand-primary) 6%, transparent);
+}
+
+.ds-stat-tab--muted {
+  opacity: 0.45;
+}
+.ds-stat-tab--muted:hover {
+  opacity: 0.75;
+}
+
+.ds-stat-tab__label {
   font-size: 10px;
   font-weight: 700;
   color: var(--color-text-muted);
-  margin-bottom: 3px;
   letter-spacing: 0.01em;
 }
+.ds-stat-tab--active .ds-stat-tab__label {
+  color: var(--color-brand-primary);
+}
 
-.ds-overlay-stat-card__value {
-  font-size: 17px;
+.ds-stat-tab__value {
+  font-size: 16px;
   font-weight: 900;
   line-height: 1.1;
   color: var(--color-text-primary);
   letter-spacing: -0.02em;
 }
-
-.ds-overlay-stat-card__value--success { color: var(--color-success); }
-.ds-overlay-stat-card__value--danger { color: var(--color-error); }
-.ds-overlay-stat-card__value--brand { color: var(--color-brand-primary); }
-
-/* 0건/빈 값 카드 — 시각적 무게 낮춤 */
-.ds-overlay-stat-card--muted {
-  opacity: 0.45;
+.ds-stat-tab--active .ds-stat-tab__value {
+  color: var(--color-brand-primary);
 }
-.ds-overlay-stat-card--muted:hover {
-  opacity: 0.7;
-}
+.ds-stat-tab__value--success { color: var(--color-success); }
+.ds-stat-tab__value--danger { color: var(--color-error); }
 
-.ds-overlay-stat-card__sub {
-  font-size: 11px;
+.ds-stat-tab__sub {
+  font-size: 10px;
   font-weight: 600;
   color: var(--color-text-muted);
-  margin-top: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+/* ── 사이드바 통합 카드 — 단일 카드 + 섹션 구분선 ── */
+.ds-overlay-sidebar-card {
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-divider);
+  overflow: hidden;
+}
+
+.ds-overlay-sidebar-section {
+  padding: var(--space-2) var(--space-3);
+}
+
+.ds-overlay-sidebar-section + .ds-overlay-sidebar-section {
+  border-top: 1px solid var(--color-border-divider);
+}
+
+.ds-overlay-sidebar-section__title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--color-text-muted);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  margin-bottom: var(--space-1);
+}
+
+.ds-overlay-sidebar-section__count {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  background: color-mix(in srgb, var(--color-brand-primary) 10%, transparent);
+  padding: 1px 5px;
+  border-radius: var(--radius-sm);
 }
 
 /* ── 태그 영역 ── */
