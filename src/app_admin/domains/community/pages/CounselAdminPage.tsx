@@ -2,7 +2,7 @@
 // 상담 신청 관리 — QnA와 동일한 2-pane inbox 패턴 (목록 | 상세·답변)
 // counsel 블록 유형이 없으면 자동 생성 → 사용자에게 설정 요구 없음
 
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -20,14 +20,13 @@ import { Button } from "@/shared/ui/ds";
 import { useConfirm } from "@/shared/ui/confirm";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import PostReadView from "../components/PostReadView";
+import RichTextEditor from "@/shared/ui/editor/RichTextEditor";
 import CommunityContextBar from "../components/CommunityContextBar";
 import CommunityEmptyState from "../components/CommunityEmptyState";
-import { stripHtml } from "../utils/communityHelpers";
 import CommunityAvatar from "../components/CommunityAvatar";
 import "@admin/domains/community/qna-inbox.css";
 
 type FilterKind = "all" | "pending" | "resolved";
-const SNIPPET_LEN = 72;
 
 export default function CounselAdminPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -129,7 +128,7 @@ export default function CounselAdminPage() {
               className={`qna-inbox__filter-btn ${filter === "pending" ? "qna-inbox__filter-btn--active" : ""}`}
               onClick={() => setFilter("pending")}
             >
-              <span>답변 필요</span>
+              <span>대기 중</span>
               <span className="qna-inbox__filter-badge">{pendingCount}</span>
             </button>
             <button
@@ -137,7 +136,7 @@ export default function CounselAdminPage() {
               className={`qna-inbox__filter-btn ${filter === "resolved" ? "qna-inbox__filter-btn--active" : ""}`}
               onClick={() => setFilter("resolved")}
             >
-              <span>답변 완료</span>
+              <span>상담 완료</span>
               <span className="qna-inbox__filter-badge">{withStatus.length - pendingCount}</span>
             </button>
           </div>
@@ -205,12 +204,6 @@ function CounselCard({
   isUnread: boolean;
   onClick: () => void;
 }) {
-  const plainText = stripHtml(post.content ?? "");
-  const snippet =
-    plainText.length > SNIPPET_LEN
-      ? plainText.slice(0, SNIPPET_LEN).trim() + "…"
-      : plainText;
-
   const timeAgo = (() => {
     const d = new Date(post.created_at);
     const diff = (Date.now() - d.getTime()) / 60000;
@@ -220,7 +213,7 @@ function CounselCard({
   })();
 
   const statusClass = post.is_answered ? "qna-inbox__status--resolved" : "qna-inbox__status--pending";
-  const statusLabel = post.is_answered ? "답변 완료" : "답변 대기";
+  const statusLabel = post.is_answered ? "상담 완료" : "대기 중";
   const studentName = post.created_by_deleted ? "삭제된 학생" : (post.created_by_display ?? "학생");
 
   return (
@@ -230,23 +223,19 @@ function CounselCard({
       className={`qna-inbox__card ${isActive ? "qna-inbox__card--active" : ""} ${isUnread ? "qna-inbox__card--unread" : ""}`}
     >
       <div className="qna-inbox__card-top">
-        <div className="qna-inbox__card-avatar-wrap">
-          <CommunityAvatar name={studentName} role="student" size={30} />
-        </div>
         <div className="qna-inbox__card-body">
           <div className="qna-inbox__card-title-row">
             <div className="qna-inbox__card-title">{post.title}</div>
             <span className={`qna-inbox__status ${statusClass}`}>{statusLabel}</span>
           </div>
-          {snippet && <div className="qna-inbox__card-snippet">{snippet}</div>}
           <div className="qna-inbox__card-meta">
-            <span>{studentName}</span>
+            <span className="qna-inbox__card-meta-name">{studentName}</span>
             <span className="qna-inbox__card-meta-dot" />
             <span>{timeAgo}</span>
             {post.category_label && (
               <>
                 <span className="qna-inbox__card-meta-dot" />
-                <span className="cms-category-label">{post.category_label}</span>
+                <span>{post.category_label}</span>
               </>
             )}
           </div>
@@ -369,13 +358,19 @@ function CounselThreadView({
           </div>
         </div>
 
-        {(post.replies_count ?? 0) > 0 && (
-          <div className="qna-inbox__thread-sep">
-            <span className="qna-inbox__thread-sep-label">선생님 답변</span>
-          </div>
-        )}
+        <div className="qna-inbox__thread-sep">
+          <span className="qna-inbox__thread-sep-label">
+            {(post.replies_count ?? 0) > 0 ? "선생님 답변" : "아직 답변이 없습니다"}
+          </span>
+        </div>
 
         <CounselAnswerThread postId={postId} />
+
+        {(post.replies_count ?? 0) === 0 && (
+          <div className="qna-inbox__answer-cta">
+            <p>아래 입력란에서 상담 답변을 작성해 주세요.</p>
+          </div>
+        )}
       </div>
 
       <CounselComposer postId={postId} allowReply={!post.created_by_deleted} />
@@ -494,33 +489,29 @@ function CounselComposer({ postId, allowReply = true }: { postId: number; allowR
     onError: (e: unknown) => feedback.error((e as Error)?.message ?? "등록에 실패했습니다."),
   });
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if ((e.metaKey || e.ctrlKey) && e.key === "Enter" && content.trim() && !createMut.isPending) {
-      e.preventDefault();
-      createMut.mutate();
-    }
-  };
+  const isEmpty = !content.trim() || content.trim() === "<p></p>";
 
   return (
     <div className="qna-inbox__composer">
       {allowReply ? (
         <div className="qna-inbox__composer-inner">
-          <textarea
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="학생에게 답변을 작성하세요…"
-            rows={3}
-          />
+          <div className="qna-inbox__composer-editor">
+            <RichTextEditor
+              value={content}
+              onChange={setContent}
+              placeholder="학생에게 상담 답변을 작성하세요…"
+              minHeight={80}
+            />
+          </div>
           <div className="qna-inbox__composer-footer">
             <span className="qna-inbox__composer-hint">
-              <kbd>Ctrl</kbd><kbd>Enter</kbd> 빠른 등록
+              서식 지원 · 이미지 첨부 가능
             </span>
             <Button
               intent="primary"
               size="sm"
               onClick={() => createMut.mutate()}
-              disabled={!content.trim() || createMut.isPending}
+              disabled={isEmpty || createMut.isPending}
             >
               {createMut.isPending ? "등록 중…" : "답변 등록"}
             </Button>

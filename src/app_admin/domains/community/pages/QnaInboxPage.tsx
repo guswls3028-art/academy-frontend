@@ -10,7 +10,6 @@ import {
 } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useCommunityScope } from "../context/CommunityScopeContext";
 import {
   fetchCommunityQuestions,
   fetchPost,
@@ -26,41 +25,29 @@ import { Button } from "@/shared/ui/ds";
 import { useConfirm } from "@/shared/ui/confirm";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import PostReadView from "../components/PostReadView";
+import RichTextEditor from "@/shared/ui/editor/RichTextEditor";
 import CommunityContextBar from "../components/CommunityContextBar";
 import CommunityEmptyState from "../components/CommunityEmptyState";
 import CommunityAvatar from "../components/CommunityAvatar";
-import { stripHtml } from "../utils/communityHelpers";
 import "@admin/domains/community/qna-inbox.css";
 
 type FilterKind = "all" | "pending" | "resolved";
-const SNIPPET_LEN = 72;
 
 export default function QnaInboxPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedIdParam = searchParams.get("id");
   const selectedId = selectedIdParam && /^\d+$/.test(selectedIdParam) ? Number(selectedIdParam) : null;
 
-  const { scope, effectiveLectureId, sessionId } = useCommunityScope();
-  const scopeParams = useMemo(
-    () => ({
-      scope,
-      lectureId: effectiveLectureId ?? undefined,
-      sessionId: sessionId ?? undefined,
-    }),
-    [scope, effectiveLectureId, sessionId]
-  );
+  // QnA는 항상 전체 질문을 표시 — scope 필터 불필요
+  const allScopeParams = useMemo(() => ({ scope: "all" as const }), []);
 
   const [filter, setFilter] = useState<FilterKind>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const listRef = useRef<HTMLDivElement>(null);
 
   const { data: questions = [], isLoading } = useQuery<Question[]>({
-    queryKey: ["community-questions", scope, effectiveLectureId, sessionId],
-    queryFn: () => fetchCommunityQuestions(scopeParams),
-    enabled:
-      scope === "all" ||
-      (scope === "lecture" && effectiveLectureId != null) ||
-      (scope === "session" && sessionId != null),
+    queryKey: ["community-questions", "all"],
+    queryFn: () => fetchCommunityQuestions(allScopeParams),
   });
 
   const filtered = useMemo(() => {
@@ -114,26 +101,11 @@ export default function QnaInboxPage() {
     return () => window.removeEventListener("keydown", handleKey);
   }, [filtered, selectedId, setSelectedId]);
 
-  if (
-    (scope === "lecture" && effectiveLectureId == null) ||
-    (scope === "session" && (!effectiveLectureId || sessionId == null))
-  ) {
-    return (
-      <CommunityEmptyState
-        variant="no-scope"
-        postType="qna"
-        description={scope === "session"
-          ? "상단에서 노출 범위를 차시별로 두고 강의와 차시를 선택하면 해당 차시 QnA를 볼 수 있습니다."
-          : "상단에서 노출 범위를 강의별로 두고 강의를 선택하면 해당 강의의 QnA를 관리할 수 있습니다."}
-      />
-    );
-  }
-
   return (
     <div className="qna-inbox" style={{ minHeight: "calc(100vh - 180px)" }}>
       <aside className="qna-inbox__list" ref={listRef}>
         <CommunityContextBar
-          scope={scope as any}
+          scope="all"
           extra={pendingCount > 0 ? `답변 대기 ${pendingCount}건` : undefined}
         />
         <div className="qna-inbox__list-header">
@@ -226,12 +198,6 @@ function QuestionCard({
   isUnread: boolean;
   onClick: () => void;
 }) {
-  const plainText = stripHtml(question.content ?? "");
-  const snippet =
-    plainText.length > SNIPPET_LEN
-      ? plainText.slice(0, SNIPPET_LEN).trim() + "…"
-      : plainText;
-
   const timeAgo = (() => {
     const d = new Date(question.created_at);
     const now = Date.now();
@@ -243,6 +209,7 @@ function QuestionCard({
 
   const statusClass = question.is_answered ? "qna-inbox__status--resolved" : "qna-inbox__status--pending";
   const statusLabel = question.is_answered ? "답변 완료" : "답변 대기";
+  const studentName = question.created_by_deleted ? "삭제된 학생" : (question.student_name ?? "—");
 
   return (
     <button
@@ -251,32 +218,27 @@ function QuestionCard({
       className={`qna-inbox__card ${isActive ? "qna-inbox__card--active" : ""} ${isUnread ? "qna-inbox__card--unread" : ""}`}
     >
       <div className="qna-inbox__card-top">
-        <div className="qna-inbox__card-avatar-wrap">
-          <CommunityAvatar name={question.created_by_deleted ? "삭제된 학생입니다." : (question.student_name ?? "?")} role="student" size={30} />
-        </div>
         <div className="qna-inbox__card-body">
           <div className="qna-inbox__card-title-row">
             <div className="qna-inbox__card-title">{question.title}</div>
             <span className={`qna-inbox__status ${statusClass}`}>{statusLabel}</span>
           </div>
-          {snippet && <div className="qna-inbox__card-snippet">{snippet}</div>}
           <div className="qna-inbox__card-meta">
-            <span>{question.created_by_deleted ? "삭제된 학생입니다." : (question.student_name ?? "—")}</span>
+            <span className="qna-inbox__card-meta-name">{studentName}</span>
             <span className="qna-inbox__card-meta-dot" />
             <span>{timeAgo}</span>
-            {question.lecture_title && (
-              <>
-                <span className="qna-inbox__card-meta-dot" />
-                <span>{question.lecture_title}</span>
-              </>
-            )}
-            {question.category_label && (
-              <>
-                <span className="qna-inbox__card-meta-dot" />
-                <span className="cms-category-label">{question.category_label}</span>
-              </>
-            )}
           </div>
+          {question.lecture_title && (
+            <div className="qna-inbox__card-meta qna-inbox__card-meta--sub">
+              <span>{question.lecture_title}</span>
+              {question.category_label && (
+                <>
+                  <span className="qna-inbox__card-meta-dot" />
+                  <span>{question.category_label}</span>
+                </>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </button>
@@ -424,28 +386,22 @@ function ThreadView({
           </div>
         </div>
 
-        {post.replies_count != null && post.replies_count > 0 && (
-          <div className="qna-inbox__thread-sep">
-            <span className="qna-inbox__thread-sep-label">선생님 답변</span>
-          </div>
-        )}
+        <div className="qna-inbox__thread-sep">
+          <span className="qna-inbox__thread-sep-label">
+            {(post.replies_count ?? 0) > 0 ? "선생님 답변" : "아직 답변이 없습니다"}
+          </span>
+        </div>
 
         <AnswerThread postId={postId} />
 
-        {questionHistory.length > 0 && (
-          <div className="qna-inbox__timeline">
-            <div className="qna-inbox__timeline-title">질문 기록</div>
-            {questionHistory.map((q) => (
-              <div key={q.id} className="qna-inbox__timeline-item">
-                <span className="qna-inbox__timeline-dot" />
-                <button type="button" onClick={() => onSelectQuestion(q.id)}>
-                  {new Date(q.created_at).toLocaleDateString("ko-KR", { month: "2-digit", day: "2-digit" })}{" "}
-                  {q.title}
-                </button>
-                <span className={`qna-inbox__status ${q.is_answered ? "qna-inbox__status--resolved" : "qna-inbox__status--pending"}`}>{q.is_answered ? "답변 완료" : "답변 대기"}</span>
-              </div>
-            ))}
+        {(post.replies_count ?? 0) === 0 && (
+          <div className="qna-inbox__answer-cta">
+            <p>아래 입력란에서 답변을 작성해 주세요.</p>
           </div>
+        )}
+
+        {questionHistory.length > 0 && (
+          <QuestionTimeline history={questionHistory} onSelect={onSelectQuestion} />
         )}
       </div>
 
@@ -571,8 +527,48 @@ function ReplyBlock({ postId, answer }: { postId: number; answer: Answer }) {
   );
 }
 
+function QuestionTimeline({
+  history,
+  onSelect,
+}: {
+  history: Question[];
+  onSelect: (id: number) => void;
+}) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="qna-inbox__timeline">
+      <button
+        type="button"
+        className="qna-inbox__timeline-toggle"
+        onClick={() => setOpen((v) => !v)}
+      >
+        <span className="qna-inbox__timeline-toggle-label">이전 질문 {history.length}건</span>
+        <span className={`qna-inbox__timeline-chevron ${open ? "qna-inbox__timeline-chevron--open" : ""}`}>▸</span>
+      </button>
+      {open && (
+        <div className="qna-inbox__timeline-body">
+          {history.map((q) => (
+            <div key={q.id} className="qna-inbox__timeline-item">
+              <span className="qna-inbox__timeline-dot" />
+              <button type="button" onClick={() => onSelect(q.id)}>
+                {new Date(q.created_at).toLocaleDateString("ko-KR", { month: "2-digit", day: "2-digit" })}{" "}
+                {q.title}
+              </button>
+              <span className={`qna-inbox__status ${q.is_answered ? "qna-inbox__status--resolved" : "qna-inbox__status--pending"}`}>
+                {q.is_answered ? "답변 완료" : "답변 대기"}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Composer({ postId, allowReply = true }: { postId: number; allowReply?: boolean }) {
   const [content, setContent] = useState("");
+  const composerRef = useRef<HTMLDivElement>(null);
   const qc = useQueryClient();
   const createMut = useMutation({
     mutationFn: () => createAnswer(postId, content),
@@ -588,33 +584,29 @@ function Composer({ postId, allowReply = true }: { postId: number; allowReply?: 
     },
   });
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if ((e.metaKey || e.ctrlKey) && e.key === "Enter" && content.trim() && !createMut.isPending) {
-      e.preventDefault();
-      createMut.mutate();
-    }
-  };
+  const isEmpty = !content.trim() || content.trim() === "<p></p>";
 
   return (
-    <div className="qna-inbox__composer">
+    <div className="qna-inbox__composer" ref={composerRef}>
       {allowReply ? (
       <div className="qna-inbox__composer-inner">
-        <textarea
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="학생에게 답변을 작성하세요…"
-          rows={3}
-        />
+        <div className="qna-inbox__composer-editor">
+          <RichTextEditor
+            value={content}
+            onChange={setContent}
+            placeholder="학생에게 답변을 작성하세요…"
+            minHeight={80}
+          />
+        </div>
         <div className="qna-inbox__composer-footer">
           <span className="qna-inbox__composer-hint">
-            <kbd>Ctrl</kbd><kbd>Enter</kbd> 빠른 등록
+            서식 지원 · 이미지 첨부 가능
           </span>
           <Button
             intent="primary"
             size="sm"
             onClick={() => createMut.mutate()}
-            disabled={!content.trim() || createMut.isPending}
+            disabled={isEmpty || createMut.isPending}
           >
             {createMut.isPending ? "등록 중…" : "답변 등록"}
           </Button>

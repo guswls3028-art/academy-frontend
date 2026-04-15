@@ -1,5 +1,130 @@
-/* 시험 탐색기 — 레이아웃은 PanelWithTreeLayout.module.css SSOT, 여기는 그리드·카드만 */
+/* 시험 탐색기 — 레이아웃은 PanelWithTreeLayout.module.css SSOT, 여기는 리스트·카드만 */
 
+/* ── List layout ── */
+.listWrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.listHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.listCount {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* ── Exam list item (rich card) ── */
+.listItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.listItem:hover {
+  background: color-mix(in srgb, var(--color-brand-primary) 4%, var(--color-bg-surface));
+  border-color: color-mix(in srgb, var(--color-brand-primary) 25%, var(--color-border-divider));
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+/* ── Icon ── */
+.listItemIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  flex-shrink: 0;
+}
+
+.listItemIcon[data-tone="success"] {
+  background: color-mix(in srgb, var(--color-success) 12%, var(--color-bg-surface));
+  color: var(--color-success);
+}
+
+.listItemIcon[data-tone="warning"] {
+  background: color-mix(in srgb, var(--color-warning) 12%, var(--color-bg-surface));
+  color: var(--color-warning);
+}
+
+.listItemIcon[data-tone="muted"] {
+  background: var(--color-bg-surface-hover);
+  color: var(--color-text-muted);
+}
+
+/* ── Body ── */
+.listItemBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.listItemTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.listItemMeta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  line-height: 1.4;
+}
+
+.metaDot {
+  color: var(--color-text-disabled);
+}
+
+/* ── Add button (list style) ── */
+.listItemAdd {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-lg);
+  border: 1.5px dashed color-mix(in srgb, var(--color-border-divider) 80%, transparent);
+  background: transparent;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  transition: all 0.15s ease;
+}
+
+.listItemAdd:hover {
+  color: var(--color-brand-primary);
+  border-color: color-mix(in srgb, var(--color-brand-primary) 40%, transparent);
+  background: color-mix(in srgb, var(--color-brand-primary) 3%, transparent);
+}
+
+/* ── Legacy grid (kept for backward compat, not used in new design) ── */
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));

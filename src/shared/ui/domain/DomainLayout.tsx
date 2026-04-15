@@ -19,6 +19,8 @@ type DomainLayoutProps = {
   /** 도메인 헤더 상단 브레드크럼 (예: 강의 › 박철의 생명과학) */
   breadcrumbs?: DomainCrumb[];
   tabs?: DomainTab[];
+  /** 제목 행 우측 액션 영역 (예: 설정 아이콘) */
+  headerActions?: ReactNode;
   children: ReactNode;
 };
 
@@ -27,6 +29,7 @@ export default function DomainLayout({
   description,
   breadcrumbs,
   tabs,
+  headerActions,
   children,
 }: DomainLayoutProps) {
   const navigate = useNavigate();
@@ -47,77 +50,82 @@ export default function DomainLayout({
           paddingBottom: tabs != null && tabs.length > 0 ? 0 : "var(--space-3)",
         }}
       >
-        <div className="relative flex-shrink-0">
-          <div
-            className="absolute left-0 top-1 rounded-full bg-[var(--color-primary)]"
-            style={{ width: 4, height: 24 }}
-            aria-hidden
-          />
-          <div style={{ paddingLeft: "var(--space-4)" }}>
-            {breadcrumbs != null && breadcrumbs.length > 0 ? (
-              <div
-                className="flex items-center gap-2 flex-wrap tracking-tight"
-                style={{
-                  fontWeight: 700,
-                  color: "var(--color-text-primary)",
-                  fontSize: isMobile ? "1rem" : "1.5rem",
-                }}
-              >
-                {breadcrumbs.map((c, idx) => (
-                  <span key={`${c.label}-${idx}`} className="flex items-center gap-2">
-                    {c.to ? (
-                      <span
-                        role="button"
-                        tabIndex={0}
-                        onClick={() => navigate(c.to!)}
-                        onKeyDown={(e) => e.key === "Enter" && navigate(c.to!)}
-                        style={{
-                          cursor: "pointer",
-                          color: "var(--color-text-secondary)",
-                        }}
-                      >
-                        {c.label}
-                      </span>
-                    ) : (
-                      <span>{c.label}</span>
-                    )}
-                    {idx < breadcrumbs.length - 1 && (
-                      <span
-                        style={{
-                          color: "var(--color-text-disabled)",
-                          fontWeight: 500,
-                        }}
-                      >
-                        ›
-                      </span>
-                    )}
-                  </span>
-                ))}
-              </div>
-            ) : (
-              <div
-                className="tracking-tight"
-                style={{
-                  fontWeight: 700,
-                  color: "var(--color-text-primary)",
-                  fontSize: isMobile ? "1.125rem" : "1.5rem",
-                }}
-              >
-                {title}
-              </div>
-            )}
-            {description != null && (
-              <div
-                className="text-base mt-1"
-                style={{
-                  color: "var(--color-text-muted)",
-                  opacity: 0.9,
-                }}
-              >
-                {description}
-              </div>
-            )}
+        <div className="relative flex-shrink-0 flex items-start justify-between gap-4">
+          <div className="flex-1 min-w-0 relative">
+            <div
+              className="absolute left-0 top-1 rounded-full bg-[var(--color-primary)]"
+              style={{ width: 4, height: 24 }}
+              aria-hidden
+            />
+            <div style={{ paddingLeft: "var(--space-4)" }}>
+              {breadcrumbs != null && breadcrumbs.length > 0 ? (
+                <div
+                  className="flex items-center gap-2 flex-wrap tracking-tight"
+                  style={{
+                    fontWeight: 700,
+                    color: "var(--color-text-primary)",
+                    fontSize: isMobile ? "1rem" : "1.5rem",
+                  }}
+                >
+                  {breadcrumbs.map((c, idx) => (
+                    <span key={`${c.label}-${idx}`} className="flex items-center gap-2">
+                      {c.to ? (
+                        <span
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => navigate(c.to!)}
+                          onKeyDown={(e) => e.key === "Enter" && navigate(c.to!)}
+                          style={{
+                            cursor: "pointer",
+                            color: "var(--color-text-secondary)",
+                          }}
+                        >
+                          {c.label}
+                        </span>
+                      ) : (
+                        <span>{c.label}</span>
+                      )}
+                      {idx < breadcrumbs.length - 1 && (
+                        <span
+                          style={{
+                            color: "var(--color-text-disabled)",
+                            fontWeight: 500,
+                          }}
+                        >
+                          ›
+                        </span>
+                      )}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <div
+                  className="tracking-tight"
+                  style={{
+                    fontWeight: 700,
+                    color: "var(--color-text-primary)",
+                    fontSize: isMobile ? "1.125rem" : "1.5rem",
+                  }}
+                >
+                  {title}
+                </div>
+              )}
+              {description != null && (
+                <div
+                  className="text-base mt-1"
+                  style={{
+                    color: "var(--color-text-muted)",
+                    opacity: 0.9,
+                  }}
+                >
+                  {description}
+                </div>
+              )}
+            </div>
           </div>
+          {headerActions != null && (
+            <div className="flex items-center gap-2 flex-shrink-0 pt-1">{headerActions}</div>
+          )}
         </div>
 
         {tabs != null && tabs.length > 0 && (

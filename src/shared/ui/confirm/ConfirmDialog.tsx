@@ -149,7 +149,7 @@ const actionsStyle: React.CSSProperties = {
 };
 
 const btnBase: React.CSSProperties = {
-  padding: "8px 18px",
+  padding: "8px 20px",
   fontSize: 14,
   fontWeight: 600,
   borderRadius: "var(--radius-md, 8px)",
@@ -157,6 +157,9 @@ const btnBase: React.CSSProperties = {
   cursor: "pointer",
   transition: "opacity 120ms",
   lineHeight: 1.4,
+  whiteSpace: "nowrap",
+  minWidth: 64,
+  textAlign: "center",
 };
 
 const cancelBtnStyle: React.CSSProperties = {

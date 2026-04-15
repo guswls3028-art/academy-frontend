@@ -7,7 +7,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueries } from "@tanstack/react-query";
-import { FileText, FilePlus, ClipboardList, MousePointerClick } from "lucide-react";
+import { FilePlus, ClipboardList, FileCheck, FileClock, FileX } from "lucide-react";
 import { Button, EmptyState } from "@/shared/ui/ds";
 import Breadcrumb from "@admin/domains/storage/components/Breadcrumb";
 import LectureSessionTree from "../components/LectureSessionTree";
@@ -200,8 +200,9 @@ export default function ExamExplorerPage() {
               />
             </div>
           ) : (
-            <>
-              <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "var(--space-4)" }}>
+            <div className={styles.listWrap}>
+              <div className={styles.listHeader}>
+                <span className={styles.listCount}>{exams.length}건</span>
                 {selectedSession && (
                   <Button
                     intent="primary"
@@ -212,55 +213,65 @@ export default function ExamExplorerPage() {
                       )
                     }
                   >
-                    강의로 이동 · 시험 관리
+                    시험 관리
                   </Button>
                 )}
               </div>
-              <div className={styles.grid}>
+              <div className={styles.list}>
+                {exams.map((e) => {
+                  const StatusIcon = e.status === "OPEN" ? FileCheck : e.status === "CLOSED" ? FileX : FileClock;
+                  const statusTone = e.status === "OPEN" ? "success" : e.status === "CLOSED" ? "muted" : "warning";
+                  const statusLabel = e.status === "OPEN" ? "진행 중" : e.status === "CLOSED" ? "마감" : "설정 중";
+                  return (
+                    <div
+                      key={e.id}
+                      className={styles.listItem}
+                      onClick={() =>
+                        selectedSession &&
+                        navigate(
+                          `/admin/lectures/${selectedSession.lecture.id}/sessions/${selectedSession.session.id}/exams?exam_id=${e.id}`
+                        )
+                      }
+                    >
+                      <div className={styles.listItemIcon} data-tone={statusTone}>
+                        <StatusIcon size={20} />
+                      </div>
+                      <div className={styles.listItemBody}>
+                        <div className={styles.listItemTitle}>{e.title || "—"}</div>
+                        <div className={styles.listItemMeta}>
+                          {e.subject && <span>{e.subject}</span>}
+                          <span className={styles.metaDot} aria-hidden>·</span>
+                          <span>만점 {e.max_score}</span>
+                          {e.pass_score > 0 && (
+                            <>
+                              <span className={styles.metaDot} aria-hidden>·</span>
+                              <span>합격 {e.pass_score}점</span>
+                            </>
+                          )}
+                          <span className={styles.metaDot} aria-hidden>·</span>
+                          <span>{formatDate(e.created_at)}</span>
+                        </div>
+                      </div>
+                      <span className="ds-status-badge" data-tone={statusTone}>{statusLabel}</span>
+                    </div>
+                  );
+                })}
                 {selectedSession && (
                   <div
                     data-guide="exams-add"
-                    className={styles.item + " " + styles.itemAdd}
+                    className={styles.listItemAdd}
                     onClick={() =>
                       navigate(
                         `/admin/lectures/${selectedSession.lecture.id}/sessions/${selectedSession.session.id}/exams`
                       )
                     }
-                    title="시험 추가/관리"
                   >
-                    <FilePlus size={32} />
-                    <span>추가</span>
+                    <FilePlus size={18} />
+                    <span>시험 추가</span>
                   </div>
                 )}
-                {exams.map((e) => (
-                  <div
-                    key={e.id}
-                    className={styles.item}
-                    onClick={() =>
-                      selectedSession &&
-                      navigate(
-                        `/admin/lectures/${selectedSession.lecture.id}/sessions/${selectedSession.session.id}/exams?exam_id=${e.id}`
-                      )
-                    }
-                  >
-                    <FileText size={32} style={{ color: "var(--color-primary)" }} aria-hidden />
-                    <span className={styles.itemLabel} title={e.title}>
-                      {e.title || "—"}
-                    </span>
-                    <span className={styles.itemMeta}>{e.subject || "—"}</span>
-                    <span className={styles.itemMeta}>{formatDate(e.created_at)}</span>
-                    <span
-                      className={styles.itemMeta}
-                      style={{
-                        color: e.is_active ? "var(--color-success)" : "var(--color-text-muted)",
-                      }}
-                    >
-                      {e.is_active ? "활성" : "비활성"}
-                    </span>
-                  </div>
-                ))}
               </div>
-            </>
+            </div>
           )}
         </div>
       </div>
