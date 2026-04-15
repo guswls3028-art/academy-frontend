@@ -18,6 +18,7 @@ import StudentTabBar from "./StudentTabBar";
 import StudentDrawer from "./StudentDrawer";
 import { useFavicon } from "@/shared/hooks/useFavicon";
 import { useDocumentTitle } from "@/shared/hooks/useDocumentTitle";
+import { GuideTourProvider, GuideTourOverlay } from "@/shared/ui/guide";
 
 /** 2번(박철과학) 전용 테마 */
 const TCHUL_THEME_TENANTS = ["tchul"];
@@ -39,7 +40,10 @@ const COMMON_THEME_TENANTS = ["9999", "common"];
 export default function StudentLayout() {
   return (
     <StudentThemeProvider>
-      <StudentLayoutInner />
+      <GuideTourProvider>
+        <StudentLayoutInner />
+        <GuideTourOverlay />
+      </GuideTourProvider>
     </StudentThemeProvider>
   );
 }

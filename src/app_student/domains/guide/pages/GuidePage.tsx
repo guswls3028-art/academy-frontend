@@ -1,186 +1,250 @@
 /**
- * PATH: src/app_student/domains/guide/pages/GuidePage.tsx
- * 학생 앱 사용 가이드 — 각 기능별 간단한 설명 카드
+ * 학생앱 사용 가이드 — 업무 흐름 중심 워크플로우 + 아코디언 + 투어
  */
-import { Link } from "react-router-dom";
-import {
-  IconHome,
-  IconNotice,
-  IconGrade,
-  IconExam,
-  IconPlay,
-  IconCalendar,
-  IconClinic,
-  IconBoard,
-  IconUser,
-  IconClipboard,
-  IconBell,
-  IconFolder,
-  IconSettings,
-} from "@student/shared/ui/icons/Icons";
-import type { ReactNode } from "react";
+import { useState, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
+import { useGuideTour } from "@/shared/ui/guide";
+import type { GuideWorkflow } from "@/shared/ui/guide";
+import { STUDENT_WORKFLOWS } from "../data/studentWorkflows";
 
-type GuideSection = {
-  icon: ReactNode;
-  title: string;
-  to: string;
-  description: string;
-};
+/* ================================================================
+   워크플로우 카드 (아코디언)
+   ================================================================ */
+function WorkflowCard({
+  wf,
+  open,
+  onToggle,
+}: {
+  wf: GuideWorkflow;
+  open: boolean;
+  onToggle: () => void;
+}) {
+  const navigate = useNavigate();
+  const { startTour } = useGuideTour();
 
-const GUIDE_SECTIONS: GuideSection[] = [
-  {
-    icon: <IconHome style={{ width: 28, height: 28 }} />,
-    title: "홈 화면",
-    to: "/student/dashboard",
-    description:
-      "로그인하면 처음 보이는 화면이에요. 오늘 할 일, 다가오는 시험, 최근 공지 등을 한눈에 볼 수 있어요.",
-  },
-  {
-    icon: <IconNotice style={{ width: 28, height: 28 }} />,
-    title: "공지사항",
-    to: "/student/notices",
-    description:
-      "학원에서 알려주는 중요한 소식을 확인할 수 있어요. 새 공지가 오면 알림이 와요.",
-  },
-  {
-    icon: <IconGrade style={{ width: 28, height: 28 }} />,
-    title: "성적 확인",
-    to: "/student/grades",
-    description:
-      "시험 성적과 과제 결과를 확인할 수 있어요. 합격/불합격 여부와 점수를 볼 수 있어요.",
-  },
-  {
-    icon: <IconExam style={{ width: 28, height: 28 }} />,
-    title: "시험 응시",
-    to: "/student/exams",
-    description:
-      "선생님이 등록한 시험에 응시할 수 있어요. 시험 목록에서 '시험 보기'를 눌러 시작하세요.",
-  },
-  {
-    icon: <IconClipboard style={{ width: 28, height: 28 }} />,
-    title: "과제 제출",
-    to: "/student/submit",
-    description:
-      "과제나 점수를 제출할 수 있어요. 사진을 찍거나 파일을 올려서 제출하면 돼요.",
-  },
-  {
-    icon: <IconPlay style={{ width: 28, height: 28 }} />,
-    title: "영상 시청",
-    to: "/student/video",
-    description:
-      "학원에서 올린 강의 영상을 볼 수 있어요. 강좌별로 정리되어 있고, 이어보기도 돼요.",
-  },
-  {
-    icon: <IconCalendar style={{ width: 28, height: 28 }} />,
-    title: "일정 확인",
-    to: "/student/sessions",
-    description:
-      "수업 일정을 확인할 수 있어요. 날짜별로 어떤 수업이 있는지 볼 수 있어요.",
-  },
-  {
-    icon: <IconClinic style={{ width: 28, height: 28 }} />,
-    title: "클리닉",
-    to: "/student/clinic",
-    description:
-      "부족한 부분을 보충할 수 있는 클리닉이에요. 선생님이 지정한 항목을 확인하고 해결하세요.",
-  },
-  {
-    icon: <IconBoard style={{ width: 28, height: 28 }} />,
-    title: "커뮤니티",
-    to: "/student/community",
-    description:
-      "질문이나 이야기를 나눌 수 있는 게시판이에요. 자유롭게 글을 쓰고 답글도 달 수 있어요.",
-  },
-  {
-    icon: <IconBell style={{ width: 28, height: 28 }} />,
-    title: "알림",
-    to: "/student/notifications",
-    description:
-      "새 공지, 시험 결과, 메시지 등 중요한 알림을 모아서 볼 수 있어요.",
-  },
-  {
-    icon: <IconFolder style={{ width: 28, height: 28 }} />,
-    title: "내 인벤토리",
-    to: "/student/inventory",
-    description:
-      "선생님이 나눠준 자료나 파일을 모아볼 수 있는 공간이에요.",
-  },
-  {
-    icon: <IconUser style={{ width: 28, height: 28 }} />,
-    title: "프로필",
-    to: "/student/profile",
-    description:
-      "내 이름, 사진 등 정보를 확인할 수 있어요.",
-  },
-  {
-    icon: <IconSettings style={{ width: 28, height: 28 }} />,
-    title: "설정",
-    to: "/student/settings",
-    description:
-      "앱 설정을 바꿀 수 있어요. 화면 모드(라이트/다크/시스템)를 변경할 수 있어요.",
-  },
-];
+  const handleTour = useCallback(() => {
+    if (!wf.tourPath || !wf.tourSteps?.length) return;
+    startTour({ steps: wf.tourSteps });
+    navigate(wf.tourPath);
+  }, [wf, startTour, navigate]);
 
-function GuideCard({ section }: { section: GuideSection }) {
   return (
-    <Link
-      to={section.to}
+    <div
       style={{
-        display: "flex",
-        gap: "var(--stu-space-4)",
-        padding: "var(--stu-space-4)",
         borderRadius: "var(--stu-radius-md)",
+        border: `1.5px solid ${open ? "var(--stu-primary)" : "var(--stu-border)"}`,
         background: "var(--stu-surface)",
-        border: "1px solid var(--stu-border)",
-        textDecoration: "none",
-        color: "var(--stu-text)",
-        transition: "box-shadow 150ms, border-color 150ms",
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.borderColor = "var(--stu-primary)";
-        e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.06)";
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.borderColor = "var(--stu-border)";
-        e.currentTarget.style.boxShadow = "none";
+        transition: "border-color 200ms, box-shadow 200ms",
+        boxShadow: open ? "0 2px 12px rgba(0,0,0,0.06)" : "none",
+        overflow: "hidden",
       }}
     >
-      <div
+      {/* 헤더 */}
+      <button
+        onClick={onToggle}
         style={{
-          width: 44,
-          height: 44,
-          borderRadius: "var(--stu-radius)",
-          background: "color-mix(in srgb, var(--stu-primary) 10%, transparent)",
-          color: "var(--stu-primary)",
-          display: "grid",
-          placeItems: "center",
-          flexShrink: 0,
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
+          width: "100%",
+          padding: "14px 16px",
+          border: "none",
+          background: "transparent",
+          cursor: "pointer",
+          color: "var(--stu-text)",
+          textAlign: "left",
         }}
       >
-        {section.icon}
-      </div>
-      <div style={{ minWidth: 0 }}>
-        <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>
-          {section.title}
-        </div>
         <div
           style={{
-            fontSize: 13,
-            lineHeight: 1.5,
-            color: "var(--stu-text-muted)",
+            width: 42,
+            height: 42,
+            borderRadius: "var(--stu-radius)",
+            background:
+              "color-mix(in srgb, var(--stu-primary) 10%, transparent)",
+            color: "var(--stu-primary)",
+            display: "grid",
+            placeItems: "center",
+            flexShrink: 0,
           }}
         >
-          {section.description}
+          {wf.icon}
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontWeight: 700, fontSize: 15 }}>{wf.title}</div>
+          <div
+            style={{
+              fontSize: 13,
+              color: "var(--stu-text-muted)",
+              marginTop: 2,
+              lineHeight: 1.5,
+            }}
+          >
+            {wf.summary}
+          </div>
+        </div>
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="var(--stu-text-muted)"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          style={{
+            flexShrink: 0,
+            transition: "transform 250ms ease",
+            transform: open ? "rotate(180deg)" : "rotate(0deg)",
+          }}
+        >
+          <path d="M6 9l6 6 6-6" />
+        </svg>
+      </button>
+
+      {/* 아코디언 본문 */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateRows: open ? "1fr" : "0fr",
+          transition: "grid-template-rows 300ms ease",
+        }}
+      >
+        <div style={{ overflow: "hidden" }}>
+          <div
+            style={{
+              padding: "0 16px 16px",
+              borderTop: "1px solid var(--stu-border)",
+            }}
+          >
+            {/* 단계 목록 */}
+            <div style={{ marginTop: 14 }}>
+              {wf.steps.map((step, i) => (
+                <div
+                  key={i}
+                  style={{
+                    display: "flex",
+                    gap: 12,
+                    marginBottom: i < wf.steps.length - 1 ? 12 : 0,
+                  }}
+                >
+                  {/* 번호 + 연결선 */}
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      flexShrink: 0,
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: 24,
+                        height: 24,
+                        borderRadius: "50%",
+                        background:
+                          "color-mix(in srgb, var(--stu-primary) 12%, transparent)",
+                        color: "var(--stu-primary)",
+                        fontSize: 11,
+                        fontWeight: 700,
+                        display: "grid",
+                        placeItems: "center",
+                      }}
+                    >
+                      {i + 1}
+                    </div>
+                    {i < wf.steps.length - 1 && (
+                      <div
+                        style={{
+                          width: 2,
+                          flex: 1,
+                          minHeight: 8,
+                          background:
+                            "color-mix(in srgb, var(--stu-primary) 15%, transparent)",
+                          marginTop: 4,
+                        }}
+                      />
+                    )}
+                  </div>
+                  <div style={{ paddingTop: 1 }}>
+                    <div
+                      style={{
+                        fontWeight: 600,
+                        fontSize: 14,
+                        color: "var(--stu-text)",
+                        marginBottom: 2,
+                      }}
+                    >
+                      {step.title}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: 13,
+                        lineHeight: 1.6,
+                        color: "var(--stu-text-muted)",
+                      }}
+                    >
+                      {step.description}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* 직접 해보기 버튼 */}
+            {wf.tourPath && wf.tourSteps?.length ? (
+              <button
+                onClick={handleTour}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  marginTop: 16,
+                  padding: "8px 16px",
+                  borderRadius: "var(--stu-radius)",
+                  border: "none",
+                  background: "var(--stu-primary)",
+                  color: "#fff",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                직접 해보기
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M5 12h14M12 5l7 7-7 7" />
+                </svg>
+              </button>
+            ) : null}
+          </div>
         </div>
       </div>
-    </Link>
+    </div>
   );
 }
 
+/* ================================================================
+   페이지
+   ================================================================ */
 export default function GuidePage() {
+  const [openId, setOpenId] = useState<string | null>(null);
+  const toggle = useCallback(
+    (id: string) => setOpenId((prev) => (prev === id ? null : id)),
+    [],
+  );
+
   return (
     <div style={{ padding: "var(--stu-space-2) 0" }}>
-      <div style={{ marginBottom: "var(--stu-space-6)" }}>
+      <div style={{ marginBottom: "var(--stu-space-5)" }}>
         <h1
           style={{
             fontSize: 20,
@@ -198,7 +262,8 @@ export default function GuidePage() {
             lineHeight: 1.5,
           }}
         >
-          각 기능을 누르면 해당 페이지로 이동해요.
+          주요 기능을 단계별로 안내해요. 카드를 눌러 확인하고, '직접 해보기'로
+          실제 화면에서 따라해 보세요.
         </p>
       </div>
 
@@ -209,8 +274,13 @@ export default function GuidePage() {
           gap: "var(--stu-space-3)",
         }}
       >
-        {GUIDE_SECTIONS.map((section) => (
-          <GuideCard key={section.title} section={section} />
+        {STUDENT_WORKFLOWS.map((wf) => (
+          <WorkflowCard
+            key={wf.id}
+            wf={wf}
+            open={openId === wf.id}
+            onToggle={() => toggle(wf.id)}
+          />
         ))}
       </div>
     </div>

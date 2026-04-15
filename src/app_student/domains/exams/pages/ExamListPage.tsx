@@ -91,7 +91,7 @@ export default function ExamListPage() {
         <EmptyState title="시험이 없습니다." description="등록된 시험이 있으면 여기에 표시됩니다." />
       )}
 
-      <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-3)" }}>
+      <div data-guide="exam-list" style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-3)" }}>
         {items.map((e) => {
           const variant = getExamPanelVariant(e);
           const urgency = getUrgency(e);

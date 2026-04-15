@@ -294,7 +294,7 @@ export default function ClinicPage() {
 
   return (
     <StudentPageShell title="클리닉">
-      <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-4)" }}>
+      <div data-guide="clinic-list" style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-4)" }}>
         {/* 탭 바 */}
         <div style={{
           display: "flex", gap: 0, borderRadius: 10,

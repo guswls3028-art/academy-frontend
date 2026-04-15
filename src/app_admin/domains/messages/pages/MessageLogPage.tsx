@@ -653,7 +653,7 @@ export default function MessageLogPage() {
 
         {/* 필터 */}
         {!isLoading && results.length > 0 ? (
-          <div style={{ display: "flex", gap: 4 }}>
+          <div data-guide="messages-filter" style={{ display: "flex", gap: 4 }}>
             {FILTER_OPTIONS.map((opt) => (
               <button
                 key={opt.key}

@@ -201,17 +201,21 @@ export default function DashboardPage() {
     <div style={{ padding: "var(--stu-space-2) 0", display: "flex", flexDirection: "column", gap: "var(--stu-space-6)" }}>
 
       {/* ─── 1. 공지사항 (최상단) ─── */}
-      <NoticeSection notices={dashboard?.notices} />
+      <div data-guide="dash-notice">
+        <NoticeSection notices={dashboard?.notices} />
+      </div>
 
       {/* ─── 1.5. 나의 학습 현황 ─── */}
-      <LearningStatusCard grades={grades ?? null} sessions={sessions ?? null} />
+      <div data-guide="dash-stats">
+        <LearningStatusCard grades={grades ?? null} sessions={sessions ?? null} />
+      </div>
 
       {/* ─── 2. 다음 일정 카운트다운 ─── */}
       {nextSession && <CountdownCard session={nextSession.session} dt={nextSession.dt} />}
 
       {/* ─── 3. 오늘 할 일 ─── */}
       {hasTodos && (
-        <section>
+        <section data-guide="dash-todo">
           <SectionLabel>오늘 할 일</SectionLabel>
           <div style={{
             borderRadius: "var(--stu-radius-lg, 12px)",
@@ -301,7 +305,7 @@ export default function DashboardPage() {
       )}
 
       {/* ─── 5. 앱 아이콘 메뉴 (iPhone style, 4열) ─── */}
-      <section>
+      <section data-guide="dash-apps">
         <div style={{
           display: "grid",
           gridTemplateColumns: "repeat(4, 1fr)",

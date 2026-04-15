@@ -203,6 +203,7 @@ export default function LecturesPage({ tab = "active" }: LecturesPageProps) {
           searchSlot={
             <input
               className="ds-input"
+              data-guide="lectures-search"
               placeholder="강의 검색 (강의명/과목/강사/기간)"
               value={q}
               onChange={(e) => setQ(e.target.value)}
@@ -210,7 +211,7 @@ export default function LecturesPage({ tab = "active" }: LecturesPageProps) {
             />
           }
           primaryAction={
-            <Button intent="primary" onClick={() => setShowModal(true)}>
+            <Button data-guide="lectures-add-btn" intent="primary" onClick={() => setShowModal(true)}>
               강의 추가
             </Button>
           }
@@ -224,7 +225,7 @@ export default function LecturesPage({ tab = "active" }: LecturesPageProps) {
           ) : list.length === 0 ? (
             <EmptyState scope="panel" tone="empty" title="표시할 강의가 없습니다." />
           ) : (
-            <div style={{ width: "fit-content" }}>
+            <div data-guide="lectures-table" style={{ width: "fit-content" }}>
               <DomainTable
                 tableClassName="ds-table--flat ds-table--center"
                 tableStyle={{ tableLayout: "fixed", width: tableWidth }}

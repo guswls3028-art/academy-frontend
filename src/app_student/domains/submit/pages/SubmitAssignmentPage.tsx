@@ -127,7 +127,7 @@ export default function SubmitAssignmentPage() {
         )}
 
         {/* STEP 1: 제출 대상 선택 */}
-        <div>
+        <div data-guide="submit-target">
           <div style={{ fontSize: 13, fontWeight: 700, color: "var(--stu-text-muted)", marginBottom: 8 }}>
             1. 제출 대상 선택
           </div>
@@ -245,7 +245,7 @@ export default function SubmitAssignmentPage() {
 
         {/* STEP 2: 파일 선택 */}
         {selected && (
-          <div>
+          <div data-guide="submit-file">
             <div style={{ fontSize: 13, fontWeight: 700, color: "var(--stu-text-muted)", marginBottom: 8 }}>
               2. 파일 선택
             </div>
@@ -302,6 +302,7 @@ export default function SubmitAssignmentPage() {
             </div>
             <button
               type="button"
+              data-guide="submit-btn"
               className="stu-btn stu-btn--primary"
               disabled={!canSubmit}
               onClick={() => uploadMut.mutate()}

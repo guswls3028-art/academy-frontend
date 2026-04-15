@@ -415,7 +415,7 @@ export default function VideoExplorerPage() {
         </div>
 
         <div className={panelStyles.body}>
-          <aside className={panelStyles.tree}>
+          <aside data-guide="videos-tree" className={panelStyles.tree}>
             <div className={panelStyles.treeNavHeader}>
               <span className={panelStyles.treeNavTitle}>폴더</span>
             </div>
@@ -501,6 +501,7 @@ export default function VideoExplorerPage() {
                 {/* Add card for public videos */}
                 {selectedFolderId === "public" && publicSession && (
                   <div
+                    data-guide="videos-add"
                     className={styles.itemAdd}
                     onClick={() => setAddChoiceModalOpen(true)}
                     title="추가"

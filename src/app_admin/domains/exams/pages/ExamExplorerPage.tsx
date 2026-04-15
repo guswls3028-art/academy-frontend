@@ -120,7 +120,7 @@ export default function ExamExplorerPage() {
         </div>
       </div>
       <div className={panelStyles.body}>
-        <aside className={panelStyles.tree}>
+        <aside data-guide="exams-tree" className={panelStyles.tree}>
           <div className={panelStyles.treeNavHeader}>
             <span className={panelStyles.treeNavTitle}>강의 · 차시</span>
           </div>
@@ -219,6 +219,7 @@ export default function ExamExplorerPage() {
               <div className={styles.grid}>
                 {selectedSession && (
                   <div
+                    data-guide="exams-add"
                     className={styles.item + " " + styles.itemAdd}
                     onClick={() =>
                       navigate(

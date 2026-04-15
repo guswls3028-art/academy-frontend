@@ -115,7 +115,7 @@ export default function ResultsExplorerPage() {
         </div>
 
         <div className={panelStyles.body}>
-          <aside className={panelStyles.tree}>
+          <aside data-guide="results-filter" className={panelStyles.tree}>
             <div className={panelStyles.treeNavHeader}>
               <span className={panelStyles.treeNavTitle}>강의 · 차시</span>
             </div>

@@ -238,7 +238,7 @@ export default function GradesPage() {
       {!isLoading && !isError && tab === "exams" && (
         <div style={stack}>
           {examStats && (
-            <div style={statGrid}>
+            <div data-guide="grades-stats" style={statGrid}>
               <StatCard label="평균 점수" value={`${examStats.avgPct}점`} />
               <StatCard label="합격률" value={`${examStats.passRate}%`} />
               {examStats.avgRank != null ? (
@@ -250,7 +250,7 @@ export default function GradesPage() {
           )}
 
           {trendData.length >= 2 && (
-            <div style={chartWrap}>
+            <div data-guide="grades-chart" style={chartWrap}>
               <div style={sectionTitle}>점수 추이</div>
 
               {/* Lecture filter pills — only when 2+ lectures */}
@@ -342,7 +342,7 @@ export default function GradesPage() {
                 description="시험 응시 후 채점이 완료되면 여기에 표시됩니다."
               />
             ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-6)" }}>
+              <div data-guide="grades-list" style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-6)" }}>
                 {examGroups.map((group) => (
                   <LectureExamGroup key={group.key} group={group} />
                 ))}

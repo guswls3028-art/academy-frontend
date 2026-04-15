@@ -112,6 +112,7 @@ export default function VideoHomePage() {
       </h1>
 
       <div
+        data-guide="video-courses"
         style={{
           display: "grid",
           gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))",

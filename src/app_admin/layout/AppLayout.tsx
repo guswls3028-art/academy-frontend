@@ -17,6 +17,7 @@ import { SendMessageModalProvider } from "@admin/domains/messages/context/SendMe
 import { ClinicHighlightProvider } from "@/shared/contexts/ClinicHighlightContext";
 import { useIsMobile } from "@/shared/hooks/useIsMobile";
 import { useFavicon } from "@/shared/hooks/useFavicon";
+import { GuideTourProvider, GuideTourOverlay } from "@/shared/ui/guide";
 
 // useVersionChecker가 자동 리로드 처리 — 수동 새로고침 배너 제거됨
 
@@ -174,11 +175,14 @@ export default function AppLayout() {
           >
             <App>
             <FeedbackBridge />
+            <GuideTourProvider>
             <ClinicHighlightProvider>
             <SendMessageModalProvider>
               <AppLayoutContent />
+              <GuideTourOverlay />
             </SendMessageModalProvider>
             </ClinicHighlightProvider>
+            </GuideTourProvider>
             </App>
           </ConfigProvider>
         </NoticeProvider>

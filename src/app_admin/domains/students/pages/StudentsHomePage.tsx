@@ -404,6 +404,7 @@ export default function StudentsHomePage() {
           searchSlot={
             <input
               className="ds-input"
+              data-guide="students-search"
               placeholder={isMobile ? "검색" : "이름 / 아이디 / 전화번호 / 학교 검색"}
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
@@ -426,7 +427,7 @@ export default function StudentsHomePage() {
           }
           primaryAction={
             !isDeletedTab ? (
-              <Button intent="primary" onClick={() => setShowCreate(true)}>
+              <Button data-guide="students-add-btn" intent="primary" onClick={() => setShowCreate(true)}>
                 학생 추가
               </Button>
             ) : null
@@ -480,6 +481,7 @@ export default function StudentsHomePage() {
           {isLoading ? (
             <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
           ) : data?.length ? (
+            <div data-guide="students-table">
             <StudentsTable
               data={data}
               search={search}
@@ -501,6 +503,7 @@ export default function StudentsHomePage() {
                 setColumnWidth: tablePrefs.setColumnWidth,
               }}
             />
+            </div>
           ) : (
             <EmptyState
               scope="panel"
