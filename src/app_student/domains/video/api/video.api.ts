@@ -139,6 +139,39 @@ export async function fetchStudentVideoPlayback(
  * 비디오 진행률 업데이트
  * POST /student/video/videos/{videoId}/progress/
  */
+/* ─── 시청 통계 ─── */
+
+export type VideoStatsLecture = {
+  lecture_id: number;
+  title: string;
+  video_count: number;
+  completed_count: number;
+  total_duration: number;
+  progress_pct: number;
+};
+
+export type VideoStatsResponse = {
+  total_videos: number;
+  completed_videos: number;
+  completion_rate: number;
+  total_watch_duration: number;
+  total_content_duration: number;
+  lectures: VideoStatsLecture[];
+};
+
+export async function fetchVideoStats(): Promise<VideoStatsResponse> {
+  const res = await api.get<VideoStatsResponse>("/student/video/me/stats/");
+  const d = res.data;
+  return {
+    total_videos: d?.total_videos ?? 0,
+    completed_videos: d?.completed_videos ?? 0,
+    completion_rate: d?.completion_rate ?? 0,
+    total_watch_duration: d?.total_watch_duration ?? 0,
+    total_content_duration: d?.total_content_duration ?? 0,
+    lectures: Array.isArray(d?.lectures) ? d.lectures : [],
+  };
+}
+
 /* ─── 좋아요 ─── */
 
 export async function toggleVideoLike(videoId: number): Promise<{ liked: boolean; like_count: number }> {
