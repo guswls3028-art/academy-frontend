@@ -45,11 +45,11 @@ test.describe("Phase 3: 시험/과제 + 영상 + 클리닉 + 상담", () => {
     await page.waitForTimeout(2000);
 
     // 페이지 헤딩 확인
-    await expect(page.getByText("시험 / 과제")).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("heading", { name: "시험 / 과제" })).toBeVisible({ timeout: 10_000 });
 
-    // 2개 탭 버튼 확인
-    const examTab = page.locator("button").filter({ hasText: "시험" }).first();
-    const hwTab = page.locator("button").filter({ hasText: "과제" }).first();
+    // 2개 탭 버튼 확인 (탭 영역 내 버튼만)
+    const examTab = page.locator("button").filter({ hasText: /^시험$/ }).first();
+    const hwTab = page.locator("button").filter({ hasText: /^과제$/ }).first();
     await expect(examTab).toBeVisible();
     await expect(hwTab).toBeVisible();
 
@@ -69,7 +69,7 @@ test.describe("Phase 3: 시험/과제 + 영상 + 클리닉 + 상담", () => {
     await page.waitForTimeout(2000);
 
     // 페이지 헤딩 확인
-    await expect(page.getByText("영상 목록")).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("heading", { name: "영상 목록" })).toBeVisible({ timeout: 10_000 });
 
     await page.screenshot({ path: "e2e/screenshots/teacher-phase3-03-videos.png" });
   });
@@ -90,10 +90,10 @@ test.describe("Phase 3: 시험/과제 + 영상 + 클리닉 + 상담", () => {
     await page.waitForTimeout(2000);
 
     // 페이지 헤딩 확인
-    await expect(page.getByText("상담 메모")).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("heading", { name: "상담 메모" })).toBeVisible({ timeout: 10_000 });
 
     // 새 메모 버튼 확인
-    await expect(page.getByText("+ 새 메모")).toBeVisible();
+    await expect(page.getByRole("button", { name: "+ 새 메모" })).toBeVisible();
 
     await page.screenshot({ path: "e2e/screenshots/teacher-phase3-05-counseling.png" });
   });
