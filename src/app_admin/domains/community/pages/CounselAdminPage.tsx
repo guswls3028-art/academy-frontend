@@ -106,7 +106,7 @@ export default function CounselAdminPage() {
   }, [filtered, selectedId, setSelectedId]);
 
   return (
-    <div className="qna-inbox" style={{ minHeight: "calc(100vh - 180px)" }}>
+    <div className="qna-inbox" style={{ height: "calc(100vh - 180px)" }}>
       <aside className="qna-inbox__list">
         <CommunityContextBar
           scope="all"

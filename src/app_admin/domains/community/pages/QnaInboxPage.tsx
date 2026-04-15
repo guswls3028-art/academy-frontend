@@ -102,7 +102,7 @@ export default function QnaInboxPage() {
   }, [filtered, selectedId, setSelectedId]);
 
   return (
-    <div className="qna-inbox" style={{ minHeight: "calc(100vh - 180px)" }}>
+    <div className="qna-inbox" style={{ height: "calc(100vh - 180px)" }}>
       <aside className="qna-inbox__list" ref={listRef}>
         <CommunityContextBar
           scope="all"
@@ -260,6 +260,7 @@ function ThreadView({
 }) {
   const qc = useQueryClient();
   const confirm = useConfirm();
+  const composerRef = useRef<HTMLDivElement>(null);
   const { data: post, isLoading } = useQuery({
     queryKey: ["community-post", postId],
     queryFn: () => fetchPost(postId),
@@ -338,6 +339,21 @@ function ThreadView({
             </div>
           </div>
           <div className="qna-inbox__thread-actions">
+            {!post.created_by_deleted && (
+              <Button
+                intent="primary"
+                size="sm"
+                onClick={() => {
+                  composerRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+                  setTimeout(() => {
+                    const editor = composerRef.current?.querySelector<HTMLElement>(".ql-editor");
+                    editor?.focus();
+                  }, 400);
+                }}
+              >
+                답변하기
+              </Button>
+            )}
             <Button intent="ghost" size="sm" onClick={onClose}>
               목록
             </Button>
@@ -405,7 +421,7 @@ function ThreadView({
         )}
       </div>
 
-      <Composer postId={postId} allowReply={!post.created_by_deleted} />
+      <Composer postId={postId} allowReply={!post.created_by_deleted} composerRef={composerRef} />
     </>
   );
 }
@@ -566,9 +582,10 @@ function QuestionTimeline({
   );
 }
 
-function Composer({ postId, allowReply = true }: { postId: number; allowReply?: boolean }) {
+function Composer({ postId, allowReply = true, composerRef }: { postId: number; allowReply?: boolean; composerRef?: React.RefObject<HTMLDivElement | null> }) {
   const [content, setContent] = useState("");
-  const composerRef = useRef<HTMLDivElement>(null);
+  const localRef = useRef<HTMLDivElement>(null);
+  const ref = composerRef ?? localRef;
   const qc = useQueryClient();
   const createMut = useMutation({
     mutationFn: () => createAnswer(postId, content),
@@ -587,7 +604,7 @@ function Composer({ postId, allowReply = true }: { postId: number; allowReply?: 
   const isEmpty = !content.trim() || content.trim() === "<p></p>";
 
   return (
-    <div className="qna-inbox__composer" ref={composerRef}>
+    <div className="qna-inbox__composer" ref={ref}>
       {allowReply ? (
       <div className="qna-inbox__composer-inner">
         <div className="qna-inbox__composer-editor">
