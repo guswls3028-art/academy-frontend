@@ -33,14 +33,14 @@ import AdminModal from "@/shared/ui/modal/AdminModal";
 import ModalHeader from "@/shared/ui/modal/ModalHeader";
 import AdminOmrBatchUploadBox from "@admin/domains/submissions/components/AdminOmrBatchUploadBox";
 
-/** 컬럼 기본 너비 — 설계 문서 12️⃣ */
+/** 컬럼 기본 너비 */
 const COL_EDIT = 36;
 const COL_NAME = 88;
 const COL_ATTENDANCE = 32;
-const COL_SCORE = 68;
-const COL_PASS = 32;
-const COL_CLINIC_TARGET = 52;
-const COL_REASON = 52;
+const COL_SCORE = 80;
+const COL_PASS = 48;
+const COL_CLINIC_TARGET = 56;
+const COL_REASON = 64;
 
 
 function parseScoreInput(input: string, maxScore?: number | null): number | null {
@@ -144,7 +144,7 @@ export type ScoreColumnDef =
       examId: number;
       questionId?: number;
       title: string;
-      sub: "total" | "objective" | "subjective" | "item" | "pass";
+      sub: "total" | "objective" | "subjective" | "item";
       key: string;
       width: number;
       editable: boolean;
@@ -153,7 +153,7 @@ export type ScoreColumnDef =
       type: "homework";
       homeworkId: number;
       title: string;
-      sub: "score" | "pass";
+      sub: "score";
       key: string;
       width: number;
       editable: boolean;
@@ -477,18 +477,16 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
         list.push({ type: "exam", examId: e.exam_id, title: e.title, sub: "objective", key: `exam_${e.exam_id}_objective`, width: COL_SCORE, editable: isEditMode && examEditObjective });
         list.push({ type: "exam", examId: e.exam_id, title: e.title, sub: "subjective", key: `exam_${e.exam_id}_subjective`, width: COL_SCORE, editable: isEditMode && examEditSubjective });
       }
-      list.push({ type: "exam", examId: e.exam_id, title: e.title, sub: "pass", key: `exam_${e.exam_id}_pass`, width: COL_PASS, editable: false });
     });
     if (examOptions.length > 1) {
       list.push(
         { type: "exam_summary", sub: "score", key: "exam_summary_score", width: 96, editable: false },
-        { type: "exam_summary", sub: "pass", key: "exam_summary_pass", width: 32, editable: false }
+        { type: "exam_summary", sub: "pass", key: "exam_summary_pass", width: 48, editable: false }
       );
     }
     homeworkOptions.forEach((h) => {
       list.push(
         { type: "homework", homeworkId: h.homework_id, title: h.title, sub: "score", key: `hw_${h.homework_id}_score`, width: COL_SCORE, editable: isEditMode && homeworkEdit },
-        { type: "homework", homeworkId: h.homework_id, title: h.title, sub: "pass", key: `hw_${h.homework_id}_pass`, width: COL_PASS, editable: false }
       );
     });
     list.push(
@@ -568,7 +566,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
       {/* 편집 모드 안내 배너 */}
       {isEditMode && (
         <div
-          className="flex items-center gap-3 px-3 py-1.5 mb-2 rounded-md text-xs"
+          className="flex items-center gap-2 px-3 py-1.5 mb-2 rounded-md text-xs flex-wrap"
           style={{
             background: "color-mix(in srgb, var(--color-brand-primary) 6%, var(--color-bg-surface))",
             border: "1px solid color-mix(in srgb, var(--color-brand-primary) 15%, var(--color-border-divider))",
@@ -576,12 +574,17 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
           }}
         >
           <span style={{ color: "var(--color-brand-primary)", fontWeight: 600 }}>편집 모드</span>
-          <span className="opacity-40">|</span>
-          <span>숫자 입력 → <kbd className="px-1 py-0.5 rounded text-[10px] font-mono" style={{ background: "var(--color-bg-elevated)", border: "1px solid var(--color-border-divider)" }}>Enter</kbd> 저장</span>
-          <span className="opacity-40">·</span>
-          <span><kbd className="px-1 py-0.5 rounded text-[10px] font-mono" style={{ background: "var(--color-bg-elevated)", border: "1px solid var(--color-border-divider)" }}>/</kbd> + <kbd className="px-1 py-0.5 rounded text-[10px] font-mono" style={{ background: "var(--color-bg-elevated)", border: "1px solid var(--color-border-divider)" }}>Enter</kbd> = 미제출</span>
-          <span className="opacity-40">·</span>
-          <span><kbd className="px-1 py-0.5 rounded text-[10px] font-mono" style={{ background: "var(--color-bg-elevated)", border: "1px solid var(--color-border-divider)" }}>Tab</kbd> 다음 셀 · <kbd className="px-1 py-0.5 rounded text-[10px] font-mono" style={{ background: "var(--color-bg-elevated)", border: "1px solid var(--color-border-divider)" }}>Esc</kbd> 취소</span>
+          <span className="opacity-30">|</span>
+          <span>점수 입력 후 <kbd className="score-help-kbd">Enter</kbd> 저장</span>
+          <span className="opacity-30">·</span>
+          <span>
+            <kbd className="score-help-kbd">/</kbd> 입력 후 <kbd className="score-help-kbd">Enter</kbd>
+            <span className="text-[var(--color-text-muted)]"> = 미응시/미제출 처리</span>
+          </span>
+          <span className="opacity-30">·</span>
+          <span className="text-[var(--color-text-muted)]">
+            <kbd className="score-help-kbd">Tab</kbd> 다음 셀 <kbd className="score-help-kbd">Esc</kbd> 취소
+          </span>
         </div>
       )}
       {/* OMR 업로드 버튼 — 테이블 밖, 시험 컬럼 위에 정렬 */}
@@ -672,7 +675,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
           >
             출석
           </ResizableTh>
-          {examOptions.map((ex) => {
+          {examOptions.map((ex, exIdx) => {
             const examColsList = examColsMap[ex.exam_id] ?? [];
             const colSpan = examColsList.length || 1;
             return (
@@ -684,6 +687,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                 title={ex.title}
                 data-col-type="score"
                 data-group-start=""
+                data-group-parity={exIdx % 2 === 0 ? "even" : "odd"}
               >
                 <span className="inline-flex items-center gap-1">
                   <span className="ds-status-badge ds-status-badge--1ch" data-tone="primary" aria-label="시험">시</span>
@@ -698,6 +702,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
               colSpan={2}
               className="text-center font-medium text-[var(--color-text-primary)]"
               data-col-type="exam-summary"
+              data-summary-start=""
             >
               <span className="inline-flex items-center gap-1 whitespace-nowrap">
                 <span className="ds-status-badge ds-status-badge--1ch" data-tone="primary" aria-label="총점">Σ</span>
@@ -709,11 +714,12 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
             <th
               key={`head-hw-${hw.homework_id}`}
               scope="col"
-              colSpan={2}
+              rowSpan={2}
               className="group text-center font-medium text-[var(--color-text-primary)] whitespace-nowrap"
               title={hw.title}
               data-col-type="score"
               {...(idx === 0 ? { "data-section-start": "" } : {})}
+              data-group-parity={idx % 2 === 0 ? "even" : "odd"}
             >
               <span className="inline-flex items-center gap-1">
                 <span className="ds-status-badge ds-status-badge--1ch" data-tone="complement" aria-label="과제">과</span>
@@ -730,6 +736,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
             rowSpan={2}
             className="text-center font-semibold text-[var(--color-text-primary)]"
             data-col-type="clinic"
+            data-verdict-start=""
           >
             판정
           </ResizableTh>
@@ -748,9 +755,10 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
         </tr>
         {/* Row2: 시험별 서브헤더(합산/객관식/주관식/N번/합불) | 과제 점수/합불 */}
         <tr className="border-b-2 border-[var(--color-border-divider)]">
-          {examOptions.map((ex) => {
+          {examOptions.map((ex, exIdx) => {
             const examColsList = (examColsMap[ex.exam_id] ?? []) as Extract<ScoreColumnDef, { type: "exam" }>[];
             const questions = (ex as { questions?: { question_id: number; number: number }[] }).questions ?? [];
+            const parity = exIdx % 2 === 0 ? "even" : "odd";
             return (
               <Fragment key={ex.exam_id}>
                 {examColsList.map((c, ci) => (
@@ -758,9 +766,10 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                     key={c.key}
                     scope="col"
                     className="text-center text-xs font-medium text-[var(--color-text-secondary)]"
-                    data-col-type={c.sub === "pass" ? "pass" : "score"}
+                    data-col-type="score"
                     {...(ci === 0 ? { "data-group-start": "" } : {})}
-                    style={{ width: c.sub === "pass" ? COL_PASS : COL_SCORE, minWidth: c.sub === "pass" ? 28 : 48 }}
+                    data-group-parity={parity}
+                    style={{ width: COL_SCORE, minWidth: 48 }}
                   >
                     {c.sub === "total" ? "합산" : c.sub === "objective" ? "객관식" : c.sub === "subjective" ? "주관식" : c.sub === "item" && c.questionId != null
                       ? `${questions.find((q) => q.question_id === c.questionId)?.number ?? c.questionId}번`
@@ -776,6 +785,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                 scope="col"
                 className="text-center text-xs font-medium text-[var(--color-text-secondary)]"
                 data-col-type="exam-summary"
+                data-summary-start=""
                 style={{ width: columnWidths.exam_summary_score ?? 96, minWidth: 72 }}
               >
                 점수
@@ -785,41 +795,13 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                 className="text-center text-xs font-medium text-[var(--color-text-secondary)]"
                 data-col-type="pass"
                 data-summary=""
-                style={{ width: columnWidths.exam_summary_pass ?? 32, minWidth: 28 }}
+                style={{ width: columnWidths.exam_summary_pass ?? 48, minWidth: 36 }}
               >
                 합불
               </th>
             </>
           )}
-          {homeworkOptions.map((hw, hwIdx) => (
-            <Fragment key={hw.homework_id}>
-              <th
-                scope="col"
-                className="text-center text-xs font-medium text-[var(--color-text-secondary)]"
-                data-col-type="score"
-                {...(hwIdx === 0 ? { "data-section-start": "" } : {})}
-                style={{
-                  width: columnWidths[`hw_${hw.homework_id}_score`] ?? COL_SCORE,
-                  minWidth: 48,
-                  maxWidth: 200,
-                }}
-              >
-                점수
-              </th>
-              <th
-                scope="col"
-                className="text-center text-xs font-medium text-[var(--color-text-secondary)]"
-                data-col-type="pass"
-                style={{
-                  width: columnWidths[`hw_${hw.homework_id}_pass`] ?? COL_PASS,
-                  minWidth: 48,
-                  maxWidth: 100,
-                }}
-              >
-                합불
-              </th>
-            </Fragment>
-          ))}
+          {/* 과제 헤더는 Row1에서 rowSpan=2 처리 */}
         </tr>
       </thead>
 
@@ -894,12 +876,13 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                 </td>
 
                 {/* 시험: 컬럼 정의에 따라 합산/객관식/주관식/문항별/합불 */}
-                {examOptions.map((ex) => {
+                {examOptions.map((ex, exIdx) => {
                   const entry = row.exams?.find((e) => e.exam_id === ex.exam_id) ?? null;
                   const block = entry?.block;
                   const questions = (ex as { questions?: { question_id: number; number: number; max_score: number }[] }).questions ?? [];
                   const examColsList = (examColsMap[ex.exam_id] ?? []) as Extract<ScoreColumnDef, { type: "exam" }>[];
                   const notEnrolledForExam = !entry;
+                  const groupParity = exIdx % 2 === 0 ? "even" : "odd";
                   return (
                     <Fragment key={ex.exam_id}>
                       {examColsList.map((col, colIdx) => {
@@ -909,8 +892,9 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                             <td
                               key={col.key}
                               className="min-w-0 align-middle bg-[var(--color-bg-surface-hover)]"
-                              data-col-type={col.sub === "pass" ? "pass" : "score"}
+                              data-col-type="score"
                               {...(colIdx === 0 ? { "data-group-start": "" } : {})}
+                              data-group-parity={groupParity}
                             >
                               <span className="text-[var(--color-text-muted)] select-none">-</span>
                             </td>
@@ -923,14 +907,6 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                           selectedCell.examId === ex.exam_id &&
                           (col.sub === "total" ? selectedCell.sub === "total" : col.sub === "objective" ? selectedCell.sub === "objective" : col.sub === "subjective" ? selectedCell.sub === "subjective" : col.sub === "item" && col.questionId != null ? selectedCell.sub === "item" && selectedCell.questionId === col.questionId : false);
 
-                        if (col.sub === "pass") {
-                          return (
-                            <td key={col.key} data-col-type="pass" className="min-w-0 text-center align-middle" {...(colIdx === 0 ? { "data-group-start": "" } : {})} onClick={(e) => { if (isEditMode) e.stopPropagation(); onSelectCell(row, "exam", ex.exam_id); }}>
-                              <PassFailText passed={block?.passed} />
-                            </td>
-                          );
-                        }
-
                         if (col.sub === "total") {
                           const examMaxScore = block?.max_score ?? ex.max_score ?? null;
                           const isExamNotSubmitted = block?.meta?.status === "NOT_SUBMITTED";
@@ -942,8 +918,10 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                             <td
                               key={col.key}
                               data-col-type="score"
+                              data-group-parity={groupParity}
                               {...(colIdx === 0 ? { "data-group-start": "" } : {})}
                               {...(canEdit ? { "data-editable": "true" } : {})}
+                              {...(block?.passed != null && !isEditMode ? { "data-pass-status": block.passed ? "pass" : "fail" } : {})}
                               className={`min-w-0 text-center align-middle ${isSelected ? "outline-2 outline-[var(--color-brand-primary)] outline-offset-[-2px]" : ""} ${isEditMode ? "hover:bg-[var(--color-bg-surface-hover)]" : ""}`}
                               onClick={(e) => { if (isEditMode) e.stopPropagation(); onSelectCell(row, "exam", ex.exam_id, "total"); }}
                             >
@@ -1054,7 +1032,9 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                             <td
                               key={col.key}
                               data-col-type="score"
+                              data-group-parity={groupParity}
                               {...(colIdx === 0 ? { "data-group-start": "" } : {})}
+                              {...(block?.passed != null && !isEditMode ? { "data-pass-status": block.passed ? "pass" : "fail" } : {})}
                               className={`min-w-0 text-center align-middle ${isSelected ? "outline-2 outline-[var(--color-brand-primary)] outline-offset-[-2px]" : ""} ${isEditMode ? "hover:bg-[var(--color-bg-surface-hover)]" : ""}`}
                               onClick={(e) => { if (isEditMode) e.stopPropagation(); onSelectCell(row, "exam", ex.exam_id, "objective"); }}
                             >
@@ -1120,7 +1100,9 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                             <td
                               key={col.key}
                               data-col-type="score"
+                              data-group-parity={groupParity}
                               {...(colIdx === 0 ? { "data-group-start": "" } : {})}
+                              {...(block?.passed != null && !isEditMode ? { "data-pass-status": block.passed ? "pass" : "fail" } : {})}
                               className={`min-w-0 text-center align-middle ${isSelected ? "outline-2 outline-[var(--color-brand-primary)] outline-offset-[-2px]" : ""} ${isEditMode ? "hover:bg-[var(--color-bg-surface-hover)]" : ""}`}
                               onClick={(e) => { if (isEditMode) e.stopPropagation(); onSelectCell(row, "exam", ex.exam_id, "subjective"); }}
                             >
@@ -1188,6 +1170,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                             <td
                               key={col.key}
                               data-col-type="score"
+                              data-group-parity={groupParity}
                               {...(colIdx === 0 ? { "data-group-start": "" } : {})}
                               {...(canEdit ? { "data-editable": "true" } : {})}
                               className={`min-w-0 text-center align-middle ${isSelected ? "outline-2 outline-[var(--color-brand-primary)] outline-offset-[-2px]" : ""}`}
@@ -1241,7 +1224,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                   }
                   return (
                     <>
-                      <td className="min-w-0 text-center align-middle" data-col-type="exam-summary">
+                      <td className="min-w-0 text-center align-middle" data-col-type="exam-summary" data-summary-start="">
                         <span className="font-bold text-[var(--color-text-primary)] tabular-nums">
                           {hasAnyScore ? `${totalScore}/${totalMaxScore}` : "-"}
                         </span>
@@ -1268,26 +1251,23 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                     selectedCell.homeworkId === hw.homework_id;
                   const canEditScore = isEditMode && homeworkEdit && !notEnrolledForHw;
                   const isNotSubmitted = block?.meta?.status === "NOT_SUBMITTED";
+                  const hwParity = hwBodyIdx % 2 === 0 ? "even" : "odd";
 
                   // border는 CSS data-section-start로 처리
                   return (
                     <Fragment key={hw.homework_id}>
                       {notEnrolledForHw ? (
-                        <>
-                          <td className={`min-w-0 align-middle bg-[var(--color-bg-surface-hover)]`} data-col-type="score" {...(hwBodyIdx === 0 ? { "data-section-start": "" } : {})}>
+                          <td className={`min-w-0 align-middle bg-[var(--color-bg-surface-hover)]`} data-col-type="score" data-group-parity={hwParity} {...(hwBodyIdx === 0 ? { "data-section-start": "" } : {})}>
                             <span className="text-[var(--color-text-muted)] select-none">-</span>
                           </td>
-                          <td className="min-w-0 align-middle bg-[var(--color-bg-surface-hover)]" data-col-type="pass">
-                            <span className="text-[var(--color-text-muted)] select-none">-</span>
-                          </td>
-                        </>
                       ) : (
-                      <>
                       <td
                         className={`min-w-0 text-center align-middle ${isSelected ? "ds-scores-cell-active" : ""} ${isEditMode ? "hover:bg-[var(--color-bg-surface-hover)]" : ""}`}
                         data-col-type="score"
+                        data-group-parity={hwParity}
                         {...(hwBodyIdx === 0 ? { "data-section-start": "" } : {})}
                         {...(canEditScore ? { "data-editable": "true" } : {})}
+                        {...(block?.passed != null && !isEditMode ? { "data-pass-status": block.passed ? "pass" : "fail" } : {})}
                         onClick={(e) => {
                           if (isEditMode) e.stopPropagation();
                           onSelectCell(row, "homework", hw.homework_id);
@@ -1466,17 +1446,6 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                           )}
                         </span>
                       </td>
-                      <td
-                        className="min-w-0 text-center align-middle"
-                        data-col-type="pass"
-                        onClick={(e) => {
-                          if (isEditMode) e.stopPropagation();
-                          onSelectCell(row, "homework", hw.homework_id);
-                        }}
-                      >
-                        <PassFailText passed={block?.passed} />
-                      </td>
-                      </>
                       )}
                     </Fragment>
                   );
@@ -1485,6 +1454,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                 <td
                   className="text-center align-middle"
                   data-col-type="clinic"
+                  data-verdict-start=""
                 >
                   {(() => {
                     const verdict = getSessionScoresTableVerdict(row);
