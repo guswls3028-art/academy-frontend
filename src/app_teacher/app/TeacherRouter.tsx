@@ -23,6 +23,7 @@ const MessagingSettingsPage = lazy(() => import("@teacher/domains/comms/pages/Me
 const NotificationsPage = lazy(() => import("@teacher/domains/notifications/pages/NotificationsPage"));
 const ProfilePage = lazy(() => import("@teacher/domains/profile/pages/ProfilePage"));
 const TeacherSettingsPage = lazy(() => import("@teacher/domains/settings/pages/TeacherSettingsPage"));
+const AttendanceMatrixPage = lazy(() => import("@teacher/domains/lectures/pages/AttendanceMatrixPage"));
 const StaffManagePage = lazy(() => import("@teacher/domains/staff/pages/StaffManagePage"));
 const MyRecordsPage = lazy(() => import("@teacher/domains/profile/pages/MyRecordsPage"));
 
@@ -66,6 +67,7 @@ export default function TeacherRouter() {
           <Route path="classes" element={<LectureListPage />} />
           <Route path="classes/:lectureId" element={<LectureDetailPage />} />
           <Route path="classes/:lectureId/sessions/:sessionId" element={<SessionDetailPage />} />
+          <Route path="classes/:lectureId/attendance-matrix" element={<AttendanceMatrixPage />} />
 
           {/* 출석 (세션 기반) */}
           <Route path="attendance/:sessionId" element={<SwipeAttendancePage />} />

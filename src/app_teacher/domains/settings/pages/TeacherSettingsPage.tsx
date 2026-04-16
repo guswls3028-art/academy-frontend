@@ -288,6 +288,11 @@ export default function TeacherSettingsPage() {
       {(user?.tenantRole === "owner" || user?.tenantRole === "admin") && (
         <OrgSection />
       )}
+
+      {/* ── Billing section (owner only) ── */}
+      {user?.tenantRole === "owner" && (
+        <BillingSection />
+      )}
     </div>
   );
 }
@@ -467,6 +472,87 @@ function OrgSection() {
         </div>
       )}
       {msg && <div className="text-[12px] mt-1" style={{ color: msg === "저장됨" ? "var(--tc-success)" : "var(--tc-danger)" }}>{msg}</div>}
+    </Section>
+  );
+}
+
+/* ─── Billing Section (owner) ─── */
+function BillingSection() {
+  const [msg, setMsg] = useState<string | null>(null);
+
+  const { data: cards } = useQuery({
+    queryKey: ["billing-cards"],
+    queryFn: async () => { const res = await api.get("/billing/cards/"); return Array.isArray(res.data) ? res.data : []; },
+  });
+
+  const { data: subscription } = useQuery({
+    queryKey: ["billing-subscription"],
+    queryFn: async () => { const res = await api.get("/billing/subscription/"); return res.data; },
+  });
+
+  const deleteCardMut = useMutation({
+    mutationFn: async (id: number) => { await api.delete(`/billing/cards/${id}/`); },
+    onSuccess: () => { setMsg("카드 삭제됨"); },
+  });
+
+  const registerCard = async () => {
+    try {
+      const res = await api.post("/billing/card/register/prepare/");
+      const { customerKey, clientKey, successUrl, failUrl } = res.data;
+      // Toss SDK redirect — 모바일 브라우저에서 직접 이동
+      const redirectUrl = `https://api.tosspayments.com/v1/brandpay/authorizations?clientKey=${clientKey}&customerKey=${customerKey}&successUrl=${encodeURIComponent(successUrl)}&failUrl=${encodeURIComponent(failUrl)}`;
+      window.location.href = redirectUrl;
+    } catch {
+      setMsg("카드 등록 준비 실패");
+    }
+  };
+
+  return (
+    <Section title="결제 / 구독" icon={<Lock size={15} />}>
+      {/* Subscription info */}
+      {subscription && (
+        <div className="mb-3">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-sm font-semibold" style={{ color: "var(--tc-text)" }}>{subscription.plan_name || "구독"}</span>
+            <span className="text-[11px] font-bold px-2 py-0.5 rounded-full"
+              style={{
+                background: subscription.status === "active" ? "var(--tc-success-bg)" : "var(--tc-danger-bg)",
+                color: subscription.status === "active" ? "var(--tc-success)" : "var(--tc-danger)",
+              }}>
+              {subscription.status === "active" ? "활성" : subscription.status === "grace" ? "유예" : "만료"}
+            </span>
+          </div>
+          <div className="text-[12px]" style={{ color: "var(--tc-text-muted)" }}>
+            {subscription.start_date && `${subscription.start_date} ~ ${subscription.end_date}`}
+            {subscription.days_remaining != null && ` (${subscription.days_remaining}일 남음)`}
+          </div>
+        </div>
+      )}
+
+      {/* Cards */}
+      <div className="flex flex-col gap-1.5 mb-2">
+        {(cards ?? []).map((c: any) => (
+          <div key={c.id} className="flex items-center justify-between py-1.5"
+            style={{ borderBottom: "1px solid var(--tc-border-subtle)" }}>
+            <span className="text-sm" style={{ color: "var(--tc-text)" }}>
+              {c.card_company} {c.card_number_masked}
+            </span>
+            <button onClick={() => { if (confirm("이 카드를 삭제하시겠습니까?")) deleteCardMut.mutate(c.id); }}
+              className="text-[11px] cursor-pointer" style={{ background: "none", border: "none", color: "var(--tc-danger)" }}>
+              삭제
+            </button>
+          </div>
+        ))}
+        {cards?.length === 0 && <div className="text-[12px]" style={{ color: "var(--tc-text-muted)" }}>등록된 카드 없음</div>}
+      </div>
+
+      <button onClick={registerCard}
+        className="w-full text-sm font-semibold cursor-pointer"
+        style={{ padding: "10px", borderRadius: "var(--tc-radius)", border: "1px solid var(--tc-primary)", background: "var(--tc-primary-bg)", color: "var(--tc-primary)" }}>
+        카드 등록
+      </button>
+
+      {msg && <div className="text-[12px] mt-1" style={{ color: "var(--tc-success)" }}>{msg}</div>}
     </Section>
   );
 }

@@ -4,6 +4,7 @@ import { useState, useMemo, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchScopeNodes, createPost, uploadPostAttachment, type ScopeNode } from "../api";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
+import MobileRichEditor from "@teacher/shared/ui/MobileRichEditor";
 import { AlertCircle, ChevronDown, Paperclip, X } from "@teacher/shared/ui/Icons";
 
 interface Props {
@@ -158,21 +159,10 @@ export default function CreatePostSheet({ open, onClose, postType, postTypeLabel
           />
         </div>
 
-        {/* Content */}
+        {/* Content — Rich Text Editor */}
         <div>
           <label className="text-[11px] font-semibold block mb-1" style={{ color: "var(--tc-text-muted)" }}>내용</label>
-          <textarea
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            placeholder="내용을 입력하세요"
-            rows={6}
-            className="w-full text-sm"
-            style={{
-              padding: "8px 10px", borderRadius: "var(--tc-radius-sm)",
-              border: "1px solid var(--tc-border-strong)", background: "var(--tc-surface-soft)",
-              color: "var(--tc-text)", outline: "none", resize: "vertical",
-            }}
-          />
+          <MobileRichEditor value={content} onChange={setContent} placeholder="내용을 입력하세요" minHeight={120} />
         </div>
 
         {/* Urgent toggle (notices only) */}

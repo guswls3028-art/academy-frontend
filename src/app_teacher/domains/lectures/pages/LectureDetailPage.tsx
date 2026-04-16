@@ -92,6 +92,11 @@ export default function LectureDetailPage() {
                   style={{ padding: "10px 14px", background: "none", border: "none", color: "var(--tc-text)" }}>
                   <Pencil size={14} /> 편집
                 </button>
+                <button onClick={() => { navigate(`/teacher/classes/${lid}/attendance-matrix`); setMenuOpen(false); }}
+                  className="flex items-center gap-2 w-full text-left text-sm cursor-pointer"
+                  style={{ padding: "10px 14px", background: "none", border: "none", color: "var(--tc-text)", borderTop: "1px solid var(--tc-border-subtle)" }}>
+                  <Download size={14} /> 출석 현황 (매트릭스)
+                </button>
                 <button onClick={() => downloadAttendanceExcel(lid).catch(() => {})}
                   className="flex items-center gap-2 w-full text-left text-sm cursor-pointer"
                   style={{ padding: "10px 14px", background: "none", border: "none", color: "var(--tc-text)", borderTop: "1px solid var(--tc-border-subtle)" }}>

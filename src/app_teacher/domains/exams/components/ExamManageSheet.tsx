@@ -1,9 +1,10 @@
 // PATH: src/app_teacher/domains/exams/components/ExamManageSheet.tsx
-// 시험 관리 시트 — 편집/삭제/상태토글/정답/합격점/재계산
-import { useState } from "react";
+// 시험 관리 시트 — 편집/삭제/상태토글/정답/합격점/재계산/OMR/PDF
+import { useState, useRef } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { updateExam, deleteExam } from "../api";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
+import { Upload } from "@teacher/shared/ui/Icons";
 import api from "@/shared/api/axios";
 
 interface Props {
@@ -17,7 +18,9 @@ export default function ExamManageSheet({ open, onClose, exam, onDeleted }: Prop
   const qc = useQueryClient();
   const [title, setTitle] = useState(exam?.title || "");
   const [passScore, setPassScore] = useState(String(exam?.pass_score ?? ""));
+  const [answerKey, setAnswerKey] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const editMut = useMutation({
     mutationFn: () => updateExam(exam.id, { title, pass_score: passScore ? Number(passScore) : undefined }),
@@ -44,6 +47,31 @@ export default function ExamManageSheet({ open, onClose, exam, onDeleted }: Prop
     onSuccess: () => setMsg("템플릿으로 저장됨"),
   });
 
+  // 정답 등록: "1:2,2:3,3:1" 형식 → { "1":"2", "2":"3", "3":"1" }
+  const answerKeyMut = useMutation({
+    mutationFn: () => {
+      const answers: Record<string, string> = {};
+      answerKey.split(",").forEach((pair) => {
+        const [q, a] = pair.split(":").map((s) => s.trim());
+        if (q && a) answers[q] = a;
+      });
+      return api.post(`/exams/answer-keys/`, { exam: exam.id, answers });
+    },
+    onSuccess: () => { setMsg("정답 등록됨"); setAnswerKey(""); },
+    onError: () => setMsg("정답 등록 실패"),
+  });
+
+  const uploadAssetMut = useMutation({
+    mutationFn: (file: File) => {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("asset_type", file.name.toLowerCase().includes("omr") ? "omr_sheet" : "exam_pdf");
+      return api.post(`/exams/${exam.id}/assets/`, formData, { headers: { "Content-Type": "multipart/form-data" } });
+    },
+    onSuccess: () => setMsg("파일 업로드 완료"),
+    onError: () => setMsg("업로드 실패"),
+  });
+
   if (!exam) return null;
 
   return (
@@ -58,6 +86,37 @@ export default function ExamManageSheet({ open, onClose, exam, onDeleted }: Prop
           style={{ padding: "10px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff" }}>
           {editMut.isPending ? "저장 중..." : "저장"}
         </button>
+
+        <div style={{ height: 1, background: "var(--tc-border)", margin: "4px 0" }} />
+
+        {/* Answer key registration */}
+        <div>
+          <label className="text-[11px] font-semibold block mb-1" style={{ color: "var(--tc-text-muted)" }}>
+            정답 등록 (형식: 1:2,2:3,3:1)
+          </label>
+          <div className="flex gap-2">
+            <input type="text" value={answerKey} onChange={(e) => setAnswerKey(e.target.value)}
+              placeholder="문번:정답,문번:정답,..."
+              className="flex-1 text-sm"
+              style={{ padding: "8px 10px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border-strong)", background: "var(--tc-surface-soft)", color: "var(--tc-text)", outline: "none" }} />
+            <button onClick={() => answerKeyMut.mutate()} disabled={!answerKey.trim()}
+              className="text-xs font-bold cursor-pointer shrink-0"
+              style={{ padding: "8px 12px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff", opacity: !answerKey.trim() ? 0.5 : 1 }}>
+              등록
+            </button>
+          </div>
+        </div>
+
+        {/* File upload (PDF/OMR) */}
+        <div className="flex gap-2">
+          <button onClick={() => fileRef.current?.click()}
+            className="flex items-center gap-1 text-[12px] font-semibold cursor-pointer flex-1 justify-center"
+            style={{ padding: "8px", borderRadius: "var(--tc-radius-sm)", border: "1px dashed var(--tc-border-strong)", background: "none", color: "var(--tc-text-secondary)" }}>
+            <Upload size={13} /> PDF / OMR 업로드
+          </button>
+          <input ref={fileRef} type="file" accept=".pdf,.xlsx,.csv,image/*" style={{ display: "none" }}
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadAssetMut.mutate(f); if (fileRef.current) fileRef.current.value = ""; }} />
+        </div>
 
         <div style={{ height: 1, background: "var(--tc-border)", margin: "4px 0" }} />
 
