@@ -25,18 +25,18 @@ test.describe("Phase 3: 시험/과제 + 영상 + 클리닉 + 상담", () => {
     await page.goto(`${BASE}/teacher`, { waitUntil: "load", timeout: 20_000 });
     await page.waitForTimeout(2000);
 
-    // 더보기 탭 클릭 → 드로어 열기
+    // 메뉴 탭 클릭 → 드로어 열기
     const tabBar = page.locator('nav[aria-label="하단 메뉴"]');
     await expect(tabBar).toBeVisible({ timeout: 10_000 });
-    await tabBar.getByText("더보기").click();
+    await tabBar.getByText("메뉴").click();
     await page.waitForTimeout(500);
 
-    // Phase 3 메뉴 항목 확인 (드로어 내에서 검색)
+    // PC 사이드바 구조 메뉴 확인 (드로어 내)
     await expect(page.getByRole("button", { name: "시험 / 과제" })).toBeVisible({ timeout: 5_000 });
-    await expect(page.getByRole("button", { name: "영상 목록" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "클리닉" }).nth(1)).toBeVisible();
-    await expect(page.getByRole("button", { name: "상담 메모" })).toBeVisible();
     await expect(page.getByRole("button", { name: "성적 조회" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "상담 메모" })).toBeVisible();
+    // 영상은 대시보드 퀵액션에도 있어서 nth(1)로 드로어 것 확인
+    await expect(page.getByRole("button", { name: /^영상$/ }).nth(1)).toBeVisible();
 
     await page.screenshot({ path: "e2e/screenshots/teacher-phase3-01-drawer-menu.png" });
   });
@@ -106,17 +106,17 @@ test.describe("Phase 3: 시험/과제 + 영상 + 클리닉 + 상담", () => {
     const tabBar = page.locator('nav[aria-label="하단 메뉴"]');
     await expect(tabBar).toBeVisible({ timeout: 10_000 });
 
-    // 더보기 → 영상 목록
-    await tabBar.getByText("더보기").click();
+    // 메뉴 → 영상
+    await tabBar.getByText("메뉴").click();
     await page.waitForTimeout(500);
-    await page.getByText("영상 목록").click();
+    await page.getByRole("button", { name: /^영상$/ }).nth(1).click();
     await page.waitForTimeout(2000);
     expect(page.url()).toContain("/teacher/videos");
 
-    // 더보기 → 상담 메모
-    await tabBar.getByText("더보기").click();
+    // 메뉴 → 상담 메모
+    await tabBar.getByText("메뉴").click();
     await page.waitForTimeout(500);
-    await page.getByText("상담 메모").click();
+    await page.getByRole("button", { name: "상담 메모" }).click();
     await page.waitForTimeout(2000);
     expect(page.url()).toContain("/teacher/counseling");
 
