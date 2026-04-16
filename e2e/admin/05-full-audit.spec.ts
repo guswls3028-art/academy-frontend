@@ -134,7 +134,7 @@ test.describe("메시징 미완 항목 완전 검증", () => {
       await snap(page, "full-2-create-modal");
 
       // 이름 + 본문 입력
-      const _nameInput = page.locator("input").filter({ hasText: /.*/ }).first();
+      // nameInput — first visible input (used for debugging, kept as reference)
       const inputs = page.locator("input:visible");
       for (let i = 0; i < Math.min(await inputs.count(), 5); i++) {
         const ph = await inputs.nth(i).getAttribute("placeholder").catch(() => "");

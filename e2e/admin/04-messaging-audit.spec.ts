@@ -9,7 +9,8 @@ import type { Page } from "@playwright/test";
 import { loginViaUI } from "../helpers/auth";
 
 const BASE = process.env.E2E_BASE_URL || "https://hakwonplus.com";
-const _API = process.env.E2E_API_URL || "https://api.hakwonplus.com"; // reserved for future API tests
+// API_BASE reserved — used in future messaging API tests
+// const API = process.env.E2E_API_URL || "https://api.hakwonplus.com";
 
 // ── 공통 헬퍼 ──
 
@@ -242,7 +243,7 @@ test.describe("메시징 전역 감사 — 실사용자 흐름", () => {
     }
 
     // ── 학부모/학생 체크박스 조작 ──
-    const _parentCheck = page.locator("label").filter({ hasText: "학부모" }).locator("input[type=checkbox]").first();
+    // 학부모 체크박스: page.locator("label").filter({ hasText: "학부모" }).locator("input[type=checkbox]")
     const studentCheck = page.locator("label").filter({ hasText: "학생" }).locator("input[type=checkbox]").first();
 
     // 학부모만 선택

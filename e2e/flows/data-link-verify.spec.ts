@@ -152,7 +152,6 @@ test.describe.serial("데이터 연결 전수 검증", () => {
       location: `연결검증실_${TS}`, max_participants: 5, title: `[연결검증] 클리닉 ${TS}`,
     });
     expect(resp.status).toBe(201);
-    const clinicId = resp.body.id;
 
     // 학생: 클리닉 화면에서 세션 확인 (실제 브라우저)
     await S.goto(`${BASE}/student/clinic`);
@@ -171,7 +170,7 @@ test.describe.serial("데이터 연결 전수 검증", () => {
     await expect(T.locator("text=Not Found")).not.toBeVisible();
 
     // 정리는 afterAll에서
-    // cleanup: clinicId
+    // cleanup: clinic session is auto-expired
   });
 
   // ════════════════════════════════════════
@@ -208,7 +207,7 @@ test.describe.serial("데이터 연결 전수 검증", () => {
       ["/admin/settings", "설정"],
     ];
 
-    for (const [path, name] of pages) {
+    for (const [path] of pages) {
       await T.goto(`${BASE}${path}`, { timeout: 15_000 });
       await T.waitForLoadState("load");
       await T.waitForTimeout(800);
@@ -244,7 +243,7 @@ test.describe.serial("데이터 연결 전수 검증", () => {
       ["/student/attendance", "출결"],
     ];
 
-    for (const [path, name] of pages) {
+    for (const [path] of pages) {
       await S.goto(`${BASE}${path}`);
       await S.waitForLoadState("load");
       await S.waitForTimeout(1500);
