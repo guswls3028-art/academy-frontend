@@ -53,7 +53,7 @@ function safeThemeFromDom(): ThemeKey {
 /* ─── Main ─── */
 export default function TeacherSettingsPage() {
   const navigate = useNavigate();
-  const { user, updateUser } = useAuth();
+  const { user, refreshMe } = useAuth();
   const { canInstall, isInstalled, promptInstall } = useA2HS();
   const push = usePushSubscription();
 
@@ -68,7 +68,7 @@ export default function TeacherSettingsPage() {
     onSuccess: (data) => {
       setEditingProfile(false);
       setProfileMsg({ type: "ok", text: "저장되었습니다" });
-      if (updateUser) updateUser({ ...user, name: data.name ?? nameInput, phone: data.phone ?? phoneInput } as any);
+      refreshMe();
       setTimeout(() => setProfileMsg(null), 2500);
     },
     onError: () => setProfileMsg({ type: "err", text: "저장 실패. 다시 시도해주세요." }),

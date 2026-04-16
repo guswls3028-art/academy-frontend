@@ -82,7 +82,7 @@ export default function CommunicationPage() {
       {/* Search bar (toggled) */}
       {searchOpen && isPostTab && (
         <div className="flex items-center gap-2" style={{ padding: "8px var(--tc-space-3)", borderBottom: "1px solid var(--tc-border)" }}>
-          <Search size={16} style={{ color: "var(--tc-text-muted)", shrink: 0 }} />
+          <Search size={16} style={{ color: "var(--tc-text-muted)", flexShrink: 0 }} />
           <input
             type="text"
             value={searchQuery}
