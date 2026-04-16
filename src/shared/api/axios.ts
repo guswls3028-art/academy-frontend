@@ -17,7 +17,7 @@ type RetryConfig = AxiosRequestConfig & {
 /** AllowAny 엔드포인트(예: /core/program/) 호출 시 만료 토큰 401 방지 */
 export type ApiRequestConfig = AxiosRequestConfig & { skipAuth?: boolean };
 
-type RefreshResponse = { access: string };
+type RefreshResponse = { access: string; refresh?: string };
 
 const API_BASE = String(import.meta.env.VITE_API_BASE_URL || "").trim();
 
@@ -140,6 +140,11 @@ async function refreshAccessToken(): Promise<string | null> {
     if (!newAccess) return null;
 
     setAccessToken(newAccess);
+    // Refresh token rotation: 서버가 새 refresh token을 발급하면 저장
+    const newRefresh = String(res.data?.refresh || "").trim();
+    if (newRefresh) {
+      try { localStorage.setItem("refresh", newRefresh); } catch { /* ignore */ }
+    }
     return newAccess;
   } catch {
     return null;
