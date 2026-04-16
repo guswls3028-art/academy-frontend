@@ -72,6 +72,7 @@ export interface PostEntity {
   is_pinned?: boolean;
   status?: "draft" | "published" | "archived";
   published_at?: string | null;
+  meta?: Record<string, unknown>;
 }
 
 // ----------------------------------------

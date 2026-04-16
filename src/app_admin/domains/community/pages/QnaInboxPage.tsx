@@ -29,8 +29,15 @@ import RichTextEditor from "@/shared/ui/editor/RichTextEditor";
 import CommunityContextBar from "../components/CommunityContextBar";
 import CommunityEmptyState from "../components/CommunityEmptyState";
 import CommunityAvatar from "../components/CommunityAvatar";
+import QnaMatchupResults from "../components/QnaMatchupResults";
 import { normalizeStudentName } from "../utils/communityHelpers";
 import "@admin/domains/community/qna-inbox.css";
+
+type MatchupResultItem = {
+  problem_id: number; similarity: number; text: string; number: number;
+  source_type: string; source_lecture_title: string;
+  source_session_title: string; source_exam_title: string;
+};
 
 type FilterKind = "all" | "pending" | "resolved";
 
@@ -400,6 +407,13 @@ function ThreadView({
               </span>
             </div>
             <div className="qna-inbox__message-body"><PostReadView html={post.content} /></div>
+
+            {/* AI 매치업 결과 (선생님 전용) */}
+            {(() => {
+              const mr = post.meta?.matchup_results;
+              if (!Array.isArray(mr) || mr.length === 0) return null;
+              return <QnaMatchupResults results={mr as MatchupResultItem[]} />;
+            })()}
           </div>
         </div>
 
