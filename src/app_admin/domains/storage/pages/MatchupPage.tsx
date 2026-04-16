@@ -124,9 +124,9 @@ export default function MatchupPage() {
                 좌측에서 문서를 선택하세요
               </div>
             ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-5)" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)", height: "100%" }}>
                 {/* 문서 제목 */}
-                <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", flexShrink: 0 }}>
                   <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "var(--color-text-primary)" }}>
                     {selectedDoc?.title}
                   </h3>
@@ -141,34 +141,41 @@ export default function MatchupPage() {
                   )}
                 </div>
 
-                {/* 문제 그리드 */}
-                <div>
-                  <h4 style={{
-                    fontSize: 13, fontWeight: 600, color: "var(--color-text-secondary)",
-                    margin: "0 0 var(--space-3) 0",
-                  }}>
-                    추출된 문제
-                  </h4>
-                  <ProblemGrid
-                    problems={problems}
-                    loading={problemsLoading}
-                    selectedProblemId={selectedProblemId}
-                    onSelectProblem={setSelectedProblemId}
-                    documentStatus={selectedDoc?.status}
-                  />
-                </div>
+                {/* 본문: 좌 문제 그리드 + 우 유사 추천 */}
+                <div style={{ display: "flex", gap: "var(--space-4)", flex: 1, minHeight: 0 }}>
+                  {/* 문제 그리드 (좌측 60%) */}
+                  <div style={{ flex: 3, minWidth: 0, overflowY: "auto" }}>
+                    <h4 style={{
+                      fontSize: 13, fontWeight: 600, color: "var(--color-text-secondary)",
+                      margin: "0 0 var(--space-3) 0",
+                    }}>
+                      추출된 문제
+                    </h4>
+                    <ProblemGrid
+                      problems={problems}
+                      loading={problemsLoading}
+                      selectedProblemId={selectedProblemId}
+                      onSelectProblem={setSelectedProblemId}
+                      documentStatus={selectedDoc?.status}
+                    />
+                  </div>
 
-                {/* 유사 문제 추천 */}
-                <div>
-                  <h4 style={{
-                    fontSize: 13, fontWeight: 600, color: "var(--color-text-secondary)",
-                    margin: "0 0 var(--space-3) 0",
-                    display: "flex", alignItems: "center", gap: "var(--space-1)",
+                  {/* 유사 문제 추천 (우측 40%) */}
+                  <div style={{
+                    flex: 2, minWidth: 240, overflowY: "auto",
+                    borderLeft: "1px solid var(--color-border-divider)",
+                    paddingLeft: "var(--space-4)",
                   }}>
-                    <Sparkles size={14} />
-                    유사 문제 추천
-                  </h4>
-                  <SimilarResults problemId={selectedProblemId} />
+                    <h4 style={{
+                      fontSize: 13, fontWeight: 600, color: "var(--color-text-secondary)",
+                      margin: "0 0 var(--space-3) 0",
+                      display: "flex", alignItems: "center", gap: "var(--space-1)",
+                    }}>
+                      <Sparkles size={14} />
+                      유사 문제 추천
+                    </h4>
+                    <SimilarResults problemId={selectedProblemId} />
+                  </div>
                 </div>
               </div>
             )}
