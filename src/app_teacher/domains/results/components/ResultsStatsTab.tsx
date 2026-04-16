@@ -194,7 +194,11 @@ export default function ResultsStatsTab() {
                     />
                   ))}
                 </div>
-              ) : summary ? (
+              ) : !summary ? (
+                <EmptyState scope="panel" tone="empty" title="통계 데이터가 없습니다" />
+              ) : participantCount === 0 ? (
+                <EmptyState scope="panel" tone="empty" title="아직 응시한 학생이 없습니다" />
+              ) : (
                 <div className="flex flex-col gap-4">
                   {/* ─ KPI 카드 ─ */}
                   <div className="grid grid-cols-4 gap-2">
@@ -456,8 +460,6 @@ export default function ResultsStatsTab() {
                     </Card>
                   )}
                 </div>
-              ) : (
-                <EmptyState scope="panel" tone="empty" title="통계 데이터가 없습니다" />
               )
             )}
           </>
