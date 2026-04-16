@@ -168,6 +168,8 @@ export default function VideoDetailPage() {
 
       {/* Comments tab */}
       {tab === "comments" && <CommentSection videoId={vid} comments={comments ?? []} />}
+
+      {video && <VideoSettingsSheet open={settingsOpen} onClose={() => setSettingsOpen(false)} video={video} />}
     </div>
   );
 }
@@ -232,8 +234,6 @@ function CommentSection({ videoId, comments }: { videoId: number; comments: any[
       ) : (
         <EmptyState scope="panel" tone="empty" title="댓글이 없습니다" />
       )}
-
-      {video && <VideoSettingsSheet open={settingsOpen} onClose={() => setSettingsOpen(false)} video={video} />}
     </div>
   );
 }

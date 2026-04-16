@@ -1,7 +1,7 @@
 // PATH: src/app_admin/domains/messages/context/SendMessageModalContext.tsx
 // 공용 메시지 발송 모달 — 어디서든 openSendMessageModal({ studentIds, recipientLabel }) 호출
 
-import { createContext, useContext, useState, useCallback, ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, useRef, ReactNode } from "react";
 import SendMessageModal from "../components/SendMessageModal";
 
 import type { TemplateCategory } from "../constants/templateBlocks";
@@ -18,6 +18,8 @@ export type OpenSendMessageOptions = {
   alimtalkExtraVars?: Record<string, string>;
   /** 학생별 개별 치환 변수 — key: student_id (대량 성적 발송 등) */
   alimtalkExtraVarsPerStudent?: Record<number, Record<string, string>>;
+  /** 모달이 닫힐 때 호출되는 콜백 */
+  onModalClose?: () => void;
 };
 
 type ContextValue = {
@@ -44,6 +46,7 @@ export function SendMessageModalProvider({ children }: { children: ReactNode }) 
   const [initialBody, setInitialBody] = useState<string | undefined>();
   const [alimtalkExtraVars, setAlimtalkExtraVars] = useState<Record<string, string> | undefined>();
   const [alimtalkExtraVarsPerStudent, setAlimtalkExtraVarsPerStudent] = useState<Record<number, Record<string, string>> | undefined>();
+  const onModalCloseRef = useRef<(() => void) | undefined>(undefined);
 
   const openSendMessageModal = useCallback((options: OpenSendMessageOptions) => {
     setStudentIds(options.studentIds ?? []);
@@ -53,6 +56,7 @@ export function SendMessageModalProvider({ children }: { children: ReactNode }) 
     setInitialBody(options.initialBody);
     setAlimtalkExtraVars(options.alimtalkExtraVars);
     setAlimtalkExtraVarsPerStudent(options.alimtalkExtraVarsPerStudent);
+    onModalCloseRef.current = options.onModalClose;
     setOpen(true);
   }, []);
 
@@ -65,6 +69,8 @@ export function SendMessageModalProvider({ children }: { children: ReactNode }) 
     setInitialBody(undefined);
     setAlimtalkExtraVars(undefined);
     setAlimtalkExtraVarsPerStudent(undefined);
+    onModalCloseRef.current?.();
+    onModalCloseRef.current = undefined;
   }, []);
 
   return (
