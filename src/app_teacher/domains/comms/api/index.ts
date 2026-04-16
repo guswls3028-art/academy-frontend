@@ -49,10 +49,27 @@ export interface MessageTemplate {
   body: string;
 }
 
+/* ─── Scope Nodes ─── */
+export interface ScopeNode {
+  id: number;
+  level: "COURSE" | "SESSION";
+  lecture: number;
+  session: number | null;
+  lecture_title: string;
+  session_title: string | null;
+}
+
+export async function fetchScopeNodes(): Promise<ScopeNode[]> {
+  const res = await api.get("/community/scope-nodes/", { params: { page_size: 500 } });
+  const data = res.data;
+  if (data != null && Array.isArray(data.results)) return data.results;
+  return Array.isArray(data) ? data : [];
+}
+
 /* ─── Community ─── */
-export async function fetchPosts(postType: string, pageSize = 30): Promise<Post[]> {
+export async function fetchPosts(postType: string, pageSize = 30, search?: string): Promise<Post[]> {
   const res = await api.get("/community/posts/", {
-    params: { post_type: postType, page_size: pageSize, ordering: "-created_at" },
+    params: { post_type: postType, page_size: pageSize, ordering: "-created_at", search: search || undefined },
   });
   const raw = res.data;
   return Array.isArray(raw?.results) ? raw.results : Array.isArray(raw) ? raw : [];
@@ -71,6 +88,31 @@ export async function fetchPostReplies(postId: number): Promise<Reply[]> {
 export async function createReply(postId: number, content: string): Promise<Reply> {
   const res = await api.post(`/community/posts/${postId}/replies/`, { content });
   return res.data;
+}
+
+export async function deleteReply(postId: number, replyId: number): Promise<void> {
+  await api.delete(`/community/posts/${postId}/replies/${replyId}/`);
+}
+
+export async function createPost(data: {
+  post_type: string;
+  title: string;
+  content: string;
+  node_ids: number[];
+  is_urgent?: boolean;
+  is_pinned?: boolean;
+}): Promise<Post> {
+  const res = await api.post("/community/posts/", data);
+  return res.data;
+}
+
+export async function updatePost(postId: number, data: { title?: string; content?: string }): Promise<Post> {
+  const res = await api.patch(`/community/posts/${postId}/`, data);
+  return res.data;
+}
+
+export async function deletePost(postId: number): Promise<void> {
+  await api.delete(`/community/posts/${postId}/`);
 }
 
 /* ─── Registration Requests ─── */
@@ -112,6 +154,24 @@ export async function sendMessage(payload: {
 }): Promise<{ queued: number }> {
   const res = await api.post("/messaging/send/", payload);
   return res.data;
+}
+
+/* ─── Message Log (발송 이력) ─── */
+export interface MessageLogItem {
+  id: number;
+  sent_at: string;
+  success: boolean;
+  amount_deducted: string;
+  recipient_summary?: string;
+  template_summary?: string;
+  failure_reason?: string | null;
+  message_body?: string;
+  message_mode?: string;
+}
+
+export async function fetchMessageLog(page = 1, pageSize = 20): Promise<{ results: MessageLogItem[]; count: number }> {
+  const res = await api.get("/messaging/log/", { params: { page, page_size: pageSize } });
+  return { results: res.data?.results ?? [], count: res.data?.count ?? 0 };
 }
 
 /* ─── Notification Summary (BFF) ─── */

@@ -62,4 +62,23 @@ export {
   LogOut,
   Monitor,
   Smartphone,
+
+  // Settings & Theme
+  Sun,
+  Moon,
+  Palette,
+  Eye,
+  EyeOff,
+  Lock,
+  Pencil,
+  Save,
+  Tag,
+  ToggleLeft,
+  ToggleRight,
+
+  // Community
+  PenSquare,
+  MessageCircle,
+  Reply,
+  Paperclip,
 } from "lucide-react";

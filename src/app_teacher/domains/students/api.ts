@@ -44,3 +44,48 @@ export async function fetchStudentAttendance(studentId: number) {
   const raw = res.data;
   return Array.isArray(raw?.results) ? raw.results : Array.isArray(raw) ? raw : [];
 }
+
+/* ─── 학생 편집 ─── */
+export async function updateStudent(studentId: number, payload: {
+  name?: string;
+  phone?: string;
+  parent_phone?: string;
+  school?: string;
+  grade?: string;
+  memo?: string;
+}) {
+  const res = await api.patch(`/students/${studentId}/`, payload);
+  return res.data;
+}
+
+/* ─── 활성/비활성 토글 ─── */
+export async function toggleStudentActive(studentId: number) {
+  const res = await api.post(`/students/${studentId}/toggle-active/`);
+  return res.data;
+}
+
+/* ─── 태그 관리 ─── */
+export async function fetchTags() {
+  const res = await api.get("/students/tags/", { params: { page_size: 200 } });
+  const raw = res.data;
+  return Array.isArray(raw?.results) ? raw.results : Array.isArray(raw) ? raw : [];
+}
+
+export async function attachTag(studentId: number, tagId: number) {
+  await api.post(`/students/${studentId}/tags/`, { tag_id: tagId });
+}
+
+export async function detachTag(studentId: number, tagId: number) {
+  await api.delete(`/students/${studentId}/tags/${tagId}/`);
+}
+
+export async function createTag(name: string) {
+  const res = await api.post("/students/tags/", { name });
+  return res.data;
+}
+
+/* ─── 메모 ─── */
+export async function updateStudentMemo(studentId: number, memo: string) {
+  const res = await api.patch(`/students/${studentId}/`, { memo });
+  return res.data;
+}

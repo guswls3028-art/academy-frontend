@@ -17,8 +17,10 @@ const MobileScoreEntryPage = lazy(() => import("@teacher/domains/scores/pages/Mo
 const StudentListPage = lazy(() => import("@teacher/domains/students/pages/StudentListPage"));
 const StudentDetailPage = lazy(() => import("@teacher/domains/students/pages/StudentDetailPage"));
 const CommunicationPage = lazy(() => import("@teacher/domains/comms/pages/CommunicationPage"));
+const MessageLogPage = lazy(() => import("@teacher/domains/comms/pages/MessageLogPage"));
 const NotificationsPage = lazy(() => import("@teacher/domains/notifications/pages/NotificationsPage"));
 const ProfilePage = lazy(() => import("@teacher/domains/profile/pages/ProfilePage"));
+const TeacherSettingsPage = lazy(() => import("@teacher/domains/settings/pages/TeacherSettingsPage"));
 
 /* Phase 3 */
 const ExamListPage = lazy(() => import("@teacher/domains/exams/pages/ExamListPage"));
@@ -73,6 +75,7 @@ export default function TeacherRouter() {
 
           {/* 소통 */}
           <Route path="comms" element={<CommunicationPage />} />
+          <Route path="message-log" element={<MessageLogPage />} />
           <Route path="notifications" element={<NotificationsPage />} />
 
           {/* 시험/과제 (Phase 3) */}
@@ -93,8 +96,9 @@ export default function TeacherRouter() {
           {/* 성적 조회 */}
           <Route path="results" element={<ResultsPage />} />
 
-          {/* 프로필 */}
+          {/* 프로필 / 설정 */}
           <Route path="profile" element={<ProfilePage />} />
+          <Route path="settings" element={<TeacherSettingsPage />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/teacher" replace />} />
