@@ -1,0 +1,145 @@
+// PATH: src/app_teacher/domains/lectures/components/SectionManageSheet.tsx
+// 반 편성 관리 시트 — 반 생성/삭제 + D-Day 관리
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import BottomSheet from "@teacher/shared/ui/BottomSheet";
+import { Plus, Trash2 } from "@teacher/shared/ui/Icons";
+import api from "@/shared/api/axios";
+
+interface Props {
+  open: boolean;
+  onClose: () => void;
+  lectureId: number;
+}
+
+export default function SectionManageSheet({ open, onClose, lectureId }: Props) {
+  const qc = useQueryClient();
+  const [tab, setTab] = useState<"section" | "dday">("section");
+  const [newLabel, setNewLabel] = useState("");
+  const [newDdayTitle, setNewDdayTitle] = useState("");
+  const [newDdayDate, setNewDdayDate] = useState("");
+
+  const { data: sections } = useQuery({
+    queryKey: ["lecture-sections", lectureId],
+    queryFn: async () => {
+      const res = await api.get("/lectures/sections/", { params: { lecture: lectureId, page_size: 100 } });
+      return Array.isArray(res.data?.results) ? res.data.results : Array.isArray(res.data) ? res.data : [];
+    },
+    enabled: open,
+  });
+
+  const { data: ddays } = useQuery({
+    queryKey: ["lecture-ddays", lectureId],
+    queryFn: async () => {
+      const res = await api.get(`/lectures/lectures/${lectureId}/ddays/`);
+      return Array.isArray(res.data?.results) ? res.data.results : Array.isArray(res.data) ? res.data : [];
+    },
+    enabled: open && tab === "dday",
+  });
+
+  const createSectionMut = useMutation({
+    mutationFn: () => api.post("/lectures/sections/", { lecture: lectureId, label: newLabel, section_type: "CLASS" }),
+    onSuccess: () => { setNewLabel(""); qc.invalidateQueries({ queryKey: ["lecture-sections", lectureId] }); },
+  });
+
+  const deleteSectionMut = useMutation({
+    mutationFn: (id: number) => api.delete(`/lectures/sections/${id}/`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["lecture-sections", lectureId] }),
+  });
+
+  const createDdayMut = useMutation({
+    mutationFn: () => api.post(`/lectures/lectures/${lectureId}/ddays/`, { title: newDdayTitle, date: newDdayDate }),
+    onSuccess: () => { setNewDdayTitle(""); setNewDdayDate(""); qc.invalidateQueries({ queryKey: ["lecture-ddays", lectureId] }); },
+  });
+
+  const deleteDdayMut = useMutation({
+    mutationFn: (id: number) => api.delete(`/lectures/ddays/${id}/`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["lecture-ddays", lectureId] }),
+  });
+
+  return (
+    <BottomSheet open={open} onClose={onClose} title="반 편성 / D-Day">
+      <div className="flex flex-col gap-3" style={{ padding: "var(--tc-space-2) 0" }}>
+        {/* Tab */}
+        <div className="flex gap-2">
+          {(["section", "dday"] as const).map((t) => (
+            <button key={t} onClick={() => setTab(t)}
+              className="flex-1 text-[12px] font-semibold py-2 cursor-pointer text-center"
+              style={{
+                borderRadius: "var(--tc-radius)",
+                border: tab === t ? "2px solid var(--tc-primary)" : "1px solid var(--tc-border)",
+                background: tab === t ? "var(--tc-primary-bg)" : "var(--tc-surface-soft)",
+                color: tab === t ? "var(--tc-primary)" : "var(--tc-text-secondary)",
+              }}>
+              {t === "section" ? "반 편성" : "D-Day"}
+            </button>
+          ))}
+        </div>
+
+        {tab === "section" ? (
+          <>
+            {/* Create section */}
+            <div className="flex gap-2">
+              <input type="text" value={newLabel} onChange={(e) => setNewLabel(e.target.value)} placeholder="반 이름 (예: A반)"
+                className="flex-1 text-sm"
+                style={{ padding: "8px 10px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border-strong)", background: "var(--tc-surface-soft)", color: "var(--tc-text)", outline: "none" }} />
+              <button onClick={() => createSectionMut.mutate()} disabled={!newLabel.trim()}
+                className="flex items-center gap-1 text-xs font-bold cursor-pointer shrink-0"
+                style={{ padding: "8px 12px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff", opacity: !newLabel.trim() ? 0.5 : 1 }}>
+                <Plus size={13} /> 추가
+              </button>
+            </div>
+            {/* Section list */}
+            <div className="flex flex-col gap-1">
+              {(sections ?? []).map((s: any) => (
+                <div key={s.id} className="flex items-center justify-between py-2"
+                  style={{ borderBottom: "1px solid var(--tc-border-subtle)" }}>
+                  <span className="text-sm" style={{ color: "var(--tc-text)" }}>{s.label} ({s.section_type})</span>
+                  <button onClick={() => { if (confirm(`"${s.label}" 반을 삭제하시겠습니까?`)) deleteSectionMut.mutate(s.id); }}
+                    className="flex p-1 cursor-pointer" style={{ background: "none", border: "none", color: "var(--tc-danger)" }}>
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              ))}
+              {sections?.length === 0 && <div className="text-sm py-2" style={{ color: "var(--tc-text-muted)" }}>등록된 반이 없습니다</div>}
+            </div>
+          </>
+        ) : (
+          <>
+            {/* Create D-Day */}
+            <div className="flex gap-2">
+              <input type="text" value={newDdayTitle} onChange={(e) => setNewDdayTitle(e.target.value)} placeholder="D-Day 이름"
+                className="flex-1 text-sm"
+                style={{ padding: "8px 10px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border-strong)", background: "var(--tc-surface-soft)", color: "var(--tc-text)", outline: "none" }} />
+              <input type="date" value={newDdayDate} onChange={(e) => setNewDdayDate(e.target.value)}
+                className="text-sm"
+                style={{ padding: "8px 10px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border-strong)", background: "var(--tc-surface-soft)", color: "var(--tc-text)", outline: "none", width: 130 }} />
+              <button onClick={() => createDdayMut.mutate()} disabled={!newDdayTitle.trim() || !newDdayDate}
+                className="flex items-center text-xs font-bold cursor-pointer shrink-0"
+                style={{ padding: "8px 12px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff", opacity: (!newDdayTitle.trim() || !newDdayDate) ? 0.5 : 1 }}>
+                추가
+              </button>
+            </div>
+            {/* D-Day list */}
+            <div className="flex flex-col gap-1">
+              {(ddays ?? []).map((d: any) => (
+                <div key={d.id} className="flex items-center justify-between py-2"
+                  style={{ borderBottom: "1px solid var(--tc-border-subtle)" }}>
+                  <div>
+                    <span className="text-sm font-medium" style={{ color: "var(--tc-text)" }}>{d.title}</span>
+                    <span className="text-[11px] ml-2" style={{ color: "var(--tc-text-muted)" }}>{d.date}</span>
+                  </div>
+                  <button onClick={() => { if (confirm("삭제하시겠습니까?")) deleteDdayMut.mutate(d.id); }}
+                    className="flex p-1 cursor-pointer" style={{ background: "none", border: "none", color: "var(--tc-danger)" }}>
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              ))}
+              {ddays?.length === 0 && <div className="text-sm py-2" style={{ color: "var(--tc-text-muted)" }}>등록된 D-Day가 없습니다</div>}
+            </div>
+          </>
+        )}
+      </div>
+    </BottomSheet>
+  );
+}

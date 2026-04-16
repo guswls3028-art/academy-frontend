@@ -19,6 +19,7 @@ const StudentDetailPage = lazy(() => import("@teacher/domains/students/pages/Stu
 const CommunicationPage = lazy(() => import("@teacher/domains/comms/pages/CommunicationPage"));
 const MessageLogPage = lazy(() => import("@teacher/domains/comms/pages/MessageLogPage"));
 const MessageTemplatesPage = lazy(() => import("@teacher/domains/comms/pages/MessageTemplatesPage"));
+const MessagingSettingsPage = lazy(() => import("@teacher/domains/comms/pages/MessagingSettingsPage"));
 const NotificationsPage = lazy(() => import("@teacher/domains/notifications/pages/NotificationsPage"));
 const ProfilePage = lazy(() => import("@teacher/domains/profile/pages/ProfilePage"));
 const TeacherSettingsPage = lazy(() => import("@teacher/domains/settings/pages/TeacherSettingsPage"));
@@ -78,6 +79,7 @@ export default function TeacherRouter() {
           <Route path="comms" element={<CommunicationPage />} />
           <Route path="message-log" element={<MessageLogPage />} />
           <Route path="message-templates" element={<MessageTemplatesPage />} />
+          <Route path="messaging-settings" element={<MessagingSettingsPage />} />
           <Route path="notifications" element={<NotificationsPage />} />
 
           {/* 시험/과제 (Phase 3) */}

@@ -11,6 +11,7 @@ import { fetchLecture, fetchLectureSessions, fetchLectureEnrollments, deleteLect
 import LectureFormSheet from "../components/LectureFormSheet";
 import SessionFormSheet from "../components/SessionFormSheet";
 import EnrollStudentSheet from "../components/EnrollStudentSheet";
+import SectionManageSheet from "../components/SectionManageSheet";
 
 type Tab = "sessions" | "students";
 
@@ -25,6 +26,7 @@ export default function LectureDetailPage() {
   const [sessionFormOpen, setSessionFormOpen] = useState(false);
   const [editSession, setEditSession] = useState<any>(null);
   const [enrollOpen, setEnrollOpen] = useState(false);
+  const [sectionOpen, setSectionOpen] = useState(false);
 
   const deleteLectureMut = useMutation({
     mutationFn: () => deleteLecture(lid),
@@ -94,6 +96,11 @@ export default function LectureDetailPage() {
                   className="flex items-center gap-2 w-full text-left text-sm cursor-pointer"
                   style={{ padding: "10px 14px", background: "none", border: "none", color: "var(--tc-text)", borderTop: "1px solid var(--tc-border-subtle)" }}>
                   <Download size={14} /> 출석 엑셀
+                </button>
+                <button onClick={() => { setSectionOpen(true); setMenuOpen(false); }}
+                  className="flex items-center gap-2 w-full text-left text-sm cursor-pointer"
+                  style={{ padding: "10px 14px", background: "none", border: "none", color: "var(--tc-text)", borderTop: "1px solid var(--tc-border-subtle)" }}>
+                  <Plus size={14} /> 반 편성 / D-Day
                 </button>
                 <button onClick={() => { if (confirm("이 강의를 삭제하시겠습니까?")) deleteLectureMut.mutate(); setMenuOpen(false); }}
                   className="flex items-center gap-2 w-full text-left text-sm cursor-pointer"
@@ -277,6 +284,7 @@ export default function LectureDetailPage() {
       <SessionFormSheet open={sessionFormOpen} onClose={() => setSessionFormOpen(false)} lectureId={lid} editData={editSession} />
       <EnrollStudentSheet open={enrollOpen} onClose={() => setEnrollOpen(false)} lectureId={lid}
         enrolledStudentIds={(enrollments ?? []).map((e: any) => e.student_id).filter(Boolean)} />
+      <SectionManageSheet open={sectionOpen} onClose={() => setSectionOpen(false)} lectureId={lid} />
     </div>
   );
 }

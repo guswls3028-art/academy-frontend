@@ -8,6 +8,7 @@ import { Send, MoreVertical, Pencil, Trash2, Save, X } from "@teacher/shared/ui/
 import { BackButton, Card, TabBar, KpiCard } from "@teacher/shared/ui/Card";
 import { Badge } from "@teacher/shared/ui/Badge";
 import { fetchVideoDetail, fetchVideoStats, renameVideo, updateVideo, deleteVideo } from "../api";
+import VideoSettingsSheet from "../components/VideoSettingsSheet";
 import api from "@/shared/api/axios";
 
 type Tab = "stats" | "comments";
@@ -21,6 +22,7 @@ export default function VideoDetailPage() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleInput, setTitleInput] = useState("");
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const renameMut = useMutation({
     mutationFn: () => renameVideo(vid, titleInput),
@@ -93,6 +95,11 @@ export default function VideoDetailPage() {
                   className="flex items-center gap-2 w-full text-left text-sm cursor-pointer"
                   style={{ padding: "10px 14px", background: "none", border: "none", color: "var(--tc-text)" }}>
                   <Pencil size={14} /> 제목 변경
+                </button>
+                <button onClick={() => { setSettingsOpen(true); setMenuOpen(false); }}
+                  className="flex items-center gap-2 w-full text-left text-sm cursor-pointer"
+                  style={{ padding: "10px 14px", background: "none", border: "none", color: "var(--tc-text)", borderTop: "1px solid var(--tc-border-subtle)" }}>
+                  <MoreVertical size={14} /> 시청 설정
                 </button>
                 <button onClick={() => { if (confirm("이 영상을 삭제하시겠습니까?")) deleteMut.mutate(); setMenuOpen(false); }}
                   className="flex items-center gap-2 w-full text-left text-sm cursor-pointer"
@@ -225,6 +232,8 @@ function CommentSection({ videoId, comments }: { videoId: number; comments: any[
       ) : (
         <EmptyState scope="panel" tone="empty" title="댓글이 없습니다" />
       )}
+
+      {video && <VideoSettingsSheet open={settingsOpen} onClose={() => setSettingsOpen(false)} video={video} />}
     </div>
   );
 }

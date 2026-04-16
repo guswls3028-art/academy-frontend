@@ -1,15 +1,19 @@
 // PATH: src/app_teacher/domains/exams/pages/ExamDetailPage.tsx
-// 시험 상세 — 제출현황 + 간이 채점
+// 시험 상세 — 제출현황 + 간이 채점 + 관리
+import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState } from "@/shared/ui/ds";
+import { Settings } from "@teacher/shared/ui/Icons";
 import { fetchExam, fetchExamResults } from "../api";
+import ExamManageSheet from "../components/ExamManageSheet";
 import api from "@/shared/api/axios";
 
 export default function ExamDetailPage() {
   const { examId } = useParams<{ examId: string }>();
   const navigate = useNavigate();
   const eid = Number(examId);
+  const [manageOpen, setManageOpen] = useState(false);
 
   const { data: exam, isLoading: loadingExam } = useQuery({
     queryKey: ["teacher-exam", eid],
@@ -38,6 +42,10 @@ export default function ExamDetailPage() {
         <h1 className="text-[17px] font-bold flex-1 truncate" style={{ color: "var(--tc-text)" }}>
           {exam.title}
         </h1>
+        <button onClick={() => setManageOpen(true)} className="flex p-1 cursor-pointer"
+          style={{ background: "none", border: "none", color: "var(--tc-text-muted)" }}>
+          <Settings size={18} />
+        </button>
       </div>
 
       {/* Summary */}
@@ -87,6 +95,8 @@ export default function ExamDetailPage() {
       {results?.length === 0 && (
         <EmptyState scope="panel" tone="empty" title="제출된 결과가 없습니다" />
       )}
+
+      <ExamManageSheet open={manageOpen} onClose={() => setManageOpen(false)} exam={exam} onDeleted={() => navigate(-1)} />
     </div>
   );
 }
