@@ -6,6 +6,7 @@ import { bulkCreateEnrollments } from "../api";
 import { fetchStudents } from "@teacher/domains/students/api";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
 import { Search, Check, Plus } from "@teacher/shared/ui/Icons";
+import { teacherToast } from "@teacher/shared/ui/teacherToast";
 
 interface Props {
   open: boolean;
@@ -32,6 +33,7 @@ export default function EnrollStudentSheet({ open, onClose, lectureId, enrolledS
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["lecture-enrollments"] });
       qc.invalidateQueries({ queryKey: ["lecture-detail"] });
+      teacherToast.success(`${selected.length}명이 수강 등록되었습니다.`);
       setSelected([]);
       onClose();
     },

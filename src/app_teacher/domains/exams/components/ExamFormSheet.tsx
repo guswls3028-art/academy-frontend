@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createRegularExam, createHomework } from "../api";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
+import { teacherToast } from "@teacher/shared/ui/teacherToast";
 
 interface Props {
   open: boolean;
@@ -26,6 +27,7 @@ export default function ExamFormSheet({ open, onClose, mode }: Props) {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: mode === "exam" ? ["teacher-exams"] : ["teacher-homeworks"] });
+      teacherToast.success(`${title} ${label}이 생성되었습니다.`);
       setTitle(""); setMaxScore("100"); setDescription("");
       onClose();
     },

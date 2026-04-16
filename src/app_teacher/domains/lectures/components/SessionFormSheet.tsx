@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createSession, updateSession } from "../api";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
+import { teacherToast } from "@teacher/shared/ui/teacherToast";
 
 interface Props {
   open: boolean;
@@ -40,6 +41,7 @@ export default function SessionFormSheet({ open, onClose, lectureId, editData }:
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["lecture-sessions"] });
       qc.invalidateQueries({ queryKey: ["lecture-detail"] });
+      teacherToast.success(isEdit ? `${title} 차시가 수정되었습니다.` : `${title} 차시가 추가되었습니다.`);
       onClose();
     },
   });

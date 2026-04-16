@@ -6,6 +6,8 @@ import {
   patchWorkRecord,
   deleteWorkRecord,
 } from "../api/workRecords.api";
+import { feedback } from "@/shared/ui/feedback/feedback";
+import { extractApiError } from "@/shared/utils/extractApiError";
 
 export type UseWorkRecordsParams = {
   staff: number;
@@ -37,18 +39,21 @@ export function useWorkRecords(params: UseWorkRecordsParams) {
 
   const createM = useMutation({
     mutationFn: createWorkRecord,
-    onSuccess: invalidate,
+    onSuccess: () => { invalidate(); feedback.success("근무기록이 추가되었습니다."); },
+    onError: (e: unknown) => feedback.error(extractApiError(e, "근무기록 추가에 실패했습니다.")),
   });
 
   const patchM = useMutation({
     mutationFn: ({ id, payload }: { id: number; payload: any }) =>
       patchWorkRecord(id, payload),
-    onSuccess: invalidate,
+    onSuccess: () => { invalidate(); feedback.success("근무기록이 수정되었습니다."); },
+    onError: (e: unknown) => feedback.error(extractApiError(e, "근무기록 수정에 실패했습니다.")),
   });
 
   const deleteM = useMutation({
     mutationFn: deleteWorkRecord,
     onSuccess: invalidate,
+    onError: (e: unknown) => feedback.error(extractApiError(e, "근무기록 삭제에 실패했습니다.")),
   });
 
   return { listQ, createM, patchM, deleteM };

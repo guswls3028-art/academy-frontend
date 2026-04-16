@@ -11,6 +11,7 @@ import {
   createCounselingReply,
   deleteCounselingPost,
 } from "../api";
+import { teacherToast } from "@teacher/shared/ui/teacherToast";
 
 export default function CounselingPage() {
   const qc = useQueryClient();
@@ -29,6 +30,7 @@ export default function CounselingPage() {
     mutationFn: createCounselingPost,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["teacher-counseling"] });
+      teacherToast.success("상담 메모가 저장되었습니다.");
       setShowCreate(false);
     },
   });
@@ -37,6 +39,7 @@ export default function CounselingPage() {
     mutationFn: deleteCounselingPost,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["teacher-counseling"] });
+      teacherToast.info("상담 메모가 삭제되었습니다.");
       setSelectedPost(null);
     },
   });
@@ -216,6 +219,7 @@ function DetailSheet({
     mutationFn: (content: string) => createCounselingReply(post.id, content),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["teacher-counseling-replies", post.id] });
+      teacherToast.success("답글이 등록되었습니다.");
       setReplyText("");
     },
   });

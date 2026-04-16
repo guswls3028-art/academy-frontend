@@ -14,6 +14,7 @@ import {
   createClinicSession,
   deleteClinicSession,
 } from "../api";
+import { teacherToast } from "@teacher/shared/ui/teacherToast";
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
@@ -205,8 +206,15 @@ function ParticipantList({ sessionId }: { sessionId: number }) {
   const statusMut = useMutation({
     mutationFn: ({ id, status }: { id: number; status: string }) =>
       patchParticipantStatus(id, { status }),
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: ["teacher-clinic-participants", sessionId] });
+      qc.invalidateQueries({ queryKey: ["teacher-clinic-sessions"] });
+      if (variables.status === "attended" && participants) {
+        const attendedCount =
+          participants.filter((p: any) => p.status === "attended").length +
+          (variables.status === "attended" ? 1 : 0);
+        teacherToast.success(`출석 처리 완료 (현재 참석자 ${attendedCount}명)`);
+      }
     },
   });
 

@@ -16,6 +16,7 @@ import type { MyExamGradeSummary, MyHomeworkGradeSummary } from "@student/domain
 import studentApi from "@student/shared/api/student.api";
 import type { Submission } from "@admin/domains/submissions/types";
 import { IconExam, IconClipboard, IconImage, IconVideo } from "@student/shared/ui/icons/Icons";
+import { studentToast } from "@student/shared/ui/feedback/studentToast";
 
 const ACCEPT = "image/*,video/*";
 const MAX_SIZE_MB = 100;
@@ -75,6 +76,9 @@ export default function SubmitAssignmentPage() {
       setError(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
       qc.invalidateQueries({ queryKey: ["student", "grades", "summary"] });
+      studentToast.success(
+        selected ? `${selected.title} 제출이 완료되었습니다.` : "제출이 완료되었습니다."
+      );
     },
     onError: (e: any) => {
       const detail = e?.response?.data?.detail || e?.response?.data?.message;

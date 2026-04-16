@@ -8,6 +8,7 @@ import { formatPhone } from "@/shared/utils/formatPhone";
 import LectureChip from "@/shared/ui/chips/LectureChip";
 import { MoreVertical, Pencil, Trash2, Plus, Download } from "@teacher/shared/ui/Icons";
 import { fetchLecture, fetchLectureSessions, fetchLectureEnrollments, deleteLecture, deleteSession, downloadAttendanceExcel } from "../api";
+import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import LectureFormSheet from "../components/LectureFormSheet";
 import SessionFormSheet from "../components/SessionFormSheet";
 import EnrollStudentSheet from "../components/EnrollStudentSheet";
@@ -30,12 +31,12 @@ export default function LectureDetailPage() {
 
   const deleteLectureMut = useMutation({
     mutationFn: () => deleteLecture(lid),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["lectures-mobile"] }); navigate(-1); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["lectures-mobile"] }); teacherToast.info("강의가 삭제되었습니다."); navigate(-1); },
   });
 
   const deleteSessionMut = useMutation({
     mutationFn: (sessionId: number) => deleteSession(sessionId),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["lecture-sessions", lid] }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["lecture-sessions", lid] }); teacherToast.info("차시가 삭제되었습니다."); },
   });
 
   const { data: lecture, isLoading } = useQuery({

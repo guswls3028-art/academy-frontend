@@ -29,7 +29,7 @@ export default function LectureDdayPage() {
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => deleteDday(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["ddays", lectureIdNum] }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["ddays", lectureIdNum] }); import("@/shared/ui/feedback/feedback").then(({ feedback }) => feedback.success("D-Day가 삭제되었습니다.")); },
   });
 
   return (

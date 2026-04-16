@@ -29,9 +29,12 @@ export function useClinicParticipants(params: {
   const patchM = useMutation({
     mutationFn: ({ id, payload }: { id: number; payload: any }) =>
       patchClinicParticipantStatus(id, payload),
-    onSuccess: () => {
+    onSuccess: (_data: unknown, variables: { id: number; payload: any }) => {
       qc.invalidateQueries({ queryKey: ["clinic-participants"] });
       qc.invalidateQueries({ queryKey: ["admin", "notification-counts"] });
+      const statusLabel: Record<string, string> = { booked: "승인", attended: "출석", no_show: "결석", cancelled: "취소", rejected: "거절" };
+      const label = statusLabel[variables.payload?.status] ?? "변경";
+      import("@/shared/ui/feedback/feedback").then(({ feedback }) => feedback.success(`${label} 처리되었습니다.`));
     },
     onError: () => {
       import("@/shared/ui/feedback/feedback").then(({ feedback }) =>

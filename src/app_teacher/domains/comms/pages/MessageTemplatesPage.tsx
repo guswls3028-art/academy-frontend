@@ -9,6 +9,7 @@ import { Card } from "@teacher/shared/ui/Card";
 import { Badge } from "@teacher/shared/ui/Badge";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
 import { fetchAllTemplates, createTemplate, updateTemplate, deleteTemplate, fetchMessagingInfo, type MsgTemplate } from "../api";
+import { teacherToast } from "@teacher/shared/ui/teacherToast";
 
 export default function MessageTemplatesPage() {
   const navigate = useNavigate();
@@ -27,7 +28,7 @@ export default function MessageTemplatesPage() {
 
   const deleteMut = useMutation({
     mutationFn: deleteTemplate,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["teacher-msg-templates"] }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["teacher-msg-templates"] }); teacherToast.info("템플릿이 삭제되었습니다."); },
   });
 
   return (
@@ -142,6 +143,7 @@ function TemplateEditSheet({ open, onClose, template }: { open: boolean; onClose
       : createTemplate({ name, category, body }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["teacher-msg-templates"] });
+      teacherToast.success(isEdit ? "템플릿이 수정되었습니다." : "템플릿이 생성되었습니다.");
       onClose();
     },
   });

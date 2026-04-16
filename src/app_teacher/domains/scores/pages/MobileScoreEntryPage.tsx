@@ -73,7 +73,12 @@ function ScoreEntryList({ examId }: { examId: number }) {
   const updateMut = useMutation({
     mutationFn: ({ id, score }: { id: number; score: number }) =>
       updateResult(id, { score }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["exam-results", examId] }),
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({ queryKey: ["exam-results", examId] });
+      const student = results?.find((r: any) => r.id === variables.id);
+      const name = student?.student_name ?? student?.name ?? "";
+      feedback.success(name ? `${name} 점수가 저장되었습니다.` : "점수가 저장되었습니다.");
+    },
     onError: (e) => feedback.error(extractApiError(e, "저장 실패")),
   });
 

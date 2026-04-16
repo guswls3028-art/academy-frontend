@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
 import { Plus, Trash2 } from "@teacher/shared/ui/Icons";
+import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import api from "@/shared/api/axios";
 
 interface Props {
@@ -39,22 +40,22 @@ export default function SectionManageSheet({ open, onClose, lectureId }: Props) 
 
   const createSectionMut = useMutation({
     mutationFn: () => api.post("/lectures/sections/", { lecture: lectureId, label: newLabel, section_type: "CLASS" }),
-    onSuccess: () => { setNewLabel(""); qc.invalidateQueries({ queryKey: ["lecture-sections", lectureId] }); },
+    onSuccess: () => { teacherToast.success(`${newLabel} 반이 생성되었습니다.`); setNewLabel(""); qc.invalidateQueries({ queryKey: ["lecture-sections", lectureId] }); },
   });
 
   const deleteSectionMut = useMutation({
     mutationFn: (id: number) => api.delete(`/lectures/sections/${id}/`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["lecture-sections", lectureId] }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["lecture-sections", lectureId] }); teacherToast.info("반이 삭제되었습니다."); },
   });
 
   const createDdayMut = useMutation({
     mutationFn: () => api.post(`/lectures/lectures/${lectureId}/ddays/`, { title: newDdayTitle, date: newDdayDate }),
-    onSuccess: () => { setNewDdayTitle(""); setNewDdayDate(""); qc.invalidateQueries({ queryKey: ["lecture-ddays", lectureId] }); },
+    onSuccess: () => { teacherToast.success(`${newDdayTitle} D-Day가 추가되었습니다.`); setNewDdayTitle(""); setNewDdayDate(""); qc.invalidateQueries({ queryKey: ["lecture-ddays", lectureId] }); },
   });
 
   const deleteDdayMut = useMutation({
     mutationFn: (id: number) => api.delete(`/lectures/ddays/${id}/`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["lecture-ddays", lectureId] }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["lecture-ddays", lectureId] }); teacherToast.info("D-Day가 삭제되었습니다."); },
   });
 
   return (

@@ -163,6 +163,7 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [], l
         qc.invalidateQueries({ queryKey: ["lecture", lectureId] });
         qc.invalidateQueries({ queryKey: ["lecture-sessions"] });
       }
+      feedback.success(isEditMode ? "강의가 수정되었습니다." : "강의가 등록되었습니다.");
       onClose();
     },
     onError: (e: unknown) => {

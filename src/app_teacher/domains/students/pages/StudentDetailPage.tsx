@@ -11,6 +11,7 @@ import { Card, BackButton, KpiCard, TabBar } from "@teacher/shared/ui/Card";
 import { Badge, AchievementBadge, AttendanceBadge, ClinicStatusBadge } from "@teacher/shared/ui/Badge";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
 import { fetchStudent, fetchStudentExamResults, updateStudent, toggleStudentActive, fetchTags, attachTag, detachTag, createTag, updateStudentMemo, deleteStudent } from "../api";
+import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import api from "@/shared/api/axios";
 
 type Tab = "enrollments" | "exams" | "homework" | "clinic" | "questions";
@@ -332,6 +333,7 @@ function MemoSection({ studentId, initialMemo }: { studentId: number; initialMem
     onSuccess: () => {
       setEditing(false);
       qc.invalidateQueries({ queryKey: ["student", studentId] });
+      teacherToast.success("메모가 저장되었습니다.");
     },
   });
 
@@ -389,6 +391,7 @@ function EditStudentSheet({ open, onClose, student, studentId, onDelete }: {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["student", studentId] });
       qc.invalidateQueries({ queryKey: ["teacher-students"] });
+      teacherToast.success(`${name} 학생 정보가 수정되었습니다.`);
       onClose();
     },
   });
@@ -398,6 +401,7 @@ function EditStudentSheet({ open, onClose, student, studentId, onDelete }: {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["student", studentId] });
       qc.invalidateQueries({ queryKey: ["teacher-students"] });
+      teacherToast.success(isActive ? "학생이 비활성화되었습니다." : "학생이 활성화되었습니다.");
     },
   });
 

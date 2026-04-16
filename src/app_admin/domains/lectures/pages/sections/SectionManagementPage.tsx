@@ -85,13 +85,13 @@ export default function SectionManagementPage() {
 
   const createMut = useMutation({
     mutationFn: (data: Parameters<typeof createSection>[0]) => createSection(data),
-    onSuccess: () => { invalidate(); setShowForm(false); },
+    onSuccess: () => { invalidate(); setShowForm(false); import("@/shared/ui/feedback/feedback").then(({ feedback }) => feedback.success("반이 추가되었습니다.")); },
   });
 
   const updateMut = useMutation({
     mutationFn: ({ id, data }: { id: number; data: Parameters<typeof updateSection>[1] }) =>
       updateSection(id, data),
-    onSuccess: () => { invalidate(); setShowForm(false); setEditId(null); },
+    onSuccess: () => { invalidate(); setShowForm(false); setEditId(null); import("@/shared/ui/feedback/feedback").then(({ feedback }) => feedback.success("반이 수정되었습니다.")); },
   });
 
   const deleteMut = useMutation({
@@ -99,13 +99,14 @@ export default function SectionManagementPage() {
     onSuccess: () => {
       invalidate();
       if (selectedId === deleteMut.variables) setSelectedId(null);
+      import("@/shared/ui/feedback/feedback").then(({ feedback }) => feedback.success("반이 삭제되었습니다."));
     },
   });
 
   const autoAssignMut = useMutation({
     mutationFn: (sectionType: "CLASS" | "CLINIC") =>
       autoAssignSections(lecId, sectionType),
-    onSuccess: () => invalidate(),
+    onSuccess: () => { invalidate(); import("@/shared/ui/feedback/feedback").then(({ feedback }) => feedback.success("학생이 자동배정되었습니다.")); },
   });
 
   // -- Derived --

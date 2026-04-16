@@ -6,6 +6,7 @@ import { fetchScopeNodes, createPost, uploadPostAttachment, type ScopeNode } fro
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
 import MobileRichEditor from "@teacher/shared/ui/MobileRichEditor";
 import { AlertCircle, ChevronDown, Paperclip, X } from "@teacher/shared/ui/Icons";
+import { teacherToast } from "@teacher/shared/ui/teacherToast";
 
 interface Props {
   open: boolean;
@@ -84,6 +85,7 @@ export default function CreatePostSheet({ open, onClose, postType, postTypeLabel
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["teacher-comms"] });
+      teacherToast.success(`${postTypeLabel}이 등록되었습니다.`);
       resetAndClose();
     },
   });

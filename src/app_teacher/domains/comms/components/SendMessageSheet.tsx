@@ -5,6 +5,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { fetchMessageTemplates, sendMessage } from "../api";
 import type { MessageTemplate } from "../api";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
+import { teacherToast } from "@teacher/shared/ui/teacherToast";
 
 interface Recipient {
   id: number;
@@ -44,6 +45,8 @@ export default function SendMessageSheet({ open, onClose, recipients, sendTo = "
         template_id: selectedTemplate?.id,
       }),
     onSuccess: () => {
+      const modeLabel = mode === "sms" ? "SMS" : "알림톡";
+      teacherToast.success(`${modeLabel}가 ${recipientLabel}에게 발송되었습니다.`);
       handleClose();
     },
   });

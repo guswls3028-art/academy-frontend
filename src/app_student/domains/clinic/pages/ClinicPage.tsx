@@ -60,14 +60,20 @@ export default function ClinicPage() {
   const bookingMutation = useMutation({
     mutationFn: (data: { session: number; memo?: string }) =>
       createClinicBookingRequest(data),
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
+      const sess = sessions.find(s => s.id === variables.session);
+      const bookedCount = sess ? (sess.booked_count ?? 0) + 1 : null;
       qc.invalidateQueries({ queryKey: ["student", "clinic", "available-sessions"] });
       qc.invalidateQueries({ queryKey: ["student", "clinic", "bookings"] });
       qc.invalidateQueries({ queryKey: ["clinic-idcard"] });
       qc.invalidateQueries({ queryKey: ["student", "notifications", "counts"] });
       setSelectedSessionId(null);
       setMemo("");
-      studentToast.success("예약이 완료되었습니다.");
+      studentToast.success(
+        bookedCount != null
+          ? `예약이 완료되었습니다. (현재 예약인원 ${bookedCount}명)`
+          : "예약이 완료되었습니다."
+      );
     },
     onError: (error: any) => {
       const message =
@@ -97,14 +103,20 @@ export default function ClinicPage() {
   const changeMutation = useMutation({
     mutationFn: (data: { oldId: number; newSessionId: number; memo?: string }) =>
       changeClinicBooking(data.oldId, data.newSessionId, data.memo),
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
+      const sess = sessions.find(s => s.id === variables.newSessionId);
+      const bookedCount = sess ? (sess.booked_count ?? 0) + 1 : null;
       qc.invalidateQueries({ queryKey: ["student", "clinic", "available-sessions"] });
       qc.invalidateQueries({ queryKey: ["student", "clinic", "bookings"] });
       qc.invalidateQueries({ queryKey: ["clinic-idcard"] });
       qc.invalidateQueries({ queryKey: ["student", "notifications", "counts"] });
       setSelectedSessionId(null);
       setMemo("");
-      studentToast.success("일정 변경이 완료되었습니다.");
+      studentToast.success(
+        bookedCount != null
+          ? `일정 변경이 완료되었습니다. (현재 예약인원 ${bookedCount}명)`
+          : "일정 변경이 완료되었습니다."
+      );
     },
     onError: (error: any) => {
       const message =

@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState } from "@/shared/ui/ds";
 import { Upload, Trash2 } from "@teacher/shared/ui/Icons";
+import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { fetchVideos, retryVideo, uploadInit, uploadComplete, deleteVideo, fetchPublicSession } from "../api";
 
 type VideoStatus = "pending" | "processing" | "completed" | "failed";
@@ -30,12 +31,12 @@ export default function VideoListPage() {
 
   const retryMut = useMutation({
     mutationFn: retryVideo,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["teacher-videos"] }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["teacher-videos"] }); teacherToast.success("인코딩 재시도가 요청되었습니다."); },
   });
 
   const deleteMut = useMutation({
     mutationFn: deleteVideo,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["teacher-videos"] }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["teacher-videos"] }); teacherToast.info("영상이 삭제되었습니다."); },
   });
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {

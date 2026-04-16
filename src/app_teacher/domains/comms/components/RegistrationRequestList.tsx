@@ -5,6 +5,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { approveRegistration, rejectRegistration } from "../api";
 import type { RegistrationRequest } from "../api";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
+import { teacherToast } from "@teacher/shared/ui/teacherToast";
 
 interface Props {
   requests: RegistrationRequest[];
@@ -92,6 +93,7 @@ function RequestDetail({
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["teacher-registration-requests"] });
       qc.invalidateQueries({ queryKey: ["admin", "notification-counts"] });
+      teacherToast.success(`${r.name} 학생이 승인되었습니다.`);
       onDone();
     },
   });
@@ -101,6 +103,7 @@ function RequestDetail({
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["teacher-registration-requests"] });
       qc.invalidateQueries({ queryKey: ["admin", "notification-counts"] });
+      teacherToast.info(`${r.name} 학생의 신청이 거절되었습니다.`);
       onDone();
     },
   });

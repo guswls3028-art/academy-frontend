@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
 import api from "@/shared/api/axios";
+import { teacherToast } from "@teacher/shared/ui/teacherToast";
 
 interface Props {
   open: boolean;
@@ -15,35 +16,34 @@ interface Props {
 export default function ClinicAdvancedSheet({ open, onClose, participant, sessionId }: Props) {
   const qc = useQueryClient();
   const [retakeScore, setRetakeScore] = useState("");
-  const [msg, setMsg] = useState<string | null>(null);
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ["teacher-clinic-participants", sessionId] });
 
   const resolveMut = useMutation({
     mutationFn: () => api.post(`/clinic/links/${participant?.link_id ?? participant?.id}/resolve/`, { memo: "모바일 수동 통과" }),
-    onSuccess: () => { invalidate(); setMsg("수동 통과 처리됨"); },
+    onSuccess: () => { invalidate(); teacherToast.success(`${name} 수동 통과 처리됨`); },
   });
 
   const waiveMut = useMutation({
     mutationFn: () => api.post(`/clinic/links/${participant?.link_id ?? participant?.id}/waive/`, { memo: "면제" }),
-    onSuccess: () => { invalidate(); setMsg("면제 처리됨"); },
+    onSuccess: () => { invalidate(); teacherToast.success(`${name} 면제 처리됨`); },
   });
 
   const carryOverMut = useMutation({
     mutationFn: () => api.post(`/clinic/links/${participant?.link_id ?? participant?.id}/carry-over/`),
-    onSuccess: () => { invalidate(); setMsg("다음 차수 이월됨"); },
+    onSuccess: () => { invalidate(); teacherToast.success(`${name} 다음 차수 이월됨`); },
   });
 
   const retakeMut = useMutation({
     mutationFn: () => api.post(`/clinic/links/${participant?.link_id ?? participant?.id}/retake/`, {
       score: Number(retakeScore),
     }),
-    onSuccess: () => { invalidate(); setRetakeScore(""); setMsg("보강 점수 등록됨"); },
+    onSuccess: () => { invalidate(); setRetakeScore(""); teacherToast.success(`${name} 보강 점수 등록됨`); },
   });
 
   const uncompleteMut = useMutation({
     mutationFn: () => api.post(`/clinic/participants/${participant?.id}/uncomplete/`),
-    onSuccess: () => { invalidate(); setMsg("완료 취소됨"); },
+    onSuccess: () => { invalidate(); teacherToast.info(`${name} 완료 취소됨`); },
   });
 
   if (!participant) return null;
@@ -77,7 +77,7 @@ export default function ClinicAdvancedSheet({ open, onClose, participant, sessio
           <ActionBtn label="완료 취소" color="var(--tc-danger)" onClick={() => { if (confirm("완료를 취소하시겠습니까?")) uncompleteMut.mutate(); }} />
         )}
 
-        {msg && <div className="text-[12px] text-center font-medium" style={{ color: "var(--tc-success)" }}>{msg}</div>}
+        {/* toast로 대체 — inline msg 제거 */}
       </div>
     </BottomSheet>
   );

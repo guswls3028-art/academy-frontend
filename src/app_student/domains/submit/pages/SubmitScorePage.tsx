@@ -75,6 +75,7 @@ export default function SubmitScorePage() {
       setError(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
       qc.invalidateQueries({ queryKey: ["student-inventory", ps] });
+      studentToast.success("성적표가 제출되었습니다.");
     },
     onError: (e: Error) => {
       setError(e.message || "업로드에 실패했습니다.");

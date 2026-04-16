@@ -32,6 +32,7 @@ export function useWorkMonthLock(params: { staff: number; year: number; month: n
       qc.invalidateQueries({ queryKey: ["work-records", params.staff] });
       qc.invalidateQueries({ queryKey: ["expenses", params.staff] });
       qc.invalidateQueries({ queryKey: ["payroll-snapshots"] });
+      import("@/shared/ui/feedback/feedback").then(({ feedback }) => feedback.success(`${params.year}년 ${params.month}월 마감이 완료되었습니다.`));
     },
   });
 

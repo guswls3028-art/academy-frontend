@@ -8,6 +8,7 @@ import { fetchPostReplies, createReply, deleteReply, updatePost, deletePost, tog
 import type { Post, Reply } from "../api";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
 import { ChevronLeft, Pencil, Trash2, MoreVertical, X, Save, Star, AlertCircle } from "@teacher/shared/ui/Icons";
+import { teacherToast } from "@teacher/shared/ui/teacherToast";
 
 interface Props {
   post: Post;
@@ -44,6 +45,7 @@ export default function PostDetail({ post: initialPost, onBack }: Props) {
       qc.invalidateQueries({ queryKey: ["post-replies", initialPost.id] });
       qc.invalidateQueries({ queryKey: ["teacher-comms"] });
       qc.invalidateQueries({ queryKey: ["admin", "notification-counts"] });
+      teacherToast.success(isQnA ? "답변이 등록되었습니다." : "댓글이 등록되었습니다.");
     },
   });
 
@@ -52,6 +54,7 @@ export default function PostDetail({ post: initialPost, onBack }: Props) {
     onSuccess: () => {
       setEditing(false);
       qc.invalidateQueries({ queryKey: ["teacher-comms"] });
+      teacherToast.success("게시글이 수정되었습니다.");
     },
   });
 
@@ -59,6 +62,7 @@ export default function PostDetail({ post: initialPost, onBack }: Props) {
     mutationFn: () => deletePost(initialPost.id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["teacher-comms"] });
+      teacherToast.info("게시글이 삭제되었습니다.");
       onBack();
     },
   });
@@ -68,17 +72,24 @@ export default function PostDetail({ post: initialPost, onBack }: Props) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["post-replies", initialPost.id] });
       qc.invalidateQueries({ queryKey: ["teacher-comms"] });
+      teacherToast.info("댓글이 삭제되었습니다.");
     },
   });
 
   const pinMutation = useMutation({
     mutationFn: () => togglePostPin(initialPost.id, !initialPost.is_pinned),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["teacher-comms"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["teacher-comms"] });
+      teacherToast.success(initialPost.is_pinned ? "고정이 해제되었습니다." : "공지가 고정되었습니다.");
+    },
   });
 
   const urgentMutation = useMutation({
     mutationFn: () => updatePost(initialPost.id, { is_urgent: !initialPost.is_urgent } as any),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["teacher-comms"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["teacher-comms"] });
+      teacherToast.success(initialPost.is_urgent ? "긴급 설정이 해제되었습니다." : "긴급 공지로 설정되었습니다.");
+    },
   });
 
   const handleDelete = () => {

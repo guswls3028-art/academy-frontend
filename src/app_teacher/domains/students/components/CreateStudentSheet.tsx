@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
 import api from "@/shared/api/axios";
+import { teacherToast } from "@teacher/shared/ui/teacherToast";
 
 interface Props {
   open: boolean;
@@ -36,6 +37,7 @@ export default function CreateStudentSheet({ open, onClose }: Props) {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["teacher-students"] });
+      teacherToast.success(`${name} 학생이 등록되었습니다.`);
       resetAndClose();
     },
   });

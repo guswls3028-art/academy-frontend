@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createLecture, updateLecture } from "../api";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
+import { teacherToast } from "@teacher/shared/ui/teacherToast";
 
 const COLORS = ["#3b82f6", "#ef4444", "#22c55e", "#f59e0b", "#8b5cf6", "#ec4899", "#06b6d4", "#f97316"];
 
@@ -53,6 +54,7 @@ export default function LectureFormSheet({ open, onClose, editData }: Props) {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["lectures-mobile"] });
+      teacherToast.success(isEdit ? `${title} 강의가 수정되었습니다.` : `${title} 강의가 생성되었습니다.`);
       onClose();
     },
   });

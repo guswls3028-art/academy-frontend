@@ -34,6 +34,7 @@ export default function DdayModal({ lectureId, onClose }: Props) {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["ddays", lectureId] });
+      import("@/shared/ui/feedback/feedback").then(({ feedback }) => feedback.success(`${titleInput} D-Day가 추가되었습니다.`));
       onClose();
     },
   });

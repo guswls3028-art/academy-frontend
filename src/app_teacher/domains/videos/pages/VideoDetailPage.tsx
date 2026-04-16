@@ -10,6 +10,7 @@ import { Badge } from "@teacher/shared/ui/Badge";
 import { fetchVideoDetail, fetchVideoStats, renameVideo, updateVideo, deleteVideo } from "../api";
 import VideoSettingsSheet from "../components/VideoSettingsSheet";
 import api from "@/shared/api/axios";
+import { teacherToast } from "@teacher/shared/ui/teacherToast";
 
 type Tab = "stats" | "comments";
 
@@ -26,11 +27,11 @@ export default function VideoDetailPage() {
 
   const renameMut = useMutation({
     mutationFn: () => renameVideo(vid, titleInput),
-    onSuccess: () => { setEditingTitle(false); qc.invalidateQueries({ queryKey: ["teacher-video", vid] }); },
+    onSuccess: () => { setEditingTitle(false); qc.invalidateQueries({ queryKey: ["teacher-video", vid] }); teacherToast.success("제목이 변경되었습니다."); },
   });
   const deleteMut = useMutation({
     mutationFn: () => deleteVideo(vid),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["teacher-videos"] }); navigate(-1); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["teacher-videos"] }); teacherToast.info("영상이 삭제되었습니다."); navigate(-1); },
   });
 
   const { data: video, isLoading: loadingVideo } = useQuery({
@@ -186,6 +187,7 @@ function CommentSection({ videoId, comments }: { videoId: number; comments: any[
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["teacher-video-comments", videoId] });
       setText("");
+      teacherToast.success("댓글이 등록되었습니다.");
     },
   });
 
