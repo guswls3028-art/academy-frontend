@@ -24,6 +24,7 @@ import RichTextEditor from "@/shared/ui/editor/RichTextEditor";
 import CommunityContextBar from "../components/CommunityContextBar";
 import CommunityEmptyState from "../components/CommunityEmptyState";
 import CommunityAvatar from "../components/CommunityAvatar";
+import { normalizeStudentName } from "../utils/communityHelpers";
 import "@admin/domains/community/qna-inbox.css";
 
 type FilterKind = "all" | "pending" | "resolved";
@@ -212,7 +213,7 @@ function CounselCard({
 
   const statusClass = post.is_answered ? "qna-inbox__status--resolved" : "qna-inbox__status--pending";
   const statusLabel = post.is_answered ? "상담 완료" : "대기 중";
-  const studentName = post.created_by_deleted ? "삭제된 학생" : (post.created_by_display ?? "학생");
+  const studentName = post.created_by_deleted ? "삭제된 학생" : normalizeStudentName(post.created_by_display);
 
   return (
     <button
@@ -281,25 +282,23 @@ function CounselThreadView({
     );
   }
 
-  const studentName = post.created_by_deleted ? "삭제된 학생" : (post.created_by_display ?? "학생");
+  const studentName = post.created_by_deleted ? "삭제된 학생" : normalizeStudentName(post.created_by_display);
 
   return (
     <>
       <header className="qna-inbox__thread-header">
         <div className="qna-inbox__thread-title-row">
           <div className="qna-inbox__thread-title-group">
-            <h1 className="qna-inbox__thread-title">{post.title}</h1>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <h1 className="qna-inbox__thread-title" style={{ margin: 0 }}>{post.title}</h1>
+              <span className="counsel-type-badge">상담</span>
+            </div>
             <div className="qna-inbox__thread-meta">
               <span>{studentName}</span>
-              {post.category_label && (
-                <>
-                  <span className="qna-inbox__thread-meta-dot" />
-                  <span className="cms-category-label--bold">{post.category_label}</span>
-                </>
-              )}
               <span className="qna-inbox__thread-meta-dot" />
               <span>
-                {new Date(post.created_at).toLocaleString("ko-KR", {
+                신청 {new Date(post.created_at).toLocaleString("ko-KR", {
+                  year: "numeric",
                   month: "long",
                   day: "numeric",
                   hour: "2-digit",
@@ -308,9 +307,9 @@ function CounselThreadView({
               </span>
               <span className="qna-inbox__thread-meta-dot" />
               {(post.replies_count ?? 0) > 0 ? (
-                <span className="qna-inbox__status qna-inbox__status--resolved">답변 완료</span>
+                <span className="qna-inbox__status qna-inbox__status--resolved">상담 완료</span>
               ) : (
-                <span className="qna-inbox__status qna-inbox__status--pending">답변 대기</span>
+                <span className="qna-inbox__status qna-inbox__status--pending">대기 중</span>
               )}
             </div>
           </div>
@@ -331,8 +330,11 @@ function CounselThreadView({
       <div className="qna-inbox__student-panel">
         <CommunityAvatar name={studentName} role="student" size={28} />
         <div className="qna-inbox__student-info">
-          <div className="qna-inbox__student-panel-label">학생</div>
+          <div className="qna-inbox__student-panel-label">상담 신청 학생</div>
           <div className="qna-inbox__student-name">{studentName}</div>
+          <div className="qna-inbox__student-course">
+            신청일 {new Date(post.created_at).toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric" })}
+          </div>
         </div>
       </div>
 

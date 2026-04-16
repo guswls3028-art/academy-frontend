@@ -29,6 +29,7 @@ import RichTextEditor from "@/shared/ui/editor/RichTextEditor";
 import CommunityContextBar from "../components/CommunityContextBar";
 import CommunityEmptyState from "../components/CommunityEmptyState";
 import CommunityAvatar from "../components/CommunityAvatar";
+import { normalizeStudentName } from "../utils/communityHelpers";
 import "@admin/domains/community/qna-inbox.css";
 
 type FilterKind = "all" | "pending" | "resolved";
@@ -209,7 +210,7 @@ function QuestionCard({
 
   const statusClass = question.is_answered ? "qna-inbox__status--resolved" : "qna-inbox__status--pending";
   const statusLabel = question.is_answered ? "답변 완료" : "답변 대기";
-  const studentName = question.created_by_deleted ? "삭제된 학생" : (question.student_name ?? "—");
+  const studentName = question.created_by_deleted ? "삭제된 학생" : normalizeStudentName(question.student_name);
 
   return (
     <button
@@ -307,7 +308,7 @@ function ThreadView({
           <div className="qna-inbox__thread-title-group">
             <h1 className="qna-inbox__thread-title">{post.title}</h1>
             <div className="qna-inbox__thread-meta">
-              <span>{post.created_by_deleted ? "삭제된 학생입니다." : (post.created_by_display ?? "—")}</span>
+              <span>{post.created_by_deleted ? "삭제된 학생입니다." : normalizeStudentName(post.created_by_display)}</span>
               <span className="qna-inbox__thread-meta-dot" />
               <span>{lectureLabel}</span>
               {post.category_label && (
@@ -373,7 +374,7 @@ function ThreadView({
         <CommunityAvatar name={post.created_by_deleted ? "삭제된 학생입니다." : (post.created_by_display ?? "?")} role="student" size={28} />
         <div className="qna-inbox__student-info">
           <div className="qna-inbox__student-panel-label">학생</div>
-          <div className="qna-inbox__student-name">{post.created_by_deleted ? "삭제된 학생입니다." : (post.created_by_display ?? "—")}</div>
+          <div className="qna-inbox__student-name">{post.created_by_deleted ? "삭제된 학생입니다." : normalizeStudentName(post.created_by_display)}</div>
           <div className="qna-inbox__student-course">{lectureLabel}</div>
         </div>
         {questionHistory.length > 0 && (
@@ -387,7 +388,7 @@ function ThreadView({
           <CommunityAvatar name={post.created_by_deleted ? "삭제된 학생입니다." : (post.created_by_display ?? "?")} role="student" />
           <div className="qna-inbox__message-bubble">
             <div className="qna-inbox__message-meta">
-              <span className="qna-inbox__message-author">{post.created_by_deleted ? "삭제된 학생입니다." : (post.created_by_display ?? "학생")}</span>
+              <span className="qna-inbox__message-author">{post.created_by_deleted ? "삭제된 학생입니다." : normalizeStudentName(post.created_by_display)}</span>
               <span className="qna-inbox__message-badge">학생</span>
               <span className="qna-inbox__message-date">
                 {new Date(post.created_at).toLocaleString("ko-KR", {

@@ -232,13 +232,10 @@ export default function NoticeAdminPage() {
     [setSearchParams]
   );
 
-  const hasScopeParam = searchParams.has("scope");
   const canShowList =
-    hasScopeParam && (
-      scope === "all" ||
-      (scope === "lecture" && effectiveLectureId != null) ||
-      (scope === "session" && sessionId != null)
-    );
+    scope === "all" ||
+    (scope === "lecture" && effectiveLectureId != null) ||
+    (scope === "session" && sessionId != null);
 
   return (
     <div className="notice-tree" style={{ minHeight: "calc(100vh - 180px)" }}>

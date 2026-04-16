@@ -41,6 +41,17 @@ export function timeAgo(dateStr: string): string {
 }
 
 /**
+ * Normalize student display name — raw IDs or empty → "학생".
+ */
+export function normalizeStudentName(name: string | null | undefined): string {
+  if (!name || !name.trim()) return "학생";
+  const trimmed = name.trim();
+  // 숫자만 (예: "알테44" 같은 자동생성 이름은 허용, 순수 숫자 ID만 차단)
+  if (/^\d+$/.test(trimmed)) return "학생";
+  return trimmed;
+}
+
+/**
  * Format byte count into human-readable size (B / KB / MB).
  */
 export function formatFileSize(bytes: number): string {

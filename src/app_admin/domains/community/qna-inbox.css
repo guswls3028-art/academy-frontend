@@ -830,3 +830,17 @@
   color: var(--color-text-secondary);
   box-shadow: 0 1px 0 var(--color-border-divider);
 }
+
+/* ── Counsel type badge ── */
+.counsel-type-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-warning) 14%, transparent);
+  color: color-mix(in srgb, var(--color-warning) 70%, black);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
