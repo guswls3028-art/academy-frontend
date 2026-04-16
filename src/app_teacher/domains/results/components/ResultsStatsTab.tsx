@@ -73,7 +73,9 @@ export default function ResultsStatsTab() {
 
   // Sorted results for ranking
   const rankedResults = [...(results ?? [])].sort(
-    (a: any, b: any) => (b.total_score ?? 0) - (a.total_score ?? 0)
+    (a: any, b: any) =>
+      (b.final_score ?? b.exam_score ?? b.total_score ?? 0) -
+      (a.final_score ?? a.exam_score ?? a.total_score ?? 0)
   );
 
   // Score distribution (만점 기준 10등분)
@@ -86,7 +88,7 @@ export default function ResultsStatsTab() {
       return { range: lo === hi ? `${lo}` : `${lo}~${hi}`, count: 0, lo };
     });
     for (const r of results) {
-      const score = r.total_score ?? 0;
+      const score = r.final_score ?? r.exam_score ?? r.total_score ?? 0;
       if (score >= examMaxScore) buckets[9].count++;
       else {
         const idx = Math.min(Math.floor((score / examMaxScore) * 10), 9);
@@ -447,7 +449,7 @@ export default function ResultsStatsTab() {
                                 className="font-bold text-[14px]"
                                 style={{ color: "var(--tc-text)" }}
                               >
-                                {r.total_score ?? "-"}/{examMaxScore}
+                                {r.final_score ?? r.exam_score ?? r.total_score ?? "-"}/{examMaxScore}
                               </span>
                               <AchievementBadge
                                 passed={r.is_pass}
