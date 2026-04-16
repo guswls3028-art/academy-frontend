@@ -28,6 +28,16 @@ export async function retryVideo(videoId: number) {
   await api.post(`/media/videos/${videoId}/retry/`);
 }
 
+/** 공용 세션 (영상 업로드용 기본 세션) */
+export async function fetchPublicSession(): Promise<{ session_id: number; lecture_id: number } | null> {
+  try {
+    const res = await api.get("/media/videos/public-session/");
+    return res.data;
+  } catch {
+    return null;
+  }
+}
+
 /* ─── Video CRUD ─── */
 export async function uploadInit(payload: {
   session: number;

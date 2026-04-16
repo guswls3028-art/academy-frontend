@@ -1,10 +1,10 @@
 // PATH: src/app_teacher/domains/comms/components/CreatePostSheet.tsx
 // 게시글/공지 작성 바텀시트 — 스코프 선택(전체/강의/차시) 포함
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { fetchScopeNodes, createPost, type ScopeNode } from "../api";
+import { fetchScopeNodes, createPost, uploadPostAttachment, type ScopeNode } from "../api";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
-import { AlertCircle, ChevronDown } from "@teacher/shared/ui/Icons";
+import { AlertCircle, ChevronDown, Paperclip, X } from "@teacher/shared/ui/Icons";
 
 interface Props {
   open: boolean;
@@ -24,6 +24,8 @@ export default function CreatePostSheet({ open, onClose, postType, postTypeLabel
   const [lectureId, setLectureId] = useState<number | null>(null);
   const [sessionId, setSessionId] = useState<number | null>(null);
   const [isUrgent, setIsUrgent] = useState(false);
+  const [files, setFiles] = useState<File[]>([]);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const { data: scopeNodes } = useQuery({
     queryKey: ["community-scope-nodes"],
@@ -65,13 +67,20 @@ export default function CreatePostSheet({ open, onClose, postType, postTypeLabel
   }, [scopeNodes, scope, lectureId, sessionId]);
 
   const mutation = useMutation({
-    mutationFn: () => createPost({
-      post_type: postType,
-      title,
-      content,
-      node_ids: resolvedNodeIds,
-      is_urgent: isUrgent,
-    }),
+    mutationFn: async () => {
+      const post = await createPost({
+        post_type: postType,
+        title,
+        content,
+        node_ids: resolvedNodeIds,
+        is_urgent: isUrgent,
+      });
+      // Upload attachments after post creation
+      for (const file of files) {
+        await uploadPostAttachment(post.id, file);
+      }
+      return post;
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["teacher-comms"] });
       resetAndClose();
@@ -85,6 +94,7 @@ export default function CreatePostSheet({ open, onClose, postType, postTypeLabel
     setLectureId(null);
     setSessionId(null);
     setIsUrgent(false);
+    setFiles([]);
     onClose();
   };
 
@@ -174,6 +184,36 @@ export default function CreatePostSheet({ open, onClose, postType, postTypeLabel
             <span className="text-[13px] font-medium" style={{ color: "var(--tc-text)" }}>긴급 공지</span>
           </label>
         )}
+
+        {/* File attachments */}
+        <div>
+          <label className="text-[11px] font-semibold block mb-1" style={{ color: "var(--tc-text-muted)" }}>첨부파일 (최대 10개)</label>
+          <button onClick={() => fileRef.current?.click()} type="button"
+            className="flex items-center gap-1.5 text-[12px] font-medium cursor-pointer"
+            style={{ padding: "6px 10px", borderRadius: "var(--tc-radius-sm)", border: "1px dashed var(--tc-border-strong)", background: "none", color: "var(--tc-text-secondary)" }}>
+            <Paperclip size={13} /> 파일 선택
+          </button>
+          <input ref={fileRef} type="file" multiple onChange={(e) => {
+            const selected = Array.from(e.target.files || []);
+            setFiles((prev) => [...prev, ...selected].slice(0, 10));
+            if (fileRef.current) fileRef.current.value = "";
+          }} style={{ display: "none" }} />
+          {files.length > 0 && (
+            <div className="flex flex-col gap-1 mt-1.5">
+              {files.map((f, i) => (
+                <div key={i} className="flex items-center gap-1.5 text-[11px]" style={{ color: "var(--tc-text-secondary)" }}>
+                  <Paperclip size={10} />
+                  <span className="flex-1 truncate">{f.name}</span>
+                  <span style={{ color: "var(--tc-text-muted)" }}>{(f.size / 1024).toFixed(0)}KB</span>
+                  <button onClick={() => setFiles(files.filter((_, j) => j !== i))}
+                    className="flex cursor-pointer" style={{ background: "none", border: "none", color: "var(--tc-danger)", padding: 0 }}>
+                    <X size={12} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
         {/* Submit */}
         <button

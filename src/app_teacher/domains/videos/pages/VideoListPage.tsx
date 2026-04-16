@@ -1,9 +1,11 @@
 // PATH: src/app_teacher/domains/videos/pages/VideoListPage.tsx
 // 영상 목록 — 인코딩 상태, 시청 현황
+import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState } from "@/shared/ui/ds";
-import { fetchVideos, retryVideo } from "../api";
+import { Upload, Trash2 } from "@teacher/shared/ui/Icons";
+import { fetchVideos, retryVideo, uploadInit, uploadComplete, deleteVideo, fetchPublicSession } from "../api";
 
 type VideoStatus = "pending" | "processing" | "completed" | "failed";
 
@@ -17,6 +19,8 @@ const STATUS_MAP: Record<VideoStatus, { label: string; color: string; bg: string
 export default function VideoListPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
 
   const { data: videos, isLoading } = useQuery({
     queryKey: ["teacher-videos"],
@@ -29,9 +33,42 @@ export default function VideoListPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["teacher-videos"] }),
   });
 
+  const deleteMut = useMutation({
+    mutationFn: deleteVideo,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["teacher-videos"] }),
+  });
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const pub = await fetchPublicSession();
+      if (!pub) { alert("업로드 세션을 찾을 수 없습니다."); return; }
+      const init = await uploadInit({ session: pub.session_id, title: file.name.replace(/\.[^.]+$/, ""), filename: file.name, content_type: file.type || "video/mp4" });
+      // Upload to presigned URL
+      await fetch(init.upload_url, { method: "PUT", body: file, headers: { "Content-Type": file.type || "video/mp4" } });
+      await uploadComplete(init.id);
+      qc.invalidateQueries({ queryKey: ["teacher-videos"] });
+    } catch {
+      alert("업로드 실패. 다시 시도해주세요.");
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  };
+
   return (
     <div className="flex flex-col gap-3">
-      <h2 className="text-base font-bold py-1" style={{ color: "var(--tc-text)" }}>영상</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-base font-bold py-1" style={{ color: "var(--tc-text)" }}>영상</h2>
+        <button onClick={() => fileRef.current?.click()} disabled={uploading}
+          className="flex items-center gap-1 text-xs font-bold cursor-pointer"
+          style={{ padding: "6px 12px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff", opacity: uploading ? 0.5 : 1 }}>
+          <Upload size={14} /> {uploading ? "업로드 중..." : "영상 업로드"}
+        </button>
+        <input ref={fileRef} type="file" accept="video/*" onChange={handleUpload} style={{ display: "none" }} />
+      </div>
 
       {isLoading ? (
         <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
@@ -109,6 +146,12 @@ export default function VideoListPage() {
                         재시도
                       </button>
                     )}
+                    <button
+                      onClick={(e) => { e.stopPropagation(); if (confirm("이 영상을 삭제하시겠습니까?")) deleteMut.mutate(v.id); }}
+                      className="flex items-center text-[11px] cursor-pointer ml-auto"
+                      style={{ background: "none", border: "none", color: "var(--tc-text-muted)", padding: "2px" }}>
+                      <Trash2 size={12} />
+                    </button>
                   </div>
                 </div>
               </div>

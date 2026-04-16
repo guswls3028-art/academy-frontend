@@ -62,6 +62,7 @@ export default function TeacherDrawer({ open, onClose }: Props) {
       items: [
         { label: "상담 메모", path: "/teacher/counseling", icon: <FileText size={18} /> },
         { label: "발송 이력", path: "/teacher/message-log", icon: <Send size={18} /> },
+        { label: "메시지 템플릿", path: "/teacher/message-templates", icon: <FileText size={18} /> },
         { label: "알림 센터", path: "/teacher/notifications", icon: <Bell size={18} />, badge: counts?.total },
       ],
     },
