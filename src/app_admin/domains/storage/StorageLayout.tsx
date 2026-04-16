@@ -1,26 +1,27 @@
-// PATH: src/app_admin/domains/storage/layout/StorageLayout.tsx
-// 저장소 — DomainLayout 탭 SSOT
+// PATH: src/app_admin/domains/storage/StorageLayout.tsx
+// 자료실 — DomainLayout 탭 SSOT (매치업 + 저장소)
 
 import { Outlet } from "react-router-dom";
 import { DomainLayout } from "@/shared/ui/layout";
 import type { DomainTab } from "@/shared/ui/domain";
-import QuotaIndicator from "./components/QuotaIndicator";
 
 const STORAGE_TABS: DomainTab[] = [
-  { key: "mine", label: "내 저장소(선생님)", path: "/admin/storage", exact: true },
-  { key: "students", label: "학생 인벤토리 관리", path: "/admin/storage/students" },
+  { key: "matchup", label: "매치업", path: "/admin/storage/matchup" },
+  {
+    key: "files",
+    label: "저장소",
+    path: "/admin/storage/files",
+    activePaths: ["/admin/storage/files", "/admin/storage/students"],
+  },
 ];
 
 export default function StorageLayout() {
   return (
     <DomainLayout
-      title="저장소"
-      description="선생님 파일과 학생 인벤토리를 통합 관리합니다."
+      title="자료실"
+      description="AI 유사 문제 추천과 파일 저장소를 관리합니다."
       tabs={STORAGE_TABS}
     >
-      <div style={{ flexShrink: 0, marginBottom: "var(--space-3)" }}>
-        <QuotaIndicator />
-      </div>
       <Outlet />
     </DomainLayout>
   );

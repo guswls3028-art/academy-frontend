@@ -48,7 +48,7 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
       { to: `${ADMIN_NAV_BASE}/results`, label: "성적", iconPath: "M4 18h16M6 15V9M12 15V5M18 15v-7" },
       { to: `${ADMIN_NAV_BASE}/videos`, label: "영상", iconPath: "M3 6h14v12H3zM17 10l4-2v8l-4-2z" },
       { to: `${ADMIN_NAV_BASE}/message`, label: "메시지", iconPath: "M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" },
-      { to: `${ADMIN_NAV_BASE}/storage`, label: "저장소", iconPath: "M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" },
+      { to: `${ADMIN_NAV_BASE}/storage`, label: "자료실", iconPath: "M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" },
     ],
   },
   {
