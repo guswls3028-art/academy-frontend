@@ -134,7 +134,7 @@ test.describe.serial("데이터 연결 전수 검증", () => {
 
     // 정리
     const list = await apiCall(T, "GET", "/community/posts/?post_type=qna&page_size=50");
-    const target = (list.body?.results || []).find((p: any) => p.title?.includes("연결검증"));
+    const target = (list.body?.results || []).find((p: Record<string, unknown>) => (p.title as string)?.includes("연결검증"));
     if (target) await apiCall(T, "DELETE", `/community/posts/${target.id}/`);
   });
 

@@ -99,7 +99,7 @@ export default function ClinicReportsPage() {
     retry: 0,
   });
 
-  const sessions = sessionsQ.data ?? [];
+  const sessions = useMemo(() => sessionsQ.data ?? [], [sessionsQ.data]);
   const sessionsByDate = useMemo(() => {
     const map: Record<string, ClinicSession[]> = {};
     sessions.forEach((s) => {

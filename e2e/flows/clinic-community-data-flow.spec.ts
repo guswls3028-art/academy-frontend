@@ -215,9 +215,7 @@ test.describe("Student: Clinic & Community 데이터 검증", () => {
       await page.waitForTimeout(2000);
 
       // QnA 목록이 렌더되거나 빈 상태가 표시됨
-      const hasQna = await page.locator("[class*='item'], [class*='post'], [class*='question']").count();
-      const hasEmpty = await page.locator("text=/질문이 없|등록된 질문/").count();
-      // 에러가 아닌 어떤 상태든 OK
+      // QnA 목록이 렌더되거나 빈 상태가 표시됨 — 에러가 아닌 어떤 상태든 OK
       await expect(page.locator("text=Not Found")).not.toBeVisible();
     }
 
@@ -260,7 +258,7 @@ test.describe("API: Clinic & Community 데이터 검증", () => {
       const firstPost = posts[0];
       // 게시글에 tenant 정보가 있으면 전부 동일한지 확인
       if (firstPost.tenant !== undefined) {
-        const tenantIds = posts.map((p: any) => p.tenant);
+        const tenantIds = posts.map((p: Record<string, unknown>) => p.tenant);
         const uniqueTenants = [...new Set(tenantIds)];
         expect(uniqueTenants.length).toBe(1);
       }

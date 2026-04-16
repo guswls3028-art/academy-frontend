@@ -115,7 +115,7 @@ export default function ClinicHomePage() {
 
   const pendingList = pendingQ.listQ.data ?? [];
   const autoApproved = !!settingsQ.data?.auto_approve_booking;
-  const todayRows = todayQ.listQ.data ?? [];
+  const todayRows = useMemo(() => todayQ.listQ.data ?? [], [todayQ.listQ.data]);
   // 세션 트리 기반 목록 (참가자 0명인 세션도 포함) + 참가자 데이터 병합
   const sessions = useMemo(() => {
     const participantGroups = groupBySession(todayRows);

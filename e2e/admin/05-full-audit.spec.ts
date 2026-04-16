@@ -3,7 +3,7 @@
  * 실제 데이터 기반:
  *  - 강의 113, 차시 153, 수강생 E2E메시지3139 (parent_phone: 01031217466)
  */
-import { test, expect } from "../fixtures/strictTest";
+import { test } from "../fixtures/strictTest";
 import type { Page } from "@playwright/test";
 import { loginViaUI } from "../helpers/auth";
 import { FIXTURES } from "../helpers/test-fixtures";
@@ -134,7 +134,7 @@ test.describe("메시징 미완 항목 완전 검증", () => {
       await snap(page, "full-2-create-modal");
 
       // 이름 + 본문 입력
-      const nameInput = page.locator("input").filter({ hasText: /.*/ }).first();
+      const _nameInput = page.locator("input").filter({ hasText: /.*/ }).first();
       const inputs = page.locator("input:visible");
       for (let i = 0; i < Math.min(await inputs.count(), 5); i++) {
         const ph = await inputs.nth(i).getAttribute("placeholder").catch(() => "");
