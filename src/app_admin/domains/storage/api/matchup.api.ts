@@ -40,6 +40,11 @@ export type SimilarProblem = {
   text: string;
   similarity: number;
   image_url?: string;
+  // Phase 2: 출처 정보 (시험 문제 인덱싱 후)
+  source_type?: "matchup" | "exam";
+  source_lecture_title?: string;
+  source_session_title?: string;
+  source_exam_title?: string;
 };
 
 // ── Documents ──

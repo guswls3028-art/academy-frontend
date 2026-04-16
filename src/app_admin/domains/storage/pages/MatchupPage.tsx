@@ -12,12 +12,13 @@ import {
   retryMatchupDocument,
   fetchMatchupProblems,
 } from "../api/matchup.api";
-import type { MatchupDocument } from "../api/matchup.api";
+import type { MatchupDocument, SimilarProblem } from "../api/matchup.api";
 import { useMatchupPolling } from "../hooks/useMatchupPolling";
 import DocumentList from "../components/matchup/DocumentList";
 import DocumentUploadModal from "../components/matchup/DocumentUploadModal";
 import ProblemGrid from "../components/matchup/ProblemGrid";
 import SimilarResults from "../components/matchup/SimilarResults";
+import ProblemDetailModal from "../components/matchup/ProblemDetailModal";
 import MatchupEmptyState from "../components/matchup/MatchupEmptyState";
 import css from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
 
@@ -26,6 +27,7 @@ export default function MatchupPage() {
   const [selectedDocId, setSelectedDocId] = useState<number | null>(null);
   const [selectedProblemId, setSelectedProblemId] = useState<number | null>(null);
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [detailProblem, setDetailProblem] = useState<SimilarProblem | null>(null);
 
   // ── 문서 목록 ──
   const { data: documents = [], isLoading: docsLoading } = useQuery({
@@ -80,6 +82,15 @@ export default function MatchupPage() {
     setSelectedDocId(id);
     setSelectedProblemId(null);
   }, []);
+
+  const handleNavigateToProblem = useCallback((documentId: number, problemNumber: number) => {
+    setSelectedDocId(documentId);
+    // 문제 목록이 로드된 후 해당 문제 선택 — 약간의 지연 필요
+    setTimeout(() => {
+      // problems 쿼리가 갱신되면 해당 번호의 문제 ID를 찾아 선택
+      qc.invalidateQueries({ queryKey: ["matchup-problems", documentId] });
+    }, 300);
+  }, [qc]);
 
   // ── 빈 상태 ──
   if (!docsLoading && documents.length === 0) {
@@ -174,7 +185,10 @@ export default function MatchupPage() {
                       <Sparkles size={14} />
                       유사 문제 추천
                     </h4>
-                    <SimilarResults problemId={selectedProblemId} />
+                    <SimilarResults
+                      problemId={selectedProblemId}
+                      onSelectSimilar={setDetailProblem}
+                    />
                   </div>
                 </div>
               </div>
@@ -187,6 +201,14 @@ export default function MatchupPage() {
         <DocumentUploadModal
           onClose={() => setUploadOpen(false)}
           onUpload={handleUpload}
+        />
+      )}
+
+      {detailProblem && (
+        <ProblemDetailModal
+          problem={detailProblem}
+          onClose={() => setDetailProblem(null)}
+          onNavigate={handleNavigateToProblem}
         />
       )}
     </>

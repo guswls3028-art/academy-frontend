@@ -8,9 +8,10 @@ import type { SimilarProblem } from "../../api/matchup.api";
 
 type Props = {
   problemId: number | null;
+  onSelectSimilar?: (problem: SimilarProblem) => void;
 };
 
-export default function SimilarResults({ problemId }: Props) {
+export default function SimilarResults({ problemId, onSelectSimilar }: Props) {
   const [results, setResults] = useState<SimilarProblem[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -68,13 +69,23 @@ export default function SimilarResults({ problemId }: Props) {
         return (
           <div
             key={r.id}
+            onClick={() => onSelectSimilar?.(r)}
             style={{
               display: "flex", alignItems: "center", gap: "var(--space-3)",
               padding: "var(--space-3) var(--space-4)",
               borderRadius: "var(--radius-md)",
               border: "1px solid var(--color-border-divider)",
               background: "var(--color-bg-surface)",
-              transition: "box-shadow 0.15s",
+              cursor: "pointer",
+              transition: "box-shadow 0.15s, border-color 0.15s",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.08)";
+              e.currentTarget.style.borderColor = "color-mix(in srgb, var(--color-brand-primary) 30%, var(--color-border-divider))";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.boxShadow = "none";
+              e.currentTarget.style.borderColor = "var(--color-border-divider)";
             }}
           >
             {/* 유사도 뱃지 */}
