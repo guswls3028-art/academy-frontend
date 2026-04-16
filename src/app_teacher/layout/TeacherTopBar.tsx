@@ -1,9 +1,11 @@
 /**
  * PATH: src/app_teacher/layout/TeacherTopBar.tsx
- * 상단 바 — 테넌트명 + 알림 뱃지
+ * 상단 바 — 테넌트명 + 알림 뱃지 (Lucide 아이콘)
  */
 import { useNavigate } from "react-router-dom";
 import { useProgram } from "@/shared/program";
+import { useAdminNotificationCounts } from "@admin/domains/admin-notifications/useAdminNotificationCounts";
+import { Bell } from "@teacher/shared/ui/Icons";
 
 interface Props {
   tenantCode: string | null;
@@ -12,7 +14,9 @@ interface Props {
 export default function TeacherTopBar({ tenantCode }: Props) {
   const navigate = useNavigate();
   const { program } = useProgram();
+  const { counts } = useAdminNotificationCounts();
   const tenantName = program?.display_name || "학원플러스";
+  const badge = counts?.total ?? 0;
 
   return (
     <div
@@ -69,10 +73,28 @@ export default function TeacherTopBar({ tenantCode }: Props) {
           position: "relative",
         }}
       >
-        <svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-          <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-        </svg>
+        <Bell size={22} />
+        {badge > 0 && (
+          <span
+            style={{
+              position: "absolute",
+              top: 4,
+              right: 4,
+              minWidth: 16,
+              height: 16,
+              lineHeight: "16px",
+              fontSize: 9,
+              fontWeight: 700,
+              textAlign: "center",
+              borderRadius: 8,
+              padding: "0 4px",
+              background: "var(--tc-danger)",
+              color: "#fff",
+            }}
+          >
+            {badge > 99 ? "99+" : badge}
+          </span>
+        )}
       </button>
     </div>
   );

@@ -1,38 +1,82 @@
 /**
  * PATH: src/app_teacher/layout/TeacherDrawer.tsx
- * 사이드 드로어 — 더보기 메뉴. 부가 기능 + 데스크톱 전환 + 로그아웃
+ * 사이드 드로어 — PC 사이드바 구조 1:1 매칭. 4그룹 + Lucide 아이콘
  */
 import { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import useAuth from "@/auth/hooks/useAuth";
 import { setPreferAdmin } from "@/core/router/MobileTeacherRedirect";
+import { useAdminNotificationCounts } from "@admin/domains/admin-notifications/useAdminNotificationCounts";
+import {
+  Home, Users, BookOpen, Activity,
+  ClipboardList, Award, Video, MessageSquare,
+  FileText, Bell, User, Settings,
+  Monitor, LogOut, AlertCircle, X,
+} from "@teacher/shared/ui/Icons";
 
 interface Props {
   open: boolean;
   onClose: () => void;
 }
 
-const MENU_ITEMS = [
-  { label: "내 프로필", path: "/teacher/profile", icon: "person" },
-  { label: "알림 센터", path: "/teacher/notifications", icon: "bell" },
-  { label: "시험 / 과제", path: "/teacher/exams", icon: "clipboard" },
-  { label: "성적 조회", path: "/teacher/results", icon: "results" },
-  { label: "영상 목록", path: "/teacher/videos", icon: "video" },
-  { label: "클리닉", path: "/teacher/clinic", icon: "clinic" },
-  { label: "상담 메모", path: "/teacher/counseling", icon: "note" },
-] as const;
+/* PC 사이드바 4그룹 구조 */
+type MenuItem = {
+  label: string;
+  path: string;
+  icon: React.ReactNode;
+  badge?: number;
+};
+
+type MenuGroup = {
+  title: string;
+  items: MenuItem[];
+};
 
 export default function TeacherDrawer({ open, onClose }: Props) {
   const navigate = useNavigate();
+  const location = useLocation();
   const { clearAuth } = useAuth();
+  const { counts } = useAdminNotificationCounts();
+
+  const menuGroups: MenuGroup[] = [
+    {
+      title: "주요 메뉴",
+      items: [
+        { label: "대시보드", path: "/teacher", icon: <Home size={18} /> },
+        { label: "학생", path: "/teacher/students", icon: <Users size={18} /> },
+        { label: "강의", path: "/teacher/classes", icon: <BookOpen size={18} /> },
+        { label: "클리닉", path: "/teacher/clinic", icon: <Activity size={18} /> },
+      ],
+    },
+    {
+      title: "학습 · 콘텐츠",
+      items: [
+        { label: "시험 / 과제", path: "/teacher/exams", icon: <ClipboardList size={18} /> },
+        { label: "성적 조회", path: "/teacher/results", icon: <Award size={18} /> },
+        { label: "영상", path: "/teacher/videos", icon: <Video size={18} /> },
+        { label: "소통", path: "/teacher/comms", icon: <MessageSquare size={18} />, badge: counts?.total },
+      ],
+    },
+    {
+      title: "관리",
+      items: [
+        { label: "상담 메모", path: "/teacher/counseling", icon: <FileText size={18} /> },
+        { label: "알림 센터", path: "/teacher/notifications", icon: <Bell size={18} />, badge: counts?.total },
+      ],
+    },
+    {
+      title: "설정",
+      items: [
+        { label: "내 프로필", path: "/teacher/profile", icon: <User size={18} /> },
+      ],
+    },
+  ];
 
   // Body scroll lock
   useEffect(() => {
     if (open) {
       document.body.style.overflow = "hidden";
-      return () => {
-        document.body.style.overflow = "";
-      };
+      return () => { document.body.style.overflow = ""; };
     }
   }, [open]);
 
@@ -53,6 +97,11 @@ export default function TeacherDrawer({ open, onClose }: Props) {
     navigate("/login");
   };
 
+  const isActive = (path: string) => {
+    if (path === "/teacher") return location.pathname === "/teacher";
+    return location.pathname.startsWith(path);
+  };
+
   return (
     <>
       {/* Backdrop */}
@@ -70,145 +119,195 @@ export default function TeacherDrawer({ open, onClose }: Props) {
         />
       )}
 
-      {/* Drawer panel */}
+      {/* Drawer panel — PC 사이드바 스타일 */}
       <div
         style={{
           position: "fixed",
           top: 0,
-          right: 0,
+          left: 0,
           bottom: 0,
           width: "min(280px, 80vw)",
           zIndex: "calc(var(--tc-z-overlay) + 1)" as any,
-          background: "var(--tc-surface)",
-          boxShadow: open ? "-4px 0 24px rgba(0,0,0,0.12)" : "none",
-          transform: open ? "translateX(0)" : "translateX(100%)",
+          background: "var(--tc-bg)",
+          boxShadow: open ? "4px 0 24px rgba(0,0,0,0.12)" : "none",
+          transform: open ? "translateX(0)" : "translateX(-100%)",
           transition: "transform 280ms cubic-bezier(0.4, 0, 0.2, 1)",
           display: "flex",
           flexDirection: "column",
           paddingTop: "var(--tc-safe-top)",
         }}
       >
-        {/* Header */}
+        {/* Header — 사이드바 로고 영역 대응 */}
         <div
           style={{
-            padding: "var(--tc-space-5) var(--tc-space-4)",
+            padding: "var(--tc-space-4) var(--tc-space-4)",
             borderBottom: "1px solid var(--tc-border)",
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
           }}
         >
-          <span style={{ fontSize: 16, fontWeight: 700, color: "var(--tc-text)" }}>더보기</span>
+          <span style={{ fontSize: 15, fontWeight: 700, color: "var(--tc-text)", letterSpacing: "-0.3px" }}>
+            메뉴
+          </span>
           <button
             onClick={onClose}
             style={{
               background: "none",
               border: "none",
               cursor: "pointer",
-              padding: 8,
-              color: "var(--tc-text-secondary)",
+              padding: 6,
+              color: "var(--tc-text-muted)",
               display: "flex",
             }}
           >
-            <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-              <line x1={18} y1={6} x2={6} y2={18} />
-              <line x1={6} y1={6} x2={18} y2={18} />
-            </svg>
+            <X size={18} />
           </button>
         </div>
 
-        {/* Menu items */}
+        {/* Grouped menu — PC 사이드바 구조 */}
         <div style={{ flex: 1, overflowY: "auto", padding: "var(--tc-space-2) 0" }}>
-          {MENU_ITEMS.map((item) => (
-            <button
-              key={item.path}
-              onClick={() => handleNav(item.path)}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 12,
-                width: "100%",
-                padding: "14px var(--tc-space-4)",
-                background: "none",
-                border: "none",
-                cursor: "pointer",
-                fontSize: 15,
-                color: "var(--tc-text)",
-                textAlign: "left",
-              }}
-            >
-              {item.label}
-            </button>
+          {menuGroups.map((group, gi) => (
+            <div key={group.title}>
+              {/* Group header */}
+              <div
+                style={{
+                  padding: "var(--tc-space-3) var(--tc-space-4) var(--tc-space-1)",
+                  fontSize: 11,
+                  fontWeight: 600,
+                  color: "var(--tc-text-muted)",
+                  letterSpacing: "0.3px",
+                  textTransform: "uppercase",
+                }}
+              >
+                {group.title}
+              </div>
+
+              {/* Items */}
+              {group.items.map((item) => {
+                const active = isActive(item.path);
+                return (
+                  <button
+                    key={item.path}
+                    onClick={() => handleNav(item.path)}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 10,
+                      width: "100%",
+                      padding: "10px var(--tc-space-4)",
+                      margin: "1px 0",
+                      background: active ? "var(--tc-primary-bg)" : "none",
+                      border: "none",
+                      borderLeft: active ? "3px solid var(--tc-primary)" : "3px solid transparent",
+                      cursor: "pointer",
+                      fontSize: 14,
+                      fontWeight: active ? 600 : 400,
+                      color: active ? "var(--tc-primary)" : "var(--tc-text)",
+                      textAlign: "left",
+                      transition: "all 80ms ease",
+                    }}
+                  >
+                    <span style={{ color: active ? "var(--tc-primary)" : "var(--tc-text-muted)", display: "flex" }}>
+                      {item.icon}
+                    </span>
+                    <span className="flex-1">{item.label}</span>
+                    {item.badge != null && item.badge > 0 && (
+                      <span
+                        style={{
+                          minWidth: 18,
+                          height: 18,
+                          lineHeight: "18px",
+                          fontSize: 10,
+                          fontWeight: 700,
+                          textAlign: "center",
+                          borderRadius: 9,
+                          padding: "0 5px",
+                          background: "var(--tc-danger)",
+                          color: "#fff",
+                        }}
+                      >
+                        {item.badge > 99 ? "99+" : item.badge}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+
+              {/* Divider between groups */}
+              {gi < menuGroups.length - 1 && (
+                <div style={{ height: 1, background: "var(--tc-border)", margin: "var(--tc-space-2) var(--tc-space-4)" }} />
+              )}
+            </div>
           ))}
+        </div>
 
-          <div style={{ height: 1, background: "var(--tc-border)", margin: "var(--tc-space-2) var(--tc-space-4)" }} />
-
+        {/* Bottom actions */}
+        <div style={{ borderTop: "1px solid var(--tc-border)", padding: "var(--tc-space-2) 0" }}>
           {/* Desktop switch */}
           <button
             onClick={handleDesktopSwitch}
             style={{
               display: "flex",
               alignItems: "center",
-              gap: 12,
+              gap: 10,
               width: "100%",
-              padding: "14px var(--tc-space-4)",
+              padding: "10px var(--tc-space-4)",
               background: "none",
               border: "none",
               cursor: "pointer",
-              fontSize: 15,
+              fontSize: 14,
               color: "var(--tc-primary)",
               textAlign: "left",
             }}
           >
-            <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-              <rect x={2} y={3} width={20} height={14} rx={2} />
-              <line x1={8} y1={21} x2={16} y2={21} />
-              <line x1={12} y1={17} x2={12} y2={21} />
-            </svg>
-            데스크톱 버전으로 전환
+            <Monitor size={18} />
+            데스크톱 버전
           </button>
-        </div>
 
-        {/* 문제 신고 */}
-        <div style={{ padding: "0 var(--tc-space-4)" }}>
+          {/* Bug report */}
           <button
             onClick={() => {
               onClose();
               document.dispatchEvent(new Event("ui:bugreport:open"));
             }}
             style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
               width: "100%",
-              padding: "12px",
-              border: "1px solid var(--tc-border)",
-              borderRadius: "var(--tc-radius)",
-              background: "transparent",
-              color: "var(--tc-text-secondary)",
-              fontSize: 14,
-              fontWeight: 500,
+              padding: "10px var(--tc-space-4)",
+              background: "none",
+              border: "none",
               cursor: "pointer",
+              fontSize: 14,
+              color: "var(--tc-text-secondary)",
               textAlign: "left",
             }}
           >
+            <AlertCircle size={18} />
             문제 신고
           </button>
-        </div>
 
-        {/* Logout */}
-        <div style={{ padding: "var(--tc-space-4)", borderTop: "1px solid var(--tc-border)" }}>
+          {/* Logout */}
           <button
             onClick={handleLogout}
             style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
               width: "100%",
-              padding: "12px",
-              border: "1px solid var(--tc-border-strong)",
-              borderRadius: "var(--tc-radius)",
-              background: "transparent",
-              color: "var(--tc-danger)",
-              fontSize: 14,
-              fontWeight: 600,
+              padding: "10px var(--tc-space-4)",
+              background: "none",
+              border: "none",
               cursor: "pointer",
+              fontSize: 14,
+              color: "var(--tc-danger)",
+              fontWeight: 600,
+              textAlign: "left",
             }}
           >
+            <LogOut size={18} />
             로그아웃
           </button>
         </div>
