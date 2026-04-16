@@ -31,7 +31,7 @@ export default function VideoListPage() {
 
   return (
     <div className="flex flex-col gap-3">
-      <h2 className="text-base font-bold py-1" style={{ color: "var(--tc-text)" }}>영상 목록</h2>
+      <h2 className="text-base font-bold py-1" style={{ color: "var(--tc-text)" }}>영상</h2>
 
       {isLoading ? (
         <EmptyState scope="panel" tone="loading" title="불러오는 중…" />

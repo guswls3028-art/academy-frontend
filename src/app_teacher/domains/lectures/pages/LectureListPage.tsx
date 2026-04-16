@@ -32,7 +32,7 @@ export default function LectureListPage() {
 
   return (
     <div className="flex flex-col gap-3">
-      <SectionTitle>강의 목록</SectionTitle>
+      <SectionTitle>강의</SectionTitle>
 
       <TabBar
         tabs={[

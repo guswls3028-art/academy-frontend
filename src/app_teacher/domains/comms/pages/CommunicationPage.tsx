@@ -43,9 +43,9 @@ export default function CommunicationPage() {
   });
 
   const tabs: { key: Tab; label: string; badge?: number }[] = [
-    { key: "notices", label: "공지" },
+    { key: "notices", label: "공지사항" },
     { key: "qna", label: "Q&A", badge: counts?.qnaPending },
-    { key: "requests", label: "등록요청", badge: counts?.registrationRequestsPending },
+    { key: "requests", label: "가입신청", badge: counts?.registrationRequestsPending },
     { key: "board", label: "게시판" },
     { key: "materials", label: "자료" },
   ];
@@ -132,7 +132,7 @@ function emptyTitle(tab: Tab): string {
   const map: Record<Tab, string> = {
     notices: "공지사항이 없습니다",
     qna: "Q&A가 없습니다",
-    requests: "등록요청이 없습니다",
+    requests: "가입 신청이 없습니다",
     board: "게시글이 없습니다",
     materials: "자료가 없습니다",
   };

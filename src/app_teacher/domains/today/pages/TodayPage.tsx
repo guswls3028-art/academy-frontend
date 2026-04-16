@@ -60,7 +60,7 @@ export default function TodayPage() {
         <ShortcutBtn icon={<BookOpen size={20} />} label="강의" onClick={() => navigate("/teacher/classes")} />
         <ShortcutBtn icon={<ClipboardList size={20} />} label="시험" onClick={() => navigate("/teacher/exams")} />
         <ShortcutBtn icon={<Video size={20} />} label="영상" onClick={() => navigate("/teacher/videos")} />
-        <ShortcutBtn icon={<MessageSquare size={20} />} label="소통" onClick={() => navigate("/teacher/comms")} />
+        <ShortcutBtn icon={<MessageSquare size={20} />} label="커뮤니티" onClick={() => navigate("/teacher/comms")} />
         <ShortcutBtn icon={<Activity size={20} />} label="클리닉" onClick={() => navigate("/teacher/clinic")} />
         <ShortcutBtn icon={<FileText size={20} />} label="상담" onClick={() => navigate("/teacher/counseling")} />
         <ShortcutBtn icon={<Bell size={20} />} label="알림" onClick={() => navigate("/teacher/notifications")} />

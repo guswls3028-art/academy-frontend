@@ -54,7 +54,7 @@ export default function TeacherDrawer({ open, onClose }: Props) {
         { label: "시험 / 과제", path: "/teacher/exams", icon: <ClipboardList size={18} /> },
         { label: "성적 조회", path: "/teacher/results", icon: <Award size={18} /> },
         { label: "영상", path: "/teacher/videos", icon: <Video size={18} /> },
-        { label: "소통", path: "/teacher/comms", icon: <MessageSquare size={18} />, badge: counts?.total },
+        { label: "커뮤니티", path: "/teacher/comms", icon: <MessageSquare size={18} />, badge: counts?.total },
       ],
     },
     {

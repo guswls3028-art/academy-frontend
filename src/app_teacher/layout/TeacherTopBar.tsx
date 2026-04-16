@@ -1,17 +1,19 @@
 /**
  * PATH: src/app_teacher/layout/TeacherTopBar.tsx
- * 상단 바 — 테넌트명 + 알림 뱃지 (Lucide 아이콘)
+ * 상단 바 — 좌: 햄버거(사이드바) + 테넌트명 / 우: 알림 벨
+ * 데스크톱 헤더와 동일 구조
  */
 import { useNavigate } from "react-router-dom";
 import { useProgram } from "@/shared/program";
 import { useAdminNotificationCounts } from "@admin/domains/admin-notifications/useAdminNotificationCounts";
-import { Bell } from "@teacher/shared/ui/Icons";
+import { Menu, Bell } from "@teacher/shared/ui/Icons";
 
 interface Props {
   tenantCode: string | null;
+  onMenuClick: () => void;
 }
 
-export default function TeacherTopBar({ tenantCode }: Props) {
+export default function TeacherTopBar({ tenantCode, onMenuClick }: Props) {
   const navigate = useNavigate();
   const { program } = useProgram();
   const { counts } = useAdminNotificationCounts();
@@ -25,36 +27,52 @@ export default function TeacherTopBar({ tenantCode }: Props) {
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
-        padding: "0 var(--tc-space-4)",
+        padding: "0 var(--tc-space-3)",
         maxWidth: "var(--tc-page-max-w)",
         margin: "0 auto",
         width: "100%",
       }}
     >
-      {/* Left: Tenant name */}
-      <button
-        onClick={() => navigate("/teacher")}
-        style={{
-          background: "none",
-          border: "none",
-          padding: 0,
-          cursor: "pointer",
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-        }}
-      >
-        <span
+      {/* Left: Hamburger + Tenant name */}
+      <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+        <button
+          onClick={onMenuClick}
+          aria-label="메뉴"
           style={{
-            fontSize: 17,
-            fontWeight: 700,
-            color: "var(--tc-text)",
-            letterSpacing: "-0.02em",
+            background: "none",
+            border: "none",
+            padding: 8,
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: "var(--tc-text-secondary)",
+            borderRadius: "var(--tc-radius)",
           }}
         >
-          {tenantName}
-        </span>
-      </button>
+          <Menu size={22} />
+        </button>
+        <button
+          onClick={() => navigate("/teacher")}
+          style={{
+            background: "none",
+            border: "none",
+            padding: "4px 0",
+            cursor: "pointer",
+          }}
+        >
+          <span
+            style={{
+              fontSize: 17,
+              fontWeight: 700,
+              color: "var(--tc-text)",
+              letterSpacing: "-0.02em",
+            }}
+          >
+            {tenantName}
+          </span>
+        </button>
+      </div>
 
       {/* Right: Notification bell */}
       <button
