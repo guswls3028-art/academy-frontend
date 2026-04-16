@@ -278,7 +278,7 @@ export default function ResultsStatsTab() {
                               fontSize: 13,
                               padding: "6px 10px",
                             }}
-                            formatter={(v: number) => [`${v}명`, "학생 수"]}
+                            formatter={(v: any) => [`${v}명`, "학생 수"]}
                           />
                           <Bar dataKey="count" radius={[0, 4, 4, 0]} barSize={18}>
                             {distribution.map((_, i) => (
@@ -330,7 +330,7 @@ export default function ResultsStatsTab() {
                               fontSize: 13,
                               padding: "6px 10px",
                             }}
-                            formatter={(v: number) => [`${v}%`, "정답률"]}
+                            formatter={(v: any) => [`${v}%`, "정답률"]}
                           />
                           <Bar dataKey="정답률" radius={[0, 4, 4, 0]} barSize={16}>
                             {qChartData.map((entry, i) => (
