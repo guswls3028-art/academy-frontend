@@ -70,3 +70,18 @@ export async function fetchExamResults(examId: number) {
   const raw = res.data;
   return Array.isArray(raw?.results) ? raw.results : Array.isArray(raw) ? raw : [];
 }
+
+/** 강좌별 과제 점수 목록 (1차 시도만) */
+export async function fetchHomeworkScores(lectureId: number) {
+  const res = await api.get("/homework/scores/", { params: { lecture: lectureId, page_size: 500 } });
+  const raw = res.data;
+  return (Array.isArray(raw?.results) ? raw.results : Array.isArray(raw) ? raw : []) as Array<{
+    id: number;
+    enrollment_id: number;
+    homework: number;
+    score: number | null;
+    max_score: number | null;
+    passed: boolean;
+    meta: { status?: string } | null;
+  }>;
+}

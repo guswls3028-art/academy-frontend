@@ -149,6 +149,74 @@ export default function GradesStatsTab({ exams, homeworks }: Props) {
         </div>
       )}
 
+      {/* 시험 석차 & 위치 요약 */}
+      {examStats && (() => {
+        const ranked = exams.filter((e) => e.rank != null && e.cohort_size != null && e.cohort_size > 1 && e.meta_status !== "NOT_SUBMITTED");
+        if (ranked.length === 0) return null;
+        const topQuartile = ranked.filter((e) => e.percentile != null && e.percentile <= 25).length;
+        const midRange = ranked.filter((e) => e.percentile != null && e.percentile > 25 && e.percentile <= 75).length;
+        const bottom = ranked.length - topQuartile - midRange;
+        const bestExam = [...ranked].sort((a, b) => (a.percentile ?? 100) - (b.percentile ?? 100))[0];
+        const worstExam = [...ranked].sort((a, b) => (b.percentile ?? 0) - (a.percentile ?? 0))[0];
+        return (
+          <div>
+            <div style={sectionTitle}>내 위치 분석</div>
+            <StatGrid>
+              <StatCard label="상위권" value={`${topQuartile}회`} accent="success" />
+              <StatCard label="중위권" value={`${midRange}회`} />
+              <StatCard label="하위권" value={`${bottom}회`} accent={bottom > 0 ? "danger" : undefined} />
+            </StatGrid>
+            <div style={{ marginTop: "var(--stu-space-4)", fontSize: 13, color: "var(--stu-text-muted)", display: "flex", flexDirection: "column", gap: 4 }}>
+              {bestExam && (
+                <div>
+                  <span style={{ color: "var(--stu-success)", fontWeight: 600 }}>최고 성적</span>{" "}
+                  {bestExam.title} — {bestExam.rank}등/{bestExam.cohort_size}명
+                </div>
+              )}
+              {worstExam && worstExam.exam_id !== bestExam?.exam_id && (
+                <div>
+                  <span style={{ color: "var(--stu-danger)", fontWeight: 600 }}>보완 필요</span>{" "}
+                  {worstExam.title} — {worstExam.rank}등/{worstExam.cohort_size}명
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* 강좌별 성적 분석 */}
+      {(() => {
+        const byLecture = new Map<string, { total: number; pass: number; scores: number[] }>();
+        for (const e of exams) {
+          if (!e.lecture_title || e.total_score == null) continue;
+          const key = e.lecture_title;
+          if (!byLecture.has(key)) byLecture.set(key, { total: 0, pass: 0, scores: [] });
+          const entry = byLecture.get(key)!;
+          entry.total++;
+          if (e.is_pass) entry.pass++;
+          entry.scores.push(e.max_score > 0 ? (e.total_score / e.max_score) * 100 : 0);
+        }
+        if (byLecture.size < 2) return null;
+        const lectureStats = Array.from(byLecture.entries())
+          .map(([name, d]) => ({
+            name: name.length > 8 ? name.slice(0, 8) + "\u2026" : name,
+            avg: Math.round(d.scores.reduce((s, v) => s + v, 0) / d.scores.length),
+            passRate: Math.round((d.pass / d.total) * 100),
+          }))
+          .sort((a, b) => a.avg - b.avg);
+        const weakest = lectureStats[0];
+        return weakest && weakest.avg < 70 ? (
+          <div style={{ background: "var(--stu-surface-soft)", borderRadius: "var(--stu-radius)", padding: "var(--stu-space-4)" }}>
+            <div style={sectionTitle}>약점 강좌</div>
+            <div style={{ fontSize: 13, color: "var(--stu-text-muted)" }}>
+              <span style={{ color: "var(--stu-danger)", fontWeight: 700 }}>{weakest.name}</span> 강좌의
+              평균 득점률이 <strong style={{ color: "var(--stu-danger)" }}>{weakest.avg}%</strong>로 가장 낮습니다.
+              {weakest.passRate < 50 && ` 합격률도 ${weakest.passRate}%입니다.`}
+            </div>
+          </div>
+        ) : null;
+      })()}
+
       {/* 과제 현황 통계 */}
       {hwStats && (
         <div>

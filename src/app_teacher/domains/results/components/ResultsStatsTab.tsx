@@ -12,7 +12,9 @@ import {
   fetchExamSummary,
   fetchQuestionStats,
   fetchExamResults,
+  fetchHomeworkScores,
 } from "@teacher/domains/results/statsApi";
+import { fetchHomeworks } from "@teacher/domains/exams/api";
 import {
   BarChart,
   Bar,
@@ -57,12 +59,41 @@ export default function ResultsStatsTab() {
     enabled: selectedExam != null,
   });
 
+  /* ─── 과제 데이터 ─── */
+  const { data: homeworks } = useQuery({
+    queryKey: ["tc-stats-homeworks", selectedLecture],
+    queryFn: () => fetchHomeworks({ lecture_id: selectedLecture! }),
+    enabled: selectedLecture != null,
+  });
+
+  const { data: hwScores } = useQuery({
+    queryKey: ["tc-hw-scores", selectedLecture],
+    queryFn: () => fetchHomeworkScores(selectedLecture!),
+    enabled: selectedLecture != null,
+  });
+
   /* ─── Derived ─── */
   const selectedExamObj = exams?.find((e: any) => e.id === selectedExam);
   // 시험 만점 = exam 객체의 max_score (summary.max_score는 "최고 득점"이므로 사용 금지)
   const examMaxScore = selectedExamObj?.max_score ?? 100;
   const participantCount = summary?.participant_count ?? 0;
   const isSparse = participantCount > 0 && participantCount < 3;
+
+  // Homework stats (강좌 전체)
+  const hwStats = (() => {
+    if (!hwScores?.length) return null;
+    const scored = hwScores.filter((s: any) => s.score != null && s.meta?.status !== "NOT_SUBMITTED");
+    const submitted = scored.length;
+    const total = hwScores.length;
+    const passed = scored.filter((s: any) => s.passed).length;
+    const withMax = scored.filter((s: any) => s.max_score != null && s.max_score > 0);
+    const avgScore = withMax.length > 0
+      ? withMax.reduce((sum: number, s: any) => sum + ((s.score / s.max_score) * 100), 0) / withMax.length
+      : null;
+    const submissionRate = total > 0 ? Math.round((submitted / total) * 100) : 0;
+    const passRate = submitted > 0 ? Math.round((passed / submitted) * 100) : 0;
+    return { submitted, total, passed, avgScore, submissionRate, passRate, homeworkCount: homeworks?.length ?? 0 };
+  })();
 
   // Question accuracy chart data
   const qChartData = (questionStats ?? []).map((q: any, i: number) => ({
@@ -468,6 +499,97 @@ export default function ResultsStatsTab() {
         ) : (
           <EmptyState scope="panel" tone="empty" title="이 강의에 시험이 없습니다" />
         )
+      )}
+
+      {/* ── 과제 현황 (강의 선택 시 항상 표시) ── */}
+      {selectedLecture != null && hwStats && (
+        <Card>
+          <SectionTitle>과제 현황</SectionTitle>
+          <div className="grid grid-cols-3 gap-2 mt-2">
+            <KpiCard
+              label="제출률"
+              value={`${hwStats.submissionRate}%`}
+              color={
+                hwStats.submissionRate >= 80
+                  ? "var(--tc-success)"
+                  : hwStats.submissionRate >= 50
+                    ? "var(--tc-warn)"
+                    : "var(--tc-danger)"
+              }
+            />
+            <KpiCard
+              label="평균 점수"
+              value={hwStats.avgScore != null ? `${hwStats.avgScore.toFixed(0)}점` : "-"}
+              color={
+                hwStats.avgScore != null && hwStats.avgScore >= 70
+                  ? "var(--tc-success)"
+                  : hwStats.avgScore != null && hwStats.avgScore >= 40
+                    ? "var(--tc-warn)"
+                    : "var(--tc-text-muted)"
+              }
+            />
+            <KpiCard
+              label="합격률"
+              value={`${hwStats.passRate}%`}
+              color={
+                hwStats.passRate >= 70
+                  ? "var(--tc-success)"
+                  : hwStats.passRate >= 40
+                    ? "var(--tc-warn)"
+                    : "var(--tc-danger)"
+              }
+            />
+          </div>
+
+          {/* 진행 바 */}
+          {hwStats.total > 0 && (
+            <div className="mt-3">
+              <div
+                className="flex items-center justify-between mb-1"
+                style={{ fontSize: 12, color: "var(--tc-text-muted)" }}
+              >
+                <span>제출 {hwStats.submitted} / 전체 {hwStats.total}</span>
+                <span>과제 {hwStats.homeworkCount}건</span>
+              </div>
+              <div
+                className="rounded-full overflow-hidden flex"
+                style={{ height: 8, background: "var(--tc-surface-soft)" }}
+              >
+                <div
+                  style={{
+                    width: `${(hwStats.passed / hwStats.total) * 100}%`,
+                    background: "var(--tc-success)",
+                    transition: "width 0.4s ease",
+                  }}
+                />
+                <div
+                  style={{
+                    width: `${((hwStats.submitted - hwStats.passed) / hwStats.total) * 100}%`,
+                    background: "var(--tc-danger)",
+                    transition: "width 0.4s ease",
+                  }}
+                />
+              </div>
+              <div
+                className="flex items-center gap-4 mt-1"
+                style={{ fontSize: 11, color: "var(--tc-text-muted)" }}
+              >
+                <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                  <span style={{ width: 8, height: 8, borderRadius: 4, background: "var(--tc-success)" }} />
+                  합격
+                </span>
+                <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                  <span style={{ width: 8, height: 8, borderRadius: 4, background: "var(--tc-danger)" }} />
+                  불합격
+                </span>
+                <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                  <span style={{ width: 8, height: 8, borderRadius: 4, background: "var(--tc-surface-soft)", border: "1px solid var(--tc-border)" }} />
+                  미제출
+                </span>
+              </div>
+            </div>
+          )}
+        </Card>
       )}
     </div>
   );
