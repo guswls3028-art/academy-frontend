@@ -4,10 +4,10 @@ import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState } from "@/shared/ui/ds";
-import { Send } from "@teacher/shared/ui/Icons";
+import { Send, MoreVertical, Pencil, Trash2, Save, X } from "@teacher/shared/ui/Icons";
 import { BackButton, Card, TabBar, KpiCard } from "@teacher/shared/ui/Card";
 import { Badge } from "@teacher/shared/ui/Badge";
-import { fetchVideoDetail, fetchVideoStats } from "../api";
+import { fetchVideoDetail, fetchVideoStats, renameVideo, updateVideo, deleteVideo } from "../api";
 import api from "@/shared/api/axios";
 
 type Tab = "stats" | "comments";
@@ -15,8 +15,21 @@ type Tab = "stats" | "comments";
 export default function VideoDetailPage() {
   const { videoId } = useParams<{ videoId: string }>();
   const navigate = useNavigate();
+  const qc = useQueryClient();
   const vid = Number(videoId);
   const [tab, setTab] = useState<Tab>("stats");
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [titleInput, setTitleInput] = useState("");
+
+  const renameMut = useMutation({
+    mutationFn: () => renameVideo(vid, titleInput),
+    onSuccess: () => { setEditingTitle(false); qc.invalidateQueries({ queryKey: ["teacher-video", vid] }); },
+  });
+  const deleteMut = useMutation({
+    mutationFn: () => deleteVideo(vid),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["teacher-videos"] }); navigate(-1); },
+  });
 
   const { data: video, isLoading: loadingVideo } = useQuery({
     queryKey: ["teacher-video", vid],
@@ -53,9 +66,43 @@ export default function VideoDetailPage() {
       {/* Header */}
       <div className="flex items-center gap-2 py-0.5">
         <BackButton onClick={() => navigate(-1)} />
-        <h1 className="text-[17px] font-bold flex-1 truncate" style={{ color: "var(--tc-text)" }}>
-          {video.title}
-        </h1>
+        {editingTitle ? (
+          <div className="flex items-center gap-1 flex-1">
+            <input type="text" value={titleInput} onChange={(e) => setTitleInput(e.target.value)}
+              className="flex-1 text-[15px] font-bold"
+              style={{ padding: "4px 8px", border: "1px solid var(--tc-border-strong)", borderRadius: "var(--tc-radius-sm)", background: "var(--tc-surface-soft)", color: "var(--tc-text)", outline: "none" }} />
+            <button onClick={() => renameMut.mutate()} className="flex p-1 cursor-pointer" style={{ background: "none", border: "none", color: "var(--tc-primary)" }}><Save size={16} /></button>
+            <button onClick={() => setEditingTitle(false)} className="flex p-1 cursor-pointer" style={{ background: "none", border: "none", color: "var(--tc-text-muted)" }}><X size={16} /></button>
+          </div>
+        ) : (
+          <h1 className="text-[17px] font-bold flex-1 truncate" style={{ color: "var(--tc-text)" }}>
+            {video.title}
+          </h1>
+        )}
+        <div className="relative">
+          <button onClick={() => setMenuOpen(!menuOpen)} className="flex p-1 cursor-pointer"
+            style={{ background: "none", border: "none", color: "var(--tc-text-muted)" }}>
+            <MoreVertical size={18} />
+          </button>
+          {menuOpen && (
+            <>
+              <div style={{ position: "fixed", inset: 0, zIndex: 99 }} onClick={() => setMenuOpen(false)} />
+              <div className="absolute right-0 top-8 rounded-lg shadow-lg"
+                style={{ background: "var(--tc-surface)", border: "1px solid var(--tc-border)", zIndex: 100, minWidth: 120 }}>
+                <button onClick={() => { setTitleInput(video.title); setEditingTitle(true); setMenuOpen(false); }}
+                  className="flex items-center gap-2 w-full text-left text-sm cursor-pointer"
+                  style={{ padding: "10px 14px", background: "none", border: "none", color: "var(--tc-text)" }}>
+                  <Pencil size={14} /> 제목 변경
+                </button>
+                <button onClick={() => { if (confirm("이 영상을 삭제하시겠습니까?")) deleteMut.mutate(); setMenuOpen(false); }}
+                  className="flex items-center gap-2 w-full text-left text-sm cursor-pointer"
+                  style={{ padding: "10px 14px", background: "none", border: "none", color: "var(--tc-danger)", borderTop: "1px solid var(--tc-border-subtle)" }}>
+                  <Trash2 size={14} /> 삭제
+                </button>
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Info */}

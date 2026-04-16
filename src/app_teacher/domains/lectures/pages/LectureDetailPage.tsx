@@ -191,7 +191,17 @@ export default function LectureDetailPage() {
                     {s.section_label ? ` · ${s.section_label}` : ""}
                   </div>
                 </div>
-                <ChevronRight />
+                <div className="flex items-center gap-1 shrink-0">
+                  <span onClick={(e) => { e.stopPropagation(); setEditSession(s); setSessionFormOpen(true); }}
+                    className="flex p-1 cursor-pointer" style={{ color: "var(--tc-text-muted)" }}>
+                    <Pencil size={13} />
+                  </span>
+                  <span onClick={(e) => { e.stopPropagation(); if (confirm("이 차시를 삭제하시겠습니까?")) deleteSessionMut.mutate(s.id); }}
+                    className="flex p-1 cursor-pointer" style={{ color: "var(--tc-danger)" }}>
+                    <Trash2 size={13} />
+                  </span>
+                  <ChevronRight />
+                </div>
               </button>
             ))}
           </div>

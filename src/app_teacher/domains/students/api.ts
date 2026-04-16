@@ -58,6 +58,11 @@ export async function updateStudent(studentId: number, payload: {
   return res.data;
 }
 
+/* ─── 학생 삭제 (soft delete) ─── */
+export async function deleteStudent(studentId: number) {
+  await api.delete(`/students/${studentId}/`);
+}
+
 /* ─── 활성/비활성 토글 ─── */
 export async function toggleStudentActive(studentId: number) {
   const res = await api.post(`/students/${studentId}/toggle-active/`);

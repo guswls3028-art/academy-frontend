@@ -4,10 +4,10 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState } from "@/shared/ui/ds";
 import useAuth from "@/auth/hooks/useAuth";
-import { fetchPostReplies, createReply, deleteReply, updatePost, deletePost } from "../api";
+import { fetchPostReplies, createReply, deleteReply, updatePost, deletePost, togglePostPin } from "../api";
 import type { Post, Reply } from "../api";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
-import { ChevronLeft, Pencil, Trash2, MoreVertical, X, Save } from "@teacher/shared/ui/Icons";
+import { ChevronLeft, Pencil, Trash2, MoreVertical, X, Save, Star, AlertCircle } from "@teacher/shared/ui/Icons";
 
 interface Props {
   post: Post;
@@ -71,6 +71,16 @@ export default function PostDetail({ post: initialPost, onBack }: Props) {
     },
   });
 
+  const pinMutation = useMutation({
+    mutationFn: () => togglePostPin(initialPost.id, !initialPost.is_pinned),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["teacher-comms"] }),
+  });
+
+  const urgentMutation = useMutation({
+    mutationFn: () => updatePost(initialPost.id, { is_urgent: !initialPost.is_urgent } as any),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["teacher-comms"] }),
+  });
+
   const handleDelete = () => {
     if (confirm("이 글을 삭제하시겠습니까?")) {
       deleteMutation.mutate();
@@ -116,6 +126,16 @@ export default function PostDetail({ post: initialPost, onBack }: Props) {
                     className="flex items-center gap-2 w-full text-left text-sm cursor-pointer"
                     style={{ padding: "10px 14px", background: "none", border: "none", color: "var(--tc-text)" }}>
                     <Pencil size={14} /> 편집
+                  </button>
+                  <button onClick={() => { pinMutation.mutate(); setMenuOpen(false); }}
+                    className="flex items-center gap-2 w-full text-left text-sm cursor-pointer"
+                    style={{ padding: "10px 14px", background: "none", border: "none", color: "var(--tc-text)", borderTop: "1px solid var(--tc-border-subtle)" }}>
+                    <Star size={14} /> {initialPost.is_pinned ? "고정 해제" : "고정"}
+                  </button>
+                  <button onClick={() => { urgentMutation.mutate(); setMenuOpen(false); }}
+                    className="flex items-center gap-2 w-full text-left text-sm cursor-pointer"
+                    style={{ padding: "10px 14px", background: "none", border: "none", color: "var(--tc-danger)", borderTop: "1px solid var(--tc-border-subtle)" }}>
+                    <AlertCircle size={14} /> {initialPost.is_urgent ? "긴급 해제" : "긴급 설정"}
                   </button>
                   <button onClick={handleDelete}
                     className="flex items-center gap-2 w-full text-left text-sm cursor-pointer"

@@ -10,7 +10,7 @@ import { Phone, Mail, User, Pencil, Save, X, Tag, Plus, ToggleLeft, ToggleRight 
 import { Card, BackButton, KpiCard, TabBar } from "@teacher/shared/ui/Card";
 import { Badge, AchievementBadge, AttendanceBadge, ClinicStatusBadge } from "@teacher/shared/ui/Badge";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
-import { fetchStudent, fetchStudentExamResults, updateStudent, toggleStudentActive, fetchTags, attachTag, detachTag, createTag, updateStudentMemo } from "../api";
+import { fetchStudent, fetchStudentExamResults, updateStudent, toggleStudentActive, fetchTags, attachTag, detachTag, createTag, updateStudentMemo, deleteStudent } from "../api";
 import api from "@/shared/api/axios";
 
 type Tab = "enrollments" | "exams" | "homework" | "clinic" | "questions";
@@ -172,7 +172,8 @@ export default function StudentDetailPage() {
       {tab === "questions" && <QuestionList items={questionsData ?? []} />}
 
       {/* Edit Student BottomSheet */}
-      <EditStudentSheet open={editOpen} onClose={() => setEditOpen(false)} student={student} studentId={sid} />
+      <EditStudentSheet open={editOpen} onClose={() => setEditOpen(false)} student={student} studentId={sid}
+        onDelete={() => { deleteStudent(sid).then(() => { navigate(-1); }); }} />
 
       {/* Tag Management BottomSheet */}
       <TagManagementSheet open={tagSheetOpen} onClose={() => setTagSheetOpen(false)} studentId={sid} currentTags={tags} />
@@ -373,8 +374,8 @@ function MemoSection({ studentId, initialMemo }: { studentId: number; initialMem
 }
 
 /* ─── Edit Student BottomSheet ─── */
-function EditStudentSheet({ open, onClose, student, studentId }: {
-  open: boolean; onClose: () => void; student: any; studentId: number;
+function EditStudentSheet({ open, onClose, student, studentId, onDelete }: {
+  open: boolean; onClose: () => void; student: any; studentId: number; onDelete: () => void;
 }) {
   const qc = useQueryClient();
   const [name, setName] = useState(student?.name ?? "");
@@ -431,6 +432,13 @@ function EditStudentSheet({ open, onClose, student, studentId }: {
           className="w-full text-sm font-bold cursor-pointer mt-1"
           style={{ padding: "12px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff", opacity: mutation.isPending ? 0.6 : 1 }}>
           {mutation.isPending ? "저장 중..." : "저장"}
+        </button>
+
+        {/* Delete */}
+        <button onClick={() => { if (confirm("이 학생을 삭제하시겠습니까? (30일 내 복원 가능)")) onDelete(); }}
+          className="w-full text-sm font-semibold cursor-pointer"
+          style={{ padding: "10px", borderRadius: "var(--tc-radius)", border: "1px solid var(--tc-danger)", background: "none", color: "var(--tc-danger)" }}>
+          학생 삭제
         </button>
       </div>
     </BottomSheet>

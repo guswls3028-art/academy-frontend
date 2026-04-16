@@ -61,10 +61,11 @@ export default function TeacherSettingsPage() {
   const [editingProfile, setEditingProfile] = useState(false);
   const [nameInput, setNameInput] = useState(user?.name || "");
   const [phoneInput, setPhoneInput] = useState(user?.phone || "");
+  const [usernameInput, setUsernameInput] = useState(user?.username || "");
   const [profileMsg, setProfileMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
 
   const profileMut = useMutation({
-    mutationFn: () => updateProfile({ name: nameInput, phone: phoneInput }),
+    mutationFn: () => updateProfile({ name: nameInput, phone: phoneInput, username: usernameInput || undefined }),
     onSuccess: (data) => {
       setEditingProfile(false);
       setProfileMsg({ type: "ok", text: "저장되었습니다" });
@@ -154,7 +155,7 @@ export default function TeacherSettingsPage() {
             <div className="text-[12px]" style={{ color: "var(--tc-text-muted)" }}>{roleLabel} · {user?.username}</div>
           </div>
           {!editingProfile && (
-            <button onClick={() => { setEditingProfile(true); setNameInput(user?.name || ""); setPhoneInput(user?.phone || ""); }}
+            <button onClick={() => { setEditingProfile(true); setNameInput(user?.name || ""); setPhoneInput(user?.phone || ""); setUsernameInput(user?.username || ""); }}
               className="flex items-center gap-1 text-xs font-semibold cursor-pointer"
               style={{ padding: "6px 12px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary-bg)", color: "var(--tc-primary)" }}>
               <Pencil size={12} /> 편집
@@ -166,6 +167,7 @@ export default function TeacherSettingsPage() {
           <div className="flex flex-col gap-2 pt-2" style={{ borderTop: "1px solid var(--tc-border-subtle)" }}>
             <FieldInput label="이름" value={nameInput} onChange={setNameInput} placeholder="이름" />
             <FieldInput label="전화" value={phoneInput} onChange={setPhoneInput} placeholder="010-0000-0000" type="tel" />
+            <FieldInput label="아이디" value={usernameInput} onChange={setUsernameInput} placeholder="로그인 아이디" />
             <div className="flex gap-2 mt-1">
               <SmBtn label="저장" primary loading={profileMut.isPending} onClick={() => profileMut.mutate()} icon={<Save size={13} />} />
               <SmBtn label="취소" onClick={() => setEditingProfile(false)} icon={<X size={13} />} />

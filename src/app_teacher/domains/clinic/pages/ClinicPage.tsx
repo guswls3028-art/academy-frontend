@@ -103,6 +103,7 @@ export default function ClinicPage() {
               session={s}
               expanded={selectedSession === s.id}
               onToggle={() => setSelectedSession(selectedSession === s.id ? null : s.id)}
+              onDelete={() => { if (confirm("이 세션을 삭제하시겠습니까?")) deleteMut.mutate(s.id); }}
             />
           ))}
         </div>
@@ -120,10 +121,12 @@ function SessionCard({
   session,
   expanded,
   onToggle,
+  onDelete,
 }: {
   session: any;
   expanded: boolean;
   onToggle: () => void;
+  onDelete: () => void;
 }) {
   return (
     <div
@@ -175,7 +178,18 @@ function SessionCard({
         </svg>
       </button>
 
-      {expanded && <ParticipantList sessionId={session.id} />}
+      {expanded && (
+        <>
+          <ParticipantList sessionId={session.id} />
+          <div style={{ padding: "0 var(--tc-space-4) var(--tc-space-3)", textAlign: "right" }}>
+            <button onClick={(e) => { e.stopPropagation(); onDelete(); }}
+              className="text-[11px] font-semibold cursor-pointer"
+              style={{ padding: "4px 10px", borderRadius: "var(--tc-radius-sm)", border: "none", background: "var(--tc-danger-bg)", color: "var(--tc-danger)" }}>
+              세션 삭제
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 }
