@@ -5,16 +5,18 @@ import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { EmptyState } from "@/shared/ui/ds";
 import LectureChip from "@/shared/ui/chips/LectureChip";
-import { ChevronRight } from "@teacher/shared/ui/Icons";
+import { ChevronRight, Plus } from "@teacher/shared/ui/Icons";
 import { TabBar, SectionTitle } from "@teacher/shared/ui/Card";
 import { Badge } from "@teacher/shared/ui/Badge";
 import { fetchLectures } from "../api";
+import LectureFormSheet from "../components/LectureFormSheet";
 
 type Tab = "active" | "past";
 
 export default function LectureListPage() {
   const navigate = useNavigate();
   const [tab, setTab] = useState<Tab>("active");
+  const [createOpen, setCreateOpen] = useState(false);
 
   const { data: activeLectures, isLoading: loadingActive } = useQuery({
     queryKey: ["lectures-mobile", true],
@@ -32,7 +34,14 @@ export default function LectureListPage() {
 
   return (
     <div className="flex flex-col gap-3">
-      <SectionTitle>강의</SectionTitle>
+      <div className="flex items-center justify-between">
+        <SectionTitle>강의</SectionTitle>
+        <button onClick={() => setCreateOpen(true)}
+          className="flex items-center gap-1 text-xs font-bold cursor-pointer"
+          style={{ padding: "6px 12px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff" }}>
+          <Plus size={14} /> 강의 생성
+        </button>
+      </div>
 
       <TabBar
         tabs={[
@@ -81,6 +90,8 @@ export default function LectureListPage() {
       ) : (
         <EmptyState scope="panel" tone="empty" title={tab === "active" ? "활성 강의가 없습니다" : "과거 강의가 없습니다"} />
       )}
+
+      <LectureFormSheet open={createOpen} onClose={() => setCreateOpen(false)} />
     </div>
   );
 }

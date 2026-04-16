@@ -15,8 +15,18 @@ import { applyThemeToDom, loadThemeFromStorage } from "@admin/domains/settings/t
 import api from "@/shared/api/axios";
 
 /* ─── API ─── */
-async function updateProfile(payload: { name?: string; phone?: string }) {
+async function updateProfile(payload: { name?: string; phone?: string; username?: string }) {
   const { data } = await api.patch("/core/profile/update_me/", payload);
+  return data;
+}
+
+async function fetchTenantInfo() {
+  const { data } = await api.get("/core/tenant-info/");
+  return data;
+}
+
+async function updateTenantInfo(payload: Record<string, unknown>) {
+  const { data } = await api.patch("/core/tenant-info/", payload);
   return data;
 }
 

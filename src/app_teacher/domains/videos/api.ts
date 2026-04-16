@@ -27,3 +27,64 @@ export async function fetchVideoStats(videoId: number) {
 export async function retryVideo(videoId: number) {
   await api.post(`/media/videos/${videoId}/retry/`);
 }
+
+/* ─── Video CRUD ─── */
+export async function uploadInit(payload: {
+  session: number;
+  title: string;
+  filename: string;
+  content_type: string;
+}) {
+  const res = await api.post("/media/videos/upload-init/", payload);
+  return res.data as { id: number; upload_url: string; video_key: string };
+}
+
+export async function uploadComplete(videoId: number) {
+  await api.post(`/media/videos/${videoId}/upload-complete/`);
+}
+
+export async function renameVideo(videoId: number, title: string) {
+  const res = await api.patch(`/media/videos/${videoId}/`, { title });
+  return res.data;
+}
+
+export async function updateVideo(videoId: number, data: { title?: string; order?: number; allow_skip?: boolean; max_speed?: number; show_watermark?: boolean }) {
+  const res = await api.patch(`/media/videos/${videoId}/`, data);
+  return res.data;
+}
+
+export async function deleteVideo(videoId: number) {
+  await api.delete(`/media/videos/${videoId}/`);
+}
+
+/* ─── Folders ─── */
+export async function fetchVideoFolders(sessionId: number) {
+  const res = await api.get("/media/video-folders/", { params: { session: sessionId } });
+  const raw = res.data;
+  return Array.isArray(raw?.results) ? raw.results : Array.isArray(raw) ? raw : [];
+}
+
+export async function createVideoFolder(sessionId: number, name: string) {
+  const res = await api.post("/media/video-folders/", { session: sessionId, name });
+  return res.data;
+}
+
+export async function deleteVideoFolder(folderId: number) {
+  await api.delete(`/media/video-folders/${folderId}/`);
+}
+
+/* ─── Comments ─── */
+export async function fetchVideoComments(videoId: number) {
+  const res = await api.get(`/media/videos/${videoId}/comments/`);
+  const raw = res.data;
+  return Array.isArray(raw?.results) ? raw.results : Array.isArray(raw) ? raw : [];
+}
+
+export async function createVideoComment(videoId: number, content: string) {
+  const res = await api.post(`/media/videos/${videoId}/comments/`, { content });
+  return res.data;
+}
+
+export async function deleteVideoComment(commentId: number) {
+  await api.delete(`/media/video-comments/${commentId}/`);
+}

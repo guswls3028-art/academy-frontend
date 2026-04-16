@@ -49,3 +49,64 @@ export async function fetchSessionAttendance(sessionId: number) {
   const raw = res.data;
   return Array.isArray(raw?.results) ? raw.results : Array.isArray(raw) ? raw : [];
 }
+
+/* ─── Lecture CRUD ─── */
+export async function createLecture(payload: {
+  title: string;
+  name: string;
+  subject?: string;
+  description?: string;
+  start_date?: string | null;
+  end_date?: string | null;
+  lecture_time?: string | null;
+  color?: string | null;
+  is_active?: boolean;
+}) {
+  const res = await api.post("/lectures/lectures/", payload);
+  return res.data;
+}
+
+export async function updateLecture(lectureId: number, payload: Record<string, unknown>) {
+  const res = await api.patch(`/lectures/lectures/${lectureId}/`, payload);
+  return res.data;
+}
+
+export async function deleteLecture(lectureId: number) {
+  await api.delete(`/lectures/lectures/${lectureId}/`);
+}
+
+/* ─── Session CRUD ─── */
+export async function createSession(lectureId: number, title: string, date?: string | null, order?: number | null) {
+  const res = await api.post("/lectures/sessions/", { lecture: lectureId, title, date, order });
+  return res.data;
+}
+
+export async function updateSession(sessionId: number, payload: { title?: string; date?: string; order?: number }) {
+  const res = await api.patch(`/lectures/sessions/${sessionId}/`, payload);
+  return res.data;
+}
+
+export async function deleteSession(sessionId: number) {
+  await api.delete(`/lectures/sessions/${sessionId}/`);
+}
+
+/* ─── Enrollment management ─── */
+export async function bulkCreateEnrollments(lectureId: number, studentIds: number[]) {
+  const res = await api.post("/lectures/enrollments/bulk_create/", { lecture: lectureId, student_ids: studentIds });
+  return res.data;
+}
+
+export async function deleteEnrollment(enrollmentId: number) {
+  await api.delete(`/lectures/enrollments/${enrollmentId}/`);
+}
+
+/* ─── Attendance ─── */
+export async function downloadAttendanceExcel(lectureId: number) {
+  const res = await api.get(`/lectures/lectures/${lectureId}/attendance-excel/`, { responseType: "blob" });
+  const url = window.URL.createObjectURL(res.data);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `attendance-${lectureId}.xlsx`;
+  a.click();
+  window.URL.revokeObjectURL(url);
+}

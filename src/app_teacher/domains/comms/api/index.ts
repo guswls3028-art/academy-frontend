@@ -115,6 +115,25 @@ export async function deletePost(postId: number): Promise<void> {
   await api.delete(`/community/posts/${postId}/`);
 }
 
+export async function togglePostPin(postId: number, isPinned: boolean): Promise<Post> {
+  const res = await api.patch(`/community/posts/${postId}/`, { is_pinned: isPinned });
+  return res.data;
+}
+
+/* ─── Attachments ─── */
+export async function uploadPostAttachment(postId: number, file: File): Promise<any> {
+  const formData = new FormData();
+  formData.append("file", file);
+  const res = await api.post(`/community/posts/${postId}/attachments/`, formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return res.data;
+}
+
+export async function deletePostAttachment(postId: number, attachmentId: number): Promise<void> {
+  await api.delete(`/community/posts/${postId}/attachments/${attachmentId}/`);
+}
+
 /* ─── Registration Requests ─── */
 export async function fetchRegistrationRequests(
   status = "pending",
@@ -172,6 +191,69 @@ export interface MessageLogItem {
 export async function fetchMessageLog(page = 1, pageSize = 20): Promise<{ results: MessageLogItem[]; count: number }> {
   const res = await api.get("/messaging/log/", { params: { page, page_size: pageSize } });
   return { results: res.data?.results ?? [], count: res.data?.count ?? 0 };
+}
+
+/* ─── Messaging Info & Templates ─── */
+export interface MessagingInfo {
+  sms_allowed: boolean;
+  messaging_provider: string;
+  messaging_sender: string;
+  kakao_pfid: string;
+  balance?: number;
+  sms_price?: number;
+  alimtalk_price?: number;
+  own_credentials?: boolean;
+}
+
+export async function fetchMessagingInfo(): Promise<MessagingInfo> {
+  const res = await api.get("/messaging/info/");
+  return res.data;
+}
+
+export async function updateMessagingInfo(payload: Partial<MessagingInfo & { own_solapi_api_key?: string; own_solapi_api_secret?: string }>): Promise<MessagingInfo> {
+  const res = await api.patch("/messaging/info/", payload);
+  return res.data;
+}
+
+export interface MsgTemplate {
+  id: number;
+  category: string;
+  name: string;
+  subject?: string;
+  body: string;
+  is_default?: boolean;
+  is_system?: boolean;
+}
+
+export async function fetchAllTemplates(): Promise<MsgTemplate[]> {
+  const res = await api.get("/messaging/templates/", { params: { page_size: 200 } });
+  const raw = res.data;
+  return Array.isArray(raw?.results) ? raw.results : Array.isArray(raw) ? raw : [];
+}
+
+export async function createTemplate(payload: { name: string; category: string; body: string; subject?: string }): Promise<MsgTemplate> {
+  const res = await api.post("/messaging/templates/", payload);
+  return res.data;
+}
+
+export async function updateTemplate(id: number, payload: { name?: string; body?: string; subject?: string; category?: string }): Promise<MsgTemplate> {
+  const res = await api.patch(`/messaging/templates/${id}/`, payload);
+  return res.data;
+}
+
+export async function deleteTemplate(id: number): Promise<void> {
+  await api.delete(`/messaging/templates/${id}/`);
+}
+
+/* ─── Auto-send configs ─── */
+export async function fetchAutoSendConfigs() {
+  const res = await api.get("/messaging/auto-send-configs/");
+  return res.data;
+}
+
+export async function updateAutoSendConfigs(configs: any[]) {
+  const res = await api.patch("/messaging/auto-send-configs/", configs);
+  return res.data;
 }
 
 /* ─── Notification Summary (BFF) ─── */

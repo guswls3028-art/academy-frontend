@@ -45,3 +45,46 @@ export async function fetchHomeworkSubmissions(homeworkId: number) {
   const raw = res.data;
   return Array.isArray(raw?.results) ? raw.results : Array.isArray(raw) ? raw : [];
 }
+
+/* ─── Exam CRUD ─── */
+export async function createTemplateExam(payload: { title: string; subject?: string; description?: string }) {
+  const res = await api.post("/exams/", { ...payload, exam_type: "TEMPLATE" });
+  return res.data;
+}
+
+export async function createRegularExam(payload: { title: string; template_exam_id?: number; session_id?: number; description?: string }) {
+  const res = await api.post("/exams/", { ...payload, exam_type: "REGULAR" });
+  return res.data;
+}
+
+export async function updateExam(examId: number, payload: Record<string, unknown>) {
+  const res = await api.patch(`/exams/${examId}/`, payload);
+  return res.data;
+}
+
+export async function deleteExam(examId: number) {
+  await api.delete(`/exams/${examId}/`);
+}
+
+/* ─── Templates ─── */
+export async function fetchTemplates() {
+  const res = await api.get("/exams/", { params: { exam_type: "TEMPLATE", page_size: 200 } });
+  const raw = res.data;
+  return Array.isArray(raw?.results) ? raw.results : Array.isArray(raw) ? raw : [];
+}
+
+/* ─── Score entry (결과 등록/수정) ─── */
+export async function updateResult(resultId: number, payload: { score?: number; is_pass?: boolean }) {
+  const res = await api.patch(`/results/${resultId}/`, payload);
+  return res.data;
+}
+
+/* ─── Homework CRUD ─── */
+export async function createHomework(payload: { title: string; session?: number; max_score?: number; description?: string }) {
+  const res = await api.post("/homeworks/", payload);
+  return res.data;
+}
+
+export async function deleteHomework(homeworkId: number) {
+  await api.delete(`/homeworks/${homeworkId}/`);
+}

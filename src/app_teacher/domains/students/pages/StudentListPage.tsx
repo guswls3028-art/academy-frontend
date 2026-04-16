@@ -6,10 +6,11 @@ import { useQuery } from "@tanstack/react-query";
 import { EmptyState } from "@/shared/ui/ds";
 import { formatPhone } from "@/shared/utils/formatPhone";
 import LectureChip from "@/shared/ui/chips/LectureChip";
-import { Search, Filter, ChevronRight } from "@teacher/shared/ui/Icons";
+import { Search, Filter, ChevronRight, Plus } from "@teacher/shared/ui/Icons";
 import { Badge } from "@teacher/shared/ui/Badge";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
 import { fetchStudents } from "../api";
+import CreateStudentSheet from "../components/CreateStudentSheet";
 
 type FilterState = {
   grade?: string;
@@ -21,6 +22,7 @@ export default function StudentListPage() {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [showFilter, setShowFilter] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
   const [filters, setFilters] = useState<FilterState>({});
   const deferredSearch = useDeferredValue(search);
 
@@ -41,6 +43,16 @@ export default function StudentListPage() {
 
   return (
     <div className="flex flex-col gap-3">
+      {/* Header with create button */}
+      <div className="flex items-center justify-between">
+        <div className="text-[17px] font-bold" style={{ color: "var(--tc-text)" }}>학생</div>
+        <button onClick={() => setCreateOpen(true)}
+          className="flex items-center gap-1 text-xs font-bold cursor-pointer"
+          style={{ padding: "6px 12px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff" }}>
+          <Plus size={14} /> 학생 등록
+        </button>
+      </div>
+
       {/* Search + Filter */}
       <div className="flex gap-2">
         <div className="relative flex-1">
@@ -127,13 +139,22 @@ export default function StudentListPage() {
       {/* Filter bottom sheet */}
       <BottomSheet open={showFilter} onClose={() => setShowFilter(false)} title="필터">
         <div className="flex flex-col gap-4 p-4">
-          <FilterGroup label="학년" options={[{ v: "", l: "전체" }, { v: "1", l: "1학년" }, { v: "2", l: "2학년" }, { v: "3", l: "3학년" }]} value={filters.grade ?? ""} onChange={(v) => setFilters((f) => ({ ...f, grade: v || undefined }))} />
+          <FilterGroup label="학년" options={[{ v: "", l: "전체" }, { v: "1", l: "1학년" }, { v: "2", l: "2학년" }, { v: "3", l: "3학년" }, { v: "4", l: "4학년" }, { v: "5", l: "5학년" }, { v: "6", l: "6학년" }]} value={filters.grade ?? ""} onChange={(v) => setFilters((f) => ({ ...f, grade: v || undefined }))} />
           <FilterGroup label="성별" options={[{ v: "", l: "전체" }, { v: "M", l: "남" }, { v: "F", l: "여" }]} value={filters.gender ?? ""} onChange={(v) => setFilters((f) => ({ ...f, gender: v || undefined }))} />
-          <button onClick={() => { setFilters({}); setShowFilter(false); }} className="w-full text-sm font-semibold py-2.5 rounded-lg cursor-pointer" style={{ background: "var(--tc-primary)", color: "#fff", border: "none" }}>
-            적용
-          </button>
+          <FilterGroup label="상태" options={[{ v: "", l: "전체" }, { v: "active", l: "활성" }, { v: "inactive", l: "비활성" }]} value={filters.status ?? ""} onChange={(v) => setFilters((f) => ({ ...f, status: v || undefined }))} />
+          <div className="flex gap-2">
+            <button onClick={() => setFilters({})} className="flex-1 text-sm font-semibold py-2.5 rounded-lg cursor-pointer" style={{ background: "var(--tc-surface-soft)", color: "var(--tc-text-secondary)", border: "1px solid var(--tc-border)" }}>
+              초기화
+            </button>
+            <button onClick={() => setShowFilter(false)} className="flex-1 text-sm font-semibold py-2.5 rounded-lg cursor-pointer" style={{ background: "var(--tc-primary)", color: "#fff", border: "none" }}>
+              적용
+            </button>
+          </div>
         </div>
       </BottomSheet>
+
+      {/* Create student sheet */}
+      <CreateStudentSheet open={createOpen} onClose={() => setCreateOpen(false)} />
     </div>
   );
 }

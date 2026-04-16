@@ -1,20 +1,40 @@
 // PATH: src/app_teacher/domains/lectures/pages/LectureDetailPage.tsx
-// 강의 상세 — 탭 구조: 차시 목록 + 수강생 목록
+// 강의 상세 — 탭 구조: 차시 목록 + 수강생 목록 + CRUD
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState } from "@/shared/ui/ds";
 import { formatPhone } from "@/shared/utils/formatPhone";
 import LectureChip from "@/shared/ui/chips/LectureChip";
-import { fetchLecture, fetchLectureSessions, fetchLectureEnrollments } from "../api";
+import { MoreVertical, Pencil, Trash2, Plus, Download } from "@teacher/shared/ui/Icons";
+import { fetchLecture, fetchLectureSessions, fetchLectureEnrollments, deleteLecture, deleteSession, downloadAttendanceExcel } from "../api";
+import LectureFormSheet from "../components/LectureFormSheet";
+import SessionFormSheet from "../components/SessionFormSheet";
+import EnrollStudentSheet from "../components/EnrollStudentSheet";
 
 type Tab = "sessions" | "students";
 
 export default function LectureDetailPage() {
   const { lectureId } = useParams<{ lectureId: string }>();
   const navigate = useNavigate();
+  const qc = useQueryClient();
   const lid = Number(lectureId);
   const [tab, setTab] = useState<Tab>("sessions");
+  const [editOpen, setEditOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [sessionFormOpen, setSessionFormOpen] = useState(false);
+  const [editSession, setEditSession] = useState<any>(null);
+  const [enrollOpen, setEnrollOpen] = useState(false);
+
+  const deleteLectureMut = useMutation({
+    mutationFn: () => deleteLecture(lid),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["lectures-mobile"] }); navigate(-1); },
+  });
+
+  const deleteSessionMut = useMutation({
+    mutationFn: (sessionId: number) => deleteSession(sessionId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["lecture-sessions", lid] }),
+  });
 
   const { data: lecture, isLoading } = useQuery({
     queryKey: ["lecture", lid],
@@ -54,6 +74,36 @@ export default function LectureDetailPage() {
         <h1 className="text-[17px] font-bold flex-1 truncate" style={{ color: "var(--tc-text)" }}>
           {lecture?.title || "강의 상세"}
         </h1>
+        {/* Actions menu */}
+        <div className="relative">
+          <button onClick={() => setMenuOpen(!menuOpen)} className="flex p-1 cursor-pointer"
+            style={{ background: "none", border: "none", color: "var(--tc-text-muted)" }}>
+            <MoreVertical size={18} />
+          </button>
+          {menuOpen && (
+            <>
+              <div style={{ position: "fixed", inset: 0, zIndex: 99 }} onClick={() => setMenuOpen(false)} />
+              <div className="absolute right-0 top-8 rounded-lg shadow-lg"
+                style={{ background: "var(--tc-surface)", border: "1px solid var(--tc-border)", zIndex: 100, minWidth: 130 }}>
+                <button onClick={() => { setEditOpen(true); setMenuOpen(false); }}
+                  className="flex items-center gap-2 w-full text-left text-sm cursor-pointer"
+                  style={{ padding: "10px 14px", background: "none", border: "none", color: "var(--tc-text)" }}>
+                  <Pencil size={14} /> 편집
+                </button>
+                <button onClick={() => downloadAttendanceExcel(lid).catch(() => {})}
+                  className="flex items-center gap-2 w-full text-left text-sm cursor-pointer"
+                  style={{ padding: "10px 14px", background: "none", border: "none", color: "var(--tc-text)", borderTop: "1px solid var(--tc-border-subtle)" }}>
+                  <Download size={14} /> 출석 엑셀
+                </button>
+                <button onClick={() => { if (confirm("이 강의를 삭제하시겠습니까?")) deleteLectureMut.mutate(); setMenuOpen(false); }}
+                  className="flex items-center gap-2 w-full text-left text-sm cursor-pointer"
+                  style={{ padding: "10px 14px", background: "none", border: "none", color: "var(--tc-danger)", borderTop: "1px solid var(--tc-border-subtle)" }}>
+                  <Trash2 size={14} /> 삭제
+                </button>
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Lecture info */}
@@ -102,7 +152,13 @@ export default function LectureDetailPage() {
 
       {/* Sessions tab */}
       {tab === "sessions" && (
-        sessLoading ? (
+        <>
+        <button onClick={() => { setEditSession(null); setSessionFormOpen(true); }}
+          className="flex items-center gap-1 text-xs font-bold cursor-pointer self-end"
+          style={{ padding: "6px 12px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff" }}>
+          <Plus size={14} /> 차시 추가
+        </button>
+        {sessLoading ? (
           <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
         ) : sessions && sessions.length > 0 ? (
           <div className="flex flex-col gap-1.5">
@@ -141,12 +197,19 @@ export default function LectureDetailPage() {
           </div>
         ) : (
           <EmptyState scope="panel" tone="empty" title="차시가 없습니다" />
-        )
+        )}
+        </>
       )}
 
       {/* Students tab */}
       {tab === "students" && (
-        enrollments ? (
+        <>
+        <button onClick={() => setEnrollOpen(true)}
+          className="flex items-center gap-1 text-xs font-bold cursor-pointer self-end"
+          style={{ padding: "6px 12px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff" }}>
+          <Plus size={14} /> 수강생 등록
+        </button>
+        {enrollments ? (
           enrollments.length > 0 ? (
             <div className="flex flex-col gap-1.5">
               {enrollments.map((e: any) => {
@@ -195,8 +258,15 @@ export default function LectureDetailPage() {
           )
         ) : (
           <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
-        )
+        )}
+        </>
       )}
+
+      {/* Sheets */}
+      {lecture && <LectureFormSheet open={editOpen} onClose={() => setEditOpen(false)} editData={lecture} />}
+      <SessionFormSheet open={sessionFormOpen} onClose={() => setSessionFormOpen(false)} lectureId={lid} editData={editSession} />
+      <EnrollStudentSheet open={enrollOpen} onClose={() => setEnrollOpen(false)} lectureId={lid}
+        enrolledStudentIds={(enrollments ?? []).map((e: any) => e.student_id).filter(Boolean)} />
     </div>
   );
 }

@@ -81,4 +81,9 @@ export {
   MessageCircle,
   Reply,
   Paperclip,
+
+  // File/Download
+  Download,
+  Upload,
+  FolderPlus,
 } from "lucide-react";
