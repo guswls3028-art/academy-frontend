@@ -6,10 +6,10 @@ import { useQuery } from "@tanstack/react-query";
 import { EmptyState } from "@/shared/ui/ds";
 import { formatPhone } from "@/shared/utils/formatPhone";
 import LectureChip from "@/shared/ui/chips/LectureChip";
-import { Search, Filter, ChevronRight, Plus } from "@teacher/shared/ui/Icons";
+import { Search, Filter, ChevronRight, Plus, Download, Upload } from "@teacher/shared/ui/Icons";
 import { Badge } from "@teacher/shared/ui/Badge";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
-import { fetchStudents } from "../api";
+import { fetchStudents, exportStudentsExcel, uploadStudentBulkExcel } from "../api";
 import CreateStudentSheet from "../components/CreateStudentSheet";
 
 type FilterState = {
@@ -43,14 +43,27 @@ export default function StudentListPage() {
 
   return (
     <div className="flex flex-col gap-3">
-      {/* Header with create button */}
+      {/* Header with action buttons */}
       <div className="flex items-center justify-between">
         <div className="text-[17px] font-bold" style={{ color: "var(--tc-text)" }}>학생</div>
-        <button onClick={() => setCreateOpen(true)}
-          className="flex items-center gap-1 text-xs font-bold cursor-pointer"
-          style={{ padding: "6px 12px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff" }}>
-          <Plus size={14} /> 학생 등록
-        </button>
+        <div className="flex gap-1.5">
+          <button onClick={() => exportStudentsExcel().catch(() => alert("내보내기 실패"))}
+            className="flex items-center gap-1 text-[11px] font-semibold cursor-pointer"
+            style={{ padding: "5px 8px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border)", background: "var(--tc-surface)", color: "var(--tc-text-secondary)" }}>
+            <Download size={12} /> 엑셀
+          </button>
+          <label className="flex items-center gap-1 text-[11px] font-semibold cursor-pointer"
+            style={{ padding: "5px 8px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border)", background: "var(--tc-surface)", color: "var(--tc-text-secondary)" }}>
+            <Upload size={12} /> 가져오기
+            <input type="file" accept=".xlsx,.xls,.csv" style={{ display: "none" }}
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadStudentBulkExcel(f, "0000").then(() => { alert("업로드 완료"); }).catch(() => alert("업로드 실패")); e.target.value = ""; }} />
+          </label>
+          <button onClick={() => setCreateOpen(true)}
+            className="flex items-center gap-1 text-xs font-bold cursor-pointer"
+            style={{ padding: "6px 12px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff" }}>
+            <Plus size={14} /> 등록
+          </button>
+        </div>
       </div>
 
       {/* Search + Filter */}

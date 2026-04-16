@@ -2,7 +2,7 @@
 // 설정 — 프로필 편집 + 비밀번호 변경 + 테마 선택 + 푸시 알림 + PWA
 import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import useAuth from "@/auth/hooks/useAuth";
 import { useA2HS } from "@teacher/shared/hooks/useA2HS";
 import { usePushSubscription } from "@teacher/shared/hooks/usePushSubscription";
@@ -283,6 +283,11 @@ export default function TeacherSettingsPage() {
           <div className="text-[13px]" style={{ color: "var(--tc-text-muted)" }}>PWA 설치가 지원되지 않는 브라우저입니다</div>
         )}
       </Section>
+
+      {/* ── Organization section (owner only) ── */}
+      {(user?.tenantRole === "owner" || user?.tenantRole === "admin") && (
+        <OrgSection />
+      )}
     </div>
   );
 }
@@ -418,5 +423,50 @@ function ThemePreviewDot({ themeKey }: { themeKey: string }) {
         <span key={i} style={{ width: 14, height: 14, borderRadius: "50%", background: c, border: "1px solid rgba(0,0,0,0.1)" }} />
       ))}
     </>
+  );
+}
+
+/* ─── Organization Section (owner/admin) ─── */
+function OrgSection() {
+  const [editing, setEditing] = useState(false);
+  const [orgName, setOrgName] = useState("");
+  const [orgPhone, setOrgPhone] = useState("");
+  const [msg, setMsg] = useState<string | null>(null);
+
+  const { data: info } = useQuery({
+    queryKey: ["tenant-info"],
+    queryFn: fetchTenantInfo,
+  });
+
+  const saveMut = useMutation({
+    mutationFn: () => updateTenantInfo({ name: orgName, phone: orgPhone }),
+    onSuccess: () => { setEditing(false); setMsg("저장됨"); setTimeout(() => setMsg(null), 2000); },
+    onError: () => setMsg("저장 실패"),
+  });
+
+  return (
+    <Section title="학원 정보" icon={<User size={15} />}>
+      {!editing ? (
+        <div>
+          <div className="text-sm" style={{ color: "var(--tc-text)" }}>{info?.name || "미설정"}</div>
+          <div className="text-[12px]" style={{ color: "var(--tc-text-muted)" }}>{info?.phone || "전화번호 미등록"}</div>
+          <button onClick={() => { setOrgName(info?.name || ""); setOrgPhone(info?.phone || ""); setEditing(true); }}
+            className="flex items-center gap-1 text-xs font-semibold cursor-pointer mt-2"
+            style={{ padding: "6px 12px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary-bg)", color: "var(--tc-primary)" }}>
+            <Pencil size={12} /> 편집
+          </button>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2">
+          <FieldInput label="학원명" value={orgName} onChange={setOrgName} placeholder="학원 이름" />
+          <FieldInput label="전화번호" value={orgPhone} onChange={setOrgPhone} placeholder="대표 전화" type="tel" />
+          <div className="flex gap-2">
+            <SmBtn label="저장" primary loading={saveMut.isPending} onClick={() => saveMut.mutate()} icon={<Save size={13} />} />
+            <SmBtn label="취소" onClick={() => setEditing(false)} icon={<X size={13} />} />
+          </div>
+        </div>
+      )}
+      {msg && <div className="text-[12px] mt-1" style={{ color: msg === "저장됨" ? "var(--tc-success)" : "var(--tc-danger)" }}>{msg}</div>}
+    </Section>
   );
 }

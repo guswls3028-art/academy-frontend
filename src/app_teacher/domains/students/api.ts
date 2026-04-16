@@ -58,6 +58,28 @@ export async function updateStudent(studentId: number, payload: {
   return res.data;
 }
 
+/* ─── 엑셀 내보내기 ─── */
+export async function exportStudentsExcel() {
+  const res = await api.get("/students/export/", { responseType: "blob" });
+  const url = window.URL.createObjectURL(res.data);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `students-${new Date().toISOString().slice(0, 10)}.xlsx`;
+  a.click();
+  window.URL.revokeObjectURL(url);
+}
+
+/* ─── 엑셀 벌크 업로드 ─── */
+export async function uploadStudentBulkExcel(file: File, initialPassword: string) {
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("initial_password", initialPassword);
+  const res = await api.post("/students/bulk-upload/", formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return res.data;
+}
+
 /* ─── 학생 삭제 (soft delete) ─── */
 export async function deleteStudent(studentId: number) {
   await api.delete(`/students/${studentId}/`);
