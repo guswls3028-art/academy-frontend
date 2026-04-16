@@ -14,7 +14,6 @@ import {
   fetchExamResults,
   fetchHomeworkScores,
 } from "@teacher/domains/results/statsApi";
-import { fetchHomeworks } from "@teacher/domains/exams/api";
 import {
   BarChart,
   Bar,
@@ -60,12 +59,6 @@ export default function ResultsStatsTab() {
   });
 
   /* ─── 과제 데이터 ─── */
-  const { data: homeworks } = useQuery({
-    queryKey: ["tc-stats-homeworks", selectedLecture],
-    queryFn: () => fetchHomeworks({ lecture_id: selectedLecture! }),
-    enabled: selectedLecture != null,
-  });
-
   const { data: hwScores } = useQuery({
     queryKey: ["tc-hw-scores", selectedLecture],
     queryFn: () => fetchHomeworkScores(selectedLecture!),
@@ -92,7 +85,8 @@ export default function ResultsStatsTab() {
       : null;
     const submissionRate = total > 0 ? Math.round((submitted / total) * 100) : 0;
     const passRate = submitted > 0 ? Math.round((passed / submitted) * 100) : 0;
-    return { submitted, total, passed, avgScore, submissionRate, passRate, homeworkCount: homeworks?.length ?? 0 };
+    const uniqueHomeworks = new Set(hwScores.map((s: any) => s.homework)).size;
+    return { submitted, total, passed, avgScore, submissionRate, passRate, homeworkCount: uniqueHomeworks };
   })();
 
   // Question accuracy chart data
