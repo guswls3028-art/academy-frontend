@@ -3,6 +3,7 @@
 
 import { useState, useEffect } from "react";
 import { Loader2, Sparkles } from "lucide-react";
+import { feedback } from "@/shared/ui/feedback/feedback";
 import { findSimilarProblems } from "../../api/matchup.api";
 import type { SimilarProblem } from "../../api/matchup.api";
 
@@ -24,7 +25,10 @@ export default function SimilarResults({ problemId, onSelectSimilar }: Props) {
     setLoading(true);
     findSimilarProblems(problemId, 10)
       .then((r) => setResults(r.results))
-      .catch(() => setResults([]))
+      .catch(() => {
+        feedback.error("유사 문제 검색에 실패했습니다.");
+        setResults([]);
+      })
       .finally(() => setLoading(false));
   }, [problemId]);
 

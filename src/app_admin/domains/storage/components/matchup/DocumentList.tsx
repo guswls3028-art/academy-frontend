@@ -102,7 +102,10 @@ export default function DocumentList({
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: "var(--space-1)", marginTop: 2 }}>
                 {STATUS_ICON[doc.status]}
-                <span style={{ fontSize: 11, color: "var(--color-text-muted)" }}>
+                <span
+                  style={{ fontSize: 11, color: "var(--color-text-muted)" }}
+                  title={doc.status === "failed" ? doc.error_message || "처리 실패" : undefined}
+                >
                   {doc.status === "done"
                     ? `${doc.problem_count}문제`
                     : STATUS_LABEL[doc.status]}

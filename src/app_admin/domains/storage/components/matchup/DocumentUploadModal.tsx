@@ -52,7 +52,7 @@ export default function DocumentUploadModal({ onClose, onUpload }: Props) {
         display: "flex", alignItems: "center", justifyContent: "center",
         background: "rgba(0,0,0,0.4)", backdropFilter: "blur(4px)",
       }}
-      onClick={onClose}
+      onClick={uploading ? undefined : onClose}
     >
       <div
         style={{

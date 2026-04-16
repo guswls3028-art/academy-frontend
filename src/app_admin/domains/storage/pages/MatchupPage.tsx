@@ -28,6 +28,7 @@ export default function MatchupPage() {
   const [selectedProblemId, setSelectedProblemId] = useState<number | null>(null);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [detailProblem, setDetailProblem] = useState<SimilarProblem | null>(null);
+  const [pendingNavigateNumber, setPendingNavigateNumber] = useState<number | null>(null);
 
   // ── 문서 목록 ──
   const { data: documents = [], isLoading: docsLoading } = useQuery({
@@ -85,12 +86,18 @@ export default function MatchupPage() {
 
   const handleNavigateToProblem = useCallback((documentId: number, problemNumber: number) => {
     setSelectedDocId(documentId);
-    // 문제 목록이 로드된 후 해당 문제 선택 — 약간의 지연 필요
-    setTimeout(() => {
-      // problems 쿼리가 갱신되면 해당 번호의 문제 ID를 찾아 선택
-      qc.invalidateQueries({ queryKey: ["matchup-problems", documentId] });
-    }, 300);
+    setPendingNavigateNumber(problemNumber);
+    qc.invalidateQueries({ queryKey: ["matchup-problems", documentId] });
   }, [qc]);
+
+  // 문제 로드 후 pendingNavigateNumber에 해당하는 문제 자동 선택
+  if (pendingNavigateNumber && problems.length > 0) {
+    const target = problems.find((p) => p.number === pendingNavigateNumber);
+    if (target) {
+      setSelectedProblemId(target.id);
+      setPendingNavigateNumber(null);
+    }
+  }
 
   // ── 빈 상태 ──
   if (!docsLoading && documents.length === 0) {
