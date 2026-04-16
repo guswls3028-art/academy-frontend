@@ -23,6 +23,8 @@ const MessagingSettingsPage = lazy(() => import("@teacher/domains/comms/pages/Me
 const NotificationsPage = lazy(() => import("@teacher/domains/notifications/pages/NotificationsPage"));
 const ProfilePage = lazy(() => import("@teacher/domains/profile/pages/ProfilePage"));
 const TeacherSettingsPage = lazy(() => import("@teacher/domains/settings/pages/TeacherSettingsPage"));
+const StaffManagePage = lazy(() => import("@teacher/domains/staff/pages/StaffManagePage"));
+const MyRecordsPage = lazy(() => import("@teacher/domains/profile/pages/MyRecordsPage"));
 
 /* Phase 3 */
 const ExamListPage = lazy(() => import("@teacher/domains/exams/pages/ExamListPage"));
@@ -103,6 +105,8 @@ export default function TeacherRouter() {
           {/* 프로필 / 설정 */}
           <Route path="profile" element={<ProfilePage />} />
           <Route path="settings" element={<TeacherSettingsPage />} />
+          <Route path="staff" element={<StaffManagePage />} />
+          <Route path="my-records" element={<MyRecordsPage />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/teacher" replace />} />

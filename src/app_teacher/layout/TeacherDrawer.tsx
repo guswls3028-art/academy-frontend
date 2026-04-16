@@ -10,7 +10,7 @@ import { useAdminNotificationCounts } from "@admin/domains/admin-notifications/u
 import {
   Home, Users, BookOpen, Activity,
   ClipboardList, Award, Video, MessageSquare,
-  FileText, Bell, User, Settings, Send,
+  FileText, Bell, User, Settings, Send, Clock,
   Monitor, LogOut, AlertCircle, X,
 } from "@teacher/shared/ui/Icons";
 
@@ -65,6 +65,13 @@ export default function TeacherDrawer({ open, onClose }: Props) {
         { label: "메시지 템플릿", path: "/teacher/message-templates", icon: <FileText size={18} /> },
         { label: "메시징 설정", path: "/teacher/messaging-settings", icon: <Settings size={18} /> },
         { label: "알림 센터", path: "/teacher/notifications", icon: <Bell size={18} />, badge: counts?.total },
+      ],
+    },
+    {
+      title: "직원",
+      items: [
+        { label: "직원 관리", path: "/teacher/staff", icon: <Users size={18} /> },
+        { label: "근태 / 지출", path: "/teacher/my-records", icon: <Clock size={18} /> },
       ],
     },
     {
