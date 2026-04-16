@@ -26,9 +26,8 @@ test.describe("Phase 3: 시험/과제 + 영상 + 클리닉 + 상담", () => {
     await page.waitForTimeout(2000);
 
     // 메뉴 탭 클릭 → 드로어 열기
-    const tabBar = page.locator('nav[aria-label="하단 메뉴"]');
-    await expect(tabBar).toBeVisible({ timeout: 10_000 });
-    await tabBar.getByText("메뉴").click();
+    // 헤더 햄버거 버튼으로 사이드바 열기
+    await page.getByRole("button", { name: "메뉴" }).click();
     await page.waitForTimeout(500);
 
     // PC 사이드바 구조 메뉴 확인 (드로어 내)
@@ -70,7 +69,7 @@ test.describe("Phase 3: 시험/과제 + 영상 + 클리닉 + 상담", () => {
     await page.waitForTimeout(2000);
 
     // 페이지 헤딩 확인
-    await expect(page.getByRole("heading", { name: "영상 목록" })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("heading", { name: "영상" })).toBeVisible({ timeout: 10_000 });
 
     await page.screenshot({ path: "e2e/screenshots/teacher-phase3-03-videos.png" });
   });
@@ -103,18 +102,15 @@ test.describe("Phase 3: 시험/과제 + 영상 + 클리닉 + 상담", () => {
     await page.goto(`${BASE}/teacher`, { waitUntil: "load", timeout: 20_000 });
     await page.waitForTimeout(2000);
 
-    const tabBar = page.locator('nav[aria-label="하단 메뉴"]');
-    await expect(tabBar).toBeVisible({ timeout: 10_000 });
-
-    // 메뉴 → 영상
-    await tabBar.getByText("메뉴").click();
+    // 헤더 햄버거 → 영상
+    await page.getByRole("button", { name: "메뉴" }).click();
     await page.waitForTimeout(500);
     await page.getByRole("button", { name: /^영상$/ }).nth(1).click();
     await page.waitForTimeout(2000);
     expect(page.url()).toContain("/teacher/videos");
 
-    // 메뉴 → 상담 메모
-    await tabBar.getByText("메뉴").click();
+    // 헤더 햄버거 → 상담 메모
+    await page.getByRole("button", { name: "메뉴" }).click();
     await page.waitForTimeout(500);
     await page.getByRole("button", { name: "상담 메모" }).click();
     await page.waitForTimeout(2000);

@@ -21,14 +21,14 @@ test.describe("Phase 2: 소통탭 + 알림센터", () => {
     });
   });
 
-  test("소통탭 5탭 렌더링 (공지/Q&A/등록요청/게시판/자료)", async ({ page }) => {
+  test("소통탭 5탭 렌더링 (공지/Q&A/가입신청/게시판/자료)", async ({ page }) => {
     await page.goto(`${BASE}/teacher/comms`, { waitUntil: "load", timeout: 20_000 });
     await page.waitForTimeout(2000);
 
     // 5개 탭 확인 — 뱃지 숫자 포함 가능하므로 포함 매칭
     await expect(page.getByRole("button", { name: /공지/ }).first()).toBeVisible({ timeout: 10_000 });
     await expect(page.getByRole("button", { name: /Q&A/ }).first()).toBeVisible();
-    await expect(page.getByRole("button", { name: /등록요청/ }).first()).toBeVisible();
+    await expect(page.getByRole("button", { name: /가입신청/ }).first()).toBeVisible();
     await expect(page.getByRole("button", { name: /게시판/ }).first()).toBeVisible();
     await expect(page.getByRole("button", { name: /자료/ }).first()).toBeVisible();
 
@@ -82,8 +82,8 @@ test.describe("Phase 2: 소통탭 + 알림센터", () => {
     const tabBar = page.locator('nav[aria-label="하단 메뉴"]');
     await expect(tabBar).toBeVisible({ timeout: 10_000 });
 
-    // 소통 탭 존재
-    await expect(tabBar.getByText("소통")).toBeVisible();
+    // 커뮤니티 탭 존재
+    await expect(tabBar.getByText("커뮤니티")).toBeVisible();
 
     await page.screenshot({ path: "e2e/screenshots/teacher-phase2-04-tabbar-badge.png" });
   });
