@@ -1,5 +1,5 @@
 // PATH: src/app_teacher/domains/results/pages/ResultsPage.tsx
-// 성적 조회 — 강의 선택 → 시험별 결과
+// 성적 — 조회 + 통계 탭
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { EmptyState } from "@/shared/ui/ds";
@@ -8,8 +8,12 @@ import { SectionTitle, Card, TabBar } from "@teacher/shared/ui/Card";
 import { Badge, AchievementBadge } from "@teacher/shared/ui/Badge";
 import { fetchLectures } from "@teacher/domains/lectures/api";
 import { fetchExams, fetchExamResults } from "@teacher/domains/exams/api";
+import ResultsStatsTab from "@teacher/domains/results/components/ResultsStatsTab";
+
+type Tab = "list" | "stats";
 
 export default function ResultsPage() {
+  const [tab, setTab] = useState<Tab>("list");
   const [selectedLecture, setSelectedLecture] = useState<number | null>(null);
   const [selectedExam, setSelectedExam] = useState<number | null>(null);
 
@@ -21,18 +25,33 @@ export default function ResultsPage() {
   const { data: exams } = useQuery({
     queryKey: ["results-exams", selectedLecture],
     queryFn: () => fetchExams({ lecture_id: selectedLecture! }),
-    enabled: selectedLecture != null,
+    enabled: selectedLecture != null && tab === "list",
   });
 
   const { data: results } = useQuery({
     queryKey: ["results-detail", selectedExam],
     queryFn: () => fetchExamResults(selectedExam!),
-    enabled: selectedExam != null,
+    enabled: selectedExam != null && tab === "list",
   });
 
   return (
     <div className="flex flex-col gap-3">
-      <SectionTitle>성적 조회</SectionTitle>
+      <SectionTitle>성적</SectionTitle>
+
+      <TabBar<Tab>
+        tabs={[
+          { key: "list", label: "조회" },
+          { key: "stats", label: "통계" },
+        ]}
+        value={tab}
+        onChange={setTab}
+      />
+
+      {tab === "stats" && <ResultsStatsTab />}
+
+      {tab === "list" && (
+        <>
+      {/* 조회 탭 원본 시작 */}
 
       {/* Lecture selector */}
       <div className="flex gap-2 overflow-x-auto pb-1" style={{ WebkitOverflowScrolling: "touch" }}>
@@ -106,6 +125,8 @@ export default function ResultsPage() {
         ) : (
           <EmptyState scope="panel" tone="empty" title="이 강의에 시험이 없습니다" />
         )
+      )}
+        </>
       )}
     </div>
   );
