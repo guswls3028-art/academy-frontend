@@ -59,7 +59,10 @@ export default function ResultsStatsTab() {
 
   /* ─── Derived ─── */
   const selectedExamObj = exams?.find((e: any) => e.id === selectedExam);
-  const examMaxScore = selectedExamObj?.max_score ?? summary?.max_score ?? 100;
+  // 시험 만점 = exam 객체의 max_score (summary.max_score는 "최고 득점"이므로 사용 금지)
+  const examMaxScore = selectedExamObj?.max_score ?? 100;
+  const participantCount = summary?.participant_count ?? 0;
+  const isSparse = participantCount > 0 && participantCount < 3;
 
   // Question accuracy chart data
   const qChartData = (questionStats ?? []).map((q: any, i: number) => ({
@@ -73,19 +76,22 @@ export default function ResultsStatsTab() {
     (a: any, b: any) => (b.total_score ?? 0) - (a.total_score ?? 0)
   );
 
-  // Score distribution (10점 단위)
+  // Score distribution (만점 기준 10등분)
   const distribution = (() => {
     if (!results?.length) return [];
-    const buckets = Array.from({ length: 10 }, (_, i) => ({
-      range: `${i * 10}~${i * 10 + 9}`,
-      count: 0,
-    }));
-    // 100점 전용 버킷
-    buckets.push({ range: "100", count: 0 });
+    const step = examMaxScore / 10;
+    const buckets = Array.from({ length: 10 }, (_, i) => {
+      const lo = Math.round(step * i);
+      const hi = i === 9 ? examMaxScore : Math.round(step * (i + 1) - 1);
+      return { range: lo === hi ? `${lo}` : `${lo}~${hi}`, count: 0, lo };
+    });
     for (const r of results) {
-      const pct = examMaxScore > 0 ? Math.round(((r.total_score ?? 0) / examMaxScore) * 100) : 0;
-      if (pct === 100) buckets[10].count++;
-      else buckets[Math.min(Math.floor(pct / 10), 9)].count++;
+      const score = r.total_score ?? 0;
+      if (score >= examMaxScore) buckets[9].count++;
+      else {
+        const idx = Math.min(Math.floor((score / examMaxScore) * 10), 9);
+        buckets[idx].count++;
+      }
     }
     return buckets.filter((b) => b.count > 0);
   })();
@@ -228,6 +234,22 @@ export default function ResultsStatsTab() {
                       }
                     />
                   </div>
+
+                  {/* ─ 소수 데이터 안내 ─ */}
+                  {isSparse && (
+                    <div
+                      className="rounded-lg text-center"
+                      style={{
+                        background: "var(--tc-warn-bg)",
+                        color: "var(--tc-warn)",
+                        fontSize: 13,
+                        fontWeight: 600,
+                        padding: "var(--tc-space-2) var(--tc-space-3)",
+                      }}
+                    >
+                      응시 인원이 {participantCount}명으로, 통계 해석에 주의가 필요합니다.
+                    </div>
+                  )}
 
                   {/* ─ 점수 범위 / 최고·최저 ─ */}
                   <Card>
