@@ -52,7 +52,7 @@ export default function MatchupPage() {
     async (payload: { file: File; title: string; subject: string; grade_level: string }) => {
       await uploadMatchupDocument(payload);
       qc.invalidateQueries({ queryKey: ["matchup-documents"] });
-      feedback.success("문서가 업로드되었습니다. AI 분석을 시작합니다.");
+      feedback.success("문서가 업로드되었습니다. AI가 문제를 분석 중입니다. (약 10~30초)");
     },
     [qc],
   );

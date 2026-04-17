@@ -27,6 +27,9 @@ export default function ProblemGrid({
         <p style={{ fontSize: 14, color: "var(--color-text-muted)", margin: 0 }}>
           AI가 문제를 분석하고 있습니다...
         </p>
+        <p style={{ fontSize: 12, color: "var(--color-text-muted)", margin: 0, opacity: 0.7 }}>
+          보통 10~30초 정도 소요됩니다
+        </p>
       </div>
     );
   }

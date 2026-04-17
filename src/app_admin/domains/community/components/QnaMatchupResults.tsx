@@ -44,6 +44,9 @@ export default function QnaMatchupResults({ results }: Props) {
         }}>
           AI 매치업 결과
         </span>
+        <span style={{ fontSize: 11, color: "var(--color-text-muted)", marginLeft: "auto" }}>
+          학생 첨부 이미지에서 자동 분석
+        </span>
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>

@@ -37,8 +37,11 @@ export default function SimilarResults({ problemId, onSelectSimilar }: Props) {
       <div style={{
         padding: "var(--space-6)", textAlign: "center",
         color: "var(--color-text-muted)", fontSize: 13,
+        display: "flex", flexDirection: "column", alignItems: "center", gap: "var(--space-2)",
       }}>
-        문제를 선택하면 유사한 문제를 추천합니다.
+        <Sparkles size={20} style={{ opacity: 0.3 }} />
+        <span>좌측에서 문제를 클릭하면</span>
+        <span>유사한 문제를 자동으로 찾아줍니다.</span>
       </div>
     );
   }
@@ -155,6 +158,14 @@ export default function SimilarResults({ problemId, onSelectSimilar }: Props) {
           </div>
         );
       })}
+      {results.length > 0 && (
+        <p style={{
+          fontSize: 11, color: "var(--color-text-muted)", textAlign: "center",
+          margin: "var(--space-2) 0 0", opacity: 0.7,
+        }}>
+          항목을 클릭하면 원본 이미지와 상세 정보를 볼 수 있습니다
+        </p>
+      )}
     </div>
   );
 }
