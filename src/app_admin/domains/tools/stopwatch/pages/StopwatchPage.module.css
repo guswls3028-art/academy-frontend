@@ -1,0 +1,302 @@
+/* PATH: src/app_admin/domains/tools/stopwatch/pages/StopwatchPage.module.css */
+/* PC 타이머 프로그램 다운로드 카드 — 선생님이 직접 다운할 수 있도록 명확·큼직하게 */
+
+.downloadCard {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 20px 24px;
+  background: linear-gradient(135deg, #f8faff 0%, #eef2ff 100%);
+  border: 1px solid #dbe3ff;
+  border-radius: 14px;
+  margin-bottom: 16px;
+  box-shadow: 0 1px 3px rgba(59, 91, 219, 0.04);
+}
+
+.cardRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 24px;
+}
+
+.cardLeft {
+  display: flex;
+  gap: 16px;
+  flex: 1;
+  min-width: 0;
+}
+
+.cardIcon {
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: #3b5bdb;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(59, 91, 219, 0.25);
+}
+
+.cardIcon svg {
+  width: 26px;
+  height: 26px;
+}
+
+.cardText {
+  flex: 1;
+  min-width: 0;
+}
+
+.cardTitle {
+  font-size: 17px;
+  font-weight: 700;
+  color: #1a1a2e;
+  margin: 0 0 6px;
+  letter-spacing: -0.2px;
+  line-height: 1.35;
+}
+
+.cardDesc {
+  font-size: 14px;
+  color: #495057;
+  margin: 0;
+  line-height: 1.55;
+}
+
+.cardMeta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  font-size: 12.5px;
+  color: #6c757d;
+  font-weight: 500;
+}
+
+.metaDot {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: #adb5bd;
+}
+
+.cardRight {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-end;
+  flex-shrink: 0;
+}
+
+.downloadBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 24px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #fff;
+  background: #3b5bdb;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.15s ease;
+  box-shadow: 0 2px 8px rgba(59, 91, 219, 0.25);
+  white-space: nowrap;
+  font-family: inherit;
+}
+
+.downloadBtn:hover:not(:disabled) {
+  background: #304ebf;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(59, 91, 219, 0.35);
+}
+
+.downloadBtn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.downloadBtn:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.downloadBtn svg {
+  width: 18px;
+  height: 18px;
+  stroke-width: 2.2;
+}
+
+.helpToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #495057;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-family: inherit;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.helpToggle:hover {
+  color: #3b5bdb;
+  background: rgba(59, 91, 219, 0.06);
+}
+
+.helpChevron {
+  transition: transform 0.2s ease;
+}
+
+.helpChevronOpen {
+  transform: rotate(180deg);
+}
+
+.helpPanel {
+  margin-top: 16px;
+  padding: 16px 18px;
+  background: #fff;
+  border: 1px solid #e9ecef;
+  border-radius: 10px;
+  font-size: 13.5px;
+  color: #343a40;
+  line-height: 1.7;
+}
+
+.helpTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1a1a2e;
+  margin: 0 0 8px;
+}
+
+.helpSteps {
+  margin: 0;
+  padding-left: 22px;
+}
+
+.helpSteps li {
+  margin-bottom: 4px;
+}
+
+.helpSteps li:last-child {
+  margin-bottom: 0;
+}
+
+.helpWarning {
+  margin-top: 14px;
+  padding: 14px 16px;
+  background: #fff4d6;
+  border: 1px solid #ffd599;
+  border-left: 4px solid #f59f00;
+  border-radius: 8px;
+  color: #5c4400;
+  line-height: 1.6;
+}
+
+.warnHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  margin-bottom: 6px;
+}
+
+.warnHeader strong {
+  color: #8a5a00;
+  font-size: 14.5px;
+  font-weight: 700;
+}
+
+.warnIcon {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.warnDesc {
+  font-size: 13.5px;
+  margin: 0 0 10px;
+  color: #5c4400;
+}
+
+.warnSteps {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 8px;
+}
+
+.warnSteps li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  padding: 6px 0;
+  color: #3d2e00;
+}
+
+.stepBadge {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #f59f00;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.warnNote {
+  font-size: 12.5px;
+  color: #8a5a00;
+  margin: 8px 0 0;
+  font-style: italic;
+}
+
+/* ── Responsive ────────────────────────── */
+@media (max-width: 900px) {
+  .cardRow {
+    flex-direction: column;
+    gap: 16px;
+    align-items: stretch;
+  }
+
+  .cardRight {
+    align-items: stretch;
+    width: 100%;
+  }
+
+  .downloadBtn {
+    width: 100%;
+    justify-content: center;
+    padding: 14px 20px;
+    font-size: 16px;
+  }
+
+  .helpToggle {
+    justify-content: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .downloadCard {
+    padding: 16px 16px;
+  }
+
+  .cardTitle {
+    font-size: 16px;
+  }
+
+  .cardDesc {
+    font-size: 13.5px;
+  }
+}
