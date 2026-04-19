@@ -7,9 +7,16 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchLegalConfig, type LegalConfig } from "../api/legal.api";
 import styles from "./LegalPage.module.css";
 
-/** Show value or "정보 미등록" muted text */
-function V({ value }: { value: string }) {
+// 테넌트가 법적 고지 정보를 채우지 않았을 때 노출될 플랫폼 운영사 연락처 fallback.
+// 고객센터·고충처리·개인정보 보호책임자 연락처에 한해 적용한다. (상호/사업자번호 등은 fallback 없음)
+const FALLBACK_SUPPORT_PHONE = "010-3121-7466";
+const FALLBACK_SUPPORT_EMAIL = "devhyun7466@gmail.com";
+const FALLBACK_PRIVACY_OFFICER_CONTACT = "devhyun7466@gmail.com";
+
+/** Show value, fallback, or "정보 미등록" muted text */
+function V({ value, fallback }: { value: string; fallback?: string }) {
   if (value) return <>{value}</>;
+  if (fallback) return <>{fallback}</>;
   return <span className={styles.unregistered}>정보 미등록</span>;
 }
 
@@ -296,8 +303,10 @@ export default function PrivacyPage() {
           {/* ── 10. 자동 수집 장치 (PIPC 2025 별도 조항) ── */}
           <h2>제10조 (개인정보 자동 수집 장치의 설치·운영 및 거부)</h2>
           <p>
-            본 서비스는 <strong>쿠키(Cookie)를 사용하지 않습니다.</strong> 인증은 JWT(JSON Web Token) 방식으로
-            처리하며, 쿠키를 통한 이용자 추적이나 정보 수집을 하지 않습니다.
+            본 서비스는 <strong>이용자 추적 또는 행태정보 수집을 위한 쿠키(Cookie)를 사용하지 않습니다.</strong>{" "}
+            서비스 이용자 인증은 JWT(JSON Web Token) 방식으로 처리하며, 인증 토큰은 이용자의 브라우저 저장소
+            (localStorage)에 보관됩니다. 다만, 내부 관리자 화면(백오피스) 접근 시에는 세션 유지 목적의
+            쿠키가 사용될 수 있으며, 일반 서비스 이용자는 해당 경로를 거치지 않습니다.
           </p>
           <p>
             본 서비스는 <strong>별도의 웹 분석·추적 도구</strong>(Google Analytics, Facebook Pixel 등)를
@@ -337,12 +346,12 @@ export default function PrivacyPage() {
           <h3>개인정보 보호책임자</h3>
           <ul>
             <li>성명: <V value={c.privacy_officer_name} /></li>
-            <li>연락처: <V value={c.privacy_officer_contact} /></li>
+            <li>연락처: <V value={c.privacy_officer_contact} fallback={FALLBACK_PRIVACY_OFFICER_CONTACT} /></li>
           </ul>
           <h3>고충처리</h3>
           <ul>
-            <li>고객센터: <V value={c.support_email} /></li>
-            <li>전화: <V value={c.support_phone} /></li>
+            <li>고객센터: <V value={c.support_email} fallback={FALLBACK_SUPPORT_EMAIL} /></li>
+            <li>전화: <V value={c.support_phone} fallback={FALLBACK_SUPPORT_PHONE} /></li>
           </ul>
           <p>
             정보주체는 서비스 이용 중 발생한 모든 개인정보 보호 관련 문의, 불만, 피해 구제 등에 관한 사항을
@@ -391,8 +400,8 @@ export default function PrivacyPage() {
               <br />
               주소: <V value={c.address} />
               <br />
-              고객센터: <V value={c.support_email} />{" "}
-              / <V value={c.support_phone} />
+              고객센터: <V value={c.support_email} fallback={FALLBACK_SUPPORT_EMAIL} />{" "}
+              / <V value={c.support_phone} fallback={FALLBACK_SUPPORT_PHONE} />
             </p>
           </div>
         </article>

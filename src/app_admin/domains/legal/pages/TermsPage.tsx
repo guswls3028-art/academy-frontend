@@ -7,9 +7,15 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchLegalConfig, type LegalConfig } from "../api/legal.api";
 import styles from "./LegalPage.module.css";
 
-/** Show value or "정보 미등록" muted text */
-function V({ value }: { value: string }) {
+// 테넌트가 법적 고지 정보를 채우지 않았을 때 노출될 플랫폼 운영사 연락처 fallback.
+// 고객센터·환불 창구에 한해 적용한다. (상호/사업자번호 등은 fallback 없음)
+const FALLBACK_SUPPORT_PHONE = "010-3121-7466";
+const FALLBACK_SUPPORT_EMAIL = "devhyun7466@gmail.com";
+
+/** Show value, fallback, or "정보 미등록" muted text */
+function V({ value, fallback }: { value: string; fallback?: string }) {
   if (value) return <>{value}</>;
+  if (fallback) return <>{fallback}</>;
   return <span className={styles.unregistered}>정보 미등록</span>;
 }
 
@@ -146,9 +152,9 @@ export default function TermsPage() {
               환급이 지연되는 경우 지연 기간에 대하여 연 15%의 지연이자를 가산합니다
               (전자상거래법 제18조).</li>
             <li>환불 요청은 서비스 내 문의 또는 고객센터(
-              {c.support_email ? <>{c.support_email}</> : <span className={styles.unregistered}>이메일 미등록</span>}
+              {c.support_email || FALLBACK_SUPPORT_EMAIL}
               {" / "}
-              {c.support_phone ? <>{c.support_phone}</> : <span className={styles.unregistered}>전화번호 미등록</span>}
+              {c.support_phone || FALLBACK_SUPPORT_PHONE}
               )를 통해 접수합니다.</li>
             <li>다음 각 호에 해당하는 경우 환불이 제한됩니다:
               <ol>
@@ -301,8 +307,8 @@ export default function TermsPage() {
               {c.ecommerce_number && (<>통신판매업 신고번호: {c.ecommerce_number}<br /></>)}
               주소: <V value={c.address} />
               <br />
-              고객센터: <V value={c.support_email} />{" "}
-              / <V value={c.support_phone} />
+              고객센터: <V value={c.support_email} fallback={FALLBACK_SUPPORT_EMAIL} />{" "}
+              / <V value={c.support_phone} fallback={FALLBACK_SUPPORT_PHONE} />
               <br />
               호스팅 서비스 제공자: Cloudflare, Inc. (웹), Amazon Web Services, Inc. (API 서버)
             </p>
