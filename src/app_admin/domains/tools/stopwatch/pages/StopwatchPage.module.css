@@ -180,10 +180,17 @@
 .helpSteps {
   margin: 0;
   padding-left: 22px;
+  list-style: decimal;
 }
 
 .helpSteps li {
   margin-bottom: 4px;
+  padding-left: 4px;
+}
+
+.helpSteps li::marker {
+  color: #3b5bdb;
+  font-weight: 700;
 }
 
 .helpSteps li:last-child {
