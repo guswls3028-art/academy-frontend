@@ -54,6 +54,7 @@ const B = {
   clinic_name:       { id: "clinic_name",       label: "클리닉명",         insertText: "#{클리닉명}",          previewValue: "수학 보충 클리닉" },
   clinic_place:      { id: "clinic_place",      label: "클리닉 장소",      insertText: "#{장소}",              previewValue: "3층 세미나실" },
   clinic_result:     { id: "clinic_result",     label: "클리닉 합불",      insertText: "#{클리닉합불}",        previewValue: "합격",        description: "합격/불합격 결과" },
+  arrival_time:      { id: "arrival_time",      label: "처리시각",         insertText: "#{도착시간}",          previewValue: "18:54",       description: "출석/결석 버튼 누른 시각" },
   // 통합 알림톡 변수 (솔라피 리스트형 템플릿 — 자동 채움, #{내용} 편집 참고용)
   academy_name:      { id: "academy_name",      label: "학원이름",         insertText: "#{학원이름}",          previewValue: "학원플러스",   description: "학원 이름 (알림톡 헤더에 자동)" },
   clinic_date:       { id: "clinic_date",       label: "클리닉 날짜",      insertText: "#{클리닉날짜}",        previewValue: "2026-04-06",  description: "클리닉 일시 날짜 (리스트 자동)" },
@@ -119,7 +120,7 @@ const CATEGORY_BLOCKS: Record<string, TemplateBlock[]> = {
     // ── 기타 ──
     B.exam_score, B.assignment_score, B.clinic_result,
   ],
-  clinic:     [...COMMON_SMS, B.clinic_name, B.clinic_place, B.clinic_date, B.clinic_time, B.clinic_result],
+  clinic:     [...COMMON_SMS, B.clinic_name, B.clinic_place, B.clinic_date, B.clinic_time, B.clinic_result, B.arrival_time],
   payment:    [...COMMON_SMS],
   notice:     [...COMMON_SMS],
   community:  [...COMMON_SMS, B.post_title, B.answer_summary, B.counsel_type],

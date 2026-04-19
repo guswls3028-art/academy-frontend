@@ -562,6 +562,39 @@ function TriggerCard({
           </div>
         )}
       </div>
+      {/* 클리닉 출석/결석: 시간 표시 모드 토글 */}
+      {(config.trigger === "clinic_check_in" || config.trigger === "clinic_absent") && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            marginTop: 8,
+            padding: "8px 12px",
+            borderRadius: 8,
+            background: "color-mix(in srgb, var(--color-primary) 4%, var(--color-bg-surface))",
+            border: "1px solid color-mix(in srgb, var(--color-primary) 10%, transparent)",
+          }}
+        >
+          <Switch
+            size="small"
+            checked={config.show_actual_time ?? false}
+            onChange={(checked) => onUpdate({ ...config, show_actual_time: checked })}
+            disabled={saving}
+          />
+          <span style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>
+            알림톡 <strong>시간 항목</strong>에 실제 {config.trigger === "clinic_check_in" ? "도착" : "처리"} 시각 표시
+          </span>
+          <span style={{
+            fontSize: 10, fontWeight: 600,
+            color: config.show_actual_time ? "var(--color-primary)" : "var(--color-text-muted)",
+            marginLeft: "auto",
+            whiteSpace: "nowrap",
+          }}>
+            {config.show_actual_time ? "→ 버튼 누른 시각" : "→ 수업 예정 시간"}
+          </span>
+        </div>
+      )}
       <AutoSendPreviewPopup
         open={showPreview}
         onClose={() => setShowPreview(false)}

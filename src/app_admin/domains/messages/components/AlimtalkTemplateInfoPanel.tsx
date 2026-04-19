@@ -16,10 +16,10 @@ const TEMPLATE_TYPE_LABELS: Record<string, string> = {
 };
 
 const TEMPLATE_TYPE_DESCRIPTIONS: Record<string, string> = {
-  clinic_info: "학원이름, 학생이름, 장소, 날짜, 시간이 자동으로 표시됩니다. 아래 본문에는 안내 문구만 작성하세요.",
-  clinic_change: "학원이름, 학생이름, 기존일정, 변동사항, 수정자가 자동으로 표시됩니다. 아래 본문에는 안내 문구만 작성하세요.",
-  score: "학원이름, 학생이름, 강의명, 차시명이 자동으로 표시됩니다. 아래 본문에는 안내 문구만 작성하세요.",
-  attendance: "학원이름, 학생이름, 강의명, 차시명, 날짜, 시간이 자동으로 표시됩니다. 아래 본문에는 안내 문구만 작성하세요.",
+  clinic_info: "학원이름, 학생이름, 장소, 날짜, 시간이 자동으로 표시됩니다. 본문에 안내 문구를 작성하고, 필요 시 아래 변수를 삽입할 수 있습니다.",
+  clinic_change: "학원이름, 학생이름, 기존일정, 변동사항, 수정자가 자동으로 표시됩니다. 본문에 안내 문구를 작성하세요.",
+  score: "학원이름, 학생이름, 강의명, 차시명이 자동으로 표시됩니다. 본문에 안내 문구를 작성하고, 필요 시 아래 변수를 삽입할 수 있습니다.",
+  attendance: "학원이름, 학생이름, 강의명, 차시명, 날짜, 시간이 자동으로 표시됩니다. 본문에 안내 문구를 작성하세요.",
 };
 
 type AutoVar = { label: string; example: string; color: string; bg: string; border: string };
@@ -54,6 +54,19 @@ const TEMPLATE_AUTO_VARS: Record<string, AutoVar[]> = {
     { label: "시간", example: "14:00", ...getBlockColor("time") },
   ],
 };
+
+/** 알림톡 자동 채움 변수의 block ID 목록 — 본문 변수 삽입에서 중복 제거용 */
+const AUTO_VAR_BLOCK_IDS: Record<string, Set<string>> = {
+  clinic_info: new Set(["academy_name", "student_name", "clinic_place", "clinic_date", "clinic_time"]),
+  clinic_change: new Set(["academy_name", "student_name", "clinic_old_sched", "clinic_changes", "clinic_modifier"]),
+  score: new Set(["academy_name", "student_name", "lecture_name", "session_name"]),
+  attendance: new Set(["academy_name", "student_name", "lecture_name", "session_name", "date", "time"]),
+};
+
+export function getAutoFillBlockIds(templateType: AlimtalkTemplateType): Set<string> {
+  if (!templateType) return new Set();
+  return AUTO_VAR_BLOCK_IDS[templateType] ?? new Set();
+}
 
 /** 카테고리명으로 알림톡 템플릿 타입 판별 (수동 템플릿 편집 시 사용) */
 export function getAlimtalkTemplateTypeFromCategory(category?: string): AlimtalkTemplateType {
@@ -231,7 +244,7 @@ export default function AlimtalkTemplateInfoPanel({
         color: "var(--color-status-info, #2563eb)",
       }}>
         위 항목은 발송 시 자동으로 채워집니다.<br />
-        본문에는 안내 문구만 직접 작성하세요. (카카오톡에서 <strong>내용</strong> 영역에 표시됩니다)
+        본문에 안내 문구를 작성하세요. (카카오톡에서 <strong>내용</strong> 영역에 표시됩니다)
       </div>
     </div>
   );

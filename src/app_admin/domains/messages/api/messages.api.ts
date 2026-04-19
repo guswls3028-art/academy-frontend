@@ -357,6 +357,8 @@ export interface AutoSendConfigItem {
   delay_mode?: DelayMode;
   /** delay_minutes: 지연 분 수 / scheduled_hour: 시각(0-23) */
   delay_value?: number | null;
+  /** 클리닉 출석/결석: ITEM_LIST 시간에 실제 버튼 누른 시각 표시 */
+  show_actual_time?: boolean;
   created_at: string | null;
   updated_at: string | null;
   /** 정책 분류: SYSTEM_AUTO / AUTO_DEFAULT / MANUAL_DEFAULT / DISABLED */
@@ -418,6 +420,7 @@ export async function updateAutoSendConfigs(configs: Partial<AutoSendConfigItem>
     minutes_before: c.minutes_before ?? undefined,
     delay_mode: c.delay_mode ?? undefined,
     delay_value: c.delay_value ?? undefined,
+    show_actual_time: c.show_actual_time ?? undefined,
   }));
   const res = await api.patch<AutoSendConfigItem[]>(`${PREFIX}/auto-send/`, {
     configs: payload,

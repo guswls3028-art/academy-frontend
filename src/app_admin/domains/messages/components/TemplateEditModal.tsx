@@ -15,7 +15,7 @@ import {
   type TemplateCategory,
 } from "../constants/templateBlocks";
 import GradesBlockPanel from "./GradesBlockPanel";
-import AlimtalkTemplateInfoPanel, { getAlimtalkTemplateType, getAlimtalkTemplateTypeFromCategory, renderAlimtalkFullPreview } from "./AlimtalkTemplateInfoPanel";
+import AlimtalkTemplateInfoPanel, { getAlimtalkTemplateType, getAlimtalkTemplateTypeFromCategory, getAutoFillBlockIds, renderAlimtalkFullPreview } from "./AlimtalkTemplateInfoPanel";
 import type { MessageTemplateItem, MessageTemplatePayload } from "../api/messages.api";
 
 import "../styles/templateEditor.css";
@@ -325,7 +325,45 @@ export default function TemplateEditModal({
                 <div className="template-editor__blocks-title mb-2">변수 삽입</div>
                 <div className="template-editor__block-list flex flex-col content-start overflow-auto p-1">
                   {alimtalkType && activeTab === "alimtalk" ? (
-                    <AlimtalkTemplateInfoPanel templateType={alimtalkType} disabled={fieldsDisabled} />
+                    <>
+                      <AlimtalkTemplateInfoPanel templateType={alimtalkType} disabled={fieldsDisabled} />
+                      {(() => {
+                        const autoIds = getAutoFillBlockIds(alimtalkType);
+                        const bodyBlocks = blocks.filter((b) => !autoIds.has(b.id) && b.id !== "site_link");
+                        if (!bodyBlocks.length) return null;
+                        return (
+                          <div style={{ marginTop: 12 }}>
+                            <div style={{
+                              fontSize: 10, fontWeight: 700,
+                              color: "var(--color-text-muted)",
+                              letterSpacing: "0.3px",
+                              marginBottom: 6,
+                            }}>
+                              본문에 삽입 가능한 변수
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              {bodyBlocks.map((block) => {
+                                const bc = getBlockColor(block.id);
+                                return (
+                                  <button
+                                    key={block.id}
+                                    type="button"
+                                    onMouseDown={(e) => e.preventDefault()}
+                                    onClick={() => insertBlock(block.insertText)}
+                                    disabled={fieldsDisabled}
+                                    className="template-editor__block-tag"
+                                    style={{ background: bc.bg, color: bc.color, borderColor: bc.border }}
+                                    title={block.description}
+                                  >
+                                    {block.label}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </>
                   ) : selectedCategory === "grades" ? (
                     <GradesBlockPanel blocks={blocks} onInsert={insertBlock} disabled={fieldsDisabled} currentBody={body} />
                   ) : (
