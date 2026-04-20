@@ -12,9 +12,21 @@ import { formatDuration, formatDurationDetailed } from "../utils/format";
 
 // 영상 목록 아이템 컴포넌트
 function VideoStatusBadge({ status }: { status: string }) {
-  const isEncoding = status === "PENDING" || status === "PROCESSING";
+  // UPLOADED: 업로드 완료 + 인코딩 대기 — 재생 불가
+  // PENDING: 업로드 진행 / PROCESSING: 인코딩 중
+  const isEncoding =
+    status === "PENDING" ||
+    status === "UPLOADED" ||
+    status === "PROCESSING";
   const isFailed = status === "FAILED";
   if (!isEncoding && !isFailed) return null;
+
+  // 상태별 문구 세분화 (UX 개선)
+  let label = "처리 중";
+  if (isFailed) label = "처리 실패";
+  else if (status === "PENDING") label = "업로드 중";
+  else if (status === "UPLOADED") label = "처리 대기";
+  else if (status === "PROCESSING") label = "인코딩 중";
 
   return (
     <div
@@ -40,7 +52,7 @@ function VideoStatusBadge({ status }: { status: string }) {
           letterSpacing: "0.02em",
         }}
       >
-        {isFailed ? "처리 실패" : "인코딩 중"}
+        {label}
       </div>
     </div>
   );

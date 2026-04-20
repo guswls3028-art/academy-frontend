@@ -54,6 +54,13 @@ export default function ExamResultPage() {
   const pct = r.max_score > 0 ? Math.round((r.total_score / r.max_score) * 100) : 0;
   const correctCount = items.filter((it) => it.is_correct).length;
   const wrongCount = items.length - correctCount;
+  // 최종 합격 여부: 1차 합격(is_pass) OR 클리닉 재시험 통과(remediated)
+  const finalPass = r.final_pass ?? r.is_pass;
+  const achievement = r.meta_status === "NOT_SUBMITTED"
+    ? "NOT_SUBMITTED"
+    : r.remediated
+      ? "REMEDIATED"
+      : undefined;
 
   return (
     <StudentPageShell
@@ -78,17 +85,56 @@ export default function ExamResultPage() {
       }
     >
       <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-8)" }}>
+        {/* ── Provisional banner: 채점 미확정 ── */}
+        {r.is_provisional && (
+          <div
+            style={{
+              padding: "var(--stu-space-3) var(--stu-space-4)",
+              borderRadius: "var(--stu-radius)",
+              background: "var(--stu-surface-soft)",
+              border: "1px dashed var(--stu-border)",
+              fontSize: 13,
+              color: "var(--stu-text-muted)",
+              textAlign: "center",
+            }}
+            role="status"
+          >
+            채점이 확정되기 전 임시 점수입니다. 정답 공개는 확정 후에 이뤄집니다.
+          </div>
+        )}
+
         {/* ── Score Gauge ── */}
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "var(--stu-space-4)", padding: "var(--stu-space-4) 0" }}>
-          <ScoreGauge pct={pct} passed={r.is_pass} />
+          <ScoreGauge pct={pct} passed={finalPass} />
           <div style={{ fontSize: 16, fontWeight: 800 }}>
             {r.total_score} / {r.max_score}점
           </div>
           <GradeBadge
-            passed={r.is_pass}
-            achievement={r.meta_status === "NOT_SUBMITTED" ? "NOT_SUBMITTED" : undefined}
+            passed={finalPass}
+            achievement={achievement}
             showNotSubmitted={r.total_score == null}
           />
+          {/* 클리닉 재시험 통과 정보 (드리프트 해소 UX) */}
+          {r.remediated && r.clinic_retake && (
+            <div
+              style={{
+                fontSize: 12,
+                color: "var(--stu-success-text)",
+                background: "var(--stu-success-bg)",
+                padding: "4px 10px",
+                borderRadius: 999,
+                border: "1px solid var(--stu-success)",
+              }}
+            >
+              클리닉 재시험 통과
+              {typeof r.clinic_retake.score === "number" && (
+                <> · {r.clinic_retake.score}점</>
+              )}
+              {typeof r.clinic_retake.pass_score === "number" && (
+                <> / 기준 {r.clinic_retake.pass_score}점</>
+              )}
+            </div>
+          )}
           {r.submitted_at && (
             <div className="stu-muted" style={{ fontSize: 12 }}>
               {new Date(r.submitted_at).toLocaleDateString("ko-KR")} 제출
