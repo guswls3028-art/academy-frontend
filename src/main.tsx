@@ -27,6 +27,39 @@ import BugReportButton from "@/shared/ui/feedback/BugReportButton";
 import "./index.css";
 import "antd/dist/reset.css";
 
+/**
+ * 신규 배포로 사용자 브라우저 캐시 index.html이 참조하는 구 chunk가 404일 때
+ * 자동 1회 reload 하여 새 번들을 받도록. 무한 루프 방지용 sessionStorage 플래그.
+ */
+function installChunkReloadHandler() {
+  const KEY = "__chunk_reload_done__";
+  const reloadOnce = () => {
+    try {
+      if (sessionStorage.getItem(KEY)) return;
+      sessionStorage.setItem(KEY, "1");
+      setTimeout(() => sessionStorage.removeItem(KEY), 10_000);
+    } catch {}
+    window.location.reload();
+  };
+  window.addEventListener("vite:preloadError", (e) => {
+    e.preventDefault();
+    reloadOnce();
+  });
+  window.addEventListener("error", (e) => {
+    const msg = String((e as ErrorEvent).message || "");
+    if (msg.includes("Failed to fetch dynamically imported module") || msg.includes("Importing a module script failed")) {
+      reloadOnce();
+    }
+  });
+  window.addEventListener("unhandledrejection", (e) => {
+    const msg = String((e as PromiseRejectionEvent).reason?.message || "");
+    if (msg.includes("Failed to fetch dynamically imported module") || msg.includes("Importing a module script failed")) {
+      reloadOnce();
+    }
+  });
+}
+installChunkReloadHandler();
+
 // ── Sentry 초기화 (production only) ──
 const SENTRY_DSN = import.meta.env.VITE_SENTRY_DSN as string | undefined;
 

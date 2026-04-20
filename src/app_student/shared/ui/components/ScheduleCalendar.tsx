@@ -190,7 +190,9 @@ export default function ScheduleCalendar({
                   ? "2px solid var(--stu-primary)"
                   : day.isToday
                     ? "1px solid var(--stu-primary)"
-                    : "1px solid transparent",
+                    : day.isCurrentMonth
+                      ? "1px solid var(--stu-border-subtle, rgba(0,0,0,0.05))"
+                      : "1px solid transparent",
                 background: sc
                   ? sc
                   : isSelected
