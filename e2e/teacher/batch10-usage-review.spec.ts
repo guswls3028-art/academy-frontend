@@ -28,7 +28,9 @@ function attachNetCapture(page: Page): { errors: string[]; netFails: Netfail[] }
   page.on("console", (msg) => {
     if (msg.type() !== "error") return;
     const t = msg.text();
+    // 무시: favicon, sourcemap, warning, 네트워크 4xx/5xx (Chrome이 자동 생성 — JS 코드로 차단 불가)
     if (/favicon|sourcemap|warning/i.test(t)) return;
+    if (/failed to load resource|\b40\d\b|\b50\d\b|network error/i.test(t)) return;
     errors.push(t);
   });
   page.on("response", (resp: Response) => {
