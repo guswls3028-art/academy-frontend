@@ -73,7 +73,7 @@ export default function StudentTabBar() {
                 {t.icon}
                 {badgeCount > 0 && <NotificationBadge count={badgeCount} />}
               </span>
-              <span style={{ fontSize: 10, fontWeight: 700 }}>{t.label}</span>
+              <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: "-0.01em" }}>{t.label}</span>
             </NavLink>
           );
         })}

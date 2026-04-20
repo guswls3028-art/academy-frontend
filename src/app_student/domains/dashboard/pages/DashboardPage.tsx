@@ -84,15 +84,15 @@ const CountdownCard = memo(function CountdownCard({ session, dt }: { session: St
             : <IconCalendar style={{ width: 22, height: 22, color: "var(--stu-primary)" }} />}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: "var(--stu-text-muted)", letterSpacing: "0.03em", marginBottom: 2 }}>다음 일정</div>
-          <div style={{ fontWeight: 700, fontSize: 15, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{session.title}</div>
+          <div style={{ fontSize: 11, fontWeight: 600, color: "var(--stu-text-muted)", letterSpacing: "0.04em", marginBottom: 2, textTransform: "uppercase" }}>다음 일정</div>
+          <div style={{ fontWeight: 600, fontSize: 15, letterSpacing: "-0.01em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{session.title}</div>
           <div style={{ fontSize: 12, color: "var(--stu-text-muted)", marginTop: 2 }}>
             {formatYmd(session.date ?? null)}
             {session.start_time && ` ${session.start_time.slice(0, 5)}`}
           </div>
         </div>
         <div style={{ textAlign: "right", flexShrink: 0 }}>
-          <div style={{ fontSize: 18, fontWeight: 800, letterSpacing: "-0.02em", color: isClinic ? "var(--stu-success, #10b981)" : "var(--stu-primary)" }}>
+          <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: "-0.02em", color: isClinic ? "var(--stu-success, #10b981)" : "var(--stu-primary)" }}>
             {formatRemaining(dt.getTime() - now.getTime())}
           </div>
         </div>
@@ -353,7 +353,7 @@ export default function DashboardPage() {
             <div className="stu-muted" style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.04em", marginBottom: 10, textTransform: "uppercase" }}>학원문의</div>
             {academies.map((a: { name?: string; phone?: string }, i: number) => (
               <div key={i} style={{ marginBottom: academies.length > 1 ? 12 : 0 }}>
-                <div style={{ fontSize: 15, fontWeight: 700, letterSpacing: "-0.02em" }}>{a.name || "학원"}</div>
+                <div style={{ fontSize: 15, fontWeight: 600, letterSpacing: "-0.02em" }}>{a.name || "학원"}</div>
                 {a.phone && (
                   <a href={`tel:${a.phone.replace(/\D/g, "")}`} style={{ fontSize: 14, color: "var(--stu-primary)", textDecoration: "none", marginTop: 6, display: "inline-block", fontWeight: 600 }}>
                     {a.phone}
@@ -410,9 +410,9 @@ function LearningStatusCard({
   };
 
   const statValueStyle: React.CSSProperties = {
-    fontSize: 20,
-    fontWeight: 800,
-    letterSpacing: "-0.02em",
+    fontSize: 22,
+    fontWeight: 700,
+    letterSpacing: "-0.03em",
     color: "var(--stu-text)",
   };
 
@@ -430,7 +430,7 @@ function LearningStatusCard({
       border: "1.5px solid var(--stu-border)",
       padding: "16px",
     }}>
-      <div style={{ fontSize: 13, fontWeight: 700, color: "var(--stu-text-muted)", letterSpacing: "0.02em", marginBottom: 12 }}>
+      <div style={{ fontSize: 12, fontWeight: 600, color: "var(--stu-text-muted)", letterSpacing: "0.06em", marginBottom: 12, textTransform: "uppercase" }}>
         나의 학습 현황
       </div>
       {hasData ? (
@@ -497,7 +497,7 @@ function LearningStatusCard({
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{ fontSize: 13, fontWeight: 700, color: "var(--stu-text-muted)", letterSpacing: "0.02em", marginBottom: 10 }}>
+    <div style={{ fontSize: 12, fontWeight: 600, color: "var(--stu-text-muted)", letterSpacing: "0.06em", marginBottom: 10, textTransform: "uppercase" }}>
       {children}
     </div>
   );
@@ -550,7 +550,7 @@ function NoticeSection({ notices }: { notices?: Array<{ id: number; title: strin
           <div style={{ width: 32, height: 32, borderRadius: 9, background: "color-mix(in srgb, var(--stu-primary) 14%, var(--stu-surface-1))", display: "grid", placeItems: "center", flexShrink: 0 }}>
             <IconNotice style={{ width: 17, height: 17, color: "var(--stu-primary)" }} />
           </div>
-          <span style={{ fontWeight: 800, fontSize: 14, letterSpacing: "-0.02em" }}>공지사항</span>
+          <span style={{ fontWeight: 700, fontSize: 14, letterSpacing: "-0.02em" }}>공지사항</span>
         </div>
         {(notices?.length ?? 0) > 0 && (
           <span style={{ background: "var(--stu-primary)", color: "#fff", borderRadius: 999, padding: "2px 10px", fontSize: 11, fontWeight: 700, flexShrink: 0 }}>

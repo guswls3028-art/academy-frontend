@@ -145,7 +145,7 @@ export default function StudentDrawer({ open, onClose }: DrawerProps) {
             justifyContent: "space-between",
           }}
         >
-          <span style={{ fontWeight: 800, fontSize: 16, color: "var(--stu-text)", letterSpacing: "-0.3px" }}>
+          <span style={{ fontWeight: 700, fontSize: 16, color: "var(--stu-text)", letterSpacing: "-0.02em" }}>
             메뉴
           </span>
           <button
@@ -179,9 +179,9 @@ export default function StudentDrawer({ open, onClose }: DrawerProps) {
               <div
                 style={{
                   fontSize: 10,
-                  fontWeight: 700,
+                  fontWeight: 600,
                   color: "var(--stu-text-muted)",
-                  letterSpacing: "0.06em",
+                  letterSpacing: "0.08em",
                   textTransform: "uppercase",
                   padding: "0 var(--stu-space-2)",
                   marginBottom: "var(--stu-space-2)",

@@ -29,8 +29,9 @@ const linkStyle: React.CSSProperties = {
   padding: "var(--stu-space-3) var(--stu-space-4)",
   color: "var(--stu-text)",
   textDecoration: "none",
-  fontWeight: 700,
+  fontWeight: 600,
   fontSize: 15,
+  letterSpacing: "-0.01em",
 };
 
 type NavItem = { label: string; to: string; icon: ReactNode; featureFlag?: string };
@@ -96,11 +97,11 @@ export default function MorePage() {
           <h3
             className="stu-muted"
             style={{
-              fontSize: 12,
-              fontWeight: 800,
+              fontSize: 11,
+              fontWeight: 600,
               marginBottom: "var(--stu-space-2)",
               paddingLeft: 4,
-              letterSpacing: "0.02em",
+              letterSpacing: "0.06em",
               textTransform: "uppercase" as const,
             }}
           >

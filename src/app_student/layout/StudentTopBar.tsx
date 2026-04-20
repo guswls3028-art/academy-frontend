@@ -30,12 +30,32 @@ function StudentAvatar({ profile }: { profile: { name?: string; profile_photo_ur
         src={photoUrl}
         alt=""
         className="stu-topbar__avatar-img"
-        style={{ width: 28, height: 28, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }}
+        style={{
+          width: 30, height: 30, borderRadius: "50%", objectFit: "cover", flexShrink: 0,
+          boxShadow: "inset 0 0 0 1.5px color-mix(in srgb, var(--stu-primary) 18%, transparent), 0 1px 2px rgba(0,0,0,0.06)",
+        }}
       />
     );
   }
   return (
-    <span className="stu-topbar__avatar-initial" style={{ width: 28, height: 28, borderRadius: "50%", display: "inline-flex", alignItems: "center", justifyContent: "center", background: "var(--stu-primary)", color: "var(--stu-primary-contrast)", fontSize: 13, fontWeight: 700, flexShrink: 0 }}>
+    <span
+      className="stu-topbar__avatar-initial"
+      style={{
+        width: 30,
+        height: 30,
+        borderRadius: "50%",
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "var(--stu-gradient, var(--stu-primary))",
+        color: "var(--stu-primary-contrast)",
+        fontSize: 13,
+        fontWeight: 600,
+        letterSpacing: "-0.02em",
+        flexShrink: 0,
+        boxShadow: "inset 0 0 0 1.5px rgba(255,255,255,0.18), 0 1px 3px color-mix(in srgb, var(--stu-primary) 28%, transparent)",
+      }}
+    >
       {initial}
     </span>
   );
