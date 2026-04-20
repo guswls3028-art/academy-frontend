@@ -34,6 +34,18 @@ export type MyExamResult = {
   // - pass 여부를 화면에 보여주려면 pass_score 정책과 계산 기준을 백엔드와 먼저 확정해야 안전함
   passed?: boolean;
 
+  // ✅ 드리프트 해소: 1차 합격(is_pass) + 클리닉 재시험 통과(remediated) = 최종 합격(final_pass)
+  is_pass?: boolean | null;
+  final_pass?: boolean | null;
+  remediated?: boolean;
+  clinic_retake?: {
+    score: number | null;
+    pass_score: number | null;
+    attempt_id: number | null;
+    resolved_at: string | null;
+  } | null;
+  is_provisional?: boolean;
+
   items: MyExamResultItem[];
 };
 
