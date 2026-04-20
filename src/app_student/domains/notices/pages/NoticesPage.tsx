@@ -125,8 +125,8 @@ export default function NoticesPage() {
                     height: 18,
                     padding: "0 5px",
                     borderRadius: 999,
-                    background: isActive ? "var(--stu-primary)" : "rgba(17,17,17,0.1)",
-                    color: isActive ? "#fff" : "var(--stu-text-muted)",
+                    background: isActive ? "var(--stu-primary)" : "var(--stu-surface-soft)",
+                    color: isActive ? "var(--stu-primary-contrast)" : "var(--stu-text-muted)",
                     fontSize: 10,
                     fontWeight: 700,
                     lineHeight: 1,
@@ -177,7 +177,7 @@ export default function NoticesPage() {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4, display: "flex", alignItems: "center", gap: 6 }}>
                       {notice.is_urgent && (
-                        <span style={{ flexShrink: 0, fontSize: 11, fontWeight: 700, color: "#fff", background: "var(--stu-danger, #ef4444)", borderRadius: 4, padding: "1px 6px", lineHeight: 1.5 }}>긴급</span>
+                        <span style={{ flexShrink: 0, fontSize: 11, fontWeight: 700, color: "var(--stu-primary-contrast)", background: "var(--stu-danger)", borderRadius: 4, padding: "1px 6px", lineHeight: 1.5 }}>긴급</span>
                       )}
                       {notice.is_pinned && !notice.is_urgent && (
                         <span style={{ flexShrink: 0, fontSize: 11, fontWeight: 700, color: "var(--stu-primary)", background: "color-mix(in srgb, var(--stu-primary) 12%, transparent)", borderRadius: 4, padding: "1px 6px", lineHeight: 1.5 }}>고정</span>

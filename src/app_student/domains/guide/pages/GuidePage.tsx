@@ -204,7 +204,7 @@ function WorkflowCard({
                   borderRadius: "var(--stu-radius)",
                   border: "none",
                   background: "var(--stu-primary)",
-                  color: "#fff",
+                  color: "var(--stu-primary-contrast)",
                   fontSize: 13,
                   fontWeight: 600,
                   cursor: "pointer",

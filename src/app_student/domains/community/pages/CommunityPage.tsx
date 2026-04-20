@@ -112,8 +112,8 @@ function SegmentedTabs<T extends string>({
                   height: 18,
                   padding: "0 5px",
                   borderRadius: 999,
-                  background: active ? "var(--stu-primary)" : "rgba(17,17,17,0.08)",
-                  color: active ? "#fff" : "var(--stu-text-muted)",
+                  background: active ? "var(--stu-primary)" : "var(--stu-surface-soft)",
+                  color: active ? "var(--stu-primary-contrast)" : "var(--stu-text-muted)",
                   fontSize: 10,
                   fontWeight: 700,
                   display: "inline-flex",
@@ -144,13 +144,14 @@ function StatusChip({ answered }: { answered: boolean }) {
         fontSize: 11,
         fontWeight: 700,
         letterSpacing: "-0.01em",
-        background: answered ? "rgba(22,163,106,0.1)" : "rgba(234,179,8,0.1)",
-        color: answered ? "#16a34a" : "#ca8a04",
-        border: answered ? "1px solid rgba(22,163,106,0.15)" : "1px solid rgba(234,179,8,0.15)",
+        background: answered ? "var(--stu-success-bg)" : "var(--stu-warn-bg)",
+        color: answered ? "var(--stu-success-text)" : "var(--stu-warn-text)",
+        border: answered ? "1px solid var(--stu-success-border)" : "1px solid var(--stu-warn-border)",
         flexShrink: 0,
       }}
+      role="status"
     >
-      <span style={{ width: 6, height: 6, borderRadius: "50%", background: answered ? "#16a34a" : "#ca8a04" }} />
+      <span style={{ width: 6, height: 6, borderRadius: "50%", background: answered ? "var(--stu-success)" : "var(--stu-warn)" }} aria-hidden="true" />
       {answered ? "답변 완료" : "답변 대기"}
     </span>
   );
@@ -1047,8 +1048,7 @@ function FilePickerSection({
         </span>
         <button
           type="button"
-          className="stu-btn stu-btn--ghost"
-          style={{ fontSize: 13, padding: "4px 10px", minHeight: 0 }}
+          className="stu-btn stu-btn--ghost stu-btn--sm"
           onClick={() => inputRef.current?.click()}
           disabled={files.length >= 10}
         >
@@ -1084,18 +1084,27 @@ function FilePickerSection({
               <button
                 type="button"
                 onClick={() => handleRemove(i)}
+                aria-label={`${f.name} 제거`}
                 style={{
-                  background: "none",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: 28,
+                  height: 28,
+                  borderRadius: "50%",
+                  background: "transparent",
                   border: "none",
                   cursor: "pointer",
                   color: "var(--stu-text-muted)",
-                  padding: 2,
-                  lineHeight: 1,
-                  fontSize: 16,
+                  transition: "background var(--stu-motion-fast), color var(--stu-motion-fast)",
                 }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = "var(--stu-danger-bg)"; e.currentTarget.style.color = "var(--stu-danger-text)"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--stu-text-muted)"; }}
                 title="제거"
               >
-                &times;
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
+                  <path d="M6 6L18 18M18 6L6 18" />
+                </svg>
               </button>
             </div>
           ))}
@@ -1180,7 +1189,7 @@ function PostRow({
         {/* 제목 행 */}
         <div style={{ fontWeight: 600, fontSize: 14, marginBottom: preview ? 6 : 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 6 }}>
           {post.is_urgent && (
-            <span style={{ flexShrink: 0, fontSize: 10, fontWeight: 700, color: "#fff", background: "var(--stu-danger, #ef4444)", borderRadius: 4, padding: "2px 6px", lineHeight: 1.4 }}>긴급</span>
+            <span style={{ flexShrink: 0, fontSize: 10, fontWeight: 700, color: "var(--stu-primary-contrast)", background: "var(--stu-danger)", borderRadius: 4, padding: "2px 6px", lineHeight: 1.4 }}>긴급</span>
           )}
           {post.is_pinned && !post.is_urgent && (
             <span style={{ flexShrink: 0, fontSize: 10, fontWeight: 700, color: "var(--stu-primary)", background: "color-mix(in srgb, var(--stu-primary) 12%, transparent)", borderRadius: 4, padding: "2px 6px", lineHeight: 1.4 }}>고정</span>
@@ -1235,7 +1244,7 @@ function Tag({ children, variant }: { children: React.ReactNode; variant?: "defa
   const styles: Record<string, React.CSSProperties> = {
     default: { background: "var(--stu-surface-soft)", color: "var(--stu-text-muted)" },
     primary: { background: "color-mix(in srgb, var(--stu-primary) 12%, transparent)", color: "var(--stu-primary)" },
-    session: { background: "rgba(139,92,246,0.08)", color: "#7c3aed" },
+    session: { background: "var(--stu-warn-bg)", color: "var(--stu-warn-text)" },
   };
   return (
     <span style={{ fontSize: 12, fontWeight: 600, padding: "3px 10px", borderRadius: 6, ...styles[v] }}>

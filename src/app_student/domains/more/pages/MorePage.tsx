@@ -1,7 +1,7 @@
 /**
  * 더보기 — 카테고리별 메뉴 단일 목록 + 로그아웃
  */
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { logout } from "@/auth/api/auth.api";
 import { useFeesEnabled } from "@/shared/hooks/useFeesEnabled";
@@ -26,7 +26,8 @@ const linkStyle: React.CSSProperties = {
   display: "flex",
   alignItems: "center",
   gap: "var(--stu-space-4)",
-  padding: "var(--stu-space-3) var(--stu-space-4)",
+  padding: "var(--stu-space-4)",
+  minHeight: 48,
   color: "var(--stu-text)",
   textDecoration: "none",
   fontWeight: 600,
@@ -77,6 +78,27 @@ const FULL_NAV: { category: string; items: NavItem[] }[] = [
 export default function MorePage() {
   const feesEnabled = useFeesEnabled();
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const logoutBtnRef = useRef<HTMLButtonElement>(null);
+  const cancelBtnRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!showLogoutConfirm) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setShowLogoutConfirm(false);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    cancelBtnRef.current?.focus?.();
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prevOverflow;
+      logoutBtnRef.current?.focus?.();
+    };
+  }, [showLogoutConfirm]);
 
   const filteredNav = useMemo(() => {
     return FULL_NAV.map((g) => ({
@@ -139,6 +161,7 @@ export default function MorePage() {
       {/* 로그아웃 */}
       <section style={{ marginTop: "var(--stu-space-4)" }}>
         <button
+          ref={logoutBtnRef}
           type="button"
           className="stu-btn stu-btn--danger"
           style={{
@@ -163,12 +186,32 @@ export default function MorePage() {
       {/* 로그아웃 확인 다이얼로그 */}
       {showLogoutConfirm && (
         <div className="stu-logout-dialog__overlay" onClick={() => setShowLogoutConfirm(false)}>
-          <div className="stu-logout-dialog__box" onClick={(e) => e.stopPropagation()}>
-            <div className="stu-logout-dialog__title">로그아웃</div>
-            <div className="stu-logout-dialog__desc">정말 로그아웃 하시겠어요?</div>
+          <div
+            className="stu-logout-dialog__box"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="stu-logout-title"
+            aria-describedby="stu-logout-desc"
+          >
+            <div className="stu-logout-dialog__title" id="stu-logout-title">로그아웃</div>
+            <div className="stu-logout-dialog__desc" id="stu-logout-desc">정말 로그아웃 하시겠어요?</div>
             <div className="stu-logout-dialog__actions">
-              <button type="button" className="stu-logout-dialog__cancel" onClick={() => setShowLogoutConfirm(false)}>취소</button>
-              <button type="button" className="stu-logout-dialog__confirm" onClick={() => { setShowLogoutConfirm(false); logout(); }}>로그아웃</button>
+              <button
+                ref={cancelBtnRef}
+                type="button"
+                className="stu-logout-dialog__cancel"
+                onClick={() => setShowLogoutConfirm(false)}
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                className="stu-logout-dialog__confirm"
+                onClick={() => { setShowLogoutConfirm(false); logout(); }}
+              >
+                로그아웃
+              </button>
             </div>
           </div>
         </div>

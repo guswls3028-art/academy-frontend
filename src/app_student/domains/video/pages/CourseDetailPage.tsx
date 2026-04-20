@@ -136,8 +136,8 @@ function SessionBox({
               bottom: 0,
               display: "flex",
               alignItems: "center",
-              gap: 3,
-              padding: "2px 6px",
+              gap: 4,
+              padding: "3px 8px",
               background: "rgba(0,0,0,0.82)",
               borderTopLeftRadius: 6,
               fontSize: 10,
@@ -145,8 +145,10 @@ function SessionBox({
               color: "rgba(255,255,255,0.95)",
               zIndex: 2,
             }}
+            aria-label={`영상 ${sessionData.videoCount}개`}
           >
-            ▶ {sessionData.videoCount}
+            <IconPlay style={{ width: 10, height: 10 }} aria-hidden="true" />
+            {sessionData.videoCount}
           </div>
         )}
 

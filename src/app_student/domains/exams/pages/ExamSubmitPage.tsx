@@ -294,9 +294,9 @@ export default function ExamSubmitPage() {
                       alignItems: "center",
                       gap: 12,
                       padding: "10px 12px",
-                      borderRadius: 10,
+                      borderRadius: "var(--stu-radius-md)",
                       background: "var(--stu-surface-soft)",
-                      border: "1px solid var(--border-divider, #eee)",
+                      border: "1px solid var(--stu-border)",
                     }}
                   >
                     <span
@@ -313,6 +313,7 @@ export default function ExamSubmitPage() {
                       배점 {q.score}
                     </span>
                     <input
+                      className="stu-input"
                       type="text"
                       value={answers[q.id] ?? ""}
                       onChange={(e) => {
@@ -324,13 +325,7 @@ export default function ExamSubmitPage() {
                       }}
                       placeholder="1~5, O/X, 단답"
                       maxLength={20}
-                      style={{
-                        flex: 1,
-                        padding: "8px 12px",
-                        borderRadius: 8,
-                        border: "1px solid var(--border-divider, #ddd)",
-                        fontSize: 15,
-                      }}
+                      style={{ flex: 1, minHeight: 40 }}
                       aria-label={`${q.number}번 답`}
                     />
                   </div>
@@ -341,22 +336,10 @@ export default function ExamSubmitPage() {
             <div className="stu-sticky-submit">
               <button
                 type="button"
+                className="stu-btn stu-btn--primary stu-btn--lg"
                 onClick={handleSubmit}
                 disabled={submitting}
-                style={{
-                  width: "100%",
-                  padding: "14px 20px",
-                  minHeight: 48,
-                  borderRadius: "var(--stu-radius-md)",
-                  border: "none",
-                  background: "var(--stu-primary)",
-                  color: "#fff",
-                  fontWeight: 700,
-                  fontSize: 16,
-                  cursor: submitting ? "not-allowed" : "pointer",
-                  opacity: submitting ? 0.8 : 1,
-                  transition: "opacity var(--stu-motion-fast)",
-                }}
+                style={{ width: "100%" }}
               >
                 {submitting ? "제출 중…" : "제출하기"}
               </button>

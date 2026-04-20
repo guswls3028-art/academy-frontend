@@ -7,7 +7,7 @@ import { Link } from "react-router-dom";
 import StudentPageShell from "@student/shared/ui/pages/StudentPageShell";
 import { fetchMyProfile } from "@student/domains/profile/api/profile.api";
 import { uploadMyFile, fetchMyInventory, getMyFileUrl, type InventoryFile } from "@student/domains/inventory/api/inventory.api";
-import { IconFileText, IconImage, IconDownload } from "@student/shared/ui/icons/Icons";
+import { IconFileText, IconImage, IconDownload, IconChevronRight } from "@student/shared/ui/icons/Icons";
 import { studentToast } from "@student/shared/ui/feedback/studentToast";
 
 const ACCEPT = "image/*,.pdf";
@@ -127,9 +127,12 @@ export default function SubmitScorePage() {
           </div>
         )}
         {uploadMut.isSuccess && (
-          <div style={{ padding: "var(--stu-space-3)", background: "var(--stu-success-bg)", borderRadius: "var(--stu-radius)", fontSize: 14, color: "var(--stu-success-text)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ padding: "var(--stu-space-3)", background: "var(--stu-success-bg)", border: "1px solid var(--stu-success-border)", borderRadius: "var(--stu-radius)", fontSize: 14, color: "var(--stu-success-text)", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "var(--stu-space-3)" }}>
             <span>성적표가 제출되었습니다.</span>
-            <Link to="/student/inventory" style={{ fontSize: 13, fontWeight: 600, color: "var(--stu-primary)" }}>인벤토리 보기 →</Link>
+            <Link to="/student/inventory" style={{ display: "inline-flex", alignItems: "center", gap: 2, fontSize: 13, fontWeight: 600, color: "var(--stu-primary)", flexShrink: 0 }}>
+              인벤토리 보기
+              <IconChevronRight style={{ width: 12, height: 12 }} aria-hidden="true" />
+            </Link>
           </div>
         )}
         <input

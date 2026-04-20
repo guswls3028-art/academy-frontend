@@ -111,7 +111,7 @@ function CommentRow({
                 padding: "1px 6px",
                 borderRadius: 4,
                 background: "var(--stu-primary)",
-                color: "#fff",
+                color: "var(--stu-primary-contrast)",
               }}
             >
               선생님
@@ -153,7 +153,7 @@ function CommentRow({
                 padding: "4px 12px",
                 borderRadius: 6,
                 background: "var(--stu-primary)",
-                color: "#fff",
+                color: "var(--stu-primary-contrast)",
                 fontSize: 12,
                 fontWeight: 600,
                 border: "none",

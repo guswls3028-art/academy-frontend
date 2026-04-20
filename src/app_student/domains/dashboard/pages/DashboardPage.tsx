@@ -289,7 +289,7 @@ export default function DashboardPage() {
                     opacity: 0.9, display: "grid", placeItems: "center",
                   }}>
                     {isClinic
-                      ? <IconClinic style={{ width: 20, height: 20, color: "#fff" }} />
+                      ? <IconClinic style={{ width: 20, height: 20, color: "var(--stu-primary-contrast)" }} />
                       : <IconCalendar style={{ width: 20, height: 20, color: "var(--stu-primary-contrast)" }} />}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
@@ -553,7 +553,7 @@ function NoticeSection({ notices }: { notices?: Array<{ id: number; title: strin
           <span style={{ fontWeight: 700, fontSize: 14, letterSpacing: "-0.02em" }}>공지사항</span>
         </div>
         {(notices?.length ?? 0) > 0 && (
-          <span style={{ background: "var(--stu-primary)", color: "#fff", borderRadius: 999, padding: "2px 10px", fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
+          <span style={{ background: "var(--stu-primary)", color: "var(--stu-primary-contrast)", borderRadius: 999, padding: "2px 10px", fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
             {notices!.length}건
           </span>
         )}
@@ -578,7 +578,7 @@ function NoticeSection({ notices }: { notices?: Array<{ id: number; title: strin
                   color: i === 0 ? "var(--stu-text)" : "var(--stu-text-muted)",
                   overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                 }}>
-                  {n.is_urgent && <span style={{ fontSize: 10, fontWeight: 700, color: "#fff", background: "var(--stu-danger, #ef4444)", borderRadius: 3, padding: "0 5px", marginRight: 4, display: "inline" }}>긴급</span>}
+                  {n.is_urgent && <span style={{ fontSize: 10, fontWeight: 700, color: "var(--stu-primary-contrast)", background: "var(--stu-danger)", borderRadius: 3, padding: "0 5px", marginRight: 4, display: "inline" }}>긴급</span>}
                   {n.title}
                 </div>
               </div>
@@ -590,7 +590,10 @@ function NoticeSection({ notices }: { notices?: Array<{ id: number; title: strin
         )}
       </div>
       <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 10, paddingTop: 8, borderTop: "1px solid color-mix(in srgb, var(--stu-primary) 12%, transparent)" }}>
-        <span style={{ fontSize: 12, color: "var(--stu-primary)", fontWeight: 600, letterSpacing: "-0.01em" }}>전체 공지 보기 →</span>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 2, fontSize: 12, color: "var(--stu-primary)", fontWeight: 600, letterSpacing: "-0.01em" }}>
+          전체 공지 보기
+          <IconChevronRight style={{ width: 12, height: 12 }} aria-hidden="true" />
+        </span>
       </div>
     </Link>
   );

@@ -169,8 +169,8 @@ function CourseCard({
                 style={{
                   padding: "4px 8px",
                   borderRadius: 4,
-                  background: "#ef4444",
-                  color: "#fff",
+                  background: "var(--stu-danger)",
+                  color: "var(--stu-primary-contrast)",
                   fontSize: 10,
                   fontWeight: 700,
                   textTransform: "uppercase",
@@ -185,7 +185,7 @@ function CourseCard({
                   padding: "4px 8px",
                   borderRadius: 4,
                   background: "var(--stu-primary)",
-                  color: "#fff",
+                  color: "var(--stu-primary-contrast)",
                   fontSize: 10,
                   fontWeight: 700,
                 }}
@@ -198,8 +198,8 @@ function CourseCard({
                 style={{
                   padding: "4px 8px",
                   borderRadius: 4,
-                  background: "#22c55e",
-                  color: "#fff",
+                  background: "var(--stu-success)",
+                  color: "var(--stu-primary-contrast)",
                   fontSize: 10,
                   fontWeight: 700,
                 }}

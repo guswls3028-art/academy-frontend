@@ -604,15 +604,18 @@
 }
 
 .vpp-back-btn {
-  padding: 8px 20px;
-  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px 8px 12px;
+  border-radius: 999px;
   border: 1px solid var(--stu-border);
   background: var(--stu-surface);
   color: var(--stu-text);
   font-weight: 600;
   font-size: 14px;
   cursor: pointer;
-  transition: background 0.15s;
+  transition: background var(--stu-motion-fast);
 }
 
 .vpp-back-btn:hover {
@@ -676,14 +679,18 @@
 
 .vpp-back-link,
 .vpp-next-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   padding: 6px 14px;
-  border-radius: 20px;
+  border-radius: 999px;
   font-size: 13px;
   font-weight: 700;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background var(--stu-motion-fast), color var(--stu-motion-fast), opacity var(--stu-motion-fast);
   text-decoration: none;
   border: none;
+  min-height: 34px;
 }
 
 .vpp-back-link {
@@ -698,8 +705,8 @@
 }
 
 .vpp-next-link {
-  background: var(--stu-primary, #3b82f6);
-  color: #fff;
+  background: var(--stu-primary);
+  color: var(--stu-primary-contrast);
 }
 
 .vpp-next-link:hover {

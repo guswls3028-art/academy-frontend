@@ -330,7 +330,7 @@ export default function ClinicPage() {
             {(pendingBookings.length + approvedBookings.length) > 0 && activeTab !== "book" && (
               <span style={{
                 marginLeft: 6, fontSize: 11, fontWeight: 700,
-                background: "var(--stu-primary)", color: "#fff",
+                background: "var(--stu-primary)", color: "var(--stu-primary-contrast)",
                 borderRadius: 999, padding: "1px 6px", verticalAlign: "middle",
               }}>
                 {pendingBookings.length + approvedBookings.length}
@@ -354,7 +354,7 @@ export default function ClinicPage() {
             {(pendingBookings.length + approvedBookings.length) > 0 && activeTab !== "schedule" && (
               <span style={{
                 marginLeft: 6, fontSize: 11, fontWeight: 700,
-                background: "var(--stu-primary)", color: "#fff",
+                background: "var(--stu-primary)", color: "var(--stu-primary-contrast)",
                 borderRadius: 999, padding: "1px 6px", verticalAlign: "middle",
               }}>
                 {pendingBookings.length + approvedBookings.length}

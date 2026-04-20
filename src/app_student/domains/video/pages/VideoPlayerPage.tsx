@@ -15,6 +15,7 @@ import StudentVideoPlayer, {
 import { safeParseInt, formatClock } from "../playback/player/design/utils";
 import { timeAgo, formatViewCount } from "../utils/timeAgo";
 import VideoCommentSection from "../components/VideoCommentSection";
+import { IconChevronRight } from "@student/shared/ui/icons/Icons";
 
 /* ─── localStorage 기반 이어보기 ─── */
 function getStoredPosition(videoId: number | null): number {
@@ -341,8 +342,9 @@ export default function VideoPlayerPage() {
             description={fatalError || loadError || "네트워크 연결을 확인하고 다시 시도해 주세요."}
             onRetry={() => window.location.reload()}
           />
-          <button type="button" className="vpp-back-btn" onClick={() => nav(-1)}>
-            ← 뒤로가기
+          <button type="button" className="vpp-back-btn" onClick={() => nav(-1)} aria-label="뒤로가기">
+            <IconChevronRight style={{ width: 16, height: 16, transform: "rotate(180deg)" }} aria-hidden="true" />
+            <span>뒤로가기</span>
           </button>
         </div>
       ) : video && boot ? (
@@ -376,8 +378,9 @@ export default function VideoPlayerPage() {
             {/* 액션: 좋아요 · 목록 · 다음 */}
             <div className="vpp-info-row">
               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                <button type="button" className="vpp-back-link" onClick={() => nav(-1)}>
-                  ← 목록으로
+                <button type="button" className="vpp-back-link" onClick={() => nav(-1)} aria-label="목록으로">
+                  <IconChevronRight style={{ width: 14, height: 14, transform: "rotate(180deg)" }} aria-hidden="true" />
+                  <span>목록으로</span>
                 </button>
                 <LikeButton videoId={videoId!} initialLiked={video.is_liked ?? false} initialCount={video.like_count ?? 0} />
               </div>
@@ -387,8 +390,21 @@ export default function VideoPlayerPage() {
                     type="button"
                     className="vpp-back-link"
                     onClick={() => setDrawerOpen((v) => !v)}
+                    aria-expanded={drawerOpen}
+                    aria-label={drawerOpen ? "재생목록 닫기" : "재생목록 열기"}
                   >
-                    {drawerOpen ? "목록 닫기 ▼" : `재생목록 ▲ (${currentIndex + 1}/${items.length})`}
+                    <IconChevronRight
+                      style={{
+                        width: 14,
+                        height: 14,
+                        transform: drawerOpen ? "rotate(-90deg)" : "rotate(90deg)",
+                        transition: "transform var(--stu-motion-fast)",
+                      }}
+                      aria-hidden="true"
+                    />
+                    <span>
+                      {drawerOpen ? "목록 닫기" : `재생목록 (${currentIndex + 1}/${items.length})`}
+                    </span>
                   </button>
                 )}
                 {nextVideo && autoPlayCountdown != null && autoPlayCountdown > 0 && (
@@ -408,8 +424,10 @@ export default function VideoPlayerPage() {
                   <Link
                     to={`/student/video/play?video=${nextVideo.id}${enrollmentId ? `&enrollment=${enrollmentId}` : ""}`}
                     className="vpp-next-link"
+                    aria-label="다음 영상"
                   >
-                    다음 →
+                    <span>다음</span>
+                    <IconChevronRight style={{ width: 14, height: 14 }} aria-hidden="true" />
                   </Link>
                 )}
               </div>

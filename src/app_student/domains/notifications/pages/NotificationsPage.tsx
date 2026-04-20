@@ -13,7 +13,7 @@ import { useMarkNotificationsSeen } from "../hooks/useSeenNotifications";
 import { fetchMyClinicBookingRequests } from "@student/domains/clinic/api/clinicBooking.api";
 import { fetchMyQuestions } from "@student/domains/community/api/community.api";
 import { fetchMyProfile } from "@student/domains/profile/api/profile.api";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { IconClinic, IconNotice } from "@student/shared/ui/icons/Icons";
 import EmptyState from "@student/layout/EmptyState";
 import { formatYmd } from "@student/shared/utils/date";
@@ -21,6 +21,7 @@ import { formatYmd } from "@student/shared/utils/date";
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 
 export default function NotificationsPage() {
+  const qc = useQueryClient();
   const { data: counts, isLoading: countsLoading, isError: countsError } = useNotificationCounts();
 
   const { data: clinicBookings, isLoading: clinicLoading, isError: clinicError } = useQuery({
@@ -96,7 +97,12 @@ export default function NotificationsPage() {
         <EmptyState
           title="알림을 불러오지 못했습니다"
           description="네트워크 연결을 확인하고 잠시 후 다시 시도해 주세요."
-          onRetry={() => window.location.reload()}
+          onRetry={() => {
+            qc.invalidateQueries({ queryKey: ["student", "clinic", "bookings"] });
+            qc.invalidateQueries({ queryKey: ["student", "qna", "questions"] });
+            qc.invalidateQueries({ queryKey: ["student", "me"] });
+            qc.invalidateQueries({ queryKey: ["student", "notifications", "counts"] });
+          }}
         />
       </StudentPageShell>
     );
