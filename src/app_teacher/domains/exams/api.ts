@@ -73,17 +73,27 @@ export async function fetchTemplates() {
   return Array.isArray(raw?.results) ? raw.results : Array.isArray(raw) ? raw : [];
 }
 
-/** 템플릿 + 적용 강의 사용 현황 */
+/** 템플릿 + 적용 강의 사용 현황. 백엔드 미배포(404) 시 빈 배열 — graceful. */
 export async function fetchTemplatesWithUsage() {
-  const res = await api.get("/exams/templates/with-usage/", { params: { page_size: 200 } });
-  const raw = res.data;
-  return Array.isArray(raw?.results) ? raw.results : Array.isArray(raw) ? raw : [];
+  try {
+    const res = await api.get("/exams/templates/with-usage/", { params: { page_size: 200 } });
+    const raw = res.data;
+    return Array.isArray(raw?.results) ? raw.results : Array.isArray(raw) ? raw : [];
+  } catch (e: any) {
+    if (e?.response?.status === 404) return [];
+    throw e;
+  }
 }
 
 export async function fetchHomeworkTemplatesWithUsage() {
-  const res = await api.get("/homeworks/templates/with-usage/", { params: { page_size: 200 } });
-  const raw = res.data;
-  return Array.isArray(raw?.results) ? raw.results : Array.isArray(raw) ? raw : [];
+  try {
+    const res = await api.get("/homeworks/templates/with-usage/", { params: { page_size: 200 } });
+    const raw = res.data;
+    return Array.isArray(raw?.results) ? raw.results : Array.isArray(raw) ? raw : [];
+  } catch (e: any) {
+    if (e?.response?.status === 404) return [];
+    throw e;
+  }
 }
 
 /* ─── Bundles ─── */
@@ -96,9 +106,14 @@ export interface ExamBundle {
 }
 
 export async function fetchBundles(): Promise<ExamBundle[]> {
-  const res = await api.get("/exams/bundles/", { params: { page_size: 100 } });
-  const raw = res.data;
-  return Array.isArray(raw?.results) ? raw.results : Array.isArray(raw) ? raw : [];
+  try {
+    const res = await api.get("/exams/bundles/", { params: { page_size: 100 } });
+    const raw = res.data;
+    return Array.isArray(raw?.results) ? raw.results : Array.isArray(raw) ? raw : [];
+  } catch (e: any) {
+    if (e?.response?.status === 404) return [];
+    throw e;
+  }
 }
 
 export async function fetchBundle(id: number): Promise<ExamBundle> {

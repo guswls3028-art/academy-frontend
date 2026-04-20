@@ -223,14 +223,16 @@ export default function StudentListPage() {
         <EmptyState scope="panel" tone="empty" title={search ? `"${search}" 결과 없음` : "학생이 없습니다"} />
       )}
 
-      {/* Bulk action bar (fixed bottom) */}
+      {/* Bulk action bar — TabBar 위에 띄우기 (z-index 230, bottom = tabbar 높이 + safe-bottom) */}
       {selectMode && selectedCount > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 z-30"
+        <div className="fixed left-0 right-0"
           style={{
-            padding: "12px 16px calc(12px + var(--tc-safe-bottom))",
+            bottom: "calc(var(--tc-tabbar-h) + var(--tc-safe-bottom))",
+            padding: "12px 16px",
             background: "var(--tc-surface)",
             borderTop: "1px solid var(--tc-border)",
             boxShadow: "0 -4px 12px rgba(0,0,0,0.06)",
+            zIndex: 230,
           }}>
           <div className="flex gap-2">
             <BulkBtn icon={<MessageSquare size={14} />} label="문자" onClick={() => setBulkAction("message")} />

@@ -274,21 +274,35 @@ export async function deleteTemplate(id: number): Promise<void> {
   await api.delete(`/messaging/templates/${id}/`);
 }
 
-/* ─── Auto-send configs ─── */
+/* ─── Auto-send configs (데스크탑과 동일 계약) ─── */
 export async function fetchAutoSendConfigs() {
-  const res = await api.get("/messaging/auto-send-configs/");
-  const raw = res.data;
-  // Backend returns array directly or { configs: [...] }
-  return Array.isArray(raw?.configs) ? raw.configs : Array.isArray(raw) ? raw : [];
+  try {
+    const res = await api.get("/messaging/auto-send/");
+    const raw = res.data;
+    return Array.isArray(raw?.configs) ? raw.configs : Array.isArray(raw) ? raw : [];
+  } catch (e: any) {
+    if (e?.response?.status === 404) return [];
+    throw e;
+  }
 }
 
-/** 자동발송 설정 일괄 업데이트 (백엔드는 bulk patch만 지원) */
+/** 자동발송 설정 일괄 업데이트. payload 필드명은 백엔드가 기대하는 형식: template_id, minutes_before 등 */
 export async function updateAutoSendConfigs(configs: any[]) {
-  const res = await api.patch("/messaging/auto-send-configs/", { configs });
+  const payload = configs.map((c) => ({
+    trigger: c.trigger,
+    template_id: c.template_id ?? c.template ?? null,
+    enabled: c.enabled,
+    message_mode: c.message_mode,
+    minutes_before: c.minutes_before ?? undefined,
+    delay_mode: c.delay_mode ?? undefined,
+    delay_value: c.delay_value ?? undefined,
+    show_actual_time: c.show_actual_time ?? undefined,
+  }));
+  const res = await api.patch("/messaging/auto-send/", { configs: payload });
   return res.data;
 }
 
-/** 단일 트리거만 수정하고 싶을 때도 내부적으로 configs 배열로 wrap */
+/** 단일 트리거 수정 시도 내부적으로 configs 배열로 wrap */
 export async function updateAutoSendConfig(triggerOrId: number | string, payload: Record<string, unknown>) {
   const key = typeof triggerOrId === "string" ? { trigger: triggerOrId } : { id: triggerOrId };
   return updateAutoSendConfigs([{ ...key, ...payload }]);
