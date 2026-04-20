@@ -271,7 +271,11 @@ export default function StudentTopBar({ tenantCode, onMenuClick }: Props) {
             style={{ height: 32, width: "auto", maxWidth: 40, objectFit: "contain", display: "block", flexShrink: 0 }}
           />
         ) : useCommonSvgLogo ? (
-          <CommonLogoIcon height={32} style={{ width: "auto", maxWidth: 120 }} />
+          <CommonLogoIcon
+            height={32}
+            style={{ width: "auto", maxWidth: 120 }}
+            gradientId={currentTenantCode ? `stu-gradient-${currentTenantCode === "9999" ? "common" : currentTenantCode}` : undefined}
+          />
         ) : isTchulTheme ? (
           <TchulLogoIcon
             height={32}
