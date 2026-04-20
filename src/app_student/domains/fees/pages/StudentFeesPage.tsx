@@ -121,8 +121,8 @@ export default function StudentFeesPage() {
             style={{
               padding: 16,
               borderRadius: "var(--stu-radius-lg, 12px)",
-              background: "linear-gradient(135deg, rgba(59,130,246,0.07) 0%, var(--stu-surface) 55%)",
-              border: "1.5px solid rgba(59,130,246,0.18)",
+              background: "linear-gradient(135deg, color-mix(in srgb, var(--stu-primary) 7%, var(--stu-surface-1)) 0%, var(--stu-surface-1) 55%)",
+              border: "1.5px solid color-mix(in srgb, var(--stu-primary) 18%, transparent)",
             }}
           >
             <div style={{ fontSize: 12, color: "var(--stu-text-muted)", fontWeight: 600, marginBottom: 6, letterSpacing: "0.03em" }}>

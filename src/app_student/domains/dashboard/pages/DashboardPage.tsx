@@ -63,16 +63,20 @@ const CountdownCard = memo(function CountdownCard({ session, dt }: { session: St
         marginBottom: "var(--stu-space-4)",
         borderRadius: "var(--stu-radius-lg, 12px)",
         background: isClinic
-          ? "linear-gradient(135deg, rgba(16,185,129,0.08) 0%, var(--stu-surface) 60%)"
-          : "linear-gradient(135deg, rgba(99,102,241,0.08) 0%, var(--stu-surface) 60%)",
-        border: isClinic ? "1.5px solid rgba(16,185,129,0.2)" : "1.5px solid rgba(99,102,241,0.2)",
+          ? "linear-gradient(135deg, color-mix(in srgb, var(--stu-success) 8%, var(--stu-surface-1)) 0%, var(--stu-surface-1) 60%)"
+          : "linear-gradient(135deg, color-mix(in srgb, var(--stu-primary) 8%, var(--stu-surface-1)) 0%, var(--stu-surface-1) 60%)",
+        border: isClinic
+          ? "1.5px solid color-mix(in srgb, var(--stu-success) 22%, transparent)"
+          : "1.5px solid color-mix(in srgb, var(--stu-primary) 22%, transparent)",
         padding: "14px 16px",
       }}
     >
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
         <div style={{
           width: 44, height: 44, borderRadius: 12,
-          background: isClinic ? "rgba(16,185,129,0.12)" : "rgba(99,102,241,0.12)",
+          background: isClinic
+            ? "color-mix(in srgb, var(--stu-success) 14%, var(--stu-surface-1))"
+            : "color-mix(in srgb, var(--stu-primary) 14%, var(--stu-surface-1))",
           display: "grid", placeItems: "center", flexShrink: 0,
         }}>
           {isClinic
@@ -97,32 +101,30 @@ const CountdownCard = memo(function CountdownCard({ session, dt }: { session: St
   );
 });
 
-/* ── iPhone-style app icon ── */
+/* ── 런처 타일 — 테넌트 primary 토널 통일 (모노크롬 프리미엄) ── */
 function AppIcon({
-  to, icon, label, badge, iconBg,
+  to, icon, label, badge,
 }: {
   to: string;
   icon: React.ReactNode;
   label: string;
   badge?: number;
-  iconBg?: string;
 }) {
   return (
     <Link
       to={to}
       style={{
         display: "flex", flexDirection: "column", alignItems: "center",
-        gap: 6, textDecoration: "none", color: "inherit",
+        gap: 8, textDecoration: "none", color: "inherit",
         WebkitTapHighlightColor: "transparent",
       }}
     >
       <div style={{
-        width: 56, height: 56, borderRadius: 16,
-        background: iconBg || "var(--stu-surface)",
-        border: iconBg ? "none" : "1.5px solid var(--stu-border-subtle)",
+        width: 56, height: 56, borderRadius: 14,
+        background: "linear-gradient(135deg, color-mix(in srgb, var(--stu-primary) 14%, var(--stu-surface-1)), color-mix(in srgb, var(--stu-primary) 6%, var(--stu-surface-1)))",
+        border: "1px solid color-mix(in srgb, var(--stu-primary) 15%, transparent)",
         display: "grid", placeItems: "center",
         position: "relative",
-        boxShadow: iconBg ? "0 1px 4px rgba(0,0,0,0.06)" : "0 2px 8px rgba(0,0,0,0.04)",
         transition: "transform var(--stu-motion-fast)",
       }}>
         {icon}
@@ -257,7 +259,7 @@ export default function DashboardPage() {
               <TodoRow
                 to="/student/clinic"
                 icon={<IconClinic style={{ width: 18, height: 18, color: "var(--stu-primary)" }} />}
-                iconBg="rgba(59,130,246,0.18)"
+                iconBg="color-mix(in srgb, var(--stu-primary) 16%, var(--stu-surface-1))"
                 label="클리닉 예약이 있습니다"
                 labelColor="var(--stu-primary)"
                 hasBorder={false}
@@ -314,32 +316,24 @@ export default function DashboardPage() {
           padding: "var(--stu-space-4) 0",
         }}>
           <AppIcon to="/student/video" label="영상"
-            icon={<IconPlay style={{ width: 24, height: 24, color: "#6366f1" }} />}
-            iconBg="rgba(99,102,241,0.18)"
+            icon={<IconPlay style={{ width: 24, height: 24, color: "var(--stu-primary)" }} />}
             badge={!countsLoading ? notificationCounts?.video : undefined} />
           <AppIcon to="/student/grades" label="성적"
             icon={<IconGrade style={{ width: 24, height: 24, color: "var(--stu-primary)" }} />}
-            iconBg="rgba(59,130,246,0.18)"
             badge={!countsLoading ? notificationCounts?.grade : undefined} />
           <AppIcon to="/student/exams" label="시험"
-            icon={<IconExam style={{ width: 24, height: 24, color: "var(--stu-danger)" }} />}
-            iconBg="rgba(239,68,68,0.15)" />
+            icon={<IconExam style={{ width: 24, height: 24, color: "var(--stu-primary)" }} />} />
           <AppIcon to="/student/submit/assignment" label="과제"
-            icon={<IconClipboard style={{ width: 24, height: 24, color: "var(--stu-warn)" }} />}
-            iconBg="rgba(245,158,11,0.15)" />
+            icon={<IconClipboard style={{ width: 24, height: 24, color: "var(--stu-primary)" }} />} />
           <AppIcon to="/student/sessions" label="일정"
-            icon={<IconCalendar style={{ width: 24, height: 24, color: "#8b5cf6" }} />}
-            iconBg="rgba(139,92,246,0.18)" />
+            icon={<IconCalendar style={{ width: 24, height: 24, color: "var(--stu-primary)" }} />} />
           <AppIcon to="/student/clinic" label="클리닉"
-            icon={<IconClinic style={{ width: 24, height: 24, color: "var(--stu-success)" }} />}
-            iconBg="rgba(16,185,129,0.18)"
+            icon={<IconClinic style={{ width: 24, height: 24, color: "var(--stu-primary)" }} />}
             badge={!countsLoading ? notificationCounts?.clinic : undefined} />
           <AppIcon to="/student/community" label="커뮤니티"
-            icon={<IconBoard style={{ width: 24, height: 24, color: "#0ea5e9" }} />}
-            iconBg="rgba(14,165,233,0.18)" />
+            icon={<IconBoard style={{ width: 24, height: 24, color: "var(--stu-primary)" }} />} />
           <AppIcon to="/student/inventory" label="보관함"
-            icon={<IconFolder style={{ width: 24, height: 24, color: "#64748b" }} />}
-            iconBg="rgba(100,116,139,0.15)" />
+            icon={<IconFolder style={{ width: 24, height: 24, color: "var(--stu-primary)" }} />} />
         </div>
       </section>
 
@@ -478,7 +472,7 @@ function LearningStatusCard({
         }}>
           <div style={{
             width: 52, height: 52, borderRadius: 14, flexShrink: 0,
-            background: "linear-gradient(135deg, rgba(99,102,241,0.12), rgba(59,130,246,0.08))",
+            background: "linear-gradient(135deg, color-mix(in srgb, var(--stu-primary) 14%, var(--stu-surface-1)), color-mix(in srgb, var(--stu-primary) 6%, var(--stu-surface-1)))",
             display: "grid", placeItems: "center",
           }}>
             <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
@@ -545,15 +539,15 @@ function NoticeSection({ notices }: { notices?: Array<{ id: number; title: strin
       style={{
         display: "block", textDecoration: "none", color: "inherit",
         borderRadius: "var(--stu-radius-lg, 12px)",
-        background: "linear-gradient(135deg, rgba(59,130,246,0.07) 0%, var(--stu-surface) 55%)",
-        border: "1.5px solid rgba(59,130,246,0.18)",
-        boxShadow: "0 2px 16px rgba(59,130,246,0.08), 0 1px 4px rgba(0,0,0,0.04)",
+        background: "linear-gradient(135deg, color-mix(in srgb, var(--stu-primary) 7%, var(--stu-surface-1)) 0%, var(--stu-surface-1) 55%)",
+        border: "1.5px solid color-mix(in srgb, var(--stu-primary) 18%, transparent)",
+        boxShadow: "0 1px 4px rgba(0,0,0,0.04)",
         padding: "14px 16px 12px",
       }}
     >
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <div style={{ width: 32, height: 32, borderRadius: 9, background: "rgba(59,130,246,0.12)", display: "grid", placeItems: "center", flexShrink: 0 }}>
+          <div style={{ width: 32, height: 32, borderRadius: 9, background: "color-mix(in srgb, var(--stu-primary) 14%, var(--stu-surface-1))", display: "grid", placeItems: "center", flexShrink: 0 }}>
             <IconNotice style={{ width: 17, height: 17, color: "var(--stu-primary)" }} />
           </div>
           <span style={{ fontWeight: 800, fontSize: 14, letterSpacing: "-0.02em" }}>공지사항</span>
@@ -573,8 +567,8 @@ function NoticeSection({ notices }: { notices?: Array<{ id: number; title: strin
                 display: "flex", alignItems: "center", gap: 8,
                 padding: i === 0 ? "8px 10px" : "4px 10px",
                 borderRadius: 8,
-                background: i === 0 ? "rgba(59,130,246,0.06)" : "transparent",
-                border: i === 0 ? "1px solid rgba(59,130,246,0.12)" : "none",
+                background: i === 0 ? "color-mix(in srgb, var(--stu-primary) 6%, var(--stu-surface-1))" : "transparent",
+                border: i === 0 ? "1px solid color-mix(in srgb, var(--stu-primary) 13%, transparent)" : "none",
               }}
             >
               <div style={{ flex: 1, minWidth: 0 }}>
@@ -595,7 +589,7 @@ function NoticeSection({ notices }: { notices?: Array<{ id: number; title: strin
           <div className="stu-muted" style={{ fontSize: 13, padding: "4px 2px" }}>공지를 확인하세요</div>
         )}
       </div>
-      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 10, paddingTop: 8, borderTop: "1px solid rgba(59,130,246,0.1)" }}>
+      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 10, paddingTop: 8, borderTop: "1px solid color-mix(in srgb, var(--stu-primary) 12%, transparent)" }}>
         <span style={{ fontSize: 12, color: "var(--stu-primary)", fontWeight: 600, letterSpacing: "-0.01em" }}>전체 공지 보기 →</span>
       </div>
     </Link>

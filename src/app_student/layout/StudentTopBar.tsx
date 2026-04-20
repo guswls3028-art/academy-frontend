@@ -310,7 +310,7 @@ export default function StudentTopBar({ tenantCode, onMenuClick }: Props) {
             H
           </div>
         ) : null}
-        <span style={{ fontWeight: 800, fontSize: 15, letterSpacing: "-0.3px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        <span style={{ fontWeight: 700, fontSize: 15, letterSpacing: "-0.02em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {branding.title}
         </span>
       </Link>
@@ -330,22 +330,23 @@ export default function StudentTopBar({ tenantCode, onMenuClick }: Props) {
               ?
             </span>
           )}
-          <span
-            className="stu-topbar__name"
-            style={{
-              fontWeight: 700,
-              fontSize: 14,
-              color: "var(--stu-text)",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-              maxWidth: 140,
-            }}
-          >
-            {profile?.isParentReadOnly && profile?.displayName
-              ? profile.displayName
-              : (profile?.name || "학생")}
-          </span>
+          {profile?.isParentReadOnly && profile?.displayName && (
+            <span
+              className="stu-topbar__name"
+              style={{
+                fontWeight: 600,
+                fontSize: 13,
+                color: "var(--stu-text-muted)",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+                maxWidth: 100,
+                letterSpacing: "-0.01em",
+              }}
+            >
+              {profile.displayName}
+            </span>
+          )}
         </button>
         {profileOpen && (
           <div

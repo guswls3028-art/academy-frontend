@@ -194,10 +194,8 @@ export default function ScheduleCalendar({
                 background: sc
                   ? sc
                   : isSelected
-                    ? "var(--stu-primary-bg)"
-                    : day.isCurrentMonth
-                      ? "var(--stu-surface-soft)"
-                      : "transparent",
+                    ? "color-mix(in srgb, var(--stu-primary) 10%, transparent)"
+                    : "transparent",
                 color: sc
                   ? "#ffffff"
                   : !day.isCurrentMonth
@@ -215,17 +213,15 @@ export default function ScheduleCalendar({
                 touchAction: "manipulation",
               }}
               onMouseEnter={(e) => {
-                if (isClickable && !sc) {
-                  e.currentTarget.style.background = "var(--stu-surface-hover)";
+                if (isClickable && !sc && !isSelected) {
+                  e.currentTarget.style.background = "var(--stu-surface-soft)";
                 }
               }}
               onMouseLeave={(e) => {
                 if (isClickable && !sc) {
                   e.currentTarget.style.background = isSelected
-                    ? "var(--stu-primary-bg)"
-                    : day.isCurrentMonth
-                      ? "var(--stu-surface-soft)"
-                      : "transparent";
+                    ? "color-mix(in srgb, var(--stu-primary) 10%, transparent)"
+                    : "transparent";
                 }
               }}
             >

@@ -78,7 +78,7 @@ export default function DomainTabShell({
         }}
       >
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 20, fontWeight: 800 }}>{title}</div>
+          <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: "-0.02em" }}>{title}</div>
           {description && (
             <div className="stu-muted" style={{ marginTop: 4 }}>
               {description}
@@ -88,14 +88,15 @@ export default function DomainTabShell({
         {actions && <div style={{ flexShrink: 0 }}>{actions}</div>}
       </div>
 
-      {/* 탭 바 */}
+      {/* 탭 바 — 프리미엄: 글자 하단 짧은 인디케이터 */}
       <div
         role="tablist"
         style={{
           display: "flex",
-          gap: 0,
-          borderBottom: "2px solid var(--stu-border)",
-          marginBottom: "var(--stu-space-6)",
+          gap: 4,
+          borderBottom: "1px solid var(--stu-border)",
+          marginBottom: "var(--stu-space-5)",
+          marginTop: "var(--stu-space-2)",
         }}
       >
         {tabs.map((tab) => {
@@ -108,23 +109,34 @@ export default function DomainTabShell({
               aria-selected={isActive}
               onClick={() => handleTabChange(tab.key)}
               style={{
-                flex: 1,
-                padding: "var(--stu-space-4) var(--stu-space-4)",
+                position: "relative",
+                flex: "0 0 auto",
+                padding: "10px 14px",
                 background: "transparent",
                 border: "none",
-                borderBottom: isActive
-                  ? "2px solid var(--stu-primary)"
-                  : "2px solid transparent",
-                marginBottom: -2,
                 fontWeight: isActive ? 700 : 500,
                 fontSize: 14,
                 color: isActive ? "var(--stu-primary)" : "var(--stu-text-muted)",
                 cursor: "pointer",
-                transition:
-                  "color var(--stu-motion-base), border-color var(--stu-motion-base)",
+                transition: "color var(--stu-motion-base)",
               }}
             >
               {tab.label}
+              {isActive && (
+                <span
+                  aria-hidden
+                  style={{
+                    position: "absolute",
+                    left: "50%",
+                    bottom: -1,
+                    transform: "translateX(-50%)",
+                    width: "calc(100% - 20px)",
+                    height: 2,
+                    background: "var(--stu-primary)",
+                    borderRadius: 2,
+                  }}
+                />
+              )}
             </button>
           );
         })}

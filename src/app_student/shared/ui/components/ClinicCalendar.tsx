@@ -247,9 +247,7 @@ export default function ClinicCalendar({
                 background: statusColor
                   ? statusColor
                   : isSelected
-                  ? "var(--stu-primary-bg)"
-                  : day.isCurrentMonth
-                  ? "var(--stu-surface-soft)"
+                  ? "color-mix(in srgb, var(--stu-primary) 10%, transparent)"
                   : "transparent",
                 color: statusColor
                   ? "#ffffff"
@@ -269,17 +267,15 @@ export default function ClinicCalendar({
                 touchAction: "manipulation",
               }}
               onMouseEnter={(e) => {
-                if (isClickable && !statusColor) {
-                  e.currentTarget.style.background = "var(--stu-surface-hover)";
+                if (isClickable && !statusColor && !isSelected) {
+                  e.currentTarget.style.background = "var(--stu-surface-soft)";
                 }
               }}
               onMouseLeave={(e) => {
                 if (isClickable && !statusColor) {
                   e.currentTarget.style.background = isSelected
-                    ? "var(--stu-primary-bg)"
-                    : day.isCurrentMonth
-                      ? "var(--stu-surface-soft)"
-                      : "transparent";
+                    ? "color-mix(in srgb, var(--stu-primary) 10%, transparent)"
+                    : "transparent";
                 }
               }}
             >

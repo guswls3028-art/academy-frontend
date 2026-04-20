@@ -1107,6 +1107,28 @@ html:has([data-app="student"]) {
   background: var(--stu-danger-hover);
   border-color: var(--stu-danger-hover);
 }
+
+/* 컬러 배경 버튼 내부 아이콘은 흰색 (테넌트 gradient 오버라이드) */
+[data-app="student"] .stu-btn--danger .stu-icon,
+[data-app="student"] .stu-btn--danger .stu-icon path,
+[data-app="student"] .stu-btn--danger .stu-icon circle,
+[data-app="student"] .stu-btn--danger .stu-icon rect,
+[data-app="student"] .stu-btn--danger .stu-icon polygon,
+[data-app="student"] .stu-btn--primary .stu-icon,
+[data-app="student"] .stu-btn--primary .stu-icon path,
+[data-app="student"] .stu-btn--primary .stu-icon circle,
+[data-app="student"] .stu-btn--primary .stu-icon rect,
+[data-app="student"] .stu-btn--primary .stu-icon polygon {
+  stroke: currentColor !important;
+}
+[data-app="student"] .stu-btn--danger .stu-icon path[fill="currentColor"],
+[data-app="student"] .stu-btn--danger .stu-icon circle[fill="currentColor"],
+[data-app="student"] .stu-btn--danger .stu-icon polygon[fill="currentColor"],
+[data-app="student"] .stu-btn--primary .stu-icon path[fill="currentColor"],
+[data-app="student"] .stu-btn--primary .stu-icon circle[fill="currentColor"],
+[data-app="student"] .stu-btn--primary .stu-icon polygon[fill="currentColor"] {
+  fill: currentColor !important;
+}
 [data-app="student"] .stu-btn--secondary {
   background: var(--stu-surface-1);
   border: 1px solid var(--stu-border-normal);

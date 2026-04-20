@@ -152,8 +152,9 @@ export default function InventoryHomeTab({ ps, folders, files, isParentReadOnly,
             style={{ display: "flex", alignItems: "center", gap: 4 }}>
             <IconPlus style={{ width: 14, height: 14, flexShrink: 0 }} /> 새 폴더
           </button>
-          <button type="button" className="stu-btn stu-btn--primary stu-btn--sm" onClick={() => fileInputRef.current?.click()}
-            disabled={uploadMut.isPending} style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          <button type="button" className="stu-btn stu-btn--secondary stu-btn--sm" onClick={() => fileInputRef.current?.click()}
+            disabled={uploadMut.isPending} style={{ display: "flex", alignItems: "center", gap: 4, color: "var(--stu-primary)", borderColor: "color-mix(in srgb, var(--stu-primary) 30%, var(--stu-border))" }}>
+            <IconUpload style={{ width: 14, height: 14, flexShrink: 0 }} />
             {uploadMut.isPending ? "업로드 중…" : "파일 업로드"}
           </button>
         </div>

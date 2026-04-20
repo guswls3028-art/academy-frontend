@@ -5,7 +5,7 @@
 import type { SVGProps } from "react";
 
 const size = 24;
-const stroke = 2;
+const stroke = 1.75;
 
 const iconProps = { className: "stu-icon" } as const;
 

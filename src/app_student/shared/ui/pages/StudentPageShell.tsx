@@ -59,7 +59,7 @@ export default function StudentPageShell({
               <span style={{ fontSize: 14 }}>뒤로</span>
             </button>
           )}
-          <div style={{ fontSize: 20, fontWeight: 800 }}>{title}</div>
+          <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: "-0.02em" }}>{title}</div>
           {description && (
             <div className="stu-muted" style={{ marginTop: 4 }}>
               {description}

@@ -164,7 +164,7 @@ export default function NoticesPage() {
               <Link
                 key={notice.id}
                 to={`/student/notices/${notice.id}`}
-                className="stu-panel stu-panel--pressable stu-panel--accent"
+                className={`stu-panel stu-panel--pressable${(notice.is_urgent || notice.is_pinned) ? " stu-panel--accent" : ""}`}
                 style={{
                   display: "flex",
                   flexDirection: "column",
@@ -180,7 +180,7 @@ export default function NoticesPage() {
                         <span style={{ flexShrink: 0, fontSize: 11, fontWeight: 700, color: "#fff", background: "var(--stu-danger, #ef4444)", borderRadius: 4, padding: "1px 6px", lineHeight: 1.5 }}>긴급</span>
                       )}
                       {notice.is_pinned && !notice.is_urgent && (
-                        <span style={{ flexShrink: 0, fontSize: 11, fontWeight: 700, color: "var(--stu-primary)", background: "rgba(59,130,246,0.1)", borderRadius: 4, padding: "1px 6px", lineHeight: 1.5 }}>고정</span>
+                        <span style={{ flexShrink: 0, fontSize: 11, fontWeight: 700, color: "var(--stu-primary)", background: "color-mix(in srgb, var(--stu-primary) 12%, transparent)", borderRadius: 4, padding: "1px 6px", lineHeight: 1.5 }}>고정</span>
                       )}
                       <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{notice.title}</span>
                     </div>
@@ -214,9 +214,9 @@ export default function NoticesPage() {
                           fontWeight: 500,
                           padding: "2px 8px",
                           borderRadius: 4,
-                          background: isSessionLevel ? "rgba(59,130,246,0.08)" : "var(--stu-surface-soft)",
+                          background: isSessionLevel ? "color-mix(in srgb, var(--stu-primary) 10%, transparent)" : "var(--stu-surface-soft)",
                           color: isSessionLevel ? "var(--stu-primary)" : "var(--stu-text-muted)",
-                          border: isSessionLevel ? "1px solid rgba(59,130,246,0.15)" : "none",
+                          border: isSessionLevel ? "1px solid color-mix(in srgb, var(--stu-primary) 18%, transparent)" : "none",
                         }}
                       >
                         {lectureTitle}
@@ -229,9 +229,9 @@ export default function NoticesPage() {
                           fontWeight: 600,
                           padding: "2px 8px",
                           borderRadius: 4,
-                          background: "rgba(59,130,246,0.1)",
+                          background: "color-mix(in srgb, var(--stu-primary) 12%, transparent)",
                           color: "var(--stu-primary)",
-                          border: "1px solid rgba(59,130,246,0.18)",
+                          border: "1px solid color-mix(in srgb, var(--stu-primary) 20%, transparent)",
                         }}
                       >
                         {sessionTitle}

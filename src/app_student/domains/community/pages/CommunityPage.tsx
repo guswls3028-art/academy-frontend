@@ -1183,7 +1183,7 @@ function PostRow({
             <span style={{ flexShrink: 0, fontSize: 10, fontWeight: 700, color: "#fff", background: "var(--stu-danger, #ef4444)", borderRadius: 4, padding: "2px 6px", lineHeight: 1.4 }}>긴급</span>
           )}
           {post.is_pinned && !post.is_urgent && (
-            <span style={{ flexShrink: 0, fontSize: 10, fontWeight: 700, color: "var(--stu-primary)", background: "rgba(59,130,246,0.1)", borderRadius: 4, padding: "2px 6px", lineHeight: 1.4 }}>고정</span>
+            <span style={{ flexShrink: 0, fontSize: 10, fontWeight: 700, color: "var(--stu-primary)", background: "color-mix(in srgb, var(--stu-primary) 12%, transparent)", borderRadius: 4, padding: "2px 6px", lineHeight: 1.4 }}>고정</span>
           )}
           <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{post.title}</span>
         </div>
@@ -1203,7 +1203,7 @@ function PostRow({
               fontSize: 11,
               fontWeight: 600,
               color: "var(--stu-primary)",
-              background: "rgba(59,130,246,0.08)",
+              background: "color-mix(in srgb, var(--stu-primary) 10%, transparent)",
               padding: "1px 7px",
               borderRadius: 4,
               lineHeight: 1.5,
@@ -1234,7 +1234,7 @@ function Tag({ children, variant }: { children: React.ReactNode; variant?: "defa
   const v = variant ?? "default";
   const styles: Record<string, React.CSSProperties> = {
     default: { background: "var(--stu-surface-soft)", color: "var(--stu-text-muted)" },
-    primary: { background: "rgba(59,130,246,0.1)", color: "var(--stu-primary)" },
+    primary: { background: "color-mix(in srgb, var(--stu-primary) 12%, transparent)", color: "var(--stu-primary)" },
     session: { background: "rgba(139,92,246,0.08)", color: "#7c3aed" },
   };
   return (
