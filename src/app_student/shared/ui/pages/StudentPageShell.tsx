@@ -46,17 +46,11 @@ export default function StudentPageShell({
             <button
               type="button"
               onClick={handleBack}
-              className="stu-btn stu-btn--ghost stu-btn--sm"
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 4,
-                marginBottom: 8,
-                padding: "4px 8px",
-              }}
+              className="stu-back-btn"
+              style={{ marginBottom: 10 }}
             >
               <IconChevronRight style={{ width: 16, height: 16, transform: "rotate(180deg)" }} />
-              <span style={{ fontSize: 14 }}>뒤로</span>
+              <span>뒤로</span>
             </button>
           )}
           <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: "-0.02em" }}>{title}</div>

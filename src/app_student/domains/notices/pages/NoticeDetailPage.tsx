@@ -52,7 +52,7 @@ export default function NoticeDetailPage() {
 
   return (
     <StudentPageShell title="공지사항" onBack={() => navigate("/student/notices")}>
-      <div className="stu-section stu-section--nested">
+      <div>
         <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-4)" }}>
           {/* 제목 */}
           <div>

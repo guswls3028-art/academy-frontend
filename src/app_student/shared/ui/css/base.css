@@ -1316,3 +1316,206 @@ html:has([data-app="student"]) {
   color: #fff;
   border: none;
 }
+
+/* =========================
+   Premium Components (2026-04 UX 고도화)
+   ========================= */
+
+/* 원형 아이콘 버튼 — 캘린더 화살표, 뒤로가기 등 */
+[data-app="student"] .stu-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  border-radius: 50%;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--stu-text);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background var(--stu-motion-fast), border-color var(--stu-motion-fast), transform var(--stu-motion-fast);
+}
+[data-app="student"] .stu-icon-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--stu-primary) 8%, transparent);
+}
+[data-app="student"] .stu-icon-btn:active:not(:disabled) {
+  transform: scale(0.94);
+  background: color-mix(in srgb, var(--stu-primary) 14%, transparent);
+}
+[data-app="student"] .stu-icon-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+[data-app="student"] .stu-icon-btn--outlined {
+  border-color: var(--stu-border);
+  background: var(--stu-surface-1);
+}
+[data-app="student"] .stu-icon-btn--primary {
+  color: var(--stu-primary);
+}
+[data-app="student"] .stu-icon-btn--sm {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+}
+
+/* 리스트 chevron — 클릭 가능 신호 강화 */
+[data-app="student"] .stu-chevron {
+  color: color-mix(in srgb, var(--stu-text-muted) 70%, transparent);
+  flex-shrink: 0;
+  transition: transform var(--stu-motion-fast);
+}
+[data-app="student"] a:hover > .stu-chevron,
+[data-app="student"] button:hover > .stu-chevron {
+  color: var(--stu-primary);
+  transform: translateX(2px);
+}
+
+/* Primary 버튼 disabled — 연회색이 아닌 톤 다운된 primary 유지 */
+[data-app="student"] .stu-btn--primary:disabled {
+  background: color-mix(in srgb, var(--stu-primary) 38%, var(--stu-surface-1));
+  border-color: color-mix(in srgb, var(--stu-primary) 38%, var(--stu-surface-1));
+  color: #fff;
+  opacity: 1;
+  box-shadow: none;
+}
+
+/* Secondary 버튼 — primary outline 강조 (HTML 느낌 제거) */
+[data-app="student"] .stu-btn--secondary {
+  background: var(--stu-surface-1);
+  border: 1.5px solid color-mix(in srgb, var(--stu-primary) 22%, var(--stu-border));
+  color: var(--stu-primary);
+  font-weight: 600;
+  box-shadow: none;
+}
+[data-app="student"] .stu-btn--secondary:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--stu-primary) 36%, var(--stu-border));
+  background: color-mix(in srgb, var(--stu-primary) 6%, var(--stu-surface-1));
+  transform: none;
+  box-shadow: none;
+}
+[data-app="student"] .stu-btn--secondary:active:not(:disabled) {
+  background: color-mix(in srgb, var(--stu-primary) 10%, var(--stu-surface-1));
+  transform: scale(0.98);
+}
+
+/* Ghost 버튼 — 모바일 터치에서도 버튼감 유지 */
+[data-app="student"] .stu-btn--ghost {
+  background: color-mix(in srgb, var(--stu-primary) 6%, var(--stu-surface-1));
+  border: 1px solid color-mix(in srgb, var(--stu-primary) 10%, transparent);
+  color: var(--stu-text);
+  font-weight: 600;
+  box-shadow: none;
+}
+[data-app="student"] .stu-btn--ghost:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--stu-primary) 10%, var(--stu-surface-1));
+  border-color: color-mix(in srgb, var(--stu-primary) 18%, transparent);
+  transform: none;
+  box-shadow: none;
+}
+
+/* Back 버튼 — 페이지 상단 "뒤로" */
+[data-app="student"] .stu-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 12px 8px 8px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--stu-primary) 14%, var(--stu-border));
+  background: var(--stu-surface-1);
+  color: var(--stu-text);
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background var(--stu-motion-fast), border-color var(--stu-motion-fast), transform var(--stu-motion-fast);
+}
+[data-app="student"] .stu-back-btn:hover {
+  background: color-mix(in srgb, var(--stu-primary) 6%, var(--stu-surface-1));
+  border-color: color-mix(in srgb, var(--stu-primary) 26%, var(--stu-border));
+}
+[data-app="student"] .stu-back-btn:active {
+  transform: scale(0.97);
+}
+
+/* Input — 기존 스타일 보강 (primary tint border, 더 부드러운 focus) */
+[data-app="student"] .stu-input {
+  border: 1.5px solid color-mix(in srgb, var(--stu-primary) 10%, var(--stu-border));
+  box-shadow: none;
+  font-size: 15px;
+  font-weight: 500;
+}
+[data-app="student"] .stu-input:hover:not(:focus) {
+  border-color: color-mix(in srgb, var(--stu-primary) 20%, var(--stu-border));
+}
+[data-app="student"] .stu-input:focus {
+  border-width: 1.5px;
+  border-color: var(--stu-primary);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--stu-primary) 12%, transparent);
+}
+
+/* Select — chevron 포함한 커스텀 스타일 */
+[data-app="student"] select.stu-select,
+[data-app="student"] .stu-select {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 36px 10px 14px;
+  border-radius: var(--stu-radius-md);
+  border: 1.5px solid color-mix(in srgb, var(--stu-primary) 10%, var(--stu-border));
+  background: var(--stu-surface-1) url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>") no-repeat right 12px center;
+  background-size: 16px 16px;
+  color: var(--stu-text);
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color var(--stu-motion-fast), box-shadow var(--stu-motion-fast);
+}
+[data-app="student"] select.stu-select:hover,
+[data-app="student"] .stu-select:hover {
+  border-color: color-mix(in srgb, var(--stu-primary) 24%, var(--stu-border));
+}
+[data-app="student"] select.stu-select:focus,
+[data-app="student"] .stu-select:focus {
+  outline: none;
+  border-color: var(--stu-primary);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--stu-primary) 12%, transparent);
+}
+
+/* Segmented Control — "내 일정/예약" 같은 탭 보강 */
+[data-app="student"] .stu-segment {
+  display: inline-flex;
+  padding: 3px;
+  background: color-mix(in srgb, var(--stu-primary) 4%, var(--stu-surface-soft));
+  border-radius: 10px;
+  gap: 2px;
+}
+[data-app="student"] .stu-segment__item {
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--stu-text-muted);
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background var(--stu-motion-fast), color var(--stu-motion-fast);
+}
+[data-app="student"] .stu-segment__item[aria-selected="true"] {
+  background: var(--stu-surface-1);
+  color: var(--stu-primary);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+/* 다크모드: 컴포넌트 보강 */
+[data-app="student"][data-student-dark="true"] .stu-icon-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--stu-primary) 14%, transparent);
+}
+[data-app="student"][data-student-dark="true"] .stu-back-btn {
+  background: var(--stu-surface-2);
+}

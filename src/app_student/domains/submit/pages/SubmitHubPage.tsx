@@ -3,7 +3,7 @@
  */
 import { Link } from "react-router-dom";
 import StudentPageShell from "@student/shared/ui/pages/StudentPageShell";
-import { IconGrade, IconBoard, IconFolder } from "@student/shared/ui/icons/Icons";
+import { IconGrade, IconBoard, IconFolder, IconChevronRight } from "@student/shared/ui/icons/Icons";
 
 export default function SubmitHubPage() {
   return (
@@ -24,7 +24,7 @@ export default function SubmitHubPage() {
             <div style={{ fontWeight: 600, fontSize: 16 }}>성적표 제출</div>
             <div className="stu-muted" style={{ fontSize: 13, marginTop: 2 }}>이미지·PDF로 성적표를 제출합니다.</div>
           </div>
-          <span style={{ color: "var(--stu-text-muted)" }}>→</span>
+          <IconChevronRight className="stu-chevron" style={{ width: 18, height: 18 }} />
         </Link>
 
         <Link
@@ -39,7 +39,7 @@ export default function SubmitHubPage() {
             <div style={{ fontWeight: 600, fontSize: 16 }}>과제 제출</div>
             <div className="stu-muted" style={{ fontSize: 13, marginTop: 2 }}>동영상·사진으로 과제를 제출합니다.</div>
           </div>
-          <span style={{ color: "var(--stu-text-muted)" }}>→</span>
+          <IconChevronRight className="stu-chevron" style={{ width: 18, height: 18 }} />
         </Link>
 
         <Link
@@ -54,16 +54,9 @@ export default function SubmitHubPage() {
             <div style={{ fontWeight: 600, fontSize: 16 }}>내 인벤토리</div>
             <div className="stu-muted" style={{ fontSize: 13, marginTop: 2 }}>제출한 파일을 확인하고 관리합니다.</div>
           </div>
-          <span style={{ color: "var(--stu-text-muted)" }}>→</span>
+          <IconChevronRight className="stu-chevron" style={{ width: 18, height: 18 }} />
         </Link>
 
-        <Link
-          to="/student/exams"
-          className="stu-btn stu-btn--secondary"
-          style={{ alignSelf: "flex-start", marginTop: "var(--stu-space-2)" }}
-        >
-          시험 보기
-        </Link>
       </div>
     </StudentPageShell>
   );

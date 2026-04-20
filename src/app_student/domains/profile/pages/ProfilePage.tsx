@@ -453,7 +453,7 @@ export default function ProfilePage() {
               <div className="stu-muted" style={{ fontSize: 12, marginBottom: 4 }}>학교 유형</div>
               {editing && !profile.isParentReadOnly ? (
                 <select
-                  className="ds-select"
+                  className="stu-select"
                   value={editSchoolType}
                   onChange={(e) => setEditSchoolType(e.target.value as SchoolType)}
                 >
@@ -544,7 +544,7 @@ export default function ProfilePage() {
                 <div className="stu-muted" style={{ fontSize: 12, marginBottom: 4 }}>학년</div>
                 {editing && !profile.isParentReadOnly ? (
                   <select
-                    className="ds-select"
+                    className="stu-select"
                     value={editGrade}
                     onChange={(e) => setEditGrade(e.target.value)}
                   >
