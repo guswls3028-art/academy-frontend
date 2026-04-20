@@ -6,6 +6,7 @@ import { Suspense } from "react";
 import { lazyWithRetry as lazy } from "@/shared/utils/lazyWithRetry";
 import { Navigate, Route, Routes } from "react-router-dom";
 import TeacherLayout from "@teacher/layout/TeacherLayout";
+import RoleGuard from "@teacher/shared/ui/RoleGuard";
 
 /* === Domain pages (lazy) === */
 const TodayPage = lazy(() => import("@teacher/domains/today/pages/TodayPage"));
@@ -25,17 +26,24 @@ const ProfilePage = lazy(() => import("@teacher/domains/profile/pages/ProfilePag
 const TeacherSettingsPage = lazy(() => import("@teacher/domains/settings/pages/TeacherSettingsPage"));
 const AttendanceMatrixPage = lazy(() => import("@teacher/domains/lectures/pages/AttendanceMatrixPage"));
 const StaffManagePage = lazy(() => import("@teacher/domains/staff/pages/StaffManagePage"));
+const StaffDetailPage = lazy(() => import("@teacher/domains/staff/pages/StaffDetailPage"));
 const MyRecordsPage = lazy(() => import("@teacher/domains/profile/pages/MyRecordsPage"));
 
 /* Phase 3 */
 const ExamListPage = lazy(() => import("@teacher/domains/exams/pages/ExamListPage"));
 const ExamDetailPage = lazy(() => import("@teacher/domains/exams/pages/ExamDetailPage"));
+const ExamTemplatesPage = lazy(() => import("@teacher/domains/exams/pages/ExamTemplatesPage"));
+const ExamBundlesPage = lazy(() => import("@teacher/domains/exams/pages/ExamBundlesPage"));
+const OmrPage = lazy(() => import("@teacher/domains/exams/pages/OmrPage"));
 const HomeworkDetailPage = lazy(() => import("@teacher/domains/exams/pages/HomeworkDetailPage"));
 const VideoListPage = lazy(() => import("@teacher/domains/videos/pages/VideoListPage"));
 const VideoDetailPage = lazy(() => import("@teacher/domains/videos/pages/VideoDetailPage"));
 const ClinicPage = lazy(() => import("@teacher/domains/clinic/pages/ClinicPage"));
+const ClinicReportsPage = lazy(() => import("@teacher/domains/clinic/pages/ClinicReportsPage"));
+const ClinicRemoteControlPage = lazy(() => import("@teacher/domains/clinic/pages/ClinicRemoteControlPage"));
 const CounselingPage = lazy(() => import("@teacher/domains/counseling/pages/CounselingPage"));
 const ResultsPage = lazy(() => import("@teacher/domains/results/pages/ResultsPage"));
+const BillingPage = lazy(() => import("@teacher/domains/profile/pages/BillingPage"));
 
 function TeacherFallback() {
   return (
@@ -83,12 +91,15 @@ export default function TeacherRouter() {
           <Route path="comms" element={<CommunicationPage />} />
           <Route path="message-log" element={<MessageLogPage />} />
           <Route path="message-templates" element={<MessageTemplatesPage />} />
-          <Route path="messaging-settings" element={<MessagingSettingsPage />} />
+          <Route path="messaging-settings" element={<RoleGuard allow={["owner", "admin"]}><MessagingSettingsPage /></RoleGuard>} />
           <Route path="notifications" element={<NotificationsPage />} />
 
           {/* 시험/과제 (Phase 3) */}
           <Route path="exams" element={<ExamListPage />} />
+          <Route path="exams/templates" element={<ExamTemplatesPage />} />
+          <Route path="exams/bundles" element={<ExamBundlesPage />} />
           <Route path="exams/:examId" element={<ExamDetailPage />} />
+          <Route path="exams/:examId/omr" element={<OmrPage />} />
           <Route path="homeworks/:homeworkId" element={<HomeworkDetailPage />} />
 
           {/* 영상 (Phase 3) */}
@@ -97,6 +108,8 @@ export default function TeacherRouter() {
 
           {/* 클리닉 (Phase 3, section_mode) */}
           <Route path="clinic" element={<ClinicPage />} />
+          <Route path="clinic/reports" element={<ClinicReportsPage />} />
+          <Route path="clinic/remote" element={<ClinicRemoteControlPage />} />
 
           {/* 상담 메모 (Phase 3) */}
           <Route path="counseling" element={<CounselingPage />} />
@@ -107,8 +120,10 @@ export default function TeacherRouter() {
           {/* 프로필 / 설정 */}
           <Route path="profile" element={<ProfilePage />} />
           <Route path="settings" element={<TeacherSettingsPage />} />
-          <Route path="staff" element={<StaffManagePage />} />
+          <Route path="staff" element={<RoleGuard allow={["owner", "admin"]}><StaffManagePage /></RoleGuard>} />
+          <Route path="staff/:staffId" element={<RoleGuard allow={["owner", "admin"]}><StaffDetailPage /></RoleGuard>} />
           <Route path="my-records" element={<MyRecordsPage />} />
+          <Route path="billing" element={<RoleGuard allow={["owner", "admin"]}><BillingPage /></RoleGuard>} />
         </Route>
 
         <Route path="*" element={<Navigate to="/teacher" replace />} />

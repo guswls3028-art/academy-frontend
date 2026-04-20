@@ -1,5 +1,5 @@
 // PATH: src/app_teacher/domains/comms/pages/MessageTemplatesPage.tsx
-// 메시지 템플릿 관리 + 메시징 설정 + 잔액 확인
+// 메시지 템플릿 관리 + 메시지 설정 + 잔액 확인
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -51,7 +51,7 @@ export default function MessageTemplatesPage() {
         <Card style={{ padding: "var(--tc-space-3) var(--tc-space-4)" }}>
           <div className="flex items-center justify-between">
             <div>
-              <div className="text-sm font-semibold" style={{ color: "var(--tc-text)" }}>메시징 설정</div>
+              <div className="text-sm font-semibold" style={{ color: "var(--tc-text)" }}>메시지 설정</div>
               <div className="text-[11px] mt-0.5" style={{ color: "var(--tc-text-muted)" }}>
                 {info.messaging_provider || "미설정"} · 발신: {info.messaging_sender || "미등록"}
               </div>

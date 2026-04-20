@@ -11,7 +11,8 @@ import {
   Home, Users, BookOpen, Activity,
   ClipboardList, Award, Video, MessageSquare,
   FileText, Bell, User, Settings, Send, Clock,
-  Monitor, LogOut, AlertCircle, X,
+  Monitor, LogOut, AlertCircle, X, FolderPlus, Calendar,
+  RefreshCw,
 } from "@teacher/shared/ui/Icons";
 
 interface Props {
@@ -35,8 +36,9 @@ type MenuGroup = {
 export default function TeacherDrawer({ open, onClose }: Props) {
   const navigate = useNavigate();
   const location = useLocation();
-  const { clearAuth } = useAuth();
+  const { clearAuth, user } = useAuth();
   const { counts } = useAdminNotificationCounts();
+  const isOwnerOrAdmin = user?.tenantRole === "owner" || user?.tenantRole === "admin";
 
   const menuGroups: MenuGroup[] = [
     {
@@ -46,15 +48,19 @@ export default function TeacherDrawer({ open, onClose }: Props) {
         { label: "학생", path: "/teacher/students", icon: <Users size={18} /> },
         { label: "강의", path: "/teacher/classes", icon: <BookOpen size={18} /> },
         { label: "클리닉", path: "/teacher/clinic", icon: <Activity size={18} /> },
+        { label: "클리닉 리모컨", path: "/teacher/clinic/remote", icon: <RefreshCw size={18} /> },
       ],
     },
     {
       title: "학습 · 콘텐츠",
       items: [
         { label: "시험 / 과제", path: "/teacher/exams", icon: <ClipboardList size={18} /> },
+        { label: "시험 템플릿", path: "/teacher/exams/templates", icon: <FileText size={18} /> },
+        { label: "시험 번들", path: "/teacher/exams/bundles", icon: <FolderPlus size={18} /> },
         { label: "성적 조회", path: "/teacher/results", icon: <Award size={18} /> },
         { label: "영상", path: "/teacher/videos", icon: <Video size={18} /> },
         { label: "커뮤니티", path: "/teacher/comms", icon: <MessageSquare size={18} />, badge: counts?.total },
+        { label: "클리닉 보고서", path: "/teacher/clinic/reports", icon: <Calendar size={18} /> },
       ],
     },
     {
@@ -63,14 +69,14 @@ export default function TeacherDrawer({ open, onClose }: Props) {
         { label: "상담 메모", path: "/teacher/counseling", icon: <FileText size={18} /> },
         { label: "발송 이력", path: "/teacher/message-log", icon: <Send size={18} /> },
         { label: "메시지 템플릿", path: "/teacher/message-templates", icon: <FileText size={18} /> },
-        { label: "메시징 설정", path: "/teacher/messaging-settings", icon: <Settings size={18} /> },
+        ...(isOwnerOrAdmin ? [{ label: "메시지 설정", path: "/teacher/messaging-settings", icon: <Settings size={18} /> }] : []),
         { label: "알림 센터", path: "/teacher/notifications", icon: <Bell size={18} />, badge: counts?.total },
       ],
     },
     {
       title: "직원",
       items: [
-        { label: "직원 관리", path: "/teacher/staff", icon: <Users size={18} /> },
+        ...(isOwnerOrAdmin ? [{ label: "직원 관리", path: "/teacher/staff", icon: <Users size={18} /> }] : []),
         { label: "근태 / 지출", path: "/teacher/my-records", icon: <Clock size={18} /> },
       ],
     },
@@ -78,6 +84,7 @@ export default function TeacherDrawer({ open, onClose }: Props) {
       title: "설정",
       items: [
         { label: "내 프로필", path: "/teacher/profile", icon: <User size={18} /> },
+        ...(isOwnerOrAdmin ? [{ label: "결제 / 구독", path: "/teacher/billing", icon: <Award size={18} /> }] : []),
         { label: "설정", path: "/teacher/settings", icon: <Settings size={18} /> },
       ],
     },

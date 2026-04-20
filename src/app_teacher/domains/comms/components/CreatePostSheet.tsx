@@ -5,8 +5,9 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchScopeNodes, createPost, uploadPostAttachment, type ScopeNode } from "../api";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
 import MobileRichEditor from "@teacher/shared/ui/MobileRichEditor";
-import { AlertCircle, ChevronDown, Paperclip, X } from "@teacher/shared/ui/Icons";
+import { AlertCircle, ChevronDown, Paperclip, X, Bell } from "@teacher/shared/ui/Icons";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
+import api from "@/shared/api/axios";
 
 interface Props {
   open: boolean;
@@ -27,6 +28,8 @@ export default function CreatePostSheet({ open, onClose, postType, postTypeLabel
   const [sessionId, setSessionId] = useState<number | null>(null);
   const [isUrgent, setIsUrgent] = useState(false);
   const [files, setFiles] = useState<File[]>([]);
+  const [sendNotify, setSendNotify] = useState(false);
+  const [notifyMode, setNotifyMode] = useState<"alimtalk" | "sms">("alimtalk");
   const fileRef = useRef<HTMLInputElement>(null);
 
   const { data: scopeNodes } = useQuery({
@@ -81,11 +84,35 @@ export default function CreatePostSheet({ open, onClose, postType, postTypeLabel
       for (const file of files) {
         await uploadPostAttachment(post.id, file);
       }
+      // Send notification message if requested — preview → confirm 2-step
+      if (sendNotify) {
+        try {
+          const previewRes = await api.post("/messaging/manual-notification/preview/", {
+            post_id: post.id,
+            message_mode: notifyMode,
+            node_ids: resolvedNodeIds,
+            scope,
+          });
+          const token = previewRes.data?.preview_token ?? previewRes.data?.token;
+          if (token) {
+            await api.post("/messaging/manual-notification/confirm/", {
+              preview_token: token,
+              consent: true,
+            });
+          } else {
+            console.warn("알림 preview_token 미반환", previewRes.data);
+          }
+        } catch (err) {
+          console.warn("알림 발송 실패", err);
+          teacherToast.error("게시물은 등록됐으나 알림 발송에 실패했습니다.");
+        }
+      }
       return post;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["teacher-comms"] });
-      teacherToast.success(`${postTypeLabel}이 등록되었습니다.`);
+      const notifyMsg = sendNotify ? ` (${notifyMode === "alimtalk" ? "알림톡" : "SMS"} 발송 요청됨)` : "";
+      teacherToast.success(`${postTypeLabel}이 등록되었습니다.${notifyMsg}`);
       resetAndClose();
     },
   });
@@ -98,6 +125,8 @@ export default function CreatePostSheet({ open, onClose, postType, postTypeLabel
     setSessionId(null);
     setIsUrgent(false);
     setFiles([]);
+    setSendNotify(false);
+    setNotifyMode("alimtalk");
     onClose();
   };
 
@@ -175,6 +204,49 @@ export default function CreatePostSheet({ open, onClose, postType, postTypeLabel
             <AlertCircle size={14} style={{ color: "var(--tc-danger)" }} />
             <span className="text-[13px] font-medium" style={{ color: "var(--tc-text)" }}>긴급 공지</span>
           </label>
+        )}
+
+        {/* Notification send (notices/materials) */}
+        {(postType === "notice" || postType === "materials") && (
+          <div style={{
+            padding: "10px 12px", borderRadius: "var(--tc-radius-sm)",
+            border: "1px solid var(--tc-border-subtle)",
+            background: sendNotify ? "var(--tc-primary-bg)" : "var(--tc-surface-soft)",
+          }}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Bell size={14} style={{ color: sendNotify ? "var(--tc-primary)" : "var(--tc-text-muted)" }} />
+                <div>
+                  <div className="text-[13px] font-semibold" style={{ color: "var(--tc-text)" }}>작성 후 알림 발송</div>
+                  <div className="text-[11px]" style={{ color: "var(--tc-text-muted)" }}>
+                    {sendNotify ? "공개 범위 대상에 즉시 발송합니다" : "켜면 학생·학부모에게 메시지를 발송합니다"}
+                  </div>
+                </div>
+              </div>
+              <button onClick={() => setSendNotify(!sendNotify)} type="button" className="cursor-pointer shrink-0"
+                style={{ background: "none", border: "none", padding: 0 }}>
+                <div className="w-10 h-5 rounded-full relative"
+                  style={{ background: sendNotify ? "var(--tc-primary)" : "var(--tc-border-strong)", transition: "background 150ms" }}>
+                  <div className="absolute top-0.5 w-4 h-4 rounded-full bg-white shadow"
+                    style={{ left: sendNotify ? 20 : 2, transition: "left 150ms" }} />
+                </div>
+              </button>
+            </div>
+            {sendNotify && (
+              <div className="flex gap-1.5 mt-2">
+                {[["alimtalk", "알림톡"], ["sms", "SMS"]].map(([v, l]) => (
+                  <button key={v} onClick={() => setNotifyMode(v as any)} type="button"
+                    className="flex-1 text-[11px] font-semibold cursor-pointer"
+                    style={{
+                      padding: "6px 10px", borderRadius: "var(--tc-radius-sm)",
+                      border: `1px solid ${notifyMode === v ? "var(--tc-primary)" : "var(--tc-border)"}`,
+                      background: notifyMode === v ? "var(--tc-surface)" : "var(--tc-surface-soft)",
+                      color: notifyMode === v ? "var(--tc-primary)" : "var(--tc-text-secondary)",
+                    }}>{l}</button>
+                ))}
+              </div>
+            )}
+          </div>
         )}
 
         {/* File attachments */}

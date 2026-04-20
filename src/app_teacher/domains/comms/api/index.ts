@@ -194,15 +194,21 @@ export async function fetchMessageLog(page = 1, pageSize = 20): Promise<{ result
 }
 
 /* ─── Messaging Info & Templates ─── */
+export type MessagingProvider = "solapi" | "ppurio";
+
 export interface MessagingInfo {
   sms_allowed: boolean;
-  messaging_provider: string;
+  messaging_provider: MessagingProvider;
   messaging_sender: string;
   kakao_pfid: string;
   balance?: number;
   sms_price?: number;
   alimtalk_price?: number;
-  own_credentials?: boolean;
+  own_solapi_api_key?: string;
+  own_solapi_api_secret?: string;
+  own_ppurio_api_key?: string;
+  own_ppurio_account?: string;
+  has_own_credentials?: boolean;
 }
 
 export async function fetchMessagingInfo(): Promise<MessagingInfo> {
@@ -210,8 +216,31 @@ export async function fetchMessagingInfo(): Promise<MessagingInfo> {
   return res.data;
 }
 
-export async function updateMessagingInfo(payload: Partial<MessagingInfo & { own_solapi_api_key?: string; own_solapi_api_secret?: string }>): Promise<MessagingInfo> {
+export async function updateMessagingInfo(payload: Partial<MessagingInfo> & {
+  own_solapi_api_key?: string;
+  own_solapi_api_secret?: string;
+  own_ppurio_api_key?: string;
+  own_ppurio_account?: string;
+}): Promise<MessagingInfo> {
   const res = await api.patch("/messaging/info/", payload);
+  return res.data;
+}
+
+/* ─── Verify sender (solapi) ─── */
+export async function verifySender(phoneNumber: string): Promise<{ verified: boolean; message: string }> {
+  const res = await api.post("/messaging/verify-sender/", { phone_number: phoneNumber });
+  return res.data;
+}
+
+/* ─── Test credentials (연동 상태 테스트) ─── */
+export interface TestCredentialsResult {
+  all_ok: boolean;
+  summary?: string;
+  checks: Array<{ ok: boolean; message: string }>;
+}
+
+export async function testCredentials(): Promise<TestCredentialsResult> {
+  const res = await api.post("/messaging/test-credentials/");
   return res.data;
 }
 
@@ -248,13 +277,55 @@ export async function deleteTemplate(id: number): Promise<void> {
 /* ─── Auto-send configs ─── */
 export async function fetchAutoSendConfigs() {
   const res = await api.get("/messaging/auto-send-configs/");
+  const raw = res.data;
+  // Backend returns array directly or { configs: [...] }
+  return Array.isArray(raw?.configs) ? raw.configs : Array.isArray(raw) ? raw : [];
+}
+
+/** 자동발송 설정 일괄 업데이트 (백엔드는 bulk patch만 지원) */
+export async function updateAutoSendConfigs(configs: any[]) {
+  const res = await api.patch("/messaging/auto-send-configs/", { configs });
   return res.data;
 }
 
-export async function updateAutoSendConfigs(configs: any[]) {
-  const res = await api.patch("/messaging/auto-send-configs/", configs);
-  return res.data;
+/** 단일 트리거만 수정하고 싶을 때도 내부적으로 configs 배열로 wrap */
+export async function updateAutoSendConfig(triggerOrId: number | string, payload: Record<string, unknown>) {
+  const key = typeof triggerOrId === "string" ? { trigger: triggerOrId } : { id: triggerOrId };
+  return updateAutoSendConfigs([{ ...key, ...payload }]);
 }
+
+export const AUTO_SEND_TRIGGER_LABELS: Record<string, string> = {
+  registration_approved_student: "가입 안내(학생)",
+  registration_approved_parent: "가입 안내(학부모)",
+  withdrawal_complete: "퇴원 처리 완료",
+  lecture_session_reminder: "수업 시작 N분 전",
+  check_in_complete: "입실 완료",
+  absent_occurred: "결석 발생",
+  exam_scheduled_days_before: "시험 예정 N일 전",
+  exam_start_minutes_before: "시험 시작 N분 전",
+  exam_not_taken: "시험 미응시",
+  exam_score_published: "성적 공개",
+  retake_assigned: "재시험 대상 지정",
+  assignment_registered: "과제 등록",
+  assignment_due_hours_before: "과제 마감 N시간 전",
+  assignment_not_submitted: "과제 미제출",
+  monthly_report_generated: "월간 리포트 발송",
+  clinic_reminder: "클리닉 시작 N분 전",
+  clinic_reservation_created: "클리닉 예약 완료",
+  clinic_reservation_changed: "클리닉 예약 변경",
+  clinic_cancelled: "클리닉 예약 취소",
+  clinic_check_in: "참석(입실)",
+  clinic_absent: "결석",
+  clinic_self_study_completed: "하원(완료)",
+  community_post_created: "공지/게시글 등록",
+  counsel_request_received: "상담 신청 접수",
+};
+
+export const MESSAGE_MODE_LABELS: Record<string, string> = {
+  alimtalk: "알림톡",
+  sms: "SMS",
+  alimtalk_sms_fallback: "알림톡(SMS 대체)",
+};
 
 /* ─── Notification Summary (BFF) ─── */
 export interface NotificationSummary {

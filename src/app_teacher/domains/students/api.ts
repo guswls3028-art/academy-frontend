@@ -116,3 +116,62 @@ export async function updateStudentMemo(studentId: number, memo: string) {
   const res = await api.patch(`/students/${studentId}/`, { memo });
   return res.data;
 }
+
+/* ─── 비밀번호 초기화 (개별) ─── */
+function normalizePhone(v: string | null | undefined): string {
+  if (v == null) return "";
+  const d = String(v).replace(/\D/g, "");
+  return d.length === 11 && d.startsWith("010") ? d : d.length === 10 && d.startsWith("10") ? "0" + d : d;
+}
+
+/* ─── Bulk actions ─── */
+export async function bulkDeleteStudents(studentIds: number[]): Promise<void> {
+  await api.post("/students/bulk_delete/", { ids: studentIds });
+}
+
+export async function bulkRestoreStudents(studentIds: number[]): Promise<void> {
+  await api.post("/students/bulk_restore/", { ids: studentIds });
+}
+
+/** 백엔드에 bulk_tags 엔드포인트가 없으므로 개별 attach 반복 호출 */
+export async function bulkAttachTag(studentIds: number[], tagId: number): Promise<{ ok: number; fail: number }> {
+  let ok = 0, fail = 0;
+  for (const sid of studentIds) {
+    try { await attachTag(sid, tagId); ok++; }
+    catch { fail++; }
+  }
+  return { ok, fail };
+}
+
+export async function bulkDetachTag(studentIds: number[], tagId: number): Promise<{ ok: number; fail: number }> {
+  let ok = 0, fail = 0;
+  for (const sid of studentIds) {
+    try { await detachTag(sid, tagId); ok++; }
+    catch { fail++; }
+  }
+  return { ok, fail };
+}
+
+export async function sendPasswordReset(params: {
+  target: "student" | "parent";
+  student_name: string;
+  student_ps_number?: string;
+  parent_phone?: string;
+  temp_password?: string;
+  skip_notify?: boolean;
+}): Promise<{ message: string }> {
+  const body: Record<string, string | boolean> = {
+    target: params.target,
+    student_name: params.student_name.trim(),
+  };
+  if (params.target === "student" && params.student_ps_number) {
+    body.student_ps_number = params.student_ps_number.trim();
+  }
+  if (params.target === "parent" && params.parent_phone) {
+    body.parent_phone = normalizePhone(params.parent_phone);
+  }
+  if (params.temp_password?.trim()) body.temp_password = params.temp_password.trim();
+  if (params.skip_notify) body.skip_notify = true;
+  const res = await api.post<{ message: string }>("/students/password_reset_send/", body);
+  return res.data;
+}

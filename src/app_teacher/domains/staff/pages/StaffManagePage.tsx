@@ -10,29 +10,29 @@ import { Badge } from "@teacher/shared/ui/Badge";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
 import api from "@/shared/api/axios";
 
-/* ─── API ─── */
+/* ─── API (복수형 /staffs/ — 백엔드 실제 엔드포인트) ─── */
 async function fetchStaff(search?: string) {
-  const res = await api.get("/staff/", { params: { page_size: 100, search: search || undefined } });
+  const res = await api.get("/staffs/", { params: { page_size: 100, search: search || undefined } });
   const raw = res.data;
   return Array.isArray(raw?.results) ? raw.results : Array.isArray(raw) ? raw : [];
 }
 
 async function createStaff(payload: { name: string; phone?: string; role?: string; username: string; password: string }) {
-  const res = await api.post("/staff/", payload);
+  const res = await api.post("/staffs/", payload);
   return res.data;
 }
 
 async function updateStaff(id: number, payload: Record<string, unknown>) {
-  const res = await api.patch(`/staff/${id}/`, payload);
+  const res = await api.patch(`/staffs/${id}/`, payload);
   return res.data;
 }
 
 async function deleteStaff(id: number) {
-  await api.delete(`/staff/${id}/`);
+  await api.delete(`/staffs/${id}/`);
 }
 
 async function resetStaffPassword(id: number, password: string) {
-  const res = await api.post(`/staff/${id}/reset-password/`, { password });
+  const res = await api.post(`/staffs/${id}/change-password/`, { password });
   return res.data;
 }
 
@@ -84,18 +84,21 @@ export default function StaffManagePage() {
             {staff.map((s: any) => (
               <Card key={s.id} style={{ padding: "var(--tc-space-3) var(--tc-space-4)" }}>
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shrink-0"
-                    style={{ background: "var(--tc-primary-bg)", color: "var(--tc-primary)" }}>
-                    {(s.name || "?")[0]}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-sm font-semibold" style={{ color: "var(--tc-text)" }}>{s.name || s.username}</span>
-                      <Badge tone="neutral" size="xs">{s.role === "TEACHER" ? "강사" : s.role === "owner" ? "원장" : "조교"}</Badge>
+                  <div onClick={() => navigate(`/teacher/staff/${s.id}`)}
+                    className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer">
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shrink-0"
+                      style={{ background: "var(--tc-primary-bg)", color: "var(--tc-primary)" }}>
+                      {(s.name || "?")[0]}
                     </div>
-                    {s.phone && <div className="text-[11px] mt-0.5" style={{ color: "var(--tc-text-muted)" }}>{s.phone}</div>}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-sm font-semibold" style={{ color: "var(--tc-text)" }}>{s.name || s.username}</span>
+                        <Badge tone="neutral" size="xs">{s.role === "TEACHER" ? "강사" : s.role === "owner" ? "원장" : "조교"}</Badge>
+                      </div>
+                      {s.phone && <div className="text-[11px] mt-0.5" style={{ color: "var(--tc-text-muted)" }}>{s.phone}</div>}
+                    </div>
                   </div>
-                  <div className="flex gap-1">
+                  <div className="flex gap-1 shrink-0">
                     <button onClick={() => setEditTarget(s)} className="flex p-1.5 cursor-pointer"
                       style={{ background: "none", border: "none", color: "var(--tc-text-muted)" }}><Pencil size={14} /></button>
                     <button onClick={() => { if (confirm(`${s.name}을(를) 삭제하시겠습니까?`)) deleteMut.mutate(s.id); }}

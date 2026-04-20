@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState } from "@/shared/ui/ds";
-import { Settings } from "@teacher/shared/ui/Icons";
+import { Settings, Camera } from "@teacher/shared/ui/Icons";
 import { fetchExam, fetchExamResults } from "../api";
 import ExamManageSheet from "../components/ExamManageSheet";
 import api from "@/shared/api/axios";
@@ -42,6 +42,11 @@ export default function ExamDetailPage() {
         <h1 className="text-[17px] font-bold flex-1 truncate" style={{ color: "var(--tc-text)" }}>
           {exam.title}
         </h1>
+        <button onClick={() => navigate(`/teacher/exams/${eid}/omr`)}
+          className="flex items-center gap-1 text-[11px] font-semibold cursor-pointer"
+          style={{ padding: "6px 10px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-primary)", background: "var(--tc-primary-bg)", color: "var(--tc-primary)" }}>
+          <Camera size={12} /> OMR
+        </button>
         <button onClick={() => setManageOpen(true)} className="flex p-1 cursor-pointer"
           style={{ background: "none", border: "none", color: "var(--tc-text-muted)" }}>
           <Settings size={18} />

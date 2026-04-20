@@ -86,4 +86,5 @@ export {
   Download,
   Upload,
   FolderPlus,
+  Camera,
 } from "lucide-react";

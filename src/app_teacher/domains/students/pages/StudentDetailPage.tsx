@@ -1,16 +1,16 @@
 // PATH: src/app_teacher/domains/students/pages/StudentDetailPage.tsx
 // 학생 상세 — 데스크톱 오버레이 1:1 매칭 (5탭) + 편집/태그/메모/상태 관리
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState } from "@/shared/ui/ds";
 import { formatPhone } from "@/shared/utils/formatPhone";
 import LectureChip from "@/shared/ui/chips/LectureChip";
-import { Phone, Mail, User, Pencil, Save, X, Tag, Plus, ToggleLeft, ToggleRight } from "@teacher/shared/ui/Icons";
+import { Phone, Mail, User, Pencil, Save, X, Tag, Plus, ToggleLeft, ToggleRight, Lock, MessageSquare } from "@teacher/shared/ui/Icons";
 import { Card, BackButton, KpiCard, TabBar } from "@teacher/shared/ui/Card";
 import { Badge, AchievementBadge, AttendanceBadge, ClinicStatusBadge } from "@teacher/shared/ui/Badge";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
-import { fetchStudent, fetchStudentExamResults, updateStudent, toggleStudentActive, fetchTags, attachTag, detachTag, createTag, updateStudentMemo, deleteStudent } from "../api";
+import { fetchStudent, fetchStudentExamResults, updateStudent, toggleStudentActive, fetchTags, attachTag, detachTag, createTag, updateStudentMemo, deleteStudent, sendPasswordReset } from "../api";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import api from "@/shared/api/axios";
 
@@ -26,6 +26,7 @@ export default function StudentDetailPage() {
   // Edit states
   const [editOpen, setEditOpen] = useState(false);
   const [tagSheetOpen, setTagSheetOpen] = useState(false);
+  const [pwResetOpen, setPwResetOpen] = useState(false);
   const [memoEditing, setMemoEditing] = useState(false);
   const [memoText, setMemoText] = useState("");
 
@@ -174,10 +175,14 @@ export default function StudentDetailPage() {
 
       {/* Edit Student BottomSheet */}
       <EditStudentSheet open={editOpen} onClose={() => setEditOpen(false)} student={student} studentId={sid}
-        onDelete={() => { deleteStudent(sid).then(() => { navigate(-1); }); }} />
+        onDelete={() => { deleteStudent(sid).then(() => { navigate(-1); }); }}
+        onOpenPasswordReset={() => { setEditOpen(false); setPwResetOpen(true); }} />
 
       {/* Tag Management BottomSheet */}
       <TagManagementSheet open={tagSheetOpen} onClose={() => setTagSheetOpen(false)} studentId={sid} currentTags={tags} />
+
+      {/* Password Reset BottomSheet */}
+      <PasswordResetSheet open={pwResetOpen} onClose={() => setPwResetOpen(false)} student={student} />
     </div>
   );
 }
@@ -376,8 +381,8 @@ function MemoSection({ studentId, initialMemo }: { studentId: number; initialMem
 }
 
 /* ─── Edit Student BottomSheet ─── */
-function EditStudentSheet({ open, onClose, student, studentId, onDelete }: {
-  open: boolean; onClose: () => void; student: any; studentId: number; onDelete: () => void;
+function EditStudentSheet({ open, onClose, student, studentId, onDelete, onOpenPasswordReset }: {
+  open: boolean; onClose: () => void; student: any; studentId: number; onDelete: () => void; onOpenPasswordReset: () => void;
 }) {
   const qc = useQueryClient();
   const [name, setName] = useState(student?.name ?? "");
@@ -435,7 +440,14 @@ function EditStudentSheet({ open, onClose, student, studentId, onDelete }: {
         <button onClick={() => mutation.mutate()} disabled={mutation.isPending || !name.trim()}
           className="w-full text-sm font-bold cursor-pointer mt-1"
           style={{ padding: "12px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff", opacity: mutation.isPending ? 0.6 : 1 }}>
-          {mutation.isPending ? "저장 중..." : "저장"}
+          {mutation.isPending ? "저장 중…" : "저장"}
+        </button>
+
+        {/* Password reset */}
+        <button onClick={onOpenPasswordReset}
+          className="w-full flex items-center justify-center gap-1.5 text-sm font-semibold cursor-pointer"
+          style={{ padding: "10px", borderRadius: "var(--tc-radius)", border: "1px solid var(--tc-border-strong)", background: "var(--tc-surface-soft)", color: "var(--tc-text-secondary)" }}>
+          <Lock size={13} /> 비밀번호 초기화
         </button>
 
         {/* Delete */}
@@ -545,6 +557,167 @@ function TagManagementSheet({ open, onClose, studentId, currentTags }: {
             생성
           </button>
         </div>
+      </div>
+    </BottomSheet>
+  );
+}
+
+/* ─── Password Reset BottomSheet ─── */
+type PwTarget = "student" | "parent" | "both";
+
+function PasswordResetSheet({ open, onClose, student }: {
+  open: boolean; onClose: () => void; student: any;
+}) {
+  const [target, setTarget] = useState<PwTarget>("student");
+  const [tempPassword, setTempPassword] = useState("");
+  const [notify, setNotify] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+
+  // Reset form when opened
+  useEffect(() => {
+    if (open) { setTempPassword(""); setNotify(true); setTarget("student"); }
+  }, [open]);
+
+  const name = student?.name ?? student?.displayName ?? "";
+  const psNumber = student?.psNumber ?? student?.ps_number ?? "";
+  const parentPhone = student?.parentPhone ?? student?.parent_phone ?? "";
+  const hasStudentAccount = !!psNumber;
+  const hasParent = !!parentPhone;
+
+  const handleSubmit = async () => {
+    if (!notify && !tempPassword.trim()) {
+      teacherToast.error("알림톡을 끄려면 임시 비밀번호를 입력해 주세요.");
+      return;
+    }
+    if (target === "student" && !hasStudentAccount) {
+      teacherToast.error("학생 계정(아이디)이 없어 변경할 수 없습니다.");
+      return;
+    }
+    if (target === "parent" && !hasParent) {
+      teacherToast.error("학부모 번호가 없어 변경할 수 없습니다.");
+      return;
+    }
+    setSubmitting(true);
+    const targets: ("student" | "parent")[] = target === "both" ? ["student", "parent"] : [target];
+    let ok = 0; let fail = 0; const failReasons: string[] = [];
+
+    try {
+      for (const t of targets) {
+        try {
+          if (t === "student") {
+            if (!hasStudentAccount) { fail++; failReasons.push("학생 아이디 없음"); continue; }
+            await sendPasswordReset({
+              target: "student",
+              student_name: name,
+              student_ps_number: psNumber,
+              ...(tempPassword.trim() ? { temp_password: tempPassword.trim() } : {}),
+              ...(!notify ? { skip_notify: true } : {}),
+            });
+          } else {
+            if (!hasParent) { fail++; failReasons.push("학부모 번호 없음"); continue; }
+            await sendPasswordReset({
+              target: "parent",
+              student_name: name,
+              parent_phone: parentPhone,
+              ...(tempPassword.trim() ? { temp_password: tempPassword.trim() } : {}),
+              ...(!notify ? { skip_notify: true } : {}),
+            });
+          }
+          ok++;
+        } catch {
+          fail++;
+        }
+      }
+      if (ok > 0) {
+        const notifyMsg = notify ? " 알림톡이 발송됩니다." : "";
+        teacherToast.success(`비밀번호 변경 완료 (${ok}건${fail > 0 ? `, 실패 ${fail}건` : ""}).${notifyMsg}`);
+        onClose();
+      } else {
+        teacherToast.error(`변경 실패${failReasons.length ? `: ${failReasons.join(", ")}` : ""}.`);
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const targetHelp =
+    target === "student" ? "학생 로그인 비밀번호를 변경합니다." :
+    target === "parent" ? "학부모 로그인 비밀번호를 변경합니다. (아이디 = 학부모 전화번호)" :
+    "학생 + 학부모 비밀번호를 함께 변경합니다.";
+
+  return (
+    <BottomSheet open={open} onClose={onClose} title="비밀번호 초기화">
+      <div className="flex flex-col gap-3" style={{ padding: "var(--tc-space-3) 0" }}>
+        <div className="text-[12px]" style={{ color: "var(--tc-text-muted)" }}>
+          <span style={{ color: "var(--tc-text-secondary)", fontWeight: 600 }}>{name}</span> 학생의 비밀번호를 변경합니다.
+        </div>
+
+        {/* 대상 선택 */}
+        <div>
+          <label className="text-[11px] font-semibold block mb-1.5" style={{ color: "var(--tc-text-muted)" }}>변경 대상</label>
+          <div className="flex gap-1.5">
+            {([
+              { k: "student" as const, l: "학생", disabled: !hasStudentAccount },
+              { k: "parent" as const, l: "학부모", disabled: !hasParent },
+              { k: "both" as const, l: "둘 다", disabled: !hasStudentAccount || !hasParent },
+            ]).map((opt) => (
+              <button key={opt.k} onClick={() => !opt.disabled && setTarget(opt.k)} disabled={opt.disabled}
+                className="flex-1 text-xs font-semibold cursor-pointer"
+                style={{
+                  padding: "8px 10px",
+                  borderRadius: "var(--tc-radius-sm)",
+                  border: `1px solid ${target === opt.k ? "var(--tc-primary)" : "var(--tc-border-strong)"}`,
+                  background: target === opt.k ? "var(--tc-primary-bg)" : "var(--tc-surface-soft)",
+                  color: opt.disabled ? "var(--tc-text-muted)" : target === opt.k ? "var(--tc-primary)" : "var(--tc-text-secondary)",
+                  opacity: opt.disabled ? 0.5 : 1,
+                }}>
+                {opt.l}
+              </button>
+            ))}
+          </div>
+          <p className="text-[11px] mt-1.5" style={{ color: "var(--tc-text-muted)" }}>{targetHelp}</p>
+        </div>
+
+        {/* 임시 비밀번호 */}
+        <div>
+          <label className="text-[11px] font-semibold block mb-1" style={{ color: "var(--tc-text-muted)" }}>임시 비밀번호</label>
+          <input type="text" value={tempPassword} onChange={(e) => setTempPassword(e.target.value)}
+            placeholder="비워두면 자동 생성"
+            className="w-full text-sm"
+            style={{ padding: "8px 10px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border-strong)", background: "var(--tc-surface-soft)", color: "var(--tc-text)", outline: "none" }} />
+          <p className="text-[11px] mt-1" style={{ color: "var(--tc-text-muted)" }}>
+            입력하면 선택한 대상 모두에게 동일 비밀번호가 설정됩니다.
+          </p>
+        </div>
+
+        {/* 알림톡 발송 토글 */}
+        <div className="flex items-center justify-between py-1.5"
+          style={{ padding: "10px 12px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border-subtle)", background: notify ? "var(--tc-primary-bg)" : "var(--tc-surface-soft)" }}>
+          <div className="flex items-center gap-2">
+            <MessageSquare size={14} style={{ color: notify ? "var(--tc-primary)" : "var(--tc-text-muted)" }} />
+            <div>
+              <div className="text-[13px] font-semibold" style={{ color: "var(--tc-text)" }}>임시 비밀번호 알림톡 발송</div>
+              <div className="text-[11px]" style={{ color: "var(--tc-text-muted)" }}>
+                {notify ? "변경된 비밀번호를 알림톡으로 전달합니다" : "켜면 임시 비밀번호를 알림톡으로 발송합니다"}
+              </div>
+            </div>
+          </div>
+          <button onClick={() => setNotify(!notify)} type="button" className="cursor-pointer shrink-0"
+            style={{ background: "none", border: "none", padding: 0 }}>
+            <div className="w-10 h-5 rounded-full relative"
+              style={{ background: notify ? "var(--tc-primary)" : "var(--tc-border-strong)", transition: "background 150ms" }}>
+              <div className="absolute top-0.5 w-4 h-4 rounded-full bg-white shadow"
+                style={{ left: notify ? 20 : 2, transition: "left 150ms" }} />
+            </div>
+          </button>
+        </div>
+
+        {/* Submit */}
+        <button onClick={handleSubmit} disabled={submitting}
+          className="w-full text-sm font-bold cursor-pointer mt-1"
+          style={{ padding: "12px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff", opacity: submitting ? 0.6 : 1 }}>
+          {submitting ? "변경 중…" : "비밀번호 변경"}
+        </button>
       </div>
     </BottomSheet>
   );
