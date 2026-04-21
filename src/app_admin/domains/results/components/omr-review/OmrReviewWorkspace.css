@@ -245,6 +245,12 @@
 .orw-scan-pane__body--fit {
   align-items: center;
 }
+/**
+ * 스캔 이미지 + BBox overlay 좌표 정합성:
+ * - wrap 크기 === img 실제 렌더 크기 여야 SVG bbox가 버블 위에 정확히 겹침.
+ * - fit 모드에서도 flex 컨테이너 안 쓰고 inline-block 유지 → shrink-to-fit.
+ * - img에 max-width/max-height만 제약 → wrap이 img를 그대로 따라감.
+ */
 .orw-scan-pane__img-wrap {
   position: relative;
   display: inline-block;
@@ -256,10 +262,7 @@
 }
 .orw-scan-pane__img-wrap--fit {
   max-width: 100%;
-  max-height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  max-height: calc(100vh - 220px);
 }
 .orw-scan-pane__img {
   display: block;
@@ -268,11 +271,12 @@
   border-radius: 4px;
 }
 .orw-scan-pane__img--fit {
+  /* fit 모드: max-w/h만 제약. width/height auto → img 자연 비율 유지,
+     wrap은 inline-block이라 img 렌더 크기 그대로 shrink. */
   max-width: 100%;
   max-height: calc(100vh - 220px);
   width: auto;
   height: auto;
-  object-fit: contain;
 }
 /* BBox overlay — 이미지 위에 SVG 절대배치, 동일 종횡비 */
 .orw-bbox-overlay {
