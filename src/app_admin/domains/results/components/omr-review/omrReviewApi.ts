@@ -24,17 +24,32 @@ export type OmrReviewRow = {
   identifier_status: string | null;
 };
 
+/** OMR 버블·문항 영역 좌표 (원본 이미지 픽셀 기준). worker v10.1+ 제공. */
+export type OmrBubbleRect = {
+  label?: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+};
+
+export type OmrAnswerMeta = {
+  version?: string;
+  detected?: (string | number)[];
+  marking?: "single" | "blank" | "multi" | string;
+  confidence?: number;
+  status?: "ok" | string;
+  /** 문항 전체 영역 bbox (모든 버블의 bounding box) */
+  rect?: OmrBubbleRect | null;
+  /** 개별 버블 bbox 배열 */
+  bubble_rects?: OmrBubbleRect[] | null;
+};
+
 export type OmrReviewDetailAnswer = {
   question_id: number;
   question_no: number;
   answer: string;
-  omr: {
-    version?: string;
-    detected?: (string | number)[];
-    marking?: "single" | "blank" | "multi" | string;
-    confidence?: number;
-    status?: "ok" | string;
-  } | null;
+  omr: OmrAnswerMeta | null;
 };
 
 export type OmrReviewDetail = {
@@ -46,6 +61,8 @@ export type OmrReviewDetail = {
   identifier: unknown;
   answers: OmrReviewDetailAnswer[];
   scan_image_url: string;
+  /** 원본 스캔 이미지 크기 (BBox 좌표 정규화용). 없으면 img.naturalWidth/Height 사용. */
+  scan_image_size?: { width: number; height: number } | null;
   meta: {
     manual_review?: {
       required?: boolean;

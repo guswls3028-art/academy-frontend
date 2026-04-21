@@ -35,6 +35,7 @@ import {
 } from "./omrReviewApi";
 import { manualEditSubmissionApi } from "@admin/domains/materials/sheets/components/submissions/submissions.api";
 import StudentPickerModal from "./StudentPickerModal";
+import BBoxOverlay from "./BBoxOverlay";
 import type { CandidateRow } from "./omrReviewApi";
 import "./OmrReviewWorkspace.css";
 
@@ -118,6 +119,19 @@ export default function OmrReviewWorkspace({ examId, examTitle, open, onClose }:
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [zoom, setZoom] = useState(1);
   const [fitMode, setFitMode] = useState(true); // true = 컨테이너 맞춤, false = 100%*zoom
+  const [editDirty, setEditDirty] = useState(false);
+  const [focusedQid, setFocusedQid] = useState<number | null>(null);
+
+  // 변경 사항 있을 때 닫기 가드 (백드롭/X 버튼/ESC 공통 경로).
+  const handleClose = useCallback(() => {
+    if (editDirty) {
+      const ok = window.confirm(
+        "저장하지 않은 변경 사항이 있습니다.\n정말 닫으시겠습니까?"
+      );
+      if (!ok) return;
+    }
+    onClose();
+  }, [editDirty, onClose]);
 
   // 리스트
   const { data: rows = [], isLoading: listLoading } = useQuery({
@@ -175,8 +189,30 @@ export default function OmrReviewWorkspace({ examId, examTitle, open, onClose }:
       setSelectedId(null);
       setSearch("");
       setFilter("all");
+      setEditDirty(false);
+      setFocusedQid(null);
     }
   }, [open]);
+
+  // 선택 submission 변경 시 focused 문항 리셋 (EditPane이 key로 리마운트되므로 state 싱크)
+  useEffect(() => {
+    setFocusedQid(null);
+  }, [selectedId]);
+
+  // ESC 키로 닫기 (dirty 가드 적용)
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        // StudentPickerModal이 열려있으면 그쪽이 먼저 가로챔 — 본 리스너는 최상단에서만 작동
+        // 실제로는 PickerModal도 Esc로 닫히므로 여기까지 오지 않음
+        e.preventDefault();
+        handleClose();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, handleClose]);
 
   // 학생 이동 (1=다음, -1=이전)
   const navigate = useCallback(
@@ -202,7 +238,7 @@ export default function OmrReviewWorkspace({ examId, examTitle, open, onClose }:
 
   return createPortal(
     <>
-      <div className="orw-backdrop" onClick={onClose} aria-hidden />
+      <div className="orw-backdrop" onClick={handleClose} aria-hidden />
       <div className="orw-wrap" role="dialog" aria-modal="true" aria-label="OMR 검토">
         <header className="orw-header">
           <div className="orw-header__left">
@@ -219,7 +255,7 @@ export default function OmrReviewWorkspace({ examId, examTitle, open, onClose }:
               {" · "}답 <span className="orw-kbd">1-5</span>
               {" · "}저장 <span className="orw-kbd">{SAVE_KBD_LABEL}</span>
             </span>
-            <button className="orw-header__close" onClick={onClose} aria-label="닫기">
+            <button className="orw-header__close" onClick={handleClose} aria-label="닫기">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
               </svg>
@@ -303,6 +339,8 @@ export default function OmrReviewWorkspace({ examId, examTitle, open, onClose }:
             setFitMode={setFitMode}
             studentName={visibleRows.find((r) => r.id === selectedId)?.student_name ?? null}
             createdAt={visibleRows.find((r) => r.id === selectedId)?.created_at ?? null}
+            focusedQid={focusedQid}
+            onPickQuestion={setFocusedQid}
           />
 
           {/* ── RIGHT: 답안 편집 ── */}
@@ -312,7 +350,11 @@ export default function OmrReviewWorkspace({ examId, examTitle, open, onClose }:
             detail={detail}
             detailLoading={detailLoading}
             studentName={visibleRows.find((r) => r.id === selectedId)?.student_name ?? null}
+            focusedQid={focusedQid}
+            onFocusedQidChange={setFocusedQid}
+            onDirtyChange={setEditDirty}
             onSaved={() => {
+              setEditDirty(false);
               qc.invalidateQueries({ queryKey: ["omr-review-list", examId] });
               qc.invalidateQueries({ queryKey: ["omr-review-detail", selectedId] });
               qc.invalidateQueries({ queryKey: ["admin-exam-results", examId] });
@@ -342,6 +384,8 @@ function ScanPane({
   setFitMode,
   studentName,
   createdAt,
+  focusedQid,
+  onPickQuestion,
 }: {
   detail: OmrReviewDetail | undefined;
   detailLoading: boolean;
@@ -351,8 +395,16 @@ function ScanPane({
   setFitMode: (b: boolean) => void;
   studentName: string | null;
   createdAt: string | null;
+  focusedQid: number | null;
+  onPickQuestion: (qid: number) => void;
 }) {
   const [imgLoading, setImgLoading] = useState(false);
+  const [naturalSize, setNaturalSize] = useState<{ width: number; height: number } | null>(null);
+  const imageSize = detail?.scan_image_size ?? naturalSize;
+  const hasBBoxData =
+    !!detail?.answers?.some(
+      (a) => !!(a.omr?.rect || (a.omr?.bubble_rects && a.omr.bubble_rects.length > 0)),
+    );
   return (
     <div className="orw-scan-pane">
       <div className="orw-scan-pane__toolbar">
@@ -410,16 +462,34 @@ function ScanPane({
             {imgLoading && (
               <div className="orw-scan-pane__overlay-loading">스캔 이미지 불러오는 중…</div>
             )}
-            <img
-              key={detail.scan_image_url}
-              className={`orw-scan-pane__img ${fitMode ? "orw-scan-pane__img--fit" : ""}`}
-              src={detail.scan_image_url}
-              alt="OMR 스캔 원본"
-              onLoadStart={() => setImgLoading(true)}
-              onLoad={() => setImgLoading(false)}
-              onError={() => setImgLoading(false)}
+            <div
+              className={`orw-scan-pane__img-wrap ${fitMode ? "orw-scan-pane__img-wrap--fit" : ""}`}
               style={fitMode ? undefined : { width: `${Math.round(100 * zoom)}%` }}
-            />
+            >
+              <img
+                key={detail.scan_image_url}
+                className={`orw-scan-pane__img ${fitMode ? "orw-scan-pane__img--fit" : ""}`}
+                src={detail.scan_image_url}
+                alt="OMR 스캔 원본"
+                onLoadStart={() => setImgLoading(true)}
+                onLoad={(e) => {
+                  setImgLoading(false);
+                  const el = e.currentTarget;
+                  if (el.naturalWidth && el.naturalHeight) {
+                    setNaturalSize({ width: el.naturalWidth, height: el.naturalHeight });
+                  }
+                }}
+                onError={() => setImgLoading(false)}
+              />
+              {hasBBoxData && imageSize && (
+                <BBoxOverlay
+                  answers={detail.answers}
+                  focusedQid={focusedQid}
+                  imageSize={imageSize}
+                  onPickQuestion={onPickQuestion}
+                />
+              )}
+            </div>
           </>
         )}
       </div>
@@ -435,15 +505,21 @@ function EditPane({
   detail,
   detailLoading,
   studentName,
+  focusedQid,
+  onFocusedQidChange,
   onSaved,
   onNavigate,
+  onDirtyChange,
 }: {
   examId: number;
   detail: OmrReviewDetail | undefined;
   detailLoading: boolean;
   studentName: string | null;
+  focusedQid: number | null;
+  onFocusedQidChange: (qid: number | null) => void;
   onSaved: () => void;
   onNavigate: (dir: 1 | -1) => void;
+  onDirtyChange?: (dirty: boolean) => void;
 }) {
   // 초기 답안 (저장된 원본) — dirty 비교용
   const initialAnswers = useMemo(() => {
@@ -456,14 +532,14 @@ function EditPane({
   const [answers, setAnswers] = useState<Record<number, string>>(initialAnswers);
   const [pickedStudent, setPickedStudent] = useState<CandidateRow | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [focusedQid, setFocusedQid] = useState<number | null>(null);
+
+  const setFocusedQid = onFocusedQidChange;
 
   // detail 바뀔 때 폼 리셋. dep을 submission_id (primitive)만으로 → 매 렌더 트리거 제거.
   useEffect(() => {
     setAnswers(initialAnswers);
     setPickedStudent(null);
     setPickerOpen(false);
-    setFocusedQid(null);
   }, [detail?.submission_id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const identifierNeeded = useMemo(() => {
@@ -483,6 +559,11 @@ function EditPane({
     if (identifierNeeded && pickedStudent) return true;
     return !shallowEqualAnswers(answers, initialAnswers);
   }, [detail, answers, initialAnswers, pickedStudent, identifierNeeded]);
+
+  // 상위 워크스페이스에 dirty 상태 전파 (백드롭·ESC·X 버튼 close 가드에 사용)
+  useEffect(() => {
+    onDirtyChange?.(dirty);
+  }, [dirty, onDirtyChange]);
 
   const mut = useMutation({
     mutationFn: async () => {

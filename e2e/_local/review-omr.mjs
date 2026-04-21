@@ -10,6 +10,7 @@ import path from "node:path";
 const DEV = process.env.REVIEW_BASE || "http://localhost:5174";
 const API = "https://api.hakwonplus.com";
 const OUT = process.env.REVIEW_OUT || "c:/academy/tmp-review-omr";
+const IS_PROD = DEV.includes("hakwonplus.com");
 const EXAM_ID = 197;
 
 fs.mkdirSync(OUT, { recursive: true });
@@ -21,14 +22,16 @@ const ctx = await browser.newContext({
 });
 const page = await ctx.newPage();
 
-// dev → production API 라우팅
-await page.route("**/api/v1/**", async (r) => {
-  const u = new URL(r.request().url());
-  if (u.hostname === "localhost" || u.hostname === "127.0.0.1") {
-    u.protocol = "https:"; u.hostname = "api.hakwonplus.com"; u.port = "";
-    await r.continue({ url: u.toString() });
-  } else await r.continue();
-});
+// dev → production API 라우팅 (production 직접 접속 시는 패스)
+if (!IS_PROD) {
+  await page.route("**/api/v1/**", async (r) => {
+    const u = new URL(r.request().url());
+    if (u.hostname === "localhost" || u.hostname === "127.0.0.1") {
+      u.protocol = "https:"; u.hostname = "api.hakwonplus.com"; u.port = "";
+      await r.continue({ url: u.toString() });
+    } else await r.continue();
+  });
+}
 
 const consoleLogs = [];
 page.on("console", (m) => consoleLogs.push(`[${m.type()}] ${m.text()}`));
@@ -155,11 +158,51 @@ if (await openBtn.count()) {
     console.log(`after bubble — save enabled: ${enabled}, text: "${textAfter}"`);
   }
 
-  // 백드롭 클릭 닫힘
+  // 학생 검색 모달 open 검증 (식별실패 행일 때만 버튼 노출)
+  const pickBtn = page.locator(".orw-identifier__pick-btn");
+  if (await pickBtn.count()) {
+    await pickBtn.first().click();
+    await page.waitForTimeout(700);
+    const modalVisible = await page.locator(".spm-wrap").count();
+    console.log(`student picker modal open: ${modalVisible > 0}`);
+    await snap("student-picker-modal");
+
+    // 검색어 입력 — 응시 대상자 표시 여부
+    await page.locator(".spm-search").fill("");
+    await page.waitForTimeout(400);
+    await snap("student-picker-all");
+
+    // ESC로 닫기
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(400);
+    const modalClosed = !(await page.locator(".spm-wrap").count());
+    console.log(`picker closed by ESC: ${modalClosed}`);
+  } else {
+    console.log("pick button not found (detail may not be identifier_needed)");
+  }
+
+  // 백드롭 클릭 — dirty가 있으면 confirm 거부 → 닫히지 않아야
+  //   playwright는 기본 confirm accept. 거부하려면 page.on('dialog', d => d.dismiss())
+  let dialogCount = 0;
+  page.on("dialog", async (d) => {
+    dialogCount++;
+    console.log(`dialog: "${d.message().slice(0, 60)}"`);
+    await d.dismiss();
+  });
   const backdrop = page.locator(".orw-backdrop");
   if (await backdrop.count()) {
     await backdrop.click({ position: { x: 5, y: 5 } });
-    await page.waitForTimeout(800);
+    await page.waitForTimeout(600);
+    const stillOpen = await page.locator(".orw-wrap").count();
+    console.log(`dirty backdrop dismiss test — dialogs: ${dialogCount}, still open: ${stillOpen > 0}`);
+    await snap("after-dirty-backdrop-dismiss");
+
+    // 이제 저장 버튼 disabled로 되돌리기 위해 버블 다시 클릭 (토글 해제)
+    // 대신 직접 닫기 (confirm accept)
+    page.removeAllListeners("dialog");
+    page.on("dialog", async (d) => { await d.accept(); });
+    await backdrop.click({ position: { x: 5, y: 5 } });
+    await page.waitForTimeout(600);
     await snap("after-backdrop-click");
   }
 } else {
