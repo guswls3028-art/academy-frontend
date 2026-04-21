@@ -27,16 +27,14 @@ jobs:
       - uses: actions/checkout@v4
 
       - uses: pnpm/action-setup@v4
-        with:
-          version: 9
 
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: pnpm
+          # no cache: pnpm-lock.yaml is not committed
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --no-frozen-lockfile --shamefully-hoist
 
       - name: Install Playwright
         run: npx playwright install chromium --with-deps
