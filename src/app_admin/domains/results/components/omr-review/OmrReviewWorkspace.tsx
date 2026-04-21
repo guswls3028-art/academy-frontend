@@ -34,6 +34,8 @@ import {
   type OmrReviewRow,
 } from "./omrReviewApi";
 import { manualEditSubmissionApi } from "@admin/domains/materials/sheets/components/submissions/submissions.api";
+import StudentPickerModal from "./StudentPickerModal";
+import type { CandidateRow } from "./omrReviewApi";
 import "./OmrReviewWorkspace.css";
 
 type FilterKey = "all" | "ok" | "noid" | "flag" | "failed";
@@ -212,7 +214,9 @@ export default function OmrReviewWorkspace({ examId, examTitle, open, onClose }:
           </div>
           <div className="orw-header__actions">
             <span className="orw-header__sub">
-              학생 이동 <span className="orw-kbd">J</span>/<span className="orw-kbd">K</span>
+              학생 <span className="orw-kbd">J</span>/<span className="orw-kbd">K</span>
+              {" · "}검토 문항 <span className="orw-kbd">N</span>/<span className="orw-kbd">P</span>
+              {" · "}답 <span className="orw-kbd">1-5</span>
               {" · "}저장 <span className="orw-kbd">{SAVE_KBD_LABEL}</span>
             </span>
             <button className="orw-header__close" onClick={onClose} aria-label="닫기">
@@ -304,6 +308,7 @@ export default function OmrReviewWorkspace({ examId, examTitle, open, onClose }:
           {/* ── RIGHT: 답안 편집 ── */}
           <EditPane
             key={selectedId ?? "empty"}
+            examId={examId}
             detail={detail}
             detailLoading={detailLoading}
             studentName={visibleRows.find((r) => r.id === selectedId)?.student_name ?? null}
@@ -426,12 +431,14 @@ function ScanPane({
  * 우측 편집 패널
  * ────────────────────────────────────────────── */
 function EditPane({
+  examId,
   detail,
   detailLoading,
   studentName,
   onSaved,
   onNavigate,
 }: {
+  examId: number;
   detail: OmrReviewDetail | undefined;
   detailLoading: boolean;
   studentName: string | null;
@@ -447,13 +454,15 @@ function EditPane({
   }, [detail?.submission_id, detail?.answers]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [answers, setAnswers] = useState<Record<number, string>>(initialAnswers);
-  const [identifier, setIdentifier] = useState<string>("");
+  const [pickedStudent, setPickedStudent] = useState<CandidateRow | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
   const [focusedQid, setFocusedQid] = useState<number | null>(null);
 
   // detail 바뀔 때 폼 리셋. dep을 submission_id (primitive)만으로 → 매 렌더 트리거 제거.
   useEffect(() => {
     setAnswers(initialAnswers);
-    setIdentifier("");
+    setPickedStudent(null);
+    setPickerOpen(false);
     setFocusedQid(null);
   }, [detail?.submission_id]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -471,9 +480,9 @@ function EditPane({
 
   const dirty = useMemo(() => {
     if (!detail) return false;
-    if (identifierNeeded && identifier.trim().length > 0) return true;
+    if (identifierNeeded && pickedStudent) return true;
     return !shallowEqualAnswers(answers, initialAnswers);
-  }, [detail, answers, initialAnswers, identifier, identifierNeeded]);
+  }, [detail, answers, initialAnswers, pickedStudent, identifierNeeded]);
 
   const mut = useMutation({
     mutationFn: async () => {
@@ -483,8 +492,8 @@ function EditPane({
         answer: String(ans ?? ""),
       }));
       const idPayload =
-        identifierNeeded && identifier.trim().length > 0
-          ? { enrollment_id: Number(identifier.trim()) || identifier.trim() }
+        identifierNeeded && pickedStudent
+          ? { enrollment_id: pickedStudent.enrollment_id }
           : null;
       return await manualEditSubmissionApi({
         submissionId: detail.submission_id,
@@ -515,7 +524,22 @@ function EditPane({
     if (firstFlagged) setFocusedQid(firstFlagged.question_id);
   }, [detail?.submission_id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // 키보드: J/K/저장/숫자 단축키
+  // 문항 포커스 이동 헬퍼 (n: 다음, p: 이전). flaggedOnly=true면 flagged만 순회.
+  const focusRelative = (dir: 1 | -1, flaggedOnly: boolean) => {
+    if (!detail) return;
+    const rows = detail.answers;
+    if (rows.length === 0) return;
+    const pool = flaggedOnly ? rows.filter(isFlagged) : rows;
+    if (pool.length === 0) return;
+    const curIdx = pool.findIndex((a) => a.question_id === focusedQid);
+    const nextIdx =
+      curIdx < 0
+        ? (dir > 0 ? 0 : pool.length - 1)
+        : Math.max(0, Math.min(pool.length - 1, curIdx + dir));
+    setFocusedQid(pool[nextIdx].question_id);
+  };
+
+  // 키보드: J/K, ⌘S, 1~5, n/p (다음/이전 flagged), Enter (다음 문항)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
@@ -530,6 +554,14 @@ function EditPane({
         submitRef.current?.();
         return;
       }
+
+      // input 안에서 Enter: 서술형 필드 종료 → 다음 문항 이동
+      if (isEditable && e.key === "Enter") {
+        e.preventDefault();
+        (target as HTMLElement).blur?.();
+        focusRelative(1, false);
+        return;
+      }
       if (isEditable) return;
 
       if (e.key === "j" || e.key === "J") {
@@ -538,20 +570,31 @@ function EditPane({
       } else if (e.key === "k" || e.key === "K") {
         e.preventDefault();
         navigateRef.current?.(-1);
+      } else if (e.key === "n" || e.key === "N") {
+        e.preventDefault();
+        focusRelative(1, true); // 다음 flagged
+      } else if (e.key === "p" || e.key === "P") {
+        e.preventDefault();
+        focusRelative(-1, true); // 이전 flagged
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        focusRelative(1, false);
       } else if (focusedQid != null && /^[1-5]$/.test(e.key)) {
-        // 1~5 빠른 답안: 현재 포커스된 선택형 문항에 즉시 입력
+        // 1~5 빠른 답안: 현재 포커스된 선택형 문항에 즉시 입력 + 다음 flagged 자동 이동
         const q = detail?.answers.find((a) => a.question_id === focusedQid);
         if (!q) return;
         const isChoice = isChoiceAnswer(q, answers[focusedQid]);
         if (!isChoice) return;
         e.preventDefault();
         setAnswers((prev) => ({ ...prev, [focusedQid]: e.key }));
+        // 바로 다음 flagged 문항 — 없으면 다음 문항
+        window.setTimeout(() => focusRelative(1, true), 0);
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
     // detail/focusedQid는 ref 없이 closure에서 사용 — 변경 시 리바인딩
-  }, [detail, answers, focusedQid]);
+  }, [detail, answers, focusedQid]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (detailLoading) {
     return (
@@ -592,18 +635,68 @@ function EditPane({
           <div className="orw-identifier">
             <div className="orw-identifier__title">학생 식별 필요</div>
             <div className="orw-identifier__desc">
-              자동 식별에 실패했습니다. 학생의 <b>등록 ID(enrollment_id)</b>를 입력하면
-              매칭 후 채점이 자동 진행됩니다.
+              자동 식별에 실패했습니다. 스캔 이미지의 이름·전화번호를 확인해
+              <b> 학생을 검색·선택</b>하면 저장 시 매칭·채점이 자동 진행됩니다.
             </div>
-            <input
-              className="orw-identifier__input"
-              type="text"
-              value={identifier}
-              onChange={(e) => setIdentifier(e.target.value)}
-              placeholder="학생 등록 ID (숫자)"
-              inputMode="numeric"
-            />
+            {pickedStudent ? (
+              <div className="orw-identifier__picked">
+                <div className="orw-identifier__picked-main">
+                  <span className="orw-identifier__picked-name">{pickedStudent.student_name}</span>
+                  {pickedStudent.lecture_title && (
+                    <span className="orw-identifier__picked-lecture">
+                      {pickedStudent.lecture_title}
+                    </span>
+                  )}
+                  {pickedStudent.already_matched && (
+                    <span className="orw-identifier__picked-warn" title="다른 답안지에 이미 매칭된 학생입니다.">
+                      중복 경고
+                    </span>
+                  )}
+                </div>
+                <div className="orw-identifier__picked-actions">
+                  <button
+                    type="button"
+                    className="orw-identifier__change-btn"
+                    onClick={() => setPickerOpen(true)}
+                  >
+                    변경
+                  </button>
+                  <button
+                    type="button"
+                    className="orw-identifier__clear-btn"
+                    onClick={() => setPickedStudent(null)}
+                    aria-label="선택 해제"
+                  >
+                    해제
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                className="orw-identifier__pick-btn"
+                onClick={() => setPickerOpen(true)}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="11" cy="11" r="7" />
+                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                </svg>
+                학생 검색·연결
+              </button>
+            )}
           </div>
+        )}
+
+        {identifierNeeded && (
+          <StudentPickerModal
+            examId={examId}
+            open={pickerOpen}
+            onClose={() => setPickerOpen(false)}
+            onPick={(c) => {
+              setPickedStudent(c);
+              setPickerOpen(false);
+            }}
+          />
         )}
 
         <div>
@@ -709,9 +802,17 @@ function AnswerRow({
   const flagged = isFlagged(answer);
   const marking = String(answer.omr?.marking || "").toLowerCase();
   const conf = answer.omr?.confidence;
+  const rowRef = useRef<HTMLDivElement | null>(null);
+
+  // focused 상태로 전환 시 뷰포트 안으로 스크롤
+  useEffect(() => {
+    if (!focused) return;
+    rowRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [focused]);
 
   return (
     <div
+      ref={rowRef}
       className={`orw-q-row ${flagged ? "orw-q-row--flag" : ""} ${focused ? "orw-q-row--focused" : ""}`}
       onClick={onFocusRow}
     >

@@ -75,3 +75,22 @@ export async function fetchOmrReviewDetail(submissionId: number): Promise<OmrRev
   const res = await api.get(`/submissions/submissions/${submissionId}/manual-edit/`);
   return res.data as OmrReviewDetail;
 }
+
+/* 학생 picker — OMR 검토용 응시 대상 후보 */
+export type CandidateRow = {
+  enrollment_id: number;
+  student_name: string;
+  student_phone_last4: string;
+  parent_phone_last4: string;
+  lecture_title: string | null;
+  already_matched: boolean;
+};
+
+export async function fetchExamCandidates(
+  examId: number,
+  q: string,
+): Promise<CandidateRow[]> {
+  const params = q.trim() ? `?q=${encodeURIComponent(q.trim())}` : "";
+  const res = await api.get(`/submissions/submissions/exams/${examId}/candidates/${params}`);
+  return (Array.isArray(res.data) ? res.data : []) as CandidateRow[];
+}
