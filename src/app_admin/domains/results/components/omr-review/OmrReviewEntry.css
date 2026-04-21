@@ -1,0 +1,114 @@
+/* ==========================================================================
+ * OMR 검토 진입 배너 — 시험 결과 탭 최상단 노출
+ * ========================================================================== */
+
+.omr-entry {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 18px;
+  border: 1px solid var(--color-border-divider, #e5e7eb);
+  border-radius: 12px;
+  background: var(--color-bg-surface, #ffffff);
+  margin-bottom: 16px;
+}
+
+.omr-entry--pending {
+  border-color: color-mix(in srgb, #f59e0b 35%, #fff);
+  background: color-mix(in srgb, #f59e0b 5%, #fff);
+}
+
+.omr-entry--clean {
+  border-color: var(--color-border-divider, #e5e7eb);
+  background: var(--color-bg-surface-soft, #f9fafb);
+}
+
+.omr-entry__info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+}
+
+.omr-entry__title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-text-primary, #111827);
+}
+
+.omr-entry__status {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  letter-spacing: 0;
+}
+
+.omr-entry__status--pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.omr-entry__status--ok {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.omr-entry__detail {
+  font-size: 12px;
+  color: var(--color-text-muted, #6b7280);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  line-height: 1.5;
+}
+
+.omr-entry__metric {
+  font-weight: 600;
+}
+
+.omr-entry__metric--noid {
+  color: #b45309;
+}
+
+.omr-entry__metric--flag {
+  color: #4338ca;
+}
+
+.omr-entry__cta {
+  flex-shrink: 0;
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: none;
+  background: var(--color-brand-primary, #6366f1);
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter 0.1s;
+  white-space: nowrap;
+}
+
+.omr-entry__cta:hover {
+  filter: brightness(1.05);
+}
+
+.omr-entry--pending .omr-entry__cta {
+  background: #d97706;
+}
+
+.omr-entry__cta--ghost {
+  background: transparent;
+  color: var(--color-text-secondary, #4b5563);
+  border: 1px solid var(--color-border-input, #d1d5db);
+}
+
+.omr-entry__cta--ghost:hover {
+  background: var(--color-bg-surface, #ffffff);
+}

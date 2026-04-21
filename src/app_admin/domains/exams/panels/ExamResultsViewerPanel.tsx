@@ -13,6 +13,7 @@ import type { AdminExamResultRow } from "@admin/domains/results/types/results.ty
 import type { QuestionStat } from "@admin/domains/results/types/results.types";
 import { useAdminExam } from "../hooks/useAdminExam";
 import ExamResultsPanel from "@admin/domains/results/panels/ExamResultsPanel";
+import OmrReviewEntry from "@admin/domains/results/components/omr-review/OmrReviewEntry";
 import { Button, EmptyState } from "@/shared/ui/ds";
 
 type Props = { examId: number };
@@ -128,6 +129,9 @@ export default function ExamResultsViewerPanel({ examId }: Props) {
 
   return (
     <div className="space-y-6">
+      {/* ========== OMR 검토 진입 (운영자 첫 시야) ========== */}
+      <OmrReviewEntry examId={examId} examTitle={exam?.title ?? "시험"} />
+
       {/* ========== 채점결과 섹션 (시험정책과 동일 디자인) ========== */}
       <section className="space-y-6 rounded border border-[var(--border-divider)] bg-[var(--bg-surface)] p-5">
         <div>
