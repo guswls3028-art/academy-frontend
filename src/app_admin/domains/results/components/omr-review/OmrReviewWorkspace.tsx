@@ -479,7 +479,9 @@ function ScanPane({
         {detailLoading ? (
           <div className="orw-loading">불러오는 중…</div>
         ) : !detail ? (
-          <div className="orw-scan-pane__empty">좌측에서 제출을 선택하세요.</div>
+          <div className="orw-scan-pane__empty">
+            학생을 선택하면 스캔 이미지가 여기에 표시됩니다.
+          </div>
         ) : !detail.scan_image_url ? (
           <div className="orw-scan-pane__empty">
             스캔 이미지가 없습니다.
@@ -757,7 +759,7 @@ function EditPane({
   if (!detail) {
     return (
       <div className="orw-edit-pane">
-        <div className="orw-loading">좌측에서 제출을 선택하세요.</div>
+        <div className="orw-loading">학생을 선택하면 답안 수정 폼이 여기에 표시됩니다.</div>
       </div>
     );
   }
