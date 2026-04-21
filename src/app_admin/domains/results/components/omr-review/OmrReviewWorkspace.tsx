@@ -33,7 +33,10 @@ import {
   type OmrReviewDetailAnswer,
   type OmrReviewRow,
 } from "./omrReviewApi";
-import { manualEditSubmissionApi } from "@admin/domains/materials/sheets/components/submissions/submissions.api";
+import {
+  discardSubmissionApi,
+  manualEditSubmissionApi,
+} from "@admin/domains/materials/sheets/components/submissions/submissions.api";
 import StudentPickerModal from "./StudentPickerModal";
 import BBoxOverlay from "./BBoxOverlay";
 import type { CandidateRow } from "./omrReviewApi";
@@ -214,6 +217,18 @@ export default function OmrReviewWorkspace({ examId, examTitle, open, onClose }:
     return () => window.removeEventListener("keydown", onKey);
   }, [open, handleClose]);
 
+  // 브라우저 탭 닫기·새로고침·뒤로가기 — dirty 시 기본 confirm 프롬프트 유도
+  useEffect(() => {
+    if (!open || !editDirty) return;
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      // 크롬/파폭은 returnValue 설정만으로 기본 문구 노출
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [open, editDirty]);
+
   // 학생 이동 (1=다음, -1=이전)
   const navigate = useCallback(
     (dir: 1 | -1) => {
@@ -341,6 +356,12 @@ export default function OmrReviewWorkspace({ examId, examTitle, open, onClose }:
             createdAt={visibleRows.find((r) => r.id === selectedId)?.created_at ?? null}
             focusedQid={focusedQid}
             onPickQuestion={setFocusedQid}
+            onImageLoadError={() => {
+              // presigned URL 만료 등으로 이미지 실패 시 상세 재조회 → 새 URL 받기
+              if (selectedId != null) {
+                qc.invalidateQueries({ queryKey: ["omr-review-detail", selectedId] });
+              }
+            }}
           />
 
           {/* ── RIGHT: 답안 편집 ── */}
@@ -386,6 +407,7 @@ function ScanPane({
   createdAt,
   focusedQid,
   onPickQuestion,
+  onImageLoadError,
 }: {
   detail: OmrReviewDetail | undefined;
   detailLoading: boolean;
@@ -397,9 +419,16 @@ function ScanPane({
   createdAt: string | null;
   focusedQid: number | null;
   onPickQuestion: (qid: number) => void;
+  onImageLoadError?: () => void;
 }) {
   const [imgLoading, setImgLoading] = useState(false);
+  const [imgErrored, setImgErrored] = useState(false);
   const [naturalSize, setNaturalSize] = useState<{ width: number; height: number } | null>(null);
+
+  // submission 바뀌면 에러 플래그 리셋
+  useEffect(() => {
+    setImgErrored(false);
+  }, [detail?.scan_image_url]);
   const imageSize = detail?.scan_image_size ?? naturalSize;
   const hasBBoxData =
     !!detail?.answers?.some(
@@ -479,7 +508,14 @@ function ScanPane({
                     setNaturalSize({ width: el.naturalWidth, height: el.naturalHeight });
                   }
                 }}
-                onError={() => setImgLoading(false)}
+                onError={() => {
+                  setImgLoading(false);
+                  // 한 번만 자동 재조회 (presigned URL 만료 대응). 무한 루프 방지 위해 imgErrored 플래그.
+                  if (!imgErrored) {
+                    setImgErrored(true);
+                    onImageLoadError?.();
+                  }
+                }}
               />
               {hasBBoxData && imageSize && (
                 <BBoxOverlay
@@ -566,7 +602,7 @@ function EditPane({
   }, [dirty, onDirtyChange]);
 
   const mut = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (opts: { allowDuplicate?: boolean } = {}) => {
       if (!detail) throw new Error("no detail");
       const payloadAnswers = Object.entries(answers).map(([qid, ans]) => ({
         exam_question_id: Number(qid),
@@ -581,19 +617,53 @@ function EditPane({
         identifier: idPayload,
         note: "omr_review_ui",
         answers: payloadAnswers,
+        allowDuplicate: opts.allowDuplicate,
       });
     },
     onSuccess: () => onSaved(),
     onError: (e: unknown) => {
-      const err = e as { response?: { data?: { detail?: string } }; message?: string };
+      const err = e as {
+        response?: { status?: number; data?: { detail?: string; code?: string; conflict_submission_id?: number } };
+        message?: string;
+      };
+      const status = err?.response?.status;
+      const code = err?.response?.data?.code;
+      // 409 DUPLICATE_ENROLLMENT — 운영자에게 덮어쓰기 확인 후 재시도
+      if (status === 409 && code === "DUPLICATE_ENROLLMENT") {
+        const conflictId = err?.response?.data?.conflict_submission_id;
+        const ok = window.confirm(
+          `이 학생은 이미 다른 답안지(#${conflictId ?? "?"})에 매칭돼 있습니다.\n\n` +
+            "이 답안지로 덮어쓰기 하시겠어요?\n(기존 답안지는 그대로 남지만 대표 답안지는 변경됩니다.)",
+        );
+        if (ok) {
+          mut.mutate({ allowDuplicate: true });
+        }
+        return;
+      }
       feedback.error(err?.response?.data?.detail || err?.message || "저장 실패");
+    },
+  });
+
+  // 답안지 폐기 (스캔 품질 불량·중복 업로드 등)
+  const discardMut = useMutation({
+    mutationFn: async () => {
+      if (!detail) throw new Error("no detail");
+      return await discardSubmissionApi(detail.submission_id, "operator_discarded");
+    },
+    onSuccess: () => {
+      feedback.success("답안지를 폐기했습니다.");
+      onSaved();
+    },
+    onError: (e: unknown) => {
+      const err = e as { response?: { data?: { detail?: string } }; message?: string };
+      feedback.error(err?.response?.data?.detail || err?.message || "폐기 실패");
     },
   });
 
   // mutate / navigate를 ref로 안정화 → 키보드 effect dep 최소화
   const submitRef = useRef<() => void>(() => {});
   submitRef.current = () => {
-    if (!mut.isPending && dirty) mut.mutate();
+    if (!mut.isPending && dirty) mut.mutate({});
   };
   const navigateRef = useRef<(d: 1 | -1) => void>(() => {});
   navigateRef.current = (d) => onNavigate(d);
@@ -803,14 +873,31 @@ function EditPane({
         <button
           className="orw-save-btn"
           type="button"
-          onClick={() => mut.mutate()}
-          disabled={mut.isPending || !dirty}
+          onClick={() => mut.mutate({})}
+          disabled={mut.isPending || !dirty || discardMut.isPending}
         >
           {mut.isPending
             ? "저장 중…"
             : dirty
               ? "저장 + 재채점"
               : "변경 사항 없음"}
+        </button>
+        <button
+          className="orw-discard-btn"
+          type="button"
+          onClick={() => {
+            if (!detail) return;
+            const ok = window.confirm(
+              "이 답안지를 폐기하시겠습니까?\n\n" +
+                "• 스캔 품질 불량·중복 업로드·채점 대상 아님 등의 이유로 제외할 때 사용합니다.\n" +
+                "• 상태는 \"실패\"로 전환되며 성적에 반영되지 않습니다.",
+            );
+            if (ok) discardMut.mutate();
+          }}
+          disabled={discardMut.isPending || mut.isPending}
+          title="스캔 불량·중복 등으로 채점 제외"
+        >
+          {discardMut.isPending ? "처리 중…" : "답안지 폐기"}
         </button>
       </div>
     </div>

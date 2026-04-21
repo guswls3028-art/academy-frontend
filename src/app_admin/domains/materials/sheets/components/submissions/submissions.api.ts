@@ -19,7 +19,7 @@ export type ExamSubmissionRow = {
 
 export type SubmissionManualEditInput = {
   submissionId: number;
-  identifier?: any;
+  identifier?: { enrollment_id: number | string } | Record<string, unknown> | null;
   note?: string;
   answers: Array<{
     exam_question_id: number;
@@ -46,7 +46,9 @@ export async function retrySubmissionApi(submissionId: number) {
   return res.data;
 }
 
-export async function manualEditSubmissionApi(input: SubmissionManualEditInput) {
+export async function manualEditSubmissionApi(
+  input: SubmissionManualEditInput & { allowDuplicate?: boolean },
+) {
   const sid = Number(input.submissionId);
   if (!Number.isFinite(sid) || sid <= 0) {
     throw new Error("유효하지 않은 submissionId");
@@ -59,14 +61,23 @@ export async function manualEditSubmissionApi(input: SubmissionManualEditInput) 
       answer: String(a.answer ?? ""),
     }));
 
-  const payload: any = {
-    identifier: input.identifier,
+  const payload = {
+    identifier: input.identifier ?? null,
     answers,
     note: String(input.note || "manual_edit"),
   };
 
-  // router: /submissions/submissions/<pk>/manual-edit/
-  const res = await api.post(`/submissions/submissions/${sid}/manual-edit/`, payload);
+  const query = input.allowDuplicate ? "?allow_duplicate=1" : "";
+  const res = await api.post(`/submissions/submissions/${sid}/manual-edit/${query}`, payload);
+  return res.data;
+}
+
+export async function discardSubmissionApi(submissionId: number, reason?: string) {
+  const sid = Number(submissionId);
+  if (!Number.isFinite(sid) || sid <= 0) throw new Error("유효하지 않은 submissionId");
+  const res = await api.post(`/submissions/submissions/${sid}/discard/`, {
+    reason: reason || "operator_discarded",
+  });
   return res.data;
 }
 

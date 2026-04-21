@@ -375,6 +375,20 @@
   display: flex; gap: 8px; align-items: center;
 }
 
+/* 폐기 버튼 */
+.orw-discard-btn {
+  height: 40px; padding: 0 14px;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--color-danger, #dc2626) 32%, #fff);
+  background: #fff;
+  color: var(--color-danger, #b91c1c);
+  font-size: 12px; font-weight: 600;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.orw-discard-btn:hover { background: color-mix(in srgb, var(--color-danger, #dc2626) 6%, #fff); }
+.orw-discard-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
 /* 식별자 블록 */
 .orw-identifier {
   padding: 10px 12px;
