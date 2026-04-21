@@ -15,12 +15,14 @@
  * - 전역 상태 / store 사용
  */
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 
 import AdminExamResultsTable from "../components/AdminExamResultsTable";
 import StudentResultDrawer from "../components/StudentResultDrawer";
+import OmrReviewWorkspace from "../components/omr-review/OmrReviewWorkspace";
+import { listOmrReviewRows } from "../components/omr-review/omrReviewApi";
 
 import api from "@/shared/api/axios";
 import type { AdminExamResultRow } from "../types/results.types";
@@ -65,6 +67,8 @@ export default function ExamResultsPanel({ examId }: Props) {
         : null
     );
 
+  const [reviewOpen, setReviewOpen] = useState(false);
+
   const { data: exam } = useAdminExam(examId);
 
   const { data, isLoading, isError } = useQuery({
@@ -72,6 +76,30 @@ export default function ExamResultsPanel({ examId }: Props) {
     queryFn: () => fetchAdminExamResults(examId),
     enabled: Number.isFinite(examId),
   });
+
+  // OMR 제출 현황 (운영자 개입 배지용)
+  const { data: omrRows = [] } = useQuery({
+    queryKey: ["omr-review-list", examId],
+    queryFn: () => listOmrReviewRows(examId),
+    enabled: Number.isFinite(examId),
+    refetchInterval: 15000,
+  });
+
+  const reviewBadge = useMemo(() => {
+    let pending = 0;
+    let needsId = 0;
+    for (const r of omrRows) {
+      const st = String(r.status || "").toLowerCase();
+      const ids = String(r.identifier_status || "").toLowerCase();
+      if (st === "needs_identification" || ids === "no_match" || ids === "missing") {
+        needsId++;
+        pending++;
+      } else if (r.manual_review_required || st === "failed") {
+        pending++;
+      }
+    }
+    return { pending, needsId, total: omrRows.length };
+  }, [omrRows]);
 
   if (isLoading) {
     return <EmptyState scope="panel" tone="loading" title="성적 불러오는 중…" />;
@@ -82,48 +110,110 @@ export default function ExamResultsPanel({ examId }: Props) {
   }
 
   const rows: AdminExamResultRow[] = data ?? [];
-
-  if (rows.length === 0) {
-    return <EmptyState scope="panel" tone="empty" title="제출된 성적이 없습니다." />;
-  }
+  const hasResults = rows.length > 0;
 
   const selectedRow = selectedEnrollmentId != null
     ? rows.find((r) => r.enrollment_id === selectedEnrollmentId) ?? null
     : null;
   const examTitle = exam?.title ?? "시험";
 
+  // 성적도 없고 OMR 제출도 없으면 기존 빈 상태 유지
+  if (!hasResults && reviewBadge.total === 0) {
+    return <EmptyState scope="panel" tone="empty" title="제출된 성적이 없습니다." />;
+  }
+
   return (
-    <div className="flex h-[calc(100vh-260px)] gap-4">
-      {/* ================= LEFT: 학생 리스트 ================= */}
-      <div className="w-[420px] shrink-0 overflow-auto border-r">
-        <AdminExamResultsTable
-          rows={rows}
-          onSelectEnrollment={setSelectedEnrollmentId}
-        />
+    <div className="flex h-[calc(100vh-260px)] flex-col gap-3">
+      {reviewBadge.total > 0 && (
+        <div
+          className="flex items-center justify-between gap-3 rounded-xl border px-4 py-2.5"
+          style={{
+            background:
+              reviewBadge.pending > 0
+                ? "color-mix(in srgb, #f59e0b 6%, #fff)"
+                : "color-mix(in srgb, #10b981 6%, #fff)",
+            borderColor:
+              reviewBadge.pending > 0
+                ? "color-mix(in srgb, #f59e0b 30%, #fff)"
+                : "color-mix(in srgb, #10b981 30%, #fff)",
+          }}
+        >
+          <div className="text-sm" style={{ color: "#374151" }}>
+            <b>📋 OMR 제출 {reviewBadge.total}건</b>
+            {reviewBadge.pending > 0 ? (
+              <span style={{ marginLeft: 10, color: "#b45309" }}>
+                검토 필요 {reviewBadge.pending}건
+                {reviewBadge.needsId > 0 && ` · 식별실패 ${reviewBadge.needsId}건`}
+              </span>
+            ) : (
+              <span style={{ marginLeft: 10, color: "#047857" }}>
+                전건 정상
+              </span>
+            )}
+          </div>
+          <button
+            type="button"
+            className="ds-status-badge"
+            data-tone={reviewBadge.pending > 0 ? "warning" : "success"}
+            style={{ cursor: "pointer", fontSize: 12, padding: "6px 14px" }}
+            onClick={() => setReviewOpen(true)}
+          >
+            OMR 검토 열기 →
+          </button>
+        </div>
+      )}
+
+      <div className="flex flex-1 gap-4 min-h-0">
+        {/* ================= LEFT: 학생 리스트 ================= */}
+        <div className="w-[420px] shrink-0 overflow-auto border-r">
+          {hasResults ? (
+            <AdminExamResultsTable
+              rows={rows}
+              onSelectEnrollment={setSelectedEnrollmentId}
+            />
+          ) : (
+            <div className="p-8 text-center text-sm" style={{ color: "#6b7280" }}>
+              아직 채점된 성적이 없습니다.
+              <br />
+              상단에서 OMR 검토를 열어 식별·수정을 진행하세요.
+            </div>
+          )}
+        </div>
+
+        {/* ================= RIGHT: 빈 안내 또는 드로어 오버레이 ================= */}
+        {selectedEnrollmentId == null ? (
+          <div className="flex-1 flex items-center justify-center overflow-auto">
+            <EmptyState
+              scope="panel"
+              tone="empty"
+              mode="embedded"
+              title={hasResults ? "학생을 선택하세요" : "OMR 검토 후 결과가 표시됩니다"}
+              description={
+                hasResults
+                  ? "목록에서 학생을 클릭하면 우측에 답안지·오답노트 상세가 드로어로 열립니다."
+                  : "식별실패/검토필요 제출을 상단 ‘OMR 검토 열기’로 해결하면 성적이 자동 집계됩니다."
+              }
+            />
+          </div>
+        ) : (
+          selectedRow && (
+            <StudentResultDrawer
+              examId={examId}
+              enrollmentId={selectedEnrollmentId}
+              studentName={selectedRow.student_name ?? "학생"}
+              examTitle={examTitle}
+              onClose={() => setSelectedEnrollmentId(null)}
+            />
+          )
+        )}
       </div>
 
-      {/* ================= RIGHT: 빈 안내 또는 드로어 오버레이 ================= */}
-      {selectedEnrollmentId == null ? (
-        <div className="flex-1 flex items-center justify-center overflow-auto">
-          <EmptyState
-            scope="panel"
-            tone="empty"
-            mode="embedded"
-            title="학생을 선택하세요"
-            description="목록에서 학생을 클릭하면 우측에 답안지·오답노트 상세가 드로어로 열립니다."
-          />
-        </div>
-      ) : (
-        selectedRow && (
-          <StudentResultDrawer
-            examId={examId}
-            enrollmentId={selectedEnrollmentId}
-            studentName={selectedRow.student_name ?? "학생"}
-            examTitle={examTitle}
-            onClose={() => setSelectedEnrollmentId(null)}
-          />
-        )
-      )}
+      <OmrReviewWorkspace
+        examId={examId}
+        examTitle={examTitle}
+        open={reviewOpen}
+        onClose={() => setReviewOpen(false)}
+      />
     </div>
   );
 }

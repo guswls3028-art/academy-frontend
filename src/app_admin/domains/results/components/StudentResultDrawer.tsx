@@ -31,9 +31,15 @@ function isChoiceAnswer(a: string): boolean {
 function getScanImageUrl(items: ExamResultItem[]): string {
   for (const it of items) {
     const m = it.meta;
-    const candidates = [m?.omr?.image_url, m?.omr?.imageUrl, m?.image_url, m?.imageUrl, m?.omr?.page_image_url];
+    const candidates: unknown[] = [
+      m?.omr?.image_url,
+      m?.omr?.imageUrl,
+      m?.image_url,
+      m?.imageUrl,
+      m?.omr?.page_image_url,
+    ];
     const hit = candidates.find((v) => typeof v === "string" && v.length > 0);
-    if (hit) return hit;
+    if (typeof hit === "string") return hit;
   }
   return "";
 }
@@ -77,7 +83,10 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
   const attempts = attemptData?.attempts ?? [];
   const maxAttempt = attempts.length > 0 ? Math.max(...attempts.map((a) => a.attempt_index)) : 1;
   const items1st = detail?.items ?? [];
-  const scanImageUrl = useMemo(() => getScanImageUrl(items1st), [items1st]);
+  const scanImageUrl = useMemo(
+    () => detail?.scan_image_url || getScanImageUrl(items1st),
+    [detail?.scan_image_url, items1st],
+  );
 
   const mergedItems: ExamResultItem[] = useMemo(() => {
     const itemMap = new Map(items1st.map((it) => [it.question_id, it]));

@@ -14,6 +14,25 @@
 import api from "@/shared/api/axios";
 import type { EditState } from "../types/editState";
 
+export type OmrAnswerMeta = {
+  version?: string;
+  detected?: (string | number)[];
+  marking?: "single" | "blank" | "multi" | string;
+  confidence?: number;
+  status?: "ok" | string;
+  // Legacy fallback 경로 (서버 구버전에서 주입된 경우에만 사용)
+  image_url?: string;
+  imageUrl?: string;
+  page_image_url?: string;
+};
+
+export type ManualReviewMeta = {
+  required?: boolean;
+  reasons?: string[];
+  updated_at?: string | null;
+  resolved_at?: string | null;
+};
+
 export type ExamResultItem = {
   question_id: number;
   answer: string;
@@ -31,7 +50,10 @@ export type ExamResultItem = {
   /** 정답 (AnswerKey 기반, 선택형="1"~"5", 서술형=텍스트) */
   correct_answer?: string;
 
-  meta?: any;
+  meta?: {
+    omr?: OmrAnswerMeta;
+    [key: string]: unknown;
+  };
 };
 
 export type ExamResultDetail = {
@@ -56,6 +78,21 @@ export type ExamResultDetail = {
 
   /** 정답표: key=ExamQuestion.id(string), value=정답 */
   correct_answers?: Record<string, string>;
+
+  /** OMR 스캔 원본 presigned URL (없으면 "") */
+  scan_image_url?: string;
+
+  /** 스캔 제출 기준 submission id (manual-edit API 호출용) */
+  submission_id?: number | null;
+
+  /** Submission 상태 (answers_ready / needs_identification / failed 등) */
+  submission_status?: string | null;
+
+  /** 수동 검토 필요 여부 + 사유 */
+  manual_review?: ManualReviewMeta | null;
+
+  /** identifier_status: matched / detected / no_match / missing */
+  identifier_status?: string | null;
 };
 
 export async function fetchAdminExamResultDetail(
