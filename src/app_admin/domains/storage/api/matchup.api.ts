@@ -5,6 +5,13 @@ import api from "@/shared/api/axios";
 
 // ── Types ──
 
+export type SegmentationMethod = "text" | "ocr" | "mixed" | "image" | "none";
+
+export type MatchupDocumentMeta = {
+  segmentation_method?: SegmentationMethod;
+  [key: string]: unknown;
+};
+
 export type MatchupDocument = {
   id: number;
   title: string;
@@ -17,6 +24,8 @@ export type MatchupDocument = {
   ai_job_id: string;
   problem_count: number;
   error_message: string;
+  // null: 기존 문서(migration 이전) 호환. `doc.meta?.field` 접근 필수.
+  meta: MatchupDocumentMeta | null;
   created_at: string;
   updated_at: string;
 };

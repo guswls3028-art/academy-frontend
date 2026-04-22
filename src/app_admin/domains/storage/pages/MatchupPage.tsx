@@ -36,8 +36,8 @@ export default function MatchupPage() {
     queryFn: fetchMatchupDocuments,
   });
 
-  // 진행률 폴링
-  useMatchupPolling(documents);
+  // 진행률 폴링 + doc별 percent 맵
+  const progressMap = useMatchupPolling(documents);
 
   // ── 문제 목록 ──
   const selectedDoc = documents.find((d) => d.id === selectedDocId);
@@ -52,7 +52,7 @@ export default function MatchupPage() {
     async (payload: { file: File; title: string; subject: string; grade_level: string }) => {
       await uploadMatchupDocument(payload);
       qc.invalidateQueries({ queryKey: ["matchup-documents"] });
-      feedback.success("문서가 업로드되었습니다. AI가 문제를 분석 중입니다. (약 10~30초)");
+      feedback.success("업로드 완료. AI가 문제를 분석 중입니다. 진행률은 목록에서 실시간으로 확인됩니다.");
     },
     [qc],
   );
@@ -127,6 +127,7 @@ export default function MatchupPage() {
               onUpload={() => setUploadOpen(true)}
               onDelete={handleDelete}
               onRetry={handleRetry}
+              progressMap={progressMap}
             />
           </div>
 
@@ -144,7 +145,7 @@ export default function MatchupPage() {
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)", height: "100%" }}>
                 {/* 문서 제목 */}
-                <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", flexShrink: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", flexShrink: 0, flexWrap: "wrap" }}>
                   <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "var(--color-text-primary)" }}>
                     {selectedDoc?.title}
                   </h3>
@@ -155,6 +156,27 @@ export default function MatchupPage() {
                       color: "var(--color-brand-primary)", fontWeight: 600,
                     }}>
                       {selectedDoc.subject}
+                    </span>
+                  )}
+                  {selectedDoc?.status === "done" && selectedDoc.meta?.segmentation_method === "none" && (
+                    <span
+                      title="문제 영역을 찾지 못해 페이지 단위로 처리되었습니다. 원본 품질이 낮거나 레이아웃이 특이한 경우일 수 있습니다."
+                      style={{
+                        fontSize: 11, padding: "2px 8px", borderRadius: 4,
+                        background: "color-mix(in srgb, var(--color-warning) 12%, transparent)",
+                        color: "var(--color-warning)", fontWeight: 600,
+                      }}
+                    >
+                      문제 미검출 — 페이지 단위 처리됨
+                    </span>
+                  )}
+                  {selectedDoc?.status === "processing" && progressMap[selectedDoc.id] && progressMap[selectedDoc.id].percent > 0 && (
+                    <span style={{
+                      fontSize: 11, padding: "2px 8px", borderRadius: 4,
+                      background: "color-mix(in srgb, var(--color-brand-primary) 10%, transparent)",
+                      color: "var(--color-brand-primary)", fontWeight: 600,
+                    }}>
+                      {progressMap[selectedDoc.id].stepName} {Math.round(progressMap[selectedDoc.id].percent)}%
                     </span>
                   )}
                 </div>
