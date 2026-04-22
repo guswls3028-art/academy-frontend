@@ -3,8 +3,11 @@
 //
 // 역할:
 //  - status === "processing" 문서들의 AI job 진행률을 3초 간격 폴링
-//  - 완료/실패(100%) 감지 시 문서 목록 invalidate
+//  - 완료(status=DONE)/실패(FAILED) 감지 시 문서 목록 invalidate
 //  - 각 doc_id별 진행률(percent, step_name_display)을 반환 → UI에서 표시
+//
+// 응답 구조: { status, progress: {percent, step_name_display, ...}|null }
+// 작업이 너무 빨리 끝나면 progress=null + status=DONE 으로 돌아와서 percent 증가 없이 바로 완료됨.
 
 import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -33,7 +36,6 @@ export function useMatchupPolling(documents: MatchupDocument[]): DocProgressMap 
   useEffect(() => {
     if (processingDocs.length === 0) {
       if (intervalRef.current) clearInterval(intervalRef.current);
-      // 처리중 문서 없을 때 진행률 맵 정리
       setProgressMap({});
       return;
     }
@@ -44,14 +46,25 @@ export function useMatchupPolling(documents: MatchupDocument[]): DocProgressMap 
       let anyComplete = false;
       const next: DocProgressMap = {};
       for (const doc of processingDocs) {
-        const progress = await fetchJobProgress(doc.ai_job_id);
-        if (!progress) continue;
-        const pct = typeof progress.percent === "number" ? progress.percent : 0;
-        next[doc.id] = {
-          percent: pct,
-          stepName: progress.step_name_display || progress.step || "처리 중",
-        };
-        if (pct >= 100) anyComplete = true;
+        const env = await fetchJobProgress(doc.ai_job_id);
+        if (!env) continue;
+
+        // 완료/실패 감지 — DB status는 API 응답에서 이미 업데이트되어 있음
+        if (env.status === "DONE" || env.status === "FAILED" || env.status === "CANCELLED") {
+          anyComplete = true;
+          continue;
+        }
+
+        // 진행률 표시 — progress 객체가 있을 때만
+        const p = env.progress;
+        if (p) {
+          const pct = typeof p.percent === "number" ? p.percent : 0;
+          next[doc.id] = {
+            percent: pct,
+            stepName: p.step_name_display || p.step || "처리 중",
+          };
+          if (pct >= 100) anyComplete = true;
+        }
       }
       if (cancelled) return;
       setProgressMap((prev) => ({ ...prev, ...next }));

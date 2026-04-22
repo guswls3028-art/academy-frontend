@@ -146,21 +146,32 @@ export async function getMatchupProblemPresignUrl(
 }
 
 // ── Job Progress (기존 인프라 재사용) ──
+//
+// /jobs/<id>/progress/ 응답은 래핑 구조:
+//   { job_id, job_type, status: "PENDING"|"RUNNING"|"DONE"|"FAILED", progress: {...}|null, result?: {...} }
+// 안쪽 progress 필드에 percent/step이 있고, 작업이 완료되면 progress=null + status=DONE.
 
-export type JobProgress = {
-  step: string;
-  percent: number;
+export type JobProgressInner = {
+  step?: string;
+  percent?: number;
   step_index?: number;
   step_total?: number;
   step_name_display?: string;
   step_percent?: number;
 };
 
+export type JobProgressEnvelope = {
+  job_id: string;
+  job_type?: string;
+  status: "PENDING" | "RUNNING" | "DONE" | "FAILED" | "CANCELLED" | string;
+  progress: JobProgressInner | null;
+};
+
 export async function fetchJobProgress(
   jobId: string,
-): Promise<JobProgress | null> {
+): Promise<JobProgressEnvelope | null> {
   try {
-    const { data } = await api.get<JobProgress>(`/jobs/${jobId}/progress/`);
+    const { data } = await api.get<JobProgressEnvelope>(`/jobs/${jobId}/progress/`);
     return data;
   } catch {
     return null;
