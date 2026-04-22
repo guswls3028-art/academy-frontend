@@ -166,10 +166,16 @@ export default function DocumentList({
                   )}
 
                   {doc.subject && (
-                    <span style={{
-                      fontSize: 10, padding: "1px 6px", borderRadius: 4,
-                      background: "var(--color-bg-surface-soft)", color: "var(--color-text-muted)",
-                    }}>
+                    <span
+                      title="과목"
+                      style={{
+                        fontSize: 10, padding: "1px 6px", borderRadius: 4,
+                        // 진행률(파란색)/세그멘테이션(색상별)과 구분되는 뉴트럴 그레이
+                        background: "var(--color-bg-surface-soft)",
+                        color: "var(--color-text-secondary)",
+                        border: "1px solid var(--color-border-divider)",
+                      }}
+                    >
                       {doc.subject}
                     </span>
                   )}

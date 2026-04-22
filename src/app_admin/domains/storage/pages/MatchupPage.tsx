@@ -150,11 +150,17 @@ export default function MatchupPage() {
                     {selectedDoc?.title}
                   </h3>
                   {selectedDoc?.subject && (
-                    <span style={{
-                      fontSize: 11, padding: "2px 8px", borderRadius: 4,
-                      background: "color-mix(in srgb, var(--color-brand-primary) 8%, var(--color-bg-surface))",
-                      color: "var(--color-brand-primary)", fontWeight: 600,
-                    }}>
+                    <span
+                      title="과목"
+                      style={{
+                        fontSize: 11, padding: "2px 8px", borderRadius: 4,
+                        // 우측 상세 과목 뱃지 — 진행률/세그멘테이션과 구분되는 뉴트럴 톤
+                        background: "var(--color-bg-surface-soft)",
+                        color: "var(--color-text-secondary)",
+                        border: "1px solid var(--color-border-divider)",
+                        fontWeight: 600,
+                      }}
+                    >
                       {selectedDoc.subject}
                     </span>
                   )}
@@ -197,6 +203,8 @@ export default function MatchupPage() {
                       selectedProblemId={selectedProblemId}
                       onSelectProblem={setSelectedProblemId}
                       documentStatus={selectedDoc?.status}
+                      progressPercent={selectedDoc ? progressMap[selectedDoc.id]?.percent : undefined}
+                      progressStepName={selectedDoc ? progressMap[selectedDoc.id]?.stepName : undefined}
                     />
                   </div>
 

@@ -218,10 +218,12 @@ export default function DocumentUploadModal({ onClose, onUpload }: Props) {
             style={{
               border: dropZoneBorder,
               borderRadius: "var(--radius-lg)",
-              padding: "var(--space-6)", textAlign: "center", cursor: "pointer",
+              // 파일 선택된 이후엔 세로 여백을 줄여서 메타데이터 입력 영역 확보
+              padding: entries.length === 0 ? "var(--space-6)" : "var(--space-4)",
+              textAlign: "center", cursor: "pointer",
               marginBottom: "var(--space-3)",
               background: dropZoneBg,
-              transition: "border-color 0.2s, background 0.2s",
+              transition: "border-color 0.2s, background 0.2s, padding 0.2s",
             }}
             onClick={() => inputRef.current?.click()}
           >
@@ -253,14 +255,14 @@ export default function DocumentUploadModal({ onClose, onUpload }: Props) {
             />
           </div>
 
-          {/* 파일 목록 (썸네일 72px) */}
+          {/* 파일 목록 (썸네일 72px) — 3개 초과면 내부 스크롤 */}
           {entries.length > 0 && (
             <div style={{
               marginBottom: "var(--space-3)",
               border: "1px solid var(--color-border-divider)",
               borderRadius: "var(--radius-md)",
               padding: "var(--space-2)",
-              maxHeight: 280, overflow: "auto",
+              maxHeight: 208, overflow: "auto",
             }}>
               <p style={{ margin: "0 0 var(--space-2)", fontSize: 11, color: "var(--color-text-muted)" }}>
                 업로드 순서 (위→아래). ↑↓ 버튼으로 변경 가능.
