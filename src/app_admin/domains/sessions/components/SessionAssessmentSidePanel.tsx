@@ -336,7 +336,7 @@ export default function SessionAssessmentSidePanel({
     (async () => {
       try {
         // Fetch all sessions for this lecture to find next session date
-        const res = await api.get(`/lectures/${lectureId}/sessions/`);
+        const res = await api.get(`/lectures/sessions/?lecture=${lectureId}`);
         const sessions = (res.data?.results ?? res.data ?? []) as { id: number; date?: string | null; order: number }[];
         const current = sessions.find((s) => s.id === sessionId);
         if (!current?.date) return;
