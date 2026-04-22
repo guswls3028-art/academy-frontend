@@ -255,6 +255,21 @@ export default function DocumentUploadModal({ onClose, onUpload }: Props) {
             />
           </div>
 
+          {/* 병합 안내 — 파일 영역과 form 사이 배치. 사용자가 가장 먼저 읽는 동선. */}
+          {willMerge && (
+            <div style={{
+              marginBottom: "var(--space-3)",
+              padding: "6px var(--space-3)",
+              background: "color-mix(in srgb, var(--color-brand-primary) 6%, transparent)",
+              borderRadius: "var(--radius-sm)",
+              fontSize: 12, color: "var(--color-brand-primary)",
+              display: "flex", alignItems: "center", gap: "var(--space-2)",
+            }}>
+              <ImageIcon size={14} />
+              <span>자동으로 1개 PDF로 합쳐서 업로드됩니다</span>
+            </div>
+          )}
+
           {/* 파일 목록 (썸네일 72px) — 3개 초과면 내부 스크롤 */}
           {entries.length > 0 && (
             <div style={{
@@ -262,7 +277,7 @@ export default function DocumentUploadModal({ onClose, onUpload }: Props) {
               border: "1px solid var(--color-border-divider)",
               borderRadius: "var(--radius-md)",
               padding: "var(--space-2)",
-              maxHeight: 208, overflow: "auto",
+              maxHeight: 180, overflow: "auto",
             }}>
               <p style={{ margin: "0 0 var(--space-2)", fontSize: 11, color: "var(--color-text-muted)" }}>
                 업로드 순서 (위→아래). ↑↓ 버튼으로 변경 가능.
@@ -385,30 +400,15 @@ export default function DocumentUploadModal({ onClose, onUpload }: Props) {
           </div>
         </div>
 
-        {/* Footer (sticky) */}
+        {/* Footer (sticky) — 액션 버튼 전용, 높이 최소화 */}
         <div style={{
-          padding: "var(--space-3) var(--space-6) var(--space-5)",
+          padding: "var(--space-3) var(--space-6) var(--space-4)",
           borderTop: "1px solid var(--color-border-divider)",
           flexShrink: 0,
           background: "var(--color-bg-surface)",
           borderBottomLeftRadius: "var(--radius-xl)",
           borderBottomRightRadius: "var(--radius-xl)",
         }}>
-          {/* 병합 안내 (버튼 바로 위) */}
-          {willMerge && (
-            <div style={{
-              marginBottom: "var(--space-3)",
-              padding: "var(--space-2) var(--space-3)",
-              background: "color-mix(in srgb, var(--color-brand-primary) 6%, transparent)",
-              borderRadius: "var(--radius-sm)",
-              fontSize: 12, color: "var(--color-brand-primary)",
-              display: "flex", alignItems: "center", gap: "var(--space-2)",
-            }}>
-              <ImageIcon size={14} />
-              <span>자동으로 1개 PDF로 합쳐서 업로드됩니다</span>
-            </div>
-          )}
-
           <div style={{ display: "flex", justifyContent: "flex-end", gap: "var(--space-2)" }}>
             <Button intent="ghost" size="sm" onClick={onClose} disabled={uploading}>
               취소
