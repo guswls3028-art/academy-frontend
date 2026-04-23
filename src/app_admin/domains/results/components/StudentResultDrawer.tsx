@@ -19,6 +19,11 @@ import { patchExamItemScore } from "@admin/domains/scores/api/patchItemScore";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import WrongNotePanel from "./WrongNotePanel";
+import {
+  deriveAchievement,
+  achievementLabel,
+  achievementTone,
+} from "@/shared/scoring/achievement";
 import "./StudentResultDrawer.css";
 
 const CHOICES = ["1", "2", "3", "4", "5"];
@@ -176,6 +181,41 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
             <div className="srd-modal__header-inner">
               <h1 className="srd-modal__title">{examTitle} 답안 상세</h1>
               <span className="srd-modal__student-badge"><StudentNameWithLectureChip name={studentName} enrollmentId={enrollmentId} /></span>
+              {(() => {
+                if (!detail) return null;
+                const ach = deriveAchievement({
+                  achievement: detail.achievement,
+                  is_pass: detail.passed,
+                  remediated: detail.remediated,
+                  final_pass: detail.final_pass,
+                  meta_status: detail.meta_status,
+                });
+                if (!ach) return null;
+                return (
+                  <span
+                    className="ds-status-badge"
+                    data-tone={achievementTone(ach)}
+                    title={
+                      ach === "REMEDIATED"
+                        ? "1차 불합격 후 클리닉 재시험/수동 해소로 통과"
+                        : undefined
+                    }
+                    style={{ marginLeft: 8, fontSize: 11 }}
+                  >
+                    {achievementLabel(ach)}
+                  </span>
+                );
+              })()}
+              {detail?.is_provisional && (
+                <span
+                  className="ds-status-badge"
+                  data-tone="warn"
+                  title="채점 미확정 — 임시 점수"
+                  style={{ marginLeft: 6, fontSize: 11 }}
+                >
+                  임시 점수
+                </span>
+              )}
             </div>
             {/* 편집 모드 표시 */}
             {isEditMode && !hasData && (
@@ -186,6 +226,40 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
               <button type="button" className="srd-modal__done-btn" onClick={exitEdit}>완료</button>
             )}
           </header>
+
+          {/* 보강 합격 안내 배너: 1차 불합격 → 클리닉 해소 */}
+          {detail?.remediated && detail.clinic_retake && (
+            <div
+              className="srd-modal__remediated-banner"
+              style={{
+                padding: "8px 16px",
+                fontSize: 12,
+                background: "var(--color-warn-bg, #fef3c7)",
+                color: "var(--color-warn-text, #92400e)",
+                borderBottom: "1px solid var(--color-warn, #f59e0b)",
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+              }}
+            >
+              <span style={{ fontWeight: 700 }}>보강 합격</span>
+              <span>
+                1차 점수 {detail.total_score}점(미달) → 클리닉 재시험
+                {typeof detail.clinic_retake.score === "number"
+                  ? ` ${detail.clinic_retake.score}점`
+                  : ""}
+                {typeof detail.clinic_retake.pass_score === "number"
+                  ? ` / 기준 ${detail.clinic_retake.pass_score}점`
+                  : ""}
+                {" 통과"}
+              </span>
+              {detail.clinic_retake.resolution_type === "MANUAL_OVERRIDE" && (
+                <span style={{ marginLeft: "auto", fontSize: 11, opacity: 0.8 }}>
+                  관리자 수동 해소
+                </span>
+              )}
+            </div>
+          )}
 
           {/* ── 시도 차수 탭 (2차 이상 있을 때만) ── */}
           {maxAttempt >= 2 && (

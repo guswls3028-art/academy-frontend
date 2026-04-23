@@ -27,6 +27,11 @@ import FrontResultStatusBadge from "../components/FrontResultStatusBadge";
 import EditReasonInput from "@admin/domains/results/components/EditReasonInput";
 
 import { deriveFrontResultStatusFromDetail } from "../utils/deriveFrontResultStatusFromDetail";
+import {
+  deriveAchievement,
+  achievementLabel,
+  achievementTone,
+} from "@/shared/scoring/achievement";
 
 type Props = {
   examId: number;
@@ -56,6 +61,14 @@ export default function StudentResultPanel({ examId, enrollmentId }: Props) {
   const canEdit = editState.can_edit && !editState.is_locked;
 
   const headerStatus = deriveFrontResultStatusFromDetail(data);
+  const achievement = deriveAchievement({
+    achievement: data.achievement,
+    is_pass: data.passed,
+    remediated: data.remediated,
+    final_pass: data.final_pass,
+    meta_status: data.meta_status,
+  });
+  const clinicRetake = data.clinic_retake;
 
   return (
     <div className={`flex h-full flex-col ${mode === "edit" ? "bg-blue-50/20" : ""}`}>
@@ -67,9 +80,31 @@ export default function StudentResultPanel({ examId, enrollmentId }: Props) {
               enrollment #{data.enrollment_id}
             </div>
 
-            <div className="text-xs text-gray-500">
-              총점 {data.total_score}/{data.max_score}
+            <div className="text-xs text-gray-500 flex items-center gap-2">
+              <span>
+                총점 {data.total_score}/{data.max_score}
+              </span>
+              {data.is_provisional && (
+                <span
+                  className="ds-status-badge"
+                  data-tone="warn"
+                  title="채점 미확정 — 임시 점수"
+                  style={{ fontSize: 10 }}
+                >
+                  임시 점수
+                </span>
+              )}
             </div>
+
+            {clinicRetake && (
+              <div className="text-xs" style={{ color: "var(--color-success-text, #059669)" }}>
+                보강 합격 · 재시험{" "}
+                {typeof clinicRetake.score === "number" ? `${clinicRetake.score}점` : "통과"}
+                {typeof clinicRetake.pass_score === "number" && (
+                  <> / 기준 {clinicRetake.pass_score}점</>
+                )}
+              </div>
+            )}
 
             {editState.is_locked && (
               <div className="text-xs text-red-600">
@@ -79,6 +114,19 @@ export default function StudentResultPanel({ examId, enrollmentId }: Props) {
           </div>
 
           <div className="flex items-center gap-3">
+            {achievement && (
+              <span
+                className="ds-status-badge"
+                data-tone={achievementTone(achievement)}
+                title={
+                  achievement === "REMEDIATED"
+                    ? "1차 불합격 후 클리닉 재시험/수동 해소로 통과"
+                    : undefined
+                }
+              >
+                {achievementLabel(achievement)}
+              </span>
+            )}
             <FrontResultStatusBadge status={headerStatus} />
 
             {mode === "read" ? (

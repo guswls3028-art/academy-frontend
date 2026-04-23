@@ -13,6 +13,8 @@
 
 import api from "@/shared/api/axios";
 import type { EditState } from "../types/editState";
+import type { Achievement } from "@/shared/scoring/achievement";
+import type { ClinicRetakeInfo } from "../types/results.types";
 
 export type OmrAnswerMeta = {
   version?: string;
@@ -93,6 +95,23 @@ export type ExamResultDetail = {
 
   /** identifier_status: matched / detected / no_match / missing */
   identifier_status?: string | null;
+
+  /**
+   * ✅ 성취 SSOT (backend compute_exam_achievement 결과)
+   * - passed: 1차 합격 기준(석차용).
+   * - remediated: 1차 불합격 + 클리닉 해소.
+   * - final_pass: 1차 OR remediated.
+   * - achievement: 뱃지 분류 (PASS/REMEDIATED/FAIL/NOT_SUBMITTED).
+   * - clinic_retake: 재시험 점수/해소 시각.
+   * - is_provisional: 채점 미확정.
+   */
+  passed?: boolean | null;
+  remediated?: boolean | null;
+  final_pass?: boolean | null;
+  achievement?: Achievement | null;
+  clinic_retake?: ClinicRetakeInfo | null;
+  is_provisional?: boolean;
+  meta_status?: string | null;
 };
 
 export async function fetchAdminExamResultDetail(

@@ -96,12 +96,20 @@ export default function ResultsStatsTab() {
     questionId: q.question_id,
   }));
 
-  // Sorted results for ranking
-  const rankedResults = [...(results ?? [])].sort(
-    (a: any, b: any) =>
+  // 석차 정책: 서버가 계산한 1차 점수 기준 rank를 신뢰한다.
+  // 클라이언트에서 final_score(= 재응시로 덮어써진 점수)로 재정렬하면
+  // "석차=1차" 정책이 깨진다. rank 필드를 오름차순으로 정렬하고,
+  // rank가 없는 행(미응시/미집계)은 뒤로.
+  const rankedResults = [...(results ?? [])].sort((a: any, b: any) => {
+    const ra = typeof a.rank === "number" ? a.rank : Infinity;
+    const rb = typeof b.rank === "number" ? b.rank : Infinity;
+    if (ra !== rb) return ra - rb;
+    // tie-break: 점수 높은 순 (cosmetic — rank가 같으면 점수도 같은 dense_rank)
+    return (
       (b.final_score ?? b.exam_score ?? b.total_score ?? 0) -
       (a.final_score ?? a.exam_score ?? a.total_score ?? 0)
-  );
+    );
+  });
 
   // Score distribution (만점 기준 10등분)
   const distribution = (() => {
@@ -449,16 +457,17 @@ export default function ResultsStatsTab() {
                             <div className="flex items-center gap-2 min-w-0">
                               <span
                                 className="shrink-0 text-[12px] font-bold"
+                                title="서버 계산 석차(1차 점수 기준)"
                                 style={{
                                   width: 24,
                                   textAlign: "center",
                                   color:
-                                    idx < 3
+                                    typeof r.rank === "number" && r.rank <= 3
                                       ? "var(--tc-primary)"
                                       : "var(--tc-text-muted)",
                                 }}
                               >
-                                {idx + 1}
+                                {typeof r.rank === "number" ? r.rank : idx + 1}
                               </span>
                               <span
                                 className="truncate"

@@ -1,19 +1,41 @@
 /**
  * 성적 행(SessionScoreRow)의 미달·판정 표시 단일 진실.
  * StudentScoresDrawer(미달 항목·최종 판정)과 ScoresTable「판정」열이 동일 규칙을 쓰도록 한다.
+ *
+ * 정책:
+ * - 판정/미달은 "성취" 기준. 보강합격(remediated/final_pass=true)은 미달이 아니다.
+ * - `block.achievement`/`block.final_pass`가 내려오면 이를 우선 신뢰.
+ * - 미응시/점수 null은 여전히 미달(= 성적 입력 미완료)으로 처리해 운영자가 놓치지 않도록.
  */
-import type { SessionScoreRow } from "../api/sessionScores";
+import type { ScoreBlock, SessionScoreRow } from "../api/sessionScores";
+import { deriveFinalPass } from "@/shared/scoring/achievement";
+
+function blockIsFailed(block: ScoreBlock): boolean {
+  // 점수가 없으면 미달 (성적 입력 안 됨)
+  if (block.score == null) return true;
+  const fp = deriveFinalPass({
+    achievement: block.achievement ?? null,
+    is_pass: block.passed ?? null,
+    final_pass: block.final_pass ?? null,
+    remediated: block.remediated ?? null,
+  });
+  // 최종 합격이면 미달 아님. 미판정(null)이면 passed만 보고, 그것도 null이면 미달 아님으로 둔다.
+  if (fp === true) return false;
+  if (fp === false) return true;
+  // fp=null: 판정 기준 없음(pass_score=0). 점수는 있음 → 미달 아님.
+  return false;
+}
 
 /** 미달로 볼 항목 제목 (시험/과제). 드로어 failedItems와 동일 조건. */
 export function getSessionRowFailedItemTitles(row: SessionScoreRow): string[] {
   const items: string[] = [];
   for (const exam of row.exams ?? []) {
-    if (exam.block.passed === false || exam.block.score == null) {
+    if (blockIsFailed(exam.block)) {
       items.push(exam.title);
     }
   }
   for (const hw of row.homeworks ?? []) {
-    if (hw.block.passed === false || hw.block.score == null) {
+    if (blockIsFailed(hw.block)) {
       items.push(hw.title);
     }
   }

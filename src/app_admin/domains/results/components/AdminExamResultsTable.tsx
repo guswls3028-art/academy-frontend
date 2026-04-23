@@ -14,6 +14,11 @@ import { AdminExamResultRow } from "../types/results.types";
 import { deriveFrontResultStatus } from "../utils/deriveFrontResultStatus";
 import FrontResultStatusBadge from "./FrontResultStatusBadge";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
+import {
+  deriveAchievement,
+  achievementLabel,
+  achievementTone,
+} from "@/shared/scoring/achievement";
 
 function scoreCell(r: AdminExamResultRow) {
   const fs = r.final_score;
@@ -55,7 +60,7 @@ export default function AdminExamResultsTable({
         <tbody>
           {sorted.map((r) => {
             const frontStatus = deriveFrontResultStatus(r);
-            const passed = r.passed;
+            const achievement = deriveAchievement(r);
 
             return (
               <tr
@@ -68,8 +73,8 @@ export default function AdminExamResultsTable({
                     <span
                       title={
                         r.cohort_size != null
-                          ? `${r.cohort_size}명 중 ${r.rank}등`
-                          : undefined
+                          ? `${r.cohort_size}명 중 ${r.rank}등 · 1차 점수 기준`
+                          : "1차 점수 기준"
                       }
                     >
                       {r.rank}
@@ -100,7 +105,19 @@ export default function AdminExamResultsTable({
                 </td>
 
                 <td style={{ fontWeight: 600 }}>
-                  {scoreCell(r)}
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                    {scoreCell(r)}
+                    {r.is_provisional && (
+                      <span
+                        className="ds-status-badge"
+                        data-tone="warn"
+                        title="채점 미확정 — 임시 점수"
+                        style={{ fontSize: 10 }}
+                      >
+                        임시
+                      </span>
+                    )}
+                  </span>
                 </td>
 
                 <td>
@@ -108,10 +125,18 @@ export default function AdminExamResultsTable({
                 </td>
 
                 <td>
-                  {passed === true ? (
-                    <span className="ds-status-badge" data-tone="success">합격</span>
-                  ) : passed === false ? (
-                    <span className="ds-status-badge" data-tone="danger">불합격</span>
+                  {achievement ? (
+                    <span
+                      className="ds-status-badge"
+                      data-tone={achievementTone(achievement)}
+                      title={
+                        achievement === "REMEDIATED"
+                          ? "1차 불합격 후 클리닉 재시험/수동 해소로 통과"
+                          : undefined
+                      }
+                    >
+                      {achievementLabel(achievement)}
+                    </span>
                   ) : (
                     <span style={{ color: "var(--color-text-muted)" }}>—</span>
                   )}

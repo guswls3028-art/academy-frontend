@@ -56,6 +56,16 @@ export type StudentExamResult = {
 };
 
 // ---------- 2) Admin exam results list ----------
+import type { Achievement } from "@/shared/scoring/achievement";
+
+export type ClinicRetakeInfo = {
+  score?: number | null;
+  pass_score?: number | null;
+  attempt_id?: number | null;
+  resolution_type?: string | null;
+  resolved_at?: string | null;
+};
+
 export type AdminExamResultRow = {
   // ✅ 단일 진실 키
   enrollment_id: number;
@@ -69,9 +79,26 @@ export type AdminExamResultRow = {
 
   /**
    * ✅ backend 계산 결과
+   * `passed`는 1차 합격 기준(석차용). 성취/뱃지는 `achievement` 또는
+   * `final_pass`/`remediated`를 함께 확인해야 보강합격을 놓치지 않는다.
    */
   passed?: boolean | null;
   clinic_required?: boolean;
+
+  /**
+   * ✅ 성취 SSOT (backend/apps/domains/results/utils/exam_achievement.py)
+   * - remediated: 1차 불합격 + 클리닉 해소(EXAM_PASS / MANUAL_OVERRIDE)
+   * - final_pass: 1차 합격 OR remediated
+   * - achievement: PASS/REMEDIATED/FAIL/NOT_SUBMITTED — 뱃지 표시용
+   * - clinic_retake: 재시험 점수/해소 시각
+   * - is_provisional: 채점 미확정(DRAFT) — 점수 표기 시 임시점수 안내
+   */
+  remediated?: boolean | null;
+  final_pass?: boolean | null;
+  achievement?: Achievement | null;
+  clinic_retake?: ClinicRetakeInfo | null;
+  is_provisional?: boolean;
+  meta_status?: string | null;
 
   /**
    * ✅ 제출/채점 파이프라인 상태

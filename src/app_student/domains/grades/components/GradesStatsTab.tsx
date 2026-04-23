@@ -32,10 +32,25 @@ export default function GradesStatsTab({ exams, homeworks }: Props) {
     const avgPct = scoredExams.length > 0
       ? scoredExams.reduce((s, e) => s + (e.max_score > 0 ? ((e.total_score ?? 0) / e.max_score) * 100 : 0), 0) / scoredExams.length
       : 0;
-    const examsWithCriteria = exams.filter((e) => e.is_pass !== null);
-    const passRate = examsWithCriteria.length > 0
-      ? (examsWithCriteria.filter((e) => e.is_pass).length / examsWithCriteria.length) * 100
-      : 0;
+    // 합격률 정책: "성취" 기준. achievement가 내려오면 PASS+REMEDIATED를 합격으로,
+    // FAIL을 불합격으로 집계. 미응시/미판정은 분모에서 제외.
+    // 백엔드가 achievement를 안 내려주는 구서버 환경에선 is_pass로 폴백.
+    let passCount = 0;
+    let judgedCount = 0;
+    for (const e of exams) {
+      if (e.achievement) {
+        if (e.achievement === "PASS" || e.achievement === "REMEDIATED") {
+          passCount += 1;
+          judgedCount += 1;
+        } else if (e.achievement === "FAIL") {
+          judgedCount += 1;
+        }
+      } else if (e.is_pass !== null) {
+        judgedCount += 1;
+        if (e.is_pass) passCount += 1;
+      }
+    }
+    const passRate = judgedCount > 0 ? (passCount / judgedCount) * 100 : 0;
     const rankedExams = exams.filter((e) => e.rank != null && e.cohort_size != null && e.cohort_size > 1 && e.meta_status !== "NOT_SUBMITTED");
     const avgRank = rankedExams.length > 0
       ? Math.round((rankedExams.reduce((s, e) => s + e.rank!, 0) / rankedExams.length) * 10) / 10

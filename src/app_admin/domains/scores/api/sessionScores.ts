@@ -10,10 +10,14 @@
  */
 
 import api from "@/shared/api/axios";
+import type { Achievement } from "@/shared/scoring/achievement";
 
 export type ScoreBlock = {
   score: number | null;
   max_score: number | null;
+  /**
+   * 1차 합격 여부(석차/통계 기준). 보강합격 반영은 `achievement`/`final_pass` 참고.
+   */
   passed: boolean | null;
   clinic_required: boolean;
 
@@ -24,6 +28,18 @@ export type ScoreBlock = {
   objective_score?: number | null;
   /** 시험만: 주관식 점수 = sum(ResultItem) */
   subjective_score?: number | null;
+
+  /**
+   * ✅ 성취 SSOT (백엔드 내려주면 뱃지/통계 우선 사용)
+   * - remediated: 1차 불합격 + 클리닉 해소
+   * - final_pass: 1차 OR remediated (성취 합격)
+   * - achievement: PASS/REMEDIATED/FAIL/NOT_SUBMITTED
+   * - is_provisional: DRAFT 임시점수
+   */
+  remediated?: boolean | null;
+  final_pass?: boolean | null;
+  achievement?: Achievement | null;
+  is_provisional?: boolean;
 
   meta?: {
     status?: string | null;

@@ -10,7 +10,8 @@
 import { useState, useCallback, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
-import type { SessionScoreRow, SessionScoreExamEntry, SessionScoreHomeworkEntry, SessionScoreMeta } from "../api/sessionScores";
+import type { ScoreBlock, SessionScoreRow, SessionScoreExamEntry, SessionScoreHomeworkEntry, SessionScoreMeta } from "../api/sessionScores";
+import { deriveAchievement, achievementLabel, achievementTone } from "@/shared/scoring/achievement";
 import { fetchAdminExamResultDetail } from "@admin/domains/results/api/adminExamResultDetail";
 import { fetchAttemptHistory, type AttemptHistoryResponse } from "../api/attemptHistory";
 import { submitClinicRetake, updateClinicRetake } from "@admin/domains/clinic/api/clinicLinks.api";
@@ -309,7 +310,7 @@ function ExamResultCard({
       <div className="student-scores-drawer__exam-header" onClick={onToggle} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onToggle(); } }} role="button" tabIndex={0}>
         <div className="student-scores-drawer__exam-title-row">
           <span className="student-scores-drawer__exam-title">{exam.title}</span>
-          <PassBadge passed={exam.block.passed} />
+          <PassBadge block={exam.block} />
         </div>
         <div className="student-scores-drawer__exam-score-row">
           {exam.block.score != null ? (
@@ -375,7 +376,7 @@ function HomeworkResultCard({
       <div className="student-scores-drawer__hw-header" onClick={onToggle} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onToggle(); } }} role="button" tabIndex={0}>
         <div className="student-scores-drawer__hw-title-row">
           <span className="student-scores-drawer__hw-title">{hw.title}</span>
-          <PassBadge passed={hw.block.passed} />
+          <PassBadge block={hw.block} />
         </div>
         <div className="student-scores-drawer__hw-score-row">
           {hw.block.score != null ? (
@@ -760,20 +761,45 @@ function AttemptTimeline({
 
 /* ── Shared sub-components ── */
 
-function PassBadge({ passed }: { passed: boolean | null | undefined }) {
-  if (passed == null) {
+function PassBadge({ block }: { block: ScoreBlock }) {
+  // 정책: 뱃지는 "성취"(1차+보강합격 인정) 기준. 백엔드가 achievement를 내려주면
+  // REMEDIATED를 구분해서 "보강 합격"으로 표시. 없으면 passed로 폴백.
+  const achievement = deriveAchievement({
+    achievement: block.achievement ?? null,
+    is_pass: block.passed ?? null,
+    remediated: block.remediated ?? null,
+    final_pass: block.final_pass ?? null,
+  });
+
+  if (!achievement) {
+    if (block.passed == null) {
+      return (
+        <span className="student-scores-drawer__pass-badge" data-tone="muted">
+          미정
+        </span>
+      );
+    }
     return (
-      <span className="student-scores-drawer__pass-badge" data-tone="muted">
-        미정
+      <span
+        className="student-scores-drawer__pass-badge"
+        data-tone={block.passed ? "success" : "danger"}
+      >
+        {block.passed ? "합격" : "불합격"}
       </span>
     );
   }
+
   return (
     <span
       className="student-scores-drawer__pass-badge"
-      data-tone={passed ? "success" : "danger"}
+      data-tone={achievementTone(achievement)}
+      title={
+        achievement === "REMEDIATED"
+          ? "1차 불합격 후 클리닉 재시험/수동 해소로 통과"
+          : undefined
+      }
     >
-      {passed ? "합격" : "불합격"}
+      {achievementLabel(achievement)}
     </span>
   );
 }

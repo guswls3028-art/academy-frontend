@@ -560,8 +560,21 @@ function StudentStatTabs({
   clinicData: any[];
   questionsData: any[];
 }) {
-  const examPassCount = examGrades.filter((e: any) => e.is_pass === true).length;
-  const examFailCount = examGrades.filter((e: any) => e.is_pass === false).length;
+  // 정책: 합격률은 "성취"(1차 + 보강합격) 기준. achievement가 내려오면 우선 사용.
+  // 드리프트 방지: 같은 오버레이의 ScoreTab이 achievement 기반으로 뱃지를 그리므로
+  // 요약 KPI도 동일 기준이어야 한다.
+  let examPassCount = 0;
+  let examFailCount = 0;
+  for (const e of examGrades as any[]) {
+    const ach: string | null | undefined = e.achievement;
+    if (ach === "PASS" || ach === "REMEDIATED") examPassCount += 1;
+    else if (ach === "FAIL") examFailCount += 1;
+    else if (ach === "NOT_SUBMITTED" || ach == null) {
+      // achievement 필드 없는 구서버 폴백 — remediated/is_pass로 계산
+      if (e.remediated === true || e.final_pass === true || e.is_pass === true) examPassCount += 1;
+      else if (e.is_pass === false || e.final_pass === false) examFailCount += 1;
+    }
+  }
   const examJudged = examPassCount + examFailCount;
   const avgScore = examGrades.length > 0
     ? Math.round(examGrades.reduce((s: number, e: any) => s + (e.total_score ?? 0), 0) / examGrades.length)
@@ -837,7 +850,13 @@ function ScoreTab({ data, onNavigate }: { data: any[]; onNavigate: (path: string
                   {achievementLabel[exam.achievement] || exam.achievement}
                 </span>
               )}
-              {exam.is_pass != null && !exam.achievement && (
+              {!exam.achievement && (exam.remediated === true || exam.final_pass === true) && (
+                // 구서버 폴백: achievement 미제공이지만 remediated/final_pass로 보강합격 감지
+                <span className="ds-status-badge text-[11px]" data-tone={exam.remediated ? "warning" : "success"}>
+                  {exam.remediated ? "보강합격" : "합격"}
+                </span>
+              )}
+              {exam.is_pass != null && !exam.achievement && exam.remediated !== true && exam.final_pass !== true && (
                 <span className="ds-scores-pass-fail-badge" data-tone={exam.is_pass ? "success" : "danger"}>
                   {exam.is_pass ? "합" : "불"}
                 </span>
