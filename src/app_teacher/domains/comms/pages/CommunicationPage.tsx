@@ -13,11 +13,12 @@ import PostDetail from "../components/PostDetail";
 import RegistrationRequestList from "../components/RegistrationRequestList";
 import CreatePostSheet from "../components/CreatePostSheet";
 
-type Tab = "notices" | "qna" | "requests" | "board" | "materials";
+type Tab = "notices" | "qna" | "counsel" | "requests" | "board" | "materials";
 
 const POST_TYPE_MAP: Record<Tab, string> = {
   notices: "notice",
   qna: "qna",
+  counsel: "counsel",
   requests: "",
   board: "board",
   materials: "materials",
@@ -26,6 +27,7 @@ const POST_TYPE_MAP: Record<Tab, string> = {
 const TAB_LABELS: Record<Tab, string> = {
   notices: "공지사항",
   qna: "Q&A",
+  counsel: "상담",
   requests: "가입신청",
   board: "게시판",
   materials: "자료",
@@ -62,6 +64,7 @@ export default function CommunicationPage() {
   const tabs: { key: Tab; label: string; badge?: number }[] = [
     { key: "notices", label: "공지사항" },
     { key: "qna", label: "Q&A", badge: counts?.qnaPending },
+    { key: "counsel", label: "상담", badge: (counts as any)?.counselPending },
     { key: "requests", label: "가입신청", badge: counts?.registrationRequestsPending },
     { key: "board", label: "게시판" },
     { key: "materials", label: "자료" },
@@ -201,6 +204,7 @@ function emptyTitle(tab: Tab): string {
   const map: Record<Tab, string> = {
     notices: "공지사항이 없습니다",
     qna: "Q&A가 없습니다",
+    counsel: "상담 신청이 없습니다",
     requests: "가입 신청이 없습니다",
     board: "게시글이 없습니다",
     materials: "자료가 없습니다",

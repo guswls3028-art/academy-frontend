@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { EmptyState } from "@/shared/ui/ds";
 import { useAdminNotificationCounts } from "@admin/domains/admin-notifications/useAdminNotificationCounts";
 import {
-  Users, BookOpen, ClipboardList, Video, MessageSquare, Bell, Activity, FileText,
+  Users, BookOpen, ClipboardList, Video, MessageSquare, Bell, Activity, FileText, Send,
 } from "@teacher/shared/ui/Icons";
 import { KpiCard, Card, SectionTitle } from "@teacher/shared/ui/Card";
 import { Badge } from "@teacher/shared/ui/Badge";
@@ -59,10 +59,10 @@ export default function TodayPage() {
         <ShortcutBtn icon={<Users size={20} />} label="학생" onClick={() => navigate("/teacher/students")} />
         <ShortcutBtn icon={<BookOpen size={20} />} label="강의" onClick={() => navigate("/teacher/classes")} />
         <ShortcutBtn icon={<ClipboardList size={20} />} label="시험" onClick={() => navigate("/teacher/exams")} />
+        <ShortcutBtn icon={<Send size={20} />} label="제출함" onClick={() => navigate("/teacher/submissions")} />
         <ShortcutBtn icon={<Video size={20} />} label="영상" onClick={() => navigate("/teacher/videos")} />
         <ShortcutBtn icon={<MessageSquare size={20} />} label="커뮤니티" onClick={() => navigate("/teacher/comms")} />
         <ShortcutBtn icon={<Activity size={20} />} label="클리닉" onClick={() => navigate("/teacher/clinic")} />
-        <ShortcutBtn icon={<FileText size={20} />} label="상담" onClick={() => navigate("/teacher/counseling")} />
         <ShortcutBtn icon={<Bell size={20} />} label="알림" onClick={() => navigate("/teacher/notifications")} />
       </div>
 
@@ -89,7 +89,7 @@ export default function TodayPage() {
               <PendingRow
                 label="처리 대기 제출"
                 count={counts.recentSubmissions}
-                onClick={() => navigate("/teacher/exams")}
+                onClick={() => navigate("/teacher/submissions")}
               />
             )}
             {counts.clinicPending > 0 && (
@@ -157,15 +157,17 @@ function ShortcutBtn({
   return (
     <button
       onClick={onClick}
-      className="flex flex-col items-center gap-1.5 py-3 rounded-xl cursor-pointer"
+      className="flex flex-col items-center gap-1.5 rounded-xl cursor-pointer"
       style={{
+        padding: "var(--tc-space-3) var(--tc-space-2)",
+        minHeight: "calc(var(--tc-touch-min) + 16px)",
         background: "var(--tc-surface)",
         border: "1px solid var(--tc-border)",
         color: "var(--tc-text-secondary)",
       }}
     >
       <span style={{ color: "var(--tc-primary)" }}>{icon}</span>
-      <span className="text-[11px] font-semibold">{label}</span>
+      <span className="text-[12px] font-semibold">{label}</span>
     </button>
   );
 }

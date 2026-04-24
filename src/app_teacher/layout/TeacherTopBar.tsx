@@ -48,6 +48,8 @@ export default function TeacherTopBar({ tenantCode, onMenuClick }: Props) {
             justifyContent: "center",
             color: "var(--tc-text-secondary)",
             borderRadius: "var(--tc-radius)",
+            minWidth: "var(--tc-touch-min)",
+            minHeight: "var(--tc-touch-min)",
           }}
         >
           <Menu size={22} />
@@ -89,6 +91,8 @@ export default function TeacherTopBar({ tenantCode, onMenuClick }: Props) {
           justifyContent: "center",
           color: "var(--tc-text-secondary)",
           position: "relative",
+          minWidth: "var(--tc-touch-min)",
+          minHeight: "var(--tc-touch-min)",
         }}
       >
         <Bell size={22} />

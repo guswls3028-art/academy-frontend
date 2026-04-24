@@ -43,7 +43,21 @@ const ClinicReportsPage = lazy(() => import("@teacher/domains/clinic/pages/Clini
 const ClinicRemoteControlPage = lazy(() => import("@teacher/domains/clinic/pages/ClinicRemoteControlPage"));
 const CounselingPage = lazy(() => import("@teacher/domains/counseling/pages/CounselingPage"));
 const ResultsPage = lazy(() => import("@teacher/domains/results/pages/ResultsPage"));
+const SubmissionsInboxPage = lazy(() => import("@teacher/domains/results/pages/SubmissionsInboxPage"));
 const BillingPage = lazy(() => import("@teacher/domains/profile/pages/BillingPage"));
+const DesktopOnlyPage = lazy(() => import("@teacher/domains/profile/pages/DesktopOnlyPage"));
+
+/* Phase 4 — 데스크톱에서 이식한 도메인 */
+const FeesDashboardPage = lazy(() => import("@teacher/domains/fees/pages/FeesDashboardPage"));
+const FeesInvoicesPage = lazy(() => import("@teacher/domains/fees/pages/FeesInvoicesPage"));
+const MyStoragePage = lazy(() => import("@teacher/domains/storage/pages/MyStoragePage"));
+const StudentInventoryPage = lazy(() => import("@teacher/domains/storage/pages/StudentInventoryPage"));
+const OrganizationSettingsPage = lazy(() => import("@teacher/domains/settings/pages/OrganizationSettingsPage"));
+const AppearancePage = lazy(() => import("@teacher/domains/settings/pages/AppearancePage"));
+const StopwatchPage = lazy(() => import("@teacher/domains/tools/pages/StopwatchPage"));
+const PatchNotesPage = lazy(() => import("@teacher/domains/developer/pages/DeveloperPages").then((m) => ({ default: m.PatchNotesPage })));
+const BugReportPage = lazy(() => import("@teacher/domains/developer/pages/DeveloperPages").then((m) => ({ default: m.BugReportPage })));
+const FeedbackPage = lazy(() => import("@teacher/domains/developer/pages/DeveloperPages").then((m) => ({ default: m.FeedbackPage })));
 
 function TeacherFallback() {
   return (
@@ -117,6 +131,9 @@ export default function TeacherRouter() {
           {/* 성적 조회 */}
           <Route path="results" element={<ResultsPage />} />
 
+          {/* 제출함 (시험·과제 처리 인박스) */}
+          <Route path="submissions" element={<SubmissionsInboxPage />} />
+
           {/* 프로필 / 설정 */}
           <Route path="profile" element={<ProfilePage />} />
           <Route path="settings" element={<TeacherSettingsPage />} />
@@ -124,6 +141,27 @@ export default function TeacherRouter() {
           <Route path="staff/:staffId" element={<RoleGuard allow={["owner", "admin"]}><StaffDetailPage /></RoleGuard>} />
           <Route path="my-records" element={<MyRecordsPage />} />
           <Route path="billing" element={<RoleGuard allow={["owner", "admin"]}><BillingPage /></RoleGuard>} />
+          <Route path="desktop-only" element={<DesktopOnlyPage />} />
+
+          {/* 수납 (Phase 4) */}
+          <Route path="fees" element={<RoleGuard allow={["owner", "admin"]}><FeesDashboardPage /></RoleGuard>} />
+          <Route path="fees/invoices" element={<RoleGuard allow={["owner", "admin"]}><FeesInvoicesPage /></RoleGuard>} />
+
+          {/* 자료실 (Phase 4) */}
+          <Route path="storage" element={<MyStoragePage />} />
+          <Route path="storage/inventory" element={<StudentInventoryPage />} />
+
+          {/* 설정 — 조직·외관 (Phase 4) */}
+          <Route path="settings/organization" element={<RoleGuard allow={["owner", "admin"]}><OrganizationSettingsPage /></RoleGuard>} />
+          <Route path="settings/appearance" element={<AppearancePage />} />
+
+          {/* 도구 — 스톱워치 (Phase 4) */}
+          <Route path="tools/stopwatch" element={<StopwatchPage />} />
+
+          {/* To개발자 (Phase 4) */}
+          <Route path="developer" element={<PatchNotesPage />} />
+          <Route path="developer/bug" element={<BugReportPage />} />
+          <Route path="developer/feedback" element={<FeedbackPage />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/teacher" replace />} />

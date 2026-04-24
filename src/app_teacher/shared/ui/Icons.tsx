@@ -87,4 +87,16 @@ export {
   Upload,
   FolderPlus,
   Camera,
+  ImagePlus,
+
+  // Developer
+  Bug,
+  Wrench,
+  Zap,
+  Shield,
+  ArrowUpCircle,
+
+  // Misc
+  DollarSign,
+  Package,
 } from "lucide-react";

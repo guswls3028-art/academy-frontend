@@ -12,7 +12,7 @@ import {
   ClipboardList, Award, Video, MessageSquare,
   FileText, Bell, User, Settings, Send, Clock,
   Monitor, LogOut, AlertCircle, X, FolderPlus, Calendar,
-  RefreshCw,
+  RefreshCw, Bug, Wrench,
 } from "@teacher/shared/ui/Icons";
 
 interface Props {
@@ -55,6 +55,7 @@ export default function TeacherDrawer({ open, onClose }: Props) {
       title: "학습 · 콘텐츠",
       items: [
         { label: "시험 / 과제", path: "/teacher/exams", icon: <ClipboardList size={18} /> },
+        { label: "제출함", path: "/teacher/submissions", icon: <Send size={18} />, badge: counts?.recentSubmissions },
         { label: "시험 템플릿", path: "/teacher/exams/templates", icon: <FileText size={18} /> },
         { label: "시험 번들", path: "/teacher/exams/bundles", icon: <FolderPlus size={18} /> },
         { label: "성적 조회", path: "/teacher/results", icon: <Award size={18} /> },
@@ -74,6 +75,19 @@ export default function TeacherDrawer({ open, onClose }: Props) {
       ],
     },
     {
+      title: "자료 · 수납",
+      items: [
+        { label: "내 자료", path: "/teacher/storage", icon: <FolderPlus size={18} /> },
+        { label: "학생 인벤토리", path: "/teacher/storage/inventory", icon: <Users size={18} /> },
+        ...(isOwnerOrAdmin
+          ? [
+              { label: "수납 대시보드", path: "/teacher/fees", icon: <Award size={18} /> },
+              { label: "송장", path: "/teacher/fees/invoices", icon: <FileText size={18} /> },
+            ]
+          : []),
+      ],
+    },
+    {
       title: "직원",
       items: [
         ...(isOwnerOrAdmin ? [{ label: "직원 관리", path: "/teacher/staff", icon: <Users size={18} /> }] : []),
@@ -81,11 +95,28 @@ export default function TeacherDrawer({ open, onClose }: Props) {
       ],
     },
     {
+      title: "도구",
+      items: [
+        { label: "스톱워치", path: "/teacher/tools/stopwatch", icon: <Clock size={18} /> },
+      ],
+    },
+    {
       title: "설정",
       items: [
         { label: "내 프로필", path: "/teacher/profile", icon: <User size={18} /> },
         ...(isOwnerOrAdmin ? [{ label: "결제 / 구독", path: "/teacher/billing", icon: <Award size={18} /> }] : []),
+        ...(isOwnerOrAdmin ? [{ label: "학원 정보", path: "/teacher/settings/organization", icon: <Settings size={18} /> }] : []),
+        { label: "외관", path: "/teacher/settings/appearance", icon: <Settings size={18} /> },
         { label: "설정", path: "/teacher/settings", icon: <Settings size={18} /> },
+        { label: "PC에서 처리하는 기능", path: "/teacher/desktop-only", icon: <Monitor size={18} /> },
+      ],
+    },
+    {
+      title: "To개발자",
+      items: [
+        { label: "패치노트", path: "/teacher/developer", icon: <FileText size={18} /> },
+        { label: "버그 제보", path: "/teacher/developer/bug", icon: <Bug size={18} /> },
+        { label: "피드백", path: "/teacher/developer/feedback", icon: <MessageSquare size={18} /> },
       ],
     },
   ];

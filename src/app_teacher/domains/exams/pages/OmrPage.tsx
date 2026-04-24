@@ -117,9 +117,9 @@ export default function OmrPage() {
                     )}
                   </div>
                   <button onClick={() => setUploadTarget(enrollmentId)}
-                    className="flex items-center gap-0.5 text-[11px] font-bold cursor-pointer shrink-0"
-                    style={{ padding: "6px 10px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-primary)", background: "var(--tc-primary-bg)", color: "var(--tc-primary)" }}>
-                    <Camera size={11} /> 스캔
+                    className="flex items-center gap-1 text-[12px] font-bold cursor-pointer shrink-0"
+                    style={{ padding: "10px 14px", minHeight: "var(--tc-touch-min)", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-primary)", background: "var(--tc-primary-bg)", color: "var(--tc-primary)" }}>
+                    <Camera size={14} /> 스캔
                   </button>
                 </div>
               );

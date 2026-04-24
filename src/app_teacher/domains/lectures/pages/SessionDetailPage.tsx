@@ -1,16 +1,19 @@
 // PATH: src/app_teacher/domains/lectures/pages/SessionDetailPage.tsx
-// 차시 상세 — 탭 구조: 학생 + 출석 + 성적 + 영상
+// 차시 상세 — 탭 구조: 학생 + 출석 + 성적 + 시험 + 과제 + 영상 (+ 클리닉 if section_mode)
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { EmptyState } from "@/shared/ui/ds";
 import { formatPhone } from "@/shared/utils/formatPhone";
 import LectureChip from "@/shared/ui/chips/LectureChip";
+import { useSectionMode } from "@/shared/hooks/useSectionMode";
 import { fetchSession, fetchSessionAttendance } from "../api";
 import { fetchSessionExams, fetchExamResults } from "@teacher/domains/scores/api";
 import { fetchVideos } from "@teacher/domains/videos/api";
+import { fetchHomeworks } from "@teacher/domains/exams/api";
+import { fetchClinicSessions } from "@teacher/domains/clinic/api";
 
-type Tab = "students" | "attendance" | "scores" | "videos";
+type Tab = "students" | "attendance" | "scores" | "exams" | "homeworks" | "videos" | "clinic";
 
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   PRESENT: { label: "출석", color: "var(--tc-success)" },
@@ -29,6 +32,7 @@ export default function SessionDetailPage() {
   const { sessionId, lectureId } = useParams<{ sessionId: string; lectureId: string }>();
   const navigate = useNavigate();
   const sid = Number(sessionId);
+  const { sectionMode } = useSectionMode();
   const [tab, setTab] = useState<Tab>("students");
 
   const { data: session, isLoading } = useQuery({
@@ -46,13 +50,25 @@ export default function SessionDetailPage() {
   const { data: exams } = useQuery({
     queryKey: ["session-exams-detail", sid],
     queryFn: () => fetchSessionExams(sid),
-    enabled: Number.isFinite(sid) && tab === "scores",
+    enabled: Number.isFinite(sid) && (tab === "scores" || tab === "exams"),
+  });
+
+  const { data: homeworks } = useQuery({
+    queryKey: ["session-homeworks", sid],
+    queryFn: () => fetchHomeworks({ session_id: sid }),
+    enabled: Number.isFinite(sid) && tab === "homeworks",
   });
 
   const { data: videos } = useQuery({
     queryKey: ["session-videos", sid],
     queryFn: () => fetchVideos({ session: sid }),
     enabled: Number.isFinite(sid) && tab === "videos",
+  });
+
+  const { data: clinicSessions } = useQuery({
+    queryKey: ["session-clinic", sid],
+    queryFn: () => fetchClinicSessions({ date_from: session?.date ?? "", date_to: session?.date ?? "" }),
+    enabled: Number.isFinite(sid) && tab === "clinic" && !!session?.date && sectionMode,
   });
 
   if (isLoading) return <EmptyState scope="panel" tone="loading" title="불러오는 중…" />;
@@ -109,26 +125,33 @@ export default function SessionDetailPage() {
         />
       </div>
 
-      {/* Tabs */}
+      {/* Tabs (가로 스크롤) */}
       <div
-        className="flex rounded-lg overflow-hidden"
-        style={{ border: "1px solid var(--tc-border)", background: "var(--tc-surface-soft)" }}
+        className="flex overflow-x-auto"
+        style={{ borderBottom: "1px solid var(--tc-border)", WebkitOverflowScrolling: "touch" }}
       >
         {([
-          { key: "students" as Tab, label: `학생 (${attendances?.length ?? "…"})` },
+          { key: "students" as Tab, label: `학생${attendances?.length != null ? ` ${attendances.length}` : ""}` },
           { key: "attendance" as Tab, label: "출석" },
           { key: "scores" as Tab, label: "성적" },
+          { key: "exams" as Tab, label: "시험" },
+          { key: "homeworks" as Tab, label: "과제" },
           { key: "videos" as Tab, label: "영상" },
+          ...(sectionMode ? [{ key: "clinic" as Tab, label: "클리닉" }] : []),
         ]).map((t) => (
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
-            className="flex-1 text-[12px] font-semibold py-2 cursor-pointer"
+            className="shrink-0 text-[13px] cursor-pointer"
             style={{
+              padding: "12px 14px",
+              minHeight: "var(--tc-touch-min)",
+              background: "none",
               border: "none",
-              background: tab === t.key ? "var(--tc-primary)" : "transparent",
-              color: tab === t.key ? "#fff" : "var(--tc-text-secondary)",
-              transition: "all var(--tc-motion-fast)",
+              borderBottom: tab === t.key ? "2px solid var(--tc-primary)" : "2px solid transparent",
+              color: tab === t.key ? "var(--tc-primary)" : "var(--tc-text-secondary)",
+              fontWeight: tab === t.key ? 700 : 500,
+              whiteSpace: "nowrap",
             }}
           >
             {t.label}
@@ -140,8 +163,136 @@ export default function SessionDetailPage() {
       {tab === "students" && <StudentsTab attendances={attendances ?? []} navigate={navigate} />}
       {tab === "attendance" && <AttendanceTab attendances={attendances ?? []} />}
       {tab === "scores" && <ScoresTab exams={exams ?? []} sessionId={sid} />}
+      {tab === "exams" && <ExamsTab exams={exams ?? []} navigate={navigate} />}
+      {tab === "homeworks" && <HomeworksTab homeworks={homeworks ?? []} navigate={navigate} />}
       {tab === "videos" && <VideosTab videos={videos ?? []} navigate={navigate} />}
+      {tab === "clinic" && (
+        <ClinicTab
+          clinicSessions={clinicSessions ?? []}
+          enabled={!!sectionMode}
+          navigate={navigate}
+        />
+      )}
     </div>
+  );
+}
+
+/* === Exams tab === */
+function ExamsTab({ exams, navigate }: { exams: any[]; navigate: any }) {
+  if (!exams.length) return <EmptyState scope="panel" tone="empty" title="이 차시에 등록된 시험이 없습니다" />;
+  return (
+    <div className="flex flex-col gap-1.5">
+      {exams.map((e: any) => (
+        <button
+          key={e.id}
+          onClick={() => navigate(`/teacher/exams/${e.id}`)}
+          className="flex items-center gap-3 rounded-xl w-full text-left cursor-pointer"
+          style={{
+            padding: "var(--tc-space-3) var(--tc-space-4)",
+            minHeight: "var(--tc-touch-min)",
+            background: "var(--tc-surface)",
+            border: "1px solid var(--tc-border)",
+          }}
+        >
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-semibold truncate" style={{ color: "var(--tc-text)" }}>
+              {e.title}
+            </div>
+            <div className="flex gap-2 text-[11px] mt-0.5" style={{ color: "var(--tc-text-muted)" }}>
+              {e.subject && <span>{e.subject}</span>}
+              {e.max_score != null && <span>{e.max_score}점</span>}
+            </div>
+          </div>
+          <ChevronRightIcon />
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/* === Homeworks tab === */
+function HomeworksTab({ homeworks, navigate }: { homeworks: any[]; navigate: any }) {
+  if (!homeworks.length) return <EmptyState scope="panel" tone="empty" title="이 차시에 등록된 과제가 없습니다" />;
+  return (
+    <div className="flex flex-col gap-1.5">
+      {homeworks.map((h: any) => (
+        <button
+          key={h.id}
+          onClick={() => navigate(`/teacher/homeworks/${h.id}`)}
+          className="flex items-center gap-3 rounded-xl w-full text-left cursor-pointer"
+          style={{
+            padding: "var(--tc-space-3) var(--tc-space-4)",
+            minHeight: "var(--tc-touch-min)",
+            background: "var(--tc-surface)",
+            border: "1px solid var(--tc-border)",
+          }}
+        >
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-semibold truncate" style={{ color: "var(--tc-text)" }}>
+              {h.title}
+            </div>
+            <div className="flex gap-2 text-[11px] mt-0.5" style={{ color: "var(--tc-text-muted)" }}>
+              {h.due_date && <span>마감 {h.due_date}</span>}
+            </div>
+          </div>
+          <ChevronRightIcon />
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/* === Clinic tab === */
+function ClinicTab({
+  clinicSessions,
+  enabled,
+  navigate,
+}: {
+  clinicSessions: any[];
+  enabled: boolean;
+  navigate: any;
+}) {
+  if (!enabled) {
+    return <EmptyState scope="panel" tone="empty" title="이 학원은 클리닉 기능을 사용하지 않습니다" />;
+  }
+  if (!clinicSessions.length) {
+    return <EmptyState scope="panel" tone="empty" title="이 날짜에 클리닉 세션이 없습니다" />;
+  }
+  return (
+    <div className="flex flex-col gap-1.5">
+      {clinicSessions.map((c: any) => (
+        <button
+          key={c.id}
+          onClick={() => navigate(`/teacher/clinic`)}
+          className="flex items-center gap-3 rounded-xl w-full text-left cursor-pointer"
+          style={{
+            padding: "var(--tc-space-3) var(--tc-space-4)",
+            minHeight: "var(--tc-touch-min)",
+            background: "var(--tc-surface)",
+            border: "1px solid var(--tc-border)",
+          }}
+        >
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-semibold truncate" style={{ color: "var(--tc-text)" }}>
+              {c.title || "클리닉 세션"}
+            </div>
+            <div className="flex gap-2 text-[11px] mt-0.5" style={{ color: "var(--tc-text-muted)" }}>
+              {c.start_time && <span>{c.start_time}</span>}
+              {c.location && <span>{c.location}</span>}
+            </div>
+          </div>
+          <ChevronRightIcon />
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function ChevronRightIcon() {
+  return (
+    <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="var(--tc-text-muted)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="9 18 15 12 9 6" />
+    </svg>
   );
 }
 
