@@ -85,6 +85,12 @@ e2e/fixtures/test-exam.pdf
 .env.e2e
 .env.local
 
+# 로컬 디버그·리뷰 스크립트·스크린샷 (공유 불필요)
+e2e/_local/
+
+# 에이전트/IDE 워크스페이스 아티팩트
+.cursor/
+
 # Local-only directories
 node_modules_win/
 .wrangler/
