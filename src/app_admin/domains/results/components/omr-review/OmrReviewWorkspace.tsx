@@ -434,6 +434,11 @@ function ScanPane({
     !!detail?.answers?.some(
       (a) => !!(a.omr?.rect || (a.omr?.bubble_rects && a.omr.bubble_rects.length > 0)),
     );
+  // 구버전(<v10.1) 스캔은 bubble_rects가 없어서 overlay가 안 보인다. 이 경우 명시 안내.
+  const showLegacyOverlayHint =
+    !!detail?.scan_image_url &&
+    !!detail?.answers?.length &&
+    !hasBBoxData;
   return (
     <div className="orw-scan-pane">
       <div className="orw-scan-pane__toolbar">
@@ -528,6 +533,15 @@ function ScanPane({
                 />
               )}
             </div>
+            {showLegacyOverlayHint && (
+              <div className="orw-scan-pane__hint">
+                구버전 스캔 결과입니다. 문항 영역 표시가 제공되지 않습니다.
+                <br />
+                <span className="orw-scan-pane__hint-sub">
+                  재스캔 시 자동으로 최신 포맷(v10.1+)이 적용됩니다.
+                </span>
+              </div>
+            )}
           </>
         )}
       </div>
@@ -920,8 +934,10 @@ const REASON_LABEL: Record<string, string> = {
   answer_low_confidence: "낮은 신뢰도",
   answer_status_not_ok: "인식 불완전",
   identifier_no_match: "학생 매칭 실패",
+  identifier_no_enrollment_match: "학생 매칭 실패",
   identifier_missing: "식별자 미인식",
   identifier_invalid: "식별자 형식 오류",
+  alignment_failed: "페이지 정렬 실패(재스캔 권장)",
 };
 
 function reasonLabel(r: string): string {

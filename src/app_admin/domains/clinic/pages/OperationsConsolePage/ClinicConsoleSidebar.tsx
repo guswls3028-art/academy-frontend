@@ -47,6 +47,13 @@ type Props = {
   onImportClick?: () => void;
   onEditSession?: (sessionId: number) => void;
   onDeleteSession?: (sessionId: number, label: string) => void;
+  /** 정규 클리닉(반 편성 모드)에서만 활성. 필터 + 뱃지 노출 여부 */
+  showSectionFilter?: boolean;
+  /** 필터 값: null = 전체, "unassigned" = 미지정, number = section id */
+  sectionFilter?: number | "unassigned" | null;
+  onSectionFilterChange?: (value: number | "unassigned" | null) => void;
+  /** 필터 칩 옵션. 부모가 전체 세션에서 파생해 전달(필터 걸려도 옵션은 유지) */
+  sectionFilterOptions?: Array<{ value: number | "unassigned"; label: string }>;
 };
 
 export default function ClinicConsoleSidebar({
@@ -64,6 +71,10 @@ export default function ClinicConsoleSidebar({
   onImportClick,
   onEditSession,
   onDeleteSession,
+  showSectionFilter = false,
+  sectionFilter = null,
+  onSectionFilterChange,
+  sectionFilterOptions,
 }: Props) {
   const sessionsByDate = useMemo(() => {
     const map: Record<string, ClinicSessionTreeNode[]> = {};
@@ -74,6 +85,27 @@ export default function ClinicConsoleSidebar({
     });
     return map;
   }, [sessions]);
+
+  /** 필터 옵션: 부모 전달값 우선, 없으면 표시 중 세션에서 파생 */
+  const sectionOptions = useMemo(() => {
+    if (sectionFilterOptions) return sectionFilterOptions;
+    const seen = new Map<number, string>();
+    let hasUnassigned = false;
+    for (const s of sessions) {
+      if (s.section != null && s.section_label) {
+        if (!seen.has(s.section)) seen.set(s.section, s.section_label);
+      } else {
+        hasUnassigned = true;
+      }
+    }
+    const options: Array<{ value: number | "unassigned"; label: string }> = Array.from(
+      seen.entries(),
+    )
+      .sort((a, b) => a[1].localeCompare(b[1]))
+      .map(([id, label]) => ({ value: id, label: `${label}반` }));
+    if (hasUnassigned) options.push({ value: "unassigned", label: "미지정" });
+    return options;
+  }, [sessions, sectionFilterOptions]);
 
   const sessionsForDay = useMemo(() => {
     return (sessionsByDate[selectedDay] ?? []).sort((a, b) =>
@@ -160,6 +192,52 @@ export default function ClinicConsoleSidebar({
         </div>
       </div>
 
+      {showSectionFilter && sectionOptions.length > 0 && (
+        <div
+          style={{
+            borderTop: "1px solid var(--color-border-divider)",
+            padding: "var(--space-3) var(--space-4)",
+            display: "flex",
+            flexWrap: "wrap",
+            gap: 6,
+          }}
+          role="group"
+          aria-label="반 필터"
+        >
+          {[
+            { value: null as null, label: "전체" },
+            ...sectionOptions,
+          ].map((opt) => {
+            const active =
+              (opt.value === null && sectionFilter === null) ||
+              (opt.value !== null && sectionFilter === opt.value);
+            return (
+              <button
+                key={opt.value ?? "all"}
+                type="button"
+                onClick={() => onSectionFilterChange?.(opt.value)}
+                style={{
+                  padding: "3px 10px",
+                  fontSize: 11,
+                  fontWeight: active ? 700 : 500,
+                  borderRadius: 999,
+                  border: `1px solid ${
+                    active ? "var(--color-brand-primary)" : "var(--color-border-divider)"
+                  }`,
+                  background: active
+                    ? "color-mix(in srgb, var(--color-brand-primary) 14%, var(--color-bg-surface))"
+                    : "var(--color-bg-surface)",
+                  color: active ? "var(--color-brand-primary)" : "var(--color-text-secondary)",
+                  cursor: "pointer",
+                }}
+              >
+                {opt.label}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       <div
         style={{
           borderTop: "1px solid var(--color-border-divider)",
@@ -243,6 +321,22 @@ export default function ClinicConsoleSidebar({
                           <span className="clinic-console__sidebar-session-time">
                             {time}
                           </span>
+                          {showSectionFilter && s.section_label && (
+                            <span
+                              style={{
+                                fontSize: 10,
+                                fontWeight: 700,
+                                padding: "1px 6px",
+                                borderRadius: 4,
+                                background: "color-mix(in srgb, var(--color-brand-primary) 16%, transparent)",
+                                color: "var(--color-brand-primary)",
+                                lineHeight: 1.4,
+                              }}
+                              aria-label={`${s.section_label}반`}
+                            >
+                              {s.section_label}반
+                            </span>
+                          )}
                           {s.location && (
                             <>
                               <MapPin

@@ -1,14 +1,14 @@
 // PATH: src/app_admin/domains/sessions/components/SessionBlock.tsx
-// 차시 = 세션 — lecture 기준 세션 목록 + 추가 (LectureLayout, SessionLayout 공용). 차시 블록 SSOT 사용
+// 차시 = 세션. 강의 홈 / 차시 상세에서 공용. 반 편성 모드일 때는 반별 row로 그룹.
 
 import { useState, useMemo, useRef, useEffect, useCallback, useLayoutEffect } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
-import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
-import { Plus, Settings, BookOpen, Stethoscope, ArrowRightLeft, Layers } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Plus, Settings, BookOpen, Stethoscope, ArrowRightLeft, Layers, Users } from "lucide-react";
 
 import { fetchSessions, sortSessionsByDateDesc, updateSession, deleteSession, type Session } from "@admin/domains/lectures/api/sessions";
-import { fetchSections, createSection, type Section as SectionType } from "@admin/domains/lectures/api/sections";
+import { fetchSections, type Section as SectionType } from "@admin/domains/lectures/api/sections";
 import SessionCreateModal from "@admin/domains/lectures/components/SessionCreateModal";
 import { SessionBlockView, isSupplement, formatSessionOrderLabel } from "@/shared/ui/session-block";
 import { feedback } from "@/shared/ui/feedback/feedback";
@@ -118,7 +118,7 @@ function SessionGearMenu({
                 <button type="button" className="w-full text-left px-3 py-1.5 text-sm hover:bg-[var(--color-bg-surface-hover)]" onClick={async () => { setBusy(true); try { await updateSession(session.id, { section: null }); feedback.success("반 미지정으로 이동"); setOpen(false); onDone(); } catch { feedback.error("이동 실패"); } setBusy(false); }} disabled={busy}>미지정</button>
               )}
               {sections.filter(s => s.id !== session.section).map(s => (
-                <button key={s.id} type="button" className="w-full text-left px-3 py-1.5 text-sm hover:bg-[var(--color-bg-surface-hover)]" onClick={async () => { setBusy(true); try { await updateSession(session.id, { section: s.id }); feedback.success(`${s.label}반으로 이동`); setOpen(false); onDone(); } catch { feedback.error("이동 실패"); } setBusy(false); }} disabled={busy}>{s.section_type === "CLASS" ? "수업" : "클리닉"} {s.label}반</button>
+                <button key={s.id} type="button" className="w-full text-left px-3 py-1.5 text-sm hover:bg-[var(--color-bg-surface-hover)]" onClick={async () => { setBusy(true); try { await updateSession(session.id, { section: s.id }); feedback.success(`${s.section_type === "CLASS" ? "수업" : "클리닉"} ${s.label}반으로 이동`); setOpen(false); onDone(); } catch { feedback.error("이동 실패"); } setBusy(false); }} disabled={busy}>{s.section_type === "CLASS" ? "수업" : "클리닉"} {s.label}반</button>
               ))}
               <div className="border-t my-0.5" style={{ borderColor: "var(--color-border-divider)" }} />
             </>
@@ -160,16 +160,6 @@ function SessionGearMenu({
   );
 }
 
-/** 다음 반 이름 자동 생성: 기존 A,B가 있으면 → C */
-function nextSectionLabel(existing: SectionType[], type: "CLASS" | "CLINIC"): string {
-  const used = new Set(existing.filter((s) => s.section_type === type).map((s) => s.label));
-  const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-  for (const ch of letters) {
-    if (!used.has(ch)) return ch;
-  }
-  return `${type === "CLASS" ? "수" : "클"}${used.size + 1}`;
-}
-
 export default function SessionBlock({ lectureId, currentSessionId }: Props) {
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -202,37 +192,7 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
   };
   const showCreate = createForSection !== null;
 
-  // 반 빠른 추가 mutation
-  const addSectionMut = useMutation({
-    mutationFn: (params: { type: "CLASS" | "CLINIC"; day: number; time: string }) =>
-      createSection({
-        lecture: lectureId,
-        label: nextSectionLabel(sections, params.type),
-        section_type: params.type,
-        day_of_week: params.day,
-        start_time: params.time,
-      }),
-    onSuccess: () => {
-      invalidate();
-      feedback.success("반이 추가되었습니다.");
-    },
-    onError: () => feedback.error("반 추가 실패"),
-  });
-
-  // 인라인 반 추가 폼 상태
-  const [addingType, setAddingType] = useState<"CLASS" | "CLINIC" | null>(null);
-  const [addDay, setAddDay] = useState(0);
-  const [addTime, setAddTime] = useState("17:00");
-  const DAY_LABELS = ["월", "화", "수", "목", "금", "토", "일"];
-
-  const handleQuickAddSection = () => {
-    if (addingType == null) return;
-    addSectionMut.mutate({ type: addingType, day: addDay, time: addTime });
-    setAddingType(null);
-  };
-
-  // section_mode 분기
-  // 반별 행 데이터: 반이 있는 세션 + 공통(section=null) 세션
+  // section_mode 분기: 반별 row 데이터
   const sectionRows = useMemo(() => {
     if (!sectionMode) return null;
 
@@ -279,14 +239,24 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
         >
           {isLoading ? (
             <span style={{ fontSize: 14, color: "var(--color-text-muted)" }}>불러오는 중…</span>
+          ) : !hasAnySections ? (
+            <EmptySectionNotice
+              onGoToSections={() => navigate(`/admin/lectures/${lectureId}/sections`)}
+            />
           ) : (
             <>
-              {/* 반 미지정 차시 (section=null) — 기존 차시 보존 */}
+              {/* 반 미지정 차시 (section=null) — 기존 차시 보존
+                  정규형: 레거시 차시로 잘못 남을 확률 높으므로 warning 톤으로 강조. */}
               {commonSessions.length > 0 && (
                 <SessionRow
-                  label={hasAnySections ? "반 미지정" : "전체"}
-                  labelBg="color-mix(in srgb, var(--color-text-muted) 10%, var(--color-bg-surface))"
-                  labelColor="var(--color-text-muted)"
+                  label={clinicMode === "regular" ? "반 미지정 (정리 필요)" : "반 미지정"}
+                  sublabel={clinicMode === "regular" ? "기어 메뉴에서 반으로 이동하세요" : undefined}
+                  labelBg={clinicMode === "regular"
+                    ? "color-mix(in srgb, var(--color-warning, #d97706) 12%, var(--color-bg-surface))"
+                    : "color-mix(in srgb, var(--color-text-muted) 10%, var(--color-bg-surface))"}
+                  labelColor={clinicMode === "regular"
+                    ? "var(--color-warning, #d97706)"
+                    : "var(--color-text-muted)"}
                   sessions={commonSessions}
                   sections={sections}
                   lectureId={lectureId}
@@ -294,7 +264,7 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
                   navigate={navigate}
                   invalidate={invalidate}
                   onAdd={() => setCreateForSection({ id: null, label: null })}
-                  isUnassigned={hasAnySections}
+                  isUnassigned
                 />
               )}
 
@@ -304,100 +274,26 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
                 // regular 모드: 클리닉 반은 항상 표시 (필수이므로)
                 if (secSessions.length === 0 && sec.section_type === "CLINIC" && clinicMode !== "regular") return null;
                 const isClinic = sec.section_type === "CLINIC";
-                const clinicTag = isClinic && clinicMode === "regular" ? " 필수" : "";
                 return (
                   <SessionRow
                     key={sec.id}
-                    label={`${isClinic ? "클리닉 " : ""}${sec.label}반${clinicTag}`}
+                    label={`${isClinic ? "클리닉" : "수업"} ${sec.label}반`}
                     sublabel={`${sec.day_of_week_display} ${sec.start_time?.slice(0, 5) ?? ""}`}
-                    labelBg={sec.section_type === "CLASS"
-                      ? "color-mix(in srgb, var(--color-brand-primary) 12%, var(--color-bg-surface))"
-                      : "color-mix(in srgb, var(--color-warning) 12%, var(--color-bg-surface))"}
-                    labelColor={sec.section_type === "CLASS" ? "var(--color-brand-primary)" : "var(--color-warning, #d97706)"}
+                    labelBg={isClinic
+                      ? "color-mix(in srgb, var(--color-warning) 12%, var(--color-bg-surface))"
+                      : "color-mix(in srgb, var(--color-brand-primary) 12%, var(--color-bg-surface))"}
+                    labelColor={isClinic ? "var(--color-warning, #d97706)" : "var(--color-brand-primary)"}
                     sessions={secSessions}
                     sections={sections}
                     lectureId={lectureId}
                     currentSessionId={currentSessionId}
                     navigate={navigate}
                     invalidate={invalidate}
-                    onAdd={() => setCreateForSection({ id: sec.id, label: `${sec.label}반` })}
+                    onAdd={() => setCreateForSection({ id: sec.id, label: `${isClinic ? "클리닉" : "수업"} ${sec.label}반` })}
                     sectionType={sec.section_type}
                   />
                 );
               })}
-
-              {/* 반 추가 — 차시블록 영역 안, 마지막 줄 */}
-              {!addingType ? (
-                <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
-                  <SessionBlockView
-                    variant="add"
-                    compact
-                    onClick={() => { setAddingType("CLASS"); setAddDay(2); setAddTime("17:00"); }}
-                    ariaLabel="수업 반 추가"
-                  >
-                    <span style={{ display: "flex", alignItems: "center", gap: 3, fontSize: 11, fontWeight: 600, whiteSpace: "nowrap" }}>
-                      <Plus size={14} strokeWidth={2.5} /> 수업반
-                    </span>
-                  </SessionBlockView>
-                  {clinicMode === "regular" && (
-                    <SessionBlockView
-                      variant="add"
-                      compact
-                      onClick={() => { setAddingType("CLINIC"); setAddDay(5); setAddTime("19:00"); }}
-                      ariaLabel="클리닉 반 추가"
-                    >
-                      <span style={{ display: "flex", alignItems: "center", gap: 3, fontSize: 11, fontWeight: 600, whiteSpace: "nowrap", color: "var(--color-warning, #d97706)" }}>
-                        <Plus size={14} strokeWidth={2.5} /> 클리닉반
-                      </span>
-                    </SessionBlockView>
-                  )}
-                </div>
-              ) : (
-                /* 인라인 반 추가 폼 */
-                <div style={{
-                  display: "flex", alignItems: "center", gap: 8,
-                  padding: "6px 10px", borderRadius: 10,
-                  background: "var(--color-bg-surface-sunken)",
-                }}>
-                  {/* 타입 토글 — remediation 모드에서는 CLASS만 */}
-                  <div style={{ display: "flex", gap: 2, borderRadius: 6, background: "var(--color-bg-surface)", padding: 2 }}>
-                    {(clinicMode === "regular" ? (["CLASS", "CLINIC"] as const) : (["CLASS"] as const)).map((t) => (
-                      <button
-                        key={t}
-                        onClick={() => {
-                          setAddingType(t);
-                          if (t === "CLASS") { setAddDay(2); setAddTime("17:00"); }
-                          else { setAddDay(5); setAddTime("19:00"); }
-                        }}
-                        style={{
-                          fontSize: 12, fontWeight: 600, padding: "3px 10px", borderRadius: 5,
-                          border: "none", cursor: "pointer",
-                          background: addingType === t ? (t === "CLASS" ? "var(--color-brand-primary)" : "var(--color-warning, #d97706)") : "transparent",
-                          color: addingType === t ? "#fff" : "var(--color-text-muted)",
-                          transition: "all 120ms",
-                        }}
-                      >
-                        {t === "CLASS" ? "수업" : "클리닉"}
-                      </button>
-                    ))}
-                  </div>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: "var(--color-text-primary)" }}>
-                    {nextSectionLabel(sections, addingType)}반
-                  </span>
-                  <select className="ds-input" value={addDay} onChange={(e) => setAddDay(Number(e.target.value))} style={{ width: 58, fontSize: 12, padding: "3px 4px" }}>
-                    {DAY_LABELS.map((d, i) => <option key={i} value={i}>{d}</option>)}
-                  </select>
-                  <input className="ds-input" type="time" value={addTime} onChange={(e) => setAddTime(e.target.value)} style={{ width: 90, fontSize: 12, padding: "3px 4px" }} />
-                  <button onClick={handleQuickAddSection} disabled={addSectionMut.isPending} style={{
-                    fontSize: 12, fontWeight: 600, color: "#fff", border: "none", borderRadius: 6, padding: "4px 12px", cursor: "pointer",
-                    background: addingType === "CLASS" ? "var(--color-brand-primary)" : "var(--color-warning, #d97706)",
-                    opacity: addSectionMut.isPending ? 0.5 : 1,
-                  }}>
-                    {addSectionMut.isPending ? "..." : "추가"}
-                  </button>
-                  <button onClick={() => setAddingType(null)} style={{ fontSize: 11, color: "var(--color-text-muted)", background: "none", border: "none", cursor: "pointer" }}>취소</button>
-                </div>
-              )}
             </>
           )}
         </div>
@@ -439,6 +335,53 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
       </div>
       {showCreate && <SessionCreateModal lectureId={lectureId} sectionId={createForSection?.id} sectionLabel={createForSection?.label} onClose={handleClose} />}
     </>
+  );
+}
+
+/** 반 편성 모드이지만 반이 하나도 없을 때의 온보딩 안내 */
+function EmptySectionNotice({ onGoToSections }: { onGoToSections: () => void }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: "var(--space-3)",
+        padding: "var(--space-4)",
+        borderRadius: 12,
+        border: "1px dashed var(--color-border-divider)",
+        background: "color-mix(in srgb, var(--color-primary) 4%, var(--color-bg-surface))",
+      }}
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+        <span style={{ fontSize: 14, fontWeight: 700, color: "var(--color-text-primary)" }}>
+          이 강의에 반이 아직 없습니다
+        </span>
+        <span style={{ fontSize: 12, color: "var(--color-text-muted)" }}>
+          수업 반(A, B…)과 클리닉 반을 만들면 차시를 반별로 관리할 수 있습니다.
+        </span>
+      </div>
+      <button
+        type="button"
+        onClick={onGoToSections}
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 6,
+          fontSize: 13,
+          fontWeight: 600,
+          color: "#fff",
+          background: "var(--color-brand-primary)",
+          border: "none",
+          borderRadius: 8,
+          padding: "8px 14px",
+          cursor: "pointer",
+          whiteSpace: "nowrap",
+        }}
+      >
+        <Users size={14} /> 반 편성 열기
+      </button>
+    </div>
   );
 }
 

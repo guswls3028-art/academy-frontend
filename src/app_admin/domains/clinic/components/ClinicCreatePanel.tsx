@@ -13,6 +13,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { fetchClinicSessionTree, updateClinicSession } from "../api/clinicSessions.api";
 import { fetchLectures, type Lecture } from "@admin/domains/lectures/api/sessions";
+import { fetchAllSections, type Section } from "@admin/domains/lectures/api/sections";
 import ClinicTargetSelectModal, { type ClinicTargetSelectResult } from "./ClinicTargetSelectModal";
 import type { EnrollmentSelection, StudentSelection } from "@/shared/types/selection";
 import { buildParticipantPayload } from "../utils/buildParticipantPayload";
@@ -21,6 +22,7 @@ import api from "@/shared/api/axios";
 import { createClinicParticipant } from "../api/clinicParticipants.api";
 import { useClinicTargets } from "../hooks/useClinicTargets";
 import { useSchoolLevelMode } from "@/shared/hooks/useSchoolLevelMode";
+import { useSectionMode } from "@/shared/hooks/useSectionMode";
 
 const SAVED_LOCATIONS_KEY = "academy-clinic-saved-locations";
 
@@ -127,6 +129,7 @@ type Props = {
     target_grade?: number | null;
     target_school_type?: string | null;
     target_lecture_ids?: number[];
+    section?: number | null;
   };
   onUpdated?: () => void;
 };
@@ -147,6 +150,19 @@ export default function ClinicCreatePanel({
   const qc = useQueryClient();
   const { data: clinicTargets } = useClinicTargets();
   const slm = useSchoolLevelMode();
+  const { sectionMode, clinicMode } = useSectionMode();
+  const showSectionPicker = sectionMode && clinicMode === "regular";
+
+  // 정규형 클리닉일 때만 CLINIC type section 목록 조회
+  const clinicSectionsQ = useQuery<Section[]>({
+    queryKey: ["clinic-sections-regular"],
+    queryFn: () => fetchAllSections({ section_type: "CLINIC" }),
+    enabled: showSectionPicker,
+    staleTime: 60_000,
+  });
+  const [selectedSectionId, setSelectedSectionId] = useState<number | null>(
+    editSession?.section ?? null
+  );
 
   // enrollment_id → clinic_reason 매핑 (참가자 등록 시 사유 전달용)
   const targetReasonMap = useMemo(() => {
@@ -261,6 +277,7 @@ export default function ClinicCreatePanel({
       target_school_type?: string | null;
       target_lecture_ids?: number[];
       memo?: string;
+      section?: number | null;
     }) => {
       const res = await api.post("/clinic/sessions/", payload);
       return res.data as { id: number };
@@ -288,6 +305,7 @@ export default function ClinicCreatePanel({
           target_grade: targetGrade,
           target_school_type: targetSchoolType,
           target_lecture_ids: targetLectureIds.length > 0 ? targetLectureIds : [],
+          ...(showSectionPicker ? { section: selectedSectionId } : {}),
         });
         message.success("클리닉이 수정되었습니다.");
         qc.invalidateQueries({ queryKey: ["clinic-sessions-tree"] });
@@ -329,6 +347,7 @@ export default function ClinicCreatePanel({
         target_school_type: targetSchoolType,
         target_lecture_ids: targetLectureIds.length > 0 ? targetLectureIds : [],
         memo: memo.trim() || undefined,
+        ...(showSectionPicker ? { section: selectedSectionId } : {}),
       });
 
       // B-01: 선택된 학생들을 참가자로 등록
@@ -503,6 +522,18 @@ export default function ClinicCreatePanel({
   );
 
   /* ── form fields (shared between card and modal layouts) ── */
+  const clinicSectionOptions = useMemo(() => {
+    const list = clinicSectionsQ.data ?? [];
+    const active = list.filter((s) => s.is_active);
+    return active
+      .slice()
+      .sort((a, b) => a.label.localeCompare(b.label))
+      .map((s) => ({
+        value: s.id,
+        label: `클리닉 ${s.label}반 (${s.day_of_week_display} ${s.start_time?.slice(0, 5) ?? ""})`,
+      }));
+  }, [clinicSectionsQ.data]);
+
   const formFields = (
     <>
       {/* 날짜 */}
@@ -520,6 +551,28 @@ export default function ClinicCreatePanel({
             minDate={todayISO()}
             openBelow
           />
+        </div>
+      )}
+
+      {/* 반 (정규형 클리닉만) */}
+      {showSectionPicker && (
+        <div className="clinic-create__field">
+          <label className="clinic-create__label">반</label>
+          <Select
+            placeholder="반 선택 없음 (전체)"
+            value={selectedSectionId ?? undefined}
+            onChange={(v) => setSelectedSectionId(v ?? null)}
+            options={clinicSectionOptions}
+            loading={clinicSectionsQ.isLoading}
+            allowClear
+            style={{ width: "100%" }}
+            size="small"
+          />
+          {clinicSectionOptions.length === 0 && !clinicSectionsQ.isLoading && (
+            <div className="text-[11px]" style={{ color: "var(--color-text-muted)", marginTop: 4 }}>
+              클리닉반이 아직 없습니다. 강의 상세 → 반 편성에서 먼저 생성하세요.
+            </div>
+          )}
         </div>
       )}
 

@@ -70,7 +70,9 @@ export default function SessionLayout() {
   const sectionLabel = sectionMode && session.section_label
     ? `${session.section_label}반`
     : null;
-  const sectionType = session.section_type === "CLINIC" ? "클리닉" : null;
+  const sectionType = sectionMode && session.section_label
+    ? (session.section_type === "CLINIC" ? "클리닉" : "수업")
+    : null;
   const sectionSuffix = sectionLabel
     ? ` (${sectionType ? sectionType + " " : ""}${sectionLabel})`
     : "";

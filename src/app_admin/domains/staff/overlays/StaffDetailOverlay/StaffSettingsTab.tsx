@@ -36,6 +36,10 @@ export default function StaffSettingsTab() {
       qc.invalidateQueries({ queryKey: ["staffs"] });
       feedback.success("저장되었습니다.");
     },
+    onError: (e: unknown) => {
+      const msg = (e as any)?.response?.data?.detail ?? (e as any)?.response?.data?.message ?? "저장에 실패했습니다.";
+      feedback.error(Array.isArray(msg) ? msg.join(", ") : String(msg));
+    },
   });
 
   const [form, setForm] = useState({
@@ -70,7 +74,7 @@ export default function StaffSettingsTab() {
           <input
             value={form.name}
             onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
-            className="form-input"
+            className="ds-input"
           />
         </Field>
 
@@ -78,7 +82,7 @@ export default function StaffSettingsTab() {
           <input
             value={form.phone}
             onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))}
-            className="form-input"
+            className="ds-input"
           />
         </Field>
 
@@ -123,14 +127,18 @@ export default function StaffSettingsTab() {
 
       <div className="flex items-center justify-between pt-4 border-t border-[var(--border-divider)]">
         <button
+          type="button"
           onClick={() => patchM.mutate({ ...form, name: form.name.trim(), phone: form.phone.trim() })}
-          className="btn-primary"
+          className="ds-button"
+          data-intent="primary"
+          data-size="sm"
           disabled={patchM.isPending}
         >
-          저장
+          {patchM.isPending ? "저장 중…" : "저장"}
         </button>
 
         <button
+          type="button"
           onClick={async () => {
             const ok = await confirm({
               title: "직원 삭제",
@@ -141,7 +149,9 @@ export default function StaffSettingsTab() {
             if (!ok) return;
             deleteMutation.mutate(sid);
           }}
-          className="btn-danger"
+          className="ds-button"
+          data-intent="danger"
+          data-size="sm"
           disabled={deleteMutation.isPending}
         >
           {deleteMutation.isPending ? "삭제 중…" : "직원 삭제"}

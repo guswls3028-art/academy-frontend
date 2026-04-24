@@ -165,12 +165,14 @@ export default function AdminRouter() {
           <Route path="past" element={<Suspense fallback={<AdminRouteFallback />}>{(() => { const LP = LecturesPage as React.ComponentType<{ tab?: string }>; return <LP tab="past" />; })()}</Suspense>} />
         </Route>
 
-        {/* 강의 상세 — 수강생 + 반 편성 (section_mode) */}
+        {/* 강의 상세 — 수강생 + 차시 */}
         <Route path="lectures/:lectureId" element={wrapLazy(LectureLayout)}>
           <Route index element={wrapLazy(LectureStudentsPage)} />
           <Route path="sessions" element={wrapLazy(LectureSessionsPage)} />
-          <Route path="sections" element={wrapLazy(SectionManagementPage)} />
         </Route>
+
+        {/* 반 편성 — 자체 헤더로 분리 (section_mode) */}
+        <Route path="lectures/:lectureId/sections" element={wrapLazy(SectionManagementPage)} />
 
         {/* ================= Sessions ================= */}
         <Route

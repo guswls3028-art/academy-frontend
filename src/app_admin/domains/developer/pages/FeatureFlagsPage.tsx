@@ -1,18 +1,83 @@
 // PATH: src/app_admin/domains/developer/pages/FeatureFlagsPage.tsx
 // 개발자 콘솔 > 운영 설정 — feature_flags 관리 (owner/tenant 1 전용)
+// 모드 프리셋 + 운영 테넌트 설정 불러오기 지원
 
 import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
-import { Settings, ToggleLeft, ToggleRight } from "lucide-react";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import {
+  Settings,
+  ToggleLeft,
+  ToggleRight,
+  Zap,
+  Eye,
+  ChevronDown,
+  Building2,
+} from "lucide-react";
 import { useProgram } from "@/shared/program";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import api from "@/shared/api/axios";
 import styles from "./DeveloperPage.module.css";
 
-type SectionMode = boolean;
-type ClinicMode = "remediation" | "regular";
-type SchoolLevelMode = "middle_high" | "elementary_middle";
+/* ── Types ── */
+
+type FeatureFlags = {
+  section_mode?: boolean;
+  school_level_mode?: string;
+  clinic_mode?: string;
+  [key: string]: unknown;
+};
+
+type TenantWithFlags = {
+  id: number;
+  code: string;
+  name: string;
+  isActive: boolean;
+  featureFlags: FeatureFlags;
+};
+
+/* ── Presets ── */
+
+type Preset = {
+  id: string;
+  label: string;
+  description: string;
+  flags: { section_mode: boolean; school_level_mode: string; clinic_mode: string };
+  color: string;
+};
+
+const PRESETS: Preset[] = [
+  {
+    id: "default",
+    label: "기본",
+    description: "중고등 · 반 없음 · 보충 클리닉",
+    flags: { section_mode: false, school_level_mode: "middle_high", clinic_mode: "remediation" },
+    color: "var(--color-text-secondary)",
+  },
+  {
+    id: "sswe",
+    label: "SSWE",
+    description: "중고등 · A/B반 · 정규 클리닉",
+    flags: { section_mode: true, school_level_mode: "middle_high", clinic_mode: "regular" },
+    color: "#7c3aed",
+  },
+  {
+    id: "elementary",
+    label: "초중등",
+    description: "초중등 · 반 없음 · 보충 클리닉",
+    flags: { section_mode: false, school_level_mode: "elementary_middle", clinic_mode: "remediation" },
+    color: "#0891b2",
+  },
+  {
+    id: "elementary_section",
+    label: "초중등+반",
+    description: "초중등 · A/B반 · 보충 클리닉",
+    flags: { section_mode: true, school_level_mode: "elementary_middle", clinic_mode: "remediation" },
+    color: "#0d9488",
+  },
+];
+
+/* ── Mode Options (individual toggles) ── */
 
 const MODE_OPTIONS: {
   key: string;
@@ -49,9 +114,11 @@ const MODE_OPTIONS: {
   },
 ];
 
+/* ── Component ── */
+
 export default function FeatureFlagsPage() {
   const { program, refetch } = useProgram();
-  const ff = program?.feature_flags ?? {};
+  const ff: FeatureFlags = program?.feature_flags ?? {};
 
   // Local state for edits
   const [sectionMode, setSectionMode] = useState<string>(String(Boolean(ff.section_mode)));
@@ -61,8 +128,9 @@ export default function FeatureFlagsPage() {
   const [clinicMode, setClinicMode] = useState<string>(
     (ff.clinic_mode as string) || "remediation"
   );
+  const [tenantDropdownOpen, setTenantDropdownOpen] = useState(false);
 
-  // Track if anything changed
+  // Current saved values
   const currentSectionMode = String(Boolean(ff.section_mode));
   const currentSchoolLevel = (ff.school_level_mode as string) || "middle_high";
   const currentClinicMode = (ff.clinic_mode as string) || "remediation";
@@ -72,9 +140,20 @@ export default function FeatureFlagsPage() {
     schoolLevel !== currentSchoolLevel ||
     clinicMode !== currentClinicMode;
 
+  // Fetch tenants (platform admin only - Tenant 1)
+  const { data: tenants } = useQuery<TenantWithFlags[]>({
+    queryKey: ["tenants-feature-flags"],
+    queryFn: async () => {
+      const res = await api.get<TenantWithFlags[]>("/core/tenants/");
+      return res.data;
+    },
+    staleTime: 60_000,
+  });
+
+  // Save mutation
   const saveMut = useMutation({
     mutationFn: async () => {
-      const newFlags = {
+      const newFlags: FeatureFlags = {
         ...ff,
         section_mode: sectionMode === "true",
         school_level_mode: schoolLevel,
@@ -95,18 +174,244 @@ export default function FeatureFlagsPage() {
     clinic_mode: { get: clinicMode, set: setClinicMode },
   };
 
+  // Apply a preset or tenant config
+  function applyFlags(flags: { section_mode?: boolean; school_level_mode?: string; clinic_mode?: string }) {
+    setSectionMode(String(Boolean(flags.section_mode)));
+    setSchoolLevel(flags.school_level_mode || "middle_high");
+    setClinicMode(flags.clinic_mode || "remediation");
+  }
+
+  // Check which preset matches current local state
+  function matchesPreset(preset: Preset): boolean {
+    return (
+      sectionMode === String(preset.flags.section_mode) &&
+      schoolLevel === preset.flags.school_level_mode &&
+      clinicMode === preset.flags.clinic_mode
+    );
+  }
+
+  // Other tenants (exclude Tenant 1 = self)
+  const otherTenants = tenants?.filter((t) => t.id !== 1 && t.isActive) ?? [];
+
   return (
     <div className={styles.panel}>
+      {/* Guide */}
       <div className={styles.guide}>
         <Settings size={18} className={styles.guideIcon} />
         <div>
           <p className={styles.guideTitle}>운영 모드 설정</p>
           <p className={styles.guideDesc}>
-            이 학원의 운영 방식을 설정합니다. 변경 시 즉시 반영됩니다.
+            이 학원의 운영 방식을 설정합니다. 프리셋으로 빠르게 전환하거나 운영 테넌트 설정을 불러올 수 있습니다.
           </p>
         </div>
       </div>
 
+      {/* ── Presets ── */}
+      <div
+        style={{
+          border: "1px solid var(--color-border-divider)",
+          borderRadius: 10,
+          background: "var(--color-bg-surface)",
+          overflow: "hidden",
+        }}
+      >
+        <div
+          style={{
+            padding: "14px 18px 10px",
+            borderBottom: "1px solid var(--color-border-divider)",
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+          }}
+        >
+          <Zap size={15} style={{ color: "var(--color-brand-primary)" }} />
+          <div style={{ fontSize: 14, fontWeight: 700, color: "var(--color-text-primary)" }}>
+            모드 프리셋
+          </div>
+          <div style={{ fontSize: 12, color: "var(--color-text-muted)", marginLeft: 4 }}>
+            원클릭 전환
+          </div>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 0 }}>
+          {PRESETS.map((preset) => {
+            const active = matchesPreset(preset);
+            return (
+              <button
+                key={preset.id}
+                type="button"
+                onClick={() => applyFlags(preset.flags)}
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 2,
+                  padding: "14px 16px",
+                  border: "none",
+                  borderRight: "1px solid var(--color-border-divider)",
+                  borderBottom: "1px solid var(--color-border-divider)",
+                  background: active
+                    ? `color-mix(in srgb, ${preset.color} 8%, var(--color-bg-surface))`
+                    : "transparent",
+                  cursor: "pointer",
+                  textAlign: "left",
+                  transition: "background 120ms",
+                  outline: active ? `2px solid ${preset.color}` : "none",
+                  outlineOffset: -2,
+                  borderRadius: 0,
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: 14,
+                    fontWeight: active ? 800 : 600,
+                    color: active ? preset.color : "var(--color-text-primary)",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                  }}
+                >
+                  <span
+                    style={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: "50%",
+                      background: active ? preset.color : "var(--color-text-muted)",
+                      opacity: active ? 1 : 0.3,
+                      flexShrink: 0,
+                    }}
+                  />
+                  {preset.label}
+                </div>
+                <div style={{ fontSize: 11, color: "var(--color-text-muted)", paddingLeft: 14 }}>
+                  {preset.description}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ── Tenant Config Loader ── */}
+      {otherTenants.length > 0 && (
+        <div
+          style={{
+            border: "1px solid var(--color-border-divider)",
+            borderRadius: 10,
+            background: "var(--color-bg-surface)",
+            overflow: "hidden",
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => setTenantDropdownOpen((v) => !v)}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              width: "100%",
+              padding: "14px 18px",
+              border: "none",
+              background: "transparent",
+              cursor: "pointer",
+              textAlign: "left",
+            }}
+          >
+            <Eye size={15} style={{ color: "var(--color-brand-primary)", flexShrink: 0 }} />
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "var(--color-text-primary)" }}>
+                운영 테넌트 설정 불러오기
+              </div>
+              <div style={{ fontSize: 12, color: "var(--color-text-muted)" }}>
+                실제 운영 중인 테넌트의 설정을 가져와 미리보기
+              </div>
+            </div>
+            <ChevronDown
+              size={16}
+              style={{
+                color: "var(--color-text-muted)",
+                transition: "transform 150ms",
+                transform: tenantDropdownOpen ? "rotate(180deg)" : "rotate(0)",
+              }}
+            />
+          </button>
+          {tenantDropdownOpen && (
+            <div
+              style={{
+                borderTop: "1px solid var(--color-border-divider)",
+                display: "flex",
+                flexDirection: "column",
+              }}
+            >
+              {otherTenants.map((tenant) => {
+                const tff = tenant.featureFlags || {};
+                const desc = [
+                  tff.school_level_mode === "elementary_middle" ? "초중등" : "중고등",
+                  tff.section_mode ? "A/B반" : "반 없음",
+                  tff.clinic_mode === "regular" ? "정규 클리닉" : "보충 클리닉",
+                ].join(" · ");
+                return (
+                  <button
+                    key={tenant.id}
+                    type="button"
+                    onClick={() => {
+                      applyFlags(tff);
+                      setTenantDropdownOpen(false);
+                      feedback.success(`${tenant.name} 설정을 불러왔습니다. 저장 후 반영됩니다.`);
+                    }}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 12,
+                      padding: "10px 18px",
+                      border: "none",
+                      borderBottom: "1px solid var(--color-border-divider)",
+                      background: "transparent",
+                      cursor: "pointer",
+                      textAlign: "left",
+                      transition: "background 120ms",
+                    }}
+                    onMouseEnter={(e) => {
+                      (e.currentTarget as HTMLElement).style.background =
+                        "color-mix(in srgb, var(--color-brand-primary) 4%, var(--color-bg-surface))";
+                    }}
+                    onMouseLeave={(e) => {
+                      (e.currentTarget as HTMLElement).style.background = "transparent";
+                    }}
+                  >
+                    <Building2 size={16} style={{ color: "var(--color-text-muted)", flexShrink: 0 }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div
+                        style={{
+                          fontSize: 13,
+                          fontWeight: 600,
+                          color: "var(--color-text-primary)",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 6,
+                        }}
+                      >
+                        {tenant.name}
+                        <span
+                          style={{
+                            fontSize: 11,
+                            fontWeight: 500,
+                            color: "var(--color-text-muted)",
+                            fontFamily: "ui-monospace, monospace",
+                          }}
+                        >
+                          #{tenant.id}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: 11, color: "var(--color-text-muted)" }}>{desc}</div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Individual Toggles ── */}
       <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
         {MODE_OPTIONS.map((mode) => {
           const state = stateMap[mode.key];
@@ -190,6 +495,7 @@ export default function FeatureFlagsPage() {
         })}
       </div>
 
+      {/* ── Save bar ── */}
       {hasChanges && (
         <div
           style={{
@@ -201,6 +507,10 @@ export default function FeatureFlagsPage() {
             borderRadius: 10,
             background: "color-mix(in srgb, var(--color-warning, #d97706) 8%, var(--color-bg-surface))",
             border: "1px solid color-mix(in srgb, var(--color-warning, #d97706) 25%, var(--color-border-divider))",
+            position: "sticky",
+            bottom: 16,
+            zIndex: 10,
+            boxShadow: "0 -2px 12px rgba(0,0,0,0.08)",
           }}
         >
           <span style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-primary)" }}>
@@ -231,7 +541,7 @@ export default function FeatureFlagsPage() {
         </div>
       )}
 
-      {/* 현재 값 요약 */}
+      {/* ── Current value summary ── */}
       <div
         style={{
           padding: "14px 18px",

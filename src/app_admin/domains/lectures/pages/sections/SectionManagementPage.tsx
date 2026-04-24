@@ -1,13 +1,18 @@
 // PATH: src/app_admin/domains/lectures/pages/sections/SectionManagementPage.tsx
 /**
- * 반 편성 페이지 — 반 관리 + 학생 배정을 한 화면에서 처리.
+ * 반 편성 — 수업 × 클리닉 매트릭스.
  *
- * 좌측: 반 목록 (수업/클리닉)  +  반 추가/편집
- * 우측: 선택한 반의 학생 편성 목록  +  자동배정
+ * 상단: 요약 바 (수업 N반 · 클리닉 M반 · 편성률)
+ * 중단: 반 목록 (수업반 / 클리닉반 카드 리스트 + 편집/삭제 + 추가)
+ * 하단: 편성 매트릭스 (수업반 × 클리닉반 셀 + 미배정 행/열)
+ *
+ * 기존 좌우 분할 UI 폐기 — 4조합을 한 눈에 볼 수 있도록 2차원 그리드로 재편.
  */
 import { useState, useMemo, useCallback } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Plus, Pencil, Trash2, BookOpen, Stethoscope, ArrowLeft, Wand2, UserPlus, AlertTriangle } from "lucide-react";
+import api from "@/shared/api/axios";
 
 import {
   fetchSections,
@@ -19,8 +24,12 @@ import {
   type Section,
   type SectionAssignment,
 } from "../../api/sections";
+import { fetchLectureEnrollments } from "../../api/enrollments";
 import { EmptyState, Button } from "@/shared/ui/ds";
+import { DomainLayout } from "@/shared/ui/layout";
 import { useSectionMode } from "@/shared/hooks/useSectionMode";
+import { feedback } from "@/shared/ui/feedback/feedback";
+import { useConfirm } from "@/shared/ui/confirm";
 
 const DAY_OPTIONS = [
   { value: 0, label: "월" },
@@ -45,126 +54,241 @@ type SectionForm = {
 const EMPTY_FORM: SectionForm = {
   label: "",
   section_type: "CLASS",
-  day_of_week: 0,
+  day_of_week: 2,
   start_time: "17:00",
-  end_time: "19:00",
+  end_time: "",
   location: "",
   max_capacity: "",
+};
+
+/** 다음 반 이름 자동 제안: A, B, C ... */
+function nextLabel(existing: Section[], type: "CLASS" | "CLINIC"): string {
+  const used = new Set(existing.filter((s) => s.section_type === type).map((s) => s.label));
+  for (const ch of "ABCDEFGHIJKLMNOPQRSTUVWXYZ") if (!used.has(ch)) return ch;
+  return `${type === "CLASS" ? "수" : "클"}${used.size + 1}`;
+}
+
+type EnrollmentLite = {
+  id: number;
+  student: { id: number; name: string };
+  status?: string;
 };
 
 export default function SectionManagementPage() {
   const { lectureId } = useParams<{ lectureId: string }>();
   const lecId = Number(lectureId);
   const qc = useQueryClient();
+  const navigate = useNavigate();
+  const confirm = useConfirm();
   const { sectionMode, clinicMode } = useSectionMode();
   const showClinic = clinicMode === "regular";
 
-  const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [showForm, setShowForm] = useState(false);
-  const [editId, setEditId] = useState<number | null>(null);
-  const [form, setForm] = useState<SectionForm>(EMPTY_FORM);
+  const [formOpen, setFormOpen] = useState<null | { editId: number | null; form: SectionForm }>(null);
 
-  // -- Data --
-  const { data: sections = [], isLoading } = useQuery<Section[]>({
+  // ===== Data =====
+  const { data: lecture } = useQuery({
+    queryKey: ["lecture", lecId],
+    queryFn: async () => (await api.get(`/lectures/lectures/${lecId}/`)).data,
+    enabled: Number.isFinite(lecId),
+  });
+
+  const { data: sections = [], isLoading: sectionsLoading } = useQuery<Section[]>({
     queryKey: ["lecture-sections", lecId],
     queryFn: () => fetchSections(lecId),
     enabled: Number.isFinite(lecId),
   });
 
-  const { data: assignments = [] } = useQuery<SectionAssignment[]>({
+  const { data: assignments = [], isLoading: assignLoading } = useQuery<SectionAssignment[]>({
     queryKey: ["section-assignments", lecId],
     queryFn: () => fetchSectionAssignments(lecId),
     enabled: Number.isFinite(lecId),
   });
 
-  // -- Mutations --
+  const { data: enrollments = [], isLoading: enrollLoading } = useQuery<EnrollmentLite[]>({
+    queryKey: ["lecture-enrollments", lecId],
+    queryFn: () => fetchLectureEnrollments(lecId) as Promise<EnrollmentLite[]>,
+    enabled: Number.isFinite(lecId),
+  });
+
+  // ===== Mutations =====
   const invalidate = useCallback(() => {
     qc.invalidateQueries({ queryKey: ["lecture-sections", lecId] });
     qc.invalidateQueries({ queryKey: ["section-assignments", lecId] });
+    qc.invalidateQueries({ queryKey: ["lecture-enrollments", lecId] });
   }, [qc, lecId]);
 
   const createMut = useMutation({
     mutationFn: (data: Parameters<typeof createSection>[0]) => createSection(data),
-    onSuccess: () => { invalidate(); setShowForm(false); import("@/shared/ui/feedback/feedback").then(({ feedback }) => feedback.success("반이 추가되었습니다.")); },
+    onSuccess: () => { invalidate(); setFormOpen(null); feedback.success("반을 추가했습니다."); },
+    onError: () => feedback.error("반 추가 실패. 같은 이름의 반이 이미 있을 수 있습니다."),
   });
 
   const updateMut = useMutation({
     mutationFn: ({ id, data }: { id: number; data: Parameters<typeof updateSection>[1] }) =>
       updateSection(id, data),
-    onSuccess: () => { invalidate(); setShowForm(false); setEditId(null); import("@/shared/ui/feedback/feedback").then(({ feedback }) => feedback.success("반이 수정되었습니다.")); },
+    onSuccess: () => { invalidate(); setFormOpen(null); feedback.success("반을 수정했습니다."); },
+    onError: () => feedback.error("반 수정 실패."),
   });
 
   const deleteMut = useMutation({
     mutationFn: (id: number) => deleteSection(id),
-    onSuccess: () => {
-      invalidate();
-      if (selectedId === deleteMut.variables) setSelectedId(null);
-      import("@/shared/ui/feedback/feedback").then(({ feedback }) => feedback.success("반이 삭제되었습니다."));
-    },
+    onSuccess: () => { invalidate(); feedback.success("반을 삭제했습니다."); },
+    onError: () => feedback.error("편성된 학생이 있어 삭제할 수 없습니다."),
   });
 
   const autoAssignMut = useMutation({
-    mutationFn: (sectionType: "CLASS" | "CLINIC") =>
-      autoAssignSections(lecId, sectionType),
-    onSuccess: () => { invalidate(); import("@/shared/ui/feedback/feedback").then(({ feedback }) => feedback.success("학생이 자동배정되었습니다.")); },
+    mutationFn: async () => {
+      const r1 = await autoAssignSections(lecId, "CLASS");
+      const r2 = showClinic ? await autoAssignSections(lecId, "CLINIC") : { assigned: 0, message: "" };
+      return { classCount: r1.assigned ?? 0, clinicCount: r2.assigned ?? 0 };
+    },
+    onSuccess: (r) => {
+      invalidate();
+      const msg = showClinic
+        ? `수업 ${r.classCount}명 · 클리닉 ${r.clinicCount}명 자동배정 완료`
+        : `수업 ${r.classCount}명 자동배정 완료`;
+      feedback.success(msg);
+    },
+    onError: () => feedback.error("자동배정 실패."),
   });
 
-  // -- Derived --
+  const upsertAssignmentMut = useMutation({
+    mutationFn: async (args: { enrollmentId: number; classSectionId: number | null; clinicSectionId: number | null }) => {
+      const existing = assignments.find((a) => a.enrollment === args.enrollmentId);
+      if (existing) {
+        // PATCH
+        const payload: Record<string, number | null | string> = { source: "MANUAL" };
+        if (args.classSectionId !== null) payload.class_section = args.classSectionId;
+        if (args.clinicSectionId !== undefined) payload.clinic_section = args.clinicSectionId;
+        const res = await api.patch(`/lectures/section-assignments/${existing.id}/`, payload);
+        return res.data;
+      } else {
+        if (args.classSectionId == null) {
+          throw new Error("수업반이 먼저 지정되어야 합니다.");
+        }
+        const res = await api.post("/lectures/section-assignments/", {
+          enrollment: args.enrollmentId,
+          class_section: args.classSectionId,
+          clinic_section: args.clinicSectionId,
+          source: "MANUAL",
+        });
+        return res.data;
+      }
+    },
+    onSuccess: () => { invalidate(); feedback.success("학생을 이동했습니다."); },
+    onError: (e: any) => feedback.error(e?.message || "이동 실패"),
+  });
+
+  const deleteAssignmentMut = useMutation({
+    mutationFn: async (enrollmentId: number) => {
+      const existing = assignments.find((a) => a.enrollment === enrollmentId);
+      if (!existing) return;
+      await api.delete(`/lectures/section-assignments/${existing.id}/`);
+    },
+    onSuccess: () => { invalidate(); feedback.success("편성을 해제했습니다."); },
+    onError: () => feedback.error("편성 해제 실패."),
+  });
+
+  // ===== Derived =====
   const classSections = useMemo(
-    () => sections.filter((s) => s.section_type === "CLASS"),
+    () => sections.filter((s) => s.section_type === "CLASS").sort((a, b) => a.label.localeCompare(b.label)),
     [sections],
   );
   const clinicSections = useMemo(
-    () => sections.filter((s) => s.section_type === "CLINIC"),
+    () => sections.filter((s) => s.section_type === "CLINIC").sort((a, b) => a.label.localeCompare(b.label)),
     [sections],
   );
 
-  const selectedSection = sections.find((s) => s.id === selectedId) ?? null;
+  const assignmentByEnrollment = useMemo(() => {
+    const map = new Map<number, SectionAssignment>();
+    for (const a of assignments) map.set(a.enrollment, a);
+    return map;
+  }, [assignments]);
 
-  const selectedAssignments = useMemo(() => {
-    if (!selectedId) return assignments;
-    return assignments.filter(
-      (a) => a.class_section === selectedId || a.clinic_section === selectedId,
-    );
-  }, [assignments, selectedId]);
+  const totalStudents = enrollments.length;
+  const classAssignedCount = enrollments.filter((e) => assignmentByEnrollment.get(e.id)?.class_section != null).length;
+  const clinicAssignedCount = enrollments.filter((e) => assignmentByEnrollment.get(e.id)?.clinic_section != null).length;
 
-  // 반 편성 모드가 꺼져 있으면 접근 차단 (hooks 뒤에 배치)
+  // ===== Access gate =====
   if (!sectionMode) {
     return (
-      <EmptyState
-        scope="page"
-        tone="empty"
-        title="반 편성 모드가 비활성화되어 있습니다"
-        description="설정 > 개발자 콘솔 > 운영 설정에서 반 편성 모드를 활성화하세요."
-      />
+      <DomainLayout
+        title="반 편성"
+        description="이 학원은 반 편성 모드를 사용하지 않습니다."
+        breadcrumbs={[
+          { label: "강의", to: "/admin/lectures" },
+          { label: lecture?.title ?? lecture?.name ?? "강의", to: `/admin/lectures/${lecId}` },
+          { label: "반 편성" },
+        ]}
+      >
+        <EmptyState
+          scope="page"
+          tone="empty"
+          title="반 편성 모드가 꺼져 있습니다"
+          description="같은 강의를 A/B 반으로 나눠 운영하고 싶다면 운영자에게 반 편성 모드 활성화를 문의하세요."
+          actions={
+            <Button intent="secondary" onClick={() => navigate(`/admin/lectures/${lecId}`)}>
+              강의로 돌아가기
+            </Button>
+          }
+        />
+      </DomainLayout>
     );
   }
 
-  // -- Form handlers --
+  if (!Number.isFinite(lecId)) {
+    return <div className="p-4 text-sm" style={{ color: "var(--color-error)" }}>강의 정보를 찾을 수 없습니다.</div>;
+  }
+
+  const isLoading = sectionsLoading || assignLoading || enrollLoading;
+
+  // ===== Form handlers =====
   const openCreate = (type: "CLASS" | "CLINIC") => {
-    setForm({ ...EMPTY_FORM, section_type: type });
-    setEditId(null);
-    setShowForm(true);
+    setFormOpen({
+      editId: null,
+      form: {
+        ...EMPTY_FORM,
+        section_type: type,
+        label: nextLabel(sections, type),
+        day_of_week: type === "CLASS" ? 2 : 5,
+        start_time: type === "CLASS" ? "17:00" : "19:00",
+      },
+    });
   };
 
   const openEdit = (sec: Section) => {
-    setForm({
-      label: sec.label,
-      section_type: sec.section_type,
-      day_of_week: sec.day_of_week,
-      start_time: sec.start_time?.slice(0, 5) ?? "17:00",
-      end_time: sec.end_time?.slice(0, 5) ?? "",
-      location: sec.location ?? "",
-      max_capacity: sec.max_capacity != null ? String(sec.max_capacity) : "",
+    setFormOpen({
+      editId: sec.id,
+      form: {
+        label: sec.label,
+        section_type: sec.section_type,
+        day_of_week: sec.day_of_week,
+        start_time: sec.start_time?.slice(0, 5) ?? "17:00",
+        end_time: sec.end_time?.slice(0, 5) ?? "",
+        location: sec.location ?? "",
+        max_capacity: sec.max_capacity != null ? String(sec.max_capacity) : "",
+      },
     });
-    setEditId(sec.id);
-    setShowForm(true);
   };
 
-  const handleSubmit = () => {
+  const handleDelete = async (sec: Section) => {
+    const ok = await confirm({
+      title: `${sec.section_type === "CLASS" ? "수업" : "클리닉"} ${sec.label}반 삭제`,
+      message: "편성된 학생이 있으면 삭제할 수 없습니다. 진행하시겠습니까?",
+      confirmText: "삭제",
+    });
+    if (!ok) return;
+    deleteMut.mutate(sec.id);
+  };
+
+  const submitForm = () => {
+    if (!formOpen) return;
+    const { editId, form } = formOpen;
+    const label = form.label.trim();
+    if (!label) return;
     const payload = {
       lecture: lecId,
-      label: form.label.trim(),
+      label,
       section_type: form.section_type,
       day_of_week: form.day_of_week,
       start_time: form.start_time,
@@ -172,382 +296,737 @@ export default function SectionManagementPage() {
       location: form.location,
       max_capacity: form.max_capacity ? Number(form.max_capacity) : null,
     };
-    if (!payload.label) return;
-    if (editId) {
-      updateMut.mutate({ id: editId, data: payload });
-    } else {
-      createMut.mutate(payload);
+    if (editId) updateMut.mutate({ id: editId, data: payload });
+    else createMut.mutate(payload);
+  };
+
+  // ===== Cell build: (classSectionId or null, clinicSectionId or null) → EnrollmentLite[] =====
+  type CellKey = string; // `${classId|'U'}__${clinicId|'U'}`
+  const cellKey = (c: number | null, k: number | null): CellKey =>
+    `${c ?? "U"}__${k ?? "U"}`;
+  const matrix = useMemo(() => {
+    const m = new Map<CellKey, EnrollmentLite[]>();
+    for (const e of enrollments) {
+      const a = assignmentByEnrollment.get(e.id);
+      const key = cellKey(a?.class_section ?? null, a?.clinic_section ?? null);
+      const arr = m.get(key) ?? [];
+      arr.push(e);
+      m.set(key, arr);
     }
-  };
+    return m;
+  }, [enrollments, assignmentByEnrollment]);
 
-  const handleDelete = (sec: Section) => {
-    if (!confirm(`${sec.label}반을 삭제하시겠습니까? 편성된 학생이 있으면 삭제할 수 없습니다.`)) return;
-    deleteMut.mutate(sec.id);
-  };
-
-  if (!Number.isFinite(lecId)) {
-    return <div className="p-2 text-sm" style={{ color: "var(--color-error)" }}>강의 정보를 찾을 수 없습니다.</div>;
-  }
+  const breadcrumbs = [
+    { label: "강의", to: "/admin/lectures" },
+    { label: lecture?.title ?? lecture?.name ?? "강의", to: `/admin/lectures/${lecId}` },
+    { label: "반 편성" },
+  ];
 
   return (
-    <div className="flex gap-4" style={{ minHeight: 400 }}>
-      {/* ===== 좌측: 반 목록 ===== */}
-      <div className="w-[320px] shrink-0 flex flex-col gap-4">
-        {/* 수업 반 */}
-        <SectionGroup
-          title="수업 반"
-          sections={classSections}
-          selectedId={selectedId}
-          onSelect={setSelectedId}
-          onEdit={openEdit}
-          onDelete={handleDelete}
-          onAdd={() => openCreate("CLASS")}
-          isLoading={isLoading}
-        />
-
-        {/* 클리닉 반 — 정규형 클리닉 모드에서만 표시 */}
-        {showClinic && (
-          <SectionGroup
-            title="클리닉 반 (필수)"
-            sections={clinicSections}
-            selectedId={selectedId}
-            onSelect={setSelectedId}
-            onEdit={openEdit}
-            onDelete={handleDelete}
-            onAdd={() => openCreate("CLINIC")}
-            isLoading={isLoading}
-          />
+    <DomainLayout
+      title="반 편성"
+      description={`${lecture?.title ?? lecture?.name ?? "강의"} · 수업×클리닉 매트릭스`}
+      breadcrumbs={breadcrumbs}
+    >
+      <div className="flex flex-col gap-6">
+        {/* ===== 클리닉 미편성 경고 배너 (정규형 전용) ===== */}
+        {showClinic && clinicSections.length > 0 && totalStudents > 0 && clinicAssignedCount < totalStudents && (
+          <div
+            className="rounded-xl p-3 flex items-center gap-3"
+            style={{
+              background: "color-mix(in srgb, var(--color-warning, #d97706) 8%, var(--color-bg-surface))",
+              border: "1px solid color-mix(in srgb, var(--color-warning, #d97706) 35%, var(--color-border-divider))",
+            }}
+            role="alert"
+          >
+            <AlertTriangle size={18} style={{ color: "var(--color-warning, #d97706)", flexShrink: 0 }} />
+            <div className="flex-1">
+              <div className="text-[13px] font-bold" style={{ color: "var(--color-warning, #d97706)" }}>
+                클리닉반 미편성 학생 {totalStudents - clinicAssignedCount}명
+              </div>
+              <div className="text-[12px]" style={{ color: "var(--color-text-secondary)" }}>
+                정규형 클리닉은 모든 학생이 클리닉반에 편성되어야 합니다. 자동배정 또는 아래 매트릭스에서 수동 이동하세요.
+              </div>
+            </div>
+            <Button
+              intent="primary"
+              size="sm"
+              onClick={() => autoAssignMut.mutate()}
+              disabled={autoAssignMut.isPending || classSections.length === 0}
+              leftIcon={<Wand2 size={13} />}
+            >
+              자동배정
+            </Button>
+          </div>
         )}
 
-        {/* 자동배정 */}
-        <div className="flex flex-col gap-2 pt-2" style={{ borderTop: "1px solid var(--color-border-divider)" }}>
-          <Button
-            intent="secondary"
-            size="sm"
-            onClick={() => autoAssignMut.mutate("CLASS")}
-            disabled={autoAssignMut.isPending || classSections.length === 0}
-          >
-            {autoAssignMut.isPending ? "배정 중..." : "수업 반 자동배정"}
-          </Button>
-          {showClinic && (
+        {/* ===== 요약 + 액션 ===== */}
+        <div
+          className="rounded-xl p-4 flex items-center justify-between flex-wrap gap-3"
+          style={{ background: "var(--color-bg-surface)", border: "1px solid var(--color-border-divider)" }}
+        >
+          <div className="flex items-center gap-5 flex-wrap">
+            <SummaryStat label="전체 학생" value={totalStudents} />
+            <Divider />
+            <SummaryStat
+              label="수업반 편성"
+              value={`${classAssignedCount}/${totalStudents}`}
+              tone={classAssignedCount < totalStudents ? "warning" : "ok"}
+            />
+            {showClinic && (
+              <>
+                <Divider />
+                <SummaryStat
+                  label="클리닉반 편성"
+                  value={`${clinicAssignedCount}/${totalStudents}`}
+                  tone={clinicAssignedCount < totalStudents ? "warning" : "ok"}
+                />
+              </>
+            )}
+            <Divider />
+            <SummaryStat label="수업반" value={`${classSections.length}개`} />
+            {showClinic && <SummaryStat label="클리닉반" value={`${clinicSections.length}개`} />}
+          </div>
+          <div className="flex items-center gap-2">
             <Button
               intent="secondary"
               size="sm"
-              onClick={() => autoAssignMut.mutate("CLINIC")}
-              disabled={autoAssignMut.isPending || clinicSections.length === 0}
+              onClick={() => navigate(`/admin/lectures/${lecId}`)}
+              leftIcon={<ArrowLeft size={14} />}
             >
-              {autoAssignMut.isPending ? "배정 중..." : "클리닉 반 자동배정"}
+              강의로
             </Button>
-          )}
-          {autoAssignMut.isSuccess && autoAssignMut.data && (
-            <p className="text-[12px] mt-1" style={{ color: "var(--color-success, #16a34a)" }}>
-              {autoAssignMut.data.message}
-            </p>
-          )}
-          {autoAssignMut.isError && (
-            <p className="text-[12px] mt-1" style={{ color: "var(--color-error)" }}>
-              자동배정 실패
-            </p>
+            <Button
+              intent="primary"
+              size="sm"
+              onClick={() => autoAssignMut.mutate()}
+              disabled={autoAssignMut.isPending || classSections.length === 0}
+              leftIcon={<Wand2 size={14} />}
+            >
+              {autoAssignMut.isPending ? "배정 중..." : "미편성 자동배정"}
+            </Button>
+          </div>
+        </div>
+
+        {/* ===== 반 카드 (수업/클리닉) ===== */}
+        <div className="grid gap-4" style={{ gridTemplateColumns: showClinic ? "1fr 1fr" : "1fr" }}>
+          <SectionListCard
+            title="수업반"
+            icon={<BookOpen size={16} />}
+            tone="brand"
+            sections={classSections}
+            isLoading={isLoading}
+            onAdd={() => openCreate("CLASS")}
+            onEdit={openEdit}
+            onDelete={handleDelete}
+          />
+          {showClinic && (
+            <SectionListCard
+              title="클리닉반 (필수)"
+              icon={<Stethoscope size={16} />}
+              tone="warning"
+              sections={clinicSections}
+              isLoading={isLoading}
+              onAdd={() => openCreate("CLINIC")}
+              onEdit={openEdit}
+              onDelete={handleDelete}
+            />
           )}
         </div>
-      </div>
 
-      {/* ===== 우측: 학생 편성 목록 ===== */}
-      <div className="flex-1 min-w-0">
+        {/* ===== 매트릭스 ===== */}
         <div
           className="rounded-xl overflow-hidden"
-          style={{ border: "1px solid var(--color-border-default)", background: "var(--color-bg-surface)" }}
+          style={{ background: "var(--color-bg-surface)", border: "1px solid var(--color-border-divider)" }}
         >
           <div
             className="px-4 py-3 flex items-center justify-between"
-            style={{ background: "var(--color-bg-surface-sunken)", borderBottom: "1px solid var(--color-border-default)" }}
+            style={{ background: "var(--color-bg-surface-sunken)", borderBottom: "1px solid var(--color-border-divider)" }}
           >
             <span className="text-[14px] font-bold" style={{ color: "var(--color-text-primary)" }}>
-              {selectedSection
-                ? `${selectedSection.label}반 편성 (${selectedAssignments.length}명)`
-                : `전체 편성 (${assignments.length}명)`}
+              편성 매트릭스
+            </span>
+            <span className="text-[12px]" style={{ color: "var(--color-text-muted)" }}>
+              셀을 클릭하면 학생을 이동할 수 있습니다.
             </span>
           </div>
 
-          {selectedAssignments.length === 0 ? (
-            <div className="px-4 py-8 text-center text-[13px]" style={{ color: "var(--color-text-muted)" }}>
-              {selectedSection ? "이 반에 편성된 학생이 없습니다." : "편성된 학생이 없습니다. 자동배정을 실행하세요."}
-            </div>
+          {isLoading ? (
+            <EmptyState scope="panel" tone="loading" title="불러오는 중..." />
+          ) : classSections.length === 0 ? (
+            <EmptyState
+              scope="panel"
+              tone="empty"
+              title="수업반을 먼저 추가하세요"
+              description="반을 1개 이상 만들면 여기에 편성 매트릭스가 나타납니다."
+              actions={<Button intent="primary" size="sm" onClick={() => openCreate("CLASS")}>수업반 추가</Button>}
+            />
           ) : (
-            <table className="w-full text-[13px]">
-              <thead>
-                <tr style={{ borderBottom: "1px solid var(--color-border-divider)" }}>
-                  <th className="px-4 py-2 text-left font-medium" style={{ color: "var(--color-text-muted)" }}>학생</th>
-                  <th className="px-3 py-2 text-center font-medium" style={{ color: "var(--color-text-muted)" }}>수업반</th>
-                  {showClinic && <th className="px-3 py-2 text-center font-medium" style={{ color: "var(--color-text-muted)" }}>클리닉반</th>}
-                  <th className="px-3 py-2 text-center font-medium" style={{ color: "var(--color-text-muted)" }}>배정방식</th>
-                </tr>
-              </thead>
-              <tbody>
-                {selectedAssignments.map((a) => (
-                  <tr
-                    key={a.id}
-                    className="hover:bg-[var(--color-bg-surface-hover)]"
-                    style={{ borderBottom: "1px solid var(--color-border-divider)" }}
-                  >
-                    <td className="px-4 py-2 font-medium" style={{ color: "var(--color-text-primary)" }}>
-                      {a.student_name}
-                    </td>
-                    <td className="px-3 py-2 text-center">
-                      <span
-                        className="px-2 py-0.5 rounded text-[12px] font-medium"
-                        style={{ background: "var(--color-primary-light, #e0e7ff)", color: "var(--color-primary)" }}
-                      >
-                        {a.class_section_label}반
-                      </span>
-                    </td>
-                    {showClinic && (
-                      <td className="px-3 py-2 text-center">
-                        {a.clinic_section_label ? (
-                          <span
-                            className="px-2 py-0.5 rounded text-[12px] font-medium"
-                            style={{ background: "var(--color-warning-light, #fef3c7)", color: "var(--color-warning, #d97706)" }}
-                          >
-                            {a.clinic_section_label}반
-                          </span>
-                        ) : (
-                          <span className="text-[12px]" style={{ color: "var(--color-text-muted)" }}>-</span>
-                        )}
-                      </td>
-                    )}
-                    <td className="px-3 py-2 text-center text-[12px]" style={{ color: "var(--color-text-muted)" }}>
-                      {a.source_display}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <MatrixGrid
+              classSections={classSections}
+              clinicSections={showClinic ? clinicSections : []}
+              matrix={matrix}
+              sections={sections}
+              assignments={assignments}
+              enrollments={enrollments}
+              onMove={(enrollmentId, classId, clinicId) =>
+                upsertAssignmentMut.mutate({ enrollmentId, classSectionId: classId, clinicSectionId: clinicId })
+              }
+              onClearAssignment={(enrollmentId) => deleteAssignmentMut.mutate(enrollmentId)}
+              showClinic={showClinic}
+              busy={upsertAssignmentMut.isPending || deleteAssignmentMut.isPending}
+            />
           )}
         </div>
       </div>
 
       {/* ===== 반 추가/편집 모달 ===== */}
-      {showForm && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center"
-          style={{ background: "rgba(0,0,0,0.4)" }}
-          onClick={() => setShowForm(false)}
-        >
-          <div
-            className="rounded-xl p-6 w-[400px] flex flex-col gap-4"
-            style={{ background: "var(--color-bg-surface)", boxShadow: "0 8px 32px rgba(0,0,0,0.12)" }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="text-[16px] font-bold" style={{ color: "var(--color-text-primary)" }}>
-              {editId ? "반 수정" : "반 추가"}
-            </h3>
-
-            {/* 반 이름 */}
-            <label className="flex flex-col gap-1">
-              <span className="text-[12px] font-medium" style={{ color: "var(--color-text-muted)" }}>반 이름</span>
-              <input
-                className="ds-input"
-                placeholder="A, B, C..."
-                value={form.label}
-                onChange={(e) => setForm((f) => ({ ...f, label: e.target.value }))}
-                maxLength={10}
-                autoFocus
-              />
-            </label>
-
-            {/* 타입 */}
-            <label className="flex flex-col gap-1">
-              <span className="text-[12px] font-medium" style={{ color: "var(--color-text-muted)" }}>타입</span>
-              <select
-                className="ds-input"
-                value={form.section_type}
-                onChange={(e) => setForm((f) => ({ ...f, section_type: e.target.value as "CLASS" | "CLINIC" }))}
-              >
-                <option value="CLASS">수업</option>
-                <option value="CLINIC">클리닉</option>
-              </select>
-            </label>
-
-            {/* 요일 + 시간 */}
-            <div className="grid grid-cols-3 gap-2">
-              <label className="flex flex-col gap-1">
-                <span className="text-[12px] font-medium" style={{ color: "var(--color-text-muted)" }}>요일</span>
-                <select
-                  className="ds-input"
-                  value={form.day_of_week}
-                  onChange={(e) => setForm((f) => ({ ...f, day_of_week: Number(e.target.value) }))}
-                >
-                  {DAY_OPTIONS.map((d) => (
-                    <option key={d.value} value={d.value}>{d.label}</option>
-                  ))}
-                </select>
-              </label>
-              <label className="flex flex-col gap-1">
-                <span className="text-[12px] font-medium" style={{ color: "var(--color-text-muted)" }}>시작</span>
-                <input
-                  className="ds-input"
-                  type="time"
-                  value={form.start_time}
-                  onChange={(e) => setForm((f) => ({ ...f, start_time: e.target.value }))}
-                />
-              </label>
-              <label className="flex flex-col gap-1">
-                <span className="text-[12px] font-medium" style={{ color: "var(--color-text-muted)" }}>종료</span>
-                <input
-                  className="ds-input"
-                  type="time"
-                  value={form.end_time}
-                  onChange={(e) => setForm((f) => ({ ...f, end_time: e.target.value }))}
-                />
-              </label>
-            </div>
-
-            {/* 장소 + 정원 */}
-            <div className="grid grid-cols-2 gap-2">
-              <label className="flex flex-col gap-1">
-                <span className="text-[12px] font-medium" style={{ color: "var(--color-text-muted)" }}>장소</span>
-                <input
-                  className="ds-input"
-                  placeholder="선택사항"
-                  value={form.location}
-                  onChange={(e) => setForm((f) => ({ ...f, location: e.target.value }))}
-                />
-              </label>
-              <label className="flex flex-col gap-1">
-                <span className="text-[12px] font-medium" style={{ color: "var(--color-text-muted)" }}>정원</span>
-                <input
-                  className="ds-input"
-                  type="number"
-                  placeholder="무제한"
-                  value={form.max_capacity}
-                  onChange={(e) => setForm((f) => ({ ...f, max_capacity: e.target.value }))}
-                />
-              </label>
-            </div>
-
-            {/* 버튼 */}
-            <div className="flex justify-end gap-2 pt-2">
-              <Button intent="secondary" size="sm" onClick={() => setShowForm(false)}>
-                취소
-              </Button>
-              <Button
-                intent="primary"
-                size="sm"
-                onClick={handleSubmit}
-                disabled={!form.label.trim() || createMut.isPending || updateMut.isPending}
-              >
-                {createMut.isPending || updateMut.isPending ? "저장 중..." : editId ? "수정" : "추가"}
-              </Button>
-            </div>
-
-            {(createMut.isError || updateMut.isError || deleteMut.isError) && (
-              <p className="text-[12px]" style={{ color: "var(--color-error)" }}>
-                저장 실패. 같은 이름의 반이 이미 존재하거나, 편성된 학생이 있어 삭제할 수 없습니다.
-              </p>
-            )}
-          </div>
-        </div>
+      {formOpen && (
+        <SectionFormModal
+          editId={formOpen.editId}
+          form={formOpen.form}
+          onChange={(f) => setFormOpen({ ...formOpen, form: f })}
+          onSubmit={submitForm}
+          onClose={() => setFormOpen(null)}
+          pending={createMut.isPending || updateMut.isPending}
+          showClinicType={showClinic}
+        />
       )}
+    </DomainLayout>
+  );
+}
+
+/* =================== Sub-components =================== */
+
+function Divider() {
+  return <span style={{ width: 1, height: 20, background: "var(--color-border-divider)" }} />;
+}
+
+function SummaryStat({ label, value, tone = "default" }: {
+  label: string; value: string | number; tone?: "default" | "ok" | "warning";
+}) {
+  const valueColor =
+    tone === "warning" ? "var(--color-warning, #d97706)" :
+    tone === "ok" ? "var(--color-success, #16a34a)" :
+    "var(--color-text-primary)";
+  return (
+    <div className="flex flex-col">
+      <span className="text-[11px] font-medium" style={{ color: "var(--color-text-muted)" }}>{label}</span>
+      <span className="text-[16px] font-bold tabular-nums" style={{ color: valueColor }}>{value}</span>
     </div>
   );
 }
 
-/** 반 그룹 (수업/클리닉) */
-function SectionGroup({
-  title,
-  sections,
-  selectedId,
-  onSelect,
-  onEdit,
-  onDelete,
-  onAdd,
-  isLoading,
+function SectionListCard({
+  title, icon, tone, sections, isLoading, onAdd, onEdit, onDelete,
 }: {
   title: string;
+  icon: React.ReactNode;
+  tone: "brand" | "warning";
   sections: Section[];
-  selectedId: number | null;
-  onSelect: (id: number | null) => void;
+  isLoading: boolean;
+  onAdd: () => void;
   onEdit: (s: Section) => void;
   onDelete: (s: Section) => void;
-  onAdd: () => void;
-  isLoading: boolean;
 }) {
+  const accent = tone === "brand" ? "var(--color-brand-primary)" : "var(--color-warning, #d97706)";
+  const accentBg = `color-mix(in srgb, ${accent} 8%, var(--color-bg-surface))`;
+
   return (
-    <div>
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-[13px] font-bold" style={{ color: "var(--color-text-primary)" }}>
-          {title}
-        </span>
-        <button
-          onClick={onAdd}
-          className="text-[12px] font-medium px-2 py-0.5 rounded transition-colors"
-          style={{ color: "var(--color-primary)" }}
-        >
-          + 추가
-        </button>
+    <div
+      className="rounded-xl overflow-hidden"
+      style={{ background: "var(--color-bg-surface)", border: "1px solid var(--color-border-divider)" }}
+    >
+      <div
+        className="px-4 py-3 flex items-center justify-between"
+        style={{ background: accentBg, borderBottom: `1px solid color-mix(in srgb, ${accent} 15%, transparent)` }}
+      >
+        <div className="flex items-center gap-2" style={{ color: accent }}>
+          <span>{icon}</span>
+          <span className="text-[14px] font-bold">{title}</span>
+          <span className="text-[12px] font-semibold" style={{ color: "var(--color-text-muted)" }}>
+            {sections.length}개
+          </span>
+        </div>
+        <Button intent="ghost" size="sm" onClick={onAdd} leftIcon={<Plus size={13} />}>반 추가</Button>
       </div>
 
-      {isLoading ? (
-        <div className="text-[12px] py-4 text-center" style={{ color: "var(--color-text-muted)" }}>
-          불러오는 중...
-        </div>
-      ) : sections.length === 0 ? (
-        <div
-          className="text-[12px] py-4 text-center rounded-lg"
-          style={{ color: "var(--color-text-muted)", border: "1px dashed var(--color-border-divider)" }}
-        >
-          등록된 반이 없습니다
-        </div>
-      ) : (
-        <div className="flex flex-col gap-1">
-          {sections.map((sec) => {
-            const isSelected = selectedId === sec.id;
-            return (
-              <div
-                key={sec.id}
-                onClick={() => onSelect(isSelected ? null : sec.id)}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-colors"
-                style={{
-                  background: isSelected ? "var(--color-primary-light, #e0e7ff)" : "var(--color-bg-surface)",
-                  border: `1px solid ${isSelected ? "var(--color-primary)" : "var(--color-border-default)"}`,
-                }}
+      <div className="p-3 flex flex-col gap-2" style={{ minHeight: 120 }}>
+        {isLoading ? (
+          <div className="text-center py-6 text-[13px]" style={{ color: "var(--color-text-muted)" }}>불러오는 중...</div>
+        ) : sections.length === 0 ? (
+          <div
+            className="text-center py-6 text-[13px] rounded-lg"
+            style={{ color: "var(--color-text-muted)", border: "1px dashed var(--color-border-divider)" }}
+          >
+            등록된 반이 없습니다
+          </div>
+        ) : (
+          sections.map((sec) => (
+            <div
+              key={sec.id}
+              className="flex items-center gap-3 px-3 py-2 rounded-lg"
+              style={{ background: "var(--color-bg-surface-sunken)", border: "1px solid var(--color-border-divider)" }}
+            >
+              <span
+                className="inline-flex items-center justify-center text-[13px] font-bold"
+                style={{ minWidth: 32, height: 28, background: accent, color: "#fff", borderRadius: 6, padding: "0 8px" }}
               >
-                <span
-                  className="text-[14px] font-bold min-w-[32px]"
-                  style={{ color: isSelected ? "var(--color-primary)" : "var(--color-text-primary)" }}
-                >
-                  {sec.label}반
-                </span>
-                <span className="text-[12px] flex-1" style={{ color: "var(--color-text-muted)" }}>
+                {sec.label}
+              </span>
+              <div className="flex-1 flex flex-col">
+                <span className="text-[13px] font-semibold" style={{ color: "var(--color-text-primary)" }}>
                   {sec.day_of_week_display} {sec.start_time?.slice(0, 5)}
-                  {sec.end_time ? `~${sec.end_time.slice(0, 5)}` : ""}
+                  {sec.end_time ? ` ~ ${sec.end_time.slice(0, 5)}` : ""}
                 </span>
                 <span className="text-[11px]" style={{ color: "var(--color-text-muted)" }}>
-                  {sec.assignment_count}명
+                  {sec.location ? `${sec.location} · ` : ""}정원 {sec.max_capacity ?? "무제한"} · 현재 {sec.assignment_count}명
                 </span>
-                <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-                  <button
-                    onClick={() => onEdit(sec)}
-                    className="text-[11px] px-1.5 py-0.5 rounded"
-                    style={{ color: "var(--color-text-muted)" }}
-                    title="수정"
-                  >
-                    수정
-                  </button>
-                  <button
-                    onClick={() => onDelete(sec)}
-                    className="text-[11px] px-1.5 py-0.5 rounded"
-                    style={{ color: "var(--color-error)" }}
-                    title="삭제"
-                  >
-                    삭제
-                  </button>
-                </div>
               </div>
-            );
-          })}
+              <button
+                onClick={() => onEdit(sec)}
+                className="p-1.5 rounded hover:bg-[var(--color-bg-surface-hover)]"
+                style={{ color: "var(--color-text-muted)" }}
+                aria-label={`${sec.label}반 수정`}
+              >
+                <Pencil size={14} />
+              </button>
+              <button
+                onClick={() => onDelete(sec)}
+                className="p-1.5 rounded hover:bg-[var(--color-bg-surface-hover)]"
+                style={{ color: "var(--color-error)" }}
+                aria-label={`${sec.label}반 삭제`}
+              >
+                <Trash2 size={14} />
+              </button>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
+function MatrixGrid({
+  classSections, clinicSections, matrix, sections, assignments, enrollments,
+  onMove, onClearAssignment, showClinic, busy,
+}: {
+  classSections: Section[];
+  clinicSections: Section[];
+  matrix: Map<string, EnrollmentLite[]>;
+  sections: Section[];
+  assignments: SectionAssignment[];
+  enrollments: EnrollmentLite[];
+  onMove: (enrollmentId: number, classId: number | null, clinicId: number | null) => void;
+  onClearAssignment: (enrollmentId: number) => void;
+  showClinic: boolean;
+  busy: boolean;
+}) {
+  const clinicCols: Array<Section | null> = showClinic
+    ? clinicSections.length > 0
+      ? [...clinicSections, null] // null = 미배정 열
+      : [null]
+    : [null];
+
+  const rowSections: Array<Section | null> = [...classSections, null]; // null = 수업반 미배정
+
+  const getCell = (classSec: Section | null, clinicSec: Section | null) =>
+    matrix.get(`${classSec?.id ?? "U"}__${clinicSec?.id ?? "U"}`) ?? [];
+
+  const assignmentByEnrollment = useMemo(() => {
+    const m = new Map<number, SectionAssignment>();
+    for (const a of assignments) m.set(a.enrollment, a);
+    return m;
+  }, [assignments]);
+
+  return (
+    <div className="overflow-x-auto">
+      <table
+        className="w-full text-[13px]"
+        style={{ borderCollapse: "separate", borderSpacing: 0, minWidth: 560 }}
+      >
+        <thead>
+          <tr>
+            <th
+              style={{
+                padding: "10px 12px",
+                borderBottom: "1px solid var(--color-border-divider)",
+                borderRight: "1px solid var(--color-border-divider)",
+                background: "var(--color-bg-surface-sunken)",
+                textAlign: "left",
+                fontSize: 11,
+                color: "var(--color-text-muted)",
+                fontWeight: 600,
+                width: 140,
+              }}
+            >
+              수업 \ 클리닉
+            </th>
+            {clinicCols.map((c) => (
+              <th
+                key={c?.id ?? "U"}
+                style={{
+                  padding: "10px 8px",
+                  borderBottom: "1px solid var(--color-border-divider)",
+                  background: "var(--color-bg-surface-sunken)",
+                  textAlign: "center",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  color: c == null ? "var(--color-text-muted)" : "var(--color-warning, #d97706)",
+                  minWidth: 140,
+                }}
+              >
+                {c == null
+                  ? (showClinic ? "클리닉 미배정" : "학생")
+                  : (<>
+                      <span>{c.label}반</span>
+                      <span style={{ marginLeft: 6, fontSize: 11, color: "var(--color-text-muted)", fontWeight: 500 }}>
+                        {c.day_of_week_display} {c.start_time?.slice(0, 5)}
+                      </span>
+                    </>)
+                }
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rowSections.map((rowSec) => (
+            <tr key={rowSec?.id ?? "U"}>
+              <td
+                style={{
+                  padding: "10px 12px",
+                  borderBottom: "1px solid var(--color-border-divider)",
+                  borderRight: "1px solid var(--color-border-divider)",
+                  background: "var(--color-bg-surface-sunken)",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  color: rowSec == null ? "var(--color-text-muted)" : "var(--color-brand-primary)",
+                  verticalAlign: "top",
+                }}
+              >
+                {rowSec == null ? "수업 미배정" : (
+                  <div className="flex flex-col">
+                    <span>{rowSec.label}반</span>
+                    <span style={{ fontSize: 11, color: "var(--color-text-muted)", fontWeight: 500 }}>
+                      {rowSec.day_of_week_display} {rowSec.start_time?.slice(0, 5)}
+                    </span>
+                  </div>
+                )}
+              </td>
+              {clinicCols.map((clinicSec) => {
+                const cell = getCell(rowSec, clinicSec);
+                return (
+                  <td
+                    key={clinicSec?.id ?? "U"}
+                    style={{
+                      padding: 6,
+                      borderBottom: "1px solid var(--color-border-divider)",
+                      verticalAlign: "top",
+                      background: rowSec == null || (showClinic && clinicSec == null)
+                        ? "color-mix(in srgb, var(--color-warning) 4%, transparent)"
+                        : "var(--color-bg-surface)",
+                    }}
+                  >
+                    <MatrixCell
+                      students={cell}
+                      classSections={classSections}
+                      clinicSections={clinicSections}
+                      currentClassId={rowSec?.id ?? null}
+                      currentClinicId={clinicSec?.id ?? null}
+                      showClinic={showClinic}
+                      assignmentByEnrollment={assignmentByEnrollment}
+                      onMove={onMove}
+                      onClearAssignment={onClearAssignment}
+                      busy={busy}
+                    />
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function MatrixCell({
+  students, classSections, clinicSections, currentClassId, currentClinicId,
+  showClinic, assignmentByEnrollment, onMove, onClearAssignment, busy,
+}: {
+  students: EnrollmentLite[];
+  classSections: Section[];
+  clinicSections: Section[];
+  currentClassId: number | null;
+  currentClinicId: number | null;
+  showClinic: boolean;
+  assignmentByEnrollment: Map<number, SectionAssignment>;
+  onMove: (enrollmentId: number, classId: number | null, clinicId: number | null) => void;
+  onClearAssignment: (enrollmentId: number) => void;
+  busy: boolean;
+}) {
+  const [openStudentId, setOpenStudentId] = useState<number | null>(null);
+
+  if (students.length === 0) {
+    return (
+      <div
+        className="flex items-center justify-center text-[12px]"
+        style={{ minHeight: 60, color: "var(--color-text-muted)" }}
+      >
+        —
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-1" style={{ minHeight: 60 }}>
+      {students.map((s) => {
+        const isOpen = openStudentId === s.id;
+        const a = assignmentByEnrollment.get(s.id);
+        return (
+          <div key={s.id} className="relative">
+            <button
+              type="button"
+              onClick={() => setOpenStudentId(isOpen ? null : s.id)}
+              disabled={busy}
+              className="w-full text-left px-2 py-1 rounded text-[12px] font-medium truncate"
+              style={{
+                background: isOpen ? "var(--color-primary-light, #e0e7ff)" : "var(--color-bg-surface-sunken)",
+                color: "var(--color-text-primary)",
+                border: "1px solid var(--color-border-divider)",
+                cursor: busy ? "wait" : "pointer",
+              }}
+            >
+              {s.student?.name ?? "이름없음"}
+            </button>
+            {isOpen && (
+              <StudentMoveMenu
+                enrollment={s}
+                classSections={classSections}
+                clinicSections={clinicSections}
+                currentClassId={a?.class_section ?? currentClassId}
+                currentClinicId={a?.clinic_section ?? currentClinicId}
+                showClinic={showClinic}
+                onPick={(classId, clinicId) => { setOpenStudentId(null); onMove(s.id, classId, clinicId); }}
+                onClear={() => { setOpenStudentId(null); onClearAssignment(s.id); }}
+                onClose={() => setOpenStudentId(null)}
+              />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function StudentMoveMenu({
+  enrollment, classSections, clinicSections, currentClassId, currentClinicId,
+  showClinic, onPick, onClear, onClose,
+}: {
+  enrollment: EnrollmentLite;
+  classSections: Section[];
+  clinicSections: Section[];
+  currentClassId: number | null;
+  currentClinicId: number | null;
+  showClinic: boolean;
+  onPick: (classId: number | null, clinicId: number | null) => void;
+  onClear: () => void;
+  onClose: () => void;
+}) {
+  const [pickedClass, setPickedClass] = useState<number | null>(currentClassId);
+  const [pickedClinic, setPickedClinic] = useState<number | null>(currentClinicId);
+
+  return (
+    <>
+      <div className="fixed inset-0 z-40" onClick={onClose} />
+      <div
+        className="absolute left-0 top-full z-50 mt-1 rounded-lg p-3 flex flex-col gap-2"
+        style={{
+          minWidth: 220,
+          background: "var(--color-bg-surface)",
+          border: "1px solid var(--color-border-default)",
+          boxShadow: "0 8px 20px rgba(0,0,0,0.08)",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="text-[12px] font-bold" style={{ color: "var(--color-text-primary)" }}>
+          {enrollment.student?.name} 이동
         </div>
-      )}
+
+        <label className="flex flex-col gap-1">
+          <span className="text-[11px] font-medium" style={{ color: "var(--color-text-muted)" }}>수업반</span>
+          <select
+            className="ds-input"
+            value={pickedClass ?? ""}
+            onChange={(e) => setPickedClass(e.target.value ? Number(e.target.value) : null)}
+          >
+            <option value="">미배정</option>
+            {classSections.map((s) => (
+              <option key={s.id} value={s.id}>{s.label}반 ({s.day_of_week_display} {s.start_time?.slice(0, 5)})</option>
+            ))}
+          </select>
+        </label>
+
+        {showClinic && (
+          <label className="flex flex-col gap-1">
+            <span className="text-[11px] font-medium" style={{ color: "var(--color-text-muted)" }}>클리닉반</span>
+            <select
+              className="ds-input"
+              value={pickedClinic ?? ""}
+              onChange={(e) => setPickedClinic(e.target.value ? Number(e.target.value) : null)}
+            >
+              <option value="">미배정</option>
+              {clinicSections.map((s) => (
+                <option key={s.id} value={s.id}>{s.label}반 ({s.day_of_week_display} {s.start_time?.slice(0, 5)})</option>
+              ))}
+            </select>
+          </label>
+        )}
+
+        <div className="flex gap-2 mt-1">
+          <Button intent="secondary" size="sm" onClick={onClose}>취소</Button>
+          <Button
+            intent="ghost"
+            size="sm"
+            onClick={onClear}
+            style={{ color: "var(--color-error)" }}
+          >
+            편성 해제
+          </Button>
+          <Button
+            intent="primary"
+            size="sm"
+            onClick={() => onPick(pickedClass, pickedClinic)}
+            disabled={pickedClass == null && pickedClinic == null}
+          >
+            이동
+          </Button>
+        </div>
+      </div>
+    </>
+  );
+}
+
+function SectionFormModal({
+  editId, form, onChange, onSubmit, onClose, pending, showClinicType,
+}: {
+  editId: number | null;
+  form: SectionForm;
+  onChange: (f: SectionForm) => void;
+  onSubmit: () => void;
+  onClose: () => void;
+  pending: boolean;
+  showClinicType: boolean;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      style={{ background: "rgba(0,0,0,0.4)" }}
+      onClick={onClose}
+    >
+      <div
+        className="rounded-xl p-5 w-[420px] flex flex-col gap-3"
+        style={{ background: "var(--color-bg-surface)", boxShadow: "0 12px 32px rgba(0,0,0,0.16)" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h3 className="text-[16px] font-bold" style={{ color: "var(--color-text-primary)" }}>
+          {editId ? "반 수정" : `${form.section_type === "CLASS" ? "수업반" : "클리닉반"} 추가`}
+        </h3>
+
+        <div className="grid grid-cols-3 gap-2">
+          <label className="flex flex-col gap-1">
+            <span className="text-[11px] font-medium" style={{ color: "var(--color-text-muted)" }}>반 이름</span>
+            <input
+              className="ds-input"
+              placeholder="A"
+              value={form.label}
+              onChange={(e) => onChange({ ...form, label: e.target.value })}
+              maxLength={10}
+              autoFocus
+            />
+          </label>
+          <label className="flex flex-col gap-1 col-span-2">
+            <span className="text-[11px] font-medium" style={{ color: "var(--color-text-muted)" }}>타입</span>
+            <select
+              className="ds-input"
+              value={form.section_type}
+              onChange={(e) => onChange({ ...form, section_type: e.target.value as "CLASS" | "CLINIC" })}
+              disabled={!showClinicType || !!editId}
+            >
+              <option value="CLASS">수업반</option>
+              {showClinicType && <option value="CLINIC">클리닉반 (필수)</option>}
+            </select>
+          </label>
+        </div>
+
+        <div className="grid grid-cols-3 gap-2">
+          <label className="flex flex-col gap-1">
+            <span className="text-[11px] font-medium" style={{ color: "var(--color-text-muted)" }}>요일</span>
+            <select
+              className="ds-input"
+              value={form.day_of_week}
+              onChange={(e) => onChange({ ...form, day_of_week: Number(e.target.value) })}
+            >
+              {DAY_OPTIONS.map((d) => (
+                <option key={d.value} value={d.value}>{d.label}</option>
+              ))}
+            </select>
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-[11px] font-medium" style={{ color: "var(--color-text-muted)" }}>시작</span>
+            <input
+              className="ds-input"
+              type="time"
+              value={form.start_time}
+              onChange={(e) => onChange({ ...form, start_time: e.target.value })}
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-[11px] font-medium" style={{ color: "var(--color-text-muted)" }}>종료</span>
+            <input
+              className="ds-input"
+              type="time"
+              value={form.end_time}
+              onChange={(e) => onChange({ ...form, end_time: e.target.value })}
+            />
+          </label>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2">
+          <label className="flex flex-col gap-1">
+            <span className="text-[11px] font-medium" style={{ color: "var(--color-text-muted)" }}>장소</span>
+            <input
+              className="ds-input"
+              placeholder="선택 입력"
+              value={form.location}
+              onChange={(e) => onChange({ ...form, location: e.target.value })}
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-[11px] font-medium" style={{ color: "var(--color-text-muted)" }}>정원</span>
+            <input
+              className="ds-input"
+              type="number"
+              placeholder="무제한"
+              value={form.max_capacity}
+              onChange={(e) => onChange({ ...form, max_capacity: e.target.value })}
+            />
+          </label>
+        </div>
+
+        <div className="flex justify-end gap-2 pt-2">
+          <Button intent="secondary" size="sm" onClick={onClose}>취소</Button>
+          <Button
+            intent="primary"
+            size="sm"
+            onClick={onSubmit}
+            disabled={!form.label.trim() || pending}
+            leftIcon={editId ? <Pencil size={13} /> : <UserPlus size={13} />}
+          >
+            {pending ? "저장 중..." : editId ? "수정" : "추가"}
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }

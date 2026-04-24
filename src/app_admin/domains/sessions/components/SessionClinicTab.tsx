@@ -428,8 +428,8 @@ export default function SessionClinicTab({
       <EmptyState
         scope="panel"
         tone="empty"
-        title="반 편성 모드가 비활성화되어 있습니다"
-        description="이 탭은 반 편성 모드에서만 사용할 수 있습니다."
+        title="이 학원은 정규 클리닉을 사용하지 않습니다"
+        description="반 편성 모드를 사용하는 학원에서만 이 화면이 보입니다."
       />
     );
   }

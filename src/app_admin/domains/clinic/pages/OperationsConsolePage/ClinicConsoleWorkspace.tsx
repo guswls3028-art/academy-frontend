@@ -169,7 +169,8 @@ export default function ClinicConsoleWorkspace({
   const { data: clinicTargets } = useClinicTargets();
   const { openSendMessageModal } = useSendMessageModal();
 
-  // 메시지 발송 수신자 선택
+  // 메시지 발송 선택 모드
+  const [msgSelectionMode, setMsgSelectionMode] = useState(false);
   const [selectedForMsg, setSelectedForMsg] = useState<Set<number>>(new Set());
 
   // 알림 설정 미리보기 팝업
@@ -195,6 +196,7 @@ export default function ClinicConsoleWorkspace({
     setRetakingIds(new Set());
     setRetakeScores(new Map());
     setRemediatingLinkIds(new Set());
+    setMsgSelectionMode(false);
     setSelectedForMsg(new Set());
     setDrawerParticipantId(null);
     setSendResult(null);
@@ -203,13 +205,26 @@ export default function ClinicConsoleWorkspace({
     setStatusFilter("all");
   }, [sessionId]);
 
-  // ESC로 트리거 미리보기 닫기
+  // ESC 통합 핸들러: 우선순위 — 트리거 미리보기 > 선택 모드
+  // (발송 완료 팝업은 capture phase로 별도 등록되어 가장 먼저 처리됨)
   useEffect(() => {
-    if (!previewTrigger) return;
-    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") setPreviewTrigger(null); };
+    if (!msgSelectionMode && !previewTrigger) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      // 트리거 미리보기가 열려있으면 그것만 닫고 끝
+      if (previewTrigger) {
+        setPreviewTrigger(null);
+        return;
+      }
+      // 선택 모드 해제
+      if (msgSelectionMode) {
+        setMsgSelectionMode(false);
+        setSelectedForMsg(new Set());
+      }
+    };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, [previewTrigger]);
+  }, [msgSelectionMode, previewTrigger]);
 
   // 발송 완료 팝업: Enter/ESC로 닫기 (capture phase로 등록하여 drawer ESC보다 먼저 처리)
   useEffect(() => {
@@ -606,6 +621,22 @@ export default function ClinicConsoleWorkspace({
           <div className="clinic-ops__header-info">
             <div className="clinic-ops__header-title-row">
               <h3 className="clinic-ops__header-date">{dateLabel}</h3>
+              {session.section_label && (
+                <span
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 700,
+                    padding: "2px 8px",
+                    borderRadius: 999,
+                    background: "color-mix(in srgb, var(--color-brand-primary) 14%, var(--color-bg-surface))",
+                    color: "var(--color-brand-primary)",
+                    border: "1px solid color-mix(in srgb, var(--color-brand-primary) 24%, transparent)",
+                  }}
+                  aria-label={`${session.section_label}반`}
+                >
+                  {session.section_label}반
+                </span>
+              )}
               {session.title && (
                 <span className="clinic-ops__header-session-name">{session.title}</span>
               )}
@@ -662,55 +693,19 @@ export default function ClinicConsoleWorkspace({
               <UserPlus size={14} aria-hidden />
               학생 추가
             </button>
-            {participants.length > 0 && (() => {
-              const allStudentIds = [...new Set(participants.map((p) => p.student))].filter(Boolean);
-              const selectedIds = allStudentIds.filter((id) => selectedForMsg.has(id));
-              const targetIds = selectedIds.length > 0 ? selectedIds : allStudentIds;
-              const label = selectedIds.length > 0
-                ? `선택 ${selectedIds.length}명에게 발송`
-                : `전체 ${allStudentIds.length}명에게 발송`;
-              const allSelected = allStudentIds.length > 0 && allStudentIds.every((id) => selectedForMsg.has(id));
-              return (
-                <>
-                  {allStudentIds.length > 1 && (
-                    <button
-                      type="button"
-                      className="clinic-ops__action-btn clinic-ops__action-btn--ghost"
-                      onClick={() => {
-                        if (allSelected) {
-                          setSelectedForMsg(new Set());
-                        } else {
-                          setSelectedForMsg(new Set(allStudentIds));
-                        }
-                      }}
-                    >
-                      <CheckCheck size={14} aria-hidden />
-                      {allSelected ? "선택 해제" : "전체 선택"}
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    className="clinic-ops__action-btn clinic-ops__action-btn--secondary"
-                    onClick={() => {
-                      if (targetIds.length === 0) return;
-                      openSendMessageModal({
-                        studentIds: targetIds,
-                        recipientLabel: label,
-                        blockCategory: "clinic",
-                        alimtalkExtraVars: {
-                          클리닉장소: session.location || "",
-                          클리닉날짜: session.date || selectedDate,
-                          클리닉시간: formatTime(session.start_time),
-                        },
-                      });
-                    }}
-                  >
-                    <MessageCircle size={14} aria-hidden />
-                    {selectedIds.length > 0 ? `메시지 발송 (${selectedIds.length}명)` : "메시지 발송"}
-                  </button>
-                </>
-              );
-            })()}
+            {participants.length > 0 && !msgSelectionMode && (
+              <button
+                type="button"
+                className="clinic-ops__action-btn clinic-ops__action-btn--secondary"
+                onClick={() => {
+                  setSelectedForMsg(new Set());
+                  setMsgSelectionMode(true);
+                }}
+              >
+                <MessageCircle size={14} aria-hidden />
+                메시지 발송
+              </button>
+            )}
             {!isLoading && pendingIds.length > 0 && (
               <button
                 type="button"
@@ -1050,31 +1045,32 @@ export default function ClinicConsoleWorkspace({
                     : isNoShow
                     ? "clinic-ops__card--noshow"
                     : "clinic-ops__card--pending"
-                }`}
+                }${msgSelectionMode && selectedForMsg.has(p.student) ? " clinic-ops__card--msg-selected" : ""}`}
                 onClick={() => setDrawerParticipantId(p.id)}
                 role="button"
                 tabIndex={0}
                 onKeyDown={(e) => { if (e.key === "Enter") setDrawerParticipantId(p.id); }}
               >
-                {/* 메시지 수신자 선택 체크박스 */}
-                <label
-                  className="clinic-ops__card-check"
-                  onClick={(e) => e.stopPropagation()}
-                  title="메시지 발송 대상 선택"
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedForMsg.has(p.student)}
-                    onChange={(e) => {
-                      setSelectedForMsg((prev) => {
-                        const next = new Set(prev);
-                        if (e.target.checked) next.add(p.student);
-                        else next.delete(p.student);
-                        return next;
-                      });
-                    }}
-                  />
-                </label>
+                {/* 메시지 수신자 선택 체크박스 — 선택 모드에서만 표시 */}
+                {msgSelectionMode && (
+                  <label
+                    className="clinic-ops__card-check clinic-ops__card-check--visible"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedForMsg.has(p.student)}
+                      onChange={(e) => {
+                        setSelectedForMsg((prev) => {
+                          const next = new Set(prev);
+                          if (e.target.checked) next.add(p.student);
+                          else next.delete(p.student);
+                          return next;
+                        });
+                      }}
+                    />
+                  </label>
+                )}
 
                 {/* Status indicator bar (left) */}
                 <div
@@ -1810,6 +1806,84 @@ export default function ClinicConsoleWorkspace({
         </div>,
         document.body
       )}
+
+      {/* ═══ 메시지 발송 플로팅 셀렉션 바 ═══ */}
+      {msgSelectionMode && (() => {
+        const allStudentIds = [...new Set(participants.map((p) => p.student))].filter(Boolean);
+        const selectedCount = allStudentIds.filter((id) => selectedForMsg.has(id)).length;
+        const allSelected = allStudentIds.length > 0 && selectedCount === allStudentIds.length;
+        const targetIds = selectedCount > 0
+          ? allStudentIds.filter((id) => selectedForMsg.has(id))
+          : allStudentIds;
+        const label = selectedCount > 0
+          ? `선택 ${selectedCount}명에게 발송`
+          : `전체 ${allStudentIds.length}명에게 발송`;
+        const exitSelectionMode = () => {
+          setMsgSelectionMode(false);
+          setSelectedForMsg(new Set());
+        };
+        return createPortal(
+          <div className={`clinic-ops__msg-floating-bar${drawerParticipantId != null ? " clinic-ops__msg-floating-bar--drawer-open" : ""}`}>
+            <div className="clinic-ops__msg-floating-inner">
+              <div className="clinic-ops__msg-floating-info">
+                <MessageCircle size={15} aria-hidden />
+                <span className="clinic-ops__msg-floating-label">
+                  {selectedCount > 0
+                    ? <><strong>{selectedCount}</strong>명 선택됨</>
+                    : "발송 대상을 선택하세요"}
+                </span>
+              </div>
+              <div className="clinic-ops__msg-floating-divider" />
+              <div className="clinic-ops__msg-floating-actions">
+                <button
+                  type="button"
+                  className="clinic-ops__msg-floating-btn clinic-ops__msg-floating-btn--ghost"
+                  onClick={() => {
+                    if (allSelected) {
+                      setSelectedForMsg(new Set());
+                    } else {
+                      setSelectedForMsg(new Set(allStudentIds));
+                    }
+                  }}
+                >
+                  <CheckCheck size={14} aria-hidden />
+                  {allSelected ? "선택 해제" : "전체 선택"}
+                </button>
+                <button
+                  type="button"
+                  className="clinic-ops__msg-floating-btn clinic-ops__msg-floating-btn--primary"
+                  onClick={() => {
+                    if (targetIds.length === 0) return;
+                    openSendMessageModal({
+                      studentIds: targetIds,
+                      recipientLabel: label,
+                      blockCategory: "clinic",
+                      alimtalkExtraVars: {
+                        클리닉장소: session?.location || "",
+                        클리닉날짜: session?.date || selectedDate,
+                        클리닉시간: formatTime(session?.start_time),
+                      },
+                      onModalClose: exitSelectionMode,
+                    });
+                  }}
+                >
+                  <Send size={14} aria-hidden />
+                  {selectedCount > 0 ? `${selectedCount}명에게 발송` : `전체 ${allStudentIds.length}명에게 발송`}
+                </button>
+                <button
+                  type="button"
+                  className="clinic-ops__msg-floating-btn clinic-ops__msg-floating-btn--cancel"
+                  onClick={exitSelectionMode}
+                  aria-label="선택 모드 닫기"
+                >
+                  <X size={16} aria-hidden />
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        );
+      })()}
 
       {/* Student detail overlay — portal to body for proper z-index layering */}
       {studentOverlayId != null &&

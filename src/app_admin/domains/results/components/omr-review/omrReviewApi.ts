@@ -9,6 +9,15 @@
 
 import api from "@/shared/api/axios";
 
+export type OmrAnswerStats = {
+  total: number;
+  ok: number;
+  blank: number;
+  ambiguous: number;
+  error: number;
+  avg_confidence: number | null;
+};
+
 export type OmrReviewRow = {
   id: number;
   enrollment_id: number;
@@ -22,6 +31,11 @@ export type OmrReviewRow = {
   manual_review_required: boolean;
   manual_review_reasons: string[];
   identifier_status: string | null;
+  // 자동채점 진단 필드 (backend exam_submissions_list_view 2026-04-22+)
+  answer_stats?: OmrAnswerStats | null;
+  aligned?: boolean | null;
+  alignment_method?: string | null;
+  sheet_version?: string | null;
 };
 
 /** OMR 버블·문항 영역 좌표 (원본 이미지 픽셀 기준). worker v10.1+ 제공. */

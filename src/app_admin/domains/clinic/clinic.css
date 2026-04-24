@@ -4479,7 +4479,13 @@ details[open] > .clinic-tree__summary {
   border: 1px solid var(--color-border-divider);
   background: var(--color-bg-surface);
   overflow: hidden;
-  transition: box-shadow 0.15s ease, border-color 0.15s ease, opacity 0.2s ease;
+  transition: box-shadow 0.15s ease, border-color 0.15s ease, opacity 0.2s ease, background 0.2s ease;
+}
+
+/* 메시지 선택 모드에서 선택된 카드 하이라이트 */
+.clinic-ops__card--msg-selected {
+  background: color-mix(in srgb, var(--color-brand-primary, #6366f1) 7%, var(--color-bg-surface, #fff));
+  border-color: color-mix(in srgb, var(--color-brand-primary, #6366f1) 40%, transparent);
 }
 
 .clinic-ops__card--clickable {
@@ -4490,22 +4496,192 @@ details[open] > .clinic-tree__summary {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
-/* 메시지 수신자 선택 체크박스 */
+/* 메시지 수신자 선택 체크박스 — 선택 모드 시 애니메이션으로 등장 */
 .clinic-ops__card-check {
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  width: 28px;
+  width: 0;
+  overflow: hidden;
   cursor: pointer;
-  padding: 0 2px;
+  padding: 0;
+  opacity: 0;
+  transition: width 0.2s ease, opacity 0.2s ease, padding 0.2s ease;
+}
+.clinic-ops__card-check--visible {
+  width: 32px;
+  padding: 0 4px;
+  opacity: 1;
 }
 .clinic-ops__card-check input[type="checkbox"] {
-  width: 15px;
-  height: 15px;
+  width: 16px;
+  height: 16px;
   cursor: pointer;
   accent-color: var(--color-primary, #6366f1);
   margin: 0;
+  border-radius: 3px;
+}
+
+/* ── 메시지 발송 플로팅 셀렉션 바 ── */
+.clinic-ops__msg-floating-bar {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1100;
+  animation: clinic-floating-bar-in 0.25s ease-out;
+}
+
+@keyframes clinic-floating-bar-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(16px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+.clinic-ops__msg-floating-inner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4, 16px);
+  padding: 10px 12px 10px 20px;
+  background: var(--color-bg-elevated, #fff);
+  border: 1px solid var(--color-border-divider, #e2e8f0);
+  border-radius: var(--radius-xl, 16px);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.12),
+    0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.clinic-ops__msg-floating-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-text-secondary, #64748b);
+  font-size: 13.5px;
+  white-space: nowrap;
+}
+.clinic-ops__msg-floating-info svg {
+  color: var(--color-brand-primary, #6366f1);
+  flex-shrink: 0;
+}
+.clinic-ops__msg-floating-label strong {
+  color: var(--color-text-primary, #1e293b);
+  font-weight: 700;
+}
+
+.clinic-ops__msg-floating-divider {
+  width: 1px;
+  height: 24px;
+  background: var(--color-border-divider, #e2e8f0);
+  flex-shrink: 0;
+}
+
+.clinic-ops__msg-floating-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2, 8px);
+}
+
+.clinic-ops__msg-floating-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+  padding: 7px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  border-radius: var(--radius-md, 8px);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.clinic-ops__msg-floating-btn--ghost {
+  border: 1px solid var(--color-border-divider, #e2e8f0);
+  background: transparent;
+  color: var(--color-text-secondary, #64748b);
+}
+.clinic-ops__msg-floating-btn--ghost:hover {
+  border-color: var(--color-brand-primary, #6366f1);
+  color: var(--color-brand-primary, #6366f1);
+  background: color-mix(in srgb, var(--color-brand-primary, #6366f1) 6%, transparent);
+}
+
+.clinic-ops__msg-floating-btn--primary {
+  border: none;
+  background: var(--color-brand-primary, #6366f1);
+  color: #fff;
+}
+.clinic-ops__msg-floating-btn--primary:hover {
+  background: color-mix(in srgb, var(--color-brand-primary, #6366f1) 88%, #000);
+}
+
+.clinic-ops__msg-floating-btn--cancel {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid var(--color-border-divider, #e2e8f0);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--color-text-muted, #94a3b8);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.clinic-ops__msg-floating-btn--cancel:hover {
+  border-color: var(--color-error, #ef4444);
+  color: var(--color-error, #ef4444);
+  background: color-mix(in srgb, var(--color-error, #ef4444) 6%, transparent);
+}
+
+/* 드로어 열려있을 때 플로팅 바를 왼쪽으로 시프트 (380px 드로어 절반만큼) */
+.clinic-ops__msg-floating-bar--drawer-open {
+  transform: translateX(calc(-50% - 190px));
+  transition: transform 0.2s ease;
+}
+
+/* 모바일/태블릿 반응형 */
+@media (max-width: 768px) {
+  .clinic-ops__msg-floating-bar {
+    bottom: 12px;
+    left: 12px;
+    right: 12px;
+    transform: none;
+  }
+  .clinic-ops__msg-floating-bar--drawer-open {
+    transform: none;
+  }
+  @keyframes clinic-floating-bar-in {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .clinic-ops__msg-floating-divider {
+    display: none;
+  }
+  .clinic-ops__msg-floating-inner {
+    flex-wrap: wrap;
+    gap: var(--space-2, 8px);
+    padding: 10px 12px;
+    border-radius: var(--radius-lg, 12px);
+    width: 100%;
+  }
+  .clinic-ops__msg-floating-info {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+  .clinic-ops__msg-floating-actions {
+    flex: 1 1 100%;
+    justify-content: flex-end;
+  }
+  .clinic-ops__msg-floating-btn {
+    padding: 8px 12px;
+    font-size: 12.5px;
+  }
+  .clinic-ops__msg-floating-btn--primary {
+    flex: 1;
+    justify-content: center;
+  }
 }
 
 /* Status indicator (left bar) */

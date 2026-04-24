@@ -15,6 +15,7 @@ import { useClinicTargets } from "../../hooks/useClinicTargets";
 import { fetchClinicSettings, updateClinicSettings } from "../../api/clinicSettings.api";
 import { patchClinicParticipantStatus, ClinicParticipant } from "../../api/clinicParticipants.api";
 import { fetchClinicSessionTree, ClinicSessionTreeNode } from "../../api/clinicSessions.api";
+import { useSectionMode } from "@/shared/hooks/useSectionMode";
 
 dayjs.locale("ko");
 
@@ -57,6 +58,8 @@ function groupBySession(rows: ClinicParticipant[]) {
 export default function ClinicHomePage() {
   const nav = useNavigate();
   const qc = useQueryClient();
+  const { sectionMode, clinicMode } = useSectionMode();
+  const showSectionBadge = sectionMode && clinicMode === "regular";
   const today = todayISO();
   const wk = useMemo(() => weekRangeISO(today), [today]);
 
@@ -133,12 +136,13 @@ export default function ClinicHomePage() {
         attended: pg?.attended ?? 0,
         noShow: pg?.noShow ?? s.no_show_count ?? 0,
         maxParticipants: s.max_participants ?? null,
+        sectionLabel: s.section_label ?? null,
       };
     });
     // 참가자에만 있고 세션 트리에 없는 경우 (혹시 모를 정합성 보장)
     for (const pg of participantGroups) {
       if (!todaySessions.some((s) => s.id === pg.sessionId)) {
-        merged.push({ ...pg, maxParticipants: null });
+        merged.push({ ...pg, maxParticipants: null, sectionLabel: null });
       }
     }
     merged.sort((a, b) => (a.time > b.time ? 1 : a.time < b.time ? -1 : 0));
@@ -347,6 +351,22 @@ export default function ClinicHomePage() {
                       <div className="clinic-home__timeline-card-info">
                         {isNext && (
                           <span className="clinic-home__timeline-card-next-badge">다음</span>
+                        )}
+                        {showSectionBadge && s.sectionLabel && (
+                          <span
+                            style={{
+                              fontSize: 11,
+                              fontWeight: 700,
+                              padding: "1px 7px",
+                              borderRadius: 999,
+                              background: "color-mix(in srgb, var(--color-brand-primary) 14%, transparent)",
+                              color: "var(--color-brand-primary)",
+                              marginRight: 6,
+                            }}
+                            aria-label={`${s.sectionLabel}반`}
+                          >
+                            {s.sectionLabel}반
+                          </span>
                         )}
                         {s.location && (
                           <span className="clinic-home__timeline-card-location">{s.location}</span>

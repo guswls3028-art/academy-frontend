@@ -20,6 +20,10 @@ export type ClinicSessionTreeNode = {
   max_participants?: number | null;
   /** section FK (section_mode=true에서 사용) */
   section?: number | null;
+  /** section 라벨 (예: "A") — 정규형 클리닉에서 노출 */
+  section_label?: string | null;
+  /** section 타입 ("CLASS" | "CLINIC") — 필터/표시용 */
+  section_type?: "CLASS" | "CLINIC" | null;
 };
 
 function normalizeDate(s: string): string {
@@ -29,14 +33,20 @@ function normalizeDate(s: string): string {
 
 /**
  * 운영 좌측 트리 전용
- * GET /clinic/sessions/tree/?year=YYYY&month=MM
+ * GET /clinic/sessions/tree/?year=YYYY&month=MM[&section=ID|unassigned]
  * 응답 date를 YYYY-MM-DD로 정규화해 색상/필터 정합성 보장
  */
 export async function fetchClinicSessionTree(params: {
   year: number;
   month: number; // 1~12
+  /** 반 FK ID 또는 "unassigned" (미지정만). 생략 = 전체 */
+  section?: number | "unassigned" | null;
 }) {
-  const res = await api.get("/clinic/sessions/tree/", { params });
+  const { section, ...rest } = params;
+  const query: Record<string, string | number> = { ...rest };
+  if (section === "unassigned") query.section = "unassigned";
+  else if (typeof section === "number") query.section = section;
+  const res = await api.get("/clinic/sessions/tree/", { params: query });
 
   const raw = Array.isArray(res.data)
     ? res.data
@@ -82,6 +92,7 @@ export async function updateClinicSession(
     target_grade?: number | null;
     target_school_type?: string | null;
     target_lecture_ids?: number[];
+    section?: number | null;
   }
 ): Promise<void> {
   await api.patch(`/clinic/sessions/${sessionId}/`, payload);
@@ -117,4 +128,7 @@ export type ClinicSessionDetail = {
   target_lecture_ids?: number[];
   participant_count: number;
   booked_count: number;
+  section?: number | null;
+  section_label?: string | null;
+  section_type?: "CLASS" | "CLINIC" | null;
 };

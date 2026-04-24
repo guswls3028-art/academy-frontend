@@ -47,7 +47,7 @@ export default function StaffWorkRecordsTab({ staffId }: { staffId: number }) {
         <div className="text-sm text-[var(--text-muted)]">기록 없음</div>
       )}
 
-      <div className={locked ? "opacity-95" : ""}>
+      <div className={`space-y-2 ${locked ? "opacity-95" : ""}`}>
         {rows.map((r) => (
           <div
             key={r.id}

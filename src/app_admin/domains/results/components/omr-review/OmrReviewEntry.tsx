@@ -39,6 +39,9 @@ export default function OmrReviewEntry({ examId, examTitle }: Props) {
     let pending = 0;
     let needsId = 0;
     let flagged = 0;
+    let alignmentFailed = 0;
+    let answerOk = 0;
+    let answerTotal = 0;
     for (const r of rows) {
       const st = String(r.status || "").toLowerCase();
       const ids = String(r.identifier_status || "").toLowerCase();
@@ -49,8 +52,27 @@ export default function OmrReviewEntry({ examId, examTitle }: Props) {
         flagged++;
         pending++;
       }
+      if ((r.manual_review_reasons || []).includes("ALIGNMENT_FAILED")) {
+        alignmentFailed++;
+      }
+      const s = r.answer_stats;
+      if (s && typeof s.total === "number" && s.total > 0) {
+        answerOk += Number(s.ok || 0);
+        answerTotal += Number(s.total);
+      }
     }
-    return { pending, needsId, flagged, total: rows.length };
+    const autoRate =
+      answerTotal > 0 ? Math.round((answerOk / answerTotal) * 100) : null;
+    return {
+      pending,
+      needsId,
+      flagged,
+      alignmentFailed,
+      autoRate,
+      answerOk,
+      answerTotal,
+      total: rows.length,
+    };
   }, [rows]);
 
   // 제출 자체가 없으면 노출 안 함
@@ -90,7 +112,20 @@ export default function OmrReviewEntry({ examId, examTitle }: Props) {
                     답안 검토 필요 {badge.flagged}건
                   </span>
                 )}
+                {badge.alignmentFailed > 0 && (
+                  <span className="omr-entry__metric omr-entry__metric--flag">
+                    정렬 실패 {badge.alignmentFailed}건
+                  </span>
+                )}
               </>
+            )}
+            {badge.autoRate !== null && (
+              <span className="omr-entry__metric">
+                자동 인식 {badge.autoRate}%
+                <small style={{ opacity: 0.7, marginLeft: 4 }}>
+                  ({badge.answerOk}/{badge.answerTotal})
+                </small>
+              </span>
             )}
           </div>
         </div>

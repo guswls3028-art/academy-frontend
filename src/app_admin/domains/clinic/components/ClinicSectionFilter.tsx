@@ -39,7 +39,7 @@ export default function ClinicSectionFilter({ value, onChange }: Props) {
       <option value="">전체 반</option>
       {sorted.map((s) => (
         <option key={s.id} value={s.id}>
-          {s.section_type === "CLINIC" ? "클리닉 " : ""}{s.label}반
+          {s.section_type === "CLINIC" ? "클리닉" : "수업"} {s.label}반
         </option>
       ))}
     </select>

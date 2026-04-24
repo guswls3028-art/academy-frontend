@@ -23,6 +23,7 @@ import AdminModal from "@/shared/ui/modal/AdminModal";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import api from "@/shared/api/axios";
+import { useSectionMode } from "@/shared/hooks/useSectionMode";
 
 dayjs.locale("ko");
 
@@ -39,6 +40,10 @@ export default function ClinicOperationsConsolePage() {
     dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam) ? dateParam : todayISO();
   const [selectedDate, setSelectedDate] = useState(() => initialDate);
   const [selectedSessionId, setSelectedSessionId] = useState<number | null>(null);
+
+  const { sectionMode, clinicMode } = useSectionMode();
+  const showSectionFilter = sectionMode && clinicMode === "regular";
+  const [sectionFilter, setSectionFilter] = useState<number | "unassigned" | null>(null);
 
   // 모달 상태
   const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -96,12 +101,43 @@ export default function ClinicOperationsConsolePage() {
     retry: 0,
   });
 
-  const sessionsForDay = useMemo(() => {
+  /** 반 필터 적용된 트리 (사이드바 표시용, 클라이언트 필터) */
+  const filteredTree = useMemo(() => {
     const list = treeQ.data ?? [];
+    if (!showSectionFilter || sectionFilter === null) return list;
+    if (sectionFilter === "unassigned") {
+      return list.filter((s) => s.section == null);
+    }
+    return list.filter((s) => s.section === sectionFilter);
+  }, [treeQ.data, showSectionFilter, sectionFilter]);
+
+  /** 필터 옵션용 — 전체 트리에서 파생 (필터가 걸려도 옵션 리스트는 유지) */
+  const sectionOptionsAll = useMemo(() => {
+    const list = treeQ.data ?? [];
+    const seen = new Map<number, string>();
+    let hasUnassigned = false;
+    for (const s of list) {
+      if (s.section != null && s.section_label) {
+        if (!seen.has(s.section)) seen.set(s.section, s.section_label);
+      } else {
+        hasUnassigned = true;
+      }
+    }
+    const options: Array<{ value: number | "unassigned"; label: string }> = Array.from(
+      seen.entries(),
+    )
+      .sort((a, b) => a[1].localeCompare(b[1]))
+      .map(([id, label]) => ({ value: id, label: `${label}반` }));
+    if (hasUnassigned) options.push({ value: "unassigned", label: "미지정" });
+    return options;
+  }, [treeQ.data]);
+
+  const sessionsForDay = useMemo(() => {
+    const list = filteredTree;
     return list.filter(
       (s) => dayjs(s.date).format("YYYY-MM-DD") === selectedDate
     ) as ClinicSessionTreeNode[];
-  }, [treeQ.data, selectedDate]);
+  }, [filteredTree, selectedDate]);
 
   const participants = useClinicParticipants({
     session: selectedSessionId ?? undefined,
@@ -138,7 +174,7 @@ export default function ClinicOperationsConsolePage() {
             </div>
             <div className={panelStyles.treeScroll}>
               <ClinicConsoleSidebar
-                sessions={treeQ.data ?? []}
+                sessions={filteredTree}
                 selectedDay={selectedDate}
                 todayISO={todayISO()}
                 year={ym.year}
@@ -163,6 +199,13 @@ export default function ClinicOperationsConsolePage() {
                 onImportClick={() => setImportModalOpen(true)}
                 onEditSession={handleEditSession}
                 onDeleteSession={handleDeleteSession}
+                showSectionFilter={showSectionFilter}
+                sectionFilter={sectionFilter}
+                sectionFilterOptions={sectionOptionsAll}
+                onSectionFilterChange={(v) => {
+                  setSectionFilter(v);
+                  setSelectedSessionId(null);
+                }}
               />
             </div>
           </aside>
