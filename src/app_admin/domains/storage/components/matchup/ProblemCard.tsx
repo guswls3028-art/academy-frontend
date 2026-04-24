@@ -6,6 +6,7 @@
 import { useEffect, useState } from "react";
 import { Maximize2, X } from "lucide-react";
 import type { MatchupProblem } from "../../api/matchup.api";
+import { getMatchupProblemPresignUrl } from "../../api/matchup.api";
 
 type Props = {
   problem: MatchupProblem;
@@ -15,7 +16,19 @@ type Props = {
 
 export default function ProblemCard({ problem, selected, onClick }: Props) {
   const [zoomOpen, setZoomOpen] = useState(false);
-  const imgUrl = problem.image_url;
+  // 기본은 list API가 내려준 image_url 사용 (N+1 없음).
+  // 서버가 아직 image_url 미포함 버전이면 fallback으로 presign 1회 호출 (backend 배포 전 호환).
+  const [fallbackUrl, setFallbackUrl] = useState<string | null>(null);
+  const imgUrl = problem.image_url || fallbackUrl;
+
+  useEffect(() => {
+    if (problem.image_url || !problem.image_key) return;
+    let cancelled = false;
+    getMatchupProblemPresignUrl(problem.id)
+      .then((u) => { if (!cancelled) setFallbackUrl(u); })
+      .catch(() => { if (!cancelled) setFallbackUrl(null); });
+    return () => { cancelled = true; };
+  }, [problem.id, problem.image_key, problem.image_url]);
 
   useEffect(() => {
     if (!zoomOpen) return;
