@@ -20,7 +20,7 @@ export default function FeesDashboardPage() {
   const [year] = useState(now.getFullYear());
   const [month] = useState(now.getMonth() + 1);
 
-  const { data: dashboard, isLoading } = useQuery({
+  const { data: dashboard, isLoading, isError, refetch } = useQuery({
     queryKey: ["teacher-fees-dashboard", year, month],
     queryFn: () => fetchDashboard({ year, month }),
   });
@@ -54,6 +54,31 @@ export default function FeesDashboardPage() {
       </div>
 
       {isLoading && <EmptyState scope="panel" tone="loading" title="불러오는 중…" />}
+
+      {isError && !isLoading && (
+        <Card>
+          <div className="text-[13px] font-semibold mb-1" style={{ color: "var(--tc-danger)" }}>
+            대시보드를 불러오지 못했습니다.
+          </div>
+          <div className="text-[12px] leading-relaxed mb-3" style={{ color: "var(--tc-text-muted)" }}>
+            네트워크나 서버 문제일 수 있습니다. 잠시 후 다시 시도해 주세요.
+          </div>
+          <button
+            onClick={() => refetch()}
+            className="text-[13px] font-bold cursor-pointer"
+            style={{
+              padding: "10px 14px",
+              minHeight: "var(--tc-touch-min)",
+              borderRadius: "var(--tc-radius)",
+              border: "1px solid var(--tc-border-strong)",
+              background: "var(--tc-surface)",
+              color: "var(--tc-text)",
+            }}
+          >
+            다시 시도
+          </button>
+        </Card>
+      )}
 
       {dashboard && (
         <>
