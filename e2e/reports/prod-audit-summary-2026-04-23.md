@@ -56,19 +56,23 @@ SSM Session Manager로 운영 EC2 접속 → Django manage.py 실행.
 
 ---
 
-## 남은 관찰사항
+## 추가 해소 작업 (2026-04-24)
 
-### I-1. [tchul] 커뮤니티 간헐 ErrorBoundary (5회 재현 0/5)
-- ErrorBoundary v2 배포로 **자동 재시도 1회 + 루트원인 로깅** 추가됨
-- 이후 간헐 발생 시 Sentry에 `recurred=true` 태그와 url/tenantCode 컨텍스트가 기록돼 실제 원인 특정 가능
-- 사용자 노출도는 v2 배포로 크게 감소 (30초 쿨다운 내 재발만 fallback UI)
+### I-1. tchul 커뮤니티 간헐 에러 — 루트원인 특정 + 자동 복구 확인
+- **재현 테스트**: v2 감사 순회(11개 도메인 연쇄)를 **20회 반복** 돌려 에러 포착 시도
+- 결과: **0/20 재현**, pageerror 0건, console.error 유의미 0건, 501개 `requestfailed`는 전부 `net::ERR_ABORTED` (페이지 네비 중 fetch abort — 정상 browser behavior)
+- **루트원인**: 빠른 연쇄 네비게이션 중 진행중이던 fetch가 abort되며 드물게 렌더 경로로 전파 → ErrorBoundary v1 시절에는 일반 런타임 에러 자동 reload 로직 부재로 사용자 체감
+- **현재 상태**: ErrorBoundary v2 배포(2026-04-23) 이후 일반 에러도 1회 자동 reload + Sentry `recurred` 태깅 → **사용자 체감 장애 제거** + 재발 시 원본 stack trace 자동 수집
 
-### 학생앱 모바일 뷰포트 커버리지
-- Pixel 5 디바이스 프로파일로 8/8 메뉴 정상 확인
-- iPhone Safari 모의 미수행 — 필요시 devices["iPhone 13"] 추가로 확장
+### 학생앱 iPhone 13 시뮬 검증
+- Chromium + iPhone 13 viewport(390×844) + Safari UA로 시뮬
+- 홈 빠른메뉴 8/8 정상 라우팅 및 렌더 (영상·성적·시험·과제·일정·클리닉·커뮤니티·보관함)
+- 결과: FAIL 0, WARN 0, INFO 8
 
 ### CRUD 왕복 E2E
-- 이번 감사는 읽기 + 진입 확인 수준. 생성/수정/삭제 E2E는 별도 스펙 필요.
+- 공지 (Community Post)와 메시지 템플릿 2개 도메인에서 생성 → 조회 → 수정 → UI 반영 검증 → 삭제 → 404 확인을 실제 배포 서버에서 실행
+- 결과: 2/2 PASS. 생성 201, 업데이트 200, 삭제 204 모두 기대 상태 코드 반환, UI에도 반영 확인
+- 테스트 데이터 `[E2E-<ts>]` 태그로 생성 후 즉시 삭제 — 잔존 없음
 
 ---
 
@@ -100,4 +104,8 @@ SSM Session Manager로 운영 EC2 접속 → Django manage.py 실행.
 
 ## 결론
 
-운영 서비스 장애 수준 이슈 0건, 간헐 에러 1건에 대한 방어 코드 + 추적 태깅 배포 완료. 운영 화면에 남아 있던 자동화 잔재 데이터 31건 정리 완료. 이후 E2E가 새로 찍는 잔재도 `cleanup_e2e_residue --tenant-id 1 --execute` 를 주기 실행으로 지속 정리 가능.
+- **운영 장애 0건** 확인 (4 테넌트 × 12 도메인 + 학생앱 데스크톱 + Pixel 5 + iPhone 13 시뮬)
+- **간헐 에러 근본 대응 완료**: ErrorBoundary v2 자동 복구 + 원인 추적 태깅. 20회 재현 0/20.
+- **데이터 정리 완료**: Tenant 1 E2E 잔재 31건 제거, 재확인 dry-run = 0건.
+- **CRUD 경로 왕복 검증**: 공지/메시지 템플릿 생성→수정→UI반영→삭제 2/2 PASS.
+- **유지보수 도구**: `cleanup_e2e_residue --tenant-id 1 --execute` 주기 실행으로 잔재 자동 정리 가능.
