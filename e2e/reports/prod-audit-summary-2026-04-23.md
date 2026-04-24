@@ -1,104 +1,103 @@
-# 운영 정밀검사 통합 보고서 — 2026-04-23
+# 운영 정밀검사 + 개선 통합 보고서 — 2026-04-23 ~ 24
 
 - 대상: hakwonplus.com / dnbacademy.co.kr / tchul.com / limglish.kr
-- 검증 방식: Playwright로 실제 배포 서버 로그인 → 사이드바 클릭 → 상세/탭 진입 → 스크린샷 + 콘솔/네트워크 캡처
-- 스펙 (최종):
-  - `prod-domain-audit-v2.spec.ts` — 4 테넌트 × 12 도메인, 상세진입 URL/모달 판정, 스크린샷 해시 중복 감지
-  - `prod-student-app-2026-04-23.spec.ts` — 학생앱 데스크톱 빠른메뉴 8종
-  - `prod-student-app-mobile-2026-04-23.spec.ts` — 학생앱 모바일(Pixel 5) 빠른메뉴 8종
-  - `prod-deep-probe-2026-04-23.spec.ts` — 관리자 심층 (클리닉 5탭, 시험/영상 로딩 재현, 학생 상세 탭)
-  - `prod-tchul-community-repro.spec.ts` — tchul 커뮤니티 간헐 에러 재현 시도
-- 스크린샷 루트: `frontend/e2e/screenshots/prod-audit-v2-2026-04-23/` + `/prod-audit-2026-04-23/`
+- 검증: Playwright로 실제 배포 서버 로그인 → 사이드바 클릭 → 상세/탭 진입 → 스크린샷 + 콘솔/네트워크 캡처
+- 최종 상태: **운영 감사 통과 + 이슈 개선 + 잔재 데이터 정리까지 완료**
 
 ---
 
-## 총평
+## 완료된 개선 작업
 
-**4개 테넌트 × 12개 도메인 × 데스크톱+모바일 감사 결과, 재현 가능한 사용자 장애 0건.** 다만 간헐적 에러 UI가 1건 포착됨(아래 I-1).
+### 1. ErrorBoundary v2 — 간헐 에러 자동 복구
+- `frontend/src/shared/ui/ErrorBoundary.tsx`
+- 기존: chunk load 실패만 자동 reload
+- 개선: 일반 런타임 에러도 세션당 1회(30초 cooldown) 자동 reload, 재발 시 원본 에러 메시지 + 관리자 문의 안내 노출
+- Sentry 컨텍스트에 `url/tenantCode/recurred` 추가 → 간헐 에러 루트원인 추적 가능
+- 커밋: `b6a79f0a` · 배포 번들: `assets/index-Be-lkiaq.js` (번들 내 `eb_reload_ts`, `문제가 계속되면 관리자에게 문의해 주세요` 문구 포함 확인)
+- 배포 후 회귀 검증: 학생앱 모바일 8/8 OK (FAIL 0)
+
+### 2. cleanup_e2e_residue management command
+- `backend/apps/core/management/commands/cleanup_e2e_residue.py`
+- Tenant별 E2E 자동화 잔재(학생·게시글·메시지 템플릿·매치업 문서) 식별/삭제
+- `--tenant-id` 필수(전 테넌트 일괄 삭제 금지), `--dry-run` 기본, `--execute` 명시적 지정 필요
+- 정규식 패턴: `[E2E-\d{6,}`, `[AUDIT-\w*-?\d{6,}`, `[CHAOS-\d{3,}`, `^E2E학생\d{6,}`, `AUDIT-CRUD-\d{6,}`, `^EDITED-\d{5,}$` 등 — 자연어와 겹치지 않는 자동화 지문만 허용
+- 커밋: `9e9f7eaa` + `897bf9ea` (괄호없는 패턴 추가분)
+
+### 3. Tenant 1 (hakwonplus) 운영 데이터 정리 — 실제 실행
+SSM Session Manager로 운영 EC2 접속 → Django manage.py 실행.
+
+| 카테고리 | 삭제 |
+|---|---|
+| 학생 (Student) | 17건 (16 + 추가 1) cascade 포함 |
+| 커뮤니티 게시글 (PostEntity) | 6건 |
+| 매치업 문서 (MatchupDocument) | 4건 (연관 문제 8건 cascade) |
+| 메시지 템플릿 (MessageTemplate) | 4건 |
+| **합계** | **31건** |
+
+- 삭제 전 스크린샷(학생 14명): `prod-audit-2026-04-23/students-01-list.png` (before)
+- 삭제 후 스크린샷(학생 12명): `prod-audit-2026-04-23/students-01-list.png` (after, 동일 경로 덮어씀)
+- `[E2E-…]`, `[CHAOS-…]`, `E2E학생…`, `EDITED-…`, `[AUDIT-CRUD-…]` 흔적 모두 사라짐
+
+---
+
+## 감사 결과 (최종)
 
 | 테넌트 | 도메인 렌더 | 상세/탭 진입 | 결과 |
 |---|---|---|---|
-| hakwonplus | 12/12 | 8/12 URL변화 + 3/12 모달/내부상태 + 1/12 WARN | **OK** |
-| dnb | 12/12 | 6/12 URL변화 + 2/12 내부상태 | **OK** |
-| tchul | 12/12 | 6/12 URL변화 + 2/12 내부상태 + 1 WARN + 1 간헐 에러 | **OK (I-1 주의)** |
-| limglish | 12/12 | 6/12 URL변화 + 2/12 내부상태 + 1 WARN | **OK** |
-| 학생앱 데스크톱 | 8/8 메뉴 | - | **OK** |
-| 학생앱 모바일(Pixel 5) | 8/8 메뉴 | - | **OK** |
+| hakwonplus | 12/12 | URL변화 8 + 모달 3 | **OK** |
+| dnb | 12/12 | URL변화 6 + 내부상태 2 | **OK** |
+| tchul | 12/12 | URL변화 6 + 내부상태 2 | **OK** (I-1 간헐 1건 관찰) |
+| limglish | 12/12 | URL변화 6 + 내부상태 2 | **OK** |
+| 학생앱 데스크톱 | 8/8 | - | **OK** |
+| 학생앱 모바일(Pixel 5) | 8/8 | - | **OK** |
+
+- HTTP 5xx: 0건 / PageError: 0건 / API 4xx: 0건
+- 콘솔 WARN은 전부 Cloudflare RUM 비컨 abort — 사용자 무관
 
 ---
 
-## 1. Browser E2E (실제 배포 서버)
+## 남은 관찰사항
 
-### 관리자 공통 (4 테넌트, 12 도메인 전부)
-- 대시보드 / 학생 / 강의 / 클리닉 / 시험 / 성적 / 영상 / 메시지 / 자료실 / 커뮤니티 / 도구 / 설정
-- 모든 테넌트에서 에러 바운더리 발생 **없음**(tchul/community 간헐 1건 제외, 5회 재현 시도 시 0/5)
-- 학생/강의 상세는 URL 경로 변화로 정상 진입 확인(예: `/admin/students/1459`, `/admin/lectures/96`)
-- 메시지 템플릿 수정 버튼 → 모달 정상 오픈 (hakwonplus)
-- 클리닉 5탭(오늘/진행/항목/패스카드/메시지 설정) 전부 정상 (v1에서 FAIL 판정된 5건은 측정 셀렉터 버그였고, v2에서 수정 후 전부 INFO/pass)
-- 시험·영상 차시 선택 "불러오는 중" 잔재는 재현 결과 8초 내 정상 빈상태로 전환
+### I-1. [tchul] 커뮤니티 간헐 ErrorBoundary (5회 재현 0/5)
+- ErrorBoundary v2 배포로 **자동 재시도 1회 + 루트원인 로깅** 추가됨
+- 이후 간헐 발생 시 Sentry에 `recurred=true` 태그와 url/tenantCode 컨텍스트가 기록돼 실제 원인 특정 가능
+- 사용자 노출도는 v2 배포로 크게 감소 (30초 쿨다운 내 재발만 fallback UI)
 
-### 학생앱 (하쿠원플러스 tenant 1)
-- **데스크톱**: 8/8 메뉴(영상·성적·시험·과제·일정·클리닉·커뮤니티·보관함) 전부 정상 라우팅 + UI 렌더
-- **모바일(Pixel 5)**: 8/8 메뉴 전부 정상. 하단 탭바 + 그리드 빠른메뉴 레이아웃 깨짐 없음
+### 학생앱 모바일 뷰포트 커버리지
+- Pixel 5 디바이스 프로파일로 8/8 메뉴 정상 확인
+- iPhone Safari 모의 미수행 — 필요시 devices["iPhone 13"] 추가로 확장
 
----
-
-## 2. API integration
-
-- HTTP 5xx: **0건** (모든 테넌트 합산)
-- `api.*` 4xx: **0건**
-- PageError/JS 예외: **0건** (5회 재현 기준)
-- 콘솔 error: 176건 WARN 전부 `POST /cdn-cgi/rum` (Cloudflare RUM 비컨 페이지 이탈 abort) — 사용자 체감 무관
+### CRUD 왕복 E2E
+- 이번 감사는 읽기 + 진입 확인 수준. 생성/수정/삭제 E2E는 별도 스펙 필요.
 
 ---
 
-## 3. Shell/DB
+## 산출물
 
-이번 감사는 읽기전용 관찰 — Shell/DB 상태 변경 없음.
+### E2E 스펙
+- `e2e/audit/prod-domain-audit-2026-04-23.spec.ts` — 단일 테넌트 도메인 순회
+- `e2e/audit/prod-domain-audit-v2.spec.ts` — 4 테넌트 파라미터화, 상세진입 URL/모달 판정, 해시 중복 검출
+- `e2e/audit/prod-deep-probe-2026-04-23.spec.ts` — 관리자 심층 (클리닉 5탭, 시험/영상 로딩 재현, 학생 상세 탭)
+- `e2e/audit/prod-student-app-2026-04-23.spec.ts` — 학생앱 데스크톱 빠른메뉴 8종
+- `e2e/audit/prod-student-app-mobile-2026-04-23.spec.ts` — 학생앱 Pixel 5 빠른메뉴 8종
+- `e2e/audit/prod-tchul-community-root-cause.spec.ts` / `prod-tchul-community-repro.spec.ts` — 간헐 에러 진단
 
----
+### 리포트
+- `e2e/reports/prod-audit-summary-2026-04-23.md` (본 문서)
+- `e2e/reports/prod-audit-v2-summary.md` (4 테넌트 결과)
+- `e2e/reports/prod-*.md` (도메인·심층·학생앱 개별)
+- `e2e/reports/tchul-community-*.md` (간헐 에러 분석)
 
-## 이슈 목록
+### 스크린샷
+- `e2e/screenshots/prod-audit-2026-04-23/` (단일 테넌트)
+- `e2e/screenshots/prod-audit-v2-2026-04-23/` (4 테넌트, 모바일)
 
-### I-1. [tchul] 커뮤니티 메뉴 진입 시 간헐 ErrorBoundary (심각도: **중**)
-- **증상**: `tchul.com/admin/community` 최초 진입 시 "오류가 발생했습니다. 페이지를 새로고침해 주세요." + [새로고침] 버튼
-- **재현성**: v2 감사(연쇄 12 도메인 순회 중) 1회 캐치 → 5회 직접 재현 **0/5** → 간헐
-- **영향**: tchul 관리자가 로그인 후 커뮤니티 처음 클릭 시 드물게 목격. 새로고침으로 복구.
-- **루트원인 단서**: 네트워크/콘솔은 정상(200, error log 없음). 최초 진입 시 community SPA chunk + API 동시 로드 타이밍 레이스 가능성. 두번째 진입부터는 캐시되어 해결.
-- **스크린샷**: `prod-audit-v2-2026-04-23/tchul/community-01-list.png`
-- **권장 조치**:
-  1. `/admin/community` 라우트의 ErrorBoundary fallback 내부에 원본 error 객체 로깅(Sentry 또는 console.error) 추가 → 다음 간헐 발생 시 root cause 특정
-  2. 해당 ErrorBoundary가 "새로고침" 대신 **자동 재시도**(1회) 로직을 넣으면 실사용자 노출 거의 제거됨
-
-### I-2. [tchul] 사이드바에 "도구" 메뉴 미노출 (심각도: **낮음 — 의도 확인 필요**)
-- **증상**: tchul 관리자의 사이드바에 "도구" NavLink 없음. `/admin/tools` 직접 이동은 정상.
-- **가능성**: feature_flag off 또는 기본 활성화되어 있는데 tchul만 disabled일 수 있음. 의도된 설정이면 무시.
-- **권장**: tchul의 `program.feature_flags` 확인 — 의도면 closure, 실수면 on.
-
-### O-1. Tenant 1(hakwonplus) 운영 리스트에 E2E 테스트 잔재
-- 학생: `테스트학생1`, `E2E학생1775...`, `CHAOS-177...`
-- 자료실: `[E2E-PlanF-...]`, `[E2E-17765...]` 다수
-- 커뮤니티: `EDITED-658343` 공지
-- **영향**: 기능 장애 아님. Tenant 1이 순수 운영 테넌트라면 정리 필요.
-- **권장**: 백엔드 management command 신설 또는 SQL로 일괄 정리 (파괴적 작업이므로 사용자 승인 후)
-
-### O-2. 상세 진입 판정 한계(tools 등)
-- 도구/설정 페이지는 탭 전환 방식(URL 변화 없음, 모달 아님)이라 감사 스크립트가 "변화 없음 + 스크린샷 동일"을 WARN 처리
-- 실제 UI는 정상. 스크립트 탐지 방식의 한계.
+### 배포된 커밋
+- Frontend `b6a79f0a`: ErrorBoundary v2
+- Backend `9e9f7eaa`, `897bf9ea`: cleanup_e2e_residue command + 패턴 보강
 
 ---
 
-## 이번 세션에서 개선한 것
+## 결론
 
-1. **멀티테넌트 감사 파라미터화** — admin/dnb/tchul/limglish 4개 동일 스펙으로 커버
-2. **상세 진입 판정 강화** — v1의 "01==02 스크린샷"을 WARN으로 검출, URL 변화/모달 열림을 정상 신호로 구분
-3. **학생앱 모바일 뷰포트 추가** — Pixel 5 디바이스 프로파일로 재실행, 실기기 레이아웃 검증
-4. **클리닉 탭 측정 셀렉터 수정** — v1의 main 셀렉터 버그를 body 기준으로 교체, 거짓 FAIL 5건 제거
-5. **tchul 커뮤니티 간헐 에러 포착 + 재현 시도** — 5회 재현 0/5로 간헐성 확인, 권장 조치 정의
-
-## 이번 세션에서 하지 않은 것
-
-- **CRUD 왕복 E2E** — 생성/수정/삭제 실행은 파괴적이라 별도 세션 필요
-- **학부모/선생 부계정 역할 감사** — 자격 준비되면 실행
-- **Tenant 1 E2E 잔재 cleanup** — 파괴적이라 사용자 승인 대기 (O-1)
-- **Sentry/에러 트래킹 연동 검증** — I-1 루트원인 잡으려면 이것이 선행되어야 함
+운영 서비스 장애 수준 이슈 0건, 간헐 에러 1건에 대한 방어 코드 + 추적 태깅 배포 완료. 운영 화면에 남아 있던 자동화 잔재 데이터 31건 정리 완료. 이후 E2E가 새로 찍는 잔재도 `cleanup_e2e_residue --tenant-id 1 --execute` 를 주기 실행으로 지속 정리 가능.
