@@ -11,16 +11,27 @@ type Props = {
   selectedProblemId: number | null;
   onSelectProblem: (id: number) => void;
   documentStatus?: string;
-  // 실시간 진행률 — 좌측 row와 동일한 값을 공유해서 사용자가 2곳에서 같은 정보를 봄
+  // 파일 크기 기반 동적 처리시간 안내
+  fileSizeBytes?: number;
   progressPercent?: number;
   progressStepName?: string;
 };
 
+/** 파일 크기 기반 예상 처리시간 문구 (휴리스틱, 보수적). */
+function estimateProcessingHint(sizeBytes?: number): string {
+  if (!sizeBytes) return "보통 10~30초 정도 소요됩니다";
+  const mb = sizeBytes / (1024 * 1024);
+  if (mb < 3) return "보통 10~30초 정도 소요됩니다";
+  if (mb < 10) return "보통 20초~1분 정도 소요됩니다";
+  if (mb < 25) return "스캔본이라 1~2분 걸릴 수 있습니다";
+  return "큰 파일이라 2~3분까지 걸릴 수 있습니다";
+}
+
 export default function ProblemGrid({
   problems, loading, selectedProblemId, onSelectProblem, documentStatus,
-  progressPercent, progressStepName,
+  fileSizeBytes, progressPercent, progressStepName,
 }: Props) {
-  if (loading || documentStatus === "processing") {
+  if (loading || documentStatus === "processing" || documentStatus === "pending") {
     const hasProgress = typeof progressPercent === "number" && progressPercent > 0;
     const pct = hasProgress ? Math.round(progressPercent!) : 0;
     return (
@@ -35,7 +46,6 @@ export default function ProblemGrid({
             ? `${progressStepName || "처리 중"} · ${pct}%`
             : "AI가 문제를 분석하고 있습니다..."}
         </p>
-        {/* 진행률 바 (좌측 row의 바와 동일한 값) */}
         <div style={{
           width: 240, height: 4, borderRadius: 2,
           background: "var(--color-bg-surface-soft)", overflow: "hidden",
@@ -48,9 +58,8 @@ export default function ProblemGrid({
           }} />
         </div>
         <p style={{ fontSize: 12, color: "var(--color-text-muted)", margin: 0, opacity: 0.7 }}>
-          {hasProgress ? "완료되면 자동으로 문제 그리드로 바뀝니다" : "보통 10~30초 정도 소요됩니다"}
+          {hasProgress ? "완료되면 자동으로 문제 그리드로 바뀝니다" : estimateProcessingHint(fileSizeBytes)}
         </p>
-        {/* indeterminate 애니메이션 keyframes */}
         <style>{`
           @keyframes matchup-progress-indeterminate {
             0%   { width: 5%; margin-left: 0%; }
@@ -70,7 +79,7 @@ export default function ProblemGrid({
       }}>
         <p style={{ fontSize: 14, color: "var(--color-text-muted)", margin: 0 }}>
           {documentStatus === "failed"
-            ? "문제 추출에 실패했습니다. 재시도해 주세요."
+            ? "문제 추출에 실패했습니다. 상단의 재시도 버튼을 눌러주세요."
             : "추출된 문제가 없습니다."}
         </p>
       </div>

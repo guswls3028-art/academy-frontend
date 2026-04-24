@@ -10,9 +10,10 @@ import type { SimilarProblem } from "../../api/matchup.api";
 type Props = {
   problemId: number | null;
   onSelectSimilar?: (problem: SimilarProblem) => void;
+  totalDocumentCount?: number;
 };
 
-export default function SimilarResults({ problemId, onSelectSimilar }: Props) {
+export default function SimilarResults({ problemId, onSelectSimilar, totalDocumentCount = 0 }: Props) {
   const [results, setResults] = useState<SimilarProblem[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -59,12 +60,29 @@ export default function SimilarResults({ problemId, onSelectSimilar }: Props) {
   }
 
   if (results.length === 0) {
+    // 인덱스가 실질적으로 비어있는 상황(문서 1개)에서는 기능이 고장난 것처럼 느낄 수 있음
+    const isFirstDoc = totalDocumentCount <= 1;
     return (
       <div style={{
-        padding: "var(--space-6)", textAlign: "center",
-        color: "var(--color-text-muted)", fontSize: 13,
+        padding: "var(--space-5) var(--space-4)", textAlign: "center",
+        color: "var(--color-text-muted)", fontSize: 12, lineHeight: 1.6,
+        display: "flex", flexDirection: "column", gap: "var(--space-2)",
+        alignItems: "center",
       }}>
-        유사한 문제를 찾지 못했습니다.
+        <Sparkles size={20} style={{ opacity: 0.3 }} />
+        <div style={{ fontWeight: 600, color: "var(--color-text-secondary)" }}>
+          유사한 문제를 찾지 못했습니다
+        </div>
+        {isFirstDoc ? (
+          <div style={{ maxWidth: 260 }}>
+            문서가 아직 적어서 비교할 대상이 부족합니다.
+            시험지를 더 업로드하거나 시험 문제 인덱싱을 실행하면 결과가 나오기 시작합니다.
+          </div>
+        ) : (
+          <div style={{ maxWidth: 260 }}>
+            같은 단원·유형의 문제가 쌓일수록 정확해집니다.
+          </div>
+        )}
       </div>
     );
   }

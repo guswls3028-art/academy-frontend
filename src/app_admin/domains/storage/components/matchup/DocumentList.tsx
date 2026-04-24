@@ -1,7 +1,10 @@
 // PATH: src/app_admin/domains/storage/components/matchup/DocumentList.tsx
 // 좌측 문서 목록 패널
+//
+// 검색 + 상태 필터 + 정렬 추가. 500개 누적 시 탐색 가능하도록.
 
-import { FileText, Plus, Loader2, AlertCircle, CheckCircle2, RefreshCw, Trash2 } from "lucide-react";
+import { useMemo, useState } from "react";
+import { FileText, Plus, Loader2, AlertCircle, CheckCircle2, RefreshCw, Trash2, Search, X } from "lucide-react";
 import { Button } from "@/shared/ui/ds";
 import { useConfirm } from "@/shared/ui/confirm";
 import type { MatchupDocument, SegmentationMethod } from "../../api/matchup.api";
@@ -18,6 +21,8 @@ type Props = {
   progressMap?: DocProgressMap;
 };
 
+type StatusFilter = "all" | "processing" | "done" | "failed";
+
 const STATUS_ICON = {
   pending: <Loader2 size={14} style={{ color: "var(--color-text-muted)" }} />,
   processing: <Loader2 size={14} className="animate-spin" style={{ color: "var(--color-brand-primary)" }} />,
@@ -32,12 +37,6 @@ const STATUS_LABEL = {
   failed: "실패",
 } as const;
 
-// 세그멘테이션 방식별 라벨 + 색상
-// text: PDF 텍스트 직접 추출 (가장 깔끔)
-// ocr : 스캔 PDF OCR 추출
-// mixed: 텍스트+스캔 혼합
-// image: 단일 이미지 업로드
-// none: 문제 검출 실패 — 전체 페이지로 대체
 const SEG_META: Record<SegmentationMethod, { label: string; color: string; tip: string }> = {
   text: { label: "텍스트", color: "var(--color-success)", tip: "PDF 텍스트 직접 추출" },
   ocr: { label: "OCR", color: "var(--color-brand-primary)", tip: "스캔본 OCR로 텍스트 추출" },
@@ -51,6 +50,32 @@ export default function DocumentList({
   progressMap = {},
 }: Props) {
   const confirm = useConfirm();
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return documents.filter((d) => {
+      if (statusFilter !== "all") {
+        if (statusFilter === "processing" && !(d.status === "processing" || d.status === "pending")) return false;
+        if (statusFilter === "done" && d.status !== "done") return false;
+        if (statusFilter === "failed" && d.status !== "failed") return false;
+      }
+      if (!q) return true;
+      return (
+        d.title.toLowerCase().includes(q) ||
+        d.subject.toLowerCase().includes(q) ||
+        d.grade_level.toLowerCase().includes(q)
+      );
+    });
+  }, [documents, search, statusFilter]);
+
+  const counts = useMemo(() => ({
+    all: documents.length,
+    processing: documents.filter((d) => d.status === "processing" || d.status === "pending").length,
+    done: documents.filter((d) => d.status === "done").length,
+    failed: documents.filter((d) => d.status === "failed").length,
+  }), [documents]);
 
   const handleDelete = async (e: React.MouseEvent, id: number) => {
     e.stopPropagation();
@@ -68,6 +93,18 @@ export default function DocumentList({
     onRetry(id);
   };
 
+  const filterBtnStyle = (active: boolean): React.CSSProperties => ({
+    background: active ? "color-mix(in srgb, var(--color-brand-primary) 12%, transparent)" : "transparent",
+    border: "1px solid",
+    borderColor: active ? "var(--color-brand-primary)" : "var(--color-border-divider)",
+    color: active ? "var(--color-brand-primary)" : "var(--color-text-secondary)",
+    fontSize: 11,
+    fontWeight: 600,
+    padding: "3px 8px",
+    borderRadius: 4,
+    cursor: "pointer",
+  });
+
   return (
     <>
       <div className={css.treeNavHeader}>
@@ -79,6 +116,79 @@ export default function DocumentList({
         </div>
       </div>
 
+      {/* 검색 + 필터 */}
+      {documents.length > 0 && (
+        <div style={{
+          padding: "var(--space-2) var(--space-3)",
+          borderBottom: "1px solid var(--color-border-divider)",
+          display: "flex", flexDirection: "column", gap: 6,
+        }}>
+          <div style={{ position: "relative" }}>
+            <Search
+              size={12}
+              style={{
+                position: "absolute",
+                left: 8, top: "50%", transform: "translateY(-50%)",
+                color: "var(--color-text-muted)", pointerEvents: "none",
+              }}
+            />
+            <input
+              data-testid="matchup-doc-search"
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="제목·과목·학년 검색"
+              style={{
+                width: "100%",
+                padding: "5px 26px 5px 24px",
+                border: "1px solid var(--color-border-divider)",
+                borderRadius: 6,
+                fontSize: 12,
+                background: "var(--color-bg-surface)",
+                color: "var(--color-text-primary)",
+                outline: "none",
+              }}
+            />
+            {search && (
+              <button
+                onClick={() => setSearch("")}
+                style={{
+                  position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)",
+                  background: "none", border: "none", cursor: "pointer",
+                  color: "var(--color-text-muted)", padding: 2, display: "flex",
+                }}
+                title="지우기"
+              >
+                <X size={12} />
+              </button>
+            )}
+          </div>
+          <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+            <button style={filterBtnStyle(statusFilter === "all")} onClick={() => setStatusFilter("all")}>
+              전체 {counts.all}
+            </button>
+            <button style={filterBtnStyle(statusFilter === "processing")} onClick={() => setStatusFilter("processing")}>
+              처리중 {counts.processing}
+            </button>
+            <button style={filterBtnStyle(statusFilter === "done")} onClick={() => setStatusFilter("done")}>
+              완료 {counts.done}
+            </button>
+            <button
+              style={{
+                ...filterBtnStyle(statusFilter === "failed"),
+                ...(counts.failed > 0 && statusFilter !== "failed" ? {
+                  borderColor: "color-mix(in srgb, var(--color-danger) 40%, var(--color-border-divider))",
+                  color: "var(--color-danger)",
+                } : {}),
+              }}
+              onClick={() => setStatusFilter("failed")}
+            >
+              실패 {counts.failed}
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className={css.treeScroll}>
         {documents.length === 0 && (
           <div style={{ padding: "var(--space-6) var(--space-4)", textAlign: "center" }}>
@@ -88,7 +198,15 @@ export default function DocumentList({
           </div>
         )}
 
-        {documents.map((doc) => {
+        {documents.length > 0 && filtered.length === 0 && (
+          <div style={{ padding: "var(--space-5) var(--space-4)", textAlign: "center" }}>
+            <p style={{ fontSize: 12, color: "var(--color-text-muted)", margin: 0 }}>
+              조건에 맞는 문서가 없습니다
+            </p>
+          </div>
+        )}
+
+        {filtered.map((doc) => {
           const segMethod = doc.meta?.segmentation_method;
           const segInfo = segMethod ? SEG_META[segMethod] : null;
           const progress = progressMap[doc.id];
@@ -110,10 +228,14 @@ export default function DocumentList({
                 margin: "0 var(--space-2)",
                 background: isSelected
                   ? "color-mix(in srgb, var(--color-brand-primary) 8%, var(--color-bg-surface))"
-                  : undefined,
+                  : doc.status === "failed"
+                    ? "color-mix(in srgb, var(--color-danger) 4%, transparent)"
+                    : undefined,
                 borderLeft: isSelected
                   ? "3px solid var(--color-brand-primary)"
-                  : "3px solid transparent",
+                  : doc.status === "failed"
+                    ? "3px solid color-mix(in srgb, var(--color-danger) 40%, transparent)"
+                    : "3px solid transparent",
                 transition: "background 0.15s, border-color 0.15s",
               }}
             >
@@ -134,11 +256,14 @@ export default function DocumentList({
                   {doc.title}
                 </div>
 
-                {/* 상태 + 문제 수 + 과목 뱃지 */}
                 <div style={{ display: "flex", alignItems: "center", gap: "var(--space-1)", marginTop: 2, flexWrap: "wrap" }}>
                   {STATUS_ICON[doc.status]}
                   <span
-                    style={{ fontSize: 11, color: "var(--color-text-muted)" }}
+                    style={{
+                      fontSize: 11,
+                      color: doc.status === "failed" ? "var(--color-danger)" : "var(--color-text-muted)",
+                      fontWeight: doc.status === "failed" ? 600 : 400,
+                    }}
                     title={doc.status === "failed" ? doc.error_message || "처리 실패" : undefined}
                   >
                     {doc.status === "done"
@@ -148,7 +273,6 @@ export default function DocumentList({
                         : STATUS_LABEL[doc.status]}
                   </span>
 
-                  {/* 세그멘테이션 방식 뱃지 (done에서만 표시) */}
                   {doc.status === "done" && segInfo && (
                     <span
                       title={segInfo.tip}
@@ -170,7 +294,6 @@ export default function DocumentList({
                       title="과목"
                       style={{
                         fontSize: 10, padding: "1px 6px", borderRadius: 4,
-                        // 진행률(파란색)/세그멘테이션(색상별)과 구분되는 뉴트럴 그레이
                         background: "var(--color-bg-surface-soft)",
                         color: "var(--color-text-secondary)",
                         border: "1px solid var(--color-border-divider)",
@@ -181,7 +304,6 @@ export default function DocumentList({
                   )}
                 </div>
 
-                {/* 진행률 바 (processing 상태) */}
                 {doc.status === "processing" && progress && (
                   <div
                     style={{
@@ -205,13 +327,12 @@ export default function DocumentList({
                 )}
               </div>
 
-              {/* 액션 버튼 */}
               <div style={{ display: "flex", gap: 2, flexShrink: 0, marginTop: 2 }}>
                 {doc.status === "failed" && (
                   <button
                     onClick={(e) => handleRetry(e, doc.id)}
                     title="재시도"
-                    style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-muted)", padding: 2 }}
+                    style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-danger)", padding: 2 }}
                   >
                     <RefreshCw size={13} />
                   </button>

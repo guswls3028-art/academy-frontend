@@ -3,6 +3,7 @@
 //
 // 역할:
 //  - status === "processing" 문서들의 AI job 진행률을 3초 간격 폴링
+//  - N개 문서를 Promise.allSettled로 병렬 fetch (3초 주기 보장)
 //  - 완료(status=DONE)/실패(FAILED) 감지 시 문서 목록 invalidate
 //  - 각 doc_id별 진행률(percent, step_name_display)을 반환 → UI에서 표시
 //
@@ -43,19 +44,28 @@ export function useMatchupPolling(documents: MatchupDocument[]): DocProgressMap 
     let cancelled = false;
 
     const poll = async () => {
+      // 병렬 fetch — 순차 await 루프를 제거해 3초 주기 보장
+      const results = await Promise.allSettled(
+        processingDocs.map((doc) =>
+          fetchJobProgress(doc.ai_job_id).then((env) => ({ doc, env })),
+        ),
+      );
+
       let anyComplete = false;
       const next: DocProgressMap = {};
-      for (const doc of processingDocs) {
-        const env = await fetchJobProgress(doc.ai_job_id);
+      const terminalDocIds = new Set<number>();
+
+      for (const r of results) {
+        if (r.status !== "fulfilled") continue;
+        const { doc, env } = r.value;
         if (!env) continue;
 
-        // 완료/실패 감지 — DB status는 API 응답에서 이미 업데이트되어 있음
         if (env.status === "DONE" || env.status === "FAILED" || env.status === "CANCELLED") {
           anyComplete = true;
+          terminalDocIds.add(doc.id);
           continue;
         }
 
-        // 진행률 표시 — progress 객체가 있을 때만
         const p = env.progress;
         if (p) {
           const pct = typeof p.percent === "number" ? p.percent : 0;
@@ -66,15 +76,20 @@ export function useMatchupPolling(documents: MatchupDocument[]): DocProgressMap 
           if (pct >= 100) anyComplete = true;
         }
       }
+
       if (cancelled) return;
-      setProgressMap((prev) => ({ ...prev, ...next }));
+      // terminal 상태 doc은 progress 맵에서 제거 (이전 진행률 잔여 방지)
+      setProgressMap((prev) => {
+        const merged = { ...prev, ...next };
+        for (const id of terminalDocIds) delete merged[id];
+        return merged;
+      });
       if (anyComplete) {
         qc.invalidateQueries({ queryKey: ["matchup-documents"] });
         qc.invalidateQueries({ queryKey: ["matchup-problems"] });
       }
     };
 
-    // 첫 폴은 즉시, 이후 3초 간격
     void poll();
     intervalRef.current = setInterval(poll, 3000);
     return () => {

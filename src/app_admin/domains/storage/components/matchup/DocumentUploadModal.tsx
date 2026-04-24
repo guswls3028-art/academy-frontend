@@ -1,40 +1,66 @@
 // PATH: src/app_admin/domains/storage/components/matchup/DocumentUploadModal.tsx
+//
+// 매치업 업로드 모달.
+// 개선 항목:
+//  - iPhone HEIC 자동 JPEG 변환 (heic2any lazy import)
+//  - 병합 진행률 표시 (HEIC 변환 / PDF 병합 단계별 N/Total)
+//  - 업로드 중 X 버튼 잠금 (닫을 수 없음 → pending 상태 유령 문서 방지)
+//  - 파일 drag-reorder (HTML5 DnD, 순서 변경 UX)
+//  - 제목 중복 경고 (같은 테넌트 동일 제목 존재 시 inline 안내)
+//  - 과목/학년 datalist 자동완성 (기존 문서 기반)
 
 import { useState, useRef, useEffect, useMemo } from "react";
-import { Upload, X, Image as ImageIcon, FileText, AlertCircle } from "lucide-react";
+import { Upload, X, Image as ImageIcon, FileText, AlertCircle, GripVertical } from "lucide-react";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
-import { filesToPdf, isImage, isPdf } from "./filesToPdf";
+import { filesToPdf, isImage, isPdf, isHeic } from "./filesToPdf";
+import type { MergeProgress } from "./filesToPdf";
 
 type Props = {
   onClose: () => void;
   onUpload: (payload: { file: File; title: string; subject: string; grade_level: string }) => Promise<void>;
+  existingTitles?: string[];
+  subjectSuggestions?: string[];
+  gradeLevelSuggestions?: string[];
 };
 
-const ACCEPT = ".pdf,.png,.jpg,.jpeg";
+const ACCEPT = ".pdf,.png,.jpg,.jpeg,.heic,.heif";
 const MAX_SIZE = 50 * 1024 * 1024;
 
 type Entry = {
   file: File;
-  thumbUrl: string | null; // 이미지만 생성, PDF는 null
+  thumbUrl: string | null;
 };
 
-export default function DocumentUploadModal({ onClose, onUpload }: Props) {
+export default function DocumentUploadModal({
+  onClose,
+  onUpload,
+  existingTitles = [],
+  subjectSuggestions = [],
+  gradeLevelSuggestions = [],
+}: Props) {
   const [title, setTitle] = useState("");
   const [subject, setSubject] = useState("");
   const [gradeLevel, setGradeLevel] = useState("");
   const [entries, setEntries] = useState<Entry[]>([]);
   const [uploading, setUploading] = useState(false);
-  const [mergingPdf, setMergingPdf] = useState(false);
-  // 드롭존 에러 플래시 — 잘못된 파일 넣으면 빨강 깜빡임 (토스트만으로는 인지가 약함)
+  const [mergeProgress, setMergeProgress] = useState<MergeProgress | null>(null);
   const [dropError, setDropError] = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const totalSize = useMemo(
     () => entries.reduce((s, e) => s + e.file.size, 0),
     [entries],
   );
+
+  // 제목 중복 체크 (trim + case-insensitive)
+  const titleDuplicate = useMemo(() => {
+    if (!title.trim()) return false;
+    const normalized = title.trim().toLowerCase();
+    return existingTitles.some((t) => t.trim().toLowerCase() === normalized);
+  }, [title, existingTitles]);
 
   // 썸네일 URL 정리
   useEffect(() => {
@@ -53,6 +79,15 @@ export default function DocumentUploadModal({ onClose, onUpload }: Props) {
     return () => clearTimeout(t);
   }, [dropError]);
 
+  // ESC로 닫기 (업로드 중에는 무시)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !uploading) onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [uploading, onClose]);
+
   const showDropError = (msg: string) => {
     setDropError(msg);
     feedback.error(msg);
@@ -61,7 +96,7 @@ export default function DocumentUploadModal({ onClose, onUpload }: Props) {
   const addFiles = (selected: File[]) => {
     if (selected.length === 0) return;
 
-    const invalid = selected.filter((f) => !isPdf(f) && !isImage(f));
+    const invalid = selected.filter((f) => !isPdf(f) && !isImage(f) && !isHeic(f));
     if (invalid.length > 0) {
       showDropError(`지원하지 않는 형식: ${invalid[0].name}`);
       return;
@@ -75,7 +110,8 @@ export default function DocumentUploadModal({ onClose, onUpload }: Props) {
 
     const newEntries: Entry[] = selected.map((file) => ({
       file,
-      thumbUrl: isImage(file) ? URL.createObjectURL(file) : null,
+      // HEIC는 브라우저가 직접 렌더 못 하므로 썸네일 생성 안 함
+      thumbUrl: isImage(file) && !isHeic(file) ? URL.createObjectURL(file) : null,
     }));
     setEntries([...entries, ...newEntries]);
 
@@ -113,19 +149,55 @@ export default function DocumentUploadModal({ onClose, onUpload }: Props) {
     setEntries(next);
   };
 
+  // drag-reorder — HTML5 DnD
+  const handleEntryDragStart = (idx: number) => (e: React.DragEvent) => {
+    setDragIndex(idx);
+    e.dataTransfer.effectAllowed = "move";
+    try { e.dataTransfer.setData("text/plain", String(idx)); } catch { /* ignore */ }
+  };
+  const handleEntryDragOver = () => (e: React.DragEvent) => {
+    // File drop와 충돌 방지 — entry reorder 중일 때만 preventDefault
+    if (dragIndex === null) return;
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = "move";
+  };
+  const handleEntryDrop = (idx: number) => (e: React.DragEvent) => {
+    if (dragIndex === null) return;
+    e.preventDefault();
+    e.stopPropagation();
+    if (dragIndex === idx) { setDragIndex(null); return; }
+    const next = [...entries];
+    const [moved] = next.splice(dragIndex, 1);
+    next.splice(idx, 0, moved);
+    setEntries(next);
+    setDragIndex(null);
+  };
+  const handleEntryDragEnd = () => setDragIndex(null);
+
   const handleSubmit = async () => {
     if (entries.length === 0) return;
     setUploading(true);
     try {
+      const hasHeic = entries.some((e) => isHeic(e.file));
       const files = entries.map((e) => e.file);
       let finalFile: File;
       if (files.length === 1 && isPdf(files[0])) {
         finalFile = files[0];
       } else {
-        setMergingPdf(true);
-        const pdfName = (title || "scan").replace(/[^\w가-힣\-]/g, "_") + ".pdf";
-        finalFile = await filesToPdf(files, pdfName);
-        setMergingPdf(false);
+        setMergeProgress({ phase: hasHeic ? "heic" : "pdf", current: 0, total: files.length });
+        const pdfName = (title || "scan").replace(/[^\w가-힣-]/g, "_") + ".pdf";
+        finalFile = await filesToPdf(files, pdfName, {
+          onProgress: (p) => setMergeProgress(p),
+        });
+        setMergeProgress(null);
+      }
+
+      // 병합 후 크기 재검증 — pdf-lib가 이미지를 더 크게 저장하는 경우 대비
+      if (finalFile.size > MAX_SIZE) {
+        throw new Error(
+          `병합된 PDF가 50MB를 초과합니다 (${(finalFile.size / 1024 / 1024).toFixed(1)}MB). 파일 수를 줄이거나 해상도가 낮은 사진을 사용해 주세요.`,
+        );
       }
 
       await onUpload({
@@ -138,7 +210,7 @@ export default function DocumentUploadModal({ onClose, onUpload }: Props) {
     } catch (e) {
       console.error(e);
       let msg: string;
-      if (mergingPdf && e instanceof Error && e.message) {
+      if (e instanceof Error && e.message) {
         msg = e.message;
       } else if (typeof e === "object" && e !== null && "response" in e) {
         const resp = (e as { response?: { data?: { detail?: string } } }).response;
@@ -149,15 +221,16 @@ export default function DocumentUploadModal({ onClose, onUpload }: Props) {
       feedback.error(msg);
     } finally {
       setUploading(false);
-      setMergingPdf(false);
+      setMergeProgress(null);
     }
   };
 
   const pdfCount = entries.filter((e) => isPdf(e.file)).length;
-  const imageCount = entries.filter((e) => isImage(e.file)).length;
+  const imageCount = entries.filter((e) => isImage(e.file) && !isHeic(e.file)).length;
+  const heicCount = entries.filter((e) => isHeic(e.file)).length;
   const willMerge = entries.length > 1 || (entries.length === 1 && !isPdf(entries[0].file));
 
-  // 드롭존 스타일 — drop 상태 / 에러 플래시 / 파일 있음
+  // 드롭존 스타일
   const dropZoneBorder = dropError
     ? "2px dashed var(--color-danger)"
     : isDragOver
@@ -170,6 +243,12 @@ export default function DocumentUploadModal({ onClose, onUpload }: Props) {
       : entries.length > 0
         ? "color-mix(in srgb, var(--color-brand-primary) 5%, var(--color-bg-surface))"
         : undefined;
+
+  const mergeLabel = mergeProgress
+    ? mergeProgress.phase === "heic"
+      ? `아이폰 사진 변환 중... (${mergeProgress.current}/${mergeProgress.total})`
+      : `PDF 병합 중... (${mergeProgress.current}/${mergeProgress.total})`
+    : null;
 
   return (
     <div
@@ -198,7 +277,17 @@ export default function DocumentUploadModal({ onClose, onUpload }: Props) {
           flexShrink: 0,
         }}>
           <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>문서 업로드</h3>
-          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-muted)" }}>
+          <button
+            onClick={onClose}
+            disabled={uploading}
+            title={uploading ? "업로드가 끝날 때까지 닫을 수 없습니다" : "닫기"}
+            style={{
+              background: "none", border: "none",
+              cursor: uploading ? "not-allowed" : "pointer",
+              color: uploading ? "var(--color-text-muted)" : "var(--color-text-secondary)",
+              opacity: uploading ? 0.4 : 1,
+            }}
+          >
             <X size={18} />
           </button>
         </div>
@@ -211,14 +300,17 @@ export default function DocumentUploadModal({ onClose, onUpload }: Props) {
         }}>
           {/* 드래그앤드롭 / 파일 선택 */}
           <div
-            onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragOver(true); }}
+            onDragOver={(e) => {
+              // entry reorder 중이면 드롭존 하이라이트 안 함
+              if (dragIndex !== null) return;
+              e.preventDefault(); e.stopPropagation(); setIsDragOver(true);
+            }}
             onDragLeave={() => setIsDragOver(false)}
             onDrop={handleDrop}
             data-testid="matchup-drop-zone"
             style={{
               border: dropZoneBorder,
               borderRadius: "var(--radius-lg)",
-              // 파일 선택된 이후엔 세로 여백을 줄여서 메타데이터 입력 영역 확보
               padding: entries.length === 0 ? "var(--space-6)" : "var(--space-4)",
               textAlign: "center", cursor: "pointer",
               marginBottom: "var(--space-3)",
@@ -237,11 +329,11 @@ export default function DocumentUploadModal({ onClose, onUpload }: Props) {
                 ? dropError
                 : entries.length === 0
                   ? "PDF + 이미지 여러 개 드래그하거나 클릭해서 선택"
-                  : `${entries.length}개 선택됨 (PDF ${pdfCount} · 이미지 ${imageCount})`}
+                  : `${entries.length}개 선택됨 (PDF ${pdfCount} · 이미지 ${imageCount}${heicCount ? ` · HEIC ${heicCount}` : ""})`}
             </p>
             <p style={{ margin: "var(--space-1) 0 0", fontSize: 12, color: "var(--color-text-muted)" }}>
               {entries.length === 0
-                ? "PDF 여러 개도 OK · 자동으로 1개 PDF로 합쳐짐 · 최대 50MB"
+                ? "PDF · JPG · PNG · HEIC(아이폰) 모두 가능 · 자동으로 1개 PDF로 합쳐짐 · 최대 50MB"
                 : `${(totalSize / 1024 / 1024).toFixed(1)}MB · 더 추가하려면 다시 클릭/드래그`}
             </p>
             <input
@@ -255,7 +347,7 @@ export default function DocumentUploadModal({ onClose, onUpload }: Props) {
             />
           </div>
 
-          {/* 병합 안내 — 파일 영역과 form 사이 배치. 사용자가 가장 먼저 읽는 동선. */}
+          {/* 병합 안내 */}
           {willMerge && (
             <div style={{
               marginBottom: "var(--space-3)",
@@ -266,34 +358,54 @@ export default function DocumentUploadModal({ onClose, onUpload }: Props) {
               display: "flex", alignItems: "center", gap: "var(--space-2)",
             }}>
               <ImageIcon size={14} />
-              <span>자동으로 1개 PDF로 합쳐서 업로드됩니다</span>
+              <span>
+                {heicCount > 0
+                  ? "HEIC는 자동으로 JPEG로 변환 후 1개 PDF로 합쳐집니다"
+                  : "자동으로 1개 PDF로 합쳐서 업로드됩니다"}
+              </span>
             </div>
           )}
 
-          {/* 파일 목록 (썸네일 72px) — 3개 초과면 내부 스크롤 */}
+          {/* 파일 목록 */}
           {entries.length > 0 && (
             <div style={{
               marginBottom: "var(--space-3)",
               border: "1px solid var(--color-border-divider)",
               borderRadius: "var(--radius-md)",
               padding: "var(--space-2)",
-              maxHeight: 180, overflow: "auto",
+              maxHeight: 220, overflow: "auto",
             }}>
               <p style={{ margin: "0 0 var(--space-2)", fontSize: 11, color: "var(--color-text-muted)" }}>
-                업로드 순서 (위→아래). ↑↓ 버튼으로 변경 가능.
+                업로드 순서 (위→아래). 드래그하거나 ↑↓ 버튼으로 변경 가능.
               </p>
               {entries.map((entry, i) => (
                 <div
                   key={i}
                   data-testid="matchup-upload-entry"
+                  draggable={!uploading}
+                  onDragStart={handleEntryDragStart(i)}
+                  onDragOver={handleEntryDragOver()}
+                  onDrop={handleEntryDrop(i)}
+                  onDragEnd={handleEntryDragEnd}
                   style={{
                     display: "flex", alignItems: "center", gap: "var(--space-3)",
                     padding: "var(--space-2)",
                     fontSize: 12,
                     borderBottom: i < entries.length - 1 ? "1px solid var(--color-border-divider)" : "none",
+                    background: dragIndex === i ? "color-mix(in srgb, var(--color-brand-primary) 8%, transparent)" : undefined,
+                    cursor: uploading ? "default" : "grab",
                   }}
                 >
-                  {/* 썸네일 72x72 */}
+                  <GripVertical
+                    size={14}
+                    style={{
+                      color: "var(--color-text-muted)",
+                      flexShrink: 0,
+                      opacity: uploading ? 0.3 : 0.7,
+                    }}
+                  />
+
+                  {/* 썸네일 */}
                   {entry.thumbUrl ? (
                     <img
                       src={entry.thumbUrl}
@@ -308,12 +420,16 @@ export default function DocumentUploadModal({ onClose, onUpload }: Props) {
                   ) : (
                     <div style={{
                       width: 72, height: 72, flexShrink: 0,
-                      display: "flex", alignItems: "center", justifyContent: "center",
+                      display: "flex", flexDirection: "column",
+                      alignItems: "center", justifyContent: "center",
                       borderRadius: 6, border: "1px solid var(--color-border-divider)",
                       background: "var(--color-bg-surface-soft)",
-                      color: "var(--color-danger)",
+                      color: isHeic(entry.file) ? "var(--color-brand-primary)" : "var(--color-text-muted)",
                     }}>
-                      <FileText size={28} />
+                      <FileText size={24} />
+                      {isHeic(entry.file) && (
+                        <span style={{ fontSize: 9, fontWeight: 700, marginTop: 2 }}>HEIC</span>
+                      )}
                     </div>
                   )}
 
@@ -325,27 +441,28 @@ export default function DocumentUploadModal({ onClose, onUpload }: Props) {
                       {i + 1}. {entry.file.name}
                     </div>
                     <div style={{ fontSize: 11, color: "var(--color-text-muted)", marginTop: 4 }}>
-                      {isPdf(entry.file) ? "PDF" : "이미지"} · {(entry.file.size / 1024 / 1024).toFixed(2)}MB
+                      {isPdf(entry.file) ? "PDF" : isHeic(entry.file) ? "HEIC (자동 변환)" : "이미지"} · {(entry.file.size / 1024 / 1024).toFixed(2)}MB
                     </div>
                   </div>
 
                   <div style={{ display: "flex", flexDirection: "column", gap: 2, flexShrink: 0 }}>
                     <button
                       onClick={(e) => { e.stopPropagation(); moveEntry(i, -1); }}
-                      disabled={i === 0}
-                      style={{ background: "none", border: "1px solid var(--color-border-divider)", borderRadius: 4, cursor: i === 0 ? "default" : "pointer", opacity: i === 0 ? 0.3 : 1, fontSize: 12, padding: "2px 6px" }}
+                      disabled={i === 0 || uploading}
+                      style={{ background: "none", border: "1px solid var(--color-border-divider)", borderRadius: 4, cursor: i === 0 || uploading ? "default" : "pointer", opacity: i === 0 || uploading ? 0.3 : 1, fontSize: 12, padding: "2px 6px" }}
                       title="위로"
                     >↑</button>
                     <button
                       onClick={(e) => { e.stopPropagation(); moveEntry(i, 1); }}
-                      disabled={i === entries.length - 1}
-                      style={{ background: "none", border: "1px solid var(--color-border-divider)", borderRadius: 4, cursor: i === entries.length - 1 ? "default" : "pointer", opacity: i === entries.length - 1 ? 0.3 : 1, fontSize: 12, padding: "2px 6px" }}
+                      disabled={i === entries.length - 1 || uploading}
+                      style={{ background: "none", border: "1px solid var(--color-border-divider)", borderRadius: 4, cursor: i === entries.length - 1 || uploading ? "default" : "pointer", opacity: i === entries.length - 1 || uploading ? 0.3 : 1, fontSize: 12, padding: "2px 6px" }}
                       title="아래로"
                     >↓</button>
                   </div>
                   <button
                     onClick={(e) => { e.stopPropagation(); removeEntry(i); }}
-                    style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-muted)", padding: 4, flexShrink: 0 }}
+                    disabled={uploading}
+                    style={{ background: "none", border: "none", cursor: uploading ? "default" : "pointer", color: "var(--color-text-muted)", padding: 4, flexShrink: 0, opacity: uploading ? 0.3 : 1 }}
                     title="제거"
                   ><X size={14} /></button>
                 </div>
@@ -363,10 +480,19 @@ export default function DocumentUploadModal({ onClose, onUpload }: Props) {
                 placeholder="문서 제목"
                 style={{
                   display: "block", width: "100%", marginTop: "var(--space-1)",
-                  padding: "var(--space-2) var(--space-3)", border: "1px solid var(--color-border-divider)",
+                  padding: "var(--space-2) var(--space-3)",
+                  border: `1px solid ${titleDuplicate ? "var(--color-warning)" : "var(--color-border-divider)"}`,
                   borderRadius: "var(--radius-md)", fontSize: 14, background: "var(--color-bg-surface)",
                 }}
               />
+              {titleDuplicate && (
+                <span style={{
+                  display: "block", marginTop: 4, fontSize: 11,
+                  color: "var(--color-warning)", fontWeight: 500,
+                }}>
+                  같은 제목의 문서가 이미 존재합니다. 계속 업로드해도 되지만, 구분을 위해 제목 뒤에 날짜 등을 추가하는 것을 권장합니다.
+                </span>
+              )}
             </label>
 
             <div style={{ display: "flex", gap: "var(--space-3)" }}>
@@ -376,12 +502,16 @@ export default function DocumentUploadModal({ onClose, onUpload }: Props) {
                   value={subject}
                   onChange={(e) => setSubject(e.target.value)}
                   placeholder="예: 수학"
+                  list="matchup-subject-suggestions"
                   style={{
                     display: "block", width: "100%", marginTop: "var(--space-1)",
                     padding: "var(--space-2) var(--space-3)", border: "1px solid var(--color-border-divider)",
                     borderRadius: "var(--radius-md)", fontSize: 14, background: "var(--color-bg-surface)",
                   }}
                 />
+                <datalist id="matchup-subject-suggestions">
+                  {subjectSuggestions.map((s) => <option key={s} value={s} />)}
+                </datalist>
               </label>
               <label style={{ flex: 1, fontSize: 13, fontWeight: 600, color: "var(--color-text-secondary)" }}>
                 학년
@@ -389,18 +519,22 @@ export default function DocumentUploadModal({ onClose, onUpload }: Props) {
                   value={gradeLevel}
                   onChange={(e) => setGradeLevel(e.target.value)}
                   placeholder="예: 고1"
+                  list="matchup-grade-suggestions"
                   style={{
                     display: "block", width: "100%", marginTop: "var(--space-1)",
                     padding: "var(--space-2) var(--space-3)", border: "1px solid var(--color-border-divider)",
                     borderRadius: "var(--radius-md)", fontSize: 14, background: "var(--color-bg-surface)",
                   }}
                 />
+                <datalist id="matchup-grade-suggestions">
+                  {gradeLevelSuggestions.map((s) => <option key={s} value={s} />)}
+                </datalist>
               </label>
             </div>
           </div>
         </div>
 
-        {/* Footer (sticky) — 액션 버튼 전용, 높이 최소화 */}
+        {/* Footer */}
         <div style={{
           padding: "var(--space-3) var(--space-6) var(--space-4)",
           borderTop: "1px solid var(--color-border-divider)",
@@ -409,7 +543,15 @@ export default function DocumentUploadModal({ onClose, onUpload }: Props) {
           borderBottomLeftRadius: "var(--radius-xl)",
           borderBottomRightRadius: "var(--radius-xl)",
         }}>
-          <div style={{ display: "flex", justifyContent: "flex-end", gap: "var(--space-2)" }}>
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: "var(--space-2)", alignItems: "center" }}>
+            {mergeLabel && (
+              <span style={{
+                fontSize: 12, color: "var(--color-brand-primary)",
+                fontWeight: 600, marginRight: "auto",
+              }}>
+                {mergeLabel}
+              </span>
+            )}
             <Button intent="ghost" size="sm" onClick={onClose} disabled={uploading}>
               취소
             </Button>
@@ -419,8 +561,8 @@ export default function DocumentUploadModal({ onClose, onUpload }: Props) {
               disabled={entries.length === 0 || uploading}
               data-testid="matchup-upload-submit"
             >
-              {mergingPdf
-                ? "PDF 병합 중..."
+              {mergeProgress
+                ? mergeProgress.phase === "heic" ? "아이폰 사진 변환 중..." : "PDF 병합 중..."
                 : uploading
                   ? "업로드 중..."
                   : willMerge

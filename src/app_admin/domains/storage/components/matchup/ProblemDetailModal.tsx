@@ -27,6 +27,15 @@ export default function ProblemDetailModal({ problem, onClose, onNavigate }: Pro
     }
   }, [problem.id, problem.image_url]);
 
+  // ESC로 닫기
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
   const handleCopyText = () => {
     if (problem.text) {
       navigator.clipboard.writeText(problem.text);

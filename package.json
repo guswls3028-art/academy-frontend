@@ -48,6 +48,7 @@
     "axios": "^1.13.2",
     "dayjs": "^1.11.19",
     "dompurify": "^3.3.2",
+    "heic2any": "^0.0.4",
     "hls.js": "^1.6.15",
     "lightningcss-linux-x64-gnu": "^1.32.0",
     "lucide-react": "^0.563.0",
