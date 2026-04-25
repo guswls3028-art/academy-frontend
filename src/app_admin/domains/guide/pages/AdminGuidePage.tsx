@@ -40,17 +40,24 @@ function WorkflowCard({
         overflow: "hidden",
       }}
     >
-      {/* 헤더 — 클릭으로 펼침/접힘 */}
-      <button
+      {/* 헤더 — 클릭으로 펼침/접힘. 우측 「시작」 버튼은 stopPropagation으로 분리 */}
+      <div
+        role="button"
+        tabIndex={0}
+        aria-expanded={open}
         onClick={onToggle}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onToggle();
+          }
+        }}
         style={{
           display: "flex",
           alignItems: "center",
           gap: 14,
           width: "100%",
           padding: "16px 18px",
-          border: "none",
-          background: "transparent",
           cursor: "pointer",
           color: "var(--color-text-primary)",
           textAlign: "left",
@@ -84,6 +91,44 @@ function WorkflowCard({
             {wf.summary}
           </div>
         </div>
+        {wf.tourPath && wf.tourSteps?.length ? (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleTour();
+            }}
+            aria-label={`${wf.title} 투어 시작`}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+              padding: "6px 12px",
+              borderRadius: 8,
+              border: "none",
+              background: "var(--color-brand-primary)",
+              color: "#fff",
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: "pointer",
+              flexShrink: 0,
+              transition: "opacity 150ms",
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.opacity = "0.88"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.opacity = "1"; }}
+          >
+            <svg
+              width="11"
+              height="11"
+              viewBox="0 0 24 24"
+              fill="currentColor"
+              aria-hidden="true"
+            >
+              <path d="M8 5v14l11-7z" />
+            </svg>
+            시작
+          </button>
+        ) : null}
         <svg
           width="20"
           height="20"
@@ -101,7 +146,7 @@ function WorkflowCard({
         >
           <path d="M6 9l6 6 6-6" />
         </svg>
-      </button>
+      </div>
 
       {/* 아코디언 본문 — grid-template-rows 트랜지션 */}
       <div
