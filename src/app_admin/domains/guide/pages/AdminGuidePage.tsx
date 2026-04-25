@@ -42,6 +42,7 @@ function WorkflowCard({
     >
       {/* 헤더 — 클릭으로 펼침/접힘. 우측 「시작」 버튼은 stopPropagation으로 분리 */}
       <div
+        className="guide-card-header"
         role="button"
         tabIndex={0}
         aria-expanded={open}
@@ -300,6 +301,13 @@ export default function AdminGuidePage() {
       title="사용 가이드"
       description="핵심 업무를 단계별로 안내합니다. 카드를 눌러 자세한 방법을 확인하고, '직접 해보기'로 실제 화면에서 따라해 보세요."
     >
+      <style>{`
+        .guide-card-header:focus-visible {
+          outline: 2px solid var(--color-brand-primary);
+          outline-offset: -2px;
+        }
+        .guide-card-header:focus:not(:focus-visible) { outline: none; }
+      `}</style>
       <div style={{ display: "flex", flexDirection: "column", gap: 10, maxWidth: 720 }}>
         {ADMIN_WORKFLOWS.map((wf) => (
           <WorkflowCard
