@@ -1,15 +1,18 @@
 // PATH: src/app_admin/domains/storage/components/matchup/SimilarResults.tsx
 // 유사 문제 추천 결과 패널
 //
-// 결과를 두 섹션으로 분리:
-//  - "다른 시험지에서" (cross-doc) — 추천 의도와 일치하는 결과를 우선 노출
-//  - "이 시험지 안에서" (in-doc)  — 같은 시험지 내 비슷한 유형 (보조)
+// 결과 그루핑:
+//  1) 유사도(sim) 임계값 그룹 — 노이즈 자동 컷
+//     - sim >= 0.85 : 강한 매칭 (그대로 표시)
+//     - sim 0.80~0.85 : "참고" 라벨로 회색 톤 표시
+//     - sim < 0.80 : 기본 숨김. 토글로 펼침
+//  2) 출처 분리 — "다른 시험지에서" 우선, "이 시험지 안에서"는 보조
 //
-// 분리 기준은 source problem의 document_id (= 현재 선택한 문서 id).
-// top_k 충분히 받아서(예: 12) 두 섹션에 적절히 분배.
+// 직접 텍스트 검증(2026-04-25): sim 0.85+는 18/18 같은 단원 매칭, 0.80 이하부터
+// 단원 다른 결과가 섞이기 시작. 이 임계값으로 약한 매칭 노이즈를 자동 컷.
 
-import { useState, useEffect } from "react";
-import { Loader2, Sparkles, FileText, Layers } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import { Loader2, Sparkles, FileText, Layers, ChevronDown, ChevronUp } from "lucide-react";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { findSimilarProblems } from "../../api/matchup.api";
 import type { SimilarProblem } from "../../api/matchup.api";
@@ -22,20 +25,33 @@ type Props = {
   sourceDocumentId?: number | null;
 };
 
+const SIM_STRONG = 0.85;  // 이상: 강한 매칭
+const SIM_WEAK = 0.80;    // 미만: 노이즈 — 기본 숨김
+
+type Tier = "strong" | "weak" | "noise";
+function tierOf(sim: number): Tier {
+  if (sim >= SIM_STRONG) return "strong";
+  if (sim >= SIM_WEAK) return "weak";
+  return "noise";
+}
+
 export default function SimilarResults({
   problemId, onSelectSimilar, totalDocumentCount = 0, sourceDocumentId = null,
 }: Props) {
   const [results, setResults] = useState<SimilarProblem[]>([]);
   const [loading, setLoading] = useState(false);
+  const [showNoise, setShowNoise] = useState(false);
 
   useEffect(() => {
     if (!problemId) {
       setResults([]);
+      setShowNoise(false);
       return;
     }
 
     setLoading(true);
-    // top_k 12 — cross-doc/in-doc 두 섹션에 충분히 보여주기 위해
+    setShowNoise(false);
+    // top_k 12 — 임계값 컷 후에도 충분한 결과가 남도록
     findSimilarProblems(problemId, 12)
       .then((r) => setResults(r.results))
       .catch(() => {
@@ -44,6 +60,13 @@ export default function SimilarResults({
       })
       .finally(() => setLoading(false));
   }, [problemId]);
+
+  // tier 그루핑은 results 변경 시 1회만
+  const grouped = useMemo(() => {
+    const g: Record<Tier, SimilarProblem[]> = { strong: [], weak: [], noise: [] };
+    for (const r of results) g[tierOf(r.similarity)].push(r);
+    return g;
+  }, [results]);
 
   if (!problemId) {
     return (
@@ -71,7 +94,10 @@ export default function SimilarResults({
     );
   }
 
-  if (results.length === 0) {
+  // 강한+참고만 카운트 (노이즈는 빈 상태 판정에서 제외)
+  const visibleCount = grouped.strong.length + grouped.weak.length;
+
+  if (visibleCount === 0 && grouped.noise.length === 0) {
     const isFirstDoc = totalDocumentCount <= 1;
     return (
       <div style={{
@@ -98,17 +124,31 @@ export default function SimilarResults({
     );
   }
 
-  // 두 섹션 분배 (cross-doc 우선)
+  // 강한+참고만 출처 분리 (노이즈는 분리 없이 한 줄로)
+  const visible = [...grouped.strong, ...grouped.weak];
   const crossDoc = sourceDocumentId
-    ? results.filter((r) => r.document_id !== sourceDocumentId)
-    : results;
+    ? visible.filter((r) => r.document_id !== sourceDocumentId)
+    : visible;
   const inDoc = sourceDocumentId
-    ? results.filter((r) => r.document_id === sourceDocumentId)
+    ? visible.filter((r) => r.document_id === sourceDocumentId)
     : [];
 
+  // 강한 vs 참고 시각 분기는 SimilarRow 내부에서 자체 처리
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
-      {/* 다른 시험지 (우선) */}
+      {visibleCount === 0 && grouped.noise.length > 0 && (
+        <div data-testid="matchup-similar-only-noise" style={{
+          padding: "var(--space-4)", textAlign: "center",
+          background: "var(--color-bg-surface-soft)",
+          border: "1px dashed var(--color-border-divider)",
+          borderRadius: "var(--radius-md)",
+          fontSize: 12, color: "var(--color-text-muted)", lineHeight: 1.5,
+        }}>
+          뚜렷하게 비슷한 문제가 없습니다.<br />
+          관련성이 낮은 추천만 있어서 기본은 숨겼습니다.
+        </div>
+      )}
+
       <Section
         title="다른 시험지에서"
         icon={<FileText size={12} />}
@@ -118,7 +158,6 @@ export default function SimilarResults({
         accent="primary"
       />
 
-      {/* 이 시험지 안 (보조 — sourceDocumentId 있을 때만) */}
       {sourceDocumentId !== null && inDoc.length > 0 && (
         <Section
           title="이 시험지 안에서"
@@ -128,6 +167,38 @@ export default function SimilarResults({
           onSelect={onSelectSimilar}
           accent="muted"
         />
+      )}
+
+      {/* 노이즈(<0.80) 펼침 토글 */}
+      {grouped.noise.length > 0 && (
+        <div style={{ marginTop: "var(--space-1)" }}>
+          <button
+            data-testid="matchup-similar-noise-toggle"
+            onClick={() => setShowNoise((v) => !v)}
+            style={{
+              width: "100%",
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
+              background: "transparent", border: "1px dashed var(--color-border-divider)",
+              borderRadius: "var(--radius-sm)",
+              padding: "6px 10px",
+              fontSize: 11, color: "var(--color-text-muted)", cursor: "pointer",
+            }}
+          >
+            {showNoise ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+            관련성 낮은 추천 {grouped.noise.length}개 {showNoise ? "숨기기" : "더 보기"}
+          </button>
+          {showNoise && (
+            <div data-testid="matchup-similar-noise-list" style={{
+              display: "flex", flexDirection: "column", gap: "var(--space-2)",
+              marginTop: "var(--space-2)",
+              opacity: 0.7,
+            }}>
+              {grouped.noise.map((r) => (
+                <SimilarRow key={r.id} item={r} onClick={() => onSelectSimilar?.(r)} />
+              ))}
+            </div>
+          )}
+        </div>
       )}
 
       <p style={{
@@ -192,9 +263,26 @@ function Section({ title, icon, items, emptyText, onSelect, accent }: SectionPro
 
 function SimilarRow({ item, onClick }: { item: SimilarProblem; onClick: () => void }) {
   const pct = Math.round(item.similarity * 100);
+  const t = tierOf(item.similarity);
+  const isStrong = t === "strong";
+  const isWeak = t === "weak";
+
+  // 색상/배경: strong=success, weak=muted, noise=더 muted
+  const badgeBg = isStrong
+    ? "color-mix(in srgb, var(--color-success) 10%, var(--color-bg-surface))"
+    : isWeak
+      ? "color-mix(in srgb, var(--color-warning) 8%, var(--color-bg-surface))"
+      : "var(--color-bg-surface-soft)";
+  const badgeColor = isStrong
+    ? "var(--color-success)"
+    : isWeak
+      ? "var(--color-warning)"
+      : "var(--color-text-muted)";
+
   return (
     <div
       data-testid="matchup-similar-row"
+      data-tier={t}
       onClick={onClick}
       style={{
         display: "flex", alignItems: "center", gap: "var(--space-3)",
@@ -219,17 +307,10 @@ function SimilarRow({ item, onClick }: { item: SimilarProblem; onClick: () => vo
         borderRadius: "var(--radius-md)",
         display: "flex", flexDirection: "column",
         alignItems: "center", justifyContent: "center",
-        background: pct >= 80
-          ? "color-mix(in srgb, var(--color-success) 10%, var(--color-bg-surface))"
-          : pct >= 60
-            ? "color-mix(in srgb, var(--color-warning) 10%, var(--color-bg-surface))"
-            : "var(--color-bg-surface-soft)",
+        background: badgeBg,
         border: "1px solid var(--color-border-divider)",
       }}>
-        <span style={{
-          fontSize: 14, fontWeight: 700,
-          color: pct >= 80 ? "var(--color-success)" : pct >= 60 ? "var(--color-warning)" : "var(--color-text-muted)",
-        }}>
+        <span style={{ fontSize: 14, fontWeight: 700, color: badgeColor }}>
           {pct}%
         </span>
       </div>
@@ -249,7 +330,7 @@ function SimilarRow({ item, onClick }: { item: SimilarProblem; onClick: () => vo
       )}
 
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "var(--space-1)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "var(--space-1)", flexWrap: "wrap" }}>
           <span style={{ fontSize: 12, fontWeight: 700, color: "var(--color-text-primary)" }}>
             Q{item.number}
           </span>
@@ -259,6 +340,18 @@ function SimilarRow({ item, onClick }: { item: SimilarProblem; onClick: () => vo
           }}>
             {item.document_title}
           </span>
+          {isWeak && (
+            <span
+              title="유사도가 강하지는 않습니다 — 참고용"
+              style={{
+                fontSize: 10, padding: "1px 6px", borderRadius: 4,
+                background: "color-mix(in srgb, var(--color-warning) 12%, transparent)",
+                color: "var(--color-warning)", fontWeight: 600,
+              }}
+            >
+              참고
+            </span>
+          )}
         </div>
         {item.text && (
           <p style={{
