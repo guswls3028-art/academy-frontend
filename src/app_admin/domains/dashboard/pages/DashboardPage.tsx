@@ -1,7 +1,12 @@
 /**
- * PATH: src/features/dashboard/pages/DashboardPage.tsx
- * Dashboard — 학원 운영 현황 · 섹션형 레이아웃 (SSOT: patterns/section.css)
- * 모달은 클릭 시에만 로드 (초기 청크 경량화)
+ * PATH: src/app_admin/domains/dashboard/pages/DashboardPage.tsx
+ * Dashboard — 학원 운영 현황
+ *   1. 요약 지표(KPI)  · 학원 상태 한눈에
+ *   2. 오늘 처리할 일  · 동사형 CTA — 한 번에 액션 화면으로 진입
+ *   3. 메시지 미연동 경고 (조건부) · 발송 차단 상태 즉시 인지
+ *
+ * 사이드바와 100% 중복되던 「바로가기」 8칸은 제거. 대시보드 본 가치는
+ * "어디로 갈지" 가 아니라 "지금 무엇을 처리해야 하는지".
  */
 import { useState, lazy, Suspense } from "react";
 import { useNavigate } from "react-router-dom";
@@ -14,7 +19,6 @@ import { fetchAdminSubmissions } from "@admin/domains/submissions/api/adminSubmi
 import { Button } from "@/shared/ui/ds";
 import { DomainLayout } from "@/shared/ui/layout";
 import ClinicRemoconIcon from "../components/ClinicRemoconIcon";
-import DashboardShortcutWidget from "../components/DashboardShortcutWidget";
 import DashboardWidget from "../components/DashboardWidget";
 
 const ClinicPasscardModal = lazy(() => import("@admin/domains/clinic/components/ClinicPasscardModal"));
@@ -44,10 +48,11 @@ export default function DashboardPage() {
     queryFn: () => fetchAdminSubmissions({ limit: 50 }),
     staleTime: 60 * 1000,
   });
+
   const pendingQnaCount = questions.filter((q) => !q.is_answered).length;
   const activeExams = exams.filter((e) => e.is_active);
-  const pendingSubs = recentSubs.filter((s) =>
-    s.status !== "done" && s.status !== "failed"
+  const pendingSubs = recentSubs.filter(
+    (s) => s.status !== "done" && s.status !== "failed",
   );
   const todaySubs = recentSubs.filter((s) => {
     const d = new Date(s.created_at);
@@ -55,111 +60,16 @@ export default function DashboardPage() {
     return d.toDateString() === now.toDateString();
   });
 
+  const messagingDisconnected = messagingInfo && !messagingInfo.sms_allowed;
+
   return (
     <DomainLayout
       title="대시보드"
       description="학원 운영 현황을 한눈에 확인하세요."
     >
       <div className="flex flex-col gap-6" style={{ padding: 0 }}>
-        <DashboardWidget
-          title="바로가기"
-          description="자주 쓰는 메뉴와 클리닉 패스카드 설정"
-        >
-          <div className="ds-section__grid">
-            <DashboardShortcutWidget
-              icon={<ClinicRemoconIcon />}
-              label="클리닉 패스카드"
-              onClick={() => setClinicPasscardModalOpen(true)}
-              data-testid="dashboard-shortcut-clinic-passcard"
-            />
-            <DashboardShortcutWidget
-              icon={<NavIcon d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm-7 8a7 7 0 0 1 14 0" />}
-              label="학생 관리"
-              onClick={() => navigate("/admin/students/home")}
-            />
-            <DashboardShortcutWidget
-              icon={<NavIcon d="M4 4h16v12H4zM8 20h8" />}
-              label="강의 목록"
-              onClick={() => navigate("/admin/lectures")}
-            />
-            <DashboardShortcutWidget
-              icon={<NavIcon d="M7 3h10v18H7zM9 7h6M9 11h6M9 15h4" />}
-              label="시험"
-              onClick={() => navigate("/admin/exams")}
-            />
-            <DashboardShortcutWidget
-              icon={<NavIcon d="M4 18h16M6 15V9M12 15V5M18 15v-7" />}
-              label="성적"
-              onClick={() => navigate("/admin/results")}
-            />
-            <DashboardShortcutWidget
-              icon={<NavIcon d="M3 6h14v12H3zM17 10l4-2v8l-4-2z" />}
-              label="영상"
-              onClick={() => navigate("/admin/videos")}
-            />
-            <DashboardShortcutWidget
-              icon={<NavIcon d="M4 4h16v12H7l-3 3z" />}
-              label="게시판 · 공지"
-              subLabel="공지사항·게시판"
-              onClick={() => navigate("/admin/community/notice")}
-            />
-          </div>
-        </DashboardWidget>
-
-        <DashboardWidget
-          title="미처리 일감"
-          description="빠르게 처리할 항목"
-        >
-          <div className="ds-section__grid">
-            <TodoRow
-              label="미답변 질의"
-              value={qError ? "불러오기 실패" : qLoading ? "로딩 중…" : `${pendingQnaCount}건`}
-              onClick={() => navigate("/admin/community/qna")}
-            />
-            <TodoRow
-              label="학생 제출 (처리 대기)"
-              value={sError ? "불러오기 실패" : sLoading ? "로딩 중…" : `${pendingSubs.length}건`}
-              onClick={() => navigate("/admin/results")}
-            />
-            <TodoRow
-              label="채점 · 성적"
-              value="보기"
-              onClick={() => navigate("/admin/results")}
-            />
-            <TodoRow
-              label="시험 운영"
-              value={eError ? "불러오기 실패" : eLoading ? "로딩 중…" : `${activeExams.length}건`}
-              onClick={() => navigate("/admin/exams")}
-            />
-            <TodoRow
-              label="영상 관리"
-              value="보기"
-              onClick={() => navigate("/admin/videos")}
-            />
-          </div>
-        </DashboardWidget>
-
-        <DashboardWidget
-          title="메시지"
-          description="연동 상태"
-        >
-          <div className="flex flex-wrap items-center gap-4">
-            <div>
-              <div className="ds-section__kpi-label">발송 상태</div>
-              <div className="ds-section__kpi-value" style={{ marginTop: 6 }}>
-                {messagingInfo?.sms_allowed ? "연동됨" : "미연동"}
-              </div>
-            </div>
-            <Button size="sm" intent="secondary" onClick={() => navigate("/admin/message/settings")}>
-              설정
-            </Button>
-          </div>
-        </DashboardWidget>
-
-        <DashboardWidget
-          title="요약 지표"
-          description="운영 현황"
-        >
+        {/* 1) 요약 지표 — 학원 상태 한눈에 */}
+        <DashboardWidget title="요약 지표" description="운영 현황">
           <div className="ds-section__kpi-list">
             <KpiRow label="운영 강의" value={lError ? "불러오기 실패" : lLoading ? "로딩 중…" : `${lectures.length}개`} />
             <KpiRow label="운영 중 시험" value={eError ? "불러오기 실패" : eLoading ? "로딩 중…" : `${activeExams.length}건`} />
@@ -167,8 +77,52 @@ export default function DashboardPage() {
             <KpiRow label="미답변 질의" value={qError ? "불러오기 실패" : qLoading ? "로딩 중…" : `${pendingQnaCount}건`} />
           </div>
         </DashboardWidget>
-      </div>
 
+        {/* 2) 오늘 처리할 일 — 동사형 CTA, 한 클릭으로 액션 진입 */}
+        <DashboardWidget
+          title="오늘 처리할 일"
+          description="아래 항목은 학생/학부모가 기다리고 있습니다."
+        >
+          <div className="ds-section__grid">
+            <TodoRow
+              label="미답변 질의"
+              value={qError ? "불러오기 실패" : qLoading ? "로딩 중…" : `답변하기 ${pendingQnaCount}건`}
+              onClick={() => navigate("/admin/community/qna")}
+            />
+            <TodoRow
+              label="제출 채점 대기"
+              value={sError ? "불러오기 실패" : sLoading ? "로딩 중…" : `채점하기 ${pendingSubs.length}건`}
+              onClick={() => navigate("/admin/results/submissions")}
+            />
+            <TodoRow
+              label="운영 중 시험"
+              value={eError ? "불러오기 실패" : eLoading ? "로딩 중…" : `관리하기 ${activeExams.length}건`}
+              onClick={() => navigate("/admin/exams")}
+            />
+            <TodoRow
+              label="클리닉 패스카드"
+              value="설정 열기"
+              icon={<ClinicRemoconIcon />}
+              onClick={() => setClinicPasscardModalOpen(true)}
+              data-testid="dashboard-shortcut-clinic-passcard"
+            />
+          </div>
+        </DashboardWidget>
+
+        {/* 3) 메시지 미연동 경고 — 발송 차단 상태일 때만 노출 */}
+        {messagingDisconnected && (
+          <DashboardWidget
+            title="메시지 발송 미연동"
+            description="현재 알림톡/SMS 발송이 차단되어 있습니다. 자동·수동 발송이 모두 실패합니다."
+          >
+            <div className="flex flex-wrap items-center gap-4">
+              <Button size="sm" intent="primary" onClick={() => navigate("/admin/message/settings")}>
+                연동 설정 열기
+              </Button>
+            </div>
+          </DashboardWidget>
+        )}
+      </div>
 
       <Suspense fallback={null}>
         <ClinicPasscardModal
@@ -180,32 +134,23 @@ export default function DashboardPage() {
   );
 }
 
-function NavIcon({ d }: { d: string }) {
-  return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-      <path
-        d={d}
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
 function TodoRow({
   label,
   value,
+  icon,
   onClick,
+  ...rest
 }: {
   label: string;
   value: string;
+  icon?: React.ReactNode;
   onClick: () => void;
+  [key: string]: any;
 }) {
   return (
-    <button type="button" onClick={onClick} className="ds-section__item">
-      <div className="ds-section__item-content">
+    <button type="button" onClick={onClick} className="ds-section__item" {...rest}>
+      <div className="ds-section__item-content" style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        {icon ? <span style={{ display: "inline-flex", alignItems: "center" }}>{icon}</span> : null}
         <span className="ds-section__item-label">{label}</span>
       </div>
       <span className="ds-section__item-value">{value}</span>

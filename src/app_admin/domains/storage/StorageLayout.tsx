@@ -18,7 +18,7 @@ const STORAGE_TABS: DomainTab[] = [
 export default function StorageLayout() {
   return (
     <DomainLayout
-      title="자료실"
+      title="AI · 저장소"
       description="AI 유사 문제 추천과 파일 저장소를 관리합니다."
       tabs={STORAGE_TABS}
     >

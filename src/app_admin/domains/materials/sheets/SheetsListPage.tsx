@@ -59,17 +59,15 @@ export default function SheetsListPage() {
             <table className="table">
               <thead>
                 <tr>
-                  <th>ID</th>
                   <th>시험지 이름</th>
-                  <th>편집</th>
+                  <th style={{ width: 96, textAlign: "right" }}>관리</th>
                 </tr>
               </thead>
               <tbody>
                 {items.map((s: SheetEntity) => (
                   <tr key={s.id}>
-                    <td>#{s.id}</td>
                     <td>{s.title}</td>
-                    <td>
+                    <td style={{ textAlign: "right" }}>
                       <Button type="button" intent="secondary" size="sm" onClick={() => setEditingId(s.id)}>
                         편집
                       </Button>

@@ -14,8 +14,71 @@ import { fetchMe } from "@admin/domains/profile/api/profile.api";
 import { fetchLegalConfig, updateLegalConfig, type LegalConfig } from "@admin/domains/legal/api/legal.api";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { useProgram } from "@/shared/program";
 
 import s from "../components/SettingsSection.module.css";
+
+// ── 운영 모드 표시 (읽기 전용) — 학원 단위 설정 ─────────────────────────────
+function AcademyModeSection() {
+  const { program } = useProgram();
+  const ff = program?.feature_flags ?? {};
+
+  const sectionMode = Boolean(ff.section_mode);
+  const clinicMode = ff.clinic_mode === "regular" ? "regular" : "remediation";
+  const schoolLevel = ff.school_level_mode === "elementary_middle" ? "elementary_middle" : "middle_high";
+
+  const badges: { label: string; value: string; color: string }[] = [
+    {
+      label: "반 편성",
+      value: sectionMode ? "A/B반 운영" : "기본 (반 없음)",
+      color: sectionMode ? "var(--color-brand-primary)" : "var(--color-text-muted)",
+    },
+    {
+      label: "학생 대상",
+      value: schoolLevel === "elementary_middle" ? "초중등" : "중고등",
+      color: schoolLevel === "elementary_middle" ? "var(--color-warning, #d97706)" : "var(--color-text-muted)",
+    },
+    {
+      label: "클리닉",
+      value: clinicMode === "regular" ? "정규형 (필수 클리닉)" : "보충형 (불합격 관리)",
+      color: clinicMode === "regular" ? "var(--color-success, #16a34a)" : "var(--color-text-muted)",
+    },
+  ];
+
+  return (
+    <section className={s.section}>
+      <div className={s.sectionHeader}>
+        <h2 className={s.sectionTitle}>운영 모드</h2>
+        <p className={s.sectionDescription}>현재 학원에 적용된 운영 방식입니다.</p>
+      </div>
+      <div className={s.rows}>
+        {badges.map((b) => (
+          <div key={b.label} className={s.row}>
+            <span className={s.rowLabel}>{b.label}</span>
+            <span style={{
+              fontSize: 14,
+              fontWeight: 600,
+              color: b.color,
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+            }}>
+              <span style={{
+                width: 7,
+                height: 7,
+                borderRadius: "50%",
+                background: b.color,
+                flexShrink: 0,
+                opacity: 0.8,
+              }} />
+              {b.value}
+            </span>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
 
 function AcademyRow({
   entry,
@@ -175,6 +238,7 @@ export default function OrganizationSettingsPage() {
   if (!isOwner) {
     return (
       <div className={s.page}>
+        <AcademyModeSection />
         <div className={s.sectionHeader}>
           <h2 className={s.sectionTitle}>학원 정보</h2>
           <p className={s.sectionDescription}>학원명, 전화번호 등 학원 기본 정보를 관리합니다.</p>
@@ -195,6 +259,8 @@ export default function OrganizationSettingsPage() {
 
   return (
     <div className={s.page}>
+      <AcademyModeSection />
+
       <div className={s.sectionHeader}>
         <h2 className={s.sectionTitle}>학원 정보</h2>
         <p className={s.sectionDescription}>

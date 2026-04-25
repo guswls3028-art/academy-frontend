@@ -2,6 +2,7 @@
 // 재사용 가능한 자동발송 설정 패널 — Clinic Settings, Community Settings, Staff Settings 등에서 사용
 
 import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Switch } from "antd";
 import { FiZap, FiEdit3 } from "react-icons/fi";
@@ -618,6 +619,7 @@ export default function AutoSendSettingsPanel({
   channelMode,
 }: AutoSendSettingsPanelProps) {
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const { data: messagingInfo } = useMessagingInfo();
   const smsConnected = !!messagingInfo?.sms_allowed;
 
@@ -820,6 +822,16 @@ export default function AutoSendSettingsPanel({
           <p className={panelStyles.placeholderDesc}>
             메시지 &gt; 자동발송 페이지에서 기본 템플릿을 먼저 생성해 주세요.
           </p>
+          <div style={{ marginTop: 16 }}>
+            <Button
+              type="button"
+              intent="primary"
+              size="sm"
+              onClick={() => navigate("/admin/message/auto-send")}
+            >
+              자동발송 페이지로 이동
+            </Button>
+          </div>
         </div>
       </div>
     );

@@ -3,19 +3,26 @@
  * ======================================================
  * KPI (SSOT)
  * - 관리자 홈/리포트에서 "숫자 카드"를 통일
+ * - onClick 지정 시 키보드/마우스 인터랙션 활성 (cursor + hover + Enter/Space)
  * ======================================================
  */
 export default function KPI({
   label,
   value,
   hint,
+  onClick,
+  ariaLabel,
 }: {
   label: string;
   value: string | number;
   hint?: string;
+  onClick?: () => void;
+  ariaLabel?: string;
 }) {
-  return (
-    <div className="kpi ds-kpi" data-kpi="true">
+  const interactive = typeof onClick === "function";
+
+  const inner = (
+    <>
       <div
         className="kpi-label"
         style={{
@@ -52,6 +59,35 @@ export default function KPI({
           {hint}
         </div>
       )}
+    </>
+  );
+
+  if (interactive) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        aria-label={ariaLabel ?? `${label} ${value}`}
+        className="kpi ds-kpi ds-kpi--interactive"
+        data-kpi="true"
+        style={{
+          textAlign: "left",
+          cursor: "pointer",
+          background: "var(--color-bg-surface)",
+          border: "1px solid var(--color-border-divider)",
+          borderRadius: 12,
+          padding: 16,
+          transition: "border-color 120ms ease, background 120ms ease",
+        }}
+      >
+        {inner}
+      </button>
+    );
+  }
+
+  return (
+    <div className="kpi ds-kpi" data-kpi="true">
+      {inner}
     </div>
   );
 }

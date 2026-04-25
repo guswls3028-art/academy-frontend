@@ -2,6 +2,7 @@
 // 수납 현황 대시보드 — KPI 카드 + 연체 학생 테이블
 
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { KPI, EmptyState } from "@/shared/ui/ds";
 import { DomainTable } from "@/shared/ui/domain";
@@ -40,9 +41,12 @@ function StatusBadge({ status }: { status: string }) {
 export { StatusBadge };
 
 export default function FeesDashboardTab() {
+  const navigate = useNavigate();
   const today = new Date();
   const [year] = useState(today.getFullYear());
   const [month] = useState(today.getMonth() + 1);
+
+  const goInvoices = () => navigate("/admin/fees/invoices");
 
   const { data: stats, isLoading, isError } = useQuery({
     queryKey: ["fees", "dashboard", year, month],
@@ -85,12 +89,14 @@ export default function FeesDashboardTab() {
         <KPI
           label="미납 잔액"
           value={formatKRW(s.total_outstanding ?? 0)}
-          hint={s.total_outstanding > 0 ? "미수납 있음" : undefined}
+          hint={s.total_outstanding > 0 ? "청구서 보기 →" : undefined}
+          onClick={s.total_outstanding > 0 ? goInvoices : undefined}
         />
         <KPI
           label="연체 건수"
           value={`${s.overdue_count ?? 0}건`}
-          hint={s.overdue_count > 0 ? "즉시 확인 필요" : undefined}
+          hint={s.overdue_count > 0 ? "청구서 보기 →" : undefined}
+          onClick={s.overdue_count > 0 ? goInvoices : undefined}
         />
       </div>
 

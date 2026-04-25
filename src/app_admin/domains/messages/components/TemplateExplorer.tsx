@@ -558,8 +558,9 @@ export default function TemplateExplorer() {
               size="sm"
               onClick={() => provisionMut.mutate()}
               disabled={provisionMut.isPending}
+              title="삭제·변경된 기본 템플릿을 일괄로 다시 채워 넣습니다"
             >
-              {provisionMut.isPending ? "생성 중…" : "기본 템플릿 생성"}
+              {provisionMut.isPending ? "복원 중…" : "기본 세트 복원"}
             </Button>
             <Button
               intent="primary"
