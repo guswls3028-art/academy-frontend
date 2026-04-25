@@ -101,7 +101,7 @@ export default function StudentsHomePage() {
     setSelectedIds([]);
   }, [search, filters, isDeletedTab]);
 
-  const { data: queryResult, isLoading } = useStudentsQuery(
+  const { data: queryResult, isLoading, isError, refetch } = useStudentsQuery(
     search,
     filters,
     sort,
@@ -480,6 +480,18 @@ export default function StudentsHomePage() {
         <div>
           {isLoading ? (
             <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
+          ) : isError ? (
+            <EmptyState
+              scope="panel"
+              tone="error"
+              title="학생 목록을 불러올 수 없습니다"
+              description="네트워크 또는 서버 문제일 수 있습니다. 잠시 후 다시 시도해 주세요."
+              actions={
+                <Button intent="secondary" onClick={() => refetch()}>
+                  다시 시도
+                </Button>
+              }
+            />
           ) : data?.length ? (
             <div data-guide="students-table">
             <StudentsTable

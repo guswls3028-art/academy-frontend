@@ -16,7 +16,19 @@ export const login = async (username: string, password: string) => {
   try {
     res = await api.post<LoginResponse>("/token/", body);
   } catch (err: unknown) {
-    const ax = err as { response?: { data?: { detail?: string | string[] | Record<string, unknown> } } };
+    const ax = err as {
+      response?: { status?: number; data?: { detail?: string | string[] | Record<string, unknown> } };
+      code?: string;
+    };
+    const status = ax?.response?.status;
+    // 응답 자체가 없으면 네트워크/CORS 이슈 — 자격 증명 오류와 분리
+    if (!ax?.response) {
+      throw new Error("서버에 연결할 수 없습니다. 네트워크 상태를 확인해 주세요.");
+    }
+    // 5xx는 서버 측 이슈 — "비밀번호 확인" 오안내를 피한다
+    if (typeof status === "number" && status >= 500) {
+      throw new Error("서버에 일시적 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.");
+    }
     const detail = ax?.response?.data?.detail;
     let msg = "로그인에 실패했습니다.";
     if (typeof detail === "string") msg = detail;
