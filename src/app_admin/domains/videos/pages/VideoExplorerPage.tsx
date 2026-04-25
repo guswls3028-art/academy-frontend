@@ -19,7 +19,7 @@ import {
   fetchVideosLandingStats,
   type LandingVideoSummary,
 } from "../api/landingStats";
-import { retryVideo, getRetryErrorMessage } from "../api/videos.api";
+import { retryVideo, getRetryErrorMessage, type VideoStatus } from "../api/videos.api";
 import { logRetryAttempt, logRetryError } from "@/shared/api/retryLogger";
 import VideoTreeView from "../components/VideoTreeView";
 import VideoStatusBadge from "../ui/VideoStatusBadge";
@@ -302,7 +302,7 @@ function VideoRow({
     >
       <span style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0, flex: 1 }}>
         <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-          <VideoStatusBadge status={v.status as never} />
+          <VideoStatusBadge status={v.status as VideoStatus} />
           <span
             style={{
               fontSize: 14,

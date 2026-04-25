@@ -63,6 +63,19 @@ test.describe("admin landings KPI inbox", () => {
     await expect(page.getByTestId("results-kpi-grid")).toBeVisible();
   });
 
+  test("results landing — KPI click navigates to submissions inbox", async ({ page }) => {
+    await page.goto(`${BASE}/admin/results`, { waitUntil: "domcontentloaded" });
+    await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
+
+    const kpiGrid = page.getByTestId("results-kpi-grid");
+    await expect(kpiGrid).toBeVisible({ timeout: 15_000 });
+
+    // 「채점 대기」KPI 클릭 → /admin/results/submissions
+    await kpiGrid.locator('button[data-kpi="true"]').first().click();
+    await page.waitForURL(/\/admin\/results\/submissions/, { timeout: 10_000 });
+    expect(page.url()).toContain("/admin/results/submissions");
+  });
+
   test("videos landing — KPI grid + tree toggle", async ({ page }) => {
     await page.goto(`${BASE}/admin/videos`, { waitUntil: "domcontentloaded" });
     await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
