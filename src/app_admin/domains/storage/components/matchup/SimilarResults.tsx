@@ -1,8 +1,15 @@
 // PATH: src/app_admin/domains/storage/components/matchup/SimilarResults.tsx
 // 유사 문제 추천 결과 패널
+//
+// 결과를 두 섹션으로 분리:
+//  - "다른 시험지에서" (cross-doc) — 추천 의도와 일치하는 결과를 우선 노출
+//  - "이 시험지 안에서" (in-doc)  — 같은 시험지 내 비슷한 유형 (보조)
+//
+// 분리 기준은 source problem의 document_id (= 현재 선택한 문서 id).
+// top_k 충분히 받아서(예: 12) 두 섹션에 적절히 분배.
 
 import { useState, useEffect } from "react";
-import { Loader2, Sparkles } from "lucide-react";
+import { Loader2, Sparkles, FileText, Layers } from "lucide-react";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { findSimilarProblems } from "../../api/matchup.api";
 import type { SimilarProblem } from "../../api/matchup.api";
@@ -11,9 +18,13 @@ type Props = {
   problemId: number | null;
   onSelectSimilar?: (problem: SimilarProblem) => void;
   totalDocumentCount?: number;
+  /** 현재 선택 중인 문서 id — in-doc / cross-doc 분리에 사용 */
+  sourceDocumentId?: number | null;
 };
 
-export default function SimilarResults({ problemId, onSelectSimilar, totalDocumentCount = 0 }: Props) {
+export default function SimilarResults({
+  problemId, onSelectSimilar, totalDocumentCount = 0, sourceDocumentId = null,
+}: Props) {
   const [results, setResults] = useState<SimilarProblem[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -24,7 +35,8 @@ export default function SimilarResults({ problemId, onSelectSimilar, totalDocume
     }
 
     setLoading(true);
-    findSimilarProblems(problemId, 10)
+    // top_k 12 — cross-doc/in-doc 두 섹션에 충분히 보여주기 위해
+    findSimilarProblems(problemId, 12)
       .then((r) => setResults(r.results))
       .catch(() => {
         feedback.error("유사 문제 검색에 실패했습니다.");
@@ -60,7 +72,6 @@ export default function SimilarResults({ problemId, onSelectSimilar, totalDocume
   }
 
   if (results.length === 0) {
-    // 인덱스가 실질적으로 비어있는 상황(문서 1개)에서는 기능이 고장난 것처럼 느낄 수 있음
     const isFirstDoc = totalDocumentCount <= 1;
     return (
       <div style={{
@@ -87,103 +98,179 @@ export default function SimilarResults({ problemId, onSelectSimilar, totalDocume
     );
   }
 
+  // 두 섹션 분배 (cross-doc 우선)
+  const crossDoc = sourceDocumentId
+    ? results.filter((r) => r.document_id !== sourceDocumentId)
+    : results;
+  const inDoc = sourceDocumentId
+    ? results.filter((r) => r.document_id === sourceDocumentId)
+    : [];
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
+      {/* 다른 시험지 (우선) */}
+      <Section
+        title="다른 시험지에서"
+        icon={<FileText size={12} />}
+        items={crossDoc}
+        emptyText="다른 시험지에서 비슷한 문제를 찾지 못했습니다"
+        onSelect={onSelectSimilar}
+        accent="primary"
+      />
+
+      {/* 이 시험지 안 (보조 — sourceDocumentId 있을 때만) */}
+      {sourceDocumentId !== null && inDoc.length > 0 && (
+        <Section
+          title="이 시험지 안에서"
+          icon={<Layers size={12} />}
+          items={inDoc}
+          emptyText=""
+          onSelect={onSelectSimilar}
+          accent="muted"
+        />
+      )}
+
+      <p style={{
+        fontSize: 11, color: "var(--color-text-muted)", textAlign: "center",
+        margin: "var(--space-1) 0 0", opacity: 0.7,
+      }}>
+        항목을 클릭하면 원본 이미지와 상세 정보를 볼 수 있습니다
+      </p>
+    </div>
+  );
+}
+
+/* ── Section ── */
+
+type SectionProps = {
+  title: string;
+  icon: React.ReactNode;
+  items: SimilarProblem[];
+  emptyText: string;
+  onSelect?: (p: SimilarProblem) => void;
+  accent: "primary" | "muted";
+};
+
+function Section({ title, icon, items, emptyText, onSelect, accent }: SectionProps) {
+  if (items.length === 0 && !emptyText) return null;
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
-      {results.map((r) => {
-        const pct = Math.round(r.similarity * 100);
-        return (
-          <div
-            key={r.id}
-            onClick={() => onSelectSimilar?.(r)}
-            style={{
-              display: "flex", alignItems: "center", gap: "var(--space-3)",
-              padding: "var(--space-3) var(--space-4)",
-              borderRadius: "var(--radius-md)",
-              border: "1px solid var(--color-border-divider)",
-              background: "var(--color-bg-surface)",
-              cursor: "pointer",
-              transition: "box-shadow 0.15s, border-color 0.15s",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.08)";
-              e.currentTarget.style.borderColor = "color-mix(in srgb, var(--color-brand-primary) 30%, var(--color-border-divider))";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.boxShadow = "none";
-              e.currentTarget.style.borderColor = "var(--color-border-divider)";
-            }}
-          >
-            {/* 유사도 뱃지 */}
-            <div style={{
-              flexShrink: 0, width: 44, height: 44,
-              borderRadius: "var(--radius-md)",
-              display: "flex", flexDirection: "column",
-              alignItems: "center", justifyContent: "center",
-              background: pct >= 80
-                ? "color-mix(in srgb, var(--color-success) 10%, var(--color-bg-surface))"
-                : pct >= 60
-                  ? "color-mix(in srgb, var(--color-warning) 10%, var(--color-bg-surface))"
-                  : "var(--color-bg-surface-soft)",
-              border: "1px solid var(--color-border-divider)",
-            }}>
-              <span style={{
-                fontSize: 14, fontWeight: 700,
-                color: pct >= 80 ? "var(--color-success)" : pct >= 60 ? "var(--color-warning)" : "var(--color-text-muted)",
-              }}>
-                {pct}%
-              </span>
-            </div>
+      <div style={{
+        display: "flex", alignItems: "center", gap: 6,
+        fontSize: 11, fontWeight: 700,
+        color: accent === "primary" ? "var(--color-brand-primary)" : "var(--color-text-muted)",
+        textTransform: "uppercase", letterSpacing: "0.04em",
+        padding: "0 2px",
+      }}>
+        {icon}
+        <span>{title}</span>
+        <span style={{
+          fontSize: 10, fontWeight: 600, color: "var(--color-text-muted)",
+          background: "var(--color-bg-surface-soft)",
+          padding: "1px 6px", borderRadius: 4, textTransform: "none",
+        }}>{items.length}</span>
+      </div>
 
-            {/* 이미지 썸네일 */}
-            {r.image_url && (
-              <div style={{
-                width: 48, height: 48, flexShrink: 0,
-                borderRadius: "var(--radius-sm)", overflow: "hidden",
-                background: "var(--color-bg-surface-soft)",
-              }}>
-                <img
-                  src={r.image_url}
-                  alt={`Q${r.number}`}
-                  style={{ width: "100%", height: "100%", objectFit: "contain" }}
-                />
-              </div>
-            )}
-
-            {/* 텍스트 */}
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "var(--space-1)" }}>
-                <span style={{ fontSize: 12, fontWeight: 700, color: "var(--color-text-primary)" }}>
-                  Q{r.number}
-                </span>
-                <span style={{
-                  fontSize: 10, padding: "1px 6px", borderRadius: 4,
-                  background: "var(--color-bg-surface-soft)", color: "var(--color-text-muted)",
-                }}>
-                  {r.document_title}
-                </span>
-              </div>
-              {r.text && (
-                <p style={{
-                  fontSize: 12, color: "var(--color-text-secondary)",
-                  margin: "2px 0 0", lineHeight: 1.4,
-                  overflow: "hidden", textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                }}>
-                  {r.text}
-                </p>
-              )}
-            </div>
-          </div>
-        );
-      })}
-      {results.length > 0 && (
-        <p style={{
-          fontSize: 11, color: "var(--color-text-muted)", textAlign: "center",
-          margin: "var(--space-2) 0 0", opacity: 0.7,
+      {items.length === 0 ? (
+        <div data-testid="matchup-similar-section-empty" style={{
+          fontSize: 11, color: "var(--color-text-muted)",
+          padding: "var(--space-3)", textAlign: "center",
+          background: "var(--color-bg-surface-soft)",
+          borderRadius: "var(--radius-sm)",
         }}>
-          항목을 클릭하면 원본 이미지와 상세 정보를 볼 수 있습니다
-        </p>
+          {emptyText}
+        </div>
+      ) : (
+        items.map((r) => <SimilarRow key={r.id} item={r} onClick={() => onSelect?.(r)} />)
       )}
+    </div>
+  );
+}
+
+/* ── Row ── */
+
+function SimilarRow({ item, onClick }: { item: SimilarProblem; onClick: () => void }) {
+  const pct = Math.round(item.similarity * 100);
+  return (
+    <div
+      data-testid="matchup-similar-row"
+      onClick={onClick}
+      style={{
+        display: "flex", alignItems: "center", gap: "var(--space-3)",
+        padding: "var(--space-3) var(--space-4)",
+        borderRadius: "var(--radius-md)",
+        border: "1px solid var(--color-border-divider)",
+        background: "var(--color-bg-surface)",
+        cursor: "pointer",
+        transition: "box-shadow 0.15s, border-color 0.15s",
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.08)";
+        e.currentTarget.style.borderColor = "color-mix(in srgb, var(--color-brand-primary) 30%, var(--color-border-divider))";
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.boxShadow = "none";
+        e.currentTarget.style.borderColor = "var(--color-border-divider)";
+      }}
+    >
+      <div style={{
+        flexShrink: 0, width: 44, height: 44,
+        borderRadius: "var(--radius-md)",
+        display: "flex", flexDirection: "column",
+        alignItems: "center", justifyContent: "center",
+        background: pct >= 80
+          ? "color-mix(in srgb, var(--color-success) 10%, var(--color-bg-surface))"
+          : pct >= 60
+            ? "color-mix(in srgb, var(--color-warning) 10%, var(--color-bg-surface))"
+            : "var(--color-bg-surface-soft)",
+        border: "1px solid var(--color-border-divider)",
+      }}>
+        <span style={{
+          fontSize: 14, fontWeight: 700,
+          color: pct >= 80 ? "var(--color-success)" : pct >= 60 ? "var(--color-warning)" : "var(--color-text-muted)",
+        }}>
+          {pct}%
+        </span>
+      </div>
+
+      {item.image_url && (
+        <div style={{
+          width: 48, height: 48, flexShrink: 0,
+          borderRadius: "var(--radius-sm)", overflow: "hidden",
+          background: "var(--color-bg-surface-soft)",
+        }}>
+          <img
+            src={item.image_url}
+            alt={`Q${item.number}`}
+            style={{ width: "100%", height: "100%", objectFit: "contain" }}
+          />
+        </div>
+      )}
+
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "var(--space-1)" }}>
+          <span style={{ fontSize: 12, fontWeight: 700, color: "var(--color-text-primary)" }}>
+            Q{item.number}
+          </span>
+          <span style={{
+            fontSize: 10, padding: "1px 6px", borderRadius: 4,
+            background: "var(--color-bg-surface-soft)", color: "var(--color-text-muted)",
+          }}>
+            {item.document_title}
+          </span>
+        </div>
+        {item.text && (
+          <p style={{
+            fontSize: 12, color: "var(--color-text-secondary)",
+            margin: "2px 0 0", lineHeight: 1.4,
+            overflow: "hidden", textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}>
+            {item.text}
+          </p>
+        )}
+      </div>
     </div>
   );
 }

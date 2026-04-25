@@ -335,6 +335,7 @@ export default function MatchupPage() {
                       problemId={selectedProblemId}
                       onSelectSimilar={setDetailProblem}
                       totalDocumentCount={documents.length}
+                      sourceDocumentId={selectedDocId}
                     />
                   </div>
                 </div>
