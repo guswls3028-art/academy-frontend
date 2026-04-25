@@ -63,6 +63,41 @@ test.describe("admin landings KPI inbox", () => {
     await expect(page.getByTestId("results-kpi-grid")).toBeVisible();
   });
 
+  test("results landing — tree mode persists across reload", async ({ page }) => {
+    await page.goto(`${BASE}/admin/results`, { waitUntil: "domcontentloaded" });
+    await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
+
+    // KPI → tree 토글
+    await page.getByTestId("results-mode-toggle").click();
+    await expect(page.getByText("강의 · 차시", { exact: false })).toBeVisible({ timeout: 10_000 });
+
+    // 새로고침 — 트리 모드가 유지되어야
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
+    await expect(page.getByText("강의 · 차시", { exact: false })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByTestId("results-mode-toggle")).toContainText("오늘의 작업");
+  });
+
+  test("results landing — KPI shows fallback on API error", async ({ page }) => {
+    // 백엔드 500 에러를 강제 — fallback "—" 렌더 확인
+    await page.route("**/results/admin/landing-stats/**", (route) => {
+      route.fulfill({
+        status: 500,
+        contentType: "application/json",
+        body: JSON.stringify({ detail: "forced E2E error" }),
+      });
+    });
+
+    await page.goto(`${BASE}/admin/results`, { waitUntil: "domcontentloaded" });
+    await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
+
+    const kpiGrid = page.getByTestId("results-kpi-grid");
+    await expect(kpiGrid).toBeVisible({ timeout: 15_000 });
+    // 4개 KPI 모두 "—"
+    const dashCount = await kpiGrid.locator('.kpi-value:has-text("—")').count();
+    expect(dashCount).toBe(4);
+  });
+
   test("results landing — KPI click navigates to submissions inbox", async ({ page }) => {
     await page.goto(`${BASE}/admin/results`, { waitUntil: "domcontentloaded" });
     await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
