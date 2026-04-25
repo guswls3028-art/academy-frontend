@@ -38,10 +38,10 @@ test.describe("admin landings KPI inbox", () => {
     // KPI 4개
     await expect(kpiGrid.locator('[data-kpi="true"]')).toHaveCount(4);
 
-    // 라벨 존재
-    await expect(page.getByText("채점 대기", { exact: false })).toBeVisible();
-    await expect(page.getByText("운영 강의", { exact: false })).toBeVisible();
-    await expect(page.getByText("운영 중 시험", { exact: false })).toBeVisible();
+    // KPI 라벨 — 그리드 내부로 한정
+    await expect(kpiGrid.getByText("채점 대기", { exact: true })).toBeVisible();
+    await expect(kpiGrid.getByText("운영 강의", { exact: true })).toBeVisible();
+    await expect(kpiGrid.getByText("운영 중 시험", { exact: true })).toBeVisible();
 
     // 토글 버튼 → 트리 모드
     const toggle = page.getByTestId("results-mode-toggle");
@@ -74,9 +74,9 @@ test.describe("admin landings KPI inbox", () => {
     // KPI 4개
     await expect(kpiGrid.locator('[data-kpi="true"]')).toHaveCount(4);
 
-    await expect(page.getByText("등록된 영상", { exact: false })).toBeVisible();
-    await expect(page.getByText("인코딩 진행 중", { exact: false })).toBeVisible();
-    await expect(page.getByText("재시도 필요", { exact: false })).toBeVisible();
+    await expect(kpiGrid.getByText("등록된 영상", { exact: true })).toBeVisible();
+    await expect(kpiGrid.getByText("인코딩 진행 중", { exact: true })).toBeVisible();
+    await expect(kpiGrid.getByText("재시도 필요", { exact: true })).toBeVisible();
 
     // 토글 → 트리 모드
     const toggle = page.getByTestId("videos-mode-toggle");
