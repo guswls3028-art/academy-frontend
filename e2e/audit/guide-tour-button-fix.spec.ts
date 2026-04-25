@@ -15,6 +15,14 @@ test.setTimeout(180_000);
 test("guide page — 시작 button header (desktop) — visible, isolated, navigates", async ({ page }) => {
   const BASE = getBaseUrl("admin");
   await page.setViewportSize({ width: 1440, height: 900 });
+
+  // 콘솔 에러 수집
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(`pageerror: ${e.message}`));
+  page.on("console", (msg) => {
+    if (msg.type() === "error") errors.push(`console.error: ${msg.text()}`);
+  });
+
   await loginViaUI(page, "admin");
   await page.goto(`${BASE}/admin/guide`, { waitUntil: "domcontentloaded" });
   await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
@@ -35,10 +43,28 @@ test("guide page — 시작 button header (desktop) — visible, isolated, navig
   const firstHeader = page.getByRole("button", { name: /^학생 등록하기 카드 펼치기$/ });
   await expect(firstHeader).toHaveAttribute("aria-expanded", "false");
 
+  // stopPropagation 검증 — navigate 이벤트 가로채서 같은 페이지에 머물게 한 뒤
+  // 시작 클릭 후 카드의 aria-expanded 가 "false" 로 유지되는지 확인.
+  // SPA 의 react-router navigate 는 history.pushState 를 부르므로 라우팅 전에 가로채기 위해
+  // 미리 popstate 모니터링을 걸고, 클릭 직후 즉시 aria-expanded 를 확인한다.
+  const expandedBefore = await firstHeader.getAttribute("aria-expanded");
+  expect(expandedBefore).toBe("false");
+
   // 시작 클릭 → 투어 경로 이동
-  await startButtons.first().click();
-  await page.waitForURL(/\/admin\/students/, { timeout: 10_000 });
+  await Promise.all([
+    page.waitForURL(/\/admin\/students/, { timeout: 10_000 }),
+    startButtons.first().click(),
+  ]);
   expect(page.url()).toContain("/admin/students");
+
+  // 투어 오버레이의 첫 스텝 + 단계 카운터(1 / N) 가 표시되는지 확인.
+  // register-student 워크플로우의 첫 tourStep 제목은 "학생 추가 버튼".
+  // GuideTourOverlay 가 500ms 딜레이 후 마운트, 타겟 탐색에 추가 시간 소요.
+  await expect(page.getByText("학생 추가 버튼").first()).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText(/^1 \/ \d+$/).first()).toBeVisible();
+
+  // 콘솔 에러 없음
+  expect(errors, errors.join("\n")).toEqual([]);
 });
 
 // 가이드 페이지는 데스크톱 전용 (375px 는 모바일 선생앱으로 라우팅).
