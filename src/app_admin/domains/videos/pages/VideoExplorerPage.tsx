@@ -1,363 +1,123 @@
 /**
- * PATH: src/features/videos/pages/VideoExplorerPage.tsx
- * 영상 (사이드바 첫 페이지) — 저장소/메시지/시험과 동일한 폴더트리형 SSOT
+ * PATH: src/app_admin/domains/videos/pages/VideoExplorerPage.tsx
+ *
+ * 영상 도메인 첫 화면 — KPI 인박스 (기본) + 폴더별 탐색 (보조 토글)
+ *
+ * 변경 (2026-04-26):
+ *  - 기존 트리 단독 진입 → KPI 4개 + 인박스 2개로 즉시 가치 노출
+ *  - 트리/그리드/모달 로직은 VideoTreeView 컴포넌트로 추출 보존
+ *  - localStorage로 마지막 모드 기억
  */
-
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { useQuery, useQueries, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { LayoutGrid, FolderTree } from "lucide-react";
 import { useConfirm } from "@/shared/ui/confirm";
-import { FilePlus, Video, Folder, Eye, ArrowUpDown, Play } from "lucide-react";
-import { Button, EmptyState } from "@/shared/ui/ds";
-import { DomainLayout } from "@/shared/ui/domain";
-import { AdminModal, ModalHeader, ModalBody, ModalFooter, MODAL_WIDTH } from "@/shared/ui/modal";
-import Breadcrumb from "@admin/domains/storage/components/Breadcrumb";
-import VideoExplorerTree, { type VideoFolderId } from "../components/VideoExplorerTree";
-import VideoUploadModal from "../components/features/video-detail/modals/VideoUploadModal";
-import VideoThumbnail from "../ui/VideoThumbnail";
-import VideoStatusBadge from "../ui/VideoStatusBadge";
+import { Button, KPI } from "@/shared/ui/ds";
+import { DomainLayout } from "@/shared/ui/layout";
 import {
-  fetchSessionVideos,
-  fetchPublicSession,
-  fetchVideoFolders,
-  createVideoFolder,
-  deleteVideoFolder,
-  deleteVideo,
-  retryVideo,
-  getRetryErrorMessage,
-  type Video as ApiVideo,
-  type VideoFolder,
-} from "../api/videos.api";
-import { canShowRetryButton } from "../constants/videoProcessing";
+  fetchVideosLandingStats,
+  type LandingVideoSummary,
+} from "../api/landingStats";
+import { retryVideo, getRetryErrorMessage } from "../api/videos.api";
 import { logRetryAttempt, logRetryError } from "@/shared/api/retryLogger";
-import {
-  fetchLectures,
-  fetchSessions,
-  sortSessionsByDateDesc,
-  type Lecture,
-  type Session,
-} from "@admin/domains/lectures/api/sessions";
+import VideoTreeView from "../components/VideoTreeView";
+import VideoStatusBadge from "../ui/VideoStatusBadge";
+import VideoDetailOverlay from "./VideoDetailOverlay";
+import DashboardWidget from "@admin/domains/dashboard/components/DashboardWidget";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { asyncStatusStore } from "@/shared/ui/asyncStatus";
-import VideoDetailOverlay from "./VideoDetailOverlay";
-import VideoEditModal from "../components/features/video-detail/modals/VideoEditModal";
-import VideoReorderModal from "../components/VideoReorderModal";
-import panelStyles from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
-import styles from "../components/VideoExplorer.module.css";
 
-type LectureWithSessions = Lecture & { sessions: Session[] };
+const MODE_KEY = "admin.videos.explorerMode";
 
-function formatDate(iso: string | null): string {
-  if (!iso) return "—";
+type Mode = "kpi" | "tree";
+
+function readMode(): Mode {
   try {
-    return new Date(iso).toLocaleDateString("ko-KR", {
-      year: "2-digit",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-    });
+    const v = localStorage.getItem(MODE_KEY);
+    if (v === "tree" || v === "kpi") return v;
   } catch {
-    return "—";
+    // ignore
+  }
+  return "kpi";
+}
+
+function writeMode(m: Mode) {
+  try {
+    localStorage.setItem(MODE_KEY, m);
+  } catch {
+    // ignore
   }
 }
 
-/** 유튜브 스타일: 업로드 시각 → "N분 전", "N시간 전", "N일 전" */
-function formatTimeAgo(isoDate: string): string {
-  const date = new Date(isoDate);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffSec = Math.floor(diffMs / 1000);
-  const diffMin = Math.floor(diffSec / 60);
-  const diffHour = Math.floor(diffMin / 60);
-  const diffDay = Math.floor(diffHour / 24);
-  const diffWeek = Math.floor(diffDay / 7);
-  if (diffSec < 60) return "방금 전";
-  if (diffMin < 60) return `${diffMin}분 전`;
-  if (diffHour < 24) return `${diffHour}시간 전`;
-  if (diffDay < 7) return `${diffDay}일 전`;
-  if (diffWeek < 4) return `${diffWeek}주 전`;
-  return `${Math.floor(diffDay / 30)}개월 전`;
-}
-
-/** 조회수 표기: 1234 → "1.2천 회", 10000+ → "1만 회" 등 */
-function formatViewCount(count: number): string {
-  if (count >= 10000) return `${(count / 10000).toFixed(1).replace(/\.0$/, "")}만`;
-  if (count >= 1000) return `${(count / 1000).toFixed(1).replace(/\.0$/, "")}천`;
-  return `${count}`;
-}
-
-/** duration(초) → "MM:SS" or "H:MM:SS" */
-function formatDuration(seconds: number | null | undefined): string | null {
-  if (seconds == null || !Number.isFinite(seconds) || seconds <= 0) return null;
-  const s = Math.round(seconds);
-  const h = Math.floor(s / 3600);
-  const m = Math.floor((s % 3600) / 60);
-  const sec = s % 60;
-  if (h > 0) return `${h}:${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
-  return `${m}:${String(sec).padStart(2, "0")}`;
-}
-
 export default function VideoExplorerPage() {
+  const [mode, setMode] = useState<Mode>(() => readMode());
+
+  const handleToggle = () => {
+    const next: Mode = mode === "kpi" ? "tree" : "kpi";
+    setMode(next);
+    writeMode(next);
+  };
+
+  return (
+    <DomainLayout
+      title="영상"
+      description={mode === "kpi" ? "인코딩 진행 상황과 처리할 영상을 한눈에 확인하세요." : undefined}
+      headerActions={
+        <Button
+          intent="ghost"
+          size="sm"
+          onClick={handleToggle}
+          leftIcon={mode === "kpi" ? <FolderTree size={14} /> : <LayoutGrid size={14} />}
+          data-testid="videos-mode-toggle"
+        >
+          {mode === "kpi" ? "폴더별 탐색" : "오늘의 작업"}
+        </Button>
+      }
+    >
+      {mode === "kpi" ? <VideosKpiInbox /> : <VideoTreeView />}
+    </DomainLayout>
+  );
+}
+
+function VideosKpiInbox() {
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const confirm = useConfirm();
-  const [selectedFolderId, setSelectedFolderId] = useState<VideoFolderId>(null);
-  const [uploadModalOpen, setUploadModalOpen] = useState(false);
-  const [uploadTargetSessionId, setUploadTargetSessionId] = useState<number | null>(null);
-  const [newFolderName, setNewFolderName] = useState("");
-  const [newFolderOpen, setNewFolderOpen] = useState(false);
-  const [addChoiceModalOpen, setAddChoiceModalOpen] = useState(false);
-  const [editTarget, setEditTarget] = useState<ApiVideo | null>(null);
-  const [reorderOpen, setReorderOpen] = useState(false);
 
-  // Overlay state — driven by ?videoId=N&lectureId=N&sessionId=N search params
-  const overlayVideoId = searchParams.get("videoId") ? Number(searchParams.get("videoId")) : null;
-  const overlayLectureId = searchParams.get("lectureId") ? Number(searchParams.get("lectureId")) : null;
-  const overlaySessionId = searchParams.get("sessionId") ? Number(searchParams.get("sessionId")) : null;
-  const isOverlayOpen = overlayVideoId != null && overlayLectureId != null && overlaySessionId != null;
-
-  const openOverlay = useCallback(
-    (videoId: number, lectureId: number, sessionId: number) => {
-      setSearchParams(
-        { videoId: String(videoId), lectureId: String(lectureId), sessionId: String(sessionId) },
-        { replace: true }
-      );
-    },
-    [setSearchParams]
-  );
-
-  const closeOverlay = useCallback(() => {
-    setSearchParams({}, { replace: true });
-  }, [setSearchParams]);
-
-  const { data: lectures = [], isLoading: lecturesLoading } = useQuery({
-    queryKey: ["admin-videos-lectures"],
-    queryFn: () => fetchLectures({ is_active: undefined }),
-  });
-
-  const sessionQueries = useQueries({
-    queries: lectures.map((lec) => ({
-      queryKey: ["lecture-sessions-videos", lec.id],
-      queryFn: () => fetchSessions(lec.id),
-      enabled: lectures.length > 0,
-    })),
-  });
-
-  const lecturesWithSessions: LectureWithSessions[] = useMemo(() => {
-    // 시스템 강의(공개 영상 컨테이너)는 백엔드에서 제외되지만 방어적 필터링도 유지
-    const filteredLectures = lectures.filter(
-      (lec) => !lec.is_system
-    );
-    return filteredLectures.map((lec, i) => {
-      const originalIndex = lectures.indexOf(lec);
-      const sessions = (sessionQueries[originalIndex]?.data as Session[] | undefined) ?? [];
-      return { ...lec, sessions: sortSessionsByDateDesc(sessions) };
-    });
-  }, [lectures, sessionQueries]);
-
-  // 사이드바로 진입 시에도 media API가 먼저 호출되도록 마운트 시점에 public-session prefetch
-  const {
-    data: publicSession,
-    isLoading: publicSessionLoading,
-    isError: publicSessionError,
-  } = useQuery({
-    queryKey: ["public-session"],
-    queryFn: fetchPublicSession,
-    enabled: true,
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["admin-videos-landing-stats"],
+    queryFn: fetchVideosLandingStats,
     staleTime: 60_000,
-  });
-
-  // 첫 진입 시 첫 번째 차시 자동 선택
-  useEffect(() => {
-    if (selectedFolderId === null && lecturesWithSessions.length > 0) {
-      for (const lec of lecturesWithSessions) {
-        if (lec.sessions.length > 0) {
-          setSelectedFolderId(lec.sessions[0].id);
-          break;
-        }
-      }
-    }
-  }, [lecturesWithSessions, selectedFolderId]);
-
-  const { data: sessionVideos = [], isLoading: sessionVideosLoading } = useQuery({
-    queryKey: ["session-videos", selectedFolderId],
-    queryFn: () => fetchSessionVideos(selectedFolderId as number),
-    enabled: typeof selectedFolderId === "number",
-  });
-
-  // 공개 영상 폴더 목록
-  const { data: publicFolders = [], isLoading: publicFoldersLoading } = useQuery({
-    queryKey: ["video-folders", publicSession?.session_id],
-    queryFn: () => fetchVideoFolders(publicSession!.session_id),
-    enabled: !!publicSession?.session_id,
-  });
-
-  // 선택된 폴더 ID (음수는 폴더, 양수는 세션)
-  const selectedPublicFolderId = useMemo(() => {
-    if (selectedFolderId === "public") return null;
-    if (typeof selectedFolderId === "number" && selectedFolderId < 0) {
-      return -selectedFolderId; // 음수를 양수로 변환
-    }
-    return null;
-  }, [selectedFolderId]);
-
-  const { data: publicVideos = [], isLoading: publicVideosLoading } = useQuery({
-    queryKey: ["session-videos", publicSession?.session_id, selectedPublicFolderId],
-    queryFn: () => {
-      if (selectedPublicFolderId) {
-        // 폴더별 영상 조회
-        return fetchSessionVideos(publicSession!.session_id).then((videos) =>
-          videos.filter((v) => v.folder === selectedPublicFolderId)
-        );
-      }
-      // 루트 폴더 영상 (folder가 null인 것만)
-      return fetchSessionVideos(publicSession!.session_id).then((videos) =>
-        videos.filter((v) => !v.folder)
-      );
+    refetchInterval: (query) => {
+      // 인코딩 진행 중이거나 실패 영상이 있으면 30초마다 갱신
+      const d = query.state.data;
+      if (!d) return false;
+      return d.processing > 0 || d.failed > 0 ? 30_000 : false;
     },
-    enabled: selectedFolderId === "public" && !!publicSession?.session_id,
   });
 
-  const unsortedVideos = selectedFolderId === "public" ? publicVideos : sessionVideos;
-  const videos = useMemo(
-    () =>
-      [...unsortedVideos].sort((a, b) => {
-        const orderDiff = (a.order ?? 1) - (b.order ?? 1);
-        if (orderDiff !== 0) return orderDiff;
-        const titleCmp = (a.title ?? "").localeCompare(b.title ?? "", "ko");
-        return titleCmp !== 0 ? titleCmp : a.id - b.id;
-      }),
-    [unsortedVideos]
-  );
-  const videosLoading =
-    selectedFolderId === "public"
-      ? publicSessionLoading || publicVideosLoading || publicFoldersLoading
-      : sessionVideosLoading;
-
-  const sessionsLoading = sessionQueries.some((q) => q.isLoading);
-  const isLoading = lecturesLoading || sessionsLoading;
-
-  const selectedSession = useMemo(() => {
-    if (typeof selectedFolderId !== "number") return null;
-    for (const lec of lecturesWithSessions) {
-      const s = lec.sessions.find((x) => x.id === selectedFolderId);
-      if (s) return { lecture: lec, session: s };
-    }
-    return null;
-  }, [lecturesWithSessions, selectedFolderId]);
-
-  const breadcrumbPath = useMemo(() => {
-    const path: { id: string | null; name: string }[] = [{ id: null, name: "영상" }];
-    if (selectedFolderId === "public") {
-      path.push({ id: "public", name: "전체공개영상" });
-    } else if (selectedSession) {
-      path.push({
-        id: String(selectedSession.lecture.id),
-        name: selectedSession.lecture.title || selectedSession.lecture.name || "강의",
-      });
-      path.push({ id: String(selectedSession.session.id), name: `${selectedSession.session.order}차시` });
-    }
-    return path;
-  }, [selectedFolderId, selectedSession]);
-
-  const handleBreadcrumbSelect = (id: string | null) => {
-    if (!id) setSelectedFolderId(null);
-    else if (id === "public") setSelectedFolderId("public");
-    else {
-      const num = Number(id);
-      const asSession = lecturesWithSessions.some((l) => l.sessions.some((s) => s.id === num));
-      if (asSession) setSelectedFolderId(num);
-      else {
-        const lec = lecturesWithSessions.find((l) => l.id === num);
-        const firstSession = lec?.sessions?.[0];
-        setSelectedFolderId(firstSession ? firstSession.id : null);
-      }
-    }
+  const fmt = (n: number | undefined): string => {
+    if (isError) return "—";
+    if (isLoading || n == null) return "…";
+    return `${n}`;
   };
 
-  const openVideoDetail = (video: ApiVideo) => {
-    // 공개 영상인 경우
-    if (selectedFolderId === "public" && publicSession && video.session_id === publicSession.session_id) {
-      openOverlay(video.id, publicSession.lecture_id, publicSession.session_id);
-      return;
-    }
-    // 현재 선택된 세션의 영상인 경우
-    if (video.session_id && selectedSession) {
-      openOverlay(video.id, selectedSession.lecture.id, selectedSession.session.id);
-      return;
-    }
-    // 다른 강의-차시 영상 탐색
-    const lecWithSession = lecturesWithSessions.find((l) =>
-      l.sessions.some((s) => s.id === video.session_id)
-    );
-    const sess = lecWithSession?.sessions.find((s) => s.id === video.session_id);
-    if (lecWithSession && sess) {
-      openOverlay(video.id, lecWithSession.id, sess.id);
-    }
-  };
-
-  const openUploadModal = (sessionId: number) => {
-    setUploadTargetSessionId(sessionId);
-    setUploadModalOpen(true);
-  };
-
-  const closeUploadModal = () => {
-    setUploadModalOpen(false);
-    setUploadTargetSessionId(null);
-  };
-
-  const handleCreateFolder = useCallback(async () => {
-    if (!newFolderName.trim() || !publicSession) return;
-    try {
-      const parentId =
-        selectedPublicFolderId && selectedFolderId !== "public" ? selectedPublicFolderId : null;
-      await createVideoFolder(publicSession.session_id, newFolderName.trim(), parentId);
-      queryClient.invalidateQueries({ queryKey: ["video-folders", publicSession.session_id] });
-      setNewFolderName("");
-      setNewFolderOpen(false);
-    } catch (e) {
-      feedback.error((e as Error).message || "폴더 생성에 실패했습니다.");
-    }
-  }, [newFolderName, publicSession, selectedPublicFolderId, selectedFolderId, queryClient]);
-
-  const handleDeleteFolder = useCallback(
-    async (folderId: number) => {
-      const ok = await confirm({ title: "폴더 삭제", message: "폴더를 삭제하시겠습니까? 폴더 내 영상이 있으면 삭제할 수 없습니다." });
-      if (!ok) return;
-      try {
-        await deleteVideoFolder(folderId);
-        queryClient.invalidateQueries({ queryKey: ["video-folders", publicSession?.session_id] });
-        queryClient.invalidateQueries({
-          queryKey: ["session-videos", publicSession?.session_id],
-        });
-        if (selectedFolderId === -folderId) {
-          setSelectedFolderId("public");
-        }
-      } catch (e) {
-        feedback.error((e as Error).message || "폴더 삭제에 실패했습니다.");
-      }
-    },
-    [publicSession, selectedFolderId, queryClient, confirm]
-  );
-
-  const retryVideoMutation = useMutation({
+  const retryMutation = useMutation({
     mutationFn: async (payload: { videoId: number; title?: string }) => {
       logRetryAttempt(payload.videoId);
       await retryVideo(payload.videoId);
       return payload;
     },
     onSuccess: (payload) => {
-      queryClient.invalidateQueries({ queryKey: ["session-videos"] });
-      queryClient.invalidateQueries({ queryKey: ["video-folders"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-videos-landing-stats"] });
       asyncStatusStore.addWorkerJob(
         payload.title ? `${payload.title} 재시도` : `영상 ${payload.videoId} 재시도`,
         String(payload.videoId),
         "video_processing"
       );
-      feedback.success("재시도 요청을 보냈습니다. 우하단 진행 상황에서 확인할 수 있습니다.");
+      feedback.success("재시도 요청을 보냈습니다.");
     },
     onError: (e: unknown, payload) => {
       const msg = getRetryErrorMessage(e);
@@ -366,412 +126,232 @@ export default function VideoExplorerPage() {
     },
   });
 
-  const deleteVideoMutation = useMutation({
-    mutationFn: deleteVideo,
-    onSuccess: (_data, videoId) => {
-      queryClient.invalidateQueries({ queryKey: ["session-videos"] });
-      queryClient.invalidateQueries({ queryKey: ["video-folders"] });
-      asyncStatusStore.removeTask(String(videoId));
-    },
-    onError: (e) => {
-      feedback.error((e as Error).message || "영상 삭제에 실패했습니다.");
-    },
-  });
-
-  const handleDeleteVideo = useCallback(
-    async (e: React.MouseEvent, videoId: number) => {
-      e.preventDefault();
-      e.stopPropagation();
-      const ok = await confirm({ title: "영상 삭제", message: "정말 삭제하시겠습니까?" });
-      if (!ok) return;
-      deleteVideoMutation.mutate(videoId);
-    },
-    [deleteVideoMutation, confirm]
-  );
+  const openDetail = (v: LandingVideoSummary) => {
+    if (v.lecture_id == null || v.session_id == null) {
+      feedback.error("이 영상의 강의·차시 정보를 찾지 못했습니다.");
+      return;
+    }
+    setSearchParams(
+      {
+        videoId: String(v.id),
+        lectureId: String(v.lecture_id),
+        sessionId: String(v.session_id),
+      },
+      { replace: true }
+    );
+  };
 
   return (
-    <DomainLayout title="영상">
-      <div className={panelStyles.root}>
-        <div className={panelStyles.toolbar}>
-          <Breadcrumb
-            path={breadcrumbPath.length > 1 ? breadcrumbPath : [{ id: null, name: "영상" }]}
-            onSelect={(id) => handleBreadcrumbSelect(id)}
-          />
-          <div className={panelStyles.actions}>
-            {selectedFolderId != null && videos.length > 1 && (
-              <Button
-                intent="ghost"
-                size="sm"
-                onClick={() => setReorderOpen(true)}
-                leftIcon={<ArrowUpDown size={14} />}
-              >
-                순서 관리
-              </Button>
-            )}
-            <Button intent="primary" size="sm" onClick={() => navigate("/admin/lectures")}>
-              강의 목록
-            </Button>
-          </div>
-        </div>
-
-        <div className={panelStyles.body}>
-          <aside data-guide="videos-tree" className={panelStyles.tree}>
-            <div className={panelStyles.treeNavHeader}>
-              <span className={panelStyles.treeNavTitle}>폴더</span>
-            </div>
-            <div className={panelStyles.treeScroll}>
-              <VideoExplorerTree
-              lectures={lecturesWithSessions}
-              publicFolders={publicFolders}
-              currentFolderId={selectedFolderId}
-              onSelectFolder={setSelectedFolderId}
-            />
-            </div>
-          </aside>
-
-          <div
-            className={`${panelStyles.gridWrap} ${selectedFolderId === "public" ? styles.gridWrapPublic : ""}`}
-          >
-            {isLoading ? (
-              <div className={panelStyles.placeholder}>불러오는 중…</div>
-            ) : selectedFolderId === null ? (
-              <div className={panelStyles.placeholder}>
-                <div className={panelStyles.placeholderIcon}>
-                  <Play size={28} />
-                </div>
-                <p className={panelStyles.placeholderTitle}>폴더를 선택하세요</p>
-                <p className={panelStyles.placeholderDesc}>
-                  왼쪽 목록에서 전체공개영상 또는 강의·차시를 선택하면 영상을 확인할 수 있습니다.
-                </p>
-                <div className={panelStyles.placeholderSteps}>
-                  <div className={panelStyles.placeholderStep}>
-                    <span className={panelStyles.placeholderStepNum}>1</span>
-                    <span>좌측에서 강의 또는 전체공개영상 선택</span>
-                  </div>
-                  <div className={panelStyles.placeholderStep}>
-                    <span className={panelStyles.placeholderStepNum}>2</span>
-                    <span>영상 확인·업로드·관리</span>
-                  </div>
-                </div>
-              </div>
-            ) : selectedFolderId === "public" && publicSessionError ? (
-              <div className={panelStyles.placeholder} style={{ color: "var(--color-text-error, #b91c1c)" }}>
-                <p className={panelStyles.placeholderTitle}>전체공개영상 영역을 불러오지 못했습니다</p>
-                <p className={panelStyles.placeholderDesc}>
-                  같은 도메인(예: tchul.com)으로 로그인했는지, 관리자·스태프 권한이 있는지 확인하세요.
-                </p>
-              </div>
-            ) : videosLoading ? (
-              <div className={panelStyles.placeholder}>
-                <p className={panelStyles.placeholderTitle}>영상 목록 불러오는 중…</p>
-              </div>
-            ) : videos.length === 0 ? (
-              <div
-                className={selectedFolderId === "public" ? styles.emptyStateWrapper : ""}
-                style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: 200 }}
-              >
-                <EmptyState
-                  scope="panel"
-                  tone="empty"
-                  title={
-                    selectedFolderId === "public"
-                      ? "등록된 영상이 없습니다"
-                      : "이 차시에 등록된 영상이 없습니다"
-                  }
-                  description={
-                    selectedFolderId === "public"
-                      ? "아래 버튼으로 전체공개영상을 업로드하세요. 프로그램에 등록된 모든 학생이 시청할 수 있습니다."
-                      : "아래 버튼으로 이 차시에 영상을 추가하세요."
-                  }
-                  actions={
-                    (selectedFolderId === "public" && publicSession ? (
-                      <Button intent="primary" size="sm" onClick={() => openUploadModal(publicSession.session_id)}>
-                        영상 추가
-                      </Button>
-                    ) : selectedSession ? (
-                      <Button intent="primary" size="sm" onClick={() => openUploadModal(selectedSession.session.id)}>
-                        영상 추가
-                      </Button>
-                    ) : null)
-                  }
-                />
-              </div>
-            ) : (
-              <div className={styles.grid}>
-                {/* Add card for public videos */}
-                {selectedFolderId === "public" && publicSession && (
-                  <div
-                    data-guide="videos-add"
-                    className={styles.itemAdd}
-                    onClick={() => setAddChoiceModalOpen(true)}
-                    title="추가"
-                  >
-                    <FilePlus size={32} />
-                    <span>추가</span>
-                  </div>
-                )}
-                {/* Add card for session videos */}
-                {selectedSession && selectedFolderId !== "public" && (
-                  <div
-                    className={styles.itemAdd}
-                    onClick={() => openUploadModal(selectedSession.session.id)}
-                    title="영상 추가"
-                  >
-                    <FilePlus size={32} />
-                    <span>추가</span>
-                  </div>
-                )}
-
-                {/* Video cards */}
-                {videos.map((v) => {
-                  const durationLabel = formatDuration(v.duration);
-                  const hasViewCount = v.view_count != null && Number.isFinite(v.view_count);
-
-                  return (
-                    <div key={v.id} className={styles.card} onClick={() => openVideoDetail(v)}>
-                      {/* Thumbnail area */}
-                      <div className={styles.thumbnailWrap}>
-                        <VideoThumbnail
-                          title={v.title}
-                          status={v.status ?? "PENDING"}
-                          thumbnail_url={v.thumbnail_url}
-                        />
-                        {/* Duration overlay (bottom-right, YouTube-style) */}
-                        {durationLabel && v.status === "READY" && (
-                          <span className={styles.duration}>{durationLabel}</span>
-                        )}
-                        {/* Status badge overlaid on thumbnail (top-left) */}
-                        <div className={styles.statusOverlay}>
-                          <VideoStatusBadge status={v.status ?? "PENDING"} />
-                        </div>
-                      </div>
-
-                      {/* Card body */}
-                      <div className={styles.cardBody}>
-                        <span className={styles.cardTitle} title={v.title}>
-                          {v.title || "—"}
-                        </span>
-                        <div className={styles.cardMeta}>
-                          {hasViewCount && (
-                            <>
-                              <span className={styles.viewCount}>
-                                <Eye className={styles.viewIcon} />
-                                조회수 {formatViewCount(v.view_count!)}회
-                              </span>
-                            </>
-                          )}
-                          {hasViewCount && v.created_at && (
-                            <span className={styles.metaDot}>·</span>
-                          )}
-                          {v.created_at && (
-                            <span>{formatTimeAgo(v.created_at)}</span>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Action buttons */}
-                      <div className={styles.cardActions}>
-                        {canShowRetryButton(v) && (
-                          <Button
-                            intent="primary"
-                            size="sm"
-                            disabled={retryVideoMutation.isPending}
-                            onClick={async (e) => {
-                              e.stopPropagation();
-                              const ok = await confirm({ title: "영상 재시도", message: "재시도할까요? 진행 중인 작업이 있으면 취소 후 다시 제출됩니다.", confirmText: "재시도" });
-                              if (ok) {
-                                retryVideoMutation.mutate({ videoId: v.id, title: v.title });
-                              }
-                            }}
-                            title="재시도"
-                          >
-                            {retryVideoMutation.isPending ? "요청 중…" : "재시도"}
-                          </Button>
-                        )}
-                        <Button
-                          intent="ghost"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setEditTarget(v);
-                          }}
-                          title="수정"
-                        >
-                          수정
-                        </Button>
-                        <Button
-                          intent="ghost"
-                          size="sm"
-                          disabled={deleteVideoMutation.isPending}
-                          onClick={(e) => handleDeleteVideo(e, v.id)}
-                          title="삭제"
-                        >
-                          삭제
-                        </Button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {uploadTargetSessionId != null && (
-        <VideoUploadModal
-          sessionId={uploadTargetSessionId}
-          isOpen={uploadModalOpen}
-          onClose={closeUploadModal}
-        />
-      )}
-
-      {/* 추가 선택 모달 (공개 영상 내에서만) */}
-      {addChoiceModalOpen && publicSession && (
-        <AdminModal
-          open={addChoiceModalOpen}
-          onClose={() => setAddChoiceModalOpen(false)}
-          width={MODAL_WIDTH.sm}
-        >
-          <ModalHeader title="추가하기" />
-          <ModalBody>
-            <div className="space-y-3">
-              <button
-                type="button"
-                onClick={() => {
-                  setAddChoiceModalOpen(false);
-                  openUploadModal(publicSession.session_id);
-                }}
-                className="w-full flex items-center gap-3 p-4 rounded-lg border border-[var(--color-border-divider)] hover:border-[var(--color-brand-primary)] hover:bg-[var(--color-bg-surface-hover)] transition-all text-left"
-              >
-                <div className="w-10 h-10 rounded-lg bg-[var(--color-brand-primary)]/10 flex items-center justify-center">
-                  <Video size={20} className="text-[var(--color-brand-primary)]" />
-                </div>
-                <div className="flex-1">
-                  <div className="text-sm font-semibold text-[var(--color-text-primary)]">영상 업로드</div>
-                  <div className="text-xs text-[var(--color-text-muted)] mt-0.5">
-                    새로운 영상을 업로드합니다
-                  </div>
-                </div>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setAddChoiceModalOpen(false);
-                  setNewFolderOpen(true);
-                }}
-                className="w-full flex items-center gap-3 p-4 rounded-lg border border-[var(--color-border-divider)] hover:border-[var(--color-brand-primary)] hover:bg-[var(--color-bg-surface-hover)] transition-all text-left"
-              >
-                <div className="w-10 h-10 rounded-lg bg-[var(--color-brand-primary)]/10 flex items-center justify-center">
-                  <Folder size={20} className="text-[var(--color-brand-primary)]" />
-                </div>
-                <div className="flex-1">
-                  <div className="text-sm font-semibold text-[var(--color-text-primary)]">폴더 생성</div>
-                  <div className="text-xs text-[var(--color-text-muted)] mt-0.5">
-                    새로운 폴더를 생성합니다
-                  </div>
-                </div>
-              </button>
-            </div>
-          </ModalBody>
-          <ModalFooter
-            right={
-              <Button intent="secondary" onClick={() => setAddChoiceModalOpen(false)}>
-                취소
-              </Button>
-            }
-          />
-        </AdminModal>
-      )}
-
-      {/* 폴더 생성 모달 */}
-      {newFolderOpen && (
-        <AdminModal
-          open={newFolderOpen}
-          onClose={() => {
-            setNewFolderOpen(false);
-            setNewFolderName("");
+    <div className="flex flex-col gap-6" style={{ padding: 0 }}>
+      {/* 1) 요약 지표 */}
+      <DashboardWidget title="요약 지표" description="영상 운영 현황">
+        <div
+          style={{
+            display: "grid",
+            gap: "var(--space-3)",
+            gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
           }}
-          width={MODAL_WIDTH.sm}
-          onEnterConfirm={newFolderName.trim() ? handleCreateFolder : undefined}
+          data-testid="videos-kpi-grid"
         >
-          <ModalHeader title="새 폴더" />
-          <ModalBody>
-            <div className="space-y-3">
-              <div>
-                <label className="text-sm font-semibold text-[var(--color-text-primary)] mb-2 block">
-                  폴더 이름
-                </label>
-                <input
-                  type="text"
-                  value={newFolderName}
-                  onChange={(e) => setNewFolderName(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") handleCreateFolder();
-                    if (e.key === "Escape") {
-                      setNewFolderOpen(false);
-                      setNewFolderName("");
-                    }
-                  }}
-                  placeholder="폴더 이름을 입력하세요"
-                  autoFocus
-                  className="w-full px-3 py-2 border border-[var(--color-border-divider)] rounded-lg text-sm focus:outline-none focus:border-[var(--color-brand-primary)]"
-                />
-              </div>
-            </div>
-          </ModalBody>
-          <ModalFooter
-            left={
-              <Button
-                intent="secondary"
-                onClick={() => {
-                  setNewFolderOpen(false);
-                  setNewFolderName("");
-                }}
-              >
-                취소
-              </Button>
-            }
-            right={
-              <Button intent="primary" onClick={handleCreateFolder} disabled={!newFolderName.trim()}>
-                생성
-              </Button>
-            }
+          <KPI
+            label="등록된 영상"
+            value={fmt(data?.total)}
+            hint={data?.ready != null ? `사용 가능 ${data.ready}개` : undefined}
           />
-        </AdminModal>
-      )}
-      {editTarget && (
-        <VideoEditModal
-          open={!!editTarget}
-          onClose={() => setEditTarget(null)}
-          videoId={editTarget.id}
-          initialTitle={editTarget.title}
-          initialOrder={editTarget.order ?? 1}
-        />
-      )}
-      {isOverlayOpen && (
-        <VideoDetailOverlay
-          videoId={overlayVideoId!}
-          lectureId={overlayLectureId!}
-          sessionId={overlaySessionId!}
-          onClose={closeOverlay}
-        />
-      )}
-      <VideoReorderModal
-        open={reorderOpen}
-        onClose={() => setReorderOpen(false)}
-        videos={videos}
-        sessionTitle={
-          selectedFolderId === "public"
-            ? "전체공개영상"
-            : selectedSession
-              ? `${selectedSession.session.order}차시`
-              : undefined
+          <KPI
+            label="인코딩 진행 중"
+            value={fmt(data?.processing)}
+            hint={(data?.processing ?? 0) > 0 ? "최대 90분 소요" : undefined}
+          />
+          <KPI
+            label="재시도 필요"
+            value={fmt(data?.failed)}
+            hint={(data?.failed ?? 0) > 0 ? "실패 — 재시도 또는 삭제" : undefined}
+          />
+          <KPI label="최근 7일 업로드" value={fmt(data?.uploaded_last_7d)} />
+        </div>
+      </DashboardWidget>
+
+      {/* 2) 인코딩 진행 중 인박스 */}
+      <DashboardWidget
+        title="인코딩 진행 중"
+        description={
+          isError
+            ? "불러오기 실패"
+            : (data?.processing ?? 0) === 0
+              ? "현재 처리 중인 영상이 없습니다."
+              : `${data?.processing_top.length ?? 0}개 표시 (총 ${data?.processing ?? 0}개)`
         }
-        onSaved={() => {
-          queryClient.invalidateQueries({ queryKey: ["session-videos"] });
-        }}
-      />
-    </DomainLayout>
+      >
+        {(data?.processing_top.length ?? 0) > 0 ? (
+          <div
+            style={{ display: "flex", flexDirection: "column", gap: 8 }}
+            data-testid="videos-processing-inbox"
+          >
+            {data!.processing_top.map((v) => (
+              <VideoRow key={v.id} v={v} onClick={() => openDetail(v)} rightLabel="상세" />
+            ))}
+          </div>
+        ) : null}
+      </DashboardWidget>
+
+      {/* 3) 재시도 필요 인박스 */}
+      <DashboardWidget
+        title="재시도 필요 (실패)"
+        description={
+          isError
+            ? "불러오기 실패"
+            : (data?.failed ?? 0) === 0
+              ? "재시도가 필요한 영상이 없습니다."
+              : `${data?.failed_top.length ?? 0}개 표시 (총 ${data?.failed ?? 0}개)`
+        }
+      >
+        {(data?.failed_top.length ?? 0) > 0 ? (
+          <div
+            style={{ display: "flex", flexDirection: "column", gap: 8 }}
+            data-testid="videos-failed-inbox"
+          >
+            {data!.failed_top.map((v) => (
+              <VideoRow
+                key={v.id}
+                v={v}
+                onClick={() => openDetail(v)}
+                rightLabel="재시도"
+                rightAction={async (e) => {
+                  e.stopPropagation();
+                  const ok = await confirm({
+                    title: "영상 재시도",
+                    message: "재시도할까요? 진행 중인 작업이 있으면 취소 후 다시 제출됩니다.",
+                    confirmText: "재시도",
+                  });
+                  if (ok) retryMutation.mutate({ videoId: v.id, title: v.title });
+                }}
+                rightDisabled={retryMutation.isPending}
+              />
+            ))}
+          </div>
+        ) : null}
+      </DashboardWidget>
+
+      <VideoOverlayMount />
+    </div>
+  );
+}
+
+/**
+ * KPI 모드에서도 ?videoId=...&lectureId=...&sessionId=... 쿼리 파라미터로
+ * 영상 상세 오버레이를 띄울 수 있게 하는 마운트 포인트.
+ */
+function VideoOverlayMount() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const overlayVideoId = searchParams.get("videoId") ? Number(searchParams.get("videoId")) : null;
+  const overlayLectureId = searchParams.get("lectureId") ? Number(searchParams.get("lectureId")) : null;
+  const overlaySessionId = searchParams.get("sessionId") ? Number(searchParams.get("sessionId")) : null;
+  const isOpen = overlayVideoId != null && overlayLectureId != null && overlaySessionId != null;
+
+  if (!isOpen) return null;
+
+  return (
+    <VideoDetailOverlay
+      videoId={overlayVideoId!}
+      lectureId={overlayLectureId!}
+      sessionId={overlaySessionId!}
+      onClose={() => setSearchParams({}, { replace: true })}
+    />
+  );
+}
+
+function VideoRow({
+  v,
+  onClick,
+  rightLabel,
+  rightAction,
+  rightDisabled,
+}: {
+  v: LandingVideoSummary;
+  onClick: () => void;
+  rightLabel: string;
+  rightAction?: (e: React.MouseEvent) => void;
+  rightDisabled?: boolean;
+}) {
+  const subtitleParts: string[] = [];
+  if (v.lecture_title) subtitleParts.push(v.lecture_title);
+  if (v.session_order) subtitleParts.push(`${v.session_order}차시`);
+  const subtitle = subtitleParts.join(" · ");
+
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onClick}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") onClick();
+      }}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: 16,
+        width: "100%",
+        padding: "12px 16px",
+        cursor: "pointer",
+        background: "var(--color-bg-surface-soft, #f9fafb)",
+        border: "1px solid var(--color-border-divider)",
+        borderRadius: 10,
+      }}
+    >
+      <span style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0, flex: 1 }}>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+          <VideoStatusBadge status={v.status as never} />
+          <span
+            style={{
+              fontSize: 14,
+              fontWeight: 600,
+              color: "var(--color-text-primary)",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {v.title || "(제목 없음)"}
+          </span>
+        </span>
+        {subtitle && (
+          <span
+            style={{
+              fontSize: 12,
+              color: "var(--color-text-muted)",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {subtitle}
+          </span>
+        )}
+      </span>
+      {rightAction ? (
+        <Button
+          intent="primary"
+          size="sm"
+          disabled={rightDisabled}
+          onClick={rightAction}
+        >
+          {rightLabel}
+        </Button>
+      ) : (
+        <span
+          style={{
+            flexShrink: 0,
+            fontSize: 14,
+            fontWeight: 700,
+            color: "var(--color-primary)",
+            letterSpacing: "-0.01em",
+          }}
+        >
+          {rightLabel} →
+        </span>
+      )}
+    </div>
   );
 }
