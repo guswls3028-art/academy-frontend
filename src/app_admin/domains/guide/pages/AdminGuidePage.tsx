@@ -45,6 +45,7 @@ function WorkflowCard({
         role="button"
         tabIndex={0}
         aria-expanded={open}
+        aria-label={`${wf.title} 카드 ${open ? "접기" : "펼치기"}`}
         onClick={onToggle}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") {
