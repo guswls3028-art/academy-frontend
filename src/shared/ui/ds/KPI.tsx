@@ -71,6 +71,9 @@ export default function KPI({
         className="kpi ds-kpi ds-kpi--interactive"
         data-kpi="true"
         style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "stretch",
           textAlign: "left",
           cursor: "pointer",
           background: "var(--color-bg-surface)",
@@ -78,6 +81,8 @@ export default function KPI({
           borderRadius: 12,
           padding: 16,
           transition: "border-color 120ms ease, background 120ms ease",
+          font: "inherit",
+          color: "inherit",
         }}
       >
         {inner}

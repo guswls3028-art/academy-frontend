@@ -83,7 +83,7 @@ export default function DashboardPage() {
           title="오늘 처리할 일"
           description="아래 항목은 학생/학부모가 기다리고 있습니다."
         >
-          <div className="ds-section__grid">
+          <div className="ds-section__kpi-list">
             <TodoRow
               label="미답변 질의"
               value={qError ? "불러오기 실패" : qLoading ? "로딩 중…" : `답변하기 ${pendingQnaCount}건`}
@@ -148,12 +148,26 @@ function TodoRow({
   [key: string]: any;
 }) {
   return (
-    <button type="button" onClick={onClick} className="ds-section__item" {...rest}>
-      <div className="ds-section__item-content" style={{ display: "flex", alignItems: "center", gap: 10 }}>
+    <button
+      type="button"
+      onClick={onClick}
+      className="ds-section__item ds-section__kpi-row"
+      style={{
+        width: "100%",
+        cursor: "pointer",
+        background: "transparent",
+        border: "none",
+        font: "inherit",
+        color: "inherit",
+        textAlign: "left",
+      }}
+      {...rest}
+    >
+      <span style={{ display: "inline-flex", alignItems: "center", gap: 10, minWidth: 0, flex: 1 }}>
         {icon ? <span style={{ display: "inline-flex", alignItems: "center" }}>{icon}</span> : null}
-        <span className="ds-section__item-label">{label}</span>
-      </div>
-      <span className="ds-section__item-value">{value}</span>
+        <span className="ds-section__kpi-label">{label}</span>
+      </span>
+      <span className="ds-section__kpi-value" style={{ flexShrink: 0 }}>{value}</span>
     </button>
   );
 }
