@@ -85,6 +85,7 @@ export default function ClinicHomePage() {
   const sessionTreeQ = useQuery({
     queryKey: ["clinic-sessions-tree", todayYM.year, todayYM.month],
     queryFn: () => fetchClinicSessionTree(todayYM),
+    staleTime: 30_000,
   });
   const todaySessions = useMemo(() => {
     return (sessionTreeQ.data ?? []).filter(
@@ -100,6 +101,7 @@ export default function ClinicHomePage() {
   const settingsQ = useQuery({
     queryKey: ["clinic-settings"],
     queryFn: fetchClinicSettings,
+    staleTime: 60_000,
   });
 
   const bookedEnrollmentIds = useMemo(() => {

@@ -24,6 +24,9 @@ export function useClinicParticipants(params: {
     queryKey: ["clinic-participants", params],
     queryFn: () => fetchClinicParticipants(params),
     enabled,
+    // ClinicHomePage는 같은 페이지에서 weekQ/pendingQ 등 여러 인스턴스를 띄우므로,
+    // 짧은 staleTime으로 30초 내 중복 fetch를 캐시 히트로 흡수. patchM 성공 시 invalidate로 즉시 갱신됨.
+    staleTime: 30_000,
   });
 
   const patchM = useMutation({
