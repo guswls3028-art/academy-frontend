@@ -1,21 +1,29 @@
 // PATH: src/app_teacher/domains/today/pages/TodayPage.tsx
-// 오늘 홈 — 데스크톱 대시보드 대응: 퀵 액션 + 미처리 건수 + KPI + 수업 카드
+// 오늘 홈 — 지금 처리할 일 + 오늘 수업
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { EmptyState } from "@/shared/ui/ds";
 import { useAdminNotificationCounts } from "@admin/domains/admin-notifications/useAdminNotificationCounts";
-import {
-  Users, BookOpen, ClipboardList, Video, MessageSquare, Bell, Activity, FileText, Send,
-} from "@teacher/shared/ui/Icons";
-import { KpiCard, Card, SectionTitle } from "@teacher/shared/ui/Card";
+import type { AdminNotificationItem } from "@admin/domains/admin-notifications/api";
+import { Card, SectionTitle } from "@teacher/shared/ui/Card";
 import { Badge } from "@teacher/shared/ui/Badge";
 import { fetchTodaySessions } from "../api";
 import SessionCard from "../components/SessionCard";
-import api from "@/shared/api/axios";
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }
+
+const PENDING_ROUTES: Record<AdminNotificationItem["type"], string> = {
+  qna: "/teacher/comms",
+  counsel: "/teacher/comms",
+  clinic: "/teacher/clinic",
+  registration_requests: "/teacher/students",
+  submissions: "/teacher/submissions",
+  score_pending: "/teacher/submissions",
+  matchup_review_pending: "/admin/storage/matchup",
+  video_failed: "/teacher/videos",
+};
 
 export default function TodayPage() {
   const today = todayISO();
@@ -27,23 +35,7 @@ export default function TodayPage() {
     staleTime: 60_000,
   });
 
-  const { counts } = useAdminNotificationCounts();
-
-  // KPI 데이터
-  const { data: kpiData } = useQuery({
-    queryKey: ["teacher-kpi"],
-    queryFn: async () => {
-      const [lecturesRes, examsRes] = await Promise.all([
-        api.get("/lectures/lectures/", { params: { is_active: true, page_size: 1 } }),
-        api.get("/exams/", { params: { page_size: 1 } }),
-      ]);
-      return {
-        activeLectures: lecturesRes.data?.count ?? 0,
-        totalExams: examsRes.data?.count ?? 0,
-      };
-    },
-    staleTime: 120_000,
-  });
+  const { items: pendingItems } = useAdminNotificationCounts();
 
   const dateStr = new Date().toLocaleDateString("ko-KR", {
     month: "long",
@@ -51,83 +43,35 @@ export default function TodayPage() {
     weekday: "short",
   });
 
+  const sessionCount = sessions?.length ?? 0;
+
   return (
     <div className="flex flex-col gap-3">
-      {/* 바로가기 (Quick shortcuts) */}
-      <SectionTitle>바로가기</SectionTitle>
-      <div className="grid grid-cols-4 gap-2">
-        <ShortcutBtn icon={<Users size={20} />} label="학생" onClick={() => navigate("/teacher/students")} />
-        <ShortcutBtn icon={<BookOpen size={20} />} label="강의" onClick={() => navigate("/teacher/classes")} />
-        <ShortcutBtn icon={<ClipboardList size={20} />} label="시험" onClick={() => navigate("/teacher/exams")} />
-        <ShortcutBtn icon={<Send size={20} />} label="제출함" onClick={() => navigate("/teacher/submissions")} />
-        <ShortcutBtn icon={<Video size={20} />} label="영상" onClick={() => navigate("/teacher/videos")} />
-        <ShortcutBtn icon={<MessageSquare size={20} />} label="커뮤니티" onClick={() => navigate("/teacher/comms")} />
-        <ShortcutBtn icon={<Activity size={20} />} label="클리닉" onClick={() => navigate("/teacher/clinic")} />
-        <ShortcutBtn icon={<Bell size={20} />} label="알림" onClick={() => navigate("/teacher/notifications")} />
-      </div>
-
-      {/* 미처리 일감 */}
-      {counts && counts.total > 0 && (
+      {pendingItems.length > 0 && (
         <>
-          <SectionTitle>미처리 일감</SectionTitle>
+          <SectionTitle>지금 처리할 일</SectionTitle>
           <Card style={{ padding: 0, overflow: "hidden" }}>
-            {counts.qnaPending > 0 && (
+            {pendingItems.map((item, idx) => (
               <PendingRow
-                label="미답변 질문"
-                count={counts.qnaPending}
-                onClick={() => navigate("/teacher/comms")}
+                key={item.type}
+                label={item.label}
+                count={item.count}
+                isLast={idx === pendingItems.length - 1}
+                onClick={() => navigate(PENDING_ROUTES[item.type])}
               />
-            )}
-            {counts.registrationRequestsPending > 0 && (
-              <PendingRow
-                label="가입 신청"
-                count={counts.registrationRequestsPending}
-                onClick={() => navigate("/teacher/comms")}
-              />
-            )}
-            {counts.recentSubmissions > 0 && (
-              <PendingRow
-                label="처리 대기 제출"
-                count={counts.recentSubmissions}
-                onClick={() => navigate("/teacher/submissions")}
-              />
-            )}
-            {counts.clinicPending > 0 && (
-              <PendingRow
-                label="클리닉 예약"
-                count={counts.clinicPending}
-                onClick={() => navigate("/teacher/clinic")}
-              />
-            )}
+            ))}
           </Card>
         </>
       )}
 
-      {/* 요약 지표 (KPI) */}
-      <SectionTitle>요약</SectionTitle>
-      <div className="grid grid-cols-3 gap-2">
-        <KpiCard
-          label="오늘 수업"
-          value={sessions?.length ?? 0}
-          color="var(--tc-primary)"
-        />
-        <KpiCard
-          label="운영 강의"
-          value={kpiData?.activeLectures ?? "-"}
-        />
-        <KpiCard
-          label="총 시험"
-          value={kpiData?.totalExams ?? "-"}
-        />
-      </div>
-
-      {/* 오늘 수업 */}
-      <SectionTitle right={
-        <span className="text-xs font-normal" style={{ color: "var(--tc-text-muted)" }}>
-          {dateStr}
-        </span>
-      }>
-        오늘의 수업
+      <SectionTitle
+        right={
+          <span className="text-xs font-normal" style={{ color: "var(--tc-text-muted)" }}>
+            {dateStr}
+          </span>
+        }
+      >
+        오늘의 수업{sessionCount > 0 ? ` (${sessionCount})` : ""}
       </SectionTitle>
 
       {isLoading ? (
@@ -145,40 +89,15 @@ export default function TodayPage() {
   );
 }
 
-function ShortcutBtn({
-  icon,
-  label,
-  onClick,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className="flex flex-col items-center gap-1.5 rounded-xl cursor-pointer"
-      style={{
-        padding: "var(--tc-space-3) var(--tc-space-2)",
-        minHeight: "calc(var(--tc-touch-min) + 16px)",
-        background: "var(--tc-surface)",
-        border: "1px solid var(--tc-border)",
-        color: "var(--tc-text-secondary)",
-      }}
-    >
-      <span style={{ color: "var(--tc-primary)" }}>{icon}</span>
-      <span className="text-[12px] font-semibold">{label}</span>
-    </button>
-  );
-}
-
 function PendingRow({
   label,
   count,
+  isLast,
   onClick,
 }: {
   label: string;
   count: number;
+  isLast: boolean;
   onClick: () => void;
 }) {
   return (
@@ -189,11 +108,15 @@ function PendingRow({
         padding: "var(--tc-space-3) var(--tc-space-4)",
         background: "none",
         border: "none",
-        borderBottom: "1px solid var(--tc-border)",
+        borderBottom: isLast ? "none" : "1px solid var(--tc-border)",
       }}
     >
-      <span className="text-sm" style={{ color: "var(--tc-text)" }}>{label}</span>
-      <Badge tone="danger" pill>{count}건</Badge>
+      <span className="text-sm" style={{ color: "var(--tc-text)" }}>
+        {label}
+      </span>
+      <Badge tone="danger" pill>
+        {count}건
+      </Badge>
     </button>
   );
 }

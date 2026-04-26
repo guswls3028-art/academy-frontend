@@ -5,6 +5,7 @@
  * - 클리닉 예약 신청 건수 (학생 예약 신청, status=pending)
  * - 가입 신청 대기 건수 (학생 회원가입 신청, status=pending)
  */
+import api from "@/shared/api/axios";
 import { fetchAdminPosts } from "@admin/domains/community/api/community.api";
 import { fetchClinicParticipants } from "@admin/domains/clinic/api/clinicParticipants.api";
 import { fetchRegistrationRequests } from "@admin/domains/students/api/students.api";
@@ -16,11 +17,22 @@ export type AdminNotificationCounts = {
   clinicPending: number;
   registrationRequestsPending: number;
   recentSubmissions: number;
+  videoFailed: number;
+  matchupReviewPending: number;
+  scorePending: number;
   total: number;
 };
 
 export type AdminNotificationItem = {
-  type: "qna" | "counsel" | "clinic" | "registration_requests" | "submissions";
+  type:
+    | "qna"
+    | "counsel"
+    | "clinic"
+    | "registration_requests"
+    | "submissions"
+    | "video_failed"
+    | "matchup_review_pending"
+    | "score_pending";
   label: string;
   count: number;
   to: string;
@@ -35,9 +47,45 @@ async function countPendingPosts(postType: "qna" | "counsel"): Promise<number> {
   }
 }
 
-export async function fetchAdminNotificationCounts(): Promise<AdminNotificationCounts> {
+type DashboardCountsResponse = {
+  video_failed?: number;
+  matchup_review_pending?: number;
+  score_pending?: number;
+};
+
+async function fetchDashboardCounts(): Promise<DashboardCountsResponse> {
   try {
-    const [participantsRes, qnaCount, counselCount, registrationRes, submissionsRes] = await Promise.all([
+    const res = await api.get<DashboardCountsResponse>(
+      "/results/admin/teacher-dashboard-counts/"
+    );
+    return res.data ?? {};
+  } catch {
+    return {};
+  }
+}
+
+export async function fetchAdminNotificationCounts(): Promise<AdminNotificationCounts> {
+  const empty: AdminNotificationCounts = {
+    qnaPending: 0,
+    counselPending: 0,
+    clinicPending: 0,
+    registrationRequestsPending: 0,
+    recentSubmissions: 0,
+    videoFailed: 0,
+    matchupReviewPending: 0,
+    scorePending: 0,
+    total: 0,
+  };
+
+  try {
+    const [
+      participantsRes,
+      qnaCount,
+      counselCount,
+      registrationRes,
+      submissionsRes,
+      dashboardCounts,
+    ] = await Promise.all([
       fetchClinicParticipants({ status: "pending" }).then((r) => r).catch(() => []),
       countPendingPosts("qna"),
       countPendingPosts("counsel"),
@@ -53,11 +101,19 @@ export async function fetchAdminNotificationCounts(): Promise<AdminNotificationC
         );
         return pending.length;
       }).catch(() => 0),
+      fetchDashboardCounts(),
     ]);
 
     const clinicPending = Array.isArray(participantsRes) ? participantsRes.length : 0;
     const registrationRequestsPending = typeof registrationRes === "number" ? registrationRes : 0;
     const recentSubmissions = typeof submissionsRes === "number" ? submissionsRes : 0;
+    const videoFailed = Number(dashboardCounts.video_failed ?? 0);
+    const matchupReviewPending = Number(dashboardCounts.matchup_review_pending ?? 0);
+    const scorePending = Number(dashboardCounts.score_pending ?? 0);
+
+    const total =
+      qnaCount + counselCount + clinicPending + registrationRequestsPending +
+      recentSubmissions + videoFailed + matchupReviewPending + scorePending;
 
     return {
       qnaPending: qnaCount,
@@ -65,10 +121,13 @@ export async function fetchAdminNotificationCounts(): Promise<AdminNotificationC
       clinicPending,
       registrationRequestsPending,
       recentSubmissions,
-      total: qnaCount + counselCount + clinicPending + registrationRequestsPending + recentSubmissions,
+      videoFailed,
+      matchupReviewPending,
+      scorePending,
+      total,
     };
   } catch {
-    return { qnaPending: 0, counselPending: 0, clinicPending: 0, registrationRequestsPending: 0, recentSubmissions: 0, total: 0 };
+    return empty;
   }
 }
 
@@ -114,6 +173,30 @@ export function buildAdminNotificationItems(
       label: "처리 대기 제출",
       count: counts.recentSubmissions,
       to: "/admin/results/submissions",
+    });
+  }
+  if (counts.scorePending > 0) {
+    items.push({
+      type: "score_pending",
+      label: "채점 미완료 응시",
+      count: counts.scorePending,
+      to: "/admin/results",
+    });
+  }
+  if (counts.matchupReviewPending > 0) {
+    items.push({
+      type: "matchup_review_pending",
+      label: "매치업 검수 대기",
+      count: counts.matchupReviewPending,
+      to: "/admin/matchup",
+    });
+  }
+  if (counts.videoFailed > 0) {
+    items.push({
+      type: "video_failed",
+      label: "영상 인코딩 실패",
+      count: counts.videoFailed,
+      to: "/admin/videos",
     });
   }
   return items;
