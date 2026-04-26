@@ -980,6 +980,10 @@
   color: var(--color-warning, #eab308);
 }
 
+[data-app="admin"] .app-header__iconBtn--danger {
+  color: var(--color-danger, #dc2626);
+}
+
 /* ========== 프로필 드롭다운 — 사용자 카드 (P2-2) ========== */
 [data-app="admin"] .app-header__profileDropdownUserCard,
 .app-header__profileDropdownOverlay .app-header__profileDropdownUserCard {

@@ -155,32 +155,25 @@ export async function fetchAdminNotificationCounts(): Promise<AdminNotificationC
   };
 }
 
+/**
+ * 우선순위(높을수록 위) — P3-6.
+ * video_failed       : 운영 critical (인코딩 실패는 학생이 수업 영상을 못 봄)
+ * registration_*     : 가입 대기 (학생이 서비스 진입 전 단계 — 블로킹)
+ * clinic             : 예약 신청 (시간 임박)
+ * counsel            : 상담 답변 대기
+ * qna                : 답변 대기 질문
+ * submissions        : 처리 대기 제출 (대부분 자동 처리)
+ */
 export function buildAdminNotificationItems(
   counts: AdminNotificationCounts
 ): AdminNotificationItem[] {
   const items: AdminNotificationItem[] = [];
-  if (counts.qnaPending > 0) {
+  if (counts.videoFailed > 0) {
     items.push({
-      type: "qna",
-      label: "답변 대기 질문",
-      count: counts.qnaPending,
-      to: "/admin/community/qna",
-    });
-  }
-  if (counts.counselPending > 0) {
-    items.push({
-      type: "counsel",
-      label: "답변 대기 상담",
-      count: counts.counselPending,
-      to: "/admin/community/counsel",
-    });
-  }
-  if (counts.clinicPending > 0) {
-    items.push({
-      type: "clinic",
-      label: "클리닉 예약 신청",
-      count: counts.clinicPending,
-      to: "/admin/clinic/bookings",
+      type: "video_failed",
+      label: "영상 인코딩 실패",
+      count: counts.videoFailed,
+      to: "/admin/videos",
     });
   }
   if (counts.registrationRequestsPending > 0) {
@@ -191,20 +184,36 @@ export function buildAdminNotificationItems(
       to: "/admin/students/requests",
     });
   }
+  if (counts.clinicPending > 0) {
+    items.push({
+      type: "clinic",
+      label: "클리닉 예약 신청",
+      count: counts.clinicPending,
+      to: "/admin/clinic/bookings",
+    });
+  }
+  if (counts.counselPending > 0) {
+    items.push({
+      type: "counsel",
+      label: "답변 대기 상담",
+      count: counts.counselPending,
+      to: "/admin/community/counsel",
+    });
+  }
+  if (counts.qnaPending > 0) {
+    items.push({
+      type: "qna",
+      label: "답변 대기 질문",
+      count: counts.qnaPending,
+      to: "/admin/community/qna",
+    });
+  }
   if (counts.recentSubmissions > 0) {
     items.push({
       type: "submissions",
       label: "처리 대기 제출",
       count: counts.recentSubmissions,
       to: "/admin/results/submissions",
-    });
-  }
-  if (counts.videoFailed > 0) {
-    items.push({
-      type: "video_failed",
-      label: "영상 인코딩 실패",
-      count: counts.videoFailed,
-      to: "/admin/videos",
     });
   }
   return items;

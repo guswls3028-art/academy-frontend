@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Dropdown, Badge as AntBadge } from "antd";
+import { Badge as AntBadge } from "antd";
 import { AlertTriangle, RefreshCw, User as UserIcon, Settings as SettingsIcon, Bug, LogOut } from "lucide-react";
 import NoticeOverlay from "@admin/domains/notice/overlays/NoticeOverlay";
 import { useNotices } from "@admin/domains/notice/context/NoticeContext";
@@ -278,7 +278,9 @@ export default function Header() {
   const currentTenantKey = getTenantCodeForApiRequest() ?? "";
   const displayTasks = tasks.filter((t) => (t.tenantScope ?? "") === currentTenantKey);
   const pendingCount = displayTasks.filter((t) => t.status === "pending").length;
+  const errorCount = displayTasks.filter((t) => t.status === "error").length;
   const hasCompletedOnly = pendingCount === 0 && displayTasks.length > 0;
+  const hasOnlySuccessCompleted = hasCompletedOnly && errorCount === 0;
 
   // 자동 clearCompleted 제거: 사용자가 결과를 보기 전에 비워지지 않도록.
   // 명시적 "완료된 항목 지우기" 버튼(AsyncStatusBar.tsx)으로만 제거.
@@ -461,27 +463,42 @@ export default function Header() {
         <div className="app-header__right">
 
           {workbox && (
-            <Dropdown
+            <ProfileDropdown
               open={workbox.workboxOpen}
-              onOpenChange={handleWorkboxOpenChange}
-              trigger={["click"]}
-              placement="bottomRight"
-              popupRender={() => (
+              onToggle={() => handleWorkboxOpenChange(!workbox.workboxOpen)}
+              onClose={() => handleWorkboxOpenChange(false)}
+              ariaLabel="작업박스"
+              content={
                 <div className="ds-header-dropdown app-header__alarmDropdown alarm-panel--workbox-style">
                   <WorkboxPanelContent onClose={() => workbox.setWorkboxOpen(false)} />
                 </div>
-              )}
+              }
             >
-              <span>
                 <Button
                   intent="secondary"
                   size="lg"
                   iconOnly
-                  className={`app-header__iconBtn app-header__workboxBtn ${hasCompletedOnly ? "app-header__workboxBtn--done" : ""}`}
-                  aria-label={workbox.workboxOpen ? "작업박스 닫기" : "작업박스 열기"}
-                  title={workbox.workboxOpen ? "작업박스 닫기" : "작업박스"}
+                  className={`app-header__iconBtn app-header__workboxBtn ${hasOnlySuccessCompleted ? "app-header__workboxBtn--done" : ""} ${errorCount > 0 ? "app-header__iconBtn--danger" : ""}`}
+                  aria-label={
+                    workbox.workboxOpen
+                      ? "작업박스 닫기"
+                      : errorCount > 0
+                        ? `작업박스 (실패 ${errorCount}건)`
+                        : "작업박스 열기"
+                  }
+                  title={
+                    workbox.workboxOpen
+                      ? "작업박스 닫기"
+                      : errorCount > 0
+                        ? `작업박스 — 실패 ${errorCount}건`
+                        : "작업박스"
+                  }
                   leftIcon={
-                    hasCompletedOnly ? (
+                    errorCount > 0 ? (
+                      <AntBadge count={errorCount} size="small" offset={[-2, 2]}>
+                        <IconWorkbox />
+                      </AntBadge>
+                    ) : hasOnlySuccessCompleted ? (
                       <IconCheck />
                     ) : pendingCount > 0 ? (
                       <AntBadge count={pendingCount} size="small" offset={[-2, 2]}>
@@ -492,16 +509,15 @@ export default function Header() {
                     )
                   }
                 />
-              </span>
-            </Dropdown>
+            </ProfileDropdown>
           )}
 
-          <Dropdown
+          <ProfileDropdown
             open={alarmDropdownOpen}
-            onOpenChange={setAlarmDropdownOpen}
-            trigger={["click"]}
-            placement="bottomRight"
-            popupRender={() => (
+            onToggle={() => setAlarmDropdownOpen((v) => !v)}
+            onClose={() => setAlarmDropdownOpen(false)}
+            ariaLabel={hasNotificationFailures ? "알림 (일부 로드 실패)" : "알림"}
+            content={
               <div className="ds-header-dropdown app-header__alarmDropdown alarm-panel--workbox-style">
                 <div className="alarm-panel__header">
                   <span className="alarm-panel__header-title">
@@ -581,9 +597,8 @@ export default function Header() {
                   )}
                 </div>
               </div>
-            )}
+            }
           >
-            <span>
               <Button
                 intent="secondary"
                 size="lg"
@@ -601,8 +616,7 @@ export default function Header() {
                   </AntBadge>
                 }
               />
-            </span>
-          </Dropdown>
+          </ProfileDropdown>
 
           <ProfileDropdown
             open={helpDropdownOpen}

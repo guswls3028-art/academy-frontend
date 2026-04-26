@@ -237,6 +237,7 @@
 }
 
 .async-status-bar__item-btn {
+  position: relative;
   width: 28px;
   height: 28px;
   padding: 0;
@@ -249,6 +250,17 @@
   align-items: center;
   justify-content: center;
   transition: background 0.15s, color 0.15s;
+}
+
+/* P3-7: 모바일 터치 hit-area 44pt — 시각 크기는 28px 유지하고 pseudo로 invisible hit-area 확장 */
+@media (max-width: 1023px) {
+  .async-status-bar__item-btn::before {
+    content: "";
+    position: absolute;
+    inset: -8px;
+    border-radius: 8px;
+    /* 투명 hit-area — 44pt(44x44px) 확보 */
+  }
 }
 
 .async-status-bar__item-btn:hover {

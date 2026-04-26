@@ -14,6 +14,7 @@ import { getTenantCodeForApiRequest } from "@/shared/tenant";
 import { useAsyncStatus } from "./useAsyncStatus";
 import { useWorkerJobPoller } from "./useWorkerJobPoller";
 import { useWorkbox } from "@/shared/ui/layout/WorkboxContext";
+import { ICON } from "@/shared/ui/ds";
 import { asyncStatusStore, type AsyncTask, type AsyncTaskStatus } from "./asyncStatusStore";
 import { workboxTenantMismatch } from "./workboxTelemetry";
 import "@/styles/design-system/components/AsyncStatusBar.css";
@@ -153,6 +154,7 @@ function BanIcon({ className, size = 16 }: { className?: string; size?: number }
 
 function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
   const navigate = useNavigate();
+  const workbox = useWorkbox();
   const queryClient = useQueryClient();
   const TypeIcon = task.meta?.jobType ? JOB_TYPE_ICONS[task.meta.jobType] : null;
   const remainingLabel = getRemainingLabel(task, now);
@@ -163,6 +165,7 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
   const canCancel = task.status === "pending" && task.meta?.jobId;
   const [retrying, setRetrying] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [navigating, setNavigating] = useState(false);
   const [showActions, setShowActions] = useState(false);
   const progressNum = task.progress != null ? Math.round(task.progress) : null;
   const actionsRef = useRef<HTMLDivElement>(null);
@@ -181,13 +184,18 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
   }, [showActions]);
 
   // ✅ 작업 클릭 시 해당 페이지로 이동 (영상은 강의-차시-영상 탭으로)
+  // 영상은 fetchVideoDetail + fetchSession 2단계 fetch 필요 — 무반응 UX 방지하려고
+  // 패널을 즉시 닫고 navigating 표시. 실패해도 fallback 페이지로 이동.
   const handleTaskClick = () => {
     if (!task.meta?.jobType || !task.meta?.jobId) return;
+    if (navigating) return;
 
     const jobType = task.meta.jobType;
     const jobId = task.meta.jobId;
 
     if (jobType === "video_processing") {
+      setNavigating(true);
+      workbox?.setWorkboxOpen(false);
       const videoId = Number(jobId);
       fetchVideoDetail(videoId)
         .then((video) => fetchSession(video.session_id))
@@ -199,9 +207,11 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
         .catch(() => {
           feedback.error("영상 정보를 불러올 수 없습니다.");
           navigate("/admin/videos");
-        });
+        })
+        .finally(() => setNavigating(false));
       return;
     }
+    workbox?.setWorkboxOpen(false);
     if (jobType === "excel_parsing") {
       navigate("/admin/students/home");
       return;
@@ -274,10 +284,11 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
   };
 
   return (
-    <div 
+    <div
       className="async-status-bar__item"
       onClick={handleTaskClick}
-      style={{ cursor: "pointer" }}
+      style={{ cursor: navigating ? "wait" : "pointer", opacity: navigating ? 0.7 : 1 }}
+      aria-busy={navigating || undefined}
     >
       <div className="async-status-bar__item-row">
         <StatusIcon status={task.status} />
@@ -329,7 +340,7 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
                 title="삭제"
                 aria-label="삭제"
               >
-                <BanIcon size={14} />
+                <BanIcon size={ICON.sm} />
               </button>
               {showActions && (
                 <div className="async-status-bar__actions-menu">
@@ -339,7 +350,7 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
                     onClick={handleDelete}
                     disabled={deleting}
                   >
-                    <TrashIcon size={14} />
+                    <TrashIcon size={ICON.sm} />
                     <span>{deleting ? "삭제 중…" : "삭제"}</span>
                   </button>
                 </div>
@@ -358,7 +369,7 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
                 title="재처리 요청"
                 aria-label="재처리 요청"
               >
-                <RetryIcon size={14} />
+                <RetryIcon size={ICON.sm} />
                 <span>{retrying ? "요청 중…" : "재시도"}</span>
               </button>
               <button
@@ -371,7 +382,7 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
                 title="삭제"
                 aria-label="삭제"
               >
-                <TrashIcon size={14} />
+                <TrashIcon size={ICON.sm} />
               </button>
             </>
           )}
@@ -387,7 +398,7 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
               title="목록에서 제거"
               aria-label="목록에서 제거"
             >
-              <TrashIcon size={14} />
+              <TrashIcon size={ICON.sm} />
             </button>
           )}
         </div>
