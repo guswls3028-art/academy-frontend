@@ -105,6 +105,22 @@ export async function retryMatchupDocument(id: number): Promise<MatchupDocument>
   return data;
 }
 
+export type MatchupDocumentPreview = {
+  url: string;
+  content_type: string;
+  title: string;
+  original_name: string;
+};
+
+export async function getMatchupDocumentPreview(
+  id: number,
+): Promise<MatchupDocumentPreview> {
+  const { data } = await api.get<MatchupDocumentPreview>(
+    `/matchup/documents/${id}/preview/`,
+  );
+  return data;
+}
+
 // ── Problems ──
 
 export async function fetchMatchupProblems(

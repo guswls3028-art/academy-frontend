@@ -45,6 +45,9 @@ export default function DocumentUploadModal({
   const [entries, setEntries] = useState<Entry[]>([]);
   const [uploading, setUploading] = useState(false);
   const [mergeProgress, setMergeProgress] = useState<MergeProgress | null>(null);
+  // 다중 업로드 모드 — 각 파일을 별도 시험지로 동시 업로드
+  const [splitMode, setSplitMode] = useState(false);
+  const [splitProgress, setSplitProgress] = useState<{ done: number; total: number } | null>(null);
   const [dropError, setDropError] = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
@@ -179,6 +182,47 @@ export default function DocumentUploadModal({
     if (entries.length === 0) return;
     setUploading(true);
     try {
+      // ── Split mode: 각 파일을 별도 시험지로 동시 업로드 ──
+      if (splitMode && entries.length > 1) {
+        setSplitProgress({ done: 0, total: entries.length });
+        // HEIC만 미리 변환 (각 파일을 그대로 업로드, 헤이크는 backend가 거부)
+        const prepared: { file: File; baseName: string }[] = [];
+        for (const e of entries) {
+          let file = e.file;
+          if (isHeic(file)) {
+            const { convertHeicToJpeg } = await import("./filesToPdf");
+            file = await convertHeicToJpeg(file);
+          }
+          // 이미지(png/jpg)도 PDF로 변환해서 backend 분리 파이프라인이 일관 처리
+          if (!isPdf(file)) {
+            const baseName = file.name.replace(/\.[^.]+$/, "");
+            file = await filesToPdf([file], `${baseName}.pdf`);
+          }
+          if (file.size > MAX_SIZE) {
+            throw new Error(`${file.name}이(가) 50MB를 초과합니다.`);
+          }
+          prepared.push({ file, baseName: file.name.replace(/\.pdf$/i, "") });
+        }
+        // 병렬 업로드 (각 파일이 별도 문서)
+        let done = 0;
+        const baseTitle = title.trim();
+        await Promise.all(prepared.map(async (p) => {
+          const docTitle = baseTitle ? `${baseTitle} - ${p.baseName}` : p.baseName;
+          await onUpload({
+            file: p.file,
+            title: docTitle,
+            subject,
+            grade_level: gradeLevel,
+          });
+          done += 1;
+          setSplitProgress({ done, total: prepared.length });
+        }));
+        setSplitProgress(null);
+        onClose();
+        return;
+      }
+
+      // ── Merge mode (default): 모든 파일을 1개 PDF로 합쳐 업로드 ──
       const hasHeic = entries.some((e) => isHeic(e.file));
       const files = entries.map((e) => e.file);
       let finalFile: File;
@@ -222,6 +266,7 @@ export default function DocumentUploadModal({
     } finally {
       setUploading(false);
       setMergeProgress(null);
+      setSplitProgress(null);
     }
   };
 
@@ -347,21 +392,55 @@ export default function DocumentUploadModal({
             />
           </div>
 
-          {/* 병합 안내 */}
+          {/* 모드 토글 — 파일 2개 이상일 때만 */}
+          {entries.length > 1 && (
+            <div style={{
+              marginBottom: "var(--space-3)",
+              padding: "var(--space-2) var(--space-3)",
+              border: "1px solid var(--color-border-divider)",
+              borderRadius: "var(--radius-md)",
+              display: "flex", alignItems: "center", gap: "var(--space-3)",
+              fontSize: 12,
+            }}>
+              <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", flex: 1 }}>
+                <input
+                  type="checkbox"
+                  checked={splitMode}
+                  onChange={(e) => setSplitMode(e.target.checked)}
+                  disabled={uploading}
+                  data-testid="matchup-split-mode-toggle"
+                  style={{ cursor: "pointer" }}
+                />
+                <span style={{ fontWeight: 600, color: "var(--color-text-primary)" }}>
+                  각 파일을 별도 시험지로 업로드
+                </span>
+                <span style={{ color: "var(--color-text-muted)" }}>
+                  ({entries.length}개 파일 → {entries.length}개 시험지)
+                </span>
+              </label>
+            </div>
+          )}
+
+          {/* 병합/분할 안내 */}
           {willMerge && (
             <div style={{
               marginBottom: "var(--space-3)",
               padding: "6px var(--space-3)",
-              background: "color-mix(in srgb, var(--color-brand-primary) 6%, transparent)",
+              background: splitMode
+                ? "color-mix(in srgb, var(--color-success) 8%, transparent)"
+                : "color-mix(in srgb, var(--color-brand-primary) 6%, transparent)",
               borderRadius: "var(--radius-sm)",
-              fontSize: 12, color: "var(--color-brand-primary)",
+              fontSize: 12,
+              color: splitMode ? "var(--color-success)" : "var(--color-brand-primary)",
               display: "flex", alignItems: "center", gap: "var(--space-2)",
             }}>
               <ImageIcon size={14} />
               <span>
-                {heicCount > 0
-                  ? "HEIC는 자동으로 JPEG로 변환 후 1개 PDF로 합쳐집니다"
-                  : "자동으로 1개 PDF로 합쳐서 업로드됩니다"}
+                {splitMode
+                  ? `각 파일이 별도 시험지로 동시 업로드됩니다 (${entries.length}개)${heicCount > 0 ? ", HEIC는 자동 변환" : ""}`
+                  : heicCount > 0
+                    ? "HEIC는 자동으로 JPEG로 변환 후 1개 PDF로 합쳐집니다"
+                    : "자동으로 1개 PDF로 합쳐서 업로드됩니다"}
               </span>
             </div>
           )}
@@ -544,12 +623,15 @@ export default function DocumentUploadModal({
           borderBottomRightRadius: "var(--radius-xl)",
         }}>
           <div style={{ display: "flex", justifyContent: "flex-end", gap: "var(--space-2)", alignItems: "center" }}>
-            {mergeLabel && (
+            {(mergeLabel || splitProgress) && (
               <span style={{
-                fontSize: 12, color: "var(--color-brand-primary)",
+                fontSize: 12,
+                color: splitProgress ? "var(--color-success)" : "var(--color-brand-primary)",
                 fontWeight: 600, marginRight: "auto",
               }}>
-                {mergeLabel}
+                {splitProgress
+                  ? `시험지 업로드 중... ${splitProgress.done}/${splitProgress.total}`
+                  : mergeLabel}
               </span>
             )}
             <Button intent="ghost" size="sm" onClick={onClose} disabled={uploading}>
@@ -563,11 +645,15 @@ export default function DocumentUploadModal({
             >
               {mergeProgress
                 ? mergeProgress.phase === "heic" ? "아이폰 사진 변환 중..." : "PDF 병합 중..."
-                : uploading
-                  ? "업로드 중..."
-                  : willMerge
-                    ? `${entries.length}개 합쳐서 업로드`
-                    : "업로드"}
+                : splitProgress
+                  ? `업로드 중... ${splitProgress.done}/${splitProgress.total}`
+                  : uploading
+                    ? "업로드 중..."
+                    : splitMode && entries.length > 1
+                      ? `${entries.length}개 시험지 동시 업로드`
+                      : willMerge
+                        ? `${entries.length}개 합쳐서 업로드`
+                        : "업로드"}
             </Button>
           </div>
         </div>

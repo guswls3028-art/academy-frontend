@@ -3,7 +3,7 @@
 
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Sparkles, AlertTriangle, RefreshCw } from "lucide-react";
+import { Sparkles, AlertTriangle, RefreshCw, Eye } from "lucide-react";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import {
@@ -20,6 +20,7 @@ import DocumentUploadModal from "../components/matchup/DocumentUploadModal";
 import ProblemGrid from "../components/matchup/ProblemGrid";
 import SimilarResults from "../components/matchup/SimilarResults";
 import ProblemDetailModal from "../components/matchup/ProblemDetailModal";
+import DocumentPreviewModal from "../components/matchup/DocumentPreviewModal";
 import MatchupEmptyState from "../components/matchup/MatchupEmptyState";
 import css from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
 
@@ -29,6 +30,7 @@ export default function MatchupPage() {
   const [selectedProblemId, setSelectedProblemId] = useState<number | null>(null);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [detailProblem, setDetailProblem] = useState<SimilarProblem | null>(null);
+  const [previewDocId, setPreviewDocId] = useState<number | null>(null);
   const [pendingNavigateNumber, setPendingNavigateNumber] = useState<number | null>(null);
 
   // ── 문서 목록 ──
@@ -195,6 +197,24 @@ export default function MatchupPage() {
                   <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "var(--color-text-primary)" }}>
                     {selectedDoc?.title}
                   </h3>
+                  {selectedDoc && (
+                    <button
+                      onClick={() => setPreviewDocId(selectedDoc.id)}
+                      data-testid="matchup-doc-preview-btn"
+                      title="원본 PDF/이미지 미리보기"
+                      style={{
+                        display: "flex", alignItems: "center", gap: 4,
+                        fontSize: 11, padding: "3px 10px", borderRadius: 4,
+                        background: "var(--color-bg-surface-soft)",
+                        color: "var(--color-text-secondary)",
+                        border: "1px solid var(--color-border-divider)",
+                        cursor: "pointer",
+                      }}
+                    >
+                      <Eye size={12} />
+                      원본 보기
+                    </button>
+                  )}
                   {selectedDoc?.subject && (
                     <span
                       title="과목"
@@ -354,6 +374,17 @@ export default function MatchupPage() {
           gradeLevelSuggestions={gradeLevelSuggestions}
         />
       )}
+
+      {previewDocId && (() => {
+        const doc = documents.find((d) => d.id === previewDocId);
+        return doc ? (
+          <DocumentPreviewModal
+            documentId={previewDocId}
+            documentTitle={doc.title}
+            onClose={() => setPreviewDocId(null)}
+          />
+        ) : null;
+      })()}
 
       {detailProblem && (
         <ProblemDetailModal
