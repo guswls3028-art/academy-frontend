@@ -46,11 +46,13 @@ export default function ParentChildSwitcher() {
     if (id === currentId) return;
     setParentStudentId(id);
     setCurrentId(id);
-    /* 자녀별 쿼리 격리가 필요한 키 prefix들 — 학생 도메인 전체. */
-    qc.removeQueries({ queryKey: ["student"] });
-    qc.removeQueries({ queryKey: ["student-dashboard"] });
-    qc.removeQueries({ queryKey: ["student-sessions"] });
-    qc.removeQueries({ queryKey: ["student-session"] });
+    /* invalidate로 stale 마킹 + 자동 refetch — 활성 쿼리는 이전 데이터를 잠깐
+     * 보여주다 새 자녀 데이터로 매끄럽게 전환. removeQueries는 즉시 캐시 비우기라
+     * 아바타/이름이 잠깐 "?"로 깨지는 깜빡임이 발생해서 대신 invalidate 사용. */
+    qc.invalidateQueries({ queryKey: ["student"] });
+    qc.invalidateQueries({ queryKey: ["student-dashboard"] });
+    qc.invalidateQueries({ queryKey: ["student-sessions"] });
+    qc.invalidateQueries({ queryKey: ["student-session"] });
     navigate("/student/dashboard");
   };
 

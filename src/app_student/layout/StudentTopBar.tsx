@@ -354,7 +354,9 @@ export default function StudentTopBar({ tenantCode, onMenuClick }: Props) {
               ?
             </span>
           )}
-          {profile?.isParentReadOnly && profile?.displayName && (
+          {profile?.isParentReadOnly && profile?.displayName &&
+            (user?.linkedStudents?.length ?? 0) < 2 && (
+            /* 자녀가 2명 이상이면 헤더 하단 자녀 스위처가 같은 정보를 노출하므로 중복 노출 방지 */
             <span
               className="stu-topbar__name"
               style={{

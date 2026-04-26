@@ -745,19 +745,13 @@ function AcademyContact({
     ? tenantInfo.academies
     : [{ name: tenantInfo.name || "학원", phone: tenantInfo.headquarters_phone || tenantInfo.phone || "" }];
 
-  const contactable = academies.filter((a) => a.name || a.phone);
+  /* 학원문의는 "전화 거는 행위"가 핵심. phone 없는 분점은 카드에서 제외. */
+  const contactable = academies.filter((a) => (a.phone || "").trim() !== "");
   if (contactable.length === 0) return null;
 
   /* 단일 분점 — 1행 압축 */
   if (contactable.length === 1) {
     const a = contactable[0]!;
-    if (!a.phone) {
-      return (
-        <div style={{ fontSize: 12, color: "var(--stu-text-muted)", textAlign: "center", padding: "8px 0" }}>
-          {a.name || "학원"}
-        </div>
-      );
-    }
     return (
       <a
         href={`tel:${a.phone.replace(/\D/g, "")}`}
