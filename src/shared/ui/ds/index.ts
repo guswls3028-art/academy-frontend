@@ -29,3 +29,11 @@ export { default as ActionButton } from "./components/ActionButton";
 export { default as StatusBadge } from "./components/StatusBadge";
 export { default as StatusToggle } from "./components/StatusToggle";
 export { default as CloseButton } from "./CloseButton";
+
+/* Badge SSOT — 모든 신규 뱃지는 이 컴포넌트만 사용 */
+export { default as Badge } from "./components/Badge";
+export type { BadgeTone, BadgeSize, BadgeVariant } from "./components/Badge";
+
+/* Icon size SSOT — lucide/antd icon에 size 직접 박지 말고 ICON.* 사용 */
+export { ICON, ICON_FOR_BADGE, ICON_FOR_BUTTON } from "./iconSize";
+export type { IconSizeKey } from "./iconSize";
