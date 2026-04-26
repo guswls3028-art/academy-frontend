@@ -75,7 +75,8 @@ export default function Sidebar() {
     <aside
       className="sidebar sidebar-shell"
       style={{
-        height: "100vh",
+        height: "100%",
+        minHeight: 0,
         display: "flex",
         flexDirection: "column",
         overflow: "hidden",
@@ -83,7 +84,17 @@ export default function Sidebar() {
           "linear-gradient(180deg, var(--sidebar-bg), color-mix(in srgb, var(--sidebar-bg) 78%, var(--layout-canvas-bg)))",
       }}
     >
-      <div style={{ flex: 1, overflow: "hidden", padding: "12px" }}>
+      <div
+        className="sidebar-scroll"
+        style={{
+          flex: 1,
+          minHeight: 0,
+          overflowY: "auto",
+          overflowX: "hidden",
+          overscrollBehavior: "contain",
+          padding: "12px",
+        }}
+      >
         <div className="nav">
           {groups.map((g, gi) => (
             <div key={gi} className="sidebar-group">

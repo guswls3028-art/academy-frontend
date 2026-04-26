@@ -134,6 +134,27 @@
 }
 
 /* ======================================================
+   Sidebar scroll area (작은 화면/배율 안 맞을 때 하단 메뉴 접근 보장)
+====================================================== */
+.sidebar-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--sidebar-text) 22%, transparent) transparent;
+}
+.sidebar-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+.sidebar-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.sidebar-scroll::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--sidebar-text) 18%, transparent);
+  border-radius: 6px;
+}
+.sidebar-scroll:hover::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--sidebar-text) 30%, transparent);
+}
+
+/* ======================================================
    Sidebar navigation
 ====================================================== */
 .nav {
