@@ -1,4 +1,6 @@
 // PATH: src/shared/ui/ds/components/StatusBadge.tsx
+import Badge from "./Badge";
+
 export type Status = "active" | "inactive" | "archived";
 
 const LABEL: Record<Status, string> = {
@@ -9,11 +11,8 @@ const LABEL: Record<Status, string> = {
 
 export default function StatusBadge({ status }: { status: Status }) {
   return (
-    <span
-      className="ds-status-badge"
-      data-status={status}
-    >
+    <Badge variant="solid" status={status} title={LABEL[status]}>
       {LABEL[status]}
-    </span>
+    </Badge>
   );
 }
