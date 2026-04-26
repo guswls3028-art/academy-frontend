@@ -306,7 +306,7 @@ export default function VideoTreeView() {
         String(payload.videoId),
         "video_processing"
       );
-      feedback.success("재시도 요청을 보냈습니다. 우하단 진행 상황에서 확인할 수 있습니다.");
+      feedback.success("재시도 요청을 보냈습니다. 우상단 작업박스에서 확인할 수 있습니다.");
     },
     onError: (e: unknown, payload) => {
       const msg = getRetryErrorMessage(e);

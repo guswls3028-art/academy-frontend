@@ -80,7 +80,7 @@ export default function LectureEnrollExcelModal({
         return;
       }
       asyncStatusStore.addWorkerJob("엑셀 수강등록", job_id, "excel_parsing");
-      feedback.success("작업이 백그라운드에서 진행됩니다. 우하단에서 진행 상황을 확인할 수 있습니다.");
+      feedback.success("작업이 백그라운드에서 진행됩니다. 우상단 작업박스에서 확인할 수 있습니다.");
       onSuccess?.();
       onClose();
       setParsed(null);

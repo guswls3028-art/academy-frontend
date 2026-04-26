@@ -348,7 +348,7 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
         return;
       }
       asyncStatusStore.addWorkerJob("학생 일괄 등록", job_id, "excel_parsing");
-      feedback.success("백그라운드에서 진행됩니다. 우하단에서 진행 상황을 확인할 수 있습니다.");
+      feedback.success("백그라운드에서 진행됩니다. 우상단 작업박스에서 확인할 수 있습니다.");
       onSuccess();
       onClose();
     } catch (e: unknown) {
