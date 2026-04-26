@@ -28,7 +28,7 @@ import { useTreeCounts } from "../hooks/useTreeCounts";
 import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import { fetchLectures, fetchSessions, type Lecture, type Session } from "@admin/domains/lectures/api/sessions";
 import CmsTreeNav from "../components/CmsTreeNav";
-import { Button } from "@/shared/ui/ds";
+import { Button, Badge } from "@/shared/ui/ds";
 import { useConfirm } from "@/shared/ui/confirm";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import RichTextEditor from "@/shared/ui/editor/RichTextEditor";
@@ -207,7 +207,6 @@ export default function BoardAdminPage() {
                 scope={scope as any}
                 lectureName={lectures.find((l) => l.id === lectureId)?.title ?? null}
                 sessionName={sessionsOfLecture.find((s) => s.id === sessionId)?.title ?? null}
-                inline
               />
             </div>
             {canShowList && <Button intent="primary" size="sm" onClick={() => { setShowCreate(true); setSelectedId(null); }}>+ 글쓰기</Button>}
@@ -355,7 +354,7 @@ function BoardCreatePane({
           <div className="qna-inbox__thread-title-group">
             <h1 className="qna-inbox__thread-title">새 게시물 작성</h1>
             <div className="qna-inbox__thread-meta">
-              <span className="ds-badge ds-badge--primary">게시 대상: {scopeLabel}</span>
+              <Badge tone="primary">게시 대상: {scopeLabel}</Badge>
             </div>
             <p className="text-xs text-[var(--color-text-muted)] mt-1">
               {scopeParams.scope === "all"

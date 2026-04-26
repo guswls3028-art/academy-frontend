@@ -1,16 +1,17 @@
 // PATH: src/app_admin/domains/community/components/CommunityContextBar.tsx
-// Scope-aware context indicator — inline badge style (not a floating bar)
+// 커뮤니티 게시 대상(scope) 인디케이터 — 헤더 옆에 붙는 인라인 칩
+// 강의/차시 필터링이 의미있는 게시판/공지/자료실에서만 사용.
+// scope='all' 고정인 화면(QnA/상담)에는 추가하지 말 것 — 정보가치 0.
 
 import type { CommunityScope } from "../api/community.api";
 import { Globe, BookOpen, Layers } from "lucide-react";
+import { ICON } from "@/shared/ui/ds";
 
 type CommunityContextBarProps = {
   scope: CommunityScope;
   lectureName?: string | null;
   sessionName?: string | null;
   extra?: React.ReactNode;
-  /** true = render as inline badge (inside header), false = render as full-width bar (legacy) */
-  inline?: boolean;
 };
 
 const SCOPE_CONFIG = {
@@ -36,7 +37,6 @@ export default function CommunityContextBar({
   lectureName,
   sessionName,
   extra,
-  inline,
 }: CommunityContextBarProps) {
   const config = SCOPE_CONFIG[scope] ?? SCOPE_CONFIG.all;
   const IconComp = config.icon;
@@ -50,36 +50,13 @@ export default function CommunityContextBar({
     detail = lectureName;
   }
 
-  // Inline chip mode — sits inside header row
-  if (inline) {
-    return (
-      <span className={`community-scope-chip ${config.className}`}>
-        <IconComp size={12} aria-hidden className="community-scope-chip__icon" />
-        <span className="community-scope-chip__label">
-          {detail || config.label}
-        </span>
-        {extra}
-      </span>
-    );
-  }
-
-  // Full-width bar mode (for QnA/Counsel where it makes sense as a banner)
   return (
-    <div className={`community-context-bar community-context-bar--${scope}`}>
-      <IconComp className="community-context-bar__icon" />
-      <span className="community-context-bar__scope-label">{config.label}</span>
-      {detail && (
-        <>
-          <span className="community-context-bar__dot" aria-hidden="true" />
-          <span className="community-context-bar__detail">{detail}</span>
-        </>
-      )}
-      {extra && (
-        <>
-          <span className="community-context-bar__dot" aria-hidden="true" />
-          <span className="community-context-bar__extra">{extra}</span>
-        </>
-      )}
-    </div>
+    <span className={`community-scope-chip ${config.className}`}>
+      <IconComp size={ICON.xs} aria-hidden className="community-scope-chip__icon" />
+      <span className="community-scope-chip__label">
+        {detail || config.label}
+      </span>
+      {extra}
+    </span>
   );
 }

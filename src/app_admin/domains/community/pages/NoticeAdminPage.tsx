@@ -23,7 +23,7 @@ import { useTreeCounts } from "../hooks/useTreeCounts";
 import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import { fetchLectures, fetchSessions, type Lecture, type Session } from "@admin/domains/lectures/api/sessions";
 import CmsTreeNav from "../components/CmsTreeNav";
-import { Button } from "@/shared/ui/ds";
+import { Button, Badge } from "@/shared/ui/ds";
 import { useConfirm } from "@/shared/ui/confirm";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import RichTextEditor from "@/shared/ui/editor/RichTextEditor";
@@ -177,7 +177,6 @@ export default function NoticeAdminPage() {
                 scope={scope as any}
                 lectureName={lectures.find((l) => l.id === lectureId)?.title ?? null}
                 sessionName={sessionsOfLecture.find((s) => s.id === sessionId)?.title ?? null}
-                inline
               />
             </div>
             <Button intent="primary" size="sm" onClick={() => { setShowCreate(true); setSelectedId(null); }}>+ 추가</Button>
@@ -641,7 +640,7 @@ function NoticeCreatePane({
           <div className="qna-inbox__thread-title-group">
             <h1 className="qna-inbox__thread-title">새 공지 작성</h1>
             <div className="qna-inbox__thread-meta">
-              <span className="ds-badge ds-badge--primary">대상: {scopeLabel}</span>
+              <Badge tone="primary">대상: {scopeLabel}</Badge>
               <span className="text-xs text-[var(--color-text-muted)]" style={{ marginLeft: 8 }}>
                 {scopeParams.scope === "all"
                   ? "모든 강의의 학생에게 보이는 공지입니다."
