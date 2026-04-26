@@ -20,7 +20,9 @@ env:
 jobs:
   e2e:
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    # 활성 87 spec × workers:1 (fullyParallel:false) 기준 약 30~45분 소요.
+    # 12분 timeout 은 timeout-fail 을 항상 만들어 PR signal 을 무력화시켜 왔음.
+    timeout-minutes: 45
     # PR 또는 수동 실행에서만 동작 (push에서는 quality-gate.yml이 처리)
     if: github.event_name == 'workflow_dispatch' || github.event_name == 'pull_request'
     steps:
@@ -53,6 +55,15 @@ jobs:
           TCHUL_ADMIN_USER=${{ secrets.TCHUL_ADMIN_USER }}
           TCHUL_ADMIN_PASS=${{ secrets.TCHUL_ADMIN_PASS }}
           SSWE_BASE_URL=https://sswe.co.kr
+          DNB_BASE_URL=https://dnbacademy.co.kr
+          DNB_ADMIN_USER=${{ secrets.DNB_ADMIN_USER }}
+          DNB_ADMIN_PASS=${{ secrets.DNB_ADMIN_PASS }}
+          LIMGLISH_BASE_URL=https://limglish.kr
+          LIMGLISH_ADMIN_USER=${{ secrets.LIMGLISH_ADMIN_USER }}
+          LIMGLISH_ADMIN_PASS=${{ secrets.LIMGLISH_ADMIN_PASS }}
+          # strictTest 모드 — report 는 defect 을 annotation 으로만 surface,
+          # strict 는 defect 발견 시 spec fail. 현 단계는 마이그레이션 안정화 관찰.
+          E2E_STRICT=report
           EOF
 
       - name: Run E2E tests

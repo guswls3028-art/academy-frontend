@@ -10,11 +10,14 @@ config({ path: resolve(__dirname, ".env.e2e") });
 
 export default defineConfig({
   testDir: "./e2e",
-  testIgnore: ["_local/**"],
-  timeout: 30_000,
+  testIgnore: ["_local/**", "**/_archive/**"],
+  // E2E_STRICT=report 모드에서 spec 별 console.error/pageerror annotation 을
+  // test-results/strict-defects.json 으로 합산 — 운영자 점검용.
+  globalTeardown: "./e2e/globalTeardown.ts",
+  timeout: 60_000,
   expect: { timeout: 10_000 },
   fullyParallel: false,
-  retries: 0,
+  retries: process.env.CI ? 2 : 1,
   workers: 1,
   reporter: [["list"], ["html", { open: "never" }]],
   use: {

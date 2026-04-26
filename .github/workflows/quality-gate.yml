@@ -103,11 +103,16 @@ jobs:
     env:
       # Tenant 1 (hakwonplus) — production-like test tenant
       E2E_BASE_URL: https://hakwonplus.com
+      E2E_API_URL: https://api.hakwonplus.com
+      # legacy alias (일부 spec 이 API_BASE_URL 을 참조하던 시기 호환용)
       API_BASE_URL: https://api.hakwonplus.com
       E2E_ADMIN_USER: ${{ secrets.E2E_ADMIN_USER }}
       E2E_ADMIN_PASS: ${{ secrets.E2E_ADMIN_PASS }}
       E2E_STUDENT_USER: ${{ secrets.E2E_STUDENT_USER }}
       E2E_STUDENT_PASS: ${{ secrets.E2E_STUDENT_PASS }}
+      # 회귀 4개 (notice/qna/clinic roundtrip + password-reset) 는 strict 모드 적용 —
+      # 배포 후 검증이라 console error 발견 시 즉시 fail 해야 함.
+      E2E_STRICT: strict
 
     steps:
       - uses: actions/checkout@v4
