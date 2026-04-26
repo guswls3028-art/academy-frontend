@@ -17,10 +17,18 @@ export type Me = {
 /** Me → 직책 (직원관리·헤더·설정 등 사용자 정보 표시 시 StaffRoleAvatar용) */
 export type MeStaffRole = "owner" | "TEACHER" | "ASSISTANT";
 
+/**
+ * 백엔드 SSOT는 `tenantRole` (TenantMembership.role) — owner/admin/teacher/staff/...
+ * Django의 `is_staff`는 "Django 관리자(/django-admin) 접근권" 플래그라 SaaS 직책과 무관.
+ * tenantRole 우선, 없으면 is_superuser→owner, 그 외 ASSISTANT 폴백.
+ */
 export function meToStaffRole(me: Me | null | undefined): MeStaffRole {
   if (!me) return "ASSISTANT";
+  const tr = (me.tenantRole || "").toLowerCase();
+  if (tr === "owner") return "owner";
+  if (tr === "teacher") return "TEACHER";
+  if (tr === "admin" || tr === "staff") return "ASSISTANT";
   if (me.is_superuser) return "owner";
-  if (me.is_staff) return "TEACHER";
   return "ASSISTANT";
 }
 

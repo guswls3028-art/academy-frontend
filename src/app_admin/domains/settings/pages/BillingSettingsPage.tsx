@@ -201,14 +201,14 @@ export default function BillingSettingsPage() {
       {isExpired && (
         <div className={styles.expiredBanner}>
           <strong>구독이 만료되었습니다.</strong>
-          <p>서비스 이용을 계속하시려면 관리자에게 문의하거나 구독을 갱신해 주세요.</p>
+          <p>서비스 이용을 계속하시려면 학원플러스 운영팀에 문의하거나 구독을 갱신해 주세요.</p>
         </div>
       )}
 
       {/* Info */}
       <div className={styles.infoSection}>
         <p className={styles.infoText}>
-          결제 및 구독 관련 문의는 관리자에게 연락해 주세요.
+          결제 및 구독 관련 문의는 학원플러스 운영팀에 연락해 주세요.
         </p>
       </div>
     </div>
