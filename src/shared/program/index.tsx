@@ -4,6 +4,7 @@ import api, { type ApiRequestConfig } from "@/shared/api/axios";
 
 export type Program = {
   tenantCode: string;
+  isPlatformAdmin?: boolean;
   display_name: string;
 
   ui_config: {
@@ -21,6 +22,7 @@ export type Program = {
 /** 로컬 개발 시 백엔드 미기동으로 /core/program/ 실패해도 /login 접근 가능하도록 fallback */
 const DEV_FALLBACK_PROGRAM: Program = {
   tenantCode: "9999",
+  isPlatformAdmin: true,
   display_name: "학원플러스 (로컬)",
   ui_config: { login_title: "학원플러스", login_subtitle: "로컬 개발" },
   feature_flags: {},

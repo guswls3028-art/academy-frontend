@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Outlet, Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { logout } from "@/auth/api/auth.api";
 import { useProgram } from "@/shared/program";
+import { CommandPalette, useCommandPaletteHotkey } from "@dev/shared/components/CommandPalette";
 import s from "./DevLayout.module.css";
 
 const NAV_ITEMS = [
@@ -9,6 +10,7 @@ const NAV_ITEMS = [
   { to: "/dev/tenants", label: "테넌트", icon: IconTenants },
   { to: "/dev/billing", label: "결제", icon: IconBilling },
   { to: "/dev/inbox", label: "문의함", icon: IconInbox },
+  { to: "/dev/automation", label: "자동화", icon: IconAutomation },
   { to: "/dev/agents", label: "에이전트", icon: IconAgents },
 ];
 
@@ -17,10 +19,17 @@ export default function DevLayout() {
   const navigate = useNavigate();
   const { program } = useProgram();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  useCommandPaletteHotkey(setPaletteOpen);
 
-  // B-05: Only hakwonplus / 9999 tenants may access /dev/*
-  if (program && program.tenantCode !== "hakwonplus" && program.tenantCode !== "9999") {
-    return <Navigate to="/admin" replace />;
+  // 백엔드 OWNER_TENANT_ID(SSOT). isPlatformAdmin 미지원 백엔드는 tenantCode로 폴백.
+  if (program) {
+    const allowed = program.isPlatformAdmin !== undefined
+      ? program.isPlatformAdmin
+      : program.tenantCode === "hakwonplus" || program.tenantCode === "9999";
+    if (!allowed) {
+      return <Navigate to="/admin" replace />;
+    }
   }
   const isActive = (path: string) =>
     location.pathname === path || location.pathname.startsWith(path + "/");
@@ -34,6 +43,22 @@ export default function DevLayout() {
           <span className={s.brandName}>Academy</span>
           <span className={s.brandTag}>DEV</span>
         </div>
+
+        <button
+          type="button"
+          onClick={() => setPaletteOpen(true)}
+          style={{
+            margin: "12px 12px 4px", padding: "8px 10px", borderRadius: 8,
+            background: "rgba(255,255,255,0.06)", color: "#94a3b8",
+            border: "1px solid rgba(255,255,255,0.08)", cursor: "pointer",
+            display: "flex", alignItems: "center", gap: 8, fontSize: 12,
+          }}
+          title="글로벌 검색 (Cmd/Ctrl+K)"
+        >
+          <span>🔍</span>
+          <span style={{ flex: 1, textAlign: "left" }}>테넌트·사용자 검색</span>
+          <kbd style={{ fontSize: 10, padding: "1px 5px", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 4 }}>⌘K</kbd>
+        </button>
 
         <nav className={s.sidebarNav}>
           <div className={s.navSection}>
@@ -122,6 +147,8 @@ export default function DevLayout() {
           </Link>
         ))}
       </nav>
+
+      <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
     </div>
   );
 }
@@ -213,6 +240,15 @@ function IconAgents({ className }: { className?: string }) {
       <circle cx="13" cy="5" r="2" />
       <path d="M1 15v-1.5A3.5 3.5 0 014.5 10h3A3.5 3.5 0 0111 13.5V15" />
       <path d="M11 11.5a2.5 2.5 0 015 0V13" />
+    </svg>
+  );
+}
+
+function IconAutomation({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="9" cy="9" r="6.5" />
+      <path d="M9 4.5v4.5l3 2" />
     </svg>
   );
 }

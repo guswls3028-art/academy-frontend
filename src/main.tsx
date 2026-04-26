@@ -23,6 +23,7 @@ import { ConfirmProvider } from "@/shared/ui/confirm/ConfirmProvider";
 import { ModalWindowProvider, ModalTaskbar } from "@/shared/ui/modal";
 import { addNavigationBreadcrumb } from "@/shared/lib/sentryContext";
 import BugReportButton from "@/shared/ui/feedback/BugReportButton";
+import ImpersonationBanner from "@dev/shared/components/ImpersonationBanner";
 
 import "./index.css";
 import "antd/dist/reset.css";
@@ -124,6 +125,7 @@ function AppInner() {
 
   return (
     <>
+      <ImpersonationBanner />
       <AppRouter />
       <SubscriptionExpiredOverlay />
       <BugReportButton />

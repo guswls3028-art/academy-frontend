@@ -54,3 +54,10 @@ export async function createInboxReply(postId: number, content: string): Promise
 export async function deleteInboxReply(postId: number, replyId: number): Promise<void> {
   await api.delete(`/community/platform/inbox/${postId}/replies/${replyId}/`);
 }
+
+export async function getInboxAttachmentUrl(postId: number, attId: number): Promise<{ url: string; original_name: string }> {
+  const res = await api.get<{ url: string; original_name: string }>(
+    `/community/platform/inbox/${postId}/attachments/${attId}/download/`,
+  );
+  return res.data;
+}

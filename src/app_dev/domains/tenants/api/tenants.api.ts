@@ -100,3 +100,85 @@ export async function removeTenantOwner(
 ): Promise<void> {
   await api.delete(`/core/tenants/${tenantId}/owners/${userId}/`);
 }
+
+/* ===== Dev: Usage / Activity / Impersonate ===== */
+
+export type TenantUsageDto = {
+  tenant: { id: number; code: string; name: string; is_active: boolean };
+  users: {
+    students: number;
+    teachers: number;
+    parents: number;
+    memberships_by_role: Record<string, number>;
+    last_login_at: string | null;
+  };
+  videos: { total: number; active: number; processing: number; failed: number };
+  messaging: { sent_30d: number; failed_30d: number };
+  billing: null | {
+    plan: string;
+    plan_display: string;
+    monthly_price: number;
+    subscription_status: string;
+    subscription_status_display: string;
+    subscription_expires_at: string | null;
+    next_billing_at: string | null;
+    days_remaining: number | null;
+    cancel_at_period_end: boolean;
+  };
+};
+
+export async function getTenantUsage(tenantId: number): Promise<TenantUsageDto> {
+  const res = await api.get<TenantUsageDto>(`/core/dev/tenants/${tenantId}/usage/`);
+  return res.data;
+}
+
+export type TenantActivityEntry = {
+  id: number;
+  created_at: string | null;
+  actor: string;
+  action: string;
+  summary: string;
+  result: "success" | "failed";
+  error: string;
+  payload: unknown;
+};
+
+export async function getTenantActivity(tenantId: number): Promise<{ results: TenantActivityEntry[]; count: number }> {
+  const res = await api.get<{ results: TenantActivityEntry[]; count: number }>(
+    `/core/dev/tenants/${tenantId}/activity/`,
+  );
+  return res.data;
+}
+
+export type ImpersonateResponse = {
+  access: string;
+  refresh: string;
+  target: { user_id: number; username: string; role: string; tenant_id: number; tenant_code: string };
+};
+
+export async function impersonateTenantUser(tenantId: number, userId: number): Promise<ImpersonateResponse> {
+  const res = await api.post<ImpersonateResponse>(
+    `/core/dev/tenants/${tenantId}/impersonate/`,
+    { user_id: userId },
+  );
+  return res.data;
+}
+
+export type TenantStorageDto = {
+  tenant_id: number;
+  tenant_code: string;
+  prefix: string;
+  bytes: number;
+  objects: number;
+  calculated_at: string;
+  cache_ttl: number;
+  cached: boolean;
+};
+
+export async function getTenantStorage(tenantId: number, opts?: { refresh?: boolean }): Promise<TenantStorageDto> {
+  const res = await api.get<TenantStorageDto>(
+    `/core/dev/tenants/${tenantId}/storage/`,
+    { params: opts?.refresh ? { refresh: 1 } : undefined },
+  );
+  return res.data;
+}

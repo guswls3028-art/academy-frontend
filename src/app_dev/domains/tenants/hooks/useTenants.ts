@@ -8,6 +8,10 @@ import {
   registerTenantOwner,
   updateTenantOwner,
   removeTenantOwner,
+  getTenantUsage,
+  getTenantActivity,
+  impersonateTenantUser,
+  getTenantStorage,
   type TenantDto,
   type CreateTenantDto,
 } from "@dev/domains/tenants/api/tenants.api";
@@ -93,6 +97,50 @@ export function useRemoveOwner() {
       removeTenantOwner(tenantId, userId),
     onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: KEYS.owners(vars.tenantId) });
+    },
+  });
+}
+
+export function useTenantUsage(id: number | null) {
+  return useQuery({
+    queryKey: ["dev", "tenants", id, "usage"] as const,
+    queryFn: () => getTenantUsage(id!),
+    enabled: id != null && !isNaN(id),
+    staleTime: 60_000,
+  });
+}
+
+export function useTenantActivity(id: number | null) {
+  return useQuery({
+    queryKey: ["dev", "tenants", id, "activity"] as const,
+    queryFn: () => getTenantActivity(id!),
+    enabled: id != null && !isNaN(id),
+    staleTime: 30_000,
+  });
+}
+
+export function useImpersonate() {
+  return useMutation({
+    mutationFn: ({ tenantId, userId }: { tenantId: number; userId: number }) =>
+      impersonateTenantUser(tenantId, userId),
+  });
+}
+
+export function useTenantStorage(id: number | null, opts?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: ["dev", "tenants", id, "storage"] as const,
+    queryFn: () => getTenantStorage(id!),
+    enabled: (opts?.enabled ?? true) && id != null && !isNaN(id),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useRefreshTenantStorage() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (tenantId: number) => getTenantStorage(tenantId, { refresh: true }),
+    onSuccess: (_data, tenantId) => {
+      qc.invalidateQueries({ queryKey: ["dev", "tenants", tenantId, "storage"] });
     },
   });
 }

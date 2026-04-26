@@ -1,9 +1,10 @@
 // PATH: src/dev_app/pages/InboxPage.tsx
 // Platform inbox — 전체 테넌트 버그/피드백 수신함 + 답변
 
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useInboxPosts, useCreateInboxReply, useDeleteInboxReply } from "@dev/domains/inbox/hooks/useInbox";
+import { getInboxAttachmentUrl } from "@dev/domains/inbox/api/inbox.api";
 import { useDevToast } from "@dev/shared/components/DevToast";
 import type { InboxPost } from "@dev/domains/inbox/api/inbox.api";
 import s from "@dev/layout/DevLayout.module.css";
@@ -13,13 +14,17 @@ type FilterType = "all" | "bug" | "feedback";
 export default function InboxPage() {
   const { toast } = useDevToast();
   const [filter, setFilter] = useState<FilterType>("all");
-  const [selected, setSelected] = useState<InboxPost | null>(null);
+  const [selectedId, setSelectedId] = useState<number | null>(null);
   const [replyText, setReplyText] = useState("");
-  const replyRef = useRef<HTMLTextAreaElement>(null);
 
-  const { data, isLoading, refetch } = useInboxPosts(filter);
+  const { data, isLoading } = useInboxPosts(filter);
   const replyMut = useCreateInboxReply();
   const deleteMut = useDeleteInboxReply();
+
+  const selected: InboxPost | null = useMemo(
+    () => (selectedId == null ? null : data?.results.find((p) => p.id === selectedId) ?? null),
+    [data, selectedId],
+  );
 
   const posts = data?.results ?? [];
 
@@ -32,13 +37,12 @@ export default function InboxPage() {
     return { total: all.length, bugs: bugs.length, feedbacks: fbs.length, unanswered: unanswered.length };
   }, [posts]);
 
-  // Keep selected post synced with latest data
+  // selected는 selectedId+data로 derived. 별도 sync effect 불필요.
   useEffect(() => {
-    if (selected && data) {
-      const updated = data.results.find((p) => p.id === selected.id);
-      if (updated) setSelected(updated);
+    if (selectedId != null && data && !data.results.find((p) => p.id === selectedId)) {
+      setSelectedId(null);
     }
-  }, [data]);
+  }, [data, selectedId]);
 
   async function handleReply() {
     if (!selected || !replyText.trim()) return;
@@ -124,7 +128,7 @@ export default function InboxPage() {
                   <button
                     key={post.id}
                     type="button"
-                    onClick={() => { setSelected(post); setReplyText(""); }}
+                    onClick={() => { setSelectedId(post.id); setReplyText(""); }}
                     style={{
                       display: "block", width: "100%", textAlign: "left",
                       padding: "12px 16px", border: "none", cursor: "pointer",
@@ -184,7 +188,7 @@ export default function InboxPage() {
                   </span>
                   <button
                     type="button"
-                    onClick={() => setSelected(null)}
+                    onClick={() => setSelectedId(null)}
                     style={{
                       marginLeft: "auto", border: "none", background: "none",
                       cursor: "pointer", color: "var(--dev-text-muted)", fontSize: 18, lineHeight: 1,
@@ -220,17 +224,32 @@ export default function InboxPage() {
                       첨부파일
                     </div>
                     {selected.attachments.map((att) => (
-                      <div key={att.id} style={{
-                        display: "flex", alignItems: "center", gap: 6, padding: "4px 8px",
-                        fontSize: 12, color: "var(--dev-text-secondary)",
-                        background: "var(--dev-bg)", borderRadius: 6, marginBottom: 4,
-                      }}>
+                      <button
+                        key={att.id}
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            const { url } = await getInboxAttachmentUrl(selected.id, att.id);
+                            window.open(url, "_blank", "noopener,noreferrer");
+                          } catch {
+                            toast("첨부 다운로드 URL 발급 실패", "error");
+                          }
+                        }}
+                        style={{
+                          display: "flex", alignItems: "center", gap: 6, padding: "4px 8px",
+                          fontSize: 12, color: "var(--dev-text-secondary)",
+                          background: "var(--dev-bg)", borderRadius: 6, marginBottom: 4,
+                          width: "100%", textAlign: "left", border: "1px solid var(--dev-border-light)",
+                          cursor: "pointer",
+                        }}
+                        title="새 탭에서 열기"
+                      >
                         <span>📎</span>
-                        <span>{att.original_name}</span>
+                        <span style={{ flex: 1 }}>{att.original_name}</span>
                         <span style={{ color: "var(--dev-text-muted)" }}>
                           ({(att.size_bytes / 1024).toFixed(0)}KB)
                         </span>
-                      </div>
+                      </button>
                     ))}
                   </div>
                 )}
@@ -292,7 +311,6 @@ export default function InboxPage() {
                 display: "flex", gap: 8, alignItems: "flex-end",
               }}>
                 <textarea
-                  ref={replyRef}
                   value={replyText}
                   onChange={(e) => setReplyText(e.target.value)}
                   placeholder="답변을 입력하세요..."
