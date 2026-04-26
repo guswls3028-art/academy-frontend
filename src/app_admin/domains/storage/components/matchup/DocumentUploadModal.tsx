@@ -96,6 +96,20 @@ export default function DocumentUploadModal({
     return () => document.removeEventListener("keydown", onKey);
   }, [uploading, onClose]);
 
+  // Ctrl+V 붙여넣기 — 시험탭과 동일한 패턴. 텍스트 입력에 포커스가 있어도
+  // 클립보드에 파일이 있으면 entries에 추가. (텍스트 paste는 그대로 통과)
+  const handlePaste = (e: React.ClipboardEvent) => {
+    if (uploading) return;
+    const files = e.clipboardData?.files;
+    if (!files || files.length === 0) return;
+    const imgs = Array.from(files).filter((f) => f.type.startsWith("image/"));
+    if (imgs.length === 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    addFiles(imgs);
+    feedback.success(`${imgs.length}장 붙여넣기됨`);
+  };
+
   const showDropError = (msg: string) => {
     setDropError(msg);
     feedback.error(msg);
@@ -321,6 +335,7 @@ export default function DocumentUploadModal({
           boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
         }}
         onClick={(e) => e.stopPropagation()}
+        onPaste={handlePaste}
       >
         {/* Header */}
         <div style={{
@@ -399,8 +414,8 @@ export default function DocumentUploadModal({
             </p>
             <p style={{ margin: "var(--space-1) 0 0", fontSize: 12, color: "var(--color-text-muted)" }}>
               {entries.length === 0
-                ? "PDF · JPG · PNG · HEIC(아이폰) 모두 가능 · 자동으로 1개 PDF로 합쳐짐 · 최대 50MB"
-                : `${(totalSize / 1024 / 1024).toFixed(1)}MB · 더 추가하려면 다시 클릭/드래그`}
+                ? "PDF · JPG · PNG · HEIC(아이폰) · Ctrl+V로 붙여넣기도 가능 · 자동으로 1개 PDF로 합쳐짐 · 최대 50MB"
+                : `${(totalSize / 1024 / 1024).toFixed(1)}MB · 더 추가하려면 다시 클릭/드래그/Ctrl+V`}
             </p>
             <input
               ref={inputRef}

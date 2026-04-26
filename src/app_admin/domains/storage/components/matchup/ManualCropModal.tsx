@@ -40,8 +40,88 @@ type DraftBox = {
   h: number;
 };
 
+type DragMode =
+  | "draw"   // 새 박스 그리기
+  | "move"   // 박스 이동
+  | "nw" | "n" | "ne" | "e" | "se" | "s" | "sw" | "w"; // 핸들 방향
+
+const HANDLE_CURSOR: Record<Exclude<DragMode, "draw" | "move">, string> = {
+  nw: "nwse-resize", n: "ns-resize", ne: "nesw-resize",
+  e: "ew-resize", se: "nwse-resize", s: "ns-resize",
+  sw: "nesw-resize", w: "ew-resize",
+};
+
+const MIN_BOX = 0.005; // 최소 0.5%
+
 function clamp01(v: number): number {
   return Math.max(0, Math.min(1, v));
+}
+
+// 드래그 모드별로 시작 박스 + 마우스 델타 기반 새 박스 계산.
+// 모든 좌표는 0..1 정규화. 결과는 가시 box (음수 w/h 없음, 최소 크기 유지).
+function applyDrag(
+  mode: DragMode,
+  startBox: DraftBox,
+  startMouse: { x: number; y: number },
+  curMouse: { x: number; y: number },
+): DraftBox {
+  const dx = curMouse.x - startMouse.x;
+  const dy = curMouse.y - startMouse.y;
+  const sb = startBox;
+  const right = sb.x + sb.w;
+  const bottom = sb.y + sb.h;
+
+  switch (mode) {
+    case "draw": {
+      // 자유 드래그 — 시작 = startBox.x/y 그대로 두고 cur 좌표로 사각 만들기
+      const x1 = Math.min(sb.x, curMouse.x);
+      const y1 = Math.min(sb.y, curMouse.y);
+      const x2 = Math.max(sb.x, curMouse.x);
+      const y2 = Math.max(sb.y, curMouse.y);
+      return { pageIndex: sb.pageIndex, x: x1, y: y1, w: x2 - x1, h: y2 - y1 };
+    }
+    case "move": {
+      const nx = Math.max(0, Math.min(1 - sb.w, sb.x + dx));
+      const ny = Math.max(0, Math.min(1 - sb.h, sb.y + dy));
+      return { ...sb, x: nx, y: ny };
+    }
+    case "n": {
+      const ny = Math.max(0, Math.min(bottom - MIN_BOX, sb.y + dy));
+      return { ...sb, y: ny, h: bottom - ny };
+    }
+    case "s": {
+      const nb = Math.max(sb.y + MIN_BOX, Math.min(1, bottom + dy));
+      return { ...sb, h: nb - sb.y };
+    }
+    case "w": {
+      const nx = Math.max(0, Math.min(right - MIN_BOX, sb.x + dx));
+      return { ...sb, x: nx, w: right - nx };
+    }
+    case "e": {
+      const nr = Math.max(sb.x + MIN_BOX, Math.min(1, right + dx));
+      return { ...sb, w: nr - sb.x };
+    }
+    case "nw": {
+      const nx = Math.max(0, Math.min(right - MIN_BOX, sb.x + dx));
+      const ny = Math.max(0, Math.min(bottom - MIN_BOX, sb.y + dy));
+      return { ...sb, x: nx, y: ny, w: right - nx, h: bottom - ny };
+    }
+    case "ne": {
+      const ny = Math.max(0, Math.min(bottom - MIN_BOX, sb.y + dy));
+      const nr = Math.max(sb.x + MIN_BOX, Math.min(1, right + dx));
+      return { ...sb, y: ny, w: nr - sb.x, h: bottom - ny };
+    }
+    case "sw": {
+      const nx = Math.max(0, Math.min(right - MIN_BOX, sb.x + dx));
+      const nb = Math.max(sb.y + MIN_BOX, Math.min(1, bottom + dy));
+      return { ...sb, x: nx, w: right - nx, h: nb - sb.y };
+    }
+    case "se": {
+      const nr = Math.max(sb.x + MIN_BOX, Math.min(1, right + dx));
+      const nb = Math.max(sb.y + MIN_BOX, Math.min(1, bottom + dy));
+      return { ...sb, w: nr - sb.x, h: nb - sb.y };
+    }
+  }
 }
 
 export default function ManualCropModal({ document: doc, onClose }: Props) {
@@ -54,8 +134,22 @@ export default function ManualCropModal({ document: doc, onClose }: Props) {
   const [saving, setSaving] = useState(false);
 
   const canvasContainerRef = useRef<HTMLDivElement>(null);
-  const isDraggingRef = useRef(false);
-  const dragStartRef = useRef<{ x: number; y: number } | null>(null);
+  const dragStateRef = useRef<{
+    mode: DragMode;
+    startMouse: { x: number; y: number };
+    startBox: DraftBox;
+  } | null>(null);
+
+  // 정규화 좌표 변환: 마우스 client 좌표 → 캔버스 0..1
+  const toNorm = useCallback((clientX: number, clientY: number) => {
+    const el = canvasContainerRef.current;
+    if (!el) return null;
+    const rect = el.getBoundingClientRect();
+    return {
+      x: clamp01((clientX - rect.left) / rect.width),
+      y: clamp01((clientY - rect.top) / rect.height),
+    };
+  }, []);
 
   const pagesQuery = useQuery({
     queryKey: ["matchup-doc-pages", doc.id],
@@ -103,39 +197,98 @@ export default function ManualCropModal({ document: doc, onClose }: Props) {
     return () => window.removeEventListener("keydown", onKey);
   }, [draft, saving, onClose]);
 
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (!activePageData || !canvasContainerRef.current) return;
-    const rect = canvasContainerRef.current.getBoundingClientRect();
-    const x = clamp01((e.clientX - rect.left) / rect.width);
-    const y = clamp01((e.clientY - rect.top) / rect.height);
-    dragStartRef.current = { x, y };
-    isDraggingRef.current = true;
-    setDraft({ pageIndex: activePage, x, y, w: 0, h: 0 });
+  // 캔버스 빈 공간 mousedown → 새 박스 그리기 시작
+  const handleCanvasMouseDown = (e: React.MouseEvent) => {
+    if (!activePageData) return;
+    const m = toNorm(e.clientX, e.clientY);
+    if (!m) return;
+    const startBox: DraftBox = { pageIndex: activePage, x: m.x, y: m.y, w: 0, h: 0 };
+    dragStateRef.current = { mode: "draw", startMouse: m, startBox };
+    setDraft(startBox);
   };
 
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isDraggingRef.current || !dragStartRef.current || !canvasContainerRef.current) return;
-    const rect = canvasContainerRef.current.getBoundingClientRect();
-    const cx = clamp01((e.clientX - rect.left) / rect.width);
-    const cy = clamp01((e.clientY - rect.top) / rect.height);
-    const sx = dragStartRef.current.x;
-    const sy = dragStartRef.current.y;
-    setDraft({
-      pageIndex: activePage,
-      x: Math.min(sx, cx),
-      y: Math.min(sy, cy),
-      w: Math.abs(cx - sx),
-      h: Math.abs(cy - sy),
-    });
+  // 박스 본체 mousedown → 이동
+  const handleBoxMouseDown = (e: React.MouseEvent) => {
+    if (!draft) return;
+    e.stopPropagation();
+    const m = toNorm(e.clientX, e.clientY);
+    if (!m) return;
+    dragStateRef.current = { mode: "move", startMouse: m, startBox: { ...draft } };
   };
 
-  const handleMouseUp = () => {
-    isDraggingRef.current = false;
-    dragStartRef.current = null;
-    if (draft && (draft.w < 0.005 || draft.h < 0.005)) {
-      setDraft(null);
-    }
-  };
+  // 핸들 mousedown → 해당 방향 리사이즈
+  const handleResizeMouseDown = (mode: Exclude<DragMode, "draw" | "move">) =>
+    (e: React.MouseEvent) => {
+      if (!draft) return;
+      e.stopPropagation();
+      const m = toNorm(e.clientX, e.clientY);
+      if (!m) return;
+      dragStateRef.current = { mode, startMouse: m, startBox: { ...draft } };
+    };
+
+  // window 단위로 mousemove/up 처리 — 캔버스 밖으로 마우스가 나가도 추적 끊기지 않음
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => {
+      const ds = dragStateRef.current;
+      if (!ds) return;
+      const m = toNorm(e.clientX, e.clientY);
+      if (!m) return;
+      const next = applyDrag(ds.mode, ds.startBox, ds.startMouse, m);
+      setDraft(next);
+    };
+    const onUp = () => {
+      const ds = dragStateRef.current;
+      if (!ds) return;
+      dragStateRef.current = null;
+      // draw 끝났는데 너무 작으면 폐기
+      setDraft((cur) => {
+        if (!cur) return cur;
+        if (cur.w < MIN_BOX || cur.h < MIN_BOX) return null;
+        return cur;
+      });
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+  }, [toNorm]);
+
+  // 화살표 키 미세조정: shift = 큰 단위(2%), 그냥 = 작은(0.5%)
+  // alt = 크기 조정(우/하 단), 기본 = 위치 이동
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!draft) return;
+      const target = e.target as HTMLElement | null;
+      // 텍스트 인풋(번호 입력)에 포커스가 있으면 무시 — 숫자 변경/Enter 흐름 보존
+      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA")) return;
+      const isArrow = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key);
+      if (!isArrow) return;
+      e.preventDefault();
+      const step = e.shiftKey ? 0.02 : 0.005;
+      const dx = e.key === "ArrowLeft" ? -step : e.key === "ArrowRight" ? step : 0;
+      const dy = e.key === "ArrowUp" ? -step : e.key === "ArrowDown" ? step : 0;
+      setDraft((cur) => {
+        if (!cur) return cur;
+        if (e.altKey) {
+          // 크기 조정 — 우/하 변
+          return {
+            ...cur,
+            w: Math.max(MIN_BOX, Math.min(1 - cur.x, cur.w + dx)),
+            h: Math.max(MIN_BOX, Math.min(1 - cur.y, cur.h + dy)),
+          };
+        }
+        return {
+          ...cur,
+          x: Math.max(0, Math.min(1 - cur.w, cur.x + dx)),
+          y: Math.max(0, Math.min(1 - cur.h, cur.y + dy)),
+        };
+      });
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [draft]);
 
   const handleSave = useCallback(async () => {
     if (!draft || !activePageData) return;
@@ -330,7 +483,7 @@ export default function ManualCropModal({ document: doc, onClose }: Props) {
               flexShrink: 0,
               background: "var(--color-bg-surface)",
             }}>
-              마우스로 드래그해 문항 영역을 선택 → 우측에서 번호 입력 후 Enter 또는 "이 영역 저장"
+              드래그로 영역 선택 · 박스 끌어 이동 · 8방향 핸들로 크기 조정 · ←↑↓→ 미세조정 (Shift=크게, Alt=크기) · 우측에서 번호 입력 후 Enter
             </div>
             <div style={{
               flex: 1, minHeight: 0,
@@ -358,10 +511,7 @@ export default function ManualCropModal({ document: doc, onClose }: Props) {
                 <div
                   ref={canvasContainerRef}
                   data-testid="matchup-crop-canvas"
-                  onMouseDown={handleMouseDown}
-                  onMouseMove={handleMouseMove}
-                  onMouseUp={handleMouseUp}
-                  onMouseLeave={handleMouseUp}
+                  onMouseDown={handleCanvasMouseDown}
                   style={{
                     position: "relative",
                     background: "white",
@@ -415,20 +565,56 @@ export default function ManualCropModal({ document: doc, onClose }: Props) {
                       </div>
                     );
                   })}
-                  {/* 현재 그리는 박스 */}
-                  {draft && draft.pageIndex === activePage && (
-                    <div
-                      data-testid="matchup-crop-draft"
-                      style={{
-                        position: "absolute",
-                        left: `${draft.x * 100}%`, top: `${draft.y * 100}%`,
-                        width: `${draft.w * 100}%`, height: `${draft.h * 100}%`,
-                        border: "2px solid var(--color-brand-primary)",
-                        background: "color-mix(in srgb, var(--color-brand-primary) 14%, transparent)",
-                        pointerEvents: "none",
-                      }}
-                    />
-                  )}
+                  {/* 현재 그리는 박스 + 8방향 리사이즈 핸들 */}
+                  {draft && draft.pageIndex === activePage && (() => {
+                    const bx = draft.x * 100, by = draft.y * 100;
+                    const bw = draft.w * 100, bh = draft.h * 100;
+                    const HANDLE_SIZE = 10;
+                    const handleStyle = (cursor: string): React.CSSProperties => ({
+                      position: "absolute",
+                      width: HANDLE_SIZE, height: HANDLE_SIZE,
+                      background: "var(--color-bg-surface)",
+                      border: "2px solid var(--color-brand-primary)",
+                      borderRadius: 2,
+                      cursor,
+                      zIndex: 2,
+                    });
+                    return (
+                      <>
+                        {/* 박스 본체 — 클릭 드래그로 이동 */}
+                        <div
+                          data-testid="matchup-crop-draft"
+                          onMouseDown={handleBoxMouseDown}
+                          style={{
+                            position: "absolute",
+                            left: `${bx}%`, top: `${by}%`,
+                            width: `${bw}%`, height: `${bh}%`,
+                            border: "2px solid var(--color-brand-primary)",
+                            background: "color-mix(in srgb, var(--color-brand-primary) 14%, transparent)",
+                            cursor: "move",
+                            zIndex: 1,
+                          }}
+                        />
+                        {/* 8방향 리사이즈 핸들 — 박스 외부 좌표로 정확히 배치 */}
+                        <div onMouseDown={handleResizeMouseDown("nw")} style={{ ...handleStyle(HANDLE_CURSOR.nw),
+                          left: `calc(${bx}% - ${HANDLE_SIZE / 2}px)`, top: `calc(${by}% - ${HANDLE_SIZE / 2}px)` }} />
+                        <div onMouseDown={handleResizeMouseDown("n")} style={{ ...handleStyle(HANDLE_CURSOR.n),
+                          left: `calc(${bx + bw / 2}% - ${HANDLE_SIZE / 2}px)`, top: `calc(${by}% - ${HANDLE_SIZE / 2}px)` }} />
+                        <div onMouseDown={handleResizeMouseDown("ne")} style={{ ...handleStyle(HANDLE_CURSOR.ne),
+                          left: `calc(${bx + bw}% - ${HANDLE_SIZE / 2}px)`, top: `calc(${by}% - ${HANDLE_SIZE / 2}px)` }} />
+                        <div onMouseDown={handleResizeMouseDown("e")} style={{ ...handleStyle(HANDLE_CURSOR.e),
+                          left: `calc(${bx + bw}% - ${HANDLE_SIZE / 2}px)`, top: `calc(${by + bh / 2}% - ${HANDLE_SIZE / 2}px)` }} />
+                        <div onMouseDown={handleResizeMouseDown("se")} style={{ ...handleStyle(HANDLE_CURSOR.se),
+                          left: `calc(${bx + bw}% - ${HANDLE_SIZE / 2}px)`, top: `calc(${by + bh}% - ${HANDLE_SIZE / 2}px)` }} />
+                        <div onMouseDown={handleResizeMouseDown("s")} style={{ ...handleStyle(HANDLE_CURSOR.s),
+                          left: `calc(${bx + bw / 2}% - ${HANDLE_SIZE / 2}px)`, top: `calc(${by + bh}% - ${HANDLE_SIZE / 2}px)` }} />
+                        <div onMouseDown={handleResizeMouseDown("sw")} style={{ ...handleStyle(HANDLE_CURSOR.sw),
+                          left: `calc(${bx}% - ${HANDLE_SIZE / 2}px)`, top: `calc(${by + bh}% - ${HANDLE_SIZE / 2}px)` }} />
+                        <div onMouseDown={handleResizeMouseDown("w")} style={{ ...handleStyle(HANDLE_CURSOR.w),
+                          left: `calc(${bx}% - ${HANDLE_SIZE / 2}px)`, top: `calc(${by + bh / 2}% - ${HANDLE_SIZE / 2}px)` }} />
+                      </>
+                    );
+                  })()}
                 </div>
               )}
             </div>
@@ -502,7 +688,7 @@ export default function ManualCropModal({ document: doc, onClose }: Props) {
                 </>
               ) : (
                 <div style={{ fontSize: 12, color: "var(--color-text-muted)", lineHeight: 1.5 }}>
-                  마우스로 드래그해서 문항 영역을 선택하세요. 자른 영역은 즉시 저장됩니다.
+                  마우스로 드래그해서 문항 영역을 선택하세요. 그린 후 박스를 끌어 이동하거나 모서리/변 핸들로 크기를 미세 조정할 수 있습니다.
                 </div>
               )}
             </div>
