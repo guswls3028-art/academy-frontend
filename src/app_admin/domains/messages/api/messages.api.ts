@@ -52,7 +52,7 @@ export interface NotificationLogItem {
   failure_reason?: string | null;
   /** 실제 발송된 메시지 본문 */
   message_body?: string;
-  /** 발송 방식: sms | alimtalk */
+  /** 발송 방식 */
   message_mode?: string;
 }
 
@@ -263,14 +263,14 @@ export async function submitMessageTemplateReview(
 
 export type SendToType = "student" | "parent" | "staff";
 
-/** sms=SMS만, alimtalk=알림톡만, both=둘 다 */
-export type MessageMode = "sms" | "alimtalk" | "both";
+/** alimtalk=알림톡만 */
+export type MessageMode = "alimtalk";
 
 export interface SendMessagePayload {
   student_ids?: number[];
   staff_ids?: number[];
   send_to: SendToType;
-  /** sms | alimtalk */
+  /** alimtalk */
   message_mode?: MessageMode;
   template_id?: number | null;
   raw_body?: string;
@@ -328,8 +328,8 @@ export type AutoSendTrigger =
   | "video_encoding_complete"
   // urgent_notice: 카카오 알림톡 정책 위반으로 제거
   // 커뮤니티 자동발송
-  | "qna_answer_registered"
-  | "counsel_approved"
+  | "qna_answered"
+  | "counsel_answered"
   // 직원 자동발송
   | "staff_attendance_summary"
   | "staff_expense_report"
@@ -396,8 +396,8 @@ export const AUTO_SEND_TRIGGER_LABELS: Record<string, string> = {
   video_encoding_complete: "영상 인코딩 완료",
   // urgent_notice: 카카오 알림톡 정책 위반으로 제거
   // 커뮤니티
-  qna_answer_registered: "QnA 답변 등록",
-  counsel_approved: "상담 신청 승인",
+  qna_answered: "QnA 답변 등록",
+  counsel_answered: "상담 답변 등록",
   // 직원
   staff_attendance_summary: "근태 요약 발송",
   staff_expense_report: "비용/경비 리포트 발송",

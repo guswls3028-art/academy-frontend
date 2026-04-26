@@ -21,7 +21,6 @@ import {
   type MessageTemplatePayload,
 } from "../api/messages.api";
 import { useMessagingInfo } from "../hooks/useMessagingInfo";
-import { MESSAGE_MODE_LABELS } from "../constants/messageSendOptions";
 import { AUTO_SEND_SECTIONS } from "./AutoSendSectionTree";
 import TemplateEditModal from "./TemplateEditModal";
 import AutoSendPreviewPopup from "./AutoSendPreviewPopup";
@@ -88,10 +87,10 @@ const TRIGGER_DESCRIPTIONS: Record<string, string> = {
   payment_due_days_before:
     "납부 예정일 N일 전에 학부모에게 납부 금액/기한을 안내합니다.",
   // urgent_notice: 카카오 알림톡 정책 위반으로 제거
-  qna_answer_registered:
+  qna_answered:
     "QnA 답변이 등록되면 질문 작성 학생·학부모에게 답변 안내를 발송합니다.",
-  counsel_approved:
-    "상담 신청이 승인되면 신청 학생·학부모에게 승인 안내를 발송합니다.",
+  counsel_answered:
+    "상담 답변이 등록되면 신청 학생·학부모에게 답변 안내를 발송합니다.",
   staff_attendance_summary:
     "근태 요약이 생성되면 해당 직원에게 근무 시간/일수 요약을 발송합니다.",
   staff_expense_report:
@@ -137,12 +136,9 @@ export type AutoSendSettingsPanelProps = {
   /** Section description */
   description?: string;
   /**
-   * Channel filter mode. When set, the panel manages only the specified channel:
-   * - "alimtalk": shows alimtalk channel state per trigger
-   * - "sms": shows SMS channel state per trigger
-   * - undefined: unified mode (original behavior with message_mode dropdown)
+   * Channel filter mode. Kept for settings pages; alimtalk is the only active channel.
    */
-  channelMode?: "alimtalk" | "sms";
+  channelMode?: "alimtalk";
 };
 
 // ---------------------------------------------------------------------------
@@ -157,52 +153,34 @@ const EMPTY_CONFIGS: AutoSendConfigItem[] = [];
 // TriggerCard (inner component — same pattern as MessageAutoSendPage)
 // ---------------------------------------------------------------------------
 
-/** channel-aware 활성 상태 판별 — "both" 모드는 두 채널 모두 활성 */
-function isChannelActive(mode: string, channel: "alimtalk" | "sms"): boolean {
-  if (mode === "both") return true;
-  return mode === channel;
+/** channel-aware 활성 상태 판별 — 알림톡 전용 */
+function isChannelActive(mode: string, _channel: "alimtalk"): boolean {
+  void _channel;
+  return mode === "alimtalk";
 }
 
 /** channel toggle → message_mode 도출 */
 function deriveMessageMode(
-  currentMode: string,
+  _currentMode: string,
   _currentEnabled: boolean,
-  channel: "alimtalk" | "sms",
+  _channel: "alimtalk",
   turnOn: boolean,
-): { message_mode: "sms" | "alimtalk" | "both"; enabled: boolean } {
-  if (turnOn) {
-    // 다른 채널이 이미 활성이면 "both"로, 아니면 해당 채널만
-    const otherChannel = channel === "alimtalk" ? "sms" : "alimtalk";
-    if (currentMode === otherChannel || currentMode === "both") {
-      return { message_mode: "both", enabled: true };
-    }
-    return { message_mode: channel, enabled: true };
-  } else {
-    // 끄기: "both"에서 하나 빼면 나머지 채널만, 단일이면 비활성화
-    if (currentMode === "both") {
-      const remaining = channel === "alimtalk" ? "sms" : "alimtalk";
-      return { message_mode: remaining, enabled: true };
-    }
-    return { message_mode: currentMode as "sms" | "alimtalk", enabled: false };
-  }
+): { message_mode: "alimtalk"; enabled: boolean } {
+  return { message_mode: "alimtalk", enabled: turnOn };
 }
 
 function TriggerCard({
   config,
-  templates,
   onUpdate,
   saving,
   onEditTemplate,
-  smsConnected,
   channelMode,
 }: {
   config: AutoSendConfigItem;
-  templates: MessageTemplateItem[];
   onUpdate: (c: Partial<AutoSendConfigItem>, debounce?: boolean) => void;
   saving: boolean;
   onEditTemplate?: (trigger: string, templateId: number | null) => void;
-  smsConnected: boolean;
-  channelMode?: "alimtalk" | "sms";
+  channelMode?: "alimtalk";
 }) {
   const [showPreview, setShowPreview] = useState(false);
   const hasTemplate = !!config.template;
@@ -522,7 +500,7 @@ function TriggerCard({
           </div>
         )}
 
-        {/* Send mode (sms / alimtalk / both) — only in unified mode (no channelMode) */}
+        {/* Send mode — only in unified mode (no channelMode) */}
         {!channelMode && (
           <div>
             <div
@@ -540,25 +518,16 @@ function TriggerCard({
             <select
               className="ds-select"
               style={{ width: "100%", fontSize: 13 }}
-              value={!smsConnected && config.message_mode !== "alimtalk" ? "alimtalk" : config.message_mode}
-              onChange={(e) =>
+              value="alimtalk"
+              onChange={() =>
                 onUpdate({
                   ...config,
-                  message_mode: e.target
-                    .value as AutoSendConfigItem["message_mode"],
+                  message_mode: "alimtalk",
                 })
               }
               disabled={saving}
             >
-              <option value="alimtalk">
-                {MESSAGE_MODE_LABELS.alimtalk}
-              </option>
-              {smsConnected && (
-                <option value="sms">{MESSAGE_MODE_LABELS.sms}</option>
-              )}
-              {smsConnected && (
-                <option value="both">{MESSAGE_MODE_LABELS.both}</option>
-              )}
+              <option value="alimtalk">알림톡</option>
             </select>
           </div>
         )}
@@ -620,8 +589,7 @@ export default function AutoSendSettingsPanel({
 }: AutoSendSettingsPanelProps) {
   const qc = useQueryClient();
   const navigate = useNavigate();
-  const { data: messagingInfo } = useMessagingInfo();
-  const smsConnected = !!messagingInfo?.sms_allowed;
+  useMessagingInfo();
 
   // ---- Data fetching ----
   const { data: allConfigs = EMPTY_CONFIGS, isLoading } = useQuery({
@@ -907,11 +875,9 @@ export default function AutoSendSettingsPanel({
               <TriggerCard
                 key={config.trigger}
                 config={config}
-                templates={templates}
                 onUpdate={handleUpdate}
                 saving={updateMut.isPending}
                 onEditTemplate={handleEditTemplate}
-                smsConnected={smsConnected}
                 channelMode={channelMode}
               />
             ))}
@@ -927,7 +893,7 @@ export default function AutoSendSettingsPanel({
         initial={editingTemplate}
         onSubmit={(payload) => editTemplateMut.mutate(payload)}
         isPending={editTemplateMut.isPending}
-        smsConnected={smsConnected}
+        smsConnected={false}
         onDelete={(id) => deleteTemplateMut.mutate(id)}
         isDeleting={deleteTemplateMut.isPending}
         trigger={editingTrigger ?? undefined}
@@ -945,7 +911,7 @@ export default function AutoSendSettingsPanel({
         initial={null}
         onSubmit={(payload) => createTemplateMut.mutate(payload)}
         isPending={createTemplateMut.isPending}
-        smsConnected={smsConnected}
+        smsConnected={false}
         trigger={creatingForTrigger ?? undefined}
       />
     </>

@@ -1,12 +1,12 @@
 // PATH: src/app_admin/domains/messages/components/SendMessageModal.tsx
-// 공용 메시지 발송 모달 — SMS 직접 작성 + 알림톡 템플릿 전용 UX
+// 공용 메시지 발송 모달 — 알림톡 템플릿 전용 UX
 // 좌: 수신자 + 실시간 미리보기 / 우: 모드별 편집·선택
 // 모든 진입점(학생·출결·성적·클리닉·직원)에서 동일 UX 제공. 단발성 발송 SSOT.
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Input } from "antd";
-import { FiSearch, FiSave, FiChevronLeft, FiCheck, FiAlertCircle, FiAlertTriangle, FiCopy, FiTrash2, FiStar, FiEdit3 } from "react-icons/fi";
+import { FiSearch, FiChevronLeft, FiCheck, FiAlertCircle, FiAlertTriangle, FiCopy, FiTrash2, FiStar, FiEdit3 } from "react-icons/fi";
 import { Shield } from "lucide-react";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter } from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
@@ -24,7 +24,6 @@ import {
   type MessageMode,
   type SendToType,
 } from "../api/messages.api";
-import { useMessagingInfo } from "../hooks/useMessagingInfo";
 import {
   TEMPLATE_CATEGORY_LABELS,
   getBlocksForCategory,
@@ -105,78 +104,6 @@ function getVarStatuses(
     }
     return { name, status: "missing" as const };
   });
-}
-
-// ─── Template Card (AlimTalk browser) ───
-
-function TemplateCard({
-  template: t,
-  isSelected,
-  onClick,
-}: {
-  template: MessageTemplateItem;
-  isSelected: boolean;
-  onClick: () => void;
-}) {
-  const isDef = isSystemTpl(t);
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: 6,
-        width: "100%",
-        padding: "10px 14px",
-        borderRadius: 10,
-        border: isSelected ? "2px solid var(--color-primary)" : "1px solid var(--color-border-divider)",
-        background: isSelected
-          ? "color-mix(in srgb, var(--color-primary) 6%, var(--color-bg-surface))"
-          : "var(--color-bg-surface)",
-        cursor: "pointer",
-        textAlign: "left",
-        transition: "border-color 0.15s, background 0.15s, box-shadow 0.15s",
-      }}
-      onMouseEnter={(e) => {
-        if (!isSelected) {
-          e.currentTarget.style.borderColor = "color-mix(in srgb, var(--color-primary) 40%, var(--color-border-divider))";
-          e.currentTarget.style.boxShadow = "0 2px 8px color-mix(in srgb, var(--color-primary) 8%, transparent)";
-        }
-      }}
-      onMouseLeave={(e) => {
-        if (!isSelected) {
-          e.currentTarget.style.borderColor = "var(--color-border-divider)";
-          e.currentTarget.style.boxShadow = "none";
-        }
-      }}
-    >
-      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-        {isDef && <Shield size={12} style={{ color: "var(--color-status-info, #2563eb)", flexShrink: 0 }} />}
-        <span style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-primary)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-          {t.name}
-        </span>
-        {t.solapi_status === "APPROVED" && (
-          <span style={{ padding: "1px 6px", borderRadius: 4, fontSize: 10, fontWeight: 700, color: "var(--color-success)", background: "color-mix(in srgb, var(--color-success) 10%, transparent)", flexShrink: 0 }}>
-            승인
-          </span>
-        )}
-      </div>
-      {t.body && (
-        <div style={{
-          fontSize: 11,
-          color: "var(--color-text-muted)",
-          lineHeight: 1.5,
-          overflow: "hidden",
-          display: "-webkit-box",
-          WebkitLineClamp: 2,
-          WebkitBoxOrient: "vertical",
-        }}>
-          {renderPreviewBadges(t.body)}
-        </div>
-      )}
-    </button>
-  );
 }
 
 // ─── Template Picker Card (SMS 양식 관리 패널) ───
@@ -317,8 +244,7 @@ export default function SendMessageModal({
   alimtalkExtraVarsPerStudent,
 }: SendMessageModalProps) {
   const queryClient = useQueryClient();
-  const { data: messagingInfo } = useMessagingInfo();
-  const smsAllowed = messagingInfo?.sms_allowed ?? false;
+  const smsAllowed = false;
 
   // ─── State ───
   const [sendMode, setSendMode] = useState<SendMode>("alimtalk");
@@ -352,8 +278,6 @@ export default function SendMessageModal({
   );
 
   // ─── Derived ───
-  // 통합 4종 알림톡 전환 완료 — 모든 카테고리에서 SMS/알림톡 양쪽 사용 가능
-  const smsOnlyCategory = false;
   const isStaffMode = (initialStaffIds?.length ?? 0) > 0;
   const studentIds = initialStudentIds;
   const staffIds = initialStaffIds ?? [];
@@ -370,7 +294,6 @@ export default function SendMessageModal({
 
   const selectedTemplate = templates.find((t) => t.id === selectedTemplateId);
   const bodyModified = selectedTemplate != null && templateBodySnapshot != null && body !== templateBodySnapshot;
-  const approvedTemplates = useMemo(() => templates.filter((t) => t.solapi_status === "APPROVED"), [templates]);
   const recentIds = useMemo(() => getRecentIds(), [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Categorize templates for picker/browser
@@ -402,15 +325,11 @@ export default function SendMessageModal({
     return getVarStatuses(selectedTemplate.body, alimtalkExtraVars, freeContent);
   }, [selectedTemplate, alimtalkExtraVars, freeContent]);
 
-  const hasMissingVars = varStatuses.some((v) => v.status === "missing");
-  const templateHasContentVar = selectedTemplate?.has_content_var ?? (selectedTemplate?.body?.includes("#{내용}") ?? false);
-
   // ─── Can Send ───
   const messageModes: MessageMode[] = useMemo(() => {
-    if (sendMode === "sms" && smsAllowed) return ["sms"];
     if (sendMode === "alimtalk") return ["alimtalk"];
     return [];
-  }, [sendMode, smsAllowed]);
+  }, [sendMode]);
 
   const smsOverLimit = sendMode === "sms" && body.length > SMS_MAX_CHARS;
 
@@ -657,7 +576,7 @@ export default function SendMessageModal({
       } else {
         const hint = totalSkipped > 0
           ? `${sendToLabel} 대상 중 전화번호가 없어 큐에 등록된 건이 0건입니다.`
-          : `${sendToLabel} ${modeLabel} 발송이 큐에 등록되지 않았습니다. 발신번호·메시지 연동(SMS/알림톡)·수신 번호를 확인해 주세요.`;
+          : `${sendToLabel} ${modeLabel} 발송이 큐에 등록되지 않았습니다. 알림톡 연동·승인 템플릿·수신 번호를 확인해 주세요.`;
         feedback.warning(hint);
         asyncStatusStore.completeTask(taskId, "error", "발송 큐 0건");
       }
@@ -706,21 +625,6 @@ export default function SendMessageModal({
     if (sendMode === "alimtalk" && !body.trim()) return "본문을 입력해 주세요";
     return null;
   })();
-
-  // AlimTalk template section renderer
-  function renderAlimtalkSection(title: string, items: MessageTemplateItem[]) {
-    if (items.length === 0) return null;
-    return (
-      <div>
-        <div style={{ fontSize: 11, fontWeight: 700, color: "var(--color-text-muted)", padding: "8px 0 4px", letterSpacing: "0.5px" }}>{title}</div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          {items.map((t) => (
-            <TemplateCard key={t.id} template={t} isSelected={selectedTemplateId === t.id} onClick={() => selectTemplate(t)} />
-          ))}
-        </div>
-      </div>
-    );
-  }
 
   // ─── Render ───
   return (
@@ -823,12 +727,11 @@ export default function SendMessageModal({
               background: "var(--color-bg-surface-soft)", borderRadius: "var(--radius-md)",
               border: "1px solid var(--color-border-divider)",
             }}>
-              {/* 채널 선택: SMS / 알림톡 / 둘 다 */}
+              {/* 채널 선택: 알림톡 전용 */}
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <span style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-muted)", whiteSpace: "nowrap" }}>채널</span>
                 <div style={{ display: "flex", gap: 0, borderRadius: 8, overflow: "hidden", border: "1px solid var(--color-border-divider)" }}>
                   {([
-                    { key: "sms" as SendMode, label: "SMS", disabled: !smsAllowed },
                     { key: "alimtalk" as SendMode, label: "알림톡", disabled: false },
                   ]).map((opt) => (
                     <button
@@ -865,7 +768,7 @@ export default function SendMessageModal({
                         setShowTemplatePanel(false);
                       }}
                       disabled={sending || opt.disabled}
-                      title={opt.disabled ? "SMS 연동 후 사용 가능 (설정 > 메시지)" : undefined}
+                      title={undefined}
                       style={{
                         padding: "6px 16px", fontSize: 13, fontWeight: 700, border: "none",
                         cursor: opt.disabled ? "not-allowed" : "pointer",

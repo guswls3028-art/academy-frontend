@@ -26,7 +26,6 @@ import AutoSendSectionTree, {
   AUTO_SEND_SECTIONS,
   type AutoSendSectionId,
 } from "../components/AutoSendSectionTree";
-import { MESSAGE_MODE_LABELS } from "../constants/messageSendOptions";
 import TemplateEditModal from "../components/TemplateEditModal";
 import AutoSendPreviewPopup from "../components/AutoSendPreviewPopup";
 import panelStyles from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
@@ -97,18 +96,14 @@ const SECTION_DESCRIPTIONS: Record<AutoSendSectionId, string> = {
 
 function TriggerCard({
   config,
-  templates,
   onUpdate,
   saving,
   onEditTemplate,
-  smsConnected,
 }: {
   config: AutoSendConfigItem;
-  templates: MessageTemplateItem[];
   onUpdate: (c: Partial<AutoSendConfigItem>, debounce?: boolean) => void;
   saving: boolean;
   onEditTemplate?: (trigger: string, templateId: number | null) => void;
-  smsConnected: boolean;
 }) {
   const [showPreview, setShowPreview] = useState(false);
 
@@ -421,18 +416,11 @@ function TriggerCard({
               <select
                 className="ds-select"
                 style={{ width: "100%", fontSize: 13 }}
-                value={!smsConnected && config.message_mode !== "alimtalk" ? "alimtalk" : config.message_mode}
-                onChange={(e) =>
-                  onUpdate({
-                    ...config,
-                    message_mode: e.target.value as AutoSendConfigItem["message_mode"],
-                  })
-                }
+                value="alimtalk"
+                onChange={() => onUpdate({ ...config, message_mode: "alimtalk" })}
                 disabled={saving}
               >
-                <option value="alimtalk">{MESSAGE_MODE_LABELS.alimtalk}</option>
-                {smsConnected && <option value="sms">{MESSAGE_MODE_LABELS.sms}</option>}
-                {smsConnected && <option value="both">{MESSAGE_MODE_LABELS.both}</option>}
+                <option value="alimtalk">알림톡</option>
               </select>
             </div>
           </div>
@@ -456,8 +444,7 @@ export default function MessageAutoSendPage() {
   const [editingTemplate, setEditingTemplate] = useState<MessageTemplateItem | null>(null);
   const [editingTrigger, setEditingTrigger] = useState<string | null>(null);
   const [creatingForTrigger, setCreatingForTrigger] = useState<string | null>(null);
-  const { data: messagingInfo } = useMessagingInfo();
-  const smsConnected = !!(messagingInfo?.sms_allowed);
+  useMessagingInfo();
 
   const { data: configs = EMPTY_CONFIGS, isLoading } = useQuery({
     queryKey: QUERY_KEY,
@@ -583,9 +570,9 @@ export default function MessageAutoSendPage() {
       <div className={panelStyles.root}>
         <div className={panelStyles.header}>
           <h2 className={panelStyles.headerTitle}>자동발송</h2>
-          <p className={panelStyles.headerDesc}>
-            학원 운영 이벤트 발생 시 학생·학부모에게 알림톡/SMS를 자동 발송합니다.
-          </p>
+            <p className={panelStyles.headerDesc}>
+              학원 운영 이벤트 발생 시 학생·학부모에게 알림톡을 자동 발송합니다.
+            </p>
         </div>
         <div className={panelStyles.body}>
           <aside className={panelStyles.tree}>
@@ -616,7 +603,7 @@ export default function MessageAutoSendPage() {
           <div>
             <h2 className={panelStyles.headerTitle}>자동발송</h2>
             <p className={panelStyles.headerDesc}>
-              학원 운영 이벤트(가입·출결·시험·과제·클리닉·결제·커뮤니티·직원 등) 발생 시 알림톡/SMS를 자동 발송합니다.
+              학원 운영 이벤트(가입·출결·시험·과제·클리닉·결제·커뮤니티·직원 등) 발생 시 알림톡을 자동 발송합니다.
               좌측에서 구간을 선택하고 각 트리거별로 템플릿·발송 시점·방식을 설정하세요.
             </p>
           </div>
@@ -747,7 +734,7 @@ export default function MessageAutoSendPage() {
                   </p>
                   <p style={{ fontSize: 13, color: "var(--color-text-muted)", lineHeight: 1.5 }}>
                     기본 템플릿을 생성하면 자동발송 트리거에 대한<br />
-                    알림톡/SMS 템플릿과 발송 설정이 자동으로 구성됩니다.
+                    알림톡 템플릿과 발송 설정이 자동으로 구성됩니다.
                   </p>
                 </div>
                 <Button
@@ -767,7 +754,6 @@ export default function MessageAutoSendPage() {
                   <TriggerCard
                     key={config.trigger}
                     config={config}
-                    templates={templates}
                     onUpdate={handleUpdate}
                     saving={updateMut.isPending}
                     onEditTemplate={(trigger, templateId) => {
@@ -785,7 +771,6 @@ export default function MessageAutoSendPage() {
                           .catch(() => feedback.error("템플릿 정보를 불러올 수 없습니다."));
                       }
                     }}
-                    smsConnected={smsConnected}
                   />
                 ))}
               </>
@@ -803,7 +788,7 @@ export default function MessageAutoSendPage() {
       initial={editingTemplate}
       onSubmit={(payload) => editTemplateMut.mutate(payload)}
       isPending={editTemplateMut.isPending}
-      smsConnected={smsConnected}
+      smsConnected={false}
       trigger={editingTrigger ?? undefined}
     />
 
@@ -819,7 +804,7 @@ export default function MessageAutoSendPage() {
       initial={null}
       onSubmit={(payload) => createTemplateMut.mutate(payload)}
       isPending={createTemplateMut.isPending}
-      smsConnected={smsConnected}
+      smsConnected={false}
       trigger={creatingForTrigger ?? undefined}
     />
   </>

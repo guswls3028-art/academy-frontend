@@ -2,7 +2,6 @@
 // 템플릿 생성/수정 모달 — 좌: 미리보기+카테고리 / 우: 본문+삽입 블록
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
 import { Input } from "antd";
 import { FiAlertCircle } from "react-icons/fi";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter } from "@/shared/ui/modal";
@@ -30,7 +29,7 @@ export type TemplateEditModalProps = {
   onSubmit: (payload: MessageTemplatePayload) => void;
   isPending?: boolean;
   zIndex?: number;
-  /** SMS/메시지 발송 연동 여부. false이면 메시지 탭에 연동 안내 표시 */
+  /** @deprecated 알림톡 전용 정책으로 더 이상 사용하지 않음 */
   smsConnected?: boolean;
   /** 삭제 콜백. 주어지면 수정 모드에서 삭제 버튼 표시 */
   onDelete?: (id: number) => void;
@@ -39,7 +38,7 @@ export type TemplateEditModalProps = {
   trigger?: string;
 };
 
-type EditorTab = "message" | "alimtalk";
+type EditorTab = "alimtalk";
 
 export default function TemplateEditModal({
   open,
@@ -49,16 +48,14 @@ export default function TemplateEditModal({
   onSubmit,
   isPending = false,
   zIndex,
-  smsConnected = true,
   onDelete,
   isDeleting = false,
   trigger,
 }: TemplateEditModalProps) {
-  const navigate = useNavigate();
   const [name, setName] = useState("");
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
-  const [activeTab, setActiveTab] = useState<EditorTab>("message");
+  const [activeTab, setActiveTab] = useState<EditorTab>("alimtalk");
   const [selectedCategory, setSelectedCategory] = useState<TemplateCategory>(category);
   const alimtalkType = getAlimtalkTemplateType(trigger) ?? getAlimtalkTemplateTypeFromCategory(selectedCategory);
   // Ant Design Input.TextArea ref는 래퍼 객체 — native textarea를 직접 찾는다
@@ -76,7 +73,7 @@ export default function TemplateEditModal({
       setName(initial?.name ?? "");
       setSubject(initial?.subject ?? "");
       setBody(initial?.body ?? "");
-      setActiveTab("message");
+      setActiveTab("alimtalk");
       setSelectedCategory(initial?.category ?? category);
       setConfirmDelete(false);
     }
@@ -119,13 +116,10 @@ export default function TemplateEditModal({
 
   const badgeBody = renderPreviewBadges(body);
   const badgeSubject = renderPreviewBadges(subject);
-  const showSubject = activeTab === "alimtalk";
+  const showSubject = true;
 
-  // signup만 자체 Solapi 템플릿 → 알림톡 탭 불필요. 나머지 모든 카테고리는 통합 4종 사용 가능.
-  const showAlimtalkTab = selectedCategory !== "signup";
   const editorTabItems: import("@/shared/ui/ds/Tabs").TabItem[] = [
-    { key: "message", label: "메시지" },
-    ...(showAlimtalkTab ? [{ key: "alimtalk", label: "알림톡" }] : []),
+    { key: "alimtalk", label: "알림톡" },
   ];
 
   if (!open) return null;
@@ -165,47 +159,33 @@ export default function TemplateEditModal({
               <div className="template-editor__preview-title mb-2">
                 실제 수신자에게 이렇게 보입니다
               </div>
-              {activeTab === "message" ? (
-                <div className="template-preview-phone" aria-label="아이폰 메시지 미리보기">
-                  <div className="template-preview-phone__screen">
-                    <div className="template-preview-phone__bubble" style={{ lineHeight: 1.7 }}>
-                      {body ? badgeBody : (
-                        <span className="template-editor__preview-placeholder">본문을 입력하면 미리보기가 표시됩니다.</span>
+              <div className="template-preview-kakao" aria-label="카카오톡 알림톡 미리보기">
+                <div className="template-preview-kakao__card">
+                  {alimtalkType ? (
+                    <>
+                      <div style={{ fontSize: 10, color: "var(--color-text-muted)", marginBottom: 4, fontStyle: "italic" }}>
+                        예시 데이터로 표시됩니다. 실제 발송 시 학원/학생 정보가 자동으로 채워집니다.
+                      </div>
+                      <div className="template-preview-kakao__body" style={{ lineHeight: 1.7, whiteSpace: "pre-wrap", fontSize: 12 }}>
+                        {renderAlimtalkFullPreview(alimtalkType, body, undefined, trigger)}
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      {subject && (
+                        <div className="template-preview-kakao__title" style={{ lineHeight: 1.7 }}>{badgeSubject}</div>
                       )}
-                    </div>
-                    <div className="template-preview-phone__time">오전 9:00</div>
-                  </div>
-                </div>
-              ) : (
-                <div className="template-preview-kakao" aria-label="카카오톡 알림톡 미리보기">
-                  <div className="template-preview-kakao__card">
-                    {alimtalkType ? (
-                      /* 통합 알림톡 — 전체 템플릿 구조 미리보기 */
-                      <>
-                        <div style={{ fontSize: 10, color: "var(--color-text-muted)", marginBottom: 4, fontStyle: "italic" }}>
-                          예시 데이터로 표시됩니다. 실제 발송 시 학원/학생 정보가 자동으로 채워집니다.
-                        </div>
-                        <div className="template-preview-kakao__body" style={{ lineHeight: 1.7, whiteSpace: "pre-wrap", fontSize: 12 }}>
-                          {renderAlimtalkFullPreview(alimtalkType, body, undefined, trigger)}
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        {subject && (
-                          <div className="template-preview-kakao__title" style={{ lineHeight: 1.7 }}>{badgeSubject}</div>
+                      <div className="template-preview-kakao__body" style={{ lineHeight: 1.7 }}>
+                        {body ? badgeBody : (
+                          <span className="template-editor__preview-placeholder">본문을 입력하면 미리보기가 표시됩니다.</span>
                         )}
-                        <div className="template-preview-kakao__body" style={{ lineHeight: 1.7 }}>
-                          {body ? badgeBody : (
-                            <span className="template-editor__preview-placeholder">본문을 입력하면 미리보기가 표시됩니다.</span>
-                          )}
-                        </div>
-                      </>
-                    )}
-                  </div>
+                      </div>
+                    </>
+                  )}
                 </div>
-              )}
+              </div>
               <p className="mt-2 text-[10px] text-[var(--color-text-muted)]">
-                {activeTab === "message" ? "아이폰 메시지 예시" : "카카오톡 알림톡 예시"} (치환 변수는 샘플 값)
+                카카오톡 알림톡 예시 (치환 변수는 샘플 값)
               </p>
             </section>
           </div>
@@ -233,44 +213,6 @@ export default function TemplateEditModal({
                 items={editorTabItems}
               />
             </div>
-
-            {/* SMS 연동 안내 오버레이 */}
-            {activeTab === "message" && !smsConnected && (
-              <div
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  top: 48,
-                  zIndex: 10,
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 16,
-                  background: "color-mix(in srgb, var(--color-bg-surface) 92%, transparent)",
-                  backdropFilter: "blur(2px)",
-                  borderRadius: "var(--radius-md)",
-                }}
-              >
-                <FiAlertCircle size={32} style={{ color: "var(--color-status-warning, #d97706)" }} />
-                <p style={{ fontSize: 15, fontWeight: 600, color: "var(--color-text-primary)", textAlign: "center" }}>
-                  문자(SMS) 발송을 위해 연동이 필요합니다
-                </p>
-                <p style={{ fontSize: 13, color: "var(--color-text-muted)", textAlign: "center", maxWidth: 320 }}>
-                  발신번호 등록 및 메시지 연동 설정을 완료해야 SMS 템플릿을 사용할 수 있습니다.
-                </p>
-                <Button
-                  intent="primary"
-                  size="sm"
-                  onClick={() => {
-                    onClose();
-                    navigate("/admin/message/settings");
-                  }}
-                >
-                  메시지 설정으로 이동
-                </Button>
-              </div>
-            )}
 
             <div>
               <label className="template-editor__editor-title block mb-1">템플릿 이름</label>

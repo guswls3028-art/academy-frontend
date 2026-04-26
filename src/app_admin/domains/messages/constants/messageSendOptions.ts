@@ -1,29 +1,26 @@
 // PATH: src/app_admin/domains/messages/constants/messageSendOptions.ts
-// 발송 방식 공용 상수 — 메시지(SMS) 또는 알림톡 (SSOT). 메시지 발송 모달, 자동발송, 학생 도메인에서 동일 사용.
+// 발송 방식 공용 상수 — 알림톡 전용 (SSOT).
 
 import type { MessageMode } from "../api/messages.api";
 
-/** 발송 방식 라벨 (SSOT). 백엔드 sms | alimtalk | both */
+/** 발송 방식 라벨 (SSOT). */
 export const MESSAGE_MODE_LABELS: Record<MessageMode, string> = {
-  sms: "메시지(SMS)",
   alimtalk: "알림톡",
-  both: "알림톡 + SMS",
 };
 
 /** 발송 유형 표시명 (단일 선택 UI 공용) */
 export const SEND_TYPE_OPTIONS = [
-  { key: "sms" as const, label: "메시지(SMS)" },
   { key: "alimtalk" as const, label: "알림톡" },
-  { key: "both" as const, label: "알림톡 + SMS" },
 ] as const;
 
 /**
  * 메시지 발송 모달 열 때 기본 선택값.
- * sms_allowed가 false면 알림톡만 선택.
+ * 알림톡만 선택.
  */
-export function getDefaultSendModalModes(smsAllowed: boolean): { useSms: boolean; useAlimtalk: boolean } {
+export function getDefaultSendModalModes(_smsAllowed: boolean): { useSms: boolean; useAlimtalk: boolean } {
+  void _smsAllowed;
   return {
-    useSms: smsAllowed,
+    useSms: false,
     useAlimtalk: true,
   };
 }
