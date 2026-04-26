@@ -11,7 +11,7 @@ import StudentPageShell from "@student/shared/ui/pages/StudentPageShell";
 import { useNotificationCounts } from "../hooks/useNotificationCounts";
 import { useMarkNotificationsSeen } from "../hooks/useSeenNotifications";
 import { fetchMyClinicBookingRequests } from "@student/domains/clinic/api/clinicBooking.api";
-import { fetchMyQuestions } from "@student/domains/community/api/community.api";
+import { fetchMyQuestions, fetchMyCounselRequests } from "@student/domains/community/api/community.api";
 import { fetchMyProfile } from "@student/domains/profile/api/profile.api";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { IconClinic, IconNotice } from "@student/shared/ui/icons/Icons";
@@ -39,8 +39,15 @@ export default function NotificationsPage() {
     staleTime: 30000,
   });
 
-  const isLoading = countsLoading || clinicLoading || qnaLoading;
-  const isError = countsError || clinicError || qnaError;
+  const { data: myCounselRequests = [], isLoading: counselLoading, isError: counselError } = useQuery({
+    queryKey: ["student", "counsel", "requests"],
+    queryFn: () => fetchMyCounselRequests(profile!.id, 50),
+    enabled: profile?.id != null,
+    staleTime: 30000,
+  });
+
+  const isLoading = countsLoading || clinicLoading || qnaLoading || counselLoading;
+  const isError = countsError || clinicError || qnaError || counselError;
   const sevenDaysAgo = Date.now() - SEVEN_DAYS_MS;
 
   const approvedClinicBookings = (clinicBookings || []).filter((b) => {
@@ -59,8 +66,14 @@ export default function NotificationsPage() {
     return updatedTime > sevenDaysAgo;
   });
 
+  const answeredCounselPosts = myCounselRequests.filter((p) => {
+    if ((p.replies_count || 0) === 0) return false;
+    const updatedTime = p.updated_at ? new Date(p.updated_at).getTime() : new Date(p.created_at).getTime();
+    return updatedTime > sevenDaysAgo;
+  });
+
   const hasNotifications = (counts?.total || 0) > 0 ||
-    approvedClinicBookings.length > 0 || answeredQnaPosts.length > 0;
+    approvedClinicBookings.length > 0 || answeredQnaPosts.length > 0 || answeredCounselPosts.length > 0;
 
   // 알림 페이지 진입 시 현재 보이는 항목들을 "읽음" 처리
   const markSeen = useMarkNotificationsSeen();
@@ -70,13 +83,14 @@ export default function NotificationsPage() {
     const items: { type: string; id: number }[] = [];
     for (const b of approvedClinicBookings) items.push({ type: "clinic", id: b.id });
     for (const p of answeredQnaPosts) items.push({ type: "qna", id: p.id });
+    for (const p of answeredCounselPosts) items.push({ type: "counsel", id: p.id });
     if (items.length === 0) return;
     // 동일 항목 세트면 중복 호출 방지
     const key = items.map((i) => `${i.type}:${i.id}`).join(",");
     if (key === markedRef.current) return;
     markedRef.current = key;
     markSeen(items);
-  }, [isLoading, approvedClinicBookings, answeredQnaPosts, markSeen]);
+  }, [isLoading, approvedClinicBookings, answeredQnaPosts, answeredCounselPosts, markSeen]);
 
   if (isLoading) {
     return (
@@ -165,6 +179,33 @@ export default function NotificationsPage() {
                     <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4 }}>{post.title}</div>
                     <div className="stu-muted" style={{ fontSize: 12 }}>
                       답변이 달렸습니다 · {post.replies_count ?? 0}개
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* 상담 답변 */}
+          {answeredCounselPosts.length > 0 && (
+            <section>
+              <div style={{ display: "flex", alignItems: "center", gap: "var(--stu-space-2)", marginBottom: "var(--stu-space-3)" }}>
+                <IconNotice style={{ width: 18, height: 18, color: "var(--stu-primary)" }} />
+                <h3 style={{ fontSize: 15, fontWeight: 700 }}>상담 답변</h3>
+                <span style={{ fontSize: 12, color: "var(--stu-text-muted)" }}>({answeredCounselPosts.length})</span>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-2)" }}>
+                {answeredCounselPosts.map((post) => (
+                  <Link
+                    key={post.id}
+                    to="/student/community"
+                    state={{ openCounselId: post.id }}
+                    className="stu-panel stu-panel--pressable"
+                    style={{ textDecoration: "none", color: "inherit" }}
+                  >
+                    <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4 }}>{post.title}</div>
+                    <div className="stu-muted" style={{ fontSize: 12 }}>
+                      상담 답변이 달렸습니다 · {post.replies_count ?? 0}개
                     </div>
                   </Link>
                 ))}

@@ -287,6 +287,7 @@ function CounselThreadView({
     mutationFn: () => deletePost(postId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["community-counsel-posts"] });
+      qc.invalidateQueries({ queryKey: ["admin", "notification-counts"] });
       feedback.success("상담 신청이 삭제되었습니다.");
       onDelete();
     },
@@ -468,7 +469,7 @@ function CounselThreadView({
           postId={postId}
           mode="answer"
           allowReply={!post.created_by_deleted}
-          invalidateKeys={[["community-counsel-posts"]]}
+          invalidateKeys={[["community-counsel-posts"], ["admin", "notification-counts"]]}
           placeholder="학생에게 상담 답변을 작성하세요…"
         />
       </div>

@@ -13,6 +13,7 @@ import RichTextEditor from "@/shared/ui/editor/RichTextEditor";
 import DOMPurify from "dompurify";
 import { fetchMyProfile } from "@student/domains/profile/api/profile.api";
 import { fetchVideoMe } from "@student/domains/video/api/video.api";
+import { useMarkNotificationsSeen } from "@student/domains/notifications/hooks/useSeenNotifications";
 import {
   fetchMyQuestions,
   fetchQuestionDetail,
@@ -169,12 +170,16 @@ export default function CommunityPage() {
   const [tab, setTab] = useState<Tab>("notice");
   const [view, setView] = useState<View>({ kind: "tabs" });
 
-  // 알림에서 질문 상세 직접 진입
+  // 알림에서 질문/상담 상세 직접 진입
   useEffect(() => {
-    const openId = (location.state as { openQuestionId?: number } | null)?.openQuestionId;
-    if (openId != null) {
+    const state = location.state as { openQuestionId?: number; openCounselId?: number } | null;
+    if (state?.openQuestionId != null) {
       setTab("qna");
-      setView({ kind: "qna-detail", id: openId });
+      setView({ kind: "qna-detail", id: state.openQuestionId });
+      navigate(location.pathname, { replace: true, state: {} });
+    } else if (state?.openCounselId != null) {
+      setTab("counsel");
+      setView({ kind: "counsel-detail", id: state.openCounselId });
       navigate(location.pathname, { replace: true, state: {} });
     }
   }, [location.pathname, location.state, navigate]);
@@ -380,11 +385,16 @@ function QnaDetail({ id, cached, onBack }: { id: number; cached?: PostEntity; on
 
 function QnaDetailContent({ question, onBack }: { question: PostEntity; onBack: () => void }) {
   const answered = isAnswered(question);
+  const markSeen = useMarkNotificationsSeen();
   const { data: replies = [], isLoading } = useQuery<Answer[]>({
     queryKey: ["student", "qna", "replies", question.id],
     queryFn: () => fetchReplies(question.id),
     enabled: answered,
   });
+
+  useEffect(() => {
+    if (answered) markSeen([{ type: "qna", id: question.id }]);
+  }, [answered, question.id, markSeen]);
 
   return (
     <StudentPageShell title="질문 상세" onBack={onBack}>
@@ -697,11 +707,16 @@ function CounselDetail({ id, cached, onBack }: { id: number; cached?: PostEntity
 
 function CounselDetailContent({ request, onBack }: { request: PostEntity; onBack: () => void }) {
   const answered = isAnswered(request);
+  const markSeen = useMarkNotificationsSeen();
   const { data: replies = [], isLoading } = useQuery<Answer[]>({
     queryKey: ["student", "counsel", "replies", request.id],
     queryFn: () => fetchReplies(request.id),
     enabled: answered,
   });
+
+  useEffect(() => {
+    if (answered) markSeen([{ type: "counsel", id: request.id }]);
+  }, [answered, request.id, markSeen]);
 
   return (
     <StudentPageShell title="상담 신청 상세" onBack={onBack}>

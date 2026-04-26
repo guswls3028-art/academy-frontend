@@ -1,21 +1,22 @@
 /**
  * 학생 앱 알림 API
- * 클리닉 예약 승인, QnA 답변, 새 영상, 새 성적 등의 알림 카운트 조회
+ * 클리닉 예약 승인, QnA·상담 답변, 새 영상, 새 성적 등의 알림 카운트 조회
  */
 import { fetchMyClinicBookingRequests } from "@student/domains/clinic/api/clinicBooking.api";
-import { fetchMyQuestions } from "@student/domains/community/api/community.api";
+import { fetchMyQuestions, fetchMyCounselRequests } from "@student/domains/community/api/community.api";
 import { isNotificationSeen } from "../hooks/useSeenNotifications";
 
 export type NotificationCounts = {
   clinic: number;
   qna: number;
+  counsel: number;
   video: number;
   grade: number;
   total: number;
 };
 
 export type FetchNotificationCountsOptions = {
-  /** 프로필 id. 전달 시 QnA 질문 조회 가능 */
+  /** 프로필 id. 전달 시 QnA·상담 질문 조회 가능 */
   profileId?: number | null;
 };
 
@@ -27,13 +28,14 @@ export async function fetchNotificationCounts(
   const sevenDaysAgo = Date.now() - SEVEN_DAYS_MS;
 
   try {
-    const qnaPromise = options?.profileId != null
-      ? fetchMyQuestions(options.profileId, 50)
-      : Promise.resolve([]);
+    const hasProfile = options?.profileId != null;
+    const qnaPromise = hasProfile ? fetchMyQuestions(options!.profileId!, 50) : Promise.resolve([]);
+    const counselPromise = hasProfile ? fetchMyCounselRequests(options!.profileId!, 50) : Promise.resolve([]);
 
-    const [clinicResult, qnaResult] = await Promise.allSettled([
+    const [clinicResult, qnaResult, counselResult] = await Promise.allSettled([
       fetchMyClinicBookingRequests(),
       qnaPromise,
+      counselPromise,
     ]);
 
     let clinic = 0;
@@ -56,9 +58,19 @@ export async function fetchNotificationCounts(
       }).length;
     }
 
-    const total = clinic + qna;
-    return { clinic, qna, video: 0, grade: 0, total };
+    let counsel = 0;
+    if (counselResult.status === "fulfilled") {
+      counsel = counselResult.value.filter((p) => {
+        if ((p.replies_count || 0) === 0) return false;
+        const t = p.updated_at ?? p.created_at;
+        if (new Date(t).getTime() <= sevenDaysAgo) return false;
+        return !isNotificationSeen("counsel", p.id);
+      }).length;
+    }
+
+    const total = clinic + qna + counsel;
+    return { clinic, qna, counsel, video: 0, grade: 0, total };
   } catch {
-    return { clinic: 0, qna: 0, video: 0, grade: 0, total: 0 };
+    return { clinic: 0, qna: 0, counsel: 0, video: 0, grade: 0, total: 0 };
   }
 }

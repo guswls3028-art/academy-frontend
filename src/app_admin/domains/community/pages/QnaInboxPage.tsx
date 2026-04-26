@@ -494,7 +494,7 @@ function ThreadView({
           postId={postId}
           mode="answer"
           allowReply={!post.created_by_deleted}
-          invalidateKeys={[["community-questions"]]}
+          invalidateKeys={[["community-questions"], ["admin", "notification-counts"]]}
           placeholder="학생에게 답변을 작성하세요…"
         />
       </div>

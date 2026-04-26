@@ -1,6 +1,7 @@
 /**
  * 선생앱(관리자) 알림 — 학생 앱에서 발생한 이벤트 요약
  * - QnA 답변 대기 건수 (학생 질문 등록)
+ * - 상담 답변 대기 건수 (학생 상담 신청)
  * - 클리닉 예약 신청 건수 (학생 예약 신청, status=pending)
  * - 가입 신청 대기 건수 (학생 회원가입 신청, status=pending)
  */
@@ -11,6 +12,7 @@ import { fetchAdminSubmissions } from "@admin/domains/submissions/api/adminSubmi
 
 export type AdminNotificationCounts = {
   qnaPending: number;
+  counselPending: number;
   clinicPending: number;
   registrationRequestsPending: number;
   recentSubmissions: number;
@@ -18,20 +20,27 @@ export type AdminNotificationCounts = {
 };
 
 export type AdminNotificationItem = {
-  type: "qna" | "clinic" | "registration_requests" | "submissions";
+  type: "qna" | "counsel" | "clinic" | "registration_requests" | "submissions";
   label: string;
   count: number;
   to: string;
 };
 
+async function countPendingPosts(postType: "qna" | "counsel"): Promise<number> {
+  try {
+    const { results } = await fetchAdminPosts({ postType, pageSize: 100 });
+    return results.filter((p) => (p.replies_count ?? 0) === 0).length;
+  } catch {
+    return 0;
+  }
+}
+
 export async function fetchAdminNotificationCounts(): Promise<AdminNotificationCounts> {
   try {
-    const [participantsRes, typesAndPosts, registrationRes, submissionsRes] = await Promise.all([
+    const [participantsRes, qnaCount, counselCount, registrationRes, submissionsRes] = await Promise.all([
       fetchClinicParticipants({ status: "pending" }).then((r) => r).catch(() => []),
-      (async () => {
-        const { results } = await fetchAdminPosts({ postType: "qna", pageSize: 100 });
-        return results.filter((p) => (p.replies_count ?? 0) === 0).length;
-      })().catch(() => 0),
+      countPendingPosts("qna"),
+      countPendingPosts("counsel"),
       fetchRegistrationRequests({ status: "pending", page: 1, page_size: 1 }).then(
         (r) => r.count
       ).catch(() => 0),
@@ -46,20 +55,20 @@ export async function fetchAdminNotificationCounts(): Promise<AdminNotificationC
       }).catch(() => 0),
     ]);
 
-    const qnaPending = typeof typesAndPosts === "number" ? typesAndPosts : 0;
     const clinicPending = Array.isArray(participantsRes) ? participantsRes.length : 0;
     const registrationRequestsPending = typeof registrationRes === "number" ? registrationRes : 0;
     const recentSubmissions = typeof submissionsRes === "number" ? submissionsRes : 0;
 
     return {
-      qnaPending,
+      qnaPending: qnaCount,
+      counselPending: counselCount,
       clinicPending,
       registrationRequestsPending,
       recentSubmissions,
-      total: qnaPending + clinicPending + registrationRequestsPending + recentSubmissions,
+      total: qnaCount + counselCount + clinicPending + registrationRequestsPending + recentSubmissions,
     };
   } catch {
-    return { qnaPending: 0, clinicPending: 0, registrationRequestsPending: 0, recentSubmissions: 0, total: 0 };
+    return { qnaPending: 0, counselPending: 0, clinicPending: 0, registrationRequestsPending: 0, recentSubmissions: 0, total: 0 };
   }
 }
 
@@ -73,6 +82,14 @@ export function buildAdminNotificationItems(
       label: "답변 대기 질문",
       count: counts.qnaPending,
       to: "/admin/community/qna",
+    });
+  }
+  if (counts.counselPending > 0) {
+    items.push({
+      type: "counsel",
+      label: "답변 대기 상담",
+      count: counts.counselPending,
+      to: "/admin/community/counsel",
     });
   }
   if (counts.clinicPending > 0) {

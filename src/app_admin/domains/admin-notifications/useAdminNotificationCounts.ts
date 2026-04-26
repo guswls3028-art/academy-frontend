@@ -19,6 +19,7 @@ export function useAdminNotificationCounts() {
 
   const counts: AdminNotificationCounts = q.data ?? {
     qnaPending: 0,
+    counselPending: 0,
     clinicPending: 0,
     registrationRequestsPending: 0,
     recentSubmissions: 0,
