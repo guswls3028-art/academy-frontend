@@ -108,10 +108,17 @@ export default function DocumentList({
   return (
     <>
       <div className={css.treeNavHeader}>
-        <span className={css.treeNavTitle}>문서 목록</span>
+        <span className={css.treeNavTitle}>매치업 자료</span>
         <div style={{ marginLeft: "auto" }}>
-          <Button intent="ghost" size="sm" onClick={onUpload} data-testid="matchup-upload-button">
-            <Plus size={14} />
+          <Button
+            intent="ghost"
+            size="sm"
+            onClick={onUpload}
+            data-testid="matchup-upload-button"
+            leftIcon={<Plus size={14} />}
+            title="시험지/교재 등 매치업 자료 업로드"
+          >
+            자료 추가
           </Button>
         </div>
       </div>

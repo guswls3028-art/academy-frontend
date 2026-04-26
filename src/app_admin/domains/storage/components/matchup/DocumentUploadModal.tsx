@@ -316,25 +316,34 @@ export default function DocumentUploadModal({
       >
         {/* Header */}
         <div style={{
-          display: "flex", justifyContent: "space-between", alignItems: "center",
-          padding: "var(--space-5) var(--space-6) var(--space-4)",
+          padding: "var(--space-5) var(--space-6) var(--space-3)",
           borderBottom: "1px solid var(--color-border-divider)",
           flexShrink: 0,
         }}>
-          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>문서 업로드</h3>
-          <button
-            onClick={onClose}
-            disabled={uploading}
-            title={uploading ? "업로드가 끝날 때까지 닫을 수 없습니다" : "닫기"}
-            style={{
-              background: "none", border: "none",
-              cursor: uploading ? "not-allowed" : "pointer",
-              color: uploading ? "var(--color-text-muted)" : "var(--color-text-secondary)",
-              opacity: uploading ? 0.4 : 1,
-            }}
-          >
-            <X size={18} />
-          </button>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>AI 매치업 자료 업로드</h3>
+            <button
+              onClick={onClose}
+              disabled={uploading}
+              title={uploading ? "업로드가 끝날 때까지 닫을 수 없습니다" : "닫기"}
+              style={{
+                background: "none", border: "none",
+                cursor: uploading ? "not-allowed" : "pointer",
+                color: uploading ? "var(--color-text-muted)" : "var(--color-text-secondary)",
+                opacity: uploading ? 0.4 : 1,
+              }}
+            >
+              <X size={18} />
+            </button>
+          </div>
+          <p style={{
+            margin: "var(--space-2) 0 0 0",
+            fontSize: 12,
+            color: "var(--color-text-muted)",
+            lineHeight: 1.5,
+          }}>
+            교재·기출 등 <strong>참고 자료</strong>를 미리 등록해두면, 학생이 본 <strong>시험지</strong>를 올렸을 때 AI가 등록된 자료에서 유사 문제를 찾아 추천합니다.
+          </p>
         </div>
 
         {/* Body (스크롤 영역) */}

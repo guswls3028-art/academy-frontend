@@ -364,6 +364,56 @@ export default function MyStorageExplorer() {
     }
   }, [qc, navigate]);
 
+  // 다중 선택 일괄 매치업 등록
+  const [bulkPromoting, setBulkPromoting] = useState(false);
+  const selectedMatchupCandidates = subFiles.filter(
+    (f) => selectedFileIds.has(f.id) && isMatchupSupported(f) && !f.matchup,
+  );
+  const handleBulkPromote = useCallback(async () => {
+    const candidates = selectedMatchupCandidates;
+    if (candidates.length === 0) return;
+    const ok = await confirm({
+      title: "선택 파일을 매치업으로 등록",
+      message: `${candidates.length}개 PDF/PNG/JPG를 매치업 자료로 등록하고 AI 분석을 시작합니다.`,
+      confirmText: "등록",
+    });
+    if (!ok) return;
+
+    setBulkPromoting(true);
+    let succeeded = 0;
+    let alreadyPromoted = 0;
+    let failed = 0;
+    for (const f of candidates) {
+      try {
+        await promoteInventoryToMatchup({ inventoryFileId: f.id, title: f.displayName });
+        succeeded++;
+      } catch (e) {
+        const err = e as { status?: number; code?: string };
+        if (err.status === 409 && err.code === "already_promoted") {
+          alreadyPromoted++;
+        } else {
+          failed++;
+        }
+      }
+    }
+    setBulkPromoting(false);
+    qc.invalidateQueries({ queryKey: ["storage-inventory", SCOPE] });
+    qc.invalidateQueries({ queryKey: ["matchup-documents"] });
+
+    const parts: string[] = [];
+    if (succeeded > 0) parts.push(`${succeeded}개 등록`);
+    if (alreadyPromoted > 0) parts.push(`${alreadyPromoted}개 이미 등록됨`);
+    if (failed > 0) parts.push(`${failed}개 실패`);
+    if (failed > 0) {
+      feedback.warning(`매치업 일괄 등록 결과: ${parts.join(", ")}`);
+    } else {
+      feedback.success(`매치업 일괄 등록 완료: ${parts.join(", ")}. 매치업 페이지에서 진행률 확인.`);
+    }
+    if (succeeded > 0 || alreadyPromoted > 0) {
+      clearSelection();
+    }
+  }, [selectedMatchupCandidates, confirm, qc, clearSelection]);
+
   const openFileUrl = async (r2Key: string) => {
     try {
       const { url } = await getPresignedUrl(r2Key);
@@ -386,6 +436,22 @@ export default function MyStorageExplorer() {
               <Button type="button" intent="ghost" size="sm" onClick={clearSelection}>
                 선택 해제
               </Button>
+              {selectedMatchupCandidates.length > 0 && (
+                <Button
+                  type="button"
+                  intent="primary"
+                  size="sm"
+                  onClick={handleBulkPromote}
+                  disabled={bulkPromoting}
+                  data-testid="storage-bulk-promote-matchup"
+                  leftIcon={<Sparkles size={14} />}
+                  title="선택한 PDF/PNG/JPG를 매치업 자료로 일괄 등록"
+                >
+                  {bulkPromoting
+                    ? `매치업 자료 등록 중…`
+                    : `매치업 자료로 등록 (${selectedMatchupCandidates.length})`}
+                </Button>
+              )}
               <Button type="button" intent="danger" size="sm" onClick={handleDeleteSelected} disabled={isDeleting}>
                 {isDeleting ? "삭제 중…" : "삭제"}
               </Button>
@@ -451,7 +517,7 @@ export default function MyStorageExplorer() {
                 onClick={() => navigate("/admin/storage/matchup")}
                 style={{ marginLeft: "auto", flexShrink: 0 }}
               >
-                매치업 페이지로
+                AI 매치업 페이지로
               </Button>
             </div>
           )}
@@ -722,7 +788,7 @@ export default function MyStorageExplorer() {
                   }}
                 >
                   <Sparkles size={18} style={{ color: "var(--color-brand-primary)", flexShrink: 0 }} />
-                  매치업으로 등록 (AI 분석)
+                  매치업 자료로 등록 (AI 분석)
                 </button>
               ) : null}
               <button

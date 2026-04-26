@@ -16,13 +16,13 @@ export default function MatchupEmptyState({ onUpload }: Props) {
       </div>
       <h3 className={css.placeholderTitle}>AI 매치업</h3>
       <p className={css.placeholderDesc}>
-        시험지나 문제 PDF를 업로드하면
+        교재·기출 등 <strong>참고 자료를 먼저 등록</strong>하세요.
         <br />
-        AI가 각 문제를 분석하고, 유사한 문제를 자동으로 찾아줍니다.
+        학생이 본 <strong>시험지를 올리면</strong> 등록된 자료에서 AI가 유사 문제를 찾아 추천합니다.
       </p>
       <div className={css.placeholderAction} style={{ display: "flex", gap: "var(--space-2)", flexWrap: "wrap", justifyContent: "center" }}>
         <Button size="md" onClick={onUpload} data-testid="matchup-empty-upload-btn">
-          문서 업로드
+          자료 업로드
         </Button>
         <Button size="md" intent="secondary" onClick={() => navigate("/admin/storage/files")} data-testid="matchup-empty-storage-link">
           <FolderOpen size={14} style={{ marginRight: 4 }} />
@@ -30,7 +30,7 @@ export default function MatchupEmptyState({ onUpload }: Props) {
         </Button>
       </div>
       <p style={{ fontSize: 12, color: "var(--color-text-muted)", marginTop: "var(--space-3)", maxWidth: 420, textAlign: "center" }}>
-        저장소에 이미 PDF가 있다면, 우클릭 메뉴의 <strong>"매치업으로 등록"</strong>으로 바로 분석할 수 있습니다.
+        저장소에 PDF가 이미 있다면, 파일 클릭 후 <strong>"매치업 자료로 등록"</strong>으로 바로 분석에 추가할 수 있습니다.
       </p>
       <div className={css.placeholderSteps}>
         <div className={css.placeholderStep}>
