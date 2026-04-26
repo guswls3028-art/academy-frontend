@@ -3,13 +3,12 @@
  */
 import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { getStudentTenantBranding } from "@student/shared/tenant/studentTenantBranding";
 import { fetchMyProfile } from "@student/domains/profile/api/profile.api";
 import { getTenantCodeForApiRequest, getTenantIdFromCode, getTenantBranding } from "@/shared/tenant";
 import { logout } from "@/auth/api/auth.api";
 import { useAuthContext } from "@/auth/context/AuthContext";
-import { setParentStudentId, getParentStudentId } from "@student/shared/api/parentStudentSelection";
 import { useStudentTheme } from "@student/shared/context/StudentThemeContext";
 import CommonLogoIcon from "@/auth/assets/CommonLogoIcon";
 import TchulLogoIcon from "@/auth/assets/TchulLogoIcon";
@@ -87,7 +86,6 @@ function IconMoon({ style }: { style?: React.CSSProperties }) {
 
 export default function StudentTopBar({ tenantCode, onMenuClick }: Props) {
   const navigate = useNavigate();
-  const qc = useQueryClient();
   const { user } = useAuthContext();
   const { isDark, toggleMode } = useStudentTheme();
   const branding = getStudentTenantBranding(tenantCode);
@@ -137,32 +135,8 @@ export default function StudentTopBar({ tenantCode, onMenuClick }: Props) {
 
   const profileDropdownContent = (
     <div className="stu-topbar__profileDropdown">
-      {profile?.isParentReadOnly && (user?.linkedStudents?.length ?? 0) > 1 && (
-        <>
-          <div className="stu-topbar__profileDropdownLabel" style={{ padding: "8px 12px", fontSize: 12, color: "var(--stu-text-muted)", fontWeight: 600 }}>
-            자녀 선택
-          </div>
-          {(user?.linkedStudents ?? []).map((s) => (
-            <button
-              key={s.id}
-              type="button"
-              className="stu-topbar__profileDropdownItem"
-              style={{ fontWeight: getParentStudentId() === s.id ? 700 : 400 }}
-              onClick={() => {
-                setParentStudentId(s.id);
-                setProfileOpen(false);
-                // 자녀 전환 시 모든 학생 캐시 무효화 (배열 키 + 하이픈 키)
-                // 자녀 전환: 모든 캐시 무효화 (배열 키 + 하이픈 키 모두 포함)
-                qc.clear();
-                navigate("/student/dashboard");
-              }}
-            >
-              {s.name}
-            </button>
-          ))}
-          <div className="stu-topbar__profileDropdownDivider" />
-        </>
-      )}
+      {/* 자녀 선택은 헤더 하단 ParentChildSwitcher 칩이 1차 채널.
+       * dropdown 자녀 항목은 칩 미노출 케이스 대비 deprecated — 노출하지 않음. */}
       <button
         type="button"
         className="stu-topbar__profileDropdownItem"

@@ -637,6 +637,7 @@ function TodoRow({ to, state, icon, iconBg, label, labelColor, detail, hasBorder
         display: "flex", alignItems: "flex-start", gap: 12,
         padding: "12px 16px", textDecoration: "none", color: "inherit",
         borderBottom: hasBorder ? "1px solid var(--stu-border)" : "none",
+        WebkitTapHighlightColor: "transparent",
       }}
     >
       <div style={{ width: 36, height: 36, borderRadius: 10, background: iconBg, display: "grid", placeItems: "center", flexShrink: 0, marginTop: 1 }}>
