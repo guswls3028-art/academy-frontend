@@ -22,7 +22,6 @@ import { feedback } from "@/shared/ui/feedback/feedback";
 import PostReadView from "../components/PostReadView";
 import PostThreadView from "../components/PostThreadView";
 import PostHistoryTimeline from "../components/PostHistoryTimeline";
-import CommunityContextBar from "../components/CommunityContextBar";
 import CommunityEmptyState from "../components/CommunityEmptyState";
 import CommunityAvatar from "../components/CommunityAvatar";
 import QnaMatchupResults from "../components/QnaMatchupResults";
@@ -108,10 +107,6 @@ export default function QnaInboxPage() {
   return (
     <div className="qna-inbox" style={{ height: "calc(100vh - 180px)" }}>
       <aside className="qna-inbox__list" ref={listRef}>
-        <CommunityContextBar
-          scope="all"
-          extra={pendingCount > 0 ? `답변 대기 ${pendingCount}건` : undefined}
-        />
         <div className="qna-inbox__list-header">
           <h2 className="qna-inbox__list-title">질의응답</h2>
           <div className="qna-inbox__filter-group">
