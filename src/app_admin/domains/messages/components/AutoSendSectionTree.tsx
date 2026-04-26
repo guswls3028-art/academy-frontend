@@ -183,10 +183,10 @@ export const AUTO_SEND_SECTIONS: SectionDef[] = [
     id: "community",
     label: TEMPLATE_CATEGORY_LABELS.community,
     icon: <MessageCircle size={16} aria-hidden />,
-    triggers: ["qna_answer_registered", "counsel_approved"],
+    triggers: ["qna_answered", "counsel_answered"],
     children: [
-      triggerChild("qna_answer_registered", <Bell size={14} aria-hidden />),
-      triggerChild("counsel_approved", <Bell size={14} aria-hidden />),
+      triggerChild("qna_answered", <Bell size={14} aria-hidden />),
+      triggerChild("counsel_answered", <Bell size={14} aria-hidden />),
     ],
   },
   {
