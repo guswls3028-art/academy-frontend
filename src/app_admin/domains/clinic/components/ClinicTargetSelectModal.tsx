@@ -261,6 +261,17 @@ export default function ClinicTargetSelectModal({
     });
   };
 
+  const selectAllTargets = () => {
+    if (mode !== "targets") return;
+    const ids = allTargetRows.map((r) => r.id);
+    setSelectedIds(ids);
+    setSelectedIdToName(() => {
+      const next = new Map<number, string>();
+      allTargetRows.forEach((r) => next.set(r.id, r.name));
+      return next;
+    });
+  };
+
   const removeSelected = (selectedId: number) => {
     setSelectedIds((prev) => prev.filter((x) => x !== selectedId));
     setSelectedIdToName((prev) => {
@@ -359,6 +370,17 @@ export default function ClinicTargetSelectModal({
                 선택된 {selectedIds.length}명 / 전체 {totalCount}명
               </span>
               <div className="flex gap-2">
+                {mode === "targets" && allTargetRows.length > rows.length && (
+                  <Button
+                    type="button"
+                    intent="secondary"
+                    size="sm"
+                    onClick={selectAllTargets}
+                    disabled={isLoading || allTargetRows.length === 0}
+                  >
+                    대상자 {allTargetRows.length}명 모두 선택
+                  </Button>
+                )}
                 <Button
                   type="button"
                   intent="secondary"
