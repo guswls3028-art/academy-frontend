@@ -15,7 +15,8 @@
  *   7. 문제 row 클릭 → 오른쪽 상세에 문제 그리드 로드
  *   8. cleanup: 테스트 문서 삭제
  */
-import { test, expect, Page } from "@playwright/test";
+import { test, expect } from "../fixtures/strictTest";
+import type { Page } from "@playwright/test";
 import { loginViaUI } from "../helpers/auth";
 
 const MINIMAL_PDF = Buffer.from(

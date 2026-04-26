@@ -2,7 +2,7 @@
  * E2E: 매치업 엔드투엔드 — PDF 업로드 → AI 분석 → 문제 추출 → 유사 검색
  * Tenant 1 (hakwonplus), 운영 서버 대상
  */
-import { test, expect } from "@playwright/test";
+import { test, expect } from "../fixtures/strictTest";
 import { loginViaUI, getApiBaseUrl } from "../helpers/auth";
 import path from "path";
 import { fileURLToPath } from "url";

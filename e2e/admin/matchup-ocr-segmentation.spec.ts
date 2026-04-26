@@ -6,7 +6,7 @@
  * 기대: 25개 이상 문항 카드 (이전: 7~8개 페이지 단위)
  * Tenant 1 (hakwonplus), 운영 서버
  */
-import { test, expect } from "@playwright/test";
+import { test, expect } from "../fixtures/strictTest";
 import { loginViaUI, getApiBaseUrl } from "../helpers/auth";
 import path from "path";
 
@@ -33,14 +33,14 @@ test.describe("OCR 세그멘테이션 개선 검증 (commit 6f29d311)", () => {
     const storageMenu = page.locator("text=스토리지").first();
     if (await storageMenu.isVisible({ timeout: 5000 }).catch(() => false)) {
       await storageMenu.click();
-      await page.waitForTimeout(800);
+      await page.waitForLoadState("networkidle", { timeout: 3_000 }).catch(() => {});
     }
 
     // "매치업" 서브메뉴 클릭
     const matchupMenu = page.locator("text=매치업").first();
     if (await matchupMenu.isVisible({ timeout: 5000 }).catch(() => false)) {
       await matchupMenu.click();
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle", { timeout: 3_000 }).catch(() => {});
     } else {
       // 사이드바에서 못 찾으면 직접 이동 (fallback)
       await page.goto("https://hakwonplus.com/admin/storage/matchup", {
@@ -49,7 +49,7 @@ test.describe("OCR 세그멘테이션 개선 검증 (commit 6f29d311)", () => {
       });
     }
 
-    await page.waitForTimeout(1500);
+    await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
     await page.screenshot({
       path: "e2e/screenshots/ocr-seg-02-matchup-page.png",
       fullPage: true,
@@ -75,7 +75,7 @@ test.describe("OCR 세그멘테이션 개선 검증 (commit 6f29d311)", () => {
       }
     }
 
-    await page.waitForTimeout(1000);
+    await page.waitForLoadState("networkidle", { timeout: 3_000 }).catch(() => {});
     await page.screenshot({
       path: "e2e/screenshots/ocr-seg-03-upload-modal.png",
       fullPage: true,
@@ -85,11 +85,11 @@ test.describe("OCR 세그멘테이션 개선 검증 (commit 6f29d311)", () => {
     const fileInput = page.locator('input[type="file"]');
     await expect(fileInput).toBeAttached({ timeout: 5000 });
     await fileInput.setInputFiles(SCAN_PDF);
-    await page.waitForTimeout(1500);
+    await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
 
     // 제목 자동 채워지는지 확인
     const titleInput = page.locator('input[placeholder="문서 제목"]');
-    await page.waitForTimeout(500);
+    await page.waitForLoadState("networkidle", { timeout: 3_000 }).catch(() => {});
 
     // 제목을 E2E 태그로 변경
     const docTitle = `${TAG} 숙명여고 통합과학 스캔본`;
@@ -122,7 +122,7 @@ test.describe("OCR 세그멘테이션 개선 검증 (commit 6f29d311)", () => {
       page.locator('input[type="file"]')
     ).not.toBeAttached({ timeout: 10000 });
 
-    await page.waitForTimeout(2000);
+    await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
     await page.screenshot({
       path: "e2e/screenshots/ocr-seg-05-after-upload.png",
       fullPage: true,
@@ -152,7 +152,7 @@ test.describe("OCR 세그멘테이션 개선 검증 (commit 6f29d311)", () => {
 
     // ── 7. 문서 클릭하여 선택 ──
     await docItem.click();
-    await page.waitForTimeout(1000);
+    await page.waitForLoadState("networkidle", { timeout: 3_000 }).catch(() => {});
 
     // ── 8. AI 처리 완료 대기 (최대 4분, 폴링) ──
     console.log(`[POLL] Waiting for AI processing to complete...`);
@@ -162,7 +162,9 @@ test.describe("OCR 세그멘테이션 개선 검증 (commit 6f29d311)", () => {
     const maxWaitMs = 240_000; // 4분
 
     while (Date.now() - pollStart < maxWaitMs) {
-      await page.waitForTimeout(5000); // 5초마다 체크
+      // 의도적 폴링 주기 (5초) — OCR/segmentation 진행 상태 확인.
+      // eslint-disable-next-line no-restricted-syntax
+      await page.waitForTimeout(5000);
 
       // 진행률 표시 로그
       const progressText = page.locator("text=/segmentation|ocr|embedding|upload_images|done/i").first();
@@ -230,13 +232,13 @@ test.describe("OCR 세그멘테이션 개선 검증 (commit 6f29d311)", () => {
 
     // 페이지 새로고침하여 DOM 갱신 후 "N문제" 텍스트 확인
     await page.reload({ waitUntil: "load", timeout: 15000 });
-    await page.waitForTimeout(2000);
+    await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
 
     // 문서 목록에서 해당 문서 다시 클릭
     const docItemAfterReload = page.locator(`text=${docTitle}`).first();
     if (await docItemAfterReload.isVisible({ timeout: 5000 }).catch(() => false)) {
       await docItemAfterReload.click();
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle", { timeout: 3_000 }).catch(() => {});
     }
 
     // DOM에서 "N문제" 텍스트 확인
@@ -245,7 +247,7 @@ test.describe("OCR 세그멘테이션 개선 검증 (commit 6f29d311)", () => {
     console.log(`[DOM-VERIFY] "${finalProblemCount}문제" text visible`);
 
     // ── 10. 문제 그리드 확인 ──
-    await page.waitForTimeout(2000);
+    await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
     await page.screenshot({
       path: "e2e/screenshots/ocr-seg-07-problem-grid.png",
       fullPage: true,
@@ -261,7 +263,7 @@ test.describe("OCR 세그멘테이션 개선 검증 (commit 6f29d311)", () => {
 
       // ── 11. 첫 번째 문제 카드 클릭 → 상세 이미지 확인 ──
       await problemCards.first().click();
-      await page.waitForTimeout(2000);
+      await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
 
       await page.screenshot({
         path: "e2e/screenshots/ocr-seg-08-problem-detail.png",

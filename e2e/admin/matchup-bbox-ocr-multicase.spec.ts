@@ -18,7 +18,7 @@
  * - segmentation_method 필드는 list API에 없음 → CW 로그로 확인
  * - 업로드 버튼: 문서 목록 헤더의 + 아이콘 버튼
  */
-import { test, expect } from "@playwright/test";
+import { test, expect } from "../fixtures/strictTest";
 import { loginViaUI, getApiBaseUrl } from "../helpers/auth";
 import { execSync } from "child_process";
 
@@ -138,13 +138,13 @@ async function openUploadAndSubmit(
     }
   }
 
-  await page.waitForTimeout(1000);
+  await page.waitForLoadState("networkidle", { timeout: 3_000 }).catch(() => {});
 
   // 파일 입력
   const fileInput = page.locator('input[type="file"]');
   await expect(fileInput).toBeAttached({ timeout: 5000 });
   await fileInput.setInputFiles(filePath);
-  await page.waitForTimeout(1500);
+  await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
 
   // 제목
   const titleInput = page.locator('input[placeholder="문서 제목"]');
@@ -182,6 +182,8 @@ async function waitForDone(
 ): Promise<{ status: string; problem_count: number; error_message: string }> {
   const start = Date.now();
   while (Date.now() - start < maxMs) {
+    // 의도적 폴링 주기 (8초) — AI 처리 완료까지 long-poll.
+    // eslint-disable-next-line no-restricted-syntax
     await page.waitForTimeout(8000);
     try {
       const resp = await page.request.get(`${API}/api/v1/matchup/documents/`, {
@@ -250,7 +252,7 @@ test.describe.serial("Case A: 은광여고 스캔본", () => {
 
     // 1. 매치업 페이지 이동
     await page.goto(MATCHUP_URL, { waitUntil: "load", timeout: 20000 });
-    await page.waitForTimeout(2000);
+    await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
     console.log(`[A-NAV] ${page.url()}`);
     await page.screenshot({ path: "e2e/screenshots/caseA-01-matchup.png", fullPage: true });
 
@@ -264,7 +266,7 @@ test.describe.serial("Case A: 은광여고 스캔본", () => {
 
     // 4. 모달 닫힘 확인
     await expect(page.locator('input[type="file"]')).not.toBeAttached({ timeout: 15000 });
-    await page.waitForTimeout(2000);
+    await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
     await page.screenshot({ path: "e2e/screenshots/caseA-03-after-upload.png", fullPage: true });
 
     // 5. 문서 목록에서 ID 취득
@@ -291,7 +293,7 @@ test.describe.serial("Case A: 은광여고 스캔본", () => {
 
     // 8. 브라우저 새로고침 후 DOM 확인
     await page.reload({ waitUntil: "load", timeout: 20000 });
-    await page.waitForTimeout(2000);
+    await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
     await page.screenshot({ path: "e2e/screenshots/caseA-04-done.png", fullPage: true });
 
     // 핵심 검증
@@ -302,7 +304,7 @@ test.describe.serial("Case A: 은광여고 스캔본", () => {
     const docItem = page.locator(`text=${c.title}`).first();
     if (await docItem.isVisible({ timeout: 5000 }).catch(() => false)) {
       await docItem.click();
-      await page.waitForTimeout(1500);
+      await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
 
       // "N문제" 텍스트
       const countText = page.locator(`text=${result.problem_count}문제`).first();
@@ -313,7 +315,7 @@ test.describe.serial("Case A: 은광여고 스캔본", () => {
       const qCard = page.locator("text=/^Q\\d+$/").first();
       if (await qCard.isVisible({ timeout: 5000 }).catch(() => false)) {
         await qCard.click();
-        await page.waitForTimeout(1500);
+        await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
         await page.screenshot({ path: "e2e/screenshots/caseA-05-problem-detail.png", fullPage: true });
 
         // 크롭 이미지 확인
@@ -389,7 +391,7 @@ test.describe.serial("Case B: 경기고 스캔본", () => {
     test.setTimeout(420_000);
 
     await page.goto(MATCHUP_URL, { waitUntil: "load", timeout: 20000 });
-    await page.waitForTimeout(2000);
+    await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
     console.log(`[B-NAV] ${page.url()}`);
     await page.screenshot({ path: "e2e/screenshots/caseB-01-matchup.png", fullPage: true });
 
@@ -400,7 +402,7 @@ test.describe.serial("Case B: 경기고 스캔본", () => {
     await page.screenshot({ path: "e2e/screenshots/caseB-02-upload-filled.png", fullPage: true });
 
     await expect(page.locator('input[type="file"]')).not.toBeAttached({ timeout: 15000 });
-    await page.waitForTimeout(2000);
+    await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
 
     const accessToken = await page.evaluate(() => localStorage.getItem("access"));
     const docsResp = await page.request.get(`${API}/api/v1/matchup/documents/`, {
@@ -422,7 +424,7 @@ test.describe.serial("Case B: 경기고 스캔본", () => {
     console.log(`[B-CW-LOGS] OCR_SEGMENT_OK (30m): ${ocrSegOk}`);
 
     await page.reload({ waitUntil: "load", timeout: 20000 });
-    await page.waitForTimeout(2000);
+    await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
     await page.screenshot({ path: "e2e/screenshots/caseB-03-done.png", fullPage: true });
 
     expect(result.status, "Case B: AI 처리 완료").toBe("done");
@@ -432,11 +434,11 @@ test.describe.serial("Case B: 경기고 스캔본", () => {
     const docItem = page.locator(`text=${c.title}`).first();
     if (await docItem.isVisible({ timeout: 5000 }).catch(() => false)) {
       await docItem.click();
-      await page.waitForTimeout(1500);
+      await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
       const qCard = page.locator("text=/^Q\\d+$/").first();
       if (await qCard.isVisible({ timeout: 5000 }).catch(() => false)) {
         await qCard.click();
-        await page.waitForTimeout(1500);
+        await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
         await page.screenshot({ path: "e2e/screenshots/caseB-04-problem-detail.png", fullPage: true });
       }
     }
@@ -507,7 +509,7 @@ test.describe.serial("Case C: 중산고 텍스트PDF", () => {
     test.setTimeout(300_000);
 
     await page.goto(MATCHUP_URL, { waitUntil: "load", timeout: 20000 });
-    await page.waitForTimeout(2000);
+    await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
     console.log(`[C-NAV] ${page.url()}`);
     await page.screenshot({ path: "e2e/screenshots/caseC-01-matchup.png", fullPage: true });
 
@@ -520,7 +522,7 @@ test.describe.serial("Case C: 중산고 텍스트PDF", () => {
     await page.screenshot({ path: "e2e/screenshots/caseC-02-upload-filled.png", fullPage: true });
 
     await expect(page.locator('input[type="file"]')).not.toBeAttached({ timeout: 15000 });
-    await page.waitForTimeout(2000);
+    await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
 
     const accessToken = await page.evaluate(() => localStorage.getItem("access"));
     const docsResp = await page.request.get(`${API}/api/v1/matchup/documents/`, {
@@ -544,7 +546,7 @@ test.describe.serial("Case C: 중산고 텍스트PDF", () => {
     console.log(`[C-CW-LOGS] OCR_SEGMENT_OK: before=${ocrSegOkBefore}, after=${ocrSegOkAfter}`);
 
     await page.reload({ waitUntil: "load", timeout: 20000 });
-    await page.waitForTimeout(2000);
+    await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
     await page.screenshot({ path: "e2e/screenshots/caseC-03-done.png", fullPage: true });
 
     // 핵심 검증
@@ -555,11 +557,11 @@ test.describe.serial("Case C: 중산고 텍스트PDF", () => {
     const docItem = page.locator(`text=${c.title}`).first();
     if (await docItem.isVisible({ timeout: 5000 }).catch(() => false)) {
       await docItem.click();
-      await page.waitForTimeout(1500);
+      await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
       const qCard = page.locator("text=/^Q\\d+$/").first();
       if (await qCard.isVisible({ timeout: 5000 }).catch(() => false)) {
         await qCard.click();
-        await page.waitForTimeout(1500);
+        await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
         await page.screenshot({ path: "e2e/screenshots/caseC-04-problem-detail.png", fullPage: true });
       }
     }

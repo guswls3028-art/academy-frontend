@@ -2,7 +2,7 @@
  * E2E: 매치업 기능 — 사이드바 자료실 → 매치업 탭 → UI 검증
  * Tenant 1 (hakwonplus), [E2E-{timestamp}] 태그
  */
-import { test, expect } from "@playwright/test";
+import { test, expect } from "../fixtures/strictTest";
 import { loginViaUI } from "../helpers/auth";
 
 test.describe("매치업 기능", () => {
