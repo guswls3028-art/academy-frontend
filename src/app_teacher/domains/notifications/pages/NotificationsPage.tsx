@@ -1,30 +1,79 @@
 // PATH: src/app_teacher/domains/notifications/pages/NotificationsPage.tsx
-// 알림 센터 — 미처리 알림 목록 + 탭 필터
+// 알림 센터 — 미처리 알림 목록 + 도메인별 도착지 명시
+// TodayPage "지금 처리할 일"과 동일 데이터 소스, 헤더 합계 강조 + 처리 경로 라벨로 차별화.
 import { useNavigate } from "react-router-dom";
+import type { ReactNode } from "react";
 import { useAdminNotificationCounts } from "@admin/domains/admin-notifications/useAdminNotificationCounts";
-import { buildAdminNotificationItems } from "@admin/domains/admin-notifications/api";
+import type { AdminNotificationItem } from "@admin/domains/admin-notifications/api";
 import { EmptyState } from "@/shared/ui/ds";
+import { Badge } from "@teacher/shared/ui/Badge";
+import {
+  ChevronLeft,
+  ChevronRight,
+  MessageCircle,
+  Calendar,
+  UserPlus,
+  ClipboardList,
+  Video,
+} from "@teacher/shared/ui/Icons";
+import { TEACHER_PENDING_ROUTES } from "../routes";
+
+type ItemType = AdminNotificationItem["type"];
+
+const ICON_MAP: Record<ItemType, ReactNode> = {
+  qna: <MessageCircle size={16} />,
+  counsel: <MessageCircle size={16} />,
+  clinic: <Calendar size={16} />,
+  registration_requests: <UserPlus size={16} />,
+  submissions: <ClipboardList size={16} />,
+  video_failed: <Video size={16} />,
+};
+
+const DEST_LABEL: Record<ItemType, string> = {
+  qna: "소통에서 답변",
+  counsel: "소통에서 답변",
+  clinic: "클리닉에서 처리",
+  registration_requests: "학생에서 승인",
+  submissions: "제출함에서 처리",
+  video_failed: "영상에서 재시도",
+};
 
 export default function NotificationsPage() {
   const navigate = useNavigate();
-  const { counts, isLoading } = useAdminNotificationCounts();
-  const items = counts ? buildAdminNotificationItems(counts) : [];
+  const { items, counts, isLoading } = useAdminNotificationCounts();
+  const total = counts?.total ?? 0;
 
-  const routeMap: Record<string, string> = {
-    qna: "/teacher/comms",
-    clinic: "/teacher/comms",
-    registration_requests: "/teacher/comms",
-    submissions: "/teacher/comms",
+  const handleBack = () => {
+    if (window.history.length > 1) navigate(-1);
+    else navigate("/teacher", { replace: true });
   };
 
   return (
     <div className="flex flex-col gap-3">
       {/* Header */}
       <div className="flex items-center gap-2 py-0.5">
-        <BackBtn onClick={() => navigate(-1)} />
-        <h1 className="text-lg font-bold" style={{ color: "var(--tc-text)" }}>
+        <button
+          onClick={handleBack}
+          aria-label="뒤로"
+          className="flex items-center justify-center cursor-pointer"
+          style={{
+            background: "none",
+            border: "none",
+            padding: 6,
+            color: "var(--tc-text-secondary)",
+            borderRadius: "var(--tc-radius)",
+          }}
+        >
+          <ChevronLeft size={20} />
+        </button>
+        <h1 className="text-lg font-bold flex-1" style={{ color: "var(--tc-text)" }}>
           알림 센터
         </h1>
+        {total > 0 && (
+          <Badge tone="danger" pill>
+            총 {total}건
+          </Badge>
+        )}
       </div>
 
       {isLoading ? (
@@ -34,7 +83,7 @@ export default function NotificationsPage() {
           {items.map((item) => (
             <button
               key={item.type}
-              onClick={() => navigate(routeMap[item.type] ?? "/teacher/comms")}
+              onClick={() => navigate(TEACHER_PENDING_ROUTES[item.type])}
               className="w-full text-left cursor-pointer rounded-xl"
               style={{
                 padding: "var(--tc-space-3) var(--tc-space-4)",
@@ -42,57 +91,43 @@ export default function NotificationsPage() {
                 border: "1px solid var(--tc-border-subtle)",
               }}
             >
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-sm font-semibold" style={{ color: "var(--tc-text)" }}>
-                    {item.label}
-                  </div>
-                  <div className="text-xs mt-0.5" style={{ color: "var(--tc-text-muted)" }}>
-                    처리 대기
-                  </div>
-                </div>
+              <div className="flex items-center gap-3">
                 <span
-                  className="text-base font-bold rounded-full"
+                  className="flex items-center justify-center shrink-0 rounded-lg"
                   style={{
-                    minWidth: 28,
-                    height: 28,
-                    lineHeight: "28px",
-                    textAlign: "center",
-                    background: "var(--tc-danger-bg)",
-                    color: "var(--tc-danger)",
+                    width: 36,
+                    height: 36,
+                    background: "var(--tc-surface-muted, var(--tc-bg))",
+                    color: "var(--tc-text-secondary)",
                   }}
                 >
-                  {item.count}
+                  {ICON_MAP[item.type]}
                 </span>
+                <div className="flex-1 min-w-0">
+                  <div
+                    className="text-sm font-semibold flex items-center gap-2"
+                    style={{ color: "var(--tc-text)" }}
+                  >
+                    <span>{item.label}</span>
+                    <Badge tone="danger" pill>
+                      {item.count}건
+                    </Badge>
+                  </div>
+                  <div
+                    className="text-xs mt-0.5"
+                    style={{ color: "var(--tc-text-muted)" }}
+                  >
+                    {DEST_LABEL[item.type]}
+                  </div>
+                </div>
+                <ChevronRight size={16} style={{ color: "var(--tc-text-muted)" }} />
               </div>
             </button>
           ))}
-
-          {/* 총 미처리 */}
-          <div
-            className="text-center text-xs py-2"
-            style={{ color: "var(--tc-text-muted)" }}
-          >
-            총 {counts?.total ?? 0}건 처리 대기
-          </div>
         </div>
       ) : (
         <EmptyState scope="panel" tone="empty" title="새로운 알림이 없습니다" />
       )}
     </div>
-  );
-}
-
-function BackBtn({ onClick }: { onClick: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      className="flex p-1 cursor-pointer"
-      style={{ background: "none", border: "none", color: "var(--tc-text-secondary)" }}
-    >
-      <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-        <polyline points="15 18 9 12 15 6" />
-      </svg>
-    </button>
   );
 }

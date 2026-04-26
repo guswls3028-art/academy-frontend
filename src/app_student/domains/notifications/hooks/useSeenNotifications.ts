@@ -3,42 +3,79 @@
  * - 알림 페이지 방문 시 현재 알림 ID들을 "seen"으로 저장
  * - 카운트 계산 시 seen ID를 제외하여 배지 숫자 갱신
  * - 30일 지난 항목은 자동 정리
+ *
+ * 자녀 격리: 학부모 멀티자녀 환경에서는 자녀별 X-Student-Id로 키 스코프 분리.
+ * 그렇지 않으면 자녀 전환 시 in-memory cache(_seenCache)와 storage entry가 섞여
+ * 다른 자녀의 seen 상태가 잠깐 노출될 수 있음 (ID 자체는 글로벌 unique지만
+ * 캐시 무효화 타이밍 + UX 일관성 차원에서 분리).
  */
 import { useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { resolveTenantCodeString } from "@/shared/tenant";
+import { getParentStudentId } from "@student/shared/api/parentStudentSelection";
 
-const STORAGE_KEY = "stu:seen-notifications";
+const STORAGE_KEY_PREFIX = "stu:seen-notifications";
+const LEGACY_STORAGE_KEY = "stu:seen-notifications";
 const MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000; // 30일
 
 type SeenEntry = { id: string; at: number };
 
-/** 캐시: 동일 이벤트 루프 틱 내 반복 파싱 방지 */
+function storageKey(): string {
+  const tc = resolveTenantCodeString();
+  const sid = getParentStudentId();
+  return sid != null ? `${STORAGE_KEY_PREFIX}:${tc}:${sid}` : `${STORAGE_KEY_PREFIX}:${tc}`;
+}
+
+// 이전 글로벌 키(stu:seen-notifications) 정리 — 자녀별 분리 전 버전에서 사용. 1회성.
+let _legacyKeyCleaned = false;
+function cleanupLegacyKey(): void {
+  if (_legacyKeyCleaned) return;
+  _legacyKeyCleaned = true;
+  try {
+    // 새 키 형식과 정확히 일치하지 않을 때만 제거 (storageKey()와 LEGACY가 같아질 일은 없지만 방어).
+    const current = storageKey();
+    if (current !== LEGACY_STORAGE_KEY) {
+      localStorage.removeItem(LEGACY_STORAGE_KEY);
+    }
+  } catch {
+    // ignore
+  }
+}
+
+/** 캐시: 동일 이벤트 루프 틱 내 반복 파싱 방지. 자녀 전환 시 키가 바뀌면 무효. */
 let _seenCache: SeenEntry[] | null = null;
+let _seenCacheKey = "";
 let _seenCacheTime = 0;
 const CACHE_TTL_MS = 500; // 500ms 캐시
 
 function loadSeen(): SeenEntry[] {
+  cleanupLegacyKey();
   const now = Date.now();
-  if (_seenCache && now - _seenCacheTime < CACHE_TTL_MS) return _seenCache;
+  const key = storageKey();
+  if (_seenCache && _seenCacheKey === key && now - _seenCacheTime < CACHE_TTL_MS) return _seenCache;
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) { _seenCache = []; _seenCacheTime = now; return []; }
+    const raw = localStorage.getItem(key);
+    if (!raw) { _seenCache = []; _seenCacheKey = key; _seenCacheTime = now; return []; }
     const entries: SeenEntry[] = JSON.parse(raw);
     const cutoff = now - MAX_AGE_MS;
     _seenCache = entries.filter((e) => e.at > cutoff);
+    _seenCacheKey = key;
     _seenCacheTime = now;
     return _seenCache;
   } catch {
     _seenCache = [];
+    _seenCacheKey = key;
     _seenCacheTime = now;
     return [];
   }
 }
 
 function saveSeen(entries: SeenEntry[]) {
+  const key = storageKey();
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+    localStorage.setItem(key, JSON.stringify(entries));
     _seenCache = entries;
+    _seenCacheKey = key;
     _seenCacheTime = Date.now();
   } catch {
     // storage full — ignore
