@@ -19,6 +19,7 @@ import type { MergeProgress } from "./filesToPdf";
 type Props = {
   onClose: () => void;
   onUpload: (payload: { file: File; title: string; subject: string; grade_level: string }) => Promise<void>;
+  intent?: "reference" | "test";
   existingTitles?: string[];
   subjectSuggestions?: string[];
   gradeLevelSuggestions?: string[];
@@ -35,6 +36,7 @@ type Entry = {
 export default function DocumentUploadModal({
   onClose,
   onUpload,
+  intent = "reference",
   existingTitles = [],
   subjectSuggestions = [],
   gradeLevelSuggestions = [],
@@ -294,6 +296,7 @@ export default function DocumentUploadModal({
       ? `아이폰 사진 변환 중... (${mergeProgress.current}/${mergeProgress.total})`
       : `PDF 병합 중... (${mergeProgress.current}/${mergeProgress.total})`
     : null;
+  const intentLabel = intent === "test" ? "학생 시험지" : "참고 자료";
 
   return (
     <div
@@ -321,7 +324,7 @@ export default function DocumentUploadModal({
           flexShrink: 0,
         }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>AI 매치업 자료 업로드</h3>
+            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>{intentLabel} 업로드</h3>
             <button
               onClick={onClose}
               disabled={uploading}
@@ -342,7 +345,11 @@ export default function DocumentUploadModal({
             color: "var(--color-text-muted)",
             lineHeight: 1.5,
           }}>
-            교재·기출 등 <strong>참고 자료</strong>를 미리 등록해두면, 학생이 본 <strong>시험지</strong>를 올렸을 때 AI가 등록된 자료에서 유사 문제를 찾아 추천합니다.
+            {intent === "test" ? (
+              <>학생이 본 <strong>시험지</strong>를 올리면, 등록된 <strong>참고 자료</strong>에서 유사 문제를 찾아 추천합니다.</>
+            ) : (
+              <>교재·기출 등 <strong>참고 자료</strong>를 등록해두면, 학생 <strong>시험지</strong>를 기준으로 유사 문제를 찾을 수 있습니다.</>
+            )}
           </p>
         </div>
 
@@ -421,10 +428,10 @@ export default function DocumentUploadModal({
                   style={{ cursor: "pointer" }}
                 />
                 <span style={{ fontWeight: 600, color: "var(--color-text-primary)" }}>
-                  각 파일을 별도 시험지로 업로드
+                  각 파일을 별도 {intentLabel}로 업로드
                 </span>
                 <span style={{ color: "var(--color-text-muted)" }}>
-                  ({entries.length}개 파일 → {entries.length}개 시험지)
+                  ({entries.length}개 파일 → {entries.length}개 문서)
                 </span>
               </label>
             </div>
@@ -446,7 +453,7 @@ export default function DocumentUploadModal({
               <ImageIcon size={14} />
               <span>
                 {splitMode
-                  ? `각 파일이 별도 시험지로 동시 업로드됩니다 (${entries.length}개)${heicCount > 0 ? ", HEIC는 자동 변환" : ""}`
+                  ? `각 파일이 별도 ${intentLabel}로 동시 업로드됩니다 (${entries.length}개)${heicCount > 0 ? ", HEIC는 자동 변환" : ""}`
                   : heicCount > 0
                     ? "HEIC는 자동으로 JPEG로 변환 후 1개 PDF로 합쳐집니다"
                     : "자동으로 1개 PDF로 합쳐서 업로드됩니다"}

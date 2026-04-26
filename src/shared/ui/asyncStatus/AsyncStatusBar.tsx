@@ -628,6 +628,11 @@ export default function AsyncStatusBar() {
     onVideoSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["session-videos"] });
     },
+    onMatchupSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["matchup-documents"] });
+      queryClient.invalidateQueries({ queryKey: ["matchup-problems"] });
+      queryClient.invalidateQueries({ queryKey: ["storage-inventory", "admin"] });
+    },
     onPptSuccess: (taskId: string, downloadUrl: string, filename: string) => {
       const a = document.createElement("a");
       a.href = downloadUrl;

@@ -4,7 +4,7 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { Sparkles, AlertTriangle, RefreshCw, Eye, FolderOpen } from "lucide-react";
+import { Sparkles, AlertTriangle, RefreshCw, Eye, FolderOpen, BookOpen } from "lucide-react";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { asyncStatusStore } from "@/shared/ui/asyncStatus";
@@ -21,10 +21,17 @@ import DocumentList from "../components/matchup/DocumentList";
 import DocumentUploadModal from "../components/matchup/DocumentUploadModal";
 import ProblemGrid from "../components/matchup/ProblemGrid";
 import SimilarResults from "../components/matchup/SimilarResults";
+import CrossMatchesPanel from "../components/matchup/CrossMatchesPanel";
 import ProblemDetailModal from "../components/matchup/ProblemDetailModal";
 import DocumentPreviewModal from "../components/matchup/DocumentPreviewModal";
 import MatchupEmptyState from "../components/matchup/MatchupEmptyState";
 import css from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
+
+function hasAsyncWorkerTask(id: string): boolean {
+  return asyncStatusStore
+    .getState()
+    .some((task) => task.id === id || task.meta?.jobId === id);
+}
 
 export default function MatchupPage() {
   const qc = useQueryClient();
@@ -48,9 +55,11 @@ export default function MatchupPage() {
   }, [setSearchParams]);
   const [selectedProblemId, setSelectedProblemId] = useState<number | null>(null);
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [uploadIntent, setUploadIntent] = useState<"reference" | "test">("reference");
   const [detailProblem, setDetailProblem] = useState<SimilarProblem | null>(null);
   const [previewDocId, setPreviewDocId] = useState<number | null>(null);
   const [pendingNavigateNumber, setPendingNavigateNumber] = useState<number | null>(null);
+  const [rightPanelTab, setRightPanelTab] = useState<"similar" | "cross">("similar");
 
   // ── 문서 목록 ──
   const { data: documents = [], isLoading: docsLoading } = useQuery({
@@ -59,6 +68,34 @@ export default function MatchupPage() {
   });
 
   const progressMap = useMatchupPolling(documents);
+
+  const openUpload = useCallback((intent: "reference" | "test" = "reference") => {
+    setUploadIntent(intent);
+    setUploadOpen(true);
+  }, []);
+
+  // 처리 중 doc을 우상단 작업박스에 자동 재등록 (페이지 새로고침/탭 이동 후에도 진행률 유지)
+  useEffect(() => {
+    documents.forEach((d) => {
+      if (d.status !== "processing" && d.status !== "pending") return;
+      if (d.ai_job_id) {
+        if (hasAsyncWorkerTask(d.ai_job_id)) return;
+        asyncStatusStore.addWorkerJob(
+          `매치업 분석: ${d.title}`,
+          d.ai_job_id,
+          "matchup_analysis",
+        );
+      } else {
+        const watchId = `matchup-doc-${d.id}`;
+        if (hasAsyncWorkerTask(watchId)) return;
+        asyncStatusStore.addWorkerJob(
+          `매치업 분석 준비 중: ${d.title}`,
+          watchId,
+          "matchup_document_watch",
+        );
+      }
+    });
+  }, [documents]);
 
   // ── 문제 목록 ──
   const selectedDoc = documents.find((d) => d.id === selectedDocId);
@@ -105,6 +142,12 @@ export default function MatchupPage() {
           doc.ai_job_id,
           "matchup_analysis",
         );
+      } else if (doc.id) {
+        asyncStatusStore.addWorkerJob(
+          `매치업 분석 준비 중: ${doc.title || payload.file.name}`,
+          `matchup-doc-${doc.id}`,
+          "matchup_document_watch",
+        );
       }
       feedback.success("업로드 완료. 우상단 작업 상자에서 분석 진행률 확인.");
     },
@@ -137,6 +180,12 @@ export default function MatchupPage() {
           `매치업 분석 재시도: ${doc.title}`,
           doc.ai_job_id,
           "matchup_analysis",
+        );
+      } else if (doc?.id) {
+        asyncStatusStore.addWorkerJob(
+          `매치업 분석 준비 중: ${doc.title}`,
+          `matchup-doc-${doc.id}`,
+          "matchup_document_watch",
         );
       }
       feedback.success("재분석을 시작합니다. 우상단 작업 상자에서 진행률 확인.");
@@ -179,11 +228,12 @@ export default function MatchupPage() {
   if (!docsLoading && documents.length === 0) {
     return (
       <>
-        <MatchupEmptyState onUpload={() => setUploadOpen(true)} />
+        <MatchupEmptyState onUpload={openUpload} />
         {uploadOpen && (
           <DocumentUploadModal
             onClose={() => setUploadOpen(false)}
             onUpload={handleUpload}
+            intent={uploadIntent}
             existingTitles={existingTitles}
             subjectSuggestions={subjectSuggestions}
             gradeLevelSuggestions={gradeLevelSuggestions}
@@ -206,7 +256,7 @@ export default function MatchupPage() {
               documents={documents}
               selectedId={selectedDocId}
               onSelect={handleSelectDoc}
-              onUpload={() => setUploadOpen(true)}
+              onUpload={openUpload}
               onDelete={handleDelete}
               onRetry={handleRetry}
               progressMap={progressMap}
@@ -392,24 +442,61 @@ export default function MatchupPage() {
                   </div>
 
                   <div style={{
-                    flex: 2, minWidth: 240, overflowY: "auto",
+                    flex: 2, minWidth: 280, overflowY: "auto",
                     borderLeft: "1px solid var(--color-border-divider)",
                     paddingLeft: "var(--space-4)",
+                    display: "flex", flexDirection: "column", minHeight: 0,
                   }}>
-                    <h4 style={{
-                      fontSize: 13, fontWeight: 600, color: "var(--color-text-secondary)",
-                      margin: "0 0 var(--space-3) 0",
-                      display: "flex", alignItems: "center", gap: "var(--space-1)",
+                    <div style={{
+                      display: "flex", gap: 4, marginBottom: "var(--space-2)",
+                      borderBottom: "1px solid var(--color-border-divider)",
                     }}>
-                      <Sparkles size={14} />
-                      유사 문제 추천
-                    </h4>
-                    <SimilarResults
-                      problemId={selectedProblemId}
-                      onSelectSimilar={setDetailProblem}
-                      totalDocumentCount={documents.length}
-                      sourceDocumentId={selectedDocId}
-                    />
+                      {[
+                        { key: "similar", label: "유사 문제", icon: <Sparkles size={12} /> },
+                        { key: "cross", label: "자료별 매치", icon: <BookOpen size={12} /> },
+                      ].map((t) => (
+                        <button
+                          key={t.key}
+                          type="button"
+                          onClick={() => setRightPanelTab(t.key as "similar" | "cross")}
+                          data-testid={`matchup-right-tab-${t.key}`}
+                          style={{
+                            display: "flex", alignItems: "center", gap: 4,
+                            padding: "6px 10px",
+                            border: "none",
+                            background: "transparent",
+                            borderBottom: rightPanelTab === t.key
+                              ? "2px solid var(--color-brand-primary)"
+                              : "2px solid transparent",
+                            color: rightPanelTab === t.key
+                              ? "var(--color-brand-primary)"
+                              : "var(--color-text-muted)",
+                            fontWeight: rightPanelTab === t.key ? 700 : 500,
+                            fontSize: 12,
+                            cursor: "pointer",
+                          }}
+                        >
+                          {t.icon}
+                          {t.label}
+                        </button>
+                      ))}
+                    </div>
+                    <div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
+                      {rightPanelTab === "similar" ? (
+                        <SimilarResults
+                          problemId={selectedProblemId}
+                          onSelectSimilar={setDetailProblem}
+                          totalDocumentCount={documents.length}
+                          sourceDocumentId={selectedDocId}
+                        />
+                      ) : (
+                        <CrossMatchesPanel
+                          docId={selectedDocId}
+                          enabled={selectedDoc?.status === "done"}
+                          onSelectProblem={setSelectedProblemId}
+                        />
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -422,6 +509,7 @@ export default function MatchupPage() {
         <DocumentUploadModal
           onClose={() => setUploadOpen(false)}
           onUpload={handleUpload}
+          intent={uploadIntent}
           existingTitles={existingTitles}
           subjectSuggestions={subjectSuggestions}
           gradeLevelSuggestions={gradeLevelSuggestions}

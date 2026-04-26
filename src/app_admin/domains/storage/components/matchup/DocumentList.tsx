@@ -4,7 +4,7 @@
 // 검색 + 상태 필터 + 정렬 추가. 500개 누적 시 탐색 가능하도록.
 
 import { useMemo, useState } from "react";
-import { FileText, Plus, Loader2, AlertCircle, CheckCircle2, RefreshCw, Trash2, Search, X } from "lucide-react";
+import { FileText, Loader2, AlertCircle, CheckCircle2, RefreshCw, Trash2, Search, X, BookOpen, ClipboardList } from "lucide-react";
 import { Button } from "@/shared/ui/ds";
 import { useConfirm } from "@/shared/ui/confirm";
 import type { MatchupDocument, SegmentationMethod } from "../../api/matchup.api";
@@ -15,7 +15,7 @@ type Props = {
   documents: MatchupDocument[];
   selectedId: number | null;
   onSelect: (id: number) => void;
-  onUpload: () => void;
+  onUpload: (intent?: "reference" | "test") => void;
   onDelete: (id: number) => void;
   onRetry: (id: number) => void;
   progressMap?: DocProgressMap;
@@ -108,17 +108,27 @@ export default function DocumentList({
   return (
     <>
       <div className={css.treeNavHeader}>
-        <span className={css.treeNavTitle}>매치업 자료</span>
-        <div style={{ marginLeft: "auto" }}>
+        <span className={css.treeNavTitle}>매치업 풀</span>
+        <div style={{ marginLeft: "auto", display: "flex", gap: 4, flexWrap: "wrap", justifyContent: "flex-end" }}>
           <Button
             intent="ghost"
             size="sm"
-            onClick={onUpload}
-            data-testid="matchup-upload-button"
-            leftIcon={<Plus size={14} />}
-            title="시험지/교재 등 매치업 자료 업로드"
+            onClick={() => onUpload("reference")}
+            data-testid="matchup-reference-upload-button"
+            leftIcon={<BookOpen size={14} />}
+            title="교재·기출 등 참고 자료 업로드"
           >
-            자료 추가
+            자료
+          </Button>
+          <Button
+            intent="ghost"
+            size="sm"
+            onClick={() => onUpload("test")}
+            data-testid="matchup-upload-button"
+            leftIcon={<ClipboardList size={14} />}
+            title="학생 시험지 업로드"
+          >
+            시험지
           </Button>
         </div>
       </div>

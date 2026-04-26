@@ -166,6 +166,57 @@ export async function getMatchupDocumentPreview(
   return data;
 }
 
+// ── Cross-doc matches: 시험지 → 자료 매치 매트릭스 ──
+
+export type CrossMatchItem = {
+  document_id: number;
+  document_title: string;
+  problem_number: number;
+  similarity: number;
+};
+
+export type CrossMatchProblem = {
+  problem_id: number;
+  problem_number: number;
+  problem_text_preview: string;
+  best_matches: CrossMatchItem[];
+};
+
+export type CrossMatchesResponse = {
+  doc_id: number;
+  doc_title: string;
+  problem_count: number;
+  matches: CrossMatchProblem[];
+};
+
+export type MatchupDocumentJobStatus = {
+  document_id: number;
+  status: "pending" | "processing" | "done" | "failed";
+  ai_job_id: string;
+  problem_count: number;
+  title: string;
+};
+
+export async function fetchMatchupDocumentJobStatus(
+  docId: number,
+): Promise<MatchupDocumentJobStatus> {
+  const { data } = await api.get<MatchupDocumentJobStatus>(
+    `/matchup/documents/${docId}/job/`,
+  );
+  return data;
+}
+
+export async function fetchDocumentCrossMatches(
+  docId: number,
+  topK = 1,
+): Promise<CrossMatchesResponse> {
+  const { data } = await api.get<CrossMatchesResponse>(
+    `/matchup/documents/${docId}/cross-matches/`,
+    { params: { top_k: topK } },
+  );
+  return data;
+}
+
 // ── Problems ──
 
 export async function fetchMatchupProblems(

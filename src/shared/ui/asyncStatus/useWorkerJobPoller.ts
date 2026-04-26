@@ -261,6 +261,45 @@ function pollMatchupJob(taskId: string, onSuccess?: () => void) {
     });
 }
 
+/** 매치업 문서 watch 폴링 — ai_job_id 생성 지연 시 Workbox fallback */
+function pollMatchupDocumentWatch(taskId: string, documentId: string, onSuccess?: () => void) {
+  const normalizedDocumentId = documentId.replace(/^matchup-doc-/, "");
+  api
+    .get<{
+      document_id: number;
+      status: "pending" | "processing" | "done" | "failed";
+      ai_job_id: string;
+      problem_count: number;
+      title: string;
+    }>(`/matchup/documents/${encodeURIComponent(normalizedDocumentId)}/job/`)
+    .then((res) => {
+      const status = res.data?.status;
+      const aiJobId = (res.data?.ai_job_id || "").trim();
+      const title = res.data?.title || `문서 ${normalizedDocumentId}`;
+
+      // ai_job_id가 생기면 즉시 진짜 job 폴링으로 전환
+      if (aiJobId) {
+        asyncStatusStore.attachWorkerMeta(taskId, aiJobId, "matchup_analysis");
+        asyncStatusStore.setTaskLabel(aiJobId, `매치업 분석: ${title}`);
+        return;
+      }
+
+      if (status === "failed") {
+        asyncStatusStore.completeTask(taskId, "error", "매치업 분석 시작 실패");
+      } else if (status === "done") {
+        asyncStatusStore.setTaskLabel(taskId, `매치업 분석 완료 — ${res.data?.problem_count ?? 0}문제`);
+        asyncStatusStore.completeTask(taskId, "success");
+        onSuccess?.();
+      } else {
+        // pending/processing 동안 최소 진행 상태 유지
+        asyncStatusStore.updateProgress(taskId, status === "processing" ? 10 : 5);
+      }
+    })
+    .catch(() => {
+      // network error: next polling cycle retry
+    });
+}
+
 function pollVideoJob(taskId: string, videoId: string, onSuccess?: () => void) {
   // ✅ Redis-only 엔드포인트 사용 (DB 부하 0)
   api
@@ -345,6 +384,7 @@ export function useWorkerJobPoller(
   options?: {
     onExcelSuccess?: () => void;
     onVideoSuccess?: () => void;
+    onMatchupSuccess?: () => void;
     onExcelProgress?: () => void;
     onPptSuccess?: (taskId: string, downloadUrl: string, filename: string) => void;
   }
@@ -355,10 +395,12 @@ export function useWorkerJobPoller(
   const intervalRef = useRef<number | null>(null);
   const onExcelSuccessRef = useRef(options?.onExcelSuccess);
   const onVideoSuccessRef = useRef(options?.onVideoSuccess);
+  const onMatchupSuccessRef = useRef(options?.onMatchupSuccess);
   const onExcelProgressRef = useRef(options?.onExcelProgress);
   const onPptSuccessRef = useRef(options?.onPptSuccess);
   onExcelSuccessRef.current = options?.onExcelSuccess;
   onVideoSuccessRef.current = options?.onVideoSuccess;
+  onMatchupSuccessRef.current = options?.onMatchupSuccess;
   onExcelProgressRef.current = options?.onExcelProgress;
   onPptSuccessRef.current = options?.onPptSuccess;
 
@@ -398,6 +440,7 @@ export function useWorkerJobPoller(
       const excelCb = onExcelSuccessRef.current;
       const excelProgressCb = onExcelProgressRef.current;
       const videoCb = onVideoSuccessRef.current;
+      const matchupCb = onMatchupSuccessRef.current;
       const pptCb = onPptSuccessRef.current;
       forCurrentTenant.forEach((t) => {
         if (t.meta!.jobType === "excel_parsing") {
@@ -407,7 +450,9 @@ export function useWorkerJobPoller(
         } else if (t.meta!.jobType === "ppt_generation") {
           pollPptJob(t.id, pptCb);
         } else if (t.meta!.jobType === "matchup_analysis") {
-          pollMatchupJob(t.id);
+          pollMatchupJob(t.id, matchupCb);
+        } else if (t.meta!.jobType === "matchup_document_watch") {
+          pollMatchupDocumentWatch(t.id, t.meta!.jobId, matchupCb);
         } else if (t.meta!.jobType === "messaging") {
           // 메시지 발송은 동기 API 완료로만 완료 처리, 폴링 없음
         } else {

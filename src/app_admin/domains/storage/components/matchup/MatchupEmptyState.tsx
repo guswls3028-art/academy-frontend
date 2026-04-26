@@ -5,7 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/shared/ui/ds";
 import css from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
 
-type Props = { onUpload: () => void };
+type Props = { onUpload: (intent?: "reference" | "test") => void };
 
 export default function MatchupEmptyState({ onUpload }: Props) {
   const navigate = useNavigate();
@@ -27,7 +27,7 @@ export default function MatchupEmptyState({ onUpload }: Props) {
       }}>
         <button
           type="button"
-          onClick={onUpload}
+          onClick={() => onUpload("reference")}
           data-testid="matchup-empty-reference-btn"
           style={{
             display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 8,
@@ -50,7 +50,7 @@ export default function MatchupEmptyState({ onUpload }: Props) {
 
         <button
           type="button"
-          onClick={onUpload}
+          onClick={() => onUpload("test")}
           data-testid="matchup-empty-test-btn"
           style={{
             display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 8,
