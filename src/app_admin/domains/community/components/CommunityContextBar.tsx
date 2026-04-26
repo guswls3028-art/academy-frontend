@@ -6,6 +6,8 @@
 import type { CommunityScope } from "../api/community.api";
 import { Globe, BookOpen, Layers } from "lucide-react";
 import { ICON } from "@/shared/ui/ds";
+// chip 스타일(.community-scope-chip*) co-locate — 어느 페이지에서 쓰든 항상 적용.
+import "../community.css";
 
 type CommunityContextBarProps = {
   scope: CommunityScope;
