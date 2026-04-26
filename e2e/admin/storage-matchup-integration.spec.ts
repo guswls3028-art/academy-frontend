@@ -104,22 +104,30 @@ test.describe("storage-as-canonical 통합", () => {
     await expect(page.locator("[data-testid='storage-file-action-matchup-promote']")).toHaveCount(0);
   });
 
-  test("저장소 업로드 모달에 '매치업 자료로도 등록' 체크박스 노출", async ({ page }) => {
+  test("저장소 업로드 모달 — 파일 선택 전엔 매치업 토글 hidden, PDF 선택 후 enabled로 노출", async ({ page }) => {
     await page.goto(`${BASE}/admin/storage/files`, { waitUntil: "networkidle" });
     await page.waitForTimeout(1500);
 
-    // '추가' 버튼 → '파일 업로드' 선택
     const addBtn = page.getByRole("button", { name: "추가" }).first();
     await addBtn.click();
     await page.waitForTimeout(300);
     await page.getByText("파일 업로드").click();
     await page.waitForTimeout(500);
 
-    // 매치업 토글 체크박스 노출
     const promoteToggle = page.locator("[data-testid='upload-modal-promote-matchup']");
+    // 파일 선택 전: 토글이 노출되지 않아야 함 (disabled 회색 토글이 "잠긴 듯" 보이는 UX 회피)
+    await expect(promoteToggle).toHaveCount(0);
+
+    // PDF 파일 선택 후 토글 노출 + enabled
+    const fileInput = page.locator("input[type='file']");
+    await fileInput.setInputFiles({
+      name: "smoke.pdf",
+      mimeType: "application/pdf",
+      buffer: Buffer.from("%PDF-1.4\n%%EOF"),
+    });
+    await page.waitForTimeout(300);
     await expect(promoteToggle).toBeVisible({ timeout: 3000 });
-    // PDF/PNG/JPG 미선택 상태에선 disabled여야 함
-    await expect(promoteToggle).toBeDisabled();
+    await expect(promoteToggle).toBeEnabled();
   });
 });
 

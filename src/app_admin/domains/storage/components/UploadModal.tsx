@@ -142,35 +142,34 @@ export default function UploadModal({ onClose, onUpload }: UploadModalProps) {
               {file ? file.name : "파일 선택"}
             </Button>
           </div>
-          <div className={styles.field}>
-            <label
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                cursor: matchupEligible ? "pointer" : "not-allowed",
-                opacity: matchupEligible ? 1 : 0.5,
-                fontSize: 13,
-                fontWeight: 500,
-              }}
-              title={matchupEligible ? undefined : "PDF/PNG/JPG 파일만 매치업으로 등록할 수 있습니다."}
-            >
-              <input
-                type="checkbox"
-                data-testid="upload-modal-promote-matchup"
-                checked={promoteToMatchup && matchupEligible}
-                disabled={!matchupEligible}
-                onChange={(e) => setPromoteToMatchup(e.target.checked)}
-              />
-              <Sparkles size={14} style={{ color: "var(--color-brand-primary)" }} />
-              <span>매치업 자료로도 등록 (AI 분석)</span>
-            </label>
-            {promoteToMatchup && matchupEligible && (
-              <span style={{ fontSize: 11, color: "var(--color-text-muted)", marginTop: 4, marginLeft: 24 }}>
-                저장 후 매치업 페이지에서 분석 진행률을 확인할 수 있습니다.
-              </span>
-            )}
-          </div>
+          {file && matchupEligible && (
+            <div className={styles.field}>
+              <label
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  cursor: "pointer",
+                  fontSize: 13,
+                  fontWeight: 500,
+                }}
+              >
+                <input
+                  type="checkbox"
+                  data-testid="upload-modal-promote-matchup"
+                  checked={promoteToMatchup}
+                  onChange={(e) => setPromoteToMatchup(e.target.checked)}
+                />
+                <Sparkles size={14} style={{ color: "var(--color-brand-primary)" }} />
+                <span>매치업 자료로도 등록 (AI 분석)</span>
+              </label>
+              {promoteToMatchup && (
+                <span style={{ fontSize: 11, color: "var(--color-text-muted)", marginTop: 4, marginLeft: 24 }}>
+                  저장 후 매치업 페이지에서 분석 진행률을 확인할 수 있습니다.
+                </span>
+              )}
+            </div>
+          )}
         </div>
         <div className={styles.footer}>
           <Button size="sm" intent="secondary" onClick={onClose}>
