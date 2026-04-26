@@ -218,7 +218,7 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
 
   return (
     <div className={styles.overlay} role="dialog" aria-modal="true" aria-labelledby="signup-modal-title">
-      <div className={styles.overlayCard} onClick={(e) => e.stopPropagation()}>
+      <div className={`${styles.overlayCard} ${styles.overlayCardWide}`} onClick={(e) => e.stopPropagation()}>
         <button
           type="button"
           className={styles.overlayClose}
@@ -228,7 +228,7 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
         >
           ✕
         </button>
-        <h2 id="signup-modal-title" className={styles.overlayTitle} style={{ paddingLeft: 36 }}>학생 회원가입</h2>
+        <h2 id="signup-modal-title" className={styles.overlayTitle}>학생 회원가입</h2>
         <p className={styles.overlaySubtitle}>
           필수 정보를 입력하시면 선생님 승인 후 로그인할 수 있습니다.
         </p>

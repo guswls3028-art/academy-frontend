@@ -29,6 +29,10 @@ export const login = async (username: string, password: string) => {
     if (typeof status === "number" && status >= 500) {
       throw new Error("서버에 일시적 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.");
     }
+    // 401/400 = 자격 증명 오류 — username enumeration 방지 + 사용자 친화 문구
+    if (status === 401 || status === 400) {
+      throw new Error("아이디 또는 비밀번호가 올바르지 않습니다.");
+    }
     const detail = ax?.response?.data?.detail;
     let msg = "로그인에 실패했습니다.";
     if (typeof detail === "string") msg = detail;

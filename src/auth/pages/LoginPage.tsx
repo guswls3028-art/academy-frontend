@@ -1,5 +1,5 @@
 // 통합 로그인 페이지 — 테넌트별 테마는 data-tenant + themes/*.css 로 적용
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams, Navigate, Link } from "react-router-dom";
 import { login } from "@/auth/api/auth.api";
 import useAuth from "@/auth/hooks/useAuth";
@@ -45,7 +45,6 @@ export default function LoginPage() {
   const tenantCode = useTenantCode(program?.tenantCode);
 
   // ── hooks는 조건부 return 전에 모두 호출 (Rules of Hooks) ──
-  const [formExpanded, setFormExpanded] = useState(false);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [pending, setPending] = useState(false);
@@ -53,9 +52,17 @@ export default function LoginPage() {
   const [showSignup, setShowSignup] = useState(false);
   const [showPwReset, setShowPwReset] = useState(false);
   const [hasLanding, setHasLanding] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [capsOn, setCapsOn] = useState(false);
+  const usernameRef = useRef<HTMLInputElement>(null);
 
   const navigate = useNavigate();
   const { refreshMe } = useAuth();
+
+  // 진입 시 username에 자동 포커스
+  useEffect(() => {
+    if (!isLoading) usernameRef.current?.focus();
+  }, [isLoading]);
 
   // 랜딩 페이지 존재 여부 체크 (홈 버튼 표시용)
   useEffect(() => {
@@ -133,51 +140,75 @@ export default function LoginPage() {
         <div className={styles.typography}>
           <h1 className={styles.title}>{title}</h1>
         </div>
-        {!formExpanded ? (
-          <button
-            type="button"
-            className={styles.btnPrimary}
-            onClick={() => setFormExpanded(true)}
-            data-testid="login-expand-btn"
-          >
-            로그인
-          </button>
-        ) : (
-          <form onSubmit={onSubmit} className={styles.form} aria-label="로그인 폼">
+        <form onSubmit={onSubmit} className={styles.form} aria-label="로그인 폼">
+          <label htmlFor="login-username" className={styles.srOnly}>아이디</label>
+          <input
+            id="login-username"
+            ref={usernameRef}
+            className={styles.input}
+            placeholder="아이디"
+            name="username"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            autoComplete="username"
+            data-testid="login-username"
+          />
+          <label htmlFor="login-password" className={styles.srOnly}>비밀번호</label>
+          <div className={styles.passwordWrap}>
             <input
+              id="login-password"
               className={styles.input}
-              placeholder="아이디"
-              name="username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              autoComplete="username"
-              data-testid="login-username"
-            />
-            <input
-              className={styles.input}
-              type="password"
+              type={showPassword ? "text" : "password"}
               placeholder="비밀번호"
               name="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              onKeyDown={(e) => setCapsOn(e.getModifierState && e.getModifierState("CapsLock"))}
+              onKeyUp={(e) => setCapsOn(e.getModifierState && e.getModifierState("CapsLock"))}
+              onBlur={() => setCapsOn(false)}
               autoComplete="current-password"
               data-testid="login-password"
             />
-            <button type="submit" className={styles.btnPrimary} disabled={pending} data-testid="login-submit">
-              {pending ? "로그인 중..." : "로그인"}
+            <button
+              type="button"
+              className={styles.passwordToggle}
+              onClick={() => setShowPassword((v) => !v)}
+              aria-label={showPassword ? "비밀번호 숨기기" : "비밀번호 보기"}
+              aria-pressed={showPassword}
+              tabIndex={-1}
+            >
+              {showPassword ? (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                  <line x1="1" y1="1" x2="23" y2="23"/>
+                </svg>
+              ) : (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                  <circle cx="12" cy="12" r="3"/>
+                </svg>
+              )}
             </button>
-            {error && <div className={styles.error}>{error}</div>}
-            <div className={styles.links}>
-              <button type="button" className={styles.link} onClick={() => setShowSignup(true)}>
-                회원가입
-              </button>
-              <span style={{ color: "var(--auth-border, #d1d5db)", fontSize: "0.75rem" }}>|</span>
-              <button type="button" className={styles.link} onClick={() => setShowPwReset(true)}>
-                비밀번호 찾기
-              </button>
+          </div>
+          {capsOn && (
+            <div className={styles.capsHint} role="status">
+              ⚠ Caps Lock이 켜져 있습니다.
             </div>
-          </form>
-        )}
+          )}
+          {error && <div className={styles.error} role="alert">{error}</div>}
+          <button type="submit" className={styles.btnPrimary} disabled={pending} data-testid="login-submit">
+            {pending ? "로그인 중..." : "로그인"}
+          </button>
+          <div className={styles.links}>
+            <button type="button" className={styles.link} onClick={() => setShowSignup(true)}>
+              회원가입
+            </button>
+            <span style={{ color: "var(--auth-border, #d1d5db)", fontSize: "0.75rem" }}>|</span>
+            <button type="button" className={styles.link} onClick={() => setShowPwReset(true)}>
+              비밀번호 찾기
+            </button>
+          </div>
+        </form>
       </div>
 
       <SignupModal open={showSignup} onClose={() => setShowSignup(false)} />

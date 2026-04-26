@@ -105,7 +105,7 @@ export default function PasswordResetModal({ open, onClose }: PasswordResetModal
         >
           ✕
         </button>
-        <h2 id="pw-reset-title" className={styles.overlayTitle} style={{ paddingLeft: 36 }}>비밀번호 찾기</h2>
+        <h2 id="pw-reset-title" className={styles.overlayTitle}>비밀번호 찾기</h2>
         {success ? (
           <p style={{ color: "var(--auth-accent)", fontWeight: 600 }}>
             임시 비밀번호가 발송되었습니다. 알림톡을 확인한 뒤 로그인해 주세요.
@@ -142,15 +142,20 @@ export default function PasswordResetModal({ open, onClose }: PasswordResetModal
               />
               <div className={styles.signupPhoneRow}>
                 <span className={styles.signupInputLabel} style={{ marginBottom: 4 }}>
-                  {target === "student" ? "학생 또는 학부모 전화번호 *" : "학부모 전화번호 *"}
+                  전화번호 <span style={{ color: "#ef4444" }}>*</span>
                 </span>
                 <PhoneInput010Blocks
                   value={target === "student" ? phone : parentPhone}
                   onChange={target === "student" ? setPhone : setParentPhone}
                   blockClassName={styles.signupPhoneBlock}
                   inputClassName={styles.signupPhoneBlockInput}
-                  aria-label={target === "student" ? "학생 전화번호" : "학부모 전화번호"}
+                  aria-label={target === "student" ? "학생 또는 학부모 전화번호" : "학부모 전화번호"}
                 />
+                <span style={{ display: "block", fontSize: "0.75rem", color: "#6b7280", marginTop: 6 }}>
+                  {target === "student"
+                    ? "학생 본인 또는 학부모 번호 모두 가능합니다."
+                    : "학부모 번호로만 발송됩니다."}
+                </span>
               </div>
               {error && <div className={styles.error}>{error}</div>}
               <div className={styles.overlayActions}>
