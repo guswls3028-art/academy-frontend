@@ -2,7 +2,7 @@
  * E2E: 선생님 앱 Phase 2 — 소통/알림/푸시 UI 렌더링 검증
  * Tenant 1 (hakwonplus) admin 로그인 후 모바일 뷰포트에서 검증
  */
-import { test, expect } from "@playwright/test";
+import { test, expect } from "../fixtures/strictTest";
 import { loginViaUI, getBaseUrl } from "../helpers/auth";
 
 const BASE = getBaseUrl("admin");

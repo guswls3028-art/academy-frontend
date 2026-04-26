@@ -3,8 +3,8 @@
  * - 아이콘+텍스트 버튼이 줄바꿈 없이 한 줄로 렌더링되는지
  * - secondary 버튼이 흰배경에서 보이는지 (border 존재)
  */
-import { test, expect } from "@playwright/test";
-import { loginViaUI } from "./helpers/auth";
+import { test, expect } from "../fixtures/strictTest";
+import { loginViaUI } from "../helpers/auth";
 
 test.describe("Button nowrap & visibility", () => {
   test.beforeEach(async ({ page }) => {

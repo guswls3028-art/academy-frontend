@@ -3,7 +3,7 @@
  * - 로그인 → /teacher/results 이동 → 통계 탭 클릭
  * - 강의 선택 → 시험 선택 → KPI 카드 + 차트 렌더링 확인
  */
-import { test, expect } from "@playwright/test";
+import { test, expect } from "../fixtures/strictTest";
 import { loginViaUI } from "../helpers/auth";
 
 test.describe("선생앱 성적 통계", () => {

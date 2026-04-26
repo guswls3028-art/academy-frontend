@@ -8,7 +8,7 @@
  * 생성 데이터는 cleanup_e2e_residue 패턴 [E2E-<ts>] 로 태깅되어
  * 실수 잔존 시 주기 cleanup으로 정리된다.
  */
-import { test, expect } from "@playwright/test";
+import { test, expect } from "../fixtures/strictTest";
 import { loginViaUI, getApiBaseUrl } from "../helpers/auth";
 import * as fs from "fs";
 import * as path from "path";

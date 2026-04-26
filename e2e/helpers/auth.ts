@@ -17,7 +17,8 @@ export type TenantRole =
 const BASE = process.env.E2E_BASE_URL || "https://hakwonplus.com";
 const API_BASE = process.env.E2E_API_URL || "https://api.hakwonplus.com";
 const TCHUL = process.env.TCHUL_BASE_URL || "https://tchul.com";
-const SSWE = process.env.SSWE_BASE_URL || "https://sswe.co.kr";
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const _SSWE = process.env.SSWE_BASE_URL || "https://sswe.co.kr"; // 향후 sswe 테넌트 spec 추가 시 사용
 const DNB = process.env.DNB_BASE_URL || "https://dnbacademy.co.kr";
 const LIMGLISH = process.env.LIMGLISH_BASE_URL || "https://limglish.kr";
 
@@ -62,12 +63,13 @@ export async function loginViaUI(page: Page, role: TenantRole): Promise<void> {
   await page.evaluate(({ access, refresh, code }) => {
     localStorage.setItem("access", access);
     localStorage.setItem("refresh", refresh);
-    try { sessionStorage.setItem("tenantCode", code); } catch {}
+    try { sessionStorage.setItem("tenantCode", code); } catch { /* sessionStorage 차단 환경(비활성 쿠키 등) 무시 */ }
   }, { access: tokens.access, refresh: tokens.refresh, code: c.code });
 
   await page.goto(`${c.base}${dashPath}`, { waitUntil: "load", timeout: 20000 });
 
-  await page.waitForTimeout(2000);
+  // SPA 의 useEffect 데이터 fetch 안정화 — networkidle 기반 (waitForTimeout 제거)
+  await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
 }
 
 /**
@@ -75,10 +77,8 @@ export async function loginViaUI(page: Page, role: TenantRole): Promise<void> {
  */
 export function getBaseUrl(role?: TenantRole | string): string {
   if (role === "tchul-admin") return TCHUL;
-  if (role === "sswe-admin") return SSWE;
   if (role === "dnb-admin") return DNB;
   if (role === "limglish-admin") return LIMGLISH;
-  if (role === "student") return BASE;
   return BASE;
 }
 

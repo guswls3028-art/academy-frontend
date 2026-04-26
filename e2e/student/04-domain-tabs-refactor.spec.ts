@@ -2,7 +2,7 @@
  * E2E: 학생앱 도메인 탭 리팩토링 검증
  * 시험/성적/영상/저장소 — 홈|통계 탭 전환 + 렌더링 확인
  */
-import { test, expect } from "@playwright/test";
+import { test, expect } from "../fixtures/strictTest";
 import { loginViaUI } from "../helpers/auth";
 
 test.describe("학생 도메인 탭 리팩토링", () => {

@@ -1,7 +1,7 @@
 /**
  * 실패/엣지 케이스 처리 E2E
  */
-import { test, expect } from "@playwright/test";
+import { test, expect } from "../fixtures/strictTest";
 import { loginViaUI, getBaseUrl } from "../helpers/auth";
 import { apiCall } from "../helpers/api";
 

@@ -1,4 +1,7 @@
 import { test, expect } from "../fixtures/strictTest";
+// 의도적 dual import: 아래 "비밀번호 찾기 에러 검증" describe 는 존재하지 않는
+// 학생 정보로 API 404 를 발생시키는 음성 시나리오라 console.error 가 당연히 발생.
+// strictTest 의 zero-defect guard 를 우회하기 위해 baseTest/baseExpect 를 별도 사용.
 import { test as baseTest, expect as baseExpect } from "@playwright/test";
 import { getBaseUrl } from "../helpers/auth";
 

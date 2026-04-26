@@ -1,7 +1,7 @@
 /**
  * 선생앱 전 페이지 스크린샷 촬영 — UIUX 대조용
  */
-import { test, expect } from "@playwright/test";
+import { test, expect } from "../fixtures/strictTest";
 import { loginViaUI, getBaseUrl } from "../helpers/auth";
 
 const BASE = getBaseUrl("admin");

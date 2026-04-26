@@ -32,7 +32,7 @@ test.describe.serial("데이터 연결 전수 검증", () => {
     await S.locator('[data-testid="login-password"]').fill("0000");
     await S.locator('[data-testid="login-submit"]').click();
     await S.waitForURL(/\/student/, { timeout: 20000 });
-    await S.waitForTimeout(2000);
+    await S.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
   });
 
   // ════════════════════════════════════════
@@ -49,14 +49,14 @@ test.describe.serial("데이터 연결 전수 검증", () => {
     // 학생: 공지 목록에서 확인 (실제 브라우저)
     await S.goto(`${BASE}/student/notices`);
     await S.waitForLoadState("load");
-    await S.waitForTimeout(3000);
+    await S.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
     const notice = S.locator(`text=${title}`).first();
     await expect(notice).toBeVisible({ timeout: 10000 });
     await S.screenshot({ path: "test-results/link/01-notice-visible.png" });
 
     // 학생: 상세 클릭 → 내용 확인
     await notice.click();
-    await S.waitForTimeout(1000);
+    await S.waitForLoadState("networkidle", { timeout: 3_000 }).catch(() => {});
     await expect(S.locator("text=데이터 연결 검증용")).toBeVisible({ timeout: 5000 });
     await S.screenshot({ path: "test-results/link/01-notice-detail.png" });
 
@@ -73,17 +73,17 @@ test.describe.serial("데이터 연결 전수 검증", () => {
     // 학생: QnA 질문 작성 (실제 브라우저 UI)
     await S.goto(`${BASE}/student/community`);
     await S.waitForLoadState("load");
-    await S.waitForTimeout(2000);
+    await S.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
 
     const qnaTab = S.locator("button, [role='tab']").filter({ hasText: /QnA/ }).first();
     if (await qnaTab.isVisible({ timeout: 3000 }).catch(() => false)) {
       await qnaTab.click();
-      await S.waitForTimeout(500);
+      await S.waitForLoadState("networkidle", { timeout: 3_000 }).catch(() => {});
     }
 
     const writeBtn = S.locator("button, a").filter({ hasText: /질문/ }).first();
     await writeBtn.click();
-    await S.waitForTimeout(1000);
+    await S.waitForLoadState("networkidle", { timeout: 3_000 }).catch(() => {});
 
     await S.locator('input[placeholder*="제목"]').first().fill(qTitle);
     const editor = S.locator('.ProseMirror, [contenteditable="true"]').first();
@@ -93,42 +93,42 @@ test.describe.serial("데이터 연결 전수 검증", () => {
     const submit = S.locator("button").filter({ hasText: /보내기|등록/ }).first();
     await expect(submit).toBeEnabled({ timeout: 3000 });
     await submit.click();
-    await S.waitForTimeout(3000);
+    await S.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
     await S.screenshot({ path: "test-results/link/02a-qna-submitted.png" });
 
     // 교사: QnA 목록에서 학생 질문 확인 (실제 브라우저)
     await T.goto(`${BASE}/admin/community/qna`);
     await T.waitForLoadState("load");
-    await T.waitForTimeout(3000);
+    await T.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
     const question = T.locator(`text=연결검증`).first();
     await expect(question).toBeVisible({ timeout: 10000 });
     await T.screenshot({ path: "test-results/link/02b-teacher-sees-question.png" });
 
     // 교사: 질문 클릭 → 답변 (실제 UI)
     await question.click();
-    await T.waitForTimeout(1000);
+    await T.waitForLoadState("networkidle", { timeout: 3_000 }).catch(() => {});
     const replyArea = T.locator('textarea').last();
     if (await replyArea.isVisible({ timeout: 3000 }).catch(() => false)) {
       await replyArea.fill("연결 검증 답변입니다. 교재 참고하세요.");
       const sendBtn = T.locator("button").filter({ hasText: /답변|등록/ }).first();
       await sendBtn.click();
-      await T.waitForTimeout(2000);
+      await T.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
       await T.screenshot({ path: "test-results/link/02c-teacher-replied.png" });
     }
 
     // 학생: 답변 확인 (실제 브라우저)
     await S.goto(`${BASE}/student/community`);
     await S.waitForLoadState("load");
-    await S.waitForTimeout(2000);
+    await S.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
     const qnaTab2 = S.locator("button, [role='tab']").filter({ hasText: /QnA/ }).first();
     if (await qnaTab2.isVisible({ timeout: 3000 }).catch(() => false)) {
       await qnaTab2.click();
-      await S.waitForTimeout(1000);
+      await S.waitForLoadState("networkidle", { timeout: 3_000 }).catch(() => {});
     }
     const myQ = S.locator(`text=연결검증`).first();
     if (await myQ.isVisible({ timeout: 5000 }).catch(() => false)) {
       await myQ.click();
-      await S.waitForTimeout(2000);
+      await S.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
     }
     await S.screenshot({ path: "test-results/link/02d-student-sees-answer.png" });
 
@@ -156,7 +156,7 @@ test.describe.serial("데이터 연결 전수 검증", () => {
     // 학생: 클리닉 화면에서 세션 확인 (실제 브라우저)
     await S.goto(`${BASE}/student/clinic`);
     await S.waitForLoadState("load");
-    await S.waitForTimeout(3000);
+    await S.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
     await S.screenshot({ path: "test-results/link/03a-student-clinic.png" });
     // 페이지가 정상 로드됐는지
     await expect(S.locator("[data-app='student']").first()).toBeVisible();
@@ -165,7 +165,7 @@ test.describe.serial("데이터 연결 전수 검증", () => {
     // 교사: 클리닉 홈에서 세션 확인 (실제 브라우저)
     await T.goto(`${BASE}/admin/clinic/home`);
     await T.waitForLoadState("load");
-    await T.waitForTimeout(2000);
+    await T.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
     await T.screenshot({ path: "test-results/link/03b-teacher-clinic.png" });
     await expect(T.locator("text=Not Found")).not.toBeVisible();
 
@@ -210,7 +210,7 @@ test.describe.serial("데이터 연결 전수 검증", () => {
     for (const [path] of pages) {
       await T.goto(`${BASE}${path}`, { timeout: 15_000 });
       await T.waitForLoadState("load");
-      await T.waitForTimeout(800);
+      await T.waitForLoadState("networkidle", { timeout: 3_000 }).catch(() => {});
       // 업데이트 배너 재등장 시 닫기
       const banner = T.locator("button").filter({ hasText: /닫기/ }).first();
       if (await banner.isVisible({ timeout: 500 }).catch(() => false)) {
@@ -246,7 +246,7 @@ test.describe.serial("데이터 연결 전수 검증", () => {
     for (const [path] of pages) {
       await S.goto(`${BASE}${path}`);
       await S.waitForLoadState("load");
-      await S.waitForTimeout(1500);
+      await S.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
       await expect(S.locator("text=Not Found")).not.toBeVisible();
       await expect(S.locator("text=오류가 발생했습니다")).not.toBeVisible();
     }

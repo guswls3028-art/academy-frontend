@@ -3,7 +3,7 @@
  * - 내 위치 분석 (상위/중위/하위)
  * - 약점 강좌 하이라이트
  */
-import { test, expect } from "@playwright/test";
+import { test, expect } from "../fixtures/strictTest";
 import { loginViaUI } from "../helpers/auth";
 
 test.describe("학생앱 성적 통계", () => {

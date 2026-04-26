@@ -6,7 +6,8 @@
  *
  * admin(owner) 로 로그인하여 권한 가드도 같이 통과 확인.
  */
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect } from "../fixtures/strictTest";
+import type { Page } from "@playwright/test";
 import { loginViaUI, getBaseUrl } from "../helpers/auth";
 
 const BASE = getBaseUrl("admin");

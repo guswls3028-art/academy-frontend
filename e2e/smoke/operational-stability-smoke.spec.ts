@@ -21,7 +21,6 @@ function collectErrors(page: Page) {
   page.on("console", (msg) => {
     if (msg.type() === "error") {
       const text = msg.text();
-      // Ignore known noise
       if (text.includes("favicon") || text.includes("sourcemap") || text.includes("ResizeObserver")) return;
       errors.push(`[console.error] ${text}`);
     }
@@ -42,6 +41,16 @@ function collectErrors(page: Page) {
   return { errors, apiErrors };
 }
 
+/** networkidle 까지 기다린 채 페이지 진입 — waitForTimeout 대체. */
+async function visit(page: Page, path: string) {
+  await page.goto(`${BASE}${path}`, { waitUntil: "networkidle", timeout: 20000 });
+}
+
+/** 클릭 후 SPA settle — networkidle 대기. */
+async function settleAfterClick(page: Page) {
+  await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
+}
+
 test.describe("선생님 핵심 동선 스모크", () => {
   test.setTimeout(180000);
   test.beforeEach(async ({ page }) => {
@@ -49,40 +58,32 @@ test.describe("선생님 핵심 동선 스모크", () => {
   });
 
   test("1. 대시보드 진입", async ({ page }) => {
-    const { errors, apiErrors } = collectErrors(page);
-    await page.goto(`${BASE}/admin`, { waitUntil: "networkidle", timeout: 20000 });
-    // 대시보드 렌더 확인
+    const { errors } = collectErrors(page);
+    await visit(page, "/admin");
     await expect(page.locator('[data-page="dashboard"], main, .dashboard, h1, h2').first()).toBeVisible({ timeout: 10000 });
     expect(errors).toEqual([]);
   });
 
   test("2. 강의 목록 → 강의 상세 → 차시", async ({ page }) => {
-    const { errors, apiErrors } = collectErrors(page);
+    const { errors } = collectErrors(page);
 
-    // 강의 목록 진입
-    await page.goto(`${BASE}/admin/lectures`, { waitUntil: "networkidle", timeout: 20000 });
-    await page.waitForTimeout(2000);
-
-    // 강의 목록 페이지가 렌더되었는지 확인
+    await visit(page, "/admin/lectures");
     await expect(page.locator("main").first()).toBeVisible({ timeout: 10000 });
 
-    // 강의 링크로 상세 진입
     const lectureLink = page.locator('a[href*="/lectures/"]').first();
     if (!await lectureLink.isVisible({ timeout: 5000 }).catch(() => false)) {
       test.skip(true, "강의 목록에 강의 데이터 없음 — 테스트 데이터 필요");
       return;
     }
     await lectureLink.click();
-    await page.waitForTimeout(2000);
+    await settleAfterClick(page);
 
-    // 강의 상세가 렌더되었는지 확인
     await expect(page.locator("main").first()).toBeVisible({ timeout: 10000 });
 
-    // 차시 탭 클릭
     const sessionTab = page.locator('a[href*="/sessions"], button, [role="tab"]').filter({ hasText: /차시/ }).first();
     if (await sessionTab.isVisible({ timeout: 3000 }).catch(() => false)) {
       await sessionTab.click();
-      await page.waitForTimeout(2000);
+      await settleAfterClick(page);
     }
 
     const pageErrors = errors.filter(e => !e.includes("Failed to fetch"));
@@ -90,42 +91,35 @@ test.describe("선생님 핵심 동선 스모크", () => {
   });
 
   test("3. 성적 탭 진입 + 테이블 렌더링", async ({ page }) => {
-    const { errors, apiErrors } = collectErrors(page);
+    const { errors } = collectErrors(page);
 
-    // 강의 > 차시 > 성적 탭
-    await page.goto(`${BASE}/admin/lectures`, { waitUntil: "networkidle", timeout: 20000 });
-    await page.waitForTimeout(2000);
+    await visit(page, "/admin/lectures");
 
-    // 첫 강의 진입
     const lectureLink = page.locator('a[href*="/lectures/"]').first();
     if (!await lectureLink.isVisible({ timeout: 5000 }).catch(() => false)) {
       test.skip(true, "강의 목록에 강의가 없음 — 테스트 데이터 필요");
       return;
     }
     await lectureLink.click();
-    await page.waitForTimeout(2000);
+    await settleAfterClick(page);
 
-    // 차시 목록에서 첫 차시 클릭
     const sessionLink = page.locator('a[href*="/sessions/"]').first();
     if (!await sessionLink.isVisible({ timeout: 5000 }).catch(() => false)) {
       test.skip(true, "강의에 차시가 없음 — 테스트 데이터 필요");
       return;
     }
     await sessionLink.click();
-    await page.waitForTimeout(2000);
+    await settleAfterClick(page);
 
-    // 성적 탭 클릭
     const scoresTab = page.locator('a, button, [role="tab"]').filter({ hasText: /성적/ }).first();
     if (await scoresTab.isVisible({ timeout: 3000 }).catch(() => false)) {
       await scoresTab.click();
-      await page.waitForTimeout(3000);
+      await settleAfterClick(page);
 
-      // 테이블 또는 빈 상태 확인
       const tableOrEmpty = page.locator('table, [class*="empty"], [data-empty]').first();
       await expect(tableOrEmpty).toBeVisible({ timeout: 10000 });
     }
 
-    // 런타임 에러 없어야 함
     const criticalErrors = errors.filter(e =>
       e.includes("TypeError") || e.includes("Cannot read") || e.includes("is not a function") || e.includes("undefined")
     );
@@ -135,20 +129,17 @@ test.describe("선생님 핵심 동선 스모크", () => {
   test("4. 학생 목록 페이지 + 검색 + 상세", async ({ page }) => {
     const { errors } = collectErrors(page);
 
-    await page.goto(`${BASE}/admin/students`, { waitUntil: "networkidle", timeout: 20000 });
-    await page.waitForTimeout(2000);
+    await visit(page, "/admin/students");
 
-    // 학생 목록 렌더 확인
     const content = page.locator('table, [class*="student"], [class*="card"], main').first();
     await expect(content).toBeVisible({ timeout: 10000 });
 
-    // 검색 테스트
     const searchInput = page.locator('input[type="search"], input[placeholder*="검색"], input[placeholder*="이름"]').first();
     if (await searchInput.isVisible({ timeout: 3000 }).catch(() => false)) {
       await searchInput.fill("테스트");
-      await page.waitForTimeout(1500);
+      await settleAfterClick(page);
       await searchInput.clear();
-      await page.waitForTimeout(1000);
+      await settleAfterClick(page);
     }
 
     const criticalErrors = errors.filter(e =>
@@ -160,9 +151,7 @@ test.describe("선생님 핵심 동선 스모크", () => {
   test("5. 시험 관리 (시험탐색기)", async ({ page }) => {
     const { errors } = collectErrors(page);
 
-    await page.goto(`${BASE}/admin/exams`, { waitUntil: "networkidle", timeout: 20000 });
-    await page.waitForTimeout(2000);
-
+    await visit(page, "/admin/exams");
     const content = page.locator('main, [class*="exam"], table').first();
     await expect(content).toBeVisible({ timeout: 10000 });
 
@@ -175,17 +164,14 @@ test.describe("선생님 핵심 동선 스모크", () => {
   test("6. 클리닉 홈 + 운영 페이지", async ({ page }) => {
     const { errors } = collectErrors(page);
 
-    // 클리닉 홈
-    await page.goto(`${BASE}/admin/clinic`, { waitUntil: "networkidle", timeout: 20000 });
-    await page.waitForTimeout(2000);
-    const content = page.locator('main').first();
+    await visit(page, "/admin/clinic");
+    const content = page.locator("main").first();
     await expect(content).toBeVisible({ timeout: 10000 });
 
-    // 운영 페이지
     const opsLink = page.locator('a[href*="operations"], a[href*="console"], button').filter({ hasText: /운영|콘솔/ }).first();
     if (await opsLink.isVisible({ timeout: 3000 }).catch(() => false)) {
       await opsLink.click();
-      await page.waitForTimeout(2000);
+      await settleAfterClick(page);
     }
 
     const criticalErrors = errors.filter(e =>
@@ -197,17 +183,14 @@ test.describe("선생님 핵심 동선 스모크", () => {
   test("7. 메시지 설정 페이지", async ({ page }) => {
     const { errors } = collectErrors(page);
 
-    await page.goto(`${BASE}/admin/message`, { waitUntil: "networkidle", timeout: 20000 });
-    await page.waitForTimeout(2000);
-
-    const content = page.locator('main').first();
+    await visit(page, "/admin/message");
+    const content = page.locator("main").first();
     await expect(content).toBeVisible({ timeout: 10000 });
 
-    // 설정 탭 클릭
     const settingsTab = page.locator('a, button, [role="tab"]').filter({ hasText: /설정/ }).first();
     if (await settingsTab.isVisible({ timeout: 3000 }).catch(() => false)) {
       await settingsTab.click();
-      await page.waitForTimeout(2000);
+      await settleAfterClick(page);
     }
 
     const criticalErrors = errors.filter(e =>
@@ -219,10 +202,8 @@ test.describe("선생님 핵심 동선 스모크", () => {
   test("8. 커뮤니티 페이지", async ({ page }) => {
     const { errors } = collectErrors(page);
 
-    await page.goto(`${BASE}/admin/community`, { waitUntil: "networkidle", timeout: 20000 });
-    await page.waitForTimeout(2000);
-
-    const content = page.locator('main').first();
+    await visit(page, "/admin/community");
+    const content = page.locator("main").first();
     await expect(content).toBeVisible({ timeout: 10000 });
 
     const criticalErrors = errors.filter(e =>
@@ -234,10 +215,8 @@ test.describe("선생님 핵심 동선 스모크", () => {
   test("9. 제출함 (인박스)", async ({ page }) => {
     const { errors } = collectErrors(page);
 
-    await page.goto(`${BASE}/admin/results/submissions`, { waitUntil: "networkidle", timeout: 20000 });
-    await page.waitForTimeout(2000);
-
-    const content = page.locator('main').first();
+    await visit(page, "/admin/results/submissions");
+    const content = page.locator("main").first();
     await expect(content).toBeVisible({ timeout: 10000 });
 
     const criticalErrors = errors.filter(e =>
@@ -249,10 +228,8 @@ test.describe("선생님 핵심 동선 스모크", () => {
   test("10. 직원 관리", async ({ page }) => {
     const { errors } = collectErrors(page);
 
-    await page.goto(`${BASE}/admin/staff`, { waitUntil: "networkidle", timeout: 20000 });
-    await page.waitForTimeout(2000);
-
-    const content = page.locator('main').first();
+    await visit(page, "/admin/staff");
+    const content = page.locator("main").first();
     await expect(content).toBeVisible({ timeout: 10000 });
 
     const criticalErrors = errors.filter(e =>
@@ -264,10 +241,8 @@ test.describe("선생님 핵심 동선 스모크", () => {
   test("11. 영상 관리", async ({ page }) => {
     const { errors } = collectErrors(page);
 
-    await page.goto(`${BASE}/admin/videos`, { waitUntil: "networkidle", timeout: 20000 });
-    await page.waitForTimeout(2000);
-
-    const content = page.locator('main').first();
+    await visit(page, "/admin/videos");
+    const content = page.locator("main").first();
     await expect(content).toBeVisible({ timeout: 10000 });
 
     const criticalErrors = errors.filter(e =>
@@ -279,10 +254,8 @@ test.describe("선생님 핵심 동선 스모크", () => {
   test("12. 설정 페이지", async ({ page }) => {
     const { errors } = collectErrors(page);
 
-    await page.goto(`${BASE}/admin/settings`, { waitUntil: "networkidle", timeout: 20000 });
-    await page.waitForTimeout(2000);
-
-    const content = page.locator('main').first();
+    await visit(page, "/admin/settings");
+    const content = page.locator("main").first();
     await expect(content).toBeVisible({ timeout: 10000 });
 
     const criticalErrors = errors.filter(e =>
@@ -294,10 +267,8 @@ test.describe("선생님 핵심 동선 스모크", () => {
   test("13. 도구 페이지", async ({ page }) => {
     const { errors } = collectErrors(page);
 
-    await page.goto(`${BASE}/admin/tools`, { waitUntil: "networkidle", timeout: 20000 });
-    await page.waitForTimeout(2000);
-
-    const content = page.locator('main').first();
+    await visit(page, "/admin/tools");
+    const content = page.locator("main").first();
     await expect(content).toBeVisible({ timeout: 10000 });
 
     const criticalErrors = errors.filter(e =>

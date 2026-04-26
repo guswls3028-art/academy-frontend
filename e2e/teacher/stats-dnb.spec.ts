@@ -1,7 +1,7 @@
 /**
  * E2E: DNB 테넌트 성적 통계 검증 — 실데이터 다수 학생
  */
-import { test, expect } from "@playwright/test";
+import { test, expect } from "../fixtures/strictTest";
 import { loginViaUI } from "../helpers/auth";
 
 test.describe("DNB 성적 통계", () => {

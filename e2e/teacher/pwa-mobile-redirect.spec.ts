@@ -7,7 +7,7 @@
  * - 프로필 페이지 (설치 카드)
  * - 데스크톱 전환 → admin 진입
  */
-import { test, expect } from "@playwright/test";
+import { test, expect } from "../fixtures/strictTest";
 
 const TCHUL = process.env.TCHUL_BASE_URL || "https://tchul.com";
 const API = process.env.E2E_API_URL || "https://api.hakwonplus.com";

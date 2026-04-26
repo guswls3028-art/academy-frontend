@@ -11,6 +11,7 @@
 import { test, expect } from "../fixtures/strictTest";
 import type { Page } from "@playwright/test";
 import { loginViaUI } from "../helpers/auth";
+import { gotoAndSettle } from "../helpers/wait";
 
 test.setTimeout(180_000);
 
@@ -27,65 +28,42 @@ async function snap(page: Page, name: string) {
  * SMS 모달이 열리면 빈 본문 힌트 오버레이가 덮여있을 수 있으므로 dismiss 처리
  */
 async function openSendModalFromStudentPage(page: Page): Promise<void> {
-  console.log("[STEP] 학생 목록 페이지 이동");
-  await page.goto(`${BASE}/admin/students`, { waitUntil: "load", timeout: 20000 });
-  await page.waitForTimeout(2500);
+  await gotoAndSettle(page, `${BASE}/admin/students`, { settleMs: 1500 });
   await snap(page, "01-students-list");
 
-  // 첫 번째 학생 행 체크박스 선택
   const checkboxes = page.locator('input[type="checkbox"]');
   const checkCount = await checkboxes.count();
-  console.log(`[INFO] 체크박스 수: ${checkCount}`);
-
   if (checkCount === 0) {
     throw new Error("학생 목록에서 체크박스를 찾을 수 없습니다");
   }
 
-  // 헤더(전체선택) 체크박스와 개별 체크박스를 구분: 첫 번째(헤더)가 아닌 두 번째 이후
-  // 안전하게 첫 번째 tbody row 체크박스를 선택
   const firstRowCheckbox = page.locator('tbody input[type="checkbox"]').first();
-  const firstRowVisible = await firstRowCheckbox.isVisible({ timeout: 5000 }).catch(() => false);
-
-  if (firstRowVisible) {
+  if (await firstRowCheckbox.isVisible({ timeout: 5000 }).catch(() => false)) {
     await firstRowCheckbox.check();
-    console.log("[OK] 첫 번째 학생 체크박스 선택");
   } else {
-    // fallback: 두 번째 체크박스(첫 번째는 헤더)
     await checkboxes.nth(1).check().catch(async () => {
       await checkboxes.first().check();
     });
-    console.log("[OK] 체크박스 선택 (fallback)");
   }
-  await page.waitForTimeout(500);
   await snap(page, "02-checkbox-checked");
 
-  // 메시지 발송 버튼 클릭
   const msgBtn = page.locator("button").filter({ hasText: "메시지 발송" }).first();
-  const msgBtnVisible = await msgBtn.isVisible({ timeout: 5000 }).catch(() => false);
-  console.log(`[INFO] 메시지 발송 버튼 visible: ${msgBtnVisible}`);
-
-  if (!msgBtnVisible) {
+  if (!(await msgBtn.isVisible({ timeout: 5000 }).catch(() => false))) {
     await snap(page, "02b-no-msg-btn");
     throw new Error("메시지 발송 버튼이 보이지 않습니다");
   }
   await msgBtn.click();
-  await page.waitForTimeout(2500);
-  console.log("[OK] 메시지 발송 모달 열림 시도");
-  await snap(page, "03-modal-opened");
 
-  // 모달이 실제로 열렸는지 확인
+  // 모달 진입 — role=dialog 없이도 SMS/알림톡 라벨이 존재하면 모달 열림으로 간주.
   const modalBody = page.locator(".send-message-modal, [class*=AdminModal], [role=dialog]").first();
   const modalVisible = await modalBody.isVisible({ timeout: 8000 }).catch(() => false);
-  console.log(`[CHECK] 모달 visible: ${modalVisible}`);
   if (!modalVisible) {
-    // role=dialog 없이 렌더링될 수 있음 — body 텍스트로 확인
     const bodyText = await page.locator("body").innerText().catch(() => "");
-    const hasSmsLabel = bodyText.includes("SMS") || bodyText.includes("알림톡");
-    console.log(`[CHECK] SMS/알림톡 텍스트 존재: ${hasSmsLabel}`);
-    if (!hasSmsLabel) {
+    if (!(bodyText.includes("SMS") || bodyText.includes("알림톡"))) {
       throw new Error("메시지 발송 모달이 열리지 않았습니다");
     }
   }
+  await snap(page, "03-modal-opened");
 }
 
 /**
@@ -94,11 +72,10 @@ async function openSendModalFromStudentPage(page: Page): Promise<void> {
  */
 async function dismissSmsEmptyHint(page: Page): Promise<void> {
   const directWriteBtn = page.locator("button, a").filter({ hasText: "직접 작성하기" }).first();
-  const hintVisible = await directWriteBtn.isVisible({ timeout: 3000 }).catch(() => false);
-  if (hintVisible) {
+  if (await directWriteBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
     await directWriteBtn.click();
-    await page.waitForTimeout(500);
-    console.log("[OK] SMS 빈 본문 힌트 → 직접 작성하기 클릭으로 dismiss");
+    // 힌트 dismiss 후 textarea 가 활성화될 때까지 settle.
+    await page.waitForLoadState("networkidle", { timeout: 3_000 }).catch(() => {});
   }
 }
 
@@ -127,8 +104,8 @@ async function pickFirstSystemTemplate(
   } else {
     await panelToggle.click();
   }
-  await page.waitForTimeout(1000);
-  console.log("[OK] 양식 패널 열림");
+  // 양식 패널 진입 settle.
+  await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
   await snap(page, "04-template-panel");
 
   // 시스템 기본 양식 목록에서 클릭 가능한 첫 번째 양식 카드 찾기
@@ -167,8 +144,8 @@ async function pickFirstSystemTemplate(
 
   console.log(`[INFO] 선택할 양식: "${templateName}"`);
   await templateCardBtn.click();
-  await page.waitForTimeout(1000);
-  console.log("[OK] 양식 클릭 완료 (패널 닫힘 예상)");
+  // 양식 적용 + 패널 닫힘 settle.
+  await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
   await snap(page, "05-template-selected");
 
   // 패널이 닫혔으면 textarea에서 본문 읽기
@@ -230,7 +207,6 @@ test("시나리오 1: SMS 양식 선택 후 본문 변경 정확성", async ({ p
   await textarea.click();
   await textarea.press("End");
   await textarea.type(" [E2E추가]");
-  await page.waitForTimeout(800);
   await snap(page, "sc1-modified-badge");
 
   // "수정됨" 뱃지 확인
@@ -253,7 +229,7 @@ test("시나리오 1: SMS 양식 선택 후 본문 변경 정확성", async ({ p
 
   if (changeBtnVisible) {
     await changeBtn.click();
-    await page.waitForTimeout(1000);
+    await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
     await snap(page, "sc1-panel2-opened");
 
     // 두 번째 시스템 양식 찾기 (첫 번째와 다른 것)
@@ -264,20 +240,16 @@ test("시나리오 1: SMS 양식 선택 후 본문 변경 정확성", async ({ p
     console.log(`[INFO] 패널 내 시스템 양식 수: ${count2}`);
 
     if (count2 >= 2) {
-      // 두 번째 양식 선택
       const tpl2Name = (await systemTplBtns2.nth(1).innerText().catch(() => "")).split("\n")[0].trim();
       console.log(`[INFO] 두 번째 양식: "${tpl2Name}"`);
       await systemTplBtns2.nth(1).click();
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
     } else if (count2 === 1) {
-      // 동일한 양식 재선택 (변경 여부 확인용)
-      console.log("[INFO] 시스템 양식이 1개 — 동일 양식 재선택");
       await systemTplBtns2.first().click();
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
     } else {
-      console.log("[WARN] 두 번째 양식을 찾지 못함 — 패널 닫기");
       await page.keyboard.press("Escape");
-      await page.waitForTimeout(500);
+      await page.waitForLoadState("networkidle", { timeout: 3_000 }).catch(() => {});
     }
 
     await snap(page, "sc1-body-after-select2");
@@ -340,8 +312,7 @@ test("시나리오 2: 알림톡 양식 선택 후 본문 변경 + 직접 작성 
   } else {
     await alimtalkBtn.click();
   }
-  await page.waitForTimeout(1000);
-  console.log("[OK] 알림톡 모드 전환");
+  await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
   await snap(page, "sc2-alimtalk-mode");
 
   // ── Step 2: 양식 선택 클릭 → 시스템 기본 양식 선택 ──
@@ -373,7 +344,6 @@ test("시나리오 2: 알림톡 양식 선택 후 본문 변경 + 직접 작성 
     await textarea.click();
     await textarea.press("End");
     await textarea.type(" [알림톡E2E]");
-    await page.waitForTimeout(800);
     await snap(page, "sc2-modified");
 
     // 알림톡의 수정됨 표시 — "수정됨" 텍스트 (· 포함 or 단독)
@@ -399,7 +369,7 @@ test("시나리오 2: 알림톡 양식 선택 후 본문 변경 + 직접 작성 
 
   if (changePanelVisible) {
     await changePanelBtn.click();
-    await page.waitForTimeout(1000);
+    await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
     await snap(page, "sc2-panel-for-direct");
 
     // 패널 내 "직접 작성하기" 버튼 찾기
@@ -410,8 +380,7 @@ test("시나리오 2: 알림톡 양식 선택 후 본문 변경 + 직접 작성 
 
     if (directBtnVisible) {
       await directBtn.click();
-      await page.waitForTimeout(1000);
-      console.log("[OK] 직접 작성하기 선택");
+      await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
       await snap(page, "sc2-after-direct-write");
 
       // 직접 작성 모드 표시 확인
@@ -472,7 +441,6 @@ test("시나리오 3: 발송 disable 사유 정확성", async ({ page }) => {
   const taSmsClear = await textareaSms.isVisible({ timeout: 5000 }).catch(() => false);
   if (taSmsClear) {
     await textareaSms.clear();
-    await page.waitForTimeout(500);
   }
   await snap(page, "sc3-sms-empty-body");
 
@@ -496,8 +464,7 @@ test("시나리오 3: 발송 disable 사유 정확성", async ({ page }) => {
   const alimtalkBtnVisible = await alimtalkBtn.isVisible({ timeout: 5000 }).catch(() => false);
   if (alimtalkBtnVisible) {
     await alimtalkBtn.click();
-    await page.waitForTimeout(1000);
-    console.log("[OK] 알림톡 모드 전환");
+    await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
     await snap(page, "sc3-alimtalk-no-template");
 
     const bodyText2 = await page.locator("body").innerText().catch(() => "");
@@ -522,8 +489,7 @@ test("시나리오 3: 발송 disable 사유 정확성", async ({ page }) => {
   const smsBtnVisible = await smsBtnForReset.isVisible({ timeout: 3000 }).catch(() => false);
   if (smsBtnVisible) {
     await smsBtnForReset.click();
-    await page.waitForTimeout(800);
-    console.log("[OK] SMS 모드 전환");
+    await page.waitForLoadState("networkidle", { timeout: 3_000 }).catch(() => {});
   }
 
   // 학부모 체크박스 해제
@@ -533,11 +499,8 @@ test("시나리오 3: 발송 disable 사유 정확성", async ({ page }) => {
   console.log(`[INFO] 학부모 체크박스 visible: ${parentVisible}`);
 
   if (parentVisible) {
-    const parentChecked = await parentChk.isChecked();
-    if (parentChecked) {
+    if (await parentChk.isChecked()) {
       await parentChk.uncheck();
-      await page.waitForTimeout(400);
-      console.log("[OK] 학부모 체크 해제");
     }
   } else {
     // 대안: label 텍스트로 찾기
@@ -556,21 +519,18 @@ test("시나리오 3: 발송 disable 사유 정확성", async ({ page }) => {
   console.log(`[INFO] 학생 체크박스 visible: ${studentVisible}`);
 
   if (studentVisible) {
-    const studentChecked = await studentChk.isChecked();
-    if (studentChecked) {
+    if (await studentChk.isChecked()) {
       await studentChk.uncheck();
-      await page.waitForTimeout(400);
-      console.log("[OK] 학생 체크 해제");
     }
   } else {
     const studentChk2 = page.locator("label").filter({ hasText: "학생" }).locator('input[type="checkbox"]');
     const alt2Visible = await studentChk2.isVisible({ timeout: 3000 }).catch(() => false);
     if (alt2Visible && (await studentChk2.isChecked())) {
       await studentChk2.uncheck();
-      console.log("[OK] 학생 체크 해제 (대안)");
     }
   }
-  await page.waitForTimeout(500);
+  // 체크 해제 후 disable 사유 텍스트가 갱신될 때까지 settle.
+  await page.waitForLoadState("networkidle", { timeout: 3_000 }).catch(() => {});
   await snap(page, "sc3-no-targets");
 
   const bodyText3 = await page.locator("body").innerText().catch(() => "");

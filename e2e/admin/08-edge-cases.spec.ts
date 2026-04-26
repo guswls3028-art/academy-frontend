@@ -15,8 +15,6 @@ import type { Page } from "@playwright/test";
 import { loginViaUI } from "../helpers/auth";
 import * as fs from "fs";
 
-const BASE = process.env.E2E_BASE_URL || "https://hakwonplus.com";
-
 // ── 헬퍼 ──
 
 async function snap(page: Page, name: string) {
@@ -33,13 +31,12 @@ async function navTo(page: Page, text: string) {
     .filter({ hasText: text })
     .first();
   await link.click({ timeout: 10000 });
-  await page.waitForTimeout(2000);
+  await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
 }
 
 /** 학생 목록에서 체크박스를 클릭해 1명 이상 선택 후 "메시지 발송" 버튼 클릭 → 모달 열기 */
 async function openSendModal(page: Page): Promise<boolean> {
   await navTo(page, "학생");
-  await page.waitForTimeout(1500);
 
   const checkboxes = page.locator('input[type="checkbox"]');
   const count = await checkboxes.count();
@@ -48,11 +45,8 @@ async function openSendModal(page: Page): Promise<boolean> {
     return false;
   }
 
-  // 첫 번째 행 체크박스(전체선택이 아닌 개별 학생) 클릭
-  // 전체선택이 있으면 index 0이 전체, index 1부터 개별
   const targetCheckbox = count > 1 ? checkboxes.nth(1) : checkboxes.first();
   await targetCheckbox.click();
-  await page.waitForTimeout(500);
 
   const sendBtn = page.locator("button").filter({ hasText: /메시지/ }).first();
   const visible = await sendBtn.isVisible({ timeout: 5000 }).catch(() => false);
@@ -61,8 +55,7 @@ async function openSendModal(page: Page): Promise<boolean> {
     return false;
   }
   await sendBtn.click();
-  await page.waitForTimeout(2000);
-
+  // 모달이 열릴 때까지.
   const modalVisible = await page
     .locator("text=메시지 발송")
     .first()
@@ -75,33 +68,15 @@ async function openSendModal(page: Page): Promise<boolean> {
   return true;
 }
 
-/** SMS 모드 textarea에 텍스트 입력 */
-async function fillSmsBody(page: Page, text: string) {
-  const textarea = page.locator("textarea.message-domain-input, textarea[placeholder='내용을 입력하세요']").first();
-  if (await textarea.isVisible({ timeout: 5000 }).catch(() => false)) {
-    await textarea.click();
-    await textarea.fill(text);
-    await page.waitForTimeout(300);
-    console.log(`[fillSmsBody] 본문 입력: "${text}"`);
-  } else {
-    console.log("[fillSmsBody] SMS textarea 미표시 — SMS 모드 아닐 수 있음");
-  }
-}
-
 /** SMS 모드로 전환 시도 */
 async function switchToSms(page: Page) {
   const smsBtn = page.locator("button").filter({ hasText: /^SMS$/ }).first();
   if (await smsBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
-    const isDisabled = await smsBtn.isDisabled().catch(() => true);
-    if (!isDisabled) {
+    if (!(await smsBtn.isDisabled().catch(() => true))) {
       await smsBtn.click();
-      await page.waitForTimeout(500);
-      console.log("[switchToSms] SMS 모드 전환");
-    } else {
-      console.log("[switchToSms] SMS 버튼 disabled (SMS 연동 없음)");
+      // 모드 전환 settle.
+      await page.waitForLoadState("networkidle", { timeout: 3_000 }).catch(() => {});
     }
-  } else {
-    console.log("[switchToSms] SMS 버튼 미표시");
   }
 }
 
@@ -110,8 +85,7 @@ async function switchToAlimtalk(page: Page) {
   const atBtn = page.locator("button").filter({ hasText: /알림톡/ }).first();
   if (await atBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
     await atBtn.click();
-    await page.waitForTimeout(500);
-    console.log("[switchToAlimtalk] 알림톡 모드 전환");
+    await page.waitForLoadState("networkidle", { timeout: 3_000 }).catch(() => {});
   }
 }
 
@@ -148,7 +122,6 @@ test.describe("메시징 잠재 버그 시나리오 — edge cases", () => {
 
     if (hasTextarea) {
       await textarea.fill("E2E 더블클릭 방지 테스트 메시지");
-      await page.waitForTimeout(300);
     }
 
     // ── 1a. 푸터의 발송 버튼(requestSend) disabled/enabled 상태 확인 ──
@@ -164,7 +137,6 @@ test.describe("메시징 잠재 버그 시나리오 — edge cases", () => {
     if (!footerDisabled) {
       // canSend=true 상태에서 발송 버튼 클릭 → 확인 오버레이 표시
       await footerSendBtn.click();
-      await page.waitForTimeout(500);
 
       const confirmOverlay = page.locator("text=발송하기").last();
       const overlayVisible = await confirmOverlay.isVisible({ timeout: 5000 }).catch(() => false);
@@ -180,9 +152,10 @@ test.describe("메시징 잠재 버그 시나리오 — edge cases", () => {
         await confirmSendBtn.click();
         // 바로 disabled 상태 확인 (비동기 처리 전)
         const disabledAfterFirst = await confirmSendBtn.isDisabled().catch(() => true);
-        // 두 번째 클릭 시도
+        // 두 번째 클릭 시도 — 의도적 race (더블클릭 방지 검증의 본질)
         await confirmSendBtn.click({ force: true }).catch(() => {});
-        await page.waitForTimeout(200);
+        // eslint-disable-next-line no-restricted-syntax
+        await page.waitForTimeout(200); // 의도적: 더블클릭 race 검증
 
         const disabledAfterSecond = await confirmSendBtn.isDisabled().catch(() => true);
         console.log(`[1] 1차 클릭 후 disabled: ${disabledAfterFirst}`);
@@ -198,7 +171,8 @@ test.describe("메시징 잠재 버그 시나리오 — edge cases", () => {
           console.log("[1] WARN — 1차 클릭 후 즉시 disabled가 아님. sendingRef 작동 시 API 중복 호출 없음은 확인 필요");
         }
 
-        await page.waitForTimeout(3000);
+        // 발송 후 모달 상태 캡처 — settle 후 스냅.
+        await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
         await snap(page, "edge-1-after-send");
       } else {
         console.log("[1] 확인 오버레이 미표시 — requestSend canSend 조건 미충족");
@@ -216,7 +190,6 @@ test.describe("메시징 잠재 버그 시나리오 — edge cases", () => {
   test("2a. 빈 데이터 — 학생 0명 선택 시 안내 문구", async ({ page }) => {
     await loginViaUI(page, "admin");
     await navTo(page, "학생");
-    await page.waitForTimeout(1500);
 
     // 체크박스 선택 없이 메시지 버튼 클릭 시도
     const sendBtn = page.locator("button").filter({ hasText: /메시지/ }).first();
@@ -224,7 +197,7 @@ test.describe("메시징 잠재 버그 시나리오 — edge cases", () => {
 
     if (btnVisible) {
       await sendBtn.click();
-      await page.waitForTimeout(1500);
+      await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
 
       // 모달이 열렸다면 수신자 없음 안내 확인
       const noRecipientHint = page
@@ -268,9 +241,8 @@ test.describe("메시징 잠재 버그 시나리오 — edge cases", () => {
       return;
     }
 
-    // SMS 전환 시도
+    // SMS 전환 시도 (switchToSms 자체가 settle 포함)
     await switchToSms(page);
-    await page.waitForTimeout(500);
 
     // textarea 비어 있는 상태에서 발송 버튼 확인
     const textarea = page
@@ -281,7 +253,6 @@ test.describe("메시징 잠재 버그 시나리오 — edge cases", () => {
     if (hasTextarea) {
       // 본문 비우기
       await textarea.fill("");
-      await page.waitForTimeout(300);
 
       const footerSendBtn = page.locator("button").filter({ hasText: /발송/ }).last();
       const isDisabled = await footerSendBtn.isDisabled().catch(() => true);
@@ -339,9 +310,8 @@ test.describe("메시징 잠재 버그 시나리오 — edge cases", () => {
 
       if (parentChecked) await parentCheckbox.click();
       if (studentChecked) await studentCheckbox.click();
-      await page.waitForTimeout(500);
 
-      // "선택 필요" 경고 표시 확인
+      // "선택 필요" 경고 표시 확인 (체크 해제 settle 은 isVisible timeout 으로 흡수)
       const warningText = page.locator("text=선택 필요").first();
       const warningVisible = await warningText.isVisible({ timeout: 3000 }).catch(() => false);
       console.log(`[2c] "선택 필요" 경고 표시: ${warningVisible}`);
@@ -383,9 +353,8 @@ test.describe("메시징 잠재 버그 시나리오 — edge cases", () => {
       return;
     }
 
-    // SMS 전환 시도
+    // SMS 전환 (switchToSms 자체가 settle)
     await switchToSms(page);
-    await page.waitForTimeout(500);
 
     const textarea = page
       .locator("textarea.message-domain-input, textarea[placeholder='내용을 입력하세요']")
@@ -395,7 +364,6 @@ test.describe("메시징 잠재 버그 시나리오 — edge cases", () => {
     if (hasSmsTextarea) {
       // 초기 본문 입력
       await textarea.fill("초기 본문 — 덮어쓰기 테스트");
-      await page.waitForTimeout(300);
       const bodyBefore = await textarea.inputValue();
       console.log(`[3a] 양식 선택 전 본문: "${bodyBefore}"`);
 
@@ -408,7 +376,8 @@ test.describe("메시징 잠재 버그 시나리오 — edge cases", () => {
 
       if (panelBtnVisible) {
         await templatePanelBtn.click();
-        await page.waitForTimeout(1000);
+        // 패널 진입 — 템플릿 카드가 나타날 때까지 대기.
+        await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
         await snap(page, "edge-3a-template-panel");
 
         // 첫 번째 템플릿 클릭
@@ -420,7 +389,8 @@ test.describe("메시징 잠재 버그 시나리오 — edge cases", () => {
 
         if (templateVisible) {
           await firstTemplate.click();
-          await page.waitForTimeout(1000);
+          // 양식 적용 후 settle.
+          await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
 
           const bodyAfter = await textarea.inputValue().catch(() => "");
           console.log(`[3a] 양식 선택 후 본문: "${bodyAfter.slice(0, 50)}..."`);
@@ -484,9 +454,8 @@ test.describe("메시징 잠재 버그 시나리오 — edge cases", () => {
     }
     await snap(page, "edge-3b-sms-body");
 
-    // 2단계: 알림톡으로 전환
+    // 2단계: 알림톡으로 전환 (switchToAlimtalk 자체가 settle)
     await switchToAlimtalk(page);
-    await page.waitForTimeout(500);
     await snap(page, "edge-3b-alimtalk-switch");
 
     // 알림톡 모드로 전환됐는지 확인 (SMS textarea 사라짐)
@@ -495,7 +464,6 @@ test.describe("메시징 잠재 버그 시나리오 — edge cases", () => {
 
     // 3단계: 다시 SMS로 전환
     await switchToSms(page);
-    await page.waitForTimeout(500);
     await snap(page, "edge-3b-back-to-sms");
 
     const smsTextareaBackVisible = await smsTextarea.isVisible({ timeout: 3000 }).catch(() => false);
@@ -544,7 +512,6 @@ test.describe("메시징 잠재 버그 시나리오 — edge cases", () => {
 
     const originalBody = "돌아가기 후 유지 테스트 본문 123";
     await textarea.fill(originalBody);
-    await page.waitForTimeout(300);
 
     // 발송 버튼 클릭 → 확인 오버레이
     const footerSendBtn = page.locator("button").filter({ hasText: /발송/ }).last();
@@ -552,7 +519,6 @@ test.describe("메시징 잠재 버그 시나리오 — edge cases", () => {
 
     if (isEnabled) {
       await footerSendBtn.click();
-      await page.waitForTimeout(800);
 
       const confirmOverlay = page.locator("text=발송하기").last();
       const overlayVisible = await confirmOverlay.isVisible({ timeout: 5000 }).catch(() => false);
@@ -563,7 +529,11 @@ test.describe("메시징 잠재 버그 시나리오 — edge cases", () => {
         // "돌아가기" 클릭
         const backBtn = page.locator("button").filter({ hasText: "돌아가기" }).first();
         await backBtn.click();
-        await page.waitForTimeout(500);
+        // 오버레이가 사라질 때까지.
+        await expect(
+          page.locator("button").filter({ hasText: "돌아가기" }).first(),
+          "돌아가기 후 확인 오버레이의 돌아가기 버튼이 사라져야 함",
+        ).toBeHidden({ timeout: 3_000 });
         await snap(page, "edge-3c-after-back");
 
         // 오버레이 사라짐 확인
@@ -653,9 +623,9 @@ test.describe("메시징 잠재 버그 시나리오 — edge cases", () => {
       } else {
         console.log("[4] WARN — 취소 버튼 미표시 (하단 잘림)");
         await snap(page, "edge-4-footer-hidden");
-        // 스크롤 후 재확인
+        // 스크롤 후 재확인 (스크롤 자체는 동기, 약간의 settle 후 캡처)
         await page.mouse.wheel(0, 300);
-        await page.waitForTimeout(500);
+        await page.waitForLoadState("networkidle", { timeout: 2_000 }).catch(() => {});
         await snap(page, "edge-4-after-scroll");
         const cancelAfterScroll = await cancelBtn.isVisible({ timeout: 3000 }).catch(() => false);
         console.log(`[4] 스크롤 후 취소 버튼 가시: ${cancelAfterScroll}`);

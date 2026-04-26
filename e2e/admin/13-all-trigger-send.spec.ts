@@ -26,38 +26,33 @@ test.describe("전 트리거 실발송", () => {
 
     // 학생 체크박스 선택
     const checkbox = page.locator('input[type="checkbox"]').first();
+    await expect(checkbox, "성적 페이지에 수강생 체크박스가 있어야 함").toBeVisible({ timeout: 10000 });
     await checkbox.click();
     await page.waitForTimeout(500);
 
-    // "수업결과 발송" 버튼
+    // "수업결과 발송" 버튼 — fail-fast
     const sendBtn = page.locator("button").filter({ hasText: "수업결과 발송" }).first();
-    if (await sendBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await sendBtn.click();
-      await page.waitForTimeout(2000);
-      await snap(page, "01-score-modal");
+    await expect(sendBtn).toBeVisible({ timeout: 5000 });
+    await sendBtn.click();
+    await page.waitForTimeout(2000);
+    await snap(page, "01-score-modal");
 
-      // 발송하기 클릭
-      const confirmBtn = page.locator("button").filter({ hasText: "발송하기" }).first();
-      if (await confirmBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
-        await confirmBtn.click();
-        await page.waitForTimeout(3000);
-        console.log("[수업결과] ✅ 실발송 완료");
-        await snap(page, "01-score-sent");
-      } else {
-        // 확인 오버레이
-        const mainSend = page.locator("button").filter({ hasText: /에게.*발송/ }).last();
-        if (await mainSend.isVisible({ timeout: 3000 }).catch(() => false)) {
-          await mainSend.click();
-          await page.waitForTimeout(2000);
-          const confirm2 = page.locator("button").filter({ hasText: "발송하기" }).first();
-          if (await confirm2.isVisible({ timeout: 3000 }).catch(() => false)) {
-            await confirm2.click();
-            await page.waitForTimeout(3000);
-            console.log("[수업결과] ✅ 실발송 완료 (2단계)");
-          }
-        }
-      }
+    // 1단계 모달: 직접 "발송하기"가 있거나, "N명에게 발송" → 확인 오버레이 "발송하기" 2단계
+    const directConfirm = page.locator("button").filter({ hasText: "발송하기" }).first();
+    const mainSend = page.locator("button").filter({ hasText: /에게.*발송/ }).last();
+
+    if (await directConfirm.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await directConfirm.click();
+    } else {
+      await expect(mainSend, "'N명에게 발송' 또는 '발송하기' 버튼이 보여야 함").toBeVisible({ timeout: 5000 });
+      await mainSend.click();
+      await page.waitForTimeout(2000);
+      const confirm2 = page.locator("button").filter({ hasText: "발송하기" }).first();
+      await expect(confirm2, "확인 오버레이의 '발송하기' 버튼이 보여야 함").toBeVisible({ timeout: 5000 });
+      await confirm2.click();
     }
+    await page.waitForTimeout(3000);
+    await snap(page, "01-score-sent");
   });
 
   test("2. 발송 내역 확인 — 성적 알림톡 도착", async ({ page }) => {
@@ -65,26 +60,29 @@ test.describe("전 트리거 실발송", () => {
       data: { username: (process.env.E2E_ADMIN_USER || "admin97"), password: (process.env.E2E_ADMIN_PASS || "koreaseoul97"), tenant_code: "hakwonplus" },
       headers: { "Content-Type": "application/json", "X-Tenant-Code": "hakwonplus" },
     });
+    expect(loginResp.ok(), "admin 로그인 토큰 발급 성공").toBe(true);
     const { access } = await loginResp.json() as { access: string };
 
-    // 10초 대기 (SQS 처리)
-    await page.waitForTimeout(10000);
-
-    const logResp = await page.request.get(`${API}/api/v1/messaging/log/?page_size=5&ordering=-sent_at`, {
-      headers: { Authorization: `Bearer ${access}`, "X-Tenant-Code": "hakwonplus" },
-    });
-    const logData = await logResp.json() as { results: Array<{ id: number; sent_at: string; success: boolean; message_mode: string; template_summary: string; message_body: string }> };
-
-    console.log("=== 최신 발송 5건 ===");
-    for (const r of logData.results.slice(0, 5)) {
-      const tmplShort = r.template_summary?.slice(0, 20) || "?";
-      const bodyShort = r.message_body?.slice(0, 80) || "?";
-      console.log(`  id=${r.id} | ${r.sent_at?.slice(11, 19)} | ${r.message_mode} | success=${r.success} | tmpl=${tmplShort}`);
-      console.log(`    body: ${bodyShort}`);
+    // SQS 처리 대기 (최대 20초 폴링) — "최근 5분 내 발송 기록" 조건이 충족될 때까지
+    const recentWindowMs = 5 * 60 * 1000;
+    let results: Array<{ id: number; sent_at: string; success: boolean; message_mode: string; template_summary: string; message_body: string }> = [];
+    for (let i = 0; i < 10; i++) {
+      await page.waitForTimeout(2000);
+      const logResp = await page.request.get(`${API}/api/v1/messaging/log/?page_size=5&ordering=-sent_at`, {
+        headers: { Authorization: `Bearer ${access}`, "X-Tenant-Code": "hakwonplus" },
+      });
+      results = (await logResp.json() as { results: typeof results }).results;
+      const hasRecent = results.some(r => Date.now() - new Date(r.sent_at).getTime() <= recentWindowMs);
+      if (hasRecent) break;
     }
 
-    // 오늘 발송 총 건수
-    const todayCount = logData.results.filter(r => r.sent_at >= "2026-04-09T05:").length;
-    console.log(`\n오늘 배포 후 발송: ${todayCount}건`);
+    for (const r of results.slice(0, 5)) {
+      const tmplShort = r.template_summary?.slice(0, 20) || "?";
+      console.log(`  id=${r.id} | ${r.sent_at?.slice(11, 19)} | ${r.message_mode} | success=${r.success} | tmpl=${tmplShort}`);
+    }
+
+    // 최근 5분 내 발송 기록 최소 1건
+    const recentCount = results.filter(r => Date.now() - new Date(r.sent_at).getTime() <= recentWindowMs).length;
+    expect(recentCount, "직전 테스트(test 1)의 발송이 5분 내 로그에 반영되어야 함").toBeGreaterThan(0);
   });
 });

@@ -34,7 +34,7 @@ test.describe.serial("Homework / Scores / Inventory 데이터 플로우", () => 
   test("02 Admin: 세션 성적 탭 렌더링 확인", async () => {
     // 강의 목록 진입
     await T.goto(`${BASE}/admin/lectures`, { waitUntil: "load" });
-    await T.waitForTimeout(2000);
+    await T.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
 
     // 첫 번째 강의 클릭
     const lectureLink = T.locator("a[href*='/admin/lectures/']").first();
@@ -43,7 +43,7 @@ test.describe.serial("Homework / Scores / Inventory 데이터 플로우", () => 
     if (hasLecture) {
       await lectureLink.click();
       await T.waitForLoadState("load");
-      await T.waitForTimeout(2000);
+      await T.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
 
       // 세션(차시) 목록으로 이동
       const sessionsLink = T.locator("a[href*='/sessions']").first();
@@ -51,7 +51,7 @@ test.describe.serial("Homework / Scores / Inventory 데이터 플로우", () => 
       if (hasSessions) {
         await sessionsLink.click();
         await T.waitForLoadState("load");
-        await T.waitForTimeout(2000);
+        await T.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
       }
 
       // 첫 번째 세션 클릭
@@ -60,7 +60,7 @@ test.describe.serial("Homework / Scores / Inventory 데이터 플로우", () => 
       if (hasSession) {
         await sessionLink.click();
         await T.waitForLoadState("load");
-        await T.waitForTimeout(2000);
+        await T.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
 
         // 성적 탭 클릭
         const scoresTab = T.locator("a[href*='/scores'], button, [role='tab']")
@@ -69,7 +69,7 @@ test.describe.serial("Homework / Scores / Inventory 데이터 플로우", () => 
         const hasScoresTab = await scoresTab.isVisible({ timeout: 5000 }).catch(() => false);
         if (hasScoresTab) {
           await scoresTab.click();
-          await T.waitForTimeout(2000);
+          await T.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
         }
       }
     }
@@ -88,7 +88,7 @@ test.describe.serial("Homework / Scores / Inventory 데이터 플로우", () => 
     const hasTab = await assignmentsTab.isVisible({ timeout: 5000 }).catch(() => false);
     if (hasTab) {
       await assignmentsTab.click();
-      await T.waitForTimeout(2000);
+      await T.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
     }
 
     await T.screenshot({ path: "test-results/hw-scores/03-admin-homework.png" });
@@ -107,7 +107,7 @@ test.describe.serial("Homework / Scores / Inventory 데이터 플로우", () => 
 
   test("05 Student: 성적 허브 (GradesPage) 렌더링", async () => {
     await S.goto(`${BASE}/student/grades`, { waitUntil: "load" });
-    await S.waitForTimeout(3000);
+    await S.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
     await S.screenshot({ path: "test-results/hw-scores/05-student-grades-hub.png" });
 
     // GradesPage의 title 확인
@@ -134,7 +134,7 @@ test.describe.serial("Homework / Scores / Inventory 데이터 플로우", () => 
     const hasTab = await S.locator("button", { hasText: /과제 현황/ }).isVisible({ timeout: 3000 }).catch(() => false);
     if (hasTab) {
       await S.locator("button", { hasText: /과제 현황/ }).click();
-      await S.waitForTimeout(2000);
+      await S.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
     }
     await S.screenshot({ path: "test-results/hw-scores/06-student-homework-tab.png" });
 
@@ -148,7 +148,7 @@ test.describe.serial("Homework / Scores / Inventory 데이터 플로우", () => 
   test("07 Student: 시험 결과 상세 (ExamResultPage) 확인", async () => {
     // 성적 허브에서 시험 결과 링크를 클릭해서 상세로 이동
     await S.goto(`${BASE}/student/grades`, { waitUntil: "load" });
-    await S.waitForTimeout(3000);
+    await S.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
 
     // 시험 결과 링크가 있으면 클릭
     const examLink = S.locator("a[href*='/student/exams/'][href*='/result']").first();
@@ -157,7 +157,7 @@ test.describe.serial("Homework / Scores / Inventory 데이터 플로우", () => 
     if (hasExamLink) {
       await examLink.click();
       await S.waitForLoadState("load");
-      await S.waitForTimeout(3000);
+      await S.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
       await S.screenshot({ path: "test-results/hw-scores/07-student-exam-result.png" });
 
       // ExamResultPage 에서 점수 게이지, 합격/불합격 표시 확인
@@ -169,7 +169,7 @@ test.describe.serial("Homework / Scores / Inventory 데이터 플로우", () => 
       // 시험 결과가 없으면 redirect 경로 테스트 (유효하지 않은 ID)
       await S.goto(`${BASE}/student/grades/exams/99999`, { waitUntil: "load" });
       // redirect로 /student/exams/99999/result 로 이동
-      await S.waitForTimeout(3000);
+      await S.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
       // 시험 결과 타이틀 또는 에러 상태
       const hasTitle = await S.locator("text=시험 결과").isVisible({ timeout: 10000 }).catch(() => false);
       const errorLocator = S.locator("text=불러오지 못했습니다");
@@ -182,7 +182,7 @@ test.describe.serial("Homework / Scores / Inventory 데이터 플로우", () => 
 
   test("08 Student: 성적표 제출 (SubmitScorePage) UI 확인", async () => {
     await S.goto(`${BASE}/student/submit/score`, { waitUntil: "load" });
-    await S.waitForTimeout(3000);
+    await S.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
     await S.screenshot({ path: "test-results/hw-scores/08-student-submit-score.png" });
 
     // 성적표 제출 타이틀
@@ -205,7 +205,7 @@ test.describe.serial("Homework / Scores / Inventory 데이터 플로우", () => 
 
   test("09 Student: 과제 제출 (SubmitAssignmentPage) UI 확인", async () => {
     await S.goto(`${BASE}/student/submit/assignment`, { waitUntil: "load" });
-    await S.waitForTimeout(3000);
+    await S.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
     await S.screenshot({ path: "test-results/hw-scores/09-student-submit-assignment.png" });
 
     // 과제 제출 타이틀
@@ -220,7 +220,7 @@ test.describe.serial("Homework / Scores / Inventory 데이터 플로우", () => 
 
   test("10 Student: 인벤토리 (MyInventoryPage) 렌더링", async () => {
     await S.goto(`${BASE}/student/inventory`, { waitUntil: "load" });
-    await S.waitForTimeout(3000);
+    await S.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
     await S.screenshot({ path: "test-results/hw-scores/10-student-inventory.png" });
 
     // 내 인벤토리 타이틀

@@ -32,7 +32,7 @@ test.describe.serial("Video & Session 데이터 플로우", () => {
 
   test("02 Admin: 강의 목록 페이지 로드 + 실제 데이터 확인", async () => {
     await A.goto(`${BASE}/admin/lectures`, { waitUntil: "load" });
-    await A.waitForTimeout(3000);
+    await A.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
     await A.screenshot({ path: "test-results/video-session/02-admin-lectures.png" });
 
     // 에러 페이지가 아닌지 확인
@@ -71,7 +71,7 @@ test.describe.serial("Video & Session 데이터 플로우", () => {
 
     await lectureLink.click();
     await A.waitForLoadState("load");
-    await A.waitForTimeout(2000);
+    await A.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
 
     // 차시(sessions) 탭으로 이동
     const sessionsTab = A.locator('a[href*="/sessions"], button, [role="tab"]')
@@ -79,7 +79,7 @@ test.describe.serial("Video & Session 데이터 플로우", () => {
       .first();
     if (await sessionsTab.isVisible({ timeout: 5000 }).catch(() => false)) {
       await sessionsTab.click();
-      await A.waitForTimeout(2000);
+      await A.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
     }
     await A.screenshot({ path: "test-results/video-session/03-admin-lecture-sessions.png" });
 
@@ -97,7 +97,7 @@ test.describe.serial("Video & Session 데이터 플로우", () => {
 
     await sessionLink.click();
     await A.waitForLoadState("load");
-    await A.waitForTimeout(3000);
+    await A.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
     await A.screenshot({ path: "test-results/video-session/03-admin-session-detail.png" });
 
     // 차시 상세에서 탭 존재 확인 (출결, 성적, 영상 등)
@@ -119,7 +119,7 @@ test.describe.serial("Video & Session 데이터 플로우", () => {
       .first();
     if (await videoTab.isVisible({ timeout: 3000 }).catch(() => false)) {
       await videoTab.click();
-      await A.waitForTimeout(2000);
+      await A.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
       await A.screenshot({ path: "test-results/video-session/03-admin-session-videos.png" });
     }
   });
@@ -136,7 +136,7 @@ test.describe.serial("Video & Session 데이터 플로우", () => {
 
   test("05 Student: 일정(세션) 목록", async () => {
     await S.goto(`${BASE}/student/sessions`, { waitUntil: "load" });
-    await S.waitForTimeout(3000);
+    await S.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
     await S.screenshot({ path: "test-results/video-session/05-student-sessions.png" });
 
     // 에러 페이지 아님
@@ -190,7 +190,7 @@ test.describe.serial("Video & Session 데이터 플로우", () => {
     }
 
     await S.waitForLoadState("load");
-    await S.waitForTimeout(3000);
+    await S.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
     await S.screenshot({ path: "test-results/video-session/06-student-session-detail.png" });
 
     // 상세 페이지에서 콘텐츠 섹션 확인
@@ -203,7 +203,7 @@ test.describe.serial("Video & Session 데이터 플로우", () => {
 
   test("07 Student: 영상 홈 — 강좌 카드 렌더", async () => {
     await S.goto(`${BASE}/student/video`, { waitUntil: "load" });
-    await S.waitForTimeout(3000);
+    await S.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
     await S.screenshot({ path: "test-results/video-session/07-student-video-home.png" });
 
     // 에러/404 아님
@@ -250,7 +250,7 @@ test.describe.serial("Video & Session 데이터 플로우", () => {
 
     await courseLink.click();
     await S.waitForLoadState("load");
-    await S.waitForTimeout(3000);
+    await S.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
     await S.screenshot({ path: "test-results/video-session/08-student-course-detail.png" });
 
     // 에러 아님

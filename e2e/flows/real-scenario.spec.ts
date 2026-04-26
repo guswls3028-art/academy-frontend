@@ -10,6 +10,7 @@ import { test, expect } from "../fixtures/strictTest";
 import type { Page, Browser } from "@playwright/test";
 import { loginViaUI, getBaseUrl } from "../helpers/auth";
 import { apiCall } from "../helpers/api";
+import { TEST_RECIPIENT } from "../helpers/test-fixtures";
 
 const BASE = getBaseUrl("admin");
 const TS = Date.now();
@@ -38,10 +39,10 @@ test.describe.serial("실제 운영 시나리오 (0317테스트학생)", () => {
   test("2. 학생 등록 + 데이터 준비 (API)", async () => {
     // 학생 등록 (API — 모달 UI는 PhoneInput010Blocks 등 복잡)
     const stuResp = await apiCall(teacherPage, "POST", "/students/", {
-      name: "0317테스트학생",
-      phone: "01034137466",
-      parent_phone: "01031217466",
-      initial_password: "0000",
+      name: TEST_RECIPIENT.studentName,
+      phone: TEST_RECIPIENT.studentPhone,
+      parent_phone: TEST_RECIPIENT.parentPhone,
+      initial_password: TEST_RECIPIENT.studentPassword,
       school_type: "HIGH",
       send_welcome_message: false,
     });
@@ -87,7 +88,7 @@ test.describe.serial("실제 운영 시나리오 (0317테스트학생)", () => {
 
     // 수강생 등록 (학생 찾기)
     const stuList = await apiCall(teacherPage, "GET", "/students/?page_size=200");
-    const stu = (stuList.body?.results || []).find((s: any) => s.name === "0317테스트학생");
+    const stu = (stuList.body?.results || []).find((s: any) => s.name === TEST_RECIPIENT.studentName);
     if (stu) {
       const enroll = await apiCall(teacherPage, "POST", "/lectures/enrollments/", {
         lecture: lec.body.id, student: stu.id,
@@ -149,8 +150,8 @@ test.describe.serial("실제 운영 시나리오 (0317테스트학생)", () => {
 
     // 학생 ps_number 확인 (API로 먼저 찾기)
     const stuList = await apiCall(teacherPage, "GET", "/students/?page_size=200");
-    const stu = (stuList.body?.results || []).find((s: any) => s.name === "0317테스트학생");
-    const psNumber = stu?.ps_number || stu?.phone || "01034137466";
+    const stu = (stuList.body?.results || []).find((s: any) => s.name === TEST_RECIPIENT.studentName);
+    const psNumber = stu?.ps_number || stu?.phone || TEST_RECIPIENT.studentPhone;
     console.log(`  학생 아이디: ${psNumber}`);
 
     // API 기반 로그인 (loginViaUI와 동일 방식)
@@ -163,7 +164,7 @@ test.describe.serial("실제 운영 시나리오 (0317테스트학생)", () => {
     if (tokenResp.status() !== 200) {
       // 전화번호로 재시도
       const tokenResp2 = await studentPage.request.post(`${API_BASE}/api/v1/token/`, {
-        data: { username: "01034137466", password: "0000" },
+        data: { username: TEST_RECIPIENT.studentPhone, password: TEST_RECIPIENT.studentPassword },
         headers: { "Content-Type": "application/json", "X-Tenant-Code": "hakwonplus" },
       });
       expect(tokenResp2.status()).toBe(200);
@@ -187,7 +188,7 @@ test.describe.serial("실제 운영 시나리오 (0317테스트학생)", () => {
   test("9. 학생이 공지를 확인한다", async () => {
     await studentPage.goto(`${BASE}/student/notices`);
     await studentPage.waitForLoadState("load");
-    await studentPage.waitForTimeout(2000);
+    await studentPage.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
 
     // 공지가 보이는지
     const notice = studentPage.locator("text=0317").first();
@@ -205,7 +206,7 @@ test.describe.serial("실제 운영 시나리오 (0317테스트학생)", () => {
     const qnaTab = studentPage.locator("button").filter({ hasText: "QnA" }).first();
     await qnaTab.waitFor({ state: "visible", timeout: 8000 });
     await qnaTab.click();
-    await studentPage.waitForTimeout(1500);
+    await studentPage.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
 
     // 질문하기 버튼 (프로필 로딩 완료 후 렌더링됨)
     const writeBtn = studentPage.locator("button").filter({ hasText: "질문하기" }).first();
@@ -229,7 +230,7 @@ test.describe.serial("실제 운영 시나리오 (0317테스트학생)", () => {
     await submitBtn.click();
 
     // 성공 확인 (토스트 또는 목록 복귀)
-    await studentPage.waitForTimeout(2000);
+    await studentPage.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
   });
 
   // ══════════════════════════════════════════════════════
@@ -238,7 +239,7 @@ test.describe.serial("실제 운영 시나리오 (0317테스트학생)", () => {
   test("11. 학생이 클리닉 예약을 한다", async () => {
     await studentPage.goto(`${BASE}/student/clinic`);
     await studentPage.waitForLoadState("load");
-    await studentPage.waitForTimeout(2000);
+    await studentPage.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
 
     // 클리닉 페이지가 로드되는지
     await expect(studentPage.locator("[data-app='student']").first()).toBeVisible();
@@ -248,12 +249,12 @@ test.describe.serial("실제 운영 시나리오 (0317테스트학생)", () => {
     const sessionCard = studentPage.locator("text=보충학습실, text=수학 보충, text=17:00").first();
     if (await sessionCard.isVisible({ timeout: 5000 }).catch(() => false)) {
       await sessionCard.click();
-      await studentPage.waitForTimeout(500);
+      await studentPage.waitForLoadState("networkidle", { timeout: 3_000 }).catch(() => {});
 
       const bookBtn = studentPage.locator("button").filter({ hasText: /예약|신청/ }).first();
       if (await bookBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
         await bookBtn.click();
-        await studentPage.waitForTimeout(2000);
+        await studentPage.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
       }
     }
   });
@@ -264,13 +265,13 @@ test.describe.serial("실제 운영 시나리오 (0317테스트학생)", () => {
   test("12. 교사가 QnA에 답변한다", async () => {
     await teacherPage.goto(`${BASE}/admin/community/qna`);
     await teacherPage.waitForLoadState("load");
-    await teacherPage.waitForTimeout(2000);
+    await teacherPage.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
 
     // 학생 질문 찾기
     const question = teacherPage.locator("text=도함수 질문, text=수학 3장").first();
     if (await question.isVisible({ timeout: 5000 }).catch(() => false)) {
       await question.click();
-      await teacherPage.waitForTimeout(1000);
+      await teacherPage.waitForLoadState("networkidle", { timeout: 3_000 }).catch(() => {});
 
       // 답변 입력
       const replyInput = teacherPage.locator('.qna-inbox__composer textarea, textarea').last();
@@ -278,7 +279,7 @@ test.describe.serial("실제 운영 시나리오 (0317테스트학생)", () => {
         await replyInput.fill("도함수는 극한으로 구합니다. 교재 52페이지를 참고하세요.");
         const sendBtn = teacherPage.locator("button").filter({ hasText: /답변|등록|보내기/ }).first();
         await sendBtn.click();
-        await teacherPage.waitForTimeout(2000);
+        await teacherPage.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
       }
     }
   });
@@ -289,7 +290,7 @@ test.describe.serial("실제 운영 시나리오 (0317테스트학생)", () => {
   test("13. 교사가 클리닉에서 예약자를 확인한다", async () => {
     await teacherPage.goto(`${BASE}/admin/clinic/home`);
     await teacherPage.waitForLoadState("load");
-    await teacherPage.waitForTimeout(2000);
+    await teacherPage.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
 
     // 클리닉 홈이 로드되는지
     await expect(teacherPage.locator("text=Not Found")).not.toBeVisible();
@@ -306,14 +307,14 @@ test.describe.serial("실제 운영 시나리오 (0317테스트학생)", () => {
     const qnaTab = studentPage.locator("button, [role='tab']").filter({ hasText: /QnA|질문/ }).first();
     if (await qnaTab.isVisible({ timeout: 3000 }).catch(() => false)) {
       await qnaTab.click();
-      await studentPage.waitForTimeout(1000);
+      await studentPage.waitForLoadState("networkidle", { timeout: 3_000 }).catch(() => {});
     }
 
     // 내 질문 찾기
     const myQ = studentPage.locator("text=도함수 질문, text=수학 3장").first();
     if (await myQ.isVisible({ timeout: 5000 }).catch(() => false)) {
       await myQ.click();
-      await studentPage.waitForTimeout(1000);
+      await studentPage.waitForLoadState("networkidle", { timeout: 3_000 }).catch(() => {});
 
       // 답변 확인
       const answer = studentPage.locator("text=극한으로 구합니다, text=52페이지").first();
@@ -329,7 +330,7 @@ test.describe.serial("실제 운영 시나리오 (0317테스트학생)", () => {
   test("15. 학생 대시보드가 정상 표시된다", async () => {
     await studentPage.goto(`${BASE}/student/dashboard`);
     await studentPage.waitForLoadState("load");
-    await studentPage.waitForTimeout(2000);
+    await studentPage.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
 
     await expect(studentPage.locator("[data-app='student']").first()).toBeVisible();
     await expect(studentPage.locator("text=Not Found")).not.toBeVisible();

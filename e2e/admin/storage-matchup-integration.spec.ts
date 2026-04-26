@@ -122,6 +122,38 @@ test.describe("storage-as-canonical 통합", () => {
     await expect(banner).toContainText("매치업");
   });
 
+  test("저장소 업로드 모달 — 다중 파일 드래그앤드롭 입력 시 파일 리스트에 모두 추가", async ({ page }) => {
+    await page.goto(`${BASE}/admin/storage/files`, { waitUntil: "networkidle" });
+    await page.waitForTimeout(1500);
+
+    const addBtn = page.getByRole("button", { name: "추가" }).first();
+    await addBtn.click();
+    await page.waitForTimeout(300);
+    await page.getByText("파일 업로드").click();
+    await page.waitForTimeout(500);
+
+    // 다중 파일 선택 (FileUploadZone 내부 input)
+    const fileInput = page.locator("input[type='file'][multiple]");
+    await fileInput.setInputFiles([
+      { name: "smoke1.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4\n%%EOF") },
+      { name: "smoke2.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4\n%%EOF") },
+    ]);
+    await page.waitForTimeout(300);
+
+    const list = page.locator("[data-testid='upload-modal-file-list']");
+    await expect(list).toBeVisible({ timeout: 3000 });
+    await expect(list).toContainText("smoke1.pdf");
+    await expect(list).toContainText("smoke2.pdf");
+
+    // 다중 모드: 제목 input은 hidden (단일 모드 메타 입력 영역 안 보임)
+    await expect(page.getByPlaceholder("제목")).toHaveCount(0);
+
+    // 매치업 토글은 PDF가 매치업 가능 형식이라 노출 + enabled
+    const promote = page.locator("[data-testid='upload-modal-promote-matchup']");
+    await expect(promote).toBeVisible();
+    await expect(promote).toBeEnabled();
+  });
+
   test("저장소 업로드 모달 — 파일 선택 전엔 매치업 토글 hidden, PDF 선택 후 enabled로 노출", async ({ page }) => {
     await page.goto(`${BASE}/admin/storage/files`, { waitUntil: "networkidle" });
     await page.waitForTimeout(1500);

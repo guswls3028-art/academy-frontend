@@ -28,23 +28,25 @@ test.describe("강의 출결 + 성적 트리거", () => {
     await page.waitForTimeout(3000);
     await snap(page, "01-attendance-page");
 
-    // 페이지에 출석/결석 버튼이 있는지 확인
-    const allBtns = await page.locator("button").allTextContents();
-    console.log(`[출결] 버튼 목록: ${allBtns.filter(b => b.trim()).join(" | ")}`);
-
-    // 학생 체크박스 또는 출석 버튼 찾기
+    // 출결 페이지 필수 요소 — 출석 or 결석 버튼 중 하나는 반드시 있어야 함
     const attendBtn = page.locator("button").filter({ hasText: /출석|참석|present/ }).first();
     const absentBtn = page.locator("button").filter({ hasText: /결석|absent/ }).first();
 
-    if (await attendBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-      console.log("[출결] 출석 버튼 발견");
+    await expect(
+      attendBtn.or(absentBtn),
+      "출결 페이지에 출석/결석 버튼이 렌더링되어야 함"
+    ).toBeVisible({ timeout: 10000 });
+
+    // 출석 버튼 우선 클릭
+    if (await attendBtn.isVisible().catch(() => false)) {
       await attendBtn.click();
       await page.waitForTimeout(3000);
-      console.log("[출결] 출석 클릭 완료");
       await snap(page, "01-attend-clicked");
     } else {
-      console.log("[출결] 출석 버튼 미표시 — 출결 UI 구조 확인 필요");
-      await snap(page, "01-no-attend-btn");
+      // 출석만 가려진 경우 결석이라도 클릭해서 트리거 발동 확인
+      await absentBtn.click();
+      await page.waitForTimeout(3000);
+      await snap(page, "01-absent-clicked");
     }
   });
 
@@ -55,51 +57,56 @@ test.describe("강의 출결 + 성적 트리거", () => {
     await page.goto(`${BASE}/admin/lectures/${FIXTURES.lectureId}/sessions/${FIXTURES.sessionId}/scores`, { timeout: 15000 });
     await page.waitForTimeout(3000);
 
+    const sendStart = Date.now();
+
     // 학생 선택
     const checkbox = page.locator('input[type="checkbox"]').first();
+    await expect(checkbox, "성적 페이지에 수강생 체크박스가 있어야 함").toBeVisible({ timeout: 10000 });
     await checkbox.click();
     await page.waitForTimeout(500);
 
-    // 수업결과 발송
+    // 수업결과 발송 → 모달 → 발송하기 (각 단계 fail-fast)
     const scoreBtn = page.locator("button").filter({ hasText: "수업결과 발송" }).first();
-    if (await scoreBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await scoreBtn.click();
-      await page.waitForTimeout(2000);
+    await expect(scoreBtn).toBeVisible({ timeout: 5000 });
+    await scoreBtn.click();
+    await page.waitForTimeout(2000);
 
-      // 모달에서 알림톡 모드 확인
-      const kakaoPreview = page.locator(".template-preview-kakao");
-      const isAlimtalk = await kakaoPreview.first().isVisible({ timeout: 3000 }).catch(() => false);
-      console.log(`[수업결과] 모달 모드: ${isAlimtalk ? "알림톡" : "SMS"}`);
-      await snap(page, "02-score-modal");
+    const kakaoPreview = page.locator(".template-preview-kakao").first();
+    await expect(kakaoPreview, "알림톡 모드 미리보기가 렌더링되어야 함").toBeVisible({ timeout: 5000 });
+    await snap(page, "02-score-modal");
 
-      // 발송
-      const sendBtn = page.locator("button").filter({ hasText: /에게.*발송/ }).last();
-      if (await sendBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await sendBtn.click();
-        await page.waitForTimeout(2000);
-        const confirmBtn = page.locator("button").filter({ hasText: "발송하기" }).first();
-        if (await confirmBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-          await confirmBtn.click();
-          await page.waitForTimeout(5000);
-          console.log("[수업결과] 발송 완료");
-        }
-      }
-    }
+    const sendBtn = page.locator("button").filter({ hasText: /에게.*발송/ }).last();
+    await expect(sendBtn).toBeVisible({ timeout: 5000 });
+    await sendBtn.click();
+    await page.waitForTimeout(2000);
 
-    // 발송 내역 확인
+    const confirmBtn = page.locator("button").filter({ hasText: "발송하기" }).first();
+    await expect(confirmBtn).toBeVisible({ timeout: 5000 });
+    await confirmBtn.click();
+    await page.waitForTimeout(3000);
+
+    // 발송 내역 확인 — 방금 발송된 건이 로그에 반영되었는지 폴링
     const loginResp = await page.request.post(`${API}/api/v1/token/`, {
       data: { username: (process.env.E2E_ADMIN_USER || "admin97"), password: (process.env.E2E_ADMIN_PASS || "koreaseoul97"), tenant_code: "hakwonplus" },
       headers: { "Content-Type": "application/json", "X-Tenant-Code": "hakwonplus" },
     });
     const { access } = await loginResp.json() as { access: string };
-    await page.waitForTimeout(5000);
 
-    const logResp = await page.request.get(`${API}/api/v1/messaging/log/?page_size=3&ordering=-sent_at`, {
-      headers: { Authorization: `Bearer ${access}`, "X-Tenant-Code": "hakwonplus" },
-    });
-    const logData = await logResp.json() as { results: Array<{ id: number; sent_at: string; message_mode: string; success: boolean }> };
-    for (const r of logData.results.slice(0, 3)) {
-      console.log(`  id=${r.id} | ${r.sent_at?.slice(11, 19)} | ${r.message_mode} | success=${r.success}`);
+    let latest: { id: number; sent_at: string; message_mode: string; success: boolean } | undefined;
+    for (let i = 0; i < 10; i++) {
+      await page.waitForTimeout(2000);
+      const logResp = await page.request.get(`${API}/api/v1/messaging/log/?page_size=3&ordering=-sent_at`, {
+        headers: { Authorization: `Bearer ${access}`, "X-Tenant-Code": "hakwonplus" },
+      });
+      const logData = await logResp.json() as { results: Array<{ id: number; sent_at: string; message_mode: string; success: boolean }> };
+      latest = logData.results[0];
+      if (latest && new Date(latest.sent_at).getTime() >= sendStart - 60_000) break;
     }
+
+    expect(latest, "발송 로그가 최소 1건 있어야 함").toBeDefined();
+    expect(
+      new Date(latest!.sent_at).getTime(),
+      "최신 발송이 테스트 시작 이후(±60s)여야 함"
+    ).toBeGreaterThanOrEqual(sendStart - 60_000);
   });
 });

@@ -8,7 +8,8 @@
  *  3) API 4xx/5xx 추적 (백엔드 미배포 시 404 허용)
  * 을 검증.
  */
-import { test, expect, type Page, type Response } from "@playwright/test";
+import { test, expect } from "../fixtures/strictTest";
+import type { Page, Response } from "@playwright/test";
 import { loginViaUI, getBaseUrl } from "../helpers/auth";
 import * as fs from "fs";
 
@@ -49,12 +50,19 @@ function attachNetCapture(page: Page): Capture {
 }
 
 function logNet(label: string, c: Capture) {
-  if (c.errors.length === 0 && c.netFails.length === 0) {
-    console.log(`[${label}] OK`);
-    return;
-  }
+  if (c.errors.length === 0 && c.netFails.length === 0) return;
   if (c.errors.length > 0) console.log(`[${label}] JS errors:`, c.errors);
   if (c.netFails.length > 0) console.log(`[${label}] Net fails:`, c.netFails);
+}
+
+/** networkidle settle 후 페이지 진입 — waitForTimeout 대체. */
+async function visit(page: Page, path: string) {
+  await page.goto(`${BASE}${path}`, { waitUntil: "domcontentloaded" });
+  await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
+}
+
+async function settleAfterClick(page: Page) {
+  await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
 }
 
 test.describe("Phase 4 — PC 기능 모바일 운영 스모크", () => {
@@ -69,17 +77,14 @@ test.describe("Phase 4 — PC 기능 모바일 운영 스모크", () => {
 
   test("제출함 인박스 — 4탭 + 새로고침", async ({ page }) => {
     const cap = attachNetCapture(page);
-    await page.goto(`${BASE}/teacher/submissions`, { waitUntil: "domcontentloaded" });
-    await page.waitForTimeout(2000);
+    await visit(page, "/teacher/submissions");
 
-    // 헤더 + 탭 존재
     await expect(page.getByRole("heading", { name: /제출함/ })).toBeVisible();
     await expect(page.getByRole("button", { name: "대기 중" })).toBeVisible();
     await expect(page.getByRole("button", { name: "전체" })).toBeVisible();
 
-    // 탭 이동 — 클릭 후 active 색 확인
     await page.getByRole("button", { name: "완료" }).click();
-    await page.waitForTimeout(500);
+    await settleAfterClick(page);
 
     await page.screenshot({ path: `${SCREEN_DIR}/submissions.png`, fullPage: true });
     logNet("submissions", cap);
@@ -89,34 +94,29 @@ test.describe("Phase 4 — PC 기능 모바일 운영 스모크", () => {
   test("세션 상세 — 7탭 (시험·과제·클리닉 추가) 가로 스크롤", async ({ page }) => {
     const cap = attachNetCapture(page);
 
-    // 강의 → 첫 강의 → 첫 차시
-    await page.goto(`${BASE}/teacher/classes`, { waitUntil: "domcontentloaded" });
-    await page.waitForTimeout(2500);
+    await visit(page, "/teacher/classes");
     const firstClass = page.locator("a[href*='/teacher/classes/']").first();
     if (await firstClass.count() === 0) {
-      console.log("[session] 강의 없음 — skip");
+      test.info().annotations.push({ type: "skip-reason", description: "강의 0개 환경" });
       return;
     }
     await firstClass.click();
-    await page.waitForTimeout(2000);
+    await settleAfterClick(page);
     const firstSession = page.locator("a[href*='/sessions/']").first();
     if (await firstSession.count() === 0) {
-      console.log("[session] 세션 없음 — skip");
+      test.info().annotations.push({ type: "skip-reason", description: "차시 0개 환경" });
       return;
     }
     await firstSession.click();
-    await page.waitForTimeout(2500);
+    await settleAfterClick(page);
 
-    // 새 탭 3개 존재
     await expect(page.getByRole("button", { name: "시험" })).toBeVisible();
     await expect(page.getByRole("button", { name: "과제" })).toBeVisible();
 
-    // 시험 탭 진입
     await page.getByRole("button", { name: "시험" }).click();
-    await page.waitForTimeout(800);
-    // 과제 탭 진입
+    await settleAfterClick(page);
     await page.getByRole("button", { name: "과제" }).click();
-    await page.waitForTimeout(800);
+    await settleAfterClick(page);
 
     await page.screenshot({ path: `${SCREEN_DIR}/session-tabs.png`, fullPage: true });
     logNet("session", cap);
@@ -125,12 +125,11 @@ test.describe("Phase 4 — PC 기능 모바일 운영 스모크", () => {
 
   test("커뮤니티 학부모 상담 탭", async ({ page }) => {
     const cap = attachNetCapture(page);
-    await page.goto(`${BASE}/teacher/comms`, { waitUntil: "domcontentloaded" });
-    await page.waitForTimeout(2000);
+    await visit(page, "/teacher/comms");
 
     await expect(page.getByRole("button", { name: /상담/ }).first()).toBeVisible();
     await page.getByRole("button", { name: /상담/ }).first().click();
-    await page.waitForTimeout(1500);
+    await settleAfterClick(page);
 
     await page.screenshot({ path: `${SCREEN_DIR}/comms-counsel.png`, fullPage: true });
     logNet("comms-counsel", cap);
@@ -141,8 +140,7 @@ test.describe("Phase 4 — PC 기능 모바일 운영 스모크", () => {
 
   test("수납 대시보드 — KPI 3장 + 상태 카운트 + 연체", async ({ page }) => {
     const cap = attachNetCapture(page);
-    await page.goto(`${BASE}/teacher/fees`, { waitUntil: "domcontentloaded" });
-    await page.waitForTimeout(3000);
+    await visit(page, "/teacher/fees");
 
     await expect(page.getByRole("heading", { name: /수납/ })).toBeVisible();
     await expect(page.locator("button").filter({ hasText: "송장" }).first()).toBeVisible();
@@ -154,8 +152,7 @@ test.describe("Phase 4 — PC 기능 모바일 운영 스모크", () => {
 
   test("수납 송장 — 5필터 + 검색", async ({ page }) => {
     const cap = attachNetCapture(page);
-    await page.goto(`${BASE}/teacher/fees/invoices`, { waitUntil: "domcontentloaded" });
-    await page.waitForTimeout(3000);
+    await visit(page, "/teacher/fees/invoices");
 
     await expect(page.getByRole("heading", { name: "송장" })).toBeVisible();
     await expect(page.getByRole("button", { name: "전체" })).toBeVisible();
@@ -169,12 +166,10 @@ test.describe("Phase 4 — PC 기능 모바일 운영 스모크", () => {
 
   test("자료실 — 내 자료 (쿼터 바 + 업로드 버튼)", async ({ page }) => {
     const cap = attachNetCapture(page);
-    await page.goto(`${BASE}/teacher/storage`, { waitUntil: "domcontentloaded" });
-    await page.waitForTimeout(3000);
+    await visit(page, "/teacher/storage");
 
     await expect(page.getByRole("heading", { name: "내 자료" })).toBeVisible();
     await expect(page.getByRole("button", { name: /업로드/ })).toBeVisible();
-    // 헤더의 "폴더" 버튼만 (폴더 항목 제외)
     await expect(page.getByRole("button", { name: "폴더", exact: true })).toBeVisible();
 
     await page.screenshot({ path: `${SCREEN_DIR}/storage-my.png`, fullPage: true });
@@ -184,8 +179,7 @@ test.describe("Phase 4 — PC 기능 모바일 운영 스모크", () => {
 
   test("자료실 — 학생 인벤토리 (학생 검색)", async ({ page }) => {
     const cap = attachNetCapture(page);
-    await page.goto(`${BASE}/teacher/storage/inventory`, { waitUntil: "domcontentloaded" });
-    await page.waitForTimeout(3000);
+    await visit(page, "/teacher/storage/inventory");
 
     await expect(page.getByRole("heading", { name: "학생 인벤토리" })).toBeVisible();
     await expect(page.getByPlaceholder(/학생 이름/)).toBeVisible();
@@ -197,8 +191,7 @@ test.describe("Phase 4 — PC 기능 모바일 운영 스모크", () => {
 
   test("학원 정보 설정 — 폼 + 저장 버튼", async ({ page }) => {
     const cap = attachNetCapture(page);
-    await page.goto(`${BASE}/teacher/settings/organization`, { waitUntil: "domcontentloaded" });
-    await page.waitForTimeout(3000);
+    await visit(page, "/teacher/settings/organization");
 
     await expect(page.getByRole("heading", { name: "학원 정보" })).toBeVisible();
     await expect(page.getByRole("button", { name: /저장/ })).toBeVisible();
@@ -210,16 +203,14 @@ test.describe("Phase 4 — PC 기능 모바일 운영 스모크", () => {
 
   test("외관(테마) — 12종 그리드", async ({ page }) => {
     const cap = attachNetCapture(page);
-    await page.goto(`${BASE}/teacher/settings/appearance`, { waitUntil: "domcontentloaded" });
-    await page.waitForTimeout(2000);
+    await visit(page, "/teacher/settings/appearance");
 
     await expect(page.getByRole("heading", { name: "외관" })).toBeVisible();
     await expect(page.getByText("Modern White")).toBeVisible();
     await expect(page.getByText("Modern Dark")).toBeVisible();
 
-    // 테마 변경 시도
     await page.getByText("Modern Dark").click();
-    await page.waitForTimeout(500);
+    await settleAfterClick(page);
 
     await page.screenshot({ path: `${SCREEN_DIR}/settings-appearance.png`, fullPage: true });
     logNet("settings-appearance", cap);
@@ -228,16 +219,16 @@ test.describe("Phase 4 — PC 기능 모바일 운영 스모크", () => {
 
   test("스톱워치 — 시작/정지/리셋", async ({ page }) => {
     const cap = attachNetCapture(page);
-    await page.goto(`${BASE}/teacher/tools/stopwatch`, { waitUntil: "domcontentloaded" });
-    await page.waitForTimeout(1500);
+    await visit(page, "/teacher/tools/stopwatch");
 
     await expect(page.getByRole("heading", { name: "스톱워치" })).toBeVisible();
     await expect(page.getByRole("button", { name: "시작" })).toBeVisible();
 
     await page.getByRole("button", { name: "시작" }).click();
-    await page.waitForTimeout(1500);
+    // 스톱워치 시간이 흘러야 '랩' 버튼이 의미가 있음 — 의도적으로 1.5초 카운트.
+    // eslint-disable-next-line no-restricted-syntax
+    await page.waitForTimeout(1500); // 의도적: 스톱워치 카운트 진행
     await page.getByRole("button", { name: "랩" }).click();
-    await page.waitForTimeout(500);
     await page.getByRole("button", { name: "정지" }).click();
 
     await page.screenshot({ path: `${SCREEN_DIR}/tools-stopwatch.png`, fullPage: true });
@@ -247,15 +238,13 @@ test.describe("Phase 4 — PC 기능 모바일 운영 스모크", () => {
 
   test("패치노트 — 카드 리스트 + 상세 BottomSheet", async ({ page }) => {
     const cap = attachNetCapture(page);
-    await page.goto(`${BASE}/teacher/developer`, { waitUntil: "domcontentloaded" });
-    await page.waitForTimeout(2000);
+    await visit(page, "/teacher/developer");
 
     await expect(page.getByRole("heading", { name: "패치노트" })).toBeVisible();
-    // 첫 카드 (LATEST) 클릭
     const latest = page.getByText("LATEST").first();
     await expect(latest).toBeVisible();
     await latest.click();
-    await page.waitForTimeout(800);
+    await settleAfterClick(page);
 
     await page.screenshot({ path: `${SCREEN_DIR}/developer-patchnotes.png`, fullPage: true });
     logNet("developer-patchnotes", cap);
@@ -264,8 +253,7 @@ test.describe("Phase 4 — PC 기능 모바일 운영 스모크", () => {
 
   test("버그 제보 — 폼 (제목/내용/이미지)", async ({ page }) => {
     const cap = attachNetCapture(page);
-    await page.goto(`${BASE}/teacher/developer/bug`, { waitUntil: "domcontentloaded" });
-    await page.waitForTimeout(2000);
+    await visit(page, "/teacher/developer/bug");
 
     await expect(page.getByRole("heading", { name: "버그 제보" })).toBeVisible();
     await expect(page.getByPlaceholder(/어떤 버그/)).toBeVisible();
@@ -278,8 +266,7 @@ test.describe("Phase 4 — PC 기능 모바일 운영 스모크", () => {
 
   test("피드백 — 폼", async ({ page }) => {
     const cap = attachNetCapture(page);
-    await page.goto(`${BASE}/teacher/developer/feedback`, { waitUntil: "domcontentloaded" });
-    await page.waitForTimeout(2000);
+    await visit(page, "/teacher/developer/feedback");
 
     await expect(page.getByRole("heading", { name: "피드백" })).toBeVisible();
     await expect(page.getByRole("button", { name: /보내기/ })).toBeVisible();
@@ -291,8 +278,7 @@ test.describe("Phase 4 — PC 기능 모바일 운영 스모크", () => {
 
   test("PC에서 처리하는 기능 안내 (DesktopOnly)", async ({ page }) => {
     const cap = attachNetCapture(page);
-    await page.goto(`${BASE}/teacher/desktop-only`, { waitUntil: "domcontentloaded" });
-    await page.waitForTimeout(1500);
+    await visit(page, "/teacher/desktop-only");
 
     await expect(page.getByRole("heading", { name: /PC에서 처리/ })).toBeVisible();
     await expect(page.getByRole("button", { name: /데스크톱 버전으로 이동/ })).toBeVisible();

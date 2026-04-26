@@ -13,7 +13,7 @@ test.describe("Fees Management", () => {
     await loginViaUI(page, "admin");
 
     await page.goto(`${BASE}/admin/fees`, { waitUntil: "load", timeout: 45000 });
-    await page.waitForTimeout(1500);
+    await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
     await page
       .waitForFunction(
         () => {
@@ -47,11 +47,11 @@ test.describe("Fees Management", () => {
     await loginViaUI(page, "admin");
 
     await page.goto(`${BASE}/admin/fees`, { waitUntil: "load" });
-    await page.waitForTimeout(2000);
+    await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
     const feesOk = await page.locator("text=수납 관리").isVisible({ timeout: 4000 }).catch(() => false);
     test.skip(!feesOk, "fee_management off");
     await page.locator(".ds-tab").filter({ hasText: "비목 관리" }).click();
-    await page.waitForTimeout(2000);
+    await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
 
     // Check "비목 추가" button exists
     const addBtn = page.locator("button").filter({ hasText: "비목 추가" });
@@ -59,7 +59,7 @@ test.describe("Fees Management", () => {
 
     // Click add button
     await addBtn.click();
-    await page.waitForTimeout(500);
+    await page.waitForLoadState("networkidle", { timeout: 3_000 }).catch(() => {});
 
     // Modal should open
     await expect(page.locator("text=비목 추가").first()).toBeVisible();
@@ -73,7 +73,7 @@ test.describe("Fees Management", () => {
     // Save
     const saveBtn = page.locator("button").filter({ hasText: /추가$/ }).last();
     await saveBtn.click();
-    await page.waitForTimeout(2000);
+    await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
 
     // Verify the new template appears in the table
     await expect(page.locator("text=[E2E-smoke] Test Fee")).toBeVisible({ timeout: 10000 });
@@ -83,13 +83,13 @@ test.describe("Fees Management", () => {
     // Cleanup - deactivate the test template
     // Close any open modals first
     await page.keyboard.press("Escape");
-    await page.waitForTimeout(500);
+    await page.waitForLoadState("networkidle", { timeout: 3_000 }).catch(() => {});
 
     page.on("dialog", (d) => d.accept());
     const deactivateBtn = page.locator("tr").filter({ hasText: "[E2E-smoke] Test Fee" }).locator("button").filter({ hasText: "비활성" });
     if (await deactivateBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
       await deactivateBtn.click({ timeout: 5000 });
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle", { timeout: 3_000 }).catch(() => {});
     }
   });
 
@@ -97,11 +97,11 @@ test.describe("Fees Management", () => {
     await loginViaUI(page, "admin");
 
     await page.goto(`${BASE}/admin/fees`, { waitUntil: "load" });
-    await page.waitForTimeout(2000);
+    await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
     const feesOkInv = await page.locator("text=수납 관리").isVisible({ timeout: 4000 }).catch(() => false);
     test.skip(!feesOkInv, "fee_management off");
     await page.locator(".ds-tab").filter({ hasText: "청구서" }).click();
-    await page.waitForTimeout(2000);
+    await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
 
     // Filters should be visible
     await expect(page.locator("select.ds-select").first()).toBeVisible({ timeout: 10000 });
@@ -120,7 +120,7 @@ test.describe("Fees Management", () => {
     await loginViaUI(page, "student");
 
     await page.goto(`${BASE}/student/fees`, { waitUntil: "load" });
-    await page.waitForTimeout(2000);
+    await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
 
     const studentFeesVisible = await page.locator("text=수납/결제").isVisible({ timeout: 5000 }).catch(() => false);
     test.skip(!studentFeesVisible, "fee_management off — student fees gate redirects");

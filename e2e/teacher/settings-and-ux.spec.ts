@@ -5,7 +5,7 @@
  * - 학생 관리 (태그/메모/편집)
  * - 발송 이력
  */
-import { test, expect } from "@playwright/test";
+import { test, expect } from "../fixtures/strictTest";
 import { loginViaUI, getBaseUrl } from "../helpers/auth";
 
 const BASE = getBaseUrl("admin");
@@ -26,7 +26,7 @@ test.describe("선생님 앱 설정 + UX 고도화", () => {
 
   test("설정 페이지 렌더링 — 프로필/보안/테마/알림/앱 섹션", async ({ page }) => {
     await page.goto(`${BASE}/teacher/settings`, { waitUntil: "load", timeout: 20_000 });
-    await page.waitForTimeout(2000);
+    await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
 
     // 설정 헤딩 확인
     await expect(page.getByRole("heading", { name: "설정" })).toBeVisible({ timeout: 10_000 });
@@ -50,11 +50,11 @@ test.describe("선생님 앱 설정 + UX 고도화", () => {
 
   test("설정 — 테마 변경 (Modern Dark 선택 후 복원)", async ({ page }) => {
     await page.goto(`${BASE}/teacher/settings`, { waitUntil: "load", timeout: 20_000 });
-    await page.waitForTimeout(2000);
+    await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
 
     // Modern Dark 테마 선택
     await page.getByText("Modern Dark").click();
-    await page.waitForTimeout(500);
+    await page.waitForLoadState("networkidle", { timeout: 3_000 }).catch(() => {});
 
     // data-theme 속성 확인
     const theme = await page.evaluate(() => document.documentElement.getAttribute("data-theme"));
@@ -64,16 +64,16 @@ test.describe("선생님 앱 설정 + UX 고도화", () => {
 
     // 원래 테마로 복원
     await page.getByText("Modern White").click();
-    await page.waitForTimeout(300);
+    await page.waitForLoadState("networkidle", { timeout: 3_000 }).catch(() => {});
   });
 
   test("설정 — 프로필 편집 모드 진입", async ({ page }) => {
     await page.goto(`${BASE}/teacher/settings`, { waitUntil: "load", timeout: 20_000 });
-    await page.waitForTimeout(2000);
+    await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
 
     // 편집 버튼 클릭
     await page.getByRole("button", { name: /편집/ }).first().click();
-    await page.waitForTimeout(500);
+    await page.waitForLoadState("networkidle", { timeout: 3_000 }).catch(() => {});
 
     // 이름/전화 입력 필드 확인
     await expect(page.getByText("이름").first()).toBeVisible();
@@ -89,7 +89,7 @@ test.describe("선생님 앱 설정 + UX 고도화", () => {
 
   test("소통 — 공지사항 작성 버튼 + 스코프 선택", async ({ page }) => {
     await page.goto(`${BASE}/teacher/comms`, { waitUntil: "load", timeout: 20_000 });
-    await page.waitForTimeout(2000);
+    await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
 
     // 공지사항 탭에서 + 버튼 확인
     const plusBtns = page.locator("button").filter({ has: page.locator('svg') });
@@ -101,7 +101,7 @@ test.describe("선생님 앱 설정 + UX 고도화", () => {
 
   test("소통 — 검색 기능 동작", async ({ page }) => {
     await page.goto(`${BASE}/teacher/comms`, { waitUntil: "load", timeout: 20_000 });
-    await page.waitForTimeout(2000);
+    await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
 
     // 검색 아이콘 클릭 — Search 아이콘 버튼을 찾기
     const searchBtns = page.locator("button").filter({ has: page.locator("svg") });
@@ -112,7 +112,7 @@ test.describe("선생님 앱 설정 + UX 고도화", () => {
 
   test("학생 목록 → 상세 → 태그관리/메모/편집 버튼 확인", async ({ page }) => {
     await page.goto(`${BASE}/teacher/students`, { waitUntil: "load", timeout: 20_000 });
-    await page.waitForTimeout(3000);
+    await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
 
     // 학생이 1명 이상 있는지 확인
     const studentCards = page.locator("[class*='rounded']").filter({ hasText: /학년/ });
@@ -121,7 +121,7 @@ test.describe("선생님 앱 설정 + UX 고도화", () => {
     if (count > 0) {
       // 첫 번째 학생 클릭
       await studentCards.first().click();
-      await page.waitForTimeout(2000);
+      await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
 
       // 상세 페이지 확인
       await expect(page.getByText("학생 상세")).toBeVisible({ timeout: 10_000 });
@@ -141,7 +141,7 @@ test.describe("선생님 앱 설정 + UX 고도화", () => {
 
   test("발송 이력 페이지 렌더링", async ({ page }) => {
     await page.goto(`${BASE}/teacher/message-log`, { waitUntil: "load", timeout: 20_000 });
-    await page.waitForTimeout(2000);
+    await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
 
     // 발송 이력 헤딩 확인
     await expect(page.getByText("발송 이력")).toBeVisible({ timeout: 10_000 });
@@ -151,12 +151,12 @@ test.describe("선생님 앱 설정 + UX 고도화", () => {
 
   test("드로어 메뉴 — 설정/발송이력 메뉴 확인", async ({ page }) => {
     await page.goto(`${BASE}/teacher`, { waitUntil: "load", timeout: 20_000 });
-    await page.waitForTimeout(2000);
+    await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
 
     // 햄버거 메뉴 클릭
     const menuBtn = page.locator("button").filter({ has: page.locator("svg") }).first();
     await menuBtn.click();
-    await page.waitForTimeout(500);
+    await page.waitForLoadState("networkidle", { timeout: 3_000 }).catch(() => {});
 
     // 드로어에서 설정 메뉴 확인
     await expect(page.getByRole("button", { name: "설정" })).toBeVisible({ timeout: 5_000 });

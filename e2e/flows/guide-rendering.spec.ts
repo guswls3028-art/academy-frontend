@@ -1,7 +1,7 @@
 /**
  * 가이드 페이지 렌더링 E2E — 선생앱 + 학생앱 가이드 워크플로우 카드 확인
  */
-import { test, expect } from "@playwright/test";
+import { test, expect } from "../fixtures/strictTest";
 import { loginViaUI, getBaseUrl } from "../helpers/auth";
 
 const BASE = getBaseUrl("admin");
