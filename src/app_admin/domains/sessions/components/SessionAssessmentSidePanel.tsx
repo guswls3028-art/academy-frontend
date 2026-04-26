@@ -315,80 +315,8 @@ export default function SessionAssessmentSidePanel({
     }
   }, [location.pathname, sessionId, lectureId, examId, homeworkId, exams, homeworks, navigate]);
 
-  // Auto-close OPEN exams/homework when the next session date has arrived
-  const [autoCloseDone, setAutoCloseDone] = useState(false);
-  useEffect(() => {
-    if (autoCloseDone || !sessionId || !lectureId) return;
-    if (exams.length === 0 && homeworks.length === 0) return;
-    const hasOpen = exams.some((e) => e.status === "OPEN") || homeworks.some((h) => h.status === "OPEN");
-    if (!hasOpen) { setAutoCloseDone(true); return; }
-
-    let cancelled = false;
-    (async () => {
-      try {
-        // Fetch all sessions for this lecture to find next session date
-        const res = await api.get(`/lectures/sessions/?lecture=${lectureId}`);
-        const sessions = (res.data?.results ?? res.data ?? []) as { id: number; date?: string | null; order: number }[];
-        const current = sessions.find((s) => s.id === sessionId);
-        if (!current?.date) return;
-
-        const sorted = sessions.filter((s) => s.date).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-        const currentIdx = sorted.findIndex((s) => s.id === sessionId);
-        const nextSession = currentIdx >= 0 && currentIdx < sorted.length - 1 ? sorted[currentIdx + 1] : null;
-
-        // Use next session date if available, otherwise use current session date + 1 day
-        const deadlineStr = nextSession?.date ?? current.date;
-        const deadline = new Date(deadlineStr);
-        if (nextSession?.date) {
-          // Next session date = close on that date
-        } else {
-          // No next session — close day after current session
-          deadline.setDate(deadline.getDate() + 1);
-        }
-
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        deadline.setHours(0, 0, 0, 0);
-
-        if (today < deadline) return; // Not yet time to close
-        if (cancelled) return;
-
-        // Auto-close all OPEN exams and homeworks
-        let failCount = 0;
-        const promises: Promise<void>[] = [];
-        for (const exam of exams) {
-          if (exam.status === "OPEN") {
-            promises.push(
-              updateAdminExam(Number(exam.exam_id), { status: "CLOSED" }).then(() => {}).catch(() => { failCount++; }),
-            );
-          }
-        }
-        for (const hw of homeworks) {
-          if (hw.status === "OPEN") {
-            promises.push(
-              updateAdminHomework(hw.id, { status: "CLOSED" }).then(() => {}).catch(() => { failCount++; }),
-            );
-          }
-        }
-        if (promises.length > 0) {
-          await Promise.all(promises);
-          if (!cancelled) {
-            if (failCount > 0) {
-              feedback.warning(`자동 마감 중 ${failCount}건이 실패했습니다. 수동으로 확인해 주세요.`);
-            }
-            qc.invalidateQueries({ queryKey: ["admin-session-exams", sessionId] });
-            qc.invalidateQueries({ queryKey: ["session-homeworks", sessionId] });
-            qc.invalidateQueries({ queryKey: ["session-scores", sessionId] });
-          }
-        }
-      } catch {
-        if (!cancelled) feedback.warning("자동 마감 처리 중 오류가 발생했습니다.");
-      } finally {
-        if (!cancelled) setAutoCloseDone(true);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [sessionId, lectureId, exams, homeworks, autoCloseDone, qc]);
+  // 자동 마감은 백엔드 일일 cron(close_overdue_assessments)이 처리한다.
+  // 사이드패널 마운트에 의존하던 기존 useEffect는 운영 신뢰성 문제로 제거.
 
   const invalidateExams = () => qc.invalidateQueries({ queryKey: ["admin-session-exams", sessionId] });
   const invalidateExamsSummary = () => qc.invalidateQueries({ queryKey: ["session-exams-summary", sessionId] });
