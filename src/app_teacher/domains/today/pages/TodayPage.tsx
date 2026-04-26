@@ -4,26 +4,16 @@ import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { EmptyState } from "@/shared/ui/ds";
 import { useAdminNotificationCounts } from "@admin/domains/admin-notifications/useAdminNotificationCounts";
-import type { AdminNotificationItem } from "@admin/domains/admin-notifications/api";
 import { Card, SectionTitle } from "@teacher/shared/ui/Card";
 import { Badge } from "@teacher/shared/ui/Badge";
+import { ChevronRight } from "@teacher/shared/ui/Icons";
+import { TEACHER_PENDING_ROUTES } from "@teacher/domains/notifications/routes";
 import { fetchTodaySessions } from "../api";
 import SessionCard from "../components/SessionCard";
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }
-
-const PENDING_ROUTES: Record<AdminNotificationItem["type"], string> = {
-  qna: "/teacher/comms",
-  counsel: "/teacher/comms",
-  clinic: "/teacher/clinic",
-  registration_requests: "/teacher/students",
-  submissions: "/teacher/submissions",
-  score_pending: "/teacher/submissions",
-  matchup_review_pending: "/admin/storage/matchup",
-  video_failed: "/teacher/videos",
-};
 
 export default function TodayPage() {
   const today = todayISO();
@@ -57,7 +47,7 @@ export default function TodayPage() {
                 label={item.label}
                 count={item.count}
                 isLast={idx === pendingItems.length - 1}
-                onClick={() => navigate(PENDING_ROUTES[item.type])}
+                onClick={() => navigate(TEACHER_PENDING_ROUTES[item.type])}
               />
             ))}
           </Card>
@@ -114,9 +104,12 @@ function PendingRow({
       <span className="text-sm" style={{ color: "var(--tc-text)" }}>
         {label}
       </span>
-      <Badge tone="danger" pill>
-        {count}건
-      </Badge>
+      <span className="flex items-center gap-2">
+        <Badge tone="danger" pill>
+          {count}건
+        </Badge>
+        <ChevronRight size={16} style={{ color: "var(--tc-text-muted)" }} />
+      </span>
     </button>
   );
 }

@@ -25,8 +25,6 @@ export function useAdminNotificationCounts() {
     registrationRequestsPending: 0,
     recentSubmissions: 0,
     videoFailed: 0,
-    matchupReviewPending: 0,
-    scorePending: 0,
     total: 0,
   };
 

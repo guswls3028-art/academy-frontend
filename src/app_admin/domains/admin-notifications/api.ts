@@ -18,8 +18,6 @@ export type AdminNotificationCounts = {
   registrationRequestsPending: number;
   recentSubmissions: number;
   videoFailed: number;
-  matchupReviewPending: number;
-  scorePending: number;
   total: number;
 };
 
@@ -30,9 +28,7 @@ export type AdminNotificationItem = {
     | "clinic"
     | "registration_requests"
     | "submissions"
-    | "video_failed"
-    | "matchup_review_pending"
-    | "score_pending";
+    | "video_failed";
   label: string;
   count: number;
   to: string;
@@ -49,8 +45,6 @@ async function countPendingPosts(postType: "qna" | "counsel"): Promise<number> {
 
 type DashboardCountsResponse = {
   video_failed?: number;
-  matchup_review_pending?: number;
-  score_pending?: number;
 };
 
 async function fetchDashboardCounts(): Promise<DashboardCountsResponse> {
@@ -72,8 +66,6 @@ export async function fetchAdminNotificationCounts(): Promise<AdminNotificationC
     registrationRequestsPending: 0,
     recentSubmissions: 0,
     videoFailed: 0,
-    matchupReviewPending: 0,
-    scorePending: 0,
     total: 0,
   };
 
@@ -108,12 +100,10 @@ export async function fetchAdminNotificationCounts(): Promise<AdminNotificationC
     const registrationRequestsPending = typeof registrationRes === "number" ? registrationRes : 0;
     const recentSubmissions = typeof submissionsRes === "number" ? submissionsRes : 0;
     const videoFailed = Number(dashboardCounts.video_failed ?? 0);
-    const matchupReviewPending = Number(dashboardCounts.matchup_review_pending ?? 0);
-    const scorePending = Number(dashboardCounts.score_pending ?? 0);
 
     const total =
       qnaCount + counselCount + clinicPending + registrationRequestsPending +
-      recentSubmissions + videoFailed + matchupReviewPending + scorePending;
+      recentSubmissions + videoFailed;
 
     return {
       qnaPending: qnaCount,
@@ -122,8 +112,6 @@ export async function fetchAdminNotificationCounts(): Promise<AdminNotificationC
       registrationRequestsPending,
       recentSubmissions,
       videoFailed,
-      matchupReviewPending,
-      scorePending,
       total,
     };
   } catch {
@@ -173,22 +161,6 @@ export function buildAdminNotificationItems(
       label: "처리 대기 제출",
       count: counts.recentSubmissions,
       to: "/admin/results/submissions",
-    });
-  }
-  if (counts.scorePending > 0) {
-    items.push({
-      type: "score_pending",
-      label: "채점 미완료 응시",
-      count: counts.scorePending,
-      to: "/admin/results",
-    });
-  }
-  if (counts.matchupReviewPending > 0) {
-    items.push({
-      type: "matchup_review_pending",
-      label: "매치업 검수 대기",
-      count: counts.matchupReviewPending,
-      to: "/admin/matchup",
     });
   }
   if (counts.videoFailed > 0) {
