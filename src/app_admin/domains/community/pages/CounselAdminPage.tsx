@@ -11,11 +11,14 @@ import {
   deletePost,
   type PostEntity,
 } from "../api/community.api";
+import { getStudentDetail } from "@admin/domains/students/api/students.api";
+import { formatPhone } from "@/shared/utils/formatPhone";
 import { Button } from "@/shared/ui/ds";
 import { useConfirm } from "@/shared/ui/confirm";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import PostReadView from "../components/PostReadView";
 import PostThreadView from "../components/PostThreadView";
+import PostHistoryTimeline from "../components/PostHistoryTimeline";
 import CommunityContextBar from "../components/CommunityContextBar";
 import CommunityEmptyState from "../components/CommunityEmptyState";
 import CommunityAvatar from "../components/CommunityAvatar";
@@ -122,7 +125,7 @@ export default function CounselAdminPage() {
               className={`qna-inbox__filter-btn ${filter === "pending" ? "qna-inbox__filter-btn--active" : ""}`}
               onClick={() => setFilter("pending")}
             >
-              <span>대기 중</span>
+              <span>답변 대기</span>
               <span className="qna-inbox__filter-badge">{pendingCount}</span>
             </button>
             <button
@@ -130,7 +133,7 @@ export default function CounselAdminPage() {
               className={`qna-inbox__filter-btn ${filter === "resolved" ? "qna-inbox__filter-btn--active" : ""}`}
               onClick={() => setFilter("resolved")}
             >
-              <span>상담 완료</span>
+              <span>답변 완료</span>
               <span className="qna-inbox__filter-badge">{withStatus.length - pendingCount}</span>
             </button>
           </div>
@@ -174,7 +177,9 @@ export default function CounselAdminPage() {
         ) : (
           <CounselThreadView
             postId={selectedId}
+            allPosts={withStatus}
             onClose={() => setSelectedId(null)}
+            onSelectPost={(id) => setSelectedId(id)}
             onDelete={() => {
               setSelectedId(null);
               qc.invalidateQueries({ queryKey: ["community-counsel-posts"] });
@@ -207,7 +212,7 @@ function CounselCard({
   })();
 
   const statusClass = post.is_answered ? "qna-inbox__status--resolved" : "qna-inbox__status--pending";
-  const statusLabel = post.is_answered ? "상담 완료" : "대기 중";
+  const statusLabel = post.is_answered ? "답변 완료" : "답변 대기";
   const studentName = post.created_by_deleted ? "삭제된 학생" : normalizeStudentName(post.created_by_display);
 
   return (
@@ -242,19 +247,40 @@ function CounselCard({
 /* ── Thread View ── */
 function CounselThreadView({
   postId,
+  allPosts,
   onClose,
+  onSelectPost,
   onDelete,
 }: {
   postId: number;
+  allPosts: (PostEntity & { is_answered: boolean })[];
   onClose: () => void;
+  onSelectPost: (id: number) => void;
   onDelete: () => void;
 }) {
   const qc = useQueryClient();
   const confirm = useConfirm();
+  const composerRef = useRef<HTMLDivElement>(null);
   const { data: post, isLoading } = useQuery({
     queryKey: ["community-post", postId],
     queryFn: () => fetchPost(postId),
     enabled: postId != null,
+  });
+
+  const counselHistory = useMemo(() => {
+    if (!post?.created_by) return [];
+    return allPosts
+      .filter((p) => p.id !== post.id && p.created_by === post.created_by)
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      .slice(0, 15);
+  }, [post?.id, post?.created_by, allPosts]);
+
+  const { data: studentDetail } = useQuery({
+    queryKey: ["admin-student-detail", post?.created_by],
+    queryFn: () => getStudentDetail(post!.created_by!),
+    enabled: post?.created_by != null && !post?.created_by_deleted,
+    staleTime: 60_000,
+    gcTime: 5 * 60_000,
   });
 
   const deletePostMut = useMutation({
@@ -302,18 +328,40 @@ function CounselThreadView({
               </span>
               <span className="qna-inbox__thread-meta-dot" />
               {(post.replies_count ?? 0) > 0 ? (
-                <span className="qna-inbox__status qna-inbox__status--resolved">상담 완료</span>
+                <span className="qna-inbox__status qna-inbox__status--resolved">답변 완료</span>
               ) : (
-                <span className="qna-inbox__status qna-inbox__status--pending">대기 중</span>
+                <span className="qna-inbox__status qna-inbox__status--pending">답변 대기</span>
               )}
             </div>
           </div>
           <div className="qna-inbox__thread-actions">
+            {!post.created_by_deleted && (
+              <Button
+                intent="primary"
+                size="sm"
+                onClick={() => {
+                  composerRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+                  setTimeout(() => {
+                    const editor = composerRef.current?.querySelector<HTMLElement>(".ql-editor");
+                    editor?.focus();
+                  }, 400);
+                }}
+              >
+                답변하기
+              </Button>
+            )}
             <Button intent="ghost" size="sm" onClick={onClose}>목록</Button>
             <Button
               intent="danger"
               size="sm"
-              onClick={async () => { if (await confirm({ title: "상담 삭제", message: "이 상담 신청을 삭제할까요?", confirmText: "삭제", danger: true })) deletePostMut.mutate(); }}
+              onClick={async () => {
+                if (await confirm({
+                  title: "상담 삭제",
+                  message: "이 상담 신청과 답변을 모두 삭제합니다. 학생 화면에서도 사라지며 복구할 수 없어요.",
+                  confirmText: "삭제",
+                  danger: true,
+                })) deletePostMut.mutate();
+              }}
               disabled={deletePostMut.isPending}
             >
               삭제
@@ -326,11 +374,58 @@ function CounselThreadView({
         <CommunityAvatar name={studentName} role="student" size={28} />
         <div className="qna-inbox__student-info">
           <div className="qna-inbox__student-panel-label">상담 신청 학생</div>
-          <div className="qna-inbox__student-name">{studentName}</div>
+          <div className="qna-inbox__student-name">
+            {studentName}
+            {studentDetail?.school && (
+              <span style={{ fontWeight: 400, fontSize: 12, color: "var(--color-text-muted)", marginLeft: 6 }}>
+                {studentDetail.school}{studentDetail.grade ? ` ${studentDetail.grade}학년` : ""}
+              </span>
+            )}
+          </div>
           <div className="qna-inbox__student-course">
             신청일 {new Date(post.created_at).toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric" })}
+            {post.category_label && ` · ${post.category_label}`}
           </div>
+          {studentDetail && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 6, fontSize: 12, color: "var(--color-text-secondary)" }}>
+              {studentDetail.studentPhone && (
+                <a href={`tel:${studentDetail.studentPhone}`} style={{ color: "var(--color-text-secondary)", textDecoration: "none" }}>
+                  📱 학생 {formatPhone(studentDetail.studentPhone)}
+                </a>
+              )}
+              {studentDetail.parentPhone && (
+                <a href={`tel:${studentDetail.parentPhone}`} style={{ color: "var(--color-text-secondary)", textDecoration: "none" }}>
+                  👨‍👩‍👧 학부모 {formatPhone(studentDetail.parentPhone)}
+                </a>
+              )}
+            </div>
+          )}
+          {studentDetail && studentDetail.enrollments.length > 0 && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 6 }}>
+              {studentDetail.enrollments.slice(0, 6).map((en) => (
+                <span
+                  key={en.id}
+                  style={{
+                    fontSize: 11,
+                    padding: "2px 8px",
+                    borderRadius: 999,
+                    background: en.lectureColor ? `${en.lectureColor}1a` : "var(--color-bg-surface-soft)",
+                    color: en.lectureColor || "var(--color-text-secondary)",
+                    border: `1px solid ${en.lectureColor ? `${en.lectureColor}55` : "var(--color-border-divider)"}`,
+                  }}
+                >
+                  {en.lectureChipLabel || en.lectureName || "강의"}
+                </span>
+              ))}
+              {studentDetail.enrollments.length > 6 && (
+                <span style={{ fontSize: 11, color: "var(--color-text-muted)" }}>+{studentDetail.enrollments.length - 6}</span>
+              )}
+            </div>
+          )}
         </div>
+        {counselHistory.length > 0 && (
+          <div className="qna-inbox__student-history">이전 상담 {counselHistory.length}건</div>
+        )}
       </div>
 
       <div className="qna-inbox__thread-body">
@@ -364,17 +459,20 @@ function CounselThreadView({
             <p>아래 입력란에서 상담 답변을 작성해 주세요.</p>
           </div>
         )}
+
+        <PostHistoryTimeline label="이전 상담" history={counselHistory} onSelect={onSelectPost} />
       </div>
 
-      <PostThreadView
-        postId={postId}
-        mode="answer"
-        allowReply={!post.created_by_deleted}
-        invalidateKeys={[["community-counsel-posts"]]}
-        placeholder="학생에게 상담 답변을 작성하세요…"
-      />
+      <div ref={composerRef}>
+        <PostThreadView
+          postId={postId}
+          mode="answer"
+          allowReply={!post.created_by_deleted}
+          invalidateKeys={[["community-counsel-posts"]]}
+          placeholder="학생에게 상담 답변을 작성하세요…"
+        />
+      </div>
     </>
   );
 }
 
-// CounselAnswerThread / CounselReplyBlock / CounselComposer → PostThreadView로 통합

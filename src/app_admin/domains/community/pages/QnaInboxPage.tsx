@@ -21,6 +21,7 @@ import { useConfirm } from "@/shared/ui/confirm";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import PostReadView from "../components/PostReadView";
 import PostThreadView from "../components/PostThreadView";
+import PostHistoryTimeline from "../components/PostHistoryTimeline";
 import CommunityContextBar from "../components/CommunityContextBar";
 import CommunityEmptyState from "../components/CommunityEmptyState";
 import CommunityAvatar from "../components/CommunityAvatar";
@@ -290,9 +291,9 @@ function ThreadView({
     if (!post?.created_by) return [];
     return questions
       .filter((q) => q.id !== post.id && q.created_by === post.created_by)
-      .slice(0, 15)
-      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-  }, [post, questions]);
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      .slice(0, 15);
+  }, [post?.id, post?.created_by, questions]);
 
   const deletePostMut = useMutation({
     mutationFn: () => deletePost(postId),
@@ -379,7 +380,14 @@ function ThreadView({
             <Button
               intent="danger"
               size="sm"
-              onClick={async () => { if (await confirm({ title: "질문 삭제", message: "이 질문을 삭제할까요?", confirmText: "삭제", danger: true })) deletePostMut.mutate(); }}
+              onClick={async () => {
+                if (await confirm({
+                  title: "질문 삭제",
+                  message: "이 질문과 답변을 모두 삭제합니다. 학생 화면에서도 사라지며 복구할 수 없어요.",
+                  confirmText: "삭제",
+                  danger: true,
+                })) deletePostMut.mutate();
+              }}
               disabled={deletePostMut.isPending}
             >
               삭제
@@ -469,9 +477,16 @@ function ThreadView({
           </div>
         )}
 
-        {questionHistory.length > 0 && (
-          <QuestionTimeline history={questionHistory} onSelect={onSelectQuestion} />
-        )}
+        <PostHistoryTimeline
+          label="이전 질문"
+          history={questionHistory.map((q) => ({
+            id: q.id,
+            title: q.title,
+            created_at: q.created_at,
+            is_answered: !!q.is_answered,
+          }))}
+          onSelect={onSelectQuestion}
+        />
       </div>
 
       <div ref={composerRef}>
@@ -487,45 +502,3 @@ function ThreadView({
   );
 }
 
-// AnswerThread / ReplyBlock → PostThreadView로 통합
-
-function QuestionTimeline({
-  history,
-  onSelect,
-}: {
-  history: Question[];
-  onSelect: (id: number) => void;
-}) {
-  const [open, setOpen] = useState(false);
-
-  return (
-    <div className="qna-inbox__timeline">
-      <button
-        type="button"
-        className="qna-inbox__timeline-toggle"
-        onClick={() => setOpen((v) => !v)}
-      >
-        <span className="qna-inbox__timeline-toggle-label">이전 질문 {history.length}건</span>
-        <span className={`qna-inbox__timeline-chevron ${open ? "qna-inbox__timeline-chevron--open" : ""}`}>▸</span>
-      </button>
-      {open && (
-        <div className="qna-inbox__timeline-body">
-          {history.map((q) => (
-            <div key={q.id} className="qna-inbox__timeline-item">
-              <span className="qna-inbox__timeline-dot" />
-              <button type="button" onClick={() => onSelect(q.id)}>
-                {new Date(q.created_at).toLocaleDateString("ko-KR", { month: "2-digit", day: "2-digit" })}{" "}
-                {q.title}
-              </button>
-              <span className={`qna-inbox__status ${q.is_answered ? "qna-inbox__status--resolved" : "qna-inbox__status--pending"}`}>
-                {q.is_answered ? "답변 완료" : "답변 대기"}
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// Composer → PostThreadView로 통합

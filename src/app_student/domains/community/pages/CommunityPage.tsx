@@ -35,6 +35,9 @@ import {
 // ─── Types ───
 type Tab = "notice" | "board" | "materials" | "qna" | "counsel";
 type QnaFilter = "all" | "pending" | "resolved";
+
+// 상담 분야 표시 사전 — 백엔드 category_label은 free-text. 학생 폼 select 옵션 전용.
+const COUNSEL_CATEGORIES = ["진로 상담", "학습 방법", "성적 상담", "출결·생활", "결제·수강", "기타"] as const;
 type View =
   | { kind: "tabs" }
   | { kind: "notice-detail"; id: number }
@@ -236,7 +239,6 @@ function NoticeTab({ onDetail }: { onDetail: (id: number) => void }) {
   return (
     <PostList>
       {posts.map((p) => {
-        const nd = p.mappings?.[0]?.node_detail;
         const lecture = getScopeLabel(p);
         return (
           <PostRow
@@ -328,8 +330,8 @@ function QnaTab({
       <SegmentedTabs
         items={[
           { key: "all" as const, label: "전체", count: questions.length },
-          { key: "pending" as const, label: "답변 필요", count: pending.length },
-          { key: "resolved" as const, label: "해결됨", count: resolved.length },
+          { key: "pending" as const, label: "답변 대기", count: pending.length },
+          { key: "resolved" as const, label: "답변 완료", count: resolved.length },
         ]}
         value={filter}
         onChange={setFilter}
@@ -501,20 +503,24 @@ function QnaForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () => v
           </div>
         )}
         <label style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-2)" }}>
-          <span style={{ fontSize: 14, fontWeight: 600, color: "var(--stu-text-muted)" }}>제목</span>
-          <input type="text" placeholder="질문 제목" value={title} onChange={(e) => setTitle(e.target.value)} className="stu-input" style={{ width: "100%" }} />
+          <span style={{ fontSize: 14, fontWeight: 600, color: "var(--stu-text-muted)" }}>
+            제목 <span style={{ color: "var(--stu-danger)" }} aria-hidden>*</span>
+          </span>
+          <input type="text" placeholder="질문 제목" value={title} onChange={(e) => setTitle(e.target.value)} className="stu-input" style={{ width: "100%" }} required />
         </label>
         {lectureOptions.length > 0 && (
           <label style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-2)" }}>
-            <span style={{ fontSize: 14, fontWeight: 600, color: "var(--stu-text-muted)" }}>카테고리 (선택)</span>
+            <span style={{ fontSize: 14, fontWeight: 600, color: "var(--stu-text-muted)" }}>강의 (선택)</span>
             <select value={categoryLabel} onChange={(e) => setCategoryLabel(e.target.value)} className="stu-input" style={{ width: "100%" }}>
-              <option value="">카테고리 없음</option>
+              <option value="">선택 안 함</option>
               {lectureOptions.map((t) => <option key={t} value={t}>{t}</option>)}
             </select>
           </label>
         )}
         <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-2)", flex: 1 }}>
-          <span style={{ fontSize: 14, fontWeight: 600, color: "var(--stu-text-muted)" }}>내용</span>
+          <span style={{ fontSize: 14, fontWeight: 600, color: "var(--stu-text-muted)" }}>
+            내용 <span style={{ color: "var(--stu-danger)" }} aria-hidden>*</span>
+          </span>
           <RichTextEditor value={content} onChange={setContent} placeholder="질문 내용을 적어 주세요." minHeight={200} compact />
         </div>
         <FilePickerSection files={files} onChange={setFiles} />
@@ -550,7 +556,6 @@ function BoardTab({ onDetail }: { onDetail: (id: number) => void }) {
   return (
     <PostList>
       {posts.map((p) => {
-        const nd = p.mappings?.[0]?.node_detail;
         const lecture = getScopeLabel(p);
         return (
           <PostRow
@@ -643,7 +648,7 @@ function CounselTab({
         items={[
           { key: "all" as const, label: "전체", count: requests.length },
           { key: "pending" as const, label: "답변 대기", count: pending.length },
-          { key: "resolved" as const, label: "처리됨", count: resolved.length },
+          { key: "resolved" as const, label: "답변 완료", count: resolved.length },
         ]}
         value={filter}
         onChange={setFilter}
@@ -719,7 +724,7 @@ function CounselDetailContent({ request, onBack }: { request: PostEntity; onBack
           {answered ? (
             <>
               <div style={{ fontWeight: 700, fontSize: 15, marginBottom: "var(--stu-space-4)" }}>
-                관리자 답변{replies.length > 0 && ` (${replies.length}개)`}
+                선생님 답변{replies.length > 0 && ` (${replies.length}개)`}
               </div>
               {isLoading ? (
                 <Loading />
@@ -744,7 +749,7 @@ function CounselDetailContent({ request, onBack }: { request: PostEntity; onBack
             </>
           ) : (
             <div className="stu-muted" style={{ textAlign: "center", padding: "var(--stu-space-4)" }}>
-              아직 답변이 등록되지 않았습니다.<br />관리자가 확인 후 답변해 주실 거예요.
+              아직 답변이 등록되지 않았습니다.<br />선생님이 확인 후 답변해 주실 거예요.
             </div>
           )}
         </div>
@@ -762,8 +767,6 @@ function CounselForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () 
   const [categoryLabel, setCategoryLabel] = useState("");
 
   const { data: profile } = useQuery({ queryKey: ["student", "me"], queryFn: fetchMyProfile });
-  const { data: videoMe } = useQuery({ queryKey: ["student", "video", "me"], queryFn: fetchVideoMe, staleTime: 60_000 });
-  const lectureOptions = useMemo(() => (videoMe?.lectures ?? []).map((l) => l.title), [videoMe]);
 
   const mutation = useMutation({
     mutationFn: async () => {
@@ -806,7 +809,7 @@ function CounselForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () 
   const canSubmit = title.trim().length > 0 && counselContentText.length > 0 && profile?.id != null;
 
   return (
-    <StudentPageShell title="상담 신청" description="상담받고 싶은 내용을 적어 보내면 관리자가 확인해 드립니다." onBack={onBack}>
+    <StudentPageShell title="상담 신청" description="상담받고 싶은 내용을 적어 보내면 선생님이 확인해 드립니다." onBack={onBack}>
       <div className="stu-section stu-section--nested" style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-4)" }}>
         {errorMsg && (
           <div role="alert" style={{ padding: "var(--stu-space-3)", background: "var(--stu-danger-bg)", border: "1px solid var(--stu-danger-border)", borderRadius: "var(--stu-radius)", fontSize: 14, color: "var(--stu-danger-text)", fontWeight: 600 }}>
@@ -814,20 +817,22 @@ function CounselForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () 
           </div>
         )}
         <label style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-2)" }}>
-          <span style={{ fontSize: 14, fontWeight: 600, color: "var(--stu-text-muted)" }}>상담 제목</span>
-          <input type="text" placeholder="예: 진로 상담, 학습 방법 상담" value={title} onChange={(e) => setTitle(e.target.value)} className="stu-input" style={{ width: "100%" }} />
+          <span style={{ fontSize: 14, fontWeight: 600, color: "var(--stu-text-muted)" }}>
+            상담 제목 <span style={{ color: "var(--stu-danger)" }} aria-hidden>*</span>
+          </span>
+          <input type="text" placeholder="예: 진로 상담, 학습 방법 상담" value={title} onChange={(e) => setTitle(e.target.value)} className="stu-input" style={{ width: "100%" }} required />
         </label>
-        {lectureOptions.length > 0 && (
-          <label style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-2)" }}>
-            <span style={{ fontSize: 14, fontWeight: 600, color: "var(--stu-text-muted)" }}>카테고리 (선택)</span>
-            <select value={categoryLabel} onChange={(e) => setCategoryLabel(e.target.value)} className="stu-input" style={{ width: "100%" }}>
-              <option value="">카테고리 없음</option>
-              {lectureOptions.map((t) => <option key={t} value={t}>{t}</option>)}
-            </select>
-          </label>
-        )}
+        <label style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-2)" }}>
+          <span style={{ fontSize: 14, fontWeight: 600, color: "var(--stu-text-muted)" }}>상담 분야 (선택)</span>
+          <select value={categoryLabel} onChange={(e) => setCategoryLabel(e.target.value)} className="stu-input" style={{ width: "100%" }}>
+            <option value="">선택 안 함</option>
+            {COUNSEL_CATEGORIES.map((t) => <option key={t} value={t}>{t}</option>)}
+          </select>
+        </label>
         <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-2)", flex: 1 }}>
-          <span style={{ fontSize: 14, fontWeight: 600, color: "var(--stu-text-muted)" }}>상담 내용</span>
+          <span style={{ fontSize: 14, fontWeight: 600, color: "var(--stu-text-muted)" }}>
+            상담 내용 <span style={{ color: "var(--stu-danger)" }} aria-hidden>*</span>
+          </span>
           <RichTextEditor value={content} onChange={setContent} placeholder="상담받고 싶은 내용을 자세히 적어 주세요." minHeight={200} compact />
         </div>
         <FilePickerSection files={files} onChange={setFiles} />
@@ -863,7 +868,6 @@ function MaterialsTab({ onDetail }: { onDetail: (id: number) => void }) {
   return (
     <PostList>
       {posts.map((p) => {
-        const nd = p.mappings?.[0]?.node_detail;
         const lecture = getScopeLabel(p);
         return (
           <PostRow
@@ -1103,6 +1107,9 @@ function AttachmentList({ postId, attachments }: { postId: number; attachments?:
 // ═══════════════════════════════════════════
 // FilePickerSection — file picker for forms
 // ═══════════════════════════════════════════
+const MAX_FILE_SIZE_MB = 20;
+const MAX_FILES = 10;
+
 function FilePickerSection({
   files,
   onChange,
@@ -1111,12 +1118,35 @@ function FilePickerSection({
   onChange: (files: File[]) => void;
 }) {
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const [warn, setWarn] = useState<string | null>(null);
+  const warnTimerRef = useRef<number | null>(null);
+
+  useEffect(() => () => {
+    if (warnTimerRef.current != null) window.clearTimeout(warnTimerRef.current);
+  }, []);
+
+  const showWarn = (msg: string) => {
+    setWarn(msg);
+    if (warnTimerRef.current != null) window.clearTimeout(warnTimerRef.current);
+    warnTimerRef.current = window.setTimeout(() => {
+      setWarn(null);
+      warnTimerRef.current = null;
+    }, 4000);
+  };
 
   const handleAdd = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newFiles = e.target.files;
     if (!newFiles) return;
-    const merged = [...files, ...Array.from(newFiles)].slice(0, 10);
+    const incoming = Array.from(newFiles);
+    const oversized = incoming.filter((f) => f.size > MAX_FILE_SIZE_MB * 1024 * 1024);
+    const valid = incoming.filter((f) => f.size <= MAX_FILE_SIZE_MB * 1024 * 1024);
+    const merged = [...files, ...valid].slice(0, MAX_FILES);
     onChange(merged);
+    if (oversized.length > 0) {
+      showWarn(`${MAX_FILE_SIZE_MB}MB를 초과한 파일은 제외했어요 (${oversized.length}개)`);
+    } else if ([...files, ...incoming].length > MAX_FILES) {
+      showWarn(`첨부는 최대 ${MAX_FILES}개까지 가능해요`);
+    }
     e.target.value = "";
   };
 
@@ -1132,15 +1162,20 @@ function FilePickerSection({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-2)" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <span style={{ fontSize: 14, fontWeight: 600, color: "var(--stu-text-muted)" }}>
-          첨부파일 {files.length > 0 && `(${files.length}/10)`}
-        </span>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+          <span style={{ fontSize: 14, fontWeight: 600, color: "var(--stu-text-muted)" }}>
+            첨부파일 {files.length > 0 && `(${files.length}/${MAX_FILES})`}
+          </span>
+          <span style={{ fontSize: 11, color: "var(--stu-text-muted)", opacity: 0.75 }}>
+            최대 {MAX_FILES}개 · 파일당 {MAX_FILE_SIZE_MB}MB 이하
+          </span>
+        </div>
         <button
           type="button"
           className="stu-btn stu-btn--ghost stu-btn--sm"
           onClick={() => inputRef.current?.click()}
-          disabled={files.length >= 10}
+          disabled={files.length >= MAX_FILES}
         >
           + 파일 추가
         </button>
@@ -1152,6 +1187,11 @@ function FilePickerSection({
           onChange={handleAdd}
         />
       </div>
+      {warn && (
+        <div role="alert" style={{ fontSize: 12, color: "var(--stu-warn-text)", background: "var(--stu-warn-bg)", border: "1px solid var(--stu-warn-border)", borderRadius: "var(--stu-radius)", padding: "6px 10px" }}>
+          {warn}
+        </div>
+      )}
       {files.length > 0 && (
         <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
           {files.map((f, i) => (
