@@ -40,19 +40,22 @@ export default function SimilarResults({
 }: Props) {
   const [results, setResults] = useState<SimilarProblem[]>([]);
   const [loading, setLoading] = useState(false);
-  const [showNoise, setShowNoise] = useState(false);
+  // 기본 펼침 — 사용자가 한눈에 더 많은 후보를 비교할 수 있게.
+  // 노이즈도 시각 페널티(회색 톤)로 페이지에 노출.
+  const [showNoise, setShowNoise] = useState(true);
 
   useEffect(() => {
     if (!problemId) {
       setResults([]);
-      setShowNoise(false);
+      setShowNoise(true);
       return;
     }
 
     setLoading(true);
-    setShowNoise(false);
-    // top_k 12 — 임계값 컷 후에도 충분한 결과가 남도록
-    findSimilarProblems(problemId, 12)
+    setShowNoise(true);
+    // top_k 20 — 더 많이 한눈에. 강(≥85%) / 참고(80~85%) / 관련성 낮음(<80%)
+    // 모두 sim % 라벨과 함께 노출. 사용자가 직접 비교/선택.
+    findSimilarProblems(problemId, 20)
       .then((r) => setResults(r.results))
       .catch(() => {
         feedback.error("유사 문제 검색에 실패했습니다.");
