@@ -99,6 +99,11 @@ export default function MyStorageExplorer() {
   const allFoldersForTree = folders;
   const breadcrumbPath = useBreadcrumbPath(allFoldersForTree, currentFolderId);
 
+  // 매치업 자동등록/업로드 폴더 안에 있는지 — banner 노출 조건
+  const isInMatchupFolder = breadcrumbPath.some(
+    (p) => p.name === "매치업-자동등록" || p.name === "매치업-업로드",
+  );
+
   const handleCreateFolder = useCallback(async () => {
     if (!newFolderName.trim()) return;
     try {
@@ -134,8 +139,15 @@ export default function MyStorageExplorer() {
           qc.invalidateQueries({ queryKey: ["matchup-documents"] });
         }
         setUploadModalOpen(false);
-        if (payload.promoteToMatchup && res.matchupDocumentId) {
-          feedback.success("저장 + 매치업 등록 완료. 매치업 페이지에서 분석 진행률 확인하세요.");
+        if (payload.promoteToMatchup) {
+          if (res.matchupPromoteFailed) {
+            // 부분 실패: 저장은 됐지만 매치업 등록은 실패 — 사용자에 명시
+            feedback.warning(
+              `저장은 완료됐지만 매치업 등록에 실패했습니다. 매치업 페이지에서 다시 등록해 주세요.`
+            );
+          } else if (res.matchupDocumentId) {
+            feedback.success("저장 + 매치업 등록 완료. 매치업 페이지에서 분석 진행률 확인하세요.");
+          }
         }
       } catch (e) {
         feedback.error((e as Error).message);
@@ -198,9 +210,18 @@ export default function MyStorageExplorer() {
     const parts: string[] = [];
     if (folderCount > 0) parts.push(`폴더 ${folderCount}개`);
     if (fileCount > 0) parts.push(`파일 ${fileCount}개`);
+
+    // 선택 안에 매치업 등록 파일이 포함된 경우 cascade 경고
+    const selectedMatchupFiles = subFiles.filter(
+      (f) => selectedFileIds.has(f.id) && f.matchup,
+    );
+    let extra = "";
+    if (selectedMatchupFiles.length > 0) {
+      extra = `\n\n⚠ 매치업 자료 ${selectedMatchupFiles.length}개가 포함되어 있습니다. 삭제하면 매치업 분석 결과(추출 문제·유사 검색)도 함께 사라집니다.`;
+    }
     const ok = await confirm({
       title: "선택 항목 삭제",
-      message: `${parts.join(", ")}를 삭제하시겠습니까?`,
+      message: `${parts.join(", ")}를 삭제하시겠습니까?${extra}`,
       confirmText: "삭제",
       danger: true,
     });
@@ -403,6 +424,37 @@ export default function MyStorageExplorer() {
           </div>
         </aside>
         <div className={panelStyles.gridWrap}>
+          {isInMatchupFolder && (
+            <div
+              data-testid="storage-matchup-folder-banner"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "var(--space-2)",
+                padding: "8px var(--space-3)",
+                margin: "var(--space-2) 0",
+                borderRadius: "var(--radius-sm)",
+                background: "color-mix(in srgb, var(--color-brand-primary) 6%, transparent)",
+                border: "1px solid color-mix(in srgb, var(--color-brand-primary) 25%, transparent)",
+                fontSize: 12,
+                color: "var(--color-text-secondary)",
+              }}
+            >
+              <Sparkles size={14} style={{ color: "var(--color-brand-primary)", flexShrink: 0 }} />
+              <span>
+                매치업 자료가 자동 분류되는 폴더입니다. 파일 삭제 시 매치업 분석 결과도 함께 사라집니다.
+              </span>
+              <Button
+                type="button"
+                intent="ghost"
+                size="sm"
+                onClick={() => navigate("/admin/storage/matchup")}
+                style={{ marginLeft: "auto", flexShrink: 0 }}
+              >
+                매치업 페이지로
+              </Button>
+            </div>
+          )}
           {isLoading ? (
             <div className={panelStyles.placeholder}>로딩 중...</div>
           ) : (
@@ -497,7 +549,19 @@ export default function MyStorageExplorer() {
                       setFileActionTarget(file);
                     }
                   }}
-                  title={file.description || file.displayName}
+                  title={
+                    file.matchup
+                      ? `매치업 자료 (${file.matchup.status === "done" ? `${file.matchup.problemCount}문제 추출 완료` : file.matchup.status}) — 클릭하여 매치업 보기`
+                      : (file.description || file.displayName)
+                  }
+                  style={
+                    file.matchup
+                      ? {
+                          borderLeft: "3px solid var(--color-brand-primary)",
+                          background: "color-mix(in srgb, var(--color-brand-primary) 4%, transparent)",
+                        }
+                      : undefined
+                  }
                   onDragStart={(e) => {
                     e.dataTransfer.setData(DRAG_TYPE, JSON.stringify({ type: "file" as const, sourceId: file.id }));
                     e.dataTransfer.effectAllowed = "move";
@@ -640,23 +704,27 @@ export default function MyStorageExplorer() {
                   <Sparkles size={18} style={{ color: "var(--color-brand-primary)", flexShrink: 0 }} />
                   매치업 보기
                 </button>
-              ) : (
+              ) : isMatchupSupported(fileActionTarget) ? (
                 <button
                   type="button"
                   className={styles.fileActionBtn}
                   data-testid="storage-file-action-matchup-promote"
-                  disabled={!isMatchupSupported(fileActionTarget)}
-                  title={isMatchupSupported(fileActionTarget) ? undefined : "PDF/PNG/JPG만 매치업 가능"}
                   onClick={() => {
                     const target = fileActionTarget;
                     setFileActionTarget(null);
                     handlePromoteToMatchup(target);
                   }}
+                  style={{
+                    background: "color-mix(in srgb, var(--color-brand-primary) 8%, transparent)",
+                    borderColor: "color-mix(in srgb, var(--color-brand-primary) 40%, transparent)",
+                    color: "var(--color-brand-primary)",
+                    fontWeight: 600,
+                  }}
                 >
                   <Sparkles size={18} style={{ color: "var(--color-brand-primary)", flexShrink: 0 }} />
-                  매치업으로 등록
+                  매치업으로 등록 (AI 분석)
                 </button>
-              )}
+              ) : null}
               <button
                 type="button"
                 className={styles.fileActionBtn}
@@ -672,13 +740,22 @@ export default function MyStorageExplorer() {
                 type="button"
                 className={styles.fileActionBtnDanger}
                 onClick={async () => {
-                  const id = fileActionTarget.id;
+                  const target = fileActionTarget;
                   setFileActionTarget(null);
-                  const ok = await confirm({ title: "파일 삭제", message: "정말 삭제하시겠습니까?", confirmText: "삭제", danger: true });
+                  const matchupWarning = target.matchup
+                    ? "\n\n⚠ 이 파일은 매치업 자료로 등록되어 있습니다. 삭제하면 매치업 분석 결과(추출 문제·유사 검색)도 함께 사라집니다."
+                    : "";
+                  const ok = await confirm({
+                    title: "파일 삭제",
+                    message: `정말 삭제하시겠습니까?${matchupWarning}`,
+                    confirmText: "삭제",
+                    danger: true,
+                  });
                   if (!ok) return;
                   try {
-                    await deleteFile(SCOPE, id);
+                    await deleteFile(SCOPE, target.id);
                     qc.invalidateQueries({ queryKey: ["storage-inventory", SCOPE] });
+                    if (target.matchup) qc.invalidateQueries({ queryKey: ["matchup-documents"] });
                   } catch (e) {
                     feedback.error((e as Error).message);
                   }

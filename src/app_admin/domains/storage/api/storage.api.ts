@@ -92,6 +92,8 @@ export type UploadFilePayload = {
 
 export type UploadFileResponse = InventoryFile & {
   matchupDocumentId?: number;
+  matchupPromoteFailed?: boolean;
+  matchupError?: string;
 };
 
 export async function uploadFile(payload: UploadFilePayload): Promise<UploadFileResponse> {

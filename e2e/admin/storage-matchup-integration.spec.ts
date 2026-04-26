@@ -104,6 +104,24 @@ test.describe("storage-as-canonical 통합", () => {
     await expect(page.locator("[data-testid='storage-file-action-matchup-promote']")).toHaveCount(0);
   });
 
+  test("매치업 자동등록 폴더 진입 시 안내 banner 노출 + 매치업 페이지 이동 CTA", async ({ page }) => {
+    await page.goto(`${BASE}/admin/storage/files`, { waitUntil: "networkidle" });
+    await page.waitForTimeout(2000);
+
+    // 좌측 트리에서 매치업-자동등록 폴더 클릭
+    const matchupFolder = page.locator("text=매치업-자동등록").first();
+    if (await matchupFolder.count() === 0) {
+      test.skip(true, "no 매치업-자동등록 folder yet");
+      return;
+    }
+    await matchupFolder.click();
+    await page.waitForTimeout(800);
+
+    const banner = page.locator("[data-testid='storage-matchup-folder-banner']");
+    await expect(banner).toBeVisible({ timeout: 3000 });
+    await expect(banner).toContainText("매치업");
+  });
+
   test("저장소 업로드 모달 — 파일 선택 전엔 매치업 토글 hidden, PDF 선택 후 enabled로 노출", async ({ page }) => {
     await page.goto(`${BASE}/admin/storage/files`, { waitUntil: "networkidle" });
     await page.waitForTimeout(1500);

@@ -1,12 +1,14 @@
 // PATH: src/app_admin/domains/storage/components/matchup/MatchupEmptyState.tsx
 
-import { FileSearch, MessageCircle } from "lucide-react";
+import { FileSearch, MessageCircle, FolderOpen } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/shared/ui/ds";
 import css from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
 
 type Props = { onUpload: () => void };
 
 export default function MatchupEmptyState({ onUpload }: Props) {
+  const navigate = useNavigate();
   return (
     <div className={css.placeholder}>
       <div className={css.placeholderIcon}>
@@ -18,11 +20,18 @@ export default function MatchupEmptyState({ onUpload }: Props) {
         <br />
         AI가 각 문제를 분석하고, 유사한 문제를 자동으로 찾아줍니다.
       </p>
-      <div className={css.placeholderAction}>
-        <Button size="md" onClick={onUpload}>
+      <div className={css.placeholderAction} style={{ display: "flex", gap: "var(--space-2)", flexWrap: "wrap", justifyContent: "center" }}>
+        <Button size="md" onClick={onUpload} data-testid="matchup-empty-upload-btn">
           문서 업로드
         </Button>
+        <Button size="md" intent="secondary" onClick={() => navigate("/admin/storage/files")} data-testid="matchup-empty-storage-link">
+          <FolderOpen size={14} style={{ marginRight: 4 }} />
+          저장소에서 가져오기
+        </Button>
       </div>
+      <p style={{ fontSize: 12, color: "var(--color-text-muted)", marginTop: "var(--space-3)", maxWidth: 420, textAlign: "center" }}>
+        저장소에 이미 PDF가 있다면, 우클릭 메뉴의 <strong>"매치업으로 등록"</strong>으로 바로 분석할 수 있습니다.
+      </p>
       <div className={css.placeholderSteps}>
         <div className={css.placeholderStep}>
           <span className={css.placeholderStepNum}>1</span>

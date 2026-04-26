@@ -111,7 +111,9 @@ export default function MatchupPage() {
         setSelectedProblemId(null);
       }
       qc.invalidateQueries({ queryKey: ["matchup-documents"] });
-      feedback.success("문서가 삭제되었습니다.");
+      // 사용자에게 storage-as-canonical 모델을 자명하게 — 원본은 살아있음
+      feedback.success("매치업 분석 결과가 삭제되었습니다. 원본 PDF는 저장소에 그대로 있습니다.");
+      qc.invalidateQueries({ queryKey: ["storage-inventory", "admin"] });
     },
     [qc, selectedDocId, setSelectedDocId],
   );
@@ -240,10 +242,11 @@ export default function MatchupPage() {
                       style={{
                         display: "flex", alignItems: "center", gap: 4,
                         fontSize: 11, padding: "3px 10px", borderRadius: 4,
-                        background: "var(--color-bg-surface-soft)",
-                        color: "var(--color-text-secondary)",
-                        border: "1px solid var(--color-border-divider)",
+                        background: "color-mix(in srgb, var(--color-brand-primary) 8%, transparent)",
+                        color: "var(--color-brand-primary)",
+                        border: "1px solid color-mix(in srgb, var(--color-brand-primary) 30%, transparent)",
                         cursor: "pointer",
+                        fontWeight: 600,
                       }}
                     >
                       <FolderOpen size={12} />

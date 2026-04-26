@@ -26,8 +26,9 @@ export type MatchupDocument = {
   error_message: string;
   // null: 기존 문서(migration 이전) 호환. `doc.meta?.field` 접근 필수.
   meta: MatchupDocumentMeta | null;
-  // 저장소(InventoryFile) FK — storage-as-canonical 모델 (M-3 이후 NOT NULL)
-  inventory_file_id: number | null;
+  // 저장소(InventoryFile) FK — storage-as-canonical 모델 (M-3 이후 NOT NULL).
+  // 기존 데이터(M-2 이전 잔재)는 0006 backfill로 모두 채워짐.
+  inventory_file_id: number;
   created_at: string;
   updated_at: string;
 };
