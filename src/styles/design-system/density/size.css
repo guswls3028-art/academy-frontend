@@ -14,4 +14,39 @@
 
   /* panel */
   --panel-header: 56px;
+
+  /* ============================================================
+   * ICON SIZE — 전역 SSOT (lucide / antd icon 모두 이 토큰만 사용)
+   * 페이지마다 size={10}, size={12}, size={14} 직접 박는 패턴 금지.
+   * 컨텍스트 기준:
+   *   xs (12)  : matrix cell / dense list / 1ch badge 안
+   *   sm (14)  : 인라인 라벨, button-sm, badge-md 옆 (기본)
+   *   md (16)  : button-md, table action, header
+   *   lg (20)  : kpi 강조, card 메타
+   *   xl (24)  : 대표 액션, 로고 옆 강조
+   * ============================================================ */
+  --icon-xs: 12px;
+  --icon-sm: 14px;
+  --icon-md: 16px;
+  --icon-lg: 20px;
+  --icon-xl: 24px;
+
+  /* ============================================================
+   * BADGE SIZE — ds-badge / ds-status-badge 공유 스케일
+   * 컨텍스트 기준:
+   *   xs : matrix cell / 1ch
+   *   sm : 인라인 list/table cell (ds-badge 기본)
+   *   md : drawer/modal header / card meta (ds-status-badge 기본)
+   *   lg : kpi strip / 강조 카드
+   * 수치는 px 폰트 — 단순 키우기가 아니라 컨텍스트 단계 정의용.
+   * ============================================================ */
+  --badge-font-xs: 10px;
+  --badge-font-sm: 11px;
+  --badge-font-md: 12px;
+  --badge-font-lg: 13px;
+
+  --badge-pad-xs: 2px 6px;
+  --badge-pad-sm: 3px 8px;
+  --badge-pad-md: 4px 10px;
+  --badge-pad-lg: 5px 12px;
 }

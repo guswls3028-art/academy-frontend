@@ -1,7 +1,7 @@
 // PATH: src/app_admin/domains/videos/ui/VideoStatusBadge.tsx
+import { Badge, type BadgeTone } from "@/shared/ui/ds";
 
 import type { VideoStatus } from "../api/videos.api";
-
 import { VIDEO_STATUS_LABEL, VIDEO_STATUS_TONE } from "../utils/videoStatus";
 
 interface Props {
@@ -10,10 +10,9 @@ interface Props {
 
 export default function VideoStatusBadge({ status }: Props) {
   if (!status) return null;
-
   return (
-    <span className="ds-status-badge" data-tone={VIDEO_STATUS_TONE[status]}>
+    <Badge variant="solid" tone={VIDEO_STATUS_TONE[status] as BadgeTone}>
       {VIDEO_STATUS_LABEL[status]}
-    </span>
+    </Badge>
   );
 }

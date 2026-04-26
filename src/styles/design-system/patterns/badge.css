@@ -10,10 +10,12 @@
   align-items: center;
   gap: 6px;
 
-  padding: 3px 10px;
+  /* 사이즈 SSOT — data-size로 단계화 (기본 sm) */
+  padding: var(--badge-pad-sm);
+  font-size: var(--badge-font-sm);
+
   border-radius: var(--radius-full);
 
-  font-size: 11px;
   font-weight: 700;
   letter-spacing: -0.1px;
   line-height: 1;
@@ -22,6 +24,32 @@
   color: var(--badge-text, var(--text-primary));
 
   border: 1px solid color-mix(in srgb, var(--badge-bg, var(--bg-surface-soft)) 78%, black 22%);
+}
+
+/* ── Size variants ────────────────────────────────────── */
+.ds-badge[data-size="xs"] {
+  padding: var(--badge-pad-xs);
+  font-size: var(--badge-font-xs);
+  gap: 4px;
+}
+.ds-badge[data-size="sm"] {
+  padding: var(--badge-pad-sm);
+  font-size: var(--badge-font-sm);
+}
+.ds-badge[data-size="md"] {
+  padding: var(--badge-pad-md);
+  font-size: var(--badge-font-md);
+}
+.ds-badge[data-size="lg"] {
+  padding: var(--badge-pad-lg);
+  font-size: var(--badge-font-lg);
+  gap: 8px;
+}
+
+/* ── Shape variants ───────────────────────────────────── */
+/* 기본은 pill(radius-full). teacher 모바일 등에서 사각 둥근모서리 필요 시 square */
+.ds-badge[data-shape="square"] {
+  border-radius: var(--radius-sm, 4px);
 }
 
 .ds-badge__remove {
@@ -75,7 +103,8 @@
   --badge-text: var(--color-danger, #dc2626);
 }
 
-.ds-badge--neutral {
+.ds-badge--neutral,
+.ds-badge--muted {
   --badge-bg: var(--bg-surface-soft, #f3f4f6);
   --badge-text: var(--text-secondary, #6b7280);
 }
@@ -88,4 +117,9 @@
 .ds-badge--complement {
   --badge-bg: color-mix(in srgb, var(--color-brand-complement, #8b5cf6) 14%, var(--bg-surface, #fff));
   --badge-text: var(--color-brand-complement, #7c3aed);
+}
+
+.ds-badge--teal {
+  --badge-bg: color-mix(in srgb, #14b8a6 14%, var(--bg-surface, #fff));
+  --badge-text: #0d9488;
 }

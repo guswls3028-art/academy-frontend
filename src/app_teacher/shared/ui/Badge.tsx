@@ -1,6 +1,14 @@
 // PATH: src/app_teacher/shared/ui/Badge.tsx
-// 공용 뱃지 — 데스크톱 ds-badge/AttendanceStatusBadge 모바일 대응
+//
+// 선생님(모바일/PC) 뱃지 — 전역 DS Badge SSOT(ds-badge) 위에 얹은 어댑터.
+//
+// 시각 통일: shared/ui/ds Badge 와 동일한 사이즈/색 토큰 사용.
+// 기존 API 보존: tone (success/danger/warning/primary/info/neutral/teal),
+//              size (xs/sm), pill (boolean — false면 사각 둥근).
+//
+// 출결/합격/영상/클리닉 wrapper는 그대로 유지 (라벨/톤 매핑만).
 import type { CSSProperties, ReactNode } from "react";
+import { Badge as DsBadge, type BadgeTone as DsTone, type BadgeSize as DsSize } from "@/shared/ui/ds";
 
 /* ===== Tone 뱃지 ===== */
 
@@ -12,16 +20,6 @@ export type BadgeTone =
   | "info"
   | "neutral"
   | "teal";
-
-const TONE_COLORS: Record<BadgeTone, { color: string; bg: string }> = {
-  success: { color: "var(--tc-success)", bg: "var(--tc-success-bg)" },
-  danger: { color: "var(--tc-danger)", bg: "var(--tc-danger-bg)" },
-  warning: { color: "#92400e", bg: "var(--tc-warn-bg)" },
-  primary: { color: "var(--tc-primary)", bg: "var(--tc-primary-bg)" },
-  info: { color: "var(--tc-info)", bg: "var(--tc-info-bg)" },
-  neutral: { color: "var(--tc-text-muted)", bg: "var(--tc-surface-soft)" },
-  teal: { color: "#0d9488", bg: "rgba(13,148,136,0.1)" },
-};
 
 export function Badge({
   children,
@@ -36,26 +34,18 @@ export function Badge({
   pill?: boolean;
   style?: CSSProperties;
 }) {
-  const t = TONE_COLORS[tone];
+  // teacher 기존 default size="sm" → ds Badge "sm" (11px) 동일 매핑
+  // teacher "xs" → ds "xs" (10px)
+  const dsSize: DsSize = size === "xs" ? "xs" : "sm";
   return (
-    <span
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 3,
-        fontSize: size === "xs" ? 10 : 11,
-        fontWeight: 600,
-        lineHeight: 1,
-        padding: size === "xs" ? "2px 5px" : "3px 8px",
-        borderRadius: pill ? 9999 : 4,
-        color: t.color,
-        background: t.bg,
-        whiteSpace: "nowrap",
-        ...style,
-      }}
+    <DsBadge
+      tone={tone as DsTone}
+      size={dsSize}
+      shape={pill ? "pill" : "square"}
+      style={style}
     >
       {children}
-    </span>
+    </DsBadge>
   );
 }
 
@@ -89,6 +79,16 @@ const ATTENDANCE_CONFIG: Record<
   SECESSION: { label: "퇴원", short: "퇴", tone: "neutral" },
 };
 
+const TONE_DOT_COLOR: Record<BadgeTone, string> = {
+  success: "var(--color-success, #22c55e)",
+  danger: "var(--color-error, #ef4444)",
+  warning: "var(--color-warning, #f59e0b)",
+  primary: "var(--color-brand-primary, #3b82f6)",
+  info: "var(--color-info, #06b6d4)",
+  neutral: "var(--color-text-muted, #6b7280)",
+  teal: "#14b8a6",
+};
+
 export function AttendanceBadge({
   status,
   variant = "label",
@@ -103,7 +103,6 @@ export function AttendanceBadge({
   };
 
   if (variant === "dot") {
-    const t = TONE_COLORS[cfg.tone];
     return (
       <span
         title={cfg.label}
@@ -111,7 +110,7 @@ export function AttendanceBadge({
           width: 8,
           height: 8,
           borderRadius: 4,
-          background: t.color,
+          background: TONE_DOT_COLOR[cfg.tone],
           display: "inline-block",
           flexShrink: 0,
         }}
@@ -135,9 +134,11 @@ export function AchievementBadge({
   passed?: boolean | null;
   achievement?: string | null;
 }) {
+  // SSOT: achievement(PASS/REMEDIATED/FAIL) 우선, passed boolean fallback.
+  // 일부 응답이 achievement만 주거나 passed만 주는 경우 모두 대응.
   if (achievement === "REMEDIATED") return <Badge tone="info">보강합격</Badge>;
-  if (passed === true) return <Badge tone="success">합격</Badge>;
-  if (passed === false) return <Badge tone="danger">불합격</Badge>;
+  if (achievement === "PASS" || passed === true) return <Badge tone="success">합격</Badge>;
+  if (achievement === "FAIL" || passed === false) return <Badge tone="danger">불합격</Badge>;
   return null;
 }
 

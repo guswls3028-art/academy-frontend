@@ -1,5 +1,6 @@
 // PATH: src/app_admin/domains/community/components/ScopeBadge.tsx
 // 게시 대상(scope) 배지 — 전체 대상 / 강의명 / 차시명
+import { Badge, type BadgeTone } from "@/shared/ui/ds";
 import type { PostEntity } from "../api/community.api";
 
 type Props = {
@@ -27,20 +28,18 @@ export function resolveScopeType(post: PostEntity): "global" | "lecture" | "sess
   return "global";
 }
 
+const SCOPE_TONE: Record<"global" | "lecture" | "session", BadgeTone> = {
+  global: "neutral",
+  lecture: "primary",
+  session: "complement",
+};
+
 export default function ScopeBadge({ post, className }: Props) {
   const label = resolveScopeLabel(post);
   const scopeType = resolveScopeType(post);
-
-  const toneClass =
-    scopeType === "global"
-      ? "ds-badge--neutral"
-      : scopeType === "lecture"
-      ? "ds-badge--primary"
-      : "ds-badge--complement";
-
   return (
-    <span className={`ds-badge ${toneClass} ${className ?? ""}`}>
+    <Badge tone={SCOPE_TONE[scopeType]} className={className}>
       {label}
-    </span>
+    </Badge>
   );
 }

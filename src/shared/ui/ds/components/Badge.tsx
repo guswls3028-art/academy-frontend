@@ -73,6 +73,8 @@ export default function Badge({
   ariaLabel,
 }: BadgeProps) {
   if (variant === "solid") {
+    // 1ch는 고정 치수(22px 원형, 10px font)이므로 data-size 비활성. data-size attr 셀렉터가
+    // .ds-status-badge--1ch 클래스(특이도 더 낮음)를 덮어버려 깨지는 회귀 방지.
     return (
       <span
         className={cx(
@@ -83,7 +85,7 @@ export default function Badge({
         )}
         data-tone={status ? undefined : tone}
         data-status={status}
-        data-size={size ?? "md"}
+        data-size={oneChar ? undefined : (size ?? "md")}
         style={style}
         title={title}
         aria-label={ariaLabel}

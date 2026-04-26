@@ -10,20 +10,38 @@
  * - data-tone: success | danger | warning | primary | neutral
  * ============================================================================ */
 
-/* ---- 사이즈 SSOT: 2글자(기본) / 1글자(--1ch) ---- */
+/* ---- 사이즈 SSOT: data-size 단계화 (기본 md = 기존 12px 유지) ---- */
 .ds-status-badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: var(--space-1);
-  padding: var(--space-2) var(--space-3);
-  font-size: 12px;
+  padding: var(--badge-pad-md);
+  font-size: var(--badge-font-md);
   font-weight: 600;
   line-height: 1;
   border: none;
   border-radius: var(--radius-md);
   white-space: nowrap;
   user-select: none;
+}
+
+/* ── Size variants — ds-badge와 동일 스케일 공유 ── */
+.ds-status-badge[data-size="xs"] {
+  padding: var(--badge-pad-xs);
+  font-size: var(--badge-font-xs);
+}
+.ds-status-badge[data-size="sm"] {
+  padding: var(--badge-pad-sm);
+  font-size: var(--badge-font-sm);
+}
+.ds-status-badge[data-size="md"] {
+  padding: var(--badge-pad-md);
+  font-size: var(--badge-font-md);
+}
+.ds-status-badge[data-size="lg"] {
+  padding: var(--badge-pad-lg);
+  font-size: var(--badge-font-lg);
 }
 
 /* 1글자용 — 출결 매트릭스 셀: 원형, 선명 */
@@ -92,7 +110,8 @@ button.ds-status-badge:disabled {
   color: #fff;
 }
 
-.ds-status-badge[data-tone="neutral"] {
+.ds-status-badge[data-tone="neutral"],
+.ds-status-badge[data-tone="muted"] {
   background: var(--status-badge-neutral-bg, color-mix(in srgb, var(--color-border-divider) 22%, var(--color-bg-surface)));
   color: var(--status-badge-neutral-text, var(--color-text-secondary));
 }
@@ -107,12 +126,6 @@ button.ds-status-badge:disabled {
 .ds-status-badge[data-tone="teal"] {
   background: #14b8a6;
   color: #fff;
-}
-
-/* ---- 라이브 펄스 도트 (진행 중 상태 표시) ---- */
-@keyframes assess-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.35; }
 }
 
 /* 톤 미지정 시 기본(neutral) */

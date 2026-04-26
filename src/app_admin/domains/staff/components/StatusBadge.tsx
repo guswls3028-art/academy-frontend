@@ -1,27 +1,31 @@
 // PATH: src/app_admin/domains/staff/components/StatusBadge.tsx
-// 전역 SSOT: .ds-status-badge + data-tone (styles/design-system/ds/status.css)
+// 전역 SSOT: shared/ui/ds Badge (variant=solid)
 
-import React from "react";
-
-function cx(...xs: Array<string | false | null | undefined>) {
-  return xs.filter(Boolean).join(" ");
-}
+import { Badge, type BadgeTone } from "@/shared/ui/ds";
 
 type Tone = "neutral" | "success" | "danger" | "warning" | "primary";
 
 function Dot({ tone }: { tone: Tone }) {
-  const cls =
-    tone === "danger"
-      ? "bg-[var(--color-danger)]"
-      : tone === "success"
-      ? "bg-[var(--color-success)]"
-      : tone === "warning"
-      ? "bg-[var(--color-warning)]"
-      : tone === "primary"
-      ? "bg-[var(--color-brand-primary)]"
-      : "bg-[var(--color-text-muted)]";
-
-  return <span className={cx("inline-block h-1.5 w-1.5 rounded-full shrink-0", cls)} aria-hidden />;
+  const map: Record<Tone, string> = {
+    danger: "var(--color-danger)",
+    success: "var(--color-success)",
+    warning: "var(--color-warning)",
+    primary: "var(--color-brand-primary)",
+    neutral: "var(--color-text-muted)",
+  };
+  return (
+    <span
+      aria-hidden
+      style={{
+        display: "inline-block",
+        width: 6,
+        height: 6,
+        borderRadius: 999,
+        flexShrink: 0,
+        background: map[tone],
+      }}
+    />
+  );
 }
 
 type ExpenseStatus = "PENDING" | "APPROVED" | "REJECTED";
@@ -33,10 +37,10 @@ export function ExpenseStatusBadge({ status }: { status: ExpenseStatus }) {
     status === "APPROVED" ? "success" : status === "REJECTED" ? "danger" : "neutral";
 
   return (
-    <span className="ds-status-badge" data-tone={tone}>
+    <Badge variant="solid" tone={tone as BadgeTone}>
       <Dot tone={tone} />
       {label}
-    </span>
+    </Badge>
   );
 }
 
@@ -51,10 +55,10 @@ export function LockBadge({
   const tone: Tone = locked ? "danger" : "success";
 
   return (
-    <span className="ds-status-badge" data-tone={tone}>
+    <Badge variant="solid" tone={tone as BadgeTone}>
       <Dot tone={tone} />
       {locked ? (compact ? "마감" : "🔒 마감") : compact ? "진행" : "🔓 진행중"}
-    </span>
+    </Badge>
   );
 }
 
@@ -62,9 +66,9 @@ export function RoleBadge({ isManager }: { isManager: boolean }) {
   const tone: Tone = isManager ? "primary" : "neutral";
 
   return (
-    <span className="ds-status-badge" data-tone={tone}>
+    <Badge variant="solid" tone={tone as BadgeTone}>
       <Dot tone={tone} />
       {isManager ? "관리자" : "직원"}
-    </span>
+    </Badge>
   );
 }
