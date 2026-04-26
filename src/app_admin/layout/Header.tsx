@@ -130,6 +130,17 @@ function IconPalette() {
   );
 }
 
+/** 도움말 아이콘 — 사용 가이드/개발자 문의 진입 */
+function IconHelp() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+      <path d="M12 17h.01" />
+    </svg>
+  );
+}
+
 /** 작업박스(진행 상황) 아이콘 */
 function IconWorkbox() {
   return (
@@ -216,6 +227,7 @@ export default function Header() {
 
   const [openNotice, setOpenNotice] = useState(false);
   const [alarmDropdownOpen, setAlarmDropdownOpen] = useState(false);
+  const [helpDropdownOpen, setHelpDropdownOpen] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const workbox = useWorkbox();
   const tasks = useAsyncStatus();
@@ -465,6 +477,46 @@ export default function Header() {
               />
             </span>
           </Dropdown>
+
+          <ProfileDropdown
+            open={helpDropdownOpen}
+            onToggle={() => setHelpDropdownOpen((v) => !v)}
+            onClose={() => setHelpDropdownOpen(false)}
+            content={
+              <div className="ds-header-dropdown app-header__profileDropdown">
+                <button
+                  type="button"
+                  className="app-header__profileDropdownItem"
+                  onClick={() => {
+                    setHelpDropdownOpen(false);
+                    nav("/admin/guide");
+                  }}
+                >
+                  사용 가이드
+                </button>
+                <button
+                  type="button"
+                  className="app-header__profileDropdownItem"
+                  onClick={() => {
+                    setHelpDropdownOpen(false);
+                    nav("/admin/developer");
+                  }}
+                >
+                  개발자 문의
+                </button>
+              </div>
+            }
+          >
+            <Button
+              intent="secondary"
+              size="lg"
+              iconOnly
+              className="app-header__iconBtn"
+              aria-label="도움말"
+              title="도움말"
+              leftIcon={<IconHelp />}
+            />
+          </ProfileDropdown>
 
           <ProfileDropdown
             open={profileDropdownOpen}
