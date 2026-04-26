@@ -367,6 +367,50 @@ export async function deletePostAttachment(postId: number, attId: number): Promi
 }
 
 // ----------------------------------------
+// 작성자 컨텍스트 (상담/QnA 패널) — community 도메인의 facade.
+// 내부 구현은 students 도메인의 학생 상세를 위임하되, 공개 API는 community에서 노출.
+// ----------------------------------------
+export interface PostAuthorContext {
+  id: number;
+  name: string;
+  displayName: string;
+  school: string | null;
+  schoolClass: string | null;
+  grade: number | null;
+  studentPhone: string | null;
+  parentPhone: string | null;
+  enrollments: Array<{
+    id: number;
+    lectureId: number | null;
+    lectureName: string | null;
+    lectureColor: string | null;
+    lectureChipLabel: string | null;
+  }>;
+}
+
+export async function fetchPostAuthorContext(studentId: number): Promise<PostAuthorContext> {
+  const { getStudentDetail } = await import("@admin/domains/students/api/students.api");
+  const s = await getStudentDetail(studentId);
+  return {
+    id: s.id,
+    name: s.name,
+    displayName: s.displayName,
+    school: s.school,
+    schoolClass: s.schoolClass,
+    grade: s.grade,
+    studentPhone: s.studentPhone,
+    parentPhone: s.parentPhone,
+    enrollments: s.enrollments.map((e) => ({
+      id: e.id,
+      lectureId: e.lectureId,
+      lectureName: e.lectureName,
+      lectureColor: e.lectureColor,
+      lectureChipLabel: e.lectureChipLabel,
+    })),
+  };
+}
+
+// ----------------------------------------
 // 트리 카운트 집계 (관리자 트리 뷰 전용)
 // ----------------------------------------
 export interface PostCountsResponse {

@@ -9,9 +9,9 @@ import {
   fetchAdminPosts,
   fetchPost,
   deletePost,
+  fetchPostAuthorContext,
   type PostEntity,
 } from "../api/community.api";
-import { getStudentDetail } from "@admin/domains/students/api/students.api";
 import { formatPhone } from "@/shared/utils/formatPhone";
 import { Button } from "@/shared/ui/ds";
 import { useConfirm } from "@/shared/ui/confirm";
@@ -276,8 +276,8 @@ function CounselThreadView({
   }, [post?.id, post?.created_by, allPosts]);
 
   const { data: studentDetail } = useQuery({
-    queryKey: ["admin-student-detail", post?.created_by],
-    queryFn: () => getStudentDetail(post!.created_by!),
+    queryKey: ["community-author-context", post?.created_by],
+    queryFn: () => fetchPostAuthorContext(post!.created_by!),
     enabled: post?.created_by != null && !post?.created_by_deleted,
     staleTime: 60_000,
     gcTime: 5 * 60_000,

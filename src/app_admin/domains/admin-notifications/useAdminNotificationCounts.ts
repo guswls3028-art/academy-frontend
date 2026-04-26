@@ -13,8 +13,9 @@ export function useAdminNotificationCounts() {
   const q = useQuery({
     queryKey: ["admin", "notification-counts"],
     queryFn: fetchAdminNotificationCounts,
-    staleTime: 60 * 1000, // 1분
-    refetchInterval: 2 * 60 * 1000, // 2분마다
+    staleTime: 20 * 1000,
+    // PC 운영 환경 + 응대 즉시성 우선. 학생용 60초보다 짧게.
+    refetchInterval: 30 * 1000,
   });
 
   const counts: AdminNotificationCounts = q.data ?? {
