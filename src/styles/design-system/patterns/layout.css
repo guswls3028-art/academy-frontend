@@ -135,23 +135,16 @@
 
 /* ======================================================
    Sidebar scroll area (작은 화면/배율 안 맞을 때 하단 메뉴 접근 보장)
+   — 스크롤 동작은 유지하되 스크롤바는 시각적으로 숨김 (디자인 일관성).
 ====================================================== */
 .sidebar-scroll {
-  scrollbar-width: thin;
-  scrollbar-color: color-mix(in srgb, var(--sidebar-text) 22%, transparent) transparent;
+  scrollbar-width: none;        /* Firefox */
+  -ms-overflow-style: none;     /* IE/legacy Edge */
 }
 .sidebar-scroll::-webkit-scrollbar {
-  width: 6px;
-}
-.sidebar-scroll::-webkit-scrollbar-track {
+  width: 0;
+  height: 0;
   background: transparent;
-}
-.sidebar-scroll::-webkit-scrollbar-thumb {
-  background: color-mix(in srgb, var(--sidebar-text) 18%, transparent);
-  border-radius: 6px;
-}
-.sidebar-scroll:hover::-webkit-scrollbar-thumb {
-  background: color-mix(in srgb, var(--sidebar-text) 30%, transparent);
 }
 
 /* ======================================================
