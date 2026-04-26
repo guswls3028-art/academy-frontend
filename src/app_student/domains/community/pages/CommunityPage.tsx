@@ -1107,7 +1107,8 @@ function AttachmentList({ postId, attachments }: { postId: number; attachments?:
 // ═══════════════════════════════════════════
 // FilePickerSection — file picker for forms
 // ═══════════════════════════════════════════
-const MAX_FILE_SIZE_MB = 20;
+// 백엔드 SSOT: backend/.../community/_common.py MAX_ATTACHMENT_SIZE / MAX_ATTACHMENTS_PER_POST
+const MAX_FILE_SIZE_MB = 50;
 const MAX_FILES = 10;
 
 function FilePickerSection({
