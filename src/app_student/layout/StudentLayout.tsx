@@ -16,6 +16,7 @@ import "../shared/ui/theme/video.css";
 import StudentTopBar from "./StudentTopBar";
 import StudentTabBar from "./StudentTabBar";
 import StudentDrawer from "./StudentDrawer";
+import ParentChildSwitcher from "./ParentChildSwitcher";
 import { useFavicon } from "@/shared/hooks/useFavicon";
 import { useDocumentTitle } from "@/shared/hooks/useDocumentTitle";
 import { GuideTourProvider, GuideTourOverlay } from "@/shared/ui/guide";
@@ -160,6 +161,7 @@ function StudentLayoutInner() {
         }}
       >
         <StudentTopBar tenantCode={tenantCode} onMenuClick={openDrawer} />
+        <ParentChildSwitcher />
       </header>
 
       <main
