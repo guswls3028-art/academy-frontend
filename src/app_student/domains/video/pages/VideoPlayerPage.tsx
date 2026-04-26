@@ -7,6 +7,7 @@ import { fetchStudentVideoPlayback, fetchStudentSessionVideos, updateVideoProgre
 import type { StudentVideoListItem } from "../api/video.api";
 import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { resolveTenantCodeString } from "@/shared/tenant";
 
 import StudentVideoPlayer, {
   PlaybackBootstrap,
@@ -112,6 +113,7 @@ export default function VideoPlayerPage() {
     safeParseInt(q.get("enrollment_id")) ??
     safeParseInt(params.enrollmentId);
   const enrollmentId = rawEnrollmentId != null && Number.isFinite(rawEnrollmentId) ? rawEnrollmentId : null;
+  const currentVideoStorageKey = `student_current_video_id:${resolveTenantCodeString()}`;
 
   /* ─── Playback 데이터 (React Query) ─── */
   const playbackQuery = useQuery({
@@ -125,9 +127,9 @@ export default function VideoPlayerPage() {
   // localStorage에 현재 videoId 저장 (side effect)
   useEffect(() => {
     if (videoId) {
-      try { localStorage.setItem("student_current_video_id", String(videoId)); } catch {}
+      try { localStorage.setItem(currentVideoStorageKey, String(videoId)); } catch {}
     }
-  }, [videoId]);
+  }, [videoId, currentVideoStorageKey]);
 
   // playbackData → video, boot, loadError 파생
   const { video, boot, loadError } = useMemo(() => {
@@ -306,9 +308,9 @@ export default function VideoPlayerPage() {
 
   useEffect(() => {
     return () => {
-      try { localStorage.removeItem("student_current_video_id"); } catch {}
+      try { localStorage.removeItem(currentVideoStorageKey); } catch {}
     };
-  }, []);
+  }, [currentVideoStorageKey]);
 
   useEffect(() => {
     if (autoPlayCountdown !== null && autoPlayCountdown <= 0 && nextVideo) {

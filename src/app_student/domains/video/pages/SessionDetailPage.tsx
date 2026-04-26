@@ -9,6 +9,7 @@ import EmptyState from "@student/layout/EmptyState";
 import StudentPageShell from "@student/shared/ui/pages/StudentPageShell";
 import { IconPlay } from "@student/shared/ui/icons/Icons";
 import { formatDuration, formatDurationDetailed } from "../utils/format";
+import { resolveTenantCodeString } from "@/shared/tenant";
 
 // 영상 목록 아이템 컴포넌트
 function VideoStatusBadge({ status }: { status: string }) {
@@ -291,6 +292,7 @@ export default function SessionDetailPage() {
 
   const sessionIdNum = sessionId ? parseInt(sessionId, 10) : null;
   const enrollmentId = searchParams.get("enrollment") ? parseInt(searchParams.get("enrollment")!, 10) : null;
+  const currentVideoStorageKey = `student_current_video_id:${resolveTenantCodeString()}`;
 
   // Preload hls.js and player chunk for faster video playback start
   useEffect(() => {
@@ -304,7 +306,7 @@ export default function SessionDetailPage() {
   
   useEffect(() => {
     try {
-      const stored = localStorage.getItem("student_current_video_id");
+      const stored = localStorage.getItem(currentVideoStorageKey);
       setCurrentVideoId(stored ? parseInt(stored, 10) : null);
     } catch {
       setCurrentVideoId(null);
@@ -312,7 +314,7 @@ export default function SessionDetailPage() {
     
     // localStorage 변경 감지 (다른 탭/창에서 변경 시)
     const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === "student_current_video_id") {
+      if (e.key === currentVideoStorageKey) {
         try {
           setCurrentVideoId(e.newValue ? parseInt(e.newValue, 10) : null);
         } catch {
@@ -323,7 +325,7 @@ export default function SessionDetailPage() {
     
     window.addEventListener("storage", handleStorageChange);
     return () => window.removeEventListener("storage", handleStorageChange);
-  }, []);
+  }, [currentVideoStorageKey]);
 
   const { data: videosData, isLoading, isError, error: queryError } = useQuery({
     queryKey: ["student-session-videos", sessionIdNum, enrollmentId],

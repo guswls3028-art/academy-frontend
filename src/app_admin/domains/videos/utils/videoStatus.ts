@@ -5,10 +5,10 @@ import type { VideoStatus } from "../api/videos.api";
 
 export const VIDEO_STATUS_LABEL: Record<VideoStatus, string> = {
   PENDING: "업로드 대기",
-  UPLOADED: "업로드 완료",
-  PROCESSING: "인코딩 진행중",
-  READY: "시청가능",
-  FAILED: "실패",
+  UPLOADED: "처리 대기",
+  PROCESSING: "처리 중",
+  READY: "시청 가능",
+  FAILED: "처리 실패",
 };
 
 /** 공용 톤 SSOT: success(초록) | danger(빨강) | warning(노랑) | primary(강조) | neutral(회색) */

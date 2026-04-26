@@ -90,6 +90,9 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
   const [allowSkip, setAllowSkip] = useState(false);
   const [maxSpeed, setMaxSpeed] = useState<number>(1);
 
+  // 직전 init 시도에서 실패한 파일 사유. 모달 내 띠 형태로 노출 + "다시 시도" 버튼.
+  const [initErrorMessages, setInitErrorMessages] = useState<string[]>([]);
+
   useEffect(() => {
     if (!isOpen) return;
     setBaseTitle("");
@@ -100,6 +103,7 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
     setAllowSkip(false);
     setMaxSpeed(1);
     setIsUploading(false);
+    setInitErrorMessages([]);
   }, [isOpen]);
 
   // 업로드 중 자동 리로드 차단 + beforeunload
@@ -176,23 +180,31 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
   );
 
   const handleUpload = async () => {
-    const items: { file: File; title: string }[] = [];
+    setInitErrorMessages([]);
+
+    // 슬롯 → 업로드 아이템 (실패한 파일을 모달에 남기기 위해 슬롯 인덱스도 추적)
+    const items: { file: File; title: string; slotIndex: number }[] = [];
     const filledFiles = files.filter((f): f is File => f != null);
     let seq = 0;
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       if (!file) continue;
       seq++;
-      items.push({ file, title: filledFiles.length === 1 ? baseTitle.trim() : `${baseTitle.trim()} - ${seq}` });
+      items.push({
+        file,
+        title: filledFiles.length === 1 ? baseTitle.trim() : `${baseTitle.trim()} - ${seq}`,
+        slotIndex: i,
+      });
     }
     if (items.length === 0) return;
 
     setIsUploading(true);
     const initResults: { init: Awaited<ReturnType<typeof initVideoUpload>>; file: File }[] = [];
-    const initErrors: string[] = [];
+    const successSlotIndexes: number[] = [];
+    const errorMsgs: string[] = [];
 
     try {
-      const initPromises = items.map(async ({ file, title }) => {
+      const initPromises = items.map(async ({ file, title, slotIndex }) => {
         try {
           const init = await initVideoUpload({
             sessionId,
@@ -203,33 +215,65 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
             allowSkip,
             maxSpeed,
           });
-          return { init, file };
+          return { ok: true as const, init, file, slotIndex };
         } catch (error) {
           const err = error as { response?: { status?: number; data?: { detail?: string } }; message?: string };
-          const msg =
+          const rawMsg =
             err?.response?.data?.detail ||
             err?.message ||
-            "업로드에 실패했습니다.";
+            "업로드 시작에 실패했습니다.";
+          let userMsg = rawMsg;
           if (err?.response?.status === 403 && !err?.response?.data?.detail) {
-            initErrors.push(`${file.name}: 권한이 없습니다.`);
-          } else {
-            initErrors.push(`${file.name}: ${msg}`);
+            userMsg = "권한이 없습니다.";
+          } else if (err?.response?.status === 413 || /too large|용량|size/i.test(rawMsg)) {
+            userMsg = "파일이 너무 큽니다.";
+          } else if (err?.response?.status === 401) {
+            userMsg = "로그인이 만료되었습니다. 새로고침 후 다시 시도해 주세요.";
+          } else if (/network|fetch|timeout/i.test(rawMsg)) {
+            userMsg = "네트워크 오류 — 인터넷 연결을 확인해 주세요.";
           }
-          return null;
+          return { ok: false as const, file, slotIndex, msg: userMsg };
         }
       });
       const initRawResults = await Promise.all(initPromises);
-      initRawResults.forEach((r) => { if (r) initResults.push(r); });
+
+      initRawResults.forEach((r) => {
+        if (r.ok) {
+          initResults.push({ init: r.init, file: r.file });
+          successSlotIndexes.push(r.slotIndex);
+        } else {
+          errorMsgs.push(`${r.file.name}: ${r.msg}`);
+        }
+      });
 
       if (initResults.length > 0) {
         qc.invalidateQueries({ queryKey: ["session-videos", sessionId] });
       }
 
-      if (initErrors.length > 0) {
-        feedback.error(initErrors.join(" / "));
-        if (initResults.length === 0) return; // 전부 실패 시 모달 유지
+      // 성공한 파일은 슬롯에서 제거(빈 슬롯 1개 보장), 실패한 파일은 슬롯에 남겨 즉시 재시도 가능
+      if (successSlotIndexes.length > 0) {
+        setFiles((prev) => {
+          const next = prev.map((f, idx) => (successSlotIndexes.includes(idx) ? null : f));
+          // 실패 슬롯 위주로 정렬: null이 아닌 것 먼저, 그 후 빈 슬롯 1개
+          const filled = next.filter((f) => f != null);
+          const finalNext: (File | null)[] = [...filled, null];
+          return finalNext;
+        });
       }
-      onClose();
+
+      if (errorMsgs.length > 0) {
+        // 모달 내 띠로 영구 노출 + 토스트로 즉시 환기
+        setInitErrorMessages(errorMsgs);
+        feedback.error(
+          errorMsgs.length === 1
+            ? errorMsgs[0]
+            : `${errorMsgs.length}개 파일 실패. 모달의 빨간색 안내를 확인하고 ‘다시 시도’를 눌러 주세요.`
+        );
+        if (initResults.length === 0) return; // 전부 실패 → 모달 유지
+        // 부분 성공: 모달 유지 + 우하단으로 진행 상황 안내
+      } else {
+        onClose();
+      }
 
       // 동시 업로드 2개로 제한 — 대역폭 포화 + presigned URL 만료 방지
       const uploadResults = await uploadFilesWithLimit(initResults, 2);
@@ -244,8 +288,8 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
       if (successCount > 0) {
         feedback.success(
           r2Errors.length > 0
-            ? `${successCount}개 업로드 완료. ${r2Errors.length}개 실패. 우하단 진행 상황에서 확인하세요.`
-            : `${successCount}개 업로드 완료. 처리는 우하단에서 이어서 진행됩니다.`
+            ? `${successCount}개 업로드 완료. ${r2Errors.length}개 실패. 우상단 작업박스에서 확인하세요.`
+            : `${successCount}개 업로드 완료. 처리는 우상단 작업박스에서 이어서 진행됩니다.`
         );
         qc.invalidateQueries({ queryKey: ["session-videos", sessionId] });
       }
@@ -269,6 +313,31 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
 
       <ModalBody>
         <div className="modal-scroll-body modal-scroll-body--compact video-upload-modal__body">
+          {/* 직전 시도에서 실패한 파일 사유 — 사용자가 슬롯 정리 후 다시 시도 가능 */}
+          {initErrorMessages.length > 0 && (
+            <div
+              role="alert"
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 6,
+                padding: "10px 12px",
+                marginBottom: 4,
+                background: "var(--color-status-danger-soft, #fef2f2)",
+                border: "1px solid var(--color-status-danger, #dc2626)",
+                borderRadius: 8,
+              }}
+            >
+              <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-status-danger, #b91c1c)" }}>
+                일부 파일이 실패했습니다 — 슬롯에 그대로 남아있어요. 사유를 확인하고 ‘다시 시도’를 눌러 주세요.
+              </div>
+              <ul style={{ margin: 0, paddingLeft: 16, color: "var(--color-status-danger, #b91c1c)", fontSize: 12, lineHeight: 1.6 }}>
+                {initErrorMessages.map((m, i) => (
+                  <li key={i}>{m}</li>
+                ))}
+              </ul>
+            </div>
+          )}
           {/* 제목 — 슬롯별로 "제목 - 1", "제목 - 2" … 자동 부여 */}
           <div className="modal-form-group video-upload-modal__row video-upload-modal__row--input-only">
             <input
@@ -443,7 +512,7 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
       <ModalFooter
         left={
           <span className="modal-hint" style={{ marginBottom: 0 }}>
-            업로드 버튼을 누르면 우하단 진행 상황에서 업로드·처리 진행을 확인할 수 있습니다.
+            업로드 버튼을 누르면 우상단 작업박스에서 업로드·처리 진행을 확인할 수 있습니다.
           </span>
         }
         right={
@@ -457,7 +526,11 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
               disabled={!canSubmit || isUploading}
               loading={isUploading}
             >
-              {isUploading ? "업로드 중…" : `업로드 (${filledCount}개)`}
+              {isUploading
+                ? "업로드 중…"
+                : initErrorMessages.length > 0
+                  ? `다시 시도 (${filledCount}개)`
+                  : `업로드 (${filledCount}개)`}
             </Button>
           </>
         }

@@ -62,7 +62,7 @@ export default function VideoExplorerPage() {
   return (
     <DomainLayout
       title="영상"
-      description={mode === "kpi" ? "인코딩 진행 상황과 처리할 영상을 한눈에 확인하세요." : undefined}
+      description={mode === "kpi" ? "영상 처리 진행 상황과 손볼 영상을 한눈에 확인하세요." : undefined}
       headerActions={
         <Button
           intent="ghost"
@@ -159,22 +159,22 @@ function VideosKpiInbox() {
             hint={data?.ready != null ? `사용 가능 ${data.ready}개` : undefined}
           />
           <KPI
-            label="인코딩 진행 중"
+            label="처리 중"
             value={fmt(data?.processing)}
-            hint={(data?.processing ?? 0) > 0 ? "최대 90분 소요" : undefined}
+            hint={(data?.processing ?? 0) > 0 ? "보통 5~30분 (긴 영상은 90분까지)" : undefined}
           />
           <KPI
-            label="재시도 필요"
+            label="다시 시도 필요"
             value={fmt(data?.failed)}
-            hint={(data?.failed ?? 0) > 0 ? "실패 — 재시도 또는 삭제" : undefined}
+            hint={(data?.failed ?? 0) > 0 ? "실패 — 다시 시도 또는 삭제" : undefined}
           />
           <KPI label="최근 7일 업로드" value={fmt(data?.uploaded_last_7d)} />
         </div>
       </DashboardWidget>
 
-      {/* 2) 인코딩 진행 중 인박스 */}
+      {/* 2) 처리 중 인박스 */}
       <DashboardWidget
-        title="인코딩 진행 중"
+        title="처리 중인 영상"
         description={
           isError
             ? "불러오기 실패"
@@ -195,14 +195,14 @@ function VideosKpiInbox() {
         ) : null}
       </DashboardWidget>
 
-      {/* 3) 재시도 필요 인박스 */}
+      {/* 3) 다시 시도 필요 인박스 */}
       <DashboardWidget
-        title="재시도 필요 (실패)"
+        title="다시 시도 필요"
         description={
           isError
             ? "불러오기 실패"
             : (data?.failed ?? 0) === 0
-              ? "재시도가 필요한 영상이 없습니다."
+              ? "다시 시도할 영상이 없습니다."
               : `${data?.failed_top.length ?? 0}개 표시 (총 ${data?.failed ?? 0}개)`
         }
       >
@@ -220,9 +220,9 @@ function VideosKpiInbox() {
                 rightAction={async (e) => {
                   e.stopPropagation();
                   const ok = await confirm({
-                    title: "영상 재시도",
-                    message: "재시도할까요? 진행 중인 작업이 있으면 취소 후 다시 제출됩니다.",
-                    confirmText: "재시도",
+                    title: "영상 다시 시도",
+                    message: "다시 시도할까요? 진행 중인 작업이 있으면 취소 후 다시 제출됩니다.",
+                    confirmText: "다시 시도",
                   });
                   if (ok) retryMutation.mutate({ videoId: v.id, title: v.title });
                 }}

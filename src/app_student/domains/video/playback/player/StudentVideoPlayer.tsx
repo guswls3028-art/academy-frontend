@@ -15,6 +15,7 @@ import {
   KebabMenu,
   Pill,
   PlayerToast,
+  QualityButton,
   RangeSlider,
   SpeedButton,
 } from "./design/ui";
@@ -98,6 +99,9 @@ const initialControllerState: ControllerState = {
   muted: false,
   rate: 1,
   toast: null,
+  qualities: [],
+  currentQuality: -1,
+  reconnecting: false,
 };
 
 export default function StudentVideoPlayer({
@@ -135,7 +139,7 @@ export default function StudentVideoPlayer({
   const swipeHandledRef = useRef(false);
   const touchStartRef = useRef<{ y: number; volume: number; rightHalf: boolean } | null>(null);
 
-  const { ready, playing, buffering, duration, current, volume, muted, rate, toast } = ctrlState;
+  const { ready, playing, buffering, duration, current, volume, muted, rate, toast, qualities, currentQuality, reconnecting } = ctrlState;
 
 
   useEffect(() => {
@@ -624,21 +628,30 @@ export default function StudentVideoPlayer({
               {!ready && (
                 <div className="svpOverlayCenter">
                   <div className="svpSpinner" />
-                  <div className="svpOverlayText">로딩 중…</div>
+                  <div className="svpOverlayText">영상을 준비하고 있어요…</div>
                 </div>
               )}
 
-              {ready && !playing && (
+              {ready && !playing && !reconnecting && (
                 <button className="svpBigPlay" type="button" onClick={togglePlay} onDoubleClick={(e) => e.stopPropagation()}>
                   <span className="svpBigPlayIcon">▶</span>
                   <span className="svpBigPlayText">재생</span>
                 </button>
               )}
 
-              {buffering && ready && (
-                <div className="svpOverlayCorner">
+              {/* 재연결 중: 화면 중앙에 명확히 표시 (버퍼링과 구분) */}
+              {reconnecting && (
+                <div className="svpOverlayCenter" role="status" aria-live="polite">
+                  <div className="svpSpinner" />
+                  <div className="svpOverlayText">연결을 다시 시도하고 있어요…</div>
+                </div>
+              )}
+
+              {/* 일반 버퍼링: 코너에 작게 표시 */}
+              {buffering && ready && !reconnecting && (
+                <div className="svpOverlayCorner" role="status" aria-live="polite">
                   <div className="svpSpinnerMini" />
-                  <div className="svpOverlayTextMini">버퍼링…</div>
+                  <div className="svpOverlayTextMini">잠시만요…</div>
                 </div>
               )}
 
@@ -681,6 +694,11 @@ export default function StudentVideoPlayer({
                     </div>
                   </div>
                   <div className="svpRightControls">
+                    <QualityButton
+                      current={currentQuality}
+                      qualities={qualities}
+                      onSelect={(idx) => controllerRef.current?.setQuality(idx)}
+                    />
                     <SpeedButton
                       rate={rate}
                       speeds={rateMenu}

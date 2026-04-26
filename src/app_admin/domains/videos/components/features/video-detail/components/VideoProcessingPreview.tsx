@@ -13,11 +13,11 @@ interface Props {
 }
 
 const STATUS_DESC: Record<string, string> = {
-  UPLOADING: "파일 업로드 중...",
-  UPLOADED: "업로드 완료, 인코딩 대기 중",
-  PENDING: "처리 대기 중",
-  PROCESSING: "썸네일 생성 및 변환 진행 중",
-  FAILED: "처리에 실패했습니다. 아래 버튼으로 재시도할 수 있습니다.",
+  UPLOADING: "파일 업로드 중…",
+  UPLOADED: "업로드 완료 — 영상 처리 대기 중",
+  PENDING: "영상 처리 대기 중",
+  PROCESSING: "영상을 시청 가능한 형태로 변환 중입니다 (보통 5~30분 소요)",
+  FAILED: "영상 처리에 실패했습니다. 아래 버튼으로 다시 시도할 수 있습니다.",
 };
 
 export default function VideoProcessingPreview({
@@ -72,7 +72,7 @@ export default function VideoProcessingPreview({
         </div>
 
         <div className="mt-2 text-center text-xs text-[var(--color-text-secondary)]">
-          {safePercent != null ? `${safePercent}%` : "진행률 계산 중..."}
+          {safePercent != null ? `${safePercent}%` : "곧 시작됩니다…"}
         </div>
       </div>
     </div>

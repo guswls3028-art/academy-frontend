@@ -279,12 +279,13 @@ export default function VideoCommentSection({ videoId }: { videoId: number }) {
         댓글 {data?.total ?? 0}
       </h3>
 
-      {/* 댓글 입력 */}
-      <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-        <input
+      {/* 댓글 입력 — 모바일에서 한 줄 입력 한계를 극복: textarea + 자동 늘림 */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 16, alignItems: "flex-end" }}>
+        <textarea
           value={newComment}
           onChange={(e) => setNewComment(e.target.value)}
-          placeholder={replyTo ? "답글을 입력하세요..." : "댓글을 입력하세요..."}
+          placeholder={replyTo ? "답글을 입력하세요…" : "댓글을 입력하세요…"}
+          rows={2}
           style={{
             flex: 1,
             background: "var(--stu-surface-soft)",
@@ -293,9 +294,17 @@ export default function VideoCommentSection({ videoId }: { videoId: number }) {
             padding: "10px 14px",
             color: "var(--stu-text)",
             fontSize: 14,
+            lineHeight: 1.5,
+            resize: "vertical",
+            minHeight: 56,
+            maxHeight: 200,
+            fontFamily: "inherit",
           }}
           onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey && newComment.trim()) {
+            // Enter = 전송, Shift+Enter = 줄바꿈 (표준 채팅 UX)
+            // 한국어 IME 조합 중 Enter는 무시 (e.nativeEvent.isComposing)
+            const composing = (e.nativeEvent as any)?.isComposing;
+            if (e.key === "Enter" && !e.shiftKey && !composing && newComment.trim()) {
               e.preventDefault();
               handleSubmit();
             }
@@ -305,13 +314,14 @@ export default function VideoCommentSection({ videoId }: { videoId: number }) {
           <button
             onClick={() => setReplyTo(null)}
             style={{
-              padding: "8px",
+              padding: "10px 14px",
               borderRadius: 8,
               background: "transparent",
               color: "var(--stu-text-subtle)",
               border: "1px solid var(--stu-border)",
               cursor: "pointer",
-              fontSize: 12,
+              fontSize: 13,
+              minHeight: 44,
             }}
           >
             취소

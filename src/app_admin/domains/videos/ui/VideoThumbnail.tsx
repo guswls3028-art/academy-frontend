@@ -157,7 +157,7 @@ export default function VideoThumbnail({
             {/* 상단 왼쪽: 상태 뱃지 */}
             <div className="video-thumbnail-encoding-overlay__badge">
               <span className="video-thumbnail-encoding-overlay__badge-dot" />
-              {isQueuedOrWaiting ? "대기 중" : "인코딩 중"}
+              {isQueuedOrWaiting ? "처리 대기" : "처리 중"}
             </div>
 
             {/* 중앙: 퍼센트는 적당한 크기로 (과하지 않게) */}
@@ -189,7 +189,7 @@ export default function VideoThumbnail({
                 )}
                 {progressNum == null && !remainingLabel && !encodingStep && (
                   <span className="video-thumbnail-encoding-overlay__remaining">
-                    {isQueuedOrWaiting ? "인코딩 대기 중…" : "계산 중…"}
+                    {isQueuedOrWaiting ? "곧 시작됩니다…" : "처리 중…"}
                   </span>
                 )}
               </div>

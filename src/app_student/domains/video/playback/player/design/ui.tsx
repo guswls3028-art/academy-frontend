@@ -47,7 +47,9 @@ export function IconButton({
       e.preventDefault();
     }
   };
-  const S = 20; // 아이콘 크기 (px)
+  // 아이콘 크기. 모바일/터치 환경에서는 24px(WCAG/Apple HIG 권장 hit area 44+ px),
+  // 데스크톱에서는 22px로 살짝 키워 노약자/저시력 학생 가독성 확보.
+  const S = typeof window !== "undefined" && (("ontouchstart" in window) || (navigator.maxTouchPoints || 0) > 0) ? 24 : 22;
   const svgMap: Record<string, React.ReactNode> = {
     play: <svg width={S} height={S} viewBox="0 0 24 24" fill="currentColor"><path d="M6.5 4.5v15l13-7.5z"/></svg>,
     pause: <svg width={S} height={S} viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="4" width="4.5" height="16" rx="1"/><rect x="14.5" y="4" width="4.5" height="16" rx="1"/></svg>,
@@ -243,6 +245,93 @@ export function SpeedButton({
             >
               <span>{r}x</span>
               {Math.abs(r - rate) < 0.001 && <span className="svpSpeedCheck">✓</span>}
+            </button>
+          ))}
+        </div>,
+        document.body,
+      )}
+    </>
+  );
+}
+
+export type QualityOption = {
+  index: number;
+  label: string;
+  height: number;
+};
+
+export function QualityButton({
+  current,
+  qualities,
+  onSelect,
+}: {
+  /** -1 = Auto */
+  current: number;
+  qualities: QualityOption[];
+  onSelect: (index: number) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const btnRef = useRef<HTMLButtonElement | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  const [pos, setPos] = useState<{ bottom: number; right: number } | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: any) => {
+      if (btnRef.current?.contains(e.target)) return;
+      if (menuRef.current?.contains(e.target)) return;
+      setOpen(false);
+    };
+    window.addEventListener("pointerdown", onDown);
+    return () => window.removeEventListener("pointerdown", onDown);
+  }, [open]);
+
+  const disabled = !qualities || qualities.length <= 1;
+  const currentLabel =
+    qualities.find((q) => q.index === current)?.label ||
+    (current === -1 ? "Auto" : "—");
+
+  const handleOpen = () => {
+    if (disabled) return;
+    if (open) { setOpen(false); return; }
+    if (btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect();
+      setPos({
+        bottom: window.innerHeight - r.top + 8,
+        right: window.innerWidth - r.right,
+      });
+    }
+    setOpen(true);
+  };
+
+  return (
+    <>
+      <button
+        ref={btnRef}
+        type="button"
+        className={`svpSpeedBtn${disabled ? " svpSpeedBtn--disabled" : ""}`}
+        onClick={handleOpen}
+        aria-label={disabled ? "화질 선택 불가" : `화질 ${currentLabel}`}
+        title={disabled ? "화질 선택 불가" : `화질 ${currentLabel}`}
+        disabled={disabled}
+      >
+        {currentLabel}
+      </button>
+      {open && !disabled && pos && createPortal(
+        <div
+          ref={menuRef}
+          className="svpSpeedMenu"
+          style={{ position: "fixed", bottom: pos.bottom, right: pos.right, zIndex: 9999 }}
+        >
+          {qualities.map((q) => (
+            <button
+              key={q.index}
+              type="button"
+              className={`svpSpeedMenuItem${q.index === current ? " svpSpeedMenuItem--active" : ""}`}
+              onClick={() => { onSelect(q.index); setOpen(false); }}
+            >
+              <span>{q.label}</span>
+              {q.index === current && <span className="svpSpeedCheck">✓</span>}
             </button>
           ))}
         </div>,

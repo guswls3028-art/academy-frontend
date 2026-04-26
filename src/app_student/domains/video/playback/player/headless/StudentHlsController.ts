@@ -81,6 +81,17 @@ async function postEvents(
   } catch {}
 }
 
+export interface QualityLevel {
+  /** hls.js levels[] 인덱스. -1 = Auto(ABR). */
+  index: number;
+  /** 표시용 라벨 (예: "1080p", "Auto") */
+  label: string;
+  /** 세로 해상도 (px). Auto는 0. */
+  height: number;
+  /** 비트레이트 (bps) — 라벨 보조 정보 */
+  bitrate: number;
+}
+
 export interface ControllerState {
   ready: boolean;
   playing: boolean;
@@ -91,6 +102,12 @@ export interface ControllerState {
   muted: boolean;
   rate: number;
   toast: { text: string; kind?: "info" | "warn" | "danger" } | null;
+  /** HLS 화질 목록 — 첫 항목은 항상 "Auto"(index=-1) */
+  qualities: QualityLevel[];
+  /** 현재 선택된 level 인덱스. -1 = Auto */
+  currentQuality: number;
+  /** 자동 재시도 진행 상태 — UI에서 "재연결 중…" 표시용 */
+  reconnecting: boolean;
 }
 
 export interface ControllerOptions {
@@ -124,7 +141,15 @@ export class StudentHlsController {
     muted: false,
     rate: 1,
     toast: null,
+    qualities: [],
+    currentQuality: -1,
+    reconnecting: false,
   };
+
+  // HLS fatal 자동 재시도 — exponential backoff
+  private reconnectAttempts = 0;
+  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  private readonly MAX_RECONNECT_ATTEMPTS = 4;
 
   private maxWatchedRef = 0;
   private lastTimeRef = 0;
@@ -261,6 +286,77 @@ export class StudentHlsController {
 
   setToken(token: string) {
     this.tokenRef = token;
+  }
+
+  /** 화질 선택. -1 = Auto(ABR). 다른 값은 hls.levels[index]. */
+  setQuality(index: number) {
+    if (this.disposed || !this.hls) return;
+    try {
+      // hls.js: currentLevel = -1 → ABR, >=0 → 해당 level 강제
+      this.hls.currentLevel = index;
+      this.setState({ currentQuality: index });
+      const label = this.state.qualities.find((q) => q.index === index)?.label || (index === -1 ? "Auto" : `${index}`);
+      this.showToast(`화질: ${label}`, "info");
+    } catch {}
+  }
+
+  private publishQualities() {
+    if (this.disposed || !this.hls) return;
+    const levels: any[] = Array.isArray(this.hls.levels) ? this.hls.levels : [];
+    // 단일 해상도(level 1개 이하) 영상은 화질 선택이 의미 없음 → 빈 배열로 두어 UI 비활성화.
+    if (levels.length < 2) {
+      this.setState({ qualities: [] });
+      return;
+    }
+    const qs: QualityLevel[] = [{ index: -1, label: "Auto", height: 0, bitrate: 0 }];
+    levels.forEach((lv, i) => {
+      const h = Number(lv?.height || 0);
+      const br = Number(lv?.bitrate || 0);
+      const label = h > 0 ? `${h}p` : br > 0 ? `${Math.round(br / 1000)}k` : `Level ${i + 1}`;
+      qs.push({ index: i, label, height: h, bitrate: br });
+    });
+    // 화질 내림차순 (Auto는 맨 위 유지)
+    const auto = qs[0];
+    const rest = qs.slice(1).sort((a, b) => b.height - a.height || b.bitrate - a.bitrate);
+    this.setState({ qualities: [auto, ...rest] });
+  }
+
+  private scheduleReconnect(kind: "network" | "media") {
+    if (this.disposed) return;
+    this.reconnectAttempts += 1;
+    // 1.2s, 2.4s, 4.8s, 9.6s — exponential backoff (최대 4회)
+    const delayMs = Math.min(9_600, 1_200 * Math.pow(2, this.reconnectAttempts - 1));
+    this.setState({
+      reconnecting: true,
+      toast: {
+        text: `연결이 끊겼어요. ${Math.round(delayMs / 1000)}초 뒤 다시 시도합니다… (${this.reconnectAttempts}/${this.MAX_RECONNECT_ATTEMPTS})`,
+        kind: "warn",
+      },
+    });
+    if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+    this.reconnectTimer = setTimeout(() => {
+      this.reconnectTimer = null;
+      if (this.disposed || !this.hls) return;
+      try {
+        if (kind === "media") {
+          // recoverMediaError → resume
+          this.hls.recoverMediaError?.();
+        } else {
+          // network: startLoad부터 재시작
+          this.hls.startLoad?.();
+        }
+        // 성공 시 RECONNECT 카운터 리셋은 LEVEL_LOADED/FRAG_BUFFERED 등에서 자연 회복
+        this.setState({ reconnecting: false });
+      } catch {
+        // 재시도 자체가 throw → 한도 초과 처리
+        this.setState({
+          reconnecting: false,
+          toast: { text: "재연결에 실패했습니다. 화면을 새로고침해 주세요.", kind: "danger" },
+        });
+        this.opts.onFatal?.("reconnect_failed");
+      }
+    }, delayMs);
+    // dispose에서 reconnectTimer는 별도 clear (this.timeouts에 push하지 않음 — 재진입 시 누적 방지)
   }
 
   private queueEvent(type: EventType, payload?: any) {
@@ -451,6 +547,28 @@ export class StudentHlsController {
         });
         this.hls = hls;
 
+        // Manifest 파싱 시 화질 목록 수집 → ControllerState에 노출
+        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          if (this.disposed) return;
+          this.publishQualities();
+        });
+        // 프래그먼트 1개 정상 버퍼링 시 재시도 카운터 리셋
+        hls.on(Hls.Events.FRAG_BUFFERED, () => {
+          if (this.disposed) return;
+          if (this.reconnectAttempts > 0) {
+            this.reconnectAttempts = 0;
+          }
+        });
+        hls.on(Hls.Events.LEVEL_SWITCHED, (_: any, data: any) => {
+          if (this.disposed) return;
+          // ABR(Auto) 상태에서는 currentQuality는 -1로 유지
+          if ((this.hls?.autoLevelEnabled ?? true) === true) {
+            if (this.state.currentQuality !== -1) this.setState({ currentQuality: -1 });
+          } else if (typeof data?.level === "number" && data.level !== this.state.currentQuality) {
+            this.setState({ currentQuality: data.level });
+          }
+        });
+
         hls.on(Hls.Events.ERROR, (_: any, data: any) => {
           if (this.disposed) return;
           try {
@@ -461,20 +579,44 @@ export class StudentHlsController {
             });
           } catch {}
 
-          if (data?.fatal) {
-            if (this.disposed) return;
-            const errorMsg = data?.details || data?.type || "알 수 없는 오류";
-            const errorCode = data?.response?.code ?? data?.code;
-            const is404 = errorCode === 404 || String(errorMsg).includes("404") || String(errorMsg).includes("Not Found");
-            const isNetworkError =
-              errorCode === -1 || errorCode === -2 || String(errorMsg).includes("network") || String(errorMsg).includes("NetworkError");
-            let message = "";
-            if (is404) message = "비디오 파일을 찾을 수 없습니다. 비디오가 아직 처리 중이거나 업로드되지 않았을 수 있습니다.";
-            else if (isNetworkError) message = "네트워크 오류가 발생했습니다. 인터넷 연결을 확인해주세요.";
-            else message = `재생 오류가 발생했습니다: ${errorMsg}`;
-            this.setState({ toast: { text: message, kind: "danger" } });
-            if (is404 || isNetworkError) this.opts.onFatal?.(message);
+          if (!data?.fatal) return;
+          if (this.disposed) return;
+
+          const errorMsg = data?.details || data?.type || "알 수 없는 오류";
+          const errorCode = data?.response?.code ?? data?.code;
+          const errorType = data?.type || "";
+          const is404 = errorCode === 404 || String(errorMsg).includes("404") || String(errorMsg).includes("Not Found");
+          const isNetworkError =
+            errorType === Hls.ErrorTypes?.NETWORK_ERROR ||
+            errorCode === -1 || errorCode === -2 ||
+            String(errorMsg).includes("network") ||
+            String(errorMsg).includes("NetworkError") ||
+            String(errorMsg).includes("Timeout") ||
+            String(errorMsg).includes("manifestLoad");
+          const isMediaError = errorType === Hls.ErrorTypes?.MEDIA_ERROR;
+
+          // 404 (원본 누락) — 재시도해도 무의미. 즉시 fatal.
+          if (is404) {
+            this.setState({
+              toast: { text: "비디오 파일을 찾을 수 없습니다. 처리 중이거나 업로드되지 않았을 수 있습니다.", kind: "danger" },
+              reconnecting: false,
+            });
+            this.opts.onFatal?.("비디오 파일을 찾을 수 없습니다.");
+            return;
           }
+
+          // 네트워크/미디어 오류 — 자동 재시도(exponential backoff)
+          if ((isNetworkError || isMediaError) && this.reconnectAttempts < this.MAX_RECONNECT_ATTEMPTS) {
+            this.scheduleReconnect(isMediaError ? "media" : "network");
+            return;
+          }
+
+          // 한도 초과 또는 알 수 없는 fatal — 사용자에게 알리고 종료
+          const message = isNetworkError
+            ? "네트워크가 계속 불안정합니다. 인터넷을 확인하고 화면을 새로고침해 주세요."
+            : `재생 오류가 발생했습니다: ${errorMsg}`;
+          this.setState({ toast: { text: message, kind: "danger" }, reconnecting: false });
+          this.opts.onFatal?.(message);
         });
 
         hls.loadSource(url);
@@ -637,6 +779,10 @@ export class StudentHlsController {
 
     this.listeners.clear();
 
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
     this.intervals.forEach((intervalId) => clearInterval(intervalId));
     this.intervals = [];
     this.timeouts.forEach((timeoutId) => clearTimeout(timeoutId));
