@@ -9,10 +9,15 @@
  * 무효화해야 안전. queryClient.clear()는 로그인 등 비-student 쿼리도 비우므로
  * 'student' prefix만 제거하는 형태로 좁힘.
  */
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuthContext } from "@/auth/context/AuthContext";
-import { getParentStudentId, setParentStudentId } from "@student/shared/api/parentStudentSelection";
+import {
+  getParentStudentId,
+  initParentStudentId,
+  setParentStudentId,
+} from "@student/shared/api/parentStudentSelection";
 
 export default function ParentChildSwitcher() {
   const { user } = useAuthContext();
@@ -21,13 +26,26 @@ export default function ParentChildSwitcher() {
 
   const isParent = user?.tenantRole === "parent";
   const linked = user?.linkedStudents ?? [];
-  if (!isParent || linked.length < 2) return null;
 
-  const currentId = getParentStudentId();
+  /* module-level state(getParentStudentId)를 컴포넌트 state로 동기화 — 칩 활성 표시용 */
+  const [currentId, setCurrentId] = useState<number | null>(() => getParentStudentId());
+
+  useEffect(() => {
+    if (linked.length === 0) return;
+    const ids = linked.map((s) => s.id);
+    let id = getParentStudentId();
+    if (id == null || !ids.includes(id)) {
+      id = initParentStudentId(ids);
+    }
+    setCurrentId(id);
+  }, [linked]);
+
+  if (!isParent || linked.length < 2) return null;
 
   const handleSelect = (id: number) => {
     if (id === currentId) return;
     setParentStudentId(id);
+    setCurrentId(id);
     /* 자녀별 쿼리 격리가 필요한 키 prefix들 — 학생 도메인 전체. */
     qc.removeQueries({ queryKey: ["student"] });
     qc.removeQueries({ queryKey: ["student-dashboard"] });
