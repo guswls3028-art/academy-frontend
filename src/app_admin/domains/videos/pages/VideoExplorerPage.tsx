@@ -1,87 +1,26 @@
 /**
  * PATH: src/app_admin/domains/videos/pages/VideoExplorerPage.tsx
  *
- * 영상 도메인 첫 화면 — KPI 인박스 (기본) + 폴더별 탐색 (보조 토글)
- *
- * 변경 (2026-04-26):
- *  - 기존 트리 단독 진입 → KPI 4개 + 인박스 2개로 즉시 가치 노출
- *  - 트리/그리드/모달 로직은 VideoTreeView 컴포넌트로 추출 보존
- *  - localStorage로 마지막 모드 기억
+ * 영상 도메인 「오늘의 작업」 탭 — KPI 인박스 + 처리 중/재시도 인박스
+ * 부모 VideoDomainLayout 이 제목/탭을 제공한다.
  */
-import { useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { LayoutGrid, FolderTree } from "lucide-react";
 import { useConfirm } from "@/shared/ui/confirm";
 import { Button, KPI } from "@/shared/ui/ds";
-import { DomainLayout } from "@/shared/ui/layout";
 import {
   fetchVideosLandingStats,
   type LandingVideoSummary,
 } from "../api/landingStats";
 import { retryVideo, getRetryErrorMessage, type VideoStatus } from "../api/videos.api";
 import { logRetryAttempt, logRetryError } from "@/shared/api/retryLogger";
-import VideoTreeView from "../components/VideoTreeView";
 import VideoStatusBadge from "../ui/VideoStatusBadge";
 import VideoDetailOverlay from "./VideoDetailOverlay";
 import DashboardWidget from "@admin/domains/dashboard/components/DashboardWidget";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { asyncStatusStore } from "@/shared/ui/asyncStatus";
 
-const MODE_KEY = "admin.videos.explorerMode";
-
-type Mode = "kpi" | "tree";
-
-function readMode(): Mode {
-  try {
-    const v = localStorage.getItem(MODE_KEY);
-    if (v === "tree" || v === "kpi") return v;
-  } catch {
-    // ignore
-  }
-  return "kpi";
-}
-
-function writeMode(m: Mode) {
-  try {
-    localStorage.setItem(MODE_KEY, m);
-  } catch {
-    // ignore
-  }
-}
-
 export default function VideoExplorerPage() {
-  const [mode, setMode] = useState<Mode>(() => readMode());
-
-  const handleToggle = () => {
-    const next: Mode = mode === "kpi" ? "tree" : "kpi";
-    setMode(next);
-    writeMode(next);
-  };
-
-  return (
-    <DomainLayout
-      title="영상"
-      description={mode === "kpi" ? "영상 처리 진행 상황과 손볼 영상을 한눈에 확인하세요." : undefined}
-      headerActions={
-        <Button
-          intent="ghost"
-          size="sm"
-          onClick={handleToggle}
-          leftIcon={mode === "kpi" ? <FolderTree size={14} /> : <LayoutGrid size={14} />}
-          data-testid="videos-mode-toggle"
-        >
-          {mode === "kpi" ? "폴더별 탐색" : "오늘의 작업"}
-        </Button>
-      }
-    >
-      {mode === "kpi" ? <VideosKpiInbox /> : <VideoTreeView />}
-    </DomainLayout>
-  );
-}
-
-function VideosKpiInbox() {
-  const navigate = useNavigate();
   const [, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const confirm = useConfirm();
@@ -239,7 +178,7 @@ function VideosKpiInbox() {
 }
 
 /**
- * KPI 모드에서도 ?videoId=...&lectureId=...&sessionId=... 쿼리 파라미터로
+ * 인박스에서도 ?videoId=...&lectureId=...&sessionId=... 쿼리 파라미터로
  * 영상 상세 오버레이를 띄울 수 있게 하는 마운트 포인트.
  */
 function VideoOverlayMount() {

@@ -71,10 +71,10 @@ export default function DashboardPage() {
         {/* 1) 요약 지표 — 학원 상태 한눈에 */}
         <DashboardWidget title="요약 지표" description="운영 현황">
           <div className="ds-section__kpi-list">
-            <KpiRow label="운영 강의" value={lError ? "불러오기 실패" : lLoading ? "로딩 중…" : `${lectures.length}개`} />
-            <KpiRow label="운영 중 시험" value={eError ? "불러오기 실패" : eLoading ? "로딩 중…" : `${activeExams.length}건`} />
-            <KpiRow label="오늘 학생 제출" value={sError ? "불러오기 실패" : sLoading ? "로딩 중…" : `${todaySubs.length}건`} />
-            <KpiRow label="미답변 질의" value={qError ? "불러오기 실패" : qLoading ? "로딩 중…" : `${pendingQnaCount}건`} />
+            <KpiRow label="운영 강의" loading={lLoading} error={lError} value={`${lectures.length}개`} />
+            <KpiRow label="운영 중 시험" loading={eLoading} error={eError} value={`${activeExams.length}건`} />
+            <KpiRow label="오늘 학생 제출" loading={sLoading} error={sError} value={`${todaySubs.length}건`} />
+            <KpiRow label="미답변 질의" loading={qLoading} error={qError} value={`${pendingQnaCount}건`} />
           </div>
         </DashboardWidget>
 
@@ -86,17 +86,23 @@ export default function DashboardPage() {
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             <TodoRow
               label="미답변 질의"
-              value={qError ? "불러오기 실패" : qLoading ? "로딩 중…" : `답변하기 ${pendingQnaCount}건`}
+              loading={qLoading}
+              error={qError}
+              value={`답변하기 ${pendingQnaCount}건`}
               onClick={() => navigate("/admin/community/qna")}
             />
             <TodoRow
               label="제출 채점 대기"
-              value={sError ? "불러오기 실패" : sLoading ? "로딩 중…" : `채점하기 ${pendingSubs.length}건`}
+              loading={sLoading}
+              error={sError}
+              value={`채점하기 ${pendingSubs.length}건`}
               onClick={() => navigate("/admin/results/submissions")}
             />
             <TodoRow
               label="운영 중 시험"
-              value={eError ? "불러오기 실패" : eLoading ? "로딩 중…" : `관리하기 ${activeExams.length}건`}
+              loading={eLoading}
+              error={eError}
+              value={`관리하기 ${activeExams.length}건`}
               onClick={() => navigate("/admin/exams")}
             />
             <TodoRow
@@ -137,12 +143,16 @@ export default function DashboardPage() {
 function TodoRow({
   label,
   value,
+  loading,
+  error,
   icon,
   onClick,
   ...rest
 }: {
   label: string;
   value: string;
+  loading?: boolean;
+  error?: boolean;
   icon?: React.ReactNode;
   onClick: () => void;
   [key: string]: any;
@@ -177,22 +187,46 @@ function TodoRow({
           color: "var(--color-text-primary)",
         }}>{label}</span>
       </span>
-      <span style={{
-        flexShrink: 0,
-        fontSize: 16,
-        fontWeight: 700,
-        color: "var(--color-primary)",
-        letterSpacing: "-0.01em",
-      }}>{value} →</span>
+      {loading ? (
+        <span
+          aria-label="로딩 중"
+          className="skeleton"
+          style={{ flexShrink: 0, width: 110, height: 18, borderRadius: 6 }}
+        />
+      ) : error ? (
+        <span style={{ flexShrink: 0, fontSize: 13, color: "var(--color-text-muted)" }}>
+          불러오기 실패 →
+        </span>
+      ) : (
+        <span style={{
+          flexShrink: 0,
+          fontSize: 16,
+          fontWeight: 700,
+          color: "var(--color-primary)",
+          letterSpacing: "-0.01em",
+        }}>{value} →</span>
+      )}
     </button>
   );
 }
 
-function KpiRow({ label, value }: { label: string; value: string }) {
+function KpiRow({ label, value, loading, error }: { label: string; value: string; loading?: boolean; error?: boolean }) {
   return (
     <div className="ds-section__kpi-row">
       <span className="ds-section__kpi-label">{label}</span>
-      <span className="ds-section__kpi-value">{value}</span>
+      {loading ? (
+        <span
+          aria-label="로딩 중"
+          className="skeleton ds-section__kpi-value"
+          style={{ width: 60, height: 18, borderRadius: 6 }}
+        />
+      ) : error ? (
+        <span className="ds-section__kpi-value" style={{ color: "var(--color-text-muted)", fontWeight: 400 }}>
+          불러오기 실패
+        </span>
+      ) : (
+        <span className="ds-section__kpi-value">{value}</span>
+      )}
     </div>
   );
 }

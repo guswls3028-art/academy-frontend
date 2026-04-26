@@ -15,8 +15,8 @@ const CLINIC_TABS = [
 ];
 
 const DESCRIPTIONS: Record<string, string> = {
-  remediation: "진행중 항목 관리 — 불합격/미응시/미제출 통과 처리, 재시험 운영, 클리닉 일정까지",
-  regular: "정규 클리닉 운영 — 반별 일정·출석·통과 처리. 반별 출석은 강의 상세 → 차시 탭에서 관리",
+  remediation: "불합격·미제출 통과 처리와 재시험 일정을 한 곳에서.",
+  regular: "정규 클리닉 일정과 통과 처리. 반별 출석은 강의 상세에서.",
 };
 
 export default function ClinicLayout() {

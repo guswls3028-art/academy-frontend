@@ -326,15 +326,15 @@ export default function LecturesPage({ tab = "active" }: LecturesPageProps) {
                           {lec.title}
                         </span>
                       </td>
-                      <td>{lec.subject || "-"}</td>
-                      <td>{lec.name || "-"}</td>
-                      <td>{lec.lecture_time || "-"}</td>
+                      <td>{lec.subject || <span style={{ color: "var(--color-text-muted)" }}>미입력</span>}</td>
+                      <td>{lec.name || <span style={{ color: "var(--color-text-muted)" }}>미배정</span>}</td>
+                      <td>{lec.lecture_time || <span style={{ color: "var(--color-text-muted)" }}>미설정</span>}</td>
                       <td style={{ fontWeight: 600 }}>
                         {lec.start_date && lec.end_date
                           ? `${lec.start_date} ~ ${lec.end_date}`
                           : lec.start_date
                             ? `${lec.start_date} ~`
-                            : "-"}
+                            : <span style={{ color: "var(--color-text-muted)", fontWeight: 400 }}>미설정</span>}
                       </td>
                       <td onClick={(e) => e.stopPropagation()} style={{ verticalAlign: "middle", padding: "4px 8px" }}>
                         <button

@@ -6,6 +6,19 @@ import api from "@/shared/api/axios";
 
 const PREFIX = "/community";
 
+// 백엔드가 mapping join 등으로 동일 post를 다중 row로 반환하는 케이스 방어.
+// 첫 occurrence 기준으로 dedupe (mapping context 보존).
+function dedupeById<T extends { id: number }>(rows: T[]): T[] {
+  const seen = new Set<number>();
+  const out: T[] = [];
+  for (const r of rows) {
+    if (seen.has(r.id)) continue;
+    seen.add(r.id);
+    out.push(r);
+  }
+  return out;
+}
+
 export type CommunityScope = "all" | "lecture" | "session";
 
 export interface CommunityScopeParams {
@@ -140,7 +153,8 @@ export async function fetchNoticePosts(params?: { page?: number; pageSize?: numb
   const res = await api.get(url);
   const data = res.data;
   // 호환: 배열 또는 {count, results} 형식 모두 지원
-  return Array.isArray(data) ? data : Array.isArray(data?.results) ? data.results : [];
+  const rows = Array.isArray(data) ? data : Array.isArray(data?.results) ? data.results : [];
+  return dedupeById(rows as PostEntity[]);
 }
 
 /** 게시판 목록 — GET /community/posts/board/ */
@@ -152,7 +166,8 @@ export async function fetchBoardPostsByEndpoint(params?: { page?: number; pageSi
   const url = qs ? `${PREFIX}/posts/board/?${qs}` : `${PREFIX}/posts/board/`;
   const res = await api.get(url);
   const data = res.data;
-  return Array.isArray(data) ? data : Array.isArray(data?.results) ? data.results : [];
+  const rows = Array.isArray(data) ? data : Array.isArray(data?.results) ? data.results : [];
+  return dedupeById(rows as PostEntity[]);
 }
 
 /** 자료실 목록 — GET /community/posts/materials/ */
@@ -164,7 +179,8 @@ export async function fetchMaterialsPostsByEndpoint(params?: { page?: number; pa
   const url = qs ? `${PREFIX}/posts/materials/?${qs}` : `${PREFIX}/posts/materials/`;
   const res = await api.get(url);
   const data = res.data;
-  return Array.isArray(data) ? data : Array.isArray(data?.results) ? data.results : [];
+  const rows = Array.isArray(data) ? data : Array.isArray(data?.results) ? data.results : [];
+  return dedupeById(rows as PostEntity[]);
 }
 
 /** 관리자 목록: post_type, lecture_id, q(서버 검색), page, page_size */

@@ -61,7 +61,13 @@ export default function FeesDashboardTab() {
   });
 
   if (isLoading) {
-    return <div style={{ padding: 24, color: "var(--color-text-muted)" }}>불러오는 중...</div>;
+    return (
+      <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 12 }} aria-label="로딩 중">
+        <div className="skeleton" style={{ height: 80, borderRadius: 12 }} />
+        <div className="skeleton" style={{ height: 80, borderRadius: 12 }} />
+        <div className="skeleton" style={{ height: 220, borderRadius: 12 }} />
+      </div>
+    );
   }
 
   if (isError) {

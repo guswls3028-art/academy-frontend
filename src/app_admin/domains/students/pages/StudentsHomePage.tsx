@@ -159,7 +159,7 @@ export default function StudentsHomePage() {
       <span className="text-[var(--color-border-divider)]">|</span>
       {!isDeletedTab && (
         <>
-          <Button intent="secondary" size="sm" onClick={() => {
+          <Button intent="secondary" size="sm" disabled={selectedIds.length === 0} onClick={() => {
             // 현재 테이블에 표시된 학생만 발송 대상에 포함 (이전 검색의 잔여 선택 제외)
             const visibleIds = new Set((data ?? []).map((s) => s.id));
             const validIds = selectedIds.filter((studentId) => visibleIds.has(studentId));
@@ -174,6 +174,7 @@ export default function StudentsHomePage() {
           <Button
             intent="secondary"
             size="sm"
+            disabled={selectedIds.length === 0}
             onClick={() => {
               const selected = (data ?? []).filter((s) => selectedIds.includes(s.id));
               if (selected.length === 0) {
@@ -205,6 +206,8 @@ export default function StudentsHomePage() {
           <Button intent="secondary" size="sm" onClick={() => setShowPasswordResetModal(true)} disabled={selectedIds.length === 0}>
             비밀번호 변경
           </Button>
+          {/* destructive 액션은 시각적으로 분리 — 위험 액션 오클릭 방지 */}
+          <span className="text-[var(--color-border-divider)]" aria-hidden>|</span>
           <Button
             intent="danger"
             size="sm"

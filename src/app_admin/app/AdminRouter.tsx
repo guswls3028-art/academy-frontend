@@ -5,7 +5,6 @@ import { Suspense } from "react";
 import { lazyWithRetry as lazy } from "@/shared/utils/lazyWithRetry";
 import { Routes, Route, Navigate, useParams } from "react-router-dom";
 import { default as AppLayout } from "@admin/layout/AppLayout";
-import { DomainLayout } from "@/shared/ui/layout";
 import { SendMessageModalProvider } from "@admin/domains/messages/context/SendMessageModalContext";
 
 function AdminRouteFallback() {
@@ -114,9 +113,13 @@ const ExamDomainLayout = lazy(() => import("@admin/domains/exams/pages/ExamDomai
 const ExamExplorerPage = lazy(() => import("@admin/domains/exams/pages/ExamExplorerPage"));
 const ExamTemplatesPage = lazy(() => import("@admin/domains/exams/pages/ExamTemplatesPage"));
 const ExamBundlesPage = lazy(() => import("@admin/domains/exams/pages/ExamBundlesPage"));
+const ResultsDomainLayout = lazy(() => import("@admin/domains/results/pages/ResultsDomainLayout"));
 const ResultsExplorerPage = lazy(() => import("@admin/domains/results/pages/ResultsExplorerPage"));
+const ResultsTreePage = lazy(() => import("@admin/domains/results/pages/ResultsTreePage"));
 const SubmissionsInboxPage = lazy(() => import("@admin/domains/submissions/pages/SubmissionsInboxPage"));
+const VideoDomainLayout = lazy(() => import("@admin/domains/videos/pages/VideoDomainLayout"));
 const VideoExplorerPage = lazy(() => import("@admin/domains/videos/pages/VideoExplorerPage"));
+const VideoTreePage = lazy(() => import("@admin/domains/videos/pages/VideoTreePage"));
 import VideoIdToSessionRedirect from "@admin/domains/videos/pages/VideoIdToSessionRedirect";
 
 /* ================= Lazy: Placeholder ================= */
@@ -126,12 +129,6 @@ function QnaReadRedirect() {
   const { id } = useParams<{ id: string }>();
   return <Navigate to={id ? `/admin/community/qna?id=${id}` : "/admin/community/qna"} replace />;
 }
-
-const NoticePage = () => (
-  <DomainLayout title="공지" description="전체 공지 관리">
-    <div className="p-6">공지 페이지</div>
-  </DomainLayout>
-);
 
 function wrapLazy(Component: React.LazyExoticComponent<React.ComponentType<any>>) {
   return (
@@ -215,13 +212,19 @@ export default function AdminRouter() {
           <Route path="templates" element={wrapLazy(ExamTemplatesPage)} />
           <Route path="bundles" element={wrapLazy(ExamBundlesPage)} />
         </Route>
-        <Route path="results/submissions" element={wrapLazy(SubmissionsInboxPage)} />
-        <Route path="results" element={wrapLazy(ResultsExplorerPage)} />
-        <Route path="videos" element={wrapLazy(VideoExplorerPage)} />
+        <Route path="results" element={wrapLazy(ResultsDomainLayout)}>
+          <Route index element={wrapLazy(ResultsExplorerPage)} />
+          <Route path="tree" element={wrapLazy(ResultsTreePage)} />
+          <Route path="submissions" element={wrapLazy(SubmissionsInboxPage)} />
+        </Route>
+        <Route path="videos" element={wrapLazy(VideoDomainLayout)}>
+          <Route index element={wrapLazy(VideoExplorerPage)} />
+          <Route path="tree" element={wrapLazy(VideoTreePage)} />
+        </Route>
         <Route path="videos/:videoId" element={<VideoIdToSessionRedirect />} />
 
         <Route path="counsel" element={wrapLazy(CounselPage)} />
-        <Route path="notice" element={<NoticePage />} />
+        <Route path="notice" element={<Navigate to="/admin/community/notice" replace />} />
         <Route path="message/*" element={wrapLazy(MessageRoutes)} />
 
         {/* ================= Community ================= */}

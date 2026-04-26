@@ -19,11 +19,10 @@ export default function FeesPage() {
   // program 로드 전에는 플래그 미확정 — 즉시 Navigate 금지 (대시보드 오탈리 다이렉트 방지)
   if (isLoading) {
     return (
-      <div
-        className="p-6"
-        style={{ color: "var(--color-text-secondary)", minHeight: 160 }}
-      >
-        불러오는 중…
+      <div className="p-6 flex flex-col gap-3" aria-label="로딩 중">
+        <div className="skeleton" style={{ height: 36, width: 220, borderRadius: 8 }} />
+        <div className="skeleton" style={{ height: 80, borderRadius: 12 }} />
+        <div className="skeleton" style={{ height: 220, borderRadius: 12 }} />
       </div>
     );
   }

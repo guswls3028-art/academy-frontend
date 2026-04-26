@@ -1,78 +1,20 @@
 /**
  * PATH: src/app_admin/domains/results/pages/ResultsExplorerPage.tsx
  *
- * 성적 도메인 첫 화면 — KPI 인박스 (기본) + 강의별 탐색 (보조 토글)
- *
- * 변경 (2026-04-26):
- *  - 기존 트리 단독 진입 → KPI 4개 + 인박스 2개로 즉시 가치 노출
- *  - 트리 모드는 우상단 「강의별 탐색」 토글로 보존 (localStorage 기억)
+ * 성적 도메인 「오늘의 작업」 탭 — KPI 인박스 + 채점 대기/완료 인박스
+ * 부모 ResultsDomainLayout 이 제목/탭을 제공한다.
  */
-import { useState, useMemo } from "react";
+import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { LayoutGrid, FolderTree } from "lucide-react";
-import { Button, KPI } from "@/shared/ui/ds";
-import { DomainLayout } from "@/shared/ui/layout";
+import { KPI } from "@/shared/ui/ds";
 import {
   fetchResultsLandingStats,
   type LandingSubmissionSummary,
 } from "../api/landingStats";
-import ResultsTreeView from "../components/ResultsTreeView";
 import DashboardWidget from "@admin/domains/dashboard/components/DashboardWidget";
 
-const MODE_KEY = "admin.results.explorerMode";
-
-type Mode = "kpi" | "tree";
-
-function readMode(): Mode {
-  try {
-    const v = localStorage.getItem(MODE_KEY);
-    if (v === "tree" || v === "kpi") return v;
-  } catch {
-    // localStorage 미사용 환경
-  }
-  return "kpi";
-}
-
-function writeMode(m: Mode) {
-  try {
-    localStorage.setItem(MODE_KEY, m);
-  } catch {
-    // ignore
-  }
-}
-
 export default function ResultsExplorerPage() {
-  const [mode, setMode] = useState<Mode>(() => readMode());
-
-  const handleToggle = () => {
-    const next: Mode = mode === "kpi" ? "tree" : "kpi";
-    setMode(next);
-    writeMode(next);
-  };
-
-  return (
-    <DomainLayout
-      title="성적"
-      description={mode === "kpi" ? "오늘 처리할 성적 작업을 한눈에 확인하세요." : undefined}
-      headerActions={
-        <Button
-          intent="ghost"
-          size="sm"
-          onClick={handleToggle}
-          leftIcon={mode === "kpi" ? <FolderTree size={14} /> : <LayoutGrid size={14} />}
-          data-testid="results-mode-toggle"
-        >
-          {mode === "kpi" ? "강의별 탐색" : "오늘의 작업"}
-        </Button>
-      }
-    >
-      {mode === "kpi" ? <ResultsKpiInbox /> : <ResultsTreeView />}
-    </DomainLayout>
-  );
-}
-
-function ResultsKpiInbox() {
   const navigate = useNavigate();
 
   const { data, isLoading, isError } = useQuery({
@@ -206,6 +148,17 @@ function ResultsKpiInbox() {
   );
 }
 
+function formatSubmissionTime(iso: string | null): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mi = String(d.getMinutes()).padStart(2, "0");
+  return `${mm}/${dd} ${hh}:${mi}`;
+}
+
 function SubmissionRow({
   sub,
   onClick,
@@ -215,10 +168,19 @@ function SubmissionRow({
   onClick: () => void;
   rightLabel: string;
 }) {
+  // 제목 폴백: 강의명 또는 제출 시각으로 구분 보조 — 동일 제목·"(제목 없음)" 다수 노출 시 식별성 회복
+  const titleText = useMemo(() => {
+    if (sub.target_title) return sub.target_title;
+    if (sub.lecture_title) return `${sub.lecture_title} · 제목 미입력`;
+    return "(제목 없음)";
+  }, [sub]);
+
   const subtitle = useMemo(() => {
     const parts: string[] = [];
-    if (sub.student_name) parts.push(sub.student_name);
-    if (sub.lecture_title) parts.push(sub.lecture_title);
+    parts.push(sub.student_name || "학생 미식별");
+    if (sub.lecture_title && sub.target_title) parts.push(sub.lecture_title);
+    const t = formatSubmissionTime(sub.created_at);
+    if (t) parts.push(t);
     return parts.join(" · ");
   }, [sub]);
 
@@ -254,7 +216,7 @@ function SubmissionRow({
             whiteSpace: "nowrap",
           }}
         >
-          {sub.target_title || "(제목 없음)"}
+          {titleText}
         </span>
         {subtitle && (
           <span

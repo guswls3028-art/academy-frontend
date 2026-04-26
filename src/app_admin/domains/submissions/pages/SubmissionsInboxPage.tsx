@@ -9,7 +9,6 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { DomainLayout } from "@/shared/ui/domain";
 import { Button, EmptyState, Tabs, Badge } from "@/shared/ui/ds";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import {
@@ -89,6 +88,12 @@ export default function SubmissionsInboxPage() {
     return clientFilter(sorted, filter);
   }, [q.data, filter]);
 
+  // 식별 필요 카운트 — 배너로 강조해 운영자가 일괄 처리 동선을 인지하게.
+  const needsIdentificationCount = useMemo(
+    () => (q.data ?? []).filter((r) => r.status === "needs_identification").length,
+    [q.data],
+  );
+
   function handleNavigate(row: PendingSubmissionRow) {
     if (row.target_type === "exam") {
       navigate(
@@ -111,19 +116,39 @@ export default function SubmissionsInboxPage() {
           : "제출이 없습니다.";
 
   return (
-    <DomainLayout title="제출함" description="학생이 제출한 시험 · 과제를 확인하고 처리합니다.">
-      <div className="space-y-5">
-        {/* Filter tabs */}
-        <div className="flex items-center justify-between gap-4 flex-wrap">
-          <Tabs
-            value={filter}
-            items={FILTER_TABS}
-            onChange={(key) => setFilter(key as FilterKey)}
-          />
-          <Button type="button" intent="ghost" size="sm" onClick={() => q.refetch()}>
-            새로고침
-          </Button>
+    <div className="space-y-5">
+      {/* 식별 필요 안내 배너 — 학생 미매칭 row가 있을 때만 노출 */}
+      {needsIdentificationCount > 0 && (
+        <div
+          className="flex items-center justify-between gap-3 rounded-xl px-4 py-3 border"
+          style={{
+            background: "color-mix(in srgb, var(--color-warning, #f59e0b) 8%, var(--color-bg-surface))",
+            borderColor: "color-mix(in srgb, var(--color-warning, #f59e0b) 24%, transparent)",
+          }}
+          data-testid="submissions-needs-identification-banner"
+        >
+          <div className="flex flex-col gap-0.5 min-w-0">
+            <span className="text-sm font-bold text-[var(--color-text-primary)]">
+              학생 미식별 제출 {needsIdentificationCount}건
+            </span>
+            <span className="text-xs text-[var(--color-text-muted)]">
+              스캔/AI 업로드 후 학생 매칭이 안 된 제출입니다. 행을 열어 학생을 지정하면 자동 채점 큐에 들어갑니다.
+            </span>
+          </div>
         </div>
+      )}
+
+      {/* Filter tabs */}
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <Tabs
+          value={filter}
+          items={FILTER_TABS}
+          onChange={(key) => setFilter(key as FilterKey)}
+        />
+        <Button type="button" intent="ghost" size="sm" onClick={() => q.refetch()}>
+          새로고침
+        </Button>
+      </div>
 
         {/* Loading */}
         {q.isLoading && (
@@ -163,9 +188,9 @@ export default function SubmissionsInboxPage() {
                   key={r.id}
                   className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--color-bg-surface-soft)] transition-colors"
                 >
-                  {/* Student avatar + name */}
+                  {/* Student avatar + name (식별 필요 시 미식별 학생 라벨) */}
                   <StudentNameWithLectureChip
-                    name={r.student_name}
+                    name={r.student_name || "미식별 학생"}
                     profilePhotoUrl={r.profile_photo_url}
                     avatarSize={32}
                     lectures={
@@ -227,7 +252,6 @@ export default function SubmissionsInboxPage() {
             })}
           </div>
         )}
-      </div>
-    </DomainLayout>
+    </div>
   );
 }

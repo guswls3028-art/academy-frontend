@@ -181,7 +181,7 @@ export default function ExamExplorerPage() {
                 scope="panel"
                 tone="empty"
                 title="이 차시에 시험이 없습니다"
-                description="강의 > 차시에서 시험을 추가할 수 있습니다."
+                description="차시 시험을 추가하면 학생이 응시할 수 있습니다."
                 actions={
                   selectedSession && (
                     <Button
@@ -193,7 +193,7 @@ export default function ExamExplorerPage() {
                         )
                       }
                     >
-                      시험 관리
+                      차시 시험 만들기
                     </Button>
                   )
                 }
