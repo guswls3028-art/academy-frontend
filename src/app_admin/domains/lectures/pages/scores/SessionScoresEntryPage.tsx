@@ -18,7 +18,7 @@ import {
   type SessionScoreRow,
 } from "@admin/domains/scores/api/sessionScores";
 import { scoresQueryKeys } from "@admin/domains/scores/api/queryKeys";
-import { Button, EmptyState } from "@/shared/ui/ds";
+import { Button, EmptyState, Badge } from "@/shared/ui/ds";
 import { DomainListToolbar } from "@/shared/ui/domain";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter } from "@/shared/ui/modal";
 import { useSendMessageModal } from "@admin/domains/messages/context/SendMessageModalContext";
@@ -593,7 +593,7 @@ export default function SessionScoresEntryPage(_props: Props) {
                     setShowOmrPicker(false);
                   }}
                 >
-                  <span className="ds-status-badge ds-status-badge--1ch" data-tone="primary" aria-label="시험">시</span>
+                  <Badge variant="solid" tone="primary" oneChar ariaLabel="시험">시</Badge>
                   {ex.title}
                 </button>
               ))}

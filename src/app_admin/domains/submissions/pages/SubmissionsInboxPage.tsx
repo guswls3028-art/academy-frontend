@@ -10,7 +10,7 @@ import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { DomainLayout } from "@/shared/ui/domain";
-import { Button, EmptyState, Tabs } from "@/shared/ui/ds";
+import { Button, EmptyState, Tabs, Badge } from "@/shared/ui/ds";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import {
   SUBMISSION_STATUS_LABEL,
@@ -204,9 +204,9 @@ export default function SubmissionsInboxPage() {
                   <span className="flex-1" />
 
                   {/* Status badge */}
-                  <span className="ds-status-badge flex-shrink-0" data-tone={tone}>
+                  <Badge variant="solid" tone={tone} className="flex-shrink-0">
                     {statusLabel}
-                  </span>
+                  </Badge>
 
                   {/* Submission time */}
                   <span className="text-xs text-[var(--color-text-muted)] flex-shrink-0 tabular-nums">

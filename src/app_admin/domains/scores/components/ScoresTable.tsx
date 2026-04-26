@@ -23,6 +23,7 @@ import { getHomeworkStatus } from "../utils/homeworkStatus";
 import { getSessionScoresTableVerdict } from "../utils/sessionScoreRowVerdict";
 import ScoreInputCell from "./ScoreInputCell";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
+import { Badge } from "@/shared/ui/ds";
 import { DomainTable, ResizableTh, useTableColumnPrefs } from "@/shared/ui/domain";
 import type { TableColumnDef } from "@/shared/ui/domain";
 import {
@@ -690,7 +691,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                 data-group-parity={exIdx % 2 === 0 ? "even" : "odd"}
               >
                 <span className="inline-flex items-center gap-1">
-                  <span className="ds-status-badge ds-status-badge--1ch" data-tone="primary" aria-label="시험">시</span>
+                  <Badge variant="solid" tone="primary" oneChar ariaLabel="시험">시</Badge>
                   <span className="truncate">{ex.title}</span>
                 </span>
               </th>
@@ -705,7 +706,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
               data-summary-start=""
             >
               <span className="inline-flex items-center gap-1 whitespace-nowrap">
-                <span className="ds-status-badge ds-status-badge--1ch" data-tone="primary" aria-label="총점">Σ</span>
+                <Badge variant="solid" tone="primary" oneChar ariaLabel="총점">Σ</Badge>
                 <span>총점</span>
               </span>
             </th>
@@ -722,7 +723,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
               data-group-parity={idx % 2 === 0 ? "even" : "odd"}
             >
               <span className="inline-flex items-center gap-1">
-                <span className="ds-status-badge ds-status-badge--1ch" data-tone="complement" aria-label="과제">과</span>
+                <Badge variant="solid" tone="complement" oneChar ariaLabel="과제">과</Badge>
                 <span className="truncate">{hw.title}</span>
               </span>
             </th>
