@@ -1,6 +1,6 @@
 // PATH: src/app_admin/domains/storage/components/matchup/MatchupEmptyState.tsx
 
-import { FileSearch, MessageCircle, FolderOpen } from "lucide-react";
+import { FileSearch, MessageCircle, BookOpen, ClipboardList, FolderOpen, Info } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/shared/ui/ds";
 import css from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
@@ -15,35 +15,97 @@ export default function MatchupEmptyState({ onUpload }: Props) {
         <FileSearch size={28} />
       </div>
       <h3 className={css.placeholderTitle}>AI 매치업</h3>
-      <p className={css.placeholderDesc}>
-        교재·기출 등 <strong>참고 자료를 먼저 등록</strong>하세요.
-        <br />
-        학생이 본 <strong>시험지를 올리면</strong> 등록된 자료에서 AI가 유사 문제를 찾아 추천합니다.
+      <p className={css.placeholderDesc} style={{ maxWidth: 480 }}>
+        <strong>교재·기출(참고 자료)</strong>을 먼저 등록한 뒤, 학생이 본 <strong>시험지</strong>를 올리면<br />
+        AI가 자료에서 유사 문제를 찾아드립니다.
       </p>
-      <div className={css.placeholderAction} style={{ display: "flex", gap: "var(--space-2)", flexWrap: "wrap", justifyContent: "center" }}>
-        <Button size="md" onClick={onUpload} data-testid="matchup-empty-upload-btn">
-          자료 업로드
-        </Button>
-        <Button size="md" intent="secondary" onClick={() => navigate("/admin/storage/files")} data-testid="matchup-empty-storage-link">
-          <FolderOpen size={14} style={{ marginRight: 4 }} />
-          저장소에서 가져오기
-        </Button>
+
+      {/* 두 가지 진입점 — 사용자 의도 가시화 (시스템 동작은 동일) */}
+      <div style={{
+        display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+        gap: "var(--space-3)", maxWidth: 540, width: "100%", marginTop: "var(--space-2)",
+      }}>
+        <button
+          type="button"
+          onClick={onUpload}
+          data-testid="matchup-empty-reference-btn"
+          style={{
+            display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 8,
+            padding: "var(--space-4)",
+            borderRadius: "var(--radius-md)",
+            background: "color-mix(in srgb, var(--color-brand-primary) 6%, transparent)",
+            border: "1px solid color-mix(in srgb, var(--color-brand-primary) 35%, transparent)",
+            cursor: "pointer",
+            textAlign: "left",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--color-brand-primary)" }}>
+            <BookOpen size={18} />
+            <span style={{ fontSize: 14, fontWeight: 700 }}>참고 자료 업로드</span>
+          </div>
+          <span style={{ fontSize: 12, color: "var(--color-text-secondary)", lineHeight: 1.5 }}>
+            교재·기출 PDF를 등록해 두면 학생 시험지와 비교할 풀이 만들어집니다.
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={onUpload}
+          data-testid="matchup-empty-test-btn"
+          style={{
+            display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 8,
+            padding: "var(--space-4)",
+            borderRadius: "var(--radius-md)",
+            background: "var(--color-bg-surface-soft)",
+            border: "1px solid var(--color-border-divider)",
+            cursor: "pointer",
+            textAlign: "left",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--color-text-primary)" }}>
+            <ClipboardList size={18} />
+            <span style={{ fontSize: 14, fontWeight: 700 }}>학생 시험지 업로드</span>
+          </div>
+          <span style={{ fontSize: 12, color: "var(--color-text-secondary)", lineHeight: 1.5 }}>
+            분석할 시험지를 올리면 등록된 자료에서 유사 문제를 찾아 추천합니다.
+          </span>
+        </button>
       </div>
-      <p style={{ fontSize: 12, color: "var(--color-text-muted)", marginTop: "var(--space-3)", maxWidth: 420, textAlign: "center" }}>
-        저장소에 PDF가 이미 있다면, 파일 클릭 후 <strong>"매치업 자료로 등록"</strong>으로 바로 분석에 추가할 수 있습니다.
-      </p>
+
+      <Button
+        size="sm"
+        intent="ghost"
+        onClick={() => navigate("/admin/storage/files")}
+        data-testid="matchup-empty-storage-link"
+        leftIcon={<FolderOpen size={14} />}
+        style={{ marginTop: "var(--space-2)" }}
+      >
+        저장소에서 가져오기
+      </Button>
+
+      <div style={{
+        marginTop: "var(--space-4)",
+        padding: "8px var(--space-3)",
+        borderRadius: "var(--radius-sm)",
+        background: "var(--color-bg-surface-soft)",
+        display: "flex", alignItems: "flex-start", gap: 8,
+        maxWidth: 540, fontSize: 11, color: "var(--color-text-muted)", lineHeight: 1.5,
+      }}>
+        <Info size={13} style={{ flexShrink: 0, marginTop: 2 }} />
+        <span>두 종류 모두 같은 매치업 풀에 등록되며 서로 자동 비교됩니다. 진행 후에도 자료/시험지를 자유롭게 추가할 수 있습니다.</span>
+      </div>
       <div className={css.placeholderSteps}>
         <div className={css.placeholderStep}>
           <span className={css.placeholderStepNum}>1</span>
-          <span>시험지 PDF/이미지 업로드</span>
+          <span>참고 자료 등록 (교재/기출)</span>
         </div>
         <div className={css.placeholderStep}>
           <span className={css.placeholderStepNum}>2</span>
-          <span>AI가 문제별로 분석</span>
+          <span>학생 시험지 업로드</span>
         </div>
         <div className={css.placeholderStep}>
           <span className={css.placeholderStepNum}>3</span>
-          <span>유사 문제 자동 추천</span>
+          <span>AI 유사 문제 추천</span>
         </div>
       </div>
 
