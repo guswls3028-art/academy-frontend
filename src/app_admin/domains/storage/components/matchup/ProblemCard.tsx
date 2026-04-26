@@ -45,6 +45,13 @@ export default function ProblemCard({ problem, selected, onClick }: Props) {
         data-testid="matchup-problem-card"
         data-problem-id={problem.id}
         onClick={onClick}
+        onDoubleClick={(e) => {
+          if (imgUrl) {
+            e.stopPropagation();
+            setZoomOpen(true);
+          }
+        }}
+        title={imgUrl ? "더블클릭 = 크게 보기" : undefined}
         style={{
           border: selected
             ? "2px solid var(--color-brand-primary)"

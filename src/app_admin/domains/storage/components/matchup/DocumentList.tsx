@@ -1,10 +1,15 @@
 // PATH: src/app_admin/domains/storage/components/matchup/DocumentList.tsx
 // 좌측 문서 목록 패널
 //
-// 검색 + 상태 필터 + 정렬 추가. 500개 누적 시 탐색 가능하도록.
+// 멘탈 모델: 카테고리(학교/세트) → intent(시험지/참고자료) → 문서.
+// 사용자는 저장소에서 폴더로 학교를 분류하고, 매치업도 그 폴더 단위로 보고 싶어함.
+// 빈 카테고리 자동 접힘. 검색 + 상태 필터.
 
 import { useMemo, useState } from "react";
-import { FileText, Loader2, AlertCircle, CheckCircle2, RefreshCw, Trash2, Search, X, BookOpen, ClipboardList } from "lucide-react";
+import {
+  FileText, Loader2, AlertCircle, CheckCircle2, RefreshCw, Trash2,
+  Search, X, BookOpen, ClipboardList, ChevronDown, ChevronRight, FolderOpen,
+} from "lucide-react";
 import { Button } from "@/shared/ui/ds";
 import { useConfirm } from "@/shared/ui/confirm";
 import type { MatchupDocument, SegmentationMethod } from "../../api/matchup.api";
@@ -23,6 +28,9 @@ type Props = {
 };
 
 type StatusFilter = "all" | "processing" | "done" | "failed";
+
+const UNCATEGORIZED_KEY = "__uncategorized__";
+const UNCATEGORIZED_LABEL = "미분류";
 
 const STATUS_ICON = {
   pending: <Loader2 size={14} style={{ color: "var(--color-text-muted)" }} />,
@@ -46,6 +54,14 @@ const SEG_META: Record<SegmentationMethod, { label: string; color: string; tip: 
   none: { label: "미검출", color: "var(--color-warning)", tip: "문제 영역을 못 찾음 — 페이지 단위로 처리됨" },
 };
 
+function categoryKeyOf(doc: MatchupDocument): string {
+  return (doc.category || "").trim() || UNCATEGORIZED_KEY;
+}
+
+function categoryLabelOf(key: string): string {
+  return key === UNCATEGORIZED_KEY ? UNCATEGORIZED_LABEL : key;
+}
+
 export default function DocumentList({
   documents, selectedId, onSelect, onUpload, onDelete, onRetry,
   progressMap = {},
@@ -53,6 +69,7 @@ export default function DocumentList({
   const confirm = useConfirm();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -71,14 +88,29 @@ export default function DocumentList({
       );
     });
   }, [documents, search, statusFilter]);
-  const filteredReference = useMemo(
-    () => filtered.filter((d) => getDocumentIntent(d) === "reference"),
-    [filtered],
-  );
-  const filteredTests = useMemo(
-    () => filtered.filter((d) => getDocumentIntent(d) === "test"),
-    [filtered],
-  );
+
+  // 카테고리(학교) > intent(시험지/참고자료) 2단 그룹.
+  // 카테고리 정렬: 미분류 마지막, 나머지는 가나다순.
+  const grouped = useMemo(() => {
+    const map = new Map<string, { test: MatchupDocument[]; reference: MatchupDocument[] }>();
+    for (const d of filtered) {
+      const key = categoryKeyOf(d);
+      if (!map.has(key)) map.set(key, { test: [], reference: [] });
+      const intent = getDocumentIntent(d);
+      map.get(key)![intent === "test" ? "test" : "reference"].push(d);
+    }
+    const keys = Array.from(map.keys()).sort((a, b) => {
+      if (a === UNCATEGORIZED_KEY) return 1;
+      if (b === UNCATEGORIZED_KEY) return -1;
+      return a.localeCompare(b, "ko");
+    });
+    return keys.map((key) => ({
+      key,
+      label: categoryLabelOf(key),
+      tests: map.get(key)!.test,
+      references: map.get(key)!.reference,
+    }));
+  }, [filtered]);
 
   const counts = useMemo(() => ({
     all: documents.length,
@@ -86,6 +118,10 @@ export default function DocumentList({
     done: documents.filter((d) => d.status === "done").length,
     failed: documents.filter((d) => d.status === "failed").length,
   }), [documents]);
+
+  const toggleCollapse = (key: string) => {
+    setCollapsed((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
 
   const handleDelete = async (e: React.MouseEvent, id: number) => {
     e.stopPropagation();
@@ -114,6 +150,154 @@ export default function DocumentList({
     borderRadius: 4,
     cursor: "pointer",
   });
+
+  const renderDocRow = (doc: MatchupDocument) => {
+    const segMethod = doc.meta?.segmentation_method;
+    const segInfo = segMethod ? SEG_META[segMethod] : null;
+    const progress = progressMap[doc.id];
+    const isSelected = selectedId === doc.id;
+    const intent = getDocumentIntent(doc);
+
+    return (
+      <div
+        key={doc.id}
+        data-testid="matchup-doc-row"
+        data-doc-id={doc.id}
+        onClick={() => onSelect(doc.id)}
+        style={{
+          display: "flex",
+          alignItems: "flex-start",
+          gap: "var(--space-2)",
+          padding: "var(--space-2) var(--space-3)",
+          cursor: "pointer",
+          borderRadius: "var(--radius-md)",
+          margin: "0 var(--space-2) 2px var(--space-3)",
+          background: isSelected
+            ? "color-mix(in srgb, var(--color-brand-primary) 8%, var(--color-bg-surface))"
+            : doc.status === "failed"
+              ? "color-mix(in srgb, var(--color-danger) 4%, transparent)"
+              : intent === "test"
+                ? "color-mix(in srgb, var(--color-warning) 5%, transparent)"
+                : undefined,
+          borderLeft: isSelected
+            ? "3px solid var(--color-brand-primary)"
+            : doc.status === "failed"
+              ? "3px solid color-mix(in srgb, var(--color-danger) 40%, transparent)"
+              : intent === "test"
+                ? "3px solid color-mix(in srgb, var(--color-warning) 35%, transparent)"
+                : "3px solid transparent",
+          transition: "background 0.15s, border-color 0.15s",
+        }}
+      >
+        <FileText size={14} style={{ color: "var(--color-text-muted)", marginTop: 2, flexShrink: 0 }} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div
+            title={doc.title}
+            style={{
+              fontSize: 12.5, fontWeight: 600, color: "var(--color-text-primary)",
+              overflow: "hidden", textOverflow: "ellipsis",
+              display: "-webkit-box",
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: "vertical",
+              wordBreak: "break-all",
+              lineHeight: 1.3,
+            }}
+          >
+            {doc.title}
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: "var(--space-1)", marginTop: 2, flexWrap: "wrap" }}>
+            {STATUS_ICON[doc.status]}
+            <span
+              style={{
+                fontSize: 11,
+                color: doc.status === "failed" ? "var(--color-danger)" : "var(--color-text-muted)",
+                fontWeight: doc.status === "failed" ? 600 : 400,
+              }}
+              title={doc.status === "failed" ? doc.error_message || "처리 실패" : undefined}
+            >
+              {doc.status === "done"
+                ? `${doc.problem_count}문제`
+                : doc.status === "processing" && progress && progress.percent > 0
+                  ? `${progress.stepName} ${Math.round(progress.percent)}%`
+                  : STATUS_LABEL[doc.status]}
+            </span>
+
+            {doc.status === "done" && segInfo && (
+              <span
+                title={segInfo.tip}
+                style={{
+                  fontSize: 10,
+                  padding: "1px 6px",
+                  borderRadius: 4,
+                  background: `color-mix(in srgb, ${segInfo.color} 12%, transparent)`,
+                  color: segInfo.color,
+                  fontWeight: 600,
+                }}
+              >
+                {segInfo.label}
+              </span>
+            )}
+
+            {doc.subject && (
+              <span
+                title="과목"
+                style={{
+                  fontSize: 10, padding: "1px 6px", borderRadius: 4,
+                  background: "var(--color-bg-surface-soft)",
+                  color: "var(--color-text-secondary)",
+                  border: "1px solid var(--color-border-divider)",
+                }}
+              >
+                {doc.subject}
+              </span>
+            )}
+          </div>
+
+          {doc.status === "processing" && progress && (
+            <div
+              style={{
+                marginTop: 6,
+                height: 3,
+                borderRadius: 2,
+                background: "var(--color-bg-surface-soft)",
+                overflow: "hidden",
+              }}
+            >
+              <div
+                data-testid="matchup-progress-bar"
+                style={{
+                  width: `${Math.min(100, Math.max(0, progress.percent))}%`,
+                  height: "100%",
+                  background: "var(--color-brand-primary)",
+                  transition: "width 0.3s",
+                }}
+              />
+            </div>
+          )}
+        </div>
+
+        <div style={{ display: "flex", gap: 2, flexShrink: 0, marginTop: 2 }}>
+          {doc.status === "failed" && (
+            <button
+              onClick={(e) => handleRetry(e, doc.id)}
+              title="재시도"
+              style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-danger)", padding: 2 }}
+            >
+              <RefreshCw size={13} />
+            </button>
+          )}
+          <button
+            onClick={(e) => handleDelete(e, doc.id)}
+            title="삭제"
+            style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-muted)", padding: 2 }}
+          >
+            <Trash2 size={13} />
+          </button>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <>
@@ -233,239 +417,124 @@ export default function DocumentList({
           </div>
         )}
 
-        {[{
-          key: "test",
-          title: "시험지",
-          hint: "선생님이 '시험지 업로드'로 올린 문서",
-          docs: filteredTests,
-          color: "var(--color-warning)",
-        }, {
-          key: "reference",
-          title: "참고 자료",
-          hint: "교재/기출 등 비교 대상 자료",
-          docs: filteredReference,
-          color: "var(--color-brand-primary)",
-        }].map((section) => (
-          <div key={section.key} style={{ marginBottom: "var(--space-2)" }}>
-            <div style={{
-              position: "sticky",
-              top: 0,
-              zIndex: 1,
-              margin: "0 var(--space-2) var(--space-1)",
-              padding: "6px var(--space-2)",
-              borderRadius: "var(--radius-sm)",
-              background: "var(--color-bg-surface-soft)",
-              border: "1px solid var(--color-border-divider)",
-              display: "flex",
-              alignItems: "center",
-              gap: "var(--space-2)",
-            }}>
-              <span style={{
-                fontSize: 11,
-                fontWeight: 800,
-                color: section.color,
-              }}>
-                {section.title}
-              </span>
-              <span style={{ fontSize: 11, color: "var(--color-text-muted)" }}>
-                {section.docs.length}건
-              </span>
-              <span style={{ fontSize: 10, color: "var(--color-text-muted)", marginLeft: "auto" }}>
-                {section.hint}
-              </span>
-            </div>
-            {section.docs.length === 0 && (
-              <div style={{
-                margin: "0 var(--space-2)",
-                padding: "var(--space-2) var(--space-3)",
-                borderRadius: "var(--radius-sm)",
-                border: "1px dashed var(--color-border-divider)",
-                color: "var(--color-text-muted)",
-                fontSize: 11,
-              }}>
-                없음
-              </div>
-            )}
-            {section.docs.map((doc) => {
-          const segMethod = doc.meta?.segmentation_method;
-          const segInfo = segMethod ? SEG_META[segMethod] : null;
-          const progress = progressMap[doc.id];
-          const isSelected = selectedId === doc.id;
-          const intent = getDocumentIntent(doc);
-
+        {grouped.map((group) => {
+          const isCollapsed = !!collapsed[group.key];
+          const total = group.tests.length + group.references.length;
+          if (total === 0) return null;
           return (
-            <div
-              key={doc.id}
-              data-testid="matchup-doc-row"
-              data-doc-id={doc.id}
-              onClick={() => onSelect(doc.id)}
-              style={{
-                display: "flex",
-                alignItems: "flex-start",
-                gap: "var(--space-2)",
-                padding: "var(--space-3) var(--space-4)",
-                cursor: "pointer",
-                borderRadius: "var(--radius-md)",
-                margin: "0 var(--space-2)",
-                background: isSelected
-                  ? "color-mix(in srgb, var(--color-brand-primary) 8%, var(--color-bg-surface))"
-                  : doc.status === "failed"
-                    ? "color-mix(in srgb, var(--color-danger) 4%, transparent)"
-                    : intent === "test"
-                      ? "color-mix(in srgb, var(--color-warning) 5%, transparent)"
-                    : undefined,
-                borderLeft: isSelected
-                  ? "3px solid var(--color-brand-primary)"
-                  : doc.status === "failed"
-                    ? "3px solid color-mix(in srgb, var(--color-danger) 40%, transparent)"
-                    : intent === "test"
-                      ? "3px solid color-mix(in srgb, var(--color-warning) 35%, transparent)"
-                    : "3px solid transparent",
-                transition: "background 0.15s, border-color 0.15s",
-              }}
-            >
-              <FileText size={16} style={{ color: "var(--color-text-muted)", marginTop: 2, flexShrink: 0 }} />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div
-                  title={doc.title}
+            <div key={group.key} style={{ marginBottom: "var(--space-2)" }}>
+              {/* 카테고리(학교) 헤더 */}
+              <button
+                type="button"
+                data-testid="matchup-category-header"
+                data-category={group.key === UNCATEGORIZED_KEY ? "" : group.key}
+                onClick={() => toggleCollapse(group.key)}
+                style={{
+                  position: "sticky",
+                  top: 0,
+                  zIndex: 2,
+                  width: "calc(100% - var(--space-4))",
+                  margin: "0 var(--space-2) var(--space-1)",
+                  padding: "8px var(--space-3)",
+                  borderRadius: "var(--radius-sm)",
+                  background: group.key === UNCATEGORIZED_KEY
+                    ? "var(--color-bg-surface-soft)"
+                    : "color-mix(in srgb, var(--color-brand-primary) 8%, var(--color-bg-surface))",
+                  border: "1px solid",
+                  borderColor: group.key === UNCATEGORIZED_KEY
+                    ? "var(--color-border-divider)"
+                    : "color-mix(in srgb, var(--color-brand-primary) 25%, transparent)",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "var(--space-2)",
+                  cursor: "pointer",
+                  textAlign: "left",
+                  fontFamily: "inherit",
+                }}
+              >
+                {isCollapsed
+                  ? <ChevronRight size={13} style={{ color: "var(--color-text-secondary)" }} />
+                  : <ChevronDown size={13} style={{ color: "var(--color-text-secondary)" }} />
+                }
+                <FolderOpen
+                  size={13}
                   style={{
-                    fontSize: 13, fontWeight: 600, color: "var(--color-text-primary)",
-                    overflow: "hidden", textOverflow: "ellipsis",
-                    display: "-webkit-box",
-                    WebkitLineClamp: 2,
-                    WebkitBoxOrient: "vertical",
-                    wordBreak: "break-all",
-                    lineHeight: 1.3,
+                    color: group.key === UNCATEGORIZED_KEY
+                      ? "var(--color-text-muted)"
+                      : "var(--color-brand-primary)",
                   }}
-                >
-                  {doc.title}
-                </div>
+                />
+                <span style={{
+                  fontSize: 12,
+                  fontWeight: 800,
+                  color: group.key === UNCATEGORIZED_KEY
+                    ? "var(--color-text-secondary)"
+                    : "var(--color-brand-primary)",
+                  flex: 1,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}>
+                  {group.label}
+                </span>
+                <span style={{
+                  fontSize: 11,
+                  color: "var(--color-text-muted)",
+                  display: "flex",
+                  gap: 6,
+                  alignItems: "center",
+                  flexShrink: 0,
+                }}>
+                  {group.tests.length > 0 && (
+                    <span title="시험지" style={{ color: "var(--color-warning)", fontWeight: 700 }}>
+                      시험 {group.tests.length}
+                    </span>
+                  )}
+                  {group.references.length > 0 && (
+                    <span title="참고 자료">
+                      자료 {group.references.length}
+                    </span>
+                  )}
+                </span>
+              </button>
 
-                <div style={{ display: "flex", alignItems: "center", gap: "var(--space-1)", marginTop: 2, flexWrap: "wrap" }}>
-                  {STATUS_ICON[doc.status]}
-                  <span
-                    style={{
-                      fontSize: 11,
-                      color: doc.status === "failed" ? "var(--color-danger)" : "var(--color-text-muted)",
-                      fontWeight: doc.status === "failed" ? 600 : 400,
-                    }}
-                    title={doc.status === "failed" ? doc.error_message || "처리 실패" : undefined}
-                  >
-                    {doc.status === "done"
-                      ? `${doc.problem_count}문제`
-                      : doc.status === "processing" && progress && progress.percent > 0
-                        ? `${progress.stepName} ${Math.round(progress.percent)}%`
-                        : STATUS_LABEL[doc.status]}
-                  </span>
-
-                  {doc.status === "done" && segInfo && (
-                    <span
-                      title={segInfo.tip}
-                      style={{
+              {!isCollapsed && (
+                <>
+                  {group.tests.length > 0 && (
+                    <>
+                      <div style={{
+                        margin: "var(--space-1) var(--space-2) 2px var(--space-3)",
                         fontSize: 10,
-                        padding: "1px 6px",
-                        borderRadius: 4,
-                        background: `color-mix(in srgb, ${segInfo.color} 12%, transparent)`,
-                        color: segInfo.color,
-                        fontWeight: 600,
-                      }}
-                    >
-                      {segInfo.label}
-                    </span>
-                  )}
-                  <span
-                    style={{
-                      fontSize: 10,
-                      padding: "1px 6px",
-                      borderRadius: 4,
-                      background: intent === "test"
-                        ? "color-mix(in srgb, var(--color-warning) 15%, transparent)"
-                        : "color-mix(in srgb, var(--color-brand-primary) 10%, transparent)",
-                      color: intent === "test" ? "var(--color-warning)" : "var(--color-brand-primary)",
-                      fontWeight: 700,
-                      border: intent === "test"
-                        ? "1px solid color-mix(in srgb, var(--color-warning) 35%, transparent)"
-                        : "1px solid color-mix(in srgb, var(--color-brand-primary) 35%, transparent)",
-                    }}
-                  >
-                    {intent === "test" ? "시험지" : "참고자료"}
-                  </span>
-
-                  {doc.subject && (
-                    <span
-                      title="과목"
-                      style={{
-                        fontSize: 10, padding: "1px 6px", borderRadius: 4,
-                        background: "var(--color-bg-surface-soft)",
-                        color: "var(--color-text-secondary)",
-                        border: "1px solid var(--color-border-divider)",
-                      }}
-                    >
-                      {doc.subject}
-                    </span>
-                  )}
-                  {doc.category && (
-                    <span
-                      title="카테고리"
-                      style={{
-                        fontSize: 10, padding: "1px 6px", borderRadius: 4,
-                        background: "color-mix(in srgb, var(--color-brand-primary) 8%, transparent)",
-                        color: "var(--color-brand-primary)",
-                        border: "1px solid color-mix(in srgb, var(--color-brand-primary) 35%, transparent)",
                         fontWeight: 700,
-                      }}
-                    >
-                      {doc.category}
-                    </span>
+                        color: "var(--color-warning)",
+                        textTransform: "uppercase",
+                        letterSpacing: 0.4,
+                      }}>
+                        시험지 · {group.tests.length}
+                      </div>
+                      {group.tests.map(renderDocRow)}
+                    </>
                   )}
-                </div>
-
-                {doc.status === "processing" && progress && (
-                  <div
-                    style={{
-                      marginTop: 6,
-                      height: 3,
-                      borderRadius: 2,
-                      background: "var(--color-bg-surface-soft)",
-                      overflow: "hidden",
-                    }}
-                  >
-                    <div
-                      data-testid="matchup-progress-bar"
-                      style={{
-                        width: `${Math.min(100, Math.max(0, progress.percent))}%`,
-                        height: "100%",
-                        background: "var(--color-brand-primary)",
-                        transition: "width 0.3s",
-                      }}
-                    />
-                  </div>
-                )}
-              </div>
-
-              <div style={{ display: "flex", gap: 2, flexShrink: 0, marginTop: 2 }}>
-                {doc.status === "failed" && (
-                  <button
-                    onClick={(e) => handleRetry(e, doc.id)}
-                    title="재시도"
-                    style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-danger)", padding: 2 }}
-                  >
-                    <RefreshCw size={13} />
-                  </button>
-                )}
-                <button
-                  onClick={(e) => handleDelete(e, doc.id)}
-                  title="삭제"
-                  style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-muted)", padding: 2 }}
-                >
-                  <Trash2 size={13} />
-                </button>
-              </div>
+                  {group.references.length > 0 && (
+                    <>
+                      <div style={{
+                        margin: "var(--space-2) var(--space-2) 2px var(--space-3)",
+                        fontSize: 10,
+                        fontWeight: 700,
+                        color: "var(--color-brand-primary)",
+                        textTransform: "uppercase",
+                        letterSpacing: 0.4,
+                      }}>
+                        참고 자료 · {group.references.length}
+                      </div>
+                      {group.references.map(renderDocRow)}
+                    </>
+                  )}
+                </>
+              )}
             </div>
           );
-            })}
-          </div>
-        ))}
+        })}
       </div>
     </>
   );

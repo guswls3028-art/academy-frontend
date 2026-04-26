@@ -266,6 +266,70 @@ export async function getMatchupProblemPresignUrl(
   return data.url;
 }
 
+export async function deleteMatchupProblem(problemId: number): Promise<void> {
+  await api.delete(`/matchup/problems/${problemId}/`);
+}
+
+export async function updateMatchupProblem(
+  problemId: number,
+  payload: { number?: number; text?: string },
+): Promise<MatchupProblem> {
+  const { data } = await api.patch<MatchupProblem>(
+    `/matchup/problems/${problemId}/`,
+    payload,
+  );
+  return data;
+}
+
+// ── 수동 크롭 ──
+
+export type DocumentPage = {
+  index: number;
+  url: string;
+  width: number;
+  height: number;
+};
+
+export type DocumentPagesResponse = {
+  doc_id: number;
+  is_pdf: boolean;
+  page_count: number;
+  pages: DocumentPage[];
+};
+
+export async function fetchDocumentPages(
+  docId: number,
+): Promise<DocumentPagesResponse> {
+  const { data } = await api.get<DocumentPagesResponse>(
+    `/matchup/documents/${docId}/pages/`,
+    { timeout: 60_000 },
+  );
+  return data;
+}
+
+export type ManualCropPayload = {
+  pageIndex: number;
+  bbox: { x: number; y: number; w: number; h: number }; // 모두 0..1
+  number: number;
+  text?: string;
+};
+
+export async function manualCropMatchupProblem(
+  docId: number,
+  payload: ManualCropPayload,
+): Promise<MatchupProblem> {
+  const { data } = await api.post<MatchupProblem>(
+    `/matchup/documents/${docId}/manual-crop/`,
+    {
+      page_index: payload.pageIndex,
+      bbox: payload.bbox,
+      number: payload.number,
+      text: payload.text ?? "",
+    },
+  );
+  return data;
+}
+
 // ── Job Progress (기존 인프라 재사용) ──
 //
 // /jobs/<id>/progress/ 응답은 래핑 구조:

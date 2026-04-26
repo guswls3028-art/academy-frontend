@@ -4,7 +4,7 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { Sparkles, AlertTriangle, RefreshCw, Eye, FolderOpen, BookOpen } from "lucide-react";
+import { Sparkles, AlertTriangle, RefreshCw, Eye, FolderOpen, BookOpen, Crop } from "lucide-react";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { asyncStatusStore } from "@/shared/ui/asyncStatus";
@@ -25,6 +25,7 @@ import SimilarResults from "../components/matchup/SimilarResults";
 import CrossMatchesPanel from "../components/matchup/CrossMatchesPanel";
 import ProblemDetailModal from "../components/matchup/ProblemDetailModal";
 import DocumentPreviewModal from "../components/matchup/DocumentPreviewModal";
+import ManualCropModal from "../components/matchup/ManualCropModal";
 import MatchupEmptyState from "../components/matchup/MatchupEmptyState";
 import { getDocumentIntent } from "../components/matchup/documentIntent";
 import css from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
@@ -60,6 +61,7 @@ export default function MatchupPage() {
   const [uploadIntent, setUploadIntent] = useState<"reference" | "test">("reference");
   const [detailProblem, setDetailProblem] = useState<SimilarProblem | null>(null);
   const [previewDocId, setPreviewDocId] = useState<number | null>(null);
+  const [cropDocId, setCropDocId] = useState<number | null>(null);
   const [pendingNavigateNumber, setPendingNavigateNumber] = useState<number | null>(null);
   const [rightPanelTab, setRightPanelTab] = useState<"similar" | "cross">("similar");
   const [intentUpdating, setIntentUpdating] = useState(false);
@@ -332,6 +334,25 @@ export default function MatchupPage() {
                       원본 보기
                     </button>
                   )}
+                  {selectedDoc && (
+                    <button
+                      onClick={() => setCropDocId(selectedDoc.id)}
+                      data-testid="matchup-doc-manual-crop-btn"
+                      title="원본 위에 직접 박스를 그려 문항을 추가/수정합니다"
+                      style={{
+                        display: "flex", alignItems: "center", gap: 4,
+                        fontSize: 11, padding: "3px 10px", borderRadius: 4,
+                        background: "color-mix(in srgb, var(--color-brand-primary) 12%, transparent)",
+                        color: "var(--color-brand-primary)",
+                        border: "1px solid color-mix(in srgb, var(--color-brand-primary) 35%, transparent)",
+                        cursor: "pointer",
+                        fontWeight: 700,
+                      }}
+                    >
+                      <Crop size={12} />
+                      직접 자르기
+                    </button>
+                  )}
                   {selectedDoc?.inventory_file_id && (
                     <button
                       onClick={() => navigate("/admin/storage/files")}
@@ -480,11 +501,20 @@ export default function MatchupPage() {
                         fontSize: 12, color: "var(--color-text-secondary)",
                         lineHeight: 1.6, margin: 0, paddingLeft: "var(--space-4)",
                       }}>
-                        <li>스캔 해상도를 높여 다시 시도해 주세요 (폰 카메라는 정면, 200dpi 이상 권장)</li>
+                        <li>아래 <strong>직접 자르기</strong> 버튼으로 원본 위에 박스를 그려 문항을 빠르게 추가할 수 있습니다.</li>
+                        <li>스캔 해상도를 높여 다시 업로드해도 인식률이 좋아집니다 (200dpi 이상 권장)</li>
                         <li>여러 페이지를 한 장에 담지 말고, 한 페이지씩 찍어주세요</li>
-                        <li>기울기·그림자를 최소화하면 문항 인식이 좋아집니다</li>
                       </ul>
                     </div>
+                    <Button
+                      intent="primary"
+                      size="sm"
+                      onClick={() => selectedDoc && setCropDocId(selectedDoc.id)}
+                      data-testid="matchup-none-banner-crop-btn"
+                    >
+                      <Crop size={13} style={{ marginRight: 4 }} />
+                      직접 자르기
+                    </Button>
                   </div>
                 )}
 
@@ -625,9 +655,21 @@ export default function MatchupPage() {
         ) : null;
       })()}
 
+      {cropDocId && (() => {
+        const doc = documents.find((d) => d.id === cropDocId);
+        return doc ? (
+          <ManualCropModal
+            document={doc}
+            onClose={() => setCropDocId(null)}
+          />
+        ) : null;
+      })()}
+
       {detailProblem && (
         <ProblemDetailModal
           problem={detailProblem}
+          sourceProblem={problems.find((p) => p.id === selectedProblemId) ?? null}
+          sourceDocumentTitle={selectedDoc?.title ?? ""}
           onClose={() => setDetailProblem(null)}
           onNavigate={handleNavigateToProblem}
         />
