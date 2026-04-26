@@ -14,6 +14,7 @@ import {
   deleteMatchupDocument,
   retryMatchupDocument,
   fetchMatchupProblems,
+  updateMatchupDocument,
 } from "../api/matchup.api";
 import type { SimilarProblem } from "../api/matchup.api";
 import { useMatchupPolling } from "../hooks/useMatchupPolling";
@@ -25,6 +26,7 @@ import CrossMatchesPanel from "../components/matchup/CrossMatchesPanel";
 import ProblemDetailModal from "../components/matchup/ProblemDetailModal";
 import DocumentPreviewModal from "../components/matchup/DocumentPreviewModal";
 import MatchupEmptyState from "../components/matchup/MatchupEmptyState";
+import { getDocumentIntent } from "../components/matchup/documentIntent";
 import css from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
 
 function hasAsyncWorkerTask(id: string): boolean {
@@ -60,6 +62,7 @@ export default function MatchupPage() {
   const [previewDocId, setPreviewDocId] = useState<number | null>(null);
   const [pendingNavigateNumber, setPendingNavigateNumber] = useState<number | null>(null);
   const [rightPanelTab, setRightPanelTab] = useState<"similar" | "cross">("similar");
+  const [intentUpdating, setIntentUpdating] = useState(false);
 
   // ── 문서 목록 ──
   const { data: documents = [], isLoading: docsLoading } = useQuery({
@@ -99,6 +102,7 @@ export default function MatchupPage() {
 
   // ── 문제 목록 ──
   const selectedDoc = documents.find((d) => d.id === selectedDocId);
+  const selectedDocIntent = selectedDoc ? getDocumentIntent(selectedDoc) : "reference";
   const { data: problems = [], isLoading: problemsLoading } = useQuery({
     queryKey: ["matchup-problems", selectedDocId],
     queryFn: () => fetchMatchupProblems(selectedDocId!),
@@ -112,6 +116,10 @@ export default function MatchupPage() {
   );
   const subjectSuggestions = useMemo(
     () => Array.from(new Set(documents.map((d) => d.subject).filter(Boolean))).sort(),
+    [documents],
+  );
+  const categorySuggestions = useMemo(
+    () => Array.from(new Set(documents.map((d) => d.category || "").filter(Boolean))).sort(),
     [documents],
   );
   const gradeLevelSuggestions = useMemo(
@@ -133,8 +141,8 @@ export default function MatchupPage() {
 
   // ── 핸들러 ──
   const handleUpload = useCallback(
-    async (payload: { file: File; title: string; subject: string; grade_level: string }) => {
-      const doc = await uploadMatchupDocument(payload);
+    async (payload: { file: File; title: string; category: string; subject: string; grade_level: string }) => {
+      const doc = await uploadMatchupDocument({ ...payload, intent: uploadIntent });
       qc.invalidateQueries({ queryKey: ["matchup-documents"] });
       if (doc.ai_job_id) {
         asyncStatusStore.addWorkerJob(
@@ -151,7 +159,7 @@ export default function MatchupPage() {
       }
       feedback.success("업로드 완료. 우상단 작업 상자에서 분석 진행률 확인.");
     },
-    [qc],
+    [qc, uploadIntent],
   );
 
   const handleDelete = useCallback(
@@ -193,6 +201,24 @@ export default function MatchupPage() {
     [qc, selectedDocId],
   );
 
+  const handleChangeIntent = useCallback(async (intent: "reference" | "test") => {
+    if (!selectedDoc) return;
+    if (getDocumentIntent(selectedDoc) === intent) return;
+    setIntentUpdating(true);
+    try {
+      await updateMatchupDocument(selectedDoc.id, { intent });
+      await qc.invalidateQueries({ queryKey: ["matchup-documents"] });
+      if (intent === "test") {
+        feedback.success("문서를 시험지로 변경했습니다. 자료별 매치 탭을 사용할 수 있습니다.");
+      } else {
+        setRightPanelTab("similar");
+        feedback.success("문서를 참고자료로 변경했습니다. 자료별 매치는 시험지에서만 계산됩니다.");
+      }
+    } finally {
+      setIntentUpdating(false);
+    }
+  }, [selectedDoc, qc]);
+
   const handleSelectDoc = useCallback((id: number) => {
     setSelectedDocId(id);
     setSelectedProblemId(null);
@@ -203,6 +229,12 @@ export default function MatchupPage() {
     setPendingNavigateNumber(problemNumber);
     qc.invalidateQueries({ queryKey: ["matchup-problems", documentId] });
   }, [qc, setSelectedDocId]);
+
+  useEffect(() => {
+    if (rightPanelTab === "cross" && selectedDocIntent !== "test") {
+      setRightPanelTab("similar");
+    }
+  }, [rightPanelTab, selectedDocIntent]);
 
   // pendingNavigateNumber 처리는 useEffect에서 (렌더 중 setState 금지)
   useEffect(() => {
@@ -235,6 +267,7 @@ export default function MatchupPage() {
             onUpload={handleUpload}
             intent={uploadIntent}
             existingTitles={existingTitles}
+            categorySuggestions={categorySuggestions}
             subjectSuggestions={subjectSuggestions}
             gradeLevelSuggestions={gradeLevelSuggestions}
           />
@@ -331,6 +364,61 @@ export default function MatchupPage() {
                     >
                       {selectedDoc.subject}
                     </span>
+                  )}
+                  {selectedDoc?.category && (
+                    <span
+                      title="카테고리"
+                      style={{
+                        fontSize: 11, padding: "2px 8px", borderRadius: 4,
+                        background: "color-mix(in srgb, var(--color-brand-primary) 8%, transparent)",
+                        color: "var(--color-brand-primary)",
+                        border: "1px solid color-mix(in srgb, var(--color-brand-primary) 35%, transparent)",
+                        fontWeight: 700,
+                      }}
+                    >
+                      {selectedDoc.category}
+                    </span>
+                  )}
+                  {selectedDoc && (
+                    <span
+                      style={{
+                        fontSize: 11, padding: "2px 8px", borderRadius: 4,
+                        background: selectedDocIntent === "test"
+                          ? "color-mix(in srgb, var(--color-warning) 14%, transparent)"
+                          : "color-mix(in srgb, var(--color-brand-primary) 10%, transparent)",
+                        color: selectedDocIntent === "test" ? "var(--color-warning)" : "var(--color-brand-primary)",
+                        border: selectedDocIntent === "test"
+                          ? "1px solid color-mix(in srgb, var(--color-warning) 35%, transparent)"
+                          : "1px solid color-mix(in srgb, var(--color-brand-primary) 35%, transparent)",
+                        fontWeight: 700,
+                      }}
+                    >
+                      {selectedDocIntent === "test" ? "시험지" : "참고자료"}
+                    </span>
+                  )}
+                  {selectedDoc && (
+                    <button
+                      type="button"
+                      disabled={intentUpdating}
+                      onClick={() => handleChangeIntent(selectedDocIntent === "test" ? "reference" : "test")}
+                      style={{
+                        display: "flex", alignItems: "center", gap: 4,
+                        fontSize: 11, padding: "3px 10px", borderRadius: 4,
+                        background: "var(--color-bg-surface-soft)",
+                        color: "var(--color-text-secondary)",
+                        border: "1px solid var(--color-border-divider)",
+                        cursor: intentUpdating ? "not-allowed" : "pointer",
+                        opacity: intentUpdating ? 0.6 : 1,
+                        fontWeight: 600,
+                      }}
+                      title={selectedDocIntent === "test" ? "참고자료로 변경" : "시험지로 변경"}
+                    >
+                      {intentUpdating
+                        ? "유형 변경 중..."
+                        : selectedDocIntent === "test"
+                          ? "참고자료로 변경"
+                          : "시험지로 변경"}
+                    </button>
                   )}
                   {selectedDoc?.status === "processing" && progressMap[selectedDoc.id] && progressMap[selectedDoc.id].percent > 0 && (
                     <span style={{
@@ -458,7 +546,11 @@ export default function MatchupPage() {
                         <button
                           key={t.key}
                           type="button"
-                          onClick={() => setRightPanelTab(t.key as "similar" | "cross")}
+                          onClick={() => {
+                            if (t.key === "cross" && selectedDocIntent !== "test") return;
+                            setRightPanelTab(t.key as "similar" | "cross");
+                          }}
+                          disabled={t.key === "cross" && selectedDocIntent !== "test"}
                           data-testid={`matchup-right-tab-${t.key}`}
                           style={{
                             display: "flex", alignItems: "center", gap: 4,
@@ -473,8 +565,12 @@ export default function MatchupPage() {
                               : "var(--color-text-muted)",
                             fontWeight: rightPanelTab === t.key ? 700 : 500,
                             fontSize: 12,
-                            cursor: "pointer",
+                            cursor: t.key === "cross" && selectedDocIntent !== "test" ? "not-allowed" : "pointer",
+                            opacity: t.key === "cross" && selectedDocIntent !== "test" ? 0.45 : 1,
                           }}
+                          title={t.key === "cross" && selectedDocIntent !== "test"
+                            ? "시험지 문서에서만 자료별 매치를 볼 수 있습니다."
+                            : undefined}
                         >
                           {t.icon}
                           {t.label}
@@ -492,7 +588,8 @@ export default function MatchupPage() {
                       ) : (
                         <CrossMatchesPanel
                           docId={selectedDocId}
-                          enabled={selectedDoc?.status === "done"}
+                          enabled={selectedDoc?.status === "done" && selectedDocIntent === "test"}
+                          selectedDocIntent={selectedDocIntent}
                           onSelectProblem={setSelectedProblemId}
                         />
                       )}
@@ -511,6 +608,7 @@ export default function MatchupPage() {
           onUpload={handleUpload}
           intent={uploadIntent}
           existingTitles={existingTitles}
+          categorySuggestions={categorySuggestions}
           subjectSuggestions={subjectSuggestions}
           gradeLevelSuggestions={gradeLevelSuggestions}
         />

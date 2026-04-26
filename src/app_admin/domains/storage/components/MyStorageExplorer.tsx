@@ -154,6 +154,13 @@ export default function MyStorageExplorer() {
                 res.matchupAiJobId,
                 "matchup_analysis",
               );
+            } else {
+              // 과도기/지연 케이스: 문서 watch로 등록 후 ai_job_id 생성 시 자동 전환
+              asyncStatusStore.addWorkerJob(
+                `매치업 분석 준비 중: ${payload.displayName || payload.file.name}`,
+                `matchup-doc-${res.matchupDocumentId}`,
+                "matchup_document_watch",
+              );
             }
             feedback.success("저장 + 매치업 등록 완료. 우상단 작업 상자에서 분석 진행률 확인.");
           }
@@ -366,6 +373,12 @@ export default function MyStorageExplorer() {
           doc.ai_job_id,
           "matchup_analysis",
         );
+      } else if (doc.id) {
+        asyncStatusStore.addWorkerJob(
+          `매치업 분석 준비 중: ${file.displayName}`,
+          `matchup-doc-${doc.id}`,
+          "matchup_document_watch",
+        );
       }
       feedback.success("매치업 자료로 등록했습니다. 우상단 작업 상자에서 진행률 확인.");
       navigate(`/admin/storage/matchup?docId=${doc.id}`);
@@ -407,6 +420,12 @@ export default function MyStorageExplorer() {
             `매치업 분석: ${f.displayName}`,
             doc.ai_job_id,
             "matchup_analysis",
+          );
+        } else if (doc.id) {
+          asyncStatusStore.addWorkerJob(
+            `매치업 분석 준비 중: ${f.displayName}`,
+            `matchup-doc-${doc.id}`,
+            "matchup_document_watch",
           );
         }
         succeeded++;

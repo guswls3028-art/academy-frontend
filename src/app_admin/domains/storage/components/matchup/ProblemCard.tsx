@@ -60,7 +60,7 @@ export default function ProblemCard({ problem, selected, onClick }: Props) {
           display: "flex",
           flexDirection: "column",
           gap: "var(--space-2)",
-          minHeight: 120,
+          minHeight: 180,
           position: "relative",
         }}
       >
@@ -89,20 +89,32 @@ export default function ProblemCard({ problem, selected, onClick }: Props) {
 
         {imgUrl ? (
           <div style={{
-            width: "100%", height: 80,
+            width: "100%",
+            minHeight: 120,
+            aspectRatio: "4 / 3",
             borderRadius: "var(--radius-md)",
             overflow: "hidden",
-            background: "var(--color-bg-surface-soft)",
+            background: "white",
+            border: "1px solid var(--color-border-divider)",
+            padding: 4,
           }}>
             <img
               src={imgUrl}
               alt={`Q${problem.number}`}
-              style={{ width: "100%", height: "100%", objectFit: "contain" }}
+              style={{
+                width: "100%",
+                height: "100%",
+                objectFit: "contain",
+                objectPosition: "top center",
+                display: "block",
+              }}
             />
           </div>
         ) : (
           <div style={{
-            width: "100%", height: 80,
+            width: "100%",
+            minHeight: 120,
+            aspectRatio: "4 / 3",
             borderRadius: "var(--radius-md)",
             background: "var(--color-bg-surface-soft)",
             display: "flex", alignItems: "center", justifyContent: "center",

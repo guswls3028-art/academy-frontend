@@ -9,6 +9,7 @@ import { Button } from "@/shared/ui/ds";
 import { useConfirm } from "@/shared/ui/confirm";
 import type { MatchupDocument, SegmentationMethod } from "../../api/matchup.api";
 import type { DocProgressMap } from "../../hooks/useMatchupPolling";
+import { getDocumentIntent } from "./documentIntent";
 import css from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
 
 type Props = {
@@ -64,11 +65,20 @@ export default function DocumentList({
       if (!q) return true;
       return (
         d.title.toLowerCase().includes(q) ||
+        (d.category || "").toLowerCase().includes(q) ||
         d.subject.toLowerCase().includes(q) ||
         d.grade_level.toLowerCase().includes(q)
       );
     });
   }, [documents, search, statusFilter]);
+  const filteredReference = useMemo(
+    () => filtered.filter((d) => getDocumentIntent(d) === "reference"),
+    [filtered],
+  );
+  const filteredTests = useMemo(
+    () => filtered.filter((d) => getDocumentIntent(d) === "test"),
+    [filtered],
+  );
 
   const counts = useMemo(() => ({
     all: documents.length,
@@ -154,7 +164,7 @@ export default function DocumentList({
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="제목·과목·학년 검색"
+              placeholder="제목·카테고리·과목·학년 검색"
               style={{
                 width: "100%",
                 padding: "5px 26px 5px 24px",
@@ -223,11 +233,65 @@ export default function DocumentList({
           </div>
         )}
 
-        {filtered.map((doc) => {
+        {[{
+          key: "test",
+          title: "시험지",
+          hint: "선생님이 '시험지 업로드'로 올린 문서",
+          docs: filteredTests,
+          color: "var(--color-warning)",
+        }, {
+          key: "reference",
+          title: "참고 자료",
+          hint: "교재/기출 등 비교 대상 자료",
+          docs: filteredReference,
+          color: "var(--color-brand-primary)",
+        }].map((section) => (
+          <div key={section.key} style={{ marginBottom: "var(--space-2)" }}>
+            <div style={{
+              position: "sticky",
+              top: 0,
+              zIndex: 1,
+              margin: "0 var(--space-2) var(--space-1)",
+              padding: "6px var(--space-2)",
+              borderRadius: "var(--radius-sm)",
+              background: "var(--color-bg-surface-soft)",
+              border: "1px solid var(--color-border-divider)",
+              display: "flex",
+              alignItems: "center",
+              gap: "var(--space-2)",
+            }}>
+              <span style={{
+                fontSize: 11,
+                fontWeight: 800,
+                color: section.color,
+              }}>
+                {section.title}
+              </span>
+              <span style={{ fontSize: 11, color: "var(--color-text-muted)" }}>
+                {section.docs.length}건
+              </span>
+              <span style={{ fontSize: 10, color: "var(--color-text-muted)", marginLeft: "auto" }}>
+                {section.hint}
+              </span>
+            </div>
+            {section.docs.length === 0 && (
+              <div style={{
+                margin: "0 var(--space-2)",
+                padding: "var(--space-2) var(--space-3)",
+                borderRadius: "var(--radius-sm)",
+                border: "1px dashed var(--color-border-divider)",
+                color: "var(--color-text-muted)",
+                fontSize: 11,
+              }}>
+                없음
+              </div>
+            )}
+            {section.docs.map((doc) => {
           const segMethod = doc.meta?.segmentation_method;
           const segInfo = segMethod ? SEG_META[segMethod] : null;
           const progress = progressMap[doc.id];
           const isSelected = selectedId === doc.id;
+          const intent = getDocumentIntent(doc);
 
           return (
             <div
@@ -247,11 +311,15 @@ export default function DocumentList({
                   ? "color-mix(in srgb, var(--color-brand-primary) 8%, var(--color-bg-surface))"
                   : doc.status === "failed"
                     ? "color-mix(in srgb, var(--color-danger) 4%, transparent)"
+                    : intent === "test"
+                      ? "color-mix(in srgb, var(--color-warning) 5%, transparent)"
                     : undefined,
                 borderLeft: isSelected
                   ? "3px solid var(--color-brand-primary)"
                   : doc.status === "failed"
                     ? "3px solid color-mix(in srgb, var(--color-danger) 40%, transparent)"
+                    : intent === "test"
+                      ? "3px solid color-mix(in srgb, var(--color-warning) 35%, transparent)"
                     : "3px solid transparent",
                 transition: "background 0.15s, border-color 0.15s",
               }}
@@ -305,6 +373,23 @@ export default function DocumentList({
                       {segInfo.label}
                     </span>
                   )}
+                  <span
+                    style={{
+                      fontSize: 10,
+                      padding: "1px 6px",
+                      borderRadius: 4,
+                      background: intent === "test"
+                        ? "color-mix(in srgb, var(--color-warning) 15%, transparent)"
+                        : "color-mix(in srgb, var(--color-brand-primary) 10%, transparent)",
+                      color: intent === "test" ? "var(--color-warning)" : "var(--color-brand-primary)",
+                      fontWeight: 700,
+                      border: intent === "test"
+                        ? "1px solid color-mix(in srgb, var(--color-warning) 35%, transparent)"
+                        : "1px solid color-mix(in srgb, var(--color-brand-primary) 35%, transparent)",
+                    }}
+                  >
+                    {intent === "test" ? "시험지" : "참고자료"}
+                  </span>
 
                   {doc.subject && (
                     <span
@@ -317,6 +402,20 @@ export default function DocumentList({
                       }}
                     >
                       {doc.subject}
+                    </span>
+                  )}
+                  {doc.category && (
+                    <span
+                      title="카테고리"
+                      style={{
+                        fontSize: 10, padding: "1px 6px", borderRadius: 4,
+                        background: "color-mix(in srgb, var(--color-brand-primary) 8%, transparent)",
+                        color: "var(--color-brand-primary)",
+                        border: "1px solid color-mix(in srgb, var(--color-brand-primary) 35%, transparent)",
+                        fontWeight: 700,
+                      }}
+                    >
+                      {doc.category}
                     </span>
                   )}
                 </div>
@@ -364,7 +463,9 @@ export default function DocumentList({
               </div>
             </div>
           );
-        })}
+            })}
+          </div>
+        ))}
       </div>
     </>
   );

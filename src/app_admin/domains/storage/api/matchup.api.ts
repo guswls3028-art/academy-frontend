@@ -9,12 +9,15 @@ export type SegmentationMethod = "text" | "ocr" | "mixed" | "image" | "none";
 
 export type MatchupDocumentMeta = {
   segmentation_method?: SegmentationMethod;
+  upload_intent?: "reference" | "test";
+  document_role?: "reference_material" | "exam_sheet";
   [key: string]: unknown;
 };
 
 export type MatchupDocument = {
   id: number;
   title: string;
+  category?: string;
   subject: string;
   grade_level: string;
   original_name: string;
@@ -69,14 +72,18 @@ export async function fetchMatchupDocuments(): Promise<MatchupDocument[]> {
 export async function uploadMatchupDocument(payload: {
   file: File;
   title?: string;
+  category?: string;
   subject?: string;
   grade_level?: string;
+  intent?: "reference" | "test";
 }): Promise<MatchupDocument> {
   const form = new FormData();
   form.append("file", payload.file);
   if (payload.title) form.append("title", payload.title);
+  if (payload.category) form.append("category", payload.category);
   if (payload.subject) form.append("subject", payload.subject);
   if (payload.grade_level) form.append("grade_level", payload.grade_level);
+  form.append("intent", payload.intent ?? "reference");
 
   const { data } = await api.post<MatchupDocument>(
     "/matchup/documents/upload/",
@@ -99,6 +106,7 @@ export type PromoteAlreadyExistsError = Error & {
 export async function promoteInventoryToMatchup(payload: {
   inventoryFileId: string | number;
   title?: string;
+  category?: string;
   subject?: string;
   gradeLevel?: string;
 }): Promise<MatchupDocument> {
@@ -108,6 +116,7 @@ export async function promoteInventoryToMatchup(payload: {
       {
         inventory_file_id: Number(payload.inventoryFileId),
         title: payload.title,
+        category: payload.category,
         subject: payload.subject,
         grade_level: payload.gradeLevel,
       },
@@ -130,7 +139,7 @@ export async function promoteInventoryToMatchup(payload: {
 
 export async function updateMatchupDocument(
   id: number,
-  payload: { title?: string; subject?: string; grade_level?: string },
+  payload: { title?: string; category?: string; subject?: string; grade_level?: string; intent?: "reference" | "test" },
 ): Promise<MatchupDocument> {
   const { data } = await api.patch<MatchupDocument>(
     `/matchup/documents/${id}/`,
@@ -289,4 +298,3 @@ export async function fetchJobProgress(
     return null;
   }
 }
-

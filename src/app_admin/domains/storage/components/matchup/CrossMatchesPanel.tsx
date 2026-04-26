@@ -51,10 +51,11 @@ function groupByDoc(matches: CrossMatchProblem[]): DocGroup[] {
 type Props = {
   docId: number | null;
   enabled: boolean; // status === "done" 일 때만
+  selectedDocIntent?: "reference" | "test";
   onSelectProblem?: (problemId: number) => void;
 };
 
-export default function CrossMatchesPanel({ docId, enabled, onSelectProblem }: Props) {
+export default function CrossMatchesPanel({ docId, enabled, selectedDocIntent = "reference", onSelectProblem }: Props) {
   const { data, isLoading, isError } = useQuery({
     queryKey: ["matchup-cross-matches", docId],
     queryFn: () => fetchDocumentCrossMatches(docId!, 1),
@@ -65,9 +66,12 @@ export default function CrossMatchesPanel({ docId, enabled, onSelectProblem }: P
   const groups = useMemo(() => (data ? groupByDoc(data.matches) : []), [data]);
 
   if (!enabled || !docId) {
+    const hint = selectedDocIntent === "reference"
+      ? "시험지는 '시험지 업로드'로 등록한 문서에서만 자료별 매치가 계산됩니다."
+      : "분석이 완료된 시험지를 선택하면 자료별 매치 결과가 표시됩니다.";
     return (
       <div style={{ padding: "var(--space-3)", color: "var(--color-text-muted)", fontSize: 12 }}>
-        분석이 완료된 시험지를 선택하면 자료별 매치 결과가 표시됩니다.
+        {hint}
       </div>
     );
   }

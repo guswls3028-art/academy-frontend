@@ -89,7 +89,7 @@ export default function ProblemGrid({
   return (
     <div style={{
       display: "grid",
-      gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))",
+      gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
       gap: "var(--space-3)",
     }}>
       {problems.map((p) => (

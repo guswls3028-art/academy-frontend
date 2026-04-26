@@ -18,9 +18,10 @@ import type { MergeProgress } from "./filesToPdf";
 
 type Props = {
   onClose: () => void;
-  onUpload: (payload: { file: File; title: string; subject: string; grade_level: string }) => Promise<void>;
+  onUpload: (payload: { file: File; title: string; category: string; subject: string; grade_level: string }) => Promise<void>;
   intent?: "reference" | "test";
   existingTitles?: string[];
+  categorySuggestions?: string[];
   subjectSuggestions?: string[];
   gradeLevelSuggestions?: string[];
 };
@@ -38,10 +39,12 @@ export default function DocumentUploadModal({
   onUpload,
   intent = "reference",
   existingTitles = [],
+  categorySuggestions = [],
   subjectSuggestions = [],
   gradeLevelSuggestions = [],
 }: Props) {
   const [title, setTitle] = useState("");
+  const [category, setCategory] = useState("");
   const [subject, setSubject] = useState("");
   const [gradeLevel, setGradeLevel] = useState("");
   const [entries, setEntries] = useState<Entry[]>([]);
@@ -213,6 +216,7 @@ export default function DocumentUploadModal({
           await onUpload({
             file: p.file,
             title: docTitle,
+            category,
             subject,
             grade_level: gradeLevel,
           });
@@ -249,6 +253,7 @@ export default function DocumentUploadModal({
       await onUpload({
         file: finalFile,
         title: title || finalFile.name,
+        category,
         subject,
         grade_level: gradeLevel,
       });
@@ -592,6 +597,23 @@ export default function DocumentUploadModal({
 
             <div style={{ display: "flex", gap: "var(--space-3)" }}>
               <label style={{ flex: 1, fontSize: 13, fontWeight: 600, color: "var(--color-text-secondary)" }}>
+                카테고리
+                <input
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  placeholder="예: 중대부고"
+                  list="matchup-category-suggestions"
+                  style={{
+                    display: "block", width: "100%", marginTop: "var(--space-1)",
+                    padding: "var(--space-2) var(--space-3)", border: "1px solid var(--color-border-divider)",
+                    borderRadius: "var(--radius-md)", fontSize: 14, background: "var(--color-bg-surface)",
+                  }}
+                />
+                <datalist id="matchup-category-suggestions">
+                  {categorySuggestions.map((c) => <option key={c} value={c} />)}
+                </datalist>
+              </label>
+              <label style={{ flex: 1, fontSize: 13, fontWeight: 600, color: "var(--color-text-secondary)" }}>
                 과목
                 <input
                   value={subject}
@@ -646,7 +668,7 @@ export default function DocumentUploadModal({
                 fontWeight: 600, marginRight: "auto",
               }}>
                 {splitProgress
-                  ? `시험지 업로드 중... ${splitProgress.done}/${splitProgress.total}`
+                  ? `${intentLabel} 업로드 중... ${splitProgress.done}/${splitProgress.total}`
                   : mergeLabel}
               </span>
             )}
@@ -666,7 +688,7 @@ export default function DocumentUploadModal({
                   : uploading
                     ? "업로드 중..."
                     : splitMode && entries.length > 1
-                      ? `${entries.length}개 시험지 동시 업로드`
+                      ? `${entries.length}개 ${intentLabel} 동시 업로드`
                       : willMerge
                         ? `${entries.length}개 합쳐서 업로드`
                         : "업로드"}

@@ -40,19 +40,19 @@ export default function SimilarResults({
 }: Props) {
   const [results, setResults] = useState<SimilarProblem[]>([]);
   const [loading, setLoading] = useState(false);
-  // 기본 펼침 — 사용자가 한눈에 더 많은 후보를 비교할 수 있게.
-  // 노이즈도 시각 페널티(회색 톤)로 페이지에 노출.
-  const [showNoise, setShowNoise] = useState(true);
+  // 노이즈(<0.80)는 기본 숨김.
+  // 특히 문서가 적은 테넌트에서 저품질 추천이 먼저 보여 "추천이 이상해 보이는" 체감을 줄인다.
+  const [showNoise, setShowNoise] = useState(false);
 
   useEffect(() => {
     if (!problemId) {
       setResults([]);
-      setShowNoise(true);
+      setShowNoise(false);
       return;
     }
 
     setLoading(true);
-    setShowNoise(true);
+    setShowNoise(false);
     // top_k 20 — 더 많이 한눈에. 강(≥85%) / 참고(80~85%) / 관련성 낮음(<80%)
     // 모두 sim % 라벨과 함께 노출. 사용자가 직접 비교/선택.
     findSimilarProblems(problemId, 20)
@@ -161,7 +161,7 @@ export default function SimilarResults({
         accent="primary"
       />
 
-      {sourceDocumentId !== null && inDoc.length > 0 && (
+      {sourceDocumentId !== null && totalDocumentCount > 1 && inDoc.length > 0 && (
         <Section
           title="이 시험지 안에서"
           icon={<Layers size={12} />}
