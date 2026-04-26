@@ -21,25 +21,36 @@ export type AdminNotificationCounts = {
   total: number;
 };
 
+/** 알림 카운트 소스 — 1개라도 실패하면 사용자에게 ⚠️ 가시화. 운영 영향 1순위 */
+export type AdminNotificationSource =
+  | "qna"
+  | "counsel"
+  | "clinic"
+  | "registration_requests"
+  | "submissions"
+  | "video_failed";
+
+export type AdminNotificationCountsResult = {
+  counts: AdminNotificationCounts;
+  failures: AdminNotificationSource[];
+};
+
 export type AdminNotificationItem = {
-  type:
-    | "qna"
-    | "counsel"
-    | "clinic"
-    | "registration_requests"
-    | "submissions"
-    | "video_failed";
+  type: AdminNotificationSource;
   label: string;
   count: number;
   to: string;
 };
 
-async function countPendingPosts(postType: "qna" | "counsel"): Promise<number> {
+/** 성공 시 0 이상 정수, 실패 시 null */
+async function countPendingPosts(
+  postType: "qna" | "counsel"
+): Promise<number | null> {
   try {
     const { results } = await fetchAdminPosts({ postType, pageSize: 100 });
     return results.filter((p) => (p.replies_count ?? 0) === 0).length;
   } catch {
-    return 0;
+    return null;
   }
 }
 
@@ -47,18 +58,18 @@ type DashboardCountsResponse = {
   video_failed?: number;
 };
 
-async function fetchDashboardCounts(): Promise<DashboardCountsResponse> {
+async function fetchDashboardCounts(): Promise<DashboardCountsResponse | null> {
   try {
     const res = await api.get<DashboardCountsResponse>(
       "/results/admin/teacher-dashboard-counts/"
     );
     return res.data ?? {};
   } catch {
-    return {};
+    return null;
   }
 }
 
-export async function fetchAdminNotificationCounts(): Promise<AdminNotificationCounts> {
+export async function fetchAdminNotificationCounts(): Promise<AdminNotificationCountsResult> {
   const empty: AdminNotificationCounts = {
     qnaPending: 0,
     counselPending: 0,
@@ -69,54 +80,79 @@ export async function fetchAdminNotificationCounts(): Promise<AdminNotificationC
     total: 0,
   };
 
-  try {
-    const [
-      participantsRes,
-      qnaCount,
-      counselCount,
-      registrationRes,
-      submissionsRes,
-      dashboardCounts,
-    ] = await Promise.all([
-      fetchClinicParticipants({ status: "pending" }).then((r) => r).catch(() => []),
-      countPendingPosts("qna"),
-      countPendingPosts("counsel"),
-      fetchRegistrationRequests({ status: "pending", page: 1, page_size: 1 }).then(
-        (r) => r.count
-      ).catch(() => 0),
-      // 최근 24시간 내 학생 제출 중 처리 대기 건수
-      fetchAdminSubmissions({ limit: 100 }).then((subs) => {
-        const pending = subs.filter((s) =>
-          s.status === "submitted" || s.status === "dispatched" ||
-          s.status === "extracting" || s.status === "needs_identification" ||
-          s.status === "answers_ready" || s.status === "grading"
-        );
-        return pending.length;
-      }).catch(() => 0),
-      fetchDashboardCounts(),
-    ]);
+  const [
+    participantsRes,
+    qnaCount,
+    counselCount,
+    registrationRes,
+    submissionsRes,
+    dashboardCounts,
+  ] = await Promise.all([
+    fetchClinicParticipants({ status: "pending" })
+      .then((r) => (Array.isArray(r) ? r.length : 0))
+      .catch(() => null as number | null),
+    countPendingPosts("qna"),
+    countPendingPosts("counsel"),
+    fetchRegistrationRequests({ status: "pending", page: 1, page_size: 1 })
+      .then((r) => r.count)
+      .catch(() => null as number | null),
+    // 최근 학생 제출 중 처리 대기 건수
+    fetchAdminSubmissions({ limit: 100 })
+      .then((subs) =>
+        subs.filter(
+          (s) =>
+            s.status === "submitted" ||
+            s.status === "dispatched" ||
+            s.status === "extracting" ||
+            s.status === "needs_identification" ||
+            s.status === "answers_ready" ||
+            s.status === "grading"
+        ).length
+      )
+      .catch(() => null as number | null),
+    fetchDashboardCounts(),
+  ]);
 
-    const clinicPending = Array.isArray(participantsRes) ? participantsRes.length : 0;
-    const registrationRequestsPending = typeof registrationRes === "number" ? registrationRes : 0;
-    const recentSubmissions = typeof submissionsRes === "number" ? submissionsRes : 0;
-    const videoFailed = Number(dashboardCounts.video_failed ?? 0);
+  const failures: AdminNotificationSource[] = [];
+  if (qnaCount === null) failures.push("qna");
+  if (counselCount === null) failures.push("counsel");
+  if (participantsRes === null) failures.push("clinic");
+  if (registrationRes === null) failures.push("registration_requests");
+  if (submissionsRes === null) failures.push("submissions");
+  if (dashboardCounts === null) failures.push("video_failed");
 
-    const total =
-      qnaCount + counselCount + clinicPending + registrationRequestsPending +
-      recentSubmissions + videoFailed;
+  const qna = qnaCount ?? 0;
+  const counsel = counselCount ?? 0;
+  const clinicPending = participantsRes ?? 0;
+  const registrationRequestsPending = registrationRes ?? 0;
+  const recentSubmissions = submissionsRes ?? 0;
+  const videoFailed = Number(dashboardCounts?.video_failed ?? 0);
 
-    return {
-      qnaPending: qnaCount,
-      counselPending: counselCount,
+  const total =
+    qna +
+    counsel +
+    clinicPending +
+    registrationRequestsPending +
+    recentSubmissions +
+    videoFailed;
+
+  // 모든 소스가 실패한 경우에도 counts는 0으로 안전하게 반환 (UI는 failures로 판단)
+  if (failures.length === 6) {
+    return { counts: empty, failures };
+  }
+
+  return {
+    counts: {
+      qnaPending: qna,
+      counselPending: counsel,
       clinicPending,
       registrationRequestsPending,
       recentSubmissions,
       videoFailed,
       total,
-    };
-  } catch {
-    return empty;
-  }
+    },
+    failures,
+  };
 }
 
 export function buildAdminNotificationItems(

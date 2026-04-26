@@ -512,14 +512,14 @@ export function WorkboxPanelContent({ onClose }: { onClose: () => void }) {
     if (refreshing) return;
     setRefreshing(true);
     doHydrate()
-      .then(() => feedback.success("진행 상황 목록을 새로고침했습니다."))
+      .then(() => feedback.success("작업박스를 새로고침했습니다."))
       .finally(() => setRefreshing(false));
   }, [doHydrate, refreshing]);
 
   return (
     <>
       <div className="async-status-bar__header">
-        <span>진행 상황</span>
+        <span>작업박스</span>
         <div className="async-status-bar__header-actions">
           <button
             type="button"
@@ -555,7 +555,7 @@ export function WorkboxPanelContent({ onClose }: { onClose: () => void }) {
       </div>
       <div className="async-status-bar__list">
         {displayTasks.length === 0 ? (
-          <div className="async-status-bar__empty">진행 중인 항목이 없습니다.</div>
+          <div className="async-status-bar__empty">작업박스가 비어 있습니다</div>
         ) : (
           displayTasks.map((task) => <TaskItem key={task.id} task={task} now={now} />)
         )}
@@ -648,7 +648,7 @@ export default function AsyncStatusBar() {
 
   const triggerLabel =
     displayTasks.length === 0
-      ? "진행 상황"
+      ? "작업박스"
       : pendingCount > 0
         ? `진행 중 ${displayTasks.length}건`
         : errorCount > 0
@@ -661,7 +661,7 @@ export default function AsyncStatusBar() {
     <div
       className={`async-status-bar ${expanded ? "async-status-bar--expanded" : "async-status-bar--collapsed"} ${errorCount > 0 ? "async-status-bar--has-error" : ""} ${isAnchorMode ? "async-status-bar--anchor" : ""}`}
       role="region"
-      aria-label="진행 중인 작업"
+      aria-label="작업박스"
     >
       {/* 접었을 때: 작은 알림 창 (앵커 모드에서는 헤더 버튼이 트리거이므로 숨김) */}
       {!isAnchorMode && (

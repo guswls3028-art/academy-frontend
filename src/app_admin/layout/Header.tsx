@@ -2,19 +2,19 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Dropdown, Badge } from "antd";
+import { Dropdown, Badge as AntBadge } from "antd";
+import { AlertTriangle, RefreshCw, User as UserIcon, Settings as SettingsIcon, Bug, LogOut } from "lucide-react";
 import NoticeOverlay from "@admin/domains/notice/overlays/NoticeOverlay";
 import { useNotices } from "@admin/domains/notice/context/NoticeContext";
-import { useAdminNotificationCounts } from "@admin/domains/admin-notifications";
+import { useAdminNotificationCounts, type AdminNotificationItem } from "@admin/domains/admin-notifications";
 import { useProgram } from "@/shared/program";
 import { useAdminLayout } from "@admin/layout/AdminLayoutContext";
 import { useWorkbox } from "@/shared/ui/layout/WorkboxContext";
 import { useAsyncStatus } from "@/shared/ui/asyncStatus/useAsyncStatus";
 import { WorkboxPanelContent } from "@/shared/ui/asyncStatus";
-import { asyncStatusStore } from "@/shared/ui/asyncStatus/asyncStatusStore";
 import { getTenantCodeForApiRequest } from "@/shared/tenant";
-import { Button } from "@/shared/ui/ds";
-import { fetchMe, displayUsername, meToStaffRole } from "@admin/domains/profile/api/profile.api";
+import { Button, Badge, ICON } from "@/shared/ui/ds";
+import { fetchMe, displayUsername, meToStaffRole, type MeStaffRole } from "@admin/domains/profile/api/profile.api";
 import { StaffRoleAvatar } from "@/shared/ui/avatars";
 import { HeaderCenterStaffClock } from "@admin/domains/staff/components/HeaderCenterStaffClock";
 import { useDocumentTitle } from "@/shared/hooks/useDocumentTitle";
@@ -167,12 +167,14 @@ function ProfileDropdown({
   onToggle,
   onClose,
   content,
+  ariaLabel,
   children,
 }: {
   open: boolean;
   onToggle: () => void;
   onClose: () => void;
   content: React.ReactNode;
+  ariaLabel?: string;
   children: React.ReactNode;
 }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -186,22 +188,44 @@ function ProfileDropdown({
         onCloseRef.current();
       }
     };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onCloseRef.current();
+    };
     document.addEventListener("mousedown", handler);
     document.addEventListener("touchstart", handler);
+    document.addEventListener("keydown", onKey);
     return () => {
       document.removeEventListener("mousedown", handler);
       document.removeEventListener("touchstart", handler);
+      document.removeEventListener("keydown", onKey);
     };
   }, [open]);
 
+  // <button> 안에 children Button(<button>)을 넣으면 invalid HTML.
+  // role="button" + tabIndex + onKeyDown 패턴으로 키보드 접근성 확보.
   return (
     <div ref={ref} style={{ position: "relative" }}>
-      <div onClick={onToggle} style={{ cursor: "pointer" }}>
+      <div
+        role="button"
+        tabIndex={0}
+        aria-expanded={open}
+        aria-haspopup="menu"
+        aria-label={ariaLabel}
+        onClick={onToggle}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onToggle();
+          }
+        }}
+        style={{ cursor: "pointer", display: "inline-flex", borderRadius: 8, outlineOffset: 2 }}
+      >
         {children}
       </div>
       {open && (
         <div
           className="app-header__profileDropdownOverlay"
+          role="menu"
           style={{
             position: "absolute",
             top: "calc(100% + 4px)",
@@ -215,6 +239,26 @@ function ProfileDropdown({
     </div>
   );
 }
+
+/** 알림 항목 type → data-level 매핑 (헤더 알림 색상 톤) */
+function alarmLevelFor(type: AdminNotificationItem["type"]): "info" | "warning" | "error" {
+  if (type === "video_failed") return "error";
+  if (type === "registration_requests" || type === "clinic") return "warning";
+  return "info";
+}
+
+/** 직책 → 뱃지 톤 매핑 */
+function staffRoleBadgeTone(role: MeStaffRole): "primary" | "success" | "info" {
+  if (role === "owner") return "primary";
+  if (role === "TEACHER") return "success";
+  return "info";
+}
+
+const STAFF_ROLE_LABEL: Record<MeStaffRole, string> = {
+  owner: "대표",
+  TEACHER: "강사",
+  ASSISTANT: "조교",
+};
 
 export default function Header() {
   const loc = useLocation();
@@ -236,12 +280,20 @@ export default function Header() {
   const pendingCount = displayTasks.filter((t) => t.status === "pending").length;
   const hasCompletedOnly = pendingCount === 0 && displayTasks.length > 0;
 
+  // 자동 clearCompleted 제거: 사용자가 결과를 보기 전에 비워지지 않도록.
+  // 명시적 "완료된 항목 지우기" 버튼(AsyncStatusBar.tsx)으로만 제거.
   const handleWorkboxOpenChange = (open: boolean) => {
-    if (open && hasCompletedOnly) asyncStatusStore.clearCompleted();
     workbox?.setWorkboxOpen(open);
   };
-  const { counts: adminCounts, items: adminNotificationItems } = useAdminNotificationCounts();
+  const {
+    counts: adminCounts,
+    items: adminNotificationItems,
+    failures: adminNotificationFailures,
+    isFetching: adminNotificationsFetching,
+    refetch: refetchAdminNotifications,
+  } = useAdminNotificationCounts();
   const unreadCount = adminCounts.total;
+  const hasNotificationFailures = adminNotificationFailures.length > 0;
 
   const { notices } = useNotices();
   const openNoticeAndCloseAlarm = () => {
@@ -291,11 +343,6 @@ export default function Header() {
     : (tenantBranding?.headerLogoUrl ?? null);
 
   const userMenu = {
-    items: [
-      { key: "profile", label: "내정보" },
-      { key: "settings", label: "설정" },
-      { key: "logout", label: "로그아웃" },
-    ],
     onClick: ({ key }: { key: string }) => {
       setProfileDropdownOpen(false);
       if (key === "profile") nav("/admin/settings/profile");
@@ -311,14 +358,57 @@ export default function Header() {
     },
   };
 
+  const meStaffRole = me ? meToStaffRole(me) : null;
+  const meDisplayName =
+    me?.name?.trim() || (me?.username ? displayUsername(me.username) : "") || "사용자";
+  const meSubLabel = me?.username ? displayUsername(me.username) : "";
+
   const profileDropdownContent = (
-    <div className="ds-header-dropdown app-header__profileDropdown">
-      <button type="button" className="app-header__profileDropdownItem" onClick={() => userMenu.onClick({ key: "profile" })}>내정보</button>
-      <button type="button" className="app-header__profileDropdownItem" onClick={() => userMenu.onClick({ key: "settings" })}>설정</button>
+    <div className="ds-header-dropdown app-header__profileDropdown" role="menu">
+      {me && (
+        <>
+          <div className="app-header__profileDropdownUserCard">
+            <div className="app-header__profileDropdownUserCard-avatar" aria-hidden>
+              <StaffRoleAvatar role={meStaffRole ?? "ASSISTANT"} size={ICON.lg} />
+            </div>
+            <div className="app-header__profileDropdownUserCard-body">
+              <div className="app-header__profileDropdownUserCard-nameRow">
+                <span className="app-header__profileDropdownUserCard-name">{meDisplayName}</span>
+                {meStaffRole && (
+                  <Badge tone={staffRoleBadgeTone(meStaffRole)} size="sm" variant="soft">
+                    {STAFF_ROLE_LABEL[meStaffRole]}
+                  </Badge>
+                )}
+              </div>
+              {meSubLabel && (
+                <div className="app-header__profileDropdownUserCard-meta">{meSubLabel}</div>
+              )}
+              {academyName && (
+                <div className="app-header__profileDropdownUserCard-meta">{academyName}</div>
+              )}
+            </div>
+          </div>
+          <div className="app-header__profileDropdownDivider" />
+        </>
+      )}
+      <button type="button" role="menuitem" className="app-header__profileDropdownItem" onClick={() => userMenu.onClick({ key: "profile" })}>
+        <UserIcon size={ICON.sm} aria-hidden />
+        <span>내 프로필</span>
+      </button>
+      <button type="button" role="menuitem" className="app-header__profileDropdownItem" onClick={() => userMenu.onClick({ key: "settings" })}>
+        <SettingsIcon size={ICON.sm} aria-hidden />
+        <span>학원/시스템 설정</span>
+      </button>
       <div className="app-header__profileDropdownDivider" />
-      <button type="button" className="app-header__profileDropdownItem" onClick={() => userMenu.onClick({ key: "bugreport" })}>문제 신고</button>
+      <button type="button" role="menuitem" className="app-header__profileDropdownItem" onClick={() => userMenu.onClick({ key: "bugreport" })}>
+        <Bug size={ICON.sm} aria-hidden />
+        <span>문제 신고</span>
+      </button>
       <div className="app-header__profileDropdownDivider" />
-      <button type="button" className="app-header__profileDropdownItem app-header__profileDropdownItem--danger" onClick={() => userMenu.onClick({ key: "logout" })}>로그아웃</button>
+      <button type="button" role="menuitem" className="app-header__profileDropdownItem app-header__profileDropdownItem--danger" onClick={() => userMenu.onClick({ key: "logout" })}>
+        <LogOut size={ICON.sm} aria-hidden />
+        <span>로그아웃</span>
+      </button>
     </div>
   );
 
@@ -389,14 +479,14 @@ export default function Header() {
                   iconOnly
                   className={`app-header__iconBtn app-header__workboxBtn ${hasCompletedOnly ? "app-header__workboxBtn--done" : ""}`}
                   aria-label={workbox.workboxOpen ? "작업박스 닫기" : "작업박스 열기"}
-                  title={workbox.workboxOpen ? "작업박스 닫기" : "진행 상황"}
+                  title={workbox.workboxOpen ? "작업박스 닫기" : "작업박스"}
                   leftIcon={
                     hasCompletedOnly ? (
                       <IconCheck />
                     ) : pendingCount > 0 ? (
-                      <Badge count={pendingCount} size="small" offset={[-2, 2]}>
+                      <AntBadge count={pendingCount} size="small" offset={[-2, 2]}>
                         <IconWorkbox />
-                      </Badge>
+                      </AntBadge>
                     ) : (
                       <IconWorkbox />
                     )
@@ -414,24 +504,55 @@ export default function Header() {
             popupRender={() => (
               <div className="ds-header-dropdown app-header__alarmDropdown alarm-panel--workbox-style">
                 <div className="alarm-panel__header">
-                  <span>알림</span>
-                  <button
-                    type="button"
-                    className="alarm-panel__header-link"
-                    onClick={openNoticeAndCloseAlarm}
-                  >
-                    알림 전체 보기
-                  </button>
+                  <span className="alarm-panel__header-title">
+                    <span>알림</span>
+                    {hasNotificationFailures && (
+                      <span
+                        className="alarm-panel__header-warning"
+                        title={`일부 알림을 불러오지 못했습니다 (${adminNotificationFailures.length}/6). 다시 불러오기를 눌러주세요.`}
+                        aria-label={`일부 알림 로드 실패 ${adminNotificationFailures.length}건`}
+                      >
+                        <AlertTriangle size={ICON.sm} aria-hidden />
+                      </span>
+                    )}
+                  </span>
+                  <span className="alarm-panel__header-actions">
+                    <button
+                      type="button"
+                      className="alarm-panel__header-iconbtn"
+                      onClick={() => refetchAdminNotifications()}
+                      disabled={adminNotificationsFetching}
+                      title="다시 불러오기"
+                      aria-label="다시 불러오기"
+                    >
+                      <RefreshCw
+                        size={ICON.sm}
+                        className={adminNotificationsFetching ? "alarm-panel__header-iconbtn--spin" : undefined}
+                        aria-hidden
+                      />
+                    </button>
+                    <button
+                      type="button"
+                      className="alarm-panel__header-link"
+                      onClick={openNoticeAndCloseAlarm}
+                    >
+                      공지사항 보기
+                    </button>
+                  </span>
                 </div>
                 <div className="alarm-panel__list">
-                  {adminNotificationItems.length === 0 ? (
+                  {hasNotificationFailures && adminNotificationItems.length === 0 ? (
+                    <div className="alarm-panel__empty alarm-panel__empty--warning">
+                      일부 알림을 불러오지 못했습니다. 다시 불러오기를 눌러주세요.
+                    </div>
+                  ) : adminNotificationItems.length === 0 ? (
                     <div className="alarm-panel__empty">알림이 없습니다</div>
                   ) : (
                     adminNotificationItems.map((item) => (
                       <div
                         key={item.type}
                         className="alarm-panel__item"
-                        data-level="info"
+                        data-level={alarmLevelFor(item.type)}
                         onClick={() => {
                           setAlarmDropdownOpen(false);
                           nav(item.to);
@@ -467,12 +588,17 @@ export default function Header() {
                 intent="secondary"
                 size="lg"
                 iconOnly
-                className="app-header__iconBtn"
-                aria-label="알림"
+                className={`app-header__iconBtn ${hasNotificationFailures ? "app-header__iconBtn--warning" : ""}`}
+                aria-label={hasNotificationFailures ? "알림 (일부 로드 실패)" : "알림"}
+                title={hasNotificationFailures ? "일부 알림을 불러오지 못했습니다" : "알림"}
                 leftIcon={
-                  <Badge count={unreadCount} size="small">
+                  <AntBadge
+                    count={unreadCount}
+                    size="small"
+                    dot={hasNotificationFailures && unreadCount === 0}
+                  >
                     <IconBell />
-                  </Badge>
+                  </AntBadge>
                 }
               />
             </span>
@@ -482,10 +608,12 @@ export default function Header() {
             open={helpDropdownOpen}
             onToggle={() => setHelpDropdownOpen((v) => !v)}
             onClose={() => setHelpDropdownOpen(false)}
+            ariaLabel="도움말"
             content={
-              <div className="ds-header-dropdown app-header__profileDropdown">
+              <div className="ds-header-dropdown app-header__profileDropdown" role="menu">
                 <button
                   type="button"
+                  role="menuitem"
                   className="app-header__profileDropdownItem"
                   onClick={() => {
                     setHelpDropdownOpen(false);
@@ -496,6 +624,7 @@ export default function Header() {
                 </button>
                 <button
                   type="button"
+                  role="menuitem"
                   className="app-header__profileDropdownItem"
                   onClick={() => {
                     setHelpDropdownOpen(false);
@@ -522,6 +651,7 @@ export default function Header() {
             open={profileDropdownOpen}
             onToggle={() => setProfileDropdownOpen((v) => !v)}
             onClose={() => setProfileDropdownOpen(false)}
+            ariaLabel="프로필 메뉴"
             content={profileDropdownContent}
           >
             <Button

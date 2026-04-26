@@ -919,3 +919,144 @@
   background: color-mix(in srgb, var(--color-success, #22c55e) 14%, var(--color-bg-surface));
   border-color: color-mix(in srgb, var(--color-success, #22c55e) 35%, var(--color-border-divider));
 }
+
+/* ========== 알림 silent fail 가시화 ========== */
+.app-header__alarmDropdown.alarm-panel--workbox-style .alarm-panel__header-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.app-header__alarmDropdown.alarm-panel--workbox-style .alarm-panel__header-warning {
+  display: inline-flex;
+  align-items: center;
+  color: var(--color-warning, #eab308);
+}
+
+.app-header__alarmDropdown.alarm-panel--workbox-style .alarm-panel__header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.app-header__alarmDropdown.alarm-panel--workbox-style .alarm-panel__header-iconbtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  color: var(--color-text-secondary, #6b7280);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.app-header__alarmDropdown.alarm-panel--workbox-style .alarm-panel__header-iconbtn:hover {
+  background: rgba(0, 0, 0, 0.06);
+  color: var(--color-text-primary, #1a1a1a);
+}
+
+.app-header__alarmDropdown.alarm-panel--workbox-style .alarm-panel__header-iconbtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.app-header__alarmDropdown.alarm-panel--workbox-style .alarm-panel__header-iconbtn--spin {
+  animation: app-header-spin 1s linear infinite;
+}
+
+@keyframes app-header-spin {
+  to { transform: rotate(360deg); }
+}
+
+.app-header__alarmDropdown.alarm-panel--workbox-style .alarm-panel__empty--warning {
+  color: var(--color-warning, #eab308);
+}
+
+[data-app="admin"] .app-header__iconBtn--warning {
+  color: var(--color-warning, #eab308);
+}
+
+/* ========== 프로필 드롭다운 — 사용자 카드 (P2-2) ========== */
+[data-app="admin"] .app-header__profileDropdownUserCard,
+.app-header__profileDropdownOverlay .app-header__profileDropdownUserCard {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  background: color-mix(in srgb, var(--color-primary, #2563eb) 5%, transparent);
+  border-radius: 10px;
+  margin-bottom: 4px;
+}
+
+[data-app="admin"] .app-header__profileDropdownUserCard-avatar,
+.app-header__profileDropdownOverlay .app-header__profileDropdownUserCard-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--color-bg-surface, #fff);
+  border: 1px solid var(--color-border-divider, #e5e7eb);
+  flex-shrink: 0;
+}
+
+[data-app="admin"] .app-header__profileDropdownUserCard-body,
+.app-header__profileDropdownOverlay .app-header__profileDropdownUserCard-body {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+[data-app="admin"] .app-header__profileDropdownUserCard-nameRow,
+.app-header__profileDropdownOverlay .app-header__profileDropdownUserCard-nameRow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+[data-app="admin"] .app-header__profileDropdownUserCard-name,
+.app-header__profileDropdownOverlay .app-header__profileDropdownUserCard-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-primary, #1a1a1a);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 140px;
+}
+
+[data-app="admin"] .app-header__profileDropdownUserCard-meta,
+.app-header__profileDropdownOverlay .app-header__profileDropdownUserCard-meta {
+  font-size: 12px;
+  color: var(--color-text-muted, #6b7280);
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 200px;
+}
+
+/* ========== 프로필 드롭다운 메뉴 항목 — 아이콘 정렬 (P2-3) ========== */
+[data-app="admin"] .app-header__profileDropdownItem,
+.app-header__profileDropdownOverlay .app-header__profileDropdownItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+[data-app="admin"] .app-header__profileDropdownItem > svg,
+.app-header__profileDropdownOverlay .app-header__profileDropdownItem > svg {
+  color: var(--color-text-secondary, #6b7280);
+  flex-shrink: 0;
+}
+
+[data-app="admin"] .app-header__profileDropdownItem--danger > svg,
+.app-header__profileDropdownOverlay .app-header__profileDropdownItem--danger > svg {
+  color: var(--color-status-error, #ef4444);
+}

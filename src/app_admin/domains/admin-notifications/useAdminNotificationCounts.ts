@@ -7,6 +7,7 @@ import {
   buildAdminNotificationItems,
   type AdminNotificationCounts,
   type AdminNotificationItem,
+  type AdminNotificationSource,
 } from "./api";
 
 export function useAdminNotificationCounts() {
@@ -18,7 +19,7 @@ export function useAdminNotificationCounts() {
     refetchInterval: 30 * 1000,
   });
 
-  const counts: AdminNotificationCounts = q.data ?? {
+  const counts: AdminNotificationCounts = q.data?.counts ?? {
     qnaPending: 0,
     counselPending: 0,
     clinicPending: 0,
@@ -28,13 +29,16 @@ export function useAdminNotificationCounts() {
     total: 0,
   };
 
+  const failures: AdminNotificationSource[] = q.data?.failures ?? [];
   const items: AdminNotificationItem[] = buildAdminNotificationItems(counts);
 
   return {
     counts,
     items,
+    failures,
     isLoading: q.isLoading,
     isError: q.isError,
+    isFetching: q.isFetching,
     refetch: q.refetch,
   };
 }
