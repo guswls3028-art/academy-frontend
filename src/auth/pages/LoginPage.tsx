@@ -25,12 +25,17 @@ import "@/auth/themes/sswe.css";
 import "@/auth/themes/dnb.css";
 import styles from "./LoginPage.module.css";
 
-/** 테넌트 코드 결정: URL param > hostname > storage/env > program */
+/**
+ * 테넌트 코드 결정 우선순위: hostname > URL param > storage/env > program
+ * - hostname 결정 가능 시: 백엔드가 host 기반 SSOT로 인증하므로 화면 브랜딩도 host와 맞춰야 일관성 유지
+ *   (param이 host와 다르면 충돌. 충돌 처리는 컴포넌트 본문에서 정규 경로로 리다이렉트)
+ * - hostname 결정 불가(localhost / 프리뷰)인 경우에만 URL param 사용
+ */
 function useTenantCode(programTenantCode: string | undefined): string | null {
   const { tenantCode: paramCode } = useParams<{ tenantCode?: string }>();
-  if (paramCode) return paramCode;
   const fromHost = getTenantCodeFromHostname();
   if (fromHost.ok) return fromHost.code;
+  if (paramCode) return paramCode;
   const resolved = resolveTenantCode();
   if (resolved.ok) return resolved.code;
   return programTenantCode ?? null;
@@ -83,19 +88,14 @@ export default function LoginPage() {
   }
 
   // 테넌트 1/9999도 /login 페이지 정상 사용 (프로모 리다이렉트 제거)
-  const tc = program.tenantCode;
-
   const tenantId = tenantCode ? getTenantIdFromCode(tenantCode) : null;
   const branding = tenantId ? getTenantBranding(tenantId) : null;
 
-  // 테넌트 도메인 접속 시 /login/code → /login 리다이렉트 (URL 깔끔하게)
+  // 테넌트 도메인 접속 시 /login/code → /login 리다이렉트.
+  // 같은 테넌트면 URL을 깔끔하게, 다른 테넌트면 host 기준으로 강제 정규화 (브랜딩-인증 불일치 방지).
   const fromHost = getTenantCodeFromHostname();
   if (paramCode && fromHost.ok) {
-    const hostTenantId = getTenantIdFromCode(fromHost.code);
-    const paramTenantId = getTenantIdFromCode(paramCode);
-    if (hostTenantId === paramTenantId) {
-      return <Navigate to="/login" replace />;
-    }
+    return <Navigate to="/login" replace />;
   }
 
   const title = branding?.loginTitle ?? program?.ui_config?.login_title ?? "로그인";

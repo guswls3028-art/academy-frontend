@@ -8,11 +8,15 @@
  */
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 import useAuth from "@/auth/hooks/useAuth";
+import { resolveTenantCodeString } from "@/shared/tenant";
 
 const MOBILE_QUERY = "(max-width: 1023px)";
-const PREFER_ADMIN_KEY = "teacher:preferAdmin";
 
 const STAFF_ROLES = ["owner", "admin", "teacher", "staff"];
+
+function getPreferAdminKey(): string {
+  return `teacher:preferAdmin:${resolveTenantCodeString()}`;
+}
 
 function isMobileViewport(): boolean {
   if (typeof window === "undefined") return false;
@@ -27,9 +31,9 @@ function isStandaloneMode(): boolean {
   );
 }
 
-function prefersAdmin(): boolean {
+export function prefersAdmin(): boolean {
   try {
-    return localStorage.getItem(PREFER_ADMIN_KEY) === "1";
+    return localStorage.getItem(getPreferAdminKey()) === "1";
   } catch {
     return false;
   }
@@ -57,10 +61,11 @@ export default function MobileTeacherRedirect() {
 /** admin 앱에서 "PC 버전 유지" 토글 시 호출 */
 export function setPreferAdmin(prefer: boolean): void {
   try {
+    const key = getPreferAdminKey();
     if (prefer) {
-      localStorage.setItem(PREFER_ADMIN_KEY, "1");
+      localStorage.setItem(key, "1");
     } else {
-      localStorage.removeItem(PREFER_ADMIN_KEY);
+      localStorage.removeItem(key);
     }
   } catch {
     // localStorage 접근 불가 무시

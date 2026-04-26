@@ -53,6 +53,13 @@ export function clearTokens() {
     localStorage.removeItem("access");
     localStorage.removeItem("refresh");
     localStorage.removeItem("parent_selected_student_id");
+    // tenant-scoped parent selection keys cleanup
+    for (let i = localStorage.length - 1; i >= 0; i -= 1) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith("parent_selected_student_id_")) {
+        localStorage.removeItem(k);
+      }
+    }
     sessionStorage.removeItem("session_expired");
     sessionStorage.removeItem("session_return_path");
     sessionStorage.removeItem("tenantCode");
@@ -252,16 +259,30 @@ api.interceptors.request.use(async (config) => {
 });
 
 /**
- * CORS-blocked 401 감지:
- * 서버가 401 응답에 CORS 헤더를 빠뜨리면 브라우저가 응답을 차단하여
- * err.response 가 undefined 인 네트워크 에러로 나타남.
- * 이때 Authorization 헤더가 있었으면 인증 실패로 간주.
+ * 네트워크 에러와 CORS-blocked 401 분리:
+ * - err.response 부재 + Authorization 헤더만으로 401 단정하면 오프라인/DNS 실패/
+ *   연결 거부 등 일반 네트워크 장애도 강제 로그아웃으로 이어진다.
+ * - axios는 일반 네트워크 실패에 err.code 'ERR_NETWORK' / 'ECONNABORTED' /
+ *   'ENOTFOUND' / 'ECONNRESET' 등을 채운다 → 이 경우는 인증 실패가 아닌 네트워크 실패.
+ * - CORS-blocked 401은 브라우저에서 클라이언트 코드가 신뢰성 있게 구별 불가 →
+ *   안전한 default는 "네트워크 에러로 처리"(세션 보존). 실제 401 상태만 refresh/로그아웃.
  */
-function isCorsBlocked401(err: AxiosError): boolean {
-  if (err.response) return false; // 서버 응답이 있으면 CORS 차단 아님
-  if (err.code === "ECONNABORTED") return false; // 타임아웃
-  const auth = (err.config?.headers as any)?.Authorization;
-  return !!auth; // Authorization 헤더가 있었는데 응답 없음 → CORS 차단된 401 가능성
+const NETWORK_ERROR_CODES = new Set([
+  "ECONNABORTED",     // 타임아웃
+  "ERR_NETWORK",      // 일반 네트워크 실패
+  "ENOTFOUND",        // DNS 실패
+  "ECONNRESET",       // 연결 끊김
+  "ECONNREFUSED",     // 서버 거부
+  "ETIMEDOUT",        // 타임아웃
+  "ERR_INTERNET_DISCONNECTED",
+]);
+
+function isNetworkError(err: AxiosError): boolean {
+  if (err.response) return false;
+  if (err.code && NETWORK_ERROR_CODES.has(err.code)) return true;
+  // err.code 없이 response 없는 케이스: 'Network Error' 메시지 휴리스틱
+  if (typeof err.message === "string" && /network/i.test(err.message)) return true;
+  return false;
 }
 
 /**
@@ -269,7 +290,8 @@ function isCorsBlocked401(err: AxiosError): boolean {
  * - 비동기 SSOT: 성공/실패 시 해당 요청 완료 처리
  * - 401: attempt refresh ONCE, then replay original request
  * - 403: do not refresh (membership/role), fail-fast
- * - CORS-blocked 401: 네트워크 에러로 나타나는 경우에도 인증 실패 처리
+ * - 네트워크 에러(오프라인/DNS/timeout): isNetworkError로 분리해 토큰 보존 + throw
+ *   (CORS-blocked 401은 클라이언트에서 신뢰성 있게 구별 불가 → 안전한 default는 세션 보존)
  */
 api.interceptors.response.use(
   (res: AxiosResponse) => {
@@ -314,11 +336,14 @@ api.interceptors.response.use(
       throw err;
     }
 
-    // 401 또는 CORS 차단된 401: refresh 시도
-    const is401 = status === 401;
-    const isCorsAuth = !is401 && isCorsBlocked401(err);
+    // 네트워크 장애(오프라인/DNS/연결끊김/타임아웃)는 인증 실패가 아니므로
+    // 토큰 정리 없이 그대로 throw → 호출 측이 retry/UX 처리.
+    if (isNetworkError(err)) {
+      throw err;
+    }
 
-    if ((is401 || isCorsAuth) && !original._retry && !shouldSkipAuth(original.url, original)) {
+    // 401만 refresh 시도 (위에서 네트워크 에러는 이미 분리됨)
+    if (status === 401 && !original._retry && !shouldSkipAuth(original.url, original)) {
       original._retry = true;
 
       if (isRefreshing) {

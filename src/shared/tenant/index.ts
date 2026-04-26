@@ -145,6 +145,7 @@ export function getTenantCodeForHeader(): string | null {
  * API 요청 시 X-Tenant-Code 값 (SSOT)
  * - 중앙 API(api.hakwonplus.com)로 요청할 때 필수.
  * - 로컬(localhost/127.0.0.1): 경로(/login/xxx)·sessionStorage 우선 → 태넌트별 완전 격리(1 vs 9999).
+ * - 프리뷰(*.pages.dev / *.trycloudflare.com): 경로 우선, sessionStorage fallback 금지 → cross-tenant 누출 차단.
  * - 그 외: 1) hostname(도메인) 2) /login/xxx 경로 3) sessionStorage
  */
 export function getTenantCodeForApiRequest(): string | null {
@@ -152,6 +153,8 @@ export function getTenantCodeForApiRequest(): string | null {
     if (typeof window === "undefined") return null;
     const hostname = (window.location.hostname || "").trim().toLowerCase();
     const isLocal = hostname === "localhost" || hostname === "127.0.0.1";
+    const isPreview =
+      hostname.endsWith(".pages.dev") || hostname.endsWith(".trycloudflare.com");
 
     if (isLocal) {
       // 로컬에서는 경로·sessionStorage 우선 — 1번/9999 등 테넌트 구분
@@ -171,6 +174,22 @@ export function getTenantCodeForApiRequest(): string | null {
         if (stored) return stored;
       } catch {}
       return HOSTNAME_TO_TENANT_CODE[hostname] ?? null;
+    }
+
+    if (isPreview) {
+      // 프리뷰 도메인: 경로 명시 시에만 사용, stale sessionStorage 사용 금지 (cross-tenant 보안).
+      const pathname = window.location.pathname || "";
+      const parts = pathname.split("/").filter(Boolean);
+      const loginIdx = parts.indexOf("login");
+      const fromPath =
+        loginIdx >= 0 && parts[loginIdx + 1] ? parts[loginIdx + 1] : null;
+      if (fromPath) {
+        try {
+          sessionStorage.setItem("tenantCode", fromPath);
+        } catch {}
+        return fromPath;
+      }
+      return null;
     }
 
     const fromHost =

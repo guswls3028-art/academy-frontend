@@ -3,7 +3,7 @@ import { Routes, Route, Navigate, Outlet, useLocation, useNavigate } from "react
 import { Suspense, useEffect, useRef } from "react";
 import { lazyWithRetry as lazy } from "@/shared/utils/lazyWithRetry";
 import ProtectedRoute from "./ProtectedRoute";
-import MobileTeacherRedirect from "./MobileTeacherRedirect";
+import MobileTeacherRedirect, { prefersAdmin } from "./MobileTeacherRedirect";
 import ErrorBoundary from "@/shared/ui/ErrorBoundary";
 
 const StudentRouter = lazy(() => import("@student/app/StudentRouter"));
@@ -79,8 +79,7 @@ function RootRedirect() {
       // 모바일 + staff역할 → 선생님 앱, standalone이면 이미 의도적 접근
       const isMobile = window.matchMedia("(max-width: 1023px)").matches;
       const isStandalone = window.matchMedia("(display-mode: standalone)").matches || (navigator as any).standalone;
-      const prefersAdmin = localStorage.getItem("teacher:preferAdmin") === "1";
-      if (isMobile && !isStandalone && !prefersAdmin) {
+      if (isMobile && !isStandalone && !prefersAdmin()) {
         navigate("/teacher", { replace: true });
       } else {
         navigate("/admin", { replace: true });
