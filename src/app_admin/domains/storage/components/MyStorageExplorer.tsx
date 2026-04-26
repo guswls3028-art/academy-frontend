@@ -481,6 +481,8 @@ export default function MyStorageExplorer() {
                 <div
                   key={file.id}
                   draggable
+                  data-testid={file.matchup ? "storage-file-row-promoted" : "storage-file-row"}
+                  data-file-id={file.id}
                   className={
                     styles.item +
                     (selectedFileIds.has(file.id) ? " " + styles.itemSelected : "") +

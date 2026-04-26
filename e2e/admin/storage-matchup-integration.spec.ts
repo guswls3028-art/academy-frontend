@@ -15,7 +15,6 @@ import { test, expect } from "../fixtures/strictTest";
 import { loginViaUI } from "../helpers/auth";
 
 const BASE = process.env.E2E_BASE_URL || "https://hakwonplus.com";
-const TAG = `[E2E-${Date.now()}]`;
 
 test.describe("storage-as-canonical 통합", () => {
   test.beforeEach(async ({ page }) => {
@@ -69,8 +68,7 @@ test.describe("storage-as-canonical 통합", () => {
     await page.goto(`${BASE}/admin/storage/matchup`, { waitUntil: "networkidle" });
     await page.waitForTimeout(2000);
 
-    // 첫 번째 doc 선택
-    const firstDoc = page.locator("[data-testid^='matchup-doc-row-']").first();
+    const firstDoc = page.locator("[data-testid='matchup-doc-row']").first();
     if (await firstDoc.count() === 0) {
       test.skip(true, "no matchup docs in this tenant");
       return;
@@ -79,29 +77,29 @@ test.describe("storage-as-canonical 통합", () => {
     await page.waitForTimeout(800);
 
     const storageLink = page.locator("[data-testid='matchup-doc-storage-link']");
-    await expect(storageLink, "storage 링크 버튼 노출").toBeVisible({ timeout: 5000 });
+    await expect(storageLink, "storage 링크 버튼 노출 (inventory_file_id 있을 때만)").toBeVisible({ timeout: 5000 });
 
     await storageLink.click();
     await expect(page).toHaveURL(/\/admin\/storage\/files/, { timeout: 8000 });
   });
 
-  test("저장소에서 매치업 승격된 파일에 📚 뱃지 노출 + 클릭 → '매치업 보기' 액션", async ({ page }) => {
+  test("저장소에서 매치업 승격된 파일 row 클릭 → '매치업 보기' 액션 (📚 뱃지 노출 동시 검증)", async ({ page }) => {
     await page.goto(`${BASE}/admin/storage/files`, { waitUntil: "networkidle" });
     await page.waitForTimeout(2000);
 
-    const badge = page.locator("[data-testid^='storage-file-matchup-badge-']").first();
-    if (await badge.count() === 0) {
-      test.skip(true, "no promoted files visible in current folder");
+    const promotedRow = page.locator("[data-testid='storage-file-row-promoted']").first();
+    if (await promotedRow.count() === 0) {
+      test.skip(true, "no promoted files in root folder");
       return;
     }
-    await expect(badge).toBeVisible();
 
-    // 부모 file row 클릭 → 액션 팝업
-    const fileRow = badge.locator("xpath=ancestor::*[contains(@class,'item')][1]");
-    await fileRow.click();
+    // 뱃지 노출 검증 (자식)
+    await expect(promotedRow.locator("[data-testid^='storage-file-matchup-badge-']")).toBeVisible();
+
+    await promotedRow.click();
     await page.waitForTimeout(500);
 
-    // "매치업 보기" 액션 노출, "매치업으로 등록"이 아닌
+    // "매치업 보기" 액션 노출, "매치업으로 등록"은 아님
     await expect(page.locator("[data-testid='storage-file-action-matchup-open']")).toBeVisible({ timeout: 3000 });
     await expect(page.locator("[data-testid='storage-file-action-matchup-promote']")).toHaveCount(0);
   });
@@ -125,9 +123,3 @@ test.describe("storage-as-canonical 통합", () => {
   });
 });
 
-test.describe("E2E cleanup", () => {
-  test(`${TAG} 식별자 메모`, async () => {
-    test.info().annotations.push({ type: "tag", description: TAG });
-    expect(true).toBe(true);
-  });
-});
