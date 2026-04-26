@@ -910,6 +910,14 @@ function MaterialsDetail({ id, onBack }: { id: number; onBack: () => void }) {
           <HtmlContent html={post.content} />
         </div>
         <AttachmentList postId={post.id} attachments={post.attachments} />
+        <p style={{
+          margin: "var(--stu-space-2) 0 0",
+          fontSize: 12,
+          color: "var(--stu-text-muted)",
+          lineHeight: 1.5,
+        }}>
+          💡 자료실은 다운로드 전용입니다. 질문은 QnA 탭에서 등록해 주세요.
+        </p>
       </div>
     </StudentPageShell>
   );

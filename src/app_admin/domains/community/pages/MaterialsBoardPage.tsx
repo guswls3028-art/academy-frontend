@@ -213,6 +213,14 @@ export default function MaterialsBoardPage() {
           <div className="flex items-center gap-2">
             <input type="search" className="ds-input flex-1 min-w-0" placeholder="제목 · 내용 · 작성자" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} aria-label="자료실 검색" />
           </div>
+          <p style={{
+            margin: "8px 0 0",
+            fontSize: 11,
+            color: "var(--color-text-muted)",
+            lineHeight: 1.5,
+          }}>
+            💡 자료실은 강의 자료 다운로드 전용입니다. 댓글·질문은 게시판/QnA에서.
+          </p>
         </div>
 
         <div className="qna-inbox__list-body">
