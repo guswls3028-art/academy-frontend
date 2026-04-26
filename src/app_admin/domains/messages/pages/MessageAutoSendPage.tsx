@@ -70,8 +70,8 @@ const TRIGGER_DESCRIPTIONS: Record<string, string> = {
   video_encoding_complete: "영상 인코딩이 완료되면 업로드한 선생님에게 완료 알림을 발송합니다.",
   // urgent_notice: 카카오 알림톡 정책 위반으로 제거
   // 커뮤니티
-  qna_answer_registered: "QnA 답변이 등록되면 질문 작성 학생·학부모에게 답변 안내를 발송합니다.",
-  counsel_approved: "상담 신청이 승인되면 신청 학생·학부모에게 승인 안내를 발송합니다.",
+  qna_answered: "QnA 답변이 등록되면 질문을 작성한 학생에게 답변 안내를 발송합니다.",
+  counsel_answered: "상담 답변이 등록되면 신청 학생과 학부모에게 답변 안내를 발송합니다.",
   // 직원
   staff_attendance_summary: "근태 요약이 생성되면 해당 직원에게 근무 시간/일수 요약을 발송합니다.",
   staff_expense_report: "비용/경비 리포트가 생성되면 해당 직원에게 경비 내역을 발송합니다.",
@@ -91,7 +91,7 @@ const SECTION_DESCRIPTIONS: Record<AutoSendSectionId, string> = {
   clinic: "클리닉 예약 완료/변경, 시작 전 리마인드, 상담 예약 완료 알림을 설정합니다.",
   payment: "결제 완료 확인, 납부 예정일 리마인드를 설정합니다.",
   // notice: 카카오 알림톡 정책 위반으로 제거
-  community: "QnA 답변 등록, 상담 신청 승인 시 학생·학부모에게 자동 발송합니다.",
+  community: "QnA·상담 답변 등록 시 학생·학부모에게 자동 발송합니다.",
   staff: "근태 요약, 비용/경비, 월 마감, 급여 스냅샷, 급여 명세서 발송을 설정합니다.",
 };
 
