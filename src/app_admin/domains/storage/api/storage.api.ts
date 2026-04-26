@@ -24,6 +24,12 @@ export type InventoryFolder = {
   parentId: string | null;
 };
 
+export type InventoryFileMatchupInfo = {
+  documentId: number;
+  status: "pending" | "processing" | "done" | "failed";
+  problemCount: number;
+};
+
 export type InventoryFile = {
   id: string;
   name: string;
@@ -35,6 +41,8 @@ export type InventoryFile = {
   r2Key: string;
   contentType: string;
   createdAt: string;
+  // admin scope에서만 채워짐. 매치업 자료로 승격된 경우 doc 정보 포함.
+  matchup?: InventoryFileMatchupInfo;
 };
 
 export type InventoryListResponse = {
@@ -76,9 +84,17 @@ export type UploadFilePayload = {
   icon: string;
   file: File;
   studentPs?: string;
+  // 매치업 승격 토글 (admin scope + PDF/PNG/JPG일 때만 효과)
+  promoteToMatchup?: boolean;
+  subject?: string;
+  gradeLevel?: string;
 };
 
-export async function uploadFile(payload: UploadFilePayload): Promise<InventoryFile> {
+export type UploadFileResponse = InventoryFile & {
+  matchupDocumentId?: number;
+};
+
+export async function uploadFile(payload: UploadFilePayload): Promise<UploadFileResponse> {
   const form = new FormData();
   form.append("file", payload.file);
   form.append("display_name", payload.displayName);
@@ -87,8 +103,11 @@ export async function uploadFile(payload: UploadFilePayload): Promise<InventoryF
   form.append("scope", payload.scope);
   if (payload.folderId) form.append("folder_id", payload.folderId);
   if (payload.studentPs) form.append("student_ps", payload.studentPs);
+  if (payload.promoteToMatchup) form.append("promote_to_matchup", "true");
+  if (payload.subject) form.append("subject", payload.subject);
+  if (payload.gradeLevel) form.append("grade_level", payload.gradeLevel);
 
-  const { data } = await api.post<InventoryFile>("/storage/inventory/upload/", form, {
+  const { data } = await api.post<UploadFileResponse>("/storage/inventory/upload/", form, {
     headers: { "Content-Type": "multipart/form-data" },
   });
   return data;

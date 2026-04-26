@@ -26,6 +26,8 @@ export type MatchupDocument = {
   error_message: string;
   // null: 기존 문서(migration 이전) 호환. `doc.meta?.field` 접근 필수.
   meta: MatchupDocumentMeta | null;
+  // 저장소(InventoryFile) FK — storage-as-canonical 모델 (M-3 이후 NOT NULL)
+  inventory_file_id: number | null;
   created_at: string;
   updated_at: string;
 };
@@ -81,6 +83,48 @@ export async function uploadMatchupDocument(payload: {
     { headers: { "Content-Type": "multipart/form-data" } },
   );
   return data;
+}
+
+export type PromoteAlreadyExistsError = Error & {
+  status: 409;
+  code: "already_promoted";
+  documentId: number;
+};
+
+/**
+ * 저장소 InventoryFile을 매치업 분석 대상으로 승격.
+ * 이미 승격된 파일이면 PromoteAlreadyExistsError(status=409)를 throw.
+ */
+export async function promoteInventoryToMatchup(payload: {
+  inventoryFileId: string | number;
+  title?: string;
+  subject?: string;
+  gradeLevel?: string;
+}): Promise<MatchupDocument> {
+  try {
+    const { data } = await api.post<MatchupDocument>(
+      "/matchup/documents/promote/",
+      {
+        inventory_file_id: Number(payload.inventoryFileId),
+        title: payload.title,
+        subject: payload.subject,
+        grade_level: payload.gradeLevel,
+      },
+    );
+    return data;
+  } catch (e: unknown) {
+    if (e && typeof e === "object" && "response" in e) {
+      const ax = (e as { response?: { status?: number; data?: Record<string, unknown> } }).response;
+      if (ax?.status === 409 && ax?.data?.code === "already_promoted") {
+        const err = new Error(String(ax.data.detail ?? "이미 승격됨")) as PromoteAlreadyExistsError;
+        err.status = 409;
+        err.code = "already_promoted";
+        err.documentId = Number(ax.data.document_id ?? 0);
+        throw err;
+      }
+    }
+    throw e;
+  }
 }
 
 export async function updateMatchupDocument(

@@ -3,7 +3,8 @@
 
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Sparkles, AlertTriangle, RefreshCw, Eye } from "lucide-react";
+import { useSearchParams, useNavigate } from "react-router-dom";
+import { Sparkles, AlertTriangle, RefreshCw, Eye, FolderOpen } from "lucide-react";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import {
@@ -26,7 +27,24 @@ import css from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
 
 export default function MatchupPage() {
   const qc = useQueryClient();
-  const [selectedDocId, setSelectedDocId] = useState<number | null>(null);
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialDocId = (() => {
+    const raw = searchParams.get("docId");
+    const n = raw ? Number(raw) : NaN;
+    return Number.isFinite(n) && n > 0 ? n : null;
+  })();
+  const [selectedDocId, setSelectedDocIdState] = useState<number | null>(initialDocId);
+  const setSelectedDocId = useCallback((id: number | null) => {
+    setSelectedDocIdState(id);
+    // URL ↔ 상태 동기화: 저장소 explorer에서 ?docId=N으로 진입 가능
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (id) next.set("docId", String(id));
+      else next.delete("docId");
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
   const [selectedProblemId, setSelectedProblemId] = useState<number | null>(null);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [detailProblem, setDetailProblem] = useState<SimilarProblem | null>(null);
@@ -95,13 +113,12 @@ export default function MatchupPage() {
       qc.invalidateQueries({ queryKey: ["matchup-documents"] });
       feedback.success("문서가 삭제되었습니다.");
     },
-    [qc, selectedDocId],
+    [qc, selectedDocId, setSelectedDocId],
   );
 
   const handleRetry = useCallback(
     async (id: number) => {
       await retryMatchupDocument(id);
-      // 재시도 시 이전 문제는 삭제되므로 선택 해제 (API 404 방지)
       if (selectedDocId === id) setSelectedProblemId(null);
       qc.invalidateQueries({ queryKey: ["matchup-documents"] });
       qc.invalidateQueries({ queryKey: ["matchup-problems", id] });
@@ -113,13 +130,13 @@ export default function MatchupPage() {
   const handleSelectDoc = useCallback((id: number) => {
     setSelectedDocId(id);
     setSelectedProblemId(null);
-  }, []);
+  }, [setSelectedDocId]);
 
   const handleNavigateToProblem = useCallback((documentId: number, problemNumber: number) => {
     setSelectedDocId(documentId);
     setPendingNavigateNumber(problemNumber);
     qc.invalidateQueries({ queryKey: ["matchup-problems", documentId] });
-  }, [qc]);
+  }, [qc, setSelectedDocId]);
 
   // pendingNavigateNumber 처리는 useEffect에서 (렌더 중 setState 금지)
   useEffect(() => {
@@ -213,6 +230,24 @@ export default function MatchupPage() {
                     >
                       <Eye size={12} />
                       원본 보기
+                    </button>
+                  )}
+                  {selectedDoc?.inventory_file_id && (
+                    <button
+                      onClick={() => navigate("/admin/storage/files")}
+                      data-testid="matchup-doc-storage-link"
+                      title="저장소에서 이 자료 보기"
+                      style={{
+                        display: "flex", alignItems: "center", gap: 4,
+                        fontSize: 11, padding: "3px 10px", borderRadius: 4,
+                        background: "var(--color-bg-surface-soft)",
+                        color: "var(--color-text-secondary)",
+                        border: "1px solid var(--color-border-divider)",
+                        cursor: "pointer",
+                      }}
+                    >
+                      <FolderOpen size={12} />
+                      저장소에서 보기
                     </button>
                   )}
                   {selectedDoc?.subject && (

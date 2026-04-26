@@ -4,7 +4,8 @@
 
 import { useState, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { FolderOpen, FileText, Image, FilePlus, FolderPlus, X, Download, Trash2, Pencil } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { FolderOpen, FileText, Image, FilePlus, FolderPlus, X, Download, Trash2, Pencil, Sparkles } from "lucide-react";
 import { Button, CloseButton } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useConfirm } from "@/shared/ui/confirm";
@@ -23,6 +24,18 @@ import {
   type InventoryFile,
   type MoveConflictError,
 } from "../api/storage.api";
+import { promoteInventoryToMatchup } from "../api/matchup.api";
+
+const MATCHUP_SUPPORTED_TYPES = new Set([
+  "application/pdf",
+  "image/png",
+  "image/jpeg",
+  "image/jpg",
+]);
+
+function isMatchupSupported(file: InventoryFile): boolean {
+  return MATCHUP_SUPPORTED_TYPES.has(file.contentType ?? "");
+}
 import Breadcrumb from "./Breadcrumb";
 import FolderTree from "./FolderTree";
 import UploadModal from "./UploadModal";
@@ -46,6 +59,7 @@ const SCOPE = "admin" as const;
 export default function MyStorageExplorer() {
   const qc = useQueryClient();
   const confirm = useConfirm();
+  const navigate = useNavigate();
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
   const [addChoiceOpen, setAddChoiceOpen] = useState(false);
   const [newFolderOpen, setNewFolderOpen] = useState(false);
@@ -98,18 +112,31 @@ export default function MyStorageExplorer() {
   }, [currentFolderId, newFolderName, qc]);
 
   const handleUpload = useCallback(
-    async (payload: { displayName: string; description: string; icon: string; file: File }) => {
+    async (payload: {
+      displayName: string;
+      description: string;
+      icon: string;
+      file: File;
+      promoteToMatchup?: boolean;
+    }) => {
       try {
-        await uploadFile({
+        const res = await uploadFile({
           scope: SCOPE,
           folderId: currentFolderId,
           displayName: payload.displayName,
           description: payload.description,
           icon: payload.icon,
           file: payload.file,
+          promoteToMatchup: payload.promoteToMatchup,
         });
         qc.invalidateQueries({ queryKey: ["storage-inventory", SCOPE] });
+        if (payload.promoteToMatchup) {
+          qc.invalidateQueries({ queryKey: ["matchup-documents"] });
+        }
         setUploadModalOpen(false);
+        if (payload.promoteToMatchup && res.matchupDocumentId) {
+          feedback.success("저장 + 매치업 등록 완료. 매치업 페이지에서 분석 진행률 확인하세요.");
+        }
       } catch (e) {
         feedback.error((e as Error).message);
       }
@@ -291,6 +318,31 @@ export default function MyStorageExplorer() {
     [conflict, handleMove]
   );
 
+  const handlePromoteToMatchup = useCallback(async (file: InventoryFile) => {
+    if (!isMatchupSupported(file)) {
+      feedback.error("매치업은 PDF/PNG/JPG만 지원합니다.");
+      return;
+    }
+    try {
+      const doc = await promoteInventoryToMatchup({
+        inventoryFileId: file.id,
+        title: file.displayName,
+      });
+      qc.invalidateQueries({ queryKey: ["storage-inventory", SCOPE] });
+      qc.invalidateQueries({ queryKey: ["matchup-documents"] });
+      feedback.success("매치업 자료로 등록했습니다. 분석을 시작합니다.");
+      navigate(`/admin/storage/matchup?docId=${doc.id}`);
+    } catch (e) {
+      const err = e as { status?: number; code?: string; documentId?: number; message?: string };
+      if (err.status === 409 && err.code === "already_promoted" && err.documentId) {
+        feedback.info("이미 매치업 자료로 등록되어 있습니다.");
+        navigate(`/admin/storage/matchup?docId=${err.documentId}`);
+        return;
+      }
+      feedback.error(err.message ?? "매치업 등록에 실패했습니다.");
+    }
+  }, [qc, navigate]);
+
   const openFileUrl = async (r2Key: string) => {
     try {
       const { url } = await getPresignedUrl(r2Key);
@@ -449,11 +501,37 @@ export default function MyStorageExplorer() {
                     e.dataTransfer.effectAllowed = "move";
                   }}
                 >
-                  {file.contentType?.startsWith("image/") ? (
-                    <Image size={36} />
-                  ) : (
-                    <FileText size={36} />
-                  )}
+                  <div style={{ position: "relative", display: "grid", placeItems: "center" }}>
+                    {file.contentType?.startsWith("image/") ? (
+                      <Image size={36} />
+                    ) : (
+                      <FileText size={36} />
+                    )}
+                    {file.matchup && (
+                      <span
+                        title={`매치업 자료 (${file.matchup.status === "done" ? `${file.matchup.problemCount}문제` : file.matchup.status})`}
+                        data-testid={`storage-file-matchup-badge-${file.id}`}
+                        style={{
+                          position: "absolute",
+                          top: -4,
+                          right: -8,
+                          background: "var(--color-brand-primary)",
+                          color: "#fff",
+                          borderRadius: 999,
+                          fontSize: 10,
+                          padding: "2px 6px",
+                          fontWeight: 700,
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 2,
+                          boxShadow: "0 1px 2px rgba(0,0,0,.2)",
+                        }}
+                      >
+                        <Sparkles size={10} />
+                        매치업
+                      </span>
+                    )}
+                  </div>
                   {renamingId?.type === "file" && renamingId.id === file.id ? (
                     <input
                       className={styles.renameInput}
@@ -546,6 +624,37 @@ export default function MyStorageExplorer() {
                 <Download size={18} style={{ color: "var(--color-brand-primary)", flexShrink: 0 }} />
                 저장하기
               </button>
+              {fileActionTarget.matchup ? (
+                <button
+                  type="button"
+                  className={styles.fileActionBtn}
+                  data-testid="storage-file-action-matchup-open"
+                  onClick={() => {
+                    const docId = fileActionTarget.matchup?.documentId;
+                    setFileActionTarget(null);
+                    if (docId) navigate(`/admin/storage/matchup?docId=${docId}`);
+                  }}
+                >
+                  <Sparkles size={18} style={{ color: "var(--color-brand-primary)", flexShrink: 0 }} />
+                  매치업 보기
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className={styles.fileActionBtn}
+                  data-testid="storage-file-action-matchup-promote"
+                  disabled={!isMatchupSupported(fileActionTarget)}
+                  title={isMatchupSupported(fileActionTarget) ? undefined : "PDF/PNG/JPG만 매치업 가능"}
+                  onClick={() => {
+                    const target = fileActionTarget;
+                    setFileActionTarget(null);
+                    handlePromoteToMatchup(target);
+                  }}
+                >
+                  <Sparkles size={18} style={{ color: "var(--color-brand-primary)", flexShrink: 0 }} />
+                  매치업으로 등록
+                </button>
+              )}
               <button
                 type="button"
                 className={styles.fileActionBtn}

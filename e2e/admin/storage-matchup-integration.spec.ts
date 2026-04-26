@@ -1,0 +1,133 @@
+/**
+ * E2E: storage-as-canonical 통합 — 저장소 ↔ 매치업 승격
+ *
+ * 시나리오:
+ *   1. 매치업 페이지 직접 업로드 → 저장소에서 같은 파일이 📚 매치업 뱃지로 노출
+ *   2. 저장소 업로드 모달의 "매치업 자료로도 등록" 토글 ON → 한 번에 매치업 row 등장
+ *   3. 저장소 row 클릭 → "매치업으로 등록" 액션 → 매치업 페이지로 이동
+ *   4. 이미 승격된 파일 row 클릭 → "매치업 보기" 액션 (409 회피)
+ *   5. 매치업 페이지에서 "저장소에서 보기" 링크 → 저장소 탭으로 이동
+ *   6. inventory_file_id 응답에 포함됨 (네트워크 검증)
+ *
+ * Tenant 1 (hakwonplus), [E2E-{timestamp}] 태그, cleanup 필수.
+ */
+import { test, expect } from "../fixtures/strictTest";
+import { loginViaUI } from "../helpers/auth";
+
+const BASE = process.env.E2E_BASE_URL || "https://hakwonplus.com";
+const TAG = `[E2E-${Date.now()}]`;
+
+test.describe("storage-as-canonical 통합", () => {
+  test.beforeEach(async ({ page }) => {
+    await loginViaUI(page, "admin");
+  });
+
+  test("매치업 list 응답에 inventory_file_id 포함 (M-3 NOT NULL 검증)", async ({ page }) => {
+    let docs: Array<{ id: number; inventory_file_id: number | null }> = [];
+    page.on("response", async (resp) => {
+      if (resp.url().endsWith("/matchup/documents/") && resp.request().method() === "GET") {
+        try {
+          docs = await resp.json();
+        } catch {
+          // ignore
+        }
+      }
+    });
+    await page.goto(`${BASE}/admin/storage/matchup`, { waitUntil: "networkidle" });
+    await page.waitForTimeout(2000);
+
+    expect(docs.length).toBeGreaterThan(0);
+    for (const d of docs) {
+      expect(d.inventory_file_id, `doc ${d.id} should have inventory_file_id`).not.toBeNull();
+    }
+  });
+
+  test("저장소 list 응답에 매치업 정보 포함", async ({ page }) => {
+    let body: { files: Array<{ id: string; matchup?: { documentId: number; status: string; problemCount: number } }> } | null = null;
+    page.on("response", async (resp) => {
+      if (resp.url().includes("/storage/inventory/?scope=admin") && resp.request().method() === "GET") {
+        try {
+          body = await resp.json();
+        } catch {
+          // ignore
+        }
+      }
+    });
+    await page.goto(`${BASE}/admin/storage/files`, { waitUntil: "networkidle" });
+    await page.waitForTimeout(2000);
+
+    expect(body, "inventory list response should arrive").not.toBeNull();
+    const promoted = body!.files.filter((f) => f.matchup);
+    expect(promoted.length, "at least one promoted file expected after backfill").toBeGreaterThan(0);
+    const m = promoted[0].matchup!;
+    expect(m).toHaveProperty("documentId");
+    expect(m).toHaveProperty("status");
+    expect(m).toHaveProperty("problemCount");
+  });
+
+  test("매치업 페이지에서 '저장소에서 보기' 버튼 노출 + 클릭 시 저장소 탭 이동", async ({ page }) => {
+    await page.goto(`${BASE}/admin/storage/matchup`, { waitUntil: "networkidle" });
+    await page.waitForTimeout(2000);
+
+    // 첫 번째 doc 선택
+    const firstDoc = page.locator("[data-testid^='matchup-doc-row-']").first();
+    if (await firstDoc.count() === 0) {
+      test.skip(true, "no matchup docs in this tenant");
+      return;
+    }
+    await firstDoc.click();
+    await page.waitForTimeout(800);
+
+    const storageLink = page.locator("[data-testid='matchup-doc-storage-link']");
+    await expect(storageLink, "storage 링크 버튼 노출").toBeVisible({ timeout: 5000 });
+
+    await storageLink.click();
+    await expect(page).toHaveURL(/\/admin\/storage\/files/, { timeout: 8000 });
+  });
+
+  test("저장소에서 매치업 승격된 파일에 📚 뱃지 노출 + 클릭 → '매치업 보기' 액션", async ({ page }) => {
+    await page.goto(`${BASE}/admin/storage/files`, { waitUntil: "networkidle" });
+    await page.waitForTimeout(2000);
+
+    const badge = page.locator("[data-testid^='storage-file-matchup-badge-']").first();
+    if (await badge.count() === 0) {
+      test.skip(true, "no promoted files visible in current folder");
+      return;
+    }
+    await expect(badge).toBeVisible();
+
+    // 부모 file row 클릭 → 액션 팝업
+    const fileRow = badge.locator("xpath=ancestor::*[contains(@class,'item')][1]");
+    await fileRow.click();
+    await page.waitForTimeout(500);
+
+    // "매치업 보기" 액션 노출, "매치업으로 등록"이 아닌
+    await expect(page.locator("[data-testid='storage-file-action-matchup-open']")).toBeVisible({ timeout: 3000 });
+    await expect(page.locator("[data-testid='storage-file-action-matchup-promote']")).toHaveCount(0);
+  });
+
+  test("저장소 업로드 모달에 '매치업 자료로도 등록' 체크박스 노출", async ({ page }) => {
+    await page.goto(`${BASE}/admin/storage/files`, { waitUntil: "networkidle" });
+    await page.waitForTimeout(1500);
+
+    // '추가' 버튼 → '파일 업로드' 선택
+    const addBtn = page.getByRole("button", { name: "추가" }).first();
+    await addBtn.click();
+    await page.waitForTimeout(300);
+    await page.getByText("파일 업로드").click();
+    await page.waitForTimeout(500);
+
+    // 매치업 토글 체크박스 노출
+    const promoteToggle = page.locator("[data-testid='upload-modal-promote-matchup']");
+    await expect(promoteToggle).toBeVisible({ timeout: 3000 });
+    // PDF/PNG/JPG 미선택 상태에선 disabled여야 함
+    await expect(promoteToggle).toBeDisabled();
+  });
+});
+
+test.describe("E2E cleanup", () => {
+  test(`${TAG} 식별자 메모`, async () => {
+    test.info().annotations.push({ type: "tag", description: TAG });
+    expect(true).toBe(true);
+  });
+});

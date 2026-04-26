@@ -2,7 +2,7 @@
 // 파일 업로드 모달 — 제목, 설명, 아이콘(Lucide), 파일 선택
 
 import { useState, useRef } from "react";
-import { FileText, Image, File } from "lucide-react";
+import { FileText, Image, File, Sparkles } from "lucide-react";
 import { Button, CloseButton } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { compressImageToWebP } from "../utils/imageCompress";
@@ -14,11 +14,19 @@ const ICON_OPTIONS = [
   { id: "file", label: "파일", Icon: File },
 ] as const;
 
+const MATCHUP_SUPPORTED_TYPES = new Set([
+  "application/pdf",
+  "image/png",
+  "image/jpeg",
+  "image/jpg",
+]);
+
 type UploadPayload = {
   displayName: string;
   description: string;
   icon: string;
   file: File;
+  promoteToMatchup?: boolean;
 };
 
 type UploadModalProps = {
@@ -32,7 +40,10 @@ export default function UploadModal({ onClose, onUpload }: UploadModalProps) {
   const [icon, setIcon] = useState<string>("file-text");
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [promoteToMatchup, setPromoteToMatchup] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const matchupEligible = file ? MATCHUP_SUPPORTED_TYPES.has(file.type) : false;
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
@@ -63,6 +74,7 @@ export default function UploadModal({ onClose, onUpload }: UploadModalProps) {
         description,
         icon,
         file,
+        promoteToMatchup: promoteToMatchup && matchupEligible,
       });
     } finally {
       setUploading(false);
@@ -129,6 +141,35 @@ export default function UploadModal({ onClose, onUpload }: UploadModalProps) {
             >
               {file ? file.name : "파일 선택"}
             </Button>
+          </div>
+          <div className={styles.field}>
+            <label
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                cursor: matchupEligible ? "pointer" : "not-allowed",
+                opacity: matchupEligible ? 1 : 0.5,
+                fontSize: 13,
+                fontWeight: 500,
+              }}
+              title={matchupEligible ? undefined : "PDF/PNG/JPG 파일만 매치업으로 등록할 수 있습니다."}
+            >
+              <input
+                type="checkbox"
+                data-testid="upload-modal-promote-matchup"
+                checked={promoteToMatchup && matchupEligible}
+                disabled={!matchupEligible}
+                onChange={(e) => setPromoteToMatchup(e.target.checked)}
+              />
+              <Sparkles size={14} style={{ color: "var(--color-brand-primary)" }} />
+              <span>매치업 자료로도 등록 (AI 분석)</span>
+            </label>
+            {promoteToMatchup && matchupEligible && (
+              <span style={{ fontSize: 11, color: "var(--color-text-muted)", marginTop: 4, marginLeft: 24 }}>
+                저장 후 매치업 페이지에서 분석 진행률을 확인할 수 있습니다.
+              </span>
+            )}
           </div>
         </div>
         <div className={styles.footer}>
