@@ -212,7 +212,7 @@ export async function fetchDocumentCrossMatches(
 ): Promise<CrossMatchesResponse> {
   const { data } = await api.get<CrossMatchesResponse>(
     `/matchup/documents/${docId}/cross-matches/`,
-    { params: { top_k: topK } },
+    { params: { top_k: topK }, timeout: 120_000 },
   );
   return data;
 }
@@ -289,3 +289,4 @@ export async function fetchJobProgress(
     return null;
   }
 }
+
