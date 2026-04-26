@@ -369,9 +369,14 @@ function CounselThreadView({
       <div className="qna-inbox__student-panel">
         <CommunityAvatar name={studentName} role="student" size={28} />
         <div className="qna-inbox__student-info">
-          <div className="qna-inbox__student-panel-label">상담 신청 학생</div>
+          <div className="qna-inbox__student-panel-label">
+            {post.author_role === "parent" ? "상담 신청 학부모 (자녀: 학생)" : "상담 신청 학생"}
+          </div>
           <div className="qna-inbox__student-name">
             {studentName}
+            {post.author_role === "parent" && (
+              <span style={{ fontWeight: 600, fontSize: 11, marginLeft: 6, padding: "2px 6px", borderRadius: 999, background: "color-mix(in srgb, var(--color-primary) 14%, transparent)", color: "var(--color-primary)" }}>학부모 작성</span>
+            )}
             {studentDetail?.school && (
               <span style={{ fontWeight: 400, fontSize: 12, color: "var(--color-text-muted)", marginLeft: 6 }}>
                 {studentDetail.school}{studentDetail.grade ? ` ${studentDetail.grade}학년` : ""}

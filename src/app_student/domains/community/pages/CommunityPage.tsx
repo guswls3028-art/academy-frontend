@@ -135,6 +135,28 @@ function SegmentedTabs<T extends string>({
   );
 }
 
+// ─── Parent author badge ───
+function ParentAuthorBadge() {
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        padding: "2px 8px",
+        borderRadius: 999,
+        fontSize: 11,
+        fontWeight: 700,
+        background: "color-mix(in srgb, var(--stu-primary) 12%, transparent)",
+        color: "var(--stu-primary)",
+        letterSpacing: "-0.01em",
+      }}
+      title="학부모가 작성한 글입니다"
+    >
+      학부모 작성
+    </span>
+  );
+}
+
 // ─── Status chip ───
 function StatusChip({ answered }: { answered: boolean }) {
   return (
@@ -325,17 +347,15 @@ function QnaTab({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-5)" }}>
-      {!profile?.isParentReadOnly && (
-        <button
-          type="button"
-          className="stu-btn stu-btn--primary"
-          onClick={onForm}
-          style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "var(--stu-space-2)" }}
-        >
-          <IconPlus style={{ width: 18, height: 18, flexShrink: 0 }} />
-          질문하기
-        </button>
-      )}
+      <button
+        type="button"
+        className="stu-btn stu-btn--primary"
+        onClick={onForm}
+        style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "var(--stu-space-2)" }}
+      >
+        <IconPlus style={{ width: 18, height: 18, flexShrink: 0 }} />
+        {profile?.isParentReadOnly ? "학부모 자격으로 질문하기" : "질문하기"}
+      </button>
 
       <SegmentedTabs
         items={[
@@ -410,8 +430,9 @@ function QnaDetailContent({ question, onBack }: { question: PostEntity; onBack: 
             <div style={{ fontWeight: 700, fontSize: 15, flex: 1, minWidth: 0 }}>{question.title}</div>
             <StatusChip answered={answered} />
           </div>
-          <div className="stu-muted" style={{ fontSize: 12, marginBottom: "var(--stu-space-4)" }}>
-            {formatYmd(question.created_at)}
+          <div className="stu-muted" style={{ fontSize: 12, marginBottom: "var(--stu-space-4)", display: "flex", gap: 6, alignItems: "center" }}>
+            <span>{formatYmd(question.created_at)}</span>
+            {question.author_role === "parent" && <ParentAuthorBadge />}
           </div>
           <HtmlContent html={question.content} />
           <AttachmentList postId={question.id} attachments={question.attachments} />
@@ -510,7 +531,13 @@ function QnaForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () => v
   const canSubmit = title.trim().length > 0 && contentText.length > 0 && profile?.id != null;
 
   return (
-    <StudentPageShell title="질문 보내기" description="궁금한 점을 적어 보내면 선생님이 확인해 주세요." onBack={onBack}>
+    <StudentPageShell
+      title="질문 보내기"
+      description={profile?.isParentReadOnly
+        ? "학부모 자격으로 작성됩니다. 답변 알림은 등록된 학부모 연락처로 전송됩니다."
+        : "궁금한 점을 적어 보내면 선생님이 확인해 주세요."}
+      onBack={onBack}
+    >
       <div className="stu-section stu-section--nested" style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-4)" }}>
         {errorMsg && (
           <div role="alert" style={{ padding: "var(--stu-space-3)", background: "var(--stu-danger-bg)", border: "1px solid var(--stu-danger-border)", borderRadius: "var(--stu-radius)", fontSize: 14, color: "var(--stu-danger-text)", fontWeight: 600 }}>
@@ -647,17 +674,15 @@ function CounselTab({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-5)" }}>
-      {!profile?.isParentReadOnly && (
-        <button
-          type="button"
-          className="stu-btn stu-btn--primary"
-          onClick={onForm}
-          style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "var(--stu-space-2)" }}
-        >
-          <IconPlus style={{ width: 18, height: 18 }} />
-          상담 신청하기
-        </button>
-      )}
+      <button
+        type="button"
+        className="stu-btn stu-btn--primary"
+        onClick={onForm}
+        style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "var(--stu-space-2)" }}
+      >
+        <IconPlus style={{ width: 18, height: 18 }} />
+        {profile?.isParentReadOnly ? "학부모 자격으로 상담 신청하기" : "상담 신청하기"}
+      </button>
 
       <SegmentedTabs
         items={[
@@ -732,8 +757,9 @@ function CounselDetailContent({ request, onBack }: { request: PostEntity; onBack
             <div style={{ fontWeight: 700, fontSize: 15, flex: 1, minWidth: 0 }}>{request.title}</div>
             <StatusChip answered={answered} />
           </div>
-          <div className="stu-muted" style={{ fontSize: 12, marginBottom: "var(--stu-space-4)" }}>
-            {formatYmd(request.created_at)}
+          <div className="stu-muted" style={{ fontSize: 12, marginBottom: "var(--stu-space-4)", display: "flex", gap: 6, alignItems: "center" }}>
+            <span>{formatYmd(request.created_at)}</span>
+            {request.author_role === "parent" && <ParentAuthorBadge />}
           </div>
           <HtmlContent html={request.content} />
           <AttachmentList postId={request.id} attachments={request.attachments} />
@@ -829,7 +855,13 @@ function CounselForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () 
   const canSubmit = title.trim().length > 0 && counselContentText.length > 0 && profile?.id != null;
 
   return (
-    <StudentPageShell title="상담 신청" description="상담받고 싶은 내용을 적어 보내면 선생님이 확인해 드립니다." onBack={onBack}>
+    <StudentPageShell
+      title="상담 신청"
+      description={profile?.isParentReadOnly
+        ? "학부모 자격으로 작성됩니다. 답변 알림은 등록된 학부모 연락처로 전송됩니다."
+        : "상담받고 싶은 내용을 적어 보내면 선생님이 확인해 드립니다."}
+      onBack={onBack}
+    >
       <div className="stu-section stu-section--nested" style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-4)" }}>
         {errorMsg && (
           <div role="alert" style={{ padding: "var(--stu-space-3)", background: "var(--stu-danger-bg)", border: "1px solid var(--stu-danger-border)", borderRadius: "var(--stu-radius)", fontSize: 14, color: "var(--stu-danger-text)", fontWeight: 600 }}>
