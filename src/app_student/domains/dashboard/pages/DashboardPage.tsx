@@ -341,9 +341,14 @@ export default function DashboardPage() {
             {replyCount > 0 && (() => {
               const restCount =
                 failedHomeworks.length + failedExams.length + (clinicUpcoming ? 1 : 0);
+              /* qna가 더 많으면 QnA 탭, 아니면 상담 탭으로 prefill */
+              const qnaC = notificationCounts?.qna ?? 0;
+              const counselC = notificationCounts?.counsel ?? 0;
+              const prefillTab = qnaC >= counselC ? "qna" : "counsel";
               return (
                 <TodoRow
                   to="/student/community"
+                  state={{ tab: prefillTab }}
                   icon={<IconBell style={{ width: 18, height: 18, color: "var(--stu-success)" }} />}
                   iconBg="color-mix(in srgb, var(--stu-success) 14%, var(--stu-surface-1))"
                   label={`새 답변 ${replyCount}건`}
@@ -620,13 +625,14 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
-function TodoRow({ to, icon, iconBg, label, labelColor, detail, hasBorder }: {
-  to: string; icon: React.ReactNode; iconBg: string;
+function TodoRow({ to, state, icon, iconBg, label, labelColor, detail, hasBorder }: {
+  to: string; state?: unknown; icon: React.ReactNode; iconBg: string;
   label: string; labelColor: string; detail?: string; hasBorder: boolean;
 }) {
   return (
     <Link
       to={to}
+      state={state}
       style={{
         display: "flex", alignItems: "flex-start", gap: 12,
         padding: "12px 16px", textDecoration: "none", color: "inherit",
@@ -697,6 +703,10 @@ function NoticeStrip({
   notices: Array<{ id: number; title: string; created_at: string | null }>; hasNotices: boolean;
 }) {
   const top = notices[0];
+  const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+  const isNew = top?.created_at != null
+    && (Date.now() - new Date(top.created_at).getTime()) < SEVEN_DAYS_MS;
+
   return (
     <Link
       to="/student/notices"
@@ -722,6 +732,13 @@ function NoticeStrip({
           fontSize: 13, fontWeight: 500, color: "var(--stu-text)", marginTop: 1,
           overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
         }}>
+          {isNew && (
+            <span style={{
+              fontSize: 10, fontWeight: 700, color: "var(--stu-primary-contrast)",
+              background: "var(--stu-primary)", borderRadius: 4, padding: "1px 5px",
+              marginRight: 5, letterSpacing: "0.02em",
+            }}>NEW</span>
+          )}
           {hasNotices && top ? top.title : "최신 공지를 확인하세요"}
         </div>
       </div>

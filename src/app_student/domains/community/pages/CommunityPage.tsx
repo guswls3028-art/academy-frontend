@@ -170,9 +170,11 @@ export default function CommunityPage() {
   const [tab, setTab] = useState<Tab>("notice");
   const [view, setView] = useState<View>({ kind: "tabs" });
 
-  // 알림에서 질문/상담 상세 직접 진입
+  // 알림에서 질문/상담 상세 직접 진입 + dashboard "새 답변" tab prefill
   useEffect(() => {
-    const state = location.state as { openQuestionId?: number; openCounselId?: number } | null;
+    const state = location.state as
+      | { openQuestionId?: number; openCounselId?: number; tab?: Tab }
+      | null;
     if (state?.openQuestionId != null) {
       setTab("qna");
       setView({ kind: "qna-detail", id: state.openQuestionId });
@@ -180,6 +182,9 @@ export default function CommunityPage() {
     } else if (state?.openCounselId != null) {
       setTab("counsel");
       setView({ kind: "counsel-detail", id: state.openCounselId });
+      navigate(location.pathname, { replace: true, state: {} });
+    } else if (state?.tab) {
+      setTab(state.tab);
       navigate(location.pathname, { replace: true, state: {} });
     }
   }, [location.pathname, location.state, navigate]);
