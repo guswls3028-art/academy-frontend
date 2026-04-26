@@ -6,7 +6,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useStaffs } from "../hooks/useStaffs";
 import { useQuery } from "@tanstack/react-query";
 import { fetchStaffSummaryByRange } from "../api/staff.detail.api";
-import { Button } from "@/shared/ui/ds";
+import { Button, Badge } from "@/shared/ui/ds";
 
 const TAX_RATE = 0.033;
 
@@ -66,15 +66,12 @@ export function StaffWorkspaceHeader({ staffId, year, month }: Props) {
         {staff && <span className="staff-page-title text-base font-semibold text-[var(--color-text-primary)]">{staff.name}</span>}
         {staff && (
           <>
-            <span
-              className="ds-status-badge ds-status-badge--action text-xs"
-              data-tone={staff.role === "TEACHER" ? "primary" : "neutral"}
-            >
+            <Badge variant="solid" actionable tone={staff.role === "TEACHER" ? "primary" : "neutral"}>
               {staff.role === "TEACHER" ? "강사" : "조교"}
-            </span>
-            <span className="ds-status-badge ds-status-badge--action text-xs" data-tone="neutral">
+            </Badge>
+            <Badge variant="solid" actionable tone="neutral">
               {staff.pay_type === "HOURLY" ? "시급" : "월급"}
-            </span>
+            </Badge>
             {primaryWageTag && (
               <span
                 className="staff-wage-badge staff-wage-badge--dark text-[10px] px-2 py-0.5 rounded font-semibold"

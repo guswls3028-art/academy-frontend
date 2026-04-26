@@ -17,6 +17,12 @@ import styles from "./StopwatchPage.module.css";
 
 type Mode = "timer" | "stopwatch";
 
+function getPcTimerDownloadedKey(): string {
+  const result = resolveTenantCode();
+  if (!result.ok) return "pcTimerDownloaded:unknown";
+  return `pcTimerDownloaded:${result.code}`;
+}
+
 export default function StopwatchPage() {
   const [mode, setMode] = useState<Mode>("timer");
   const [projector, setProjector] = useState(false);
@@ -25,7 +31,7 @@ export default function StopwatchPage() {
   // 첫 방문이면 가이드 펼침, 한 번이라도 다운로드한 적 있으면 접힘 (타이머 영역 확보)
   const [helpOpen, setHelpOpen] = useState(() => {
     if (typeof window === "undefined") return true;
-    return localStorage.getItem("pcTimerDownloaded") !== "1";
+    return localStorage.getItem(getPcTimerDownloadedKey()) !== "1";
   });
 
   const { logoUrl, academyName } = useMemo(() => {
@@ -57,7 +63,7 @@ export default function StopwatchPage() {
       document.body.appendChild(a);
       a.click();
       a.remove();
-      try { localStorage.setItem("pcTimerDownloaded", "1"); } catch {}
+      try { localStorage.setItem(getPcTimerDownloadedKey(), "1"); } catch {}
       feedback.success("다운로드가 시작되었습니다. 압축 파일을 풀고 실행하세요.");
     } catch (err: unknown) {
       const status = (err as { response?: { status?: number } })?.response?.status;

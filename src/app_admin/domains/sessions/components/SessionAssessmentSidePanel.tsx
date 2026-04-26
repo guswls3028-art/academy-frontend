@@ -4,7 +4,7 @@ import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import api from "@/shared/api/axios";
-import { Button } from "@/shared/ui/ds";
+import { Button, Badge } from "@/shared/ui/ds";
 import { fetchAdminSessionExams } from "@admin/domains/results/api/adminSessionExams";
 import type { SessionExamRow } from "@admin/domains/results/api/adminSessionExams";
 import { updateAdminExam } from "@admin/domains/exams/api/adminExam";
@@ -116,29 +116,18 @@ const S = {
     display: "flex",
     flexDirection: "column",
     gap: 4,
-    padding: "10px 12px 10px 14px",
+    padding: "10px 12px 10px 12px",
     borderRadius: "var(--radius-md, 8px)",
     cursor: "pointer",
     transition: "background 140ms ease, box-shadow 140ms ease, border-color 140ms ease",
     background: active
       ? "var(--state-selected-bg)"
-      : status === "OPEN"
-        ? "color-mix(in srgb, var(--color-success) 6%, var(--color-bg-surface))"
-        : status === "CLOSED"
-          ? "color-mix(in srgb, var(--color-border-divider) 6%, var(--color-bg-surface))"
-          : "transparent",
+      : "var(--color-bg-surface)",
     boxShadow: active
       ? "inset 0 0 0 1.5px color-mix(in srgb, var(--color-brand-primary) 35%, transparent)"
       : "none",
-    borderTop: "1px solid var(--color-border-divider)",
-    borderRight: "1px solid var(--color-border-divider)",
-    borderBottom: "1px solid var(--color-border-divider)",
-    borderLeft: status === "OPEN"
-      ? "3px solid var(--color-success)"
-      : status === "CLOSED"
-        ? "3px solid var(--color-border-divider)"
-        : "3px solid color-mix(in srgb, var(--color-text-muted) 30%, transparent)",
-    opacity: status === "CLOSED" ? 0.7 : 1,
+    border: "1px solid var(--color-border-divider)",
+    opacity: status === "CLOSED" ? 0.78 : 1,
   }),
 
   cardTopRow: {
@@ -191,24 +180,16 @@ const S = {
 
 type StatusTone = "success" | "danger" | "neutral" | "primary";
 
-function StatusBadge({ label, tone, pulse }: { label: string; tone: StatusTone; pulse?: boolean }) {
+function StatusBadge({ label, tone }: { label: string; tone: StatusTone }) {
   return (
-    <span
-      className="ds-status-badge ds-status-badge--1ch"
-      data-tone={tone}
-      style={{ flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 4 }}
+    <Badge
+      variant="solid"
+      tone={tone}
+      size="sm"
+      style={{ flexShrink: 0 }}
     >
-      {pulse && (
-        <span style={{
-          width: 6, height: 6,
-          borderRadius: "50%",
-          background: "#fff",
-          animation: "assess-pulse 1.5s ease-in-out infinite",
-          flexShrink: 0,
-        }} />
-      )}
       {label}
-    </span>
+    </Badge>
   );
 }
 
@@ -275,6 +256,16 @@ export default function SessionAssessmentSidePanel({
     (examsSummary?.exams ?? []).forEach((e) => {
       const ms = Number(e.max_score);
       map[e.exam_id] = Number.isFinite(ms) && ms > 0 ? ms : 100;
+    });
+    return map;
+  }, [examsSummary]);
+
+  // 채점 완료 학생 수 (latest Result 기준)
+  const examGradedCountById = useMemo(() => {
+    const map: Record<number, number> = {};
+    (examsSummary?.exams ?? []).forEach((e) => {
+      const c = Number((e as { participant_count?: number }).participant_count);
+      map[e.exam_id] = Number.isFinite(c) && c >= 0 ? c : 0;
     });
     return map;
   }, [examsSummary]);
@@ -514,6 +505,7 @@ export default function SessionAssessmentSidePanel({
             const active = examId != null && Number(exam.exam_id) === examId;
             const busy = examBusy?.id === Number(exam.exam_id) ? examBusy.action : null;
             const maxScore = examMaxScoreById[Number(exam.exam_id)] ?? 100;
+            const gradedCount = examGradedCountById[Number(exam.exam_id)] ?? 0;
             return (
               <ExamItemCard
                 key={exam.exam_id}
@@ -521,6 +513,7 @@ export default function SessionAssessmentSidePanel({
                 label={exam.title}
                 status={exam.status}
                 maxScore={maxScore}
+                gradedCount={gradedCount}
                 onSelect={() => onSelectExam(Number(exam.exam_id))}
                 onStart={(e) => { e.stopPropagation(); handleExamProgress(Number(exam.exam_id)); }}
                 onEnd={(e) => { e.stopPropagation(); handleExamClose(Number(exam.exam_id)); }}
@@ -625,6 +618,7 @@ function ExamItemCard({
   label,
   status,
   maxScore,
+  gradedCount,
   onSelect,
   onStart,
   onEnd,
@@ -634,12 +628,12 @@ function ExamItemCard({
   label: string;
   status: SessionExamRow["status"];
   maxScore: number;
+  gradedCount: number;
   onSelect: () => void;
   onStart: (e: React.MouseEvent) => void;
   onEnd: (e: React.MouseEvent) => void;
   busy: null | "start" | "end";
 }) {
-  const isClosed = status === "CLOSED";
   const isOpen = status === "OPEN";
 
   const statusLabel = isOpen ? "진행" : "마감";
@@ -655,15 +649,14 @@ function ExamItemCard({
     >
       {/* Top row: badge + title */}
       <div style={S.cardTopRow}>
-        <StatusBadge label={statusLabel} tone={statusTone} pulse={isOpen} />
-        <div style={{ ...S.cardTitle, ...(isClosed ? { textDecoration: "line-through", opacity: 0.65 } : {}) }} title={label}>{label}</div>
+        <StatusBadge label={statusLabel} tone={statusTone} />
+        <div style={S.cardTitle} title={label}>{label}</div>
       </div>
 
       {/* Meta + action buttons in one row */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 4 }}>
         <div style={S.cardMeta}>
-          만점 {maxScore}점
-          {isClosed && <span style={{ marginLeft: 6, fontSize: 10, color: "var(--color-text-muted)" }}>종료됨</span>}
+          만점 {maxScore}점 · 채점 {gradedCount}명
         </div>
         <div style={S.actionsRow} onClick={(e) => e.stopPropagation()}>
           {!isOpen && (
@@ -707,7 +700,6 @@ function HomeworkItemCard({
   onStart: (e: React.MouseEvent) => void;
   onEnd: (e: React.MouseEvent) => void;
 }) {
-  const isClosed = status === "CLOSED";
   const isOpen = status === "OPEN";
   const statusLabel = isOpen ? "진행" : "마감";
   const statusTone: StatusTone = isOpen ? "success" : "danger";
@@ -727,15 +719,14 @@ function HomeworkItemCard({
     >
       {/* Top row: badge + title */}
       <div style={S.cardTopRow}>
-        <StatusBadge label={statusLabel} tone={statusTone} pulse={isOpen} />
-        <div style={{ ...S.cardTitle, ...(isClosed ? { textDecoration: "line-through", opacity: 0.65 } : {}) }} title={label}>{label}</div>
+        <StatusBadge label={statusLabel} tone={statusTone} />
+        <div style={S.cardTitle} title={label}>{label}</div>
       </div>
 
       {/* Meta + action buttons in one row */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 4 }}>
         <div style={S.cardMeta}>
           {metaLabel}
-          {isClosed && <span style={{ marginLeft: 6, fontSize: 10, color: "var(--color-text-muted)" }}>종료됨</span>}
         </div>
         <div style={S.actionsRow} onClick={(e) => e.stopPropagation()}>
           {!isOpen && (

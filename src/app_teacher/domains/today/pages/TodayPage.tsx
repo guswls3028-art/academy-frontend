@@ -25,7 +25,7 @@ export default function TodayPage() {
     staleTime: 60_000,
   });
 
-  const { items: pendingItems } = useAdminNotificationCounts();
+  const { items: pendingItems, counts: pendingCounts } = useAdminNotificationCounts();
 
   const dateStr = new Date().toLocaleDateString("ko-KR", {
     month: "long",
@@ -39,7 +39,15 @@ export default function TodayPage() {
     <div className="flex flex-col gap-3">
       {pendingItems.length > 0 && (
         <>
-          <SectionTitle>지금 처리할 일</SectionTitle>
+          <SectionTitle
+            right={
+              <Badge tone="danger" pill>
+                {pendingCounts.total}건
+              </Badge>
+            }
+          >
+            지금 처리할 일
+          </SectionTitle>
           <Card style={{ padding: 0, overflow: "hidden" }}>
             {pendingItems.map((item, idx) => (
               <PendingRow

@@ -5,9 +5,11 @@
  * 동작: 칩 클릭 시 setParentStudentId + queryClient 캐시 클리어 + 홈으로 이동.
  *      자녀 1명일 때는 노출하지 않음(공간 낭비).
  *
- * 캐시 격리: 자녀 전환은 X-Student-Id 헤더에 의존하므로 모든 student 쿼리를
- * 무효화해야 안전. queryClient.clear()는 로그인 등 비-student 쿼리도 비우므로
- * 'student' prefix만 제거하는 형태로 좁힘.
+ * 캐시 격리: 자녀 전환은 X-Student-Id 헤더에 의존하므로 학생 스코프 쿼리를
+ * 모두 무효화해야 안전. 학생 쿼리는 키 첫 토큰이 다음 두 패턴 중 하나:
+ *   1) "student" — 예: ["student", "qna", "questions"]
+ *   2) "student-XXX" — 예: ["student-dashboard"], ["student-video-playback", ...]
+ * React Query의 prefix 매칭은 ["student"]로 student-* 를 잡지 못하므로 predicate 사용.
  */
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -48,11 +50,22 @@ export default function ParentChildSwitcher() {
     setCurrentId(id);
     /* invalidate로 stale 마킹 + 자동 refetch — 활성 쿼리는 이전 데이터를 잠깐
      * 보여주다 새 자녀 데이터로 매끄럽게 전환. removeQueries는 즉시 캐시 비우기라
-     * 아바타/이름이 잠깐 "?"로 깨지는 깜빡임이 발생해서 대신 invalidate 사용. */
-    qc.invalidateQueries({ queryKey: ["student"] });
-    qc.invalidateQueries({ queryKey: ["student-dashboard"] });
-    qc.invalidateQueries({ queryKey: ["student-sessions"] });
-    qc.invalidateQueries({ queryKey: ["student-session"] });
+     * 아바타/이름이 잠깐 "?"로 깨지는 깜빡임이 발생해서 대신 invalidate 사용.
+     * Predicate: 학생 스코프 쿼리(student / student-* / clinic-idcard / video-comments
+     * / storage-quota) 전부 매칭. 누락 시 자녀 A의 stale 데이터가 자녀 B 화면에 노출. */
+    qc.invalidateQueries({
+      predicate: (query) => {
+        const head = query.queryKey[0];
+        if (typeof head !== "string") return false;
+        return (
+          head === "student" ||
+          head.startsWith("student-") ||
+          head === "clinic-idcard" ||
+          head === "video-comments" ||
+          head === "storage-quota"
+        );
+      },
+    });
     navigate("/student/dashboard");
   };
 

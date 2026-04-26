@@ -13,7 +13,7 @@ import VideoStatusBadge from "@admin/domains/videos/ui/VideoStatusBadge";
 import { useAsyncStatus, asyncStatusStore } from "@/shared/ui/asyncStatus";
 
 import { useSessionVideos } from "../hooks/useSessionVideos";
-import { Button, EmptyState } from "@/shared/ui/ds";
+import { Button, EmptyState, Badge } from "@/shared/ui/ds";
 import { DomainListToolbar } from "@/shared/ui/domain";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useConfirm } from "@/shared/ui/confirm";
@@ -154,7 +154,7 @@ export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
       const video = videos.find((v: MediaVideo) => v.id === videoId);
       const label = video?.title ? `${video.title} 재시도` : `영상 ${videoId} 재시도`;
       asyncStatusStore.addWorkerJob(label, String(videoId), "video_processing");
-      feedback.success("재시도 요청을 보냈습니다. 우하단 진행 상황에서 확인할 수 있습니다.");
+      feedback.success("재시도 요청을 보냈습니다. 우상단 작업박스에서 확인할 수 있습니다.");
     },
     onError: (e: unknown, videoId) => {
       const msg = getRetryErrorMessage(e);
@@ -354,15 +354,15 @@ export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
         </div>
 
         <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", gap: 6 }}>
-          <span className="ds-status-badge" data-tone={video.show_watermark ? "info" : "neutral"}>
+          <Badge variant="solid" tone={video.show_watermark ? "info" : "neutral"}>
             {video.show_watermark ? "워터마크" : "워터마크 없음"}
-          </span>
-          <span className="ds-status-badge" data-tone={video.allow_skip ? "neutral" : "warning"}>
+          </Badge>
+          <Badge variant="solid" tone={video.allow_skip ? "neutral" : "warning"}>
             {video.allow_skip ? "건너뛰기 허용" : "건너뛰기 금지"}
-          </span>
-          <span className="ds-status-badge" data-tone="neutral">
+          </Badge>
+          <Badge variant="solid" tone="neutral">
             최대 {video.max_speed.toFixed(2)}x
-          </span>
+          </Badge>
         </div>
 
         <div style={{ marginTop: 10, display: "flex", justifyContent: "flex-end", gap: 8 }}>

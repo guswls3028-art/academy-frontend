@@ -69,7 +69,7 @@ export default function TeacherLayout() {
           borderBottom: "1px solid var(--tc-border)",
         }}
       >
-        <TeacherTopBar tenantCode={tenantCode} onMenuClick={openDrawer} />
+        <TeacherTopBar onMenuClick={openDrawer} />
       </header>
 
       {/* Main content */}

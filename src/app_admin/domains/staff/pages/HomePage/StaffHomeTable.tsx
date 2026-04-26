@@ -3,7 +3,7 @@
 
 import { useMemo, useState, useEffect, useRef, useCallback } from "react";
 import { Plus } from "lucide-react";
-import { EmptyState } from "@/shared/ui/ds";
+import { EmptyState, Badge } from "@/shared/ui/ds";
 import { DomainTable, TABLE_COL, ResizableTh, useTableColumnPrefs } from "@/shared/ui/domain";
 import type { TableColumnDef } from "@/shared/ui/domain";
 import { StaffRoleAvatar } from "@/shared/ui/avatars";
@@ -380,9 +380,9 @@ export function StaffHomeTable({
                 />
               </td>
               <td className="align-middle">
-                <span className="ds-status-badge ds-status-badge--action" data-tone="primary" aria-label="대표">
+                <Badge variant="solid" actionable tone="primary" ariaLabel="대표">
                   대표
-                </span>
+                </Badge>
               </td>
               <td className="align-middle">
                 <span className="inline-flex items-center gap-2 min-w-0">
@@ -396,16 +396,16 @@ export function StaffHomeTable({
                 {owner!.phone || "-"}
               </td>
               <td className="align-middle">
-                <span className="ds-status-badge ds-status-badge--action" data-status="active">활성</span>
+                <Badge variant="solid" actionable status="active">활성</Badge>
               </td>
               <td className="align-middle">
-                <span className="ds-status-badge ds-status-badge--action" data-status="active">ON</span>
+                <Badge variant="solid" actionable status="active">ON</Badge>
               </td>
               <td className="align-middle">
-                <span className="ds-status-badge" data-tone="neutral">-</span>
+                <Badge variant="solid" tone="neutral">-</Badge>
               </td>
               <td className="align-middle">
-                <span className="ds-status-badge" data-tone="neutral">-</span>
+                <Badge variant="solid" tone="neutral">-</Badge>
               </td>
             </tr>
           )}
@@ -428,9 +428,9 @@ export function StaffHomeTable({
                 />
               </td>
               <td className="align-middle">
-                <span className="ds-status-badge ds-status-badge--action" data-tone={r.role === "TEACHER" ? "primary" : "neutral"} aria-label={r.role === "TEACHER" ? "강사" : "조교"}>
+                <Badge variant="solid" actionable tone={r.role === "TEACHER" ? "primary" : "neutral"} ariaLabel={r.role === "TEACHER" ? "강사" : "조교"}>
                   {r.role === "TEACHER" ? "강사" : "조교"}
-                </span>
+                </Badge>
               </td>
               <td className="align-middle">
                 <span className="inline-flex items-center gap-2 min-w-0">
@@ -444,9 +444,9 @@ export function StaffHomeTable({
                 {r.phone || "-"}
               </td>
               <td className="align-middle">
-                <span className="ds-status-badge ds-status-badge--action" data-status={r.is_active ? "active" : "inactive"}>
+                <Badge variant="solid" actionable status={r.is_active ? "active" : "inactive"}>
                   {r.is_active ? "활성" : "비활성"}
-                </span>
+                </Badge>
               </td>
               <td className="align-middle" onClick={(e) => e.stopPropagation()}>
                 {canManage ? (
@@ -461,16 +461,16 @@ export function StaffHomeTable({
                     {pendingManager.has(r.id) ? "…" : r.is_manager ? "ON" : "OFF"}
                   </button>
                 ) : (
-                  <span className="ds-status-badge ds-status-badge--action" data-status={r.is_manager ? "active" : "inactive"}>
+                  <Badge variant="solid" actionable status={r.is_manager ? "active" : "inactive"}>
                     {r.is_manager ? "ON" : "OFF"}
-                  </span>
+                  </Badge>
                 )}
               </td>
               <td className="align-middle" onClick={(e) => e.stopPropagation()}>
                 {!canManage ? (
-                  <span className="ds-status-badge" data-tone="neutral">
+                  <Badge variant="solid" tone="neutral">
                     {r.pay_type === "HOURLY" ? "시급" : "월급"}
-                  </span>
+                  </Badge>
                 ) : (
                   <span className="inline-flex gap-1">
                     <button

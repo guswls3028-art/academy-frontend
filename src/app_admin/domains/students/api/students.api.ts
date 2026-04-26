@@ -677,19 +677,23 @@ export async function sendExistingCredentials(params: {
  * 비밀번호 찾기 (이름+전화번호 → SMS 인증 → 새 비밀번호)
  * =============================== */
 
-/** 인증번호 요청 (이름 + 전화번호) */
+/** 인증번호 요청 (이름 + 전화번호) — 로그인 전 호출 */
 export async function requestPasswordFindCode(name: string, phone: string): Promise<void> {
   const p = normalizePhone(phone);
   if (p.length !== 11 || !p.startsWith("010")) {
     throw new Error("전화번호는 010XXXXXXXX 11자리여야 합니다.");
   }
-  await api.post("/students/password_find/request/", {
-    name: String(name ?? "").trim(),
-    phone: p,
-  });
+  await api.post(
+    "/students/password_find/request/",
+    {
+      name: String(name ?? "").trim(),
+      phone: p,
+    },
+    { skipAuth: true } as any,
+  );
 }
 
-/** 인증번호 확인 + 새 비밀번호 설정 */
+/** 인증번호 확인 + 새 비밀번호 설정 — 로그인 전 호출 */
 export async function verifyPasswordFindCode(
   phone: string,
   code: string,
@@ -699,11 +703,15 @@ export async function verifyPasswordFindCode(
   if (p.length !== 11 || code.length !== 6 || newPassword.length < 4) {
     throw new Error("전화번호, 6자리 인증번호, 새 비밀번호(4자 이상)를 입력해 주세요.");
   }
-  await api.post("/students/password_find/verify/", {
-    phone: p,
-    code: code.trim(),
-    new_password: newPassword,
-  });
+  await api.post(
+    "/students/password_find/verify/",
+    {
+      phone: p,
+      code: code.trim(),
+      new_password: newPassword,
+    },
+    { skipAuth: true } as any,
+  );
 }
 
 /** 비밀번호 재설정 발송 (학생: 이름+전화번호, 학부모: 이름+학부모번호 → 임시 비밀번호 알림톡 발송) */

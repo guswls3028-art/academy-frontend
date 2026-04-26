@@ -20,7 +20,7 @@ import StudentFormModal from "../components/EditStudentModal";
 import TagCreateModal from "../components/TagCreateModal";
 import DeleteConfirmModal from "../components/DeleteConfirmModal";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
-import { EmptyState, Button, CloseButton } from "@/shared/ui/ds";
+import { EmptyState, Button, CloseButton, Badge, type BadgeTone } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { formatPhone, formatStudentPhoneDisplay, formatOmrCode, formatGenderDisplay } from "@/shared/utils/formatPhone";
 import { useSendMessageModal } from "@admin/domains/messages/context/SendMessageModalContext";
@@ -693,9 +693,9 @@ function EnrollmentsTab({ enrollments, onNavigate }: { enrollments: any[]; onNav
                 </span>
               )}
             </div>
-            <span className="ds-status-badge text-[11px]" data-tone={statusTone[status] || "muted"}>
+            <Badge variant="solid" size="sm" tone={(statusTone[status] || "muted") as BadgeTone}>
               {statusLabel[status] || status}
-            </span>
+            </Badge>
             {canNav && (
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, opacity: 0.5 }}>
                 <polyline points="9 18 15 12 9 6" />
@@ -744,9 +744,9 @@ function ClinicTab({ data, onNavigate }: { data: any[]; onNavigate: (path: strin
                 <span className="text-[11px] text-[var(--color-text-muted)] truncate">{p.clinic_reason}</span>
               )}
             </div>
-            <span className="ds-status-badge text-xs" data-tone={statusTone[st] || "muted"}>
+            <Badge variant="solid" size="sm" tone={(statusTone[st] || "muted") as BadgeTone}>
               {statusLabel[st] || p.status}
-            </span>
+            </Badge>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, opacity: 0.5 }}>
               <polyline points="9 18 15 12 9 6" />
             </svg>
@@ -780,9 +780,9 @@ function QuestionTab({ data, onNavigate }: { data: any[]; onNavigate: (path: str
           >
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2 min-w-0 flex-1">
-                <span className="ds-badge text-[10px] shrink-0" style={{ padding: "2px 6px" }}>
+                <Badge size="xs" className="shrink-0">
                   {typeLabel[postType] || postType}
-                </span>
+                </Badge>
                 <span className="text-sm font-semibold text-[var(--color-text-primary)] truncate">{post.title || "(제목 없음)"}</span>
               </div>
               <div className="flex items-center gap-2 shrink-0">
@@ -846,15 +846,15 @@ function ScoreTab({ data, onNavigate }: { data: any[]; onNavigate: (path: string
                 </span>
               )}
               {exam.achievement && (
-                <span className="ds-status-badge text-[11px]" data-tone={achievementTone[exam.achievement] || "muted"}>
+                <Badge variant="solid" size="sm" tone={(achievementTone[exam.achievement] || "muted") as BadgeTone}>
                   {achievementLabel[exam.achievement] || exam.achievement}
-                </span>
+                </Badge>
               )}
               {!exam.achievement && (exam.remediated === true || exam.final_pass === true) && (
                 // 구서버 폴백: achievement 미제공이지만 remediated/final_pass로 보강합격 감지
-                <span className="ds-status-badge text-[11px]" data-tone={exam.remediated ? "warning" : "success"}>
+                <Badge variant="solid" size="sm" tone={exam.remediated ? "warning" : "success"}>
                   {exam.remediated ? "보강합격" : "합격"}
-                </span>
+                </Badge>
               )}
               {exam.is_pass != null && !exam.achievement && exam.remediated !== true && exam.final_pass !== true && (
                 <span className="ds-scores-pass-fail-badge" data-tone={exam.is_pass ? "success" : "danger"}>
@@ -912,9 +912,9 @@ function HomeworkTab({ data, onNavigate }: { data: any[]; onNavigate: (path: str
                 </span>
               )}
               {hw.achievement && (
-                <span className="ds-status-badge text-[11px]" data-tone={achievementTone[hw.achievement] || "muted"}>
+                <Badge variant="solid" size="sm" tone={(achievementTone[hw.achievement] || "muted") as BadgeTone}>
                   {achievementLabel[hw.achievement] || hw.achievement}
-                </span>
+                </Badge>
               )}
               {canNav && (
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.5 }}>

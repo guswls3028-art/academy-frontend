@@ -6,14 +6,13 @@
 import { useNavigate } from "react-router-dom";
 import { useProgram } from "@/shared/program";
 import { useAdminNotificationCounts } from "@admin/domains/admin-notifications/useAdminNotificationCounts";
-import { Menu, Bell } from "@teacher/shared/ui/Icons";
+import { Menu, Bell, BellRing } from "@teacher/shared/ui/Icons";
 
 interface Props {
-  tenantCode: string | null;
   onMenuClick: () => void;
 }
 
-export default function TeacherTopBar({ tenantCode, onMenuClick }: Props) {
+export default function TeacherTopBar({ onMenuClick }: Props) {
   const navigate = useNavigate();
   const { program } = useProgram();
   const { counts } = useAdminNotificationCounts();
@@ -79,7 +78,7 @@ export default function TeacherTopBar({ tenantCode, onMenuClick }: Props) {
       {/* Right: Notification bell */}
       <button
         onClick={() => navigate("/teacher/notifications")}
-        aria-label="알림"
+        aria-label={badge > 0 ? `알림 ${badge > 99 ? "99건 이상" : `${badge}건`}` : "알림"}
         style={{
           background: "none",
           border: "none",
@@ -89,13 +88,13 @@ export default function TeacherTopBar({ tenantCode, onMenuClick }: Props) {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          color: "var(--tc-text-secondary)",
+          color: badge > 0 ? "var(--tc-text)" : "var(--tc-text-secondary)",
           position: "relative",
           minWidth: "var(--tc-touch-min)",
           minHeight: "var(--tc-touch-min)",
         }}
       >
-        <Bell size={22} />
+        {badge > 0 ? <BellRing size={22} /> : <Bell size={22} />}
         {badge > 0 && (
           <span
             style={{

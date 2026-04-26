@@ -49,6 +49,7 @@ export default function StudentListPage() {
         page_size: 50,
         ...(filters.grade ? { grade: Number(filters.grade) } : {}),
         ...(filters.gender ? { gender: filters.gender } : {}),
+        ...(filters.status ? { status: filters.status } : {}),
       }),
   });
 
@@ -96,7 +97,18 @@ export default function StudentListPage() {
               style={{ padding: "8px 10px", minHeight: "var(--tc-touch-min)", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border)", background: "var(--tc-surface)", color: "var(--tc-text-secondary)" }}>
               <Upload size={12} /> 가져오기
               <input type="file" accept=".xlsx,.xls,.csv" style={{ display: "none" }}
-                onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadStudentBulkExcel(f, "0000").then(() => { alert("업로드 완료"); }).catch(() => alert("업로드 실패")); e.target.value = ""; }} />
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) {
+                    uploadStudentBulkExcel(f, "0000")
+                      .then(async () => {
+                        await qc.invalidateQueries({ queryKey: ["students-mobile"] });
+                        alert("업로드 완료");
+                      })
+                      .catch(() => alert("업로드 실패"));
+                  }
+                  e.target.value = "";
+                }} />
             </label>
             <button onClick={() => setCreateOpen(true)}
               className="flex items-center gap-1 text-xs font-bold cursor-pointer"
