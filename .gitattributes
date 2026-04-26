@@ -1,0 +1,48 @@
+# Default: treat as text, normalize to LF on commit, check out as LF.
+# WSL/Windows 혼용 환경에서 CRLF 노이즈 diff를 차단한다.
+* text=auto eol=lf
+
+# Source / config — 강제 LF
+*.ts        text eol=lf
+*.tsx       text eol=lf
+*.js        text eol=lf
+*.jsx       text eol=lf
+*.mjs       text eol=lf
+*.cjs       text eol=lf
+*.css       text eol=lf
+*.scss      text eol=lf
+*.html      text eol=lf
+*.json      text eol=lf
+*.md        text eol=lf
+*.mdc       text eol=lf
+*.yml       text eol=lf
+*.yaml      text eol=lf
+*.sh        text eol=lf
+*.py        text eol=lf
+*.sql       text eol=lf
+*.toml      text eol=lf
+.env*       text eol=lf
+.npmrc      text eol=lf
+.gitignore  text eol=lf
+
+# Windows-only scripts — CRLF 유지
+*.bat       text eol=crlf
+*.cmd       text eol=crlf
+*.ps1       text eol=crlf
+
+# Binary
+*.png       binary
+*.jpg       binary
+*.jpeg      binary
+*.gif       binary
+*.ico       binary
+*.svg       text eol=lf
+*.pdf       binary
+*.woff      binary
+*.woff2     binary
+*.ttf       binary
+*.eot       binary
+*.zip       binary
+*.gz        binary
+*.tar       binary
+*.pt        binary

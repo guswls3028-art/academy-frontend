@@ -142,6 +142,11 @@ export default function ExamResultPage() {
           )}
         </div>
 
+        {/* ── Clinic CTA (불합격 + 미해소 클리닉 대상) ── */}
+        {r.clinic_required && finalPass === false && r.meta_status !== "NOT_SUBMITTED" && (
+          <ClinicRequiredCard />
+        )}
+
         {/* ── Rank & Comparison ── */}
         {r.rank != null && r.cohort_size != null && r.cohort_size > 1 && r.meta_status !== "NOT_SUBMITTED" && (
           <RankComparisonCard
@@ -201,6 +206,39 @@ export default function ExamResultPage() {
         </div>
       </div>
     </StudentPageShell>
+  );
+}
+
+/* ── Clinic Required CTA ── */
+
+function ClinicRequiredCard() {
+  return (
+    <Link
+      to="/student/clinic"
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        padding: "var(--stu-space-4) var(--stu-space-5)",
+        background: "var(--stu-danger-bg)",
+        border: "1px solid var(--stu-danger)",
+        borderRadius: "var(--stu-radius)",
+        textDecoration: "none",
+        color: "var(--stu-text)",
+      }}
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+        <div style={{ fontWeight: 700, fontSize: 14, color: "var(--stu-danger-text)" }}>
+          보강 클리닉 대상
+        </div>
+        <div className="stu-muted" style={{ fontSize: 12 }}>
+          클리닉 페이지에서 일정을 예약하세요.
+        </div>
+      </div>
+      <div style={{ fontSize: 13, fontWeight: 700, color: "var(--stu-danger-text)" }}>
+        예약하기 →
+      </div>
+    </Link>
   );
 }
 

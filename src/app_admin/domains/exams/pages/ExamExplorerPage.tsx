@@ -8,7 +8,7 @@ import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueries } from "@tanstack/react-query";
 import { FilePlus, ClipboardList, FileCheck, FileClock, FileX } from "lucide-react";
-import { Button, EmptyState } from "@/shared/ui/ds";
+import { Button, EmptyState, Badge } from "@/shared/ui/ds";
 import Breadcrumb from "@admin/domains/storage/components/Breadcrumb";
 import LectureSessionTree from "../components/LectureSessionTree";
 import { fetchLectures, fetchSessions, sortSessionsByDateDesc, type Lecture, type Session } from "@admin/domains/lectures/api/sessions";
@@ -252,7 +252,7 @@ export default function ExamExplorerPage() {
                           <span>{formatDate(e.created_at)}</span>
                         </div>
                       </div>
-                      <span className="ds-status-badge" data-tone={statusTone}>{statusLabel}</span>
+                      <Badge variant="solid" tone={statusTone}>{statusLabel}</Badge>
                     </div>
                   );
                 })}

@@ -5,7 +5,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Button } from "@/shared/ui/ds";
+import { Button, Badge } from "@/shared/ui/ds";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter, MODAL_WIDTH } from "@/shared/ui/modal";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useConfirm } from "@/shared/ui/confirm";
@@ -95,7 +95,7 @@ export default function HomeworkHeader({ homework, sessionId }: Props) {
           <h2 className={`text-lg font-semibold text-[var(--text-primary)] ${isClosed ? "line-through opacity-65" : ""}`}>
             {homework.title}
           </h2>
-          <span className="ds-status-badge" data-tone={statusTone}>{statusLabel}</span>
+          <Badge variant="solid" tone={statusTone}>{statusLabel}</Badge>
         </div>
 
         <div className="flex items-center gap-2">

@@ -1,16 +1,11 @@
 /**
- * PATH: src/features/results/components/FrontResultStatusBadge.tsx
+ * PATH: src/app_admin/domains/results/components/FrontResultStatusBadge.tsx
  *
- * ✅ FrontResultStatus 전용 Badge
- *
- * 사용 위치:
- * - AdminExamResultsTable (상태 컬럼)
- * - AdminStudentResultDrawer Header
- *
- * ❌ SubmissionStatusBadge 대체 아님
- * - SubmissionStatusBadge는 "제출 상태" 전용
+ * FrontResultStatus 전용 Badge — DS Badge SSOT(variant=solid) 사용.
+ * AdminExamResultsTable / AdminStudentResultDrawer Header에서 사용.
  */
 
+import { Badge, type BadgeTone } from "@/shared/ui/ds";
 import type { FrontResultStatus } from "../types/frontResultStatus";
 import { FRONT_RESULT_STATUS_LABEL, FRONT_RESULT_STATUS_TONE } from "../containers/frontResultStatusMaps";
 
@@ -19,11 +14,10 @@ export default function FrontResultStatusBadge({
 }: {
   status: FrontResultStatus;
 }) {
-  const tone = FRONT_RESULT_STATUS_TONE[status];
-
+  const tone = FRONT_RESULT_STATUS_TONE[status] as BadgeTone;
   return (
-    <span className="ds-status-badge" data-tone={tone}>
+    <Badge variant="solid" tone={tone}>
       {FRONT_RESULT_STATUS_LABEL[status]}
-    </span>
+    </Badge>
   );
 }

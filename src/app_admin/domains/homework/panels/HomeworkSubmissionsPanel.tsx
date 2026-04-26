@@ -11,7 +11,7 @@ import { fetchHomeworkSubmissions } from "@admin/domains/submissions/api/adminHo
 import { useAdminHomework } from "../hooks/useAdminHomework";
 import { SUBMISSION_STATUS_LABEL, SUBMISSION_STATUS_TONE } from "@admin/domains/submissions/statusMaps";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
-import { Button, EmptyState } from "@/shared/ui/ds";
+import { Button, EmptyState, Badge } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import NotificationPreviewModal from "@admin/domains/messages/components/NotificationPreviewModal";
 import api from "@/shared/api/axios";
@@ -151,9 +151,9 @@ export default function HomeworkSubmissionsPanel({
                 <span className="flex-1" />
 
                 {/* 상태 뱃지 */}
-                <span className="ds-status-badge flex-shrink-0" data-tone={tone}>
+                <Badge variant="solid" tone={tone} className="flex-shrink-0">
                   {statusLabel}
-                </span>
+                </Badge>
 
                 {/* 제출 시각 */}
                 <span className="text-xs text-[var(--color-text-muted)] flex-shrink-0">

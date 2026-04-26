@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { Exam } from "../../types";
 import { saveExamAsTemplate, updateAdminExam } from "../../api/adminExam";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter, MODAL_WIDTH } from "@/shared/ui/modal";
-import { Button } from "@/shared/ui/ds";
+import { Button, Badge } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useConfirm } from "@/shared/ui/confirm";
 import { FiSave, FiChevronDown } from "react-icons/fi";
@@ -21,7 +21,6 @@ export default function ExamHeader({ exam, sessionId }: { exam: Exam; sessionId?
   const templateDropdownRef = useRef<HTMLDivElement>(null);
 
   const isOpen = exam.status !== "CLOSED";
-  const isClosed = exam.status === "CLOSED";
   const isRegular = exam.exam_type === "regular";
   const canSaveAsTemplate = isRegular && !exam.template_exam_id;
   const hasTemplate = isRegular && !!exam.template_exam_id;
@@ -96,7 +95,7 @@ export default function ExamHeader({ exam, sessionId }: { exam: Exam; sessionId?
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <h2 className="text-lg font-semibold">{exam.title}</h2>
-            <span className="ds-status-badge" data-tone={statusTone}>{statusLabel}</span>
+            <Badge variant="solid" tone={statusTone}>{statusLabel}</Badge>
           </div>
         </div>
 

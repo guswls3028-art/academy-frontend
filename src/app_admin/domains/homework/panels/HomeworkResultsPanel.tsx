@@ -9,7 +9,7 @@
 import { useMemo, useState } from "react";
 import { useAdminHomework } from "../hooks/useAdminHomework";
 import { useHomeworkPolicy } from "../hooks/useHomeworkPolicy";
-import { EmptyState } from "@/shared/ui/ds";
+import { EmptyState, Badge } from "@/shared/ui/ds";
 import { fetchSessionScores, type SessionScoreHomeworkEntry } from "@admin/domains/scores/api/sessionScores";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { useQuery } from "@tanstack/react-query";
@@ -50,9 +50,9 @@ function StatusBadge({ status }: { status: HomeworkStatus }) {
       ? "success"
       : "neutral";
   return (
-    <span className="ds-status-badge" data-tone={tone}>
+    <Badge variant="solid" tone={tone}>
       {homeworkStatusLabel(status)}
-    </span>
+    </Badge>
   );
 }
 
@@ -300,14 +300,14 @@ export default function HomeworkResultsPanel({ homeworkId }: { homeworkId: numbe
                             {r.passed == null ? (
                               <span className="text-[var(--color-text-muted)]">—</span>
                             ) : (
-                              <span className="ds-status-badge" data-tone={r.passed ? "success" : "danger"}>
+                              <Badge variant="solid" tone={r.passed ? "success" : "danger"}>
                                 {r.passed ? "합격" : "불합"}
-                              </span>
+                              </Badge>
                             )}
                           </td>
                           <td className="px-3 py-2 text-center">
                             {r.clinic_required ? (
-                              <span className="ds-status-badge" data-tone="warning">대상</span>
+                              <Badge variant="solid" tone="warning">대상</Badge>
                             ) : (
                               <span className="text-[var(--color-text-muted)]">—</span>
                             )}
@@ -370,9 +370,9 @@ export default function HomeworkResultsPanel({ homeworkId }: { homeworkId: numbe
                         {selectedRow.passed == null ? (
                           <span className="text-[var(--color-text-muted)]">—</span>
                         ) : (
-                          <span className="ds-status-badge" data-tone={selectedRow.passed ? "success" : "danger"}>
+                          <Badge variant="solid" tone={selectedRow.passed ? "success" : "danger"}>
                             {selectedRow.passed ? "합격" : "불합"}
-                          </span>
+                          </Badge>
                         )}
                       </dd>
                     </div>
@@ -380,7 +380,7 @@ export default function HomeworkResultsPanel({ homeworkId }: { homeworkId: numbe
                       <div>
                         <dt className="text-[11px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">클리닉</dt>
                         <dd className="mt-1">
-                          <span className="ds-status-badge" data-tone="warning">대상</span>
+                          <Badge variant="solid" tone="warning">대상</Badge>
                         </dd>
                       </div>
                     )}
