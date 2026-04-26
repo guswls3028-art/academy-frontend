@@ -92,6 +92,7 @@ export type UploadFilePayload = {
 
 export type UploadFileResponse = InventoryFile & {
   matchupDocumentId?: number;
+  matchupAiJobId?: string;
   matchupPromoteFailed?: boolean;
   matchupError?: string;
 };

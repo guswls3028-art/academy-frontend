@@ -5,7 +5,8 @@
 import { useState, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import { FolderOpen, FileText, Image, FilePlus, FolderPlus, X, Download, Trash2, Pencil, Sparkles } from "lucide-react";
+import { FolderOpen, FilePlus, FolderPlus, X, Download, Trash2, Pencil, Sparkles } from "lucide-react";
+import StorageFileThumbnail from "./StorageFileThumbnail";
 import { Button, CloseButton } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useConfirm } from "@/shared/ui/confirm";
@@ -25,6 +26,7 @@ import {
   type MoveConflictError,
 } from "../api/storage.api";
 import { promoteInventoryToMatchup } from "../api/matchup.api";
+import { asyncStatusStore } from "@/shared/ui/asyncStatus";
 
 const MATCHUP_SUPPORTED_TYPES = new Set([
   "application/pdf",
@@ -141,12 +143,19 @@ export default function MyStorageExplorer() {
         setUploadModalOpen(false);
         if (payload.promoteToMatchup) {
           if (res.matchupPromoteFailed) {
-            // 부분 실패: 저장은 됐지만 매치업 등록은 실패 — 사용자에 명시
             feedback.warning(
               `저장은 완료됐지만 매치업 등록에 실패했습니다. 매치업 페이지에서 다시 등록해 주세요.`
             );
           } else if (res.matchupDocumentId) {
-            feedback.success("저장 + 매치업 등록 완료. 매치업 페이지에서 분석 진행률 확인하세요.");
+            // 우상단 작업박스에 등록 — 페이지 이탈해도 진행률 추적 가능
+            if (res.matchupAiJobId) {
+              asyncStatusStore.addWorkerJob(
+                `매치업 분석: ${payload.displayName || payload.file.name}`,
+                res.matchupAiJobId,
+                "matchup_analysis",
+              );
+            }
+            feedback.success("저장 + 매치업 등록 완료. 우상단 작업 상자에서 분석 진행률 확인.");
           }
         }
       } catch (e) {
@@ -351,7 +360,14 @@ export default function MyStorageExplorer() {
       });
       qc.invalidateQueries({ queryKey: ["storage-inventory", SCOPE] });
       qc.invalidateQueries({ queryKey: ["matchup-documents"] });
-      feedback.success("매치업 자료로 등록했습니다. 분석을 시작합니다.");
+      if (doc.ai_job_id) {
+        asyncStatusStore.addWorkerJob(
+          `매치업 분석: ${file.displayName}`,
+          doc.ai_job_id,
+          "matchup_analysis",
+        );
+      }
+      feedback.success("매치업 자료로 등록했습니다. 우상단 작업 상자에서 진행률 확인.");
       navigate(`/admin/storage/matchup?docId=${doc.id}`);
     } catch (e) {
       const err = e as { status?: number; code?: string; documentId?: number; message?: string };
@@ -385,7 +401,14 @@ export default function MyStorageExplorer() {
     let failed = 0;
     for (const f of candidates) {
       try {
-        await promoteInventoryToMatchup({ inventoryFileId: f.id, title: f.displayName });
+        const doc = await promoteInventoryToMatchup({ inventoryFileId: f.id, title: f.displayName });
+        if (doc.ai_job_id) {
+          asyncStatusStore.addWorkerJob(
+            `매치업 분석: ${f.displayName}`,
+            doc.ai_job_id,
+            "matchup_analysis",
+          );
+        }
         succeeded++;
       } catch (e) {
         const err = e as { status?: number; code?: string };
@@ -407,7 +430,7 @@ export default function MyStorageExplorer() {
     if (failed > 0) {
       feedback.warning(`매치업 일괄 등록 결과: ${parts.join(", ")}`);
     } else {
-      feedback.success(`매치업 일괄 등록 완료: ${parts.join(", ")}. 매치업 페이지에서 진행률 확인.`);
+      feedback.success(`매치업 일괄 등록 완료: ${parts.join(", ")}. 우상단 작업 상자에서 진행률 확인.`);
     }
     if (succeeded > 0 || alreadyPromoted > 0) {
       clearSelection();
@@ -634,18 +657,14 @@ export default function MyStorageExplorer() {
                   }}
                 >
                   <div style={{ position: "relative", display: "grid", placeItems: "center" }}>
-                    {file.contentType?.startsWith("image/") ? (
-                      <Image size={36} />
-                    ) : (
-                      <FileText size={36} />
-                    )}
+                    <StorageFileThumbnail file={file} />
                     {file.matchup && (
                       <span
                         title={`매치업 자료 (${file.matchup.status === "done" ? `${file.matchup.problemCount}문제` : file.matchup.status})`}
                         data-testid={`storage-file-matchup-badge-${file.id}`}
                         style={{
                           position: "absolute",
-                          top: -4,
+                          top: -6,
                           right: -8,
                           background: "var(--color-brand-primary)",
                           color: "#fff",

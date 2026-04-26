@@ -208,6 +208,59 @@ function pollPptJob(
     });
 }
 
+/** 매치업 분석 작업 폴링 — /jobs/<id>/progress/ 일반 엔드포인트 + 성공 시 문제 개수 라벨링 */
+function pollMatchupJob(taskId: string, onSuccess?: () => void) {
+  api
+    .get<{
+      job_id: string;
+      job_type: string;
+      status: string;
+      progress?: {
+        step?: string;
+        percent?: number;
+        step_name?: string | null;
+        step_name_display?: string | null;
+      } | null;
+      result?: {
+        problem_count?: number;
+        document_id?: number;
+      };
+      error_message?: string | null;
+    }>(`/jobs/${encodeURIComponent(taskId)}/progress/`)
+    .then((res) => {
+      const status = res.data?.status;
+      if (status === "UNKNOWN") return;
+
+      const progress = res.data?.progress;
+      const percent = progress?.percent;
+
+      if (status === "RUNNING") {
+        const finalPercent = typeof percent === "number" ? percent : 0;
+        asyncStatusStore.updateProgress(taskId, finalPercent, undefined, null);
+      }
+
+      const errMsg = res.data?.error_message?.trim();
+      const isFailed = status === "FAILED" || (status === "DONE" && errMsg);
+
+      if (isFailed) {
+        asyncStatusStore.completeTask(taskId, "error", errMsg || "매치업 분석 실패");
+      } else if (status === "DONE") {
+        const result = res.data?.result;
+        const cnt = Number(result?.problem_count ?? 0);
+        if (cnt > 0) {
+          asyncStatusStore.setTaskLabel(taskId, `매치업 분석 완료 — ${cnt}문제 추출`);
+        } else {
+          asyncStatusStore.setTaskLabel(taskId, "매치업 분석 완료");
+        }
+        asyncStatusStore.completeTask(taskId, "success");
+        onSuccess?.();
+      }
+    })
+    .catch(() => {
+      // network — retry on next poll
+    });
+}
+
 function pollVideoJob(taskId: string, videoId: string, onSuccess?: () => void) {
   // ✅ Redis-only 엔드포인트 사용 (DB 부하 0)
   api
@@ -353,6 +406,8 @@ export function useWorkerJobPoller(
           pollVideoJob(t.id, t.meta!.jobId, videoCb);
         } else if (t.meta!.jobType === "ppt_generation") {
           pollPptJob(t.id, pptCb);
+        } else if (t.meta!.jobType === "matchup_analysis") {
+          pollMatchupJob(t.id);
         } else if (t.meta!.jobType === "messaging") {
           // 메시지 발송은 동기 API 완료로만 완료 처리, 폴링 없음
         } else {

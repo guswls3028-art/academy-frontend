@@ -7,6 +7,7 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import { Sparkles, AlertTriangle, RefreshCw, Eye, FolderOpen } from "lucide-react";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { asyncStatusStore } from "@/shared/ui/asyncStatus";
 import {
   fetchMatchupDocuments,
   uploadMatchupDocument,
@@ -96,9 +97,16 @@ export default function MatchupPage() {
   // ── 핸들러 ──
   const handleUpload = useCallback(
     async (payload: { file: File; title: string; subject: string; grade_level: string }) => {
-      await uploadMatchupDocument(payload);
+      const doc = await uploadMatchupDocument(payload);
       qc.invalidateQueries({ queryKey: ["matchup-documents"] });
-      feedback.success("업로드 완료. AI 분석 진행률은 좌측 목록에서 확인됩니다.");
+      if (doc.ai_job_id) {
+        asyncStatusStore.addWorkerJob(
+          `매치업 분석: ${doc.title || payload.file.name}`,
+          doc.ai_job_id,
+          "matchup_analysis",
+        );
+      }
+      feedback.success("업로드 완료. 우상단 작업 상자에서 분석 진행률 확인.");
     },
     [qc],
   );
@@ -120,11 +128,18 @@ export default function MatchupPage() {
 
   const handleRetry = useCallback(
     async (id: number) => {
-      await retryMatchupDocument(id);
+      const doc = await retryMatchupDocument(id);
       if (selectedDocId === id) setSelectedProblemId(null);
       qc.invalidateQueries({ queryKey: ["matchup-documents"] });
       qc.invalidateQueries({ queryKey: ["matchup-problems", id] });
-      feedback.success("재분석을 시작합니다.");
+      if (doc?.ai_job_id) {
+        asyncStatusStore.addWorkerJob(
+          `매치업 분석 재시도: ${doc.title}`,
+          doc.ai_job_id,
+          "matchup_analysis",
+        );
+      }
+      feedback.success("재분석을 시작합니다. 우상단 작업 상자에서 진행률 확인.");
     },
     [qc, selectedDocId],
   );
