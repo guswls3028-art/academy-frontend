@@ -13,19 +13,14 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   fetchCommunityQuestions,
   fetchPost,
-  fetchPostReplies,
-  createAnswer,
-  updateReply,
-  deleteReply,
   deletePost,
   type Question,
-  type Answer,
 } from "../api/community.api";
 import { Button } from "@/shared/ui/ds";
 import { useConfirm } from "@/shared/ui/confirm";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import PostReadView from "../components/PostReadView";
-import RichTextEditor from "@/shared/ui/editor/RichTextEditor";
+import PostThreadView from "../components/PostThreadView";
 import CommunityContextBar from "../components/CommunityContextBar";
 import CommunityEmptyState from "../components/CommunityEmptyState";
 import CommunityAvatar from "../components/CommunityAvatar";
@@ -273,6 +268,22 @@ function ThreadView({
     queryKey: ["community-post", postId],
     queryFn: () => fetchPost(postId),
     enabled: postId != null,
+    // AI 매치업 결과는 비동기 워커에서 채워짐 — 결과 도착 전까지 5초 간격 polling.
+    // 글 작성 후 5분 이내(MAX_POLL_AGE_MS)이고, 이미지 첨부가 있고, 아직 matchup_results가
+    // 비어 있을 때만 활성화 (이미 결과 있으면 polling 정지).
+    refetchInterval: (q) => {
+      const data = q.state.data as { post_type?: string; meta?: { matchup_results?: unknown[] }; attachments?: { content_type: string }[]; created_at?: string } | undefined;
+      if (!data) return false;
+      if (data.post_type !== "qna") return false;
+      const hasImage = (data.attachments ?? []).some((a) => (a.content_type || "").startsWith("image/"));
+      if (!hasImage) return false;
+      const results = data.meta?.matchup_results;
+      if (Array.isArray(results) && results.length > 0) return false; // 이미 도착
+      const createdAt = data.created_at ? new Date(data.created_at).getTime() : 0;
+      const MAX_POLL_AGE_MS = 5 * 60 * 1000;
+      if (Date.now() - createdAt > MAX_POLL_AGE_MS) return false; // 너무 오래된 글
+      return 5000;
+    },
   });
 
   const questionHistory = useMemo(() => {
@@ -411,8 +422,37 @@ function ThreadView({
             {/* AI 매치업 결과 (선생님 전용) */}
             {(() => {
               const mr = post.meta?.matchup_results;
-              if (!Array.isArray(mr) || mr.length === 0) return null;
-              return <QnaMatchupResults results={mr as MatchupResultItem[]} />;
+              const hasImage = (post.attachments ?? []).some((a) => (a.content_type || "").startsWith("image/"));
+              if (Array.isArray(mr) && mr.length > 0) {
+                return <QnaMatchupResults results={mr as MatchupResultItem[]} />;
+              }
+              // 이미지 첨부가 있고 5분 이내인데 결과가 아직 없으면 진행 중 표시
+              const createdAt = post.created_at ? new Date(post.created_at).getTime() : 0;
+              const isPolling = hasImage && Date.now() - createdAt < 5 * 60 * 1000;
+              if (isPolling) {
+                return (
+                  <div style={{
+                    marginTop: "var(--space-3)",
+                    padding: "var(--space-3) var(--space-4)",
+                    borderRadius: "var(--radius-md)",
+                    border: "1px dashed var(--color-border-divider)",
+                    background: "var(--color-bg-surface-soft)",
+                    fontSize: 12,
+                    color: "var(--color-text-muted)",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                  }}>
+                    <span style={{
+                      width: 10, height: 10, borderRadius: "50%",
+                      background: "var(--color-brand-primary)",
+                      animation: "pulse 1.5s ease-in-out infinite",
+                    }} aria-hidden />
+                    AI 매치업 분석 중… (이미지 첨부 자동 탐색)
+                  </div>
+                );
+              }
+              return null;
             })()}
           </div>
         </div>
@@ -422,8 +462,6 @@ function ThreadView({
             {(post.replies_count ?? 0) > 0 ? "선생님 답변" : "아직 답변이 없습니다"}
           </span>
         </div>
-
-        <AnswerThread postId={postId} />
 
         {(post.replies_count ?? 0) === 0 && (
           <div className="qna-inbox__answer-cta">
@@ -436,127 +474,20 @@ function ThreadView({
         )}
       </div>
 
-      <Composer postId={postId} allowReply={!post.created_by_deleted} composerRef={composerRef} />
+      <div ref={composerRef}>
+        <PostThreadView
+          postId={postId}
+          mode="answer"
+          allowReply={!post.created_by_deleted}
+          invalidateKeys={[["community-questions"]]}
+          placeholder="학생에게 답변을 작성하세요…"
+        />
+      </div>
     </>
   );
 }
 
-function AnswerThread({ postId }: { postId: number }) {
-  const { data: replies = [], isLoading } = useQuery({
-    queryKey: ["post-replies", postId],
-    queryFn: () => fetchPostReplies(postId),
-  });
-
-  if (isLoading) {
-    return (
-      <div className="qna-inbox__message">
-        <p className="qna-inbox__empty-desc">답변 불러오는 중…</p>
-      </div>
-    );
-  }
-
-  return (
-    <>
-      {replies.map((answer) => (
-        <ReplyBlock key={answer.id} postId={postId} answer={answer} />
-      ))}
-    </>
-  );
-}
-
-function ReplyBlock({ postId, answer }: { postId: number; answer: Answer }) {
-  const qc = useQueryClient();
-  const confirm = useConfirm();
-  const [editing, setEditing] = useState(false);
-  const [editContent, setEditContent] = useState(answer.content);
-  // 서버 데이터 갱신 시 편집 중이 아니면 동기화
-  const prevContent = useRef(answer.content);
-  if (prevContent.current !== answer.content && !editing) {
-    prevContent.current = answer.content;
-    setEditContent(answer.content);
-  }
-
-  const updateMut = useMutation({
-    mutationFn: () => updateReply(postId, answer.id, editContent),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["post-replies", postId] });
-      qc.invalidateQueries({ queryKey: ["community-questions"] });
-      setEditing(false);
-      feedback.success("답변이 수정되었습니다.");
-    },
-    onError: (e: unknown) => {
-      feedback.error((e as Error)?.message ?? "수정에 실패했습니다.");
-    },
-  });
-
-  const deleteMut = useMutation({
-    mutationFn: () => deleteReply(postId, answer.id),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["post-replies", postId] });
-      qc.invalidateQueries({ queryKey: ["community-questions"] });
-      feedback.success("답변이 삭제되었습니다.");
-    },
-    onError: (e: unknown) => {
-      feedback.error((e as Error)?.message ?? "삭제에 실패했습니다.");
-    },
-  });
-
-  const teacherName = answer.created_by_display ?? "선생님";
-
-  return (
-    <div className="qna-inbox__message-row qna-inbox__message-row--teacher">
-      <CommunityAvatar name={teacherName} role="teacher" />
-      <div className="qna-inbox__message-bubble">
-        <div className="qna-inbox__message-meta">
-          <span className="qna-inbox__message-author">{teacherName}</span>
-          <span className="qna-inbox__message-badge">선생님</span>
-          <span className="qna-inbox__message-date">
-            {new Date(answer.created_at).toLocaleString("ko-KR", {
-              month: "long",
-              day: "numeric",
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
-          </span>
-        </div>
-        {editing ? (
-          <div className="qna-inbox__edit-form">
-            <textarea
-              value={editContent}
-              onChange={(e) => setEditContent(e.target.value)}
-              rows={4}
-            />
-            <div className="qna-inbox__edit-actions">
-              <Button size="sm" intent="primary" onClick={() => updateMut.mutate()} disabled={updateMut.isPending}>
-                저장
-              </Button>
-              <Button size="sm" intent="secondary" onClick={() => setEditing(false)}>
-                취소
-              </Button>
-            </div>
-          </div>
-        ) : (
-          <>
-            <div className="qna-inbox__message-body"><PostReadView html={answer.content} /></div>
-            <div className="qna-inbox__message-actions">
-              <Button size="sm" intent="ghost" onClick={() => setEditing(true)}>
-                수정
-              </Button>
-              <Button
-                size="sm"
-                intent="ghost"
-                onClick={async () => { if (await confirm({ title: "답변 삭제", message: "이 답변을 삭제할까요?", confirmText: "삭제", danger: true })) deleteMut.mutate(); }}
-                disabled={deleteMut.isPending}
-              >
-                삭제
-              </Button>
-            </div>
-          </>
-        )}
-      </div>
-    </div>
-  );
-}
+// AnswerThread / ReplyBlock → PostThreadView로 통합
 
 function QuestionTimeline({
   history,
@@ -597,58 +528,4 @@ function QuestionTimeline({
   );
 }
 
-function Composer({ postId, allowReply = true, composerRef }: { postId: number; allowReply?: boolean; composerRef?: React.RefObject<HTMLDivElement | null> }) {
-  const [content, setContent] = useState("");
-  const localRef = useRef<HTMLDivElement>(null);
-  const ref = composerRef ?? localRef;
-  const qc = useQueryClient();
-  const createMut = useMutation({
-    mutationFn: () => createAnswer(postId, content),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["community-questions"] });
-      qc.invalidateQueries({ queryKey: ["post-replies", postId] });
-      qc.invalidateQueries({ queryKey: ["admin", "notification-counts"] });
-      setContent("");
-      feedback.success("답변이 등록되었습니다. 자동발송이 설정되어 있으면 알림이 발송됩니다.");
-    },
-    onError: (e: unknown) => {
-      feedback.error((e as Error)?.message ?? "등록에 실패했습니다.");
-    },
-  });
-
-  const isEmpty = !content.trim() || content.trim() === "<p></p>";
-
-  return (
-    <div className="qna-inbox__composer" ref={ref}>
-      {allowReply ? (
-      <div className="qna-inbox__composer-inner">
-        <div className="qna-inbox__composer-editor">
-          <RichTextEditor
-            value={content}
-            onChange={setContent}
-            placeholder="학생에게 답변을 작성하세요…"
-            minHeight={80}
-          />
-        </div>
-        <div className="qna-inbox__composer-footer">
-          <span className="qna-inbox__composer-hint">
-            서식 지원 · 이미지 첨부 가능
-          </span>
-          <Button
-            intent="primary"
-            size="sm"
-            onClick={() => createMut.mutate()}
-            disabled={isEmpty || createMut.isPending}
-          >
-            {createMut.isPending ? "등록 중…" : "답변 등록"}
-          </Button>
-        </div>
-      </div>
-      ) : (
-        <p className="qna-inbox__empty-desc" style={{ margin: 0 }}>
-          삭제된 학생의 질문에는 추가 답변을 등록할 수 없습니다.
-        </p>
-      )}
-    </div>
-  );
-}
+// Composer → PostThreadView로 통합

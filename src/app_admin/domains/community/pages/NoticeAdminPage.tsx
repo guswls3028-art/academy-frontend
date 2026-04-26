@@ -12,12 +12,15 @@ import {
   updatePost,
   deletePost,
   createPost,
-  fetchAllNoticePostsForCount,
   resolveNodeIdFromScope,
   type PostEntity,
   type ScopeNodeMinimal,
   type CommunityScopeParams,
 } from "../api/community.api";
+import { useScopeFilteredPosts } from "../hooks/useScopeFilteredPosts";
+import { useScopeNavigation } from "../hooks/useScopeNavigation";
+import { useTreeCounts } from "../hooks/useTreeCounts";
+import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import { fetchLectures, fetchSessions, type Lecture, type Session } from "@admin/domains/lectures/api/sessions";
 import CmsTreeNav from "../components/CmsTreeNav";
 import { Button } from "@/shared/ui/ds";
@@ -79,49 +82,19 @@ export default function NoticeAdminPage() {
     enabled: expandedLectureId != null && Number.isFinite(expandedLectureId),
   });
 
-  /** 트리 노드별 공지 개수 집계용: 공지 전체 목록(매핑 포함) */
-  const { data: allNoticePostsForCount = [] } = useQuery({
-    queryKey: ["community-all-notice-posts-for-count"],
-    queryFn: () => fetchAllNoticePostsForCount(),
-  });
+  // 트리 노드별 공지 개수 — 백엔드 단일 집계 (이전: 2000건 풀 페치)
+  const { counts: noticeCounts } = useTreeCounts("notice");
 
-  const noticeCounts = useMemo(() => {
-    const scopeNodeIds = new Set(scopeNodes.map((n) => n.id));
-    const countByNodeId: Record<number, number> = {};
-    for (const n of scopeNodes) countByNodeId[n.id] = 0;
-    for (const p of allNoticePostsForCount) {
-      for (const m of p.mappings ?? []) {
-        if (scopeNodeIds.has(m.node)) countByNodeId[m.node] = (countByNodeId[m.node] ?? 0) + 1;
-      }
-    }
-    const totalNoticeCount = allNoticePostsForCount.length;
-    const totalUnderScope = allNoticePostsForCount.filter((p) =>
-      p.mappings?.some((m) => scopeNodeIds.has(m.node))
-    ).length;
-    const countByLecture: Record<number, number> = {};
-    for (const lec of lectures) countByLecture[lec.id] = 0;
-    for (const p of allNoticePostsForCount) {
-      const seen = new Set<number>();
-      for (const m of p.mappings ?? []) {
-        const lid = m.node_detail?.lecture;
-        if (lid != null && !seen.has(lid)) {
-          seen.add(lid);
-          countByLecture[lid] = (countByLecture[lid] ?? 0) + 1;
-        }
-      }
-    }
-    return {
-      totalNoticeCount,
-      totalUnderScope,
-      countByNodeId,
-      countByLecture,
-    };
-  }, [allNoticePostsForCount, scopeNodes, lectures]);
+  const debouncedQuery = useDebouncedValue(searchQuery, 300);
 
   const { data: allNotices = [], isLoading, isError, error } = useQuery<PostEntity[]>({
-    queryKey: ["community-notice-posts"],
+    queryKey: ["community-notice-posts", debouncedQuery],
     queryFn: async () => {
-      const { results } = await fetchAdminPosts({ postType: "notice", pageSize: 500 });
+      const { results } = await fetchAdminPosts({
+        postType: "notice",
+        q: debouncedQuery.trim() || null,
+        pageSize: 500,
+      });
       return results;
     },
     retry: 1,
@@ -129,46 +102,12 @@ export default function NoticeAdminPage() {
   });
 
   // scope 필터: 전체=모든 글, 강의=해당 강의+하위 차시, 차시=해당 차시+상위 강의
-  // ✅ V1.1.1 fix: 강의/차시 scope에서 전체공지(GLOBAL)를 제외
+  // ✅ V1.1.1: 강의/차시 scope에서 전체공지(GLOBAL)를 제외
   const nodeId = useMemo(
     () => resolveNodeIdFromScope(scopeNodes, scopeParams),
-    [scopeNodes, scopeParams]
+    [scopeNodes, scopeParams],
   );
-  const visibleNodeIds = useMemo(() => {
-    if (scope === "all" || nodeId == null) return null;
-    const ids = new Set<number>();
-    ids.add(nodeId);
-    // 선택된 노드 찾기
-    const selected = scopeNodes.find((n) => n.id === nodeId);
-    if (selected) {
-      if (selected.level === "COURSE") {
-        // 강의 scope: 하위 SESSION 노드도 포함
-        for (const n of scopeNodes) {
-          if (n.lecture === selected.lecture && n.level === "SESSION") {
-            ids.add(n.id);
-          }
-        }
-      } else if (selected.level === "SESSION") {
-        // 차시 scope: 상위 COURSE 노드도 포함
-        for (const n of scopeNodes) {
-          if (n.lecture === selected.lecture && n.level === "COURSE") {
-            ids.add(n.id);
-          }
-        }
-      }
-    }
-    return ids;
-  }, [scope, nodeId, scopeNodes]);
-
-  const posts = useMemo(() => {
-    if (scope === "all") return allNotices;
-    if (!visibleNodeIds) return allNotices;
-    return allNotices.filter((p) => {
-      // 매핑 없는 글(전체공지)은 강의/차시 scope에서 제외
-      if (!p.mappings || p.mappings.length === 0) return false;
-      return p.mappings.some((m) => visibleNodeIds.has(m.node));
-    });
-  }, [allNotices, scope, visibleNodeIds]);
+  const posts = useScopeFilteredPosts({ posts: allNotices, scopeNodes, scope, nodeId });
 
   const filtered = useMemo(() => {
     if (!searchQuery.trim()) return posts;
@@ -192,45 +131,10 @@ export default function NoticeAdminPage() {
     [setSearchParams]
   );
 
-  /** 트리 선택 시 URL에 반영 → Context가 동기화되어 목록/공지추가 버튼 표시 */
-  const selectAll = useCallback(() => {
-    setShowCreate(false);
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev);
-      next.set("scope", "all");
-      next.delete("lectureId");
-      next.delete("sessionId");
-      return next;
-    });
-  }, [setSearchParams]);
-
-  const selectLecture = useCallback(
-    (lecId: number) => {
-      setShowCreate(false);
-      setSearchParams((prev) => {
-        const next = new URLSearchParams(prev);
-        next.set("scope", "lecture");
-        next.set("lectureId", String(lecId));
-        next.delete("sessionId");
-        return next;
-      });
-    },
-    [setSearchParams]
-  );
-
-  const selectSession = useCallback(
-    (lecId: number, sesId: number) => {
-      setShowCreate(false);
-      setSearchParams((prev) => {
-        const next = new URLSearchParams(prev);
-        next.set("scope", "session");
-        next.set("lectureId", String(lecId));
-        next.set("sessionId", String(sesId));
-        return next;
-      });
-    },
-    [setSearchParams]
-  );
+  // 트리 선택 시 URL에 반영 (공통 훅)
+  const { selectAll, selectLecture, selectSession } = useScopeNavigation({
+    onChange: () => setShowCreate(false),
+  });
 
   const canShowList =
     scope === "all" ||
@@ -243,7 +147,7 @@ export default function NoticeAdminPage() {
         title="공지"
         allLabel="전체 보기"
         counts={{
-          totalCount: noticeCounts.totalNoticeCount,
+          totalCount: noticeCounts.totalCount,
           totalUnderScope: noticeCounts.totalUnderScope,
           countByNodeId: noticeCounts.countByNodeId,
           countByLecture: noticeCounts.countByLecture,
@@ -323,8 +227,8 @@ export default function NoticeAdminPage() {
             onCancel={() => setShowCreate(false)}
             onSuccess={() => {
               qc.invalidateQueries({ queryKey: ["community-notice-posts"] });
-              qc.invalidateQueries({ queryKey: ["community-board-posts"] });
-              qc.invalidateQueries({ queryKey: ["community-all-notice-posts-for-count"] });
+              qc.invalidateQueries({ queryKey: ["community-board-posts-all"] });
+              qc.invalidateQueries({ queryKey: ["community", "notice", "counts"] });
               setShowCreate(false);
               feedback.success("공지가 등록되었습니다.");
             }}
@@ -444,8 +348,8 @@ function NoticeDetailView({
     mutationFn: () => deletePost(postId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["community-notice-posts"] });
-      qc.invalidateQueries({ queryKey: ["community-board-posts"] });
-      qc.invalidateQueries({ queryKey: ["community-all-notice-posts-for-count"] });
+      qc.invalidateQueries({ queryKey: ["community-board-posts-all"] });
+      qc.invalidateQueries({ queryKey: ["community", "notice", "counts"] });
       qc.invalidateQueries({ queryKey: ["community-post", postId] });
       feedback.success("공지가 삭제되었습니다.");
       onDeleted();
@@ -460,7 +364,7 @@ function NoticeDetailView({
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["community-post", postId] });
       qc.invalidateQueries({ queryKey: ["community-notice-posts"] });
-      qc.invalidateQueries({ queryKey: ["community-all-notice-posts-for-count"] });
+      qc.invalidateQueries({ queryKey: ["community", "notice", "counts"] });
       feedback.success("수정되었습니다.");
     },
     onError: (e: unknown) => {
@@ -473,7 +377,7 @@ function NoticeDetailView({
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["community-post", postId] });
       qc.invalidateQueries({ queryKey: ["community-notice-posts"] });
-      qc.invalidateQueries({ queryKey: ["community-all-notice-posts-for-count"] });
+      qc.invalidateQueries({ queryKey: ["community", "notice", "counts"] });
       feedback.success("제목이 수정되었습니다.");
     },
     onError: (e: unknown) => {
@@ -486,7 +390,7 @@ function NoticeDetailView({
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["community-post", postId] });
       qc.invalidateQueries({ queryKey: ["community-notice-posts"] });
-      qc.invalidateQueries({ queryKey: ["community-board-posts"] });
+      qc.invalidateQueries({ queryKey: ["community-board-posts-all"] });
       setContentSaved(true);
       feedback.success("내용이 저장되었습니다.");
       setTimeout(() => setContentSaved(false), 2000);

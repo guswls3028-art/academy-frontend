@@ -917,22 +917,41 @@ function MaterialsDetail({ id, onBack }: { id: number; onBack: () => void }) {
 function AttachmentList({ postId, attachments }: { postId: number; attachments?: PostAttachment[] }) {
   const isImage = (ct: string) => ct.startsWith("image/");
 
-  // 이미지 URL 캐시 — hooks must be called unconditionally
+  // 이미지 URL 캐시 — 병렬 fetch (이전: 직렬 for…of, N round-trip)
   const [imgUrls, setImgUrls] = useState<Record<number, string>>({});
+  // lightbox: 전체화면 이미지 뷰어
+  const [lightboxId, setLightboxId] = useState<number | null>(null);
+  useEffect(() => {
+    if (lightboxId == null) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setLightboxId(null);
+    };
+    window.addEventListener("keydown", onKey);
+    // body scroll lock
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [lightboxId]);
   useEffect(() => {
     if (!attachments || attachments.length === 0) return;
     const images = attachments.filter((a) => isImage(a.content_type));
     if (images.length === 0) return;
     let cancelled = false;
     (async () => {
+      const settled = await Promise.allSettled(
+        images.map((img) =>
+          getAttachmentDownloadUrl(postId, img.id).then((res) => ({ id: img.id, url: res.url }))
+        )
+      );
+      if (cancelled) return;
       const urls: Record<number, string> = {};
-      for (const img of images) {
-        try {
-          const { url } = await getAttachmentDownloadUrl(postId, img.id);
-          if (!cancelled) urls[img.id] = url;
-        } catch { /* skip */ }
+      for (const r of settled) {
+        if (r.status === "fulfilled") urls[r.value.id] = r.value.url;
       }
-      if (!cancelled) setImgUrls(urls);
+      setImgUrls(urls);
     })();
     return () => { cancelled = true; };
   }, [attachments, postId]);
@@ -958,16 +977,87 @@ function AttachmentList({ postId, attachments }: { postId: number; attachments?:
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-3)" }}>
-      {/* 이미지 미리보기 */}
+      {/* 이미지 미리보기 — 클릭 시 lightbox */}
       {attachments.filter((a) => isImage(a.content_type)).map((att) => (
-        <div key={`img-${att.id}`} style={{ borderRadius: "var(--stu-radius)", overflow: "hidden", border: "1px solid var(--stu-border-subtle)" }}>
+        <button
+          key={`img-${att.id}`}
+          type="button"
+          onClick={() => imgUrls[att.id] && setLightboxId(att.id)}
+          style={{
+            borderRadius: "var(--stu-radius)",
+            overflow: "hidden",
+            border: "1px solid var(--stu-border-subtle)",
+            padding: 0,
+            background: "transparent",
+            cursor: imgUrls[att.id] ? "zoom-in" : "default",
+            width: "100%",
+            display: "block",
+          }}
+          aria-label={`${att.original_name} 크게 보기`}
+        >
           {imgUrls[att.id] ? (
             <img src={imgUrls[att.id]} alt={att.original_name} style={{ width: "100%", maxHeight: 400, objectFit: "contain", display: "block", background: "var(--stu-surface-soft)" }} />
           ) : (
             <div style={{ height: 100, display: "grid", placeItems: "center", background: "var(--stu-surface-soft)", fontSize: 13, color: "var(--stu-text-muted)" }}>이미지 로딩 중…</div>
           )}
-        </div>
+        </button>
       ))}
+
+      {/* Lightbox 모달 */}
+      {lightboxId != null && imgUrls[lightboxId] && (
+        <div
+          onClick={() => setLightboxId(null)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="이미지 크게 보기"
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0, 0, 0, 0.92)",
+            zIndex: 9999,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            cursor: "zoom-out",
+            padding: 16,
+          }}
+        >
+          <img
+            src={imgUrls[lightboxId]}
+            alt={attachments.find((a) => a.id === lightboxId)?.original_name ?? ""}
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              maxWidth: "100%",
+              maxHeight: "100%",
+              objectFit: "contain",
+              cursor: "default",
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => setLightboxId(null)}
+            aria-label="닫기"
+            style={{
+              position: "absolute",
+              top: 16,
+              right: 16,
+              width: 44,
+              height: 44,
+              borderRadius: "50%",
+              background: "rgba(255, 255, 255, 0.15)",
+              color: "#fff",
+              border: "none",
+              fontSize: 20,
+              cursor: "pointer",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* 파일 목록 */}
       {attachments.filter((a) => !isImage(a.content_type)).length > 0 && (

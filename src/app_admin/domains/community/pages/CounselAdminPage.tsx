@@ -8,19 +8,14 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   fetchAdminPosts,
   fetchPost,
-  fetchPostReplies,
-  createAnswer,
-  updateReply,
-  deleteReply,
   deletePost,
   type PostEntity,
-  type Answer,
 } from "../api/community.api";
 import { Button } from "@/shared/ui/ds";
 import { useConfirm } from "@/shared/ui/confirm";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import PostReadView from "../components/PostReadView";
-import RichTextEditor from "@/shared/ui/editor/RichTextEditor";
+import PostThreadView from "../components/PostThreadView";
 import CommunityContextBar from "../components/CommunityContextBar";
 import CommunityEmptyState from "../components/CommunityEmptyState";
 import CommunityAvatar from "../components/CommunityAvatar";
@@ -364,8 +359,6 @@ function CounselThreadView({
           </span>
         </div>
 
-        <CounselAnswerThread postId={postId} />
-
         {(post.replies_count ?? 0) === 0 && (
           <div className="qna-inbox__answer-cta">
             <p>아래 입력란에서 상담 답변을 작성해 주세요.</p>
@@ -373,155 +366,15 @@ function CounselThreadView({
         )}
       </div>
 
-      <CounselComposer postId={postId} allowReply={!post.created_by_deleted} />
+      <PostThreadView
+        postId={postId}
+        mode="answer"
+        allowReply={!post.created_by_deleted}
+        invalidateKeys={[["community-counsel-posts"]]}
+        placeholder="학생에게 상담 답변을 작성하세요…"
+      />
     </>
   );
 }
 
-/* ── Answer Thread ── */
-function CounselAnswerThread({ postId }: { postId: number }) {
-  const { data: replies = [], isLoading } = useQuery<Answer[]>({
-    queryKey: ["post-replies", postId],
-    queryFn: () => fetchPostReplies(postId),
-  });
-
-  if (isLoading) {
-    return <div className="cms-detail__comment-thread"><p className="qna-inbox__empty-desc">답변 불러오는 중…</p></div>;
-  }
-
-  return (
-    <>
-      {replies.map((reply) => (
-        <CounselReplyBlock key={reply.id} postId={postId} answer={reply} />
-      ))}
-    </>
-  );
-}
-
-/* ── Single Reply ── */
-function CounselReplyBlock({ postId, answer }: { postId: number; answer: Answer }) {
-  const qc = useQueryClient();
-  const confirm = useConfirm();
-  const [editing, setEditing] = useState(false);
-  const [editContent, setEditContent] = useState(answer.content);
-
-  const updateMut = useMutation({
-    mutationFn: () => updateReply(postId, answer.id, editContent),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["post-replies", postId] });
-      qc.invalidateQueries({ queryKey: ["community-counsel-posts"] });
-      setEditing(false);
-      feedback.success("답변이 수정되었습니다.");
-    },
-    onError: (e: unknown) => feedback.error((e as Error)?.message ?? "수정에 실패했습니다."),
-  });
-
-  const deleteMut = useMutation({
-    mutationFn: () => deleteReply(postId, answer.id),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["post-replies", postId] });
-      qc.invalidateQueries({ queryKey: ["community-counsel-posts"] });
-      feedback.success("답변이 삭제되었습니다.");
-    },
-    onError: (e: unknown) => feedback.error((e as Error)?.message ?? "삭제에 실패했습니다."),
-  });
-
-  const teacherName = answer.created_by_display ?? "선생님";
-
-  return (
-    <div className="qna-inbox__message-row qna-inbox__message-row--teacher">
-      <CommunityAvatar name={teacherName} role="teacher" />
-      <div className="qna-inbox__message-bubble">
-        <div className="qna-inbox__message-meta">
-          <span className="qna-inbox__message-author">{teacherName}</span>
-          <span className="qna-inbox__message-badge">선생님</span>
-          <span className="qna-inbox__message-date">
-            {new Date(answer.created_at).toLocaleString("ko-KR", {
-              month: "long",
-              day: "numeric",
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
-          </span>
-        </div>
-        {editing ? (
-          <div className="qna-inbox__edit-form">
-            <textarea value={editContent} onChange={(e) => setEditContent(e.target.value)} rows={4} />
-            <div className="qna-inbox__edit-actions">
-              <Button size="sm" intent="primary" onClick={() => updateMut.mutate()} disabled={updateMut.isPending}>저장</Button>
-              <Button size="sm" intent="secondary" onClick={() => setEditing(false)}>취소</Button>
-            </div>
-          </div>
-        ) : (
-          <>
-            <div className="qna-inbox__message-body"><PostReadView html={answer.content} /></div>
-            <div className="qna-inbox__message-actions">
-              <Button size="sm" intent="ghost" onClick={() => setEditing(true)}>수정</Button>
-              <Button
-                size="sm"
-                intent="ghost"
-                onClick={async () => { if (await confirm({ title: "답변 삭제", message: "이 답변을 삭제할까요?", confirmText: "삭제", danger: true })) deleteMut.mutate(); }}
-                disabled={deleteMut.isPending}
-              >
-                삭제
-              </Button>
-            </div>
-          </>
-        )}
-      </div>
-    </div>
-  );
-}
-
-/* ── Composer ── */
-function CounselComposer({ postId, allowReply = true }: { postId: number; allowReply?: boolean }) {
-  const [content, setContent] = useState("");
-  const qc = useQueryClient();
-  const createMut = useMutation({
-    mutationFn: () => createAnswer(postId, content),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["community-counsel-posts"] });
-      qc.invalidateQueries({ queryKey: ["post-replies", postId] });
-      qc.invalidateQueries({ queryKey: ["community-post", postId] });
-      setContent("");
-      feedback.success("답변이 등록되었습니다. 자동발송이 설정되어 있으면 알림이 발송됩니다.");
-    },
-    onError: (e: unknown) => feedback.error((e as Error)?.message ?? "등록에 실패했습니다."),
-  });
-
-  const isEmpty = !content.trim() || content.trim() === "<p></p>";
-
-  return (
-    <div className="qna-inbox__composer">
-      {allowReply ? (
-        <div className="qna-inbox__composer-inner">
-          <div className="qna-inbox__composer-editor">
-            <RichTextEditor
-              value={content}
-              onChange={setContent}
-              placeholder="학생에게 상담 답변을 작성하세요…"
-              minHeight={80}
-            />
-          </div>
-          <div className="qna-inbox__composer-footer">
-            <span className="qna-inbox__composer-hint">
-              서식 지원 · 이미지 첨부 가능
-            </span>
-            <Button
-              intent="primary"
-              size="sm"
-              onClick={() => createMut.mutate()}
-              disabled={isEmpty || createMut.isPending}
-            >
-              {createMut.isPending ? "등록 중…" : "답변 등록"}
-            </Button>
-          </div>
-        </div>
-      ) : (
-        <p className="qna-inbox__empty-desc" style={{ margin: 0 }}>
-          삭제된 학생의 상담 신청에는 답변을 등록할 수 없습니다.
-        </p>
-      )}
-    </div>
-  );
-}
+// CounselAnswerThread / CounselReplyBlock / CounselComposer → PostThreadView로 통합

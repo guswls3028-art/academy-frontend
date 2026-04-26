@@ -7,27 +7,25 @@ import { useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCommunityScope } from "../context/CommunityScopeContext";
 import {
-  fetchPosts,
   fetchAdminPosts,
   fetchScopeNodes,
   resolveNodeIdFromScope,
   fetchPost,
-  fetchPostReplies,
-  createAnswer,
   createPost,
   updatePost,
   deletePost,
   uploadPostAttachments,
   getAttachmentDownloadUrl,
   deletePostAttachment,
-  updateReply as updateReplyApi,
-  deleteReply as deleteReplyApi,
   type PostEntity,
   type PostAttachment,
-  type Answer,
   type ScopeNodeMinimal,
   type CommunityScopeParams,
 } from "../api/community.api";
+import { useScopeFilteredPosts } from "../hooks/useScopeFilteredPosts";
+import { useScopeNavigation } from "../hooks/useScopeNavigation";
+import { useTreeCounts } from "../hooks/useTreeCounts";
+import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import { fetchLectures, fetchSessions, type Lecture, type Session } from "@admin/domains/lectures/api/sessions";
 import CmsTreeNav from "../components/CmsTreeNav";
 import { Button } from "@/shared/ui/ds";
@@ -92,43 +90,8 @@ export default function MaterialsBoardPage() {
     enabled: expandedLectureId != null && Number.isFinite(expandedLectureId),
   });
 
-  // ── All materials posts for tree counts ──
-  const { data: allMatPostsForCount = [] } = useQuery<PostEntity[]>({
-    queryKey: ["community-all-materials-posts-for-count"],
-    queryFn: async () => {
-      const { results } = await fetchAdminPosts({ postType: "materials", pageSize: 500 });
-      return results;
-    },
-    enabled: true,
-  });
-
-  const treeCounts = useMemo(() => {
-    const scopeNodeIds = new Set(scopeNodes.map((n) => n.id));
-    const countByNodeId: Record<number, number> = {};
-    for (const n of scopeNodes) countByNodeId[n.id] = 0;
-    for (const p of allMatPostsForCount) {
-      for (const m of p.mappings ?? []) {
-        if (scopeNodeIds.has(m.node)) countByNodeId[m.node] = (countByNodeId[m.node] ?? 0) + 1;
-      }
-    }
-    const total = allMatPostsForCount.length;
-    const totalUnderScope = allMatPostsForCount.filter((p) =>
-      p.mappings?.some((m) => scopeNodeIds.has(m.node))
-    ).length;
-    const countByLecture: Record<number, number> = {};
-    for (const lec of lectures) countByLecture[lec.id] = 0;
-    for (const p of allMatPostsForCount) {
-      const seen = new Set<number>();
-      for (const m of p.mappings ?? []) {
-        const lid = m.node_detail?.lecture;
-        if (lid != null && !seen.has(lid)) {
-          seen.add(lid);
-          countByLecture[lid] = (countByLecture[lid] ?? 0) + 1;
-        }
-      }
-    }
-    return { total, totalUnderScope, countByNodeId, countByLecture };
-  }, [allMatPostsForCount, scopeNodes, lectures]);
+  // 트리 노드별 자료실 개수 — 백엔드 단일 집계
+  const { counts: treeCounts } = useTreeCounts("materials");
 
   // ── Posts for current scope ──
   const nodeId = useMemo(
@@ -138,44 +101,29 @@ export default function MaterialsBoardPage() {
 
   const canShowList = true;
 
-  // 자료실 전체 목록 (post_type 기반, scope는 클라이언트 필터)
+  const debouncedQuery = useDebouncedValue(searchQuery, 300);
+
+  // 자료실 전체 목록 (post_type 기반, scope는 클라이언트 필터, q는 서버 검색)
   const postsQ = useQuery<PostEntity[]>({
-    queryKey: ["community-materials-posts-all"],
+    queryKey: ["community-materials-posts-all", debouncedQuery],
     queryFn: async () => {
-      const { results } = await fetchAdminPosts({ postType: "materials", pageSize: 500 });
+      const { results } = await fetchAdminPosts({
+        postType: "materials",
+        q: debouncedQuery.trim() || null,
+        pageSize: 500,
+      });
       return results;
     },
   });
   const allMaterialsPosts = useMemo(() => postsQ.data ?? [], [postsQ.data]);
 
-  // ✅ V1.1.1 fix: 강의/차시 scope에서 전체글(GLOBAL)을 제외
-  const visibleNodeIds = useMemo(() => {
-    if (scope === "all" || nodeId == null) return null;
-    const ids = new Set<number>();
-    ids.add(nodeId);
-    const selected = scopeNodes.find((n) => n.id === nodeId);
-    if (selected) {
-      if (selected.level === "COURSE") {
-        for (const n of scopeNodes) {
-          if (n.lecture === selected.lecture && n.level === "SESSION") ids.add(n.id);
-        }
-      } else if (selected.level === "SESSION") {
-        for (const n of scopeNodes) {
-          if (n.lecture === selected.lecture && n.level === "COURSE") ids.add(n.id);
-        }
-      }
-    }
-    return ids;
-  }, [scope, nodeId, scopeNodes]);
-
-  const scopedPosts = useMemo(() => {
-    if (scope === "all" || !canShowList) return allMaterialsPosts;
-    if (!visibleNodeIds) return allMaterialsPosts;
-    return allMaterialsPosts.filter((p) => {
-      if (!p.mappings || p.mappings.length === 0) return false;
-      return p.mappings.some((m) => visibleNodeIds.has(m.node));
-    });
-  }, [allMaterialsPosts, scope, visibleNodeIds, canShowList]);
+  // ✅ V1.1.1: 강의/차시 scope에서 전체글(GLOBAL)을 제외 (공통 훅)
+  const scopedPosts = useScopeFilteredPosts({
+    posts: allMaterialsPosts,
+    scopeNodes,
+    scope,
+    nodeId,
+  });
 
   const filtered = useMemo(() => {
     if (!searchQuery.trim()) return scopedPosts;
@@ -201,45 +149,10 @@ export default function MaterialsBoardPage() {
     [setSearchParams]
   );
 
-  // ── Tree selection callbacks ──
-  const selectAll = useCallback(() => {
-    setShowCreate(false);
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev);
-      next.set("scope", "all");
-      next.delete("lectureId");
-      next.delete("sessionId");
-      return next;
-    });
-  }, [setSearchParams]);
-
-  const selectLecture = useCallback(
-    (lecId: number) => {
-      setShowCreate(false);
-      setSearchParams((prev) => {
-        const next = new URLSearchParams(prev);
-        next.set("scope", "lecture");
-        next.set("lectureId", String(lecId));
-        next.delete("sessionId");
-        return next;
-      });
-    },
-    [setSearchParams]
-  );
-
-  const selectSession = useCallback(
-    (lecId: number, sesId: number) => {
-      setShowCreate(false);
-      setSearchParams((prev) => {
-        const next = new URLSearchParams(prev);
-        next.set("scope", "session");
-        next.set("lectureId", String(lecId));
-        next.set("sessionId", String(sesId));
-        return next;
-      });
-    },
-    [setSearchParams]
-  );
+  // 트리 선택 콜백 (공통 훅)
+  const { selectAll, selectLecture, selectSession } = useScopeNavigation({
+    onChange: () => setShowCreate(false),
+  });
 
   // j/k keyboard nav
   useEffect(() => {
@@ -262,7 +175,7 @@ export default function MaterialsBoardPage() {
         title="자료실"
         allLabel="전체 보기"
         counts={{
-          totalCount: treeCounts.total,
+          totalCount: treeCounts.totalCount,
           totalUnderScope: treeCounts.totalUnderScope,
           countByNodeId: treeCounts.countByNodeId,
           countByLecture: treeCounts.countByLecture,
@@ -332,7 +245,7 @@ export default function MaterialsBoardPage() {
             onCancel={() => setShowCreate(false)}
             onSuccess={() => {
               qc.invalidateQueries({ queryKey: ["community-materials-posts-all"] });
-              qc.invalidateQueries({ queryKey: ["community-all-materials-posts-for-count"] });
+              qc.invalidateQueries({ queryKey: ["community", "materials", "counts"] });
               setShowCreate(false);
               feedback.success("자료가 등록되었습니다.");
             }}
@@ -346,7 +259,7 @@ export default function MaterialsBoardPage() {
             onDeleted={() => {
               setSelectedId(null);
               qc.invalidateQueries({ queryKey: ["community-materials-posts-all"] });
-              qc.invalidateQueries({ queryKey: ["community-all-materials-posts-for-count"] });
+              qc.invalidateQueries({ queryKey: ["community", "materials", "counts"] });
             }}
           />
         )}
@@ -505,7 +418,6 @@ function MatPostCard({ post, isActive, onClick }: { post: PostEntity; isActive: 
         <div className="cms-list-card__meta">
           <span>{authorName}</span>
           {(post.attachments?.length ?? 0) > 0 && <span className="cms-list-card__meta-tag">파일 {post.attachments!.length}개</span>}
-          {(post.replies_count ?? 0) > 0 && <span className="cms-list-card__meta-tag">댓글 {post.replies_count}</span>}
         </div>
       </div>
     </button>
@@ -530,7 +442,7 @@ function MatDetailView({ postId, onClose, onDeleted }: { postId: number; onClose
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["community-post", postId] });
       qc.invalidateQueries({ queryKey: ["community-materials-posts-all"] });
-      qc.invalidateQueries({ queryKey: ["community-all-materials-posts-for-count"] });
+      qc.invalidateQueries({ queryKey: ["community", "materials", "counts"] });
       setEditingTitle(false);
       feedback.success("수정되었습니다.");
     },
@@ -617,13 +529,8 @@ function MatDetailView({ postId, onClose, onDeleted }: { postId: number; onClose
           </div>
         </div>
 
-        {/* Comments — keep messenger-style pattern */}
-        {(post.replies_count ?? 0) > 0 && (
-          <div className="qna-inbox__thread-sep"><span className="qna-inbox__thread-sep-label">댓글 {post.replies_count}개</span></div>
-        )}
-        <MatCommentThread postId={postId} />
+        {/* 자료실은 일방향 다운로드 정책 — 댓글 비활성화 (백엔드도 차단) */}
       </div>
-      <MatCommentComposer postId={postId} />
     </>
   );
 }
@@ -695,80 +602,4 @@ function MatAttachmentSection({ postId, attachments }: { postId: number; attachm
   );
 }
 
-/* ─── Comment Thread ─────────────────────────────────── */
-function MatCommentThread({ postId }: { postId: number }) {
-  const { data: replies = [], isLoading } = useQuery<Answer[]>({ queryKey: ["post-replies", postId], queryFn: () => fetchPostReplies(postId) });
-  if (isLoading) return <div className="cms-detail__comment-thread"><p className="qna-inbox__empty-desc">댓글 불러오는 중…</p></div>;
-  return <>{replies.map((r) => <MatCommentBlock key={r.id} postId={postId} reply={r} />)}</>;
-}
-
-function MatCommentBlock({ postId, reply }: { postId: number; reply: Answer }) {
-  const qc = useQueryClient();
-  const confirm = useConfirm();
-  const [editing, setEditing] = useState(false);
-  const [editContent, setEditContent] = useState(reply.content);
-  const authorName = reply.created_by_display ?? "관리자";
-
-  const updateMut = useMutation({
-    mutationFn: () => updateReplyApi(postId, reply.id, editContent),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["post-replies", postId] }); setEditing(false); feedback.success("댓글이 수정되었습니다."); },
-    onError: (e: unknown) => { feedback.error((e as Error)?.message ?? "수정에 실패했습니다."); },
-  });
-  const deleteMut = useMutation({
-    mutationFn: () => deleteReplyApi(postId, reply.id),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["post-replies", postId] }); feedback.success("댓글이 삭제되었습니다."); },
-    onError: (e: unknown) => { feedback.error((e as Error)?.message ?? "삭제에 실패했습니다."); },
-  });
-
-  return (
-    <div className="qna-inbox__message-row qna-inbox__message-row--teacher">
-      <CommunityAvatar name={authorName} size={32} />
-      <div className="qna-inbox__message-bubble">
-        <div className="qna-inbox__message-meta">
-          <span className="qna-inbox__message-author">{authorName}</span>
-          <span className="qna-inbox__message-badge">댓글</span>
-          <span className="qna-inbox__message-date">{new Date(reply.created_at).toLocaleString("ko-KR", { month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span>
-        </div>
-        {editing ? (
-          <div className="qna-inbox__edit-form">
-            <textarea value={editContent} onChange={(e) => setEditContent(e.target.value)} rows={3} />
-            <div className="qna-inbox__edit-actions">
-              <Button size="sm" intent="primary" onClick={() => updateMut.mutate()} disabled={updateMut.isPending}>저장</Button>
-              <Button size="sm" intent="secondary" onClick={() => setEditing(false)}>취소</Button>
-            </div>
-          </div>
-        ) : (
-          <>
-            <div className="qna-inbox__message-body"><PostReadView html={reply.content} /></div>
-            <div className="qna-inbox__message-actions">
-              <Button size="sm" intent="ghost" onClick={() => setEditing(true)}>수정</Button>
-              <Button size="sm" intent="ghost" onClick={async () => { if (await confirm({ title: "댓글 삭제", message: "이 댓글을 삭제할까요?", confirmText: "삭제", danger: true })) deleteMut.mutate(); }} disabled={deleteMut.isPending}>삭제</Button>
-            </div>
-          </>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function MatCommentComposer({ postId }: { postId: number }) {
-  const [content, setContent] = useState("");
-  const qc = useQueryClient();
-  const createMut = useMutation({
-    mutationFn: () => createAnswer(postId, content),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["post-replies", postId] }); qc.invalidateQueries({ queryKey: ["community-materials-posts-all"] }); setContent(""); feedback.success("댓글이 등록되었습니다."); },
-    onError: (e: unknown) => { feedback.error((e as Error)?.message ?? "등록에 실패했습니다."); },
-  });
-
-  return (
-    <div className="qna-inbox__composer">
-      <div className="qna-inbox__composer-inner">
-        <textarea value={content} onChange={(e) => setContent(e.target.value)} onKeyDown={(e) => { if ((e.metaKey || e.ctrlKey) && e.key === "Enter" && content.trim() && !createMut.isPending) { e.preventDefault(); createMut.mutate(); } }} placeholder="댓글을 작성하세요…" rows={3} />
-        <div className="qna-inbox__composer-footer">
-          <span className="qna-inbox__composer-hint"><kbd>Ctrl</kbd><kbd>Enter</kbd> 빠른 등록</span>
-          <Button intent="primary" size="sm" onClick={() => createMut.mutate()} disabled={!content.trim() || createMut.isPending}>{createMut.isPending ? "등록 중…" : "댓글 등록"}</Button>
-        </div>
-      </div>
-    </div>
-  );
-}
+// MatCommentThread / MatCommentBlock / MatCommentComposer → PostThreadView로 통합

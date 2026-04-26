@@ -17,13 +17,6 @@ export interface CommunityScopeParams {
 // ----------------------------------------
 // 신규 타입 (백엔드 community SSOT)
 // ----------------------------------------
-export interface BlockType {
-  id: number;
-  code: string;
-  label: string;
-  order: number;
-}
-
 export interface ScopeNodeMinimal {
   id: number;
   level: "COURSE" | "SESSION";
@@ -107,84 +100,6 @@ export function resolveNodeIdFromScope(
 }
 
 // ----------------------------------------
-// Block types (커스텀 유형 생성/수정/삭제)
-// ----------------------------------------
-export async function fetchBlockTypes(): Promise<BlockType[]> {
-  const res = await api.get(`${PREFIX}/block-types/`);
-  const data = res?.data;
-  // DRF PageNumberPagination: { results: [...], count, next, previous }
-  if (data != null && Array.isArray((data as { results?: BlockType[] }).results)) {
-    return (data as { results: BlockType[] }).results;
-  }
-  return Array.isArray(data) ? data : [];
-}
-
-export async function createBlockType(data: {
-  label: string;
-  code?: string;
-  order?: number;
-}): Promise<BlockType> {
-  const res = await api.post(`${PREFIX}/block-types/`, data);
-  return res.data as BlockType;
-}
-
-export async function updateBlockType(
-  id: number,
-  data: { label?: string; code?: string; order?: number }
-): Promise<BlockType> {
-  const res = await api.patch(`${PREFIX}/block-types/${id}/`, data);
-  return res.data as BlockType;
-}
-
-export async function deleteBlockType(id: number): Promise<void> {
-  await api.delete(`${PREFIX}/block-types/${id}/`);
-}
-
-
-// ----------------------------------------
-// Post templates (양식 저장/불러오기)
-// ----------------------------------------
-export interface PostTemplate {
-  id: number;
-  name: string;
-  block_type: number | null;
-  block_type_label: string | null;
-  title: string;
-  content: string;
-  order: number;
-  created_at: string;
-  updated_at: string;
-}
-
-export async function fetchPostTemplates(): Promise<PostTemplate[]> {
-  const res = await api.get(`${PREFIX}/post-templates/`);
-  return Array.isArray(res.data) ? res.data : [];
-}
-
-export async function createPostTemplate(data: {
-  name: string;
-  block_type?: number | null;
-  title?: string;
-  content?: string;
-  order?: number;
-}): Promise<PostTemplate> {
-  const res = await api.post(`${PREFIX}/post-templates/`, data);
-  return res.data as PostTemplate;
-}
-
-export async function updatePostTemplate(
-  id: number,
-  data: { name?: string; block_type?: number | null; title?: string; content?: string; order?: number }
-): Promise<PostTemplate> {
-  const res = await api.patch(`${PREFIX}/post-templates/${id}/`, data);
-  return res.data as PostTemplate;
-}
-
-export async function deletePostTemplate(id: number): Promise<void> {
-  await api.delete(`${PREFIX}/post-templates/${id}/`);
-}
-
-// ----------------------------------------
 // Posts (공지/질의 등)
 // ----------------------------------------
 /** node_id 있으면 해당 노드(및 상속) 게시물, 없으면 tenant 전체. DRF 페이지네이션(results) 지원. 학생 "내 질문" 시 pageSize 권장. */
@@ -228,19 +143,6 @@ export async function fetchNoticePosts(params?: { page?: number; pageSize?: numb
   return Array.isArray(data) ? data : Array.isArray(data?.results) ? data.results : [];
 }
 
-/** 공지 전체 목록을 페이지네이션으로 수집 (트리 노드별 개수 집계용, 최대 2000건) */
-export async function fetchAllNoticePostsForCount(): Promise<PostEntity[]> {
-  const pageSize = 200;
-  const maxPages = 10;
-  const all: PostEntity[] = [];
-  for (let page = 1; page <= maxPages; page++) {
-    const chunk = await fetchNoticePosts({ page, pageSize });
-    all.push(...chunk);
-    if (chunk.length < pageSize) break;
-  }
-  return all;
-}
-
 /** 게시판 목록 — GET /community/posts/board/ */
 export async function fetchBoardPostsByEndpoint(params?: { page?: number; pageSize?: number }): Promise<PostEntity[]> {
   const search = new URLSearchParams();
@@ -265,10 +167,11 @@ export async function fetchMaterialsPostsByEndpoint(params?: { page?: number; pa
   return Array.isArray(data) ? data : Array.isArray(data?.results) ? data.results : [];
 }
 
-/** 관리자 목록: post_type, lecture_id, page, page_size */
+/** 관리자 목록: post_type, lecture_id, q(서버 검색), page, page_size */
 export async function fetchAdminPosts(params: {
   postType?: PostType | null;
   lectureId?: number | null;
+  q?: string | null;
   page?: number;
   pageSize?: number;
 }): Promise<{ results: PostEntity[]; count: number }> {
@@ -276,6 +179,7 @@ export async function fetchAdminPosts(params: {
     params: {
       post_type: params.postType ?? undefined,
       lecture_id: params.lectureId ?? undefined,
+      q: params.q ?? undefined,
       page: params.page ?? 1,
       page_size: params.pageSize ?? 20,
     },
@@ -463,53 +367,23 @@ export async function deletePostAttachment(postId: number, attId: number): Promi
 }
 
 // ----------------------------------------
-// 자료실 (백엔드 미제공 — 스텁)
+// 트리 카운트 집계 (관리자 트리 뷰 전용)
 // ----------------------------------------
-export interface Material {
-  id: number;
-  tenant: number | null;
-  lecture: number | null;
-  session: number | null;
-  category: number | null;
-  title: string;
-  description: string;
-  file: string | null;
-  url: string | null;
-  order: number;
-  is_public: boolean;
-  created_at: string;
-  lecture_title?: string;
+export interface PostCountsResponse {
+  total: number;
+  global_count: number;
+  by_node_id: Record<number, number>;
+  by_lecture_id: Record<number, number>;
 }
 
-export interface MaterialCategory {
-  id: number;
-  tenant: number | null;
-  lecture: number | null;
-  name: string;
-  order: number;
-}
-
-export async function fetchCommunityMaterials(
-  _params: CommunityScopeParams & { categoryId?: number | null }
-): Promise<Material[]> {
-  return [];
-}
-
-export async function fetchCommunityMaterialCategories(
-  _params: CommunityScopeParams
-): Promise<MaterialCategory[]> {
-  return [];
-}
-
-export async function createCommunityMaterialCategory(_data: {
-  scope: CommunityScope;
-  lectureId?: number | null;
-  name: string;
-  order?: number;
-}): Promise<MaterialCategory> {
-  throw new Error("자료실 API가 준비 중입니다.");
-}
-
-export async function createCommunityMaterial(_formData: FormData): Promise<Material> {
-  throw new Error("자료실 API가 준비 중입니다.");
+/** GET /community/posts/counts/?post_type=... — 노드/강의별 카운트 단일 집계 */
+export async function fetchPostCounts(postType: PostType): Promise<PostCountsResponse> {
+  const res = await api.get(`${PREFIX}/posts/counts/`, { params: { post_type: postType } });
+  const data = res.data as Partial<PostCountsResponse>;
+  return {
+    total: typeof data.total === "number" ? data.total : 0,
+    global_count: typeof data.global_count === "number" ? data.global_count : 0,
+    by_node_id: data.by_node_id ?? {},
+    by_lecture_id: data.by_lecture_id ?? {},
+  };
 }

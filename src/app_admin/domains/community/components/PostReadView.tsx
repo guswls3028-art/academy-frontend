@@ -1,5 +1,6 @@
 // PATH: src/app_admin/domains/community/components/PostReadView.tsx
 // 읽기 전용 게시물 본문 렌더링 — sanitized HTML
+import { useMemo } from "react";
 import DOMPurify from "dompurify";
 
 type Props = {
@@ -14,6 +15,16 @@ type Props = {
  * - 읽기 모드에서만 사용
  */
 export default function PostReadView({ html, className }: Props) {
+  const isPlainText = useMemo(
+    () => !!html && !/<[a-z][\s\S]*>/i.test(html),
+    [html]
+  );
+
+  const safeHtml = useMemo(
+    () => (html && !isPlainText ? DOMPurify.sanitize(html) : ""),
+    [html, isPlainText]
+  );
+
   if (!html || !html.trim()) {
     return (
       <div className={`text-sm text-[var(--color-text-muted)] ${className ?? ""}`}>
@@ -22,8 +33,6 @@ export default function PostReadView({ html, className }: Props) {
     );
   }
 
-  // plain text인지 확인 (HTML 태그 없음)
-  const isPlainText = !/<[a-z][\s\S]*>/i.test(html);
   if (isPlainText) {
     return (
       <div
@@ -50,7 +59,7 @@ export default function PostReadView({ html, className }: Props) {
         wordBreak: "break-word",
         color: "var(--color-text-primary)",
       }}
-      dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(html) }}
+      dangerouslySetInnerHTML={{ __html: safeHtml }}
     />
   );
 }
