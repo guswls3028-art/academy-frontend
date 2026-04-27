@@ -234,6 +234,13 @@ function TriggerCard({
   };
 
   const isReminder = REMINDER_TRIGGERS.has(config.trigger);
+  const implStatus = config.implementation_status;
+  const isUnimplemented = implStatus === "manual_only" || implStatus === "disabled";
+  const unimplementedHint = implStatus === "disabled"
+    ? "정책상 비활성 — 발송되지 않습니다"
+    : implStatus === "manual_only"
+      ? "자동 발화 미구현 — 수동 발송 모달에서만 사용 가능"
+      : "";
 
   return (
     <div
@@ -245,7 +252,8 @@ function TriggerCard({
         boxShadow: channelActive
           ? "inset 3px 0 0 var(--color-primary)"
           : undefined,
-        transition: "background 0.15s, box-shadow 0.15s",
+        opacity: isUnimplemented ? 0.65 : 1,
+        transition: "background 0.15s, box-shadow 0.15s, opacity 0.15s",
       }}
     >
       {/* Header: trigger name + enable toggle */}
@@ -299,6 +307,19 @@ function TriggerCard({
               {TRIGGER_DESCRIPTIONS[config.trigger] ??
                 "해당 이벤트 발생 시 자동 발송합니다."}
             </div>
+            {isUnimplemented && (
+              <div
+                style={{
+                  fontSize: 11,
+                  fontWeight: 600,
+                  color: "var(--color-status-warning, #d97706)",
+                  marginTop: 4,
+                  lineHeight: 1.35,
+                }}
+              >
+                ⚠ {unimplementedHint}
+              </div>
+            )}
           </div>
         </div>
 
@@ -314,7 +335,7 @@ function TriggerCard({
           <Switch
             checked={channelActive}
             onChange={handleChannelToggle}
-            disabled={saving}
+            disabled={saving || isUnimplemented}
             size="small"
           />
           <span

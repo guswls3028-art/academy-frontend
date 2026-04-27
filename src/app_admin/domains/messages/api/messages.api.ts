@@ -339,6 +339,14 @@ export type AutoSendTrigger =
 
 export type PolicyMode = "SYSTEM_AUTO" | "AUTO_DEFAULT" | "MANUAL_DEFAULT" | "DISABLED";
 
+/**
+ * 자동 발화 구현 상태:
+ * - implemented: 코드에서 자동 발송됨. 토글 ON 시 즉시 동작.
+ * - manual_only: 자동 발화 미구현. 수동 발송 모달에서만 사용 가능.
+ * - disabled: 정책상 비활성. 발송 자체 차단.
+ */
+export type ImplementationStatus = "implemented" | "manual_only" | "disabled";
+
 export type DelayMode = "immediate" | "delay_minutes" | "scheduled_hour";
 
 export interface AutoSendConfigItem {
@@ -363,6 +371,8 @@ export interface AutoSendConfigItem {
   updated_at: string | null;
   /** 정책 분류: SYSTEM_AUTO / AUTO_DEFAULT / MANUAL_DEFAULT / DISABLED */
   policy_mode?: PolicyMode;
+  /** 자동 발화 구현 상태 — manual_only/disabled이면 enabled=true로 켜도 백엔드에서 false로 강제 */
+  implementation_status?: ImplementationStatus;
 }
 
 export const AUTO_SEND_TRIGGER_LABELS: Record<string, string> = {
