@@ -330,6 +330,24 @@ export async function manualCropMatchupProblem(
   return data;
 }
 
+// 클립보드/파일 이미지를 problem으로 직접 등록 (PDF 페이지 매뉴얼 크롭 경유 안 함).
+// 직접 촬영본·외부 크롭 이미지·메신저 캡처용.
+export async function pasteImageAsMatchupProblem(
+  docId: number,
+  imageFile: File | Blob,
+  number: number,
+): Promise<MatchupProblem> {
+  const form = new FormData();
+  form.append("image", imageFile);
+  form.append("number", String(number));
+  const { data } = await api.post<MatchupProblem>(
+    `/matchup/documents/${docId}/paste-problem/`,
+    form,
+    { headers: { "Content-Type": "multipart/form-data" }, timeout: 60_000 },
+  );
+  return data;
+}
+
 // ── Job Progress (기존 인프라 재사용) ──
 //
 // /jobs/<id>/progress/ 응답은 래핑 구조:

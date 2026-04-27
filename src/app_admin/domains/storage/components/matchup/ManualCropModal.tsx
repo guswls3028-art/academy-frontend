@@ -14,13 +14,14 @@
 
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { X, Plus, Trash2, AlertCircle, Loader2, Crop } from "lucide-react";
+import { X, Plus, Trash2, AlertCircle, Loader2, Crop, ClipboardPaste } from "lucide-react";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useConfirm } from "@/shared/ui/confirm";
 import {
   fetchDocumentPages,
   manualCropMatchupProblem,
+  pasteImageAsMatchupProblem,
   fetchMatchupProblems,
   deleteMatchupProblem,
 } from "../../api/matchup.api";
@@ -132,6 +133,8 @@ export default function ManualCropModal({ document: doc, onClose }: Props) {
   const [draft, setDraft] = useState<DraftBox | null>(null);
   const [number, setNumber] = useState<number>(1);
   const [saving, setSaving] = useState(false);
+  // 클립보드/파일 paste — 현재 붙여넣은 이미지(파일+미리보기 URL+다음 빈 번호)
+  const [pasted, setPasted] = useState<{ file: File; previewUrl: string; number: number } | null>(null);
 
   const canvasContainerRef = useRef<HTMLDivElement>(null);
   const dragStateRef = useRef<{
@@ -182,11 +185,14 @@ export default function ManualCropModal({ document: doc, onClose }: Props) {
     setNumber(n);
   }, [problems]);
 
-  // ESC: 드래그 중이면 취소만, 아니면 모달 닫기
+  // ESC: 붙여넣기 미리보기 우선 → 드래그 → 모달 닫기
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        if (draft) {
+        if (pasted) {
+          URL.revokeObjectURL(pasted.previewUrl);
+          setPasted(null);
+        } else if (draft) {
           setDraft(null);
         } else if (!saving) {
           onClose();
@@ -195,7 +201,55 @@ export default function ManualCropModal({ document: doc, onClose }: Props) {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [draft, saving, onClose]);
+  }, [draft, pasted, saving, onClose]);
+
+  // 다음 빈 번호 계산 — paste 모드에서 사용
+  const computeNextNumber = useCallback((): number => {
+    if (problems.length === 0) return 1;
+    const used = new Set(problems.map((p) => p.number));
+    let n = 1;
+    while (used.has(n)) n += 1;
+    return n;
+  }, [problems]);
+
+  // 모달 어디서든 Ctrl+V — 클립보드 이미지를 paste 미리보기로 띄움
+  useEffect(() => {
+    const onPaste = (e: ClipboardEvent) => {
+      if (saving) return;
+      // 인풋(번호 입력)에 포커스가 있고 텍스트(숫자) paste면 무시
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA")) {
+        const itemsForText = e.clipboardData?.types || [];
+        const onlyText = itemsForText.length === 1 && itemsForText[0] === "text/plain";
+        if (onlyText) return;
+      }
+      const items = e.clipboardData?.items;
+      if (!items || items.length === 0) return;
+      let imgFile: File | null = null;
+      for (let i = 0; i < items.length; i += 1) {
+        if (items[i].kind === "file" && items[i].type.startsWith("image/")) {
+          imgFile = items[i].getAsFile();
+          if (imgFile) break;
+        }
+      }
+      if (!imgFile) return;
+      e.preventDefault();
+      const url = URL.createObjectURL(imgFile);
+      setPasted((prev) => {
+        if (prev) URL.revokeObjectURL(prev.previewUrl);
+        return { file: imgFile!, previewUrl: url, number: computeNextNumber() };
+      });
+    };
+    window.addEventListener("paste", onPaste);
+    return () => window.removeEventListener("paste", onPaste);
+  }, [saving, computeNextNumber]);
+
+  // 컴포넌트 언마운트 시 paste preview 정리
+  useEffect(() => {
+    return () => {
+      if (pasted) URL.revokeObjectURL(pasted.previewUrl);
+    };
+  }, [pasted]);
 
   // 캔버스 빈 공간 mousedown → 새 박스 그리기 시작
   const handleCanvasMouseDown = (e: React.MouseEvent) => {
@@ -335,6 +389,48 @@ export default function ManualCropModal({ document: doc, onClose }: Props) {
       setSaving(false);
     }
   }, [draft, activePageData, number, doc.id, problems, qc, confirm]);
+
+  const handleSavePaste = useCallback(async () => {
+    if (!pasted) return;
+    if (!Number.isFinite(pasted.number) || pasted.number < 1 || pasted.number > 999) {
+      feedback.error("문항 번호는 1~999 사이여야 합니다.");
+      return;
+    }
+    const existing = problems.find((p) => p.number === pasted.number);
+    if (existing) {
+      const ok = await confirm({
+        title: `${pasted.number}번 문제 덮어쓰기`,
+        message: `${pasted.number}번 문제가 이미 있습니다. 새 이미지로 교체하시겠습니까?`,
+        confirmText: "덮어쓰기",
+        danger: true,
+      });
+      if (!ok) return;
+    }
+    setSaving(true);
+    try {
+      await pasteImageAsMatchupProblem(doc.id, pasted.file, pasted.number);
+      await qc.invalidateQueries({ queryKey: ["matchup-problems", doc.id] });
+      await qc.invalidateQueries({ queryKey: ["matchup-documents"] });
+      feedback.success(`${pasted.number}번 문제 저장됨 (붙여넣기)`);
+      URL.revokeObjectURL(pasted.previewUrl);
+      setPasted(null);
+    } catch (e) {
+      console.error(e);
+      const msg =
+        (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
+        "이미지 붙여넣기 저장에 실패했습니다.";
+      feedback.error(msg);
+    } finally {
+      setSaving(false);
+    }
+  }, [pasted, problems, doc.id, qc, confirm]);
+
+  const handlePastePreviewKey = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && pasted && !saving) {
+      e.preventDefault();
+      void handleSavePaste();
+    }
+  };
 
   const handleDeleteProblem = async (problemId: number, num: number) => {
     const ok = await confirm({
@@ -482,8 +578,19 @@ export default function ManualCropModal({ document: doc, onClose }: Props) {
               borderBottom: "1px solid var(--color-border-divider)",
               flexShrink: 0,
               background: "var(--color-bg-surface)",
+              display: "flex", alignItems: "center", gap: "var(--space-2)",
+              flexWrap: "wrap",
             }}>
-              드래그로 영역 선택 · 박스 끌어 이동 · 8방향 핸들로 크기 조정 · ←↑↓→ 미세조정 (Shift=크게, Alt=크기) · 우측에서 번호 입력 후 Enter
+              <span>드래그로 영역 선택 · 박스 끌어 이동 · 8방향 핸들 크기 조정 · ←↑↓→ 미세조정 (Shift=크게, Alt=크기) · 우측 번호 입력 후 Enter</span>
+              <span style={{
+                marginLeft: "auto",
+                display: "inline-flex", alignItems: "center", gap: 4,
+                padding: "2px 8px", borderRadius: 999,
+                background: "color-mix(in srgb, var(--color-brand-primary) 8%, transparent)",
+                color: "var(--color-brand-primary)", fontWeight: 600,
+              }}>
+                <ClipboardPaste size={11} /> Ctrl+V로 이미지 직접 붙여넣기
+              </span>
             </div>
             <div style={{
               flex: 1, minHeight: 0,
@@ -626,6 +733,81 @@ export default function ManualCropModal({ document: doc, onClose }: Props) {
             borderLeft: "1px solid var(--color-border-divider)",
             display: "flex", flexDirection: "column", minHeight: 0,
           }}>
+            {/* paste 미리보기 (가장 우선) */}
+            {pasted && (
+              <div style={{
+                padding: "var(--space-3)",
+                borderBottom: "1px solid var(--color-border-divider)",
+                background: "color-mix(in srgb, var(--color-brand-primary) 6%, var(--color-bg-surface))",
+                flexShrink: 0,
+                display: "flex", flexDirection: "column", gap: "var(--space-2)",
+              }}>
+                <div style={{
+                  fontSize: 11, fontWeight: 700,
+                  color: "var(--color-brand-primary)",
+                  display: "flex", alignItems: "center", gap: 4,
+                }}>
+                  <ClipboardPaste size={12} /> 붙여넣은 이미지
+                </div>
+                <img
+                  src={pasted.previewUrl}
+                  alt="붙여넣은 이미지 미리보기"
+                  data-testid="matchup-paste-preview"
+                  style={{
+                    maxWidth: "100%", maxHeight: 160,
+                    objectFit: "contain",
+                    border: "1px solid var(--color-border-divider)",
+                    borderRadius: 4, background: "white",
+                    alignSelf: "center",
+                  }}
+                />
+                <label style={{
+                  display: "flex", alignItems: "center", gap: 6,
+                  fontSize: 13,
+                }}>
+                  <span style={{ fontWeight: 600, color: "var(--color-text-secondary)" }}>번호</span>
+                  <input
+                    type="number"
+                    min={1} max={999}
+                    value={pasted.number}
+                    onChange={(e) => setPasted((p) => p ? { ...p, number: Number(e.target.value) || 1 } : p)}
+                    onKeyDown={handlePastePreviewKey}
+                    data-testid="matchup-paste-number-input"
+                    autoFocus
+                    style={{
+                      flex: 1, padding: "5px 8px",
+                      border: "1px solid var(--color-border-divider)",
+                      borderRadius: 4, fontSize: 13, fontWeight: 700,
+                    }}
+                  />
+                </label>
+                <Button
+                  size="sm"
+                  onClick={handleSavePaste}
+                  disabled={saving}
+                  data-testid="matchup-paste-save-btn"
+                  style={{ width: "100%" }}
+                >
+                  {saving ? "저장 중…" : `${pasted.number}번으로 저장 (Enter)`}
+                </Button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    URL.revokeObjectURL(pasted.previewUrl);
+                    setPasted(null);
+                  }}
+                  disabled={saving}
+                  style={{
+                    width: "100%",
+                    background: "none", border: "none",
+                    color: "var(--color-text-muted)", fontSize: 11,
+                    cursor: "pointer",
+                  }}
+                >
+                  취소 (Esc)
+                </button>
+              </div>
+            )}
             {/* 드래프트 인스펙터 */}
             <div style={{
               padding: "var(--space-3)",
@@ -688,7 +870,7 @@ export default function ManualCropModal({ document: doc, onClose }: Props) {
                 </>
               ) : (
                 <div style={{ fontSize: 12, color: "var(--color-text-muted)", lineHeight: 1.5 }}>
-                  마우스로 드래그해서 문항 영역을 선택하세요. 그린 후 박스를 끌어 이동하거나 모서리/변 핸들로 크기를 미세 조정할 수 있습니다.
+                  마우스로 드래그해서 문항 영역을 선택하거나, <strong style={{ color: "var(--color-brand-primary)" }}>Ctrl+V</strong>로 클립보드 이미지를 바로 붙여넣을 수 있습니다.
                 </div>
               )}
             </div>
