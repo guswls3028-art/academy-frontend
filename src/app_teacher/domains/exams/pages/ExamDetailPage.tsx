@@ -7,6 +7,7 @@ import { EmptyState } from "@/shared/ui/ds";
 import { Settings, Camera } from "@teacher/shared/ui/Icons";
 import { fetchExam, fetchExamResults } from "../api";
 import ExamManageSheet from "../components/ExamManageSheet";
+import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import api from "@/shared/api/axios";
 
 export default function ExamDetailPage() {
@@ -109,36 +110,84 @@ export default function ExamDetailPage() {
 function ResultRow({ result, maxScore }: { result: any; maxScore: number }) {
   const qc = useQueryClient();
   const name = result.student_name ?? result.enrollment_name ?? "이름 없음";
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState<string>(result.score != null ? String(result.score) : "");
 
   const mutation = useMutation({
     mutationFn: (score: number) => api.patch(`/results/${result.id}/`, { score }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["teacher-exam-results"] });
+      teacherToast.success(`${name} 점수가 저장되었습니다.`);
+      setEditing(false);
     },
+    onError: () => teacherToast.error("점수 저장에 실패했습니다."),
   });
 
-  const handleScore = () => {
-    const input = prompt(`${name} 점수 입력 (만점 ${maxScore}):`, result.score?.toString() ?? "");
-    if (input == null) return;
-    const score = Number(input);
-    if (!Number.isFinite(score) || score < 0) return;
+  const startEdit = () => {
+    setDraft(result.score != null ? String(result.score) : "");
+    setEditing(true);
+  };
+
+  const commit = () => {
+    const trimmed = draft.trim();
+    if (trimmed === "") { setEditing(false); return; }
+    const score = Number(trimmed);
+    if (!Number.isFinite(score) || score < 0) {
+      teacherToast.error("점수는 0 이상의 숫자로 입력해 주세요.");
+      return;
+    }
+    // maxScore가 유효한 양수일 때만 상한 검증 (옛 시험 데이터에서 null/NaN 가능)
+    if (Number.isFinite(maxScore) && maxScore > 0 && score > maxScore) {
+      teacherToast.error(`점수는 0 ~ ${maxScore} 사이로 입력해 주세요.`);
+      return;
+    }
     mutation.mutate(score);
   };
 
   return (
     <div className="flex justify-between items-center py-2 border-b last:border-b-0" style={{ borderColor: "var(--tc-border)" }}>
       <span className="text-sm" style={{ color: "var(--tc-text)" }}>{name}</span>
-      <button
-        onClick={handleScore}
-        className="text-sm font-semibold px-3 py-1 rounded cursor-pointer"
-        style={{
-          background: result.score != null ? "var(--tc-success-bg)" : "var(--tc-primary-bg)",
-          color: result.score != null ? "var(--tc-success)" : "var(--tc-primary)",
-          border: "none",
-        }}
-      >
-        {result.score != null ? `${result.score}점` : "채점"}
-      </button>
+      {editing ? (
+        <div className="flex items-center gap-1.5 shrink-0">
+          <input
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            autoFocus
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onBlur={commit}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") { e.preventDefault(); commit(); }
+              if (e.key === "Escape") { setEditing(false); }
+            }}
+            placeholder="점수"
+            className="text-center text-sm font-bold outline-none"
+            style={{
+              width: 60, height: 36,
+              border: "1px solid var(--tc-primary)",
+              borderRadius: "var(--tc-radius-sm)",
+              background: "var(--tc-surface-soft)",
+              color: "var(--tc-text)",
+            }}
+          />
+          <span className="text-[12px]" style={{ color: "var(--tc-text-muted)" }}>/ {maxScore}</span>
+        </div>
+      ) : (
+        <button
+          onClick={startEdit}
+          disabled={mutation.isPending}
+          className="text-sm font-semibold px-3 py-1 rounded cursor-pointer"
+          style={{
+            background: result.score != null ? "var(--tc-success-bg)" : "var(--tc-primary-bg)",
+            color: result.score != null ? "var(--tc-success)" : "var(--tc-primary)",
+            border: "none",
+            minHeight: "var(--tc-touch-min, 36px)",
+          }}
+        >
+          {mutation.isPending ? "저장 중…" : result.score != null ? `${result.score}점` : "채점"}
+        </button>
+      )}
     </div>
   );
 }

@@ -11,12 +11,14 @@ import { useState, useRef, useMemo } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import StudentPageShell from "@student/shared/ui/pages/StudentPageShell";
+import EmptyState from "@student/layout/EmptyState";
 import { useMyGradesSummary } from "@student/domains/grades/hooks/useMyGradesSummary";
 import type { MyExamGradeSummary, MyHomeworkGradeSummary } from "@student/domains/grades/api/grades.api";
 import studentApi from "@student/shared/api/student.api";
 import type { Submission } from "@admin/domains/submissions/types";
 import { IconExam, IconClipboard, IconImage, IconVideo } from "@student/shared/ui/icons/Icons";
 import { studentToast } from "@student/shared/ui/feedback/studentToast";
+import { useAuthContext } from "@/auth/context/AuthContext";
 
 const ACCEPT = "image/*,video/*";
 const MAX_SIZE_MB = 100;
@@ -28,12 +30,14 @@ type SelectedTarget =
 export default function SubmitAssignmentPage() {
   const qc = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { user } = useAuthContext();
+  const isParent = user?.tenantRole === "parent";
 
   const [selected, setSelected] = useState<SelectedTarget | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const { data: grades, isLoading: gradesLoading } = useMyGradesSummary();
+  const { data: grades, isLoading: gradesLoading } = useMyGradesSummary({ enabled: !isParent });
 
   // 미합격 과제·시험 필터
   const unfinishedHomeworks = useMemo(
@@ -110,6 +114,20 @@ export default function SubmitAssignmentPage() {
 
   const canSubmit = !!selected && !!selectedFile && !uploadMut.isPending;
 
+  if (isParent) {
+    return (
+      <StudentPageShell
+        title="과제 제출"
+        onBack={() => window.history.back()}
+      >
+        <EmptyState
+          title="학부모 계정은 직접 제출할 수 없습니다."
+          description="자녀 본인 계정으로 로그인 후 제출해 주세요. 자녀 진척 확인은 성적 페이지에서 가능합니다."
+        />
+      </StudentPageShell>
+    );
+  }
+
   return (
     <StudentPageShell
       title="과제 제출"
@@ -178,11 +196,11 @@ export default function SubmitAssignmentPage() {
                     <IconClipboard style={{ width: 14, height: 14, color: "var(--stu-primary)" }} />
                   </span>
                   <span style={{
-                    fontSize: 12, fontWeight: 700, color: "var(--stu-text-muted)",
-                    background: "var(--stu-surface-soft)", padding: "1px 6px", borderRadius: 4,
-                    flexShrink: 0,
+                    fontSize: 11, fontWeight: 700, color: "var(--stu-primary)",
+                    background: "var(--stu-primary-bg)", padding: "2px 8px", borderRadius: 999,
+                    flexShrink: 0, letterSpacing: "0.02em",
                   }}>
-                    과
+                    과제
                   </span>
                   <span style={{ flex: 1, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {h.title}
@@ -227,11 +245,11 @@ export default function SubmitAssignmentPage() {
                     <IconExam style={{ width: 14, height: 14, color: "var(--stu-primary)" }} />
                   </span>
                   <span style={{
-                    fontSize: 12, fontWeight: 700, color: "var(--stu-text-muted)",
-                    background: "var(--stu-surface-soft)", padding: "1px 6px", borderRadius: 4,
-                    flexShrink: 0,
+                    fontSize: 11, fontWeight: 700, color: "var(--stu-primary)",
+                    background: "var(--stu-primary-bg)", padding: "2px 8px", borderRadius: 999,
+                    flexShrink: 0, letterSpacing: "0.02em",
                   }}>
-                    시
+                    시험
                   </span>
                   <span style={{ flex: 1, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {e.title}

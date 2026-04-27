@@ -1,6 +1,6 @@
 // PATH: src/app_teacher/domains/scores/pages/MobileScoreEntryPage.tsx
 // 성적 입력 — 모바일 최적화. 숫자 키패드 + 자동 다음 포커스
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState } from "@/shared/ui/ds";
@@ -62,6 +62,31 @@ export default function MobileScoreEntryPage() {
   );
 }
 
+/** sessionStorage 보호: refetch/invalidate 후에도 미저장 입력값 유지. 탭 닫으면 제거. */
+const draftKeyForExam = (examId: number) => `score_entry_draft_${examId}`;
+
+function loadDraft(examId: number): Map<number, string> {
+  try {
+    const raw = sessionStorage.getItem(draftKeyForExam(examId));
+    if (!raw) return new Map();
+    const obj = JSON.parse(raw) as Record<string, string>;
+    return new Map(Object.entries(obj).map(([k, v]) => [Number(k), v]));
+  } catch {
+    return new Map();
+  }
+}
+function saveDraft(examId: number, m: Map<number, string>) {
+  try {
+    if (m.size === 0) {
+      sessionStorage.removeItem(draftKeyForExam(examId));
+      return;
+    }
+    const obj: Record<string, string> = {};
+    m.forEach((v, k) => { obj[String(k)] = v; });
+    sessionStorage.setItem(draftKeyForExam(examId), JSON.stringify(obj));
+  } catch { /* quota exceeded — non-critical */ }
+}
+
 function ScoreEntryList({ examId }: { examId: number }) {
   const qc = useQueryClient();
   const { data: results, isLoading } = useQuery({
@@ -70,10 +95,22 @@ function ScoreEntryList({ examId }: { examId: number }) {
     enabled: Number.isFinite(examId),
   });
 
+  const inputRefs = useRef<Map<number, HTMLInputElement>>(new Map());
+  // examId 변경 시 해당 시험의 draft 복원
+  const [localScores, setLocalScores] = useState<Map<number, string>>(() => loadDraft(examId));
+  useEffect(() => { setLocalScores(loadDraft(examId)); }, [examId]);
+
   const updateMut = useMutation({
     mutationFn: ({ id, score }: { id: number; score: number }) =>
       updateResult(id, { score }),
     onSuccess: (_data, variables) => {
+      // 저장 성공 → 해당 셀 draft 제거 후 invalidate
+      setLocalScores((prev) => {
+        const next = new Map(prev);
+        next.delete(variables.id);
+        saveDraft(examId, next);
+        return next;
+      });
       qc.invalidateQueries({ queryKey: ["exam-results", examId] });
       const student = results?.find((r: any) => r.id === variables.id);
       const name = student?.student_name ?? student?.name ?? "";
@@ -81,9 +118,6 @@ function ScoreEntryList({ examId }: { examId: number }) {
     },
     onError: (e) => feedback.error(extractApiError(e, "저장 실패")),
   });
-
-  const inputRefs = useRef<Map<number, HTMLInputElement>>(new Map());
-  const [localScores, setLocalScores] = useState<Map<number, string>>(new Map());
 
   const handleSubmit = useCallback(
     (resultId: number, maxScore: number) => {
@@ -152,9 +186,14 @@ function ScoreEntryList({ examId }: { examId: number }) {
                 pattern="[0-9]*"
                 value={display}
                 placeholder="-"
-                onChange={(e) =>
-                  setLocalScores((p) => new Map(p).set(r.id, e.target.value))
-                }
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setLocalScores((p) => {
+                    const next = new Map(p).set(r.id, v);
+                    saveDraft(examId, next);
+                    return next;
+                  });
+                }}
                 onBlur={() => handleSubmit(r.id, maxScore)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {

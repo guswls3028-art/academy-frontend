@@ -140,6 +140,8 @@ export type ScorePdfParams = {
   lectureTitle: string;
   date?: string;
   attendanceMap?: Record<number, string>;
+  /** 테넌트(학원) 이름 — 인쇄물 식별용. 헤더 좌상단에 표기됨. */
+  tenantName?: string;
 };
 
 function resolveDate(date?: string) {
@@ -158,8 +160,17 @@ function passText(passed: boolean | null | undefined): string {
   return passed ? "O" : "X";
 }
 
+function escapeHtml(s: string): string {
+  return String(s ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 export function buildScorePdfHtml(params: ScorePdfParams): string {
-  const { rows, meta, sessionTitle, lectureTitle, date, attendanceMap } = params;
+  const { rows, meta, sessionTitle, lectureTitle, date, attendanceMap, tenantName } = params;
 
   const exams = meta.exams ?? [];
   const homeworks = meta.homeworks ?? [];
@@ -261,12 +272,18 @@ export function buildScorePdfHtml(params: ScorePdfParams): string {
   const totalPassed = rows.filter((r) => getSessionScoresTableVerdict(r) === "pass").length;
   summaryStats.push(`<td class="num">${totalPassed}/${rows.length}</td>`);
 
-  return `<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>성적표 — ${lectureTitle} ${sessionTitle}</title>
+  const safeTenantName = (tenantName ?? "").trim();
+  const tenantHeader = safeTenantName
+    ? `<div style="font-size:11px;font-weight:700;letter-spacing:0.5px;color:#222;margin-bottom:2px">${escapeHtml(safeTenantName)}</div>`
+    : "";
+
+  return `<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>성적표 — ${escapeHtml(safeTenantName ? `${safeTenantName} ` : "")}${escapeHtml(lectureTitle)} ${escapeHtml(sessionTitle)}</title>
 <style>${BW_STYLE}</style></head><body>
 <div class="page">
   <div class="header">
     <div>
-      <h1>${lectureTitle} — ${sessionTitle}</h1>
+      ${tenantHeader}
+      <h1>${escapeHtml(lectureTitle)} — ${escapeHtml(sessionTitle)}</h1>
       <div class="sub">수강생 ${rows.length}명 · 시험 ${exams.length}건 · 과제 ${homeworks.length}건</div>
     </div>
     <div class="date-box">${resolveDate(date)}</div>
@@ -358,7 +375,8 @@ export async function downloadScorePdf(params: ScorePdfParams): Promise<void> {
   pdf.addImage(imgData, "PNG", 0, 0, drawW, drawH);
 
   // 6) 다운로드
-  const filename = `성적표_${params.lectureTitle}_${params.sessionTitle}_${resolveDate(params.date).replace(/[.\s/]/g, "")}.pdf`;
+  const tenantPrefix = (params.tenantName ?? "").trim() ? `${(params.tenantName ?? "").trim()}_` : "";
+  const filename = `성적표_${tenantPrefix}${params.lectureTitle}_${params.sessionTitle}_${resolveDate(params.date).replace(/[.\s/]/g, "")}.pdf`;
   pdf.save(filename);
 
   // 정리

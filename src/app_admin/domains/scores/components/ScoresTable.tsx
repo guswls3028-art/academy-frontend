@@ -308,7 +308,12 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
     qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
     qc.invalidateQueries({ queryKey: ["clinic-targets"] });
     qc.invalidateQueries({ queryKey: ["admin-exam-results"] });
-    if (failed.length > 0) feedback.error(`${failed.length}건의 점수 저장에 실패했습니다. 다시 저장해 주세요.`);
+    const successCount = list.length - failed.length;
+    if (failed.length > 0) {
+      feedback.error(`${failed.length}건의 점수 저장에 실패했습니다. 다시 저장해 주세요.`);
+    } else if (successCount > 0) {
+      feedback.success(`${successCount}건의 점수가 저장되었습니다.`);
+    }
   }, [qc, sessionId]);
 
   /** 현재 pending 변경 목록 스냅샷 — 자동 저장/복원용 */

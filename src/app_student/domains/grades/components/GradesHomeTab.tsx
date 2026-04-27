@@ -9,6 +9,7 @@ import LectureHwGroup, { type HwGroup } from "./LectureHwGroup";
 import type { MyExamGradeSummary, MyHomeworkGradeSummary } from "../api/grades.api";
 
 type SubTab = "exams" | "homework";
+type SortMode = "lecture" | "recent";
 
 const UNGROUPED_KEY = "__ungrouped__";
 
@@ -75,6 +76,17 @@ type Props = {
 
 export default function GradesHomeTab({ exams, homeworks }: Props) {
   const [subTab, setSubTab] = useState<SubTab>("exams");
+  const [examSort, setExamSort] = useState<SortMode>("lecture");
+
+  const sortedExams = useMemo(() => {
+    if (examSort !== "recent") return exams;
+    return [...exams].sort((a, b) => {
+      const ta = a.submitted_at ? Date.parse(a.submitted_at) : 0;
+      const tb = b.submitted_at ? Date.parse(b.submitted_at) : 0;
+      return tb - ta; // 최신순
+    });
+  }, [exams, examSort]);
+
   const examGroups = useMemo(() => groupExams(exams), [exams]);
   const hwGroups = useMemo(() => groupHomeworks(homeworks), [homeworks]);
 
@@ -93,11 +105,27 @@ export default function GradesHomeTab({ exams, homeworks }: Props) {
           {exams.length === 0 ? (
             <EmptyState title="시험 결과가 아직 없습니다." description="시험 응시 후 채점이 완료되면 여기에 표시됩니다." />
           ) : (
-            <div data-guide="grades-list" style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-6)" }}>
-              {examGroups.map((group) => (
-                <LectureExamGroup key={group.key} group={group} />
-              ))}
-            </div>
+            <>
+              {/* 정렬 옵션 — 강좌별(기본) / 최근순 */}
+              <div style={sortBar}>
+                <SortChip active={examSort === "lecture"} onClick={() => setExamSort("lecture")} label="강좌별" />
+                <SortChip active={examSort === "recent"} onClick={() => setExamSort("recent")} label="최근순" />
+              </div>
+              {examSort === "lecture" ? (
+                <div data-guide="grades-list" style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-6)" }}>
+                  {examGroups.map((group) => (
+                    <LectureExamGroup key={group.key} group={group} />
+                  ))}
+                </div>
+              ) : (
+                <div data-guide="grades-list" style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-6)" }}>
+                  <LectureExamGroup
+                    key="__recent__"
+                    group={{ key: "__recent__", label: "최근 응시 순", exams: sortedExams, avgPct: null }}
+                  />
+                </div>
+              )}
+            </>
           )}
         </div>
       )}
@@ -116,6 +144,28 @@ export default function GradesHomeTab({ exams, homeworks }: Props) {
         </div>
       )}
     </div>
+  );
+}
+
+function SortChip({ active, onClick, label }: { active: boolean; onClick: () => void; label: string }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        padding: "5px 12px",
+        background: active ? "var(--stu-primary-bg)" : "transparent",
+        border: `1px solid ${active ? "var(--stu-primary)" : "var(--stu-border)"}`,
+        borderRadius: 999,
+        fontSize: 12,
+        fontWeight: active ? 700 : 500,
+        color: active ? "var(--stu-primary)" : "var(--stu-text-muted)",
+        cursor: "pointer",
+        transition: "all var(--stu-motion-base)",
+      }}
+    >
+      {label}
+    </button>
   );
 }
 
@@ -151,4 +201,10 @@ const stack: React.CSSProperties = {
 const toggleBar: React.CSSProperties = {
   display: "flex",
   gap: "var(--stu-space-2)",
+};
+
+const sortBar: React.CSSProperties = {
+  display: "flex",
+  gap: "var(--stu-space-2)",
+  marginBottom: "var(--stu-space-4)",
 };

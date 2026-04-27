@@ -10,7 +10,8 @@ export type ExamGroup = {
   key: string;
   label: string;
   exams: MyExamGradeSummary[];
-  avgPct: number;
+  /** 평균 백분율. null이면 표시 생략 (시간순 정렬 등 그룹 의미가 약한 경우) */
+  avgPct: number | null;
 };
 
 function fmtScore(total: number | null, max: number): string {

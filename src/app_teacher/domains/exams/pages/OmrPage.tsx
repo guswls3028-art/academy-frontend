@@ -2,7 +2,7 @@
 // OMR 관리 — 답안지 PDF 다운로드 + 카메라/파일로 스캔 업로드
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState } from "@/shared/ui/ds";
 import { ChevronLeft, Download, Upload, Camera, Check } from "@teacher/shared/ui/Icons";
 import { Card } from "@teacher/shared/ui/Card";
@@ -14,11 +14,16 @@ export default function OmrPage() {
   const { examId } = useParams<{ examId: string }>();
   const navigate = useNavigate();
   const eid = Number(examId);
+  const qc = useQueryClient();
 
   const [mcCount, setMcCount] = useState(20);
   const [essayCount, setEssayCount] = useState(0);
   const [nChoices, setNChoices] = useState(5);
   const [uploadTarget, setUploadTarget] = useState<number | null>(null);
+  /** 업로드 후 자동 채점 진행 중인 enrollment 추적 — 결과 도착 시 자동 해제 */
+  const [pendingScoring, setPendingScoring] = useState<Set<number>>(new Set());
+  /** 무한 폴링 차단: enrollment_id별 시작 시각 (ms). 5분 후 강제 해제. */
+  const pendingStartedAtRef = useRef<Map<number, number>>(new Map());
 
   const { data: exam } = useQuery({
     queryKey: ["teacher-exam", eid],
@@ -36,7 +41,38 @@ export default function OmrPage() {
     queryKey: ["teacher-exam-results", eid],
     queryFn: () => fetchExamResults(eid),
     enabled: Number.isFinite(eid),
+    // 채점 대기 중이면 5초 폴링 — 결과 자동 갱신
+    refetchInterval: pendingScoring.size > 0 ? 5000 : false,
   });
+
+  // 결과가 갱신되면 채점 완료된 enrollment를 pendingScoring에서 제거
+  // + 5분 경과한 미완료 항목도 강제 해제 (백엔드 영구 실패 시 무한 폴링 차단)
+  useEffect(() => {
+    if (pendingScoring.size === 0) return;
+    const TIMEOUT_MS = 5 * 60 * 1000;
+    const now = Date.now();
+    setPendingScoring((prev) => {
+      const next = new Set(prev);
+      let changed = false;
+      for (const eid of prev) {
+        const row = results ? (results as any[]).find((r) => (r.enrollment ?? r.enrollment_id) === eid) : null;
+        const completed = !!(row && row.total_score != null);
+        const startedAt = pendingStartedAtRef.current.get(eid) ?? now;
+        const expired = now - startedAt > TIMEOUT_MS;
+        if (completed || expired) {
+          next.delete(eid);
+          pendingStartedAtRef.current.delete(eid);
+          changed = true;
+          if (expired && !completed) {
+            teacherToast.error("자동 채점이 시간 초과됐어요. 결과를 새로고침해 확인해 주세요.");
+          }
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [results, pendingScoring]);
+
+  const pendingCount = pendingScoring.size;
 
   useEffect(() => {
     if (defaults) {
@@ -93,22 +129,32 @@ export default function OmrPage() {
 
       {/* 학생 제출 목록 */}
       <Card>
-        <div className="text-sm font-bold mb-2" style={{ color: "var(--tc-text)" }}>스캔 업로드</div>
+        <div className="flex items-center justify-between mb-2">
+          <div className="text-sm font-bold" style={{ color: "var(--tc-text)" }}>스캔 업로드</div>
+          {pendingCount > 0 && (
+            <Badge tone="info" size="xs">자동 채점 중 {pendingCount}건</Badge>
+          )}
+        </div>
         <p className="text-[11px] mb-3" style={{ color: "var(--tc-text-muted)", lineHeight: 1.5 }}>
-          학생별로 작성된 OMR을 카메라로 찍거나 갤러리에서 선택하여 업로드하면 자동 채점됩니다.
+          학생별로 작성된 OMR을 카메라로 찍거나 갤러리에서 선택하여 업로드하면 자동 채점됩니다. 업로드 후 화면이 자동 갱신됩니다.
         </p>
         {results && results.length > 0 ? (
           <div className="flex flex-col gap-1.5">
             {results.map((r: any) => {
               const enrollmentId = r.enrollment ?? r.enrollment_id;
               const hasSubmission = !!(r.submitted_at || r.total_score != null);
+              const isScoring = pendingScoring.has(enrollmentId) && r.total_score == null;
               return (
                 <div key={r.id ?? enrollmentId} className="flex items-center justify-between"
                   style={{ padding: "10px 12px", borderRadius: "var(--tc-radius-sm)", background: "var(--tc-surface-soft)" }}>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5">
                       <span className="text-[13px] font-semibold" style={{ color: "var(--tc-text)" }}>{r.student_name ?? r.student?.name ?? "학생"}</span>
-                      {hasSubmission && <Badge tone="success" size="xs"><Check size={9} /> 제출됨</Badge>}
+                      {isScoring ? (
+                        <Badge tone="info" size="xs">채점 중…</Badge>
+                      ) : hasSubmission ? (
+                        <Badge tone="success" size="xs"><Check size={9} /> 제출됨</Badge>
+                      ) : null}
                     </div>
                     {r.total_score != null && (
                       <div className="text-[11px] mt-0.5" style={{ color: "var(--tc-text-muted)" }}>
@@ -117,8 +163,17 @@ export default function OmrPage() {
                     )}
                   </div>
                   <button onClick={() => setUploadTarget(enrollmentId)}
+                    disabled={isScoring}
                     className="flex items-center gap-1 text-[12px] font-bold cursor-pointer shrink-0"
-                    style={{ padding: "10px 14px", minHeight: "var(--tc-touch-min)", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-primary)", background: "var(--tc-primary-bg)", color: "var(--tc-primary)" }}>
+                    style={{
+                      padding: "10px 14px",
+                      minHeight: "var(--tc-touch-min)",
+                      borderRadius: "var(--tc-radius-sm)",
+                      border: "1px solid var(--tc-primary)",
+                      background: "var(--tc-primary-bg)",
+                      color: "var(--tc-primary)",
+                      opacity: isScoring ? 0.5 : 1,
+                    }}>
                     <Camera size={14} /> 스캔
                   </button>
                 </div>
@@ -131,14 +186,25 @@ export default function OmrPage() {
       </Card>
 
       {/* Upload modal */}
-      <UploadSheet open={uploadTarget != null} onClose={() => setUploadTarget(null)}
-        examId={eid} enrollmentId={uploadTarget} />
+      <UploadSheet
+        open={uploadTarget != null}
+        onClose={() => setUploadTarget(null)}
+        examId={eid}
+        enrollmentId={uploadTarget}
+        onSubmitted={(submittedEid) => {
+          pendingStartedAtRef.current.set(submittedEid, Date.now());
+          setPendingScoring((p) => new Set(p).add(submittedEid));
+          // 즉시 1회 갱신 시도
+          qc.invalidateQueries({ queryKey: ["teacher-exam-results", eid] });
+        }}
+      />
     </div>
   );
 }
 
-function UploadSheet({ open, onClose, examId, enrollmentId }: {
+function UploadSheet({ open, onClose, examId, enrollmentId, onSubmitted }: {
   open: boolean; onClose: () => void; examId: number; enrollmentId: number | null;
+  onSubmitted?: (enrollmentId: number) => void;
 }) {
   const cameraRef = useRef<HTMLInputElement>(null);
   const galleryRef = useRef<HTMLInputElement>(null);
@@ -146,7 +212,8 @@ function UploadSheet({ open, onClose, examId, enrollmentId }: {
   const submitMut = useMutation({
     mutationFn: (file: File) => submitOMR(examId, { enrollment_id: enrollmentId!, file }),
     onSuccess: () => {
-      teacherToast.success("스캔이 제출되었습니다. 자동 채점이 진행됩니다.");
+      teacherToast.success("스캔이 제출되었습니다. 자동 채점이 진행됩니다 (수 초 ~ 수십 초).");
+      if (enrollmentId != null) onSubmitted?.(enrollmentId);
       onClose();
     },
     onError: (e: any) => teacherToast.error(e?.response?.data?.detail ?? "업로드에 실패했습니다."),

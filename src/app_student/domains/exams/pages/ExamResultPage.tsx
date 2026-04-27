@@ -85,8 +85,23 @@ export default function ExamResultPage() {
       }
     >
       <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-8)" }}>
-        {/* ── Provisional banner: 채점 미확정 ── */}
-        {r.is_provisional && (
+        {/* ── 상태 배너: 미응시 > 임시 채점 (우선순위 1개만 노출) ── */}
+        {achievement === "NOT_SUBMITTED" ? (
+          <div
+            style={{
+              padding: "var(--stu-space-3) var(--stu-space-4)",
+              borderRadius: "var(--stu-radius)",
+              background: "var(--stu-surface-soft)",
+              border: "1px solid var(--stu-border)",
+              fontSize: 13,
+              color: "var(--stu-text-muted)",
+              textAlign: "center",
+            }}
+            role="status"
+          >
+            이 시험은 응시하지 않았습니다.
+          </div>
+        ) : r.is_provisional ? (
           <div
             style={{
               padding: "var(--stu-space-3) var(--stu-space-4)",
@@ -101,7 +116,7 @@ export default function ExamResultPage() {
           >
             채점이 확정되기 전 임시 점수입니다. 정답 공개는 확정 후에 이뤄집니다.
           </div>
-        )}
+        ) : null}
 
         {/* ── Score Gauge ── */}
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "var(--stu-space-4)", padding: "var(--stu-space-4) 0" }}>
@@ -163,47 +178,49 @@ export default function ExamResultPage() {
           <CorrectBar correct={correctCount} wrong={wrongCount} />
         )}
 
-        {/* ── Per-question results (OMR Grid) ── */}
-        <div>
-          <div style={{ fontWeight: 700, fontSize: 14, marginBottom: "var(--stu-space-4)" }}>
-            문항별 결과
+        {/* ── Per-question results (OMR Grid) — 미응시는 숨김 ── */}
+        {achievement !== "NOT_SUBMITTED" && (
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 14, marginBottom: "var(--stu-space-4)" }}>
+              문항별 결과
+            </div>
+
+            {itemsQ.isLoading && (
+              <div className="stu-muted" style={{ fontSize: 13 }}>
+                불러오는 중...
+              </div>
+            )}
+            {itemsQ.isError && (
+              <div style={{ fontSize: 13, color: "var(--stu-danger)" }}>
+                문항별 결과를 불러오지 못했어요.
+              </div>
+            )}
+
+            {!r.answers_visible && items.length > 0 && (
+              <div
+                className="stu-muted"
+                style={{ fontSize: 13, padding: "var(--stu-space-3) 0" }}
+              >
+                정답은 비공개입니다.
+                {r.answer_visibility === "after_closed" && " 시험 마감 후 공개됩니다."}
+              </div>
+            )}
+
+            {items.length > 0 && (
+              <QuestionGrid
+                items={items}
+                showAnswer={!!r.answers_visible}
+                answersVisible={!!r.answers_visible}
+              />
+            )}
+
+            {items.length === 0 && !itemsQ.isLoading && !itemsQ.isError && (
+              <div className="stu-muted" style={{ fontSize: 13 }}>
+                문항별 결과가 아직 없어요.
+              </div>
+            )}
           </div>
-
-          {itemsQ.isLoading && (
-            <div className="stu-muted" style={{ fontSize: 13 }}>
-              불러오는 중...
-            </div>
-          )}
-          {itemsQ.isError && (
-            <div style={{ fontSize: 13, color: "var(--stu-danger)" }}>
-              문항별 결과를 불러오지 못했어요.
-            </div>
-          )}
-
-          {!r.answers_visible && (
-            <div
-              className="stu-muted"
-              style={{ fontSize: 13, padding: "var(--stu-space-3) 0" }}
-            >
-              정답은 비공개입니다.
-              {r.answer_visibility === "after_closed" && " 시험 마감 후 공개됩니다."}
-            </div>
-          )}
-
-          {items.length > 0 && (
-            <QuestionGrid
-              items={items}
-              showAnswer={!!r.answers_visible}
-              answersVisible={!!r.answers_visible}
-            />
-          )}
-
-          {items.length === 0 && !itemsQ.isLoading && !itemsQ.isError && (
-            <div className="stu-muted" style={{ fontSize: 13 }}>
-              문항별 결과가 아직 없어요.
-            </div>
-          )}
-        </div>
+        )}
       </div>
     </StudentPageShell>
   );

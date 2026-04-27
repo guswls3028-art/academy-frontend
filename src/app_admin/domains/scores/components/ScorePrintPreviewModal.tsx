@@ -1,9 +1,10 @@
 // PATH: src/app_admin/domains/scores/components/ScorePrintPreviewModal.tsx
 // 성적표 미리보기 + PDF 다운로드 모달 — 흑백 A4 가로
 
-import { useRef, useEffect, useState } from "react";
+import { useRef, useEffect, useMemo, useState } from "react";
 import { buildScorePdfHtml, downloadScorePdf, type ScorePdfParams } from "../utils/scorePdfGenerator";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { resolveTenantCodeString, getTenantIdFromCode, getTenantDefById } from "@/shared/tenant";
 
 type Props = ScorePdfParams & {
   open: boolean;
@@ -14,22 +15,35 @@ export default function ScorePrintPreviewModal({ open, onClose, ...params }: Pro
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [downloading, setDownloading] = useState(false);
 
+  // 테넌트명 자동 주입 — 인쇄물 식별 (호출처에서 전달받지 않은 경우)
+  const resolvedParams = useMemo<ScorePdfParams>(() => {
+    if (params.tenantName != null && params.tenantName.trim() !== "") return params;
+    try {
+      const code = resolveTenantCodeString();
+      const tid = code ? getTenantIdFromCode(code) : null;
+      const def = tid ? getTenantDefById(tid) : null;
+      return { ...params, tenantName: def?.name };
+    } catch {
+      return params;
+    }
+  }, [params]);
+
   useEffect(() => {
     if (!open || !iframeRef.current) return;
-    const html = buildScorePdfHtml(params);
+    const html = buildScorePdfHtml(resolvedParams);
     const doc = iframeRef.current.contentDocument ?? iframeRef.current.contentWindow?.document;
     if (!doc) return;
     doc.open();
     doc.write(html);
     doc.close();
-  }, [open, params.rows, params.meta, params.sessionTitle, params.lectureTitle]);
+  }, [open, resolvedParams]);
 
   if (!open) return null;
 
   const handleDownload = async () => {
     setDownloading(true);
     try {
-      await downloadScorePdf(params);
+      await downloadScorePdf(resolvedParams);
       feedback.success("성적표 PDF가 다운로드되었습니다.");
     } catch (e: any) {
       feedback.error(e?.message ?? "PDF 생성에 실패했습니다.");

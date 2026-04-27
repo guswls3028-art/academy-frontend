@@ -127,15 +127,34 @@ export default function ExamEnrollmentPanel({ examId }: { examId: number }) {
       </div>
 
       <div className="space-y-3 p-4">
+        {!rowsQ.isLoading && selectedCountFromServer === 0 && (
+          <div
+            role="alert"
+            className="flex items-start gap-2 rounded px-3 py-2.5 text-sm"
+            style={{
+              border: "1px solid var(--color-warning)",
+              background: "color-mix(in srgb, var(--color-warning) 12%, var(--color-bg-surface))",
+              color: "var(--color-warning)",
+            }}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 1 }}>
+              <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+              <line x1="12" y1="9" x2="12" y2="13" />
+              <line x1="12" y1="17" x2="12.01" y2="17" />
+            </svg>
+            <div className="flex-1 leading-relaxed">
+              <div className="font-semibold">대상 학생이 0명입니다.</div>
+              <div className="text-xs mt-0.5" style={{ color: "var(--color-text-primary)" }}>
+                학생을 등록해야 시험 응시·성적 입력이 가능합니다. 아래 <b>수강생 일괄배정</b> 또는 <b>대상자 관리</b>로 등록하세요.
+              </div>
+            </div>
+          </div>
+        )}
         <div
           className="flex flex-wrap items-center justify-between gap-2 rounded border px-3 py-2"
           style={{
-            borderColor: !rowsQ.isLoading && selectedCountFromServer === 0
-              ? "color-mix(in srgb, var(--color-warning) 50%, var(--color-border-divider))"
-              : "var(--color-border-divider)",
-            background: !rowsQ.isLoading && selectedCountFromServer === 0
-              ? "color-mix(in srgb, var(--color-warning) 8%, var(--color-bg-surface))"
-              : "var(--bg-surface-soft)",
+            borderColor: "var(--color-border-divider)",
+            background: "var(--bg-surface-soft)",
           }}
         >
           <div className="text-sm text-[var(--text-primary)]">
@@ -144,11 +163,6 @@ export default function ExamEnrollmentPanel({ examId }: { examId: number }) {
               {rowsQ.isLoading ? "..." : selectedCountFromServer}
             </span>
             명
-            {!rowsQ.isLoading && selectedCountFromServer === 0 && (
-              <span className="ml-2 text-xs text-[var(--color-warning)]">
-                — 대상자를 등록해야 성적 입력이 가능합니다
-              </span>
-            )}
             {rowsQ.isError && (
               <span className="ml-2 text-xs text-[var(--color-danger)]">
                 (불러오기 실패)
