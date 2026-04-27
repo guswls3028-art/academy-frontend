@@ -20,7 +20,7 @@ import { useDeleteStaff } from "../../hooks/useDeleteStaff";
 
 import { LockBadge } from "../../components/StatusBadge";
 import { StaffRoleAvatar } from "@/shared/ui/avatars";
-import { Button, CloseButton } from "@/shared/ui/ds";
+import { Badge, Button, CloseButton } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { formatPhone } from "@/shared/utils/formatPhone";
 import { useConfirm } from "@/shared/ui/confirm";
@@ -195,19 +195,19 @@ export default function StaffDetailOverlay() {
                   <h1 className="ds-overlay-header__title">{staff.name}</h1>
                   <div className="ds-overlay-header__pills">
                     {staff.user_is_staff && (
-                      <span
-                        className="ds-badge ds-overlay-header__badge-id"
+                      <Badge
+                        className="ds-overlay-header__badge-id"
                         title="직원 계정"
                       >
                         STAFF
-                      </span>
+                      </Badge>
                     )}
-                    <span
-                      className="ds-badge ds-overlay-header__badge-code"
+                    <Badge
+                      className="ds-overlay-header__badge-code"
                       title="계정"
                     >
                       {staff.user_username ?? "계정 없음"}
-                    </span>
+                    </Badge>
                   </div>
                 </div>
               </div>
@@ -289,9 +289,9 @@ export default function StaffDetailOverlay() {
                         {canManage ? (
                           <StaffManagerToggle staffId={staff.id} isManager={!!staff.is_manager} />
                         ) : (
-                          <span className="ds-status-badge" data-status={staff.is_manager ? "active" : "inactive"}>
+                          <Badge variant="solid" status={staff.is_manager ? "active" : "inactive"}>
                             {staff.is_manager ? "ON" : "OFF"}
-                          </span>
+                          </Badge>
                         )}
                       </span>
                     </div>

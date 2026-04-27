@@ -9,7 +9,7 @@
 import { useEffect, useMemo, useState, useCallback, type CSSProperties } from "react";
 import api from "@/shared/api/axios";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter, MODAL_WIDTH } from "@/shared/ui/modal";
-import { Button } from "@/shared/ui/ds";
+import { Badge, Button } from "@/shared/ui/ds";
 import { SessionBlockView } from "@/shared/ui/session-block";
 import { fetchTemplatesWithUsage, type TemplateWithUsage } from "@admin/domains/exams/api/templatesWithUsage";
 import { updateAdminExam } from "@admin/domains/exams/api/adminExam";
@@ -612,9 +612,8 @@ export default function CreateRegularExamModal({
                           {lecturesList.length > 0 && (
                             <div className="mt-2 flex flex-wrap gap-1.5 ml-6">
                               {lecturesList.slice(0, 4).map((lec) => (
-                                <span
+                                <Badge
                                   key={lec.lecture_id}
-                                  className="ds-badge"
                                   style={
                                     lec.color
                                       ? ({
@@ -625,10 +624,10 @@ export default function CreateRegularExamModal({
                                   }
                                 >
                                   {(lec.chip_label ? `${lec.chip_label} ` : "") + lec.lecture_title}
-                                </span>
+                                </Badge>
                               ))}
                               {lecturesList.length > 4 && (
-                                <span className="ds-badge">+{lecturesList.length - 4}</span>
+                                <Badge>+{lecturesList.length - 4}</Badge>
                               )}
                             </div>
                           )}

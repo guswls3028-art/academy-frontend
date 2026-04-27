@@ -1,7 +1,7 @@
 // PATH: src/app_admin/domains/videos/components/features/video-permission/components/PermissionHeader.tsx
 
 import type { TabKey } from "../permission.types";
-import { Button } from "@/shared/ui/ds";
+import { Badge, Button } from "@/shared/ui/ds";
 
 const TAB_ITEMS: { key: TabKey; label: string }[] = [
   { key: "permission", label: "권한 설정" },
@@ -44,12 +44,9 @@ export default function PermissionHeader({
       </div>
 
       {tab === "permission" && (
-        <span
-          className="ds-status-badge ds-status-badge--1ch"
-          data-tone={isFetching ? "warning" : "success"}
-        >
+        <Badge variant="solid" tone={isFetching ? "warning" : "success"} oneChar>
           {isFetching ? "동기화" : "최신"}
-        </span>
+        </Badge>
       )}
 
       {focusEnrollment && tab === "permission" && (

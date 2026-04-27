@@ -222,12 +222,12 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
                     />
                   </h1>
                   <div className="ds-overlay-header__pills">
-                    <span className="ds-badge ds-overlay-header__badge-id" title="아이디">
+                    <Badge className="ds-overlay-header__badge-id" title="아이디">
                       {student.psNumber ?? "—"}
-                    </span>
-                    <span className="ds-badge ds-overlay-header__badge-code" title="시험 식별코드">
+                    </Badge>
+                    <Badge className="ds-overlay-header__badge-code" title="시험 식별코드">
                       {formatOmrCode(student.omrCode)}
-                    </span>
+                    </Badge>
                   </div>
                 </div>
               </div>

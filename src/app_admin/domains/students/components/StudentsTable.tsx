@@ -1,6 +1,6 @@
 // PATH: src/app_admin/domains/students/components/StudentsTable.tsx
 import { useMemo } from "react";
-import { EmptyState } from "@/shared/ui/ds";
+import { Badge, EmptyState } from "@/shared/ui/ds";
 import { DomainTable, TABLE_COL, ResizableTh } from "@/shared/ui/domain";
 import type { TableColumnDef } from "@/shared/ui/domain";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
@@ -264,9 +264,9 @@ export default function StudentsTable({
             {togglingId === s.id ? "…" : s.active ? "활성" : "비활성"}
           </button>
         ) : (
-          <span className="ds-status-badge" data-status={s.active ? "active" : "inactive"}>
+          <Badge variant="solid" status={s.active ? "active" : "inactive"}>
             {s.active ? "활성" : "비활성"}
-          </span>
+          </Badge>
         );
       default:
         return "-";

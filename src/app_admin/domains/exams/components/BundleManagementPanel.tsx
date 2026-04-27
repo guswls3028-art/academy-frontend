@@ -8,7 +8,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Package, Plus, Pencil, Trash2 } from "lucide-react";
-import { Button } from "@/shared/ui/ds";
+import { Badge, Button } from "@/shared/ui/ds";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter, MODAL_WIDTH } from "@/shared/ui/modal";
 import { useConfirm } from "@/shared/ui/confirm";
 import { feedback } from "@/shared/ui/feedback/feedback";
@@ -107,10 +107,10 @@ export default function BundleManagementPanel() {
                 )}
                 <div className="mt-2 flex flex-wrap gap-2 ml-6">
                   {bundle.exam_count > 0 && (
-                    <span className="ds-badge">시험 {bundle.exam_count}개</span>
+                    <Badge>시험 {bundle.exam_count}개</Badge>
                   )}
                   {bundle.homework_count > 0 && (
-                    <span className="ds-badge">과제 {bundle.homework_count}개</span>
+                    <Badge>과제 {bundle.homework_count}개</Badge>
                   )}
                 </div>
                 {bundle.items.length > 0 && (

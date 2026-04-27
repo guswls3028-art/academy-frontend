@@ -14,11 +14,16 @@ import { AdminExamResultRow } from "../types/results.types";
 import { deriveFrontResultStatus } from "../utils/deriveFrontResultStatus";
 import FrontResultStatusBadge from "./FrontResultStatusBadge";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
+import { Badge, type BadgeTone } from "@/shared/ui/ds";
 import {
   deriveAchievement,
   achievementLabel,
   achievementTone,
 } from "@/shared/scoring/achievement";
+
+function toBadgeTone(t: ReturnType<typeof achievementTone>): BadgeTone {
+  return t === "warn" ? "warning" : t;
+}
 
 function scoreCell(r: AdminExamResultRow) {
   const fs = r.final_score;
@@ -108,14 +113,14 @@ export default function AdminExamResultsTable({
                   <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
                     {scoreCell(r)}
                     {r.is_provisional && (
-                      <span
-                        className="ds-status-badge"
-                        data-tone="warn"
+                      <Badge
+                        variant="solid"
+                        tone="warning"
+                        size="xs"
                         title="채점 미확정 — 임시 점수"
-                        style={{ fontSize: 10 }}
                       >
                         임시
-                      </span>
+                      </Badge>
                     )}
                   </span>
                 </td>
@@ -126,9 +131,9 @@ export default function AdminExamResultsTable({
 
                 <td>
                   {achievement ? (
-                    <span
-                      className="ds-status-badge"
-                      data-tone={achievementTone(achievement)}
+                    <Badge
+                      variant="solid"
+                      tone={toBadgeTone(achievementTone(achievement))}
                       title={
                         achievement === "REMEDIATED"
                           ? "1차 불합격 후 클리닉 재시험/수동 해소로 통과"
@@ -136,7 +141,7 @@ export default function AdminExamResultsTable({
                       }
                     >
                       {achievementLabel(achievement)}
-                    </span>
+                    </Badge>
                   ) : (
                     <span style={{ color: "var(--color-text-muted)" }}>—</span>
                   )}

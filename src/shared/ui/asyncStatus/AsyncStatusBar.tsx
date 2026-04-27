@@ -14,7 +14,7 @@ import { getTenantCodeForApiRequest } from "@/shared/tenant";
 import { useAsyncStatus } from "./useAsyncStatus";
 import { useWorkerJobPoller } from "./useWorkerJobPoller";
 import { useWorkbox } from "@/shared/ui/layout/WorkboxContext";
-import { ICON } from "@/shared/ui/ds";
+import { Badge, ICON } from "@/shared/ui/ds";
 import { asyncStatusStore, type AsyncTask, type AsyncTaskStatus } from "./asyncStatusStore";
 import { workboxTenantMismatch } from "./workboxTelemetry";
 import "@/styles/design-system/components/AsyncStatusBar.css";
@@ -295,13 +295,13 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
         <div className="async-status-bar__item-body">
           <div className="async-status-bar__item-top">
             {STATUS_BADGE[task.status] && (
-              <span
-                className="async-status-bar__status-badge ds-status-badge"
-                data-tone={task.status === "success" ? "success" : "danger"}
-                aria-hidden
+              <Badge
+                variant="solid"
+                tone={task.status === "success" ? "success" : "danger"}
+                className="async-status-bar__status-badge"
               >
                 {STATUS_BADGE[task.status]}
-              </span>
+              </Badge>
             )}
             {TypeIcon && (
               <span className="async-status-bar__type-icon" aria-hidden>

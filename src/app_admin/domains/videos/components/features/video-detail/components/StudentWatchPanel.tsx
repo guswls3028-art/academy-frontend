@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { FiChevronLeft, FiChevronRight } from "react-icons/fi";
-import { Button } from "@/shared/ui/ds";
+import { Badge, Button } from "@/shared/ui/ds";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import AttendanceStatusBadge from "@/shared/ui/badges/AttendanceStatusBadge";
 import type { AttendanceStatus } from "@/shared/ui/badges/AttendanceStatusBadge";
@@ -108,12 +108,13 @@ export default function StudentWatchPanel({
                   status={(s.attendance_status ?? "INACTIVE") as AttendanceStatus}
                   variant="1ch"
                 />
-                <span
-                  className="ds-status-badge ds-status-badge--1ch"
-                  data-tone={getAccessTone(s.access_mode, s.effective_rule)}
+                <Badge
+                  variant="solid"
+                  tone={getAccessTone(s.access_mode, s.effective_rule)}
+                  oneChar
                 >
                   {getAccessShortLabel(s.access_mode, s.effective_rule)}
-                </span>
+                </Badge>
               </div>
 
               {/* PROGRESS */}

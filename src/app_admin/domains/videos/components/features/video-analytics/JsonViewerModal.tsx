@@ -1,6 +1,7 @@
 // PATH: src/app_admin/domains/videos/components/features/video-analytics/JsonViewerModal.tsx
 
 import { useMemo, useState } from "react";
+import { Badge } from "@/shared/ui/ds";
 
 interface Props {
   open: boolean;
@@ -201,12 +202,9 @@ export default function JsonViewerModal({
                     >
                       event_payload
                     </span>
-                    <span
-                      className="ds-status-badge ds-status-badge--1ch"
-                      data-tone="primary"
-                    >
+                    <Badge variant="solid" tone="primary" oneChar>
                       JSON
-                    </span>
+                    </Badge>
                   </div>
                   <pre
                     className="flex-1 overflow-auto whitespace-pre-wrap"
@@ -253,12 +251,9 @@ export default function JsonViewerModal({
                     >
                       policy_snapshot
                     </span>
-                    <span
-                      className="ds-status-badge ds-status-badge--1ch"
-                      data-tone="neutral"
-                    >
+                    <Badge variant="solid" tone="neutral" oneChar>
                       JSON
-                    </span>
+                    </Badge>
                   </div>
                   <pre
                     className="flex-1 overflow-auto whitespace-pre-wrap"

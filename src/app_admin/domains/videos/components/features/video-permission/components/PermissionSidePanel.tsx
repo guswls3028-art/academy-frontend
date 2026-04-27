@@ -3,7 +3,7 @@
 import { FiX } from "react-icons/fi";
 import AttendanceStatusBadge from "@/shared/ui/badges/AttendanceStatusBadge";
 import type { AttendanceStatus } from "@/shared/ui/badges/AttendanceStatusBadge";
-import { Button } from "@/shared/ui/ds";
+import { Badge, Button } from "@/shared/ui/ds";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { formatPhone } from "@/shared/utils/formatPhone";
 import { ACCESS_MODE_LABELS, RULE_LABELS, getAccessLabel, getAccessTone } from "../permission.constants";
@@ -47,9 +47,9 @@ export default function PermissionSidePanel({
                 선택된 학생
               </span>
               {selectedCount > 0 && (
-                <span className="ds-status-badge ds-status-badge--1ch" data-tone="primary">
+                <Badge variant="solid" tone="primary" oneChar>
                   {selectedCount}
-                </span>
+                </Badge>
               )}
             </div>
             <div
@@ -194,22 +194,22 @@ export default function PermissionSidePanel({
 
                   {/* 접근 모드 */}
                   <div className="col-span-2 flex justify-center">
-                    <span
-                      className="ds-status-badge"
-                      data-tone={getAccessTone(s.access_mode, s.effective_rule)}
+                    <Badge
+                      variant="solid"
+                      tone={getAccessTone(s.access_mode, s.effective_rule)}
                     >
                       {getAccessLabel(s.access_mode, s.effective_rule)}
-                    </span>
+                    </Badge>
                   </div>
 
                   {/* 완료 */}
                   <div className="col-span-1 flex justify-center">
-                    <span
-                      className="ds-status-badge"
-                      data-tone={s.completed ? "success" : "neutral"}
+                    <Badge
+                      variant="solid"
+                      tone={s.completed ? "success" : "neutral"}
                     >
                       {s.completed ? "완료" : "미완"}
-                    </span>
+                    </Badge>
                   </div>
 
                   {/* 이름 */}

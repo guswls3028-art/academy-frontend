@@ -3,6 +3,7 @@
 import AttendanceStatusBadge from "@/shared/ui/badges/AttendanceStatusBadge";
 import type { AttendanceStatus } from "@/shared/ui/badges/AttendanceStatusBadge";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
+import { Badge } from "@/shared/ui/ds";
 import { getAccessLabel, getAccessTone } from "../permission.constants";
 
 export default function PermissionRow({
@@ -69,22 +70,22 @@ export default function PermissionRow({
 
       {/* ACCESS MODE */}
       <div className="w-[90px] flex justify-center">
-        <span
-          className="ds-status-badge"
-          data-tone={getAccessTone(student.access_mode, student.effective_rule)}
+        <Badge
+          variant="solid"
+          tone={getAccessTone(student.access_mode, student.effective_rule)}
         >
           {getAccessLabel(student.access_mode, student.effective_rule)}
-        </span>
+        </Badge>
       </div>
 
       {/* COMPLETED */}
       <div className="w-[80px] flex justify-center">
-        <span
-          className="ds-status-badge"
-          data-tone={student.completed ? "success" : "neutral"}
+        <Badge
+          variant="solid"
+          tone={student.completed ? "success" : "neutral"}
         >
           {student.completed ? "완료" : "미완"}
-        </span>
+        </Badge>
       </div>
 
       {/* PHONES / META */}

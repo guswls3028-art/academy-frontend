@@ -26,6 +26,7 @@ import { createPortal } from "react-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { Badge } from "@/shared/ui/ds";
 import {
   fetchOmrReviewDetail,
   listOmrReviewRows,
@@ -330,7 +331,7 @@ export default function OmrReviewWorkspace({ examId, examTitle, open, onClose }:
                       {r.score != null ? `${r.score}점` : (cat === "noid" ? "식별 후 채점" : "—")}
                     </div>
                     <div className="orw-list-row__sub">
-                      <span className="orw-ds-badge" data-tone={tone}>{label}</span>
+                      <Badge tone={tone}>{label}</Badge>
                       <span className="orw-list-row__time">{formatTime(r.created_at)}</span>
                       {r.manual_review_reasons && r.manual_review_reasons.length > 0 && (
                         <span className="orw-list-row__reasons">

@@ -19,11 +19,16 @@ import { patchExamItemScore } from "@admin/domains/scores/api/patchItemScore";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import WrongNotePanel from "./WrongNotePanel";
+import { Badge, type BadgeTone } from "@/shared/ui/ds";
 import {
   deriveAchievement,
   achievementLabel,
   achievementTone,
 } from "@/shared/scoring/achievement";
+
+function toBadgeTone(t: ReturnType<typeof achievementTone>): BadgeTone {
+  return t === "warn" ? "warning" : t;
+}
 import "./StudentResultDrawer.css";
 
 const CHOICES = ["1", "2", "3", "4", "5"];
@@ -192,29 +197,31 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
                 });
                 if (!ach) return null;
                 return (
-                  <span
-                    className="ds-status-badge"
-                    data-tone={achievementTone(ach)}
+                  <Badge
+                    variant="solid"
+                    size="sm"
+                    tone={toBadgeTone(achievementTone(ach))}
                     title={
                       ach === "REMEDIATED"
                         ? "1차 불합격 후 클리닉 재시험/수동 해소로 통과"
                         : undefined
                     }
-                    style={{ marginLeft: 8, fontSize: 11 }}
+                    style={{ marginLeft: 8 }}
                   >
                     {achievementLabel(ach)}
-                  </span>
+                  </Badge>
                 );
               })()}
               {detail?.is_provisional && (
-                <span
-                  className="ds-status-badge"
-                  data-tone="warn"
+                <Badge
+                  variant="solid"
+                  size="sm"
+                  tone="warning"
                   title="채점 미확정 — 임시 점수"
-                  style={{ marginLeft: 6, fontSize: 11 }}
+                  style={{ marginLeft: 6 }}
                 >
                   임시 점수
-                </span>
+                </Badge>
               )}
             </div>
             {/* 편집 모드 표시 */}

@@ -6,7 +6,7 @@ import { Trash2, FolderOpen, Save } from "lucide-react";
 
 import api from "@/shared/api/axios";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
-import { Button } from "@/shared/ui/ds";
+import { Badge, Button } from "@/shared/ui/ds";
 import { DatePicker } from "@/shared/ui/date";
 import { TimeRangeInput } from "@/shared/ui/time";
 import { ColorPickerField, getDefaultColorForPicker } from "@/shared/ui/domain";
@@ -377,13 +377,15 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [], l
                   setInstructorPopoverOpen(false);
                 }}
               >
-                <span
-                  className="ds-status-badge ds-status-badge--action shrink-0"
-                  data-tone="primary"
-                  aria-label={opt.type === "owner" ? "대표" : "강사"}
+                <Badge
+                  variant="solid"
+                  tone="primary"
+                  actionable
+                  className="shrink-0"
+                  ariaLabel={opt.type === "owner" ? "대표" : "강사"}
                 >
                   {opt.type === "owner" ? "대표" : "강사"}
-                </span>
+                </Badge>
                 <StaffRoleAvatar role={opt.type === "owner" ? "owner" : "TEACHER"} size={18} className="shrink-0" />
                 <span className="truncate">{opt.name}</span>
               </button>
@@ -507,13 +509,14 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [], l
                 >
                   {selectedInstructor ? (
                     <>
-                      <span
-                        className="ds-status-badge ds-status-badge--action shrink-0"
-                        data-tone="primary"
-                        aria-hidden
+                      <Badge
+                        variant="solid"
+                        tone="primary"
+                        actionable
+                        className="shrink-0"
                       >
                         {selectedInstructor.type === "owner" ? "대표" : "강사"}
-                      </span>
+                      </Badge>
                       <StaffRoleAvatar
                         role={selectedInstructor.type === "owner" ? "owner" : "TEACHER"}
                         size={20}

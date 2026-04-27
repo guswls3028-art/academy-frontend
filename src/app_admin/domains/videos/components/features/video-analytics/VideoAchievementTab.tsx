@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
+import { Badge } from "@/shared/ui/ds";
 
 import {
   ResponsiveContainer,
@@ -52,9 +53,9 @@ function StatusBadge({ status }: { status: Row["status"] }) {
     danger: "위험",
   };
   return (
-    <span className="ds-status-badge" data-tone={tone}>
+    <Badge variant="solid" tone={tone}>
       {label[status]}
-    </span>
+    </Badge>
   );
 }
 
@@ -514,12 +515,13 @@ export default function VideoAchievementTab({
                     {formatSeconds(s.watched_seconds)}
                   </div>
                   <div className="col-span-2 flex justify-center">
-                    <span
-                      className="ds-status-badge ds-status-badge--1ch"
-                      data-tone={s.completed ? "success" : "neutral"}
+                    <Badge
+                      variant="solid"
+                      tone={s.completed ? "success" : "neutral"}
+                      oneChar
                     >
                       {s.completed ? "완료" : "미완료"}
-                    </span>
+                    </Badge>
                   </div>
                 </button>
               ))

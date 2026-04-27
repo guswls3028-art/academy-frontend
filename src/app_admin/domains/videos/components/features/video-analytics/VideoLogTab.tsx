@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
-import { Button } from "@/shared/ui/ds";
+import { Badge, Button } from "@/shared/ui/ds";
 import JsonViewerModal from "./JsonViewerModal";
 
 type RangeKey = "24h" | "7d" | "all";
@@ -34,9 +34,9 @@ function SeverityBadge({ severity }: { severity: string }) {
         ? "주의"
         : "정보";
   return (
-    <span className="ds-status-badge ds-status-badge--1ch" data-tone={tone}>
+    <Badge variant="solid" tone={tone} oneChar>
       {label}
-    </span>
+    </Badge>
   );
 }
 
@@ -128,12 +128,9 @@ export default function VideoLogTab({ videoId, onClickRiskStudent }: Props) {
           >
             위반 / 이상 징후
           </div>
-          <span
-            className="ds-status-badge ds-status-badge--1ch"
-            data-tone="danger"
-          >
+          <Badge variant="solid" tone="danger" oneChar>
             {riskTop.length}
-          </span>
+          </Badge>
         </div>
 
         {/* Range selector + CSV */}
@@ -251,18 +248,19 @@ export default function VideoLogTab({ videoId, onClickRiskStudent }: Props) {
                     >
                       <StudentNameWithLectureChip name={r.student_name} enrollmentId={r.enrollment_id} />
                     </span>
-                    <span
-                      className="ds-status-badge ds-status-badge--1ch"
-                      data-tone={
+                    <Badge
+                      variant="solid"
+                      tone={
                         r.danger > 0
                           ? "danger"
                           : r.warn > 0
                             ? "warning"
                             : "neutral"
                       }
+                      oneChar
                     >
                       {r.score}
-                    </span>
+                    </Badge>
                   </div>
                   <div
                     className="mt-1.5 flex items-center gap-2"
@@ -351,12 +349,9 @@ export default function VideoLogTab({ videoId, onClickRiskStudent }: Props) {
             )}
           </div>
           <div className="flex items-center gap-3">
-            <span
-              className="ds-status-badge ds-status-badge--1ch"
-              data-tone="neutral"
-            >
+            <Badge variant="solid" tone="neutral" oneChar>
               {RANGE_LABELS[range]}
-            </span>
+            </Badge>
             <span
               style={{
                 fontSize: "var(--text-xs, 11px)",
@@ -457,12 +452,9 @@ export default function VideoLogTab({ videoId, onClickRiskStudent }: Props) {
                 </div>
                 <div className="col-span-1 flex justify-center">
                   {e.violated ? (
-                    <span
-                      className="ds-status-badge ds-status-badge--1ch"
-                      data-tone="danger"
-                    >
+                    <Badge variant="solid" tone="danger" oneChar>
                       Y
-                    </span>
+                    </Badge>
                   ) : (
                     <span
                       style={{
