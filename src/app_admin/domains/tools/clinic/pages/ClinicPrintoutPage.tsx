@@ -149,22 +149,67 @@ export default function ClinicPrintoutPage() {
   const [pdfLoading, setPdfLoading] = useState(false);
 
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  // 명시적 redraw trigger — paste/reset 시에만 증가시켜 iframe 재작성.
+  // 사용자의 contentEditable 편집 중에는 redraw가 일어나면 안 된다.
+  const [redrawSeq, setRedrawSeq] = useState(0);
+  // 최신 state를 inject 함수에서 ref로 읽기 (redraw effect의 stale closure 회피)
+  const stateRef = useRef({ both, examOnly, hwOnly, sessionTitle, lectureTitle, date, schedule, totalPresent });
+  stateRef.current = { both, examOnly, hwOnly, sessionTitle, lectureTitle, date, schedule, totalPresent };
 
-  // ── iframe에 HTML 주입 ──
-
-  const injectHtml = useCallback(() => {
+  // ── iframe에 HTML 주입 ── mount + 명시적 redrawSeq 증가 시에만 호출.
+  useEffect(() => {
     if (!iframeRef.current) return;
-    const html = buildEditableHtml({
-      both, examOnly, hwOnly, sessionTitle, lectureTitle, date, schedule, totalPresent,
-    });
+    const html = buildEditableHtml(stateRef.current);
     const doc = iframeRef.current.contentDocument ?? iframeRef.current.contentWindow?.document;
     if (!doc) return;
     doc.open();
     doc.write(html);
     doc.close();
-  }, [both, examOnly, hwOnly, sessionTitle, lectureTitle, date, schedule, totalPresent]);
-
-  useEffect(() => { injectHtml(); }, [injectHtml]);
+    // 편집 즉시 React state로 흘려보내기 → clinicTotal/다운로드 disabled 실시간 반영.
+    const sync = () => {
+      const f = iframeRef.current;
+      const d = f?.contentDocument;
+      if (!d) return;
+      const readNames = (field: string): string[] => {
+        const el = d.querySelector(`[data-field="${field}"]`);
+        if (!el) return [];
+        const cells = el.querySelectorAll(".name-cell, .name-row.single");
+        if (cells.length > 0) {
+          const names: string[] = [];
+          cells.forEach((cell) => {
+            const t = (cell.textContent || "").replace(/☐/g, "").trim();
+            if (t) names.push(t);
+          });
+          return names;
+        }
+        const text = (el as HTMLElement).innerText || el.textContent || "";
+        return text.split("\n").map((l: string) => l.replace(/☐/g, "").trim()).filter(Boolean);
+      };
+      const readText = (field: string) => {
+        const el = d.querySelector(`[data-field="${field}"]`);
+        return el?.textContent?.trim() || "";
+      };
+      const scheduleEl = d.querySelector('[data-field="schedule"]');
+      const scheduleText = scheduleEl
+        ? scheduleEl.innerHTML.replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]*>/g, "").trim()
+        : "";
+      const tp = parseInt(readText("totalPresent") || "0", 10);
+      setBoth(readNames("both"));
+      setExamOnly(readNames("examOnly"));
+      setHwOnly(readNames("hwOnly"));
+      setSchedule(scheduleText);
+      setSessionTitle(readText("sessionTitle"));
+      setLectureTitle(readText("lectureTitle"));
+      setDate(readText("date"));
+      setTotalPresent(isNaN(tp) ? 0 : tp);
+    };
+    doc.addEventListener("input", sync);
+    doc.addEventListener("blur", sync, true);
+    return () => {
+      doc.removeEventListener("input", sync);
+      doc.removeEventListener("blur", sync, true);
+    };
+  }, [redrawSeq]);
 
   // ── iframe에서 편집된 값 읽기 ──
 
@@ -236,7 +281,12 @@ export default function ClinicPrintoutPage() {
   const generateFromText = useCallback((text: string) => {
     const r = parseClinicData(text);
     const total = r.both.length + r.examOnly.length + r.hwOnly.length;
-    if (total === 0) { feedback.warning("파싱 가능한 학생 데이터를 찾지 못했습니다."); return; }
+    if (total === 0) {
+      feedback.warning(
+        "데이터를 인식하지 못했습니다. 성적 탭에서 표 전체를 복사하거나, 입력란 안내된 카테고리 형식(예: \"시험: 홍길동, 김철수\") 또는 한 줄에 한 명씩 이름을 넣어주세요.",
+      );
+      return;
+    }
     setBoth(r.both);
     setExamOnly(r.examOnly);
     setHwOnly(r.hwOnly);
@@ -244,6 +294,7 @@ export default function ClinicPrintoutPage() {
     if (r.lectureTitle) setLectureTitle(r.lectureTitle);
     if (r.date) setDate(r.date);
     setTotalPresent(r.totalPresent);
+    setRedrawSeq((s) => s + 1);
     feedback.success(`클리닉 대상자 ${total}명 파싱 완료`);
   }, []);
 
@@ -307,6 +358,7 @@ export default function ClinicPrintoutPage() {
       `${String(new Date().getMonth() + 1).padStart(2, "0")}/${String(new Date().getDate()).padStart(2, "0")}`
     );
     setSchedule(""); setTotalPresent(0); setPasteText("");
+    setRedrawSeq((s) => s + 1);
   };
 
   const clinicTotal = both.length + examOnly.length + hwOnly.length;

@@ -2,6 +2,7 @@
 // 다중 이미지 업로드 영역 — 드래그 앤 드롭 + 클릭
 
 import { useRef, useState, useCallback } from "react";
+import { feedback } from "@/shared/ui/feedback/feedback";
 
 const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp", "image/bmp", "image/tiff"];
 const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
@@ -11,16 +12,42 @@ interface ImageUploadAreaProps {
   disabled?: boolean;
 }
 
+function formatMb(bytes: number): string {
+  return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
+}
+
 export default function ImageUploadArea({ onFilesAdd, disabled }: ImageUploadAreaProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragover, setDragover] = useState(false);
 
+  // 거절 사유를 모아 사용자에게 노출 — silent reject 금지.
   const validate = useCallback((files: FileList | File[]) => {
     const valid: File[] = [];
+    const rejectedType: string[] = [];
+    const rejectedSize: string[] = [];
     for (const f of Array.from(files)) {
-      if (!ACCEPTED_TYPES.includes(f.type)) continue;
-      if (f.size > MAX_FILE_SIZE) continue;
+      if (!ACCEPTED_TYPES.includes(f.type)) {
+        rejectedType.push(f.name || "(이름 없음)");
+        continue;
+      }
+      if (f.size > MAX_FILE_SIZE) {
+        rejectedSize.push(`${f.name} (${formatMb(f.size)})`);
+        continue;
+      }
       valid.push(f);
+    }
+    if (rejectedType.length) {
+      feedback.warning(
+        `지원하지 않는 형식: ${rejectedType.slice(0, 3).join(", ")}` +
+          (rejectedType.length > 3 ? ` 외 ${rejectedType.length - 3}개` : "") +
+          " · JPG/PNG/GIF/WebP/BMP/TIFF만 가능합니다.",
+      );
+    }
+    if (rejectedSize.length) {
+      feedback.warning(
+        `용량 초과(20MB): ${rejectedSize.slice(0, 3).join(", ")}` +
+          (rejectedSize.length > 3 ? ` 외 ${rejectedSize.length - 3}개` : ""),
+      );
     }
     return valid;
   }, []);

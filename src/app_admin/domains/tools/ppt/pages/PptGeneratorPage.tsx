@@ -116,12 +116,21 @@ export default function PptGeneratorPage() {
       );
 
       // Phase 2: Poll for completion (page-level progress)
-      const result = await pollPptJob(jobResp.job_id, (progress) => {
-        if (progress?.percent != null) {
-          setProgressPct(50 + Math.round((progress.percent / 100) * 50));
-          setProgressLabel(`PPT 생성 중 ${Math.round(progress.percent)}%`);
-        }
-      });
+      const result = await pollPptJob(
+        jobResp.job_id,
+        (progress) => {
+          if (progress?.percent != null) {
+            setProgressPct(50 + Math.round((progress.percent / 100) * 50));
+            const stepName = progress.step_name_display || progress.step_name || "";
+            setProgressLabel(stepName ? `${stepName} ${Math.round(progress.percent)}%` : `PPT 생성 중 ${Math.round(progress.percent)}%`);
+          }
+        },
+        (status) => {
+          // percent가 아직 안 오는 PENDING 단계에서도 라벨 갱신 → stuck처럼 보이는 현상 제거.
+          if (status === "PENDING") setProgressLabel("작업 대기 중...");
+          else if (status === "RUNNING") setProgressLabel((prev) => prev.startsWith("PPT 생성 중") || prev.includes("%") ? prev : "PPT 생성 시작...");
+        },
+      );
 
       return result;
     },
@@ -150,12 +159,21 @@ export default function PptGeneratorPage() {
       );
 
       // Phase 2: Poll for completion (page-level progress)
-      const result = await pollPptJob(jobResp.job_id, (progress) => {
-        if (progress?.percent != null) {
-          setProgressPct(50 + Math.round((progress.percent / 100) * 50));
-          setProgressLabel(`PPT 생성 중 ${Math.round(progress.percent)}%`);
-        }
-      });
+      const result = await pollPptJob(
+        jobResp.job_id,
+        (progress) => {
+          if (progress?.percent != null) {
+            setProgressPct(50 + Math.round((progress.percent / 100) * 50));
+            const stepName = progress.step_name_display || progress.step_name || "";
+            setProgressLabel(stepName ? `${stepName} ${Math.round(progress.percent)}%` : `PPT 생성 중 ${Math.round(progress.percent)}%`);
+          }
+        },
+        (status) => {
+          // percent가 아직 안 오는 PENDING 단계에서도 라벨 갱신 → stuck처럼 보이는 현상 제거.
+          if (status === "PENDING") setProgressLabel("작업 대기 중...");
+          else if (status === "RUNNING") setProgressLabel((prev) => prev.startsWith("PPT 생성 중") || prev.includes("%") ? prev : "PPT 생성 시작...");
+        },
+      );
 
       return result;
     },
@@ -163,10 +181,14 @@ export default function PptGeneratorPage() {
     onError: handleGenerateError,
   });
 
-  function handleGenerateSuccess(data: { slide_count: number; size_bytes: number; download_url: string; filename: string }) {
+  function handleGenerateSuccess(data: { slide_count: number; size_bytes: number; download_url: string; filename: string; mode?: "question" | "page" }) {
     setProgressPct(null);
     setProgressLabel("");
     feedback.success(`PPT 생성 완료 (${data.slide_count}장, ${formatBytes(data.size_bytes)})`);
+    if (data.mode === "page") {
+      // 텍스트 추출 안 되는 PDF는 페이지 단위로 fallback. 사용자 안내(표지·목차도 포함됨).
+      feedback.info("이 PDF는 텍스트 추출이 어려워 페이지 단위로 변환했습니다. 표지·목차도 슬라이드에 포함됩니다.");
+    }
     const a = document.createElement("a");
     a.href = data.download_url;
     a.download = data.filename;

@@ -2,6 +2,7 @@
 // PDF 단일 파일 업로드 영역 — 드래그 앤 드롭 + 클릭
 
 import { useRef, useState, useCallback } from "react";
+import { feedback } from "@/shared/ui/feedback/feedback";
 
 const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
 
@@ -21,19 +22,27 @@ export default function PdfUploadArea({ file, onFileSelect, disabled }: PdfUploa
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragover, setDragover] = useState(false);
 
-  const validate = useCallback((f: File): boolean => {
-    if (f.type !== "application/pdf") return false;
-    if (f.size > MAX_FILE_SIZE) return false;
-    return true;
-  }, []);
-
+  // 거절 사유를 모아 사용자에게 노출 — silent reject 금지.
   const handleFiles = useCallback(
     (files: FileList | File[]) => {
       const arr = Array.from(files);
-      const pdf = arr.find((f) => validate(f));
-      if (pdf) onFileSelect(pdf);
+      if (arr.length === 0) return;
+      const pdf = arr.find((f) => f.type === "application/pdf" && f.size <= MAX_FILE_SIZE);
+      if (pdf) {
+        onFileSelect(pdf);
+        return;
+      }
+      const wrongType = arr.find((f) => f.type !== "application/pdf");
+      if (wrongType) {
+        feedback.warning(`PDF 파일만 업로드할 수 있습니다. (${wrongType.name})`);
+        return;
+      }
+      const tooLarge = arr.find((f) => f.size > MAX_FILE_SIZE);
+      if (tooLarge) {
+        feedback.warning(`PDF가 100MB를 초과합니다. (${tooLarge.name} · ${formatBytes(tooLarge.size)})`);
+      }
     },
-    [validate, onFileSelect],
+    [onFileSelect],
   );
 
   const handleDrop = (e: React.DragEvent) => {

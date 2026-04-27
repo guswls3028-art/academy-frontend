@@ -287,6 +287,15 @@ export default function TimerCore({ logoUrl, academyName, startFullscreen, mode 
     };
   }, []);
 
+  // 진행/일시정지/대기 중 모드 전환 시 사용자에게 확인 — 무경고로 시간 손실 방지.
+  const handleModeChange = useCallback((next: Mode) => {
+    if (next === mode) return;
+    if (phase === "running" || phase === "paused" || phase === "ready") {
+      if (!window.confirm("타이머가 진행 중입니다. 모드를 전환하면 설정한 시간이 사라집니다. 계속할까요?")) return;
+    }
+    onModeChange?.(next);
+  }, [mode, phase, onModeChange]);
+
   const t = formatTime(remaining);
   const isWarning = phase === "running" && remaining > 0 && remaining < 60_000;
   const totalMinSec = totalSet > 0
@@ -335,14 +344,14 @@ export default function TimerCore({ logoUrl, academyName, startFullscreen, mode 
           <div className={styles.modeToggle}>
             <button
               className={`${styles.modeBtn} ${mode === "timer" ? styles.modeBtnActive : ""}`}
-              onClick={() => onModeChange("timer")}
+              onClick={() => handleModeChange("timer")}
               type="button"
             >
               타이머
             </button>
             <button
               className={`${styles.modeBtn} ${mode === "stopwatch" ? styles.modeBtnActive : ""}`}
-              onClick={() => onModeChange("stopwatch")}
+              onClick={() => handleModeChange("stopwatch")}
               type="button"
             >
               스톱워치

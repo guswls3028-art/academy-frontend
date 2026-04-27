@@ -32,6 +32,8 @@ export interface PptGenerateResponse {
   filename: string;
   slide_count: number;
   size_bytes: number;
+  // PDF 모드 결과 분기. "question" = 문항 단위, "page" = 페이지 단위 fallback (스캔 PDF). 이미지 모드는 undefined.
+  mode?: "question" | "page";
 }
 
 export interface JobProgressResponse {
@@ -113,10 +115,12 @@ export async function submitPdfPptJob(
 
 /**
  * Poll job progress until DONE or FAILED.
+ * status를 함께 onStatus로 흘려보내 PENDING/RUNNING 단계를 UI에 노출.
  */
 export async function pollPptJob(
   jobId: string,
   onProgress?: (progress: JobProgressResponse["progress"]) => void,
+  onStatus?: (status: string) => void,
 ): Promise<PptGenerateResponse> {
   for (let i = 0; i < POLL_MAX_ATTEMPTS; i++) {
     const res = await api.get<JobProgressResponse>(
@@ -135,6 +139,7 @@ export async function pollPptJob(
     if (data.status === "FAILED") {
       throw new Error(data.error_message || "PPT 생성에 실패했습니다.");
     }
+    if (onStatus) onStatus(data.status);
     if (data.status === "RUNNING" && data.progress && onProgress) {
       onProgress(data.progress);
     }

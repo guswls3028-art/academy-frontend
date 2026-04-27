@@ -40,8 +40,12 @@ export default function OmrGeneratorPage() {
     }
   }, [getParams, mcCount, essayCount]);
 
-  // Auto-load on mount
-  useEffect(() => { loadPreview(); }, []);  // eslint-disable-line react-hooks/exhaustive-deps
+  // 입력 변경 시 700ms 디바운스 후 자동 갱신 — "답안지 생성" 클릭 누락 시 미리보기↔PDF 불일치 방지.
+  useEffect(() => {
+    if (mcCount + essayCount < 1) return;
+    const t = setTimeout(() => { loadPreview(); }, 700);
+    return () => clearTimeout(t);
+  }, [examName, lectureName, sessionName, mcCount, essayCount, loadPreview]);
 
   const handleDownload = async () => {
     if (mcCount + essayCount < 1) return;
@@ -102,24 +106,36 @@ export default function OmrGeneratorPage() {
 
           <div className="flex gap-3">
             <div className="flex-1">
-              <label className="block text-xs text-[var(--text-muted)] mb-1">객관식</label>
+              <label className="block text-xs text-[var(--text-muted)] mb-1">객관식 (0~45)</label>
               <input
                 type="number"
                 min={0}
                 max={45}
                 value={mcCount}
-                onChange={(e) => setMcCount(Number(e.target.value) || 0)}
+                onChange={(e) => {
+                  const n = Math.max(0, Math.min(45, Number(e.target.value) || 0));
+                  if ((Number(e.target.value) || 0) > 45) {
+                    feedback.warning("객관식은 최대 45문항입니다.");
+                  }
+                  setMcCount(n);
+                }}
                 className="w-full rounded border border-[var(--border-divider)] px-2.5 py-1.5 text-sm"
               />
             </div>
             <div className="flex-1">
-              <label className="block text-xs text-[var(--text-muted)] mb-1">서술형</label>
+              <label className="block text-xs text-[var(--text-muted)] mb-1">서술형 (0~10)</label>
               <input
                 type="number"
                 min={0}
                 max={10}
                 value={essayCount}
-                onChange={(e) => setEssayCount(Number(e.target.value) || 0)}
+                onChange={(e) => {
+                  const n = Math.max(0, Math.min(10, Number(e.target.value) || 0));
+                  if ((Number(e.target.value) || 0) > 10) {
+                    feedback.warning("서술형은 최대 10문항입니다.");
+                  }
+                  setEssayCount(n);
+                }}
                 className="w-full rounded border border-[var(--border-divider)] px-2.5 py-1.5 text-sm"
               />
             </div>

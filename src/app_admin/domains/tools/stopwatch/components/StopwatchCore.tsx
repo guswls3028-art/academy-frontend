@@ -162,6 +162,15 @@ export default function StopwatchCore({ logoUrl, academyName, startFullscreen, m
     }
   }, [startFullscreen]);
 
+  // 진행/일시정지 중 모드 전환 시 사용자에게 확인 — 무경고로 기록 손실 방지.
+  const handleModeChange = useCallback((next: Mode) => {
+    if (next === mode) return;
+    if (running || elapsed > 0 || laps.length > 0) {
+      if (!window.confirm("스톱워치 기록이 있습니다. 모드를 전환하면 기록이 사라집니다. 계속할까요?")) return;
+    }
+    onModeChange?.(next);
+  }, [mode, running, elapsed, laps.length, onModeChange]);
+
   const t = formatTime(elapsed);
   const hasLaps = laps.length > 0;
   const isReady = !running && elapsed === 0;
@@ -193,14 +202,14 @@ export default function StopwatchCore({ logoUrl, academyName, startFullscreen, m
           <div className={styles.modeToggle}>
             <button
               className={`${styles.modeBtn} ${mode === "timer" ? styles.modeBtnActive : ""}`}
-              onClick={() => onModeChange("timer")}
+              onClick={() => handleModeChange("timer")}
               type="button"
             >
               타이머
             </button>
             <button
               className={`${styles.modeBtn} ${mode === "stopwatch" ? styles.modeBtnActive : ""}`}
-              onClick={() => onModeChange("stopwatch")}
+              onClick={() => handleModeChange("stopwatch")}
               type="button"
             >
               스톱워치
