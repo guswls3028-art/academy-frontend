@@ -106,7 +106,7 @@ export default function LectureDetailPage() {
                 <button onClick={() => { setSectionOpen(true); setMenuOpen(false); }}
                   className="flex items-center gap-2 w-full text-left text-sm cursor-pointer"
                   style={{ padding: "10px 14px", background: "none", border: "none", color: "var(--tc-text)", borderTop: "1px solid var(--tc-border-subtle)" }}>
-                  <Plus size={14} /> 반 편성 / D-Day
+                  <Plus size={14} /> 반 편성
                 </button>
                 <button onClick={() => { if (confirm("이 강의를 삭제하시겠습니까?")) deleteLectureMut.mutate(); setMenuOpen(false); }}
                   className="flex items-center gap-2 w-full text-left text-sm cursor-pointer"
