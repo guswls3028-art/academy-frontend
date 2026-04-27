@@ -137,6 +137,45 @@ export async function promoteInventoryToMatchup(payload: {
   }
 }
 
+// ── Categories (bulk operations) ──
+
+export type MatchupCategoryStat = {
+  name: string;
+  total: number;
+  tests: number;
+  references: number;
+};
+
+export async function fetchMatchupCategories(): Promise<MatchupCategoryStat[]> {
+  const { data } = await api.get<MatchupCategoryStat[]>("/matchup/categories/");
+  return data;
+}
+
+export async function renameMatchupCategory(payload: {
+  from: string;
+  to: string;
+}): Promise<{ updated: number; category: string }> {
+  const { data } = await api.post<{ updated: number; category: string }>(
+    "/matchup/categories/rename/",
+    payload,
+  );
+  return data;
+}
+
+export async function assignMatchupCategory(payload: {
+  documentIds: number[];
+  category: string;
+}): Promise<{ updated: number; category: string }> {
+  const { data } = await api.post<{ updated: number; category: string }>(
+    "/matchup/categories/assign/",
+    {
+      document_ids: payload.documentIds,
+      category: payload.category,
+    },
+  );
+  return data;
+}
+
 export async function updateMatchupDocument(
   id: number,
   payload: { title?: string; category?: string; subject?: string; grade_level?: string; intent?: "reference" | "test" },

@@ -24,6 +24,9 @@ type Props = {
   categorySuggestions?: string[];
   subjectSuggestions?: string[];
   gradeLevelSuggestions?: string[];
+  // 카테고리 헤더 또는 외부 컨텍스트에서 모달을 열 때 prefill.
+  // 사용자는 여전히 자유 편집 가능.
+  defaultCategory?: string;
 };
 
 const ACCEPT = ".pdf,.png,.jpg,.jpeg,.heic,.heif";
@@ -42,9 +45,10 @@ export default function DocumentUploadModal({
   categorySuggestions = [],
   subjectSuggestions = [],
   gradeLevelSuggestions = [],
+  defaultCategory = "",
 }: Props) {
   const [title, setTitle] = useState("");
-  const [category, setCategory] = useState("");
+  const [category, setCategory] = useState(defaultCategory);
   const [subject, setSubject] = useState("");
   const [gradeLevel, setGradeLevel] = useState("");
   const [entries, setEntries] = useState<Entry[]>([]);
@@ -610,24 +614,86 @@ export default function DocumentUploadModal({
               )}
             </label>
 
-            <div style={{ display: "flex", gap: "var(--space-3)" }}>
-              <label style={{ flex: 1, fontSize: 13, fontWeight: 600, color: "var(--color-text-secondary)" }}>
+            {/* 카테고리 — 칩 셀렉터(원클릭) + 자유 입력 (둘 다 동기화). */}
+            <div>
+              <label
+                htmlFor="matchup-upload-category-input"
+                style={{
+                  display: "block",
+                  fontSize: 13, fontWeight: 600, color: "var(--color-text-secondary)",
+                  marginBottom: 6,
+                }}
+              >
                 카테고리
-                <input
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                  placeholder="예: 중대부고"
-                  list="matchup-category-suggestions"
-                  style={{
-                    display: "block", width: "100%", marginTop: "var(--space-1)",
-                    padding: "var(--space-2) var(--space-3)", border: "1px solid var(--color-border-divider)",
-                    borderRadius: "var(--radius-md)", fontSize: 14, background: "var(--color-bg-surface)",
-                  }}
-                />
-                <datalist id="matchup-category-suggestions">
-                  {categorySuggestions.map((c) => <option key={c} value={c} />)}
-                </datalist>
+                {defaultCategory && (
+                  <span style={{
+                    marginLeft: 8,
+                    fontSize: 11, fontWeight: 600,
+                    color: "var(--color-brand-primary)",
+                  }}>
+                    · 기본값 적용됨
+                  </span>
+                )}
               </label>
+              {categorySuggestions.length > 0 && (
+                <div
+                  data-testid="matchup-upload-category-chips"
+                  style={{
+                    display: "flex", flexWrap: "wrap", gap: 4,
+                    marginBottom: 6,
+                  }}
+                >
+                  {categorySuggestions.map((c) => {
+                    const active = category.trim() === c;
+                    return (
+                      <button
+                        key={c}
+                        type="button"
+                        onClick={() => setCategory(active ? "" : c)}
+                        title={active ? "선택 해제" : `카테고리 "${c}" 선택`}
+                        style={{
+                          fontSize: 11,
+                          padding: "3px 9px",
+                          borderRadius: 999,
+                          cursor: "pointer",
+                          border: active
+                            ? "1px solid var(--color-brand-primary)"
+                            : "1px solid var(--color-border-divider)",
+                          background: active
+                            ? "color-mix(in srgb, var(--color-brand-primary) 14%, transparent)"
+                            : "var(--color-bg-surface-soft)",
+                          color: active
+                            ? "var(--color-brand-primary)"
+                            : "var(--color-text-secondary)",
+                          fontWeight: active ? 700 : 500,
+                        }}
+                      >
+                        {c}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+              <input
+                id="matchup-upload-category-input"
+                data-testid="matchup-upload-category-input"
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                placeholder="예: 중대부고 (직접 입력 또는 위 칩 선택)"
+                list="matchup-category-suggestions"
+                style={{
+                  display: "block", width: "100%",
+                  padding: "var(--space-2) var(--space-3)",
+                  border: "1px solid var(--color-border-divider)",
+                  borderRadius: "var(--radius-md)", fontSize: 14, background: "var(--color-bg-surface)",
+                }}
+              />
+              <datalist id="matchup-category-suggestions">
+                {categorySuggestions.map((c) => <option key={c} value={c} />)}
+              </datalist>
+            </div>
+
+            <div style={{ display: "flex", gap: "var(--space-3)" }}>
               <label style={{ flex: 1, fontSize: 13, fontWeight: 600, color: "var(--color-text-secondary)" }}>
                 과목
                 <input

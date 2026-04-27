@@ -5,10 +5,11 @@
 // 사용자는 저장소에서 폴더로 학교를 분류하고, 매치업도 그 폴더 단위로 보고 싶어함.
 // 빈 카테고리 자동 접힘. 검색 + 상태 필터.
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   FileText, Loader2, AlertCircle, CheckCircle2, RefreshCw, Trash2,
   Search, X, BookOpen, ClipboardList, ChevronDown, ChevronRight, FolderOpen,
+  MoreVertical, Pencil, FolderInput, Eraser, Database, Check,
 } from "lucide-react";
 import { Button } from "@/shared/ui/ds";
 import { useConfirm } from "@/shared/ui/confirm";
@@ -21,7 +22,11 @@ type Props = {
   documents: MatchupDocument[];
   selectedId: number | null;
   onSelect: (id: number) => void;
-  onUpload: (intent?: "reference" | "test") => void;
+  onUpload: (intent?: "reference" | "test", defaultCategory?: string) => void;
+  onPromoteFromInventory?: (defaultCategory?: string) => void;
+  onRenameCategory?: (from: string, to: string) => Promise<void> | void;
+  onMergeCategory?: (from: string, to: string) => Promise<void> | void;
+  onClearCategory?: (name: string) => Promise<void> | void;
   onDelete: (id: number) => void;
   onRetry: (id: number) => void;
   progressMap?: DocProgressMap;
@@ -62,14 +67,90 @@ function categoryLabelOf(key: string): string {
   return key === UNCATEGORIZED_KEY ? UNCATEGORIZED_LABEL : key;
 }
 
+function CategoryMenuItem({
+  icon, label, onClick, danger = false,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  onClick: (e: React.MouseEvent) => void;
+  danger?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      role="menuitem"
+      onClick={onClick}
+      data-testid="matchup-category-menu-item"
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        width: "100%",
+        padding: "6px 10px",
+        background: "transparent",
+        border: "none",
+        borderRadius: "var(--radius-sm)",
+        textAlign: "left",
+        fontSize: 12,
+        fontWeight: 500,
+        color: danger ? "var(--color-danger)" : "var(--color-text-primary)",
+        cursor: "pointer",
+        fontFamily: "inherit",
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.background = danger
+          ? "color-mix(in srgb, var(--color-danger) 10%, transparent)"
+          : "var(--color-bg-surface-soft)";
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.background = "transparent";
+      }}
+    >
+      <span style={{ flexShrink: 0, color: danger ? "var(--color-danger)" : "var(--color-text-secondary)", display: "flex" }}>
+        {icon}
+      </span>
+      <span>{label}</span>
+    </button>
+  );
+}
+
 export default function DocumentList({
-  documents, selectedId, onSelect, onUpload, onDelete, onRetry,
+  documents, selectedId, onSelect, onUpload,
+  onPromoteFromInventory, onRenameCategory, onMergeCategory, onClearCategory,
+  onDelete, onRetry,
   progressMap = {},
 }: Props) {
   const confirm = useConfirm();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  // 카테고리 헤더 액션 메뉴 열림 키 (한 번에 하나만)
+  const [openMenuKey, setOpenMenuKey] = useState<string | null>(null);
+  // 인라인 이름 변경: 활성 카테고리 키 + 입력값
+  const [renamingKey, setRenamingKey] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  // 병합 모드: 활성 카테고리 키 (선택지로 다른 카테고리 노출)
+  const [mergingKey, setMergingKey] = useState<string | null>(null);
+  const renameInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (renamingKey && renameInputRef.current) {
+      renameInputRef.current.focus();
+      renameInputRef.current.select();
+    }
+  }, [renamingKey]);
+
+  // 메뉴 외부 클릭 시 닫기
+  useEffect(() => {
+    if (!openMenuKey) return;
+    const onDocClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target?.closest("[data-category-menu]")) return;
+      setOpenMenuKey(null);
+    };
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, [openMenuKey]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -421,14 +502,69 @@ export default function DocumentList({
           const isCollapsed = !!collapsed[group.key];
           const total = group.tests.length + group.references.length;
           if (total === 0) return null;
+          const isUncategorized = group.key === UNCATEGORIZED_KEY;
+          const headerCategory = isUncategorized ? "" : group.key;
+          const isMenuOpen = openMenuKey === group.key;
+          const isRenaming = renamingKey === group.key;
+          const isMerging = mergingKey === group.key;
+          // 병합 후보: 자기 자신과 미분류 제외한 다른 카테고리들
+          const mergeCandidates = grouped
+            .map((g) => g.key)
+            .filter((k) => k !== group.key && k !== UNCATEGORIZED_KEY);
+
+          const closeMenu = () => setOpenMenuKey(null);
+          const startRename = () => {
+            setRenameValue(group.key);
+            setRenamingKey(group.key);
+            closeMenu();
+          };
+          const cancelRename = () => {
+            setRenamingKey(null);
+            setRenameValue("");
+          };
+          const commitRename = async () => {
+            const next = renameValue.trim();
+            if (!next || next === group.key) {
+              cancelRename();
+              return;
+            }
+            if (onRenameCategory) {
+              await onRenameCategory(group.key, next);
+            }
+            cancelRename();
+          };
+          const startMerge = () => {
+            setMergingKey(group.key);
+            closeMenu();
+          };
+          const cancelMerge = () => setMergingKey(null);
+          const commitMerge = async (target: string) => {
+            if (!target || target === group.key) {
+              cancelMerge();
+              return;
+            }
+            if (onMergeCategory) {
+              await onMergeCategory(group.key, target);
+            }
+            cancelMerge();
+          };
+          const confirmClear = async () => {
+            closeMenu();
+            const ok = await confirm({
+              title: "카테고리 비우기",
+              message: `"${group.label}" 카테고리의 ${total}개 문서를 미분류로 이동합니다. 문서 자체는 유지됩니다.`,
+              confirmText: "비우기",
+              danger: true,
+            });
+            if (ok && onClearCategory) await onClearCategory(group.key);
+          };
+
           return (
             <div key={group.key} style={{ marginBottom: "var(--space-2)" }}>
               {/* 카테고리(학교) 헤더 */}
-              <button
-                type="button"
+              <div
                 data-testid="matchup-category-header"
-                data-category={group.key === UNCATEGORIZED_KEY ? "" : group.key}
-                onClick={() => toggleCollapse(group.key)}
+                data-category={headerCategory}
                 style={{
                   position: "sticky",
                   top: 0,
@@ -437,66 +573,300 @@ export default function DocumentList({
                   margin: "0 var(--space-2) var(--space-1)",
                   padding: "8px var(--space-3)",
                   borderRadius: "var(--radius-sm)",
-                  background: group.key === UNCATEGORIZED_KEY
+                  background: isUncategorized
                     ? "var(--color-bg-surface-soft)"
                     : "color-mix(in srgb, var(--color-brand-primary) 8%, var(--color-bg-surface))",
                   border: "1px solid",
-                  borderColor: group.key === UNCATEGORIZED_KEY
+                  borderColor: isUncategorized
                     ? "var(--color-border-divider)"
                     : "color-mix(in srgb, var(--color-brand-primary) 25%, transparent)",
                   display: "flex",
                   alignItems: "center",
                   gap: "var(--space-2)",
-                  cursor: "pointer",
-                  textAlign: "left",
                   fontFamily: "inherit",
                 }}
               >
-                {isCollapsed
-                  ? <ChevronRight size={13} style={{ color: "var(--color-text-secondary)" }} />
-                  : <ChevronDown size={13} style={{ color: "var(--color-text-secondary)" }} />
-                }
-                <FolderOpen
-                  size={13}
-                  style={{
-                    color: group.key === UNCATEGORIZED_KEY
-                      ? "var(--color-text-muted)"
-                      : "var(--color-brand-primary)",
+                {/* 헤더 본문 — 클릭 시 접힘 토글. 인라인 편집/병합 중에는 토글 비활성. */}
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => {
+                    if (isRenaming || isMerging) return;
+                    toggleCollapse(group.key);
                   }}
-                />
-                <span style={{
-                  fontSize: 12,
-                  fontWeight: 800,
-                  color: group.key === UNCATEGORIZED_KEY
-                    ? "var(--color-text-secondary)"
-                    : "var(--color-brand-primary)",
-                  flex: 1,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                }}>
-                  {group.label}
-                </span>
-                <span style={{
-                  fontSize: 11,
-                  color: "var(--color-text-muted)",
-                  display: "flex",
-                  gap: 6,
-                  alignItems: "center",
-                  flexShrink: 0,
-                }}>
-                  {group.tests.length > 0 && (
-                    <span title="시험지" style={{ color: "var(--color-warning)", fontWeight: 700 }}>
-                      시험 {group.tests.length}
+                  onKeyDown={(e) => {
+                    if (isRenaming || isMerging) return;
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      toggleCollapse(group.key);
+                    }
+                  }}
+                  style={{
+                    flex: 1,
+                    minWidth: 0,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "var(--space-2)",
+                    cursor: isRenaming || isMerging ? "default" : "pointer",
+                    textAlign: "left",
+                  }}
+                >
+                  {isCollapsed
+                    ? <ChevronRight size={13} style={{ color: "var(--color-text-secondary)", flexShrink: 0 }} />
+                    : <ChevronDown size={13} style={{ color: "var(--color-text-secondary)", flexShrink: 0 }} />
+                  }
+                  <FolderOpen
+                    size={13}
+                    style={{
+                      color: isUncategorized
+                        ? "var(--color-text-muted)"
+                        : "var(--color-brand-primary)",
+                      flexShrink: 0,
+                    }}
+                  />
+
+                  {isRenaming ? (
+                    <input
+                      ref={renameInputRef}
+                      data-testid="matchup-category-rename-input"
+                      value={renameValue}
+                      onChange={(e) => setRenameValue(e.target.value)}
+                      onClick={(e) => e.stopPropagation()}
+                      onKeyDown={(e) => {
+                        e.stopPropagation();
+                        if (e.key === "Enter") { e.preventDefault(); commitRename(); }
+                        else if (e.key === "Escape") { e.preventDefault(); cancelRename(); }
+                      }}
+                      maxLength={100}
+                      style={{
+                        flex: 1,
+                        minWidth: 0,
+                        padding: "2px 6px",
+                        fontSize: 12,
+                        fontWeight: 700,
+                        border: "1px solid var(--color-brand-primary)",
+                        borderRadius: 4,
+                        background: "var(--color-bg-surface)",
+                        color: "var(--color-text-primary)",
+                        outline: "none",
+                      }}
+                    />
+                  ) : isMerging ? (
+                    <select
+                      data-testid="matchup-category-merge-select"
+                      defaultValue=""
+                      onClick={(e) => e.stopPropagation()}
+                      onChange={(e) => commitMerge(e.target.value)}
+                      style={{
+                        flex: 1,
+                        minWidth: 0,
+                        padding: "2px 6px",
+                        fontSize: 12,
+                        fontWeight: 600,
+                        border: "1px solid var(--color-brand-primary)",
+                        borderRadius: 4,
+                        background: "var(--color-bg-surface)",
+                        color: "var(--color-text-primary)",
+                      }}
+                    >
+                      <option value="" disabled>합칠 대상 카테고리…</option>
+                      {mergeCandidates.length === 0 && (
+                        <option value="" disabled>(다른 카테고리 없음)</option>
+                      )}
+                      {mergeCandidates.map((k) => (
+                        <option key={k} value={k}>{k}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <span style={{
+                      fontSize: 12,
+                      fontWeight: 800,
+                      color: isUncategorized
+                        ? "var(--color-text-secondary)"
+                        : "var(--color-brand-primary)",
+                      flex: 1,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}>
+                      {group.label}
                     </span>
                   )}
-                  {group.references.length > 0 && (
-                    <span title="참고 자료">
-                      자료 {group.references.length}
+
+                  {!isRenaming && !isMerging && (
+                    <span style={{
+                      fontSize: 11,
+                      color: "var(--color-text-muted)",
+                      display: "flex",
+                      gap: 6,
+                      alignItems: "center",
+                      flexShrink: 0,
+                    }}>
+                      {group.tests.length > 0 && (
+                        <span title="시험지" style={{ color: "var(--color-warning)", fontWeight: 700 }}>
+                          시험 {group.tests.length}
+                        </span>
+                      )}
+                      {group.references.length > 0 && (
+                        <span title="참고 자료">
+                          자료 {group.references.length}
+                        </span>
+                      )}
                     </span>
                   )}
-                </span>
-              </button>
+                </div>
+
+                {/* 인라인 편집 액션 버튼 */}
+                {isRenaming && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); commitRename(); }}
+                      title="저장 (Enter)"
+                      data-testid="matchup-category-rename-save"
+                      style={{
+                        background: "var(--color-brand-primary)", color: "white",
+                        border: "none", borderRadius: 4,
+                        padding: "3px 8px", cursor: "pointer", display: "flex", alignItems: "center",
+                      }}
+                    >
+                      <Check size={12} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); cancelRename(); }}
+                      title="취소 (Esc)"
+                      style={{
+                        background: "var(--color-bg-surface-soft)",
+                        border: "1px solid var(--color-border-divider)",
+                        borderRadius: 4, color: "var(--color-text-muted)",
+                        padding: "3px 8px", cursor: "pointer", display: "flex", alignItems: "center",
+                      }}
+                    >
+                      <X size={12} />
+                    </button>
+                  </>
+                )}
+                {isMerging && (
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); cancelMerge(); }}
+                    title="병합 취소"
+                    style={{
+                      background: "var(--color-bg-surface-soft)",
+                      border: "1px solid var(--color-border-divider)",
+                      borderRadius: 4, color: "var(--color-text-muted)",
+                      padding: "3px 8px", cursor: "pointer", display: "flex", alignItems: "center",
+                    }}
+                  >
+                    <X size={12} />
+                  </button>
+                )}
+
+                {/* ⋮ 액션 메뉴 — 편집 중 아닐 때만 */}
+                {!isRenaming && !isMerging && (
+                  <div data-category-menu style={{ position: "relative", flexShrink: 0 }}>
+                    <button
+                      type="button"
+                      data-testid="matchup-category-menu-trigger"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setOpenMenuKey(isMenuOpen ? null : group.key);
+                      }}
+                      title="카테고리 작업"
+                      style={{
+                        background: "transparent",
+                        border: "1px solid transparent",
+                        borderRadius: 4,
+                        padding: "2px 4px",
+                        cursor: "pointer",
+                        color: "var(--color-text-secondary)",
+                        display: "flex", alignItems: "center",
+                      }}
+                    >
+                      <MoreVertical size={14} />
+                    </button>
+                    {isMenuOpen && (
+                      <div
+                        data-testid="matchup-category-menu"
+                        role="menu"
+                        style={{
+                          position: "absolute",
+                          right: 0,
+                          top: "calc(100% + 4px)",
+                          zIndex: 50,
+                          minWidth: 220,
+                          background: "var(--color-bg-surface)",
+                          border: "1px solid var(--color-border-divider)",
+                          borderRadius: "var(--radius-md)",
+                          boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
+                          padding: 4,
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: 2,
+                        }}
+                      >
+                        <CategoryMenuItem
+                          icon={<ClipboardList size={13} />}
+                          label="이 카테고리로 시험지 업로드"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            closeMenu();
+                            onUpload("test", headerCategory);
+                          }}
+                        />
+                        <CategoryMenuItem
+                          icon={<BookOpen size={13} />}
+                          label="이 카테고리로 자료 업로드"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            closeMenu();
+                            onUpload("reference", headerCategory);
+                          }}
+                        />
+                        {onPromoteFromInventory && (
+                          <CategoryMenuItem
+                            icon={<Database size={13} />}
+                            label="저장소에서 가져오기"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              closeMenu();
+                              onPromoteFromInventory(headerCategory);
+                            }}
+                          />
+                        )}
+                        {!isUncategorized && (
+                          <>
+                            <div style={{ height: 1, background: "var(--color-border-divider)", margin: "2px 0" }} />
+                            {onRenameCategory && (
+                              <CategoryMenuItem
+                                icon={<Pencil size={13} />}
+                                label="이름 변경"
+                                onClick={(e) => { e.stopPropagation(); startRename(); }}
+                              />
+                            )}
+                            {onMergeCategory && mergeCandidates.length > 0 && (
+                              <CategoryMenuItem
+                                icon={<FolderInput size={13} />}
+                                label="다른 카테고리에 합치기"
+                                onClick={(e) => { e.stopPropagation(); startMerge(); }}
+                              />
+                            )}
+                            {onClearCategory && (
+                              <CategoryMenuItem
+                                icon={<Eraser size={13} />}
+                                label="카테고리 비우기 (미분류로)"
+                                danger
+                                onClick={(e) => { e.stopPropagation(); confirmClear(); }}
+                              />
+                            )}
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
 
               {!isCollapsed && (
                 <>

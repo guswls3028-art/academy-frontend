@@ -15,11 +15,14 @@ import {
   retryMatchupDocument,
   fetchMatchupProblems,
   updateMatchupDocument,
+  renameMatchupCategory,
+  assignMatchupCategory,
 } from "../api/matchup.api";
 import type { SimilarProblem } from "../api/matchup.api";
 import { useMatchupPolling } from "../hooks/useMatchupPolling";
 import DocumentList from "../components/matchup/DocumentList";
 import DocumentUploadModal from "../components/matchup/DocumentUploadModal";
+import PromoteFromInventoryModal from "../components/matchup/PromoteFromInventoryModal";
 import ProblemGrid from "../components/matchup/ProblemGrid";
 import SimilarResults from "../components/matchup/SimilarResults";
 import CrossMatchesPanel from "../components/matchup/CrossMatchesPanel";
@@ -59,12 +62,20 @@ export default function MatchupPage() {
   const [selectedProblemId, setSelectedProblemId] = useState<number | null>(null);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [uploadIntent, setUploadIntent] = useState<"reference" | "test">("reference");
+  // 업로드 모달이 카테고리 컨텍스트에서 열릴 때 prefill 값 (빈 문자열이면 비어있는 상태로 시작)
+  const [uploadDefaultCategory, setUploadDefaultCategory] = useState<string>("");
+  // 저장소→매치업 승격 모달
+  const [promoteOpen, setPromoteOpen] = useState(false);
+  const [promoteDefaultCategory, setPromoteDefaultCategory] = useState<string>("");
   const [detailProblem, setDetailProblem] = useState<SimilarProblem | null>(null);
   const [previewDocId, setPreviewDocId] = useState<number | null>(null);
   const [cropDocId, setCropDocId] = useState<number | null>(null);
   const [pendingNavigateNumber, setPendingNavigateNumber] = useState<number | null>(null);
   const [rightPanelTab, setRightPanelTab] = useState<"similar" | "cross">("similar");
   const [intentUpdating, setIntentUpdating] = useState(false);
+  const [categoryEditing, setCategoryEditing] = useState(false);
+  const [categoryDraft, setCategoryDraft] = useState("");
+  const [categorySaving, setCategorySaving] = useState(false);
 
   // ── 문서 목록 ──
   const { data: documents = [], isLoading: docsLoading } = useQuery({
@@ -74,10 +85,55 @@ export default function MatchupPage() {
 
   const progressMap = useMatchupPolling(documents);
 
-  const openUpload = useCallback((intent: "reference" | "test" = "reference") => {
-    setUploadIntent(intent);
-    setUploadOpen(true);
+  const openUpload = useCallback(
+    (intent: "reference" | "test" = "reference", defaultCategory?: string) => {
+      setUploadIntent(intent);
+      setUploadDefaultCategory(defaultCategory ?? "");
+      setUploadOpen(true);
+    },
+    [],
+  );
+
+  const openPromote = useCallback((defaultCategory?: string) => {
+    setPromoteDefaultCategory(defaultCategory ?? "");
+    setPromoteOpen(true);
   }, []);
+
+  const handleRenameCategory = useCallback(
+    async (from: string, to: string) => {
+      if (!from || from === to) return;
+      const res = await renameMatchupCategory({ from, to });
+      qc.invalidateQueries({ queryKey: ["matchup-documents"] });
+      const trimmed = to.trim();
+      if (res.updated > 0) {
+        feedback.success(
+          trimmed
+            ? `"${from}" → "${trimmed}" (${res.updated}건)`
+            : `"${from}" 카테고리를 미분류로 이동했습니다 (${res.updated}건)`,
+        );
+      } else {
+        feedback.info("변경할 문서가 없습니다.");
+      }
+    },
+    [qc],
+  );
+
+  const handleClearCategory = useCallback(
+    async (name: string) => {
+      if (!name) return;
+      const targetIds = documents
+        .filter((d) => (d.category || "").trim() === name)
+        .map((d) => d.id);
+      if (targetIds.length === 0) return;
+      const res = await assignMatchupCategory({
+        documentIds: targetIds,
+        category: "",
+      });
+      qc.invalidateQueries({ queryKey: ["matchup-documents"] });
+      feedback.success(`"${name}" 카테고리의 ${res.updated}개 문서를 미분류로 이동했습니다.`);
+    },
+    [documents, qc],
+  );
 
   // 처리 중 doc을 우상단 작업박스에 자동 재등록 (페이지 새로고침/탭 이동 후에도 진행률 유지)
   useEffect(() => {
@@ -203,6 +259,45 @@ export default function MatchupPage() {
     [qc, selectedDocId],
   );
 
+  const startCategoryEdit = useCallback(() => {
+    if (!selectedDoc) return;
+    setCategoryDraft(selectedDoc.category || "");
+    setCategoryEditing(true);
+  }, [selectedDoc]);
+
+  const cancelCategoryEdit = useCallback(() => {
+    setCategoryEditing(false);
+    setCategoryDraft("");
+  }, []);
+
+  const commitCategoryEdit = useCallback(async () => {
+    if (!selectedDoc) return;
+    const next = categoryDraft.trim();
+    if (next === (selectedDoc.category || "").trim()) {
+      cancelCategoryEdit();
+      return;
+    }
+    setCategorySaving(true);
+    try {
+      await updateMatchupDocument(selectedDoc.id, { category: next });
+      await qc.invalidateQueries({ queryKey: ["matchup-documents"] });
+      feedback.success(next ? `카테고리를 "${next}"로 변경했습니다.` : "카테고리를 비웠습니다.");
+      setCategoryEditing(false);
+      setCategoryDraft("");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "카테고리 변경 실패";
+      feedback.error(msg);
+    } finally {
+      setCategorySaving(false);
+    }
+  }, [selectedDoc, categoryDraft, qc, cancelCategoryEdit]);
+
+  // 다른 문서로 이동하면 편집 모드 해제
+  useEffect(() => {
+    setCategoryEditing(false);
+    setCategoryDraft("");
+  }, [selectedDocId]);
+
   const handleChangeIntent = useCallback(async (intent: "reference" | "test") => {
     if (!selectedDoc) return;
     if (getDocumentIntent(selectedDoc) === intent) return;
@@ -265,13 +360,14 @@ export default function MatchupPage() {
         <MatchupEmptyState onUpload={openUpload} />
         {uploadOpen && (
           <DocumentUploadModal
-            onClose={() => setUploadOpen(false)}
+            onClose={() => { setUploadOpen(false); setUploadDefaultCategory(""); }}
             onUpload={handleUpload}
             intent={uploadIntent}
             existingTitles={existingTitles}
             categorySuggestions={categorySuggestions}
             subjectSuggestions={subjectSuggestions}
             gradeLevelSuggestions={gradeLevelSuggestions}
+            defaultCategory={uploadDefaultCategory}
           />
         )}
       </>
@@ -292,6 +388,10 @@ export default function MatchupPage() {
               selectedId={selectedDocId}
               onSelect={handleSelectDoc}
               onUpload={openUpload}
+              onPromoteFromInventory={openPromote}
+              onRenameCategory={handleRenameCategory}
+              onMergeCategory={handleRenameCategory}
+              onClearCategory={handleClearCategory}
               onDelete={handleDelete}
               onRetry={handleRetry}
               progressMap={progressMap}
@@ -386,20 +486,92 @@ export default function MatchupPage() {
                       {selectedDoc.subject}
                     </span>
                   )}
-                  {selectedDoc?.category && (
+                  {selectedDoc && categoryEditing ? (
                     <span
-                      title="카테고리"
+                      data-testid="matchup-doc-category-edit"
+                      style={{ display: "inline-flex", alignItems: "center", gap: 4 }}
+                    >
+                      <input
+                        autoFocus
+                        value={categoryDraft}
+                        onChange={(e) => setCategoryDraft(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") { e.preventDefault(); commitCategoryEdit(); }
+                          else if (e.key === "Escape") { e.preventDefault(); cancelCategoryEdit(); }
+                        }}
+                        list="matchup-doc-category-suggestions"
+                        disabled={categorySaving}
+                        placeholder="카테고리 (비우면 미분류)"
+                        style={{
+                          fontSize: 11, padding: "2px 6px",
+                          border: "1px solid var(--color-brand-primary)",
+                          borderRadius: 4,
+                          minWidth: 120,
+                          background: "var(--color-bg-surface)",
+                          color: "var(--color-text-primary)",
+                          outline: "none",
+                          fontWeight: 600,
+                        }}
+                      />
+                      <datalist id="matchup-doc-category-suggestions">
+                        {categorySuggestions.map((c) => <option key={c} value={c} />)}
+                      </datalist>
+                      <button
+                        type="button"
+                        onClick={commitCategoryEdit}
+                        disabled={categorySaving}
+                        title="저장 (Enter)"
+                        data-testid="matchup-doc-category-save"
+                        style={{
+                          fontSize: 11, padding: "2px 7px", borderRadius: 4,
+                          background: "var(--color-brand-primary)", color: "white",
+                          border: "none", cursor: categorySaving ? "wait" : "pointer",
+                          fontWeight: 700,
+                        }}
+                      >
+                        {categorySaving ? "..." : "저장"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={cancelCategoryEdit}
+                        disabled={categorySaving}
+                        title="취소 (Esc)"
+                        style={{
+                          fontSize: 11, padding: "2px 7px", borderRadius: 4,
+                          background: "var(--color-bg-surface-soft)",
+                          border: "1px solid var(--color-border-divider)",
+                          color: "var(--color-text-muted)",
+                          cursor: categorySaving ? "not-allowed" : "pointer",
+                        }}
+                      >
+                        취소
+                      </button>
+                    </span>
+                  ) : selectedDoc ? (
+                    <button
+                      type="button"
+                      onClick={startCategoryEdit}
+                      data-testid="matchup-doc-category-badge"
+                      title="클릭해서 카테고리 변경"
                       style={{
                         fontSize: 11, padding: "2px 8px", borderRadius: 4,
-                        background: "color-mix(in srgb, var(--color-brand-primary) 8%, transparent)",
-                        color: "var(--color-brand-primary)",
-                        border: "1px solid color-mix(in srgb, var(--color-brand-primary) 35%, transparent)",
+                        background: selectedDoc.category
+                          ? "color-mix(in srgb, var(--color-brand-primary) 8%, transparent)"
+                          : "var(--color-bg-surface-soft)",
+                        color: selectedDoc.category
+                          ? "var(--color-brand-primary)"
+                          : "var(--color-text-muted)",
+                        border: selectedDoc.category
+                          ? "1px solid color-mix(in srgb, var(--color-brand-primary) 35%, transparent)"
+                          : "1px dashed var(--color-border-divider)",
                         fontWeight: 700,
+                        cursor: "pointer",
+                        fontFamily: "inherit",
                       }}
                     >
-                      {selectedDoc.category}
-                    </span>
-                  )}
+                      {selectedDoc.category || "+ 카테고리 지정"}
+                    </button>
+                  ) : null}
                   {selectedDoc && (
                     <span
                       style={{
@@ -641,6 +813,14 @@ export default function MatchupPage() {
           categorySuggestions={categorySuggestions}
           subjectSuggestions={subjectSuggestions}
           gradeLevelSuggestions={gradeLevelSuggestions}
+        />
+      )}
+
+      {promoteOpen && (
+        <PromoteFromInventoryModal
+          onClose={() => { setPromoteOpen(false); setPromoteDefaultCategory(""); }}
+          defaultCategory={promoteDefaultCategory}
+          categorySuggestions={categorySuggestions}
         />
       )}
 
