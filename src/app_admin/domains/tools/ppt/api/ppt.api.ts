@@ -127,6 +127,11 @@ export async function pollPptJob(
     if (data.status === "DONE" && data.result) {
       return data.result;
     }
+    // Lite/Basic 정책상 워커 실패가 DONE으로 마킹되더라도 error_message 가 있으면 즉시 실패 처리.
+    // (이전에는 result 없고 error_message 있는 DONE 응답을 무시하고 6분 무한 폴링)
+    if (data.status === "DONE" && !data.result && data.error_message) {
+      throw new Error(data.error_message);
+    }
     if (data.status === "FAILED") {
       throw new Error(data.error_message || "PPT 생성에 실패했습니다.");
     }
