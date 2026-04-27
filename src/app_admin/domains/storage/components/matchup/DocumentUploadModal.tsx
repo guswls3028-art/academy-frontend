@@ -636,42 +636,52 @@ export default function DocumentUploadModal({
                 )}
               </label>
               {categorySuggestions.length > 0 && (
-                <div
-                  data-testid="matchup-upload-category-chips"
-                  style={{
-                    display: "flex", flexWrap: "wrap", gap: 4,
-                    marginBottom: 6,
-                  }}
-                >
-                  {categorySuggestions.map((c) => {
-                    const active = category.trim() === c;
-                    return (
-                      <button
-                        key={c}
-                        type="button"
-                        onClick={() => setCategory(active ? "" : c)}
-                        title={active ? "선택 해제" : `카테고리 "${c}" 선택`}
-                        style={{
-                          fontSize: 11,
-                          padding: "3px 9px",
-                          borderRadius: 999,
-                          cursor: "pointer",
-                          border: active
-                            ? "1px solid var(--color-brand-primary)"
-                            : "1px solid var(--color-border-divider)",
-                          background: active
-                            ? "color-mix(in srgb, var(--color-brand-primary) 14%, transparent)"
-                            : "var(--color-bg-surface-soft)",
-                          color: active
-                            ? "var(--color-brand-primary)"
-                            : "var(--color-text-secondary)",
-                          fontWeight: active ? 700 : 500,
-                        }}
-                      >
-                        {c}
-                      </button>
-                    );
-                  })}
+                <div style={{ marginBottom: 8 }}>
+                  <div style={{
+                    fontSize: 11,
+                    color: "var(--color-text-muted)",
+                    marginBottom: 5,
+                    fontWeight: 500,
+                  }}>
+                    기존 카테고리에서 선택 (또는 아래 입력)
+                  </div>
+                  <div
+                    data-testid="matchup-upload-category-chips"
+                    style={{
+                      display: "flex", flexWrap: "wrap", gap: 5,
+                    }}
+                  >
+                    {categorySuggestions.map((c) => {
+                      const active = category.trim() === c;
+                      return (
+                        <button
+                          key={c}
+                          type="button"
+                          onClick={() => setCategory(active ? "" : c)}
+                          title={active ? "선택 해제" : `카테고리 "${c}" 선택`}
+                          style={{
+                            fontSize: 12,
+                            padding: "5px 11px",
+                            borderRadius: 999,
+                            cursor: "pointer",
+                            border: active
+                              ? "1.5px solid var(--color-brand-primary)"
+                              : "1px solid var(--color-border-divider)",
+                            background: active
+                              ? "color-mix(in srgb, var(--color-brand-primary) 14%, transparent)"
+                              : "var(--color-bg-surface-soft)",
+                            color: active
+                              ? "var(--color-brand-primary)"
+                              : "var(--color-text-secondary)",
+                            fontWeight: active ? 700 : 500,
+                            transition: "background 0.12s, border-color 0.12s",
+                          }}
+                        >
+                          {c}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
               <input

@@ -571,7 +571,7 @@ export default function DocumentList({
                   zIndex: 2,
                   width: "calc(100% - var(--space-4))",
                   margin: "0 var(--space-2) var(--space-1)",
-                  padding: "8px var(--space-3)",
+                  padding: "7px 6px 7px 8px",
                   borderRadius: "var(--radius-sm)",
                   background: isUncategorized
                     ? "var(--color-bg-surface-soft)"
@@ -694,23 +694,28 @@ export default function DocumentList({
                   )}
 
                   {!isRenaming && !isMerging && (
-                    <span style={{
-                      fontSize: 11,
-                      color: "var(--color-text-muted)",
-                      display: "flex",
-                      gap: 6,
-                      alignItems: "center",
-                      flexShrink: 0,
-                    }}>
+                    <span
+                      title={`시험지 ${group.tests.length} · 자료 ${group.references.length}`}
+                      style={{
+                        fontSize: 10,
+                        color: "var(--color-text-muted)",
+                        display: "inline-flex",
+                        gap: 3,
+                        alignItems: "center",
+                        flexShrink: 0,
+                        fontWeight: 700,
+                      }}
+                    >
                       {group.tests.length > 0 && (
-                        <span title="시험지" style={{ color: "var(--color-warning)", fontWeight: 700 }}>
-                          시험 {group.tests.length}
+                        <span style={{ color: "var(--color-warning)" }}>
+                          시{group.tests.length}
                         </span>
                       )}
+                      {group.tests.length > 0 && group.references.length > 0 && (
+                        <span style={{ color: "var(--color-border-divider)" }}>·</span>
+                      )}
                       {group.references.length > 0 && (
-                        <span title="참고 자료">
-                          자료 {group.references.length}
-                        </span>
+                        <span>자{group.references.length}</span>
                       )}
                     </span>
                   )}

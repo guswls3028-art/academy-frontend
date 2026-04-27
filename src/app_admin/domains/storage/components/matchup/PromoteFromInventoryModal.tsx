@@ -338,6 +338,23 @@ export default function PromoteFromInventoryModal({
             </button>
           </div>
 
+          {/* 모두 이미 승격된 경우 명시적 가이드 */}
+          {!isLoading && !error && eligibleFiles.length > 0 && selectableFiles.length === 0 && (
+            <div
+              data-testid="matchup-promote-all-promoted"
+              style={{
+                padding: "8px 12px",
+                borderRadius: 4,
+                background: "color-mix(in srgb, var(--color-brand-primary) 6%, transparent)",
+                border: "1px solid color-mix(in srgb, var(--color-brand-primary) 25%, transparent)",
+                fontSize: 12, color: "var(--color-text-secondary)", lineHeight: 1.5,
+              }}
+            >
+              저장소의 PDF·이미지가 모두 이미 매치업에 등록되어 있습니다.
+              새 자료를 가져오려면 먼저 저장소에 파일을 업로드하세요.
+            </div>
+          )}
+
           {/* 파일 목록 */}
           <div style={{
             border: "1px solid var(--color-border-divider)",
