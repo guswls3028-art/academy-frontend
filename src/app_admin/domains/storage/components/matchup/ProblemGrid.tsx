@@ -1,7 +1,7 @@
 // PATH: src/app_admin/domains/storage/components/matchup/ProblemGrid.tsx
 // 문제 카드 그리드 — 선택된 문서의 추출 문제 표시
 
-import { Loader2 } from "lucide-react";
+import { Loader2, AlertTriangle } from "lucide-react";
 import type { MatchupProblem } from "../../api/matchup.api";
 import ProblemCard from "./ProblemCard";
 
@@ -86,20 +86,54 @@ export default function ProblemGrid({
     );
   }
 
+  // 문제 60+ → 학습자료 over-extraction 의심 / merge_suspect 1개라도 있으면 가이드 노출.
+  const mergeSuspectCount = problems.filter(
+    (p) => Boolean((p.meta as { merge_suspect?: boolean } | undefined)?.merge_suspect),
+  ).length;
+  const showReviewGuide = problems.length >= 60 || mergeSuspectCount > 0;
+
   return (
-    <div style={{
-      display: "grid",
-      gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
-      gap: "var(--space-3)",
-    }}>
-      {problems.map((p) => (
-        <ProblemCard
-          key={p.id}
-          problem={p}
-          selected={selectedProblemId === p.id}
-          onClick={() => onSelectProblem(p.id)}
-        />
-      ))}
+    <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
+      {showReviewGuide && (
+        <div style={{
+          display: "flex", gap: "var(--space-2)", alignItems: "flex-start",
+          padding: "var(--space-2) var(--space-3)",
+          background: "color-mix(in srgb, var(--color-status-warning) 8%, var(--color-bg-surface))",
+          border: "1px solid color-mix(in srgb, var(--color-status-warning) 30%, transparent)",
+          borderRadius: "var(--radius-md)",
+          fontSize: 12, color: "var(--color-text-secondary)",
+        }}>
+          <AlertTriangle size={14} style={{ color: "var(--color-status-warning)", flexShrink: 0, marginTop: 1 }} />
+          <div>
+            {problems.length >= 60 && (
+              <>
+                <strong>학습자료 자동분리 한계:</strong> 본문 항목번호(1.~60.)를 문항으로 잘못 잡았을 수 있습니다. 정확한 매칭이 필요한 문항은
+                {" "}<strong>매뉴얼 크롭(드래그) 또는 Ctrl+V로 직접 붙여넣기</strong>를 권장합니다.
+              </>
+            )}
+            {problems.length < 60 && mergeSuspectCount > 0 && (
+              <>
+                <strong>{mergeSuspectCount}개 문항</strong>이 인접 문항과 합쳐졌을 가능성이 있습니다 (검수 배지 표시).
+                {" "}<strong>매뉴얼 크롭 또는 Ctrl+V</strong>로 정확히 잘라주세요.
+              </>
+            )}
+          </div>
+        </div>
+      )}
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
+        gap: "var(--space-3)",
+      }}>
+        {problems.map((p) => (
+          <ProblemCard
+            key={p.id}
+            problem={p}
+            selected={selectedProblemId === p.id}
+            onClick={() => onSelectProblem(p.id)}
+          />
+        ))}
+      </div>
     </div>
   );
 }
