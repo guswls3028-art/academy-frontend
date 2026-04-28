@@ -412,11 +412,12 @@ export default function MatchupPage() {
               </div>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)", height: "100%" }}>
-                {/* 문서 제목 */}
+                {/* 문서 제목 + 액션 그룹 — 보기 / 편집 / 산출물 의미별 그룹화 */}
                 <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", flexShrink: 0, flexWrap: "wrap" }}>
-                  <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "var(--color-text-primary)" }}>
+                  <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "var(--color-text-primary)", marginRight: "var(--space-2)" }}>
                     {selectedDoc?.title}
                   </h3>
+                  {/* 그룹 1: 보기 (회색 톤) */}
                   {selectedDoc && (
                     <button
                       onClick={() => setPreviewDocId(selectedDoc.id)}
@@ -435,6 +436,29 @@ export default function MatchupPage() {
                       원본 보기
                     </button>
                   )}
+                  {selectedDoc?.inventory_file_id && (
+                    <button
+                      onClick={() => navigate("/admin/storage/files")}
+                      data-testid="matchup-doc-storage-link"
+                      title="저장소에서 이 자료 보기"
+                      style={{
+                        display: "flex", alignItems: "center", gap: 4,
+                        fontSize: 11, padding: "3px 10px", borderRadius: 4,
+                        background: "var(--color-bg-surface-soft)",
+                        color: "var(--color-text-secondary)",
+                        border: "1px solid var(--color-border-divider)",
+                        cursor: "pointer",
+                      }}
+                    >
+                      <FolderOpen size={12} />
+                      저장소에서 보기
+                    </button>
+                  )}
+                  {/* 구분자 */}
+                  {selectedDoc && (
+                    <span style={{ width: 1, height: 16, background: "var(--color-border-divider)", margin: "0 2px" }} aria-hidden />
+                  )}
+                  {/* 그룹 2: 편집 (브랜드 컬러) */}
                   {selectedDoc && (
                     <button
                       onClick={() => setCropDocId(selectedDoc.id)}
@@ -454,6 +478,11 @@ export default function MatchupPage() {
                       직접 자르기
                     </button>
                   )}
+                  {/* 구분자 */}
+                  {selectedDoc && (
+                    <span style={{ width: 1, height: 16, background: "var(--color-border-divider)", margin: "0 2px" }} aria-hidden />
+                  )}
+                  {/* 그룹 3: 산출물 (성공 컬러 — 학원 마케팅 보고서 강조) */}
                   {selectedDoc && (
                     <button
                       onClick={async () => {
@@ -490,25 +519,6 @@ export default function MatchupPage() {
                     >
                       <FileText size={12} />
                       적중 보고서 PDF
-                    </button>
-                  )}
-                  {selectedDoc?.inventory_file_id && (
-                    <button
-                      onClick={() => navigate("/admin/storage/files")}
-                      data-testid="matchup-doc-storage-link"
-                      title="저장소에서 이 자료 보기"
-                      style={{
-                        display: "flex", alignItems: "center", gap: 4,
-                        fontSize: 11, padding: "3px 10px", borderRadius: 4,
-                        background: "color-mix(in srgb, var(--color-brand-primary) 8%, transparent)",
-                        color: "var(--color-brand-primary)",
-                        border: "1px solid color-mix(in srgb, var(--color-brand-primary) 30%, transparent)",
-                        cursor: "pointer",
-                        fontWeight: 600,
-                      }}
-                    >
-                      <FolderOpen size={12} />
-                      저장소에서 보기
                     </button>
                   )}
                   {selectedDoc?.subject && (
