@@ -5,7 +5,7 @@
  */
 import { useNavigate } from "react-router-dom";
 import { useProgram } from "@/shared/program";
-import { useAdminNotificationCounts } from "@admin/domains/admin-notifications/useAdminNotificationCounts";
+import { useTeacherPendingCounts } from "@teacher/shared/hooks/useTeacherPendingCounts";
 import { Menu, Bell, BellRing } from "@teacher/shared/ui/Icons";
 
 interface Props {
@@ -15,8 +15,8 @@ interface Props {
 export default function TeacherTopBar({ onMenuClick }: Props) {
   const navigate = useNavigate();
   const { program } = useProgram();
-  const { counts } = useAdminNotificationCounts();
-  const tenantName = program?.display_name || "학원플러스";
+  const { counts } = useTeacherPendingCounts();
+  const tenantName = program?.display_name?.trim() || "";
   const badge = counts?.total ?? 0;
 
   return (
@@ -55,23 +55,38 @@ export default function TeacherTopBar({ onMenuClick }: Props) {
         </button>
         <button
           onClick={() => navigate("/teacher")}
+          aria-label="홈으로"
           style={{
             background: "none",
             border: "none",
             padding: "4px 0",
             cursor: "pointer",
+            minHeight: 28,
           }}
         >
-          <span
-            style={{
-              fontSize: 17,
-              fontWeight: 700,
-              color: "var(--tc-text)",
-              letterSpacing: "-0.02em",
-            }}
-          >
-            {tenantName}
-          </span>
+          {tenantName ? (
+            <span
+              style={{
+                fontSize: 17,
+                fontWeight: 700,
+                color: "var(--tc-text)",
+                letterSpacing: "-0.02em",
+              }}
+            >
+              {tenantName}
+            </span>
+          ) : (
+            <span
+              aria-hidden
+              style={{
+                display: "inline-block",
+                width: 96,
+                height: 16,
+                borderRadius: 6,
+                background: "var(--tc-surface-soft)",
+              }}
+            />
+          )}
         </button>
       </div>
 

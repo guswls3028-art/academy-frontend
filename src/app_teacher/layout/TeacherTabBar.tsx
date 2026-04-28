@@ -4,11 +4,11 @@
  * 용어: 데스크톱 사이드바와 통일
  */
 import { NavLink } from "react-router-dom";
-import { useAdminNotificationCounts } from "@admin/domains/admin-notifications/useAdminNotificationCounts";
+import { useTeacherPendingCounts } from "@teacher/shared/hooks/useTeacherPendingCounts";
 import { Home, BookOpen, Users, MessageSquare } from "@teacher/shared/ui/Icons";
 
 export default function TeacherTabBar() {
-  const { counts } = useAdminNotificationCounts();
+  const { counts } = useTeacherPendingCounts();
   const badge = counts?.total ?? 0;
 
   const tabs = [
@@ -87,7 +87,7 @@ export default function TeacherTabBar() {
                     textAlign: "center",
                     borderRadius: 7,
                     padding: "0 3px",
-                    background: "#ef4444",
+                    background: "var(--tc-danger)",
                     color: "#fff",
                   }}
                 >

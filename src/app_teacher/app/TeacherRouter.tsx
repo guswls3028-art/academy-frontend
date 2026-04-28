@@ -1,6 +1,6 @@
 /**
  * PATH: src/app_teacher/app/TeacherRouter.tsx
- * 선생님 전용 모바일 앱 라우터 — 5탭(오늘|수업|학생|소통|더보기)
+ * 선생님 전용 모바일 앱 라우터 — 하단 4탭(오늘|강의|학생|커뮤니티) + 헤더 햄버거 드로어
  */
 import { Suspense } from "react";
 import { lazyWithRetry as lazy } from "@/shared/utils/lazyWithRetry";

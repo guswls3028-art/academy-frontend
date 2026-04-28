@@ -20,6 +20,7 @@ export function Card({
       style={{
         background: "var(--tc-surface)",
         border: "1px solid var(--tc-border)",
+        boxShadow: "var(--tc-shadow-sm)",
         padding: "var(--tc-space-4)",
         ...(onClick ? { cursor: "pointer" } : {}),
         ...style,
@@ -71,6 +72,7 @@ export function KpiCard({
       style={{
         background: "var(--tc-surface)",
         border: "1px solid var(--tc-border)",
+        boxShadow: "var(--tc-shadow-sm)",
         cursor: onClick ? "pointer" : undefined,
       }}
       onClick={onClick}
@@ -150,6 +152,7 @@ export function ListItem({
         padding: "var(--tc-space-3) var(--tc-space-4)",
         background: "var(--tc-surface)",
         border: "1px solid var(--tc-border)",
+        boxShadow: "var(--tc-shadow-sm)",
       }}
     >
       <div className="flex-1 min-w-0">{children}</div>
