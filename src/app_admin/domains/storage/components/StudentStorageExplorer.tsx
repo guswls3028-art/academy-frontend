@@ -107,9 +107,11 @@ export default function StudentStorageExplorer({ studentPs }: StudentStorageExpl
           studentPs,
         });
         qc.invalidateQueries({ queryKey: [...QK] });
-        setUploadModalOpen(false);
+        // 모달 close는 UploadModal이 batch 전체 완료 후 직접 호출 (다중 업로드 진행률 보존).
       } catch (e) {
-        feedback.error((e as Error).message);
+        // UploadModal이 자체 catch로 friendly 메시지 토스트 처리. succeeded 카운트를
+        // 위해 다시 throw.
+        throw e;
       }
     },
     [currentFolderId, studentPs, qc]

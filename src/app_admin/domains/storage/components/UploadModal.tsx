@@ -45,6 +45,26 @@ function defaultDisplayName(name: string): string {
   return name.replace(/\.[^.]+$/, "") || name;
 }
 
+// axios timeout / 네트워크 에러를 사용자 언어로 변환.
+// raw "timeout of 300000ms exceeded" 같은 메시지가 토스트에 노출되는 것을 차단.
+function describeUploadError(err: unknown): string {
+  const e = err as {
+    code?: string;
+    message?: string;
+    response?: { data?: { detail?: string } };
+  } | null | undefined;
+  if (!e) return "업로드에 실패했습니다";
+  const detail = e.response?.data?.detail;
+  if (detail) return detail;
+  if (e.code === "ECONNABORTED" || /timeout/i.test(e.message ?? "")) {
+    return "5분 이상 걸려 중단됐습니다. 파일이 크거나 네트워크가 느릴 수 있어요.";
+  }
+  if (e.code === "ERR_NETWORK" || /network/i.test(e.message ?? "")) {
+    return "네트워크가 끊겨 업로드에 실패했습니다.";
+  }
+  return e.message || "업로드에 실패했습니다";
+}
+
 export default function UploadModal({ onClose, onUpload }: UploadModalProps) {
   const [displayName, setDisplayName] = useState("");
   const [description, setDescription] = useState("");
@@ -94,8 +114,8 @@ export default function UploadModal({ onClose, onUpload }: UploadModalProps) {
     }
     setUploading(true);
     setProgress({ current: 0, total: files.length });
+    let succeeded = 0;
     try {
-      let succeeded = 0;
       for (let i = 0; i < files.length; i++) {
         const f = files[i];
         setProgress({ current: i, total: files.length });
@@ -110,16 +130,25 @@ export default function UploadModal({ onClose, onUpload }: UploadModalProps) {
           });
           succeeded++;
         } catch (err) {
-          feedback.error(`${f.name}: ${(err as Error).message}`);
+          feedback.error(`${f.name}: ${describeUploadError(err)}`);
         }
       }
       setProgress({ current: files.length, total: files.length });
-      if (isMulti && succeeded > 0) {
-        feedback.success(`${succeeded} / ${files.length}개 업로드 완료`);
+      if (isMulti) {
+        if (succeeded === files.length) {
+          feedback.success(`${succeeded}개 업로드 완료`);
+        } else if (succeeded > 0) {
+          feedback.warning(`${succeeded} / ${files.length}개 업로드 완료. 실패한 파일은 모달에서 다시 시도해 주세요.`);
+        }
       }
     } finally {
       setUploading(false);
       setProgress(null);
+    }
+    // 모든 파일이 성공한 경우에만 모달 닫기. 실패가 있으면 사용자가 확인 후 닫도록.
+    // (단일 파일 성공도 success===1 === files.length 조건에 포함)
+    if (succeeded === files.length) {
+      onClose();
     }
   };
 

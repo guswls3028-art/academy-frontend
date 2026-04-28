@@ -140,7 +140,9 @@ export default function MyStorageExplorer() {
         if (payload.promoteToMatchup) {
           qc.invalidateQueries({ queryKey: ["matchup-documents"] });
         }
-        setUploadModalOpen(false);
+        // 모달 close는 UploadModal이 batch 전체 완료 후 직접 호출.
+        // (이전엔 매 파일 업로드 후 close 호출 → 다중 업로드 첫 파일 성공 시 모달이 사라져
+        //  나머지 파일 진행률을 사용자가 못 봄.)
         if (payload.promoteToMatchup) {
           if (res.matchupPromoteFailed) {
             feedback.warning(
@@ -166,7 +168,9 @@ export default function MyStorageExplorer() {
           }
         }
       } catch (e) {
-        feedback.error((e as Error).message);
+        // UploadModal이 자체 try/catch로 잡고 friendly 메시지로 토스트.
+        // 여기서는 다시 throw해서 UploadModal의 batch loop가 succeeded 카운트를 정확히 추적.
+        throw e;
       }
     },
     [currentFolderId, qc]

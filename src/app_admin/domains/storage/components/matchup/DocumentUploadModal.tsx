@@ -32,6 +32,26 @@ type Props = {
 const ACCEPT = ".pdf,.png,.jpg,.jpeg,.heic,.heif";
 const MAX_SIZE = 2 * 1024 * 1024 * 1024;  // 2GB — 사용자 요청 (악용 risk 없는 학원 SaaS)
 
+// axios timeout(ECONNABORTED) / 일반 네트워크 에러를 사용자 언어로 변환.
+// 5분 timeout 도달 시 "20000ms 에러" 같은 raw 메시지가 노출되는 것을 차단.
+function describeUploadError(err: unknown): string {
+  const e = err as {
+    code?: string;
+    message?: string;
+    response?: { data?: { detail?: string }; status?: number };
+  } | null | undefined;
+  if (!e) return "업로드에 실패했습니다";
+  const detail = e.response?.data?.detail;
+  if (detail) return detail;
+  if (e.code === "ECONNABORTED" || /timeout/i.test(e.message ?? "")) {
+    return "업로드가 5분 이상 걸려 중단됐습니다. 파일이 크거나 네트워크가 느릴 수 있어요. 1개씩 다시 시도해 주세요.";
+  }
+  if (e.code === "ERR_NETWORK" || /network/i.test(e.message ?? "")) {
+    return "네트워크가 끊겨 업로드에 실패했습니다. 연결을 확인 후 다시 시도해 주세요.";
+  }
+  return e.message || "업로드에 실패했습니다";
+}
+
 type Entry = {
   file: File;
   thumbUrl: string | null;
@@ -56,7 +76,9 @@ export default function DocumentUploadModal({
   const [mergeProgress, setMergeProgress] = useState<MergeProgress | null>(null);
   // 다중 업로드 모드 — 각 파일을 별도 시험지로 동시 업로드
   const [splitMode, setSplitMode] = useState(false);
-  const [splitProgress, setSplitProgress] = useState<{ done: number; total: number } | null>(null);
+  const [splitProgress, setSplitProgress] = useState<{
+    done: number; total: number; current?: string; failed: number;
+  } | null>(null);
   const [dropError, setDropError] = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
@@ -205,9 +227,11 @@ export default function DocumentUploadModal({
     if (entries.length === 0) return;
     setUploading(true);
     try {
-      // ── Split mode: 각 파일을 별도 시험지로 동시 업로드 ──
+      // ── Split mode: 각 파일을 별도 시험지로 순차 업로드 ──
+      // 운영 사고(2026-04-28): 7개 동시 업로드 → 5분 timeout으로 일부 silent fail.
+      // 큰 파일(80MB+) 동시 7개 시 R2/네트워크/RDS 풀 모두 부담 → 직렬화 + per-file 진행률 + 실패 누적.
       if (splitMode && entries.length > 1) {
-        setSplitProgress({ done: 0, total: entries.length });
+        setSplitProgress({ done: 0, total: entries.length, failed: 0 });
         // HEIC만 미리 변환 (각 파일을 그대로 업로드, 헤이크는 backend가 거부)
         const prepared: { file: File; baseName: string }[] = [];
         for (const e of entries) {
@@ -226,23 +250,40 @@ export default function DocumentUploadModal({
           }
           prepared.push({ file, baseName: file.name.replace(/\.pdf$/i, "") });
         }
-        // 병렬 업로드 (각 파일이 별도 문서)
-        let done = 0;
+        // 직렬 업로드 — 각 파일이 별도 문서. timeout/실패는 per-file 격리.
         const baseTitle = title.trim();
-        await Promise.all(prepared.map(async (p) => {
+        const failed: { name: string; reason: string }[] = [];
+        let done = 0;
+        for (const p of prepared) {
+          setSplitProgress({ done, total: prepared.length, current: p.baseName, failed: failed.length });
           const docTitle = baseTitle ? `${baseTitle} - ${p.baseName}` : p.baseName;
-          await onUpload({
-            file: p.file,
-            title: docTitle,
-            category,
-            subject,
-            grade_level: gradeLevel,
-          });
+          try {
+            await onUpload({
+              file: p.file,
+              title: docTitle,
+              category,
+              subject,
+              grade_level: gradeLevel,
+            });
+          } catch (err) {
+            failed.push({ name: p.baseName, reason: describeUploadError(err) });
+            feedback.error(`${p.baseName}: ${describeUploadError(err)}`);
+          }
           done += 1;
-          setSplitProgress({ done, total: prepared.length });
-        }));
+          setSplitProgress({ done, total: prepared.length, failed: failed.length });
+        }
         setSplitProgress(null);
-        onClose();
+        if (failed.length === 0) {
+          feedback.success(`${prepared.length}개 ${intentLabel} 업로드 완료`);
+          onClose();
+        } else if (failed.length < prepared.length) {
+          feedback.warning(
+            `${prepared.length - failed.length}/${prepared.length} 업로드 완료. ${failed.length}개 실패 — 모달에서 다시 시도해 주세요.`,
+          );
+          // 모달 유지 — 사용자가 실패 인지 후 재시도 또는 닫기 선택
+        } else {
+          feedback.error(`전체 업로드 실패. 네트워크/파일 크기를 확인 후 다시 시도해 주세요.`);
+        }
         return;
       }
 
@@ -278,16 +319,7 @@ export default function DocumentUploadModal({
       onClose();
     } catch (e) {
       console.error(e);
-      let msg: string;
-      if (e instanceof Error && e.message) {
-        msg = e.message;
-      } else if (typeof e === "object" && e !== null && "response" in e) {
-        const resp = (e as { response?: { data?: { detail?: string } } }).response;
-        msg = resp?.data?.detail || "업로드에 실패했습니다";
-      } else {
-        msg = "업로드에 실패했습니다";
-      }
-      feedback.error(msg);
+      feedback.error(describeUploadError(e));
     } finally {
       setUploading(false);
       setMergeProgress(null);
@@ -755,11 +787,18 @@ export default function DocumentUploadModal({
             {(mergeLabel || splitProgress) && (
               <span style={{
                 fontSize: 12,
-                color: splitProgress ? "var(--color-success)" : "var(--color-brand-primary)",
+                color: splitProgress?.failed
+                  ? "var(--color-warning)"
+                  : splitProgress
+                    ? "var(--color-success)"
+                    : "var(--color-brand-primary)",
                 fontWeight: 600, marginRight: "auto",
+                maxWidth: 320, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
               }}>
                 {splitProgress
-                  ? `${intentLabel} 업로드 중... ${splitProgress.done}/${splitProgress.total}`
+                  ? splitProgress.current
+                    ? `[${splitProgress.done + 1}/${splitProgress.total}] ${splitProgress.current}${splitProgress.failed ? ` (실패 ${splitProgress.failed})` : ""}`
+                    : `${intentLabel} 업로드 중... ${splitProgress.done}/${splitProgress.total}${splitProgress.failed ? ` (실패 ${splitProgress.failed})` : ""}`
                   : mergeLabel}
               </span>
             )}
