@@ -27,7 +27,7 @@ const TS = Date.now();
 const TAG = `[E2E-${TS}]`;
 const MATCHUP_URL = "https://hakwonplus.com/admin/storage/matchup";
 
-const BASE_DIR = "C:/academy/매치업테스트자료/extracted";
+const BASE_DIR = "C:/academy/_artifacts/fixtures/매치업테스트자료/extracted";
 const CASES = [
   {
     key: "A-은광여고",

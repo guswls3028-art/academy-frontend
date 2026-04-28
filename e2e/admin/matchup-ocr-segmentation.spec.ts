@@ -12,7 +12,7 @@ import path from "path";
 
 const API = getApiBaseUrl();
 const TAG = `[E2E-${Date.now()}]`;
-const SCAN_PDF = "C:/academy/매치업테스트자료/extracted/2025-1-m 고1 숙명여고 통합과학.pdf";
+const SCAN_PDF = "C:/academy/_artifacts/fixtures/매치업테스트자료/extracted/2025-1-m 고1 숙명여고 통합과학.pdf";
 
 let uploadedDocId: number | null = null;
 let uploadedDocToken: string | null = null;
