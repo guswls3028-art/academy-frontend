@@ -380,7 +380,12 @@ export default function MatchupPage() {
 
   return (
     <>
-      <div className={css.root}>
+      <div className={css.root} style={{
+        // 좌측 트리가 페이지와 함께 스크롤되지 않도록 페이지 높이로 제한.
+        // 헤더(상단 nav) + 탭 = ~120px 추정, 여유 1mm.
+        maxHeight: "calc(100vh - 100px)",
+        height: "calc(100vh - 100px)",
+      }}>
         <div className={css.body}>
           {/* 좌측: 문서 목록 */}
           <div className={css.tree}>
