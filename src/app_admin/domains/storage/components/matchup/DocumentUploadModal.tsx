@@ -55,7 +55,17 @@ function describeUploadError(err: unknown): string {
 type Entry = {
   file: File;
   thumbUrl: string | null;
+  // splitMode 직렬 업로드 진행 상태. 사용자가 어떤 파일이 실패/완료됐는지 entry 행에서 즉시 인식.
+  status?: "idle" | "uploading" | "done" | "failed";
+  error?: string;
 };
+
+// 평균 1파일당 처리 시간 × 잔여 파일 → 사용자에게 "예상 X분 남음" 안내.
+function formatEta(remainingSec: number): string {
+  if (remainingSec < 60) return `${Math.max(1, Math.ceil(remainingSec))}초`;
+  const m = Math.ceil(remainingSec / 60);
+  return `${m}분`;
+}
 
 export default function DocumentUploadModal({
   onClose,
@@ -78,6 +88,8 @@ export default function DocumentUploadModal({
   const [splitMode, setSplitMode] = useState(false);
   const [splitProgress, setSplitProgress] = useState<{
     done: number; total: number; current?: string; failed: number;
+    // 평균 시간 기반 ETA 계산용
+    startedAt?: number;
   } | null>(null);
   const [dropError, setDropError] = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -231,10 +243,17 @@ export default function DocumentUploadModal({
       // 운영 사고(2026-04-28): 7개 동시 업로드 → 5분 timeout으로 일부 silent fail.
       // 큰 파일(80MB+) 동시 7개 시 R2/네트워크/RDS 풀 모두 부담 → 직렬화 + per-file 진행률 + 실패 누적.
       if (splitMode && entries.length > 1) {
-        setSplitProgress({ done: 0, total: entries.length, failed: 0 });
+        const startedAt = Date.now();
+        setSplitProgress({ done: 0, total: entries.length, failed: 0, startedAt });
+        // 시작 안내 — 큰 파일 다수일 때 모달을 닫지 않도록 명시.
+        feedback.info(`${entries.length}개 ${intentLabel}를 순차 업로드합니다. 모달을 닫지 마세요.`);
+        // entries 상태 초기화 (재시도 시 이전 failed 상태 정리)
+        setEntries((prev) => prev.map((e) => ({ ...e, status: "idle" as const, error: undefined })));
+
         // HEIC만 미리 변환 (각 파일을 그대로 업로드, 헤이크는 backend가 거부)
-        const prepared: { file: File; baseName: string }[] = [];
-        for (const e of entries) {
+        const prepared: { file: File; baseName: string; entryIdx: number }[] = [];
+        for (let i = 0; i < entries.length; i++) {
+          const e = entries[i];
           let file = e.file;
           if (isHeic(file)) {
             const { convertHeicToJpeg } = await import("./filesToPdf");
@@ -248,14 +267,19 @@ export default function DocumentUploadModal({
           if (file.size > MAX_SIZE) {
             throw new Error(`${file.name}이(가) 2GB를 초과합니다.`);
           }
-          prepared.push({ file, baseName: file.name.replace(/\.pdf$/i, "") });
+          prepared.push({ file, baseName: file.name.replace(/\.pdf$/i, ""), entryIdx: i });
         }
         // 직렬 업로드 — 각 파일이 별도 문서. timeout/실패는 per-file 격리.
         const baseTitle = title.trim();
         const failed: { name: string; reason: string }[] = [];
         let done = 0;
         for (const p of prepared) {
-          setSplitProgress({ done, total: prepared.length, current: p.baseName, failed: failed.length });
+          setSplitProgress({
+            done, total: prepared.length, current: p.baseName,
+            failed: failed.length, startedAt,
+          });
+          // 해당 entry 행에 'uploading' 표시
+          setEntries((prev) => prev.map((e, i) => i === p.entryIdx ? { ...e, status: "uploading" } : e));
           const docTitle = baseTitle ? `${baseTitle} - ${p.baseName}` : p.baseName;
           try {
             await onUpload({
@@ -265,12 +289,15 @@ export default function DocumentUploadModal({
               subject,
               grade_level: gradeLevel,
             });
+            setEntries((prev) => prev.map((e, i) => i === p.entryIdx ? { ...e, status: "done" } : e));
           } catch (err) {
-            failed.push({ name: p.baseName, reason: describeUploadError(err) });
-            feedback.error(`${p.baseName}: ${describeUploadError(err)}`);
+            const reason = describeUploadError(err);
+            failed.push({ name: p.baseName, reason });
+            setEntries((prev) => prev.map((e, i) => i === p.entryIdx ? { ...e, status: "failed", error: reason } : e));
+            feedback.error(`${p.baseName}: ${reason}`);
           }
           done += 1;
-          setSplitProgress({ done, total: prepared.length, failed: failed.length });
+          setSplitProgress({ done, total: prepared.length, failed: failed.length, startedAt });
         }
         setSplitProgress(null);
         if (failed.length === 0) {
@@ -278,9 +305,9 @@ export default function DocumentUploadModal({
           onClose();
         } else if (failed.length < prepared.length) {
           feedback.warning(
-            `${prepared.length - failed.length}/${prepared.length} 업로드 완료. ${failed.length}개 실패 — 모달에서 다시 시도해 주세요.`,
+            `${prepared.length - failed.length}/${prepared.length} 업로드 완료. 실패 ${failed.length}개는 목록에서 ❌로 표시됩니다.`,
           );
-          // 모달 유지 — 사용자가 실패 인지 후 재시도 또는 닫기 선택
+          // 모달 유지 — 사용자가 실패 entry 인지 후 재시도 또는 닫기 선택
         } else {
           feedback.error(`전체 업로드 실패. 네트워크/파일 크기를 확인 후 다시 시도해 주세요.`);
         }
@@ -529,10 +556,28 @@ export default function DocumentUploadModal({
               <p style={{ margin: "0 0 var(--space-2)", fontSize: 11, color: "var(--color-text-muted)" }}>
                 업로드 순서 (위→아래). 드래그하거나 ↑↓ 버튼으로 변경 가능.
               </p>
-              {entries.map((entry, i) => (
+              {entries.map((entry, i) => {
+                const entryBg = entry.status === "failed"
+                  ? "color-mix(in srgb, var(--color-danger) 8%, transparent)"
+                  : entry.status === "done"
+                    ? "color-mix(in srgb, var(--color-success) 6%, transparent)"
+                    : entry.status === "uploading"
+                      ? "color-mix(in srgb, var(--color-brand-primary) 8%, transparent)"
+                      : dragIndex === i
+                        ? "color-mix(in srgb, var(--color-brand-primary) 8%, transparent)"
+                        : undefined;
+                const entryBorderLeft = entry.status === "failed"
+                  ? "3px solid var(--color-danger)"
+                  : entry.status === "done"
+                    ? "3px solid var(--color-success)"
+                    : entry.status === "uploading"
+                      ? "3px solid var(--color-brand-primary)"
+                      : undefined;
+                return (
                 <div
                   key={i}
                   data-testid="matchup-upload-entry"
+                  data-entry-status={entry.status ?? "idle"}
                   draggable={!uploading}
                   onDragStart={handleEntryDragStart(i)}
                   onDragOver={handleEntryDragOver()}
@@ -543,7 +588,8 @@ export default function DocumentUploadModal({
                     padding: "var(--space-2)",
                     fontSize: 12,
                     borderBottom: i < entries.length - 1 ? "1px solid var(--color-border-divider)" : "none",
-                    background: dragIndex === i ? "color-mix(in srgb, var(--color-brand-primary) 8%, transparent)" : undefined,
+                    borderLeft: entryBorderLeft,
+                    background: entryBg,
                     cursor: uploading ? "default" : "grab",
                   }}
                 >
@@ -588,11 +634,25 @@ export default function DocumentUploadModal({
                     <div style={{
                       overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                       fontWeight: 500, fontSize: 13,
+                      display: "flex", alignItems: "center", gap: 6,
                     }}>
-                      {i + 1}. {entry.file.name}
+                      {entry.status === "done" && (
+                        <span title="업로드 완료" style={{ color: "var(--color-success)", fontSize: 14, lineHeight: 1, flexShrink: 0 }}>✓</span>
+                      )}
+                      {entry.status === "failed" && (
+                        <span title={entry.error ?? "업로드 실패"} style={{ color: "var(--color-danger)", fontSize: 14, lineHeight: 1, flexShrink: 0 }}>✕</span>
+                      )}
+                      {entry.status === "uploading" && (
+                        <span title="업로드 중" style={{ color: "var(--color-brand-primary)", fontSize: 12, lineHeight: 1, flexShrink: 0 }}>▶</span>
+                      )}
+                      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {i + 1}. {entry.file.name}
+                      </span>
                     </div>
-                    <div style={{ fontSize: 11, color: "var(--color-text-muted)", marginTop: 4 }}>
-                      {isPdf(entry.file) ? "PDF" : isHeic(entry.file) ? "HEIC (자동 변환)" : "이미지"} · {(entry.file.size / 1024 / 1024).toFixed(2)}MB
+                    <div style={{ fontSize: 11, color: entry.status === "failed" ? "var(--color-danger)" : "var(--color-text-muted)", marginTop: 4 }}>
+                      {entry.status === "failed" && entry.error
+                        ? entry.error
+                        : `${isPdf(entry.file) ? "PDF" : isHeic(entry.file) ? "HEIC (자동 변환)" : "이미지"} · ${(entry.file.size / 1024 / 1024).toFixed(2)}MB${entry.status === "done" ? " · 완료" : entry.status === "uploading" ? " · 업로드 중" : ""}`}
                     </div>
                   </div>
 
@@ -617,7 +677,8 @@ export default function DocumentUploadModal({
                     title="제거"
                   ><X size={14} /></button>
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
 
@@ -793,12 +854,23 @@ export default function DocumentUploadModal({
                     ? "var(--color-success)"
                     : "var(--color-brand-primary)",
                 fontWeight: 600, marginRight: "auto",
-                maxWidth: 320, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                maxWidth: 380, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
               }}>
                 {splitProgress
-                  ? splitProgress.current
-                    ? `[${splitProgress.done + 1}/${splitProgress.total}] ${splitProgress.current}${splitProgress.failed ? ` (실패 ${splitProgress.failed})` : ""}`
-                    : `${intentLabel} 업로드 중... ${splitProgress.done}/${splitProgress.total}${splitProgress.failed ? ` (실패 ${splitProgress.failed})` : ""}`
+                  ? (() => {
+                      // 평균 처리 시간 기반 ETA — done >= 1일 때부터 신뢰도 있음.
+                      let eta = "";
+                      if (splitProgress.done >= 1 && splitProgress.startedAt) {
+                        const elapsed = (Date.now() - splitProgress.startedAt) / 1000;
+                        const avgPerFile = elapsed / splitProgress.done;
+                        const remaining = avgPerFile * (splitProgress.total - splitProgress.done);
+                        if (remaining > 5) eta = ` · 약 ${formatEta(remaining)} 남음`;
+                      }
+                      const failBadge = splitProgress.failed ? ` · 실패 ${splitProgress.failed}` : "";
+                      return splitProgress.current
+                        ? `[${splitProgress.done + 1}/${splitProgress.total}] ${splitProgress.current}${failBadge}${eta}`
+                        : `${intentLabel} 업로드 중... ${splitProgress.done}/${splitProgress.total}${failBadge}${eta}`;
+                    })()
                   : mergeLabel}
               </span>
             )}
