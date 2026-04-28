@@ -1,58 +1,162 @@
 /**
- * 출결 현황 — 일정 페이지의 출결 뷰로 안내
+ * 출결 현황 — 본인 누적 카운트 + 최근 차시별 상태
  */
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import StudentPageShell from "@student/shared/ui/pages/StudentPageShell";
-import { IconCalendar } from "@student/shared/ui/icons/Icons";
+import EmptyState from "@student/layout/EmptyState";
+import api from "@student/shared/api/student.api";
+import { formatYmd } from "@student/shared/utils/date";
+
+type AttendanceSummary = {
+  summary: {
+    total: number;
+    present: number;
+    absent: number;
+    late: number;
+    early_leave: number;
+    runaway: number;
+  };
+  recent: Array<{
+    session_id: number;
+    lecture_title: string;
+    session_title: string;
+    date: string | null;
+    status: string;
+  }>;
+};
+
+const STATUS_LABEL: Record<string, string> = {
+  PRESENT: "출석",
+  ONLINE: "온라인",
+  SUPPLEMENT: "보강",
+  LATE: "지각",
+  EARLY_LEAVE: "조퇴",
+  ABSENT: "결석",
+  RUNAWAY: "출튀",
+  MATERIAL: "자료",
+  INACTIVE: "부재",
+  SECESSION: "탈퇴",
+};
+
+const STATUS_TONE: Record<string, string> = {
+  PRESENT: "var(--stu-success)",
+  ONLINE: "var(--stu-success)",
+  SUPPLEMENT: "var(--stu-success)",
+  LATE: "var(--stu-warn)",
+  EARLY_LEAVE: "var(--stu-warn)",
+  ABSENT: "var(--stu-danger)",
+  RUNAWAY: "var(--stu-danger)",
+};
+
+async function fetchAttendanceSummary(): Promise<AttendanceSummary> {
+  const res = await api.get<AttendanceSummary>("/student/attendance/summary/");
+  return res.data;
+}
 
 export default function AttendancePage() {
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["student", "attendance", "summary"],
+    queryFn: fetchAttendanceSummary,
+    staleTime: 30_000,
+  });
+
+  if (isLoading) {
+    return (
+      <StudentPageShell title="출결 현황">
+        <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-3)" }}>
+          <div className="stu-skel" style={{ height: 88, borderRadius: "var(--stu-radius)" }} />
+          <div className="stu-skel" style={{ height: 240, borderRadius: "var(--stu-radius)" }} />
+        </div>
+      </StudentPageShell>
+    );
+  }
+
+  if (isError || !data) {
+    return (
+      <StudentPageShell title="출결 현황">
+        <EmptyState title="출결 정보를 불러오지 못했습니다" description="잠시 후 다시 시도해 주세요." />
+      </StudentPageShell>
+    );
+  }
+
+  const { summary, recent } = data;
+  const hasAny = summary.total > 0;
+
   return (
-    <StudentPageShell title="출결 현황" description="수업별 출석 현황을 확인하세요.">
-      <div style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        padding: "var(--stu-space-10, 48px) 0",
-        textAlign: "center",
-        gap: "var(--stu-space-5)",
-      }}>
-        <div style={{
-          width: 72, height: 72, borderRadius: "50%",
-          background: "linear-gradient(135deg, var(--stu-tint-primary), var(--stu-surface-soft))",
-          border: "1px solid var(--stu-border-subtle)",
-          display: "grid", placeItems: "center",
-        }}>
-          <IconCalendar style={{ width: 34, height: 34, color: "var(--stu-primary)" }} />
+    <StudentPageShell title="출결 현황" description="누적 출결과 최근 차시 상태입니다.">
+      {!hasAny ? (
+        <EmptyState
+          title="출결 기록이 없습니다"
+          description="수업이 시작되면 차시별 출결이 표시됩니다."
+        />
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-4)" }}>
+          {/* KPI */}
+          <section
+            className="stu-panel"
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(4, 1fr)",
+              gap: "var(--stu-space-2)",
+              padding: "var(--stu-space-4)",
+            }}
+          >
+            <KpiCell label="전체" value={summary.total} />
+            <KpiCell label="출석" value={summary.present} color="var(--stu-success)" />
+            <KpiCell label="지각" value={summary.late + summary.early_leave} color="var(--stu-warn)" />
+            <KpiCell label="결석" value={summary.absent + summary.runaway} color="var(--stu-danger)" />
+          </section>
+
+          {/* 최근 출결 */}
+          <section>
+            <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: "var(--stu-space-3)" }}>
+              최근 출결 ({recent.length})
+            </h3>
+            <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-2)" }}>
+              {recent.map((row) => (
+                <Link
+                  key={row.session_id}
+                  to={`/student/sessions/${row.session_id}`}
+                  className="stu-panel stu-panel--pressable"
+                  style={{ textDecoration: "none", color: "inherit", display: "flex", alignItems: "center", gap: "var(--stu-space-3)" }}
+                >
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {row.lecture_title || row.session_title || "차시"}
+                    </div>
+                    <div className="stu-muted" style={{ fontSize: 12 }}>
+                      {row.session_title} · {row.date ? formatYmd(row.date) : "-"}
+                    </div>
+                  </div>
+                  <span
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 700,
+                      padding: "4px 10px",
+                      borderRadius: 999,
+                      background: STATUS_TONE[row.status] ? `${STATUS_TONE[row.status]}22` : "var(--stu-surface-soft)",
+                      color: STATUS_TONE[row.status] || "var(--stu-text-muted)",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {STATUS_LABEL[row.status] || row.status}
+                  </span>
+                </Link>
+              ))}
+            </div>
+          </section>
         </div>
-        <div>
-          <div style={{ fontSize: 17, fontWeight: 600, color: "var(--stu-text)", marginBottom: "var(--stu-space-2)" }}>
-            각 수업에서 출석을 확인할 수 있어요
-          </div>
-          <div style={{ fontSize: 14, color: "var(--stu-text-muted)", lineHeight: 1.6, maxWidth: 300, margin: "0 auto" }}>
-            일정 목록에서 수업을 선택하면 해당 차시의 출결 상태를 볼 수 있습니다.
-          </div>
-        </div>
-        <Link
-          to="/student/sessions"
-          className="stu-btn stu-btn--primary"
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 8,
-            padding: "12px 24px",
-            minHeight: 44,
-            borderRadius: "var(--stu-radius-md)",
-            background: "var(--stu-primary)",
-            color: "var(--stu-primary-contrast)",
-            fontWeight: 700,
-            fontSize: 15,
-            textDecoration: "none",
-          }}
-        >
-          <IconCalendar style={{ width: 18, height: 18 }} />
-          수업 일정 보기
-        </Link>
-      </div>
+      )}
     </StudentPageShell>
+  );
+}
+
+function KpiCell({ label, value, color }: { label: string; value: number; color?: string }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+      <div style={{ fontSize: 20, fontWeight: 800, color: color || "var(--stu-text)" }}>{value}</div>
+      <div style={{ fontSize: 11, color: "var(--stu-text-muted)" }}>{label}</div>
+    </div>
   );
 }

@@ -28,7 +28,6 @@ const SubmitAssignmentPage = lazy(() => import("@student/domains/submit/pages/Su
 const MyInventoryPage = lazy(() => import("@student/domains/inventory/pages/MyInventoryPage"));
 
 const GradesPage = lazy(() => import("@student/domains/grades/pages/GradesPage"));
-const MorePage = lazy(() => import("@student/domains/more/pages/MorePage"));
 const ProfilePage = lazy(() => import("@student/domains/profile/pages/ProfilePage"));
 const CommunityPage = lazy(() => import("@student/domains/community/pages/CommunityPage"));
 const NoticesPage = lazy(() => import("@student/domains/notices/pages/NoticesPage"));
@@ -105,7 +104,6 @@ export default function StudentRouter() {
         <Route path="grades" element={<GradesPage />} />
         <Route path="grades/all" element={<Navigate to="/student/grades" replace />} />
         <Route path="grades/exams/:examId" element={<GradeDetailRedirect />} />
-        <Route path="more" element={<MorePage />} />
         <Route path="profile" element={<ProfilePage />} />
         <Route path="settings" element={<StudentSettingsPage />} />
         <Route path="community" element={<CommunityPage />} />

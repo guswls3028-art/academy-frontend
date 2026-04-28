@@ -70,9 +70,14 @@ export async function fetchAttendanceEnrolledStudentIds(
  * ======================================================= */
 export async function updateAttendance(
   id: number,
-  payload: { status?: string; memo?: string }
+  payload: { status?: string; memo?: string; confirm_secession?: boolean }
 ) {
-  const res = await api.patch(`/lectures/attendance/${id}/`, payload);
+  // SECESSION 전환은 백엔드가 confirm_secession 플래그를 요구함.
+  const body =
+    payload.status === "SECESSION" && payload.confirm_secession === undefined
+      ? { ...payload, confirm_secession: true }
+      : payload;
+  const res = await api.patch(`/lectures/attendance/${id}/`, body);
   return res.data;
 }
 

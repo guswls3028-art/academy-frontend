@@ -26,19 +26,23 @@ export default function ExamSubmitPage() {
   const isParent = user?.tenantRole === "parent";
   const tenantCode = resolveTenantCodeString();
 
-  const examQ = useStudentExam(Number.isFinite(safeId) ? safeId : undefined);
+  // 학부모는 응시 불가 — hook은 모두 호출하되 fetch/draft 동작을 차단해 자녀 데이터 오염 방지.
+  const examQ = useStudentExam(!isParent && Number.isFinite(safeId) ? safeId : undefined);
   const questionsQ = useQuery({
     queryKey: ["student", "exams", "questions", tenantCode, safeId],
     queryFn: () => fetchStudentExamQuestions(safeId),
-    enabled: Number.isFinite(safeId),
+    enabled: !isParent && Number.isFinite(safeId),
   });
   const questions = questionsQ.data ?? [];
   const loadingQuestions = questionsQ.isLoading;
 
-  const draftKey = `exam_draft_${tenantCode}_${user?.id ?? "anon"}_${safeId}`;
+  // 학부모일 땐 draft 자체를 저장/복원하지 않음 — 자녀 draft 오염 방지.
+  const draftKey = isParent
+    ? `exam_draft_PARENT_NOOP_${tenantCode}_${safeId}`
+    : `exam_draft_${tenantCode}_${user?.id ?? "anon"}_${safeId}`;
 
   const [answers, setAnswers] = useState<Record<number, string>>(() => {
-    // Restore draft from localStorage on mount
+    if (isParent) return {};
     try {
       const stored = localStorage.getItem(draftKey);
       if (stored) return JSON.parse(stored);
@@ -53,13 +57,15 @@ export default function ExamSubmitPage() {
     (updater: (prev: Record<number, string>) => Record<number, string>) => {
       setAnswers((prev) => {
         const next = updater(prev);
-        try {
-          localStorage.setItem(draftKey, JSON.stringify(next));
-        } catch { /* quota exceeded — non-critical */ }
+        if (!isParent) {
+          try {
+            localStorage.setItem(draftKey, JSON.stringify(next));
+          } catch { /* quota exceeded — non-critical */ }
+        }
         return next;
       });
     },
-    [draftKey],
+    [draftKey, isParent],
   );
 
   // Seed answers state when questions first load
@@ -117,6 +123,18 @@ export default function ExamSubmitPage() {
     return (
       <StudentPageShell title="시험 입력" description="잘못된 접근입니다.">
         <EmptyState title="잘못된 주소입니다." />
+      </StudentPageShell>
+    );
+  }
+
+  // 학부모 가드 — fetch는 disabled, 화면도 즉시 차단.
+  if (isParent) {
+    return (
+      <StudentPageShell title="시험 응시" description="학부모는 시험에 응시할 수 없습니다.">
+        <EmptyState
+          title="학부모는 시험에 응시할 수 없습니다."
+          description="자녀(학생) 계정으로 로그인한 뒤 응시해 주세요."
+        />
       </StudentPageShell>
     );
   }
@@ -185,17 +203,6 @@ export default function ExamSubmitPage() {
             시험 상세로 돌아가기
           </Link>
         </div>
-      </StudentPageShell>
-    );
-  }
-
-  if (isParent) {
-    return (
-      <StudentPageShell title={exam.title} description="학부모는 시험에 응시할 수 없습니다.">
-        <EmptyState
-          title="학부모는 시험에 응시할 수 없습니다."
-          description="자녀(학생) 계정으로 로그인한 뒤 응시해 주세요."
-        />
       </StudentPageShell>
     );
   }

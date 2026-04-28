@@ -6,8 +6,7 @@ import { EmptyState } from "@/shared/ui/ds";
 import { ChevronLeft, Download } from "@teacher/shared/ui/Icons";
 import { Card } from "@teacher/shared/ui/Card";
 import { Badge } from "@teacher/shared/ui/Badge";
-import { downloadAttendanceExcel } from "../api";
-import api from "@/shared/api/axios";
+import { downloadAttendanceExcel, fetchAttendanceMatrix } from "../api";
 
 export default function AttendanceMatrixPage() {
   const { lectureId } = useParams<{ lectureId: string }>();
@@ -16,10 +15,7 @@ export default function AttendanceMatrixPage() {
 
   const { data: matrix, isLoading } = useQuery({
     queryKey: ["attendance-matrix", lid],
-    queryFn: async () => {
-      const res = await api.get(`/lectures/lectures/${lid}/attendance-matrix/`);
-      return res.data;
-    },
+    queryFn: () => fetchAttendanceMatrix(lid),
     enabled: Number.isFinite(lid),
   });
 

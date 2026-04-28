@@ -66,6 +66,15 @@ export default function ParentChildSwitcher() {
         );
       },
     });
+    // 학생 ps_number가 키에 들어가는 쿼리(inventory 등)는 자녀 전환 시 stale 데이터가
+    // 잠깐 노출될 수 있어 캐시에서 즉시 제거.
+    qc.removeQueries({
+      predicate: (query) => {
+        const head = query.queryKey[0];
+        if (typeof head !== "string") return false;
+        return head === "student-inventory";
+      },
+    });
     navigate("/student/dashboard");
   };
 

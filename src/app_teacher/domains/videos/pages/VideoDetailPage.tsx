@@ -62,7 +62,8 @@ export default function VideoDetailPage() {
     return <EmptyState scope="panel" tone="error" title="영상을 찾을 수 없습니다" />;
 
   const students = Array.isArray(stats?.students) ? stats.students : [];
-  const watched = students.filter((s: any) => s.watched || s.progress >= 80);
+  // backend progress: 0~1 float. 80% 이상이면 시청 완료.
+  const watched = students.filter((s: any) => s.watched || (s.progress ?? 0) >= 0.8);
 
   return (
     <div className="flex flex-col gap-3">
@@ -147,7 +148,7 @@ export default function VideoDetailPage() {
         students.length > 0 ? (
           <div className="flex flex-col gap-1">
             {students.map((s: any) => {
-              const pct = Math.round(s.progress ?? 0);
+              const pct = Math.round((s.progress ?? 0) * 100);
               const done = pct >= 80;
               return (
                 <div key={s.student_id ?? s.id} className="flex justify-between items-center py-2 px-1 border-b last:border-b-0" style={{ borderColor: "var(--tc-border)" }}>

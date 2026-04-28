@@ -1,9 +1,11 @@
 /**
  * 학생 앱 알림 API
- * 클리닉 예약 승인, QnA·상담 답변, 새 영상, 새 성적 등의 알림 카운트 조회
+ * 클리닉 예약 승인, QnA·상담 답변, 새 성적 알림 카운트 조회.
+ * (영상 알림은 백엔드 ready_at 시그널 부재로 보류)
  */
 import { fetchMyClinicBookingRequests } from "@student/domains/clinic/api/clinicBooking.api";
 import { fetchMyQuestions, fetchMyCounselRequests } from "@student/domains/community/api/community.api";
+import { fetchMyGradesSummary } from "@student/domains/grades/api/grades.api";
 import { isNotificationSeen } from "../hooks/useSeenNotifications";
 
 export type NotificationCounts = {
@@ -32,10 +34,11 @@ export async function fetchNotificationCounts(
     const qnaPromise = hasProfile ? fetchMyQuestions(options!.profileId!, 50) : Promise.resolve([]);
     const counselPromise = hasProfile ? fetchMyCounselRequests(options!.profileId!, 50) : Promise.resolve([]);
 
-    const [clinicResult, qnaResult, counselResult] = await Promise.allSettled([
+    const [clinicResult, qnaResult, counselResult, gradesResult] = await Promise.allSettled([
       fetchMyClinicBookingRequests(),
       qnaPromise,
       counselPromise,
+      fetchMyGradesSummary(),
     ]);
 
     let clinic = 0;
@@ -68,8 +71,18 @@ export async function fetchNotificationCounts(
       }).length;
     }
 
-    const total = clinic + qna + counsel;
-    return { clinic, qna, counsel, video: 0, grade: 0, total };
+    let grade = 0;
+    if (gradesResult.status === "fulfilled") {
+      grade = (gradesResult.value.exams || []).filter((e) => {
+        if (!e.submitted_at) return false;
+        if (e.meta_status === "NOT_SUBMITTED") return false;
+        if (new Date(e.submitted_at).getTime() <= sevenDaysAgo) return false;
+        return !isNotificationSeen("grade", e.exam_id);
+      }).length;
+    }
+
+    const total = clinic + qna + counsel + grade;
+    return { clinic, qna, counsel, video: 0, grade, total };
   } catch {
     return { clinic: 0, qna: 0, counsel: 0, video: 0, grade: 0, total: 0 };
   }

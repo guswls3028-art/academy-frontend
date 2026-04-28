@@ -13,6 +13,7 @@ import { useMarkNotificationsSeen } from "../hooks/useSeenNotifications";
 import { fetchMyClinicBookingRequests } from "@student/domains/clinic/api/clinicBooking.api";
 import { fetchMyQuestions, fetchMyCounselRequests } from "@student/domains/community/api/community.api";
 import { fetchMyProfile } from "@student/domains/profile/api/profile.api";
+import { fetchMyGradesSummary } from "@student/domains/grades/api/grades.api";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { IconClinic, IconNotice } from "@student/shared/ui/icons/Icons";
 import EmptyState from "@student/layout/EmptyState";
@@ -46,8 +47,14 @@ export default function NotificationsPage() {
     staleTime: 30000,
   });
 
-  const isLoading = countsLoading || clinicLoading || qnaLoading || counselLoading;
-  const isError = countsError || clinicError || qnaError || counselError;
+  const { data: gradesSummary, isLoading: gradesLoading, isError: gradesError } = useQuery({
+    queryKey: ["student", "grades", "summary"],
+    queryFn: fetchMyGradesSummary,
+    staleTime: 30000,
+  });
+
+  const isLoading = countsLoading || clinicLoading || qnaLoading || counselLoading || gradesLoading;
+  const isError = countsError || clinicError || qnaError || counselError || gradesError;
   const sevenDaysAgo = Date.now() - SEVEN_DAYS_MS;
 
   const approvedClinicBookings = (clinicBookings || []).filter((b) => {
@@ -72,8 +79,15 @@ export default function NotificationsPage() {
     return updatedTime > sevenDaysAgo;
   });
 
+  const newGrades = (gradesSummary?.exams || []).filter((e) => {
+    if (!e.submitted_at) return false;
+    if (e.meta_status === "NOT_SUBMITTED") return false;
+    return new Date(e.submitted_at).getTime() > sevenDaysAgo;
+  });
+
   const hasNotifications = (counts?.total || 0) > 0 ||
-    approvedClinicBookings.length > 0 || answeredQnaPosts.length > 0 || answeredCounselPosts.length > 0;
+    approvedClinicBookings.length > 0 || answeredQnaPosts.length > 0 || answeredCounselPosts.length > 0 ||
+    newGrades.length > 0;
 
   // 알림 페이지 진입 시 현재 보이는 항목들을 "읽음" 처리
   const markSeen = useMarkNotificationsSeen();
@@ -84,13 +98,14 @@ export default function NotificationsPage() {
     for (const b of approvedClinicBookings) items.push({ type: "clinic", id: b.id });
     for (const p of answeredQnaPosts) items.push({ type: "qna", id: p.id });
     for (const p of answeredCounselPosts) items.push({ type: "counsel", id: p.id });
+    for (const e of newGrades) items.push({ type: "grade", id: e.exam_id });
     if (items.length === 0) return;
     // 동일 항목 세트면 중복 호출 방지
     const key = items.map((i) => `${i.type}:${i.id}`).join(",");
     if (key === markedRef.current) return;
     markedRef.current = key;
     markSeen(items);
-  }, [isLoading, approvedClinicBookings, answeredQnaPosts, answeredCounselPosts, markSeen]);
+  }, [isLoading, approvedClinicBookings, answeredQnaPosts, answeredCounselPosts, newGrades, markSeen]);
 
   if (isLoading) {
     return (
@@ -115,6 +130,7 @@ export default function NotificationsPage() {
             qc.invalidateQueries({ queryKey: ["student", "clinic", "bookings"] });
             qc.invalidateQueries({ queryKey: ["student", "qna", "questions"] });
             qc.invalidateQueries({ queryKey: ["student", "me"] });
+            qc.invalidateQueries({ queryKey: ["student", "grades", "summary"] });
             qc.invalidateQueries({ queryKey: ["student", "notifications", "counts"] });
           }}
         />
@@ -179,6 +195,32 @@ export default function NotificationsPage() {
                     <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4 }}>{post.title}</div>
                     <div className="stu-muted" style={{ fontSize: 12 }}>
                       답변이 달렸습니다 · {post.replies_count ?? 0}개
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* 새 성적 */}
+          {newGrades.length > 0 && (
+            <section>
+              <div style={{ display: "flex", alignItems: "center", gap: "var(--stu-space-2)", marginBottom: "var(--stu-space-3)" }}>
+                <IconNotice style={{ width: 18, height: 18, color: "var(--stu-primary)" }} />
+                <h3 style={{ fontSize: 15, fontWeight: 700 }}>새 성적</h3>
+                <span style={{ fontSize: 12, color: "var(--stu-text-muted)" }}>({newGrades.length})</span>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-2)" }}>
+                {newGrades.map((g) => (
+                  <Link
+                    key={g.exam_id}
+                    to="/student/grades"
+                    className="stu-panel stu-panel--pressable"
+                    style={{ textDecoration: "none", color: "inherit" }}
+                  >
+                    <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4 }}>{g.title}</div>
+                    <div className="stu-muted" style={{ fontSize: 12 }}>
+                      {g.lecture_title || ""}{g.session_title ? ` · ${g.session_title}` : ""} · 결과 보기
                     </div>
                   </Link>
                 ))}
