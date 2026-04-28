@@ -4,9 +4,10 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { Sparkles, AlertTriangle, RefreshCw, Eye, FolderOpen, BookOpen, Crop } from "lucide-react";
+import { Sparkles, AlertTriangle, RefreshCw, Eye, FolderOpen, BookOpen, Crop, FileText } from "lucide-react";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import api from "@/shared/api/axios";
 import { asyncStatusStore } from "@/shared/ui/asyncStatus";
 import {
   fetchMatchupDocuments,
@@ -451,6 +452,44 @@ export default function MatchupPage() {
                     >
                       <Crop size={12} />
                       직접 자르기
+                    </button>
+                  )}
+                  {selectedDoc && (
+                    <button
+                      onClick={async () => {
+                        try {
+                          const resp = await api.get(
+                            `/matchup/documents/${selectedDoc.id}/hit-report.pdf`,
+                            { responseType: "blob" },
+                          );
+                          const blob = new Blob([resp.data], { type: "application/pdf" });
+                          const url = URL.createObjectURL(blob);
+                          const a = document.createElement("a");
+                          a.href = url;
+                          a.download = `${selectedDoc.title || "matchup"}-적중보고서.pdf`;
+                          document.body.appendChild(a);
+                          a.click();
+                          document.body.removeChild(a);
+                          URL.revokeObjectURL(url);
+                        } catch (e) {
+                          console.error(e);
+                          feedback.error("PDF 생성 실패");
+                        }
+                      }}
+                      data-testid="matchup-doc-hit-report-btn"
+                      title="시험지 기준 학원 자료 적중률 PDF 보고서를 다운로드합니다"
+                      style={{
+                        display: "flex", alignItems: "center", gap: 4,
+                        fontSize: 11, padding: "3px 10px", borderRadius: 4,
+                        background: "color-mix(in srgb, var(--color-status-success) 14%, transparent)",
+                        color: "var(--color-status-success)",
+                        border: "1px solid color-mix(in srgb, var(--color-status-success) 35%, transparent)",
+                        cursor: "pointer",
+                        fontWeight: 700,
+                      }}
+                    >
+                      <FileText size={12} />
+                      적중 보고서 PDF
                     </button>
                   )}
                   {selectedDoc?.inventory_file_id && (
