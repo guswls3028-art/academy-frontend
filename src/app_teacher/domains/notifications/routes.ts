@@ -4,8 +4,8 @@
 import type { AdminNotificationItem } from "@admin/domains/admin-notifications/api";
 
 export const TEACHER_PENDING_ROUTES: Record<AdminNotificationItem["type"], string> = {
-  qna: "/teacher/comms",
-  counsel: "/teacher/comms",
+  qna: "/teacher/comms?tab=qna",
+  counsel: "/teacher/comms?tab=counsel",
   clinic: "/teacher/clinic",
   registration_requests: "/teacher/students",
   submissions: "/teacher/submissions",

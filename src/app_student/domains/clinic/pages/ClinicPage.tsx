@@ -327,7 +327,7 @@ export default function ClinicPage() {
             }}
           >
             예약
-            {(pendingBookings.length + approvedBookings.length) > 0 && activeTab !== "book" && (
+            {(pendingBookings.length + approvedBookings.length) > 0 && (
               <span style={{
                 marginLeft: 6, fontSize: 11, fontWeight: 700,
                 background: "var(--stu-primary)", color: "var(--stu-primary-contrast)",
@@ -351,7 +351,7 @@ export default function ClinicPage() {
             }}
           >
             내 일정
-            {(pendingBookings.length + approvedBookings.length) > 0 && activeTab !== "schedule" && (
+            {(pendingBookings.length + approvedBookings.length) > 0 && (
               <span style={{
                 marginLeft: 6, fontSize: 11, fontWeight: 700,
                 background: "var(--stu-primary)", color: "var(--stu-primary-contrast)",

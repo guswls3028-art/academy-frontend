@@ -5,6 +5,7 @@ interface Props {
   hlsSrc: string | null;
   status: string;
   progressPercent?: number | null;
+  errorReason?: string | null;
   onRetry?: () => void;
   isRetrying?: boolean;
 }
@@ -13,6 +14,7 @@ export default function VideoPreviewSection({
   hlsSrc,
   status,
   progressPercent,
+  errorReason,
   onRetry,
   isRetrying,
 }: Props) {
@@ -31,6 +33,7 @@ export default function VideoPreviewSection({
       <VideoProcessingPreview
         status={status}
         percent={progressPercent}
+        errorReason={errorReason}
         onRetry={onRetry}
         isRetrying={isRetrying}
       />

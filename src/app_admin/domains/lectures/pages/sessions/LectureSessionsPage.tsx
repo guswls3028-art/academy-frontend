@@ -120,8 +120,7 @@ export default function LectureSessionsPage() {
     TABLE_COL.checkbox +
     (columnWidths.order ?? TABLE_COL.mediumAlt) +
     (columnWidths.title ?? TABLE_COL.title) +
-    (columnWidths.date ?? TABLE_COL.timeRange) +
-    (columnWidths.id ?? TABLE_COL.tag);
+    (columnWidths.date ?? TABLE_COL.timeRange);
 
   const handleClose = useCallback(() => {
     setOpen(false);
@@ -209,7 +208,6 @@ export default function LectureSessionsPage() {
                 <col style={{ width: columnWidths.order ?? TABLE_COL.mediumAlt }} />
                 <col style={{ width: columnWidths.title ?? TABLE_COL.title }} />
                 <col style={{ width: columnWidths.date ?? TABLE_COL.timeRange }} />
-                <col style={{ width: columnWidths.id ?? TABLE_COL.tag }} />
               </colgroup>
               <thead>
                 <tr>
@@ -239,12 +237,6 @@ export default function LectureSessionsPage() {
                     label="날짜"
                     widthKey="date"
                     width={columnWidths.date ?? TABLE_COL.timeRange}
-                  />
-                  <SortableTh
-                    colKey="id"
-                    label="ID"
-                    widthKey="id"
-                    width={columnWidths.id ?? TABLE_COL.tag}
                   />
                 </tr>
               </thead>
@@ -279,9 +271,6 @@ export default function LectureSessionsPage() {
                     </td>
                     <td className="text-[14px] text-[var(--color-text-secondary)] truncate text-center">
                       {s.date || "-"}
-                    </td>
-                    <td className="text-[13px] font-semibold text-[var(--color-text-muted)] truncate text-center">
-                      {s.id}
                     </td>
                   </tr>
                 ))}

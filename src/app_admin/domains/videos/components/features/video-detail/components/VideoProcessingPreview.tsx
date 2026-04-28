@@ -8,6 +8,7 @@ import type { VideoStatus } from "@admin/domains/videos/api/videos.api";
 interface Props {
   percent?: number | null;
   status: string;
+  errorReason?: string | null;
   onRetry?: () => void;
   isRetrying?: boolean;
 }
@@ -23,6 +24,7 @@ const STATUS_DESC: Record<string, string> = {
 export default function VideoProcessingPreview({
   percent,
   status,
+  errorReason,
   onRetry,
   isRetrying,
 }: Props) {
@@ -45,6 +47,12 @@ export default function VideoProcessingPreview({
       <div className="mt-2 text-xs text-[var(--color-text-muted)]">
         {description}
       </div>
+
+      {status === "FAILED" && errorReason && (
+        <div className="mt-2 text-xs text-[var(--color-danger)] max-w-[420px] text-center px-2">
+          사유: {errorReason}
+        </div>
+      )}
 
       {onRetry && (
         <Button

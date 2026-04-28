@@ -210,6 +210,7 @@ export default function VideoDetailOverlay({
                       hlsSrc={video.hls_url}
                       status={video.status}
                       progressPercent={null}
+                      errorReason={(video as any).error_reason ?? null}
                       onRetry={
                         canShowRetryButton(video)
                           ? () => retryMutation.mutate()
