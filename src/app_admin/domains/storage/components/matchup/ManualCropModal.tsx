@@ -368,13 +368,24 @@ export default function ManualCropModal({ document: doc, onClose }: Props) {
 
     setSaving(true);
     try {
-      await manualCropMatchupProblem(doc.id, {
+      const created = await manualCropMatchupProblem(doc.id, {
         pageIndex: draft.pageIndex,
         bbox: { x: draft.x, y: draft.y, w: draft.w, h: draft.h },
         number,
       });
-      await qc.invalidateQueries({ queryKey: ["matchup-problems", doc.id] });
-      await qc.invalidateQueries({ queryKey: ["matchup-documents"] });
+      // 옵티미스틱 즉시 반영 — invalidate 후 refetch 1~2초 지연 회피.
+      // 모달 안 problem 목록과 외부 ProblemGrid 양쪽에 즉시 추가/교체.
+      qc.setQueryData<typeof problems>(
+        ["matchup-problems", doc.id],
+        (old) => {
+          const base = old ?? [];
+          const filtered = base.filter((p) => p.number !== created.number);
+          return [...filtered, created].sort((a, b) => a.number - b.number);
+        },
+      );
+      // 백그라운드 invalidate (다음 fetch 보장만 — UI 대기 없음)
+      qc.invalidateQueries({ queryKey: ["matchup-problems", doc.id] });
+      qc.invalidateQueries({ queryKey: ["matchup-documents"] });
       feedback.success(`${number}번 문제 저장됨`);
       setDraft(null);
       // 다음 빈 번호로 자동 이동
@@ -408,9 +419,17 @@ export default function ManualCropModal({ document: doc, onClose }: Props) {
     }
     setSaving(true);
     try {
-      await pasteImageAsMatchupProblem(doc.id, pasted.file, pasted.number);
-      await qc.invalidateQueries({ queryKey: ["matchup-problems", doc.id] });
-      await qc.invalidateQueries({ queryKey: ["matchup-documents"] });
+      const created = await pasteImageAsMatchupProblem(doc.id, pasted.file, pasted.number);
+      qc.setQueryData<typeof problems>(
+        ["matchup-problems", doc.id],
+        (old) => {
+          const base = old ?? [];
+          const filtered = base.filter((p) => p.number !== created.number);
+          return [...filtered, created].sort((a, b) => a.number - b.number);
+        },
+      );
+      qc.invalidateQueries({ queryKey: ["matchup-problems", doc.id] });
+      qc.invalidateQueries({ queryKey: ["matchup-documents"] });
       feedback.success(`${pasted.number}번 문제 저장됨 (붙여넣기)`);
       URL.revokeObjectURL(pasted.previewUrl);
       setPasted(null);
