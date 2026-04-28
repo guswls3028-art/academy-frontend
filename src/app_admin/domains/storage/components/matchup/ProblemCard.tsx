@@ -4,7 +4,7 @@
 // 썸네일을 정말로 보고 싶을 때는 확대 버튼으로 큰 이미지 모달.
 
 import { useEffect, useState } from "react";
-import { Maximize2, X } from "lucide-react";
+import { Maximize2, X, AlertTriangle } from "lucide-react";
 import type { MatchupProblem } from "../../api/matchup.api";
 import { getMatchupProblemPresignUrl } from "../../api/matchup.api";
 
@@ -15,6 +15,10 @@ type Props = {
 };
 
 export default function ProblemCard({ problem, selected, onClick }: Props) {
+  // 자동분리가 인접 문항을 박스 단위로 합친 의심 — 매뉴얼 크롭+Ctrl+V paste 권장.
+  const isMergeSuspect = Boolean(
+    (problem.meta as { merge_suspect?: boolean } | undefined)?.merge_suspect,
+  );
   const [zoomOpen, setZoomOpen] = useState(false);
   // 기본은 list API가 내려준 image_url 사용 (N+1 없음).
   // 서버가 아직 image_url 미포함 버전이면 fallback으로 presign 1회 호출 (backend 배포 전 호환).
@@ -78,7 +82,25 @@ export default function ProblemCard({ problem, selected, onClick }: Props) {
           color: selected ? "var(--color-brand-primary)" : "var(--color-text-muted)",
           letterSpacing: "0.05em",
         }}>
-          <span>Q{problem.number}</span>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+            Q{problem.number}
+            {isMergeSuspect && (
+              <span
+                title="인접 문항이 합쳐진 것으로 의심됩니다. 매뉴얼 크롭 또는 Ctrl+V로 정확히 잘라주세요."
+                style={{
+                  display: "inline-flex", alignItems: "center", gap: 3,
+                  padding: "1px 5px",
+                  fontSize: 9, fontWeight: 600,
+                  borderRadius: 999,
+                  background: "color-mix(in srgb, var(--color-status-warning) 14%, transparent)",
+                  color: "var(--color-status-warning)",
+                  letterSpacing: 0,
+                }}
+              >
+                <AlertTriangle size={9} /> 검수
+              </span>
+            )}
+          </span>
           {imgUrl && (
             <button
               onClick={(e) => { e.stopPropagation(); setZoomOpen(true); }}
