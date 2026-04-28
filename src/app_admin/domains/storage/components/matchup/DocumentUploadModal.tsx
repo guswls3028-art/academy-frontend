@@ -30,7 +30,7 @@ type Props = {
 };
 
 const ACCEPT = ".pdf,.png,.jpg,.jpeg,.heic,.heif";
-const MAX_SIZE = 50 * 1024 * 1024;
+const MAX_SIZE = 200 * 1024 * 1024;  // backend MAX_FILE_SIZE와 정합 (학습자료 80~96MB 흔함)
 
 type Entry = {
   file: File;
@@ -130,7 +130,7 @@ export default function DocumentUploadModal({
 
     const nextTotal = totalSize + selected.reduce((s, f) => s + f.size, 0);
     if (nextTotal > MAX_SIZE) {
-      showDropError(`전체 크기가 50MB를 초과합니다 (현재 ${(nextTotal / 1024 / 1024).toFixed(1)}MB)`);
+      showDropError(`전체 크기가 200MB를 초과합니다 (현재 ${(nextTotal / 1024 / 1024).toFixed(1)}MB)`);
       return;
     }
 
@@ -222,7 +222,7 @@ export default function DocumentUploadModal({
             file = await filesToPdf([file], `${baseName}.pdf`);
           }
           if (file.size > MAX_SIZE) {
-            throw new Error(`${file.name}이(가) 50MB를 초과합니다.`);
+            throw new Error(`${file.name}이(가) 200MB를 초과합니다.`);
           }
           prepared.push({ file, baseName: file.name.replace(/\.pdf$/i, "") });
         }
@@ -264,7 +264,7 @@ export default function DocumentUploadModal({
       // 병합 후 크기 재검증 — pdf-lib가 이미지를 더 크게 저장하는 경우 대비
       if (finalFile.size > MAX_SIZE) {
         throw new Error(
-          `병합된 PDF가 50MB를 초과합니다 (${(finalFile.size / 1024 / 1024).toFixed(1)}MB). 파일 수를 줄이거나 해상도가 낮은 사진을 사용해 주세요.`,
+          `병합된 PDF가 200MB를 초과합니다 (${(finalFile.size / 1024 / 1024).toFixed(1)}MB). 파일 수를 줄이거나 해상도가 낮은 사진을 사용해 주세요.`,
         );
       }
 
@@ -418,7 +418,7 @@ export default function DocumentUploadModal({
             </p>
             <p style={{ margin: "var(--space-1) 0 0", fontSize: 12, color: "var(--color-text-muted)" }}>
               {entries.length === 0
-                ? "PDF · JPG · PNG · HEIC(아이폰) · Ctrl+V로 붙여넣기도 가능 · 자동으로 1개 PDF로 합쳐짐 · 최대 50MB"
+                ? "PDF · JPG · PNG · HEIC(아이폰) · Ctrl+V로 붙여넣기도 가능 · 자동으로 1개 PDF로 합쳐짐 · 최대 200MB"
                 : `${(totalSize / 1024 / 1024).toFixed(1)}MB · 더 추가하려면 다시 클릭/드래그/Ctrl+V`}
             </p>
             <input
