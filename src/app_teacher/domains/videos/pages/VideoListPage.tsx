@@ -6,6 +6,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState } from "@/shared/ui/ds";
 import { Upload, Trash2 } from "@teacher/shared/ui/Icons";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
+import { useConfirm } from "@/shared/ui/confirm";
 import { fetchVideos, retryVideo, uploadInit, uploadComplete, deleteVideo, fetchPublicSession } from "../api";
 
 type VideoStatus = "pending" | "processing" | "completed" | "failed";
@@ -39,6 +40,7 @@ function isValidStatusFilter(v: string | null): v is StatusFilter {
 export default function VideoListPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const confirm = useConfirm();
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [searchParams] = useSearchParams();
@@ -298,7 +300,11 @@ export default function VideoListPage() {
                       </button>
                     )}
                     <button
-                      onClick={(e) => { e.stopPropagation(); if (confirm("이 영상을 삭제하시겠습니까?")) deleteMut.mutate(v.id); }}
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        const ok = await confirm({ title: "영상 삭제", message: "이 영상을 삭제하시겠습니까?", confirmText: "삭제", danger: true });
+                        if (ok) deleteMut.mutate(v.id);
+                      }}
                       className="flex items-center text-[11px] cursor-pointer ml-auto"
                       style={{ background: "none", border: "none", color: "var(--tc-text-muted)", padding: "6px", minWidth: 28, minHeight: 28 }}
                       aria-label="영상 삭제"

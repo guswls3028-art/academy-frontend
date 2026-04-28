@@ -478,12 +478,28 @@ function QnaDetailContent({ question, onBack }: { question: PostEntity; onBack: 
 }
 
 // ─── QnA Form ───
+const QNA_DRAFT_KEY = "student.community.qna.draft";
+
 function QnaForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () => void }) {
   const qc = useQueryClient();
-  const [title, setTitle] = useState("");
-  const [content, setContent] = useState("");
-  const [files, setFiles] = useState<File[]>([]);
-  const [categoryLabel, setCategoryLabel] = useState("");
+  // sessionStorage draft: 탭 전환·뒤로가기로 unmount되어도 입력 보존.
+  const initialDraft = (() => {
+    try {
+      const raw = sessionStorage.getItem(QNA_DRAFT_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch { return null; }
+  })();
+  const [title, setTitle] = useState<string>(initialDraft?.title ?? "");
+  const [content, setContent] = useState<string>(initialDraft?.content ?? "");
+  const [files, setFiles] = useState<File[]>([]); // 파일 객체는 직렬화 불가 — 보존 안 함
+  const [categoryLabel, setCategoryLabel] = useState<string>(initialDraft?.categoryLabel ?? "");
+
+  // 입력 변경 시 draft 갱신
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(QNA_DRAFT_KEY, JSON.stringify({ title, content, categoryLabel }));
+    } catch { /* quota exceeded */ }
+  }, [title, content, categoryLabel]);
 
   const { data: profile } = useQuery({ queryKey: ["student", "me"], queryFn: fetchMyProfile });
   const { data: videoMe } = useQuery({ queryKey: ["student", "video", "me"], queryFn: fetchVideoMe, staleTime: 60_000 });
@@ -512,6 +528,8 @@ function QnaForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () => v
       qc.invalidateQueries({ queryKey: ["student", "notifications", "counts"] });
       const { studentToast } = await import("@student/shared/ui/feedback/studentToast");
       studentToast.success("질문이 등록되었습니다.");
+      // 등록 성공 시 draft 비움
+      try { sessionStorage.removeItem(QNA_DRAFT_KEY); } catch { /* noop */ }
       onSuccess();
     },
     onError: (err: unknown) => {

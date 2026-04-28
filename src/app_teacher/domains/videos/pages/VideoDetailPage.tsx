@@ -11,6 +11,7 @@ import { fetchVideoDetail, fetchVideoStats, renameVideo, updateVideo, deleteVide
 import VideoSettingsSheet from "../components/VideoSettingsSheet";
 import api from "@/shared/api/axios";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
+import { useConfirm } from "@/shared/ui/confirm";
 
 type Tab = "stats" | "comments";
 
@@ -18,6 +19,7 @@ export default function VideoDetailPage() {
   const { videoId } = useParams<{ videoId: string }>();
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const confirm = useConfirm();
   const vid = Number(videoId);
   const [tab, setTab] = useState<Tab>("stats");
   const [menuOpen, setMenuOpen] = useState(false);
@@ -103,7 +105,11 @@ export default function VideoDetailPage() {
                   style={{ padding: "10px 14px", background: "none", border: "none", color: "var(--tc-text)", borderTop: "1px solid var(--tc-border-subtle)" }}>
                   <MoreVertical size={14} /> 시청 설정
                 </button>
-                <button onClick={() => { if (confirm("이 영상을 삭제하시겠습니까?")) deleteMut.mutate(); setMenuOpen(false); }}
+                <button onClick={async () => {
+                  setMenuOpen(false);
+                  const ok = await confirm({ title: "영상 삭제", message: "이 영상을 삭제하시겠습니까?", confirmText: "삭제", danger: true });
+                  if (ok) deleteMut.mutate();
+                }}
                   className="flex items-center gap-2 w-full text-left text-sm cursor-pointer"
                   style={{ padding: "10px 14px", background: "none", border: "none", color: "var(--tc-danger)", borderTop: "1px solid var(--tc-border-subtle)" }}>
                   <Trash2 size={14} /> 삭제
