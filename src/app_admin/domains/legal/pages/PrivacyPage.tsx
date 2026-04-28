@@ -45,6 +45,10 @@ export default function PrivacyPage() {
 
   const companyLabel = c.company_name || "회사";
 
+  // 핵심 필드 미입력 시 학부모에게 "이 학원은 아직 정보를 등록하지 않았다" 고지.
+  // 운영사 fallback이 보이는 동안 학원 책임 경계가 흐려지지 않도록.
+  const missingCore = !c.company_name || !c.business_number || !c.privacy_officer_contact;
+
   return (
     <div className={styles.root}>
       <header className={styles.header}>
@@ -59,6 +63,26 @@ export default function PrivacyPage() {
         <p className={styles.meta}>
           시행일: 2026년 3월 14일 | 버전 1.1
         </p>
+
+        {missingCore && (
+          <div
+            role="note"
+            style={{
+              margin: "8px 0 16px",
+              padding: "10px 14px",
+              background: "#fef9c3",
+              border: "1px solid #fde047",
+              borderRadius: 8,
+              color: "#713f12",
+              fontSize: 13,
+              lineHeight: 1.55,
+            }}
+          >
+            본 학원은 사업자 정보 일부를 등록하지 않았습니다. 정확한 회사 정보 및
+            개인정보 보호책임자 연락처는 학원 관리자에게 문의해 주세요. 아래 표시되는
+            연락처는 플랫폼 운영사의 임시 안내처입니다.
+          </div>
+        )}
 
         <article className={styles.article}>
           <p>

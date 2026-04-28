@@ -675,6 +675,17 @@ const LEGAL_FIELDS: { key: keyof Omit<LegalConfig, "terms_version" | "privacy_ve
   { key: "privacy_officer_contact", label: "보호책임자 연락처", placeholder: "예: privacy@example.com 또는 02-1234-5678", maxLen: 200 },
 ];
 
+// 학부모/학생이 보는 법적 고지 페이지에서 가장 먼저 누락되면 안 되는 필드.
+// 미입력 시 운영사 default fallback이 노출되어 학원장 책임 경계가 흐려진다.
+const LEGAL_REQUIRED_KEYS: (keyof LegalConfig)[] = [
+  "company_name",
+  "representative",
+  "business_number",
+  "support_phone",
+  "privacy_officer_name",
+  "privacy_officer_contact",
+];
+
 function LegalInfoSection() {
   const qc = useQueryClient();
   const [editing, setEditing] = useState(false);
@@ -684,6 +695,10 @@ function LegalInfoSection() {
     queryKey: ["legal-config"],
     queryFn: fetchLegalConfig,
   });
+
+  const missingRequired = LEGAL_REQUIRED_KEYS.filter(
+    (k) => !((legalQ.data as any)?.[k] || "").trim(),
+  );
 
   useEffect(() => {
     if (legalQ.data) {
@@ -737,6 +752,28 @@ function LegalInfoSection() {
           이용약관, 개인정보처리방침 페이지에 표시되는 사업자 정보입니다. 미입력 항목은 &quot;정보 미등록&quot;으로 표시됩니다.
         </p>
       </div>
+
+      {!legalQ.isLoading && missingRequired.length > 0 && (
+        <div
+          role="alert"
+          style={{
+            marginTop: 8,
+            marginBottom: 12,
+            padding: "12px 14px",
+            background: "#fef3c7",
+            border: "1px solid #f59e0b",
+            borderRadius: 8,
+            color: "#92400e",
+            fontSize: 13,
+            lineHeight: 1.55,
+          }}
+        >
+          <strong>법적 고지 필수 정보가 비어 있습니다 ({missingRequired.length}개 항목).</strong>
+          <br />
+          학원 정보가 미입력이면 학부모가 보는 개인정보처리방침/이용약관에 운영사 연락처가 임시로 표시됩니다.
+          유료 운영 전에 반드시 채워주세요.
+        </div>
+      )}
 
       <section className={s.section}>
         {legalQ.isLoading ? (
