@@ -88,7 +88,12 @@ export async function uploadMatchupDocument(payload: {
   const { data } = await api.post<MatchupDocument>(
     "/matchup/documents/upload/",
     form,
-    { headers: { "Content-Type": "multipart/form-data" } },
+    {
+      headers: { "Content-Type": "multipart/form-data" },
+      // 파일 업로드는 axios 기본 20초 timeout이 부족 (200MB까지 허용 + 다중 파일 동시 업로드).
+      // 5분으로 override — R2 업로드 + DB 저장 + 큐 dispatch.
+      timeout: 5 * 60_000,
+    },
   );
   return data;
 }

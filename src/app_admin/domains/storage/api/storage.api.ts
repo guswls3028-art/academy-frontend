@@ -112,6 +112,9 @@ export async function uploadFile(payload: UploadFilePayload): Promise<UploadFile
 
   const { data } = await api.post<UploadFileResponse>("/storage/inventory/upload/", form, {
     headers: { "Content-Type": "multipart/form-data" },
+    // 파일 업로드는 axios 기본 20초 timeout이 부족 — 운영 사용자 보고 (2026-04-28):
+    // 7개 동시 업로드 → "20000ms" 에러로 1개만 성공. 5분 override.
+    timeout: 5 * 60_000,
   });
   return data;
 }
