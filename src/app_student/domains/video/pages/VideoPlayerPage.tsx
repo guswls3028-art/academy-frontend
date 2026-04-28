@@ -182,11 +182,17 @@ export default function VideoPlayerPage() {
       return { video: null, boot: null, loadError: "재생 URL을 가져올 수 없습니다." };
     }
 
+    // PROCTORED_CLASS면 백엔드가 진짜 token + session_id를 발급해 옴.
+    // FREE_REVIEW면 모니터링 불필요 → placeholder token으로 진행(서버 진도 검증 없음).
+    const realToken = (playbackData as any).playback_token as string | null | undefined;
+    const realSessionId = (playbackData as any).playback_session_id as string | null | undefined;
+    const realExpiresAt = (playbackData as any).playback_expires_at as number | null | undefined;
+    const accessMode = (playbackData.policy?.access_mode || "FREE_REVIEW") as "FREE_REVIEW" | "PROCTORED_CLASS";
     const b: PlaybackBootstrap = {
-      token: `student-${videoId}-${Date.now()}`,
-      session_id: null,
-      expires_at: null,
-      access_mode: (playbackData.policy?.access_mode || "FREE_REVIEW") as "FREE_REVIEW" | "PROCTORED_CLASS",
+      token: realToken || `student-${videoId}-${Date.now()}`,
+      session_id: realSessionId || null,
+      expires_at: realExpiresAt || null,
+      access_mode: accessMode,
       monitoring_enabled: (playbackData.policy as any)?.monitoring_enabled ?? false,
       policy: playbackData.policy || {},
       play_url: playUrl,
