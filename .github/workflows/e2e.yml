@@ -20,9 +20,10 @@ env:
 jobs:
   e2e:
     runs-on: ubuntu-latest
-    # 활성 87 spec × workers:1 (fullyParallel:false) 기준 약 30~45분 소요.
-    # 12분 timeout 은 timeout-fail 을 항상 만들어 PR signal 을 무력화시켜 왔음.
-    timeout-minutes: 45
+    # 활성 80 spec × workers:1 (fullyParallel:false) × retries 기준 60~80분.
+    # 4-29: 45분 timeout 도달 cancelled 발생 → globalTeardown 미실행 → strict-defects 수집 실패.
+    # 90분으로 상향. retries:1 (playwright.config.ts) 로 flake 흡수, 진단 정확도 우선.
+    timeout-minutes: 90
     # PR 또는 수동 실행에서만 동작 (push에서는 quality-gate.yml이 처리)
     if: github.event_name == 'workflow_dispatch' || github.event_name == 'pull_request'
     steps:
