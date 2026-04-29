@@ -12,7 +12,7 @@
 // 단원 다른 결과가 섞이기 시작. 이 임계값으로 약한 매칭 노이즈를 자동 컷.
 
 import { useState, useEffect, useMemo } from "react";
-import { Loader2, Sparkles, FileText, Layers, ChevronDown, ChevronUp } from "lucide-react";
+import { Loader2, Sparkles, FileText, Layers, ChevronDown, ChevronUp, Star } from "lucide-react";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { findSimilarProblems } from "../../api/matchup.api";
 import type { SimilarProblem } from "../../api/matchup.api";
@@ -23,6 +23,9 @@ type Props = {
   totalDocumentCount?: number;
   /** 현재 선택 중인 문서 id — in-doc / cross-doc 분리에 사용 */
   sourceDocumentId?: number | null;
+  /** 적중 보고서 찜 — 시험지(test) doc일 때만 활성. 후보별 별표 토글 */
+  pinnedIds?: Set<number>;
+  onTogglePin?: (problemId: number, candidate: SimilarProblem) => void;
 };
 
 const SIM_STRONG = 0.85;  // 이상: 강한 매칭
@@ -37,6 +40,7 @@ function tierOf(sim: number): Tier {
 
 export default function SimilarResults({
   problemId, onSelectSimilar, totalDocumentCount = 0, sourceDocumentId = null,
+  pinnedIds, onTogglePin,
 }: Props) {
   const [results, setResults] = useState<SimilarProblem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -159,6 +163,8 @@ export default function SimilarResults({
         emptyText="다른 시험지에서 비슷한 문제를 찾지 못했습니다"
         onSelect={onSelectSimilar}
         accent="primary"
+        pinnedIds={pinnedIds}
+        onTogglePin={onTogglePin}
       />
 
       {sourceDocumentId !== null && totalDocumentCount > 1 && inDoc.length > 0 && (
@@ -169,6 +175,8 @@ export default function SimilarResults({
           emptyText=""
           onSelect={onSelectSimilar}
           accent="muted"
+          pinnedIds={pinnedIds}
+          onTogglePin={onTogglePin}
         />
       )}
 
@@ -197,7 +205,9 @@ export default function SimilarResults({
               opacity: 0.7,
             }}>
               {grouped.noise.map((r) => (
-                <SimilarRow key={r.id} item={r} onClick={() => onSelectSimilar?.(r)} />
+                <SimilarRow key={r.id} item={r} onClick={() => onSelectSimilar?.(r)}
+                  pinned={pinnedIds?.has(r.id) ?? false}
+                  onTogglePin={onTogglePin ? () => onTogglePin(r.id, r) : undefined} />
               ))}
             </div>
           )}
@@ -223,9 +233,11 @@ type SectionProps = {
   emptyText: string;
   onSelect?: (p: SimilarProblem) => void;
   accent: "primary" | "muted";
+  pinnedIds?: Set<number>;
+  onTogglePin?: (problemId: number, candidate: SimilarProblem) => void;
 };
 
-function Section({ title, icon, items, emptyText, onSelect, accent }: SectionProps) {
+function Section({ title, icon, items, emptyText, onSelect, accent, pinnedIds, onTogglePin }: SectionProps) {
   if (items.length === 0 && !emptyText) return null;
 
   return (
@@ -256,7 +268,13 @@ function Section({ title, icon, items, emptyText, onSelect, accent }: SectionPro
           {emptyText}
         </div>
       ) : (
-        items.map((r) => <SimilarRow key={r.id} item={r} onClick={() => onSelect?.(r)} />)
+        items.map((r) => (
+          <SimilarRow key={r.id} item={r}
+            onClick={() => onSelect?.(r)}
+            pinned={pinnedIds?.has(r.id) ?? false}
+            onTogglePin={onTogglePin ? () => onTogglePin(r.id, r) : undefined}
+          />
+        ))
       )}
     </div>
   );
@@ -264,7 +282,10 @@ function Section({ title, icon, items, emptyText, onSelect, accent }: SectionPro
 
 /* ── Row ── */
 
-function SimilarRow({ item, onClick }: { item: SimilarProblem; onClick: () => void }) {
+function SimilarRow({ item, onClick, pinned, onTogglePin }: {
+  item: SimilarProblem; onClick: () => void;
+  pinned?: boolean; onTogglePin?: () => void;
+}) {
   const pct = Math.round(item.similarity * 100);
   const t = tierOf(item.similarity);
   const isStrong = t === "strong";
@@ -367,6 +388,30 @@ function SimilarRow({ item, onClick }: { item: SimilarProblem; onClick: () => vo
           </p>
         )}
       </div>
+
+      {/* 찜 별표 — 시험지(test) doc 컨텍스트일 때만 onTogglePin이 있으니 노출됨.
+          행 클릭(상세 모달)과 분리하기 위해 stopPropagation. */}
+      {onTogglePin && (
+        <button
+          data-testid="matchup-similar-pin"
+          aria-label={pinned ? "보고서에서 빼기" : "보고서에 담기"}
+          title={pinned ? "보고서에 담음 (클릭하여 빼기)" : "적중 보고서에 담기"}
+          onClick={(e) => { e.stopPropagation(); onTogglePin(); }}
+          style={{
+            flexShrink: 0, width: 32, height: 32,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            background: pinned
+              ? "color-mix(in srgb, var(--color-warning) 15%, var(--color-bg-surface))"
+              : "transparent",
+            border: `1px solid ${pinned ? "var(--color-warning)" : "var(--color-border-divider)"}`,
+            borderRadius: "var(--radius-sm)",
+            cursor: "pointer",
+            color: pinned ? "var(--color-warning)" : "var(--color-text-muted)",
+          }}
+        >
+          <Star size={14} fill={pinned ? "currentColor" : "none"} />
+        </button>
+      )}
     </div>
   );
 }

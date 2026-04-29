@@ -18,6 +18,8 @@ import {
   updateMatchupDocument,
   renameMatchupCategory,
   assignMatchupCategory,
+  fetchHitReportDraft,
+  upsertHitReportEntries,
 } from "../api/matchup.api";
 import type { SimilarProblem } from "../api/matchup.api";
 import { useMatchupPolling } from "../hooks/useMatchupPolling";
@@ -73,6 +75,11 @@ export default function MatchupPage() {
   const [previewDocId, setPreviewDocId] = useState<number | null>(null);
   const [cropDocId, setCropDocId] = useState<number | null>(null);
   const [hitReportDocId, setHitReportDocId] = useState<number | null>(null);
+  // 적중 보고서 찜 — 시험지 doc 활성 시에만. selectedProblemId(시험지 문항)별 별표 후보 problem id Set.
+  // 매치업 작업 중에 후보를 찜해두면 적중 보고서 작성기 진입 시 자동 선택됨.
+  const [hitReportId, setHitReportId] = useState<number | null>(null);
+  // examProblemId -> Set<candidateProblemId>
+  const [pinsByExamPid, setPinsByExamPid] = useState<Record<number, Set<number>>>({});
   const [pendingNavigateNumber, setPendingNavigateNumber] = useState<number | null>(null);
   const [rightPanelTab, setRightPanelTab] = useState<"similar" | "cross">("similar");
   const [intentUpdating, setIntentUpdating] = useState(false);
@@ -164,6 +171,62 @@ export default function MatchupPage() {
   // ── 문제 목록 ──
   const selectedDoc = documents.find((d) => d.id === selectedDocId);
   const selectedDocIntent = selectedDoc ? getDocumentIntent(selectedDoc) : "reference";
+
+  // 시험지(test) doc 진입 시 적중 보고서 draft 자동 로드 → pinnedIds Set 구성.
+  // 사용자가 매치업 작업 중에 후보를 찜해두면 적중 보고서 작성기 진입 시 자동 선택된 상태로 표시.
+  useEffect(() => {
+    if (!selectedDocId || selectedDocIntent !== "test") {
+      setHitReportId(null);
+      setPinsByExamPid({});
+      return;
+    }
+    let cancelled = false;
+    fetchHitReportDraft(selectedDocId)
+      .then((data) => {
+        if (cancelled) return;
+        setHitReportId(data.report.id);
+        const map: Record<number, Set<number>> = {};
+        for (const ep of data.exam_problems) {
+          if (ep.entry?.selected_problem_ids?.length) {
+            map[ep.id] = new Set(ep.entry.selected_problem_ids);
+          }
+        }
+        setPinsByExamPid(map);
+      })
+      .catch(() => {
+        // 시험지가 아니거나(400) 다른 에러면 silent — 매치업 작업에 영향 없음
+        setHitReportId(null);
+        setPinsByExamPid({});
+      });
+    return () => { cancelled = true; };
+  }, [selectedDocId, selectedDocIntent]);
+
+  const handleTogglePin = useCallback((candidateId: number, _candidate: SimilarProblem) => {
+    if (!hitReportId || !selectedProblemId) return;
+    const examPid = selectedProblemId;
+    const cur = pinsByExamPid[examPid] || new Set<number>();
+    const has = cur.has(candidateId);
+    const next = new Set(cur);
+    if (has) next.delete(candidateId);
+    else next.add(candidateId);
+
+    setPinsByExamPid((prev) => ({ ...prev, [examPid]: next }));
+
+    upsertHitReportEntries(hitReportId, [
+      {
+        exam_problem_id: examPid,
+        selected_problem_ids: Array.from(next),
+        comment: "",
+        order: 0,
+      },
+    ]).then(() => {
+      feedback.success(has ? "보고서에서 뺐습니다" : "보고서에 담았습니다");
+    }).catch(() => {
+      setPinsByExamPid((prev) => ({ ...prev, [examPid]: cur }));
+      feedback.error("저장 실패");
+    });
+  }, [hitReportId, selectedProblemId, pinsByExamPid]);
+
   const { data: problems = [], isLoading: problemsLoading } = useQuery({
     queryKey: ["matchup-problems", selectedDocId],
     queryFn: () => fetchMatchupProblems(selectedDocId!),
@@ -863,6 +926,16 @@ export default function MatchupPage() {
                           onSelectSimilar={setDetailProblem}
                           totalDocumentCount={documents.length}
                           sourceDocumentId={selectedDocId}
+                          pinnedIds={
+                            selectedProblemId && selectedDocIntent === "test"
+                              ? (pinsByExamPid[selectedProblemId] || new Set())
+                              : undefined
+                          }
+                          onTogglePin={
+                            selectedDocIntent === "test" && hitReportId
+                              ? handleTogglePin
+                              : undefined
+                          }
                         />
                       ) : (
                         <CrossMatchesPanel
