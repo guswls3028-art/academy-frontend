@@ -56,15 +56,20 @@ test.describe("매치업/인벤토리 업로드 fix 실사용 리뷰", () => {
     await fileInput.setInputFiles([pdf1, pdf1]);
     await page.waitForTimeout(800);
 
+    // 라디오 UI(2026-04-29) — 두 옵션 모두 노출되어야 함.
     const splitToggle = page.getByTestId("matchup-split-mode-toggle");
+    const mergeToggle = page.getByTestId("matchup-merge-mode-toggle");
     await expect(splitToggle).toBeVisible();
-    await expect(page.getByText(/각 파일을 별도/)).toBeVisible();
+    await expect(mergeToggle).toBeVisible();
+    await expect(page.getByText(/각각 별도/)).toBeVisible();
+    await expect(page.getByText(/한 .* 합치기/)).toBeVisible();
 
-    // splitMode off → merge 안내
+    // 한 시험지로 합치기 → 안내 변경
+    await mergeToggle.click();
     await expect(page.getByText(/자동으로 1개 PDF로 합쳐|HEIC는 자동/)).toBeVisible();
 
-    // splitMode on → 별도 doc 안내로 변경
-    await splitToggle.check();
+    // 각각 별도 → 별도 doc 안내로 변경
+    await splitToggle.click();
     await expect(page.getByText(/각 파일이 별도.*동시 업로드|각 파일이 별도.*업로드됩니다/)).toBeVisible();
 
     await page.screenshot({

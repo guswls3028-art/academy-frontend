@@ -51,8 +51,9 @@ test("매치업 splitMode 부분 실패 → entry 행 상태 ❌/✓ 표시 + �
   await page.getByTestId("matchup-file-input").setInputFiles([PDF, PDF]);
   await page.waitForTimeout(800);
 
-  // splitMode on
-  await page.getByTestId("matchup-split-mode-toggle").check();
+  // splitMode on — 두 옵션 라디오 UI(2026-04-29 사고 후 toggle→radio).
+  // PDF 2개면 자동 split-on이지만 사용자 명시 클릭으로 splitModeTouched=true 검증.
+  await page.getByTestId("matchup-split-mode-toggle").click();
   await page.waitForTimeout(200);
 
   // submit (라벨: "2개 ... 동시 업로드")

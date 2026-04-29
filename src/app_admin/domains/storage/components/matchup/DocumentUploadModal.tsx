@@ -84,8 +84,12 @@ export default function DocumentUploadModal({
   const [entries, setEntries] = useState<Entry[]>([]);
   const [uploading, setUploading] = useState(false);
   const [mergeProgress, setMergeProgress] = useState<MergeProgress | null>(null);
-  // 다중 업로드 모드 — 각 파일을 별도 시험지로 동시 업로드
+  // 다중 업로드 모드 — 각 파일을 별도 시험지로 동시 업로드.
+  // 운영 사고(2026-04-29 철 선생): 30개 자료 drop → 사용자가 토글 인지 못함 →
+  // 1 PDF 합치기로 진행 → 2GB 한도/timeout 사고. 따라서 default를 entries 수와 intent 기반으로 자동 반전.
+  // 사용자가 명시적으로 토글하면 splitModeTouched=true로 자동 결정 차단.
   const [splitMode, setSplitMode] = useState(false);
+  const [splitModeTouched, setSplitModeTouched] = useState(false);
   const [splitProgress, setSplitProgress] = useState<{
     done: number; total: number; current?: string; failed: number;
     // 평균 시간 기반 ETA 계산용
@@ -125,6 +129,22 @@ export default function DocumentUploadModal({
     return () => clearTimeout(t);
   }, [dropError]);
 
+  // splitMode 자동 결정 — 사용자가 토글하지 않았을 때만 entries/intent에 따라 갱신.
+  // reference(학습자료): 2개 이상이면 거의 항상 별도 doc 의도 → 즉시 split.
+  // test(시험지): 1~4장은 한 시험지의 multi-page 가능성, 5장 이상은 별도 시험지 가능성.
+  useEffect(() => {
+    if (splitModeTouched) return;
+    if (entries.length < 2) {
+      if (splitMode) setSplitMode(false);
+      return;
+    }
+    const hasPdf = entries.some((e) => isPdf(e.file));
+    const recommended = intent === "test"
+      ? entries.length >= 5 || hasPdf  // PDF는 보통 자체로 multi-page 자료 → 별도 doc
+      : entries.length >= 2;            // reference는 보수적으로 자동 split
+    if (recommended !== splitMode) setSplitMode(recommended);
+  }, [entries, intent, splitMode, splitModeTouched]);
+
   // ESC로 닫기 (업로드 중에는 무시)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -156,19 +176,40 @@ export default function DocumentUploadModal({
   const addFiles = (selected: File[]) => {
     if (selected.length === 0) return;
 
+    // 형식 reject — 어떤 파일이 reject 됐는지 명시.
     const invalid = selected.filter((f) => !isPdf(f) && !isImage(f) && !isHeic(f));
+    const valid = selected.filter((f) => isPdf(f) || isImage(f) || isHeic(f));
     if (invalid.length > 0) {
-      showDropError(`지원하지 않는 형식: ${invalid[0].name}`);
-      return;
+      const names = invalid.slice(0, 3).map((f) => f.name).join(", ");
+      const more = invalid.length > 3 ? ` 외 ${invalid.length - 3}건` : "";
+      showDropError(`지원하지 않는 형식 ${invalid.length}건: ${names}${more}`);
     }
+    if (valid.length === 0) return;
 
-    const nextTotal = totalSize + selected.reduce((s, f) => s + f.size, 0);
-    if (nextTotal > MAX_SIZE) {
-      showDropError(`전체 크기가 2GB를 초과합니다 (현재 ${(nextTotal / 1024 / 1024).toFixed(1)}MB)`);
-      return;
+    // 누적 크기 제한 — 전체 reject가 아니라 들어가는 만큼 부분 수용 후 나머지는 안내.
+    // 운영 사고(2026-04-29): 30개 drop → 18개에서 한도 도달 silent reject. 사용자 인지 불가.
+    const accepted: File[] = [];
+    const rejectedBySize: File[] = [];
+    let runningTotal = totalSize;
+    for (const f of valid) {
+      if (runningTotal + f.size > MAX_SIZE) {
+        rejectedBySize.push(f);
+        continue;
+      }
+      runningTotal += f.size;
+      accepted.push(f);
     }
+    if (rejectedBySize.length > 0) {
+      const names = rejectedBySize.slice(0, 3).map((f) => f.name).join(", ");
+      const more = rejectedBySize.length > 3 ? ` 외 ${rejectedBySize.length - 3}건` : "";
+      const totalMb = (MAX_SIZE / 1024 / 1024 / 1024).toFixed(0);
+      showDropError(
+        `2GB 한도 초과로 ${rejectedBySize.length}개 제외: ${names}${more}. 한도(${totalMb}GB) 안에서 ${accepted.length}개만 추가됨.`,
+      );
+    }
+    if (accepted.length === 0) return;
 
-    const newEntries: Entry[] = selected.map((file) => ({
+    const newEntries: Entry[] = accepted.map((file) => ({
       file,
       // HEIC는 브라우저가 직접 렌더 못 하므로 썸네일 생성 안 함
       thumbUrl: isImage(file) && !isHeic(file) ? URL.createObjectURL(file) : null,
@@ -176,7 +217,7 @@ export default function DocumentUploadModal({
     setEntries([...entries, ...newEntries]);
 
     if (!title) {
-      const baseName = selected[0].name.replace(/\.[^.]+$/, "");
+      const baseName = accepted[0].name.replace(/\.[^.]+$/, "");
       setTitle(baseName);
     }
   };
@@ -491,32 +532,97 @@ export default function DocumentUploadModal({
             />
           </div>
 
-          {/* 모드 토글 — 파일 2개 이상일 때만 */}
+          {/* 모드 선택 — 파일 2개 이상일 때만. 두 옵션을 동시 표시해 사용자가 선택을 인지 못하는 사고를 방지. */}
           {entries.length > 1 && (
             <div style={{
               marginBottom: "var(--space-3)",
-              padding: "var(--space-2) var(--space-3)",
               border: "1px solid var(--color-border-divider)",
               borderRadius: "var(--radius-md)",
-              display: "flex", alignItems: "center", gap: "var(--space-3)",
-              fontSize: 12,
+              padding: "var(--space-2)",
+              background: "var(--color-bg-surface-soft)",
             }}>
-              <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", flex: 1 }}>
-                <input
-                  type="checkbox"
-                  checked={splitMode}
-                  onChange={(e) => setSplitMode(e.target.checked)}
+              <div style={{
+                fontSize: 11, fontWeight: 700, color: "var(--color-text-muted)",
+                marginBottom: 6, paddingLeft: 4,
+                display: "flex", alignItems: "center", justifyContent: "space-between",
+              }}>
+                <span>업로드 방식 선택 ({entries.length}개 파일)</span>
+                {!splitModeTouched && (
+                  <span style={{
+                    fontSize: 10, fontWeight: 600,
+                    color: "var(--color-brand-primary)",
+                    padding: "1px 6px", borderRadius: 999,
+                    background: "color-mix(in srgb, var(--color-brand-primary) 12%, transparent)",
+                  }}>
+                    자동 추천
+                  </span>
+                )}
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+                {/* 옵션 A: 각각 별도 doc */}
+                <button
+                  type="button"
+                  onClick={() => { setSplitMode(true); setSplitModeTouched(true); }}
                   disabled={uploading}
                   data-testid="matchup-split-mode-toggle"
-                  style={{ cursor: "pointer" }}
-                />
-                <span style={{ fontWeight: 600, color: "var(--color-text-primary)" }}>
-                  각 파일을 별도 {intentLabel}로 업로드
-                </span>
-                <span style={{ color: "var(--color-text-muted)" }}>
-                  ({entries.length}개 파일 → {entries.length}개 문서)
-                </span>
-              </label>
+                  data-split-mode={splitMode ? "true" : "false"}
+                  style={{
+                    textAlign: "left", padding: "8px 10px",
+                    borderRadius: "var(--radius-sm)",
+                    border: splitMode
+                      ? "2px solid var(--color-brand-primary)"
+                      : "1px solid var(--color-border-divider)",
+                    background: splitMode
+                      ? "color-mix(in srgb, var(--color-brand-primary) 10%, var(--color-bg-surface))"
+                      : "var(--color-bg-surface)",
+                    cursor: uploading ? "not-allowed" : "pointer",
+                    transition: "border-color 0.12s, background 0.12s",
+                  }}
+                >
+                  <div style={{
+                    fontSize: 12, fontWeight: 700,
+                    color: splitMode ? "var(--color-brand-primary)" : "var(--color-text-primary)",
+                    marginBottom: 2, display: "flex", alignItems: "center", gap: 6,
+                  }}>
+                    <span style={{ fontSize: 14 }}>{splitMode ? "●" : "○"}</span>
+                    각각 별도 {intentLabel}
+                  </div>
+                  <div style={{ fontSize: 11, color: "var(--color-text-muted)", lineHeight: 1.5 }}>
+                    {entries.length}개 파일 → {entries.length}개 문서로 업로드
+                  </div>
+                </button>
+                {/* 옵션 B: 1개로 합치기 */}
+                <button
+                  type="button"
+                  onClick={() => { setSplitMode(false); setSplitModeTouched(true); }}
+                  disabled={uploading}
+                  data-testid="matchup-merge-mode-toggle"
+                  style={{
+                    textAlign: "left", padding: "8px 10px",
+                    borderRadius: "var(--radius-sm)",
+                    border: !splitMode
+                      ? "2px solid var(--color-brand-primary)"
+                      : "1px solid var(--color-border-divider)",
+                    background: !splitMode
+                      ? "color-mix(in srgb, var(--color-brand-primary) 10%, var(--color-bg-surface))"
+                      : "var(--color-bg-surface)",
+                    cursor: uploading ? "not-allowed" : "pointer",
+                    transition: "border-color 0.12s, background 0.12s",
+                  }}
+                >
+                  <div style={{
+                    fontSize: 12, fontWeight: 700,
+                    color: !splitMode ? "var(--color-brand-primary)" : "var(--color-text-primary)",
+                    marginBottom: 2, display: "flex", alignItems: "center", gap: 6,
+                  }}>
+                    <span style={{ fontSize: 14 }}>{!splitMode ? "●" : "○"}</span>
+                    한 {intentLabel}로 합치기
+                  </div>
+                  <div style={{ fontSize: 11, color: "var(--color-text-muted)", lineHeight: 1.5 }}>
+                    {entries.length}장 사진/PDF → 1개 PDF로 묶어서 업로드
+                  </div>
+                </button>
+              </div>
             </div>
           )}
 
