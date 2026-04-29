@@ -24,6 +24,10 @@ const DEFAULT_IGNORE: RegExp[] = [
   /Download the React DevTools/i,
   // Cloudflare Network Error Logging beacon 실패 — 운영 의존 아님
   /cf-nel/i,
+  // iframe sandbox 정당한 동작 — about:srcdoc 안에서 'allow-scripts' 미설정은
+  // 의도된 보안 조치. 페이지 내 iframe 미리보기/embed (메시지 미리보기 등) 시 발생.
+  // spec logic 과 무관, sandbox 자체가 보안 기능.
+  /Blocked script execution in 'about:srcdoc'/i,
 ];
 
 type Mode = "strict" | "report" | "off";
