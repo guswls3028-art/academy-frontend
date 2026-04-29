@@ -29,6 +29,9 @@ type Props = {
   onClearCategory?: (name: string) => Promise<void> | void;
   onDelete: (id: number) => void;
   onRetry: (id: number) => void;
+  // 행 컨텍스트 액션. 미지원 시 메뉴에서 항목이 비활성/숨김.
+  onChangeIntent?: (id: number, next: "reference" | "test") => Promise<void> | void;
+  onRenameDocument?: (id: number, title: string) => Promise<void> | void;
   progressMap?: DocProgressMap;
 };
 
@@ -118,12 +121,19 @@ export default function DocumentList({
   documents, selectedId, onSelect, onUpload,
   onPromoteFromInventory, onRenameCategory, onMergeCategory, onClearCategory,
   onDelete, onRetry,
+  onChangeIntent, onRenameDocument,
   progressMap = {},
 }: Props) {
   const confirm = useConfirm();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  // 행 컨텍스트 메뉴 — 우클릭 또는 ··· 클릭 시 표시.
+  // 위치 좌표(viewport 기준)와 doc id를 저장. 다른 곳 클릭/Esc로 닫힘.
+  const [rowMenu, setRowMenu] = useState<{ id: number; x: number; y: number } | null>(null);
+  // 인라인 이름 변경 (rename) — 활성 doc id + 입력값
+  const [renamingDocId, setRenamingDocId] = useState<number | null>(null);
+  const [renameDocValue, setRenameDocValue] = useState("");
   // 카테고리 헤더 액션 메뉴 열림 키 (한 번에 하나만)
   const [openMenuKey, setOpenMenuKey] = useState<string | null>(null);
   // 인라인 이름 변경: 활성 카테고리 키 + 입력값
@@ -151,6 +161,25 @@ export default function DocumentList({
     document.addEventListener("mousedown", onDocClick);
     return () => document.removeEventListener("mousedown", onDocClick);
   }, [openMenuKey]);
+
+  // 행 컨텍스트 메뉴 외부 클릭/Esc 닫기
+  useEffect(() => {
+    if (!rowMenu) return;
+    const onDocClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target?.closest("[data-row-menu]")) return;
+      setRowMenu(null);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setRowMenu(null);
+    };
+    document.addEventListener("mousedown", onDocClick);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDocClick);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [rowMenu]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -198,6 +227,10 @@ export default function DocumentList({
     processing: documents.filter((d) => d.status === "processing" || d.status === "pending").length,
     done: documents.filter((d) => d.status === "done").length,
     failed: documents.filter((d) => d.status === "failed").length,
+    // intent별 글로벌 합계 — 카테고리 내부 헤더 "시험지 · N"이 카테고리별 카운트라
+    // 사용자가 전체 시험지 수로 오인하던 정합성 결함 보완.
+    test: documents.filter((d) => getDocumentIntent(d) === "test").length,
+    reference: documents.filter((d) => getDocumentIntent(d) === "reference").length,
   }), [documents]);
 
   const toggleCollapse = (key: string) => {
@@ -238,13 +271,30 @@ export default function DocumentList({
     const progress = progressMap[doc.id];
     const isSelected = selectedId === doc.id;
     const intent = getDocumentIntent(doc);
+    const isRenamingThis = renamingDocId === doc.id;
+
+    const openRowMenuAt = (clientX: number, clientY: number) => {
+      // viewport 우측/하단 끝 잘림 방지 — 메뉴 폭/높이 추정으로 클램프.
+      const MENU_W = 200;
+      const MENU_H = 220;
+      const x = Math.min(clientX, window.innerWidth - MENU_W - 8);
+      const y = Math.min(clientY, window.innerHeight - MENU_H - 8);
+      setRowMenu({ id: doc.id, x, y });
+    };
 
     return (
       <div
         key={doc.id}
         data-testid="matchup-doc-row"
         data-doc-id={doc.id}
-        onClick={() => onSelect(doc.id)}
+        onClick={() => { if (!isRenamingThis) onSelect(doc.id); }}
+        onContextMenu={(e) => {
+          // 일반 PC 사용자가 우클릭 시도 시 빈 OS 메뉴 노출 방지 — 커스텀 메뉴 표시.
+          e.preventDefault();
+          e.stopPropagation();
+          onSelect(doc.id);
+          openRowMenuAt(e.clientX, e.clientY);
+        }}
         style={{
           display: "flex",
           alignItems: "flex-start",
@@ -272,20 +322,54 @@ export default function DocumentList({
       >
         <FileText size={14} style={{ color: "var(--color-text-muted)", marginTop: 2, flexShrink: 0 }} />
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div
-            title={doc.title}
-            style={{
-              fontSize: 12.5, fontWeight: 600, color: "var(--color-text-primary)",
-              overflow: "hidden", textOverflow: "ellipsis",
-              display: "-webkit-box",
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: "vertical",
-              wordBreak: "break-all",
-              lineHeight: 1.3,
-            }}
-          >
-            {doc.title}
-          </div>
+          {isRenamingThis ? (
+            <input
+              autoFocus
+              value={renameDocValue}
+              onChange={(e) => setRenameDocValue(e.target.value)}
+              onClick={(e) => e.stopPropagation()}
+              onKeyDown={async (e) => {
+                e.stopPropagation();
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  const next = renameDocValue.trim();
+                  if (next && next !== doc.title && onRenameDocument) {
+                    await onRenameDocument(doc.id, next);
+                  }
+                  setRenamingDocId(null);
+                } else if (e.key === "Escape") {
+                  e.preventDefault();
+                  setRenamingDocId(null);
+                }
+              }}
+              onBlur={() => setRenamingDocId(null)}
+              style={{
+                width: "100%",
+                fontSize: 12.5, fontWeight: 600,
+                padding: "2px 6px",
+                border: "1px solid var(--color-brand-primary)",
+                borderRadius: 4,
+                background: "var(--color-bg-surface)",
+                color: "var(--color-text-primary)",
+                outline: "none",
+              }}
+            />
+          ) : (
+            <div
+              title={doc.title}
+              style={{
+                fontSize: 12.5, fontWeight: 600, color: "var(--color-text-primary)",
+                overflow: "hidden", textOverflow: "ellipsis",
+                display: "-webkit-box",
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: "vertical",
+                wordBreak: "break-all",
+                lineHeight: 1.3,
+              }}
+            >
+              {doc.title}
+            </div>
+          )}
 
           <div style={{ display: "flex", alignItems: "center", gap: "var(--space-1)", marginTop: 2, flexWrap: "wrap" }}>
             {STATUS_ICON[doc.status]}
@@ -358,7 +442,10 @@ export default function DocumentList({
           )}
         </div>
 
-        <div style={{ display: "flex", gap: 2, flexShrink: 0, marginTop: 2 }}>
+        <div
+          className="matchup-row-actions"
+          style={{ display: "flex", gap: 2, flexShrink: 0, marginTop: 2 }}
+        >
           {doc.status === "failed" && (
             <button
               onClick={(e) => handleRetry(e, doc.id)}
@@ -369,9 +456,35 @@ export default function DocumentList({
             </button>
           )}
           <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+              onSelect(doc.id);
+              // 버튼 우측 정렬 + 살짝 아래로
+              const MENU_W = 200;
+              const x = Math.min(r.right - MENU_W, window.innerWidth - MENU_W - 8);
+              const y = Math.min(r.bottom + 4, window.innerHeight - 220 - 8);
+              setRowMenu({ id: doc.id, x: Math.max(8, x), y });
+            }}
+            title="더보기"
+            data-testid="matchup-doc-row-more"
+            style={{
+              background: "none", border: "none", cursor: "pointer",
+              color: "var(--color-text-muted)", padding: 2,
+            }}
+          >
+            <MoreVertical size={13} />
+          </button>
+          {/* 휴지통은 hover로만 노출 — 마우스 이동 중 오클릭 위험 완화. */}
+          <button
+            className="matchup-row-trash"
             onClick={(e) => handleDelete(e, doc.id)}
             title="삭제"
-            style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-muted)", padding: 2 }}
+            style={{
+              background: "none", border: "none", cursor: "pointer",
+              color: "var(--color-text-muted)", padding: 2,
+            }}
           >
             <Trash2 size={13} />
           </button>
@@ -380,8 +493,26 @@ export default function DocumentList({
     );
   };
 
+  const rowMenuDoc = rowMenu ? documents.find((d) => d.id === rowMenu.id) ?? null : null;
+
   return (
     <>
+      {/* 행 hover 시 휴지통/더보기 노출 + 150ms 딜레이로 오클릭 완화 */}
+      <style>{`
+        [data-testid='matchup-doc-row'] .matchup-row-trash,
+        [data-testid='matchup-doc-row'] [data-testid='matchup-doc-row-more'] {
+          opacity: 0;
+          pointer-events: none;
+          transition: opacity 0.15s ease 0.15s;
+        }
+        [data-testid='matchup-doc-row']:hover .matchup-row-trash,
+        [data-testid='matchup-doc-row']:hover [data-testid='matchup-doc-row-more'],
+        [data-testid='matchup-doc-row']:focus-within .matchup-row-trash,
+        [data-testid='matchup-doc-row']:focus-within [data-testid='matchup-doc-row-more'] {
+          opacity: 1;
+          pointer-events: auto;
+        }
+      `}</style>
       <div className={css.treeNavHeader}>
         <span className={css.treeNavTitle}>매치업 풀</span>
         <div style={{ marginLeft: "auto", display: "flex", gap: 4, flexWrap: "wrap", justifyContent: "flex-end" }}>
@@ -477,6 +608,25 @@ export default function DocumentList({
             >
               실패 {counts.failed}
             </button>
+          </div>
+          {/* intent 글로벌 합계 — 카테고리별 헤더와 분리해 전체 시험지/자료 수를 명시 */}
+          <div style={{
+            display: "flex", gap: 8, alignItems: "center",
+            fontSize: 11, color: "var(--color-text-muted)",
+            paddingTop: 2,
+          }}>
+            <span title="등록된 학생 시험지 전체 수" style={{ color: "var(--color-warning)", fontWeight: 600 }}>
+              시험지 {counts.test}
+            </span>
+            <span style={{ opacity: 0.5 }}>·</span>
+            <span title="등록된 참고 자료 전체 수" style={{ color: "var(--color-brand-primary)", fontWeight: 600 }}>
+              참고 자료 {counts.reference}
+            </span>
+            {(search || statusFilter !== "all") && (
+              <span style={{ marginLeft: "auto", opacity: 0.7 }}>
+                필터 결과 {filtered.length}건
+              </span>
+            )}
           </div>
         </div>
       )}
@@ -911,6 +1061,131 @@ export default function DocumentList({
           );
         })}
       </div>
+      {/* 행 컨텍스트 메뉴 popover — 우클릭 또는 ··· 클릭으로 열림 */}
+      {rowMenu && rowMenuDoc && (
+        <div
+          data-row-menu
+          role="menu"
+          style={{
+            position: "fixed",
+            top: rowMenu.y,
+            left: rowMenu.x,
+            zIndex: 1000,
+            minWidth: 200,
+            background: "var(--color-bg-surface)",
+            border: "1px solid var(--color-border-divider)",
+            borderRadius: "var(--radius-md)",
+            boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
+            padding: 4,
+            display: "flex",
+            flexDirection: "column",
+            gap: 1,
+          }}
+        >
+          <div style={{
+            padding: "6px 10px 4px",
+            fontSize: 10,
+            color: "var(--color-text-muted)",
+            fontWeight: 700,
+            textTransform: "uppercase",
+            letterSpacing: 0.4,
+            borderBottom: "1px solid var(--color-border-divider)",
+            marginBottom: 2,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}>
+            {rowMenuDoc.title}
+          </div>
+          {onRenameDocument && (
+            <button
+              type="button"
+              role="menuitem"
+              onClick={(e) => {
+                e.stopPropagation();
+                setRenameDocValue(rowMenuDoc.title);
+                setRenamingDocId(rowMenuDoc.id);
+                setRowMenu(null);
+              }}
+              style={menuItemStyle()}
+            >
+              <Pencil size={13} />
+              <span>이름 변경</span>
+            </button>
+          )}
+          {onChangeIntent && (
+            <button
+              type="button"
+              role="menuitem"
+              onClick={async (e) => {
+                e.stopPropagation();
+                const next = getDocumentIntent(rowMenuDoc) === "test" ? "reference" : "test";
+                setRowMenu(null);
+                await onChangeIntent(rowMenuDoc.id, next);
+              }}
+              style={menuItemStyle()}
+            >
+              <FileText size={13} />
+              <span>{getDocumentIntent(rowMenuDoc) === "test" ? "참고자료로 변경" : "시험지로 변경"}</span>
+            </button>
+          )}
+          {rowMenuDoc.status === "failed" && (
+            <button
+              type="button"
+              role="menuitem"
+              onClick={(e) => {
+                e.stopPropagation();
+                setRowMenu(null);
+                onRetry(rowMenuDoc.id);
+              }}
+              style={menuItemStyle()}
+            >
+              <RefreshCw size={13} />
+              <span>재시도</span>
+            </button>
+          )}
+          <div style={{ height: 1, background: "var(--color-border-divider)", margin: "2px 0" }} />
+          <button
+            type="button"
+            role="menuitem"
+            onClick={async (e) => {
+              e.stopPropagation();
+              const id = rowMenuDoc.id;
+              setRowMenu(null);
+              const ok = await confirm({
+                title: "문서 삭제",
+                message: "이 문서와 추출된 문제가 모두 삭제됩니다.",
+                confirmText: "삭제",
+                danger: true,
+              });
+              if (ok) onDelete(id);
+            }}
+            style={menuItemStyle(true)}
+          >
+            <Trash2 size={13} />
+            <span>삭제</span>
+          </button>
+        </div>
+      )}
     </>
   );
+}
+
+function menuItemStyle(danger = false): React.CSSProperties {
+  return {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    width: "100%",
+    padding: "6px 10px",
+    background: "transparent",
+    border: "none",
+    borderRadius: "var(--radius-sm)",
+    textAlign: "left",
+    fontSize: 12,
+    fontWeight: 500,
+    color: danger ? "var(--color-danger)" : "var(--color-text-primary)",
+    cursor: "pointer",
+    fontFamily: "inherit",
+  };
 }
