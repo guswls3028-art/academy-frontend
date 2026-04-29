@@ -4,7 +4,7 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { Sparkles, AlertTriangle, RefreshCw, Eye, FolderOpen, BookOpen, Crop, FileText } from "lucide-react";
+import { Sparkles, AlertTriangle, RefreshCw, Eye, FolderOpen, BookOpen, Crop, FileText, ClipboardList } from "lucide-react";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import api from "@/shared/api/axios";
@@ -30,6 +30,7 @@ import CrossMatchesPanel from "../components/matchup/CrossMatchesPanel";
 import ProblemDetailModal from "../components/matchup/ProblemDetailModal";
 import DocumentPreviewModal from "../components/matchup/DocumentPreviewModal";
 import ManualCropModal from "../components/matchup/ManualCropModal";
+import HitReportEditor from "../components/matchup/HitReportEditor";
 import MatchupEmptyState from "../components/matchup/MatchupEmptyState";
 import { getDocumentIntent } from "../components/matchup/documentIntent";
 import css from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
@@ -71,6 +72,7 @@ export default function MatchupPage() {
   const [detailProblem, setDetailProblem] = useState<SimilarProblem | null>(null);
   const [previewDocId, setPreviewDocId] = useState<number | null>(null);
   const [cropDocId, setCropDocId] = useState<number | null>(null);
+  const [hitReportDocId, setHitReportDocId] = useState<number | null>(null);
   const [pendingNavigateNumber, setPendingNavigateNumber] = useState<number | null>(null);
   const [rightPanelTab, setRightPanelTab] = useState<"similar" | "cross">("similar");
   const [intentUpdating, setIntentUpdating] = useState(false);
@@ -523,7 +525,28 @@ export default function MatchupPage() {
                       }}
                     >
                       <FileText size={12} />
-                      적중 보고서 PDF
+                      자동 적중 PDF
+                    </button>
+                  )}
+                  {/* 큐레이션 적중 보고서 — 시험지(test)일 때만 노출. 사람이 직접 편집해서
+                      학원장/선생에게 제출하는 내부 보고서. 자동 PDF와는 분리된 워크플로우. */}
+                  {selectedDoc && selectedDocIntent === "test" && (
+                    <button
+                      onClick={() => setHitReportDocId(selectedDoc.id)}
+                      data-testid="matchup-doc-hit-report-curate-btn"
+                      title="시험지 문항별 적중 자료를 직접 골라 코멘트를 작성하여 보고서를 만듭니다"
+                      style={{
+                        display: "flex", alignItems: "center", gap: 4,
+                        fontSize: 11, padding: "3px 10px", borderRadius: 4,
+                        background: "color-mix(in srgb, var(--color-brand-primary) 14%, transparent)",
+                        color: "var(--color-brand-primary)",
+                        border: "1px solid color-mix(in srgb, var(--color-brand-primary) 40%, transparent)",
+                        cursor: "pointer",
+                        fontWeight: 700,
+                      }}
+                    >
+                      <ClipboardList size={12} />
+                      적중 보고서 작성
                     </button>
                   )}
                   {selectedDoc?.subject && (
@@ -860,13 +883,14 @@ export default function MatchupPage() {
 
       {uploadOpen && (
         <DocumentUploadModal
-          onClose={() => setUploadOpen(false)}
+          onClose={() => { setUploadOpen(false); setUploadDefaultCategory(""); }}
           onUpload={handleUpload}
           intent={uploadIntent}
           existingTitles={existingTitles}
           categorySuggestions={categorySuggestions}
           subjectSuggestions={subjectSuggestions}
           gradeLevelSuggestions={gradeLevelSuggestions}
+          defaultCategory={uploadDefaultCategory}
         />
       )}
 
@@ -898,6 +922,13 @@ export default function MatchupPage() {
           />
         ) : null;
       })()}
+
+      {hitReportDocId && (
+        <HitReportEditor
+          docId={hitReportDocId}
+          onClose={() => setHitReportDocId(null)}
+        />
+      )}
 
       {detailProblem && (
         <ProblemDetailModal

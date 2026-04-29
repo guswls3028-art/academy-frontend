@@ -424,3 +424,127 @@ export async function fetchJobProgress(
     return null;
   }
 }
+
+// ── Curated Hit Report (사람이 큐레이션한 적중 보고서) ──
+//
+// 비즈니스 흐름:
+//   실장이 시험지 doc 단위로 매치업 자동 후보를 검토 → 적합한 학원 자료를 골라
+//   코멘트·해설을 작성 → 선생/학원장에게 제출 → PDF 출력해 학원 운영 보고서로 사용.
+// 자동 hit-report.pdf와 분리: 자동은 마케팅용, 큐레이션은 학원 내부/제출용.
+
+export type HitReportEntry = {
+  id: number;
+  exam_problem_id: number;
+  selected_problem_ids: number[];
+  comment: string;
+  order: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type HitReport = {
+  id: number;
+  document_id: number;
+  document_title: string;
+  document_category: string;
+  title: string;
+  summary: string;
+  status: "draft" | "submitted";
+  submitted_at: string | null;
+  submitted_by_name: string;
+  entries: HitReportEntry[];
+  created_at: string;
+  updated_at: string;
+};
+
+export type HitReportCandidate = {
+  id: number;
+  document_id: number;
+  number: number;
+  text_preview: string;
+  similarity: number;
+  image_key: string;
+  image_url?: string;
+};
+
+export type HitReportExamProblem = {
+  id: number;
+  number: number;
+  text_preview: string;
+  image_key: string;
+  image_url?: string;
+  candidates: HitReportCandidate[];
+  entry: {
+    id: number;
+    selected_problem_ids: number[];
+    comment: string;
+    order: number;
+  } | null;
+};
+
+export type HitReportSelectedMeta = {
+  id: number;
+  document_id: number;
+  number: number;
+  text_preview: string;
+  image_key: string;
+  image_url?: string;
+};
+
+export type HitReportDraftResponse = {
+  report: HitReport;
+  exam_problems: HitReportExamProblem[];
+  selected_problem_meta: HitReportSelectedMeta[];
+};
+
+export async function fetchHitReportDraft(
+  docId: number,
+): Promise<HitReportDraftResponse> {
+  const { data } = await api.get<HitReportDraftResponse>(
+    `/matchup/documents/${docId}/hit-report-draft/`,
+    { timeout: 120_000 },
+  );
+  return data;
+}
+
+export async function updateHitReport(
+  reportId: number,
+  payload: { title?: string; summary?: string },
+): Promise<HitReport> {
+  const { data } = await api.patch<HitReport>(
+    `/matchup/hit-reports/${reportId}/`,
+    payload,
+  );
+  return data;
+}
+
+export async function upsertHitReportEntries(
+  reportId: number,
+  entries: Array<{
+    exam_problem_id: number;
+    selected_problem_ids: number[];
+    comment: string;
+    order: number;
+  }>,
+): Promise<{ upserted: number; deleted: number }> {
+  const { data } = await api.post<{ upserted: number; deleted: number }>(
+    `/matchup/hit-reports/${reportId}/entries/`,
+    { entries },
+  );
+  return data;
+}
+
+export async function submitHitReport(reportId: number): Promise<HitReport> {
+  const { data } = await api.post<HitReport>(
+    `/matchup/hit-reports/${reportId}/submit/`,
+  );
+  return data;
+}
+
+export function getHitReportPdfUrl(reportId: number): string {
+  return `/api/v1/matchup/hit-reports/${reportId}/curated.pdf`;
+}
+
+export async function deleteHitReport(reportId: number): Promise<void> {
+  await api.delete(`/matchup/hit-reports/${reportId}/`);
+}
