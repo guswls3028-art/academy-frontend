@@ -673,11 +673,16 @@ export default function MatchupPage() {
                       처리 미완료 시 "시험지에 등록된 문항이 없습니다" 빈 편집기가 열리는 혼란 방지. */}
                   {selectedDoc && selectedDocIntent === "test" && (() => {
                     const isReady = selectedDoc.status === "done";
+                    const pinnedCount = Object.values(pinsByExamPid)
+                      .reduce((acc, s) => acc + s.size, 0);
                     const reason = !isReady
                       ? selectedDoc.status === "failed"
                         ? "처리 실패한 시험지는 보고서를 작성할 수 없습니다"
                         : "분리가 완료된 후 작성할 수 있습니다"
-                      : "시험지 문항별 적중 자료를 직접 골라 코멘트를 작성하여 보고서를 만듭니다";
+                      : pinnedCount > 0
+                        ? `찜한 ${pinnedCount}개 자료로 적중 보고서를 작성합니다`
+                        : "시험지 문항별 적중 자료를 직접 골라 코멘트를 작성하여 보고서를 만듭니다";
+                    const accent = isReady && pinnedCount > 0;
                     return (
                       <button
                         type="button"
@@ -688,13 +693,17 @@ export default function MatchupPage() {
                         style={{
                           display: "flex", alignItems: "center", gap: 4,
                           fontSize: 11, padding: "3px 10px", borderRadius: 4,
-                          background: isReady
-                            ? "color-mix(in srgb, var(--color-brand-primary) 14%, transparent)"
-                            : "var(--color-bg-surface-soft)",
+                          background: accent
+                            ? "color-mix(in srgb, var(--color-brand-primary) 22%, transparent)"
+                            : isReady
+                              ? "color-mix(in srgb, var(--color-brand-primary) 14%, transparent)"
+                              : "var(--color-bg-surface-soft)",
                           color: isReady ? "var(--color-brand-primary)" : "var(--color-text-muted)",
-                          border: isReady
-                            ? "1px solid color-mix(in srgb, var(--color-brand-primary) 40%, transparent)"
-                            : "1px solid var(--color-border-divider)",
+                          border: accent
+                            ? "1px solid var(--color-brand-primary)"
+                            : isReady
+                              ? "1px solid color-mix(in srgb, var(--color-brand-primary) 40%, transparent)"
+                              : "1px solid var(--color-border-divider)",
                           cursor: isReady ? "pointer" : "not-allowed",
                           opacity: isReady ? 1 : 0.55,
                           fontWeight: 700,
@@ -702,6 +711,15 @@ export default function MatchupPage() {
                       >
                         <ClipboardList size={12} />
                         적중 보고서 작성
+                        {accent && (
+                          <span style={{
+                            marginLeft: 2, padding: "1px 6px", borderRadius: 999,
+                            background: "var(--color-brand-primary)",
+                            color: "white", fontSize: 10, fontWeight: 700,
+                          }}>
+                            {pinnedCount}
+                          </span>
+                        )}
                       </button>
                     );
                   })()}
