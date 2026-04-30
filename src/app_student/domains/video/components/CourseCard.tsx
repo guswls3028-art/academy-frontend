@@ -32,45 +32,38 @@ function CourseCard({
   to,
   onClick,
 }: CourseCardProps) {
-  const Component = onClick ? "button" : Link;
-  const props = onClick
-    ? { onClick, type: "button" as const }
-    : { to, style: { textDecoration: "none", color: "inherit" } };
+  const baseStyle = {
+    display: "block",
+    width: "100%",
+    textAlign: "left" as const,
+    borderRadius: 12,
+    overflow: "hidden",
+    background: "var(--stu-surface)",
+    border: "1px solid var(--stu-border)",
+    boxShadow: "var(--stu-shadow-1)",
+    transition: "transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease",
+    cursor: "pointer",
+    position: "relative" as const,
+  };
+  const handleMouseEnter = (e: React.MouseEvent<HTMLElement>) => {
+    e.currentTarget.style.transform = "translateY(-6px)";
+    e.currentTarget.style.boxShadow = "0 8px 20px rgba(0,0,0,0.08)";
+    e.currentTarget.style.borderColor = "var(--stu-border-strong)";
+  };
+  const handleMouseLeave = (e: React.MouseEvent<HTMLElement>) => {
+    e.currentTarget.style.transform = "translateY(0)";
+    e.currentTarget.style.boxShadow = "var(--stu-shadow-1)";
+    e.currentTarget.style.borderColor = "var(--stu-border)";
+  };
+  const handleMouseDown = (e: React.MouseEvent<HTMLElement>) => {
+    e.currentTarget.style.transform = "translateY(-3px) scale(0.98)";
+  };
+  const handleMouseUp = (e: React.MouseEvent<HTMLElement>) => {
+    e.currentTarget.style.transform = "translateY(-6px)";
+  };
 
-  return (
-    <Component
-      {...(props as any)}
-      className="media-tile"
-      style={{
-        display: "block",
-        width: "100%",
-        textAlign: "left",
-        borderRadius: 12,
-        overflow: "hidden",
-        background: "var(--stu-surface)",
-        border: "1px solid var(--stu-border)",
-        boxShadow: "var(--stu-shadow-1)",
-        transition: "transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease",
-        cursor: "pointer",
-        position: "relative",
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.transform = "translateY(-6px)";
-        e.currentTarget.style.boxShadow = "0 8px 20px rgba(0,0,0,0.08)";
-        e.currentTarget.style.borderColor = "var(--stu-border-strong)";
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.transform = "translateY(0)";
-        e.currentTarget.style.boxShadow = "var(--stu-shadow-1)";
-        e.currentTarget.style.borderColor = "var(--stu-border)";
-      }}
-      onMouseDown={(e) => {
-        e.currentTarget.style.transform = "translateY(-3px) scale(0.98)";
-      }}
-      onMouseUp={(e) => {
-        e.currentTarget.style.transform = "translateY(-6px)";
-      }}
-    >
+  const inner = (
+    <>
       {/* 썸네일 영역 */}
       <div
         className="media-tile__thumb"
@@ -231,7 +224,38 @@ function CourseCard({
           </div>
         )}
       </div>
-    </Component>
+    </>
+  );
+
+  if (onClick) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        className="media-tile"
+        style={baseStyle}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+        onMouseDown={handleMouseDown}
+        onMouseUp={handleMouseUp}
+      >
+        {inner}
+      </button>
+    );
+  }
+
+  return (
+    <Link
+      to={to}
+      className="media-tile"
+      style={{ ...baseStyle, textDecoration: "none", color: "inherit" }}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      onMouseDown={handleMouseDown}
+      onMouseUp={handleMouseUp}
+    >
+      {inner}
+    </Link>
   );
 }
 

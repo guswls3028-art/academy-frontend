@@ -100,7 +100,7 @@ export async function fetchStudentSessionVideos(
   if (Number.isNaN(Number(sessionId)) || sessionId < 1) {
     throw new Error("유효한 차시가 아닙니다.");
   }
-  const res = await api.get<any>(`/student/video/sessions/${sessionId}/videos/`, {
+  const res = await api.get<{ items?: StudentVideoListItem[] }>(`/student/video/sessions/${sessionId}/videos/`, {
     params: enrollmentId ? { enrollment: enrollmentId } : undefined,
   });
   const d = res?.data;
@@ -175,7 +175,7 @@ export async function fetchVideoStats(): Promise<VideoStatsResponse> {
 /* ─── 좋아요 ─── */
 
 export async function toggleVideoLike(videoId: number): Promise<{ liked: boolean; like_count: number }> {
-  const res = await api.post<any>(`/student/video/videos/${videoId}/like/`);
+  const res = await api.post<{ liked: boolean; like_count: number }>(`/student/video/videos/${videoId}/like/`);
   return res.data;
 }
 
@@ -196,12 +196,12 @@ export type VideoCommentItem = {
 };
 
 export async function fetchVideoComments(videoId: number): Promise<{ comments: VideoCommentItem[]; total: number }> {
-  const res = await api.get<any>(`/student/video/videos/${videoId}/comments/`);
+  const res = await api.get<{ comments: VideoCommentItem[]; total: number }>(`/student/video/videos/${videoId}/comments/`);
   return res.data;
 }
 
 export async function createVideoComment(videoId: number, content: string, parentId?: number): Promise<VideoCommentItem> {
-  const res = await api.post<any>(`/student/video/videos/${videoId}/comments/`, {
+  const res = await api.post<VideoCommentItem>(`/student/video/videos/${videoId}/comments/`, {
     content,
     parent_id: parentId ?? null,
   });
@@ -209,12 +209,12 @@ export async function createVideoComment(videoId: number, content: string, paren
 }
 
 export async function editVideoComment(commentId: number, content: string): Promise<{ id: number; content: string; is_edited: boolean }> {
-  const res = await api.patch<any>(`/student/video/comments/${commentId}/`, { content });
+  const res = await api.patch<{ id: number; content: string; is_edited: boolean }>(`/student/video/comments/${commentId}/`, { content });
   return res.data;
 }
 
 export async function deleteVideoComment(commentId: number): Promise<{ deleted: boolean }> {
-  const res = await api.delete<any>(`/student/video/comments/${commentId}/`);
+  const res = await api.delete<{ deleted: boolean }>(`/student/video/comments/${commentId}/`);
   return res.data;
 }
 

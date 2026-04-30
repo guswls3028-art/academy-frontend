@@ -303,7 +303,7 @@ export default function VideoCommentSection({ videoId }: { videoId: number }) {
           onKeyDown={(e) => {
             // Enter = 전송, Shift+Enter = 줄바꿈 (표준 채팅 UX)
             // 한국어 IME 조합 중 Enter는 무시 (e.nativeEvent.isComposing)
-            const composing = (e.nativeEvent as any)?.isComposing;
+            const composing = (e.nativeEvent as KeyboardEvent).isComposing;
             if (e.key === "Enter" && !e.shiftKey && !composing && newComment.trim()) {
               e.preventDefault();
               handleSubmit();
