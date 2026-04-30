@@ -123,6 +123,20 @@ export default function HitReportEditor({ docId, onClose }: Props) {
     });
   }, [active, isSubmitted]);
 
+  // 자동 저장 — dirty 후 1.5초 동안 추가 변경 없으면 자동 백엔드 동기화. 데이터 손실 방지.
+  // 코멘트 타이핑 중에는 debounce, 후보 토글은 즉시 효과.
+  useEffect(() => {
+    if (isSubmitted || !reportId) return;
+    const dirtyAnyEntries = Object.values(entries).some((e) => e.dirty);
+    if (!dirtyAnyEntries && !headerDirty) return;
+    const timer = setTimeout(() => {
+      void saveAll();
+    }, 1500);
+    return () => clearTimeout(timer);
+    // saveAll의 deps가 dirtyEntries라서 saveAll 의존성 추가하면 매 변경마다 timer 재설정
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entries, headerDirty, isSubmitted, reportId]);
+
   // ── 저장 ──
 
   const dirtyEntries = useMemo(
@@ -528,15 +542,35 @@ function CuratePanel({
       }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-text-primary)" }}>
           학원 자료 후보 ({active.candidates.length})
+          {entry && entry.selectedProblemIds.length > 0 && (
+            <span style={{
+              marginLeft: 8, padding: "1px 8px", borderRadius: 999,
+              background: "var(--color-brand-primary)", color: "white",
+              fontSize: 11, fontWeight: 700,
+            }}>
+              {entry.selectedProblemIds.length} 선택
+            </span>
+          )}
         </div>
         <div style={{ fontSize: 10, color: "var(--color-text-muted)" }}>
-          체크박스로 다중 선택
+          행 클릭으로 선택/해제
         </div>
       </div>
       <div style={{ flex: 1, overflow: "auto", padding: 10 }}>
         {active.candidates.length === 0 && extraSelected.length === 0 ? (
-          <div style={{ padding: 24, textAlign: "center", color: "var(--color-text-muted)", fontSize: 12 }}>
-            카테고리 내 유사 자료가 없습니다
+          <div style={{
+            padding: 20, textAlign: "center", color: "var(--color-text-secondary)", fontSize: 12,
+            background: "var(--color-bg-surface-soft)",
+            border: "1px dashed var(--color-border-divider)",
+            borderRadius: 6, lineHeight: 1.6,
+          }}>
+            <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6, color: "var(--color-text-primary)" }}>
+              유사 자료가 없습니다
+            </div>
+            <div>이 문항의 임베딩이 누락되었거나, 같은 카테고리 자료가 인덱싱되지 않았을 수 있습니다.</div>
+            <div style={{ marginTop: 8, fontSize: 11, color: "var(--color-text-muted)" }}>
+              매치업 페이지에서 자료를 매뉴얼 크롭/paste로 추가하면 자동으로 매칭됩니다.
+            </div>
           </div>
         ) : null}
         {active.candidates.map((c) => {
