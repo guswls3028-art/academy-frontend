@@ -255,15 +255,29 @@ export default function MatchupPage() {
   );
 
   // 선택된 문서의 문제 번호 중복/결손 감지 (과분할 힌트)
+  // 누락된 번호를 명시해 사용자가 어디를 직접 자르기로 추가해야 하는지 즉시 인지.
+  // 부록/해설 영역 점프(예: 24→101)는 gap으로 카운트하지 않음 — 본문 연속 구간만.
   const numberAnomalies = useMemo(() => {
-    if (problems.length === 0) return { duplicates: 0, gaps: 0 };
+    if (problems.length === 0) {
+      return { duplicates: 0, gaps: 0, missingNumbers: [] as number[] };
+    }
     const nums = problems.map((p) => p.number).sort((a, b) => a - b);
     const duplicates = nums.length - new Set(nums).size;
+    const numSet = new Set(nums);
+    const missingNumbers: number[] = [];
     let gaps = 0;
     for (let i = 1; i < nums.length; i++) {
-      if (nums[i] !== nums[i - 1] && nums[i] - nums[i - 1] > 1) gaps += 1;
+      if (nums[i] === nums[i - 1]) continue;
+      const diff = nums[i] - nums[i - 1];
+      // 부록/해설(예: 24→101)은 무시 — 11 이상 점프는 의도된 페이지 구분
+      if (diff > 1 && diff <= 10) {
+        gaps += 1;
+        for (let m = nums[i - 1] + 1; m < nums[i]; m++) {
+          missingNumbers.push(m);
+        }
+      }
     }
-    return { duplicates, gaps };
+    return { duplicates, gaps, missingNumbers };
   }, [problems]);
 
   // ── 핸들러 ──
@@ -941,25 +955,67 @@ export default function MatchupPage() {
                   </div>
                 )}
 
-                {/* 과분할 감지 힌트 — 번호 중복/결손이 있을 때만 노출 */}
-                {selectedDoc?.status === "done" && (numberAnomalies.duplicates > 0 || numberAnomalies.gaps > 0) && (
-                  <div style={{
-                    flexShrink: 0,
-                    padding: "6px var(--space-3)",
-                    borderRadius: "var(--radius-sm)",
-                    background: "var(--color-bg-surface-soft)",
-                    fontSize: 11, color: "var(--color-text-muted)",
-                    display: "flex", alignItems: "center", gap: "var(--space-2)",
-                  }}>
-                    <AlertTriangle size={12} style={{ color: "var(--color-warning)" }} />
-                    <span>
-                      문항 번호에 중복·빈칸이 감지됐습니다
-                      {numberAnomalies.duplicates > 0 && ` · 중복 ${numberAnomalies.duplicates}건`}
-                      {numberAnomalies.gaps > 0 && ` · 빈칸 ${numberAnomalies.gaps}구간`}
-                      . 원본과 대조해 주세요.
-                    </span>
-                  </div>
-                )}
+                {/* 과분할 감지 힌트 — 번호 중복/결손이 있을 때만 노출.
+                    시험지(test)는 적중 PDF에 직접 영향 → warning 톤으로 강조 + 직접 자르기 CTA. */}
+                {selectedDoc?.status === "done" && (numberAnomalies.duplicates > 0 || numberAnomalies.gaps > 0) && (() => {
+                  const isTest = selectedDocIntent === "test";
+                  const missingShown = numberAnomalies.missingNumbers.slice(0, 8);
+                  const remaining = numberAnomalies.missingNumbers.length - missingShown.length;
+                  return (
+                    <div data-testid="matchup-number-gap-banner" style={{
+                      flexShrink: 0,
+                      padding: "var(--space-2) var(--space-3)",
+                      borderRadius: "var(--radius-md)",
+                      background: isTest
+                        ? "color-mix(in srgb, var(--color-warning) 8%, transparent)"
+                        : "var(--color-bg-surface-soft)",
+                      border: isTest
+                        ? "1px solid color-mix(in srgb, var(--color-warning) 30%, transparent)"
+                        : "1px solid var(--color-border-divider)",
+                      fontSize: 12,
+                      color: isTest ? "var(--color-warning)" : "var(--color-text-secondary)",
+                      display: "flex", alignItems: "center", gap: "var(--space-2)",
+                      flexWrap: "wrap",
+                    }}>
+                      <AlertTriangle size={14} style={{ color: "var(--color-warning)", flexShrink: 0 }} />
+                      <span style={{ fontWeight: isTest ? 700 : 500 }}>
+                        {isTest ? "시험지에 분리되지 않은 문항이 있습니다" : "문항 번호에 빈칸이 있습니다"}
+                      </span>
+                      {missingShown.length > 0 && (
+                        <span style={{ color: "var(--color-text-secondary)", fontWeight: 600 }}>
+                          누락 Q{missingShown.join(", Q")}{remaining > 0 ? ` 외 ${remaining}건` : ""}
+                        </span>
+                      )}
+                      {numberAnomalies.duplicates > 0 && (
+                        <span style={{ color: "var(--color-text-secondary)" }}>
+                          · 중복 {numberAnomalies.duplicates}건
+                        </span>
+                      )}
+                      {selectedDoc && (
+                        <button
+                          type="button"
+                          onClick={() => setCropDocId(selectedDoc.id)}
+                          data-testid="matchup-number-gap-crop-cta"
+                          style={{
+                            marginLeft: "auto",
+                            display: "inline-flex", alignItems: "center", gap: 4,
+                            padding: "4px 10px", borderRadius: 4,
+                            background: isTest ? "var(--color-warning)" : "var(--color-bg-surface)",
+                            color: isTest ? "white" : "var(--color-brand-primary)",
+                            border: isTest ? "none" : "1px solid var(--color-brand-primary)",
+                            fontSize: 11, fontWeight: 700, cursor: "pointer",
+                          }}
+                          title={isTest
+                            ? "직접 자르기로 누락된 문항을 추가하면 적중 PDF에 모두 포함됩니다"
+                            : "직접 자르기로 누락 문항 추가"}
+                        >
+                          <Crop size={11} />
+                          직접 자르기로 추가
+                        </button>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {/* 본문: 좌 문제 그리드 + 우 유사 추천 */}
                 <div style={{ display: "flex", gap: "var(--space-4)", flex: 1, minHeight: 0 }}>
