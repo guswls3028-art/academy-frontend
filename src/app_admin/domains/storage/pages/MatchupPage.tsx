@@ -256,25 +256,32 @@ export default function MatchupPage() {
 
   // 선택된 문서의 문제 번호 중복/결손 감지 (과분할 힌트)
   // 누락된 번호를 명시해 사용자가 어디를 직접 자르기로 추가해야 하는지 즉시 인지.
-  // 부록/해설 영역 점프(예: 24→101)는 gap으로 카운트하지 않음 — 본문 연속 구간만.
+  //
+  // gap 분류:
+  //   - 작은 본문 gap (diff <=10): 진짜 결함 의심 → 누락 번호 명시
+  //   - 큰 점프이지만 다음 번호 <100: 본문에서 누락 의심 (e.g. 1~10→25) → 동일하게 표시
+  //   - 큰 점프 + 다음 번호 >=100: 부록/해설 매핑 (예: 24→101) → 의도된 분리, 무시
+  // 미싱 번호 표시는 8개 캡 — 큰 본문 gap이면 자연스럽게 잘려서 UI 짜부 안 됨.
   const numberAnomalies = useMemo(() => {
     if (problems.length === 0) {
       return { duplicates: 0, gaps: 0, missingNumbers: [] as number[] };
     }
     const nums = problems.map((p) => p.number).sort((a, b) => a - b);
     const duplicates = nums.length - new Set(nums).size;
-    const numSet = new Set(nums);
     const missingNumbers: number[] = [];
     let gaps = 0;
+    const MISSING_CAP = 8;
     for (let i = 1; i < nums.length; i++) {
       if (nums[i] === nums[i - 1]) continue;
       const diff = nums[i] - nums[i - 1];
-      // 부록/해설(예: 24→101)은 무시 — 11 이상 점프는 의도된 페이지 구분
-      if (diff > 1 && diff <= 10) {
-        gaps += 1;
-        for (let m = nums[i - 1] + 1; m < nums[i]; m++) {
-          missingNumbers.push(m);
-        }
+      if (diff <= 1) continue;
+      // 부록/해설 매핑(다음 번호 >=100 + 큰 점프)은 의도된 분리로 보고 무시
+      const looksAppendix = diff > 10 && nums[i] >= 100;
+      if (looksAppendix) continue;
+      gaps += 1;
+      for (let m = nums[i - 1] + 1; m < nums[i]; m++) {
+        if (missingNumbers.length >= MISSING_CAP) break;
+        missingNumbers.push(m);
       }
     }
     return { duplicates, gaps, missingNumbers };
