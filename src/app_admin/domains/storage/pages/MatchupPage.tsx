@@ -230,7 +230,10 @@ export default function MatchupPage() {
   const { data: problems = [], isLoading: problemsLoading } = useQuery({
     queryKey: ["matchup-problems", selectedDocId],
     queryFn: () => fetchMatchupProblems(selectedDocId!),
-    enabled: !!selectedDocId && selectedDoc?.status === "done",
+    // status==='processing'에서도 활성화 — 백엔드가 세그멘테이션 직후 skeleton row를
+    // INSERT하므로 신규 업로드 사용자에게 즉시 부분 결과(N개 카드 + "처리 중" 뱃지)
+    // 노출 가능. useMatchupPolling이 polling 주기마다 invalidate해 자동 refetch.
+    enabled: !!selectedDocId && (selectedDoc?.status === "done" || selectedDoc?.status === "processing"),
   });
 
   // 업로드 모달에 넘길 자동완성 값 — 기존 문서에서 unique 추출

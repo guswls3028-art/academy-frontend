@@ -87,6 +87,12 @@ export function useMatchupPolling(documents: MatchupDocument[]): DocProgressMap 
       if (anyComplete) {
         qc.invalidateQueries({ queryKey: ["matchup-documents"] });
         qc.invalidateQueries({ queryKey: ["matchup-problems"] });
+      } else {
+        // 진행 중에도 problems 쿼리 invalidate — 백엔드 파이프라인이 세그멘테이션
+        // 직후 skeleton MatchupProblem rows를 INSERT하므로, 신규 업로드 사용자에게
+        // 즉시 부분 결과 노출하기 위해 polling 주기마다 갱신.
+        // (terminal 시점에만 invalidate하던 결함 — 신규 업로드 doc은 끝까지 빈 화면)
+        qc.invalidateQueries({ queryKey: ["matchup-problems"] });
       }
     };
 
