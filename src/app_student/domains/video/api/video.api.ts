@@ -58,6 +58,11 @@ export type StudentVideoListItem = {
   access_mode?: AccessMode;
   updated_at?: string | null;
   order?: number;
+  view_count?: number;
+  like_count?: number;
+  comment_count?: number;
+  is_liked?: boolean;
+  created_at?: string | null;
 };
 
 export type StudentSessionVideosResponse = {
@@ -69,8 +74,13 @@ export type StudentVideoPlayback = {
   hls_url?: string | null;
   mp4_url?: string | null;
   play_url?: string | null; // 백엔드에서 제공하는 재생 URL
+  playback_token?: string | null;
+  playback_session_id?: string | null;
+  playback_expires_at?: number | null;
+  detail?: string;
   policy: {
     allow_seek?: boolean;
+    monitoring_enabled?: boolean;
     seek?: {
       mode?: "free" | "blocked" | "bounded_forward";
       forward_limit?: "max_watched" | null;

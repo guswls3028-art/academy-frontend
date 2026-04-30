@@ -5,14 +5,14 @@ export function clamp(v: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
 }
 
-export function safeParseInt(v: any, fallback?: number): number | null {
+export function safeParseInt(v: unknown, fallback?: number): number | null {
   if (v == null) return fallback ?? null;
   const n = Number.parseInt(String(v), 10);
   if (Number.isNaN(n)) return fallback ?? null;
   return n;
 }
 
-export function safeParseFloat(v: any, fallback?: number): number | null {
+export function safeParseFloat(v: unknown, fallback?: number): number | null {
   if (v == null) return fallback ?? null;
   const n = Number.parseFloat(String(v));
   if (Number.isNaN(n)) return fallback ?? null;

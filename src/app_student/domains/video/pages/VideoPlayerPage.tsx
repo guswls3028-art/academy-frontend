@@ -135,11 +135,11 @@ export default function VideoPlayerPage() {
   const { video, boot, loadError } = useMemo(() => {
     if (!playbackQuery.data) {
       if (playbackQuery.error) {
-        const e = playbackQuery.error as any;
+        const err = playbackQuery.error as { response?: { data?: { detail?: string; message?: string } }; message?: string };
         const msg =
-          e?.response?.data?.detail ||
-          e?.response?.data?.message ||
-          e?.message ||
+          err?.response?.data?.detail ||
+          err?.response?.data?.message ||
+          err?.message ||
           "재생 페이지 로드에 실패했습니다.";
         return { video: null, boot: null, loadError: String(msg) };
       }
@@ -163,12 +163,12 @@ export default function VideoPlayerPage() {
       thumbnail_url: vd.thumbnail_url ?? null,
       hls_url: playbackData.hls_url ?? null,
       session_id: Number(vd.session_id),
-      last_position: (vd as any).last_position ?? 0,
-      view_count: (vd as any).view_count ?? 0,
-      like_count: (vd as any).like_count ?? 0,
-      comment_count: (vd as any).comment_count ?? 0,
-      is_liked: !!(vd as any).is_liked,
-      created_at: (vd as any).created_at ?? null,
+      last_position: vd.last_position ?? 0,
+      view_count: vd.view_count ?? 0,
+      like_count: vd.like_count ?? 0,
+      comment_count: vd.comment_count ?? 0,
+      is_liked: !!vd.is_liked,
+      created_at: vd.created_at ?? null,
     };
 
     const playUrl = playbackData.play_url || playbackData.hls_url || playbackData.mp4_url || "";
@@ -184,16 +184,16 @@ export default function VideoPlayerPage() {
 
     // PROCTORED_CLASS면 백엔드가 진짜 token + session_id를 발급해 옴.
     // FREE_REVIEW면 모니터링 불필요 → placeholder token으로 진행(서버 진도 검증 없음).
-    const realToken = (playbackData as any).playback_token as string | null | undefined;
-    const realSessionId = (playbackData as any).playback_session_id as string | null | undefined;
-    const realExpiresAt = (playbackData as any).playback_expires_at as number | null | undefined;
+    const realToken = playbackData.playback_token;
+    const realSessionId = playbackData.playback_session_id;
+    const realExpiresAt = playbackData.playback_expires_at;
     const accessMode = (playbackData.policy?.access_mode || "FREE_REVIEW") as "FREE_REVIEW" | "PROCTORED_CLASS";
     const b: PlaybackBootstrap = {
       token: realToken || `student-${videoId}-${Date.now()}`,
       session_id: realSessionId || null,
       expires_at: realExpiresAt || null,
       access_mode: accessMode,
-      monitoring_enabled: (playbackData.policy as any)?.monitoring_enabled ?? false,
+      monitoring_enabled: playbackData.policy?.monitoring_enabled ?? false,
       policy: playbackData.policy || {},
       play_url: playUrl,
     };

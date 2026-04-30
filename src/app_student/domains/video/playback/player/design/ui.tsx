@@ -8,7 +8,7 @@ export function Pill({
   children,
   tone = "neutral",
 }: {
-  children: any;
+  children: React.ReactNode;
   tone?: "neutral" | "warn" | "danger";
 }) {
   const cls =
@@ -131,9 +131,9 @@ export function KebabMenu({
   const root = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    const onDown = (e: any) => {
+    const onDown = (e: MouseEvent) => {
       if (!root.current) return;
-      if (!root.current.contains(e.target)) setOpen(false);
+      if (!root.current.contains(e.target as Node)) setOpen(false);
     };
     window.addEventListener("mousedown", onDown);
     return () => window.removeEventListener("mousedown", onDown);
@@ -193,9 +193,9 @@ export function SpeedButton({
 
   useEffect(() => {
     if (!open) return;
-    const onDown = (e: any) => {
-      if (btnRef.current?.contains(e.target)) return;
-      if (menuRef.current?.contains(e.target)) return;
+    const onDown = (e: PointerEvent) => {
+      if (btnRef.current?.contains(e.target as Node)) return;
+      if (menuRef.current?.contains(e.target as Node)) return;
       setOpen(false);
     };
     window.addEventListener("pointerdown", onDown);
@@ -277,9 +277,9 @@ export function QualityButton({
 
   useEffect(() => {
     if (!open) return;
-    const onDown = (e: any) => {
-      if (btnRef.current?.contains(e.target)) return;
-      if (menuRef.current?.contains(e.target)) return;
+    const onDown = (e: PointerEvent) => {
+      if (btnRef.current?.contains(e.target as Node)) return;
+      if (menuRef.current?.contains(e.target as Node)) return;
       setOpen(false);
     };
     window.addEventListener("pointerdown", onDown);

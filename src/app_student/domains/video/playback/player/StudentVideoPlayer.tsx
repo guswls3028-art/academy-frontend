@@ -44,7 +44,7 @@ export type PlaybackBootstrap = {
   expires_at: number | null;
   access_mode: "FREE_REVIEW" | "PROCTORED_CLASS";
   monitoring_enabled: boolean;
-  policy: any;
+  policy: Partial<Policy> | null | undefined;
   play_url: string;
 };
 
@@ -72,20 +72,23 @@ type Policy = {
   watermark?: { enabled?: boolean };
 };
 
-function normalizePolicy(p: any): Policy {
-  const policy = (p || {}) as Policy;
-  policy.seek = policy.seek || {};
-  policy.playback_rate = policy.playback_rate || {};
-  policy.watermark = policy.watermark || {};
+function normalizePolicy(p: Partial<Policy> | null | undefined): Policy {
+  const policy: Policy = { ...(p || {}) };
+  const seek = { ...(policy.seek || {}) };
+  const playbackRate = { ...(policy.playback_rate || {}) };
+  const watermark = { ...(policy.watermark || {}) };
   if (policy.monitoring_enabled == null) {
     policy.monitoring_enabled = policy.access_mode === "PROCTORED_CLASS";
   }
   if (policy.allow_seek == null) policy.allow_seek = true;
-  if (!policy.seek?.mode) (policy.seek as any).mode = "free";
-  if (policy.seek?.grace_seconds == null) (policy.seek as any).grace_seconds = 3;
-  if (policy.playback_rate?.max == null) (policy.playback_rate as any).max = 16;
-  if (policy.playback_rate?.ui_control == null) (policy.playback_rate as any).ui_control = true;
-  if (policy.watermark?.enabled == null) (policy.watermark as any).enabled = false;
+  if (!seek.mode) seek.mode = "free";
+  if (seek.grace_seconds == null) seek.grace_seconds = 3;
+  if (playbackRate.max == null) playbackRate.max = 16;
+  if (playbackRate.ui_control == null) playbackRate.ui_control = true;
+  if (watermark.enabled == null) watermark.enabled = false;
+  policy.seek = seek;
+  policy.playback_rate = playbackRate;
+  policy.watermark = watermark;
   return policy;
 }
 
@@ -180,8 +183,8 @@ export default function StudentVideoPlayer({
     const onFullscreenChange = () => {
       const el =
         document.fullscreenElement ||
-        (document as any).webkitFullscreenElement ||
-        (document as any).mozFullScreenElement;
+        document.webkitFullscreenElement ||
+        document.mozFullScreenElement;
       const active = el === wrap || (el && wrap.contains(el));
       if (!active) fullscreenFallbackRef.current = false;
       setIsFullscreen(!!active);
@@ -196,12 +199,12 @@ export default function StudentVideoPlayer({
     };
 
     document.addEventListener("fullscreenchange", onFullscreenChange);
-    (document as any).addEventListener?.("webkitfullscreenchange", onFullscreenChange);
-    (document as any).addEventListener?.("mozfullscreenchange", onFullscreenChange);
+    document.addEventListener("webkitfullscreenchange", onFullscreenChange);
+    document.addEventListener("mozfullscreenchange", onFullscreenChange);
     return () => {
       document.removeEventListener("fullscreenchange", onFullscreenChange);
-      (document as any).removeEventListener?.("webkitfullscreenchange", onFullscreenChange);
-      (document as any).removeEventListener?.("mozfullscreenchange", onFullscreenChange);
+      document.removeEventListener("webkitfullscreenchange", onFullscreenChange);
+      document.removeEventListener("mozfullscreenchange", onFullscreenChange);
       document.body.style.overflow = "";
       document.body.style.touchAction = "";
     };
@@ -217,9 +220,9 @@ export default function StudentVideoPlayer({
       document.body.style.overflow = "";
       document.body.style.touchAction = "";
     };
-    (vid as any).addEventListener?.("webkitendfullscreen", onNativeVideoFullscreenEnd);
+    vid.addEventListener("webkitendfullscreen", onNativeVideoFullscreenEnd);
     return () => {
-      (vid as any).removeEventListener?.("webkitendfullscreen", onNativeVideoFullscreenEnd);
+      vid.removeEventListener("webkitendfullscreen", onNativeVideoFullscreenEnd);
     };
   }, []);
 
@@ -325,8 +328,8 @@ export default function StudentVideoPlayer({
 
     const isFs =
       document.fullscreenElement ||
-      (document as any).webkitFullscreenElement ||
-      (document as any).mozFullScreenElement;
+      document.webkitFullscreenElement ||
+      document.mozFullScreenElement;
     const inFallback = fullscreenFallbackRef.current;
 
     const enterFallback = () => {
@@ -354,7 +357,7 @@ export default function StudentVideoPlayer({
           return;
         }
         if (document.exitFullscreen) document.exitFullscreen();
-        else if ((document as any).webkitExitFullscreen) (document as any).webkitExitFullscreen();
+        else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
         return;
       }
 
@@ -369,8 +372,8 @@ export default function StudentVideoPlayer({
       const tryNative = () => {
         // iOS Safari: video 요소의 webkitEnterFullscreen으로 네이티브 전체화면 사용
         if (isIOS && vid) {
-          if ((vid as any)?.webkitEnterFullscreen) {
-            (vid as any).webkitEnterFullscreen();
+          if (vid.webkitEnterFullscreen) {
+            vid.webkitEnterFullscreen();
             return true;
           }
         }
@@ -379,8 +382,8 @@ export default function StudentVideoPlayer({
           wrap.requestFullscreen().catch(() => setTimeout(enterFallback, 100));
           return true;
         }
-        if ((wrap as any)?.webkitRequestFullscreen) {
-          (wrap as any).webkitRequestFullscreen();
+        if (wrap?.webkitRequestFullscreen) {
+          wrap.webkitRequestFullscreen();
           return true;
         }
         // 래퍼 전체화면 불가 시 video 요소 직접 시도
@@ -388,12 +391,12 @@ export default function StudentVideoPlayer({
           vid.requestFullscreen().catch(() => setTimeout(enterFallback, 100));
           return true;
         }
-        if ((vid as any)?.webkitRequestFullscreen) {
-          (vid as any).webkitRequestFullscreen();
+        if (vid?.webkitRequestFullscreen) {
+          vid.webkitRequestFullscreen();
           return true;
         }
-        if ((vid as any)?.webkitEnterFullscreen) {
-          (vid as any).webkitEnterFullscreen();
+        if (vid?.webkitEnterFullscreen) {
+          vid.webkitEnterFullscreen();
           return true;
         }
         return false;
@@ -407,8 +410,8 @@ export default function StudentVideoPlayer({
       setTimeout(() => {
         const nowFs =
           document.fullscreenElement ||
-          (document as any).webkitFullscreenElement ||
-          (document as any).mozFullScreenElement;
+          document.webkitFullscreenElement ||
+          document.mozFullScreenElement;
         if (!nowFs) enterFallback();
       }, 200);
     } catch {
@@ -515,8 +518,9 @@ export default function StudentVideoPlayer({
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const tag = (e.target as any)?.tagName?.toLowerCase?.();
-      if (tag === "input" || tag === "textarea" || (e.target as any)?.isContentEditable) return;
+      const target = e.target as HTMLElement | null;
+      const tag = target?.tagName?.toLowerCase?.();
+      if (tag === "input" || tag === "textarea" || target?.isContentEditable) return;
       if (e.code === "Space") {
         e.preventDefault();
         togglePlay();

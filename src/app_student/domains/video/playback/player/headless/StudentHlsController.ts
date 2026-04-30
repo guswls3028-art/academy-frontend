@@ -4,6 +4,8 @@
  * After dispose(), zero callbacks can run — guards enforce no setState from video events.
  */
 import studentApi from "@student/shared/api/student.api";
+import type Hls from "hls.js";
+import type { ErrorData, LevelSwitchedData, Level } from "hls.js";
 import { clamp, getEpochSec } from "../design/utils";
 
 export type EventType =
@@ -26,20 +28,23 @@ export interface Policy {
   watermark?: { enabled?: boolean };
 }
 
-function normalizePolicy(p: any): Policy {
-  const policy = (p || {}) as Policy;
-  policy.seek = policy.seek || {};
-  policy.playback_rate = policy.playback_rate || {};
-  policy.watermark = policy.watermark || {};
+function normalizePolicy(p: Partial<Policy> | null | undefined): Policy {
+  const policy: Policy = { ...(p || {}) };
+  const seek = { ...(policy.seek || {}) };
+  const playbackRate = { ...(policy.playback_rate || {}) };
+  const watermark = { ...(policy.watermark || {}) };
   if (policy.monitoring_enabled == null) {
     policy.monitoring_enabled = policy.access_mode === "PROCTORED_CLASS";
   }
   if (policy.allow_seek == null) policy.allow_seek = true;
-  if (!policy.seek?.mode) (policy.seek as any).mode = "free";
-  if (policy.seek?.grace_seconds == null) (policy.seek as any).grace_seconds = 3;
-  if (policy.playback_rate?.max == null) (policy.playback_rate as any).max = 16;
-  if (policy.playback_rate?.ui_control == null) (policy.playback_rate as any).ui_control = true;
-  if (policy.watermark?.enabled == null) (policy.watermark as any).enabled = false;
+  if (!seek.mode) seek.mode = "free";
+  if (seek.grace_seconds == null) seek.grace_seconds = 3;
+  if (playbackRate.max == null) playbackRate.max = 16;
+  if (playbackRate.ui_control == null) playbackRate.ui_control = true;
+  if (watermark.enabled == null) watermark.enabled = false;
+  policy.seek = seek;
+  policy.playback_rate = playbackRate;
+  policy.watermark = watermark;
   return policy;
 }
 
@@ -66,7 +71,7 @@ async function postEnd(token: string) {
 
 async function postEvents(
   token: string,
-  events: Array<{ type: EventType; occurred_at: number; payload?: any }>,
+  events: Array<{ type: EventType; occurred_at: number; payload?: Record<string, unknown> }>,
   videoId: number,
   enrollmentId: number | null
 ) {
@@ -113,7 +118,7 @@ export interface ControllerState {
 export interface ControllerOptions {
   videoId: number;
   playUrl: string;
-  policy: any;
+  policy: Partial<Policy> | null | undefined;
   token: string;
   enrollmentId: number | null;
   initialPosition?: number;
@@ -125,7 +130,7 @@ type Listener = (state: ControllerState) => void;
 
 export class StudentHlsController {
   private el: HTMLVideoElement | null = null;
-  private hls: any = null;
+  private hls: Hls | null = null;
   private disposed = false;
   private listeners = new Set<Listener>();
   private opts: ControllerOptions;
@@ -154,7 +159,7 @@ export class StudentHlsController {
   private maxWatchedRef = 0;
   private lastTimeRef = 0;
   private seekGuardRef = { blocking: false, lastWarnAt: 0, initialSeekActive: false };
-  private eventQueue: Array<{ type: EventType; occurred_at: number; payload?: any }> = [];
+  private eventQueue: Array<{ type: EventType; occurred_at: number; payload?: Record<string, unknown> }> = [];
   private intervals: ReturnType<typeof setInterval>[] = [];
   private timeouts: ReturnType<typeof setTimeout>[] = [];
   private videoListeners: Array<{ ev: string; fn: EventListener }> = [];
@@ -302,7 +307,7 @@ export class StudentHlsController {
 
   private publishQualities() {
     if (this.disposed || !this.hls) return;
-    const levels: any[] = Array.isArray(this.hls.levels) ? this.hls.levels : [];
+    const levels: Level[] = Array.isArray(this.hls.levels) ? this.hls.levels : [];
     // 단일 해상도(level 1개 이하) 영상은 화질 선택이 의미 없음 → 빈 배열로 두어 UI 비활성화.
     if (levels.length < 2) {
       this.setState({ qualities: [] });
@@ -359,7 +364,7 @@ export class StudentHlsController {
     // dispose에서 reconnectTimer는 별도 clear (this.timeouts에 push하지 않음 — 재진입 시 누적 방지)
   }
 
-  private queueEvent(type: EventType, payload?: any) {
+  private queueEvent(type: EventType, payload?: Record<string, unknown>) {
     if (this.disposed) return;
     const monitoringEnabled = this.policy.monitoring_enabled ?? false;
     if (!monitoringEnabled) return;
@@ -379,10 +384,11 @@ export class StudentHlsController {
     if (!batch.length) return;
     try {
       await postEvents(token, batch, this.opts.videoId, this.opts.enrollmentId);
-    } catch (e: any) {
+    } catch (e: unknown) {
       if (this.disposed) return;
-      const msg = e?.response?.data?.detail || e?.message || "";
-      if (String(msg).includes("session_inactive") || e?.response?.status === 409) {
+      const err = e as { response?: { data?: { detail?: string }; status?: number }; message?: string };
+      const msg = err?.response?.data?.detail || err?.message || "";
+      if (String(msg).includes("session_inactive") || err?.response?.status === 409) {
         this.setState({ toast: { text: "재생 세션이 종료되었습니다.", kind: "danger" } });
         this.opts.onFatal?.("session_inactive");
       }
@@ -404,13 +410,14 @@ export class StudentHlsController {
       this.guard(() => {
         const token = this.tokenRef;
         if (!token) return;
-        postHeartbeat(token).catch((e: any) => {
+        postHeartbeat(token).catch((e: unknown) => {
           if (this.disposed) return;
-          const msg = e?.response?.data?.detail || e?.message || "";
+          const err = e as { response?: { data?: { detail?: string }; status?: number }; message?: string };
+          const msg = err?.response?.data?.detail || err?.message || "";
           if (String(msg).includes("policy_changed")) {
             this.setState({ toast: { text: "정책이 변경되어 재생이 종료되었습니다.", kind: "danger" } });
             this.opts.onFatal?.("policy_changed");
-          } else if (String(msg).includes("session_inactive") || e?.response?.status === 409) {
+          } else if (String(msg).includes("session_inactive") || err?.response?.status === 409) {
             this.setState({ toast: { text: "재생 세션이 종료되었습니다.", kind: "danger" } });
             this.opts.onFatal?.("session_inactive");
           }
@@ -532,7 +539,7 @@ export class StudentHlsController {
     }
 
     try {
-      const mod: any = await import("hls.js");
+      const mod = await import("hls.js");
       const Hls = mod.default;
 
       if (Hls && Hls.isSupported()) {
@@ -559,7 +566,7 @@ export class StudentHlsController {
             this.reconnectAttempts = 0;
           }
         });
-        hls.on(Hls.Events.LEVEL_SWITCHED, (_: any, data: any) => {
+        hls.on(Hls.Events.LEVEL_SWITCHED, (_event, data: LevelSwitchedData) => {
           if (this.disposed) return;
           // ABR(Auto) 상태에서는 currentQuality는 -1로 유지
           if ((this.hls?.autoLevelEnabled ?? true) === true) {
@@ -569,7 +576,7 @@ export class StudentHlsController {
           }
         });
 
-        hls.on(Hls.Events.ERROR, (_: any, data: any) => {
+        hls.on(Hls.Events.ERROR, (_event, data: ErrorData) => {
           if (this.disposed) return;
           try {
             this.queueEvent("PLAYER_ERROR", {
@@ -583,7 +590,7 @@ export class StudentHlsController {
           if (this.disposed) return;
 
           const errorMsg = data?.details || data?.type || "알 수 없는 오류";
-          const errorCode = data?.response?.code ?? data?.code;
+          const errorCode = data?.response?.code ?? (data as { code?: number })?.code;
           const errorType = data?.type || "";
           const is404 = errorCode === 404 || String(errorMsg).includes("404") || String(errorMsg).includes("Not Found");
           const isNetworkError =
@@ -744,7 +751,7 @@ export class StudentHlsController {
 
     const onError = () => {
       if (this.disposed) return;
-      const elErr = el.error as any;
+      const elErr: MediaError | null = el.error;
       const errorCode = elErr?.code || 0;
       const errorMessage = elErr?.message || "";
       this.queueEvent("PLAYER_ERROR", { code: errorCode, message: errorMessage });
