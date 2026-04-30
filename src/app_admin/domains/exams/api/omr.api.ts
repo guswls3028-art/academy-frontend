@@ -37,10 +37,11 @@ export async function fetchOMRPreview(examId: number, params: OMRParams): Promis
   return data;
 }
 
-/** 시험 기반 OMR PDF 다운로드 */
+/** 시험 기반 OMR PDF 다운로드 — PDF 생성은 무거운 endpoint, axios 글로벌 20s 부족 (참고: matchup hit-report.pdf adf1e387) */
 export async function downloadOMRPdf(examId: number, params: OMRParams, filename?: string): Promise<void> {
   const { data } = await api.post(`/exams/${examId}/omr/pdf/`, params, {
     responseType: "blob",
+    timeout: 5 * 60_000,
   });
   const { downloadBlob } = await import("@/shared/utils/safeDownload");
   downloadBlob(data as Blob, `${filename || params.exam_title || "OMR"}_OMR.pdf`);
@@ -55,10 +56,11 @@ export async function fetchToolsOMRPreview(params: OMRParams & { exam_title: str
   return data;
 }
 
-/** 도구 페이지용 OMR PDF 다운로드 */
+/** 도구 페이지용 OMR PDF 다운로드 — PDF 생성은 무거운 endpoint, axios 글로벌 20s 부족 */
 export async function downloadToolsOMRPdf(params: OMRParams & { exam_title: string }): Promise<void> {
   const { data } = await api.post("/tools/omr/pdf/", params, {
     responseType: "blob",
+    timeout: 5 * 60_000,
   });
   const { downloadBlob } = await import("@/shared/utils/safeDownload");
   downloadBlob(data as Blob, `${params.exam_title || "OMR"}_OMR.pdf`);

@@ -12,6 +12,7 @@ export async function exportPayrollSnapshotPDF(params: {
     {
       params,
       responseType: "blob",
+      timeout: 5 * 60_000,
     }
   );
 
