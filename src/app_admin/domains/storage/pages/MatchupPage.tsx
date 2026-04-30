@@ -609,7 +609,7 @@ export default function MatchupPage() {
                           try {
                             const resp = await api.get(
                               `/matchup/documents/${selectedDoc.id}/hit-report.pdf`,
-                              { responseType: "blob" },
+                              { responseType: "blob", timeout: 5 * 60_000 },
                             );
                             const blob = new Blob([resp.data], { type: "application/pdf" });
                             const url = URL.createObjectURL(blob);
