@@ -4,7 +4,7 @@
 // 썸네일을 정말로 보고 싶을 때는 확대 버튼으로 큰 이미지 모달.
 
 import { useEffect, useState } from "react";
-import { Maximize2, X, AlertTriangle } from "lucide-react";
+import { Maximize2, X, AlertTriangle, Loader2 } from "lucide-react";
 import type { MatchupProblem } from "../../api/matchup.api";
 import { getMatchupProblemPresignUrl } from "../../api/matchup.api";
 
@@ -18,6 +18,11 @@ export default function ProblemCard({ problem, selected, onClick }: Props) {
   // 자동분리가 인접 문항을 박스 단위로 합친 의심 — 매뉴얼 크롭+Ctrl+V paste 권장.
   const isMergeSuspect = Boolean(
     (problem.meta as { merge_suspect?: boolean } | undefined)?.merge_suspect,
+  );
+  // 파이프라인 진행 중 skeleton row — 분리만 끝났고 OCR/임베딩/이미지 미완.
+  // 신규 업로드 사용자에게 즉시 카운트 노출용. 완료되면 false로 갱신됨.
+  const isPartial = Boolean(
+    (problem.meta as { is_partial?: boolean } | undefined)?.is_partial,
   );
   const [zoomOpen, setZoomOpen] = useState(false);
   // 기본은 list API가 내려준 image_url 사용 (N+1 없음).
@@ -84,6 +89,22 @@ export default function ProblemCard({ problem, selected, onClick }: Props) {
         }}>
           <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
             Q{problem.number}
+            {isPartial && (
+              <span
+                title="텍스트/이미지 추출 진행 중"
+                style={{
+                  display: "inline-flex", alignItems: "center", gap: 3,
+                  padding: "1px 5px",
+                  fontSize: 9, fontWeight: 600,
+                  borderRadius: 999,
+                  background: "color-mix(in srgb, var(--color-brand-primary) 14%, transparent)",
+                  color: "var(--color-brand-primary)",
+                  letterSpacing: 0,
+                }}
+              >
+                <Loader2 size={9} className="animate-spin" /> 처리 중
+              </span>
+            )}
             {isMergeSuspect && (
               <span
                 title="인접 문항이 합쳐진 것으로 의심됩니다. 매뉴얼 크롭 또는 Ctrl+V로 정확히 잘라주세요."

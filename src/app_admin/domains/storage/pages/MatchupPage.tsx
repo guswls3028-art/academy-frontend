@@ -421,6 +421,23 @@ export default function MatchupPage() {
     [qc],
   );
 
+  // 행 컨텍스트 메뉴 — 카테고리 변경 (디테일 패널 진입 없이 빠른 이동)
+  const handleRowChangeCategory = useCallback(
+    async (id: number, category: string) => {
+      try {
+        await updateMatchupDocument(id, { category });
+        await qc.invalidateQueries({ queryKey: ["matchup-documents"] });
+        feedback.success(category
+          ? `카테고리를 "${category}"로 변경했습니다.`
+          : "카테고리를 미분류로 변경했습니다.");
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : "카테고리 변경 실패";
+        feedback.error(msg);
+      }
+    },
+    [qc],
+  );
+
   const handleNavigateToProblem = useCallback((documentId: number, problemNumber: number) => {
     setSelectedDocId(documentId);
     setPendingNavigateNumber(problemNumber);
@@ -501,6 +518,7 @@ export default function MatchupPage() {
               onRetry={handleRetry}
               onChangeIntent={handleRowChangeIntent}
               onRenameDocument={handleRowRename}
+              onChangeDocumentCategory={handleRowChangeCategory}
               progressMap={progressMap}
             />
           </div>

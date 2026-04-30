@@ -32,6 +32,7 @@ type Props = {
   // 행 컨텍스트 액션. 미지원 시 메뉴에서 항목이 비활성/숨김.
   onChangeIntent?: (id: number, next: "reference" | "test") => Promise<void> | void;
   onRenameDocument?: (id: number, title: string) => Promise<void> | void;
+  onChangeDocumentCategory?: (id: number, category: string) => Promise<void> | void;
   progressMap?: DocProgressMap;
 };
 
@@ -121,7 +122,7 @@ export default function DocumentList({
   documents, selectedId, onSelect, onUpload,
   onPromoteFromInventory, onRenameCategory, onMergeCategory, onClearCategory,
   onDelete, onRetry,
-  onChangeIntent, onRenameDocument,
+  onChangeIntent, onRenameDocument, onChangeDocumentCategory,
   progressMap = {},
 }: Props) {
   const confirm = useConfirm();
@@ -134,6 +135,9 @@ export default function DocumentList({
   // 인라인 이름 변경 (rename) — 활성 doc id + 입력값
   const [renamingDocId, setRenamingDocId] = useState<number | null>(null);
   const [renameDocValue, setRenameDocValue] = useState("");
+  // 행 메뉴 — 카테고리 변경 sub-popover (datalist suggestion + 직접 입력)
+  const [rowCategoryEditId, setRowCategoryEditId] = useState<number | null>(null);
+  const [rowCategoryDraft, setRowCategoryDraft] = useState("");
   // 카테고리 헤더 액션 메뉴 열림 키 (한 번에 하나만)
   const [openMenuKey, setOpenMenuKey] = useState<string | null>(null);
   // 인라인 이름 변경: 활성 카테고리 키 + 입력값
@@ -162,16 +166,20 @@ export default function DocumentList({
     return () => document.removeEventListener("mousedown", onDocClick);
   }, [openMenuKey]);
 
-  // 행 컨텍스트 메뉴 외부 클릭/Esc 닫기
+  // 행 컨텍스트 메뉴 외부 클릭/Esc 닫기 (카테고리 sub-popover 포함)
   useEffect(() => {
-    if (!rowMenu) return;
+    if (!rowMenu && !rowCategoryEditId) return;
     const onDocClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement | null;
       if (target?.closest("[data-row-menu]")) return;
       setRowMenu(null);
+      setRowCategoryEditId(null);
     };
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setRowMenu(null);
+      if (e.key === "Escape") {
+        setRowMenu(null);
+        setRowCategoryEditId(null);
+      }
     };
     document.addEventListener("mousedown", onDocClick);
     document.addEventListener("keydown", onKey);
@@ -179,7 +187,7 @@ export default function DocumentList({
       document.removeEventListener("mousedown", onDocClick);
       document.removeEventListener("keydown", onKey);
     };
-  }, [rowMenu]);
+  }, [rowMenu, rowCategoryEditId]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -289,7 +297,14 @@ export default function DocumentList({
         data-doc-id={doc.id}
         onClick={() => { if (!isRenamingThis) onSelect(doc.id); }}
         onContextMenu={(e) => {
-          // 일반 PC 사용자가 우클릭 시도 시 빈 OS 메뉴 노출 방지 — 커스텀 메뉴 표시.
+          // 일반 PC 사용자가 우클릭 시도 시 빈 OS 메뉴 대신 커스텀 메뉴 표시.
+          // 단, 사용자가 텍스트를 선택했거나 input/textarea 등 인터랙션 영역에서
+          // 우클릭하면 OS 메뉴(복사/붙여넣기 등) 통과 — 텍스트 복사 사용성 보존.
+          const sel = window.getSelection?.();
+          const hasTextSelection = sel && !sel.isCollapsed && sel.toString().length > 0;
+          const target = e.target as HTMLElement | null;
+          const isEditableTarget = !!target?.closest("input, textarea, [contenteditable='true']");
+          if (hasTextSelection || isEditableTarget) return;  // OS 우클릭 메뉴 통과
           e.preventDefault();
           e.stopPropagation();
           onSelect(doc.id);
@@ -494,23 +509,47 @@ export default function DocumentList({
   };
 
   const rowMenuDoc = rowMenu ? documents.find((d) => d.id === rowMenu.id) ?? null : null;
+  const rowCategoryDoc = rowCategoryEditId ? documents.find((d) => d.id === rowCategoryEditId) ?? null : null;
+  // 자주 쓰는 카테고리 — 빈도순 상위 6개
+  const categorySuggestions = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const d of documents) {
+      const c = (d.category || "").trim();
+      if (!c) continue;
+      counts.set(c, (counts.get(c) || 0) + 1);
+    }
+    return Array.from(counts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 8)
+      .map(([k]) => k);
+  }, [documents]);
 
   return (
     <>
-      {/* 행 hover 시 휴지통/더보기 노출 + 150ms 딜레이로 오클릭 완화 */}
+      {/* 행 hover 시 휴지통/더보기 노출 + 150ms 딜레이로 오클릭 완화.
+          touch 디바이스(@media hover:none)는 hover가 없으므로 항상 노출. */}
       <style>{`
-        [data-testid='matchup-doc-row'] .matchup-row-trash,
-        [data-testid='matchup-doc-row'] [data-testid='matchup-doc-row-more'] {
-          opacity: 0;
-          pointer-events: none;
-          transition: opacity 0.15s ease 0.15s;
+        @media (hover: hover) {
+          [data-testid='matchup-doc-row'] .matchup-row-trash,
+          [data-testid='matchup-doc-row'] [data-testid='matchup-doc-row-more'] {
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.15s ease 0.15s;
+          }
+          [data-testid='matchup-doc-row']:hover .matchup-row-trash,
+          [data-testid='matchup-doc-row']:hover [data-testid='matchup-doc-row-more'],
+          [data-testid='matchup-doc-row']:focus-within .matchup-row-trash,
+          [data-testid='matchup-doc-row']:focus-within [data-testid='matchup-doc-row-more'] {
+            opacity: 1;
+            pointer-events: auto;
+          }
         }
-        [data-testid='matchup-doc-row']:hover .matchup-row-trash,
-        [data-testid='matchup-doc-row']:hover [data-testid='matchup-doc-row-more'],
-        [data-testid='matchup-doc-row']:focus-within .matchup-row-trash,
-        [data-testid='matchup-doc-row']:focus-within [data-testid='matchup-doc-row-more'] {
-          opacity: 1;
-          pointer-events: auto;
+        @media (hover: none) {
+          [data-testid='matchup-doc-row'] .matchup-row-trash,
+          [data-testid='matchup-doc-row'] [data-testid='matchup-doc-row-more'] {
+            opacity: 1;
+            pointer-events: auto;
+          }
         }
       `}</style>
       <div className={css.treeNavHeader}>
@@ -1061,6 +1100,131 @@ export default function DocumentList({
           );
         })}
       </div>
+      {/* 카테고리 변경 sub-popover — 행 메뉴에서 진입 */}
+      {rowCategoryEditId && rowCategoryDoc && onChangeDocumentCategory && (
+        <div
+          data-row-menu
+          role="dialog"
+          aria-label="카테고리 변경"
+          style={{
+            position: "fixed",
+            top: "50%", left: "50%",
+            transform: "translate(-50%, -50%)",
+            zIndex: 1001,
+            minWidth: 320,
+            maxWidth: 420,
+            background: "var(--color-bg-surface)",
+            border: "1px solid var(--color-border-divider)",
+            borderRadius: "var(--radius-lg)",
+            boxShadow: "0 12px 32px rgba(0,0,0,0.16)",
+            padding: 16,
+            display: "flex",
+            flexDirection: "column",
+            gap: 10,
+          }}
+        >
+          <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-text-primary)" }}>
+            카테고리 변경
+          </div>
+          <div style={{ fontSize: 11, color: "var(--color-text-muted)", marginTop: -6 }}>
+            {rowCategoryDoc.title}
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+            <button
+              type="button"
+              onClick={async () => {
+                const id = rowCategoryEditId;
+                setRowCategoryEditId(null);
+                setRowMenu(null);
+                await onChangeDocumentCategory(id, "");
+              }}
+              style={{
+                fontSize: 11, padding: "3px 9px", borderRadius: 4,
+                background: "var(--color-bg-surface-soft)",
+                color: "var(--color-text-muted)",
+                border: "1px dashed var(--color-border-divider)",
+                cursor: "pointer",
+                fontWeight: 600,
+                fontFamily: "inherit",
+              }}
+            >
+              미분류
+            </button>
+            {categorySuggestions.map((c) => (
+              <button
+                key={c}
+                type="button"
+                onClick={async () => {
+                  const id = rowCategoryEditId;
+                  setRowCategoryEditId(null);
+                  setRowMenu(null);
+                  await onChangeDocumentCategory(id, c);
+                }}
+                disabled={c === (rowCategoryDoc.category || "").trim()}
+                style={{
+                  fontSize: 11, padding: "3px 9px", borderRadius: 4,
+                  background: c === (rowCategoryDoc.category || "").trim()
+                    ? "color-mix(in srgb, var(--color-brand-primary) 18%, transparent)"
+                    : "color-mix(in srgb, var(--color-brand-primary) 8%, transparent)",
+                  color: "var(--color-brand-primary)",
+                  border: "1px solid color-mix(in srgb, var(--color-brand-primary) 35%, transparent)",
+                  cursor: c === (rowCategoryDoc.category || "").trim() ? "default" : "pointer",
+                  fontWeight: 600,
+                  fontFamily: "inherit",
+                  opacity: c === (rowCategoryDoc.category || "").trim() ? 0.7 : 1,
+                }}
+              >
+                {c} {c === (rowCategoryDoc.category || "").trim() && "✓"}
+              </button>
+            ))}
+          </div>
+          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            <input
+              autoFocus
+              value={rowCategoryDraft}
+              onChange={(e) => setRowCategoryDraft(e.target.value)}
+              onKeyDown={async (e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  const id = rowCategoryEditId;
+                  const next = rowCategoryDraft.trim();
+                  setRowCategoryEditId(null);
+                  setRowMenu(null);
+                  await onChangeDocumentCategory(id, next);
+                } else if (e.key === "Escape") {
+                  e.preventDefault();
+                  setRowCategoryEditId(null);
+                }
+              }}
+              placeholder="새 카테고리 입력 후 Enter"
+              style={{
+                flex: 1,
+                fontSize: 12, padding: "5px 10px",
+                border: "1px solid var(--color-border-divider)",
+                borderRadius: 4,
+                background: "var(--color-bg-surface)",
+                color: "var(--color-text-primary)",
+                outline: "none",
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => setRowCategoryEditId(null)}
+              style={{
+                fontSize: 11, padding: "5px 10px", borderRadius: 4,
+                background: "transparent",
+                color: "var(--color-text-muted)",
+                border: "1px solid var(--color-border-divider)",
+                cursor: "pointer",
+                fontWeight: 600,
+                fontFamily: "inherit",
+              }}
+            >
+              취소
+            </button>
+          </div>
+        </div>
+      )}
       {/* 행 컨텍스트 메뉴 popover — 우클릭 또는 ··· 클릭으로 열림 */}
       {rowMenu && rowMenuDoc && (
         <div
@@ -1127,6 +1291,21 @@ export default function DocumentList({
             >
               <FileText size={13} />
               <span>{getDocumentIntent(rowMenuDoc) === "test" ? "참고자료로 변경" : "시험지로 변경"}</span>
+            </button>
+          )}
+          {onChangeDocumentCategory && (
+            <button
+              type="button"
+              role="menuitem"
+              onClick={(e) => {
+                e.stopPropagation();
+                setRowCategoryEditId(rowMenuDoc.id);
+                setRowCategoryDraft(rowMenuDoc.category || "");
+              }}
+              style={menuItemStyle()}
+            >
+              <FolderInput size={13} />
+              <span>카테고리 변경 — {rowMenuDoc.category || "미분류"}</span>
             </button>
           )}
           {rowMenuDoc.status === "failed" && (

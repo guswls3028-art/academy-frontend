@@ -143,25 +143,34 @@ export default function ProblemGrid({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
-      {showPartialResults && (
-        <div style={{
-          display: "flex", gap: "var(--space-2)", alignItems: "center",
-          padding: "var(--space-2) var(--space-3)",
-          background: "color-mix(in srgb, var(--color-brand-primary) 8%, var(--color-bg-surface))",
-          border: "1px solid color-mix(in srgb, var(--color-brand-primary) 30%, transparent)",
-          borderRadius: "var(--radius-md)",
-          fontSize: 12, color: "var(--color-text-secondary)",
-        }}>
-          <Loader2 size={14} className="animate-spin" style={{ color: "var(--color-brand-primary)", flexShrink: 0 }} />
-          <div>
-            <strong>{progressStepName || "재분석 중"}</strong>
-            {hasProgress && <span> · {pct}%</span>}
-            <span style={{ marginLeft: 6, opacity: 0.7 }}>
-              · 이전 결과를 표시 중. 완료되면 자동으로 갱신됩니다.
-            </span>
+      {showPartialResults && (() => {
+        // skeleton(is_partial=true) 비율로 신규 업로드 vs 재분석 구분.
+        // 50% 이상 partial이면 신규 업로드(전체 skeleton 시작), 그 미만이면 재분석.
+        const partialCount = problems.filter(
+          (p) => Boolean((p.meta as { is_partial?: boolean } | undefined)?.is_partial),
+        ).length;
+        const isFreshUpload = partialCount >= problems.length / 2;
+        const guidance = isFreshUpload
+          ? `${problems.length}개 문항 중 ${problems.length - partialCount}개 완료 · 나머지는 진행 중`
+          : "이전 결과를 표시 중. 완료되면 자동으로 갱신됩니다.";
+        return (
+          <div style={{
+            display: "flex", gap: "var(--space-2)", alignItems: "center",
+            padding: "var(--space-2) var(--space-3)",
+            background: "color-mix(in srgb, var(--color-brand-primary) 8%, var(--color-bg-surface))",
+            border: "1px solid color-mix(in srgb, var(--color-brand-primary) 30%, transparent)",
+            borderRadius: "var(--radius-md)",
+            fontSize: 12, color: "var(--color-text-secondary)",
+          }}>
+            <Loader2 size={14} className="animate-spin" style={{ color: "var(--color-brand-primary)", flexShrink: 0 }} />
+            <div>
+              <strong>{progressStepName || (isFreshUpload ? "분석 중" : "재분석 중")}</strong>
+              {hasProgress && <span> · {pct}%</span>}
+              <span style={{ marginLeft: 6, opacity: 0.7 }}>· {guidance}</span>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
       {showReviewGuide && (
         <div style={{
           display: "flex", gap: "var(--space-2)", alignItems: "flex-start",
