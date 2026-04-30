@@ -84,9 +84,10 @@ export default function SubmitAssignmentPage() {
         selected ? `${selected.title} 제출이 완료되었습니다.` : "제출이 완료되었습니다."
       );
     },
-    onError: (e: any) => {
-      const detail = e?.response?.data?.detail || e?.response?.data?.message;
-      const fieldErrors = e?.response?.data;
+    onError: (e: unknown) => {
+      const errResp = (e as { response?: { data?: Record<string, unknown> } } | null)?.response?.data;
+      const detail = (errResp?.detail as string | undefined) || (errResp?.message as string | undefined);
+      const fieldErrors = errResp;
       let msg = "제출에 실패했습니다.";
       if (typeof detail === "string") msg = detail;
       else if (fieldErrors && typeof fieldErrors === "object" && !detail) {
@@ -95,7 +96,7 @@ export default function SubmitAssignmentPage() {
           .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : v}`);
         if (parts.length) msg = parts.join(" · ");
       }
-      else if (e.message) msg = e.message;
+      else if ((e as { message?: string } | null)?.message) msg = (e as { message: string }).message;
       setError(msg);
     },
   });

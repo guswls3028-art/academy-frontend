@@ -110,8 +110,11 @@ export default function ExamStatsTab() {
                       borderRadius: 8, border: "1px solid var(--stu-border)",
                       background: "var(--stu-surface)", fontSize: 13, padding: "6px 10px",
                     }}
-                    formatter={(v: any) => [`${v}%`, "평균 득점률"]}
-                    labelFormatter={(_label: any, payload: any) => (payload as any)?.[0]?.payload?.fullName ?? _label}
+                    formatter={(v) => [`${v}%`, "평균 득점률"]}
+                    labelFormatter={(label, payload) => {
+                      const first = payload?.[0] as { payload?: { fullName?: string } } | undefined;
+                      return first?.payload?.fullName ?? label;
+                    }}
                   />
                   <Bar dataKey="평균" radius={[0, 4, 4, 0]} barSize={20}>
                     {lectureStats.map((entry, i) => (

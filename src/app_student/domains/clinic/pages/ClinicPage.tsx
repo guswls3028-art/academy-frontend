@@ -8,6 +8,9 @@
 import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import type { AxiosError } from "axios";
+
+type ApiErrorBody = { detail?: string; message?: string };
 import { useConfirm } from "@/shared/ui/confirm";
 import { studentToast } from "@student/shared/ui/feedback/studentToast";
 import StudentPageShell from "@student/shared/ui/pages/StudentPageShell";
@@ -75,7 +78,7 @@ export default function ClinicPage() {
           : "예약이 완료되었습니다."
       );
     },
-    onError: (error: any) => {
+    onError: (error: AxiosError<ApiErrorBody>) => {
       const message =
         error?.response?.data?.detail ||
         error?.response?.data?.message ||
@@ -94,7 +97,7 @@ export default function ClinicPage() {
       qc.invalidateQueries({ queryKey: ["student", "notifications", "counts"] });
       studentToast.success("예약 신청이 취소되었습니다.");
     },
-    onError: (error: any) => {
+    onError: (error: AxiosError<ApiErrorBody>) => {
       studentToast.error(error?.response?.data?.detail || "취소에 실패했습니다.");
     },
   });
@@ -118,7 +121,7 @@ export default function ClinicPage() {
           : "일정 변경이 완료되었습니다."
       );
     },
-    onError: (error: any) => {
+    onError: (error: AxiosError<ApiErrorBody>) => {
       const message =
         error?.response?.data?.detail ||
         error?.response?.data?.message ||

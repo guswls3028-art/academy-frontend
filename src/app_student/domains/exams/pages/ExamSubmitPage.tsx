@@ -110,10 +110,9 @@ export default function ExamSubmitPage() {
       qc.invalidateQueries({ queryKey: ["student", "grades"] });
       qc.invalidateQueries({ queryKey: ["student-dashboard"] });
       navigate(`/student/exams/${safeId}/result`, { replace: true });
-    } catch (e: any) {
-      setError(
-        e?.response?.data?.detail ?? "제출에 실패했습니다. 다시 시도해 주세요."
-      );
+    } catch (e: unknown) {
+      const detail = (e as { response?: { data?: { detail?: string } } } | null)?.response?.data?.detail;
+      setError(detail ?? "제출에 실패했습니다. 다시 시도해 주세요.");
     } finally {
       setSubmitting(false);
     }

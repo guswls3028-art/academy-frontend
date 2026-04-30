@@ -117,7 +117,7 @@ export default function ProfilePage() {
       }
     },
     onError: (err: unknown) => {
-      const detail = (err as any)?.response?.data?.detail;
+      const detail = (err as { response?: { data?: { detail?: string } } } | null)?.response?.data?.detail;
       studentToast.error(typeof detail === "string" ? detail : "저장에 실패했습니다.");
     },
   });
@@ -690,7 +690,7 @@ export default function ProfilePage() {
             </div>
             {updateProfileMutation.isError && lastMutationSource === "username" && (
               <div className="stu-muted" style={{ fontSize: 13, color: "var(--stu-danger)" }}>
-                {(updateProfileMutation.error as any)?.response?.data?.detail || "아이디 변경에 실패했습니다."}
+                {(updateProfileMutation.error as { response?: { data?: { detail?: string } } } | null)?.response?.data?.detail || "아이디 변경에 실패했습니다."}
               </div>
             )}
           </form>
@@ -753,7 +753,7 @@ export default function ProfilePage() {
             </div>
             {updateProfileMutation.isError && lastMutationSource === "password" && (
               <div className="stu-muted" style={{ fontSize: 13, color: "var(--stu-danger)" }}>
-                {(updateProfileMutation.error as any)?.response?.data?.detail || "비밀번호 변경에 실패했습니다."}
+                {(updateProfileMutation.error as { response?: { data?: { detail?: string } } } | null)?.response?.data?.detail || "비밀번호 변경에 실패했습니다."}
               </div>
             )}
           </form>

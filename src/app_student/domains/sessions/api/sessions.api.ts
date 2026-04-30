@@ -13,10 +13,10 @@ export type StudentSession = {
 };
 
 export async function fetchMySessions(): Promise<StudentSession[]> {
-  const res = await api.get<any>("/student/sessions/me/");
+  const res = await api.get<StudentSession[] | { items?: StudentSession[] }>("/student/sessions/me/");
   const data = res.data;
-  if (Array.isArray(data)) return data as StudentSession[];
-  if (Array.isArray(data?.items)) return data.items as StudentSession[];
+  if (Array.isArray(data)) return data;
+  if (data && Array.isArray(data.items)) return data.items;
   return [];
 }
 

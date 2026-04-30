@@ -3,6 +3,23 @@
 
 import api from "@student/shared/api/student.api";
 
+/** DRF Paginated wrapper — list endpoint 가 page_size param 으로 응답할 때. */
+type Paginated<T> = { results?: T[]; count?: number; next?: string | null; previous?: string | null };
+
+/** 학생앱이 실제로 사용하는 ClinicParticipant 응답 필드 (어드민 ClinicParticipant 보다 좁음). */
+type ClinicParticipantRaw = {
+  id: number;
+  session: number | null;
+  session_date: string;
+  session_start_time: string;
+  session_location: string | null;
+  status: "pending" | "approved" | "rejected" | "cancelled" | "booked";
+  memo?: string;
+  created_at: string;
+  updated_at?: string;
+  status_changed_at?: string;
+};
+
 /**
  * 클리닉 세션 정보
  */
@@ -57,7 +74,7 @@ export async function fetchAvailableClinicSessions(params?: {
   const dateFrom = params?.date_from || todayStr;
   const dateTo = params?.date_to || futureStr;
 
-  const res = await api.get<any>("/clinic/sessions/", {
+  const res = await api.get<ClinicSession[] | Paginated<ClinicSession>>("/clinic/sessions/", {
     params: {
       date_from: dateFrom,
       date_to: dateTo,
@@ -65,13 +82,13 @@ export async function fetchAvailableClinicSessions(params?: {
     },
   });
 
-  const sessions = Array.isArray(res.data)
+  const sessions: ClinicSession[] = Array.isArray(res.data)
     ? res.data
     : Array.isArray(res.data?.results)
     ? res.data.results
     : [];
 
-  return sessions as ClinicSession[];
+  return sessions;
 }
 
 /**
@@ -80,9 +97,12 @@ export async function fetchAvailableClinicSessions(params?: {
  * 백엔드에서 자동으로 현재 로그인한 학생의 예약만 반환
  */
 export async function fetchMyClinicBookingRequests(): Promise<ClinicBookingRequest[]> {
-  const res = await api.get<any>("/clinic/participants/", { params: { page_size: 200 } });
+  const res = await api.get<ClinicParticipantRaw[] | Paginated<ClinicParticipantRaw>>(
+    "/clinic/participants/",
+    { params: { page_size: 200 } },
+  );
 
-  const participants = Array.isArray(res.data)
+  const participants: ClinicParticipantRaw[] = Array.isArray(res.data)
     ? res.data
     : Array.isArray(res.data?.results)
     ? res.data.results
@@ -90,19 +110,19 @@ export async function fetchMyClinicBookingRequests(): Promise<ClinicBookingReque
 
   // 예약 신청 상태인 것만 필터링 (pending, booked 등)
   return participants
-    .filter((p: any) =>
+    .filter((p) =>
       p.status === "pending" ||
       p.status === "booked" ||
       p.status === "approved" ||
       p.status === "rejected"
     )
-    .map((p: any) => ({
+    .map((p) => ({
       id: p.id,
-      session: p.session || null, // ✅ 세션이 없을 수 있음
+      session: p.session ?? null, // ✅ 세션이 없을 수 있음
       session_date: p.session_date,
       session_start_time: p.session_start_time,
-      session_location: p.session_location || null, // ✅ 세션이 없으면 null
-      status: p.status === "approved" ? "booked" : p.status, // approved는 booked로 매핑
+      session_location: p.session_location ?? null, // ✅ 세션이 없으면 null
+      status: (p.status === "approved" ? "booked" : p.status) as ClinicBookingRequest["status"], // approved는 booked로 매핑
       memo: p.memo,
       created_at: p.created_at,
       updated_at: p.updated_at,
@@ -124,7 +144,7 @@ export async function createClinicBookingRequest(data: {
   if (!data.session) {
     throw new Error("등록 가능한 클리닉 시간을 선택해주세요.");
   }
-  const res = await api.post<any>("/clinic/participants/", {
+  const res = await api.post<ClinicParticipantRaw>("/clinic/participants/", {
     source: "student_request",
     status: "pending",
     session: data.session,
@@ -165,7 +185,7 @@ export async function changeClinicBooking(
   newSessionId: number,
   memo?: string
 ): Promise<ClinicBookingRequest> {
-  const res = await api.post<any>(
+  const res = await api.post<ClinicParticipantRaw>(
     `/clinic/participants/${oldParticipantId}/change-booking/`,
     {
       new_session_id: newSessionId,

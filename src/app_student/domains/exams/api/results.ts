@@ -53,9 +53,11 @@ export async function fetchMyExamResult(examId: number): Promise<MyExamResult> {
 export async function fetchMyExamResultItems(
   examId: number
 ): Promise<MyExamResultItem[]> {
-  const res = await api.get<any>(`/student/results/me/exams/${examId}/items/`);
+  const res = await api.get<MyExamResultItem[] | { items?: MyExamResultItem[] }>(
+    `/student/results/me/exams/${examId}/items/`,
+  );
   const data = res.data;
-  if (Array.isArray(data?.items)) return data.items as MyExamResultItem[];
-  if (Array.isArray(data)) return data as MyExamResultItem[];
+  if (data && !Array.isArray(data) && Array.isArray(data.items)) return data.items;
+  if (Array.isArray(data)) return data;
   return [];
 }

@@ -23,10 +23,10 @@ export type ExamsListResponse = {
 };
 
 export async function fetchStudentExams(params?: { session_id?: number }): Promise<ExamsListResponse> {
-  const res = await api.get<any>("/student/exams/", { params });
+  const res = await api.get<ExamsListResponse | StudentExam[]>("/student/exams/", { params });
   const data = res.data;
-  if (data?.items && Array.isArray(data.items)) return data as ExamsListResponse;
-  if (Array.isArray(data)) return { items: data as StudentExam[] };
+  if (data && !Array.isArray(data) && Array.isArray(data.items)) return data;
+  if (Array.isArray(data)) return { items: data };
   return { items: [] };
 }
 

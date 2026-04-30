@@ -168,7 +168,7 @@ function StudentLayoutInner() {
         style={{
           flex: 1,
           overflow: "auto",
-          scrollbarWidth: "none" as any,
+          scrollbarWidth: "none",
           paddingBottom: "calc(var(--stu-tabbar-h) + var(--stu-safe-bottom) + var(--stu-space-4))",
         }}
       >

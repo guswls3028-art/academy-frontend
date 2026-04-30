@@ -43,8 +43,8 @@ export type StudentDashboardResponse = {
 };
 
 export async function fetchStudentDashboard(): Promise<StudentDashboardResponse> {
-  const res = await api.get("/student/dashboard/");
-  const data: any = res.data ?? {};
+  const res = await api.get<Partial<StudentDashboardResponse>>("/student/dashboard/");
+  const data = res.data ?? {};
 
   const notices = Array.isArray(data.notices)
     ? (data.notices as DashboardNotice[]).map((n) => ({
