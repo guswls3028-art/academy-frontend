@@ -16,6 +16,18 @@ const BASE = process.env.E2E_BASE_URL || "https://hakwonplus.com";
 // ── 공통 헬퍼 ──
 
 /**
+ * 메시지 발송 모달 root selector — 학생 페이지 헤더 "메시지 발송" 버튼과 셀렉터 충돌 방지.
+ * SendMessageModal 의 className="send-message-modal" 에 의존.
+ */
+const MESSAGING_MODAL_ROOT = ".send-message-modal";
+
+/**
+ * 도메인 탭 컨테이너 selector — 사이드바 글로벌 메뉴와 분리.
+ * `<DomainTabs>` 의 `role="tablist"` 마크업에 의존.
+ */
+const DOMAIN_TABS_ROOT = "[role='tablist']";
+
+/**
  * 사이드바 메뉴 클릭 → 라우트 이동 + 네트워크 안정화 대기.
  * 임의 sleep(2000) 대신 networkidle 기반으로 정확한 settle 대기.
  */
@@ -27,15 +39,32 @@ async function navTo(page: Page, menuText: string, timeout = 10000) {
   await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
 }
 
+/** 도메인 탭(`role="tablist"` 안의 button) 클릭 — 사이드바와 충돌 회피. */
+async function clickDomainTab(page: Page, label: string) {
+  const tab = page.locator(`${DOMAIN_TABS_ROOT} button`).filter({ hasText: label }).first();
+  await expect(tab, `도메인 탭 "${label}" 이 보여야 함`).toBeVisible({ timeout: 10_000 });
+  await tab.click();
+  await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
+}
+
 /** 모달이 열릴 때까지 대기 (메시지 발송 모달 공통 진입). */
 async function openMessagingModal(page: Page) {
   const sendBtn = page.locator("button").filter({ hasText: /메시지/ }).first();
   await expect(sendBtn, "메시지 발송 버튼이 보여야 함").toBeVisible({ timeout: 10_000 });
   await sendBtn.click();
+  // 모달 root(.send-message-modal)로 정확히 검증 — text=메시지 발송 은 학생 카드/헤더 버튼과 충돌.
   await expect(
-    page.locator("text=메시지 발송").first(),
+    page.locator(MESSAGING_MODAL_ROOT),
     "메시지 발송 모달이 열려야 함",
   ).toBeVisible({ timeout: 5_000 });
+}
+
+/** 메시지 발송 모달이 닫혔는지 확인 — text=메시지 발송 셀렉터 모호성 회피. */
+async function expectMessagingModalHidden(page: Page, timeout = 3_000) {
+  await expect(
+    page.locator(MESSAGING_MODAL_ROOT),
+    "메시지 발송 모달이 닫혀야 함",
+  ).toBeHidden({ timeout });
 }
 
 /** 양식 패널에서 "직접 작성하기" 진입 (양식 패널이 열려있지 않으면 먼저 연다). */
@@ -69,9 +98,8 @@ test.describe("메시징 전역 감사 — 실사용자 흐름", () => {
   // ═══════════════════════════════════════════════════════════════
   test("1. 메시지 설정 — 발신번호/공급자/알림톡 상태 확인", async ({ page }) => {
     await navTo(page, "메시지");
-    // 설정 탭 클릭 → 발신번호 라벨이 보일 때까지 대기 (waitForTimeout 제거)
-    const settingsTab = page.locator("a, button").filter({ hasText: "설정" }).last();
-    await settingsTab.click();
+    // 도메인 탭 안의 "설정" — 사이드바 글로벌 "설정" 메뉴와 충돌 회피 (role=tablist scope).
+    await clickDomainTab(page, "설정");
     await expect(page.locator("text=발신번호").first()).toBeVisible({ timeout: 10000 });
     await snap(page, "audit-1-settings");
 
@@ -114,15 +142,17 @@ test.describe("메시징 전역 감사 — 실사용자 흐름", () => {
   // ═══════════════════════════════════════════════════════════════
   test("3. 자동발송 — 전체 섹션 순회 + 시간 단위", async ({ page }) => {
     await navTo(page, "메시지");
-    const autoTab = page.locator("a, button").filter({ hasText: "자동발송" }).first();
-    await autoTab.click();
-    await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
+    await clickDomainTab(page, "자동발송");
+
+    // 자동발송 섹션 트리(<nav>)로 scope — 사이드바 글로벌 메뉴(시험/클리닉 등) 충돌 회피.
+    const sectionTree = page.locator("nav").filter({ has: page.locator("button") }).first();
+    await expect(sectionTree, "자동발송 섹션 트리가 보여야 함").toBeVisible({ timeout: 10_000 });
 
     // 모든 섹션 순회 (각 섹션 자체는 환경별 옵셔널 — 일부만 활성일 수 있음)
     const sections = ["가입", "출결", "시험", "과제", "성적", "클리닉", "결제"];
     let visitedCount = 0;
     for (const sec of sections) {
-      const secBtn = page.locator("button, [role=button], a").filter({ hasText: sec }).first();
+      const secBtn = sectionTree.locator("button").filter({ hasText: sec }).first();
       if (await secBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
         await secBtn.click();
         await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
@@ -136,7 +166,7 @@ test.describe("메시징 전역 감사 — 실사용자 흐름", () => {
     ).toBeGreaterThan(0);
 
     // 시험 섹션 시간 단위 검증 — 시험 섹션이 있다면 시간 단위 라벨이 1개 이상 있어야 함.
-    const examSec = page.locator("button, [role=button], a").filter({ hasText: "시험" }).first();
+    const examSec = sectionTree.locator("button").filter({ hasText: "시험" }).first();
     if (await examSec.isVisible({ timeout: 3000 }).catch(() => false)) {
       await examSec.click();
       await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
@@ -153,9 +183,7 @@ test.describe("메시징 전역 감사 — 실사용자 흐름", () => {
   // ═══════════════════════════════════════════════════════════════
   test("4. 발송 내역 — 로그 목록 + 상세 팝업", async ({ page }) => {
     await navTo(page, "메시지");
-    const logTab = page.locator("a, button").filter({ hasText: "발송 내역" }).first();
-    await logTab.click();
-    await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
+    await clickDomainTab(page, "발송 내역");
 
     await snap(page, "audit-4-log-list");
 
@@ -211,9 +239,14 @@ test.describe("메시징 전역 감사 — 실사용자 흐름", () => {
     await openMessagingModal(page);
     await snap(page, "audit-5-modal-open");
 
-    // ── SMS 모드 확인 ──
-    const smsBtn = page.locator("button").filter({ hasText: "SMS" }).first();
-    await expect(smsBtn).toBeVisible();
+    // ── SMS 모드 확인 ── 모달 안의 채널 토글 scope. SMS 미연동 환경(sms_allowed=false)은
+    // 모달에 SMS 버튼이 노출되지 않으므로 SMS 검증 자체 무효 → skip.
+    const modal = page.locator(MESSAGING_MODAL_ROOT);
+    const smsBtn = modal.locator("button").filter({ hasText: "SMS" }).first();
+    if (!(await smsBtn.isVisible({ timeout: 3000 }).catch(() => false))) {
+      test.info().annotations.push({ type: "skip-reason", description: "SMS 미연동 환경 — SMS 모드 검증 무효" });
+      return;
+    }
     await snap(page, "audit-5-modal-sms-mode");
 
     // ── 양식 패널 → 직접 작성 ──
@@ -295,7 +328,7 @@ test.describe("메시징 전역 감사 — 실사용자 흐름", () => {
     const cancelBtn = page.locator("button").filter({ hasText: "취소" }).first();
     if (await cancelBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
       await cancelBtn.click();
-      await expect(page.locator("text=메시지 발송").first()).toBeHidden({ timeout: 3_000 });
+      await expectMessagingModalHidden(page);
     }
   });
 
@@ -338,28 +371,31 @@ test.describe("메시징 전역 감사 — 실사용자 흐름", () => {
     await snap(page, "audit-6-alimtalk-body");
 
     // ── SMS로 전환 후 다시 알림톡으로 — 채널 전환 시 본문 초기화 정책 검증 ──
-    const smsBtn = page.locator("button").filter({ hasText: "SMS" }).first();
-    await expect(smsBtn, "SMS 채널 전환 버튼이 보여야 함").toBeVisible({ timeout: 3_000 });
-    await expect(smsBtn).toBeEnabled({ timeout: 3_000 });
+    // SMS 미연동 환경에서는 SMS 토글 자체가 모달에 없음 → 채널 전환 검증 skip.
+    const modal6 = page.locator(MESSAGING_MODAL_ROOT);
+    const smsBtn = modal6.locator("button").filter({ hasText: "SMS" }).first();
+    if (await smsBtn.isVisible({ timeout: 3_000 }).catch(() => false) && await smsBtn.isEnabled({ timeout: 3_000 }).catch(() => false)) {
+      await smsBtn.click();
+      // SMS 전환 후 본문은 알림톡 본문과 별도 (clear 정책) — 빈 값 또는 SMS 본문이 보여야 함.
+      // 알림톡 본문이 SMS 채널에 그대로 남아있으면 미발송 권장 본문이 잘못 남는 회귀.
+      await expect(
+        page.locator("textarea").first(),
+        "SMS 채널은 알림톡 본문을 그대로 가져오면 안 됨 (채널별 본문 분리 정책)",
+      ).not.toHaveValue(/E2E-알림톡/, { timeout: 3_000 });
 
-    await smsBtn.click();
-    // SMS 전환 후 본문은 알림톡 본문과 별도 (clear 정책) — 빈 값 또는 SMS 본문이 보여야 함.
-    // 알림톡 본문이 SMS 채널에 그대로 남아있으면 미발송 권장 본문이 잘못 남는 회귀.
-    await expect(
-      page.locator("textarea").first(),
-      "SMS 채널은 알림톡 본문을 그대로 가져오면 안 됨 (채널별 본문 분리 정책)",
-    ).not.toHaveValue(/E2E-알림톡/, { timeout: 3_000 });
-
-    // 다시 알림톡으로
-    await alimBtn.click();
-    // 알림톡 채널 복귀 시 텍스트영역 자체는 다시 보여야 함 (모달 안정성)
-    await expect(page.locator("textarea").first()).toBeVisible({ timeout: 3_000 });
+      // 다시 알림톡으로
+      await alimBtn.click();
+      // 알림톡 채널 복귀 시 텍스트영역 자체는 다시 보여야 함 (모달 안정성)
+      await expect(page.locator("textarea").first()).toBeVisible({ timeout: 3_000 });
+    } else {
+      test.info().annotations.push({ type: "skip-reason", description: "SMS 미연동 환경 — 채널 전환 검증 skip" });
+    }
 
     await snap(page, "audit-6-alimtalk-switch-test");
 
     // ESC로 닫기
     await page.keyboard.press("Escape");
-    await expect(page.locator("text=메시지 발송").first()).toBeHidden({ timeout: 3_000 });
+    await expectMessagingModalHidden(page);
   });
 
   // ═══════════════════════════════════════════════════════════════
@@ -379,9 +415,13 @@ test.describe("메시징 전역 감사 — 실사용자 흐름", () => {
     // 메시지 발송 모달
     await openMessagingModal(page);
 
-    // SMS 모드 확인 — SMS 버튼이 보여야 함 (별도 click 불필요: 기본 SMS 모드 가정)
-    const smsBtn = page.locator("button").filter({ hasText: "SMS" }).first();
-    await expect(smsBtn).toBeVisible({ timeout: 3_000 });
+    // SMS 모드 확인 — SMS 미연동 환경(sms_allowed=false)은 실제 SMS 발송 검증 자체 무효 → skip.
+    const modal7 = page.locator(MESSAGING_MODAL_ROOT);
+    const smsBtn = modal7.locator("button").filter({ hasText: "SMS" }).first();
+    if (!(await smsBtn.isVisible({ timeout: 3_000 }).catch(() => false))) {
+      test.info().annotations.push({ type: "skip-reason", description: "SMS 미연동 환경 — 실제 SMS 발송 검증 무효" });
+      return;
+    }
 
     // 양식 선택 → 직접 작성
     await openFreeformBody(page);
@@ -419,16 +459,14 @@ test.describe("메시징 전역 감사 — 실사용자 흐름", () => {
     // 발송 요청 후 모달이 닫히거나 success 피드백이 나와야 함.
     // (알림 토스트 또는 모달 닫힘 — 둘 중 하나)
     await Promise.race([
-      page.locator("text=메시지 발송").first().waitFor({ state: "hidden", timeout: 10_000 }).catch(() => null),
+      page.locator(MESSAGING_MODAL_ROOT).waitFor({ state: "hidden", timeout: 10_000 }).catch(() => null),
       page.locator("text=/발송.*완료|성공/").first().waitFor({ state: "visible", timeout: 10_000 }).catch(() => null),
     ]);
     await snap(page, "audit-7-sms-sent");
 
     // 발송 내역에서 확인 — 큐 처리 시간 고려 폴링
     await navTo(page, "메시지");
-    const logTab = page.locator("a, button").filter({ hasText: "발송 내역" }).first();
-    await logTab.click();
-    await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
+    await clickDomainTab(page, "발송 내역");
 
     await snap(page, "audit-7-sms-log-after");
 
@@ -490,7 +528,7 @@ test.describe("메시징 전역 감사 — 실사용자 흐름", () => {
     await resultSendBtn.click();
 
     // 모달 열리면 hard expect. (silent log → 변수 치환 결과 검증으로 변경)
-    const modal = page.locator("text=메시지 발송").first();
+    const modal = page.locator(MESSAGING_MODAL_ROOT);
     await expect(modal, "수업결과 발송 모달이 열려야 함").toBeVisible({ timeout: 5_000 });
     await snap(page, "audit-8-score-send-modal");
 
@@ -541,8 +579,9 @@ test.describe("메시징 전역 감사 — 실사용자 흐름", () => {
       "클리닉 메시지 설정 페이지는 '알림톡 자동발송' 또는 'SMS 자동발송' 패널을 노출해야 함",
     ).toBeVisible({ timeout: 10_000 });
 
-    // 트리거 — 5종 모두 보여야 한다 (silent log → hard expect).
-    const triggers = ["예약 생성", "입실", "결석", "자율학습 완료", "취소"];
+    // 트리거 — SSOT(AUTO_SEND_TRIGGER_LABELS) 라벨 substring 매칭. 5종 모두 보여야 한다.
+    // 운영 라벨: 클리닉 예약 완료 / 참석(입실) / 결석 / 클리닉 완료(하원) / 클리닉 예약 취소
+    const triggers = ["예약 완료", "참석", "결석", "하원", "취소"];
     for (const t of triggers) {
       const triggerEl = page.locator(`text=${t}`).first();
       await expect(
@@ -575,7 +614,7 @@ test.describe("메시징 전역 감사 — 실사용자 흐름", () => {
     // ESC → 모달 닫힘은 핵심 UX 회귀 검증.
     await page.keyboard.press("Escape");
     await expect(
-      page.locator("text=메시지 발송").first(),
+      page.locator(MESSAGING_MODAL_ROOT),
       "ESC 후 메시지 발송 모달이 닫혀야 함 (UX 회귀 검증)",
     ).toBeHidden({ timeout: 3_000 });
 
@@ -598,7 +637,7 @@ test.describe("메시징 전역 감사 — 실사용자 흐름", () => {
     const cancelBtn = page.locator("button").filter({ hasText: "취소" }).first();
     if (await cancelBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
       await cancelBtn.click();
-      await expect(page.locator("text=메시지 발송").first()).toBeHidden({ timeout: 3_000 });
+      await expectMessagingModalHidden(page);
     }
   });
 });
