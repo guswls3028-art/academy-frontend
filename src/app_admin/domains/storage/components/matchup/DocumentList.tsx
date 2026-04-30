@@ -295,6 +295,8 @@ export default function DocumentList({
         key={doc.id}
         data-testid="matchup-doc-row"
         data-doc-id={doc.id}
+        data-doc-status={doc.status}
+        data-doc-intent={intent}
         onClick={() => { if (!isRenamingThis) onSelect(doc.id); }}
         onContextMenu={(e) => {
           // 일반 PC 사용자가 우클릭 시도 시 빈 OS 메뉴 대신 커스텀 메뉴 표시.
