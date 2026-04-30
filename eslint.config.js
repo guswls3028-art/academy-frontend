@@ -27,7 +27,11 @@ export default tseslint.config(
       // Badge SSOT 가드 — 신규 코드는 반드시 <Badge>(@/shared/ui/ds) 사용.
       // raw <span className="ds-badge ..."> / <span className="ds-status-badge ..."> 신규 도입 차단.
       // (기존 사용처는 점진 마이그레이션 — 즉시 에러 대신 warn으로 시작)
-      // 인라인 fontSize 가드는 도입 보류 (캡션/메타 텍스트 오탐 위험 — 코드 리뷰로 처리).
+      //
+      // R-11 인라인 스타일 baseline 동결 (4-30): style={{...}} 객체 리터럴 패턴 warn.
+      // 4-15 1,790 → 4-29 5,442 (14일 +3,652 누적) — 신규 차단 우선, 점진 정리는 touch-the-file.
+      // CI quality-gate 변경 파일 strict lint step과 결합해 신규 작업만 강제.
+      // 동적 스타일(`style={someVar}`/`style={...spread}`)은 통과 — 명시적 inline 객체만 차단.
       'no-restricted-syntax': [
         'warn',
         {
@@ -35,6 +39,12 @@ export default tseslint.config(
             "JSXOpeningElement[name.name='span'] > JSXAttribute[name.name='className'][value.type='Literal'][value.value=/\\bds-(status-)?badge\\b/]",
           message:
             'raw <span className="ds-badge|ds-status-badge"> 금지. <Badge> from "@/shared/ui/ds" 를 사용하세요.',
+        },
+        {
+          selector:
+            "JSXAttribute[name.name='style'] > JSXExpressionContainer > ObjectExpression",
+          message:
+            "인라인 style={{...}} 신규 도입 금지. CSS 모듈 / DS token / className 사용. 정말 동적 계산이 필요하면 해당 줄에 // eslint-disable-next-line no-restricted-syntax 추가.",
         },
       ],
     },
