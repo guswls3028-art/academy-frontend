@@ -30,7 +30,10 @@ export default function ClinicRemoteControlPage() {
   const { data: settings, isLoading } = useQuery({
     queryKey: ["teacher-clinic-settings"],
     queryFn: fetchClinicSettings,
-    refetchInterval: 2000,
+    // 폴링 가드: 탭 비가시 상태에서는 정지(default) + 에러 발생 시 backoff(2s→10s).
+    // 색상 변경은 실시간성 강하지 않아 가시 상태에서만 충분.
+    refetchInterval: (query) => (query.state.error ? 10_000 : 2_000),
+    refetchIntervalInBackground: false,
   });
 
   const colors: [string, string, string] = settings?.colors || ["#ef4444", "#3b82f6", "#22c55e"];

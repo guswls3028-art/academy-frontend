@@ -11,6 +11,7 @@ import { Shield } from "lucide-react";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter } from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { useConfirm } from "@/shared/ui/confirm";
 import { asyncStatusStore } from "@/shared/ui/asyncStatus/asyncStatusStore";
 import {
   fetchMessageTemplates,
@@ -244,6 +245,7 @@ export default function SendMessageModal({
   alimtalkExtraVarsPerStudent,
 }: SendMessageModalProps) {
   const queryClient = useQueryClient();
+  const confirm = useConfirm();
   const smsAllowed = false;
 
   // ─── State ───
@@ -505,7 +507,14 @@ export default function SendMessageModal({
   const handleDeleteTemplate = async (id: number) => {
     const target = templates.find((t) => t.id === id);
     if (!target) return;
-    if (!window.confirm(`"${target.name}" 양식을 삭제할까요?\n삭제하면 복구할 수 없습니다.`)) return;
+    const ok = await confirm({
+      title: "양식 삭제",
+      message: `"${target.name}" 양식을 삭제할까요? 삭제하면 복구할 수 없습니다.`,
+      confirmText: "삭제",
+      cancelText: "취소",
+      danger: true,
+    });
+    if (!ok) return;
     try {
       await deleteMessageTemplate(id);
       setTemplates((prev) => prev.filter((t) => t.id !== id));

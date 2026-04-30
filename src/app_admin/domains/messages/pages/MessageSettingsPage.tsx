@@ -17,6 +17,7 @@ import {
 } from "react-icons/fi";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { useConfirm } from "@/shared/ui/confirm";
 import {
   useMessagingInfo,
   useUpdateKakaoPfid,
@@ -169,6 +170,7 @@ function CopyButton({ text }: { text: string }) {
 // ─── Main ───
 
 export default function MessageSettingsPage() {
+  const confirm = useConfirm();
   const { data: info } = useMessagingInfo();
   const { mutate: updatePfid, isPending } = useUpdateKakaoPfid();
   const { mutate: updateInfo, isPending: isUpdatingInfo } = useUpdateMessagingInfo();
@@ -327,11 +329,18 @@ export default function MessageSettingsPage() {
                 type="button"
                 onClick={() => {
                   if (opt.key === provider) return;
-                  if (!window.confirm(`메시징 공급자를 ${opt.label}(으)로 변경하시겠습니까?`)) return;
-                  setProvider(opt.key);
-                  updateInfo({ messaging_provider: opt.key }, {
-                    onSuccess: () => feedback.success(`${opt.label}(으)로 변경되었습니다.`),
-                    onError: () => feedback.error("변경에 실패했습니다."),
+                  confirm({
+                    title: "메시징 공급자 변경",
+                    message: `메시징 공급자를 ${opt.label}(으)로 변경하시겠습니까?`,
+                    confirmText: "변경",
+                    cancelText: "취소",
+                  }).then((ok) => {
+                    if (!ok) return;
+                    setProvider(opt.key);
+                    updateInfo({ messaging_provider: opt.key }, {
+                      onSuccess: () => feedback.success(`${opt.label}(으)로 변경되었습니다.`),
+                      onError: () => feedback.error("변경에 실패했습니다."),
+                    });
                   });
                 }}
                 disabled={isUpdatingInfo}

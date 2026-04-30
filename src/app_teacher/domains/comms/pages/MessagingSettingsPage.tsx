@@ -16,12 +16,14 @@ import {
   type MessagingProvider, type TestCredentialsResult,
 } from "../api";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
+import { useConfirm } from "@/shared/ui/confirm";
 
 const SERVER_IP = "43.201.119.172";
 
 export default function MessagingSettingsPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const confirm = useConfirm();
 
   const { data: info, isLoading } = useQuery({
     queryKey: ["teacher-messaging-info"],
@@ -83,11 +85,19 @@ export default function MessagingSettingsPage() {
 
   const handleChangeProvider = (next: MessagingProvider) => {
     if (next === provider) return;
-    if (!window.confirm(`메시지 공급자를 ${next === "ppurio" ? "뿌리오" : "솔라피"}(으)로 변경하시겠습니까?`)) return;
-    setProvider(next);
-    updateMut.mutate({ messaging_provider: next }, {
-      onSuccess: () => teacherToast.success(`${next === "ppurio" ? "뿌리오" : "솔라피"}(으)로 변경되었습니다.`),
-      onError: () => teacherToast.error("변경에 실패했습니다."),
+    const label = next === "ppurio" ? "뿌리오" : "솔라피";
+    confirm({
+      title: "메시지 공급자 변경",
+      message: `메시지 공급자를 ${label}(으)로 변경하시겠습니까?`,
+      confirmText: "변경",
+      cancelText: "취소",
+    }).then((ok) => {
+      if (!ok) return;
+      setProvider(next);
+      updateMut.mutate({ messaging_provider: next }, {
+        onSuccess: () => teacherToast.success(`${label}(으)로 변경되었습니다.`),
+        onError: () => teacherToast.error("변경에 실패했습니다."),
+      });
     });
   };
 
@@ -111,17 +121,25 @@ export default function MessagingSettingsPage() {
   };
 
   const handleClearOwnCreds = () => {
-    if (!window.confirm("자체 연동 정보를 초기화하시겠습니까?")) return;
-    updateMut.mutate(
-      { own_solapi_api_key: "", own_solapi_api_secret: "", own_ppurio_api_key: "", own_ppurio_account: "" },
-      {
-        onSuccess: () => {
-          teacherToast.success("연동 정보가 초기화되었습니다.");
-          setOwnSolapiKey(""); setOwnSolapiSecret(""); setOwnPpurioKey(""); setOwnPpurioAccount("");
+    confirm({
+      title: "연동 정보 초기화",
+      message: "자체 연동 정보를 초기화하시겠습니까?",
+      confirmText: "초기화",
+      cancelText: "취소",
+      danger: true,
+    }).then((ok) => {
+      if (!ok) return;
+      updateMut.mutate(
+        { own_solapi_api_key: "", own_solapi_api_secret: "", own_ppurio_api_key: "", own_ppurio_account: "" },
+        {
+          onSuccess: () => {
+            teacherToast.success("연동 정보가 초기화되었습니다.");
+            setOwnSolapiKey(""); setOwnSolapiSecret(""); setOwnPpurioKey(""); setOwnPpurioAccount("");
+          },
+          onError: () => teacherToast.error("초기화에 실패했습니다."),
         },
-        onError: () => teacherToast.error("초기화에 실패했습니다."),
-      },
-    );
+      );
+    });
   };
 
   const handleVerifySender = () => {

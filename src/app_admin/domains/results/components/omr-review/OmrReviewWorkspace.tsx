@@ -27,6 +27,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { Badge } from "@/shared/ui/ds";
+import { useConfirm } from "@/shared/ui/confirm";
 import {
   fetchOmrReviewDetail,
   listOmrReviewRows,
@@ -126,16 +127,22 @@ export default function OmrReviewWorkspace({ examId, examTitle, open, onClose }:
   const [editDirty, setEditDirty] = useState(false);
   const [focusedQid, setFocusedQid] = useState<number | null>(null);
 
+  const confirm = useConfirm();
+
   // 변경 사항 있을 때 닫기 가드 (백드롭/X 버튼/ESC 공통 경로).
-  const handleClose = useCallback(() => {
+  const handleClose = useCallback(async () => {
     if (editDirty) {
-      const ok = window.confirm(
-        "저장하지 않은 변경 사항이 있습니다.\n정말 닫으시겠습니까?"
-      );
+      const ok = await confirm({
+        title: "변경 사항 닫기",
+        message: "저장하지 않은 변경 사항이 있습니다. 정말 닫으시겠습니까?",
+        confirmText: "닫기",
+        cancelText: "계속 편집",
+        danger: true,
+      });
       if (!ok) return;
     }
     onClose();
-  }, [editDirty, onClose]);
+  }, [editDirty, onClose, confirm]);
 
   // 리스트
   const { data: rows = [], isLoading: listLoading } = useQuery({
@@ -582,6 +589,7 @@ function EditPane({
     return init;
   }, [detail?.submission_id, detail?.answers]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const confirm = useConfirm();
   const [answers, setAnswers] = useState<Record<number, string>>(initialAnswers);
   const [pickedStudent, setPickedStudent] = useState<CandidateRow | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -648,13 +656,17 @@ function EditPane({
       // 409 DUPLICATE_ENROLLMENT — 운영자에게 덮어쓰기 확인 후 재시도
       if (status === 409 && code === "DUPLICATE_ENROLLMENT") {
         const conflictId = err?.response?.data?.conflict_submission_id;
-        const ok = window.confirm(
-          `이 학생은 이미 다른 답안지(#${conflictId ?? "?"})에 매칭돼 있습니다.\n\n` +
-            "이 답안지로 덮어쓰기 하시겠어요?\n(기존 답안지는 그대로 남지만 대표 답안지는 변경됩니다.)",
-        );
-        if (ok) {
-          mut.mutate({ allowDuplicate: true });
-        }
+        confirm({
+          title: "이미 매칭된 답안지가 있습니다",
+          message:
+            `이 학생은 이미 다른 답안지(#${conflictId ?? "?"})에 매칭돼 있습니다. ` +
+            "이 답안지로 덮어쓰기 하시겠어요? (기존 답안지는 그대로 남지만 대표 답안지는 변경됩니다.)",
+          confirmText: "덮어쓰기",
+          cancelText: "취소",
+          danger: true,
+        }).then((ok) => {
+          if (ok) mut.mutate({ allowDuplicate: true });
+        });
         return;
       }
       feedback.error(err?.response?.data?.detail || err?.message || "저장 실패");
@@ -904,12 +916,17 @@ function EditPane({
           type="button"
           onClick={() => {
             if (!detail) return;
-            const ok = window.confirm(
-              "이 답안지를 폐기하시겠습니까?\n\n" +
-                "• 스캔 품질 불량·중복 업로드·채점 대상 아님 등의 이유로 제외할 때 사용합니다.\n" +
-                "• 상태는 \"실패\"로 전환되며 성적에 반영되지 않습니다.",
-            );
-            if (ok) discardMut.mutate();
+            confirm({
+              title: "답안지 폐기",
+              message:
+                "이 답안지를 폐기하시겠습니까? 스캔 품질 불량·중복 업로드·채점 대상 아님 등의 이유로 제외할 때 사용합니다. " +
+                "상태는 \"실패\"로 전환되며 성적에 반영되지 않습니다.",
+              confirmText: "폐기",
+              cancelText: "취소",
+              danger: true,
+            }).then((ok) => {
+              if (ok) discardMut.mutate();
+            });
           }}
           disabled={discardMut.isPending || mut.isPending}
           title="스캔 불량·중복 등으로 채점 제외"
