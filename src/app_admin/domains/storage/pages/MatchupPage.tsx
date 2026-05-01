@@ -37,6 +37,24 @@ import MatchupEmptyState from "../components/matchup/MatchupEmptyState";
 import { getDocumentIntent } from "../components/matchup/documentIntent";
 import css from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
 
+// 자동 분류된 시험지 유형 라벨 (학원 사용자 노출용 한글).
+// backend paper-type classifier enum과 동기.
+const PAPER_TYPE_LABEL: Record<string, string> = {
+  clean_pdf_single: "PDF (1단)",
+  clean_pdf_dual: "PDF (2단)",
+  quadrant: "4분할 시험지",
+  scan_single: "스캔본 (1단)",
+  scan_dual: "스캔본 (2단)",
+  student_answer_photo: "학생 답안지 폰사진",
+  side_notes: "학습자료 본문",
+  non_question: "표지/정답지/해설지",
+  unknown: "분류 불명",
+};
+
+function paperTypeLabel(key: string): string {
+  return PAPER_TYPE_LABEL[key] ?? key;
+}
+
 function hasAsyncWorkerTask(id: string): boolean {
   return asyncStatusStore
     .getState()
@@ -961,6 +979,117 @@ export default function MatchupPage() {
                     </Button>
                   </div>
                 )}
+
+                {/* 시험지 유형 자동 분류 결과 + 자동분리 신뢰도 경고.
+                    백엔드 paper-type classifier가 페이지별로 분류한 결과의 doc-level summary.
+                    학생 답안지 폰사진 / 표지·정답지 다수 / 저신뢰 source 다수일 때 사전 경고. */}
+                {selectedDoc?.status === "done" && selectedDoc.meta?.paper_type_summary && (() => {
+                  const summary = selectedDoc.meta.paper_type_summary;
+                  if (!summary) return null;
+                  const warnings = Array.isArray(summary.warnings) ? summary.warnings : [];
+                  const distribution = (summary.distribution ?? {}) as Record<string, number>;
+                  const totalPages = Object.values(distribution).reduce((a, b) => a + (Number(b) || 0), 0);
+                  const sortedDist = Object.entries(distribution)
+                    .filter(([, n]) => Number(n) > 0)
+                    .sort((a, b) => Number(b[1]) - Number(a[1]));
+
+                  const hasStudentPhoto = warnings.includes("student_answer_photo_detected");
+                  const hasLowConfidence = warnings.includes("low_confidence_source_majority");
+                  const hasNonQuestionMajority = warnings.includes("non_question_majority");
+                  const hasWarning = hasStudentPhoto || hasLowConfidence || hasNonQuestionMajority;
+
+                  // 경고 없으면 banner 자체를 띄우지 않음 (정상 PDF 대다수에서 노이즈 방지).
+                  if (!hasWarning) return null;
+
+                  // 경고 톤: non_question_majority = warning(주의/권장), 나머지 = warning(자동분리 정확도 낮음 안내)
+                  // 빨강(danger)은 실패 배너에서만 사용. 경고는 모두 warning 톤으로 통일.
+                  const tone = "var(--color-warning)";
+                  const title = hasStudentPhoto
+                    ? "학생 답안지 폰사진으로 분류되었습니다"
+                    : hasNonQuestionMajority
+                      ? "비-문항 페이지가 다수입니다"
+                      : "자동분리 정확도가 낮을 수 있습니다";
+                  const message = hasStudentPhoto
+                    ? "이 자료는 학생 답안지 폰사진으로 자동분리 정확도가 낮습니다. 필기가 본문을 가릴 수 있어 페이지 단위 매칭이 더 안전합니다. 정확한 매칭이 필요한 문항은 직접 자르기를 권장합니다."
+                    : hasNonQuestionMajority
+                      ? "표지·정답지·해설지 등 비-문항 페이지가 다수입니다. 출제본 PDF로 다시 업로드하시거나, 필요한 문항만 직접 자르기로 추가해 주세요."
+                      : "스캔 품질·레이아웃 등으로 자동분리 신뢰도가 낮습니다. 결과를 검수하시고 누락·오분리 문항은 직접 자르기로 보정해 주세요.";
+
+                  return (
+                    <div data-testid="matchup-paper-type-banner" style={{
+                      flexShrink: 0,
+                      padding: "var(--space-3) var(--space-4)",
+                      borderRadius: "var(--radius-md)",
+                      background: "color-mix(in srgb, var(--color-warning) 8%, transparent)",
+                      border: "1px solid color-mix(in srgb, var(--color-warning) 30%, transparent)",
+                      display: "flex", alignItems: "flex-start", gap: "var(--space-3)",
+                    }}>
+                      <AlertTriangle size={18} style={{ color: tone, flexShrink: 0, marginTop: 2 }} />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{
+                          fontSize: 13, fontWeight: 700,
+                          color: tone, marginBottom: 4,
+                        }}>
+                          {title}
+                        </div>
+                        <div style={{
+                          fontSize: 12, color: "var(--color-text-secondary)",
+                          lineHeight: 1.5,
+                        }}>
+                          {message}
+                        </div>
+                        {sortedDist.length > 0 && (
+                          <details style={{ marginTop: 6 }}>
+                            <summary style={{
+                              fontSize: 11, color: "var(--color-text-muted)",
+                              cursor: "pointer", userSelect: "none",
+                            }}>
+                              페이지별 분류 상세 ({totalPages}페이지)
+                            </summary>
+                            <div style={{
+                              marginTop: 4, display: "flex", flexWrap: "wrap",
+                              gap: "var(--space-1)",
+                              fontSize: 11, color: "var(--color-text-muted)",
+                            }}>
+                              {sortedDist.map(([type, count]) => (
+                                <span
+                                  key={type}
+                                  style={{
+                                    padding: "2px 6px", borderRadius: 4,
+                                    background: "var(--color-bg-surface-soft)",
+                                    border: "1px solid var(--color-border-divider)",
+                                  }}
+                                >
+                                  {paperTypeLabel(type)} {count}p
+                                </span>
+                              ))}
+                              {typeof summary.low_confidence_ratio === "number" && summary.low_confidence_ratio > 0 && (
+                                <span style={{
+                                  padding: "2px 6px", borderRadius: 4,
+                                  background: "var(--color-bg-surface-soft)",
+                                  border: "1px solid var(--color-border-divider)",
+                                }}>
+                                  저신뢰 비율 {Math.round(summary.low_confidence_ratio * 100)}%
+                                </span>
+                              )}
+                            </div>
+                          </details>
+                        )}
+                      </div>
+                      {selectedDoc && (
+                        <Button
+                          intent="primary"
+                          size="sm"
+                          onClick={() => setCropDocId(selectedDoc.id)}
+                          data-testid="matchup-paper-type-banner-crop-btn"
+                        >
+                          <Crop size={13} style={{ marginRight: 4 }} />
+                          직접 자르기
+                        </Button>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {/* 과분할 감지 힌트 — 번호 중복/결손이 있을 때만 노출.
                     시험지(test)는 적중 PDF에 직접 영향 → warning 톤으로 강조 + 직접 자르기 CTA. */}

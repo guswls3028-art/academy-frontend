@@ -5,6 +5,7 @@
 
 import { useEffect, useState } from "react";
 import { Maximize2, X, AlertTriangle, Loader2 } from "lucide-react";
+import { Badge, ICON_FOR_BADGE } from "@/shared/ui/ds";
 import type { MatchupProblem } from "../../api/matchup.api";
 import { getMatchupProblemPresignUrl } from "../../api/matchup.api";
 
@@ -16,14 +17,13 @@ type Props = {
 
 export default function ProblemCard({ problem, selected, onClick }: Props) {
   // 자동분리가 인접 문항을 박스 단위로 합친 의심 — 매뉴얼 크롭+Ctrl+V paste 권장.
-  const isMergeSuspect = Boolean(
-    (problem.meta as { merge_suspect?: boolean } | undefined)?.merge_suspect,
-  );
+  const isMergeSuspect = Boolean(problem.meta?.merge_suspect);
   // 파이프라인 진행 중 skeleton row — 분리만 끝났고 OCR/임베딩/이미지 미완.
   // 신규 업로드 사용자에게 즉시 카운트 노출용. 완료되면 false로 갱신됨.
-  const isPartial = Boolean(
-    (problem.meta as { is_partial?: boolean } | undefined)?.is_partial,
-  );
+  const isPartial = Boolean(problem.meta?.is_partial);
+  // 본문 OCR 첫 줄에서 인식한 번호가 DB number와 다른 경우 — 신뢰성 검수 신호.
+  // (예: DB Q3인데 OCR가 본문에서 "5." 발견 → 인접 문항 컨텐츠로 잘못 잘렸을 가능성)
+  const numberMismatch = problem.meta?.number_mismatch;
   const [zoomOpen, setZoomOpen] = useState(false);
   // 기본은 list API가 내려준 image_url 사용 (N+1 없음).
   // 서버가 아직 image_url 미포함 버전이면 fallback으로 presign 1회 호출 (backend 배포 전 호환).
@@ -120,6 +120,17 @@ export default function ProblemCard({ problem, selected, onClick }: Props) {
               >
                 <AlertTriangle size={9} /> 검수
               </span>
+            )}
+            {numberMismatch && (
+              <Badge
+                tone="danger"
+                size="xs"
+                title={`DB 번호(Q${numberMismatch.db})와 본문 OCR 번호(Q${numberMismatch.ocr})가 다릅니다. 인접 문항 컨텐츠가 잘못 잘렸을 수 있습니다 — 매뉴얼 크롭 또는 Ctrl+V로 정확히 잘라주세요.`}
+                ariaLabel={`번호 불일치 DB Q${numberMismatch.db} OCR Q${numberMismatch.ocr}`}
+              >
+                <AlertTriangle size={ICON_FOR_BADGE.xs} />
+                번호 불일치 (DB Q{numberMismatch.db} vs OCR Q{numberMismatch.ocr})
+              </Badge>
             )}
           </span>
           {imgUrl && (

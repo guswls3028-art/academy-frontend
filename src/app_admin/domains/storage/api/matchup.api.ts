@@ -7,10 +7,43 @@ import api from "@/shared/api/axios";
 
 export type SegmentationMethod = "text" | "ocr" | "mixed" | "image" | "none";
 
+// 페이지별 자동 분류된 시험지 유형. 백엔드 paper-type classifier와 동기.
+//   clean_pdf_*           : 깨끗한 PDF (정상)
+//   quadrant              : 4분할 시험지
+//   scan_*                : 스캔본
+//   student_answer_photo  : 학생 답안지 폰사진 (필기 침범, 자동분리 신뢰도 낮음)
+//   side_notes            : 학습자료 본문 항목번호
+//   non_question          : 표지/정답지/해설지/목차
+//   unknown               : 분류 불명
+export type PaperType =
+  | "clean_pdf_single"
+  | "clean_pdf_dual"
+  | "quadrant"
+  | "scan_single"
+  | "scan_dual"
+  | "student_answer_photo"
+  | "side_notes"
+  | "non_question"
+  | "unknown";
+
+// paper-type summary warning enum — 백엔드와 동기.
+export type PaperTypeWarning =
+  | "student_answer_photo_detected"
+  | "low_confidence_source_majority"
+  | "non_question_majority";
+
+export type PaperTypeSummary = {
+  distribution: Partial<Record<PaperType, number>> & Record<string, number>;
+  low_confidence_ratio: number; // 0.0 ~ 1.0
+  primary: PaperType | string;
+  warnings: Array<PaperTypeWarning | string>;
+};
+
 export type MatchupDocumentMeta = {
   segmentation_method?: SegmentationMethod;
   upload_intent?: "reference" | "test";
   document_role?: "reference_material" | "exam_sheet";
+  paper_type_summary?: PaperTypeSummary;
   [key: string]: unknown;
 };
 
@@ -36,6 +69,18 @@ export type MatchupDocument = {
   updated_at: string;
 };
 
+// problem.meta — 백엔드가 채우는 known 필드. 알려지지 않은 키도 들어올 수 있어 unknown 합집합.
+//   merge_suspect       : 인접 문항이 합쳐졌을 가능성
+//   is_partial          : 파이프라인 진행 중 skeleton row
+//   number_mismatch     : OCR로 본문 첫 줄에서 인식한 번호가 DB number와 다른 경우
+//                         "Q3 적중자료가 Q5 본문" 식 신뢰성 사고 차단용 검수 신호
+export type MatchupProblemMeta = {
+  merge_suspect?: boolean;
+  is_partial?: boolean;
+  number_mismatch?: { db: number; ocr: number };
+  [key: string]: unknown;
+};
+
 export type MatchupProblem = {
   id: number;
   document_id: number;
@@ -43,7 +88,7 @@ export type MatchupProblem = {
   text: string;
   image_key: string;
   image_url?: string;
-  meta: Record<string, unknown>;
+  meta: MatchupProblemMeta;
   created_at: string;
 };
 
