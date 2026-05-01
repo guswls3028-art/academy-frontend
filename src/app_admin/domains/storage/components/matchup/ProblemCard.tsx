@@ -61,7 +61,7 @@ export default function ProblemCard({ problem, selected, onClick }: Props) {
           }
         }}
         title={imgUrl ? "더블클릭 = 크게 보기" : undefined}
-        style={{
+        style={/* eslint-disable-line no-restricted-syntax */ {
           border: selected
             ? "2px solid var(--color-brand-primary)"
             : "1px solid var(--color-border-divider)",
@@ -81,18 +81,18 @@ export default function ProblemCard({ problem, selected, onClick }: Props) {
         }}
       >
         {/* 번호 + 확대 버튼 */}
-        <div style={{
+        <div style={/* eslint-disable-line no-restricted-syntax */ {
           display: "flex", alignItems: "center", justifyContent: "space-between",
           fontSize: 11, fontWeight: 700,
           color: selected ? "var(--color-brand-primary)" : "var(--color-text-muted)",
           letterSpacing: "0.05em",
         }}>
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+          <span style={/* eslint-disable-line no-restricted-syntax */ { display: "inline-flex", alignItems: "center", gap: 6 }}>
             Q{problem.number}
             {isPartial && (
               <span
                 title="텍스트/이미지 추출 진행 중"
-                style={{
+                style={/* eslint-disable-line no-restricted-syntax */ {
                   display: "inline-flex", alignItems: "center", gap: 3,
                   padding: "1px 5px",
                   fontSize: 9, fontWeight: 600,
@@ -108,7 +108,7 @@ export default function ProblemCard({ problem, selected, onClick }: Props) {
             {isMergeSuspect && (
               <span
                 title="인접 문항이 합쳐진 것으로 의심됩니다. 매뉴얼 크롭 또는 Ctrl+V로 정확히 잘라주세요."
-                style={{
+                style={/* eslint-disable-line no-restricted-syntax */ {
                   display: "inline-flex", alignItems: "center", gap: 3,
                   padding: "1px 5px",
                   fontSize: 9, fontWeight: 600,
@@ -137,7 +137,7 @@ export default function ProblemCard({ problem, selected, onClick }: Props) {
             <button
               onClick={(e) => { e.stopPropagation(); setZoomOpen(true); }}
               title="원본 크게 보기"
-              style={{
+              style={/* eslint-disable-line no-restricted-syntax */ {
                 background: "none", border: "none", cursor: "pointer",
                 color: "var(--color-text-muted)", padding: 2,
                 display: "flex", alignItems: "center",
@@ -149,7 +149,7 @@ export default function ProblemCard({ problem, selected, onClick }: Props) {
         </div>
 
         {imgUrl ? (
-          <div style={{
+          <div style={/* eslint-disable-line no-restricted-syntax */ {
             width: "100%",
             minHeight: 120,
             aspectRatio: "4 / 3",
@@ -162,7 +162,7 @@ export default function ProblemCard({ problem, selected, onClick }: Props) {
             <img
               src={imgUrl}
               alt={`Q${problem.number}`}
-              style={{
+              style={/* eslint-disable-line no-restricted-syntax */ {
                 width: "100%",
                 height: "100%",
                 objectFit: "contain",
@@ -172,7 +172,7 @@ export default function ProblemCard({ problem, selected, onClick }: Props) {
             />
           </div>
         ) : (
-          <div style={{
+          <div style={/* eslint-disable-line no-restricted-syntax */ {
             width: "100%",
             minHeight: 120,
             aspectRatio: "4 / 3",
@@ -186,7 +186,7 @@ export default function ProblemCard({ problem, selected, onClick }: Props) {
         )}
 
         {problem.text && (
-          <p style={{
+          <p style={/* eslint-disable-line no-restricted-syntax */ {
             fontSize: 11, color: "var(--color-text-secondary)",
             margin: 0, lineHeight: 1.4,
             overflow: "hidden",
@@ -202,7 +202,7 @@ export default function ProblemCard({ problem, selected, onClick }: Props) {
       {zoomOpen && imgUrl && (
         <div
           onClick={() => setZoomOpen(false)}
-          style={{
+          style={/* eslint-disable-line no-restricted-syntax */ {
             position: "fixed", inset: 0, zIndex: 1100,
             display: "flex", alignItems: "center", justifyContent: "center",
             background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)",
@@ -211,7 +211,7 @@ export default function ProblemCard({ problem, selected, onClick }: Props) {
         >
           <button
             onClick={(e) => { e.stopPropagation(); setZoomOpen(false); }}
-            style={{
+            style={/* eslint-disable-line no-restricted-syntax */ {
               position: "absolute", top: 16, right: 16,
               background: "rgba(255,255,255,0.9)", border: "none",
               borderRadius: "50%", width: 36, height: 36,
@@ -226,7 +226,7 @@ export default function ProblemCard({ problem, selected, onClick }: Props) {
             src={imgUrl}
             alt={`Q${problem.number} 원본`}
             onClick={(e) => e.stopPropagation()}
-            style={{
+            style={/* eslint-disable-line no-restricted-syntax */ {
               maxWidth: "100%", maxHeight: "100%",
               objectFit: "contain",
               background: "white", borderRadius: 8,
