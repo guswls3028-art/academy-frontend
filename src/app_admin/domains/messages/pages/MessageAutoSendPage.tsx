@@ -788,7 +788,6 @@ export default function MessageAutoSendPage() {
       initial={editingTemplate}
       onSubmit={(payload) => editTemplateMut.mutate(payload)}
       isPending={editTemplateMut.isPending}
-      smsConnected={false}
       trigger={editingTrigger ?? undefined}
     />
 
@@ -804,7 +803,6 @@ export default function MessageAutoSendPage() {
       initial={null}
       onSubmit={(payload) => createTemplateMut.mutate(payload)}
       isPending={createTemplateMut.isPending}
-      smsConnected={false}
       trigger={creatingForTrigger ?? undefined}
     />
   </>

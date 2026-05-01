@@ -24,13 +24,9 @@ export type TemplateEditModalProps = {
   onClose: () => void;
   category: TemplateCategory;
   initial?: MessageTemplateItem | null;
-  /** @deprecated view 모드 제거됨. 항상 수정 모드로 열림 */
-  defaultLocked?: boolean;
   onSubmit: (payload: MessageTemplatePayload) => void;
   isPending?: boolean;
   zIndex?: number;
-  /** @deprecated 알림톡 전용 정책으로 더 이상 사용하지 않음 */
-  smsConnected?: boolean;
   /** 삭제 콜백. 주어지면 수정 모드에서 삭제 버튼 표시 */
   onDelete?: (id: number) => void;
   isDeleting?: boolean;
