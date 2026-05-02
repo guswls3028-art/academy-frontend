@@ -70,7 +70,8 @@ export default function HitReportListModal({ isAdmin, onClose, onOpen }: Props) 
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  const reports = data?.reports ?? [];
+  // useMemo로 array identity 안정화 — react-hooks/exhaustive-deps 경고 회피.
+  const reports = useMemo(() => data?.reports ?? [], [data]);
   const summary = data?.summary;
 
   // 강사 통산 작성률 = 모든 보고서의 curated_progress 평균. 작성 KPI.
