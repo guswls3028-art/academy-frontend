@@ -259,7 +259,12 @@ export async function assignMatchupCategory(payload: {
 
 export async function updateMatchupDocument(
   id: number,
-  payload: { title?: string; category?: string; subject?: string; grade_level?: string; intent?: "reference" | "test" },
+  payload: {
+    title?: string; category?: string; subject?: string; grade_level?: string;
+    intent?: "reference" | "test";
+    // Phase 1A: 7-value SSOT (post-upload 보정 UI에서 사용)
+    source_type?: MatchupSourceType;
+  },
 ): Promise<MatchupDocument> {
   const { data } = await api.patch<MatchupDocument>(
     `/matchup/documents/${id}/`,

@@ -34,7 +34,10 @@ import ManualCropModal from "../components/matchup/ManualCropModal";
 import MergeProblemsModal from "../components/matchup/MergeProblemsModal";
 import HitReportEditor from "../components/matchup/HitReportEditor";
 import MatchupEmptyState from "../components/matchup/MatchupEmptyState";
-import { getDocumentIntent } from "../components/matchup/documentIntent";
+import {
+  getDocumentIntent, getSourceType, SOURCE_TYPE_LABELS, SOURCE_TYPE_ORDER,
+  type MatchupSourceType,
+} from "../components/matchup/documentIntent";
 import css from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
 
 // 자동 분류된 시험지 유형 라벨 (학원 사용자 노출용 한글).
@@ -474,6 +477,22 @@ export default function MatchupPage() {
       setIntentUpdating(false);
     }
   }, [selectedDoc, qc]);
+
+  // Phase 17 — post-upload source_type 보정. 학원장이 잘못 백필된 라벨 즉시 정정.
+  const handleChangeSourceType = useCallback(
+    async (sourceType: import("../components/matchup/documentIntent").MatchupSourceType) => {
+      if (!selectedDoc) return;
+      try {
+        await updateMatchupDocument(selectedDoc.id, { source_type: sourceType });
+        await qc.invalidateQueries({ queryKey: ["matchup-documents"] });
+        feedback.success("자료 유형을 변경했습니다. 재분석을 트리거하려면 '재처리' 버튼을 누르세요.");
+      } catch (e) {
+        console.error(e);
+        feedback.error("자료 유형 변경 실패");
+      }
+    },
+    [selectedDoc, qc],
+  );
 
   const handleSelectDoc = useCallback((id: number) => {
     setSelectedDocId(id);
@@ -971,6 +990,53 @@ export default function MatchupPage() {
                     </Button>
                   </div>
                 )}
+
+                {/* Phase 17 — 자료 유형 (source_type) 변경 가능 chip.
+                    backfill 결과를 학원장이 검수 후 즉시 정정 가능. backend가 reanalyze 트리거.
+                    7-value SSOT (학생폰사진/학교PDF/시판교재/학원워크북/해설지/답안지/기타). */}
+                {selectedDoc?.status === "done" && (() => {
+                  const currentST = getSourceType(selectedDoc);
+                  return (
+                    <div data-testid="matchup-source-type-chip" style={/* eslint-disable-line no-restricted-syntax */ {
+                      flexShrink: 0,
+                      padding: "var(--space-2) var(--space-3)",
+                      borderRadius: "var(--radius-md)",
+                      background: "var(--color-bg-surface)",
+                      border: "1px solid var(--color-border-divider)",
+                      display: "flex", alignItems: "center", gap: "var(--space-2)",
+                      flexWrap: "wrap",
+                    }}>
+                      <span style={/* eslint-disable-line no-restricted-syntax */ {
+                        fontSize: 11, fontWeight: 700, color: "var(--color-text-muted)",
+                      }}>
+                        자료 유형:
+                      </span>
+                      <select
+                        value={currentST}
+                        onChange={(e) => handleChangeSourceType(e.target.value as MatchupSourceType)}
+                        data-testid="matchup-source-type-select"
+                        style={/* eslint-disable-line no-restricted-syntax */ {
+                          fontSize: 12, fontWeight: 600,
+                          padding: "4px 8px",
+                          border: "1px solid var(--color-brand-primary)",
+                          borderRadius: 4,
+                          background: "var(--color-bg-canvas)",
+                          color: "var(--color-text-primary)",
+                          cursor: "pointer",
+                        }}
+                      >
+                        {SOURCE_TYPE_ORDER.map((st) => (
+                          <option key={st} value={st}>{SOURCE_TYPE_LABELS[st]}</option>
+                        ))}
+                      </select>
+                      <span style={/* eslint-disable-line no-restricted-syntax */ {
+                        fontSize: 11, color: "var(--color-text-muted)",
+                      }}>
+                        ※ 변경 후 재분석 버튼으로 새 strategy 적용
+                      </span>
+                    </div>
+                  );
+                })()}
 
                 {/* 시험지 유형 자동 분류 결과 + 자동분리 신뢰도 경고.
                     백엔드 paper-type classifier가 페이지별로 분류한 결과의 doc-level summary.
