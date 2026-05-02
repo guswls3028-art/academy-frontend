@@ -1,10 +1,15 @@
 // PATH: src/app_admin/domains/storage/components/matchup/HitReportEditor.tsx
 // 큐레이션 적중 보고서 편집기.
 // 비즈니스: 실장이 시험지 문항별로 후보 자료 중 적합한 것을 골라 코멘트를 작성 →
-// 선생/학원장에게 제출 + PDF 출력. 자동 hit-report.pdf와 분리(자동=마케팅, 큐레이션=내부 보고서).
+// 선생/학원장에게 제출 + PDF 출력.
+//
+// UI SSOT: 미리보기는 PDF 출력과 동일한 양식.
+//   다크 헤더(Q번호 + 적중 라벨 + 유사도) + 좌/우 2-pane + 하단 코멘트 band.
+//   사용자는 우측 후보 리스트 클릭으로 active 후보를 바꿔가며 비교 미리보기,
+//   체크박스로 PDF에 들어갈 후보를 선택. 같은 양식이 그대로 PDF에 출력됨.
 
-import { useEffect, useMemo, useRef, useState, useCallback } from "react";
-import { X, Save, Send, FileText, ChevronLeft, ChevronRight, Plus, Check } from "lucide-react";
+import { useEffect, useMemo, useState, useCallback } from "react";
+import { X, Save, Send, FileText, ChevronLeft, ChevronRight, Check } from "lucide-react";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import api from "@/shared/api/axios";
@@ -32,6 +37,41 @@ type EntryDraft = {
   dirty: boolean;
 };
 
+// 적중 분류 — pdf_report.py와 동일 임계값 (직접/유형/개념/없음)
+const SIM_DIRECT = 0.85;
+const SIM_TYPE = 0.75;
+const SIM_CONCEPT = 0.60;
+
+type Tier = "direct" | "type" | "concept" | "miss";
+function classifyMatch(sim: number): Tier {
+  if (sim >= SIM_DIRECT) return "direct";
+  if (sim >= SIM_TYPE) return "type";
+  if (sim >= SIM_CONCEPT) return "concept";
+  return "miss";
+}
+const TIER_COLOR: Record<Tier, string> = {
+  direct: "#16A34A",   // green-600
+  type: "#0891B2",     // cyan-600
+  concept: "#7C3AED",  // violet-600
+  miss: "#94A3B8",     // slate-400
+};
+const TIER_BG: Record<Tier, string> = {
+  direct: "#DCFCE7",
+  type: "#CFFAFE",
+  concept: "#EDE9FE",
+  miss: "#F1F5F9",
+};
+const TIER_LABEL: Record<Tier, string> = {
+  direct: "직접 적중",
+  type: "유형 적중",
+  concept: "개념 커버",
+  miss: "유사 자료 없음",
+};
+const SOURCE_PANE_COLOR = "#D97706";  // amber-600 — 시험지(원본)
+const SOURCE_PANE_BG = "#FEF3C7";     // amber-100
+
+type CandidateMeta = HitReportCandidate | HitReportSelectedMeta;
+
 export default function HitReportEditor({ docId, onClose }: Props) {
   const [data, setData] = useState<HitReportDraftResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -44,6 +84,8 @@ export default function HitReportEditor({ docId, onClose }: Props) {
   const [submitting, setSubmitting] = useState(false);
   // 사용자 선택 problem 메타 (자동 후보에 없는 것까지 보강 캐시)
   const [extraMeta, setExtraMeta] = useState<Record<number, HitReportSelectedMeta>>({});
+  // 미리보기 active 후보 — 우측 리스트에서 클릭한 항목. 선택과는 분리.
+  const [activeCandidateId, setActiveCandidateId] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -87,7 +129,7 @@ export default function HitReportEditor({ docId, onClose }: Props) {
 
   // 후보 메타 + extraMeta로 selected problem 정보 lookup
   const candidateMap = useMemo(() => {
-    const m = new Map<number, HitReportCandidate | HitReportSelectedMeta>();
+    const m = new Map<number, CandidateMeta>();
     for (const ep of examProblems) for (const c of ep.candidates) m.set(c.id, c);
     for (const v of Object.values(extraMeta)) m.set(v.id, v);
     return m;
@@ -96,9 +138,27 @@ export default function HitReportEditor({ docId, onClose }: Props) {
   const documentTitle = data?.report.document_title || "";
   const documentCategory = data?.report.document_category || "";
 
+  // active Q 변경 시 → activeCandidateId 자동 설정 (선택된 첫번째 우선, 없으면 첫 후보)
+  useEffect(() => {
+    if (!active) {
+      setActiveCandidateId(null);
+      return;
+    }
+    const sel = activeEntry?.selectedProblemIds ?? [];
+    if (sel.length > 0) {
+      setActiveCandidateId(sel[0]);
+    } else if (active.candidates.length > 0) {
+      setActiveCandidateId(active.candidates[0].id);
+    } else {
+      setActiveCandidateId(null);
+    }
+    // active.id 변할 때만 — entry 갱신 시는 유지
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active?.id]);
+
   // ── 편집 핸들러 ──
 
-  const toggleSelect = useCallback(async (candidateId: number) => {
+  const toggleSelect = useCallback((candidateId: number) => {
     if (isSubmitted || !active) return;
     setEntries((prev) => {
       const cur = prev[active.id];
@@ -112,6 +172,8 @@ export default function HitReportEditor({ docId, onClose }: Props) {
         [active.id]: { ...cur, selectedProblemIds: next, dirty: true },
       };
     });
+    // 신규 선택은 active로 끌어올림 (사용자가 방금 고른 자료 즉시 미리보기)
+    setActiveCandidateId(candidateId);
   }, [active, isSubmitted]);
 
   const setComment = useCallback((value: string) => {
@@ -122,20 +184,6 @@ export default function HitReportEditor({ docId, onClose }: Props) {
       return { ...prev, [active.id]: { ...cur, comment: value, dirty: true } };
     });
   }, [active, isSubmitted]);
-
-  // 자동 저장 — dirty 후 1.5초 동안 추가 변경 없으면 자동 백엔드 동기화. 데이터 손실 방지.
-  // 코멘트 타이핑 중에는 debounce, 후보 토글은 즉시 효과.
-  useEffect(() => {
-    if (isSubmitted || !reportId) return;
-    const dirtyAnyEntries = Object.values(entries).some((e) => e.dirty);
-    if (!dirtyAnyEntries && !headerDirty) return;
-    const timer = setTimeout(() => {
-      void saveAll();
-    }, 1500);
-    return () => clearTimeout(timer);
-    // saveAll의 deps가 dirtyEntries라서 saveAll 의존성 추가하면 매 변경마다 timer 재설정
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [entries, headerDirty, isSubmitted, reportId]);
 
   // ── 저장 ──
 
@@ -187,6 +235,18 @@ export default function HitReportEditor({ docId, onClose }: Props) {
     }
   }, [dirtyEntries, headerDirty, isSubmitted, reportId, reportTitle, reportSummary]);
 
+  // 자동 저장 — dirty 후 1.5초 동안 추가 변경 없으면 자동 백엔드 동기화. 데이터 손실 방지.
+  useEffect(() => {
+    if (isSubmitted || !reportId) return;
+    const dirtyAnyEntries = Object.values(entries).some((e) => e.dirty);
+    if (!dirtyAnyEntries && !headerDirty) return;
+    const timer = setTimeout(() => {
+      void saveAll();
+    }, 1500);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entries, headerDirty, isSubmitted, reportId]);
+
   // ── 제출 ──
 
   const submit = useCallback(async () => {
@@ -198,7 +258,6 @@ export default function HitReportEditor({ docId, onClose }: Props) {
     if (!confirm("보고서를 제출하시겠습니까? 제출 후에는 수정이 잠깁니다.")) return;
     setSubmitting(true);
     try {
-      // 미저장 변경 먼저 저장
       if (dirtyCount > 0) {
         const ok = await saveAll();
         if (!ok) {
@@ -290,8 +349,8 @@ export default function HitReportEditor({ docId, onClose }: Props) {
     >
       <div
         style={{
-          width: "min(1400px, 96vw)",
-          height: "min(94vh, 1000px)",
+          width: "min(1500px, 97vw)",
+          height: "min(95vh, 1040px)",
           margin: "auto 0",
           background: "var(--color-bg-canvas)",
           borderRadius: 8,
@@ -374,7 +433,7 @@ export default function HitReportEditor({ docId, onClose }: Props) {
             시험지에 등록된 문항이 없습니다.
           </div>
         ) : (
-          <div style={{ flex: 1, display: "grid", gridTemplateColumns: "180px 1fr 1.2fr", overflow: "hidden", minHeight: 0 }}>
+          <div style={{ flex: 1, display: "grid", gridTemplateColumns: "180px 1fr 360px", overflow: "hidden", minHeight: 0 }}>
             {/* 좌: 문항 사이드 — 번호+썸네일 리스트 */}
             <div style={{
               borderRight: "1px solid var(--color-border-divider)",
@@ -425,57 +484,31 @@ export default function HitReportEditor({ docId, onClose }: Props) {
               })}
             </div>
 
-            {/* 중: 시험지 이미지 + 네비 */}
-            <div style={{ display: "flex", flexDirection: "column", overflow: "hidden", borderRight: "1px solid var(--color-border-divider)" }}>
-              <div style={{
-                padding: "10px 14px", borderBottom: "1px solid var(--color-border-divider)",
-                display: "flex", justifyContent: "space-between", alignItems: "center",
-                background: "var(--color-bg-surface)",
-              }}>
-                <button onClick={() => setActiveIndex((i) => Math.max(0, i - 1))} disabled={activeIndex === 0}
-                  style={{ background: "transparent", border: "none", cursor: activeIndex === 0 ? "default" : "pointer", color: "var(--color-text-secondary)", padding: 4 }}>
-                  <ChevronLeft size={18} />
-                </button>
-                <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-primary)" }}>
-                  {active ? `시험지 Q${active.number}` : ""}  ·  {activeIndex + 1} / {examProblems.length}
-                </div>
-                <button onClick={() => setActiveIndex((i) => Math.min(examProblems.length - 1, i + 1))} disabled={activeIndex >= examProblems.length - 1}
-                  style={{ background: "transparent", border: "none", cursor: activeIndex >= examProblems.length - 1 ? "default" : "pointer", color: "var(--color-text-secondary)", padding: 4 }}>
-                  <ChevronRight size={18} />
-                </button>
-              </div>
-              <div style={{ flex: 1, overflow: "auto", padding: 12, background: "#f8fafc", display: "flex", justifyContent: "center" }}>
-                {active?.image_url ? (
-                  <img src={active.image_url} alt={`Q${active.number}`}
-                    style={{ maxWidth: "100%", height: "auto", borderRadius: 4, boxShadow: "0 1px 4px rgba(0,0,0,0.08)" }} />
-                ) : (
-                  <div style={{ color: "var(--color-text-muted)", fontSize: 12, padding: 24 }}>
-                    이미지가 없습니다
-                  </div>
-                )}
-              </div>
-              {active?.text_preview && (
-                <div style={{
-                  padding: "8px 14px", borderTop: "1px solid var(--color-border-divider)",
-                  background: "var(--color-bg-surface)", fontSize: 11,
-                  color: "var(--color-text-secondary)", maxHeight: 80, overflow: "auto",
-                }}>
-                  {active.text_preview}
-                </div>
-              )}
-            </div>
+            {/* 중: 2-pane 미리보기 (PDF 양식과 동일) + 코멘트 */}
+            <PreviewPane
+              active={active}
+              activeIndex={activeIndex}
+              examProblemsCount={examProblems.length}
+              documentTitle={documentTitle}
+              activeCandidateId={activeCandidateId}
+              candidateMap={candidateMap}
+              comment={activeEntry?.comment ?? ""}
+              onComment={setComment}
+              disabled={isSubmitted}
+              onPrev={() => setActiveIndex((i) => Math.max(0, i - 1))}
+              onNext={() => setActiveIndex((i) => Math.min(examProblems.length - 1, i + 1))}
+            />
 
-            {/* 우: 후보 + 선택 + 코멘트 */}
-            <div style={{ display: "flex", flexDirection: "column", overflow: "hidden" }}>
-              <CuratePanel
-                active={active}
-                entry={activeEntry}
-                onToggle={toggleSelect}
-                onComment={setComment}
-                disabled={isSubmitted}
-                candidateMap={candidateMap}
-              />
-            </div>
+            {/* 우: 후보 선택 리스트 — 클릭 = 미리보기 active / 체크박스 = PDF 선택 토글 */}
+            <SelectionPanel
+              active={active}
+              activeCandidateId={activeCandidateId}
+              selectedIds={activeEntry?.selectedProblemIds ?? []}
+              candidateMap={candidateMap}
+              onToggle={toggleSelect}
+              onSetActive={setActiveCandidateId}
+              disabled={isSubmitted}
+            />
           </div>
         )}
 
@@ -510,84 +543,281 @@ export default function HitReportEditor({ docId, onClose }: Props) {
   );
 }
 
-// 우측 큐레이션 패널 — 자동 후보 그리드 + 선택된 자료 + 코멘트
-function CuratePanel({
-  active,
-  entry,
-  onToggle,
-  onComment,
-  disabled,
-  candidateMap,
+// ── 중앙 미리보기 — PDF 양식과 동일한 다크 헤더 + 좌/우 2-pane + 코멘트 ──
+function PreviewPane({
+  active, activeIndex, examProblemsCount, documentTitle,
+  activeCandidateId, candidateMap, comment, onComment, disabled,
+  onPrev, onNext,
 }: {
   active: HitReportExamProblem | null;
-  entry: EntryDraft | null;
-  onToggle: (candidateId: number) => void;
-  onComment: (value: string) => void;
+  activeIndex: number;
+  examProblemsCount: number;
+  documentTitle: string;
+  activeCandidateId: number | null;
+  candidateMap: Map<number, CandidateMeta>;
+  comment: string;
+  onComment: (v: string) => void;
   disabled: boolean;
-  candidateMap: Map<number, HitReportCandidate | HitReportSelectedMeta>;
+  onPrev: () => void;
+  onNext: () => void;
 }) {
   if (!active) return null;
-  const selectedSet = new Set(entry?.selectedProblemIds ?? []);
+
+  const activeCand = activeCandidateId != null ? candidateMap.get(activeCandidateId) : null;
+  const sim: number = activeCand && "similarity" in activeCand
+    ? (activeCand as HitReportCandidate).similarity
+    : 0;
+  const tier: Tier = activeCand ? classifyMatch(sim) : "miss";
+  const labelText = activeCand
+    ? (tier === "miss"
+        ? `유사도 ${(sim * 100).toFixed(1)}%`
+        : `${TIER_LABEL[tier]}  ·  ${(sim * 100).toFixed(1)}%`)
+    : "후보 없음";
+  const tierColor = TIER_COLOR[tier];
+  const tierBg = TIER_BG[tier];
+
+  const candDocTitle = activeCand
+    ? ("document_title" in activeCand && activeCand.document_title)
+      ? activeCand.document_title
+      : ("document_id" in activeCand ? `자료 ${activeCand.document_id}번` : "")
+    : "";
+
+  return (
+    <div style={{
+      display: "flex", flexDirection: "column",
+      borderRight: "1px solid var(--color-border-divider)",
+      overflow: "hidden", minHeight: 0,
+    }}>
+      {/* 다크 헤더 — PDF 페이지 헤더와 동일 */}
+      <div style={{
+        background: "#0F172A", color: "white",
+        padding: "10px 14px", flexShrink: 0,
+        display: "flex", alignItems: "center", gap: 12,
+      }}>
+        <button
+          onClick={onPrev}
+          disabled={activeIndex === 0}
+          aria-label="이전 문항"
+          style={{
+            background: "transparent", border: "none",
+            color: activeIndex === 0 ? "rgba(255,255,255,0.3)" : "white",
+            cursor: activeIndex === 0 ? "default" : "pointer",
+            padding: 4, display: "flex", alignItems: "center",
+          }}
+        >
+          <ChevronLeft size={20} />
+        </button>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 8, flex: 1 }}>
+          <span style={{ fontSize: 16, fontWeight: 800 }}>Q{active.number}</span>
+          <span style={{ fontSize: 11, opacity: 0.7 }}>
+            {activeIndex + 1} / {examProblemsCount}
+          </span>
+        </div>
+        <span style={{
+          fontSize: 13, fontWeight: 700,
+          color: activeCand ? tierColor : "#94A3B8",
+        }}>
+          {labelText}
+        </span>
+        <button
+          onClick={onNext}
+          disabled={activeIndex >= examProblemsCount - 1}
+          aria-label="다음 문항"
+          style={{
+            background: "transparent", border: "none",
+            color: activeIndex >= examProblemsCount - 1 ? "rgba(255,255,255,0.3)" : "white",
+            cursor: activeIndex >= examProblemsCount - 1 ? "default" : "pointer",
+            padding: 4, display: "flex", alignItems: "center",
+          }}
+        >
+          <ChevronRight size={20} />
+        </button>
+      </div>
+
+      {/* 2-pane 본문 */}
+      <div style={{
+        flex: 1, minHeight: 0,
+        display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4,
+        padding: 4, background: "#f1f5f9",
+      }}>
+        {/* 좌 — 시험지 (warning 톤 cap, PDF와 동일) */}
+        <PreviewSubPane
+          captionLabel="실제 시험"
+          captionSub={`${documentTitle || "시험지"}  ·  ${active.number}번`}
+          captionColor={SOURCE_PANE_COLOR}
+          captionBg={SOURCE_PANE_BG}
+          imageUrl={active.image_url || null}
+          placeholderText="시험지 이미지가 없습니다"
+        />
+        {/* 우 — active 후보 (적중 분류 색 cap) */}
+        <PreviewSubPane
+          captionLabel="큐레이션 자료"
+          captionSub={activeCand
+            ? `${candDocTitle}  ·  Q${activeCand.number}`
+            : "우측 후보 목록에서 선택하세요"}
+          captionColor={activeCand ? tierColor : "#94A3B8"}
+          captionBg={activeCand ? tierBg : "#F1F5F9"}
+          imageUrl={activeCand?.image_url || null}
+          placeholderText={activeCand ? "이미지가 없습니다" : "후보를 클릭하면 미리보기"}
+        />
+      </div>
+
+      {/* 코멘트 — PDF 코멘트 band와 동일 위치/역할 */}
+      <div style={{
+        padding: 10, borderTop: "1px solid var(--color-border-divider)",
+        background: "var(--color-bg-surface)", flexShrink: 0,
+        display: "flex", flexDirection: "column", gap: 4,
+      }}>
+        <label style={{ fontSize: 11, color: "var(--color-text-secondary)", fontWeight: 600 }}>
+          지도 코멘트 / 해설  <span style={{ fontWeight: 400, color: "var(--color-text-muted)" }}>· PDF 각 후보 페이지 하단에 노출</span>
+        </label>
+        <textarea
+          value={comment}
+          onChange={(e) => onComment(e.target.value)}
+          disabled={disabled}
+          placeholder="이 문항을 어떻게 다뤘는지, 학생이 알아둘 점은 무엇인지 작성하세요"
+          rows={3}
+          style={{
+            fontSize: 12, padding: 8,
+            border: "1px solid var(--color-border-divider)", borderRadius: 4,
+            resize: "vertical", outline: "none",
+            background: "var(--color-bg-canvas)", color: "var(--color-text-primary)",
+            minHeight: 60,
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function PreviewSubPane({
+  captionLabel, captionSub, captionColor, captionBg, imageUrl, placeholderText,
+}: {
+  captionLabel: string;
+  captionSub: string;
+  captionColor: string;
+  captionBg: string;
+  imageUrl: string | null;
+  placeholderText: string;
+}) {
+  return (
+    <div style={{
+      display: "flex", flexDirection: "column",
+      background: "white", border: "1px solid var(--color-border-divider)",
+      borderRadius: 4, overflow: "hidden", minHeight: 0,
+    }}>
+      <div style={{
+        padding: "6px 10px", background: captionBg,
+        display: "flex", flexDirection: "column", gap: 1, flexShrink: 0,
+      }}>
+        <span style={{ fontSize: 11, fontWeight: 800, color: captionColor, letterSpacing: 0.3 }}>
+          {captionLabel}
+        </span>
+        <span style={{
+          fontSize: 10, color: "#475569",
+          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+        }}>
+          {captionSub}
+        </span>
+      </div>
+      <div style={{
+        flex: 1, minHeight: 0,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        padding: 6, overflow: "auto",
+      }}>
+        {imageUrl ? (
+          <img
+            src={imageUrl}
+            alt={captionLabel}
+            style={{
+              maxWidth: "100%", maxHeight: "100%",
+              objectFit: "contain", background: "white",
+            }}
+          />
+        ) : (
+          <span style={{ color: "#94A3B8", fontSize: 12 }}>{placeholderText}</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── 우측 후보 선택 패널 — 클릭 = active / 체크박스 = 선택 ──
+function SelectionPanel({
+  active, activeCandidateId, selectedIds, candidateMap,
+  onToggle, onSetActive, disabled,
+}: {
+  active: HitReportExamProblem | null;
+  activeCandidateId: number | null;
+  selectedIds: number[];
+  candidateMap: Map<number, CandidateMeta>;
+  onToggle: (id: number) => void;
+  onSetActive: (id: number) => void;
+  disabled: boolean;
+}) {
+  if (!active) return null;
+  const selectedSet = new Set(selectedIds);
   // selected 중 자동 후보에 없는 것 (사용자가 이전에 선택한 자료, 후보 컷 밖)
-  const extraSelected = (entry?.selectedProblemIds ?? []).filter(
+  const extraSelected = selectedIds.filter(
     (pid) => !active.candidates.some((c) => c.id === pid),
   );
 
   return (
-    <>
+    <div style={{ display: "flex", flexDirection: "column", overflow: "hidden", minHeight: 0 }}>
       <div style={{
-        padding: "10px 14px", borderBottom: "1px solid var(--color-border-divider)",
-        background: "var(--color-bg-surface)",
-        display: "flex", justifyContent: "space-between", alignItems: "center",
+        padding: "10px 12px", borderBottom: "1px solid var(--color-border-divider)",
+        background: "var(--color-bg-surface)", flexShrink: 0,
+        display: "flex", flexDirection: "column", gap: 2,
       }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-text-primary)" }}>
-          학원 자료 후보 ({active.candidates.length})
-          {entry && entry.selectedProblemIds.length > 0 && (
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <span style={{ fontSize: 12, fontWeight: 700, color: "var(--color-text-primary)" }}>
+            학원 자료 후보 ({active.candidates.length})
+          </span>
+          {selectedIds.length > 0 && (
             <span style={{
-              marginLeft: 8, padding: "1px 8px", borderRadius: 999,
+              padding: "1px 7px", borderRadius: 999,
               background: "var(--color-brand-primary)", color: "white",
-              fontSize: 11, fontWeight: 700,
+              fontSize: 10, fontWeight: 700,
             }}>
-              {entry.selectedProblemIds.length} 선택
+              {selectedIds.length} 선택
             </span>
           )}
         </div>
         <div style={{ fontSize: 10, color: "var(--color-text-muted)" }}>
-          행 클릭으로 선택/해제
+          행 클릭 = 미리보기 / 체크박스 = PDF에 포함
         </div>
       </div>
-      <div style={{ flex: 1, overflow: "auto", padding: 10 }}>
+      <div style={{ flex: 1, overflow: "auto", padding: 8 }}>
         {active.candidates.length === 0 && extraSelected.length === 0 ? (
           <div style={{
-            padding: 20, textAlign: "center", color: "var(--color-text-secondary)", fontSize: 12,
+            padding: 16, textAlign: "center", color: "var(--color-text-secondary)", fontSize: 12,
             background: "var(--color-bg-surface-soft)",
             border: "1px dashed var(--color-border-divider)",
             borderRadius: 6, lineHeight: 1.6,
           }}>
-            <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6, color: "var(--color-text-primary)" }}>
+            <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 4, color: "var(--color-text-primary)" }}>
               유사 자료가 없습니다
             </div>
-            <div>이 문항의 임베딩이 누락되었거나, 같은 카테고리 자료가 인덱싱되지 않았을 수 있습니다.</div>
-            <div style={{ marginTop: 8, fontSize: 11, color: "var(--color-text-muted)" }}>
-              매치업 페이지에서 자료를 매뉴얼 크롭/paste로 추가하면 자동으로 매칭됩니다.
+            <div style={{ fontSize: 11 }}>
+              매치업 페이지에서 자료를 매뉴얼 크롭/paste로 추가하면 자동 매칭됩니다.
             </div>
           </div>
         ) : null}
-        {active.candidates.map((c) => {
-          const checked = selectedSet.has(c.id);
-          return (
-            <CandidateRow
-              key={c.id}
-              checked={checked}
-              disabled={disabled}
-              onToggle={() => onToggle(c.id)}
-              imageUrl={c.image_url}
-              title={`자료 ${c.document_id}번  ·  Q${c.number}`}
-              meta={`유사도 ${(c.similarity * 100).toFixed(1)}%`}
-              text={c.text_preview}
-            />
-          );
-        })}
+        {active.candidates.map((c) => (
+          <SelectRow
+            key={c.id}
+            isActive={c.id === activeCandidateId}
+            isSelected={selectedSet.has(c.id)}
+            disabled={disabled}
+            onClick={() => onSetActive(c.id)}
+            onToggle={() => onToggle(c.id)}
+            imageUrl={c.image_url}
+            title={`자료 ${c.document_id}번  ·  Q${c.number}`}
+            meta={`유사도 ${(c.similarity * 100).toFixed(1)}%`}
+            tier={classifyMatch(c.similarity)}
+            text={c.text_preview}
+          />
+        ))}
         {extraSelected.length > 0 && (
           <div style={{
             marginTop: 12, paddingTop: 10,
@@ -600,14 +830,17 @@ function CuratePanel({
               const meta = candidateMap.get(pid);
               if (!meta) return null;
               return (
-                <CandidateRow
+                <SelectRow
                   key={pid}
-                  checked={true}
+                  isActive={pid === activeCandidateId}
+                  isSelected={true}
                   disabled={disabled}
+                  onClick={() => onSetActive(pid)}
                   onToggle={() => onToggle(pid)}
                   imageUrl={meta.image_url}
                   title={`자료 ${meta.document_id}번  ·  Q${meta.number}`}
                   meta="수동 추가"
+                  tier="miss"
                   text={meta.text_preview}
                 />
               );
@@ -615,98 +848,107 @@ function CuratePanel({
           </div>
         )}
       </div>
-      <div style={{
-        padding: 10, borderTop: "1px solid var(--color-border-divider)",
-        background: "var(--color-bg-surface)", display: "flex", flexDirection: "column", gap: 4,
-      }}>
-        <label style={{ fontSize: 11, color: "var(--color-text-secondary)", fontWeight: 600 }}>
-          지도 코멘트 / 해설
-        </label>
-        <textarea
-          value={entry?.comment ?? ""}
-          onChange={(e) => onComment(e.target.value)}
-          disabled={disabled}
-          placeholder="이 문항을 어떻게 다뤘는지, 학생이 알아둘 점은 무엇인지 작성하세요"
-          rows={5}
-          style={{
-            fontSize: 12, padding: 8,
-            border: "1px solid var(--color-border-divider)", borderRadius: 4,
-            resize: "vertical", outline: "none",
-            background: "var(--color-bg-canvas)", color: "var(--color-text-primary)",
-            minHeight: 80,
-          }}
-        />
-      </div>
-    </>
+    </div>
   );
 }
 
-function CandidateRow({
-  checked, disabled, onToggle, imageUrl, title, meta, text,
+function SelectRow({
+  isActive, isSelected, disabled, onClick, onToggle,
+  imageUrl, title, meta, tier, text,
 }: {
-  checked: boolean;
+  isActive: boolean;
+  isSelected: boolean;
   disabled: boolean;
+  onClick: () => void;
   onToggle: () => void;
   imageUrl?: string;
   title: string;
   meta: string;
+  tier: Tier;
   text: string;
 }) {
+  const tierColor = TIER_COLOR[tier];
   return (
-    <button
-      onClick={onToggle}
-      disabled={disabled}
+    <div
+      onClick={onClick}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onClick();
+        }
+      }}
       style={{
         display: "flex", alignItems: "stretch", gap: 8,
-        width: "100%", padding: 8, marginBottom: 6,
-        border: `1px solid ${checked ? "var(--color-brand-primary)" : "var(--color-border-divider)"}`,
+        padding: 6, marginBottom: 6,
+        border: `2px solid ${isActive ? "var(--color-brand-primary)" : "transparent"}`,
         borderRadius: 6,
-        background: checked ? "color-mix(in srgb, var(--color-brand-primary) 10%, transparent)" : "var(--color-bg-canvas)",
-        cursor: disabled ? "default" : "pointer",
-        textAlign: "left",
-        opacity: disabled ? 0.6 : 1,
+        background: isActive
+          ? "color-mix(in srgb, var(--color-brand-primary) 8%, transparent)"
+          : "var(--color-bg-canvas)",
+        cursor: "pointer",
+        boxShadow: isActive ? "0 1px 4px rgba(37,99,235,0.15)" : "none",
+        transition: "border-color 0.12s, background 0.12s",
       }}
     >
-      <div style={{
-        width: 18, height: 18, borderRadius: 3, flexShrink: 0,
-        border: `2px solid ${checked ? "var(--color-brand-primary)" : "var(--color-border-strong)"}`,
-        background: checked ? "var(--color-brand-primary)" : "transparent",
-        display: "flex", alignItems: "center", justifyContent: "center",
-        marginTop: 2,
-      }}>
-        {checked && <Check size={12} color="white" />}
-      </div>
+      {/* 체크박스 — 선택 토글, row 클릭과 분리 */}
+      <button
+        onClick={(e) => { e.stopPropagation(); onToggle(); }}
+        disabled={disabled}
+        aria-label={isSelected ? "PDF에서 제외" : "PDF에 포함"}
+        title={isSelected ? "PDF에 포함됨 — 클릭하여 제외" : "PDF에 포함하기"}
+        style={{
+          flexShrink: 0, width: 22, height: 22,
+          borderRadius: 4,
+          border: `2px solid ${isSelected ? "var(--color-brand-primary)" : "var(--color-border-strong)"}`,
+          background: isSelected ? "var(--color-brand-primary)" : "white",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          cursor: disabled ? "default" : "pointer",
+          marginTop: 2, padding: 0,
+        }}
+      >
+        {isSelected && <Check size={14} color="white" />}
+      </button>
       {imageUrl ? (
-        <img src={imageUrl} alt={title}
+        <img
+          src={imageUrl}
+          alt={title}
           style={{
-            width: 280, height: 360, objectFit: "contain",
+            width: 80, height: 100, objectFit: "contain",
             objectPosition: "top center",
-            borderRadius: 4, background: "white",
+            borderRadius: 3, background: "white",
             border: "1px solid var(--color-border-divider)", flexShrink: 0,
-          }} />
+          }}
+        />
       ) : (
         <div style={{
-          width: 280, height: 360, borderRadius: 4, flexShrink: 0,
+          width: 80, height: 100, borderRadius: 3, flexShrink: 0,
           background: "var(--color-bg-surface-soft)",
           display: "flex", alignItems: "center", justifyContent: "center",
-          color: "var(--color-text-muted)", fontSize: 11,
+          color: "var(--color-text-muted)", fontSize: 10,
         }}>
           이미지 없음
         </div>
       )}
       <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 2 }}>
-        <div style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-primary)" }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: "var(--color-text-primary)" }}>
           {title}
         </div>
-        <div style={{ fontSize: 10, color: "var(--color-text-muted)" }}>{meta}</div>
+        <div style={{
+          fontSize: 10, fontWeight: 700,
+          color: tier === "miss" ? "var(--color-text-muted)" : tierColor,
+        }}>
+          {meta}
+        </div>
         <div style={{
           fontSize: 11, color: "var(--color-text-secondary)",
-          maxHeight: 60, overflow: "hidden",
+          maxHeight: 48, overflow: "hidden",
           display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical",
         }}>
           {text}
         </div>
       </div>
-    </button>
+    </div>
   );
 }

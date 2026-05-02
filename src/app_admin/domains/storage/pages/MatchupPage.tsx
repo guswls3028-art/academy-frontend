@@ -649,68 +649,9 @@ export default function MatchupPage() {
                   {selectedDoc && (
                     <span style={/* eslint-disable-line no-restricted-syntax */ { width: 1, height: 16, background: "var(--color-border-divider)", margin: "0 2px" }} aria-hidden />
                   )}
-                  {/* 그룹 3: 산출물 (성공 컬러 — 학원 마케팅 보고서 강조) */}
-                  {/* 처리 미완료 doc은 매치 결과가 0건이라 보고서 산출이 무의미. 사용자 혼란 방지. */}
-                  {selectedDoc && (() => {
-                    const isReady = selectedDoc.status === "done";
-                    const reason = !isReady
-                      ? selectedDoc.status === "failed"
-                        ? "처리 실패한 문서는 보고서를 만들 수 없습니다"
-                        : `처리가 완료된 후 사용할 수 있습니다 (현재 ${
-                          progressMap[selectedDoc.id]?.percent != null
-                            ? `${progressMap[selectedDoc.id]?.stepName ?? "처리 중"} ${progressMap[selectedDoc.id]?.percent}%`
-                            : "처리 중"
-                        })`
-                      : "시험지 기준 학원 자료 적중률 PDF 보고서를 다운로드합니다";
-                    return (
-                      <button
-                        type="button"
-                        disabled={!isReady}
-                        onClick={async () => {
-                          try {
-                            const resp = await api.get(
-                              `/matchup/documents/${selectedDoc.id}/hit-report.pdf`,
-                              { responseType: "blob", timeout: 5 * 60_000 },
-                            );
-                            const blob = new Blob([resp.data], { type: "application/pdf" });
-                            const url = URL.createObjectURL(blob);
-                            const a = document.createElement("a");
-                            a.href = url;
-                            a.download = `${selectedDoc.title || "matchup"}-적중보고서.pdf`;
-                            document.body.appendChild(a);
-                            a.click();
-                            document.body.removeChild(a);
-                            URL.revokeObjectURL(url);
-                          } catch (e) {
-                            console.error(e);
-                            feedback.error("PDF 생성 실패");
-                          }
-                        }}
-                        data-testid="matchup-doc-hit-report-btn"
-                        title={reason}
-                        style={/* eslint-disable-line no-restricted-syntax */ {
-                          display: "flex", alignItems: "center", gap: 4,
-                          fontSize: 11, padding: "3px 10px", borderRadius: 4,
-                          background: isReady
-                            ? "color-mix(in srgb, var(--color-status-success) 14%, transparent)"
-                            : "var(--color-bg-surface-soft)",
-                          color: isReady ? "var(--color-status-success)" : "var(--color-text-muted)",
-                          border: isReady
-                            ? "1px solid color-mix(in srgb, var(--color-status-success) 35%, transparent)"
-                            : "1px solid var(--color-border-divider)",
-                          cursor: isReady ? "pointer" : "not-allowed",
-                          opacity: isReady ? 1 : 0.55,
-                          fontWeight: 700,
-                        }}
-                      >
-                        <FileText size={12} />
-                        자동 적중 PDF
-                      </button>
-                    );
-                  })()}
-                  {/* 큐레이션 적중 보고서 — 시험지(test)일 때만 노출. 사람이 직접 편집해서
-                      학원장/선생에게 제출하는 내부 보고서. 자동 PDF와는 분리된 워크플로우.
-                      처리 미완료 시 "시험지에 등록된 문항이 없습니다" 빈 편집기가 열리는 혼란 방지. */}
+                  {/* 그룹 3: 산출물 — 큐레이션 적중 보고서 (시험지 test일 때만 노출).
+                      사람이 후보를 직접 골라 코멘트를 작성해 학원장/선생에게 제출하는 보고서.
+                      처리 미완료 시 "시험지에 등록된 문항이 없습니다" 빈 편집기 노출 혼란 방지. */}
                   {selectedDoc && selectedDocIntent === "test" && (() => {
                     const isReady = selectedDoc.status === "done";
                     const pinnedCount = Object.values(pinsByExamPid)
