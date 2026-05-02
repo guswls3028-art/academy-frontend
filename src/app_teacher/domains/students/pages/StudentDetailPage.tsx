@@ -14,6 +14,7 @@ import BottomSheet from "@teacher/shared/ui/BottomSheet";
 import { fetchStudent, fetchStudentExamResults, updateStudent, toggleStudentActive, fetchTags, attachTag, detachTag, createTag, updateStudentMemo, deleteStudent, sendPasswordReset } from "../api";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
+import { useConfirm } from "@/shared/ui/confirm";
 import api from "@/shared/api/axios";
 
 type Tab = "enrollments" | "exams" | "homework" | "clinic" | "questions";
@@ -22,6 +23,7 @@ export default function StudentDetailPage() {
   const { studentId } = useParams<{ studentId: string }>();
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const confirm = useConfirm();
   const sid = Number(studentId);
   const [tab, setTab] = useState<Tab>("enrollments");
 
@@ -388,6 +390,7 @@ function EditStudentSheet({ open, onClose, student, studentId, onDelete, onOpenP
   open: boolean; onClose: () => void; student: any; studentId: number; onDelete: () => void; onOpenPasswordReset: () => void;
 }) {
   const qc = useQueryClient();
+  const confirm = useConfirm();
   const [name, setName] = useState(student?.name ?? "");
   const [phone, setPhone] = useState(student?.studentPhone ?? student?.student_phone ?? student?.phone ?? "");
   const [parentPhone, setParentPhone] = useState(student?.parentPhone ?? student?.parent_phone ?? "");
@@ -434,7 +437,15 @@ function EditStudentSheet({ open, onClose, student, studentId, onDelete, onOpenP
               {isActive ? "활성" : "비활성"}
             </span>
           </div>
-          <button onClick={() => { if (confirm(isActive ? "학생을 비활성화하시겠습니까?" : "학생을 다시 활성화하시겠습니까?")) toggleMut.mutate(); }}
+          <button onClick={async () => {
+              const ok = await confirm({
+                title: isActive ? "학생 비활성화" : "학생 활성화",
+                message: isActive ? "이 학생을 비활성화하시겠습니까? 로그인이 차단됩니다." : "이 학생을 다시 활성화하시겠습니까?",
+                confirmText: isActive ? "비활성화" : "활성화",
+                danger: isActive,
+              });
+              if (ok) toggleMut.mutate();
+            }}
             className="flex items-center gap-1 text-xs font-semibold cursor-pointer"
             style={{ padding: "6px 12px", borderRadius: "var(--tc-radius)", border: "none", background: isActive ? "var(--tc-success-bg)" : "var(--tc-danger-bg)", color: isActive ? "var(--tc-success)" : "var(--tc-danger)" }}>
             {isActive ? <ToggleRight size={14} /> : <ToggleLeft size={14} />}
@@ -456,7 +467,10 @@ function EditStudentSheet({ open, onClose, student, studentId, onDelete, onOpenP
         </button>
 
         {/* Delete */}
-        <button onClick={() => { if (confirm("이 학생을 삭제하시겠습니까? (30일 내 복원 가능)")) onDelete(); }}
+        <button onClick={async () => {
+            const ok = await confirm({ title: "학생 삭제", message: "이 학생을 삭제하시겠습니까? 30일 내 복원이 가능합니다.", confirmText: "삭제", danger: true });
+            if (ok) onDelete();
+          }}
           className="w-full text-sm font-semibold cursor-pointer"
           style={{ padding: "10px", borderRadius: "var(--tc-radius)", border: "1px solid var(--tc-danger)", background: "none", color: "var(--tc-danger)" }}>
           학생 삭제

@@ -9,6 +9,7 @@ import BottomSheet from "@teacher/shared/ui/BottomSheet";
 import { Upload } from "@teacher/shared/ui/Icons";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
+import { useConfirm } from "@/shared/ui/confirm";
 import api from "@/shared/api/axios";
 
 interface Props {
@@ -20,6 +21,7 @@ interface Props {
 
 export default function ExamManageSheet({ open, onClose, exam, onDeleted }: Props) {
   const qc = useQueryClient();
+  const confirm = useConfirm();
   const [title, setTitle] = useState(exam?.title || "");
   const [passScore, setPassScore] = useState(String(exam?.pass_score ?? ""));
   const [answerKey, setAnswerKey] = useState("");
@@ -134,7 +136,10 @@ export default function ExamManageSheet({ open, onClose, exam, onDeleted }: Prop
           <ActionBtn label={exam.is_active ? "시험 닫기" : "시험 열기"} color="var(--tc-info)" onClick={() => toggleMut.mutate()} />
           <ActionBtn label="템플릿으로 저장" color="var(--tc-text-secondary)" onClick={() => saveTemplateMut.mutate()} />
           <ActionBtn label="성적 재계산" color="var(--tc-warn)" onClick={() => recalcMut.mutate()} />
-          <ActionBtn label="삭제" color="var(--tc-danger)" onClick={() => { if (confirm("시험을 삭제하시겠습니까?")) deleteMut.mutate(); }} />
+          <ActionBtn label="삭제" color="var(--tc-danger)" onClick={async () => {
+            const ok = await confirm({ title: "시험 삭제", message: "이 시험을 삭제하시겠습니까? 학생 응시 결과도 함께 삭제됩니다.", confirmText: "삭제", danger: true });
+            if (ok) deleteMut.mutate();
+          }} />
         </div>
 
         {msg && <div className="text-[12px] text-center" style={{ color: "var(--tc-success)" }}>{msg}</div>}

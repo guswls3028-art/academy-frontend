@@ -11,6 +11,7 @@ import BottomSheet from "@teacher/shared/ui/BottomSheet";
 import api from "@/shared/api/axios";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
+import { useConfirm } from "@/shared/ui/confirm";
 
 type Tab = "attendance" | "expense";
 
@@ -37,6 +38,7 @@ async function deleteExpense(id: number) { await api.delete(`/core/profile/expen
 export default function MyRecordsPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const confirm = useConfirm();
   const [tab, setTab] = useState<Tab>("attendance");
   const [month, setMonth] = useState(thisMonth);
   const [formOpen, setFormOpen] = useState(false);
@@ -98,7 +100,10 @@ export default function MyRecordsPage() {
                   </div>
                   <div className="flex gap-1">
                     <button onClick={() => { setEditTarget(a); setFormOpen(true); }} className="flex p-1 cursor-pointer" style={{ background: "none", border: "none", color: "var(--tc-text-muted)" }}><Pencil size={13} /></button>
-                    <button onClick={() => { if (confirm("삭제하시겠습니까?")) deleteAttMut.mutate(a.id); }} className="flex p-1 cursor-pointer" style={{ background: "none", border: "none", color: "var(--tc-danger)" }}><Trash2 size={13} /></button>
+                    <button onClick={async () => {
+                        const ok = await confirm({ title: "근태 삭제", message: "이 근태 기록을 삭제하시겠습니까?", confirmText: "삭제", danger: true });
+                        if (ok) deleteAttMut.mutate(a.id);
+                      }} className="flex p-1 cursor-pointer" style={{ background: "none", border: "none", color: "var(--tc-danger)" }}><Trash2 size={13} /></button>
                   </div>
                 </div>
               </Card>
@@ -117,7 +122,10 @@ export default function MyRecordsPage() {
                   </div>
                   <div className="flex gap-1">
                     <button onClick={() => { setEditTarget(e); setFormOpen(true); }} className="flex p-1 cursor-pointer" style={{ background: "none", border: "none", color: "var(--tc-text-muted)" }}><Pencil size={13} /></button>
-                    <button onClick={() => { if (confirm("삭제하시겠습니까?")) deleteExpMut.mutate(e.id); }} className="flex p-1 cursor-pointer" style={{ background: "none", border: "none", color: "var(--tc-danger)" }}><Trash2 size={13} /></button>
+                    <button onClick={async () => {
+                        const ok = await confirm({ title: "지출 삭제", message: "이 지출 기록을 삭제하시겠습니까?", confirmText: "삭제", danger: true });
+                        if (ok) deleteExpMut.mutate(e.id);
+                      }} className="flex p-1 cursor-pointer" style={{ background: "none", border: "none", color: "var(--tc-danger)" }}><Trash2 size={13} /></button>
                   </div>
                 </div>
               </Card>

@@ -24,6 +24,7 @@ import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { useSectionMode } from "@/shared/hooks/useSectionMode";
 import { fetchAllSections, type Section } from "@admin/domains/lectures/api/sections";
+import { useConfirm } from "@/shared/ui/confirm";
 
 function durationMinutes(start: string, end: string): number {
   const [sh, sm] = start.split(":").map(Number);
@@ -52,6 +53,7 @@ function addDays(dateStr: string, days: number) {
 
 export default function ClinicPage() {
   const qc = useQueryClient();
+  const confirm = useConfirm();
   const [dateFrom, setDateFrom] = useState(todayISO());
   const [dateTo, setDateTo] = useState(todayISO());
   const [selectedSession, setSelectedSession] = useState<number | null>(null);
@@ -122,7 +124,10 @@ export default function ClinicPage() {
               session={s}
               expanded={selectedSession === s.id}
               onToggle={() => setSelectedSession(selectedSession === s.id ? null : s.id)}
-              onDelete={() => { if (confirm("이 세션을 삭제하시겠습니까?")) deleteMut.mutate(s.id); }}
+              onDelete={async () => {
+                const ok = await confirm({ title: "세션 삭제", message: "이 클리닉 세션을 삭제하시겠습니까?", confirmText: "삭제", danger: true });
+                if (ok) deleteMut.mutate(s.id);
+              }}
             />
           ))}
         </div>

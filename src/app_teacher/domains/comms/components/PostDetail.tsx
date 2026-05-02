@@ -11,6 +11,7 @@ import BottomSheet from "@teacher/shared/ui/BottomSheet";
 import { ChevronLeft, Pencil, Trash2, MoreVertical, X, Save, Star, AlertCircle } from "@teacher/shared/ui/Icons";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
+import { useConfirm } from "@/shared/ui/confirm";
 
 interface Props {
   post: Post;
@@ -19,6 +20,7 @@ interface Props {
 
 export default function PostDetail({ post: initialPost, onBack }: Props) {
   const qc = useQueryClient();
+  const confirm = useConfirm();
   const { user } = useAuth();
   const isQnA = initialPost.post_type === "qna";
 
@@ -100,11 +102,10 @@ export default function PostDetail({ post: initialPost, onBack }: Props) {
     onError: (e) => teacherToast.error(extractApiError(e, "긴급 설정을 변경하지 못했습니다.")),
   });
 
-  const handleDelete = () => {
-    if (confirm("이 글을 삭제하시겠습니까?")) {
-      deleteMutation.mutate();
-    }
+  const handleDelete = async () => {
     setMenuOpen(false);
+    const ok = await confirm({ title: "글 삭제", message: "이 글을 삭제하시겠습니까?", confirmText: "삭제", danger: true });
+    if (ok) deleteMutation.mutate();
   };
 
   const postTypeLabel = (() => {
@@ -227,8 +228,9 @@ export default function PostDetail({ post: initialPost, onBack }: Props) {
         ) : replies && replies.length > 0 ? (
           replies.map((r) => (
             <ReplyCard key={r.id} reply={r} onDelete={
-              r.author_role === "staff" ? () => {
-                if (confirm("이 댓글을 삭제하시겠습니까?")) deleteReplyMutation.mutate(r.id);
+              r.author_role === "staff" ? async () => {
+                const ok = await confirm({ title: "댓글 삭제", message: "이 댓글을 삭제하시겠습니까?", confirmText: "삭제", danger: true });
+                if (ok) deleteReplyMutation.mutate(r.id);
               } : undefined
             } />
           ))

@@ -11,6 +11,7 @@ import { MoreVertical, Pencil, Trash2, Plus, Download } from "@teacher/shared/ui
 import { fetchLecture, fetchLectureSessions, fetchLectureEnrollments, deleteLecture, deleteSession, downloadAttendanceExcel } from "../api";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
+import { useConfirm } from "@/shared/ui/confirm";
 import LectureFormSheet from "../components/LectureFormSheet";
 import SessionFormSheet from "../components/SessionFormSheet";
 import EnrollStudentSheet from "../components/EnrollStudentSheet";
@@ -22,6 +23,7 @@ export default function LectureDetailPage() {
   const { lectureId } = useParams<{ lectureId: string }>();
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const confirm = useConfirm();
   const lid = Number(lectureId);
   const [tab, setTab] = useState<Tab>("sessions");
   const [editOpen, setEditOpen] = useState(false);
@@ -112,7 +114,11 @@ export default function LectureDetailPage() {
                   style={{ padding: "10px 14px", background: "none", border: "none", color: "var(--tc-text)", borderTop: "1px solid var(--tc-border-subtle)" }}>
                   <Plus size={14} /> 반 편성
                 </button>
-                <button onClick={() => { if (confirm("이 강의를 삭제하시겠습니까?")) deleteLectureMut.mutate(); setMenuOpen(false); }}
+                <button onClick={async () => {
+                    setMenuOpen(false);
+                    const ok = await confirm({ title: "강의 삭제", message: "이 강의를 삭제하시겠습니까?", confirmText: "삭제", danger: true });
+                    if (ok) deleteLectureMut.mutate();
+                  }}
                   className="flex items-center gap-2 w-full text-left text-sm cursor-pointer"
                   style={{ padding: "10px 14px", background: "none", border: "none", color: "var(--tc-danger)", borderTop: "1px solid var(--tc-border-subtle)" }}>
                   <Trash2 size={14} /> 삭제
@@ -213,7 +219,11 @@ export default function LectureDetailPage() {
                     className="flex p-1 cursor-pointer" style={{ color: "var(--tc-text-muted)" }}>
                     <Pencil size={13} />
                   </span>
-                  <span onClick={(e) => { e.stopPropagation(); if (confirm("이 차시를 삭제하시겠습니까?")) deleteSessionMut.mutate(s.id); }}
+                  <span onClick={async (e) => {
+                      e.stopPropagation();
+                      const ok = await confirm({ title: "차시 삭제", message: "이 차시를 삭제하시겠습니까?", confirmText: "삭제", danger: true });
+                      if (ok) deleteSessionMut.mutate(s.id);
+                    }}
                     className="flex p-1 cursor-pointer" style={{ color: "var(--tc-danger)" }}>
                     <Trash2 size={13} />
                   </span>

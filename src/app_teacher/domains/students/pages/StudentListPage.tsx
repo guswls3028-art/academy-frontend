@@ -18,6 +18,7 @@ import {
 } from "../api";
 import CreateStudentSheet from "../components/CreateStudentSheet";
 import { sendMessage } from "@teacher/domains/comms/api";
+import { useConfirm } from "@/shared/ui/confirm";
 
 type FilterState = {
   grade?: string;
@@ -30,6 +31,7 @@ type BulkAction = "delete" | "message" | "tag" | "password" | null;
 export default function StudentListPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const confirm = useConfirm();
   const [search, setSearch] = useState("");
   const [showFilter, setShowFilter] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
@@ -90,7 +92,7 @@ export default function StudentListPage() {
               style={{ padding: "8px 10px", minHeight: "var(--tc-touch-min)", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border)", background: "var(--tc-surface)", color: "var(--tc-text-secondary)" }}>
               선택
             </button>
-            <button onClick={() => exportStudentsExcel().catch(() => alert("내보내기 실패"))}
+            <button onClick={() => exportStudentsExcel().catch(() => teacherToast.error("내보내기에 실패했습니다."))}
               className="flex items-center gap-1 text-[11px] font-semibold cursor-pointer"
               style={{ padding: "8px 10px", minHeight: "var(--tc-touch-min)", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border)", background: "var(--tc-surface)", color: "var(--tc-text-secondary)" }}>
               <Download size={12} /> 엑셀
@@ -105,9 +107,9 @@ export default function StudentListPage() {
                     uploadStudentBulkExcel(f, "0000")
                       .then(async () => {
                         await qc.invalidateQueries({ queryKey: ["students-mobile"] });
-                        alert("업로드 완료");
+                        teacherToast.success("학생 일괄 업로드를 완료했습니다.");
                       })
-                      .catch(() => alert("업로드 실패"));
+                      .catch((err) => teacherToast.error(extractApiError(err, "학생 일괄 업로드에 실패했습니다.")));
                   }
                   e.target.value = "";
                 }} />
@@ -253,7 +255,10 @@ export default function StudentListPage() {
             <BulkBtn icon={<Tag size={14} />} label="태그" onClick={() => setBulkAction("tag")} />
             <BulkBtn icon={<Lock size={14} />} label="비번초기화" onClick={() => setBulkAction("password")} />
             <BulkBtn icon={<Trash2 size={14} />} label="삭제" tone="danger"
-              onClick={() => { if (confirm(`${selectedCount}명을 삭제하시겠습니까? (30일 내 복원 가능)`)) deleteMut.mutate(Array.from(selectedIds)); }} />
+              onClick={async () => {
+                const ok = await confirm({ title: `학생 ${selectedCount}명 삭제`, message: "30일 내 복원이 가능합니다. 삭제하시겠습니까?", confirmText: "삭제", danger: true });
+                if (ok) deleteMut.mutate(Array.from(selectedIds));
+              }} />
           </div>
         </div>
       )}

@@ -22,6 +22,7 @@ import {
   type InventoryFile,
   type InventoryFolder,
 } from "../api";
+import { useConfirm } from "@/shared/ui/confirm";
 
 function formatBytes(n: number): string {
   if (!n) return "0 B";
@@ -38,6 +39,7 @@ function formatBytes(n: number): string {
 export default function MyStoragePage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const confirm = useConfirm();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
   const [folderStack, setFolderStack] = useState<InventoryFolder[]>([]);
@@ -278,7 +280,10 @@ export default function MyStoragePage() {
                   </span>
                 </button>
                 <button
-                  onClick={() => { if (confirm("폴더를 삭제하시겠습니까?")) deleteFolderMut.mutate(f.id); }}
+                  onClick={async () => {
+                    const ok = await confirm({ title: "폴더 삭제", message: `'${f.name}' 폴더를 삭제하시겠습니까? 안의 파일도 함께 삭제됩니다.`, confirmText: "삭제", danger: true });
+                    if (ok) deleteFolderMut.mutate(f.id);
+                  }}
                   className="cursor-pointer shrink-0"
                   style={{ padding: 8, minWidth: 36, minHeight: 36, background: "none", border: "none", color: "var(--tc-text-muted)" }}
                 >
@@ -319,7 +324,10 @@ export default function MyStoragePage() {
                   <Download size={14} />
                 </button>
                 <button
-                  onClick={() => { if (confirm("파일을 삭제하시겠습니까?")) deleteFileMut.mutate(f.id); }}
+                  onClick={async () => {
+                    const ok = await confirm({ title: "파일 삭제", message: "이 파일을 삭제하시겠습니까?", confirmText: "삭제", danger: true });
+                    if (ok) deleteFileMut.mutate(f.id);
+                  }}
                   className="cursor-pointer shrink-0"
                   style={{ padding: 8, minWidth: 36, minHeight: 36, background: "none", border: "none", color: "var(--tc-text-muted)" }}
                 >

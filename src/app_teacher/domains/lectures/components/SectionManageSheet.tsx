@@ -8,6 +8,7 @@ import BottomSheet from "@teacher/shared/ui/BottomSheet";
 import { Plus, Trash2 } from "@teacher/shared/ui/Icons";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
+import { useConfirm } from "@/shared/ui/confirm";
 import api from "@/shared/api/axios";
 
 interface Props {
@@ -18,6 +19,7 @@ interface Props {
 
 export default function SectionManageSheet({ open, onClose, lectureId }: Props) {
   const qc = useQueryClient();
+  const confirm = useConfirm();
   const [newLabel, setNewLabel] = useState("");
 
   const { data: sections } = useQuery({
@@ -61,7 +63,10 @@ export default function SectionManageSheet({ open, onClose, lectureId }: Props) 
             <div key={s.id} className="flex items-center justify-between py-2"
               style={{ borderBottom: "1px solid var(--tc-border-subtle)" }}>
               <span className="text-sm" style={{ color: "var(--tc-text)" }}>{s.label} ({s.section_type})</span>
-              <button onClick={() => { if (confirm(`"${s.label}" 반을 삭제하시겠습니까?`)) deleteSectionMut.mutate(s.id); }}
+              <button onClick={async () => {
+                  const ok = await confirm({ title: "반 삭제", message: `"${s.label}" 반을 삭제하시겠습니까?`, confirmText: "삭제", danger: true });
+                  if (ok) deleteSectionMut.mutate(s.id);
+                }}
                 className="flex p-1 cursor-pointer" style={{ background: "none", border: "none", color: "var(--tc-danger)" }}>
                 <Trash2 size={14} />
               </button>

@@ -11,6 +11,7 @@ import { Badge } from "@teacher/shared/ui/Badge";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
+import { useConfirm } from "@/shared/ui/confirm";
 import {
   fetchBundles, fetchBundle, createBundle, updateBundle, deleteBundle,
   fetchTemplatesWithUsage, fetchHomeworkTemplatesWithUsage,
@@ -20,6 +21,7 @@ import {
 export default function ExamBundlesPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const confirm = useConfirm();
   const [formOpen, setFormOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<ExamBundle | null>(null);
 
@@ -75,7 +77,10 @@ export default function ExamBundlesPage() {
                       style={{ background: "none", border: "none", color: "var(--tc-text-muted)" }}>
                       <Pencil size={13} />
                     </button>
-                    <button onClick={() => { if (confirm(`'${b.name}' 번들을 삭제하시겠습니까?`)) deleteMut.mutate(b.id); }}
+                    <button onClick={async () => {
+                        const ok = await confirm({ title: "번들 삭제", message: `'${b.name}' 번들을 삭제하시겠습니까?`, confirmText: "삭제", danger: true });
+                        if (ok) deleteMut.mutate(b.id);
+                      }}
                       className="flex p-1.5 cursor-pointer"
                       style={{ background: "none", border: "none", color: "var(--tc-danger)" }}>
                       <Trash2 size={13} />

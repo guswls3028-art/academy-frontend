@@ -13,6 +13,7 @@ import {
 } from "@teacher/shared/ui/Icons";
 import { THEMES, type ThemeKey, type ThemeMeta, isThemeKey } from "@admin/domains/settings/constants/themes";
 import { applyThemeToDom, loadThemeFromStorage } from "@admin/domains/settings/theme/themeRuntime";
+import { useConfirm } from "@/shared/ui/confirm";
 import api from "@/shared/api/axios";
 
 /* ─── API ─── */
@@ -480,6 +481,7 @@ function OrgSection() {
 /* ─── Billing Section (owner) ─── */
 function BillingSection() {
   const [msg, setMsg] = useState<string | null>(null);
+  const confirm = useConfirm();
 
   const { data: cards } = useQuery({
     queryKey: ["billing-cards"],
@@ -488,7 +490,7 @@ function BillingSection() {
 
   const { data: subscription } = useQuery({
     queryKey: ["billing-subscription"],
-    queryFn: async () => { const res = await api.get("/billing/subscription/"); return res.data; },
+    queryFn: async () => { const res = await api.get("/core/subscription/"); return res.data; },
   });
 
   const deleteCardMut = useMutation({
@@ -515,17 +517,17 @@ function BillingSection() {
       {subscription && (
         <div className="mb-3">
           <div className="flex items-center gap-2 mb-1">
-            <span className="text-sm font-semibold" style={{ color: "var(--tc-text)" }}>{subscription.plan_name || "구독"}</span>
+            <span className="text-sm font-semibold" style={{ color: "var(--tc-text)" }}>{subscription.plan_display || subscription.plan || "구독"}</span>
             <span className="text-[11px] font-bold px-2 py-0.5 rounded-full"
               style={{
-                background: subscription.status === "active" ? "var(--tc-success-bg)" : "var(--tc-danger-bg)",
-                color: subscription.status === "active" ? "var(--tc-success)" : "var(--tc-danger)",
+                background: subscription.subscription_status === "active" ? "var(--tc-success-bg)" : "var(--tc-danger-bg)",
+                color: subscription.subscription_status === "active" ? "var(--tc-success)" : "var(--tc-danger)",
               }}>
-              {subscription.status === "active" ? "활성" : subscription.status === "grace" ? "유예" : "만료"}
+              {subscription.subscription_status_display ?? (subscription.subscription_status === "active" ? "활성" : subscription.subscription_status === "grace" ? "유예" : "만료")}
             </span>
           </div>
           <div className="text-[12px]" style={{ color: "var(--tc-text-muted)" }}>
-            {subscription.start_date && `${subscription.start_date} ~ ${subscription.end_date}`}
+            {subscription.subscription_started_at && `${subscription.subscription_started_at.slice(0, 10)} ~ ${(subscription.subscription_expires_at ?? "").slice(0, 10)}`}
             {subscription.days_remaining != null && ` (${subscription.days_remaining}일 남음)`}
           </div>
         </div>
@@ -539,7 +541,10 @@ function BillingSection() {
             <span className="text-sm" style={{ color: "var(--tc-text)" }}>
               {c.card_company} {c.card_number_masked}
             </span>
-            <button onClick={() => { if (confirm("이 카드를 삭제하시겠습니까?")) deleteCardMut.mutate(c.id); }}
+            <button onClick={async () => {
+                const ok = await confirm({ title: "카드 삭제", message: "이 카드를 삭제하시겠습니까?", confirmText: "삭제", danger: true });
+                if (ok) deleteCardMut.mutate(c.id);
+              }}
               className="text-[11px] cursor-pointer" style={{ background: "none", border: "none", color: "var(--tc-danger)" }}>
               삭제
             </button>

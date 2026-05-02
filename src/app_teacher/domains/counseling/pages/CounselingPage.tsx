@@ -14,6 +14,7 @@ import {
 } from "../api";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
+import { useConfirm } from "@/shared/ui/confirm";
 
 interface CounselingPost {
   id: number;
@@ -231,6 +232,7 @@ function DetailSheet({
   onDelete: () => void;
 }) {
   const qc = useQueryClient();
+  const confirm = useConfirm();
   const [replyText, setReplyText] = useState("");
 
   const { data: replies } = useQuery({
@@ -316,8 +318,14 @@ function DetailSheet({
 
         {/* Delete */}
         <button
-          onClick={() => {
-            if (window.confirm("이 상담 메모와 답글을 모두 삭제합니다. 복구할 수 없어요.\n\n계속하시겠어요?")) onDelete();
+          onClick={async () => {
+            const ok = await confirm({
+              title: "상담 메모 삭제",
+              message: "이 상담 메모와 답글을 모두 삭제합니다. 복구할 수 없어요.",
+              confirmText: "삭제",
+              danger: true,
+            });
+            if (ok) onDelete();
           }}
           className="text-sm py-2 mt-2 cursor-pointer"
           style={{ border: "none", background: "none", color: "var(--tc-danger)" }}

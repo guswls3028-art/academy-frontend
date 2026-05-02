@@ -12,10 +12,12 @@ import BottomSheet from "@teacher/shared/ui/BottomSheet";
 import { fetchAllTemplates, createTemplate, updateTemplate, deleteTemplate, fetchMessagingInfo, type MsgTemplate } from "../api";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
+import { useConfirm } from "@/shared/ui/confirm";
 
 export default function MessageTemplatesPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const confirm = useConfirm();
   const [editSheet, setEditSheet] = useState<{ open: boolean; template?: MsgTemplate }>({ open: false });
 
   const { data: templates, isLoading } = useQuery({
@@ -99,7 +101,10 @@ export default function MessageTemplatesPage() {
                         className="flex p-1.5 cursor-pointer" style={{ background: "none", border: "none", color: "var(--tc-text-muted)" }}>
                         <Pencil size={14} />
                       </button>
-                      <button onClick={() => { if (confirm("이 템플릿을 삭제하시겠습니까?")) deleteMut.mutate(t.id); }}
+                      <button onClick={async () => {
+                          const ok = await confirm({ title: "템플릿 삭제", message: "이 템플릿을 삭제하시겠습니까?", confirmText: "삭제", danger: true });
+                          if (ok) deleteMut.mutate(t.id);
+                        }}
                         className="flex p-1.5 cursor-pointer" style={{ background: "none", border: "none", color: "var(--tc-danger)" }}>
                         <Trash2 size={14} />
                       </button>

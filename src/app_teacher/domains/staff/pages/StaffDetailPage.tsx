@@ -11,6 +11,7 @@ import { Badge } from "@teacher/shared/ui/Badge";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
+import { useConfirm } from "@/shared/ui/confirm";
 import {
   fetchStaffOne,
   fetchWorkRecords, createWorkRecord, updateWorkRecord, deleteWorkRecord,
@@ -103,6 +104,7 @@ export default function StaffDetailPage() {
 /* ─── Lock Button ─── */
 function LockButton({ staffId, month, isLocked, lockId }: { staffId: number; month: string; isLocked: boolean; lockId?: number }) {
   const qc = useQueryClient();
+  const confirm = useConfirm();
   const lockMut = useMutation({
     mutationFn: () => createWorkMonthLock({ staff: staffId, month }),
     onSuccess: () => {
@@ -122,7 +124,10 @@ function LockButton({ staffId, month, isLocked, lockId }: { staffId: number; mon
 
   if (isLocked) {
     return (
-      <button onClick={() => { if (confirm("월 마감을 해제하시겠습니까?")) unlockMut.mutate(); }}
+      <button onClick={async () => {
+          const ok = await confirm({ title: "월 마감 해제", message: "월 마감을 해제하시겠습니까? 해제하면 내역을 다시 수정할 수 있습니다.", confirmText: "해제" });
+          if (ok) unlockMut.mutate();
+        }}
         className="flex items-center gap-1 text-xs font-semibold cursor-pointer"
         style={{ padding: "7px 10px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-warn)", background: "var(--tc-warn-bg)", color: "var(--tc-warn)" }}>
         <Lock size={12} /> 마감됨
@@ -130,7 +135,10 @@ function LockButton({ staffId, month, isLocked, lockId }: { staffId: number; mon
     );
   }
   return (
-    <button onClick={() => { if (confirm(`${month} 월을 마감하시겠습니까?`)) lockMut.mutate(); }}
+    <button onClick={async () => {
+        const ok = await confirm({ title: "월 마감", message: `${month} 월을 마감하시겠습니까? 마감 후에는 내역을 수정할 수 없습니다.`, confirmText: "마감" });
+        if (ok) lockMut.mutate();
+      }}
       className="flex items-center gap-1 text-xs font-semibold cursor-pointer"
       style={{ padding: "7px 10px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border-strong)", background: "var(--tc-surface)", color: "var(--tc-text-secondary)" }}>
       월 마감
@@ -144,6 +152,7 @@ function WorkTab({ staffId, month, isLocked, onAdd, onEdit }: {
   onAdd: () => void; onEdit: (r: WorkRecord) => void;
 }) {
   const qc = useQueryClient();
+  const confirm = useConfirm();
   const { data: records, isLoading } = useQuery({
     queryKey: ["teacher-staff-work", staffId, month],
     queryFn: () => fetchWorkRecords({ staff: staffId, month }),
@@ -209,7 +218,10 @@ function WorkTab({ staffId, month, isLocked, onAdd, onEdit }: {
                       style={{ background: "none", border: "none", color: "var(--tc-text-muted)" }}>
                       <Pencil size={13} />
                     </button>
-                    <button onClick={() => { if (confirm("삭제하시겠습니까?")) deleteMut.mutate(r.id); }}
+                    <button onClick={async () => {
+                        const ok = await confirm({ title: "근태 삭제", message: "이 근태 기록을 삭제하시겠습니까?", confirmText: "삭제", danger: true });
+                        if (ok) deleteMut.mutate(r.id);
+                      }}
                       className="flex p-1.5 cursor-pointer"
                       style={{ background: "none", border: "none", color: "var(--tc-danger)" }}>
                       <Trash2 size={13} />
@@ -230,6 +242,7 @@ function WorkTab({ staffId, month, isLocked, onAdd, onEdit }: {
 /* ─── Expense Tab ─── */
 function ExpenseTab({ staffId, month }: { staffId: number; month: string }) {
   const qc = useQueryClient();
+  const confirm = useConfirm();
   const { data, isLoading } = useQuery({
     queryKey: ["teacher-staff-expense", staffId, month],
     queryFn: () => fetchExpenseRecords({ staff: staffId, month }),
@@ -294,7 +307,10 @@ function ExpenseTab({ staffId, month }: { staffId: number; month: string }) {
                   style={{ padding: "6px", borderRadius: "var(--tc-radius-sm)", border: "none", background: "var(--tc-danger-bg)", color: "var(--tc-danger)" }}>
                   <X size={12} /> 반려
                 </button>
-                <button onClick={() => { if (confirm("삭제하시겠습니까?")) deleteMut.mutate(e.id); }}
+                <button onClick={async () => {
+                    const ok = await confirm({ title: "비용 기록 삭제", message: "이 비용 기록을 삭제하시겠습니까?", confirmText: "삭제", danger: true });
+                    if (ok) deleteMut.mutate(e.id);
+                  }}
                   className="flex items-center justify-center text-xs cursor-pointer shrink-0"
                   style={{ padding: "6px 10px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border)", background: "var(--tc-surface)", color: "var(--tc-text-muted)" }}>
                   <Trash2 size={12} />
