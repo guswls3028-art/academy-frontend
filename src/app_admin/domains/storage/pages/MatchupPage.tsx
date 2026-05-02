@@ -312,8 +312,16 @@ export default function MatchupPage() {
 
   // ── 핸들러 ──
   const handleUpload = useCallback(
-    async (payload: { file: File; title: string; category: string; subject: string; grade_level: string }) => {
-      const doc = await uploadMatchupDocument({ ...payload, intent: uploadIntent });
+    async (payload: {
+      file: File; title: string; category: string; subject: string; grade_level: string;
+      source_type?: import("../components/matchup/documentIntent").MatchupSourceType;
+    }) => {
+      // source_type 우선, 미지정 시 legacy intent 그대로 전송 (backend에서 정규화).
+      const doc = await uploadMatchupDocument({
+        ...payload,
+        intent: uploadIntent,
+        source_type: payload.source_type,
+      });
       qc.invalidateQueries({ queryKey: ["matchup-documents"] });
       if (doc.ai_job_id) {
         asyncStatusStore.addWorkerJob(

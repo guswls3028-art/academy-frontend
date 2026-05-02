@@ -15,11 +15,19 @@ import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { filesToPdf, isImage, isPdf, isHeic } from "./filesToPdf";
 import type { MergeProgress } from "./filesToPdf";
+import {
+  type MatchupSourceType, SOURCE_TYPE_LABELS, SOURCE_TYPE_ORDER, intentToSourceType,
+} from "./documentIntent";
 
 type Props = {
   onClose: () => void;
-  onUpload: (payload: { file: File; title: string; category: string; subject: string; grade_level: string }) => Promise<void>;
+  onUpload: (payload: {
+    file: File; title: string; category: string; subject: string; grade_level: string;
+    source_type: MatchupSourceType;  // Phase 1C — 7-value SSOT (backend 라우터 1순위 신호)
+  }) => Promise<void>;
   intent?: "reference" | "test";
+  // Phase 1C: 7-value SSOT 우선. 미지정 시 intent에서 매핑.
+  defaultSourceType?: MatchupSourceType;
   existingTitles?: string[];
   categorySuggestions?: string[];
   subjectSuggestions?: string[];
@@ -71,6 +79,7 @@ export default function DocumentUploadModal({
   onClose,
   onUpload,
   intent = "reference",
+  defaultSourceType,
   existingTitles = [],
   categorySuggestions = [],
   subjectSuggestions = [],
@@ -81,6 +90,10 @@ export default function DocumentUploadModal({
   const [category, setCategory] = useState(defaultCategory);
   const [subject, setSubject] = useState("");
   const [gradeLevel, setGradeLevel] = useState("");
+  // Phase 1C — 7-value source_type SSOT. 미지정 시 legacy intent에서 매핑.
+  const [sourceType, setSourceType] = useState<MatchupSourceType>(
+    defaultSourceType ?? intentToSourceType(intent),
+  );
   const [entries, setEntries] = useState<Entry[]>([]);
   const [uploading, setUploading] = useState(false);
   const [mergeProgress, setMergeProgress] = useState<MergeProgress | null>(null);
@@ -329,6 +342,7 @@ export default function DocumentUploadModal({
               category,
               subject,
               grade_level: gradeLevel,
+              source_type: sourceType,
             });
             setEntries((prev) => prev.map((e, i) => i === p.entryIdx ? { ...e, status: "done" } : e));
           } catch (err) {
@@ -383,6 +397,7 @@ export default function DocumentUploadModal({
         category,
         subject,
         grade_level: gradeLevel,
+        source_type: sourceType,
       });
       onClose();
     } catch (e) {
@@ -787,6 +802,80 @@ export default function DocumentUploadModal({
               })}
             </div>
           )}
+
+          {/* Phase 1C — source_type 7-value 라디오. 워커 strategy 라우터 1순위 신호. */}
+          <div style={{
+            marginBottom: "var(--space-3)",
+            padding: "var(--space-3)",
+            border: "1px solid var(--color-border-divider)",
+            borderRadius: "var(--radius-md)",
+            background: "var(--color-bg-surface-soft)",
+          }}>
+            <div style={{
+              fontSize: 12, fontWeight: 700,
+              color: "var(--color-text-secondary)",
+              marginBottom: 8,
+            }}>
+              자료 유형 <span style={{ color: "var(--color-brand-primary)", fontWeight: 600 }}>
+                (필수 — 워커가 유형별로 다르게 처리)
+              </span>
+            </div>
+            <div style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
+              gap: 4,
+            }}>
+              {SOURCE_TYPE_ORDER.map((st) => {
+                const active = sourceType === st;
+                return (
+                  <button
+                    key={st}
+                    type="button"
+                    onClick={() => setSourceType(st)}
+                    disabled={uploading}
+                    data-source-type={st}
+                    style={{
+                      textAlign: "left",
+                      padding: "6px 10px",
+                      borderRadius: "var(--radius-sm)",
+                      border: active
+                        ? "1.5px solid var(--color-brand-primary)"
+                        : "1px solid var(--color-border-divider)",
+                      background: active
+                        ? "color-mix(in srgb, var(--color-brand-primary) 12%, var(--color-bg-surface))"
+                        : "var(--color-bg-surface)",
+                      color: active
+                        ? "var(--color-brand-primary)"
+                        : "var(--color-text-primary)",
+                      fontSize: 12,
+                      fontWeight: active ? 700 : 500,
+                      cursor: uploading ? "not-allowed" : "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 6,
+                    }}
+                  >
+                    <span style={{ fontSize: 13 }}>{active ? "●" : "○"}</span>
+                    {SOURCE_TYPE_LABELS[st]}
+                  </button>
+                );
+              })}
+            </div>
+            <p style={{
+              margin: "8px 0 0 0",
+              fontSize: 11,
+              color: "var(--color-text-muted)",
+              lineHeight: 1.4,
+            }}>
+              {sourceType === "student_exam_photo" && "학생이 폰으로 찍은 시험지/답안지 → 페이지 단위로 안전하게 처리 (자동 자르기 X)"}
+              {sourceType === "school_exam_pdf" && "학교 기출/시험지 PDF (깨끗한 스캔) → 자동 anchor 분할"}
+              {sourceType === "commercial_workbook" && "시판 교재 → 페이지 단위 + 표지/목차/해설 자동 제외"}
+              {sourceType === "academy_workbook" && "학원 자체 워크북 → anchor 분할 + 보기 패턴 검증"}
+              {sourceType === "explanation" && "해설지 → 매치업 검색 후보로 사용 X (인덱싱 안 함)"}
+              {sourceType === "answer_key" && "답안지 → 매치업 검색 후보로 사용 X (인덱싱 안 함)"}
+              {sourceType === "other" && "기타 → 보수적으로 페이지 단위 처리"}
+            </p>
+          </div>
 
           {/* 메타데이터 */}
           <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>

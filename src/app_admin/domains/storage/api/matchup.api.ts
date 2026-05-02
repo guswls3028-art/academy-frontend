@@ -148,6 +148,8 @@ export async function uploadMatchupDocument(payload: {
   subject?: string;
   grade_level?: string;
   intent?: "reference" | "test";
+  // Phase 1C — 7-value SSOT (backend strategy router 1순위 신호)
+  source_type?: MatchupSourceType;
 }): Promise<MatchupDocument> {
   const form = new FormData();
   form.append("file", payload.file);
@@ -155,7 +157,9 @@ export async function uploadMatchupDocument(payload: {
   if (payload.category) form.append("category", payload.category);
   if (payload.subject) form.append("subject", payload.subject);
   if (payload.grade_level) form.append("grade_level", payload.grade_level);
+  // source_type 우선, 미지정 시 legacy intent 전송. backend가 정규화 흡수.
   form.append("intent", payload.intent ?? "reference");
+  if (payload.source_type) form.append("source_type", payload.source_type);
 
   const { data } = await api.post<MatchupDocument>(
     "/matchup/documents/upload/",
