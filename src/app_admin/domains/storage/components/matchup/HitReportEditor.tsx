@@ -17,6 +17,7 @@ import { useEffect, useMemo, useState, useCallback } from "react";
 import { X, Save, Send, FileText, ChevronLeft, ChevronRight, Check } from "lucide-react";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { useConfirm } from "@/shared/ui/confirm";
 import api from "@/shared/api/axios";
 import {
   fetchHitReportDraft,
@@ -78,8 +79,10 @@ const SOURCE_PANE_BG = "#FEF3C7";     // amber-100
 type CandidateMeta = HitReportCandidate | HitReportSelectedMeta;
 
 export default function HitReportEditor({ docId, onClose }: Props) {
+  const confirm = useConfirm();
   const [data, setData] = useState<HitReportDraftResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
   const [entries, setEntries] = useState<Record<number, EntryDraft>>({});
   const [reportTitle, setReportTitle] = useState("");
@@ -94,6 +97,7 @@ export default function HitReportEditor({ docId, onClose }: Props) {
 
   const load = useCallback(async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       const resp = await fetchHitReportDraft(docId);
       setData(resp);
@@ -118,7 +122,10 @@ export default function HitReportEditor({ docId, onClose }: Props) {
       setExtraMeta(m);
     } catch (e) {
       console.error(e);
-      feedback.error("보고서 로드 실패");
+      const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+        || "보고서 로드 실패 — 네트워크 또는 서버 오류.";
+      setLoadError(msg);
+      feedback.error(msg);
     } finally {
       setLoading(false);
     }
@@ -268,7 +275,8 @@ export default function HitReportEditor({ docId, onClose }: Props) {
     const confirmMsg = dirtyCount > 0
       ? `미저장 ${dirtyCount}건을 자동 저장하고 제출합니다. 제출 후에는 수정이 잠깁니다. 진행할까요?`
       : "보고서를 제출하시겠습니까? 제출 후에는 수정이 잠깁니다.";
-    if (!confirm(confirmMsg)) return;
+    const ok = await confirm({ title: "보고서 제출", message: confirmMsg, confirmText: "제출", cancelText: "취소" });
+    if (!ok) return;
     setSubmitting(true);
     try {
       if (dirtyCount > 0) {
@@ -287,7 +295,7 @@ export default function HitReportEditor({ docId, onClose }: Props) {
     } finally {
       setSubmitting(false);
     }
-  }, [dirtyCount, isSubmitted, reportId, saveAll]);
+  }, [dirtyCount, isSubmitted, reportId, saveAll, confirm]);
 
   const [pdfDownloading, setPdfDownloading] = useState(false);
   const downloadPdf = useCallback(async () => {
@@ -324,6 +332,20 @@ export default function HitReportEditor({ docId, onClose }: Props) {
     }
   }, [dirtyCount, documentTitle, reportId, reportTitle, saveAll, pdfDownloading]);
 
+  const closeWithDirtyGuard = useCallback(async () => {
+    if (dirtyCount > 0) {
+      const ok = await confirm({
+        title: "보고서 닫기",
+        message: `미저장 ${dirtyCount}건이 있습니다. 닫으시겠습니까?`,
+        confirmText: "닫기",
+        cancelText: "계속 작성",
+        danger: true,
+      });
+      if (!ok) return;
+    }
+    onClose();
+  }, [confirm, dirtyCount, onClose]);
+
   // 키보드 네비
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -331,14 +353,12 @@ export default function HitReportEditor({ docId, onClose }: Props) {
       if (e.key === "ArrowLeft") setActiveIndex((i) => Math.max(0, i - 1));
       else if (e.key === "ArrowRight") setActiveIndex((i) => Math.min(examProblems.length - 1, i + 1));
       else if (e.key === "Escape") {
-        if (dirtyCount > 0) {
-          if (confirm("저장하지 않은 변경이 있습니다. 닫으시겠습니까?")) onClose();
-        } else onClose();
+        void closeWithDirtyGuard();
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [examProblems.length, dirtyCount, onClose]);
+  }, [examProblems.length, closeWithDirtyGuard]);
 
   const headerStyle: React.CSSProperties = {
     padding: "12px 18px",
@@ -363,9 +383,7 @@ export default function HitReportEditor({ docId, onClose }: Props) {
       }}
       onClick={(e) => {
         if (e.target === e.currentTarget) {
-          if (dirtyCount > 0) {
-            if (confirm("저장하지 않은 변경이 있습니다. 닫으시겠습니까?")) onClose();
-          } else onClose();
+          void closeWithDirtyGuard();
         }
       }}
     >
@@ -430,11 +448,7 @@ export default function HitReportEditor({ docId, onClose }: Props) {
               {isSubmitted ? "제출 완료" : "선생에게 제출"}
             </Button>
             <button
-              onClick={() => {
-                if (dirtyCount > 0) {
-                  if (confirm("저장하지 않은 변경이 있습니다. 닫으시겠습니까?")) onClose();
-                } else onClose();
-              }}
+              onClick={() => void closeWithDirtyGuard()}
               aria-label="닫기"
               style={{
                 marginLeft: 4, padding: 6, border: "none", background: "transparent",
@@ -467,6 +481,19 @@ export default function HitReportEditor({ docId, onClose }: Props) {
               검색 결과는 보고서 작성 후 자동 저장됩니다.
             </div>
             <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+          </div>
+        ) : loadError ? (
+          <div style={{
+            flex: 1, display: "flex", flexDirection: "column",
+            alignItems: "center", justifyContent: "center", gap: 12,
+            color: "var(--color-text-secondary)", padding: 24,
+          }}>
+            <div style={{ fontSize: 14, fontWeight: 600, color: "var(--color-status-error, #dc2626)" }}>
+              {loadError}
+            </div>
+            <Button size="sm" intent="primary" onClick={() => void load()}>
+              다시 시도
+            </Button>
           </div>
         ) : examProblems.length === 0 ? (
           <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--color-text-muted)" }}>
