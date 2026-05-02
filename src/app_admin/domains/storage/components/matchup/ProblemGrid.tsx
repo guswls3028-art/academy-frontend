@@ -1,7 +1,7 @@
 // PATH: src/app_admin/domains/storage/components/matchup/ProblemGrid.tsx
 // 문제 카드 그리드 — 선택된 문서의 추출 문제 표시
 
-import { Loader2, AlertTriangle, Check, Clock } from "lucide-react";
+import { Loader2, AlertTriangle, Check, Clock, Layers, X } from "lucide-react";
 import type { MatchupProblem } from "../../api/matchup.api";
 import ProblemCard from "./ProblemCard";
 
@@ -15,6 +15,13 @@ type Props = {
   fileSizeBytes?: number;
   progressPercent?: number;
   progressStepName?: string;
+  // 합치기 모드 — 카드 다중 선택 + 합치기 CTA
+  mergeMode?: boolean;
+  mergeSelectedIds?: number[];
+  onToggleMergeMode?: () => void;
+  onToggleMergeSelect?: (id: number) => void;
+  onClearMergeSelection?: () => void;
+  onConfirmMerge?: () => void;
 };
 
 // 파이프라인 단계 — matchup_pipeline.py와 동기화. 사용자가 어디까지 됐는지 인식.
@@ -39,7 +46,13 @@ function estimateProcessingHint(sizeBytes?: number): string {
 export default function ProblemGrid({
   problems, loading, selectedProblemId, onSelectProblem, documentStatus,
   fileSizeBytes, progressPercent, progressStepName,
+  mergeMode = false, mergeSelectedIds = [],
+  onToggleMergeMode, onToggleMergeSelect, onClearMergeSelection, onConfirmMerge,
 }: Props) {
+  const mergeSelectedCount = mergeSelectedIds.length;
+  const mergeOrderById = new Map<number, number>();
+  mergeSelectedIds.forEach((id, idx) => mergeOrderById.set(id, idx + 1));
+  const canShowMergeButton = !!onToggleMergeMode && problems.length >= 2;
   const isProcessing = loading || documentStatus === "processing" || documentStatus === "pending";
   const hasProgress = typeof progressPercent === "number" && progressPercent > 0;
   const pct = hasProgress ? Math.round(progressPercent!) : 0;
@@ -142,7 +155,66 @@ export default function ProblemGrid({
   const showReviewGuide = problems.length >= 60 || mergeSuspectCount > 0;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)", position: "relative" }}>
+      {canShowMergeButton && (
+        <div style={/* eslint-disable-line no-restricted-syntax */ {
+          display: "flex", alignItems: "center", gap: "var(--space-2)",
+          padding: "var(--space-2) var(--space-3)",
+          background: mergeMode
+            ? "color-mix(in srgb, var(--color-brand-primary) 8%, var(--color-bg-surface))"
+            : "var(--color-bg-surface-soft)",
+          border: mergeMode
+            ? "1px solid color-mix(in srgb, var(--color-brand-primary) 40%, transparent)"
+            : "1px solid var(--color-border-divider)",
+          borderRadius: "var(--radius-md)",
+          fontSize: 12,
+        }}>
+          <Layers size={14} style={/* eslint-disable-line no-restricted-syntax */ {
+            color: mergeMode ? "var(--color-brand-primary)" : "var(--color-text-muted)",
+            flexShrink: 0,
+          }} />
+          {mergeMode ? (
+            <>
+              <strong style={/* eslint-disable-line no-restricted-syntax */ { color: "var(--color-brand-primary)" }}>합치기 모드</strong>
+              <span style={/* eslint-disable-line no-restricted-syntax */ { color: "var(--color-text-secondary)" }}>
+                — 합칠 문항을 위→아래 순서대로 클릭하세요
+              </span>
+              <button type="button" onClick={onToggleMergeMode}
+                data-testid="matchup-merge-mode-exit"
+                style={/* eslint-disable-line no-restricted-syntax */ {
+                  marginLeft: "auto",
+                  background: "var(--color-bg-surface)",
+                  border: "1px solid var(--color-border-divider)",
+                  borderRadius: 4, padding: "3px 10px",
+                  color: "var(--color-text-secondary)",
+                  fontSize: 11, fontWeight: 600, cursor: "pointer",
+                  display: "inline-flex", alignItems: "center", gap: 4,
+                }}>
+                <X size={11} /> 모드 종료
+              </button>
+            </>
+          ) : (
+            <>
+              <span style={/* eslint-disable-line no-restricted-syntax */ { color: "var(--color-text-secondary)" }}>
+                <strong>한 문항이 두 칸 이상으로 쪼개진 경우</strong> — 클릭 한 번으로 묶어 1개 문항으로 만들 수 있습니다.
+              </span>
+              <button type="button" onClick={onToggleMergeMode}
+                data-testid="matchup-merge-mode-enter"
+                style={/* eslint-disable-line no-restricted-syntax */ {
+                  marginLeft: "auto",
+                  background: "var(--color-brand-primary)",
+                  color: "white", border: "none",
+                  borderRadius: 4, padding: "4px 12px",
+                  fontSize: 11, fontWeight: 700, cursor: "pointer",
+                  display: "inline-flex", alignItems: "center", gap: 4,
+                }}>
+                <Layers size={12} /> 쪼개진 문항 합치기
+              </button>
+            </>
+          )}
+        </div>
+      )}
+
       {showPartialResults && (() => {
         // skeleton(is_partial=true) 비율로 신규 업로드 vs 재분석 구분.
         // 50% 이상 partial이면 신규 업로드(전체 skeleton 시작), 그 미만이면 재분석.
@@ -207,10 +279,62 @@ export default function ProblemGrid({
             key={p.id}
             problem={p}
             selected={selectedProblemId === p.id}
-            onClick={() => onSelectProblem(p.id)}
+            onClick={() => {
+              if (mergeMode && onToggleMergeSelect) onToggleMergeSelect(p.id);
+              else onSelectProblem(p.id);
+            }}
+            mergeMode={mergeMode}
+            mergeOrder={mergeOrderById.get(p.id) ?? 0}
           />
         ))}
       </div>
+
+      {mergeMode && mergeSelectedCount > 0 && (
+        <div data-testid="matchup-merge-action-bar"
+          style={/* eslint-disable-line no-restricted-syntax */ {
+            position: "sticky", bottom: 0, zIndex: 5,
+            display: "flex", alignItems: "center", gap: "var(--space-2)",
+            padding: "var(--space-3) var(--space-4)",
+            background: "var(--color-bg-surface)",
+            border: "1px solid var(--color-brand-primary)",
+            borderRadius: "var(--radius-lg)",
+            boxShadow: "0 4px 16px rgba(0,0,0,0.12)",
+            marginTop: "var(--space-2)",
+          }}>
+          <Layers size={14} style={/* eslint-disable-line no-restricted-syntax */ { color: "var(--color-brand-primary)" }} />
+          <strong style={/* eslint-disable-line no-restricted-syntax */ { color: "var(--color-brand-primary)", fontSize: 13 }}>
+            {mergeSelectedCount}개 선택됨
+          </strong>
+          <span style={/* eslint-disable-line no-restricted-syntax */ { fontSize: 11, color: "var(--color-text-muted)" }}>
+            {mergeSelectedCount < 2 ? "1개 더 선택하면 합칠 수 있습니다" : "위→아래 순서대로 합쳐집니다"}
+          </span>
+          <div style={/* eslint-disable-line no-restricted-syntax */ { marginLeft: "auto", display: "flex", gap: 8 }}>
+            <button type="button" onClick={onClearMergeSelection}
+              style={/* eslint-disable-line no-restricted-syntax */ {
+                background: "var(--color-bg-surface-soft)",
+                border: "1px solid var(--color-border-divider)",
+                borderRadius: 4, padding: "5px 12px",
+                color: "var(--color-text-secondary)",
+                fontSize: 11, fontWeight: 600, cursor: "pointer",
+              }}>선택 해제</button>
+            <button type="button" onClick={onConfirmMerge}
+              disabled={mergeSelectedCount < 2}
+              data-testid="matchup-merge-open-modal"
+              style={/* eslint-disable-line no-restricted-syntax */ {
+                background: mergeSelectedCount < 2 ? "var(--color-bg-surface-soft)" : "var(--color-brand-primary)",
+                color: mergeSelectedCount < 2 ? "var(--color-text-muted)" : "white",
+                border: "none",
+                borderRadius: 4, padding: "5px 14px",
+                fontSize: 11, fontWeight: 700,
+                cursor: mergeSelectedCount < 2 ? "not-allowed" : "pointer",
+                display: "inline-flex", alignItems: "center", gap: 4,
+              }}>
+              <Layers size={12} />
+              {mergeSelectedCount}개를 1개로 합치기
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

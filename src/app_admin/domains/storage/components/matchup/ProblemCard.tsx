@@ -13,9 +13,14 @@ type Props = {
   problem: MatchupProblem;
   selected: boolean;
   onClick: () => void;
+  // 합치기 모드 — mergeOrder>0이면 선택된 순번 표시. selected는 무시.
+  mergeMode?: boolean;
+  mergeOrder?: number;
 };
 
-export default function ProblemCard({ problem, selected, onClick }: Props) {
+export default function ProblemCard({ problem, selected, onClick, mergeMode = false, mergeOrder = 0 }: Props) {
+  const isMergeSelected = mergeMode && mergeOrder > 0;
+  const showSelectedStyle = mergeMode ? isMergeSelected : selected;
   // 자동분리가 인접 문항을 박스 단위로 합친 의심 — 매뉴얼 크롭+Ctrl+V paste 권장.
   const isMergeSuspect = Boolean(problem.meta?.merge_suspect);
   // 파이프라인 진행 중 skeleton row — 분리만 끝났고 OCR/임베딩/이미지 미완.
@@ -60,19 +65,21 @@ export default function ProblemCard({ problem, selected, onClick }: Props) {
             setZoomOpen(true);
           }
         }}
-        title={imgUrl ? "더블클릭 = 크게 보기" : undefined}
+        title={mergeMode
+          ? (isMergeSelected ? "다시 클릭하면 선택 해제" : "클릭해서 합치기 대상에 추가")
+          : (imgUrl ? "더블클릭 = 크게 보기" : undefined)}
         style={/* eslint-disable-line no-restricted-syntax */ {
-          border: selected
+          border: showSelectedStyle
             ? "2px solid var(--color-brand-primary)"
             : "1px solid var(--color-border-divider)",
           borderRadius: "var(--radius-lg)",
           padding: "var(--space-3)",
           cursor: "pointer",
-          background: selected
+          background: showSelectedStyle
             ? "color-mix(in srgb, var(--color-brand-primary) 4%, var(--color-bg-surface))"
             : "var(--color-bg-surface)",
           transition: "border-color 0.15s, box-shadow 0.15s",
-          boxShadow: selected ? "0 0 0 3px color-mix(in srgb, var(--color-brand-primary) 12%, transparent)" : undefined,
+          boxShadow: showSelectedStyle ? "0 0 0 3px color-mix(in srgb, var(--color-brand-primary) 12%, transparent)" : undefined,
           display: "flex",
           flexDirection: "column",
           gap: "var(--space-2)",
@@ -80,11 +87,27 @@ export default function ProblemCard({ problem, selected, onClick }: Props) {
           position: "relative",
         }}
       >
+        {mergeMode && (
+          <div style={/* eslint-disable-line no-restricted-syntax */ {
+            position: "absolute", top: 6, left: 6, zIndex: 2,
+            width: 22, height: 22, borderRadius: "50%",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: 11, fontWeight: 800,
+            background: isMergeSelected ? "var(--color-brand-primary)" : "var(--color-bg-surface)",
+            color: isMergeSelected ? "white" : "var(--color-text-muted)",
+            border: isMergeSelected
+              ? "2px solid var(--color-brand-primary)"
+              : "2px dashed var(--color-border-divider)",
+            boxShadow: isMergeSelected ? "0 1px 4px rgba(0,0,0,0.15)" : undefined,
+          }}>
+            {isMergeSelected ? mergeOrder : ""}
+          </div>
+        )}
         {/* 번호 + 확대 버튼 */}
         <div style={/* eslint-disable-line no-restricted-syntax */ {
           display: "flex", alignItems: "center", justifyContent: "space-between",
           fontSize: 11, fontWeight: 700,
-          color: selected ? "var(--color-brand-primary)" : "var(--color-text-muted)",
+          color: showSelectedStyle ? "var(--color-brand-primary)" : "var(--color-text-muted)",
           letterSpacing: "0.05em",
         }}>
           <span style={/* eslint-disable-line no-restricted-syntax */ { display: "inline-flex", alignItems: "center", gap: 6 }}>

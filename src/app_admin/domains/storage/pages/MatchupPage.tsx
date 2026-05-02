@@ -31,6 +31,7 @@ import CrossMatchesPanel from "../components/matchup/CrossMatchesPanel";
 import ProblemDetailModal from "../components/matchup/ProblemDetailModal";
 import DocumentPreviewModal from "../components/matchup/DocumentPreviewModal";
 import ManualCropModal from "../components/matchup/ManualCropModal";
+import MergeProblemsModal from "../components/matchup/MergeProblemsModal";
 import HitReportEditor from "../components/matchup/HitReportEditor";
 import MatchupEmptyState from "../components/matchup/MatchupEmptyState";
 import { getDocumentIntent } from "../components/matchup/documentIntent";
@@ -99,6 +100,10 @@ export default function MatchupPage() {
   const [pinsByExamPid, setPinsByExamPid] = useState<Record<number, Set<number>>>({});
   const [pendingNavigateNumber, setPendingNavigateNumber] = useState<number | null>(null);
   const [rightPanelTab, setRightPanelTab] = useState<"similar" | "cross">("similar");
+  // 합치기 모드
+  const [mergeMode, setMergeMode] = useState(false);
+  const [mergeSelectedIds, setMergeSelectedIds] = useState<number[]>([]);
+  const [mergeModalOpen, setMergeModalOpen] = useState(false);
   const [intentUpdating, setIntentUpdating] = useState(false);
   const [categoryEditing, setCategoryEditing] = useState(false);
   const [categoryDraft, setCategoryDraft] = useState("");
@@ -404,7 +409,42 @@ export default function MatchupPage() {
   useEffect(() => {
     setCategoryEditing(false);
     setCategoryDraft("");
+    setMergeMode(false);
+    setMergeSelectedIds([]);
+    setMergeModalOpen(false);
   }, [selectedDocId]);
+
+  const handleToggleMergeMode = useCallback(() => {
+    setMergeMode((prev) => {
+      const next = !prev;
+      if (!next) setMergeSelectedIds([]);
+      return next;
+    });
+  }, []);
+
+  const handleToggleMergeSelect = useCallback((id: number) => {
+    setMergeSelectedIds((prev) => (
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    ));
+  }, []);
+
+  const handleClearMergeSelection = useCallback(() => {
+    setMergeSelectedIds([]);
+  }, []);
+
+  const handleOpenMergeModal = useCallback(() => {
+    if (mergeSelectedIds.length < 2) {
+      feedback.info("합치려면 2개 이상 선택해주세요.");
+      return;
+    }
+    setMergeModalOpen(true);
+  }, [mergeSelectedIds.length]);
+
+  const handleMergeSuccess = useCallback((mergedProblemId: number) => {
+    setSelectedProblemId(mergedProblemId);
+    setMergeMode(false);
+    setMergeSelectedIds([]);
+  }, []);
 
   const handleChangeIntent = useCallback(async (intent: "reference" | "test") => {
     if (!selectedDoc) return;
@@ -1112,6 +1152,12 @@ export default function MatchupPage() {
                       fileSizeBytes={selectedDoc?.size_bytes}
                       progressPercent={selectedDoc ? progressMap[selectedDoc.id]?.percent : undefined}
                       progressStepName={selectedDoc ? progressMap[selectedDoc.id]?.stepName : undefined}
+                      mergeMode={mergeMode}
+                      mergeSelectedIds={mergeSelectedIds}
+                      onToggleMergeMode={handleToggleMergeMode}
+                      onToggleMergeSelect={handleToggleMergeSelect}
+                      onClearMergeSelection={handleClearMergeSelection}
+                      onConfirmMerge={handleOpenMergeModal}
                     />
                   </div>
 
@@ -1246,6 +1292,21 @@ export default function MatchupPage() {
           onClose={() => setHitReportDocId(null)}
         />
       )}
+
+      {mergeModalOpen && selectedDocId && mergeSelectedIds.length >= 2 && (() => {
+        const selectedProblems = mergeSelectedIds
+          .map((id) => problems.find((p) => p.id === id))
+          .filter((p): p is NonNullable<typeof p> => Boolean(p));
+        if (selectedProblems.length < 2) return null;
+        return (
+          <MergeProblemsModal
+            docId={selectedDocId}
+            problems={selectedProblems}
+            onClose={() => setMergeModalOpen(false)}
+            onSuccess={handleMergeSuccess}
+          />
+        );
+      })()}
 
       {detailProblem && (
         <ProblemDetailModal
