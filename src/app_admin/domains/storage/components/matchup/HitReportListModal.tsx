@@ -81,6 +81,9 @@ export default function HitReportListModal({ isAdmin, onClose, onOpen }: Props) 
     return sum / reports.length;
   }, [reports]);
 
+  // 통산 적중률 = backend에서 산출한 sim≥0.75 비율 누적. 강사 KPI 1순위.
+  const avgHitRate = summary?.avg_hit_rate ?? 0;
+
   return (
     <div
       role="dialog"
@@ -116,6 +119,17 @@ export default function HitReportListModal({ isAdmin, onClose, onOpen }: Props) 
           <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 15, fontWeight: 700, color: "var(--color-text-primary)" }}>
               매치업 적중 보고서
+              {summary && reports.length > 0 && summary.total_exam > 0 && (
+                <span style={{
+                  marginLeft: 10,
+                  fontSize: 13, fontWeight: 700,
+                  color: avgHitRate >= 50 ? "var(--color-status-success)"
+                    : avgHitRate >= 25 ? "var(--color-brand-primary)"
+                    : "var(--color-text-muted)",
+                }}>
+                  통산 적중률 {avgHitRate.toFixed(1)}%
+                </span>
+              )}
             </div>
             <div style={{ fontSize: 11, color: "var(--color-text-muted)" }}>
               {tab === "mine" ? "내가 작성한 보고서" : "학원 전체 보고서"}
@@ -124,7 +138,12 @@ export default function HitReportListModal({ isAdmin, onClose, onOpen }: Props) 
                   {"  ·  "}
                   총 {summary.total}건 (제출 {summary.submitted} / 작성중 {summary.drafts})
                   {reports.length > 0 && (
-                    <>{"  ·  "}평균 작성률 {avgProgress.toFixed(0)}%</>
+                    <>
+                      {"  ·  "}평균 작성률 {avgProgress.toFixed(0)}%
+                      {summary.total_exam > 0 && (
+                        <>{"  ·  "}적중 {summary.total_hit}/{summary.total_exam}문항</>
+                      )}
+                    </>
                   )}
                 </span>
               )}
@@ -256,9 +275,15 @@ function ReportRow({
 }) {
   const isSubmitted = report.status === "submitted";
   const progress = report.curated_progress || 0;
+  const hitRate = report.hit_rate || 0;
   const progressColor =
     progress >= 80 ? "var(--color-status-success)" :
     progress >= 40 ? "var(--color-brand-primary)" :
+    "var(--color-text-muted)";
+  // 적중률 색상 — PDF 표지 헤드라인과 동일 임계값 (≥50% green / ≥25% blue).
+  const hitColor =
+    hitRate >= 50 ? "var(--color-status-success)" :
+    hitRate >= 25 ? "var(--color-brand-primary)" :
     "var(--color-text-muted)";
 
   return (
@@ -321,6 +346,11 @@ function ReportRow({
           )}
           <span>문항 {report.exam_count}개</span>
           <span>작성 {report.curated_count}/{report.exam_count}</span>
+          {report.exam_count > 0 && (
+            <span style={{ color: hitColor, fontWeight: 700 }}>
+              적중 {report.hit_count}/{report.exam_count} ({hitRate.toFixed(0)}%)
+            </span>
+          )}
           {report.submitted_at && (
             <span>제출: {new Date(report.submitted_at).toLocaleDateString("ko-KR")}</span>
           )}

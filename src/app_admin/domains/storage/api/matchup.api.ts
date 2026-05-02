@@ -631,6 +631,10 @@ export type HitReportListItem = {
   exam_count: number;
   curated_count: number;
   curated_progress: number;  // 0~100, 작성률(%).
+  // 적중률 = sim≥0.75 큐레이션 자료 1건 이상 보유 문항 / 전체 문항.
+  // PDF 표지 헤드라인과 동일 정의. backend가 cosine으로 산출.
+  hit_count: number;
+  hit_rate: number;          // 0~100, 적중률(%).
   created_at: string;
   updated_at: string;
 };
@@ -641,6 +645,10 @@ export type HitReportListResponse = {
     total: number;
     submitted: number;
     drafts: number;
+    // 강사 통산 적중률 = 모든 보고서의 hit_count 합 / exam_count 합 × 100.
+    avg_hit_rate: number;
+    total_hit: number;
+    total_exam: number;
   };
 };
 
