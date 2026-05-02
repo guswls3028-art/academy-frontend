@@ -65,15 +65,14 @@ test.describe("선생앱 모바일 실사용 리뷰 — 2026-05-02", () => {
     await page.evaluate(() => { localStorage.removeItem("teacher:preferAdmin"); });
   });
 
-  test("01. Today — KPI4 + 처리할 일 + 오늘 수업", async ({ page }) => {
+  test("01. Today — KPI2 (수업/출결) + 처리할 일 인박스 + 오늘 수업", async ({ page }) => {
     const { errors, netFails } = attachCapture(page);
     await visit(page, "/teacher");
     await page.screenshot({ path: `${SCREEN_DIR}/01-today.png`, fullPage: true });
     await expect(page.getByText(/안녕하세요/).first()).toBeVisible({ timeout: 10_000 });
     await expect(page.getByText("오늘 수업").first()).toBeVisible();
     await expect(page.getByText("출결 입력").first()).toBeVisible();
-    await expect(page.getByText("처리할 일").first()).toBeVisible();
-    await expect(page.getByText("최근 제출").first()).toBeVisible();
+    // KPI에서 "처리할 일"·"최근 제출" 제거됨 — 인박스로 단일화. 인박스 헤더만 검증.
     await expect(page.getByText("지금 처리할 일").first()).toBeVisible();
     expect(errors, `console errors: ${errors.join("\n")}`).toHaveLength(0);
     expect(netFails, `net fails: ${netFails.map((n) => `${n.method} ${n.status} ${n.url}`).join("\n")}`).toHaveLength(0);

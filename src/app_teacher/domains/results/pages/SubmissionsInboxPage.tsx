@@ -189,7 +189,7 @@ export default function SubmissionsInboxPage() {
                 <div className="flex-1 min-w-0">
                   <div className="text-[13px] font-semibold truncate" style={{ color: "var(--tc-text)" }}>
                     {[
-                      r.student_name?.trim() || (r.status === "needs_identification" ? "식별 대기" : "이름 미상"),
+                      r.student_name?.trim() || "이름 미상",
                       r.target_title?.trim() || `${isExam ? "시험" : "과제"} #${r.id}`,
                     ].join(" · ")}
                   </div>
