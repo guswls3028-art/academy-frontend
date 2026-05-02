@@ -199,9 +199,12 @@ export default function HitReportEditor({ docId, onClose }: Props) {
   );
   const dirtyCount = dirtyEntries.length + (headerDirty ? 1 : 0);
 
-  const saveAll = useCallback(async (): Promise<boolean> => {
+  // saveAll — silent=true면 성공 토스트 생략 (자동저장에서 사용).
+  // 실패는 항상 토스트 (사용자가 데이터 손실 인지해야 함).
+  const saveAll = useCallback(async (silent: boolean = false): Promise<boolean> => {
     if (!reportId) return false;
     if (isSubmitted) return false;
+    if (saving) return false;  // race 방지 — autosave + manual 동시 호출 시 중복 PUT 차단
     setSaving(true);
     try {
       if (headerDirty) {
@@ -230,7 +233,7 @@ export default function HitReportEditor({ docId, onClose }: Props) {
           return next;
         });
       }
-      feedback.success("보고서 저장 완료");
+      if (!silent) feedback.success("보고서 저장 완료");
       return true;
     } catch (e) {
       console.error(e);
@@ -239,15 +242,16 @@ export default function HitReportEditor({ docId, onClose }: Props) {
     } finally {
       setSaving(false);
     }
-  }, [dirtyEntries, headerDirty, isSubmitted, reportId, reportTitle, reportSummary]);
+  }, [dirtyEntries, headerDirty, isSubmitted, reportId, reportTitle, reportSummary, saving]);
 
   // 자동 저장 — dirty 후 1.5초 동안 추가 변경 없으면 자동 백엔드 동기화. 데이터 손실 방지.
+  // silent=true로 토스트 노이즈 방지 (헤더 "저장됨" 표시로 충분).
   useEffect(() => {
     if (isSubmitted || !reportId) return;
     const dirtyAnyEntries = Object.values(entries).some((e) => e.dirty);
     if (!dirtyAnyEntries && !headerDirty) return;
     const timer = setTimeout(() => {
-      void saveAll();
+      void saveAll(true);
     }, 1500);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -261,7 +265,10 @@ export default function HitReportEditor({ docId, onClose }: Props) {
       feedback.info("이미 제출된 보고서입니다.");
       return;
     }
-    if (!confirm("보고서를 제출하시겠습니까? 제출 후에는 수정이 잠깁니다.")) return;
+    const confirmMsg = dirtyCount > 0
+      ? `미저장 ${dirtyCount}건을 자동 저장하고 제출합니다. 제출 후에는 수정이 잠깁니다. 진행할까요?`
+      : "보고서를 제출하시겠습니까? 제출 후에는 수정이 잠깁니다.";
+    if (!confirm(confirmMsg)) return;
     setSubmitting(true);
     try {
       if (dirtyCount > 0) {
@@ -282,12 +289,15 @@ export default function HitReportEditor({ docId, onClose }: Props) {
     }
   }, [dirtyCount, isSubmitted, reportId, saveAll]);
 
+  const [pdfDownloading, setPdfDownloading] = useState(false);
   const downloadPdf = useCallback(async () => {
     if (!reportId) return;
+    if (pdfDownloading) return;  // 중복 클릭 방지
     if (dirtyCount > 0) {
       const ok = await saveAll();
       if (!ok) return;
     }
+    setPdfDownloading(true);
     try {
       const resp = await api.get(`/matchup/hit-reports/${reportId}/curated.pdf`, {
         responseType: "blob",
@@ -302,11 +312,17 @@ export default function HitReportEditor({ docId, onClose }: Props) {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
+      feedback.success("PDF 다운로드 완료");
     } catch (e) {
       console.error(e);
-      feedback.error("PDF 생성 실패");
+      const errMsg = (e as { response?: { status?: number } })?.response?.status === 504
+        ? "PDF 생성 시간 초과 — 후보가 너무 많거나 서버 부하. 잠시 후 재시도하세요."
+        : "PDF 생성 실패";
+      feedback.error(errMsg);
+    } finally {
+      setPdfDownloading(false);
     }
-  }, [dirtyCount, documentTitle, reportId, reportTitle, saveAll]);
+  }, [dirtyCount, documentTitle, reportId, reportTitle, saveAll, pdfDownloading]);
 
   // 키보드 네비
   useEffect(() => {
@@ -405,9 +421,9 @@ export default function HitReportEditor({ docId, onClose }: Props) {
               <Save size={12} style={{ marginRight: 4 }} />
               저장
             </Button>
-            <Button size="sm" intent="ghost" onClick={() => void downloadPdf()} disabled={saving}>
+            <Button size="sm" intent="ghost" onClick={() => void downloadPdf()} disabled={saving || pdfDownloading}>
               <FileText size={12} style={{ marginRight: 4 }} />
-              PDF 다운로드
+              {pdfDownloading ? "PDF 생성 중…" : "PDF 다운로드"}
             </Button>
             <Button size="sm" intent="primary" onClick={() => void submit()} disabled={submitting || isSubmitted}>
               <Send size={12} style={{ marginRight: 4 }} />
