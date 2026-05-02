@@ -419,6 +419,26 @@ export async function manualCropMatchupProblem(
   return data;
 }
 
+// 같은 doc의 problem N개를 1개로 합치기 — 시험지에서 한 문항이 컬럼/페이지 경계에
+// 걸쳐 자동분리에 의해 쪼개진 경우의 운영자 복구 도구.
+//   problem_ids 순서 = 위→아래 stack 순서 (첫 번째가 primary).
+//   target_number 미지정 시 min(numbers) 사용.
+export async function mergeMatchupProblems(
+  docId: number,
+  problemIds: number[],
+  targetNumber?: number,
+): Promise<MatchupProblem> {
+  const { data } = await api.post<MatchupProblem>(
+    `/matchup/documents/${docId}/merge-problems/`,
+    {
+      problem_ids: problemIds,
+      ...(typeof targetNumber === "number" ? { target_number: targetNumber } : {}),
+    },
+    { timeout: 90_000 },
+  );
+  return data;
+}
+
 // 클립보드/파일 이미지를 problem으로 직접 등록 (PDF 페이지 매뉴얼 크롭 경유 안 함).
 // 직접 촬영본·외부 크롭 이미지·메신저 캡처용.
 export async function pasteImageAsMatchupProblem(
