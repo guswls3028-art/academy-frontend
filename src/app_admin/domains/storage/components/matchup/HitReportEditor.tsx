@@ -374,7 +374,7 @@ export default function HitReportEditor({ docId, onClose }: Props) {
             시험지에 등록된 문항이 없습니다.
           </div>
         ) : (
-          <div style={{ flex: 1, display: "grid", gridTemplateColumns: "200px 1fr 1fr", overflow: "hidden", minHeight: 0 }}>
+          <div style={{ flex: 1, display: "grid", gridTemplateColumns: "180px 1fr 1.2fr", overflow: "hidden", minHeight: 0 }}>
             {/* 좌: 문항 사이드 — 번호+썸네일 리스트 */}
             <div style={{
               borderRight: "1px solid var(--color-border-divider)",
@@ -679,15 +679,17 @@ function CandidateRow({
       {imageUrl ? (
         <img src={imageUrl} alt={title}
           style={{
-            width: 80, height: 100, objectFit: "cover", borderRadius: 4,
+            width: 280, height: 360, objectFit: "contain",
+            objectPosition: "top center",
+            borderRadius: 4, background: "white",
             border: "1px solid var(--color-border-divider)", flexShrink: 0,
           }} />
       ) : (
         <div style={{
-          width: 80, height: 100, borderRadius: 4, flexShrink: 0,
+          width: 280, height: 360, borderRadius: 4, flexShrink: 0,
           background: "var(--color-bg-surface-soft)",
           display: "flex", alignItems: "center", justifyContent: "center",
-          color: "var(--color-text-muted)", fontSize: 9,
+          color: "var(--color-text-muted)", fontSize: 11,
         }}>
           이미지 없음
         </div>
