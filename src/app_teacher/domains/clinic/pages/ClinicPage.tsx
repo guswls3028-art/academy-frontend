@@ -22,6 +22,8 @@ import {
 import AddParticipantSheet from "../components/AddParticipantSheet";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
+import { useSectionMode } from "@/shared/hooks/useSectionMode";
+import { fetchAllSections, type Section } from "@admin/domains/lectures/api/sections";
 
 function durationMinutes(start: string, end: string): number {
   const [sh, sm] = start.split(":").map(Number);
@@ -368,12 +370,25 @@ function ClinicIcon() {
 /* ─── Clinic Session Create Sheet ─── */
 function ClinicSessionFormSheet({ open, onClose, defaultDate }: { open: boolean; onClose: () => void; defaultDate: string }) {
   const qc = useQueryClient();
+  const { sectionMode, clinicMode } = useSectionMode();
+  const showSectionPicker = sectionMode && clinicMode === "regular";
+
   const [title, setTitle] = useState("");
   const [date, setDate] = useState(defaultDate);
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
   const [location, setLocation] = useState("");
   const [capacity, setCapacity] = useState("10");
+  const [sectionId, setSectionId] = useState<number | null>(null);
+
+  // 정규형 클리닉일 때만 CLINIC type section 목록 조회
+  const sectionsQ = useQuery<Section[]>({
+    queryKey: ["teacher-clinic-sections-regular"],
+    queryFn: () => fetchAllSections({ section_type: "CLINIC" }),
+    enabled: open && showSectionPicker,
+    staleTime: 60_000,
+  });
+  const activeSections = (sectionsQ.data ?? []).filter((s) => s.is_active);
 
   const capacityNum = Number(capacity);
   const duration = startTime && endTime ? durationMinutes(startTime, endTime) : 60;
@@ -392,11 +407,12 @@ function ClinicSessionFormSheet({ open, onClose, defaultDate }: { open: boolean;
       duration_minutes: duration,
       location: location.trim(),
       max_participants: capacityNum,
+      ...(showSectionPicker ? { section: sectionId } : {}),
     }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["teacher-clinic-sessions"] });
       teacherToast.success("클리닉 세션이 생성되었습니다.");
-      setTitle(""); setStartTime(""); setEndTime(""); setLocation(""); setCapacity("10");
+      setTitle(""); setStartTime(""); setEndTime(""); setLocation(""); setCapacity("10"); setSectionId(null);
       onClose();
     },
     onError: (e) => teacherToast.error(extractApiError(e, "클리닉 세션을 생성하지 못했습니다.")),
@@ -406,6 +422,28 @@ function ClinicSessionFormSheet({ open, onClose, defaultDate }: { open: boolean;
     <BottomSheet open={open} onClose={onClose} title="클리닉 세션 생성">
       <div className="flex flex-col gap-2.5" style={{ padding: "var(--tc-space-3) 0" }}>
         <Fld label="세션명 (선택)" value={title} onChange={setTitle} placeholder="예: 오후 클리닉" />
+        {showSectionPicker && (
+          <div>
+            <label className="text-[11px] font-semibold block mb-1" style={{ color: "var(--tc-text-muted)" }}>반 (선택)</label>
+            <select
+              value={sectionId ?? ""}
+              onChange={(e) => setSectionId(e.target.value ? Number(e.target.value) : null)}
+              className="w-full text-sm"
+              style={{ padding: "8px 10px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border-strong)", background: "var(--tc-surface-soft)", color: "var(--tc-text)", outline: "none" }}>
+              <option value="">반 선택 없음 (전체)</option>
+              {activeSections.map((s) => (
+                <option key={s.id} value={s.id}>
+                  클리닉 {s.label}반 ({s.day_of_week_display} {s.start_time?.slice(0, 5) ?? ""})
+                </option>
+              ))}
+            </select>
+            {activeSections.length === 0 && !sectionsQ.isLoading && (
+              <div className="text-[11px] mt-1" style={{ color: "var(--tc-text-muted)" }}>
+                클리닉반이 없습니다. PC에서 강의 상세 → 반 편성으로 먼저 생성하세요.
+              </div>
+            )}
+          </div>
+        )}
         <Fld label="날짜 *" value={date} onChange={setDate} type="date" />
         <div className="flex gap-2">
           <Fld label="시작 *" value={startTime} onChange={setStartTime} type="time" />
