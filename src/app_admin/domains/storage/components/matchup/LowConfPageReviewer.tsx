@@ -106,13 +106,14 @@ export default function LowConfPageReviewer({
   const allPages = pagesQuery.data?.pages ?? [];
   const activePageData = allPages.find((p) => p.index === activeIdx) ?? allPages[0];
   const activeMeta = lowConfPages.find((p) => p.idx === activeIdx);
-  const allProblems = problemsQuery.data ?? [];
-  const problemsOnPage = useMemo(
-    () => allProblems.filter(
+  // problemsQuery.data를 직접 dep으로 — `?? []` logical expression은
+  // 매 렌더마다 새 배열 참조라 react-hooks/exhaustive-deps 경고를 깨뜨림.
+  const problemsOnPage = useMemo(() => {
+    const list = problemsQuery.data ?? [];
+    return list.filter(
       (p) => (p.meta as Record<string, unknown> | null)?.page_index === activeIdx,
-    ),
-    [allProblems, activeIdx],
-  );
+    );
+  }, [problemsQuery.data, activeIdx]);
 
   // ESC 닫기
   useEffect(() => {

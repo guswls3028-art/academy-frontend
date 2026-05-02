@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-syntax -- R-11 baseline: 기존 파일 인라인 style 64건 잔존. CSS 모듈 이전은 별도 리팩터 작업. */
 // PATH: src/app_admin/domains/storage/components/matchup/ManualCropModal.tsx
 //
 // 수동 문항 자르기 모달.
@@ -169,7 +170,9 @@ export default function ManualCropModal({ document: doc, onClose, initialPage }:
 
   const pages = pagesQuery.data?.pages ?? [];
   const activePageData = pages[activePage];
-  const problems = problemsQuery.data ?? [];
+  // problemsQuery.data를 useMemo 안에서 사용 — `?? []` logical은 매 렌더 새 참조라
+  // exhaustive-deps strict warn (이전 baseline 잔존, 내 prop 추가로 changed 파일 진입).
+  const problems = useMemo(() => problemsQuery.data ?? [], [problemsQuery.data]);
   const problemsOnPage = useMemo(
     () => problems.filter((p) => (p.meta as Record<string, unknown> | null)?.page_index === activePage),
     [problems, activePage],
