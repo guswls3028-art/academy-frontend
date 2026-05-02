@@ -6,6 +6,7 @@ import { fetchMessageTemplates, sendMessage } from "../api";
 import type { MessageTemplate } from "../api";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
+import { extractApiError } from "@/shared/utils/extractApiError";
 
 interface Recipient {
   id: number;
@@ -49,6 +50,7 @@ export default function SendMessageSheet({ open, onClose, recipients, sendTo = "
       teacherToast.success(`${modeLabel}가 ${recipientLabel}에게 발송되었습니다.`);
       handleClose();
     },
+    onError: (e) => teacherToast.error(extractApiError(e, "메시지를 발송하지 못했습니다.")),
   });
 
   function handleClose() {

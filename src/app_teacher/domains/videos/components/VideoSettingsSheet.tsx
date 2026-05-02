@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { updateVideo } from "../api";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
+import { teacherToast } from "@teacher/shared/ui/teacherToast";
+import { extractApiError } from "@/shared/utils/extractApiError";
 
 interface Props {
   open: boolean;
@@ -33,8 +35,10 @@ export default function VideoSettingsSheet({ open, onClose, video }: Props) {
     }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["teacher-video", video.id] });
+      teacherToast.success("영상 설정이 저장되었습니다.");
       onClose();
     },
+    onError: (e) => teacherToast.error(extractApiError(e, "영상 설정을 저장하지 못했습니다.")),
   });
 
   return (

@@ -15,6 +15,22 @@ import {
   deleteClinicSession,
 } from "../api";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
+import { extractApiError } from "@/shared/utils/extractApiError";
+
+function durationMinutes(start: string, end: string): number {
+  const [sh, sm] = start.split(":").map(Number);
+  const [eh, em] = end.split(":").map(Number);
+  let diff = eh * 60 + em - (sh * 60 + sm);
+  if (diff < 0) diff += 24 * 60;
+  return diff;
+}
+
+function toHHmmss(s: string): string {
+  const parts = s.trim().split(":");
+  const h = (parts[0] ?? "00").padStart(2, "0");
+  const m = (parts[1] ?? "00").padStart(2, "0");
+  return `${h}:${m}:00`;
+}
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
@@ -42,7 +58,11 @@ export default function ClinicPage() {
 
   const deleteMut = useMutation({
     mutationFn: deleteClinicSession,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["teacher-clinic-sessions"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["teacher-clinic-sessions"] });
+      teacherToast.success("세션이 삭제되었습니다.");
+    },
+    onError: (e) => teacherToast.error(extractApiError(e, "세션을 삭제하지 못했습니다.")),
   });
 
   const isToday = dateFrom === todayISO() && dateTo === todayISO();
@@ -216,13 +236,16 @@ function ParticipantList({ sessionId }: { sessionId: number }) {
         teacherToast.success(`출석 처리 완료 (현재 참석자 ${attendedCount}명)`);
       }
     },
+    onError: (e) => teacherToast.error(extractApiError(e, "상태를 변경하지 못했습니다.")),
   });
 
   const completeMut = useMutation({
     mutationFn: completeParticipant,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["teacher-clinic-participants", sessionId] });
+      teacherToast.success("완료 처리되었습니다.");
     },
+    onError: (e) => teacherToast.error(extractApiError(e, "완료 처리에 실패했습니다.")),
   });
 
   if (isLoading) return <div className="px-4 pb-4 text-sm" style={{ color: "var(--tc-text-muted)" }}>불러오는 중…</div>;
@@ -329,37 +352,56 @@ function ClinicSessionFormSheet({ open, onClose, defaultDate }: { open: boolean;
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
   const [location, setLocation] = useState("");
-  const [capacity, setCapacity] = useState("");
+  const [capacity, setCapacity] = useState("10");
+
+  const capacityNum = Number(capacity);
+  const duration = startTime && endTime ? durationMinutes(startTime, endTime) : 60;
+  const canSubmit =
+    !!date &&
+    !!startTime &&
+    !!location.trim() &&
+    capacityNum > 0 &&
+    (!endTime || duration > 0);
 
   const mutation = useMutation({
     mutationFn: () => createClinicSession({
-      title: title || "클리닉",
-      date, start_time: startTime || undefined, end_time: endTime || undefined,
-      location: location || undefined, max_capacity: capacity ? Number(capacity) : undefined,
+      title: title.trim() || undefined,
+      date,
+      start_time: toHHmmss(startTime),
+      duration_minutes: duration,
+      location: location.trim(),
+      max_participants: capacityNum,
     }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["teacher-clinic-sessions"] });
-      setTitle(""); setStartTime(""); setEndTime(""); setLocation(""); setCapacity("");
+      teacherToast.success("클리닉 세션이 생성되었습니다.");
+      setTitle(""); setStartTime(""); setEndTime(""); setLocation(""); setCapacity("10");
       onClose();
     },
+    onError: (e) => teacherToast.error(extractApiError(e, "클리닉 세션을 생성하지 못했습니다.")),
   });
 
   return (
     <BottomSheet open={open} onClose={onClose} title="클리닉 세션 생성">
       <div className="flex flex-col gap-2.5" style={{ padding: "var(--tc-space-3) 0" }}>
-        <Fld label="세션명" value={title} onChange={setTitle} placeholder="예: 오후 클리닉" />
-        <Fld label="날짜" value={date} onChange={setDate} type="date" />
+        <Fld label="세션명 (선택)" value={title} onChange={setTitle} placeholder="예: 오후 클리닉" />
+        <Fld label="날짜 *" value={date} onChange={setDate} type="date" />
         <div className="flex gap-2">
-          <Fld label="시작" value={startTime} onChange={setStartTime} type="time" />
+          <Fld label="시작 *" value={startTime} onChange={setStartTime} type="time" />
           <Fld label="종료" value={endTime} onChange={setEndTime} type="time" />
         </div>
+        {endTime && duration <= 0 && (
+          <div className="text-[11px]" style={{ color: "var(--tc-danger)" }}>
+            종료 시간은 시작 시간 이후여야 합니다.
+          </div>
+        )}
         <div className="flex gap-2">
-          <Fld label="장소" value={location} onChange={setLocation} placeholder="예: 3층 자습실" />
-          <div style={{ width: 80 }}><Fld label="정원" value={capacity} onChange={setCapacity} type="number" placeholder="명" /></div>
+          <Fld label="장소 *" value={location} onChange={setLocation} placeholder="예: 3층 자습실" />
+          <div style={{ width: 80 }}><Fld label="정원 *" value={capacity} onChange={setCapacity} type="number" placeholder="명" /></div>
         </div>
-        <button onClick={() => mutation.mutate()} disabled={!date || mutation.isPending}
+        <button onClick={() => mutation.mutate()} disabled={!canSubmit || mutation.isPending}
           className="w-full text-sm font-bold cursor-pointer mt-1"
-          style={{ padding: "12px", borderRadius: "var(--tc-radius)", border: "none", background: date ? "var(--tc-primary)" : "var(--tc-surface-soft)", color: date ? "#fff" : "var(--tc-text-muted)" }}>
+          style={{ padding: "12px", borderRadius: "var(--tc-radius)", border: "none", background: canSubmit ? "var(--tc-primary)" : "var(--tc-surface-soft)", color: canSubmit ? "#fff" : "var(--tc-text-muted)" }}>
           {mutation.isPending ? "생성 중..." : "생성"}
         </button>
       </div>

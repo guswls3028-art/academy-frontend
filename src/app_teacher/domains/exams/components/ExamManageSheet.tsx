@@ -5,6 +5,8 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { updateExam, deleteExam } from "../api";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
 import { Upload } from "@teacher/shared/ui/Icons";
+import { teacherToast } from "@teacher/shared/ui/teacherToast";
+import { extractApiError } from "@/shared/utils/extractApiError";
 import api from "@/shared/api/axios";
 
 interface Props {
@@ -25,26 +27,31 @@ export default function ExamManageSheet({ open, onClose, exam, onDeleted }: Prop
   const editMut = useMutation({
     mutationFn: () => updateExam(exam.id, { title, pass_score: passScore ? Number(passScore) : undefined }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["teacher-exams"] }); setMsg("저장됨"); },
+    onError: (e) => teacherToast.error(extractApiError(e, "시험을 수정하지 못했습니다.")),
   });
 
   const deleteMut = useMutation({
     mutationFn: () => deleteExam(exam.id),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["teacher-exams"] }); onDeleted(); onClose(); },
+    onError: (e) => teacherToast.error(extractApiError(e, "시험을 삭제하지 못했습니다.")),
   });
 
   const toggleMut = useMutation({
     mutationFn: () => updateExam(exam.id, { is_active: !exam.is_active }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["teacher-exams"] }); setMsg(exam.is_active ? "시험 닫힘" : "시험 열림"); },
+    onError: (e) => teacherToast.error(extractApiError(e, "상태를 변경하지 못했습니다.")),
   });
 
   const recalcMut = useMutation({
     mutationFn: () => api.post(`/exams/${exam.id}/recalculate/`),
     onSuccess: () => setMsg("재계산 완료"),
+    onError: (e) => teacherToast.error(extractApiError(e, "재계산을 실행하지 못했습니다.")),
   });
 
   const saveTemplateMut = useMutation({
     mutationFn: () => api.post(`/exams/${exam.id}/save-as-template/`),
     onSuccess: () => setMsg("템플릿으로 저장됨"),
+    onError: (e) => teacherToast.error(extractApiError(e, "템플릿으로 저장하지 못했습니다.")),
   });
 
   // 정답 등록: "1:2,2:3,3:1" 형식 → { "1":"2", "2":"3", "3":"1" }
@@ -58,7 +65,7 @@ export default function ExamManageSheet({ open, onClose, exam, onDeleted }: Prop
       return api.post(`/exams/answer-keys/`, { exam: exam.id, answers });
     },
     onSuccess: () => { setMsg("정답 등록됨"); setAnswerKey(""); },
-    onError: () => setMsg("정답 등록 실패"),
+    onError: (e) => teacherToast.error(extractApiError(e, "정답을 등록하지 못했습니다.")),
   });
 
   const uploadAssetMut = useMutation({
@@ -69,7 +76,7 @@ export default function ExamManageSheet({ open, onClose, exam, onDeleted }: Prop
       return api.post(`/exams/${exam.id}/assets/`, formData, { headers: { "Content-Type": "multipart/form-data" } });
     },
     onSuccess: () => setMsg("파일 업로드 완료"),
-    onError: () => setMsg("업로드 실패"),
+    onError: (e) => teacherToast.error(extractApiError(e, "파일 업로드에 실패했습니다.")),
   });
 
   if (!exam) return null;

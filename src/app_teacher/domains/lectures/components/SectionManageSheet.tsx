@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
 import { Plus, Trash2 } from "@teacher/shared/ui/Icons";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
+import { extractApiError } from "@/shared/utils/extractApiError";
 import api from "@/shared/api/axios";
 
 interface Props {
@@ -29,11 +30,13 @@ export default function SectionManageSheet({ open, onClose, lectureId }: Props) 
   const createSectionMut = useMutation({
     mutationFn: () => api.post("/lectures/sections/", { lecture: lectureId, label: newLabel, section_type: "CLASS" }),
     onSuccess: () => { teacherToast.success(`${newLabel} 반이 생성되었습니다.`); setNewLabel(""); qc.invalidateQueries({ queryKey: ["lecture-sections", lectureId] }); },
+    onError: (e) => teacherToast.error(extractApiError(e, "반을 생성하지 못했습니다.")),
   });
 
   const deleteSectionMut = useMutation({
     mutationFn: (id: number) => api.delete(`/lectures/sections/${id}/`),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["lecture-sections", lectureId] }); teacherToast.info("반이 삭제되었습니다."); },
+    onError: (e) => teacherToast.error(extractApiError(e, "반을 삭제하지 못했습니다.")),
   });
 
   return (

@@ -7,6 +7,7 @@ import BottomSheet from "@teacher/shared/ui/BottomSheet";
 import MobileRichEditor from "@teacher/shared/ui/MobileRichEditor";
 import { AlertCircle, ChevronDown, Paperclip, X, Bell } from "@teacher/shared/ui/Icons";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
+import { extractApiError } from "@/shared/utils/extractApiError";
 import api from "@/shared/api/axios";
 
 interface Props {
@@ -115,6 +116,7 @@ export default function CreatePostSheet({ open, onClose, postType, postTypeLabel
       teacherToast.success(`${postTypeLabel}이 등록되었습니다.${notifyMsg}`);
       resetAndClose();
     },
+    onError: (e) => teacherToast.error(extractApiError(e, `${postTypeLabel}을 등록하지 못했습니다.`)),
   });
 
   const resetAndClose = () => {
@@ -296,11 +298,6 @@ export default function CreatePostSheet({ open, onClose, postType, postTypeLabel
           {mutation.isPending ? "작성 중..." : `${postTypeLabel} 등록`}
         </button>
 
-        {mutation.isError && (
-          <div className="text-[12px] text-center" style={{ color: "var(--tc-danger)" }}>
-            작성에 실패했습니다. 다시 시도해주세요.
-          </div>
-        )}
       </div>
     </BottomSheet>
   );

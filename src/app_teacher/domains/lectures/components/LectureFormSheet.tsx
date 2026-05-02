@@ -5,6 +5,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createLecture, updateLecture } from "../api";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
+import { extractApiError } from "@/shared/utils/extractApiError";
 
 const COLORS = ["#3b82f6", "#ef4444", "#22c55e", "#f59e0b", "#8b5cf6", "#ec4899", "#06b6d4", "#f97316"];
 
@@ -57,6 +58,7 @@ export default function LectureFormSheet({ open, onClose, editData }: Props) {
       teacherToast.success(isEdit ? `${title} 강의가 수정되었습니다.` : `${title} 강의가 생성되었습니다.`);
       onClose();
     },
+    onError: (e) => teacherToast.error(extractApiError(e, isEdit ? "강의를 수정하지 못했습니다." : "강의를 생성하지 못했습니다.")),
   });
 
   const canSubmit = title.trim().length > 0 && !mutation.isPending;
@@ -94,9 +96,6 @@ export default function LectureFormSheet({ open, onClose, editData }: Props) {
           {mutation.isPending ? "저장 중..." : isEdit ? "수정" : "생성"}
         </button>
 
-        {mutation.isError && (
-          <div className="text-[12px] text-center" style={{ color: "var(--tc-danger)" }}>저장 실패. 다시 시도해주세요.</div>
-        )}
       </div>
     </BottomSheet>
   );

@@ -38,12 +38,15 @@ export async function completeParticipant(participantId: number) {
 
 /* ─── Session CRUD ─── */
 export async function createClinicSession(payload: {
-  title: string;
+  title?: string;
   date: string;
-  start_time?: string;
-  end_time?: string;
-  location?: string;
-  max_capacity?: number;
+  start_time: string;
+  duration_minutes?: number;
+  location: string;
+  max_participants: number;
+  target_grade?: number | null;
+  target_school_type?: string | null;
+  section?: number | null;
 }) {
   const res = await api.post("/clinic/sessions/", payload);
   return res.data;

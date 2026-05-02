@@ -5,6 +5,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
 import api from "@/shared/api/axios";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
+import { extractApiError } from "@/shared/utils/extractApiError";
 
 interface Props {
   open: boolean;
@@ -40,6 +41,7 @@ export default function CreateStudentSheet({ open, onClose }: Props) {
       teacherToast.success(`${name} 학생이 등록되었습니다.`);
       resetAndClose();
     },
+    onError: (e) => teacherToast.error(extractApiError(e, "학생을 등록하지 못했습니다.")),
   });
 
   const resetAndClose = () => {
@@ -88,9 +90,6 @@ export default function CreateStudentSheet({ open, onClose }: Props) {
           {mutation.isPending ? "등록 중..." : "등록"}
         </button>
 
-        {mutation.isError && (
-          <div className="text-[12px] text-center" style={{ color: "var(--tc-danger)" }}>등록 실패. 다시 시도해주세요.</div>
-        )}
       </div>
     </BottomSheet>
   );

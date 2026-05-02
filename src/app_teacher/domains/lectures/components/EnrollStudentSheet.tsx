@@ -7,6 +7,7 @@ import { fetchStudents } from "@teacher/domains/students/api";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
 import { Search, Check, Plus } from "@teacher/shared/ui/Icons";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
+import { extractApiError } from "@/shared/utils/extractApiError";
 
 interface Props {
   open: boolean;
@@ -37,6 +38,7 @@ export default function EnrollStudentSheet({ open, onClose, lectureId, enrolledS
       setSelected([]);
       onClose();
     },
+    onError: (e) => teacherToast.error(extractApiError(e, "수강 등록을 처리하지 못했습니다.")),
   });
 
   const toggle = (id: number) => {

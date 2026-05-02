@@ -5,6 +5,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createSession, updateSession } from "../api";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
+import { extractApiError } from "@/shared/utils/extractApiError";
 
 interface Props {
   open: boolean;
@@ -44,6 +45,7 @@ export default function SessionFormSheet({ open, onClose, lectureId, editData }:
       teacherToast.success(isEdit ? `${title} 차시가 수정되었습니다.` : `${title} 차시가 추가되었습니다.`);
       onClose();
     },
+    onError: (e) => teacherToast.error(extractApiError(e, isEdit ? "차시를 수정하지 못했습니다." : "차시를 추가하지 못했습니다.")),
   });
 
   return (

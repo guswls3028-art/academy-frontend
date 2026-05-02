@@ -5,6 +5,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createRegularExam, createHomework } from "../api";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
+import { extractApiError } from "@/shared/utils/extractApiError";
 
 interface Props {
   open: boolean;
@@ -31,6 +32,7 @@ export default function ExamFormSheet({ open, onClose, mode }: Props) {
       setTitle(""); setMaxScore("100"); setDescription("");
       onClose();
     },
+    onError: (e) => teacherToast.error(extractApiError(e, `${label}을 생성하지 못했습니다.`)),
   });
 
   const label = mode === "exam" ? "시험" : "과제";
