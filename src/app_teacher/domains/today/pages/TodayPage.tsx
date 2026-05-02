@@ -113,18 +113,25 @@ export default function TodayPage() {
         />
       </div>
 
-      {/* === 지금 처리할 일 === */}
+      {/* === 지금 처리할 일 ===
+          알림 센터와 동일 데이터. Today는 빠른 진입점, 알림 센터는 카테고리별 처리 가이드.
+          사용자 멘탈 모델 정리를 위해 우측에 "전체 보기" 링크 추가. */}
       <SectionTitle
         right={
-          pendingItems.length > 0 ? (
-            <Badge tone="danger" pill>
-              {pendingTotal}건
-            </Badge>
-          ) : (
-            <Badge tone="success" pill size="xs">
-              비어있음
-            </Badge>
-          )
+          <div className="flex items-center gap-2">
+            {pendingItems.length > 0 ? (
+              <Badge tone="danger" pill>{pendingTotal}건</Badge>
+            ) : (
+              <Badge tone="success" pill size="xs">비어있음</Badge>
+            )}
+            <button
+              onClick={() => navigate("/teacher/notifications")}
+              className="text-[11px] cursor-pointer"
+              style={{ background: "none", border: "none", color: "var(--tc-text-muted)", padding: "2px 4px" }}
+            >
+              전체 보기 →
+            </button>
+          </div>
         }
       >
         지금 처리할 일

@@ -76,6 +76,13 @@ export default function NotificationsPage() {
         )}
       </div>
 
+      {/* SSOT 안내: 같은 데이터를 Today에서도 빠르게 확인 가능 */}
+      {!isLoading && items.length > 0 && (
+        <div className="text-[11px]" style={{ color: "var(--tc-text-muted)", padding: "0 var(--tc-space-1)" }}>
+          홈 화면 &lsquo;지금 처리할 일&rsquo;과 동일 데이터입니다. 도메인별 처리 경로를 한눈에 보여줍니다.
+        </div>
+      )}
+
       {isLoading ? (
         <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
       ) : items.length > 0 ? (

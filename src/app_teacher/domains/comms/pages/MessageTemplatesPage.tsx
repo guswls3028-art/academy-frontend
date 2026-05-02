@@ -1,7 +1,7 @@
 /* eslint-disable no-restricted-syntax, @typescript-eslint/no-unused-vars */
 // PATH: src/app_teacher/domains/comms/pages/MessageTemplatesPage.tsx
 // 메시지 템플릿 관리 + 메시지 설정 + 잔액 확인
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState } from "@/shared/ui/ds";
@@ -24,6 +24,28 @@ export default function MessageTemplatesPage() {
     queryKey: ["teacher-msg-templates"],
     queryFn: fetchAllTemplates,
   });
+
+  // 시스템 템플릿 우선 → 카테고리 → 이름 가나다순. 운영 화면에서 시스템 템플릿이 먼저 보이도록.
+  const sortedTemplates = useMemo(() => {
+    if (!templates) return [];
+    return [...templates].sort((a, b) => {
+      if (a.is_system !== b.is_system) return a.is_system ? -1 : 1;
+      if (a.category !== b.category) return (a.category || "").localeCompare(b.category || "");
+      return (a.name || "").localeCompare(b.name || "");
+    });
+  }, [templates]);
+
+  // 같은 이름 중복 — 사용자 템플릿만 검사. 시스템은 제외(다른 카테고리로 같은 이름일 수 있음).
+  const duplicateNameSet = useMemo(() => {
+    const seen = new Map<string, number>();
+    (templates ?? []).forEach((t) => {
+      if (t.is_system) return;
+      const key = (t.name || "").trim();
+      if (!key) return;
+      seen.set(key, (seen.get(key) ?? 0) + 1);
+    });
+    return new Set(Array.from(seen.entries()).filter(([, c]) => c > 1).map(([k]) => k));
+  }, [templates]);
 
   const { data: info } = useQuery({
     queryKey: ["teacher-messaging-info"],
@@ -78,17 +100,20 @@ export default function MessageTemplatesPage() {
       {/* Template list */}
       {isLoading ? (
         <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
-      ) : templates && templates.length > 0 ? (
+      ) : sortedTemplates.length > 0 ? (
         <div className="flex flex-col gap-2">
-          {templates.map((t) => (
+          {sortedTemplates.map((t) => (
             <Card key={t.id} style={{ padding: "var(--tc-space-3) var(--tc-space-4)" }}>
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1.5 flex-wrap">
                     <span className="text-sm font-semibold" style={{ color: "var(--tc-text)" }}>{t.name}</span>
                     <Badge tone="neutral" size="xs">{t.category}</Badge>
                     {t.is_system && <Badge tone="primary" size="xs">시스템</Badge>}
                     {t.is_default && <Badge tone="success" size="xs">기본</Badge>}
+                    {duplicateNameSet.has((t.name || "").trim()) && (
+                      <Badge tone="warning" size="xs">이름 중복</Badge>
+                    )}
                   </div>
                   <div className="text-[12px] mt-1 line-clamp-2" style={{ color: "var(--tc-text-muted)" }}>
                     {t.body}
