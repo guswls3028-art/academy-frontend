@@ -1,11 +1,14 @@
 /* eslint-disable no-restricted-syntax, @typescript-eslint/no-explicit-any */
 // PATH: src/app_teacher/domains/clinic/pages/ClinicPage.tsx
-// 클리닉 — 오늘의 세션 + 참가자 관리 (section_mode 전용)
+// 클리닉 — 오늘의 세션 + 참가자 관리
 // R-11: 기존 인라인 style/any baseline. 이 파일 마이그레이션은 별도 백로그.
+//
+// sectionMode 가드 제거(2026-05-02): PC 어드민 ClinicHomePage는 sectionMode 무관하게
+// 동작하는데 모바일만 sectionMode=true 학원으로 가렸음. 림글리쉬(sectionMode=false)
+// 처럼 클리닉 운영 중인 학원에서 모바일 페이지가 EmptyState로 가려져 신고 발생.
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState } from "@/shared/ui/ds";
-import { useSectionMode } from "@/shared/hooks/useSectionMode";
 import { Plus, ChevronLeft, ChevronRight } from "@teacher/shared/ui/Icons";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
 import {
@@ -45,7 +48,6 @@ function addDays(dateStr: string, days: number) {
 }
 
 export default function ClinicPage() {
-  const { sectionMode } = useSectionMode();
   const qc = useQueryClient();
   const [dateFrom, setDateFrom] = useState(todayISO());
   const [dateTo, setDateTo] = useState(todayISO());
@@ -68,15 +70,6 @@ export default function ClinicPage() {
   });
 
   const isToday = dateFrom === todayISO() && dateTo === todayISO();
-
-  if (!sectionMode) {
-    return (
-      <div className="flex flex-col gap-3">
-        <h2 className="text-base font-bold py-1" style={{ color: "var(--tc-text)" }}>클리닉</h2>
-        <EmptyState scope="panel" tone="empty" title="이 학원에서는 클리닉 기능을 사용하지 않습니다" />
-      </div>
-    );
-  }
 
   return (
     <div className="flex flex-col gap-3">
