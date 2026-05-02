@@ -579,12 +579,14 @@ export async function fetchJobProgress(
   }
 }
 
-// ── Curated Hit Report (사람이 큐레이션한 적중 보고서) ──
+// ── 매치업 적중 보고서 (강사 1인의 3중 역할 산출물) ──
 //
-// 비즈니스 흐름:
-//   실장이 시험지 doc 단위로 매치업 자동 후보를 검토 → 적합한 학원 자료를 골라
-//   코멘트·해설을 작성 → 선생/학원장에게 제출 → PDF 출력해 학원 운영 보고서로 사용.
-// 자동 hit-report.pdf와 분리: 자동은 마케팅용, 큐레이션은 학원 내부/제출용.
+// 정체성 (2026-05-03~):
+//   프리랜서 강사 1인이 작성하는 보고서. 동일 PDF가 동시에 3 역할.
+//     ① 수업 히스토리 (강사 자기 검토)
+//     ② 제출 리포트 (소속 학원 KPI)
+//     ③ 신뢰자료+홍보물 (강사 개인 브랜딩, 카페·면담 등)
+//   좌 = 학생 제출 시험지 / 우 = 강사 본인 수업자료. 카테고리당 시험지 1장 + 강사 1명 = 보고서 1건.
 
 export type HitReportEntry = {
   id: number;
@@ -601,15 +603,62 @@ export type HitReport = {
   document_id: number;
   document_title: string;
   document_category: string;
+  // 작성 강사 정체성 — 보고서의 1순위 메타데이터.
+  author_id: number | null;
+  author_name: string;
   title: string;
   summary: string;
   status: "draft" | "submitted";
   submitted_at: string | null;
+  // deprecated — author_name 사용. 호환을 위해 응답에 포함.
   submitted_by_name: string;
   entries: HitReportEntry[];
   created_at: string;
   updated_at: string;
 };
+
+// 강사별 보고서 누적 리스트 — 수업 히스토리 + 제출 KPI 동선.
+export type HitReportListItem = {
+  id: number;
+  document_id: number;
+  document_title: string;
+  document_category: string;
+  author_id: number | null;
+  author_name: string;
+  title: string;
+  status: "draft" | "submitted";
+  submitted_at: string | null;
+  exam_count: number;
+  curated_count: number;
+  curated_progress: number;  // 0~100, 작성률(%).
+  created_at: string;
+  updated_at: string;
+};
+
+export type HitReportListResponse = {
+  reports: HitReportListItem[];
+  summary: {
+    total: number;
+    submitted: number;
+    drafts: number;
+  };
+};
+
+export async function fetchHitReportList(params?: {
+  mine?: boolean;
+  status?: "draft" | "submitted";
+  category?: string;
+}): Promise<HitReportListResponse> {
+  const q: Record<string, string> = {};
+  if (params?.mine) q.mine = "1";
+  if (params?.status) q.status = params.status;
+  if (params?.category) q.category = params.category;
+  const { data } = await api.get<HitReportListResponse>(
+    "/matchup/hit-reports/",
+    { params: q },
+  );
+  return data;
+}
 
 export type HitReportCandidate = {
   id: number;

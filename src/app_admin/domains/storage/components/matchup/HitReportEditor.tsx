@@ -1,12 +1,14 @@
 // PATH: src/app_admin/domains/storage/components/matchup/HitReportEditor.tsx
-// 큐레이션 적중 보고서 편집기.
-// 비즈니스: 실장이 시험지 문항별로 후보 자료 중 적합한 것을 골라 코멘트를 작성 →
-// 선생/학원장에게 제출 + PDF 출력.
+// 매치업 적중 보고서 편집기 — 강사 1인의 3중 역할 산출물 (정체성 정정 2026-05-03).
+//
+// 비즈니스: 강사가 본인 수업 자료 중 시험에 적중한 항목을 직접 큐레이션 + 지도 코멘트 작성
+//   → 소속 학원에 제출 (KPI) + 본인 누적 (수업 히스토리) + 카페/면담 신뢰자료/홍보물.
+// 좌 pane = 학생 제출 학교 시험지 / 우 pane = 강사 본인 수업 자료.
 //
 // UI SSOT: 미리보기는 PDF 출력과 동일한 양식.
 //   다크 헤더(Q번호 + 적중 라벨 + 유사도) + 좌/우 2-pane + 하단 코멘트 band.
 //   사용자는 우측 후보 리스트 클릭으로 active 후보를 바꿔가며 비교 미리보기,
-//   체크박스로 PDF에 들어갈 후보를 선택. 같은 양식이 그대로 PDF에 출력됨.
+//   "+ PDF에 추가" 버튼으로 PDF에 들어갈 후보를 선택.
 //
 // 인라인 스타일은 PDF pane 색상/사이즈 토큰을 동적으로 매핑(적중분류색·캡션톤)하기 위해
 // 의도적으로 사용. CSS 모듈로 옮기면 색상 매핑 함수 + className 조합이 더 복잡해지고
@@ -273,9 +275,9 @@ export default function HitReportEditor({ docId, onClose }: Props) {
       return;
     }
     const confirmMsg = dirtyCount > 0
-      ? `미저장 ${dirtyCount}건을 자동 저장하고 제출합니다. 제출 후에는 수정이 잠깁니다. 진행할까요?`
-      : "보고서를 제출하시겠습니까? 제출 후에는 수정이 잠깁니다.";
-    const ok = await confirm({ title: "보고서 제출", message: confirmMsg, confirmText: "제출", cancelText: "취소" });
+      ? `미저장 ${dirtyCount}건을 자동 저장하고 학원에 제출합니다. 제출 후에는 수정이 잠깁니다. 진행할까요?`
+      : "보고서를 학원에 제출하시겠습니까? 제출 후에는 수정이 잠깁니다.";
+    const ok = await confirm({ title: "학원에 보고서 제출", message: confirmMsg, confirmText: "제출", cancelText: "취소" });
     if (!ok) return;
     setSubmitting(true);
     try {
@@ -288,7 +290,7 @@ export default function HitReportEditor({ docId, onClose }: Props) {
       }
       const r = await submitHitReport(reportId);
       setData((prev) => (prev ? { ...prev, report: r } : prev));
-      feedback.success("선생에게 보고서가 제출되었습니다");
+      feedback.success("학원에 보고서가 제출되었습니다");
     } catch (e) {
       console.error(e);
       feedback.error("제출 실패");
@@ -406,14 +408,23 @@ export default function HitReportEditor({ docId, onClose }: Props) {
           <FileText size={18} color="var(--color-status-success)" />
           <div style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0, flex: 1 }}>
             <div style={{ fontSize: 11, color: "var(--color-text-muted)" }}>
-              {documentCategory || "미분류"}  ·  큐레이션 적중 보고서
+              {documentCategory || "미분류"}
+              {data?.report.author_name && (
+                <>
+                  {"  ·  "}
+                  <span style={{ fontWeight: 600, color: "var(--color-text-secondary)" }}>
+                    {data.report.author_name} 강사
+                  </span>
+                </>
+              )}
+              {"  ·  "}매치업 적중 보고서
               {isSubmitted && (
                 <span style={{
                   marginLeft: 8, padding: "1px 8px", borderRadius: 999,
                   background: "var(--color-status-success-bg, #dcfce7)",
                   color: "var(--color-status-success)", fontSize: 10, fontWeight: 700,
                 }}>
-                  제출됨
+                  학원 제출 완료
                 </span>
               )}
             </div>
@@ -445,7 +456,7 @@ export default function HitReportEditor({ docId, onClose }: Props) {
             </Button>
             <Button size="sm" intent="primary" onClick={() => void submit()} disabled={submitting || isSubmitted}>
               <Send size={12} style={{ marginRight: 4 }} />
-              {isSubmitted ? "제출 완료" : "선생에게 제출"}
+              {isSubmitted ? "제출 완료" : "학원에 제출"}
             </Button>
             <button
               onClick={() => void closeWithDirtyGuard()}
@@ -566,7 +577,7 @@ export default function HitReportEditor({ docId, onClose }: Props) {
               onNext={() => setActiveIndex((i) => Math.min(examProblems.length - 1, i + 1))}
             />
 
-            {/* 우: 후보 선택 리스트 — 행 클릭 = 미리보기 active / "+PDF에 추가" 버튼 = 선택 토글 */}
+            {/* 우: 강사 본인 수업자료 후보 리스트 — 행 클릭 = 미리보기 active / "+PDF에 추가" 버튼 = 선택 토글 */}
             <SelectionPanel
               active={active}
               activeCandidateId={activeCandidateId}
@@ -716,9 +727,9 @@ function PreviewPane({
           imageUrl={active.image_url || null}
           placeholderText="시험지 이미지가 없습니다"
         />
-        {/* 우 — active 후보 (적중 분류 색 cap) */}
+        {/* 우 — active 후보 (적중 분류 색 cap) — 강사 본인 수업자료 */}
         <PreviewSubPane
-          captionLabel="큐레이션 자료"
+          captionLabel="내 수업 자료"
           captionSub={activeCand
             ? `${candDocTitle}  ·  Q${activeCand.number}`
             : "우측 후보 목록에서 선택하세요"}
@@ -838,7 +849,7 @@ function SelectionPanel({
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <span style={{ fontSize: 12, fontWeight: 700, color: "var(--color-text-primary)" }}>
-            학원 자료 후보 ({active.candidates.length})
+            내 수업 자료 후보 ({active.candidates.length})
           </span>
           {selectedIds.length > 0 && (
             <span style={{

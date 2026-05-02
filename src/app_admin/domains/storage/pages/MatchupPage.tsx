@@ -4,8 +4,9 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { Sparkles, AlertTriangle, RefreshCw, Eye, FolderOpen, BookOpen, Crop, ClipboardList } from "lucide-react";
+import { Sparkles, AlertTriangle, RefreshCw, Eye, FolderOpen, BookOpen, Crop, ClipboardList, FolderTree } from "lucide-react";
 import { Button } from "@/shared/ui/ds";
+import useAuth from "@/auth/hooks/useAuth";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { asyncStatusStore } from "@/shared/ui/asyncStatus";
 import {
@@ -35,6 +36,7 @@ import ManualCropModal from "../components/matchup/ManualCropModal";
 import LowConfPageReviewer from "../components/matchup/LowConfPageReviewer";
 import MergeProblemsModal from "../components/matchup/MergeProblemsModal";
 import HitReportEditor from "../components/matchup/HitReportEditor";
+import HitReportListModal from "../components/matchup/HitReportListModal";
 import MatchupEmptyState from "../components/matchup/MatchupEmptyState";
 import {
   getDocumentIntent, getSourceType, SOURCE_TYPE_LABELS, SOURCE_TYPE_ORDER,
@@ -101,6 +103,15 @@ export default function MatchupPage() {
   const [cropInitialPage, setCropInitialPage] = useState<number | null>(null);
   const [reviewerDocId, setReviewerDocId] = useState<number | null>(null);
   const [hitReportDocId, setHitReportDocId] = useState<number | null>(null);
+  // 강사별 보고서 누적 리스트 모달 (수업 히스토리/제출 KPI/홍보물 진입점).
+  const [hitReportListOpen, setHitReportListOpen] = useState(false);
+  // 학원장 inbox 모드 vs 강사 본인 시점 결정용. user.tenantRole로 판단.
+  const { user } = useAuth();
+  const isAcademyAdmin = !!(
+    user?.is_superuser
+    || user?.tenantRole === "owner"
+    || user?.tenantRole === "admin"
+  );
   // 적중 보고서 찜 — 시험지 doc 활성 시에만. selectedProblemId(시험지 문항)별 별표 후보 problem id Set.
   // 매치업 작업 중에 후보를 찜해두면 적중 보고서 작성기 진입 시 자동 선택됨.
   const [hitReportId, setHitReportId] = useState<number | null>(null);
@@ -657,6 +668,31 @@ export default function MatchupPage() {
         <div className={css.body}>
           {/* 좌측: 문서 목록 */}
           <div className={css.tree}>
+            {/* 강사 1인 보고서 누적 진입점 — 수업 히스토리 + 제출 KPI + 신뢰자료. */}
+            <div style={/* eslint-disable-line no-restricted-syntax */ {
+              padding: "8px 10px",
+              borderBottom: "1px solid var(--color-border-divider)",
+              background: "var(--color-bg-surface-soft)",
+              display: "flex", alignItems: "center", gap: 6,
+            }}>
+              <button
+                onClick={() => setHitReportListOpen(true)}
+                title={isAcademyAdmin ? "학원 전체 보고서 inbox" : "내가 작성한 매치업 적중 보고서"}
+                style={/* eslint-disable-line no-restricted-syntax */ {
+                  flex: 1, padding: "6px 10px",
+                  display: "flex", alignItems: "center", gap: 6,
+                  fontSize: 11, fontWeight: 700,
+                  border: "1px solid var(--color-brand-primary)",
+                  borderRadius: 4,
+                  background: "color-mix(in srgb, var(--color-brand-primary) 6%, transparent)",
+                  color: "var(--color-brand-primary)",
+                  cursor: "pointer",
+                }}
+              >
+                <FolderTree size={12} />
+                {isAcademyAdmin ? "학원 보고서 inbox" : "내 적중 보고서"}
+              </button>
+            </div>
             <DocumentList
               documents={documents}
               selectedId={selectedDocId}
@@ -1479,6 +1515,17 @@ export default function MatchupPage() {
         <HitReportEditor
           docId={hitReportDocId}
           onClose={() => setHitReportDocId(null)}
+        />
+      )}
+
+      {hitReportListOpen && (
+        <HitReportListModal
+          isAdmin={isAcademyAdmin}
+          onClose={() => setHitReportListOpen(false)}
+          onOpen={(docId) => {
+            setHitReportListOpen(false);
+            setHitReportDocId(docId);
+          }}
         />
       )}
 
