@@ -523,7 +523,7 @@ export default function HitReportEditor({ docId, onClose }: Props) {
               onNext={() => setActiveIndex((i) => Math.min(examProblems.length - 1, i + 1))}
             />
 
-            {/* 우: 후보 선택 리스트 — 클릭 = 미리보기 active / 체크박스 = PDF 선택 토글 */}
+            {/* 우: 후보 선택 리스트 — 행 클릭 = 미리보기 active / "+PDF에 추가" 버튼 = 선택 토글 */}
             <SelectionPanel
               active={active}
               activeCandidateId={activeCandidateId}
@@ -808,7 +808,7 @@ function SelectionPanel({
           )}
         </div>
         <div style={{ fontSize: 10, color: "var(--color-text-muted)" }}>
-          행 클릭 = 미리보기 / 체크박스 = PDF에 포함
+          행 클릭 = 미리보기 / "+ PDF에 추가" 버튼 = 보고서에 포함
         </div>
       </div>
       <div style={{ flex: 1, overflow: "auto", padding: 8 }}>
@@ -892,11 +892,15 @@ function SelectRow({
   text: string;
 }) {
   const tierColor = TIER_COLOR[tier];
+  // 행 클릭 = 미리보기 active, 우측 명시적 버튼 = PDF 포함/제외 토글.
+  // 이전 22x22 체크박스가 클릭 어렵고 의도 불분명 → 텍스트 버튼으로 명료화.
+  // 선택된 행은 좌측 컬러 바 + 살짝 다른 배경으로 시각 분리 (active와 구분).
   return (
     <div
       onClick={onClick}
       role="button"
       tabIndex={0}
+      aria-pressed={isActive}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
@@ -904,36 +908,28 @@ function SelectRow({
         }
       }}
       style={{
+        position: "relative",
         display: "flex", alignItems: "stretch", gap: 8,
-        padding: 6, marginBottom: 6,
-        border: `2px solid ${isActive ? "var(--color-brand-primary)" : "transparent"}`,
+        padding: 6, paddingLeft: 12, marginBottom: 6,
+        border: `2px solid ${isActive ? "var(--color-brand-primary)" : (isSelected ? "color-mix(in srgb, var(--color-status-success) 30%, transparent)" : "transparent")}`,
         borderRadius: 6,
-        background: isActive
-          ? "color-mix(in srgb, var(--color-brand-primary) 8%, transparent)"
-          : "var(--color-bg-canvas)",
+        background: isSelected
+          ? "color-mix(in srgb, var(--color-status-success) 6%, var(--color-bg-canvas))"
+          : isActive
+            ? "color-mix(in srgb, var(--color-brand-primary) 8%, transparent)"
+            : "var(--color-bg-canvas)",
         cursor: "pointer",
         boxShadow: isActive ? "0 1px 4px rgba(37,99,235,0.15)" : "none",
         transition: "border-color 0.12s, background 0.12s",
       }}
     >
-      {/* 체크박스 — 선택 토글, row 클릭과 분리 */}
-      <button
-        onClick={(e) => { e.stopPropagation(); onToggle(); }}
-        disabled={disabled}
-        aria-label={isSelected ? "PDF에서 제외" : "PDF에 포함"}
-        title={isSelected ? "PDF에 포함됨 — 클릭하여 제외" : "PDF에 포함하기"}
-        style={{
-          flexShrink: 0, width: 22, height: 22,
-          borderRadius: 4,
-          border: `2px solid ${isSelected ? "var(--color-brand-primary)" : "var(--color-border-strong)"}`,
-          background: isSelected ? "var(--color-brand-primary)" : "white",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          cursor: disabled ? "default" : "pointer",
-          marginTop: 2, padding: 0,
-        }}
-      >
-        {isSelected && <Check size={14} color="white" />}
-      </button>
+      {isSelected && (
+        <span aria-hidden style={{
+          position: "absolute", left: 0, top: 6, bottom: 6, width: 4,
+          borderRadius: "0 3px 3px 0",
+          background: "var(--color-status-success)",
+        }} />
+      )}
       {imageUrl ? (
         <img
           src={imageUrl}
@@ -956,8 +952,19 @@ function SelectRow({
         </div>
       )}
       <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 2 }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: "var(--color-text-primary)" }}>
-          {title}
+        <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+          <span style={{ fontSize: 11, fontWeight: 700, color: "var(--color-text-primary)" }}>
+            {title}
+          </span>
+          {isSelected && (
+            <span aria-label="PDF에 포함됨" style={{
+              fontSize: 10, fontWeight: 700, padding: "1px 6px",
+              borderRadius: 3, background: "var(--color-status-success)",
+              color: "white",
+            }}>
+              ✓ PDF
+            </span>
+          )}
         </div>
         <div style={{
           fontSize: 10, fontWeight: 700,
@@ -972,6 +979,27 @@ function SelectRow({
         }}>
           {text}
         </div>
+        {/* 명시적 토글 버튼 — row 클릭과 분리. 텍스트로 의도 명확화. */}
+        <button
+          onClick={(e) => { e.stopPropagation(); onToggle(); }}
+          disabled={disabled}
+          aria-label={isSelected ? "PDF에서 제외" : "PDF에 포함"}
+          style={{
+            alignSelf: "flex-start",
+            marginTop: 2, padding: "4px 10px",
+            fontSize: 11, fontWeight: 700,
+            border: `1px solid ${isSelected ? "var(--color-status-success)" : "var(--color-brand-primary)"}`,
+            borderRadius: 4,
+            background: isSelected
+              ? "color-mix(in srgb, var(--color-status-success) 12%, white)"
+              : "var(--color-brand-primary)",
+            color: isSelected ? "var(--color-status-success)" : "white",
+            cursor: disabled ? "default" : "pointer",
+            opacity: disabled ? 0.5 : 1,
+          }}
+        >
+          {isSelected ? "✕ PDF에서 제외" : "+ PDF에 추가"}
+        </button>
       </div>
     </div>
   );
