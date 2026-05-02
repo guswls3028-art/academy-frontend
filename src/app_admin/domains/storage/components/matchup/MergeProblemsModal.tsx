@@ -42,9 +42,14 @@ export default function MergeProblemsModal({ docId, problems, onClose, onSuccess
   const [targetNumber, setTargetNumber] = useState<number>(defaultNumber);
   const [submitting, setSubmitting] = useState(false);
 
+  // 부모(MatchupPage)가 React Query polling으로 problems prop을 매 refetch마다 새 reference로
+  // 넘기는데, 그 떄마다 ordered를 리셋하면 모달 내부 reorder가 사라진다. id 집합이 실제로
+  // 바뀐 경우만 동기화 — 부모가 다른 모달 세션을 열었거나 problems 자체가 변한 경우.
+  const idKey = useMemo(() => problems.map((p) => p.id).join(","), [problems]);
   useEffect(() => {
     setOrdered(problems);
-  }, [problems]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [idKey]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

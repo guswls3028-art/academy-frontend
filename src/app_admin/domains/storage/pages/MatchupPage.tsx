@@ -420,6 +420,9 @@ export default function MatchupPage() {
       if (!next) setMergeSelectedIds([]);
       return next;
     });
+    // 합치기 모드에선 우측 SimilarResults가 의미 없음 — 단일 문항 매치 결과가
+    // 합치기 작업과 무관해 노이즈만 됨. 모드 진입/종료 모두에서 problem 선택 해제.
+    setSelectedProblemId(null);
   }, []);
 
   const handleToggleMergeSelect = useCallback((id: number) => {

@@ -60,6 +60,9 @@ export default function ProblemCard({ problem, selected, onClick, mergeMode = fa
         data-problem-id={problem.id}
         onClick={onClick}
         onDoubleClick={(e) => {
+          // 합치기 모드에선 더블클릭으로 zoom을 열지 않음 — 첫/두 번째 클릭이 선택 토글로 동작.
+          // (확대는 우상단 확대 버튼으로만 가능하게 해서 토글 동작과 분리)
+          if (mergeMode) return;
           if (imgUrl) {
             e.stopPropagation();
             setZoomOpen(true);
