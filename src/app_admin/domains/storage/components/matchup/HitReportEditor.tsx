@@ -425,8 +425,26 @@ export default function HitReportEditor({ docId, onClose }: Props) {
         </div>
 
         {loading ? (
-          <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            로딩 중…
+          <div style={{
+            flex: 1, display: "flex", flexDirection: "column",
+            alignItems: "center", justifyContent: "center", gap: 12,
+            color: "var(--color-text-secondary)",
+          }}>
+            <div style={{
+              width: 28, height: 28,
+              border: "3px solid var(--color-border-divider)",
+              borderTopColor: "var(--color-brand-primary)",
+              borderRadius: "50%",
+              animation: "spin 0.8s linear infinite",
+            }} />
+            <div style={{ fontSize: 14, fontWeight: 600 }}>
+              시험지 문항별 학원 자료를 검색하고 있습니다
+            </div>
+            <div style={{ fontSize: 11, color: "var(--color-text-muted)", maxWidth: 360, textAlign: "center", lineHeight: 1.5 }}>
+              문항 수에 따라 10~30초 소요 (자동 매칭 후보 최대 15건/문항).
+              검색 결과는 보고서 작성 후 자동 저장됩니다.
+            </div>
+            <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
           </div>
         ) : examProblems.length === 0 ? (
           <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--color-text-muted)" }}>
