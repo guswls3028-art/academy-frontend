@@ -30,19 +30,46 @@ export type PaperType =
 export type PaperTypeWarning =
   | "student_answer_photo_detected"
   | "low_confidence_source_majority"
-  | "non_question_majority";
+  | "non_question_majority"
+  | "review_required";  // Phase 3 — low_conf 페이지 비율 ≥ 20% 시 검수 필요
+
+// Phase 3: per-page confidence + low_conf reasons.
+export type LowConfPage = {
+  idx: number;
+  confidence: number;  // 0.0 ~ 1.0
+  reasons: string[];   // ["paper_type_unknown", "no_boxes_detected", ...]
+  paper_type: string;
+  n_boxes: number;
+};
 
 export type PaperTypeSummary = {
   distribution: Partial<Record<PaperType, number>> & Record<string, number>;
   low_confidence_ratio: number; // 0.0 ~ 1.0
   primary: PaperType | string;
   warnings: Array<PaperTypeWarning | string>;
+  // Phase 3 (2026-05-02) — 검수 우선순위 페이지 + 평균 신뢰도
+  low_conf_pages?: LowConfPage[];
+  page_confidence_avg?: number;  // 0.0 ~ 1.0
 };
+
+// Phase 1A: source_type 7-value SSOT (backend `source_types.py` 동기).
+export type MatchupSourceType =
+  | "student_exam_photo"
+  | "school_exam_pdf"
+  | "commercial_workbook"
+  | "academy_workbook"
+  | "explanation"
+  | "answer_key"
+  | "other";
 
 export type MatchupDocumentMeta = {
   segmentation_method?: SegmentationMethod;
-  upload_intent?: "reference" | "test";
+  // legacy 2-value (잔존)
+  upload_intent?: "reference" | "test" | MatchupSourceType;
   document_role?: "reference_material" | "exam_sheet";
+  // 7-value SSOT
+  source_type?: MatchupSourceType;
+  indexable?: boolean;  // false면 매치업 검색에 포함 X (explanation/answer_key)
   paper_type_summary?: PaperTypeSummary;
   [key: string]: unknown;
 };
