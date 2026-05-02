@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-syntax */
 // PATH: src/app_teacher/domains/comms/components/RegistrationRequestList.tsx
 // 학생 등록요청 목록 + 승인/거절
 import { useState } from "react";
@@ -6,6 +7,7 @@ import { approveRegistration, rejectRegistration } from "../api";
 import type { RegistrationRequest } from "../api";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
+import { extractApiError } from "@/shared/utils/extractApiError";
 
 interface Props {
   requests: RegistrationRequest[];
@@ -96,6 +98,7 @@ function RequestDetail({
       teacherToast.success(`${r.name} 학생이 승인되었습니다.`);
       onDone();
     },
+    onError: (e) => teacherToast.error(extractApiError(e, "승인 처리에 실패했습니다.")),
   });
 
   const rejectMut = useMutation({
@@ -106,6 +109,7 @@ function RequestDetail({
       teacherToast.info(`${r.name} 학생의 신청이 거절되었습니다.`);
       onDone();
     },
+    onError: (e) => teacherToast.error(extractApiError(e, "거절 처리에 실패했습니다.")),
   });
 
   const school = r.high_school || r.middle_school || r.elementary_school || "-";

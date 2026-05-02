@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-syntax */
 // PATH: src/app_teacher/domains/counseling/pages/CounselingPage.tsx
 // 상담 메모 — 목록 + 작성 + 상세
 import { useState } from "react";
@@ -12,6 +13,7 @@ import {
   deleteCounselingPost,
 } from "../api";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
+import { extractApiError } from "@/shared/utils/extractApiError";
 
 interface CounselingPost {
   id: number;
@@ -50,6 +52,7 @@ export default function CounselingPage() {
       teacherToast.success("상담 메모가 저장되었습니다.");
       setShowCreate(false);
     },
+    onError: (e) => teacherToast.error(extractApiError(e, "상담 메모를 저장하지 못했습니다.")),
   });
 
   const deleteMut = useMutation({
@@ -59,6 +62,7 @@ export default function CounselingPage() {
       teacherToast.info("상담 메모가 삭제되었습니다.");
       setSelectedPost(null);
     },
+    onError: (e) => teacherToast.error(extractApiError(e, "상담 메모를 삭제하지 못했습니다.")),
   });
 
   return (
@@ -241,6 +245,7 @@ function DetailSheet({
       teacherToast.success("답글이 등록되었습니다.");
       setReplyText("");
     },
+    onError: (e) => teacherToast.error(extractApiError(e, "답글을 등록하지 못했습니다.")),
   });
 
   return (

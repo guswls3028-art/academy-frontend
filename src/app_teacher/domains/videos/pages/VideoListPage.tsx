@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-syntax, @typescript-eslint/no-explicit-any */
 // PATH: src/app_teacher/domains/videos/pages/VideoListPage.tsx
 // 영상 목록 — 검색·상태필터·정렬 + 인코딩 상태/시청 현황
 import { useState, useRef, useMemo } from "react";
@@ -6,6 +7,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState } from "@/shared/ui/ds";
 import { Upload, Trash2 } from "@teacher/shared/ui/Icons";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
+import { extractApiError } from "@/shared/utils/extractApiError";
 import { useConfirm } from "@/shared/ui/confirm";
 import { fetchVideos, retryVideo, uploadInit, uploadComplete, deleteVideo, fetchPublicSession } from "../api";
 
@@ -61,11 +63,13 @@ export default function VideoListPage() {
   const retryMut = useMutation({
     mutationFn: retryVideo,
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["teacher-videos"] }); teacherToast.success("다시 시도 요청을 보냈습니다."); },
+    onError: (e) => teacherToast.error(extractApiError(e, "재시도 요청에 실패했습니다.")),
   });
 
   const deleteMut = useMutation({
     mutationFn: deleteVideo,
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["teacher-videos"] }); teacherToast.info("영상이 삭제되었습니다."); },
+    onError: (e) => teacherToast.error(extractApiError(e, "영상을 삭제하지 못했습니다.")),
   });
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {

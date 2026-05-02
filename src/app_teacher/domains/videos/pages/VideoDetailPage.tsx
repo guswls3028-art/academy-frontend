@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-syntax, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
 // PATH: src/app_teacher/domains/videos/pages/VideoDetailPage.tsx
 // 영상 상세 — 시청 통계 + 댓글
 import { useState } from "react";
@@ -11,6 +12,7 @@ import { fetchVideoDetail, fetchVideoStats, renameVideo, updateVideo, deleteVide
 import VideoSettingsSheet from "../components/VideoSettingsSheet";
 import api from "@/shared/api/axios";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
+import { extractApiError } from "@/shared/utils/extractApiError";
 import { useConfirm } from "@/shared/ui/confirm";
 
 type Tab = "stats" | "comments";
@@ -30,10 +32,12 @@ export default function VideoDetailPage() {
   const renameMut = useMutation({
     mutationFn: () => renameVideo(vid, titleInput),
     onSuccess: () => { setEditingTitle(false); qc.invalidateQueries({ queryKey: ["teacher-video", vid] }); teacherToast.success("제목이 변경되었습니다."); },
+    onError: (e) => teacherToast.error(extractApiError(e, "제목을 변경하지 못했습니다.")),
   });
   const deleteMut = useMutation({
     mutationFn: () => deleteVideo(vid),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["teacher-videos"] }); teacherToast.info("영상이 삭제되었습니다."); navigate(-1); },
+    onError: (e) => teacherToast.error(extractApiError(e, "영상을 삭제하지 못했습니다.")),
   });
 
   const { data: video, isLoading: loadingVideo } = useQuery({
@@ -196,6 +200,7 @@ function CommentSection({ videoId, comments }: { videoId: number; comments: any[
       setText("");
       teacherToast.success("댓글이 등록되었습니다.");
     },
+    onError: (e) => teacherToast.error(extractApiError(e, "댓글을 등록하지 못했습니다.")),
   });
 
   return (

@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-syntax, @typescript-eslint/no-explicit-any */
 // PATH: src/app_teacher/domains/staff/pages/StaffManagePage.tsx
 // 직원 관리 — 목록 + 등록 + 편집/삭제 + 시급태그 + 비밀번호 + 메시지
 import { useState } from "react";
@@ -9,6 +10,8 @@ import { Card } from "@teacher/shared/ui/Card";
 import { Badge } from "@teacher/shared/ui/Badge";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
 import api from "@/shared/api/axios";
+import { teacherToast } from "@teacher/shared/ui/teacherToast";
+import { extractApiError } from "@/shared/utils/extractApiError";
 
 /* ─── API (복수형 /staffs/ — 백엔드 실제 엔드포인트) ─── */
 async function fetchStaff(search?: string) {
@@ -51,7 +54,8 @@ export default function StaffManagePage() {
 
   const deleteMut = useMutation({
     mutationFn: deleteStaff,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["teacher-staff"] }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["teacher-staff"] }); teacherToast.info("직원이 삭제되었습니다."); },
+    onError: (e) => teacherToast.error(extractApiError(e, "직원을 삭제하지 못했습니다.")),
   });
 
   return (
@@ -130,12 +134,18 @@ function StaffFormSheet({ open, onClose, editData }: { open: boolean; onClose: (
     mutationFn: () => isEdit
       ? updateStaff(editData.id, { name, phone, role })
       : createStaff({ name, phone, username, password: password || "0000", role }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["teacher-staff"] }); onClose(); },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["teacher-staff"] });
+      teacherToast.success(isEdit ? "직원 정보가 수정되었습니다." : `${name} 직원이 등록되었습니다.`);
+      onClose();
+    },
+    onError: (e) => teacherToast.error(extractApiError(e, isEdit ? "직원 정보를 수정하지 못했습니다." : "직원을 등록하지 못했습니다.")),
   });
 
   const pwResetMut = useMutation({
     mutationFn: () => resetStaffPassword(editData?.id, password),
-    onSuccess: () => { setPassword(""); alert("비밀번호가 변경되었습니다."); },
+    onSuccess: () => { setPassword(""); teacherToast.success("비밀번호가 변경되었습니다."); },
+    onError: (e) => teacherToast.error(extractApiError(e, "비밀번호를 변경하지 못했습니다.")),
   });
 
   return (

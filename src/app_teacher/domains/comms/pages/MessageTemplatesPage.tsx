@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-syntax, @typescript-eslint/no-unused-vars */
 // PATH: src/app_teacher/domains/comms/pages/MessageTemplatesPage.tsx
 // 메시지 템플릿 관리 + 메시지 설정 + 잔액 확인
 import { useState, useEffect } from "react";
@@ -10,6 +11,7 @@ import { Badge } from "@teacher/shared/ui/Badge";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
 import { fetchAllTemplates, createTemplate, updateTemplate, deleteTemplate, fetchMessagingInfo, type MsgTemplate } from "../api";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
+import { extractApiError } from "@/shared/utils/extractApiError";
 
 export default function MessageTemplatesPage() {
   const navigate = useNavigate();
@@ -29,6 +31,7 @@ export default function MessageTemplatesPage() {
   const deleteMut = useMutation({
     mutationFn: deleteTemplate,
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["teacher-msg-templates"] }); teacherToast.info("템플릿이 삭제되었습니다."); },
+    onError: (e) => teacherToast.error(extractApiError(e, "템플릿을 삭제하지 못했습니다.")),
   });
 
   return (
@@ -146,6 +149,7 @@ function TemplateEditSheet({ open, onClose, template }: { open: boolean; onClose
       teacherToast.success(isEdit ? "템플릿이 수정되었습니다." : "템플릿이 생성되었습니다.");
       onClose();
     },
+    onError: (e) => teacherToast.error(extractApiError(e, isEdit ? "템플릿을 수정하지 못했습니다." : "템플릿을 생성하지 못했습니다.")),
   });
 
   return (

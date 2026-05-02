@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-syntax, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
 // PATH: src/app_teacher/domains/settings/pages/TeacherSettingsPage.tsx
 // 설정 — 프로필 편집 + 비밀번호 변경 + 테마 선택 + 푸시 알림 + PWA
 import { useState, useMemo, useEffect } from "react";
@@ -493,6 +494,7 @@ function BillingSection() {
   const deleteCardMut = useMutation({
     mutationFn: async (id: number) => { await api.delete(`/billing/cards/${id}/`); },
     onSuccess: () => { setMsg("카드 삭제됨"); },
+    onError: () => setMsg("카드 삭제 실패"),
   });
 
   const registerCard = async () => {

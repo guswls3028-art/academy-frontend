@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-syntax, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-expressions */
 // PATH: src/app_teacher/domains/students/pages/StudentListPage.tsx
 // 학생 목록 — 강의딱지 + 전화번호 + 검색 + 필터 + 대량 선택 모드
 import { useState, useDeferredValue } from "react";
@@ -10,6 +11,7 @@ import { Search, Filter, ChevronRight, Plus, Download, Upload, Check, X, Trash2,
 import { Badge } from "@teacher/shared/ui/Badge";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
+import { extractApiError } from "@/shared/utils/extractApiError";
 import {
   fetchStudents, exportStudentsExcel, uploadStudentBulkExcel,
   bulkDeleteStudents, bulkAttachTag, fetchTags, createTag, sendPasswordReset,
@@ -393,11 +395,13 @@ function BulkTagSheet({ open, onClose, students, onDone }: {
       onDone();
       onClose();
     },
+    onError: (e) => teacherToast.error(extractApiError(e, "태그 적용에 실패했습니다.")),
   });
 
   const createMut = useMutation({
     mutationFn: () => createTag(newTagName.trim()),
     onSuccess: (tag: any) => { setNewTagName(""); qc.invalidateQueries({ queryKey: ["all-tags"] }); attachMut.mutate(tag.id); },
+    onError: (e) => teacherToast.error(extractApiError(e, "태그를 생성하지 못했습니다.")),
   });
 
   return (

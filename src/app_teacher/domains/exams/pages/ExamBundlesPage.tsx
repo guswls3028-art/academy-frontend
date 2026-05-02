@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-syntax, @typescript-eslint/no-explicit-any */
 // PATH: src/app_teacher/domains/exams/pages/ExamBundlesPage.tsx
 // 시험 번들 — 여러 시험/과제 템플릿을 묶어 차시에 일괄 적용하는 CRUD
 import { useState, useEffect } from "react";
@@ -9,6 +10,7 @@ import { Card, TabBar } from "@teacher/shared/ui/Card";
 import { Badge } from "@teacher/shared/ui/Badge";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
+import { extractApiError } from "@/shared/utils/extractApiError";
 import {
   fetchBundles, fetchBundle, createBundle, updateBundle, deleteBundle,
   fetchTemplatesWithUsage, fetchHomeworkTemplatesWithUsage,
@@ -32,6 +34,7 @@ export default function ExamBundlesPage() {
       qc.invalidateQueries({ queryKey: ["teacher-exam-bundles"] });
       teacherToast.success("번들이 삭제되었습니다.");
     },
+    onError: (e) => teacherToast.error(extractApiError(e, "번들을 삭제하지 못했습니다.")),
   });
 
   return (

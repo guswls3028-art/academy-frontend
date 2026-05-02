@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-syntax, @typescript-eslint/no-explicit-any */
 // PATH: src/app_teacher/domains/staff/pages/StaffDetailPage.tsx
 // 직원 상세 — 근태/비용/급여 월별 조회 + 관리 (원장/조교 관리자용)
 import { useState, useEffect } from "react";
@@ -9,6 +10,7 @@ import { Card, TabBar } from "@teacher/shared/ui/Card";
 import { Badge } from "@teacher/shared/ui/Badge";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
+import { extractApiError } from "@/shared/utils/extractApiError";
 import {
   fetchStaffOne,
   fetchWorkRecords, createWorkRecord, updateWorkRecord, deleteWorkRecord,
@@ -153,6 +155,7 @@ function WorkTab({ staffId, month, isLocked, onAdd, onEdit }: {
       qc.invalidateQueries({ queryKey: ["teacher-staff-work", staffId, month] });
       teacherToast.success("근태 기록이 삭제되었습니다.");
     },
+    onError: (e) => teacherToast.error(extractApiError(e, "삭제에 실패했습니다.")),
   });
 
   const totalHours = (records ?? []).reduce((s, r) => s + Number(r.work_hours ?? 0), 0);
@@ -238,11 +241,13 @@ function ExpenseTab({ staffId, month }: { staffId: number; month: string }) {
       qc.invalidateQueries({ queryKey: ["teacher-staff-expense", staffId, month] });
       teacherToast.success("처리되었습니다.");
     },
+    onError: (e) => teacherToast.error(extractApiError(e, "처리에 실패했습니다.")),
   });
 
   const deleteMut = useMutation({
     mutationFn: deleteExpenseRecord,
     onSuccess: () => qc.invalidateQueries({ queryKey: ["teacher-staff-expense", staffId, month] }),
+    onError: (e) => teacherToast.error(extractApiError(e, "비용 기록을 삭제하지 못했습니다.")),
   });
 
   if (isLoading) return <EmptyState scope="panel" tone="loading" title="불러오는 중…" />;

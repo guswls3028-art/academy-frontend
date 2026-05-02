@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-syntax, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
 // PATH: src/app_teacher/domains/students/pages/StudentDetailPage.tsx
 // 학생 상세 — 데스크톱 오버레이 1:1 매칭 (5탭) + 편집/태그/메모/상태 관리
 import { useState, useEffect } from "react";
@@ -12,6 +13,7 @@ import { Badge, AchievementBadge, AttendanceBadge, ClinicStatusBadge } from "@te
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
 import { fetchStudent, fetchStudentExamResults, updateStudent, toggleStudentActive, fetchTags, attachTag, detachTag, createTag, updateStudentMemo, deleteStudent, sendPasswordReset } from "../api";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
+import { extractApiError } from "@/shared/utils/extractApiError";
 import api from "@/shared/api/axios";
 
 type Tab = "enrollments" | "exams" | "homework" | "clinic" | "questions";
@@ -340,6 +342,7 @@ function MemoSection({ studentId, initialMemo }: { studentId: number; initialMem
       qc.invalidateQueries({ queryKey: ["student", studentId] });
       teacherToast.success("메모가 저장되었습니다.");
     },
+    onError: (e) => teacherToast.error(extractApiError(e, "메모를 저장하지 못했습니다.")),
   });
 
   return (
@@ -399,6 +402,7 @@ function EditStudentSheet({ open, onClose, student, studentId, onDelete, onOpenP
       teacherToast.success(`${name} 학생 정보가 수정되었습니다.`);
       onClose();
     },
+    onError: (e) => teacherToast.error(extractApiError(e, "학생 정보를 수정하지 못했습니다.")),
   });
 
   const toggleMut = useMutation({
@@ -408,6 +412,7 @@ function EditStudentSheet({ open, onClose, student, studentId, onDelete, onOpenP
       qc.invalidateQueries({ queryKey: ["teacher-students"] });
       teacherToast.success(isActive ? "학생이 비활성화되었습니다." : "학생이 활성화되었습니다.");
     },
+    onError: (e) => teacherToast.error(extractApiError(e, "상태를 변경하지 못했습니다.")),
   });
 
   const isActive = student?.is_active !== false;
@@ -490,11 +495,13 @@ function TagManagementSheet({ open, onClose, studentId, currentTags }: {
   const attachMut = useMutation({
     mutationFn: (tagId: number) => attachTag(studentId, tagId),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["student", studentId] }),
+    onError: (e) => teacherToast.error(extractApiError(e, "태그를 추가하지 못했습니다.")),
   });
 
   const detachMut = useMutation({
     mutationFn: (tagId: number) => detachTag(studentId, tagId),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["student", studentId] }),
+    onError: (e) => teacherToast.error(extractApiError(e, "태그를 제거하지 못했습니다.")),
   });
 
   const createMut = useMutation({
@@ -504,6 +511,7 @@ function TagManagementSheet({ open, onClose, studentId, currentTags }: {
       qc.invalidateQueries({ queryKey: ["all-tags"] });
       attachMut.mutate(tag.id);
     },
+    onError: (e) => teacherToast.error(extractApiError(e, "태그를 생성하지 못했습니다.")),
   });
 
   const currentTagIds = new Set(currentTags.map((t: any) => t.id));

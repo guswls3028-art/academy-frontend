@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-syntax, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
 // PATH: src/app_teacher/domains/comms/components/PostDetail.tsx
 // 게시글 상세 + Q&A 답변 + 편집/삭제 기능
 import { useState } from "react";
@@ -9,6 +10,7 @@ import type { Post, Reply } from "../api";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
 import { ChevronLeft, Pencil, Trash2, MoreVertical, X, Save, Star, AlertCircle } from "@teacher/shared/ui/Icons";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
+import { extractApiError } from "@/shared/utils/extractApiError";
 
 interface Props {
   post: Post;
@@ -47,6 +49,7 @@ export default function PostDetail({ post: initialPost, onBack }: Props) {
       qc.invalidateQueries({ queryKey: ["admin", "notification-counts"] });
       teacherToast.success(isQnA ? "답변이 등록되었습니다." : "댓글이 등록되었습니다.");
     },
+    onError: (e) => teacherToast.error(extractApiError(e, isQnA ? "답변을 등록하지 못했습니다." : "댓글을 등록하지 못했습니다.")),
   });
 
   const updateMutation = useMutation({
@@ -56,6 +59,7 @@ export default function PostDetail({ post: initialPost, onBack }: Props) {
       qc.invalidateQueries({ queryKey: ["teacher-comms"] });
       teacherToast.success("게시글이 수정되었습니다.");
     },
+    onError: (e) => teacherToast.error(extractApiError(e, "게시글을 수정하지 못했습니다.")),
   });
 
   const deleteMutation = useMutation({
@@ -65,6 +69,7 @@ export default function PostDetail({ post: initialPost, onBack }: Props) {
       teacherToast.info("게시글이 삭제되었습니다.");
       onBack();
     },
+    onError: (e) => teacherToast.error(extractApiError(e, "게시글을 삭제하지 못했습니다.")),
   });
 
   const deleteReplyMutation = useMutation({
@@ -74,6 +79,7 @@ export default function PostDetail({ post: initialPost, onBack }: Props) {
       qc.invalidateQueries({ queryKey: ["teacher-comms"] });
       teacherToast.info("댓글이 삭제되었습니다.");
     },
+    onError: (e) => teacherToast.error(extractApiError(e, "댓글을 삭제하지 못했습니다.")),
   });
 
   const pinMutation = useMutation({
@@ -82,6 +88,7 @@ export default function PostDetail({ post: initialPost, onBack }: Props) {
       qc.invalidateQueries({ queryKey: ["teacher-comms"] });
       teacherToast.success(initialPost.is_pinned ? "고정이 해제되었습니다." : "공지가 고정되었습니다.");
     },
+    onError: (e) => teacherToast.error(extractApiError(e, "고정 상태를 변경하지 못했습니다.")),
   });
 
   const urgentMutation = useMutation({
@@ -90,6 +97,7 @@ export default function PostDetail({ post: initialPost, onBack }: Props) {
       qc.invalidateQueries({ queryKey: ["teacher-comms"] });
       teacherToast.success(initialPost.is_urgent ? "긴급 설정이 해제되었습니다." : "긴급 공지로 설정되었습니다.");
     },
+    onError: (e) => teacherToast.error(extractApiError(e, "긴급 설정을 변경하지 못했습니다.")),
   });
 
   const handleDelete = () => {

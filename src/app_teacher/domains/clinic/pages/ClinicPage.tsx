@@ -19,6 +19,7 @@ import {
   createClinicSession,
   deleteClinicSession,
 } from "../api";
+import AddParticipantSheet from "../components/AddParticipantSheet";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
 
@@ -212,11 +213,16 @@ function SessionCard({
 
 function ParticipantList({ sessionId }: { sessionId: number }) {
   const qc = useQueryClient();
+  const [addOpen, setAddOpen] = useState(false);
 
   const { data: participants, isLoading } = useQuery({
     queryKey: ["teacher-clinic-participants", sessionId],
     queryFn: () => fetchClinicParticipants(sessionId),
   });
+
+  const alreadyStudentIds = (participants ?? [])
+    .map((p: any) => p.student)
+    .filter((id: any): id is number => typeof id === "number");
 
   const statusMut = useMutation({
     mutationFn: ({ id, status }: { id: number; status: string }) =>
@@ -244,12 +250,25 @@ function ParticipantList({ sessionId }: { sessionId: number }) {
   });
 
   if (isLoading) return <div className="px-4 pb-4 text-sm" style={{ color: "var(--tc-text-muted)" }}>불러오는 중…</div>;
-  if (!participants?.length)
-    return <div className="px-4 pb-4 text-sm" style={{ color: "var(--tc-text-muted)" }}>참가자가 없습니다</div>;
+
+  const empty = !participants?.length;
 
   return (
     <div className="px-4 pb-4">
       <div style={{ height: 1, background: "var(--tc-border)", marginBottom: 12 }} />
+      <div className="flex justify-between items-center mb-2">
+        <span className="text-[11px] font-semibold" style={{ color: "var(--tc-text-muted)" }}>
+          참가자 {participants?.length ?? 0}명
+        </span>
+        <button onClick={(e) => { e.stopPropagation(); setAddOpen(true); }}
+          className="text-[11px] font-semibold cursor-pointer flex items-center gap-1"
+          style={{ padding: "4px 10px", borderRadius: "var(--tc-radius-sm)", border: "none", background: "var(--tc-primary-bg)", color: "var(--tc-primary)" }}>
+          <Plus size={12} /> 학생 추가
+        </button>
+      </div>
+      {empty ? (
+        <div className="text-sm py-2" style={{ color: "var(--tc-text-muted)" }}>참가자가 없습니다</div>
+      ) : (
       <div className="flex flex-col gap-1">
         {participants.map((p: any) => {
           const name = p.student_name ?? p.enrollment_name ?? "이름 없음";
@@ -291,6 +310,13 @@ function ParticipantList({ sessionId }: { sessionId: number }) {
           );
         })}
       </div>
+      )}
+      <AddParticipantSheet
+        open={addOpen}
+        onClose={() => setAddOpen(false)}
+        sessionId={sessionId}
+        alreadyParticipantStudentIds={alreadyStudentIds}
+      />
     </div>
   );
 }

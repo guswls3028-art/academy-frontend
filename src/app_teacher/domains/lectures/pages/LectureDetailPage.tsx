@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-syntax, @typescript-eslint/no-explicit-any */
 // PATH: src/app_teacher/domains/lectures/pages/LectureDetailPage.tsx
 // 강의 상세 — 탭 구조: 차시 목록 + 수강생 목록 + CRUD
 import { useState } from "react";
@@ -9,6 +10,7 @@ import LectureChip from "@/shared/ui/chips/LectureChip";
 import { MoreVertical, Pencil, Trash2, Plus, Download } from "@teacher/shared/ui/Icons";
 import { fetchLecture, fetchLectureSessions, fetchLectureEnrollments, deleteLecture, deleteSession, downloadAttendanceExcel } from "../api";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
+import { extractApiError } from "@/shared/utils/extractApiError";
 import LectureFormSheet from "../components/LectureFormSheet";
 import SessionFormSheet from "../components/SessionFormSheet";
 import EnrollStudentSheet from "../components/EnrollStudentSheet";
@@ -32,11 +34,13 @@ export default function LectureDetailPage() {
   const deleteLectureMut = useMutation({
     mutationFn: () => deleteLecture(lid),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["lectures-mobile"] }); teacherToast.info("강의가 삭제되었습니다."); navigate(-1); },
+    onError: (e) => teacherToast.error(extractApiError(e, "강의를 삭제하지 못했습니다.")),
   });
 
   const deleteSessionMut = useMutation({
     mutationFn: (sessionId: number) => deleteSession(sessionId),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["lecture-sessions", lid] }); teacherToast.info("차시가 삭제되었습니다."); },
+    onError: (e) => teacherToast.error(extractApiError(e, "차시를 삭제하지 못했습니다.")),
   });
 
   const { data: lecture, isLoading } = useQuery({

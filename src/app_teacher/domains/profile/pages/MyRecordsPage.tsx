@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-syntax, @typescript-eslint/no-explicit-any */
 // PATH: src/app_teacher/domains/profile/pages/MyRecordsPage.tsx
 // 내 근태 + 지출 관리 — 등록/편집/삭제
 import { useState } from "react";
@@ -8,6 +9,8 @@ import { ChevronLeft, Plus, Pencil, Trash2 } from "@teacher/shared/ui/Icons";
 import { Card, TabBar } from "@teacher/shared/ui/Card";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
 import api from "@/shared/api/axios";
+import { teacherToast } from "@teacher/shared/ui/teacherToast";
+import { extractApiError } from "@/shared/utils/extractApiError";
 
 type Tab = "attendance" | "expense";
 
@@ -52,11 +55,13 @@ export default function MyRecordsPage() {
 
   const deleteAttMut = useMutation({
     mutationFn: deleteAttendance,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["my-attendance", month] }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["my-attendance", month] }); teacherToast.info("근태 기록이 삭제되었습니다."); },
+    onError: (e) => teacherToast.error(extractApiError(e, "근태 기록을 삭제하지 못했습니다.")),
   });
   const deleteExpMut = useMutation({
     mutationFn: deleteExpense,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["my-expenses", month] }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["my-expenses", month] }); teacherToast.info("지출 기록이 삭제되었습니다."); },
+    onError: (e) => teacherToast.error(extractApiError(e, "지출 기록을 삭제하지 못했습니다.")),
   });
 
   return (
@@ -153,8 +158,10 @@ function RecordFormSheet({ open, onClose, tab, month, editData }: {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: tab === "attendance" ? ["my-attendance", month] : ["my-expenses", month] });
+      teacherToast.success(`${label} 기록이 ${isEdit ? "수정" : "등록"}되었습니다.`);
       onClose();
     },
+    onError: (e) => teacherToast.error(extractApiError(e, `${label} ${isEdit ? "수정" : "등록"}에 실패했습니다.`)),
   });
 
   const label = tab === "attendance" ? "근태" : "지출";
