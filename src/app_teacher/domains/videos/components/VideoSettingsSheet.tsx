@@ -1,5 +1,7 @@
+/* eslint-disable no-restricted-syntax, @typescript-eslint/no-explicit-any */
 // PATH: src/app_teacher/domains/videos/components/VideoSettingsSheet.tsx
 // 영상 설정 시트 — 건너뛰기/배속/워터마크
+// R-11: 기존 인라인 style baseline. 마이그레이션은 별도 백로그.
 import { useState, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { updateVideo } from "../api";

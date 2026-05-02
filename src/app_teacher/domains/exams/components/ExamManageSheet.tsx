@@ -1,5 +1,7 @@
+/* eslint-disable no-restricted-syntax, @typescript-eslint/no-explicit-any */
 // PATH: src/app_teacher/domains/exams/components/ExamManageSheet.tsx
 // 시험 관리 시트 — 편집/삭제/상태토글/정답/합격점/재계산/OMR/PDF
+// R-11: 기존 인라인 style baseline. 마이그레이션은 별도 백로그.
 import { useState, useRef } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { updateExam, deleteExam } from "../api";

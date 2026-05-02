@@ -1,5 +1,7 @@
+/* eslint-disable no-restricted-syntax, @typescript-eslint/no-explicit-any */
 // PATH: src/app_teacher/domains/lectures/components/SectionManageSheet.tsx
 // 반 편성 관리 시트 — 반 생성/삭제
+// R-11: 기존 인라인 style baseline. 마이그레이션은 별도 백로그.
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";

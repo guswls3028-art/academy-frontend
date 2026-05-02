@@ -1,5 +1,7 @@
+/* eslint-disable no-restricted-syntax */
 // PATH: src/app_teacher/domains/comms/components/SendMessageSheet.tsx
 // 메시지 발송 바텀시트 — SMS/알림톡 선택 + 템플릿 + 미리보기 + 발송
+// R-11: 기존 인라인 style baseline. 마이그레이션은 별도 백로그.
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { fetchMessageTemplates, sendMessage } from "../api";

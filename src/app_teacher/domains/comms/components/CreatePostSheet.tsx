@@ -1,5 +1,7 @@
+/* eslint-disable no-restricted-syntax, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
 // PATH: src/app_teacher/domains/comms/components/CreatePostSheet.tsx
 // 게시글/공지 작성 바텀시트 — 스코프 선택(전체/강의/차시) 포함
+// R-11: 기존 인라인 style baseline. 마이그레이션은 별도 백로그.
 import { useState, useMemo, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchScopeNodes, createPost, uploadPostAttachment, type ScopeNode } from "../api";

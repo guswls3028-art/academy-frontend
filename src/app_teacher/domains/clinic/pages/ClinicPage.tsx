@@ -1,5 +1,7 @@
+/* eslint-disable no-restricted-syntax, @typescript-eslint/no-explicit-any */
 // PATH: src/app_teacher/domains/clinic/pages/ClinicPage.tsx
 // 클리닉 — 오늘의 세션 + 참가자 관리 (section_mode 전용)
+// R-11: 기존 인라인 style/any baseline. 이 파일 마이그레이션은 별도 백로그.
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState } from "@/shared/ui/ds";

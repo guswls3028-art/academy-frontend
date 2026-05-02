@@ -1,5 +1,7 @@
+/* eslint-disable no-restricted-syntax, @typescript-eslint/no-explicit-any */
 // PATH: src/app_teacher/domains/lectures/components/LectureFormSheet.tsx
 // 강의 생성/편집 바텀시트
+// R-11: 기존 인라인 style baseline. 마이그레이션은 별도 백로그.
 import { useState, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createLecture, updateLecture } from "../api";

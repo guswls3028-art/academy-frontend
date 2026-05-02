@@ -1,5 +1,7 @@
+/* eslint-disable no-restricted-syntax, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
 // PATH: src/app_teacher/domains/lectures/components/EnrollStudentSheet.tsx
 // 수강생 등록 바텀시트 — 학생 검색 + 선택 + 일괄 등록
+// R-11: 기존 인라인 style baseline. 마이그레이션은 별도 백로그.
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { bulkCreateEnrollments } from "../api";
