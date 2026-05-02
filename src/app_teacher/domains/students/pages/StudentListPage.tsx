@@ -35,6 +35,7 @@ export default function StudentListPage() {
   const [search, setSearch] = useState("");
   const [showFilter, setShowFilter] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   const [filters, setFilters] = useState<FilterState>({});
   const deferredSearch = useDeferredValue(search);
 
@@ -84,36 +85,20 @@ export default function StudentListPage() {
     <div className="flex flex-col gap-3">
       {/* Header */}
       {!selectMode ? (
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-2">
           <div className="text-[17px] font-bold" style={{ color: "var(--tc-text)" }}>학생</div>
-          <div className="flex gap-1.5">
+          <div className="flex gap-1.5 items-center shrink-0">
             <button onClick={() => setSelectMode(true)}
-              className="flex items-center gap-1 text-[11px] font-semibold cursor-pointer"
-              style={{ padding: "8px 10px", minHeight: "var(--tc-touch-min)", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border)", background: "var(--tc-surface)", color: "var(--tc-text-secondary)" }}>
+              className="flex items-center gap-1 text-[12px] font-semibold cursor-pointer"
+              style={{ padding: "8px 12px", minHeight: "var(--tc-touch-min)", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border)", background: "var(--tc-surface)", color: "var(--tc-text-secondary)" }}>
               선택
             </button>
-            <button onClick={() => exportStudentsExcel().catch(() => teacherToast.error("내보내기에 실패했습니다."))}
-              className="flex items-center gap-1 text-[11px] font-semibold cursor-pointer"
-              style={{ padding: "8px 10px", minHeight: "var(--tc-touch-min)", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border)", background: "var(--tc-surface)", color: "var(--tc-text-secondary)" }}>
-              <Download size={12} /> 엑셀
+            <button onClick={() => setMoreOpen((v) => !v)}
+              aria-label="더보기"
+              className="flex items-center justify-center cursor-pointer relative"
+              style={{ width: 36, minHeight: "var(--tc-touch-min)", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border)", background: "var(--tc-surface)", color: "var(--tc-text-secondary)" }}>
+              ⋯
             </button>
-            <label className="flex items-center gap-1 text-[11px] font-semibold cursor-pointer"
-              style={{ padding: "8px 10px", minHeight: "var(--tc-touch-min)", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border)", background: "var(--tc-surface)", color: "var(--tc-text-secondary)" }}>
-              <Upload size={12} /> 가져오기
-              <input type="file" accept=".xlsx,.xls,.csv" style={{ display: "none" }}
-                onChange={(e) => {
-                  const f = e.target.files?.[0];
-                  if (f) {
-                    uploadStudentBulkExcel(f, "0000")
-                      .then(async () => {
-                        await qc.invalidateQueries({ queryKey: ["students-mobile"] });
-                        teacherToast.success("학생 일괄 업로드를 완료했습니다.");
-                      })
-                      .catch((err) => teacherToast.error(extractApiError(err, "학생 일괄 업로드에 실패했습니다.")));
-                  }
-                  e.target.value = "";
-                }} />
-            </label>
             <button onClick={() => setCreateOpen(true)}
               className="flex items-center gap-1 text-xs font-bold cursor-pointer"
               style={{ padding: "8px 14px", minHeight: "var(--tc-touch-min)", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff" }}>
@@ -141,6 +126,39 @@ export default function StudentListPage() {
               해제
             </button>
           )}
+        </div>
+      )}
+
+      {/* More menu — 엑셀 내보내기 / 가져오기 */}
+      {!selectMode && moreOpen && (
+        <div className="flex flex-col gap-1.5 rounded-xl"
+          style={{ background: "var(--tc-surface)", border: "1px solid var(--tc-border)", padding: "var(--tc-space-2)" }}>
+          <button onClick={() => {
+              setMoreOpen(false);
+              exportStudentsExcel().catch(() => teacherToast.error("내보내기에 실패했습니다."));
+            }}
+            className="flex items-center gap-2 text-sm cursor-pointer"
+            style={{ padding: "10px 12px", minHeight: "var(--tc-touch-min)", borderRadius: "var(--tc-radius-sm)", border: "none", background: "none", color: "var(--tc-text)", textAlign: "left" }}>
+            <Download size={14} /> 엑셀 내보내기
+          </button>
+          <label className="flex items-center gap-2 text-sm cursor-pointer"
+            style={{ padding: "10px 12px", minHeight: "var(--tc-touch-min)", borderRadius: "var(--tc-radius-sm)", border: "none", background: "none", color: "var(--tc-text)" }}>
+            <Upload size={14} /> 엑셀 가져오기
+            <input type="file" accept=".xlsx,.xls,.csv" style={{ display: "none" }}
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                setMoreOpen(false);
+                if (f) {
+                  uploadStudentBulkExcel(f, "0000")
+                    .then(async () => {
+                      await qc.invalidateQueries({ queryKey: ["students-mobile"] });
+                      teacherToast.success("학생 일괄 업로드를 완료했습니다.");
+                    })
+                    .catch((err) => teacherToast.error(extractApiError(err, "학생 일괄 업로드에 실패했습니다.")));
+                }
+                e.target.value = "";
+              }} />
+          </label>
         </div>
       )}
 

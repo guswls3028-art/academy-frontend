@@ -168,8 +168,11 @@ export default function BillingPage() {
           <Row label="만료일" value={formatDate(data.subscription_expires_at)}
             valueColor={isExpired ? "var(--tc-danger)" : undefined} />
           {daysLeft != null && (
-            <Row label="남은 일수" value={`${daysLeft}일`}
-              valueColor={daysLeft < 7 ? "var(--tc-warn)" : daysLeft < 30 ? "var(--tc-text)" : "var(--tc-success)"} />
+            <Row
+              label="남은 일수"
+              value={daysLeft >= 365 ? `약 ${Math.floor(daysLeft / 365)}년 (${daysLeft.toLocaleString()}일)` : `${daysLeft.toLocaleString()}일`}
+              valueColor={daysLeft < 7 ? "var(--tc-warn)" : daysLeft < 30 ? "var(--tc-text)" : "var(--tc-success)"}
+            />
           )}
           <Row label="결제 방식" value={BILLING_MODE_LABELS[data.billing_mode] ?? data.billing_mode} />
           {data.next_billing_at && <Row label="다음 결제" value={formatDate(data.next_billing_at)} />}
@@ -206,7 +209,7 @@ export default function BillingPage() {
           </div>
         )}
         <p className="text-[11px] mt-2" style={{ color: "var(--tc-text-muted)" }}>
-          카드 등록/삭제는 PC 어드민 {">"} 설정 {">"} 결제에서 진행합니다.
+          카드 등록/삭제는 <button onClick={() => navigate("/teacher/settings")} className="cursor-pointer underline" style={{ background: "none", border: "none", color: "var(--tc-primary)", padding: 0, font: "inherit" }}>설정 → 결제 / 구독</button>에서 진행합니다.
         </p>
       </Card>
 

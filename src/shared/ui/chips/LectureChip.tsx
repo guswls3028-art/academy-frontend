@@ -19,9 +19,10 @@ export default function LectureChip({
 }) {
   const bg = color || DEFAULT_LECTURE_COLOR;
   const textColor = contrastTextColor(bg);
-  const two = (chipLabel && chipLabel.length >= 1)
-    ? String(chipLabel).slice(0, 2)
-    : (lectureName || "??").slice(0, 2);
+  // 강의명 미설정/누락 시 "??" 같은 의문스러운 라벨 대신 단색 chip만 노출
+  const two = (chipLabel && chipLabel.trim())
+    ? String(chipLabel).trim().slice(0, 2)
+    : (lectureName && lectureName.trim() ? lectureName.trim().slice(0, 2) : "");
   const fontSize = size <= 18 ? 8 : size <= 24 ? 9 : 10;
 
   return (

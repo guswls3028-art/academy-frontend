@@ -79,6 +79,7 @@ export default function TodayPage() {
       </div>
 
       {/* === KPI Grid === */}
+      {/* "처리할 일" KPI는 아래 인박스와 중복이라 제거. KPI 2x1로 축소 — 오늘 흐름(수업/출결)만 유지. */}
       <div
         style={{
           display: "grid",
@@ -89,8 +90,8 @@ export default function TodayPage() {
         <KpiCard
           label="오늘 수업"
           value={sessionCount}
-          sub="건"
-          color="var(--tc-text)"
+          sub={sessionCount > 0 ? "건" : "없음"}
+          color={sessionCount > 0 ? "var(--tc-text)" : "var(--tc-text-muted)"}
         />
         <KpiCard
           label="출결 입력"
@@ -109,23 +110,6 @@ export default function TodayPage() {
               ? "var(--tc-success)"
               : "var(--tc-primary)"
           }
-        />
-        <KpiCard
-          label="처리할 일"
-          value={pendingTotal}
-          sub={pendingTotal > 0 ? "건" : "없음"}
-          color={pendingTotal > 0 ? "var(--tc-danger)" : "var(--tc-text-muted)"}
-          onClick={pendingTotal > 0 ? () => {
-            const first = pendingItems[0];
-            if (first) navigate(TEACHER_PENDING_ROUTES[first.type]);
-          } : undefined}
-        />
-        <KpiCard
-          label="최근 제출"
-          value={recentSubs}
-          sub={recentSubs > 0 ? "건" : "없음"}
-          color={recentSubs > 0 ? "var(--tc-info)" : "var(--tc-text-muted)"}
-          onClick={recentSubs > 0 ? () => navigate("/teacher/submissions") : undefined}
         />
       </div>
 

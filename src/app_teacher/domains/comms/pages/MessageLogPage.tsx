@@ -64,8 +64,8 @@ function LogCard({ item }: { item: MessageLogItem }) {
           <div className="flex items-center gap-1.5 mb-0.5">
             <Badge tone={item.success ? "success" : "danger"} size="xs">{item.success ? "성공" : "실패"}</Badge>
             <Badge tone="neutral" size="xs">{modeLabel}</Badge>
-            {item.amount_deducted && item.amount_deducted !== "0" && (
-              <span className="text-[10px]" style={{ color: "var(--tc-text-muted)" }}>-{item.amount_deducted}원</span>
+            {Number(item.amount_deducted ?? 0) > 0 && (
+              <span className="text-[10px]" style={{ color: "var(--tc-text-muted)" }}>-{Number(item.amount_deducted).toLocaleString()}원</span>
             )}
           </div>
           <div className="text-sm font-medium truncate" style={{ color: "var(--tc-text)" }}>

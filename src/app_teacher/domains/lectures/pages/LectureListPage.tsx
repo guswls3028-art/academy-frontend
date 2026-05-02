@@ -58,7 +58,6 @@ export default function LectureListPage() {
         <div className="flex flex-col gap-2">
           {lectures.map((l: any) => {
             const chipLabel = l.chip_label ?? l.chipLabel;
-            const instructor = l.name ?? l.instructor;
             const time = l.lecture_time ?? l.lectureTime;
             const dateRange = l.start_date && l.end_date ? `${l.start_date} ~ ${l.end_date}` : l.start_date;
 
@@ -75,9 +74,8 @@ export default function LectureListPage() {
                     <span className="text-[15px] font-semibold truncate" style={{ color: "var(--tc-text)" }}>{l.title}</span>
                     {!l.is_active && <Badge tone="neutral" size="xs">종료</Badge>}
                   </div>
-                  <div className="text-[12px] mt-0.5" style={{ color: "var(--tc-text-muted)" }}>{l.subject}</div>
+                  {l.subject && <div className="text-[12px] mt-0.5" style={{ color: "var(--tc-text-muted)" }}>{l.subject}</div>}
                   <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-[11px]" style={{ color: "var(--tc-text-muted)" }}>
-                    {instructor && <span>{instructor}</span>}
                     {time && <span>{time}</span>}
                     {dateRange && <span>{dateRange}</span>}
                   </div>

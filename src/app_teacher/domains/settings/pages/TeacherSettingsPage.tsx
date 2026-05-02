@@ -207,24 +207,27 @@ export default function TeacherSettingsPage() {
         {pwMsg && <Toast msg={pwMsg} />}
       </Section>
 
-      {/* ── Theme section ── */}
+      {/* ── Theme section ── 외관 페이지 (SSOT)로 라우팅. settings에 12카드 중복 노출 제거. */}
       <Section title="테마" icon={<Palette size={15} />}>
-        <p className="text-[12px] mb-3" style={{ color: "var(--tc-text-muted)" }}>
-          선택한 테마가 즉시 적용됩니다. 데스크톱과 동일한 테마를 사용합니다.
-        </p>
-        {themeGroups.map((group) => (
-          <div key={group.id} className="mb-3">
-            <div className="flex items-center gap-1.5 mb-2">
-              {group.icon}
-              <span className="text-[12px] font-semibold" style={{ color: "var(--tc-text-secondary)" }}>{group.label}</span>
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
-              {group.themes.map((t) => (
-                <MobileThemeCard key={t.key} theme={t} selected={t.key === currentTheme} onSelect={() => setCurrentTheme(t.key)} />
-              ))}
+        <button
+          onClick={() => navigate("/teacher/settings/appearance")}
+          className="flex items-center justify-between w-full cursor-pointer"
+          style={{
+            padding: "10px 12px",
+            borderRadius: "var(--tc-radius)",
+            border: "1px solid var(--tc-border)",
+            background: "var(--tc-surface-soft)",
+            color: "var(--tc-text)",
+          }}
+        >
+          <div className="text-left">
+            <div className="text-sm font-semibold">외관 / 테마 설정</div>
+            <div className="text-[11px] mt-0.5" style={{ color: "var(--tc-text-muted)" }}>
+              현재 테마: {THEMES.find((t) => t.key === currentTheme)?.name ?? currentTheme}
             </div>
           </div>
-        ))}
+          <span style={{ color: "var(--tc-text-muted)" }}>›</span>
+        </button>
       </Section>
 
       {/* ── Push notification ── */}

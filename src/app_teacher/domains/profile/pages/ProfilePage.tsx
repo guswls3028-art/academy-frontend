@@ -132,18 +132,23 @@ export default function ProfilePage() {
             </div>
             <button
               onClick={push.subscribed ? push.unsubscribe : push.subscribe}
-              disabled={push.loading}
-              className="text-xs font-bold cursor-pointer shrink-0"
+              disabled={push.loading || push.permission === "denied"}
+              className="text-xs font-bold shrink-0"
               style={{
                 padding: "6px 14px",
                 borderRadius: "var(--tc-radius)",
                 border: "none",
-                background: push.subscribed ? "var(--tc-surface-soft)" : "var(--tc-primary)",
-                color: push.subscribed ? "var(--tc-text-secondary)" : "#fff",
-                opacity: push.loading ? 0.6 : 1,
+                background: push.permission === "denied"
+                  ? "var(--tc-surface-soft)"
+                  : push.subscribed ? "var(--tc-surface-soft)" : "var(--tc-primary)",
+                color: push.permission === "denied"
+                  ? "var(--tc-text-muted)"
+                  : push.subscribed ? "var(--tc-text-secondary)" : "#fff",
+                opacity: push.loading ? 0.6 : push.permission === "denied" ? 0.6 : 1,
+                cursor: push.loading || push.permission === "denied" ? "not-allowed" : "pointer",
               }}
             >
-              {push.loading ? "..." : push.subscribed ? "끄기" : "켜기"}
+              {push.loading ? "..." : push.permission === "denied" ? "차단됨" : push.subscribed ? "끄기" : "켜기"}
             </button>
           </div>
           {push.permission === "denied" && (

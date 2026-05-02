@@ -18,6 +18,33 @@ export interface PatchNote {
 
 export const PATCH_NOTES: PatchNote[] = [
   {
+    version: "V1.2.0",
+    codename: "매치업 + RDS Proxy + 헥사고날",
+    date: "2026-04-30",
+    summary: "신규 매치업 도메인 + 시험지 적중률 PDF + DB 연결 안정화 + 헥사고날 컷오버 + 실사용 리뷰 기반 UX 개선",
+    entries: [
+      { category: "new", text: "매치업(시험지 자동 분리) 도메인 신설 — PDF/폰사진/시판교재 자동 분할 + CLIP 이미지 임베딩으로 유사 문제 매칭" },
+      { category: "new", text: "시험지 적중률 PDF 보고서 — 학원 마케팅용. 단원·키워드 기반 큐레이션, A4 좌-우 2-pane 레이아웃" },
+      { category: "new", text: "Source-typed splitter SSOT — 7가지 시험지 출처별(폰사진/PDF/시판교재 등) 분리 전략 + 저신뢰 자동 폴백" },
+      { category: "new", text: "랜딩 KPI 인박스 — 성적·영상 첫 화면에 KPI 4장 + 트리 토글" },
+      { category: "new", text: "선생앱 Today 재구성 — 8타일 → 처리할 일 인박스 + 오늘 수업, vanity KPI 제거" },
+      { category: "new", text: "보강 사이클 SSOT — ClinicResolution/Remediation/Trigger + 일괄선택 모달" },
+      { category: "new", text: "커뮤니티 학부모 글 작성 + qna_answered/counsel_answered 알림톡" },
+      { category: "improve", text: "RDS Proxy 도입 — 484 클라이언트 → 6 backend 연결로 80배 압축. 워커 무한 확장" },
+      { category: "improve", text: "헥사고날 컷오버 — academy/adapters · use_cases · apps/domains 레이어 분리. PR-1 영상 / PR-2 AI / PR-3 도메인 모델" },
+      { category: "improve", text: "Badge/Icon SSOT 통일 — raw <span ds-badge> 22건 + ICON.* 토큰화" },
+      { category: "improve", text: "선생앱 모바일 native 다이얼로그 0건 — 26 confirm() + 3 alert() 전부 useConfirm/teacherToast 이전" },
+      { category: "improve", text: "매치업 페이지 vertical stack PDF (+105% 폭) + max_dim 1400" },
+      { category: "fix", text: "선생앱 /billing/subscription/ 404 → /core/subscription/ + serializer 필드 정합화" },
+      { category: "fix", text: "매치업 카메라 OCR 전처리 (워터마크 strip, 페이지폴백 false-positive 차단)" },
+      { category: "fix", text: "PII 마스킹 + fees 단위테스트 12건 + 법적 고지 fallback 경고" },
+      { category: "fix", text: "Cursor audit 17건 (P0 4건 즉시 패치 + window.confirm 7건 useConfirm 이전)" },
+      { category: "fix", text: "Storage-Matchup 통합 — MatchupDocument.inventory_file FK NOT NULL + 승격 UI/API" },
+      { category: "security", text: "C-1~C-4 학생 권한 누출 차단 + JWT tenant claim 검증" },
+      { category: "security", text: "커뮤니티 MIME/sanitizer/파일명 보안 + counts 단일집계" },
+    ],
+  },
+  {
     version: "V1.1.1d",
     codename: "통합 완성",
     date: "2026-04-06",

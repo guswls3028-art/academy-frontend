@@ -188,7 +188,10 @@ export default function SubmissionsInboxPage() {
 
                 <div className="flex-1 min-w-0">
                   <div className="text-[13px] font-semibold truncate" style={{ color: "var(--tc-text)" }}>
-                    {r.student_name} · {r.target_title}
+                    {[
+                      r.student_name?.trim() || (r.status === "needs_identification" ? "식별 대기" : "이름 미상"),
+                      r.target_title?.trim() || `${isExam ? "시험" : "과제"} #${r.id}`,
+                    ].join(" · ")}
                   </div>
                   <div className="flex gap-1.5 items-center text-[11px] mt-0.5" style={{ color: "var(--tc-text-muted)" }}>
                     <Badge tone={tone} size="xs">{label}</Badge>
