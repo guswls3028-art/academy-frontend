@@ -71,6 +71,9 @@ export type MatchupDocumentMeta = {
   source_type?: MatchupSourceType;
   indexable?: boolean;  // false면 매치업 검색에 포함 X (explanation/answer_key)
   paper_type_summary?: PaperTypeSummary;
+  // Phase 5-deep: 학원장이 검수 모달에서 매치업 인덱싱 제외한 페이지 idx 리스트.
+  // 다음 reanalyze 시 워커가 해당 페이지 skip → 다시 problem 생성 안 됨.
+  excluded_pages?: number[];
   [key: string]: unknown;
 };
 
@@ -281,6 +284,30 @@ export async function retryMatchupDocument(id: number): Promise<MatchupDocument>
   const { data } = await api.post<MatchupDocument>(
     `/matchup/documents/${id}/retry/`,
   );
+  return data;
+}
+
+// Phase 5-deep — 검수 UI에서 호출. status 무관 재분석 (done 상태도 포함).
+// retryMatchupDocument는 failed only — 학원장이 검수 후(excluded_pages 적용/
+// source_type 변경 후) done 상태 재처리 트리거 진입점이 별도로 필요.
+// 응답: {...MatchupDocument, job_id}
+export async function reanalyzeMatchupDocument(id: number): Promise<MatchupDocument & { job_id: string }> {
+  const { data } = await api.post<MatchupDocument & { job_id: string }>(
+    `/matchup/documents/${id}/reanalyze/`,
+  );
+  return data;
+}
+
+// Phase 5-deep — 검수 UI에서 "이 페이지 제외" CTA. 즉시: 페이지 problems 삭제.
+// 영구: doc.meta.excluded_pages 갱신 → 다음 reanalyze 시 워커가 skip.
+export async function excludeMatchupPage(
+  docId: number,
+  pageIndex: number,
+): Promise<{ ok: true; doc_id: number; page_index: number; removed_problems: number; excluded_pages: number[] }> {
+  const { data } = await api.post<{
+    ok: true; doc_id: number; page_index: number;
+    removed_problems: number; excluded_pages: number[];
+  }>(`/matchup/documents/${docId}/pages/${pageIndex}/exclude/`);
   return data;
 }
 

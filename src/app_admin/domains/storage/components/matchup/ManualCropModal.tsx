@@ -30,6 +30,8 @@ import type { MatchupDocument } from "../../api/matchup.api";
 type Props = {
   document: MatchupDocument;
   onClose: () => void;
+  // 검수 모달(LowConfPageReviewer) → 직접 자르기 인계 시 시작 페이지 지정.
+  initialPage?: number;
 };
 
 type DraftBox = {
@@ -125,11 +127,11 @@ function applyDrag(
   }
 }
 
-export default function ManualCropModal({ document: doc, onClose }: Props) {
+export default function ManualCropModal({ document: doc, onClose, initialPage }: Props) {
   const qc = useQueryClient();
   const confirm = useConfirm();
 
-  const [activePage, setActivePage] = useState(0);
+  const [activePage, setActivePage] = useState(initialPage ?? 0);
   const [draft, setDraft] = useState<DraftBox | null>(null);
   const [number, setNumber] = useState<number>(1);
   const [saving, setSaving] = useState(false);

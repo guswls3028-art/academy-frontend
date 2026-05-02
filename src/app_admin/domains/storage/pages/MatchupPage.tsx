@@ -31,6 +31,7 @@ import CrossMatchesPanel from "../components/matchup/CrossMatchesPanel";
 import ProblemDetailModal from "../components/matchup/ProblemDetailModal";
 import DocumentPreviewModal from "../components/matchup/DocumentPreviewModal";
 import ManualCropModal from "../components/matchup/ManualCropModal";
+import LowConfPageReviewer from "../components/matchup/LowConfPageReviewer";
 import MergeProblemsModal from "../components/matchup/MergeProblemsModal";
 import HitReportEditor from "../components/matchup/HitReportEditor";
 import MatchupEmptyState from "../components/matchup/MatchupEmptyState";
@@ -95,6 +96,9 @@ export default function MatchupPage() {
   const [detailProblem, setDetailProblem] = useState<SimilarProblem | null>(null);
   const [previewDocId, setPreviewDocId] = useState<number | null>(null);
   const [cropDocId, setCropDocId] = useState<number | null>(null);
+  // Phase 5-deep — 직접 자르기 모달이 특정 페이지로 점프해서 열려야 할 때 (검수 모달에서 인계).
+  const [cropInitialPage, setCropInitialPage] = useState<number | null>(null);
+  const [reviewerDocId, setReviewerDocId] = useState<number | null>(null);
   const [hitReportDocId, setHitReportDocId] = useState<number | null>(null);
   // 적중 보고서 찜 — 시험지 doc 활성 시에만. selectedProblemId(시험지 문항)별 별표 후보 problem id Set.
   // 매치업 작업 중에 후보를 찜해두면 적중 보고서 작성기 진입 시 자동 선택됨.
@@ -1142,50 +1146,29 @@ export default function MatchupPage() {
                             </div>
                           </details>
                         )}
-                        {/* Phase 3 — 검수 필요 페이지 리스트 (low_conf_pages). 검수 UI Phase 5. */}
-                        {Array.isArray(summary.low_conf_pages) && summary.low_conf_pages.length > 0 && (
-                          <details style={/* eslint-disable-line no-restricted-syntax */ { marginTop: 6 }}>
-                            <summary style={/* eslint-disable-line no-restricted-syntax */ {
-                              fontSize: 11, fontWeight: 600,
+                        {/* Phase 5-deep — 검수 필요 페이지 리스트 + 검수 모달 트리거 */}
+                        {Array.isArray(summary.low_conf_pages) && summary.low_conf_pages.length > 0 && selectedDoc && (
+                          <div style={/* eslint-disable-line no-restricted-syntax */ {
+                            marginTop: 8,
+                            display: "flex", alignItems: "center", gap: 8,
+                            flexWrap: "wrap",
+                          }}>
+                            <span style={/* eslint-disable-line no-restricted-syntax */ {
+                              fontSize: 11, fontWeight: 700,
                               color: "var(--color-warning)",
-                              cursor: "pointer", userSelect: "none",
                             }}>
                               검수 필요 페이지 {summary.low_conf_pages.length}건 (신뢰도 55% 미만)
-                            </summary>
-                            <div style={/* eslint-disable-line no-restricted-syntax */ {
-                              marginTop: 4, display: "flex", flexDirection: "column",
-                              gap: 4, fontSize: 11, color: "var(--color-text-muted)",
-                              maxHeight: 200, overflow: "auto",
-                            }}>
-                              {summary.low_conf_pages.slice(0, 30).map((p) => (
-                                <div
-                                  key={p.idx}
-                                  style={/* eslint-disable-line no-restricted-syntax */ {
-                                    padding: "3px 6px",
-                                    background: "var(--color-bg-surface-soft)",
-                                    border: "1px solid var(--color-border-divider)",
-                                    borderRadius: 4,
-                                    display: "flex", flexWrap: "wrap", gap: 6,
-                                  }}
-                                >
-                                  <span style={/* eslint-disable-line no-restricted-syntax */ { fontWeight: 700 }}>
-                                    p{p.idx + 1}
-                                  </span>
-                                  <span>신뢰도 {Math.round(p.confidence * 100)}%</span>
-                                  <span style={/* eslint-disable-line no-restricted-syntax */ { color: "var(--color-text-muted)" }}>
-                                    {paperTypeLabel(p.paper_type)} · {p.n_boxes} bbox · {p.reasons.join(", ")}
-                                  </span>
-                                </div>
-                              ))}
-                              {summary.low_conf_pages.length > 30 && (
-                                <span style={/* eslint-disable-line no-restricted-syntax */ {
-                                  padding: "3px 6px", color: "var(--color-text-muted)",
-                                }}>
-                                  ... 외 {summary.low_conf_pages.length - 30}건
-                                </span>
-                              )}
-                            </div>
-                          </details>
+                            </span>
+                            <Button
+                              intent="primary"
+                              size="sm"
+                              onClick={() => setReviewerDocId(selectedDoc.id)}
+                              data-testid="matchup-low-conf-reviewer-open-btn"
+                            >
+                              <Eye size={13} style={/* eslint-disable-line no-restricted-syntax */ { marginRight: 4 }} />
+                              검수 페이지 열기
+                            </Button>
+                          </div>
                         )}
                       </div>
                       {selectedDoc && (
@@ -1412,9 +1395,31 @@ export default function MatchupPage() {
         return doc ? (
           <ManualCropModal
             document={doc}
-            onClose={() => setCropDocId(null)}
+            initialPage={cropInitialPage ?? undefined}
+            onClose={() => {
+              setCropDocId(null);
+              setCropInitialPage(null);
+            }}
           />
         ) : null;
+      })()}
+
+      {reviewerDocId && (() => {
+        const doc = documents.find((d) => d.id === reviewerDocId);
+        const lowConfPages = doc?.meta?.paper_type_summary?.low_conf_pages ?? [];
+        if (!doc || lowConfPages.length === 0) return null;
+        return (
+          <LowConfPageReviewer
+            document={doc}
+            lowConfPages={lowConfPages}
+            onClose={() => setReviewerDocId(null)}
+            onRequestManualCrop={(pageIndex) => {
+              setReviewerDocId(null);
+              setCropInitialPage(pageIndex);
+              setCropDocId(doc.id);
+            }}
+          />
+        );
       })()}
 
       {hitReportDocId && (
