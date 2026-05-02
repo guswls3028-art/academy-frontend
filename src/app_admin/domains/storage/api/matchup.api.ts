@@ -311,6 +311,32 @@ export async function excludeMatchupPage(
   return data;
 }
 
+// Phase 5-deep VLM — 검수 UI에서 "VLM 정밀 분석" CTA. ondemand Gemini vision 호출.
+// 응답 page_role과 problems[bbox]는 화면에 미리보기로 노출 (현재 자동 분리 결과와 비교).
+// 호출 한도 초과 시 429.
+export type VlmClassifyResult = {
+  ok: true;
+  doc_id: number;
+  page_index: number;
+  page_role: "cover" | "index" | "problem" | "explanation" | "answer_key" | "mixed";
+  should_skip: boolean;
+  confidence: number;
+  problems: Array<{ number: number; bbox: number[]; confidence: number }>;
+  debug?: Record<string, unknown>;
+};
+
+export async function vlmClassifyMatchupPage(
+  docId: number,
+  pageIndex: number,
+): Promise<VlmClassifyResult> {
+  const { data } = await api.post<VlmClassifyResult>(
+    `/matchup/documents/${docId}/pages/${pageIndex}/vlm-classify/`,
+    {},
+    { timeout: 60_000 },  // Gemini vision은 30s 내외, 여유 60s
+  );
+  return data;
+}
+
 export type MatchupDocumentPreview = {
   url: string;
   content_type: string;

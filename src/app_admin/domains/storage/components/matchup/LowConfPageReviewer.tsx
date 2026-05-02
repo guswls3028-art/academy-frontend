@@ -21,7 +21,7 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  X, AlertCircle, Loader2, Crop, Ban, RefreshCw, Eye,
+  X, AlertCircle, Loader2, Crop, Ban, RefreshCw, Eye, Sparkles,
 } from "lucide-react";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
@@ -31,8 +31,9 @@ import {
   fetchMatchupProblems,
   excludeMatchupPage,
   reanalyzeMatchupDocument,
+  vlmClassifyMatchupPage,
 } from "../../api/matchup.api";
-import type { MatchupDocument, LowConfPage } from "../../api/matchup.api";
+import type { MatchupDocument, LowConfPage, VlmClassifyResult } from "../../api/matchup.api";
 
 const PAPER_TYPE_LABEL: Record<string, string> = {
   clean_pdf_single: "PDF (1단)",
@@ -88,6 +89,9 @@ export default function LowConfPageReviewer({
   // 학원장이 모달 안에서 제외 액션을 쌓아둘 수 있게 — 즉시 reanalyze 안 하고
   // 여러 페이지 처리 후 1번만 재분석. excluded_pages는 backend가 누적 관리.
   const [excludedThisSession, setExcludedThisSession] = useState<Set<number>>(new Set());
+  // VLM 정밀 분석 — 페이지 idx별 결과 캐시 (한 번 호출 후 재호출 안 함, 비용 절약)
+  const [vlmByPage, setVlmByPage] = useState<Record<number, VlmClassifyResult>>({});
+  const [vlmLoadingIdx, setVlmLoadingIdx] = useState<number | null>(null);
 
   const pagesQuery = useQuery({
     queryKey: ["matchup-doc-pages", doc.id],
@@ -199,6 +203,38 @@ export default function LowConfPageReviewer({
   const handleManualCrop = useCallback(() => {
     onRequestManualCrop(activeIdx);
   }, [onRequestManualCrop, activeIdx]);
+
+  const handleVlmClassify = useCallback(async () => {
+    if (vlmLoadingIdx !== null) return;
+    setVlmLoadingIdx(activeIdx);
+    try {
+      const res = await vlmClassifyMatchupPage(doc.id, activeIdx);
+      setVlmByPage((prev) => ({ ...prev, [activeIdx]: res }));
+      const roleLabel = {
+        cover: "표지", index: "목차", problem: "문항",
+        explanation: "해설", answer_key: "정답지", mixed: "혼재",
+      }[res.page_role];
+      feedback.success(
+        `VLM 분석 완료 — ${roleLabel} (신뢰도 ${Math.round(res.confidence * 100)}%, ` +
+        `검출 ${res.problems.length}건)`,
+      );
+    } catch (e) {
+      console.error(e);
+      const status = (e as { response?: { status?: number } })?.response?.status;
+      const msg =
+        (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
+        "VLM 분석 실패";
+      if (status === 429) {
+        feedback.error(`호출 한도 초과: ${msg}`);
+      } else {
+        feedback.error(msg);
+      }
+    } finally {
+      setVlmLoadingIdx(null);
+    }
+  }, [vlmLoadingIdx, activeIdx, doc.id]);
+
+  const activeVlm = vlmByPage[activeIdx];
 
   return (
     <div
@@ -380,6 +416,21 @@ export default function LowConfPageReviewer({
                 <Button
                   size="sm"
                   intent="ghost"
+                  onClick={handleVlmClassify}
+                  disabled={excluding || reanalyzing || vlmLoadingIdx !== null || Boolean(activeVlm)}
+                  data-testid="matchup-low-conf-vlm-btn"
+                  title="Gemini VLM으로 페이지 정밀 분석 (페이지당 1회)"
+                >
+                  {vlmLoadingIdx === activeIdx ? (
+                    <Loader2 size={13} className="animate-spin" style={/* eslint-disable-line no-restricted-syntax */ { marginRight: 4 }} />
+                  ) : (
+                    <Sparkles size={13} style={/* eslint-disable-line no-restricted-syntax */ { marginRight: 4 }} />
+                  )}
+                  {activeVlm ? "VLM 분석됨" : "VLM 정밀 분석"}
+                </Button>
+                <Button
+                  size="sm"
+                  intent="ghost"
                   onClick={handleManualCrop}
                   disabled={excluding || reanalyzing}
                   data-testid="matchup-low-conf-manual-crop-btn"
@@ -509,6 +560,60 @@ export default function LowConfPageReviewer({
                       이 페이지에 등록된 문항 없음
                     </div>
                   )}
+                  {/* VLM 결과 bbox overlay — 보라색 점선 (자동 분리 결과와 시각적 구분) */}
+                  {activeVlm && activeVlm.problems.length > 0 && activePageData && (() => {
+                    // VLM bbox는 픽셀 좌표. page width/height(원본)로 정규화해 % 변환.
+                    // page meta가 비어있으면 width=0이라 0% 출력 → noop.
+                    const pw = activePageData.width || 1;
+                    const ph = activePageData.height || 1;
+                    return activeVlm.problems.map((p, i) => {
+                      const [x, y, w, h] = p.bbox;
+                      if (!Number.isFinite(x) || !Number.isFinite(y) || !w || !h) return null;
+                      const left = (x / pw) * 100;
+                      const top = (y / ph) * 100;
+                      const width = (w / pw) * 100;
+                      const height = (h / ph) * 100;
+                      return (
+                        <div
+                          key={`vlm-${i}`}
+                          title={`VLM Q${p.number} (${Math.round(p.confidence * 100)}%)`}
+                          style={/* eslint-disable-line no-restricted-syntax */ {
+                            position: "absolute",
+                            left: `${left}%`, top: `${top}%`,
+                            width: `${width}%`, height: `${height}%`,
+                            border: "2px dashed #8b5cf6",
+                            background: "color-mix(in srgb, #8b5cf6 8%, transparent)",
+                            pointerEvents: "none",
+                          }}
+                        >
+                          <span style={/* eslint-disable-line no-restricted-syntax */ {
+                            position: "absolute", bottom: -2, right: -2,
+                            background: "#8b5cf6", color: "white",
+                            fontSize: 10, fontWeight: 800, padding: "1px 5px",
+                            borderRadius: 3,
+                          }}>
+                            VLM {p.number}
+                          </span>
+                        </div>
+                      );
+                    });
+                  })()}
+                  {activeVlm && (
+                    <div style={/* eslint-disable-line no-restricted-syntax */ {
+                      position: "absolute",
+                      top: 8, right: 8,
+                      padding: "4px 10px",
+                      background: "#8b5cf6",
+                      color: "white",
+                      fontSize: 11, fontWeight: 700,
+                      borderRadius: 999,
+                      display: "flex", alignItems: "center", gap: 4,
+                    }}>
+                      <Sparkles size={11} />
+                      VLM: {activeVlm.page_role} ({Math.round(activeVlm.confidence * 100)}%)
+                      {activeVlm.problems.length > 0 && ` · 검출 ${activeVlm.problems.length}건`}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -520,7 +625,7 @@ export default function LowConfPageReviewer({
               fontSize: 11, color: "var(--color-text-muted)",
               flexShrink: 0,
             }}>
-              초록 박스 = 등록된 문항. 자동 검출이 부정확하다면 <strong>제외</strong> 또는 <strong>직접 자르기</strong>로 수정 후 <strong>재분석</strong>하세요.
+              초록 박스 = 등록된 문항 · <span style={/* eslint-disable-line no-restricted-syntax */ { color: "#8b5cf6", fontWeight: 700 }}>보라 점선</span> = VLM 검출 결과. 자동 검출이 부정확하다면 <strong>제외</strong> 또는 <strong>직접 자르기</strong>로 수정 후 <strong>재분석</strong>하세요.
             </div>
           </div>
         </div>

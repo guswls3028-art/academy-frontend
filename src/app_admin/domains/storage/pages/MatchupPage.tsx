@@ -19,6 +19,7 @@ import {
   assignMatchupCategory,
   fetchHitReportDraft,
   upsertHitReportEntries,
+  reanalyzeMatchupDocument,
 } from "../api/matchup.api";
 import type { SimilarProblem } from "../api/matchup.api";
 import { useMatchupPolling } from "../hooks/useMatchupPolling";
@@ -482,20 +483,55 @@ export default function MatchupPage() {
     }
   }, [selectedDoc, qc]);
 
+  // 자료 유형 변경 시 자동 재분석 토글 — localStorage 보존 (학원장 1회 설정).
+  // ON 상태에서 chip을 바꾸면 즉시 reanalyze까지 자동 호출 → 학원장이 별도 버튼
+  // 누르는 step 1 줄어듦.
+  const AUTO_REANALYZE_KEY = "matchup-source-type-auto-reanalyze";
+  const [autoReanalyze, setAutoReanalyze] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem(AUTO_REANALYZE_KEY) === "1";
+    } catch {
+      return false;
+    }
+  });
+  const toggleAutoReanalyze = useCallback((next: boolean) => {
+    setAutoReanalyze(next);
+    try {
+      localStorage.setItem(AUTO_REANALYZE_KEY, next ? "1" : "0");
+    } catch {
+      // localStorage 불가 환경(시크릿 모드 등)에서도 in-memory state는 유지
+    }
+  }, []);
+
   // Phase 17 — post-upload source_type 보정. 학원장이 잘못 백필된 라벨 즉시 정정.
+  // autoReanalyze ON이면 변경 즉시 재분석까지 트리거.
   const handleChangeSourceType = useCallback(
     async (sourceType: import("../components/matchup/documentIntent").MatchupSourceType) => {
       if (!selectedDoc) return;
       try {
         await updateMatchupDocument(selectedDoc.id, { source_type: sourceType });
         await qc.invalidateQueries({ queryKey: ["matchup-documents"] });
-        feedback.success("자료 유형을 변경했습니다. 재분석을 트리거하려면 '재처리' 버튼을 누르세요.");
+        if (autoReanalyze) {
+          // 변경 즉시 재분석 트리거 — processing 충돌은 backend에서 409 반환.
+          try {
+            await reanalyzeMatchupDocument(selectedDoc.id);
+            feedback.success("자료 유형 변경 + 재분석 시작");
+            await qc.invalidateQueries({ queryKey: ["matchup-problems", selectedDoc.id] });
+          } catch (e) {
+            const msg =
+              (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
+              "재분석 트리거 실패";
+            feedback.error(`유형 변경됨, 재분석 ${msg}`);
+          }
+        } else {
+          feedback.success("자료 유형을 변경했습니다. 재분석 버튼으로 새 strategy 적용.");
+        }
       } catch (e) {
         console.error(e);
         feedback.error("자료 유형 변경 실패");
       }
     },
-    [selectedDoc, qc],
+    [selectedDoc, qc, autoReanalyze],
   );
 
   const handleSelectDoc = useCallback((id: number) => {
@@ -1033,11 +1069,28 @@ export default function MatchupPage() {
                           <option key={st} value={st}>{SOURCE_TYPE_LABELS[st]}</option>
                         ))}
                       </select>
-                      <span style={/* eslint-disable-line no-restricted-syntax */ {
-                        fontSize: 11, color: "var(--color-text-muted)",
-                      }}>
-                        ※ 변경 후 재분석 버튼으로 새 strategy 적용
-                      </span>
+                      <label style={/* eslint-disable-line no-restricted-syntax */ {
+                        marginLeft: "auto",
+                        display: "inline-flex", alignItems: "center", gap: 6,
+                        fontSize: 11, color: "var(--color-text-secondary)",
+                        cursor: "pointer", userSelect: "none",
+                      }} title="자료 유형을 바꾸면 즉시 재분석을 트리거합니다 (브라우저에 설정 저장)">
+                        <input
+                          type="checkbox"
+                          checked={autoReanalyze}
+                          onChange={(e) => toggleAutoReanalyze(e.target.checked)}
+                          data-testid="matchup-source-type-auto-reanalyze-toggle"
+                          style={/* eslint-disable-line no-restricted-syntax */ { cursor: "pointer" }}
+                        />
+                        변경 시 자동 재분석
+                      </label>
+                      {!autoReanalyze && (
+                        <span style={/* eslint-disable-line no-restricted-syntax */ {
+                          fontSize: 11, color: "var(--color-text-muted)",
+                        }}>
+                          ※ 변경 후 재분석 버튼으로 새 strategy 적용
+                        </span>
+                      )}
                     </div>
                   );
                 })()}
