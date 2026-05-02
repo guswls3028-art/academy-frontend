@@ -4,10 +4,9 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { Sparkles, AlertTriangle, RefreshCw, Eye, FolderOpen, BookOpen, Crop, FileText, ClipboardList } from "lucide-react";
+import { Sparkles, AlertTriangle, RefreshCw, Eye, FolderOpen, BookOpen, Crop, ClipboardList } from "lucide-react";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
-import api from "@/shared/api/axios";
 import { asyncStatusStore } from "@/shared/ui/asyncStatus";
 import {
   fetchMatchupDocuments,
