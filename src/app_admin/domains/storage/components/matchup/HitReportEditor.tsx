@@ -7,6 +7,11 @@
 //   다크 헤더(Q번호 + 적중 라벨 + 유사도) + 좌/우 2-pane + 하단 코멘트 band.
 //   사용자는 우측 후보 리스트 클릭으로 active 후보를 바꿔가며 비교 미리보기,
 //   체크박스로 PDF에 들어갈 후보를 선택. 같은 양식이 그대로 PDF에 출력됨.
+//
+// 인라인 스타일은 PDF pane 색상/사이즈 토큰을 동적으로 매핑(적중분류색·캡션톤)하기 위해
+// 의도적으로 사용. CSS 모듈로 옮기면 색상 매핑 함수 + className 조합이 더 복잡해지고
+// PDF SSOT(_pane_color_for_class)와 동기화 비용 증가. 따라서 파일 단위 lint 예외.
+/* eslint-disable no-restricted-syntax */
 
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { X, Save, Send, FileText, ChevronLeft, ChevronRight, Check } from "lucide-react";
@@ -121,7 +126,8 @@ export default function HitReportEditor({ docId, onClose }: Props) {
 
   useEffect(() => { void load(); }, [load]);
 
-  const examProblems = data?.exam_problems || [];
+  // useMemo로 array identity 안정화 — react-hooks/exhaustive-deps 경고 회피.
+  const examProblems = useMemo(() => data?.exam_problems || [], [data]);
   const active = examProblems[activeIndex] || null;
   const activeEntry = active ? entries[active.id] : null;
   const reportId = data?.report.id ?? 0;
