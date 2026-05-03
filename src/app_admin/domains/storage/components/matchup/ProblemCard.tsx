@@ -53,11 +53,16 @@ export default function ProblemCard({ problem, selected, onClick, mergeMode = fa
     return () => document.removeEventListener("keydown", onKey);
   }, [zoomOpen]);
 
+  // 자동분리 결함 의심 카드는 외곽 강조 + warning stripe로 시각 우선순위.
+  // 기존 작은 뱃지(9px)는 그리드에서 묻혔던 사고 보완.
+  const hasIssue = numberMismatch || isMergeSuspect;
+
   return (
     <>
       <div
         data-testid="matchup-problem-card"
         data-problem-id={problem.id}
+        data-has-issue={hasIssue ? "true" : "false"}
         onClick={onClick}
         onDoubleClick={(e) => {
           // 합치기 모드에선 더블클릭으로 zoom을 열지 않음 — 첫/두 번째 클릭이 선택 토글로 동작.
@@ -74,22 +79,40 @@ export default function ProblemCard({ problem, selected, onClick, mergeMode = fa
         style={/* eslint-disable-line no-restricted-syntax */ {
           border: showSelectedStyle
             ? "2px solid var(--color-brand-primary)"
-            : "1px solid var(--color-border-divider)",
+            : hasIssue
+              ? "2px solid color-mix(in srgb, var(--color-warning) 55%, transparent)"
+              : "1px solid var(--color-border-divider)",
           borderRadius: "var(--radius-lg)",
           padding: "var(--space-3)",
           cursor: "pointer",
           background: showSelectedStyle
             ? "color-mix(in srgb, var(--color-brand-primary) 4%, var(--color-bg-surface))"
-            : "var(--color-bg-surface)",
+            : hasIssue
+              ? "color-mix(in srgb, var(--color-warning) 4%, var(--color-bg-surface))"
+              : "var(--color-bg-surface)",
           transition: "border-color 0.15s, box-shadow 0.15s",
-          boxShadow: showSelectedStyle ? "0 0 0 3px color-mix(in srgb, var(--color-brand-primary) 12%, transparent)" : undefined,
+          boxShadow: showSelectedStyle
+            ? "0 0 0 3px color-mix(in srgb, var(--color-brand-primary) 12%, transparent)"
+            : hasIssue
+              ? "0 0 0 2px color-mix(in srgb, var(--color-warning) 18%, transparent)"
+              : undefined,
           display: "flex",
           flexDirection: "column",
           gap: "var(--space-2)",
           minHeight: 180,
           position: "relative",
+          overflow: "hidden",
         }}
       >
+        {hasIssue && (
+          <div
+            aria-hidden
+            style={/* eslint-disable-line no-restricted-syntax */ {
+              position: "absolute", top: 0, left: 0, right: 0, height: 4,
+              background: "var(--color-warning)",
+            }}
+          />
+        )}
         {mergeMode && (
           <div style={/* eslint-disable-line no-restricted-syntax */ {
             position: "absolute", top: 6, left: 6, zIndex: 2,

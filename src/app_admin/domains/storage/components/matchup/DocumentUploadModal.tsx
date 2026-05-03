@@ -9,7 +9,7 @@
 //  - 제목 중복 경고 (같은 테넌트 동일 제목 존재 시 inline 안내)
 //  - 과목/학년 datalist 자동완성 (기존 문서 기반)
 
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { Upload, X, Image as ImageIcon, FileText, AlertCircle, GripVertical } from "lucide-react";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
@@ -101,8 +101,20 @@ export default function DocumentUploadModal({
   // 운영 사고(2026-04-29 철 선생): 30개 자료 drop → 사용자가 토글 인지 못함 →
   // 1 PDF 합치기로 진행 → 2GB 한도/timeout 사고. 따라서 default를 entries 수와 intent 기반으로 자동 반전.
   // 사용자가 명시적으로 토글하면 splitModeTouched=true로 자동 결정 차단.
+  // localStorage 학습: 학원장이 한 번 명시 선택하면 다음 업로드에 같은 선호 자동 적용 (intent별 개별 키).
+  const SPLIT_MODE_PREF_KEY = `matchup-split-mode-pref-${intent}`;
   const [splitMode, setSplitMode] = useState(false);
   const [splitModeTouched, setSplitModeTouched] = useState(false);
+  const [splitModeRemembered, setSplitModeRemembered] = useState<boolean | null>(() => {
+    try {
+      const raw = localStorage.getItem(SPLIT_MODE_PREF_KEY);
+      if (raw === "split") return true;
+      if (raw === "merge") return false;
+      return null;
+    } catch {
+      return null;
+    }
+  });
   const [splitProgress, setSplitProgress] = useState<{
     done: number; total: number; current?: string; failed: number;
     // 평균 시간 기반 ETA 계산용
@@ -143,6 +155,7 @@ export default function DocumentUploadModal({
   }, [dropError]);
 
   // splitMode 자동 결정 — 사용자가 토글하지 않았을 때만 entries/intent에 따라 갱신.
+  // 우선순위: 1) 사용자 학습된 선호(localStorage) > 2) 자동 추천 (entries/intent).
   // reference(학습자료): 2개 이상이면 거의 항상 별도 doc 의도 → 즉시 split.
   // test(시험지): 1~4장은 한 시험지의 multi-page 가능성, 5장 이상은 별도 시험지 가능성.
   useEffect(() => {
@@ -151,12 +164,30 @@ export default function DocumentUploadModal({
       if (splitMode) setSplitMode(false);
       return;
     }
+    // 1) 학습된 선호 우선 적용
+    if (splitModeRemembered !== null) {
+      if (splitModeRemembered !== splitMode) setSplitMode(splitModeRemembered);
+      return;
+    }
+    // 2) 자동 추천
     const hasPdf = entries.some((e) => isPdf(e.file));
     const recommended = intent === "test"
-      ? entries.length >= 5 || hasPdf  // PDF는 보통 자체로 multi-page 자료 → 별도 doc
-      : entries.length >= 2;            // reference는 보수적으로 자동 split
+      ? entries.length >= 5 || hasPdf
+      : entries.length >= 2;
     if (recommended !== splitMode) setSplitMode(recommended);
-  }, [entries, intent, splitMode, splitModeTouched]);
+  }, [entries, intent, splitMode, splitModeTouched, splitModeRemembered]);
+
+  // splitMode 명시 선택 시 localStorage에 학습.
+  const persistSplitMode = useCallback((next: boolean) => {
+    setSplitMode(next);
+    setSplitModeTouched(true);
+    setSplitModeRemembered(next);
+    try {
+      localStorage.setItem(SPLIT_MODE_PREF_KEY, next ? "split" : "merge");
+    } catch {
+      // private mode 등 — in-memory state는 유지
+    }
+  }, [SPLIT_MODE_PREF_KEY]);
 
   // ESC로 닫기 (업로드 중에는 무시)
   useEffect(() => {
@@ -562,7 +593,20 @@ export default function DocumentUploadModal({
                 display: "flex", alignItems: "center", justifyContent: "space-between",
               }}>
                 <span>업로드 방식 선택 ({entries.length}개 파일)</span>
-                {!splitModeTouched && (
+                {!splitModeTouched && splitModeRemembered !== null && (
+                  <span
+                    title="이전에 선택했던 방식을 기억해 자동 적용했습니다"
+                    style={/* eslint-disable-line no-restricted-syntax */ {
+                      fontSize: 10, fontWeight: 700,
+                      color: "var(--color-brand-primary)",
+                      padding: "1px 7px", borderRadius: 999,
+                      background: "color-mix(in srgb, var(--color-brand-primary) 12%, transparent)",
+                    }}
+                  >
+                    이전 선택 기억됨
+                  </span>
+                )}
+                {!splitModeTouched && splitModeRemembered === null && (
                   <span style={/* eslint-disable-line no-restricted-syntax */ {
                     fontSize: 10, fontWeight: 600,
                     color: "var(--color-brand-primary)",
@@ -577,7 +621,7 @@ export default function DocumentUploadModal({
                 {/* 옵션 A: 각각 별도 doc */}
                 <button
                   type="button"
-                  onClick={() => { setSplitMode(true); setSplitModeTouched(true); }}
+                  onClick={() => persistSplitMode(true)}
                   disabled={uploading}
                   data-testid="matchup-split-mode-toggle"
                   data-split-mode={splitMode ? "true" : "false"}
@@ -609,7 +653,7 @@ export default function DocumentUploadModal({
                 {/* 옵션 B: 1개로 합치기 */}
                 <button
                   type="button"
-                  onClick={() => { setSplitMode(false); setSplitModeTouched(true); }}
+                  onClick={() => persistSplitMode(false)}
                   disabled={uploading}
                   data-testid="matchup-merge-mode-toggle"
                   style={/* eslint-disable-line no-restricted-syntax */ {

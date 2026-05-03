@@ -417,7 +417,7 @@ export default function HitReportEditor({ docId, onClose }: Props) {
       style={{
         position: "fixed", inset: 0,
         background: "rgba(15, 23, 42, 0.55)",
-        zIndex: 110,
+        zIndex: 1100,
         display: "flex", alignItems: "stretch", justifyContent: "center",
       }}
       onClick={(e) => {
@@ -480,12 +480,36 @@ export default function HitReportEditor({ docId, onClose }: Props) {
           </div>
 
           <div style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>
-            <span style={{ fontSize: 11, color: dirtyCount > 0 ? "var(--color-status-warning)" : "var(--color-text-muted)" }}>
-              {dirtyCount > 0 ? `미저장 ${dirtyCount}건` : "저장됨"}
+            {/* 3-state 자동저장 인디케이터 — 저장 중(파란 spinner) / 변경됨(주황) / 저장됨(회색 ✓) */}
+            <span
+              data-testid="matchup-hit-report-save-state"
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 5,
+                fontSize: 11, fontWeight: 600,
+                padding: "3px 9px", borderRadius: 999,
+                background: saving
+                  ? "color-mix(in srgb, var(--color-brand-primary) 10%, transparent)"
+                  : dirtyCount > 0
+                    ? "color-mix(in srgb, var(--color-status-warning) 12%, transparent)"
+                    : "var(--color-bg-surface-soft)",
+                color: saving
+                  ? "var(--color-brand-primary)"
+                  : dirtyCount > 0
+                    ? "var(--color-status-warning)"
+                    : "var(--color-text-muted)",
+                border: "1px solid",
+                borderColor: saving
+                  ? "color-mix(in srgb, var(--color-brand-primary) 30%, transparent)"
+                  : dirtyCount > 0
+                    ? "color-mix(in srgb, var(--color-status-warning) 30%, transparent)"
+                    : "var(--color-border-divider)",
+              }}
+            >
+              {saving ? "저장 중…" : dirtyCount > 0 ? `변경됨 (${dirtyCount}건, 곧 자동 저장)` : "저장됨 ✓"}
             </span>
             <Button size="sm" intent="ghost" onClick={() => void saveAll()} disabled={saving || isSubmitted || dirtyCount === 0}>
               <Save size={12} style={{ marginRight: 4 }} />
-              저장
+              지금 저장
             </Button>
             <Button size="sm" intent="ghost" onClick={() => void downloadPdf()} disabled={saving || pdfDownloading}>
               <FileText size={12} style={{ marginRight: 4 }} />
@@ -495,10 +519,10 @@ export default function HitReportEditor({ docId, onClose }: Props) {
               size="sm" intent="ghost"
               onClick={() => void downloadShareZip()}
               disabled={saving || zipDownloading}
-              title="페이지별 PNG + summary.md — 카페·블로그에 paste·업로드"
+              title="페이지별 이미지 + 요약 텍스트 — 학원 카페·블로그에 그대로 붙여넣기 / 업로드"
             >
               <Share2 size={12} style={{ marginRight: 4 }} />
-              {zipDownloading ? "ZIP 생성 중…" : "카페 공유용 ZIP"}
+              {zipDownloading ? "압축 중…" : "카페·블로그용 이미지 묶음"}
             </Button>
             <Button size="sm" intent="primary" onClick={() => void submit()} disabled={submitting || isSubmitted}>
               <Send size={12} style={{ marginRight: 4 }} />

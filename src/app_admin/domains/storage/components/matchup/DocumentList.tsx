@@ -377,11 +377,8 @@ export default function DocumentList({
               style={{
                 fontSize: 12.5, fontWeight: 600, color: "var(--color-text-primary)",
                 overflow: "hidden", textOverflow: "ellipsis",
-                display: "-webkit-box",
-                WebkitLineClamp: 2,
-                WebkitBoxOrient: "vertical",
-                wordBreak: "break-all",
-                lineHeight: 1.3,
+                whiteSpace: "nowrap",
+                lineHeight: 1.35,
               }}
             >
               {doc.title}
@@ -650,18 +647,20 @@ export default function DocumentList({
               실패 {counts.failed}
             </button>
           </div>
-          {/* intent 글로벌 합계 — 카테고리별 헤더와 분리해 전체 시험지/자료 수를 명시 */}
+          {/* intent 글로벌 합계 — 학원장이 매치업 풀 규모를 한눈에 인지 */}
           <div style={{
             display: "flex", gap: 8, alignItems: "center",
             fontSize: 11, color: "var(--color-text-muted)",
             paddingTop: 2,
           }}>
-            <span title="등록된 학생 시험지 전체 수" style={{ color: "var(--color-warning)", fontWeight: 600 }}>
+            <span title="등록된 시험지 전체 개수" style={{ color: "var(--color-warning)", fontWeight: 700 }}>
+              <ClipboardList size={11} style={{ verticalAlign: "-2px", marginRight: 3 }} />
               시험지 {counts.test}
             </span>
             <span style={{ opacity: 0.5 }}>·</span>
-            <span title="등록된 참고 자료 전체 수" style={{ color: "var(--color-brand-primary)", fontWeight: 600 }}>
-              참고 자료 {counts.reference}
+            <span title="등록된 참고자료 전체 개수" style={{ color: "var(--color-brand-primary)", fontWeight: 700 }}>
+              <BookOpen size={11} style={{ verticalAlign: "-2px", marginRight: 3 }} />
+              참고자료 {counts.reference}
             </span>
             {(search || statusFilter !== "all") && (
               <span style={{ marginLeft: "auto", opacity: 0.7 }}>
@@ -886,12 +885,12 @@ export default function DocumentList({
 
                   {!isRenaming && !isMerging && (
                     <span
-                      title={`시험지 ${group.tests.length} · 자료 ${group.references.length}`}
+                      title={`시험지 ${group.tests.length}건 · 참고자료 ${group.references.length}건`}
                       style={{
-                        fontSize: 10,
+                        fontSize: 11,
                         color: "var(--color-text-muted)",
                         display: "inline-flex",
-                        gap: 3,
+                        gap: 5,
                         alignItems: "center",
                         flexShrink: 0,
                         fontWeight: 700,
@@ -899,14 +898,14 @@ export default function DocumentList({
                     >
                       {group.tests.length > 0 && (
                         <span style={{ color: "var(--color-warning)" }}>
-                          시{group.tests.length}
+                          시험지 {group.tests.length}
                         </span>
                       )}
                       {group.tests.length > 0 && group.references.length > 0 && (
                         <span style={{ color: "var(--color-border-divider)" }}>·</span>
                       )}
                       {group.references.length > 0 && (
-                        <span>자{group.references.length}</span>
+                        <span>자료 {group.references.length}</span>
                       )}
                     </span>
                   )}
@@ -1069,14 +1068,15 @@ export default function DocumentList({
                   {group.tests.length > 0 && (
                     <>
                       <div style={{
-                        margin: "var(--space-1) var(--space-2) 2px var(--space-3)",
+                        margin: "var(--space-1) var(--space-2) 4px var(--space-3)",
                         fontSize: 10,
-                        fontWeight: 700,
+                        fontWeight: 800,
                         color: "var(--color-warning)",
-                        textTransform: "uppercase",
-                        letterSpacing: 0.4,
+                        letterSpacing: 0.3,
+                        display: "inline-flex", alignItems: "center", gap: 4,
                       }}>
-                        시험지 · {group.tests.length}
+                        <ClipboardList size={10} />
+                        시험지 {group.tests.length}건
                       </div>
                       {group.tests.map(renderDocRow)}
                     </>
@@ -1084,14 +1084,15 @@ export default function DocumentList({
                   {group.references.length > 0 && (
                     <>
                       <div style={{
-                        margin: "var(--space-2) var(--space-2) 2px var(--space-3)",
+                        margin: "var(--space-2) var(--space-2) 4px var(--space-3)",
                         fontSize: 10,
-                        fontWeight: 700,
+                        fontWeight: 800,
                         color: "var(--color-brand-primary)",
-                        textTransform: "uppercase",
-                        letterSpacing: 0.4,
+                        letterSpacing: 0.3,
+                        display: "inline-flex", alignItems: "center", gap: 4,
                       }}>
-                        참고 자료 · {group.references.length}
+                        <BookOpen size={10} />
+                        참고자료 {group.references.length}건
                       </div>
                       {group.references.map(renderDocRow)}
                     </>

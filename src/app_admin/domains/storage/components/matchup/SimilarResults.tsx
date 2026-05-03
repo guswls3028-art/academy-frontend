@@ -62,7 +62,7 @@ export default function SimilarResults({
     findSimilarProblems(problemId, 20)
       .then((r) => setResults(r.results))
       .catch(() => {
-        feedback.error("유사 문제 검색에 실패했습니다.");
+        feedback.error("유사 문제를 찾는 중 문제가 생겼어요. 잠시 후 다시 시도해 주세요.");
         setResults([]);
       })
       .finally(() => setLoading(false));
@@ -79,12 +79,16 @@ export default function SimilarResults({
     return (
       <div style={{
         padding: "var(--space-6)", textAlign: "center",
-        color: "var(--color-text-muted)", fontSize: 13,
+        color: "var(--color-text-muted)", fontSize: 13, lineHeight: 1.6,
         display: "flex", flexDirection: "column", alignItems: "center", gap: "var(--space-2)",
       }}>
-        <Sparkles size={20} style={{ opacity: 0.3 }} />
-        <span>좌측에서 문제를 클릭하면</span>
-        <span>유사한 문제를 자동으로 찾아줍니다.</span>
+        <Sparkles size={22} style={{ opacity: 0.4 }} />
+        <strong style={{ color: "var(--color-text-secondary)", fontWeight: 700 }}>
+          왼쪽에서 문제 카드를 골라보세요
+        </strong>
+        <span style={{ maxWidth: 240 }}>
+          비슷한 문제를 등록된 자료에서 자동으로 찾아드립니다.
+        </span>
       </div>
     );
   }
@@ -141,8 +145,32 @@ export default function SimilarResults({
     : [];
 
   // 강한 vs 참고 시각 분기는 SimilarRow 내부에서 자체 처리
+  const pinnedHere = pinnedIds && results.filter((r) => pinnedIds.has(r.id)).length;
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
+      {/* Pin 컨텍스트 — 시험지 doc일 때 이 문항에 담은 후보 수 + 별표 사용법 안내 */}
+      {onTogglePin && (
+        <div
+          data-testid="matchup-similar-pin-hint"
+          style={{
+            display: "flex", alignItems: "center", gap: 8,
+            padding: "8px var(--space-3)",
+            background: "color-mix(in srgb, var(--color-warning) 6%, var(--color-bg-surface))",
+            border: "1px dashed color-mix(in srgb, var(--color-warning) 35%, transparent)",
+            borderRadius: "var(--radius-sm)",
+            fontSize: 11, color: "var(--color-text-secondary)", lineHeight: 1.5,
+          }}
+        >
+          <Star size={14} fill="var(--color-warning)" stroke="var(--color-warning)" style={{ flexShrink: 0 }} />
+          <span>
+            마음에 드는 후보의 <strong style={{ color: "var(--color-warning)" }}>★ 별</strong>을 누르면 적중 보고서에 담깁니다.
+            {pinnedHere ? (
+              <> · 이 문항에 <strong style={{ color: "var(--color-warning)" }}>{pinnedHere}개 담음</strong></>
+            ) : null}
+          </span>
+        </div>
+      )}
+
       {visibleCount === 0 && grouped.noise.length > 0 && (
         <div data-testid="matchup-similar-only-noise" style={{
           padding: "var(--space-4)", textAlign: "center",
@@ -309,13 +337,17 @@ function SimilarRow({ item, onClick, pinned, onTogglePin }: {
       data-tier={t}
       onClick={onClick}
       style={{
-        display: "flex", alignItems: "center", gap: "var(--space-3)",
-        padding: "var(--space-3) var(--space-4)",
+        display: "flex", alignItems: "stretch", gap: "var(--space-3)",
+        padding: "var(--space-3)",
         borderRadius: "var(--radius-md)",
-        border: "1px solid var(--color-border-divider)",
-        background: "var(--color-bg-surface)",
+        border: pinned
+          ? "1px solid var(--color-warning)"
+          : "1px solid var(--color-border-divider)",
+        background: pinned
+          ? "color-mix(in srgb, var(--color-warning) 5%, var(--color-bg-surface))"
+          : "var(--color-bg-surface)",
         cursor: "pointer",
-        transition: "box-shadow 0.15s, border-color 0.15s",
+        transition: "box-shadow 0.15s, border-color 0.15s, background 0.15s",
       }}
       onMouseEnter={(e) => {
         e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.08)";
@@ -323,59 +355,73 @@ function SimilarRow({ item, onClick, pinned, onTogglePin }: {
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.boxShadow = "none";
-        e.currentTarget.style.borderColor = "var(--color-border-divider)";
+        e.currentTarget.style.borderColor = pinned ? "var(--color-warning)" : "var(--color-border-divider)";
       }}
     >
+      {/* 매치% 큰 뱃지 — 한눈에 파악 */}
       <div style={{
-        flexShrink: 0, width: 44, height: 44,
+        flexShrink: 0, width: 56, minHeight: 56,
         borderRadius: "var(--radius-md)",
         display: "flex", flexDirection: "column",
         alignItems: "center", justifyContent: "center",
         background: badgeBg,
-        border: "1px solid var(--color-border-divider)",
+        border: `1px solid ${isStrong ? "color-mix(in srgb, var(--color-success) 35%, transparent)" : "var(--color-border-divider)"}`,
       }}>
-        <span style={{ fontSize: 14, fontWeight: 700, color: badgeColor }}>
+        <span style={{ fontSize: 16, fontWeight: 800, color: badgeColor, lineHeight: 1 }}>
           {pct}%
         </span>
+        {isStrong && (
+          <span style={{ fontSize: 9, fontWeight: 700, color: badgeColor, marginTop: 3, opacity: 0.85 }}>
+            강한 매칭
+          </span>
+        )}
+        {isWeak && (
+          <span style={{ fontSize: 9, fontWeight: 700, color: badgeColor, marginTop: 3, opacity: 0.85 }}>
+            참고
+          </span>
+        )}
       </div>
 
       {item.image_url && (
         <div style={{
-          width: 48, height: 48, flexShrink: 0,
+          width: 64, height: 64, flexShrink: 0,
           borderRadius: "var(--radius-sm)", overflow: "hidden",
           background: "var(--color-bg-surface-soft)",
+          border: "1px solid var(--color-border-divider)",
         }}>
           <img
             src={item.image_url}
             alt={`Q${item.number}`}
-            style={{ width: "100%", height: "100%", objectFit: "contain" }}
+            style={{ width: "100%", height: "100%", objectFit: "contain", background: "white" }}
           />
         </div>
       )}
 
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "var(--space-1)", flexWrap: "wrap" }}>
-          <span style={{ fontSize: 12, fontWeight: 700, color: "var(--color-text-primary)" }}>
+      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", justifyContent: "center", gap: 2 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+          <span style={{ fontSize: 13, fontWeight: 700, color: "var(--color-text-primary)" }}>
             Q{item.number}
           </span>
-          <span style={{
-            fontSize: 10, padding: "1px 6px", borderRadius: 4,
-            background: "var(--color-bg-surface-soft)", color: "var(--color-text-muted)",
-          }}>
-            {item.document_title}
-          </span>
-          {isWeak && (
+          {pinned && (
             <span
-              title="유사도가 강하지는 않습니다 — 참고용"
+              title="이미 적중 보고서에 담긴 자료"
               style={{
-                fontSize: 10, padding: "1px 6px", borderRadius: 4,
-                background: "color-mix(in srgb, var(--color-warning) 12%, transparent)",
-                color: "var(--color-warning)", fontWeight: 600,
+                fontSize: 10, padding: "1px 6px", borderRadius: 999,
+                background: "var(--color-warning)", color: "white", fontWeight: 700,
               }}
             >
-              참고
+              담음
             </span>
           )}
+        </div>
+        <div
+          title={item.document_title}
+          style={{
+            fontSize: 11, color: "var(--color-text-muted)", fontWeight: 600,
+            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+          }}
+        >
+          {item.document_title}
         </div>
         {item.text && (
           <p style={{
@@ -395,21 +441,23 @@ function SimilarRow({ item, onClick, pinned, onTogglePin }: {
         <button
           data-testid="matchup-similar-pin"
           aria-label={pinned ? "보고서에서 빼기" : "보고서에 담기"}
-          title={pinned ? "보고서에 담음 (클릭하여 빼기)" : "적중 보고서에 담기"}
+          title={pinned ? "보고서에 담겼습니다 (클릭하여 빼기)" : "적중 보고서에 담기"}
           onClick={(e) => { e.stopPropagation(); onTogglePin(); }}
           style={{
-            flexShrink: 0, width: 32, height: 32,
+            flexShrink: 0, alignSelf: "center",
+            width: 36, height: 36,
             display: "flex", alignItems: "center", justifyContent: "center",
             background: pinned
-              ? "color-mix(in srgb, var(--color-warning) 15%, var(--color-bg-surface))"
+              ? "var(--color-warning)"
               : "transparent",
             border: `1px solid ${pinned ? "var(--color-warning)" : "var(--color-border-divider)"}`,
             borderRadius: "var(--radius-sm)",
             cursor: "pointer",
-            color: pinned ? "var(--color-warning)" : "var(--color-text-muted)",
+            color: pinned ? "white" : "var(--color-text-muted)",
+            transition: "background 0.12s, color 0.12s",
           }}
         >
-          <Star size={14} fill={pinned ? "currentColor" : "none"} />
+          <Star size={16} fill={pinned ? "currentColor" : "none"} />
         </button>
       )}
     </div>

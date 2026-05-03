@@ -4,8 +4,9 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { Sparkles, AlertTriangle, RefreshCw, Eye, FolderOpen, BookOpen, Crop, ClipboardList, FolderTree } from "lucide-react";
-import { Button } from "@/shared/ui/ds";
+import { Sparkles, AlertTriangle, RefreshCw, Eye, FolderOpen, BookOpen, Crop, ClipboardList, FolderTree, MoreHorizontal, Layers } from "lucide-react";
+import { Button, ICON } from "@/shared/ui/ds";
+import { useConfirm } from "@/shared/ui/confirm";
 import useAuth from "@/auth/hooks/useAuth";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { asyncStatusStore } from "@/shared/ui/asyncStatus";
@@ -71,6 +72,7 @@ function hasAsyncWorkerTask(id: string): boolean {
 export default function MatchupPage() {
   const qc = useQueryClient();
   const navigate = useNavigate();
+  const confirm = useConfirm();
   const [searchParams, setSearchParams] = useSearchParams();
   const initialDocId = (() => {
     const raw = searchParams.get("docId");
@@ -479,20 +481,34 @@ export default function MatchupPage() {
   const handleChangeIntent = useCallback(async (intent: "reference" | "test") => {
     if (!selectedDoc) return;
     if (getDocumentIntent(selectedDoc) === intent) return;
+    // 시험지 → 참고자료 전환은 적중 보고서 진입점/자료별 매치 탭이 모두 사라짐.
+    // 학원장이 잘못 누른 경우 작업 손실이 크므로 명시 confirm.
+    if (getDocumentIntent(selectedDoc) === "test" && intent === "reference") {
+      const ok = await confirm({
+        title: "시험지를 참고자료로 변경",
+        message:
+          "이 문서를 참고자료로 바꾸면 '적중 보고서' 작성과 '자료별 매치' 탭이 사라집니다. " +
+          "이미 작성한 보고서 내용은 유지되지만 화면에서 보이지 않습니다. 계속하시겠어요?",
+        confirmText: "참고자료로 변경",
+        cancelText: "취소",
+        danger: true,
+      });
+      if (!ok) return;
+    }
     setIntentUpdating(true);
     try {
       await updateMatchupDocument(selectedDoc.id, { intent });
       await qc.invalidateQueries({ queryKey: ["matchup-documents"] });
       if (intent === "test") {
-        feedback.success("문서를 시험지로 변경했습니다. 자료별 매치 탭을 사용할 수 있습니다.");
+        feedback.success("시험지로 바꿨습니다. 이제 적중 보고서를 작성할 수 있어요.");
       } else {
         setRightPanelTab("similar");
-        feedback.success("문서를 참고자료로 변경했습니다. 자료별 매치는 시험지에서만 계산됩니다.");
+        feedback.success("참고자료로 바꿨습니다.");
       }
     } finally {
       setIntentUpdating(false);
     }
-  }, [selectedDoc, qc]);
+  }, [selectedDoc, qc, confirm]);
 
   // 자료 유형 변경 시 자동 재분석 토글 — localStorage 보존 (학원장 1회 설정).
   // ON 상태에서 chip을 바꾸면 즉시 reanalyze까지 자동 호출 → 학원장이 별도 버튼
@@ -668,7 +684,8 @@ export default function MatchupPage() {
         <div className={css.body}>
           {/* 좌측: 문서 목록 */}
           <div className={css.tree}>
-            {/* 강사 1인 보고서 누적 진입점 — 수업 히스토리 + 제출 KPI + 신뢰자료. */}
+            {/* 강사/학원장 보고서 누적 진입점 — 작성한 보고서 모음/inbox.
+                "보관함" 비유로 시작 시점부터 의미 명확. */}
             <div style={/* eslint-disable-line no-restricted-syntax */ {
               padding: "8px 10px",
               borderBottom: "1px solid var(--color-border-divider)",
@@ -677,20 +694,29 @@ export default function MatchupPage() {
             }}>
               <button
                 onClick={() => setHitReportListOpen(true)}
-                title={isAcademyAdmin ? "학원 전체 보고서 inbox" : "내가 작성한 매치업 적중 보고서"}
+                title={isAcademyAdmin
+                  ? "학원 전체 강사가 제출한 적중 보고서를 봅니다"
+                  : "내가 작성한 적중 보고서를 모아 봅니다"}
                 style={/* eslint-disable-line no-restricted-syntax */ {
-                  flex: 1, padding: "6px 10px",
+                  flex: 1, padding: "7px 10px",
                   display: "flex", alignItems: "center", gap: 6,
-                  fontSize: 11, fontWeight: 700,
-                  border: "1px solid var(--color-brand-primary)",
-                  borderRadius: 4,
+                  fontSize: 12, fontWeight: 700,
+                  border: "1px solid color-mix(in srgb, var(--color-brand-primary) 35%, transparent)",
+                  borderRadius: 6,
                   background: "color-mix(in srgb, var(--color-brand-primary) 6%, transparent)",
                   color: "var(--color-brand-primary)",
                   cursor: "pointer",
+                  transition: "background 0.12s, border-color 0.12s",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = "color-mix(in srgb, var(--color-brand-primary) 12%, transparent)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "color-mix(in srgb, var(--color-brand-primary) 6%, transparent)";
                 }}
               >
-                <FolderTree size={12} />
-                {isAcademyAdmin ? "학원 보고서 inbox" : "내 적중 보고서"}
+                <FolderTree size={ICON.sm} />
+                {isAcademyAdmin ? "학원 적중 보고서 모음" : "내 적중 보고서 모음"}
               </button>
             </div>
             <DocumentList
@@ -717,86 +743,27 @@ export default function MatchupPage() {
               <div style={/* eslint-disable-line no-restricted-syntax */ {
                 display: "flex", flexDirection: "column",
                 alignItems: "center", justifyContent: "center",
-                height: "100%", color: "var(--color-text-muted)", fontSize: 14,
+                height: "100%", color: "var(--color-text-muted)", fontSize: 14, lineHeight: 1.6,
+                textAlign: "center", padding: "var(--space-6)",
               }}>
                 <Sparkles size={32} style={/* eslint-disable-line no-restricted-syntax */ { marginBottom: "var(--space-3)", opacity: 0.4 }} />
-                좌측에서 문서를 선택하세요
+                <strong style={/* eslint-disable-line no-restricted-syntax */ { fontSize: 15, fontWeight: 700, color: "var(--color-text-secondary)", marginBottom: 4 }}>
+                  왼쪽에서 문서를 선택해 주세요
+                </strong>
+                <span style={/* eslint-disable-line no-restricted-syntax */ { maxWidth: 320, fontSize: 12 }}>
+                  시험지를 선택하면 적중 자료를 찾을 수 있고, 참고자료를 선택하면 추출된 문항을 검수할 수 있어요.
+                </span>
               </div>
             ) : (
               <div style={/* eslint-disable-line no-restricted-syntax */ { display: "flex", flexDirection: "column", gap: "var(--space-4)", height: "100%" }}>
-                {/* 문서 제목 + 액션 그룹 — 보기 / 편집 / 산출물 의미별 그룹화 */}
+                {/* ── Tier 1: 제목 + 적중 보고서 primary CTA + ⋮ 보조 액션 ──
+                    학원장이 가장 자주 누르는 산출물 CTA를 우측에 강하게 시각화.
+                    원본보기/저장소/직접자르기는 ⋮ 메뉴 또는 Tier 2 (배너/하단)에서 처리. */}
                 <div style={/* eslint-disable-line no-restricted-syntax */ { display: "flex", alignItems: "center", gap: "var(--space-2)", flexShrink: 0, flexWrap: "wrap" }}>
-                  <h3 style={/* eslint-disable-line no-restricted-syntax */ { margin: 0, fontSize: 15, fontWeight: 700, color: "var(--color-text-primary)", marginRight: "var(--space-2)" }}>
+                  <h3 style={/* eslint-disable-line no-restricted-syntax */ { margin: 0, fontSize: 16, fontWeight: 700, color: "var(--color-text-primary)", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={selectedDoc?.title}>
                     {selectedDoc?.title}
                   </h3>
-                  {/* 그룹 1: 보기 (회색 톤) */}
-                  {selectedDoc && (
-                    <button
-                      onClick={() => setPreviewDocId(selectedDoc.id)}
-                      data-testid="matchup-doc-preview-btn"
-                      title="원본 PDF/이미지 미리보기"
-                      style={/* eslint-disable-line no-restricted-syntax */ {
-                        display: "flex", alignItems: "center", gap: 4,
-                        fontSize: 11, padding: "3px 10px", borderRadius: 4,
-                        background: "var(--color-bg-surface-soft)",
-                        color: "var(--color-text-secondary)",
-                        border: "1px solid var(--color-border-divider)",
-                        cursor: "pointer",
-                      }}
-                    >
-                      <Eye size={12} />
-                      원본 보기
-                    </button>
-                  )}
-                  {selectedDoc?.inventory_file_id && (
-                    <button
-                      onClick={() => navigate("/admin/storage/files")}
-                      data-testid="matchup-doc-storage-link"
-                      title="저장소에서 이 자료 보기"
-                      style={/* eslint-disable-line no-restricted-syntax */ {
-                        display: "flex", alignItems: "center", gap: 4,
-                        fontSize: 11, padding: "3px 10px", borderRadius: 4,
-                        background: "var(--color-bg-surface-soft)",
-                        color: "var(--color-text-secondary)",
-                        border: "1px solid var(--color-border-divider)",
-                        cursor: "pointer",
-                      }}
-                    >
-                      <FolderOpen size={12} />
-                      저장소에서 보기
-                    </button>
-                  )}
-                  {/* 구분자 */}
-                  {selectedDoc && (
-                    <span style={/* eslint-disable-line no-restricted-syntax */ { width: 1, height: 16, background: "var(--color-border-divider)", margin: "0 2px" }} aria-hidden />
-                  )}
-                  {/* 그룹 2: 편집 (브랜드 컬러) */}
-                  {selectedDoc && (
-                    <button
-                      onClick={() => setCropDocId(selectedDoc.id)}
-                      data-testid="matchup-doc-manual-crop-btn"
-                      title="원본 위에 직접 박스를 그려 문항을 추가/수정합니다"
-                      style={/* eslint-disable-line no-restricted-syntax */ {
-                        display: "flex", alignItems: "center", gap: 4,
-                        fontSize: 11, padding: "3px 10px", borderRadius: 4,
-                        background: "color-mix(in srgb, var(--color-brand-primary) 12%, transparent)",
-                        color: "var(--color-brand-primary)",
-                        border: "1px solid color-mix(in srgb, var(--color-brand-primary) 35%, transparent)",
-                        cursor: "pointer",
-                        fontWeight: 700,
-                      }}
-                    >
-                      <Crop size={12} />
-                      직접 자르기
-                    </button>
-                  )}
-                  {/* 구분자 */}
-                  {selectedDoc && (
-                    <span style={/* eslint-disable-line no-restricted-syntax */ { width: 1, height: 16, background: "var(--color-border-divider)", margin: "0 2px" }} aria-hidden />
-                  )}
-                  {/* 그룹 3: 산출물 — 큐레이션 적중 보고서 (시험지 test일 때만 노출).
-                      사람이 후보를 직접 골라 코멘트를 작성해 학원장/선생에게 제출하는 보고서.
-                      처리 미완료 시 "시험지에 등록된 문항이 없습니다" 빈 편집기 노출 혼란 방지. */}
+                  {/* 시험지 → 적중 보고서 primary CTA (도메인의 메인 산출물) */}
                   {selectedDoc && selectedDocIntent === "test" && (() => {
                     const isReady = selectedDoc.status === "done";
                     const pinnedCount = Object.values(pinsByExamPid)
@@ -804,51 +771,59 @@ export default function MatchupPage() {
                     const reason = !isReady
                       ? selectedDoc.status === "failed"
                         ? "처리 실패한 시험지는 보고서를 작성할 수 없습니다"
-                        : "분리가 완료된 후 작성할 수 있습니다"
+                        : "분석이 끝나면 작성할 수 있어요"
                       : pinnedCount > 0
-                        ? `찜한 ${pinnedCount}개 자료로 적중 보고서를 작성합니다`
-                        : "시험지 문항별 적중 자료를 직접 골라 코멘트를 작성하여 보고서를 만듭니다";
-                    const accent = isReady && pinnedCount > 0;
+                        ? `찜한 ${pinnedCount}개 자료로 적중 보고서 작성`
+                        : "시험지 문항별 적중 자료를 직접 골라 보고서를 만듭니다";
                     return (
-                      <button
-                        type="button"
+                      <Button
+                        size="sm"
+                        intent={isReady ? "primary" : "ghost"}
                         disabled={!isReady}
                         onClick={() => setHitReportDocId(selectedDoc.id)}
                         data-testid="matchup-doc-hit-report-curate-btn"
                         title={reason}
-                        style={/* eslint-disable-line no-restricted-syntax */ {
-                          display: "flex", alignItems: "center", gap: 4,
-                          fontSize: 11, padding: "3px 10px", borderRadius: 4,
-                          background: accent
-                            ? "color-mix(in srgb, var(--color-brand-primary) 22%, transparent)"
-                            : isReady
-                              ? "color-mix(in srgb, var(--color-brand-primary) 14%, transparent)"
-                              : "var(--color-bg-surface-soft)",
-                          color: isReady ? "var(--color-brand-primary)" : "var(--color-text-muted)",
-                          border: accent
-                            ? "1px solid var(--color-brand-primary)"
-                            : isReady
-                              ? "1px solid color-mix(in srgb, var(--color-brand-primary) 40%, transparent)"
-                              : "1px solid var(--color-border-divider)",
-                          cursor: isReady ? "pointer" : "not-allowed",
-                          opacity: isReady ? 1 : 0.55,
-                          fontWeight: 700,
-                        }}
+                        leftIcon={<ClipboardList size={ICON.sm} />}
                       >
-                        <ClipboardList size={12} />
                         적중 보고서 작성
-                        {accent && (
+                        {isReady && pinnedCount > 0 && (
                           <span style={/* eslint-disable-line no-restricted-syntax */ {
-                            marginLeft: 2, padding: "1px 6px", borderRadius: 999,
-                            background: "var(--color-brand-primary)",
-                            color: "white", fontSize: 10, fontWeight: 700,
+                            marginLeft: 6, padding: "1px 7px", borderRadius: 999,
+                            background: "rgba(255,255,255,0.22)",
+                            color: "white", fontSize: 11, fontWeight: 700, lineHeight: 1.4,
                           }}>
                             {pinnedCount}
                           </span>
                         )}
-                      </button>
+                      </Button>
                     );
                   })()}
+                  {/* 직접 자르기 — 자동분리 결과를 사람이 보정하는 메인 편집 진입점.
+                      시험지 보고서 옆에 두 번째로 자주 쓰이는 액션이라 가시화 유지. */}
+                  {selectedDoc && (
+                    <Button
+                      size="sm"
+                      intent="ghost"
+                      onClick={() => setCropDocId(selectedDoc.id)}
+                      data-testid="matchup-doc-manual-crop-btn"
+                      title="원본 위에 직접 박스를 그려 문항을 추가/수정합니다"
+                      leftIcon={<Crop size={ICON.sm} />}
+                    >
+                      직접 자르기
+                    </Button>
+                  )}
+                  {/* 보조 액션 — ⋮ 메뉴로 묶음 (원본 보기 / 저장소에서 보기) */}
+                  {selectedDoc && (
+                    <HeaderMoreMenu
+                      onPreview={() => setPreviewDocId(selectedDoc.id)}
+                      onOpenStorage={selectedDoc.inventory_file_id ? () => navigate("/admin/storage/files") : null}
+                    />
+                  )}
+                </div>
+
+                {/* ── Tier 2: 메타 행 (과목 · 카테고리 · 시험지/참고자료 토글) ──
+                    문서 정체성을 한눈에 + 변경 동선 제공. */}
+                <div style={/* eslint-disable-line no-restricted-syntax */ { display: "flex", alignItems: "center", gap: "var(--space-2)", flexShrink: 0, flexWrap: "wrap", marginTop: -8 }}>
                   {selectedDoc?.subject && (
                     <span
                       title="과목"
@@ -949,46 +924,14 @@ export default function MatchupPage() {
                       {selectedDoc.category || "+ 카테고리 지정"}
                     </button>
                   ) : null}
+                  {/* 시험지 ↔ 참고자료 segmented 토글 — 현재 상태 + 변경 동작이 한 컨트롤로 통합.
+                      뱃지 + 변경 버튼 2개로 쪼개졌던 동선을 1 컨트롤로 단순화. */}
                   {selectedDoc && (
-                    <span
-                      style={/* eslint-disable-line no-restricted-syntax */ {
-                        fontSize: 11, padding: "2px 8px", borderRadius: 4,
-                        background: selectedDocIntent === "test"
-                          ? "color-mix(in srgb, var(--color-warning) 14%, transparent)"
-                          : "color-mix(in srgb, var(--color-brand-primary) 10%, transparent)",
-                        color: selectedDocIntent === "test" ? "var(--color-warning)" : "var(--color-brand-primary)",
-                        border: selectedDocIntent === "test"
-                          ? "1px solid color-mix(in srgb, var(--color-warning) 35%, transparent)"
-                          : "1px solid color-mix(in srgb, var(--color-brand-primary) 35%, transparent)",
-                        fontWeight: 700,
-                      }}
-                    >
-                      {selectedDocIntent === "test" ? "시험지" : "참고자료"}
-                    </span>
-                  )}
-                  {selectedDoc && (
-                    <button
-                      type="button"
+                    <IntentToggle
+                      value={selectedDocIntent}
+                      onChange={handleChangeIntent}
                       disabled={intentUpdating}
-                      onClick={() => handleChangeIntent(selectedDocIntent === "test" ? "reference" : "test")}
-                      style={/* eslint-disable-line no-restricted-syntax */ {
-                        display: "flex", alignItems: "center", gap: 4,
-                        fontSize: 11, padding: "3px 10px", borderRadius: 4,
-                        background: "var(--color-bg-surface-soft)",
-                        color: "var(--color-text-secondary)",
-                        border: "1px solid var(--color-border-divider)",
-                        cursor: intentUpdating ? "not-allowed" : "pointer",
-                        opacity: intentUpdating ? 0.6 : 1,
-                        fontWeight: 600,
-                      }}
-                      title={selectedDocIntent === "test" ? "참고자료로 변경" : "시험지로 변경"}
-                    >
-                      {intentUpdating
-                        ? "유형 변경 중..."
-                        : selectedDocIntent === "test"
-                          ? "참고자료로 변경"
-                          : "시험지로 변경"}
-                    </button>
+                    />
                   )}
                   {selectedDoc?.status === "processing" && progressMap[selectedDoc.id] && progressMap[selectedDoc.id].percent > 0 && (
                     <span style={/* eslint-disable-line no-restricted-syntax */ {
@@ -1365,7 +1308,7 @@ export default function MatchupPage() {
                   </div>
 
                   <div style={/* eslint-disable-line no-restricted-syntax */ {
-                    flex: 2, minWidth: 280, overflowY: "auto",
+                    flex: 2.4, minWidth: 360, overflowY: "auto",
                     borderLeft: "1px solid var(--color-border-divider)",
                     paddingLeft: "var(--space-4)",
                     display: "flex", flexDirection: "column", minHeight: 0,
@@ -1404,7 +1347,7 @@ export default function MatchupPage() {
                             opacity: t.key === "cross" && selectedDocIntent !== "test" ? 0.45 : 1,
                           }}
                           title={t.key === "cross" && selectedDocIntent !== "test"
-                            ? "시험지 문서에서만 자료별 매치를 볼 수 있습니다."
+                            ? "이 탭은 '시험지'에서만 보입니다. 헤더의 시험지/참고자료 토글로 바꿀 수 있어요."
                             : undefined}
                         >
                           {t.icon}
@@ -1413,7 +1356,16 @@ export default function MatchupPage() {
                       ))}
                     </div>
                     <div style={/* eslint-disable-line no-restricted-syntax */ { flex: 1, minHeight: 0, overflowY: "auto" }}>
-                      {rightPanelTab === "similar" ? (
+                      {/* 합치기 모드 도움말 — 우측 패널이 비어있으면 학원장이 "왜 안 보이지?" 혼란.
+                          합치기 모드 컨텍스트를 명시적으로 안내. */}
+                      {mergeMode && rightPanelTab === "similar" ? (
+                        <MergeModeRightPanel
+                          selectedCount={mergeSelectedIds.length}
+                          onConfirm={handleOpenMergeModal}
+                          onClear={handleClearMergeSelection}
+                          onExit={handleToggleMergeMode}
+                        />
+                      ) : rightPanelTab === "similar" ? (
                         <SimilarResults
                           problemId={selectedProblemId}
                           onSelectSimilar={setDetailProblem}
@@ -1554,5 +1506,259 @@ export default function MatchupPage() {
         />
       )}
     </>
+  );
+}
+
+// ── 헤더 보조 액션 ⋮ 메뉴 — 원본보기/저장소 등 자주 안 쓰는 액션을 묶어 노이즈 감소.
+//    학원장이 메인 CTA(적중보고서/직접자르기)에 집중할 수 있도록 분리.
+function HeaderMoreMenu({
+  onPreview,
+  onOpenStorage,
+}: {
+  onPreview: () => void;
+  onOpenStorage: (() => void) | null;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDocClick = (e: MouseEvent) => {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    document.addEventListener("mousedown", onDocClick);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDocClick);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+  return (
+    <div ref={ref} style={/* eslint-disable-line no-restricted-syntax */ { position: "relative" }}>
+      <Button
+        size="sm"
+        intent="ghost"
+        onClick={() => setOpen((v) => !v)}
+        title="더 보기"
+        data-testid="matchup-doc-more-menu-trigger"
+        leftIcon={<MoreHorizontal size={ICON.sm} />}
+      >
+        더 보기
+      </Button>
+      {open && (
+        <div
+          role="menu"
+          data-testid="matchup-doc-more-menu"
+          style={/* eslint-disable-line no-restricted-syntax */ {
+            position: "absolute", right: 0, top: "calc(100% + 4px)", zIndex: 30,
+            minWidth: 200, padding: 4,
+            background: "var(--color-bg-surface)",
+            border: "1px solid var(--color-border-divider)",
+            borderRadius: "var(--radius-md)",
+            boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
+            display: "flex", flexDirection: "column", gap: 1,
+          }}
+        >
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => { setOpen(false); onPreview(); }}
+            data-testid="matchup-doc-preview-btn"
+            style={moreMenuItemStyle}
+          >
+            <Eye size={ICON.sm} />
+            <span>원본 PDF 보기</span>
+          </button>
+          {onOpenStorage && (
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => { setOpen(false); onOpenStorage(); }}
+              data-testid="matchup-doc-storage-link"
+              style={moreMenuItemStyle}
+            >
+              <FolderOpen size={ICON.sm} />
+              <span>저장소에서 보기</span>
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+const moreMenuItemStyle: React.CSSProperties = /* eslint-disable-line no-restricted-syntax */ {
+  display: "flex", alignItems: "center", gap: 8,
+  width: "100%", padding: "8px 12px",
+  background: "transparent", border: "none",
+  borderRadius: "var(--radius-sm)",
+  textAlign: "left", fontSize: 13, fontWeight: 500,
+  color: "var(--color-text-primary)",
+  cursor: "pointer", fontFamily: "inherit",
+};
+
+// ── 합치기 모드 우측 패널 — 학원장이 "왜 추천이 안 보이지?" 혼란하지 않도록
+//    현재 모드 컨텍스트와 다음 행동을 친절하게 가이드.
+function MergeModeRightPanel({
+  selectedCount,
+  onConfirm,
+  onClear,
+  onExit,
+}: {
+  selectedCount: number;
+  onConfirm: () => void;
+  onClear: () => void;
+  onExit: () => void;
+}) {
+  return (
+    <div
+      data-testid="matchup-merge-mode-right-panel"
+      style={/* eslint-disable-line no-restricted-syntax */ {
+        display: "flex", flexDirection: "column", gap: "var(--space-3)",
+        padding: "var(--space-4)",
+      }}
+    >
+      <div style={/* eslint-disable-line no-restricted-syntax */ {
+        display: "flex", alignItems: "center", gap: 8,
+        padding: "10px 12px",
+        background: "color-mix(in srgb, var(--color-brand-primary) 8%, var(--color-bg-surface))",
+        border: "1px solid color-mix(in srgb, var(--color-brand-primary) 35%, transparent)",
+        borderRadius: "var(--radius-md)",
+      }}>
+        <Layers size={ICON.md} style={{ color: "var(--color-brand-primary)", flexShrink: 0 }} />
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-brand-primary)" }}>
+            합치기 모드
+          </div>
+          <div style={{ fontSize: 11, color: "var(--color-text-secondary)", marginTop: 2 }}>
+            한 문항이 여러 칸으로 쪼개진 경우 묶어서 1개로 만듭니다.
+          </div>
+        </div>
+      </div>
+
+      <ol
+        style={/* eslint-disable-line no-restricted-syntax */ {
+          margin: 0,
+          paddingLeft: 18,
+          fontSize: 12,
+          lineHeight: 1.7,
+          color: "var(--color-text-secondary)",
+        }}
+      >
+        <li>좌측에서 합치고 싶은 문항을 <strong>위→아래 순서대로</strong> 클릭하세요.</li>
+        <li>2개 이상 선택되면 아래 <strong>합치기</strong> 버튼이 활성화됩니다.</li>
+        <li>합쳐진 결과는 즉시 그리드에 1개 카드로 반영됩니다.</li>
+      </ol>
+
+      <div
+        style={/* eslint-disable-line no-restricted-syntax */ {
+          padding: "12px 14px",
+          borderRadius: "var(--radius-md)",
+          background: selectedCount >= 2
+            ? "color-mix(in srgb, var(--color-brand-primary) 8%, transparent)"
+            : "var(--color-bg-surface-soft)",
+          border: selectedCount >= 2
+            ? "1px solid color-mix(in srgb, var(--color-brand-primary) 35%, transparent)"
+            : "1px dashed var(--color-border-divider)",
+          display: "flex", alignItems: "center", gap: 10,
+        }}
+      >
+        <strong style={{
+          fontSize: 22, fontWeight: 800,
+          color: selectedCount >= 2 ? "var(--color-brand-primary)" : "var(--color-text-muted)",
+          minWidth: 28,
+        }}>{selectedCount}</strong>
+        <span style={{ fontSize: 12, color: "var(--color-text-secondary)", flex: 1 }}>
+          {selectedCount === 0
+            ? "아직 선택된 문항이 없습니다."
+            : selectedCount === 1
+              ? "1개 더 선택하면 합칠 수 있어요."
+              : `${selectedCount}개 → 1개로 합칠 준비 완료.`}
+        </span>
+      </div>
+
+      <div style={/* eslint-disable-line no-restricted-syntax */ { display: "flex", gap: 8, flexDirection: "column" }}>
+        <Button
+          size="sm"
+          intent="primary"
+          disabled={selectedCount < 2}
+          onClick={onConfirm}
+          data-testid="matchup-merge-right-panel-confirm"
+          leftIcon={<Layers size={ICON.sm} />}
+        >
+          {selectedCount < 2 ? "2개 이상 선택해 주세요" : `${selectedCount}개를 1개로 합치기`}
+        </Button>
+        {selectedCount > 0 && (
+          <Button size="sm" intent="ghost" onClick={onClear}>
+            선택 해제
+          </Button>
+        )}
+        <Button size="sm" intent="ghost" onClick={onExit}>
+          합치기 모드 종료
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+// ── 시험지 ↔ 참고자료 segmented 토글.
+//    뱃지 + 변경 버튼 2개로 쪼개졌던 컨트롤을 한 곳으로 통합. 현재 상태와 변경 동작을
+//    한 컨트롤로 합쳐 학원장이 "지금 어느 쪽인지" 즉시 인지 + 한 번 클릭으로 전환.
+function IntentToggle({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: "test" | "reference";
+  onChange: (next: "test" | "reference") => void;
+  disabled: boolean;
+}) {
+  return (
+    <div
+      role="tablist"
+      aria-label="문서 유형"
+      data-testid="matchup-intent-toggle"
+      style={/* eslint-disable-line no-restricted-syntax */ {
+        display: "inline-flex",
+        padding: 2,
+        borderRadius: 999,
+        background: "var(--color-bg-surface-soft)",
+        border: "1px solid var(--color-border-divider)",
+        opacity: disabled ? 0.6 : 1,
+      }}
+    >
+      {(["test", "reference"] as const).map((key) => {
+        const active = value === key;
+        const label = key === "test" ? "시험지" : "참고자료";
+        const tone = key === "test" ? "var(--color-warning)" : "var(--color-brand-primary)";
+        return (
+          <button
+            key={key}
+            type="button"
+            role="tab"
+            aria-selected={active}
+            disabled={disabled || active}
+            onClick={() => onChange(key)}
+            data-active={active}
+            data-testid={`matchup-intent-toggle-${key}`}
+            style={/* eslint-disable-line no-restricted-syntax */ {
+              padding: "3px 12px",
+              border: "none",
+              borderRadius: 999,
+              background: active ? "var(--color-bg-surface)" : "transparent",
+              color: active ? tone : "var(--color-text-muted)",
+              fontWeight: active ? 700 : 500,
+              fontSize: 12,
+              boxShadow: active ? "0 1px 2px rgba(0,0,0,0.06)" : "none",
+              cursor: disabled || active ? "default" : "pointer",
+              transition: "background 0.12s, color 0.12s",
+            }}
+            title={active ? `현재 ${label}` : `${label}로 변경`}
+          >
+            {label}
+          </button>
+        );
+      })}
+    </div>
   );
 }

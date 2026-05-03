@@ -597,24 +597,48 @@ export default function ManualCropModal({ document: doc, onClose, initialPage }:
             background: "var(--color-bg-surface-soft)",
           }}>
             <div style={{
-              padding: "6px var(--space-3)",
-              fontSize: 11, color: "var(--color-text-muted)",
+              padding: "8px var(--space-3)",
+              fontSize: 12, color: "var(--color-text-secondary)",
               borderBottom: "1px solid var(--color-border-divider)",
               flexShrink: 0,
               background: "var(--color-bg-surface)",
               display: "flex", alignItems: "center", gap: "var(--space-2)",
               flexWrap: "wrap",
             }}>
-              <span>드래그로 영역 선택 · 박스 끌어 이동 · 8방향 핸들 크기 조정 · ←↑↓→ 미세조정 (Shift=크게, Alt=크기) · 우측 번호 입력 후 Enter</span>
+              <strong style={{ color: "var(--color-text-primary)", fontWeight: 700 }}>
+                마우스로 드래그
+              </strong>
+              <span>해서 문항 영역을 선택하세요.</span>
               <span style={{
-                marginLeft: "auto",
-                display: "inline-flex", alignItems: "center", gap: 4,
-                padding: "2px 8px", borderRadius: 999,
-                background: "color-mix(in srgb, var(--color-brand-primary) 8%, transparent)",
-                color: "var(--color-brand-primary)", fontWeight: 600,
+                display: "inline-flex", alignItems: "center", gap: 5,
+                padding: "3px 10px", borderRadius: 999,
+                background: "color-mix(in srgb, var(--color-brand-primary) 12%, transparent)",
+                color: "var(--color-brand-primary)", fontWeight: 700,
+                border: "1px solid color-mix(in srgb, var(--color-brand-primary) 35%, transparent)",
               }}>
-                <ClipboardPaste size={11} /> Ctrl+V로 이미지 직접 붙여넣기
+                <ClipboardPaste size={12} /> 또는 <strong>Ctrl+V</strong>로 이미지 붙여넣기
               </span>
+              <details style={{ marginLeft: "auto", fontSize: 11, color: "var(--color-text-muted)" }}>
+                <summary style={{ cursor: "pointer", userSelect: "none", listStyle: "none" }}>
+                  단축키 보기
+                </summary>
+                <div style={{
+                  position: "absolute", right: 12, marginTop: 6,
+                  background: "var(--color-bg-surface)", padding: "8px 12px",
+                  borderRadius: "var(--radius-md)",
+                  border: "1px solid var(--color-border-divider)",
+                  boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+                  fontSize: 11, lineHeight: 1.7, color: "var(--color-text-secondary)",
+                  zIndex: 10, minWidth: 220,
+                }}>
+                  <div><kbd>드래그</kbd> 영역 선택</div>
+                  <div><kbd>박스 본체 드래그</kbd> 이동</div>
+                  <div><kbd>핸들 8방향</kbd> 크기 조정</div>
+                  <div><kbd>←↑↓→</kbd> 미세조정 (Shift=크게, Alt=크기)</div>
+                  <div><kbd>Enter</kbd> 저장</div>
+                  <div><kbd>Esc</kbd> 취소/닫기</div>
+                </div>
+              </details>
             </div>
             <div style={{
               flex: 1, minHeight: 0,

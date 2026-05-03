@@ -420,14 +420,14 @@ export default function LowConfPageReviewer({
                   onClick={handleVlmClassify}
                   disabled={excluding || reanalyzing || vlmLoadingIdx !== null || Boolean(activeVlm)}
                   data-testid="matchup-low-conf-vlm-btn"
-                  title="Gemini VLM으로 페이지 정밀 분석 (페이지당 1회)"
+                  title="Gemini AI로 이 페이지를 정밀 분석합니다. 페이지당 1회만 호출되며, 학원별 일일 한도가 적용됩니다."
                 >
                   {vlmLoadingIdx === activeIdx ? (
                     <Loader2 size={13} className="animate-spin" style={/* eslint-disable-line no-restricted-syntax */ { marginRight: 4 }} />
                   ) : (
                     <Sparkles size={13} style={/* eslint-disable-line no-restricted-syntax */ { marginRight: 4 }} />
                   )}
-                  {activeVlm ? "VLM 분석됨" : "VLM 정밀 분석"}
+                  {activeVlm ? "AI 분석 완료" : "AI 정밀 분석"}
                 </Button>
                 <Button
                   size="sm"
