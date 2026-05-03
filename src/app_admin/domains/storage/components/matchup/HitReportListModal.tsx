@@ -13,7 +13,7 @@
 
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { X, FileText, Filter, RefreshCw } from "lucide-react";
-import { Button } from "@/shared/ui/ds";
+import { ICON, Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import {
   fetchHitReportList,
@@ -115,7 +115,7 @@ export default function HitReportListModal({ isAdmin, onClose, onOpen }: Props) 
           display: "flex", alignItems: "center", gap: 12,
           flexShrink: 0,
         }}>
-          <FileText size={18} color="var(--color-status-success)" />
+          <FileText size={ICON.md} color="var(--color-status-success)" />
           <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 15, fontWeight: 700, color: "var(--color-text-primary)" }}>
               매치업 적중 보고서
@@ -150,7 +150,7 @@ export default function HitReportListModal({ isAdmin, onClose, onOpen }: Props) 
             </div>
           </div>
           <Button size="sm" intent="ghost" onClick={() => void load()} disabled={loading}>
-            <RefreshCw size={12} style={{ marginRight: 4 }} />
+            <RefreshCw size={ICON.xs} style={{ marginRight: 4 }} />
             새로고침
           </Button>
           <button
@@ -161,7 +161,7 @@ export default function HitReportListModal({ isAdmin, onClose, onOpen }: Props) 
               cursor: "pointer", padding: 6, color: "var(--color-text-secondary)",
             }}
           >
-            <X size={18} />
+            <X size={ICON.md} />
           </button>
         </div>
 
@@ -179,7 +179,7 @@ export default function HitReportListModal({ isAdmin, onClose, onOpen }: Props) 
               <TabBtn active={tab === "all"} onClick={() => setTab("all")}>전체 (학원장 inbox)</TabBtn>
             </div>
           )}
-          <Filter size={14} color="var(--color-text-muted)" style={{ marginLeft: 4 }} />
+          <Filter size={ICON.sm} color="var(--color-text-muted)" style={{ marginLeft: 4 }} />
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}

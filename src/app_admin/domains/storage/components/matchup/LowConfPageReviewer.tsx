@@ -23,7 +23,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   X, AlertCircle, Loader2, Crop, Ban, RefreshCw, Eye, Sparkles,
 } from "lucide-react";
-import { Button } from "@/shared/ui/ds";
+import { ICON, Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useConfirm } from "@/shared/ui/confirm";
 import {
@@ -268,7 +268,7 @@ export default function LowConfPageReviewer({
           display: "flex", alignItems: "center", justifyContent: "space-between", gap: "var(--space-3)",
         }}>
           <div style={/* eslint-disable-line no-restricted-syntax */ { display: "flex", alignItems: "center", gap: "var(--space-2)", minWidth: 0 }}>
-            <Eye size={16} style={/* eslint-disable-line no-restricted-syntax */ { color: "var(--color-warning)", flexShrink: 0 }} />
+            <Eye size={ICON.md} style={/* eslint-disable-line no-restricted-syntax */ { color: "var(--color-warning)", flexShrink: 0 }} />
             <h3 style={/* eslint-disable-line no-restricted-syntax */ {
               margin: 0, fontSize: 15, fontWeight: 700, color: "var(--color-text-primary)",
               overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
@@ -294,7 +294,7 @@ export default function LowConfPageReviewer({
               }}
               title="닫기 (Esc)"
             >
-              <X size={18} />
+              <X size={ICON.md} />
             </button>
           </div>
         </div>
@@ -423,9 +423,9 @@ export default function LowConfPageReviewer({
                   title="Gemini AI로 이 페이지를 정밀 분석합니다. 페이지당 1회만 호출되며, 학원별 일일 한도가 적용됩니다."
                 >
                   {vlmLoadingIdx === activeIdx ? (
-                    <Loader2 size={13} className="animate-spin" style={/* eslint-disable-line no-restricted-syntax */ { marginRight: 4 }} />
+                    <Loader2 size={ICON.sm} className="animate-spin" style={/* eslint-disable-line no-restricted-syntax */ { marginRight: 4 }} />
                   ) : (
-                    <Sparkles size={13} style={/* eslint-disable-line no-restricted-syntax */ { marginRight: 4 }} />
+                    <Sparkles size={ICON.sm} style={/* eslint-disable-line no-restricted-syntax */ { marginRight: 4 }} />
                   )}
                   {activeVlm ? "AI 분석 완료" : "AI 정밀 분석"}
                 </Button>
@@ -436,7 +436,7 @@ export default function LowConfPageReviewer({
                   disabled={excluding || reanalyzing}
                   data-testid="matchup-low-conf-manual-crop-btn"
                 >
-                  <Crop size={13} style={/* eslint-disable-line no-restricted-syntax */ { marginRight: 4 }} />
+                  <Crop size={ICON.sm} style={/* eslint-disable-line no-restricted-syntax */ { marginRight: 4 }} />
                   직접 자르기
                 </Button>
                 <Button
@@ -447,9 +447,9 @@ export default function LowConfPageReviewer({
                   data-testid="matchup-low-conf-exclude-btn"
                 >
                   {excluding ? (
-                    <Loader2 size={13} className="animate-spin" style={/* eslint-disable-line no-restricted-syntax */ { marginRight: 4 }} />
+                    <Loader2 size={ICON.sm} className="animate-spin" style={/* eslint-disable-line no-restricted-syntax */ { marginRight: 4 }} />
                   ) : (
-                    <Ban size={13} style={/* eslint-disable-line no-restricted-syntax */ { marginRight: 4 }} />
+                    <Ban size={ICON.sm} style={/* eslint-disable-line no-restricted-syntax */ { marginRight: 4 }} />
                   )}
                   {excludedThisSession.has(activeIdx) ? "제외됨" : "이 페이지 제외"}
                 </Button>
@@ -461,9 +461,9 @@ export default function LowConfPageReviewer({
                   data-testid="matchup-low-conf-reanalyze-btn"
                 >
                   {reanalyzing ? (
-                    <Loader2 size={13} className="animate-spin" style={/* eslint-disable-line no-restricted-syntax */ { marginRight: 4 }} />
+                    <Loader2 size={ICON.sm} className="animate-spin" style={/* eslint-disable-line no-restricted-syntax */ { marginRight: 4 }} />
                   ) : (
-                    <RefreshCw size={13} style={/* eslint-disable-line no-restricted-syntax */ { marginRight: 4 }} />
+                    <RefreshCw size={ICON.sm} style={/* eslint-disable-line no-restricted-syntax */ { marginRight: 4 }} />
                   )}
                   재분석
                 </Button>
@@ -479,7 +479,7 @@ export default function LowConfPageReviewer({
             }}>
               {pagesQuery.isLoading ? (
                 <div style={/* eslint-disable-line no-restricted-syntax */ { color: "var(--color-text-muted)", fontSize: 13 }}>
-                  <Loader2 size={18} className="animate-spin" style={/* eslint-disable-line no-restricted-syntax */ { marginRight: 6 }} />
+                  <Loader2 size={ICON.md} className="animate-spin" style={/* eslint-disable-line no-restricted-syntax */ { marginRight: 6 }} />
                   페이지 준비 중…
                 </div>
               ) : pagesQuery.isError ? (
@@ -487,7 +487,7 @@ export default function LowConfPageReviewer({
                   color: "var(--color-danger)", fontSize: 13,
                   display: "flex", alignItems: "center", gap: 6,
                 }}>
-                  <AlertCircle size={16} /> 페이지 로드 실패
+                  <AlertCircle size={ICON.md} /> 페이지 로드 실패
                 </div>
               ) : !activePageData ? (
                 <div style={/* eslint-disable-line no-restricted-syntax */ { color: "var(--color-text-muted)", fontSize: 13 }}>
@@ -610,7 +610,7 @@ export default function LowConfPageReviewer({
                       borderRadius: 999,
                       display: "flex", alignItems: "center", gap: 4,
                     }}>
-                      <Sparkles size={11} />
+                      <Sparkles size={ICON.xs} />
                       VLM: {activeVlm.page_role} ({Math.round(activeVlm.confidence * 100)}%)
                       {activeVlm.problems.length > 0 && ` · 검출 ${activeVlm.problems.length}건`}
                     </div>

@@ -8,7 +8,7 @@
 
 import { useState, useEffect } from "react";
 import { X, ExternalLink, Copy, Check } from "lucide-react";
-import { Button } from "@/shared/ui/ds";
+import { ICON, Button } from "@/shared/ui/ds";
 import { getMatchupProblemPresignUrl } from "../../api/matchup.api";
 import type { MatchupProblem, SimilarProblem } from "../../api/matchup.api";
 
@@ -162,7 +162,7 @@ export default function ProblemDetailModal({
             style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-muted)", padding: 4 }}
             title="닫기 (Esc)"
           >
-            <X size={18} />
+            <X size={ICON.md} />
           </button>
         </div>
 
@@ -220,7 +220,7 @@ export default function ProblemDetailModal({
                         display: "flex", alignItems: "center", gap: 4, fontSize: 10,
                       }}
                     >
-                      {copied === "source" ? <><Check size={11} /> 복사됨</> : <><Copy size={11} /> 복사</>}
+                      {copied === "source" ? <><Check size={ICON.xs} /> 복사됨</> : <><Copy size={ICON.xs} /> 복사</>}
                     </button>
                   </div>
                   <p style={{ margin: 0, fontSize: 12, lineHeight: 1.5, color: "var(--color-text-primary)", whiteSpace: "pre-wrap" }}>
@@ -277,7 +277,7 @@ export default function ProblemDetailModal({
                       display: "flex", alignItems: "center", gap: 4, fontSize: 10,
                     }}
                   >
-                    {copied === "match" ? <><Check size={11} /> 복사됨</> : <><Copy size={11} /> 복사</>}
+                    {copied === "match" ? <><Check size={ICON.xs} /> 복사됨</> : <><Copy size={ICON.xs} /> 복사</>}
                   </button>
                 </div>
                 <p style={{ margin: 0, fontSize: 12, lineHeight: 1.5, color: "var(--color-text-primary)", whiteSpace: "pre-wrap" }}>
@@ -303,7 +303,7 @@ export default function ProblemDetailModal({
               onNavigate(problem.document_id, problem.number);
               onClose();
             }}>
-              <ExternalLink size={14} style={{ marginRight: 4 }} />
+              <ExternalLink size={ICON.sm} style={{ marginRight: 4 }} />
               이 매치 문서로 이동
             </Button>
           )}

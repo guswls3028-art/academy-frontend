@@ -7,6 +7,7 @@
 
 import { useEffect, useState } from "react";
 import { X, ExternalLink, Loader2, AlertCircle } from "lucide-react";
+import { ICON } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { getMatchupDocumentPreview } from "../../api/matchup.api";
 import type { MatchupDocumentPreview } from "../../api/matchup.api";
@@ -108,7 +109,7 @@ export default function DocumentPreviewModal({ documentId, documentTitle, onClos
                   borderRadius: 6, textDecoration: "none",
                 }}
               >
-                <ExternalLink size={14} />
+                <ExternalLink size={ICON.sm} />
                 새 창
               </a>
             )}
@@ -121,7 +122,7 @@ export default function DocumentPreviewModal({ documentId, documentTitle, onClos
                 display: "flex", alignItems: "center",
               }}
             >
-              <X size={18} />
+              <X size={ICON.md} />
             </button>
           </div>
         </div>
@@ -137,7 +138,7 @@ export default function DocumentPreviewModal({ documentId, documentTitle, onClos
               display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
               gap: "var(--space-2)", color: "var(--color-text-muted)",
             }}>
-              <Loader2 size={20} className="animate-spin" style={{ color: "var(--color-brand-primary)" }} />
+              <Loader2 size={ICON.lg} className="animate-spin" style={{ color: "var(--color-brand-primary)" }} />
               <span style={{ fontSize: 13 }}>미리보기 불러오는 중...</span>
             </div>
           )}
@@ -147,7 +148,7 @@ export default function DocumentPreviewModal({ documentId, documentTitle, onClos
               display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
               gap: "var(--space-2)", color: "var(--color-danger)",
             }}>
-              <AlertCircle size={24} />
+              <AlertCircle size={ICON.xl} />
               <span style={{ fontSize: 14, fontWeight: 600 }}>{error}</span>
             </div>
           )}

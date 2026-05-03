@@ -11,7 +11,7 @@
 
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { Upload, X, Image as ImageIcon, FileText, AlertCircle, GripVertical } from "lucide-react";
-import { Button } from "@/shared/ui/ds";
+import { ICON, Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { filesToPdf, isImage, isPdf, isHeic } from "./filesToPdf";
 import type { MergeProgress } from "./filesToPdf";
@@ -506,7 +506,7 @@ export default function DocumentUploadModal({
                 opacity: uploading ? 0.4 : 1,
               }}
             >
-              <X size={18} />
+              <X size={ICON.md} />
             </button>
           </div>
           <p style={/* eslint-disable-line no-restricted-syntax */ {
@@ -551,9 +551,9 @@ export default function DocumentUploadModal({
             onClick={() => inputRef.current?.click()}
           >
             {dropError ? (
-              <AlertCircle size={24} style={/* eslint-disable-line no-restricted-syntax */ { color: "var(--color-danger)", marginBottom: "var(--space-2)" }} />
+              <AlertCircle size={ICON.xl} style={/* eslint-disable-line no-restricted-syntax */ { color: "var(--color-danger)", marginBottom: "var(--space-2)" }} />
             ) : (
-              <Upload size={24} style={/* eslint-disable-line no-restricted-syntax */ { color: "var(--color-text-muted)", marginBottom: "var(--space-2)" }} />
+              <Upload size={ICON.xl} style={/* eslint-disable-line no-restricted-syntax */ { color: "var(--color-text-muted)", marginBottom: "var(--space-2)" }} />
             )}
             <p style={/* eslint-disable-line no-restricted-syntax */ { margin: 0, fontSize: 14, color: dropError ? "var(--color-danger)" : "var(--color-text-secondary)", fontWeight: dropError ? 600 : 400 }}>
               {dropError
@@ -698,7 +698,7 @@ export default function DocumentUploadModal({
               color: splitMode ? "var(--color-success)" : "var(--color-brand-primary)",
               display: "flex", alignItems: "center", gap: "var(--space-2)",
             }}>
-              <ImageIcon size={14} />
+              <ImageIcon size={ICON.sm} />
               <span>
                 {splitMode
                   ? `각 파일이 별도 ${intentLabel}로 동시 업로드됩니다 (${entries.length}개)${heicCount > 0 ? ", HEIC는 자동 변환" : ""}`
@@ -759,7 +759,7 @@ export default function DocumentUploadModal({
                   }}
                 >
                   <GripVertical
-                    size={14}
+                    size={ICON.sm}
                     style={/* eslint-disable-line no-restricted-syntax */ {
                       color: "var(--color-text-muted)",
                       flexShrink: 0,
@@ -788,7 +788,7 @@ export default function DocumentUploadModal({
                       background: "var(--color-bg-surface-soft)",
                       color: isHeic(entry.file) ? "var(--color-brand-primary)" : "var(--color-text-muted)",
                     }}>
-                      <FileText size={24} />
+                      <FileText size={ICON.xl} />
                       {isHeic(entry.file) && (
                         <span style={/* eslint-disable-line no-restricted-syntax */ { fontSize: 9, fontWeight: 700, marginTop: 2 }}>HEIC</span>
                       )}
@@ -840,7 +840,7 @@ export default function DocumentUploadModal({
                     disabled={uploading}
                     style={/* eslint-disable-line no-restricted-syntax */ { background: "none", border: "none", cursor: uploading ? "default" : "pointer", color: "var(--color-text-muted)", padding: 4, flexShrink: 0, opacity: uploading ? 0.3 : 1 }}
                     title="제거"
-                  ><X size={14} /></button>
+                  ><X size={ICON.sm} /></button>
                 </div>
                 );
               })}
@@ -1033,6 +1033,14 @@ export default function DocumentUploadModal({
               <datalist id="matchup-category-suggestions">
                 {categorySuggestions.map((c) => <option key={c} value={c} />)}
               </datalist>
+              {/* Fuzzy 제안 — 학원장이 같은 카테고리를 다른 표기로 만드는 사고 방지.
+                  ("중대부고" vs "중앙대부고", "고1" vs "고1수학" 등). 기존 카테고리와
+                  포함 또는 1자 차이일 때만 노출. */}
+              <CategoryFuzzyHint
+                draft={category}
+                suggestions={categorySuggestions}
+                onPick={(s) => setCategory(s)}
+              />
             </div>
 
             <div style={/* eslint-disable-line no-restricted-syntax */ { display: "flex", gap: "var(--space-3)" }}>
@@ -1136,6 +1144,87 @@ export default function DocumentUploadModal({
             </Button>
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ── 카테고리 Fuzzy 제안 — "중대부고" vs "중앙대부고" 같은 표기 분기 사고 방지.
+//    draft가 비어 있거나 정확 일치하면 미노출. 포함 / 1~2자 차이 / 한쪽이 다른 쪽 prefix.
+function CategoryFuzzyHint({
+  draft,
+  suggestions,
+  onPick,
+}: {
+  draft: string;
+  suggestions: string[];
+  onPick: (s: string) => void;
+}) {
+  const trimmed = draft.trim();
+  if (trimmed.length < 2) return null;
+  // 정확 일치하면 노출 안 함 (이미 알맞게 선택됨)
+  if (suggestions.some((s) => s === trimmed)) return null;
+
+  const lowered = trimmed.toLowerCase();
+  const candidates: { label: string; reason: string }[] = [];
+  for (const s of suggestions) {
+    if (candidates.length >= 3) break;
+    const sl = s.toLowerCase();
+    if (sl === lowered) continue;
+    // 1) 한쪽이 다른 쪽을 포함 — 가장 흔한 표기 분기
+    if (sl.includes(lowered) || lowered.includes(sl)) {
+      candidates.push({ label: s, reason: "비슷한 카테고리" });
+      continue;
+    }
+    // 2) Levenshtein-ish: 길이 차이 1~2 + 공통 글자 비율 70%+ (한국어 단순 휴리스틱)
+    const lenDiff = Math.abs(s.length - trimmed.length);
+    if (lenDiff <= 2) {
+      const setA = new Set(Array.from(trimmed));
+      const setB = new Set(Array.from(s));
+      const common = Array.from(setA).filter((c) => setB.has(c)).length;
+      const ratio = common / Math.max(setA.size, setB.size);
+      if (ratio >= 0.7) candidates.push({ label: s, reason: "비슷한 표기" });
+    }
+  }
+  if (candidates.length === 0) return null;
+
+  return (
+    <div
+      data-testid="matchup-category-fuzzy-hint"
+      style={/* eslint-disable-line no-restricted-syntax */ {
+        marginTop: 6,
+        padding: "8px 10px",
+        borderRadius: "var(--radius-sm)",
+        background: "color-mix(in srgb, var(--color-warning) 6%, var(--color-bg-surface))",
+        border: "1px dashed color-mix(in srgb, var(--color-warning) 35%, transparent)",
+        fontSize: 11, color: "var(--color-text-secondary)", lineHeight: 1.6,
+      }}
+    >
+      <div style={/* eslint-disable-line no-restricted-syntax */ { fontWeight: 700, color: "var(--color-warning)", marginBottom: 4 }}>
+        혹시 이 카테고리 아닌가요?
+      </div>
+      <div style={/* eslint-disable-line no-restricted-syntax */ { display: "flex", flexWrap: "wrap", gap: 5 }}>
+        {candidates.map((c) => (
+          <button
+            key={c.label}
+            type="button"
+            onClick={() => onPick(c.label)}
+            title={`"${c.label}"로 변경 (${c.reason})`}
+            style={/* eslint-disable-line no-restricted-syntax */ {
+              fontSize: 11,
+              padding: "3px 9px",
+              borderRadius: 999,
+              border: "1px solid var(--color-warning)",
+              background: "var(--color-bg-surface)",
+              color: "var(--color-warning)",
+              fontWeight: 700,
+              cursor: "pointer",
+              fontFamily: "inherit",
+            }}
+          >
+            {c.label}
+          </button>
+        ))}
       </div>
     </div>
   );

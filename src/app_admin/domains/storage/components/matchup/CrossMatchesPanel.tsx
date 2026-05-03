@@ -5,6 +5,7 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowRight, BookOpen } from "lucide-react";
+import { ICON } from "@/shared/ui/ds";
 import { fetchDocumentCrossMatches, type CrossMatchProblem } from "../../api/matchup.api";
 
 type DocGroup = {
@@ -145,7 +146,7 @@ export default function CrossMatchesPanel({ docId, enabled, selectedDocIntent = 
             background: "color-mix(in srgb, var(--color-brand-primary) 5%, transparent)",
             borderBottom: "1px solid var(--color-border-divider)",
           }}>
-            <BookOpen size={14} style={{ color: "var(--color-brand-primary)", flexShrink: 0 }} />
+            <BookOpen size={ICON.sm} style={{ color: "var(--color-brand-primary)", flexShrink: 0 }} />
             <span
               style={{
                 fontSize: 13,
@@ -202,7 +203,7 @@ export default function CrossMatchesPanel({ docId, enabled, selectedDocIntent = 
                   <span style={{ fontWeight: 800, color: "var(--color-warning)", minWidth: 32 }}>
                     Q{p.sourceProblemNumber}
                   </span>
-                  <ArrowRight size={12} style={{ color: "var(--color-text-muted)" }} />
+                  <ArrowRight size={ICON.xs} style={{ color: "var(--color-text-muted)" }} />
                   <span style={{ fontWeight: 700, color: "var(--color-brand-primary)", minWidth: 32 }}>
                     Q{p.targetProblemNumber}
                   </span>

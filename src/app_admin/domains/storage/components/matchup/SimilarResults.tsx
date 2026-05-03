@@ -13,6 +13,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { Loader2, Sparkles, FileText, Layers, ChevronDown, ChevronUp, Star } from "lucide-react";
+import { ICON } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { findSimilarProblems } from "../../api/matchup.api";
 import type { SimilarProblem } from "../../api/matchup.api";
@@ -99,7 +100,7 @@ export default function SimilarResults({
         display: "flex", alignItems: "center", justifyContent: "center",
         padding: "var(--space-6)", gap: "var(--space-2)",
       }}>
-        <Loader2 size={16} className="animate-spin" style={{ color: "var(--color-brand-primary)" }} />
+        <Loader2 size={ICON.md} className="animate-spin" style={{ color: "var(--color-brand-primary)" }} />
         <span style={{ fontSize: 13, color: "var(--color-text-muted)" }}>유사 문제 검색 중...</span>
       </div>
     );
@@ -117,7 +118,7 @@ export default function SimilarResults({
         display: "flex", flexDirection: "column", gap: "var(--space-2)",
         alignItems: "center",
       }}>
-        <Sparkles size={20} style={{ opacity: 0.3 }} />
+        <Sparkles size={ICON.lg} style={{ opacity: 0.3 }} />
         <div style={{ fontWeight: 600, color: "var(--color-text-secondary)" }}>
           유사한 문제를 찾지 못했습니다
         </div>
@@ -161,7 +162,7 @@ export default function SimilarResults({
             fontSize: 11, color: "var(--color-text-secondary)", lineHeight: 1.5,
           }}
         >
-          <Star size={14} fill="var(--color-warning)" stroke="var(--color-warning)" style={{ flexShrink: 0 }} />
+          <Star size={ICON.sm} fill="var(--color-warning)" stroke="var(--color-warning)" style={{ flexShrink: 0 }} />
           <span>
             마음에 드는 후보의 <strong style={{ color: "var(--color-warning)" }}>★ 별</strong>을 누르면 적중 보고서에 담깁니다.
             {pinnedHere ? (
@@ -186,7 +187,7 @@ export default function SimilarResults({
 
       <Section
         title="다른 시험지에서"
-        icon={<FileText size={12} />}
+        icon={<FileText size={ICON.xs} />}
         items={crossDoc}
         emptyText="다른 시험지에서 비슷한 문제를 찾지 못했습니다"
         onSelect={onSelectSimilar}
@@ -198,7 +199,7 @@ export default function SimilarResults({
       {sourceDocumentId !== null && totalDocumentCount > 1 && inDoc.length > 0 && (
         <Section
           title="이 시험지 안에서"
-          icon={<Layers size={12} />}
+          icon={<Layers size={ICON.xs} />}
           items={inDoc}
           emptyText=""
           onSelect={onSelectSimilar}
@@ -223,7 +224,7 @@ export default function SimilarResults({
               fontSize: 11, color: "var(--color-text-muted)", cursor: "pointer",
             }}
           >
-            {showNoise ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+            {showNoise ? <ChevronUp size={ICON.xs} /> : <ChevronDown size={ICON.xs} />}
             관련성 낮은 추천 {grouped.noise.length}개 {showNoise ? "숨기기" : "더 보기"}
           </button>
           {showNoise && (
@@ -457,7 +458,7 @@ function SimilarRow({ item, onClick, pinned, onTogglePin }: {
             transition: "background 0.12s, color 0.12s",
           }}
         >
-          <Star size={16} fill={pinned ? "currentColor" : "none"} />
+          <Star size={ICON.md} fill={pinned ? "currentColor" : "none"} />
         </button>
       )}
     </div>

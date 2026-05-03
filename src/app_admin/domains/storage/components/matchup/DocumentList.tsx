@@ -11,7 +11,7 @@ import {
   Search, X, BookOpen, ClipboardList, ChevronDown, ChevronRight, FolderOpen,
   MoreVertical, Pencil, FolderInput, Eraser, Database, Check,
 } from "lucide-react";
-import { Button } from "@/shared/ui/ds";
+import { Button, ICON } from "@/shared/ui/ds";
 import { useConfirm } from "@/shared/ui/confirm";
 import type { MatchupDocument, SegmentationMethod } from "../../api/matchup.api";
 import type { DocProgressMap } from "../../hooks/useMatchupPolling";
@@ -42,10 +42,10 @@ const UNCATEGORIZED_KEY = "__uncategorized__";
 const UNCATEGORIZED_LABEL = "미분류";
 
 const STATUS_ICON = {
-  pending: <Loader2 size={14} style={{ color: "var(--color-text-muted)" }} />,
-  processing: <Loader2 size={14} className="animate-spin" style={{ color: "var(--color-brand-primary)" }} />,
-  done: <CheckCircle2 size={14} style={{ color: "var(--color-success)" }} />,
-  failed: <AlertCircle size={14} style={{ color: "var(--color-danger)" }} />,
+  pending: <Loader2 size={ICON.sm} style={{ color: "var(--color-text-muted)" }} />,
+  processing: <Loader2 size={ICON.sm} className="animate-spin" style={{ color: "var(--color-brand-primary)" }} />,
+  done: <CheckCircle2 size={ICON.sm} style={{ color: "var(--color-success)" }} />,
+  failed: <AlertCircle size={ICON.sm} style={{ color: "var(--color-danger)" }} />,
 } as const;
 
 const STATUS_LABEL = {
@@ -337,7 +337,7 @@ export default function DocumentList({
           transition: "background 0.15s, border-color 0.15s",
         }}
       >
-        <FileText size={14} style={{ color: "var(--color-text-muted)", marginTop: 2, flexShrink: 0 }} />
+        <FileText size={ICON.sm} style={{ color: "var(--color-text-muted)", marginTop: 2, flexShrink: 0 }} />
         <div style={{ flex: 1, minWidth: 0 }}>
           {isRenamingThis ? (
             <input
@@ -377,7 +377,10 @@ export default function DocumentList({
               style={{
                 fontSize: 12.5, fontWeight: 600, color: "var(--color-text-primary)",
                 overflow: "hidden", textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
+                display: "-webkit-box",
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: "vertical",
+                wordBreak: "break-all",
                 lineHeight: 1.35,
               }}
             >
@@ -437,11 +440,12 @@ export default function DocumentList({
             <div
               style={{
                 marginTop: 6,
-                height: 3,
+                height: 4,
                 borderRadius: 2,
                 background: "var(--color-bg-surface-soft)",
                 overflow: "hidden",
               }}
+              title={`${progress.stepName} ${Math.round(progress.percent)}% — 자세한 단계는 우측 패널에서 확인할 수 있어요`}
             >
               <div
                 data-testid="matchup-progress-bar"
@@ -466,7 +470,7 @@ export default function DocumentList({
               title="재시도"
               style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-danger)", padding: 2 }}
             >
-              <RefreshCw size={13} />
+              <RefreshCw size={ICON.sm} />
             </button>
           )}
           <button
@@ -488,7 +492,7 @@ export default function DocumentList({
               color: "var(--color-text-muted)", padding: 2,
             }}
           >
-            <MoreVertical size={13} />
+            <MoreVertical size={ICON.sm} />
           </button>
           {/* 휴지통은 hover로만 노출 — 마우스 이동 중 오클릭 위험 완화. */}
           <button
@@ -500,7 +504,7 @@ export default function DocumentList({
               color: "var(--color-text-muted)", padding: 2,
             }}
           >
-            <Trash2 size={13} />
+            <Trash2 size={ICON.sm} />
           </button>
         </div>
       </div>
@@ -559,7 +563,7 @@ export default function DocumentList({
             size="sm"
             onClick={() => onUpload("reference")}
             data-testid="matchup-reference-upload-button"
-            leftIcon={<BookOpen size={14} />}
+            leftIcon={<BookOpen size={ICON.sm} />}
             title="교재·기출 등 참고 자료 업로드"
           >
             자료
@@ -569,7 +573,7 @@ export default function DocumentList({
             size="sm"
             onClick={() => onUpload("test")}
             data-testid="matchup-upload-button"
-            leftIcon={<ClipboardList size={14} />}
+            leftIcon={<ClipboardList size={ICON.sm} />}
             title="학생 시험지 업로드"
           >
             시험지
@@ -586,7 +590,7 @@ export default function DocumentList({
         }}>
           <div style={{ position: "relative" }}>
             <Search
-              size={12}
+              size={ICON.xs}
               style={{
                 position: "absolute",
                 left: 8, top: "50%", transform: "translateY(-50%)",
@@ -620,7 +624,7 @@ export default function DocumentList({
                 }}
                 title="지우기"
               >
-                <X size={12} />
+                <X size={ICON.xs} />
               </button>
             )}
           </div>
@@ -654,12 +658,12 @@ export default function DocumentList({
             paddingTop: 2,
           }}>
             <span title="등록된 시험지 전체 개수" style={{ color: "var(--color-warning)", fontWeight: 700 }}>
-              <ClipboardList size={11} style={{ verticalAlign: "-2px", marginRight: 3 }} />
+              <ClipboardList size={ICON.xs} style={{ verticalAlign: "-2px", marginRight: 3 }} />
               시험지 {counts.test}
             </span>
             <span style={{ opacity: 0.5 }}>·</span>
             <span title="등록된 참고자료 전체 개수" style={{ color: "var(--color-brand-primary)", fontWeight: 700 }}>
-              <BookOpen size={11} style={{ verticalAlign: "-2px", marginRight: 3 }} />
+              <BookOpen size={ICON.xs} style={{ verticalAlign: "-2px", marginRight: 3 }} />
               참고자료 {counts.reference}
             </span>
             {(search || statusFilter !== "all") && (
@@ -802,11 +806,11 @@ export default function DocumentList({
                   }}
                 >
                   {isCollapsed
-                    ? <ChevronRight size={13} style={{ color: "var(--color-text-secondary)", flexShrink: 0 }} />
-                    : <ChevronDown size={13} style={{ color: "var(--color-text-secondary)", flexShrink: 0 }} />
+                    ? <ChevronRight size={ICON.sm} style={{ color: "var(--color-text-secondary)", flexShrink: 0 }} />
+                    : <ChevronDown size={ICON.sm} style={{ color: "var(--color-text-secondary)", flexShrink: 0 }} />
                   }
                   <FolderOpen
-                    size={13}
+                    size={ICON.sm}
                     style={{
                       color: isUncategorized
                         ? "var(--color-text-muted)"
@@ -925,7 +929,7 @@ export default function DocumentList({
                         padding: "3px 8px", cursor: "pointer", display: "flex", alignItems: "center",
                       }}
                     >
-                      <Check size={12} />
+                      <Check size={ICON.xs} />
                     </button>
                     <button
                       type="button"
@@ -938,7 +942,7 @@ export default function DocumentList({
                         padding: "3px 8px", cursor: "pointer", display: "flex", alignItems: "center",
                       }}
                     >
-                      <X size={12} />
+                      <X size={ICON.xs} />
                     </button>
                   </>
                 )}
@@ -954,7 +958,7 @@ export default function DocumentList({
                       padding: "3px 8px", cursor: "pointer", display: "flex", alignItems: "center",
                     }}
                   >
-                    <X size={12} />
+                    <X size={ICON.xs} />
                   </button>
                 )}
 
@@ -979,7 +983,7 @@ export default function DocumentList({
                         display: "flex", alignItems: "center",
                       }}
                     >
-                      <MoreVertical size={14} />
+                      <MoreVertical size={ICON.sm} />
                     </button>
                     {isMenuOpen && (
                       <div
@@ -1002,7 +1006,7 @@ export default function DocumentList({
                         }}
                       >
                         <CategoryMenuItem
-                          icon={<ClipboardList size={13} />}
+                          icon={<ClipboardList size={ICON.sm} />}
                           label="이 카테고리로 시험지 업로드"
                           onClick={(e) => {
                             e.stopPropagation();
@@ -1011,7 +1015,7 @@ export default function DocumentList({
                           }}
                         />
                         <CategoryMenuItem
-                          icon={<BookOpen size={13} />}
+                          icon={<BookOpen size={ICON.sm} />}
                           label="이 카테고리로 자료 업로드"
                           onClick={(e) => {
                             e.stopPropagation();
@@ -1021,7 +1025,7 @@ export default function DocumentList({
                         />
                         {onPromoteFromInventory && (
                           <CategoryMenuItem
-                            icon={<Database size={13} />}
+                            icon={<Database size={ICON.sm} />}
                             label="저장소에서 가져오기"
                             onClick={(e) => {
                               e.stopPropagation();
@@ -1035,21 +1039,21 @@ export default function DocumentList({
                             <div style={{ height: 1, background: "var(--color-border-divider)", margin: "2px 0" }} />
                             {onRenameCategory && (
                               <CategoryMenuItem
-                                icon={<Pencil size={13} />}
+                                icon={<Pencil size={ICON.sm} />}
                                 label="이름 변경"
                                 onClick={(e) => { e.stopPropagation(); startRename(); }}
                               />
                             )}
                             {onMergeCategory && mergeCandidates.length > 0 && (
                               <CategoryMenuItem
-                                icon={<FolderInput size={13} />}
+                                icon={<FolderInput size={ICON.sm} />}
                                 label="다른 카테고리에 합치기"
                                 onClick={(e) => { e.stopPropagation(); startMerge(); }}
                               />
                             )}
                             {onClearCategory && (
                               <CategoryMenuItem
-                                icon={<Eraser size={13} />}
+                                icon={<Eraser size={ICON.sm} />}
                                 label="카테고리 비우기 (미분류로)"
                                 danger
                                 onClick={(e) => { e.stopPropagation(); confirmClear(); }}
@@ -1075,7 +1079,7 @@ export default function DocumentList({
                         letterSpacing: 0.3,
                         display: "inline-flex", alignItems: "center", gap: 4,
                       }}>
-                        <ClipboardList size={10} />
+                        <ClipboardList size={ICON.xs} />
                         시험지 {group.tests.length}건
                       </div>
                       {group.tests.map(renderDocRow)}
@@ -1091,7 +1095,7 @@ export default function DocumentList({
                         letterSpacing: 0.3,
                         display: "inline-flex", alignItems: "center", gap: 4,
                       }}>
-                        <BookOpen size={10} />
+                        <BookOpen size={ICON.xs} />
                         참고자료 {group.references.length}건
                       </div>
                       {group.references.map(renderDocRow)}
@@ -1276,7 +1280,7 @@ export default function DocumentList({
               }}
               style={menuItemStyle()}
             >
-              <Pencil size={13} />
+              <Pencil size={ICON.sm} />
               <span>이름 변경</span>
             </button>
           )}
@@ -1292,7 +1296,7 @@ export default function DocumentList({
               }}
               style={menuItemStyle()}
             >
-              <FileText size={13} />
+              <FileText size={ICON.sm} />
               <span>{getDocumentIntent(rowMenuDoc) === "test" ? "참고자료로 변경" : "시험지로 변경"}</span>
             </button>
           )}
@@ -1307,7 +1311,7 @@ export default function DocumentList({
               }}
               style={menuItemStyle()}
             >
-              <FolderInput size={13} />
+              <FolderInput size={ICON.sm} />
               <span>카테고리 변경 — {rowMenuDoc.category || "미분류"}</span>
             </button>
           )}
@@ -1322,7 +1326,7 @@ export default function DocumentList({
               }}
               style={menuItemStyle()}
             >
-              <RefreshCw size={13} />
+              <RefreshCw size={ICON.sm} />
               <span>재시도</span>
             </button>
           )}
@@ -1344,7 +1348,7 @@ export default function DocumentList({
             }}
             style={menuItemStyle(true)}
           >
-            <Trash2 size={13} />
+            <Trash2 size={ICON.sm} />
             <span>삭제</span>
           </button>
         </div>

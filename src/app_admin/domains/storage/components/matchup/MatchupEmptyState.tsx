@@ -2,7 +2,7 @@
 
 import { FileSearch, MessageCircle, BookOpen, ClipboardList, FolderOpen, Info } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { Button } from "@/shared/ui/ds";
+import { ICON, Button } from "@/shared/ui/ds";
 import css from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
 
 type Props = { onUpload: (intent?: "reference" | "test") => void };
@@ -40,7 +40,7 @@ export default function MatchupEmptyState({ onUpload }: Props) {
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--color-brand-primary)" }}>
-            <BookOpen size={18} />
+            <BookOpen size={ICON.md} />
             <span style={{ fontSize: 14, fontWeight: 700 }}>참고 자료 업로드</span>
           </div>
           <span style={{ fontSize: 12, color: "var(--color-text-secondary)", lineHeight: 1.5 }}>
@@ -63,7 +63,7 @@ export default function MatchupEmptyState({ onUpload }: Props) {
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--color-text-primary)" }}>
-            <ClipboardList size={18} />
+            <ClipboardList size={ICON.md} />
             <span style={{ fontSize: 14, fontWeight: 700 }}>학생 시험지 업로드</span>
           </div>
           <span style={{ fontSize: 12, color: "var(--color-text-secondary)", lineHeight: 1.5 }}>
@@ -77,7 +77,7 @@ export default function MatchupEmptyState({ onUpload }: Props) {
         intent="ghost"
         onClick={() => navigate("/admin/storage/files")}
         data-testid="matchup-empty-storage-link"
-        leftIcon={<FolderOpen size={14} />}
+        leftIcon={<FolderOpen size={ICON.sm} />}
         style={{ marginTop: "var(--space-2)" }}
       >
         저장소에서 가져오기
@@ -91,7 +91,7 @@ export default function MatchupEmptyState({ onUpload }: Props) {
         display: "flex", alignItems: "flex-start", gap: 8,
         maxWidth: 540, fontSize: 11, color: "var(--color-text-muted)", lineHeight: 1.5,
       }}>
-        <Info size={13} style={{ flexShrink: 0, marginTop: 2 }} />
+        <Info size={ICON.sm} style={{ flexShrink: 0, marginTop: 2 }} />
         <span>두 종류 모두 같은 매치업 풀에 등록되며 서로 자동 비교됩니다. 진행 후에도 자료/시험지를 자유롭게 추가할 수 있습니다.</span>
       </div>
       <div className={css.placeholderSteps}>
@@ -119,7 +119,7 @@ export default function MatchupEmptyState({ onUpload }: Props) {
         display: "flex", alignItems: "center", gap: "var(--space-3)",
         maxWidth: 400,
       }}>
-        <MessageCircle size={16} style={{ color: "var(--color-text-muted)", flexShrink: 0 }} />
+        <MessageCircle size={ICON.md} style={{ color: "var(--color-text-muted)", flexShrink: 0 }} />
         <span style={{ fontSize: 12, color: "var(--color-text-muted)", lineHeight: 1.5 }}>
           학생이 QnA에 문제 사진을 올리면, 매치업에 등록된 유사 문제를 자동으로 찾아 선생님 화면에 표시해 줍니다.
         </span>

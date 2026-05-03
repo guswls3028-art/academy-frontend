@@ -16,7 +16,7 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { X, Plus, Trash2, AlertCircle, Loader2, Crop, ClipboardPaste } from "lucide-react";
-import { Button } from "@/shared/ui/ds";
+import { ICON, Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useConfirm } from "@/shared/ui/confirm";
 import {
@@ -512,7 +512,7 @@ export default function ManualCropModal({ document: doc, onClose, initialPage }:
           display: "flex", alignItems: "center", justifyContent: "space-between", gap: "var(--space-3)",
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", minWidth: 0 }}>
-            <Crop size={16} style={{ color: "var(--color-brand-primary)", flexShrink: 0 }} />
+            <Crop size={ICON.md} style={{ color: "var(--color-brand-primary)", flexShrink: 0 }} />
             <h3 style={{
               margin: 0, fontSize: 15, fontWeight: 700, color: "var(--color-text-primary)",
               overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
@@ -537,7 +537,7 @@ export default function ManualCropModal({ document: doc, onClose, initialPage }:
               }}
               title="닫기 (Esc)"
             >
-              <X size={18} />
+              <X size={ICON.md} />
             </button>
           </div>
         </div>
@@ -553,7 +553,7 @@ export default function ManualCropModal({ document: doc, onClose, initialPage }:
           }}>
             {pagesQuery.isLoading && (
               <div style={{ padding: "var(--space-4)", textAlign: "center" }}>
-                <Loader2 size={16} className="animate-spin" style={{ color: "var(--color-text-muted)" }} />
+                <Loader2 size={ICON.md} className="animate-spin" style={{ color: "var(--color-text-muted)" }} />
               </div>
             )}
             {pages.map((p) => (
@@ -616,7 +616,7 @@ export default function ManualCropModal({ document: doc, onClose, initialPage }:
                 color: "var(--color-brand-primary)", fontWeight: 700,
                 border: "1px solid color-mix(in srgb, var(--color-brand-primary) 35%, transparent)",
               }}>
-                <ClipboardPaste size={12} /> 또는 <strong>Ctrl+V</strong>로 이미지 붙여넣기
+                <ClipboardPaste size={ICON.xs} /> 또는 <strong>Ctrl+V</strong>로 이미지 붙여넣기
               </span>
               <details style={{ marginLeft: "auto", fontSize: 11, color: "var(--color-text-muted)" }}>
                 <summary style={{ cursor: "pointer", userSelect: "none", listStyle: "none" }}>
@@ -648,7 +648,7 @@ export default function ManualCropModal({ document: doc, onClose, initialPage }:
             }}>
               {pagesQuery.isLoading ? (
                 <div style={{ color: "var(--color-text-muted)", fontSize: 13 }}>
-                  <Loader2 size={18} className="animate-spin" style={{ marginRight: 6 }} />
+                  <Loader2 size={ICON.md} className="animate-spin" style={{ marginRight: 6 }} />
                   페이지 준비 중…
                 </div>
               ) : pagesQuery.isError ? (
@@ -656,7 +656,7 @@ export default function ManualCropModal({ document: doc, onClose, initialPage }:
                   color: "var(--color-danger)", fontSize: 13,
                   display: "flex", alignItems: "center", gap: 6,
                 }}>
-                  <AlertCircle size={16} /> 페이지 로드 실패
+                  <AlertCircle size={ICON.md} /> 페이지 로드 실패
                 </div>
               ) : !activePageData ? (
                 <div style={{ color: "var(--color-text-muted)", fontSize: 13 }}>
@@ -795,7 +795,7 @@ export default function ManualCropModal({ document: doc, onClose, initialPage }:
                   color: "var(--color-brand-primary)",
                   display: "flex", alignItems: "center", gap: 4,
                 }}>
-                  <ClipboardPaste size={12} /> 붙여넣은 이미지
+                  <ClipboardPaste size={ICON.xs} /> 붙여넣은 이미지
                 </div>
                 <img
                   src={pasted.previewUrl}
@@ -967,7 +967,7 @@ export default function ManualCropModal({ document: doc, onClose, initialPage }:
                     flex: 1, fontSize: 11, color: "var(--color-text-muted)",
                     overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                   }}>
-                    {(p.meta as Record<string, unknown> | null)?.manual ? "수동" : "자동"}
+                    {(p.meta as Record<string, unknown> | null)?.manual ? "직접 자른 영역" : "자동 분리"}
                   </span>
                   <button
                     type="button"
@@ -979,7 +979,7 @@ export default function ManualCropModal({ document: doc, onClose, initialPage }:
                       padding: 2, display: "flex",
                     }}
                   >
-                    <Trash2 size={12} />
+                    <Trash2 size={ICON.xs} />
                   </button>
                 </div>
               ))}
@@ -992,7 +992,7 @@ export default function ManualCropModal({ document: doc, onClose, initialPage }:
               fontSize: 11, color: "var(--color-text-muted)",
               flexShrink: 0,
             }}>
-              <Plus size={11} style={{ verticalAlign: "middle", marginRight: 3 }} />
+              <Plus size={ICON.xs} style={{ verticalAlign: "middle", marginRight: 3 }} />
               자른 결과는 즉시 그리드에 반영됩니다.
             </div>
           </div>

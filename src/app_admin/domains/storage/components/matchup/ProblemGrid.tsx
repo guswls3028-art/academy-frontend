@@ -2,6 +2,7 @@
 // 문제 카드 그리드 — 선택된 문서의 추출 문제 표시
 
 import { Loader2, AlertTriangle, Check, Clock, Layers, X } from "lucide-react";
+import { ICON } from "@/shared/ui/ds";
 import type { MatchupProblem } from "../../api/matchup.api";
 import ProblemCard from "./ProblemCard";
 
@@ -69,7 +70,7 @@ export default function ProblemGrid({
         alignItems: "center", justifyContent: "center",
         padding: "var(--space-6)", gap: "var(--space-3)",
       }}>
-        <Loader2 size={24} className="animate-spin" style={{ color: "var(--color-brand-primary)" }} />
+        <Loader2 size={ICON.xl} className="animate-spin" style={{ color: "var(--color-brand-primary)" }} />
         <p style={{ fontSize: 14, color: "var(--color-text-primary)", margin: 0, fontWeight: 600 }}>
           {hasProgress
             ? `${progressStepName || "처리 중"} · ${pct}%`
@@ -111,7 +112,7 @@ export default function ProblemGrid({
                     opacity: isComplete || isCurrent ? 1 : 0.5,
                   }}
                 >
-                  {isComplete ? <Check size={12} /> : <Clock size={12} />}
+                  {isComplete ? <Check size={ICON.xs} /> : <Clock size={ICON.xs} />}
                   <span>{stage.label}</span>
                   {isCurrent && <span style={{ opacity: 0.7 }}>· 진행 중</span>}
                 </div>
@@ -169,7 +170,7 @@ export default function ProblemGrid({
           borderRadius: "var(--radius-md)",
           fontSize: 12,
         }}>
-          <Layers size={14} style={/* eslint-disable-line no-restricted-syntax */ {
+          <Layers size={ICON.sm} style={/* eslint-disable-line no-restricted-syntax */ {
             color: mergeMode ? "var(--color-brand-primary)" : "var(--color-text-muted)",
             flexShrink: 0,
           }} />
@@ -190,7 +191,7 @@ export default function ProblemGrid({
                   fontSize: 11, fontWeight: 600, cursor: "pointer",
                   display: "inline-flex", alignItems: "center", gap: 4,
                 }}>
-                <X size={11} /> 모드 종료
+                <X size={ICON.xs} /> 모드 종료
               </button>
             </>
           ) : (
@@ -208,7 +209,7 @@ export default function ProblemGrid({
                   fontSize: 11, fontWeight: 700, cursor: "pointer",
                   display: "inline-flex", alignItems: "center", gap: 4,
                 }}>
-                <Layers size={12} /> 쪼개진 문항 합치기
+                <Layers size={ICON.xs} /> 쪼개진 문항 합치기
               </button>
             </>
           )}
@@ -234,7 +235,7 @@ export default function ProblemGrid({
             borderRadius: "var(--radius-md)",
             fontSize: 12, color: "var(--color-text-secondary)",
           }}>
-            <Loader2 size={14} className="animate-spin" style={{ color: "var(--color-brand-primary)", flexShrink: 0 }} />
+            <Loader2 size={ICON.sm} className="animate-spin" style={{ color: "var(--color-brand-primary)", flexShrink: 0 }} />
             <div>
               <strong>{progressStepName || (isFreshUpload ? "분석 중" : "재분석 중")}</strong>
               {hasProgress && <span> · {pct}%</span>}
@@ -252,7 +253,7 @@ export default function ProblemGrid({
           borderRadius: "var(--radius-md)",
           fontSize: 12, color: "var(--color-text-secondary)",
         }}>
-          <AlertTriangle size={14} style={{ color: "var(--color-status-warning)", flexShrink: 0, marginTop: 1 }} />
+          <AlertTriangle size={ICON.sm} style={{ color: "var(--color-status-warning)", flexShrink: 0, marginTop: 1 }} />
           <div>
             {problems.length >= 60 && (
               <>
@@ -301,7 +302,7 @@ export default function ProblemGrid({
             boxShadow: "0 4px 16px rgba(0,0,0,0.12)",
             marginTop: "var(--space-2)",
           }}>
-          <Layers size={14} style={/* eslint-disable-line no-restricted-syntax */ { color: "var(--color-brand-primary)" }} />
+          <Layers size={ICON.sm} style={/* eslint-disable-line no-restricted-syntax */ { color: "var(--color-brand-primary)" }} />
           <strong style={/* eslint-disable-line no-restricted-syntax */ { color: "var(--color-brand-primary)", fontSize: 13 }}>
             {mergeSelectedCount}개 선택됨
           </strong>
@@ -329,7 +330,7 @@ export default function ProblemGrid({
                 cursor: mergeSelectedCount < 2 ? "not-allowed" : "pointer",
                 display: "inline-flex", alignItems: "center", gap: 4,
               }}>
-              <Layers size={12} />
+              <Layers size={ICON.xs} />
               {mergeSelectedCount}개를 1개로 합치기
             </button>
           </div>

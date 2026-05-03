@@ -10,7 +10,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Database, X, Search, FileText, FolderOpen, AlertCircle } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button } from "@/shared/ui/ds";
+import { ICON, Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { fetchInventoryList } from "../../api/storage.api";
 import type { InventoryFile, InventoryFolder } from "../../api/storage.api";
@@ -193,7 +193,7 @@ export default function PromoteFromInventoryModal({
           ) {
             alreadyPromoted += 1;
           } else {
-            const msg = e instanceof Error ? e.message : "승격 실패";
+            const msg = e instanceof Error ? e.message : "가져오기 실패";
             failures.push({ name: row.file.displayName, reason: msg });
           }
         }
@@ -209,14 +209,14 @@ export default function PromoteFromInventoryModal({
     qc.invalidateQueries({ queryKey: ["storage-inventory", "admin"] });
 
     if (success > 0) {
-      const parts = [`${success}개 매치업 승격 완료`];
-      if (alreadyPromoted > 0) parts.push(`${alreadyPromoted}개는 이미 승격됨`);
+      const parts = [`${success}개 매치업으로 가져오기 완료`];
+      if (alreadyPromoted > 0) parts.push(`${alreadyPromoted}개는 이미 등록됨`);
       if (failures.length > 0) parts.push(`${failures.length}개 실패`);
       feedback.success(parts.join(" · "));
     } else if (alreadyPromoted > 0 && failures.length === 0) {
-      feedback.info(`선택한 ${alreadyPromoted}개 모두 이미 승격된 파일입니다.`);
+      feedback.info(`선택한 ${alreadyPromoted}개 모두 이미 매치업에 등록된 파일입니다.`);
     } else if (failures.length > 0) {
-      feedback.error(`승격 실패: ${failures[0].reason}`);
+      feedback.error(`가져오기 실패: ${failures[0].reason}`);
     }
 
     if (failures.length === 0) onClose();
@@ -249,7 +249,7 @@ export default function PromoteFromInventoryModal({
         }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}>
-              <Database size={16} style={{ color: "var(--color-brand-primary)" }} />
+              <Database size={ICON.md} style={{ color: "var(--color-brand-primary)" }} />
               저장소에서 매치업으로 가져오기
             </h3>
             <button
@@ -263,7 +263,7 @@ export default function PromoteFromInventoryModal({
                 opacity: submitting ? 0.4 : 1,
               }}
             >
-              <X size={18} />
+              <X size={ICON.md} />
             </button>
           </div>
           <p style={{
@@ -285,7 +285,7 @@ export default function PromoteFromInventoryModal({
           {/* 검색 */}
           <div style={{ position: "relative" }}>
             <Search
-              size={13}
+              size={ICON.sm}
               style={{
                 position: "absolute",
                 left: 10, top: "50%", transform: "translateY(-50%)",
@@ -423,7 +423,7 @@ export default function PromoteFromInventoryModal({
                       fontSize: 11, color: "var(--color-text-muted)",
                       overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                     }}>
-                      <FolderOpen size={11} />
+                      <FolderOpen size={ICON.xs} />
                       <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         {row.folderLabel}
                       </span>
@@ -446,7 +446,7 @@ export default function PromoteFromInventoryModal({
                       color: "var(--color-text-muted)", fontWeight: 700,
                       flexShrink: 0,
                     }}>
-                      이미 승격됨
+                      이미 등록됨
                     </span>
                   )}
                 </label>
@@ -512,7 +512,7 @@ export default function PromoteFromInventoryModal({
               color: "var(--color-warning)",
               fontSize: 11, fontWeight: 600,
             }}>
-              <AlertCircle size={12} />
+              <AlertCircle size={ICON.xs} />
               카테고리 없이 진행하면 모두 미분류로 들어갑니다.
             </div>
           )}
@@ -529,7 +529,7 @@ export default function PromoteFromInventoryModal({
             <span style={{
               fontSize: 12, color: "var(--color-brand-primary)", fontWeight: 600, marginRight: "auto",
             }}>
-              승격 중... {progress.done}/{progress.total}
+              가져오는 중... {progress.done}/{progress.total}
             </span>
           )}
           <Button intent="ghost" size="sm" onClick={onClose} disabled={submitting}>
@@ -542,7 +542,7 @@ export default function PromoteFromInventoryModal({
             data-testid="matchup-promote-submit"
           >
             {submitting
-              ? `승격 중... ${progress?.done ?? 0}/${progress?.total ?? selected.size}`
+              ? `가져오는 중... ${progress?.done ?? 0}/${progress?.total ?? selected.size}`
               : `${selected.size}개 매치업으로 가져오기`}
           </Button>
         </div>

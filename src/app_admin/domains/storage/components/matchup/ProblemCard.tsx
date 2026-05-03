@@ -5,7 +5,7 @@
 
 import { useEffect, useState } from "react";
 import { Maximize2, X, AlertTriangle, Loader2 } from "lucide-react";
-import { Badge, ICON_FOR_BADGE } from "@/shared/ui/ds";
+import { ICON, Badge, ICON_FOR_BADGE } from "@/shared/ui/ds";
 import type { MatchupProblem } from "../../api/matchup.api";
 import { getMatchupProblemPresignUrl } from "../../api/matchup.api";
 
@@ -107,9 +107,21 @@ export default function ProblemCard({ problem, selected, onClick, mergeMode = fa
         {hasIssue && (
           <div
             aria-hidden
+            title={
+              numberMismatch && isMergeSuspect
+                ? "번호 불일치 + 인접 문항 합쳐짐 의심 — 두 종류의 결함이 함께 감지됐습니다."
+                : numberMismatch
+                  ? "DB 번호와 본문 OCR 번호가 다릅니다"
+                  : "인접 문항이 합쳐졌을 가능성"
+            }
             style={/* eslint-disable-line no-restricted-syntax */ {
               position: "absolute", top: 0, left: 0, right: 0, height: 4,
-              background: "var(--color-warning)",
+              // 두 결함 동시 = 빨강+주황 분할로 시각 구분
+              background: numberMismatch && isMergeSuspect
+                ? "linear-gradient(to right, var(--color-danger) 0%, var(--color-danger) 50%, var(--color-warning) 50%, var(--color-warning) 100%)"
+                : numberMismatch
+                  ? "var(--color-danger)"
+                  : "var(--color-warning)",
             }}
           />
         )}
@@ -192,7 +204,7 @@ export default function ProblemCard({ problem, selected, onClick, mergeMode = fa
                 display: "flex", alignItems: "center",
               }}
             >
-              <Maximize2 size={12} />
+              <Maximize2 size={ICON.xs} />
             </button>
           )}
         </div>
@@ -269,7 +281,7 @@ export default function ProblemCard({ problem, selected, onClick, mergeMode = fa
             }}
             title="닫기"
           >
-            <X size={18} />
+            <X size={ICON.md} />
           </button>
           <img
             src={imgUrl}

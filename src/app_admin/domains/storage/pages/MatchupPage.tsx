@@ -443,16 +443,26 @@ export default function MatchupPage() {
     setMergeModalOpen(false);
   }, [selectedDocId]);
 
+  // 합치기 모드 진입 직전 selectedProblemId 보관 — 모드 종료 시 복귀해서
+  // 학원장이 보던 매치 결과로 자연스럽게 돌아오도록.
+  const preMergeProblemIdRef = useRef<number | null>(null);
   const handleToggleMergeMode = useCallback(() => {
     setMergeMode((prev) => {
       const next = !prev;
-      if (!next) setMergeSelectedIds([]);
+      if (next) {
+        // 진입: 현재 선택한 problem 보관 + 우측 패널은 도움말로 교체되므로 selection 해제
+        preMergeProblemIdRef.current = selectedProblemId;
+        setSelectedProblemId(null);
+      } else {
+        // 종료: 보관해둔 problem 복귀 → 우측 SimilarResults가 자연스럽게 다시 보임
+        setMergeSelectedIds([]);
+        const restore = preMergeProblemIdRef.current;
+        preMergeProblemIdRef.current = null;
+        if (restore !== null) setSelectedProblemId(restore);
+      }
       return next;
     });
-    // 합치기 모드에선 우측 SimilarResults가 의미 없음 — 단일 문항 매치 결과가
-    // 합치기 작업과 무관해 노이즈만 됨. 모드 진입/종료 모두에서 problem 선택 해제.
-    setSelectedProblemId(null);
-  }, []);
+  }, [selectedProblemId]);
 
   const handleToggleMergeSelect = useCallback((id: number) => {
     setMergeSelectedIds((prev) => (
@@ -677,9 +687,10 @@ export default function MatchupPage() {
     <>
       <div className={css.root} style={/* eslint-disable-line no-restricted-syntax */ {
         // 좌측 트리가 페이지와 함께 스크롤되지 않도록 페이지 높이로 제한.
-        // 헤더(상단 nav) + 탭 = ~120px 추정, 여유 1mm.
-        maxHeight: "calc(100vh - 100px)",
-        height: "calc(100vh - 100px)",
+        // svh(small viewport height)는 모바일 주소창 표시 상태에서 측정 — iPad/모바일에서
+        // 100vh가 화면 밖으로 빠지는 사고 방지. fallback으로 vh 사용 (미지원 브라우저).
+        maxHeight: "calc(100svh - 100px)",
+        height: "calc(100svh - 100px)",
       }}>
         <div className={css.body}>
           {/* 좌측: 문서 목록 */}

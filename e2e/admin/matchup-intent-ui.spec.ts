@@ -32,25 +32,26 @@ test.describe("매치업 업로드 의도 UI 구분", () => {
     await expect(page.getByText("참고 자료 업로드").first()).toBeVisible({ timeout: 5000 });
   });
 
-  test("문서 유형 변경 버튼으로 시험지/참고자료를 전환할 수 있다", async ({ page }) => {
+  test("segmented 토글로 시험지/참고자료를 전환할 수 있다", async ({ page }) => {
     await page.goto(`${BASE}/admin/storage/matchup`, { waitUntil: "networkidle" });
-    const firstDoc = page.locator("[data-testid='matchup-doc-row']").first();
-    if (await firstDoc.count() === 0) {
-      test.skip(true, "문서가 없어 유형 전환 시나리오를 건너뜁니다.");
+    // 참고자료(reference) doc만 사용 — 시험지→참고자료 전환은 confirm 가드가 새로 끼어들어
+    // 여기서는 기본 토글 동작만 검증 (confirm 가드는 matchup-uiux-2026-05-04.spec에서 별도 검증).
+    const refDoc = page.locator("[data-testid='matchup-doc-row'][data-doc-intent='reference']").first();
+    if (await refDoc.count() === 0) {
+      test.skip(true, "참고자료 doc 없음 — 전환 시나리오를 건너뜁니다.");
       return;
     }
-
-    await firstDoc.click();
+    await refDoc.click();
     await page.waitForTimeout(800);
-    const convertBtn = page.getByRole("button", { name: /시험지로 변경|참고자료로 변경/ }).first();
-    if (await convertBtn.count() === 0) {
-      test.skip(true, "실행 대상 환경이 아직 최신 UI(문서 유형 전환 버튼)로 배포되지 않았습니다.");
-      return;
-    }
-    await expect(convertBtn).toBeVisible({ timeout: 5000 });
-    const before = (await convertBtn.textContent())?.trim() ?? "";
-    await convertBtn.click();
-    await expect(page.getByRole("button", { name: before.includes("시험지") ? "참고자료로 변경" : "시험지로 변경" }))
+
+    const toggle = page.locator("[data-testid='matchup-intent-toggle']");
+    await expect(toggle).toBeVisible({ timeout: 5000 });
+    // 현재 reference active
+    await expect(page.locator("[data-testid='matchup-intent-toggle-reference'][data-active='true']")).toBeVisible();
+
+    // 시험지로 전환 (참고자료 → 시험지는 confirm 없이 바로 진행)
+    await page.locator("[data-testid='matchup-intent-toggle-test']").click();
+    await expect(page.locator("[data-testid='matchup-intent-toggle-test'][data-active='true']"))
       .toBeVisible({ timeout: 10000 });
   });
 });

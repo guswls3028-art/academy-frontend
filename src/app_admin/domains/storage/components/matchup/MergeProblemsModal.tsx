@@ -18,7 +18,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { X, ArrowUp, ArrowDown, Loader2, Layers } from "lucide-react";
-import { Button } from "@/shared/ui/ds";
+import { ICON, Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { mergeMatchupProblems } from "../../api/matchup.api";
 import type { MatchupProblem } from "../../api/matchup.api";
@@ -130,7 +130,7 @@ export default function MergeProblemsModal({ docId, problems, onClose, onSuccess
           flexShrink: 0,
         }}>
           <div style={/* eslint-disable-line no-restricted-syntax */ { display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
-            <Layers size={16} style={/* eslint-disable-line no-restricted-syntax */ { color: "var(--color-brand-primary)" }} />
+            <Layers size={ICON.md} style={/* eslint-disable-line no-restricted-syntax */ { color: "var(--color-brand-primary)" }} />
             <h3 style={/* eslint-disable-line no-restricted-syntax */ { margin: 0, fontSize: 15, fontWeight: 700, color: "var(--color-text-primary)" }}>
               쪼개진 문항 합치기
             </h3>
@@ -151,7 +151,7 @@ export default function MergeProblemsModal({ docId, problems, onClose, onSuccess
             }}
             title="닫기 (Esc)"
           >
-            <X size={18} />
+            <X size={ICON.md} />
           </button>
         </div>
 
@@ -308,7 +308,7 @@ export default function MergeProblemsModal({ docId, problems, onClose, onSuccess
                         display: "flex", alignItems: "center", justifyContent: "center",
                       }}
                     >
-                      <ArrowUp size={12} />
+                      <ArrowUp size={ICON.xs} />
                     </button>
                     <button
                       type="button"
@@ -323,7 +323,7 @@ export default function MergeProblemsModal({ docId, problems, onClose, onSuccess
                         display: "flex", alignItems: "center", justifyContent: "center",
                       }}
                     >
-                      <ArrowDown size={12} />
+                      <ArrowDown size={ICON.xs} />
                     </button>
                   </li>
                 ))}
@@ -360,12 +360,12 @@ export default function MergeProblemsModal({ docId, problems, onClose, onSuccess
           >
             {submitting ? (
               <>
-                <Loader2 size={13} className="animate-spin" style={/* eslint-disable-line no-restricted-syntax */ { marginRight: 4 }} />
+                <Loader2 size={ICON.sm} className="animate-spin" style={/* eslint-disable-line no-restricted-syntax */ { marginRight: 4 }} />
                 합치는 중...
               </>
             ) : (
               <>
-                <Layers size={13} style={/* eslint-disable-line no-restricted-syntax */ { marginRight: 4 }} />
+                <Layers size={ICON.sm} style={/* eslint-disable-line no-restricted-syntax */ { marginRight: 4 }} />
                 {ordered.length}개를 Q{targetNumber}로 합치기
               </>
             )}

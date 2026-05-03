@@ -17,7 +17,7 @@
 
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { X, Save, Send, FileText, ChevronLeft, ChevronRight, Check, Share2 } from "lucide-react";
-import { Button } from "@/shared/ui/ds";
+import { ICON, Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useConfirm } from "@/shared/ui/confirm";
 import api from "@/shared/api/axios";
@@ -325,14 +325,24 @@ export default function HitReportEditor({ docId, onClose }: Props) {
       feedback.success("PDF 다운로드 완료");
     } catch (e) {
       console.error(e);
-      const errMsg = (e as { response?: { status?: number } })?.response?.status === 504
-        ? "PDF 생성 시간 초과 — 후보가 너무 많거나 서버 부하. 잠시 후 재시도하세요."
-        : "PDF 생성 실패";
+      const status = (e as { response?: { status?: number } })?.response?.status;
+      // 504 / timeout — 후보 수가 많으면 PDF 생성에 5분+ 소요. 사용자가 다음 행동을
+      // 즉시 알 수 있도록 구체 가이드.
+      const totalSelected = Object.values(entries).reduce(
+        (n, e) => n + (e.selectedProblemIds?.length ?? 0),
+        0,
+      );
+      const tooMany = totalSelected >= 30;
+      const errMsg = status === 504
+        ? tooMany
+          ? `PDF 생성에 시간이 너무 오래 걸려 중단됐습니다 (담은 자료 ${totalSelected}개). 일부 자료의 별표를 빼서 30개 이하로 줄인 뒤 다시 시도해 주세요.`
+          : "PDF 생성에 시간이 너무 오래 걸려 중단됐습니다. 잠시 후 다시 시도해 주세요. 같은 문제가 반복되면 담은 자료 수를 줄여보세요."
+        : "PDF 생성 실패. 잠시 후 다시 시도해 주세요.";
       feedback.error(errMsg);
     } finally {
       setPdfDownloading(false);
     }
-  }, [dirtyCount, documentTitle, reportId, reportTitle, saveAll, pdfDownloading]);
+  }, [dirtyCount, documentTitle, reportId, reportTitle, saveAll, pdfDownloading, entries]);
 
   // 카페·블로그 공유용 ZIP — 페이지별 PNG + summary.md.
   // 강사가 본인 명의로 카페에 글 쓸 때 paste·업로드 가능.
@@ -359,12 +369,13 @@ export default function HitReportEditor({ docId, onClose }: Props) {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      feedback.success("카페 공유용 ZIP 다운로드 완료 (페이지 PNG + summary.md)");
+      feedback.success("카페·블로그용 이미지 묶음 다운로드 완료 (페이지 이미지 + 요약 텍스트)");
     } catch (e) {
       console.error(e);
-      const errMsg = (e as { response?: { status?: number } })?.response?.status === 504
-        ? "ZIP 생성 시간 초과 — 잠시 후 재시도하세요."
-        : "ZIP 생성 실패";
+      const status = (e as { response?: { status?: number } })?.response?.status;
+      const errMsg = status === 504
+        ? "이미지 묶음 생성에 시간이 너무 오래 걸려 중단됐습니다. 담은 자료 수를 줄이거나 잠시 후 다시 시도해 주세요."
+        : "이미지 묶음 생성 실패. 잠시 후 다시 시도해 주세요.";
       feedback.error(errMsg);
     } finally {
       setZipDownloading(false);
@@ -442,7 +453,7 @@ export default function HitReportEditor({ docId, onClose }: Props) {
       >
         {/* 헤더 */}
         <div style={headerStyle}>
-          <FileText size={18} color="var(--color-status-success)" />
+          <FileText size={ICON.md} color="var(--color-status-success)" />
           <div style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0, flex: 1 }}>
             <div style={{ fontSize: 11, color: "var(--color-text-muted)" }}>
               {documentCategory || "미분류"}
@@ -508,11 +519,11 @@ export default function HitReportEditor({ docId, onClose }: Props) {
               {saving ? "저장 중…" : dirtyCount > 0 ? `변경됨 (${dirtyCount}건, 곧 자동 저장)` : "저장됨 ✓"}
             </span>
             <Button size="sm" intent="ghost" onClick={() => void saveAll()} disabled={saving || isSubmitted || dirtyCount === 0}>
-              <Save size={12} style={{ marginRight: 4 }} />
+              <Save size={ICON.xs} style={{ marginRight: 4 }} />
               지금 저장
             </Button>
             <Button size="sm" intent="ghost" onClick={() => void downloadPdf()} disabled={saving || pdfDownloading}>
-              <FileText size={12} style={{ marginRight: 4 }} />
+              <FileText size={ICON.xs} style={{ marginRight: 4 }} />
               {pdfDownloading ? "PDF 생성 중…" : "PDF 다운로드"}
             </Button>
             <Button
@@ -521,11 +532,11 @@ export default function HitReportEditor({ docId, onClose }: Props) {
               disabled={saving || zipDownloading}
               title="페이지별 이미지 + 요약 텍스트 — 학원 카페·블로그에 그대로 붙여넣기 / 업로드"
             >
-              <Share2 size={12} style={{ marginRight: 4 }} />
+              <Share2 size={ICON.xs} style={{ marginRight: 4 }} />
               {zipDownloading ? "압축 중…" : "카페·블로그용 이미지 묶음"}
             </Button>
             <Button size="sm" intent="primary" onClick={() => void submit()} disabled={submitting || isSubmitted}>
-              <Send size={12} style={{ marginRight: 4 }} />
+              <Send size={ICON.xs} style={{ marginRight: 4 }} />
               {isSubmitted ? "제출 완료" : "학원에 제출"}
             </Button>
             <button
@@ -536,7 +547,7 @@ export default function HitReportEditor({ docId, onClose }: Props) {
                 cursor: "pointer", color: "var(--color-text-secondary)",
               }}
             >
-              <X size={18} />
+              <X size={ICON.md} />
             </button>
           </div>
         </div>
@@ -622,7 +633,7 @@ export default function HitReportEditor({ docId, onClose }: Props) {
                       {cnt > 0 ? `자료 ${cnt}` : "선택 없음"}
                     </span>
                     {hasComment && (
-                      <Check size={10} color="var(--color-status-success)" />
+                      <Check size={ICON.xs} color="var(--color-status-success)" />
                     )}
                     {ent?.dirty && (
                       <span style={{ marginLeft: "auto", width: 6, height: 6, borderRadius: "50%", background: "var(--color-status-warning)" }} />
@@ -753,7 +764,7 @@ function PreviewPane({
             padding: 4, display: "flex", alignItems: "center",
           }}
         >
-          <ChevronLeft size={20} />
+          <ChevronLeft size={ICON.lg} />
         </button>
         <div style={{ display: "flex", alignItems: "baseline", gap: 8, flex: 1 }}>
           <span style={{ fontSize: 16, fontWeight: 800 }}>Q{active.number}</span>
@@ -778,7 +789,7 @@ function PreviewPane({
             padding: 4, display: "flex", alignItems: "center",
           }}
         >
-          <ChevronRight size={20} />
+          <ChevronRight size={ICON.lg} />
         </button>
       </div>
 
