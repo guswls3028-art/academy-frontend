@@ -16,7 +16,7 @@
 /* eslint-disable no-restricted-syntax */
 
 import { useEffect, useMemo, useState, useCallback } from "react";
-import { X, Save, Send, FileText, ChevronLeft, ChevronRight, Check } from "lucide-react";
+import { X, Save, Send, FileText, ChevronLeft, ChevronRight, Check, Share2 } from "lucide-react";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useConfirm } from "@/shared/ui/confirm";
@@ -334,6 +334,43 @@ export default function HitReportEditor({ docId, onClose }: Props) {
     }
   }, [dirtyCount, documentTitle, reportId, reportTitle, saveAll, pdfDownloading]);
 
+  // 카페·블로그 공유용 ZIP — 페이지별 PNG + summary.md.
+  // 강사가 본인 명의로 카페에 글 쓸 때 paste·업로드 가능.
+  const [zipDownloading, setZipDownloading] = useState(false);
+  const downloadShareZip = useCallback(async () => {
+    if (!reportId) return;
+    if (zipDownloading) return;
+    if (dirtyCount > 0) {
+      const ok = await saveAll();
+      if (!ok) return;
+    }
+    setZipDownloading(true);
+    try {
+      const resp = await api.get(`/matchup/hit-reports/${reportId}/share.zip`, {
+        responseType: "blob",
+        timeout: 5 * 60_000,
+      });
+      const blob = new Blob([resp.data], { type: "application/zip" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${reportTitle || documentTitle || "matchup"}-카페공유.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      feedback.success("카페 공유용 ZIP 다운로드 완료 (페이지 PNG + summary.md)");
+    } catch (e) {
+      console.error(e);
+      const errMsg = (e as { response?: { status?: number } })?.response?.status === 504
+        ? "ZIP 생성 시간 초과 — 잠시 후 재시도하세요."
+        : "ZIP 생성 실패";
+      feedback.error(errMsg);
+    } finally {
+      setZipDownloading(false);
+    }
+  }, [dirtyCount, documentTitle, reportId, reportTitle, saveAll, zipDownloading]);
+
   const closeWithDirtyGuard = useCallback(async () => {
     if (dirtyCount > 0) {
       const ok = await confirm({
@@ -453,6 +490,15 @@ export default function HitReportEditor({ docId, onClose }: Props) {
             <Button size="sm" intent="ghost" onClick={() => void downloadPdf()} disabled={saving || pdfDownloading}>
               <FileText size={12} style={{ marginRight: 4 }} />
               {pdfDownloading ? "PDF 생성 중…" : "PDF 다운로드"}
+            </Button>
+            <Button
+              size="sm" intent="ghost"
+              onClick={() => void downloadShareZip()}
+              disabled={saving || zipDownloading}
+              title="페이지별 PNG + summary.md — 카페·블로그에 paste·업로드"
+            >
+              <Share2 size={12} style={{ marginRight: 4 }} />
+              {zipDownloading ? "ZIP 생성 중…" : "카페 공유용 ZIP"}
             </Button>
             <Button size="sm" intent="primary" onClick={() => void submit()} disabled={submitting || isSubmitted}>
               <Send size={12} style={{ marginRight: 4 }} />

@@ -756,6 +756,13 @@ export function getHitReportPdfUrl(reportId: number): string {
   return `/api/v1/matchup/hit-reports/${reportId}/curated.pdf`;
 }
 
+// 카페·블로그 게시용 raw asset 다운로드 — 페이지별 PNG + summary.md + README.txt.
+// PDF은 학원 제출용 정식 산출물 / ZIP은 강사가 카페에 paste·업로드용.
+// 작성자 본인 또는 학원 owner/admin만 다운로드 가능 (다른 강사 자료 게시 차단).
+export function getHitReportSharePackageUrl(reportId: number): string {
+  return `/api/v1/matchup/hit-reports/${reportId}/share.zip`;
+}
+
 export async function deleteHitReport(reportId: number): Promise<void> {
   await api.delete(`/matchup/hit-reports/${reportId}/`);
 }
