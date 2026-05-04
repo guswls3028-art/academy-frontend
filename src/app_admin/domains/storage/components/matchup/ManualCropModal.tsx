@@ -405,6 +405,11 @@ export default function ManualCropModal({ document: doc, onClose, initialPage }:
       if (!ok) return;
     }
 
+    // await 동안 사용자가 다음 박스 그리기/번호 입력 시작할 수 있음. 끝난 후 무조건
+     // setDraft(null)/setNumberStr(+1) 하면 진행 중 작업이 날아감. closure capture한
+     // ref/값과 현재 state가 같을 때만 (= 사용자가 안 건드림) 클리어/+1.
+    const savedDraft = draft;
+    const savedNumberStr = numberStr;
     setSaving(true);
     try {
       const created = await manualCropMatchupProblem(doc.id, {
@@ -425,9 +430,9 @@ export default function ManualCropModal({ document: doc, onClose, initialPage }:
       qc.invalidateQueries({ queryKey: ["matchup-documents"] });
       // 토스트 대신 인라인 인디케이터(저장 흐름 안 끊김). 실패만 토스트.
       setJustSavedAt(Date.now());
-      setDraft(null);
-      // 다음 빈 번호로 자동 이동 — 옵티미스틱 problems 기반.
-      setNumberStr(String(number + 1));
+      // 사용자가 진행한 새 박스/번호 보존.
+      setDraft((cur) => (cur === savedDraft ? null : cur));
+      setNumberStr((cur) => (cur === savedNumberStr ? String(number + 1) : cur));
     } catch (e) {
       console.error(e);
       const msg =
@@ -456,6 +461,8 @@ export default function ManualCropModal({ document: doc, onClose, initialPage }:
       });
       if (!ok) return;
     }
+    // ref capture — await 중 사용자가 새 paste 또는 paste 취소했으면 그 작업 보존.
+    const savedPasted = pasted;
     setSaving(true);
     try {
       const created = await pasteImageAsMatchupProblem(doc.id, pasted.file, num);
@@ -469,8 +476,14 @@ export default function ManualCropModal({ document: doc, onClose, initialPage }:
       );
       qc.invalidateQueries({ queryKey: ["matchup-documents"] });
       setJustSavedAt(Date.now());
-      URL.revokeObjectURL(pasted.previewUrl);
-      setPasted(null);
+      // 사용자가 새 paste 시작하지 않았으면 클리어 + URL revoke. 새 paste면 그쪽이 우선.
+      setPasted((cur) => {
+        if (cur === savedPasted) {
+          URL.revokeObjectURL(savedPasted.previewUrl);
+          return null;
+        }
+        return cur;
+      });
     } catch (e) {
       console.error(e);
       const msg =
