@@ -223,7 +223,94 @@ export default function MyStorageExplorer() {
     subFolders.every((f) => selectedFolderIds.has(f.id)) &&
     subFiles.every((f) => selectedFileIds.has(f.id));
 
-  // 일괄 삭제
+  // 폴더 통계 — 폴더와 그 하위 모든 폴더/파일 카운트, 매치업 doc 수, 총 사이즈.
+  // recursive 삭제 confirm에 표시 + 결정 정보로 사용.
+  const computeFolderStats = useCallback(
+    (folderId: string) => {
+      const folderIds = new Set<string>([folderId]);
+      // BFS로 자식 폴더 ID 모두 수집
+      let queue: string[] = [folderId];
+      while (queue.length > 0) {
+        const next: string[] = [];
+        for (const fid of queue) {
+          for (const f of folders) {
+            if (f.parentId === fid) {
+              folderIds.add(f.id);
+              next.push(f.id);
+            }
+          }
+        }
+        queue = next;
+      }
+      const filesInTree = files.filter(
+        (f) => f.folderId !== null && folderIds.has(f.folderId),
+      );
+      const matchupCount = filesInTree.filter((f) => !!f.matchup).length;
+      const totalBytes = filesInTree.reduce((s, f) => s + (f.sizeBytes || 0), 0);
+      return {
+        folders: folderIds.size,
+        files: filesInTree.length,
+        matchupCount,
+        totalBytes,
+      };
+    },
+    [folders, files],
+  );
+
+  // 폴더 단일 recursive 삭제 (트리 호버 액션) — 강한 confirm + stats 명시.
+  const handleDeleteFolderRecursive = useCallback(
+    async (folderId: string, name: string) => {
+      const stats = computeFolderStats(folderId);
+      const sizeMb = (stats.totalBytes / (1024 * 1024)).toFixed(1);
+      const lines: string[] = [
+        `"${name}" 폴더와 하위 항목을 영구 삭제합니다.`,
+      ];
+      if (stats.folders > 1) lines.push(`· 하위 폴더 ${stats.folders - 1}개`);
+      if (stats.files > 0) lines.push(`· 파일 ${stats.files}개 (총 ${sizeMb} MB)`);
+      if (stats.matchupCount > 0) {
+        lines.push(`· 매치업 자료 ${stats.matchupCount}건 (분석 결과·추출 문제·유사 검색 함께 사라짐)`);
+      }
+      lines.push("");
+      lines.push("이 작업은 되돌릴 수 없습니다.");
+
+      const ok = await confirm({
+        title: "하위 포함 폴더 영구 삭제",
+        message: lines.join("\n"),
+        confirmText: stats.matchupCount > 0 ? "매치업 포함 전부 삭제" : "전부 삭제",
+        cancelText: "취소",
+        danger: true,
+      });
+      if (!ok) return;
+
+      setIsDeleting(true);
+      try {
+        const res = await deleteFolder(SCOPE, folderId, undefined, { recursive: true });
+        qc.invalidateQueries({ queryKey: ["storage-inventory", SCOPE] });
+        if (res && "deleted" in res) {
+          feedback.success(
+            `"${name}" 삭제 완료 — 폴더 ${res.deleted.folders} · 파일 ${res.deleted.files}` +
+              (res.deleted.matchup_docs > 0 ? ` · 매치업 ${res.deleted.matchup_docs}건` : ""),
+          );
+          // 매치업 cascade 영향 시 매치업 캐시도 갱신
+          if (res.deleted.matchup_docs > 0) {
+            qc.invalidateQueries({ queryKey: ["matchup-documents"] });
+          }
+        }
+        // 삭제된 폴더가 현재 진입 중이면 부모로 이동
+        if (currentFolderId === folderId) {
+          setCurrentFolderId(null);
+        }
+        clearSelection();
+      } catch (e) {
+        feedback.error((e as Error).message || "폴더 삭제 실패");
+      } finally {
+        setIsDeleting(false);
+      }
+    },
+    [computeFolderStats, confirm, qc, currentFolderId, clearSelection],
+  );
+
+  // 일괄 삭제 — 선택에 비어있지 않은 폴더가 포함되어 있으면 자동으로 recursive 옵션 안내.
   const handleDeleteSelected = useCallback(async () => {
     const folderCount = selectedFolderIds.size;
     const fileCount = selectedFileIds.size;
@@ -231,27 +318,60 @@ export default function MyStorageExplorer() {
     if (folderCount > 0) parts.push(`폴더 ${folderCount}개`);
     if (fileCount > 0) parts.push(`파일 ${fileCount}개`);
 
-    // 선택 안에 매치업 등록 파일이 포함된 경우 cascade 경고
+    // 선택 폴더 중 비어있지 않은 것 + 합산 stats 계산
+    let recursiveNeeded = false;
+    let descFolders = 0;
+    let descFiles = 0;
+    let descMatchup = 0;
+    let descBytes = 0;
+    for (const fid of selectedFolderIds) {
+      const s = computeFolderStats(fid);
+      if (s.folders > 1 || s.files > 0) recursiveNeeded = true;
+      descFolders += s.folders - 1;  // self 제외
+      descFiles += s.files;
+      descMatchup += s.matchupCount;
+      descBytes += s.totalBytes;
+    }
+    // 직접 선택된 파일도 매치업 cascade 합산
     const selectedMatchupFiles = subFiles.filter(
       (f) => selectedFileIds.has(f.id) && f.matchup,
     );
-    let extra = "";
-    if (selectedMatchupFiles.length > 0) {
-      extra = `\n\n⚠ 매치업 자료 ${selectedMatchupFiles.length}개가 포함되어 있습니다. 삭제하면 매치업 분석 결과(추출 문제·유사 검색)도 함께 사라집니다.`;
+
+    const lines = [`${parts.join(", ")}를 삭제합니다.`];
+    if (recursiveNeeded) {
+      const sizeMb = (descBytes / (1024 * 1024)).toFixed(1);
+      lines.push("");
+      lines.push("선택한 폴더 안에 다음 항목도 함께 삭제됩니다:");
+      if (descFolders > 0) lines.push(`· 하위 폴더 ${descFolders}개`);
+      if (descFiles > 0) lines.push(`· 파일 ${descFiles}개 (총 ${sizeMb} MB)`);
+      if (descMatchup > 0) {
+        lines.push(`· 매치업 자료 ${descMatchup}건 (분석 결과 함께 사라짐)`);
+      }
     }
+    if (selectedMatchupFiles.length > 0) {
+      lines.push("");
+      lines.push(`⚠ 직접 선택된 매치업 자료 ${selectedMatchupFiles.length}건도 분석 결과가 함께 삭제됩니다.`);
+    }
+    lines.push("");
+    lines.push("이 작업은 되돌릴 수 없습니다.");
+
     const ok = await confirm({
-      title: "선택 항목 삭제",
-      message: `${parts.join(", ")}를 삭제하시겠습니까?${extra}`,
-      confirmText: "삭제",
+      title: recursiveNeeded ? "하위 포함 영구 삭제" : "선택 항목 삭제",
+      message: lines.join("\n"),
+      confirmText: recursiveNeeded ? "전부 삭제" : "삭제",
       danger: true,
     });
     if (!ok) return;
 
     setIsDeleting(true);
     let errorCount = 0;
+    let totalMatchup = 0;
     for (const id of selectedFolderIds) {
       try {
-        await deleteFolder(SCOPE, id);
+        const res = await deleteFolder(SCOPE, id, undefined, { recursive: recursiveNeeded });
+        if (res && "deleted" in res) {
+          totalMatchup += res.deleted.matchup_docs;
+        }
       } catch (e) {
         errorCount++;
         feedback.error((e as Error).message);
@@ -266,12 +386,15 @@ export default function MyStorageExplorer() {
       }
     }
     qc.invalidateQueries({ queryKey: ["storage-inventory", SCOPE] });
+    if (totalMatchup > 0 || selectedMatchupFiles.length > 0) {
+      qc.invalidateQueries({ queryKey: ["matchup-documents"] });
+    }
     clearSelection();
     setIsDeleting(false);
     if (errorCount === 0) {
       feedback.success(`${parts.join(", ")} 삭제 완료`);
     }
-  }, [selectedFolderIds, selectedFileIds, qc, confirm, clearSelection]);
+  }, [selectedFolderIds, selectedFileIds, subFiles, computeFolderStats, qc, confirm, clearSelection]);
 
   const startRename = useCallback((type: "folder" | "file", id: string, currentName: string) => {
     setRenamingId({ type, id });
@@ -526,12 +649,16 @@ export default function MyStorageExplorer() {
         <aside className={panelStyles.tree}>
           <div className={panelStyles.treeNavHeader}>
             <span className={panelStyles.treeNavTitle}>폴더</span>
+            <span className={panelStyles.treeNavMeta}>
+              {folders.length}개 · 파일 {files.length}
+            </span>
           </div>
           <div className={panelStyles.treeScroll}>
             <FolderTree
               folders={allFoldersForTree}
               currentFolderId={currentFolderId}
               onSelect={setCurrentFolderId}
+              onDelete={handleDeleteFolderRecursive}
             />
           </div>
         </aside>

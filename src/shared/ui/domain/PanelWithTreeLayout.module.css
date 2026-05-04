@@ -102,6 +102,14 @@
   letter-spacing: 0.06em;
 }
 
+.treeNavMeta {
+  margin-left: auto;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  letter-spacing: 0.02em;
+}
+
 .treeScroll {
   flex: 1;
   overflow-y: auto;

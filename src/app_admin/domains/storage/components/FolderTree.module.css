@@ -1,23 +1,31 @@
 .root {
-  padding: var(--space-2) var(--space-4);
+  padding: var(--space-2) var(--space-3);
   font-size: 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
 }
 
 .node {
   margin-left: 0;
-  margin-bottom: 2px;
 }
 
 .itemRow {
   display: flex;
-  align-items: center;
+  align-items: stretch;
+  position: relative;
+  border-radius: 6px;
+}
+
+.itemRow:hover {
+  background: color-mix(in srgb, var(--color-text-primary) 5%, transparent);
 }
 
 .toggleBtn {
   display: grid;
   place-items: center;
   width: 20px;
-  height: 20px;
+  height: 28px;
   flex-shrink: 0;
   border: none;
   background: transparent;
@@ -25,7 +33,7 @@
   cursor: pointer;
   border-radius: 4px;
   padding: 0;
-  transition: background 100ms ease;
+  transition: background 100ms ease, color 100ms ease;
 }
 
 .toggleBtn:hover {
@@ -40,20 +48,34 @@
 
 .children {
   margin-left: 0;
-  padding-left: 20px;
+  padding-left: 22px;
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
+}
+
+/* 들여쓰기 vertical guide line — 자식 그룹 좌측에 얇은 선으로 깊이 시각화. */
+.children::before {
+  content: "";
+  position: absolute;
+  left: 11px;
+  top: 0;
+  bottom: 4px;
+  width: 1px;
+  background: var(--color-border-divider);
+  opacity: 0.55;
 }
 
 .item {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: 8px;
   flex: 1;
   min-width: 0;
-  padding: var(--space-2) var(--space-3);
+  padding: 5px 8px 5px 6px;
   border: none;
+  border-left: 2px solid transparent;
   border-radius: 6px;
   background: transparent;
   color: var(--color-text-secondary);
@@ -61,22 +83,91 @@
   text-align: left;
   font-size: 13px;
   font-weight: 500;
-  transition: background 100ms ease, color 100ms ease;
+  transition: background 100ms ease, color 100ms ease, border-color 100ms ease;
 }
 
-.item span {
+.icon {
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+}
+
+.itemLabel {
+  flex: 1;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+.itemCount {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  background: color-mix(in srgb, var(--color-text-primary) 6%, transparent);
+  padding: 1px 6px;
+  border-radius: 999px;
+  flex-shrink: 0;
+  letter-spacing: 0.2px;
+}
+
 .item:hover {
-  background: color-mix(in srgb, var(--color-text-primary) 5%, transparent);
+  color: var(--color-text-primary);
+}
+
+.item:hover .icon {
   color: var(--color-text-primary);
 }
 
 .itemActive {
-  background: color-mix(in srgb, var(--color-primary) 10%, var(--color-bg-surface));
-  color: var(--color-primary);
-  font-weight: 600;
+  background: color-mix(in srgb, var(--color-brand-primary) 12%, var(--color-bg-surface));
+  border-left-color: var(--color-brand-primary);
+  color: var(--color-brand-primary);
+  font-weight: 700;
+}
+
+.itemActive .icon {
+  color: var(--color-brand-primary);
+}
+
+.itemActive .itemCount {
+  background: color-mix(in srgb, var(--color-brand-primary) 18%, transparent);
+  color: var(--color-brand-primary);
+}
+
+/* 호버 시에만 액션 노출 — 비-호버 시 트리 시각 잡음 최소화. */
+.actions {
+  display: none;
+  align-items: center;
+  gap: 1px;
+  padding-right: 4px;
+  flex-shrink: 0;
+}
+
+.itemRow:hover .actions,
+.itemRow:focus-within .actions {
+  display: inline-flex;
+}
+
+.actionBtn {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  border-radius: 4px;
+  padding: 0;
+  transition: background 100ms ease, color 100ms ease;
+}
+
+.actionBtn:hover {
+  background: color-mix(in srgb, var(--color-text-primary) 10%, transparent);
+  color: var(--color-text-primary);
+}
+
+.actionDanger:hover {
+  background: color-mix(in srgb, var(--color-status-danger, #dc2626) 14%, transparent);
+  color: var(--color-status-danger, #dc2626);
 }

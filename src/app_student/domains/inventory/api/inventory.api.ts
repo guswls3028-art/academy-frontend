@@ -51,9 +51,9 @@ export function createMyFolder(
   return createFolder("student", parentId ?? null, name, studentPs);
 }
 
-/** 내 인벤토리 폴더 삭제 */
-export function deleteMyFolder(studentPs: string, folderId: string): Promise<void> {
-  return deleteFolder("student", folderId, studentPs);
+/** 내 인벤토리 폴더 삭제 — 학생은 비어있을 때만 (recursive 옵션 미사용) */
+export async function deleteMyFolder(studentPs: string, folderId: string): Promise<void> {
+  await deleteFolder("student", folderId, studentPs);
 }
 
 /** presigned URL (다운로드/미리보기) */

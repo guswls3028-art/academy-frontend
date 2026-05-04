@@ -125,14 +125,29 @@ export async function deleteFile(scope: "admin" | "student", fileId: string, stu
   await api.delete(`/storage/inventory/files/${fileId}/`, { params });
 }
 
+export type RecursiveDeleteResult = {
+  ok: true;
+  deleted: {
+    folders: number;
+    files: number;
+    matchup_docs: number;
+    r2_objects: number;
+  };
+};
+
 export async function deleteFolder(
   scope: "admin" | "student",
   folderId: string,
-  studentPs?: string
-): Promise<void> {
+  studentPs?: string,
+  options?: { recursive?: boolean }
+): Promise<RecursiveDeleteResult | void> {
   const params: Record<string, string> = { scope };
   if (studentPs) params.student_ps = studentPs;
-  await api.delete(`/storage/inventory/folders/${folderId}/`, { params });
+  if (options?.recursive) params.recursive = "true";
+  const res = await api.delete(`/storage/inventory/folders/${folderId}/`, { params });
+  if (options?.recursive) {
+    return res.data as RecursiveDeleteResult;
+  }
 }
 
 export async function renameFolder(
