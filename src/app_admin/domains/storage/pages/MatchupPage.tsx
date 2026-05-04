@@ -1332,7 +1332,7 @@ export default function MatchupPage() {
                   </div>
 
                   <div style={/* eslint-disable-line no-restricted-syntax */ {
-                    flex: 2.4, minWidth: 360, overflowY: "auto",
+                    flex: 2, minWidth: 300, overflowY: "auto",
                     borderLeft: "1px solid var(--color-border-divider)",
                     paddingLeft: "var(--space-4)",
                     display: "flex", flexDirection: "column", minHeight: 0,

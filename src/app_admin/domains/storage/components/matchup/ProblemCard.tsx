@@ -254,6 +254,7 @@ export default function ProblemCard({ problem, selected, onClick, mergeMode = fa
             display: "-webkit-box",
             WebkitLineClamp: 2,
             WebkitBoxOrient: "vertical",
+            wordBreak: "keep-all",
           }}>
             {problem.text}
           </p>

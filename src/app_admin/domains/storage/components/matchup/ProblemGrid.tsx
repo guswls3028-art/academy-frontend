@@ -160,6 +160,7 @@ export default function ProblemGrid({
       {canShowMergeButton && (
         <div style={/* eslint-disable-line no-restricted-syntax */ {
           display: "flex", alignItems: "center", gap: "var(--space-2)",
+          flexWrap: "wrap",
           padding: "var(--space-2) var(--space-3)",
           background: mergeMode
             ? "color-mix(in srgb, var(--color-brand-primary) 8%, var(--color-bg-surface))"
@@ -177,7 +178,10 @@ export default function ProblemGrid({
           {mergeMode ? (
             <>
               <strong style={/* eslint-disable-line no-restricted-syntax */ { color: "var(--color-brand-primary)" }}>합치기 모드</strong>
-              <span style={/* eslint-disable-line no-restricted-syntax */ { color: "var(--color-text-secondary)" }}>
+              <span style={/* eslint-disable-line no-restricted-syntax */ {
+                color: "var(--color-text-secondary)",
+                flex: 1, minWidth: 0, wordBreak: "keep-all",
+              }}>
                 — 합칠 문항을 위→아래 순서대로 클릭하세요
               </span>
               <button type="button" onClick={onToggleMergeMode}
@@ -190,13 +194,17 @@ export default function ProblemGrid({
                   color: "var(--color-text-secondary)",
                   fontSize: 11, fontWeight: 600, cursor: "pointer",
                   display: "inline-flex", alignItems: "center", gap: 4,
+                  whiteSpace: "nowrap", flexShrink: 0,
                 }}>
                 <X size={ICON.xs} /> 모드 종료
               </button>
             </>
           ) : (
             <>
-              <span style={/* eslint-disable-line no-restricted-syntax */ { color: "var(--color-text-secondary)" }}>
+              <span style={/* eslint-disable-line no-restricted-syntax */ {
+                color: "var(--color-text-secondary)",
+                flex: 1, minWidth: 0, wordBreak: "keep-all",
+              }}>
                 <strong>한 문항이 두 칸 이상으로 쪼개진 경우</strong> — 클릭 한 번으로 묶어 1개 문항으로 만들 수 있습니다.
               </span>
               <button type="button" onClick={onToggleMergeMode}
@@ -208,6 +216,7 @@ export default function ProblemGrid({
                   borderRadius: 4, padding: "4px 12px",
                   fontSize: 11, fontWeight: 700, cursor: "pointer",
                   display: "inline-flex", alignItems: "center", gap: 4,
+                  whiteSpace: "nowrap", flexShrink: 0,
                 }}>
                 <Layers size={ICON.xs} /> 쪼개진 문항 합치기
               </button>
@@ -254,7 +263,7 @@ export default function ProblemGrid({
           fontSize: 12, color: "var(--color-text-secondary)",
         }}>
           <AlertTriangle size={ICON.sm} style={{ color: "var(--color-status-warning)", flexShrink: 0, marginTop: 1 }} />
-          <div>
+          <div style={{ minWidth: 0, wordBreak: "keep-all", lineHeight: 1.5 }}>
             {problems.length >= 60 && (
               <>
                 <strong>학습자료 자동분리 한계:</strong> 본문 항목번호(1.~60.)를 문항으로 잘못 잡았을 수 있습니다. 정확한 매칭이 필요한 문항은
@@ -272,7 +281,7 @@ export default function ProblemGrid({
       )}
       <div style={{
         display: "grid",
-        gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
+        gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
         gap: "var(--space-3)",
       }}>
         {problems.map((p) => (
@@ -295,6 +304,7 @@ export default function ProblemGrid({
           style={/* eslint-disable-line no-restricted-syntax */ {
             position: "sticky", bottom: 0, zIndex: 5,
             display: "flex", alignItems: "center", gap: "var(--space-2)",
+            flexWrap: "wrap",
             padding: "var(--space-3) var(--space-4)",
             background: "var(--color-bg-surface)",
             border: "1px solid var(--color-brand-primary)",
@@ -302,14 +312,17 @@ export default function ProblemGrid({
             boxShadow: "0 4px 16px rgba(0,0,0,0.12)",
             marginTop: "var(--space-2)",
           }}>
-          <Layers size={ICON.sm} style={/* eslint-disable-line no-restricted-syntax */ { color: "var(--color-brand-primary)" }} />
-          <strong style={/* eslint-disable-line no-restricted-syntax */ { color: "var(--color-brand-primary)", fontSize: 13 }}>
+          <Layers size={ICON.sm} style={/* eslint-disable-line no-restricted-syntax */ { color: "var(--color-brand-primary)", flexShrink: 0 }} />
+          <strong style={/* eslint-disable-line no-restricted-syntax */ { color: "var(--color-brand-primary)", fontSize: 13, flexShrink: 0 }}>
             {mergeSelectedCount}개 선택됨
           </strong>
-          <span style={/* eslint-disable-line no-restricted-syntax */ { fontSize: 11, color: "var(--color-text-muted)" }}>
+          <span style={/* eslint-disable-line no-restricted-syntax */ {
+            fontSize: 11, color: "var(--color-text-muted)",
+            flex: 1, minWidth: 0, wordBreak: "keep-all",
+          }}>
             {mergeSelectedCount < 2 ? "1개 더 선택하면 합칠 수 있습니다" : "위→아래 순서대로 합쳐집니다"}
           </span>
-          <div style={/* eslint-disable-line no-restricted-syntax */ { marginLeft: "auto", display: "flex", gap: 8 }}>
+          <div style={/* eslint-disable-line no-restricted-syntax */ { marginLeft: "auto", display: "flex", gap: 8, flexShrink: 0 }}>
             <button type="button" onClick={onClearMergeSelection}
               style={/* eslint-disable-line no-restricted-syntax */ {
                 background: "var(--color-bg-surface-soft)",
@@ -317,6 +330,7 @@ export default function ProblemGrid({
                 borderRadius: 4, padding: "5px 12px",
                 color: "var(--color-text-secondary)",
                 fontSize: 11, fontWeight: 600, cursor: "pointer",
+                whiteSpace: "nowrap",
               }}>선택 해제</button>
             <button type="button" onClick={onConfirmMerge}
               disabled={mergeSelectedCount < 2}
@@ -329,6 +343,7 @@ export default function ProblemGrid({
                 fontSize: 11, fontWeight: 700,
                 cursor: mergeSelectedCount < 2 ? "not-allowed" : "pointer",
                 display: "inline-flex", alignItems: "center", gap: 4,
+                whiteSpace: "nowrap",
               }}>
               <Layers size={ICON.xs} />
               {mergeSelectedCount}개를 1개로 합치기
