@@ -124,7 +124,7 @@ export default function Sidebar() {
                     </span>
 
                     {!collapsed && (
-                      <span className="label" style={{ minWidth: 0 }}>
+                      <span className="label" style={{ minWidth: 0, flex: 1 }}>
                         {it.label}
                       </span>
                     )}

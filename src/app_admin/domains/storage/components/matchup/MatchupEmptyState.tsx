@@ -92,7 +92,7 @@ export default function MatchupEmptyState({ onUpload }: Props) {
         maxWidth: 540, fontSize: 11, color: "var(--color-text-muted)", lineHeight: 1.5,
       }}>
         <Info size={ICON.sm} style={{ flexShrink: 0, marginTop: 2 }} />
-        <span>두 종류 모두 같은 매치업 풀에 등록되며 서로 자동 비교됩니다. 진행 후에도 자료/시험지를 자유롭게 추가할 수 있습니다.</span>
+        <span>두 종류 모두 같은 자료 목록에 등록되며 서로 자동 비교됩니다. 진행 후에도 자료/시험지를 자유롭게 추가할 수 있습니다.</span>
       </div>
       <div className={css.placeholderSteps}>
         <div className={css.placeholderStep}>

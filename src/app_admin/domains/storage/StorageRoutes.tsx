@@ -8,6 +8,7 @@ import MyStoragePage from "./pages/MyStoragePage";
 import StudentInventoryPage from "./pages/StudentInventoryPage";
 
 const MatchupPage = lazy(() => import("./pages/MatchupPage"));
+const HitReportListPage = lazy(() => import("./pages/HitReportListPage"));
 
 function StudentRedirect() {
   const { studentPs } = useParams<{ studentPs: string }>();
@@ -36,6 +37,16 @@ export default function StorageRoutes() {
         <Route path="students" element={<StudentInventoryPage />} />
         <Route path="students/:studentPs" element={<StudentInventoryPage />} />
         <Route path="student/:studentPs" element={<StudentRedirect />} />
+
+        {/* 적중 보고서 — 자료저장소 3번째 탭 */}
+        <Route
+          path="hit-reports"
+          element={
+            <Suspense fallback={null}>
+              <HitReportListPage />
+            </Suspense>
+          }
+        />
 
         <Route path="*" element={<Navigate to="/admin/storage/matchup" replace />} />
       </Route>

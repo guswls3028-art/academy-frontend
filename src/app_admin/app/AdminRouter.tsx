@@ -81,7 +81,6 @@ const MaterialsRoutes = lazy(() => import("@admin/domains/materials").then((m) =
 
 /* ================= Lazy: Storage ================= */
 const StorageRoutes = lazy(() => import("@admin/domains/storage/StorageRoutes"));
-const HitReportListPage = lazy(() => import("@admin/domains/storage/pages/HitReportListPage"));
 
 /* ================= Lazy: Messages ================= */
 const MessageRoutes = lazy(() => import("@admin/domains/messages/MessagesRoutes").then((m) => ({ default: m.MessageRoutes })));
@@ -197,8 +196,8 @@ export default function AdminRouter() {
         {/* ================= Storage (저장소 통합) ================= */}
         <Route path="storage/*" element={wrapLazy(StorageRoutes)} />
 
-        {/* ================= HitReports (적중 보고서 — sidebar 직접 진입) ================= */}
-        <Route path="hit-reports" element={wrapLazy(HitReportListPage)} />
+        {/* 적중 보고서는 자료저장소 3번째 탭으로 이동 — 외부 북마크 호환 redirect */}
+        <Route path="hit-reports" element={<Navigate to="/admin/storage/hit-reports" replace />} />
 
         {/* ================= Fees (수납 관리) — feature flag gate in FeesPage ================= */}
         <Route path="fees" element={wrapLazy(FeesPage)}>

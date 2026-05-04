@@ -261,7 +261,7 @@ export default function DocumentList({
     onRetry(id);
   };
 
-  const filterBtnStyle = (active: boolean): React.CSSProperties => ({
+  const filterBtnStyle = (active: boolean, dimmed = false): React.CSSProperties => ({
     background: active ? "color-mix(in srgb, var(--color-brand-primary) 12%, transparent)" : "transparent",
     border: "1px solid",
     borderColor: active ? "var(--color-brand-primary)" : "var(--color-border-divider)",
@@ -271,6 +271,7 @@ export default function DocumentList({
     padding: "3px 8px",
     borderRadius: 4,
     cursor: "pointer",
+    opacity: dimmed ? 0.45 : 1,
   });
 
   const renderDocRow = (doc: MatchupDocument) => {
@@ -556,7 +557,7 @@ export default function DocumentList({
         }
       `}</style>
       <div className={css.treeNavHeader}>
-        <span className={css.treeNavTitle}>매치업 풀</span>
+        <span className={css.treeNavTitle}>전체 자료</span>
         <div style={{ marginLeft: "auto", display: "flex", gap: 4, flexWrap: "wrap", justifyContent: "flex-end" }}>
           <Button
             intent="ghost"
@@ -632,7 +633,11 @@ export default function DocumentList({
             <button style={filterBtnStyle(statusFilter === "all")} onClick={() => setStatusFilter("all")}>
               전체 {counts.all}
             </button>
-            <button style={filterBtnStyle(statusFilter === "processing")} onClick={() => setStatusFilter("processing")}>
+            <button
+              style={filterBtnStyle(statusFilter === "processing", counts.processing === 0 && statusFilter !== "processing")}
+              onClick={() => setStatusFilter("processing")}
+              title={counts.processing === 0 ? "처리 중인 문서가 없습니다" : undefined}
+            >
               처리중 {counts.processing}
             </button>
             <button style={filterBtnStyle(statusFilter === "done")} onClick={() => setStatusFilter("done")}>
@@ -640,38 +645,48 @@ export default function DocumentList({
             </button>
             <button
               style={{
-                ...filterBtnStyle(statusFilter === "failed"),
+                ...filterBtnStyle(statusFilter === "failed", counts.failed === 0 && statusFilter !== "failed"),
                 ...(counts.failed > 0 && statusFilter !== "failed" ? {
                   borderColor: "color-mix(in srgb, var(--color-danger) 40%, var(--color-border-divider))",
                   color: "var(--color-danger)",
                 } : {}),
               }}
               onClick={() => setStatusFilter("failed")}
+              title={counts.failed === 0 ? "실패한 문서가 없습니다" : undefined}
             >
               실패 {counts.failed}
             </button>
-          </div>
-          {/* intent 글로벌 합계 — 학원장이 매치업 풀 규모를 한눈에 인지 */}
-          <div style={{
-            display: "flex", gap: 8, alignItems: "center",
-            fontSize: 11, color: "var(--color-text-muted)",
-            paddingTop: 2,
-          }}>
-            <span title="등록된 시험지 전체 개수" style={{ color: "var(--color-warning)", fontWeight: 700 }}>
-              <ClipboardList size={ICON.xs} style={{ verticalAlign: "-2px", marginRight: 3 }} />
+            {/* intent 카운트 — 시험지/참고자료 분리 노출. 별도 행 → 같은 행으로 통합해 시각 잡음 감소.
+                톤은 brand/info 계열. warning은 위험 의미라 분류 카운터엔 부적절. */}
+            <span style={{ flex: 1 }} aria-hidden />
+            <span title="등록된 시험지 전체 개수" style={{
+              display: "inline-flex", alignItems: "center", gap: 3,
+              fontSize: 11, fontWeight: 700,
+              color: "var(--color-brand-primary)",
+              padding: "3px 6px",
+            }}>
+              <ClipboardList size={ICON.xs} />
               시험지 {counts.test}
             </span>
-            <span style={{ opacity: 0.5 }}>·</span>
-            <span title="등록된 참고자료 전체 개수" style={{ color: "var(--color-brand-primary)", fontWeight: 700 }}>
-              <BookOpen size={ICON.xs} style={{ verticalAlign: "-2px", marginRight: 3 }} />
+            <span style={{ opacity: 0.4, alignSelf: "center" }}>·</span>
+            <span title="등록된 참고자료 전체 개수" style={{
+              display: "inline-flex", alignItems: "center", gap: 3,
+              fontSize: 11, fontWeight: 700,
+              color: "var(--color-text-secondary)",
+              padding: "3px 6px",
+            }}>
+              <BookOpen size={ICON.xs} />
               참고자료 {counts.reference}
             </span>
-            {(search || statusFilter !== "all") && (
-              <span style={{ marginLeft: "auto", opacity: 0.7 }}>
-                필터 결과 {filtered.length}건
-              </span>
-            )}
           </div>
+          {(search || statusFilter !== "all") && (
+            <div style={{
+              fontSize: 11, color: "var(--color-text-muted)",
+              paddingTop: 2, textAlign: "right", opacity: 0.7,
+            }}>
+              필터 결과 {filtered.length}건
+            </div>
+          )}
         </div>
       )}
 
@@ -872,17 +887,24 @@ export default function DocumentList({
                       ))}
                     </select>
                   ) : (
-                    <span style={{
-                      fontSize: 12,
-                      fontWeight: 800,
-                      color: isUncategorized
-                        ? "var(--color-text-secondary)"
-                        : "var(--color-brand-primary)",
-                      flex: 1,
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                    }}>
+                    <span
+                      title={group.label}
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 800,
+                        color: isUncategorized
+                          ? "var(--color-text-secondary)"
+                          : "var(--color-brand-primary)",
+                        flex: 1,
+                        minWidth: 0,
+                        overflow: "hidden",
+                        display: "-webkit-box",
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: "vertical",
+                        wordBreak: "break-word",
+                        lineHeight: 1.3,
+                      }}
+                    >
                       {group.label}
                     </span>
                   )}
@@ -901,7 +923,7 @@ export default function DocumentList({
                       }}
                     >
                       {group.tests.length > 0 && (
-                        <span style={{ color: "var(--color-warning)" }}>
+                        <span style={{ color: "var(--color-brand-primary)" }}>
                           시험지 {group.tests.length}
                         </span>
                       )}

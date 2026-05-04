@@ -8,6 +8,7 @@ import { Maximize2, X, AlertTriangle, Loader2 } from "lucide-react";
 import { ICON, Badge, ICON_FOR_BADGE } from "@/shared/ui/ds";
 import type { MatchupProblem } from "../../api/matchup.api";
 import { getMatchupProblemPresignUrl } from "../../api/matchup.api";
+import { normalizeOcrTextPreview } from "../../utils/normalizeOcrText";
 
 type Props = {
   problem: MatchupProblem;
@@ -247,16 +248,20 @@ export default function ProblemCard({ problem, selected, onClick, mergeMode = fa
         )}
 
         {problem.text && (
-          <p style={/* eslint-disable-line no-restricted-syntax */ {
-            fontSize: 11, color: "var(--color-text-secondary)",
-            margin: 0, lineHeight: 1.4,
-            overflow: "hidden",
-            display: "-webkit-box",
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: "vertical",
-            wordBreak: "keep-all",
-          }}>
-            {problem.text}
+          <p
+            title={normalizeOcrTextPreview(problem.text)}
+            style={/* eslint-disable-line no-restricted-syntax */ {
+              fontSize: 10.5, color: "var(--color-text-muted)",
+              margin: 0, lineHeight: 1.4,
+              overflow: "hidden",
+              display: "-webkit-box",
+              WebkitLineClamp: 1,
+              WebkitBoxOrient: "vertical",
+              wordBreak: "keep-all",
+              opacity: 0.75,
+            }}
+          >
+            {normalizeOcrTextPreview(problem.text)}
           </p>
         )}
       </div>
