@@ -3,7 +3,7 @@
 
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useSearchParams, useNavigate } from "react-router-dom";
+import { useSearchParams, useNavigate, useLocation } from "react-router-dom";
 import { Sparkles, AlertTriangle, RefreshCw, Eye, FolderOpen, BookOpen, Crop, ClipboardList, FolderTree, MoreHorizontal, Layers } from "lucide-react";
 import { Button, ICON } from "@/shared/ui/ds";
 import { useConfirm } from "@/shared/ui/confirm";
@@ -107,6 +107,18 @@ export default function MatchupPage() {
   const [hitReportDocId, setHitReportDocId] = useState<number | null>(null);
   // 강사별 보고서 누적 리스트 모달 (수업 히스토리/제출 KPI/홍보물 진입점).
   const [hitReportListOpen, setHitReportListOpen] = useState(false);
+
+  // P1 (2026-05-04) — HitReportListPage에서 navigate({state: {openHitReportForDoc: docId}})로
+  // 진입 시 자동 doc 선택 + HitReportEditor 오픈. sidebar→리스트→편집기 흐름 단축.
+  const location = useLocation();
+  useEffect(() => {
+    const docId = (location.state as { openHitReportForDoc?: number } | null)?.openHitReportForDoc;
+    if (typeof docId === "number" && docId > 0) {
+      setHitReportDocId(docId);
+      // state 소비 — 한 번만 트리거. reload 시 잔존 방지.
+      window.history.replaceState({}, "", location.pathname);
+    }
+  }, [location]);
   // 학원장 inbox 모드 vs 강사 본인 시점 결정용. user.tenantRole로 판단.
   const { user } = useAuth();
   const isAcademyAdmin = !!(

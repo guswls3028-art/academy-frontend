@@ -599,8 +599,37 @@ export default function HitReportEditor({ docId, onClose }: Props) {
               overflow: "auto",
               background: "var(--color-bg-surface-soft)",
             }}>
-              <div style={{ padding: "10px 12px", fontSize: 11, color: "var(--color-text-muted)", fontWeight: 600 }}>
-                문항 ({examProblems.length})
+              <div style={{ padding: "10px 12px", borderBottom: "1px solid var(--color-border-divider)" }}>
+                <div style={{ fontSize: 11, color: "var(--color-text-muted)", fontWeight: 600 }}>
+                  문항 ({examProblems.length})
+                </div>
+                {/* 진행률 bar — P1 (2026-05-04) draft 진행 시각 인지 */}
+                {examProblems.length > 0 && (() => {
+                  const curatedCount = examProblems.filter(ep =>
+                    (entries[ep.id]?.selectedProblemIds?.length ?? 0) > 0
+                  ).length;
+                  const progress = (curatedCount / examProblems.length) * 100;
+                  const progressColor =
+                    progress >= 80 ? "var(--color-status-success)" :
+                    progress >= 40 ? "var(--color-brand-primary)" :
+                    "var(--color-text-muted)";
+                  return (
+                    <div style={{ marginTop: 6 }}>
+                      <div style={{ fontSize: 10, color: progressColor, fontWeight: 700, marginBottom: 3 }}>
+                        {curatedCount} / {examProblems.length} 큐레이션 ({progress.toFixed(0)}%)
+                      </div>
+                      <div style={{
+                        width: "100%", height: 4, borderRadius: 2,
+                        background: "var(--color-bg-canvas)", overflow: "hidden",
+                      }}>
+                        <div style={{
+                          width: `${progress}%`, height: "100%",
+                          background: progressColor, transition: "width 0.2s",
+                        }} />
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
               {examProblems.map((ep, i) => {
                 const ent = entries[ep.id];
