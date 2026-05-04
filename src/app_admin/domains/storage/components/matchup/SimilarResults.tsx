@@ -17,6 +17,7 @@ import { ICON } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { findSimilarProblems } from "../../api/matchup.api";
 import type { SimilarProblem } from "../../api/matchup.api";
+import { normalizeOcrTextPreview } from "../../utils/normalizeOcrText";
 
 type Props = {
   problemId: number | null;
@@ -56,17 +57,28 @@ export default function SimilarResults({
       return;
     }
 
+    let cancelled = false;
     setLoading(true);
     setShowNoise(false);
     // top_k 20 — 더 많이 한눈에. 강(≥85%) / 참고(80~85%) / 관련성 낮음(<80%)
     // 모두 sim % 라벨과 함께 노출. 사용자가 직접 비교/선택.
+    // cancelled 가드 — 사용자가 빠르게 다음 문항 클릭하면 이전 응답이 새 결과를
+    // 덮어씌우는 race 차단 (잘못된 후보가 표시되는 결함 + 에러 토스트 폭주 방지).
     findSimilarProblems(problemId, 20)
-      .then((r) => setResults(r.results))
+      .then((r) => {
+        if (cancelled) return;
+        setResults(r.results);
+      })
       .catch(() => {
+        if (cancelled) return;
         feedback.error("유사 문제를 찾는 중 문제가 생겼어요. 잠시 후 다시 시도해 주세요.");
         setResults([]);
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (cancelled) return;
+        setLoading(false);
+      });
+    return () => { cancelled = true; };
   }, [problemId]);
 
   // tier 그루핑은 results 변경 시 1회만
@@ -431,7 +443,7 @@ function SimilarRow({ item, onClick, pinned, onTogglePin }: {
             overflow: "hidden", textOverflow: "ellipsis",
             whiteSpace: "nowrap",
           }}>
-            {item.text}
+            {normalizeOcrTextPreview(item.text)}
           </p>
         )}
       </div>

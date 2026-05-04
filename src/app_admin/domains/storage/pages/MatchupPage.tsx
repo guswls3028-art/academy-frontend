@@ -266,6 +266,7 @@ export default function MatchupPage() {
     if (has) next.delete(candidateId);
     else next.add(candidateId);
 
+    // 옵티미스틱: 별표 색 즉시 반영. 토스트는 흐름 끊겨서 silent — 별표 색 변화로 충분.
     setPinsByExamPid((prev) => ({ ...prev, [examPid]: next }));
 
     upsertHitReportEntries(hitReportId, [
@@ -275,15 +276,14 @@ export default function MatchupPage() {
         comment: "",
         order: 0,
       },
-    ]).then(() => {
-      feedback.success(has ? "보고서에서 뺐습니다" : "보고서에 담았습니다");
-    }).catch(() => {
+    ]).catch(() => {
+      // 실패 시에만 롤백 + 알림. 사용자가 변경 손실 즉시 인지해야 함.
       setPinsByExamPid((prev) => ({ ...prev, [examPid]: cur }));
-      feedback.error("저장 실패");
+      feedback.error("별표 저장 실패 — 다시 시도해 주세요");
     });
   }, [hitReportId, selectedProblemId, pinsByExamPid]);
 
-  const { data: problems = [], isLoading: problemsLoading } = useQuery({
+  const { data: rawProblems = [], isLoading: problemsLoading } = useQuery({
     queryKey: ["matchup-problems", selectedDocId],
     queryFn: () => fetchMatchupProblems(selectedDocId!),
     // status==='processing'에서도 활성화 — 백엔드가 세그멘테이션 직후 skeleton row를
@@ -291,6 +291,24 @@ export default function MatchupPage() {
     // 노출 가능. useMatchupPolling이 polling 주기마다 invalidate해 자동 refetch.
     enabled: !!selectedDocId && (selectedDoc?.status === "done" || selectedDoc?.status === "processing"),
   });
+
+  // 카드 그리드는 항상 문항 번호 오름차순 — 백엔드 응답 순서 의존하지 않음.
+  // 동일 번호 중복 시(merge_suspect 등) id로 안정 정렬.
+  const problems = useMemo(
+    () => [...rawProblems].sort((a, b) => (a.number - b.number) || (a.id - b.id)),
+    [rawProblems],
+  );
+
+  // 첫 카드 자동 선택 — 학원장이 문서 클릭하자마자 우측에 매치 결과가 보이도록.
+  // mergeMode 동안은 의도적으로 null이라 자동 선택 금지.
+  useEffect(() => {
+    if (mergeMode) return;
+    if (selectedProblemId !== null) return;
+    if (problems.length === 0) return;
+    setSelectedProblemId(problems[0].id);
+    // problems 변경(문서 전환·새 카드 추가) 또는 selection 해제 시에만 트리거.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [problems, mergeMode]);
 
   // 업로드 모달에 넘길 자동완성 값 — 기존 문서에서 unique 추출
   const existingTitles = useMemo(
@@ -573,7 +591,7 @@ export default function MatchupPage() {
             feedback.error(`유형 변경됨, 재분석 ${msg}`);
           }
         } else {
-          feedback.success("자료 유형을 변경했습니다. 재분석 버튼으로 새 strategy 적용.");
+          feedback.success("자료 유형을 변경했습니다. 재분석 버튼을 누르면 새 방식으로 다시 추출합니다.");
         }
       } catch (e) {
         console.error(e);
@@ -783,9 +801,21 @@ export default function MatchupPage() {
                     학원장이 가장 자주 누르는 산출물 CTA를 우측에 강하게 시각화.
                     원본보기/저장소/직접자르기는 ⋮ 메뉴 또는 Tier 2 (배너/하단)에서 처리. */}
                 <div style={/* eslint-disable-line no-restricted-syntax */ { display: "flex", alignItems: "center", gap: "var(--space-2)", flexShrink: 0, flexWrap: "wrap" }}>
-                  <h3 style={/* eslint-disable-line no-restricted-syntax */ { margin: 0, fontSize: 16, fontWeight: 700, color: "var(--color-text-primary)", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={selectedDoc?.title}>
-                    {selectedDoc?.title}
-                  </h3>
+                  {(() => {
+                    // 메인 헤더는 의미 라벨(과목·카테고리) 우선 — raw 파일명(KakaoTalk_*, IMG_* 등)은 hover로만.
+                    // 학원장이 "무슨 자료인지" 한눈에 파악할 수 있어야 함.
+                    const meaningful = [selectedDoc?.subject, selectedDoc?.category].filter(Boolean).join(" · ");
+                    const rawTitle = selectedDoc?.title || "";
+                    const mainText = meaningful || rawTitle;
+                    const tooltip = meaningful && rawTitle && meaningful !== rawTitle
+                      ? `${meaningful}\n원본 파일: ${rawTitle}`
+                      : rawTitle;
+                    return (
+                      <h3 style={/* eslint-disable-line no-restricted-syntax */ { margin: 0, fontSize: 16, fontWeight: 700, color: "var(--color-text-primary)", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={tooltip}>
+                        {mainText}
+                      </h3>
+                    );
+                  })()}
                   {/* 시험지 → 적중 보고서 primary CTA (도메인의 메인 산출물) */}
                   {selectedDoc && selectedDocIntent === "test" && (() => {
                     const isReady = selectedDoc.status === "done";
@@ -1090,7 +1120,7 @@ export default function MatchupPage() {
                         <span style={/* eslint-disable-line no-restricted-syntax */ {
                           fontSize: 11, color: "var(--color-text-muted)",
                         }}>
-                          ※ 변경 후 재분석 버튼으로 새 strategy 적용
+                          ※ 변경 후 재분석 버튼을 누르면 새 방식으로 다시 추출합니다
                         </span>
                       )}
                     </div>
@@ -1342,8 +1372,8 @@ export default function MatchupPage() {
                       borderBottom: "1px solid var(--color-border-divider)",
                     }}>
                       {[
-                        { key: "similar", label: "유사 문제", icon: <Sparkles size={12} /> },
-                        { key: "cross", label: "자료별 매치", icon: <BookOpen size={12} /> },
+                        { key: "similar", label: "유사 문제", icon: <Sparkles size={12} />, hint: "선택한 문항과 비슷한 문제를 전체 자료에서 찾아 보여줍니다" },
+                        { key: "cross", label: "자료별 매치", icon: <BookOpen size={12} />, hint: "이 시험지의 모든 문항을 자료별로 묶어서 한 번에 봅니다" },
                       ].map((t) => (
                         <button
                           key={t.key}
@@ -1372,7 +1402,7 @@ export default function MatchupPage() {
                           }}
                           title={t.key === "cross" && selectedDocIntent !== "test"
                             ? "이 탭은 '시험지'에서만 보입니다. 헤더의 시험지/참고자료 토글로 바꿀 수 있어요."
-                            : undefined}
+                            : t.hint}
                         >
                           {t.icon}
                           {t.label}

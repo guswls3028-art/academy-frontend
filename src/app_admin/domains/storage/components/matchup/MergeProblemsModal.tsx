@@ -39,7 +39,9 @@ export default function MergeProblemsModal({ docId, problems, onClose, onSuccess
     () => Math.min(...problems.map((p) => p.number)),
     [problems],
   );
-  const [targetNumber, setTargetNumber] = useState<number>(defaultNumber);
+  // 번호 input은 string으로 보관 — 빈 문자열 허용해서 백스페이스로 완전 비우기 가능.
+  // 저장 시점에만 parseInt + 범위 검증.
+  const [targetNumberStr, setTargetNumberStr] = useState<string>(String(defaultNumber));
   const [submitting, setSubmitting] = useState(false);
 
   // 부모(MatchupPage)가 React Query polling으로 problems prop을 매 refetch마다 새 reference로
@@ -74,6 +76,7 @@ export default function MergeProblemsModal({ docId, problems, onClose, onSuccess
       feedback.error("합치려면 2개 이상 선택해야 합니다.");
       return;
     }
+    const targetNumber = parseInt(targetNumberStr, 10);
     if (!Number.isInteger(targetNumber) || targetNumber < 1 || targetNumber > 999) {
       feedback.error("문항 번호는 1~999 사이여야 합니다.");
       return;
@@ -231,15 +234,14 @@ export default function MergeProblemsModal({ docId, problems, onClose, onSuccess
                 최종 문항 번호
               </label>
               <input
-                type="number"
-                min={1}
-                max={999}
-                value={targetNumber}
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                maxLength={3}
+                value={targetNumberStr}
                 disabled={submitting}
-                onChange={(e) => {
-                  const v = Number(e.target.value);
-                  setTargetNumber(Number.isFinite(v) ? v : defaultNumber);
-                }}
+                onChange={(e) => setTargetNumberStr(e.target.value.replace(/[^0-9]/g, ""))}
+                onFocus={(e) => e.currentTarget.select()}
                 data-testid="matchup-merge-target-number"
                 style={/* eslint-disable-line no-restricted-syntax */ {
                   width: 100, padding: "6px 10px", fontSize: 14, fontWeight: 600,
@@ -363,7 +365,7 @@ export default function MergeProblemsModal({ docId, problems, onClose, onSuccess
                 : <Layers size={ICON.sm} />
             }
           >
-            {submitting ? "합치는 중..." : `${ordered.length}개를 Q${targetNumber}로 합치기`}
+            {submitting ? "합치는 중..." : `${ordered.length}개를 Q${targetNumberStr || "?"}로 합치기`}
           </Button>
         </div>
       </div>

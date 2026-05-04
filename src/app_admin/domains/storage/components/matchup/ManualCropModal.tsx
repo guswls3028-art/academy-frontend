@@ -144,6 +144,8 @@ export default function ManualCropModal({ document: doc, onClose, initialPage }:
   const [pasted, setPasted] = useState<{ file: File; previewUrl: string; numberStr: string } | null>(null);
 
   const canvasContainerRef = useRef<HTMLDivElement>(null);
+  const numberInputRef = useRef<HTMLInputElement>(null);
+  const pasteNumberInputRef = useRef<HTMLInputElement>(null);
   const dragStateRef = useRef<{
     mode: DragMode;
     startMouse: { x: number; y: number };
@@ -309,10 +311,14 @@ export default function ManualCropModal({ document: doc, onClose, initialPage }:
       const ds = dragStateRef.current;
       if (!ds) return;
       dragStateRef.current = null;
-      // draw 끝났는데 너무 작으면 폐기
+      // draw 끝났는데 너무 작으면 폐기. 유효한 박스면 number input 자동 select —
+      // 드래그 직후 마우스가 캔버스 위라 브라우저가 autoFocus 못 잡는 결함 보정.
+      // 사용자가 마우스 클릭 없이 바로 Enter / 새 번호 입력 가능.
       setDraft((cur) => {
         if (!cur) return cur;
         if (cur.w < MIN_BOX || cur.h < MIN_BOX) return null;
+        // setTimeout(0) — React 렌더 후 DOM에 input 존재하는 시점에 focus.
+        setTimeout(() => numberInputRef.current?.select(), 0);
         return cur;
       });
     };
@@ -324,14 +330,29 @@ export default function ManualCropModal({ document: doc, onClose, initialPage }:
     };
   }, [toNorm]);
 
-  // 화살표 키 미세조정: shift = 큰 단위(2%), 그냥 = 작은(0.5%)
-  // alt = 크기 조정(우/하 단), 기본 = 위치 이동
+  // 화살표 키 미세조정 + 글로벌 Enter 저장:
+  //   shift = 큰 단위(2%), 그냥 = 작은(0.5%) / alt = 크기 조정 / 기본 = 위치 이동
+  //   Enter — input/textarea 포커스 아니면 draft 저장 (드래그 직후 캔버스 포커스인
+  //   상태에서도 마우스 클릭 없이 바로 저장 가능)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (!draft) return;
+      if (!draft && !pasted) return;
       const target = e.target as HTMLElement | null;
-      // 텍스트 인풋(번호 입력)에 포커스가 있으면 무시 — 숫자 변경/Enter 흐름 보존
-      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA")) return;
+      const inInput = target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA");
+      // 텍스트 인풋에 포커스가 있으면 input의 onKeyDown이 처리 — 글로벌은 무시.
+      if (inInput) return;
+      if (e.key === "Enter") {
+        if (saving) return;
+        e.preventDefault();
+        if (pasted) {
+          void handleSavePaste();
+        } else if (draft) {
+          void handleSave();
+        }
+        return;
+      }
+      // 화살표는 draft만 (paste는 좌표 없음)
+      if (!draft) return;
       const isArrow = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key);
       if (!isArrow) return;
       e.preventDefault();
@@ -357,7 +378,9 @@ export default function ManualCropModal({ document: doc, onClose, initialPage }:
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [draft]);
+    // handleSave/handleSavePaste는 자체 useCallback이라 의존성 안정. 변경되면 effect 재등록.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draft, saving, pasted]);
 
   const handleSave = useCallback(async () => {
     if (!draft || !activePageData) return;
@@ -832,6 +855,7 @@ export default function ManualCropModal({ document: doc, onClose, initialPage }:
                 }}>
                   <span style={{ fontWeight: 600, color: "var(--color-text-secondary)" }}>번호</span>
                   <input
+                    ref={pasteNumberInputRef}
                     type="text"
                     inputMode="numeric"
                     pattern="[0-9]*"
@@ -899,6 +923,7 @@ export default function ManualCropModal({ document: doc, onClose, initialPage }:
                   }}>
                     <span style={{ fontWeight: 600, color: "var(--color-text-secondary)" }}>번호</span>
                     <input
+                      ref={numberInputRef}
                       type="text"
                       inputMode="numeric"
                       pattern="[0-9]*"
