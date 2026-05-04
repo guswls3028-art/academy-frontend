@@ -311,6 +311,19 @@ export async function excludeMatchupPage(
   return data;
 }
 
+// P1 (2026-05-04) — exclude 롤백. excluded_pages에서 page 제거.
+// problem 복원은 별도 reanalyze 호출 필요 (requires_reanalyze=true 응답).
+export async function includeMatchupPage(
+  docId: number,
+  pageIndex: number,
+): Promise<{ ok: true; doc_id: number; page_index: number; excluded_pages: number[]; requires_reanalyze: boolean }> {
+  const { data } = await api.post<{
+    ok: true; doc_id: number; page_index: number;
+    excluded_pages: number[]; requires_reanalyze: boolean;
+  }>(`/matchup/documents/${docId}/pages/${pageIndex}/include/`);
+  return data;
+}
+
 // Phase 5-deep VLM — 검수 UI에서 "VLM 정밀 분석" CTA. ondemand Gemini vision 호출.
 // 응답 page_role과 problems[bbox]는 화면에 미리보기로 노출 (현재 자동 분리 결과와 비교).
 // 호출 한도 초과 시 429.

@@ -30,6 +30,7 @@ import {
   fetchDocumentPages,
   fetchMatchupProblems,
   excludeMatchupPage,
+  includeMatchupPage,
   reanalyzeMatchupDocument,
   vlmClassifyMatchupPage,
 } from "../../api/matchup.api";
@@ -168,6 +169,36 @@ export default function LowConfPageReviewer({
       setExcluding(false);
     }
   }, [excluding, activeIdx, problemsOnPage.length, confirm, doc.id, qc, lowConfPages, excludedThisSession]);
+
+  // P1 (2026-05-04) — exclude 롤백. 제외했던 페이지를 다시 매치업 인덱싱에 포함.
+  // problem 복원은 reanalyze 별도 호출 (requires_reanalyze=true 응답 신호).
+  const handleInclude = useCallback(async () => {
+    if (excluding) return;
+    if (typeof activeIdx !== "number") return;
+    setExcluding(true);
+    try {
+      const res = await includeMatchupPage(doc.id, activeIdx);
+      feedback.success(
+        res.requires_reanalyze
+          ? `${activeIdx + 1}페이지 제외 취소됨. "재분석" 버튼으로 문항 복원하세요.`
+          : `${activeIdx + 1}페이지는 이미 포함된 상태입니다.`,
+      );
+      setExcludedThisSession((prev) => {
+        const next = new Set(prev);
+        next.delete(activeIdx);
+        return next;
+      });
+      qc.invalidateQueries({ queryKey: ["matchup-documents"] });
+    } catch (e) {
+      console.error(e);
+      const msg =
+        (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
+        "페이지 복원 실패";
+      feedback.error(msg);
+    } finally {
+      setExcluding(false);
+    }
+  }, [excluding, activeIdx, doc.id, qc]);
 
   const handleReanalyze = useCallback(async () => {
     if (reanalyzing) return;
@@ -439,20 +470,37 @@ export default function LowConfPageReviewer({
                   <Crop size={ICON.sm} style={/* eslint-disable-line no-restricted-syntax */ { marginRight: 4 }} />
                   직접 자르기
                 </Button>
-                <Button
-                  size="sm"
-                  intent="ghost"
-                  onClick={handleExclude}
-                  disabled={excluding || reanalyzing || excludedThisSession.has(activeIdx)}
-                  data-testid="matchup-low-conf-exclude-btn"
-                >
-                  {excluding ? (
-                    <Loader2 size={ICON.sm} className="animate-spin" style={/* eslint-disable-line no-restricted-syntax */ { marginRight: 4 }} />
-                  ) : (
-                    <Ban size={ICON.sm} style={/* eslint-disable-line no-restricted-syntax */ { marginRight: 4 }} />
-                  )}
-                  {excludedThisSession.has(activeIdx) ? "제외됨" : "이 페이지 제외"}
-                </Button>
+                {excludedThisSession.has(activeIdx) ? (
+                  <Button
+                    size="sm"
+                    intent="ghost"
+                    onClick={handleInclude}
+                    disabled={excluding || reanalyzing}
+                    data-testid="matchup-low-conf-include-btn"
+                  >
+                    {excluding ? (
+                      <Loader2 size={ICON.sm} className="animate-spin" style={/* eslint-disable-line no-restricted-syntax */ { marginRight: 4 }} />
+                    ) : (
+                      <RefreshCw size={ICON.sm} style={/* eslint-disable-line no-restricted-syntax */ { marginRight: 4 }} />
+                    )}
+                    제외 취소
+                  </Button>
+                ) : (
+                  <Button
+                    size="sm"
+                    intent="ghost"
+                    onClick={handleExclude}
+                    disabled={excluding || reanalyzing}
+                    data-testid="matchup-low-conf-exclude-btn"
+                  >
+                    {excluding ? (
+                      <Loader2 size={ICON.sm} className="animate-spin" style={/* eslint-disable-line no-restricted-syntax */ { marginRight: 4 }} />
+                    ) : (
+                      <Ban size={ICON.sm} style={/* eslint-disable-line no-restricted-syntax */ { marginRight: 4 }} />
+                    )}
+                    이 페이지 제외
+                  </Button>
+                )}
                 <Button
                   size="sm"
                   intent="primary"
