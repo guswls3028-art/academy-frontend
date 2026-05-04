@@ -134,10 +134,14 @@ export default function ManualCropModal({ document: doc, onClose, initialPage }:
 
   const [activePage, setActivePage] = useState(initialPage ?? 0);
   const [draft, setDraft] = useState<DraftBox | null>(null);
-  const [number, setNumber] = useState<number>(1);
+  // 번호 input은 string으로 보관 — 빈 문자열 허용해서 백스페이스로 완전 비우기 가능.
+  // 저장 시점에만 parseInt + 범위 검증. 자동 추천(다음 빈 번호)은 박스 새로 그릴 때만 적용.
+  const [numberStr, setNumberStr] = useState<string>("1");
   const [saving, setSaving] = useState(false);
-  // 클립보드/파일 paste — 현재 붙여넣은 이미지(파일+미리보기 URL+다음 빈 번호)
-  const [pasted, setPasted] = useState<{ file: File; previewUrl: string; number: number } | null>(null);
+  // "방금 저장됨" 인라인 인디케이터 — 토스트 대신. 자르기 흐름 안 끊김.
+  const [justSavedAt, setJustSavedAt] = useState<number | null>(null);
+  // 클립보드/파일 paste — 현재 붙여넣은 이미지. number도 string으로 통일.
+  const [pasted, setPasted] = useState<{ file: File; previewUrl: string; numberStr: string } | null>(null);
 
   const canvasContainerRef = useRef<HTMLDivElement>(null);
   const dragStateRef = useRef<{
@@ -178,16 +182,14 @@ export default function ManualCropModal({ document: doc, onClose, initialPage }:
     [problems, activePage],
   );
 
-  // 다음 추천 번호: 기존 + draft 다음 빈 번호
-  useEffect(() => {
-    if (problems.length === 0) {
-      setNumber(1);
-      return;
-    }
+  // 다음 빈 번호 계산 — 저장/박스 새로 그리기/paste 시점에만 호출. problems 변경에
+  // 자동 reactive 하지 않음 (사용자 입력 중에 setNumber 덮어쓰는 race 방지).
+  const computeNextNumber = useCallback((): number => {
+    if (problems.length === 0) return 1;
     const used = new Set(problems.map((p) => p.number));
     let n = 1;
     while (used.has(n)) n += 1;
-    setNumber(n);
+    return n;
   }, [problems]);
 
   // ESC: 붙여넣기 미리보기 우선 → 드래그 → 모달 닫기
@@ -207,15 +209,6 @@ export default function ManualCropModal({ document: doc, onClose, initialPage }:
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [draft, pasted, saving, onClose]);
-
-  // 다음 빈 번호 계산 — paste 모드에서 사용
-  const computeNextNumber = useCallback((): number => {
-    if (problems.length === 0) return 1;
-    const used = new Set(problems.map((p) => p.number));
-    let n = 1;
-    while (used.has(n)) n += 1;
-    return n;
-  }, [problems]);
 
   // 모달 어디서든 Ctrl+V — 클립보드 이미지를 paste 미리보기로 띄움
   useEffect(() => {
@@ -242,7 +235,7 @@ export default function ManualCropModal({ document: doc, onClose, initialPage }:
       const url = URL.createObjectURL(imgFile);
       setPasted((prev) => {
         if (prev) URL.revokeObjectURL(prev.previewUrl);
-        return { file: imgFile!, previewUrl: url, number: computeNextNumber() };
+        return { file: imgFile!, previewUrl: url, numberStr: String(computeNextNumber()) };
       });
     };
     window.addEventListener("paste", onPaste);
@@ -256,7 +249,21 @@ export default function ManualCropModal({ document: doc, onClose, initialPage }:
     };
   }, [pasted]);
 
-  // 캔버스 빈 공간 mousedown → 새 박스 그리기 시작
+  // 인라인 "방금 저장됨" 1.8초 후 자동 dismiss
+  useEffect(() => {
+    if (!justSavedAt) return;
+    const t = setTimeout(() => setJustSavedAt(null), 1800);
+    return () => clearTimeout(t);
+  }, [justSavedAt]);
+
+  // 외곽 클릭 닫기 — draft/paste/saving 중에는 차단 (작업 손실 방지)
+  const handleBackdropClick = useCallback(() => {
+    if (saving || draft || pasted) return;
+    onClose();
+  }, [saving, draft, pasted, onClose]);
+
+  // 캔버스 빈 공간 mousedown → 새 박스 그리기 시작.
+  // 박스 시작 시 추천 번호 갱신 — 사용자가 입력 중이 아닐 때만 (이미 그린 박스의 번호 보존).
   const handleCanvasMouseDown = (e: React.MouseEvent) => {
     if (!activePageData) return;
     const m = toNorm(e.clientX, e.clientY);
@@ -264,6 +271,9 @@ export default function ManualCropModal({ document: doc, onClose, initialPage }:
     const startBox: DraftBox = { pageIndex: activePage, x: m.x, y: m.y, w: 0, h: 0 };
     dragStateRef.current = { mode: "draw", startMouse: m, startBox };
     setDraft(startBox);
+    if (!draft) {
+      setNumberStr(String(computeNextNumber()));
+    }
   };
 
   // 박스 본체 mousedown → 이동
@@ -355,6 +365,7 @@ export default function ManualCropModal({ document: doc, onClose, initialPage }:
       feedback.error("선택 영역이 너무 작습니다. 다시 그려주세요.");
       return;
     }
+    const number = parseInt(numberStr, 10);
     if (!Number.isFinite(number) || number < 1 || number > 999) {
       feedback.error("문항 번호는 1~999 사이여야 합니다.");
       return;
@@ -378,8 +389,7 @@ export default function ManualCropModal({ document: doc, onClose, initialPage }:
         bbox: { x: draft.x, y: draft.y, w: draft.w, h: draft.h },
         number,
       });
-      // 옵티미스틱 즉시 반영 — invalidate 후 refetch 1~2초 지연 회피.
-      // 모달 안 problem 목록과 외부 ProblemGrid 양쪽에 즉시 추가/교체.
+      // 옵티미스틱 즉시 반영 — 캐시에 직접 추가/교체.
       qc.setQueryData<typeof problems>(
         ["matchup-problems", doc.id],
         (old) => {
@@ -388,13 +398,13 @@ export default function ManualCropModal({ document: doc, onClose, initialPage }:
           return [...filtered, created].sort((a, b) => a.number - b.number);
         },
       );
-      // 백그라운드 invalidate (다음 fetch 보장만 — UI 대기 없음)
-      qc.invalidateQueries({ queryKey: ["matchup-problems", doc.id] });
+      // 외부 doc 리스트 problem_count만 갱신 — problem 캐시는 옵티미스틱 신뢰.
       qc.invalidateQueries({ queryKey: ["matchup-documents"] });
-      feedback.success(`${number}번 문제 저장됨`);
+      // 토스트 대신 인라인 인디케이터(저장 흐름 안 끊김). 실패만 토스트.
+      setJustSavedAt(Date.now());
       setDraft(null);
-      // 다음 빈 번호로 자동 이동
-      setNumber((prev) => prev + 1);
+      // 다음 빈 번호로 자동 이동 — 옵티미스틱 problems 기반.
+      setNumberStr(String(number + 1));
     } catch (e) {
       console.error(e);
       const msg =
@@ -404,19 +414,20 @@ export default function ManualCropModal({ document: doc, onClose, initialPage }:
     } finally {
       setSaving(false);
     }
-  }, [draft, activePageData, number, doc.id, problems, qc, confirm]);
+  }, [draft, activePageData, numberStr, doc.id, problems, qc, confirm]);
 
   const handleSavePaste = useCallback(async () => {
     if (!pasted) return;
-    if (!Number.isFinite(pasted.number) || pasted.number < 1 || pasted.number > 999) {
+    const num = parseInt(pasted.numberStr, 10);
+    if (!Number.isFinite(num) || num < 1 || num > 999) {
       feedback.error("문항 번호는 1~999 사이여야 합니다.");
       return;
     }
-    const existing = problems.find((p) => p.number === pasted.number);
+    const existing = problems.find((p) => p.number === num);
     if (existing) {
       const ok = await confirm({
-        title: `${pasted.number}번 문제 덮어쓰기`,
-        message: `${pasted.number}번 문제가 이미 있습니다. 새 이미지로 교체하시겠습니까?`,
+        title: `${num}번 문제 덮어쓰기`,
+        message: `${num}번 문제가 이미 있습니다. 새 이미지로 교체하시겠습니까?`,
         confirmText: "덮어쓰기",
         danger: true,
       });
@@ -424,7 +435,7 @@ export default function ManualCropModal({ document: doc, onClose, initialPage }:
     }
     setSaving(true);
     try {
-      const created = await pasteImageAsMatchupProblem(doc.id, pasted.file, pasted.number);
+      const created = await pasteImageAsMatchupProblem(doc.id, pasted.file, num);
       qc.setQueryData<typeof problems>(
         ["matchup-problems", doc.id],
         (old) => {
@@ -433,9 +444,8 @@ export default function ManualCropModal({ document: doc, onClose, initialPage }:
           return [...filtered, created].sort((a, b) => a.number - b.number);
         },
       );
-      qc.invalidateQueries({ queryKey: ["matchup-problems", doc.id] });
       qc.invalidateQueries({ queryKey: ["matchup-documents"] });
-      feedback.success(`${pasted.number}번 문제 저장됨 (붙여넣기)`);
+      setJustSavedAt(Date.now());
       URL.revokeObjectURL(pasted.previewUrl);
       setPasted(null);
     } catch (e) {
@@ -464,13 +474,17 @@ export default function ManualCropModal({ document: doc, onClose, initialPage }:
       danger: true,
     });
     if (!ok) return;
+    // 옵티미스틱: 즉시 캐시에서 제거 후 비동기 백엔드 삭제. 실패하면 invalidate로 복원.
+    qc.setQueryData<typeof problems>(
+      ["matchup-problems", doc.id],
+      (old) => (old ?? []).filter((p) => p.id !== problemId),
+    );
     try {
       await deleteMatchupProblem(problemId);
-      await qc.invalidateQueries({ queryKey: ["matchup-problems", doc.id] });
-      await qc.invalidateQueries({ queryKey: ["matchup-documents"] });
-      feedback.success(`${num}번 문제 삭제됨`);
+      qc.invalidateQueries({ queryKey: ["matchup-documents"] });
     } catch {
-      feedback.error("삭제 실패");
+      qc.invalidateQueries({ queryKey: ["matchup-problems", doc.id] });
+      feedback.error("삭제 실패 — 복원됨");
     }
   };
 
@@ -491,7 +505,7 @@ export default function ManualCropModal({ document: doc, onClose, initialPage }:
         display: "flex", alignItems: "center", justifyContent: "center",
         background: "rgba(0,0,0,0.55)", backdropFilter: "blur(4px)",
       }}
-      onClick={saving ? undefined : onClose}
+      onClick={handleBackdropClick}
     >
       <div
         data-testid="matchup-manual-crop-modal"
@@ -818,10 +832,13 @@ export default function ManualCropModal({ document: doc, onClose, initialPage }:
                 }}>
                   <span style={{ fontWeight: 600, color: "var(--color-text-secondary)" }}>번호</span>
                   <input
-                    type="number"
-                    min={1} max={999}
-                    value={pasted.number}
-                    onChange={(e) => setPasted((p) => p ? { ...p, number: Number(e.target.value) || 1 } : p)}
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    maxLength={3}
+                    value={pasted.numberStr}
+                    onChange={(e) => setPasted((p) => p ? { ...p, numberStr: e.target.value.replace(/[^0-9]/g, "") } : p)}
+                    onFocus={(e) => e.currentTarget.select()}
                     onKeyDown={handlePastePreviewKey}
                     data-testid="matchup-paste-number-input"
                     autoFocus
@@ -839,7 +856,7 @@ export default function ManualCropModal({ document: doc, onClose, initialPage }:
                   data-testid="matchup-paste-save-btn"
                   style={{ width: "100%" }}
                 >
-                  {saving ? "저장 중…" : `${pasted.number}번으로 저장 (Enter)`}
+                  {saving ? "저장 중…" : `${pasted.numberStr || "?"}번으로 저장 (Enter)`}
                 </Button>
                 <button
                   type="button"
@@ -882,10 +899,13 @@ export default function ManualCropModal({ document: doc, onClose, initialPage }:
                   }}>
                     <span style={{ fontWeight: 600, color: "var(--color-text-secondary)" }}>번호</span>
                     <input
-                      type="number"
-                      min={1} max={999}
-                      value={number}
-                      onChange={(e) => setNumber(Number(e.target.value) || 1)}
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      maxLength={3}
+                      value={numberStr}
+                      onChange={(e) => setNumberStr(e.target.value.replace(/[^0-9]/g, ""))}
+                      onFocus={(e) => e.currentTarget.select()}
                       onKeyDown={handleNumberKey}
                       data-testid="matchup-crop-number-input"
                       autoFocus
@@ -903,7 +923,7 @@ export default function ManualCropModal({ document: doc, onClose, initialPage }:
                     data-testid="matchup-crop-save-btn"
                     style={{ width: "100%" }}
                   >
-                    {saving ? "저장 중…" : `${number}번으로 저장 (Enter)`}
+                    {saving ? "저장 중…" : `${numberStr || "?"}번으로 저장 (Enter)`}
                   </Button>
                   <button
                     type="button"
@@ -932,11 +952,30 @@ export default function ManualCropModal({ document: doc, onClose, initialPage }:
               padding: "var(--space-3)",
             }}>
               <div style={{
-                fontSize: 11, fontWeight: 700,
-                color: "var(--color-text-secondary)", marginBottom: "var(--space-2)",
-                textTransform: "uppercase", letterSpacing: 0.4,
+                display: "flex", alignItems: "center", justifyContent: "space-between",
+                marginBottom: "var(--space-2)", gap: 6,
               }}>
-                이 페이지 ({problemsOnPage.length}) · 전체 {problems.length}
+                <div style={{
+                  fontSize: 11, fontWeight: 700,
+                  color: "var(--color-text-secondary)",
+                  textTransform: "uppercase", letterSpacing: 0.4,
+                }}>
+                  이 페이지 ({problemsOnPage.length}) · 전체 {problems.length}
+                </div>
+                {justSavedAt && (
+                  <span
+                    aria-live="polite"
+                    style={{
+                      fontSize: 10, fontWeight: 700,
+                      color: "var(--color-success)",
+                      padding: "1px 7px", borderRadius: 999,
+                      background: "color-mix(in srgb, var(--color-success) 12%, transparent)",
+                      border: "1px solid color-mix(in srgb, var(--color-success) 30%, transparent)",
+                    }}
+                  >
+                    ✓ 저장됨
+                  </span>
+                )}
               </div>
               {problemsOnPage.length === 0 && (
                 <div style={{
