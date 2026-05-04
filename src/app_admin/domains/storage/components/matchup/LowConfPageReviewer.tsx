@@ -452,12 +452,12 @@ export default function LowConfPageReviewer({
                   disabled={excluding || reanalyzing || vlmLoadingIdx !== null || Boolean(activeVlm)}
                   data-testid="matchup-low-conf-vlm-btn"
                   title="Gemini AI로 이 페이지를 정밀 분석합니다. 페이지당 1회만 호출되며, 학원별 일일 한도가 적용됩니다."
+                  leftIcon={
+                    vlmLoadingIdx === activeIdx
+                      ? <Loader2 size={ICON.sm} className="animate-spin" />
+                      : <Sparkles size={ICON.sm} />
+                  }
                 >
-                  {vlmLoadingIdx === activeIdx ? (
-                    <Loader2 size={ICON.sm} className="animate-spin" style={/* eslint-disable-line no-restricted-syntax */ { marginRight: 4 }} />
-                  ) : (
-                    <Sparkles size={ICON.sm} style={/* eslint-disable-line no-restricted-syntax */ { marginRight: 4 }} />
-                  )}
                   {activeVlm ? "AI 분석 완료" : "AI 정밀 분석"}
                 </Button>
                 <Button
@@ -466,8 +466,8 @@ export default function LowConfPageReviewer({
                   onClick={handleManualCrop}
                   disabled={excluding || reanalyzing}
                   data-testid="matchup-low-conf-manual-crop-btn"
+                  leftIcon={<Crop size={ICON.sm} />}
                 >
-                  <Crop size={ICON.sm} style={/* eslint-disable-line no-restricted-syntax */ { marginRight: 4 }} />
                   직접 자르기
                 </Button>
                 {excludedThisSession.has(activeIdx) ? (
@@ -477,12 +477,12 @@ export default function LowConfPageReviewer({
                     onClick={handleInclude}
                     disabled={excluding || reanalyzing}
                     data-testid="matchup-low-conf-include-btn"
+                    leftIcon={
+                      excluding
+                        ? <Loader2 size={ICON.sm} className="animate-spin" />
+                        : <RefreshCw size={ICON.sm} />
+                    }
                   >
-                    {excluding ? (
-                      <Loader2 size={ICON.sm} className="animate-spin" style={/* eslint-disable-line no-restricted-syntax */ { marginRight: 4 }} />
-                    ) : (
-                      <RefreshCw size={ICON.sm} style={/* eslint-disable-line no-restricted-syntax */ { marginRight: 4 }} />
-                    )}
                     제외 취소
                   </Button>
                 ) : (
@@ -492,12 +492,12 @@ export default function LowConfPageReviewer({
                     onClick={handleExclude}
                     disabled={excluding || reanalyzing}
                     data-testid="matchup-low-conf-exclude-btn"
+                    leftIcon={
+                      excluding
+                        ? <Loader2 size={ICON.sm} className="animate-spin" />
+                        : <Ban size={ICON.sm} />
+                    }
                   >
-                    {excluding ? (
-                      <Loader2 size={ICON.sm} className="animate-spin" style={/* eslint-disable-line no-restricted-syntax */ { marginRight: 4 }} />
-                    ) : (
-                      <Ban size={ICON.sm} style={/* eslint-disable-line no-restricted-syntax */ { marginRight: 4 }} />
-                    )}
                     이 페이지 제외
                   </Button>
                 )}
@@ -507,12 +507,12 @@ export default function LowConfPageReviewer({
                   onClick={handleReanalyze}
                   disabled={excluding || reanalyzing}
                   data-testid="matchup-low-conf-reanalyze-btn"
+                  leftIcon={
+                    reanalyzing
+                      ? <Loader2 size={ICON.sm} className="animate-spin" />
+                      : <RefreshCw size={ICON.sm} />
+                  }
                 >
-                  {reanalyzing ? (
-                    <Loader2 size={ICON.sm} className="animate-spin" style={/* eslint-disable-line no-restricted-syntax */ { marginRight: 4 }} />
-                  ) : (
-                    <RefreshCw size={ICON.sm} style={/* eslint-disable-line no-restricted-syntax */ { marginRight: 4 }} />
-                  )}
                   재분석
                 </Button>
               </div>
@@ -526,8 +526,11 @@ export default function LowConfPageReviewer({
               overflow: "auto",
             }}>
               {pagesQuery.isLoading ? (
-                <div style={/* eslint-disable-line no-restricted-syntax */ { color: "var(--color-text-muted)", fontSize: 13 }}>
-                  <Loader2 size={ICON.md} className="animate-spin" style={/* eslint-disable-line no-restricted-syntax */ { marginRight: 6 }} />
+                <div style={/* eslint-disable-line no-restricted-syntax */ {
+                  color: "var(--color-text-muted)", fontSize: 13,
+                  display: "inline-flex", alignItems: "center", gap: 6,
+                }}>
+                  <Loader2 size={ICON.md} className="animate-spin" />
                   페이지 준비 중…
                 </div>
               ) : pagesQuery.isError ? (

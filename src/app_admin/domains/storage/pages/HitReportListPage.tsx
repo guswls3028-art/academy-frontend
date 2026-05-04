@@ -107,8 +107,7 @@ export default function HitReportListPage() {
             )}
           </div>
         </div>
-        <Button size="sm" intent="ghost" onClick={() => void load()} disabled={loading}>
-          <RefreshCw size={ICON.xs} style={{ marginRight: 4 }} />
+        <Button size="sm" intent="ghost" onClick={() => void load()} disabled={loading} leftIcon={<RefreshCw size={ICON.sm} />}>
           새로고침
         </Button>
       </div>

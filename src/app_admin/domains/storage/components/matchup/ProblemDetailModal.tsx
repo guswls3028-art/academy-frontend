@@ -299,11 +299,14 @@ export default function ProblemDetailModal({
             닫기
           </Button>
           {onNavigate && (
-            <Button size="sm" onClick={() => {
-              onNavigate(problem.document_id, problem.number);
-              onClose();
-            }}>
-              <ExternalLink size={ICON.sm} style={{ marginRight: 4 }} />
+            <Button
+              size="sm"
+              onClick={() => {
+                onNavigate(problem.document_id, problem.number);
+                onClose();
+              }}
+              leftIcon={<ExternalLink size={ICON.sm} />}
+            >
               이 매치 문서로 이동
             </Button>
           )}

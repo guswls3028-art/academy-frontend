@@ -357,18 +357,13 @@ export default function MergeProblemsModal({ docId, problems, onClose, onSuccess
             onClick={handleConfirm}
             disabled={submitting || ordered.length < 2}
             data-testid="matchup-merge-confirm-btn"
+            leftIcon={
+              submitting
+                ? <Loader2 size={ICON.sm} className="animate-spin" />
+                : <Layers size={ICON.sm} />
+            }
           >
-            {submitting ? (
-              <>
-                <Loader2 size={ICON.sm} className="animate-spin" style={/* eslint-disable-line no-restricted-syntax */ { marginRight: 4 }} />
-                합치는 중...
-              </>
-            ) : (
-              <>
-                <Layers size={ICON.sm} style={/* eslint-disable-line no-restricted-syntax */ { marginRight: 4 }} />
-                {ordered.length}개를 Q{targetNumber}로 합치기
-              </>
-            )}
+            {submitting ? "합치는 중..." : `${ordered.length}개를 Q${targetNumber}로 합치기`}
           </Button>
         </div>
       </div>

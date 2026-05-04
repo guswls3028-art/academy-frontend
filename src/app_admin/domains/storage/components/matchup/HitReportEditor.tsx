@@ -518,12 +518,22 @@ export default function HitReportEditor({ docId, onClose }: Props) {
             >
               {saving ? "저장 중…" : dirtyCount > 0 ? `변경됨 (${dirtyCount}건, 곧 자동 저장)` : "저장됨 ✓"}
             </span>
-            <Button size="sm" intent="ghost" onClick={() => void saveAll()} disabled={saving || isSubmitted || dirtyCount === 0}>
-              <Save size={ICON.xs} style={{ marginRight: 4 }} />
+            <Button
+              size="sm"
+              intent="ghost"
+              onClick={() => void saveAll()}
+              disabled={saving || isSubmitted || dirtyCount === 0}
+              leftIcon={<Save size={ICON.sm} />}
+            >
               지금 저장
             </Button>
-            <Button size="sm" intent="ghost" onClick={() => void downloadPdf()} disabled={saving || pdfDownloading}>
-              <FileText size={ICON.xs} style={{ marginRight: 4 }} />
+            <Button
+              size="sm"
+              intent="ghost"
+              onClick={() => void downloadPdf()}
+              disabled={saving || pdfDownloading}
+              leftIcon={<FileText size={ICON.sm} />}
+            >
               {pdfDownloading ? "PDF 생성 중…" : "PDF 다운로드"}
             </Button>
             <Button
@@ -531,12 +541,17 @@ export default function HitReportEditor({ docId, onClose }: Props) {
               onClick={() => void downloadShareZip()}
               disabled={saving || zipDownloading}
               title="페이지별 이미지 + 요약 텍스트 — 학원 카페·블로그에 그대로 붙여넣기 / 업로드"
+              leftIcon={<Share2 size={ICON.sm} />}
             >
-              <Share2 size={ICON.xs} style={{ marginRight: 4 }} />
               {zipDownloading ? "압축 중…" : "카페·블로그용 이미지 묶음"}
             </Button>
-            <Button size="sm" intent="primary" onClick={() => void submit()} disabled={submitting || isSubmitted}>
-              <Send size={ICON.xs} style={{ marginRight: 4 }} />
+            <Button
+              size="sm"
+              intent="primary"
+              onClick={() => void submit()}
+              disabled={submitting || isSubmitted}
+              leftIcon={<Send size={ICON.sm} />}
+            >
               {isSubmitted ? "제출 완료" : "학원에 제출"}
             </Button>
             <button

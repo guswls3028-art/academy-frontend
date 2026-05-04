@@ -647,8 +647,11 @@ export default function ManualCropModal({ document: doc, onClose, initialPage }:
               overflow: "auto",
             }}>
               {pagesQuery.isLoading ? (
-                <div style={{ color: "var(--color-text-muted)", fontSize: 13 }}>
-                  <Loader2 size={ICON.md} className="animate-spin" style={{ marginRight: 6 }} />
+                <div style={{
+                  color: "var(--color-text-muted)", fontSize: 13,
+                  display: "inline-flex", alignItems: "center", gap: 6,
+                }}>
+                  <Loader2 size={ICON.md} className="animate-spin" />
                   페이지 준비 중…
                 </div>
               ) : pagesQuery.isError ? (

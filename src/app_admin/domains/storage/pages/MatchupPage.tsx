@@ -990,8 +990,8 @@ export default function MatchupPage() {
                       intent="ghost"
                       size="sm"
                       onClick={() => selectedDoc && handleRetry(selectedDoc.id)}
+                      leftIcon={<RefreshCw size={ICON.sm} />}
                     >
-                      <RefreshCw size={13} style={/* eslint-disable-line no-restricted-syntax */ { marginRight: 4 }} />
                       재시도
                     </Button>
                   </div>
@@ -1026,8 +1026,8 @@ export default function MatchupPage() {
                       size="sm"
                       onClick={() => selectedDoc && setCropDocId(selectedDoc.id)}
                       data-testid="matchup-none-banner-crop-btn"
+                      leftIcon={<Crop size={ICON.sm} />}
                     >
-                      <Crop size={13} style={/* eslint-disable-line no-restricted-syntax */ { marginRight: 4 }} />
                       직접 자르기
                     </Button>
                   </div>
@@ -1219,8 +1219,8 @@ export default function MatchupPage() {
                               size="sm"
                               onClick={() => setReviewerDocId(selectedDoc.id)}
                               data-testid="matchup-low-conf-reviewer-open-btn"
+                              leftIcon={<Eye size={ICON.sm} />}
                             >
-                              <Eye size={13} style={/* eslint-disable-line no-restricted-syntax */ { marginRight: 4 }} />
                               검수 페이지 열기
                             </Button>
                           </div>
@@ -1232,8 +1232,8 @@ export default function MatchupPage() {
                           size="sm"
                           onClick={() => setCropDocId(selectedDoc.id)}
                           data-testid="matchup-paper-type-banner-crop-btn"
+                          leftIcon={<Crop size={ICON.sm} />}
                         >
-                          <Crop size={13} style={/* eslint-disable-line no-restricted-syntax */ { marginRight: 4 }} />
                           직접 자르기
                         </Button>
                       )}
@@ -1290,6 +1290,7 @@ export default function MatchupPage() {
                             color: isTest ? "white" : "var(--color-brand-primary)",
                             border: isTest ? "none" : "1px solid var(--color-brand-primary)",
                             fontSize: 11, fontWeight: 700, cursor: "pointer",
+                            whiteSpace: "nowrap", flexShrink: 0,
                           }}
                           title={isTest
                             ? "직접 자르기로 누락된 문항을 추가하면 적중 PDF에 모두 포함됩니다"
