@@ -960,24 +960,44 @@ export default function MatchupPage() {
                       intent="ghost"
                       onClick={async () => {
                         const input = window.prompt(
-                          `자동분리 잔존 일괄삭제\n\n해당 번호부터 끝까지 모두 삭제합니다.\n현재 doc 총 ${problems.length}개 문항.\n\n시작 번호 입력 (예: 162):`,
+                          `자동분리 잔존 일괄삭제\n\n입력 형식:\n  단방향: "162" → 162번 이상 끝까지 삭제\n  구간:    "150-200" → 150~200번 사이 삭제\n\n현재 doc 총 ${problems.length}개 문항.`,
                           "",
                         );
                         if (!input) return;
-                        const numFrom = parseInt(input.trim(), 10);
-                        if (!Number.isInteger(numFrom) || numFrom < 1) {
-                          feedback.error("올바른 번호를 입력하세요 (1 이상 정수)");
-                          return;
+                        const trimmed = input.trim();
+                        let numFrom: number | null = null;
+                        let numTo: number | null = null;
+                        // "150-200" or "150 ~ 200" or "150" 형식 지원
+                        const m = trimmed.match(/^(\d+)\s*[-~]\s*(\d+)$/);
+                        if (m) {
+                          numFrom = parseInt(m[1], 10);
+                          numTo = parseInt(m[2], 10);
+                          if (numFrom > numTo) {
+                            feedback.error("시작 번호가 끝 번호보다 큽니다");
+                            return;
+                          }
+                        } else {
+                          const single = parseInt(trimmed, 10);
+                          if (!Number.isInteger(single) || single < 1) {
+                            feedback.error("올바른 번호 (예: 162) 또는 구간 (예: 150-200)을 입력하세요");
+                            return;
+                          }
+                          numFrom = single;
                         }
-                        const targetsAll = problems.filter((p) => p.number >= numFrom);
-                        // 학원장이 직접 자른(manual=true) 문항은 보호 — retry/reanalyze와 동일 정책.
+                        const inRange = (n: number) => {
+                          if (numFrom !== null && numTo !== null) return n >= numFrom && n <= numTo;
+                          if (numFrom !== null) return n >= numFrom;
+                          return false;
+                        };
+                        const targetsAll = problems.filter((p) => inRange(p.number));
                         const manualInRange = targetsAll.filter((p) => Boolean(p.meta?.manual));
                         const targets = targetsAll.filter((p) => !p.meta?.manual);
+                        const rangeLabel = numTo !== null ? `${numFrom}~${numTo}번` : `${numFrom}번 이상`;
                         if (targets.length === 0) {
                           if (manualInRange.length > 0) {
-                            feedback.info(`${numFrom}번 이상 ${manualInRange.length}개는 모두 직접 자른 문항이라 보호됩니다`);
+                            feedback.info(`${rangeLabel} ${manualInRange.length}개는 모두 직접 자른 문항이라 보호됩니다`);
                           } else {
-                            feedback.info(`${numFrom}번 이상 문항이 없습니다`);
+                            feedback.info(`${rangeLabel} 문항이 없습니다`);
                           }
                           return;
                         }
@@ -985,16 +1005,16 @@ export default function MatchupPage() {
                           ? `\n\n직접 자른 문항 ${manualInRange.length}개는 자동 보호됩니다.`
                           : "";
                         const ok = await confirm({
-                          title: `${numFrom}번 이상 자동분리 ${targets.length}개 삭제`,
+                          title: `${rangeLabel} 자동분리 ${targets.length}개 삭제`,
                           description: `이 작업은 되돌릴 수 없습니다.${protectedNote}\n\n진행할까요?`,
                           confirmText: `${targets.length}개 삭제`,
                           danger: true,
                         });
                         if (!ok) return;
                         try {
-                          const res = await bulkDeleteMatchupProblems(selectedDoc.id, {
-                            number_from: numFrom,
-                          });
+                          const payload: { number_from?: number; number_to?: number } = { number_from: numFrom! };
+                          if (numTo !== null) payload.number_to = numTo;
+                          const res = await bulkDeleteMatchupProblems(selectedDoc.id, payload);
                           const preservedNote = res.preserved_manual > 0
                             ? ` (직접 자른 ${res.preserved_manual}개 보호)`
                             : "";
@@ -1007,9 +1027,9 @@ export default function MatchupPage() {
                         }
                       }}
                       data-testid="matchup-doc-bulk-delete-btn"
-                      title="시작 번호를 입력하면 그 번호부터 끝까지 일괄삭제 (학원장 cut 진행 중 자동분리 정리용)"
+                      title="단방향 (162) 또는 구간 (150-200) 입력으로 일괄삭제. 직접 자른 문항은 자동 보호됩니다."
                     >
-                      N번 이상 일괄삭제
+                      범위 일괄삭제
                     </Button>
                   )}
                   {/* 보조 액션 — ⋮ 메뉴로 묶음 (원본 보기 / 저장소에서 보기) */}
