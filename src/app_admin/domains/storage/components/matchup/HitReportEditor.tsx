@@ -16,7 +16,7 @@
 /* eslint-disable no-restricted-syntax */
 
 import { useEffect, useMemo, useState, useCallback } from "react";
-import { X, Save, Send, FileText, ChevronLeft, ChevronRight, Check, Share2, Crop, AlertTriangle } from "lucide-react";
+import { X, Save, Send, FileText, ChevronLeft, ChevronRight, Check, Share2, Crop, AlertTriangle, EyeOff, Eye } from "lucide-react";
 import { ICON, Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useConfirm } from "@/shared/ui/confirm";
@@ -43,6 +43,9 @@ type EntryDraft = {
   selectedProblemIds: number[];
   comment: string;
   order: number;
+  // 강사가 매칭 못한/큐레이션 의도 없는 Q를 PDF에서 빼는 토글 (2026-05-05).
+  // PDF 본문 + 적중률 분모 모두에서 skip.
+  excluded: boolean;
   dirty: boolean;
 };
 
@@ -122,6 +125,7 @@ export default function HitReportEditor({ docId, onClose }: Props) {
           selectedProblemIds: ep.entry?.selected_problem_ids || [],
           comment: ep.entry?.comment || "",
           order: ep.entry?.order ?? 0,
+          excluded: ep.entry?.excluded ?? false,
           dirty: false,
         };
       }
@@ -208,6 +212,20 @@ export default function HitReportEditor({ docId, onClose }: Props) {
     });
   }, [active, isSubmitted]);
 
+  // PDF 제외 토글 — 좌측 Q 리스트의 행 단위 토글.
+  // ON이면 PDF 본문에 페이지 안 만들고 적중률 분모에서도 빠짐 (backend SSOT 동기).
+  const toggleExcluded = useCallback((examProblemId: number) => {
+    if (isSubmitted) return;
+    setEntries((prev) => {
+      const cur = prev[examProblemId];
+      if (!cur) return prev;
+      return {
+        ...prev,
+        [examProblemId]: { ...cur, excluded: !cur.excluded, dirty: true },
+      };
+    });
+  }, [isSubmitted]);
+
   // ── 저장 ──
 
   const dirtyEntries = useMemo(
@@ -239,6 +257,7 @@ export default function HitReportEditor({ docId, onClose }: Props) {
             selected_problem_ids: e.selectedProblemIds,
             comment: e.comment,
             order: e.order,
+            excluded: e.excluded,
           })),
         );
         setEntries((prev) => {
@@ -664,12 +683,15 @@ export default function HitReportEditor({ docId, onClose }: Props) {
                 <div style={{ fontSize: 11, color: "var(--color-text-muted)", fontWeight: 600 }}>
                   문항 ({examProblems.length})
                 </div>
-                {/* 진행률 bar — P1 (2026-05-04) draft 진행 시각 인지 */}
+                {/* 진행률 bar — excluded 토글된 Q는 분모/분자 모두에서 제외 (PDF SSOT 동기). */}
                 {examProblems.length > 0 && (() => {
-                  const curatedCount = examProblems.filter(ep =>
+                  const activeProblems = examProblems.filter(ep => !entries[ep.id]?.excluded);
+                  const excludedCount = examProblems.length - activeProblems.length;
+                  const denom = activeProblems.length || 1;  // 0 나눗셈 방지
+                  const curatedCount = activeProblems.filter(ep =>
                     (entries[ep.id]?.selectedProblemIds?.length ?? 0) > 0
                   ).length;
-                  const progress = (curatedCount / examProblems.length) * 100;
+                  const progress = activeProblems.length === 0 ? 0 : (curatedCount / denom) * 100;
                   const progressColor =
                     progress >= 80 ? "var(--color-status-success)" :
                     progress >= 40 ? "var(--color-brand-primary)" :
@@ -677,7 +699,12 @@ export default function HitReportEditor({ docId, onClose }: Props) {
                   return (
                     <div style={{ marginTop: 6 }}>
                       <div style={{ fontSize: 10, color: progressColor, fontWeight: 700, marginBottom: 3 }}>
-                        {curatedCount} / {examProblems.length} 큐레이션 ({progress.toFixed(0)}%)
+                        {curatedCount} / {activeProblems.length} 큐레이션 ({progress.toFixed(0)}%)
+                        {excludedCount > 0 && (
+                          <span style={{ color: "var(--color-text-muted)", fontWeight: 400 }}>
+                            {"  ·  PDF 제외 "}{excludedCount}
+                          </span>
+                        )}
                       </div>
                       <div style={{
                         width: "100%", height: 4, borderRadius: 2,
@@ -697,38 +724,73 @@ export default function HitReportEditor({ docId, onClose }: Props) {
                 const cnt = ent?.selectedProblemIds.length ?? 0;
                 const hasComment = !!(ent?.comment.trim());
                 const isActive = i === activeIndex;
+                const isExcluded = !!ent?.excluded;
                 return (
-                  <button
+                  <div
                     key={ep.id}
+                    role="button"
+                    tabIndex={0}
+                    aria-pressed={isActive}
                     onClick={() => setActiveIndex(i)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        setActiveIndex(i);
+                      }
+                    }}
                     style={{
                       display: "flex", alignItems: "center", gap: 8,
                       width: "100%", padding: "8px 12px",
                       background: isActive ? "var(--color-bg-active)" : "transparent",
-                      border: "none",
                       borderLeft: isActive
                         ? "3px solid var(--color-brand-primary)"
                         : "3px solid transparent",
                       cursor: "pointer", textAlign: "left",
                       color: "var(--color-text-primary)",
+                      opacity: isExcluded ? 0.5 : 1,
                     }}
                   >
                     <span style={{
                       minWidth: 28, fontSize: 12, fontWeight: 700,
                       color: isActive ? "var(--color-brand-primary)" : "var(--color-text-secondary)",
+                      textDecoration: isExcluded ? "line-through" : "none",
                     }}>
                       Q{ep.number}
                     </span>
-                    <span style={{ fontSize: 10, color: cnt > 0 ? "var(--color-status-success)" : "var(--color-text-muted)" }}>
-                      {cnt > 0 ? `자료 ${cnt}` : "선택 없음"}
-                    </span>
-                    {hasComment && (
+                    {isExcluded ? (
+                      <span style={{ fontSize: 10, fontWeight: 700, color: "var(--color-text-muted)" }}>
+                        PDF 제외
+                      </span>
+                    ) : (
+                      <span style={{ fontSize: 10, color: cnt > 0 ? "var(--color-status-success)" : "var(--color-text-muted)" }}>
+                        {cnt > 0 ? `자료 ${cnt}` : "선택 없음"}
+                      </span>
+                    )}
+                    {hasComment && !isExcluded && (
                       <Check size={ICON.xs} color="var(--color-status-success)" />
                     )}
                     {ent?.dirty && (
-                      <span style={{ marginLeft: "auto", width: 6, height: 6, borderRadius: "50%", background: "var(--color-status-warning)" }} />
+                      <span style={{ marginLeft: 4, width: 6, height: 6, borderRadius: "50%", background: "var(--color-status-warning)", flexShrink: 0 }} />
                     )}
-                  </button>
+                    {/* PDF 제외 토글 — 자료 매칭 못한 Q를 결과물에서 빼는 강사 의사 */}
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); toggleExcluded(ep.id); }}
+                      disabled={isSubmitted}
+                      aria-label={isExcluded ? "PDF에 다시 포함" : "PDF에서 제외"}
+                      title={isExcluded ? "PDF에 다시 포함" : "이 Q는 매칭 못함 — PDF에서 제외"}
+                      style={{
+                        marginLeft: "auto", padding: 3,
+                        border: "none", background: "transparent",
+                        color: isExcluded ? "var(--color-status-error, #dc2626)" : "var(--color-text-muted)",
+                        cursor: isSubmitted ? "default" : "pointer",
+                        display: "inline-flex", alignItems: "center",
+                        flexShrink: 0,
+                      }}
+                    >
+                      {isExcluded ? <Eye size={ICON.sm} /> : <EyeOff size={ICON.sm} />}
+                    </button>
+                  </div>
                 );
               })}
             </div>

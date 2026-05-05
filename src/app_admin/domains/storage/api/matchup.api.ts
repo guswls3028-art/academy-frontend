@@ -718,6 +718,8 @@ export type HitReportExamProblem = {
     selected_problem_ids: number[];
     comment: string;
     order: number;
+    // 강사가 매칭 못한/큐레이션 의도 없는 Q를 PDF에서 빼는 토글 (2026-05-05).
+    excluded: boolean;
   } | null;
 };
 
@@ -767,6 +769,7 @@ export async function upsertHitReportEntries(
     selected_problem_ids: number[];
     comment: string;
     order: number;
+    excluded?: boolean;
   }>,
 ): Promise<{ upserted: number; deleted: number }> {
   const { data } = await api.post<{ upserted: number; deleted: number }>(
