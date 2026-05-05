@@ -142,6 +142,37 @@ export default function MatchupPage() {
   const [categoryDraft, setCategoryDraft] = useState("");
   const [categorySaving, setCategorySaving] = useState(false);
 
+  // 좌측 트리 폭 — 시험지 제목이 길어 250px 고정으론 가독성이 떨어진다는 사용자 피드백.
+  // localStorage에 영속(브라우저 단위로 사용자가 한 번 조절하면 다음 방문 때도 유지).
+  const [treeWidth, setTreeWidth] = useState<number>(() => {
+    if (typeof window === "undefined") return 280;
+    const raw = window.localStorage.getItem("matchup:tree-width");
+    const n = raw ? Number(raw) : NaN;
+    return Number.isFinite(n) && n >= 220 && n <= 520 ? n : 280;
+  });
+  const handleTreeResizeStart = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startWidth = treeWidth;
+    const onMove = (ev: PointerEvent) => {
+      const next = Math.max(220, Math.min(520, startWidth + (ev.clientX - startX)));
+      setTreeWidth(next);
+    };
+    const onUp = () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+  }, [treeWidth]);
+
+  // treeWidth 변경 시 localStorage 동기화 (드래그 중 매 프레임 저장).
+  useEffect(() => {
+    try {
+      window.localStorage.setItem("matchup:tree-width", String(treeWidth));
+    } catch { /* ignore */ }
+  }, [treeWidth]);
+
   // ── 문서 목록 ──
   const { data: documents = [], isLoading: docsLoading } = useQuery({
     queryKey: ["matchup-documents"],
@@ -723,8 +754,11 @@ export default function MatchupPage() {
         height: "calc(100svh - 100px)",
       }}>
         <div className={css.body}>
-          {/* 좌측: 문서 목록 */}
-          <div className={css.tree}>
+          {/* 좌측: 문서 목록 — 폭은 사용자가 우측 가장자리를 드래그해 조절 가능 (220~520px).
+              CSS Module의 .tree는 250px 고정이므로 inline style로 override한다. */}
+          <div className={css.tree} style={/* eslint-disable-line no-restricted-syntax */ {
+            width: treeWidth, minWidth: treeWidth,
+          }}>
             {/* 강사/학원장 보고서 누적 진입점 — 작성한 보고서 모음/inbox.
                 "보관함" 비유로 시작 시점부터 의미 명확. */}
             <div style={/* eslint-disable-line no-restricted-syntax */ {
@@ -778,6 +812,33 @@ export default function MatchupPage() {
             />
           </div>
 
+          {/* 트리 ↔ 우측 패널 사이 리사이즈 핸들.
+              트리 div의 형제로 두어, 트리 내부 overflow:auto 스크롤바·스크롤 흐름과 충돌하지 않게 한다.
+              평소엔 보이지 않다가 hover 시 brand 컬러로 노출 (cursor만으로도 위치 인지 가능). */}
+          <div
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="좌측 트리 폭 조절"
+            onPointerDown={handleTreeResizeStart}
+            onDoubleClick={() => setTreeWidth(280)}
+            title="드래그로 폭 조절 · 더블클릭으로 기본값(280px)"
+            style={/* eslint-disable-line no-restricted-syntax */ {
+              flexShrink: 0,
+              width: 6,
+              marginLeft: -3, marginRight: -3,
+              cursor: "ew-resize",
+              zIndex: 5,
+              touchAction: "none",
+              transition: "background 0.15s",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "color-mix(in srgb, var(--color-brand-primary) 35%, transparent)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "transparent";
+            }}
+          />
+
           {/* 우측: 문제 + 유사 추천 */}
           <div className={css.gridWrap}>
             {!selectedDocId ? (
@@ -802,14 +863,16 @@ export default function MatchupPage() {
                     원본보기/저장소/직접자르기는 ⋮ 메뉴 또는 Tier 2 (배너/하단)에서 처리. */}
                 <div style={/* eslint-disable-line no-restricted-syntax */ { display: "flex", alignItems: "center", gap: "var(--space-2)", flexShrink: 0, flexWrap: "wrap" }}>
                   {(() => {
-                    // 메인 헤더는 의미 라벨(과목·카테고리) 우선 — raw 파일명(KakaoTalk_*, IMG_* 등)은 hover로만.
-                    // 학원장이 "무슨 자료인지" 한눈에 파악할 수 있어야 함.
-                    const meaningful = [selectedDoc?.subject, selectedDoc?.category].filter(Boolean).join(" · ");
-                    const rawTitle = selectedDoc?.title || "";
-                    const mainText = meaningful || rawTitle;
-                    const tooltip = meaningful && rawTitle && meaningful !== rawTitle
-                      ? `${meaningful}\n원본 파일: ${rawTitle}`
-                      : rawTitle;
+                    // 메인 헤더 = 자료명(title). 학원장이 "무슨 자료인지" 식별하는 1차 키.
+                    // 과목·카테고리는 Tier 2 메타 행(아래)에서 chip으로 별도 표시 — 중복 회피.
+                    // title 비어있을 때만 subject·category fallback (raw 파일명 결함은 별도
+                    // 자료명 정리 워크플로로 해결, 헤더에서 가리지 않음).
+                    const rawTitle = (selectedDoc?.title || "").trim();
+                    const fallback = [selectedDoc?.subject, selectedDoc?.category]
+                      .filter(Boolean)
+                      .join(" · ");
+                    const mainText = rawTitle || fallback || "(제목 없음)";
+                    const tooltip = rawTitle && fallback ? `${rawTitle} · ${fallback}` : mainText;
                     return (
                       <h3 style={/* eslint-disable-line no-restricted-syntax */ { margin: 0, fontSize: 16, fontWeight: 700, color: "var(--color-text-primary)", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={tooltip}>
                         {mainText}
