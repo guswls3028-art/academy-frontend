@@ -969,14 +969,24 @@ export default function MatchupPage() {
                           feedback.error("올바른 번호를 입력하세요 (1 이상 정수)");
                           return;
                         }
-                        const targets = problems.filter((p) => p.number >= numFrom);
+                        const targetsAll = problems.filter((p) => p.number >= numFrom);
+                        // 학원장이 직접 자른(manual=true) 문항은 보호 — retry/reanalyze와 동일 정책.
+                        const manualInRange = targetsAll.filter((p) => Boolean(p.meta?.manual));
+                        const targets = targetsAll.filter((p) => !p.meta?.manual);
                         if (targets.length === 0) {
-                          feedback.info(`${numFrom}번 이상 문항이 없습니다`);
+                          if (manualInRange.length > 0) {
+                            feedback.info(`${numFrom}번 이상 ${manualInRange.length}개는 모두 직접 자른 문항이라 보호됩니다`);
+                          } else {
+                            feedback.info(`${numFrom}번 이상 문항이 없습니다`);
+                          }
                           return;
                         }
+                        const protectedNote = manualInRange.length > 0
+                          ? `\n\n직접 자른 문항 ${manualInRange.length}개는 자동 보호됩니다.`
+                          : "";
                         const ok = await confirm({
-                          title: `${numFrom}번 이상 ${targets.length}개 문항 삭제`,
-                          description: `이 작업은 되돌릴 수 없습니다. 진행할까요?`,
+                          title: `${numFrom}번 이상 자동분리 ${targets.length}개 삭제`,
+                          description: `이 작업은 되돌릴 수 없습니다.${protectedNote}\n\n진행할까요?`,
                           confirmText: `${targets.length}개 삭제`,
                           danger: true,
                         });
@@ -985,7 +995,10 @@ export default function MatchupPage() {
                           const res = await bulkDeleteMatchupProblems(selectedDoc.id, {
                             number_from: numFrom,
                           });
-                          feedback.success(`${res.deleted}개 문항 삭제 완료`);
+                          const preservedNote = res.preserved_manual > 0
+                            ? ` (직접 자른 ${res.preserved_manual}개 보호)`
+                            : "";
+                          feedback.success(`${res.deleted}개 문항 삭제 완료${preservedNote}`);
                           await qc.invalidateQueries({ queryKey: ["matchup-problems", selectedDoc.id] });
                           await qc.invalidateQueries({ queryKey: ["matchup-documents"] });
                         } catch (e: unknown) {
