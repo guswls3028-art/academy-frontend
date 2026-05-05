@@ -375,13 +375,23 @@ export default function DocumentList({
           ) : (
             <div
               title={doc.title}
-              style={{
+              style={isSelected ? {
+                // 선택된 행은 작업 중인 문서이므로 전문 노출.
+                // wordBreak: break-all은 한글에서 단어 중간을 끊는다 (예: "1학기"→"1"+"학기").
+                // keep-all + overflowWrap으로 자연스러운 한글 줄바꿈 + 긴 영문 파일명 fallback.
+                fontSize: 12.5, fontWeight: 600, color: "var(--color-text-primary)",
+                wordBreak: "keep-all",
+                overflowWrap: "break-word",
+                lineHeight: 1.35,
+              } : {
+                // 3줄 → 5줄 (자료명 잘림 결함 fix, 학원장 manual 작업 시 자료 식별 어려움)
                 fontSize: 12.5, fontWeight: 600, color: "var(--color-text-primary)",
                 overflow: "hidden", textOverflow: "ellipsis",
                 display: "-webkit-box",
-                WebkitLineClamp: 2,
+                WebkitLineClamp: 5,
                 WebkitBoxOrient: "vertical",
-                wordBreak: "break-all",
+                wordBreak: "keep-all",
+                overflowWrap: "break-word",
                 lineHeight: 1.35,
               }}
             >
@@ -814,12 +824,15 @@ export default function DocumentList({
                     flex: 1,
                     minWidth: 0,
                     display: "flex",
-                    alignItems: "center",
-                    gap: "var(--space-2)",
+                    flexDirection: "column",
+                    alignItems: "stretch",
+                    gap: 2,
                     cursor: isRenaming || isMerging ? "default" : "pointer",
                     textAlign: "left",
                   }}
                 >
+                  {/* 행 1: chevron · folder · 제목 — 제목이 카운트 없이 전체 폭을 차지 */}
+                  <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", minWidth: 0 }}>
                   {isCollapsed
                     ? <ChevronRight size={ICON.sm} style={{ color: "var(--color-text-secondary)", flexShrink: 0 }} />
                     : <ChevronDown size={ICON.sm} style={{ color: "var(--color-text-secondary)", flexShrink: 0 }} />
@@ -897,29 +910,30 @@ export default function DocumentList({
                           : "var(--color-brand-primary)",
                         flex: 1,
                         minWidth: 0,
-                        overflow: "hidden",
-                        display: "-webkit-box",
-                        WebkitLineClamp: 2,
-                        WebkitBoxOrient: "vertical",
-                        wordBreak: "break-word",
+                        // 한글 자연 줄바꿈 — 단어 중간이 아닌 공백에서 끊김 (overflowWrap은 긴 영문/URL fallback)
+                        wordBreak: "keep-all",
+                        overflowWrap: "break-word",
                         lineHeight: 1.3,
                       }}
                     >
                       {group.label}
                     </span>
                   )}
+                  </div>
 
-                  {!isRenaming && !isMerging && (
-                    <span
+                  {/* 행 2: 카운트 — 제목 글자 시작 위치에 맞춰 들여쓰기. 제목이 길어도 카운트가 폭을 잡아먹지 않음. */}
+                  {!isRenaming && !isMerging && (group.tests.length > 0 || group.references.length > 0) && (
+                    <div
                       title={`시험지 ${group.tests.length}건 · 참고자료 ${group.references.length}건`}
                       style={{
-                        fontSize: 11,
+                        fontSize: 10.5,
                         color: "var(--color-text-muted)",
-                        display: "inline-flex",
+                        display: "flex",
                         gap: 5,
                         alignItems: "center",
-                        flexShrink: 0,
                         fontWeight: 700,
+                        // chevron(14) + folder(14) + gap×2 = 약 36px → 제목 시작 위치
+                        paddingLeft: 36,
                       }}
                     >
                       {group.tests.length > 0 && (
@@ -933,7 +947,7 @@ export default function DocumentList({
                       {group.references.length > 0 && (
                         <span>자료 {group.references.length}</span>
                       )}
-                    </span>
+                    </div>
                   )}
                 </div>
 
