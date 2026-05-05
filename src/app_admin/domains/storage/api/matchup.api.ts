@@ -465,9 +465,13 @@ export async function bulkDeleteMatchupProblems(
   docId: number,
   payload: { number_from?: number; number_to?: number; problem_ids?: number[] },
 ): Promise<{ deleted: number; ids: number[]; preserved_manual: number }> {
+  // 운영 사고 (2026-05-05): N=300 problems 삭제 시 R2 image 순차 삭제 30s+ 걸려
+  // axios 디폴트 20s timeout 만남 ("1 누르고 20000ms 뜸"). 5분 명시 + backend
+  // 최적화 (R2 batch + QuerySet.delete) 백로그.
   const { data } = await api.post<{ deleted: number; ids: number[]; preserved_manual: number }>(
     `/matchup/documents/${docId}/bulk-delete-problems/`,
     payload,
+    { timeout: 5 * 60_000 },
   );
   return data;
 }
