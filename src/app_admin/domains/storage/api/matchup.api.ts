@@ -751,6 +751,11 @@ export async function fetchHitReportDraft(
   return data;
 }
 
+// 자동저장 timeout — axios 기본 20s가 backend ResponseTime spike(ASG refresh cold start
+// + pgvector HNSW index build 시 27~51초 측정, 2026-05-05)를 못 cover해서 학원장
+// "저장 실패" 토스트가 간헐 발생했던 결함 fix. spike 절대 한도 60s로 상향.
+const HIT_REPORT_SAVE_TIMEOUT_MS = 60_000;
+
 export async function updateHitReport(
   reportId: number,
   payload: { title?: string; summary?: string },
@@ -758,6 +763,7 @@ export async function updateHitReport(
   const { data } = await api.patch<HitReport>(
     `/matchup/hit-reports/${reportId}/`,
     payload,
+    { timeout: HIT_REPORT_SAVE_TIMEOUT_MS },
   );
   return data;
 }
@@ -775,6 +781,7 @@ export async function upsertHitReportEntries(
   const { data } = await api.post<{ upserted: number; deleted: number }>(
     `/matchup/hit-reports/${reportId}/entries/`,
     { entries },
+    { timeout: HIT_REPORT_SAVE_TIMEOUT_MS },
   );
   return data;
 }
@@ -782,6 +789,8 @@ export async function upsertHitReportEntries(
 export async function submitHitReport(reportId: number): Promise<HitReport> {
   const { data } = await api.post<HitReport>(
     `/matchup/hit-reports/${reportId}/submit/`,
+    {},
+    { timeout: HIT_REPORT_SAVE_TIMEOUT_MS },
   );
   return data;
 }

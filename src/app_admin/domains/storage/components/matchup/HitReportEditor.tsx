@@ -275,13 +275,22 @@ export default function HitReportEditor({ docId, onClose }: Props) {
     } catch (e) {
       console.error(e);
       // 자동/수동 모두 빨간 인디케이터로 stuck — 토스트는 휘발이라 인지 못 할 위험.
+      // 자동 재시도(5초 후 1회)는 별도 useEffect에서 진행 — saving=false 보장 후 호출.
       setAutosaveError(true);
-      feedback.error("저장 실패 — 잠시 후 자동 재시도하거나 상단 '지금 저장' 버튼을 눌러주세요");
+      feedback.error("저장 실패 — 잠시 후 자동 재시도. 안 되면 상단 '저장 실패' 버튼을 눌러주세요");
       return false;
     } finally {
       setSaving(false);
     }
   }, [dirtyEntries, headerDirty, isSubmitted, reportId, reportTitle, reportSummary, saving]);
+
+  // 자동저장 실패 시 5초 후 1회 자동 재시도 — backend ResponseTime spike(50초+)가
+  // 가라앉은 뒤 사용자 인지 전에 회복. 두번째도 fail이면 stuck 인디케이터 그대로.
+  useEffect(() => {
+    if (!autosaveError || isSubmitted || saving) return;
+    const timer = setTimeout(() => { void saveAll(true); }, 5000);
+    return () => clearTimeout(timer);
+  }, [autosaveError, isSubmitted, saving, saveAll]);
 
   // 자동 저장 — dirty 후 1.5초 동안 추가 변경 없으면 자동 백엔드 동기화. 데이터 손실 방지.
   // silent=true로 토스트 노이즈 방지 (헤더 "저장됨" 표시로 충분).
