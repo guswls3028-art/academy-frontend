@@ -16,11 +16,12 @@
 /* eslint-disable no-restricted-syntax */
 
 import { useEffect, useMemo, useState, useCallback } from "react";
-import { X, Save, Send, FileText, ChevronLeft, ChevronRight, Check, Share2 } from "lucide-react";
+import { X, Save, Send, FileText, ChevronLeft, ChevronRight, Check, Share2, Crop, AlertTriangle } from "lucide-react";
 import { ICON, Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useConfirm } from "@/shared/ui/confirm";
 import api from "@/shared/api/axios";
+import ManualCropModal from "./ManualCropModal";
 import {
   fetchHitReportDraft,
   updateHitReport,
@@ -96,6 +97,13 @@ export default function HitReportEditor({ docId, onClose }: Props) {
   const [extraMeta, setExtraMeta] = useState<Record<number, HitReportSelectedMeta>>({});
   // 미리보기 active 후보 — 우측 리스트에서 클릭한 항목. 선택과는 분리.
   const [activeCandidateId, setActiveCandidateId] = useState<number | null>(null);
+  // 자료가 거의 똑같은데 잘린 게 애매해서 못 쓰는 경우(2026-05-05 강사 보고)
+  // 보고서 화면에서 벗어나지 않고 ManualCropModal로 즉시 점프 → 자르기 → 닫으면
+  // 후보 새로고침. 흐름 안 끊김.
+  const [editSourceDoc, setEditSourceDoc] = useState<{ id: number; title: string } | null>(null);
+  // 자동저장 실패 신호 — 1.5s debounce가 실패하면 토스트만으로는 사용자 인지 부족.
+  // 상단 인디케이터를 빨간 "저장 실패" 상태로 stuck 시키고 클릭하면 재시도.
+  const [autosaveError, setAutosaveError] = useState<boolean>(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -242,11 +250,14 @@ export default function HitReportEditor({ docId, onClose }: Props) {
           return next;
         });
       }
+      setAutosaveError(false);
       if (!silent) feedback.success("보고서 저장 완료");
       return true;
     } catch (e) {
       console.error(e);
-      feedback.error("저장 실패 — 다시 시도해 주세요");
+      // 자동/수동 모두 빨간 인디케이터로 stuck — 토스트는 휘발이라 인지 못 할 위험.
+      setAutosaveError(true);
+      feedback.error("저장 실패 — 잠시 후 자동 재시도하거나 상단 '지금 저장' 버튼을 눌러주세요");
       return false;
     } finally {
       setSaving(false);
@@ -396,6 +407,21 @@ export default function HitReportEditor({ docId, onClose }: Props) {
     onClose();
   }, [confirm, dirtyCount, onClose]);
 
+  // 브라우저 새로고침/탭 닫기 가드 — 박철T 우려("작업 중 튕기진 않지?") 대응.
+  // 1.5s 자동저장이 있어도 dirty 직후 새로고침 누르면 휘발. 표준 prompt로 차단.
+  useEffect(() => {
+    if (isSubmitted) return;
+    const blocking = dirtyCount > 0 || saving || autosaveError;
+    if (!blocking) return;
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      // Chrome ignores returnValue text but requires assignment for prompt.
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [dirtyCount, saving, autosaveError, isSubmitted]);
+
   // 키보드 네비
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -421,6 +447,7 @@ export default function HitReportEditor({ docId, onClose }: Props) {
   };
 
   return (
+    <>
     <div
       role="dialog"
       aria-modal="true"
@@ -491,33 +518,52 @@ export default function HitReportEditor({ docId, onClose }: Props) {
           </div>
 
           <div style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>
-            {/* 3-state 자동저장 인디케이터 — 저장 중(파란 spinner) / 변경됨(주황) / 저장됨(회색 ✓) */}
-            <span
+            {/* 4-state 자동저장 인디케이터 —
+                저장 중(파란) / 저장 실패(빨강·클릭 재시도) / 변경됨(주황) / 저장됨(회색 ✓) */}
+            <button
+              type="button"
               data-testid="matchup-hit-report-save-state"
+              onClick={() => { if (autosaveError) void saveAll(); }}
+              disabled={!autosaveError}
+              title={autosaveError ? "클릭해서 다시 저장" : undefined}
               style={{
                 display: "inline-flex", alignItems: "center", gap: 5,
                 fontSize: 11, fontWeight: 600,
                 padding: "3px 9px", borderRadius: 999,
+                cursor: autosaveError ? "pointer" : "default",
                 background: saving
                   ? "color-mix(in srgb, var(--color-brand-primary) 10%, transparent)"
-                  : dirtyCount > 0
-                    ? "color-mix(in srgb, var(--color-status-warning) 12%, transparent)"
-                    : "var(--color-bg-surface-soft)",
+                  : autosaveError
+                    ? "color-mix(in srgb, var(--color-status-error, #dc2626) 14%, transparent)"
+                    : dirtyCount > 0
+                      ? "color-mix(in srgb, var(--color-status-warning) 12%, transparent)"
+                      : "var(--color-bg-surface-soft)",
                 color: saving
                   ? "var(--color-brand-primary)"
-                  : dirtyCount > 0
-                    ? "var(--color-status-warning)"
-                    : "var(--color-text-muted)",
+                  : autosaveError
+                    ? "var(--color-status-error, #dc2626)"
+                    : dirtyCount > 0
+                      ? "var(--color-status-warning)"
+                      : "var(--color-text-muted)",
                 border: "1px solid",
                 borderColor: saving
                   ? "color-mix(in srgb, var(--color-brand-primary) 30%, transparent)"
-                  : dirtyCount > 0
-                    ? "color-mix(in srgb, var(--color-status-warning) 30%, transparent)"
-                    : "var(--color-border-divider)",
+                  : autosaveError
+                    ? "color-mix(in srgb, var(--color-status-error, #dc2626) 35%, transparent)"
+                    : dirtyCount > 0
+                      ? "color-mix(in srgb, var(--color-status-warning) 30%, transparent)"
+                      : "var(--color-border-divider)",
               }}
             >
-              {saving ? "저장 중…" : dirtyCount > 0 ? `변경됨 (${dirtyCount}건, 곧 자동 저장)` : "저장됨 ✓"}
-            </span>
+              {autosaveError && <AlertTriangle size={ICON.xs} />}
+              {saving
+                ? "저장 중…"
+                : autosaveError
+                  ? "저장 실패 — 클릭해서 다시 저장"
+                  : dirtyCount > 0
+                    ? `변경됨 (${dirtyCount}건, 곧 자동 저장)`
+                    : "저장됨 ✓"}
+            </button>
             <Button
               size="sm"
               intent="ghost"
@@ -710,6 +756,7 @@ export default function HitReportEditor({ docId, onClose }: Props) {
               candidateMap={candidateMap}
               onToggle={toggleSelect}
               onSetActive={setActiveCandidateId}
+              onEditSource={(docId, docTitle) => setEditSourceDoc({ id: docId, title: docTitle })}
               disabled={isSubmitted}
             />
           </div>
@@ -743,6 +790,21 @@ export default function HitReportEditor({ docId, onClose }: Props) {
         </div>
       </div>
     </div>
+    {editSourceDoc && (
+      <ManualCropModal
+        document={editSourceDoc}
+        onClose={() => {
+          setEditSourceDoc(null);
+          // load()가 entries를 응답으로 덮어쓰므로 dirty 코멘트가 유실될 위험 →
+          // 닫을 때 미저장분 먼저 동기화, 그 다음에 후보 새로고침.
+          (async () => {
+            if (dirtyCount > 0) await saveAll(true);
+            await load();
+          })();
+        }}
+      />
+    )}
+    </>
   );
 }
 
@@ -948,7 +1010,7 @@ function PreviewSubPane({
 // ── 우측 후보 선택 패널 — 클릭 = active / 체크박스 = 선택 ──
 function SelectionPanel({
   active, activeCandidateId, selectedIds, candidateMap,
-  onToggle, onSetActive, disabled,
+  onToggle, onSetActive, onEditSource, disabled,
 }: {
   active: HitReportExamProblem | null;
   activeCandidateId: number | null;
@@ -956,6 +1018,8 @@ function SelectionPanel({
   candidateMap: Map<number, CandidateMeta>;
   onToggle: (id: number) => void;
   onSetActive: (id: number) => void;
+  // 자료 원본에서 즉시 다시 자르기 — ManualCropModal 진입.
+  onEditSource: (docId: number, docTitle: string) => void;
   disabled: boolean;
 }) {
   if (!active) return null;
@@ -1014,8 +1078,17 @@ function SelectionPanel({
             disabled={disabled}
             onClick={() => onSetActive(c.id)}
             onToggle={() => onToggle(c.id)}
+            onEditSource={() => onEditSource(
+              c.document_id,
+              c.document_title || `자료 ${c.document_id}번`,
+            )}
             imageUrl={c.image_url}
-            title={`자료 ${c.document_id}번  ·  Q${c.number}`}
+            docTitle={c.document_title || `자료 ${c.document_id}번`}
+            docMeta={[
+              `Q${c.number}`,
+              c.document_category,
+              `자료 ${c.document_id}번`,
+            ].filter(Boolean).join("  ·  ")}
             meta={`유사도 ${(c.similarity * 100).toFixed(1)}%`}
             tier={classifyMatch(c.similarity)}
             text={c.text_preview}
@@ -1032,6 +1105,10 @@ function SelectionPanel({
             {extraSelected.map((pid) => {
               const meta = candidateMap.get(pid);
               if (!meta) return null;
+              const docTitle = ("document_title" in meta && meta.document_title)
+                ? meta.document_title
+                : `자료 ${meta.document_id}번`;
+              const docCategory = ("document_category" in meta) ? meta.document_category : "";
               return (
                 <SelectRow
                   key={pid}
@@ -1040,8 +1117,14 @@ function SelectionPanel({
                   disabled={disabled}
                   onClick={() => onSetActive(pid)}
                   onToggle={() => onToggle(pid)}
+                  onEditSource={() => onEditSource(meta.document_id, docTitle)}
                   imageUrl={meta.image_url}
-                  title={`자료 ${meta.document_id}번  ·  Q${meta.number}`}
+                  docTitle={docTitle}
+                  docMeta={[
+                    `Q${meta.number}`,
+                    docCategory,
+                    `자료 ${meta.document_id}번`,
+                  ].filter(Boolean).join("  ·  ")}
                   meta="수동 추가"
                   tier="miss"
                   text={meta.text_preview}
@@ -1056,17 +1139,19 @@ function SelectionPanel({
 }
 
 function SelectRow({
-  isActive, isSelected, disabled, onClick, onToggle,
-  imageUrl, title, meta, tier, text,
+  isActive, isSelected, disabled, onClick, onToggle, onEditSource,
+  imageUrl, docTitle, docMeta, meta, tier, text,
 }: {
   isActive: boolean;
   isSelected: boolean;
   disabled: boolean;
   onClick: () => void;
   onToggle: () => void;
+  onEditSource: () => void;
   imageUrl?: string;
-  title: string;
-  meta: string;
+  docTitle: string;     // 파일명 — 강사가 출처를 즉시 식별 (1순위)
+  docMeta: string;      // Q번호 · 카테고리 · 자료번호 (보조)
+  meta: string;         // 유사도 라벨 / "수동 추가"
   tier: Tier;
   text: string;
 }) {
@@ -1112,7 +1197,8 @@ function SelectRow({
       {imageUrl ? (
         <img
           src={imageUrl}
-          alt={title}
+          alt={docTitle}
+          title={`${docTitle} · ${docMeta}`}
           style={{
             width: 80, height: 100, objectFit: "contain",
             objectPosition: "top center",
@@ -1131,19 +1217,32 @@ function SelectRow({
         </div>
       )}
       <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 2 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-          <span style={{ fontSize: 11, fontWeight: 700, color: "var(--color-text-primary)" }}>
-            {title}
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <span
+            title={docTitle}
+            style={{
+              fontSize: 12, fontWeight: 700, color: "var(--color-text-primary)",
+              minWidth: 0, flex: 1,
+              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+            }}
+          >
+            {docTitle}
           </span>
           {isSelected && (
             <span aria-label="PDF에 포함됨" style={{
               fontSize: 10, fontWeight: 700, padding: "1px 6px",
               borderRadius: 3, background: "var(--color-status-success)",
-              color: "white",
+              color: "white", flexShrink: 0,
             }}>
               ✓ PDF
             </span>
           )}
+        </div>
+        <div style={{
+          fontSize: 10, color: "var(--color-text-muted)",
+          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+        }}>
+          {docMeta}
         </div>
         <div style={{
           fontSize: 10, fontWeight: 700,
@@ -1158,27 +1257,50 @@ function SelectRow({
         }}>
           {text}
         </div>
-        {/* 명시적 토글 버튼 — row 클릭과 분리. 텍스트로 의도 명확화. */}
-        <button
-          onClick={(e) => { e.stopPropagation(); onToggle(); }}
-          disabled={disabled}
-          aria-label={isSelected ? "PDF에서 제외" : "PDF에 포함"}
-          style={{
-            alignSelf: "flex-start",
-            marginTop: 2, padding: "4px 10px",
-            fontSize: 11, fontWeight: 700,
-            border: `1px solid ${isSelected ? "var(--color-status-success)" : "var(--color-brand-primary)"}`,
-            borderRadius: 4,
-            background: isSelected
-              ? "color-mix(in srgb, var(--color-status-success) 12%, white)"
-              : "var(--color-brand-primary)",
-            color: isSelected ? "var(--color-status-success)" : "white",
-            cursor: disabled ? "default" : "pointer",
-            opacity: disabled ? 0.5 : 1,
-          }}
-        >
-          {isSelected ? "✕ PDF에서 제외" : "+ PDF에 추가"}
-        </button>
+        {/* 명시적 토글 버튼 — row 클릭과 분리. 텍스트로 의도 명확화.
+            "원본에서 다시 자르기" CTA 함께 — 자료가 거의 똑같은데 잘린 경계가 애매해
+            못 쓰는 케이스를 보고서 화면에서 벗어나지 않고 즉시 fix(2026-05-05). */}
+        <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", marginTop: 2 }}>
+          <button
+            onClick={(e) => { e.stopPropagation(); onToggle(); }}
+            disabled={disabled}
+            aria-label={isSelected ? "PDF에서 제외" : "PDF에 포함"}
+            style={{
+              padding: "4px 10px",
+              fontSize: 11, fontWeight: 700,
+              border: `1px solid ${isSelected ? "var(--color-status-success)" : "var(--color-brand-primary)"}`,
+              borderRadius: 4,
+              background: isSelected
+                ? "color-mix(in srgb, var(--color-status-success) 12%, white)"
+                : "var(--color-brand-primary)",
+              color: isSelected ? "var(--color-status-success)" : "white",
+              cursor: disabled ? "default" : "pointer",
+              opacity: disabled ? 0.5 : 1,
+            }}
+          >
+            {isSelected ? "✕ PDF에서 제외" : "+ PDF에 추가"}
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); onEditSource(); }}
+            disabled={disabled}
+            aria-label="원본 자료에서 이 문항 다시 자르기"
+            title="자료가 거의 같은데 잘린 게 애매해 못 쓸 때 — 원본 페이지로 즉시 점프"
+            style={{
+              padding: "4px 8px",
+              fontSize: 11, fontWeight: 600,
+              border: "1px solid var(--color-border-divider)",
+              borderRadius: 4,
+              background: "transparent",
+              color: "var(--color-text-secondary)",
+              cursor: disabled ? "default" : "pointer",
+              opacity: disabled ? 0.5 : 1,
+              display: "inline-flex", alignItems: "center", gap: 4,
+            }}
+          >
+            <Crop size={ICON.xs} />
+            원본 다시 자르기
+          </button>
+        </div>
       </div>
     </div>
   );

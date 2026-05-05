@@ -28,8 +28,11 @@ import {
 } from "../../api/matchup.api";
 import type { MatchupDocument } from "../../api/matchup.api";
 
+// id/title만 사용 — 매치업 보고서 작성 화면(HitReportEditor)에서 후보 doc 전체
+// 객체를 새로 fetch하지 않고도 호출할 수 있게 minimal subset만 요구. 매치업 메인
+// 페이지(MatchupPage)에서는 MatchupDocument 전체를 넘겨주므로 호환.
 type Props = {
-  document: MatchupDocument;
+  document: Pick<MatchupDocument, "id" | "title">;
   onClose: () => void;
   // 검수 모달(LowConfPageReviewer) → 직접 자르기 인계 시 시작 페이지 지정.
   initialPage?: number;

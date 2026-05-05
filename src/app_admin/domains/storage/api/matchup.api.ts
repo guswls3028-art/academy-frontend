@@ -695,6 +695,10 @@ export async function fetchHitReportList(params?: {
 export type HitReportCandidate = {
   id: number;
   document_id: number;
+  // 출처 식별 메타 — "자료 198번"만 보고 강사가 출처를 다시 찾던 불편 제거 (2026-05-05).
+  document_title: string;
+  document_category: string;
+  source_type: string;  // "academy_workbook" | "school_exam_pdf" | ... | "" (legacy)
   number: number;
   text_preview: string;
   similarity: number;
@@ -720,6 +724,9 @@ export type HitReportExamProblem = {
 export type HitReportSelectedMeta = {
   id: number;
   document_id: number;
+  document_title: string;
+  document_category: string;
+  source_type: string;
   number: number;
   text_preview: string;
   image_key: string;
