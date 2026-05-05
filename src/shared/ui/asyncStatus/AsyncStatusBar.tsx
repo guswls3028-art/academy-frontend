@@ -224,6 +224,17 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
       navigate("/admin/tools/ppt");
       return;
     }
+    // 매치업 작업은 매치업 페이지로 (선택 doc id state 전달 — 화면이 자동 선택).
+    // 학원장 결함 (2026-05-05): 매치업 작업박스 클릭 시 fall-through로 dashboard 이동.
+    if (
+      jobType === "matchup_analysis"
+      || jobType === "matchup_manual"
+      || jobType === "matchup_index"
+    ) {
+      const docId = task.meta?.sourceId ? Number(task.meta.sourceId) : null;
+      navigate("/admin/storage/matchup", docId ? { state: { selectDocId: docId } } : undefined);
+      return;
+    }
     navigate("/admin/dashboard");
   };
 
