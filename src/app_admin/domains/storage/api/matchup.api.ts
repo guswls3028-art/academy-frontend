@@ -461,6 +461,17 @@ export async function deleteMatchupProblem(problemId: number): Promise<void> {
   await api.delete(`/matchup/problems/${problemId}/`);
 }
 
+export async function bulkDeleteMatchupProblems(
+  docId: number,
+  payload: { number_from?: number; number_to?: number; problem_ids?: number[] },
+): Promise<{ deleted: number; ids: number[] }> {
+  const { data } = await api.post<{ deleted: number; ids: number[] }>(
+    `/matchup/documents/${docId}/bulk-delete-problems/`,
+    payload,
+  );
+  return data;
+}
+
 export async function updateMatchupProblem(
   problemId: number,
   payload: { number?: number; text?: string },

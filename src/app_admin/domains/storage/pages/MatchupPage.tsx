@@ -4,7 +4,7 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams, useNavigate, useLocation } from "react-router-dom";
-import { Sparkles, AlertTriangle, RefreshCw, Eye, FolderOpen, BookOpen, Crop, ClipboardList, FolderTree, MoreHorizontal, Layers } from "lucide-react";
+import { Sparkles, AlertTriangle, RefreshCw, Eye, FolderOpen, BookOpen, Crop, ClipboardList, FolderTree, MoreHorizontal, Layers, FolderInput, Plus } from "lucide-react";
 import { Button, ICON } from "@/shared/ui/ds";
 import { useConfirm } from "@/shared/ui/confirm";
 import useAuth from "@/auth/hooks/useAuth";
@@ -22,6 +22,7 @@ import {
   fetchHitReportDraft,
   upsertHitReportEntries,
   reanalyzeMatchupDocument,
+  bulkDeleteMatchupProblems,
 } from "../api/matchup.api";
 import type { SimilarProblem } from "../api/matchup.api";
 import { useMatchupPolling } from "../hooks/useMatchupPolling";
@@ -110,15 +111,32 @@ export default function MatchupPage() {
 
   // P1 (2026-05-04) — HitReportListPage에서 navigate({state: {openHitReportForDoc: docId}})로
   // 진입 시 자동 doc 선택 + HitReportEditor 오픈. sidebar→리스트→편집기 흐름 단축.
+  // navigate state 두 가지 처리:
+  //   - openHitReportForDoc: 적중 보고서 리스트 → 편집기 다이렉트 진입
+  //   - selectDocId: 우하단 작업박스(AsyncStatusBar) 매치업 작업 클릭 → 해당 doc 자동 선택
   const location = useLocation();
   useEffect(() => {
-    const docId = (location.state as { openHitReportForDoc?: number } | null)?.openHitReportForDoc;
-    if (typeof docId === "number" && docId > 0) {
-      setHitReportDocId(docId);
+    const state = location.state as {
+      openHitReportForDoc?: number;
+      selectDocId?: number;
+    } | null;
+    const reportDocId = state?.openHitReportForDoc;
+    const selectDocId = state?.selectDocId;
+    let consumed = false;
+    if (typeof reportDocId === "number" && reportDocId > 0) {
+      setHitReportDocId(reportDocId);
+      consumed = true;
+    }
+    if (typeof selectDocId === "number" && selectDocId > 0) {
+      setSelectedDocId(selectDocId);
+      setSelectedProblemId(null);
+      consumed = true;
+    }
+    if (consumed) {
       // state 소비 — 한 번만 트리거. reload 시 잔존 방지.
       window.history.replaceState({}, "", location.pathname);
     }
-  }, [location]);
+  }, [location, setSelectedDocId]);
   // 학원장 inbox 모드 vs 강사 본인 시점 결정용. user.tenantRole로 판단.
   const { user } = useAuth();
   const isAcademyAdmin = !!(
@@ -241,6 +259,7 @@ export default function MatchupPage() {
           `매치업 분석: ${d.title}`,
           d.ai_job_id,
           "matchup_analysis",
+          d.id,
         );
       } else {
         const watchId = `matchup-doc-${d.id}`;
@@ -249,6 +268,7 @@ export default function MatchupPage() {
           `매치업 분석 준비 중: ${d.title}`,
           watchId,
           "matchup_document_watch",
+          d.id,
         );
       }
     });
@@ -410,12 +430,14 @@ export default function MatchupPage() {
           `매치업 분석: ${doc.title || payload.file.name}`,
           doc.ai_job_id,
           "matchup_analysis",
+          doc.id,
         );
       } else if (doc.id) {
         asyncStatusStore.addWorkerJob(
           `매치업 분석 준비 중: ${doc.title || payload.file.name}`,
           `matchup-doc-${doc.id}`,
           "matchup_document_watch",
+          doc.id,
         );
       }
       feedback.success("업로드 완료. 우상단 작업 상자에서 분석 진행률 확인.");
@@ -449,12 +471,14 @@ export default function MatchupPage() {
           `매치업 분석 재시도: ${doc.title}`,
           doc.ai_job_id,
           "matchup_analysis",
+          doc.id,
         );
       } else if (doc?.id) {
         asyncStatusStore.addWorkerJob(
           `매치업 분석 준비 중: ${doc.title}`,
           `matchup-doc-${doc.id}`,
           "matchup_document_watch",
+          doc.id,
         );
       }
       feedback.success("재분석을 시작합니다. 우상단 작업 상자에서 진행률 확인.");
@@ -928,6 +952,53 @@ export default function MatchupPage() {
                       직접 자르기
                     </Button>
                   )}
+                  {/* N번 이상 일괄삭제 — 학원장 cut 진행 중 doc(예: 161까지 cut, 162~ 자동분리 잔존)에서
+                      자동분리 잔존을 한 번에 정리. 단일 삭제 N번 반복 불편 해소. */}
+                  {selectedDoc && problems.length > 0 && (
+                    <Button
+                      size="sm"
+                      intent="ghost"
+                      onClick={async () => {
+                        const input = window.prompt(
+                          `자동분리 잔존 일괄삭제\n\n해당 번호부터 끝까지 모두 삭제합니다.\n현재 doc 총 ${problems.length}개 문항.\n\n시작 번호 입력 (예: 162):`,
+                          "",
+                        );
+                        if (!input) return;
+                        const numFrom = parseInt(input.trim(), 10);
+                        if (!Number.isInteger(numFrom) || numFrom < 1) {
+                          feedback.error("올바른 번호를 입력하세요 (1 이상 정수)");
+                          return;
+                        }
+                        const targets = problems.filter((p) => p.number >= numFrom);
+                        if (targets.length === 0) {
+                          feedback.info(`${numFrom}번 이상 문항이 없습니다`);
+                          return;
+                        }
+                        const ok = await confirm({
+                          title: `${numFrom}번 이상 ${targets.length}개 문항 삭제`,
+                          description: `이 작업은 되돌릴 수 없습니다. 진행할까요?`,
+                          confirmText: `${targets.length}개 삭제`,
+                          danger: true,
+                        });
+                        if (!ok) return;
+                        try {
+                          const res = await bulkDeleteMatchupProblems(selectedDoc.id, {
+                            number_from: numFrom,
+                          });
+                          feedback.success(`${res.deleted}개 문항 삭제 완료`);
+                          await qc.invalidateQueries({ queryKey: ["matchup-problems", selectedDoc.id] });
+                          await qc.invalidateQueries({ queryKey: ["matchup-documents"] });
+                        } catch (e: unknown) {
+                          const msg = (e as Error)?.message ?? "일괄삭제 실패";
+                          feedback.error(msg);
+                        }
+                      }}
+                      data-testid="matchup-doc-bulk-delete-btn"
+                      title="시작 번호를 입력하면 그 번호부터 끝까지 일괄삭제 (학원장 cut 진행 중 자동분리 정리용)"
+                    >
+                      N번 이상 일괄삭제
+                    </Button>
+                  )}
                   {/* 보조 액션 — ⋮ 메뉴로 묶음 (원본 보기 / 저장소에서 보기) */}
                   {selectedDoc && (
                     <HeaderMoreMenu
@@ -1020,24 +1091,35 @@ export default function MatchupPage() {
                       type="button"
                       onClick={startCategoryEdit}
                       data-testid="matchup-doc-category-badge"
-                      title="클릭해서 카테고리 변경"
+                      title={selectedDoc.category ? "클릭해서 카테고리 변경" : "클릭해서 카테고리 추가 — 학교/학기 등 자료를 묶을 폴더 이름"}
                       style={/* eslint-disable-line no-restricted-syntax */ {
+                        display: "inline-flex", alignItems: "center", gap: 4,
                         fontSize: 11, padding: "2px 8px", borderRadius: 4,
                         background: selectedDoc.category
                           ? "color-mix(in srgb, var(--color-brand-primary) 8%, transparent)"
                           : "var(--color-bg-surface-soft)",
                         color: selectedDoc.category
                           ? "var(--color-brand-primary)"
-                          : "var(--color-text-muted)",
+                          : "var(--color-text-secondary)",
                         border: selectedDoc.category
                           ? "1px solid color-mix(in srgb, var(--color-brand-primary) 35%, transparent)"
-                          : "1px dashed var(--color-border-divider)",
+                          : "1px dashed color-mix(in srgb, var(--color-brand-primary) 30%, var(--color-border-divider))",
                         fontWeight: 700,
                         cursor: "pointer",
                         fontFamily: "inherit",
                       }}
                     >
-                      {selectedDoc.category || "+ 카테고리 지정"}
+                      {selectedDoc.category ? (
+                        <>
+                          <FolderInput size={ICON.xs} />
+                          {selectedDoc.category}
+                        </>
+                      ) : (
+                        <>
+                          <Plus size={ICON.xs} />
+                          카테고리 추가
+                        </>
+                      )}
                     </button>
                   ) : null}
                   {/* 시험지 ↔ 참고자료 segmented 토글 — 현재 상태 + 변경 동작이 한 컨트롤로 통합.
@@ -1421,6 +1503,8 @@ export default function MatchupPage() {
                       onToggleMergeSelect={handleToggleMergeSelect}
                       onClearMergeSelection={handleClearMergeSelection}
                       onConfirmMerge={handleOpenMergeModal}
+                      onOpenManualCrop={selectedDoc ? () => setCropDocId(selectedDoc.id) : undefined}
+                      onRetry={selectedDoc ? () => handleRetry(selectedDoc.id) : undefined}
                     />
                   </div>
 
