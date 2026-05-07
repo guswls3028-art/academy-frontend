@@ -62,6 +62,19 @@ export type MatchupSourceType =
   | "answer_key"
   | "other";
 
+// Stage 5/6 — 자동분리 5단계 quality (callback `_handle_matchup_ai_result` 산출).
+//   precise_split  : bbox null < 30%, 정밀 분리.
+//   coarse_split   : bbox null 30~50%, 일부 폴백 (검수 권장).
+//   needs_review   : bbox null 50~70%, 다수 폴백 (검수 필수).
+//   page_fallback  : bbox null 70%+, 페이지 단위 폴백 (수동 자르기 권장).
+//   no_problems    : problem 0건 (분리 자체 X).
+export type ProcessingQuality =
+  | "precise_split"
+  | "coarse_split"
+  | "needs_review"
+  | "page_fallback"
+  | "no_problems";
+
 export type MatchupDocumentMeta = {
   segmentation_method?: SegmentationMethod;
   // legacy 2-value (잔존)
@@ -71,6 +84,9 @@ export type MatchupDocumentMeta = {
   source_type?: MatchupSourceType;
   indexable?: boolean;  // false면 매치업 검색에 포함 X (explanation/answer_key)
   paper_type_summary?: PaperTypeSummary;
+  // Stage 5/6 callback 산출 — UI 안내 배너에서 사용.
+  processing_quality?: ProcessingQuality | string;
+  bbox_null_ratio?: number | null;  // 0.0 ~ 1.0
   // Phase 5-deep: 학원장이 검수 모달에서 매치업 인덱싱 제외한 페이지 idx 리스트.
   // 다음 reanalyze 시 워커가 해당 페이지 skip → 다시 problem 생성 안 됨.
   excluded_pages?: number[];

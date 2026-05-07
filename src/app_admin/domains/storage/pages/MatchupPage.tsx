@@ -40,6 +40,7 @@ import MergeProblemsModal from "../components/matchup/MergeProblemsModal";
 import HitReportEditor from "../components/matchup/HitReportEditor";
 import HitReportListModal from "../components/matchup/HitReportListModal";
 import MatchupEmptyState from "../components/matchup/MatchupEmptyState";
+import DocumentGuidanceBanner from "../components/matchup/DocumentGuidanceBanner";
 import {
   getDocumentIntent, getSourceType, SOURCE_TYPE_LABELS, SOURCE_TYPE_ORDER,
   type MatchupSourceType,
@@ -1305,7 +1306,12 @@ export default function MatchupPage() {
                   );
                 })()}
 
-                {/* 시험지 유형 자동 분류 결과 + 자동분리 신뢰도 경고.
+                {/* Stage 6.7-policy P0 — paper_type / processing_quality / indexable
+                    통합 안내 배너. 9 paper_type + 5 quality + indexable 의미를 학원장
+                    1회 시각으로 인식. 빨간색 사용 0, "권장 행동" 중심 copy. */}
+                <DocumentGuidanceBanner document={selectedDoc} />
+
+                {/* 시험지 유형 자동 분류 결과 + 자동분리 신뢰도 경고 (legacy 운영 사고 fix).
                     백엔드 paper-type classifier가 페이지별로 분류한 결과의 doc-level summary.
                     학생 답안지 폰사진 / 표지·정답지 다수 / 저신뢰 source 다수일 때 사전 경고. */}
                 {selectedDoc?.status === "done" && selectedDoc.meta?.paper_type_summary && (() => {
