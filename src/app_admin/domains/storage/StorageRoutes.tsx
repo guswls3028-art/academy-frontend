@@ -9,6 +9,7 @@ import StudentInventoryPage from "./pages/StudentInventoryPage";
 
 const MatchupPage = lazy(() => import("./pages/MatchupPage"));
 const HitReportListPage = lazy(() => import("./pages/HitReportListPage"));
+const ProposalReviewPage = lazy(() => import("./pages/ProposalReviewPage"));
 
 function StudentRedirect() {
   const { studentPs } = useParams<{ studentPs: string }>();
@@ -44,6 +45,16 @@ export default function StorageRoutes() {
           element={
             <Suspense fallback={null}>
               <HitReportListPage />
+            </Suspense>
+          }
+        />
+
+        {/* Stage 6.3A — 자동 분리 검수 큐 (Proposal Review v1) */}
+        <Route
+          path="proposals"
+          element={
+            <Suspense fallback={null}>
+              <ProposalReviewPage />
             </Suspense>
           }
         />

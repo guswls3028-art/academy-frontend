@@ -128,7 +128,16 @@ export type SimilarProblem = {
   document_title: string;
   number: number;
   text: string;
+  /** AI 유사 후보 점수 (보정 후 최종, 0~1). "적중 확률" 아님 — 최종 판정은 선생님 확인. */
   similarity: number;
+  /** Raw text cosine 유사도 (보정 전, 0~1). breakdown UI 노출용. */
+  text_similarity?: number;
+  /** Raw image cosine 유사도 (양쪽 embedding 보유 시에만 0~1, 아니면 null). */
+  image_similarity?: number | null;
+  /** 학원장이 직접 자른 problem (manual cut). 순위 품질 보정 신호. */
+  is_manual_cut?: boolean;
+  /** 페이지 통째 후보 (자동분리가 anchor 없이 페이지 등록). "직접 적중 후보" 라벨 회피. */
+  is_page_fallback?: boolean;
   image_url?: string;
   // Phase 2: 출처 정보 (시험 문제 인덱싱 후)
   source_type?: "matchup" | "exam";
@@ -812,4 +821,117 @@ export function getHitReportSharePackageUrl(reportId: number): string {
 
 export async function deleteHitReport(reportId: number): Promise<void> {
   await api.delete(`/matchup/hit-reports/${reportId}/`);
+}
+
+// ── Stage 6.3A — Proposal Review API v1 ───────────────────────────────
+//
+// 학원장/운영자가 자동분리(Yolo/VLM/OCR) 결과를 검수해서 승인/거절하는 큐.
+// backend `views_proposal._serialize_proposal_user_v1` 와 1:1 일치 (sanitized).
+//
+// 의도적 미노출 (서버가 안 내려줌): paper_type / engine / model_version /
+// raw confidence float / raw_response / analysis_version_key / tenant_id /
+// reviewed_by_id. 신규 필드 추가 시 backend 응답 SSOT 먼저 확인.
+
+export type ProposalStatus =
+  | "pending"
+  | "needs_review"
+  | "rejected"
+  | "approved"
+  | "auto_passed";
+
+export type ProposalConflictType = "manual_overlap" | "number_conflict" | null;
+
+export type ProposalConfidenceLabel = "high" | "medium" | "low" | "unknown";
+
+export type ProposalBbox = {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+} | number[] | null;
+
+export type ProposalReviewItem = {
+  id: number;
+  document_id: number;
+  page_number: number;
+  detected_problem_number: number;
+  status: ProposalStatus;
+  ui_status_label: string;
+  bbox: ProposalBbox;
+  image_key: string;
+  confidence_label: ProposalConfidenceLabel;
+  conflict_type: ProposalConflictType;
+  user_message: string | null;
+  can_approve: boolean;
+  can_reject: boolean;
+  promoted_problem_id: number | null;
+  reviewed_at: string | null;
+  created_at: string;
+};
+
+export type ProposalListResponse = {
+  proposals: ProposalReviewItem[];
+  total: number;
+  limit: number;
+  offset: number;
+};
+
+export type ProposalListParams = {
+  documentId?: number;
+  status?: ProposalStatus;
+  limit?: number;
+  offset?: number;
+};
+
+export async function fetchProposals(
+  params: ProposalListParams = {},
+): Promise<ProposalListResponse> {
+  const q: Record<string, string | number> = {};
+  if (params.documentId != null) q.document_id = params.documentId;
+  if (params.status) q.status = params.status;
+  if (params.limit != null) q.limit = params.limit;
+  if (params.offset != null) q.offset = params.offset;
+  const { data } = await api.get<ProposalListResponse>("/matchup/proposals/", {
+    params: q,
+  });
+  return data;
+}
+
+export async function fetchProposalDetail(
+  proposalId: number,
+): Promise<ProposalReviewItem> {
+  const { data } = await api.get<ProposalReviewItem>(
+    `/matchup/proposals/${proposalId}/`,
+  );
+  return data;
+}
+
+export type ProposalApproveResponse = {
+  proposal: ProposalReviewItem;
+  promoted_problem_id: number;
+};
+
+// adjustments(bbox/text/image_key/embedding 수정)는 v1 UI에서 미사용 — backend 호환만.
+export async function approveProposal(
+  proposalId: number,
+): Promise<ProposalApproveResponse> {
+  const { data } = await api.post<ProposalApproveResponse>(
+    `/matchup/proposals/${proposalId}/approve/`,
+    {},
+  );
+  return data;
+}
+
+export async function rejectProposal(
+  proposalId: number,
+  payload?: { reason?: string; code?: string },
+): Promise<{ proposal: ProposalReviewItem }> {
+  const { data } = await api.post<{ proposal: ProposalReviewItem }>(
+    `/matchup/proposals/${proposalId}/reject/`,
+    {
+      reason: payload?.reason ?? "",
+      code: payload?.code ?? "manual_reject",
+    },
+  );
+  return data;
 }
