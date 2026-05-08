@@ -153,6 +153,12 @@ export default function MatchupPage() {
   const [mergeSelectedIds, setMergeSelectedIds] = useState<number[]>([]);
   const [mergeModalOpen, setMergeModalOpen] = useState(false);
   const [intentUpdating, setIntentUpdating] = useState(false);
+  // 자료 유형 변경 chip 펼침 토글 — default 닫힘 (학원장 시야 차단, directive 2026-05-09).
+  const [sourceTypeEditorOpen, setSourceTypeEditorOpen] = useState(false);
+  // 다른 doc 선택 시 chip 자동 접힘 (이전 doc의 펼친 상태 잔존 방지).
+  useEffect(() => {
+    setSourceTypeEditorOpen(false);
+  }, [selectedDocId]);
   const [categoryEditing, setCategoryEditing] = useState(false);
   const [categoryDraft, setCategoryDraft] = useState("");
   const [categorySaving, setCategorySaving] = useState(false);
@@ -1287,63 +1293,92 @@ export default function MatchupPage() {
                   </div>
                 )}
 
-                {/* Phase 17 — 자료 유형 (source_type) 변경 가능 chip.
-                    backfill 결과를 학원장이 검수 후 즉시 정정 가능. backend가 reanalyze 트리거.
-                    7-value SSOT (학생폰사진/학교PDF/시판교재/학원워크북/해설지/답안지/기타). */}
+                {/* 자료 유형 변경 — 학원장 directive 2026-05-09: "사용자는 이런거 구분할줄 모름".
+                    Default 숨김 (학원장 시야 0). backend Phase 1 derive 가 자동 보정하므로
+                    학원장이 직접 분류 변경할 필요는 거의 없음. 잘못 분류된 경우만 가이드 배너 옆
+                    작은 "분류 수정" 토글로 펼쳐서 변경 가능. 헤더 메인 영역엔 노출 X. */}
                 {selectedDoc?.status === "done" && (() => {
                   const currentST = getSourceType(selectedDoc);
                   return (
                     <div data-testid="matchup-source-type-chip" style={/* eslint-disable-line no-restricted-syntax */ {
                       flexShrink: 0,
-                      padding: "var(--space-2) var(--space-3)",
-                      borderRadius: "var(--radius-md)",
-                      background: "var(--color-bg-surface)",
-                      border: "1px solid var(--color-border-divider)",
                       display: "flex", alignItems: "center", gap: "var(--space-2)",
                       flexWrap: "wrap",
+                      fontSize: 11,
                     }}>
-                      <span style={/* eslint-disable-line no-restricted-syntax */ {
-                        fontSize: 11, fontWeight: 700, color: "var(--color-text-muted)",
-                      }}>
-                        자료 유형:
-                      </span>
-                      <select
-                        value={currentST}
-                        onChange={(e) => handleChangeSourceType(e.target.value as MatchupSourceType)}
-                        data-testid="matchup-source-type-select"
-                        style={/* eslint-disable-line no-restricted-syntax */ {
-                          fontSize: 12, fontWeight: 600,
-                          padding: "4px 8px",
-                          border: "1px solid var(--color-brand-primary)",
-                          borderRadius: 4,
-                          background: "var(--color-bg-canvas)",
-                          color: "var(--color-text-primary)",
-                          cursor: "pointer",
-                        }}
-                      >
-                        {SOURCE_TYPE_ORDER.map((st) => (
-                          <option key={st} value={st}>{SOURCE_TYPE_LABELS[st]}</option>
-                        ))}
-                      </select>
-                      {/* P2 헤더 정비 — 안내 텍스트를 tooltip 으로 압축. 행 잡음 감소. */}
-                      <label style={/* eslint-disable-line no-restricted-syntax */ {
-                        marginLeft: "auto",
-                        display: "inline-flex", alignItems: "center", gap: 6,
-                        fontSize: 11, color: "var(--color-text-secondary)",
-                        cursor: "pointer", userSelect: "none",
-                      }} title={autoReanalyze
-                        ? "유형을 바꾸면 즉시 재분석이 트리거됩니다. 직접 자른 문항은 보존되지만 자동분리 결과는 새로 생성됩니다."
-                        : "현재 유형 변경만 저장됩니다. 새 방식으로 다시 추출하려면 별도로 재분석 버튼을 눌러주세요."
-                      }>
-                        <input
-                          type="checkbox"
-                          checked={autoReanalyze}
-                          onChange={(e) => toggleAutoReanalyze(e.target.checked)}
-                          data-testid="matchup-source-type-auto-reanalyze-toggle"
-                          style={/* eslint-disable-line no-restricted-syntax */ { cursor: "pointer" }}
-                        />
-                        변경 시 자동 재분석
-                      </label>
+                      {!sourceTypeEditorOpen ? (
+                        <button
+                          type="button"
+                          onClick={() => setSourceTypeEditorOpen(true)}
+                          data-testid="matchup-source-type-edit-trigger"
+                          title="자동 분류 결과를 직접 수정"
+                          style={/* eslint-disable-line no-restricted-syntax */ {
+                            background: "transparent", border: "none",
+                            color: "var(--color-text-muted)",
+                            fontSize: 11, fontWeight: 500,
+                            cursor: "pointer", padding: "2px 4px",
+                            textDecoration: "underline dotted",
+                            textUnderlineOffset: 3,
+                          }}
+                        >
+                          분류 수정
+                        </button>
+                      ) : (
+                        <>
+                          <span style={/* eslint-disable-line no-restricted-syntax */ {
+                            fontSize: 11, fontWeight: 700, color: "var(--color-text-muted)",
+                          }}>
+                            자료 유형:
+                          </span>
+                          <select
+                            value={currentST}
+                            onChange={(e) => handleChangeSourceType(e.target.value as MatchupSourceType)}
+                            data-testid="matchup-source-type-select"
+                            style={/* eslint-disable-line no-restricted-syntax */ {
+                              fontSize: 12, fontWeight: 600,
+                              padding: "4px 8px",
+                              border: "1px solid var(--color-brand-primary)",
+                              borderRadius: 4,
+                              background: "var(--color-bg-canvas)",
+                              color: "var(--color-text-primary)",
+                              cursor: "pointer",
+                            }}
+                          >
+                            {SOURCE_TYPE_ORDER.map((st) => (
+                              <option key={st} value={st}>{SOURCE_TYPE_LABELS[st]}</option>
+                            ))}
+                          </select>
+                          <label style={/* eslint-disable-line no-restricted-syntax */ {
+                            display: "inline-flex", alignItems: "center", gap: 6,
+                            fontSize: 11, color: "var(--color-text-secondary)",
+                            cursor: "pointer", userSelect: "none",
+                          }} title={autoReanalyze
+                            ? "유형을 바꾸면 즉시 재분석이 트리거됩니다. 직접 자른 문항은 보존되지만 자동분리 결과는 새로 생성됩니다."
+                            : "현재 유형 변경만 저장됩니다. 새 방식으로 다시 추출하려면 별도로 재분석 버튼을 눌러주세요."
+                          }>
+                            <input
+                              type="checkbox"
+                              checked={autoReanalyze}
+                              onChange={(e) => toggleAutoReanalyze(e.target.checked)}
+                              data-testid="matchup-source-type-auto-reanalyze-toggle"
+                              style={/* eslint-disable-line no-restricted-syntax */ { cursor: "pointer" }}
+                            />
+                            변경 시 자동 재분석
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => setSourceTypeEditorOpen(false)}
+                            data-testid="matchup-source-type-edit-close"
+                            title="접기"
+                            style={/* eslint-disable-line no-restricted-syntax */ {
+                              background: "transparent", border: "none",
+                              color: "var(--color-text-muted)",
+                              fontSize: 14, lineHeight: 1, cursor: "pointer",
+                              padding: "2px 6px",
+                            }}
+                          >×</button>
+                        </>
+                      )}
                     </div>
                   );
                 })()}
