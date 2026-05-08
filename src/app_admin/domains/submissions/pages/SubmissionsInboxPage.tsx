@@ -276,6 +276,7 @@ export default function SubmissionsInboxPage() {
       {needsIdentificationCount > 0 && (
         <div
           className="flex items-center justify-between gap-3 rounded-xl px-4 py-3 border"
+          // eslint-disable-next-line no-restricted-syntax
           style={{
             background: "color-mix(in srgb, var(--color-warning, #f59e0b) 8%, var(--color-bg-surface))",
             borderColor: "color-mix(in srgb, var(--color-warning, #f59e0b) 24%, transparent)",
@@ -386,8 +387,8 @@ function SubmissionRow({
   onRetry: () => void;
   onDiscard: () => void;
 }) {
-  const tone = (SUBMISSION_STATUS_TONE as any)[row.status] ?? "neutral";
-  const statusLabel = (SUBMISSION_STATUS_LABEL as any)[row.status] ?? row.status;
+  const tone = (SUBMISSION_STATUS_TONE as Record<string, "success" | "danger" | "warning" | "primary" | "neutral">)[row.status] ?? "neutral";
+  const statusLabel = (SUBMISSION_STATUS_LABEL as Record<string, string>)[row.status] ?? row.status;
   const isExam = row.target_type === "exam";
   const resolved = isTargetResolved(row);
 
@@ -396,6 +397,9 @@ function SubmissionRow({
   const isProcessing = PROCESSING_STATUSES.has(row.status);
   const isDone = row.status === "done";
   const isAnswersReady = row.status === "answers_ready";
+  // 학생 지정 picker 는 현재 exam 한정 (백엔드 exam_candidates_view 만 존재).
+  // homework needs_id 는 picker 부재로 지정 불가.
+  const canIdentifyInline = isExam;
 
   const targetTitleDisplay = row.target_title || (resolved ? "—" : "원본 시험을 찾을 수 없음");
   const lectureTitleDisplay = row.lecture_title || "";
@@ -412,6 +416,7 @@ function SubmissionRow({
 
       <span
         className="flex-shrink-0 inline-flex items-center justify-center text-[11px] font-bold rounded w-5 h-5 leading-none"
+        // eslint-disable-next-line no-restricted-syntax
         style={{
           background: isExam
             ? "var(--color-primary-bg, #eff6ff)"
@@ -427,6 +432,7 @@ function SubmissionRow({
 
       <span
         className="text-sm truncate min-w-0 max-w-[220px]"
+        // eslint-disable-next-line no-restricted-syntax
         style={{
           color: resolved ? "var(--color-text-primary)" : "var(--color-text-muted)",
           fontStyle: resolved ? undefined : "italic",
@@ -451,9 +457,20 @@ function SubmissionRow({
       </span>
 
       <div className="flex items-center gap-1.5 flex-shrink-0">
-        {isNeedsId && resolved && (
+        {isNeedsId && resolved && canIdentifyInline && (
           <Button type="button" intent="primary" size="sm" disabled={busy} onClick={onIdentify}>
             학생 지정
+          </Button>
+        )}
+        {isNeedsId && resolved && !canIdentifyInline && (
+          <Button
+            type="button"
+            intent="secondary"
+            size="sm"
+            disabled
+            title="과제 미식별은 인박스에서 지정할 수 없습니다. 과제 페이지에서 매칭해 주세요."
+          >
+            지정 불가
           </Button>
         )}
         {isNeedsId && !resolved && (
