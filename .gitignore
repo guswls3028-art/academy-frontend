@@ -88,8 +88,15 @@ e2e/fixtures/test-exam.pdf
 
 # 로컬 디버그·리뷰 스크립트·스크린샷 (공유 불필요)
 e2e/_local/
+e2e/_artifacts/
 _e2e_review_screenshots/
 e2e/audit/_uiux_review/
+
+# tsc 컴파일 산출물 — .ts 만 정본
+functions/*.js
+vite-plugins/*.js
+playwright.config.js
+playwright.local.config.js
 
 # 로컬 빌드 산출물 (dist 외 변형)
 dist-final/

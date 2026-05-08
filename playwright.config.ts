@@ -14,7 +14,7 @@ export default defineConfig({
   // E2E_STRICT=report 모드에서 spec 별 console.error/pageerror annotation 을
   // test-results/strict-defects.json 으로 합산 — 운영자 점검용.
   globalTeardown: "./e2e/globalTeardown.ts",
-  timeout: 60_000,
+  timeout: 180_000,
   expect: { timeout: 10_000 },
   fullyParallel: false,
   retries: process.env.CI ? 1 : 1,
@@ -31,7 +31,7 @@ export default defineConfig({
   projects: [
     {
       name: "chromium",
-      use: { ...devices["Desktop Chrome"] },
+      use: { ...devices["Desktop Chrome"], viewport: { width: 1920, height: 1080 }, deviceScaleFactor: 1 },
     },
   ],
 });

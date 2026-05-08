@@ -26,7 +26,7 @@ e2e/
 ## 실행
 
 ```sh
-pnpm test:e2e          # 전체 (활성 78 spec / 약 30~45분)
+pnpm test:e2e          # 전체 (활성 127 spec)
 pnpm test:e2e:gate     # 빠른 게이트 (login admin+student, 수동 검증용)
 pnpm test:e2e:headed   # headed 모드
 pnpm test:e2e:ui       # UI 모드 (대화형)

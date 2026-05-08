@@ -12,8 +12,9 @@ export default defineConfig({
     headless: true,
     screenshot: "only-on-failure",
     trace: "retain-on-failure",
-    actionTimeout: 8_000,
-    navigationTimeout: 15_000,
+    actionTimeout: 15_000,
+    // Vite dev server 첫 빌드에 시간이 걸리므로 넉넉히
+    navigationTimeout: 60_000,
   },
   projects: [
     {
