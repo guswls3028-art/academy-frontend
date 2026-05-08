@@ -4,7 +4,7 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams, useNavigate, useLocation } from "react-router-dom";
-import { Sparkles, AlertTriangle, RefreshCw, Eye, FolderOpen, BookOpen, Crop, ClipboardList, FolderTree, MoreHorizontal, Layers, FolderInput, Plus, Trash2 } from "lucide-react";
+import { Sparkles, AlertTriangle, RefreshCw, Eye, BookOpen, Crop, ClipboardList, FolderTree, FolderInput, Plus } from "lucide-react";
 import { Button, ICON } from "@/shared/ui/ds";
 import { useConfirm } from "@/shared/ui/confirm";
 import useAuth from "@/auth/hooks/useAuth";
@@ -42,6 +42,9 @@ import HitReportListModal from "../components/matchup/HitReportListModal";
 import MatchupEmptyState from "../components/matchup/MatchupEmptyState";
 import DocumentGuidanceBanner from "../components/matchup/DocumentGuidanceBanner";
 import BulkDeleteModal from "../components/matchup/BulkDeleteModal";
+import HeaderMoreMenu from "./MatchupPage.parts/HeaderMoreMenu";
+import MergeModeRightPanel from "./MatchupPage.parts/MergeModeRightPanel";
+import IntentToggle from "./MatchupPage.parts/IntentToggle";
 import {
   getDocumentIntent, getSourceType, SOURCE_TYPE_LABELS, SOURCE_TYPE_ORDER,
   type MatchupSourceType,
@@ -213,9 +216,15 @@ export default function MatchupPage() {
   }, [treeWidth, treeWidthKey]);
 
   // ── 문서 목록 ──
+  // D-4 cold load 단축 (audit 2026-05-08) — staleTime 60s + gcTime 5min.
+  // 학원장이 다른 페이지 갔다 다시 돌아오는 시간(보통 5초~수분) 안에는 마지막 데이터를
+  // 그대로 보여주고 background refetch 만 수행 → "왼쪽에서 문서 선택해 주세요" 빈 상태가
+  // 짧게 깜빡이던 결함 fix. 문서 status 변경은 useMatchupPolling 이 별도로 처리.
   const { data: documents = [], isLoading: docsLoading } = useQuery({
     queryKey: ["matchup-documents"],
     queryFn: fetchMatchupDocuments,
+    staleTime: 60_000,
+    gcTime: 5 * 60_000,
   });
 
   const progressMap = useMatchupPolling(documents);
@@ -873,39 +882,44 @@ export default function MatchupPage() {
           <div className={css.tree} style={/* eslint-disable-line no-restricted-syntax */ {
             width: treeWidth, minWidth: treeWidth,
           }}>
-            {/* 강사/학원장 보고서 누적 진입점 — 작성한 보고서 모음/inbox.
-                "보관함" 비유로 시작 시점부터 의미 명확. */}
+            {/* 강사/학원장 보고서 누적 진입점 — quick-access ghost link.
+                메인 진입은 상단 탭 "적중 보고서"(/admin/storage/hit-reports). 본문은 매치업 작업
+                중 즉시 모달로 본인/학원 보고서 모음을 훑는 보조 진입. 큰 푸른 강조 → ghost 격하
+                (D-1+D-3 audit 2026-05-08). */}
             <div style={/* eslint-disable-line no-restricted-syntax */ {
-              padding: "8px 10px",
+              padding: "4px 8px",
               borderBottom: "1px solid var(--color-border-divider)",
-              background: "var(--color-bg-surface-soft)",
-              display: "flex", alignItems: "center", gap: 6,
+              display: "flex", alignItems: "center",
             }}>
               <button
                 onClick={() => setHitReportListOpen(true)}
                 title={isAcademyAdmin
-                  ? "학원 전체 강사가 제출한 적중 보고서를 봅니다"
-                  : "내가 작성한 적중 보고서를 모아 봅니다"}
+                  ? "학원 전체 강사가 제출한 적중 보고서를 빠르게 봅니다 (메인은 상단 탭)"
+                  : "내가 작성한 적중 보고서를 빠르게 봅니다 (메인은 상단 탭)"}
+                data-testid="matchup-hit-report-quick-link"
                 style={/* eslint-disable-line no-restricted-syntax */ {
-                  flex: 1, padding: "7px 10px",
+                  flex: 1, padding: "4px 6px",
                   display: "flex", alignItems: "center", gap: 6,
-                  fontSize: 12, fontWeight: 700,
-                  border: "1px solid color-mix(in srgb, var(--color-brand-primary) 35%, transparent)",
-                  borderRadius: 6,
-                  background: "color-mix(in srgb, var(--color-brand-primary) 6%, transparent)",
-                  color: "var(--color-brand-primary)",
+                  fontSize: 11, fontWeight: 500,
+                  border: "none",
+                  borderRadius: 4,
+                  background: "transparent",
+                  color: "var(--color-text-secondary)",
                   cursor: "pointer",
-                  transition: "background 0.12s, border-color 0.12s",
+                  transition: "color 0.12s, background 0.12s",
+                  textAlign: "left",
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.background = "color-mix(in srgb, var(--color-brand-primary) 12%, transparent)";
-                }}
-                onMouseLeave={(e) => {
+                  e.currentTarget.style.color = "var(--color-brand-primary)";
                   e.currentTarget.style.background = "color-mix(in srgb, var(--color-brand-primary) 6%, transparent)";
                 }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.color = "var(--color-text-secondary)";
+                  e.currentTarget.style.background = "transparent";
+                }}
               >
-                <FolderTree size={ICON.sm} />
-                {isAcademyAdmin ? "학원 적중 보고서 모음" : "내 적중 보고서 모음"}
+                <FolderTree size={ICON.xs} />
+                <span>{isAcademyAdmin ? "학원 적중 보고서 모음" : "내 적중 보고서 모음"}</span>
               </button>
             </div>
             <DocumentList
@@ -1682,282 +1696,5 @@ export default function MatchupPage() {
         />
       )}
     </>
-  );
-}
-
-// ── 헤더 보조 액션 ⋮ 메뉴 — 원본보기/저장소 등 자주 안 쓰는 액션을 묶어 노이즈 감소.
-//    학원장이 메인 CTA(적중보고서/직접자르기)에 집중할 수 있도록 분리.
-function HeaderMoreMenu({
-  onPreview,
-  onOpenStorage,
-  onBulkDelete,
-}: {
-  onPreview: () => void;
-  onOpenStorage: (() => void) | null;
-  /** P2 헤더 정비 — 자주 안 쓰이는 "범위 일괄삭제"를 ⋮ 메뉴 안으로 이동 */
-  onBulkDelete: (() => void) | null;
-}) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement | null>(null);
-  useEffect(() => {
-    if (!open) return;
-    const onDocClick = (e: MouseEvent) => {
-      if (!ref.current?.contains(e.target as Node)) setOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
-    document.addEventListener("mousedown", onDocClick);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDocClick);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
-  return (
-    <div ref={ref} style={/* eslint-disable-line no-restricted-syntax */ { position: "relative" }}>
-      <Button
-        size="sm"
-        intent="ghost"
-        onClick={() => setOpen((v) => !v)}
-        title="더 보기"
-        data-testid="matchup-doc-more-menu-trigger"
-        leftIcon={<MoreHorizontal size={ICON.sm} />}
-      >
-        더 보기
-      </Button>
-      {open && (
-        <div
-          role="menu"
-          data-testid="matchup-doc-more-menu"
-          style={/* eslint-disable-line no-restricted-syntax */ {
-            position: "absolute", right: 0, top: "calc(100% + 4px)", zIndex: 30,
-            minWidth: 200, padding: 4,
-            background: "var(--color-bg-surface)",
-            border: "1px solid var(--color-border-divider)",
-            borderRadius: "var(--radius-md)",
-            boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
-            display: "flex", flexDirection: "column", gap: 1,
-          }}
-        >
-          <button
-            type="button"
-            role="menuitem"
-            onClick={() => { setOpen(false); onPreview(); }}
-            data-testid="matchup-doc-preview-btn"
-            style={moreMenuItemStyle}
-          >
-            <Eye size={ICON.sm} />
-            <span>원본 PDF 보기</span>
-          </button>
-          {onOpenStorage && (
-            <button
-              type="button"
-              role="menuitem"
-              onClick={() => { setOpen(false); onOpenStorage(); }}
-              data-testid="matchup-doc-storage-link"
-              style={moreMenuItemStyle}
-            >
-              <FolderOpen size={ICON.sm} />
-              <span>저장소에서 보기</span>
-            </button>
-          )}
-          {onBulkDelete && (
-            <>
-              <div style={/* eslint-disable-line no-restricted-syntax */ {
-                height: 1, background: "var(--color-border-divider)", margin: "2px 0",
-              }} />
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => { setOpen(false); onBulkDelete(); }}
-                data-testid="matchup-doc-bulk-delete-menu-item"
-                style={/* eslint-disable-line no-restricted-syntax */ {
-                  ...moreMenuItemStyle,
-                  color: "var(--color-danger)",
-                }}
-              >
-                <Trash2 size={ICON.sm} />
-                <span>자동분리 잔존 일괄삭제</span>
-              </button>
-            </>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-const moreMenuItemStyle: React.CSSProperties = /* eslint-disable-line no-restricted-syntax */ {
-  display: "flex", alignItems: "center", gap: 8,
-  width: "100%", padding: "8px 12px",
-  background: "transparent", border: "none",
-  borderRadius: "var(--radius-sm)",
-  textAlign: "left", fontSize: 13, fontWeight: 500,
-  color: "var(--color-text-primary)",
-  cursor: "pointer", fontFamily: "inherit",
-};
-
-// ── 합치기 모드 우측 패널 — 학원장이 "왜 추천이 안 보이지?" 혼란하지 않도록
-//    현재 모드 컨텍스트와 다음 행동을 친절하게 가이드.
-function MergeModeRightPanel({
-  selectedCount,
-  onConfirm,
-  onClear,
-  onExit,
-}: {
-  selectedCount: number;
-  onConfirm: () => void;
-  onClear: () => void;
-  onExit: () => void;
-}) {
-  return (
-    <div
-      data-testid="matchup-merge-mode-right-panel"
-      style={/* eslint-disable-line no-restricted-syntax */ {
-        display: "flex", flexDirection: "column", gap: "var(--space-3)",
-        padding: "var(--space-4)",
-      }}
-    >
-      <div style={/* eslint-disable-line no-restricted-syntax */ {
-        display: "flex", alignItems: "center", gap: 8,
-        padding: "10px 12px",
-        background: "color-mix(in srgb, var(--color-brand-primary) 8%, var(--color-bg-surface))",
-        border: "1px solid color-mix(in srgb, var(--color-brand-primary) 35%, transparent)",
-        borderRadius: "var(--radius-md)",
-      }}>
-        <Layers size={ICON.md} style={{ color: "var(--color-brand-primary)", flexShrink: 0 }} />
-        <div>
-          <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-brand-primary)" }}>
-            합치기 모드
-          </div>
-          <div style={{ fontSize: 11, color: "var(--color-text-secondary)", marginTop: 2 }}>
-            한 문항이 여러 칸으로 쪼개진 경우 묶어서 1개로 만듭니다.
-          </div>
-        </div>
-      </div>
-
-      <ol
-        style={/* eslint-disable-line no-restricted-syntax */ {
-          margin: 0,
-          paddingLeft: 18,
-          fontSize: 12,
-          lineHeight: 1.7,
-          color: "var(--color-text-secondary)",
-        }}
-      >
-        <li>좌측에서 합치고 싶은 문항을 <strong>위→아래 순서대로</strong> 클릭하세요.</li>
-        <li>2개 이상 선택되면 아래 <strong>합치기</strong> 버튼이 활성화됩니다.</li>
-        <li>합쳐진 결과는 즉시 그리드에 1개 카드로 반영됩니다.</li>
-      </ol>
-
-      <div
-        style={/* eslint-disable-line no-restricted-syntax */ {
-          padding: "12px 14px",
-          borderRadius: "var(--radius-md)",
-          background: selectedCount >= 2
-            ? "color-mix(in srgb, var(--color-brand-primary) 8%, transparent)"
-            : "var(--color-bg-surface-soft)",
-          border: selectedCount >= 2
-            ? "1px solid color-mix(in srgb, var(--color-brand-primary) 35%, transparent)"
-            : "1px dashed var(--color-border-divider)",
-          display: "flex", alignItems: "center", gap: 10,
-        }}
-      >
-        <strong style={{
-          fontSize: 22, fontWeight: 800,
-          color: selectedCount >= 2 ? "var(--color-brand-primary)" : "var(--color-text-muted)",
-          minWidth: 28,
-        }}>{selectedCount}</strong>
-        <span style={{ fontSize: 12, color: "var(--color-text-secondary)", flex: 1 }}>
-          {selectedCount === 0
-            ? "아직 선택된 문항이 없습니다."
-            : selectedCount === 1
-              ? "1개 더 선택하면 합칠 수 있어요."
-              : `${selectedCount}개 → 1개로 합칠 준비 완료.`}
-        </span>
-      </div>
-
-      <div style={/* eslint-disable-line no-restricted-syntax */ { display: "flex", gap: 8, flexDirection: "column" }}>
-        <Button
-          size="sm"
-          intent="primary"
-          disabled={selectedCount < 2}
-          onClick={onConfirm}
-          data-testid="matchup-merge-right-panel-confirm"
-          leftIcon={<Layers size={ICON.sm} />}
-        >
-          {selectedCount < 2 ? "2개 이상 선택해 주세요" : `${selectedCount}개를 1개로 합치기`}
-        </Button>
-        {selectedCount > 0 && (
-          <Button size="sm" intent="ghost" onClick={onClear}>
-            선택 해제
-          </Button>
-        )}
-        <Button size="sm" intent="ghost" onClick={onExit}>
-          합치기 모드 종료
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-// ── 시험지 ↔ 참고자료 segmented 토글.
-//    뱃지 + 변경 버튼 2개로 쪼개졌던 컨트롤을 한 곳으로 통합. 현재 상태와 변경 동작을
-//    한 컨트롤로 합쳐 학원장이 "지금 어느 쪽인지" 즉시 인지 + 한 번 클릭으로 전환.
-function IntentToggle({
-  value,
-  onChange,
-  disabled,
-}: {
-  value: "test" | "reference";
-  onChange: (next: "test" | "reference") => void;
-  disabled: boolean;
-}) {
-  return (
-    <div
-      role="tablist"
-      aria-label="문서 유형"
-      data-testid="matchup-intent-toggle"
-      style={/* eslint-disable-line no-restricted-syntax */ {
-        display: "inline-flex",
-        padding: 2,
-        borderRadius: 999,
-        background: "var(--color-bg-surface-soft)",
-        border: "1px solid var(--color-border-divider)",
-        opacity: disabled ? 0.6 : 1,
-      }}
-    >
-      {(["test", "reference"] as const).map((key) => {
-        const active = value === key;
-        const label = key === "test" ? "시험지" : "참고자료";
-        const tone = key === "test" ? "var(--color-warning)" : "var(--color-brand-primary)";
-        return (
-          <button
-            key={key}
-            type="button"
-            role="tab"
-            aria-selected={active}
-            disabled={disabled || active}
-            onClick={() => onChange(key)}
-            data-active={active}
-            data-testid={`matchup-intent-toggle-${key}`}
-            style={/* eslint-disable-line no-restricted-syntax */ {
-              padding: "3px 12px",
-              border: "none",
-              borderRadius: 999,
-              background: active ? "var(--color-bg-surface)" : "transparent",
-              color: active ? tone : "var(--color-text-muted)",
-              fontWeight: active ? 700 : 500,
-              fontSize: 12,
-              boxShadow: active ? "0 1px 2px rgba(0,0,0,0.06)" : "none",
-              cursor: disabled || active ? "default" : "pointer",
-              transition: "background 0.12s, color 0.12s",
-            }}
-            title={active ? `현재 ${label}` : `${label}로 변경`}
-          >
-            {label}
-          </button>
-        );
-      })}
-    </div>
   );
 }
