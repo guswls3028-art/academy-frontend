@@ -35,18 +35,7 @@ import {
   vlmClassifyMatchupPage,
 } from "../../api/matchup.api";
 import type { MatchupDocument, LowConfPage, VlmClassifyResult } from "../../api/matchup.api";
-
-const PAPER_TYPE_LABEL: Record<string, string> = {
-  clean_pdf_single: "PDF (1단)",
-  clean_pdf_dual: "PDF (2단)",
-  quadrant: "4분할 시험지",
-  scan_single: "스캔본 (1단)",
-  scan_dual: "스캔본 (2단)",
-  student_answer_photo: "학생 답안지 폰사진",
-  side_notes: "학습자료 본문",
-  non_question: "표지/정답지/해설지",
-  unknown: "분류 불명",
-};
+import { paperTypeLabel } from "./paperType";
 
 const REASON_LABEL: Record<string, string> = {
   paper_type_unknown: "유형 분류 실패",
@@ -61,10 +50,6 @@ const REASON_LABEL: Record<string, string> = {
 
 function reasonLabel(key: string): string {
   return REASON_LABEL[key] ?? key;
-}
-
-function paperTypeLabel(key: string): string {
-  return PAPER_TYPE_LABEL[key] ?? key;
 }
 
 type Props = {
@@ -146,17 +131,17 @@ export default function LowConfPageReviewer({
       feedback.success(
         `${activeIdx + 1}페이지 제외됨 (문항 ${res.removed_problems}건 삭제)`,
       );
-      setExcludedThisSession((prev) => {
-        const next = new Set(prev);
-        next.add(activeIdx);
-        return next;
-      });
+      // 다음 검수 페이지 자동 이동 + excluded set 갱신을 단일 시퀀스로 묶음.
+      // 이전 코드는 setExcludedThisSession 직후 closure 의 stale set 으로 next 를
+      // 계산해 방금 제외한 idx 가 후보에 남는 race 가 있었음.
+      const nextExcluded = new Set(excludedThisSession);
+      nextExcluded.add(activeIdx);
+      setExcludedThisSession(nextExcluded);
       // 즉시 problems / documents 캐시 무효화
       qc.invalidateQueries({ queryKey: ["matchup-problems", doc.id] });
       qc.invalidateQueries({ queryKey: ["matchup-documents"] });
-      // 다음 검수 페이지로 자동 이동 — 처리 흐름 끊김 방지
       const nextPage = lowConfPages.find(
-        (p) => p.idx !== activeIdx && !excludedThisSession.has(p.idx),
+        (p) => p.idx !== activeIdx && !nextExcluded.has(p.idx),
       );
       if (nextPage) setActiveIdx(nextPage.idx);
     } catch (e) {

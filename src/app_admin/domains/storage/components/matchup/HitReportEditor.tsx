@@ -730,7 +730,12 @@ export default function HitReportEditor({ docId, onClose }: Props) {
               </div>
               {examProblems.map((ep, i) => {
                 const ent = entries[ep.id];
-                const cnt = ent?.selectedProblemIds.length ?? 0;
+                const ids = ent?.selectedProblemIds ?? [];
+                // dangling = candidateMap 에 없는 pid (원본 자료 삭제됨 / hit-report
+                // 생성 시점엔 있었으나 그 후 retry/replace 로 사라진 problem). 카운트는
+                // 살아있는 것만 세서 사용자가 정확한 자료 수 인지하도록.
+                const danglingCount = ids.filter((pid) => !candidateMap.has(pid)).length;
+                const cnt = ids.length - danglingCount;
                 const hasComment = !!(ent?.comment.trim());
                 const isActive = i === activeIndex;
                 const isExcluded = !!ent?.excluded;
@@ -773,6 +778,20 @@ export default function HitReportEditor({ docId, onClose }: Props) {
                     ) : (
                       <span style={{ fontSize: 10, color: cnt > 0 ? "var(--color-status-success)" : "var(--color-text-muted)" }}>
                         {cnt > 0 ? `자료 ${cnt}` : "선택 없음"}
+                      </span>
+                    )}
+                    {danglingCount > 0 && !isExcluded && (
+                      <span
+                        title={`원본이 삭제된 자료 ${danglingCount}개 — 우측 후보 목록에서 정정해 주세요`}
+                        style={{
+                          fontSize: 10, fontWeight: 700,
+                          padding: "1px 5px", borderRadius: 999,
+                          background: "color-mix(in srgb, var(--color-status-error, #dc2626) 12%, transparent)",
+                          color: "var(--color-status-error, #dc2626)",
+                          border: "1px solid color-mix(in srgb, var(--color-status-error, #dc2626) 30%, transparent)",
+                        }}
+                      >
+                        ⚠ {danglingCount}
                       </span>
                     )}
                     {hasComment && !isExcluded && (
@@ -1175,7 +1194,20 @@ function SelectionPanel({
             </div>
             {extraSelected.map((pid) => {
               const meta = candidateMap.get(pid);
-              if (!meta) return null;
+              // dangling = 보고서 생성 시점엔 있었으나 그 후 원본 자료 삭제/재처리로
+              // 소실된 problem id. 이전 코드는 silent omit (`return null`) 이라 학원장이
+              // "왜 17개 골랐는데 12개만 보이지?" 인지 못 했음. placeholder 행으로 명시
+              // + 토글로 정정 가능하게.
+              if (!meta) {
+                return (
+                  <DanglingRow
+                    key={pid}
+                    pid={pid}
+                    disabled={disabled}
+                    onRemove={() => onToggle(pid)}
+                  />
+                );
+              }
               const docTitle = ("document_title" in meta && meta.document_title)
                 ? meta.document_title
                 : `자료 ${meta.document_id}번`;
@@ -1370,6 +1402,69 @@ function SelectRow({
           >
             <Crop size={ICON.xs} />
             원본 다시 자르기
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// dangling 후보 placeholder — 보고서 저장 후 원본 자료가 삭제·재처리되어 candidateMap
+// 에서 사라진 problem id 를 시각적으로 명시. 이전엔 silent omit 이라 사용자가 "내가
+// 17개 골랐는데 12개만 보이지?" 인지 못 했음 (2026-05-06 dangling 사고 ref).
+function DanglingRow({
+  pid, disabled, onRemove,
+}: {
+  pid: number;
+  disabled: boolean;
+  onRemove: () => void;
+}) {
+  return (
+    <div
+      data-testid="matchup-hit-report-dangling-row"
+      style={{
+        display: "flex", alignItems: "stretch", gap: 8,
+        padding: 6, paddingLeft: 12, marginBottom: 6,
+        border: "2px dashed color-mix(in srgb, var(--color-status-error, #dc2626) 35%, transparent)",
+        borderRadius: 6,
+        background: "color-mix(in srgb, var(--color-status-error, #dc2626) 4%, var(--color-bg-canvas))",
+      }}
+    >
+      <div style={{
+        width: 80, height: 100, borderRadius: 3, flexShrink: 0,
+        background: "color-mix(in srgb, var(--color-status-error, #dc2626) 6%, var(--color-bg-surface-soft))",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        color: "var(--color-status-error, #dc2626)",
+      }}>
+        <AlertTriangle size={ICON.lg} />
+      </div>
+      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 4, justifyContent: "center" }}>
+        <div style={{
+          fontSize: 12, fontWeight: 700,
+          color: "var(--color-status-error, #dc2626)",
+        }}>
+          원본 자료가 삭제되었습니다
+        </div>
+        <div style={{ fontSize: 11, color: "var(--color-text-secondary)", lineHeight: 1.5 }}>
+          이전에 선택했던 자료(번호 {pid})를 더 이상 찾을 수 없어 PDF에 포함되지 않습니다. 이 자리는 다른 자료로 교체하거나 제거해 주세요.
+        </div>
+        <div>
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); if (!disabled) onRemove(); }}
+            disabled={disabled}
+            style={{
+              padding: "4px 10px",
+              fontSize: 11, fontWeight: 700,
+              border: "1px solid color-mix(in srgb, var(--color-status-error, #dc2626) 35%, transparent)",
+              borderRadius: 4,
+              background: "color-mix(in srgb, var(--color-status-error, #dc2626) 8%, transparent)",
+              color: "var(--color-status-error, #dc2626)",
+              cursor: disabled ? "default" : "pointer",
+              opacity: disabled ? 0.5 : 1,
+            }}
+          >
+            선택에서 제거
           </button>
         </div>
       </div>

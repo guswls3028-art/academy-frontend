@@ -41,29 +41,12 @@ import HitReportEditor from "../components/matchup/HitReportEditor";
 import HitReportListModal from "../components/matchup/HitReportListModal";
 import MatchupEmptyState from "../components/matchup/MatchupEmptyState";
 import DocumentGuidanceBanner from "../components/matchup/DocumentGuidanceBanner";
+import BulkDeleteModal from "../components/matchup/BulkDeleteModal";
 import {
   getDocumentIntent, getSourceType, SOURCE_TYPE_LABELS, SOURCE_TYPE_ORDER,
   type MatchupSourceType,
 } from "../components/matchup/documentIntent";
 import css from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
-
-// 자동 분류된 시험지 유형 라벨 (학원 사용자 노출용 한글).
-// backend paper-type classifier enum과 동기.
-const PAPER_TYPE_LABEL: Record<string, string> = {
-  clean_pdf_single: "PDF (1단)",
-  clean_pdf_dual: "PDF (2단)",
-  quadrant: "4분할 시험지",
-  scan_single: "스캔본 (1단)",
-  scan_dual: "스캔본 (2단)",
-  student_answer_photo: "학생 답안지 폰사진",
-  side_notes: "학습자료 본문",
-  non_question: "표지/정답지/해설지",
-  unknown: "분류 불명",
-};
-
-function paperTypeLabel(key: string): string {
-  return PAPER_TYPE_LABEL[key] ?? key;
-}
 
 function hasAsyncWorkerTask(id: string): boolean {
   return asyncStatusStore
@@ -109,6 +92,8 @@ export default function MatchupPage() {
   const [hitReportDocId, setHitReportDocId] = useState<number | null>(null);
   // 강사별 보고서 누적 리스트 모달 (수업 히스토리/제출 KPI/홍보물 진입점).
   const [hitReportListOpen, setHitReportListOpen] = useState(false);
+  // A-2 (2026-05-08) — 자동분리 잔존 일괄삭제 모달 (이전엔 native window.prompt).
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
 
   // P1 (2026-05-04) — HitReportListPage에서 navigate({state: {openHitReportForDoc: docId}})로
   // 진입 시 자동 doc 선택 + HitReportEditor 오픈. sidebar→리스트→편집기 흐름 단축.
@@ -162,13 +147,20 @@ export default function MatchupPage() {
   const [categorySaving, setCategorySaving] = useState(false);
 
   // 좌측 트리 폭 — 시험지 제목이 길어 250px 고정으론 가독성이 떨어진다는 사용자 피드백.
-  // localStorage에 영속(브라우저 단위로 사용자가 한 번 조절하면 다음 방문 때도 유지).
-  const [treeWidth, setTreeWidth] = useState<number>(() => {
-    if (typeof window === "undefined") return 280;
-    const raw = window.localStorage.getItem("matchup:tree-width");
-    const n = raw ? Number(raw) : NaN;
-    return Number.isFinite(n) && n >= 220 && n <= 520 ? n : 280;
-  });
+  // localStorage 에 영속하되 user.id 별로 분리. 같은 PC 에서 학원장 A/B 가 다른 폭을
+  // 쓸 때 마지막 사용자가 다른 사용자 설정을 덮어쓰던 결함 fix (B-2 2026-05-08).
+  const treeWidthKey = user?.id ? `matchup:tree-width:u${user.id}` : null;
+  const [treeWidth, setTreeWidth] = useState<number>(280);
+  // user 가 들어온 직후, 또는 user 가 바뀐 직후 (logout/login swap) 에 그 user 의
+  // 저장값을 reload. 키가 없으면(비로그인 상태) default 유지.
+  useEffect(() => {
+    if (!treeWidthKey) return;
+    try {
+      const raw = window.localStorage.getItem(treeWidthKey);
+      const n = raw ? Number(raw) : NaN;
+      if (Number.isFinite(n) && n >= 220 && n <= 520) setTreeWidth(n);
+    } catch { /* ignore */ }
+  }, [treeWidthKey]);
   const handleTreeResizeStart = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     e.preventDefault();
     const startX = e.clientX;
@@ -187,10 +179,11 @@ export default function MatchupPage() {
 
   // treeWidth 변경 시 localStorage 동기화 (드래그 중 매 프레임 저장).
   useEffect(() => {
+    if (!treeWidthKey) return;
     try {
-      window.localStorage.setItem("matchup:tree-width", String(treeWidth));
+      window.localStorage.setItem(treeWidthKey, String(treeWidth));
     } catch { /* ignore */ }
-  }, [treeWidth]);
+  }, [treeWidth, treeWidthKey]);
 
   // ── 문서 목록 ──
   const { data: documents = [], isLoading: docsLoading } = useQuery({
@@ -609,33 +602,68 @@ export default function MatchupPage() {
   // 자료 유형 변경 시 자동 재분석 토글 — localStorage 보존 (학원장 1회 설정).
   // ON 상태에서 chip을 바꾸면 즉시 reanalyze까지 자동 호출 → 학원장이 별도 버튼
   // 누르는 step 1 줄어듦.
-  const AUTO_REANALYZE_KEY = "matchup-source-type-auto-reanalyze";
-  const [autoReanalyze, setAutoReanalyze] = useState<boolean>(() => {
-    try {
-      return localStorage.getItem(AUTO_REANALYZE_KEY) === "1";
-    } catch {
-      return false;
+  // B-2 (2026-05-08) — user.id namespace. 같은 PC 학원장 A/B 가 토글을 공유하던
+  // 결함 fix. 학원장 A 가 ON 으로 둔 상태로 학원장 B 로그인 시 B 의 의도 없이
+  // reanalyze 가 트리거되던 위험 차단.
+  const autoReanalyzeKey = user?.id
+    ? `matchup-source-type-auto-reanalyze:u${user.id}`
+    : null;
+  const [autoReanalyze, setAutoReanalyze] = useState<boolean>(false);
+  useEffect(() => {
+    if (!autoReanalyzeKey) {
+      setAutoReanalyze(false);
+      return;
     }
-  });
+    try {
+      setAutoReanalyze(localStorage.getItem(autoReanalyzeKey) === "1");
+    } catch {
+      setAutoReanalyze(false);
+    }
+  }, [autoReanalyzeKey]);
   const toggleAutoReanalyze = useCallback((next: boolean) => {
     setAutoReanalyze(next);
+    if (!autoReanalyzeKey) return;
     try {
-      localStorage.setItem(AUTO_REANALYZE_KEY, next ? "1" : "0");
+      localStorage.setItem(autoReanalyzeKey, next ? "1" : "0");
     } catch {
       // localStorage 불가 환경(시크릿 모드 등)에서도 in-memory state는 유지
     }
-  }, []);
+  }, [autoReanalyzeKey]);
 
   // Phase 17 — post-upload source_type 보정. 학원장이 잘못 백필된 라벨 즉시 정정.
   // autoReanalyze ON이면 변경 즉시 재분석까지 트리거.
+  //
+  // C-5 (2026-05-08) — autoReanalyze ON + manual cut 다수 시 confirm. 학원장 의도가
+  // "유형 라벨만 바꾸자"인데 reanalyze 가 자동분리 결과 전체를 갈아엎는 인지 갭 차단.
+  // manual cut 은 immutable safeguard 로 보존되지만 paper_type_summary / processing_quality
+  // / 자동분리 잔존은 모두 새로 생성됨.
   const handleChangeSourceType = useCallback(
     async (sourceType: import("../components/matchup/documentIntent").MatchupSourceType) => {
       if (!selectedDoc) return;
+      if (autoReanalyze) {
+        const manualCount = problems.filter((p) => Boolean(p.meta?.manual)).length;
+        const autoCount = problems.length - manualCount;
+        const ok = await confirm({
+          title: "자료 유형 변경 + 재분석",
+          message:
+            `자동 재분석이 켜져 있어 유형 변경 즉시 자동분리가 다시 실행됩니다.\n\n` +
+            (autoCount > 0
+              ? `· 자동분리 ${autoCount}개 문항이 새로 생성됩니다 (기존 결과 대체)\n`
+              : "") +
+            (manualCount > 0
+              ? `· 직접 자른 ${manualCount}개 문항은 보존됩니다\n`
+              : "") +
+            `\n유형 라벨만 바꾸려면 "취소" 후 상단 토글을 끄고 다시 시도해 주세요.`,
+          confirmText: "유형 변경 + 재분석",
+          cancelText: "취소",
+          danger: false,
+        });
+        if (!ok) return;
+      }
       try {
         await updateMatchupDocument(selectedDoc.id, { source_type: sourceType });
         await qc.invalidateQueries({ queryKey: ["matchup-documents"] });
         if (autoReanalyze) {
-          // 변경 즉시 재분석 트리거 — processing 충돌은 backend에서 409 반환.
           try {
             await reanalyzeMatchupDocument(selectedDoc.id);
             feedback.success("자료 유형 변경 + 재분석 시작");
@@ -654,7 +682,7 @@ export default function MatchupPage() {
         feedback.error("자료 유형 변경 실패");
       }
     },
-    [selectedDoc, qc, autoReanalyze],
+    [selectedDoc, qc, autoReanalyze, problems, confirm],
   );
 
   const handleSelectDoc = useCallback((id: number) => {
@@ -954,79 +982,13 @@ export default function MatchupPage() {
                     </Button>
                   )}
                   {/* N번 이상 일괄삭제 — 학원장 cut 진행 중 doc(예: 161까지 cut, 162~ 자동분리 잔존)에서
-                      자동분리 잔존을 한 번에 정리. 단일 삭제 N번 반복 불편 해소. */}
+                      자동분리 잔존을 한 번에 정리. 단일 삭제 N번 반복 불편 해소.
+                      A-2 (2026-05-08) — 디자인 시스템 모달 + 라이브 미리보기. */}
                   {selectedDoc && problems.length > 0 && (
                     <Button
                       size="sm"
                       intent="ghost"
-                      onClick={async () => {
-                        const input = window.prompt(
-                          `자동분리 잔존 일괄삭제\n\n입력 형식:\n  단방향: "162" → 162번 이상 끝까지 삭제\n  구간:    "150-200" → 150~200번 사이 삭제\n\n현재 doc 총 ${problems.length}개 문항.`,
-                          "",
-                        );
-                        if (!input) return;
-                        const trimmed = input.trim();
-                        let numFrom: number | null = null;
-                        let numTo: number | null = null;
-                        // "150-200" or "150 ~ 200" or "150" 형식 지원
-                        const m = trimmed.match(/^(\d+)\s*[-~]\s*(\d+)$/);
-                        if (m) {
-                          numFrom = parseInt(m[1], 10);
-                          numTo = parseInt(m[2], 10);
-                          if (numFrom > numTo) {
-                            feedback.error("시작 번호가 끝 번호보다 큽니다");
-                            return;
-                          }
-                        } else {
-                          const single = parseInt(trimmed, 10);
-                          if (!Number.isInteger(single) || single < 1) {
-                            feedback.error("올바른 번호 (예: 162) 또는 구간 (예: 150-200)을 입력하세요");
-                            return;
-                          }
-                          numFrom = single;
-                        }
-                        const inRange = (n: number) => {
-                          if (numFrom !== null && numTo !== null) return n >= numFrom && n <= numTo;
-                          if (numFrom !== null) return n >= numFrom;
-                          return false;
-                        };
-                        const targetsAll = problems.filter((p) => inRange(p.number));
-                        const manualInRange = targetsAll.filter((p) => Boolean(p.meta?.manual));
-                        const targets = targetsAll.filter((p) => !p.meta?.manual);
-                        const rangeLabel = numTo !== null ? `${numFrom}~${numTo}번` : `${numFrom}번 이상`;
-                        if (targets.length === 0) {
-                          if (manualInRange.length > 0) {
-                            feedback.info(`${rangeLabel} ${manualInRange.length}개는 모두 직접 자른 문항이라 보호됩니다`);
-                          } else {
-                            feedback.info(`${rangeLabel} 문항이 없습니다`);
-                          }
-                          return;
-                        }
-                        const protectedNote = manualInRange.length > 0
-                          ? `\n\n직접 자른 문항 ${manualInRange.length}개는 자동 보호됩니다.`
-                          : "";
-                        const ok = await confirm({
-                          title: `${rangeLabel} 자동분리 ${targets.length}개 삭제`,
-                          message: `이 작업은 되돌릴 수 없습니다.${protectedNote}\n\n진행할까요?`,
-                          confirmText: `${targets.length}개 삭제`,
-                          danger: true,
-                        });
-                        if (!ok) return;
-                        try {
-                          const payload: { number_from?: number; number_to?: number } = { number_from: numFrom! };
-                          if (numTo !== null) payload.number_to = numTo;
-                          const res = await bulkDeleteMatchupProblems(selectedDoc.id, payload);
-                          const preservedNote = res.preserved_manual > 0
-                            ? ` (직접 자른 ${res.preserved_manual}개 보호)`
-                            : "";
-                          feedback.success(`${res.deleted}개 문항 삭제 완료${preservedNote}`);
-                          await qc.invalidateQueries({ queryKey: ["matchup-problems", selectedDoc.id] });
-                          await qc.invalidateQueries({ queryKey: ["matchup-documents"] });
-                        } catch (e: unknown) {
-                          const msg = (e as Error)?.message ?? "일괄삭제 실패";
-                          feedback.error(msg);
-                        }
-                      }}
+                      onClick={() => setBulkDeleteOpen(true)}
                       data-testid="matchup-doc-bulk-delete-btn"
                       title="단방향 (162) 또는 구간 (150-200) 입력으로 일괄삭제. 직접 자른 문항은 자동 보호됩니다."
                     >
@@ -1311,149 +1273,46 @@ export default function MatchupPage() {
                     1회 시각으로 인식. 빨간색 사용 0, "권장 행동" 중심 copy. */}
                 <DocumentGuidanceBanner document={selectedDoc} />
 
-                {/* 시험지 유형 자동 분류 결과 + 자동분리 신뢰도 경고 (legacy 운영 사고 fix).
-                    백엔드 paper-type classifier가 페이지별로 분류한 결과의 doc-level summary.
-                    학생 답안지 폰사진 / 표지·정답지 다수 / 저신뢰 source 다수일 때 사전 경고. */}
-                {selectedDoc?.status === "done" && selectedDoc.meta?.paper_type_summary && (() => {
-                  const summary = selectedDoc.meta.paper_type_summary;
-                  if (!summary) return null;
-                  const warnings = Array.isArray(summary.warnings) ? summary.warnings : [];
-                  const distribution = (summary.distribution ?? {}) as Record<string, number>;
-                  const totalPages = Object.values(distribution).reduce((a, b) => a + (Number(b) || 0), 0);
-                  const sortedDist = Object.entries(distribution)
-                    .filter(([, n]) => Number(n) > 0)
-                    .sort((a, b) => Number(b[1]) - Number(a[1]));
-
-                  const hasStudentPhoto = warnings.includes("student_answer_photo_detected");
-                  const hasLowConfidence = warnings.includes("low_confidence_source_majority");
-                  const hasNonQuestionMajority = warnings.includes("non_question_majority");
-                  const hasWarning = hasStudentPhoto || hasLowConfidence || hasNonQuestionMajority;
-
-                  // 경고 없으면 banner 자체를 띄우지 않음 (정상 PDF 대다수에서 노이즈 방지).
-                  if (!hasWarning) return null;
-
-                  // 경고 톤: non_question_majority = warning(주의/권장), 나머지 = warning(자동분리 정확도 낮음 안내)
-                  // 빨강(danger)은 실패 배너에서만 사용. 경고는 모두 warning 톤으로 통일.
-                  const tone = "var(--color-warning)";
-                  const title = hasStudentPhoto
-                    ? "학생 답안지 폰사진으로 분류되었습니다"
-                    : hasNonQuestionMajority
-                      ? "비-문항 페이지가 다수입니다"
-                      : "자동분리 정확도가 낮을 수 있습니다";
-                  const message = hasStudentPhoto
-                    ? "이 자료는 학생 답안지 폰사진으로 자동분리 정확도가 낮습니다. 필기가 본문을 가릴 수 있어 페이지 단위 매칭이 더 안전합니다. 정확한 매칭이 필요한 문항은 직접 자르기를 권장합니다."
-                    : hasNonQuestionMajority
-                      ? "표지·정답지·해설지 등 비-문항 페이지가 다수입니다. 출제본 PDF로 다시 업로드하시거나, 필요한 문항만 직접 자르기로 추가해 주세요."
-                      : "스캔 품질·레이아웃 등으로 자동분리 신뢰도가 낮습니다. 결과를 검수하시고 누락·오분리 문항은 직접 자르기로 보정해 주세요.";
-
-                  return (
-                    <div data-testid="matchup-paper-type-banner" style={/* eslint-disable-line no-restricted-syntax */ {
+                {/* 검수 필요 페이지 CTA — paper_type / quality 안내는 위 DocumentGuidanceBanner
+                    가 흡수, 여기는 "신뢰도 55% 미만 페이지를 한곳에서 처리" 진입점만 별도. */}
+                {selectedDoc?.status === "done"
+                  && Array.isArray(selectedDoc.meta?.paper_type_summary?.low_conf_pages)
+                  && (selectedDoc.meta?.paper_type_summary?.low_conf_pages?.length ?? 0) > 0 && (
+                  <div
+                    data-testid="matchup-low-conf-cta"
+                    style={/* eslint-disable-line no-restricted-syntax */ {
                       flexShrink: 0,
-                      padding: "var(--space-3) var(--space-4)",
+                      padding: "var(--space-2) var(--space-3)",
                       borderRadius: "var(--radius-md)",
-                      background: "color-mix(in srgb, var(--color-warning) 8%, transparent)",
-                      border: "1px solid color-mix(in srgb, var(--color-warning) 30%, transparent)",
-                      display: "flex", alignItems: "flex-start", gap: "var(--space-3)",
+                      background: "color-mix(in srgb, var(--color-warning) 6%, transparent)",
+                      border: "1px solid color-mix(in srgb, var(--color-warning) 25%, transparent)",
+                      display: "flex", alignItems: "center", gap: "var(--space-2)",
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    <Eye size={ICON.sm} style={/* eslint-disable-line no-restricted-syntax */ { color: "var(--color-warning)", flexShrink: 0 }} />
+                    <span style={/* eslint-disable-line no-restricted-syntax */ {
+                      fontSize: 12, fontWeight: 700, color: "var(--color-warning)",
                     }}>
-                      <AlertTriangle size={18} style={/* eslint-disable-line no-restricted-syntax */ { color: tone, flexShrink: 0, marginTop: 2 }} />
-                      <div style={/* eslint-disable-line no-restricted-syntax */ { flex: 1, minWidth: 0 }}>
-                        <div style={/* eslint-disable-line no-restricted-syntax */ {
-                          fontSize: 13, fontWeight: 700,
-                          color: tone, marginBottom: 4,
-                        }}>
-                          {title}
-                        </div>
-                        <div style={/* eslint-disable-line no-restricted-syntax */ {
-                          fontSize: 12, color: "var(--color-text-secondary)",
-                          lineHeight: 1.5,
-                        }}>
-                          {message}
-                        </div>
-                        {sortedDist.length > 0 && (
-                          <details style={/* eslint-disable-line no-restricted-syntax */ { marginTop: 6 }}>
-                            <summary style={/* eslint-disable-line no-restricted-syntax */ {
-                              fontSize: 11, color: "var(--color-text-muted)",
-                              cursor: "pointer", userSelect: "none",
-                            }}>
-                              페이지별 분류 상세 ({totalPages}페이지)
-                            </summary>
-                            <div style={/* eslint-disable-line no-restricted-syntax */ {
-                              marginTop: 4, display: "flex", flexWrap: "wrap",
-                              gap: "var(--space-1)",
-                              fontSize: 11, color: "var(--color-text-muted)",
-                            }}>
-                              {sortedDist.map(([type, count]) => (
-                                <span
-                                  key={type}
-                                  style={/* eslint-disable-line no-restricted-syntax */ {
-                                    padding: "2px 6px", borderRadius: 4,
-                                    background: "var(--color-bg-surface-soft)",
-                                    border: "1px solid var(--color-border-divider)",
-                                  }}
-                                >
-                                  {paperTypeLabel(type)} {count}p
-                                </span>
-                              ))}
-                              {typeof summary.low_confidence_ratio === "number" && summary.low_confidence_ratio > 0 && (
-                                <span style={/* eslint-disable-line no-restricted-syntax */ {
-                                  padding: "2px 6px", borderRadius: 4,
-                                  background: "var(--color-bg-surface-soft)",
-                                  border: "1px solid var(--color-border-divider)",
-                                }}>
-                                  저신뢰 비율 {Math.round(summary.low_confidence_ratio * 100)}%
-                                </span>
-                              )}
-                              {typeof summary.page_confidence_avg === "number" && (
-                                <span style={/* eslint-disable-line no-restricted-syntax */ {
-                                  padding: "2px 6px", borderRadius: 4,
-                                  background: "var(--color-bg-surface-soft)",
-                                  border: "1px solid var(--color-border-divider)",
-                                }}>
-                                  평균 신뢰도 {Math.round(summary.page_confidence_avg * 100)}%
-                                </span>
-                              )}
-                            </div>
-                          </details>
-                        )}
-                        {/* Phase 5-deep — 검수 필요 페이지 리스트 + 검수 모달 트리거 */}
-                        {Array.isArray(summary.low_conf_pages) && summary.low_conf_pages.length > 0 && selectedDoc && (
-                          <div style={/* eslint-disable-line no-restricted-syntax */ {
-                            marginTop: 8,
-                            display: "flex", alignItems: "center", gap: 8,
-                            flexWrap: "wrap",
-                          }}>
-                            <span style={/* eslint-disable-line no-restricted-syntax */ {
-                              fontSize: 11, fontWeight: 700,
-                              color: "var(--color-warning)",
-                            }}>
-                              검수 필요 페이지 {summary.low_conf_pages.length}건 (신뢰도 55% 미만)
-                            </span>
-                            <Button
-                              intent="primary"
-                              size="sm"
-                              onClick={() => setReviewerDocId(selectedDoc.id)}
-                              data-testid="matchup-low-conf-reviewer-open-btn"
-                              leftIcon={<Eye size={ICON.sm} />}
-                            >
-                              검수 페이지 열기
-                            </Button>
-                          </div>
-                        )}
-                      </div>
-                      {selectedDoc && (
-                        <Button
-                          intent="primary"
-                          size="sm"
-                          onClick={() => setCropDocId(selectedDoc.id)}
-                          data-testid="matchup-paper-type-banner-crop-btn"
-                          leftIcon={<Crop size={ICON.sm} />}
-                        >
-                          직접 자르기
-                        </Button>
-                      )}
-                    </div>
-                  );
-                })()}
+                      검수 필요 페이지 {selectedDoc.meta.paper_type_summary.low_conf_pages.length}건
+                    </span>
+                    <span style={/* eslint-disable-line no-restricted-syntax */ {
+                      fontSize: 11, color: "var(--color-text-secondary)",
+                    }}>
+                      (자동분리 신뢰도 55% 미만)
+                    </span>
+                    <Button
+                      intent="primary"
+                      size="sm"
+                      onClick={() => setReviewerDocId(selectedDoc.id)}
+                      data-testid="matchup-low-conf-reviewer-open-btn"
+                      leftIcon={<Eye size={ICON.sm} />}
+                      style={/* eslint-disable-line no-restricted-syntax */ { marginLeft: "auto" }}
+                    >
+                      검수 페이지 열기
+                    </Button>
+                  </div>
+                )}
 
                 {/* 과분할 감지 힌트 — 번호 중복/결손이 있을 때만 노출.
                     시험지(test)는 적중 PDF에 직접 영향 → warning 톤으로 강조 + 직접 자르기 CTA. */}
@@ -1707,6 +1566,31 @@ export default function MatchupPage() {
         <HitReportEditor
           docId={hitReportDocId}
           onClose={() => setHitReportDocId(null)}
+        />
+      )}
+
+      {bulkDeleteOpen && selectedDoc && (
+        <BulkDeleteModal
+          problems={problems}
+          onClose={() => setBulkDeleteOpen(false)}
+          onConfirm={async ({ numberFrom, numberTo }) => {
+            try {
+              const res = await bulkDeleteMatchupProblems(selectedDoc.id, {
+                number_from: numberFrom,
+                number_to: numberTo,
+              });
+              const preservedNote = res.preserved_manual > 0
+                ? ` (직접 자른 ${res.preserved_manual}개 보호)`
+                : "";
+              feedback.success(`${res.deleted}개 문항 삭제 완료${preservedNote}`);
+              await qc.invalidateQueries({ queryKey: ["matchup-problems", selectedDoc.id] });
+              await qc.invalidateQueries({ queryKey: ["matchup-documents"] });
+            } catch (e: unknown) {
+              const msg = (e as Error)?.message ?? "일괄삭제 실패";
+              feedback.error(msg);
+              throw e;  // 모달 닫지 않도록 — 사용자가 재시도 가능
+            }
+          }}
         />
       )}
 
