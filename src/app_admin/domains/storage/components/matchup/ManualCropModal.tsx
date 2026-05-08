@@ -215,7 +215,11 @@ export default function ManualCropModal({ document: doc, onClose, initialPage }:
     return () => window.removeEventListener("keydown", onKey);
   }, [draft, pasted, saving, onClose]);
 
-  // 모달 어디서든 Ctrl+V — 클립보드 이미지를 paste 미리보기로 띄움
+  // 모달 어디서든 Ctrl+V — 클립보드 이미지를 paste 미리보기로 띄움.
+  // P2-ζ (2026-05-08) — capture phase + stopImmediatePropagation 으로 다른 paste
+  // listener (예: 동시 활성된 다른 모달이 미래 도입될 경우) 충돌 차단. 또한 모달이
+  // 보이지 않게 hidden 인 case (스택 안 깊은 instance)에는 등록 안 됨 — useEffect
+  // mount 시 한 번 등록 + unmount 시 cleanup 으로 활성 인스턴스만 처리.
   useEffect(() => {
     const onPaste = (e: ClipboardEvent) => {
       if (saving) return;
@@ -237,14 +241,17 @@ export default function ManualCropModal({ document: doc, onClose, initialPage }:
       }
       if (!imgFile) return;
       e.preventDefault();
+      // 다른 window-level paste listener 가 같은 이벤트 받지 않도록 차단.
+      e.stopImmediatePropagation();
       const url = URL.createObjectURL(imgFile);
       setPasted((prev) => {
         if (prev) URL.revokeObjectURL(prev.previewUrl);
         return { file: imgFile!, previewUrl: url, numberStr: String(computeNextNumber()) };
       });
     };
-    window.addEventListener("paste", onPaste);
-    return () => window.removeEventListener("paste", onPaste);
+    // capture=true 로 다른 listener 보다 먼저 처리 → 활성 ManualCropModal 이 우선권.
+    window.addEventListener("paste", onPaste, true);
+    return () => window.removeEventListener("paste", onPaste, true);
   }, [saving, computeNextNumber]);
 
   // 컴포넌트 언마운트 시 paste preview 정리
@@ -267,9 +274,11 @@ export default function ManualCropModal({ document: doc, onClose, initialPage }:
     onClose();
   }, [saving, draft, pasted, onClose]);
 
-  // 캔버스 빈 공간 mousedown → 새 박스 그리기 시작.
+  // 캔버스 빈 공간 pointer down → 새 박스 그리기 시작.
   // 박스 시작 시 추천 번호 갱신 — 사용자가 입력 중이 아닐 때만 (이미 그린 박스의 번호 보존).
-  const handleCanvasMouseDown = (e: React.MouseEvent) => {
+  // P2-κ (2026-05-08) — Pointer Events 로 일괄 통합 (mouse + touch + pen). 이전엔
+  // mouse 만 처리해 모바일/태블릿에서 박스 그리기 불가.
+  const handleCanvasPointerDown = (e: React.PointerEvent) => {
     if (!activePageData) return;
     const m = toNorm(e.clientX, e.clientY);
     if (!m) return;
@@ -281,8 +290,8 @@ export default function ManualCropModal({ document: doc, onClose, initialPage }:
     }
   };
 
-  // 박스 본체 mousedown → 이동
-  const handleBoxMouseDown = (e: React.MouseEvent) => {
+  // 박스 본체 pointer down → 이동
+  const handleBoxPointerDown = (e: React.PointerEvent) => {
     if (!draft) return;
     e.stopPropagation();
     const m = toNorm(e.clientX, e.clientY);
@@ -290,9 +299,9 @@ export default function ManualCropModal({ document: doc, onClose, initialPage }:
     dragStateRef.current = { mode: "move", startMouse: m, startBox: { ...draft } };
   };
 
-  // 핸들 mousedown → 해당 방향 리사이즈
-  const handleResizeMouseDown = (mode: Exclude<DragMode, "draw" | "move">) =>
-    (e: React.MouseEvent) => {
+  // 핸들 pointer down → 해당 방향 리사이즈
+  const handleResizePointerDown = (mode: Exclude<DragMode, "draw" | "move">) =>
+    (e: React.PointerEvent) => {
       if (!draft) return;
       e.stopPropagation();
       const m = toNorm(e.clientX, e.clientY);
@@ -300,9 +309,10 @@ export default function ManualCropModal({ document: doc, onClose, initialPage }:
       dragStateRef.current = { mode, startMouse: m, startBox: { ...draft } };
     };
 
-  // window 단위로 mousemove/up 처리 — 캔버스 밖으로 마우스가 나가도 추적 끊기지 않음
+  // window 단위로 pointer move/up 처리 — 캔버스 밖으로 포인터가 나가도 추적 끊기지 않음.
+  // Pointer Events 통합으로 mouse + touch + pen 모두 처리.
   useEffect(() => {
-    const onMove = (e: MouseEvent) => {
+    const onMove = (e: PointerEvent) => {
       const ds = dragStateRef.current;
       if (!ds) return;
       const m = toNorm(e.clientX, e.clientY);
@@ -315,21 +325,21 @@ export default function ManualCropModal({ document: doc, onClose, initialPage }:
       if (!ds) return;
       dragStateRef.current = null;
       // draw 끝났는데 너무 작으면 폐기. 유효한 박스면 number input 자동 select —
-      // 드래그 직후 마우스가 캔버스 위라 브라우저가 autoFocus 못 잡는 결함 보정.
-      // 사용자가 마우스 클릭 없이 바로 Enter / 새 번호 입력 가능.
+      // 드래그 직후 포인터가 캔버스 위라 브라우저가 autoFocus 못 잡는 결함 보정.
       setDraft((cur) => {
         if (!cur) return cur;
         if (cur.w < MIN_BOX || cur.h < MIN_BOX) return null;
-        // setTimeout(0) — React 렌더 후 DOM에 input 존재하는 시점에 focus.
         setTimeout(() => numberInputRef.current?.select(), 0);
         return cur;
       });
     };
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
     return () => {
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
     };
   }, [toNorm]);
 
@@ -722,7 +732,7 @@ export default function ManualCropModal({ document: doc, onClose, initialPage }:
                 <div
                   ref={canvasContainerRef}
                   data-testid="matchup-crop-canvas"
-                  onMouseDown={handleCanvasMouseDown}
+                  onPointerDown={handleCanvasPointerDown}
                   style={{
                     position: "relative",
                     background: "white",
@@ -730,6 +740,8 @@ export default function ManualCropModal({ document: doc, onClose, initialPage }:
                     borderRadius: 4,
                     cursor: "crosshair",
                     userSelect: "none",
+                    // P2-κ — touch 디바이스에서 캔버스 드래그 시 페이지 스크롤/줌 차단.
+                    touchAction: "none",
                     maxWidth: "100%",
                     maxHeight: "100%",
                     aspectRatio: `${activePageData.width || 1} / ${activePageData.height || 1.4}`,
@@ -780,14 +792,18 @@ export default function ManualCropModal({ document: doc, onClose, initialPage }:
                   {draft && draft.pageIndex === activePage && (() => {
                     const bx = draft.x * 100, by = draft.y * 100;
                     const bw = draft.w * 100, bh = draft.h * 100;
-                    const HANDLE_SIZE = 10;
+                    // P2-κ — 시각 핸들은 14px 유지 (정밀 클릭). 터치 hit area 는 ::before
+                    // pseudo 로 키울 수 없는 inline style 한계 → 14 로 키우고 자체 영역 + 패딩 시각.
+                    const HANDLE_SIZE = 14;
                     const handleStyle = (cursor: string): React.CSSProperties => ({
                       position: "absolute",
                       width: HANDLE_SIZE, height: HANDLE_SIZE,
                       background: "var(--color-bg-surface)",
                       border: "2px solid var(--color-brand-primary)",
-                      borderRadius: 2,
+                      borderRadius: 3,
                       cursor,
+                      // 터치 디바이스에서 핸들 자체에 페이지 스크롤 트리거 안 되도록.
+                      touchAction: "none",
                       zIndex: 2,
                     });
                     return (
@@ -795,7 +811,7 @@ export default function ManualCropModal({ document: doc, onClose, initialPage }:
                         {/* 박스 본체 — 클릭 드래그로 이동 */}
                         <div
                           data-testid="matchup-crop-draft"
-                          onMouseDown={handleBoxMouseDown}
+                          onPointerDown={handleBoxPointerDown}
                           style={{
                             position: "absolute",
                             left: `${bx}%`, top: `${by}%`,
@@ -803,25 +819,26 @@ export default function ManualCropModal({ document: doc, onClose, initialPage }:
                             border: "2px solid var(--color-brand-primary)",
                             background: "color-mix(in srgb, var(--color-brand-primary) 14%, transparent)",
                             cursor: "move",
+                            touchAction: "none",
                             zIndex: 1,
                           }}
                         />
                         {/* 8방향 리사이즈 핸들 — 박스 외부 좌표로 정확히 배치 */}
-                        <div onMouseDown={handleResizeMouseDown("nw")} style={{ ...handleStyle(HANDLE_CURSOR.nw),
+                        <div onPointerDown={handleResizePointerDown("nw")} style={{ ...handleStyle(HANDLE_CURSOR.nw),
                           left: `calc(${bx}% - ${HANDLE_SIZE / 2}px)`, top: `calc(${by}% - ${HANDLE_SIZE / 2}px)` }} />
-                        <div onMouseDown={handleResizeMouseDown("n")} style={{ ...handleStyle(HANDLE_CURSOR.n),
+                        <div onPointerDown={handleResizePointerDown("n")} style={{ ...handleStyle(HANDLE_CURSOR.n),
                           left: `calc(${bx + bw / 2}% - ${HANDLE_SIZE / 2}px)`, top: `calc(${by}% - ${HANDLE_SIZE / 2}px)` }} />
-                        <div onMouseDown={handleResizeMouseDown("ne")} style={{ ...handleStyle(HANDLE_CURSOR.ne),
+                        <div onPointerDown={handleResizePointerDown("ne")} style={{ ...handleStyle(HANDLE_CURSOR.ne),
                           left: `calc(${bx + bw}% - ${HANDLE_SIZE / 2}px)`, top: `calc(${by}% - ${HANDLE_SIZE / 2}px)` }} />
-                        <div onMouseDown={handleResizeMouseDown("e")} style={{ ...handleStyle(HANDLE_CURSOR.e),
+                        <div onPointerDown={handleResizePointerDown("e")} style={{ ...handleStyle(HANDLE_CURSOR.e),
                           left: `calc(${bx + bw}% - ${HANDLE_SIZE / 2}px)`, top: `calc(${by + bh / 2}% - ${HANDLE_SIZE / 2}px)` }} />
-                        <div onMouseDown={handleResizeMouseDown("se")} style={{ ...handleStyle(HANDLE_CURSOR.se),
+                        <div onPointerDown={handleResizePointerDown("se")} style={{ ...handleStyle(HANDLE_CURSOR.se),
                           left: `calc(${bx + bw}% - ${HANDLE_SIZE / 2}px)`, top: `calc(${by + bh}% - ${HANDLE_SIZE / 2}px)` }} />
-                        <div onMouseDown={handleResizeMouseDown("s")} style={{ ...handleStyle(HANDLE_CURSOR.s),
+                        <div onPointerDown={handleResizePointerDown("s")} style={{ ...handleStyle(HANDLE_CURSOR.s),
                           left: `calc(${bx + bw / 2}% - ${HANDLE_SIZE / 2}px)`, top: `calc(${by + bh}% - ${HANDLE_SIZE / 2}px)` }} />
-                        <div onMouseDown={handleResizeMouseDown("sw")} style={{ ...handleStyle(HANDLE_CURSOR.sw),
+                        <div onPointerDown={handleResizePointerDown("sw")} style={{ ...handleStyle(HANDLE_CURSOR.sw),
                           left: `calc(${bx}% - ${HANDLE_SIZE / 2}px)`, top: `calc(${by + bh}% - ${HANDLE_SIZE / 2}px)` }} />
-                        <div onMouseDown={handleResizeMouseDown("w")} style={{ ...handleStyle(HANDLE_CURSOR.w),
+                        <div onPointerDown={handleResizePointerDown("w")} style={{ ...handleStyle(HANDLE_CURSOR.w),
                           left: `calc(${bx}% - ${HANDLE_SIZE / 2}px)`, top: `calc(${by + bh / 2}% - ${HANDLE_SIZE / 2}px)` }} />
                       </>
                     );

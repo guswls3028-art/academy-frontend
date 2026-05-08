@@ -148,13 +148,17 @@ function qualityGuidance(quality: string | undefined): Guidance | null {
 }
 
 // indexable 상태 — false 시 명확하게 안내 (운영 의미 중심, 기술 용어 회피).
+// P2-β (2026-05-08) — 이전엔 "인덱싱 토글을 켜주세요" 로 dead UI 가리킴. 실제 동작:
+// indexable=false 는 source_type(해설지/답안지) 또는 paper_type(non_question)이 자동
+// 결정. 학원장 가능 행동 = 자료 유형 chip 변경 또는 LowConfPageReviewer 에서 제외 페이지
+// 복원. 그 흐름 안내.
 function indexableNotice(indexable: boolean | undefined): Guidance | null {
   if (indexable === false) {
     return {
       tone: "neutral",
       icon: <ImageOff size={18} />,
-      title: "이 자료는 매치업 검색·비교 풀에서 제외된 상태입니다.",
-      message: "검수 후 풀에 포함시키려면 결과를 다듬은 뒤 인덱싱 토글을 켜주세요.",
+      title: "이 자료는 매치업 검색·비교 풀에서 제외되어 있습니다.",
+      message: "표지·해설지·답안지로 분류된 자료는 자동으로 풀에서 빠집니다. 문항이 포함된 본문이라면 위의 자료 유형을 다시 지정해 주세요.",
     };
   }
   return null;
@@ -215,7 +219,19 @@ export default function DocumentGuidanceBanner({ document }: Props) {
   const qg = qualityGuidance(quality);
   // precise_split 의 success 메시지는 paper_type success 와 중복 — 중복 제거.
   if (qg && !(quality === "precise_split" && ptg?.tone === "success")) {
-    items.push(qg);
+    // P2-α (2026-05-08) — paper_type 이 warning 인데 quality 가 success 로 표시되면
+    // 학원장이 "걱정해야 하나, 안심해도 되나?" 인지 모순. 이 조합에선 success 를
+    // info 로 약화시켜 "그래도 분리는 깔끔한 편" 보조 신호로 전달.
+    if (ptg?.tone === "warning" && qg.tone === "success") {
+      items.push({
+        ...qg,
+        tone: "info",
+        title: "그래도 자동분리는 깔끔하게 마무리되었습니다.",
+        message: "결과를 검수하시고 어색한 박스는 직접 자르기로 보정해 주세요.",
+      });
+    } else {
+      items.push(qg);
+    }
   }
 
   const ig = indexableNotice(indexable);

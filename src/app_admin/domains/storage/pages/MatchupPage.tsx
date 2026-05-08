@@ -4,7 +4,7 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams, useNavigate, useLocation } from "react-router-dom";
-import { Sparkles, AlertTriangle, RefreshCw, Eye, FolderOpen, BookOpen, Crop, ClipboardList, FolderTree, MoreHorizontal, Layers, FolderInput, Plus } from "lucide-react";
+import { Sparkles, AlertTriangle, RefreshCw, Eye, FolderOpen, BookOpen, Crop, ClipboardList, FolderTree, MoreHorizontal, Layers, FolderInput, Plus, Trash2 } from "lucide-react";
 import { Button, ICON } from "@/shared/ui/ds";
 import { useConfirm } from "@/shared/ui/confirm";
 import useAuth from "@/auth/hooks/useAuth";
@@ -47,6 +47,14 @@ import {
   type MatchupSourceType,
 } from "../components/matchup/documentIntent";
 import css from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
+
+// P2-θ — svh (small viewport height) 지원 여부 모듈 1회 detect. 미지원 브라우저
+// (Safari 15.x 등) 에서는 vh fallback. CSS.supports 가 dev 환경에서 SSR 호환 위해
+// typeof guard.
+const SUPPORTS_SVH =
+  typeof CSS !== "undefined" && typeof CSS.supports === "function"
+    ? CSS.supports("height", "100svh")
+    : false;
 
 function hasAsyncWorkerTask(id: string): boolean {
   return asyncStatusStore
@@ -146,6 +154,25 @@ export default function MatchupPage() {
   const [categoryDraft, setCategoryDraft] = useState("");
   const [categorySaving, setCategorySaving] = useState(false);
 
+  // P2-γ (2026-05-08) — tenant/user swap 시 URL ?docId=N 자동 strip.
+  // logout/login 으로 user.id 가 바뀌면 이전 사용자가 보고 있던 doc 의 id 가 URL 에
+  // 잔존해 backend 에서 404/403 (cross-tenant 격리) 으로 막혀도 URL 자체가 leak 신호.
+  // user 변경 감지 시 selection + URL 동시 reset.
+  const prevUserIdRef = useRef<number | string | null | undefined>(undefined);
+  useEffect(() => {
+    const cur = user?.id ?? null;
+    if (prevUserIdRef.current !== undefined && prevUserIdRef.current !== cur) {
+      setSelectedDocIdState(null);
+      setSelectedProblemId(null);
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete("docId");
+        return next;
+      }, { replace: true });
+    }
+    prevUserIdRef.current = cur;
+  }, [user?.id, setSearchParams]);
+
   // 좌측 트리 폭 — 시험지 제목이 길어 250px 고정으론 가독성이 떨어진다는 사용자 피드백.
   // localStorage 에 영속하되 user.id 별로 분리. 같은 PC 에서 학원장 A/B 가 다른 폭을
   // 쓸 때 마지막 사용자가 다른 사용자 설정을 덮어쓰던 결함 fix (B-2 2026-05-08).
@@ -243,7 +270,18 @@ export default function MatchupPage() {
     [documents, qc],
   );
 
-  // 처리 중 doc을 우상단 작업박스에 자동 재등록 (페이지 새로고침/탭 이동 후에도 진행률 유지)
+  // 처리 중 doc을 우상단 작업박스에 자동 재등록 (페이지 새로고침/탭 이동 후에도 진행률 유지).
+  // P2-ι (2026-05-08) — 이전엔 dep 이 `documents` array ref 라서 polling 시 매 refetch
+  // 마다 effect 가 재실행 → asyncStatusStore.addWorkerJob 호출 (hasAsyncWorkerTask 로
+  // 중복 방지되지만 store 구독자에 영향). stable string key 로 전환 — 처리 중 doc
+  // 의 (id, ai_job_id) 조합이 바뀔 때만 트리거.
+  const processingPendingKey = useMemo(
+    () => documents
+      .filter((d) => d.status === "processing" || d.status === "pending")
+      .map((d) => `${d.id}:${d.ai_job_id ?? "watch"}:${d.title}`)
+      .join("|"),
+    [documents],
+  );
   useEffect(() => {
     documents.forEach((d) => {
       if (d.status !== "processing" && d.status !== "pending") return;
@@ -266,7 +304,9 @@ export default function MatchupPage() {
         );
       }
     });
-  }, [documents]);
+    // documents ref 가 매 polling 마다 바뀌어도 processingPendingKey 가 같으면 noop.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [processingPendingKey]);
 
   // ── 문제 목록 ──
   const selectedDoc = documents.find((d) => d.id === selectedDocId);
@@ -301,9 +341,14 @@ export default function MatchupPage() {
     return () => { cancelled = true; };
   }, [selectedDocId, selectedDocIntent]);
 
+  // P2-δ (2026-05-08) — 진행 중인 별표 토글 race 방지. 옵티미스틱 저장 응답 전에
+  // 같은 별을 또 클릭하면 stale base 로 second 요청이 출발해 결과가 꼬일 수 있음.
+  // 진행 중 candidateId 를 Set 에 담아 SimilarResults 가 disable + spinner 노출.
+  const [pendingPinIds, setPendingPinIds] = useState<Set<number>>(() => new Set());
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleTogglePin = useCallback((candidateId: number, _candidate: SimilarProblem) => {
     if (!hitReportId || !selectedProblemId) return;
+    if (pendingPinIds.has(candidateId)) return;  // 진행 중이면 무시
     const examPid = selectedProblemId;
     const cur = pinsByExamPid[examPid] || new Set<number>();
     const has = cur.has(candidateId);
@@ -313,6 +358,11 @@ export default function MatchupPage() {
 
     // 옵티미스틱: 별표 색 즉시 반영. 토스트는 흐름 끊겨서 silent — 별표 색 변화로 충분.
     setPinsByExamPid((prev) => ({ ...prev, [examPid]: next }));
+    setPendingPinIds((prev) => {
+      const n = new Set(prev);
+      n.add(candidateId);
+      return n;
+    });
 
     upsertHitReportEntries(hitReportId, [
       {
@@ -321,12 +371,20 @@ export default function MatchupPage() {
         comment: "",
         order: 0,
       },
-    ]).catch(() => {
-      // 실패 시에만 롤백 + 알림. 사용자가 변경 손실 즉시 인지해야 함.
-      setPinsByExamPid((prev) => ({ ...prev, [examPid]: cur }));
-      feedback.error("별표 저장 실패 — 다시 시도해 주세요");
-    });
-  }, [hitReportId, selectedProblemId, pinsByExamPid]);
+    ])
+      .catch(() => {
+        // 실패 시에만 롤백 + 알림. 사용자가 변경 손실 즉시 인지해야 함.
+        setPinsByExamPid((prev) => ({ ...prev, [examPid]: cur }));
+        feedback.error("별표 저장 실패 — 다시 시도해 주세요");
+      })
+      .finally(() => {
+        setPendingPinIds((prev) => {
+          const n = new Set(prev);
+          n.delete(candidateId);
+          return n;
+        });
+      });
+  }, [hitReportId, selectedProblemId, pinsByExamPid, pendingPinIds]);
 
   const { data: rawProblems = [], isLoading: problemsLoading } = useQuery({
     queryKey: ["matchup-problems", selectedDocId],
@@ -802,9 +860,12 @@ export default function MatchupPage() {
       <div className={css.root} style={/* eslint-disable-line no-restricted-syntax */ {
         // 좌측 트리가 페이지와 함께 스크롤되지 않도록 페이지 높이로 제한.
         // svh(small viewport height)는 모바일 주소창 표시 상태에서 측정 — iPad/모바일에서
-        // 100vh가 화면 밖으로 빠지는 사고 방지. fallback으로 vh 사용 (미지원 브라우저).
-        maxHeight: "calc(100svh - 100px)",
-        height: "calc(100svh - 100px)",
+        // 100vh가 화면 밖으로 빠지는 사고 방지.
+        // P2-θ (2026-05-08) — Safari 15.x 등 svh 미지원 브라우저 fallback. CSS.supports
+        // 로 런타임 detect 후 vh fallback. CSS variable 사용 시 더 깔끔하지만 inline
+        // 스타일이라 ternary 로 처리.
+        maxHeight: SUPPORTS_SVH ? "calc(100svh - 100px)" : "calc(100vh - 100px)",
+        height: SUPPORTS_SVH ? "calc(100svh - 100px)" : "calc(100vh - 100px)",
       }}>
         <div className={css.body}>
           {/* 좌측: 문서 목록 — 폭은 사용자가 우측 가장자리를 드래그해 조절 가능 (220~520px).
@@ -981,25 +1042,13 @@ export default function MatchupPage() {
                       직접 자르기
                     </Button>
                   )}
-                  {/* N번 이상 일괄삭제 — 학원장 cut 진행 중 doc(예: 161까지 cut, 162~ 자동분리 잔존)에서
-                      자동분리 잔존을 한 번에 정리. 단일 삭제 N번 반복 불편 해소.
-                      A-2 (2026-05-08) — 디자인 시스템 모달 + 라이브 미리보기. */}
-                  {selectedDoc && problems.length > 0 && (
-                    <Button
-                      size="sm"
-                      intent="ghost"
-                      onClick={() => setBulkDeleteOpen(true)}
-                      data-testid="matchup-doc-bulk-delete-btn"
-                      title="단방향 (162) 또는 구간 (150-200) 입력으로 일괄삭제. 직접 자른 문항은 자동 보호됩니다."
-                    >
-                      범위 일괄삭제
-                    </Button>
-                  )}
-                  {/* 보조 액션 — ⋮ 메뉴로 묶음 (원본 보기 / 저장소에서 보기) */}
+                  {/* 보조 액션 — ⋮ 메뉴로 묶음. 자주 안 쓰이는 "범위 일괄삭제"는
+                      P2 헤더 정비로 ⋮ 메뉴 안으로 이동 (편의성 보존, 헤더 잡음 감소). */}
                   {selectedDoc && (
                     <HeaderMoreMenu
                       onPreview={() => setPreviewDocId(selectedDoc.id)}
                       onOpenStorage={selectedDoc.inventory_file_id ? () => navigate("/admin/storage/files") : null}
+                      onBulkDelete={problems.length > 0 ? () => setBulkDeleteOpen(true) : null}
                     />
                   )}
                 </div>
@@ -1242,12 +1291,16 @@ export default function MatchupPage() {
                           <option key={st} value={st}>{SOURCE_TYPE_LABELS[st]}</option>
                         ))}
                       </select>
+                      {/* P2 헤더 정비 — 안내 텍스트를 tooltip 으로 압축. 행 잡음 감소. */}
                       <label style={/* eslint-disable-line no-restricted-syntax */ {
                         marginLeft: "auto",
                         display: "inline-flex", alignItems: "center", gap: 6,
                         fontSize: 11, color: "var(--color-text-secondary)",
                         cursor: "pointer", userSelect: "none",
-                      }} title="자료 유형을 바꾸면 즉시 재분석을 트리거합니다 (브라우저에 설정 저장)">
+                      }} title={autoReanalyze
+                        ? "유형을 바꾸면 즉시 재분석이 트리거됩니다. 직접 자른 문항은 보존되지만 자동분리 결과는 새로 생성됩니다."
+                        : "현재 유형 변경만 저장됩니다. 새 방식으로 다시 추출하려면 별도로 재분석 버튼을 눌러주세요."
+                      }>
                         <input
                           type="checkbox"
                           checked={autoReanalyze}
@@ -1257,13 +1310,6 @@ export default function MatchupPage() {
                         />
                         변경 시 자동 재분석
                       </label>
-                      {!autoReanalyze && (
-                        <span style={/* eslint-disable-line no-restricted-syntax */ {
-                          fontSize: 11, color: "var(--color-text-muted)",
-                        }}>
-                          ※ 변경 후 재분석 버튼을 누르면 새 방식으로 다시 추출합니다
-                        </span>
-                      )}
                     </div>
                   );
                 })()}
@@ -1392,6 +1438,7 @@ export default function MatchupPage() {
                       selectedProblemId={selectedProblemId}
                       onSelectProblem={setSelectedProblemId}
                       documentStatus={selectedDoc?.status}
+                      paperType={selectedDoc?.meta?.paper_type_summary?.primary}
                       fileSizeBytes={selectedDoc?.size_bytes}
                       progressPercent={selectedDoc ? progressMap[selectedDoc.id]?.percent : undefined}
                       progressStepName={selectedDoc ? progressMap[selectedDoc.id]?.stepName : undefined}
@@ -1473,6 +1520,11 @@ export default function MatchupPage() {
                           pinnedIds={
                             selectedProblemId && selectedDocIntent === "test"
                               ? (pinsByExamPid[selectedProblemId] || new Set())
+                              : undefined
+                          }
+                          pendingPinIds={
+                            selectedDocIntent === "test" && hitReportId
+                              ? pendingPinIds
                               : undefined
                           }
                           onTogglePin={
@@ -1638,9 +1690,12 @@ export default function MatchupPage() {
 function HeaderMoreMenu({
   onPreview,
   onOpenStorage,
+  onBulkDelete,
 }: {
   onPreview: () => void;
   onOpenStorage: (() => void) | null;
+  /** P2 헤더 정비 — 자주 안 쓰이는 "범위 일괄삭제"를 ⋮ 메뉴 안으로 이동 */
+  onBulkDelete: (() => void) | null;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
@@ -1704,6 +1759,26 @@ function HeaderMoreMenu({
               <FolderOpen size={ICON.sm} />
               <span>저장소에서 보기</span>
             </button>
+          )}
+          {onBulkDelete && (
+            <>
+              <div style={/* eslint-disable-line no-restricted-syntax */ {
+                height: 1, background: "var(--color-border-divider)", margin: "2px 0",
+              }} />
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => { setOpen(false); onBulkDelete(); }}
+                data-testid="matchup-doc-bulk-delete-menu-item"
+                style={/* eslint-disable-line no-restricted-syntax */ {
+                  ...moreMenuItemStyle,
+                  color: "var(--color-danger)",
+                }}
+              >
+                <Trash2 size={ICON.sm} />
+                <span>자동분리 잔존 일괄삭제</span>
+              </button>
+            </>
           )}
         </div>
       )}

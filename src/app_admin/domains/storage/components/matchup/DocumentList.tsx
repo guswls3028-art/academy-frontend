@@ -166,6 +166,26 @@ export default function DocumentList({
     return () => document.removeEventListener("mousedown", onDocClick);
   }, [openMenuKey]);
 
+  // ⌘/Ctrl + K — 자료 100+ 환경에서 검색이 1순위 액션. 단축키로 input focus + 기존값 select.
+  // input/textarea/contenteditable 안에서는 통과 (이름/카테고리 인라인 편집 중일 때 방해 금지).
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.key === "k" || e.key === "K")) return;
+      if (!(e.metaKey || e.ctrlKey)) return;
+      const t = e.target as HTMLElement | null;
+      if (t?.matches("input, textarea, [contenteditable='true']")) return;
+      e.preventDefault();
+      const el = searchInputRef.current;
+      if (el) {
+        el.focus();
+        el.select();
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, []);
+
   // 행 컨텍스트 메뉴 외부 클릭/Esc 닫기 (카테고리 sub-popover 포함)
   useEffect(() => {
     if (!rowMenu && !rowCategoryEditId) return;
@@ -609,11 +629,13 @@ export default function DocumentList({
               }}
             />
             <input
+              ref={searchInputRef}
               data-testid="matchup-doc-search"
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="제목·카테고리·과목·학년 검색"
+              placeholder="제목·카테고리·과목·학년 검색  (⌘K)"
+              title="⌘/Ctrl + K 로 빠르게 검색창 포커스"
               style={{
                 width: "100%",
                 padding: "5px 26px 5px 24px",
@@ -1352,19 +1374,43 @@ export default function DocumentList({
             </button>
           )}
           {rowMenuDoc.status === "failed" && (
-            <button
-              type="button"
-              role="menuitem"
-              onClick={(e) => {
-                e.stopPropagation();
-                setRowMenu(null);
-                onRetry(rowMenuDoc.id);
-              }}
-              style={menuItemStyle()}
-            >
-              <RefreshCw size={ICON.sm} />
-              <span>재시도</span>
-            </button>
+            <>
+              {/* P2-η (2026-05-08) — 에러 메시지 진입점. 이전엔 행 hover tooltip 만
+                  있어서 모바일/태블릿에서 학원장이 원인 모르고 같은 doc 반복 재시도
+                  하던 결함 차단. */}
+              <button
+                type="button"
+                role="menuitem"
+                data-testid="matchup-doc-row-show-error"
+                onClick={async (e) => {
+                  e.stopPropagation();
+                  setRowMenu(null);
+                  await confirm({
+                    title: "분석 실패 원인",
+                    message: rowMenuDoc.error_message || "원인을 확인할 수 없는 오류입니다. 재시도하거나 자료를 다시 업로드해 주세요.",
+                    confirmText: "확인",
+                    cancelText: "닫기",
+                  });
+                }}
+                style={menuItemStyle()}
+              >
+                <AlertCircle size={ICON.sm} />
+                <span>에러 상세 보기</span>
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setRowMenu(null);
+                  onRetry(rowMenuDoc.id);
+                }}
+                style={menuItemStyle()}
+              >
+                <RefreshCw size={ICON.sm} />
+                <span>재시도</span>
+              </button>
+            </>
           )}
           <div style={{ height: 1, background: "var(--color-border-divider)", margin: "2px 0" }} />
           <button
