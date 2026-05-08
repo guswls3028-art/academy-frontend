@@ -16,8 +16,7 @@ import { feedback } from "@/shared/ui/feedback/feedback";
 import { filesToPdf, isImage, isPdf, isHeic } from "./filesToPdf";
 import type { MergeProgress } from "./filesToPdf";
 import {
-  type MatchupSourceType, SOURCE_TYPE_LABELS, SOURCE_TYPE_ORDER, intentToSourceType,
-  suggestSourceType,
+  type MatchupSourceType, intentToSourceType, suggestSourceType,
 } from "./documentIntent";
 
 type Props = {
@@ -97,8 +96,9 @@ export default function DocumentUploadModal({
   const [sourceType, setSourceType] = useState<MatchupSourceType>(
     defaultSourceType ?? intentToSourceType(intent),
   );
-  // 사용자가 명시적으로 source_type 을 토글하면 자동 추천 갱신을 멈춤.
-  const [sourceTypeTouched, setSourceTypeTouched] = useState<boolean>(!!defaultSourceType);
+  // 사용자 직접 source_type 선택 UI 는 제거 (학원장 directive 2026-05-09).
+  // 외부에서 defaultSourceType 을 prop 으로 명시하면 그 값 보호 (filename 갱신 X).
+  const [sourceTypeTouched] = useState<boolean>(!!defaultSourceType);
   const [sourceTypeReason, setSourceTypeReason] = useState<string>("");
   const [entries, setEntries] = useState<Entry[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -195,13 +195,6 @@ export default function DocumentUploadModal({
     setSourceType(suggested);
     setSourceTypeReason(reason);
   }, [entries, intent, sourceTypeTouched]);
-
-  // 사용자가 라디오 직접 클릭 시 자동 갱신 멈춤.
-  const handleSourceTypeChange = useCallback((next: MatchupSourceType) => {
-    setSourceType(next);
-    setSourceTypeTouched(true);
-    setSourceTypeReason("");
-  }, []);
 
   // splitMode 명시 선택 시 localStorage에 학습.
   const persistSplitMode = useCallback((next: boolean) => {
@@ -873,100 +866,16 @@ export default function DocumentUploadModal({
             </div>
           )}
 
-          {/* 자료 유형 — 자동 추천 default. 학원장 directive 2026-05-09:
-              "내부 알고리즘으로 알아서 구분". 파일명 휴리스틱으로 추천하고
-              사용자는 다르면 변경만. 분석 후엔 헤더 chip 으로 다시 정정 가능. */}
-          <div style={/* eslint-disable-line no-restricted-syntax */ {
-            marginBottom: "var(--space-3)",
-            padding: "var(--space-3)",
-            border: "1px solid var(--color-border-divider)",
-            borderRadius: "var(--radius-md)",
-            background: "var(--color-bg-surface-soft)",
-          }}>
-            <div style={/* eslint-disable-line no-restricted-syntax */ {
-              fontSize: 12, fontWeight: 700,
-              color: "var(--color-text-secondary)",
-              marginBottom: 8,
-              display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap",
-            }}>
-              <span>자료 유형</span>
-              {!sourceTypeTouched && sourceTypeReason && (
-                <span
-                  data-testid="matchup-upload-source-type-auto-badge"
-                  title={`자동 추천 사유: ${sourceTypeReason}`}
-                  style={/* eslint-disable-line no-restricted-syntax */ {
-                    fontSize: 10, fontWeight: 700,
-                    color: "var(--color-brand-primary)",
-                    padding: "1px 7px", borderRadius: 999,
-                    background: "color-mix(in srgb, var(--color-brand-primary) 12%, transparent)",
-                  }}
-                >
-                  자동 추천
-                </span>
-              )}
-              <span style={/* eslint-disable-line no-restricted-syntax */ {
-                marginLeft: "auto",
-                fontSize: 11, fontWeight: 500, color: "var(--color-text-muted)",
-              }}>
-                다르면 직접 선택
-              </span>
-            </div>
-            <div style={/* eslint-disable-line no-restricted-syntax */ {
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
-              gap: 4,
-            }}>
-              {SOURCE_TYPE_ORDER.map((st) => {
-                const active = sourceType === st;
-                return (
-                  <button
-                    key={st}
-                    type="button"
-                    onClick={() => handleSourceTypeChange(st)}
-                    disabled={uploading}
-                    data-source-type={st}
-                    style={/* eslint-disable-line no-restricted-syntax */ {
-                      textAlign: "left",
-                      padding: "6px 10px",
-                      borderRadius: "var(--radius-sm)",
-                      border: active
-                        ? "1.5px solid var(--color-brand-primary)"
-                        : "1px solid var(--color-border-divider)",
-                      background: active
-                        ? "color-mix(in srgb, var(--color-brand-primary) 12%, var(--color-bg-surface))"
-                        : "var(--color-bg-surface)",
-                      color: active
-                        ? "var(--color-brand-primary)"
-                        : "var(--color-text-primary)",
-                      fontSize: 12,
-                      fontWeight: active ? 700 : 500,
-                      cursor: uploading ? "not-allowed" : "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 6,
-                    }}
-                  >
-                    <span style={/* eslint-disable-line no-restricted-syntax */ { fontSize: 13 }}>{active ? "●" : "○"}</span>
-                    {SOURCE_TYPE_LABELS[st]}
-                  </button>
-                );
-              })}
-            </div>
-            <p style={/* eslint-disable-line no-restricted-syntax */ {
-              margin: "8px 0 0 0",
-              fontSize: 11,
-              color: "var(--color-text-muted)",
-              lineHeight: 1.4,
-            }}>
-              {sourceType === "student_exam_photo" && "학생이 폰으로 찍은 시험지/답안지 → 페이지 단위로 안전하게 처리 (자동 자르기 X)"}
-              {sourceType === "school_exam_pdf" && "학교 기출/시험지 PDF (깨끗한 스캔) → 자동 anchor 분할"}
-              {sourceType === "commercial_workbook" && "시판 교재 → 페이지 단위 + 표지/목차/해설 자동 제외"}
-              {sourceType === "academy_workbook" && "학원 자체 워크북 → anchor 분할 + 보기 패턴 검증"}
-              {sourceType === "explanation" && "해설지 → 매치업 검색 후보로 사용 X (인덱싱 안 함)"}
-              {sourceType === "answer_key" && "답안지 → 매치업 검색 후보로 사용 X (인덱싱 안 함)"}
-              {sourceType === "other" && "기타 → 보수적으로 페이지 단위 처리"}
-            </p>
-          </div>
+          {/* 자료 유형 — 학원장 directive 2026-05-09 "내부 알고리즘으로 알아서 구분".
+              UI 노출 0. filename 휴리스틱으로 자동 추천된 sourceType 을 backend 로 전송.
+              분석 완료 후 paper_type 신호로 backend 가 보정. 학원장은 헤더 chip 으로
+              필요 시 정정. data-testid 만 보존 (E2E 검증 + 디버그 용). */}
+          <div
+            data-testid="matchup-upload-source-type-auto"
+            data-source-type={sourceType}
+            data-source-type-reason={sourceTypeReason}
+            style={/* eslint-disable-line no-restricted-syntax */ { display: "none" }}
+          />
 
           {/* 메타데이터 */}
           <div style={/* eslint-disable-line no-restricted-syntax */ { display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
