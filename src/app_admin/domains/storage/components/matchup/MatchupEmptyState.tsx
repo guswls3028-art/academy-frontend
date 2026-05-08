@@ -20,6 +20,21 @@ export default function MatchupEmptyState({ onUpload }: Props) {
         AI가 자료에서 유사 문제를 찾아드립니다.
       </p>
 
+      {/* 카드 결정 전 컨텍스트 — 어떤 카드를 누르든 같은 목록에 들어가 자동 비교된다는 사실을
+          *위쪽*에 두어, 학원장이 "두 카드 중 어느 쪽을 골라야 하지?" 망설이는 시간을 줄인다.
+          (이전 위치는 카드 *밑*이라 결정 후에야 보이는 결함.) */}
+      <div style={{
+        marginTop: "var(--space-2)",
+        padding: "8px var(--space-3)",
+        borderRadius: "var(--radius-sm)",
+        background: "var(--color-bg-surface-soft)",
+        display: "flex", alignItems: "flex-start", gap: 8,
+        maxWidth: 540, fontSize: 11, color: "var(--color-text-muted)", lineHeight: 1.5,
+      }}>
+        <Info size={ICON.sm} style={{ flexShrink: 0, marginTop: 2 }} />
+        <span>두 종류 모두 같은 자료 목록에 등록되며 서로 자동 비교됩니다. 무엇부터 올릴지만 고르면 됩니다.</span>
+      </div>
+
       {/* 두 가지 진입점 — 사용자 의도 가시화 (시스템 동작은 동일) */}
       <div style={{
         display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
@@ -83,17 +98,6 @@ export default function MatchupEmptyState({ onUpload }: Props) {
         저장소에서 가져오기
       </Button>
 
-      <div style={{
-        marginTop: "var(--space-4)",
-        padding: "8px var(--space-3)",
-        borderRadius: "var(--radius-sm)",
-        background: "var(--color-bg-surface-soft)",
-        display: "flex", alignItems: "flex-start", gap: 8,
-        maxWidth: 540, fontSize: 11, color: "var(--color-text-muted)", lineHeight: 1.5,
-      }}>
-        <Info size={ICON.sm} style={{ flexShrink: 0, marginTop: 2 }} />
-        <span>두 종류 모두 같은 자료 목록에 등록되며 서로 자동 비교됩니다. 진행 후에도 자료/시험지를 자유롭게 추가할 수 있습니다.</span>
-      </div>
       <div className={css.placeholderSteps}>
         <div className={css.placeholderStep}>
           <span className={css.placeholderStepNum}>1</span>
