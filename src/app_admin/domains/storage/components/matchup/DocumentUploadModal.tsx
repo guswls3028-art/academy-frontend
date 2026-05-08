@@ -17,6 +17,7 @@ import { filesToPdf, isImage, isPdf, isHeic } from "./filesToPdf";
 import type { MergeProgress } from "./filesToPdf";
 import {
   type MatchupSourceType, SOURCE_TYPE_LABELS, SOURCE_TYPE_ORDER, intentToSourceType,
+  suggestSourceType,
 } from "./documentIntent";
 
 type Props = {
@@ -91,9 +92,14 @@ export default function DocumentUploadModal({
   const [subject, setSubject] = useState("");
   const [gradeLevel, setGradeLevel] = useState("");
   // Phase 1C — 7-value source_type SSOT. 미지정 시 legacy intent에서 매핑.
+  // 파일이 추가되면 suggestSourceType 으로 추천 default 를 갱신 (학원장 directive
+  // 2026-05-09: "내부 알고리즘으로 알아서 구분" — 사용자 선택 부담 약화).
   const [sourceType, setSourceType] = useState<MatchupSourceType>(
     defaultSourceType ?? intentToSourceType(intent),
   );
+  // 사용자가 명시적으로 source_type 을 토글하면 자동 추천 갱신을 멈춤.
+  const [sourceTypeTouched, setSourceTypeTouched] = useState<boolean>(!!defaultSourceType);
+  const [sourceTypeReason, setSourceTypeReason] = useState<string>("");
   const [entries, setEntries] = useState<Entry[]>([]);
   const [uploading, setUploading] = useState(false);
   const [mergeProgress, setMergeProgress] = useState<MergeProgress | null>(null);
@@ -176,6 +182,26 @@ export default function DocumentUploadModal({
       : entries.length >= 2;
     if (recommended !== splitMode) setSplitMode(recommended);
   }, [entries, intent, splitMode, splitModeTouched, splitModeRemembered]);
+
+  // 파일 entries 가 바뀌면 source_type 자동 추천 갱신 (사용자가 명시 토글 전까지).
+  useEffect(() => {
+    if (sourceTypeTouched) return;
+    if (entries.length === 0) {
+      setSourceTypeReason("");
+      return;
+    }
+    const filenames = entries.map((e) => e.file.name);
+    const { sourceType: suggested, reason } = suggestSourceType(filenames, intent);
+    setSourceType(suggested);
+    setSourceTypeReason(reason);
+  }, [entries, intent, sourceTypeTouched]);
+
+  // 사용자가 라디오 직접 클릭 시 자동 갱신 멈춤.
+  const handleSourceTypeChange = useCallback((next: MatchupSourceType) => {
+    setSourceType(next);
+    setSourceTypeTouched(true);
+    setSourceTypeReason("");
+  }, []);
 
   // splitMode 명시 선택 시 localStorage에 학습.
   const persistSplitMode = useCallback((next: boolean) => {
@@ -847,7 +873,9 @@ export default function DocumentUploadModal({
             </div>
           )}
 
-          {/* Phase 1C — source_type 7-value 라디오. 워커 strategy 라우터 1순위 신호. */}
+          {/* 자료 유형 — 자동 추천 default. 학원장 directive 2026-05-09:
+              "내부 알고리즘으로 알아서 구분". 파일명 휴리스틱으로 추천하고
+              사용자는 다르면 변경만. 분석 후엔 헤더 chip 으로 다시 정정 가능. */}
           <div style={/* eslint-disable-line no-restricted-syntax */ {
             marginBottom: "var(--space-3)",
             padding: "var(--space-3)",
@@ -859,9 +887,28 @@ export default function DocumentUploadModal({
               fontSize: 12, fontWeight: 700,
               color: "var(--color-text-secondary)",
               marginBottom: 8,
+              display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap",
             }}>
-              자료 유형 <span style={/* eslint-disable-line no-restricted-syntax */ { color: "var(--color-brand-primary)", fontWeight: 600 }}>
-                (필수 — 워커가 유형별로 다르게 처리)
+              <span>자료 유형</span>
+              {!sourceTypeTouched && sourceTypeReason && (
+                <span
+                  data-testid="matchup-upload-source-type-auto-badge"
+                  title={`자동 추천 사유: ${sourceTypeReason}`}
+                  style={/* eslint-disable-line no-restricted-syntax */ {
+                    fontSize: 10, fontWeight: 700,
+                    color: "var(--color-brand-primary)",
+                    padding: "1px 7px", borderRadius: 999,
+                    background: "color-mix(in srgb, var(--color-brand-primary) 12%, transparent)",
+                  }}
+                >
+                  자동 추천
+                </span>
+              )}
+              <span style={/* eslint-disable-line no-restricted-syntax */ {
+                marginLeft: "auto",
+                fontSize: 11, fontWeight: 500, color: "var(--color-text-muted)",
+              }}>
+                다르면 직접 선택
               </span>
             </div>
             <div style={/* eslint-disable-line no-restricted-syntax */ {
@@ -875,7 +922,7 @@ export default function DocumentUploadModal({
                   <button
                     key={st}
                     type="button"
-                    onClick={() => setSourceType(st)}
+                    onClick={() => handleSourceTypeChange(st)}
                     disabled={uploading}
                     data-source-type={st}
                     style={/* eslint-disable-line no-restricted-syntax */ {

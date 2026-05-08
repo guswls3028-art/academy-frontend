@@ -229,6 +229,26 @@ export default function MatchupPage() {
 
   const progressMap = useMatchupPolling(documents);
 
+  // 첫 진입 자동 선택 — URL ?docId, navigate state, user-swap 모두 처리 후 selectedDocId
+  // 가 비어 있고 doc 이 1건 이상이면 첫 done doc 자동 선택. 학원장이 페이지 진입 시
+  // "왼쪽에서 문서를 선택해 주세요" 빈 화면을 한 번 더 클릭해야 하던 마찰 제거.
+  const autoSelectedRef = useRef(false);
+  useEffect(() => {
+    if (autoSelectedRef.current) return;
+    if (selectedDocId !== null) {
+      autoSelectedRef.current = true;
+      return;
+    }
+    if (docsLoading) return;
+    if (documents.length === 0) return;
+    const firstDone = documents.find((d) => d.status === "done");
+    const target = firstDone ?? documents[0];
+    if (target) {
+      autoSelectedRef.current = true;
+      setSelectedDocId(target.id);
+    }
+  }, [selectedDocId, documents, docsLoading, setSelectedDocId]);
+
   const openUpload = useCallback(
     (intent: "reference" | "test" = "reference", defaultCategory?: string) => {
       setUploadIntent(intent);
