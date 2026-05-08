@@ -298,6 +298,7 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
     <div
       className="async-status-bar__item"
       onClick={handleTaskClick}
+      // eslint-disable-next-line no-restricted-syntax -- 동적 cursor/opacity 만 inline (R-11 baseline 정리 2026-05-08)
       style={{ cursor: navigating ? "wait" : "pointer", opacity: navigating ? 0.7 : 1 }}
       aria-busy={navigating || undefined}
     >
@@ -333,9 +334,10 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
           {task.error && <div className="async-status-bar__item-error">{task.error}</div>}
         </div>
         <div 
-          className="async-status-bar__item-actions" 
+          className="async-status-bar__item-actions"
           onClick={(e) => e.stopPropagation()}
           ref={actionsRef}
+          // eslint-disable-next-line no-restricted-syntax -- popover anchor relative (R-11 baseline 정리 2026-05-08)
           style={{ position: "relative" }}
         >
           {/* ✅ 진행 중인 작업: 금지 아이콘 클릭 시 삭제 메뉴 */}
@@ -428,6 +430,7 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
                 <div className="async-status-bar__progress">
                   <div
                     className="async-status-bar__progress-fill"
+                    // eslint-disable-next-line no-restricted-syntax -- 동적 progress width (R-11 baseline 정리 2026-05-08)
                     style={{ width: `${task.encodingStep.percent}%` }}
                   />
                 </div>
