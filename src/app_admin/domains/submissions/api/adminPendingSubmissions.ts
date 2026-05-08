@@ -10,9 +10,12 @@ export type PendingSubmissionRow = {
   target_type: "exam" | "homework";
   target_id: number;
   target_title: string;
-  lecture_id: number;
+  /** Exam/Homework가 살아있고 세션 매칭이 가능한 경우만 채워짐 */
+  lecture_id: number | null;
   lecture_title: string;
-  session_id: number;
+  session_id: number | null;
+  /** 백엔드 신규 필드. true 가 아니면 결과/세션 페이지 이동이 불가능함 */
+  target_resolved?: boolean;
   source: string;
   status: SubmissionStatus;
   file_key?: string | null;
