@@ -1007,7 +1007,7 @@ export default function MatchupPage() {
                           : "";
                         const ok = await confirm({
                           title: `${rangeLabel} 자동분리 ${targets.length}개 삭제`,
-                          description: `이 작업은 되돌릴 수 없습니다.${protectedNote}\n\n진행할까요?`,
+                          message: `이 작업은 되돌릴 수 없습니다.${protectedNote}\n\n진행할까요?`,
                           confirmText: `${targets.length}개 삭제`,
                           danger: true,
                         });
