@@ -9,6 +9,9 @@ export type AsyncTaskStatus = "pending" | "success" | "error";
 export interface AsyncTaskMeta {
   jobId: string;
   jobType: string;
+  /** 작업박스 클릭 → 페이지 진입 시 자동 선택 대상 ID (예: matchup doc id).
+   *  없으면 페이지만 이동, 있으면 페이지 + 해당 항목 자동 선택. */
+  sourceId?: string | number;
 }
 
 /** 영상 인코딩 구간별 진행 (n/7) 단계명 + 구간 내 0~100% */
@@ -101,7 +104,7 @@ export const asyncStatusStore = {
    * 워커 작업 추가 — 우하단 작업 알람창에 실시간 프로그래스바로 표시됨.
    * jobId를 id로 사용하여 폴링 시 status/progress 갱신.
    */
-  addWorkerJob(label: string, jobId: string, jobType: string): string {
+  addWorkerJob(label: string, jobId: string, jobType: string, sourceId?: string | number): string {
     const scope = this._getTenantScope() ?? "";
     tasks = [
       ...tasks.filter((t) => t.id !== jobId),
@@ -111,7 +114,7 @@ export const asyncStatusStore = {
         status: "pending" as const,
         progress: 0, // 즉시 "진행 중" 표시 ("대기 중" 대신)
         createdAt: Date.now(),
-        meta: { jobId, jobType },
+        meta: { jobId, jobType, sourceId },
         tenantScope: scope,
       },
     ];

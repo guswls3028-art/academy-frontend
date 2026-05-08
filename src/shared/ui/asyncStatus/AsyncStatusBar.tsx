@@ -491,6 +491,8 @@ export function WorkboxPanelContent({ onClose }: { onClose: () => void }) {
     });
   }, [currentTenantKey, tasks]);
 
+  // 1초 간격 갱신 — pending 작업이 있을 때 TaskItem이 elapsed/ETA를 다시 계산.
+  // now는 아래 displayTasks.map에서 TaskItem에 prop으로 전달됨.
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     if (pendingCount === 0) return;
@@ -618,7 +620,10 @@ export default function AsyncStatusBar() {
 
   const pendingCount = displayTasks.filter((t) => t.status === "pending").length;
 
-  const [now, setNow] = useState(() => Date.now());
+  // outer 컨테이너 — 1초 간격 force re-render. trigger label("진행 중 N건")이
+  // pendingCount 변화에 따라 갱신되도록. now 값 자체는 outer에서 안 쓰고 setNow만 호출.
+  // (inner WorkboxPanelContent는 자체로 now state를 들고 있어 TaskItem prop으로 전달함.)
+  const [, setNow] = useState(() => Date.now());
   useEffect(() => {
     if (pendingCount === 0) return;
     const id = setInterval(() => setNow(Date.now()), 1000);
@@ -633,7 +638,6 @@ export default function AsyncStatusBar() {
     prevPendingCountRef.current = pendingCount;
   }, [pendingCount, setExpanded]);
 
-  const workerTasks = tasks.filter((t) => t.meta?.jobId);
   useWorkerJobPoller(tasks, {
     onExcelSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["lecture-enrollments"] });
