@@ -57,10 +57,11 @@ const STATE_COLOR: Record<PageStateValue, string> = {
 
 const AUTO_REASON_LABEL: Record<string, string> = {
   paper_type_cover: "표지 자동 감지",
-  paper_type_explanation: "해설 페이지 자동 감지",
+  paper_type_explanation: "해설 자동 감지",
   paper_type_answer_key: "정답지 자동 감지",
   paper_type_index: "목차 자동 감지",
-  paper_type_non_question: "비문항 페이지 자동 감지",
+  paper_type_non_question: "비문항 자동 감지",
+  no_problem_detected: "문항 없음",
   legacy_excluded_pages: "이전에 제외함",
 };
 
@@ -298,9 +299,27 @@ export default function PageStateGrid({ document: doc, onRequestDetail, onClose 
       )}
 
       {/* 그리드 */}
-      {isLoading ? (
-        <div style={/* eslint-disable-line no-restricted-syntax */ { padding: "var(--space-5)", textAlign: "center" }}>
-          <Loader2 size={ICON.md} className="animate-spin" /> 페이지 정보를 불러오는 중…
+      {isLoading && allPages.length === 0 ? (
+        // skeleton 렌더 (UX P1, 2026-05-09): 무한 spinner 인상 X. 12개 placeholder card.
+        <div style={/* eslint-disable-line no-restricted-syntax */ {
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
+          gap: "var(--space-2)",
+        }}>
+          {Array.from({ length: 12 }).map((_, i) => (
+            <div key={i} style={/* eslint-disable-line no-restricted-syntax */ {
+              border: "1px solid var(--color-border-divider)",
+              borderRadius: "var(--radius-md)",
+              padding: "var(--space-2)",
+              background: "var(--color-bg-surface-soft)",
+              display: "flex", flexDirection: "column", gap: 6,
+              opacity: 0.6,
+            }}>
+              <div style={/* eslint-disable-line no-restricted-syntax */ { width: 30, height: 14, background: "var(--color-bg-surface)", borderRadius: 4 }} />
+              <div style={/* eslint-disable-line no-restricted-syntax */ { width: "100%", aspectRatio: "1 / 1.41", background: "var(--color-bg-surface)", borderRadius: 4 }} />
+              <div style={/* eslint-disable-line no-restricted-syntax */ { width: "100%", height: 26, background: "var(--color-bg-surface)", borderRadius: 4 }} />
+            </div>
+          ))}
         </div>
       ) : allPages.length === 0 ? (
         <div style={/* eslint-disable-line no-restricted-syntax */ { padding: "var(--space-5)", textAlign: "center", color: "var(--color-text-muted)" }}>
@@ -309,7 +328,7 @@ export default function PageStateGrid({ document: doc, onRequestDetail, onClose 
       ) : (
         <div style={/* eslint-disable-line no-restricted-syntax */ {
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
+          gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
           gap: "var(--space-2)",
         }}>
           {allPages.map((page) => {
@@ -335,29 +354,47 @@ export default function PageStateGrid({ document: doc, onRequestDetail, onClose 
                   opacity: state === "skip" ? 0.55 : 1,
                 }}
               >
-                {/* 헤더: 페이지 번호 + 체크박스 + skip-from-here */}
-                <div style={/* eslint-disable-line no-restricted-syntax */ { display: "flex", alignItems: "center", gap: 4, fontSize: 12 }}>
+                {/* 헤더: 체크박스 + 페이지 번호 + 자동 추천 라벨 + skip-from-here */}
+                <div style={/* eslint-disable-line no-restricted-syntax */ { display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>
                   <input
                     type="checkbox"
                     checked={isSelected}
                     onChange={() => togglePage(idx)}
                     aria-label={`${idx + 1}페이지 선택`}
-                    style={/* eslint-disable-line no-restricted-syntax */ { cursor: "pointer" }}
+                    style={/* eslint-disable-line no-restricted-syntax */ { cursor: "pointer", width: 14, height: 14 }}
                   />
-                  <span style={/* eslint-disable-line no-restricted-syntax */ { fontWeight: 800, color: STATE_COLOR[state] }}>
-                    p{idx + 1}
+                  <span style={/* eslint-disable-line no-restricted-syntax */ {
+                    fontWeight: 800, fontSize: 14,
+                    color: STATE_COLOR[state],
+                  }}>
+                    {idx + 1}
                   </span>
+                  {reason && (
+                    <span style={/* eslint-disable-line no-restricted-syntax */ {
+                      fontSize: 10, fontWeight: 700,
+                      padding: "1px 6px", borderRadius: 999,
+                      background: state === "skip"
+                        ? "color-mix(in srgb, var(--color-text-muted) 18%, transparent)"
+                        : "color-mix(in srgb, var(--color-info) 12%, transparent)",
+                      color: state === "skip"
+                        ? "var(--color-text-muted)"
+                        : "var(--color-info)",
+                    }}>
+                      {autoReasonLabel(reason)}
+                    </span>
+                  )}
                   <button
                     type="button"
                     onClick={() => skipFromHere(idx)}
-                    title="이 페이지부터 끝까지 건너뛰기"
+                    title="이 페이지부터 끝까지 매치업에서 제외"
                     style={/* eslint-disable-line no-restricted-syntax */ {
                       marginLeft: "auto",
                       background: "none", border: "none", cursor: "pointer",
-                      color: "var(--color-text-muted)", fontSize: 10,
+                      color: "var(--color-text-secondary)", fontSize: 11, fontWeight: 600,
+                      padding: "2px 4px", borderRadius: 4,
                     }}
                   >
-                    ⤓ 끝까지 skip
+                    여기부터 끝까지 ⏭
                   </button>
                 </div>
 
@@ -381,7 +418,7 @@ export default function PageStateGrid({ document: doc, onRequestDetail, onClose 
                   />
                 )}
 
-                {/* state radio chip */}
+                {/* state radio chip — selected 시 진한 fill bg + 흰 텍스트 (UX P1, 2026-05-09) */}
                 <div style={/* eslint-disable-line no-restricted-syntax */ { display: "flex", gap: 4 }}>
                   {(["auto", "skip", "manual"] as PageStateValue[]).map((s) => (
                     <button
@@ -393,35 +430,24 @@ export default function PageStateGrid({ document: doc, onRequestDetail, onClose 
                       title={STATE_DESCRIPTION[s]}
                       style={/* eslint-disable-line no-restricted-syntax */ {
                         flex: 1,
-                        padding: "4px 0",
-                        fontSize: 11, fontWeight: 700,
+                        padding: "5px 0",
+                        fontSize: 12, fontWeight: 700,
                         border: state === s
-                          ? `2px solid ${STATE_COLOR[s]}`
+                          ? `1px solid ${STATE_COLOR[s]}`
                           : `1px solid var(--color-border-divider)`,
                         borderRadius: 4,
-                        background: state === s
-                          ? `color-mix(in srgb, ${STATE_COLOR[s]} 12%, var(--color-bg-surface))`
-                          : "var(--color-bg-surface)",
-                        color: state === s ? STATE_COLOR[s] : "var(--color-text-secondary)",
+                        background: state === s ? STATE_COLOR[s] : "var(--color-bg-surface)",
+                        color: state === s ? "#fff" : "var(--color-text-secondary)",
                         cursor: bulkMutation.isPending ? "not-allowed" : "pointer",
+                        boxShadow: state === s
+                          ? `0 1px 3px color-mix(in srgb, ${STATE_COLOR[s]} 30%, transparent)`
+                          : "none",
                       }}
                     >
                       {STATE_LABEL[s]}
                     </button>
                   ))}
                 </div>
-
-                {/* auto_reason badge */}
-                {reason && (
-                  <div style={/* eslint-disable-line no-restricted-syntax */ {
-                    fontSize: 10, color: "var(--color-text-muted)",
-                    background: "var(--color-bg-surface-soft)",
-                    padding: "2px 6px", borderRadius: 999,
-                    alignSelf: "flex-start",
-                  }}>
-                    {autoReasonLabel(reason)}
-                  </div>
-                )}
               </div>
             );
           })}
