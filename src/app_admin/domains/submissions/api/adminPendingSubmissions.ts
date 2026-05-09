@@ -14,10 +14,14 @@ export type PendingSubmissionRow = {
   lecture_id: number | null;
   lecture_title: string;
   session_id: number | null;
-  /** 백엔드 신규 필드. true 가 아니면 결과/세션 페이지 이동이 불가능함 */
-  target_resolved?: boolean;
-  /** target_resolved=false 일 때 사유: 'target_missing' | 'session_missing' | null */
-  target_resolved_reason?: "target_missing" | "session_missing" | null;
+  /** 백엔드 필드. true 가 아니면 결과/세션 페이지 이동이 불가능함 */
+  target_resolved: boolean;
+  /** target_resolved=false 일 때 사유 */
+  target_resolved_reason: "target_missing" | "session_missing" | null;
+  /** status=failed 중 운영자/시스템 폐기 row 여부 */
+  is_discarded?: boolean;
+  /** is_discarded=true 일 때 사유 (DiscardReason 또는 cascade_*_deleted) */
+  discard_reason?: string | null;
   source: string;
   status: SubmissionStatus;
   file_key?: string | null;

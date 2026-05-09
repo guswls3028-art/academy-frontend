@@ -54,10 +54,13 @@ import type { SubmissionStatus } from "../types";
 
 type FilterKey = "pending" | "done" | "failed" | "all";
 
+/** "실패" 탭 안의 sub filter — 폐기/실제실패 분리 */
+type FailedSubFilter = "all" | "real_failed" | "discarded";
+
 const FILTER_TABS: { key: FilterKey; label: string }[] = [
   { key: "pending", label: "대기 중" },
   { key: "done", label: "완료" },
-  { key: "failed", label: "실패" },
+  { key: "failed", label: "실패/폐기" },
   { key: "all", label: "전체" },
 ];
 
@@ -84,10 +87,19 @@ const PROCESSING_STATUSES: Set<SubmissionStatus> = new Set([
   "grading",
 ]);
 
-function clientFilter(rows: PendingSubmissionRow[], filter: FilterKey): PendingSubmissionRow[] {
+function clientFilter(
+  rows: PendingSubmissionRow[],
+  filter: FilterKey,
+  failedSub: FailedSubFilter,
+): PendingSubmissionRow[] {
   if (filter === "all") return rows;
   if (filter === "done") return rows.filter((r) => r.status === "done");
-  if (filter === "failed") return rows.filter((r) => r.status === "failed");
+  if (filter === "failed") {
+    const fails = rows.filter((r) => r.status === "failed");
+    if (failedSub === "real_failed") return fails.filter((r) => !r.is_discarded);
+    if (failedSub === "discarded") return fails.filter((r) => r.is_discarded);
+    return fails;
+  }
   return rows.filter((r) => PENDING_STATUSES.has(r.status));
 }
 
@@ -100,9 +112,23 @@ function formatDate(iso: string): string {
 }
 
 function isTargetResolved(row: PendingSubmissionRow): boolean {
-  if (typeof row.target_resolved === "boolean") return row.target_resolved;
-  // 백엔드 신규 필드 미배포 환경 대비 fallback (deploy 안정 후 제거 가능)
-  return Boolean(row.lecture_id && row.session_id && row.target_title);
+  return row.target_resolved;
+}
+
+const DISCARD_REASON_LABEL: Record<string, string> = {
+  scan_quality: "스캔 품질",
+  wrong_upload: "오업로드",
+  duplicate: "중복",
+  target_missing: "원본 없음",
+  operator_discarded: "운영자 폐기",
+  cascade_exam_deleted: "시험 삭제",
+  cascade_homework_deleted: "과제 삭제",
+  other: "기타",
+};
+
+function discardReasonLabel(reason: string | null | undefined): string {
+  if (!reason) return "폐기";
+  return DISCARD_REASON_LABEL[reason] ?? reason;
 }
 
 function orphanReasonLabel(row: PendingSubmissionRow): string {
@@ -124,6 +150,7 @@ export default function SubmissionsInboxPage() {
   const qc = useQueryClient();
   const confirm = useConfirm();
   const [filter, setFilter] = useState<FilterKey>("pending");
+  const [failedSub, setFailedSub] = useState<FailedSubFilter>("all");
 
   const [pickerRow, setPickerRow] = useState<PendingSubmissionRow | null>(null);
   const lastPickedEnrollmentRef = useRef<number | null>(null);
@@ -149,8 +176,18 @@ export default function SubmissionsInboxPage() {
     const sorted = [...data].sort(
       (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
     );
-    return clientFilter(sorted, filter);
-  }, [q.data, filter]);
+    return clientFilter(sorted, filter, failedSub);
+  }, [q.data, filter, failedSub]);
+
+  // failed 탭에서 sub-filter 카운트
+  const failedCounts = useMemo(() => {
+    const fails = (q.data ?? []).filter((r) => r.status === "failed");
+    return {
+      total: fails.length,
+      real: fails.filter((r) => !r.is_discarded).length,
+      discarded: fails.filter((r) => r.is_discarded).length,
+    };
+  }, [q.data]);
 
   const needsIdentificationCount = useMemo(
     () => (q.data ?? []).filter((r) => r.status === "needs_identification").length,
@@ -162,8 +199,9 @@ export default function SubmissionsInboxPage() {
     [q.data],
   );
 
-  // 일괄 선택 가능한 row 만 토글 가능 (선택은 폐기 가능 row 만)
+  // 일괄 선택 가능한 row 만 토글 가능 (선택은 폐기 가능 row 만 — 이미 폐기된 row 제외)
   const isSelectable = (row: PendingSubmissionRow): boolean => {
+    if (row.is_discarded) return false; // 중복 폐기 방지
     const resolved = isTargetResolved(row);
     return row.status === "needs_identification" || row.status === "failed" || !resolved;
   };
@@ -413,7 +451,10 @@ export default function SubmissionsInboxPage() {
         <Tabs
           value={filter}
           items={FILTER_TABS}
-          onChange={(key) => handleFilterChange(key as FilterKey)}
+          onChange={(key) => {
+            handleFilterChange(key as FilterKey);
+            setFailedSub("all");
+          }}
         />
         <div className="flex items-center gap-2">
           {selectedIds.size > 0 && (
@@ -440,6 +481,31 @@ export default function SubmissionsInboxPage() {
           </Button>
         </div>
       </div>
+
+      {/* failed 탭 sub-filter — 폐기/실제실패 분리 */}
+      {filter === "failed" && (q.data ?? []).some((r) => r.status === "failed") && (
+        <div className="flex items-center gap-1 text-xs">
+          <span className="text-[var(--color-text-muted)] mr-2">분류:</span>
+          {([
+            { key: "all", label: `전체 ${failedCounts.total}` },
+            { key: "real_failed", label: `실패 ${failedCounts.real}` },
+            { key: "discarded", label: `폐기됨 ${failedCounts.discarded}` },
+          ] as { key: FailedSubFilter; label: string }[]).map((opt) => (
+            <button
+              key={opt.key}
+              type="button"
+              onClick={() => setFailedSub(opt.key)}
+              className={`px-2.5 py-1 rounded-full border ${
+                failedSub === opt.key
+                  ? "bg-[var(--color-bg-surface-soft)] border-[var(--color-border-strong)] text-[var(--color-text-primary)] font-bold"
+                  : "border-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {q.isLoading && (
         <EmptyState scope="panel" tone="loading" title="제출 목록 불러오는 중..." />
@@ -548,13 +614,19 @@ function SubmissionRow({
   onRetry: () => void;
   onDiscard: () => void;
 }) {
-  const tone = (SUBMISSION_STATUS_TONE as Record<string, "success" | "danger" | "warning" | "primary" | "neutral">)[row.status] ?? "neutral";
-  const statusLabel = (SUBMISSION_STATUS_LABEL as Record<string, string>)[row.status] ?? row.status;
+  // 폐기된 row 는 status badge 와 tone 을 별도로 (실제 실패와 시각 분리).
   const isExam = row.target_type === "exam";
   const resolved = isTargetResolved(row);
+  const isDiscardedRow = row.status === "failed" && row.is_discarded === true;
+  const tone = isDiscardedRow
+    ? "neutral"
+    : (SUBMISSION_STATUS_TONE as Record<string, "success" | "danger" | "warning" | "primary" | "neutral">)[row.status] ?? "neutral";
+  const statusLabel = isDiscardedRow
+    ? discardReasonLabel(row.discard_reason)
+    : (SUBMISSION_STATUS_LABEL as Record<string, string>)[row.status] ?? row.status;
 
   const isNeedsId = row.status === "needs_identification";
-  const isFailed = row.status === "failed";
+  const isFailedReal = row.status === "failed" && !isDiscardedRow;
   const isProcessing = PROCESSING_STATUSES.has(row.status);
   const isDone = row.status === "done";
   const isAnswersReady = row.status === "answers_ready";
@@ -646,10 +718,15 @@ function SubmissionRow({
             지정 불가
           </Button>
         )}
-        {isFailed && (
+        {isFailedReal && (
           <Button type="button" intent="primary" size="sm" disabled={busy} onClick={onRetry}>
             재처리
           </Button>
+        )}
+        {isDiscardedRow && (
+          <span className="text-xs text-[var(--color-text-muted)] px-2" title="이미 폐기된 답안지입니다.">
+            폐기됨
+          </span>
         )}
         {isProcessing && (
           <span className="text-xs text-[var(--color-text-muted)] px-2">처리 중…</span>
@@ -671,7 +748,8 @@ function SubmissionRow({
           </Button>
         )}
 
-        {(isNeedsId || isFailed || !resolved) && (
+        {/* 폐기 버튼은 이미 discarded 된 row 에는 안 보임 — 중복 폐기 방지 */}
+        {!isDiscardedRow && (isNeedsId || isFailedReal || !resolved) && (
           <Button
             type="button"
             intent="ghost"

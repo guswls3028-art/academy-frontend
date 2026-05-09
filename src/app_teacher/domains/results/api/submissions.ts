@@ -20,12 +20,17 @@ export type PendingSubmissionRow = {
   target_type: "exam" | "homework";
   target_id: number;
   target_title: string;
-  lecture_id: number;
+  lecture_id: number | null;
   lecture_title: string;
-  session_id: number;
+  session_id: number | null;
   source: string;
   status: SubmissionStatus;
   created_at: string;
+  /** 백엔드 신필드 — orphan/결손 row 분기용 */
+  target_resolved?: boolean;
+  target_resolved_reason?: "target_missing" | "session_missing" | null;
+  is_discarded?: boolean;
+  discard_reason?: string | null;
 };
 
 export async function fetchPendingSubmissions(filter?: string): Promise<PendingSubmissionRow[]> {

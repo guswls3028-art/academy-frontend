@@ -1,13 +1,31 @@
+/* eslint-disable no-restricted-syntax */
 // PATH: src/app_teacher/domains/results/pages/SubmissionsInboxPage.tsx
-// 제출함 — 학생 제출(시험·과제) 인박스. 데스크톱 SubmissionsInboxPage 모바일 포팅.
+// 제출함 — 학생 제출(시험·과제) 인박스. 모바일 포팅.
+// (inline style 은 teacher mobile 설계 통일 패턴. tc-* CSS 변수 토큰을 직접 사용)
 // 5초 자동 새로고침. 카드 탭 → 세션의 시험/과제 페이지로 이동.
+//
+// admin 인박스 동등 매트릭스 (mobile UX):
+//   needs_identification + target_resolved → tap = 시험 페이지(어드민 PC 매칭 안내)
+//   needs_identification + !target_resolved → "원본 없음" 라벨 + 폐기
+//   failed (real)        → 재처리
+//   failed (discarded)   → "폐기됨" 라벨 (액션 없음)
+//   processing           → 처리 중 라벨
+//   done/answers_ready + resolved → tap = 결과
+//   done/answers_ready + !resolved → "결과 없음" 라벨
+//
+// SessionLayout 데드락 회피: navigate 전 target_resolved 가드.
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { EmptyState } from "@/shared/ui/ds";
-import { Card, BackButton } from "@teacher/shared/ui/Card";
+import { feedback } from "@/shared/ui/feedback/feedback";
+import { BackButton } from "@teacher/shared/ui/Card";
 import { Badge } from "@teacher/shared/ui/Badge";
 import { ChevronRight } from "@teacher/shared/ui/Icons";
+import {
+  retrySubmissionApi,
+  discardSubmissionApi,
+} from "@admin/domains/materials/sheets/components/submissions/submissions.api";
 import {
   fetchPendingSubmissions,
   type PendingSubmissionRow,
@@ -18,7 +36,7 @@ type FilterKey = "pending" | "done" | "failed" | "all";
 const FILTER_TABS: { key: FilterKey; label: string }[] = [
   { key: "pending", label: "대기 중" },
   { key: "done", label: "완료" },
-  { key: "failed", label: "실패" },
+  { key: "failed", label: "실패/폐기" },
   { key: "all", label: "전체" },
 ];
 
@@ -60,6 +78,17 @@ const STATUS_TONE: Record<string, "success" | "danger" | "warning" | "info" | "n
   failed: "danger",
 };
 
+const DISCARD_REASON_LABEL: Record<string, string> = {
+  scan_quality: "스캔 품질",
+  wrong_upload: "오업로드",
+  duplicate: "중복",
+  target_missing: "원본 없음",
+  operator_discarded: "폐기",
+  cascade_exam_deleted: "시험 삭제",
+  cascade_homework_deleted: "과제 삭제",
+  other: "기타",
+};
+
 function clientFilter(rows: PendingSubmissionRow[], filter: FilterKey): PendingSubmissionRow[] {
   if (filter === "all") return rows;
   if (filter === "done") return rows.filter((r) => r.status === "done");
@@ -73,8 +102,14 @@ function formatTime(iso: string) {
   return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 
+function isTargetResolved(row: PendingSubmissionRow): boolean {
+  if (typeof row.target_resolved === "boolean") return row.target_resolved;
+  return Boolean(row.lecture_id && row.session_id && row.target_title);
+}
+
 export default function SubmissionsInboxPage() {
   const navigate = useNavigate();
+  const qc = useQueryClient();
   const [filter, setFilter] = useState<FilterKey>("pending");
 
   const q = useQuery({
@@ -91,12 +126,52 @@ export default function SubmissionsInboxPage() {
     return clientFilter(sorted, filter);
   }, [q.data, filter]);
 
+  function refetchAll() {
+    qc.invalidateQueries({ queryKey: ["teacher-pending-submissions"] });
+  }
+
+  const retryMut = useMutation({
+    mutationFn: (sid: number) => retrySubmissionApi(sid),
+    onSuccess: () => {
+      feedback.success("재처리를 시작했습니다.");
+      refetchAll();
+    },
+    onError: (e: unknown) => {
+      const err = e as { response?: { data?: { detail?: string } }; message?: string };
+      feedback.error(err?.response?.data?.detail || err?.message || "재처리에 실패했습니다.");
+    },
+  });
+
+  const discardMut = useMutation({
+    mutationFn: (sid: number) => discardSubmissionApi(sid, "operator_discarded"),
+    onSuccess: () => {
+      feedback.success("답안지를 폐기했습니다.");
+      refetchAll();
+    },
+    onError: (e: unknown) => {
+      const err = e as { response?: { data?: { detail?: string } }; message?: string };
+      feedback.error(err?.response?.data?.detail || err?.message || "폐기에 실패했습니다.");
+    },
+  });
+
   const handleNavigate = (row: PendingSubmissionRow) => {
+    if (!isTargetResolved(row)) {
+      feedback.error("원본 시험/과제 정보를 찾을 수 없어 이동할 수 없습니다.");
+      return;
+    }
     if (row.target_type === "exam") {
       navigate(`/teacher/exams/${row.target_id}`);
     } else {
       navigate(`/teacher/homeworks/${row.target_id}`);
     }
+  };
+
+  const handleDiscard = (row: PendingSubmissionRow) => {
+    const ok = window.confirm(
+      "이 답안지를 폐기할까요?\n폐기하면 채점 대상에서 제외되고, 다시 채점하려면 새로 업로드해야 합니다.",
+    );
+    if (!ok) return;
+    discardMut.mutate(row.id);
   };
 
   const emptyTitle =
@@ -159,13 +234,25 @@ export default function SubmissionsInboxPage() {
         <div className="flex flex-col gap-1.5">
           {rows.map((r) => {
             const isExam = r.target_type === "exam";
-            const tone = STATUS_TONE[r.status] ?? "neutral";
-            const label = STATUS_LABEL[r.status] ?? r.status;
+            const resolved = isTargetResolved(r);
+            const isDiscardedRow = r.status === "failed" && r.is_discarded === true;
+
+            const tone = isDiscardedRow ? "neutral" : (STATUS_TONE[r.status] ?? "neutral");
+            const label = isDiscardedRow
+              ? (DISCARD_REASON_LABEL[r.discard_reason || ""] ?? "폐기됨")
+              : (STATUS_LABEL[r.status] ?? r.status);
+
+            const isProcessing = ["submitted", "dispatched", "extracting", "grading"].includes(r.status);
+            const isFailedReal = r.status === "failed" && !isDiscardedRow;
+            const isNavigable = (r.status === "done" || r.status === "answers_ready") && resolved;
+
+            const titleMain = r.student_name?.trim() || "이름 미상";
+            const titleSub = r.target_title?.trim() || (resolved ? `${isExam ? "시험" : "과제"} #${r.id}` : (isExam ? "원본 시험 없음" : "원본 과제 없음"));
+
             return (
-              <button
+              <div
                 key={r.id}
-                onClick={() => handleNavigate(r)}
-                className="flex items-center gap-2 rounded-xl w-full text-left cursor-pointer"
+                className="flex items-center gap-2 rounded-xl"
                 style={{
                   padding: "var(--tc-space-3) var(--tc-space-4)",
                   minHeight: "var(--tc-touch-min)",
@@ -187,11 +274,11 @@ export default function SubmissionsInboxPage() {
                 </span>
 
                 <div className="flex-1 min-w-0">
-                  <div className="text-[13px] font-semibold truncate" style={{ color: "var(--tc-text)" }}>
-                    {[
-                      r.student_name?.trim() || "이름 미상",
-                      r.target_title?.trim() || `${isExam ? "시험" : "과제"} #${r.id}`,
-                    ].join(" · ")}
+                  <div
+                    className="text-[13px] font-semibold truncate"
+                    style={{ color: resolved ? "var(--tc-text)" : "var(--tc-text-muted)" }}
+                  >
+                    {titleMain} · {titleSub}
                   </div>
                   <div className="flex gap-1.5 items-center text-[11px] mt-0.5" style={{ color: "var(--tc-text-muted)" }}>
                     <Badge tone={tone} size="xs">{label}</Badge>
@@ -200,8 +287,53 @@ export default function SubmissionsInboxPage() {
                   </div>
                 </div>
 
-                <ChevronRight size={14} style={{ color: "var(--tc-text-muted)", flexShrink: 0 }} />
-              </button>
+                {/* 우측 액션 — 모바일 컴팩트 */}
+                {isNavigable ? (
+                  <button
+                    type="button"
+                    onClick={() => handleNavigate(r)}
+                    className="shrink-0 px-2 py-1 rounded text-[12px]"
+                    style={{ background: "var(--tc-primary)", color: "#fff", border: "none" }}
+                  >
+                    결과
+                  </button>
+                ) : isFailedReal ? (
+                  <button
+                    type="button"
+                    onClick={() => retryMut.mutate(r.id)}
+                    disabled={retryMut.isPending}
+                    className="shrink-0 px-2 py-1 rounded text-[12px]"
+                    style={{ background: "var(--tc-primary)", color: "#fff", border: "none" }}
+                  >
+                    재처리
+                  </button>
+                ) : isProcessing ? (
+                  <span className="shrink-0 text-[11px]" style={{ color: "var(--tc-text-muted)" }}>처리 중…</span>
+                ) : isDiscardedRow ? (
+                  <span className="shrink-0 text-[11px]" style={{ color: "var(--tc-text-muted)" }}>폐기됨</span>
+                ) : !resolved ? (
+                  <button
+                    type="button"
+                    onClick={() => handleDiscard(r)}
+                    disabled={discardMut.isPending}
+                    className="shrink-0 px-2 py-1 rounded text-[12px]"
+                    style={{ background: "transparent", color: "var(--tc-text-muted)", border: "1px solid var(--tc-border)" }}
+                    title="원본 없음 — 폐기"
+                  >
+                    폐기
+                  </button>
+                ) : r.status === "needs_identification" ? (
+                  <span
+                    className="shrink-0 text-[11px]"
+                    style={{ color: "var(--tc-text-muted)" }}
+                    title="학원장(PC)에서 학생을 매칭한 후 자동 채점됩니다."
+                  >
+                    PC 매칭 대기
+                  </span>
+                ) : (
+                  <ChevronRight size={14} style={{ color: "var(--tc-text-muted)", flexShrink: 0 }} />
+                )}
+              </div>
             );
           })}
         </div>
