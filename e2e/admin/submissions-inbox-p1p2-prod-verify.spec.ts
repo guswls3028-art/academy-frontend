@@ -59,6 +59,20 @@ test("discard-batch endpoint: 빈 ids 거부 (실 폐기 없음)", async ({ requ
   expect(resp.status()).toBe(400);
 });
 
+test("discard-batch endpoint: 501건 BATCH_TOO_LARGE 거부", async ({ request }) => {
+  test.setTimeout(60_000);
+  const access = await getAccess(request);
+  // 존재하지 않는 id 501 개 — limit 가드 검증, 실제 폐기 없음
+  const fakeIds = Array.from({ length: 501 }, (_, i) => -1 - i);
+  const resp = await request.post(`${API_BASE}/api/v1/submissions/submissions/discard-batch/`, {
+    headers: { Authorization: `Bearer ${access}`, "X-Tenant-Code": TENANT_CODE, "Content-Type": "application/json" },
+    data: { submission_ids: fakeIds, reason: "operator_discarded" },
+  });
+  expect(resp.status()).toBe(400);
+  const body = await resp.json();
+  expect(body.code).toBe("BATCH_TOO_LARGE");
+});
+
 test("homework candidates endpoint: 404 (no homework_id) 또는 200", async ({ request }) => {
   test.setTimeout(60_000);
   const access = await getAccess(request);
