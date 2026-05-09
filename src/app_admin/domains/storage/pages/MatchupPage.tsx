@@ -4,7 +4,7 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams, useNavigate, useLocation } from "react-router-dom";
-import { Sparkles, AlertTriangle, RefreshCw, Eye, BookOpen, Crop, ClipboardList, FolderTree, FolderInput, Plus } from "lucide-react";
+import { Sparkles, AlertTriangle, RefreshCw, Eye, BookOpen, Crop, ClipboardList, FolderTree, FolderInput, Plus, Layers } from "lucide-react";
 import { Button, ICON } from "@/shared/ui/ds";
 import { useConfirm } from "@/shared/ui/confirm";
 import useAuth from "@/auth/hooks/useAuth";
@@ -36,6 +36,7 @@ import ProblemDetailModal from "../components/matchup/ProblemDetailModal";
 import DocumentPreviewModal from "../components/matchup/DocumentPreviewModal";
 import ManualCropModal from "../components/matchup/ManualCropModal";
 import LowConfPageReviewer from "../components/matchup/LowConfPageReviewer";
+import PageStateGrid from "../components/matchup/PageStateGrid";
 import MergeProblemsModal from "../components/matchup/MergeProblemsModal";
 import HitReportEditor from "../components/matchup/HitReportEditor";
 import HitReportListModal from "../components/matchup/HitReportListModal";
@@ -100,6 +101,7 @@ export default function MatchupPage() {
   // Phase 5-deep — 직접 자르기 모달이 특정 페이지로 점프해서 열려야 할 때 (검수 모달에서 인계).
   const [cropInitialPage, setCropInitialPage] = useState<number | null>(null);
   const [reviewerDocId, setReviewerDocId] = useState<number | null>(null);
+  const [pageStateGridDocId, setPageStateGridDocId] = useState<number | null>(null);
   const [hitReportDocId, setHitReportDocId] = useState<number | null>(null);
   // 강사별 보고서 누적 리스트 모달 (수업 히스토리/제출 KPI/홍보물 진입점).
   const [hitReportListOpen, setHitReportListOpen] = useState(false);
@@ -1388,6 +1390,46 @@ export default function MatchupPage() {
                     1회 시각으로 인식. 빨간색 사용 0, "권장 행동" 중심 copy. */}
                 <DocumentGuidanceBanner document={selectedDoc} />
 
+                {/* MVP Phase B (2026-05-09) — 페이지별 auto/skip/manual 설정 진입점.
+                    basic_definition_2026_05_09 SSOT MVP 1단계. 학원장이 표지/해설/답안지
+                    페이지를 한 화면에서 일괄 결정 → 자동분리 결과 + manual cut = 최종 set. */}
+                {selectedDoc?.status === "done" && (
+                  <div
+                    data-testid="matchup-page-state-cta"
+                    style={/* eslint-disable-line no-restricted-syntax */ {
+                      flexShrink: 0,
+                      padding: "var(--space-2) var(--space-3)",
+                      borderRadius: "var(--radius-md)",
+                      background: "var(--color-bg-surface-soft)",
+                      border: "1px solid var(--color-border-divider)",
+                      display: "flex", alignItems: "center", gap: "var(--space-2)",
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    <Layers size={ICON.sm} style={/* eslint-disable-line no-restricted-syntax */ { color: "var(--color-text-secondary)", flexShrink: 0 }} />
+                    <span style={/* eslint-disable-line no-restricted-syntax */ {
+                      fontSize: 12, fontWeight: 700, color: "var(--color-text-primary)",
+                    }}>
+                      페이지 설정
+                    </span>
+                    <span style={/* eslint-disable-line no-restricted-syntax */ {
+                      fontSize: 11, color: "var(--color-text-secondary)",
+                    }}>
+                      표지 · 해설 · 답안지 페이지를 매치업에서 제외하거나 직접 자르기로 전환할 수 있어요.
+                    </span>
+                    <Button
+                      intent="ghost"
+                      size="sm"
+                      onClick={() => setPageStateGridDocId(selectedDoc.id)}
+                      data-testid="matchup-page-state-grid-open-btn"
+                      leftIcon={<Layers size={ICON.sm} />}
+                      style={/* eslint-disable-line no-restricted-syntax */ { marginLeft: "auto" }}
+                    >
+                      페이지 설정 열기
+                    </Button>
+                  </div>
+                )}
+
                 {/* 검수 필요 페이지 CTA — paper_type / quality 안내는 위 DocumentGuidanceBanner
                     가 흡수, 여기는 "신뢰도 55% 미만 페이지를 한곳에서 처리" 진입점만 별도. */}
                 {selectedDoc?.status === "done"
@@ -1689,6 +1731,57 @@ export default function MatchupPage() {
           onClose={() => setHitReportDocId(null)}
         />
       )}
+
+      {/* MVP Phase B (2026-05-09) — 페이지별 auto/skip/manual 설정 모달.
+          basic_definition_2026_05_09 SSOT. PageStateGrid 가 자체 모달 wrapper 처리. */}
+      {pageStateGridDocId && (() => {
+        const doc = documents.find((d) => d.id === pageStateGridDocId);
+        if (!doc) return null;
+        return (
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="페이지 설정"
+            style={/* eslint-disable-line no-restricted-syntax */ {
+              position: "fixed", inset: 0, zIndex: 1100,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              background: "rgba(0,0,0,0.55)", backdropFilter: "blur(4px)",
+            }}
+            onClick={() => setPageStateGridDocId(null)}
+          >
+            <div
+              data-testid="matchup-page-state-grid-modal"
+              style={/* eslint-disable-line no-restricted-syntax */ {
+                background: "var(--color-bg-surface)",
+                borderRadius: "var(--radius-xl)",
+                width: "min(1280px, 96vw)", height: "min(840px, 92vh)",
+                display: "flex", flexDirection: "column",
+                boxShadow: "0 12px 40px rgba(0,0,0,0.18)",
+                overflow: "auto",
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <PageStateGrid
+                document={doc}
+                onClose={() => setPageStateGridDocId(null)}
+                onRequestDetail={(pageIndex) => {
+                  // PageStateGrid 안에서 페이지 detail 보기 요청 → LowConfPageReviewer 로 전환
+                  // (low-conf 페이지가 있을 때만)
+                  setPageStateGridDocId(null);
+                  const lowConfPages = doc?.meta?.paper_type_summary?.low_conf_pages ?? [];
+                  if (lowConfPages.length > 0) {
+                    setReviewerDocId(doc.id);
+                  } else {
+                    // 직접 자르기 모달로 점프
+                    setCropInitialPage(pageIndex);
+                    setCropDocId(doc.id);
+                  }
+                }}
+              />
+            </div>
+          </div>
+        );
+      })()}
 
       {bulkDeleteOpen && selectedDoc && (
         <BulkDeleteModal

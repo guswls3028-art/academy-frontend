@@ -375,6 +375,74 @@ export async function vlmClassifyMatchupPage(
   return data;
 }
 
+// ── Phase A (2026-05-09) — page-level state (auto/skip/manual) ──
+//
+// basic_definition_2026_05_09 SSOT MVP 1단계: 학원장이 페이지별로
+// auto/skip/manual 결정 → 자동분리 결과 + manual cut = 최종 problem set.
+//
+// backend SSOT: meta.excluded_pages 가 worker 측 호환. PageState 변경 시 자동 동기화.
+
+export type PageStateValue = "auto" | "skip" | "manual";
+
+export type PageStateEntry = {
+  page_index: number;
+  state: PageStateValue;
+  auto_reason: string;
+  updated_by_id: number | null;
+  updated_at: string | null;
+  source: "db" | "legacy_meta" | "default";
+};
+
+export type PageStateRecommendation = {
+  page_index: number;
+  state: PageStateValue;
+  auto_reason: string;
+};
+
+export type GetPageStatesResponse = {
+  doc_id: number;
+  page_count: number;
+  states: PageStateEntry[];
+  recommendations: PageStateRecommendation[];
+};
+
+export async function getMatchupPageStates(
+  docId: number,
+): Promise<GetPageStatesResponse> {
+  const { data } = await api.get<GetPageStatesResponse>(
+    `/matchup/documents/${docId}/page-states/`,
+  );
+  return data;
+}
+
+export async function setMatchupPageState(
+  docId: number,
+  pageIndex: number,
+  state: PageStateValue,
+  autoReason?: string,
+): Promise<{ ok: true; doc_id: number; page_index: number; state: PageStateValue; auto_reason: string; created: boolean }> {
+  const { data } = await api.post<{
+    ok: true; doc_id: number; page_index: number; state: PageStateValue;
+    auto_reason: string; created: boolean;
+  }>(`/matchup/documents/${docId}/page-states/${pageIndex}/`, {
+    state,
+    auto_reason: autoReason || "",
+  });
+  return data;
+}
+
+export async function bulkSetMatchupPageStates(
+  docId: number,
+  items: Array<{ page_index: number; state: PageStateValue; auto_reason?: string }>,
+): Promise<{ ok: true; doc_id: number; applied: number[]; failed: Array<{ item: unknown; error: string }>; excluded_pages: number[] }> {
+  const { data } = await api.post<{
+    ok: true; doc_id: number; applied: number[];
+    failed: Array<{ item: unknown; error: string }>;
+    excluded_pages: number[];
+  }>(`/matchup/documents/${docId}/page-states/`, { items });
+  return data;
+}
+
 export type MatchupDocumentPreview = {
   url: string;
   content_type: string;
