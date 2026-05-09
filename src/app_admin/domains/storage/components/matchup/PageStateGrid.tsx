@@ -103,6 +103,34 @@ export default function PageStateGrid({ document: doc, onRequestDetail, onClose 
     return m;
   }, [states]);
 
+  // 잔존 결함 3 fix (2026-05-09): recommendations 의 reason 을 카드 헤더 badge 로 노출.
+  // PageStateEntry 의 auto_reason 은 DB 저장된 PageState 만 가짐. 미적용 추천은 별도 매핑.
+  const recommendationByIndex = useMemo(() => {
+    const m = new Map<number, PageStateRecommendation>();
+    for (const r of recommendations) m.set(r.page_index, r);
+    return m;
+  }, [recommendations]);
+
+  // 잔존 결함 1 fix: auto_reason 분포 기반 정확한 banner copy.
+  // no_problem_detected 휴리스틱과 paper_type_* (실제 표지/해설 감지) 구분.
+  const recommendationCopy = useMemo(() => {
+    if (recommendations.length === 0) return null;
+    let noProblem = 0;
+    let paperType = 0;
+    for (const r of recommendations) {
+      if (r.auto_reason === "no_problem_detected") noProblem += 1;
+      else if (r.auto_reason.startsWith("paper_type_")) paperType += 1;
+    }
+    const total = recommendations.length;
+    if (paperType > 0 && noProblem === 0) {
+      return `${total}개 페이지가 표지·해설·정답지로 감지되었습니다.`;
+    }
+    if (noProblem > 0 && paperType === 0) {
+      return `${total}개 페이지에서 문항이 검출되지 않았습니다.`;
+    }
+    return `${total}개 페이지가 매치업 인덱싱에서 제외 가능한 것으로 감지되었습니다 (표지·해설 ${paperType}건 / 문항 없음 ${noProblem}건).`;
+  }, [recommendations]);
+
   // 통계
   const statsByState = useMemo(() => {
     const counts: Record<PageStateValue, number> = { auto: 0, skip: 0, manual: 0 };
@@ -274,7 +302,7 @@ export default function PageStateGrid({ document: doc, onRequestDetail, onClose 
         </div>
       </div>
 
-      {/* 자동 추천 banner */}
+      {/* 자동 추천 banner — auto_reason 분포 기반 정확한 copy (잔존 결함 1 fix) */}
       {showRecommendations && recommendations.length > 0 && (
         <div style={/* eslint-disable-line no-restricted-syntax */ {
           display: "flex", alignItems: "center", gap: "var(--space-2)",
@@ -285,7 +313,7 @@ export default function PageStateGrid({ document: doc, onRequestDetail, onClose 
         }}>
           <Wand2 size={ICON.sm} style={/* eslint-disable-line no-restricted-syntax */ { color: "var(--color-info)" }} />
           <div style={/* eslint-disable-line no-restricted-syntax */ { fontSize: 12, color: "var(--color-text-primary)" }}>
-            <strong>{recommendations.length}개 페이지</strong>가 표지/해설/정답지로 감지되었습니다. 한 번에 건너뛰기로 설정할까요?
+            {recommendationCopy} 한 번에 건너뛰기로 설정할까요?
           </div>
           <div style={/* eslint-disable-line no-restricted-syntax */ { marginLeft: "auto", display: "flex", gap: "var(--space-2)" }}>
             <Button size="sm" intent="primary" onClick={applyAllRecommendations} disabled={bulkMutation.isPending}>
@@ -334,9 +362,14 @@ export default function PageStateGrid({ document: doc, onRequestDetail, onClose 
           {allPages.map((page) => {
             const idx = page.index;
             const stateEntry = stateByIndex.get(idx);
+            const recommendation = recommendationByIndex.get(idx);
             const state: PageStateValue = stateEntry?.state ?? "auto";
-            const reason = stateEntry?.auto_reason ?? "";
+            // 잔존 결함 3 fix: 카드 헤더 reason badge — DB 저장 reason 우선,
+            // 추천만 있는 경우 recommendation.auto_reason fallback.
+            const reason = stateEntry?.auto_reason || recommendation?.auto_reason || "";
             const isSelected = selected.has(idx);
+            // 잔존 결함 2 fix: 추천된 페이지 (DB state 미적용) 카드 wrapper 시각 hint.
+            const isRecommendedPending = !!recommendation && state === "auto";
             return (
               <div
                 key={idx}
@@ -345,9 +378,13 @@ export default function PageStateGrid({ document: doc, onRequestDetail, onClose 
                 style={/* eslint-disable-line no-restricted-syntax */ {
                   border: isSelected
                     ? `2px solid var(--color-primary)`
+                    : isRecommendedPending
+                    ? `2px dashed color-mix(in srgb, var(--color-info) 55%, transparent)`
                     : `1px solid var(--color-border-divider)`,
                   borderRadius: "var(--radius-md)",
-                  background: "var(--color-bg-surface)",
+                  background: isRecommendedPending
+                    ? "color-mix(in srgb, var(--color-info) 4%, var(--color-bg-surface))"
+                    : "var(--color-bg-surface)",
                   padding: "var(--space-2)",
                   display: "flex", flexDirection: "column", gap: 6,
                   position: "relative",
