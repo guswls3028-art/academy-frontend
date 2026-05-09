@@ -90,12 +90,18 @@ export async function discardSubmissionApi(submissionId: number, reason?: Discar
   return res.data;
 }
 
+/** Backend `_DISCARD_REASONS` 와 동기. 1회 호출당 최대 500건. */
+export const DISCARD_BATCH_MAX = 500;
+
 export async function discardSubmissionsBatchApi(input: {
   submissionIds: number[];
   reason?: DiscardReason | string;
 }): Promise<{ discarded: number; skipped_count: number; skipped: Array<{ id: number; reason: string }>; reason: string }> {
   const ids = (input.submissionIds ?? []).filter((n) => Number.isFinite(n) && n > 0);
   if (ids.length === 0) throw new Error("submissionIds 필수");
+  if (ids.length > DISCARD_BATCH_MAX) {
+    throw new Error(`한 번에 폐기 가능한 최대 건수는 ${DISCARD_BATCH_MAX}건입니다.`);
+  }
   const res = await api.post(`/submissions/submissions/discard-batch/`, {
     submission_ids: ids,
     reason: input.reason || "operator_discarded",
