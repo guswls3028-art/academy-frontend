@@ -16,13 +16,25 @@ import { fetchExamCandidates, type CandidateRow } from "./omrReviewApi";
 import "./StudentPickerModal.css";
 
 type Props = {
-  examId: number;
+  /** Exam picker (legacy 호출 형태) — examId 만 주면 fetchExamCandidates 사용 */
+  examId?: number;
+  /** Generic — fetcher 자체를 주입 (homework picker 등 재사용) */
+  fetchCandidates?: (q: string) => Promise<CandidateRow[]>;
+  /** 빈 검색어 hint 컨텍스트 ("응시 대상" / "수강생" 등) */
+  contextLabel?: string;
   open: boolean;
   onClose: () => void;
   onPick: (c: CandidateRow) => void;
 };
 
-export default function StudentPickerModal({ examId, open, onClose, onPick }: Props) {
+export default function StudentPickerModal({
+  examId,
+  fetchCandidates,
+  contextLabel,
+  open,
+  onClose,
+  onPick,
+}: Props) {
   const [query, setQuery] = useState("");
   const [highlight, setHighlight] = useState(0);
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -43,10 +55,15 @@ export default function StudentPickerModal({ examId, open, onClose, onPick }: Pr
     return () => window.clearTimeout(t);
   }, [query]);
 
+  // fetcher 우선순위: 명시 fetchCandidates > examId 의 기본 fetchExamCandidates.
+  // 둘 다 없으면 enabled=false 로 막아 NPE 회피.
+  const fetcher = fetchCandidates ?? (examId != null ? (q: string) => fetchExamCandidates(examId, q) : null);
+  const queryKeyId = fetchCandidates ? "custom" : String(examId ?? "");
+
   const { data: rows = [], isFetching } = useQuery({
-    queryKey: ["omr-candidates", examId, debouncedQ],
-    queryFn: () => fetchExamCandidates(examId, debouncedQ),
-    enabled: open && Number.isFinite(examId),
+    queryKey: ["omr-candidates", queryKeyId, debouncedQ],
+    queryFn: () => fetcher ? fetcher(debouncedQ) : Promise.resolve([] as CandidateRow[]),
+    enabled: open && !!fetcher,
     staleTime: 30_000,
   });
 
@@ -56,12 +73,13 @@ export default function StudentPickerModal({ examId, open, onClose, onPick }: Pr
   }, [rows.length, debouncedQ]);
 
   const total = rows.length;
+  const ctx = contextLabel ?? "응시 대상";
   const hint = useMemo(() => {
     if (isFetching) return "검색 중…";
-    if (!debouncedQ.trim()) return `응시 대상 ${total}명${total >= 50 ? " (상위 50명)" : ""}`;
+    if (!debouncedQ.trim()) return `${ctx} ${total}명${total >= 50 ? " (상위 50명)" : ""}`;
     if (total === 0) return "검색 결과 없음";
     return `${total}명 일치${total >= 50 ? " (상위 50명)" : ""}`;
-  }, [isFetching, debouncedQ, total]);
+  }, [isFetching, debouncedQ, total, ctx]);
 
   const onKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "ArrowDown") {

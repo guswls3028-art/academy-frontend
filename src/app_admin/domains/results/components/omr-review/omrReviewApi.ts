@@ -125,3 +125,12 @@ export async function fetchExamCandidates(
   const res = await api.get(`/submissions/submissions/exams/${examId}/candidates/${params}`);
   return (Array.isArray(res.data) ? res.data : []) as CandidateRow[];
 }
+
+export async function fetchHomeworkCandidates(
+  homeworkId: number,
+  q: string,
+): Promise<CandidateRow[]> {
+  const params = q.trim() ? `?q=${encodeURIComponent(q.trim())}` : "";
+  const res = await api.get(`/submissions/submissions/homework/${homeworkId}/candidates/${params}`);
+  return (Array.isArray(res.data) ? res.data : []) as CandidateRow[];
+}

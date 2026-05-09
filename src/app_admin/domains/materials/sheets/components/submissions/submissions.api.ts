@@ -72,11 +72,33 @@ export async function manualEditSubmissionApi(
   return res.data;
 }
 
-export async function discardSubmissionApi(submissionId: number, reason?: string) {
+/** 폐기 사유 enum (backend submission_view._DISCARD_REASONS 와 동기) */
+export type DiscardReason =
+  | "scan_quality"
+  | "wrong_upload"
+  | "duplicate"
+  | "target_missing"
+  | "operator_discarded"
+  | "other";
+
+export async function discardSubmissionApi(submissionId: number, reason?: DiscardReason | string) {
   const sid = Number(submissionId);
   if (!Number.isFinite(sid) || sid <= 0) throw new Error("유효하지 않은 submissionId");
   const res = await api.post(`/submissions/submissions/${sid}/discard/`, {
     reason: reason || "operator_discarded",
+  });
+  return res.data;
+}
+
+export async function discardSubmissionsBatchApi(input: {
+  submissionIds: number[];
+  reason?: DiscardReason | string;
+}): Promise<{ discarded: number; skipped_count: number; skipped: Array<{ id: number; reason: string }>; reason: string }> {
+  const ids = (input.submissionIds ?? []).filter((n) => Number.isFinite(n) && n > 0);
+  if (ids.length === 0) throw new Error("submissionIds 필수");
+  const res = await api.post(`/submissions/submissions/discard-batch/`, {
+    submission_ids: ids,
+    reason: input.reason || "operator_discarded",
   });
   return res.data;
 }

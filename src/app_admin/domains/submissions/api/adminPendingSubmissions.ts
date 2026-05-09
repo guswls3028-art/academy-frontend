@@ -16,6 +16,8 @@ export type PendingSubmissionRow = {
   session_id: number | null;
   /** 백엔드 신규 필드. true 가 아니면 결과/세션 페이지 이동이 불가능함 */
   target_resolved?: boolean;
+  /** target_resolved=false 일 때 사유: 'target_missing' | 'session_missing' | null */
+  target_resolved_reason?: "target_missing" | "session_missing" | null;
   source: string;
   status: SubmissionStatus;
   file_key?: string | null;

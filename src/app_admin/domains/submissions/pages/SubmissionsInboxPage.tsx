@@ -6,15 +6,17 @@
  * - 5초 자동 새로고침
  *
  * 행 액션 매트릭스 (status × target_resolved):
- *   needs_identification + target_resolved        → 학생 지정 (in-place picker)
- *   needs_identification + !target_resolved       → 폐기만 가능 (원본 시험 결손)
+ *   needs_identification + target_resolved        → 학생 지정 (in-place picker, exam/homework 양쪽)
+ *   needs_identification + !target_resolved       → 폐기만 가능 (원본 결손)
  *   failed                                        → 재처리 / 폐기
  *   submitted/dispatched/extracting/grading       → 처리 중 (액션 없음)
  *   answers_ready / done + target_resolved         → 결과 보기 (세션 페이지 이동)
  *   answers_ready / done + !target_resolved        → 결과 진입 불가 표시
  *
- * 직접 navigate 시 lecture/session 결손 가드를 두어 SessionLayout의
- * "잘못된 세션 접근입니다." 데드락에 빠지지 않도록 한다.
+ * 일괄 처리:
+ *   row 별 체크박스 + 상단 일괄 폐기 (사유 picker 모달).
+ *
+ * 직접 navigate 시 lecture/session 결손 가드 → SessionLayout "잘못된 세션 접근" 회피.
  */
 
 import { useMemo, useRef, useState } from "react";
@@ -25,11 +27,17 @@ import { feedback } from "@/shared/ui/feedback/feedback";
 import { useConfirm } from "@/shared/ui/confirm";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import StudentPickerModal from "@admin/domains/results/components/omr-review/StudentPickerModal";
-import type { CandidateRow } from "@admin/domains/results/components/omr-review/omrReviewApi";
+import {
+  fetchExamCandidates,
+  fetchHomeworkCandidates,
+  type CandidateRow,
+} from "@admin/domains/results/components/omr-review/omrReviewApi";
 import {
   manualEditSubmissionApi,
   retrySubmissionApi,
   discardSubmissionApi,
+  discardSubmissionsBatchApi,
+  type DiscardReason,
 } from "@admin/domains/materials/sheets/components/submissions/submissions.api";
 import {
   SUBMISSION_STATUS_LABEL,
@@ -39,6 +47,7 @@ import {
   fetchPendingSubmissions,
   type PendingSubmissionRow,
 } from "../api/adminPendingSubmissions";
+import DiscardReasonModal from "../components/DiscardReasonModal";
 import type { SubmissionStatus } from "../types";
 
 /* ─── Filter tabs ─── */
@@ -92,8 +101,20 @@ function formatDate(iso: string): string {
 
 function isTargetResolved(row: PendingSubmissionRow): boolean {
   if (typeof row.target_resolved === "boolean") return row.target_resolved;
-  // 백엔드 신규 필드 미배포 환경 대비 fallback
+  // 백엔드 신규 필드 미배포 환경 대비 fallback (deploy 안정 후 제거 가능)
   return Boolean(row.lecture_id && row.session_id && row.target_title);
+}
+
+function orphanReasonLabel(row: PendingSubmissionRow): string {
+  if (row.target_resolved_reason === "session_missing") {
+    return row.target_type === "exam"
+      ? "원본 시험에 차시가 매칭되지 않습니다."
+      : "원본 과제의 차시 정보가 없습니다.";
+  }
+  // target_missing 또는 미정 — 본체 자체 결손
+  return row.target_type === "exam"
+    ? "원본 시험을 찾을 수 없습니다 (삭제되었거나 다른 학원 소속)."
+    : "원본 과제를 찾을 수 없습니다 (삭제되었거나 다른 학원 소속).";
 }
 
 /* ─── Component ─── */
@@ -104,10 +125,18 @@ export default function SubmissionsInboxPage() {
   const confirm = useConfirm();
   const [filter, setFilter] = useState<FilterKey>("pending");
 
-  // 학생 지정 모달 — 어떤 row를 매칭 중인지 추적
   const [pickerRow, setPickerRow] = useState<PendingSubmissionRow | null>(null);
-  // 409 DUPLICATE_ENROLLMENT 재시도 시 마지막에 선택한 enrollment id 보존
   const lastPickedEnrollmentRef = useRef<number | null>(null);
+
+  // 일괄 선택 — id Set
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+
+  // 폐기 사유 모달 상태
+  const [discardModal, setDiscardModal] = useState<
+    | { kind: "single"; row: PendingSubmissionRow }
+    | { kind: "batch"; ids: number[] }
+    | null
+  >(null);
 
   const q = useQuery({
     queryKey: ["admin-pending-submissions", filter],
@@ -133,6 +162,18 @@ export default function SubmissionsInboxPage() {
     [q.data],
   );
 
+  // 일괄 선택 가능한 row 만 토글 가능 (선택은 폐기 가능 row 만)
+  const isSelectable = (row: PendingSubmissionRow): boolean => {
+    const resolved = isTargetResolved(row);
+    return row.status === "needs_identification" || row.status === "failed" || !resolved;
+  };
+
+  // 필터 변경 시 선택 초기화
+  function handleFilterChange(key: FilterKey) {
+    setFilter(key);
+    setSelectedIds(new Set());
+  }
+
   function refetchAll() {
     qc.invalidateQueries({ queryKey: ["admin-pending-submissions"] });
   }
@@ -152,14 +193,37 @@ export default function SubmissionsInboxPage() {
   });
 
   const discardMut = useMutation({
-    mutationFn: (sid: number) => discardSubmissionApi(sid, "operator_discarded"),
+    mutationFn: (input: { sid: number; reason: DiscardReason }) =>
+      discardSubmissionApi(input.sid, input.reason),
     onSuccess: () => {
       feedback.success("답안지를 폐기했습니다.");
+      setDiscardModal(null);
       refetchAll();
     },
     onError: (e: unknown) => {
       const err = e as { response?: { data?: { detail?: string } }; message?: string };
       feedback.error(err?.response?.data?.detail || err?.message || "폐기에 실패했습니다.");
+    },
+  });
+
+  const discardBatchMut = useMutation({
+    mutationFn: (input: { ids: number[]; reason: DiscardReason }) =>
+      discardSubmissionsBatchApi({ submissionIds: input.ids, reason: input.reason }),
+    onSuccess: (data) => {
+      const skipped = data.skipped_count ?? 0;
+      const discarded = data.discarded ?? 0;
+      if (skipped > 0) {
+        feedback.success(`${discarded}건 폐기, ${skipped}건은 처리 불가 상태라 건너뛰었습니다.`);
+      } else {
+        feedback.success(`${discarded}건 폐기 완료.`);
+      }
+      setDiscardModal(null);
+      setSelectedIds(new Set());
+      refetchAll();
+    },
+    onError: (e: unknown) => {
+      const err = e as { response?: { data?: { detail?: string } }; message?: string };
+      feedback.error(err?.response?.data?.detail || err?.message || "일괄 폐기에 실패했습니다.");
     },
   });
 
@@ -186,7 +250,6 @@ export default function SubmissionsInboxPage() {
         };
         message?: string;
       };
-      // 409 DUPLICATE_ENROLLMENT — 운영자에게 덮어쓰기 확인 후 재시도
       if (
         err?.response?.status === 409 &&
         err?.response?.data?.code === "DUPLICATE_ENROLLMENT" &&
@@ -231,22 +294,31 @@ export default function SubmissionsInboxPage() {
     }
   }
 
-  async function handleDiscard(row: PendingSubmissionRow) {
-    const ok = await confirm({
-      title: "이 답안지를 폐기할까요?",
-      message:
-        "폐기하면 채점 대상에서 제외되고 실패 상태로 보존됩니다. 다시 채점하려면 새로 업로드해야 합니다.",
-      confirmText: "폐기",
-      cancelText: "취소",
-      danger: true,
-    });
-    if (!ok) return;
-    discardMut.mutate(row.id);
+  function handleAskDiscard(row: PendingSubmissionRow) {
+    // orphan 인 경우 default 사유를 target_missing 으로
+    const initialReason: DiscardReason | undefined = !isTargetResolved(row) ? "target_missing" : undefined;
+    setDiscardModal({ kind: "single", row });
+    // store last default in modal local state via key
+    void initialReason; // noop — modal reads defaultReason via prop below
+  }
+
+  function handleAskBatchDiscard() {
+    if (selectedIds.size === 0) return;
+    setDiscardModal({ kind: "batch", ids: Array.from(selectedIds) });
+  }
+
+  function handleDiscardConfirm(reason: DiscardReason) {
+    if (!discardModal) return;
+    if (discardModal.kind === "single") {
+      discardMut.mutate({ sid: discardModal.row.id, reason });
+    } else {
+      discardBatchMut.mutate({ ids: discardModal.ids, reason });
+    }
   }
 
   function handleStartIdentify(row: PendingSubmissionRow) {
-    if (!row.target_id || row.target_type !== "exam") {
-      feedback.error("원본 시험 정보가 없어 학생을 지정할 수 없습니다.");
+    if (!row.target_id) {
+      feedback.error("원본 시험/과제 정보가 없어 학생을 지정할 수 없습니다.");
       return;
     }
     lastPickedEnrollmentRef.current = null;
@@ -259,6 +331,25 @@ export default function SubmissionsInboxPage() {
     identifyMut.mutate({ sid: pickerRow.id, enrollmentId: c.enrollment_id });
   }
 
+  function toggleSelect(rowId: number) {
+    setSelectedIds((prev) => {
+      const n = new Set(prev);
+      if (n.has(rowId)) n.delete(rowId);
+      else n.add(rowId);
+      return n;
+    });
+  }
+
+  function handleSelectAllVisible() {
+    const ids = rows.filter(isSelectable).map((r) => r.id);
+    if (ids.every((id) => selectedIds.has(id)) && ids.length > 0) {
+      // 모두 선택된 상태 → 해제
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(ids));
+    }
+  }
+
   /* ── UI ── */
 
   const emptyTitle =
@@ -269,6 +360,24 @@ export default function SubmissionsInboxPage() {
         : filter === "failed"
           ? "실패한 제출이 없습니다."
           : "제출이 없습니다.";
+
+  const visibleSelectableIds = rows.filter(isSelectable).map((r) => r.id);
+  const allVisibleSelected =
+    visibleSelectableIds.length > 0 && visibleSelectableIds.every((id) => selectedIds.has(id));
+
+  // picker fetcher 분기 (exam vs homework)
+  const pickerFetcher = pickerRow
+    ? pickerRow.target_type === "exam"
+      ? (q: string) => fetchExamCandidates(Number(pickerRow.target_id), q)
+      : (q: string) => fetchHomeworkCandidates(Number(pickerRow.target_id), q)
+    : undefined;
+
+  // 폐기 모달의 기본 사유 (orphan 이면 target_missing)
+  const discardDefaultReason: DiscardReason | undefined =
+    discardModal?.kind === "single" && !isTargetResolved(discardModal.row)
+      ? "target_missing"
+      : undefined;
+  const discardCount = discardModal?.kind === "batch" ? discardModal.ids.length : 1;
 
   return (
     <div className="space-y-5">
@@ -291,7 +400,7 @@ export default function SubmissionsInboxPage() {
               스캔/AI 업로드 후 학생 매칭이 안 된 제출입니다. 행의 <b>학생 지정</b> 버튼을 눌러 매칭하면 자동 채점 큐에 들어갑니다.
               {orphanCount > 0 && (
                 <>
-                  {" "}원본 시험을 찾을 수 없는 {orphanCount}건은 <b>폐기</b>로 정리하세요.
+                  {" "}원본 시험/과제를 찾을 수 없는 {orphanCount}건은 <b>일괄 폐기</b>로 정리하세요.
                 </>
               )}
             </span>
@@ -299,24 +408,43 @@ export default function SubmissionsInboxPage() {
         </div>
       )}
 
-      {/* Filter tabs */}
+      {/* Filter tabs + 일괄 액션 바 */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <Tabs
           value={filter}
           items={FILTER_TABS}
-          onChange={(key) => setFilter(key as FilterKey)}
+          onChange={(key) => handleFilterChange(key as FilterKey)}
         />
-        <Button type="button" intent="ghost" size="sm" onClick={() => q.refetch()}>
-          새로고침
-        </Button>
+        <div className="flex items-center gap-2">
+          {selectedIds.size > 0 && (
+            <>
+              <span className="text-xs text-[var(--color-text-muted)]">
+                {selectedIds.size}건 선택됨
+              </span>
+              <Button
+                type="button"
+                intent="danger"
+                size="sm"
+                disabled={discardBatchMut.isPending}
+                onClick={handleAskBatchDiscard}
+              >
+                일괄 폐기
+              </Button>
+              <Button type="button" intent="ghost" size="sm" onClick={() => setSelectedIds(new Set())}>
+                선택 해제
+              </Button>
+            </>
+          )}
+          <Button type="button" intent="ghost" size="sm" onClick={() => q.refetch()}>
+            새로고침
+          </Button>
+        </div>
       </div>
 
-      {/* Loading */}
       {q.isLoading && (
         <EmptyState scope="panel" tone="loading" title="제출 목록 불러오는 중..." />
       )}
 
-      {/* Error */}
       {q.isError && !q.isLoading && (
         <EmptyState
           scope="panel"
@@ -331,41 +459,68 @@ export default function SubmissionsInboxPage() {
         />
       )}
 
-      {/* Empty */}
       {!q.isLoading && !q.isError && rows.length === 0 && (
         <EmptyState scope="panel" tone="empty" title={emptyTitle} />
       )}
 
-      {/* Rows */}
       {!q.isLoading && rows.length > 0 && (
-        <div className="rounded-xl border border-[var(--color-border-divider)] divide-y divide-[var(--color-border-divider)] bg-[var(--color-bg-surface)]">
-          {rows.map((r) => (
-            <SubmissionRow
-              key={r.id}
-              row={r}
-              busy={
-                (retryMut.isPending && retryMut.variables === r.id) ||
-                (discardMut.isPending && discardMut.variables === r.id) ||
-                (identifyMut.isPending && pickerRow?.id === r.id)
-              }
-              onNavigate={() => handleNavigate(r)}
-              onIdentify={() => handleStartIdentify(r)}
-              onRetry={() => retryMut.mutate(r.id)}
-              onDiscard={() => handleDiscard(r)}
-            />
-          ))}
+        <div className="rounded-xl border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] overflow-hidden">
+          {/* 헤더 — 일괄 선택 체크박스 */}
+          <div className="flex items-center gap-3 px-4 py-2 border-b border-[var(--color-border-divider)] text-xs text-[var(--color-text-muted)]">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={allVisibleSelected}
+                onChange={handleSelectAllVisible}
+                disabled={visibleSelectableIds.length === 0}
+                aria-label="모두 선택"
+              />
+              <span>모두 선택 (폐기 가능 row 만)</span>
+            </label>
+          </div>
+
+          <div className="divide-y divide-[var(--color-border-divider)]">
+            {rows.map((r) => (
+              <SubmissionRow
+                key={r.id}
+                row={r}
+                selected={selectedIds.has(r.id)}
+                selectable={isSelectable(r)}
+                busy={
+                  (retryMut.isPending && retryMut.variables === r.id) ||
+                  (discardMut.isPending && discardMut.variables?.sid === r.id) ||
+                  (identifyMut.isPending && pickerRow?.id === r.id)
+                }
+                onToggleSelect={() => toggleSelect(r.id)}
+                onNavigate={() => handleNavigate(r)}
+                onIdentify={() => handleStartIdentify(r)}
+                onRetry={() => retryMut.mutate(r.id)}
+                onDiscard={() => handleAskDiscard(r)}
+              />
+            ))}
+          </div>
         </div>
       )}
 
       {/* 학생 지정 모달 */}
-      {pickerRow && pickerRow.target_type === "exam" && pickerRow.target_id ? (
+      {pickerRow && pickerFetcher && (
         <StudentPickerModal
-          examId={Number(pickerRow.target_id)}
           open={true}
+          fetchCandidates={pickerFetcher}
+          contextLabel={pickerRow.target_type === "exam" ? "응시 대상" : "수강생"}
           onClose={() => setPickerRow(null)}
           onPick={handlePickStudent}
         />
-      ) : null}
+      )}
+
+      {/* 폐기 사유 모달 */}
+      <DiscardReasonModal
+        open={!!discardModal}
+        count={discardCount}
+        defaultReason={discardDefaultReason}
+        onClose={() => setDiscardModal(null)}
+        onConfirm={handleDiscardConfirm}
+      />
     </div>
   );
 }
@@ -374,14 +529,20 @@ export default function SubmissionsInboxPage() {
 
 function SubmissionRow({
   row,
+  selected,
+  selectable,
   busy,
+  onToggleSelect,
   onNavigate,
   onIdentify,
   onRetry,
   onDiscard,
 }: {
   row: PendingSubmissionRow;
+  selected: boolean;
+  selectable: boolean;
   busy: boolean;
+  onToggleSelect: () => void;
   onNavigate: () => void;
   onIdentify: () => void;
   onRetry: () => void;
@@ -397,15 +558,27 @@ function SubmissionRow({
   const isProcessing = PROCESSING_STATUSES.has(row.status);
   const isDone = row.status === "done";
   const isAnswersReady = row.status === "answers_ready";
-  // 학생 지정 picker 는 현재 exam 한정 (백엔드 exam_candidates_view 만 존재).
-  // homework needs_id 는 picker 부재로 지정 불가.
-  const canIdentifyInline = isExam;
 
-  const targetTitleDisplay = row.target_title || (resolved ? "—" : "원본 시험을 찾을 수 없음");
+  // exam/homework 양쪽 picker 지원 — target_id 만 있으면 inline 매칭 가능
+  const canIdentifyInline = !!row.target_id;
+
+  const orphanReason = !resolved ? orphanReasonLabel(row) : "";
+  const targetTitleDisplay = row.target_title || (resolved ? "—" : orphanReason || "원본을 찾을 수 없음");
   const lectureTitleDisplay = row.lecture_title || "";
 
   return (
     <div className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--color-bg-surface-soft)] transition-colors">
+      {/* 일괄 선택 체크박스 */}
+      <input
+        type="checkbox"
+        checked={selected}
+        disabled={!selectable}
+        onChange={onToggleSelect}
+        title={selectable ? "선택" : "이 상태는 일괄 폐기 대상이 아닙니다."}
+        aria-label="row 선택"
+        className="flex-shrink-0"
+      />
+
       <StudentNameWithLectureChip
         name={row.student_name || "미식별 학생"}
         profilePhotoUrl={row.profile_photo_url}
@@ -431,13 +604,13 @@ function SubmissionRow({
       </span>
 
       <span
-        className="text-sm truncate min-w-0 max-w-[220px]"
+        className="text-sm truncate min-w-0 max-w-[260px]"
         // eslint-disable-next-line no-restricted-syntax
         style={{
           color: resolved ? "var(--color-text-primary)" : "var(--color-text-muted)",
           fontStyle: resolved ? undefined : "italic",
         }}
-        title={targetTitleDisplay}
+        title={resolved ? row.target_title : orphanReason}
       >
         {targetTitleDisplay}
       </span>
@@ -462,24 +635,13 @@ function SubmissionRow({
             학생 지정
           </Button>
         )}
-        {isNeedsId && resolved && !canIdentifyInline && (
-          <Button
-            type="button"
-            intent="secondary"
-            size="sm"
-            disabled
-            title="과제 미식별은 인박스에서 지정할 수 없습니다. 과제 페이지에서 매칭해 주세요."
-          >
-            지정 불가
-          </Button>
-        )}
         {isNeedsId && !resolved && (
           <Button
             type="button"
             intent="secondary"
             size="sm"
             disabled
-            title="원본 시험을 찾을 수 없어 학생 매칭이 불가합니다. 폐기 후 다시 업로드해 주세요."
+            title={orphanReason}
           >
             지정 불가
           </Button>
@@ -503,7 +665,7 @@ function SubmissionRow({
             intent="secondary"
             size="sm"
             disabled
-            title="원본 시험을 찾을 수 없어 결과 페이지로 이동할 수 없습니다."
+            title={orphanReason}
           >
             결과 없음
           </Button>
