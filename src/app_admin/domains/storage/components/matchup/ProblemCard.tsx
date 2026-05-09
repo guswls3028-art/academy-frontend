@@ -4,7 +4,7 @@
 // 썸네일을 정말로 보고 싶을 때는 확대 버튼으로 큰 이미지 모달.
 
 import { useEffect, useState } from "react";
-import { Maximize2, X, AlertTriangle, Loader2 } from "lucide-react";
+import { Maximize2, X, AlertTriangle, Loader2, Trash2, Scissors, Lock } from "lucide-react";
 import { ICON, Badge, ICON_FOR_BADGE } from "@/shared/ui/ds";
 import type { MatchupProblem } from "../../api/matchup.api";
 import { getMatchupProblemPresignUrl } from "../../api/matchup.api";
@@ -17,11 +17,36 @@ type Props = {
   // 합치기 모드 — mergeOrder>0이면 선택된 순번 표시. selected는 무시.
   mergeMode?: boolean;
   mergeOrder?: number;
+  // 다중 선택(삭제) 모드 — 클릭=토글. selected=isInSelection 으로 사용.
+  // mergeMode 와 mutually exclusive (호출부 보장).
+  bulkSelectMode?: boolean;
+  // 카드별 액션 (hover 노출). bulkSelectMode/mergeMode/isPartial 일 때는 자동 hide.
+  // F1 (Phase F) — 카드별 1클릭 삭제.
+  // F4 (Phase F) — 분할 진입점 (해당 페이지로 ManualCropModal 점프).
+  onDelete?: () => void;
+  onSplit?: () => void;
 };
 
-export default function ProblemCard({ problem, selected, onClick, mergeMode = false, mergeOrder = 0 }: Props) {
+export default function ProblemCard({
+  problem,
+  selected,
+  onClick,
+  mergeMode = false,
+  mergeOrder = 0,
+  bulkSelectMode = false,
+  onDelete,
+  onSplit,
+}: Props) {
   const isMergeSelected = mergeMode && mergeOrder > 0;
+  // bulkSelectMode 진입 시 selected 가 곧 selection 표시.
   const showSelectedStyle = mergeMode ? isMergeSelected : selected;
+  // manual=true / manual_owner_pinned=true 는 학원장이 직접 자른 문항. backend 가
+  // protected_ids 로 일괄삭제/reanalyze 에서 자동 보호. UI 도 잠금 아이콘 + 삭제 시
+  // 명시 confirm 메시지로 보호 정보 노출.
+  const meta = problem.meta as Record<string, unknown> | null;
+  const isManual = Boolean(meta?.manual);
+  const isManualPinned = Boolean(meta?.manual_owner_pinned);
+  const isProtected = isManual || isManualPinned;
   // 자동분리가 인접 문항을 박스 단위로 합친 의심 — 매뉴얼 크롭+Ctrl+V paste 권장.
   const isMergeSuspect = Boolean(problem.meta?.merge_suspect);
   // 파이프라인 진행 중 skeleton row — 분리만 끝났고 OCR/임베딩/이미지 미완.
@@ -57,6 +82,11 @@ export default function ProblemCard({ problem, selected, onClick, mergeMode = fa
   // 자동분리 결함 의심 카드는 외곽 강조 + warning stripe로 시각 우선순위.
   // 기존 작은 뱃지(9px)는 그리드에서 묻혔던 사고 보완.
   const hasIssue = numberMismatch || isMergeSuspect;
+  // Phase F — hover 시에만 카드 액션(삭제/분할) 노출. bulk-select / merge / partial
+  // 상태에서는 액션 숨김 (선택 토글이 우선).
+  const [hoverActionsOpen, setHoverActionsOpen] = useState(false);
+  const showHoverActions =
+    !mergeMode && !bulkSelectMode && !isPartial && (onDelete || onSplit);
 
   return (
     <>
@@ -64,7 +94,10 @@ export default function ProblemCard({ problem, selected, onClick, mergeMode = fa
         data-testid="matchup-problem-card"
         data-problem-id={problem.id}
         data-has-issue={hasIssue ? "true" : "false"}
+        data-protected={isProtected ? "true" : "false"}
         onClick={onClick}
+        onMouseEnter={() => setHoverActionsOpen(true)}
+        onMouseLeave={() => setHoverActionsOpen(false)}
         onDoubleClick={(e) => {
           // 합치기 모드에선 더블클릭으로 zoom을 열지 않음 — 첫/두 번째 클릭이 선택 토글로 동작.
           // (확대는 우상단 확대 버튼으로만 가능하게 해서 토글 동작과 분리)
@@ -195,19 +228,71 @@ export default function ProblemCard({ problem, selected, onClick, mergeMode = fa
               </Badge>
             )}
           </span>
-          {imgUrl && (
-            <button
-              onClick={(e) => { e.stopPropagation(); setZoomOpen(true); }}
-              title="원본 크게 보기"
-              style={/* eslint-disable-line no-restricted-syntax */ {
-                background: "none", border: "none", cursor: "pointer",
-                color: "var(--color-text-muted)", padding: 2,
-                display: "flex", alignItems: "center",
-              }}
-            >
-              <Maximize2 size={ICON.xs} />
-            </button>
-          )}
+          <span style={/* eslint-disable-line no-restricted-syntax */ { display: "inline-flex", alignItems: "center", gap: 2 }}>
+            {/* Phase F — manual 보호 표시 (잠금 아이콘). 일괄삭제/reanalyze 에서 자동 보호되는
+                문항임을 항상 시각화. hover 액션 영역과 별개로 항상 노출. */}
+            {isProtected && (
+              <span
+                title="직접 자른 문항입니다. 일괄삭제와 자동 재분석에서 보호됩니다."
+                aria-label="보호된 문항"
+                data-testid="matchup-problem-card-protected"
+                style={/* eslint-disable-line no-restricted-syntax */ {
+                  display: "inline-flex", alignItems: "center",
+                  color: "var(--color-status-success)", padding: 2,
+                }}
+              >
+                <Lock size={ICON.xs} />
+              </span>
+            )}
+            {/* Phase F — hover 시 분할(F4) 진입점. ManualCropModal 을 해당 페이지로 점프. */}
+            {showHoverActions && onSplit && hoverActionsOpen && (
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); onSplit(); }}
+                title="이 문항이 둘 이상으로 잘려야 한다면 — 페이지에서 직접 다시 자르기"
+                aria-label="다시 자르기 / 분할"
+                data-testid="matchup-problem-card-split"
+                style={/* eslint-disable-line no-restricted-syntax */ {
+                  background: "none", border: "none", cursor: "pointer",
+                  color: "var(--color-text-muted)", padding: 2,
+                  display: "flex", alignItems: "center",
+                }}
+              >
+                <Scissors size={ICON.xs} />
+              </button>
+            )}
+            {/* Phase F — hover 시 카드별 1클릭 삭제(F1). manual 인 경우 호출부 confirm 에서
+                보호 메시지 명시. 일반 문항도 confirm 필수. */}
+            {showHoverActions && onDelete && hoverActionsOpen && (
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); onDelete(); }}
+                title="이 문항 삭제 (다른 보고서 큐레이션에 영향 가능)"
+                aria-label="문항 삭제"
+                data-testid="matchup-problem-card-delete"
+                style={/* eslint-disable-line no-restricted-syntax */ {
+                  background: "none", border: "none", cursor: "pointer",
+                  color: "var(--color-text-muted)", padding: 2,
+                  display: "flex", alignItems: "center",
+                }}
+              >
+                <Trash2 size={ICON.xs} />
+              </button>
+            )}
+            {imgUrl && (
+              <button
+                onClick={(e) => { e.stopPropagation(); setZoomOpen(true); }}
+                title="원본 크게 보기"
+                style={/* eslint-disable-line no-restricted-syntax */ {
+                  background: "none", border: "none", cursor: "pointer",
+                  color: "var(--color-text-muted)", padding: 2,
+                  display: "flex", alignItems: "center",
+                }}
+              >
+                <Maximize2 size={ICON.xs} />
+              </button>
+            )}
+          </span>
         </div>
 
         {imgUrl ? (

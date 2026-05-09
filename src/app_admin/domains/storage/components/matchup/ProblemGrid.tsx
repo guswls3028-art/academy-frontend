@@ -1,7 +1,7 @@
 // PATH: src/app_admin/domains/storage/components/matchup/ProblemGrid.tsx
 // 문제 카드 그리드 — 선택된 문서의 추출 문제 표시
 
-import { Loader2, AlertTriangle, Check, Clock, Layers, X, Crop, FileSearch } from "lucide-react";
+import { Loader2, AlertTriangle, Check, Clock, Layers, X, Crop, FileSearch, Trash2, Shield } from "lucide-react";
 import { ICON, Button } from "@/shared/ui/ds";
 import type { MatchupProblem } from "../../api/matchup.api";
 import ProblemCard from "./ProblemCard";
@@ -25,9 +25,20 @@ type Props = {
   onToggleMergeSelect?: (id: number) => void;
   onClearMergeSelection?: () => void;
   onConfirmMerge?: () => void;
+  // Phase F (2026-05-10) — 다중 선택 일괄삭제 모드. mergeMode 와 mutually exclusive.
+  // 카드 클릭 = 토글 (ordering 무관, set 멤버십). hover trash 는 양쪽 모두 false 일 때만.
+  deleteMode?: boolean;
+  deleteSelectedIds?: number[];
+  onToggleDeleteMode?: () => void;
+  onToggleDeleteSelect?: (id: number) => void;
+  onClearDeleteSelection?: () => void;
+  onConfirmBulkDelete?: () => void;
   // 빈 상태 / 실패 상태에서 사용자가 다음 행동(직접 자르기)을 즉시 시작할 수 있도록.
   onOpenManualCrop?: () => void;
   onRetry?: () => void;
+  // Phase F — 카드별 즉시 액션 (hover). bulk/merge 모드에선 자동 hide.
+  onDeleteProblem?: (problem: MatchupProblem) => void;
+  onSplitProblem?: (problem: MatchupProblem) => void;
 };
 
 // 파이프라인 단계 — matchup_pipeline.py와 동기화. 사용자가 어디까지 됐는지 인식.
@@ -55,12 +66,27 @@ export default function ProblemGrid({
   fileSizeBytes, progressPercent, progressStepName,
   mergeMode = false, mergeSelectedIds = [],
   onToggleMergeMode, onToggleMergeSelect, onClearMergeSelection, onConfirmMerge,
+  deleteMode = false, deleteSelectedIds = [],
+  onToggleDeleteMode, onToggleDeleteSelect, onClearDeleteSelection, onConfirmBulkDelete,
   onOpenManualCrop, onRetry,
+  onDeleteProblem, onSplitProblem,
 }: Props) {
   const mergeSelectedCount = mergeSelectedIds.length;
   const mergeOrderById = new Map<number, number>();
   mergeSelectedIds.forEach((id, idx) => mergeOrderById.set(id, idx + 1));
-  const canShowMergeButton = !!onToggleMergeMode && problems.length >= 2;
+  // Phase F — 다중 선택 삭제 모드 (mergeMode 와 mutually exclusive).
+  const deleteSelectedSet = new Set(deleteSelectedIds);
+  const deleteSelectedCount = deleteSelectedIds.length;
+  // 삭제 대상 중 manual 보호 카드 개수 — toolbar 에 명시 (학원장이 보호 동작 인지).
+  const deleteProtectedCount = deleteSelectedIds.reduce((acc, id) => {
+    const p = problems.find((x) => x.id === id);
+    if (!p) return acc;
+    const meta = p.meta as Record<string, unknown> | null;
+    return acc + (meta?.manual || meta?.manual_owner_pinned ? 1 : 0);
+  }, 0);
+  // mode entry CTA 바 — 합치기/일괄삭제 진입 가능. 두 모드 진입 핸들러 둘 다 없으면 hidden.
+  const canEnterAnyMode = (!!onToggleMergeMode || !!onToggleDeleteMode) && problems.length >= 2;
+  const showModeEntryBar = canEnterAnyMode && !mergeMode && !deleteMode;
   const isProcessing = loading || documentStatus === "processing" || documentStatus === "pending";
   const hasProgress = typeof progressPercent === "number" && progressPercent > 0;
   const pct = hasProgress ? Math.round(progressPercent!) : 0;
@@ -197,71 +223,135 @@ export default function ProblemGrid({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)", position: "relative" }}>
-      {canShowMergeButton && (
+      {/* Mode entry bar — 두 모드 모두 미진입일 때만. 합치기 + 일괄삭제 진입 CTA 동시 노출. */}
+      {showModeEntryBar && (
         <div style={/* eslint-disable-line no-restricted-syntax */ {
           display: "flex", alignItems: "center", gap: "var(--space-2)",
           flexWrap: "wrap",
           padding: "var(--space-2) var(--space-3)",
-          background: mergeMode
-            ? "color-mix(in srgb, var(--color-brand-primary) 8%, var(--color-bg-surface))"
-            : "var(--color-bg-surface-soft)",
-          border: mergeMode
-            ? "1px solid color-mix(in srgb, var(--color-brand-primary) 40%, transparent)"
-            : "1px solid var(--color-border-divider)",
+          background: "var(--color-bg-surface-soft)",
+          border: "1px solid var(--color-border-divider)",
           borderRadius: "var(--radius-md)",
           fontSize: 12,
         }}>
           <Layers size={ICON.sm} style={/* eslint-disable-line no-restricted-syntax */ {
-            color: mergeMode ? "var(--color-brand-primary)" : "var(--color-text-muted)",
-            flexShrink: 0,
+            color: "var(--color-text-muted)", flexShrink: 0,
           }} />
-          {mergeMode ? (
-            <>
-              <strong style={/* eslint-disable-line no-restricted-syntax */ { color: "var(--color-brand-primary)" }}>합치기 모드</strong>
-              <span style={/* eslint-disable-line no-restricted-syntax */ {
-                color: "var(--color-text-secondary)",
-                flex: 1, minWidth: 0, wordBreak: "keep-all",
-              }}>
-                — 합칠 문항을 위→아래 순서대로 클릭하세요
-              </span>
-              <button type="button" onClick={onToggleMergeMode}
-                data-testid="matchup-merge-mode-exit"
-                style={/* eslint-disable-line no-restricted-syntax */ {
-                  marginLeft: "auto",
-                  background: "var(--color-bg-surface)",
-                  border: "1px solid var(--color-border-divider)",
-                  borderRadius: 4, padding: "3px 10px",
-                  color: "var(--color-text-secondary)",
-                  fontSize: 11, fontWeight: 600, cursor: "pointer",
-                  display: "inline-flex", alignItems: "center", gap: 4,
-                  whiteSpace: "nowrap", flexShrink: 0,
-                }}>
-                <X size={ICON.xs} /> 모드 종료
-              </button>
-            </>
-          ) : (
-            <>
-              <span style={/* eslint-disable-line no-restricted-syntax */ {
-                color: "var(--color-text-secondary)",
-                flex: 1, minWidth: 0, wordBreak: "keep-all",
-              }}>
-                <strong>한 문항이 두 칸 이상으로 쪼개진 경우</strong> — 클릭 한 번으로 묶어 1개 문항으로 만들 수 있습니다.
-              </span>
+          <span style={/* eslint-disable-line no-restricted-syntax */ {
+            color: "var(--color-text-secondary)",
+            flex: 1, minWidth: 0, wordBreak: "keep-all",
+          }}>
+            <strong>여러 문항을 한 번에 정리</strong> — 쪼개진 문항을 합치거나, 잘못 잡힌 문항을 골라서 일괄 삭제할 수 있습니다.
+          </span>
+          <div style={/* eslint-disable-line no-restricted-syntax */ {
+            marginLeft: "auto", display: "inline-flex", gap: 6, flexShrink: 0, flexWrap: "wrap",
+          }}>
+            {onToggleMergeMode && (
               <button type="button" onClick={onToggleMergeMode}
                 data-testid="matchup-merge-mode-enter"
                 style={/* eslint-disable-line no-restricted-syntax */ {
-                  marginLeft: "auto",
                   background: "var(--color-brand-primary)",
                   color: "white", border: "none",
                   borderRadius: 4, padding: "4px 12px",
                   fontSize: 11, fontWeight: 700, cursor: "pointer",
                   display: "inline-flex", alignItems: "center", gap: 4,
-                  whiteSpace: "nowrap", flexShrink: 0,
+                  whiteSpace: "nowrap",
                 }}>
                 <Layers size={ICON.xs} /> 쪼개진 문항 합치기
               </button>
-            </>
-          )}
+            )}
+            {onToggleDeleteMode && (
+              <button type="button" onClick={onToggleDeleteMode}
+                data-testid="matchup-bulk-select-mode-enter"
+                style={/* eslint-disable-line no-restricted-syntax */ {
+                  background: "var(--color-bg-surface)",
+                  color: "var(--color-text-secondary)",
+                  border: "1px solid var(--color-border-divider)",
+                  borderRadius: 4, padding: "4px 12px",
+                  fontSize: 11, fontWeight: 700, cursor: "pointer",
+                  display: "inline-flex", alignItems: "center", gap: 4,
+                  whiteSpace: "nowrap",
+                }}>
+                <Trash2 size={ICON.xs} /> 여러 문항 삭제
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Merge mode bar — 진입 시 안내 + 모드 종료 */}
+      {mergeMode && (
+        <div style={/* eslint-disable-line no-restricted-syntax */ {
+          display: "flex", alignItems: "center", gap: "var(--space-2)",
+          flexWrap: "wrap",
+          padding: "var(--space-2) var(--space-3)",
+          background: "color-mix(in srgb, var(--color-brand-primary) 8%, var(--color-bg-surface))",
+          border: "1px solid color-mix(in srgb, var(--color-brand-primary) 40%, transparent)",
+          borderRadius: "var(--radius-md)",
+          fontSize: 12,
+        }}>
+          <Layers size={ICON.sm} style={/* eslint-disable-line no-restricted-syntax */ {
+            color: "var(--color-brand-primary)", flexShrink: 0,
+          }} />
+          <strong style={/* eslint-disable-line no-restricted-syntax */ { color: "var(--color-brand-primary)" }}>합치기 모드</strong>
+          <span style={/* eslint-disable-line no-restricted-syntax */ {
+            color: "var(--color-text-secondary)",
+            flex: 1, minWidth: 0, wordBreak: "keep-all",
+          }}>
+            — 합칠 문항을 위→아래 순서대로 클릭하세요
+          </span>
+          <button type="button" onClick={onToggleMergeMode}
+            data-testid="matchup-merge-mode-exit"
+            style={/* eslint-disable-line no-restricted-syntax */ {
+              marginLeft: "auto",
+              background: "var(--color-bg-surface)",
+              border: "1px solid var(--color-border-divider)",
+              borderRadius: 4, padding: "3px 10px",
+              color: "var(--color-text-secondary)",
+              fontSize: 11, fontWeight: 600, cursor: "pointer",
+              display: "inline-flex", alignItems: "center", gap: 4,
+              whiteSpace: "nowrap", flexShrink: 0,
+            }}>
+            <X size={ICON.xs} /> 모드 종료
+          </button>
+        </div>
+      )}
+
+      {/* Delete mode bar — 진입 시 안내 + 모드 종료. */}
+      {deleteMode && (
+        <div style={/* eslint-disable-line no-restricted-syntax */ {
+          display: "flex", alignItems: "center", gap: "var(--space-2)",
+          flexWrap: "wrap",
+          padding: "var(--space-2) var(--space-3)",
+          background: "color-mix(in srgb, var(--color-warning) 8%, var(--color-bg-surface))",
+          border: "1px solid color-mix(in srgb, var(--color-warning) 40%, transparent)",
+          borderRadius: "var(--radius-md)",
+          fontSize: 12,
+        }}>
+          <Trash2 size={ICON.sm} style={/* eslint-disable-line no-restricted-syntax */ {
+            color: "var(--color-warning)", flexShrink: 0,
+          }} />
+          <strong style={/* eslint-disable-line no-restricted-syntax */ { color: "var(--color-warning)" }}>일괄 삭제 모드</strong>
+          <span style={/* eslint-disable-line no-restricted-syntax */ {
+            color: "var(--color-text-secondary)",
+            flex: 1, minWidth: 0, wordBreak: "keep-all",
+          }}>
+            — 삭제할 문항을 클릭해서 선택하세요. 직접 자른 문항은 자동 보호됩니다.
+          </span>
+          <button type="button" onClick={onToggleDeleteMode}
+            data-testid="matchup-bulk-select-mode-exit"
+            style={/* eslint-disable-line no-restricted-syntax */ {
+              marginLeft: "auto",
+              background: "var(--color-bg-surface)",
+              border: "1px solid var(--color-border-divider)",
+              borderRadius: 4, padding: "3px 10px",
+              color: "var(--color-text-secondary)",
+              fontSize: 11, fontWeight: 600, cursor: "pointer",
+              display: "inline-flex", alignItems: "center", gap: 4,
+              whiteSpace: "nowrap", flexShrink: 0,
+            }}>
+            <X size={ICON.xs} /> 모드 종료
+          </button>
         </div>
       )}
 
@@ -324,20 +414,94 @@ export default function ProblemGrid({
         gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
         gap: "var(--space-3)",
       }}>
-        {problems.map((p) => (
-          <ProblemCard
-            key={p.id}
-            problem={p}
-            selected={selectedProblemId === p.id}
-            onClick={() => {
-              if (mergeMode && onToggleMergeSelect) onToggleMergeSelect(p.id);
-              else onSelectProblem(p.id);
-            }}
-            mergeMode={mergeMode}
-            mergeOrder={mergeOrderById.get(p.id) ?? 0}
-          />
-        ))}
+        {problems.map((p) => {
+          const isInDeleteSelection = deleteMode && deleteSelectedSet.has(p.id);
+          // bulk-select mode 일 때 카드의 selected 시각은 selection 멤버십.
+          const cardSelected = deleteMode
+            ? isInDeleteSelection
+            : selectedProblemId === p.id;
+          return (
+            <ProblemCard
+              key={p.id}
+              problem={p}
+              selected={cardSelected}
+              onClick={() => {
+                if (mergeMode && onToggleMergeSelect) onToggleMergeSelect(p.id);
+                else if (deleteMode && onToggleDeleteSelect) onToggleDeleteSelect(p.id);
+                else onSelectProblem(p.id);
+              }}
+              mergeMode={mergeMode}
+              mergeOrder={mergeOrderById.get(p.id) ?? 0}
+              bulkSelectMode={deleteMode}
+              onDelete={onDeleteProblem ? () => onDeleteProblem(p) : undefined}
+              onSplit={onSplitProblem ? () => onSplitProblem(p) : undefined}
+            />
+          );
+        })}
       </div>
+
+      {/* Bulk delete action bar — 일괄삭제 모드 + 1개 이상 선택. */}
+      {deleteMode && deleteSelectedCount > 0 && (
+        <div data-testid="matchup-bulk-delete-action-bar"
+          style={/* eslint-disable-line no-restricted-syntax */ {
+            position: "sticky", bottom: 0, zIndex: 5,
+            display: "flex", alignItems: "center", gap: "var(--space-2)",
+            flexWrap: "wrap",
+            padding: "var(--space-3) var(--space-4)",
+            background: "var(--color-bg-surface)",
+            border: "1px solid var(--color-warning)",
+            borderRadius: "var(--radius-lg)",
+            boxShadow: "0 4px 16px rgba(0,0,0,0.12)",
+            marginTop: "var(--space-2)",
+          }}>
+          <Trash2 size={ICON.sm} style={/* eslint-disable-line no-restricted-syntax */ { color: "var(--color-warning)", flexShrink: 0 }} />
+          <strong style={/* eslint-disable-line no-restricted-syntax */ { color: "var(--color-warning)", fontSize: 13, flexShrink: 0 }}>
+            {deleteSelectedCount}개 선택됨
+          </strong>
+          {deleteProtectedCount > 0 && (
+            <span data-testid="matchup-bulk-delete-protected-hint"
+              style={/* eslint-disable-line no-restricted-syntax */ {
+                display: "inline-flex", alignItems: "center", gap: 4,
+                fontSize: 11, fontWeight: 600,
+                color: "var(--color-status-success)",
+                flexShrink: 0,
+              }}>
+              <Shield size={ICON.xs} />
+              직접 자른 {deleteProtectedCount}개 자동 보호
+            </span>
+          )}
+          <span style={/* eslint-disable-line no-restricted-syntax */ {
+            fontSize: 11, color: "var(--color-text-muted)",
+            flex: 1, minWidth: 0, wordBreak: "keep-all",
+          }}>
+            삭제는 되돌릴 수 없습니다 — 적중보고서 큐레이션에 포함된 경우 자동 제외됩니다.
+          </span>
+          <div style={/* eslint-disable-line no-restricted-syntax */ { marginLeft: "auto", display: "flex", gap: 8, flexShrink: 0 }}>
+            <button type="button" onClick={onClearDeleteSelection}
+              style={/* eslint-disable-line no-restricted-syntax */ {
+                background: "var(--color-bg-surface-soft)",
+                border: "1px solid var(--color-border-divider)",
+                borderRadius: 4, padding: "5px 12px",
+                color: "var(--color-text-secondary)",
+                fontSize: 11, fontWeight: 600, cursor: "pointer",
+                whiteSpace: "nowrap",
+              }}>선택 해제</button>
+            <button type="button" onClick={onConfirmBulkDelete}
+              data-testid="matchup-bulk-delete-confirm-action"
+              style={/* eslint-disable-line no-restricted-syntax */ {
+                background: "var(--color-danger)",
+                color: "white", border: "none",
+                borderRadius: 4, padding: "5px 14px",
+                fontSize: 11, fontWeight: 700, cursor: "pointer",
+                display: "inline-flex", alignItems: "center", gap: 4,
+                whiteSpace: "nowrap",
+              }}>
+              <Trash2 size={ICON.xs} />
+              {deleteSelectedCount - deleteProtectedCount}개 삭제
+            </button>
+          </div>
+        </div>
+      )}
 
       {mergeMode && mergeSelectedCount > 0 && (
         <div data-testid="matchup-merge-action-bar"

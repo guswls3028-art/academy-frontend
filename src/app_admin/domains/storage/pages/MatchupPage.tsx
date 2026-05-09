@@ -4,7 +4,7 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams, useNavigate, useLocation } from "react-router-dom";
-import { Sparkles, AlertTriangle, RefreshCw, Eye, BookOpen, Crop, ClipboardList, FolderTree, FolderInput, Plus, Layers } from "lucide-react";
+import { Sparkles, AlertTriangle, RefreshCw, Eye, BookOpen, Crop, ClipboardList, FolderTree, FolderInput, Plus, Layers, ShieldCheck } from "lucide-react";
 import { Button, ICON } from "@/shared/ui/ds";
 import { useConfirm } from "@/shared/ui/confirm";
 import useAuth from "@/auth/hooks/useAuth";
@@ -23,6 +23,7 @@ import {
   upsertHitReportEntries,
   reanalyzeMatchupDocument,
   bulkDeleteMatchupProblems,
+  deleteMatchupProblem,
 } from "../api/matchup.api";
 import type { SimilarProblem } from "../api/matchup.api";
 import { useMatchupPolling } from "../hooks/useMatchupPolling";
@@ -43,6 +44,7 @@ import HitReportListModal from "../components/matchup/HitReportListModal";
 import MatchupEmptyState from "../components/matchup/MatchupEmptyState";
 import DocumentGuidanceBanner from "../components/matchup/DocumentGuidanceBanner";
 import BulkDeleteModal from "../components/matchup/BulkDeleteModal";
+import ProposalReviewPanel from "../components/matchup/ProposalReviewPanel";
 import HeaderMoreMenu from "./MatchupPage.parts/HeaderMoreMenu";
 import MergeModeRightPanel from "./MatchupPage.parts/MergeModeRightPanel";
 import IntentToggle from "./MatchupPage.parts/IntentToggle";
@@ -107,6 +109,9 @@ export default function MatchupPage() {
   const [hitReportListOpen, setHitReportListOpen] = useState(false);
   // A-2 (2026-05-08) — 자동분리 잔존 일괄삭제 모달 (이전엔 native window.prompt).
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  // Phase F (2026-05-10) — Stage 6.3A Proposal Review v1 진입.
+  // ENV MATCHUP_PROPOSAL_FIRST_TENANTS default off → 대부분 doc 에서 빈 list. UI 미리 wire-in.
+  const [proposalReviewDocId, setProposalReviewDocId] = useState<number | null>(null);
 
   // P1 (2026-05-04) — HitReportListPage에서 navigate({state: {openHitReportForDoc: docId}})로
   // 진입 시 자동 doc 선택 + HitReportEditor 오픈. sidebar→리스트→편집기 흐름 단축.
@@ -154,6 +159,10 @@ export default function MatchupPage() {
   const [mergeMode, setMergeMode] = useState(false);
   const [mergeSelectedIds, setMergeSelectedIds] = useState<number[]>([]);
   const [mergeModalOpen, setMergeModalOpen] = useState(false);
+  // Phase F (2026-05-10) — 다중 선택 일괄삭제 모드. mergeMode 와 mutually exclusive
+  // (호출부 보장: 한 모드 진입 시 다른 모드 자동 종료).
+  const [deleteMode, setDeleteMode] = useState(false);
+  const [deleteSelectedIds, setDeleteSelectedIds] = useState<number[]>([]);
   const [intentUpdating, setIntentUpdating] = useState(false);
   // 자료 유형 변경 chip 펼침 토글 — default 닫힘 (학원장 시야 차단, directive 2026-05-09).
   const [sourceTypeEditorOpen, setSourceTypeEditorOpen] = useState(false);
@@ -615,6 +624,8 @@ export default function MatchupPage() {
     setMergeMode(false);
     setMergeSelectedIds([]);
     setMergeModalOpen(false);
+    setDeleteMode(false);
+    setDeleteSelectedIds([]);
   }, [selectedDocId]);
 
   // 합치기 모드 진입 직전 selectedProblemId 보관 — 모드 종료 시 복귀해서
@@ -661,6 +672,116 @@ export default function MatchupPage() {
     setMergeMode(false);
     setMergeSelectedIds([]);
   }, []);
+
+  // Phase F (2026-05-10) — 다중 선택 일괄삭제 모드 핸들러.
+  // mergeMode 와 mutually exclusive: delete 진입 시 merge 자동 종료.
+  const handleToggleDeleteMode = useCallback(() => {
+    setDeleteMode((prev) => {
+      const next = !prev;
+      if (next) {
+        // 진입: merge 모드 강제 종료 (UX 충돌 방지).
+        setMergeMode(false);
+        setMergeSelectedIds([]);
+        setSelectedProblemId(null);
+      } else {
+        setDeleteSelectedIds([]);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleToggleDeleteSelect = useCallback((id: number) => {
+    setDeleteSelectedIds((prev) => (
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    ));
+  }, []);
+
+  const handleClearDeleteSelection = useCallback(() => {
+    setDeleteSelectedIds([]);
+  }, []);
+
+  const handleConfirmBulkDelete = useCallback(async () => {
+    if (!selectedDoc || deleteSelectedIds.length === 0) return;
+    const targetCount = deleteSelectedIds.length;
+    const ok = await confirm({
+      title: `${targetCount}개 문항 삭제`,
+      message:
+        `선택한 ${targetCount}개 문항을 삭제합니다. 직접 자른 문항은 자동 보호됩니다.\n\n` +
+        `· 적중보고서 큐레이션에 포함된 경우 자동 제외됩니다.\n` +
+        `· 이 작업은 되돌릴 수 없습니다.`,
+      confirmText: "삭제",
+      cancelText: "취소",
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      const res = await bulkDeleteMatchupProblems(selectedDoc.id, {
+        problem_ids: deleteSelectedIds,
+      });
+      const preservedNote = res.preserved_manual > 0
+        ? ` (직접 자른 ${res.preserved_manual}개 보호)`
+        : "";
+      feedback.success(`${res.deleted}개 문항 삭제 완료${preservedNote}`);
+      setDeleteSelectedIds([]);
+      setDeleteMode(false);
+      await qc.invalidateQueries({ queryKey: ["matchup-problems", selectedDoc.id] });
+      await qc.invalidateQueries({ queryKey: ["matchup-documents"] });
+    } catch (e: unknown) {
+      const msg = (e as Error)?.message ?? "일괄삭제 실패";
+      feedback.error(msg);
+    }
+  }, [selectedDoc, deleteSelectedIds, confirm, qc]);
+
+  // Phase F — 카드별 1클릭 삭제. manual 보호 메시지 명시.
+  const handleDeleteSingleProblem = useCallback(async (problem: { id: number; number: number; meta: Record<string, unknown> | null }) => {
+    if (!selectedDoc) return;
+    const meta = problem.meta as Record<string, unknown> | null;
+    const isProtected = Boolean(meta?.manual || meta?.manual_owner_pinned);
+    const ok = await confirm({
+      title: `Q${problem.number} 삭제`,
+      message: isProtected
+        ? `Q${problem.number}은(는) 직접 자른 문항입니다. 정말 삭제하시겠어요?\n\n` +
+          `· 적중보고서 큐레이션에 포함된 경우 자동 제외됩니다.\n` +
+          `· 이 작업은 되돌릴 수 없습니다.`
+        : `Q${problem.number}을(를) 삭제합니다.\n\n` +
+          `· 적중보고서 큐레이션에 포함된 경우 자동 제외됩니다.\n` +
+          `· 이 작업은 되돌릴 수 없습니다.`,
+      confirmText: "삭제",
+      cancelText: "취소",
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      await deleteMatchupProblem(problem.id);
+      feedback.success(`Q${problem.number} 삭제 완료`);
+      // 옵티미스틱: 캐시에서 즉시 제거.
+      qc.setQueryData<unknown[]>(
+        ["matchup-problems", selectedDoc.id],
+        (old) => (old ?? []).filter((p) => (p as { id: number }).id !== problem.id),
+      );
+      await qc.invalidateQueries({ queryKey: ["matchup-documents"] });
+      // 선택된 problem 이 삭제 대상이면 selection 해제.
+      setSelectedProblemId((prev) => (prev === problem.id ? null : prev));
+    } catch (e: unknown) {
+      const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+        ?? (e as Error)?.message
+        ?? "삭제 실패";
+      feedback.error(msg);
+      // 실패 시 캐시 invalidate 로 복원.
+      await qc.invalidateQueries({ queryKey: ["matchup-problems", selectedDoc.id] });
+    }
+  }, [selectedDoc, confirm, qc]);
+
+  // Phase F — 카드별 분할 진입점. ManualCropModal 을 해당 페이지로 점프해서
+  // 학원장이 같은 페이지에서 두 박스(또는 N박스)를 그려 직접 분할.
+  // problem.meta.page_index 가 있으면 그 페이지로, 없으면 0 페이지부터.
+  const handleSplitProblem = useCallback((problem: { meta: Record<string, unknown> | null }) => {
+    if (!selectedDoc) return;
+    const meta = problem.meta as Record<string, unknown> | null;
+    const pageIndex = typeof meta?.page_index === "number" ? meta.page_index : 0;
+    setCropInitialPage(pageIndex);
+    setCropDocId(selectedDoc.id);
+  }, [selectedDoc]);
 
   const handleChangeIntent = useCallback(async (intent: "reference" | "test") => {
     if (!selectedDoc) return;
@@ -1430,6 +1551,47 @@ export default function MatchupPage() {
                   </div>
                 )}
 
+                {/* Phase F (2026-05-10) — AI 자동분리 검수 진입점.
+                    Stage 6.3A Proposal Review v1. ENV MATCHUP_PROPOSAL_FIRST_TENANTS default off
+                    → 대부분 doc 빈 list. 그래도 학원장이 검수 화면 위치를 파악할 수 있도록 항상 노출.
+                    backend `/matchup/proposals/?document_id=&status=pending` user_v1 schema. */}
+                {selectedDoc?.status === "done" && (
+                  <div
+                    data-testid="matchup-proposal-review-cta"
+                    style={/* eslint-disable-line no-restricted-syntax */ {
+                      flexShrink: 0,
+                      padding: "var(--space-2) var(--space-3)",
+                      borderRadius: "var(--radius-md)",
+                      background: "var(--color-bg-surface-soft)",
+                      border: "1px solid var(--color-border-divider)",
+                      display: "flex", alignItems: "center", gap: "var(--space-2)",
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    <ShieldCheck size={ICON.sm} style={/* eslint-disable-line no-restricted-syntax */ { color: "var(--color-text-secondary)", flexShrink: 0 }} />
+                    <span style={/* eslint-disable-line no-restricted-syntax */ {
+                      fontSize: 12, fontWeight: 700, color: "var(--color-text-primary)",
+                    }}>
+                      AI 자동분리 검수
+                    </span>
+                    <span style={/* eslint-disable-line no-restricted-syntax */ {
+                      fontSize: 11, color: "var(--color-text-secondary)",
+                    }}>
+                      자동 분리한 문항을 승인 또는 거절해서 매치업에 추가할지 결정합니다.
+                    </span>
+                    <Button
+                      intent="ghost"
+                      size="sm"
+                      onClick={() => setProposalReviewDocId(selectedDoc.id)}
+                      data-testid="matchup-proposal-review-open-btn"
+                      leftIcon={<ShieldCheck size={ICON.sm} />}
+                      style={/* eslint-disable-line no-restricted-syntax */ { marginLeft: "auto" }}
+                    >
+                      검수 열기
+                    </Button>
+                  </div>
+                )}
+
                 {/* 검수 필요 페이지 CTA — paper_type / quality 안내는 위 DocumentGuidanceBanner
                     가 흡수, 여기는 "신뢰도 55% 미만 페이지를 한곳에서 처리" 진입점만 별도. */}
                 {selectedDoc?.status === "done"
@@ -1559,6 +1721,14 @@ export default function MatchupPage() {
                       onToggleMergeSelect={handleToggleMergeSelect}
                       onClearMergeSelection={handleClearMergeSelection}
                       onConfirmMerge={handleOpenMergeModal}
+                      deleteMode={deleteMode}
+                      deleteSelectedIds={deleteSelectedIds}
+                      onToggleDeleteMode={handleToggleDeleteMode}
+                      onToggleDeleteSelect={handleToggleDeleteSelect}
+                      onClearDeleteSelection={handleClearDeleteSelection}
+                      onConfirmBulkDelete={handleConfirmBulkDelete}
+                      onDeleteProblem={(p) => handleDeleteSingleProblem({ id: p.id, number: p.number, meta: p.meta as Record<string, unknown> | null })}
+                      onSplitProblem={(p) => handleSplitProblem({ meta: p.meta as Record<string, unknown> | null })}
                       onOpenManualCrop={selectedDoc ? () => setCropDocId(selectedDoc.id) : undefined}
                       onRetry={selectedDoc ? () => handleRetry(selectedDoc.id) : undefined}
                     />
@@ -1780,6 +1950,18 @@ export default function MatchupPage() {
               />
             </div>
           </div>
+        );
+      })()}
+
+      {proposalReviewDocId !== null && (() => {
+        const doc = documents.find((d) => d.id === proposalReviewDocId);
+        if (!doc) return null;
+        return (
+          <ProposalReviewPanel
+            documentId={doc.id}
+            documentTitle={doc.title}
+            onClose={() => setProposalReviewDocId(null)}
+          />
         );
       })()}
 
