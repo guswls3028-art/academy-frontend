@@ -112,6 +112,18 @@ export default function MatchupPage() {
   // Phase F (2026-05-10) — Stage 6.3A Proposal Review v1 진입.
   // ENV MATCHUP_PROPOSAL_FIRST_TENANTS default off → 대부분 doc 에서 빈 list. UI 미리 wire-in.
   const [proposalReviewDocId, setProposalReviewDocId] = useState<number | null>(null);
+  // narrow viewport (≤1280) 대응 — 매치업 본문이 좌측 사이드바(~280) + tree(~280)
+  // 빠지면 720px 미만이라 좌우 분할(ProblemGrid + SimilarResults panel) 시 그리드
+  // 영역이 너무 좁아 카드 + sticky action bar 가 viewport 진입 못 함.
+  // narrow 시 본문을 상하 stack 으로 전환 → 그리드 폭 100%.
+  const [isNarrowViewport, setIsNarrowViewport] = useState<boolean>(
+    () => typeof window !== "undefined" && window.innerWidth < 1280,
+  );
+  useEffect(() => {
+    const onResize = () => setIsNarrowViewport(window.innerWidth < 1280);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
 
   // P1 (2026-05-04) — HitReportListPage에서 navigate({state: {openHitReportForDoc: docId}})로
   // 진입 시 자동 doc 선택 + HitReportEditor 오픈. sidebar→리스트→편집기 흐름 단축.
@@ -1696,9 +1708,22 @@ export default function MatchupPage() {
                   );
                 })()}
 
-                {/* 본문: 좌 문제 그리드 + 우 유사 추천 */}
-                <div style={/* eslint-disable-line no-restricted-syntax */ { display: "flex", gap: "var(--space-4)", flex: 1, minHeight: 0 }}>
-                  <div ref={gridContainerRef} style={/* eslint-disable-line no-restricted-syntax */ { flex: 3, minWidth: 0, overflowY: "auto" }}>
+                {/* 본문: 좌 문제 그리드 + 우 유사 추천 (narrow viewport ≤1280 시 상하 stack). */}
+                <div style={/* eslint-disable-line no-restricted-syntax */ {
+                  display: "flex",
+                  flexDirection: isNarrowViewport ? "column" : "row",
+                  gap: "var(--space-4)", flex: 1, minHeight: 0,
+                }}>
+                  <div
+                    ref={gridContainerRef}
+                    data-testid="matchup-grid-container"
+                    style={/* eslint-disable-line no-restricted-syntax */ {
+                      flex: isNarrowViewport ? "1 1 auto" : 3,
+                      minWidth: 0,
+                      width: isNarrowViewport ? "100%" : undefined,
+                      overflowY: "auto",
+                    }}
+                  >
                     <h4 style={/* eslint-disable-line no-restricted-syntax */ {
                       fontSize: 13, fontWeight: 600, color: "var(--color-text-secondary)",
                       margin: "0 0 var(--space-3) 0",
@@ -1735,9 +1760,15 @@ export default function MatchupPage() {
                   </div>
 
                   <div style={/* eslint-disable-line no-restricted-syntax */ {
-                    flex: 2, minWidth: 300, overflowY: "auto",
-                    borderLeft: "1px solid var(--color-border-divider)",
-                    paddingLeft: "var(--space-4)",
+                    flex: isNarrowViewport ? "0 0 auto" : 2,
+                    minWidth: isNarrowViewport ? 0 : 300,
+                    width: isNarrowViewport ? "100%" : undefined,
+                    maxHeight: isNarrowViewport ? "50%" : undefined,
+                    overflowY: "auto",
+                    borderLeft: isNarrowViewport ? "none" : "1px solid var(--color-border-divider)",
+                    borderTop: isNarrowViewport ? "1px solid var(--color-border-divider)" : "none",
+                    paddingLeft: isNarrowViewport ? 0 : "var(--space-4)",
+                    paddingTop: isNarrowViewport ? "var(--space-4)" : 0,
                     display: "flex", flexDirection: "column", minHeight: 0,
                   }}>
                     <div style={/* eslint-disable-line no-restricted-syntax */ {

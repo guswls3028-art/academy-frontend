@@ -9,13 +9,13 @@
 import { test, expect } from "@playwright/test";
 import { loginViaUI } from "../helpers/auth";
 
-// 1100 viewport 는 매치업 페이지 본문 (좌측 사이드바 + tree + 우측 panel) 차지로
-// ProblemGrid 영역이 viewport 진입 안 되는 기본 사용성 결함 viewport. Phase F
-// 본 작업 외 환경 결함 — `narrow_viewport_matchup_grid` 백로그 별도 처리.
-// 1280 / 1366 (학원장 표준 노트북 외장 모니터) 만 검증.
+// 1100 viewport 는 narrow viewport layout 분기 (옵션 1 — 본문 상하 stack)
+// 적용 후 복구. ProblemGrid 폭 100% 차지 → sticky action bar click intercept
+// 회귀 해소. 1280 / 1366 / 1100 모두 검증.
 const VIEWPORTS = [
   { name: "1280", width: 1280, height: 800 },
   { name: "1366", width: 1366, height: 768 },
+  { name: "1100", width: 1100, height: 720 },
 ];
 
 const TARGET_DOC_ID = 615;  // T1 doc — 343 problem 보유
