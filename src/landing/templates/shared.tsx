@@ -6,6 +6,8 @@
 
 import type { LandingConfig, LandingSection, FeatureItem, TestimonialItem, ProgramItem, FaqItem, HitReportShowcaseItem, HitReportPublicCard } from "../types";
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
+import useAuth from "@/auth/hooks/useAuth";
 
 /** 아이콘 매핑 (SVG 인라인) */
 const ICON_MAP: Record<string, string> = {
@@ -82,9 +84,27 @@ export interface TemplateProps {
  * - 학원장이 보고서를 게시 안 했거나 ID 비어있으면 카드 자체 안 그림.
  * - SSR fetch 실패해도 placeholder만 그리고 끝남(랜딩 깨지면 안 됨).
  */
+/** 학원 운영진/강사 권한 체크 — 카드에 "수정" 액션 노출 결정.
+ * - owner/admin: 학원장 (홈페이지 자체 + 보고서 둘 다 수정)
+ * - teacher: 강사 (자기 보고서 수정)
+ * - student/parent/외부 관전자: 액션 없음 (카드 보기만)
+ */
+function useStaffRole(): "owner_admin" | "teacher" | null {
+  const { user, isAuthenticated } = useAuth();
+  if (!isAuthenticated) return null;
+  const u = user as { tenantRole?: string | null; is_superuser?: boolean } | null;
+  if (u?.is_superuser) return "owner_admin";
+  const role = (u?.tenantRole ?? "").toLowerCase();
+  if (role === "owner" || role === "admin") return "owner_admin";
+  if (role === "teacher") return "teacher";
+  return null;
+}
+
 export function HitReportCards({ items, color, rgb, theme = "light" }: { items: HitReportShowcaseItem[]; color: string; rgb: string; theme?: "light" | "dark" }) {
   const [cards, setCards] = useState<HitReportPublicCard[] | null>(null);
   const [error, setError] = useState(false);
+  const staffRole = useStaffRole();
+  const canManage = staffRole !== null; // owner/admin/teacher 모두 카드에 액션 노출
 
   useEffect(() => {
     const ids = (items || []).map((it) => it.report_id).filter((n) => Number.isFinite(n));
@@ -116,6 +136,8 @@ export function HitReportCards({ items, color, rgb, theme = "light" }: { items: 
   const chipBg = `rgba(${rgb}, ${dark ? 0.1 : 0.06})`;
   const chipColor = dark ? "#F5F1E8" : "#475569";
   const cardShadow = dark ? "none" : "0 1px 3px rgba(0,0,0,0.04)";
+  const manageChipBg = dark ? "rgba(255,255,255,0.08)" : "rgba(15,23,42,0.04)";
+  const manageChipColor = dark ? "#F5F1E8" : "#475569";
 
   return (
     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 20 }}>
@@ -135,8 +157,34 @@ export function HitReportCards({ items, color, rgb, theme = "light" }: { items: 
               display: "flex",
               flexDirection: "column",
               gap: 14,
+              position: "relative",
             }}
           >
+            {canManage && (
+              <Link
+                to="/admin/storage/hit-reports"
+                style={{
+                  position: "absolute",
+                  top: 12,
+                  right: 12,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 4,
+                  padding: "5px 10px",
+                  borderRadius: 999,
+                  background: manageChipBg,
+                  color: manageChipColor,
+                  fontSize: 11,
+                  fontWeight: 700,
+                  textDecoration: "none",
+                  letterSpacing: "0.02em",
+                }}
+                title="이 보고서 관리실에서 수정"
+              >
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
+                수정
+              </Link>
+            )}
             <div style={{ fontSize: 11, fontWeight: 700, color: labelColor, letterSpacing: "0.06em", textTransform: "uppercase" }}>
               {label || "적중 보고서"}
             </div>

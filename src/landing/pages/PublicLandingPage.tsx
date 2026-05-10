@@ -95,7 +95,7 @@ function LandingAdminFab() {
       }}
     >
       <Link
-        to="/settings/landing"
+        to="/admin/settings/landing"
         style={{
           display: "inline-flex", alignItems: "center", gap: 8,
           padding: "12px 20px",
@@ -109,13 +109,13 @@ function LandingAdminFab() {
           WebkitBackdropFilter: "blur(12px)",
           fontFamily: "'Pretendard Variable', 'Pretendard', system-ui, sans-serif",
         }}
-        title="홈페이지 편집 콘솔로 이동"
+        title="홈페이지 꾸미기 페이지로 이동"
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
-        홈페이지 편집
+        홈페이지 꾸미기
       </Link>
       <Link
-        to="/"
+        to="/admin"
         style={{
           display: "inline-flex", alignItems: "center", gap: 6,
           padding: "8px 14px",
@@ -129,9 +129,9 @@ function LandingAdminFab() {
           WebkitBackdropFilter: "blur(8px)",
           fontFamily: "'Pretendard Variable', 'Pretendard', system-ui, sans-serif",
         }}
-        title="관리자 콘솔로"
+        title="학원 관리실로 돌아가기"
       >
-        콘솔로 →
+        관리실로 →
       </Link>
     </div>
   );

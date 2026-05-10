@@ -360,7 +360,7 @@ export default function Header() {
       {canViewOwnLanding && (
         <button type="button" role="menuitem" className="app-header__profileDropdownItem" onClick={() => userMenu.onClick({ key: "landing" })}>
           <GlobeIcon size={ICON.sm} aria-hidden />
-          <span>내 홈페이지 보기</span>
+          <span>우리 학원 홈페이지</span>
         </button>
       )}
       <div className="app-header__profileDropdownDivider" />

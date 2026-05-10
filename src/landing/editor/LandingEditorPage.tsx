@@ -1,5 +1,9 @@
 // PATH: src/app_admin/domains/landing/editor/LandingEditorPage.tsx
 // 설정 > 랜딩페이지 꾸미기. 구조화된 편집 + 실시간 미리보기.
+//
+// 학원장 어드민 편집기 — 동적 테넌트 색상 + 미리보기 격리 + 모달 등 inline style 핵심 도구.
+// 도메인 전체 면제 (랜딩 템플릿/공개 페이지와 동일 사유).
+/* eslint-disable no-restricted-syntax, @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any */
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import {
@@ -36,6 +40,7 @@ const SECTION_LABELS: Record<string, string> = {
   faq: "자주 묻는 질문",
   contact: "문의 정보",
   notice: "공지/안내",
+  hit_reports: "최근 적중 사례 (매치업)",
 };
 
 const ICON_OPTIONS = ["book", "chart", "users", "star", "shield", "clock", "check", "heart", "target", "award"];
@@ -574,6 +579,22 @@ function SectionEditor({ sectionType, sections, updateDraft }: { sectionType: st
           {["features", "testimonials", "programs", "faq"].includes(sectionType) && (
             <ItemsEditor sectionType={sectionType} items={(section.items || []) as any[]} updateSection={updateSection} />
           )}
+
+          {/* hit_reports: title + description + 보고서 picker */}
+          {sectionType === "hit_reports" && (
+            <>
+              <FieldRow label="제목">
+                <TextInput value={section.title || ""} onChange={(v) => updateSection((s) => ({ ...s, title: v }))} placeholder="최근 적중 사례" />
+              </FieldRow>
+              <FieldRow label="안내문">
+                <TextArea value={section.description || ""} onChange={(v) => updateSection((s) => ({ ...s, description: v }))} placeholder="우리 학원의 시험지 적중 결과를 소개합니다." rows={2} />
+              </FieldRow>
+              <HitReportPicker
+                selectedIds={(((section.items || []) as Array<{ report_id: number }>).map((it) => it.report_id))}
+                onChange={(ids) => updateSection((s) => ({ ...s, items: ids.map((id) => ({ report_id: id })) }))}
+              />
+            </>
+          )}
         </>
       )}
 
@@ -717,6 +738,99 @@ function ItemsEditor({ sectionType, items, updateSection }: { sectionType: strin
           + 항목 추가 (최대 {maxItems}개)
         </button>
       )}
+    </div>
+  );
+}
+
+/** 매치업 적중보고서 picker — 학원장이 자기 학원 보고서 중 홈페이지 카드로 노출할 것을 체크박스로 선택.
+ * 텍스트 입력 X, 다른 곳에서 만든 보고서를 골라 박는 한 단계 인터페이스.
+ */
+function HitReportPicker({ selectedIds, onChange }: { selectedIds: number[]; onChange: (ids: number[]) => void }) {
+  const [reports, setReports] = useState<Array<{ id: number; document_title: string; document_category: string; hit_rate: number; hit_count: number; exam_count: number; status: string }> | null>(null);
+  const [loadErr, setLoadErr] = useState(false);
+  const MAX = 6;
+
+  useEffect(() => {
+    let cancelled = false;
+    import("@admin/domains/storage/api/matchup.api").then(({ fetchHitReportList }) =>
+      fetchHitReportList({ mine: false }).then((res) => {
+        if (cancelled) return;
+        setReports(res.reports.map((r) => ({
+          id: r.id,
+          document_title: r.document_title,
+          document_category: r.document_category,
+          hit_rate: r.hit_rate,
+          hit_count: r.hit_count,
+          exam_count: r.exam_count,
+          status: r.status,
+        })));
+      }).catch(() => { if (!cancelled) setLoadErr(true); }),
+    ).catch(() => { if (!cancelled) setLoadErr(true); });
+    return () => { cancelled = true; };
+  }, []);
+
+  const toggle = (id: number) => {
+    if (selectedIds.includes(id)) {
+      onChange(selectedIds.filter((x) => x !== id));
+    } else {
+      if (selectedIds.length >= MAX) return;
+      onChange([...selectedIds, id]);
+    }
+  };
+
+  if (loadErr) {
+    return <p style={{ fontSize: 13, color: "var(--color-status-error, #dc2626)", margin: "12px 0" }}>적중 보고서 목록을 불러오지 못했습니다.</p>;
+  }
+  if (reports === null) {
+    return <p style={{ fontSize: 13, color: "var(--color-text-muted, #94a3b8)", margin: "12px 0" }}>보고서 목록 불러오는 중...</p>;
+  }
+  if (reports.length === 0) {
+    return (
+      <div style={{ fontSize: 13, color: "var(--color-text-secondary, #64748b)", padding: "16px", background: "var(--color-bg-canvas, #f8fafc)", borderRadius: 10, lineHeight: 1.6 }}>
+        아직 만들어진 적중 보고서가 없습니다.<br />
+        먼저 매치업 페이지에서 시험지를 분석해 보고서를 만들어주세요.
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <p style={{ fontSize: 13, color: "var(--color-text-secondary, #64748b)", margin: "0 0 10px" }}>
+        홈페이지에 보여줄 보고서를 골라주세요. <strong style={{ color: "var(--color-text-primary, #1e293b)" }}>최대 {MAX}개</strong>까지 선택 가능 (현재 {selectedIds.length}개 선택됨).
+      </p>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 320, overflowY: "auto", border: "1px solid var(--color-border-divider, #e2e8f0)", borderRadius: 10, padding: 8 }}>
+        {reports.map((r) => {
+          const checked = selectedIds.includes(r.id);
+          const disabled = !checked && selectedIds.length >= MAX;
+          const ratePct = Math.round(r.hit_rate);
+          return (
+            <label
+              key={r.id}
+              style={{
+                display: "flex", alignItems: "center", gap: 10,
+                padding: "10px 12px", borderRadius: 8,
+                background: checked ? "var(--color-brand-primary-soft, rgba(37,99,235,0.08))" : "transparent",
+                cursor: disabled ? "not-allowed" : "pointer",
+                opacity: disabled ? 0.5 : 1,
+                border: checked ? "1px solid var(--color-brand-primary, #2563EB)" : "1px solid transparent",
+              }}
+            >
+              <input type="checkbox" checked={checked} disabled={disabled} onChange={() => toggle(r.id)} style={{ width: 16, height: 16, cursor: disabled ? "not-allowed" : "pointer" }} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-text-primary, #1e293b)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {r.document_title || r.document_category || "(제목 없음)"}
+                </div>
+                <div style={{ fontSize: 11, color: "var(--color-text-muted, #94a3b8)", marginTop: 2 }}>
+                  적중 {r.hit_count} / {r.exam_count} 문항 · 적중률 {ratePct}%{r.status === "draft" ? " · 작성 중" : ""}
+                </div>
+              </div>
+              <span style={{ fontSize: 18, fontWeight: 800, color: ratePct >= 60 ? "var(--color-status-success, #10b981)" : ratePct >= 30 ? "var(--color-brand-primary, #2563EB)" : "var(--color-text-muted, #94a3b8)", letterSpacing: "-0.02em" }}>
+                {ratePct}%
+              </span>
+            </label>
+          );
+        })}
+      </div>
     </div>
   );
 }
