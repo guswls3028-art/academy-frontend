@@ -59,10 +59,11 @@ export default function LandingEditorPage() {
   const [publishing, setPublishing] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("edit");
   const [previewDevice, setPreviewDevice] = useState<PreviewDevice>("desktop");
-  const [activeSection, setActiveSection] = useState<string>("brand");
+  const [activeSection, setActiveSection] = useState<string>("sections-grid");
   const [dirty, setDirty] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [uploadModalField, setUploadModalField] = useState<"hero" | "logo" | null>(null);
+  const [editingSectionType, setEditingSectionType] = useState<string | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const mountedRef = useRef(true);
 
@@ -242,19 +243,18 @@ export default function LandingEditorPage() {
       {/* Main */}
       {viewMode === "edit" ? (
         <div style={{ display: "flex", flex: 1, minHeight: 0, gap: 0, marginTop: 16 }}>
-          {/* Left panel - section nav (desktop) */}
-          <div className="landing-editor-sidebar" style={{ width: 160, flexShrink: 0, borderRight: "1px solid var(--color-border-divider, #e2e8f0)", paddingRight: 12, overflowY: "auto" }}>
-            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-              <SectionNav id="brand" label="브랜드 설정" active={activeSection} onClick={setActiveSection} />
+          {/* Left panel - 카테고리 네비 (단순화) */}
+          <div className="landing-editor-sidebar" style={{ width: 180, flexShrink: 0, borderRight: "1px solid var(--color-border-divider, #e2e8f0)", paddingRight: 12, overflowY: "auto" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              <p style={{ fontSize: 11, fontWeight: 700, color: "var(--color-text-muted, #94a3b8)", margin: "4px 0", padding: "0 8px", textTransform: "uppercase", letterSpacing: "0.06em" }}>기본 정보</p>
+              <SectionNav id="brand" label="브랜드 / 색상" active={activeSection} onClick={setActiveSection} />
               <SectionNav id="template" label="템플릿 선택" active={activeSection} onClick={setActiveSection} />
-              <SectionNav id="media" label="이미지" active={activeSection} onClick={setActiveSection} />
+              <SectionNav id="media" label="로고 / 이미지" active={activeSection} onClick={setActiveSection} />
               <SectionNav id="cta" label="CTA 버튼" active={activeSection} onClick={setActiveSection} />
               <SectionNav id="contact" label="연락처" active={activeSection} onClick={setActiveSection} />
-              <div style={{ margin: "8px 0", borderTop: "1px solid var(--color-border-divider, #e2e8f0)" }} />
-              <p style={{ fontSize: 11, fontWeight: 600, color: "var(--color-text-muted, #94a3b8)", margin: "4px 0", padding: "0 8px", textTransform: "uppercase", letterSpacing: "0.05em" }}>섹션</p>
-              {[...sections].sort((a, b) => a.order - b.order).map((sec) => (
-                <SectionNav key={sec.type} id={`sec-${sec.type}`} label={SECTION_LABELS[sec.type] || sec.type} active={activeSection} onClick={setActiveSection} badge={sec.enabled} />
-              ))}
+              <div style={{ margin: "12px 0 6px", borderTop: "1px solid var(--color-border-divider, #e2e8f0)" }} />
+              <p style={{ fontSize: 11, fontWeight: 700, color: "var(--color-text-muted, #94a3b8)", margin: "4px 0", padding: "0 8px", textTransform: "uppercase", letterSpacing: "0.06em" }}>홈페이지 모듈</p>
+              <SectionNav id="sections-grid" label="모듈 모음" active={activeSection} onClick={setActiveSection} />
             </div>
           </div>
 
@@ -274,12 +274,12 @@ export default function LandingEditorPage() {
             {/* Mobile tabs */}
             <div className="landing-editor-mobile-tabs" style={{ display: "none", gap: 6, overflowX: "auto", paddingBottom: 12, marginBottom: 12, borderBottom: "1px solid var(--color-border-divider, #e2e8f0)", marginLeft: -24, paddingLeft: 24 }}>
               {[
+                { id: "sections-grid", label: "모듈" },
                 { id: "brand", label: "브랜드" },
                 { id: "template", label: "템플릿" },
                 { id: "media", label: "이미지" },
                 { id: "cta", label: "CTA" },
                 { id: "contact", label: "연락처" },
-                ...[...sections].sort((a, b) => a.order - b.order).map((s) => ({ id: `sec-${s.type}`, label: SECTION_LABELS[s.type]?.split(" ")[0] || s.type })),
               ].map((tab) => (
                 <button
                   key={tab.id}
@@ -299,6 +299,13 @@ export default function LandingEditorPage() {
             {activeSection === "media" && <MediaEditor draft={draft} onUpload={handleImageUpload} updateDraft={updateDraft} />}
             {activeSection === "cta" && <CtaEditor draft={draft} updateDraft={updateDraft} />}
             {activeSection === "contact" && <ContactEditor draft={draft} updateDraft={updateDraft} />}
+            {activeSection === "sections-grid" && (
+              <SectionCardGrid
+                sections={sections}
+                updateDraft={updateDraft}
+                onEdit={(t) => setEditingSectionType(t)}
+              />
+            )}
             {activeSection.startsWith("sec-") && (
               <SectionEditor
                 sectionType={activeSection.replace("sec-", "")}
@@ -337,6 +344,15 @@ export default function LandingEditorPage() {
           field={uploadModalField}
           onClose={() => setUploadModalField(null)}
           onUpload={handleModalUpload}
+        />
+      )}
+
+      {editingSectionType && (
+        <SectionEditModal
+          sectionType={editingSectionType}
+          sections={sections}
+          updateDraft={updateDraft}
+          onClose={() => setEditingSectionType(null)}
         />
       )}
     </div>
@@ -871,6 +887,176 @@ function HitReportPicker({ selectedIds, onChange }: { selectedIds: number[]; onC
             </div>
           );
         })}
+      </div>
+    </div>
+  );
+}
+
+/** 모듈 모음 카드 그리드 — 네이버 블로그 꾸미기 식 시각적 토글.
+ * 각 섹션이 큰 카드. 아이콘 + 라벨 + ON/OFF + "편집" 버튼.
+ */
+const SECTION_META: Record<string, { icon: string; tagline: string }> = {
+  hero: { icon: "star", tagline: "메인 배너 + 슬로건" },
+  features: { icon: "check", tagline: "차별화 포인트 카드" },
+  instructor_profile: { icon: "users", tagline: "강사 사진 + 경력" },
+  about: { icon: "book", tagline: "한 단락 소개글" },
+  management_system: { icon: "shield", tagline: "학생 관리 카드" },
+  process_timeline: { icon: "clock", tagline: "주차별 수업 흐름" },
+  testimonials: { icon: "heart", tagline: "수강생 후기" },
+  hit_reports: { icon: "target", tagline: "매치업 적중 카드" },
+  programs: { icon: "award", tagline: "강좌 안내" },
+  faq: { icon: "check", tagline: "자주 묻는 질문" },
+  contact: { icon: "users", tagline: "전화 / 주소" },
+  notice: { icon: "shield", tagline: "공지 띠" },
+};
+
+function SectionCardGrid({ sections, updateDraft, onEdit }: { sections: LandingSection[]; updateDraft: (fn: (p: LandingConfig) => LandingConfig) => void; onEdit: (type: string) => void }) {
+  const sorted = [...sections].sort((a, b) => a.order - b.order);
+  const toggle = (type: string) => {
+    updateDraft((p) => ({
+      ...p,
+      sections: p.sections.map((s) => s.type === type ? { ...s, enabled: !s.enabled } : s),
+    }));
+  };
+  const move = (type: string, direction: -1 | 1) => {
+    updateDraft((p) => {
+      const arr = [...p.sections].sort((a, b) => a.order - b.order);
+      const idx = arr.findIndex((s) => s.type === type);
+      if (idx < 0) return p;
+      const swapIdx = idx + direction;
+      if (swapIdx < 0 || swapIdx >= arr.length) return p;
+      const next = arr.map((s, i) => {
+        if (i === idx) return { ...s, order: swapIdx };
+        if (i === swapIdx) return { ...s, order: idx };
+        return { ...s, order: i };
+      });
+      return { ...p, sections: next };
+    });
+  };
+
+  return (
+    <div>
+      <div style={{ marginBottom: 20 }}>
+        <h3 style={{ fontSize: 17, fontWeight: 700, margin: "0 0 4px", color: "var(--color-text-primary, #1e293b)" }}>
+          홈페이지 모듈
+        </h3>
+        <p style={{ fontSize: 13, color: "var(--color-text-secondary, #64748b)", margin: 0, lineHeight: 1.6 }}>
+          켜기/끄기 + 편집 + 순서 변경. 카드를 클릭하면 자세한 편집 창이 열립니다.
+        </p>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 14 }}>
+        {sorted.map((sec, i) => {
+          const meta = SECTION_META[sec.type] || { icon: "star", tagline: "모듈" };
+          const label = SECTION_LABELS[sec.type] || sec.type;
+          return (
+            <div
+              key={sec.type}
+              style={{
+                position: "relative",
+                padding: 18,
+                borderRadius: 14,
+                background: sec.enabled ? "#fff" : "#f8fafc",
+                border: `1.5px solid ${sec.enabled ? "var(--color-brand-primary, #2563EB)" : "var(--color-border-divider, #e2e8f0)"}`,
+                boxShadow: sec.enabled ? "0 2px 6px rgba(37,99,235,0.08)" : "none",
+                display: "flex", flexDirection: "column", gap: 10,
+                opacity: sec.enabled ? 1 : 0.75,
+                transition: "border-color 0.15s, box-shadow 0.15s, opacity 0.15s",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+                <div style={{
+                  width: 36, height: 36, borderRadius: 10,
+                  background: sec.enabled ? "rgba(37,99,235,0.12)" : "rgba(0,0,0,0.06)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  color: sec.enabled ? "var(--color-brand-primary, #2563EB)" : "var(--color-text-muted, #94a3b8)",
+                  flexShrink: 0,
+                }}>
+                  <SvgIcon name={meta.icon} size={18} />
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: "var(--color-text-primary, #1e293b)", letterSpacing: "-0.01em" }}>
+                    {label}
+                  </div>
+                  <div style={{ fontSize: 12, color: "var(--color-text-muted, #94a3b8)", marginTop: 2 }}>
+                    {meta.tagline}
+                  </div>
+                </div>
+                {/* 토글 스위치 */}
+                <button
+                  type="button"
+                  onClick={() => toggle(sec.type)}
+                  aria-label={sec.enabled ? "끄기" : "켜기"}
+                  style={{
+                    width: 38, height: 22, borderRadius: 11, border: "none", cursor: "pointer",
+                    background: sec.enabled ? "var(--color-brand-primary, #2563EB)" : "#cbd5e1",
+                    position: "relative", flexShrink: 0,
+                    transition: "background 0.15s",
+                  }}
+                >
+                  <span style={{
+                    position: "absolute", top: 2, left: sec.enabled ? 18 : 2,
+                    width: 18, height: 18, borderRadius: "50%", background: "#fff",
+                    boxShadow: "0 1px 3px rgba(0,0,0,0.18)",
+                    transition: "left 0.15s",
+                  }} />
+                </button>
+              </div>
+              <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
+                <button
+                  type="button"
+                  onClick={() => onEdit(sec.type)}
+                  style={{
+                    flex: 1,
+                    padding: "7px 10px", borderRadius: 8,
+                    border: "1px solid var(--color-border-divider, #e2e8f0)",
+                    background: "#fff", color: "var(--color-text-primary, #1e293b)",
+                    fontSize: 12, fontWeight: 600, cursor: "pointer",
+                  }}
+                >편집</button>
+                <button type="button" onClick={() => move(sec.type, -1)} disabled={i === 0} title="위로" style={{ width: 32, height: 32, borderRadius: 8, border: "1px solid var(--color-border-divider, #e2e8f0)", background: "#fff", cursor: i === 0 ? "not-allowed" : "pointer", opacity: i === 0 ? 0.4 : 1, fontSize: 14, color: "var(--color-text-secondary, #64748b)" }}>↑</button>
+                <button type="button" onClick={() => move(sec.type, 1)} disabled={i === sorted.length - 1} title="아래로" style={{ width: 32, height: 32, borderRadius: 8, border: "1px solid var(--color-border-divider, #e2e8f0)", background: "#fff", cursor: i === sorted.length - 1 ? "not-allowed" : "pointer", opacity: i === sorted.length - 1 ? 0.4 : 1, fontSize: 14, color: "var(--color-text-secondary, #64748b)" }}>↓</button>
+              </div>
+              <span style={{
+                position: "absolute", top: 8, right: 8,
+                fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 99,
+                background: sec.enabled ? "rgba(34,197,94,0.12)" : "rgba(0,0,0,0.05)",
+                color: sec.enabled ? "#16a34a" : "var(--color-text-muted, #94a3b8)",
+                letterSpacing: "0.04em",
+                pointerEvents: "none",
+              }}>
+                {sec.enabled ? "ON" : "OFF"}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/** 섹션 편집 모달 — 모듈 카드 클릭 시 펼쳐지는 풀 편집기. SectionEditor 재사용. */
+function SectionEditModal({ sectionType, sections, updateDraft, onClose }: { sectionType: string; sections: LandingSection[]; updateDraft: (fn: (p: LandingConfig) => LandingConfig) => void; onClose: () => void }) {
+  useEffect(() => {
+    const k = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", k);
+    return () => window.removeEventListener("keydown", k);
+  }, [onClose]);
+
+  return (
+    <div onClick={onClose} style={{
+      position: "fixed", inset: 0, zIndex: 9999,
+      background: "rgba(15,23,42,0.55)", backdropFilter: "blur(8px)",
+      display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "5vh 16px",
+      overflowY: "auto",
+    }}>
+      <div onClick={(e) => e.stopPropagation()} style={{
+        width: "100%", maxWidth: 720, background: "#fff", borderRadius: 16,
+        padding: "8px 28px 28px", boxShadow: "0 20px 60px rgba(0,0,0,0.25)",
+      }}>
+        <div style={{ display: "flex", justifyContent: "flex-end" }}>
+          <button onClick={onClose} aria-label="닫기" style={{ width: 36, height: 36, borderRadius: 8, border: "none", background: "transparent", cursor: "pointer", color: "#64748b", fontSize: 22, lineHeight: 1 }}>×</button>
+        </div>
+        <SectionEditor sectionType={sectionType} sections={sections} updateDraft={updateDraft} />
       </div>
     </div>
   );
