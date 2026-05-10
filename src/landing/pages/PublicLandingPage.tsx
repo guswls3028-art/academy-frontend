@@ -32,16 +32,28 @@ export default function PublicLandingPage() {
     return () => { cancelled = true; };
   }, []);
 
-  // Document title 설정
+  // Document title + OG meta — SEO 강화
   useEffect(() => {
     if (state.data?.config?.brand_name) {
-      document.title = state.data.config.brand_name;
-
-      // OG meta tags 동적 설정 (SPA 한계 내에서 최선)
       const config = state.data.config;
-      setMeta("og:title", config.brand_name);
-      if (config.tagline) setMeta("og:description", config.tagline);
-      if (config.tagline) setMeta("description", config.tagline);
+      const titleParts = [config.brand_name];
+      if (config.tagline) titleParts.unshift(config.tagline);
+      const titleStr = titleParts.join(" — ");
+      document.title = titleStr;
+
+      const desc = [config.tagline, config.subtitle].filter(Boolean).join(" · ") || `${config.brand_name} — 학원플러스 SaaS`;
+      setMeta("description", desc);
+      setMeta("og:title", titleStr);
+      setMeta("og:description", desc);
+      setMeta("og:type", "website");
+      setMeta("og:url", window.location.href);
+      setMeta("og:site_name", config.brand_name);
+      if (config.logo_url) setMeta("og:image", config.logo_url);
+      if (config.hero_image_url) setMeta("og:image", config.hero_image_url);
+      // Twitter card
+      setMeta("twitter:card", "summary_large_image");
+      setMeta("twitter:title", titleStr);
+      setMeta("twitter:description", desc);
     }
     return () => { document.title = "학원플러스"; };
   }, [state.data]);
@@ -74,7 +86,10 @@ export default function PublicLandingPage() {
  */
 function LandingAdminFab() {
   const { user, isAuthenticated } = useAuth();
+  // ?preview=public 쿼리 → 학원장이 외부인 시점으로 페이지 보고 싶을 때. fab 숨김.
+  const isPreviewPublic = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("preview") === "public";
   if (!isAuthenticated) return null;
+  if (isPreviewPublic) return <PreviewPublicBanner />;
   // role 확인: owner/admin만. 학생/학부모/teacher는 노출 X.
   // backend SSOT는 tenantRole (TenantMembership.role).
   const u = user as { tenantRole?: string | null; is_superuser?: boolean } | null;
@@ -94,6 +109,20 @@ function LandingAdminFab() {
         alignItems: "flex-end",
       }}
     >
+      <button
+        type="button"
+        onClick={() => { window.location.assign(`${window.location.pathname}?preview=public`); }}
+        title="외부 학부모/학생이 보는 화면으로 잠시 전환"
+        style={{
+          padding: "8px 14px", borderRadius: 999, fontSize: 12, fontWeight: 600,
+          background: "rgba(255,255,255,0.08)", color: "#fff",
+          border: "1px solid rgba(255,255,255,0.15)", cursor: "pointer",
+          backdropFilter: "blur(8px)",
+          fontFamily: "'Pretendard Variable', 'Pretendard', system-ui, sans-serif",
+        }}
+      >
+        외부인 시점으로 보기
+      </button>
       <Link
         to="/admin/settings/landing"
         style={{
@@ -133,6 +162,32 @@ function LandingAdminFab() {
       >
         관리실로 →
       </Link>
+    </div>
+  );
+}
+
+/** ?preview=public 모드 — 학원장에게 외부 시점 안내 + 빠져나가기 */
+function PreviewPublicBanner() {
+  return (
+    <div style={{
+      position: "fixed", top: 12, left: "50%", transform: "translateX(-50%)",
+      zIndex: 9999, padding: "10px 18px", borderRadius: 999,
+      background: "rgba(15,23,42,0.92)", color: "#fff",
+      fontSize: 13, fontWeight: 600, letterSpacing: "-0.01em",
+      boxShadow: "0 8px 24px rgba(0,0,0,0.3)", backdropFilter: "blur(12px)",
+      display: "inline-flex", alignItems: "center", gap: 12,
+      fontFamily: "'Pretendard Variable', 'Pretendard', system-ui, sans-serif",
+      maxWidth: "calc(100vw - 24px)",
+    }}>
+      <span>👀 외부 학부모 시점 미리보기</span>
+      <button
+        type="button"
+        onClick={() => { window.location.assign(window.location.pathname); }}
+        style={{
+          padding: "5px 12px", borderRadius: 999, border: "none",
+          background: "#fff", color: "#0f172a", fontSize: 12, fontWeight: 700, cursor: "pointer",
+        }}
+      >학원장 시점으로 돌아가기</button>
     </div>
   );
 }

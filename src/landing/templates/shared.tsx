@@ -90,6 +90,168 @@ export function useResolvedLogo(config: LandingConfig): string | null {
   return branding?.logoUrl || branding?.headerLogoUrl || null;
 }
 
+/** 섹션 anchor 라벨 SSOT — nav 메뉴에 노출할 섹션과 한국어 라벨 */
+export const NAV_SECTION_ANCHORS: Record<string, string> = {
+  instructor_profile: "강사 소개",
+  features: "수업 특징",
+  management_system: "학생 관리",
+  process_timeline: "수업 흐름",
+  hit_reports: "적중 사례",
+  programs: "프로그램",
+  testimonials: "후기",
+  faq: "자주 묻는 질문",
+  contact: "문의",
+};
+
+/** 공통 NavBar — light/dark 톤만 prop으로 받음. PremiumDark/MinimalTutor 모두 사용.
+ *
+ * 데스크탑: 로고 + 가로 메뉴 5개 + 역할 메뉴 + 골드/컬러 CTA
+ * 모바일: 로고 + 햄버거 → 슬라이드 패널
+ */
+export interface NavBarTokens {
+  bg: string;
+  border: string;
+  textPrimary: string;
+  textSecondary: string;
+  primaryColor: string;
+  primaryRgb: string;
+  ctaGradient: string;
+  ctaTextColor: string;
+  panelBg: string;
+}
+
+export function LandingNavBar({ config, sections, tokens, brandMark, mobileBreakpoint = 900 }: { config: LandingConfig; sections: LandingSection[]; tokens: NavBarTokens; brandMark: React.ReactNode; mobileBreakpoint?: number }) {
+  const [open, setOpen] = useState(false);
+  const enabled = sections.filter((s) => s.enabled && NAV_SECTION_ANCHORS[s.type]);
+  const cta = config.cta_text || "수강 문의";
+  const ctaLink = config.cta_link || "/login";
+  const logoUrl = useResolvedLogo(config);
+  const navClass = `landing-nav-${tokens.bg.includes("10,14,26") ? "dark" : "light"}`;
+
+  const scrollTo = (sectionType: string) => {
+    setOpen(false);
+    const all = Array.from(document.querySelectorAll("section[data-stype]")) as HTMLElement[];
+    const el = all.find((s) => s.dataset.stype === sectionType);
+    if (el) window.scrollTo({ top: el.offsetTop - 70, behavior: "smooth" });
+  };
+
+  return (
+    <>
+      <nav style={{ position: "sticky", top: 0, zIndex: 50, background: tokens.bg, backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", borderBottom: `1px solid ${tokens.border}`, padding: "0 24px" }}>
+        <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", height: 72, gap: 16 }}>
+          <Link to="/landing" style={{ display: "flex", alignItems: "center", gap: 12, textDecoration: "none", color: tokens.textPrimary, flexShrink: 0 }}>
+            {logoUrl ? (
+              <img src={logoUrl} alt={config.brand_name} style={{ height: 38, width: "auto", objectFit: "contain" }} />
+            ) : brandMark}
+            <span style={{ fontSize: 18, fontWeight: 800, letterSpacing: "-0.02em", whiteSpace: "nowrap" }}>{config.brand_name}</span>
+          </Link>
+          <div className={`${navClass}-desk`} style={{ display: "flex", alignItems: "center", gap: 4, flex: 1, justifyContent: "center", overflow: "hidden" }}>
+            {enabled.slice(0, 5).map((s) => (
+              <button key={s.type} type="button" onClick={() => scrollTo(s.type)} style={{
+                padding: "8px 14px", borderRadius: 8, background: "transparent", border: "none",
+                color: tokens.textSecondary, fontSize: 14, fontWeight: 600, cursor: "pointer",
+                letterSpacing: "-0.01em", whiteSpace: "nowrap",
+              }}
+                onMouseEnter={(e) => { e.currentTarget.style.color = tokens.textPrimary; }}
+                onMouseLeave={(e) => { e.currentTarget.style.color = tokens.textSecondary; }}
+              >{NAV_SECTION_ANCHORS[s.type]}</button>
+            ))}
+          </div>
+          <div className={`${navClass}-cta`} style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+            <NavRoleAuthMenu cta={cta} ctaLink={ctaLink} tokens={tokens} />
+          </div>
+          <button type="button" className={`${navClass}-burger`} onClick={() => setOpen(true)} aria-label="메뉴 열기" style={{
+            display: "none", width: 40, height: 40, borderRadius: 8,
+            background: "transparent", border: `1px solid ${tokens.border}`, color: tokens.textPrimary, cursor: "pointer",
+            alignItems: "center", justifyContent: "center",
+          }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M3 12h18M3 18h18" /></svg>
+          </button>
+        </div>
+      </nav>
+      {open && (
+        <div onClick={() => setOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 100, background: "rgba(15,23,42,0.45)", backdropFilter: "blur(8px)" }}>
+          <div onClick={(e) => e.stopPropagation()} style={{
+            position: "absolute", top: 0, right: 0, bottom: 0, width: "min(85vw, 320px)",
+            background: tokens.panelBg, borderLeft: `1px solid ${tokens.border}`,
+            display: "flex", flexDirection: "column", padding: 24,
+          }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 28 }}>
+              <span style={{ fontSize: 16, fontWeight: 700, color: tokens.textPrimary }}>{config.brand_name}</span>
+              <button onClick={() => setOpen(false)} style={{ width: 36, height: 36, borderRadius: 8, background: "transparent", border: "none", color: tokens.textPrimary, fontSize: 22, cursor: "pointer" }}>×</button>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1 }}>
+              {enabled.map((s) => (
+                <button key={s.type} type="button" onClick={() => scrollTo(s.type)} style={{
+                  padding: "13px 12px", borderRadius: 10, background: "transparent", border: "none",
+                  color: tokens.textPrimary, fontSize: 16, fontWeight: 600, cursor: "pointer", textAlign: "left",
+                }}>{NAV_SECTION_ANCHORS[s.type]}</button>
+              ))}
+            </div>
+            <a href={ctaLink} style={{
+              marginTop: 12, padding: "13px 18px", background: tokens.ctaGradient,
+              color: tokens.ctaTextColor, borderRadius: 10, fontSize: 15, fontWeight: 700,
+              textDecoration: "none", textAlign: "center",
+            }}>{cta}</a>
+          </div>
+        </div>
+      )}
+      <style>{`
+        @media (max-width: ${mobileBreakpoint}px) {
+          .${navClass}-desk { display: none !important; }
+          .${navClass}-cta { display: none !important; }
+          .${navClass}-burger { display: inline-flex !important; }
+        }
+      `}</style>
+    </>
+  );
+}
+
+/** 공통 nav 우측 — 비로그인=로그인+CTA / 로그인=역할별 마이페이지 진입 */
+function NavRoleAuthMenu({ cta, ctaLink, tokens }: { cta: string; ctaLink: string; tokens: NavBarTokens }) {
+  const { user, isAuthenticated } = useAuth();
+  const u = user as { tenantRole?: string | null; is_superuser?: boolean } | null;
+  const role = (u?.tenantRole ?? "").toLowerCase();
+  let myPath = "/admin";
+  let roleLabel = "관리실";
+  if (role === "student") { myPath = "/student"; roleLabel = "학생 마이페이지"; }
+  else if (role === "parent") { myPath = "/student"; roleLabel = "학부모 페이지"; }
+  else if (role === "teacher") { myPath = "/admin"; roleLabel = "강사 콘솔"; }
+  else if (role === "assistant") { myPath = "/admin"; roleLabel = "조교 콘솔"; }
+
+  if (!isAuthenticated) {
+    return (
+      <>
+        <Link to="/login" style={{
+          padding: "9px 16px", borderRadius: 8, fontSize: 14, fontWeight: 600,
+          textDecoration: "none", color: tokens.textSecondary,
+          border: `1px solid ${tokens.border}`,
+        }}>로그인</Link>
+        <a href={ctaLink} style={{
+          display: "inline-flex", alignItems: "center", gap: 6, padding: "9px 18px",
+          background: tokens.ctaGradient, color: tokens.ctaTextColor, borderRadius: 8,
+          fontSize: 14, fontWeight: 700, textDecoration: "none",
+          boxShadow: `0 4px 16px rgba(${tokens.primaryRgb}, 0.25)`,
+        }}>
+          {cta}
+          <span style={{ fontSize: 14, lineHeight: 1, marginTop: -1 }}>›</span>
+        </a>
+      </>
+    );
+  }
+  return (
+    <Link to={myPath} style={{
+      display: "inline-flex", alignItems: "center", gap: 6, padding: "9px 16px",
+      background: "rgba(255,255,255,0.06)", color: tokens.textPrimary,
+      border: `1px solid ${tokens.border}`, borderRadius: 8,
+      fontSize: 14, fontWeight: 600, textDecoration: "none", letterSpacing: "-0.01em",
+    }}>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" /></svg>
+      {roleLabel}
+    </Link>
+  );
+}
+
 /** 학원의 매치업 통산 KPI — 강사 프로필 카드 등에서 자동 노출.
  *
  * 데이터: 학원장이 picker에 박은 보고서들의 누적 적중률 + 보고서 수.

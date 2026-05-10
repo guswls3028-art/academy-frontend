@@ -5,12 +5,9 @@
 // 디자인 시스템 토큰/CSS 모듈로 추출하면 테넌트별 동적 컬러가 깨지므로 inline 룰은 이 도메인에 한해 면제.
 /* eslint-disable no-restricted-syntax */
 
-import { useState } from "react";
-import { Link } from "react-router-dom";
-import type { LandingConfig, LandingSection, FeatureItem, TestimonialItem, ProgramItem, FaqItem, HitReportShowcaseItem, InstructorProfileItem, ManagementCardItem, ProcessStepItem } from "../types";
-import { getEnabledSections, SvgIcon, FaqAccordion, HitReportCards, useTenantHitStats, useResolvedLogo, type TemplateProps } from "./shared";
+import type { FeatureItem, TestimonialItem, ProgramItem, FaqItem, HitReportShowcaseItem, InstructorProfileItem, ManagementCardItem, ProcessStepItem } from "../types";
+import { getEnabledSections, SvgIcon, FaqAccordion, HitReportCards, useTenantHitStats, LandingNavBar, type TemplateProps } from "./shared";
 import { hexToRgb } from "./colorUtils";
-import useAuth from "@/auth/hooks/useAuth";
 
 export default function MinimalTutor({ config }: TemplateProps) {
   const c = config.primary_color || "#2563EB";
@@ -19,7 +16,22 @@ export default function MinimalTutor({ config }: TemplateProps) {
 
   return (
     <div style={{ fontFamily: "'Pretendard Variable', 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif", color: "#1a1a2e", background: "#ffffff", minHeight: "100vh" }}>
-      <LightNavBar config={config} sections={sections} c={c} rgb={rgb} />
+      <LandingNavBar
+        config={config}
+        sections={sections}
+        tokens={{
+          bg: "rgba(255,255,255,0.92)",
+          border: "rgba(0,0,0,0.06)",
+          textPrimary: "#0f172a",
+          textSecondary: "#475569",
+          primaryColor: c,
+          primaryRgb: rgb,
+          ctaGradient: c,
+          ctaTextColor: "#fff",
+          panelBg: "#fff",
+        }}
+        brandMark={<LightBrandMark name={config.brand_name || "Brand"} color={c} />}
+      />
 
       {sections.map((section) => {
         switch (section.type) {
@@ -307,107 +319,6 @@ export default function MinimalTutor({ config }: TemplateProps) {
   );
 }
 
-// 섹션 anchor 라벨
-const LIGHT_SECTION_ANCHORS: Record<string, string> = {
-  instructor_profile: "강사 소개",
-  features: "수업 특징",
-  management_system: "학생 관리",
-  process_timeline: "수업 흐름",
-  hit_reports: "적중 사례",
-  programs: "프로그램",
-  testimonials: "후기",
-  faq: "자주 묻는 질문",
-  contact: "문의",
-};
-
-/** Light tone nav — 데스크탑 가로 메뉴 + 모바일 햄버거 슬라이드 */
-function LightNavBar({ config, sections, c, rgb }: { config: LandingConfig; sections: LandingSection[]; c: string; rgb: string }) {
-  const [open, setOpen] = useState(false);
-  const enabled = sections.filter((s) => s.enabled && LIGHT_SECTION_ANCHORS[s.type]);
-  const cta = config.cta_text || "수강 문의";
-  const ctaLink = config.cta_link || "/login";
-  const logoUrl = useResolvedLogo(config);
-
-  const scrollTo = (sectionType: string) => {
-    setOpen(false);
-    const all = Array.from(document.querySelectorAll("section[data-stype]")) as HTMLElement[];
-    const el = all.find((s) => s.dataset.stype === sectionType);
-    if (el) window.scrollTo({ top: el.offsetTop - 70, behavior: "smooth" });
-  };
-
-  return (
-    <>
-      <nav style={{ position: "sticky", top: 0, zIndex: 50, background: "rgba(255,255,255,0.92)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)", borderBottom: "1px solid rgba(0,0,0,0.06)", padding: "0 24px" }}>
-        <div style={{ maxWidth: 1120, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", height: 68, gap: 16 }}>
-          <Link to="/landing" style={{ display: "flex", alignItems: "center", gap: 12, textDecoration: "none", color: "#0f172a", flexShrink: 0 }}>
-            {logoUrl ? (
-              <img src={logoUrl} alt={config.brand_name} style={{ height: 36, width: "auto", objectFit: "contain" }} />
-            ) : (
-              <LightBrandMark name={config.brand_name || "Brand"} color={c} />
-            )}
-            <span style={{ fontSize: 18, fontWeight: 700, color: "#0f172a", letterSpacing: "-0.015em", whiteSpace: "nowrap" }}>{config.brand_name}</span>
-          </Link>
-          <div className="lminimal-nav-desk" style={{ display: "flex", alignItems: "center", gap: 4, flex: 1, justifyContent: "center", overflow: "hidden" }}>
-            {enabled.slice(0, 5).map((s) => (
-              <button key={s.type} type="button" onClick={() => scrollTo(s.type)} style={{
-                padding: "8px 14px", borderRadius: 8, background: "transparent", border: "none",
-                color: "#475569", fontSize: 14, fontWeight: 600, cursor: "pointer",
-                letterSpacing: "-0.01em", whiteSpace: "nowrap",
-              }}
-                onMouseEnter={(e) => { e.currentTarget.style.color = "#0f172a"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.color = "#475569"; }}
-              >{LIGHT_SECTION_ANCHORS[s.type]}</button>
-            ))}
-          </div>
-          <div className="lminimal-nav-cta" style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
-            <LightNavRoleMenu cta={cta} ctaLink={ctaLink} color={c} rgb={rgb} />
-          </div>
-          <button type="button" className="lminimal-nav-burger" onClick={() => setOpen(true)} aria-label="메뉴 열기" style={{
-            display: "none", width: 40, height: 40, borderRadius: 8,
-            background: "transparent", border: "1px solid rgba(0,0,0,0.1)", color: "#0f172a", cursor: "pointer",
-            alignItems: "center", justifyContent: "center",
-          }}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M3 12h18M3 18h18" /></svg>
-          </button>
-        </div>
-      </nav>
-      {open && (
-        <div onClick={() => setOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 100, background: "rgba(15,23,42,0.45)", backdropFilter: "blur(8px)" }}>
-          <div onClick={(e) => e.stopPropagation()} style={{
-            position: "absolute", top: 0, right: 0, bottom: 0, width: "min(85vw, 320px)",
-            background: "#fff", borderLeft: "1px solid rgba(0,0,0,0.08)",
-            display: "flex", flexDirection: "column", padding: 24,
-          }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 28 }}>
-              <span style={{ fontSize: 16, fontWeight: 700, color: "#0f172a" }}>{config.brand_name}</span>
-              <button onClick={() => setOpen(false)} style={{ width: 36, height: 36, borderRadius: 8, background: "transparent", border: "none", color: "#475569", fontSize: 22, cursor: "pointer" }}>×</button>
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1 }}>
-              {enabled.map((s) => (
-                <button key={s.type} type="button" onClick={() => scrollTo(s.type)} style={{
-                  padding: "13px 12px", borderRadius: 10, background: "transparent", border: "none",
-                  color: "#0f172a", fontSize: 16, fontWeight: 600, cursor: "pointer", textAlign: "left",
-                }}>{LIGHT_SECTION_ANCHORS[s.type]}</button>
-              ))}
-            </div>
-            <a href={ctaLink} style={{
-              marginTop: 12, padding: "13px 18px", background: c, color: "#fff",
-              borderRadius: 10, fontSize: 15, fontWeight: 700, textDecoration: "none", textAlign: "center",
-            }}>{cta}</a>
-          </div>
-        </div>
-      )}
-      <style>{`
-        @media (max-width: 900px) {
-          .lminimal-nav-desk { display: none !important; }
-          .lminimal-nav-cta { display: none !important; }
-          .lminimal-nav-burger { display: inline-flex !important; }
-        }
-      `}</style>
-    </>
-  );
-}
-
 /** 로고 미업로드 시 fallback — 브랜드 첫 글자 + 테마 컬러 */
 function LightBrandMark({ name, color }: { name: string; color: string }) {
   const initial = (name || "").trim().charAt(0) || "•";
@@ -419,51 +330,6 @@ function LightBrandMark({ name, color }: { name: string; color: string }) {
       display: "flex", alignItems: "center", justifyContent: "center",
       letterSpacing: "-0.02em",
     }}>{initial}</div>
-  );
-}
-
-/** 역할별 nav 메뉴 — 비로그인은 "로그인" + CTA, 로그인 시 역할별 마이페이지 진입 */
-function LightNavRoleMenu({ cta, ctaLink, color, rgb }: { cta: string; ctaLink: string; color: string; rgb: string }) {
-  const { user, isAuthenticated } = useAuth();
-  const u = user as { tenantRole?: string | null; is_superuser?: boolean } | null;
-  const role = (u?.tenantRole ?? "").toLowerCase();
-  let myPath = "/admin";
-  let roleLabel = "관리실";
-  if (role === "student") { myPath = "/student"; roleLabel = "학생 마이페이지"; }
-  else if (role === "parent") { myPath = "/student"; roleLabel = "학부모 페이지"; }  // parent도 student app 사용 (read-only)
-  else if (role === "teacher") { myPath = "/admin"; roleLabel = "강사 콘솔"; }
-  else if (role === "assistant") { myPath = "/admin"; roleLabel = "조교 콘솔"; }
-
-  if (!isAuthenticated) {
-    return (
-      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        <Link to="/login" style={{
-          padding: "8px 16px", borderRadius: 8, fontSize: 14, fontWeight: 600,
-          textDecoration: "none", color: "#475569",
-          border: "1px solid rgba(0,0,0,0.1)",
-        }}>로그인</Link>
-        <a href={ctaLink} style={{
-          display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 18px",
-          background: color, color: "#fff", borderRadius: 8,
-          fontSize: 14, fontWeight: 600, textDecoration: "none",
-          boxShadow: `0 4px 14px rgba(${rgb}, 0.25)`,
-        }}>
-          {cta}
-          <span style={{ fontSize: 14, lineHeight: 1, marginTop: -1 }}>›</span>
-        </a>
-      </div>
-    );
-  }
-  return (
-    <Link to={myPath} style={{
-      display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 16px",
-      background: "rgba(0,0,0,0.03)", color: "#0f172a",
-      border: "1px solid rgba(0,0,0,0.08)", borderRadius: 8,
-      fontSize: 14, fontWeight: 600, textDecoration: "none", letterSpacing: "-0.01em",
-    }}>
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" /></svg>
-      {roleLabel}
-    </Link>
   );
 }
 
