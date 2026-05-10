@@ -3,6 +3,9 @@
 //
 // 로그인된 학원 admin/owner가 진입하면 우하단 floating 컨트롤로 콘솔 진입 가능.
 // 일반 학생/학부모/외부인에게는 컨트롤 안 보임.
+//
+// 랜딩 도메인 inline style 면제 (페이지 spinner + floating fab은 템플릿과 분리된 격리 컴포넌트).
+/* eslint-disable no-restricted-syntax */
 
 import { useEffect, useState } from "react";
 import { Link, Navigate } from "react-router-dom";

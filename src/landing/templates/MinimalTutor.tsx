@@ -1,11 +1,15 @@
 // PATH: src/app_admin/domains/landing/templates/MinimalTutor.tsx
 // 템플릿 1: 밝고 깔끔한 미니멀 디자인. 넓은 여백, 신뢰감.
+//
+// 랜딩 템플릿은 본질적으로 inline style 기반(테넌트 primary_color 동적 주입 + 격리된 스타일 시스템).
+// 디자인 시스템 토큰/CSS 모듈로 추출하면 테넌트별 동적 컬러가 깨지므로 inline 룰은 이 도메인에 한해 면제.
+/* eslint-disable no-restricted-syntax */
 
-import type { LandingConfig, FeatureItem, TestimonialItem, ProgramItem, FaqItem, HitReportShowcaseItem } from "../types";
+import type { FeatureItem, TestimonialItem, ProgramItem, FaqItem, HitReportShowcaseItem } from "../types";
 import { getEnabledSections, SvgIcon, FaqAccordion, HitReportCards, type TemplateProps } from "./shared";
 import { hexToRgb } from "./colorUtils";
 
-export default function MinimalTutor({ config, isPreview }: TemplateProps) {
+export default function MinimalTutor({ config }: TemplateProps) {
   const c = config.primary_color || "#2563EB";
   const rgb = hexToRgb(c);
   const sections = getEnabledSections(config);

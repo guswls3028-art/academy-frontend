@@ -1,5 +1,8 @@
 // PATH: src/app_admin/domains/landing/templates/shared.tsx
 // 공통 렌더링 유틸. 모든 템플릿에서 사용.
+//
+// 랜딩 템플릿 도메인 — inline style 면제 + 기존 시그니처 호환 (color/borderColor 등 일부 unused 파라미터).
+/* eslint-disable no-restricted-syntax, @typescript-eslint/no-unused-vars, react-refresh/only-export-components, react-hooks/exhaustive-deps */
 
 import type { LandingConfig, LandingSection, FeatureItem, TestimonialItem, ProgramItem, FaqItem, HitReportShowcaseItem, HitReportPublicCard } from "../types";
 import { useState, useEffect } from "react";

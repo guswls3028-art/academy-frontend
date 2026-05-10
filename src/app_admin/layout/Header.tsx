@@ -1,11 +1,14 @@
 // PATH: src/shared/ui/layout/Header.tsx
-import { useState, useEffect, useRef, useCallback } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+//
+// 헤더는 동적 테마/테넌트 색 + 다국어 헬퍼 등으로 inline style이 핵심 도구.
+// CSS 모듈로 추출 시 테넌트별 동적 컬러가 깨지므로 inline 룰은 이 파일에 한해 면제.
+/* eslint-disable no-restricted-syntax */
+import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Badge as AntBadge } from "antd";
 import { AlertTriangle, RefreshCw, User as UserIcon, Settings as SettingsIcon, Bug, LogOut, Globe as GlobeIcon } from "lucide-react";
 import NoticeOverlay from "@admin/domains/notice/overlays/NoticeOverlay";
-import { useNotices } from "@admin/domains/notice/context/NoticeContext";
 import { useAdminNotificationCounts, type AdminNotificationItem } from "@admin/domains/admin-notifications";
 import { useProgram } from "@/shared/program";
 import { useAdminLayout } from "@admin/layout/AdminLayoutContext";
@@ -34,24 +37,6 @@ function IconMenu() {
         strokeWidth="2"
         strokeLinecap="round"
       />
-    </svg>
-  );
-}
-
-function IconSmartphone() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="5" y="2" width="14" height="20" rx="2" ry="2" />
-      <path d="M12 18h.01" />
-    </svg>
-  );
-}
-
-function IconMonitor() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
-      <path d="M8 21h8M12 17v4" />
     </svg>
   );
 }
@@ -87,43 +72,6 @@ function IconBell() {
         d="M13.73 21a2 2 0 0 1-3.46 0"
         stroke="currentColor"
         strokeWidth="2"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-function IconPalette() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-      <path
-        d="M12 22a10 10 0 1 1 7.07-17.07c1.38 1.38.43 3.74-1.52 3.74H15a3 3 0 0 0 0 6h1.56c1.62 0 2.66 1.72 1.86 3.14A10 10 0 0 1 12 22Z"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M7.5 10.5h0"
-        stroke="currentColor"
-        strokeWidth="3"
-        strokeLinecap="round"
-      />
-      <path
-        d="M10.5 7.5h0"
-        stroke="currentColor"
-        strokeWidth="3"
-        strokeLinecap="round"
-      />
-      <path
-        d="M13.5 7.5h0"
-        stroke="currentColor"
-        strokeWidth="3"
-        strokeLinecap="round"
-      />
-      <path
-        d="M16.5 10.5h0"
-        stroke="currentColor"
-        strokeWidth="3"
         strokeLinecap="round"
       />
     </svg>
@@ -261,7 +209,6 @@ const STAFF_ROLE_LABEL: Record<MeStaffRole, string> = {
 };
 
 export default function Header() {
-  const loc = useLocation();
   const nav = useNavigate();
   const adminLayout = useAdminLayout();
   const isMobile = adminLayout != null;
@@ -297,7 +244,6 @@ export default function Header() {
   const unreadCount = adminCounts.total;
   const hasNotificationFailures = adminNotificationFailures.length > 0;
 
-  const { notices } = useNotices();
   const openNoticeAndCloseAlarm = () => {
     setAlarmDropdownOpen(false);
     setOpenNotice(true);

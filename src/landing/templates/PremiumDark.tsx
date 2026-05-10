@@ -1,6 +1,9 @@
 // PATH: src/app_admin/domains/landing/templates/PremiumDark.tsx
 // 템플릿 2: 프리미엄 다크 — 검정 + 딥네이비 + 골드 액센트.
 // 박철과학 인스타 시그니처(검정/골드/Pretendard heavy) 매칭.
+//
+// 랜딩 템플릿은 inline style 기반 — 도메인 전체 면제 (MinimalTutor와 동일 사유).
+/* eslint-disable no-restricted-syntax, @typescript-eslint/no-unused-vars */
 
 import { useState } from "react";
 import type { FeatureItem, TestimonialItem, ProgramItem, FaqItem, HitReportShowcaseItem } from "../types";
