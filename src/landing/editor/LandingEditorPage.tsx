@@ -34,13 +34,16 @@ type PreviewDevice = "desktop" | "tablet" | "mobile";
 const SECTION_LABELS: Record<string, string> = {
   hero: "히어로 (메인 배너)",
   features: "특징 소개",
+  instructor_profile: "강사 프로필",
   about: "소개",
+  management_system: "학생 관리 시스템",
+  process_timeline: "수업 진행 흐름",
   testimonials: "수강생 후기",
   programs: "프로그램 안내",
   faq: "자주 묻는 질문",
+  hit_reports: "최근 적중 사례 (매치업)",
   contact: "문의 정보",
   notice: "공지/안내",
-  hit_reports: "최근 적중 사례 (매치업)",
 };
 
 const ICON_OPTIONS = ["book", "chart", "users", "star", "shield", "clock", "check", "heart", "target", "award"];

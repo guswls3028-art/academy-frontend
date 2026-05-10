@@ -1,6 +1,26 @@
 // PATH: src/app_admin/domains/landing/types/index.ts
 
-export type SectionType = "hero" | "features" | "testimonials" | "about" | "programs" | "faq" | "contact" | "notice" | "hit_reports";
+export type SectionType = "hero" | "features" | "testimonials" | "about" | "programs" | "faq" | "contact" | "notice" | "hit_reports" | "instructor_profile" | "management_system" | "process_timeline";
+
+export interface InstructorProfileItem {
+  name: string;
+  title: string;          // "통합과학 강사" 같은 직함
+  photo_url?: string;
+  experience: string[];   // ["현 대치명인학원", "현 대치두각학원", ...]
+  bio?: string;
+}
+
+export interface ManagementCardItem {
+  icon: string;           // SVG icon name (shared.tsx ICON_MAP)
+  title: string;
+  description: string;
+}
+
+export interface ProcessStepItem {
+  step_label: string;     // "1주차" / "Week 1"
+  title: string;
+  description: string;
+}
 
 export interface FeatureItem {
   icon: string;
@@ -48,7 +68,7 @@ export interface LandingSection {
   order: number;
   title?: string;
   description?: string;
-  items?: FeatureItem[] | TestimonialItem[] | ProgramItem[] | FaqItem[] | HitReportShowcaseItem[];
+  items?: FeatureItem[] | TestimonialItem[] | ProgramItem[] | FaqItem[] | HitReportShowcaseItem[] | InstructorProfileItem[] | ManagementCardItem[] | ProcessStepItem[];
 }
 
 export interface LandingContact {

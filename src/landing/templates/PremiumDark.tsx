@@ -6,9 +6,11 @@
 /* eslint-disable no-restricted-syntax, @typescript-eslint/no-unused-vars */
 
 import { useState } from "react";
-import type { FeatureItem, TestimonialItem, ProgramItem, FaqItem, HitReportShowcaseItem } from "../types";
+import { Link } from "react-router-dom";
+import type { FeatureItem, TestimonialItem, ProgramItem, FaqItem, HitReportShowcaseItem, InstructorProfileItem, ManagementCardItem, ProcessStepItem } from "../types";
 import { getEnabledSections, SvgIcon, HitReportCards, type TemplateProps } from "./shared";
 import { hexToRgb } from "./colorUtils";
+import useAuth from "@/auth/hooks/useAuth";
 
 export default function PremiumDark({ config }: TemplateProps) {
   const c = config.primary_color || "#1E3A5F";
@@ -35,7 +37,7 @@ export default function PremiumDark({ config }: TemplateProps) {
       minHeight: "100vh",
       letterSpacing: "-0.011em",
     }}>
-      {/* Nav */}
+      {/* Nav — 로고 + 브랜드명 + 역할별 진입 메뉴 */}
       <nav style={{
         position: "sticky", top: 0, zIndex: 50,
         background: "rgba(10,14,26,0.85)",
@@ -44,24 +46,17 @@ export default function PremiumDark({ config }: TemplateProps) {
         borderBottom: `1px solid ${cardBorder}`,
         padding: "0 24px",
       }}>
-        <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", height: 72 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-            {config.logo_url && <img src={config.logo_url} alt="" style={{ height: 36, width: "auto", objectFit: "contain" }} />}
+        <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", height: 72, gap: 16 }}>
+          <Link to="/" style={{ display: "flex", alignItems: "center", gap: 12, textDecoration: "none", color: textPrimary }}>
+            {config.logo_url ? (
+              <img src={config.logo_url} alt={config.brand_name} style={{ height: 40, width: "auto", objectFit: "contain", filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.4))" }} />
+            ) : (
+              // 로고 미업로드 시 SVG 텍스트 마크 (브랜드명 + 골드 underline) — 이질감 없는 placeholder
+              <BrandMark name={config.brand_name || "Brand"} gold={gold} />
+            )}
             <span style={{ fontSize: 19, fontWeight: 800, letterSpacing: "-0.02em" }}>{config.brand_name}</span>
-          </div>
-          <a
-            href={config.cta_link || "/login"}
-            style={{
-              display: "inline-flex", alignItems: "center", gap: 6, padding: "10px 22px",
-              background: `linear-gradient(135deg, ${gold} 0%, #B8862F 100%)`,
-              color: "#0A0E1A", borderRadius: 10, fontSize: 14, fontWeight: 700,
-              textDecoration: "none",
-              boxShadow: `0 4px 20px rgba(${goldRgb},0.25)`,
-            }}
-          >
-            {config.cta_text || "수강 문의"}
-            <span style={{ fontSize: 16, lineHeight: 1, marginTop: -1 }}>›</span>
-          </a>
+          </Link>
+          <NavRoleMenu cta={config.cta_text || "수강 문의"} ctaLink={config.cta_link || "/login"} gold={gold} goldRgb={goldRgb} cardBorder={cardBorder} textSecondary={textSecondary} />
         </div>
       </nav>
 
@@ -195,6 +190,82 @@ export default function PremiumDark({ config }: TemplateProps) {
                       {section.description}
                     </p>
                   )}
+                </div>
+              </section>
+            );
+
+          case "instructor_profile":
+            return (
+              <section key="instructor_profile" style={{ padding: "120px 24px", position: "relative", overflow: "hidden" }}>
+                <div style={{ position: "absolute", inset: 0, background: `radial-gradient(ellipse 50% 60% at 30% 50%, rgba(${goldRgb},0.08) 0%, transparent 60%)`, pointerEvents: "none" }} />
+                <div style={{ maxWidth: 1200, margin: "0 auto", position: "relative" }}>
+                  <SectionHeader eyebrow="Instructor" title={section.title || "강사 프로필"} description={section.description} gold={gold} goldRgb={goldRgb} textSecondary={textSecondary} />
+                  <div style={{ display: "grid", gridTemplateColumns: ((section.items as InstructorProfileItem[] | undefined)?.length || 0) > 1 ? "repeat(auto-fit, minmax(320px, 1fr))" : "1fr", gap: 32, marginTop: 64 }}>
+                    {((section.items as InstructorProfileItem[]) || []).map((it, i) => (
+                      <InstructorCard key={i} item={it} gold={gold} goldRgb={goldRgb} cardBg={cardBg} cardBorder={cardBorder} textPrimary={textPrimary} textSecondary={textSecondary} textMuted={textMuted} bg={bg} />
+                    ))}
+                  </div>
+                </div>
+              </section>
+            );
+
+          case "management_system":
+            return (
+              <section key="management_system" style={{ padding: "120px 24px", background: bgAlt }}>
+                <div style={{ maxWidth: 1200, margin: "0 auto" }}>
+                  <SectionHeader eyebrow="Management" title={section.title || "학생 관리 시스템"} description={section.description || "수업 외 시간에도 학생을 끊김 없이 챙깁니다."} gold={gold} goldRgb={goldRgb} textSecondary={textSecondary} />
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 18, marginTop: 56 }}>
+                    {((section.items as ManagementCardItem[]) || []).map((it, i) => (
+                      <div key={i} style={{
+                        padding: 28, borderRadius: 16,
+                        background: bg, border: `1px solid ${cardBorder}`,
+                        display: "flex", flexDirection: "column", gap: 12,
+                      }}>
+                        <div style={{
+                          width: 44, height: 44, borderRadius: 12,
+                          background: `linear-gradient(135deg, rgba(${goldRgb},0.15) 0%, rgba(${goldRgb},0.05) 100%)`,
+                          border: `1px solid rgba(${goldRgb},0.2)`,
+                          display: "flex", alignItems: "center", justifyContent: "center", color: gold,
+                        }}>
+                          <SvgIcon name={it.icon} size={22} />
+                        </div>
+                        <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0, letterSpacing: "-0.015em" }}>{it.title}</h3>
+                        <p style={{ fontSize: 13.5, lineHeight: 1.65, color: textSecondary, margin: 0, fontWeight: 400 }}>{it.description}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </section>
+            );
+
+          case "process_timeline":
+            return (
+              <section key="process_timeline" style={{ padding: "120px 24px", position: "relative" }}>
+                <div style={{ maxWidth: 980, margin: "0 auto" }}>
+                  <SectionHeader eyebrow="Process" title={section.title || "수업 진행 흐름"} description={section.description || "한 사이클이 어떻게 진행되는지 한눈에 보세요."} gold={gold} goldRgb={goldRgb} textSecondary={textSecondary} />
+                  <div style={{ display: "flex", flexDirection: "column", gap: 0, marginTop: 56, position: "relative" }}>
+                    {((section.items as ProcessStepItem[]) || []).map((it, i, arr) => (
+                      <div key={i} style={{ display: "flex", gap: 24, alignItems: "flex-start", position: "relative", paddingBottom: i === arr.length - 1 ? 0 : 32 }}>
+                        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0 }}>
+                          <div style={{
+                            width: 56, height: 56, borderRadius: 14,
+                            background: `linear-gradient(135deg, ${gold} 0%, #B8862F 100%)`,
+                            color: "#0A0E1A", fontSize: 13, fontWeight: 800,
+                            display: "flex", alignItems: "center", justifyContent: "center",
+                            letterSpacing: "-0.02em",
+                            boxShadow: `0 6px 16px rgba(${goldRgb},0.25)`,
+                          }}>{it.step_label}</div>
+                          {i < arr.length - 1 && (
+                            <div style={{ width: 2, flex: 1, minHeight: 40, background: `linear-gradient(180deg, rgba(${goldRgb},0.4) 0%, rgba(${goldRgb},0.05) 100%)`, marginTop: 8 }} />
+                          )}
+                        </div>
+                        <div style={{ flex: 1, paddingTop: 6 }}>
+                          <h3 style={{ fontSize: 18, fontWeight: 700, margin: "0 0 8px", letterSpacing: "-0.015em" }}>{it.title}</h3>
+                          <p style={{ fontSize: 14.5, lineHeight: 1.7, color: textSecondary, margin: 0 }}>{it.description}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </section>
             );
@@ -393,6 +464,70 @@ function FeatureCard({ item, gold, goldRgb, cardBg, cardBorder, cardHoverBorder,
   );
 }
 
+function InstructorCard({ item, gold, goldRgb, cardBg, cardBorder, textPrimary, textSecondary, textMuted, bg }: { item: InstructorProfileItem; gold: string; goldRgb: string; cardBg: string; cardBorder: string; textPrimary: string; textSecondary: string; textMuted: string; bg: string }) {
+  const initial = (item.name || "").trim().charAt(0) || "•";
+  return (
+    <div style={{
+      padding: 36, borderRadius: 20,
+      background: `linear-gradient(180deg, rgba(${goldRgb},0.04) 0%, rgba(${goldRgb},0.01) 100%)`,
+      border: `1px solid ${cardBorder}`,
+      display: "flex", gap: 32, alignItems: "flex-start", flexWrap: "wrap",
+      position: "relative", overflow: "hidden",
+    }}>
+      <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 1, background: `linear-gradient(90deg, transparent, rgba(${goldRgb},0.5), transparent)` }} />
+      {/* 사진 (URL 있으면 img, 없으면 이니셜 mark) */}
+      <div style={{ flex: "0 0 180px", position: "relative" }}>
+        <div style={{ position: "absolute", inset: -8, background: `radial-gradient(ellipse, rgba(${goldRgb},0.18) 0%, transparent 70%)`, filter: "blur(20px)", pointerEvents: "none" }} />
+        {item.photo_url ? (
+          <img src={item.photo_url} alt={item.name} style={{
+            position: "relative", width: 180, height: 220, borderRadius: 16, objectFit: "cover",
+            border: `1px solid ${cardBorder}`,
+            boxShadow: `0 16px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(${goldRgb},0.12) inset`,
+          }} />
+        ) : (
+          <div style={{
+            position: "relative", width: 180, height: 220, borderRadius: 16,
+            background: `linear-gradient(135deg, ${bg} 0%, rgba(${goldRgb},0.15) 100%)`,
+            border: `1px solid ${cardBorder}`,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            color: gold, fontSize: 64, fontWeight: 800, letterSpacing: "-0.04em",
+          }}>{initial}</div>
+        )}
+      </div>
+      {/* 이름 + 직함 + 경력 + bio */}
+      <div style={{ flex: "1 1 280px", minWidth: 280 }}>
+        <div style={{
+          display: "inline-flex", alignItems: "center", gap: 6,
+          padding: "4px 10px", borderRadius: 99,
+          background: `rgba(${goldRgb},0.1)`, color: gold,
+          fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase",
+          marginBottom: 12,
+        }}>
+          {item.title || "Instructor"}
+        </div>
+        <h3 style={{ fontSize: 32, fontWeight: 800, margin: "0 0 16px", letterSpacing: "-0.025em", color: textPrimary }}>
+          {item.name}
+        </h3>
+        {item.bio && (
+          <p style={{ fontSize: 15, lineHeight: 1.75, color: textSecondary, margin: "0 0 22px", fontWeight: 400, whiteSpace: "pre-line" }}>
+            {item.bio}
+          </p>
+        )}
+        {item.experience && item.experience.length > 0 && (
+          <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 8 }}>
+            {item.experience.map((line, i) => (
+              <li key={i} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 14, color: textSecondary, fontWeight: 500 }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={gold} strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg>
+                {line}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function ContactCard({ label, value, cardBg, cardBorder, textMuted, textPrimary, gold }: { label: string; value: string; cardBg: string; cardBorder: string; textMuted: string; textPrimary: string; gold: string }) {
   return (
     <div style={{
@@ -403,6 +538,78 @@ function ContactCard({ label, value, cardBg, cardBorder, textMuted, textPrimary,
         {label}
       </p>
       <p style={{ fontSize: 16, fontWeight: 600, margin: 0, color: textPrimary, letterSpacing: "-0.01em" }}>{value}</p>
+    </div>
+  );
+}
+
+/** 브랜드 로고 SVG fallback — config.logo_url 미업로드 시 동적 생성. 골드 underline + 브랜드명. */
+function BrandMark({ name, gold }: { name: string; gold: string }) {
+  const initial = (name || "").trim().charAt(0) || "•";
+  return (
+    <div style={{
+      width: 40, height: 40, borderRadius: 10,
+      background: `linear-gradient(135deg, ${gold} 0%, #8B5E1F 100%)`,
+      display: "flex", alignItems: "center", justifyContent: "center",
+      color: "#0A0E1A", fontSize: 20, fontWeight: 800,
+      boxShadow: `0 4px 12px rgba(212,160,76,0.3), inset 0 1px 0 rgba(255,255,255,0.3)`,
+      letterSpacing: "-0.02em",
+    }}>{initial}</div>
+  );
+}
+
+/** 역할별 nav 메뉴 — 비로그인은 "로그인" + "수강 문의", 로그인 시 역할 표시 + 마이페이지 진입. */
+function NavRoleMenu({ cta, ctaLink, gold, goldRgb, cardBorder, textSecondary }: { cta: string; ctaLink: string; gold: string; goldRgb: string; cardBorder: string; textSecondary: string }) {
+  const { user, isAuthenticated } = useAuth();
+  const u = user as { tenantRole?: string | null; is_superuser?: boolean; name?: string | null; username?: string } | null;
+  const role = (u?.tenantRole ?? "").toLowerCase();
+  const displayName = u?.name || u?.username || "내 계정";
+
+  // 역할별 진입 path
+  let myPath = "/admin";
+  let roleLabel = "관리실";
+  if (role === "student") { myPath = "/student"; roleLabel = "학생 마이페이지"; }
+  else if (role === "parent") { myPath = "/parent"; roleLabel = "학부모 마이페이지"; }
+  else if (role === "teacher") { myPath = "/admin"; roleLabel = "강사 콘솔"; }
+  else if (role === "assistant") { myPath = "/admin"; roleLabel = "조교 콘솔"; }
+  else if (role === "owner" || role === "admin" || u?.is_superuser) { myPath = "/admin"; roleLabel = "관리실"; }
+
+  if (!isAuthenticated) {
+    return (
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <Link to="/login" style={{
+          padding: "10px 18px", borderRadius: 10, fontSize: 14, fontWeight: 600,
+          textDecoration: "none", color: textSecondary,
+          border: `1px solid ${cardBorder}`,
+        }}>로그인</Link>
+        <a href={ctaLink} style={{
+          display: "inline-flex", alignItems: "center", gap: 6, padding: "10px 22px",
+          background: `linear-gradient(135deg, ${gold} 0%, #B8862F 100%)`,
+          color: "#0A0E1A", borderRadius: 10, fontSize: 14, fontWeight: 700,
+          textDecoration: "none",
+          boxShadow: `0 4px 20px rgba(${goldRgb},0.25)`,
+        }}>
+          {cta}
+          <span style={{ fontSize: 16, lineHeight: 1, marginTop: -1 }}>›</span>
+        </a>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+      <span style={{ fontSize: 13, color: textSecondary, letterSpacing: "-0.01em", display: "none" }} className="nav-greeting">
+        {displayName}님
+      </span>
+      <Link to={myPath} style={{
+        display: "inline-flex", alignItems: "center", gap: 6, padding: "10px 18px",
+        background: "rgba(255,255,255,0.06)", color: "#F5F1E8",
+        border: `1px solid ${cardBorder}`, borderRadius: 10,
+        fontSize: 14, fontWeight: 600, textDecoration: "none",
+        letterSpacing: "-0.01em",
+      }}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" /></svg>
+        {roleLabel}
+      </Link>
     </div>
   );
 }

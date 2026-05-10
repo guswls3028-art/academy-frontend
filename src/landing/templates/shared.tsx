@@ -6,7 +6,7 @@
 
 import type { LandingConfig, LandingSection, FeatureItem, TestimonialItem, ProgramItem, FaqItem, HitReportShowcaseItem, HitReportPublicCard } from "../types";
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import useAuth from "@/auth/hooks/useAuth";
 import api, { type ApiRequestConfig } from "@/shared/api/axios";
 
@@ -106,6 +106,7 @@ export function HitReportCards({ items, color, rgb, theme = "light" }: { items: 
   const [error, setError] = useState(false);
   const staffRole = useStaffRole();
   const canManage = staffRole !== null; // owner/admin/teacher 모두 카드에 액션 노출
+  const navigate = useNavigate();
 
   useEffect(() => {
     const ids = (items || []).map((it) => it.report_id).filter((n) => Number.isFinite(n));
@@ -146,9 +147,14 @@ export function HitReportCards({ items, color, rgb, theme = "light" }: { items: 
         const label = labelMap.get(card.id) || card.doc_category || card.doc_title;
         const sub = card.doc_title && card.doc_title !== label ? card.doc_title : "";
         const ratePct = Math.round(card.hit_rate_pct);
+        const pdfUrl = `${(import.meta.env.VITE_API_BASE_URL as string) || ""}/api/v1/matchup/landing/public/${card.id}/curated.pdf`;
         return (
-          <div
+          <a
             key={card.id}
+            href={pdfUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            title="시험지 ↔ 강의 자료 비교 본문 PDF 보기"
             style={{
               padding: 28,
               borderRadius: 18,
@@ -159,11 +165,27 @@ export function HitReportCards({ items, color, rgb, theme = "light" }: { items: 
               flexDirection: "column",
               gap: 14,
               position: "relative",
+              textDecoration: "none",
+              color: "inherit",
+              cursor: "pointer",
+              transition: "transform 0.2s ease, border-color 0.2s ease",
+            }}
+            onMouseEnter={(e) => {
+              const el = e.currentTarget;
+              el.style.transform = "translateY(-2px)";
+              el.style.borderColor = dark ? "rgba(212,160,76,0.45)" : "rgba(15,23,42,0.2)";
+            }}
+            onMouseLeave={(e) => {
+              const el = e.currentTarget;
+              el.style.transform = "none";
+              el.style.borderColor = cardBorder;
             }}
           >
             {canManage && (
-              <Link
-                to="/admin/storage/hit-reports"
+              // 카드는 <a>(PDF). nested anchor 회피 위해 button + onClick navigate.
+              <button
+                type="button"
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); navigate("/admin/storage/hit-reports"); }}
                 style={{
                   position: "absolute",
                   top: 12,
@@ -177,14 +199,15 @@ export function HitReportCards({ items, color, rgb, theme = "light" }: { items: 
                   color: manageChipColor,
                   fontSize: 11,
                   fontWeight: 700,
-                  textDecoration: "none",
+                  border: "none",
+                  cursor: "pointer",
                   letterSpacing: "0.02em",
                 }}
                 title="이 보고서 관리실에서 수정"
               >
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
                 수정
-              </Link>
+              </button>
             )}
             <div style={{ fontSize: 11, fontWeight: 700, color: labelColor, letterSpacing: "0.06em", textTransform: "uppercase" }}>
               {label || "적중 보고서"}
@@ -212,7 +235,10 @@ export function HitReportCards({ items, color, rgb, theme = "light" }: { items: 
             >
               {card.hit_count} <span style={{ opacity: 0.6 }}>/ {card.total_problems}</span> 문항
             </div>
-          </div>
+            <div style={{ marginTop: 4, fontSize: 11, color: labelColor, fontWeight: 600, letterSpacing: "0.04em" }}>
+              본문 PDF 보기 →
+            </div>
+          </a>
         );
       })}
     </div>
