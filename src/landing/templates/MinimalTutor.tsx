@@ -7,7 +7,7 @@
 
 import { Link } from "react-router-dom";
 import type { FeatureItem, TestimonialItem, ProgramItem, FaqItem, HitReportShowcaseItem, InstructorProfileItem, ManagementCardItem, ProcessStepItem } from "../types";
-import { getEnabledSections, SvgIcon, FaqAccordion, HitReportCards, type TemplateProps } from "./shared";
+import { getEnabledSections, SvgIcon, FaqAccordion, HitReportCards, useTenantHitStats, type TemplateProps } from "./shared";
 import { hexToRgb } from "./colorUtils";
 import useAuth from "@/auth/hooks/useAuth";
 
@@ -194,7 +194,9 @@ export default function MinimalTutor({ config }: TemplateProps) {
               </section>
             );
 
-          case "instructor_profile":
+          case "instructor_profile": {
+            const hitSec = sections.find((s) => s.type === "hit_reports");
+            const reportIds = (hitSec?.items as HitReportShowcaseItem[] | undefined ?? []).map((it) => it.report_id);
             return (
               <section key="instructor_profile" style={{ padding: "80px 24px", background: "#fff" }}>
                 <div style={{ maxWidth: 1120, margin: "0 auto" }}>
@@ -208,12 +210,13 @@ export default function MinimalTutor({ config }: TemplateProps) {
                   )}
                   <div style={{ display: "grid", gridTemplateColumns: ((section.items as InstructorProfileItem[] | undefined)?.length || 0) > 1 ? "repeat(auto-fit, minmax(320px, 1fr))" : "1fr", gap: 24, marginTop: 32 }}>
                     {((section.items as InstructorProfileItem[]) || []).map((it, i) => (
-                      <LightInstructorCard key={i} item={it} color={c} rgb={rgb} />
+                      <LightInstructorCard key={i} item={it} reportIds={reportIds} color={c} rgb={rgb} />
                     ))}
                   </div>
                 </div>
               </section>
             );
+          }
 
           case "management_system":
             return (
@@ -338,7 +341,7 @@ function LightNavRoleMenu({ cta, ctaLink, color, rgb }: { cta: string; ctaLink: 
   let myPath = "/admin";
   let roleLabel = "관리실";
   if (role === "student") { myPath = "/student"; roleLabel = "학생 마이페이지"; }
-  else if (role === "parent") { myPath = "/parent"; roleLabel = "학부모 마이페이지"; }
+  else if (role === "parent") { myPath = "/student"; roleLabel = "학부모 페이지"; }  // parent도 student app 사용 (read-only)
   else if (role === "teacher") { myPath = "/admin"; roleLabel = "강사 콘솔"; }
   else if (role === "assistant") { myPath = "/admin"; roleLabel = "조교 콘솔"; }
 
@@ -376,8 +379,9 @@ function LightNavRoleMenu({ cta, ctaLink, color, rgb }: { cta: string; ctaLink: 
 }
 
 /** 강사 프로필 카드 — light tone */
-function LightInstructorCard({ item, color, rgb }: { item: InstructorProfileItem; color: string; rgb: string }) {
+function LightInstructorCard({ item, reportIds = [], color, rgb }: { item: InstructorProfileItem; reportIds?: number[]; color: string; rgb: string }) {
   const initial = (item.name || "").trim().charAt(0) || "•";
+  const stats = useTenantHitStats(reportIds);
   return (
     <div style={{
       padding: 32, borderRadius: 18, background: "#fff",
@@ -425,6 +429,24 @@ function LightInstructorCard({ item, color, rgb }: { item: InstructorProfileItem
               </li>
             ))}
           </ul>
+        )}
+        {stats && stats.reportCount > 0 && (
+          <div style={{ marginTop: 18, paddingTop: 14, borderTop: "1px solid rgba(0,0,0,0.06)", display: "flex", gap: 20, alignItems: "baseline" }}>
+            <div>
+              <div style={{ fontSize: 10, color: "#94a3b8", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 4 }}>통산 적중률</div>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 3 }}>
+                <span style={{ fontSize: 24, fontWeight: 800, color, lineHeight: 1, letterSpacing: "-0.02em" }}>{Math.round(stats.avgHitRatePct)}</span>
+                <span style={{ fontSize: 13, fontWeight: 700, color, opacity: 0.85 }}>%</span>
+              </div>
+            </div>
+            <div>
+              <div style={{ fontSize: 10, color: "#94a3b8", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 4 }}>누적 보고서</div>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 3 }}>
+                <span style={{ fontSize: 24, fontWeight: 800, color: "#0f172a", lineHeight: 1, letterSpacing: "-0.02em" }}>{stats.reportCount}</span>
+                <span style={{ fontSize: 13, fontWeight: 600, color: "#64748b" }}>건</span>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </div>

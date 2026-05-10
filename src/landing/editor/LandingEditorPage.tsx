@@ -25,27 +25,16 @@ import type {
   ProgramItem,
   FaqItem,
 } from "../types";
-import { ALLOWED_COLORS } from "../types";
+import { ALLOWED_COLORS, SECTION_META } from "../types";
 import { getTemplateComponent } from "../templates";
 import { SvgIcon } from "../templates/shared";
 
 type ViewMode = "edit" | "preview";
 type PreviewDevice = "desktop" | "tablet" | "mobile";
 
-const SECTION_LABELS: Record<string, string> = {
-  hero: "히어로 (메인 배너)",
-  features: "특징 소개",
-  instructor_profile: "강사 프로필",
-  about: "소개",
-  management_system: "학생 관리 시스템",
-  process_timeline: "수업 진행 흐름",
-  testimonials: "수강생 후기",
-  programs: "프로그램 안내",
-  faq: "자주 묻는 질문",
-  hit_reports: "최근 적중 사례 (매치업)",
-  contact: "문의 정보",
-  notice: "공지/안내",
-};
+// SECTION_META(SSOT, types/index.ts)에서 라벨 조회. 별도 dict 유지 X.
+const sectionLabel = (type: string): string =>
+  (SECTION_META as Record<string, { label?: string }>)[type]?.label ?? type;
 
 const ICON_OPTIONS = ["book", "chart", "users", "star", "shield", "clock", "check", "heart", "target", "award"];
 
@@ -570,7 +559,7 @@ function SectionEditor({ sectionType, sections, updateDraft }: { sectionType: st
     }));
   };
 
-  const label = SECTION_LABELS[sectionType] || sectionType;
+  const label = sectionLabel(sectionType);
 
   return (
     <EditorSection title={label}>
@@ -674,7 +663,8 @@ function SectionEditor({ sectionType, sections, updateDraft }: { sectionType: st
 }
 
 function ItemsEditor({ sectionType, items, updateSection }: { sectionType: string; items: any[]; updateSection: (fn: (s: LandingSection) => LandingSection) => void }) {
-  const maxItems = 6;
+  // backend MAX_SECTION_ITEMS와 정합 — process_timeline(7+주차), management_system(6+카드) 수용.
+  const maxItems = 12;
 
   const updateItem = (idx: number, field: string, value: string) => {
     updateSection((s) => ({
@@ -895,22 +885,8 @@ function HitReportPicker({ selectedIds, onChange }: { selectedIds: number[]; onC
 
 /** 모듈 모음 카드 그리드 — 네이버 블로그 꾸미기 식 시각적 토글.
  * 각 섹션이 큰 카드. 아이콘 + 라벨 + ON/OFF + "편집" 버튼.
+ * 메타는 SECTION_META(SSOT)에서 직접 조회 — 별도 dict 유지 X.
  */
-const SECTION_META: Record<string, { icon: string; tagline: string }> = {
-  hero: { icon: "star", tagline: "메인 배너 + 슬로건" },
-  features: { icon: "check", tagline: "차별화 포인트 카드" },
-  instructor_profile: { icon: "users", tagline: "강사 사진 + 경력" },
-  about: { icon: "book", tagline: "한 단락 소개글" },
-  management_system: { icon: "shield", tagline: "학생 관리 카드" },
-  process_timeline: { icon: "clock", tagline: "주차별 수업 흐름" },
-  testimonials: { icon: "heart", tagline: "수강생 후기" },
-  hit_reports: { icon: "target", tagline: "매치업 적중 카드" },
-  programs: { icon: "award", tagline: "강좌 안내" },
-  faq: { icon: "check", tagline: "자주 묻는 질문" },
-  contact: { icon: "users", tagline: "전화 / 주소" },
-  notice: { icon: "shield", tagline: "공지 띠" },
-};
-
 function SectionCardGrid({ sections, updateDraft, onEdit }: { sections: LandingSection[]; updateDraft: (fn: (p: LandingConfig) => LandingConfig) => void; onEdit: (type: string) => void }) {
   const sorted = [...sections].sort((a, b) => a.order - b.order);
   const toggle = (type: string) => {
@@ -947,8 +923,8 @@ function SectionCardGrid({ sections, updateDraft, onEdit }: { sections: LandingS
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 14 }}>
         {sorted.map((sec, i) => {
-          const meta = SECTION_META[sec.type] || { icon: "star", tagline: "모듈" };
-          const label = SECTION_LABELS[sec.type] || sec.type;
+          const meta = (SECTION_META as Record<string, { icon: string; tagline: string }>)[sec.type] || { icon: "star", tagline: "모듈" };
+          const label = sectionLabel(sec.type);
           return (
             <div
               key={sec.type}
@@ -1072,9 +1048,14 @@ function ImageUploadModal({ field, onClose, onUpload }: { field: "hero" | "logo"
   const [drag, setDrag] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
-  // 클립보드 paste — 모달 열려있는 동안 활성
+  // 클립보드 paste — 모달 열려있는 동안만 활성. textarea/input에 focus 시 그쪽이 paste 받도록 양보.
   useEffect(() => {
     const handler = (e: ClipboardEvent) => {
+      // 다른 텍스트 입력 element에 focus 있으면 모달이 가로채지 않음 (양보).
+      const ae = document.activeElement as HTMLElement | null;
+      if (ae && (ae.tagName === "TEXTAREA" || (ae.tagName === "INPUT" && (ae as HTMLInputElement).type !== "file"))) {
+        return;
+      }
       const items = e.clipboardData?.items;
       if (!items) return;
       for (const it of items) {

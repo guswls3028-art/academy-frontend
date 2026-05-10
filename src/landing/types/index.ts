@@ -2,6 +2,31 @@
 
 export type SectionType = "hero" | "features" | "testimonials" | "about" | "programs" | "faq" | "contact" | "notice" | "hit_reports" | "instructor_profile" | "management_system" | "process_timeline";
 
+/**
+ * 섹션 메타 SSOT — type / 어드민 라벨 / 외부 한 줄 설명 / 아이콘 / default values.
+ * 새 섹션 추가 시 여기 한 줄만 등록하면:
+ *  - 어드민 사이드바 / 카드 그리드 / 모바일 tabs 자동 노출
+ *  - 백엔드 default_draft_config + backfill 자동 적용 (별도 동기화 X — backend는 type list만 import 또는 동일 값 유지)
+ *  - validator SECTION_TYPES set 동기화 필요 (backend 제약)
+ */
+export const SECTION_META: Record<SectionType, { label: string; icon: string; tagline: string; defaultEnabled?: boolean }> = {
+  hero: { label: "히어로 (메인 배너)", icon: "star", tagline: "메인 배너 + 슬로건", defaultEnabled: true },
+  features: { label: "특징 소개", icon: "check", tagline: "차별화 포인트 카드", defaultEnabled: true },
+  instructor_profile: { label: "강사 프로필", icon: "users", tagline: "강사 사진 + 경력" },
+  about: { label: "소개", icon: "book", tagline: "한 단락 소개글" },
+  management_system: { label: "학생 관리 시스템", icon: "shield", tagline: "학생 관리 카드" },
+  process_timeline: { label: "수업 진행 흐름", icon: "clock", tagline: "주차별 수업 흐름" },
+  testimonials: { label: "수강생 후기", icon: "heart", tagline: "수강생 후기" },
+  hit_reports: { label: "최근 적중 사례 (매치업)", icon: "target", tagline: "매치업 적중 카드" },
+  programs: { label: "프로그램 안내", icon: "award", tagline: "강좌 안내" },
+  faq: { label: "자주 묻는 질문", icon: "check", tagline: "자주 묻는 질문" },
+  contact: { label: "문의 정보", icon: "users", tagline: "전화 / 주소", defaultEnabled: true },
+  notice: { label: "공지/안내", icon: "shield", tagline: "공지 띠" },
+};
+
+/** 섹션 타입 전체 list — 어드민 sidebar / mobile tabs / backfill 등에서 사용 */
+export const ALL_SECTION_TYPES: SectionType[] = Object.keys(SECTION_META) as SectionType[];
+
 export interface InstructorProfileItem {
   name: string;
   title: string;          // "통합과학 강사" 같은 직함

@@ -8,7 +8,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import type { FeatureItem, TestimonialItem, ProgramItem, FaqItem, HitReportShowcaseItem, InstructorProfileItem, ManagementCardItem, ProcessStepItem } from "../types";
-import { getEnabledSections, SvgIcon, HitReportCards, type TemplateProps } from "./shared";
+import { getEnabledSections, SvgIcon, HitReportCards, useTenantHitStats, type TemplateProps } from "./shared";
 import { hexToRgb } from "./colorUtils";
 import useAuth from "@/auth/hooks/useAuth";
 
@@ -194,7 +194,10 @@ export default function PremiumDark({ config }: TemplateProps) {
               </section>
             );
 
-          case "instructor_profile":
+          case "instructor_profile": {
+            // 강사 통산 KPI 자동 — 학원장이 picker에 박은 hit_reports의 누적 적중률.
+            const hitSec = sections.find((s) => s.type === "hit_reports");
+            const reportIds = (hitSec?.items as HitReportShowcaseItem[] | undefined ?? []).map((it) => it.report_id);
             return (
               <section key="instructor_profile" style={{ padding: "120px 24px", position: "relative", overflow: "hidden" }}>
                 <div style={{ position: "absolute", inset: 0, background: `radial-gradient(ellipse 50% 60% at 30% 50%, rgba(${goldRgb},0.08) 0%, transparent 60%)`, pointerEvents: "none" }} />
@@ -202,12 +205,13 @@ export default function PremiumDark({ config }: TemplateProps) {
                   <SectionHeader eyebrow="Instructor" title={section.title || "강사 프로필"} description={section.description} gold={gold} goldRgb={goldRgb} textSecondary={textSecondary} />
                   <div style={{ display: "grid", gridTemplateColumns: ((section.items as InstructorProfileItem[] | undefined)?.length || 0) > 1 ? "repeat(auto-fit, minmax(320px, 1fr))" : "1fr", gap: 32, marginTop: 64 }}>
                     {((section.items as InstructorProfileItem[]) || []).map((it, i) => (
-                      <InstructorCard key={i} item={it} gold={gold} goldRgb={goldRgb} cardBg={cardBg} cardBorder={cardBorder} textPrimary={textPrimary} textSecondary={textSecondary} textMuted={textMuted} bg={bg} />
+                      <InstructorCard key={i} item={it} reportIds={reportIds} gold={gold} goldRgb={goldRgb} cardBg={cardBg} cardBorder={cardBorder} textPrimary={textPrimary} textSecondary={textSecondary} textMuted={textMuted} bg={bg} />
                     ))}
                   </div>
                 </div>
               </section>
             );
+          }
 
           case "management_system":
             return (
@@ -464,8 +468,9 @@ function FeatureCard({ item, gold, goldRgb, cardBg, cardBorder, cardHoverBorder,
   );
 }
 
-function InstructorCard({ item, gold, goldRgb, cardBg, cardBorder, textPrimary, textSecondary, textMuted, bg }: { item: InstructorProfileItem; gold: string; goldRgb: string; cardBg: string; cardBorder: string; textPrimary: string; textSecondary: string; textMuted: string; bg: string }) {
+function InstructorCard({ item, reportIds = [], gold, goldRgb, cardBg, cardBorder, textPrimary, textSecondary, textMuted, bg }: { item: InstructorProfileItem; reportIds?: number[]; gold: string; goldRgb: string; cardBg: string; cardBorder: string; textPrimary: string; textSecondary: string; textMuted: string; bg: string }) {
   const initial = (item.name || "").trim().charAt(0) || "•";
+  const stats = useTenantHitStats(reportIds);
   return (
     <div style={{
       padding: 36, borderRadius: 20,
@@ -523,6 +528,27 @@ function InstructorCard({ item, gold, goldRgb, cardBg, cardBorder, textPrimary, 
             ))}
           </ul>
         )}
+        {stats && stats.reportCount > 0 && (
+          <div style={{
+            marginTop: 22, paddingTop: 18, borderTop: `1px solid ${cardBorder}`,
+            display: "flex", gap: 20, alignItems: "baseline",
+          }}>
+            <div>
+              <div style={{ fontSize: 11, color: textMuted, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 4 }}>통산 적중률</div>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
+                <span style={{ fontSize: 28, fontWeight: 800, color: gold, lineHeight: 1, letterSpacing: "-0.02em" }}>{Math.round(stats.avgHitRatePct)}</span>
+                <span style={{ fontSize: 14, fontWeight: 700, color: gold, opacity: 0.85 }}>%</span>
+              </div>
+            </div>
+            <div>
+              <div style={{ fontSize: 11, color: textMuted, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 4 }}>누적 보고서</div>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
+                <span style={{ fontSize: 28, fontWeight: 800, color: textPrimary, lineHeight: 1, letterSpacing: "-0.02em" }}>{stats.reportCount}</span>
+                <span style={{ fontSize: 14, fontWeight: 600, color: textSecondary }}>건</span>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -562,13 +588,15 @@ function NavRoleMenu({ cta, ctaLink, gold, goldRgb, cardBorder, textSecondary }:
   const { user, isAuthenticated } = useAuth();
   const u = user as { tenantRole?: string | null; is_superuser?: boolean; name?: string | null; username?: string } | null;
   const role = (u?.tenantRole ?? "").toLowerCase();
-  const displayName = u?.name || u?.username || "내 계정";
+  // username은 전화번호 형태(01012345678)일 수 있음 — 학원장 개인 폰. 외부 노출 X.
+  // 표시명은 name 우선, 없으면 "내 계정" fallback (username 절대 노출 X).
+  const displayName = u?.name || "내 계정";
 
   // 역할별 진입 path
   let myPath = "/admin";
   let roleLabel = "관리실";
   if (role === "student") { myPath = "/student"; roleLabel = "학생 마이페이지"; }
-  else if (role === "parent") { myPath = "/parent"; roleLabel = "학부모 마이페이지"; }
+  else if (role === "parent") { myPath = "/student"; roleLabel = "학부모 페이지"; }  // parent도 student app 사용 (read-only)
   else if (role === "teacher") { myPath = "/admin"; roleLabel = "강사 콘솔"; }
   else if (role === "assistant") { myPath = "/admin"; roleLabel = "조교 콘솔"; }
   else if (role === "owner" || role === "admin" || u?.is_superuser) { myPath = "/admin"; roleLabel = "관리실"; }

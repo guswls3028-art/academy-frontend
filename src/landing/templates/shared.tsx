@@ -78,6 +78,35 @@ export interface TemplateProps {
   isPreview?: boolean;
 }
 
+/** 학원의 매치업 통산 KPI — 강사 프로필 카드 등에서 자동 노출.
+ *
+ * 데이터: 학원장이 picker에 박은 보고서들의 누적 적중률 + 보고서 수.
+ * 학원장 입력 X — picker 변경 시 자동 갱신.
+ */
+export function useTenantHitStats(reportIds: number[]): { reportCount: number; avgHitRatePct: number } | null {
+  const [stats, setStats] = useState<{ reportCount: number; avgHitRatePct: number } | null>(null);
+
+  useEffect(() => {
+    const ids = (reportIds || []).filter((n) => Number.isFinite(n));
+    if (!ids.length) {
+      setStats({ reportCount: 0, avgHitRatePct: 0 });
+      return;
+    }
+    api.get("/matchup/landing/public/", { params: { ids: ids.join(",") }, skipAuth: true } as ApiRequestConfig)
+      .then((r) => {
+        const reports = Array.isArray(r?.data?.reports) ? r.data.reports as HitReportPublicCard[] : [];
+        if (!reports.length) { setStats({ reportCount: 0, avgHitRatePct: 0 }); return; }
+        const totalHit = reports.reduce((s, c) => s + (c.hit_count || 0), 0);
+        const totalProb = reports.reduce((s, c) => s + (c.total_problems || 0), 0);
+        const avg = totalProb > 0 ? Math.round((totalHit / totalProb) * 1000) / 10 : 0;
+        setStats({ reportCount: reports.length, avgHitRatePct: avg });
+      })
+      .catch(() => setStats({ reportCount: 0, avgHitRatePct: 0 }));
+  }, [reportIds.join(",")]);
+
+  return stats;
+}
+
 /** 공개 적중보고서 카드 — 학원장이 골라서 노출하는 마케팅 KPI 카드.
  *
  * - 데이터: GET /api/v1/matchup/landing/public/?ids=... (인증 X, subdomain → tenant 격리)
@@ -147,45 +176,80 @@ export function HitReportCards({ items, color, rgb, theme = "light" }: { items: 
         const label = labelMap.get(card.id) || card.doc_category || card.doc_title;
         const sub = card.doc_title && card.doc_title !== label ? card.doc_title : "";
         const ratePct = Math.round(card.hit_rate_pct);
-        const pdfUrl = `${(import.meta.env.VITE_API_BASE_URL as string) || ""}/api/v1/matchup/landing/public/${card.id}/curated.pdf`;
+        // axios baseURL과 동일한 source — VITE_API_BASE_URL 미설정 시 same-origin
+        const apiBase = (import.meta.env.VITE_API_BASE_URL as string) || "";
+        const pdfUrl = `${apiBase}/api/v1/matchup/landing/public/${card.id}/curated.pdf`;
         return (
-          <a
+          // 카드 = wrapper. anchor(PDF) + button(수정)을 sibling으로 두어
+          // nested interactive 회피 + 키보드 접근성 보장 (Tab 시 anchor → button 순서).
+          <div
             key={card.id}
-            href={pdfUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            title="시험지 ↔ 강의 자료 비교 본문 PDF 보기"
             style={{
+              position: "relative",
               padding: 28,
               borderRadius: 18,
               background: cardBg,
               border: `1px solid ${cardBorder}`,
               boxShadow: cardShadow,
-              display: "flex",
-              flexDirection: "column",
-              gap: 14,
-              position: "relative",
-              textDecoration: "none",
-              color: "inherit",
-              cursor: "pointer",
               transition: "transform 0.2s ease, border-color 0.2s ease",
             }}
             onMouseEnter={(e) => {
-              const el = e.currentTarget;
-              el.style.transform = "translateY(-2px)";
-              el.style.borderColor = dark ? "rgba(212,160,76,0.45)" : "rgba(15,23,42,0.2)";
+              e.currentTarget.style.transform = "translateY(-2px)";
+              e.currentTarget.style.borderColor = dark ? "rgba(212,160,76,0.45)" : "rgba(15,23,42,0.2)";
             }}
             onMouseLeave={(e) => {
-              const el = e.currentTarget;
-              el.style.transform = "none";
-              el.style.borderColor = cardBorder;
+              e.currentTarget.style.transform = "none";
+              e.currentTarget.style.borderColor = cardBorder;
             }}
           >
+            <a
+              href={pdfUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              title="시험지 ↔ 강의 자료 비교 본문 PDF 보기"
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 14,
+                textDecoration: "none",
+                color: "inherit",
+                cursor: "pointer",
+              }}
+            >
+              <div style={{ fontSize: 11, fontWeight: 700, color: labelColor, letterSpacing: "0.06em", textTransform: "uppercase", paddingRight: canManage ? 60 : 0 }}>
+                {label || "적중 보고서"}
+              </div>
+              {sub && (
+                <div style={{ fontSize: 15, color: subColor, margin: 0, lineHeight: 1.5, fontWeight: 600, letterSpacing: "-0.015em" }}>
+                  {sub}
+                </div>
+              )}
+              <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginTop: 4 }}>
+                <span style={{ fontSize: 44, fontWeight: 800, color, lineHeight: 1, letterSpacing: "-0.03em" }}>
+                  {ratePct}
+                </span>
+                <span style={{ fontSize: 18, fontWeight: 700, color, opacity: 0.85 }}>%</span>
+                <span style={{ fontSize: 12, color: labelColor, marginLeft: 6, letterSpacing: "0.04em", fontWeight: 600 }}>적중률</span>
+              </div>
+              <div
+                style={{
+                  fontSize: 13, fontWeight: 600, color: chipColor,
+                  padding: "6px 12px", borderRadius: 999,
+                  background: chipBg,
+                  alignSelf: "flex-start",
+                  letterSpacing: "-0.01em",
+                }}
+              >
+                {card.hit_count} <span style={{ opacity: 0.6 }}>/ {card.total_problems}</span> 문항
+              </div>
+              <div style={{ marginTop: 4, fontSize: 11, color: labelColor, fontWeight: 600, letterSpacing: "0.04em" }}>
+                본문 PDF 보기 →
+              </div>
+            </a>
             {canManage && (
-              // 카드는 <a>(PDF). nested anchor 회피 위해 button + onClick navigate.
               <button
                 type="button"
-                onClick={(e) => { e.preventDefault(); e.stopPropagation(); navigate("/admin/storage/hit-reports"); }}
+                onClick={() => navigate("/admin/storage/hit-reports")}
                 style={{
                   position: "absolute",
                   top: 12,
@@ -209,36 +273,7 @@ export function HitReportCards({ items, color, rgb, theme = "light" }: { items: 
                 수정
               </button>
             )}
-            <div style={{ fontSize: 11, fontWeight: 700, color: labelColor, letterSpacing: "0.06em", textTransform: "uppercase" }}>
-              {label || "적중 보고서"}
-            </div>
-            {sub && (
-              <div style={{ fontSize: 15, color: subColor, margin: 0, lineHeight: 1.5, fontWeight: 600, letterSpacing: "-0.015em" }}>
-                {sub}
-              </div>
-            )}
-            <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginTop: 4 }}>
-              <span style={{ fontSize: 44, fontWeight: 800, color, lineHeight: 1, letterSpacing: "-0.03em" }}>
-                {ratePct}
-              </span>
-              <span style={{ fontSize: 18, fontWeight: 700, color, opacity: 0.85 }}>%</span>
-              <span style={{ fontSize: 12, color: labelColor, marginLeft: 6, letterSpacing: "0.04em", fontWeight: 600 }}>적중률</span>
-            </div>
-            <div
-              style={{
-                fontSize: 13, fontWeight: 600, color: chipColor,
-                padding: "6px 12px", borderRadius: 999,
-                background: chipBg,
-                alignSelf: "flex-start",
-                letterSpacing: "-0.01em",
-              }}
-            >
-              {card.hit_count} <span style={{ opacity: 0.6 }}>/ {card.total_problems}</span> 문항
-            </div>
-            <div style={{ marginTop: 4, fontSize: 11, color: labelColor, fontWeight: 600, letterSpacing: "0.04em" }}>
-              본문 PDF 보기 →
-            </div>
-          </a>
+          </div>
         );
       })}
     </div>
