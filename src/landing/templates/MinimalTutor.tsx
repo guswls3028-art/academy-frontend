@@ -7,7 +7,7 @@
 
 import { Link } from "react-router-dom";
 import type { FeatureItem, TestimonialItem, ProgramItem, FaqItem, HitReportShowcaseItem, InstructorProfileItem, ManagementCardItem, ProcessStepItem } from "../types";
-import { getEnabledSections, SvgIcon, FaqAccordion, HitReportCards, useTenantHitStats, type TemplateProps } from "./shared";
+import { getEnabledSections, SvgIcon, FaqAccordion, HitReportCards, useTenantHitStats, useResolvedLogo, type TemplateProps } from "./shared";
 import { hexToRgb } from "./colorUtils";
 import useAuth from "@/auth/hooks/useAuth";
 
@@ -18,26 +18,13 @@ export default function MinimalTutor({ config }: TemplateProps) {
 
   return (
     <div style={{ fontFamily: "'Pretendard Variable', 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif", color: "#1a1a2e", background: "#ffffff", minHeight: "100vh" }}>
-      {/* Nav — 로고 + 브랜드명 + 역할별 진입 메뉴 */}
-      <nav style={{ position: "sticky", top: 0, zIndex: 50, background: "rgba(255,255,255,0.92)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)", borderBottom: "1px solid rgba(0,0,0,0.06)", padding: "0 24px" }}>
-        <div style={{ maxWidth: 1120, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", height: 68, gap: 16 }}>
-          <Link to="/" style={{ display: "flex", alignItems: "center", gap: 12, textDecoration: "none", color: "#0f172a" }}>
-            {config.logo_url ? (
-              <img src={config.logo_url} alt={config.brand_name} style={{ height: 36, width: "auto", objectFit: "contain" }} />
-            ) : (
-              <LightBrandMark name={config.brand_name || "Brand"} color={c} />
-            )}
-            <span style={{ fontSize: 18, fontWeight: 700, color: "#0f172a", letterSpacing: "-0.015em" }}>{config.brand_name}</span>
-          </Link>
-          <LightNavRoleMenu cta={config.cta_text || "수강 문의"} ctaLink={config.cta_link || "/login"} color={c} rgb={rgb} />
-        </div>
-      </nav>
+      <LightNavBar config={config} sections={sections} c={c} rgb={rgb} />
 
       {sections.map((section) => {
         switch (section.type) {
           case "hero":
             return (
-              <section key="hero" style={{ padding: "80px 24px 64px", background: `linear-gradient(135deg, rgba(${rgb}, 0.03) 0%, rgba(${rgb}, 0.08) 100%)` }}>
+              <section key="hero" data-stype="hero" style={{ padding: "80px 24px 64px", background: `linear-gradient(135deg, rgba(${rgb}, 0.03) 0%, rgba(${rgb}, 0.08) 100%)` }}>
                 <div style={{ maxWidth: 1120, margin: "0 auto", display: "flex", alignItems: "center", gap: 64, flexWrap: "wrap" }}>
                   <div style={{ flex: "1 1 480px", minWidth: 280 }}>
                     <h1 style={{ fontSize: "clamp(28px, 4vw, 44px)", fontWeight: 800, lineHeight: 1.25, margin: "0 0 20px", color: "#0f172a" }}>
@@ -76,7 +63,7 @@ export default function MinimalTutor({ config }: TemplateProps) {
 
           case "features":
             return (
-              <section key="features" style={{ padding: "80px 24px" }}>
+              <section key="features" data-stype="features" style={{ padding: "80px 24px" }}>
                 <div style={{ maxWidth: 1120, margin: "0 auto" }}>
                   {section.title && <h2 style={{ fontSize: 28, fontWeight: 700, textAlign: "center", margin: "0 0 48px" }}>{section.title}</h2>}
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 32 }}>
@@ -96,7 +83,7 @@ export default function MinimalTutor({ config }: TemplateProps) {
 
           case "about":
             return (
-              <section key="about" style={{ padding: "80px 24px", background: "#f8fafc" }}>
+              <section key="about" data-stype="about" style={{ padding: "80px 24px", background: "#f8fafc" }}>
                 <div style={{ maxWidth: 720, margin: "0 auto", textAlign: "center" }}>
                   <h2 style={{ fontSize: 28, fontWeight: 700, margin: "0 0 20px" }}>{section.title || "소개"}</h2>
                   {section.description && (
@@ -110,7 +97,7 @@ export default function MinimalTutor({ config }: TemplateProps) {
 
           case "testimonials":
             return (
-              <section key="testimonials" style={{ padding: "80px 24px" }}>
+              <section key="testimonials" data-stype="testimonials" style={{ padding: "80px 24px" }}>
                 <div style={{ maxWidth: 1120, margin: "0 auto" }}>
                   <h2 style={{ fontSize: 28, fontWeight: 700, textAlign: "center", margin: "0 0 48px" }}>수강생 후기</h2>
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 24 }}>
@@ -131,7 +118,7 @@ export default function MinimalTutor({ config }: TemplateProps) {
 
           case "programs":
             return (
-              <section key="programs" style={{ padding: "80px 24px", background: "#f8fafc" }}>
+              <section key="programs" data-stype="programs" style={{ padding: "80px 24px", background: "#f8fafc" }}>
                 <div style={{ maxWidth: 1120, margin: "0 auto" }}>
                   <h2 style={{ fontSize: 28, fontWeight: 700, textAlign: "center", margin: "0 0 48px" }}>프로그램</h2>
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 24 }}>
@@ -153,7 +140,7 @@ export default function MinimalTutor({ config }: TemplateProps) {
 
           case "faq":
             return (
-              <section key="faq" style={{ padding: "80px 24px" }}>
+              <section key="faq" data-stype="faq" style={{ padding: "80px 24px" }}>
                 <div style={{ maxWidth: 720, margin: "0 auto" }}>
                   <h2 style={{ fontSize: 28, fontWeight: 700, textAlign: "center", margin: "0 0 48px" }}>자주 묻는 질문</h2>
                   <FaqAccordion items={section.items as FaqItem[] || []} color={c} />
@@ -163,7 +150,7 @@ export default function MinimalTutor({ config }: TemplateProps) {
 
           case "notice":
             return (
-              <section key="notice" style={{ padding: "48px 24px", background: `rgba(${rgb}, 0.04)` }}>
+              <section key="notice" data-stype="notice" style={{ padding: "48px 24px", background: `rgba(${rgb}, 0.04)` }}>
                 <div style={{ maxWidth: 720, margin: "0 auto", textAlign: "center" }}>
                   <p style={{ fontSize: 15, color: "#64748b", margin: 0, lineHeight: 1.7 }}>{section.description}</p>
                 </div>
@@ -172,7 +159,7 @@ export default function MinimalTutor({ config }: TemplateProps) {
 
           case "hit_reports":
             return (
-              <section key="hit_reports" style={{ padding: "80px 24px", background: "#fff" }}>
+              <section key="hit_reports" data-stype="hit_reports" style={{ padding: "80px 24px", background: "#fff" }}>
                 <div style={{ maxWidth: 1120, margin: "0 auto" }}>
                   <h2 style={{ fontSize: 28, fontWeight: 700, textAlign: "center", margin: "0 0 12px" }}>
                     {section.title || "최근 적중 사례"}
@@ -198,7 +185,7 @@ export default function MinimalTutor({ config }: TemplateProps) {
             const hitSec = sections.find((s) => s.type === "hit_reports");
             const reportIds = (hitSec?.items as HitReportShowcaseItem[] | undefined ?? []).map((it) => it.report_id);
             return (
-              <section key="instructor_profile" style={{ padding: "80px 24px", background: "#fff" }}>
+              <section key="instructor_profile" data-stype="instructor_profile" style={{ padding: "80px 24px", background: "#fff" }}>
                 <div style={{ maxWidth: 1120, margin: "0 auto" }}>
                   <h2 style={{ fontSize: 28, fontWeight: 700, textAlign: "center", margin: "0 0 12px" }}>
                     {section.title || "강사 프로필"}
@@ -220,7 +207,7 @@ export default function MinimalTutor({ config }: TemplateProps) {
 
           case "management_system":
             return (
-              <section key="management_system" style={{ padding: "80px 24px", background: "#f8fafc" }}>
+              <section key="management_system" data-stype="management_system" style={{ padding: "80px 24px", background: "#f8fafc" }}>
                 <div style={{ maxWidth: 1120, margin: "0 auto" }}>
                   <h2 style={{ fontSize: 28, fontWeight: 700, textAlign: "center", margin: "0 0 12px" }}>
                     {section.title || "학생 관리 시스템"}
@@ -247,7 +234,7 @@ export default function MinimalTutor({ config }: TemplateProps) {
 
           case "process_timeline":
             return (
-              <section key="process_timeline" style={{ padding: "80px 24px", background: "#fff" }}>
+              <section key="process_timeline" data-stype="process_timeline" style={{ padding: "80px 24px", background: "#fff" }}>
                 <div style={{ maxWidth: 880, margin: "0 auto" }}>
                   <h2 style={{ fontSize: 28, fontWeight: 700, textAlign: "center", margin: "0 0 12px" }}>
                     {section.title || "수업 진행 흐름"}
@@ -286,7 +273,7 @@ export default function MinimalTutor({ config }: TemplateProps) {
 
           case "contact":
             return (
-              <section key="contact" style={{ padding: "80px 24px", background: "#f8fafc" }}>
+              <section key="contact" data-stype="contact" style={{ padding: "80px 24px", background: "#f8fafc" }}>
                 <div style={{ maxWidth: 720, margin: "0 auto", textAlign: "center" }}>
                   <h2 style={{ fontSize: 28, fontWeight: 700, margin: "0 0 32px" }}>문의</h2>
                   <div style={{ display: "flex", gap: 40, justifyContent: "center", flexWrap: "wrap" }}>
@@ -316,6 +303,107 @@ export default function MinimalTutor({ config }: TemplateProps) {
         </p>
       </footer>
     </div>
+  );
+}
+
+// 섹션 anchor 라벨
+const LIGHT_SECTION_ANCHORS: Record<string, string> = {
+  instructor_profile: "강사 소개",
+  features: "수업 특징",
+  management_system: "학생 관리",
+  process_timeline: "수업 흐름",
+  hit_reports: "적중 사례",
+  programs: "프로그램",
+  testimonials: "후기",
+  faq: "자주 묻는 질문",
+  contact: "문의",
+};
+
+/** Light tone nav — 데스크탑 가로 메뉴 + 모바일 햄버거 슬라이드 */
+function LightNavBar({ config, sections, c, rgb }: { config: LandingConfig; sections: LandingSection[]; c: string; rgb: string }) {
+  const [open, setOpen] = useState(false);
+  const enabled = sections.filter((s) => s.enabled && LIGHT_SECTION_ANCHORS[s.type]);
+  const cta = config.cta_text || "수강 문의";
+  const ctaLink = config.cta_link || "/login";
+  const logoUrl = useResolvedLogo(config);
+
+  const scrollTo = (sectionType: string) => {
+    setOpen(false);
+    const all = Array.from(document.querySelectorAll("section[data-stype]")) as HTMLElement[];
+    const el = all.find((s) => s.dataset.stype === sectionType);
+    if (el) window.scrollTo({ top: el.offsetTop - 70, behavior: "smooth" });
+  };
+
+  return (
+    <>
+      <nav style={{ position: "sticky", top: 0, zIndex: 50, background: "rgba(255,255,255,0.92)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)", borderBottom: "1px solid rgba(0,0,0,0.06)", padding: "0 24px" }}>
+        <div style={{ maxWidth: 1120, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", height: 68, gap: 16 }}>
+          <Link to="/landing" style={{ display: "flex", alignItems: "center", gap: 12, textDecoration: "none", color: "#0f172a", flexShrink: 0 }}>
+            {logoUrl ? (
+              <img src={logoUrl} alt={config.brand_name} style={{ height: 36, width: "auto", objectFit: "contain" }} />
+            ) : (
+              <LightBrandMark name={config.brand_name || "Brand"} color={c} />
+            )}
+            <span style={{ fontSize: 18, fontWeight: 700, color: "#0f172a", letterSpacing: "-0.015em", whiteSpace: "nowrap" }}>{config.brand_name}</span>
+          </Link>
+          <div className="lminimal-nav-desk" style={{ display: "flex", alignItems: "center", gap: 4, flex: 1, justifyContent: "center", overflow: "hidden" }}>
+            {enabled.slice(0, 5).map((s) => (
+              <button key={s.type} type="button" onClick={() => scrollTo(s.type)} style={{
+                padding: "8px 14px", borderRadius: 8, background: "transparent", border: "none",
+                color: "#475569", fontSize: 14, fontWeight: 600, cursor: "pointer",
+                letterSpacing: "-0.01em", whiteSpace: "nowrap",
+              }}
+                onMouseEnter={(e) => { e.currentTarget.style.color = "#0f172a"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.color = "#475569"; }}
+              >{LIGHT_SECTION_ANCHORS[s.type]}</button>
+            ))}
+          </div>
+          <div className="lminimal-nav-cta" style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+            <LightNavRoleMenu cta={cta} ctaLink={ctaLink} color={c} rgb={rgb} />
+          </div>
+          <button type="button" className="lminimal-nav-burger" onClick={() => setOpen(true)} aria-label="메뉴 열기" style={{
+            display: "none", width: 40, height: 40, borderRadius: 8,
+            background: "transparent", border: "1px solid rgba(0,0,0,0.1)", color: "#0f172a", cursor: "pointer",
+            alignItems: "center", justifyContent: "center",
+          }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M3 12h18M3 18h18" /></svg>
+          </button>
+        </div>
+      </nav>
+      {open && (
+        <div onClick={() => setOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 100, background: "rgba(15,23,42,0.45)", backdropFilter: "blur(8px)" }}>
+          <div onClick={(e) => e.stopPropagation()} style={{
+            position: "absolute", top: 0, right: 0, bottom: 0, width: "min(85vw, 320px)",
+            background: "#fff", borderLeft: "1px solid rgba(0,0,0,0.08)",
+            display: "flex", flexDirection: "column", padding: 24,
+          }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 28 }}>
+              <span style={{ fontSize: 16, fontWeight: 700, color: "#0f172a" }}>{config.brand_name}</span>
+              <button onClick={() => setOpen(false)} style={{ width: 36, height: 36, borderRadius: 8, background: "transparent", border: "none", color: "#475569", fontSize: 22, cursor: "pointer" }}>×</button>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1 }}>
+              {enabled.map((s) => (
+                <button key={s.type} type="button" onClick={() => scrollTo(s.type)} style={{
+                  padding: "13px 12px", borderRadius: 10, background: "transparent", border: "none",
+                  color: "#0f172a", fontSize: 16, fontWeight: 600, cursor: "pointer", textAlign: "left",
+                }}>{LIGHT_SECTION_ANCHORS[s.type]}</button>
+              ))}
+            </div>
+            <a href={ctaLink} style={{
+              marginTop: 12, padding: "13px 18px", background: c, color: "#fff",
+              borderRadius: 10, fontSize: 15, fontWeight: 700, textDecoration: "none", textAlign: "center",
+            }}>{cta}</a>
+          </div>
+        </div>
+      )}
+      <style>{`
+        @media (max-width: 900px) {
+          .lminimal-nav-desk { display: none !important; }
+          .lminimal-nav-cta { display: none !important; }
+          .lminimal-nav-burger { display: inline-flex !important; }
+        }
+      `}</style>
+    </>
   );
 }
 

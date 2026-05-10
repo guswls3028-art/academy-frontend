@@ -6,9 +6,10 @@
 
 import type { LandingConfig, LandingSection, FeatureItem, TestimonialItem, ProgramItem, FaqItem, HitReportShowcaseItem, HitReportPublicCard } from "../types";
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import useAuth from "@/auth/hooks/useAuth";
 import api, { type ApiRequestConfig } from "@/shared/api/axios";
+import { resolveTenantCode, getTenantIdFromCode, getTenantBranding } from "@/shared/tenant";
 
 /** 아이콘 매핑 (SVG 인라인) */
 const ICON_MAP: Record<string, string> = {
@@ -78,13 +79,50 @@ export interface TemplateProps {
   isPreview?: boolean;
 }
 
+/** 로고 URL 결정 — 학원장 업로드 우선, 없으면 테넌트 브랜딩(로그인 화면 등에서 쓰는 기본 로고) fallback. */
+export function useResolvedLogo(config: LandingConfig): string | null {
+  if (config.logo_url) return config.logo_url;
+  const tc = resolveTenantCode();
+  if (!tc.ok) return null;
+  const tid = getTenantIdFromCode(tc.code);
+  if (!tid) return null;
+  const branding = getTenantBranding(tid);
+  return branding?.logoUrl || branding?.headerLogoUrl || null;
+}
+
 /** 학원의 매치업 통산 KPI — 강사 프로필 카드 등에서 자동 노출.
  *
  * 데이터: 학원장이 picker에 박은 보고서들의 누적 적중률 + 보고서 수.
  * 학원장 입력 X — picker 변경 시 자동 갱신.
+ *
+ * Module-level cache: 같은 ids로 여러 컴포넌트가 호출해도 fetch 1회만 실행
+ * (HitReportCards + InstructorCard가 동일 ids 공유하는 케이스 최적화).
  */
+const _hitReportsCache = new Map<string, HitReportPublicCard[]>();
+const _hitReportsInflight = new Map<string, Promise<HitReportPublicCard[]>>();
+
+function fetchHitReportsCached(ids: number[]): Promise<HitReportPublicCard[]> {
+  const key = ids.slice().sort((a, b) => a - b).join(",");
+  if (_hitReportsCache.has(key)) return Promise.resolve(_hitReportsCache.get(key)!);
+  if (_hitReportsInflight.has(key)) return _hitReportsInflight.get(key)!;
+  const p = api.get("/matchup/landing/public/", { params: { ids: key }, skipAuth: true } as ApiRequestConfig)
+    .then((r) => {
+      const reports = Array.isArray(r?.data?.reports) ? r.data.reports as HitReportPublicCard[] : [];
+      _hitReportsCache.set(key, reports);
+      _hitReportsInflight.delete(key);
+      return reports;
+    })
+    .catch((e) => {
+      _hitReportsInflight.delete(key);
+      throw e;
+    });
+  _hitReportsInflight.set(key, p);
+  return p;
+}
+
 export function useTenantHitStats(reportIds: number[]): { reportCount: number; avgHitRatePct: number } | null {
   const [stats, setStats] = useState<{ reportCount: number; avgHitRatePct: number } | null>(null);
+  const idsKey = reportIds.slice().sort((a, b) => a - b).join(",");
 
   useEffect(() => {
     const ids = (reportIds || []).filter((n) => Number.isFinite(n));
@@ -92,9 +130,8 @@ export function useTenantHitStats(reportIds: number[]): { reportCount: number; a
       setStats({ reportCount: 0, avgHitRatePct: 0 });
       return;
     }
-    api.get("/matchup/landing/public/", { params: { ids: ids.join(",") }, skipAuth: true } as ApiRequestConfig)
-      .then((r) => {
-        const reports = Array.isArray(r?.data?.reports) ? r.data.reports as HitReportPublicCard[] : [];
+    fetchHitReportsCached(ids)
+      .then((reports) => {
         if (!reports.length) { setStats({ reportCount: 0, avgHitRatePct: 0 }); return; }
         const totalHit = reports.reduce((s, c) => s + (c.hit_count || 0), 0);
         const totalProb = reports.reduce((s, c) => s + (c.total_problems || 0), 0);
@@ -102,7 +139,7 @@ export function useTenantHitStats(reportIds: number[]): { reportCount: number; a
         setStats({ reportCount: reports.length, avgHitRatePct: avg });
       })
       .catch(() => setStats({ reportCount: 0, avgHitRatePct: 0 }));
-  }, [reportIds.join(",")]);
+  }, [idsKey]);
 
   return stats;
 }
@@ -137,18 +174,18 @@ export function HitReportCards({ items, color, rgb, theme = "light" }: { items: 
   const canManage = staffRole !== null; // owner/admin/teacher 모두 카드에 액션 노출
   const navigate = useNavigate();
 
+  const cardIdsKey = (items || []).map((it) => it.report_id).filter((n) => Number.isFinite(n)).slice().sort((a, b) => a - b).join(",");
   useEffect(() => {
     const ids = (items || []).map((it) => it.report_id).filter((n) => Number.isFinite(n));
     if (!ids.length) {
       setCards([]);
       return;
     }
-    // axios로 호출 — production은 별 도메인(api.hakwonplus.com)이고 X-Tenant-Code 헤더가 axios interceptor에서 자동 주입됨.
-    // skipAuth: 비로그인 외부 관전자도 카드 봐야 함 (공개 endpoint).
-    api.get("/matchup/landing/public/", { params: { ids: ids.join(",") }, skipAuth: true } as ApiRequestConfig)
-      .then((r) => setCards(Array.isArray(r?.data?.reports) ? r.data.reports : []))
+    // 캐시 활용 — 같은 ids 다른 컴포넌트(InstructorCard 등)와 fetch 공유.
+    fetchHitReportsCached(ids)
+      .then((reports) => setCards(reports))
       .catch(() => setError(true));
-  }, [JSON.stringify((items || []).map((it) => it.report_id))]);
+  }, [cardIdsKey]);
 
   if (error || cards === null) {
     return <div style={{ minHeight: 160 }} />;
@@ -176,12 +213,9 @@ export function HitReportCards({ items, color, rgb, theme = "light" }: { items: 
         const label = labelMap.get(card.id) || card.doc_category || card.doc_title;
         const sub = card.doc_title && card.doc_title !== label ? card.doc_title : "";
         const ratePct = Math.round(card.hit_rate_pct);
-        // axios baseURL과 동일한 source — VITE_API_BASE_URL 미설정 시 same-origin
-        const apiBase = (import.meta.env.VITE_API_BASE_URL as string) || "";
-        const pdfUrl = `${apiBase}/api/v1/matchup/landing/public/${card.id}/curated.pdf`;
         return (
-          // 카드 = wrapper. anchor(PDF) + button(수정)을 sibling으로 두어
-          // nested interactive 회피 + 키보드 접근성 보장 (Tab 시 anchor → button 순서).
+          // 카드 = wrapper. Link(상세 페이지) + button(수정)을 sibling으로 두어
+          // nested interactive 회피 + 키보드 접근성 보장.
           <div
             key={card.id}
             style={{
@@ -202,11 +236,9 @@ export function HitReportCards({ items, color, rgb, theme = "light" }: { items: 
               e.currentTarget.style.borderColor = cardBorder;
             }}
           >
-            <a
-              href={pdfUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              title="시험지 ↔ 강의 자료 비교 본문 PDF 보기"
+            <Link
+              to={`/landing/reports/${card.id}`}
+              title="자세한 적중 보고서 보기"
               style={{
                 display: "flex",
                 flexDirection: "column",
@@ -243,9 +275,9 @@ export function HitReportCards({ items, color, rgb, theme = "light" }: { items: 
                 {card.hit_count} <span style={{ opacity: 0.6 }}>/ {card.total_problems}</span> 문항
               </div>
               <div style={{ marginTop: 4, fontSize: 11, color: labelColor, fontWeight: 600, letterSpacing: "0.04em" }}>
-                본문 PDF 보기 →
+                자세히 보기 →
               </div>
-            </a>
+            </Link>
             {canManage && (
               <button
                 type="button"

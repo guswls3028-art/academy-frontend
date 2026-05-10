@@ -1,4 +1,7 @@
 // PATH: src/core/router/AppRouter.tsx
+//
+// Suspense fallback / 라우팅 placeholder는 격리된 인라인 style 허용 — 별도 CSS 모듈 추출 비효율.
+/* eslint-disable no-restricted-syntax */
 import { Routes, Route, Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { Suspense, useEffect, useRef } from "react";
 import { lazyWithRetry as lazy } from "@/shared/utils/lazyWithRetry";
@@ -21,6 +24,7 @@ const AdminRouter = lazy(() => import("@admin/app/AdminRouter"));
 const DevAppRouter = lazy(() => import("@dev/app/DevAppRouter"));
 const PromoRouter = lazy(() => import("@promo/app/PromoRouter"));
 const PublicLandingPage = lazy(() => import("@/landing/pages/PublicLandingPage"));
+const LandingReportDetailPage = lazy(() => import("@/landing/pages/LandingReportDetailPage"));
 
 function MaintenanceGate({ enabled }: { enabled: boolean }) {
   const location = useLocation();
@@ -78,7 +82,7 @@ function RootRedirect() {
     if (role && ["owner", "admin", "teacher", "staff"].includes(role)) {
       // 모바일 + staff역할 → 선생님 앱, standalone이면 이미 의도적 접근
       const isMobile = window.matchMedia("(max-width: 1023px)").matches;
-      const isStandalone = window.matchMedia("(display-mode: standalone)").matches || (navigator as any).standalone;
+      const isStandalone = window.matchMedia("(display-mode: standalone)").matches || (navigator as Navigator & { standalone?: boolean }).standalone;
       if (isMobile && !isStandalone && !prefersAdmin()) {
         navigate("/teacher", { replace: true });
       } else {
@@ -137,6 +141,15 @@ export default function AppRouter() {
         element={
           <Suspense fallback={<div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}><span style={{ color: "var(--color-text-tertiary, #666)", fontSize: "var(--text-sm, 13px)" }}>불러오는 중…</span></div>}>
             <PublicLandingPage />
+          </Suspense>
+        }
+      />
+      {/* 적중보고서 상세 — 학원장 picker 등록 ID만 (backend 게이트). 사이트 내부 라우트 유지로 학원 정체성 보존. */}
+      <Route
+        path="/landing/reports/:reportId"
+        element={
+          <Suspense fallback={<div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}><span style={{ color: "var(--color-text-tertiary, #666)", fontSize: "var(--text-sm, 13px)" }}>불러오는 중…</span></div>}>
+            <LandingReportDetailPage />
           </Suspense>
         }
       />

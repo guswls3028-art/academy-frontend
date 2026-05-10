@@ -8,7 +8,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import type { FeatureItem, TestimonialItem, ProgramItem, FaqItem, HitReportShowcaseItem, InstructorProfileItem, ManagementCardItem, ProcessStepItem } from "../types";
-import { getEnabledSections, SvgIcon, HitReportCards, useTenantHitStats, type TemplateProps } from "./shared";
+import { getEnabledSections, SvgIcon, HitReportCards, useTenantHitStats, useResolvedLogo, type TemplateProps } from "./shared";
 import { hexToRgb } from "./colorUtils";
 import useAuth from "@/auth/hooks/useAuth";
 
@@ -37,34 +37,22 @@ export default function PremiumDark({ config }: TemplateProps) {
       minHeight: "100vh",
       letterSpacing: "-0.011em",
     }}>
-      {/* Nav — 로고 + 브랜드명 + 역할별 진입 메뉴 */}
-      <nav style={{
-        position: "sticky", top: 0, zIndex: 50,
-        background: "rgba(10,14,26,0.85)",
-        backdropFilter: "blur(20px)",
-        WebkitBackdropFilter: "blur(20px)",
-        borderBottom: `1px solid ${cardBorder}`,
-        padding: "0 24px",
-      }}>
-        <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", height: 72, gap: 16 }}>
-          <Link to="/" style={{ display: "flex", alignItems: "center", gap: 12, textDecoration: "none", color: textPrimary }}>
-            {config.logo_url ? (
-              <img src={config.logo_url} alt={config.brand_name} style={{ height: 40, width: "auto", objectFit: "contain", filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.4))" }} />
-            ) : (
-              // 로고 미업로드 시 SVG 텍스트 마크 (브랜드명 + 골드 underline) — 이질감 없는 placeholder
-              <BrandMark name={config.brand_name || "Brand"} gold={gold} />
-            )}
-            <span style={{ fontSize: 19, fontWeight: 800, letterSpacing: "-0.02em" }}>{config.brand_name}</span>
-          </Link>
-          <NavRoleMenu cta={config.cta_text || "수강 문의"} ctaLink={config.cta_link || "/login"} gold={gold} goldRgb={goldRgb} cardBorder={cardBorder} textSecondary={textSecondary} />
-        </div>
-      </nav>
+      {/* Nav — 로고 + 메뉴 + 역할별 진입 + 모바일 햄버거 */}
+      <NavBar
+        config={config}
+        sections={sections}
+        gold={gold}
+        goldRgb={goldRgb}
+        cardBorder={cardBorder}
+        textPrimary={textPrimary}
+        textSecondary={textSecondary}
+      />
 
       {sections.map((section) => {
         switch (section.type) {
           case "hero":
             return (
-              <section key="hero" style={{ padding: "120px 24px 100px", position: "relative", overflow: "hidden" }}>
+              <section key="hero" data-stype="hero" style={{ padding: "120px 24px 100px", position: "relative", overflow: "hidden" }}>
                 {/* multi-layer ambient lighting — 깊은 다크 + 골드 글로우 + 네이비 액센트 */}
                 <div style={{ position: "absolute", inset: 0, background: `radial-gradient(ellipse 80% 60% at 70% 20%, rgba(${goldRgb},0.12) 0%, transparent 55%)`, pointerEvents: "none" }} />
                 <div style={{ position: "absolute", inset: 0, background: `radial-gradient(ellipse 60% 50% at 20% 80%, rgba(${rgb},0.18) 0%, transparent 60%)`, pointerEvents: "none" }} />
@@ -160,7 +148,7 @@ export default function PremiumDark({ config }: TemplateProps) {
 
           case "features":
             return (
-              <section key="features" style={{ padding: "120px 24px", background: bgAlt, position: "relative", overflow: "hidden" }}>
+              <section key="features" data-stype="features" style={{ padding: "120px 24px", background: bgAlt, position: "relative", overflow: "hidden" }}>
                 <div style={{ position: "absolute", inset: 0, background: `radial-gradient(ellipse 60% 40% at 50% 0%, rgba(${goldRgb},0.04) 0%, transparent 70%)`, pointerEvents: "none" }} />
                 <div style={{ maxWidth: 1200, margin: "0 auto", position: "relative" }}>
                   {section.title && (
@@ -177,7 +165,7 @@ export default function PremiumDark({ config }: TemplateProps) {
 
           case "about":
             return (
-              <section key="about" style={{ padding: "120px 24px", position: "relative" }}>
+              <section key="about" data-stype="about" style={{ padding: "120px 24px", position: "relative" }}>
                 <div style={{ maxWidth: 820, margin: "0 auto", textAlign: "center" }}>
                   {section.title && (
                     <SectionHeader eyebrow="About" title={section.title} gold={gold} goldRgb={goldRgb} textSecondary={textSecondary} />
@@ -199,7 +187,7 @@ export default function PremiumDark({ config }: TemplateProps) {
             const hitSec = sections.find((s) => s.type === "hit_reports");
             const reportIds = (hitSec?.items as HitReportShowcaseItem[] | undefined ?? []).map((it) => it.report_id);
             return (
-              <section key="instructor_profile" style={{ padding: "120px 24px", position: "relative", overflow: "hidden" }}>
+              <section key="instructor_profile" data-stype="instructor_profile" style={{ padding: "120px 24px", position: "relative", overflow: "hidden" }}>
                 <div style={{ position: "absolute", inset: 0, background: `radial-gradient(ellipse 50% 60% at 30% 50%, rgba(${goldRgb},0.08) 0%, transparent 60%)`, pointerEvents: "none" }} />
                 <div style={{ maxWidth: 1200, margin: "0 auto", position: "relative" }}>
                   <SectionHeader eyebrow="Instructor" title={section.title || "강사 프로필"} description={section.description} gold={gold} goldRgb={goldRgb} textSecondary={textSecondary} />
@@ -215,7 +203,7 @@ export default function PremiumDark({ config }: TemplateProps) {
 
           case "management_system":
             return (
-              <section key="management_system" style={{ padding: "120px 24px", background: bgAlt }}>
+              <section key="management_system" data-stype="management_system" style={{ padding: "120px 24px", background: bgAlt }}>
                 <div style={{ maxWidth: 1200, margin: "0 auto" }}>
                   <SectionHeader eyebrow="Management" title={section.title || "학생 관리 시스템"} description={section.description || "수업 외 시간에도 학생을 끊김 없이 챙깁니다."} gold={gold} goldRgb={goldRgb} textSecondary={textSecondary} />
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 18, marginTop: 56 }}>
@@ -244,7 +232,7 @@ export default function PremiumDark({ config }: TemplateProps) {
 
           case "process_timeline":
             return (
-              <section key="process_timeline" style={{ padding: "120px 24px", position: "relative" }}>
+              <section key="process_timeline" data-stype="process_timeline" style={{ padding: "120px 24px", position: "relative" }}>
                 <div style={{ maxWidth: 980, margin: "0 auto" }}>
                   <SectionHeader eyebrow="Process" title={section.title || "수업 진행 흐름"} description={section.description || "한 사이클이 어떻게 진행되는지 한눈에 보세요."} gold={gold} goldRgb={goldRgb} textSecondary={textSecondary} />
                   <div style={{ display: "flex", flexDirection: "column", gap: 0, marginTop: 56, position: "relative" }}>
@@ -276,7 +264,7 @@ export default function PremiumDark({ config }: TemplateProps) {
 
           case "hit_reports":
             return (
-              <section key="hit_reports" style={{ padding: "120px 24px", background: bgAlt, position: "relative", overflow: "hidden" }}>
+              <section key="hit_reports" data-stype="hit_reports" style={{ padding: "120px 24px", background: bgAlt, position: "relative", overflow: "hidden" }}>
                 <div style={{ position: "absolute", inset: 0, background: `radial-gradient(ellipse 50% 40% at 50% 0%, rgba(${goldRgb},0.06) 0%, transparent 70%)`, pointerEvents: "none" }} />
                 <div style={{ maxWidth: 1200, margin: "0 auto", position: "relative" }}>
                   <SectionHeader
@@ -304,7 +292,7 @@ export default function PremiumDark({ config }: TemplateProps) {
 
           case "programs":
             return (
-              <section key="programs" style={{ padding: "120px 24px", position: "relative" }}>
+              <section key="programs" data-stype="programs" style={{ padding: "120px 24px", position: "relative" }}>
                 <div style={{ maxWidth: 1200, margin: "0 auto" }}>
                   <SectionHeader eyebrow="Class" title={section.title || "프로그램"} gold={gold} goldRgb={goldRgb} textSecondary={textSecondary} />
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 24, marginTop: 64 }}>
@@ -337,7 +325,7 @@ export default function PremiumDark({ config }: TemplateProps) {
 
           case "testimonials":
             return (
-              <section key="testimonials" style={{ padding: "120px 24px", background: bgAlt }}>
+              <section key="testimonials" data-stype="testimonials" style={{ padding: "120px 24px", background: bgAlt }}>
                 <div style={{ maxWidth: 1200, margin: "0 auto" }}>
                   <SectionHeader eyebrow="Reviews" title="수강생 후기" gold={gold} goldRgb={goldRgb} textSecondary={textSecondary} />
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 24, marginTop: 64 }}>
@@ -358,7 +346,7 @@ export default function PremiumDark({ config }: TemplateProps) {
 
           case "faq":
             return (
-              <section key="faq" style={{ padding: "120px 24px" }}>
+              <section key="faq" data-stype="faq" style={{ padding: "120px 24px" }}>
                 <div style={{ maxWidth: 760, margin: "0 auto" }}>
                   <SectionHeader eyebrow="Q & A" title="자주 묻는 질문" gold={gold} goldRgb={goldRgb} textSecondary={textSecondary} />
                   <div style={{ marginTop: 56 }}>
@@ -370,7 +358,7 @@ export default function PremiumDark({ config }: TemplateProps) {
 
           case "contact":
             return (
-              <section key="contact" style={{ padding: "120px 24px", background: bgAlt }}>
+              <section key="contact" data-stype="contact" style={{ padding: "120px 24px", background: bgAlt }}>
                 <div style={{ maxWidth: 760, margin: "0 auto", textAlign: "center" }}>
                   <SectionHeader eyebrow="Contact" title="문의" gold={gold} goldRgb={goldRgb} textSecondary={textSecondary} />
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 16, marginTop: 56 }}>
@@ -390,7 +378,7 @@ export default function PremiumDark({ config }: TemplateProps) {
 
           case "notice":
             return (
-              <section key="notice" style={{ padding: "48px 24px", background: `rgba(${goldRgb},0.04)`, borderTop: `1px solid rgba(${goldRgb},0.15)`, borderBottom: `1px solid rgba(${goldRgb},0.15)` }}>
+              <section key="notice" data-stype="notice" style={{ padding: "48px 24px", background: `rgba(${goldRgb},0.04)`, borderTop: `1px solid rgba(${goldRgb},0.15)`, borderBottom: `1px solid rgba(${goldRgb},0.15)` }}>
                 <div style={{ maxWidth: 760, margin: "0 auto", textAlign: "center" }}>
                   <p style={{ fontSize: 15, color: textSecondary, margin: 0, lineHeight: 1.7 }}>{section.description}</p>
                 </div>
@@ -565,6 +553,167 @@ function ContactCard({ label, value, cardBg, cardBorder, textMuted, textPrimary,
       </p>
       <p style={{ fontSize: 16, fontWeight: 600, margin: 0, color: textPrimary, letterSpacing: "-0.01em" }}>{value}</p>
     </div>
+  );
+}
+
+// 섹션 anchor id 매핑 — nav 메뉴 → 섹션으로 부드러운 스크롤
+const SECTION_ANCHORS: Record<string, string> = {
+  instructor_profile: "강사 소개",
+  features: "수업 특징",
+  management_system: "학생 관리",
+  process_timeline: "수업 흐름",
+  hit_reports: "적중 사례",
+  programs: "프로그램",
+  testimonials: "후기",
+  faq: "자주 묻는 질문",
+  contact: "문의",
+};
+
+/** 풀 nav bar — 데스크탑 = 가로 메뉴, 모바일 = 햄버거 + 슬라이드 패널 */
+function NavBar({ config, sections, gold, goldRgb, cardBorder, textPrimary, textSecondary }: { config: LandingConfig; sections: LandingSection[]; gold: string; goldRgb: string; cardBorder: string; textPrimary: string; textSecondary: string }) {
+  const [open, setOpen] = useState(false);
+  const enabled = sections.filter((s) => s.enabled && SECTION_ANCHORS[s.type]);
+  const cta = config.cta_text || "수강 문의";
+  const ctaLink = config.cta_link || "/login";
+  const logoUrl = useResolvedLogo(config);
+
+  const scrollTo = (sectionType: string) => {
+    setOpen(false);
+    // 섹션은 sections.map → React가 렌더링한 첫 <section> 순서 = sections.order 기준.
+    // section element들 중 sectionType과 매칭되는 것을 찾아 스크롤.
+    const all = Array.from(document.querySelectorAll("section[data-stype]")) as HTMLElement[];
+    const el = all.find((s) => s.dataset.stype === sectionType);
+    if (el) {
+      window.scrollTo({ top: el.offsetTop - 80, behavior: "smooth" });
+    }
+  };
+
+  return (
+    <>
+      <nav style={{
+        position: "sticky", top: 0, zIndex: 50,
+        background: "rgba(10,14,26,0.85)",
+        backdropFilter: "blur(20px)",
+        WebkitBackdropFilter: "blur(20px)",
+        borderBottom: `1px solid ${cardBorder}`,
+        padding: "0 24px",
+      }}>
+        <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", height: 72, gap: 16 }}>
+          <Link to="/landing" style={{ display: "flex", alignItems: "center", gap: 12, textDecoration: "none", color: textPrimary, flexShrink: 0 }}>
+            {logoUrl ? (
+              <img src={logoUrl} alt={config.brand_name} style={{ height: 40, width: "auto", objectFit: "contain", filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.4))" }} />
+            ) : (
+              <BrandMark name={config.brand_name || "Brand"} gold={gold} />
+            )}
+            <span style={{ fontSize: 19, fontWeight: 800, letterSpacing: "-0.02em", whiteSpace: "nowrap" }}>{config.brand_name}</span>
+          </Link>
+
+          {/* 데스크탑 메뉴 */}
+          <div className="landing-nav-desktop" style={{ display: "flex", alignItems: "center", gap: 4, flex: 1, justifyContent: "center", overflow: "hidden" }}>
+            {enabled.slice(0, 5).map((s) => (
+              <button
+                key={s.type}
+                type="button"
+                onClick={() => scrollTo(s.type)}
+                style={{
+                  padding: "8px 14px", borderRadius: 8,
+                  background: "transparent", border: "none",
+                  color: textSecondary, fontSize: 14, fontWeight: 600,
+                  cursor: "pointer", letterSpacing: "-0.01em",
+                  transition: "color 0.15s",
+                  whiteSpace: "nowrap",
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.color = textPrimary; }}
+                onMouseLeave={(e) => { e.currentTarget.style.color = textSecondary; }}
+              >
+                {SECTION_ANCHORS[s.type]}
+              </button>
+            ))}
+          </div>
+
+          <div className="landing-nav-cta" style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+            <NavRoleMenu cta={cta} ctaLink={ctaLink} gold={gold} goldRgb={goldRgb} cardBorder={cardBorder} textSecondary={textSecondary} />
+          </div>
+
+          {/* 모바일 햄버거 */}
+          <button
+            type="button"
+            className="landing-nav-burger"
+            onClick={() => setOpen(true)}
+            aria-label="메뉴 열기"
+            style={{
+              display: "none",
+              width: 40, height: 40, borderRadius: 8,
+              background: "transparent", border: `1px solid ${cardBorder}`,
+              color: textPrimary, cursor: "pointer",
+              alignItems: "center", justifyContent: "center",
+            }}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M3 12h18M3 18h18" /></svg>
+          </button>
+        </div>
+      </nav>
+
+      {/* 모바일 슬라이드 패널 */}
+      {open && (
+        <div onClick={() => setOpen(false)} style={{
+          position: "fixed", inset: 0, zIndex: 100,
+          background: "rgba(10,14,26,0.7)", backdropFilter: "blur(10px)",
+        }}>
+          <div onClick={(e) => e.stopPropagation()} style={{
+            position: "absolute", top: 0, right: 0, bottom: 0,
+            width: "min(85vw, 320px)",
+            background: "#0F1525",
+            borderLeft: `1px solid ${cardBorder}`,
+            display: "flex", flexDirection: "column",
+            padding: 24,
+          }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 32 }}>
+              <span style={{ fontSize: 17, fontWeight: 800, color: textPrimary, letterSpacing: "-0.02em" }}>{config.brand_name}</span>
+              <button onClick={() => setOpen(false)} aria-label="닫기" style={{ width: 36, height: 36, borderRadius: 8, background: "transparent", border: "none", color: textPrimary, fontSize: 24, cursor: "pointer" }}>×</button>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1 }}>
+              {enabled.map((s) => (
+                <button
+                  key={s.type}
+                  type="button"
+                  onClick={() => scrollTo(s.type)}
+                  style={{
+                    padding: "14px 12px", borderRadius: 10,
+                    background: "transparent", border: "none",
+                    color: textPrimary, fontSize: 16, fontWeight: 600,
+                    cursor: "pointer", textAlign: "left",
+                    letterSpacing: "-0.01em",
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.05)"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+                >
+                  {SECTION_ANCHORS[s.type]}
+                </button>
+              ))}
+            </div>
+            <a
+              href={ctaLink}
+              style={{
+                marginTop: 16, padding: "14px 18px",
+                background: `linear-gradient(135deg, ${gold} 0%, #B8862F 100%)`,
+                color: "#0A0E1A", borderRadius: 10,
+                fontSize: 15, fontWeight: 700, textDecoration: "none",
+                textAlign: "center", letterSpacing: "-0.01em",
+              }}
+            >{cta}</a>
+          </div>
+        </div>
+      )}
+
+      <style>{`
+        @media (max-width: 900px) {
+          .landing-nav-desktop { display: none !important; }
+          .landing-nav-cta { display: none !important; }
+          .landing-nav-burger { display: inline-flex !important; }
+        }
+      `}</style>
+    </>
   );
 }
 

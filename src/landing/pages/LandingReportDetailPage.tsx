@@ -1,0 +1,259 @@
+// PATH: src/landing/pages/LandingReportDetailPage.tsx
+// 적중보고서 상세 — 학원장 picker 등록 보고서만 (backend 404 게이트).
+// 학원 정체성 헤더(로고/브랜드명) + KPI 메타 + PDF iframe + 공유 버튼 + 다른 보고서 둘러보기.
+//
+// 학부모가 새 탭으로 사라지지 않고 사이트 내부 라우트 — 진짜 홈페이지 정체성 유지.
+/* eslint-disable no-restricted-syntax */
+
+import { useEffect, useState } from "react";
+import { Link, useParams, useNavigate } from "react-router-dom";
+import api, { type ApiRequestConfig } from "@/shared/api/axios";
+import { fetchLandingPublic } from "../api";
+import type { LandingPublicResponse, HitReportPublicCard, HitReportShowcaseItem } from "../types";
+import { useResolvedLogo } from "../templates/shared";
+
+export default function LandingReportDetailPage() {
+  const { reportId } = useParams<{ reportId: string }>();
+  const navigate = useNavigate();
+  const [landing, setLanding] = useState<LandingPublicResponse | null>(null);
+  const [report, setReport] = useState<HitReportPublicCard | null>(null);
+  const [siblings, setSiblings] = useState<HitReportPublicCard[]>([]);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    fetchLandingPublic().then((d) => setLanding(d)).catch(() => setError(true));
+  }, []);
+
+  useEffect(() => {
+    if (!landing?.config) return;
+    const sections = landing.config.sections || [];
+    const hit = sections.find((s) => s.type === "hit_reports" && s.enabled);
+    if (!hit) { setError(true); return; }
+    const ids = ((hit.items as HitReportShowcaseItem[] | undefined) || [])
+      .map((it) => it.report_id).filter((n) => Number.isFinite(n));
+    if (!ids.length) { setError(true); return; }
+    api.get("/matchup/landing/public/", { params: { ids: ids.join(",") }, skipAuth: true } as ApiRequestConfig)
+      .then((r) => {
+        const reports = Array.isArray(r?.data?.reports) ? r.data.reports as HitReportPublicCard[] : [];
+        const target = reports.find((c) => String(c.id) === String(reportId));
+        if (!target) { setError(true); return; }
+        setReport(target);
+        setSiblings(reports.filter((c) => String(c.id) !== String(reportId)).slice(0, 3));
+      })
+      .catch(() => setError(true));
+  }, [landing, reportId]);
+
+  // SEO meta
+  useEffect(() => {
+    if (!landing?.config?.brand_name || !report) return;
+    const ratePct = Math.round(report.hit_rate_pct);
+    const subj = report.doc_category || report.doc_title;
+    document.title = `${subj} ${ratePct}% 적중 — ${landing.config.brand_name}`;
+    setMeta("description", `${landing.config.brand_name}의 ${subj} 적중 보고서 — ${report.hit_count}/${report.total_problems} 문항 (${ratePct}%).`);
+    setMeta("og:title", document.title);
+    setMeta("og:description", `${subj} 적중률 ${ratePct}% · 시험지 ↔ 강의 자료 비교 본문 PDF`);
+    return () => { document.title = landing.config?.brand_name || "학원플러스"; };
+  }, [landing, report]);
+
+  if (error) {
+    return (
+      <div style={{ minHeight: "100vh", background: "#0A0E1A", color: "#F5F1E8", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 18, padding: 24, fontFamily: "'Pretendard Variable', 'Pretendard', system-ui, sans-serif" }}>
+        <p style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>적중 보고서를 찾을 수 없습니다</p>
+        <p style={{ fontSize: 14, color: "#9CA3AF", margin: 0 }}>이 보고서는 비공개 상태이거나 삭제되었습니다.</p>
+        <Link to="/landing" style={{ marginTop: 12, padding: "10px 20px", borderRadius: 10, background: "#D4A04C", color: "#0A0E1A", fontWeight: 700, textDecoration: "none", fontSize: 14 }}>홈으로 돌아가기</Link>
+      </div>
+    );
+  }
+
+  if (!landing || !report) {
+    return (
+      <div style={{ minHeight: "100vh", background: "#0A0E1A", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ width: 36, height: 36, border: "3px solid rgba(255,255,255,0.15)", borderTopColor: "#D4A04C", borderRadius: "50%", animation: "spin 0.6s linear infinite" }} />
+        <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+      </div>
+    );
+  }
+
+  const cfg = landing.config!;
+  const ratePct = Math.round(report.hit_rate_pct);
+  const subj = report.doc_category || report.doc_title;
+  const apiBase = (import.meta.env.VITE_API_BASE_URL as string) || "";
+  const pdfUrl = `${apiBase}/api/v1/matchup/landing/public/${report.id}/curated.pdf`;
+
+  // 톤은 PremiumDark 시그니처 (template_key와 무관 — 보고서 detail은 통일된 다크 톤)
+  const bg = "#0A0E1A";
+  const bgAlt = "#0F1525";
+  const cardBg = "rgba(255,255,255,0.04)";
+  const cardBorder = "rgba(255,255,255,0.08)";
+  const gold = "#D4A04C";
+  const textPrimary = "#F5F1E8";
+  const textSecondary = "#9CA3AF";
+
+  const onShare = () => {
+    const url = window.location.href;
+    const title = `${subj} ${ratePct}% 적중 — ${cfg.brand_name}`;
+    if (navigator.share) {
+      navigator.share({ title, url }).catch(() => {});
+    } else {
+      navigator.clipboard.writeText(url).then(() => alert("링크가 복사되었습니다."));
+    }
+  };
+
+  return (
+    <div style={{ minHeight: "100vh", background: bg, color: textPrimary, fontFamily: "'Pretendard Variable', 'Pretendard', system-ui, sans-serif", letterSpacing: "-0.011em" }}>
+      {/* 학원 헤더 */}
+      <nav style={{ position: "sticky", top: 0, zIndex: 50, background: "rgba(10,14,26,0.85)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)", borderBottom: `1px solid ${cardBorder}`, padding: "0 24px" }}>
+        <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", height: 64, gap: 16 }}>
+          <DetailNavLogo cfg={cfg} gold={gold} textPrimary={textPrimary} />
+          <button
+            type="button"
+            onClick={() => navigate("/landing")}
+            style={{ padding: "8px 16px", borderRadius: 8, background: "rgba(255,255,255,0.06)", color: textPrimary, border: `1px solid ${cardBorder}`, cursor: "pointer", fontSize: 13, fontWeight: 600 }}
+          >← 홈으로</button>
+        </div>
+      </nav>
+
+      {/* 메타 헤더 */}
+      <section style={{ padding: "48px 24px 24px", borderBottom: `1px solid ${cardBorder}` }}>
+        <div style={{ maxWidth: 1200, margin: "0 auto" }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: gold, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 12 }}>
+            Hit Report · 적중 보고서
+          </div>
+          <h1 style={{ fontSize: "clamp(24px, 3vw, 36px)", fontWeight: 800, margin: "0 0 12px", letterSpacing: "-0.025em", lineHeight: 1.25 }}>
+            {report.doc_title || subj}
+          </h1>
+          {subj && report.doc_title && subj !== report.doc_title && (
+            <div style={{ fontSize: 14, color: textSecondary, marginBottom: 16 }}>{subj}</div>
+          )}
+          <div style={{ display: "flex", gap: 28, alignItems: "baseline", flexWrap: "wrap", marginTop: 20 }}>
+            <div>
+              <div style={{ fontSize: 11, color: textSecondary, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 4 }}>적중률</div>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
+                <span style={{ fontSize: 48, fontWeight: 800, color: gold, lineHeight: 1, letterSpacing: "-0.03em" }}>{ratePct}</span>
+                <span style={{ fontSize: 20, fontWeight: 700, color: gold, opacity: 0.85 }}>%</span>
+              </div>
+            </div>
+            <div>
+              <div style={{ fontSize: 11, color: textSecondary, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 4 }}>적중 / 전체</div>
+              <div style={{ fontSize: 26, fontWeight: 800, color: textPrimary, letterSpacing: "-0.02em" }}>
+                {report.hit_count} <span style={{ color: textSecondary, fontWeight: 600 }}>/ {report.total_problems}</span>
+              </div>
+            </div>
+            <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+              <button
+                type="button"
+                onClick={onShare}
+                style={{ padding: "10px 18px", borderRadius: 10, background: "rgba(255,255,255,0.06)", color: textPrimary, border: `1px solid ${cardBorder}`, cursor: "pointer", fontSize: 14, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 6 }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><line x1="8.59" y1="13.51" x2="15.42" y2="17.49" /><line x1="15.41" y1="6.51" x2="8.59" y2="10.49" /></svg>
+                공유
+              </button>
+              <a
+                href={pdfUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ padding: "10px 18px", borderRadius: 10, background: `linear-gradient(135deg, ${gold} 0%, #B8862F 100%)`, color: "#0A0E1A", textDecoration: "none", fontSize: 14, fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 6 }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" /></svg>
+                PDF 다운로드
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* PDF 임베드 */}
+      <section style={{ padding: "32px 24px", background: bgAlt }}>
+        <div style={{ maxWidth: 1200, margin: "0 auto" }}>
+          <div style={{ borderRadius: 16, overflow: "hidden", border: `1px solid ${cardBorder}`, background: "#fff", height: "min(85vh, 1100px)", boxShadow: "0 20px 60px rgba(0,0,0,0.5)" }}>
+            <iframe
+              src={`${pdfUrl}#zoom=page-fit`}
+              title={`${subj} 적중 보고서`}
+              style={{ width: "100%", height: "100%", border: "none" }}
+            />
+          </div>
+          <p style={{ fontSize: 12, color: textSecondary, textAlign: "center", margin: "16px 0 0", lineHeight: 1.7 }}>
+            좌:학교 시험지 문항 / 우:강의에서 다룬 자료. 모바일에서 PDF가 잘 안 보이면 우측 상단 PDF 다운로드를 누르세요.
+          </p>
+        </div>
+      </section>
+
+      {/* 다른 적중 사례 */}
+      {siblings.length > 0 && (
+        <section style={{ padding: "64px 24px 96px" }}>
+          <div style={{ maxWidth: 1200, margin: "0 auto" }}>
+            <h2 style={{ fontSize: 22, fontWeight: 700, margin: "0 0 24px", letterSpacing: "-0.02em" }}>다른 적중 사례</h2>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16 }}>
+              {siblings.map((c) => {
+                const r = Math.round(c.hit_rate_pct);
+                return (
+                  <Link
+                    key={c.id}
+                    to={`/landing/reports/${c.id}`}
+                    style={{
+                      padding: 24, borderRadius: 14, background: cardBg,
+                      border: `1px solid ${cardBorder}`,
+                      textDecoration: "none", color: textPrimary,
+                      display: "flex", flexDirection: "column", gap: 10,
+                    }}
+                  >
+                    <div style={{ fontSize: 11, color: textSecondary, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase" }}>
+                      {c.doc_category || "적중 보고서"}
+                    </div>
+                    {c.doc_title && (
+                      <div style={{ fontSize: 14, color: textPrimary, fontWeight: 600, letterSpacing: "-0.01em" }}>
+                        {c.doc_title}
+                      </div>
+                    )}
+                    <div style={{ display: "flex", alignItems: "baseline", gap: 4, marginTop: 4 }}>
+                      <span style={{ fontSize: 32, fontWeight: 800, color: gold, lineHeight: 1, letterSpacing: "-0.02em" }}>{r}</span>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: gold, opacity: 0.85 }}>%</span>
+                      <span style={{ fontSize: 11, color: textSecondary, marginLeft: 4 }}>{c.hit_count} / {c.total_problems} 문항</span>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+      )}
+    </div>
+  );
+}
+
+function DetailNavLogo({ cfg, gold, textPrimary }: { cfg: { brand_name: string; logo_url?: string }; gold: string; textPrimary: string }) {
+  const logoUrl = useResolvedLogo(cfg as { brand_name: string; logo_url?: string; sections?: unknown[] } as Parameters<typeof useResolvedLogo>[0]);
+  return (
+    <Link to="/landing" style={{ display: "flex", alignItems: "center", gap: 12, textDecoration: "none", color: textPrimary }}>
+      {logoUrl
+        ? <img src={logoUrl} alt={cfg.brand_name} style={{ height: 32, width: "auto", objectFit: "contain" }} />
+        : <BrandMark name={cfg.brand_name} gold={gold} />}
+      <span style={{ fontSize: 17, fontWeight: 800, letterSpacing: "-0.02em" }}>{cfg.brand_name}</span>
+    </Link>
+  );
+}
+
+function BrandMark({ name, gold }: { name: string; gold: string }) {
+  const initial = (name || "").trim().charAt(0) || "•";
+  return (
+    <div style={{
+      width: 36, height: 36, borderRadius: 9,
+      background: `linear-gradient(135deg, ${gold} 0%, #8B5E1F 100%)`,
+      display: "flex", alignItems: "center", justifyContent: "center",
+      color: "#0A0E1A", fontSize: 18, fontWeight: 800, letterSpacing: "-0.02em",
+    }}>{initial}</div>
+  );
+}
+
+function setMeta(name: string, content: string) {
+  const isOg = name.startsWith("og:");
+  const sel = isOg ? `meta[property="${name}"]` : `meta[name="${name}"]`;
+  let el = document.querySelector(sel) as HTMLMetaElement | null;
+  if (!el) {
+    el = document.createElement("meta");
+    if (isOg) el.setAttribute("property", name);
+    else el.setAttribute("name", name);
+    document.head.appendChild(el);
+  }
+  el.setAttribute("content", content);
+}
