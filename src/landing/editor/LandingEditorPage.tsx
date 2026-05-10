@@ -27,6 +27,7 @@ import type {
 } from "../types";
 import { ALLOWED_COLORS } from "../types";
 import { getTemplateComponent } from "../templates";
+import { SvgIcon } from "../templates/shared";
 
 type ViewMode = "edit" | "preview";
 type PreviewDevice = "desktop" | "tablet" | "mobile";
