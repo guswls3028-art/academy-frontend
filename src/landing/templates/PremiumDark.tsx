@@ -562,6 +562,21 @@ function ContactCard({ label, value, cardBg, cardBorder, textMuted, textPrimary,
   );
 }
 
+/** 브랜드 로고 SVG fallback — config.logo_url + tenant 브랜딩 모두 미설정 시. */
+function BrandMark({ name, gold }: { name: string; gold: string }) {
+  const initial = (name || "").trim().charAt(0) || "•";
+  return (
+    <div style={{
+      width: 40, height: 40, borderRadius: 10,
+      background: `linear-gradient(135deg, ${gold} 0%, #8B5E1F 100%)`,
+      display: "flex", alignItems: "center", justifyContent: "center",
+      color: "#0A0E1A", fontSize: 20, fontWeight: 800,
+      boxShadow: `0 4px 12px rgba(212,160,76,0.3), inset 0 1px 0 rgba(255,255,255,0.3)`,
+      letterSpacing: "-0.02em",
+    }}>{initial}</div>
+  );
+}
+
 function DarkFaqAccordion({ items, cardBorder, textPrimary, textSecondary }: { items: FaqItem[]; cardBorder: string; textPrimary: string; textSecondary: string }) {
   const [openIdx, setOpenIdx] = useState<number | null>(null);
   return (
