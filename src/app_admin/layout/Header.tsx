@@ -3,7 +3,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Badge as AntBadge } from "antd";
-import { AlertTriangle, RefreshCw, User as UserIcon, Settings as SettingsIcon, Bug, LogOut } from "lucide-react";
+import { AlertTriangle, RefreshCw, User as UserIcon, Settings as SettingsIcon, Bug, LogOut, Globe as GlobeIcon } from "lucide-react";
 import NoticeOverlay from "@admin/domains/notice/overlays/NoticeOverlay";
 import { useNotices } from "@admin/domains/notice/context/NoticeContext";
 import { useAdminNotificationCounts, type AdminNotificationItem } from "@admin/domains/admin-notifications";
@@ -344,11 +344,21 @@ export default function Header() {
     ? (tenantBranding?.headerLogoDarkUrl ?? tenantBranding?.headerLogoUrl ?? null)
     : (tenantBranding?.headerLogoUrl ?? null);
 
+  // 학원 owner/admin만 "내 홈페이지 보기" 메뉴 노출.
+  // tenantRole은 backend TenantMembership.role SSOT.
+  const meRole = String((me as { tenantRole?: string | null } | undefined)?.tenantRole ?? "").toLowerCase();
+  const canViewOwnLanding = meRole === "owner" || meRole === "admin" || !!me?.is_superuser;
+
   const userMenu = {
     onClick: ({ key }: { key: string }) => {
       setProfileDropdownOpen(false);
       if (key === "profile") nav("/admin/settings/profile");
       if (key === "settings") nav("/admin/settings");
+      if (key === "landing") {
+        // 같은 탭 — 로그인 토큰은 same-origin 자동 유지. 학원장이 자기 도메인 랜딩 즉시 확인.
+        window.location.assign("/landing");
+        return;
+      }
       if (key === "bugreport") {
         document.dispatchEvent(new Event("ui:bugreport:open"));
         return;
@@ -401,6 +411,12 @@ export default function Header() {
         <SettingsIcon size={ICON.sm} aria-hidden />
         <span>학원/시스템 설정</span>
       </button>
+      {canViewOwnLanding && (
+        <button type="button" role="menuitem" className="app-header__profileDropdownItem" onClick={() => userMenu.onClick({ key: "landing" })}>
+          <GlobeIcon size={ICON.sm} aria-hidden />
+          <span>내 홈페이지 보기</span>
+        </button>
+      )}
       <div className="app-header__profileDropdownDivider" />
       <button type="button" role="menuitem" className="app-header__profileDropdownItem" onClick={() => userMenu.onClick({ key: "bugreport" })}>
         <Bug size={ICON.sm} aria-hidden />

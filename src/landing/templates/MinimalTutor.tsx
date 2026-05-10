@@ -1,8 +1,8 @@
 // PATH: src/app_admin/domains/landing/templates/MinimalTutor.tsx
 // 템플릿 1: 밝고 깔끔한 미니멀 디자인. 넓은 여백, 신뢰감.
 
-import type { LandingConfig, FeatureItem, TestimonialItem, ProgramItem, FaqItem } from "../types";
-import { getEnabledSections, SvgIcon, FaqAccordion, type TemplateProps } from "./shared";
+import type { LandingConfig, FeatureItem, TestimonialItem, ProgramItem, FaqItem, HitReportShowcaseItem } from "../types";
+import { getEnabledSections, SvgIcon, FaqAccordion, HitReportCards, type TemplateProps } from "./shared";
 import { hexToRgb } from "./colorUtils";
 
 export default function MinimalTutor({ config, isPreview }: TemplateProps) {
@@ -165,6 +165,30 @@ export default function MinimalTutor({ config, isPreview }: TemplateProps) {
               <section key="notice" style={{ padding: "48px 24px", background: `rgba(${rgb}, 0.04)` }}>
                 <div style={{ maxWidth: 720, margin: "0 auto", textAlign: "center" }}>
                   <p style={{ fontSize: 15, color: "#64748b", margin: 0, lineHeight: 1.7 }}>{section.description}</p>
+                </div>
+              </section>
+            );
+
+          case "hit_reports":
+            return (
+              <section key="hit_reports" style={{ padding: "80px 24px", background: "#fff" }}>
+                <div style={{ maxWidth: 1120, margin: "0 auto" }}>
+                  <h2 style={{ fontSize: 28, fontWeight: 700, textAlign: "center", margin: "0 0 12px" }}>
+                    {section.title || "최근 적중 사례"}
+                  </h2>
+                  {section.description && (
+                    <p style={{ fontSize: 15, color: "#64748b", textAlign: "center", margin: "0 0 36px", maxWidth: 560, marginInline: "auto", lineHeight: 1.7 }}>
+                      {section.description}
+                    </p>
+                  )}
+                  <HitReportCards
+                    items={(section.items as HitReportShowcaseItem[] | undefined) || []}
+                    color={c}
+                    rgb={rgb}
+                  />
+                  <p style={{ fontSize: 12, color: "#94a3b8", textAlign: "center", margin: "24px 0 0" }}>
+                    적중수 = 강의 자료에서 큐레이션한 동일·유사 문항 수 / 총 문항수 = 시험지 전체 문항.
+                  </p>
                 </div>
               </section>
             );

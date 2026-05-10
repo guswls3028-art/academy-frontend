@@ -1,6 +1,6 @@
 // PATH: src/app_admin/domains/landing/types/index.ts
 
-export type SectionType = "hero" | "features" | "testimonials" | "about" | "programs" | "faq" | "contact" | "notice";
+export type SectionType = "hero" | "features" | "testimonials" | "about" | "programs" | "faq" | "contact" | "notice" | "hit_reports";
 
 export interface FeatureItem {
   icon: string;
@@ -25,13 +25,30 @@ export interface FaqItem {
   answer: string;
 }
 
+export interface HitReportShowcaseItem {
+  report_id: number;
+  display_label?: string;
+}
+
+/** /api/v1/matchup/landing/public/?ids=... 응답 카드 메타 */
+export interface HitReportPublicCard {
+  id: number;
+  doc_title: string;
+  doc_category: string;
+  hit_count: number;
+  total_problems: number;
+  hit_rate_pct: number;
+  submitted_at: string | null;
+  created_at: string | null;
+}
+
 export interface LandingSection {
   type: SectionType;
   enabled: boolean;
   order: number;
   title?: string;
   description?: string;
-  items?: FeatureItem[] | TestimonialItem[] | ProgramItem[] | FaqItem[];
+  items?: FeatureItem[] | TestimonialItem[] | ProgramItem[] | FaqItem[] | HitReportShowcaseItem[];
 }
 
 export interface LandingContact {

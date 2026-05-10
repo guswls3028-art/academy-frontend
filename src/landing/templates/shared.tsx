@@ -1,8 +1,8 @@
 // PATH: src/app_admin/domains/landing/templates/shared.tsx
 // 공통 렌더링 유틸. 모든 템플릿에서 사용.
 
-import type { LandingConfig, LandingSection, FeatureItem, TestimonialItem, ProgramItem, FaqItem } from "../types";
-import { useState } from "react";
+import type { LandingConfig, LandingSection, FeatureItem, TestimonialItem, ProgramItem, FaqItem, HitReportShowcaseItem, HitReportPublicCard } from "../types";
+import { useState, useEffect } from "react";
 
 /** 아이콘 매핑 (SVG 인라인) */
 const ICON_MAP: Record<string, string> = {
@@ -70,4 +70,99 @@ export function FaqAccordion({ items, color }: { items: FaqItem[]; color: string
 export interface TemplateProps {
   config: LandingConfig;
   isPreview?: boolean;
+}
+
+/** 공개 적중보고서 카드 — 학원장이 골라서 노출하는 마케팅 KPI 카드.
+ *
+ * - 데이터: GET /api/v1/matchup/landing/public/?ids=... (인증 X, subdomain → tenant 격리)
+ * - 디자인: 카드 그리드. KPI 숫자(적중률 + 적중수/총수)만 강조. 본문/PDF/이미지는 노출 안 함.
+ * - 학원장이 보고서를 게시 안 했거나 ID 비어있으면 카드 자체 안 그림.
+ * - SSR fetch 실패해도 placeholder만 그리고 끝남(랜딩 깨지면 안 됨).
+ */
+export function HitReportCards({ items, color, rgb, theme = "light" }: { items: HitReportShowcaseItem[]; color: string; rgb: string; theme?: "light" | "dark" }) {
+  const [cards, setCards] = useState<HitReportPublicCard[] | null>(null);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    const ids = (items || []).map((it) => it.report_id).filter((n) => Number.isFinite(n));
+    if (!ids.length) {
+      setCards([]);
+      return;
+    }
+    const url = `/api/v1/matchup/landing/public/?ids=${ids.join(",")}`;
+    fetch(url, { credentials: "same-origin" })
+      .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
+      .then((data) => setCards(Array.isArray(data?.reports) ? data.reports : []))
+      .catch(() => setError(true));
+  }, [JSON.stringify((items || []).map((it) => it.report_id))]);
+
+  if (error || cards === null) {
+    return <div style={{ minHeight: 160 }} />;
+  }
+  if (!cards.length) return null;
+
+  const labelMap = new Map<number, string | undefined>(
+    (items || []).map((it) => [it.report_id, it.display_label]),
+  );
+
+  const dark = theme === "dark";
+  const cardBg = dark ? "rgba(255,255,255,0.03)" : "#fff";
+  const cardBorder = dark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)";
+  const labelColor = dark ? "#9CA3AF" : "#94a3b8";
+  const subColor = dark ? "#E5E7EB" : "#475569";
+  const chipBg = `rgba(${rgb}, ${dark ? 0.1 : 0.06})`;
+  const chipColor = dark ? "#F5F1E8" : "#475569";
+  const cardShadow = dark ? "none" : "0 1px 3px rgba(0,0,0,0.04)";
+
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 20 }}>
+      {cards.map((card) => {
+        const label = labelMap.get(card.id) || card.doc_category || card.doc_title;
+        const sub = card.doc_title && card.doc_title !== label ? card.doc_title : "";
+        const ratePct = Math.round(card.hit_rate_pct);
+        return (
+          <div
+            key={card.id}
+            style={{
+              padding: 28,
+              borderRadius: 18,
+              background: cardBg,
+              border: `1px solid ${cardBorder}`,
+              boxShadow: cardShadow,
+              display: "flex",
+              flexDirection: "column",
+              gap: 14,
+            }}
+          >
+            <div style={{ fontSize: 11, fontWeight: 700, color: labelColor, letterSpacing: "0.06em", textTransform: "uppercase" }}>
+              {label || "적중 보고서"}
+            </div>
+            {sub && (
+              <div style={{ fontSize: 15, color: subColor, margin: 0, lineHeight: 1.5, fontWeight: 600, letterSpacing: "-0.015em" }}>
+                {sub}
+              </div>
+            )}
+            <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginTop: 4 }}>
+              <span style={{ fontSize: 44, fontWeight: 800, color, lineHeight: 1, letterSpacing: "-0.03em" }}>
+                {ratePct}
+              </span>
+              <span style={{ fontSize: 18, fontWeight: 700, color, opacity: 0.85 }}>%</span>
+              <span style={{ fontSize: 12, color: labelColor, marginLeft: 6, letterSpacing: "0.04em", fontWeight: 600 }}>적중률</span>
+            </div>
+            <div
+              style={{
+                fontSize: 13, fontWeight: 600, color: chipColor,
+                padding: "6px 12px", borderRadius: 999,
+                background: chipBg,
+                alignSelf: "flex-start",
+                letterSpacing: "-0.01em",
+              }}
+            >
+              {card.hit_count} <span style={{ opacity: 0.6 }}>/ {card.total_problems}</span> 문항
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
 }
