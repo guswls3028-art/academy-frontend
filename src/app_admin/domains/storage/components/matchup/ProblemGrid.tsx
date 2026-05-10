@@ -221,8 +221,17 @@ export default function ProblemGrid({
   const overThreshold = paperType === "side_notes" ? 30 : 60;
   const showReviewGuide = problems.length >= overThreshold || mergeSuspectCount > 0;
 
+  // narrow viewport (1100 미만 매치업 본문 너비) 에서 sticky bottom action bar
+  // (merge/delete 모드 진입 시) 가 마지막 행 카드를 가리는 회귀 보정 — grid 끝
+  // 에 액션바 height 만큼 buffer. 모드 미진입 시 0.
+  const stickyBufferPx = (mergeMode || deleteMode) ? 80 : 0;
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)", position: "relative" }}>
+    <div style={{
+      display: "flex", flexDirection: "column", gap: "var(--space-3)",
+      position: "relative",
+      paddingBottom: stickyBufferPx,
+    }}>
       {/* Mode entry bar — 두 모드 모두 미진입일 때만. 합치기 + 일괄삭제 진입 CTA 동시 노출. */}
       {showModeEntryBar && (
         <div style={/* eslint-disable-line no-restricted-syntax */ {
