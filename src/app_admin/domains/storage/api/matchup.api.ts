@@ -801,6 +801,9 @@ export type HitReportCandidate = {
   similarity: number;
   image_key: string;
   image_url?: string;
+  // 학원장이 후보 "다시 자르기" 진입 시 ManualCropModal 의 initialPage 로 활용 (2026-05-11).
+  // problem.meta.page_index 가 있으면 정수, 없으면 null.
+  page_index: number | null;
 };
 
 export type HitReportExamProblem = {
@@ -830,6 +833,8 @@ export type HitReportSelectedMeta = {
   text_preview: string;
   image_key: string;
   image_url?: string;
+  // 학원장이 사용자 명시 선택한 problem 도 동일 — ManualCropModal initialPage (2026-05-11).
+  page_index: number | null;
 };
 
 export type HitReportDraftResponse = {

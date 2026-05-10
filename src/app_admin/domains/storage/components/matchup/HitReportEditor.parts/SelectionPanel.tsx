@@ -23,7 +23,7 @@ export function SelectionPanel({
   candidateMap: Map<number, CandidateMeta>;
   onToggle: (id: number) => void;
   onSetActive: (id: number) => void;
-  onEditSource: (docId: number, docTitle: string) => void;
+  onEditSource: (docId: number, docTitle: string, pageIndex?: number | null) => void;
   disabled: boolean;
 }) {
   if (!active) return null;
@@ -84,6 +84,7 @@ export function SelectionPanel({
             onEditSource={() => onEditSource(
               c.document_id,
               c.document_title || `자료 ${c.document_id}번`,
+              c.page_index,
             )}
             imageUrl={c.image_url}
             docTitle={c.document_title || `자료 ${c.document_id}번`}
@@ -129,7 +130,7 @@ export function SelectionPanel({
                   disabled={disabled}
                   onClick={() => onSetActive(pid)}
                   onToggle={() => onToggle(pid)}
-                  onEditSource={() => onEditSource(meta.document_id, docTitle)}
+                  onEditSource={() => onEditSource(meta.document_id, docTitle, meta.page_index)}
                   imageUrl={meta.image_url}
                   docTitle={docTitle}
                   docMeta={[

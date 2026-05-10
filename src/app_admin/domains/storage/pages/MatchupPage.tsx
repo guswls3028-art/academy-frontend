@@ -848,7 +848,40 @@ export default function MatchupPage() {
       setAutoReanalyze(false);
     }
   }, [autoReanalyzeKey]);
-  const toggleAutoReanalyze = useCallback((next: boolean) => {
+  // 첫 ON 시 confirm (2026-05-11) — 학원장이 토글 의미를 모른 채 ON 하면 다음 chip
+  // 변경 시 자동분리가 자동 재실행되어 손쉽게 가지고 있던 결과가 사라지는 인지 갭.
+  // 한 번 동의하면 같은 user 의 localStorage 에 'acknowledged' 마킹 → 이후 confirm X.
+  const toggleAutoReanalyze = useCallback(async (next: boolean) => {
+    if (next && autoReanalyzeKey) {
+      const ackKey = `${autoReanalyzeKey}:acknowledged`;
+      let acknowledged = false;
+      try {
+        acknowledged = localStorage.getItem(ackKey) === "1";
+      } catch {
+        // localStorage 불가 환경 → confirm 매번
+      }
+      if (!acknowledged) {
+        const ok = await confirm({
+          title: "자동 재분석을 켤까요?",
+          message:
+            `이 옵션을 켜면 자료 유형(시험지/워크북 등)을 바꿀 때마다 자동분리가 ` +
+            `즉시 다시 실행됩니다.\n\n` +
+            `· 자동분리 결과는 전부 새로 생성됩니다.\n` +
+            `· 직접 자른(매뉴얼) 문항은 그대로 보존됩니다.\n` +
+            `· 변경 직전에 한 번 더 확인 다이얼로그가 뜹니다.\n\n` +
+            `자료 유형 라벨만 바꾸고 싶다면 토글을 끈 채로 사용하세요.`,
+          confirmText: "켜기",
+          cancelText: "취소",
+          danger: false,
+        });
+        if (!ok) return;
+        try {
+          localStorage.setItem(ackKey, "1");
+        } catch {
+          // 무관 — 다음에 다시 confirm 떠도 안전
+        }
+      }
+    }
     setAutoReanalyze(next);
     if (!autoReanalyzeKey) return;
     try {
@@ -856,7 +889,7 @@ export default function MatchupPage() {
     } catch {
       // localStorage 불가 환경(시크릿 모드 등)에서도 in-memory state는 유지
     }
-  }, [autoReanalyzeKey]);
+  }, [autoReanalyzeKey, confirm]);
 
   // Phase 17 — post-upload source_type 보정. 학원장이 잘못 백필된 라벨 즉시 정정.
   // autoReanalyze ON이면 변경 즉시 재분석까지 트리거.
@@ -1494,7 +1527,7 @@ export default function MatchupPage() {
                             <input
                               type="checkbox"
                               checked={autoReanalyze}
-                              onChange={(e) => toggleAutoReanalyze(e.target.checked)}
+                              onChange={(e) => { void toggleAutoReanalyze(e.target.checked); }}
                               data-testid="matchup-source-type-auto-reanalyze-toggle"
                               style={/* eslint-disable-line no-restricted-syntax */ { cursor: "pointer" }}
                             />

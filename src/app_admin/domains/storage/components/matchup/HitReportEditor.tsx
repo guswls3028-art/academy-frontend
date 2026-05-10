@@ -69,7 +69,11 @@ export default function HitReportEditor({ docId, onClose }: Props) {
   // 자료가 거의 똑같은데 잘린 게 애매해서 못 쓰는 경우(2026-05-05 강사 보고)
   // 보고서 화면에서 벗어나지 않고 ManualCropModal로 즉시 점프 → 자르기 → 닫으면
   // 후보 새로고침. 흐름 안 끊김.
-  const [editSourceDoc, setEditSourceDoc] = useState<{ id: number; title: string } | null>(null);
+  const [editSourceDoc, setEditSourceDoc] = useState<{
+    id: number;
+    title: string;
+    initialPage?: number | null;
+  } | null>(null);
   // 자동저장 실패 신호 — 1.5s debounce가 실패하면 토스트만으로는 사용자 인지 부족.
   // 상단 인디케이터를 빨간 "저장 실패" 상태로 stuck 시키고 클릭하면 재시도.
   const [autosaveError, setAutosaveError] = useState<boolean>(false);
@@ -817,7 +821,9 @@ export default function HitReportEditor({ docId, onClose }: Props) {
               candidateMap={candidateMap}
               onToggle={toggleSelect}
               onSetActive={setActiveCandidateId}
-              onEditSource={(docId, docTitle) => setEditSourceDoc({ id: docId, title: docTitle })}
+              onEditSource={(docId, docTitle, pageIndex) => setEditSourceDoc({
+                id: docId, title: docTitle, initialPage: pageIndex ?? null,
+              })}
               disabled={isSubmitted}
             />
           </div>
@@ -854,13 +860,25 @@ export default function HitReportEditor({ docId, onClose }: Props) {
     {editSourceDoc && (
       <ManualCropModal
         document={editSourceDoc}
+        initialPage={editSourceDoc.initialPage ?? undefined}
         onClose={() => {
           setEditSourceDoc(null);
           // load()가 entries를 응답으로 덮어쓰므로 dirty 코멘트가 유실될 위험 →
           // 닫을 때 미저장분 먼저 동기화, 그 다음에 후보 새로고침.
+          //
+          // 비동기 CLIP 임베딩 안내 (2026-05-11): manual_crop 직후 problem 은 INSERT
+          // 됐지만 CLIP image_embedding 은 ai_worker SQS queue 로 비동기 처리. 즉시 fetch
+          // 시 find_similar 후보 풀에 누락. 학원장 인지 갭 차단 — 안내 토스트 + 30초 후
+          // 1회 자동 refetch.
           (async () => {
             if (dirtyCount > 0) await saveAll(true);
             await load();
+            feedback.info(
+              "방금 자른 자료는 매칭 처리 중입니다. 약 30초 후 후보 풀에 자동 반영됩니다.",
+            );
+            setTimeout(() => {
+              void load();
+            }, 30_000);
           })();
         }}
       />
