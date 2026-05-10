@@ -8,6 +8,7 @@ import type { LandingConfig, LandingSection, FeatureItem, TestimonialItem, Progr
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import useAuth from "@/auth/hooks/useAuth";
+import api, { type ApiRequestConfig } from "@/shared/api/axios";
 
 /** 아이콘 매핑 (SVG 인라인) */
 const ICON_MAP: Record<string, string> = {
@@ -112,10 +113,10 @@ export function HitReportCards({ items, color, rgb, theme = "light" }: { items: 
       setCards([]);
       return;
     }
-    const url = `/api/v1/matchup/landing/public/?ids=${ids.join(",")}`;
-    fetch(url, { credentials: "same-origin" })
-      .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
-      .then((data) => setCards(Array.isArray(data?.reports) ? data.reports : []))
+    // axios로 호출 — production은 별 도메인(api.hakwonplus.com)이고 X-Tenant-Code 헤더가 axios interceptor에서 자동 주입됨.
+    // skipAuth: 비로그인 외부 관전자도 카드 봐야 함 (공개 endpoint).
+    api.get("/matchup/landing/public/", { params: { ids: ids.join(",") }, skipAuth: true } as ApiRequestConfig)
+      .then((r) => setCards(Array.isArray(r?.data?.reports) ? r.data.reports : []))
       .catch(() => setError(true));
   }, [JSON.stringify((items || []).map((it) => it.report_id))]);
 
