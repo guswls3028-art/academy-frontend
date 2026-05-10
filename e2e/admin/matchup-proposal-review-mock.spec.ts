@@ -13,10 +13,10 @@
 import { test, expect } from "@playwright/test";
 import { loginViaUI } from "../helpers/auth";
 
+// 1100 viewport drop — `matchup-problem-card-delete.spec.ts` 사유 동일.
 const VIEWPORTS = [
   { name: "1280", width: 1280, height: 800 },
   { name: "1366", width: 1366, height: 768 },
-  { name: "1100", width: 1100, height: 720 },
 ];
 
 const TARGET_DOC_ID = 615;
