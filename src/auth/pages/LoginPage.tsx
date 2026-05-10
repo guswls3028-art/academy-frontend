@@ -70,10 +70,9 @@ export default function LoginPage() {
   }, [isLoading]);
 
   // 랜딩 페이지 존재 여부 체크 (홈 버튼 표시용)
+  // 테넌트별 분기 없이 fetchLandingHasPublished 결과로만 판정 — 게시된 랜딩이 있으면 버튼 노출
   useEffect(() => {
     if (isLoading || !program) return;
-    const tc = program.tenantCode;
-    if (tc === "hakwonplus" || tc === "9999") return;
     fetchLandingHasPublished()
       .then((has) => setHasLanding(has))
       .catch(() => {});
@@ -122,15 +121,6 @@ export default function LoginPage() {
 
   return (
     <div data-app="auth" data-tenant={themeAttr} className={styles.root}>
-      {hasLanding && (
-        <Link to="/landing" className={styles.homeBtn} aria-label="홈페이지">
-          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M3 10L10 3L17 10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-            <path d="M5 8.5V16C5 16.2761 5.22386 16.5 5.5 16.5H8.5V12.5C8.5 12.2239 8.72386 12 9 12H11C11.2761 12 11.5 12.2239 11.5 12.5V16.5H14.5C14.7761 16.5 15 16.2761 15 16V8.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-          홈페이지
-        </Link>
-      )}
       <div className={styles.center}>
         {logoUrl ? (
           <img src={logoUrl} alt={title} className={styles.logo} />
@@ -200,6 +190,14 @@ export default function LoginPage() {
             {pending ? "로그인 중..." : "로그인"}
           </button>
           <div className={styles.links}>
+            {hasLanding && (
+              <>
+                <Link to="/landing" className={styles.link}>
+                  홈페이지
+                </Link>
+                <span style={{ color: "var(--auth-border, #d1d5db)", fontSize: "0.75rem" }}>|</span>
+              </>
+            )}
             <button type="button" className={styles.link} onClick={() => setShowSignup(true)}>
               회원가입
             </button>

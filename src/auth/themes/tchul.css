@@ -54,7 +54,7 @@
 @media (max-width: 480px) {
   [data-app="auth"][data-tenant="tchul"] img[class*="logo"] {
     max-height: 15rem;
-    max-width: 90vw;
+    max-width: 100%;
   }
 }
 

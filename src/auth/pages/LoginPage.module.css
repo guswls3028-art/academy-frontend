@@ -17,31 +17,6 @@
   line-height: 1.5;
 }
 
-/* 좌상단 홈 버튼 */
-.homeBtn {
-  position: fixed;
-  top: 16px;
-  left: 16px;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 14px;
-  font-size: 0.8125rem;
-  font-weight: 600;
-  color: var(--auth-text-muted, #6b7280);
-  background: var(--auth-surface, #ffffff);
-  border: 1px solid var(--auth-border, #e5e7eb);
-  border-radius: 10px;
-  text-decoration: none;
-  transition: color 0.15s, border-color 0.15s, box-shadow 0.15s;
-  z-index: 10;
-}
-.homeBtn:hover {
-  color: var(--auth-text, #1a1d21);
-  border-color: var(--auth-border-hover, #d1d5db);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-}
-
 .center {
   width: 100%;
   max-width: 26rem;

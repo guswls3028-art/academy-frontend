@@ -122,10 +122,13 @@
 }
 
 /* ── 링크 ── */
-[data-app="auth"][data-tenant="dnb"] button[class*="link"] {
+/* a 태그(홈페이지 링크)와 button 태그(회원가입/비밀번호 찾기) 둘 다 매치해야 일관됨 */
+[data-app="auth"][data-tenant="dnb"] button[class*="link"],
+[data-app="auth"][data-tenant="dnb"] a[class*="link"] {
   color: var(--dnb-purple);
 }
-[data-app="auth"][data-tenant="dnb"] button[class*="link"]:hover {
+[data-app="auth"][data-tenant="dnb"] button[class*="link"]:hover,
+[data-app="auth"][data-tenant="dnb"] a[class*="link"]:hover {
   color: var(--dnb-purple-light);
 }
 
