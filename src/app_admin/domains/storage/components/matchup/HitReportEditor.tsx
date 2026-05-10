@@ -585,15 +585,20 @@ export default function HitReportEditor({ docId, onClose }: Props) {
             >
               {zipDownloading ? "압축 중…" : "카페·블로그용 이미지 묶음"}
             </Button>
-            <Button
-              size="sm"
-              intent="primary"
-              onClick={() => void submit()}
-              disabled={submitting || isSubmitted}
-              leftIcon={<Send size={ICON.sm} />}
-            >
-              {isSubmitted ? "제출 완료" : "학원에 제출"}
-            </Button>
+            {/* "학원에 제출" 버튼 — 1인 강사 학원 다수 + 알림톡 default OFF 로 ROI 낮음
+                (운영 24건 중 2건 = 8%). draft 보고서에서는 hide, submitted 보고서는
+                잠금 인디케이터로만 표시. backend submit endpoint + alimtalk 인프라는 보존
+                (다중 강사 학원 도입 시점 + 기존 submitted 2건 보호). 사용자 결정 2026-05-11. */}
+            {isSubmitted && (
+              <Button
+                size="sm"
+                intent="primary"
+                disabled
+                leftIcon={<Send size={ICON.sm} />}
+              >
+                제출 완료
+              </Button>
+            )}
             <button
               onClick={() => void closeWithDirtyGuard()}
               aria-label="닫기"
