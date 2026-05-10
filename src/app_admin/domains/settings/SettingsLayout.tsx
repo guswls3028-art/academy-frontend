@@ -18,7 +18,7 @@ const NAV: NavItem[] = [
   { key: "profile", label: "프로필", icon: FiUser, path: "/admin/settings/profile" },
   { key: "organization", label: "학원 정보", icon: FiHome, path: "/admin/settings/organization" },
   { key: "appearance", label: "테마", icon: FiMonitor, path: "/admin/settings/appearance" },
-  { key: "landing", label: "랜딩페이지", icon: FiGlobe, path: "/admin/settings/landing", roles: ["owner", "admin"] },
+  { key: "landing", label: "홈페이지", icon: FiGlobe, path: "/admin/settings/landing", roles: ["owner", "admin"] },
   { key: "billing", label: "결제 / 구독", icon: FiCreditCard, path: "/admin/settings/billing" },
 ];
 

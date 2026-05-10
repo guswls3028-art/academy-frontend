@@ -1,5 +1,5 @@
 // PATH: src/app_admin/domains/landing/editor/LandingEditorPage.tsx
-// 설정 > 랜딩페이지 꾸미기. 구조화된 편집 + 실시간 미리보기.
+// 설정 > 홈페이지 꾸미기. 구조화된 편집 + 실시간 미리보기.
 //
 // 학원장 어드민 편집기 — 동적 테넌트 색상 + 미리보기 격리 + 모달 등 inline style 핵심 도구.
 // 도메인 전체 면제 (랜딩 템플릿/공개 페이지와 동일 사유).
@@ -62,6 +62,7 @@ export default function LandingEditorPage() {
   const [activeSection, setActiveSection] = useState<string>("brand");
   const [dirty, setDirty] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [uploadModalField, setUploadModalField] = useState<"hero" | "logo" | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const mountedRef = useRef(true);
 
@@ -136,32 +137,32 @@ export default function LandingEditorPage() {
     setPublishing(false);
   };
 
-  const handleImageUpload = async (field: "hero" | "logo") => {
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = "image/*";
-    input.onchange = async () => {
-      const file = input.files?.[0];
-      if (!file) return;
-      if (file.size > 5 * 1024 * 1024) { showToast("5MB 이하만 가능합니다"); return; }
-      try {
-        const res = await uploadLandingImage(file, field);
-        updateDraft((prev) => ({
-          ...prev,
-          [field === "hero" ? "hero_image_url" : "logo_url"]: res.url,
-        }));
-        showToast("이미지 업로드 완료");
-      } catch {
-        showToast("이미지 업로드 실패");
-      }
-    };
-    input.click();
+  const handleImageUpload = (field: "hero" | "logo") => {
+    // 모달 띄움 — 모달 안에서 file 선택 / 클립보드 paste / drop 모두 가능.
+    setUploadModalField(field);
+  };
+
+  const handleModalUpload = async (file: File) => {
+    if (!uploadModalField) return;
+    if (file.size > 5 * 1024 * 1024) { showToast("5MB 이하만 가능합니다"); return; }
+    try {
+      const res = await uploadLandingImage(file, uploadModalField);
+      const targetField = uploadModalField;
+      updateDraft((prev) => ({
+        ...prev,
+        [targetField === "hero" ? "hero_image_url" : "logo_url"]: res.url,
+      }));
+      showToast("이미지 업로드 완료");
+      setUploadModalField(null);
+    } catch {
+      showToast("이미지 업로드 실패");
+    }
   };
 
   if (loadError) {
     return (
       <div style={{ padding: 40, textAlign: "center" }}>
-        <p style={{ color: "#dc2626", fontSize: 15, fontWeight: 600, margin: "0 0 12px" }}>랜딩페이지 설정을 불러오지 못했습니다</p>
+        <p style={{ color: "#dc2626", fontSize: 15, fontWeight: 600, margin: "0 0 12px" }}>홈페이지 설정을 불러오지 못했습니다</p>
         <button onClick={() => { setLoadError(false); setLoading(true); window.location.reload(); }} style={{ padding: "8px 20px", borderRadius: 8, border: "1px solid #e2e8f0", background: "#fff", cursor: "pointer", fontSize: 13, fontWeight: 600 }}>
           다시 시도
         </button>
@@ -198,7 +199,7 @@ export default function LandingEditorPage() {
       {/* Top bar */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 0", borderBottom: "1px solid var(--color-border-divider, #e2e8f0)", flexWrap: "wrap", gap: 12 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <h1 style={{ fontSize: 18, fontWeight: 700, margin: 0, color: "var(--color-text-primary, #1e293b)" }}>랜딩페이지 꾸미기</h1>
+          <h1 style={{ fontSize: 18, fontWeight: 700, margin: 0, color: "var(--color-text-primary, #1e293b)" }}>홈페이지 꾸미기</h1>
           {landing?.is_published ? (
             <span style={{ padding: "3px 10px", borderRadius: 99, background: "#dcfce7", color: "#16a34a", fontSize: 12, fontWeight: 600 }}>게시 중</span>
           ) : (
@@ -329,6 +330,14 @@ export default function LandingEditorPage() {
             <Template config={draft} isPreview />
           </div>
         </div>
+      )}
+
+      {uploadModalField && (
+        <ImageUploadModal
+          field={uploadModalField}
+          onClose={() => setUploadModalField(null)}
+          onUpload={handleModalUpload}
+        />
       )}
     </div>
   );
@@ -796,30 +805,44 @@ function HitReportPicker({ selectedIds, onChange }: { selectedIds: number[]; onC
     );
   }
 
+  const openPdf = (rid: number) => {
+    // 어드민 인증된 PDF endpoint — staff 본인 보고서/admin은 권한 OK
+    window.open(`/api/v1/matchup/hit-reports/${rid}/curated.pdf`, "_blank", "noopener");
+  };
+
   return (
     <div>
-      <p style={{ fontSize: 13, color: "var(--color-text-secondary, #64748b)", margin: "0 0 10px" }}>
+      <p style={{ fontSize: 13, color: "var(--color-text-secondary, #64748b)", margin: "0 0 6px" }}>
         홈페이지에 보여줄 보고서를 골라주세요. <strong style={{ color: "var(--color-text-primary, #1e293b)" }}>최대 {MAX}개</strong>까지 선택 가능 (현재 {selectedIds.length}개 선택됨).
       </p>
-      <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 320, overflowY: "auto", border: "1px solid var(--color-border-divider, #e2e8f0)", borderRadius: 10, padding: 8 }}>
+      <p style={{ fontSize: 11, color: "var(--color-text-muted, #94a3b8)", margin: "0 0 10px" }}>
+        💡 보고서를 <strong>더블클릭</strong>하거나 우측 <strong>👁 미리보기</strong>를 누르면 본문 PDF가 열립니다. 학원장이 어떤 보고서인지 직접 확인 후 선택하세요.
+      </p>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 380, overflowY: "auto", border: "1px solid var(--color-border-divider, #e2e8f0)", borderRadius: 10, padding: 8 }}>
         {reports.map((r) => {
           const checked = selectedIds.includes(r.id);
           const disabled = !checked && selectedIds.length >= MAX;
           const ratePct = Math.round(r.hit_rate);
           return (
-            <label
+            <div
               key={r.id}
+              onDoubleClick={() => openPdf(r.id)}
+              title="더블클릭하면 본문 PDF가 새 탭에서 열립니다"
               style={{
                 display: "flex", alignItems: "center", gap: 10,
                 padding: "10px 12px", borderRadius: 8,
                 background: checked ? "var(--color-brand-primary-soft, rgba(37,99,235,0.08))" : "transparent",
-                cursor: disabled ? "not-allowed" : "pointer",
                 opacity: disabled ? 0.5 : 1,
                 border: checked ? "1px solid var(--color-brand-primary, #2563EB)" : "1px solid transparent",
+                userSelect: "none",
               }}
             >
-              <input type="checkbox" checked={checked} disabled={disabled} onChange={() => toggle(r.id)} style={{ width: 16, height: 16, cursor: disabled ? "not-allowed" : "pointer" }} />
-              <div style={{ flex: 1, minWidth: 0 }}>
+              <input
+                type="checkbox" checked={checked} disabled={disabled}
+                onChange={() => toggle(r.id)}
+                style={{ width: 16, height: 16, cursor: disabled ? "not-allowed" : "pointer", flexShrink: 0 }}
+              />
+              <div style={{ flex: 1, minWidth: 0, cursor: disabled ? "not-allowed" : "pointer" }} onClick={() => !disabled && toggle(r.id)}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-text-primary, #1e293b)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {r.document_title || r.document_category || "(제목 없음)"}
                 </div>
@@ -827,12 +850,151 @@ function HitReportPicker({ selectedIds, onChange }: { selectedIds: number[]; onC
                   적중 {r.hit_count} / {r.exam_count} 문항 · 적중률 {ratePct}%{r.status === "draft" ? " · 작성 중" : ""}
                 </div>
               </div>
-              <span style={{ fontSize: 18, fontWeight: 800, color: ratePct >= 60 ? "var(--color-status-success, #10b981)" : ratePct >= 30 ? "var(--color-brand-primary, #2563EB)" : "var(--color-text-muted, #94a3b8)", letterSpacing: "-0.02em" }}>
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); openPdf(r.id); }}
+                title="본문 PDF 미리보기 (새 탭)"
+                style={{
+                  display: "inline-flex", alignItems: "center", gap: 4,
+                  padding: "5px 10px", borderRadius: 7,
+                  background: "rgba(15,23,42,0.05)", color: "#475569",
+                  border: "none", cursor: "pointer",
+                  fontSize: 11, fontWeight: 600, flexShrink: 0,
+                }}
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></svg>
+                미리보기
+              </button>
+              <span style={{ fontSize: 17, fontWeight: 800, color: ratePct >= 60 ? "var(--color-status-success, #10b981)" : ratePct >= 30 ? "var(--color-brand-primary, #2563EB)" : "var(--color-text-muted, #94a3b8)", letterSpacing: "-0.02em", flexShrink: 0, minWidth: 44, textAlign: "right" }}>
                 {ratePct}%
               </span>
-            </label>
+            </div>
           );
         })}
+      </div>
+    </div>
+  );
+}
+
+/** 이미지 업로드 모달 — 파일 선택 + 클립보드 paste(Ctrl+V) + drop 모두 지원.
+ * 사용자가 캡처본을 즉시 paste할 수 있어 학원장 작업 흐름 매우 단축.
+ */
+function ImageUploadModal({ field, onClose, onUpload }: { field: "hero" | "logo"; onClose: () => void; onUpload: (file: File) => void }) {
+  const [preview, setPreview] = useState<string | null>(null);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [drag, setDrag] = useState(false);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  // 클립보드 paste — 모달 열려있는 동안 활성
+  useEffect(() => {
+    const handler = (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      for (const it of items) {
+        if (it.type.startsWith("image/")) {
+          const f = it.getAsFile();
+          if (f) {
+            e.preventDefault();
+            setPendingFile(f);
+            setPreview(URL.createObjectURL(f));
+            return;
+          }
+        }
+      }
+    };
+    window.addEventListener("paste", handler);
+    return () => window.removeEventListener("paste", handler);
+  }, []);
+
+  // ESC 닫기
+  useEffect(() => {
+    const k = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", k);
+    return () => window.removeEventListener("keydown", k);
+  }, [onClose]);
+
+  const choose = (f: File) => {
+    if (!f.type.startsWith("image/")) return;
+    setPendingFile(f);
+    setPreview(URL.createObjectURL(f));
+  };
+
+  const fieldLabel = field === "hero" ? "메인 이미지" : "로고";
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed", inset: 0, zIndex: 10000,
+        background: "rgba(15,23,42,0.55)", backdropFilter: "blur(8px)",
+        display: "flex", alignItems: "center", justifyContent: "center", padding: 16,
+      }}
+    >
+      <div onClick={(e) => e.stopPropagation()} style={{
+        width: "100%", maxWidth: 520,
+        background: "#fff", borderRadius: 16, padding: 28,
+        boxShadow: "0 20px 60px rgba(0,0,0,0.25)",
+        display: "flex", flexDirection: "column", gap: 18,
+      }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <h3 style={{ fontSize: 17, fontWeight: 700, margin: 0, color: "#0f172a" }}>{fieldLabel} 업로드</h3>
+          <button onClick={onClose} aria-label="닫기" style={{ width: 32, height: 32, borderRadius: 8, border: "none", background: "transparent", cursor: "pointer", color: "#64748b", fontSize: 22, lineHeight: 1 }}>×</button>
+        </div>
+
+        <div
+          onDragOver={(e) => { e.preventDefault(); setDrag(true); }}
+          onDragLeave={() => setDrag(false)}
+          onDrop={(e) => {
+            e.preventDefault(); setDrag(false);
+            const f = e.dataTransfer.files?.[0];
+            if (f) choose(f);
+          }}
+          onClick={() => inputRef.current?.click()}
+          style={{
+            border: `2px dashed ${drag ? "#2563EB" : "#cbd5e1"}`,
+            background: drag ? "rgba(37,99,235,0.05)" : "#f8fafc",
+            borderRadius: 12, padding: preview ? 12 : 36,
+            display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+            cursor: "pointer", textAlign: "center", minHeight: preview ? 0 : 180,
+            transition: "border-color 0.15s, background 0.15s",
+          }}
+        >
+          {preview ? (
+            <img src={preview} alt="미리보기" style={{ maxWidth: "100%", maxHeight: 280, borderRadius: 8, objectFit: "contain" }} />
+          ) : (
+            <>
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" /></svg>
+              <p style={{ fontSize: 14, color: "#475569", margin: "12px 0 4px", fontWeight: 600 }}>이미지를 끌어다 놓거나 클릭해서 선택</p>
+              <p style={{ fontSize: 12, color: "#94a3b8", margin: 0 }}>또는 <kbd style={{ padding: "1px 6px", background: "#e2e8f0", borderRadius: 4, fontSize: 11, fontWeight: 700 }}>Ctrl+V</kbd>로 붙여넣기 (5MB 이하)</p>
+            </>
+          )}
+          <input
+            ref={inputRef}
+            type="file"
+            accept="image/*"
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) choose(f); }}
+            style={{ display: "none" }}
+          />
+        </div>
+
+        <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+          {preview && (
+            <button onClick={() => { setPreview(null); setPendingFile(null); }} style={{
+              padding: "10px 18px", borderRadius: 10, border: "1px solid #e2e8f0",
+              background: "#fff", color: "#64748b", fontSize: 14, fontWeight: 600, cursor: "pointer",
+            }}>다른 이미지 선택</button>
+          )}
+          <button
+            disabled={!pendingFile}
+            onClick={() => pendingFile && onUpload(pendingFile)}
+            style={{
+              padding: "10px 22px", borderRadius: 10, border: "none",
+              background: pendingFile ? "#2563EB" : "#cbd5e1",
+              color: "#fff", fontSize: 14, fontWeight: 700,
+              cursor: pendingFile ? "pointer" : "not-allowed",
+            }}
+          >업로드</button>
+        </div>
       </div>
     </div>
   );

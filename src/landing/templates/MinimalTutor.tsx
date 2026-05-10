@@ -5,9 +5,11 @@
 // 디자인 시스템 토큰/CSS 모듈로 추출하면 테넌트별 동적 컬러가 깨지므로 inline 룰은 이 도메인에 한해 면제.
 /* eslint-disable no-restricted-syntax */
 
-import type { FeatureItem, TestimonialItem, ProgramItem, FaqItem, HitReportShowcaseItem } from "../types";
+import { Link } from "react-router-dom";
+import type { FeatureItem, TestimonialItem, ProgramItem, FaqItem, HitReportShowcaseItem, InstructorProfileItem, ManagementCardItem, ProcessStepItem } from "../types";
 import { getEnabledSections, SvgIcon, FaqAccordion, HitReportCards, type TemplateProps } from "./shared";
 import { hexToRgb } from "./colorUtils";
+import useAuth from "@/auth/hooks/useAuth";
 
 export default function MinimalTutor({ config }: TemplateProps) {
   const c = config.primary_color || "#2563EB";
@@ -16,23 +18,18 @@ export default function MinimalTutor({ config }: TemplateProps) {
 
   return (
     <div style={{ fontFamily: "'Pretendard Variable', 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif", color: "#1a1a2e", background: "#ffffff", minHeight: "100vh" }}>
-      {/* Nav */}
-      <nav style={{ position: "sticky", top: 0, zIndex: 50, background: "rgba(255,255,255,0.95)", backdropFilter: "blur(12px)", borderBottom: "1px solid rgba(0,0,0,0.05)", padding: "0 24px" }}>
-        <div style={{ maxWidth: 1120, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", height: 64 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            {config.logo_url && <img src={config.logo_url} alt="" style={{ height: 32, width: "auto", objectFit: "contain" }} />}
-            <span style={{ fontSize: 18, fontWeight: 700, color: "#1a1a2e" }}>{config.brand_name}</span>
-          </div>
-          <a
-            href={config.cta_link || "/login"}
-            style={{
-              display: "inline-flex", alignItems: "center", padding: "8px 20px",
-              background: c, color: "#fff", borderRadius: 8, fontSize: 14, fontWeight: 600,
-              textDecoration: "none", transition: "opacity 0.15s",
-            }}
-          >
-            {config.cta_text || "로그인"}
-          </a>
+      {/* Nav — 로고 + 브랜드명 + 역할별 진입 메뉴 */}
+      <nav style={{ position: "sticky", top: 0, zIndex: 50, background: "rgba(255,255,255,0.92)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)", borderBottom: "1px solid rgba(0,0,0,0.06)", padding: "0 24px" }}>
+        <div style={{ maxWidth: 1120, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", height: 68, gap: 16 }}>
+          <Link to="/" style={{ display: "flex", alignItems: "center", gap: 12, textDecoration: "none", color: "#0f172a" }}>
+            {config.logo_url ? (
+              <img src={config.logo_url} alt={config.brand_name} style={{ height: 36, width: "auto", objectFit: "contain" }} />
+            ) : (
+              <LightBrandMark name={config.brand_name || "Brand"} color={c} />
+            )}
+            <span style={{ fontSize: 18, fontWeight: 700, color: "#0f172a", letterSpacing: "-0.015em" }}>{config.brand_name}</span>
+          </Link>
+          <LightNavRoleMenu cta={config.cta_text || "수강 문의"} ctaLink={config.cta_link || "/login"} color={c} rgb={rgb} />
         </div>
       </nav>
 
@@ -197,6 +194,93 @@ export default function MinimalTutor({ config }: TemplateProps) {
               </section>
             );
 
+          case "instructor_profile":
+            return (
+              <section key="instructor_profile" style={{ padding: "80px 24px", background: "#fff" }}>
+                <div style={{ maxWidth: 1120, margin: "0 auto" }}>
+                  <h2 style={{ fontSize: 28, fontWeight: 700, textAlign: "center", margin: "0 0 12px" }}>
+                    {section.title || "강사 프로필"}
+                  </h2>
+                  {section.description && (
+                    <p style={{ fontSize: 15, color: "#64748b", textAlign: "center", margin: "0 0 36px", maxWidth: 560, marginInline: "auto", lineHeight: 1.7 }}>
+                      {section.description}
+                    </p>
+                  )}
+                  <div style={{ display: "grid", gridTemplateColumns: ((section.items as InstructorProfileItem[] | undefined)?.length || 0) > 1 ? "repeat(auto-fit, minmax(320px, 1fr))" : "1fr", gap: 24, marginTop: 32 }}>
+                    {((section.items as InstructorProfileItem[]) || []).map((it, i) => (
+                      <LightInstructorCard key={i} item={it} color={c} rgb={rgb} />
+                    ))}
+                  </div>
+                </div>
+              </section>
+            );
+
+          case "management_system":
+            return (
+              <section key="management_system" style={{ padding: "80px 24px", background: "#f8fafc" }}>
+                <div style={{ maxWidth: 1120, margin: "0 auto" }}>
+                  <h2 style={{ fontSize: 28, fontWeight: 700, textAlign: "center", margin: "0 0 12px" }}>
+                    {section.title || "학생 관리 시스템"}
+                  </h2>
+                  {section.description && (
+                    <p style={{ fontSize: 15, color: "#64748b", textAlign: "center", margin: "0 0 36px", maxWidth: 560, marginInline: "auto", lineHeight: 1.7 }}>
+                      {section.description}
+                    </p>
+                  )}
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 16 }}>
+                    {((section.items as ManagementCardItem[]) || []).map((it, i) => (
+                      <div key={i} style={{ padding: 24, borderRadius: 14, background: "#fff", border: "1px solid rgba(0,0,0,0.05)", display: "flex", flexDirection: "column", gap: 10 }}>
+                        <div style={{ width: 40, height: 40, borderRadius: 10, background: `rgba(${rgb}, 0.1)`, display: "flex", alignItems: "center", justifyContent: "center", color: c }}>
+                          <SvgIcon name={it.icon} size={20} />
+                        </div>
+                        <h3 style={{ fontSize: 15, fontWeight: 700, margin: 0, color: "#0f172a", letterSpacing: "-0.01em" }}>{it.title}</h3>
+                        <p style={{ fontSize: 13.5, lineHeight: 1.65, color: "#64748b", margin: 0 }}>{it.description}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </section>
+            );
+
+          case "process_timeline":
+            return (
+              <section key="process_timeline" style={{ padding: "80px 24px", background: "#fff" }}>
+                <div style={{ maxWidth: 880, margin: "0 auto" }}>
+                  <h2 style={{ fontSize: 28, fontWeight: 700, textAlign: "center", margin: "0 0 12px" }}>
+                    {section.title || "수업 진행 흐름"}
+                  </h2>
+                  {section.description && (
+                    <p style={{ fontSize: 15, color: "#64748b", textAlign: "center", margin: "0 0 36px", maxWidth: 560, marginInline: "auto", lineHeight: 1.7 }}>
+                      {section.description}
+                    </p>
+                  )}
+                  <div style={{ display: "flex", flexDirection: "column", gap: 0, marginTop: 32 }}>
+                    {((section.items as ProcessStepItem[]) || []).map((it, i, arr) => (
+                      <div key={i} style={{ display: "flex", gap: 20, alignItems: "flex-start", paddingBottom: i === arr.length - 1 ? 0 : 28 }}>
+                        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0 }}>
+                          <div style={{
+                            width: 50, height: 50, borderRadius: 12,
+                            background: c, color: "#fff",
+                            fontSize: 12, fontWeight: 800,
+                            display: "flex", alignItems: "center", justifyContent: "center",
+                            letterSpacing: "-0.02em",
+                            boxShadow: `0 4px 12px rgba(${rgb}, 0.2)`,
+                          }}>{it.step_label}</div>
+                          {i < arr.length - 1 && (
+                            <div style={{ width: 2, flex: 1, minHeight: 36, background: `rgba(${rgb}, 0.2)`, marginTop: 6 }} />
+                          )}
+                        </div>
+                        <div style={{ flex: 1, paddingTop: 6 }}>
+                          <h3 style={{ fontSize: 16, fontWeight: 700, margin: "0 0 6px", color: "#0f172a", letterSpacing: "-0.015em" }}>{it.title}</h3>
+                          <p style={{ fontSize: 14, lineHeight: 1.7, color: "#64748b", margin: 0 }}>{it.description}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </section>
+            );
+
           case "contact":
             return (
               <section key="contact" style={{ padding: "80px 24px", background: "#f8fafc" }}>
@@ -228,6 +312,121 @@ export default function MinimalTutor({ config }: TemplateProps) {
           &copy; {new Date().getFullYear()} {config.brand_name}
         </p>
       </footer>
+    </div>
+  );
+}
+
+/** 로고 미업로드 시 fallback — 브랜드 첫 글자 + 테마 컬러 */
+function LightBrandMark({ name, color }: { name: string; color: string }) {
+  const initial = (name || "").trim().charAt(0) || "•";
+  return (
+    <div style={{
+      width: 36, height: 36, borderRadius: 9,
+      background: color, color: "#fff",
+      fontSize: 17, fontWeight: 800,
+      display: "flex", alignItems: "center", justifyContent: "center",
+      letterSpacing: "-0.02em",
+    }}>{initial}</div>
+  );
+}
+
+/** 역할별 nav 메뉴 — 비로그인은 "로그인" + CTA, 로그인 시 역할별 마이페이지 진입 */
+function LightNavRoleMenu({ cta, ctaLink, color, rgb }: { cta: string; ctaLink: string; color: string; rgb: string }) {
+  const { user, isAuthenticated } = useAuth();
+  const u = user as { tenantRole?: string | null; is_superuser?: boolean } | null;
+  const role = (u?.tenantRole ?? "").toLowerCase();
+  let myPath = "/admin";
+  let roleLabel = "관리실";
+  if (role === "student") { myPath = "/student"; roleLabel = "학생 마이페이지"; }
+  else if (role === "parent") { myPath = "/parent"; roleLabel = "학부모 마이페이지"; }
+  else if (role === "teacher") { myPath = "/admin"; roleLabel = "강사 콘솔"; }
+  else if (role === "assistant") { myPath = "/admin"; roleLabel = "조교 콘솔"; }
+
+  if (!isAuthenticated) {
+    return (
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <Link to="/login" style={{
+          padding: "8px 16px", borderRadius: 8, fontSize: 14, fontWeight: 600,
+          textDecoration: "none", color: "#475569",
+          border: "1px solid rgba(0,0,0,0.1)",
+        }}>로그인</Link>
+        <a href={ctaLink} style={{
+          display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 18px",
+          background: color, color: "#fff", borderRadius: 8,
+          fontSize: 14, fontWeight: 600, textDecoration: "none",
+          boxShadow: `0 4px 14px rgba(${rgb}, 0.25)`,
+        }}>
+          {cta}
+          <span style={{ fontSize: 14, lineHeight: 1, marginTop: -1 }}>›</span>
+        </a>
+      </div>
+    );
+  }
+  return (
+    <Link to={myPath} style={{
+      display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 16px",
+      background: "rgba(0,0,0,0.03)", color: "#0f172a",
+      border: "1px solid rgba(0,0,0,0.08)", borderRadius: 8,
+      fontSize: 14, fontWeight: 600, textDecoration: "none", letterSpacing: "-0.01em",
+    }}>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" /></svg>
+      {roleLabel}
+    </Link>
+  );
+}
+
+/** 강사 프로필 카드 — light tone */
+function LightInstructorCard({ item, color, rgb }: { item: InstructorProfileItem; color: string; rgb: string }) {
+  const initial = (item.name || "").trim().charAt(0) || "•";
+  return (
+    <div style={{
+      padding: 32, borderRadius: 18, background: "#fff",
+      border: "1px solid rgba(0,0,0,0.06)",
+      display: "flex", gap: 28, alignItems: "flex-start", flexWrap: "wrap",
+      boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+    }}>
+      <div style={{ flex: "0 0 160px" }}>
+        {item.photo_url ? (
+          <img src={item.photo_url} alt={item.name} style={{
+            width: 160, height: 200, borderRadius: 14, objectFit: "cover",
+            border: "1px solid rgba(0,0,0,0.08)",
+          }} />
+        ) : (
+          <div style={{
+            width: 160, height: 200, borderRadius: 14,
+            background: `linear-gradient(135deg, rgba(${rgb}, 0.08) 0%, rgba(${rgb}, 0.18) 100%)`,
+            border: "1px solid rgba(0,0,0,0.05)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            color, fontSize: 56, fontWeight: 800, letterSpacing: "-0.04em",
+          }}>{initial}</div>
+        )}
+      </div>
+      <div style={{ flex: "1 1 240px", minWidth: 240 }}>
+        <div style={{
+          display: "inline-block", padding: "3px 10px", borderRadius: 99,
+          background: `rgba(${rgb}, 0.1)`, color,
+          fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase",
+          marginBottom: 10,
+        }}>{item.title || "Instructor"}</div>
+        <h3 style={{ fontSize: 26, fontWeight: 800, margin: "0 0 14px", letterSpacing: "-0.02em", color: "#0f172a" }}>
+          {item.name}
+        </h3>
+        {item.bio && (
+          <p style={{ fontSize: 14.5, lineHeight: 1.75, color: "#64748b", margin: "0 0 18px", whiteSpace: "pre-line" }}>
+            {item.bio}
+          </p>
+        )}
+        {item.experience && item.experience.length > 0 && (
+          <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 6 }}>
+            {item.experience.map((line, i) => (
+              <li key={i} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13.5, color: "#475569", fontWeight: 500 }}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg>
+                {line}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </div>
   );
 }
