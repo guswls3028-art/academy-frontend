@@ -1,13 +1,14 @@
 // PATH: src/app_admin/domains/landing/templates/AcademicTrust.tsx
 // 템플릿 3: 성적/관리/체계 강조형. 신뢰와 체계를 시각적으로 전달.
+//
+// 랜딩 템플릿은 inline style 기반 (MinimalTutor 도메인 정책 정합) — 면제.
+/* eslint-disable no-restricted-syntax */
 
 import type { FeatureItem, TestimonialItem, ProgramItem, FaqItem } from "../types";
 import { getEnabledSections, SvgIcon, FaqAccordion, type TemplateProps } from "./shared";
-import { hexToRgb } from "./colorUtils";
 
-export default function AcademicTrust({ config, isPreview }: TemplateProps) {
+export default function AcademicTrust({ config }: TemplateProps) {
   const c = config.primary_color || "#4F46E5";
-  const rgb = hexToRgb(c);
   const sections = getEnabledSections(config);
 
   return (
@@ -66,6 +67,7 @@ export default function AcademicTrust({ config, isPreview }: TemplateProps) {
 
           case "features": {
             const items = (section.items as FeatureItem[]) || [];
+            if (items.length === 0) return null;
             return (
               <section key="features" style={{ padding: "72px 24px", background: "#f8fafc" }}>
                 <div style={{ maxWidth: 1120, margin: "0 auto" }}>
@@ -89,23 +91,28 @@ export default function AcademicTrust({ config, isPreview }: TemplateProps) {
             );
           }
 
-          case "about":
+          case "about": {
+            // empty hide SSOT — description trim 비면 hide.
+            if (!section.description || !section.description.trim()) return null;
             return (
               <section key="about" style={{ padding: "72px 24px" }}>
                 <div style={{ maxWidth: 720, margin: "0 auto", textAlign: "center" }}>
                   <h2 style={{ fontSize: 26, fontWeight: 700, margin: "0 0 20px" }}>{section.title || "소개"}</h2>
-                  {section.description && <p style={{ fontSize: 16, lineHeight: 1.8, color: "#64748b", margin: 0, whiteSpace: "pre-line" }}>{section.description}</p>}
+                  <p style={{ fontSize: 16, lineHeight: 1.8, color: "#64748b", margin: 0, whiteSpace: "pre-line" }}>{section.description}</p>
                 </div>
               </section>
             );
+          }
 
-          case "testimonials":
+          case "testimonials": {
+            const testimonialItems = (section.items as TestimonialItem[] | undefined) || [];
+            if (testimonialItems.length === 0) return null;
             return (
               <section key="testimonials" style={{ padding: "72px 24px", background: "#f8fafc" }}>
                 <div style={{ maxWidth: 1120, margin: "0 auto" }}>
                   <h2 style={{ fontSize: 26, fontWeight: 700, textAlign: "center", margin: "0 0 48px" }}>학부모 후기</h2>
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 20 }}>
-                    {(section.items as TestimonialItem[] || []).map((item, i) => (
+                    {testimonialItems.map((item, i) => (
                       <div key={i} style={{ padding: 28, borderRadius: 12, background: "#fff", borderLeft: `3px solid ${c}` }}>
                         <p style={{ fontSize: 15, lineHeight: 1.7, color: "#475569", margin: "0 0 16px" }}>{item.text}</p>
                         <p style={{ fontSize: 14, fontWeight: 600, margin: 0, color: "#1e293b" }}>{item.name} <span style={{ fontWeight: 400, color: "#94a3b8" }}>{item.role}</span></p>
@@ -115,14 +122,17 @@ export default function AcademicTrust({ config, isPreview }: TemplateProps) {
                 </div>
               </section>
             );
+          }
 
-          case "programs":
+          case "programs": {
+            const programItems = (section.items as ProgramItem[] | undefined) || [];
+            if (programItems.length === 0) return null;
             return (
               <section key="programs" style={{ padding: "72px 24px" }}>
                 <div style={{ maxWidth: 1120, margin: "0 auto" }}>
                   <h2 style={{ fontSize: 26, fontWeight: 700, textAlign: "center", margin: "0 0 48px" }}>프로그램</h2>
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 20 }}>
-                    {(section.items as ProgramItem[] || []).map((item, i) => (
+                    {programItems.map((item, i) => (
                       <div key={i} style={{ padding: 28, borderRadius: 12, background: "#f8fafc", border: "1px solid #e2e8f0" }}>
                         {item.badge && <span style={{ display: "inline-block", padding: "3px 10px", borderRadius: 4, background: c, color: "#fff", fontSize: 11, fontWeight: 600, marginBottom: 12 }}>{item.badge}</span>}
                         <h3 style={{ fontSize: 17, fontWeight: 700, margin: "0 0 8px" }}>{item.title}</h3>
@@ -133,16 +143,20 @@ export default function AcademicTrust({ config, isPreview }: TemplateProps) {
                 </div>
               </section>
             );
+          }
 
-          case "faq":
+          case "faq": {
+            const faqItems = (section.items as FaqItem[] | undefined) || [];
+            if (faqItems.length === 0) return null;
             return (
               <section key="faq" style={{ padding: "72px 24px", background: "#f8fafc" }}>
                 <div style={{ maxWidth: 720, margin: "0 auto" }}>
                   <h2 style={{ fontSize: 26, fontWeight: 700, textAlign: "center", margin: "0 0 48px" }}>자주 묻는 질문</h2>
-                  <FaqAccordion items={section.items as FaqItem[] || []} color={c} />
+                  <FaqAccordion items={faqItems} color={c} />
                 </div>
               </section>
             );
+          }
 
           case "contact":
             return (

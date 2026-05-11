@@ -1,11 +1,14 @@
 // PATH: src/app_admin/domains/landing/templates/ProgramPromo.tsx
 // 템플릿 4: 프로그램 설명/CTA 중심 홍보형. 활기찬 톤.
+//
+// 랜딩 템플릿은 inline style 기반 (MinimalTutor 도메인 정책 정합) — 면제.
+/* eslint-disable no-restricted-syntax */
 
 import type { FeatureItem, TestimonialItem, ProgramItem, FaqItem } from "../types";
 import { getEnabledSections, SvgIcon, FaqAccordion, type TemplateProps } from "./shared";
 import { hexToRgb } from "./colorUtils";
 
-export default function ProgramPromo({ config, isPreview }: TemplateProps) {
+export default function ProgramPromo({ config }: TemplateProps) {
   const c = config.primary_color || "#F97316";
   const rgb = hexToRgb(c);
   const sections = getEnabledSections(config);
@@ -57,6 +60,7 @@ export default function ProgramPromo({ config, isPreview }: TemplateProps) {
 
           case "features": {
             const items = (section.items as FeatureItem[]) || [];
+            if (items.length === 0) return null;
             return (
               <section key="features" style={{ padding: "80px 24px" }}>
                 <div style={{ maxWidth: 1120, margin: "0 auto" }}>
@@ -80,6 +84,7 @@ export default function ProgramPromo({ config, isPreview }: TemplateProps) {
 
           case "programs": {
             const items = (section.items as ProgramItem[]) || [];
+            if (items.length === 0) return null;
             return (
               <section key="programs" style={{ padding: "80px 24px", background: "#fafafa" }}>
                 <div style={{ maxWidth: 1120, margin: "0 auto" }}>
@@ -100,23 +105,27 @@ export default function ProgramPromo({ config, isPreview }: TemplateProps) {
             );
           }
 
-          case "about":
+          case "about": {
+            if (!section.description || !section.description.trim()) return null;
             return (
               <section key="about" style={{ padding: "80px 24px" }}>
                 <div style={{ maxWidth: 720, margin: "0 auto", textAlign: "center" }}>
                   <h2 style={{ fontSize: 28, fontWeight: 700, margin: "0 0 20px" }}>{section.title || "소개"}</h2>
-                  {section.description && <p style={{ fontSize: 17, lineHeight: 1.8, color: "#64748b", margin: 0, whiteSpace: "pre-line" }}>{section.description}</p>}
+                  <p style={{ fontSize: 17, lineHeight: 1.8, color: "#64748b", margin: 0, whiteSpace: "pre-line" }}>{section.description}</p>
                 </div>
               </section>
             );
+          }
 
-          case "testimonials":
+          case "testimonials": {
+            const testimonialItems = (section.items as TestimonialItem[] | undefined) || [];
+            if (testimonialItems.length === 0) return null;
             return (
               <section key="testimonials" style={{ padding: "80px 24px", background: "#fafafa" }}>
                 <div style={{ maxWidth: 1120, margin: "0 auto" }}>
                   <h2 style={{ fontSize: 28, fontWeight: 700, textAlign: "center", margin: "0 0 48px" }}>수강 후기</h2>
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 24 }}>
-                    {(section.items as TestimonialItem[] || []).map((item, i) => (
+                    {testimonialItems.map((item, i) => (
                       <div key={i} style={{ padding: 32, borderRadius: 16, background: "#fff", border: "1px solid rgba(0,0,0,0.04)" }}>
                         <div style={{ display: "flex", gap: 4, marginBottom: 16 }}>
                           {[1, 2, 3, 4, 5].map((s) => <svg key={s} width="16" height="16" viewBox="0 0 24 24" fill={c}><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" /></svg>)}
@@ -129,16 +138,20 @@ export default function ProgramPromo({ config, isPreview }: TemplateProps) {
                 </div>
               </section>
             );
+          }
 
-          case "faq":
+          case "faq": {
+            const faqItems = (section.items as FaqItem[] | undefined) || [];
+            if (faqItems.length === 0) return null;
             return (
               <section key="faq" style={{ padding: "80px 24px" }}>
                 <div style={{ maxWidth: 720, margin: "0 auto" }}>
                   <h2 style={{ fontSize: 28, fontWeight: 700, textAlign: "center", margin: "0 0 48px" }}>자주 묻는 질문</h2>
-                  <FaqAccordion items={section.items as FaqItem[] || []} color={c} />
+                  <FaqAccordion items={faqItems} color={c} />
                 </div>
               </section>
             );
+          }
 
           case "contact":
             return (
