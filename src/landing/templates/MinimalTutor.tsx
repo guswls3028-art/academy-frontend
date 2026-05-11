@@ -53,56 +53,107 @@ export default function MinimalTutor({ config }: TemplateProps) {
             const primaryCta = resolveHeroPrimaryCta(config, section);
             return (
               <Fragment key="hero">
-              <section data-stype="hero" style={{ padding: "80px 24px 64px", background: `linear-gradient(135deg, rgba(${rgb}, 0.03) 0%, rgba(${rgb}, 0.08) 100%)` }}>
+              <section data-stype="hero" style={{ padding: "80px 24px 72px", background: `linear-gradient(135deg, rgba(${rgb}, 0.04) 0%, rgba(${rgb}, 0.10) 100%)` }}>
                 <div style={{ maxWidth: 1120, margin: "0 auto", display: "flex", alignItems: "center", gap: 64, flexWrap: "wrap" }}>
                   <div style={{ flex: "1 1 480px", minWidth: 280 }}>
-                    <h1 style={{ fontSize: "clamp(28px, 4vw, 44px)", fontWeight: 800, lineHeight: 1.25, margin: "0 0 20px", color: "#0f172a" }}>
-                      {config.tagline || config.brand_name}
+                    {/* tag chip — brand identity 강화 (2026-05-12 시각 검수 fix) */}
+                    <span style={{
+                      display: "inline-block", padding: "5px 12px", borderRadius: 99,
+                      background: `rgba(${rgb}, 0.12)`, color: c,
+                      fontSize: 12, fontWeight: 700, letterSpacing: "0.04em",
+                      marginBottom: 18,
+                    }}>
+                      {config.brand_name}
+                    </span>
+                    <h1 style={{ fontSize: "clamp(30px, 4.4vw, 48px)", fontWeight: 800, lineHeight: 1.22, margin: "0 0 18px", color: "#0f172a", letterSpacing: "-0.025em" }}>
+                      {config.tagline || `${config.brand_name}와 함께\n실력을 키워가세요`}
                     </h1>
-                    {config.subtitle && (
-                      <p style={{ fontSize: "clamp(16px, 2vw, 19px)", lineHeight: 1.7, color: "#64748b", margin: "0 0 36px", maxWidth: 520 }}>
-                        {config.subtitle}
-                      </p>
-                    )}
-                    {primaryCta.isInternal ? (
-                      <Link
-                        to={primaryCta.link}
-                        data-testid="landing-hero-primary-cta"
-                        style={{
-                          display: "inline-flex", alignItems: "center", gap: 8,
-                          padding: "14px 32px", background: c, color: "#fff",
-                          borderRadius: 10, fontSize: 16, fontWeight: 700,
-                          textDecoration: "none", boxShadow: `0 4px 14px rgba(${rgb}, 0.3)`,
-                        }}
-                      >
-                        {primaryCta.label}
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
-                      </Link>
-                    ) : (
-                      <a
-                        href={primaryCta.link}
-                        data-testid="landing-hero-primary-cta"
-                        style={{
-                          display: "inline-flex", alignItems: "center", gap: 8,
-                          padding: "14px 32px", background: c, color: "#fff",
-                          borderRadius: 10, fontSize: 16, fontWeight: 700,
-                          textDecoration: "none", boxShadow: `0 4px 14px rgba(${rgb}, 0.3)`,
-                        }}
-                      >
-                        {primaryCta.label}
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
-                      </a>
-                    )}
+                    <p style={{ fontSize: "clamp(15px, 1.8vw, 18px)", lineHeight: 1.7, color: "#475569", margin: "0 0 32px", maxWidth: 540, whiteSpace: "pre-line" }}>
+                      {config.subtitle || "체계적인 커리큘럼 · 데이터 기반 성적 관리 · 학부모 실시간 소통.\n학원의 모든 것을 한 곳에서 운영하는 진짜 SaaS."}
+                    </p>
+                    <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                      {primaryCta.isInternal ? (
+                        <Link
+                          to={primaryCta.link}
+                          data-testid="landing-hero-primary-cta"
+                          style={{
+                            display: "inline-flex", alignItems: "center", gap: 8,
+                            padding: "14px 28px", background: c, color: "#fff",
+                            borderRadius: 10, fontSize: 15, fontWeight: 700,
+                            textDecoration: "none", boxShadow: `0 6px 18px rgba(${rgb}, 0.32)`,
+                          }}
+                        >
+                          {primaryCta.label}
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
+                        </Link>
+                      ) : (
+                        <a
+                          href={primaryCta.link}
+                          data-testid="landing-hero-primary-cta"
+                          style={{
+                            display: "inline-flex", alignItems: "center", gap: 8,
+                            padding: "14px 28px", background: c, color: "#fff",
+                            borderRadius: 10, fontSize: 15, fontWeight: 700,
+                            textDecoration: "none", boxShadow: `0 6px 18px rgba(${rgb}, 0.32)`,
+                          }}
+                        >
+                          {primaryCta.label}
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
+                        </a>
+                      )}
+                      {/* secondary CTA — 적중 보고서 둘러보기 (hit_reports section 있을 때만) */}
+                      {hitSection && (
+                        <Link
+                          to="/landing/reports"
+                          style={{
+                            display: "inline-flex", alignItems: "center", gap: 6,
+                            padding: "14px 22px", background: "#fff", color: "#0f172a",
+                            border: "1px solid rgba(15,23,42,0.12)",
+                            borderRadius: 10, fontSize: 15, fontWeight: 600,
+                            textDecoration: "none",
+                          }}
+                        >
+                          적중 보고서 보기
+                        </Link>
+                      )}
+                    </div>
                   </div>
-                  {config.hero_image_url && (
-                    <div style={{ flex: "1 1 400px", minWidth: 280 }}>
+                  {/* hero visual — image_url 있으면 image, 없으면 brand-driven decorative panel (이류 hero 방지 fix) */}
+                  <div style={{ flex: "1 1 380px", minWidth: 280 }}>
+                    {config.hero_image_url ? (
                       <img
                         src={config.hero_image_url}
                         alt=""
                         style={{ width: "100%", borderRadius: 16, objectFit: "cover", aspectRatio: "4/3", boxShadow: "0 8px 30px rgba(0,0,0,0.08)" }}
                       />
-                    </div>
-                  )}
+                    ) : (
+                      <div
+                        aria-hidden
+                        style={{
+                          width: "100%", aspectRatio: "4/3",
+                          borderRadius: 20,
+                          background: `linear-gradient(135deg, ${c} 0%, rgba(${rgb}, 0.75) 100%)`,
+                          boxShadow: `0 18px 48px rgba(${rgb}, 0.32)`,
+                          position: "relative", overflow: "hidden",
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                          color: "#fff",
+                        }}
+                      >
+                        <span style={{
+                          position: "absolute", inset: 0,
+                          background: "radial-gradient(circle at 20% 18%, rgba(255,255,255,0.28) 0%, transparent 55%), radial-gradient(circle at 82% 88%, rgba(255,255,255,0.18) 0%, transparent 50%)",
+                        }} />
+                        <div style={{ textAlign: "center", padding: 24, position: "relative" }}>
+                          <div style={{ fontSize: 64, fontWeight: 800, lineHeight: 1, letterSpacing: "-0.04em" }}>
+                            {(config.brand_name || "B").trim().charAt(0)}
+                          </div>
+                          <div style={{ marginTop: 16, fontSize: 13, fontWeight: 700, letterSpacing: "0.18em", opacity: 0.9 }}>
+                            ACADEMY · MANAGEMENT · SAAS
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </section>
               <HeroCarousel items={hitItems} carouselItems={carouselItems} theme="light" />
@@ -111,14 +162,17 @@ export default function MinimalTutor({ config }: TemplateProps) {
             );
           }
 
-          case "features":
+          case "features": {
+            // 빈 features section hide (콘텐츠 없으면 "준비 안 된 페이지" 인상 — 2026-05-12 시각 검수 fix)
+            const featureItems = (section.items as FeatureItem[] | undefined) || [];
+            if (featureItems.length === 0) return null;
             return (
               <section key="features" data-stype="features" style={{ padding: "80px 24px" }}>
                 <div style={{ maxWidth: 1120, margin: "0 auto" }}>
                   {section.title && <h2 style={{ fontSize: 28, fontWeight: 700, textAlign: "center", margin: "0 0 48px" }}>{section.title}</h2>}
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 32 }}>
-                    {(section.items as FeatureItem[] || []).map((item, i) => (
-                      <div key={i} style={{ padding: 32, borderRadius: 16, background: "#f8fafc", border: "1px solid rgba(0,0,0,0.04)", transition: "box-shadow 0.2s" }}>
+                    {featureItems.map((item, i) => (
+                      <div key={i} style={{ padding: 32, borderRadius: 16, background: "#f8fafc", border: "1px solid rgba(0,0,0,0.04)", transition: "box-shadow 0.2s, transform 0.2s" }}>
                         <div style={{ width: 48, height: 48, borderRadius: 12, background: `rgba(${rgb}, 0.1)`, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 20, color: c }}>
                           <SvgIcon name={item.icon} size={24} />
                         </div>
@@ -130,20 +184,24 @@ export default function MinimalTutor({ config }: TemplateProps) {
                 </div>
               </section>
             );
+          }
 
-          case "about":
+          case "about": {
+            // about 콘텐츠 자체가 비어있으면 hide (헤더만 거대 공백 방지)
+            if (!section.description && !section.title) return null;
             return (
               <section key="about" data-stype="about" style={{ padding: "80px 24px", background: "#f8fafc" }}>
                 <div style={{ maxWidth: 720, margin: "0 auto", textAlign: "center" }}>
                   <h2 style={{ fontSize: 28, fontWeight: 700, margin: "0 0 20px" }}>{section.title || "소개"}</h2>
-                  {section.description && (
+                  {section.description ? (
                     <p style={{ fontSize: 17, lineHeight: 1.8, color: "#64748b", margin: 0, whiteSpace: "pre-line" }}>
                       {section.description}
                     </p>
-                  )}
+                  ) : null}
                 </div>
               </section>
             );
+          }
 
           case "testimonials":
             return <LightTestimonialsSection key="testimonials" sectionItems={(section.items as TestimonialItem[]) || []} c={c} rgb={rgb} />;

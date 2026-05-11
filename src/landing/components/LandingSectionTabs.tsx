@@ -137,9 +137,12 @@ export default function LandingSectionTabs({ sections, tokens }: Props) {
   const inactiveBg = "transparent";
   const inactiveColor = tokens.textSecondary;
   const inactiveBorder = `1px solid ${tokens.border}`;
-  const activeBg = `rgba(${tokens.primaryRgb}, 0.16)`;
-  const activeColor = tokens.primaryColor;
-  const activeBorder = `1px solid rgba(${tokens.primaryRgb}, 0.5)`;
+  // active chip — primary solid filled + 흰 글자 (시각 대비 강화, 2026-05-12 시각 검수 결과).
+  // 이전: opacity 0.16 배경 + primary 글자 → 비활성과 거의 동일하게 보임.
+  const activeBg = tokens.primaryColor;
+  const activeColor = tokens.ctaTextColor || "#fff";
+  const activeBorder = `1px solid ${tokens.primaryColor}`;
+  const activeShadow = `0 2px 8px rgba(${tokens.primaryRgb}, 0.28)`;
   const hoverBg = isDark ? "rgba(255,255,255,0.05)" : "rgba(15,23,42,0.04)";
 
   return (
@@ -198,10 +201,11 @@ export default function LandingSectionTabs({ sections, tokens }: Props) {
                 background: isActive ? activeBg : inactiveBg,
                 color: isActive ? activeColor : inactiveColor,
                 border: isActive ? activeBorder : inactiveBorder,
+                boxShadow: isActive ? activeShadow : "none",
                 cursor: "pointer",
                 whiteSpace: "nowrap",
                 letterSpacing: "-0.01em",
-                transition: "background 0.15s, color 0.15s, border-color 0.15s",
+                transition: "background 0.15s, color 0.15s, border-color 0.15s, box-shadow 0.15s",
               }}
               onMouseEnter={(e) => {
                 if (!isActive) e.currentTarget.style.background = hoverBg;
