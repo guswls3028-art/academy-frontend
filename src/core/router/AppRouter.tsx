@@ -26,6 +26,8 @@ const PromoRouter = lazy(() => import("@promo/app/PromoRouter"));
 const PublicLandingPage = lazy(() => import("@/landing/pages/PublicLandingPage"));
 const LandingReportDetailPage = lazy(() => import("@/landing/pages/LandingReportDetailPage"));
 const LandingReportsListPage = lazy(() => import("@/landing/pages/LandingReportsListPage"));
+// 1클릭 공유 토큰 진입 (#67, 2026-05-12) — 학생 로그인 없이 카톡 링크로 PDF 즉시 노출.
+const LandingShareReportPage = lazy(() => import("@/landing/pages/LandingShareReportPage"));
 const LandingCommunityListPage = lazy(() => import("@/landing/pages/LandingCommunityListPage"));
 const LandingCommunityPostPage = lazy(() => import("@/landing/pages/LandingCommunityPostPage"));
 const LandingCommunityWritePage = lazy(() => import("@/landing/pages/LandingCommunityWritePage"));
@@ -163,6 +165,15 @@ export default function AppRouter() {
         element={
           <Suspense fallback={<div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}><span style={{ color: "var(--color-text-tertiary, #666)", fontSize: "var(--text-sm, 13px)" }}>불러오는 중…</span></div>}>
             <LandingReportDetailPage />
+          </Suspense>
+        }
+      />
+      {/* 1클릭 공유 — 선생이 카톡으로 학생/학부모에게 보내는 token URL. 로그인 X. */}
+      <Route
+        path="/landing/share/:token"
+        element={
+          <Suspense fallback={<div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}><span style={{ color: "var(--color-text-tertiary, #666)", fontSize: "var(--text-sm, 13px)" }}>불러오는 중…</span></div>}>
+            <LandingShareReportPage />
           </Suspense>
         }
       />

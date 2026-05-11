@@ -1105,3 +1105,26 @@ export async function toggleHitReportShowcase(
   );
   return data;
 }
+
+// ── 1클릭 공유 토큰 (#67, 2026-05-12) ─────────────────────────────────
+// 선생→학생 카톡 link share. 학원장 spec: picker 등록 무관, token만으로 통과.
+// generate: POST. rotate: POST + ?rotate=1. revoke: DELETE.
+
+export type HitReportShareLinkResponse = {
+  share_token: string | null;
+  share_url: string | null;
+  rotated?: boolean;
+};
+
+export async function generateHitReportShareLink(
+  reportId: number,
+  opts?: { rotate?: boolean },
+): Promise<HitReportShareLinkResponse> {
+  const url = `/matchup/hit-reports/${reportId}/share-link/${opts?.rotate ? "?rotate=1" : ""}`;
+  const { data } = await api.post<HitReportShareLinkResponse>(url);
+  return data;
+}
+
+export async function revokeHitReportShareLink(reportId: number): Promise<void> {
+  await api.delete(`/matchup/hit-reports/${reportId}/share-link/`);
+}

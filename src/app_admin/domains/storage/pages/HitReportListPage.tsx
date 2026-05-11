@@ -18,6 +18,7 @@ import {
   fetchHitReportList,
   fetchPublishedHitReportIds,
   toggleHitReportShowcase,
+  generateHitReportShareLink,
   type HitReportListItem,
   type HitReportListResponse,
 } from "../api/matchup.api";
@@ -93,6 +94,31 @@ export default function HitReportListPage() {
     }
   }, [togglingId]);
 
+  // 1클릭 공유 링크 복사 (#67, 2026-05-12) — 학원장/선생이 학생/학부모 카톡 share용.
+  // backend: 없으면 generate, 있으면 그대로 반환. clipboard에 절대 URL 복사.
+  const [sharingId, setSharingId] = useState<number | null>(null);
+  const handleShareCopy = useCallback(async (reportId: number) => {
+    if (sharingId !== null) return;
+    setSharingId(reportId);
+    try {
+      const resp = await generateHitReportShareLink(reportId);
+      if (!resp.share_url) throw new Error("응답에 share_url 없음");
+      const absolute = `${window.location.origin}${resp.share_url}`;
+      try {
+        await navigator.clipboard.writeText(absolute);
+        feedback.success("공유 링크를 복사했습니다. 카톡에 그대로 붙여넣으면 됩니다.");
+      } catch {
+        // clipboard API 차단 케이스 — prompt fallback.
+        window.prompt("공유 링크 (복사해서 카톡으로 보내세요)", absolute);
+      }
+    } catch (e) {
+      const detail = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      feedback.error(typeof detail === "string" ? detail : "공유 링크 생성 실패");
+    } finally {
+      setSharingId(null);
+    }
+  }, [sharingId]);
+
   const reports = useMemo(() => data?.reports ?? [], [data]);
   const summary = data?.summary;
   const draftCount = summary?.drafts ?? 0;
@@ -134,7 +160,7 @@ export default function HitReportListPage() {
             {tab === "mine" ? "내가 작성한 보고서" : "학원 전체 보고서"}
             {summary && (
               <span>
-                {"  ·  "}총 {summary.total}건 (제출 {summary.submitted} / 작성중 {summary.drafts})
+                {"  ·  "}총 {summary.total}건 (게시 {summary.submitted} / 작성중 {summary.drafts})
               </span>
             )}
           </div>
@@ -235,6 +261,8 @@ export default function HitReportListPage() {
                 showcaseOn={showcaseIds.has(r.id)}
                 showcaseToggling={togglingId === r.id}
                 onShowcaseToggle={isAcademyAdmin ? () => handleShowcaseToggle(r.id, showcaseIds.has(r.id)) : undefined}
+                onShareCopy={() => handleShareCopy(r.id)}
+                shareLoading={sharingId === r.id}
               />
             ))}
           </div>
@@ -269,6 +297,7 @@ function TabBtn({
 
 function ReportRow({
   report, showAuthor, onClick, showcaseOn, showcaseToggling, onShowcaseToggle,
+  onShareCopy, shareLoading,
 }: {
   report: HitReportListItem;
   showAuthor: boolean;
@@ -276,6 +305,8 @@ function ReportRow({
   showcaseOn?: boolean;
   showcaseToggling?: boolean;
   onShowcaseToggle?: () => void;
+  onShareCopy?: () => void;
+  shareLoading?: boolean;
 }) {
   const isSubmitted = report.status === "submitted";
   const progress = report.curated_progress || 0;
@@ -293,6 +324,10 @@ function ReportRow({
     <div
       role="button"
       tabIndex={0}
+      data-testid="hit-report-card"
+      data-report-id={report.id}
+      data-report-status={report.status}
+      aria-label={`${report.title || report.document_title || "(제목 없음)"} — ${isSubmitted ? "게시 중" : "작성 중"}`}
       onClick={onClick}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
@@ -327,7 +362,7 @@ function ReportRow({
               background: "var(--color-status-success-bg, #dcfce7)",
               color: "var(--color-status-success)",
             }}>
-              제출 완료
+              🌐 게시 중
             </span>
           ) : (
             <span style={{
@@ -358,6 +393,28 @@ function ReportRow({
               {showcaseOn ? "🌐 홈페이지" : "+ 홈페이지"}
             </button>
           )}
+          {onShareCopy && (
+            <button
+              type="button"
+              data-testid="hit-report-share-copy"
+              onClick={(e) => { e.stopPropagation(); onShareCopy(); }}
+              disabled={shareLoading}
+              title="학생/학부모 카톡 공유 링크 (로그인 없이 즉시 PDF)"
+              aria-label="공유 링크 복사"
+              style={{
+                padding: "1px 9px 1px 7px", borderRadius: 999, fontSize: 10, fontWeight: 700,
+                background: "rgba(20,184,166,0.12)",
+                color: "var(--color-teal-700, #0d9488)",
+                border: "1px solid rgba(20,184,166,0.3)",
+                cursor: shareLoading ? "wait" : "pointer",
+                opacity: shareLoading ? 0.6 : 1,
+                display: "inline-flex", alignItems: "center", gap: 3,
+                letterSpacing: "-0.01em",
+              }}
+            >
+              🔗 {shareLoading ? "복사 중…" : "공유 링크"}
+            </button>
+          )}
         </div>
         <div style={{
           display: "flex", gap: 12, fontSize: 11,
@@ -375,7 +432,7 @@ function ReportRow({
             </span>
           )}
           {report.submitted_at && (
-            <span>제출: {new Date(report.submitted_at).toLocaleDateString("ko-KR")}</span>
+            <span>게시일: {new Date(report.submitted_at).toLocaleDateString("ko-KR")}</span>
           )}
         </div>
       </div>
