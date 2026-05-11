@@ -179,6 +179,38 @@ export default function BoardAdminPage() {
     );
   }, [boardPosts, searchQuery]);
 
+  // 전체 선택 + Esc 해제 (#50 후속 — 운영 편의).
+  const allChecked = filtered.length > 0 && filtered.every((p) => selectedIds.has(p.id));
+  const someChecked = !allChecked && filtered.some((p) => selectedIds.has(p.id));
+  const toggleSelectAll = useCallback(() => {
+    if (allChecked) {
+      // 현재 visible 항목만 해제 (다른 scope 선택은 유지)
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        for (const p of filtered) next.delete(p.id);
+        return next;
+      });
+    } else {
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        for (const p of filtered) next.add(p.id);
+        return next;
+      });
+    }
+  }, [allChecked, filtered]);
+
+  useEffect(() => {
+    if (selectedIds.size === 0) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && bulkSubmitting == null) {
+        // 글쓰기 모달이 열린 경우 그 ESC가 우선이라 stop X. 단순히 우리 selection만 clear.
+        setSelectedIds(new Set());
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [selectedIds.size, bulkSubmitting]);
+
   const setSelectedId = useCallback(
     (id: number | null) => {
       setSearchParams((prev) => {
@@ -270,6 +302,25 @@ export default function BoardAdminPage() {
               aria-label="게시판 검색"
             />
           </div>
+          {filtered.length > 0 && (
+            <label
+              data-testid="board-select-all"
+              style={{
+                marginTop: 8, display: "inline-flex", alignItems: "center", gap: 6,
+                fontSize: 11, color: "var(--color-text-muted)", cursor: "pointer",
+                userSelect: "none",
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={allChecked}
+                ref={(el) => { if (el) el.indeterminate = someChecked; }}
+                onChange={toggleSelectAll}
+                style={{ width: 14, height: 14, cursor: "pointer", accentColor: "var(--color-brand-primary, #2563EB)" }}
+              />
+              현재 목록 전체 선택 ({filtered.length}건)
+            </label>
+          )}
           {selectedIds.size > 0 && (
             <div
               data-testid="board-bulk-bar"
@@ -301,7 +352,7 @@ export default function BoardAdminPage() {
                 disabled={bulkSubmitting != null}
               >보관</Button>
               <Button intent="ghost" size="sm" onClick={clearSelection} disabled={bulkSubmitting != null}>
-                선택 해제
+                선택 해제 (Esc)
               </Button>
             </div>
           )}
