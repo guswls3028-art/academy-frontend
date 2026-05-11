@@ -305,6 +305,9 @@ export default function PremiumDark({ config }: TemplateProps) {
             // 강사 통산 KPI 자동 — 학원장이 picker에 박은 hit_reports의 누적 적중률.
             const hitSec = sections.find((s) => s.type === "hit_reports");
             const reportIds = (hitSec?.items as HitReportShowcaseItem[] | undefined ?? []).map((it) => it.report_id);
+            // 강사 카드 비면 hide (#D2 cycle 13 — 빈 검정 공간 방지).
+            const instructorItems = (section.items as InstructorProfileItem[] | undefined) || [];
+            if (instructorItems.length === 0) return null;
             return (
               <section key="instructor_profile" data-stype="instructor_profile" style={{ padding: "120px 24px", position: "relative", overflow: "hidden" }}>
                 <div style={{ position: "absolute", inset: 0, background: `radial-gradient(ellipse 50% 60% at 30% 50%, rgba(${goldRgb},0.08) 0%, transparent 60%)`, pointerEvents: "none" }} />
@@ -320,13 +323,15 @@ export default function PremiumDark({ config }: TemplateProps) {
             );
           }
 
-          case "management_system":
+          case "management_system": {
+            const mgItems = (section.items as ManagementCardItem[] | undefined) || [];
+            if (mgItems.length === 0) return null;
             return (
               <section key="management_system" data-stype="management_system" style={{ padding: "120px 24px", background: bgAlt }}>
                 <div style={{ maxWidth: 1200, margin: "0 auto" }}>
                   <SectionHeader eyebrow="Management" title={section.title || "학생 관리 시스템"} description={section.description || "수업 외 시간에도 학생을 끊김 없이 챙깁니다."} gold={gold} goldRgb={goldRgb} textSecondary={textSecondary} />
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 18, marginTop: 56 }}>
-                    {((section.items as ManagementCardItem[]) || []).map((it, i) => (
+                    {mgItems.map((it, i) => (
                       <div key={i} style={{
                         padding: 28, borderRadius: 16,
                         background: bg, border: `1px solid ${cardBorder}`,
@@ -348,14 +353,17 @@ export default function PremiumDark({ config }: TemplateProps) {
                 </div>
               </section>
             );
+          }
 
-          case "process_timeline":
+          case "process_timeline": {
+            const stepItems = (section.items as ProcessStepItem[] | undefined) || [];
+            if (stepItems.length === 0) return null;
             return (
               <section key="process_timeline" data-stype="process_timeline" style={{ padding: "120px 24px", position: "relative" }}>
                 <div style={{ maxWidth: 980, margin: "0 auto" }}>
                   <SectionHeader eyebrow="Process" title={section.title || "수업 진행 흐름"} description={section.description || "한 사이클이 어떻게 진행되는지 한눈에 보세요."} gold={gold} goldRgb={goldRgb} textSecondary={textSecondary} />
                   <div style={{ display: "flex", flexDirection: "column", gap: 0, marginTop: 56, position: "relative" }}>
-                    {((section.items as ProcessStepItem[]) || []).map((it, i, arr) => (
+                    {stepItems.map((it, i, arr) => (
                       <div key={i} style={{ display: "flex", gap: 24, alignItems: "flex-start", position: "relative", paddingBottom: i === arr.length - 1 ? 0 : 32 }}>
                         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0 }}>
                           <div style={{
@@ -380,6 +388,7 @@ export default function PremiumDark({ config }: TemplateProps) {
                 </div>
               </section>
             );
+          }
 
           case "hit_reports": {
             // 빈 picker = 섹션 hide (시각 검수 2026-05-12 H-1).

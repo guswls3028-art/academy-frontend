@@ -119,19 +119,28 @@ export default function PublicLandingPage() {
     return <Navigate to="/login" replace />;
   }
 
-  // 청사진 SSOT (#D1+D2, cycle 12) — hostname 매핑 signature가 있고 학원장이 직접 입력한 값이
-  // 없는 항목만 fallback. 학원장 입력 우선 (학원장 자율성 X, 청사진은 안전망).
+  // 청사진 SSOT (#D1+D2, cycle 13) — signature mode "override"면 학원장 입력 무시 + 시그니처
+  // 강제 (박철 청사진 spec). "fallback"이면 빈 값만 채움 (일반 학원).
   const sig = getTenantSignature();
   const baseConfig = state.data.config;
   const mergedConfig: LandingConfig = sig
-    ? {
-        ...baseConfig,
-        tagline: baseConfig.tagline || sig.tagline,
-        subtitle: baseConfig.subtitle || sig.subtitle,
-        primary_color: baseConfig.primary_color || sig.primaryColor,
-      }
+    ? sig.mode === "override"
+      ? {
+          ...baseConfig,
+          tagline: sig.tagline,
+          subtitle: sig.subtitle,
+          primary_color: sig.primaryColor,
+        }
+      : {
+          ...baseConfig,
+          tagline: baseConfig.tagline || sig.tagline,
+          subtitle: baseConfig.subtitle || sig.subtitle,
+          primary_color: baseConfig.primary_color || sig.primaryColor,
+        }
     : baseConfig;
-  const effectiveTemplateKey = state.data.template_key || sig?.templateKey || "minimal_tutor";
+  const effectiveTemplateKey = sig?.mode === "override"
+    ? sig.templateKey
+    : (state.data.template_key || sig?.templateKey || "minimal_tutor");
   const Template = getTemplateComponent(effectiveTemplateKey);
   return (
     <PublicLandingContent
