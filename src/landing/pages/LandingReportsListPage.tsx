@@ -107,6 +107,14 @@ export default function LandingReportsListPage() {
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 18 }}>
               {reports.map((r) => {
                 const ratePct = Math.round(r.hit_rate_pct);
+                const dateStr = (() => {
+                  const raw = r.submitted_at || r.created_at;
+                  if (!raw) return "";
+                  try {
+                    const d = new Date(raw);
+                    return `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,"0")}.${String(d.getDate()).padStart(2,"0")}`;
+                  } catch { return ""; }
+                })();
                 return (
                   <Link
                     key={r.id}
@@ -134,8 +142,9 @@ export default function LandingReportsListPage() {
                       <span style={{ fontSize: 16, fontWeight: 700, color: gold, opacity: 0.85 }}>%</span>
                       <span style={{ fontSize: 12, color: textSecondary, marginLeft: 6 }}>{r.hit_count} / {r.total_problems} 문항</span>
                     </div>
-                    <div style={{ fontSize: 11, color: textSecondary, marginTop: 4, fontWeight: 600, letterSpacing: "0.04em" }}>
-                      자세히 보기 →
+                    <div style={{ fontSize: 11, color: textSecondary, marginTop: 4, fontWeight: 600, letterSpacing: "0.04em", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span>자세히 보기 →</span>
+                      {dateStr && <span style={{ opacity: 0.7 }}>📅 {dateStr}</span>}
                     </div>
                   </Link>
                 );

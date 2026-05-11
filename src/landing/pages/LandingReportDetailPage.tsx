@@ -102,6 +102,19 @@ export default function LandingReportDetailPage() {
     }
   };
 
+  // 게시판 분위기 — 작성일 표시 (submitted_at 우선, fallback created_at).
+  const dateStr = (() => {
+    const raw = report.submitted_at || report.created_at;
+    if (!raw) return "";
+    try {
+      const d = new Date(raw);
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      return `${y}.${m}.${day}`;
+    } catch { return ""; }
+  })();
+
   return (
     <div style={{ minHeight: "100vh", background: bg, color: textPrimary, fontFamily: "'Pretendard Variable', 'Pretendard', system-ui, sans-serif", letterSpacing: "-0.011em" }}>
       {/* 학원 헤더 */}
@@ -125,8 +138,13 @@ export default function LandingReportDetailPage() {
           <h1 style={{ fontSize: "clamp(24px, 3vw, 36px)", fontWeight: 800, margin: "0 0 12px", letterSpacing: "-0.025em", lineHeight: 1.25 }}>
             {report.doc_title || subj}
           </h1>
-          {subj && report.doc_title && subj !== report.doc_title && (
-            <div style={{ fontSize: 14, color: textSecondary, marginBottom: 16 }}>{subj}</div>
+          {/* 게시판 분위기 — 작성일 메타. cafe.naver 스타일 (2026-05-11 학원장 요청). */}
+          {(dateStr || (subj && report.doc_title && subj !== report.doc_title)) && (
+            <div style={{ fontSize: 13, color: textSecondary, marginBottom: 16, display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+              {subj && report.doc_title && subj !== report.doc_title && <span>{subj}</span>}
+              {subj && report.doc_title && subj !== report.doc_title && dateStr && <span style={{ opacity: 0.4 }}>·</span>}
+              {dateStr && <span>📅 {dateStr}</span>}
+            </div>
           )}
           <div style={{ display: "flex", gap: 28, alignItems: "baseline", flexWrap: "wrap", marginTop: 20 }}>
             <div>
@@ -181,9 +199,42 @@ export default function LandingReportDetailPage() {
         </div>
       </section>
 
+      {/* 게시판 navigation — cafe 상세 페이지 하단 "목록 보기" 핵심 CTA (2026-05-11 학원장 요청).
+          모바일 viewport 가독성 확보 위해 큰 button + 충분한 padding. */}
+      <section style={{ padding: "32px 24px 12px", background: bgAlt, borderTop: `1px solid ${cardBorder}` }}>
+        <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "space-between", alignItems: "center" }}>
+          <Link
+            to="/landing/reports"
+            data-testid="landing-report-list-link"
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 8,
+              padding: "12px 22px", borderRadius: 10,
+              background: "rgba(255,255,255,0.08)", color: textPrimary,
+              border: `1px solid ${cardBorder}`,
+              textDecoration: "none", fontSize: 14, fontWeight: 600,
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" /><line x1="3" y1="6" x2="3.01" y2="6" /><line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" /></svg>
+            적중 보고서 목록 보기
+          </Link>
+          <Link
+            to="/landing"
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 6,
+              padding: "10px 18px", borderRadius: 10,
+              background: "transparent", color: textSecondary,
+              border: `1px solid ${cardBorder}`,
+              textDecoration: "none", fontSize: 13, fontWeight: 600,
+            }}
+          >
+            ← 학원 홈으로
+          </Link>
+        </div>
+      </section>
+
       {/* 다른 적중 사례 */}
       {siblings.length > 0 && (
-        <section style={{ padding: "64px 24px 96px" }}>
+        <section style={{ padding: "64px 24px 96px", background: bgAlt }}>
           <div style={{ maxWidth: 1200, margin: "0 auto" }}>
             <h2 style={{ fontSize: 22, fontWeight: 700, margin: "0 0 24px", letterSpacing: "-0.02em" }}>다른 적중 사례</h2>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16 }}>
