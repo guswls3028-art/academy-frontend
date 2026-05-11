@@ -17,6 +17,7 @@ interface StatsResponse {
   reports: { total: number; by_status: Record<string, number> };
   top_posts: { id: number; title: string; post_type: string; period_likes: number; period_replies: number }[];
   top_students: { id: number; name: string; post_count: number; reply_count: number; score: number }[];
+  hot_keywords?: { keyword: string; count: number }[];
 }
 
 const POST_TYPE_LABEL: Record<string, string> = {
@@ -96,6 +97,25 @@ export default function CommunityStatsPage() {
             <BarChart data={data.posts.by_type} labelMap={POST_TYPE_LABEL} />
           </section>
 
+          {/* 핫 키워드 */}
+          {data.hot_keywords && data.hot_keywords.length > 0 && (
+            <section style={{ marginBottom: 22, padding: 20, borderRadius: 14, background: "#fff", border: "1px solid #E2E8F0" }}>
+              <h2 style={{ fontSize: 14, fontWeight: 700, color: "#0F172A", margin: "0 0 14px" }}>이번 기간 핫 키워드</h2>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                {data.hot_keywords.map((k) => {
+                  const fontSize = Math.min(20, 12 + Math.log2(k.count + 1) * 1.8);
+                  return (
+                    <span key={k.keyword} style={{
+                      padding: "5px 12px", borderRadius: 999,
+                      background: "rgba(37,99,235,0.06)", color: "#1E40AF",
+                      fontSize, fontWeight: 600, letterSpacing: "-0.01em",
+                    }}>#{k.keyword} <span style={{ opacity: 0.55, fontSize: 11, fontWeight: 500 }}>{k.count}</span></span>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+
           {/* top 활동 학생 */}
           <section style={{ marginBottom: 22, padding: 20, borderRadius: 14, background: "#fff", border: "1px solid #E2E8F0" }}>
             <h2 style={{ fontSize: 14, fontWeight: 700, color: "#0F172A", margin: "0 0 4px" }}>이번 기간 활동 학생 Top 5</h2>
@@ -143,6 +163,11 @@ export default function CommunityStatsPage() {
                     <Link to={`/landing/community/${p.post_type}/posts/${p.id}`} target="_blank" rel="noopener noreferrer"
                       style={{ padding: "6px 12px", borderRadius: 8, background: "#fff", border: "1px solid #CBD5E1", color: "#475569", fontSize: 11.5, fontWeight: 600, textDecoration: "none" }}
                     >보기 ↗</Link>
+                    <Link
+                      to={`/admin/settings/landing?prefill_hero_post=${p.id}&post_type=${p.post_type}`}
+                      title="이 글을 학원 홈페이지 hero 캐러셀에 등록"
+                      style={{ padding: "6px 12px", borderRadius: 8, background: "rgba(37,99,235,0.08)", border: "1px solid rgba(37,99,235,0.2)", color: "#1E40AF", fontSize: 11.5, fontWeight: 700, textDecoration: "none" }}
+                    >⭐ Hero에 등록</Link>
                   </li>
                 ))}
               </ol>

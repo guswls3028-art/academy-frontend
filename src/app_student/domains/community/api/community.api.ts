@@ -29,6 +29,8 @@ export interface MyActivityResponse {
   score?: number;
   rank: number | null;
   total_active_students: number;
+  lifetime?: { post_count: number; reply_count: number; received_likes: number };
+  badges?: { key: string; label: string }[];
 }
 
 export async function fetchMyActivity(days = 30): Promise<MyActivityResponse> {

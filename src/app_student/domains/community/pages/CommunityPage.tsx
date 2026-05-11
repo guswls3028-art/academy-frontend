@@ -226,6 +226,17 @@ function MyActivitySummary() {
           </div>
         </div>
       )}
+      {data.badges && data.badges.length > 0 && (
+        <div style={{ width: "100%", display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
+          {data.badges.map((b) => (
+            <span key={b.key} title={b.label} style={{
+              padding: "4px 9px", borderRadius: 999, fontSize: 11.5, fontWeight: 600,
+              background: "color-mix(in srgb, var(--stu-primary) 8%, transparent)",
+              color: "var(--stu-primary)", letterSpacing: "-0.01em",
+            }}>{b.label}</span>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

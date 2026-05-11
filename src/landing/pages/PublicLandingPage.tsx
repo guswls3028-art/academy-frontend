@@ -53,6 +53,32 @@ export default function PublicLandingPage() {
     setTimeout(tryScroll, 100);
   }, [state.loading, state.data]);
 
+  // 동적 PWA manifest (#55) — tenant별 brand_name/theme/icon 반영.
+  // 정적 /manifest.json은 fallback, 학원 도메인에서는 backend dynamic으로 swap.
+  useEffect(() => {
+    if (!state.data?.has_landing) return;
+    const apiBase = (import.meta.env.VITE_API_BASE_URL as string) || "";
+    const dyn = `${apiBase}/api/v1/core/landing/manifest.json`;
+    let link = document.querySelector('link[rel="manifest"]') as HTMLLinkElement | null;
+    if (!link) {
+      link = document.createElement("link");
+      link.rel = "manifest";
+      document.head.appendChild(link);
+    }
+    link.href = dyn;
+    // theme-color도 학원 primary로 swap
+    const primary = state.data.config?.primary_color;
+    if (primary) {
+      let tc = document.querySelector('meta[name="theme-color"]') as HTMLMetaElement | null;
+      if (!tc) {
+        tc = document.createElement("meta");
+        tc.name = "theme-color";
+        document.head.appendChild(tc);
+      }
+      tc.content = primary;
+    }
+  }, [state.data]);
+
   // Document title + OG meta — SEO 강화
   useEffect(() => {
     if (state.data?.config?.brand_name) {

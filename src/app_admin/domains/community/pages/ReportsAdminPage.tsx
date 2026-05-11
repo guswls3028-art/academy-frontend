@@ -30,6 +30,7 @@ interface ReportItem {
   status_label: string;
   created_at: string | null;
   resolved_at: string | null;
+  triage?: "auto_dismiss" | "auto_escalate" | "manual";
 }
 
 const STATUS_FILTERS: { key: ReportStatus | "all"; label: string }[] = [
@@ -146,6 +147,12 @@ export default function ReportsAdminPage() {
                   <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 999, background: r.status === "pending" ? "#FECACA" : r.status === "resolved" ? "rgba(16,185,129,0.12)" : "#E2E8F0", color: r.status === "pending" ? "#991B1B" : r.status === "resolved" ? "#065F46" : "#475569" }}>
                     {r.status_label}
                   </span>
+                  {r.triage === "auto_escalate" && (
+                    <span title="자동 분류: 즉시 검토 권장" style={{ fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 999, background: "rgba(220,38,38,0.12)", color: "#B91C1C" }}>🚨 즉시 검토</span>
+                  )}
+                  {r.triage === "auto_dismiss" && (
+                    <span title="자동 분류: 신뢰 낮은 신고 (over-reporting 가능성)" style={{ fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 999, background: "#E2E8F0", color: "#64748B" }}>🤔 검토 약함</span>
+                  )}
                   <span style={{ marginLeft: "auto", fontSize: 11, color: "#94A3B8" }}>{formatDate(r.created_at)}</span>
                 </div>
                 <div>
