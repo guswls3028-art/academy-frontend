@@ -21,6 +21,7 @@ import { LandingNavBar, type NavBarTokens } from "../templates/shared";
 import LandingFooter, { FOOTER_TOKENS_DARK } from "../components/LandingFooter";
 import LandingRoleFab from "../components/LandingRoleFab";
 import ImageLightbox from "../components/ImageLightbox";
+import { setLandingMeta as setMeta } from "../utils/seoMeta";
 
 const NAV_TOKENS: NavBarTokens = {
   bg: "rgba(10,14,26,0.85)",
@@ -836,19 +837,6 @@ function roleLabel(role: string): string {
   if (r === "parent") return "학부모";
   if (r === "staff") return "운영진";
   return role;
-}
-
-function setMeta(name: string, content: string) {
-  const isOg = name.startsWith("og:");
-  const sel = isOg ? `meta[property="${name}"]` : `meta[name="${name}"]`;
-  let el = document.querySelector(sel) as HTMLMetaElement | null;
-  if (!el) {
-    el = document.createElement("meta");
-    if (isOg) el.setAttribute("property", name);
-    else el.setAttribute("name", name);
-    document.head.appendChild(el);
-  }
-  el.setAttribute("content", content);
 }
 
 function formatDateTime(raw: string | null | undefined): string {

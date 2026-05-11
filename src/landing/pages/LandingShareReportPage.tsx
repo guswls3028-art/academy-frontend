@@ -17,6 +17,7 @@ import type { LandingPublicResponse } from "../types";
 import { LandingNavBar, type NavBarTokens } from "../templates/shared";
 import LandingFooter, { FOOTER_TOKENS_DARK } from "../components/LandingFooter";
 import LandingRoleFab from "../components/LandingRoleFab";
+import { setLandingMeta } from "../utils/seoMeta";
 
 const SHARE_NAV_TOKENS: NavBarTokens = {
   bg: "rgba(10,14,26,0.85)",
@@ -96,9 +97,9 @@ export default function LandingShareReportPage() {
     const subj = meta.doc_category || meta.doc_title;
     const brand = meta.tenant_name || landing?.config?.brand_name || "학원";
     document.title = `${subj} ${ratePct}% 적중 — ${brand}`;
-    setMetaTag("description", `${brand}의 ${subj} 적중 보고서 — ${meta.hit_count}/${meta.total_problems} 문항 (${ratePct}%).`);
-    setMetaTag("og:title", document.title);
-    setMetaTag("og:description", `${subj} 적중률 ${ratePct}% · 시험지 ↔ 강의 자료 비교 본문 PDF`);
+    setLandingMeta("description", `${brand}의 ${subj} 적중 보고서 — ${meta.hit_count}/${meta.total_problems} 문항 (${ratePct}%).`);
+    setLandingMeta("og:title", document.title);
+    setLandingMeta("og:description", `${subj} 적중률 ${ratePct}% · 시험지 ↔ 강의 자료 비교 본문 PDF`);
     return () => { document.title = brand; };
   }, [meta, landing]);
 
@@ -323,15 +324,3 @@ export default function LandingShareReportPage() {
   );
 }
 
-function setMetaTag(name: string, content: string) {
-  const isOg = name.startsWith("og:");
-  const sel = isOg ? `meta[property="${name}"]` : `meta[name="${name}"]`;
-  let el = document.querySelector(sel) as HTMLMetaElement | null;
-  if (!el) {
-    el = document.createElement("meta");
-    if (isOg) el.setAttribute("property", name);
-    else el.setAttribute("name", name);
-    document.head.appendChild(el);
-  }
-  el.setAttribute("content", content);
-}

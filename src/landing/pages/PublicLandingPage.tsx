@@ -14,6 +14,7 @@ import { getTemplateComponent } from "../templates";
 import type { LandingPublicResponse } from "../types";
 import LandingRoleFab from "../components/LandingRoleFab";
 import NoticePopup from "../components/NoticePopup";
+import { setLandingMeta as setMeta } from "../utils/seoMeta";
 
 export default function PublicLandingPage() {
   const [state, setState] = useState<{ loading: boolean; data: LandingPublicResponse | null }>({
@@ -129,16 +130,3 @@ export default function PublicLandingPage() {
   );
 }
 
-/** meta 태그 동적 설정 헬퍼 */
-function setMeta(name: string, content: string) {
-  const isOg = name.startsWith("og:");
-  const selector = isOg ? `meta[property="${name}"]` : `meta[name="${name}"]`;
-  let el = document.querySelector(selector) as HTMLMetaElement | null;
-  if (!el) {
-    el = document.createElement("meta");
-    if (isOg) el.setAttribute("property", name);
-    else el.setAttribute("name", name);
-    document.head.appendChild(el);
-  }
-  el.setAttribute("content", content);
-}

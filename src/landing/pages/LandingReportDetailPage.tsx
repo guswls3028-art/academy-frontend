@@ -14,6 +14,7 @@ import { LandingNavBar, type NavBarTokens } from "../templates/shared";
 import LandingRoleFab from "../components/LandingRoleFab";
 import LandingFooter, { FOOTER_TOKENS_DARK } from "../components/LandingFooter";
 import { resolveTenantCode } from "@/shared/tenant";
+import { setLandingMeta as setMeta } from "../utils/seoMeta";
 
 // 적중보고서 상세 nav 톤(PremiumDark 시그니처) — List 페이지와 동일.
 const DETAIL_NAV_TOKENS: NavBarTokens = {
@@ -296,15 +297,3 @@ export default function LandingReportDetailPage() {
   );
 }
 
-function setMeta(name: string, content: string) {
-  const isOg = name.startsWith("og:");
-  const sel = isOg ? `meta[property="${name}"]` : `meta[name="${name}"]`;
-  let el = document.querySelector(sel) as HTMLMetaElement | null;
-  if (!el) {
-    el = document.createElement("meta");
-    if (isOg) el.setAttribute("property", name);
-    else el.setAttribute("name", name);
-    document.head.appendChild(el);
-  }
-  el.setAttribute("content", content);
-}
