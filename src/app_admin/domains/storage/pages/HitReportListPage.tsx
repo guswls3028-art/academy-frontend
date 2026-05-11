@@ -16,6 +16,8 @@ import { feedback } from "@/shared/ui/feedback/feedback";
 import useAuth from "@/auth/hooks/useAuth";
 import {
   fetchHitReportList,
+  fetchPublishedHitReportIds,
+  toggleHitReportShowcase,
   type HitReportListItem,
   type HitReportListResponse,
 } from "../api/matchup.api";
@@ -38,6 +40,8 @@ export default function HitReportListPage() {
   const [data, setData] = useState<HitReportListResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showcaseIds, setShowcaseIds] = useState<Set<number>>(new Set());
+  const [togglingId, setTogglingId] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -60,6 +64,33 @@ export default function HitReportListPage() {
   }, [tab, statusFilter]);
 
   useEffect(() => { void load(); }, [load]);
+
+  // 학원장(owner/admin)만 picker 등록 ID fetch — chip 활성/비활성 표시용
+  useEffect(() => {
+    if (!isAcademyAdmin) return;
+    fetchPublishedHitReportIds().then((ids) => setShowcaseIds(new Set(ids))).catch(() => {});
+  }, [isAcademyAdmin]);
+
+  const handleShowcaseToggle = useCallback(async (reportId: number, currentlyOn: boolean) => {
+    if (togglingId !== null) return;
+    setTogglingId(reportId);
+    try {
+      const action: "add" | "remove" = currentlyOn ? "remove" : "add";
+      await toggleHitReportShowcase(reportId, action);
+      setShowcaseIds((prev) => {
+        const next = new Set(prev);
+        if (action === "add") next.add(reportId);
+        else next.delete(reportId);
+        return next;
+      });
+      feedback.success(action === "add" ? "홈페이지에 노출했습니다" : "홈페이지에서 내렸습니다");
+    } catch (e) {
+      const detail = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      feedback.error(typeof detail === "string" ? detail : "변경 실패");
+    } finally {
+      setTogglingId(null);
+    }
+  }, [togglingId]);
 
   const reports = useMemo(() => data?.reports ?? [], [data]);
   const summary = data?.summary;
@@ -196,6 +227,9 @@ export default function HitReportListPage() {
                 report={r}
                 showAuthor={tab === "all"}
                 onClick={() => handleOpen(r.document_id)}
+                showcaseOn={showcaseIds.has(r.id)}
+                showcaseToggling={togglingId === r.id}
+                onShowcaseToggle={isAcademyAdmin ? () => handleShowcaseToggle(r.id, showcaseIds.has(r.id)) : undefined}
               />
             ))}
           </div>
@@ -229,11 +263,14 @@ function TabBtn({
 }
 
 function ReportRow({
-  report, showAuthor, onClick,
+  report, showAuthor, onClick, showcaseOn, showcaseToggling, onShowcaseToggle,
 }: {
   report: HitReportListItem;
   showAuthor: boolean;
   onClick: () => void;
+  showcaseOn?: boolean;
+  showcaseToggling?: boolean;
+  onShowcaseToggle?: () => void;
 }) {
   const isSubmitted = report.status === "submitted";
   const progress = report.curated_progress || 0;
@@ -295,6 +332,26 @@ function ReportRow({
             }}>
               작성 중
             </span>
+          )}
+          {onShowcaseToggle && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onShowcaseToggle(); }}
+              disabled={showcaseToggling}
+              title={showcaseOn ? "홈페이지에서 내리기" : "홈페이지에 노출"}
+              style={{
+                padding: "1px 9px 1px 7px", borderRadius: 999, fontSize: 10, fontWeight: 700,
+                background: showcaseOn ? "rgba(37,99,235,0.12)" : "rgba(15,23,42,0.05)",
+                color: showcaseOn ? "var(--color-brand-primary, #2563EB)" : "var(--color-text-muted, #94a3b8)",
+                border: showcaseOn ? "1px solid rgba(37,99,235,0.3)" : "1px solid transparent",
+                cursor: showcaseToggling ? "wait" : "pointer",
+                opacity: showcaseToggling ? 0.6 : 1,
+                display: "inline-flex", alignItems: "center", gap: 3,
+                letterSpacing: "-0.01em",
+              }}
+            >
+              {showcaseOn ? "🌐 홈페이지" : "+ 홈페이지"}
+            </button>
           )}
         </div>
         <div style={{

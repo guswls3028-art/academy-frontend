@@ -1033,3 +1033,32 @@ export async function rejectProposal(
   );
   return data;
 }
+
+/** 어드민이 자기 학원의 published landing에 노출된 적중보고서 ID 목록 fetch */
+export async function fetchPublishedHitReportIds(): Promise<number[]> {
+  try {
+    const { data } = await api.get<{
+      draft_config?: { sections?: Array<{ type: string; enabled?: boolean; items?: Array<{ report_id?: number }> }> };
+    }>("/core/landing/admin/");
+    const sections = data?.draft_config?.sections ?? [];
+    const hit = sections.find((s) => s.type === "hit_reports");
+    if (!hit) return [];
+    return (hit.items ?? [])
+      .map((it) => Number(it.report_id))
+      .filter((n) => Number.isFinite(n) && n > 0);
+  } catch {
+    return [];
+  }
+}
+
+/** 적중보고서 한 클릭 토글 — 홈페이지 hit_reports 섹션에 add/remove + auto-publish */
+export async function toggleHitReportShowcase(
+  reportId: number,
+  action: "add" | "remove",
+): Promise<{ ok: boolean; registered: boolean; total_registered?: number; published?: boolean }> {
+  const { data } = await api.post<{ ok: boolean; registered: boolean; total_registered?: number; published?: boolean }>(
+    "/core/landing/admin/hit-report-toggle/",
+    { report_id: reportId, action, auto_publish: true },
+  );
+  return data;
+}
