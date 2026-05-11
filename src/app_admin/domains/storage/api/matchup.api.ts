@@ -756,6 +756,7 @@ export type HitReportListItem = {
   // PDF 표지 헤드라인과 동일 정의. backend가 cosine으로 산출.
   hit_count: number;
   hit_rate: number;          // 0~100, 적중률(%).
+  has_share_token?: boolean; // 1클릭 공유 링크 활성 여부 (#67, 2026-05-12)
   created_at: string;
   updated_at: string;
 };
@@ -1113,7 +1114,8 @@ export async function toggleHitReportShowcase(
 export type HitReportShareLinkResponse = {
   share_token: string | null;
   share_url: string | null;
-  rotated?: boolean;
+  rotated?: boolean;  // 학원장이 ?rotate=1 로 회전한 경우
+  created?: boolean;  // 첫 발급(없던 토큰을 새로 만든 경우)
 };
 
 export async function generateHitReportShareLink(

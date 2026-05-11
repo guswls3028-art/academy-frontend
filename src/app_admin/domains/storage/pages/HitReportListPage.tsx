@@ -97,6 +97,7 @@ export default function HitReportListPage() {
   // 1클릭 공유 링크 복사 (#67, 2026-05-12) — 학원장/선생이 학생/학부모 카톡 share용.
   // backend: 없으면 generate, 있으면 그대로 반환. clipboard에 절대 URL 복사.
   const [sharingId, setSharingId] = useState<number | null>(null);
+  // 응답 created flag로 toast 분기 — backend 결과를 사용자에게 정확히 전달.
   const handleShareCopy = useCallback(async (reportId: number) => {
     if (sharingId !== null) return;
     setSharingId(reportId);
@@ -104,20 +105,28 @@ export default function HitReportListPage() {
       const resp = await generateHitReportShareLink(reportId);
       if (!resp.share_url) throw new Error("응답에 share_url 없음");
       const absolute = `${window.location.origin}${resp.share_url}`;
+      // 응답 성공 이후에만 clipboard 시도. 실패해도 prompt fallback으로 사용자에게 URL 노출.
+      let copied = false;
       try {
         await navigator.clipboard.writeText(absolute);
-        feedback.success("공유 링크를 복사했습니다. 카톡에 그대로 붙여넣으면 됩니다.");
+        copied = true;
       } catch {
-        // clipboard API 차단 케이스 — prompt fallback.
         window.prompt("공유 링크 (복사해서 카톡으로 보내세요)", absolute);
       }
+      // 응답 reload — has_share_token state 갱신.
+      void load();
+      const msg = resp.created
+        ? "공유 링크를 새로 만들고 복사했습니다. 카톡에 붙여넣으면 됩니다."
+        : "공유 링크를 복사했습니다. 카톡에 붙여넣으면 됩니다.";
+      if (copied) feedback.success(msg);
+      else feedback.info("공유 링크가 위 입력창에 표시되었습니다. 직접 복사해 주세요.");
     } catch (e) {
       const detail = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
       feedback.error(typeof detail === "string" ? detail : "공유 링크 생성 실패");
     } finally {
       setSharingId(null);
     }
-  }, [sharingId]);
+  }, [sharingId, load]);
 
   const reports = useMemo(() => data?.reports ?? [], [data]);
   const summary = data?.summary;
@@ -308,6 +317,7 @@ function ReportRow({
   onShareCopy?: () => void;
   shareLoading?: boolean;
 }) {
+  const shareActive = !!report.has_share_token;
   const isSubmitted = report.status === "submitted";
   const progress = report.curated_progress || 0;
   const hitRate = report.hit_rate || 0;
@@ -397,22 +407,26 @@ function ReportRow({
             <button
               type="button"
               data-testid="hit-report-share-copy"
+              data-share-active={shareActive ? "true" : "false"}
               onClick={(e) => { e.stopPropagation(); onShareCopy(); }}
               disabled={shareLoading}
-              title="학생/학부모 카톡 공유 링크 (로그인 없이 즉시 PDF)"
-              aria-label="공유 링크 복사"
+              title={shareActive
+                ? "학생/학부모 카톡 공유 링크 복사 (활성)"
+                : "학생/학부모 카톡 공유 링크 만들기 (로그인 없이 즉시 PDF)"
+              }
+              aria-label={shareActive ? "공유 링크 복사" : "공유 링크 만들기"}
               style={{
                 padding: "1px 9px 1px 7px", borderRadius: 999, fontSize: 10, fontWeight: 700,
-                background: "rgba(20,184,166,0.12)",
+                background: shareActive ? "rgba(20,184,166,0.22)" : "rgba(20,184,166,0.08)",
                 color: "var(--color-teal-700, #0d9488)",
-                border: "1px solid rgba(20,184,166,0.3)",
+                border: shareActive ? "1px solid rgba(20,184,166,0.55)" : "1px dashed rgba(20,184,166,0.4)",
                 cursor: shareLoading ? "wait" : "pointer",
                 opacity: shareLoading ? 0.6 : 1,
                 display: "inline-flex", alignItems: "center", gap: 3,
                 letterSpacing: "-0.01em",
               }}
             >
-              🔗 {shareLoading ? "복사 중…" : "공유 링크"}
+              🔗 {shareLoading ? "복사 중…" : (shareActive ? "공유 링크" : "공유 링크 만들기")}
             </button>
           )}
         </div>
