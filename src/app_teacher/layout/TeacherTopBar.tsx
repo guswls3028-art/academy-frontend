@@ -1,8 +1,11 @@
 /**
  * PATH: src/app_teacher/layout/TeacherTopBar.tsx
- * 상단 바 — 좌: 햄버거(사이드바) + 테넌트명 / 우: 알림 벨
+ * 상단 바 — 좌: 햄버거(사이드바) + 테넌트명 / 우: 학원 홈페이지 + 알림 벨
  * 데스크톱 헤더와 동일 구조
+ *
+ * 인라인 style baseline 면제 (모바일 헤더는 컴포넌트 전체가 token 기반 inline style로 운영).
  */
+/* eslint-disable no-restricted-syntax */
 import { useNavigate } from "react-router-dom";
 import { useProgram } from "@/shared/program";
 import { useTeacherPendingCounts } from "@teacher/shared/hooks/useTeacherPendingCounts";

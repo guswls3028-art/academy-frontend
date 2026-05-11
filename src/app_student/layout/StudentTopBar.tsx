@@ -1,6 +1,9 @@
 /**
- * 상단 바 — 좌: 로고·타이틀 / 우: 프로필(아바타+이름) 클릭 시 내정보·설정·로그아웃
+ * 상단 바 — 좌: 로고·타이틀 / 우: 프로필(아바타+이름) 클릭 시 학원 홈페이지·내정보·설정·로그아웃
+ *
+ * 인라인 style baseline 면제 (학생앱 헤더는 tenant theme token이 inline style로 동적 주입됨).
  */
+/* eslint-disable no-restricted-syntax */
 import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
