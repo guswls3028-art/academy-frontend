@@ -6,7 +6,7 @@
 /* eslint-disable no-restricted-syntax */
 
 import type { FeatureItem, TestimonialItem, ProgramItem, FaqItem, HitReportShowcaseItem, InstructorProfileItem, ManagementCardItem, ProcessStepItem } from "../types";
-import { getEnabledSections, SvgIcon, FaqAccordion, HitReportCards, useTenantHitStats, LandingNavBar, type TemplateProps } from "./shared";
+import { getEnabledSections, SvgIcon, FaqAccordion, HitReportCards, useTenantHitStats, LandingNavBar, ConsultRequestForm, type TemplateProps } from "./shared";
 import { hexToRgb } from "./colorUtils";
 
 export default function MinimalTutor({ config }: TemplateProps) {
@@ -287,18 +287,33 @@ export default function MinimalTutor({ config }: TemplateProps) {
           case "contact":
             return (
               <section key="contact" data-stype="contact" style={{ padding: "80px 24px", background: "#f8fafc" }}>
-                <div style={{ maxWidth: 720, margin: "0 auto", textAlign: "center" }}>
-                  <h2 style={{ fontSize: 28, fontWeight: 700, margin: "0 0 32px" }}>문의</h2>
-                  <div style={{ display: "flex", gap: 40, justifyContent: "center", flexWrap: "wrap" }}>
-                    {config.contact?.phone && (
-                      <div><p style={{ fontSize: 13, color: "#94a3b8", margin: "0 0 4px" }}>전화</p><p style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>{config.contact.phone}</p></div>
-                    )}
-                    {config.contact?.email && (
-                      <div><p style={{ fontSize: 13, color: "#94a3b8", margin: "0 0 4px" }}>이메일</p><p style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>{config.contact.email}</p></div>
-                    )}
-                    {config.contact?.address && (
-                      <div><p style={{ fontSize: 13, color: "#94a3b8", margin: "0 0 4px" }}>주소</p><p style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>{config.contact.address}</p></div>
-                    )}
+                <div style={{ maxWidth: 1000, margin: "0 auto" }}>
+                  <h2 style={{ fontSize: 28, fontWeight: 700, margin: "0 0 36px", textAlign: "center" }}>문의</h2>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 32 }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                      {config.contact?.phone && (
+                        <div style={{ padding: "20px 18px", background: "#fff", borderRadius: 12, border: "1px solid rgba(0,0,0,0.06)" }}>
+                          <p style={{ fontSize: 11, color: "#94a3b8", margin: "0 0 4px", letterSpacing: "0.06em", textTransform: "uppercase", fontWeight: 700 }}>전화</p>
+                          <p style={{ fontSize: 16, fontWeight: 700, margin: 0, color: "#0f172a" }}>{config.contact.phone}</p>
+                        </div>
+                      )}
+                      {config.contact?.email && (
+                        <div style={{ padding: "20px 18px", background: "#fff", borderRadius: 12, border: "1px solid rgba(0,0,0,0.06)" }}>
+                          <p style={{ fontSize: 11, color: "#94a3b8", margin: "0 0 4px", letterSpacing: "0.06em", textTransform: "uppercase", fontWeight: 700 }}>문자</p>
+                          <p style={{ fontSize: 16, fontWeight: 700, margin: 0, color: "#0f172a" }}>{config.contact.email}</p>
+                        </div>
+                      )}
+                      {config.contact?.address && (
+                        <div style={{ padding: "20px 18px", background: "#fff", borderRadius: 12, border: "1px solid rgba(0,0,0,0.06)" }}>
+                          <p style={{ fontSize: 11, color: "#94a3b8", margin: "0 0 4px", letterSpacing: "0.06em", textTransform: "uppercase", fontWeight: 700 }}>주소</p>
+                          <p style={{ fontSize: 16, fontWeight: 700, margin: 0, color: "#0f172a" }}>{config.contact.address}</p>
+                        </div>
+                      )}
+                    </div>
+                    <div style={{ padding: 28, borderRadius: 16, background: "#fff", border: "1px solid rgba(0,0,0,0.06)", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
+                      <h3 style={{ fontSize: 16, fontWeight: 700, margin: "0 0 16px", color: "#0f172a" }}>바로 상담 요청 보내기</h3>
+                      <ConsultRequestForm accent={c} />
+                    </div>
                   </div>
                 </div>
               </section>

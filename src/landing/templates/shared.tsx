@@ -252,6 +252,103 @@ function NavRoleAuthMenu({ cta, ctaLink, tokens }: { cta: string; ctaLink: strin
   );
 }
 
+/** 상담 요청 form — contact 섹션 inline.
+ *
+ * 외부 학부모가 직접 이름/전화/관심강좌/메시지 제출 → backend POST /landing/consult/
+ * 인증 X (공개 endpoint), tenant 격리 + rate limit + 검증.
+ */
+export function ConsultRequestForm({ accent, dark = false }: { accent: string; dark?: boolean }) {
+  const [form, setForm] = useState({ name: "", phone: "", interest: "", message: "" });
+  const [pending, setPending] = useState(false);
+  const [done, setDone] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (pending || done) return;
+    setErr(null);
+    if (!form.name.trim() || !form.phone.trim()) {
+      setErr("이름과 전화번호는 필수입니다.");
+      return;
+    }
+    setPending(true);
+    try {
+      await api.post("/core/landing/consult/", { ...form, source: "landing-contact" }, { skipAuth: true } as ApiRequestConfig);
+      setDone(true);
+    } catch (e) {
+      const detail = (e as { response?: { data?: { detail?: string | string[] } } })?.response?.data?.detail;
+      setErr(Array.isArray(detail) ? detail[0] : (typeof detail === "string" ? detail : "전송 실패. 잠시 후 다시 시도해주세요."));
+    }
+    setPending(false);
+  };
+
+  const fieldBg = dark ? "rgba(255,255,255,0.04)" : "#fff";
+  const fieldBorder = dark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)";
+  const labelColor = dark ? "#9CA3AF" : "#475569";
+  const textColor = dark ? "#F5F1E8" : "#0f172a";
+
+  if (done) {
+    return (
+      <div style={{
+        padding: "32px 24px", borderRadius: 14, textAlign: "center",
+        background: dark ? "rgba(212,160,76,0.08)" : "rgba(37,99,235,0.06)",
+        border: `1px solid ${dark ? "rgba(212,160,76,0.25)" : "rgba(37,99,235,0.2)"}`,
+        color: textColor,
+      }}>
+        <div style={{ fontSize: 32, marginBottom: 8 }}>✓</div>
+        <p style={{ fontSize: 16, fontWeight: 700, margin: "0 0 6px" }}>상담 요청이 접수되었습니다</p>
+        <p style={{ fontSize: 13, color: labelColor, margin: 0, lineHeight: 1.6 }}>학원에서 곧 연락드릴 예정입니다.</p>
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={submit} style={{ display: "grid", gap: 14 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+        <FormField label="이름" required dark={dark}>
+          <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} maxLength={50} disabled={pending} required
+            style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: `1px solid ${fieldBorder}`, background: fieldBg, color: textColor, fontSize: 14, fontFamily: "inherit", outline: "none" }} />
+        </FormField>
+        <FormField label="전화번호" required dark={dark}>
+          <input type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} maxLength={20} placeholder="010-0000-0000" disabled={pending} required
+            style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: `1px solid ${fieldBorder}`, background: fieldBg, color: textColor, fontSize: 14, fontFamily: "inherit", outline: "none" }} />
+        </FormField>
+      </div>
+      <FormField label="관심 강좌·학년 (선택)" dark={dark}>
+        <input type="text" value={form.interest} onChange={(e) => setForm({ ...form, interest: e.target.value })} maxLength={80} placeholder="예: 통합과학 / 고1" disabled={pending}
+          style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: `1px solid ${fieldBorder}`, background: fieldBg, color: textColor, fontSize: 14, fontFamily: "inherit", outline: "none" }} />
+      </FormField>
+      <FormField label="궁금한 점 (선택)" dark={dark}>
+        <textarea value={form.message} onChange={(e) => setForm({ ...form, message: e.target.value })} maxLength={2000} rows={3} disabled={pending}
+          style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: `1px solid ${fieldBorder}`, background: fieldBg, color: textColor, fontSize: 14, fontFamily: "inherit", outline: "none", resize: "vertical" }} />
+      </FormField>
+      {err && <div style={{ padding: "10px 12px", borderRadius: 8, background: "rgba(220,38,38,0.1)", border: "1px solid rgba(220,38,38,0.25)", color: dark ? "#fca5a5" : "#b91c1c", fontSize: 13, fontWeight: 500 }}>{err}</div>}
+      <button type="submit" disabled={pending} style={{
+        marginTop: 6, padding: "13px 22px", borderRadius: 10, border: "none",
+        background: pending ? "#94a3b8" : accent, color: dark ? "#0A0E1A" : "#fff",
+        fontSize: 15, fontWeight: 700, cursor: pending ? "wait" : "pointer",
+        letterSpacing: "-0.01em",
+      }}>
+        {pending ? "전송 중..." : "상담 요청 보내기"}
+      </button>
+      <p style={{ fontSize: 11, color: labelColor, margin: 0, textAlign: "center", lineHeight: 1.5 }}>
+        제출하신 정보는 상담 응대 목적으로만 사용되며 외부에 공개되지 않습니다.
+      </p>
+    </form>
+  );
+}
+
+function FormField({ label, required, children, dark }: { label: string; required?: boolean; children: React.ReactNode; dark?: boolean }) {
+  return (
+    <label style={{ display: "block" }}>
+      <div style={{ fontSize: 12, fontWeight: 700, color: dark ? "#9CA3AF" : "#475569", marginBottom: 6, letterSpacing: "0.02em" }}>
+        {label}{required && <span style={{ color: "#ef4444", marginLeft: 4 }}>*</span>}
+      </div>
+      {children}
+    </label>
+  );
+}
+
 /** 학원의 매치업 통산 KPI — 강사 프로필 카드 등에서 자동 노출.
  *
  * 데이터: 학원장이 picker에 박은 보고서들의 누적 적중률 + 보고서 수.

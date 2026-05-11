@@ -8,7 +8,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import type { LandingConfig, LandingSection, FeatureItem, TestimonialItem, ProgramItem, FaqItem, HitReportShowcaseItem, InstructorProfileItem, ManagementCardItem, ProcessStepItem } from "../types";
-import { getEnabledSections, SvgIcon, HitReportCards, useTenantHitStats, LandingNavBar, type TemplateProps } from "./shared";
+import { getEnabledSections, SvgIcon, HitReportCards, useTenantHitStats, LandingNavBar, ConsultRequestForm, type TemplateProps } from "./shared";
 import { hexToRgb } from "./colorUtils";
 import useAuth from "@/auth/hooks/useAuth";
 
@@ -377,18 +377,28 @@ export default function PremiumDark({ config }: TemplateProps) {
           case "contact":
             return (
               <section key="contact" data-stype="contact" style={{ padding: "120px 24px", background: bgAlt }}>
-                <div style={{ maxWidth: 760, margin: "0 auto", textAlign: "center" }}>
+                <div style={{ maxWidth: 1120, margin: "0 auto" }}>
                   <SectionHeader eyebrow="Contact" title="문의" gold={gold} goldRgb={goldRgb} textSecondary={textSecondary} />
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 16, marginTop: 56 }}>
-                    {config.contact?.phone && (
-                      <ContactCard label="전화" value={config.contact.phone} cardBg={cardBg} cardBorder={cardBorder} textMuted={textMuted} textPrimary={textPrimary} gold={gold} />
-                    )}
-                    {config.contact?.email && (
-                      <ContactCard label="문자" value={config.contact.email} cardBg={cardBg} cardBorder={cardBorder} textMuted={textMuted} textPrimary={textPrimary} gold={gold} />
-                    )}
-                    {config.contact?.address && (
-                      <ContactCard label="주소" value={config.contact.address} cardBg={cardBg} cardBorder={cardBorder} textMuted={textMuted} textPrimary={textPrimary} gold={gold} />
-                    )}
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 32, marginTop: 56 }}>
+                    {/* 좌: 연락처 카드들 */}
+                    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                      {config.contact?.phone && (
+                        <ContactCard label="전화" value={config.contact.phone} cardBg={cardBg} cardBorder={cardBorder} textMuted={textMuted} textPrimary={textPrimary} gold={gold} />
+                      )}
+                      {config.contact?.email && (
+                        <ContactCard label="문자" value={config.contact.email} cardBg={cardBg} cardBorder={cardBorder} textMuted={textMuted} textPrimary={textPrimary} gold={gold} />
+                      )}
+                      {config.contact?.address && (
+                        <ContactCard label="주소" value={config.contact.address} cardBg={cardBg} cardBorder={cardBorder} textMuted={textMuted} textPrimary={textPrimary} gold={gold} />
+                      )}
+                    </div>
+                    {/* 우: 상담 요청 form */}
+                    <div style={{ padding: 28, borderRadius: 18, background: cardBg, border: `1px solid ${cardBorder}` }}>
+                      <h3 style={{ fontSize: 16, fontWeight: 700, margin: "0 0 16px", color: textPrimary, letterSpacing: "-0.015em" }}>
+                        바로 상담 요청 보내기
+                      </h3>
+                      <ConsultRequestForm accent={gold} dark />
+                    </div>
                   </div>
                 </div>
               </section>
