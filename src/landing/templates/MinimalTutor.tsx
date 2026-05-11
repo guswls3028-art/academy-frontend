@@ -187,17 +187,16 @@ export default function MinimalTutor({ config }: TemplateProps) {
           }
 
           case "about": {
-            // about 콘텐츠 자체가 비어있으면 hide (헤더만 거대 공백 방지)
-            if (!section.description && !section.title) return null;
+            // description이 실제 콘텐츠 — title은 "소개" default라 단독으로는 의미 없음.
+            // V1 시각 재검증 (2026-05-12 cycle 2): title만 있고 body 없으면 200px 공백 발생 → hide.
+            if (!section.description || !section.description.trim()) return null;
             return (
               <section key="about" data-stype="about" style={{ padding: "80px 24px", background: "#f8fafc" }}>
                 <div style={{ maxWidth: 720, margin: "0 auto", textAlign: "center" }}>
                   <h2 style={{ fontSize: 28, fontWeight: 700, margin: "0 0 20px" }}>{section.title || "소개"}</h2>
-                  {section.description ? (
-                    <p style={{ fontSize: 17, lineHeight: 1.8, color: "#64748b", margin: 0, whiteSpace: "pre-line" }}>
-                      {section.description}
-                    </p>
-                  ) : null}
+                  <p style={{ fontSize: 17, lineHeight: 1.8, color: "#64748b", margin: 0, whiteSpace: "pre-line" }}>
+                    {section.description}
+                  </p>
                 </div>
               </section>
             );
