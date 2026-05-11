@@ -131,5 +131,14 @@
       })();
     </script>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      // service worker 등록(#61) — 학원 도메인 PWA 셸 캐시.
+      // 실패해도 무시(개발 환경 또는 file://에서 정상).
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", function () {
+          navigator.serviceWorker.register("/sw.js").catch(function () {});
+        });
+      }
+    </script>
   </body>
 </html>

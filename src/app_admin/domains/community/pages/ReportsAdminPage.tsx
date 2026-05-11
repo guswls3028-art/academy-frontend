@@ -12,8 +12,8 @@ import api, { type ApiRequestConfig } from "@/shared/api/axios";
 type ReportStatus = "pending" | "resolved" | "dismissed";
 type TargetType = "post" | "reply";
 
-interface ReportTargetPost { kind: "post"; id: number; title: string; post_type: string; status: string }
-interface ReportTargetReply { kind: "reply"; id: number; post_id: number; post_title: string; post_type: string; content_excerpt: string }
+interface ReportTargetPost { kind: "post"; id: number; title: string; post_type: string; status: string; author_user_id?: number | null; author_name?: string | null }
+interface ReportTargetReply { kind: "reply"; id: number; post_id: number; post_title: string; post_type: string; content_excerpt: string; author_user_id?: number | null; author_name?: string | null }
 type ReportTarget = ReportTargetPost | ReportTargetReply;
 
 interface ReportItem {
@@ -63,6 +63,18 @@ export default function ReportsAdminPage() {
 
   useEffect(() => { setPage(1); }, [statusFilter]);
   useEffect(() => { fetchList(); /* eslint-disable-next-line */ }, [page, statusFilter]);
+
+  const onBlockUser = async (userId: number, name: string | null) => {
+    const reason = window.prompt(`작성자 "${name || "이 사용자"}"를 학원 커뮤니티에서 차단하시겠습니까?\n사유(선택, 학원 내부 메모):`, "");
+    if (reason === null) return;
+    try {
+      await api.post("/community/admin/user-blocks/", { user_id: userId, reason: reason.trim().slice(0, 500) });
+      alert(`${name || "사용자"} 차단 완료. 학원 커뮤니티 작성·반응이 제한됩니다.`);
+    } catch (e) {
+      const detail = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      alert(detail || "차단 실패. 잠시 후 다시 시도해주세요.");
+    }
+  };
 
   const onSetStatus = async (id: number, next: "resolved" | "dismissed") => {
     if (pending !== null) return;
@@ -187,6 +199,14 @@ export default function ReportsAdminPage() {
                       <Link to={targetLink} target="_blank" rel="noopener noreferrer" style={{ padding: "7px 14px", borderRadius: 8, background: "#fff", border: "1px solid #CBD5E1", color: "#1E40AF", fontSize: 12, fontWeight: 600, textDecoration: "none" }}>
                         대상 보기 ↗
                       </Link>
+                    )}
+                    {r.target?.author_user_id && (
+                      <button
+                        type="button"
+                        onClick={() => onBlockUser(r.target!.author_user_id!, r.target!.author_name || null)}
+                        title="이 작성자 학원 커뮤니티 차단"
+                        style={{ padding: "7px 14px", borderRadius: 8, background: "#fff", border: "1px solid #FCA5A5", color: "#B91C1C", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
+                      >🚫 작성자 차단</button>
                     )}
                     {r.status === "pending" && (
                       <>
