@@ -215,7 +215,7 @@ export default function HitReportListModal({ isAdmin, onClose, onOpen }: Props) 
               color: "var(--color-text-secondary)", fontSize: 13, lineHeight: 1.6,
             }}>
               <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 6, color: "var(--color-text-primary)" }}>
-                {tab === "mine" ? "작성한 보고서가 없습니다" : "학원에 제출된 보고서가 없습니다"}
+                {tab === "mine" ? "작성한 보고서가 없습니다" : "학원 홈페이지에 게시된 보고서가 없습니다"}
               </div>
               <div style={{ fontSize: 12 }}>
                 매치업 페이지에서 시험지 자료를 선택 → 적중 보고서 작성 버튼을 누르세요.

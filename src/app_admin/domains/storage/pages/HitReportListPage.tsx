@@ -21,6 +21,7 @@ import {
   type HitReportListItem,
   type HitReportListResponse,
 } from "../api/matchup.api";
+import HitReportBoardPreviewStrip from "../components/matchup/HitReportBoardPreviewStrip";
 
 type Tab = "mine" | "all";
 type StatusFilter = "" | "draft" | "submitted";
@@ -143,6 +144,10 @@ export default function HitReportListPage() {
         </Button>
       </div>
 
+      {/* 학원장 포탈 widget (2026-05-11) — 작성/관리(admin) ↔ 학원 게시판(landing) 단일 흐름.
+          submit/unsubmit 후 자동 reload, 새 게시 카드 ✨ pulse 3초. */}
+      {isAcademyAdmin && <HitReportBoardPreviewStrip />}
+
       {/* Draft alert banner — 학원장 시각 인지 자극 */}
       {draftCount > 0 && (
         <div style={{
@@ -156,7 +161,7 @@ export default function HitReportListPage() {
         }}>
           <AlertTriangle size={ICON.sm} />
           <span style={{ flex: 1 }}>
-            작성중 {draftCount}건 — 학원장님께 보여드릴 적중 보고서를 마무리해주세요.
+            작성중 {draftCount}건 — 학원 홈페이지 매치업 게시판에 올릴 보고서를 마무리해주세요.
           </span>
         </div>
       )}
@@ -185,7 +190,7 @@ export default function HitReportListPage() {
         >
           <option value="">상태: 전체</option>
           <option value="draft">작성 중</option>
-          <option value="submitted">제출 완료</option>
+          <option value="submitted">홈페이지 게시 중</option>
         </select>
       </div>
 
@@ -208,7 +213,7 @@ export default function HitReportListPage() {
             color: "var(--color-text-secondary)", fontSize: 13, lineHeight: 1.6,
           }}>
             <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 6, color: "var(--color-text-primary)" }}>
-              {tab === "mine" ? "작성한 보고서가 없습니다" : "학원에 제출된 보고서가 없습니다"}
+              {tab === "mine" ? "작성한 보고서가 없습니다" : "학원 홈페이지에 게시된 보고서가 없습니다"}
             </div>
             <div style={{ fontSize: 12 }}>
               매치업 페이지에서 시험지 자료를 선택 → 적중 보고서 작성 버튼을 누르세요.

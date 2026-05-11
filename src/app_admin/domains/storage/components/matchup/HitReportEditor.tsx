@@ -276,60 +276,102 @@ export default function HitReportEditor({ docId, onClose }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entries, headerDirty, isSubmitted, reportId]);
 
-  // ── 제출 ──
+  // ── 게시 (학원 홈페이지) ──
+  // 학원장 mental model 정정 (2026-05-11): "학원에 제출" 단어가 1인 학원 학원장 본인에게
+  // 자기 자신에게 제출 = 논리적 모순. submit 의미 = 학원 홈페이지에 게시 (외부 노출) 통합.
+  // 응답 landing_url 받아 toast 안 primary CTA "홈페이지에서 확인하기" → same-tab navigate.
 
   const submit = useCallback(async () => {
     if (!reportId) return;
     if (isSubmitted) {
-      feedback.info("이미 제출된 보고서입니다.");
+      feedback.info("이미 게시된 보고서입니다.");
       return;
     }
     const confirmMsg = dirtyCount > 0
-      ? `미저장 ${dirtyCount}건을 자동 저장하고 학원에 제출합니다. 제출 후에는 수정이 잠깁니다. 진행할까요?`
-      : "보고서를 학원에 제출하시겠습니까? 제출 후에는 수정이 잠깁니다.";
-    const ok = await confirm({ title: "학원에 보고서 제출", message: confirmMsg, confirmText: "제출", cancelText: "취소" });
+      ? `미저장 ${dirtyCount}건을 자동 저장하고 학원 홈페이지 매치업 게시판에 올립니다. 진행할까요?`
+      : "이 보고서를 학원 홈페이지 매치업 게시판에 올리시겠어요?";
+    const ok = await confirm({
+      title: "학원 홈페이지에 게시",
+      message: confirmMsg,
+      confirmText: "홈페이지에 게시",
+      cancelText: "취소",
+    });
     if (!ok) return;
     setSubmitting(true);
     try {
       if (dirtyCount > 0) {
-        const ok = await saveAll();
-        if (!ok) {
+        const ok2 = await saveAll();
+        if (!ok2) {
           setSubmitting(false);
           return;
         }
       }
-      const r = await submitHitReport(reportId);
+      const r = await submitHitReport(reportId, { publishToLanding: true });
       setData((prev) => (prev ? { ...prev, report: r } : prev));
-      feedback.success("학원에 보고서가 제출되었습니다");
+      // 게시 성공 시 — primary CTA "홈페이지에서 확인하기" + 띠 widget invalidate.
+      // landing_url 없거나 published_to_landing=false 면 fallback 메시지.
+      const landingUrl = (r as { landing_url?: string }).landing_url || "";
+      const publishedOk = (r as { published_to_landing?: boolean }).published_to_landing === true;
+      const landingError = (r as { landing_error?: string }).landing_error || "";
+
+      // 띠 widget 새로고침 — 같은 페이지의 HitReportListPage 에서 fetch 한 board-preview 무효화
+      try {
+        window.dispatchEvent(new CustomEvent("matchup:board-preview:refresh"));
+      } catch {
+        // CustomEvent 미지원 환경 — 무해
+      }
+
+      if (publishedOk && landingUrl) {
+        feedback.successWithAction({
+          message: "학원 홈페이지 매치업 게시판에 올라왔어요",
+          description: "방금 게시한 보고서를 확인해보세요.",
+          action: {
+            label: "홈페이지에서 보기",
+            onClick: () => {
+              window.location.href = landingUrl;
+            },
+          },
+          duration: 8,
+        });
+      } else if (landingError) {
+        feedback.warning(`보고서는 저장됐어요. 단, 홈페이지 게시 중 문제: ${landingError}`);
+      } else {
+        feedback.success("학원 홈페이지에 게시되었어요");
+      }
     } catch (e) {
       console.error(e);
-      feedback.error("제출 실패");
+      feedback.error("게시 실패. 잠시 후 다시 시도해 주세요.");
     } finally {
       setSubmitting(false);
     }
   }, [dirtyCount, isSubmitted, reportId, saveAll, confirm]);
 
-  // 잠금 해제 — 실수로 submit 한 사용자 셀프 복구 (2026-05-11 박철T 사고 대응).
-  // submit 자체는 8% ROI라 UI에서 hide(8d3638f2) 됐지만, 그 이전에 submit한
-  // 보고서들이 잠겨 있어 admin manage.py shell 없이 못 풀어내는 결함이었음.
+  // 게시 취소 + 편집 — 학원장 mental model (2026-05-11): submit=게시 통합 후
+  // unsubmit=게시 취소+편집 의미. backend 가 chip toggle remove 도 함께 호출.
   const [unsubmitting, setUnsubmitting] = useState(false);
   const unsubmit = useCallback(async () => {
     if (!reportId || !isSubmitted || unsubmitting) return;
     const ok = await confirm({
-      title: "보고서 재편집 시작",
-      message: "이 보고서의 제출 잠금을 풀고 다시 편집합니다. 학원에 다시 제출하기 전까지는 KPI 자료에서 빠집니다.",
-      confirmText: "재편집 시작",
-      cancelText: "취소",
+      title: "홈페이지 게시 취소",
+      message: "학원 홈페이지 매치업 게시판에서 이 보고서를 내리고 다시 편집할 수 있게 됩니다.",
+      confirmText: "게시 취소하고 편집",
+      cancelText: "그대로 두기",
     });
     if (!ok) return;
     setUnsubmitting(true);
     try {
       const r = await unsubmitHitReport(reportId);
       setData((prev) => (prev ? { ...prev, report: r } : prev));
-      feedback.success("잠금이 풀렸습니다. 자료 추가/제거가 다시 가능합니다.");
+      // 띠 widget 새로고침 (게시 카드 사라짐 시각화)
+      try {
+        window.dispatchEvent(new CustomEvent("matchup:board-preview:refresh"));
+      } catch {
+        /* CustomEvent 미지원 환경 — 무해 */
+      }
+      feedback.success("홈페이지에서 내려졌어요. 다시 편집 가능합니다.");
     } catch (e) {
       console.error(e);
-      feedback.error("잠금 해제 실패. 잠시 후 다시 시도해 주세요.");
+      feedback.error("게시 취소 실패. 잠시 후 다시 시도해 주세요.");
     } finally {
       setUnsubmitting(false);
     }
@@ -527,9 +569,9 @@ export default function HitReportEditor({ docId, onClose }: Props) {
                     color: "white", fontSize: 11, fontWeight: 700,
                     display: "inline-flex", alignItems: "center", gap: 4,
                   }}
-                  title="학원에 제출된 상태. 다시 편집하려면 우측 '재편집 시작' 버튼을 누르세요."
+                  title="학원 홈페이지에 게시된 상태. 다시 편집하려면 우측 '게시 취소 · 편집' 버튼을 누르세요."
                 >
-                  🔒 학원 제출 완료
+                  🌐 게시 중
                 </span>
               )}
             </div>
@@ -621,24 +663,35 @@ export default function HitReportEditor({ docId, onClose }: Props) {
             >
               {zipDownloading ? "압축 중…" : "카페·블로그용 이미지 묶음"}
             </Button>
-            {/* "학원에 제출" 버튼 — 1인 강사 학원 다수 + 알림톡 default OFF 로 ROI 낮음
-                (운영 24건 중 2건 = 8%). draft 보고서에서는 hide, submitted 보고서는
-                잠금 인디케이터 + "재편집 시작" 셀프 복구 버튼. 박철T 사고(2026-05-11) —
-                실수 submit 후 admin 개입 없이는 못 푸는 결함 fix. */}
+            {/* 학원장 mental model 정정 (2026-05-11): submit = "학원 홈페이지에 게시".
+                기존 "학원에 제출" 단어가 1인 학원 (강사=학원장) 케이스 논리적 모순.
+                submit ↔ chip toggle 통합 → 학원장이 "어디다 올리느냐" 안 묻고 1클릭 게시.
+                P-1 실측 (2026-05-11): submitted 0건 = 단어/흐름 분리가 routine 정착 막음. */}
+            {!isSubmitted && (
+              <Button
+                size="sm"
+                intent="primary"
+                onClick={() => void submit()}
+                disabled={submitting}
+                data-testid="matchup-hit-report-publish-btn"
+                title="이 보고서를 학원 홈페이지 매치업 게시판에 올립니다"
+                leftIcon={<Send size={ICON.sm} />}
+              >
+                {submitting ? "게시 중…" : "🌐 홈페이지에 게시"}
+              </Button>
+            )}
             {isSubmitted && (
-              <>
-                <Button
-                  size="sm"
-                  intent="ghost"
-                  onClick={() => void unsubmit()}
-                  disabled={unsubmitting}
-                  data-testid="matchup-hit-report-unsubmit-btn"
-                  title="제출 잠금을 풀고 자료를 다시 편집합니다"
-                  leftIcon={<Send size={ICON.sm} />}
-                >
-                  {unsubmitting ? "잠금 해제 중…" : "재편집 시작"}
-                </Button>
-              </>
+              <Button
+                size="sm"
+                intent="ghost"
+                onClick={() => void unsubmit()}
+                disabled={unsubmitting}
+                data-testid="matchup-hit-report-unsubmit-btn"
+                title="홈페이지 게시를 취소하고 다시 편집합니다"
+                leftIcon={<Send size={ICON.sm} />}
+              >
+                {unsubmitting ? "게시 취소 중…" : "게시 취소 · 편집"}
+              </Button>
             )}
             <button
               onClick={() => void closeWithDirtyGuard()}

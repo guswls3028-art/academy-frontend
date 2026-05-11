@@ -897,11 +897,54 @@ export async function unsubmitHitReport(reportId: number): Promise<HitReport> {
   return data;
 }
 
-export async function submitHitReport(reportId: number): Promise<HitReport> {
-  const { data } = await api.post<HitReport>(
+// 학원장 mental model (2026-05-11): submit = 학원 홈페이지에 게시.
+// 응답에 landing_url + published_to_landing 포함 — 게시 결과 즉시 CTA toast 표시.
+export type HitReportSubmitResponse = HitReport & {
+  published_to_landing?: boolean;
+  total_published?: number;
+  landing_url?: string;
+  landing_error?: string;
+};
+
+export async function submitHitReport(
+  reportId: number,
+  options?: { publishToLanding?: boolean },
+): Promise<HitReportSubmitResponse> {
+  const { data } = await api.post<HitReportSubmitResponse>(
     `/matchup/hit-reports/${reportId}/submit/`,
-    {},
+    { publish_to_landing: options?.publishToLanding ?? true },
     { timeout: HIT_REPORT_SAVE_TIMEOUT_MS },
+  );
+  return data;
+}
+
+// admin 포탈 widget — 학원 홈페이지에 게시된 적중보고서 mini list.
+// HitReportListPage 상단 띠 (cafe 게시판 분위기) + submit 후 invalidateQuery 로 reload.
+export type BoardPreviewCard = {
+  id: number;
+  doc_title: string;
+  doc_category: string;
+  hit_count: number;
+  total_problems: number;
+  hit_rate_pct: number;
+  author_name: string;
+  title: string;
+  submitted_at: string | null;
+  created_at: string | null;
+  landing_url: string;
+};
+
+export type BoardPreviewResponse = {
+  reports: BoardPreviewCard[];
+  total_published: number;
+};
+
+export async function fetchHitReportBoardPreview(
+  limit: number = 5,
+): Promise<BoardPreviewResponse> {
+  const { data } = await api.get<BoardPreviewResponse>(
+    `/matchup/hit-reports/board-preview/`,
+    { params: { limit } },
   );
   return data;
 }
