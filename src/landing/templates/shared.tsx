@@ -595,7 +595,10 @@ function HitReportCardItem({ card, labelOverride, color, rgb, dark, cardBg, card
   const sub = card.doc_title && card.doc_title !== label ? card.doc_title : "";
   const ratePct = Math.round(card.hit_rate_pct);
   const apiBase = (import.meta.env.VITE_API_BASE_URL as string) || "";
-  const pdfUrl = `${apiBase}/api/v1/matchup/landing/public/${card.id}/curated.pdf#page=1&view=Fit`;
+  // iframe raw GET이라 X-Tenant-Code 헤더 없음 — query param으로 tenant 전달
+  const tcRes = resolveTenantCode();
+  const tcParam = tcRes.ok ? `?tenant=${encodeURIComponent(tcRes.code)}` : "";
+  const pdfUrl = `${apiBase}/api/v1/matchup/landing/public/${card.id}/curated.pdf${tcParam}#page=1&view=Fit`;
 
   return (
     <div

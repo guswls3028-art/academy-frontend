@@ -11,6 +11,7 @@ import api, { type ApiRequestConfig } from "@/shared/api/axios";
 import { fetchLandingPublic } from "../api";
 import type { LandingPublicResponse, HitReportPublicCard, HitReportShowcaseItem } from "../types";
 import { useResolvedLogo } from "../templates/shared";
+import { resolveTenantCode } from "@/shared/tenant";
 
 export default function LandingReportDetailPage() {
   const { reportId } = useParams<{ reportId: string }>();
@@ -78,7 +79,9 @@ export default function LandingReportDetailPage() {
   const ratePct = Math.round(report.hit_rate_pct);
   const subj = report.doc_category || report.doc_title;
   const apiBase = (import.meta.env.VITE_API_BASE_URL as string) || "";
-  const pdfUrl = `${apiBase}/api/v1/matchup/landing/public/${report.id}/curated.pdf`;
+  const tcRes = resolveTenantCode();
+  const tcParam = tcRes.ok ? `?tenant=${encodeURIComponent(tcRes.code)}` : "";
+  const pdfUrl = `${apiBase}/api/v1/matchup/landing/public/${report.id}/curated.pdf${tcParam}`;
 
   // 톤은 PremiumDark 시그니처 (template_key와 무관 — 보고서 detail은 통일된 다크 톤)
   const bg = "#0A0E1A";
