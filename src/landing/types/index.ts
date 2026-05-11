@@ -1,6 +1,6 @@
 // PATH: src/app_admin/domains/landing/types/index.ts
 
-export type SectionType = "hero" | "features" | "testimonials" | "about" | "programs" | "faq" | "contact" | "notice" | "hit_reports" | "instructor_profile" | "management_system" | "process_timeline";
+export type SectionType = "hero" | "hero_carousel" | "features" | "testimonials" | "about" | "programs" | "faq" | "contact" | "notice" | "hit_reports" | "instructor_profile" | "management_system" | "process_timeline";
 
 /**
  * 섹션 메타 SSOT — type / 어드민 라벨 / 외부 한 줄 설명 / 아이콘 / default values.
@@ -11,6 +11,7 @@ export type SectionType = "hero" | "features" | "testimonials" | "about" | "prog
  */
 export const SECTION_META: Record<SectionType, { label: string; icon: string; tagline: string; defaultEnabled?: boolean }> = {
   hero: { label: "히어로 (메인 배너)", icon: "star", tagline: "메인 배너 + 슬로건", defaultEnabled: true },
+  hero_carousel: { label: "히어로 캐러셀 (매치업 + 강조 카드)", icon: "target", tagline: "자동 회전 카드 — 매치업 + custom" },
   features: { label: "특징 소개", icon: "check", tagline: "차별화 포인트 카드", defaultEnabled: true },
   instructor_profile: { label: "강사 프로필", icon: "users", tagline: "강사 사진 + 경력" },
   about: { label: "소개", icon: "book", tagline: "한 단락 소개글" },
@@ -100,13 +101,35 @@ export interface HeroPrimaryCta {
   link?: string;
 }
 
+/** hero_carousel 슬라이드 아이템(#63 Phase B, 2026-05-12).
+ *  학원장이 LandingEditor에서 자유 mix:
+ *  - hit_report: 매치업 적중 보고서 (report_id) — 자동 적중률 표시
+ *  - custom: title/subtitle/cta_label/cta_link/image_url 자유 입력
+ *  - post(P3): 일반 게시글 (post_id) — 미구현, 별도 cycle
+ */
+export type HeroCarouselItemKind = "hit_report" | "custom" | "post";
+export interface HeroCarouselItem {
+  kind: HeroCarouselItemKind;
+  /** kind=hit_report 시 */
+  report_id?: number;
+  /** kind=post 시 */
+  post_id?: number;
+  /** kind=custom 시 모든 자유 필드 */
+  category?: string;        // "공지" "이벤트" "강좌 안내" 등
+  title?: string;
+  subtitle?: string;
+  cta_label?: string;
+  cta_link?: string;
+  image_url?: string;
+}
+
 export interface LandingSection {
   type: SectionType;
   enabled: boolean;
   order: number;
   title?: string;
   description?: string;
-  items?: FeatureItem[] | TestimonialItem[] | ProgramItem[] | FaqItem[] | HitReportShowcaseItem[] | InstructorProfileItem[] | ManagementCardItem[] | ProcessStepItem[];
+  items?: FeatureItem[] | TestimonialItem[] | ProgramItem[] | FaqItem[] | HitReportShowcaseItem[] | InstructorProfileItem[] | ManagementCardItem[] | ProcessStepItem[] | HeroCarouselItem[];
   /** hero section 전용 — primary CTA 변형. */
   hero_primary_cta?: HeroPrimaryCta;
 }
@@ -140,6 +163,9 @@ export interface LandingConfig {
   template_key?: string;
   /** 공지 popup — 학원장 LandingEditor 설정. */
   notice_popup?: NoticePopupConfig;
+  /** hero primary CTA (config-level, LandingEditor CtaEditor에서 편집).
+   *  fallback 순서: hero section.hero_primary_cta → config.hero_primary_cta → config.cta_text/link */
+  hero_primary_cta?: HeroPrimaryCta;
 }
 
 export type TemplateKey = "minimal_tutor" | "premium_dark" | "academic_trust" | "program_promo";

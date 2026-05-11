@@ -517,6 +517,10 @@ function MediaEditor({ draft, onUpload, updateDraft }: { draft: LandingConfig; o
 }
 
 function CtaEditor({ draft, updateDraft }: { draft: LandingConfig; updateDraft: (fn: (p: LandingConfig) => LandingConfig) => void }) {
+  const heroCta = draft.hero_primary_cta || {};
+  const updateHero = (patch: Partial<NonNullable<LandingConfig["hero_primary_cta"]>>) => {
+    updateDraft((p) => ({ ...p, hero_primary_cta: { ...(p.hero_primary_cta || {}), ...patch } }));
+  };
   return (
     <EditorSection title="CTA 버튼">
       <FieldRow label="버튼 문구">
@@ -526,6 +530,35 @@ function CtaEditor({ draft, updateDraft }: { draft: LandingConfig; updateDraft: 
         <TextInput value={draft.cta_link} onChange={(v) => updateDraft((p) => ({ ...p, cta_link: v }))} placeholder="/login" />
       </FieldRow>
       <p style={{ fontSize: 12, color: "var(--color-text-muted, #94a3b8)" }}>기본값: /login (로그인 페이지)</p>
+
+      <div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px dashed var(--color-border, #e2e8f0)" }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-text, #0f172a)", marginBottom: 4 }}>히어로 메인 CTA (2026-05-12 #60)</div>
+        <p style={{ fontSize: 11.5, color: "var(--color-text-muted, #94a3b8)", margin: "0 0 12px", lineHeight: 1.5 }}>
+          히어로 섹션의 큰 버튼. 학원이 가장 보여주고 싶은 것에 맞춰 선택.
+        </p>
+        <FieldRow label="변형">
+          <select
+            value={heroCta.variant || "consult"}
+            onChange={(e) => updateHero({ variant: e.target.value as "consult" | "matchup" | "video" | "custom" })}
+            style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid var(--color-border, #e2e8f0)", fontSize: 14, fontFamily: "inherit" }}
+          >
+            <option value="consult">기본 — 수강 문의 (config CTA 활용)</option>
+            <option value="matchup">매치업 — 적중 보고서 페이지로</option>
+            <option value="video">영상 — 강의 영상 link로</option>
+            <option value="custom">자유 — label/link 직접 입력</option>
+          </select>
+        </FieldRow>
+        {(heroCta.variant === "video" || heroCta.variant === "custom") && (
+          <>
+            <FieldRow label="버튼 라벨 (선택)">
+              <TextInput value={heroCta.label || ""} onChange={(v) => updateHero({ label: v })} placeholder="강의 영상 보기" maxLength={30} />
+            </FieldRow>
+            <FieldRow label="링크 (선택)">
+              <TextInput value={heroCta.link || ""} onChange={(v) => updateHero({ link: v })} placeholder="https://... 또는 /landing/community/board" />
+            </FieldRow>
+          </>
+        )}
+      </div>
     </EditorSection>
   );
 }

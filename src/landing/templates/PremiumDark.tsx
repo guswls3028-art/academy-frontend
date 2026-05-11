@@ -7,7 +7,7 @@
 
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import type { LandingConfig, LandingSection, FeatureItem, TestimonialItem, ProgramItem, FaqItem, HitReportShowcaseItem, InstructorProfileItem, ManagementCardItem, ProcessStepItem } from "../types";
+import type { LandingConfig, LandingSection, FeatureItem, TestimonialItem, ProgramItem, FaqItem, HitReportShowcaseItem, HeroCarouselItem, InstructorProfileItem, ManagementCardItem, ProcessStepItem } from "../types";
 import { getEnabledSections, SvgIcon, HitReportCards, useTenantHitStats, LandingNavBar, ConsultRequestForm, usePublicTestimonials, TestimonialSubmitForm, resolveHeroPrimaryCta, type TemplateProps } from "./shared";
 import LandingFooter, { FOOTER_TOKENS_DARK } from "../components/LandingFooter";
 import CommunityPreviewSection from "../components/CommunityPreviewSection";
@@ -62,8 +62,10 @@ export default function PremiumDark({ config }: TemplateProps) {
       {sections.map((section) => {
         switch (section.type) {
           case "hero": {
-            // hero 직후 매치업 적중보고서 자동 회전 캐러셀 — 학원장 요청(2026-05-11).
-            // hit_reports section의 items에서 ids 추출 → public endpoint fetch → autoplay 캐러셀.
+            // hero 직후 자동 회전 캐러셀 — 학원장 요청(2026-05-11).
+            // Phase B(#63 2026-05-12): hero_carousel section.items 우선, 없으면 hit_reports로 fallback.
+            const carouselSection = sections.find((s) => s.type === "hero_carousel");
+            const carouselItems = (carouselSection?.items as HeroCarouselItem[] | undefined) || undefined;
             const hitSection = sections.find((s) => s.type === "hit_reports");
             const hitItems = (hitSection?.items as HitReportShowcaseItem[] | undefined) || undefined;
             // hero primary CTA — 학원장 LandingEditor 설정(consult/matchup/video/custom).
@@ -182,7 +184,7 @@ export default function PremiumDark({ config }: TemplateProps) {
                   )}
                 </div>
               </section>
-              <HeroCarousel items={hitItems} theme="dark" />
+              <HeroCarousel items={hitItems} carouselItems={carouselItems} theme="dark" />
               <TestimonialsSticky theme="dark" />
               </Fragment>
             );

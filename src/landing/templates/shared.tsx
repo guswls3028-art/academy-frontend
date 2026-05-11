@@ -97,11 +97,11 @@ export function useResolvedLogo(config: LandingConfig, kind: "nav" | "main" = "m
   return config.logo_url || branding?.logoUrl || branding?.headerLogoUrl || null;
 }
 
-/** hero primary CTA resolve — hero_primary_cta 값에 따라 {label, link, isInternal} 결정.
- * 학원장이 hero section에서 선택. 미설정 시 config.cta_text/cta_link로 fallback.
+/** hero primary CTA resolve — fallback chain:
+ *   hero section.hero_primary_cta(section-level) → config.hero_primary_cta(global) → config.cta_text/cta_link
  */
 export function resolveHeroPrimaryCta(config: LandingConfig, heroSection?: LandingSection | null): { label: string; link: string; isInternal: boolean } {
-  const cta = heroSection?.hero_primary_cta;
+  const cta = heroSection?.hero_primary_cta || config.hero_primary_cta;
   const variant = cta?.variant || "consult";
   if (variant === "matchup") {
     return { label: cta?.label || "적중 보고서 보기", link: "/landing/reports", isInternal: true };

@@ -5,7 +5,7 @@
 // 디자인 시스템 토큰/CSS 모듈로 추출하면 테넌트별 동적 컬러가 깨지므로 inline 룰은 이 도메인에 한해 면제.
 /* eslint-disable no-restricted-syntax */
 
-import type { FeatureItem, TestimonialItem, ProgramItem, FaqItem, HitReportShowcaseItem, InstructorProfileItem, ManagementCardItem, ProcessStepItem } from "../types";
+import type { FeatureItem, TestimonialItem, ProgramItem, FaqItem, HitReportShowcaseItem, HeroCarouselItem, InstructorProfileItem, ManagementCardItem, ProcessStepItem } from "../types";
 import { getEnabledSections, SvgIcon, FaqAccordion, HitReportCards, useTenantHitStats, LandingNavBar, ConsultRequestForm, usePublicTestimonials, TestimonialSubmitForm, resolveHeroPrimaryCta, type TemplateProps } from "./shared";
 import { Link } from "react-router-dom";
 import LandingFooter, { FOOTER_TOKENS_LIGHT } from "../components/LandingFooter";
@@ -42,6 +42,8 @@ export default function MinimalTutor({ config }: TemplateProps) {
       {sections.map((section) => {
         switch (section.type) {
           case "hero": {
+            const carouselSection = sections.find((s) => s.type === "hero_carousel");
+            const carouselItems = (carouselSection?.items as HeroCarouselItem[] | undefined) || undefined;
             const hitSection = sections.find((s) => s.type === "hit_reports");
             const hitItems = (hitSection?.items as HitReportShowcaseItem[] | undefined) || undefined;
             const primaryCta = resolveHeroPrimaryCta(config, section);
@@ -99,7 +101,7 @@ export default function MinimalTutor({ config }: TemplateProps) {
                   )}
                 </div>
               </section>
-              <HeroCarousel items={hitItems} theme="light" />
+              <HeroCarousel items={hitItems} carouselItems={carouselItems} theme="light" />
               <TestimonialsSticky theme="light" />
               </Fragment>
             );
