@@ -10,4 +10,5 @@ export const TEACHER_PENDING_ROUTES: Record<AdminNotificationItem["type"], strin
   registration_requests: "/teacher/students",
   submissions: "/teacher/submissions",
   video_failed: "/teacher/videos?status=failed",
+  consult: "/admin/settings/consult",  // 선생앱에서 클릭 시 PC 어드민 콘솔로 (모바일 앱 페이지는 다음 turn)
 };
