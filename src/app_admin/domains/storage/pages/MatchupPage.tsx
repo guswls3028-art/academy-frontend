@@ -1072,10 +1072,22 @@ export default function MatchupPage() {
       }}>
         <div className={css.body}>
           {/* 좌측: 문서 목록 — 폭은 사용자가 우측 가장자리를 드래그해 조절 가능 (220~520px).
-              CSS Module의 .tree는 250px 고정이므로 inline style로 override한다. */}
-          <div className={css.tree} style={/* eslint-disable-line no-restricted-syntax */ {
-            width: treeWidth, minWidth: treeWidth,
-          }}>
+              CSS Module의 .tree는 250px 고정이므로 inline style로 override한다.
+              스크롤 기능은 유지하되 시각 스크롤바는 숨김(사용자 요청 2026-05-11).
+              공유 CSS Module 변경하면 메시지/저장소 sister 페이지 영향 → 매치업 scope만. */}
+          <style>{`
+            [data-testid="matchup-doc-tree"]::-webkit-scrollbar { width: 0; height: 0; }
+            [data-testid="matchup-doc-tree"]::-webkit-scrollbar-thumb { background: transparent; }
+          `}</style>
+          <div
+            className={css.tree}
+            data-testid="matchup-doc-tree"
+            style={/* eslint-disable-line no-restricted-syntax */ {
+              width: treeWidth, minWidth: treeWidth,
+              scrollbarWidth: "none",
+              msOverflowStyle: "none",
+            }}
+          >
             {/* 강사/학원장 보고서 누적 진입점 — quick-access ghost link.
                 메인 진입은 상단 탭 "적중 보고서"(/admin/storage/hit-reports). 본문은 매치업 작업
                 중 즉시 모달로 본인/학원 보고서 모음을 훑는 보조 진입. 큰 푸른 강조 → ghost 격하
