@@ -53,6 +53,7 @@ interface CommunityPost {
   is_pinned?: boolean;
   is_urgent?: boolean;
   replies_count?: number;
+  like_count?: number;
   created_at?: string;
   published_at?: string | null;
 }
@@ -87,8 +88,8 @@ export default function LandingCommunityListPage() {
   const [page, setPage] = useState(1);
   const [error, setError] = useState(false);
 
-  // 정렬 + 검색 (사용자 요청 — backend 미지원 칼럼은 client-side fallback)
-  const [sort, setSort] = useState<"latest" | "replies">("latest");
+  // 정렬 + 검색 (backend ordering 파라미터 지원: latest/replies/likes)
+  const [sort, setSort] = useState<"latest" | "replies" | "likes">("latest");
   const [queryInput, setQueryInput] = useState("");
   const [query, setQuery] = useState(""); // debounced 적용된 실제 query
 
@@ -108,16 +109,13 @@ export default function LandingCommunityListPage() {
     const { url, params } = endpointFor(active);
     const fetchParams: Record<string, string | number> = { ...(params || {}), page, page_size: PAGE_SIZE };
     if (query) fetchParams.q = query;
+    if (sort !== "latest") fetchParams.ordering = sort;
     api.get(url, { params: fetchParams } as ApiRequestConfig)
       .then((r) => {
         const data = r?.data;
         const results: CommunityPost[] = Array.isArray(data) ? data : Array.isArray(data?.results) ? data.results : [];
         const total = typeof data?.count === "number" ? data.count : results.length;
-        // client-side 정렬: backend ordering 미지원 시 페이지 안에서만 재정렬
-        const sorted = sort === "replies"
-          ? results.slice().sort((a, b) => (b.replies_count ?? 0) - (a.replies_count ?? 0))
-          : results;
-        setPosts(sorted);
+        setPosts(results);
         setCount(total);
       })
       .catch(() => { setError(true); setPosts([]); setCount(0); });
@@ -204,6 +202,7 @@ export default function LandingCommunityListPage() {
               <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
                 <SortChip on={sort === "latest"} onClick={() => setSort("latest")} accent={gold} textPrimary={textPrimary} textSecondary={textSecondary}>최신순</SortChip>
                 <SortChip on={sort === "replies"} onClick={() => setSort("replies")} accent={gold} textPrimary={textPrimary} textSecondary={textSecondary}>댓글순</SortChip>
+                <SortChip on={sort === "likes"} onClick={() => setSort("likes")} accent={gold} textPrimary={textPrimary} textSecondary={textSecondary}>좋아요순</SortChip>
               </div>
               <div style={{ position: "relative", flex: "1 1 240px", maxWidth: 360 }}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={textMuted} strokeWidth="2"
@@ -254,8 +253,11 @@ export default function LandingCommunityListPage() {
                           <span style={{ fontSize: 12, fontWeight: 700, color: gold, flexShrink: 0 }}>[{p.replies_count}]</span>
                         )}
                       </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 12, color: textMuted, flexShrink: 0 }}>
-                        <span style={{ maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.created_by_display || "관리자"}</span>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: textMuted, flexShrink: 0 }}>
+                        {(p.like_count ?? 0) > 0 && (
+                          <span style={{ color: gold, fontWeight: 700 }} title={`좋아요 ${p.like_count}`}>♥ {p.like_count}</span>
+                        )}
+                        <span style={{ maxWidth: 110, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.created_by_display || "관리자"}</span>
                         <span style={{ opacity: 0.5 }}>·</span>
                         <span>{formatDate(p.published_at || p.created_at)}</span>
                       </div>

@@ -72,6 +72,7 @@ interface Reply {
   created_at?: string | null;
   like_count?: number;
   is_liked?: boolean;
+  parent_reply?: number | null;
 }
 
 function BrandMark({ name }: { name: string }) {
@@ -101,6 +102,12 @@ export default function LandingCommunityPostPage() {
   const [replyPending, setReplyPending] = useState(false);
   const [replyErr, setReplyErr] = useState<string | null>(null);
   const [copyDone, setCopyDone] = useState(false);
+
+  // 답글 작성 상태 — null이면 inline 답글 폼 닫힘, number면 해당 reply에 답글 작성 중.
+  const [replyingTo, setReplyingTo] = useState<number | null>(null);
+  const [childText, setChildText] = useState("");
+  const [childPending, setChildPending] = useState(false);
+  const [childErr, setChildErr] = useState<string | null>(null);
 
   useEffect(() => { fetchLandingPublic().then(setLanding).catch(() => setLanding(null)); }, []);
 
@@ -206,6 +213,46 @@ export default function LandingCommunityPostPage() {
       setReplyErr(Array.isArray(detail) ? detail[0] : (typeof detail === "string" ? detail : "댓글 등록 실패."));
     }
     setReplyPending(false);
+  };
+
+  // 신고 (P3) — 간단 prompt + endpoint.
+  const onReport = async (target: "post" | "reply", id: number) => {
+    const reasonText = window.prompt("신고 사유를 선택해주세요:\n1) 스팸/광고  2) 욕설/혐오  3) 개인정보 노출  4) 기타\n번호 입력 (1-4):");
+    if (!reasonText) return;
+    const reasonMap: Record<string, string> = { "1": "spam", "2": "offensive", "3": "personal_info", "4": "other" };
+    const reason = reasonMap[reasonText.trim()] || "other";
+    const detail = window.prompt("추가 설명 (선택, 1000자 이하):") || "";
+    try {
+      const url = target === "post"
+        ? `/community/posts/${postId}/report/`
+        : `/community/posts/${postId}/replies/${id}/report/`;
+      const r = await api.post(url, { reason, detail });
+      const data = r.data as { reported: boolean; duplicate: boolean };
+      alert(data.duplicate ? "이미 신고하신 항목입니다. 학원 운영진이 검토 중입니다." : "신고가 접수되었습니다. 운영진이 확인하겠습니다.");
+    } catch {
+      alert("신고 접수 실패. 잠시 후 다시 시도해주세요.");
+    }
+  };
+
+  // 답글 작성 (2026-05-11 답글 nesting). parent_reply_id로 backend 분기.
+  const onSubmitChildReply = async (parentId: number) => {
+    if (!childText.trim() || childPending) return;
+    setChildErr(null);
+    setChildPending(true);
+    try {
+      const r = await api.post(`/community/posts/${postId}/replies/`, {
+        content: childText.trim(),
+        parent_reply: parentId,
+      } as object);
+      const newReply = r.data as Reply;
+      setReplies((prev) => (prev ? [...prev, newReply] : [newReply]));
+      setChildText("");
+      setReplyingTo(null);
+    } catch (e) {
+      const detail = (e as { response?: { data?: { detail?: string | string[] } } })?.response?.data?.detail;
+      setChildErr(Array.isArray(detail) ? detail[0] : (typeof detail === "string" ? detail : "답글 등록 실패."));
+    }
+    setChildPending(false);
   };
 
   // 비로그인 — 로그인 유도
@@ -332,6 +379,16 @@ export default function LandingCommunityPostPage() {
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" /><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" /></svg>
               {copyDone ? "복사됨 ✓" : "주소복사"}
             </button>
+            <button
+              type="button"
+              onClick={() => onReport("post", post.id)}
+              data-testid="landing-community-report-post"
+              title="부적절한 글 신고"
+              style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "10px 16px", borderRadius: 10, background: "transparent", border: `1px solid ${border}`, color: textSecondary, fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" /><line x1="4" y1="22" x2="4" y2="15" /></svg>
+              신고
+            </button>
           </div>
         </section>
       )}
@@ -428,36 +485,78 @@ export default function LandingCommunityPostPage() {
             <div style={{ padding: 32, color: textMuted, textAlign: "center", fontSize: 13 }}>아직 등록된 댓글이 없습니다. 가장 먼저 의견을 남겨주세요.</div>
           ) : (
             <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 1, borderRadius: 12, overflow: "hidden", border: `1px solid ${border}`, background: cardBg }}>
-              {replies.map((rp) => (
-                <li key={rp.id} style={{ padding: "16px 18px", background: cardBg, borderBottom: `1px solid ${border}` }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                    <span style={{ fontSize: 13.5, fontWeight: 700, color: textPrimary }}>{rp.created_by_display || "—"}</span>
-                    {rp.author_role && (
-                      <span style={{ fontSize: 10, fontWeight: 700, color: gold, padding: "2px 7px", borderRadius: 999, background: "rgba(212,160,76,0.12)", letterSpacing: "0.06em" }}>
-                        {roleLabel(rp.author_role)}
-                      </span>
-                    )}
-                    <span style={{ marginLeft: "auto", fontSize: 11, color: textMuted }}>{formatDateTime(rp.created_at)}</span>
-                  </div>
-                  <div
-                    style={{ fontSize: 14, lineHeight: 1.65, color: textPrimary, wordBreak: "break-word", whiteSpace: "pre-wrap" }}
-                    dangerouslySetInnerHTML={{ __html: rp.content || "" }}
-                  />
-                  <div style={{ marginTop: 8, display: "flex", gap: 14, fontSize: 12, color: textMuted }}>
-                    <button
-                      type="button"
-                      onClick={() => onToggleReplyLike(rp.id)}
-                      aria-pressed={!!rp.is_liked}
-                      data-testid={`landing-community-reply-like-${rp.id}`}
-                      style={{
-                        background: "transparent", border: "none", padding: 0,
-                        color: rp.is_liked ? gold : textMuted,
-                        cursor: "pointer", fontSize: 12, fontWeight: rp.is_liked ? 700 : 500,
-                      }}
-                    >{rp.is_liked ? "♥" : "♡"} 좋아요 {rp.like_count ?? 0}</button>
-                  </div>
-                </li>
-              ))}
+              {replies
+                .filter((rp) => !rp.parent_reply)
+                .map((rp) => {
+                  const children = replies.filter((c) => c.parent_reply === rp.id);
+                  return (
+                    <li key={rp.id} style={{ background: cardBg, borderBottom: `1px solid ${border}` }}>
+                      <ReplyCard
+                        rp={rp}
+                        textPrimary={textPrimary} textMuted={textMuted} gold={gold}
+                        canReply={canReply}
+                        onToggleLike={() => onToggleReplyLike(rp.id)}
+                        onReplyTo={() => { setReplyingTo(rp.id); setChildText(""); setChildErr(null); }}
+                        onReport={() => onReport("reply", rp.id)}
+                      />
+                      {/* 자식 답글 영역 */}
+                      {(children.length > 0 || replyingTo === rp.id) && (
+                        <div style={{ padding: "0 18px 14px 44px", borderLeft: `2px solid ${gold}33`, marginLeft: 18 }}>
+                          {children.map((ch) => (
+                            <ReplyCard
+                              key={ch.id}
+                              rp={ch}
+                              textPrimary={textPrimary} textMuted={textMuted} gold={gold}
+                              canReply={false}
+                              isChild
+                              onToggleLike={() => onToggleReplyLike(ch.id)}
+                              onReport={() => onReport("reply", ch.id)}
+                            />
+                          ))}
+                          {/* inline 답글 폼 */}
+                          {replyingTo === rp.id && (
+                            <div style={{ marginTop: 8 }}>
+                              <textarea
+                                value={childText}
+                                onChange={(e) => setChildText(e.target.value)}
+                                placeholder={`@${rp.created_by_display || ""}에게 답글을 남겨주세요.`}
+                                disabled={childPending}
+                                rows={2}
+                                maxLength={2000}
+                                data-testid={`landing-community-child-input-${rp.id}`}
+                                style={{
+                                  width: "100%", padding: "10px 12px", borderRadius: 8,
+                                  border: `1px solid ${border}`, background: cardBg,
+                                  color: textPrimary, fontSize: 13.5, fontFamily: "inherit",
+                                  resize: "vertical", outline: "none",
+                                }}
+                              />
+                              {childErr && <div style={{ marginTop: 6, padding: "6px 10px", borderRadius: 6, background: "rgba(220,38,38,0.1)", border: "1px solid rgba(220,38,38,0.25)", color: "#fca5a5", fontSize: 11.5 }}>{childErr}</div>}
+                              <div style={{ marginTop: 6, display: "flex", justifyContent: "flex-end", gap: 6 }}>
+                                <button type="button" onClick={() => setReplyingTo(null)} disabled={childPending}
+                                  style={{ padding: "7px 14px", borderRadius: 8, background: "transparent", border: `1px solid ${border}`, color: textSecondary, fontSize: 12, fontWeight: 600, cursor: "pointer" }}
+                                >취소</button>
+                                <button
+                                  type="button"
+                                  onClick={() => onSubmitChildReply(rp.id)}
+                                  disabled={!childText.trim() || childPending}
+                                  data-testid={`landing-community-child-submit-${rp.id}`}
+                                  style={{
+                                    padding: "7px 16px", borderRadius: 8, border: "none",
+                                    background: (!childText.trim() || childPending) ? "rgba(255,255,255,0.08)" : gold,
+                                    color: (!childText.trim() || childPending) ? textMuted : "#0A0E1A",
+                                    fontSize: 12, fontWeight: 700,
+                                    cursor: (!childText.trim() || childPending) ? "not-allowed" : "pointer",
+                                  }}
+                                >{childPending ? "등록 중…" : "답글 등록"}</button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </li>
+                  );
+                })}
             </ul>
           )}
         </div>
@@ -465,6 +564,61 @@ export default function LandingCommunityPostPage() {
 
       <LandingFooter config={cfg} sections={cfg.sections || []} tokens={FOOTER_TOKENS_DARK} />
       <LandingRoleFab />
+    </div>
+  );
+}
+
+function ReplyCard({ rp, textPrimary, textMuted, gold, canReply, isChild = false, onToggleLike, onReplyTo, onReport }: {
+  rp: Reply; textPrimary: string; textMuted: string; gold: string;
+  canReply: boolean; isChild?: boolean;
+  onToggleLike: () => void; onReplyTo?: () => void; onReport?: () => void;
+}) {
+  return (
+    <div style={{ padding: isChild ? "12px 0" : "16px 18px" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+        {isChild && <span style={{ fontSize: 11, color: textMuted, marginRight: 2 }}>↳</span>}
+        <span style={{ fontSize: 13.5, fontWeight: 700, color: textPrimary }}>{rp.created_by_display || "—"}</span>
+        {rp.author_role && (
+          <span style={{ fontSize: 10, fontWeight: 700, color: gold, padding: "2px 7px", borderRadius: 999, background: "rgba(212,160,76,0.12)", letterSpacing: "0.06em" }}>
+            {roleLabel(rp.author_role)}
+          </span>
+        )}
+        <span style={{ marginLeft: "auto", fontSize: 11, color: textMuted }}>{formatDateTime(rp.created_at)}</span>
+      </div>
+      <div
+        style={{ fontSize: 14, lineHeight: 1.65, color: textPrimary, wordBreak: "break-word", whiteSpace: "pre-wrap" }}
+        dangerouslySetInnerHTML={{ __html: rp.content || "" }}
+      />
+      <div style={{ marginTop: 8, display: "flex", gap: 14, fontSize: 12, color: textMuted }}>
+        <button
+          type="button"
+          onClick={onToggleLike}
+          aria-pressed={!!rp.is_liked}
+          data-testid={`landing-community-reply-like-${rp.id}`}
+          style={{
+            background: "transparent", border: "none", padding: 0,
+            color: rp.is_liked ? gold : textMuted,
+            cursor: "pointer", fontSize: 12, fontWeight: rp.is_liked ? 700 : 500,
+          }}
+        >{rp.is_liked ? "♥" : "♡"} 좋아요 {rp.like_count ?? 0}</button>
+        {canReply && onReplyTo && (
+          <button
+            type="button"
+            onClick={onReplyTo}
+            data-testid={`landing-community-reply-to-${rp.id}`}
+            style={{ background: "transparent", border: "none", padding: 0, color: textMuted, cursor: "pointer", fontSize: 12, fontWeight: 500 }}
+          >↳ 답글</button>
+        )}
+        {onReport && (
+          <button
+            type="button"
+            onClick={onReport}
+            data-testid={`landing-community-reply-report-${rp.id}`}
+            title="댓글 신고"
+            style={{ background: "transparent", border: "none", padding: 0, color: textMuted, cursor: "pointer", fontSize: 12, fontWeight: 500, marginLeft: "auto" }}
+          >신고</button>
+        )}
+      </div>
     </div>
   );
 }

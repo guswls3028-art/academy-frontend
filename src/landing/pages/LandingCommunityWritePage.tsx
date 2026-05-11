@@ -67,6 +67,8 @@ export default function LandingCommunityWritePage() {
   const [isPinned, setIsPinned] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  // 이미지 첨부 (P3) — backend는 PostAttachment multipart endpoint 완비.
+  const [files, setFiles] = useState<File[]>([]);
 
   useEffect(() => { fetchLandingPublic().then(setLanding).catch(() => setLanding(null)); }, []);
 
@@ -133,6 +135,18 @@ export default function LandingCommunityWritePage() {
       }
       const r = await api.post("/community/posts/", payload as object, { } as ApiRequestConfig);
       const created = r.data as { id: number };
+      // 첨부 이미지가 있으면 multipart로 업로드(글 등록 직후). 부분 실패 시 안내만, 글 자체는 유지.
+      if (files.length > 0) {
+        try {
+          const form = new FormData();
+          files.forEach((f) => form.append("files", f));
+          await api.post(`/community/posts/${created.id}/attachments/`, form, {
+            headers: { "Content-Type": "multipart/form-data" },
+          } as ApiRequestConfig);
+        } catch {
+          alert("글은 등록되었지만 첨부 일부가 실패했습니다. 글 상세에서 다시 확인해 주세요.");
+        }
+      }
       navigate(`/landing/community/${selectedBoard}/posts/${created.id}`);
     } catch (e) {
       const detail = (e as { response?: { data?: { detail?: string | string[] } } })?.response?.data?.detail;
@@ -233,6 +247,32 @@ export default function LandingCommunityWritePage() {
                     resize: "vertical", lineHeight: 1.7,
                   }}
                 />
+              </Field>
+
+              {/* 이미지 첨부 (P3) — 최대 5장, 각 5MB. backend validation 따름. */}
+              <Field label="이미지 첨부 (선택)" textSecondary={textSecondary}>
+                <input
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  disabled={submitting}
+                  data-testid="landing-community-write-files"
+                  onChange={(e) => {
+                    const list = Array.from(e.target.files || []).slice(0, 5);
+                    setFiles(list);
+                  }}
+                  style={{ fontSize: 13, color: textSecondary }}
+                />
+                {files.length > 0 && (
+                  <div style={{ marginTop: 8, display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    {files.map((f, i) => (
+                      <span key={i} style={{ fontSize: 12, padding: "4px 10px", borderRadius: 999, background: cardBg, border: `1px solid ${border}`, color: textPrimary }}>
+                        {f.name}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <p style={{ marginTop: 6, fontSize: 11.5, color: textMuted, lineHeight: 1.5 }}>이미지만 업로드 가능합니다. 최대 5장, 한 장 5MB 이내.</p>
               </Field>
 
               {/* 학원장 옵션 */}
