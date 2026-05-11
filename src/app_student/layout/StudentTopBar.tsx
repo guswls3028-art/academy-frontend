@@ -9,6 +9,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { getStudentTenantBranding } from "@student/shared/tenant/studentTenantBranding";
 import { fetchMyProfile } from "@student/domains/profile/api/profile.api";
+import api from "@/shared/api/axios";
 import { getTenantCodeForApiRequest, getTenantIdFromCode, getTenantBranding } from "@/shared/tenant";
 import { logout } from "@/auth/api/auth.api";
 import { useAuthContext } from "@/auth/context/AuthContext";
@@ -349,6 +350,10 @@ export default function StudentTopBar({ tenantCode, onMenuClick }: Props) {
       </Link>
       </div>
 
+      <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+      {/* 알림 종 아이콘 (#65 P2, 2026-05-12) — community UserNotification unread 카운터.
+          학생/학부모 둘 다 같은 endpoint(/community/notifications/unread-count/) 사용. */}
+      <NotificationBell onClick={() => navigate("/student/notifications")} />
       <div ref={profileRef} style={{ position: "relative" }}>
         <button
           type="button"
@@ -397,6 +402,68 @@ export default function StudentTopBar({ tenantCode, onMenuClick }: Props) {
           </div>
         )}
       </div>
+      </div>
     </div>
+  );
+}
+
+// 알림 종 (#65 P2) — community unread 카운트. 30초마다 자동 갱신.
+function NotificationBell({ onClick }: { onClick: () => void }) {
+  const { data } = useQuery({
+    queryKey: ["student", "community-unread"],
+    queryFn: async (): Promise<number> => {
+      try {
+        const res = await api.get<{ count?: number }>("/community/notifications/unread-count/");
+        return Math.max(0, Number(res?.data?.count) || 0);
+      } catch {
+        return 0;
+      }
+    },
+    staleTime: 20_000,
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: true,
+  });
+  const count = data ?? 0;
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={count > 0 ? `알림 ${count > 99 ? "99건 이상" : `${count}건`}` : "알림"}
+      data-testid="stu-topbar-notif-bell"
+      style={{
+        width: 44, height: 44,
+        display: "inline-grid", placeItems: "center",
+        background: "transparent",
+        border: "none",
+        borderRadius: "var(--stu-radius-sm)",
+        color: count > 0 ? "var(--stu-text)" : "var(--stu-text-muted)",
+        cursor: "pointer",
+        padding: 0, flexShrink: 0,
+        position: "relative",
+      }}
+    >
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+        <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+      </svg>
+      {count > 0 && (
+        <span
+          style={{
+            position: "absolute",
+            top: 6, right: 6,
+            minWidth: 16, height: 16,
+            lineHeight: "16px",
+            fontSize: 9, fontWeight: 700,
+            textAlign: "center",
+            borderRadius: 8,
+            padding: "0 4px",
+            background: "var(--stu-danger, #ef4444)",
+            color: "#fff",
+          }}
+        >
+          {count > 99 ? "99+" : count}
+        </span>
+      )}
+    </button>
   );
 }
