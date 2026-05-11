@@ -259,6 +259,7 @@ function NavRoleAuthMenu({ cta, ctaLink, tokens }: { cta: string; ctaLink: strin
  */
 export function ConsultRequestForm({ accent, dark = false }: { accent: string; dark?: boolean }) {
   const [form, setForm] = useState({ name: "", phone: "", interest: "", message: "" });
+  const [hp, setHp] = useState(""); // honeypot — 봇만 채움. 사람은 안 보임 (CSS hidden).
   const [pending, setPending] = useState(false);
   const [done, setDone] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -273,7 +274,7 @@ export function ConsultRequestForm({ accent, dark = false }: { accent: string; d
     }
     setPending(true);
     try {
-      await api.post("/core/landing/consult/", { ...form, source: "landing-contact" }, { skipAuth: true } as ApiRequestConfig);
+      await api.post("/core/landing/consult/", { ...form, website: hp, source: "landing-contact" }, { skipAuth: true } as ApiRequestConfig);
       setDone(true);
     } catch (e) {
       const detail = (e as { response?: { data?: { detail?: string | string[] } } })?.response?.data?.detail;
@@ -304,6 +305,12 @@ export function ConsultRequestForm({ accent, dark = false }: { accent: string; d
 
   return (
     <form onSubmit={submit} style={{ display: "grid", gap: 14 }}>
+      {/* honeypot — display:none + autocomplete=off + tabindex=-1. 사람은 안 봄, 봇은 채움 */}
+      <input
+        type="text" name="website" value={hp} onChange={(e) => setHp(e.target.value)}
+        tabIndex={-1} autoComplete="off" aria-hidden="true"
+        style={{ position: "absolute", left: "-9999px", width: 1, height: 1, opacity: 0 }}
+      />
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
         <FormField label="이름" required dark={dark}>
           <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} maxLength={50} disabled={pending} required

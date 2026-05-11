@@ -1,5 +1,8 @@
 // PATH: src/app_admin/app/AdminRouter.tsx
 // 선생앱(관리자) 라우터 — 라우트별 lazy 로딩으로 첫 진입·탭 전환 시 청크 분리
+//
+// Suspense fallback inline style + lazy 동적 import — 라우터 격리.
+/* eslint-disable no-restricted-syntax, @typescript-eslint/no-explicit-any */
 
 import { Suspense } from "react";
 import { lazyWithRetry as lazy } from "@/shared/utils/lazyWithRetry";
@@ -107,6 +110,7 @@ const AppearancePage = lazy(() => import("@admin/domains/settings/pages/Appearan
 const BillingSettingsPage = lazy(() => import("@admin/domains/settings/pages/BillingSettingsPage"));
 const CardRegisterCallbackPage = lazy(() => import("@admin/domains/settings/pages/CardRegisterCallbackPage"));
 const LandingEditorPage = lazy(() => import("@/landing/editor/LandingEditorPage"));
+const LandingConsultInboxPage = lazy(() => import("@/landing/admin/LandingConsultInboxPage"));
 
 /* ================= Lazy: Learning (시험·성적·영상) ================= */
 const ExamDomainLayout = lazy(() => import("@admin/domains/exams/pages/ExamDomainLayout"));
@@ -271,6 +275,7 @@ export default function AdminRouter() {
           <Route path="messaging" element={<Navigate to="/admin/message/settings" replace />} />
           <Route path="appearance" element={wrapLazy(AppearancePage)} />
           <Route path="landing" element={wrapLazy(LandingEditorPage)} />
+          <Route path="consult" element={wrapLazy(LandingConsultInboxPage)} />
           <Route path="billing" element={wrapLazy(BillingSettingsPage)} />
           <Route path="security" element={<Navigate to="/admin/settings/profile" replace />} />
           {/* 하위 호환 리디렉트 */}
