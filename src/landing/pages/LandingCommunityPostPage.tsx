@@ -365,6 +365,36 @@ export default function LandingCommunityPostPage() {
     <div style={{ minHeight: "100vh", background: bg, color: textPrimary, fontFamily: "'Pretendard Variable', 'Pretendard', system-ui, sans-serif", letterSpacing: "-0.011em" }}>
       <LandingNavBar config={cfg} sections={cfg.sections || []} tokens={NAV_TOKENS} brandMark={<BrandMark name={cfg.brand_name} />} />
 
+      {/* 게시판 탭 — sticky. 카페 스타일(2026-05-12 nexon dnfm 차용): 게시판 사이를 탭으로 자유 이동. */}
+      <section style={{ padding: "0 24px", background: bg, borderBottom: `1px solid ${border}`, position: "sticky", top: 64, zIndex: 30, backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)" }}>
+        <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", gap: 0, overflowX: "auto" }}>
+          {[
+            { key: "board", label: "자유게시판" },
+            { key: "qna", label: "질문게시판" },
+            { key: "notice", label: "공지사항" },
+            { key: "materials", label: "자료실" },
+          ].map((t) => {
+            const on = t.key === board;
+            return (
+              <button
+                key={t.key}
+                type="button"
+                onClick={() => navigate(`/landing/community/${t.key}`)}
+                data-testid={`landing-community-post-tab-${t.key}`}
+                style={{
+                  padding: "14px 18px", border: "none", background: "transparent",
+                  color: on ? textPrimary : textSecondary,
+                  fontSize: 14.5, fontWeight: on ? 700 : 600, cursor: "pointer",
+                  letterSpacing: "-0.01em", whiteSpace: "nowrap",
+                  borderBottom: `2px solid ${on ? gold : "transparent"}`,
+                  marginBottom: -1,
+                }}
+              >{t.label}</button>
+            );
+          })}
+        </div>
+      </section>
+
       {/* 헤더 — 카테고리/제목/메타 */}
       <section style={{ padding: "40px 24px 24px", borderBottom: `1px solid ${border}` }}>
         <div style={{ maxWidth: 900, margin: "0 auto" }}>
