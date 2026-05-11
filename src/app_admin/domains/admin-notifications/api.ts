@@ -20,6 +20,7 @@ export type AdminNotificationCounts = {
   videoFailed: number;
   consultUnread: number;
   reportsPending: number;
+  communityUnread: number;
   total: number;
 };
 
@@ -32,7 +33,8 @@ export type AdminNotificationSource =
   | "submissions"
   | "video_failed"
   | "consult"
-  | "reports";
+  | "reports"
+  | "community";
 
 export type AdminNotificationCountsResult = {
   counts: AdminNotificationCounts;
@@ -69,6 +71,18 @@ async function fetchDashboardCounts(): Promise<DashboardCountsResponse | null> {
     );
     return res.data ?? {};
   } catch {
+    return null;
+  }
+}
+
+/** 본인 커뮤니티 알림 unread (학생/학부모/staff 모두 본인). */
+async function fetchCommunityUnread(): Promise<number | null> {
+  try {
+    const res = await api.get<{ count?: number }>("/community/notifications/unread-count/");
+    return res.data?.count ?? 0;
+  } catch (e) {
+    const status = (e as { response?: { status?: number } })?.response?.status;
+    if (status === 401 || status === 403) return 0; // 비로그인/권한
     return null;
   }
 }
@@ -110,6 +124,7 @@ export async function fetchAdminNotificationCounts(): Promise<AdminNotificationC
     videoFailed: 0,
     consultUnread: 0,
     reportsPending: 0,
+    communityUnread: 0,
     total: 0,
   };
 
@@ -122,6 +137,7 @@ export async function fetchAdminNotificationCounts(): Promise<AdminNotificationC
     dashboardCounts,
     consultRes,
     reportsRes,
+    communityRes,
   ] = await Promise.all([
     fetchClinicParticipants({ status: "pending" })
       .then((r) => (Array.isArray(r) ? r.length : 0))
@@ -148,6 +164,7 @@ export async function fetchAdminNotificationCounts(): Promise<AdminNotificationC
     fetchDashboardCounts(),
     fetchConsultUnread(),
     fetchReportsPending(),
+    fetchCommunityUnread(),
   ]);
 
   const failures: AdminNotificationSource[] = [];
@@ -159,6 +176,7 @@ export async function fetchAdminNotificationCounts(): Promise<AdminNotificationC
   if (dashboardCounts === null) failures.push("video_failed");
   if (consultRes === null) failures.push("consult");
   if (reportsRes === null) failures.push("reports");
+  if (communityRes === null) failures.push("community");
 
   const qna = qnaCount ?? 0;
   const counsel = counselCount ?? 0;
@@ -168,6 +186,7 @@ export async function fetchAdminNotificationCounts(): Promise<AdminNotificationC
   const videoFailed = Number(dashboardCounts?.video_failed ?? 0);
   const consultUnread = consultRes ?? 0;
   const reportsPending = reportsRes ?? 0;
+  const communityUnread = communityRes ?? 0;
 
   const total =
     qna +
@@ -177,10 +196,11 @@ export async function fetchAdminNotificationCounts(): Promise<AdminNotificationC
     recentSubmissions +
     videoFailed +
     consultUnread +
-    reportsPending;
+    reportsPending +
+    communityUnread;
 
   // 모든 소스가 실패한 경우에도 counts는 0으로 안전하게 반환 (UI는 failures로 판단)
-  if (failures.length === 8) {
+  if (failures.length === 9) {
     return { counts: empty, failures };
   }
 
@@ -194,6 +214,7 @@ export async function fetchAdminNotificationCounts(): Promise<AdminNotificationC
       videoFailed,
       consultUnread,
       reportsPending,
+      communityUnread,
       total,
     },
     failures,
@@ -237,6 +258,15 @@ export function buildAdminNotificationItems(
       label: "신고 대기",
       count: counts.reportsPending,
       to: "/admin/community/reports",
+    });
+  }
+  // 커뮤니티 본인 알림 (내 글에 댓글/좋아요)
+  if (counts.communityUnread > 0) {
+    items.push({
+      type: "community",
+      label: "커뮤니티 새 활동",
+      count: counts.communityUnread,
+      to: "/student/community",  // 학원장도 student community 진입 가능
     });
   }
   if (counts.registrationRequestsPending > 0) {

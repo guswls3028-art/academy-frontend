@@ -12,4 +12,5 @@ export const TEACHER_PENDING_ROUTES: Record<AdminNotificationItem["type"], strin
   video_failed: "/teacher/videos?status=failed",
   consult: "/admin/settings/consult",  // 선생앱에서 클릭 시 PC 어드민 콘솔로 (모바일 앱 페이지는 다음 turn)
   reports: "/admin/community/reports",  // 신고함 — admin console
+  community: "/student/community",  // 본인 글 새 활동 — 학생/staff 모두 student community에서 본인 알림 확인
 };

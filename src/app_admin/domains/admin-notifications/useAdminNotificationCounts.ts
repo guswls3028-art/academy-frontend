@@ -28,6 +28,7 @@ export function useAdminNotificationCounts() {
     videoFailed: 0,
     consultUnread: 0,
     reportsPending: 0,
+    communityUnread: 0,
     total: 0,
   };
 
