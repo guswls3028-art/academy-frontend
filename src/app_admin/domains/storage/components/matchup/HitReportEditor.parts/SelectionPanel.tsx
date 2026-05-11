@@ -3,6 +3,7 @@
 // 클릭 = active(미리보기 변경) / 명시 버튼 = PDF 포함 토글 / 원본 다시 자르기 진입.
 /* eslint-disable no-restricted-syntax */
 
+import { memo } from "react";
 import { AlertTriangle, Crop } from "lucide-react";
 import { ICON } from "@/shared/ui/ds";
 import type { HitReportExamProblem } from "../../../api/matchup.api";
@@ -13,7 +14,7 @@ import {
   type Tier,
 } from "./types";
 
-export function SelectionPanel({
+function SelectionPanelInner({
   active, activeCandidateId, selectedIds, candidateMap,
   onToggle, onSetActive, onEditSource, disabled,
 }: {
@@ -176,6 +177,10 @@ export function SelectionPanel({
     </div>
   );
 }
+
+// memo wrap — active candidate / selectedIds / disabled 변경 시만 rerender.
+// 부모 entries 변경 (자료 토글) 시 selectedIds 새 ref 면 rerender. 그 외는 skip.
+export const SelectionPanel = memo(SelectionPanelInner);
 
 function SelectRow({
   isActive, isSelected, disabled, onClick, onToggle, onEditSource,

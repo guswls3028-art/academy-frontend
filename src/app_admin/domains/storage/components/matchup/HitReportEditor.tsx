@@ -195,6 +195,26 @@ export default function HitReportEditor({ docId, onClose }: Props) {
     });
   }, [active, isSubmitted]);
 
+  // memo 효과 보존을 위한 stable handler ref. PreviewPane / SelectionPanel 이
+  // memo wrap 됨 — inline arrow 면 매번 새 ref 라 memo 가 깨짐.
+  const goPrev = useCallback(() => setActiveIndex((i) => Math.max(0, i - 1)), []);
+  const goNext = useCallback(
+    () => setActiveIndex((i) => Math.min(examProblems.length - 1, i + 1)),
+    [examProblems.length],
+  );
+  const handleEditSource = useCallback(
+    (docId: number, docTitle: string, pageIndex?: number | null) => {
+      setEditSourceDoc({ id: docId, title: docTitle, initialPage: pageIndex ?? null });
+    },
+    [],
+  );
+  // selectedIds fallback `?? []` 가 매번 새 ref → SelectionPanel memo 깨짐.
+  // useMemo로 stable ref 유지 (selectedProblemIds 변경 시만 새 array).
+  const selectedIdsStable = useMemo(
+    () => activeEntry?.selectedProblemIds ?? [],
+    [activeEntry?.selectedProblemIds],
+  );
+
   // PDF 제외 토글 — 좌측 Q 리스트의 행 단위 토글.
   // ON이면 PDF 본문에 페이지 안 만들고 적중률 분모에서도 빠짐 (backend SSOT 동기).
   const toggleExcluded = useCallback((examProblemId: number) => {
@@ -954,21 +974,19 @@ export default function HitReportEditor({ docId, onClose }: Props) {
               comment={activeEntry?.comment ?? ""}
               onComment={setComment}
               disabled={isSubmitted}
-              onPrev={() => setActiveIndex((i) => Math.max(0, i - 1))}
-              onNext={() => setActiveIndex((i) => Math.min(examProblems.length - 1, i + 1))}
+              onPrev={goPrev}
+              onNext={goNext}
             />
 
             {/* 우: 강사 본인 수업자료 후보 리스트 — 행 클릭 = 미리보기 active / "+PDF에 추가" 버튼 = 선택 토글 */}
             <SelectionPanel
               active={active}
               activeCandidateId={activeCandidateId}
-              selectedIds={activeEntry?.selectedProblemIds ?? []}
+              selectedIds={selectedIdsStable}
               candidateMap={candidateMap}
               onToggle={toggleSelect}
               onSetActive={setActiveCandidateId}
-              onEditSource={(docId, docTitle, pageIndex) => setEditSourceDoc({
-                id: docId, title: docTitle, initialPage: pageIndex ?? null,
-              })}
+              onEditSource={handleEditSource}
               disabled={isSubmitted}
             />
           </div>

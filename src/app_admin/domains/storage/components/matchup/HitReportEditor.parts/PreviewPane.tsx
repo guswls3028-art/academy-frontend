@@ -5,6 +5,7 @@
 // 의도적 사용. 부모 HitReportEditor.tsx 와 동일 정책.
 /* eslint-disable no-restricted-syntax */
 
+import { memo } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { ICON } from "@/shared/ui/ds";
 import type {
@@ -22,7 +23,7 @@ import {
   type Tier,
 } from "./types";
 
-export function PreviewPane({
+function PreviewPaneInner({
   active, activeIndex, examProblemsCount, documentTitle,
   activeCandidateId, candidateMap, comment, onComment, disabled,
   onPrev, onNext,
@@ -219,3 +220,7 @@ function PreviewSubPane({
     </div>
   );
 }
+
+// memo wrap — comment / activeCandidateId / active 등 변경 시만 rerender.
+// 자료 토글 (entries 변경) → 부모 rerender 만 발생, 본 컴포넌트는 prop 동일하면 skip.
+export const PreviewPane = memo(PreviewPaneInner);
