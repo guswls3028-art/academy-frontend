@@ -106,7 +106,11 @@ export default function LandingCommunityWritePage() {
     return null;
   })();
 
-  const allowedBoards: BoardType[] = isStaff ? VALID : ["board", "qna"];
+  // 권한별 board_type 노출 SSOT.
+  // staff는 board/notice/materials 작성 가능. qna는 학생 질문 전용 — staff가 작성하면 backend가
+  // profile_required(400) 반환(qna는 created_by=Student 필수). 그러므로 staff에게는 qna 노출 X.
+  // 학생은 board/qna 가능. 공지/자료실은 student write 허용 안 됨(backend는 통과시키나 정책상 노출 안 함).
+  const allowedBoards: BoardType[] = isStaff ? ["board", "notice", "materials"] : ["board", "qna"];
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -181,9 +185,13 @@ export default function LandingCommunityWritePage() {
                     <option key={b} value={b} style={{ background: "#0A0E1A", color: textPrimary }}>{BOARD_LABEL[b]}</option>
                   ))}
                 </select>
-                {!isStaff && (
+                {!isStaff ? (
                   <p style={{ marginTop: 6, fontSize: 12, color: textMuted, lineHeight: 1.5 }}>
                     공지/자료실 작성은 강사·운영진만 가능합니다.
+                  </p>
+                ) : (
+                  <p style={{ marginTop: 6, fontSize: 12, color: textMuted, lineHeight: 1.5 }}>
+                    질문게시판(QnA)은 학생이 질문하고 강사가 답변하는 구조입니다. 강사·운영진은 학생 글에 답변으로 응대해 주세요.
                   </p>
                 )}
               </Field>
