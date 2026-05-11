@@ -371,11 +371,16 @@ function NavSidePanel({ open, onClose, categories, tokens, config, cta, ctaLink,
           </button>
         </div>
 
-        {/* 카테고리 그룹 — overflow scroll */}
-        <div style={{
-          flex: 1, overflowY: "auto",
-          padding: "12px 12px 16px",
-        }}>
+        {/* 카테고리 그룹 — overflow scroll + 스크롤바 시각 숨김(학원장 spec 2026-05-12) */}
+        <div
+          className="landing-nav-side-scroll"
+          style={{
+            flex: 1, overflowY: "auto",
+            padding: "12px 12px 16px",
+            scrollbarWidth: "none",                  // Firefox
+            msOverflowStyle: "none" as "auto",       // IE/Edge legacy
+          }}
+        >
           {categories.length === 0 ? (
             <div style={{ padding: 24, color: tokens.textSecondary, fontSize: 14 }}>
               현재 노출 가능한 메뉴가 없습니다.
@@ -453,6 +458,9 @@ function NavSidePanel({ open, onClose, categories, tokens, config, cta, ctaLink,
       <style>{`
         @keyframes landingPanelFade { from { opacity: 0 } to { opacity: 1 } }
         @keyframes landingPanelSlide { from { transform: translateX(-12px); opacity: 0.4 } to { transform: translateX(0); opacity: 1 } }
+        /* WebKit (Chrome/Safari): 스크롤바 시각 숨김(스크롤 기능은 유지). 학원장 spec 2026-05-12. */
+        .landing-nav-side-scroll::-webkit-scrollbar { width: 0; height: 0; display: none; }
+        .landing-nav-side-scroll::-webkit-scrollbar-thumb { background: transparent; }
       `}</style>
     </div>
   );

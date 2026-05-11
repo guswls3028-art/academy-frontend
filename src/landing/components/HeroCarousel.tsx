@@ -86,6 +86,8 @@ export default function HeroCarousel({ items, carouselItems, theme = "dark" }: {
 }) {
   const t = theme === "dark" ? DARK_TOKENS : LIGHT_TOKENS;
   const [hitCards, setHitCards] = useState<HitReportPublicCard[] | null>(null);
+  interface PostCard { id: number; title: string; post_type: string; category_label?: string | null; published_at?: string | null; created_at?: string | null; preview_image?: string | null }
+  const [postCards, setPostCards] = useState<PostCard[] | null>(null);
   const [error, setError] = useState(false);
   const [idx, setIdx] = useState(0);
   const [paused, setPaused] = useState(false);
@@ -118,9 +120,29 @@ export default function HeroCarousel({ items, carouselItems, theme = "dark" }: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [idsKey]);
 
-  // normalize slides
+  // post kind fetch (#64 P1)
+  const postIds = useMemo(() => (
+    sourceItems
+      .filter((it) => it.kind === "post")
+      .map((it) => it.post_id)
+      .filter((n): n is number => Number.isFinite(n))
+  ), [sourceItems]);
+  const postIdsKey = postIds.slice().sort((a, b) => a - b).join(",");
+  useEffect(() => {
+    if (!postIds.length) { setPostCards([]); return; }
+    setPostCards(null);
+    api.get("/community/landing/public-posts/", { params: { ids: postIdsKey }, skipAuth: true } as ApiRequestConfig)
+      .then((r) => {
+        const list: PostCard[] = Array.isArray(r?.data?.posts) ? r.data.posts : [];
+        setPostCards(list);
+      })
+      .catch(() => setPostCards([]));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [postIdsKey]);
+
+  // normalize slides (hitCards 또는 postCards가 fetch 중이면 placeholder 안 그림 — 아래 loading guard)
   const slides: NormalizedSlide[] = useMemo(() => {
-    if (hitCards === null) return [];
+    if (hitCards === null || postCards === null) return [];
     return sourceItems.map((it, i): NormalizedSlide | null => {
       if (it.kind === "hit_report") {
         const card = hitCards.find((c) => c.id === it.report_id);
@@ -136,6 +158,21 @@ export default function HeroCarousel({ items, carouselItems, theme = "dark" }: {
           ctaLabel: "보고서 본문 보기",
           ctaLink: `/landing/reports/${card.id}`,
           ctaInternal: true,
+        };
+      }
+      if (it.kind === "post") {
+        const p = postCards.find((pp) => pp.id === it.post_id);
+        if (!p) return null;
+        return {
+          key: `post-${p.id}`,
+          kind: "custom",
+          category: p.category_label || (p.post_type === "notice" ? "공지" : "게시글"),
+          title: p.title || "",
+          dateLabel: formatDate(p.published_at || p.created_at),
+          ctaLabel: "자세히 보기",
+          ctaLink: `/landing/community/${p.post_type}/posts/${p.id}`,
+          ctaInternal: true,
+          image: p.preview_image || undefined,
         };
       }
       if (it.kind === "custom") {
@@ -156,7 +193,7 @@ export default function HeroCarousel({ items, carouselItems, theme = "dark" }: {
       }
       return null;
     }).filter((s): s is NormalizedSlide => s !== null);
-  }, [sourceItems, hitCards]);
+  }, [sourceItems, hitCards, postCards]);
 
   // autoplay
   useEffect(() => {
@@ -179,7 +216,7 @@ export default function HeroCarousel({ items, carouselItems, theme = "dark" }: {
   }, [slides]);
 
   // 로딩 skeleton
-  if (sourceItems.length > 0 && hitIds.length > 0 && hitCards === null) {
+  if (sourceItems.length > 0 && ((hitIds.length > 0 && hitCards === null) || (postIds.length > 0 && postCards === null))) {
     return (
       <section data-stype="hero_carousel" style={{ background: t.bg, padding: "0 24px 32px" }}>
         <div style={{ maxWidth: 1200, margin: "0 auto", height: 220, borderRadius: 18, border: `1px solid ${t.border}`, background: t.cardBg, opacity: 0.5, animation: "heroCarSkel 1.4s ease-in-out infinite" }} />

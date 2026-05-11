@@ -629,6 +629,132 @@ function NoticePopupEditor({ draft, updateDraft }: { draft: LandingConfig; updat
   );
 }
 
+interface HeroItemDraft {
+  kind: "hit_report" | "post" | "custom";
+  report_id?: number;
+  post_id?: number;
+  category?: string;
+  title?: string;
+  subtitle?: string;
+  cta_label?: string;
+  cta_link?: string;
+  image_url?: string;
+}
+
+function HeroCarouselItemsEditor({ items, updateSection }: {
+  items: Array<Record<string, unknown>>;
+  updateSection: (updater: (s: LandingSection) => LandingSection) => void;
+}) {
+  const list: HeroItemDraft[] = items.map((it) => ({
+    kind: ((it.kind as string) || "custom") as HeroItemDraft["kind"],
+    report_id: typeof it.report_id === "number" ? it.report_id : undefined,
+    post_id: typeof it.post_id === "number" ? it.post_id : undefined,
+    category: typeof it.category === "string" ? it.category : undefined,
+    title: typeof it.title === "string" ? it.title : undefined,
+    subtitle: typeof it.subtitle === "string" ? it.subtitle : undefined,
+    cta_label: typeof it.cta_label === "string" ? it.cta_label : undefined,
+    cta_link: typeof it.cta_link === "string" ? it.cta_link : undefined,
+    image_url: typeof it.image_url === "string" ? it.image_url : undefined,
+  }));
+
+  const saveAll = (next: HeroItemDraft[]) => {
+    updateSection((s) => ({ ...s, items: next.map((it) => ({ ...it })) as unknown as LandingSection["items"] }));
+  };
+  const update = (i: number, patch: Partial<HeroItemDraft>) => {
+    const next = list.map((it, idx) => idx === i ? { ...it, ...patch } : it);
+    saveAll(next);
+  };
+  const remove = (i: number) => saveAll(list.filter((_, idx) => idx !== i));
+  const move = (i: number, dir: -1 | 1) => {
+    const j = i + dir;
+    if (j < 0 || j >= list.length) return;
+    const next = [...list];
+    [next[i], next[j]] = [next[j], next[i]];
+    saveAll(next);
+  };
+  const add = (kind: HeroItemDraft["kind"]) => saveAll([...list, { kind }]);
+
+  return (
+    <div>
+      <p style={{ fontSize: 12, color: "var(--color-text-muted, #94a3b8)", margin: "0 0 12px", lineHeight: 1.6 }}>
+        hero 영역에 자동 회전 카드를 추가합니다. 매치업 보고서 / 일반 게시글 / 자유 커스텀 카드 자유 mix. 5초마다 회전.
+      </p>
+      {list.length === 0 ? (
+        <div style={{ padding: 18, border: "1px dashed var(--color-border, #e2e8f0)", borderRadius: 10, textAlign: "center", fontSize: 13, color: "var(--color-text-muted, #94a3b8)", marginBottom: 12 }}>
+          등록된 hero 카드가 없습니다. 아래 버튼으로 추가해 보세요.
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 12 }}>
+          {list.map((it, i) => (
+            <div key={i} style={{ padding: 12, borderRadius: 10, background: "var(--color-bg-surface-soft, #F8FAFC)", border: "1px solid var(--color-border, #e2e8f0)" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 999,
+                  background: it.kind === "hit_report" ? "rgba(212,160,76,0.12)" : it.kind === "post" ? "rgba(37,99,235,0.10)" : "rgba(124,58,237,0.10)",
+                  color: it.kind === "hit_report" ? "#A16207" : it.kind === "post" ? "#1E40AF" : "#6D28D9",
+                }}>
+                  {it.kind === "hit_report" ? "🎯 매치업 보고서" : it.kind === "post" ? "📰 staff 글" : "✨ 커스텀 카드"}
+                </span>
+                <div style={{ display: "flex", gap: 4 }}>
+                  <button type="button" onClick={() => move(i, -1)} disabled={i === 0} style={miniBtn}>↑</button>
+                  <button type="button" onClick={() => move(i, 1)} disabled={i === list.length - 1} style={miniBtn}>↓</button>
+                  <button type="button" onClick={() => remove(i)} style={{ ...miniBtn, color: "#B91C1C", borderColor: "#FCA5A5" }}>×</button>
+                </div>
+              </div>
+              {it.kind === "hit_report" && (
+                <FieldRow label="보고서 ID">
+                  <TextInput value={String(it.report_id ?? "")} onChange={(v) => update(i, { report_id: Number(v) || undefined })} placeholder="예: 123" />
+                </FieldRow>
+              )}
+              {it.kind === "post" && (
+                <FieldRow label="게시글 ID (staff 작성·published만)">
+                  <TextInput value={String(it.post_id ?? "")} onChange={(v) => update(i, { post_id: Number(v) || undefined })} placeholder="예: 1641" />
+                </FieldRow>
+              )}
+              {it.kind === "custom" && (
+                <>
+                  <FieldRow label="카테고리 라벨">
+                    <TextInput value={it.category || ""} onChange={(v) => update(i, { category: v })} placeholder="예: 공지 / 이벤트" maxLength={20} />
+                  </FieldRow>
+                  <FieldRow label="제목">
+                    <TextInput value={it.title || ""} onChange={(v) => update(i, { title: v })} placeholder="강조 제목" maxLength={80} />
+                  </FieldRow>
+                  <FieldRow label="부제 (선택)">
+                    <TextInput value={it.subtitle || ""} onChange={(v) => update(i, { subtitle: v })} placeholder="부가 설명" maxLength={120} />
+                  </FieldRow>
+                  <FieldRow label="이미지 URL (선택, 배경)">
+                    <TextInput value={it.image_url || ""} onChange={(v) => update(i, { image_url: v })} placeholder="https://..." />
+                  </FieldRow>
+                  <FieldRow label="버튼 라벨 (선택)">
+                    <TextInput value={it.cta_label || ""} onChange={(v) => update(i, { cta_label: v })} placeholder="자세히 보기" maxLength={20} />
+                  </FieldRow>
+                  <FieldRow label="버튼 링크">
+                    <TextInput value={it.cta_link || ""} onChange={(v) => update(i, { cta_link: v })} placeholder="/landing#contact 또는 https://..." />
+                  </FieldRow>
+                </>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <button type="button" onClick={() => add("hit_report")} style={addBtn}>+ 매치업 보고서</button>
+        <button type="button" onClick={() => add("post")} style={addBtn}>+ staff 글</button>
+        <button type="button" onClick={() => add("custom")} style={addBtn}>+ 커스텀 카드</button>
+      </div>
+    </div>
+  );
+}
+
+const miniBtn: React.CSSProperties = {
+  width: 26, height: 26, borderRadius: 6, border: "1px solid var(--color-border, #e2e8f0)",
+  background: "#fff", cursor: "pointer", fontSize: 12, color: "var(--color-text-secondary, #64748b)",
+};
+const addBtn: React.CSSProperties = {
+  padding: "8px 14px", borderRadius: 8, border: "1px dashed var(--color-border, #cbd5e1)",
+  background: "transparent", cursor: "pointer", fontSize: 13, fontWeight: 600,
+  color: "var(--color-text-secondary, #475569)",
+};
+
 function ContactEditor({ draft, updateDraft }: { draft: LandingConfig; updateDraft: (fn: (p: LandingConfig) => LandingConfig) => void }) {
   const contact = draft.contact || { phone: "", email: "", address: "" };
   const updateContact = (field: string, value: string) => {
@@ -697,6 +823,11 @@ function SectionEditor({ sectionType, sections, updateDraft }: { sectionType: st
           {/* Items for features, testimonials, programs, faq */}
           {["features", "testimonials", "programs", "faq"].includes(sectionType) && (
             <ItemsEditor sectionType={sectionType} items={(section.items || []) as any[]} updateSection={updateSection} />
+          )}
+
+          {/* hero_carousel: 자유 mix(hit_report/post/custom). 학원장 자율(#48 #22). */}
+          {sectionType === "hero_carousel" && (
+            <HeroCarouselItemsEditor items={(section.items as unknown as Array<Record<string, unknown>> | undefined) || []} updateSection={updateSection} />
           )}
 
           {/* hit_reports: title + description + 보고서 picker */}
