@@ -3,7 +3,7 @@
 // nav "적중 사례 모두 보기" / 메인 hit_reports 섹션 하단 "더보기" 진입.
 /* eslint-disable no-restricted-syntax */
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import api, { type ApiRequestConfig } from "@/shared/api/axios";
 import { fetchLandingPublic } from "../api";
@@ -36,6 +36,9 @@ export default function LandingReportsListPage() {
   const [landing, setLanding] = useState<LandingPublicResponse | null>(null);
   const [reports, setReports] = useState<HitReportPublicCard[]>([]);
   const [error, setError] = useState(false);
+  // 가시성 강화 (2026-05-12 cycle 10): 검색 + 정렬
+  const [query, setQuery] = useState("");
+  const [sort, setSort] = useState<"latest" | "rate" | "count">("latest");
 
   useEffect(() => {
     fetchLandingPublic().then((d) => setLanding(d)).catch(() => setError(true));
@@ -82,6 +85,25 @@ export default function LandingReportsListPage() {
   const totalProb = reports.reduce((s, c) => s + c.total_problems, 0);
   const avgRate = totalProb > 0 ? Math.round((totalHit / totalProb) * 1000) / 10 : 0;
 
+  // 검색 + 정렬 (가시성 강화)
+  const filteredReports = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    let list = reports;
+    if (q) {
+      list = list.filter((r) =>
+        (r.doc_title || "").toLowerCase().includes(q) ||
+        (r.doc_category || "").toLowerCase().includes(q)
+      );
+    }
+    return list.slice().sort((a, b) => {
+      if (sort === "rate") return b.hit_rate_pct - a.hit_rate_pct;
+      if (sort === "count") return b.hit_count - a.hit_count;
+      const ad = a.submitted_at || a.created_at || "";
+      const bd = b.submitted_at || b.created_at || "";
+      return bd.localeCompare(ad);
+    });
+  }, [reports, query, sort]);
+
   return (
     <div style={{ minHeight: "100vh", background: bg, color: textPrimary, fontFamily: "'Pretendard Variable', 'Pretendard', system-ui, sans-serif", letterSpacing: "-0.011em" }}>
       <LandingNavBar
@@ -126,13 +148,15 @@ export default function LandingReportsListPage() {
         </div>
       </section>
 
-      <section style={{ padding: "48px 24px 96px", background: bgAlt }}>
+      <section style={{ padding: "32px 24px 96px", background: bgAlt }}>
         <div style={{ maxWidth: 1200, margin: "0 auto" }}>
           {reports.length === 0 ? (
             <p style={{ fontSize: 14, color: textSecondary, textAlign: "center" }}>등록된 적중 보고서가 없습니다.</p>
           ) : (
+            <>
+            <ReportsToolbar query={query} setQuery={setQuery} sort={sort} setSort={setSort} gold={gold} textPrimary={textPrimary} textSecondary={textSecondary} cardBg={cardBg} cardBorder={cardBorder} />
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 18 }}>
-              {reports.map((r) => {
+              {filteredReports.length === 0 ? null : filteredReports.map((r) => {
                 const ratePct = Math.round(r.hit_rate_pct);
                 const dateStr = (() => {
                   const raw = r.submitted_at || r.created_at;
@@ -177,12 +201,66 @@ export default function LandingReportsListPage() {
                 );
               })}
             </div>
+            {filteredReports.length === 0 && (
+              <div style={{ padding: 40, textAlign: "center", color: textSecondary, fontSize: 13.5, background: cardBg, borderRadius: 14, border: `1px dashed ${cardBorder}`, marginTop: 8 }}>
+                🔍 검색 결과가 없습니다. 다른 키워드로 시도해 보세요.
+              </div>
+            )}
+            </>
           )}
         </div>
       </section>
       <LandingFooter config={cfg} sections={cfg.sections || []} tokens={FOOTER_TOKENS_DARK} />
       <LandingRoleFab />
     </div>
+  );
+}
+
+function ReportsToolbar({ query, setQuery, sort, setSort, gold, textPrimary, textSecondary, cardBg, cardBorder }: {
+  query: string; setQuery: (v: string) => void;
+  sort: "latest" | "rate" | "count"; setSort: (v: "latest" | "rate" | "count") => void;
+  gold: string; textPrimary: string; textSecondary: string; cardBg: string; cardBorder: string;
+}) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
+      <div style={{ display: "flex", gap: 4 }}>
+        <SortChip on={sort === "latest"} onClick={() => setSort("latest")} gold={gold} textPrimary={textPrimary} textSecondary={textSecondary}>최신순</SortChip>
+        <SortChip on={sort === "rate"} onClick={() => setSort("rate")} gold={gold} textPrimary={textPrimary} textSecondary={textSecondary}>적중률 ↓</SortChip>
+        <SortChip on={sort === "count"} onClick={() => setSort("count")} gold={gold} textPrimary={textPrimary} textSecondary={textSecondary}>적중 수 ↓</SortChip>
+      </div>
+      <div style={{ position: "relative", flex: "1 1 240px", maxWidth: 360 }}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2"
+          style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}
+        ><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
+        <input
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="시험명·과목 검색"
+          data-testid="landing-reports-search"
+          style={{
+            width: "100%", padding: "9px 12px 9px 34px", borderRadius: 999,
+            border: `1px solid ${cardBorder}`, background: cardBg,
+            color: textPrimary, fontSize: 13, fontFamily: "inherit", outline: "none",
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function SortChip({ on, onClick, gold, textPrimary, textSecondary, children }: { on: boolean; onClick: () => void; gold: string; textPrimary: string; textSecondary: string; children: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        padding: "6px 12px", borderRadius: 999, border: "none",
+        background: on ? `${gold}26` : "transparent",
+        color: on ? textPrimary : textSecondary,
+        fontSize: 12.5, fontWeight: on ? 700 : 600, cursor: "pointer", letterSpacing: "-0.01em",
+      }}
+    >{children}</button>
   );
 }
 
