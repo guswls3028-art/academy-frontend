@@ -8,6 +8,7 @@ const TS = Date.now();
 test.describe("알림톡 실사용 검증 — 템플릿 편집 → 발송 → 수신", () => {
   let token: string;
   let studentId: number;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   let studentName: string;
 
   test.beforeAll(async ({ request }) => {

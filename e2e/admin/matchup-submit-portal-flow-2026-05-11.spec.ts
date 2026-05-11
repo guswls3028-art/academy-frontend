@@ -28,6 +28,7 @@ test.describe("매치업 submit = 게시 통합 흐름 (1번 테넌트, read-onl
       waitUntil: "networkidle",
       timeout: 60_000,
     });
+    // eslint-disable-next-line no-restricted-syntax
     await page.waitForTimeout(1500);
     await page.screenshot({
       path: `${SCREENSHOT_DIR}/01-hit-reports-with-portal-widget.png`,
@@ -60,6 +61,7 @@ test.describe("매치업 submit = 게시 통합 흐름 (1번 테넌트, read-onl
       waitUntil: "networkidle",
       timeout: 60_000,
     });
+    // eslint-disable-next-line no-restricted-syntax
     await page.waitForTimeout(1500);
 
     // empty state 또는 카드 list 둘 중 하나 노출.
@@ -93,12 +95,14 @@ test.describe("매치업 submit = 게시 통합 흐름 (1번 테넌트, read-onl
       waitUntil: "networkidle",
       timeout: 60_000,
     });
+    // eslint-disable-next-line no-restricted-syntax
     await page.waitForTimeout(1500);
 
     // 초기 fetch 1회 이미 발사됨 — 신호 reset 후 새로고침 클릭으로 재호출 확인
     boardPreviewCalled = false;
     const refreshBtn = page.getByRole("button", { name: /새로고침/ }).first();
     await refreshBtn.click();
+    // eslint-disable-next-line no-restricted-syntax
     await page.waitForTimeout(1500);
 
     expect(boardPreviewCalled).toBe(true);
