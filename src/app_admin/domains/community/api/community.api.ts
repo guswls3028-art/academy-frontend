@@ -340,6 +340,22 @@ export async function deletePost(postId: number): Promise<void> {
   await api.delete(`${PREFIX}/posts/${postId}/`);
 }
 
+// ── 다중 선택 일괄 status 변경 (#50 G1, 2026-05-12) ─────────────────
+// backend 이미 구현 #41 — POST /community/admin/posts/bulk-status/
+// body: { ids, status: "published" | "archived" | "draft" }
+export type BulkStatusValue = "published" | "archived" | "draft";
+
+export async function bulkUpdatePostStatus(
+  ids: number[],
+  newStatus: BulkStatusValue,
+): Promise<{ updated: number; status: BulkStatusValue }> {
+  const res = await api.post<{ updated: number; status: BulkStatusValue }>(
+    `${PREFIX}/admin/posts/bulk-status/`,
+    { ids, status: newStatus },
+  );
+  return res.data;
+}
+
 /** 답변 수정 — PATCH /community/posts/:postId/replies/:replyId/ */
 export async function updateReply(postId: number, replyId: number, content: string): Promise<Answer> {
   const res = await api.patch<Answer>(`${PREFIX}/posts/${postId}/replies/${replyId}/`, { content });

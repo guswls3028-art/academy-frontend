@@ -1,6 +1,9 @@
 // PATH: src/app_admin/domains/community/pages/BoardAdminPage.tsx
 // 게시판 — 3-pane (좌측 강의/차시 트리 | 목록 | 상세·글쓰기)
 // 공지사항과 동일한 카테고리(트리) 디자인
+//
+// inline style baseline 면제 — 3-pane 동적 width/scoping + bulk action bar 동적 색.
+/* eslint-disable no-restricted-syntax */
 
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -17,10 +20,12 @@ import {
   uploadPostAttachments,
   getAttachmentDownloadUrl,
   deletePostAttachment,
+  bulkUpdatePostStatus,
   type PostEntity,
   type PostAttachment,
   type ScopeNodeMinimal,
   type CommunityScopeParams,
+  type BulkStatusValue,
 } from "../api/community.api";
 import { useScopeFilteredPosts } from "../hooks/useScopeFilteredPosts";
 import { useScopeNavigation } from "../hooks/useScopeNavigation";
@@ -71,7 +76,50 @@ export default function BoardAdminPage() {
   const [expandedLectureId, setExpandedLectureId] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [showCreate, setShowCreate] = useState(false);
+
+  // 다중 선택 일괄 status 변경 (#50 G1, 2026-05-12) — 학원장 운영 도구.
+  // 오래된 글 일괄 archive, draft 일괄 게시. backend `/community/admin/posts/bulk-status/`.
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(() => new Set());
+  const [bulkSubmitting, setBulkSubmitting] = useState<BulkStatusValue | null>(null);
   const qc = useQueryClient();
+  const confirm = useConfirm();
+
+  const toggleSelect = useCallback((id: number) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const clearSelection = useCallback(() => { setSelectedIds(new Set()); }, []);
+
+  const handleBulkStatus = useCallback(async (newStatus: BulkStatusValue) => {
+    if (selectedIds.size === 0 || bulkSubmitting != null) return;
+    const labelMap: Record<BulkStatusValue, string> = {
+      published: "게시", archived: "보관", draft: "임시저장",
+    };
+    const ok = await confirm({
+      title: `${labelMap[newStatus]} 처리`,
+      message: `선택한 ${selectedIds.size}건의 게시물을 "${labelMap[newStatus]}" 상태로 변경합니다. 진행할까요?`,
+      confirmText: labelMap[newStatus],
+    });
+    if (!ok) return;
+    setBulkSubmitting(newStatus);
+    try {
+      const res = await bulkUpdatePostStatus(Array.from(selectedIds), newStatus);
+      feedback.success(`${res.updated}건 ${labelMap[newStatus]} 완료`);
+      qc.invalidateQueries({ queryKey: ["community-board-posts-all"] });
+      qc.invalidateQueries({ queryKey: ["community", "board", "counts"] });
+      clearSelection();
+    } catch (e) {
+      const detail = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      feedback.error(typeof detail === "string" ? detail : "일괄 변경 실패");
+    } finally {
+      setBulkSubmitting(null);
+    }
+  }, [selectedIds, bulkSubmitting, clearSelection, confirm, qc]);
 
   const { data: scopeNodes = [] } = useQuery<ScopeNodeMinimal[]>({
     queryKey: ["community-scope-nodes"],
@@ -204,6 +252,7 @@ export default function BoardAdminPage() {
             <div className="qna-inbox__list-title-group">
               <h2 className="qna-inbox__list-title">게시물</h2>
               <CommunityContextBar
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 scope={scope as any}
                 lectureName={lectures.find((l) => l.id === lectureId)?.title ?? null}
                 sessionName={sessionsOfLecture.find((s) => s.id === sessionId)?.title ?? null}
@@ -221,6 +270,41 @@ export default function BoardAdminPage() {
               aria-label="게시판 검색"
             />
           </div>
+          {selectedIds.size > 0 && (
+            <div
+              data-testid="board-bulk-bar"
+              style={{
+                marginTop: 8, padding: "8px 10px", borderRadius: 8,
+                background: "var(--color-bg-accent-soft, rgba(37,99,235,0.06))",
+                border: "1px solid var(--color-border-accent, rgba(37,99,235,0.18))",
+                display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap",
+                fontSize: 12,
+              }}
+            >
+              <span style={{ fontWeight: 700, color: "var(--color-text-primary)" }}>
+                {selectedIds.size}건 선택
+              </span>
+              <span style={{ flex: 1 }} />
+              <Button
+                intent="primary" size="sm"
+                onClick={() => handleBulkStatus("published")}
+                disabled={bulkSubmitting != null}
+              >게시</Button>
+              <Button
+                intent="ghost" size="sm"
+                onClick={() => handleBulkStatus("draft")}
+                disabled={bulkSubmitting != null}
+              >임시저장</Button>
+              <Button
+                intent="ghost" size="sm"
+                onClick={() => handleBulkStatus("archived")}
+                disabled={bulkSubmitting != null}
+              >보관</Button>
+              <Button intent="ghost" size="sm" onClick={clearSelection} disabled={bulkSubmitting != null}>
+                선택 해제
+              </Button>
+            </div>
+          )}
         </div>
 
         <div className="qna-inbox__list-body">
@@ -238,12 +322,36 @@ export default function BoardAdminPage() {
             />
           ) : (
             filtered.map((p) => (
-              <BoardPostCard
+              <div
                 key={p.id}
-                post={p}
-                isActive={p.id === selectedId}
-                onClick={() => setSelectedId(p.id)}
-              />
+                style={{ display: "flex", alignItems: "stretch", gap: 6 }}
+              >
+                <label
+                  style={{
+                    display: "inline-flex", alignItems: "center", justifyContent: "center",
+                    paddingLeft: 4, paddingRight: 4, cursor: "pointer",
+                    flexShrink: 0,
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                  title="다중 선택 (학원장 일괄 처리)"
+                >
+                  <input
+                    type="checkbox"
+                    data-testid="board-post-checkbox"
+                    data-post-id={p.id}
+                    checked={selectedIds.has(p.id)}
+                    onChange={() => toggleSelect(p.id)}
+                    style={{ width: 16, height: 16, cursor: "pointer", accentColor: "var(--color-brand-primary, #2563EB)" }}
+                  />
+                </label>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <BoardPostCard
+                    post={p}
+                    isActive={p.id === selectedId}
+                    onClick={() => setSelectedId(p.id)}
+                  />
+                </div>
+              </div>
             ))
           )}
         </div>
@@ -502,7 +610,6 @@ function PostDetailView({
 
   // post?.id 변경 시에만 편집 상태 리셋 — post 객체 전체를 dep로 넣으면
   // 뮤테이션 후 refetch마다 편집 중 상태가 초기화됨
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     setEditingTitle(false);
     setEditingContent(false);
@@ -510,6 +617,7 @@ function PostDetailView({
       setEditTitle(post.title ?? "");
       setEditContent(post.content ?? "");
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [post?.id]);
 
   const updateMut = useMutation({
@@ -547,7 +655,6 @@ function PostDetailView({
   }
 
   const authorName = post.created_by_deleted ? "삭제된 사용자" : (post.created_by_display ?? "관리자");
-  const contentDirty = editContent !== (post.content ?? "");
 
   return (
     <>
