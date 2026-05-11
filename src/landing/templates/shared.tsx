@@ -5,7 +5,7 @@
 /* eslint-disable no-restricted-syntax, @typescript-eslint/no-unused-vars, react-refresh/only-export-components, react-hooks/exhaustive-deps */
 
 import type { LandingConfig, LandingSection, FeatureItem, TestimonialItem, ProgramItem, FaqItem, HitReportShowcaseItem, HitReportPublicCard } from "../types";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import useAuth from "@/auth/hooks/useAuth";
 import api, { type ApiRequestConfig } from "@/shared/api/axios";
@@ -290,6 +290,13 @@ function NavSidePanel({ open, onClose, categories, tokens, config, cta, ctaLink,
   const accentSoft = `rgba(${tokens.primaryRgb}, 0.12)`;
   const dividerColor = isDark ? "rgba(255,255,255,0.06)" : "rgba(15,23,42,0.06)";
 
+  // panel 직접 ESC 핸들러 — document keydown(LandingNavBar useEffect)에 더해 dialog 자체에서도 처리.
+  // 2026-05-11 E2E: focus 위치에 따라 document handler 미발화 케이스 대응(defense in depth).
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    panelRef.current?.focus();
+  }, []);
+
   return (
     <div
       onClick={onClose}
@@ -301,10 +308,13 @@ function NavSidePanel({ open, onClose, categories, tokens, config, cta, ctaLink,
       }}
     >
       <div
+        ref={panelRef}
         onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); onClose(); } }}
         role="dialog"
         aria-modal="true"
         aria-label="전체 메뉴"
+        tabIndex={-1}
         style={{
           position: "absolute", top: 0, left: 0, bottom: 0,
           width: "min(92vw, 380px)",
@@ -312,6 +322,7 @@ function NavSidePanel({ open, onClose, categories, tokens, config, cta, ctaLink,
           borderRight: `1px solid ${tokens.border}`,
           display: "flex", flexDirection: "column",
           boxShadow: "0 0 48px rgba(0,0,0,0.35)",
+          outline: "none",
           animation: "landingPanelSlide 0.22s cubic-bezier(0.32, 0.72, 0.32, 1)",
         }}
       >
