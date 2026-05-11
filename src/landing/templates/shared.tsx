@@ -475,105 +475,148 @@ export function HitReportCards({ items, color, rgb, theme = "light" }: { items: 
 
   return (
     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 20 }}>
-      {cards.map((card) => {
-        const label = labelMap.get(card.id) || card.doc_category || card.doc_title;
-        const sub = card.doc_title && card.doc_title !== label ? card.doc_title : "";
-        const ratePct = Math.round(card.hit_rate_pct);
-        return (
-          // 카드 = wrapper. Link(상세 페이지) + button(수정)을 sibling으로 두어
-          // nested interactive 회피 + 키보드 접근성 보장.
-          <div
-            key={card.id}
-            style={{
-              position: "relative",
-              padding: 28,
-              borderRadius: 18,
-              background: cardBg,
-              border: `1px solid ${cardBorder}`,
-              boxShadow: cardShadow,
-              transition: "transform 0.2s ease, border-color 0.2s ease",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = "translateY(-2px)";
-              e.currentTarget.style.borderColor = dark ? "rgba(212,160,76,0.45)" : "rgba(15,23,42,0.2)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = "none";
-              e.currentTarget.style.borderColor = cardBorder;
-            }}
-          >
-            <Link
-              to={`/landing/reports/${card.id}`}
-              title="자세한 적중 보고서 보기"
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: 14,
-                textDecoration: "none",
-                color: "inherit",
-                cursor: "pointer",
-              }}
-            >
-              <div style={{ fontSize: 11, fontWeight: 700, color: labelColor, letterSpacing: "0.06em", textTransform: "uppercase", paddingRight: canManage ? 60 : 0 }}>
-                {label || "적중 보고서"}
-              </div>
-              {sub && (
-                <div style={{ fontSize: 15, color: subColor, margin: 0, lineHeight: 1.5, fontWeight: 600, letterSpacing: "-0.015em" }}>
-                  {sub}
-                </div>
-              )}
-              <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginTop: 4 }}>
-                <span style={{ fontSize: 44, fontWeight: 800, color, lineHeight: 1, letterSpacing: "-0.03em" }}>
-                  {ratePct}
-                </span>
-                <span style={{ fontSize: 18, fontWeight: 700, color, opacity: 0.85 }}>%</span>
-                <span style={{ fontSize: 12, color: labelColor, marginLeft: 6, letterSpacing: "0.04em", fontWeight: 600 }}>적중률</span>
-              </div>
-              <div
-                style={{
-                  fontSize: 13, fontWeight: 600, color: chipColor,
-                  padding: "6px 12px", borderRadius: 999,
-                  background: chipBg,
-                  alignSelf: "flex-start",
-                  letterSpacing: "-0.01em",
-                }}
-              >
-                {card.hit_count} <span style={{ opacity: 0.6 }}>/ {card.total_problems}</span> 문항
-              </div>
-              <div style={{ marginTop: 4, fontSize: 11, color: labelColor, fontWeight: 600, letterSpacing: "0.04em" }}>
-                자세히 보기 →
-              </div>
-            </Link>
-            {canManage && (
-              <button
-                type="button"
-                onClick={() => navigate("/admin/storage/hit-reports")}
-                style={{
-                  position: "absolute",
-                  top: 12,
-                  right: 12,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 4,
-                  padding: "5px 10px",
-                  borderRadius: 999,
-                  background: manageChipBg,
-                  color: manageChipColor,
-                  fontSize: 11,
-                  fontWeight: 700,
-                  border: "none",
-                  cursor: "pointer",
-                  letterSpacing: "0.02em",
-                }}
-                title="이 보고서 관리실에서 수정"
-              >
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
-                수정
-              </button>
-            )}
+      {cards.map((card) => (
+        <HitReportCardItem
+          key={card.id}
+          card={card}
+          labelOverride={labelMap.get(card.id)}
+          color={color}
+          rgb={rgb}
+          dark={dark}
+          cardBg={cardBg}
+          cardBorder={cardBorder}
+          cardShadow={cardShadow}
+          labelColor={labelColor}
+          subColor={subColor}
+          chipBg={chipBg}
+          chipColor={chipColor}
+          canManage={canManage}
+          manageChipBg={manageChipBg}
+          manageChipColor={manageChipColor}
+          onManage={() => navigate("/admin/storage/hit-reports")}
+        />
+      ))}
+    </div>
+  );
+}
+
+/** 단일 카드 컴포넌트 — hover 시 PDF 미리보기(첫 페이지 iframe) 노출. */
+function HitReportCardItem({ card, labelOverride, color, rgb, dark, cardBg, cardBorder, cardShadow, labelColor, subColor, chipBg, chipColor, canManage, manageChipBg, manageChipColor, onManage }: {
+  card: HitReportPublicCard; labelOverride?: string;
+  color: string; rgb: string; dark: boolean;
+  cardBg: string; cardBorder: string; cardShadow: string;
+  labelColor: string; subColor: string; chipBg: string; chipColor: string;
+  canManage: boolean; manageChipBg: string; manageChipColor: string; onManage: () => void;
+}) {
+  const [hover, setHover] = useState(false);
+  const label = labelOverride || card.doc_category || card.doc_title;
+  const sub = card.doc_title && card.doc_title !== label ? card.doc_title : "";
+  const ratePct = Math.round(card.hit_rate_pct);
+  const apiBase = (import.meta.env.VITE_API_BASE_URL as string) || "";
+  const pdfUrl = `${apiBase}/api/v1/matchup/landing/public/${card.id}/curated.pdf#page=1&view=Fit`;
+
+  return (
+    <div
+      style={{
+        position: "relative",
+        padding: 28,
+        borderRadius: 18,
+        background: cardBg,
+        border: `1px solid ${hover ? (dark ? "rgba(212,160,76,0.45)" : "rgba(15,23,42,0.2)") : cardBorder}`,
+        boxShadow: cardShadow,
+        transition: "transform 0.2s ease, border-color 0.2s ease",
+        transform: hover ? "translateY(-2px)" : "none",
+      }}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+    >
+      {/* hover 시 카드 우상단에 PDF 1페이지 thumbnail floating */}
+      {hover && (
+        <div style={{
+          position: "absolute",
+          top: -8, right: -8,
+          transform: "translate(100%, 0)",
+          width: 280, height: 360,
+          background: "#fff",
+          borderRadius: 12,
+          boxShadow: "0 16px 48px rgba(0,0,0,0.35)",
+          border: `1px solid ${dark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.1)"}`,
+          overflow: "hidden",
+          zIndex: 50,
+          pointerEvents: "none",
+        }}>
+          <iframe src={pdfUrl} title={`${label} preview`} style={{ width: "100%", height: "100%", border: "none", pointerEvents: "none" }} />
+        </div>
+      )}
+      <Link
+        to={`/landing/reports/${card.id}`}
+        title="자세한 적중 보고서 보기"
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: 14,
+          textDecoration: "none",
+          color: "inherit",
+          cursor: "pointer",
+        }}
+      >
+        <div style={{ fontSize: 11, fontWeight: 700, color: labelColor, letterSpacing: "0.06em", textTransform: "uppercase", paddingRight: canManage ? 60 : 0 }}>
+          {label || "적중 보고서"}
+        </div>
+        {sub && (
+          <div style={{ fontSize: 15, color: subColor, margin: 0, lineHeight: 1.5, fontWeight: 600, letterSpacing: "-0.015em" }}>
+            {sub}
           </div>
-        );
-      })}
+        )}
+        <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginTop: 4 }}>
+          <span style={{ fontSize: 44, fontWeight: 800, color, lineHeight: 1, letterSpacing: "-0.03em" }}>
+            {ratePct}
+          </span>
+          <span style={{ fontSize: 18, fontWeight: 700, color, opacity: 0.85 }}>%</span>
+          <span style={{ fontSize: 12, color: labelColor, marginLeft: 6, letterSpacing: "0.04em", fontWeight: 600 }}>적중률</span>
+        </div>
+        <div
+          style={{
+            fontSize: 13, fontWeight: 600, color: chipColor,
+            padding: "6px 12px", borderRadius: 999,
+            background: chipBg,
+            alignSelf: "flex-start",
+            letterSpacing: "-0.01em",
+          }}
+        >
+          {card.hit_count} <span style={{ opacity: 0.6 }}>/ {card.total_problems}</span> 문항
+        </div>
+        <div style={{ marginTop: 4, fontSize: 11, color: labelColor, fontWeight: 600, letterSpacing: "0.04em" }}>
+          자세히 보기 →
+        </div>
+      </Link>
+      {canManage && (
+        <button
+          type="button"
+          onClick={onManage}
+          style={{
+            position: "absolute",
+            top: 12,
+            right: 12,
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 4,
+            padding: "5px 10px",
+            borderRadius: 999,
+            background: manageChipBg,
+            color: manageChipColor,
+            fontSize: 11,
+            fontWeight: 700,
+            border: "none",
+            cursor: "pointer",
+            letterSpacing: "0.02em",
+          }}
+          title="이 보고서 관리실에서 수정"
+        >
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
+          수정
+        </button>
+      )}
     </div>
   );
 }

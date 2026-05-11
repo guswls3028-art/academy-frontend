@@ -18,6 +18,7 @@ export type AdminNotificationCounts = {
   registrationRequestsPending: number;
   recentSubmissions: number;
   videoFailed: number;
+  consultUnread: number;
   total: number;
 };
 
@@ -28,7 +29,8 @@ export type AdminNotificationSource =
   | "clinic"
   | "registration_requests"
   | "submissions"
-  | "video_failed";
+  | "video_failed"
+  | "consult";
 
 export type AdminNotificationCountsResult = {
   counts: AdminNotificationCounts;
@@ -69,6 +71,21 @@ async function fetchDashboardCounts(): Promise<DashboardCountsResponse | null> {
   }
 }
 
+/** 학원장 상담 수신함 미확인 건수 — 권한 부족(teacher 등) 시 0 silent. */
+async function fetchConsultUnread(): Promise<number | null> {
+  try {
+    const res = await api.get<{ summary?: { unread?: number } }>(
+      "/core/landing/admin/consult/"
+    );
+    return res.data?.summary?.unread ?? 0;
+  } catch (e) {
+    const status = (e as { response?: { status?: number } })?.response?.status;
+    // 403 (학원장 권한 없음) → 본 알림 불필요. silent 0.
+    if (status === 403) return 0;
+    return null;
+  }
+}
+
 export async function fetchAdminNotificationCounts(): Promise<AdminNotificationCountsResult> {
   const empty: AdminNotificationCounts = {
     qnaPending: 0,
@@ -77,6 +94,7 @@ export async function fetchAdminNotificationCounts(): Promise<AdminNotificationC
     registrationRequestsPending: 0,
     recentSubmissions: 0,
     videoFailed: 0,
+    consultUnread: 0,
     total: 0,
   };
 
@@ -87,6 +105,7 @@ export async function fetchAdminNotificationCounts(): Promise<AdminNotificationC
     registrationRes,
     submissionsRes,
     dashboardCounts,
+    consultRes,
   ] = await Promise.all([
     fetchClinicParticipants({ status: "pending" })
       .then((r) => (Array.isArray(r) ? r.length : 0))
@@ -111,6 +130,7 @@ export async function fetchAdminNotificationCounts(): Promise<AdminNotificationC
       )
       .catch(() => null as number | null),
     fetchDashboardCounts(),
+    fetchConsultUnread(),
   ]);
 
   const failures: AdminNotificationSource[] = [];
@@ -120,6 +140,7 @@ export async function fetchAdminNotificationCounts(): Promise<AdminNotificationC
   if (registrationRes === null) failures.push("registration_requests");
   if (submissionsRes === null) failures.push("submissions");
   if (dashboardCounts === null) failures.push("video_failed");
+  if (consultRes === null) failures.push("consult");
 
   const qna = qnaCount ?? 0;
   const counsel = counselCount ?? 0;
@@ -127,6 +148,7 @@ export async function fetchAdminNotificationCounts(): Promise<AdminNotificationC
   const registrationRequestsPending = registrationRes ?? 0;
   const recentSubmissions = submissionsRes ?? 0;
   const videoFailed = Number(dashboardCounts?.video_failed ?? 0);
+  const consultUnread = consultRes ?? 0;
 
   const total =
     qna +
@@ -134,10 +156,11 @@ export async function fetchAdminNotificationCounts(): Promise<AdminNotificationC
     clinicPending +
     registrationRequestsPending +
     recentSubmissions +
-    videoFailed;
+    videoFailed +
+    consultUnread;
 
   // 모든 소스가 실패한 경우에도 counts는 0으로 안전하게 반환 (UI는 failures로 판단)
-  if (failures.length === 6) {
+  if (failures.length === 7) {
     return { counts: empty, failures };
   }
 
@@ -149,6 +172,7 @@ export async function fetchAdminNotificationCounts(): Promise<AdminNotificationC
       registrationRequestsPending,
       recentSubmissions,
       videoFailed,
+      consultUnread,
       total,
     },
     failures,
@@ -174,6 +198,15 @@ export function buildAdminNotificationItems(
       label: "영상 인코딩 실패",
       count: counts.videoFailed,
       to: "/admin/videos",
+    });
+  }
+  // 새 상담 요청 — 학원장 우선순위 높음 (외부 학부모가 직접 접촉)
+  if (counts.consultUnread > 0) {
+    items.push({
+      type: "consult",
+      label: "새 상담 요청",
+      count: counts.consultUnread,
+      to: "/admin/settings/consult",
     });
   }
   if (counts.registrationRequestsPending > 0) {
