@@ -25,6 +25,7 @@ const DevAppRouter = lazy(() => import("@dev/app/DevAppRouter"));
 const PromoRouter = lazy(() => import("@promo/app/PromoRouter"));
 const PublicLandingPage = lazy(() => import("@/landing/pages/PublicLandingPage"));
 const LandingReportDetailPage = lazy(() => import("@/landing/pages/LandingReportDetailPage"));
+const LandingReportsListPage = lazy(() => import("@/landing/pages/LandingReportsListPage"));
 
 function MaintenanceGate({ enabled }: { enabled: boolean }) {
   const location = useLocation();
@@ -141,6 +142,15 @@ export default function AppRouter() {
         element={
           <Suspense fallback={<div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}><span style={{ color: "var(--color-text-tertiary, #666)", fontSize: "var(--text-sm, 13px)" }}>불러오는 중…</span></div>}>
             <PublicLandingPage />
+          </Suspense>
+        }
+      />
+      {/* 적중보고서 갤러리 — 학원장 picker 등록한 모든 보고서 한 페이지 */}
+      <Route
+        path="/landing/reports"
+        element={
+          <Suspense fallback={<div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}><span style={{ color: "var(--color-text-tertiary, #666)", fontSize: "var(--text-sm, 13px)" }}>불러오는 중…</span></div>}>
+            <LandingReportsListPage />
           </Suspense>
         }
       />

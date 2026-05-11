@@ -289,7 +289,19 @@ export default function PremiumDark({ config }: TemplateProps) {
                       theme="dark"
                     />
                   </div>
-                  <p style={{ fontSize: 12, color: textMuted, textAlign: "center", margin: "32px 0 0", letterSpacing: "0.02em" }}>
+                  {((section.items as HitReportShowcaseItem[] | undefined)?.length || 0) >= 2 && (
+                    <div style={{ textAlign: "center", marginTop: 32 }}>
+                      <Link to="/landing/reports" style={{
+                        display: "inline-flex", alignItems: "center", gap: 6,
+                        padding: "10px 22px", borderRadius: 999,
+                        background: `rgba(${goldRgb}, 0.08)`, color: gold,
+                        border: `1px solid rgba(${goldRgb}, 0.25)`,
+                        fontSize: 13, fontWeight: 700, textDecoration: "none",
+                        letterSpacing: "-0.01em",
+                      }}>적중 사례 모두 보기 →</Link>
+                    </div>
+                  )}
+                  <p style={{ fontSize: 12, color: textMuted, textAlign: "center", margin: "24px 0 0", letterSpacing: "0.02em" }}>
                     적중수 = 강의 자료에서 큐레이션한 동일·유사 문항 수 / 총 문항수 = 시험지 전체 문항
                   </p>
                 </div>
