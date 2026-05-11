@@ -56,6 +56,26 @@ export default function TeacherTopBar({ onMenuClick }: Props) {
         >
           <Menu size={22} />
         </button>
+        {/* 2026-05-12: 학원 홈페이지로 이동 — 햄버거 우측, 로고 좌측 */}
+        <a
+          href="/landing"
+          aria-label="학원 홈페이지로 이동"
+          title="학원 홈페이지로 이동"
+          data-testid="tc-topbar-go-home"
+          style={{
+            display: "inline-flex", alignItems: "center", gap: 5,
+            padding: "6px 11px", borderRadius: 999,
+            background: "transparent",
+            border: "1px solid var(--tc-border, color-mix(in srgb, var(--tc-text) 12%, transparent))",
+            color: "var(--tc-text)",
+            fontSize: 11.5, fontWeight: 600, letterSpacing: "-0.01em",
+            textDecoration: "none", flexShrink: 0,
+            marginRight: 2,
+          }}
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 12L12 4l9 8" /><path d="M5 10v10h14V10" /></svg>
+          홈
+        </a>
         <button
           onClick={() => navigate("/teacher")}
           aria-label="홈으로"

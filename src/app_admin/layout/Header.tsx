@@ -395,6 +395,28 @@ export default function Header() {
             leftIcon={<IconMenu />}
           />
 
+          {/* 2026-05-12: 콘솔 ↔ 학원 홈페이지 빠른 이동(햄버거 우측, 로고 좌측) */}
+          <a
+            href="/landing"
+            aria-label="학원 홈페이지로 이동"
+            title="학원 홈페이지로 이동"
+            data-testid="app-header-go-home"
+            className="app-header__homeBtn"
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 6,
+              padding: "6px 12px", marginRight: 4,
+              borderRadius: 999,
+              background: "transparent",
+              border: "1px solid var(--color-border-divider, rgba(255,255,255,0.12))",
+              color: "var(--color-text-primary)",
+              fontSize: 12, fontWeight: 600, letterSpacing: "-0.01em",
+              textDecoration: "none", whiteSpace: "nowrap",
+            }}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 12L12 4l9 8" /><path d="M5 10v10h14V10" /></svg>
+            {isMobile ? "" : "홈으로"}
+          </a>
+
           <div className="app-header__brand">
             <span className="app-header__brandMark" aria-hidden>
               {logoUrl ? (

@@ -10,7 +10,7 @@
 
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import api, { type ApiRequestConfig } from "@/shared/api/axios";
+import api, { type ApiRequestConfig, saveReturnPath } from "@/shared/api/axios";
 import useAuth from "@/auth/hooks/useAuth";
 
 type BoardType = "board" | "qna" | "notice" | "materials";
@@ -217,6 +217,7 @@ function LoginGuard({ textPrimary, textSecondary, accent, cardBg, border }: { te
       <Link
         to="/login"
         data-testid="landing-community-login-cta"
+        onClick={() => saveReturnPath()}
         style={{
           marginTop: 6,
           display: "inline-flex", alignItems: "center", gap: 6,

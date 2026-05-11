@@ -14,7 +14,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
-import api, { type ApiRequestConfig } from "@/shared/api/axios";
+import api, { type ApiRequestConfig, saveReturnPath } from "@/shared/api/axios";
 import useAuth from "@/auth/hooks/useAuth";
 import { fetchLandingPublic } from "../api";
 import type { LandingPublicResponse } from "../types";
@@ -379,6 +379,7 @@ function LoginGuard({ textPrimary, textSecondary, accent, cardBg, border }: { te
       <Link
         to="/login"
         data-testid="landing-community-list-login-cta"
+        onClick={() => saveReturnPath()}
         style={{ marginTop: 8, padding: "11px 24px", borderRadius: 999, background: accent, color: "#0A0E1A", textDecoration: "none", fontSize: 14, fontWeight: 700, letterSpacing: "-0.01em" }}
       >로그인하고 커뮤니티 보기 →</Link>
     </div>

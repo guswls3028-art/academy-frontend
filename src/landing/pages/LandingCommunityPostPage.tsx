@@ -13,7 +13,7 @@
 
 import { useEffect, useState } from "react";
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import api, { type ApiRequestConfig } from "@/shared/api/axios";
+import api, { type ApiRequestConfig, saveReturnPath } from "@/shared/api/axios";
 import useAuth from "@/auth/hooks/useAuth";
 import { fetchLandingPublic } from "../api";
 import type { LandingPublicResponse } from "../types";
@@ -330,7 +330,7 @@ export default function LandingCommunityPostPage() {
             <p style={{ fontSize: 14, color: textSecondary, margin: "0 0 18px", lineHeight: 1.6 }}>
               학생·학부모·강사 계정으로 로그인하시면 본문과 댓글까지 모두 확인하실 수 있습니다.
             </p>
-            <Link to="/login" style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "12px 24px", borderRadius: 999, background: gold, color: "#0A0E1A", textDecoration: "none", fontSize: 14, fontWeight: 700 }}>
+            <Link to="/login" onClick={() => saveReturnPath()} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "12px 24px", borderRadius: 999, background: gold, color: "#0A0E1A", textDecoration: "none", fontSize: 14, fontWeight: 700 }}>
               로그인하고 보기 →
             </Link>
             <div style={{ marginTop: 18 }}>

@@ -8,7 +8,7 @@ import type { LandingConfig, LandingSection, FeatureItem, TestimonialItem, Progr
 import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import useAuth from "@/auth/hooks/useAuth";
-import api, { type ApiRequestConfig } from "@/shared/api/axios";
+import api, { type ApiRequestConfig, saveReturnPath } from "@/shared/api/axios";
 import { resolveTenantCode, getTenantIdFromCode, getTenantBranding } from "@/shared/tenant";
 
 /** 아이콘 매핑 (SVG 인라인) */
@@ -487,7 +487,7 @@ function NavRoleAuthMenu({ cta: _cta, ctaLink: _ctaLink, tokens, variant = "head
   if (!isAuthenticated) {
     if (isFooter) {
       return (
-        <Link to="/login" style={{
+        <Link to="/login" onClick={() => saveReturnPath()} style={{
           display: "inline-flex", alignItems: "center", gap: 8,
           padding: "10px 18px", borderRadius: 999,
           fontSize: 13, fontWeight: 600,
@@ -500,7 +500,7 @@ function NavRoleAuthMenu({ cta: _cta, ctaLink: _ctaLink, tokens, variant = "head
       );
     }
     return (
-      <Link to="/login" data-testid="landing-nav-login" style={{
+      <Link to="/login" data-testid="landing-nav-login" onClick={() => saveReturnPath()} style={{
         padding: "8px 14px", borderRadius: 999, fontSize: 13, fontWeight: 600,
         textDecoration: "none", color: tokens.textPrimary,
         background: "transparent",
