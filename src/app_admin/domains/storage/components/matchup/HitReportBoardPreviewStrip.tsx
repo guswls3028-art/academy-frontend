@@ -70,6 +70,7 @@ export default function HitReportBoardPreviewStrip({ open = true }: Props) {
 
   return (
     <div
+      data-testid="hit-report-board-preview-strip"
       style={{
         border: "1px solid var(--color-border-divider)",
         background: "linear-gradient(135deg, var(--color-bg-elevated, #f8fafc) 0%, var(--color-bg-canvas) 100%)",

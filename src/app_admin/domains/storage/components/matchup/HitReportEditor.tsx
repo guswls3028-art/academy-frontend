@@ -79,6 +79,18 @@ export default function HitReportEditor({ docId, onClose }: Props) {
   // 상단 인디케이터를 빨간 "저장 실패" 상태로 stuck 시키고 클릭하면 재시도.
   const [autosaveError, setAutosaveError] = useState<boolean>(false);
 
+  // submit 자동 게시 모드 (localStorage rememberKey) — 사용자가 "다음부터 묻지 않기"
+  // 체크 후 확인했으면 dialog skip. 매번 묻기로 되돌리기 1클릭 UX 위해 노출 상태 관리.
+  const SKIP_CONFIRM_KEY = "matchup.hitreport.submit.skipConfirm";
+  const [submitSkipConfirm, setSubmitSkipConfirm] = useState<boolean>(() => {
+    try { return localStorage.getItem(SKIP_CONFIRM_KEY) === "1"; } catch { return false; }
+  });
+  const resetSubmitConfirm = useCallback(() => {
+    try { localStorage.removeItem(SKIP_CONFIRM_KEY); } catch { /* private mode */ }
+    setSubmitSkipConfirm(false);
+    feedback.info("다음부터 게시 전에 다시 확인합니다.");
+  }, []);
+
   const load = useCallback(async () => {
     setLoading(true);
     setLoadError(null);
@@ -295,8 +307,15 @@ export default function HitReportEditor({ docId, onClose }: Props) {
       message: confirmMsg,
       confirmText: "홈페이지에 게시",
       cancelText: "취소",
+      rememberKey: SKIP_CONFIRM_KEY,
+      rememberLabel: "다음부터 묻지 않고 바로 게시",
     });
     if (!ok) return;
+    // confirm 통과 후 flag state 재동기 — 사용자가 방금 체크했으면 다음부터 인디케이터 노출
+    try {
+      const nowSkip = localStorage.getItem(SKIP_CONFIRM_KEY) === "1";
+      if (nowSkip !== submitSkipConfirm) setSubmitSkipConfirm(nowSkip);
+    } catch { /* private mode */ }
     setSubmitting(true);
     try {
       if (dirtyCount > 0) {
@@ -344,7 +363,7 @@ export default function HitReportEditor({ docId, onClose }: Props) {
     } finally {
       setSubmitting(false);
     }
-  }, [dirtyCount, isSubmitted, reportId, saveAll, confirm]);
+  }, [dirtyCount, isSubmitted, reportId, saveAll, confirm, submitSkipConfirm]);
 
   // 게시 취소 + 편집 — 학원장 mental model (2026-05-11): submit=게시 통합 후
   // unsubmit=게시 취소+편집 의미. backend 가 chip toggle remove 도 함께 호출.
@@ -667,6 +686,39 @@ export default function HitReportEditor({ docId, onClose }: Props) {
                 기존 "학원에 제출" 단어가 1인 학원 (강사=학원장) 케이스 논리적 모순.
                 submit ↔ chip toggle 통합 → 학원장이 "어디다 올리느냐" 안 묻고 1클릭 게시.
                 P-1 실측 (2026-05-11): submitted 0건 = 단어/흐름 분리가 routine 정착 막음. */}
+            {!isSubmitted && submitSkipConfirm && (
+              <span
+                data-testid="matchup-hit-report-skip-confirm-indicator"
+                title="다음 게시부터 확인창을 띄우지 않습니다."
+                style={{
+                  fontSize: 10,
+                  color: "var(--color-text-muted)",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 4,
+                  marginRight: 2,
+                }}
+              >
+                ✓ 자동 게시
+                <button
+                  type="button"
+                  onClick={resetSubmitConfirm}
+                  title="다음 게시부터 다시 확인창을 띄웁니다"
+                  style={{
+                    border: "none",
+                    background: "transparent",
+                    color: "var(--color-brand-primary, #2563eb)",
+                    fontSize: 10,
+                    fontWeight: 700,
+                    padding: 0,
+                    cursor: "pointer",
+                    textDecoration: "underline",
+                  }}
+                >
+                  매번 묻기
+                </button>
+              </span>
+            )}
             {!isSubmitted && (
               <Button
                 size="sm"
@@ -872,7 +924,7 @@ export default function HitReportEditor({ docId, onClose }: Props) {
                       disabled={isSubmitted}
                       aria-label={isExcluded ? "PDF에 다시 포함" : "PDF에서 제외"}
                       title={isSubmitted
-                        ? "학원 제출 완료 — 잠긴 상태입니다"
+                        ? "홈페이지 게시 중 — 잠긴 상태입니다"
                         : (isExcluded ? "PDF에 다시 포함" : "이 Q는 매칭 못함 — PDF에서 제외")}
                       style={{
                         marginLeft: "auto", padding: 3,

@@ -136,7 +136,7 @@ export default function HitReportListModal({ isAdmin, onClose, onOpen }: Props) 
               {summary && (
                 <span>
                   {"  ·  "}
-                  총 {summary.total}건 (제출 {summary.submitted} / 작성중 {summary.drafts})
+                  총 {summary.total}건 (게시 {summary.submitted} / 작성중 {summary.drafts})
                   {reports.length > 0 && (
                     <>
                       {"  ·  "}평균 작성률 {avgProgress.toFixed(0)}%
@@ -192,7 +192,7 @@ export default function HitReportListModal({ isAdmin, onClose, onOpen }: Props) 
           >
             <option value="">상태: 전체</option>
             <option value="draft">작성 중</option>
-            <option value="submitted">제출 완료</option>
+            <option value="submitted">홈페이지 게시 중</option>
           </select>
         </div>
 
@@ -323,7 +323,7 @@ function ReportRow({
               background: "var(--color-status-success-bg, #dcfce7)",
               color: "var(--color-status-success)",
             }}>
-              제출 완료
+              🌐 게시 중
             </span>
           ) : (
             <span style={{
@@ -351,7 +351,7 @@ function ReportRow({
             </span>
           )}
           {report.submitted_at && (
-            <span>제출: {new Date(report.submitted_at).toLocaleDateString("ko-KR")}</span>
+            <span>게시일: {new Date(report.submitted_at).toLocaleDateString("ko-KR")}</span>
           )}
         </div>
       </div>

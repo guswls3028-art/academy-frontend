@@ -1100,7 +1100,7 @@ export default function MatchupPage() {
               <button
                 onClick={() => setHitReportListOpen(true)}
                 title={isAcademyAdmin
-                  ? "학원 전체 강사가 제출한 적중 보고서를 빠르게 봅니다 (메인은 상단 탭)"
+                  ? "학원 홈페이지에 게시할 강사들의 적중 보고서를 빠르게 봅니다 (메인은 상단 탭)"
                   : "내가 작성한 적중 보고서를 빠르게 봅니다 (메인은 상단 탭)"}
                 data-testid="matchup-hit-report-quick-link"
                 style={/* eslint-disable-line no-restricted-syntax */ {

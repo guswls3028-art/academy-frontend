@@ -35,10 +35,12 @@ test.describe("매치업 submit = 게시 통합 흐름 (1번 테넌트, read-onl
       fullPage: true,
     });
 
-    // 포탈 widget 헤더 — "🌐 우리 학원 매치업 게시판" 텍스트 / "전체 보기" CTA
-    await expect(page.getByText("우리 학원 매치업 게시판")).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByRole("button", { name: /전체 보기/ })).toBeVisible();
-    await expect(page.getByRole("button", { name: /새로고침/ }).first()).toBeVisible();
+    // 포탈 widget 스코프 — testid 로 명시
+    const widget = page.locator('[data-testid="hit-report-board-preview-strip"]');
+    await expect(widget).toBeVisible({ timeout: 15_000 });
+    await expect(widget.getByText("우리 학원 매치업 게시판")).toBeVisible();
+    await expect(widget.getByRole("button", { name: /전체 보기/ })).toBeVisible();
+    await expect(widget.getByRole("button", { name: /새로고침|갱신 중/ })).toBeVisible();
 
     // 필터 옵션 — "홈페이지 게시 중" (기존 "제출 완료" 정정)
     const statusSelect = page.locator("select").first();
@@ -55,27 +57,29 @@ test.describe("매치업 submit = 게시 통합 흐름 (1번 테넌트, read-onl
     });
   });
 
-  test("draft 0건 + 게시 0건 빈 상태 안내 정합", async ({ page }) => {
-    // T1 admin97 가 매치업 자료를 쓰지 않는 환경이면 empty state 정합 확인
+  test("draft / 게시 정합 — 필터·widget·banner 단어 게시 통합", async ({ page }) => {
     await page.goto("https://hakwonplus.com/admin/hit-reports?mine=1", {
       waitUntil: "networkidle",
       timeout: 60_000,
     });
     // eslint-disable-next-line no-restricted-syntax
-    await page.waitForTimeout(1500);
+    await page.waitForTimeout(2000);
 
     // empty state 또는 카드 list 둘 중 하나 노출.
-    // 카드가 없을 때 표시되는 "학원 홈페이지에 게시된 보고서가 없습니다" 텍스트 또는
-    // "작성한 보고서가 없습니다" 텍스트. (T1 학원장 위주 사용 가정 X)
     const emptyText = page.getByText(/보고서가 없습니다/);
-    const cardArea = page.locator("[data-testid='hit-report-card']").first();
+    const cardArea = page.locator('[data-testid="hit-report-card"]').first();
     await expect(emptyText.or(cardArea)).toBeVisible({ timeout: 10_000 });
 
     // 정정 검증 — 어떤 empty 메시지든 "학원에 제출된" 단어 없어야 함
     const bodyText = await page.locator("body").innerText();
     expect(bodyText).not.toContain("학원에 제출된 보고서가 없습니다");
-    // 게시 단어가 노출되어야 함 (filter option / widget header / banner 중 하나)
-    expect(bodyText).toMatch(/홈페이지.*게시|매치업 게시판/);
+    // 게시 단어가 노출되어야 함 — widget header(매치업 게시판) 또는 empty state(홈페이지 게시).
+    // T1 admin은 widget이 자동 렌더되므로 둘 중 widget header 매칭이 안정적.
+    const hasPublishWording =
+      bodyText.includes("매치업 게시판")
+      || /홈페이지.*게시/.test(bodyText)
+      || bodyText.includes("게시 중");
+    expect(hasPublishWording).toBe(true);
 
     await page.screenshot({
       path: `${SCREENSHOT_DIR}/03-empty-state-with-publish-wording.png`,
@@ -83,7 +87,7 @@ test.describe("매치업 submit = 게시 통합 흐름 (1번 테넌트, read-onl
     });
   });
 
-  test("포탈 widget 새로고침 버튼 클릭 → API 호출", async ({ page }) => {
+  test("포탈 widget 새로고침 버튼 클릭 → board-preview API 재호출", async ({ page }) => {
     let boardPreviewCalled = false;
     page.on("request", (req) => {
       if (req.url().includes("/matchup/hit-reports/board-preview/")) {
@@ -96,14 +100,18 @@ test.describe("매치업 submit = 게시 통합 흐름 (1번 테넌트, read-onl
       timeout: 60_000,
     });
     // eslint-disable-next-line no-restricted-syntax
-    await page.waitForTimeout(1500);
+    await page.waitForTimeout(2000);
 
-    // 초기 fetch 1회 이미 발사됨 — 신호 reset 후 새로고침 클릭으로 재호출 확인
+    // widget 마운트 — 초기 fetch 1회 이미 발사됨
+    const widget = page.locator('[data-testid="hit-report-board-preview-strip"]');
+    await expect(widget).toBeVisible({ timeout: 15_000 });
+
+    // 신호 reset → widget 내부 새로고침 클릭 → board-preview 재호출
     boardPreviewCalled = false;
-    const refreshBtn = page.getByRole("button", { name: /새로고침/ }).first();
+    const refreshBtn = widget.getByRole("button", { name: /새로고침|갱신 중/ });
     await refreshBtn.click();
     // eslint-disable-next-line no-restricted-syntax
-    await page.waitForTimeout(1500);
+    await page.waitForTimeout(2000);
 
     expect(boardPreviewCalled).toBe(true);
 

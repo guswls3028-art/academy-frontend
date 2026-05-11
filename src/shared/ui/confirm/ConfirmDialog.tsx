@@ -1,5 +1,5 @@
 // PATH: src/shared/ui/confirm/ConfirmDialog.tsx
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useDraggableModal } from "@/shared/ui/modal/useDraggableModal";
 import "./confirm-dialog.css";
@@ -10,6 +10,14 @@ export type ConfirmOptions = {
   confirmText?: string;
   cancelText?: string;
   danger?: boolean;
+  /**
+   * 사용자가 "다음부터 묻지 않기" 체크 후 확인 → localStorage[rememberKey] = "1".
+   * Provider가 다음 호출부터 dialog 띄우지 않고 즉시 true resolve.
+   * 반복 액션(예: 매번 묻는 submit) 의 routine UX 최적화 용.
+   */
+  rememberKey?: string;
+  /** 체크박스 라벨 (기본 "다음부터 묻지 않기"). rememberKey 와 함께 사용. */
+  rememberLabel?: string;
 };
 
 type Props = ConfirmOptions & {
@@ -23,15 +31,21 @@ export default function ConfirmDialog({
   confirmText = "확인",
   cancelText = "취소",
   danger = false,
+  rememberKey,
+  rememberLabel = "다음부터 묻지 않기",
   onConfirm,
   onCancel,
 }: Props) {
   const confirmBtnRef = useRef<HTMLButtonElement>(null);
   const confirmedRef = useRef(false);
+  const [remember, setRemember] = useState(false);
 
   const safeConfirm = () => {
     if (confirmedRef.current) return;
     confirmedRef.current = true;
+    if (rememberKey && remember) {
+      try { localStorage.setItem(rememberKey, "1"); } catch { /* private mode */ }
+    }
     onConfirm();
   };
 
@@ -83,6 +97,17 @@ export default function ConfirmDialog({
         <div style={cardStyle} onClick={(e) => e.stopPropagation()}>
           <h3 className="confirm-drag-handle" style={titleStyle}>{title}</h3>
           <p style={messageStyle}>{message}</p>
+          {rememberKey && (
+            <label style={rememberLabelStyle}>
+              <input
+                type="checkbox"
+                checked={remember}
+                onChange={(e) => setRemember(e.target.checked)}
+                style={rememberCheckboxStyle}
+              />
+              <span>{rememberLabel}</span>
+            </label>
+          )}
           <div style={actionsStyle}>
             <button type="button" style={cancelBtnStyle} onClick={onCancel}>
               {cancelText}
@@ -147,6 +172,19 @@ const actionsStyle: React.CSSProperties = {
   justifyContent: "flex-end",
   gap: "var(--space-2, 8px)",
 };
+
+const rememberLabelStyle: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  gap: 6,
+  margin: "0 0 var(--space-4, 16px)",
+  fontSize: 12,
+  color: "var(--color-text-muted, #888)",
+  cursor: "pointer",
+  userSelect: "none",
+};
+
+const rememberCheckboxStyle: React.CSSProperties = { cursor: "pointer" };
 
 const btnBase: React.CSSProperties = {
   padding: "8px 20px",
