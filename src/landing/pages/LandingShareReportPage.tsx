@@ -38,6 +38,15 @@ function ShareBrandMark({ name }: { name: string }) {
   );
 }
 
+type OtherCard = {
+  id: number;
+  doc_title: string;
+  doc_category: string;
+  hit_count: number;
+  total_problems: number;
+  hit_rate_pct: number;
+};
+
 type ShareMeta = {
   id: number;
   title: string;
@@ -52,16 +61,10 @@ type ShareMeta = {
   tenant_name: string;
   tenant_code: string;
   pdf_url: string;
+  // 다른 보고서 — backend가 카드 메타 inline (1 round-trip 최적화 #67 cycle 9, 2026-05-12).
+  // legacy other_report_ids는 호환 위해 유지하되 신규 코드는 other_reports 사용.
+  other_reports?: OtherCard[];
   other_report_ids?: number[];
-};
-
-type OtherCard = {
-  id: number;
-  doc_title: string;
-  doc_category: string;
-  hit_count: number;
-  total_problems: number;
-  hit_rate_pct: number;
 };
 
 export default function LandingShareReportPage() {
@@ -81,14 +84,22 @@ export default function LandingShareReportPage() {
   // landing config — tenant branding (logo/brand_name/sections nav). 실패해도 share 자체는 노출 가능.
   useEffect(() => { fetchLandingPublic().then(setLanding).catch(() => setLanding(null)); }, []);
 
-  // 다른 보고서 카드 메타 fetch — meta.other_report_ids 가 채워지면 public list endpoint 호출.
+  // 다른 보고서 카드 — backend inline 응답 우선 사용 (#67 cycle 9 latency 1 round-trip).
+  // legacy other_report_ids fallback fetch: backend 미배포 시 호환 위해 유지.
   useEffect(() => {
-    if (!meta?.other_report_ids?.length) { setOthers([]); return; }
+    if (!meta) { setOthers([]); return; }
+    // 신규 backend: other_reports 이미 카드 메타 inline.
+    if (Array.isArray(meta.other_reports) && meta.other_reports.length > 0) {
+      setOthers(meta.other_reports.slice(0, 6));
+      return;
+    }
+    // legacy: ids만 있고 카드 없음 → 별도 fetch (점진적 deprecate).
+    if (!meta.other_report_ids?.length) { setOthers([]); return; }
     const ids = meta.other_report_ids.slice(0, 6).join(",");
     api.get<{ reports: OtherCard[] }>(`/matchup/landing/public/`, { params: { ids }, skipAuth: true } as ApiRequestConfig)
       .then((r) => setOthers(Array.isArray(r.data?.reports) ? r.data.reports : []))
       .catch(() => setOthers([]));
-  }, [meta?.other_report_ids]);
+  }, [meta]);
 
   // SEO — 카톡 미리보기 og:title
   useEffect(() => {
