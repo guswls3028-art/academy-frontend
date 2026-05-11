@@ -6,7 +6,7 @@
 /* eslint-disable no-restricted-syntax */
 
 import type { FeatureItem, TestimonialItem, ProgramItem, FaqItem, HitReportShowcaseItem, InstructorProfileItem, ManagementCardItem, ProcessStepItem } from "../types";
-import { getEnabledSections, SvgIcon, FaqAccordion, HitReportCards, useTenantHitStats, LandingNavBar, ConsultRequestForm, type TemplateProps } from "./shared";
+import { getEnabledSections, SvgIcon, FaqAccordion, HitReportCards, useTenantHitStats, LandingNavBar, ConsultRequestForm, usePublicTestimonials, TestimonialSubmitForm, type TemplateProps } from "./shared";
 import { hexToRgb } from "./colorUtils";
 
 export default function MinimalTutor({ config }: TemplateProps) {
@@ -109,25 +109,7 @@ export default function MinimalTutor({ config }: TemplateProps) {
             );
 
           case "testimonials":
-            return (
-              <section key="testimonials" data-stype="testimonials" style={{ padding: "80px 24px" }}>
-                <div style={{ maxWidth: 1120, margin: "0 auto" }}>
-                  <h2 style={{ fontSize: 28, fontWeight: 700, textAlign: "center", margin: "0 0 48px" }}>수강생 후기</h2>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 24 }}>
-                    {(section.items as TestimonialItem[] || []).map((item, i) => (
-                      <div key={i} style={{ padding: 32, borderRadius: 16, background: "#fff", border: "1px solid rgba(0,0,0,0.06)", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
-                        <svg width="32" height="32" viewBox="0 0 24 24" fill={`rgba(${rgb}, 0.15)`}><path d="M4.583 17.321C3.553 16.227 3 15 3 13.011c0-3.5 2.457-6.637 6.03-8.188l.893 1.378c-3.335 1.804-3.987 4.145-4.247 5.621.537-.278 1.24-.375 1.929-.311C9.591 11.692 11 13.166 11 15c0 1.933-1.567 3.5-3.5 3.5-1.07 0-2.038-.438-2.917-1.179zM14.583 17.321C13.553 16.227 13 15 13 13.011c0-3.5 2.457-6.637 6.03-8.188l.893 1.378c-3.335 1.804-3.987 4.145-4.247 5.621.537-.278 1.24-.375 1.929-.311C19.591 11.692 21 13.166 21 15c0 1.933-1.567 3.5-3.5 3.5-1.07 0-2.038-.438-2.917-1.179z" /></svg>
-                        <p style={{ fontSize: 15, lineHeight: 1.7, color: "#475569", margin: "16px 0" }}>{item.text}</p>
-                        <div>
-                          <p style={{ fontSize: 15, fontWeight: 600, margin: 0 }}>{item.name}</p>
-                          <p style={{ fontSize: 13, color: "#94a3b8", margin: "2px 0 0" }}>{item.role}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </section>
-            );
+            return <LightTestimonialsSection key="testimonials" sectionItems={(section.items as TestimonialItem[]) || []} c={c} rgb={rgb} />;
 
           case "programs":
             return (
@@ -345,6 +327,41 @@ function LightBrandMark({ name, color }: { name: string; color: string }) {
       display: "flex", alignItems: "center", justifyContent: "center",
       letterSpacing: "-0.02em",
     }}>{initial}</div>
+  );
+}
+
+/** light testimonials — 학원장 입력 + 학부모 공개 후기 합쳐서 + 후기 남기기 form */
+function LightTestimonialsSection({ sectionItems, c, rgb }: { sectionItems: TestimonialItem[]; c: string; rgb: string }) {
+  const publicReviews = usePublicTestimonials();
+  const merged = [
+    ...sectionItems.map((it) => ({ name: it.name, role: it.role, text: it.text })),
+    ...publicReviews.map((r) => ({ name: r.name, role: r.role, text: r.text })),
+  ];
+  return (
+    <section data-stype="testimonials" style={{ padding: "80px 24px" }}>
+      <div style={{ maxWidth: 1120, margin: "0 auto" }}>
+        <h2 style={{ fontSize: 28, fontWeight: 700, textAlign: "center", margin: "0 0 48px" }}>수강생 후기</h2>
+        {merged.length > 0 && (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 24 }}>
+            {merged.map((item, i) => (
+              <div key={i} style={{ padding: 32, borderRadius: 16, background: "#fff", border: "1px solid rgba(0,0,0,0.06)", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
+                <svg width="32" height="32" viewBox="0 0 24 24" fill={`rgba(${rgb}, 0.15)`}><path d="M4.583 17.321C3.553 16.227 3 15 3 13.011c0-3.5 2.457-6.637 6.03-8.188l.893 1.378c-3.335 1.804-3.987 4.145-4.247 5.621.537-.278 1.24-.375 1.929-.311C9.591 11.692 11 13.166 11 15c0 1.933-1.567 3.5-3.5 3.5-1.07 0-2.038-.438-2.917-1.179zM14.583 17.321C13.553 16.227 13 15 13 13.011c0-3.5 2.457-6.637 6.03-8.188l.893 1.378c-3.335 1.804-3.987 4.145-4.247 5.621.537-.278 1.24-.375 1.929-.311C19.591 11.692 21 13.166 21 15c0 1.933-1.567 3.5-3.5 3.5-1.07 0-2.038-.438-2.917-1.179z" /></svg>
+                <p style={{ fontSize: 15, lineHeight: 1.7, color: "#475569", margin: "16px 0" }}>{item.text}</p>
+                <div>
+                  <p style={{ fontSize: 15, fontWeight: 600, margin: 0 }}>{item.name}</p>
+                  <p style={{ fontSize: 13, color: "#94a3b8", margin: "2px 0 0" }}>{item.role}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        <div style={{ marginTop: 48, padding: 24, borderRadius: 14, background: "#f8fafc", border: "1px solid rgba(0,0,0,0.06)", maxWidth: 720, marginInline: "auto" }}>
+          <h3 style={{ fontSize: 15, fontWeight: 700, margin: "0 0 4px", color: "#0f172a" }}>수강 후기 남기기</h3>
+          <p style={{ fontSize: 12, color: "#64748b", margin: "0 0 14px" }}>학원장 검토 후 공개됩니다.</p>
+          <TestimonialSubmitForm accent={c} />
+        </div>
+      </div>
+    </section>
   );
 }
 

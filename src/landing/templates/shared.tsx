@@ -356,6 +356,81 @@ function FormField({ label, required, children, dark }: { label: string; require
   );
 }
 
+/** 공개 testimonials fetch — 학원장 승인된 후기. 학원장이 LandingEditor에 직접 입력한 items와 합쳐서 노출. */
+export interface PublicTestimonial { id: number; name: string; role: string; text: string }
+export function usePublicTestimonials(): PublicTestimonial[] {
+  const [list, setList] = useState<PublicTestimonial[]>([]);
+  useEffect(() => {
+    api.get("/core/landing/testimonial/public/", { skipAuth: true } as ApiRequestConfig)
+      .then((r) => setList(Array.isArray(r?.data?.items) ? r.data.items : []))
+      .catch(() => setList([]));
+  }, []);
+  return list;
+}
+
+/** 후기 남기기 form — testimonials 섹션 옆 또는 하단에. 제출 → pending → 학원장 승인 후 노출. */
+export function TestimonialSubmitForm({ accent, dark = false }: { accent: string; dark?: boolean }) {
+  const [form, setForm] = useState({ name: "", role: "", text: "" });
+  const [hp, setHp] = useState("");
+  const [pending, setPending] = useState(false);
+  const [done, setDone] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (pending || done) return;
+    setErr(null);
+    if (!form.name.trim()) { setErr("이름을 입력해주세요."); return; }
+    if (form.text.trim().length < 10) { setErr("후기는 10자 이상 입력해주세요."); return; }
+    setPending(true);
+    try {
+      await api.post("/core/landing/testimonial/", { ...form, website: hp }, { skipAuth: true } as ApiRequestConfig);
+      setDone(true);
+    } catch (e) {
+      const detail = (e as { response?: { data?: { detail?: string | string[] } } })?.response?.data?.detail;
+      setErr(Array.isArray(detail) ? detail[0] : (typeof detail === "string" ? detail : "전송 실패. 잠시 후 다시 시도해주세요."));
+    }
+    setPending(false);
+  };
+
+  const fieldBg = dark ? "rgba(255,255,255,0.04)" : "#fff";
+  const fieldBorder = dark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)";
+  const labelColor = dark ? "#9CA3AF" : "#475569";
+  const textColor = dark ? "#F5F1E8" : "#0f172a";
+
+  if (done) {
+    return (
+      <div style={{ padding: 18, borderRadius: 12, background: dark ? "rgba(212,160,76,0.08)" : "rgba(37,99,235,0.06)", border: `1px solid ${dark ? "rgba(212,160,76,0.25)" : "rgba(37,99,235,0.2)"}`, color: textColor, textAlign: "center" }}>
+        <p style={{ fontSize: 14, fontWeight: 700, margin: "0 0 4px" }}>후기를 보내주셔서 감사합니다 ✓</p>
+        <p style={{ fontSize: 12, color: labelColor, margin: 0 }}>학원장 검토 후 공개됩니다.</p>
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={submit} style={{ display: "grid", gap: 10 }}>
+      <input type="text" name="website" value={hp} onChange={(e) => setHp(e.target.value)} tabIndex={-1} autoComplete="off" aria-hidden
+        style={{ position: "absolute", left: "-9999px", width: 1, height: 1, opacity: 0 }} />
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        <input type="text" placeholder="이름" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} maxLength={50} disabled={pending} required
+          style={{ padding: "10px 12px", borderRadius: 8, border: `1px solid ${fieldBorder}`, background: fieldBg, color: textColor, fontSize: 13, fontFamily: "inherit", outline: "none" }} />
+        <input type="text" placeholder="학년·관계 (예: 고1 학부모)" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })} maxLength={80} disabled={pending}
+          style={{ padding: "10px 12px", borderRadius: 8, border: `1px solid ${fieldBorder}`, background: fieldBg, color: textColor, fontSize: 13, fontFamily: "inherit", outline: "none" }} />
+      </div>
+      <textarea placeholder="후기를 자유롭게 남겨주세요 (10자 이상)" value={form.text} onChange={(e) => setForm({ ...form, text: e.target.value })} maxLength={1000} rows={3} disabled={pending} required
+        style={{ padding: "10px 12px", borderRadius: 8, border: `1px solid ${fieldBorder}`, background: fieldBg, color: textColor, fontSize: 13, fontFamily: "inherit", outline: "none", resize: "vertical" }} />
+      {err && <div style={{ padding: "8px 12px", borderRadius: 8, background: "rgba(220,38,38,0.1)", border: "1px solid rgba(220,38,38,0.25)", color: dark ? "#fca5a5" : "#b91c1c", fontSize: 12, fontWeight: 500 }}>{err}</div>}
+      <button type="submit" disabled={pending} style={{
+        padding: "10px 20px", borderRadius: 8, border: "none",
+        background: pending ? "#94a3b8" : accent, color: dark ? "#0A0E1A" : "#fff",
+        fontSize: 13, fontWeight: 700, cursor: pending ? "wait" : "pointer",
+      }}>
+        {pending ? "전송 중…" : "후기 남기기"}
+      </button>
+    </form>
+  );
+}
+
 /** 학원의 매치업 통산 KPI — 강사 프로필 카드 등에서 자동 노출.
  *
  * 데이터: 학원장이 picker에 박은 보고서들의 누적 적중률 + 보고서 수.
