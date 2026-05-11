@@ -13,9 +13,11 @@ import { fetchLandingPublic } from "../api";
 import { getTemplateComponent } from "../templates";
 import type { LandingPublicResponse } from "../types";
 import LandingRoleFab from "../components/LandingRoleFab";
+import LandingInlineEditorFab from "../components/LandingInlineEditorFab";
 import NoticePopup from "../components/NoticePopup";
 import { setLandingMeta as setMeta } from "../utils/seoMeta";
 import { scrollToLandingSection } from "../utils/scrollToSection";
+import type { LandingConfig } from "../types";
 
 export default function PublicLandingPage() {
   const [state, setState] = useState<{ loading: boolean; data: LandingPublicResponse | null }>({
@@ -118,10 +120,31 @@ export default function PublicLandingPage() {
 
   const Template = getTemplateComponent(state.data.template_key || "minimal_tutor");
   return (
+    <PublicLandingContent
+      template={Template}
+      initialConfig={state.data.config}
+      notice={state.data.config?.notice_popup}
+    />
+  );
+}
+
+/** inline editor가 config을 partial merge로 update할 수 있게 state owner 분리.
+ *  학원장 시점 우상단 톱니바퀴 → drawer 입력 시 즉시 Template re-render WYSIWYG. */
+function PublicLandingContent({ template: Template, initialConfig, notice }: {
+  template: React.ComponentType<{ config: LandingConfig }>;
+  initialConfig: LandingConfig;
+  notice: unknown;
+}) {
+  const [config, setConfig] = useState<LandingConfig>(initialConfig);
+  const onConfigPreview = (partial: Partial<LandingConfig>) => {
+    setConfig((prev) => ({ ...prev, ...partial }));
+  };
+  return (
     <>
-      <Template config={state.data.config} />
-      <NoticePopup notice={state.data.config?.notice_popup} />
+      <Template config={config} />
+      <NoticePopup notice={notice as never} />
       <LandingRoleFab />
+      <LandingInlineEditorFab config={config} onConfigPreview={onConfigPreview} />
     </>
   );
 }
