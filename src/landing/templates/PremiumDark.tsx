@@ -5,7 +5,7 @@
 // 랜딩 템플릿은 inline style 기반 — 도메인 전체 면제 (MinimalTutor와 동일 사유).
 /* eslint-disable no-restricted-syntax, @typescript-eslint/no-unused-vars */
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import type { LandingConfig, LandingSection, FeatureItem, TestimonialItem, ProgramItem, FaqItem, HitReportShowcaseItem, HeroCarouselItem, InstructorProfileItem, ManagementCardItem, ProcessStepItem } from "../types";
 import { getEnabledSections, SvgIcon, HitReportCards, useTenantHitStats, LandingNavBar, ConsultRequestForm, usePublicTestimonials, TestimonialSubmitForm, resolveHeroPrimaryCta, type TemplateProps, type NavBarTokens } from "./shared";
@@ -22,6 +22,34 @@ export default function PremiumDark({ config }: TemplateProps) {
   const c = config.primary_color || "#1E3A5F";
   const rgb = hexToRgb(c);
   const sections = getEnabledSections(config);
+
+  // Section enter scroll animation — IntersectionObserver로 모든 [data-stype] section을
+  // viewport 진입 시 fade-up. 학원장 spec "디테일 애니메이션 스튜디오 감성" (#D2 cycle 12).
+  useEffect(() => {
+    if (typeof window === "undefined" || !("IntersectionObserver" in window)) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const observed = new Set<Element>();
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (e.isIntersecting) {
+            e.target.classList.add("pd-in-view");
+            io.unobserve(e.target);
+            observed.delete(e.target);
+          }
+        }
+      },
+      { rootMargin: "-10% 0px -10% 0px", threshold: 0.05 },
+    );
+    // hero는 entrance fade-up 이미 있어 제외.
+    const targets = document.querySelectorAll('section[data-stype]:not([data-stype="hero"])');
+    targets.forEach((t) => {
+      t.classList.add("pd-fade-target");
+      io.observe(t);
+      observed.add(t);
+    });
+    return () => { observed.forEach((t) => io.unobserve(t)); io.disconnect(); };
+  }, []);
 
   // 박철과학 시그니처 다크 팔레트
   const bg = "#0A0E1A";
@@ -100,9 +128,18 @@ export default function PremiumDark({ config }: TemplateProps) {
                 .pd-hero-visual  { animation: premiumFadeUp 0.9s 0.18s cubic-bezier(.2,.7,.2,1) both }
                 .pd-ambient-1, .pd-ambient-2 { animation: premiumAmbientPulse 8s ease-in-out infinite }
                 .pd-ambient-2 { animation-delay: 4s }
+
+                /* Section enter scroll animation (#D2 cycle 12) — viewport 진입 시 fade-up. */
+                .pd-fade-target { opacity: 0; transform: translateY(24px); transition: opacity 0.7s cubic-bezier(.2,.7,.2,1), transform 0.7s cubic-bezier(.2,.7,.2,1) }
+                .pd-fade-target.pd-in-view { opacity: 1; transform: translateY(0) }
+
+                /* Micro-interaction — CTA hover lift, card hover border glow. */
+                a[data-testid="landing-hero-primary-cta"] { transition: transform 0.2s cubic-bezier(.2,.7,.2,1), box-shadow 0.2s }
+                a[data-testid="landing-hero-primary-cta"]:hover { transform: translateY(-2px) }
+
                 @media (prefers-reduced-motion: reduce) {
                   .pd-hero-eyebrow, .pd-hero-h1, .pd-hero-sub, .pd-hero-cta, .pd-hero-visual,
-                  .pd-ambient-1, .pd-ambient-2 { animation: none !important; opacity: 1 !important; transform: none !important }
+                  .pd-ambient-1, .pd-ambient-2, .pd-fade-target { animation: none !important; opacity: 1 !important; transform: none !important; transition: none !important }
                 }
               `}</style>
               <section data-stype="hero" style={{ padding: "120px 24px 100px", position: "relative", overflow: "hidden" }}>
@@ -344,7 +381,10 @@ export default function PremiumDark({ config }: TemplateProps) {
               </section>
             );
 
-          case "hit_reports":
+          case "hit_reports": {
+            // 빈 picker = 섹션 hide (시각 검수 2026-05-12 H-1).
+            const hitArr = (section.items as HitReportShowcaseItem[] | undefined) || [];
+            if (hitArr.length === 0) return null;
             return (
               <section key="hit_reports" data-stype="hit_reports" style={{ padding: "120px 24px", background: bgAlt, position: "relative", overflow: "hidden" }}>
                 <div style={{ position: "absolute", inset: 0, background: `radial-gradient(ellipse 50% 40% at 50% 0%, rgba(${goldRgb},0.06) 0%, transparent 70%)`, pointerEvents: "none" }} />
@@ -359,13 +399,13 @@ export default function PremiumDark({ config }: TemplateProps) {
                   />
                   <div style={{ marginTop: 56 }}>
                     <HitReportCards
-                      items={(section.items as HitReportShowcaseItem[] | undefined) || []}
+                      items={hitArr}
                       color={gold}
                       rgb={goldRgb}
                       theme="dark"
                     />
                   </div>
-                  {((section.items as HitReportShowcaseItem[] | undefined)?.length || 0) >= 2 && (
+                  {hitArr.length >= 2 && (
                     <div style={{ textAlign: "center", marginTop: 32 }}>
                       <Link to="/landing/reports" style={{
                         display: "inline-flex", alignItems: "center", gap: 6,
@@ -383,6 +423,7 @@ export default function PremiumDark({ config }: TemplateProps) {
                 </div>
               </section>
             );
+          }
 
           case "programs": {
             const programItems = (section.items as ProgramItem[] | undefined) || [];

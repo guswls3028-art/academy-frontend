@@ -17,6 +17,7 @@ import LandingInlineEditorFab from "../components/LandingInlineEditorFab";
 import NoticePopup from "../components/NoticePopup";
 import { setLandingMeta as setMeta } from "../utils/seoMeta";
 import { scrollToLandingSection } from "../utils/scrollToSection";
+import { getTenantSignature } from "../utils/tenantSignature";
 import type { LandingConfig } from "../types";
 
 export default function PublicLandingPage() {
@@ -118,12 +119,25 @@ export default function PublicLandingPage() {
     return <Navigate to="/login" replace />;
   }
 
-  const Template = getTemplateComponent(state.data.template_key || "minimal_tutor");
+  // 청사진 SSOT (#D1+D2, cycle 12) — hostname 매핑 signature가 있고 학원장이 직접 입력한 값이
+  // 없는 항목만 fallback. 학원장 입력 우선 (학원장 자율성 X, 청사진은 안전망).
+  const sig = getTenantSignature();
+  const baseConfig = state.data.config;
+  const mergedConfig: LandingConfig = sig
+    ? {
+        ...baseConfig,
+        tagline: baseConfig.tagline || sig.tagline,
+        subtitle: baseConfig.subtitle || sig.subtitle,
+        primary_color: baseConfig.primary_color || sig.primaryColor,
+      }
+    : baseConfig;
+  const effectiveTemplateKey = state.data.template_key || sig?.templateKey || "minimal_tutor";
+  const Template = getTemplateComponent(effectiveTemplateKey);
   return (
     <PublicLandingContent
       template={Template}
-      initialConfig={state.data.config}
-      notice={state.data.config?.notice_popup}
+      initialConfig={mergedConfig}
+      notice={baseConfig?.notice_popup}
     />
   );
 }
