@@ -7,6 +7,7 @@
 
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import type { LandingConfig, LandingSection } from "../types";
+import { scrollToLandingSection } from "../utils/scrollToSection";
 
 export interface FooterTokens {
   bg: string;
@@ -96,9 +97,7 @@ export default function LandingFooter({ config, sections, tokens }: {
   const onMetaClick = (link: MetaLink) => {
     if (link.kind === "section") {
       if (location.pathname !== "/landing") { navigate(`/landing#${link.target}`); return; }
-      const el = (Array.from(document.querySelectorAll("section[data-stype]")) as HTMLElement[])
-        .find((s) => s.dataset.stype === link.target);
-      if (el) window.scrollTo({ top: el.offsetTop - 70, behavior: "smooth" });
+      scrollToLandingSection(link.target, { updateHash: false });
       return;
     }
     if (link.kind === "route") { navigate(link.target); return; }

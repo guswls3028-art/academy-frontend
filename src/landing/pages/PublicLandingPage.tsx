@@ -15,6 +15,7 @@ import type { LandingPublicResponse } from "../types";
 import LandingRoleFab from "../components/LandingRoleFab";
 import NoticePopup from "../components/NoticePopup";
 import { setLandingMeta as setMeta } from "../utils/seoMeta";
+import { scrollToLandingSection } from "../utils/scrollToSection";
 
 export default function PublicLandingPage() {
   const [state, setState] = useState<{ loading: boolean; data: LandingPublicResponse | null }>({
@@ -43,12 +44,7 @@ export default function PublicLandingPage() {
     if (!hash) return;
     let tries = 0;
     const tryScroll = () => {
-      const sections = Array.from(document.querySelectorAll("section[data-stype]")) as HTMLElement[];
-      const el = sections.find((s) => s.dataset.stype === hash);
-      if (el) {
-        window.scrollTo({ top: el.offsetTop - 70, behavior: "smooth" });
-        return;
-      }
+      if (scrollToLandingSection(hash, { updateHash: false })) return;
       if (tries++ < 20) setTimeout(tryScroll, 100);
     };
     setTimeout(tryScroll, 100);

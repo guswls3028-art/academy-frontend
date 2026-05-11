@@ -7,6 +7,7 @@
 import type { LandingConfig, LandingSection, FeatureItem, TestimonialItem, ProgramItem, FaqItem, HitReportShowcaseItem, HitReportPublicCard } from "../types";
 import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
+import { scrollToLandingSection } from "../utils/scrollToSection";
 import useAuth from "@/auth/hooks/useAuth";
 import api, { type ApiRequestConfig, saveReturnPath } from "@/shared/api/axios";
 import { resolveTenantCode, getTenantIdFromCode, getTenantBranding } from "@/shared/tenant";
@@ -143,19 +144,9 @@ function buildMenuCategories(sections: LandingSection[]): NavMenuCategory[] {
   const has = (t: string) => enabledTypes.has(t);
   const categories: NavMenuCategory[] = [];
 
-  // 매치업 / 적중사례 — 학원장 핵심 마케팅. 별도 카테고리로 강조 분리.
-  if (has("hit_reports")) {
-    categories.push({
-      key: "matchup",
-      label: "매치업",
-      items: [
-        { key: "hit_reports", label: "적중 사례 한눈에", kind: "section", target: "hit_reports" },
-        { key: "reports_all", label: "보고서 모두 보기", kind: "route", target: "/landing/reports", badge: "NEW" },
-      ],
-    });
-  }
+  // SSOT 순서 (학원장 spec 2026-05-12): 학원소개 → 커뮤니티 → 매치업 → 가이드 → 서비스센터.
 
-  // 학원소개 — sections 기반
+  // 1. 학원소개 — sections 기반
   const aboutItems: NavMenuItem[] = [];
   if (has("instructor_profile")) aboutItems.push({ key: "instructor_profile", label: "강사 소개", kind: "section", target: "instructor_profile" });
   if (has("features")) aboutItems.push({ key: "features", label: "수업 특징", kind: "section", target: "features" });
@@ -164,7 +155,7 @@ function buildMenuCategories(sections: LandingSection[]): NavMenuCategory[] {
   if (has("programs")) aboutItems.push({ key: "programs", label: "프로그램", kind: "section", target: "programs" });
   if (aboutItems.length) categories.push({ key: "about", label: "학원소개", items: aboutItems });
 
-  // 커뮤니티 — backend community 도메인 연동. 라우트는 Phase B에서 구현.
+  // 2. 커뮤니티 — backend community 도메인 연동
   categories.push({
     key: "community",
     label: "커뮤니티",
@@ -176,12 +167,24 @@ function buildMenuCategories(sections: LandingSection[]): NavMenuCategory[] {
     ],
   });
 
-  // 가이드
+  // 3. 매치업 / 적중사례 — 학원장 핵심 마케팅
+  if (has("hit_reports")) {
+    categories.push({
+      key: "matchup",
+      label: "매치업",
+      items: [
+        { key: "hit_reports", label: "적중 사례 한눈에", kind: "section", target: "hit_reports" },
+        { key: "reports_all", label: "보고서 모두 보기", kind: "route", target: "/landing/reports", badge: "NEW" },
+      ],
+    });
+  }
+
+  // 4. 가이드
   const guideItems: NavMenuItem[] = [];
   if (has("faq")) guideItems.push({ key: "faq", label: "자주 묻는 질문", kind: "section", target: "faq" });
   if (guideItems.length) categories.push({ key: "guide", label: "가이드", items: guideItems });
 
-  // 서비스센터
+  // 5. 서비스센터
   const serviceItems: NavMenuItem[] = [];
   if (has("contact")) serviceItems.push({ key: "contact", label: "상담 문의", kind: "section", target: "contact" });
   if (has("testimonials")) serviceItems.push({ key: "testimonials", label: "수강 후기", kind: "section", target: "testimonials" });
@@ -218,13 +221,12 @@ export function LandingNavBar({ config, sections, tokens, brandMark }: { config:
   const location = useLocation();
 
   // 메뉴 클릭 — section type이면 hash, route면 navigate. /landing 외 페이지에서도 cross-page 작동.
+  // scroll offset은 SSOT 유틸 사용 — fixed LandingSectionTabs(48) + NavBar(64) 가림 회피.
   const handleNav = (item: NavMenuItem) => {
     setOpen(false);
     if (item.kind === "section") {
       if (location.pathname !== "/landing") { navigate(`/landing#${item.target}`); return; }
-      const all = Array.from(document.querySelectorAll("section[data-stype]")) as HTMLElement[];
-      const el = all.find((s) => s.dataset.stype === item.target);
-      if (el) window.scrollTo({ top: el.offsetTop - 70, behavior: "smooth" });
+      scrollToLandingSection(item.target, { updateHash: false });
       return;
     }
     navigate(item.target);

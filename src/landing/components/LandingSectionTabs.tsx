@@ -18,6 +18,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { LandingSection } from "../types";
 import type { NavBarTokens } from "../templates/shared";
 import { NAV_SECTION_ANCHORS } from "../templates/shared";
+import { scrollToLandingSection, LANDING_SCROLL_OFFSET } from "../utils/scrollToSection";
 
 interface Props {
   sections: LandingSection[];
@@ -85,8 +86,8 @@ export default function LandingSectionTabs({ sections, tokens }: Props) {
         const y = window.scrollY;
         setVisible(y > 200);
         if (offsets.length) {
-          // strip이 NavBar(64) + strip(48) 아래에 sticky이므로 그만큼 보정한 ref line.
-          const refLine = y + 64 + 48 + 8;
+          // strip이 NavBar(64) + strip(48) 아래에 fixed이므로 SSOT offset(116) + breathing 8 보정.
+          const refLine = y + LANDING_SCROLL_OFFSET + 8;
           let current = offsets[0].type;
           for (const o of offsets) {
             if (o.top <= refLine) current = o.type;
@@ -122,15 +123,9 @@ export default function LandingSectionTabs({ sections, tokens }: Props) {
 
   if (items.length <= 1) return null;
 
+  // SSOT 유틸 사용 — NavBar/Footer/PublicLanding/SectionTabs 4곳 동일 offset.
   const onClick = (type: string) => {
-    const el = document.querySelector(`section[data-stype="${type}"]`) as HTMLElement | null;
-    if (!el) return;
-    // NavBar(64) + strip(48) 만큼 더 위로 보정.
-    window.scrollTo({ top: el.offsetTop - 64 - 48 - 4, behavior: "smooth" });
-    // hash 갱신 (broadcast/공유 URL 자연스러움) — replaceState 로 history pollute 방지.
-    try {
-      window.history.replaceState(null, "", `/landing#${type}`);
-    } catch { /* noop */ }
+    scrollToLandingSection(type);
   };
 
   const isDark = tokens.bg.includes("10,14,26");
