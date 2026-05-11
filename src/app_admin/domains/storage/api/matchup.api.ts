@@ -1127,6 +1127,5 @@ export async function generateHitReportShareLink(
   return data;
 }
 
-export async function revokeHitReportShareLink(reportId: number): Promise<void> {
-  await api.delete(`/matchup/hit-reports/${reportId}/share-link/`);
-}
+// revoke 함수는 admin chip UI 미연결 — 필요해지면 그때 add (현재 데드코드 제거 2026-05-12).
+// backend DELETE endpoint는 그대로 유지.

@@ -205,13 +205,16 @@ export default function MinimalTutor({ config }: TemplateProps) {
           case "testimonials":
             return <LightTestimonialsSection key="testimonials" sectionItems={(section.items as TestimonialItem[]) || []} c={c} rgb={rgb} />;
 
-          case "programs":
+          case "programs": {
+            // items 비면 hide (헤더만 거대 공백 방지 — 2026-05-12 시각 검수 SSOT)
+            const programItems = (section.items as ProgramItem[] | undefined) || [];
+            if (programItems.length === 0) return null;
             return (
               <section key="programs" data-stype="programs" style={{ padding: "80px 24px", background: "#f8fafc" }}>
                 <div style={{ maxWidth: 1120, margin: "0 auto" }}>
                   <h2 style={{ fontSize: 28, fontWeight: 700, textAlign: "center", margin: "0 0 48px" }}>프로그램</h2>
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 24 }}>
-                    {(section.items as ProgramItem[] || []).map((item, i) => (
+                    {programItems.map((item, i) => (
                       <div key={i} style={{ padding: 32, borderRadius: 16, background: "#fff", border: "1px solid rgba(0,0,0,0.06)" }}>
                         {item.badge && (
                           <span style={{ display: "inline-block", padding: "4px 12px", borderRadius: 99, background: `rgba(${rgb}, 0.1)`, color: c, fontSize: 12, fontWeight: 600, marginBottom: 16 }}>
@@ -226,16 +229,21 @@ export default function MinimalTutor({ config }: TemplateProps) {
                 </div>
               </section>
             );
+          }
 
-          case "faq":
+          case "faq": {
+            // items 비면 hide
+            const faqItems = (section.items as FaqItem[] | undefined) || [];
+            if (faqItems.length === 0) return null;
             return (
               <section key="faq" data-stype="faq" style={{ padding: "80px 24px" }}>
                 <div style={{ maxWidth: 720, margin: "0 auto" }}>
                   <h2 style={{ fontSize: 28, fontWeight: 700, textAlign: "center", margin: "0 0 48px" }}>자주 묻는 질문</h2>
-                  <FaqAccordion items={section.items as FaqItem[] || []} color={c} />
+                  <FaqAccordion items={faqItems} color={c} />
                 </div>
               </section>
             );
+          }
 
           case "notice":
             return (
