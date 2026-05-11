@@ -131,7 +131,6 @@ function FabCollapsible({ actions, isOwnerLike }: { actions: RoleAction[]; isOwn
     };
     document.addEventListener("mousedown", onDocClick);
     return () => document.removeEventListener("mousedown", onDocClick);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   return (

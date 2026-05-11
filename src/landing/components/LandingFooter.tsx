@@ -2,7 +2,8 @@
 // 모든 랜딩 페이지(PublicLandingPage / Reports* / 커뮤니티) 공통 푸터.
 // nexon dnfm 스타일 메타 링크 그리드 + 학원 로고 + 저작권 + 최상단으로 버튼.
 // tokens prop으로 dark/light 톤 분리(템플릿별/페이지별).
-/* eslint-disable no-restricted-syntax */
+// eslint-disable react-refresh/only-export-components: tokens 상수는 컴포넌트와 함께 export(SSOT 격리).
+/* eslint-disable no-restricted-syntax, react-refresh/only-export-components */
 
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import type { LandingConfig, LandingSection } from "../types";
