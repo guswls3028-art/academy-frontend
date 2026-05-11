@@ -1,10 +1,11 @@
 // PATH: src/shared/ui/date/DatePicker.tsx
 // 전역 단일 SSOT: 차시 생성 모달(ModalDateSection)에 쓰는 달력과 동일한 컴포넌트. 그대로 사용만 하고, 여기서 창조·추가 로직 금지.
 
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import ReactDOM from "react-dom";
 import dayjs, { type Dayjs } from "dayjs";
 import { Calendar } from "lucide-react";
+import { useFloatingPosition } from "@/shared/ui/floating/useFloatingPosition";
 import "@/styles/design-system/components/DatePicker.css";
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
@@ -48,7 +49,7 @@ export default function DatePicker({
   const [viewMonth, setViewMonth] = useState<Dayjs>(() => toDayjs(value) || dayjs());
   const containerRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const [dropdownStyle, setDropdownStyle] = useState<{ top?: number; bottom?: number; left: number } | null>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const selected = toDayjs(value);
   const today = dayjs();
@@ -59,23 +60,14 @@ export default function DatePicker({
     if (v) setViewMonth(v);
   }, [value]);
 
-  useLayoutEffect(() => {
-    if (!open) {
-      setDropdownStyle(null);
-      return;
-    }
-    if (!triggerRef.current) return;
-    const rect = triggerRef.current.getBoundingClientRect();
-    const space = openBelow ? 0 : 8;
-    if (openBelow) {
-      setDropdownStyle({ top: rect.bottom + space, left: rect.left });
-    } else {
-      setDropdownStyle({
-        bottom: window.innerHeight - rect.top + space,
-        left: rect.left,
-      });
-    }
-  }, [open, openBelow]);
+  // SSOT floating position — portal 모드만 사용 (inline은 부모 anchor)
+  const dropdownStyle = useFloatingPosition(triggerRef, dropdownRef, open && !openBelow, {
+    placement: "top", // 캘린더는 입력칸 위로 펼치는 게 기본 (트리거가 폼 하단인 경우 많음)
+    gap: 8,
+    margin: 8,
+    estimateHeight: 460, // 6주 풀 캘린더 안전치
+    estimateWidth: CALENDAR_MIN_WIDTH,
+  });
 
   useEffect(() => {
     if (!open) return;
@@ -205,8 +197,9 @@ export default function DatePicker({
         </div>
       )}
 
-      {open && !openBelow && dropdownStyle && ReactDOM.createPortal(
+      {open && !openBelow && ReactDOM.createPortal(
         <div
+          ref={dropdownRef}
           className="shared-date-picker-dropdown shared-date-picker-dropdown--portaled"
           role="dialog"
           aria-label="날짜 선택"
@@ -216,9 +209,9 @@ export default function DatePicker({
             position: "fixed",
             zIndex: 1200,
             background: "#ffffff",
-            ...(dropdownStyle.top != null
-              ? { top: dropdownStyle.top, left: dropdownStyle.left }
-              : { bottom: dropdownStyle.bottom, left: dropdownStyle.left }),
+            top: dropdownStyle?.top ?? 0,
+            left: dropdownStyle?.left ?? 0,
+            visibility: dropdownStyle ? "visible" : "hidden",
           }}
         >
           {dropdownContent}

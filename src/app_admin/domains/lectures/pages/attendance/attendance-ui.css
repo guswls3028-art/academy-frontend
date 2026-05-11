@@ -3,20 +3,24 @@
  * PATH: src/features/lectures/pages/attendance/attendance-ui.css
  * ============================================================================ */
 
-/* ---- 팝오버 등장: scale + opacity (위치는 translateY(-100%) 유지) ---- */
+/* ---- 팝오버 등장: scale + opacity (위치 보정은 SSOT useFloatingPosition이 담당) ---- */
 .attendance-popover {
   animation: attendance-popover-enter 0.22s cubic-bezier(0.22, 1, 0.36, 1) forwards;
   transform-origin: left bottom;
+  /* chip 1줄 표시 강제 — 좁은 viewport에서 wrap 방지. viewport 넘으면 가로 스크롤 */
+  flex-wrap: nowrap !important;
+  max-width: calc(100vw - 16px) !important;
+  overflow-x: auto;
 }
 
 @keyframes attendance-popover-enter {
   from {
     opacity: 0;
-    transform: translateY(-100%) scale(0.94);
+    transform: scale(0.94);
   }
   to {
     opacity: 1;
-    transform: translateY(-100%) scale(1);
+    transform: scale(1);
   }
 }
 

@@ -1,8 +1,9 @@
 // PATH: src/app_admin/domains/sessions/components/SessionBlock.tsx
 // 차시 = 세션. 강의 홈 / 차시 상세에서 공용. 반 편성 모드일 때는 반별 row로 그룹.
 
-import { useState, useMemo, useRef, useEffect, useCallback, useLayoutEffect } from "react";
+import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
+import { useFloatingPosition } from "@/shared/ui/floating/useFloatingPosition";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Settings, BookOpen, Stethoscope, ArrowRightLeft, Layers, Users } from "lucide-react";
@@ -40,14 +41,17 @@ function SessionGearMenu({
   const [busy, setBusy] = useState(false);
   const gearRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const [anchor, setAnchor] = useState<{ left: number; top: number } | null>(null);
   const confirm = useConfirm();
 
-  useLayoutEffect(() => {
-    if (!open || !gearRef.current) { setAnchor(null); return; }
-    const rect = gearRef.current.getBoundingClientRect();
-    setAnchor({ left: rect.right, top: rect.bottom + 4 });
-  }, [open, editing]);
+  // SSOT floating position — alignRight(우측 정렬, translateX(-100%) 등가)
+  const anchor = useFloatingPosition(gearRef, dropdownRef, open, {
+    placement: "bottom",
+    gap: 4,
+    margin: 8,
+    estimateHeight: editing ? 220 : 180,
+    estimateWidth: 200,
+    alignRight: true,
+  });
 
   useEffect(() => {
     if (!open) return;

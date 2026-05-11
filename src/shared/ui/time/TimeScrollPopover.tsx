@@ -3,6 +3,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import ReactDOM from "react-dom";
+import { useFloatingPosition } from "@/shared/ui/floating/useFloatingPosition";
 import "@/styles/design-system/components/TimeScrollPopover.css";
 
 const ROW_HEIGHT = 48;
@@ -257,8 +258,20 @@ export function TimeScrollPopover({
     [selectedIdx, scrollToIdx]
   );
 
-  const rect = anchorEl.getBoundingClientRect();
   const isPM = isAfternoon(selectedIdx);
+
+  // anchorEl을 ref-shape으로 래핑 — hook이 RefObject 형태를 요구
+  const anchorRef = useRef<HTMLElement | null>(anchorEl);
+  anchorRef.current = anchorEl;
+  const anchorWidth = Math.max(anchorEl.getBoundingClientRect().width, 260);
+
+  const pos = useFloatingPosition(anchorRef, popoverRef, true, {
+    placement: "bottom",
+    gap: 8,
+    margin: 8,
+    estimateHeight: 272, // 24padding + 240body + 8 (이전 검증으로 안정 추정)
+    estimateWidth: anchorWidth,
+  });
 
   const popoverContent = (
     <div
@@ -266,10 +279,11 @@ export function TimeScrollPopover({
       className="time-picker time-picker--portaled"
       style={{
         position: "fixed",
-        left: rect.left,
-        top: rect.bottom + 8,
-        width: Math.max(rect.width, 260),
+        left: pos?.left ?? 0,
+        top: pos?.top ?? 0,
+        width: anchorWidth,
         zIndex: 1200,
+        visibility: pos ? "visible" : "hidden",
       }}
       role="listbox"
       aria-label="시간 선택"

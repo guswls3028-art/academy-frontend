@@ -1,8 +1,9 @@
 // PATH: src/app_admin/domains/lectures/pages/attendance/SessionAttendancePage.tsx
 // Design: students 도메인과 동일 — 검색·필터·컬럼정렬·툴바(수강생 등록만)
 // 메모 제거, 강의 전체 차시 출결을 인라인 매트릭스로 표시
-import React, { useState, useMemo, useEffect, useLayoutEffect, useRef } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
+import { useFloatingPosition } from "@/shared/ui/floating/useFloatingPosition";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   fetchAttendance,
@@ -69,25 +70,28 @@ export default function SessionAttendancePage({
   const [statusPopoverOpen, setStatusPopoverOpen] = useState(false);
   const statusTriggerRef = useRef<HTMLButtonElement>(null);
   const statusPopoverRef = useRef<HTMLDivElement>(null);
-  const [statusPopoverAnchor, setStatusPopoverAnchor] = useState<{ left: number; top: number } | null>(null);
   /** 상태 뱃지 클릭 시 테이블 외부 가로 팝오버로 표시. null이면 닫힘 */
   const [notifModal, setNotifModal] = useState<{ type: "check_in" | "absent"; open: boolean }>({ type: "check_in", open: false });
   const [openStatusRowAttId, setOpenStatusRowAttId] = useState<number | null>(null);
-  /** 팝오버 위치(트리거 버튼 기준). createPortal로 body에 그릴 때 사용 */
-  const [statusRowPopoverAnchor, setStatusRowPopoverAnchor] = useState<{ left: number; top: number } | null>(null);
   const statusRowPopoverRef = useRef<HTMLDivElement>(null);
   const statusRowTriggerRef = useRef<HTMLElement | null>(null);
 
-  useLayoutEffect(() => {
-    if (!statusPopoverOpen) {
-      setStatusPopoverAnchor(null);
-      return;
-    }
-    const el = statusTriggerRef.current;
-    if (!el) return;
-    const rect = el.getBoundingClientRect();
-    setStatusPopoverAnchor({ left: rect.left, top: rect.top });
-  }, [statusPopoverOpen]);
+  // SSOT floating position — 상태필터 popover. RAF로 mount 후 실측치 사용
+  const statusPopoverAnchor = useFloatingPosition(statusTriggerRef, statusPopoverRef, statusPopoverOpen, {
+    placement: "top",
+    gap: 4,
+    margin: 8,
+    estimateHeight: 90,
+    estimateWidth: 420,
+  });
+  // SSOT floating position — 행별 상태변경 popover. openStatusRowAttId 값 변경 자체가 재계산 트리거
+  const statusRowPopoverAnchor = useFloatingPosition(statusRowTriggerRef, statusRowPopoverRef, openStatusRowAttId, {
+    placement: "top",
+    gap: 4,
+    margin: 8,
+    estimateHeight: 90,
+    estimateWidth: 420,
+  });
 
   useEffect(() => {
     const t = setTimeout(() => setSearch(searchInput), 250);
@@ -116,7 +120,6 @@ export default function SessionAttendancePage({
       const target = e.target as Node;
       if (statusRowTriggerRef.current?.contains(target) || statusRowPopoverRef.current?.contains(target)) return;
       setOpenStatusRowAttId(null);
-      setStatusRowPopoverAnchor(null);
       statusRowTriggerRef.current = null;
     };
     document.addEventListener("mousedown", close);
@@ -509,15 +512,16 @@ export default function SessionAttendancePage({
         createPortal(
           <div
             ref={statusPopoverRef}
-            className="attendance-popover fixed flex flex-wrap items-center gap-2 rounded-lg border p-2 shadow-lg"
+            className="attendance-popover fixed flex items-center gap-2 rounded-lg border p-2 shadow-lg"
             style={{
               left: statusPopoverAnchor.left,
               top: statusPopoverAnchor.top,
-              transform: "translateY(-100%)",
-              marginTop: -4,
               zIndex: 9999,
               background: "var(--color-bg-surface)",
               borderColor: "var(--color-border-divider)",
+              maxWidth: `${window.innerWidth - 16}px`,
+              overflowX: "auto",
+              flexWrap: "nowrap",
             }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -567,14 +571,15 @@ export default function SessionAttendancePage({
         return createPortal(
           <div
             ref={statusRowPopoverRef}
-            className="attendance-popover fixed flex flex-wrap items-center gap-2 rounded-lg border p-2 shadow-lg z-[9999]"
+            className="attendance-popover fixed flex items-center gap-2 rounded-lg border p-2 shadow-lg z-[9999]"
             style={{
               left: statusRowPopoverAnchor.left,
               top: statusRowPopoverAnchor.top,
-              transform: "translateY(-100%)",
-              marginTop: -4,
               background: "var(--color-bg-surface)",
               borderColor: "var(--color-border-divider)",
+              maxWidth: "calc(100vw - 16px)",
+              overflowX: "auto",
+              flexWrap: "nowrap",
             }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -592,8 +597,7 @@ export default function SessionAttendancePage({
                   onClick={async () => {
                     if (active) {
                       setOpenStatusRowAttId(null);
-                      setStatusRowPopoverAnchor(null);
-                      statusRowTriggerRef.current = null;
+                                      statusRowTriggerRef.current = null;
                       return;
                     }
                     if (code === "SECESSION") {
@@ -618,8 +622,7 @@ export default function SessionAttendancePage({
                         : undefined,
                     );
                     setOpenStatusRowAttId(null);
-                    setStatusRowPopoverAnchor(null);
-                    statusRowTriggerRef.current = null;
+                                  statusRowTriggerRef.current = null;
                   }}
                 >
                   <AttendanceStatusBadge status={code} variant="2ch" />
@@ -730,14 +733,12 @@ export default function SessionAttendancePage({
                         onClick={(e) => {
                           if (openStatusRowAttId === att.id) {
                             setOpenStatusRowAttId(null);
-                            setStatusRowPopoverAnchor(null);
-                            statusRowTriggerRef.current = null;
+                                                  statusRowTriggerRef.current = null;
                             return;
                           }
-                          const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                          setStatusRowPopoverAnchor({ left: rect.left, top: rect.top });
-                          setOpenStatusRowAttId(att.id);
+                          // trigger ref를 먼저 세팅한 뒤 open → hook의 useLayoutEffect가 ref를 읽어 위치 계산
                           statusRowTriggerRef.current = e.currentTarget as HTMLElement;
+                          setOpenStatusRowAttId(att.id);
                         }}
                         className="cursor-pointer rounded border-0 p-0 bg-transparent inline-flex align-middle focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)] focus-visible:ring-offset-1"
                         aria-label={`${att.name ?? ""} 출결 상태 변경`}
