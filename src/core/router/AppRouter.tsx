@@ -26,6 +26,9 @@ const PromoRouter = lazy(() => import("@promo/app/PromoRouter"));
 const PublicLandingPage = lazy(() => import("@/landing/pages/PublicLandingPage"));
 const LandingReportDetailPage = lazy(() => import("@/landing/pages/LandingReportDetailPage"));
 const LandingReportsListPage = lazy(() => import("@/landing/pages/LandingReportsListPage"));
+const LandingCommunityListPage = lazy(() => import("@/landing/pages/LandingCommunityListPage"));
+const LandingCommunityPostPage = lazy(() => import("@/landing/pages/LandingCommunityPostPage"));
+const LandingCommunityWritePage = lazy(() => import("@/landing/pages/LandingCommunityWritePage"));
 
 function MaintenanceGate({ enabled }: { enabled: boolean }) {
   const location = useLocation();
@@ -160,6 +163,33 @@ export default function AppRouter() {
         element={
           <Suspense fallback={<div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}><span style={{ color: "var(--color-text-tertiary, #666)", fontSize: "var(--text-sm, 13px)" }}>불러오는 중…</span></div>}>
             <LandingReportDetailPage />
+          </Suspense>
+        }
+      />
+      {/* 랜딩 커뮤니티 게시판 — backend community 도메인 연동. 권한별 노출 + 10/page 페이지네이션. */}
+      <Route
+        path="/landing/community/:boardType"
+        element={
+          <Suspense fallback={<div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}><span style={{ color: "var(--color-text-tertiary, #666)", fontSize: "var(--text-sm, 13px)" }}>불러오는 중…</span></div>}>
+            <LandingCommunityListPage />
+          </Suspense>
+        }
+      />
+      {/* 글 상세 — 별도 페이지 이동 없이 본문→액션→댓글까지 자연 스크롤. 학원장 spec(2026-05-11). */}
+      <Route
+        path="/landing/community/:boardType/posts/:postId"
+        element={
+          <Suspense fallback={<div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}><span style={{ color: "var(--color-text-tertiary, #666)", fontSize: "var(--text-sm, 13px)" }}>불러오는 중…</span></div>}>
+            <LandingCommunityPostPage />
+          </Suspense>
+        }
+      />
+      {/* 글쓰기 — 권한별 노출 board_type 다름(학생: board/qna, staff: 전체). 학부모 차단. */}
+      <Route
+        path="/landing/community/:boardType/write"
+        element={
+          <Suspense fallback={<div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}><span style={{ color: "var(--color-text-tertiary, #666)", fontSize: "var(--text-sm, 13px)" }}>불러오는 중…</span></div>}>
+            <LandingCommunityWritePage />
           </Suspense>
         }
       />

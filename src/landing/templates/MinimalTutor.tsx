@@ -7,6 +7,10 @@
 
 import type { FeatureItem, TestimonialItem, ProgramItem, FaqItem, HitReportShowcaseItem, InstructorProfileItem, ManagementCardItem, ProcessStepItem } from "../types";
 import { getEnabledSections, SvgIcon, FaqAccordion, HitReportCards, useTenantHitStats, LandingNavBar, ConsultRequestForm, usePublicTestimonials, TestimonialSubmitForm, type TemplateProps } from "./shared";
+import LandingFooter, { FOOTER_TOKENS_LIGHT } from "../components/LandingFooter";
+import CommunityPreviewSection from "../components/CommunityPreviewSection";
+import HeroCarousel from "../components/HeroCarousel";
+import { Fragment } from "react";
 import { hexToRgb } from "./colorUtils";
 
 export default function MinimalTutor({ config }: TemplateProps) {
@@ -35,9 +39,12 @@ export default function MinimalTutor({ config }: TemplateProps) {
 
       {sections.map((section) => {
         switch (section.type) {
-          case "hero":
+          case "hero": {
+            const hitSection = sections.find((s) => s.type === "hit_reports");
+            const hitItems = (hitSection?.items as HitReportShowcaseItem[] | undefined) || undefined;
             return (
-              <section key="hero" data-stype="hero" style={{ padding: "80px 24px 64px", background: `linear-gradient(135deg, rgba(${rgb}, 0.03) 0%, rgba(${rgb}, 0.08) 100%)` }}>
+              <Fragment key="hero">
+              <section data-stype="hero" style={{ padding: "80px 24px 64px", background: `linear-gradient(135deg, rgba(${rgb}, 0.03) 0%, rgba(${rgb}, 0.08) 100%)` }}>
                 <div style={{ maxWidth: 1120, margin: "0 auto", display: "flex", alignItems: "center", gap: 64, flexWrap: "wrap" }}>
                   <div style={{ flex: "1 1 480px", minWidth: 280 }}>
                     <h1 style={{ fontSize: "clamp(28px, 4vw, 44px)", fontWeight: 800, lineHeight: 1.25, margin: "0 0 20px", color: "#0f172a" }}>
@@ -72,7 +79,10 @@ export default function MinimalTutor({ config }: TemplateProps) {
                   )}
                 </div>
               </section>
+              <HeroCarousel items={hitItems} theme="light" />
+              </Fragment>
             );
+          }
 
           case "features":
             return (
@@ -306,12 +316,8 @@ export default function MinimalTutor({ config }: TemplateProps) {
         }
       })}
 
-      {/* Footer */}
-      <footer style={{ padding: "40px 24px", borderTop: "1px solid rgba(0,0,0,0.06)", textAlign: "center" }}>
-        <p style={{ fontSize: 13, color: "#94a3b8", margin: 0 }}>
-          &copy; {new Date().getFullYear()} {config.brand_name}
-        </p>
-      </footer>
+      <CommunityPreviewSection theme="light" />
+      <LandingFooter config={config} sections={config.sections || []} tokens={FOOTER_TOKENS_LIGHT} />
     </div>
   );
 }

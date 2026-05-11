@@ -8,7 +8,29 @@ import { Link } from "react-router-dom";
 import api, { type ApiRequestConfig } from "@/shared/api/axios";
 import { fetchLandingPublic } from "../api";
 import type { LandingPublicResponse, HitReportPublicCard, HitReportShowcaseItem } from "../types";
-import { useResolvedLogo } from "../templates/shared";
+import { LandingNavBar, type NavBarTokens } from "../templates/shared";
+import LandingRoleFab from "../components/LandingRoleFab";
+import LandingFooter, { FOOTER_TOKENS_DARK } from "../components/LandingFooter";
+
+// Reports 페이지 nav 톤(PremiumDark 시그니처) — LandingNavBar tokens.
+const REPORTS_NAV_TOKENS: NavBarTokens = {
+  bg: "rgba(10,14,26,0.85)",
+  border: "rgba(255,255,255,0.08)",
+  textPrimary: "#F5F1E8",
+  textSecondary: "#9CA3AF",
+  primaryColor: "#D4A04C",
+  primaryRgb: "212,160,76",
+  ctaGradient: "linear-gradient(135deg, #D4A04C 0%, #B8862F 100%)",
+  ctaTextColor: "#0A0E1A",
+  panelBg: "#0F1525",
+};
+
+function ReportsBrandMark({ name }: { name: string }) {
+  const initial = (name || "").trim().charAt(0) || "•";
+  return (
+    <div style={{ width: 36, height: 36, borderRadius: 9, background: "linear-gradient(135deg, #D4A04C 0%, #8B5E1F 100%)", display: "flex", alignItems: "center", justifyContent: "center", color: "#0A0E1A", fontSize: 18, fontWeight: 800 }}>{initial}</div>
+  );
+}
 
 export default function LandingReportsListPage() {
   const [landing, setLanding] = useState<LandingPublicResponse | null>(null);
@@ -62,7 +84,12 @@ export default function LandingReportsListPage() {
 
   return (
     <div style={{ minHeight: "100vh", background: bg, color: textPrimary, fontFamily: "'Pretendard Variable', 'Pretendard', system-ui, sans-serif", letterSpacing: "-0.011em" }}>
-      <ListNav cfg={cfg} gold={gold} cardBorder={cardBorder} textPrimary={textPrimary} />
+      <LandingNavBar
+        config={cfg}
+        sections={cfg.sections || []}
+        tokens={REPORTS_NAV_TOKENS}
+        brandMark={<ReportsBrandMark name={cfg.brand_name} />}
+      />
 
       <section style={{ padding: "64px 24px 32px", borderBottom: `1px solid ${cardBorder}` }}>
         <div style={{ maxWidth: 1200, margin: "0 auto" }}>
@@ -153,24 +180,9 @@ export default function LandingReportsListPage() {
           )}
         </div>
       </section>
+      <LandingFooter config={cfg} sections={cfg.sections || []} tokens={FOOTER_TOKENS_DARK} />
+      <LandingRoleFab />
     </div>
   );
 }
 
-function ListNav({ cfg, gold, cardBorder, textPrimary }: { cfg: { brand_name: string; logo_url?: string }; gold: string; cardBorder: string; textPrimary: string }) {
-  const logoUrl = useResolvedLogo(cfg as Parameters<typeof useResolvedLogo>[0], "nav");
-  const initial = (cfg.brand_name || "").trim().charAt(0) || "•";
-  return (
-    <nav style={{ position: "sticky", top: 0, zIndex: 50, background: "rgba(10,14,26,0.85)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)", borderBottom: `1px solid ${cardBorder}`, padding: "0 24px" }}>
-      <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", height: 64, gap: 16 }}>
-        <Link to="/landing" style={{ display: "flex", alignItems: "center", gap: 12, textDecoration: "none", color: textPrimary }}>
-          {logoUrl
-            ? <img src={logoUrl} alt={cfg.brand_name} style={{ height: 32, width: "auto", objectFit: "contain" }} />
-            : <div style={{ width: 36, height: 36, borderRadius: 9, background: `linear-gradient(135deg, ${gold} 0%, #8B5E1F 100%)`, display: "flex", alignItems: "center", justifyContent: "center", color: "#0A0E1A", fontSize: 18, fontWeight: 800 }}>{initial}</div>}
-          <span style={{ fontSize: 17, fontWeight: 800, letterSpacing: "-0.02em" }}>{cfg.brand_name}</span>
-        </Link>
-        <Link to="/landing" style={{ padding: "8px 16px", borderRadius: 8, background: "rgba(255,255,255,0.06)", color: textPrimary, border: `1px solid ${cardBorder}`, fontSize: 13, fontWeight: 600, textDecoration: "none" }}>← 홈으로</Link>
-      </div>
-    </nav>
-  );
-}

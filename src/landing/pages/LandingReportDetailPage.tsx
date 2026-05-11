@@ -6,16 +6,37 @@
 /* eslint-disable no-restricted-syntax */
 
 import { useEffect, useState } from "react";
-import { Link, useParams, useNavigate } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import api, { type ApiRequestConfig } from "@/shared/api/axios";
 import { fetchLandingPublic } from "../api";
 import type { LandingPublicResponse, HitReportPublicCard, HitReportShowcaseItem } from "../types";
-import { useResolvedLogo } from "../templates/shared";
+import { LandingNavBar, type NavBarTokens } from "../templates/shared";
+import LandingRoleFab from "../components/LandingRoleFab";
+import LandingFooter, { FOOTER_TOKENS_DARK } from "../components/LandingFooter";
 import { resolveTenantCode } from "@/shared/tenant";
+
+// 적중보고서 상세 nav 톤(PremiumDark 시그니처) — List 페이지와 동일.
+const DETAIL_NAV_TOKENS: NavBarTokens = {
+  bg: "rgba(10,14,26,0.85)",
+  border: "rgba(255,255,255,0.08)",
+  textPrimary: "#F5F1E8",
+  textSecondary: "#9CA3AF",
+  primaryColor: "#D4A04C",
+  primaryRgb: "212,160,76",
+  ctaGradient: "linear-gradient(135deg, #D4A04C 0%, #B8862F 100%)",
+  ctaTextColor: "#0A0E1A",
+  panelBg: "#0F1525",
+};
+
+function DetailBrandMark({ name }: { name: string }) {
+  const initial = (name || "").trim().charAt(0) || "•";
+  return (
+    <div style={{ width: 36, height: 36, borderRadius: 9, background: "linear-gradient(135deg, #D4A04C 0%, #8B5E1F 100%)", display: "flex", alignItems: "center", justifyContent: "center", color: "#0A0E1A", fontSize: 18, fontWeight: 800, letterSpacing: "-0.02em" }}>{initial}</div>
+  );
+}
 
 export default function LandingReportDetailPage() {
   const { reportId } = useParams<{ reportId: string }>();
-  const navigate = useNavigate();
   const [landing, setLanding] = useState<LandingPublicResponse | null>(null);
   const [report, setReport] = useState<HitReportPublicCard | null>(null);
   const [siblings, setSiblings] = useState<HitReportPublicCard[]>([]);
@@ -117,17 +138,15 @@ export default function LandingReportDetailPage() {
 
   return (
     <div style={{ minHeight: "100vh", background: bg, color: textPrimary, fontFamily: "'Pretendard Variable', 'Pretendard', system-ui, sans-serif", letterSpacing: "-0.011em" }}>
-      {/* 학원 헤더 */}
-      <nav style={{ position: "sticky", top: 0, zIndex: 50, background: "rgba(10,14,26,0.85)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)", borderBottom: `1px solid ${cardBorder}`, padding: "0 24px" }}>
-        <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", height: 64, gap: 16 }}>
-          <DetailNavLogo cfg={cfg} gold={gold} textPrimary={textPrimary} />
-          <button
-            type="button"
-            onClick={() => navigate("/landing")}
-            style={{ padding: "8px 16px", borderRadius: 8, background: "rgba(255,255,255,0.06)", color: textPrimary, border: `1px solid ${cardBorder}`, cursor: "pointer", fontSize: 13, fontWeight: 600 }}
-          >← 홈으로</button>
-        </div>
-      </nav>
+      {/* 학원 헤더 — landing main과 통일된 NavBar(햄버거 + 모든 sections + role nav).
+          학부모가 적중보고서 페이지에서도 다른 섹션(features/programs/contact)으로 cross-page 이동 가능.
+          메뉴 누르면 /landing#sectionType으로 이동 + PublicLandingPage에서 hash → scroll. */}
+      <LandingNavBar
+        config={cfg}
+        sections={cfg.sections || []}
+        tokens={DETAIL_NAV_TOKENS}
+        brandMark={<DetailBrandMark name={cfg.brand_name} />}
+      />
 
       {/* 메타 헤더 */}
       <section style={{ padding: "48px 24px 24px", borderBottom: `1px solid ${cardBorder}` }}>
@@ -271,31 +290,9 @@ export default function LandingReportDetailPage() {
           </div>
         </section>
       )}
+      <LandingFooter config={cfg} sections={cfg.sections || []} tokens={FOOTER_TOKENS_DARK} />
+      <LandingRoleFab />
     </div>
-  );
-}
-
-function DetailNavLogo({ cfg, gold, textPrimary }: { cfg: { brand_name: string; logo_url?: string }; gold: string; textPrimary: string }) {
-  const logoUrl = useResolvedLogo(cfg as Parameters<typeof useResolvedLogo>[0], "nav");
-  return (
-    <Link to="/landing" style={{ display: "flex", alignItems: "center", gap: 12, textDecoration: "none", color: textPrimary }}>
-      {logoUrl
-        ? <img src={logoUrl} alt={cfg.brand_name} style={{ height: 32, width: "auto", objectFit: "contain" }} />
-        : <BrandMark name={cfg.brand_name} gold={gold} />}
-      <span style={{ fontSize: 17, fontWeight: 800, letterSpacing: "-0.02em" }}>{cfg.brand_name}</span>
-    </Link>
-  );
-}
-
-function BrandMark({ name, gold }: { name: string; gold: string }) {
-  const initial = (name || "").trim().charAt(0) || "•";
-  return (
-    <div style={{
-      width: 36, height: 36, borderRadius: 9,
-      background: `linear-gradient(135deg, ${gold} 0%, #8B5E1F 100%)`,
-      display: "flex", alignItems: "center", justifyContent: "center",
-      color: "#0A0E1A", fontSize: 18, fontWeight: 800, letterSpacing: "-0.02em",
-    }}>{initial}</div>
   );
 }
 

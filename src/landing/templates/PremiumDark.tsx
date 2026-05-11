@@ -9,6 +9,10 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import type { LandingConfig, LandingSection, FeatureItem, TestimonialItem, ProgramItem, FaqItem, HitReportShowcaseItem, InstructorProfileItem, ManagementCardItem, ProcessStepItem } from "../types";
 import { getEnabledSections, SvgIcon, HitReportCards, useTenantHitStats, LandingNavBar, ConsultRequestForm, usePublicTestimonials, TestimonialSubmitForm, type TemplateProps } from "./shared";
+import LandingFooter, { FOOTER_TOKENS_DARK } from "../components/LandingFooter";
+import CommunityPreviewSection from "../components/CommunityPreviewSection";
+import HeroCarousel from "../components/HeroCarousel";
+import { Fragment } from "react";
 import { hexToRgb } from "./colorUtils";
 import useAuth from "@/auth/hooks/useAuth";
 
@@ -56,9 +60,14 @@ export default function PremiumDark({ config }: TemplateProps) {
 
       {sections.map((section) => {
         switch (section.type) {
-          case "hero":
+          case "hero": {
+            // hero 직후 매치업 적중보고서 자동 회전 캐러셀 — 학원장 요청(2026-05-11).
+            // hit_reports section의 items에서 ids 추출 → public endpoint fetch → autoplay 캐러셀.
+            const hitSection = sections.find((s) => s.type === "hit_reports");
+            const hitItems = (hitSection?.items as HitReportShowcaseItem[] | undefined) || undefined;
             return (
-              <section key="hero" data-stype="hero" style={{ padding: "120px 24px 100px", position: "relative", overflow: "hidden" }}>
+              <Fragment key="hero">
+              <section data-stype="hero" style={{ padding: "120px 24px 100px", position: "relative", overflow: "hidden" }}>
                 {/* multi-layer ambient lighting — 깊은 다크 + 골드 글로우 + 네이비 액센트 */}
                 <div style={{ position: "absolute", inset: 0, background: `radial-gradient(ellipse 80% 60% at 70% 20%, rgba(${goldRgb},0.12) 0%, transparent 55%)`, pointerEvents: "none" }} />
                 <div style={{ position: "absolute", inset: 0, background: `radial-gradient(ellipse 60% 50% at 20% 80%, rgba(${rgb},0.18) 0%, transparent 60%)`, pointerEvents: "none" }} />
@@ -150,7 +159,10 @@ export default function PremiumDark({ config }: TemplateProps) {
                   )}
                 </div>
               </section>
+              <HeroCarousel items={hitItems} theme="dark" />
+              </Fragment>
             );
+          }
 
           case "features":
             return (
@@ -407,11 +419,8 @@ export default function PremiumDark({ config }: TemplateProps) {
         }
       })}
 
-      <footer style={{ padding: "60px 24px 40px", borderTop: `1px solid ${cardBorder}`, textAlign: "center" }}>
-        <p style={{ fontSize: 13, color: textMuted, margin: 0, letterSpacing: "0.02em" }}>
-          &copy; {new Date().getFullYear()} {config.brand_name}
-        </p>
-      </footer>
+      <CommunityPreviewSection theme="dark" />
+      <LandingFooter config={config} sections={config.sections || []} tokens={FOOTER_TOKENS_DARK} />
     </div>
   );
 }

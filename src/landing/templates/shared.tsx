@@ -6,7 +6,7 @@
 
 import type { LandingConfig, LandingSection, FeatureItem, TestimonialItem, ProgramItem, FaqItem, HitReportShowcaseItem, HitReportPublicCard } from "../types";
 import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import useAuth from "@/auth/hooks/useAuth";
 import api, { type ApiRequestConfig } from "@/shared/api/axios";
 import { resolveTenantCode, getTenantIdFromCode, getTenantBranding } from "@/shared/tenant";
@@ -110,10 +110,71 @@ export const NAV_SECTION_ANCHORS: Record<string, string> = {
   contact: "문의",
 };
 
+/** 사이드 햄버거 패널 메뉴 SSOT — nexon dnfm 스타일 카테고리 그루핑.
+ *
+ * 학원장이 enable한 sections만 자동 노출됨. 커뮤니티 카테고리는 backend community 도메인
+ * 연동(고정 board_type 4종). 학원장이 어드민에서 추후 토글하도록 SSOT 확장 가능.
+ */
+type NavMenuKind = "section" | "route";
+interface NavMenuItem { key: string; label: string; kind: NavMenuKind; target: string; badge?: string }
+interface NavMenuCategory { key: string; label: string; items: NavMenuItem[] }
+
+function buildMenuCategories(sections: LandingSection[]): NavMenuCategory[] {
+  const enabledTypes = new Set<string>(sections.filter((s) => s.enabled).map((s) => s.type));
+  const has = (t: string) => enabledTypes.has(t);
+  const categories: NavMenuCategory[] = [];
+
+  // 매치업 / 적중사례 — 학원장 핵심 마케팅. 별도 카테고리로 강조 분리.
+  if (has("hit_reports")) {
+    categories.push({
+      key: "matchup",
+      label: "매치업",
+      items: [
+        { key: "hit_reports", label: "적중 사례 한눈에", kind: "section", target: "hit_reports" },
+        { key: "reports_all", label: "보고서 모두 보기", kind: "route", target: "/landing/reports", badge: "NEW" },
+      ],
+    });
+  }
+
+  // 학원소개 — sections 기반
+  const aboutItems: NavMenuItem[] = [];
+  if (has("instructor_profile")) aboutItems.push({ key: "instructor_profile", label: "강사 소개", kind: "section", target: "instructor_profile" });
+  if (has("features")) aboutItems.push({ key: "features", label: "수업 특징", kind: "section", target: "features" });
+  if (has("management_system")) aboutItems.push({ key: "management_system", label: "학생 관리", kind: "section", target: "management_system" });
+  if (has("process_timeline")) aboutItems.push({ key: "process_timeline", label: "수업 흐름", kind: "section", target: "process_timeline" });
+  if (has("programs")) aboutItems.push({ key: "programs", label: "프로그램", kind: "section", target: "programs" });
+  if (aboutItems.length) categories.push({ key: "about", label: "학원소개", items: aboutItems });
+
+  // 커뮤니티 — backend community 도메인 연동. 라우트는 Phase B에서 구현.
+  categories.push({
+    key: "community",
+    label: "커뮤니티",
+    items: [
+      { key: "board", label: "자유게시판", kind: "route", target: "/landing/community/board" },
+      { key: "qna", label: "질문게시판", kind: "route", target: "/landing/community/qna" },
+      { key: "notice", label: "공지사항", kind: "route", target: "/landing/community/notice" },
+      { key: "materials", label: "자료실", kind: "route", target: "/landing/community/materials" },
+    ],
+  });
+
+  // 가이드
+  const guideItems: NavMenuItem[] = [];
+  if (has("faq")) guideItems.push({ key: "faq", label: "자주 묻는 질문", kind: "section", target: "faq" });
+  if (guideItems.length) categories.push({ key: "guide", label: "가이드", items: guideItems });
+
+  // 서비스센터
+  const serviceItems: NavMenuItem[] = [];
+  if (has("contact")) serviceItems.push({ key: "contact", label: "상담 문의", kind: "section", target: "contact" });
+  if (has("testimonials")) serviceItems.push({ key: "testimonials", label: "수강 후기", kind: "section", target: "testimonials" });
+  if (serviceItems.length) categories.push({ key: "service", label: "서비스센터", items: serviceItems });
+
+  return categories;
+}
+
 /** 공통 NavBar — light/dark 톤만 prop으로 받음. PremiumDark/MinimalTutor 모두 사용.
  *
- * 데스크탑: 로고 + 가로 메뉴 5개 + 역할 메뉴 + 골드/컬러 CTA
- * 모바일: 로고 + 햄버거 → 슬라이드 패널
+ * 모든 viewport: 로고 + 우측(역할/CTA) + 햄버거 → 카테고리 그루핑 사이드 패널.
+ * 가로 메뉴 X (학원장 요청 2026-05-11: nexon dnfm 스타일로 깔끔하게 치울 수 있어야).
  */
 export interface NavBarTokens {
   bg: string;
@@ -127,133 +188,309 @@ export interface NavBarTokens {
   panelBg: string;
 }
 
-export function LandingNavBar({ config, sections, tokens, brandMark, mobileBreakpoint = 900 }: { config: LandingConfig; sections: LandingSection[]; tokens: NavBarTokens; brandMark: React.ReactNode; mobileBreakpoint?: number }) {
+export function LandingNavBar({ config, sections, tokens, brandMark }: { config: LandingConfig; sections: LandingSection[]; tokens: NavBarTokens; brandMark: React.ReactNode; mobileBreakpoint?: number }) {
   const [open, setOpen] = useState(false);
-  const enabled = sections.filter((s) => s.enabled && NAV_SECTION_ANCHORS[s.type]);
   const cta = config.cta_text || "수강 문의";
   const ctaLink = config.cta_link || "/login";
   const logoUrl = useResolvedLogo(config, "nav");
-  const navClass = `landing-nav-${tokens.bg.includes("10,14,26") ? "dark" : "light"}`;
+  const isDark = tokens.bg.includes("10,14,26");
+  const categories = buildMenuCategories(sections);
+  const navigate = useNavigate();
+  const location = useLocation();
 
-  const scrollTo = (sectionType: string) => {
+  // 메뉴 클릭 — section type이면 hash, route면 navigate. /landing 외 페이지에서도 cross-page 작동.
+  const handleNav = (item: NavMenuItem) => {
     setOpen(false);
-    const all = Array.from(document.querySelectorAll("section[data-stype]")) as HTMLElement[];
-    const el = all.find((s) => s.dataset.stype === sectionType);
-    if (el) window.scrollTo({ top: el.offsetTop - 70, behavior: "smooth" });
+    if (item.kind === "section") {
+      if (location.pathname !== "/landing") { navigate(`/landing#${item.target}`); return; }
+      const all = Array.from(document.querySelectorAll("section[data-stype]")) as HTMLElement[];
+      const el = all.find((s) => s.dataset.stype === item.target);
+      if (el) window.scrollTo({ top: el.offsetTop - 70, behavior: "smooth" });
+      return;
+    }
+    navigate(item.target);
   };
+
+  // ESC 키로 패널 닫기 + body scroll lock
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    document.addEventListener("keydown", onKey);
+    return () => { document.body.style.overflow = prev; document.removeEventListener("keydown", onKey); };
+  }, [open]);
 
   return (
     <>
-      <nav style={{ position: "sticky", top: 0, zIndex: 50, background: tokens.bg, backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", borderBottom: `1px solid ${tokens.border}`, padding: "0 24px" }}>
-        <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", height: 72, gap: 16 }}>
-          <Link to="/landing" style={{ display: "flex", alignItems: "center", gap: 12, textDecoration: "none", color: tokens.textPrimary, flexShrink: 0 }}>
-            {logoUrl ? (
-              <img src={logoUrl} alt={config.brand_name} style={{ height: 38, width: "auto", objectFit: "contain" }} />
-            ) : brandMark}
-            <span style={{ fontSize: 18, fontWeight: 800, letterSpacing: "-0.02em", whiteSpace: "nowrap" }}>{config.brand_name}</span>
-          </Link>
-          <div className={`${navClass}-desk`} style={{ display: "flex", alignItems: "center", gap: 4, flex: 1, justifyContent: "center", overflow: "hidden" }}>
-            {enabled.slice(0, 5).map((s) => (
-              <button key={s.type} type="button" onClick={() => scrollTo(s.type)} style={{
-                padding: "8px 14px", borderRadius: 8, background: "transparent", border: "none",
-                color: tokens.textSecondary, fontSize: 14, fontWeight: 600, cursor: "pointer",
-                letterSpacing: "-0.01em", whiteSpace: "nowrap",
+      <nav style={{ position: "sticky", top: 0, zIndex: 50, background: tokens.bg, backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", borderBottom: `1px solid ${tokens.border}`, padding: "0 20px" }}>
+        <div style={{ maxWidth: 1280, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", height: 64, gap: 12 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+            <button
+              type="button"
+              onClick={() => setOpen(true)}
+              aria-label="전체 메뉴 열기"
+              data-testid="landing-nav-burger"
+              style={{
+                width: 40, height: 40, borderRadius: 10,
+                background: "transparent",
+                border: `1px solid ${tokens.border}`,
+                color: tokens.textPrimary, cursor: "pointer",
+                display: "inline-flex", alignItems: "center", justifyContent: "center",
+                transition: "background 0.15s, border-color 0.15s",
               }}
-                onMouseEnter={(e) => { e.currentTarget.style.color = tokens.textPrimary; }}
-                onMouseLeave={(e) => { e.currentTarget.style.color = tokens.textSecondary; }}
-              >{NAV_SECTION_ANCHORS[s.type]}</button>
-            ))}
+              onMouseEnter={(e) => { e.currentTarget.style.background = isDark ? "rgba(255,255,255,0.06)" : "rgba(15,23,42,0.04)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><line x1="3.5" y1="7" x2="20.5" y2="7" /><line x1="3.5" y1="12" x2="20.5" y2="12" /><line x1="3.5" y1="17" x2="20.5" y2="17" /></svg>
+            </button>
+            <Link to="/landing" style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none", color: tokens.textPrimary, marginLeft: 4 }}>
+              {logoUrl ? (
+                <img src={logoUrl} alt={config.brand_name} style={{ height: 34, width: "auto", objectFit: "contain" }} />
+              ) : brandMark}
+              <span style={{ fontSize: 17, fontWeight: 800, letterSpacing: "-0.02em", whiteSpace: "nowrap" }}>{config.brand_name}</span>
+            </Link>
           </div>
-          <div className={`${navClass}-cta`} style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
             <NavRoleAuthMenu cta={cta} ctaLink={ctaLink} tokens={tokens} />
           </div>
-          <button type="button" className={`${navClass}-burger`} onClick={() => setOpen(true)} aria-label="메뉴 열기" style={{
-            display: "none", width: 40, height: 40, borderRadius: 8,
-            background: "transparent", border: `1px solid ${tokens.border}`, color: tokens.textPrimary, cursor: "pointer",
-            alignItems: "center", justifyContent: "center",
-          }}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M3 12h18M3 18h18" /></svg>
-          </button>
         </div>
       </nav>
       {open && (
-        <div onClick={() => setOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 100, background: "rgba(15,23,42,0.45)", backdropFilter: "blur(8px)" }}>
-          <div onClick={(e) => e.stopPropagation()} style={{
-            position: "absolute", top: 0, right: 0, bottom: 0, width: "min(85vw, 320px)",
-            background: tokens.panelBg, borderLeft: `1px solid ${tokens.border}`,
-            display: "flex", flexDirection: "column", padding: 24,
-          }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 28 }}>
-              <span style={{ fontSize: 16, fontWeight: 700, color: tokens.textPrimary }}>{config.brand_name}</span>
-              <button onClick={() => setOpen(false)} style={{ width: 36, height: 36, borderRadius: 8, background: "transparent", border: "none", color: tokens.textPrimary, fontSize: 22, cursor: "pointer" }}>×</button>
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1 }}>
-              {enabled.map((s) => (
-                <button key={s.type} type="button" onClick={() => scrollTo(s.type)} style={{
-                  padding: "13px 12px", borderRadius: 10, background: "transparent", border: "none",
-                  color: tokens.textPrimary, fontSize: 16, fontWeight: 600, cursor: "pointer", textAlign: "left",
-                }}>{NAV_SECTION_ANCHORS[s.type]}</button>
-              ))}
-            </div>
-            <a href={ctaLink} style={{
-              marginTop: 12, padding: "13px 18px", background: tokens.ctaGradient,
-              color: tokens.ctaTextColor, borderRadius: 10, fontSize: 15, fontWeight: 700,
-              textDecoration: "none", textAlign: "center",
-            }}>{cta}</a>
-          </div>
-        </div>
+        <NavSidePanel
+          open={open}
+          onClose={() => setOpen(false)}
+          categories={categories}
+          tokens={tokens}
+          config={config}
+          cta={cta}
+          ctaLink={ctaLink}
+          brandMark={brandMark}
+          logoUrl={logoUrl}
+          onNav={handleNav}
+        />
       )}
-      <style>{`
-        @media (max-width: ${mobileBreakpoint}px) {
-          .${navClass}-desk { display: none !important; }
-          .${navClass}-cta { display: none !important; }
-          .${navClass}-burger { display: inline-flex !important; }
-        }
-      `}</style>
     </>
   );
 }
 
-/** 공통 nav 우측 — 비로그인=로그인+CTA / 로그인=역할별 마이페이지 진입 */
-function NavRoleAuthMenu({ cta, ctaLink, tokens }: { cta: string; ctaLink: string; tokens: NavBarTokens }) {
+/** 사이드 슬라이드 패널 — 카테고리 그루핑 + premium typography + 학원장 시점 진입 동선.
+ *
+ * - 좌측 sticky drawer (모바일 full-width, 데스크탑 380px)
+ * - 카테고리별 헤더(uppercase 작은 라벨) + 큰 메뉴 항목
+ * - 푸터: role-aware CTA(로그인/내 콘솔)
+ */
+function NavSidePanel({ open, onClose, categories, tokens, config, cta, ctaLink, brandMark, logoUrl, onNav }: {
+  open: boolean; onClose: () => void; categories: NavMenuCategory[]; tokens: NavBarTokens;
+  config: LandingConfig; cta: string; ctaLink: string; brandMark: React.ReactNode; logoUrl: string | null;
+  onNav: (item: NavMenuItem) => void;
+}) {
+  const isDark = tokens.bg.includes("10,14,26");
+  const hoverBg = isDark ? "rgba(255,255,255,0.05)" : "rgba(15,23,42,0.04)";
+  const accentSoft = `rgba(${tokens.primaryRgb}, 0.12)`;
+  const dividerColor = isDark ? "rgba(255,255,255,0.06)" : "rgba(15,23,42,0.06)";
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed", inset: 0, zIndex: 100,
+        background: "rgba(8,12,22,0.55)",
+        backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)",
+        animation: "landingPanelFade 0.18s ease-out",
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-label="전체 메뉴"
+        style={{
+          position: "absolute", top: 0, left: 0, bottom: 0,
+          width: "min(92vw, 380px)",
+          background: tokens.panelBg,
+          borderRight: `1px solid ${tokens.border}`,
+          display: "flex", flexDirection: "column",
+          boxShadow: "0 0 48px rgba(0,0,0,0.35)",
+          animation: "landingPanelSlide 0.22s cubic-bezier(0.32, 0.72, 0.32, 1)",
+        }}
+      >
+        {/* 헤더 — 로고 + 닫기 */}
+        <div style={{
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          padding: "18px 20px 16px", borderBottom: `1px solid ${dividerColor}`, flexShrink: 0,
+        }}>
+          <Link to="/landing" onClick={onClose} style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none", color: tokens.textPrimary }}>
+            {logoUrl
+              ? <img src={logoUrl} alt={config.brand_name} style={{ height: 30, width: "auto", objectFit: "contain" }} />
+              : brandMark}
+            <span style={{ fontSize: 16, fontWeight: 800, letterSpacing: "-0.02em" }}>{config.brand_name}</span>
+          </Link>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="메뉴 닫기"
+            style={{
+              width: 36, height: 36, borderRadius: 8,
+              background: "transparent", border: `1px solid ${tokens.border}`,
+              color: tokens.textPrimary, cursor: "pointer",
+              display: "inline-flex", alignItems: "center", justifyContent: "center",
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="6" y1="6" x2="18" y2="18" /><line x1="18" y1="6" x2="6" y2="18" /></svg>
+          </button>
+        </div>
+
+        {/* 카테고리 그룹 — overflow scroll */}
+        <div style={{
+          flex: 1, overflowY: "auto",
+          padding: "12px 12px 16px",
+        }}>
+          {categories.length === 0 ? (
+            <div style={{ padding: 24, color: tokens.textSecondary, fontSize: 14 }}>
+              현재 노출 가능한 메뉴가 없습니다.
+            </div>
+          ) : categories.map((cat) => (
+            <div key={cat.key} style={{ marginBottom: 8 }}>
+              <div style={{
+                padding: "16px 16px 8px",
+                fontSize: 11, fontWeight: 700,
+                color: tokens.primaryColor,
+                letterSpacing: "0.1em", textTransform: "uppercase",
+              }}>
+                {cat.label}
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                {cat.items.map((it) => (
+                  <button
+                    key={it.key}
+                    type="button"
+                    onClick={() => onNav(it)}
+                    data-testid={`landing-nav-item-${cat.key}-${it.key}`}
+                    style={{
+                      display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10,
+                      padding: "12px 16px",
+                      background: "transparent",
+                      border: "none", borderRadius: 10,
+                      color: tokens.textPrimary,
+                      fontSize: 15.5, fontWeight: 600, letterSpacing: "-0.01em",
+                      cursor: "pointer", textAlign: "left",
+                      transition: "background 0.12s, color 0.12s",
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = hoverBg; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+                  >
+                    <span>{it.label}</span>
+                    {it.badge && (
+                      <span style={{
+                        padding: "2px 7px", borderRadius: 999,
+                        fontSize: 10, fontWeight: 700, letterSpacing: "0.06em",
+                        background: accentSoft, color: tokens.primaryColor,
+                      }}>{it.badge}</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* 푸터 — CTA + role-aware 진입 */}
+        <div style={{
+          padding: "14px 16px 18px",
+          borderTop: `1px solid ${dividerColor}`,
+          background: isDark ? "rgba(0,0,0,0.18)" : "rgba(15,23,42,0.02)",
+          flexShrink: 0,
+        }}>
+          <a
+            href={ctaLink}
+            onClick={onClose}
+            style={{
+              display: "block",
+              padding: "13px 18px", borderRadius: 12,
+              background: tokens.ctaGradient,
+              color: tokens.ctaTextColor,
+              fontSize: 15, fontWeight: 700, letterSpacing: "-0.01em",
+              textDecoration: "none", textAlign: "center",
+              boxShadow: `0 6px 20px rgba(${tokens.primaryRgb}, 0.25)`,
+            }}
+          >{cta}</a>
+          <div style={{ marginTop: 10, display: "flex", justifyContent: "center" }}>
+            <NavRoleAuthMenu cta={cta} ctaLink={ctaLink} tokens={tokens} variant="footer" />
+          </div>
+        </div>
+      </div>
+      <style>{`
+        @keyframes landingPanelFade { from { opacity: 0 } to { opacity: 1 } }
+        @keyframes landingPanelSlide { from { transform: translateX(-12px); opacity: 0.4 } to { transform: translateX(0); opacity: 1 } }
+      `}</style>
+    </div>
+  );
+}
+
+/** 공통 nav 우측 — 비로그인=로그인+CTA / 로그인=역할별 마이페이지 진입.
+ *
+ * variant="header" (default) — nav bar 우측에 컴팩트. 비로그인 시 로그인만 노출(CTA는 햄버거 패널 푸터에).
+ * variant="footer" — 사이드 패널 푸터에 큰 size. 비로그인은 로그인 강조, 로그인은 role별 콘솔.
+ */
+function NavRoleAuthMenu({ cta: _cta, ctaLink: _ctaLink, tokens, variant = "header" }: { cta: string; ctaLink: string; tokens: NavBarTokens; variant?: "header" | "footer" }) {
   const { user, isAuthenticated } = useAuth();
   const u = user as { tenantRole?: string | null; is_superuser?: boolean } | null;
   const role = (u?.tenantRole ?? "").toLowerCase();
   let myPath = "/admin";
   let roleLabel = "관리실";
-  if (role === "student") { myPath = "/student"; roleLabel = "학생 마이페이지"; }
+  if (role === "student") { myPath = "/student"; roleLabel = "내 학생앱"; }
   else if (role === "parent") { myPath = "/student"; roleLabel = "학부모 페이지"; }
   else if (role === "teacher") { myPath = "/admin"; roleLabel = "강사 콘솔"; }
   else if (role === "assistant") { myPath = "/admin"; roleLabel = "조교 콘솔"; }
 
+  const isFooter = variant === "footer";
+
   if (!isAuthenticated) {
-    return (
-      <>
+    if (isFooter) {
+      return (
         <Link to="/login" style={{
-          padding: "9px 16px", borderRadius: 8, fontSize: 14, fontWeight: 600,
+          display: "inline-flex", alignItems: "center", gap: 8,
+          padding: "10px 18px", borderRadius: 999,
+          fontSize: 13, fontWeight: 600,
           textDecoration: "none", color: tokens.textSecondary,
           border: `1px solid ${tokens.border}`,
-        }}>로그인</Link>
-        <a href={ctaLink} style={{
-          display: "inline-flex", alignItems: "center", gap: 6, padding: "9px 18px",
-          background: tokens.ctaGradient, color: tokens.ctaTextColor, borderRadius: 8,
-          fontSize: 14, fontWeight: 700, textDecoration: "none",
-          boxShadow: `0 4px 16px rgba(${tokens.primaryRgb}, 0.25)`,
         }}>
-          {cta}
-          <span style={{ fontSize: 14, lineHeight: 1, marginTop: -1 }}>›</span>
-        </a>
-      </>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" /><polyline points="10,17 15,12 10,7" /><line x1="15" y1="12" x2="3" y2="12" /></svg>
+          이미 회원이신가요? 로그인
+        </Link>
+      );
+    }
+    return (
+      <Link to="/login" data-testid="landing-nav-login" style={{
+        padding: "8px 14px", borderRadius: 999, fontSize: 13, fontWeight: 600,
+        textDecoration: "none", color: tokens.textPrimary,
+        background: "transparent",
+        border: `1px solid ${tokens.border}`,
+        letterSpacing: "-0.01em",
+      }}>로그인</Link>
     );
   }
+
+  // 로그인 — role별 마이콘솔/마이앱
   return (
-    <Link to={myPath} style={{
-      display: "inline-flex", alignItems: "center", gap: 6, padding: "9px 16px",
-      background: "rgba(255,255,255,0.06)", color: tokens.textPrimary,
-      border: `1px solid ${tokens.border}`, borderRadius: 8,
-      fontSize: 14, fontWeight: 600, textDecoration: "none", letterSpacing: "-0.01em",
-    }}>
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" /></svg>
+    <Link
+      to={myPath}
+      data-testid="landing-nav-myconsole"
+      style={{
+        display: "inline-flex", alignItems: "center", gap: 6,
+        padding: isFooter ? "11px 20px" : "8px 14px",
+        background: isFooter ? tokens.ctaGradient : "rgba(255,255,255,0.06)",
+        color: isFooter ? tokens.ctaTextColor : tokens.textPrimary,
+        border: isFooter ? "none" : `1px solid ${tokens.border}`,
+        borderRadius: 999,
+        fontSize: isFooter ? 14 : 13,
+        fontWeight: isFooter ? 700 : 600,
+        textDecoration: "none", letterSpacing: "-0.01em",
+        boxShadow: isFooter ? `0 6px 20px rgba(${tokens.primaryRgb}, 0.25)` : "none",
+      }}
+    >
+      <svg width={isFooter ? 14 : 13} height={isFooter ? 14 : 13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" /></svg>
       {roleLabel}
     </Link>
   );
