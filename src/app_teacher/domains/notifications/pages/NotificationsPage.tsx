@@ -1,6 +1,9 @@
 // PATH: src/app_teacher/domains/notifications/pages/NotificationsPage.tsx
 // 알림 센터 — 미처리 알림 목록 + 도메인별 도착지 명시
 // TodayPage "지금 처리할 일"과 동일 데이터 소스, 헤더 합계 강조 + 처리 경로 라벨로 차별화.
+//
+// inline style 면제 — 알림 카드는 도메인별 컬러/뱃지 등 동적 token 사용.
+/* eslint-disable no-restricted-syntax */
 import { useNavigate } from "react-router-dom";
 import type { ReactNode } from "react";
 import { useAdminNotificationCounts } from "@admin/domains/admin-notifications/useAdminNotificationCounts";
