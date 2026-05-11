@@ -6,7 +6,8 @@
 /* eslint-disable no-restricted-syntax */
 
 import type { FeatureItem, TestimonialItem, ProgramItem, FaqItem, HitReportShowcaseItem, InstructorProfileItem, ManagementCardItem, ProcessStepItem } from "../types";
-import { getEnabledSections, SvgIcon, FaqAccordion, HitReportCards, useTenantHitStats, LandingNavBar, ConsultRequestForm, usePublicTestimonials, TestimonialSubmitForm, type TemplateProps } from "./shared";
+import { getEnabledSections, SvgIcon, FaqAccordion, HitReportCards, useTenantHitStats, LandingNavBar, ConsultRequestForm, usePublicTestimonials, TestimonialSubmitForm, resolveHeroPrimaryCta, type TemplateProps } from "./shared";
+import { Link } from "react-router-dom";
 import LandingFooter, { FOOTER_TOKENS_LIGHT } from "../components/LandingFooter";
 import CommunityPreviewSection from "../components/CommunityPreviewSection";
 import HeroCarousel from "../components/HeroCarousel";
@@ -42,6 +43,7 @@ export default function MinimalTutor({ config }: TemplateProps) {
           case "hero": {
             const hitSection = sections.find((s) => s.type === "hit_reports");
             const hitItems = (hitSection?.items as HitReportShowcaseItem[] | undefined) || undefined;
+            const primaryCta = resolveHeroPrimaryCta(config, section);
             return (
               <Fragment key="hero">
               <section data-stype="hero" style={{ padding: "80px 24px 64px", background: `linear-gradient(135deg, rgba(${rgb}, 0.03) 0%, rgba(${rgb}, 0.08) 100%)` }}>
@@ -55,18 +57,35 @@ export default function MinimalTutor({ config }: TemplateProps) {
                         {config.subtitle}
                       </p>
                     )}
-                    <a
-                      href={config.cta_link || "/login"}
-                      style={{
-                        display: "inline-flex", alignItems: "center", gap: 8,
-                        padding: "14px 32px", background: c, color: "#fff",
-                        borderRadius: 10, fontSize: 16, fontWeight: 700,
-                        textDecoration: "none", boxShadow: `0 4px 14px rgba(${rgb}, 0.3)`,
-                      }}
-                    >
-                      {config.cta_text || "시작하기"}
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
-                    </a>
+                    {primaryCta.isInternal ? (
+                      <Link
+                        to={primaryCta.link}
+                        data-testid="landing-hero-primary-cta"
+                        style={{
+                          display: "inline-flex", alignItems: "center", gap: 8,
+                          padding: "14px 32px", background: c, color: "#fff",
+                          borderRadius: 10, fontSize: 16, fontWeight: 700,
+                          textDecoration: "none", boxShadow: `0 4px 14px rgba(${rgb}, 0.3)`,
+                        }}
+                      >
+                        {primaryCta.label}
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
+                      </Link>
+                    ) : (
+                      <a
+                        href={primaryCta.link}
+                        data-testid="landing-hero-primary-cta"
+                        style={{
+                          display: "inline-flex", alignItems: "center", gap: 8,
+                          padding: "14px 32px", background: c, color: "#fff",
+                          borderRadius: 10, fontSize: 16, fontWeight: 700,
+                          textDecoration: "none", boxShadow: `0 4px 14px rgba(${rgb}, 0.3)`,
+                        }}
+                      >
+                        {primaryCta.label}
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
+                      </a>
+                    )}
                   </div>
                   {config.hero_image_url && (
                     <div style={{ flex: "1 1 400px", minWidth: 280 }}>

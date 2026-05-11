@@ -12,7 +12,7 @@
 /* eslint-disable no-restricted-syntax */
 
 import { useEffect, useState } from "react";
-import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
+import { Link, Navigate, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import api, { type ApiRequestConfig } from "@/shared/api/axios";
 import useAuth from "@/auth/hooks/useAuth";
 import { fetchLandingPublic } from "../api";
@@ -84,8 +84,10 @@ function BrandMark({ name }: { name: string }) {
 
 export default function LandingCommunityPostPage() {
   const { boardType, postId } = useParams<{ boardType: string; postId: string }>();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { isAuthenticated, user } = useAuth();
+  const [highlightedReplyId, setHighlightedReplyId] = useState<number | null>(null);
   const isValidBoard = VALID.includes(boardType as BoardType);
   const board = (isValidBoard ? (boardType as BoardType) : "board");
   const u = user as { tenantRole?: string | null; is_superuser?: boolean } | null;
@@ -98,6 +100,7 @@ export default function LandingCommunityPostPage() {
   const [post, setPost] = useState<PostDetail | null>(null);
   const [replies, setReplies] = useState<Reply[] | null>(null);
   const [error, setError] = useState<"none" | "not-found" | "fetch">("none");
+  const [neighbors, setNeighbors] = useState<{ prev?: { id: number; title: string } | null; next?: { id: number; title: string } | null }>({});
   const [replyText, setReplyText] = useState("");
   const [replyPending, setReplyPending] = useState(false);
   const [replyErr, setReplyErr] = useState<string | null>(null);
@@ -111,6 +114,25 @@ export default function LandingCommunityPostPage() {
 
   useEffect(() => { fetchLandingPublic().then(setLanding).catch(() => setLanding(null)); }, []);
 
+  // ?reply=N — 댓글 anchor 스크롤 + 일시 highlight(공유 링크).
+  useEffect(() => {
+    const raw = searchParams.get("reply");
+    if (!raw || !replies) return;
+    const target = Number(raw);
+    if (!Number.isFinite(target)) return;
+    if (!replies.some((r) => r.id === target)) return;
+    // 다음 frame에 scroll (DOM 렌더 끝난 후)
+    const tid = window.setTimeout(() => {
+      const el = document.getElementById(`reply-${target}`);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        setHighlightedReplyId(target);
+        window.setTimeout(() => setHighlightedReplyId(null), 2200);
+      }
+    }, 150);
+    return () => window.clearTimeout(tid);
+  }, [searchParams, replies]);
+
   useEffect(() => {
     if (!isAuthenticated || !postId) return;
     setPost(null); setReplies(null); setError("none");
@@ -123,6 +145,11 @@ export default function LandingCommunityPostPage() {
     api.get(`/community/posts/${postId}/replies/`, { } as ApiRequestConfig)
       .then((r) => setReplies(Array.isArray(r?.data) ? r.data : []))
       .catch(() => setReplies([]));
+    // prev/next 글 fetch — 가시성 게이트는 backend
+    setNeighbors({});
+    api.get(`/community/posts/${postId}/neighbors/`, { } as ApiRequestConfig)
+      .then((r) => setNeighbors(r?.data || {}))
+      .catch(() => setNeighbors({}));
   }, [postId, isAuthenticated]);
 
   if (boardType && !isValidBoard) return <Navigate to="/landing/community/board" replace />;
@@ -325,6 +352,12 @@ export default function LandingCommunityPostPage() {
                 <span>댓글 {post.replies_count}</span>
               </>
             )}
+            {post && (post.like_count ?? 0) > 0 && (
+              <>
+                <span style={{ opacity: 0.5 }}>·</span>
+                <span style={{ color: gold }}>♥ {post.like_count}</span>
+              </>
+            )}
           </div>
         </div>
       </section>
@@ -431,6 +464,60 @@ export default function LandingCommunityPostPage() {
         </section>
       )}
 
+      {/* prev/next 게시글 네비 — cafe 스타일. 같은 board_type 내 published 순회. */}
+      {post && (neighbors.prev || neighbors.next) && (
+        <section style={{ padding: "20px 24px 0", background: bgAlt }}>
+          <div style={{ maxWidth: 900, margin: "0 auto", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            <button
+              type="button"
+              onClick={() => neighbors.prev && navigate(`/landing/community/${board}/posts/${neighbors.prev.id}`)}
+              disabled={!neighbors.prev}
+              data-testid="landing-community-prev-post"
+              style={{
+                display: "flex", alignItems: "center", gap: 10,
+                padding: "12px 14px", borderRadius: 10,
+                background: "transparent", border: `1px solid ${border}`,
+                color: neighbors.prev ? textPrimary : textMuted,
+                cursor: neighbors.prev ? "pointer" : "not-allowed",
+                opacity: neighbors.prev ? 1 : 0.4,
+                textAlign: "left",
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><polyline points="15,18 9,12 15,6" /></svg>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div style={{ fontSize: 10.5, fontWeight: 700, color: textMuted, letterSpacing: "0.06em", textTransform: "uppercase" }}>이전 글</div>
+                <div style={{ fontSize: 13, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 2 }}>
+                  {neighbors.prev?.title || "—"}
+                </div>
+              </div>
+            </button>
+            <button
+              type="button"
+              onClick={() => neighbors.next && navigate(`/landing/community/${board}/posts/${neighbors.next.id}`)}
+              disabled={!neighbors.next}
+              data-testid="landing-community-next-post"
+              style={{
+                display: "flex", alignItems: "center", gap: 10,
+                padding: "12px 14px", borderRadius: 10,
+                background: "transparent", border: `1px solid ${border}`,
+                color: neighbors.next ? textPrimary : textMuted,
+                cursor: neighbors.next ? "pointer" : "not-allowed",
+                opacity: neighbors.next ? 1 : 0.4,
+                textAlign: "right",
+              }}
+            >
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div style={{ fontSize: 10.5, fontWeight: 700, color: textMuted, letterSpacing: "0.06em", textTransform: "uppercase" }}>다음 글</div>
+                <div style={{ fontSize: 13, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 2 }}>
+                  {neighbors.next?.title || "—"}
+                </div>
+              </div>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><polyline points="9,18 15,12 9,6" /></svg>
+            </button>
+          </div>
+        </section>
+      )}
+
       {/* 댓글 섹션 */}
       <section style={{ padding: "32px 24px 64px", background: bgAlt, borderTop: `1px solid ${border}`, marginTop: 28 }}>
         <div style={{ maxWidth: 900, margin: "0 auto" }}>
@@ -495,6 +582,7 @@ export default function LandingCommunityPostPage() {
                         rp={rp}
                         textPrimary={textPrimary} textMuted={textMuted} gold={gold}
                         canReply={canReply}
+                        highlighted={highlightedReplyId === rp.id}
                         onToggleLike={() => onToggleReplyLike(rp.id)}
                         onReplyTo={() => { setReplyingTo(rp.id); setChildText(""); setChildErr(null); }}
                         onReport={() => onReport("reply", rp.id)}
@@ -509,6 +597,7 @@ export default function LandingCommunityPostPage() {
                               textPrimary={textPrimary} textMuted={textMuted} gold={gold}
                               canReply={false}
                               isChild
+                              highlighted={highlightedReplyId === ch.id}
                               onToggleLike={() => onToggleReplyLike(ch.id)}
                               onReport={() => onReport("reply", ch.id)}
                             />
@@ -568,13 +657,21 @@ export default function LandingCommunityPostPage() {
   );
 }
 
-function ReplyCard({ rp, textPrimary, textMuted, gold, canReply, isChild = false, onToggleLike, onReplyTo, onReport }: {
+function ReplyCard({ rp, textPrimary, textMuted, gold, canReply, isChild = false, highlighted = false, onToggleLike, onReplyTo, onReport }: {
   rp: Reply; textPrimary: string; textMuted: string; gold: string;
-  canReply: boolean; isChild?: boolean;
+  canReply: boolean; isChild?: boolean; highlighted?: boolean;
   onToggleLike: () => void; onReplyTo?: () => void; onReport?: () => void;
 }) {
   return (
-    <div style={{ padding: isChild ? "12px 0" : "16px 18px" }}>
+    <div
+      id={`reply-${rp.id}`}
+      style={{
+        padding: isChild ? "12px 0" : "16px 18px",
+        background: highlighted ? "rgba(212,160,76,0.10)" : "transparent",
+        transition: "background 0.6s ease-out",
+        borderRadius: highlighted ? 10 : 0,
+      }}
+    >
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
         {isChild && <span style={{ fontSize: 11, color: textMuted, marginRight: 2 }}>↳</span>}
         <span style={{ fontSize: 13.5, fontWeight: 700, color: textPrimary }}>{rp.created_by_display || "—"}</span>

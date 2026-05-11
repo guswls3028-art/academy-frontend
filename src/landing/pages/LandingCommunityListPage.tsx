@@ -78,7 +78,14 @@ function BrandMark({ name }: { name: string }) {
 export default function LandingCommunityListPage() {
   const { boardType } = useParams<{ boardType: string }>();
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
+  const u = user as { tenantRole?: string | null; is_superuser?: boolean } | null;
+  const role = (u?.tenantRole ?? "").toLowerCase();
+  const canWrite = isAuthenticated && role !== "parent" && (
+    !!u?.is_superuser || ["owner", "admin", "teacher", "assistant"].includes(role) || (
+      role === "student" && (["board", "qna"] as BoardType[]).includes((boardType as BoardType))
+    )
+  );
   const isValid = VALID.includes(boardType as BoardType);
   const active = (isValid ? (boardType as BoardType) : "board");
 
@@ -230,7 +237,13 @@ export default function LandingCommunityListPage() {
           ) : posts === null ? (
             <SkeletonRows cardBg={cardBg} border={border} />
           ) : posts.length === 0 ? (
-            <EmptyBox textSecondary={textSecondary} cardBg={cardBg} border={border}>아직 등록된 글이 없습니다.</EmptyBox>
+            <EmptyFirstPost
+              boardLabel={tabLabel}
+              canWrite={canWrite}
+              onWrite={() => navigate(`/landing/community/${active}/write`)}
+              textPrimary={textPrimary} textSecondary={textSecondary} textMuted={textMuted}
+              cardBg={cardBg} border={border} accent={gold}
+            />
           ) : (
             <>
               <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 1, border: `1px solid ${border}`, borderRadius: 12, overflow: "hidden", background: cardBg }}>
@@ -376,6 +389,48 @@ function EmptyBox({ children, textSecondary, cardBg, border }: { children: React
   return (
     <div style={{ padding: "56px 24px", borderRadius: 14, background: cardBg, border: `1px solid ${border}`, textAlign: "center", fontSize: 14, color: textSecondary }}>
       {children}
+    </div>
+  );
+}
+
+function EmptyFirstPost({ boardLabel, canWrite, onWrite, textPrimary, textSecondary, textMuted, cardBg, border, accent }: {
+  boardLabel: string; canWrite: boolean; onWrite: () => void;
+  textPrimary: string; textSecondary: string; textMuted: string;
+  cardBg: string; border: string; accent: string;
+}) {
+  return (
+    <div style={{
+      padding: "64px 24px", borderRadius: 14, background: cardBg, border: `1px dashed ${border}`,
+      textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 14,
+    }}>
+      <div style={{ fontSize: 40, opacity: 0.85 }}>📝</div>
+      <p style={{ fontSize: 16, fontWeight: 700, color: textPrimary, margin: 0, letterSpacing: "-0.01em" }}>
+        아직 {boardLabel}에 등록된 글이 없습니다
+      </p>
+      <p style={{ fontSize: 13.5, color: textSecondary, margin: 0, lineHeight: 1.6, maxWidth: 420 }}>
+        {canWrite
+          ? `첫 글의 주인공이 되어 보세요. 학원 친구들이 함께 읽어요.`
+          : `학원 가족이 새 글을 올리면 여기에서 가장 먼저 만나실 수 있습니다.`}
+      </p>
+      {canWrite && (
+        <button
+          type="button"
+          onClick={onWrite}
+          data-testid="landing-community-empty-write-cta"
+          style={{
+            marginTop: 4,
+            display: "inline-flex", alignItems: "center", gap: 6,
+            padding: "11px 22px", borderRadius: 999, border: "none",
+            background: accent, color: "#0A0E1A",
+            fontSize: 14, fontWeight: 700, letterSpacing: "-0.01em",
+            cursor: "pointer",
+          }}
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+          첫 글을 작성해 보세요
+        </button>
+      )}
+      <p style={{ marginTop: 6, fontSize: 11, color: textMuted }}>여러분의 한 마디로 커뮤니티가 시작됩니다.</p>
     </div>
   );
 }

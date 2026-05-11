@@ -97,6 +97,25 @@ export function useResolvedLogo(config: LandingConfig, kind: "nav" | "main" = "m
   return config.logo_url || branding?.logoUrl || branding?.headerLogoUrl || null;
 }
 
+/** hero primary CTA resolve — hero_primary_cta 값에 따라 {label, link, isInternal} 결정.
+ * 학원장이 hero section에서 선택. 미설정 시 config.cta_text/cta_link로 fallback.
+ */
+export function resolveHeroPrimaryCta(config: LandingConfig, heroSection?: LandingSection | null): { label: string; link: string; isInternal: boolean } {
+  const cta = heroSection?.hero_primary_cta;
+  const variant = cta?.variant || "consult";
+  if (variant === "matchup") {
+    return { label: cta?.label || "적중 보고서 보기", link: "/landing/reports", isInternal: true };
+  }
+  if (variant === "video") {
+    return { label: cta?.label || "강의 영상 보기", link: cta?.link || config.cta_link || "/login", isInternal: false };
+  }
+  if (variant === "custom") {
+    return { label: cta?.label || config.cta_text || "자세히 보기", link: cta?.link || config.cta_link || "/login", isInternal: false };
+  }
+  // consult (default)
+  return { label: config.cta_text || "수강 문의", link: config.cta_link || "/login", isInternal: false };
+}
+
 /** 섹션 anchor 라벨 SSOT — nav 메뉴에 노출할 섹션과 한국어 라벨 */
 export const NAV_SECTION_ANCHORS: Record<string, string> = {
   instructor_profile: "강사 소개",

@@ -87,6 +87,19 @@ export interface HitReportPublicCard {
   created_at: string | null;
 }
 
+/** hero primary CTA 변형(2026-05-11) — 학원장이 LandingEditor에서 선택. admin UI는 별도 cycle.
+ *  - consult(default): 기존 config.cta_text/cta_link (수강 문의)
+ *  - matchup: 매치업 적중보고서 (`/landing/reports`)
+ *  - video: 학원장이 입력한 강의 영상 link
+ *  - custom: label/link 자유 입력
+ */
+export type HeroPrimaryCtaVariant = "consult" | "matchup" | "video" | "custom";
+export interface HeroPrimaryCta {
+  variant?: HeroPrimaryCtaVariant;
+  label?: string;
+  link?: string;
+}
+
 export interface LandingSection {
   type: SectionType;
   enabled: boolean;
@@ -94,6 +107,8 @@ export interface LandingSection {
   title?: string;
   description?: string;
   items?: FeatureItem[] | TestimonialItem[] | ProgramItem[] | FaqItem[] | HitReportShowcaseItem[] | InstructorProfileItem[] | ManagementCardItem[] | ProcessStepItem[];
+  /** hero section 전용 — primary CTA 변형. */
+  hero_primary_cta?: HeroPrimaryCta;
 }
 
 export interface LandingContact {

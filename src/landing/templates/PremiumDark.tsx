@@ -8,7 +8,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import type { LandingConfig, LandingSection, FeatureItem, TestimonialItem, ProgramItem, FaqItem, HitReportShowcaseItem, InstructorProfileItem, ManagementCardItem, ProcessStepItem } from "../types";
-import { getEnabledSections, SvgIcon, HitReportCards, useTenantHitStats, LandingNavBar, ConsultRequestForm, usePublicTestimonials, TestimonialSubmitForm, type TemplateProps } from "./shared";
+import { getEnabledSections, SvgIcon, HitReportCards, useTenantHitStats, LandingNavBar, ConsultRequestForm, usePublicTestimonials, TestimonialSubmitForm, resolveHeroPrimaryCta, type TemplateProps } from "./shared";
 import LandingFooter, { FOOTER_TOKENS_DARK } from "../components/LandingFooter";
 import CommunityPreviewSection from "../components/CommunityPreviewSection";
 import HeroCarousel from "../components/HeroCarousel";
@@ -65,6 +65,8 @@ export default function PremiumDark({ config }: TemplateProps) {
             // hit_reports section의 items에서 ids 추출 → public endpoint fetch → autoplay 캐러셀.
             const hitSection = sections.find((s) => s.type === "hit_reports");
             const hitItems = (hitSection?.items as HitReportShowcaseItem[] | undefined) || undefined;
+            // hero primary CTA — 학원장 LandingEditor 설정(consult/matchup/video/custom).
+            const primaryCta = resolveHeroPrimaryCta(config, section);
             return (
               <Fragment key="hero">
               <section data-stype="hero" style={{ padding: "120px 24px 100px", position: "relative", overflow: "hidden" }}>
@@ -111,21 +113,41 @@ export default function PremiumDark({ config }: TemplateProps) {
                     )}
 
                     <div style={{ display: "flex", gap: 14, flexWrap: "wrap", alignItems: "center" }}>
-                      <a
-                        href={config.cta_link || "/login"}
-                        style={{
-                          display: "inline-flex", alignItems: "center", gap: 10,
-                          padding: "16px 36px",
-                          background: `linear-gradient(135deg, ${gold} 0%, #B8862F 100%)`,
-                          color: "#0A0E1A", borderRadius: 12,
-                          fontSize: 16, fontWeight: 700, letterSpacing: "-0.01em",
-                          textDecoration: "none",
-                          boxShadow: `0 12px 32px rgba(${goldRgb},0.35), inset 0 1px 0 rgba(255,255,255,0.25)`,
-                        }}
-                      >
-                        {config.cta_text || "수강 문의"}
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
-                      </a>
+                      {primaryCta.isInternal ? (
+                        <Link
+                          to={primaryCta.link}
+                          data-testid="landing-hero-primary-cta"
+                          style={{
+                            display: "inline-flex", alignItems: "center", gap: 10,
+                            padding: "16px 36px",
+                            background: `linear-gradient(135deg, ${gold} 0%, #B8862F 100%)`,
+                            color: "#0A0E1A", borderRadius: 12,
+                            fontSize: 16, fontWeight: 700, letterSpacing: "-0.01em",
+                            textDecoration: "none",
+                            boxShadow: `0 12px 32px rgba(${goldRgb},0.35), inset 0 1px 0 rgba(255,255,255,0.25)`,
+                          }}
+                        >
+                          {primaryCta.label}
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
+                        </Link>
+                      ) : (
+                        <a
+                          href={primaryCta.link}
+                          data-testid="landing-hero-primary-cta"
+                          style={{
+                            display: "inline-flex", alignItems: "center", gap: 10,
+                            padding: "16px 36px",
+                            background: `linear-gradient(135deg, ${gold} 0%, #B8862F 100%)`,
+                            color: "#0A0E1A", borderRadius: 12,
+                            fontSize: 16, fontWeight: 700, letterSpacing: "-0.01em",
+                            textDecoration: "none",
+                            boxShadow: `0 12px 32px rgba(${goldRgb},0.35), inset 0 1px 0 rgba(255,255,255,0.25)`,
+                          }}
+                        >
+                          {primaryCta.label}
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
+                        </a>
+                      )}
                       {config.contact?.phone && (
                         <a href={`tel:${config.contact.phone.replace(/-/g,"")}`} style={{
                           display: "inline-flex", alignItems: "center", gap: 8,
