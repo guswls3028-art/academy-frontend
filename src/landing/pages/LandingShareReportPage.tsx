@@ -51,6 +51,16 @@ type ShareMeta = {
   tenant_name: string;
   tenant_code: string;
   pdf_url: string;
+  other_report_ids?: number[];
+};
+
+type OtherCard = {
+  id: number;
+  doc_title: string;
+  doc_category: string;
+  hit_count: number;
+  total_problems: number;
+  hit_rate_pct: number;
 };
 
 export default function LandingShareReportPage() {
@@ -58,6 +68,7 @@ export default function LandingShareReportPage() {
   const [meta, setMeta] = useState<ShareMeta | null>(null);
   const [landing, setLanding] = useState<LandingPublicResponse | null>(null);
   const [error, setError] = useState(false);
+  const [others, setOthers] = useState<OtherCard[]>([]);
 
   useEffect(() => {
     if (!token) { setError(true); return; }
@@ -68,6 +79,15 @@ export default function LandingShareReportPage() {
 
   // landing config — tenant branding (logo/brand_name/sections nav). 실패해도 share 자체는 노출 가능.
   useEffect(() => { fetchLandingPublic().then(setLanding).catch(() => setLanding(null)); }, []);
+
+  // 다른 보고서 카드 메타 fetch — meta.other_report_ids 가 채워지면 public list endpoint 호출.
+  useEffect(() => {
+    if (!meta?.other_report_ids?.length) { setOthers([]); return; }
+    const ids = meta.other_report_ids.slice(0, 6).join(",");
+    api.get<{ reports: OtherCard[] }>(`/matchup/landing/public/`, { params: { ids }, skipAuth: true } as ApiRequestConfig)
+      .then((r) => setOthers(Array.isArray(r.data?.reports) ? r.data.reports : []))
+      .catch(() => setOthers([]));
+  }, [meta?.other_report_ids]);
 
   // SEO — 카톡 미리보기 og:title
   useEffect(() => {
@@ -251,6 +271,49 @@ export default function LandingShareReportPage() {
           </Link>
         </div>
       </section>
+
+      {/* 다른 보고서 carousel — meta.other_report_ids 기반. 학생이 한 링크 들어와도 학원 카탈로그 자연 노출. */}
+      {others.length > 0 && (
+        <section style={{ padding: "32px 24px 96px", background: bgAlt }}>
+          <div style={{ maxWidth: 1200, margin: "0 auto" }}>
+            <h2 style={{ fontSize: 18, fontWeight: 700, margin: "0 0 16px", letterSpacing: "-0.02em", color: textPrimary }}>
+              {brandName}의 다른 적중 사례
+            </h2>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 14 }}>
+              {others.map((c) => {
+                const r = Math.round(c.hit_rate_pct);
+                return (
+                  <Link
+                    key={c.id}
+                    to={`/landing/reports/${c.id}`}
+                    style={{
+                      padding: 20, borderRadius: 14,
+                      background: "rgba(255,255,255,0.04)",
+                      border: `1px solid ${cardBorder}`,
+                      textDecoration: "none", color: textPrimary,
+                      display: "flex", flexDirection: "column", gap: 8,
+                    }}
+                  >
+                    <div style={{ fontSize: 11, color: textSecondary, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase" }}>
+                      {c.doc_category || "적중 보고서"}
+                    </div>
+                    {c.doc_title && (
+                      <div style={{ fontSize: 14, color: textPrimary, fontWeight: 600, letterSpacing: "-0.01em" }}>
+                        {c.doc_title}
+                      </div>
+                    )}
+                    <div style={{ display: "flex", alignItems: "baseline", gap: 4, marginTop: 4 }}>
+                      <span style={{ fontSize: 28, fontWeight: 800, color: gold, lineHeight: 1, letterSpacing: "-0.02em" }}>{r}</span>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: gold, opacity: 0.85 }}>%</span>
+                      <span style={{ fontSize: 11, color: textSecondary, marginLeft: 4 }}>{c.hit_count} / {c.total_problems} 문항</span>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+      )}
 
       {landing?.config && (
         <LandingFooter config={landing.config} sections={landing.config.sections || []} tokens={FOOTER_TOKENS_DARK} />

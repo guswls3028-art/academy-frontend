@@ -54,8 +54,29 @@ export default function LandingSectionTabs({ sections, tokens }: Props) {
   }, [sections]);
 
   // scroll-driven visibility + active section detection.
+  // perf 최적화 (#68 후속, 2026-05-12): 매 scroll frame 마다 querySelectorAll 호출 X.
+  // mount + resize + items 변경 시에만 offsets cache. scroll 핸들러는 cached array 만 read.
   useEffect(() => {
     if (items.length <= 1) return;  // 1개면 strip 의미 없음 (hero only).
+
+    let offsets: Array<{ type: string; top: number }> = [];
+    const computeOffsets = () => {
+      const next: typeof offsets = [];
+      for (const it of items) {
+        const el = document.querySelector(`section[data-stype="${it.type}"]`) as HTMLElement | null;
+        if (el) next.push({ type: it.type, top: el.offsetTop });
+      }
+      offsets = next;
+    };
+
+    // section element 가 비동기 mount 되는 케이스 (LandingPage fetch 이후) 대응 — 짧은 retry.
+    let retries = 0;
+    const tryCompute = () => {
+      computeOffsets();
+      if (offsets.length === 0 && retries++ < 20) setTimeout(tryCompute, 150);
+    };
+    tryCompute();
+
     let ticking = false;
     const onScroll = () => {
       if (ticking) return;
@@ -63,13 +84,6 @@ export default function LandingSectionTabs({ sections, tokens }: Props) {
       requestAnimationFrame(() => {
         const y = window.scrollY;
         setVisible(y > 200);
-
-        // active = viewport 상단 (NavBar+strip 높이 보정) 가장 가까운 section.
-        const offsets: Array<{ type: string; top: number }> = [];
-        for (const it of items) {
-          const el = document.querySelector(`section[data-stype="${it.type}"]`) as HTMLElement | null;
-          if (el) offsets.push({ type: it.type, top: el.offsetTop });
-        }
         if (offsets.length) {
           // strip이 NavBar(64) + strip(48) 아래에 sticky이므로 그만큼 보정한 ref line.
           const refLine = y + 64 + 48 + 8;
@@ -83,9 +97,14 @@ export default function LandingSectionTabs({ sections, tokens }: Props) {
         ticking = false;
       });
     };
+    const onResize = () => { computeOffsets(); onScroll(); };
     window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onResize, { passive: true });
     onScroll();
-    return () => window.removeEventListener("scroll", onScroll);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onResize);
+    };
   }, [items]);
 
   // active 변경 시 strip 내 chip을 가시 영역에 스크롤.
