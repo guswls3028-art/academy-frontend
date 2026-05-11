@@ -6,12 +6,13 @@
 /* eslint-disable no-restricted-syntax */
 
 import type { FeatureItem, TestimonialItem, ProgramItem, FaqItem, HitReportShowcaseItem, HeroCarouselItem, InstructorProfileItem, ManagementCardItem, ProcessStepItem } from "../types";
-import { getEnabledSections, SvgIcon, FaqAccordion, HitReportCards, useTenantHitStats, LandingNavBar, ConsultRequestForm, usePublicTestimonials, TestimonialSubmitForm, resolveHeroPrimaryCta, type TemplateProps } from "./shared";
+import { getEnabledSections, SvgIcon, FaqAccordion, HitReportCards, useTenantHitStats, LandingNavBar, ConsultRequestForm, usePublicTestimonials, TestimonialSubmitForm, resolveHeroPrimaryCta, type TemplateProps, type NavBarTokens } from "./shared";
 import { Link } from "react-router-dom";
 import LandingFooter, { FOOTER_TOKENS_LIGHT } from "../components/LandingFooter";
 import CommunityPreviewSection from "../components/CommunityPreviewSection";
 import HeroCarousel from "../components/HeroCarousel";
 import TestimonialsSticky from "../components/TestimonialsSticky";
+import LandingSectionTabs from "../components/LandingSectionTabs";
 import { Fragment } from "react";
 import { hexToRgb } from "./colorUtils";
 
@@ -20,24 +21,27 @@ export default function MinimalTutor({ config }: TemplateProps) {
   const rgb = hexToRgb(c);
   const sections = getEnabledSections(config);
 
+  const navTokens: NavBarTokens = {
+    bg: "rgba(255,255,255,0.92)",
+    border: "rgba(0,0,0,0.06)",
+    textPrimary: "#0f172a",
+    textSecondary: "#475569",
+    primaryColor: c,
+    primaryRgb: rgb,
+    ctaGradient: c,
+    ctaTextColor: "#fff",
+    panelBg: "#fff",
+  };
+
   return (
     <div style={{ fontFamily: "'Pretendard Variable', 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif", color: "#1a1a2e", background: "#ffffff", minHeight: "100vh" }}>
       <LandingNavBar
         config={config}
         sections={sections}
-        tokens={{
-          bg: "rgba(255,255,255,0.92)",
-          border: "rgba(0,0,0,0.06)",
-          textPrimary: "#0f172a",
-          textSecondary: "#475569",
-          primaryColor: c,
-          primaryRgb: rgb,
-          ctaGradient: c,
-          ctaTextColor: "#fff",
-          panelBg: "#fff",
-        }}
+        tokens={navTokens}
         brandMark={<LightBrandMark name={config.brand_name || "Brand"} color={c} />}
       />
+      <LandingSectionTabs sections={sections} tokens={navTokens} />
 
       {sections.map((section) => {
         switch (section.type) {

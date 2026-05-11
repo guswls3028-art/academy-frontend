@@ -8,11 +8,12 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import type { LandingConfig, LandingSection, FeatureItem, TestimonialItem, ProgramItem, FaqItem, HitReportShowcaseItem, HeroCarouselItem, InstructorProfileItem, ManagementCardItem, ProcessStepItem } from "../types";
-import { getEnabledSections, SvgIcon, HitReportCards, useTenantHitStats, LandingNavBar, ConsultRequestForm, usePublicTestimonials, TestimonialSubmitForm, resolveHeroPrimaryCta, type TemplateProps } from "./shared";
+import { getEnabledSections, SvgIcon, HitReportCards, useTenantHitStats, LandingNavBar, ConsultRequestForm, usePublicTestimonials, TestimonialSubmitForm, resolveHeroPrimaryCta, type TemplateProps, type NavBarTokens } from "./shared";
 import LandingFooter, { FOOTER_TOKENS_DARK } from "../components/LandingFooter";
 import CommunityPreviewSection from "../components/CommunityPreviewSection";
 import HeroCarousel from "../components/HeroCarousel";
 import TestimonialsSticky from "../components/TestimonialsSticky";
+import LandingSectionTabs from "../components/LandingSectionTabs";
 import { Fragment } from "react";
 import { hexToRgb } from "./colorUtils";
 import useAuth from "@/auth/hooks/useAuth";
@@ -34,6 +35,18 @@ export default function PremiumDark({ config }: TemplateProps) {
   const gold = "#D4A04C";
   const goldRgb = "212,160,76";
 
+  const navTokens: NavBarTokens = {
+    bg: "rgba(10,14,26,0.85)",
+    border: cardBorder,
+    textPrimary,
+    textSecondary,
+    primaryColor: gold,
+    primaryRgb: goldRgb,
+    ctaGradient: `linear-gradient(135deg, ${gold} 0%, #B8862F 100%)`,
+    ctaTextColor: "#0A0E1A",
+    panelBg: "#0F1525",
+  };
+
   return (
     <div style={{
       fontFamily: "'Pretendard Variable', 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif",
@@ -45,19 +58,10 @@ export default function PremiumDark({ config }: TemplateProps) {
       <LandingNavBar
         config={config}
         sections={sections}
-        tokens={{
-          bg: "rgba(10,14,26,0.85)",
-          border: cardBorder,
-          textPrimary,
-          textSecondary,
-          primaryColor: gold,
-          primaryRgb: goldRgb,
-          ctaGradient: `linear-gradient(135deg, ${gold} 0%, #B8862F 100%)`,
-          ctaTextColor: "#0A0E1A",
-          panelBg: "#0F1525",
-        }}
+        tokens={navTokens}
         brandMark={<BrandMark name={config.brand_name || "Brand"} gold={gold} />}
       />
+      <LandingSectionTabs sections={sections} tokens={navTokens} />
 
       {sections.map((section) => {
         switch (section.type) {
