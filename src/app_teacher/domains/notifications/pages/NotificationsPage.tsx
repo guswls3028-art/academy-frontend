@@ -31,6 +31,7 @@ const ICON_MAP: Record<ItemType, ReactNode> = {
   submissions: <ClipboardList size={16} />,
   video_failed: <Video size={16} />,
   consult: <MessageCircle size={16} />,
+  reports: <ClipboardList size={16} />,
 };
 
 const DEST_LABEL: Record<ItemType, string> = {
@@ -41,6 +42,7 @@ const DEST_LABEL: Record<ItemType, string> = {
   submissions: "제출함에서 처리",
   video_failed: "영상에서 재시도",
   consult: "관리실에서 응대",
+  reports: "커뮤니티 신고함에서 검토",
 };
 
 export default function NotificationsPage() {

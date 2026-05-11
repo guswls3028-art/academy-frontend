@@ -20,6 +20,7 @@ import type { LandingPublicResponse } from "../types";
 import { LandingNavBar, type NavBarTokens } from "../templates/shared";
 import LandingFooter, { FOOTER_TOKENS_DARK } from "../components/LandingFooter";
 import LandingRoleFab from "../components/LandingRoleFab";
+import ImageLightbox from "../components/ImageLightbox";
 
 const NAV_TOKENS: NavBarTokens = {
   bg: "rgba(10,14,26,0.85)",
@@ -101,6 +102,20 @@ export default function LandingCommunityPostPage() {
   const [replies, setReplies] = useState<Reply[] | null>(null);
   const [error, setError] = useState<"none" | "not-found" | "fetch">("none");
   const [neighbors, setNeighbors] = useState<{ prev?: { id: number; title: string } | null; next?: { id: number; title: string } | null }>({});
+  // lightbox 상태 (#14)
+  const [lightbox, setLightbox] = useState<{ images: string[]; index: number } | null>(null);
+
+  // 본문 클릭 — IMG element 면 lightbox 열기 (event delegation).
+  const onBodyClick = (e: React.MouseEvent<HTMLElement>) => {
+    const target = e.target as HTMLElement;
+    if (target.tagName !== "IMG") return;
+    const container = e.currentTarget;
+    const imgs = Array.from(container.querySelectorAll("img")) as HTMLImageElement[];
+    const srcList = imgs.map((i) => i.src).filter(Boolean);
+    if (srcList.length === 0) return;
+    const idx = imgs.findIndex((i) => i === target);
+    setLightbox({ images: srcList, index: idx >= 0 ? idx : 0 });
+  };
   const [replyText, setReplyText] = useState("");
   const [replyPending, setReplyPending] = useState(false);
   const [replyErr, setReplyErr] = useState<string | null>(null);
@@ -370,14 +385,18 @@ export default function LandingCommunityPostPage() {
           ) : !post ? (
             <BodySkeleton border={border} cardBg={cardBg} />
           ) : (
-            <article
-              data-testid="landing-community-post-body"
-              style={{
-                fontSize: 15.5, lineHeight: 1.8, color: textPrimary,
-                wordBreak: "break-word", overflowWrap: "anywhere",
-              }}
-              dangerouslySetInnerHTML={{ __html: post.content || "<p style='color:#6B7280'>본문이 없습니다.</p>" }}
-            />
+            <>
+              <article
+                data-testid="landing-community-post-body"
+                onClick={onBodyClick}
+                style={{
+                  fontSize: 15.5, lineHeight: 1.8, color: textPrimary,
+                  wordBreak: "break-word", overflowWrap: "anywhere",
+                }}
+                dangerouslySetInnerHTML={{ __html: post.content || "<p style='color:#6B7280'>본문이 없습니다.</p>" }}
+              />
+              <style>{`[data-testid="landing-community-post-body"] img { cursor: zoom-in; max-width: 100%; border-radius: 8px; }`}</style>
+            </>
           )}
         </div>
       </section>
@@ -653,6 +672,7 @@ export default function LandingCommunityPostPage() {
 
       <LandingFooter config={cfg} sections={cfg.sections || []} tokens={FOOTER_TOKENS_DARK} />
       <LandingRoleFab />
+      {lightbox && <ImageLightbox images={lightbox.images} initialIndex={lightbox.index} onClose={() => setLightbox(null)} />}
     </div>
   );
 }

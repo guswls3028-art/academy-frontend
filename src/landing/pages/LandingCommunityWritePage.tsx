@@ -20,6 +20,7 @@ import type { LandingPublicResponse } from "../types";
 import { LandingNavBar, type NavBarTokens } from "../templates/shared";
 import LandingFooter, { FOOTER_TOKENS_DARK } from "../components/LandingFooter";
 import LandingRoleFab from "../components/LandingRoleFab";
+import { simpleMarkdownToHtml } from "../components/simpleMarkdown";
 
 const NAV_TOKENS: NavBarTokens = {
   bg: "rgba(10,14,26,0.85)",
@@ -69,8 +70,52 @@ export default function LandingCommunityWritePage() {
   const [err, setErr] = useState<string | null>(null);
   // 이미지 첨부 (P3) — backend는 PostAttachment multipart endpoint 완비.
   const [files, setFiles] = useState<File[]>([]);
+  // 자동저장 draft (#12) — localStorage. board별 별도 key. 5초 디바운스.
+  const draftKey = `landing-community-draft:${initialBoard}`;
+  const [draftRestored, setDraftRestored] = useState(false);
+  // markdown 미리보기 (#13)
+  const [showPreview, setShowPreview] = useState(false);
 
   useEffect(() => { fetchLandingPublic().then(setLanding).catch(() => setLanding(null)); }, []);
+
+  // mount: draft 있으면 복구 prompt
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(draftKey);
+      if (!raw) return;
+      const draft = JSON.parse(raw) as { title?: string; content?: string; board?: BoardType; savedAt?: number };
+      // 7일 이상된 draft는 자동 폐기
+      if (!draft.savedAt || Date.now() - draft.savedAt > 7 * 24 * 60 * 60 * 1000) {
+        window.localStorage.removeItem(draftKey);
+        return;
+      }
+      const hasBody = (draft.title?.trim() || draft.content?.trim());
+      if (!hasBody) return;
+      const yes = window.confirm(`작성 중이던 글이 있어요. 이어 작성할까요?\n\n제목: ${(draft.title || "(없음)").slice(0, 40)}\n저장: ${new Date(draft.savedAt).toLocaleString()}`);
+      if (yes) {
+        if (draft.title) setTitle(draft.title);
+        if (draft.content) setContent(draft.content);
+        if (draft.board && VALID.includes(draft.board)) setSelectedBoard(draft.board);
+        setDraftRestored(true);
+      } else {
+        window.localStorage.removeItem(draftKey);
+      }
+    } catch { /* ignore */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // 자동저장 — 입력 변경 후 5초 debounce. 제출 성공 시 자동 정리됨(아래 onSubmit).
+  useEffect(() => {
+    if (!title.trim() && !content.trim()) return;
+    const tid = window.setTimeout(() => {
+      try {
+        window.localStorage.setItem(draftKey, JSON.stringify({
+          title, content, board: selectedBoard, savedAt: Date.now(),
+        }));
+      } catch { /* quota 초과 등 ignore */ }
+    }, 5000);
+    return () => window.clearTimeout(tid);
+  }, [title, content, selectedBoard, draftKey]);
 
   // 학생이 staff-only board를 선택한 상태로 진입하면 board로 강제 변경
   useEffect(() => {
@@ -123,10 +168,11 @@ export default function LandingCommunityWritePage() {
     if (!allowedBoards.includes(selectedBoard)) { setErr("선택한 게시판에 글을 쓸 권한이 없습니다."); return; }
     setSubmitting(true);
     try {
+      // markdown → HTML 변환(#13). backend sanitize_html이 위험 태그 차단.
       const payload: Record<string, unknown> = {
         post_type: selectedBoard,
         title: title.trim(),
-        content: content.trim(),
+        content: simpleMarkdownToHtml(content.trim()),
         status: "published",
       };
       if (isStaff) {
@@ -147,6 +193,8 @@ export default function LandingCommunityWritePage() {
           alert("글은 등록되었지만 첨부 일부가 실패했습니다. 글 상세에서 다시 확인해 주세요.");
         }
       }
+      // 등록 성공 → draft 정리
+      try { window.localStorage.removeItem(draftKey); } catch { /* ignore */ }
       navigate(`/landing/community/${selectedBoard}/posts/${created.id}`);
     } catch (e) {
       const detail = (e as { response?: { data?: { detail?: string | string[] } } })?.response?.data?.detail;
@@ -182,6 +230,15 @@ export default function LandingCommunityWritePage() {
             </div>
           ) : (
             <form onSubmit={onSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              {draftRestored && (
+                <div style={{ padding: "10px 14px", borderRadius: 10, background: "rgba(212,160,76,0.10)", border: "1px solid rgba(212,160,76,0.25)", color: gold, fontSize: 12, fontWeight: 600, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+                  <span>✓ 이전에 저장된 작성 내용을 복구했어요.</span>
+                  <button type="button" onClick={() => {
+                    setTitle(""); setContent(""); setSelectedBoard(initialBoard); setDraftRestored(false);
+                    try { window.localStorage.removeItem(draftKey); } catch { /* ignore */ }
+                  }} style={{ background: "transparent", border: "none", color: textSecondary, fontSize: 11, cursor: "pointer", fontWeight: 500 }}>새로 작성</button>
+                </div>
+              )}
               {/* 게시판 선택 */}
               <Field label="게시판" textSecondary={textSecondary}>
                 <select
@@ -231,22 +288,43 @@ export default function LandingCommunityWritePage() {
 
               {/* 내용 */}
               <Field label="내용" textSecondary={textSecondary} required>
-                <textarea
-                  value={content}
-                  onChange={(e) => setContent(e.target.value)}
-                  disabled={submitting}
-                  rows={12}
-                  maxLength={20000}
-                  placeholder="본문 내용을 입력하세요. 줄바꿈은 그대로 표시됩니다."
-                  data-testid="landing-community-write-content"
-                  required
-                  style={{
-                    width: "100%", padding: "12px 14px", borderRadius: 10,
-                    border: `1px solid ${border}`, background: cardBg,
-                    color: textPrimary, fontSize: 14.5, fontFamily: "inherit", outline: "none",
-                    resize: "vertical", lineHeight: 1.7,
-                  }}
-                />
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6, gap: 8 }}>
+                  <div style={{ fontSize: 11, color: textMuted, lineHeight: 1.5 }}>
+                    <strong style={{ color: textSecondary }}>**굵게**</strong> · <em>*기울임*</em> · ## 소제목 · - 목록 · [링크](url) · ![이미지](url)
+                  </div>
+                  <button type="button" onClick={() => setShowPreview((p) => !p)} disabled={submitting}
+                    data-testid="landing-community-write-preview-toggle"
+                    style={{ padding: "5px 12px", borderRadius: 999, background: showPreview ? gold : "transparent", color: showPreview ? "#0A0E1A" : textSecondary, border: `1px solid ${showPreview ? gold : border}`, fontSize: 11.5, fontWeight: 600, cursor: "pointer" }}
+                  >{showPreview ? "✓ 미리보기" : "미리보기"}</button>
+                </div>
+                {showPreview ? (
+                  <div
+                    style={{
+                      width: "100%", minHeight: 200, padding: "12px 14px", borderRadius: 10,
+                      border: `1px solid ${border}`, background: cardBg,
+                      color: textPrimary, fontSize: 14.5, fontFamily: "inherit",
+                      lineHeight: 1.7, overflow: "auto",
+                    }}
+                    dangerouslySetInnerHTML={{ __html: simpleMarkdownToHtml(content) || "<p style='color:#6B7280'>미리보기할 내용이 없습니다.</p>" }}
+                  />
+                ) : (
+                  <textarea
+                    value={content}
+                    onChange={(e) => setContent(e.target.value)}
+                    disabled={submitting}
+                    rows={12}
+                    maxLength={20000}
+                    placeholder="본문 내용을 입력하세요. 줄바꿈은 그대로 표시됩니다."
+                    data-testid="landing-community-write-content"
+                    required
+                    style={{
+                      width: "100%", padding: "12px 14px", borderRadius: 10,
+                      border: `1px solid ${border}`, background: cardBg,
+                      color: textPrimary, fontSize: 14.5, fontFamily: "inherit", outline: "none",
+                      resize: "vertical", lineHeight: 1.7,
+                    }}
+                  />
+                )}
               </Field>
 
               {/* 이미지 첨부 (P3) — 최대 5장, 각 5MB. backend validation 따름. */}

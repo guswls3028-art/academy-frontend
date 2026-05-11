@@ -16,6 +16,7 @@ interface StatsResponse {
   likes: { post: number; reply: number; total: number };
   reports: { total: number; by_status: Record<string, number> };
   top_posts: { id: number; title: string; post_type: string; period_likes: number; period_replies: number }[];
+  top_students: { id: number; name: string; post_count: number; reply_count: number; score: number }[];
 }
 
 const POST_TYPE_LABEL: Record<string, string> = {
@@ -93,6 +94,32 @@ export default function CommunityStatsPage() {
           <section style={{ marginBottom: 30, padding: 20, borderRadius: 14, background: "#fff", border: "1px solid #E2E8F0" }}>
             <h2 style={{ fontSize: 14, fontWeight: 700, color: "#0F172A", margin: "0 0 14px" }}>게시판별 신규 글</h2>
             <BarChart data={data.posts.by_type} labelMap={POST_TYPE_LABEL} />
+          </section>
+
+          {/* top 활동 학생 */}
+          <section style={{ marginBottom: 22, padding: 20, borderRadius: 14, background: "#fff", border: "1px solid #E2E8F0" }}>
+            <h2 style={{ fontSize: 14, fontWeight: 700, color: "#0F172A", margin: "0 0 4px" }}>이번 기간 활동 학생 Top 5</h2>
+            <p style={{ fontSize: 12, color: "#94A3B8", margin: "0 0 14px" }}>글 + 댓글 합산 점수</p>
+            {data.top_students.length === 0 ? (
+              <p style={{ fontSize: 13, color: "#94A3B8", margin: 0 }}>이번 기간 학생 활동이 없습니다.</p>
+            ) : (
+              <ol style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 8 }}>
+                {data.top_students.map((s, i) => (
+                  <li key={s.id} style={{ padding: "10px 14px", borderRadius: 10, background: i < 3 ? "linear-gradient(90deg, rgba(212,160,76,0.10), rgba(212,160,76,0.02))" : "#F8FAFC", display: "flex", alignItems: "center", gap: 12 }}>
+                    <span style={{ fontSize: 18, fontWeight: 800, color: i === 0 ? "#D4A04C" : i < 3 ? "#A16207" : "#94A3B8", minWidth: 28 }}>
+                      {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}.`}
+                    </span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: "#0F172A" }}>{s.name}</div>
+                      <div style={{ fontSize: 11.5, color: "#64748B", marginTop: 2 }}>
+                        글 {s.post_count} · 댓글 {s.reply_count}
+                      </div>
+                    </div>
+                    <span style={{ fontSize: 18, fontWeight: 800, color: "#1E40AF" }}>{s.score}</span>
+                  </li>
+                ))}
+              </ol>
+            )}
           </section>
 
           {/* top posts */}

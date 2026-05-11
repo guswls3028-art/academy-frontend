@@ -242,6 +242,7 @@ export default function LandingEditorPage() {
               <SectionNav id="media" label="로고 / 이미지" active={activeSection} onClick={setActiveSection} />
               <SectionNav id="cta" label="CTA 버튼" active={activeSection} onClick={setActiveSection} />
               <SectionNav id="contact" label="연락처" active={activeSection} onClick={setActiveSection} />
+              <SectionNav id="notice-popup" label="공지 팝업" active={activeSection} onClick={setActiveSection} />
               <div style={{ margin: "12px 0 6px", borderTop: "1px solid var(--color-border-divider, #e2e8f0)" }} />
               <p style={{ fontSize: 11, fontWeight: 700, color: "var(--color-text-muted, #94a3b8)", margin: "4px 0", padding: "0 8px", textTransform: "uppercase", letterSpacing: "0.06em" }}>홈페이지 모듈</p>
               <SectionNav id="sections-grid" label="모듈 모음" active={activeSection} onClick={setActiveSection} />
@@ -289,6 +290,7 @@ export default function LandingEditorPage() {
             {activeSection === "media" && <MediaEditor draft={draft} onUpload={handleImageUpload} updateDraft={updateDraft} />}
             {activeSection === "cta" && <CtaEditor draft={draft} updateDraft={updateDraft} />}
             {activeSection === "contact" && <ContactEditor draft={draft} updateDraft={updateDraft} />}
+            {activeSection === "notice-popup" && <NoticePopupEditor draft={draft} updateDraft={updateDraft} />}
             {activeSection === "sections-grid" && (
               <SectionCardGrid
                 sections={sections}
@@ -524,6 +526,72 @@ function CtaEditor({ draft, updateDraft }: { draft: LandingConfig; updateDraft: 
         <TextInput value={draft.cta_link} onChange={(v) => updateDraft((p) => ({ ...p, cta_link: v }))} placeholder="/login" />
       </FieldRow>
       <p style={{ fontSize: 12, color: "var(--color-text-muted, #94a3b8)" }}>기본값: /login (로그인 페이지)</p>
+    </EditorSection>
+  );
+}
+
+function NoticePopupEditor({ draft, updateDraft }: { draft: LandingConfig; updateDraft: (fn: (p: LandingConfig) => LandingConfig) => void }) {
+  const popup = draft.notice_popup || {};
+  const update = (patch: Partial<NonNullable<LandingConfig["notice_popup"]>>) => {
+    updateDraft((p) => ({ ...p, notice_popup: { ...(p.notice_popup || {}), ...patch } }));
+  };
+  return (
+    <EditorSection title="공지 팝업 (2026-05-11)">
+      <FieldRow label="활성화">
+        <label style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 14, cursor: "pointer" }}>
+          <input
+            type="checkbox"
+            checked={!!popup.enabled}
+            onChange={(e) => update({ enabled: e.target.checked })}
+          />
+          공지 팝업 노출
+        </label>
+      </FieldRow>
+      <FieldRow label="제목">
+        <TextInput
+          value={popup.title || ""}
+          onChange={(v) => update({ title: v })}
+          placeholder="예: 신규 강좌 개강 안내"
+          maxLength={80}
+        />
+      </FieldRow>
+      <FieldRow label="내용">
+        <textarea
+          value={popup.content || ""}
+          onChange={(e) => update({ content: e.target.value })}
+          placeholder="공지 본문 (줄바꿈 그대로 표시)"
+          maxLength={1000}
+          rows={5}
+          style={{
+            width: "100%", padding: "10px 12px", borderRadius: 8,
+            border: "1px solid var(--color-border, #E2E8F0)",
+            fontSize: 14, fontFamily: "inherit", resize: "vertical", lineHeight: 1.6,
+          }}
+        />
+      </FieldRow>
+      <FieldRow label="자세히 보기 링크 (선택)">
+        <TextInput
+          value={popup.link || ""}
+          onChange={(v) => update({ link: v })}
+          placeholder="/landing#contact 또는 https://..."
+        />
+      </FieldRow>
+      <FieldRow label="만료 일시 (선택)">
+        <input
+          type="datetime-local"
+          value={popup.expire_at ? popup.expire_at.slice(0, 16) : ""}
+          onChange={(e) => update({ expire_at: e.target.value ? new Date(e.target.value).toISOString() : undefined })}
+          style={{
+            padding: "9px 12px", borderRadius: 8,
+            border: "1px solid var(--color-border, #E2E8F0)",
+            fontSize: 14, fontFamily: "inherit",
+          }}
+        />
+      </FieldRow>
+      <p style={{ fontSize: 12, color: "var(--color-text-muted, #94a3b8)", margin: "8px 0 0", lineHeight: 1.6 }}>
+        외부 학부모/학생이 랜딩 첫 진입 시 노출됩니다. "24시간 동안 보지 않기" 클릭 후엔 24시간 동안 자동 숨김.
+        만료 일시 지나면 자동 비노출.
+      </p>
     </EditorSection>
   );
 }
