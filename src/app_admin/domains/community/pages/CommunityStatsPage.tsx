@@ -192,7 +192,7 @@ function Kpi({ label, value, accent, subtitle }: { label: string; value: number;
 function BarChart({ data, labelMap }: { data: Record<string, number>; labelMap: Record<string, string> }) {
   const entries = Object.entries(data);
   if (entries.length === 0) return <p style={{ fontSize: 13, color: "#94A3B8", margin: 0 }}>데이터 없음.</p>;
-  const max = Math.max(...entries.map(([_, v]) => v), 1);
+  const max = Math.max(...entries.map(([, v]) => v), 1);
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
       {entries.map(([k, v]) => {
