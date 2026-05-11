@@ -12,6 +12,7 @@ import { getEnabledSections, SvgIcon, HitReportCards, useTenantHitStats, Landing
 import LandingFooter, { FOOTER_TOKENS_DARK } from "../components/LandingFooter";
 import CommunityPreviewSection from "../components/CommunityPreviewSection";
 import HeroCarousel from "../components/HeroCarousel";
+import TestimonialsSticky from "../components/TestimonialsSticky";
 import { Fragment } from "react";
 import { hexToRgb } from "./colorUtils";
 import useAuth from "@/auth/hooks/useAuth";
@@ -182,6 +183,7 @@ export default function PremiumDark({ config }: TemplateProps) {
                 </div>
               </section>
               <HeroCarousel items={hitItems} theme="dark" />
+              <TestimonialsSticky theme="dark" />
               </Fragment>
             );
           }

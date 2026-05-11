@@ -117,6 +117,15 @@ export interface LandingContact {
   address: string;
 }
 
+/** 공지 popup(2026-05-11) — 학원장이 LandingEditor에서 enable. localStorage 24h skip. */
+export interface NoticePopupConfig {
+  enabled?: boolean;
+  title?: string;
+  content?: string;
+  link?: string;       // 클릭 시 이동(외부 URL 또는 내부 라우트)
+  expire_at?: string;  // ISO datetime — 이후 자동 비노출
+}
+
 export interface LandingConfig {
   brand_name: string;
   tagline: string;
@@ -129,6 +138,8 @@ export interface LandingConfig {
   contact: LandingContact;
   sections: LandingSection[];
   template_key?: string;
+  /** 공지 popup — 학원장 LandingEditor 설정. */
+  notice_popup?: NoticePopupConfig;
 }
 
 export type TemplateKey = "minimal_tutor" | "premium_dark" | "academic_trust" | "program_promo";

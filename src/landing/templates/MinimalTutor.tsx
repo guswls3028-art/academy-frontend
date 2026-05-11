@@ -11,6 +11,7 @@ import { Link } from "react-router-dom";
 import LandingFooter, { FOOTER_TOKENS_LIGHT } from "../components/LandingFooter";
 import CommunityPreviewSection from "../components/CommunityPreviewSection";
 import HeroCarousel from "../components/HeroCarousel";
+import TestimonialsSticky from "../components/TestimonialsSticky";
 import { Fragment } from "react";
 import { hexToRgb } from "./colorUtils";
 
@@ -99,6 +100,7 @@ export default function MinimalTutor({ config }: TemplateProps) {
                 </div>
               </section>
               <HeroCarousel items={hitItems} theme="light" />
+              <TestimonialsSticky theme="light" />
               </Fragment>
             );
           }

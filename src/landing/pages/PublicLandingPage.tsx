@@ -13,6 +13,7 @@ import { fetchLandingPublic } from "../api";
 import { getTemplateComponent } from "../templates";
 import type { LandingPublicResponse } from "../types";
 import LandingRoleFab from "../components/LandingRoleFab";
+import NoticePopup from "../components/NoticePopup";
 
 export default function PublicLandingPage() {
   const [state, setState] = useState<{ loading: boolean; data: LandingPublicResponse | null }>({
@@ -96,6 +97,7 @@ export default function PublicLandingPage() {
   return (
     <>
       <Template config={state.data.config} />
+      <NoticePopup notice={state.data.config?.notice_popup} />
       <LandingRoleFab />
     </>
   );

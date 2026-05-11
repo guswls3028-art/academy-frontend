@@ -61,6 +61,8 @@ const BoardAdminPage = lazy(() => import("@admin/domains/community/pages/BoardAd
 const NoticeAdminPage = lazy(() => import("@admin/domains/community/pages/NoticeAdminPage"));
 const CounselAdminPage = lazy(() => import("@admin/domains/community/pages/CounselAdminPage"));
 const CommunitySettingsPage = lazy(() => import("@admin/domains/community/pages/CommunitySettingsPage"));
+const ReportsAdminPage = lazy(() => import("@admin/domains/community/pages/ReportsAdminPage"));
+const CommunityStatsPage = lazy(() => import("@admin/domains/community/pages/CommunityStatsPage"));
 
 /* ================= Lazy: Fees (수납 관리) ================= */
 const FeesPage = lazy(() => import("@admin/domains/fees/pages/FeesPage"));
@@ -245,6 +247,8 @@ export default function AdminRouter() {
           <Route path="counsel" element={wrapLazy(CounselAdminPage)} />
           <Route path="materials" element={wrapLazy(MaterialsBoardPage)} />
           <Route path="settings" element={wrapLazy(CommunitySettingsPage)} />
+          <Route path="reports" element={wrapLazy(ReportsAdminPage)} />
+          <Route path="stats" element={wrapLazy(CommunityStatsPage)} />
         </Route>
 
         {/* ================= Tools (도구) ================= */}
