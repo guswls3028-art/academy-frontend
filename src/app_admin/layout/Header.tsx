@@ -7,7 +7,21 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Badge as AntBadge } from "antd";
-import { AlertTriangle, RefreshCw, User as UserIcon, Settings as SettingsIcon, Bug, LogOut, Globe as GlobeIcon } from "lucide-react";
+import {
+  AlertTriangle,
+  RefreshCw,
+  User as UserIcon,
+  Settings as SettingsIcon,
+  Bug,
+  LogOut,
+  Globe as GlobeIcon,
+  Menu as MenuIcon,
+  Home as HomeIcon,
+  Bell as BellIcon,
+  HelpCircle as HelpCircleIcon,
+  Inbox as InboxIcon,
+  Check as CheckIcon,
+} from "lucide-react";
 import NoticeOverlay from "@admin/domains/notice/overlays/NoticeOverlay";
 import { useAdminNotificationCounts, type AdminNotificationItem } from "@admin/domains/admin-notifications";
 import { useProgram } from "@/shared/program";
@@ -16,7 +30,7 @@ import { useWorkbox } from "@/shared/ui/layout/WorkboxContext";
 import { useAsyncStatus } from "@/shared/ui/asyncStatus/useAsyncStatus";
 import { WorkboxPanelContent } from "@/shared/ui/asyncStatus";
 import { getTenantCodeForApiRequest } from "@/shared/tenant";
-import { Button, Badge, ICON } from "@/shared/ui/ds";
+import { Button, Badge, ICON, ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import { fetchMe, displayUsername, meToStaffRole, type MeStaffRole } from "@admin/domains/profile/api/profile.api";
 import { StaffRoleAvatar } from "@/shared/ui/avatars";
 import { HeaderCenterStaffClock } from "@admin/domains/staff/components/HeaderCenterStaffClock";
@@ -27,87 +41,6 @@ import TchulLogoIcon from "@/auth/assets/TchulLogoIcon";
 import CommonLogoIcon from "@/auth/assets/CommonLogoIcon";
 import { useTheme } from "@/shared/contexts/ThemeContext";
 import { getThemeMeta } from "@admin/domains/settings/constants/themes";
-
-function IconMenu() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-      <path
-        d="M4 6h16M4 12h16M4 18h16"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-function IconUser() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-      <path
-        d="M20 21a8 8 0 1 0-16 0"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-      <path
-        d="M12 13a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"
-        stroke="currentColor"
-        strokeWidth="2"
-      />
-    </svg>
-  );
-}
-
-function IconBell() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-      <path
-        d="M18 8a6 6 0 1 0-12 0c0 7-3 7-3 7h18s-3 0-3-7Z"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M13.73 21a2 2 0 0 1-3.46 0"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-/** 도움말 아이콘 — 사용 가이드/개발자 문의 진입 */
-function IconHelp() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="10" />
-      <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-      <path d="M12 17h.01" />
-    </svg>
-  );
-}
-
-/** 작업박스(진행 상황) 아이콘 */
-function IconWorkbox() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2" />
-      <rect x="9" y="3" width="6" height="4" rx="2" />
-      <path d="M9 12h6M9 16h6" />
-    </svg>
-  );
-}
-
-/** 완료(체크) 아이콘 — 작업 모두 완료 시 */
-function IconCheck() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M5 13l4 4L19 7" />
-    </svg>
-  );
-}
 
 /** 네이티브 프로필 드롭다운 — Ant Design Dropdown 대신 직접 구현 (모바일 터치 호환) */
 function ProfileDropdown({
@@ -381,38 +314,34 @@ export default function Header() {
       <div className="app-header" data-mobile={isMobile || undefined}>
         {/* LEFT */}
         <div className="app-header__left">
-          <Button
-            intent="ghost"
-            size="lg"
-            iconOnly
-            className="app-header__iconBtn"
-            onClick={() =>
-              isMobile
-                ? adminLayout?.openDrawer()
-                : document.dispatchEvent(new Event("ui:sidebar:toggle"))
-            }
-            aria-label={isMobile ? "메뉴 열기" : "사이드바 토글"}
-            leftIcon={<IconMenu />}
-          />
+          {/* 아이콘 액션 그룹(햄버거 + 홈) — brand와 시각적 분리 */}
+          <div className="app-header__iconGroup">
+            <Button
+              intent="secondary"
+              size="lg"
+              iconOnly
+              className="app-header__iconBtn"
+              onClick={() =>
+                isMobile
+                  ? adminLayout?.openDrawer()
+                  : document.dispatchEvent(new Event("ui:sidebar:toggle"))
+              }
+              aria-label={isMobile ? "메뉴 열기" : "사이드바 토글"}
+              leftIcon={<MenuIcon size={ICON_FOR_BUTTON.lg} aria-hidden />}
+            />
 
-          {/* 2026-05-12: 콘솔 ↔ 학원 홈페이지 빠른 이동(햄버거 우측, 로고 좌측).
-              ds Button 패턴 — 햄버거와 동일 size=lg iconOnly로 시각 일관성. */}
-          <Button
-            intent="ghost"
-            size="lg"
-            iconOnly
-            className="app-header__iconBtn"
-            aria-label="학원 홈페이지로 이동"
-            title="학원 홈페이지로 이동"
-            data-testid="app-header-go-home"
-            onClick={() => { window.location.assign("/landing"); }}
-            leftIcon={
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M3 12L12 4l9 8" />
-                <path d="M5 10v10h14V10" />
-              </svg>
-            }
-          />
+            <Button
+              intent="secondary"
+              size="lg"
+              iconOnly
+              className="app-header__iconBtn"
+              aria-label="학원 홈페이지로 이동"
+              title="학원 홈페이지로 이동"
+              data-testid="app-header-go-home"
+              onClick={() => { window.location.assign("/landing"); }}
+              leftIcon={<HomeIcon size={ICON_FOR_BUTTON.lg} aria-hidden />}
+            />
+          </div>
 
           <div className="app-header__brand">
             <span className="app-header__brandMark" aria-hidden>
@@ -477,16 +406,16 @@ export default function Header() {
                   leftIcon={
                     errorCount > 0 ? (
                       <AntBadge count={errorCount} size="small" offset={[-2, 2]}>
-                        <IconWorkbox />
+                        <InboxIcon size={ICON_FOR_BUTTON.lg} aria-hidden />
                       </AntBadge>
                     ) : hasOnlySuccessCompleted ? (
-                      <IconCheck />
+                      <CheckIcon size={ICON_FOR_BUTTON.lg} aria-hidden />
                     ) : pendingCount > 0 ? (
                       <AntBadge count={pendingCount} size="small" offset={[-2, 2]}>
-                        <IconWorkbox />
+                        <InboxIcon size={ICON_FOR_BUTTON.lg} aria-hidden />
                       </AntBadge>
                     ) : (
-                      <IconWorkbox />
+                      <InboxIcon size={ICON_FOR_BUTTON.lg} aria-hidden />
                     )
                   }
                 />
@@ -593,7 +522,7 @@ export default function Header() {
                     size="small"
                     dot={hasNotificationFailures && unreadCount === 0}
                   >
-                    <IconBell />
+                    <BellIcon size={ICON_FOR_BUTTON.lg} aria-hidden />
                   </AntBadge>
                 }
               />
@@ -638,7 +567,7 @@ export default function Header() {
               className="app-header__iconBtn"
               aria-label="도움말"
               title="도움말"
-              leftIcon={<IconHelp />}
+              leftIcon={<HelpCircleIcon size={ICON_FOR_BUTTON.lg} aria-hidden />}
             />
           </ProfileDropdown>
 
@@ -658,11 +587,11 @@ export default function Header() {
                 me ? (
                   <StaffRoleAvatar
                     role={meToStaffRole(me)}
-                    size={16}
+                    size={ICON.md}
                     className="text-[var(--color-text-secondary)]"
                   />
                 ) : (
-                  <IconUser />
+                  <UserIcon size={ICON.md} aria-hidden />
                 )
               }
             >

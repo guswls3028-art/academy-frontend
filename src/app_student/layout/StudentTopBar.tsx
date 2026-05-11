@@ -16,6 +16,7 @@ import { useAuthContext } from "@/auth/context/AuthContext";
 import { useStudentTheme } from "@student/shared/context/StudentThemeContext";
 import CommonLogoIcon from "@/auth/assets/CommonLogoIcon";
 import TchulLogoIcon from "@/auth/assets/TchulLogoIcon";
+import NotificationBadge from "@student/shared/ui/components/NotificationBadge";
 import "@student/shared/ui/theme/student-topbar.css";
 
 type Props = { tenantCode: string | null; onMenuClick?: () => void };
@@ -230,56 +231,37 @@ export default function StudentTopBar({ tenantCode, onMenuClick }: Props) {
         margin: "0 auto",
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-      {/* 햄버거 메뉴 버튼 */}
-      {onMenuClick && (
-        <button
-          type="button"
-          onClick={onMenuClick}
-          aria-label="메뉴 열기"
-          className="stu-topbar__menuBtn"
-          style={{
-            width: 44,
-            height: 44,
-            display: "grid",
-            placeItems: "center",
-            background: "transparent",
-            border: "none",
-            borderRadius: "var(--stu-radius-sm)",
-            cursor: "pointer",
-            color: "var(--stu-text)",
-            padding: 0,
-            flexShrink: 0,
-          }}
+      <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
+      {/* 아이콘 액션 그룹 (햄버거 + 홈) — 로고와 시각적 분리 */}
+      <div className="stu-topbar__iconGroup">
+        {onMenuClick && (
+          <button
+            type="button"
+            onClick={onMenuClick}
+            aria-label="메뉴 열기"
+            className="stu-topbar__iconBtn stu-topbar__menuBtn"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+              <line x1="3" y1="6" x2="21" y2="6" />
+              <line x1="3" y1="12" x2="21" y2="12" />
+              <line x1="3" y1="18" x2="21" y2="18" />
+            </svg>
+          </button>
+        )}
+        {/* 2026-05-12: 학원 홈페이지로 이동 — 햄버거와 동일 44x44 icon-only(시각 일관성) */}
+        <a
+          href="/landing"
+          aria-label="학원 홈페이지로 이동"
+          title="학원 홈페이지로 이동"
+          data-testid="stu-topbar-go-home"
+          className="stu-topbar__iconBtn"
         >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
-            <line x1="3" y1="6" x2="21" y2="6" />
-            <line x1="3" y1="12" x2="21" y2="12" />
-            <line x1="3" y1="18" x2="21" y2="18" />
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 12L12 4l9 8" />
+            <path d="M5 10v10h14V10" />
           </svg>
-        </button>
-      )}
-      {/* 2026-05-12: 학원 홈페이지로 이동 — 햄버거와 동일 44x44 icon-only(시각 일관성) */}
-      <a
-        href="/landing"
-        aria-label="학원 홈페이지로 이동"
-        title="학원 홈페이지로 이동"
-        data-testid="stu-topbar-go-home"
-        style={{
-          width: 44, height: 44,
-          display: "inline-grid", placeItems: "center",
-          background: "transparent",
-          border: "none",
-          borderRadius: "var(--stu-radius-sm)",
-          color: "var(--stu-text)",
-          textDecoration: "none", flexShrink: 0,
-        }}
-      >
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M3 12L12 4l9 8" />
-          <path d="M5 10v10h14V10" />
-        </svg>
-      </a>
+        </a>
+      </div>
       <Link
         to="/student/dashboard"
         className="stu-topbar__home-link"
@@ -350,7 +332,7 @@ export default function StudentTopBar({ tenantCode, onMenuClick }: Props) {
       </Link>
       </div>
 
-      <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
       {/* 알림 종 아이콘 (#65 P2, 2026-05-12) — community UserNotification unread 카운터.
           학생/학부모 둘 다 같은 endpoint(/community/notifications/unread-count/) 사용. */}
       <NotificationBell onClick={() => navigate("/student/notifications")} />
@@ -430,40 +412,13 @@ function NotificationBell({ onClick }: { onClick: () => void }) {
       onClick={onClick}
       aria-label={count > 0 ? `알림 ${count > 99 ? "99건 이상" : `${count}건`}` : "알림"}
       data-testid="stu-topbar-notif-bell"
-      style={{
-        width: 44, height: 44,
-        display: "inline-grid", placeItems: "center",
-        background: "transparent",
-        border: "none",
-        borderRadius: "var(--stu-radius-sm)",
-        color: count > 0 ? "var(--stu-text)" : "var(--stu-text-muted)",
-        cursor: "pointer",
-        padding: 0, flexShrink: 0,
-        position: "relative",
-      }}
+      className={`stu-topbar__iconBtn${count > 0 ? "" : " stu-topbar__iconBtn--muted"}`}
     >
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
         <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
       </svg>
-      {count > 0 && (
-        <span
-          style={{
-            position: "absolute",
-            top: 6, right: 6,
-            minWidth: 16, height: 16,
-            lineHeight: "16px",
-            fontSize: 9, fontWeight: 700,
-            textAlign: "center",
-            borderRadius: 8,
-            padding: "0 4px",
-            background: "var(--stu-danger, #ef4444)",
-            color: "#fff",
-          }}
-        >
-          {count > 99 ? "99+" : count}
-        </span>
-      )}
+      <NotificationBadge count={count} />
     </button>
   );
 }
