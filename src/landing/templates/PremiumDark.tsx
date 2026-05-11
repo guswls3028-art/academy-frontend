@@ -194,7 +194,10 @@ export default function PremiumDark({ config }: TemplateProps) {
             );
           }
 
-          case "features":
+          case "features": {
+            // empty hide SSOT (2026-05-12 — MinimalTutor와 일관)
+            const featureItems = (section.items as FeatureItem[] | undefined) || [];
+            if (featureItems.length === 0) return null;
             return (
               <section key="features" data-stype="features" style={{ padding: "120px 24px", background: bgAlt, position: "relative", overflow: "hidden" }}>
                 <div style={{ position: "absolute", inset: 0, background: `radial-gradient(ellipse 60% 40% at 50% 0%, rgba(${goldRgb},0.04) 0%, transparent 70%)`, pointerEvents: "none" }} />
@@ -203,32 +206,34 @@ export default function PremiumDark({ config }: TemplateProps) {
                     <SectionHeader eyebrow="System" title={section.title} gold={gold} goldRgb={goldRgb} textSecondary={textSecondary} />
                   )}
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 20, marginTop: 64 }}>
-                    {(section.items as FeatureItem[] || []).map((item, i) => (
+                    {featureItems.map((item, i) => (
                       <FeatureCard key={i} item={item} gold={gold} goldRgb={goldRgb} cardBg={cardBg} cardBorder={cardBorder} cardHoverBorder={cardHoverBorder} textSecondary={textSecondary} />
                     ))}
                   </div>
                 </div>
               </section>
             );
+          }
 
-          case "about":
+          case "about": {
+            // about: description 실제 콘텐츠가 본질 — title 단독은 의미 없음. trim() 빈 케이스 hide.
+            if (!section.description || !section.description.trim()) return null;
             return (
               <section key="about" data-stype="about" style={{ padding: "120px 24px", position: "relative" }}>
                 <div style={{ maxWidth: 820, margin: "0 auto", textAlign: "center" }}>
                   {section.title && (
                     <SectionHeader eyebrow="About" title={section.title} gold={gold} goldRgb={goldRgb} textSecondary={textSecondary} />
                   )}
-                  {section.description && (
-                    <p style={{
-                      fontSize: 18, lineHeight: 1.85, color: textSecondary,
-                      margin: "32px 0 0", whiteSpace: "pre-line", fontWeight: 400,
-                    }}>
-                      {section.description}
-                    </p>
-                  )}
+                  <p style={{
+                    fontSize: 18, lineHeight: 1.85, color: textSecondary,
+                    margin: "32px 0 0", whiteSpace: "pre-line", fontWeight: 400,
+                  }}>
+                    {section.description}
+                  </p>
                 </div>
               </section>
             );
+          }
 
           case "instructor_profile": {
             // 강사 통산 KPI 자동 — 학원장이 picker에 박은 hit_reports의 누적 적중률.
@@ -350,13 +355,15 @@ export default function PremiumDark({ config }: TemplateProps) {
               </section>
             );
 
-          case "programs":
+          case "programs": {
+            const programItems = (section.items as ProgramItem[] | undefined) || [];
+            if (programItems.length === 0) return null;
             return (
               <section key="programs" data-stype="programs" style={{ padding: "120px 24px", position: "relative" }}>
                 <div style={{ maxWidth: 1200, margin: "0 auto" }}>
                   <SectionHeader eyebrow="Class" title={section.title || "프로그램"} gold={gold} goldRgb={goldRgb} textSecondary={textSecondary} />
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 24, marginTop: 64 }}>
-                    {(section.items as ProgramItem[] || []).map((item, i) => (
+                    {programItems.map((item, i) => (
                       <div key={i} style={{
                         padding: 36, borderRadius: 20,
                         background: `linear-gradient(180deg, rgba(${goldRgb},0.04) 0%, rgba(${goldRgb},0.01) 100%)`,
@@ -382,6 +389,7 @@ export default function PremiumDark({ config }: TemplateProps) {
                 </div>
               </section>
             );
+          }
 
           case "testimonials":
             return (
@@ -393,17 +401,20 @@ export default function PremiumDark({ config }: TemplateProps) {
               />
             );
 
-          case "faq":
+          case "faq": {
+            const faqItems = (section.items as FaqItem[] | undefined) || [];
+            if (faqItems.length === 0) return null;
             return (
               <section key="faq" data-stype="faq" style={{ padding: "120px 24px" }}>
                 <div style={{ maxWidth: 760, margin: "0 auto" }}>
                   <SectionHeader eyebrow="Q & A" title="자주 묻는 질문" gold={gold} goldRgb={goldRgb} textSecondary={textSecondary} />
                   <div style={{ marginTop: 56 }}>
-                    <DarkFaqAccordion items={(section.items as FaqItem[]) || []} cardBorder={cardBorder} textPrimary={textPrimary} textSecondary={textSecondary} />
+                    <DarkFaqAccordion items={faqItems} cardBorder={cardBorder} textPrimary={textPrimary} textSecondary={textSecondary} />
                   </div>
                 </div>
               </section>
             );
+          }
 
           case "contact":
             return (
