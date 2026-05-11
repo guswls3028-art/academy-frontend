@@ -137,6 +137,17 @@ export default function StudentTopBar({ tenantCode, onMenuClick }: Props) {
     <div className="stu-topbar__profileDropdown">
       {/* 자녀 선택은 헤더 하단 ParentChildSwitcher 칩이 1차 채널.
        * dropdown 자녀 항목은 칩 미노출 케이스 대비 deprecated — 노출하지 않음. */}
+      <a
+        href="/landing"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="stu-topbar__profileDropdownItem"
+        style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none" }}
+        onClick={() => setProfileOpen(false)}
+      >
+        <span aria-hidden style={{ fontSize: 14, lineHeight: 1 }}>🌐</span>
+        학원 홈페이지
+      </a>
       <button
         type="button"
         className="stu-topbar__profileDropdownItem"

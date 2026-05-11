@@ -6,7 +6,7 @@
 import { useNavigate } from "react-router-dom";
 import { useProgram } from "@/shared/program";
 import { useTeacherPendingCounts } from "@teacher/shared/hooks/useTeacherPendingCounts";
-import { Menu, Bell, BellRing } from "@teacher/shared/ui/Icons";
+import { Menu, Bell, BellRing, Globe } from "@teacher/shared/ui/Icons";
 
 interface Props {
   onMenuClick: () => void;
@@ -90,7 +90,31 @@ export default function TeacherTopBar({ onMenuClick }: Props) {
         </button>
       </div>
 
-      {/* Right: Notification bell */}
+      {/* Right: 학원 홈페이지 진입 + 알림 벨 */}
+      <div style={{ display: "flex", alignItems: "center", gap: 0 }}>
+      <a
+        href="/landing"
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label="우리 학원 홈페이지 (새 탭)"
+        title="우리 학원 홈페이지"
+        style={{
+          background: "none",
+          border: "none",
+          padding: 8,
+          cursor: "pointer",
+          borderRadius: "var(--tc-radius-full)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          color: "var(--tc-text-secondary)",
+          minWidth: "var(--tc-touch-min)",
+          minHeight: "var(--tc-touch-min)",
+          textDecoration: "none",
+        }}
+      >
+        <Globe size={20} />
+      </a>
       <button
         onClick={() => navigate("/teacher/notifications")}
         aria-label={badge > 0 ? `알림 ${badge > 99 ? "99건 이상" : `${badge}건`}` : "알림"}
@@ -132,6 +156,7 @@ export default function TeacherTopBar({ onMenuClick }: Props) {
           </span>
         )}
       </button>
+      </div>
     </div>
   );
 }

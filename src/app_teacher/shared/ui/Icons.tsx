@@ -99,4 +99,5 @@ export {
   // Misc
   DollarSign,
   Package,
+  Globe,
 } from "lucide-react";
