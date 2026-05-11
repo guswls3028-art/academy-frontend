@@ -74,7 +74,7 @@ export function SelectionPanel({
         >
           🔒 학원 제출 완료 — 자료 추가/제거가 잠긴 상태입니다.
           <div style={{ fontWeight: 500, color: "var(--color-text-secondary)", marginTop: 2 }}>
-            새 보고서를 만들려면 모달을 닫고 매치업 페이지에서 시험지를 다시 선택해 주세요.
+            다시 편집하려면 위쪽 <strong style={{ color: "var(--color-status-success)" }}>"재편집 시작"</strong> 버튼을 눌러주세요.
           </div>
         </div>
       )}
@@ -298,7 +298,7 @@ function SelectRow({
             onClick={(e) => { e.stopPropagation(); onToggle(); }}
             disabled={disabled}
             aria-label={isSelected ? "PDF에서 제외" : "PDF에 포함"}
-            title={disabled ? "학원 제출 완료 — 자료 추가/제거 잠김. 매치업 페이지에서 새 보고서를 만들어 주세요." : undefined}
+            title={disabled ? "학원 제출 완료 — 위쪽 '재편집 시작' 버튼을 눌러 잠금을 푸세요." : undefined}
             style={{
               padding: "4px 10px",
               fontSize: 11, fontWeight: 700,

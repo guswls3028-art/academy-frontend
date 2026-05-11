@@ -888,6 +888,15 @@ export async function upsertHitReportEntries(
   return data;
 }
 
+// 잠금 해제 — submitted 보고서를 draft 로 복귀. 작성자 본인 또는 admin/owner.
+// 실수로 submit 클릭한 케이스 셀프 복구 (2026-05-11 박철T 사고 대응).
+export async function unsubmitHitReport(reportId: number): Promise<HitReport> {
+  const { data } = await api.post<HitReport>(
+    `/matchup/hit-reports/${reportId}/unsubmit/`,
+  );
+  return data;
+}
+
 export async function submitHitReport(reportId: number): Promise<HitReport> {
   const { data } = await api.post<HitReport>(
     `/matchup/hit-reports/${reportId}/submit/`,

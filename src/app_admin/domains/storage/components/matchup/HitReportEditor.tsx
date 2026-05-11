@@ -27,6 +27,7 @@ import {
   updateHitReport,
   upsertHitReportEntries,
   submitHitReport,
+  unsubmitHitReport,
   type HitReportDraftResponse,
   type HitReportSelectedMeta,
 } from "../../api/matchup.api";
@@ -308,6 +309,32 @@ export default function HitReportEditor({ docId, onClose }: Props) {
     }
   }, [dirtyCount, isSubmitted, reportId, saveAll, confirm]);
 
+  // 잠금 해제 — 실수로 submit 한 사용자 셀프 복구 (2026-05-11 박철T 사고 대응).
+  // submit 자체는 8% ROI라 UI에서 hide(8d3638f2) 됐지만, 그 이전에 submit한
+  // 보고서들이 잠겨 있어 admin manage.py shell 없이 못 풀어내는 결함이었음.
+  const [unsubmitting, setUnsubmitting] = useState(false);
+  const unsubmit = useCallback(async () => {
+    if (!reportId || !isSubmitted || unsubmitting) return;
+    const ok = await confirm({
+      title: "보고서 재편집 시작",
+      message: "이 보고서의 제출 잠금을 풀고 다시 편집합니다. 학원에 다시 제출하기 전까지는 KPI 자료에서 빠집니다.",
+      confirmText: "재편집 시작",
+      cancelText: "취소",
+    });
+    if (!ok) return;
+    setUnsubmitting(true);
+    try {
+      const r = await unsubmitHitReport(reportId);
+      setData((prev) => (prev ? { ...prev, report: r } : prev));
+      feedback.success("잠금이 풀렸습니다. 자료 추가/제거가 다시 가능합니다.");
+    } catch (e) {
+      console.error(e);
+      feedback.error("잠금 해제 실패. 잠시 후 다시 시도해 주세요.");
+    } finally {
+      setUnsubmitting(false);
+    }
+  }, [reportId, isSubmitted, unsubmitting, confirm]);
+
   const [pdfDownloading, setPdfDownloading] = useState(false);
   const downloadPdf = useCallback(async () => {
     if (!reportId) return;
@@ -500,8 +527,9 @@ export default function HitReportEditor({ docId, onClose }: Props) {
                     color: "white", fontSize: 11, fontWeight: 700,
                     display: "inline-flex", alignItems: "center", gap: 4,
                   }}
+                  title="학원에 제출된 상태. 다시 편집하려면 우측 '재편집 시작' 버튼을 누르세요."
                 >
-                  🔒 학원 제출 완료 · 편집 잠금
+                  🔒 학원 제출 완료
                 </span>
               )}
             </div>
@@ -595,17 +623,22 @@ export default function HitReportEditor({ docId, onClose }: Props) {
             </Button>
             {/* "학원에 제출" 버튼 — 1인 강사 학원 다수 + 알림톡 default OFF 로 ROI 낮음
                 (운영 24건 중 2건 = 8%). draft 보고서에서는 hide, submitted 보고서는
-                잠금 인디케이터로만 표시. backend submit endpoint + alimtalk 인프라는 보존
-                (다중 강사 학원 도입 시점 + 기존 submitted 2건 보호). 사용자 결정 2026-05-11. */}
+                잠금 인디케이터 + "재편집 시작" 셀프 복구 버튼. 박철T 사고(2026-05-11) —
+                실수 submit 후 admin 개입 없이는 못 푸는 결함 fix. */}
             {isSubmitted && (
-              <Button
-                size="sm"
-                intent="primary"
-                disabled
-                leftIcon={<Send size={ICON.sm} />}
-              >
-                제출 완료
-              </Button>
+              <>
+                <Button
+                  size="sm"
+                  intent="ghost"
+                  onClick={() => void unsubmit()}
+                  disabled={unsubmitting}
+                  data-testid="matchup-hit-report-unsubmit-btn"
+                  title="제출 잠금을 풀고 자료를 다시 편집합니다"
+                  leftIcon={<Send size={ICON.sm} />}
+                >
+                  {unsubmitting ? "잠금 해제 중…" : "재편집 시작"}
+                </Button>
+              </>
             )}
             <button
               onClick={() => void closeWithDirtyGuard()}
