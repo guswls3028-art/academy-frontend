@@ -57,8 +57,32 @@ export function SelectionPanel({
           행 클릭 = 미리보기 / "+ PDF에 추가" 버튼 = 보고서에 포함
         </div>
       </div>
+      {/* 제출 잠금 안내 — submitted 보고서 재진입 시 사용자가 "왜 PDF 추가 버튼이 안 눌려?" 라고
+          호소하는 사고 차단(박철T 2026-05-11). 헤더 뱃지(10px)는 작아서 인지 미흡 → 우측 패널
+          상단에 큰 띠로 명시 + 후보 행 버튼들이 disabled 인 이유를 1초 안에 인지. */}
+      {disabled && (
+        <div
+          data-testid="matchup-hit-report-submitted-lock"
+          style={{
+            padding: "8px 12px",
+            background: "color-mix(in srgb, var(--color-status-success) 10%, var(--color-bg-surface))",
+            borderBottom: "1px solid color-mix(in srgb, var(--color-status-success) 30%, transparent)",
+            color: "var(--color-status-success)",
+            fontSize: 11, fontWeight: 700, lineHeight: 1.5,
+            flexShrink: 0,
+          }}
+        >
+          🔒 학원 제출 완료 — 자료 추가/제거가 잠긴 상태입니다.
+          <div style={{ fontWeight: 500, color: "var(--color-text-secondary)", marginTop: 2 }}>
+            새 보고서를 만들려면 모달을 닫고 매치업 페이지에서 시험지를 다시 선택해 주세요.
+          </div>
+        </div>
+      )}
       <div style={{ flex: 1, overflow: "auto", padding: 8 }}>
-        {active.candidates.length === 0 && extraSelected.length === 0 ? (
+        {/* candidates 0 + 선택 0 = 완전 빈 상태. 매치업 페이지에서 자료 추가 가이드.
+            candidates 0 + 선택만 (전부 dangling) = 사용자 입장 "PDF에 추가가 안 보이네"
+            상태(2026-05-11 박철T). 새 자료를 어떻게 넣는지 명시 안내. */}
+        {active.candidates.length === 0 ? (
           <div style={{
             padding: 16, textAlign: "center", color: "var(--color-text-secondary)", fontSize: 12,
             background: "var(--color-bg-surface-soft)",
@@ -66,10 +90,12 @@ export function SelectionPanel({
             borderRadius: 6, lineHeight: 1.6,
           }}>
             <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 4, color: "var(--color-text-primary)" }}>
-              유사 자료가 없습니다
+              {extraSelected.length === 0 ? "유사 자료가 없습니다" : "추가할 후보 자료가 없습니다"}
             </div>
             <div style={{ fontSize: 11 }}>
-              매치업 페이지에서 자료를 매뉴얼 크롭/paste로 추가하면 자동 매칭됩니다.
+              {extraSelected.length === 0
+                ? "매치업 페이지에서 자료를 매뉴얼 크롭/paste로 추가하면 자동 매칭됩니다."
+                : "아래에 있는 이전 선택은 모두 원본이 삭제되었습니다. 새 자료를 추가하려면 모달을 닫고 매치업 페이지에서 자료를 매뉴얼 크롭/paste 해주세요."}
             </div>
           </div>
         ) : null}
@@ -272,6 +298,7 @@ function SelectRow({
             onClick={(e) => { e.stopPropagation(); onToggle(); }}
             disabled={disabled}
             aria-label={isSelected ? "PDF에서 제외" : "PDF에 포함"}
+            title={disabled ? "학원 제출 완료 — 자료 추가/제거 잠김. 매치업 페이지에서 새 보고서를 만들어 주세요." : undefined}
             style={{
               padding: "4px 10px",
               fontSize: 11, fontWeight: 700,
@@ -281,7 +308,7 @@ function SelectRow({
                 ? "color-mix(in srgb, var(--color-status-success) 12%, white)"
                 : "var(--color-brand-primary)",
               color: isSelected ? "var(--color-status-success)" : "white",
-              cursor: disabled ? "default" : "pointer",
+              cursor: disabled ? "not-allowed" : "pointer",
               opacity: disabled ? 0.5 : 1,
             }}
           >

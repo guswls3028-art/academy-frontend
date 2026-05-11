@@ -492,12 +492,16 @@ export default function HitReportEditor({ docId, onClose }: Props) {
               )}
               {"  ·  "}매치업 적중 보고서
               {isSubmitted && (
-                <span style={{
-                  marginLeft: 8, padding: "1px 8px", borderRadius: 999,
-                  background: "var(--color-status-success-bg, #dcfce7)",
-                  color: "var(--color-status-success)", fontSize: 10, fontWeight: 700,
-                }}>
-                  학원 제출 완료
+                <span
+                  data-testid="matchup-hit-report-submitted-badge"
+                  style={{
+                    marginLeft: 8, padding: "3px 10px", borderRadius: 999,
+                    background: "var(--color-status-success)",
+                    color: "white", fontSize: 11, fontWeight: 700,
+                    display: "inline-flex", alignItems: "center", gap: 4,
+                  }}
+                >
+                  🔒 학원 제출 완료 · 편집 잠금
                 </span>
               )}
             </div>
@@ -781,12 +785,15 @@ export default function HitReportEditor({ docId, onClose }: Props) {
                       onClick={(e) => { e.stopPropagation(); toggleExcluded(ep.id); }}
                       disabled={isSubmitted}
                       aria-label={isExcluded ? "PDF에 다시 포함" : "PDF에서 제외"}
-                      title={isExcluded ? "PDF에 다시 포함" : "이 Q는 매칭 못함 — PDF에서 제외"}
+                      title={isSubmitted
+                        ? "학원 제출 완료 — 잠긴 상태입니다"
+                        : (isExcluded ? "PDF에 다시 포함" : "이 Q는 매칭 못함 — PDF에서 제외")}
                       style={{
                         marginLeft: "auto", padding: 3,
                         border: "none", background: "transparent",
                         color: isExcluded ? "var(--color-status-error, #dc2626)" : "var(--color-text-muted)",
-                        cursor: isSubmitted ? "default" : "pointer",
+                        cursor: isSubmitted ? "not-allowed" : "pointer",
+                        opacity: isSubmitted ? 0.4 : 1,
                         display: "inline-flex", alignItems: "center",
                         flexShrink: 0,
                       }}
