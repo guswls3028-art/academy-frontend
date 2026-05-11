@@ -17,6 +17,25 @@ import {
 
 export type { PostEntity, PostAttachment, Answer };
 
+/** 내 활동 통계 (2026-05-12 #40) — backend SSOT GET /community/posts/my-activity/ */
+import api from "@/shared/api/axios";
+
+export interface MyActivityResponse {
+  is_student: boolean;
+  days: number;
+  post_count: number;
+  reply_count: number;
+  received_likes: number;
+  score?: number;
+  rank: number | null;
+  total_active_students: number;
+}
+
+export async function fetchMyActivity(days = 30): Promise<MyActivityResponse> {
+  const r = await api.get<MyActivityResponse>("/community/posts/my-activity/", { params: { days } });
+  return r.data;
+}
+
 /** 첨부파일 업로드 */
 export const uploadPostAttachments = _uploadAttachments;
 

@@ -148,6 +148,27 @@ export default function LandingCommunityPostPage() {
     return () => window.clearTimeout(tid);
   }, [searchParams, replies]);
 
+  // SEO + 소셜 공유 meta — title/description/og:image. post 변경 시 본문 첫 이미지 추출.
+  useEffect(() => {
+    if (!post || !landing?.config) return;
+    const brand = landing.config.brand_name || "학원";
+    const title = `${post.title || "게시글"} — ${brand}`;
+    const desc = (post.content || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 160);
+    document.title = title;
+    setMeta("description", desc);
+    setMeta("og:title", title);
+    setMeta("og:description", desc);
+    setMeta("og:type", "article");
+    setMeta("og:url", window.location.href);
+    setMeta("og:site_name", brand);
+    // og:image — 본문 첫 IMG src 또는 logo fallback
+    const m = (post.content || "").match(/<img[^>]+src=["']([^"']+)["']/i);
+    const img = m?.[1] || landing.config.logo_url || landing.config.hero_image_url || "";
+    if (img) setMeta("og:image", img);
+    setMeta("twitter:card", img ? "summary_large_image" : "summary");
+    return () => { document.title = brand; };
+  }, [post, landing]);
+
   useEffect(() => {
     if (!isAuthenticated || !postId) return;
     setPost(null); setReplies(null); setError("none");
@@ -785,6 +806,19 @@ function roleLabel(role: string): string {
   if (r === "parent") return "학부모";
   if (r === "staff") return "운영진";
   return role;
+}
+
+function setMeta(name: string, content: string) {
+  const isOg = name.startsWith("og:");
+  const sel = isOg ? `meta[property="${name}"]` : `meta[name="${name}"]`;
+  let el = document.querySelector(sel) as HTMLMetaElement | null;
+  if (!el) {
+    el = document.createElement("meta");
+    if (isOg) el.setAttribute("property", name);
+    else el.setAttribute("name", name);
+    document.head.appendChild(el);
+  }
+  el.setAttribute("content", content);
 }
 
 function formatDateTime(raw: string | null | undefined): string {

@@ -184,6 +184,53 @@ function StatusChip({ answered }: { answered: boolean }) {
 }
 
 // ═══════════════════════════════════════════
+// My Activity Summary (#40) — 학생 본인 활동 카드.
+// SSOT: backend GET /community/posts/my-activity/
+// ═══════════════════════════════════════════
+function MyActivitySummary() {
+  const q = useQuery({
+    queryKey: ["community", "my-activity", 30],
+    // dynamic import to avoid circular if needed
+    queryFn: () => import("../api/community.api").then((m) => m.fetchMyActivity(30)),
+    staleTime: 60 * 1000,
+  });
+  const data = q.data;
+  if (!data || !data.is_student) return null;
+  const hasActivity = (data.score || 0) > 0;
+  return (
+    <div style={{
+      padding: "14px 16px",
+      borderRadius: 12,
+      background: "var(--stu-surface-1)",
+      border: "1px solid var(--stu-border)",
+      marginBottom: 12,
+      display: "flex", alignItems: "center", justifyContent: "space-between",
+      gap: 12, flexWrap: "wrap",
+    }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0, flex: 1 }}>
+        <div style={{ fontSize: 28 }}>{data.rank === 1 ? "🥇" : data.rank === 2 ? "🥈" : data.rank === 3 ? "🥉" : hasActivity ? "📊" : "✏️"}</div>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "var(--stu-text-muted)", letterSpacing: "0.04em" }}>이번 달 내 활동</div>
+          <div style={{ fontSize: 14.5, fontWeight: 600, color: "var(--stu-text)", letterSpacing: "-0.01em" }}>
+            {hasActivity
+              ? <>글 {data.post_count}개 · 댓글 {data.reply_count}개 · ♥ {data.received_likes}</>
+              : <span style={{ color: "var(--stu-text-muted)" }}>첫 글을 올려보세요. 학원 친구들이 함께 읽어요.</span>}
+          </div>
+        </div>
+      </div>
+      {data.rank !== null && data.total_active_students > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", flexShrink: 0 }}>
+          <div style={{ fontSize: 11, color: "var(--stu-text-muted)" }}>활동 학생 중</div>
+          <div style={{ fontSize: 18, fontWeight: 800, color: "var(--stu-primary)" }}>
+            {data.rank}<span style={{ fontSize: 12, fontWeight: 600, color: "var(--stu-text-muted)" }}> / {data.total_active_students}</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════
 // Main
 // ═══════════════════════════════════════════
 export default function CommunityPage() {
@@ -225,6 +272,7 @@ export default function CommunityPage() {
   // ─── Tab view ───
   return (
     <StudentPageShell title="커뮤니티">
+      <MyActivitySummary />
       <SegmentedTabs items={TABS} value={tab} onChange={setTab} />
       <div style={{ marginTop: "var(--stu-space-5)" }}>
         {tab === "notice" && (
