@@ -76,10 +76,39 @@ export default function PremiumDark({ config }: TemplateProps) {
             const primaryCta = resolveHeroPrimaryCta(config, section);
             return (
               <Fragment key="hero">
+              {/* 디테일 애니메이션 SSOT — 박철 청사진 스튜디오 감성 (#D2, 2026-05-12).
+                  fade-up: 첫 진입 시 h1/subtitle/CTA 순차 등장.
+                  ambient glow pulse: 골드 글로우가 천천히 호흡.
+                  shimmer: 헤드라인 광택 sweep. */}
+              <style>{`
+                @keyframes premiumFadeUp {
+                  from { opacity: 0; transform: translateY(20px) }
+                  to { opacity: 1; transform: translateY(0) }
+                }
+                @keyframes premiumAmbientPulse {
+                  0%, 100% { opacity: 1 }
+                  50% { opacity: 0.78 }
+                }
+                @keyframes premiumShimmer {
+                  0% { background-position: -200% 0 }
+                  100% { background-position: 200% 0 }
+                }
+                .pd-hero-eyebrow { animation: premiumFadeUp 0.6s cubic-bezier(.2,.7,.2,1) both }
+                .pd-hero-h1      { animation: premiumFadeUp 0.7s 0.08s cubic-bezier(.2,.7,.2,1) both }
+                .pd-hero-sub     { animation: premiumFadeUp 0.7s 0.16s cubic-bezier(.2,.7,.2,1) both }
+                .pd-hero-cta     { animation: premiumFadeUp 0.7s 0.24s cubic-bezier(.2,.7,.2,1) both }
+                .pd-hero-visual  { animation: premiumFadeUp 0.9s 0.18s cubic-bezier(.2,.7,.2,1) both }
+                .pd-ambient-1, .pd-ambient-2 { animation: premiumAmbientPulse 8s ease-in-out infinite }
+                .pd-ambient-2 { animation-delay: 4s }
+                @media (prefers-reduced-motion: reduce) {
+                  .pd-hero-eyebrow, .pd-hero-h1, .pd-hero-sub, .pd-hero-cta, .pd-hero-visual,
+                  .pd-ambient-1, .pd-ambient-2 { animation: none !important; opacity: 1 !important; transform: none !important }
+                }
+              `}</style>
               <section data-stype="hero" style={{ padding: "120px 24px 100px", position: "relative", overflow: "hidden" }}>
                 {/* multi-layer ambient lighting — 깊은 다크 + 골드 글로우 + 네이비 액센트 */}
-                <div style={{ position: "absolute", inset: 0, background: `radial-gradient(ellipse 80% 60% at 70% 20%, rgba(${goldRgb},0.12) 0%, transparent 55%)`, pointerEvents: "none" }} />
-                <div style={{ position: "absolute", inset: 0, background: `radial-gradient(ellipse 60% 50% at 20% 80%, rgba(${rgb},0.18) 0%, transparent 60%)`, pointerEvents: "none" }} />
+                <div className="pd-ambient-1" style={{ position: "absolute", inset: 0, background: `radial-gradient(ellipse 80% 60% at 70% 20%, rgba(${goldRgb},0.12) 0%, transparent 55%)`, pointerEvents: "none" }} />
+                <div className="pd-ambient-2" style={{ position: "absolute", inset: 0, background: `radial-gradient(ellipse 60% 50% at 20% 80%, rgba(${rgb},0.18) 0%, transparent 60%)`, pointerEvents: "none" }} />
                 {/* subtle grain */}
                 <div style={{ position: "absolute", inset: 0, opacity: 0.4, mixBlendMode: "overlay", pointerEvents: "none",
                   backgroundImage: "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)' opacity='0.15'/></svg>\")",
@@ -88,7 +117,7 @@ export default function PremiumDark({ config }: TemplateProps) {
                 <div style={{ maxWidth: 1200, margin: "0 auto", position: "relative", display: "flex", alignItems: "center", gap: 80, flexWrap: "wrap" }}>
                   <div style={{ flex: "1 1 520px", minWidth: 280 }}>
                     {/* Eyebrow */}
-                    <div style={{
+                    <div className="pd-hero-eyebrow" style={{
                       display: "inline-flex", alignItems: "center", gap: 8,
                       padding: "6px 14px", borderRadius: 99,
                       background: `rgba(${goldRgb},0.08)`, border: `1px solid rgba(${goldRgb},0.25)`,
@@ -99,7 +128,7 @@ export default function PremiumDark({ config }: TemplateProps) {
                       Premium Class
                     </div>
 
-                    <h1 style={{
+                    <h1 className="pd-hero-h1" style={{
                       fontSize: "clamp(40px, 6vw, 68px)", fontWeight: 800, lineHeight: 1.08,
                       margin: "0 0 28px", letterSpacing: "-0.035em",
                       background: `linear-gradient(180deg, #FFFFFF 0%, #C9CCD4 100%)`,
@@ -110,7 +139,7 @@ export default function PremiumDark({ config }: TemplateProps) {
                     </h1>
 
                     {config.subtitle && (
-                      <p style={{
+                      <p className="pd-hero-sub" style={{
                         fontSize: "clamp(17px, 2vw, 20px)", lineHeight: 1.7,
                         color: textSecondary, margin: "0 0 44px", maxWidth: 560,
                         fontWeight: 400,
@@ -119,7 +148,7 @@ export default function PremiumDark({ config }: TemplateProps) {
                       </p>
                     )}
 
-                    <div style={{ display: "flex", gap: 14, flexWrap: "wrap", alignItems: "center" }}>
+                    <div className="pd-hero-cta" style={{ display: "flex", gap: 14, flexWrap: "wrap", alignItems: "center" }}>
                       {primaryCta.isInternal ? (
                         <Link
                           to={primaryCta.link}
@@ -172,7 +201,7 @@ export default function PremiumDark({ config }: TemplateProps) {
                   </div>
 
                   {config.hero_image_url && (
-                    <div style={{ flex: "1 1 420px", minWidth: 280, position: "relative" }}>
+                    <div className="pd-hero-visual" style={{ flex: "1 1 420px", minWidth: 280, position: "relative" }}>
                       <div style={{ position: "absolute", inset: -20, background: `radial-gradient(ellipse, rgba(${goldRgb},0.2) 0%, transparent 70%)`, filter: "blur(40px)", pointerEvents: "none" }} />
                       <img
                         src={config.hero_image_url}
