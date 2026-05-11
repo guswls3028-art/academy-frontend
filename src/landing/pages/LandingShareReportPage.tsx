@@ -228,19 +228,53 @@ export default function LandingShareReportPage() {
         </div>
       </section>
 
-      {/* PDF 본문 */}
+      {/* PDF 본문 — 적중 자료 1건 이상일 때만 노출. 0건이면 학생 혼란 방지 fallback. */}
       <section style={{ padding: "32px 24px", background: bgAlt }}>
         <div style={{ maxWidth: 1200, margin: "0 auto" }}>
-          <div style={{ borderRadius: 16, overflow: "hidden", border: `1px solid ${cardBorder}`, background: "#fff", height: "min(85vh, 1100px)", boxShadow: "0 20px 60px rgba(0,0,0,0.5)" }}>
-            <iframe
-              src={`${pdfUrl}#zoom=page-fit`}
-              title={`${subj} 적중 보고서`}
-              style={{ width: "100%", height: "100%", border: "none" }}
-            />
-          </div>
-          <p style={{ fontSize: 12, color: textSecondary, textAlign: "center", margin: "16px 0 0", lineHeight: 1.7 }}>
-            좌:학교 시험지 문항 / 우:강의에서 다룬 자료. 모바일에서 PDF가 잘 안 보이면 우측 상단 PDF 다운로드를 누르세요.
-          </p>
+          {meta.hit_count > 0 ? (
+            <>
+              <div style={{ borderRadius: 16, overflow: "hidden", border: `1px solid ${cardBorder}`, background: "#fff", height: "min(85vh, 1100px)", boxShadow: "0 20px 60px rgba(0,0,0,0.5)" }}>
+                <iframe
+                  src={`${pdfUrl}#zoom=page-fit`}
+                  title={`${subj} 적중 보고서`}
+                  style={{ width: "100%", height: "100%", border: "none" }}
+                />
+              </div>
+              <p style={{ fontSize: 12, color: textSecondary, textAlign: "center", margin: "16px 0 0", lineHeight: 1.7 }}>
+                좌:학교 시험지 문항 / 우:강의에서 다룬 자료. 모바일에서 PDF가 잘 안 보이면 우측 상단 PDF 다운로드를 누르세요.
+              </p>
+            </>
+          ) : (
+            // 적중 자료 0건 — 강사가 본문 매칭 자료를 아직 등록하지 않은 상태.
+            // PDF iframe 띄우면 흰 화면 (cover만 있는 빈 PDF) → 학생이 "왜 빈 페이지?" 혼란.
+            // 명시 메시지로 상태 안내. CTA로 학원 다른 적중사례 둘러보기 권유.
+            <div
+              data-testid="share-empty-content"
+              style={{
+                borderRadius: 16, padding: "64px 32px",
+                border: `1px dashed ${cardBorder}`,
+                background: "rgba(255,255,255,0.03)",
+                textAlign: "center",
+                display: "flex", flexDirection: "column", alignItems: "center", gap: 14,
+              }}
+            >
+              <div style={{
+                width: 56, height: 56, borderRadius: 14,
+                background: `rgba(${(meta.tenant_code ? "212,160,76" : "212,160,76")}, 0.12)`,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                color: gold,
+              }}>
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6" /></svg>
+              </div>
+              <h3 style={{ fontSize: 18, fontWeight: 700, margin: 0, color: textPrimary, letterSpacing: "-0.01em" }}>
+                강사가 본문 자료를 아직 등록하지 않았어요
+              </h3>
+              <p style={{ fontSize: 13, color: textSecondary, margin: 0, lineHeight: 1.7, maxWidth: 480 }}>
+                이 시험지에 매칭되는 강의 자료가 등록되면 본문 PDF가 여기에 노출됩니다.<br />
+                강사에게 본문 등록을 요청하거나, 아래 학원 홈페이지에서 다른 적중 사례를 둘러보세요.
+              </p>
+            </div>
+          )}
         </div>
       </section>
 
