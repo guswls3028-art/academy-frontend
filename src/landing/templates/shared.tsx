@@ -79,15 +79,22 @@ export interface TemplateProps {
   isPreview?: boolean;
 }
 
-/** 로고 URL 결정 — 학원장 업로드 우선, 없으면 테넌트 브랜딩(로그인 화면 등에서 쓰는 기본 로고) fallback. */
-export function useResolvedLogo(config: LandingConfig): string | null {
-  if (config.logo_url) return config.logo_url;
+/** 로고 URL 결정 — kind별 의미 분리.
+ *
+ * - kind="nav" (헤더 nav 등 작은 영역): 테넌트 brandingHeaderLogoUrl(아이콘) 우선 → logo_url(학원장 업로드) 폴백 → branding.logoUrl 폴백.
+ *   nav는 36~40px 작은 영역이라 슬로건 포함 큰 logo는 시각적으로 깨짐(노이즈/blur).
+ * - kind="main" (히어로 등 큰 영역): logo_url(학원장 업로드) 우선 → branding.logoUrl(로그인 페이지 큰 로고) 폴백.
+ *
+ * 학원장이 어드민에서 logo_url 업로드 시 둘 다 사용. 미업로드 시 테넌트 SSOT branding 분리 적용.
+ */
+export function useResolvedLogo(config: LandingConfig, kind: "nav" | "main" = "main"): string | null {
   const tc = resolveTenantCode();
-  if (!tc.ok) return null;
-  const tid = getTenantIdFromCode(tc.code);
-  if (!tid) return null;
-  const branding = getTenantBranding(tid);
-  return branding?.logoUrl || branding?.headerLogoUrl || null;
+  const tid = tc.ok ? getTenantIdFromCode(tc.code) : null;
+  const branding = tid ? getTenantBranding(tid) : null;
+  if (kind === "nav") {
+    return branding?.headerLogoUrl || config.logo_url || branding?.logoUrl || null;
+  }
+  return config.logo_url || branding?.logoUrl || branding?.headerLogoUrl || null;
 }
 
 /** 섹션 anchor 라벨 SSOT — nav 메뉴에 노출할 섹션과 한국어 라벨 */
@@ -125,7 +132,7 @@ export function LandingNavBar({ config, sections, tokens, brandMark, mobileBreak
   const enabled = sections.filter((s) => s.enabled && NAV_SECTION_ANCHORS[s.type]);
   const cta = config.cta_text || "수강 문의";
   const ctaLink = config.cta_link || "/login";
-  const logoUrl = useResolvedLogo(config);
+  const logoUrl = useResolvedLogo(config, "nav");
   const navClass = `landing-nav-${tokens.bg.includes("10,14,26") ? "dark" : "light"}`;
 
   const scrollTo = (sectionType: string) => {

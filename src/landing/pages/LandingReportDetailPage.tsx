@@ -222,7 +222,7 @@ export default function LandingReportDetailPage() {
 }
 
 function DetailNavLogo({ cfg, gold, textPrimary }: { cfg: { brand_name: string; logo_url?: string }; gold: string; textPrimary: string }) {
-  const logoUrl = useResolvedLogo(cfg as { brand_name: string; logo_url?: string; sections?: unknown[] } as Parameters<typeof useResolvedLogo>[0]);
+  const logoUrl = useResolvedLogo(cfg as Parameters<typeof useResolvedLogo>[0], "nav");
   return (
     <Link to="/landing" style={{ display: "flex", alignItems: "center", gap: 12, textDecoration: "none", color: textPrimary }}>
       {logoUrl

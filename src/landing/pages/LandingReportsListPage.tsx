@@ -149,7 +149,7 @@ export default function LandingReportsListPage() {
 }
 
 function ListNav({ cfg, gold, cardBorder, textPrimary }: { cfg: { brand_name: string; logo_url?: string }; gold: string; cardBorder: string; textPrimary: string }) {
-  const logoUrl = useResolvedLogo(cfg as Parameters<typeof useResolvedLogo>[0]);
+  const logoUrl = useResolvedLogo(cfg as Parameters<typeof useResolvedLogo>[0], "nav");
   const initial = (cfg.brand_name || "").trim().charAt(0) || "•";
   return (
     <nav style={{ position: "sticky", top: 0, zIndex: 50, background: "rgba(10,14,26,0.85)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)", borderBottom: `1px solid ${cardBorder}`, padding: "0 24px" }}>
