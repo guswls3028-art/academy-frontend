@@ -2,10 +2,10 @@
 /* Height / Size Tokens */
 
 :root {
-  /* controls */
-  --control-sm: 28px;
-  --control-md: 32px;
-  --control-lg: 40px;
+  /* controls — 나이든 사용자 가시성 보강: 기본보다 +2~4px 키움 (2026-05-12) */
+  --control-sm: 32px;
+  --control-md: 36px;
+  --control-lg: 44px;
 
   /* sidebar — 넓이 2/3 수준(260→172), 접었을 때 아이콘 전용 */
   --sidebar-width: var(--sidebar-width-expanded);
@@ -25,11 +25,12 @@
    *   lg (20)  : kpi 강조, card 메타
    *   xl (24)  : 대표 액션, 로고 옆 강조
    * ============================================================ */
-  --icon-xs: 12px;
-  --icon-sm: 14px;
-  --icon-md: 16px;
-  --icon-lg: 20px;
-  --icon-xl: 24px;
+  /* 나이든 학원장 가시성 보강 — 기존 12/14/16/20/24 → 14/16/18/22/28 (2026-05-12) */
+  --icon-xs: 14px;
+  --icon-sm: 16px;
+  --icon-md: 18px;
+  --icon-lg: 22px;
+  --icon-xl: 28px;
 
   /* ============================================================
    * BADGE SIZE — ds-badge / ds-status-badge 공유 스케일
