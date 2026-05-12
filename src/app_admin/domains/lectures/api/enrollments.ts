@@ -78,6 +78,9 @@ export type SessionEnrollmentRow = {
   enrollment: number;
   student_id?: number;
   student_name: string;
+  /** 동명이인 식별용 — backend serializer가 high/middle/elementary 중 하나 합성. */
+  student_school?: string | null;
+  student_grade?: number | null;
   created_at?: string;
 };
 
