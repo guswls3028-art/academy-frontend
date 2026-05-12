@@ -9,7 +9,7 @@ import { formatPhone } from "@/shared/utils/formatPhone";
 import LectureChip from "@/shared/ui/chips/LectureChip";
 import { useSectionMode } from "@/shared/hooks/useSectionMode";
 import { AchievementBadge } from "@teacher/shared/ui/Badge";
-import { fetchSession, fetchSessionAttendance } from "../api";
+import { fetchSession, fetchSessionAttendance, fetchLectureEnrollments } from "../api";
 import { fetchSessionExams, fetchExamResults } from "@teacher/domains/scores/api";
 import { fetchVideos } from "@teacher/domains/videos/api";
 import { fetchHomeworks } from "@teacher/domains/exams/api";
@@ -47,6 +47,14 @@ export default function SessionDetailPage() {
     queryKey: ["session-attendance", sid],
     queryFn: () => fetchSessionAttendance(sid),
     enabled: Number.isFinite(sid),
+  });
+
+  // 차시 학생 탭은 enrollment 기준 list + attendance 매핑 — 출석 row 미생성 학생도 노출
+  const lectureIdForEnrollments = session?.lecture_id ?? session?.lecture ?? null;
+  const { data: enrollments } = useQuery({
+    queryKey: ["session-enrollments", lectureIdForEnrollments],
+    queryFn: () => fetchLectureEnrollments(lectureIdForEnrollments!),
+    enabled: Number.isFinite(lectureIdForEnrollments),
   });
 
   const { data: exams } = useQuery({
@@ -133,7 +141,8 @@ export default function SessionDetailPage() {
         style={{ borderBottom: "1px solid var(--tc-border)", WebkitOverflowScrolling: "touch" }}
       >
         {([
-          { key: "students" as Tab, label: `학생${attendances?.length != null ? ` ${attendances.length}` : ""}` },
+          // 학생 카운트는 enrollment(차시 수강생 전체) 기준. attendance는 출석 상태가 매겨진 row만이라 학생 수와 다름.
+          { key: "students" as Tab, label: `학생${enrollments?.length != null ? ` ${enrollments.length}` : ""}` },
           { key: "attendance" as Tab, label: "출석" },
           { key: "scores" as Tab, label: "성적" },
           { key: "exams" as Tab, label: "시험" },
@@ -162,7 +171,13 @@ export default function SessionDetailPage() {
       </div>
 
       {/* Tab content */}
-      {tab === "students" && <StudentsTab attendances={attendances ?? []} navigate={navigate} />}
+      {tab === "students" && (
+        <StudentsTab
+          enrollments={enrollments ?? []}
+          attendances={attendances ?? []}
+          navigate={navigate}
+        />
+      )}
       {tab === "attendance" && <AttendanceTab attendances={attendances ?? []} />}
       {tab === "scores" && <ScoresTab exams={exams ?? []} sessionId={sid} navigate={navigate} />}
       {tab === "exams" && <ExamsTab exams={exams ?? []} navigate={navigate} />}
@@ -299,21 +314,38 @@ function ChevronRightIcon() {
 }
 
 /* === Students tab === */
-function StudentsTab({ attendances, navigate }: { attendances: any[]; navigate: any }) {
-  if (!attendances.length) return <EmptyState scope="panel" tone="empty" title="수강생이 없습니다" />;
+// enrollment(차시 수강생 전체)를 base로 하고 attendance를 매핑해 출석 상태 표시.
+// 출석 row가 없는 학생도 "미체크" 상태로 노출되어 학원장이 누락된 학생을 확인 가능.
+function StudentsTab({
+  enrollments,
+  attendances,
+  navigate,
+}: { enrollments: any[]; attendances: any[]; navigate: any }) {
+  if (!enrollments.length) return <EmptyState scope="panel" tone="empty" title="수강생이 없습니다" />;
+
+  // enrollment_id → attendance row 매핑
+  const attendanceByEnrollment = new Map<number, any>();
+  for (const a of attendances) {
+    const enId = a.enrollment_id ?? a.enrollment;
+    if (enId != null) attendanceByEnrollment.set(enId, a);
+  }
 
   return (
     <div className="flex flex-col gap-1.5">
-      {attendances.map((a: any) => {
-        const name = a.student_name ?? a.name ?? "이름 없음";
-        const parentPhone = a.parent_phone ?? a.parentPhone;
-        const studentPhone = a.student_phone ?? a.studentPhone ?? a.phone;
-        const st = STATUS_LABELS[a.status] ?? { label: a.status, color: "var(--tc-text-muted)" };
+      {enrollments.map((e: any) => {
+        const name = e.student_name ?? e.student?.name ?? e.name ?? "이름 없음";
+        const studentId = e.student_id ?? e.student?.id;
+        const parentPhone = e.parent_phone ?? e.student?.parent_phone ?? e.parentPhone;
+        const studentPhone = e.student_phone ?? e.student?.phone ?? e.studentPhone ?? e.phone;
+        const att = attendanceByEnrollment.get(e.id);
+        const st = att
+          ? (STATUS_LABELS[att.status] ?? { label: att.status, color: "var(--tc-text-muted)" })
+          : { label: "미체크", color: "var(--tc-text-muted)" };
 
         return (
           <button
-            key={a.id}
-            onClick={() => a.student_id && navigate(`/teacher/students/${a.student_id}`)}
+            key={e.id}
+            onClick={() => studentId && navigate(`/teacher/students/${studentId}`)}
             className="flex items-center gap-3 rounded-xl w-full text-left cursor-pointer"
             style={{
               padding: "var(--tc-space-3) var(--tc-space-4)",

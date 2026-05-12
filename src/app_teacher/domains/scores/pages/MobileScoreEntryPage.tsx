@@ -113,6 +113,8 @@ function ScoreEntryList({
   // row 식별자 = enrollment_id (admin endpoint schema SSOT)
   const inputRefs = useRef<Map<number, HTMLInputElement>>(new Map());
   const [localScores, setLocalScores] = useState<Map<number, string>>(() => loadDraft(examId));
+  // 저장 직후 행에 1.2초 색상 펄스 — 토스트 외 즉시 시각 표식
+  const [justSaved, setJustSaved] = useState<Set<number>>(new Set());
   useEffect(() => { setLocalScores(loadDraft(examId)); }, [examId]);
   useEffect(() => {
     if (!results?.length) return;
@@ -131,6 +133,14 @@ function ScoreEntryList({
         saveDraft(examId, next);
         return next;
       });
+      setJustSaved((prev) => new Set(prev).add(variables.enrollmentId));
+      setTimeout(() => {
+        setJustSaved((prev) => {
+          const next = new Set(prev);
+          next.delete(variables.enrollmentId);
+          return next;
+        });
+      }, 1200);
       qc.invalidateQueries({ queryKey: ["exam-results", examId] });
       const student = results?.find((r: any) => r.enrollment_id === variables.enrollmentId);
       const name = student?.student_name ?? "";
@@ -191,47 +201,50 @@ function ScoreEntryList({
     return { entered, total, avg, passRate };
   }, [results, localScores, examPassScore]);
 
-  if (isLoading) return <EmptyState scope="panel" tone="loading" title="불러오는 중…" />;
+  // 첫 진입 skeleton — 시험 칩만 보이고 행이 비는 시각 공백 해소
+  if (isLoading) return <ScoreEntrySkeleton />;
   if (!results?.length)
     return <EmptyState scope="panel" tone="empty" title="이 시험에 등록된 학생이 없습니다" />;
 
   return (
     <div className="flex flex-col gap-2">
-      {/* KPI 1줄 — 입력 진행 + 평균 + 합격률 */}
-      {stats && (
-        <div
-          className="grid gap-2"
-          style={{
-            gridTemplateColumns: examPassScore != null ? "repeat(3, 1fr)" : "repeat(2, 1fr)",
-          }}
-        >
-          <KpiTile label="입력" value={`${stats.entered}/${stats.total}`} />
-          <KpiTile
-            label="평균"
-            value={stats.avg != null ? stats.avg.toFixed(1) : "-"}
-            color={
-              stats.avg != null && stats.avg >= examMaxScore * 0.7
-                ? "var(--tc-success)"
-                : stats.avg != null && stats.avg >= examMaxScore * 0.4
-                  ? "var(--tc-warn)"
-                  : "var(--tc-text)"
-            }
-          />
-          {examPassScore != null && (
+      {/* KPI 1줄 — 입력 진행 + 평균 (+ 합격률, pass_score > 0 일 때만) */}
+      {stats && (() => {
+        // pass_score=0/null 은 합격선 의미 없음 → KPI 합격 타일 숨김
+        const showPass = examPassScore != null && examPassScore > 0;
+        return (
+          <div
+            className="grid gap-2"
+            style={{ gridTemplateColumns: showPass ? "repeat(3, 1fr)" : "repeat(2, 1fr)" }}
+          >
+            <KpiTile label="입력" value={`${stats.entered}/${stats.total}`} />
             <KpiTile
-              label={`합격(≥${examPassScore})`}
-              value={stats.passRate != null ? `${stats.passRate}%` : "-"}
+              label="평균"
+              value={stats.avg != null ? stats.avg.toFixed(1) : "-"}
               color={
-                stats.passRate != null && stats.passRate >= 70
+                stats.avg != null && stats.avg >= examMaxScore * 0.7
                   ? "var(--tc-success)"
-                  : stats.passRate != null && stats.passRate >= 40
+                  : stats.avg != null && stats.avg >= examMaxScore * 0.4
                     ? "var(--tc-warn)"
-                    : "var(--tc-danger)"
+                    : "var(--tc-text)"
               }
             />
-          )}
-        </div>
-      )}
+            {showPass && (
+              <KpiTile
+                label={`합격(≥${examPassScore})`}
+                value={stats.passRate != null ? `${stats.passRate}%` : "-"}
+                color={
+                  stats.passRate != null && stats.passRate >= 70
+                    ? "var(--tc-success)"
+                    : stats.passRate != null && stats.passRate >= 40
+                      ? "var(--tc-warn)"
+                      : "var(--tc-danger)"
+                }
+              />
+            )}
+          </div>
+        );
+      })()}
 
       {results.map((r: any) => {
         const enrollmentId = r.enrollment_id;
@@ -243,14 +256,16 @@ function ScoreEntryList({
         const draftNum = draftVal != null && draftVal !== "" ? Number(draftVal) : NaN;
         const isInvalid = !isNaN(draftNum) && (draftNum < 0 || draftNum > maxScore);
 
+        const saved = justSaved.has(enrollmentId);
         return (
           <div
             key={enrollmentId}
             className="flex items-center gap-3 rounded-lg"
             style={{
               padding: "var(--tc-space-3) var(--tc-space-4)",
-              background: "var(--tc-surface)",
-              border: "1px solid var(--tc-border)",
+              background: saved ? "var(--tc-success-bg)" : "var(--tc-surface)",
+              border: saved ? "1px solid var(--tc-success)" : "1px solid var(--tc-border)",
+              transition: "background 600ms ease, border-color 600ms ease",
             }}
           >
             <span
@@ -303,6 +318,41 @@ function ScoreEntryList({
           </div>
         );
       })}
+    </div>
+  );
+}
+
+function ScoreEntrySkeleton() {
+  return (
+    <div className="flex flex-col gap-2" aria-busy="true">
+      <div
+        className="grid gap-2"
+        style={{ gridTemplateColumns: "repeat(3, 1fr)" }}
+      >
+        {[0, 1, 2].map((i) => (
+          <div
+            key={i}
+            style={{
+              height: 56,
+              borderRadius: "var(--tc-radius)",
+              background: "var(--tc-surface-soft)",
+              animation: "pulse 1.5s ease-in-out infinite",
+            }}
+          />
+        ))}
+      </div>
+      {[0, 1, 2, 3].map((i) => (
+        <div
+          key={i}
+          style={{
+            height: 56,
+            borderRadius: "var(--tc-radius)",
+            background: "var(--tc-surface-soft)",
+            animation: "pulse 1.5s ease-in-out infinite",
+            animationDelay: `${i * 80}ms`,
+          }}
+        />
+      ))}
     </div>
   );
 }

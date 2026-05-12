@@ -8,7 +8,7 @@ import { EmptyState } from "@/shared/ui/ds";
 import { formatPhone } from "@/shared/utils/formatPhone";
 import LectureChip from "@/shared/ui/chips/LectureChip";
 import { MoreVertical, Pencil, Trash2, Plus, Download } from "@teacher/shared/ui/Icons";
-import { fetchLecture, fetchLectureSessions, fetchLectureEnrollments, deleteLecture, deleteSession, downloadAttendanceExcel } from "../api";
+import { fetchLecture, fetchLectureSessions, fetchLectureEnrollments, deleteLecture, downloadAttendanceExcel } from "../api";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { useConfirm } from "@/shared/ui/confirm";
@@ -39,12 +39,6 @@ export default function LectureDetailPage() {
     onError: (e) => teacherToast.error(extractApiError(e, "강의를 삭제하지 못했습니다.")),
   });
 
-  const deleteSessionMut = useMutation({
-    mutationFn: (sessionId: number) => deleteSession(sessionId),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["lecture-sessions", lid] }); teacherToast.info("차시가 삭제되었습니다."); },
-    onError: (e) => teacherToast.error(extractApiError(e, "차시를 삭제하지 못했습니다.")),
-  });
-
   const { data: lecture, isLoading } = useQuery({
     queryKey: ["lecture", lid],
     queryFn: () => fetchLecture(lid),
@@ -57,10 +51,11 @@ export default function LectureDetailPage() {
     enabled: Number.isFinite(lid),
   });
 
+  // 수강생 카운트가 탭 헤더에 표시되므로 탭 전환 전에도 fetch
   const { data: enrollments } = useQuery({
     queryKey: ["lecture-enrollments", lid],
     queryFn: () => fetchLectureEnrollments(lid),
-    enabled: Number.isFinite(lid) && tab === "students",
+    enabled: Number.isFinite(lid),
   });
 
   if (isLoading) return <EmptyState scope="panel" tone="loading" title="불러오는 중…" />;
@@ -214,18 +209,11 @@ export default function LectureDetailPage() {
                     {s.section_label ? ` · ${s.section_label}` : ""}
                   </div>
                 </div>
+                {/* 편집 1개만 inline 노출. 삭제는 편집 시트 내부에서 처리 (손가락 미스 → 데이터 손실 방지) */}
                 <div className="flex items-center gap-1 shrink-0">
                   <span onClick={(e) => { e.stopPropagation(); setEditSession(s); setSessionFormOpen(true); }}
-                    className="flex p-1 cursor-pointer" style={{ color: "var(--tc-text-muted)" }}>
+                    className="flex p-2 cursor-pointer" style={{ color: "var(--tc-text-muted)" }}>
                     <Pencil size={18} />
-                  </span>
-                  <span onClick={async (e) => {
-                      e.stopPropagation();
-                      const ok = await confirm({ title: "차시 삭제", message: "이 차시를 삭제하시겠습니까? 관련된 시험, 과제, 출결 데이터가 모두 삭제됩니다.", confirmText: "삭제", danger: true });
-                      if (ok) deleteSessionMut.mutate(s.id);
-                    }}
-                    className="flex p-1 cursor-pointer" style={{ color: "var(--tc-danger)" }}>
-                    <Trash2 size={18} />
                   </span>
                   <ChevronRight />
                 </div>
