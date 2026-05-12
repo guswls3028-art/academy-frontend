@@ -42,6 +42,8 @@ export async function lectureEnrollFromExcelUpload(
     form.append("session_id", String(options.sessionId));
   }
   const res = await api.post("/enrollments/lecture_enroll_from_excel/", form, {
+    // multipart boundary 자동 설정 위해 Content-Type undefined 강제 — axios 타입이 받지 않아 any 우회 필요.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     headers: { "Content-Type": undefined } as any,
   });
   return res.data as { job_id: string; status: string };
