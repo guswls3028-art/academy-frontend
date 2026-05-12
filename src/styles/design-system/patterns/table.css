@@ -100,7 +100,7 @@ table.ds-table {
 
 .ds-table-wrap .ds-table.ds-table--work thead th {
   padding: 6px 14px;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: var(--font-title);
   text-align: center;
   color: var(--color-text-secondary);
@@ -148,7 +148,7 @@ table.ds-table {
   text-align: left;
   padding: 6px 16px;
   vertical-align: middle;
-  font-size: 13px;
+  font-size: 14px;
   color: var(--color-text-secondary);
   white-space: nowrap;
   user-select: none;
@@ -203,7 +203,7 @@ table.ds-table {
   border-bottom: 1px solid color-mix(in srgb, var(--color-primary) 10%, var(--border-divider));
   border-right: 1px solid color-mix(in srgb, var(--border-divider) 35%, transparent);
   padding: 6px 18px;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--color-text-secondary);
   text-align: left;
@@ -487,6 +487,19 @@ table.ds-table {
   border-radius: var(--radius-sm, 4px);
 }
 
+/* P0-1 (2026-05-13): 성적탭 시험/과제 헤더 ◀ ⚙ ▶ 버튼은 헤더 hover/focus 시에만 노출.
+   평소엔 숨겨서 시험명·과제명에 폭 양보 → 학원장이 컬럼 정체를 즉시 인식.
+   keyboard focus 시에는 정상 노출되도록 :focus-within / :focus-visible 보존. */
+.ds-scores-table thead th .ds-col-action-btn {
+  opacity: 0;
+  transition: opacity 140ms ease;
+}
+.ds-scores-table thead th:hover .ds-col-action-btn,
+.ds-scores-table thead th:focus-within .ds-col-action-btn,
+.ds-scores-table thead th .ds-col-action-btn:focus-visible {
+  opacity: 1;
+}
+
 /* 성적 테이블 행 교차 배경 (엑셀 가시성, flat과 동일 토큰 --color-primary) ========== */
 
 /* 편집 모드 — 편집 가능 셀 배경 구분 */
@@ -639,7 +652,7 @@ table.ds-table {
 }
 
 .ds-cell-score-locked {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--color-text-secondary, #6b7280);
   font-variant-numeric: tabular-nums;
