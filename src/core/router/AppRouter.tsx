@@ -22,6 +22,8 @@ import { useProgram } from "@/shared/program";
 
 const AdminRouter = lazy(() => import("@admin/app/AdminRouter"));
 const DevAppRouter = lazy(() => import("@dev/app/DevAppRouter"));
+// 임시 — 발송 모달 시각 검수 preview (cleanup 예정)
+const SendModalPreview = lazy(() => import("../../_dev_preview_send_modal/SendModalPreview"));
 const PromoRouter = lazy(() => import("@promo/app/PromoRouter"));
 const PublicLandingPage = lazy(() => import("@/landing/pages/PublicLandingPage"));
 const LandingReportDetailPage = lazy(() => import("@/landing/pages/LandingReportDetailPage"));
@@ -31,6 +33,16 @@ const LandingShareReportPage = lazy(() => import("@/landing/pages/LandingShareRe
 const LandingCommunityListPage = lazy(() => import("@/landing/pages/LandingCommunityListPage"));
 const LandingCommunityPostPage = lazy(() => import("@/landing/pages/LandingCommunityPostPage"));
 const LandingCommunityWritePage = lazy(() => import("@/landing/pages/LandingCommunityWritePage"));
+// 신규 외부 공개 커뮤니티 — landing_public 도메인 (2026-05-12).
+// family-only LandingCommunity* 와 별개 트랙. 자유게시판 / 수강후기 두 축만.
+const LandingBoardPage = lazy(() => import("@/landing/pages/LandingBoardPage"));
+const LandingBoardDetailPage = lazy(() => import("@/landing/pages/LandingBoardDetailPage"));
+const LandingBoardWritePage = lazy(() => import("@/landing/pages/LandingBoardWritePage"));
+const LandingReviewsPage = lazy(() => import("@/landing/pages/LandingReviewsPage"));
+const LandingReviewDetailPage = lazy(() => import("@/landing/pages/LandingReviewDetailPage"));
+const LandingReviewWritePage = lazy(() => import("@/landing/pages/LandingReviewWritePage"));
+const LandingScoresListPage = lazy(() => import("@/landing/pages/LandingScoresPage").then(m => ({ default: m.LandingScoresListPage })));
+const LandingScoresDetailPage = lazy(() => import("@/landing/pages/LandingScoresPage").then(m => ({ default: m.LandingScoresDetailPage })));
 
 function MaintenanceGate({ enabled }: { enabled: boolean }) {
   const location = useLocation();
@@ -122,6 +134,17 @@ export default function AppRouter() {
 
   return (
     <Routes>
+      {/* 임시 — 발송 모달 시각 검수 (DEV only, cleanup 예정) */}
+      {import.meta.env.DEV && (
+        <Route
+          path="/_dev_preview/send-modal"
+          element={
+            <Suspense fallback={null}>
+              <SendModalPreview />
+            </Suspense>
+          }
+        />
+      )}
       <Route path="/login/*" element={<AuthRouter />} />
       <Route path="/terms" element={<TermsPage />} />
       <Route path="/privacy" element={<PrivacyPage />} />
@@ -201,6 +224,73 @@ export default function AppRouter() {
         element={
           <Suspense fallback={<div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}><span style={{ color: "var(--color-text-tertiary, #666)", fontSize: "var(--text-sm, 13px)" }}>불러오는 중…</span></div>}>
             <LandingCommunityWritePage />
+          </Suspense>
+        }
+      />
+      {/* 신규: 외부 공개 자유게시판 — 비로그인 OK + 학원 family 작성 + 학원장 모더레이션. */}
+      <Route
+        path="/landing/board"
+        element={
+          <Suspense fallback={<div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}><span style={{ color: "var(--color-text-tertiary, #666)", fontSize: "var(--text-sm, 13px)" }}>불러오는 중…</span></div>}>
+            <LandingBoardPage />
+          </Suspense>
+        }
+      />
+      <Route
+        path="/landing/board/write"
+        element={
+          <Suspense fallback={<div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}><span style={{ color: "var(--color-text-tertiary, #666)", fontSize: "var(--text-sm, 13px)" }}>불러오는 중…</span></div>}>
+            <LandingBoardWritePage />
+          </Suspense>
+        }
+      />
+      <Route
+        path="/landing/board/:postId"
+        element={
+          <Suspense fallback={<div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}><span style={{ color: "var(--color-text-tertiary, #666)", fontSize: "var(--text-sm, 13px)" }}>불러오는 중…</span></div>}>
+            <LandingBoardDetailPage />
+          </Suspense>
+        }
+      />
+      {/* 신규: 외부 공개 수강후기 — 평점 + 학년/과목/사진 + 학원장 승인 워크플로우. */}
+      <Route
+        path="/landing/reviews"
+        element={
+          <Suspense fallback={<div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}><span style={{ color: "var(--color-text-tertiary, #666)", fontSize: "var(--text-sm, 13px)" }}>불러오는 중…</span></div>}>
+            <LandingReviewsPage />
+          </Suspense>
+        }
+      />
+      <Route
+        path="/landing/reviews/write"
+        element={
+          <Suspense fallback={<div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}><span style={{ color: "var(--color-text-tertiary, #666)", fontSize: "var(--text-sm, 13px)" }}>불러오는 중…</span></div>}>
+            <LandingReviewWritePage />
+          </Suspense>
+        }
+      />
+      <Route
+        path="/landing/reviews/:reviewId"
+        element={
+          <Suspense fallback={<div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}><span style={{ color: "var(--color-text-tertiary, #666)", fontSize: "var(--text-sm, 13px)" }}>불러오는 중…</span></div>}>
+            <LandingReviewDetailPage />
+          </Suspense>
+        }
+      />
+      {/* 신규: 성적 통계 랜딩 홍보 (Phase #13) — 학원장 1버튼 publish, 외부 학부모 read OK */}
+      <Route
+        path="/landing/scores"
+        element={
+          <Suspense fallback={<div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}><span style={{ color: "var(--color-text-tertiary, #666)", fontSize: "var(--text-sm, 13px)" }}>불러오는 중…</span></div>}>
+            <LandingScoresListPage />
+          </Suspense>
+        }
+      />
+      <Route
+        path="/landing/scores/:id"
+        element={
+          <Suspense fallback={<div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}><span style={{ color: "var(--color-text-tertiary, #666)", fontSize: "var(--text-sm, 13px)" }}>불러오는 중…</span></div>}>
+            <LandingScoresDetailPage />
           </Suspense>
         }
       />

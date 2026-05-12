@@ -71,7 +71,7 @@ export default function ClinicPage() {
     <div className="flex flex-col gap-3">
       {/* Header with date nav + create */}
       <div className="flex justify-between items-center py-1">
-        <h2 className="text-base font-bold" style={{ color: "var(--tc-text)" }}>클리닉</h2>
+        <h2 className="text-[17px] font-bold" style={{ color: "var(--tc-text)" }}>클리닉</h2>
         <button onClick={() => setCreateOpen(true)}
           className="flex items-center gap-1 text-xs font-bold cursor-pointer"
           style={{ padding: "6px 12px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff" }}>

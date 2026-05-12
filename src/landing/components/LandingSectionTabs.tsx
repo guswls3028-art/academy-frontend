@@ -32,7 +32,7 @@ const SECTION_ORDER: Array<{ type: string; label: string }> = [
   { type: "instructor_profile", label: "강사" },
   { type: "features", label: "수업 특징" },
   { type: "programs", label: "프로그램" },
-  { type: "hit_reports", label: "매치업" },
+  { type: "hit_reports", label: "적중 사례" },
   { type: "management_system", label: "학생 관리" },
   { type: "process_timeline", label: "수업 흐름" },
   { type: "testimonials", label: "후기" },

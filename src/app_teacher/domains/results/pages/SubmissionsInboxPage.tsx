@@ -350,7 +350,7 @@ export default function SubmissionsInboxPage() {
 
                 <div className="flex-1 min-w-0">
                   <div
-                    className="text-[13px] font-semibold truncate"
+                    className="text-[15px] font-semibold truncate"
                     style={{ color: resolved ? "var(--tc-text)" : "var(--tc-text-muted)" }}
                   >
                     {titleMain} · {titleSub}

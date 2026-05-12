@@ -99,7 +99,8 @@ export default function StudentScoresDrawer({ row, meta, sessionId, onClose, onO
   const handleSendScoreReport = useCallback(async () => {
     const lectureName = (row as any).lecture_title ?? "";
     const sessionTitle = (row as any).session_title ?? "";
-    const reportOptions = { lectureName, sessionTitle };
+    // Phase #5 (2026-05-12) — 학원장 커스텀 합/불 라벨 메시지 본문에 반영.
+    const reportOptions = { lectureName, sessionTitle, passLabel: labels.pass, failLabel: labels.fail };
 
     // 성적 양식 우선순위:
     // ① 사용자 기본(is_user_default) → ② 성적변수 포함 사용자 양식 → ③ 코드 fallback(generateScoreReport)
@@ -117,7 +118,7 @@ export default function StudentScoresDrawer({ row, meta, sessionId, onClose, onO
       body = generateScoreReport(row, meta, reportOptions);
     }
 
-    const scoreDetail = buildScoreDetail(row, meta);
+    const scoreDetail = buildScoreDetail(row, meta, { passLabel: labels.pass, failLabel: labels.fail });
     openSendMessageModal({
       studentIds: row.student_id != null ? [row.student_id] : [],
       recipientLabel: `${row.student_name} 성적 발송`,

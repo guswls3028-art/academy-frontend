@@ -69,7 +69,7 @@ export default function CounselingPage() {
   return (
     <div className="flex flex-col gap-3">
       <div className="flex justify-between items-center py-1">
-        <h2 className="text-base font-bold" style={{ color: "var(--tc-text)" }}>상담 메모</h2>
+        <h2 className="text-[17px] font-bold" style={{ color: "var(--tc-text)" }}>상담 메모</h2>
         <button
           onClick={() => setShowCreate(true)}
           className="text-sm font-semibold px-3 py-1.5 rounded-lg cursor-pointer"

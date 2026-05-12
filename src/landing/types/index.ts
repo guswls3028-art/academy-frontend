@@ -74,6 +74,10 @@ export interface FaqItem {
 export interface HitReportShowcaseItem {
   report_id: number;
   display_label?: string;
+  /** 외부 공개 종료 날짜 (ISO date string, YYYY-MM-DD).
+   *  설정 시 해당 날짜 이후 외부 학부모에게 상세 PDF/본문 노출 차단되고
+   *  카드 메타(% 요약)만 노출. 학원장은 영구 열람 가능. (Phase 2 #14, 2026-05-12) */
+  published_until?: string | null;
 }
 
 /** /api/v1/matchup/landing/public/?ids=... 응답 카드 메타 */
@@ -86,6 +90,11 @@ export interface HitReportPublicCard {
   hit_rate_pct: number;
   submitted_at: string | null;
   created_at: string | null;
+  /** Phase #15 (2026-05-12) — 학교별 grouping 메타 */
+  exam_cycle?: "" | "midterm" | "final" | "mock" | "other";
+  exam_year?: number;
+  subject?: string;
+  grade_level?: string;
 }
 
 /** hero primary CTA 변형(2026-05-11) — 학원장이 LandingEditor에서 선택. admin UI는 별도 cycle.

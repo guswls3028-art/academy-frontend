@@ -153,7 +153,7 @@ export default function VideoListPage() {
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
-        <h2 className="text-base font-bold py-1" style={{ color: "var(--tc-text)" }}>영상</h2>
+        <h2 className="text-[17px] font-bold py-1" style={{ color: "var(--tc-text)" }}>영상</h2>
         <button onClick={() => fileRef.current?.click()} disabled={uploading}
           className="flex items-center gap-1 text-xs font-bold cursor-pointer"
           style={{ padding: "8px 14px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff", opacity: uploading ? 0.5 : 1, minHeight: 36 }}>
@@ -279,7 +279,7 @@ export default function VideoListPage() {
                 <div className="flex-1 min-w-0 flex flex-col gap-1">
                   <button
                     onClick={() => status === "READY" && navigate(`/teacher/videos/${v.id}`)}
-                    className="text-[14px] font-semibold text-left truncate cursor-pointer"
+                    className="text-[15px] font-semibold text-left truncate cursor-pointer"
                     style={{
                       color: "var(--tc-text)",
                       background: "none",

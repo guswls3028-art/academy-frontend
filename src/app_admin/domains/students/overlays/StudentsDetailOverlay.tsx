@@ -18,6 +18,8 @@ import {
 
 import StudentFormModal from "../components/EditStudentModal";
 import TagCreateModal from "../components/TagCreateModal";
+import { useTenantLabels } from "@/shared/hooks/useTenantLabels";
+import StudentEnrollmentMatrixDrawer from "../components/StudentEnrollmentMatrixDrawer";
 import DeleteConfirmModal from "../components/DeleteConfirmModal";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { EmptyState, Button, CloseButton, Badge, type BadgeTone } from "@/shared/ui/ds";
@@ -403,7 +405,7 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
                 />
 
                 <div className="ds-overlay-content-panel__scrollable">
-                  {tab === "enroll" && <EnrollmentsTab enrollments={student.enrollments} onNavigate={(path) => { if (props?.onClose) props.onClose(); navigate(path); }} />}
+                  {tab === "enroll" && <EnrollmentsTab studentId={id} studentName={student.name || ""} enrollments={student.enrollments} onNavigate={(path) => { if (props?.onClose) props.onClose(); navigate(path); }} />}
                   {tab === "score" && <ScoreTab data={examGrades} onNavigate={(path) => { if (props?.onClose) props.onClose(); navigate(path); }} />}
                   {tab === "homework" && <HomeworkTab data={homeworkGrades} onNavigate={(path) => { if (props?.onClose) props.onClose(); navigate(path); }} />}
                   {tab === "clinic" && <ClinicTab data={clinicData ?? []} onNavigate={(path) => { if (props?.onClose) props.onClose(); navigate(path); }} />}
@@ -664,14 +666,49 @@ function LectureChip({ name, color, chipLabel }: { name: string; color?: string;
   );
 }
 
-function EnrollmentsTab({ enrollments, onNavigate }: { enrollments: any[]; onNavigate: (path: string) => void }) {
+function EnrollmentsTab({ studentId, studentName, enrollments, onNavigate }: { studentId: number; studentName: string; enrollments: any[]; onNavigate: (path: string) => void }) {
+  const [matrixOpen, setMatrixOpen] = useState(false);
   if (!enrollments?.length) return <EmptyState scope="panel" tone="empty" title="수강 이력이 없습니다." />;
 
   const statusLabel: Record<string, string> = { ACTIVE: "수강중", INACTIVE: "비활성", PENDING: "대기" };
   const statusTone: Record<string, string> = { ACTIVE: "success", INACTIVE: "muted", PENDING: "warning" };
 
+  // Phase #11/#12 — 학생 단위 matrix UI 진입 (수강중 강의만 대상).
+  const activeLectures = enrollments
+    .filter((en: any) => (en.status ?? "ACTIVE") === "ACTIVE" && en.lectureId)
+    .map((en: any) => ({ id: en.lectureId as number, title: (en.lectureName as string) || `강의 ${en.lectureId}` }));
+
   return (
     <div style={{ display: "grid", gap: 8 }}>
+      {/* Phase #11/#12 Matrix 진입 — 학생 단위 시험/과제 개별 추가·제거 */}
+      {activeLectures.length > 0 && (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "10px 14px", borderRadius: 10, background: "color-mix(in srgb, var(--color-brand-primary) 5%, var(--color-bg-surface))", border: "1px solid color-mix(in srgb, var(--color-brand-primary) 24%, var(--color-border-divider))" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            <span style={{ fontSize: 12.5, fontWeight: 700, color: "var(--color-text-primary)" }}>📋 수강 매트릭스</span>
+            <span style={{ fontSize: 11, color: "var(--color-text-muted)" }}>학생 1명 × 세션별 시험·과제 빠른 추가/제거</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setMatrixOpen((v) => !v)}
+            data-testid="enroll-matrix-toggle"
+            className="ds-button"
+            data-intent={matrixOpen ? "ghost" : "primary"}
+            data-size="sm"
+          >
+            {matrixOpen ? "닫기" : "열기"}
+          </button>
+        </div>
+      )}
+      {matrixOpen && activeLectures.length > 0 && (
+        <div style={{ padding: 12, borderRadius: 12, background: "var(--color-bg-canvas)", border: "1px solid var(--color-border-divider)" }}>
+          <StudentEnrollmentMatrixDrawer
+            studentId={studentId}
+            studentName={studentName}
+            lectures={activeLectures}
+          />
+        </div>
+      )}
+      <div style={{ display: "grid", gap: 8 }}>
       {enrollments.map((en: any) => {
         const status = en.status ?? "ACTIVE";
         const isActive = status === "ACTIVE";
@@ -704,6 +741,7 @@ function EnrollmentsTab({ enrollments, onNavigate }: { enrollments: any[]; onNav
           </div>
         );
       })}
+      </div>
     </div>
   );
 }
@@ -809,9 +847,11 @@ function QuestionTab({ data, onNavigate }: { data: any[]; onNavigate: (path: str
 
 /** 시험 성적 탭 — admin/student-grades API 기반 */
 function ScoreTab({ data, onNavigate }: { data: any[]; onNavigate: (path: string) => void }) {
+  const labels = useTenantLabels();
   if (!data?.length) return <EmptyState scope="panel" tone="empty" title="시험 성적이 없습니다." />;
 
-  const achievementLabel: Record<string, string> = { PASS: "합격", FAIL: "불합격", REMEDIATED: "보강합격" };
+  // PASS/FAIL 라벨은 학원장 커스텀 (Phase #5). REMEDIATED("보강합격")는 자체 정책.
+  const achievementLabel: Record<string, string> = { PASS: labels.pass, FAIL: labels.fail, REMEDIATED: "보강합격" };
   const achievementTone: Record<string, string> = { PASS: "success", FAIL: "danger", REMEDIATED: "warning" };
 
   return (
@@ -853,7 +893,7 @@ function ScoreTab({ data, onNavigate }: { data: any[]; onNavigate: (path: string
               {!exam.achievement && (exam.remediated === true || exam.final_pass === true) && (
                 // 구서버 폴백: achievement 미제공이지만 remediated/final_pass로 보강합격 감지
                 <Badge variant="solid" size="sm" tone={exam.remediated ? "warning" : "success"}>
-                  {exam.remediated ? "보강합격" : "합격"}
+                  {exam.remediated ? "보강합격" : labels.pass}
                 </Badge>
               )}
               {exam.is_pass != null && !exam.achievement && exam.remediated !== true && exam.final_pass !== true && (

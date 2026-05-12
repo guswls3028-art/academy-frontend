@@ -66,19 +66,19 @@ function buildFooterColumns(sections: LandingSection[]): { title: string; items:
   }
   if (matchup.length) cols.push({ title: "매치업", items: matchup });
 
+  // 외부 공개 커뮤니티 트랙(2026-05-12) — 자유게시판 / 수강 후기 / 성적 통계. family-only는 학생/선생/어드민앱에 격리.
   cols.push({
     title: "커뮤니티",
     items: [
-      { key: "board", label: "자유게시판", kind: "route", target: "/landing/community/board" },
-      { key: "qna", label: "질문게시판", kind: "route", target: "/landing/community/qna" },
-      { key: "notice", label: "공지사항", kind: "route", target: "/landing/community/notice" },
+      { key: "public_board", label: "자유게시판", kind: "route", target: "/landing/board" },
+      { key: "public_reviews", label: "수강 후기", kind: "route", target: "/landing/reviews" },
+      { key: "public_scores", label: "성적 통계", kind: "route", target: "/landing/scores" },
     ],
   });
 
   const help: MetaLink[] = [];
   if (has("faq")) help.push({ key: "faq", label: "자주 묻는 질문", kind: "section", target: "faq" });
   if (has("contact")) help.push({ key: "contact", label: "상담 문의", kind: "section", target: "contact" });
-  if (has("testimonials")) help.push({ key: "testimonials", label: "수강 후기", kind: "section", target: "testimonials" });
   if (help.length) cols.push({ title: "도움/문의", items: help });
 
   return cols;

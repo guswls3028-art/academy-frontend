@@ -12,6 +12,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { updateAdminExam } from "@admin/domains/exams/api/adminExam";
 import { scoresQueryKeys } from "../api/queryKeys";
+import ShowcasePublishModal from "./ShowcasePublishModal";
 
 type Props = {
   examId: number;
@@ -30,6 +31,7 @@ export default function ExamHeaderQuickEdit({
 }: Props) {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [showcaseOpen, setShowcaseOpen] = useState(false);
   const [maxScore, setMaxScore] = useState<number | "">(initialMaxScore ?? 100);
   const [passScore, setPassScore] = useState<number | "">(initialPassScore ?? 0);
   const popRef = useRef<HTMLDivElement | null>(null);
@@ -145,8 +147,30 @@ export default function ExamHeaderQuickEdit({
               {saveMut.isPending ? "저장 중…" : "저장"}
             </button>
           </div>
+
+          {/* 랜딩 게시 (Phase #13) — 학원장 1버튼 publish 진입점.
+              max_score 저장과는 별개 액션이라 separator 두고 분리. */}
+          <div className="mt-3 pt-3 border-t border-[var(--color-border-divider)]">
+            <button
+              type="button"
+              onClick={() => { setOpen(false); setShowcaseOpen(true); }}
+              className="ds-button w-full"
+              data-intent="secondary"
+              data-size="sm"
+              title="이 시험의 익명 석차·점수를 학원 홈페이지에 자동 노출합니다"
+              data-testid={`showcase-publish-trigger-${examId}`}
+            >
+              🌐 학원 홈페이지에 성적 통계 게시
+            </button>
+          </div>
         </div>
       )}
+      <ShowcasePublishModal
+        open={showcaseOpen}
+        onClose={() => setShowcaseOpen(false)}
+        examId={examId}
+        examTitle={examTitle}
+      />
     </span>
   );
 }

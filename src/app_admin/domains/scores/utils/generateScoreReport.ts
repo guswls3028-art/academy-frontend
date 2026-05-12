@@ -15,6 +15,9 @@ export type ScoreReportOptions = {
   lectureName?: string;
   sessionTitle?: string;
   date?: string;
+  /** Phase #5 (2026-05-12): 학원장 커스텀 합/불 라벨. 미지정 시 "합격"/"불합격" 기본. */
+  passLabel?: string;
+  failLabel?: string;
 };
 
 // ── helpers ──
@@ -49,11 +52,13 @@ function formatScoreLine(
   maxScore: number | null | undefined,
   passed: boolean | null | undefined,
   absentLabel: string,
+  passLabel: string = "합격",
+  failLabel: string = "불합격",
 ): string {
   if (score == null) return `- ${title}: ${absentLabel}`;
   const maxStr = maxScore != null ? `/${maxScore}` : "";
   const percent = pct(score, maxScore);
-  const passStr = passed === true ? "합격" : passed === false ? "불합격" : "";
+  const passStr = passed === true ? passLabel : passed === false ? failLabel : "";
   return `- ${title}: ${score}${maxStr}${percent ? ` (${percent})` : ""} ${passStr}`.trimEnd();
 }
 
@@ -69,6 +74,8 @@ type SummaryStats = {
   hwSumMax: number;
   hwPassed: number;
   failedItems: string[];
+  /** Phase #5 — summary 라인 라벨용. caller 가 SummaryStats 직접 만드는 경로에서 주입. */
+  passLabel?: string;
 };
 
 function collectStats(row: SessionScoreRow, meta: SessionScoreMeta | null): SummaryStats {
@@ -111,24 +118,24 @@ function collectStats(row: SessionScoreRow, meta: SessionScoreMeta | null): Summ
   return s;
 }
 
-function renderExamLines(row: SessionScoreRow, meta: SessionScoreMeta | null): string[] {
+function renderExamLines(row: SessionScoreRow, meta: SessionScoreMeta | null, passLabel: string = "합격", failLabel: string = "불합격"): string[] {
   if (!row.exams || row.exams.length === 0) return [];
   const lines = ["[시험]"];
   for (const exam of row.exams) {
     const metaExam = meta?.exams?.find((e) => e.exam_id === exam.exam_id);
     const max = exam.block.max_score ?? metaExam?.max_score ?? null;
-    lines.push(formatScoreLine(exam.title, exam.block.score, max, exam.block.passed, "미응시"));
+    lines.push(formatScoreLine(exam.title, exam.block.score, max, exam.block.passed, "미응시", passLabel, failLabel));
   }
   return lines;
 }
 
-function renderHomeworkLines(row: SessionScoreRow, meta: SessionScoreMeta | null): string[] {
+function renderHomeworkLines(row: SessionScoreRow, meta: SessionScoreMeta | null, passLabel: string = "합격", failLabel: string = "불합격"): string[] {
   if (!row.homeworks || row.homeworks.length === 0) return [];
   const lines = ["[과제]"];
   for (const hw of row.homeworks) {
     const metaHw = meta?.homeworks?.find((h) => h.homework_id === hw.homework_id);
     const max = hw.block.max_score ?? metaHw?.max_score ?? null;
-    lines.push(formatScoreLine(hw.title, hw.block.score, max, hw.block.passed, "미제출"));
+    lines.push(formatScoreLine(hw.title, hw.block.score, max, hw.block.passed, "미제출", passLabel, failLabel));
   }
   return lines;
 }
@@ -139,17 +146,19 @@ function renderSummaryLines(s: SummaryStats): string[] {
 
   const lines = ["[요약]"];
 
+  // Summary 도 라벨 반영 — 단 "합격 N명 / 합격 컷" 문맥상 동일 라벨 사용.
+  const passLabelSum = s.passLabel || "합격";
   if (s.examTotal > 0) {
     const avgPct = s.examSumMax > 0 ? Math.round((s.examSumScore / s.examSumMax) * 100) : null;
-    lines.push(`- 시험: ${s.examPassed}/${s.examTotal} 합격${avgPct != null ? ` (평균 ${avgPct}점)` : ""}`);
+    lines.push(`- 시험: ${s.examPassed}/${s.examTotal} ${passLabelSum}${avgPct != null ? ` (평균 ${avgPct}점)` : ""}`);
   }
   if (s.hwTotal > 0) {
     const avgPct = s.hwSumMax > 0 ? Math.round((s.hwSumScore / s.hwSumMax) * 100) : null;
-    lines.push(`- 과제: ${s.hwPassed}/${s.hwTotal} 합격${avgPct != null ? ` (평균 ${avgPct}점)` : ""}`);
+    lines.push(`- 과제: ${s.hwPassed}/${s.hwTotal} ${passLabelSum}${avgPct != null ? ` (평균 ${avgPct}점)` : ""}`);
   }
 
   if (s.failedItems.length === 0) {
-    lines.push("- 최종: 합격");
+    lines.push(`- 최종: ${passLabelSum}`);
   } else {
     lines.push(`- 최종: 보충 필요`);
     lines.push(`- 보충 대상: ${s.failedItems.join(", ")}`);
@@ -174,16 +183,21 @@ export function generateScoreReport(
   lines.push(`${date} 성적`);
   lines.push("");
 
-  const examLines = renderExamLines(row, meta);
+  // Phase #5 (2026-05-12) — 학원장 커스텀 합/불 라벨 caller 전달.
+  const passLabel = options.passLabel || "합격";
+  const failLabel = options.failLabel || "불합격";
+
+  const examLines = renderExamLines(row, meta, passLabel, failLabel);
   if (examLines.length > 0) lines.push(...examLines);
 
-  const hwLines = renderHomeworkLines(row, meta);
+  const hwLines = renderHomeworkLines(row, meta, passLabel, failLabel);
   if (hwLines.length > 0) {
     if (examLines.length > 0) lines.push("");
     lines.push(...hwLines);
   }
 
   const stats = collectStats(row, meta);
+  stats.passLabel = passLabel;
   const summaryLines = renderSummaryLines(stats);
   if (summaryLines.length > 0) {
     lines.push("");
@@ -364,19 +378,23 @@ export function substituteScoreVars(
 export function buildScoreDetail(
   row: SessionScoreRow,
   meta: SessionScoreMeta | null,
+  labels?: { passLabel?: string; failLabel?: string },
 ): string {
   const lines: string[] = [];
+  const passLabel = labels?.passLabel || "합격";
+  const failLabel = labels?.failLabel || "불합격";
 
-  const examLines = renderExamLines(row, meta);
+  const examLines = renderExamLines(row, meta, passLabel, failLabel);
   if (examLines.length > 0) lines.push(...examLines);
 
-  const hwLines = renderHomeworkLines(row, meta);
+  const hwLines = renderHomeworkLines(row, meta, passLabel, failLabel);
   if (hwLines.length > 0) {
     if (examLines.length > 0) lines.push("");
     lines.push(...hwLines);
   }
 
   const stats = collectStats(row, meta);
+  stats.passLabel = passLabel;
   const summaryLines = renderSummaryLines(stats);
   if (summaryLines.length > 0) {
     lines.push("");

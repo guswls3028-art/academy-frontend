@@ -63,6 +63,9 @@ const CounselAdminPage = lazy(() => import("@admin/domains/community/pages/Couns
 const CommunitySettingsPage = lazy(() => import("@admin/domains/community/pages/CommunitySettingsPage"));
 const ReportsAdminPage = lazy(() => import("@admin/domains/community/pages/ReportsAdminPage"));
 const CommunityStatsPage = lazy(() => import("@admin/domains/community/pages/CommunityStatsPage"));
+// 외부 공개 커뮤니티 통합 모더레이션 inbox (Phase 4-C, 2026-05-12).
+// family-only community와 별개 도메인 — landing_public 트랙.
+const LandingPublicInboxPage = lazy(() => import("@admin/domains/landing-public/pages/LandingPublicInboxPage"));
 
 /* ================= Lazy: Fees (수납 관리) ================= */
 const FeesPage = lazy(() => import("@admin/domains/fees/pages/FeesPage"));
@@ -250,6 +253,10 @@ export default function AdminRouter() {
           <Route path="reports" element={wrapLazy(ReportsAdminPage)} />
           <Route path="stats" element={wrapLazy(CommunityStatsPage)} />
         </Route>
+
+        {/* 외부 공개 커뮤니티 (landing_public) 모더레이션 — community 도메인과 별개 트랙 */}
+        <Route path="landing-public/inbox" element={wrapLazy(LandingPublicInboxPage)} />
+        <Route path="landing-public" element={<Navigate to="/admin/landing-public/inbox" replace />} />
 
         {/* ================= Tools (도구) ================= */}
         <Route path="tools/*" element={wrapLazy(ToolsRoutes)} />

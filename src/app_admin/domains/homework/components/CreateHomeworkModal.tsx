@@ -72,6 +72,9 @@ export default function CreateHomeworkModal({
   const [selectedTemplateIds, setSelectedTemplateIds] = useState<Set<number>>(new Set());
   const [keyword, setKeyword] = useState("");
 
+  // 차시 수강생 수 — 자동 등록 미리 알리기 위해 모달 오픈 시 1회 조회
+  const [enrollmentCount, setEnrollmentCount] = useState<number | null>(null);
+
   useEffect(() => {
     if (!open) return;
     setStage("choose");
@@ -83,7 +86,13 @@ export default function CreateHomeworkModal({
     setTemplatesLoading(false);
     setSelectedTemplateIds(new Set());
     setKeyword("");
-  }, [open]);
+    setEnrollmentCount(null);
+    if (sessionId > 0) {
+      fetchSessionEnrollments(sessionId)
+        .then((list) => setEnrollmentCount(list.length))
+        .catch(() => setEnrollmentCount(null));
+    }
+  }, [open, sessionId]);
 
   // Load templates for import stage
   useEffect(() => {
@@ -107,15 +116,16 @@ export default function CreateHomeworkModal({
     return () => { cancelled = true; };
   }, [open, stage]);
 
-  const autoEnroll = useCallback(async (homeworkId: number) => {
+  /** 결과를 반환하도록 변경 — 호출 측이 N개 생성 시 단일 toast로 집계 */
+  const autoEnroll = useCallback(async (homeworkId: number): Promise<{ enrolled: number; error?: string }> => {
     try {
       const enrollments = await fetchSessionEnrollments(sessionId);
       const ids = enrollments.map((e) => e.enrollment);
-      if (ids.length > 0) {
-        await putHomeworkAssignments({ homeworkId, enrollment_ids: ids });
-      }
-    } catch {
-      feedback.warning("학생 자동 등록에 실패했습니다. 수동으로 등록해 주세요.");
+      if (ids.length === 0) return { enrolled: 0 };
+      await putHomeworkAssignments({ homeworkId, enrollment_ids: ids });
+      return { enrolled: ids.length };
+    } catch (e: any) {
+      return { enrolled: 0, error: e?.response?.data?.detail ?? e?.message ?? "자동 등록 실패" };
     }
   }, [sessionId]);
 
@@ -158,7 +168,15 @@ export default function CreateHomeworkModal({
 
     // 커트라인은 row[0]의 입력값을 항상 사용 (UI에서 row[0]만 편집 가능).
     // 과거 validRows[0] 사용 시 row[0] 제목이 비어 있으면 다른 행의 default(80)가 잘못 들어가는 버그가 있었음.
-    const firstCutline = Number(rows[0]?.cutline);
+    // 2026-05-12 fix: 사용자가 0 입력 시도 — Math.max 가드만 적용, 명시적 silent default 제거.
+    // PERCENT 모드 0~100, COUNT 모드 0~(int 상한). 0 = "모두 합격" 의도 명확. firstCutline NaN/빈값일
+    // 때만 안전 default (이전엔 0/음수도 default fallback → 사용자 0 입력 의도 깨졌음).
+    const firstCutlineRaw = Number(rows[0]?.cutline);
+    const firstCutline = Number.isFinite(firstCutlineRaw)
+      ? (cutlineMode === "PERCENT"
+        ? Math.max(0, Math.min(100, Math.trunc(firstCutlineRaw)))
+        : Math.max(0, Math.trunc(firstCutlineRaw)))
+      : null;  // 빈값/NaN 만 null → default 적용
     let policyPatched = false;
     let policyError: string | null = null;
 
@@ -167,7 +185,7 @@ export default function CreateHomeworkModal({
       if (policy?.id) {
         await patchHomeworkPolicy(policy.id, {
           cutline_mode: cutlineMode,
-          cutline_value: Number.isFinite(firstCutline) && firstCutline >= 0 ? firstCutline : (cutlineMode === "PERCENT" ? 80 : 40),
+          cutline_value: firstCutline !== null ? firstCutline : (cutlineMode === "PERCENT" ? 80 : 40),
         });
         policyPatched = true;
       } else {
@@ -176,6 +194,9 @@ export default function CreateHomeworkModal({
     } catch (e: any) {
       policyError = e?.response?.data?.detail || "커트라인 저장 실패";
     }
+
+    let enrollMaxPerHw = 0;
+    let enrollErrorSample: string | null = null;
 
     for (const row of validRows) {
       try {
@@ -199,8 +220,9 @@ export default function CreateHomeworkModal({
           }
         }
 
-        // Auto-enroll
-        void autoEnroll(newId);
+        const enrollResult = await autoEnroll(newId);
+        enrollMaxPerHw = Math.max(enrollMaxPerHw, enrollResult.enrolled);
+        if (enrollResult.error && !enrollErrorSample) enrollErrorSample = enrollResult.error;
 
         createdIds.push(newId);
       } catch (e: any) {
@@ -216,9 +238,15 @@ export default function CreateHomeworkModal({
     }
 
     if (createdIds.length > 0) {
+      const enrollMsg = enrollErrorSample
+        ? ` · 제출 대상 자동 등록 실패 — 과제 상세에서 직접 등록하세요`
+        : enrollMaxPerHw > 0
+        ? ` · 수강생 ${enrollMaxPerHw}명 제출 대상 등록됨`
+        : ` · 제출 대상이 등록되지 않았습니다 (차시 수강생 0명)`;
       const msg = `${createdIds.length}개 과제 생성 완료` +
         (policyPatched ? ` (커트라인 ${firstCutline}${cutlineMode === "PERCENT" ? "%" : "점"})` : "") +
-        (failed.length > 0 ? ` · ${failed.length}개 실패` : "");
+        (failed.length > 0 ? ` · ${failed.length}개 실패` : "") +
+        enrollMsg;
       feedback.success(msg);
     }
     if (policyError) {
@@ -249,6 +277,9 @@ export default function CreateHomeworkModal({
     const createdIds: number[] = [];
     const failedTitles: string[] = [];
 
+    let enrollMaxPerHw = 0;
+    let enrollErrorSample: string | null = null;
+
     for (const tpl of selected) {
       try {
         const res = await api.post("/homeworks/", {
@@ -259,7 +290,9 @@ export default function CreateHomeworkModal({
         const newId = Number(res.data?.id ?? res.data?.homework_id ?? res.data?.pk);
         if (!Number.isFinite(newId) || newId <= 0) throw new Error("생성 후 ID를 받지 못했습니다.");
 
-        void autoEnroll(newId);
+        const enrollResult = await autoEnroll(newId);
+        enrollMaxPerHw = Math.max(enrollMaxPerHw, enrollResult.enrolled);
+        if (enrollResult.error && !enrollErrorSample) enrollErrorSample = enrollResult.error;
         createdIds.push(newId);
       } catch {
         failedTitles.push(tpl.title);
@@ -273,11 +306,17 @@ export default function CreateHomeworkModal({
       onCreated(createdIds[createdIds.length - 1]);
     }
 
-    if (failedTitles.length === 0) {
-      feedback.success(`${createdIds.length}개 템플릿 과제 생성 완료`);
-      onClose();
-    } else if (createdIds.length > 0) {
-      feedback.warning(`${createdIds.length}개 생성 완료, ${failedTitles.length}개 실패: ${failedTitles.join(", ")}`);
+    if (createdIds.length > 0) {
+      const enrollMsg = enrollErrorSample
+        ? ` · 제출 대상 자동 등록 실패 — 과제 상세에서 직접 등록하세요`
+        : enrollMaxPerHw > 0
+        ? ` · 수강생 ${enrollMaxPerHw}명 제출 대상 등록됨`
+        : ` · 제출 대상이 등록되지 않았습니다 (차시 수강생 0명)`;
+      if (failedTitles.length === 0) {
+        feedback.success(`${createdIds.length}개 과제 가져오기 완료${enrollMsg}`);
+      } else {
+        feedback.warning(`${createdIds.length}개 가져오기 완료, ${failedTitles.length}개 실패: ${failedTitles.join(", ")}${enrollMsg}`);
+      }
       onClose();
     } else {
       setError(`과제 생성 실패: ${failedTitles.join(", ")}`);
@@ -293,6 +332,9 @@ export default function CreateHomeworkModal({
 
     const createdIds: number[] = [];
     const failed: string[] = [];
+
+    let enrollMaxPerHw = 0;
+    let enrollErrorSample: string | null = null;
 
     for (const item of items) {
       try {
@@ -314,7 +356,9 @@ export default function CreateHomeworkModal({
           }
         }
 
-        void autoEnroll(newId);
+        const enrollResult = await autoEnroll(newId);
+        enrollMaxPerHw = Math.max(enrollMaxPerHw, enrollResult.enrolled);
+        if (enrollResult.error && !enrollErrorSample) enrollErrorSample = enrollResult.error;
         createdIds.push(newId);
       } catch {
         failed.push(item.title);
@@ -329,8 +373,14 @@ export default function CreateHomeworkModal({
     }
 
     if (createdIds.length > 0) {
-      const msg = `${createdIds.length}개 과제 불러오기 완료 (복사 생성)` +
-        (failed.length > 0 ? ` · ${failed.length}개 실패` : "");
+      const enrollMsg = enrollErrorSample
+        ? ` · 제출 대상 자동 등록 실패 — 과제 상세에서 직접 등록하세요`
+        : enrollMaxPerHw > 0
+        ? ` · 수강생 ${enrollMaxPerHw}명 제출 대상 등록됨`
+        : ` · 제출 대상이 등록되지 않았습니다 (차시 수강생 0명)`;
+      const msg = `${createdIds.length}개 과제 양식 복사 완료` +
+        (failed.length > 0 ? ` · ${failed.length}개 실패` : "") +
+        enrollMsg;
       feedback.success(msg);
     }
     if (failed.length > 0 && createdIds.length === 0) {
@@ -354,10 +404,10 @@ export default function CreateHomeworkModal({
   if (!open) return null;
 
   const stageLabels: Record<Stage, string> = {
-    choose: "과제 생성",
-    new: "일괄 과제 생성",
-    import: "템플릿 불러오기",
-    copy: "다른 차시에서 불러오기",
+    choose: "과제 만들기",
+    new: "직접 만들기",
+    import: "이전 과제에서 가져오기",
+    copy: "다른 차시 양식 복사",
   };
 
   const headerTitle =
@@ -396,11 +446,11 @@ export default function CreateHomeworkModal({
         title={headerTitle}
         description={
           stage === "choose"
-            ? "신규 과제를 만들거나, 기존 과제를 불러와 이 차시에 적용할 수 있습니다. 대상자는 자동 등록됩니다."
+            ? "이 차시에 적용할 과제를 만듭니다. 만들어진 과제에는 차시 수강생이 자동으로 제출 대상으로 등록됩니다."
             : stage === "new"
-            ? "여러 과제를 한 번에 생성할 수 있습니다. 행을 추가하고 일괄 생성하세요."
+            ? "제목·만점·커트라인·제출기한을 입력해 새 과제를 만듭니다. 한 번에 여러 개도 만들 수 있어요."
             : stage === "copy"
-            ? "다른 강의/차시의 과제를 선택하여 현재 차시에 복사 생성합니다."
+            ? "다른 차시의 과제 양식만 가져와 새로 만듭니다. 원본과 별도로 관리됩니다."
             : undefined
         }
       />
@@ -413,10 +463,27 @@ export default function CreateHomeworkModal({
             </div>
           )}
 
+          {/* 차시 수강생 0명 경고 — 자동 등록 거짓말 방지 */}
+          {stage !== "choose" && enrollmentCount === 0 && (
+            <div
+              className="mb-3 flex items-start gap-2 rounded-lg border px-3 py-2.5"
+              style={{
+                borderColor: "color-mix(in srgb, var(--color-warning) 50%, var(--color-border-divider))",
+                background: "color-mix(in srgb, var(--color-warning) 8%, var(--color-bg-surface))",
+              }}
+            >
+              <span aria-hidden="true" style={{ fontSize: 16 }}>⚠</span>
+              <div className="text-xs leading-relaxed">
+                <strong>이 차시에 등록된 수강생이 없습니다.</strong> 과제는 만들 수 있지만 제출 대상이 자동 등록되지 않습니다.
+                먼저 차시에 수강생을 등록한 뒤 과제를 만드세요.
+              </div>
+            </div>
+          )}
+
           {/* ── Stage: choose ── */}
           {stage === "choose" && (
             <div className="modal-form-group">
-              <div className="modal-section-label mb-3">생성 방식</div>
+              <div className="modal-section-label mb-3">어떻게 만들까요?</div>
               <div className="grid grid-cols-3 gap-3">
                 <SessionBlockView
                   variant="n1"
@@ -424,8 +491,8 @@ export default function CreateHomeworkModal({
                   selected={false}
                   showCheck
                   className="session-block--card-sm"
-                  title="신규 과제"
-                  desc="이 차시에 새 과제를 생성합니다."
+                  title="직접 만들기"
+                  desc="제목·만점·커트라인·기한을 입력해 새 과제를 만듭니다. (1개~여러 개)"
                   onClick={() => { setError(null); setRows([makeRow()]); setStage("new"); }}
                 />
                 <SessionBlockView
@@ -434,8 +501,8 @@ export default function CreateHomeworkModal({
                   selected={false}
                   showCheck
                   className="session-block--card-sm"
-                  title="템플릿 불러오기"
-                  desc="과제 템플릿을 여러 개 선택하여 일괄 생성합니다."
+                  title="이전 과제에서 가져오기 (연결)"
+                  desc="이전에 만들어 둔 과제 양식을 그대로 적용. 원본을 고치면 같이 바뀝니다."
                   onClick={() => { setError(null); setKeyword(""); setSelectedTemplateIds(new Set()); setStage("import"); }}
                 />
                 <SessionBlockView
@@ -444,8 +511,8 @@ export default function CreateHomeworkModal({
                   selected={false}
                   showCheck
                   className="session-block--card-sm"
-                  title="다른 차시에서"
-                  desc="다른 강의/차시의 과제를 복사합니다."
+                  title="다른 차시 양식 복사 (독립)"
+                  desc="다른 차시 과제의 양식만 복사. 새로 만들고 원본과 분리됩니다."
                   onClick={() => { setError(null); setStage("copy"); }}
                 />
               </div>
@@ -455,13 +522,62 @@ export default function CreateHomeworkModal({
           {/* ── Stage: new (bulk form) ── */}
           {stage === "new" && (
             <div className="modal-form-group">
+              {/* 공통 커트라인 — 모든 과제 일괄 적용 (모드 전환 직관화) */}
+              <div className="mb-3 flex flex-wrap items-center gap-3 rounded-lg border border-[var(--color-border-divider)] bg-[var(--color-bg-surface-soft)] px-3 py-2.5">
+                <label className="text-sm font-semibold text-[var(--color-text-primary)] shrink-0" htmlFor="bulk-hw-cutline">
+                  공통 커트라인
+                </label>
+                <input
+                  id="bulk-hw-cutline"
+                  type="number"
+                  min={0}
+                  className="ds-input"
+                  style={{ width: 96 }}
+                  value={rows[0]?.cutline ?? ""}
+                  onChange={(e) => updateRow(rows[0].key, "cutline", e.target.value)}
+                  aria-label="공통 커트라인"
+                />
+                <div
+                  className="inline-flex rounded-md border border-[var(--color-border-divider)] overflow-hidden"
+                  role="group"
+                  aria-label="커트라인 기준"
+                >
+                  <button
+                    type="button"
+                    onClick={() => setCutlineMode("PERCENT")}
+                    aria-pressed={cutlineMode === "PERCENT"}
+                    className={`px-3 py-1 text-xs font-semibold ${
+                      cutlineMode === "PERCENT"
+                        ? "bg-[var(--color-brand-primary)] text-white"
+                        : "bg-transparent text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface-hover)]"
+                    }`}
+                  >
+                    % (퍼센트)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCutlineMode("COUNT")}
+                    aria-pressed={cutlineMode === "COUNT"}
+                    className={`px-3 py-1 text-xs font-semibold border-l border-[var(--color-border-divider)] ${
+                      cutlineMode === "COUNT"
+                        ? "bg-[var(--color-brand-primary)] text-white"
+                        : "bg-transparent text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface-hover)]"
+                    }`}
+                  >
+                    점 (점수)
+                  </button>
+                </div>
+                <span className="text-xs text-[var(--color-text-muted)]">
+                  아래 모든 과제에 동일하게 적용 · 미만 시 클리닉 보강 대상
+                </span>
+              </div>
+
               <table className="ds-table w-full" style={{ tableLayout: "fixed" }}>
                 <colgroup>
                   <col style={{ width: 50 }} />
                   <col />
-                  <col style={{ width: 72 }} />
-                  <col style={{ width: 84 }} />
-                  <col style={{ width: 116 }} />
+                  <col style={{ width: 80 }} />
+                  <col style={{ width: 140 }} />
                   <col style={{ width: 32 }} />
                 </colgroup>
                 <thead>
@@ -469,19 +585,6 @@ export default function CreateHomeworkModal({
                     <th className="text-center text-xs font-semibold" style={{ padding: "6px 4px" }}>순서</th>
                     <th className="text-left text-xs font-semibold" style={{ padding: "6px 8px" }}>제목</th>
                     <th className="text-left text-xs font-semibold" style={{ padding: "6px 8px" }}>만점</th>
-                    <th className="text-left text-xs font-semibold" style={{ padding: "6px 4px" }}>
-                      <span className="inline-flex items-center gap-1">
-                        커트라인
-                        <button
-                          type="button"
-                          onClick={() => setCutlineMode((m) => m === "PERCENT" ? "COUNT" : "PERCENT")}
-                          className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold border border-[var(--color-border-divider)] hover:border-[var(--color-brand-primary)] text-[var(--color-brand-primary)] bg-[var(--color-bg-surface)]"
-                          title="클릭하여 전환"
-                        >
-                          {cutlineMode === "PERCENT" ? "%" : "점"}
-                        </button>
-                      </span>
-                    </th>
                     <th className="text-left text-xs font-semibold" style={{ padding: "6px 8px" }}>제출기한</th>
                     <th style={{ padding: "6px 8px" }} />
                   </tr>
@@ -513,13 +616,13 @@ export default function CreateHomeworkModal({
                           </button>
                         </div>
                       </td>
-                      <td style={{ padding: "4px 8px" }}>
+                      <td style={{ padding: "6px 8px", minWidth: 280 }}>
                         <input
                           className="ds-input w-full"
-                          style={{ minHeight: 40, fontSize: 14, padding: "10px 12px" }}
+                          style={{ minHeight: 48, fontSize: 15, padding: "12px 14px", fontWeight: 500, letterSpacing: "-0.01em" }}
                           value={row.title}
                           onChange={(e) => updateRow(row.key, "title", e.target.value)}
-                          placeholder={`${idx + 1}주차 과제`}
+                          placeholder={`${idx + 1}주차 과제 — 제목 입력`}
                           autoFocus={idx === 0}
                           aria-label={`과제 ${idx + 1} 제목`}
                         />
@@ -532,19 +635,6 @@ export default function CreateHomeworkModal({
                           value={row.maxScore}
                           onChange={(e) => updateRow(row.key, "maxScore", e.target.value)}
                           aria-label={`과제 ${idx + 1} 만점`}
-                        />
-                      </td>
-                      <td style={{ padding: "4px 8px" }}>
-                        <input
-                          type="number"
-                          min={0}
-                          className="ds-input w-full"
-                          value={idx === 0 ? row.cutline : rows[0]?.cutline ?? row.cutline}
-                          onChange={(e) => { if (idx === 0) updateRow(row.key, "cutline", e.target.value); }}
-                          disabled={idx > 0}
-                          title={idx > 0 ? "커트라인은 첫 번째 행 값이 공통 적용됩니다" : undefined}
-                          aria-label={`과제 ${idx + 1} 커트라인`}
-                          style={idx > 0 ? { opacity: 0.5 } : undefined}
                         />
                       </td>
                       <td style={{ padding: "4px 8px" }}>
@@ -579,12 +669,6 @@ export default function CreateHomeworkModal({
               >
                 + 추가
               </button>
-
-              <div className="mt-3 rounded border border-[var(--color-border-divider)] bg-[color-mix(in_srgb,var(--color-brand-primary)_4%,var(--color-bg-surface))] p-3">
-                <div className="text-xs text-[var(--color-text-muted)]">
-                  대상자 자동 등록됨 (이 차시의 모든 수강생) · 커트라인은 첫 번째 행 값이 전체 과제에 공통 적용됩니다 · {cutlineMode === "PERCENT" ? "퍼센트(%) 기준" : "점수 기준"} · 커트라인 미만 시 클리닉 보강 대상
-                </div>
-              </div>
             </div>
           )}
 
@@ -609,7 +693,7 @@ export default function CreateHomeworkModal({
           {stage === "import" && (
             <div className="modal-form-group">
               <div className="flex items-center justify-between mb-1">
-                <label className="modal-section-label">템플릿 선택</label>
+                <label className="modal-section-label">불러올 과제 선택 (이전에 만든 과제)</label>
                 {selectedTemplateIds.size > 0 && (
                   <span className="text-xs font-semibold text-[var(--color-brand-primary)]">
                     {selectedTemplateIds.size}개 선택됨
@@ -673,7 +757,7 @@ export default function CreateHomeworkModal({
                 )}
               </div>
               <p className="modal-hint modal-hint--block mt-2">
-                템플릿 제목이 과제 이름으로 사용됩니다. 여러 개를 선택하여 일괄 생성할 수 있습니다.
+                선택한 과제의 제목·양식이 그대로 적용됩니다. 원본을 고치면 이 차시에도 반영돼요.
               </p>
             </div>
           )}
@@ -688,12 +772,12 @@ export default function CreateHomeworkModal({
             </Button>
             {stage === "new" && (
               <Button intent="primary" size="xl" onClick={handleBulkSubmit} disabled={bulkDisabled}>
-                {submitting ? "생성 중…" : `일괄 생성 (${rows.filter((r) => r.title.trim()).length})`}
+                {submitting ? "만드는 중…" : `${rows.filter((r) => r.title.trim()).length}개 과제 만들기`}
               </Button>
             )}
             {stage === "import" && (
               <Button intent="primary" size="xl" onClick={handleImportSubmit} disabled={importDisabled}>
-                {submitting ? "생성 중…" : `일괄 생성${selectedTemplateIds.size > 1 ? ` (${selectedTemplateIds.size}개)` : ""}`}
+                {submitting ? "만드는 중…" : `${selectedTemplateIds.size}개 과제 가져오기`}
               </Button>
             )}
           </>

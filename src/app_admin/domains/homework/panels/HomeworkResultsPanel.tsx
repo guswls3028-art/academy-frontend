@@ -14,6 +14,7 @@ import { fetchSessionScores, type SessionScoreHomeworkEntry } from "@admin/domai
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { useQuery } from "@tanstack/react-query";
 import { getHomeworkStatus, homeworkStatusLabel, type HomeworkStatus, type HomeworkMetaStatus } from "@admin/domains/scores/utils/homeworkStatus";
+import { useTenantLabels } from "@/shared/hooks/useTenantLabels";
 
 type HomeworkResultRow = {
   enrollment_id: number;
@@ -58,6 +59,7 @@ function StatusBadge({ status }: { status: HomeworkStatus }) {
 
 export default function HomeworkResultsPanel({ homeworkId }: { homeworkId: number }) {
   const [selectedEnrollmentId, setSelectedEnrollmentId] = useState<number | null>(null);
+  const labels = useTenantLabels();
   const { data: homework, isLoading: hwLoading } = useAdminHomework(homeworkId);
   const sessionId = useMemo(() => Number(homework?.session_id) || 0, [homework?.session_id]);
   const { data: policy } = useHomeworkPolicy(sessionId);
@@ -190,8 +192,8 @@ export default function HomeworkResultsPanel({ homeworkId }: { homeworkId: numbe
               <KpiCard label="대상" value={`${summary.assigned}명`} />
               <KpiCard label="미제출" value={`${summary.notSubmitted}명`} />
               <KpiCard label="채점완료" value={`${summary.graded}명`} />
-              <KpiCard label="합격" value={`${summary.passCount}명`} />
-              <KpiCard label="불합격" value={`${summary.failCount}명`} />
+              <KpiCard label={labels.pass} value={`${summary.passCount}명`} />
+              <KpiCard label={labels.fail} value={`${summary.failCount}명`} />
               <KpiCard label="클리닉 대상" value={`${summary.clinic}명`} />
             </div>
 
@@ -301,7 +303,7 @@ export default function HomeworkResultsPanel({ homeworkId }: { homeworkId: numbe
                               <span className="text-[var(--color-text-muted)]">—</span>
                             ) : (
                               <Badge variant="solid" tone={r.passed ? "success" : "danger"}>
-                                {r.passed ? "합격" : "불합"}
+                                {r.passed ? labels.pass : labels.fail}
                               </Badge>
                             )}
                           </td>
@@ -371,7 +373,7 @@ export default function HomeworkResultsPanel({ homeworkId }: { homeworkId: numbe
                           <span className="text-[var(--color-text-muted)]">—</span>
                         ) : (
                           <Badge variant="solid" tone={selectedRow.passed ? "success" : "danger"}>
-                            {selectedRow.passed ? "합격" : "불합"}
+                            {selectedRow.passed ? labels.pass : labels.fail}
                           </Badge>
                         )}
                       </dd>

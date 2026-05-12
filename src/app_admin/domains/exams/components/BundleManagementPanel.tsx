@@ -283,6 +283,19 @@ function BundleEditModal({ open, bundle, onClose, onSaved }: EditProps) {
     setItems((prev) => prev.filter((_, i) => i !== idx));
   };
 
+  // Phase 2026-05-12 #1 — bundle 안 시험/과제 순서 변경 ⇧⇩.
+  // display_order 는 저장 시 array index 순서로 재배치되므로 swap 후 화면 순서가 SSOT.
+  const moveItem = (idx: number, direction: "up" | "down") => {
+    setItems((prev) => {
+      const next = [...prev];
+      const target = direction === "up" ? idx - 1 : idx + 1;
+      if (target < 0 || target >= next.length) return prev;
+      [next[idx], next[target]] = [next[target], next[idx]];
+      // display_order 재할당 (저장 시 backend 가 array 순서대로 받는다고 가정)
+      return next.map((it, i) => ({ ...it, display_order: i }));
+    });
+  };
+
   const getItemLabel = (item: BundleItemInput): string => {
     if (item.item_type === "exam") {
       const tpl = examTemplates.find((t) => t.id === item.exam_template_id);
@@ -373,6 +386,29 @@ function BundleEditModal({ open, bundle, onClose, onSaved }: EditProps) {
                     key={idx}
                     className="flex items-center gap-2 rounded border border-[var(--color-border-divider)] bg-[var(--color-bg-surface-soft)] px-3 py-1.5"
                   >
+                    <div className="flex flex-col items-center gap-0 flex-shrink-0 w-5">
+                      <button
+                        type="button"
+                        onClick={() => moveItem(idx, "up")}
+                        disabled={idx === 0}
+                        className="text-xs leading-none px-0.5 text-[var(--color-text-muted)] hover:text-[var(--color-brand-primary)] disabled:opacity-25 disabled:cursor-not-allowed"
+                        aria-label={`${idx + 1}번 항목 위로`}
+                        title="위로"
+                      >
+                        ▲
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => moveItem(idx, "down")}
+                        disabled={idx === items.length - 1}
+                        className="text-xs leading-none px-0.5 text-[var(--color-text-muted)] hover:text-[var(--color-brand-primary)] disabled:opacity-25 disabled:cursor-not-allowed"
+                        aria-label={`${idx + 1}번 항목 아래로`}
+                        title="아래로"
+                      >
+                        ▼
+                      </button>
+                    </div>
+                    <span className="text-[10px] font-bold text-[var(--color-text-muted)] w-4 text-right">{idx + 1}</span>
                     <span className={`w-2 h-2 rounded-full flex-shrink-0 ${item.item_type === "exam" ? "bg-blue-500" : "bg-emerald-500"}`} />
                     <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase w-8">
                       {item.item_type === "exam" ? "시험" : "과제"}
@@ -384,6 +420,7 @@ function BundleEditModal({ open, bundle, onClose, onSaved }: EditProps) {
                       type="button"
                       onClick={() => removeItem(idx)}
                       className="text-[var(--color-text-muted)] hover:text-[var(--color-error)] text-lg leading-none"
+                      aria-label={`${idx + 1}번 항목 삭제`}
                     >
                       ×
                     </button>

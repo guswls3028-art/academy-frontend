@@ -830,7 +830,7 @@ function SectionEditor({ sectionType, sections, updateDraft }: { sectionType: st
             <HeroCarouselItemsEditor items={(section.items as unknown as Array<Record<string, unknown>> | undefined) || []} updateSection={updateSection} />
           )}
 
-          {/* hit_reports: title + description + 보고서 picker */}
+          {/* hit_reports: title + description + 보고서 picker + 종료 날짜 입력 */}
           {sectionType === "hit_reports" && (
             <>
               <FieldRow label="제목">
@@ -841,7 +841,21 @@ function SectionEditor({ sectionType, sections, updateDraft }: { sectionType: st
               </FieldRow>
               <HitReportPicker
                 selectedIds={(((section.items || []) as Array<{ report_id: number }>).map((it) => it.report_id))}
-                onChange={(ids) => updateSection((s) => ({ ...s, items: ids.map((id) => ({ report_id: id })) }))}
+                onChange={(ids) => {
+                  // 기존 items에서 report_id 매칭되는 항목의 published_until 보존
+                  const existing = (section.items || []) as Array<{ report_id: number; published_until?: string }>;
+                  const byId = new Map(existing.map((it) => [it.report_id, it]));
+                  updateSection((s) => ({
+                    ...s,
+                    items: ids.map((id) => byId.get(id) ?? { report_id: id }),
+                  }));
+                }}
+              />
+              {/* Phase #14 — 선택된 보고서별 외부 노출 종료 날짜.
+                  학원장이 종료 날짜 지정하면 외부 학부모는 카드 메타만 보이고 PDF 본문 차단됨. */}
+              <HitReportPublishedUntilEditor
+                items={(section.items || []) as Array<{ report_id: number; published_until?: string | null }>}
+                onChange={(items) => updateSection((s) => ({ ...s, items }))}
               />
             </>
           )}
@@ -993,13 +1007,79 @@ function ItemsEditor({ sectionType, items, updateSection }: { sectionType: strin
   );
 }
 
+/** Phase #14 (2026-05-12) — 선택된 적중보고서 항목별 외부 노출 종료 날짜 입력.
+ *  HitReportPicker 와 별도 UI. items 직접 조작.
+ */
+function HitReportPublishedUntilEditor({
+  items, onChange,
+}: {
+  items: Array<{ report_id: number; published_until?: string | null }>;
+  onChange: (items: Array<{ report_id: number; published_until?: string | null }>) => void;
+}) {
+  if (items.length === 0) return null;
+  const updateOne = (id: number, value: string | null) => {
+    onChange(items.map((it) => {
+      if (it.report_id !== id) return it;
+      if (!value) {
+        const { published_until, ...rest } = it;
+        void published_until;
+        return rest;
+      }
+      return { ...it, published_until: value };
+    }));
+  };
+  return (
+    <div style={{ marginTop: 16, padding: 14, borderRadius: 10, background: "var(--color-bg-canvas, #f8fafc)", border: "1px solid var(--color-border-divider, #e2e8f0)" }}>
+      <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-text-primary, #1e293b)", marginBottom: 6 }}>
+        🗓 외부 노출 종료 날짜 <span style={{ fontWeight: 500, color: "var(--color-text-muted, #94a3b8)", fontSize: 11 }}>(선택)</span>
+      </div>
+      <p style={{ fontSize: 11, color: "var(--color-text-secondary, #64748b)", margin: "0 0 10px", lineHeight: 1.5 }}>
+        종료 날짜 지정 시 외부 학부모는 카드 통계만 보이고 PDF 본문은 가립니다. <strong>학원장은 영구 열람 가능</strong>합니다.
+        빈 칸 = 영구 노출.
+      </p>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        {items.map((it) => (
+          <div key={it.report_id} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 12 }}>
+            <span style={{ width: 70, color: "var(--color-text-muted, #94a3b8)", fontWeight: 600 }}>#{it.report_id}</span>
+            <input
+              type="date"
+              value={(it.published_until || "").slice(0, 10)}
+              onChange={(e) => updateOne(it.report_id, e.target.value || null)}
+              data-testid={`hit-report-published-until-${it.report_id}`}
+              style={{
+                flex: 1, padding: "6px 10px", borderRadius: 6,
+                border: "1px solid var(--color-border-divider, #e2e8f0)",
+                background: "var(--color-bg-surface, #fff)", fontSize: 13,
+                color: "var(--color-text-primary, #1e293b)",
+              }}
+            />
+            {it.published_until && (
+              <button
+                type="button"
+                onClick={() => updateOne(it.report_id, null)}
+                title="종료 날짜 해제 (영구 노출)"
+                style={{
+                  background: "transparent", border: "none", padding: 0,
+                  color: "var(--color-text-muted, #94a3b8)", fontSize: 14, cursor: "pointer",
+                }}
+              >×</button>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /** 매치업 적중보고서 picker — 학원장이 자기 학원 보고서 중 홈페이지 카드로 노출할 것을 체크박스로 선택.
  * 텍스트 입력 X, 다른 곳에서 만든 보고서를 골라 박는 한 단계 인터페이스.
  */
 function HitReportPicker({ selectedIds, onChange }: { selectedIds: number[]; onChange: (ids: number[]) => void }) {
   const [reports, setReports] = useState<Array<{ id: number; document_title: string; document_category: string; hit_rate: number; hit_count: number; exam_count: number; status: string }> | null>(null);
   const [loadErr, setLoadErr] = useState(false);
-  const MAX = 6;
+  // 2026-05-12 — backend MAX_REPORTS(12) 와 일치. 기존 6 제한은 frontend-only constraint 였고
+  // chip toggle / submit 통합 흐름은 12까지 OK 였음 → GUI picker 도 12로 동기.
+  const MAX = 12;
 
   useEffect(() => {
     let cancelled = false;

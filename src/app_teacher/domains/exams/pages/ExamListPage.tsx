@@ -19,7 +19,7 @@ export default function ExamListPage() {
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
-        <h2 className="text-base font-bold py-1" style={{ color: "var(--tc-text)" }}>
+        <h2 className="text-[17px] font-bold py-1" style={{ color: "var(--tc-text)" }}>
           시험
         </h2>
         <button onClick={() => setCreateOpen(true)}

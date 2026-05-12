@@ -10,7 +10,7 @@ import { Link } from "react-router-dom";
 import type { LandingConfig, LandingSection, FeatureItem, TestimonialItem, ProgramItem, FaqItem, HitReportShowcaseItem, HeroCarouselItem, InstructorProfileItem, ManagementCardItem, ProcessStepItem } from "../types";
 import { getEnabledSections, SvgIcon, HitReportCards, useTenantHitStats, LandingNavBar, ConsultRequestForm, usePublicTestimonials, TestimonialSubmitForm, resolveHeroPrimaryCta, type TemplateProps, type NavBarTokens } from "./shared";
 import LandingFooter, { FOOTER_TOKENS_DARK } from "../components/LandingFooter";
-import CommunityPreviewSection from "../components/CommunityPreviewSection";
+import LandingCommunityShowcase from "../components/LandingCommunityShowcase";
 import HeroCarousel from "../components/HeroCarousel";
 import HeroImageSlider from "../components/HeroImageSlider";
 import TestimonialsSticky from "../components/TestimonialsSticky";
@@ -546,7 +546,7 @@ export default function PremiumDark({ config }: TemplateProps) {
         }
       })}
 
-      <CommunityPreviewSection theme="dark" />
+      <LandingCommunityShowcase theme="dark" />
       <LandingFooter config={config} sections={config.sections || []} tokens={FOOTER_TOKENS_DARK} />
     </div>
   );
@@ -735,7 +735,7 @@ function DarkTestimonialsSection({ sectionItems, bgAlt, cardBg, cardBorder, gold
   return (
     <section data-stype="testimonials" style={{ padding: "120px 24px", background: bgAlt }}>
       <div style={{ maxWidth: 1200, margin: "0 auto" }}>
-        <SectionHeader eyebrow="Reviews" title="수강생 후기" gold={gold} goldRgb={goldRgb} textSecondary={textSecondary} />
+        <SectionHeader eyebrow="Recommendations" title="수강생 추천사" gold={gold} goldRgb={goldRgb} textSecondary={textSecondary} />
         {merged.length > 0 && (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 24, marginTop: 64 }}>
             {merged.map((item, i) => (
@@ -753,10 +753,10 @@ function DarkTestimonialsSection({ sectionItems, bgAlt, cardBg, cardBorder, gold
         {/* 후기 남기기 form */}
         <div style={{ marginTop: 56, padding: 28, borderRadius: 18, background: cardBg, border: `1px solid ${cardBorder}`, maxWidth: 720, marginInline: "auto" }}>
           <h3 style={{ fontSize: 16, fontWeight: 700, margin: "0 0 6px", color: textPrimary, letterSpacing: "-0.015em" }}>
-            수강 후기 남기기
+            한 줄 추천사 남기기
           </h3>
           <p style={{ fontSize: 12, color: textSecondary, margin: "0 0 16px" }}>
-            학원장 검토 후 공개됩니다.
+            학원장 승인 후 메인에 노출됩니다. 별점·사진 포함 정식 후기는 <Link to="/landing/reviews/write" style={{ color: gold, textDecoration: "underline", textUnderlineOffset: 2 }}>수강 후기</Link> 에서 작성해주세요.
           </p>
           <TestimonialSubmitForm accent={gold} dark />
         </div>

@@ -1,6 +1,9 @@
 // PATH: src/landing/pages/LandingReportsListPage.tsx
 // 적중보고서 갤러리 — 학원장 picker 등록한 모든 보고서를 한 페이지로.
 // nav "적중 사례 모두 보기" / 메인 hit_reports 섹션 하단 "더보기" 진입.
+//
+// Phase #15 (2026-05-12): 학원장이 doc.category 학교명 + exam_cycle/exam_year 입력 시
+// 학교별 → 연도(DESC) → 회차 순으로 자동 grouping. 그렇지 않으면 단순 카드 그리드.
 /* eslint-disable no-restricted-syntax */
 
 import { useEffect, useState } from "react";
@@ -38,7 +41,7 @@ export default function LandingReportsListPage() {
   const [error, setError] = useState(false);
   // 가시성 강화 (2026-05-12 cycle 10): 검색 + 정렬
   const [query, setQuery] = useState("");
-  const [sort, setSort] = useState<"latest" | "rate" | "count">("latest");
+  const [sort, setSort] = useState<"latest" | "rate" | "count" | "by_school">("latest");
 
   useEffect(() => {
     fetchLandingPublic().then((d) => setLanding(d)).catch(() => setError(true));
@@ -88,16 +91,48 @@ export default function LandingReportsListPage() {
   // 검색 + 정렬 (inline 계산 — useMemo 제거로 React #310 잔존 결함 해소, 2026-05-12 cycle 14).
   // reports 갯수 적어 useMemo 효익 작음. 안정성 우선.
   const q = query.trim().toLowerCase();
+  const CYCLE_ORDER: Record<string, number> = { midterm: 1, final: 2, mock: 3, other: 4, "": 5 };
   const filteredReports = (q
     ? reports.filter((r) => (r.doc_title || "").toLowerCase().includes(q) || (r.doc_category || "").toLowerCase().includes(q))
     : reports
   ).slice().sort((a, b) => {
     if (sort === "rate") return b.hit_rate_pct - a.hit_rate_pct;
     if (sort === "count") return b.hit_count - a.hit_count;
+    if (sort === "by_school") {
+      // 학교명 가나다 → 연도 DESC → 회차 (midterm/final/mock/other)
+      const ac = (a.doc_category || "기타").localeCompare(b.doc_category || "기타", "ko");
+      if (ac !== 0) return ac;
+      const yearDiff = (b.exam_year || 0) - (a.exam_year || 0);
+      if (yearDiff !== 0) return yearDiff;
+      return (CYCLE_ORDER[a.exam_cycle || ""] ?? 5) - (CYCLE_ORDER[b.exam_cycle || ""] ?? 5);
+    }
     const ad = a.submitted_at || a.created_at || "";
     const bd = b.submitted_at || b.created_at || "";
     return bd.localeCompare(ad);
   });
+
+  // Phase #15 — 학교별 grouping (sort=by_school 활성 시)
+  const groupedBySchool: { school: string; items: HitReportPublicCard[] }[] = [];
+  if (sort === "by_school") {
+    const map = new Map<string, HitReportPublicCard[]>();
+    for (const r of filteredReports) {
+      const key = r.doc_category || "기타";
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(r);
+    }
+    for (const [school, items] of map.entries()) {
+      groupedBySchool.push({ school, items });
+    }
+  }
+  const cycleLabel = (c: string | undefined): string => {
+    switch (c) {
+      case "midterm": return "중간";
+      case "final": return "기말";
+      case "mock": return "모의";
+      case "other": return "기타";
+      default: return "";
+    }
+  };
 
   return (
     <div style={{ minHeight: "100vh", background: bg, color: textPrimary, fontFamily: "'Pretendard Variable', 'Pretendard', system-ui, sans-serif", letterSpacing: "-0.011em" }}>
@@ -150,6 +185,59 @@ export default function LandingReportsListPage() {
           ) : (
             <>
             <ReportsToolbar query={query} setQuery={setQuery} sort={sort} setSort={setSort} gold={gold} textPrimary={textPrimary} textSecondary={textSecondary} cardBg={cardBg} cardBorder={cardBorder} />
+
+            {/* Phase #15 — 학교별 grouped render (sort=by_school 모드) */}
+            {sort === "by_school" && groupedBySchool.length > 0 ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: 32 }}>
+                {groupedBySchool.map((group) => (
+                  <div key={group.school} data-testid={`school-group-${group.school}`}>
+                    <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 14, paddingBottom: 8, borderBottom: `1px solid ${cardBorder}` }}>
+                      <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: gold, letterSpacing: "-0.015em" }}>{group.school}</h2>
+                      <span style={{ fontSize: 12, color: textSecondary, fontWeight: 600 }}>{group.items.length}건</span>
+                    </div>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 14 }}>
+                      {group.items.map((r) => {
+                        const ratePct = Math.round(r.hit_rate_pct);
+                        const cycle = cycleLabel(r.exam_cycle);
+                        const yearTag = r.exam_year && r.exam_year > 0 ? `${r.exam_year}` : "";
+                        const tag = [yearTag, cycle].filter(Boolean).join(" ");
+                        return (
+                          <Link
+                            key={r.id}
+                            to={`/landing/reports/${r.id}`}
+                            style={{
+                              padding: 18, borderRadius: 12,
+                              background: cardBg, border: `1px solid ${cardBorder}`,
+                              textDecoration: "none", color: textPrimary,
+                              display: "flex", flexDirection: "column", gap: 8,
+                              transition: "border-color 0.2s, transform 0.2s",
+                            }}
+                            onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.borderColor = "rgba(212,160,76,0.4)"; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.transform = "none"; e.currentTarget.style.borderColor = cardBorder; }}
+                          >
+                            {tag && (
+                              <span style={{ display: "inline-block", fontSize: 10, fontWeight: 700, color: gold, padding: "2px 8px", borderRadius: 999, background: `rgba(212,160,76,0.12)`, alignSelf: "flex-start", letterSpacing: "0.05em" }}>
+                                {tag}
+                              </span>
+                            )}
+                            {r.doc_title && (
+                              <div style={{ fontSize: 13.5, color: textPrimary, fontWeight: 600, lineHeight: 1.4, letterSpacing: "-0.01em" }}>
+                                {r.doc_title}
+                              </div>
+                            )}
+                            <div style={{ display: "flex", alignItems: "baseline", gap: 4, marginTop: 2 }}>
+                              <span style={{ fontSize: 28, fontWeight: 800, color: gold, lineHeight: 1, letterSpacing: "-0.02em" }}>{ratePct}</span>
+                              <span style={{ fontSize: 14, fontWeight: 700, color: gold }}>%</span>
+                              <span style={{ fontSize: 11, color: textSecondary, marginLeft: 4 }}>{r.hit_count}/{r.total_problems}</span>
+                            </div>
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 18 }}>
               {filteredReports.length === 0 ? null : filteredReports.map((r) => {
                 const ratePct = Math.round(r.hit_rate_pct);
@@ -196,6 +284,7 @@ export default function LandingReportsListPage() {
                 );
               })}
             </div>
+            )}
             {filteredReports.length === 0 && (
               <div style={{ padding: 40, textAlign: "center", color: textSecondary, fontSize: 13.5, background: cardBg, borderRadius: 14, border: `1px dashed ${cardBorder}`, marginTop: 8 }}>
                 🔍 검색 결과가 없습니다. 다른 키워드로 시도해 보세요.
@@ -213,15 +302,16 @@ export default function LandingReportsListPage() {
 
 function ReportsToolbar({ query, setQuery, sort, setSort, gold, textPrimary, textSecondary, cardBg, cardBorder }: {
   query: string; setQuery: (v: string) => void;
-  sort: "latest" | "rate" | "count"; setSort: (v: "latest" | "rate" | "count") => void;
+  sort: "latest" | "rate" | "count" | "by_school"; setSort: (v: "latest" | "rate" | "count" | "by_school") => void;
   gold: string; textPrimary: string; textSecondary: string; cardBg: string; cardBorder: string;
 }) {
   return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
-      <div style={{ display: "flex", gap: 4 }}>
+      <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
         <SortChip on={sort === "latest"} onClick={() => setSort("latest")} gold={gold} textPrimary={textPrimary} textSecondary={textSecondary}>최신순</SortChip>
         <SortChip on={sort === "rate"} onClick={() => setSort("rate")} gold={gold} textPrimary={textPrimary} textSecondary={textSecondary}>적중률 ↓</SortChip>
         <SortChip on={sort === "count"} onClick={() => setSort("count")} gold={gold} textPrimary={textPrimary} textSecondary={textSecondary}>적중 수 ↓</SortChip>
+        <SortChip on={sort === "by_school"} onClick={() => setSort("by_school")} gold={gold} textPrimary={textPrimary} textSecondary={textSecondary}>학교별</SortChip>
       </div>
       <div style={{ position: "relative", flex: "1 1 240px", maxWidth: 360 }}>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2"

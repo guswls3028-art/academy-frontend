@@ -187,7 +187,8 @@ function buildMenuCategories(sections: LandingSection[]): NavMenuCategory[] {
   // 5. 서비스센터
   const serviceItems: NavMenuItem[] = [];
   if (has("contact")) serviceItems.push({ key: "contact", label: "상담 문의", kind: "section", target: "contact" });
-  if (has("testimonials")) serviceItems.push({ key: "testimonials", label: "수강 후기", kind: "section", target: "testimonials" });
+  if (has("testimonials")) serviceItems.push({ key: "testimonials", label: "추천사", kind: "section", target: "testimonials" });
+  serviceItems.push({ key: "reviews", label: "수강 후기", kind: "route", target: "/landing/reviews" });
   if (serviceItems.length) categories.push({ key: "service", label: "서비스센터", items: serviceItems });
 
   return categories;

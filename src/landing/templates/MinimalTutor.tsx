@@ -9,7 +9,7 @@ import type { FeatureItem, TestimonialItem, ProgramItem, FaqItem, HitReportShowc
 import { getEnabledSections, SvgIcon, FaqAccordion, HitReportCards, useTenantHitStats, LandingNavBar, ConsultRequestForm, usePublicTestimonials, TestimonialSubmitForm, resolveHeroPrimaryCta, type TemplateProps, type NavBarTokens } from "./shared";
 import { Link } from "react-router-dom";
 import LandingFooter, { FOOTER_TOKENS_LIGHT } from "../components/LandingFooter";
-import CommunityPreviewSection from "../components/CommunityPreviewSection";
+import LandingCommunityShowcase from "../components/LandingCommunityShowcase";
 import HeroCarousel from "../components/HeroCarousel";
 import HeroImageSlider from "../components/HeroImageSlider";
 import TestimonialsSticky from "../components/TestimonialsSticky";
@@ -425,7 +425,7 @@ export default function MinimalTutor({ config }: TemplateProps) {
         }
       })}
 
-      <CommunityPreviewSection theme="light" />
+      <LandingCommunityShowcase theme="light" />
       <LandingFooter config={config} sections={config.sections || []} tokens={FOOTER_TOKENS_LIGHT} />
     </div>
   );

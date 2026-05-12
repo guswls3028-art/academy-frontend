@@ -292,6 +292,9 @@ export async function updateMatchupDocument(
     intent?: "reference" | "test";
     // Phase 1A: 7-value SSOT (post-upload 보정 UI에서 사용)
     source_type?: MatchupSourceType;
+    // Phase #15 (2026-05-12): 학교별 grouping용 회차/연도. 학원장 입력 (선택).
+    exam_cycle?: "" | "midterm" | "final" | "mock" | "other";
+    exam_year?: number;
   },
 ): Promise<MatchupDocument> {
   const { data } = await api.patch<MatchupDocument>(
@@ -300,6 +303,9 @@ export async function updateMatchupDocument(
   );
   return data;
 }
+
+/** updateMatchupDocument alias — `patchMatchupDocument` 명명도 지원 (Phase #15 호출처). */
+export const patchMatchupDocument = updateMatchupDocument;
 
 export async function deleteMatchupDocument(id: number): Promise<void> {
   await api.delete(`/matchup/documents/${id}/`);

@@ -16,6 +16,7 @@ import LandingFooter, { FOOTER_TOKENS_DARK } from "../components/LandingFooter";
 import PdfPageStack from "../components/PdfPageStack";
 import { resolveTenantCode } from "@/shared/tenant";
 import { setLandingMeta as setMeta } from "../utils/seoMeta";
+import { fetchReviewsList, fetchReviewsSummary, type PublicReview, type ReviewsSummary } from "../api/publicCommunity";
 
 // 적중보고서 상세 nav 톤(PremiumDark 시그니처) — List 페이지와 동일.
 const DETAIL_NAV_TOKENS: NavBarTokens = {
@@ -253,6 +254,9 @@ export default function LandingReportDetailPage() {
         </div>
       </section>
 
+      {/* 관련 수강 후기 — Phase 3 매치업↔커뮤니티 cross-attach */}
+      <RelatedReviewsBlock textPrimary={textPrimary} textSecondary={textSecondary} cardBg={cardBg} cardBorder={cardBorder} bgAlt={bgAlt} gold={gold} />
+
       {/* 다른 적중 사례 */}
       {siblings.length > 0 && (
         <section style={{ padding: "64px 24px 96px", background: bgAlt }}>
@@ -295,6 +299,91 @@ export default function LandingReportDetailPage() {
       <LandingFooter config={cfg} sections={cfg.sections || []} tokens={FOOTER_TOKENS_DARK} />
       <LandingRoleFab />
     </div>
+  );
+}
+
+/** 적중보고서 상세 하단 — 학원의 최신 approved 후기 미니 카루셀 (사회적 증거 강화).
+ *  fetchReviewsSummary로 평균 평점 KPI + 최근 후기 3건 노출. 0건이면 섹션 hide. */
+function RelatedReviewsBlock({ textPrimary, textSecondary, cardBg, cardBorder, bgAlt, gold }: {
+  textPrimary: string; textSecondary: string; cardBg: string; cardBorder: string; bgAlt: string; gold: string;
+}) {
+  const [reviews, setReviews] = useState<PublicReview[] | null>(null);
+  const [summary, setSummary] = useState<ReviewsSummary | null>(null);
+
+  useEffect(() => {
+    fetchReviewsList({ page: 1, page_size: 3, ordering: "latest" })
+      .then((r) => setReviews(r.results)).catch(() => setReviews([]));
+    fetchReviewsSummary().then(setSummary).catch(() => setSummary(null));
+  }, []);
+
+  if (reviews !== null && reviews.length === 0 && (summary?.count ?? 0) === 0) return null;
+
+  const stars = (n: number) => {
+    const filled = "★★★★★".slice(0, Math.max(0, Math.min(5, n)));
+    const dim = "★★★★★".slice(0, 5 - Math.max(0, Math.min(5, n)));
+    return <span style={{ letterSpacing: 2 }}><span style={{ color: gold }}>{filled}</span><span style={{ color: "rgba(140,140,140,0.4)" }}>{dim}</span></span>;
+  };
+
+  return (
+    <section style={{ padding: "64px 24px", background: bgAlt, borderTop: `1px solid ${cardBorder}` }}>
+      <div style={{ maxWidth: 1200, margin: "0 auto" }}>
+        <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", flexWrap: "wrap", gap: 12, marginBottom: 24 }}>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: gold, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 8 }}>
+              Reviews · 수강 후기
+            </div>
+            <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700, letterSpacing: "-0.02em", color: textPrimary }}>이 학원의 수강 후기</h2>
+            {summary && summary.count > 0 && (
+              <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 10, fontSize: 13.5, color: textSecondary }}>
+                {stars(Math.round(summary.average))}
+                <span style={{ color: textPrimary, fontWeight: 700 }}>{summary.average.toFixed(2)}</span>
+                <span>·</span>
+                <span>누적 {summary.count}건</span>
+              </div>
+            )}
+          </div>
+          <Link to="/landing/reviews" data-testid="related-reviews-more"
+            style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "9px 16px", borderRadius: 999, background: "transparent", border: `1px solid ${cardBorder}`, color: textSecondary, textDecoration: "none", fontSize: 13, fontWeight: 600, letterSpacing: "-0.01em" }}
+          >후기 모두 보기 →</Link>
+        </div>
+        {reviews === null ? (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 14 }}>
+            {[0, 1, 2].map((i) => <div key={i} style={{ height: 140, borderRadius: 14, background: cardBg, border: `1px solid ${cardBorder}` }} />)}
+          </div>
+        ) : reviews.length === 0 ? (
+          <div style={{ padding: "28px 24px", borderRadius: 14, background: cardBg, border: `1px dashed ${cardBorder}`, textAlign: "center", color: textSecondary, fontSize: 13 }}>
+            아직 등록된 수강 후기가 없습니다.
+          </div>
+        ) : (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 14 }}>
+            {reviews.map((r) => (
+              <Link key={r.id} to={`/landing/reviews/${r.id}`} data-testid={`related-review-${r.id}`}
+                style={{
+                  display: "flex", flexDirection: "column", gap: 8, padding: 18,
+                  borderRadius: 14, border: `1px solid ${cardBorder}`, background: cardBg,
+                  textDecoration: "none", color: textPrimary, transition: "border-color 0.15s",
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.borderColor = `${gold}66`; }}
+                onMouseLeave={(e) => { e.currentTarget.style.borderColor = cardBorder; }}
+              >
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  {stars(r.rating)}
+                  {r.is_verified && <span style={{ fontSize: 10, fontWeight: 700, color: gold, padding: "2px 8px", borderRadius: 999, background: `${gold}1F`, letterSpacing: "0.05em" }}>✓ 수강 인증</span>}
+                </div>
+                {r.title && <h3 style={{ margin: 0, fontSize: 14.5, fontWeight: 700, lineHeight: 1.4, letterSpacing: "-0.015em", overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{r.title}</h3>}
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", fontSize: 11, color: textSecondary }}>
+                  {r.grade && <span style={{ padding: "2px 8px", borderRadius: 999, background: "rgba(255,255,255,0.04)" }}>{r.grade}</span>}
+                  {r.subject && <span style={{ padding: "2px 8px", borderRadius: 999, background: "rgba(255,255,255,0.04)" }}>{r.subject}</span>}
+                </div>
+                <div style={{ marginTop: "auto", fontSize: 11.5, color: textSecondary, display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.display_name}</span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
+    </section>
   );
 }
 
