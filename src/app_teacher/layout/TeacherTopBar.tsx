@@ -24,7 +24,7 @@ export default function TeacherTopBar({ onMenuClick }: Props) {
   const { program } = useProgram();
   const { counts } = useTeacherPendingCounts();
   const tenantName = program?.display_name?.trim() || "";
-  const logoUrl = program?.logo_url?.trim() || "";
+  const logoUrl = program?.ui_config?.logo_url?.trim() || "";
   const badge = counts?.total ?? 0;
 
   return (
