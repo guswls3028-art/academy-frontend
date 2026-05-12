@@ -1239,6 +1239,47 @@ export default function SendMessageModal({
       )}
 
       <ModalFooter
+        left={
+          /* 학원장 임근혁 요청 — 양식 저장·변경 버튼 학원장 시선 끝점에 prominent하게.
+           * "양식 저장 어디서?", "변경 어디서?" 못 찾는 문제 해소. */
+          hasRecipients && sendMode === "alimtalk" ? (
+            <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+              {/* 본문 수정 시 양식 저장/덮어쓰기 */}
+              {body.trim() && (
+                bodyModified && selectedTemplate && !isSystemTpl(selectedTemplate) ? (
+                  <Button
+                    intent="secondary"
+                    onClick={handleUpdateTemplate}
+                    disabled={sending || savingTemplate}
+                    size="md"
+                    style={{ fontWeight: 600 }}
+                  >
+                    💾 양식 덮어쓰기
+                  </Button>
+                ) : (
+                  <Button
+                    intent="secondary"
+                    onClick={() => { setShowSaveForm(true); setSaveTemplateName(""); setShowAlimtalkPanel(false); }}
+                    disabled={sending || savingTemplate}
+                    size="md"
+                    style={{ fontWeight: 600 }}
+                  >
+                    💾 새 양식으로 저장
+                  </Button>
+                )
+              )}
+              <Button
+                intent="ghost"
+                onClick={() => { setShowAlimtalkPanel((v) => !v); setShowSaveForm(false); }}
+                disabled={sending}
+                size="md"
+                style={{ fontWeight: 600 }}
+              >
+                📋 저장된 양식 보기
+              </Button>
+            </div>
+          ) : null
+        }
         right={
           <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
             {disableReason && !sending && (
@@ -1247,7 +1288,7 @@ export default function SendMessageModal({
               </span>
             )}
             <Button intent="secondary" onClick={onClose} disabled={sending} size="lg">취소</Button>
-            {/* 발송 버튼 — 학원장 가장 명확하게 보이도록 큼 + primary. 학원장 임근혁 보고로 시각 강조. */}
+            {/* 발송 버튼 — 학원장 가장 명확하게 보이도록 큼 + primary. */}
             <Button
               intent="primary"
               onClick={requestSend}
