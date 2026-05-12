@@ -17,6 +17,7 @@ import { useProgram } from "@/shared/program";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import api from "@/shared/api/axios";
+import useAuth from "@/auth/hooks/useAuth";
 import styles from "./DeveloperPage.module.css";
 
 /* ── Types ── */
@@ -118,7 +119,24 @@ const MODE_OPTIONS: {
 
 export default function FeatureFlagsPage() {
   const { program, refetch } = useProgram();
+  const { user } = useAuth();
   const ff: FeatureFlags = program?.feature_flags ?? {};
+
+  // 운영 설정은 owner 전용 — 일반 admin/teacher/staff 에게 노출 금지 (시각 검수 M-13).
+  const role = (user?.tenantRole ?? "").toLowerCase();
+  if (role !== "owner") {
+    return (
+      <div style={{ padding: "60px 24px", textAlign: "center", color: "var(--color-text-secondary)" }}>
+        <div style={{ fontSize: 28, marginBottom: 8 }} aria-hidden>🔒</div>
+        <p style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text-primary)", margin: "0 0 6px" }}>
+          접근 권한이 없어요
+        </p>
+        <p style={{ fontSize: 13, margin: 0 }}>
+          운영 모드 설정은 학원장 계정에서만 변경할 수 있습니다.
+        </p>
+      </div>
+    );
+  }
 
   // Local state for edits
   const [sectionMode, setSectionMode] = useState<string>(String(Boolean(ff.section_mode)));

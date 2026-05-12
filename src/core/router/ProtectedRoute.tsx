@@ -1,4 +1,5 @@
 // PATH: src/app/router/ProtectedRoute.tsx
+import { useState } from "react";
 import { Navigate, Outlet } from "react-router-dom";
 import useAuth from "@/auth/hooks/useAuth";
 import { useProgram } from "@/shared/program";
@@ -17,7 +18,8 @@ const STUDENT_ROLES: Role[] = ["student", "parent"];
 
 export default function ProtectedRoute({ allow, tenantOnly }: { allow: Role[]; tenantOnly?: string[] }) {
   const { user, isLoading, refreshMe } = useAuth();
-  const { program, isLoading: programLoading } = useProgram();
+  const { program, isLoading: programLoading, error: programError, refetch: refetchProgram } = useProgram();
+  const [retrying, setRetrying] = useState(false);
 
   if (programLoading || isLoading) {
     return (
@@ -27,8 +29,40 @@ export default function ProtectedRoute({ allow, tenantOnly }: { allow: Role[]; t
     );
   }
 
+  // 일시적 program 미식별 — full-page redirect 대신 inline 카드. 학원장이 컨텍스트 유지.
   if (!program) {
-    return <Navigate to="/error/tenant-required" replace />;
+    const onRetry = async () => {
+      setRetrying(true);
+      try { await refetchProgram(); } finally { setRetrying(false); }
+    };
+    return (
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh", padding: 24 }}>
+        <div style={{ maxWidth: 380, padding: 28, borderRadius: 14, background: "var(--color-surface, #fff)", border: "1px solid var(--color-border, #E5E7EB)", textAlign: "center", boxShadow: "0 4px 12px rgba(0,0,0,0.04)" }}>
+          <div style={{ fontSize: 32, marginBottom: 10 }} aria-hidden>⚠️</div>
+          <p style={{ fontSize: 15, fontWeight: 700, color: "var(--color-text-primary, #111827)", margin: "0 0 8px" }}>
+            잠깐, 학원 정보를 다시 확인 중입니다
+          </p>
+          <p style={{ fontSize: 13, color: "var(--color-text-secondary, #6B7280)", margin: "0 0 16px", lineHeight: 1.55 }}>
+            {programError
+              ? "일시적인 연결 문제일 수 있어요. 다시 시도해 주세요."
+              : "잠시 후 자동으로 복구됩니다."}
+          </p>
+          <button
+            type="button"
+            onClick={onRetry}
+            disabled={retrying}
+            style={{
+              padding: "9px 22px", borderRadius: 8, border: "none",
+              background: retrying ? "#94a3b8" : "#2563eb",
+              color: "#fff", fontWeight: 600, fontSize: 13.5,
+              cursor: retrying ? "not-allowed" : "pointer",
+            }}
+          >
+            {retrying ? "연결 중…" : "다시 시도"}
+          </button>
+        </div>
+      </div>
+    );
   }
 
   // 홍보 테넌트는 /promo 로그인 모달로, 그 외는 /login 페이지로

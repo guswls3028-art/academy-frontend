@@ -8,6 +8,7 @@ import { ChevronLeft, ChevronLeft as ChevL, ChevronRight as ChevR } from "@teach
 import { Card } from "@teacher/shared/ui/Card";
 import { Badge } from "@teacher/shared/ui/Badge";
 import { fetchClinicSessions } from "../api";
+import { formatLocalDate } from "@/shared/utils/localDate";
 
 function monthRange(year: number, month: number) {
   const from = `${year}-${String(month).padStart(2, "0")}-01`;
@@ -119,7 +120,7 @@ export default function ClinicReportsPage() {
             const daySessions = byDate[cell.date] ?? [];
             const count = daySessions.length;
             const isSelected = selectedDate === cell.date;
-            const isToday = cell.date === today.toISOString().slice(0, 10);
+            const isToday = cell.date === formatLocalDate(today);
             return (
               <button key={i} onClick={() => setSelectedDate(cell.date!)} type="button"
                 className="cursor-pointer flex flex-col items-center justify-center"

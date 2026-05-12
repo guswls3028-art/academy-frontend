@@ -13,11 +13,24 @@ import { fetchAllTemplates, createTemplate, updateTemplate, deleteTemplate, fetc
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { useConfirm } from "@/shared/ui/confirm";
+import useAuth from "@/auth/hooks/useAuth";
+
+/** 발신번호 마스킹: staff/teacher 권한에게 학원장 개인번호 숨김 (시각 검수 L-12). */
+function maskPhone(phone: string | null | undefined): string {
+  if (!phone) return "";
+  const digits = phone.replace(/\D/g, "");
+  if (digits.length < 7) return phone;
+  // 010-XXXX-XXXX → 010-****-XXXX (뒤 4자리만 노출)
+  return `${digits.slice(0, 3)}-****-${digits.slice(-4)}`;
+}
 
 export default function MessageTemplatesPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const confirm = useConfirm();
+  const { user } = useAuth();
+  const role = (user?.tenantRole ?? "").toLowerCase();
+  const isPrivileged = role === "owner" || role === "admin";
   const [editSheet, setEditSheet] = useState<{ open: boolean; template?: MsgTemplate }>({ open: false });
 
   const { data: templates, isLoading } = useQuery({
@@ -80,7 +93,7 @@ export default function MessageTemplatesPage() {
             <div>
               <div className="text-sm font-semibold" style={{ color: "var(--tc-text)" }}>메시지 설정</div>
               <div className="text-[11px] mt-0.5" style={{ color: "var(--tc-text-muted)" }}>
-                {info.messaging_provider || "미설정"} · 발신: {info.messaging_sender || "미등록"}
+                {info.messaging_provider || "미설정"} · 발신: {info.messaging_sender ? (isPrivileged ? info.messaging_sender : maskPhone(info.messaging_sender)) : "미등록"}
               </div>
             </div>
             <div className="text-right">

@@ -228,7 +228,7 @@ export default function InventoryHomeTab({ ps, folders, files, isParentReadOnly,
         <div style={{ textAlign: "center", padding: "var(--stu-space-8) var(--stu-space-4)", color: "var(--stu-text-muted)" }}>
           <IconFolder style={{ width: 48, height: 48, opacity: 0.3, margin: "0 auto 12px" }} />
           <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>파일이 없습니다</div>
-          <div style={{ fontSize: 13 }}>{isParentReadOnly ? "학생이 파일을 제출하면 여기에 표시됩니다." : "우측 상단 업로드 버튼으로 파일을 추가하세요."}</div>
+          <div style={{ fontSize: 13 }}>{isParentReadOnly ? "학생이 파일을 제출하면 여기에 표시됩니다." : "위쪽의 파일 업로드 버튼을 눌러 파일을 추가하세요."}</div>
         </div>
       )}
 

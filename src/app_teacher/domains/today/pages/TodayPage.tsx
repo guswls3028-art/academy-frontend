@@ -10,12 +10,9 @@ import { Card, KpiCard, SectionTitle } from "@teacher/shared/ui/Card";
 import { Badge } from "@teacher/shared/ui/Badge";
 import { ChevronRight } from "@teacher/shared/ui/Icons";
 import { TEACHER_PENDING_ROUTES } from "@teacher/domains/notifications/routes";
+import { todayLocalISO as todayISO } from "@/shared/utils/localDate";
 import { fetchTodaySessions } from "../api";
 import SessionCard from "../components/SessionCard";
-
-function todayISO() {
-  return new Date().toISOString().slice(0, 10);
-}
 
 export default function TodayPage() {
   const today = todayISO();

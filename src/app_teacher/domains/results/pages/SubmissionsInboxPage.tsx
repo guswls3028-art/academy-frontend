@@ -25,6 +25,7 @@ import { ChevronRight } from "@teacher/shared/ui/Icons";
 import {
   retrySubmissionApi,
   discardSubmissionApi,
+  discardSubmissionsBatchApi,
 } from "@admin/domains/materials/sheets/components/submissions/submissions.api";
 import {
   fetchPendingSubmissions,
@@ -154,6 +155,44 @@ export default function SubmissionsInboxPage() {
     },
   });
 
+  // 원본 없는(orphan) 제출 일괄 폐기 — admin desktop의 일괄 폐기를 모바일 1-tap 패턴으로.
+  const discardOrphanBatchMut = useMutation({
+    mutationFn: (ids: number[]) =>
+      discardSubmissionsBatchApi({ submissionIds: ids, reason: "target_missing" }),
+    onSuccess: (data) => {
+      const skipped = data?.skipped_count ?? 0;
+      const discarded = data?.discarded ?? 0;
+      if (skipped > 0) {
+        feedback.success(`${discarded}건 폐기, ${skipped}건은 건너뛰었습니다.`);
+      } else {
+        feedback.success(`${discarded}건을 일괄 폐기했습니다.`);
+      }
+      refetchAll();
+    },
+    onError: (e: unknown) => {
+      const err = e as { response?: { data?: { detail?: string } }; message?: string };
+      feedback.error(err?.response?.data?.detail || err?.message || "일괄 폐기에 실패했습니다.");
+    },
+  });
+
+  const orphanRows = useMemo(
+    () =>
+      (q.data ?? []).filter(
+        (r) => !isTargetResolved(r) && !(r.status === "failed" && r.is_discarded === true),
+      ),
+    [q.data],
+  );
+
+  const handleDiscardAllOrphans = () => {
+    const ids = orphanRows.map((r) => r.id);
+    if (ids.length === 0) return;
+    const ok = window.confirm(
+      `원본 시험·과제가 없는 답안지 ${ids.length}건을 한 번에 폐기할까요?\n폐기된 답안지는 채점 대상에서 제외됩니다.`,
+    );
+    if (!ok) return;
+    discardOrphanBatchMut.mutate(ids);
+  };
+
   const handleNavigate = (row: PendingSubmissionRow) => {
     if (!isTargetResolved(row)) {
       feedback.error("원본 시험/과제 정보를 찾을 수 없어 이동할 수 없습니다.");
@@ -187,6 +226,42 @@ export default function SubmissionsInboxPage() {
         <BackButton onClick={() => navigate(-1)} />
         <h1 className="text-[17px] font-bold flex-1" style={{ color: "var(--tc-text)" }}>제출함</h1>
       </div>
+
+      {/* 원본 없음 일괄 폐기 배너 — 2건 이상일 때만 노출. 학원장 노동 압축. */}
+      {orphanRows.length >= 2 && (
+        <div
+          className="flex items-center gap-2 rounded-xl"
+          style={{
+            padding: "10px 12px",
+            background: "color-mix(in srgb, var(--tc-warning, #f59e0b) 8%, var(--tc-surface))",
+            border: "1px solid color-mix(in srgb, var(--tc-warning, #f59e0b) 24%, transparent)",
+          }}
+        >
+          <div className="flex-1 min-w-0">
+            <div className="text-[13px] font-bold" style={{ color: "var(--tc-text)" }}>
+              원본 없음 {orphanRows.length}건
+            </div>
+            <div className="text-[11px]" style={{ color: "var(--tc-text-muted)" }}>
+              시험·과제가 삭제돼 매칭이 안 되는 답안지입니다. 한 번에 정리할 수 있어요.
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={handleDiscardAllOrphans}
+            disabled={discardOrphanBatchMut.isPending}
+            className="shrink-0 px-3 py-2 rounded text-[12px] font-bold"
+            style={{
+              background: discardOrphanBatchMut.isPending ? "var(--tc-text-muted)" : "var(--tc-danger, #dc2626)",
+              color: "#fff",
+              border: "none",
+              minHeight: "var(--tc-touch-min)",
+              cursor: discardOrphanBatchMut.isPending ? "not-allowed" : "pointer",
+            }}
+          >
+            {discardOrphanBatchMut.isPending ? "처리 중…" : "일괄 폐기"}
+          </button>
+        </div>
+      )}
 
       {/* Filter tabs */}
       <div

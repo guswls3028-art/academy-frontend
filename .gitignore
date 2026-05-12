@@ -111,3 +111,4 @@ _tmp_*
 # Local-only directories
 node_modules_win/
 .wrangler/
+screenshots/

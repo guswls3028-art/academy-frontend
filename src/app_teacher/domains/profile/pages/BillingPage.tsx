@@ -170,7 +170,8 @@ export default function BillingPage() {
           {daysLeft != null && (
             <Row
               label="남은 일수"
-              value={daysLeft >= 365 ? `약 ${Math.floor(daysLeft / 365)}년 (${daysLeft.toLocaleString()}일)` : `${daysLeft.toLocaleString()}일`}
+              // 1년 이상이면 일수 세부 생략 — 학원장에게 9,950일 같은 숫자는 의미 없음 (시각 검수 L-3).
+              value={daysLeft >= 365 ? `약 ${Math.floor(daysLeft / 365)}년` : `${daysLeft.toLocaleString()}일`}
               valueColor={daysLeft < 7 ? "var(--tc-warn)" : daysLeft < 30 ? "var(--tc-text)" : "var(--tc-success)"}
             />
           )}

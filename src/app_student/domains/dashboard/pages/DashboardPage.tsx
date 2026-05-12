@@ -191,7 +191,7 @@ function AppIcon({
         {icon}
         {badge != null && badge > 0 && <NotificationBadge count={badge} />}
       </div>
-      <span style={{ fontSize: 12, fontWeight: 600, color: "var(--stu-text)", letterSpacing: "-0.01em", textAlign: "center" }}>
+      <span style={{ fontSize: 13, fontWeight: 600, color: "var(--stu-text)", letterSpacing: "-0.01em", textAlign: "center" }}>
         {label}
       </span>
     </Link>

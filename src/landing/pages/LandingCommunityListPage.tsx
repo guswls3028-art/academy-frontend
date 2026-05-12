@@ -175,9 +175,9 @@ export default function LandingCommunityListPage() {
         </div>
       </section>
 
-      {/* 탭 */}
+      {/* 탭 — 모바일에서 4탭이 잘려도 scroll-snap + 활성 탭 auto-scroll-into-view 로 발견성 보장 */}
       <section style={{ padding: "0 24px", background: bg, borderBottom: `1px solid ${border}`, position: "sticky", top: 64, zIndex: 30, backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)" }}>
-        <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", gap: 0, overflowX: "auto" }}>
+        <div className="lc-tabs-strip" style={{ maxWidth: 1200, margin: "0 auto", display: "flex", gap: 0, overflowX: "auto", scrollSnapType: "x mandatory", WebkitOverflowScrolling: "touch", scrollbarWidth: "none" }}>
           {TABS.map((t) => {
             const on = t.key === active;
             return (
@@ -186,13 +186,21 @@ export default function LandingCommunityListPage() {
                 type="button"
                 onClick={() => navigate(`/landing/community/${t.key}`)}
                 data-testid={`landing-community-list-tab-${t.key}`}
+                ref={(el) => {
+                  if (on && el) {
+                    // 활성 탭이 viewport 밖이면 자동 스크롤 — 모바일에서 마지막 탭 인지성.
+                    try { el.scrollIntoView({ behavior: "auto", block: "nearest", inline: "center" }); } catch { /* noop */ }
+                  }
+                }}
                 style={{
-                  padding: "14px 18px", border: "none", background: "transparent",
+                  padding: "14px 14px", border: "none", background: "transparent",
                   color: on ? textPrimary : textSecondary,
-                  fontSize: 14.5, fontWeight: on ? 700 : 600, cursor: "pointer",
+                  fontSize: 14, fontWeight: on ? 700 : 600, cursor: "pointer",
                   letterSpacing: "-0.01em", whiteSpace: "nowrap",
                   borderBottom: `2px solid ${on ? gold : "transparent"}`,
                   marginBottom: -1,
+                  scrollSnapAlign: "start",
+                  flex: "0 0 auto",
                 }}
               >{t.label}</button>
             );

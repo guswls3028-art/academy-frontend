@@ -220,6 +220,22 @@ export function LandingNavBar({ config, sections, tokens, brandMark }: { config:
   const navigate = useNavigate();
   const location = useLocation();
 
+  // 데스크탑 가로 nav 항목 — 학원장 spec(2026-05-12) "상단 메뉴가 헤더에 붙는게 좋을듯".
+  // 카테고리 라벨 + 단일 액션(첫 항목 기준) 추출 + "더보기"는 햄버거 패널로 위임.
+  // 모바일에선 CSS로 숨김(.landing-nav-inline 미디어쿼리).
+  const inlineNav: Array<{ key: string; label: string; item: NavMenuItem }> = [];
+  for (const cat of categories) {
+    if (cat.items.length === 0) continue;
+    // 매치업/커뮤니티는 카테고리 라벨로, 학원소개/가이드/서비스센터는 카테고리 first item으로.
+    if (cat.key === "matchup" || cat.key === "community") {
+      const first = cat.items[0];
+      inlineNav.push({ key: cat.key, label: cat.label, item: first });
+    } else {
+      const first = cat.items[0];
+      inlineNav.push({ key: cat.key, label: cat.label, item: first });
+    }
+  }
+
   // 메뉴 클릭 — section type이면 hash, route면 navigate. /landing 외 페이지에서도 cross-page 작동.
   // scroll offset은 SSOT 유틸 사용 — fixed LandingSectionTabs(48) + NavBar(64) 가림 회피.
   const handleNav = (item: NavMenuItem) => {
@@ -245,15 +261,16 @@ export function LandingNavBar({ config, sections, tokens, brandMark }: { config:
   return (
     <>
       <nav style={{ position: "sticky", top: 0, zIndex: 50, background: tokens.bg, backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", borderBottom: `1px solid ${tokens.border}`, padding: "0 20px" }}>
-        <div style={{ maxWidth: 1280, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", height: 64, gap: 12 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+        <div style={{ maxWidth: 1280, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", height: 60, gap: 12 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
             <button
               type="button"
               onClick={() => setOpen(true)}
               aria-label="전체 메뉴 열기"
               data-testid="landing-nav-burger"
+              className="landing-nav-burger"
               style={{
-                width: 40, height: 40, borderRadius: 10,
+                width: 38, height: 38, borderRadius: 10,
                 background: "transparent",
                 border: `1px solid ${tokens.border}`,
                 color: tokens.textPrimary, cursor: "pointer",
@@ -263,19 +280,65 @@ export function LandingNavBar({ config, sections, tokens, brandMark }: { config:
               onMouseEnter={(e) => { e.currentTarget.style.background = isDark ? "rgba(255,255,255,0.06)" : "rgba(15,23,42,0.04)"; }}
               onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
             >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><line x1="3.5" y1="7" x2="20.5" y2="7" /><line x1="3.5" y1="12" x2="20.5" y2="12" /><line x1="3.5" y1="17" x2="20.5" y2="17" /></svg>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><line x1="3.5" y1="7" x2="20.5" y2="7" /><line x1="3.5" y1="12" x2="20.5" y2="12" /><line x1="3.5" y1="17" x2="20.5" y2="17" /></svg>
             </button>
-            <Link to="/landing" style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none", color: tokens.textPrimary, marginLeft: 4 }}>
+            <Link to="/landing" style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none", color: tokens.textPrimary }}>
               {logoUrl ? (
-                <img src={logoUrl} alt={config.brand_name} style={{ height: 34, width: "auto", objectFit: "contain" }} />
+                <img src={logoUrl} alt={config.brand_name} style={{ height: 30, width: "auto", objectFit: "contain" }} />
               ) : brandMark}
-              <span style={{ fontSize: 17, fontWeight: 800, letterSpacing: "-0.02em", whiteSpace: "nowrap" }}>{config.brand_name}</span>
+              <span style={{ fontSize: 17, fontWeight: 700, letterSpacing: "-0.022em", whiteSpace: "nowrap" }}>{config.brand_name}</span>
             </Link>
+          </div>
+          {/* 가로 메뉴 — 데스크탑/태블릿에서만 노출(애플식 minimal top nav).
+              모바일에선 햄버거 패널로 일임 (CSS .landing-nav-inline 미디어쿼리). */}
+          <div className="landing-nav-inline" style={{ display: "none", alignItems: "center", gap: 2, flex: 1, justifyContent: "center", overflow: "hidden" }}>
+            {inlineNav.map((it) => (
+              <button
+                key={it.key}
+                type="button"
+                onClick={() => handleNav(it.item)}
+                data-testid={`landing-nav-top-${it.key}`}
+                className="landing-nav-top-item"
+                style={{
+                  position: "relative",
+                  padding: "8px 14px",
+                  background: "transparent", border: "none",
+                  color: tokens.textPrimary,
+                  fontSize: 13.5, fontWeight: 500, letterSpacing: "-0.01em",
+                  cursor: "pointer", borderRadius: 6,
+                  transition: "color 0.16s ease",
+                  whiteSpace: "nowrap",
+                  ['--lh-accent' as never]: tokens.primaryColor,
+                } as React.CSSProperties}
+              >{it.label}</button>
+            ))}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
             <NavRoleAuthMenu cta={cta} ctaLink={ctaLink} tokens={tokens} />
           </div>
         </div>
+        <style>{`
+          /* 데스크탑/태블릿: 가로 nav 노출, 모바일: 햄버거 only.
+             840px 이하는 inline nav가 잘릴 수 있어 햄버거로 일임. */
+          @media (min-width: 840px) {
+            .landing-nav-inline { display: flex !important; }
+            .landing-nav-burger { display: flex !important; }
+          }
+          /* 가로 nav 메뉴 hover — Apple 톤 underline + subtle accent color */
+          .landing-nav-top-item::after {
+            content: "";
+            position: absolute;
+            left: 14px; right: 14px; bottom: 4px;
+            height: 1.5px;
+            background: var(--lh-accent, currentColor);
+            transform: scaleX(0);
+            transform-origin: center;
+            transition: transform 0.22s cubic-bezier(.4,0,.2,1);
+            border-radius: 1px;
+          }
+          .landing-nav-top-item:hover { color: var(--lh-accent, currentColor); }
+          .landing-nav-top-item:hover::after { transform: scaleX(1); }
+        `}</style>
       </nav>
       {open && (
         <NavSidePanel

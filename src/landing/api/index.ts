@@ -48,7 +48,7 @@ export async function unpublishLanding(): Promise<{ is_published: boolean }> {
   return data;
 }
 
-/** Admin: 이미지 업로드 */
+/** Admin: 이미지 업로드 (단일 hero / logo) */
 export async function uploadLandingImage(
   file: File,
   field: "hero" | "logo"
@@ -56,6 +56,22 @@ export async function uploadLandingImage(
   const formData = new FormData();
   formData.append("file", file);
   formData.append("field", field);
+  const { data } = await api.post("/core/landing/upload-image/", formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return data;
+}
+
+/** Admin: 히어로 슬라이드 이미지 업로드 (slot 0~5). 자동 슬라이드 캐러셀.
+ *  backend가 draft.hero_images[slot]에 R2 key 자동 반영. */
+export async function uploadLandingHeroSlot(
+  file: File,
+  slot: number
+): Promise<{ key: string; url: string; field: string }> {
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("field", "hero_slot");
+  formData.append("slot", String(slot));
   const { data } = await api.post("/core/landing/upload-image/", formData, {
     headers: { "Content-Type": "multipart/form-data" },
   });

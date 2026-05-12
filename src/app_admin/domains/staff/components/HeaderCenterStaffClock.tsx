@@ -241,13 +241,18 @@ export function HeaderCenterStaffClock() {
           <span className="app-header__centerClockDivider" />
         </>
       )}
-      <div className="app-header__centerClockTime">
-        <span className="app-header__centerClockLabel">WORK TIME</span>
-        <span className="app-header__centerClockValue" aria-live="polite">
-          {timeLabel}
-        </span>
-      </div>
-      {staffId != null && defaultWorkTypeId != null && (
+      {/* WORK TIME 표기 + 본인 출퇴근 컨트롤은 owner 에게 잡음.
+          "본인 시급 정산"이 필요 없는 학원장이 매번 노출되는 것을 hide (시각 검수 M-1).
+          owner 도 본인 staff record가 있으면 staff/근태 페이지에서 등록 가능. */}
+      {!staffMe?.is_owner && (
+        <div className="app-header__centerClockTime">
+          <span className="app-header__centerClockLabel">WORK TIME</span>
+          <span className="app-header__centerClockValue" aria-live="polite">
+            {timeLabel}
+          </span>
+        </div>
+      )}
+      {!staffMe?.is_owner && staffId != null && defaultWorkTypeId != null && (
         <>
           <span className="app-header__centerClockDivider" />
           <div className="app-header__centerClockActions">

@@ -155,6 +155,9 @@ export interface LandingConfig {
   subtitle: string;
   primary_color: string;
   hero_image_url: string;
+  /** 다중 히어로 이미지 슬라이드(2026-05-12). 1장이면 정적, 2장↑면 5초 페이드 캐러셀.
+   *  비어있고 hero_image_url만 있으면 단일 이미지로 fallback. */
+  hero_images?: string[];
   logo_url: string;
   cta_text: string;
   cta_link: string;

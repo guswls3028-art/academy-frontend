@@ -123,13 +123,16 @@ function Kpi({
 function SignupChart({ summary }: { summary: DashboardSummary | undefined }) {
   const series = summary?.tenants.signup_series_30d ?? [];
 
-  // 30일치를 패딩 (없는 날은 0)
+  // 30일치를 패딩 (없는 날은 0). 로컬 타임존 기준 (UTC 변환 시 KST 새벽에 어제 날짜로 빠지는 버그 회피).
   const today = new Date();
   const days: Array<{ date: string; count: number }> = [];
   for (let i = 29; i >= 0; i--) {
     const d = new Date(today);
     d.setDate(today.getDate() - i);
-    const key = d.toISOString().slice(0, 10);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    const key = `${yyyy}-${mm}-${dd}`;
     const found = series.find((row) => row.date === key);
     days.push({ date: key, count: found ? found.count : 0 });
   }

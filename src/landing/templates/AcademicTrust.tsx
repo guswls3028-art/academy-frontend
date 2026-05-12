@@ -4,12 +4,17 @@
 // 랜딩 템플릿은 inline style 기반 (MinimalTutor 도메인 정책 정합) — 면제.
 /* eslint-disable no-restricted-syntax */
 
-import type { FeatureItem, TestimonialItem, ProgramItem, FaqItem } from "../types";
+import type { FeatureItem, TestimonialItem, ProgramItem, FaqItem, LandingSection } from "../types";
 import { getEnabledSections, SvgIcon, FaqAccordion, type TemplateProps } from "./shared";
+import HeroImageSlider from "../components/HeroImageSlider";
 
 export default function AcademicTrust({ config }: TemplateProps) {
   const c = config.primary_color || "#4F46E5";
   const sections = getEnabledSections(config);
+  // hero section의 title 필드를 상단 배지 라벨로 사용 (학원장이 LandingEditor에서 편집 가능).
+  // 비어있으면 배지 자체를 hide — 하드코딩 텍스트 제거(2026-05-12).
+  const heroSec: LandingSection | undefined = sections.find((s) => s.type === "hero");
+  const heroBadge = heroSec?.title?.trim() || "";
 
   return (
     <div style={{ fontFamily: "'Pretendard Variable', 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif", color: "#1e293b", background: "#ffffff", minHeight: "100vh" }}>
@@ -37,9 +42,11 @@ export default function AcademicTrust({ config }: TemplateProps) {
                 <div style={{ position: "absolute", inset: 0, background: "linear-gradient(135deg, rgba(0,0,0,0.1) 0%, transparent 60%)", pointerEvents: "none" }} />
                 <div style={{ maxWidth: 1120, margin: "0 auto", position: "relative", display: "flex", alignItems: "center", gap: 56, flexWrap: "wrap" }}>
                   <div style={{ flex: "1 1 480px", minWidth: 280 }}>
-                    <div style={{ display: "inline-block", padding: "6px 14px", borderRadius: 99, background: "rgba(255,255,255,0.15)", fontSize: 13, fontWeight: 600, marginBottom: 20, letterSpacing: "0.02em" }}>
-                      체계적인 학습 관리 시스템
-                    </div>
+                    {heroBadge && (
+                      <div style={{ display: "inline-block", padding: "6px 14px", borderRadius: 99, background: "rgba(255,255,255,0.15)", fontSize: 13, fontWeight: 600, marginBottom: 20, letterSpacing: "0.02em" }}>
+                        {heroBadge}
+                      </div>
+                    )}
                     <h1 style={{ fontSize: "clamp(28px, 4vw, 42px)", fontWeight: 800, lineHeight: 1.25, margin: "0 0 20px" }}>
                       {config.tagline || config.brand_name}
                     </h1>
@@ -56,11 +63,24 @@ export default function AcademicTrust({ config }: TemplateProps) {
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
                     </a>
                   </div>
-                  {config.hero_image_url && (
-                    <div style={{ flex: "1 1 380px", minWidth: 260 }}>
-                      <img src={config.hero_image_url} alt="" style={{ width: "100%", borderRadius: 12, objectFit: "cover", aspectRatio: "4/3", boxShadow: "0 12px 40px rgba(0,0,0,0.2)" }} />
-                    </div>
-                  )}
+                  {(() => {
+                    const heroImgs = (config.hero_images || []).filter(Boolean);
+                    const fallback = config.hero_image_url ? [config.hero_image_url] : [];
+                    const slides = heroImgs.length > 0 ? heroImgs : fallback;
+                    if (slides.length === 0) return null;
+                    return (
+                      <div style={{ flex: "1 1 380px", minWidth: 260 }}>
+                        <HeroImageSlider
+                          images={slides}
+                          aspectRatio="4/3"
+                          borderRadius={12}
+                          altPrefix={config.brand_name}
+                          shadow="0 12px 40px rgba(0,0,0,0.2)"
+                          dotColor="#fff"
+                        />
+                      </div>
+                    );
+                  })()}
                 </div>
               </section>
             );

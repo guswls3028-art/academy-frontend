@@ -75,8 +75,44 @@ export class DevErrorBoundary extends React.Component<
         );
       }
       return (
-        <div style={{ padding: 24, textAlign: "center", color: "#666", fontSize: 14 }}>
-          일시적인 오류가 발생했습니다. F12 → 콘솔에서 상세 내용을 확인할 수 있습니다.
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            minHeight: "60vh",
+            padding: "32px 24px",
+            gap: 14,
+            textAlign: "center",
+            color: "#374151",
+            fontFamily: "'Pretendard Variable', 'Pretendard', system-ui, sans-serif",
+          }}
+        >
+          <div style={{ fontSize: 32 }} aria-hidden>⚠️</div>
+          <p style={{ margin: 0, fontSize: 16, fontWeight: 600, color: "#1f2937" }}>
+            화면을 표시하지 못했어요.
+          </p>
+          <p style={{ margin: 0, fontSize: 13.5, color: "#6b7280", maxWidth: 360, lineHeight: 1.55 }}>
+            새로고침하면 대부분 해결됩니다. 문제가 계속되면 상담문의로 알려주세요.
+          </p>
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            style={{
+              marginTop: 4,
+              padding: "9px 22px",
+              fontSize: 13.5,
+              fontWeight: 600,
+              border: "none",
+              borderRadius: 8,
+              background: "#2563eb",
+              color: "#fff",
+              cursor: "pointer",
+            }}
+          >
+            새로고침
+          </button>
         </div>
       );
     }

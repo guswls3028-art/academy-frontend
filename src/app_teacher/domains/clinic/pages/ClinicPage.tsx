@@ -25,6 +25,7 @@ import { extractApiError } from "@/shared/utils/extractApiError";
 import { useSectionMode } from "@/shared/hooks/useSectionMode";
 import { fetchAllSections, type Section } from "@admin/domains/lectures/api/sections";
 import { useConfirm } from "@/shared/ui/confirm";
+import { todayLocalISO as todayISO, addDaysLocal as addDays } from "@/shared/utils/localDate";
 
 function durationMinutes(start: string, end: string): number {
   const [sh, sm] = start.split(":").map(Number);
@@ -39,16 +40,6 @@ function toHHmmss(s: string): string {
   const h = (parts[0] ?? "00").padStart(2, "0");
   const m = (parts[1] ?? "00").padStart(2, "0");
   return `${h}:${m}:00`;
-}
-
-function todayISO() {
-  return new Date().toISOString().slice(0, 10);
-}
-
-function addDays(dateStr: string, days: number) {
-  const d = new Date(dateStr);
-  d.setDate(d.getDate() + days);
-  return d.toISOString().slice(0, 10);
 }
 
 export default function ClinicPage() {

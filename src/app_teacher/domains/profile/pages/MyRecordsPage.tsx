@@ -12,6 +12,7 @@ import api from "@/shared/api/axios";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { useConfirm } from "@/shared/ui/confirm";
+import { todayLocalISO } from "@/shared/utils/localDate";
 
 type Tab = "attendance" | "expense";
 
@@ -146,7 +147,7 @@ function RecordFormSheet({ open, onClose, tab, month, editData }: {
 }) {
   const qc = useQueryClient();
   const isEdit = !!editData;
-  const [date, setDate] = useState(editData?.date || new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(editData?.date || todayLocalISO());
   const [startTime, setStartTime] = useState(editData?.start_time?.slice(0, 5) || "09:00");
   const [endTime, setEndTime] = useState(editData?.end_time?.slice(0, 5) || "18:00");
   const [workType, setWorkType] = useState(editData?.work_type || "수업");

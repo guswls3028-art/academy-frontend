@@ -45,22 +45,36 @@ export function ProgramProvider({ children }: { children: React.ReactNode }) {
 
   const load = useCallback(async () => {
     setError(false);
-    try {
-      const res = await api.get<Program>("/core/program/", { skipAuth: true } as ApiRequestConfig);
-      setProgram(res.data ?? null);
-    } catch (e: unknown) {
-      if (import.meta.env.DEV) {
-        const err = e as { code?: string; message?: string };
-        if (err?.code === "ERR_NETWORK" || err?.message?.includes("Network Error")) {
-          console.warn(
-            "[로컬 개발] 백엔드에 연결할 수 없습니다. Django 서버를 실행해 주세요.\n" +
-              "  예: academy 폴더에서 'Academy Local Dev.bat' 실행 또는\n" +
-              "  python manage.py runserver 0.0.0.0:8000"
-          );
-          setProgram(DEV_FALLBACK_PROGRAM);
-          return;
+    // 일시적 네트워크 흔들림에 대한 자동 재시도 (max 2회, 지수 백오프).
+    // 학원장이 매번 "다시 시도" 버튼 누르지 않게.
+    const attemptFetch = async (attempt = 0): Promise<Program | null> => {
+      try {
+        const res = await api.get<Program>("/core/program/", { skipAuth: true } as ApiRequestConfig);
+        return res.data ?? null;
+      } catch (e: unknown) {
+        if (import.meta.env.DEV) {
+          const err = e as { code?: string; message?: string };
+          if (err?.code === "ERR_NETWORK" || err?.message?.includes("Network Error")) {
+            console.warn(
+              "[로컬 개발] 백엔드에 연결할 수 없습니다. Django 서버를 실행해 주세요.\n" +
+                "  예: academy 폴더에서 'Academy Local Dev.bat' 실행 또는\n" +
+                "  python manage.py runserver 0.0.0.0:8000"
+            );
+            return DEV_FALLBACK_PROGRAM;
+          }
         }
+        if (attempt < 2) {
+          await new Promise((r) => setTimeout(r, 400 * (attempt + 1)));
+          return attemptFetch(attempt + 1);
+        }
+        throw e;
       }
+    };
+
+    try {
+      const p = await attemptFetch();
+      setProgram(p);
+    } catch {
       setProgram(null);
       setError(true);
     }

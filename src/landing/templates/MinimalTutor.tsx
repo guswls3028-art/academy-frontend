@@ -11,6 +11,7 @@ import { Link } from "react-router-dom";
 import LandingFooter, { FOOTER_TOKENS_LIGHT } from "../components/LandingFooter";
 import CommunityPreviewSection from "../components/CommunityPreviewSection";
 import HeroCarousel from "../components/HeroCarousel";
+import HeroImageSlider from "../components/HeroImageSlider";
 import TestimonialsSticky from "../components/TestimonialsSticky";
 import LandingSectionTabs from "../components/LandingSectionTabs";
 import { Fragment } from "react";
@@ -118,15 +119,25 @@ export default function MinimalTutor({ config }: TemplateProps) {
                       )}
                     </div>
                   </div>
-                  {/* hero visual — image_url 있으면 image, 없으면 brand-driven decorative panel (이류 hero 방지 fix) */}
+                  {/* hero visual — hero_images(다중 슬라이드) 우선, hero_image_url(단일) fallback, 없으면 brand-driven decorative panel */}
                   <div style={{ flex: "1 1 380px", minWidth: 280 }}>
-                    {config.hero_image_url ? (
-                      <img
-                        src={config.hero_image_url}
-                        alt=""
-                        style={{ width: "100%", borderRadius: 16, objectFit: "cover", aspectRatio: "4/3", boxShadow: "0 8px 30px rgba(0,0,0,0.08)" }}
-                      />
-                    ) : (
+                    {(() => {
+                      const heroImgs = (config.hero_images || []).filter(Boolean);
+                      const fallback = config.hero_image_url ? [config.hero_image_url] : [];
+                      const slides = heroImgs.length > 0 ? heroImgs : fallback;
+                      if (slides.length > 0) {
+                        return (
+                          <HeroImageSlider
+                            images={slides}
+                            aspectRatio="4/3"
+                            borderRadius={16}
+                            altPrefix={config.brand_name}
+                            shadow="0 8px 30px rgba(0,0,0,0.08)"
+                            dotColor={c}
+                          />
+                        );
+                      }
+                      return (
                       <div
                         aria-hidden
                         style={{
@@ -152,7 +163,8 @@ export default function MinimalTutor({ config }: TemplateProps) {
                           </div>
                         </div>
                       </div>
-                    )}
+                      );
+                    })()}
                   </div>
                 </div>
               </section>
@@ -254,7 +266,11 @@ export default function MinimalTutor({ config }: TemplateProps) {
               </section>
             );
 
-          case "hit_reports":
+          case "hit_reports": {
+            // 학원장 picker가 비어있으면 섹션 자체를 hide — 빈 placeholder가
+            // 학원 활동 부재처럼 보이는 결함 회피 (시각 검수 2026-05-12 H-1).
+            const hitItemsArr = (section.items as HitReportShowcaseItem[] | undefined) || [];
+            if (hitItemsArr.length === 0) return null;
             return (
               <section key="hit_reports" data-stype="hit_reports" style={{ padding: "80px 24px", background: "#fff" }}>
                 <div style={{ maxWidth: 1120, margin: "0 auto" }}>
@@ -267,7 +283,7 @@ export default function MinimalTutor({ config }: TemplateProps) {
                     </p>
                   )}
                   <HitReportCards
-                    items={(section.items as HitReportShowcaseItem[] | undefined) || []}
+                    items={hitItemsArr}
                     color={c}
                     rgb={rgb}
                   />
@@ -277,6 +293,7 @@ export default function MinimalTutor({ config }: TemplateProps) {
                 </div>
               </section>
             );
+          }
 
           case "instructor_profile": {
             const hitSec = sections.find((s) => s.type === "hit_reports");

@@ -326,15 +326,12 @@ export default function ProfilePage() {
             style={{ display: "none" }}
             onChange={handlePhotoSelect}
           />
-          <button
-            type="button"
-            className="stu-btn stu-btn--ghost stu-btn--sm"
-            onClick={() => photoInputRef.current?.click()}
-            disabled={photoMutation.isPending}
-            style={{ fontSize: 13, color: "var(--stu-primary)" }}
-          >
-            {photoMutation.isPending ? "업로드 중..." : "사진 변경"}
-          </button>
+          {/* 사진 자체가 클릭 가능 + 카메라 아이콘 오버레이로 affordance 충분.
+              redundant "사진 변경" 별도 버튼은 학생이 두 가지 액션처럼 오해(시각 검수 H-8).
+              업로드 중일 때만 진행 상태 표시. */}
+          {photoMutation.isPending && (
+            <span style={{ fontSize: 12, color: "var(--stu-text-muted)" }}>업로드 중…</span>
+          )}
         </div>
       )}
 

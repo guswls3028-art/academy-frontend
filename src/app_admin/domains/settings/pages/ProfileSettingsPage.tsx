@@ -379,7 +379,7 @@ export default function ProfileSettingsPage() {
           ) : (
             <div className={s.row}>
               <span className={s.rowLabel}>계정 ID</span>
-              <span className={s.rowValue} style={{ fontFamily: "monospace", fontSize: 15, fontWeight: 600 }}>
+              <span className={s.rowValue} style={{ fontFamily: "ui-monospace, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace", fontSize: 15, fontWeight: 600, letterSpacing: "normal" }}>
                 {displayId || "—"}
               </span>
               <div className={s.rowActions}>

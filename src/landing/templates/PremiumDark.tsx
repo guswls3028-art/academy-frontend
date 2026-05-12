@@ -12,6 +12,7 @@ import { getEnabledSections, SvgIcon, HitReportCards, useTenantHitStats, Landing
 import LandingFooter, { FOOTER_TOKENS_DARK } from "../components/LandingFooter";
 import CommunityPreviewSection from "../components/CommunityPreviewSection";
 import HeroCarousel from "../components/HeroCarousel";
+import HeroImageSlider from "../components/HeroImageSlider";
 import TestimonialsSticky from "../components/TestimonialsSticky";
 import LandingSectionTabs from "../components/LandingSectionTabs";
 import { Fragment } from "react";
@@ -237,21 +238,27 @@ export default function PremiumDark({ config }: TemplateProps) {
                     </div>
                   </div>
 
-                  {config.hero_image_url && (
-                    <div className="pd-hero-visual" style={{ flex: "1 1 420px", minWidth: 280, position: "relative" }}>
-                      <div style={{ position: "absolute", inset: -20, background: `radial-gradient(ellipse, rgba(${goldRgb},0.2) 0%, transparent 70%)`, filter: "blur(40px)", pointerEvents: "none" }} />
-                      <img
-                        src={config.hero_image_url}
-                        alt=""
-                        style={{
-                          position: "relative",
-                          width: "100%", borderRadius: 20, objectFit: "cover", aspectRatio: "4/5",
-                          border: `1px solid ${cardBorder}`,
-                          boxShadow: "0 32px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04) inset",
-                        }}
-                      />
-                    </div>
-                  )}
+                  {(() => {
+                    const heroImgs = (config.hero_images || []).filter(Boolean);
+                    const fallback = config.hero_image_url ? [config.hero_image_url] : [];
+                    const slides = heroImgs.length > 0 ? heroImgs : fallback;
+                    if (slides.length === 0) return null;
+                    return (
+                      <div className="pd-hero-visual" style={{ flex: "1 1 420px", minWidth: 280, position: "relative" }}>
+                        <div style={{ position: "absolute", inset: -20, background: `radial-gradient(ellipse, rgba(${goldRgb},0.2) 0%, transparent 70%)`, filter: "blur(40px)", pointerEvents: "none" }} />
+                        <div style={{ position: "relative", borderRadius: 20, border: `1px solid ${cardBorder}`, boxShadow: "0 32px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04) inset", overflow: "hidden" }}>
+                          <HeroImageSlider
+                            images={slides}
+                            aspectRatio="4/5"
+                            borderRadius={20}
+                            altPrefix={config.brand_name}
+                            shadow="none"
+                            dotColor="#D4A04C"
+                          />
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               </section>
               <HeroCarousel items={hitItems} carouselItems={carouselItems} theme="dark" />

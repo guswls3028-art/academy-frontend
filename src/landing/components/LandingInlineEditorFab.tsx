@@ -12,11 +12,12 @@
 // 비로그인 외부인 / 학생 / 학부모에겐 안 보임 — 시각 노이즈 0.
 /* eslint-disable no-restricted-syntax */
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import useAuth from "@/auth/hooks/useAuth";
 import api from "@/shared/api/axios";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import type { LandingConfig } from "../types";
+import { uploadLandingHeroSlot, uploadLandingImage } from "../api";
 
 interface Props {
   /** PublicLandingPage가 hold하는 config — drawer 입력 즉시 setState 호출. */
@@ -101,10 +102,72 @@ function EditorDrawer({ config, onClose, onConfigPreview }: {
   const [templateKey, setTemplateKey] = useState((config as LandingConfig & { template_key?: string }).template_key || "minimal_tutor");
   const [ctaText, setCtaText] = useState(config.cta_text || "");
   const [ctaLink, setCtaLink] = useState(config.cta_link || "");
+  // 히어로 이미지 슬라이드 — backend에서 hero_slot 업로드 시 url이 presigned로 반환됨.
+  // hero_images 빈 배열이면 hero_image_url을 첫 슬롯으로 fallback (legacy 호환).
+  const initialHeroSlides = (config.hero_images && config.hero_images.length > 0)
+    ? config.hero_images
+    : (config.hero_image_url ? [config.hero_image_url] : []);
+  const [heroSlides, setHeroSlides] = useState<string[]>(initialHeroSlides);
+  const [logoUrl, setLogoUrl] = useState(config.logo_url || "");
+  const [uploadingSlot, setUploadingSlot] = useState<number | null>(null);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const slotFileInputs = useRef<Array<HTMLInputElement | null>>([]);
+  const logoFileInput = useRef<HTMLInputElement | null>(null);
   const [saving, setSaving] = useState(false);
 
   // input 변경 시 즉시 live preview (publish 안 함, state만).
   const preview = (partial: Partial<LandingConfig>) => onConfigPreview(partial);
+
+  const handleSlotFile = async (slot: number, file: File | null) => {
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { feedback.error("5MB 이하 이미지만 업로드 가능합니다."); return; }
+    if (!file.type.startsWith("image/")) { feedback.error("이미지 파일만 가능합니다."); return; }
+    setUploadingSlot(slot);
+    try {
+      const res = await uploadLandingHeroSlot(file, slot);
+      // backend가 draft.hero_images[slot]에 R2 key를 set + presigned URL 반환.
+      setHeroSlides((prev) => {
+        const next = [...prev];
+        while (next.length <= slot) next.push("");
+        next[slot] = res.url;
+        const filtered = next.filter(Boolean);
+        preview({ hero_images: filtered });
+        return next;
+      });
+      feedback.success(`히어로 이미지 ${slot + 1}번 업로드 완료`);
+    } catch (e) {
+      const detail = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      feedback.error(typeof detail === "string" ? detail : "업로드 실패");
+    } finally {
+      setUploadingSlot(null);
+    }
+  };
+
+  const handleRemoveSlot = (slot: number) => {
+    setHeroSlides((prev) => {
+      const next = prev.filter((_, i) => i !== slot);
+      preview({ hero_images: next.filter(Boolean) });
+      return next;
+    });
+  };
+
+  const handleLogoFile = async (file: File | null) => {
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { feedback.error("5MB 이하 이미지만 업로드 가능합니다."); return; }
+    if (!file.type.startsWith("image/")) { feedback.error("이미지 파일만 가능합니다."); return; }
+    setUploadingLogo(true);
+    try {
+      const res = await uploadLandingImage(file, "logo");
+      setLogoUrl(res.url);
+      preview({ logo_url: res.url });
+      feedback.success("로고 업로드 완료");
+    } catch (e) {
+      const detail = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      feedback.error(typeof detail === "string" ? detail : "업로드 실패");
+    } finally {
+      setUploadingLogo(false);
+    }
+  };
 
   const onSave = async () => {
     if (saving) return;
@@ -121,6 +184,16 @@ function EditorDrawer({ config, onClose, onConfigPreview }: {
         primary_color: primaryColor,
         cta_text: ctaText.trim() || draft.cta_text,
         cta_link: ctaLink.trim() || draft.cta_link,
+        // hero_images / logo_url은 업로드 시점에 backend가 이미 draft에 직접 set한 R2 key를
+        // 유지해야 함 — preview URL(presigned)을 그대로 PUT하면 R2 key가 사라지므로
+        // backend가 set한 draft.hero_images / draft.logo_url을 신뢰해서 유지.
+        // 사용자가 슬롯을 삭제했다면 client state에 반영된 길이만큼 자름.
+        hero_images: heroSlides.filter(Boolean).length === 0
+          ? []
+          : (draft.hero_images && draft.hero_images.length > 0
+            ? draft.hero_images.slice(0, heroSlides.filter(Boolean).length)
+            : draft.hero_images || []),
+        logo_url: logoUrl ? (draft.logo_url || logoUrl) : "",
       };
       // template_key는 LandingPublicResponse top-level이라 admin payload에 별도 key.
       await api.put("/core/landing/admin/", { draft_config: next, template_key: templateKey });
@@ -217,6 +290,108 @@ function EditorDrawer({ config, onClose, onConfigPreview }: {
               <p style={labelStyle}>CTA 링크</p>
               <input type="text" value={ctaLink} onChange={(e) => { setCtaLink(e.target.value); preview({ cta_link: e.target.value }); }} placeholder="/login" style={inputStyle} />
             </div>
+          </div>
+        </section>
+
+        {/* Section: 히어로 이미지 슬라이드 */}
+        <section style={{ marginBottom: 22 }}>
+          <h3 style={{ fontSize: 13, fontWeight: 700, margin: "0 0 4px", letterSpacing: "-0.01em" }}>히어로 이미지</h3>
+          <p style={{ fontSize: 11, color: "#9CA3AF", margin: "0 0 12px", lineHeight: 1.5 }}>
+            1장이면 정적, 2장 이상이면 자동 슬라이드(5초). 최대 6장.
+          </p>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+            {Array.from({ length: 6 }).map((_, slot) => {
+              const url = heroSlides[slot] || "";
+              const isUploading = uploadingSlot === slot;
+              return (
+                <div
+                  key={slot}
+                  style={{
+                    position: "relative",
+                    aspectRatio: "4/3",
+                    borderRadius: 8,
+                    overflow: "hidden",
+                    background: url ? "transparent" : inputBg,
+                    border: `1px dashed ${url ? "transparent" : cardBorder}`,
+                  }}
+                >
+                  {url ? (
+                    <img src={url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  ) : (
+                    <div style={{
+                      position: "absolute", inset: 0,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      color: "#6B7280", fontSize: 11, fontWeight: 600,
+                    }}>{slot + 1}</div>
+                  )}
+                  {isUploading && (
+                    <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 11, fontWeight: 600 }}>업로드…</div>
+                  )}
+                  <input
+                    ref={(el) => { slotFileInputs.current[slot] = el; }}
+                    type="file"
+                    accept="image/png,image/jpeg,image/jpg,image/gif,image/webp"
+                    onChange={(e) => handleSlotFile(slot, e.target.files?.[0] || null)}
+                    style={{ display: "none" }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => slotFileInputs.current[slot]?.click()}
+                    disabled={isUploading}
+                    aria-label={`히어로 이미지 ${slot + 1} ${url ? "교체" : "업로드"}`}
+                    style={{
+                      position: "absolute", inset: 0,
+                      background: "transparent", border: "none",
+                      cursor: isUploading ? "wait" : "pointer",
+                    }}
+                  />
+                  {url && !isUploading && (
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); handleRemoveSlot(slot); }}
+                      aria-label="이미지 삭제"
+                      title="이미지 삭제"
+                      style={{
+                        position: "absolute", top: 4, right: 4,
+                        width: 22, height: 22, borderRadius: "50%",
+                        background: "rgba(0,0,0,0.65)", border: "none",
+                        color: "#fff", fontSize: 12, fontWeight: 700,
+                        cursor: "pointer",
+                        display: "inline-flex", alignItems: "center", justifyContent: "center",
+                      }}
+                    >×</button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </section>
+
+        {/* Section: 로고 */}
+        <section style={{ marginBottom: 22 }}>
+          <h3 style={{ fontSize: 13, fontWeight: 700, margin: "0 0 8px", letterSpacing: "-0.01em" }}>로고</h3>
+          <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+            <div style={{
+              width: 72, height: 72, borderRadius: 12,
+              background: inputBg, border: `1px solid ${cardBorder}`,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              overflow: "hidden",
+            }}>
+              {logoUrl ? <img src={logoUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "contain" }} /> : <span style={{ fontSize: 10, color: "#6B7280" }}>없음</span>}
+            </div>
+            <input
+              ref={logoFileInput}
+              type="file"
+              accept="image/png,image/jpeg,image/jpg,image/gif,image/webp"
+              onChange={(e) => handleLogoFile(e.target.files?.[0] || null)}
+              style={{ display: "none" }}
+            />
+            <button
+              type="button"
+              onClick={() => logoFileInput.current?.click()}
+              disabled={uploadingLogo}
+              style={{ padding: "10px 16px", borderRadius: 8, border: `1px solid ${cardBorder}`, background: inputBg, color: "#F5F1E8", fontSize: 13, fontWeight: 600, cursor: uploadingLogo ? "wait" : "pointer" }}
+            >{uploadingLogo ? "업로드…" : (logoUrl ? "로고 교체" : "로고 업로드")}</button>
           </div>
         </section>
 

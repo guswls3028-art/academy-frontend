@@ -245,8 +245,11 @@ export function BugReportPage() {
         <div>
           <p className={styles.guideTitle}>버그 발견 시 스크린샷을 첨부해주세요</p>
           <p className={styles.guideDesc}>
-            <kbd>F12</kbd> 키로 개발자 도구를 연 상태에서 <kbd>PrtSc</kbd> 키로 화면을 캡처한 뒤,
-            아래 입력란에서 <kbd>Ctrl</kbd>+<kbd>V</kbd>로 이미지를 붙여넣을 수 있습니다.
+            화면 캡처를 입력란에 끌어놓거나 <kbd>Ctrl</kbd>+<kbd>V</kbd>로 붙여넣으면 함께 전송됩니다.
+            <br />
+            <span style={{ opacity: 0.7, fontSize: "0.92em" }}>
+              화면 캡처는 <kbd>PrtSc</kbd>(Windows) 또는 <kbd>⌘</kbd>+<kbd>Shift</kbd>+<kbd>4</kbd>(Mac).
+            </span>
           </p>
         </div>
       </div>

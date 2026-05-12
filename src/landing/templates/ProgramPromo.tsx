@@ -6,6 +6,7 @@
 
 import type { FeatureItem, TestimonialItem, ProgramItem, FaqItem } from "../types";
 import { getEnabledSections, SvgIcon, FaqAccordion, type TemplateProps } from "./shared";
+import HeroImageSlider from "../components/HeroImageSlider";
 import { hexToRgb } from "./colorUtils";
 
 export default function ProgramPromo({ config }: TemplateProps) {
@@ -51,9 +52,24 @@ export default function ProgramPromo({ config }: TemplateProps) {
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
                     </a>
                   </div>
-                  {config.hero_image_url && (
-                    <img src={config.hero_image_url} alt="" style={{ width: "100%", maxWidth: 800, marginTop: 48, borderRadius: 16, objectFit: "cover", aspectRatio: "16/9", boxShadow: "0 8px 30px rgba(0,0,0,0.1)" }} />
-                  )}
+                  {(() => {
+                    const heroImgs = (config.hero_images || []).filter(Boolean);
+                    const fallback = config.hero_image_url ? [config.hero_image_url] : [];
+                    const slides = heroImgs.length > 0 ? heroImgs : fallback;
+                    if (slides.length === 0) return null;
+                    return (
+                      <div style={{ width: "100%", maxWidth: 800, marginTop: 48, marginLeft: "auto", marginRight: "auto" }}>
+                        <HeroImageSlider
+                          images={slides}
+                          aspectRatio="16/9"
+                          borderRadius={16}
+                          altPrefix={config.brand_name}
+                          shadow="0 8px 30px rgba(0,0,0,0.1)"
+                          dotColor={c}
+                        />
+                      </div>
+                    );
+                  })()}
                 </div>
               </section>
             );
@@ -65,7 +81,10 @@ export default function ProgramPromo({ config }: TemplateProps) {
               <section key="features" style={{ padding: "80px 24px" }}>
                 <div style={{ maxWidth: 1120, margin: "0 auto" }}>
                   <h2 style={{ fontSize: 28, fontWeight: 700, textAlign: "center", margin: "0 0 12px" }}>{section.title || "왜 선택해야 할까요?"}</h2>
-                  <p style={{ textAlign: "center", color: "#64748b", fontSize: 15, margin: "0 0 48px" }}>검증된 커리큘럼으로 실력을 키웁니다</p>
+                  {section.description && section.description.trim() && (
+                    <p style={{ textAlign: "center", color: "#64748b", fontSize: 15, margin: "0 0 48px" }}>{section.description}</p>
+                  )}
+                  {(!section.description || !section.description.trim()) && <div style={{ height: 36 }} />}
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 24 }}>
                     {items.map((item, i) => (
                       <div key={i} style={{ padding: "36px 28px", borderRadius: 16, background: "#fff", border: "2px solid #f1f5f9", textAlign: "center" }}>

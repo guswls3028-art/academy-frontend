@@ -168,10 +168,12 @@ function SubmissionRow({
   onClick: () => void;
   rightLabel: string;
 }) {
-  // 제목 폴백: 강의명 또는 제출 시각으로 구분 보조 — 동일 제목·"(제목 없음)" 다수 노출 시 식별성 회복
+  // 제목 폴백: 강의명 또는 제출 시각으로 구분 보조 — 동일 제목·"(제목 없음)" 다수 노출 시 식별성 회복.
+  // 시각 검수 M-2: 모두 비어있는 dangling 제출도 ID+힌트로 식별성 회복.
   const titleText = useMemo(() => {
     if (sub.target_title) return sub.target_title;
     if (sub.lecture_title) return `${sub.lecture_title} · 제목 미입력`;
+    if (sub.id) return `원본 없음 · 제출 #${sub.id}`;
     return "(제목 없음)";
   }, [sub]);
 
