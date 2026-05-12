@@ -32,9 +32,9 @@ export async function fetchSession(sessionId: number) {
   return res.data;
 }
 
-/** 강의 수강생 목록 (enrollments 기반) */
+/** 강의 수강생 목록 (enrollments 기반) — backend 마운트: /api/v1/enrollments/ */
 export async function fetchLectureEnrollments(lectureId: number) {
-  const res = await api.get("/lectures/enrollments/", {
+  const res = await api.get("/enrollments/", {
     params: { lecture: lectureId, page_size: 200 },
   });
   const raw = res.data;
@@ -100,12 +100,12 @@ export async function deleteSession(sessionId: number) {
 
 /* ─── Enrollment management ─── */
 export async function bulkCreateEnrollments(lectureId: number, studentIds: number[]) {
-  const res = await api.post("/lectures/enrollments/bulk_create/", { lecture: lectureId, student_ids: studentIds });
+  const res = await api.post("/enrollments/bulk_create/", { lecture: lectureId, student_ids: studentIds });
   return res.data;
 }
 
 export async function deleteEnrollment(enrollmentId: number) {
-  await api.delete(`/lectures/enrollments/${enrollmentId}/`);
+  await api.delete(`/enrollments/${enrollmentId}/`);
 }
 
 /* ─── Attendance ─── */
