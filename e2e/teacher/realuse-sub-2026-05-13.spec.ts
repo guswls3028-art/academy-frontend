@@ -2,6 +2,7 @@
  * PATH: e2e/teacher/realuse-sub-2026-05-13.spec.ts
  * 학원장 시각 검수 2차 — sub 페이지 + 1366 narrow viewport
  */
+/* eslint-disable no-restricted-syntax */
 import { test } from "@playwright/test";
 import { loginViaUI, getBaseUrl } from "../helpers/auth.ts";
 

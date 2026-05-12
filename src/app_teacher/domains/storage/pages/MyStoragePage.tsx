@@ -1,5 +1,6 @@
+/* eslint-disable no-restricted-syntax */
 // PATH: src/app_teacher/domains/storage/pages/MyStoragePage.tsx
-// 내 자료 — admin scope 인벤토리 조회/업로드/다운로드/삭제
+// 내 자료 — admin scope 인벤토리 조회/업로드/다운로드/삭제 (R-11 baseline 동결)
 import { useState, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
