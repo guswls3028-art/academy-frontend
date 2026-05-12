@@ -16,7 +16,16 @@ table.ds-table {
   width: 100%;
   border-collapse: separate;
   border-spacing: 0;
-  font-size: 14px;
+  font-size: var(--text-body); /* 14px SSOT */
+}
+
+/* Typography 위계 — 모든 ds-table 변종 일관 적용 (2026-05-13) */
+.ds-table tbody td {
+  font-size: var(--text-body); /* 14px */
+}
+.ds-table tbody td:first-child {
+  font-size: var(--text-name); /* 15px */
+  font-weight: var(--font-name); /* 600 */
 }
 
 /* 컬럼 너비 리사이즈 시 변동이 셀 너비에 정확히 반영되도록 — width가 padding 포함 */

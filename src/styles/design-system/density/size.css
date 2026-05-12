@@ -50,4 +50,36 @@
   --badge-pad-sm: 3px 8px;
   --badge-pad-md: 4px 10px;
   --badge-pad-lg: 5px 12px;
+
+  /* ============================================================
+   * TYPOGRAPHY SSOT — 학원장 시선 위계 4단계 (2026-05-13)
+   * 정책: 페이지마다 raw fontSize: 11/12/13/14/15 박는 패턴 금지.
+   *   class 또는 var() 토큰만 사용.
+   *
+   * 위계:
+   *   --text-name (15px / 600) : 엔티티 이름 (학생/직원/강의/시험/차시).
+   *                              학원장이 가장 먼저 보는 핵심 정보.
+   *   --text-body (14px / 400) : 본문 (테이블 셀, 카드 본문, 폼 입력).
+   *                              ds-table 기본과 동일.
+   *   --text-meta (12px / 400) : 보조 정보 (전화번호, 날짜, 시간, 카운트).
+   *                              본문 위계보다 약함, 색은 muted.
+   *   --text-hint (11px / 400) : 힌트/placeholder/약관 미주.
+   *                              부속 정보, 색은 더 muted.
+   * ============================================================ */
+  --text-name: 15px;
+  --text-body: 14px;
+  --text-meta: 12px;
+  --text-hint: 11px;
+
+  --font-name: 600;
+  --font-body: 400;
+  --font-meta: 400;
 }
+
+/* Typography 위계 utility class — DS token 직접 사용 권장.
+ * (Tailwind class 또는 className으로 적용)
+ */
+.ds-text-name { font-size: var(--text-name); font-weight: var(--font-name); }
+.ds-text-body { font-size: var(--text-body); font-weight: var(--font-body); }
+.ds-text-meta { font-size: var(--text-meta); font-weight: var(--font-meta); color: var(--color-text-muted, var(--text-secondary)); }
+.ds-text-hint { font-size: var(--text-hint); font-weight: var(--font-meta); color: var(--color-text-muted, var(--text-secondary)); }
