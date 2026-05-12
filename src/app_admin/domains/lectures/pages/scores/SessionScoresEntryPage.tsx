@@ -1,8 +1,11 @@
 // PATH: src/app_admin/domains/lectures/pages/scores/SessionScoresEntryPage.tsx
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars, no-restricted-syntax */
 /**
  * SessionScoresEntryPage — 성적 탭 (엑셀형 작업 플레이스)
  * - DomainListToolbar + 테이블, Tab/화살표 셀 이동, 편집 모드에서만 셀 편집
- * - 학생 체크박스 선택 시 메시지 발송·수업결과 발송·성적일괄변경·엑셀 다운로드 (students 도메인 참고)
+ * - 학생 체크박스 선택 시 수업결과 알림톡 발송·성적일괄변경·엑셀 다운로드 (students 도메인 참고)
+ *
+ * 2026-05-12: "메시지 발송"(SMS path) 버튼 제거 — 학원장 임근혁 보고. 단일 알림톡 경로로 통일.
  */
 
 import { useState, useMemo, useRef, useEffect } from "react";
@@ -334,26 +337,12 @@ export default function SessionScoresEntryPage(_props: Props) {
           선택 해제
         </Button>
         <span className="text-[var(--color-border-divider)]">|</span>
+        {/*
+          "메시지 발송"(SMS path) 버튼 제거 (2026-05-12) — 학원장 임근혁 보고:
+          "메세지 발송기능 프로그램에서 그냥 지워". 알림톡 발송은 "수업결과 알림톡 발송" 단일 경로.
+        */}
         <Button
-          intent="secondary"
-          size="sm"
-          onClick={() =>
-            openSendMessageModal({
-              studentIds: selectedStudentIds,
-              recipientLabel: `선택한 수강생 ${selectedEnrollmentIds.length}명`,
-              blockCategory: "exam",
-              alimtalkExtraVars: {
-                강의명: lectureTitle,
-                차시명: sessionTitle,
-              },
-            })
-          }
-          disabled={selectedEnrollmentIds.length === 0}
-        >
-          메시지 발송
-        </Button>
-        <Button
-          intent="secondary"
+          intent="primary"
           size="sm"
           onClick={async () => {
             const rows = data?.rows ?? [];
@@ -425,7 +414,7 @@ export default function SessionScoresEntryPage(_props: Props) {
           }}
           disabled={selectedEnrollmentIds.length === 0}
         >
-          수업결과 발송
+          수업결과 알림톡 발송
         </Button>
         <Button
           intent="secondary"
