@@ -7,6 +7,8 @@
 import type { FeatureItem, TestimonialItem, ProgramItem, FaqItem, LandingSection } from "../types";
 import { getEnabledSections, SvgIcon, FaqAccordion, type TemplateProps } from "./shared";
 import HeroImageSlider from "../components/HeroImageSlider";
+import LandingFooter, { FOOTER_TOKENS_LIGHT } from "../components/LandingFooter";
+import LandingCommunityShowcase from "../components/LandingCommunityShowcase";
 
 export default function AcademicTrust({ config }: TemplateProps) {
   const c = config.primary_color || "#4F46E5";
@@ -197,9 +199,8 @@ export default function AcademicTrust({ config }: TemplateProps) {
         }
       })}
 
-      <footer style={{ padding: "36px 24px", borderTop: "1px solid #e2e8f0", textAlign: "center" }}>
-        <p style={{ fontSize: 13, color: "#94a3b8", margin: 0 }}>&copy; {new Date().getFullYear()} {config.brand_name}</p>
-      </footer>
+      <LandingCommunityShowcase theme="light" />
+      <LandingFooter config={config} sections={sections} tokens={FOOTER_TOKENS_LIGHT} />
     </div>
   );
 }

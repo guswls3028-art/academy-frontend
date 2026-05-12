@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Dropdown } from "antd";
-import { fetchSessionEnrollments, lectureEnrollFromExcelUpload } from "../api/enrollments";
+import { fetchSessionEnrollments, fetchLectureEnrollments, lectureEnrollFromExcelUpload } from "../api/enrollments";
 import type { SessionEnrollmentRow } from "../api/enrollments";
 import { fetchSessions } from "../api/sessions";
 import { bulkCreateAttendance, updateAttendance, fetchAttendanceEnrolledStudentIds } from "../api/attendance";
@@ -15,8 +15,9 @@ import StudentCreateModal from "@admin/domains/students/components/StudentCreate
 import StudentsDetailOverlay from "@admin/domains/students/overlays/StudentsDetailOverlay";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import ExcelUploadZone from "@/shared/ui/excel/ExcelUploadZone";
+import { downloadStudentExcelTemplate } from "@admin/domains/students/excel/studentExcel";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
-import { Button, EmptyState, Tabs } from "@/shared/ui/ds";
+import { Button, EmptyState } from "@/shared/ui/ds";
 import { TABLE_COL } from "@/shared/ui/domain";
 import { formatPhone } from "@/shared/utils/formatPhone";
 import { feedback } from "@/shared/ui/feedback/feedback";
@@ -26,11 +27,6 @@ import { useSchoolLevelMode } from "@/shared/hooks/useSchoolLevelMode";
 import { formatSessionOrderLabel } from "@/shared/ui/session-block";
 
 const PAGE_SIZE = 100;
-/** 탭 디자인 유지. '신규 학생 추가' 클릭 시 탭 전환 없이 학생추가 모달만 연다 */
-const ENROLL_TABS = [
-  { key: "existing", label: "기존 학생 추가" },
-  { key: "new", label: "신규 학생 추가" },
-];
 
 
 /** 정렬 옵션 (드롭다운용 단일 select) */
@@ -196,6 +192,9 @@ type SelectedItem = {
   displayName?: string;
   profilePhotoUrl?: string | null;
   enrollments?: LectureChipInfo[];
+  /** 동명이인 식별용 — 우측 명단에 학교·학년 chip 표시. 직전 차시 불러오기 경로는 정보 없어 undefined (백로그) */
+  school?: string | null;
+  grade?: number | null;
 };
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -209,7 +208,8 @@ export default function SessionEnrollModal({
   const qc = useQueryClient();
   const slm = useSchoolLevelMode();
   const [overlayStudentId, setOverlayStudentId] = useState<number | null>(null);
-  const [activeTab, setActiveTab] = useState("existing");
+  // P2 (2026-05-13): "신규 학생 추가" 탭은 모달을 여는 함정 동작이라 탭 제거.
+  // 명시적 "+ 새 학생 등록" 버튼으로 분리. 학원장이 클릭 결과를 예측 가능하도록.
   const [keyword, setKeyword] = useState("");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -221,8 +221,10 @@ export default function SessionEnrollModal({
   const [excelUploading, setExcelUploading] = useState(false);
   const [excelStatusByStudentId, setExcelStatusByStudentId] = useState<Record<number, string>>({});
   const [excelPendingFile, setExcelPendingFile] = useState<File | null>(null);
-  const [excelInitialPassword, setExcelInitialPassword] = useState("");
+  // 학원장이 한 번 확인하고 그대로 진행하는 흐름. 정책 자체는 4자 이상 유지.
+  const [excelInitialPassword, setExcelInitialPassword] = useState("1234");
   const [copyFromPrevLoading, setCopyFromPrevLoading] = useState(false);
+  const [copyFromLectureLoading, setCopyFromLectureLoading] = useState(false);
 
   // Dynamic school/grade options from school level mode
   const schoolOptions = useMemo(() => [
@@ -338,7 +340,7 @@ export default function SessionEnrollModal({
   const { data: studentsData, isLoading: loadingStudents } = useQuery({
     queryKey: ["session-enroll-modal-students", search, apiFilters, sort, page],
     queryFn: () => fetchStudents(search, apiFilters, sort, page),
-    enabled: isOpen && activeTab === "existing",
+    enabled: isOpen,
     refetchOnMount: "always",
     staleTime: 0,
   });
@@ -349,6 +351,12 @@ export default function SessionEnrollModal({
 
   const studentsToShow = useMemo(
     () => students.filter((s) => !alreadyEnrolledStudentIds.has(s.id)),
+    [students, alreadyEnrolledStudentIds]
+  );
+
+  /** 현재 페이지에서 이미 등록되어 숨겨진 학생 수 — 학원장 혼란("검색했는데 왜 안 보임?") 방지 안내용. */
+  const hiddenAlreadyEnrolledInPage = useMemo(
+    () => students.filter((s) => alreadyEnrolledStudentIds.has(s.id)).length,
     [students, alreadyEnrolledStudentIds]
   );
 
@@ -447,6 +455,50 @@ export default function SessionEnrollModal({
     );
   }, [sort]);
 
+  /**
+   * 강의 수강생(ACTIVE)을 selectedItems에 시드.
+   * 1차시 또는 새 강의 첫 등록 시 빠른 경로. 자동 X — 학원장이 버튼 누를 때만 동작.
+   * 직전 차시 불러오기와 달리 "강의에 누적된 활성 학생 전원"이 대상이므로 학기 시작 시 자연.
+   */
+  const handleCopyFromLectureToSelection = useCallback(async () => {
+    setCopyFromLectureLoading(true);
+    try {
+      const lectureList = await fetchLectureEnrollments(lectureId);
+      // ACTIVE 만 시드 — 퇴원(INACTIVE)/대기(PENDING) 자동 제외
+      const active = lectureList.filter((e: any) => e.status === "ACTIVE" || !e.status);
+      // backend EnrollmentSerializer는 student 를 StudentShortSerializer 로 nested.
+      // student.id / student.name / student.grade / student.high_school | middle_school | elementary_school
+      const toAddRows = active.filter((e: any) => {
+        const sid = e.student?.id;
+        return sid != null && !alreadyEnrolledStudentIds.has(sid);
+      });
+      const itemsToAdd: SelectedItem[] = toAddRows.map((e: any) => {
+        const s = e.student ?? {};
+        const school = s.high_school || s.middle_school || s.elementary_school || null;
+        return {
+          id: s.id,
+          name: s.name ?? "-",
+          school,
+          grade: s.grade ?? null,
+        };
+      });
+      if (itemsToAdd.length === 0) {
+        feedback.info("강의 수강생 중 추가할 학생이 없습니다. (이미 모두 등록되어 있거나 활성 학생이 없습니다)");
+        return;
+      }
+      setSelectedItems((prev) => {
+        const byId = new Map(prev.map((s) => [s.id, s]));
+        itemsToAdd.forEach((item) => byId.set(item.id, item));
+        return Array.from(byId.values());
+      });
+      feedback.success(`강의 수강생 ${itemsToAdd.length}명을 선택 목록에 추가했습니다. 아래에서 확인·편집 후 'N명 추가'로 등록하세요.`);
+    } catch (e) {
+      feedback.error(e instanceof Error ? e.message : "강의 수강생 불러오기에 실패했습니다.");
+    } finally {
+      setCopyFromLectureLoading(false);
+    }
+  }, [lectureId, alreadyEnrolledStudentIds]);
+
   const handleCopyFromPrevToSelection = useCallback(async () => {
     if (!prevSession) return;
     setCopyFromPrevLoading(true);
@@ -457,7 +509,12 @@ export default function SessionEnrollModal({
       );
       const itemsToAdd: SelectedItem[] = toAddRows
         .filter((se): se is SessionEnrollmentRow & { student_id: number } => se.student_id != null)
-        .map((se) => ({ id: se.student_id, name: se.student_name ?? "-" }));
+        .map((se) => ({
+          id: se.student_id,
+          name: se.student_name ?? "-",
+          school: se.student_school ?? null,
+          grade: se.student_grade ?? null,
+        }));
       if (itemsToAdd.length === 0) {
         feedback.info("가져올 새 수강생이 없습니다. (이미 모두 등록됨)");
         return;
@@ -488,7 +545,7 @@ export default function SessionEnrollModal({
       : [];
     setSelectedItems((prev) => {
       if (prev.some((s) => s.id === id)) return prev.filter((s) => s.id !== id);
-      return [...prev, { id, name, profilePhotoUrl, enrollments }];
+      return [...prev, { id, name, profilePhotoUrl, enrollments, school: student.school ?? null, grade: student.grade ?? null }];
     });
   }, []);
 
@@ -524,6 +581,8 @@ export default function SessionEnrollModal({
                 chipLabel: (en as { lectureChipLabel?: string | null }).lectureChipLabel ?? undefined,
               }))
             : [],
+          school: s.school ?? null,
+          grade: s.grade ?? null,
         });
       });
       return Array.from(byId.values());
@@ -557,7 +616,7 @@ export default function SessionEnrollModal({
       onSuccess?.();
       onClose();
       setExcelPendingFile(null);
-      setExcelInitialPassword("");
+      setExcelInitialPassword("1234");
     } catch (e) {
       feedback.error(e instanceof Error ? e.message : "등록 요청 중 오류가 발생했습니다.");
     } finally {
@@ -571,7 +630,7 @@ export default function SessionEnrollModal({
       if (!isOpen) return;
       if (e.key === "Escape") onClose();
       const isTextarea = (e.target as HTMLElement)?.tagName === "TEXTAREA";
-      if (e.key === "Enter" && !isTextarea && idsToAdd.length > 0 && !addByStudentMutation.isPending && !copyFromPrevLoading) {
+      if (e.key === "Enter" && !isTextarea && idsToAdd.length > 0 && !addByStudentMutation.isPending && !copyFromPrevLoading && !copyFromLectureLoading) {
         e.preventDefault();
         addByStudentMutation.mutate({
           studentIds: idsToAdd,
@@ -601,24 +660,28 @@ export default function SessionEnrollModal({
             className="grid gap-4 min-h-0 overflow-hidden ds-split-layout"
             style={{
               gridTemplateColumns: "1fr 220px",
-              minHeight: activeTab === "existing" ? 380 : undefined,
+              minHeight: 380,
             }}
           >
-            {/* 좌측: 탭 + 필터바 + 테이블 */}
+            {/* 좌측: 헤더 + 필터바 + 테이블 */}
             <div className="flex flex-col gap-2 min-h-0 overflow-hidden">
-              <div className="modal-tabs-elevated">
-                <Tabs
-                  value={activeTab}
-                  items={ENROLL_TABS}
-                  onChange={(key) => {
-                    if (key === "new") setStudentCreateOpen(true);
-                    else setActiveTab(key);
-                  }}
-                />
+              {/* 학원장 안내 헤더 + 새 학생 등록 명시적 버튼 (구 "신규 학생 추가" 탭 함정 제거) */}
+              <div className="flex items-center justify-between gap-3 pb-1">
+                <div className="text-[12px] text-[var(--color-text-muted)]">
+                  전체 학생 명단에서 선택하세요. 명단에 없는 학생은 오른쪽에서 새로 등록할 수 있어요.
+                </div>
+                <Button
+                  type="button"
+                  intent="secondary"
+                  size="sm"
+                  onClick={() => setStudentCreateOpen(true)}
+                  className="shrink-0"
+                >
+                  + 새 학생 등록
+                </Button>
               </div>
 
-              {activeTab === "existing" && (
-                <>
+              <>
                   {/* 툴바 — 학생 도메인과 동일: 총계 | 검색+필터 */}
                   {(() => {
                     const activeFilterCount = [sort !== "name", schoolType !== "", grade !== 0].filter(Boolean).length;
@@ -686,6 +749,52 @@ export default function SessionEnrollModal({
                             {selectedItems.length}명 선택됨
                           </span>
                         )}
+                        {/* 빠른 불러오기 — 매주 가장 자주 누르는 액션. 좌측 상단 prominent CTA.
+                            • 직전 차시 있음 (2차시~) → 직전 차시 불러오기 primary, 강의 수강생은 보조
+                            • 직전 차시 없음 (1차시·새 강의) → 강의 수강생 가져오기 primary */}
+                        <div
+                          className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2"
+                          style={{
+                            borderColor: "color-mix(in srgb, var(--color-brand-primary) 30%, var(--color-border-divider))",
+                            background: "color-mix(in srgb, var(--color-brand-primary) 4%, var(--color-bg-surface))",
+                          }}
+                        >
+                          <div className="min-w-0">
+                            <div className="text-[13px] font-semibold text-[var(--color-text-primary)]">
+                              {prevSession ? "지난주 수강생을 한 번에 불러올 수 있어요" : "강의 수강생을 한 번에 불러올 수 있어요"}
+                            </div>
+                            <div className="mt-0.5 text-[11px] text-[var(--color-text-muted)] leading-snug">
+                              {prevSession ? (
+                                <>직전 차시(<strong>{formatSessionOrderLabel(prevSession.order, prevSession.title)}</strong>) 수강생을 선택 목록에 추가합니다. 합류·퇴원자는 아래에서 편집 후 '추가'로 등록.</>
+                              ) : (
+                                <>이 강의의 활성 수강생 전원을 선택 목록에 추가합니다. 1차시·새 강의 시작에 추천. 아래에서 편집 후 '추가'로 등록.</>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex flex-col items-stretch gap-1 shrink-0">
+                            {prevSession && (
+                              <Button
+                                type="button"
+                                intent="primary"
+                                size="sm"
+                                disabled={copyFromPrevLoading || copyFromLectureLoading}
+                                onClick={() => handleCopyFromPrevToSelection()}
+                              >
+                                {copyFromPrevLoading ? "불러오는 중…" : "직전 차시 불러오기"}
+                              </Button>
+                            )}
+                            <Button
+                              type="button"
+                              intent={prevSession ? "secondary" : "primary"}
+                              size="sm"
+                              disabled={copyFromLectureLoading || copyFromPrevLoading}
+                              onClick={() => handleCopyFromLectureToSelection()}
+                              title="이 강의의 활성 수강생을 모두 선택 목록에 추가"
+                            >
+                              {copyFromLectureLoading ? "불러오는 중…" : "강의 수강생 가져오기"}
+                            </Button>
+                          </div>
+                        </div>
                       </div>
                     );
                   })()}
@@ -792,7 +901,9 @@ export default function SessionEnrollModal({
                                   colSpan={6}
                                   className="py-5 px-3 text-center text-[var(--color-text-muted)]"
                                 >
-                                  검색 결과 없음. 검색어·필터를 바꿔 보세요.
+                                  {hiddenAlreadyEnrolledInPage > 0
+                                    ? `검색된 ${hiddenAlreadyEnrolledInPage}명은 이미 이 차시에 등록되어 표시되지 않습니다. 다른 학생을 검색하거나 차시 학생 목록에서 확인하세요.`
+                                    : "검색 결과 없음. 검색어·필터를 바꿔 보세요."}
                                 </td>
                               </tr>
                             ) : (
@@ -901,9 +1012,16 @@ export default function SessionEnrollModal({
                         className="flex items-center justify-between gap-3 py-2.5 px-3 border-t shrink-0 bg-[var(--color-bg-surface)]"
                         style={{ borderColor: "var(--color-border-divider)" }}
                       >
-                        <span className="text-[13px] font-semibold text-[var(--color-text-primary)]">
-                          총 {studentsToShow.length}명
-                        </span>
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="text-[13px] font-semibold text-[var(--color-text-primary)] shrink-0">
+                            총 {studentsToShow.length}명
+                          </span>
+                          {hiddenAlreadyEnrolledInPage > 0 && studentsToShow.length > 0 && (
+                            <span className="text-[11px] text-[var(--color-text-muted)] truncate">
+                              · 이미 등록된 {hiddenAlreadyEnrolledInPage}명은 숨김
+                            </span>
+                          )}
+                        </div>
                         <div className="flex items-center gap-1">
                           <Button
                             type="button"
@@ -957,7 +1075,6 @@ export default function SessionEnrollModal({
                     )}
                   </div>
                 </>
-              )}
             </div>
 
             {/* 우측: 불러오기 + 선택 목록 */}
@@ -969,52 +1086,46 @@ export default function SessionEnrollModal({
               }}
             >
               <section className="shrink-0 space-y-5">
-                <div className="py-0.5">
-                  <div className="flex items-center gap-1.5">
-                    <Button
-                      type="button"
-                      intent="primary"
-                      size="sm"
-                      className="w-full font-semibold flex-1 min-w-0"
-                      disabled={!prevSession || copyFromPrevLoading}
-                      onClick={() => prevSession && handleCopyFromPrevToSelection()}
-                      title={prevSession ? `직전 차시(${formatSessionOrderLabel(prevSession.order, prevSession.title)}) 수강생을 선택 목록에만 넣습니다.` : undefined}
-                      aria-label={prevSession ? `직전 차시 ${formatSessionOrderLabel(prevSession.order, prevSession.title)} 수강생 선택 목록에 추가` : "직전 차시에서 (1차시는 해당 없음)"}
-                    >
-                      {copyFromPrevLoading
-                        ? "직전 차시에서 가져오는 중…"
-                        : prevSession
-                          ? `직전 차시(${formatSessionOrderLabel(prevSession.order, prevSession.title)})에서 불러오기`
-                          : "직전 차시에서 불러오기"}
-                    </Button>
-                    <span
-                      className="shrink-0 flex items-center justify-center w-6 h-6 rounded-full text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] cursor-help"
-                      title="직전 차시에 등록된 수강생을 한 번에 불러올 수 있습니다."
-                      aria-label="도움말: 직전 차시에 등록된 수강생을 한 번에 불러올 수 있습니다."
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                        <circle cx="12" cy="12" r="10" />
-                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-                        <path d="M12 17h.01" />
-                      </svg>
-                    </span>
-                  </div>
+                {/* 직전 차시 불러오기 — 좌측 상단 prominent CTA로 이동. 여기서는 엑셀만 노출. */}
+                <div className="flex items-center justify-between">
+                  <label className="text-[12px] font-semibold text-[var(--color-text-secondary)]">
+                    엑셀로 일괄 등록
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => downloadStudentExcelTemplate(slm.mode)}
+                    className="text-[11px] text-[var(--color-brand-primary)] hover:underline inline-flex items-center gap-1"
+                    title="엑셀 양식 샘플 다운로드"
+                  >
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                      <polyline points="7 10 12 15 17 10" />
+                      <line x1="12" y1="15" x2="12" y2="3" />
+                    </svg>
+                    샘플 양식
+                  </button>
                 </div>
                 {excelPendingFile ? (
                   <div className="excel-upload-zone excel-upload-zone--filled flex flex-col items-stretch justify-center gap-3 py-4 px-3">
                     <p className="text-[13px] font-medium text-[var(--color-text-primary)] truncate text-center" title={excelPendingFile.name}>
                       {excelPendingFile.name}
                     </p>
-                    <label className="text-[12px] font-medium text-[var(--color-text-secondary)]">초기 비밀번호</label>
+                    <label className="text-[12px] font-medium text-[var(--color-text-secondary)]">
+                      신규 학생 초기 비밀번호
+                    </label>
                     <input
-                      type="password"
+                      type="text"
                       value={excelInitialPassword}
                       onChange={(e) => setExcelInitialPassword(e.target.value)}
                       placeholder="4자 이상"
                       className="ds-input w-full text-[13px]"
                       minLength={4}
-                      aria-label="초기 비밀번호"
+                      autoComplete="off"
+                      aria-label="신규 학생 초기 비밀번호"
                     />
+                    <span className="text-[10.5px] text-[var(--color-text-muted)] leading-snug">
+                      엑셀에 새로 만들 학생 로그인 비밀번호입니다. 기본값 그대로도 OK.
+                    </span>
                     <div className="flex gap-2">
                       <Button
                         type="button"
@@ -1083,9 +1194,9 @@ export default function SessionEnrollModal({
                       {selectedItems.map((s) => (
                         <li
                           key={s.id}
-                          className="flex items-center justify-between gap-2 py-1.5 px-2 rounded hover:bg-[var(--color-bg-surface)] group min-h-[32px]"
+                          className="flex items-center justify-between gap-2 py-1.5 px-2 rounded hover:bg-[var(--color-bg-surface)] group min-h-[36px]"
                         >
-                          <span className="flex items-center gap-2 min-w-0 flex-1 truncate">
+                          <span className="flex flex-col min-w-0 flex-1 truncate">
                             <StudentNameWithLectureChip
                               name={s.displayName ?? s.name}
                               profilePhotoUrl={s.profilePhotoUrl}
@@ -1100,9 +1211,14 @@ export default function SessionEnrollModal({
                                     }))
                                   : undefined
                               }
-                              className="text-[13px] font-semibold leading-6 text-[var(--color-text-primary)]"
+                              className="text-[13px] font-semibold leading-5 text-[var(--color-text-primary)]"
                               clinicHighlight={(s as any).name_highlight_clinic_target === true}
                             />
+                            {(s.school || s.grade != null) && (
+                              <span className="text-[10.5px] text-[var(--color-text-muted)] truncate ml-7 leading-tight">
+                                {s.school || ""}{s.school && s.grade != null ? " · " : ""}{s.grade != null ? `${s.grade}학년` : ""}
+                              </span>
+                            )}
                           </span>
                           <button
                             type="button"

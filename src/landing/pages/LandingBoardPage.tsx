@@ -199,11 +199,9 @@ export default function LandingBoardPage() {
       {/* 본문 */}
       <section style={{ padding: "32px 24px 64px", background: bgAlt, minHeight: "60vh" }}>
         <div style={{ maxWidth: 1200, margin: "0 auto" }}>
-          {error ? (
-            <EmptyBox border={border} cardBg={cardBg} color={textSecondary}>잠시 후 다시 시도해주세요.</EmptyBox>
-          ) : posts === null ? (
+          {posts === null && !error ? (
             <SkeletonRows border={border} cardBg={cardBg} />
-          ) : posts.length === 0 ? (
+          ) : !posts || posts.length === 0 ? (
             <FirstPostInvite canWrite={canWrite} onWrite={() => navigate("/landing/board/write")} border={border} cardBg={cardBg} accent={gold} textPrimary={textPrimary} textSecondary={textSecondary} />
           ) : (
             <>

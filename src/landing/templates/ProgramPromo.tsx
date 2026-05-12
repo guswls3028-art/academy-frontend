@@ -7,6 +7,8 @@
 import type { FeatureItem, TestimonialItem, ProgramItem, FaqItem } from "../types";
 import { getEnabledSections, SvgIcon, FaqAccordion, type TemplateProps } from "./shared";
 import HeroImageSlider from "../components/HeroImageSlider";
+import LandingFooter, { FOOTER_TOKENS_LIGHT } from "../components/LandingFooter";
+import LandingCommunityShowcase from "../components/LandingCommunityShowcase";
 import { hexToRgb } from "./colorUtils";
 
 export default function ProgramPromo({ config }: TemplateProps) {
@@ -195,9 +197,8 @@ export default function ProgramPromo({ config }: TemplateProps) {
         }
       })}
 
-      <footer style={{ padding: "40px 24px", borderTop: "1px solid rgba(0,0,0,0.06)", textAlign: "center" }}>
-        <p style={{ fontSize: 13, color: "#94a3b8", margin: 0 }}>&copy; {new Date().getFullYear()} {config.brand_name}</p>
-      </footer>
+      <LandingCommunityShowcase theme="light" />
+      <LandingFooter config={config} sections={sections} tokens={FOOTER_TOKENS_LIGHT} />
     </div>
   );
 }

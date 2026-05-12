@@ -177,11 +177,9 @@ export default function LandingReviewsPage() {
       {/* 본문 */}
       <section style={{ padding: "32px 24px 64px", background: bgAlt, minHeight: "60vh" }}>
         <div style={{ maxWidth: 1200, margin: "0 auto" }}>
-          {error ? (
-            <EmptyBox border={border} cardBg={cardBg} color={textSecondary}>잠시 후 다시 시도해주세요.</EmptyBox>
-          ) : reviews === null ? (
+          {reviews === null && !error ? (
             <SkeletonGrid border={border} cardBg={cardBg} />
-          ) : reviews.length === 0 ? (
+          ) : !reviews || reviews.length === 0 ? (
             <FirstReviewInvite canWrite={canWrite} onWrite={() => navigate("/landing/reviews/write")} border={border} cardBg={cardBg} accent={gold} textPrimary={textPrimary} textSecondary={textSecondary} />
           ) : (
             <>

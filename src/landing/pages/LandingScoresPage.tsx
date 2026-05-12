@@ -109,11 +109,9 @@ export function LandingScoresListPage() {
       {/* 본문 */}
       <section style={{ padding: "32px 24px 64px", background: BG_ALT, minHeight: "60vh" }}>
         <div style={{ maxWidth: 1200, margin: "0 auto" }}>
-          {error ? (
-            <EmptyBox>잠시 후 다시 시도해주세요.</EmptyBox>
-          ) : list === null ? (
+          {list === null && !error ? (
             <SkelGrid />
-          ) : list.length === 0 ? (
+          ) : !list || list.length === 0 ? (
             <EmptyBox>아직 등록된 시험 통계가 없습니다.</EmptyBox>
           ) : (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 16 }}>
