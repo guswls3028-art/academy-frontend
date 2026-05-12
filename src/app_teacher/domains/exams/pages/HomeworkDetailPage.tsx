@@ -28,6 +28,10 @@ export default function HomeworkDetailPage() {
   if (!hw)
     return <EmptyState scope="panel" tone="error" title="과제를 찾을 수 없습니다" />;
 
+  // backend schema: due_date/max_score 는 meta JSON 안에 격리. root-level 도 폴백.
+  const dueDate = hw.due_date ?? hw.meta?.due_date ?? null;
+  const maxScore = hw.max_score ?? hw.meta?.default_max_score ?? hw.meta?.max_score ?? null;
+
   const submitted = submissions?.filter((s: any) => s.submitted_at || s.status === "submitted") ?? [];
   const pending = submissions?.filter((s: any) => !s.submitted_at && s.status !== "submitted") ?? [];
 
@@ -52,10 +56,16 @@ export default function HomeworkDetailPage() {
             <span style={{ color: "var(--tc-text)" }}>{hw.session_title}</span>
           </div>
         )}
-        {hw.due_date && (
+        {dueDate && (
           <div className="flex justify-between text-sm">
             <span style={{ color: "var(--tc-text-muted)" }}>마감일</span>
-            <span style={{ color: "var(--tc-text)" }}>{hw.due_date}</span>
+            <span style={{ color: "var(--tc-text)" }}>{dueDate}</span>
+          </div>
+        )}
+        {maxScore != null && (
+          <div className="flex justify-between text-sm">
+            <span style={{ color: "var(--tc-text-muted)" }}>만점</span>
+            <span style={{ color: "var(--tc-text)" }}>{maxScore}점</span>
           </div>
         )}
         <div className="flex justify-between text-sm">
@@ -87,7 +97,7 @@ export default function HomeworkDetailPage() {
         <PendingSection
           pending={pending}
           homeworkTitle={hw.title}
-          dueDate={hw.due_date}
+          dueDate={dueDate ?? undefined}
           onCopy={async (text) => {
             try {
               await navigator.clipboard.writeText(text);
@@ -100,7 +110,7 @@ export default function HomeworkDetailPage() {
             const phone = s.student_phone ?? s.parent_phone;
             if (phone) {
               const cleaned = String(phone).replace(/[^0-9+]/g, "");
-              const body = encodeURIComponent(`[${hw.title}] 과제 미제출 안내드립니다.${hw.due_date ? ` 마감일: ${hw.due_date}` : ""}`);
+              const body = encodeURIComponent(`[${hw.title}] 과제 미제출 안내드립니다.${dueDate ? ` 마감일: ${dueDate}` : ""}`);
               window.location.href = `sms:${cleaned}?body=${body}`;
             } else if (s.student_id && Number(s.student_id) > 0) {
               navigate(`/teacher/students/${s.student_id}`);

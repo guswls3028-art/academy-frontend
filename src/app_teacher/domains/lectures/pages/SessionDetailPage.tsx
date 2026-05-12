@@ -233,9 +233,11 @@ function HomeworksTab({ homeworks, navigate }: { homeworks: any[]; navigate: any
   return (
     <div className="flex flex-col gap-1.5">
       {homeworks.map((h: any) => {
+        // backend schema: due_date/max_score 는 meta JSON 안. root-level 도 폴백.
+        const due = h.due_date ?? h.meta?.due_date ?? null;
+        const max = h.max_score ?? h.meta?.default_max_score ?? h.meta?.max_score ?? null;
         const submitted = h.submitted_count ?? h.submission_count ?? null;
         const total = h.total_count ?? h.enrolled_count ?? null;
-        const max = h.max_score ?? null;
         return (
         <button
           key={h.id}
@@ -253,7 +255,7 @@ function HomeworksTab({ homeworks, navigate }: { homeworks: any[]; navigate: any
               {h.title}
             </div>
             <div className="flex gap-2 text-[11px] mt-0.5 flex-wrap" style={{ color: "var(--tc-text-muted)" }}>
-              {h.due_date && <span>마감 {h.due_date}</span>}
+              {due && <span>마감 {due}</span>}
               {max != null && <span>{max}점</span>}
               {submitted != null && total != null && (
                 <span style={{ color: submitted >= total ? "var(--tc-success)" : "var(--tc-warn)" }}>
