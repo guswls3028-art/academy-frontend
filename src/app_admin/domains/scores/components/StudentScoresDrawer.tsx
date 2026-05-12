@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-syntax, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
 /**
  * 성적 탭 — 학생 상세 드로어 (우측 사이드 패널, non-blocking)
  * - 학생 프로필 (아바타, 이름, 강의)
@@ -157,12 +158,25 @@ export default function StudentScoresDrawer({ row, meta, sessionId, onClose, onO
                     ? [{ lectureName: (row as any).lecture_title, color: (row as any).lecture_color, chipLabel: (row as any).lecture_chip_label }]
                     : undefined
                 }
-                chipSize={12}
+                chipSize={20}
                 clinicHighlight={row.name_highlight_clinic_target === true}
               />
             </h2>
             <span className="student-scores-drawer__header-id">ID {row.enrollment_id}</span>
           </div>
+          {/* 학원장 임근혁 요청 — 성적 발송 버튼 드로어 상단(헤더)에 prominent.
+           * 학생 한 명 빠른 발송 진입점. 이전엔 하단 작은 링크 버튼이라 발견성 낮음. */}
+          <button
+            type="button"
+            onClick={handleSendScoreReport}
+            className="ds-button"
+            data-intent="primary"
+            data-size="md"
+            style={{ flexShrink: 0, fontWeight: 700, marginRight: 12 }}
+            title="이 학생에게만 알림톡 발송"
+          >
+            📨 알림톡 발송
+          </button>
         </header>
 
         {/* Body */}
