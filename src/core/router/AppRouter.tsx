@@ -22,8 +22,6 @@ import { useProgram } from "@/shared/program";
 
 const AdminRouter = lazy(() => import("@admin/app/AdminRouter"));
 const DevAppRouter = lazy(() => import("@dev/app/DevAppRouter"));
-// 임시 — 발송 모달 시각 검수 preview (cleanup 예정)
-const SendModalPreview = lazy(() => import("../../_dev_preview_send_modal/SendModalPreview"));
 const PromoRouter = lazy(() => import("@promo/app/PromoRouter"));
 const PublicLandingPage = lazy(() => import("@/landing/pages/PublicLandingPage"));
 const LandingReportDetailPage = lazy(() => import("@/landing/pages/LandingReportDetailPage"));
@@ -134,17 +132,6 @@ export default function AppRouter() {
 
   return (
     <Routes>
-      {/* 임시 — 발송 모달 시각 검수 (DEV only, cleanup 예정) */}
-      {import.meta.env.DEV && (
-        <Route
-          path="/_dev_preview/send-modal"
-          element={
-            <Suspense fallback={null}>
-              <SendModalPreview />
-            </Suspense>
-          }
-        />
-      )}
       <Route path="/login/*" element={<AuthRouter />} />
       <Route path="/terms" element={<TermsPage />} />
       <Route path="/privacy" element={<PrivacyPage />} />

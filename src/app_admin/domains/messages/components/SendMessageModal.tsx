@@ -1,16 +1,26 @@
 // PATH: src/app_admin/domains/messages/components/SendMessageModal.tsx
-/* eslint-disable no-restricted-syntax */
-// 공용 메시지 발송 모달 — 알림톡 템플릿 전용 UX
-// 좌: 수신자 + 실시간 미리보기 / 우: 모드별 편집·선택
-// 모든 진입점(학생·출결·성적·클리닉·직원)에서 동일 UX 제공. 단발성 발송 SSOT.
+//
+// 공용 메시지 발송 모달 — 알림톡 단독 SSOT (학원장 임근혁 보고: SMS 경로 폐기, 2026-05-12)
+//
+// 좌: 수신자/일괄안내/적용양식/카톡 미리보기/변수 상태 (단일 카드 묶음)
+// 우: 양식 선택 바 → (접이식 양식 패널) → 본문 textarea → (접이식 변수 팔레트)
+// footer: [취소] [발송하기]  (양식 저장은 본문 영역 inline에 1곳, 양식 변경은 양식 바 1곳)
+//
+// 모든 진입점(학생·출결·성적·클리닉·직원)에서 동일 UX. 단발성 발송 SSOT.
+//
+// 2026-05-13 정돈 리팩터:
+//   - SMS 모드 분기 코드 일괄 제거 (smsAllowed/SMS_MAX_CHARS/charInfo/snapshot/오버레이 SMS 갈래 등)
+//   - 이모지 헤더/푸터/팔레트 토글 모두 lucide 아이콘으로 통일
+//   - raw <span> 뱃지 → <Badge> 치환
+//   - footer 좌측 [양식 저장]/[저장된 양식 보기] 제거 → 양식 바 1곳으로 SSOT
+//   - 좌측 5카드 → 2카드 (수신자 통합 / 미리보기+변수 통합)
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Input } from "antd";
-import { FiSearch, FiChevronLeft, FiCheck, FiAlertCircle, FiAlertTriangle, FiCopy, FiTrash2, FiStar, FiEdit3 } from "react-icons/fi";
-import { Shield } from "lucide-react";
+import { Search, Check, AlertCircle, AlertTriangle, Copy, Trash2, Star, Edit3, Tag, Shield } from "lucide-react";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter } from "@/shared/ui/modal";
-import { Button } from "@/shared/ui/ds";
+import { Badge, Button, ICON } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useConfirm } from "@/shared/ui/confirm";
 import { asyncStatusStore } from "@/shared/ui/asyncStatus/asyncStatusStore";
@@ -23,14 +33,12 @@ import {
   setTemplateDefault,
   duplicateMessageTemplate,
   type MessageTemplateItem,
-  type MessageMode,
   type SendToType,
 } from "../api/messages.api";
 import {
   TEMPLATE_CATEGORY_LABELS,
   getBlocksForCategory,
   getBlockColor,
-  renderPreviewBadges,
   renderPreviewWithActualData,
   ALWAYS_AVAILABLE_VARS,
 } from "../constants/templateBlocks";
@@ -53,22 +61,12 @@ export type SendMessageModalProps = {
   alimtalkExtraVarsPerStudent?: Record<number, Record<string, string>>;
 };
 
-type SendMode = "sms" | "alimtalk";
-
 // ─── Constants ───
 
 const RECENT_KEY = "sendModal_recentTpls";
 const MAX_RECENT = 5;
-const SMS_MAX_CHARS = 2000;
 
 // ─── Helpers ───
-
-function getCharLabel(len: number) {
-  if (len === 0) return null;
-  if (len <= 90) return { label: `SMS ${len}/90자`, tone: "ok" as const };
-  if (len <= SMS_MAX_CHARS) return { label: `LMS ${len}/2,000자`, tone: "lms" as const };
-  return { label: `${len}/2,000자 초과`, tone: "over" as const };
-}
 
 function isSystemTpl(t: MessageTemplateItem): boolean {
   return t.is_system || t.name.startsWith("[HakwonPlus]") || t.name.startsWith("[학원플러스]");
@@ -108,7 +106,7 @@ function getVarStatuses(
   });
 }
 
-// ─── Template Picker Card (SMS 양식 관리 패널) ───
+// ─── Template Picker Card ───
 
 function TemplatePickerCard({
   template: t,
@@ -140,85 +138,51 @@ function TemplatePickerCard({
 
   return (
     <div
-      style={{
-        display: "flex", alignItems: "flex-start", gap: 8, width: "100%",
-        padding: "8px 10px", borderRadius: 8,
-        border: isSelected ? "2px solid var(--color-primary)" : "1px solid var(--color-border-divider)",
-        background: isSelected
-          ? "color-mix(in srgb, var(--color-primary) 6%, transparent)"
-          : "var(--color-bg-surface)",
-        transition: "border-color 0.15s, background 0.15s",
-      }}
+      className="send-modal__tpl-card"
+      data-selected={isSelected || undefined}
     >
-      {/* 클릭 영역 — 선택 */}
       <button
         type="button"
         onClick={onSelect}
-        style={{ flex: 1, minWidth: 0, border: "none", background: "transparent", padding: 0, cursor: "pointer", textAlign: "left" as const }}
+        className="send-modal__tpl-card-body"
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 2 }}>
-          {isSys && <Shield size={10} style={{ color: "var(--color-status-info, #2563eb)", flexShrink: 0 }} />}
-          <span style={{ fontSize: 12, fontWeight: 700, color: "var(--color-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-            {t.name}
-          </span>
-          {t.is_user_default && (
-            <span style={{ fontSize: 9, fontWeight: 700, padding: "0 4px", borderRadius: 3, background: "color-mix(in srgb, var(--color-primary) 12%, transparent)", color: "var(--color-primary)" }}>기본</span>
-          )}
+        <div className="send-modal__tpl-card-title-row">
+          {isSys && <Shield size={ICON.xs} style={{ color: "var(--color-status-info, #2563eb)", flexShrink: 0 }} />}
+          <span className="send-modal__tpl-card-name">{t.name}</span>
+          {t.is_user_default && <Badge tone="primary" size="xs">기본</Badge>}
         </div>
-        <div style={{
-          fontSize: 11.5, color: "var(--color-text-secondary)", lineHeight: 1.5,
-          overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
-          opacity: 0.8,
-        }}>
+        <div className="send-modal__tpl-card-preview">
           {t.body.replace(/#\{[^}]+\}/g, "•").slice(0, 80)}
         </div>
       </button>
 
-      {/* 더보기 메뉴 (⋯) */}
       {(onSetDefault || onDuplicate || onDelete) && (
-        <div ref={menuRef} style={{ position: "relative", flexShrink: 0 }}>
+        <div ref={menuRef} className="send-modal__tpl-card-menu">
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); setMenuOpen(!menuOpen); }}
-            style={{ padding: "6px 8px", border: "none", background: "transparent", cursor: "pointer", borderRadius: 6, color: "var(--color-text-muted)", fontSize: 18, lineHeight: 1, transition: "background 0.15s" }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = "var(--color-bg-surface-soft)"; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+            className="send-modal__tpl-card-menu-btn"
+            aria-label="더보기"
           >
             ⋯
           </button>
           {menuOpen && (
-            <div style={{
-              position: "absolute", right: 0, top: "100%", marginTop: 4, width: 160,
-              background: "var(--color-bg-surface)", border: "1px solid var(--color-border-divider)",
-              borderRadius: 8, boxShadow: "0 4px 12px rgba(0,0,0,0.1)", zIndex: 10, overflow: "hidden",
-            }}>
+            <div className="send-modal__tpl-card-menu-popup">
               {onSetDefault && (
-                <button type="button" onClick={() => { onSetDefault(); setMenuOpen(false); }}
-                  style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "8px 12px", border: "none", background: "transparent", cursor: "pointer", fontSize: 12, fontWeight: 500, color: "var(--color-text-primary)", textAlign: "left" as const }}
-                  onMouseEnter={(e) => { e.currentTarget.style.background = "var(--color-bg-surface-soft)"; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
-                >
-                  <FiStar size={13} style={t.is_user_default ? { color: "var(--color-primary)", fill: "var(--color-primary)" } : { color: "var(--color-text-muted)" }} />
+                <button type="button" onClick={() => { onSetDefault(); setMenuOpen(false); }} className="send-modal__tpl-card-menu-item">
+                  <Star size={ICON.xs} style={t.is_user_default ? { color: "var(--color-primary)", fill: "var(--color-primary)" } : { color: "var(--color-text-muted)" }} />
                   {t.is_user_default ? "기본 해제" : "기본으로 지정"}
                 </button>
               )}
               {onDuplicate && (
-                <button type="button" onClick={() => { onDuplicate(); setMenuOpen(false); }}
-                  style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "8px 12px", border: "none", background: "transparent", cursor: "pointer", fontSize: 12, fontWeight: 500, color: "var(--color-text-primary)", textAlign: "left" as const }}
-                  onMouseEnter={(e) => { e.currentTarget.style.background = "var(--color-bg-surface-soft)"; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
-                >
-                  <FiCopy size={13} style={{ color: "var(--color-text-muted)" }} />
+                <button type="button" onClick={() => { onDuplicate(); setMenuOpen(false); }} className="send-modal__tpl-card-menu-item">
+                  <Copy size={ICON.xs} style={{ color: "var(--color-text-muted)" }} />
                   {isSys ? "복제해서 내 양식으로" : "다른 이름으로 복제"}
                 </button>
               )}
               {onDelete && !isSys && (
-                <button type="button" onClick={() => { onDelete(); setMenuOpen(false); }}
-                  style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "8px 12px", border: "none", background: "transparent", cursor: "pointer", fontSize: 12, fontWeight: 500, color: "var(--color-error, #dc2626)", textAlign: "left" as const }}
-                  onMouseEnter={(e) => { e.currentTarget.style.background = "color-mix(in srgb, var(--color-error) 6%, transparent)"; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
-                >
-                  <FiTrash2 size={13} />
+                <button type="button" onClick={() => { onDelete(); setMenuOpen(false); }} className="send-modal__tpl-card-menu-item send-modal__tpl-card-menu-item--danger">
+                  <Trash2 size={ICON.xs} />
                   삭제
                 </button>
               )}
@@ -247,13 +211,11 @@ export default function SendMessageModal({
 }: SendMessageModalProps) {
   const queryClient = useQueryClient();
   const confirm = useConfirm();
-  const smsAllowed = false;
 
   // ─── State ───
-  const [sendMode, setSendMode] = useState<SendMode>("alimtalk");
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
-  const [freeContent, setFreeContent] = useState("");
+  const [freeContent] = useState("");
   const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null);
   const [sendToParent, setSendToParent] = useState(true);
   const [sendToStudent, setSendToStudent] = useState(true);
@@ -265,18 +227,12 @@ export default function SendMessageModal({
   const [saveTemplateName, setSaveTemplateName] = useState("");
   const [savingTemplate, setSavingTemplate] = useState(false);
   const [showTemplatePanel, setShowTemplatePanel] = useState(false);
-  const [showAlimtalkPanel, setShowAlimtalkPanel] = useState(false);
-  /** 알림톡 직접 작성 모드 — 양식 없이 자유 입력 */
+  /** 양식 없이 자유 입력 모드 */
   const [alimtalkFreeForm, setAlimtalkFreeForm] = useState(false);
   const [templateBodySnapshot, setTemplateBodySnapshot] = useState<string | null>(null);
-  /** 빈 본문 안내 오버레이를 닫음 — "직접 작성하기" 후에도 본문이 비어 있으면 오버레이가 다시 덮여 입력 불가가 되던 버그 방지 */
-  const [smsEmptyHintDismissed, setSmsEmptyHintDismissed] = useState(false);
   // 변수 팔레트 default 접힘 (학원장 임근혁 보고 — 본문 편집 영역이 좁아 보임)
   const [showVarPalette, setShowVarPalette] = useState(false);
   const bodyWrapRef = useRef<HTMLDivElement>(null);
-  /** 채널 전환 시 양식/본문 보존용 스냅샷 */
-  const channelSnapshotRef = useRef<Record<string, { templateId: number | null; body: string; subject: string; freeForm: boolean; snapshot: string | null }>>({});
-  /** open 전환 감지용 — smsAllowed 변경 시 body 리셋 방지 */
   const prevOpenRef = useRef(false);
   const getNativeTextarea = useCallback(
     () => bodyWrapRef.current?.querySelector("textarea") ?? null, [],
@@ -301,12 +257,9 @@ export default function SendMessageModal({
   const bodyModified = selectedTemplate != null && templateBodySnapshot != null && body !== templateBodySnapshot;
   const recentIds = useMemo(() => getRecentIds(), [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Categorize templates for picker/browser
-  // 알림톡: 통합 4종 라우팅이므로 모든 템플릿 사용 가능 (signup 제외)
+  // 알림톡 통합 4종 라우팅 — signup은 시스템 전용 제외
   const categorizedTemplates = useMemo(() => {
-    const list = sendMode === "alimtalk"
-      ? templates.filter((t) => t.category !== "signup")  // signup은 시스템 전용
-      : templates;
+    const list = templates.filter((t) => t.category !== "signup");
     const search = templateSearch.toLowerCase().trim();
     const filtered = search
       ? list.filter((t) => t.name.toLowerCase().includes(search) || t.body.toLowerCase().includes(search))
@@ -322,89 +275,60 @@ export default function SendMessageModal({
     }
     recent.sort((a, b) => recentIds.indexOf(a.id) - recentIds.indexOf(b.id));
     return { recent, defaults, custom };
-  }, [templates, sendMode, templateSearch, recentIds]);
+  }, [templates, templateSearch, recentIds]);
 
-  // Variable statuses for AlimTalk
   const varStatuses = useMemo(() => {
     if (!selectedTemplate) return [];
     return getVarStatuses(selectedTemplate.body, alimtalkExtraVars, freeContent);
   }, [selectedTemplate, alimtalkExtraVars, freeContent]);
 
   // ─── Can Send ───
-  const messageModes: MessageMode[] = useMemo(() => {
-    if (sendMode === "alimtalk") return ["alimtalk"];
-    return [];
-  }, [sendMode]);
-
-  const smsOverLimit = sendMode === "sms" && body.length > SMS_MAX_CHARS;
-
   const canSend = (() => {
-    if (!hasRecipients || sendToTargets.length === 0 || messageModes.length === 0 || sending) return false;
-    if (sendMode === "sms") return body.trim().length > 0 && !smsOverLimit;
-    if (sendMode === "alimtalk") {
-      if (!selectedTemplate && !alimtalkFreeForm) return false;
-      if (!body.trim()) return false;
-      return true;
-    }
-    return false;
+    if (!hasRecipients || sendToTargets.length === 0 || sending) return false;
+    if (!selectedTemplate && !alimtalkFreeForm) return false;
+    if (!body.trim()) return false;
+    return true;
   })();
 
-  // ─── Blocks (SMS only) ───
   const blocks = useMemo(() => getBlocksForCategory(blockCategory), [blockCategory]);
 
   // ─── Preview ───
-  const previewBody = sendMode === "alimtalk" && selectedTemplate
+  const previewBody = selectedTemplate
     ? renderPreviewWithActualData(selectedTemplate.body, alimtalkExtraVars, freeContent)
-    : sendMode === "alimtalk" && alimtalkFreeForm
-    ? renderPreviewBadges(body)
-    : renderPreviewBadges(body);
-  const previewSubject = sendMode === "alimtalk" && selectedTemplate
+    : body;
+  const previewSubject = selectedTemplate
     ? renderPreviewWithActualData(selectedTemplate.subject || "", alimtalkExtraVars)
-    : renderPreviewBadges(subject);
+    : subject;
 
-  // ─── Confirmation step ───
   const [showConfirm, setShowConfirm] = useState(false);
 
-  // ─── Reset on open (open 전환 시에만 전체 리셋) ───
+  // ─── Reset on open ───
   useEffect(() => {
     const justOpened = open && !prevOpenRef.current;
     prevOpenRef.current = open;
     if (!justOpened) return;
     setSubject("");
     setBody(initialBody ?? "");
-    setFreeContent("");
     setSelectedTemplateId(null);
     setSendToParent(true);
     setSendToStudent(true);
-    setSendMode("alimtalk");
     setTemplateSearch("");
     setShowSaveForm(false);
     setSaveTemplateName("");
     setShowTemplatePanel(false);
-    setShowAlimtalkPanel(false);
     setAlimtalkFreeForm(!!initialBody);
     setTemplateBodySnapshot(null);
-    setSmsEmptyHintDismissed(false);
     setShowConfirm(false);
     sendingRef.current = false;
-    channelSnapshotRef.current = {};
-  }, [open, initialBody, smsAllowed]);
+  }, [open, initialBody]);
 
-  // smsAllowed가 뒤늦게 로드되면 sendMode만 보정 (body·subject 등 사용자 입력은 건드리지 않음)
-  useEffect(() => {
-    if (!open || !smsAllowed) return;
-    // smsAllowed 로드 시 모드 보정 — 알림톡 기본 유지
-    setSendMode((prev) => prev);
-  }, [open, smsAllowed, blockCategory, initialBody]);
-
-  // Load templates (시스템 기본 승인 템플릿 포함 — 알림톡 기본 채널 폴백용)
+  // 시스템 기본 템플릿 자동 선택
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
     fetchMessageTemplates(undefined, true).then((list) => {
       if (cancelled) return;
       setTemplates(list);
-      // 알림톡 모드 + 양식 미선택 시: 카테고리에 맞는 기본 양식 자동 선택
       if (!selectedTemplateId && !initialBody) {
         const categoryMap: Record<string, string> = {
           clinic: "clinic", attendance: "attendance", exam: "exam",
@@ -441,7 +365,6 @@ export default function SendMessageModal({
     setSubject(t.subject ?? "");
     setBody(t.body ?? "");
     setTemplateBodySnapshot(t.body ?? "");
-    setFreeContent("");
     addRecentId(t.id);
   }, []);
 
@@ -485,7 +408,6 @@ export default function SendMessageModal({
       const updated = await setTemplateDefault(id);
       setTemplates((prev) => prev.map((t) => {
         if (t.id === id) return updated;
-        // 같은 카테고리의 다른 것은 기본 해제
         if (t.category === updated.category && t.is_user_default && t.id !== id) {
           return { ...t, is_user_default: false };
         }
@@ -541,54 +463,45 @@ export default function SendMessageModal({
     sendingRef.current = true;
     setSending(true);
     setShowConfirm(false);
-    const modeLabel = sendMode === "sms" ? "문자" : "알림톡";
     const taskId = `msg-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-    asyncStatusStore.addWorkerJob(`${modeLabel} 발송`, taskId, "messaging");
+    asyncStatusStore.addWorkerJob(`알림톡 발송`, taskId, "messaging");
     try {
       let totalEnqueued = 0;
       let totalSkipped = 0;
       let completedCalls = 0;
-      const totalCalls = isStaffMode ? messageModes.length : sendToTargets.length * messageModes.length;
+      const totalCalls = isStaffMode ? 1 : sendToTargets.length;
 
-      const buildPayload = (sendTo: SendToType, messageMode: MessageMode) => {
-        const payload: Parameters<typeof sendMessage>[0] = { send_to: sendTo, message_mode: messageMode };
+      const buildPayload = (sendTo: SendToType) => {
+        const payload: Parameters<typeof sendMessage>[0] = { send_to: sendTo, message_mode: "alimtalk" };
         if (isStaffMode) payload.staff_ids = staffIds; else payload.student_ids = studentIds;
-        if (sendMode === "alimtalk") {
-          if (selectedTemplateId) payload.template_id = selectedTemplateId;
-          payload.raw_body = body.trim();
-          if (subject.trim()) payload.raw_subject = subject.trim();
-          if (alimtalkExtraVars) payload.alimtalk_extra_vars = alimtalkExtraVars;
-          if (alimtalkExtraVarsPerStudent && Object.keys(alimtalkExtraVarsPerStudent).length > 0) {
-            payload.alimtalk_extra_vars_per_student = alimtalkExtraVarsPerStudent;
-          }
-        } else {
-          payload.raw_body = body.trim();
-          if (subject.trim()) payload.raw_subject = subject.trim();
-          if (selectedTemplateId) payload.template_id = selectedTemplateId;
+        if (selectedTemplateId) payload.template_id = selectedTemplateId;
+        payload.raw_body = body.trim();
+        if (subject.trim()) payload.raw_subject = subject.trim();
+        if (alimtalkExtraVars) payload.alimtalk_extra_vars = alimtalkExtraVars;
+        if (alimtalkExtraVarsPerStudent && Object.keys(alimtalkExtraVarsPerStudent).length > 0) {
+          payload.alimtalk_extra_vars_per_student = alimtalkExtraVarsPerStudent;
         }
         return payload;
       };
 
       const targets = isStaffMode ? ["staff" as SendToType] : sendToTargets;
       for (const sendTo of targets) {
-        for (const messageMode of messageModes) {
-          const res = await sendMessage(buildPayload(sendTo, messageMode));
-          totalEnqueued += res.enqueued ?? 0;
-          totalSkipped += res.skipped_no_phone ?? 0;
-          completedCalls++;
-          asyncStatusStore.updateProgress(taskId, Math.round((completedCalls / totalCalls) * 90));
-        }
+        const res = await sendMessage(buildPayload(sendTo));
+        totalEnqueued += res.enqueued ?? 0;
+        totalSkipped += res.skipped_no_phone ?? 0;
+        completedCalls++;
+        asyncStatusStore.updateProgress(taskId, Math.round((completedCalls / totalCalls) * 90));
       }
 
       const sendToLabel = isStaffMode ? "직원" : sendToTargets.length === 2 ? "학부모·학생" : sendToTargets[0] === "parent" ? "학부모" : "학생";
       if (totalEnqueued > 0) {
         const skippedNote = totalSkipped > 0 ? ` (전화번호 없음 ${totalSkipped}건 제외)` : "";
-        feedback.success(`${sendToLabel} ${modeLabel} ${totalEnqueued}건 발송 예정${skippedNote} — 발송 내역에서 결과를 확인하세요.`);
+        feedback.success(`${sendToLabel} 알림톡 ${totalEnqueued}건 발송 예정${skippedNote} — 발송 내역에서 결과를 확인하세요.`);
         asyncStatusStore.completeTask(taskId, "success");
       } else {
         const hint = totalSkipped > 0
           ? `${sendToLabel} 대상 중 전화번호가 없어 큐에 등록된 건이 0건입니다.`
-          : `${sendToLabel} ${modeLabel} 발송이 큐에 등록되지 않았습니다. 알림톡 연동·승인 템플릿·수신 번호를 확인해 주세요.`;
+          : `${sendToLabel} 알림톡 발송이 큐에 등록되지 않았습니다. 알림톡 연동·승인 템플릿·수신 번호를 확인해 주세요.`;
         feedback.warning(hint);
         asyncStatusStore.completeTask(taskId, "error", "발송 큐 0건");
       }
@@ -613,28 +526,22 @@ export default function SendMessageModal({
     ? (hasRecipients ? `선택한 직원 ${staffIds.length}명` : "수신자 없음")
     : (hasRecipients ? `선택한 학생 ${studentIds.length}명` : "수신자 없음"));
   const domainLabel = TEMPLATE_CATEGORY_LABELS[blockCategory] ?? "사용자";
-  const charInfo = sendMode === "sms" ? getCharLabel(body.length) : null;
 
-  // Footer text
   const sendButtonText = (() => {
     if (sending) return "발송 중…";
-    const modeText = sendMode === "sms" ? "문자" : "알림톡";
-    if (isStaffMode) return `직원 ${staffIds.length}명에게 ${modeText} 발송`;
+    if (isStaffMode) return `직원 ${staffIds.length}명에게 알림톡 발송`;
     const parts: string[] = [];
     if (sendToParent) parts.push(`학부모 ${recipientCount}명`);
     if (sendToStudent) parts.push(`학생 ${recipientCount}명`);
     if (parts.length === 0) return "대상 선택 필요";
-    return `${parts.join(" + ")}에게 ${modeText} 발송`;
+    return `${parts.join(" + ")}에게 알림톡 발송`;
   })();
 
   const disableReason = (() => {
     if (!hasRecipients) return "수신자를 선택해 주세요";
     if (sendToTargets.length === 0) return "발송 대상을 선택해 주세요";
-    if (sendMode === "sms" && !smsAllowed) return "SMS 연동 후 발송 가능합니다 (설정 > 메시지)";
-    if (sendMode === "sms" && !body.trim()) return "본문을 입력해 주세요";
-    if (sendMode === "sms" && smsOverLimit) return `본문이 ${SMS_MAX_CHARS}자를 초과합니다`;
-    if (sendMode === "alimtalk" && !selectedTemplate && !alimtalkFreeForm) return "양식을 선택하거나 직접 작성해 주세요";
-    if (sendMode === "alimtalk" && !body.trim()) return "본문을 입력해 주세요";
+    if (!selectedTemplate && !alimtalkFreeForm) return "양식을 선택하거나 직접 작성해 주세요";
+    if (!body.trim()) return "본문을 입력해 주세요";
     return null;
   })();
 
@@ -643,574 +550,357 @@ export default function SendMessageModal({
     <AdminModal open={open} onClose={onClose} width={920} onEnterConfirm={requestSend} className="send-message-modal">
       <ModalHeader
         title={
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <span>📨 알림톡 발송</span>
-            <span style={{
-              display: "inline-flex", alignItems: "center", padding: "2px 10px", borderRadius: 20,
-              fontSize: 11, fontWeight: 700,
-              background: "color-mix(in srgb, var(--color-primary) 12%, transparent)", color: "var(--color-primary)",
-            }}>
-              {domainLabel}
-            </span>
+          <div className="send-modal__title">
+            <span>알림톡 발송</span>
+            <Badge tone="primary" size="sm">{domainLabel}</Badge>
           </div>
         }
         description={
           hasRecipients
-            ? `① 양식이 자동으로 적용됐어요  ②  본문을 확인·수정하세요  ③  오른쪽 아래 [발송하기] 버튼을 누르세요${recipientCount > 1 ? " (학생별 점수가 자동 치환됩니다)" : ""}`
-            : "왼쪽 수신자를 먼저 선택해 주세요."
+            ? (recipientCount > 1
+                ? "양식이 자동 적용됐습니다. 본문을 확인·수정한 뒤 발송하세요. 학생별 점수는 자동 치환됩니다."
+                : "양식이 자동 적용됐습니다. 본문을 확인·수정한 뒤 발송하세요.")
+            : "왼쪽에서 수신자를 먼저 선택해 주세요."
         }
       />
 
       <ModalBody>
-        <div className="flex gap-5" style={{ minHeight: 0, flex: "1 1 auto" }}>
+        <div className="send-modal__layout">
 
-          {/* ═══ 좌측: 수신자 + 미리보기 + 변수 상태 ═══ */}
-          <div className="shrink-0 flex flex-col gap-3" style={{ width: 260, maxHeight: "100%", overflowY: "auto" }}>
-            {/* 수신자 카드 */}
-            <div style={{
-              padding: "12px 16px", borderRadius: "var(--radius-md)",
-              background: "color-mix(in srgb, var(--color-primary) 6%, var(--color-bg-surface))",
-              border: "1px solid var(--color-border-divider)",
-            }}>
-              <div style={{ fontSize: 11, fontWeight: 600, color: "var(--color-text-muted)", marginBottom: 4 }}>수신자</div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: "var(--color-primary)" }}>{label}</div>
+          {/* ═══ 좌측: 수신자 + 미리보기 (2 카드 통합) ═══ */}
+          <div className="send-modal__left">
+            {/* 카드 1 — 수신자 (대상 토글 + 일괄안내 + 적용양식 통합) */}
+            <section className="send-modal__card send-modal__card--recipient">
+              <div className="send-modal__card-label">수신자</div>
+              <div className="send-modal__recipient-name">{label}</div>
+
               {!hasRecipients && (
-                <div style={{ fontSize: 11, color: "var(--color-status-warning, #d97706)", marginTop: 4 }}>수신자를 선택한 뒤 발송해 주세요.</div>
-              )}
-              {hasRecipients && !isStaffMode && (
-                <div style={{ fontSize: 11, color: "var(--color-text-muted)", marginTop: 4, lineHeight: 1.6 }}>
-                  {sendToParent && sendToStudent ? "학부모·학생 모두에게 발송" :
-                   sendToParent ? "학부모에게만 발송" :
-                   sendToStudent ? "학생에게만 발송" :
-                   "대상을 선택해 주세요"}
+                <div className="send-modal__hint send-modal__hint--warn">
+                  수신자를 선택한 뒤 발송해 주세요.
                 </div>
               )}
-              {/* 일괄 발송 안내 — 학원장 임근혁 보고: 학생별 변수 치환 동작이 미리보기에서 잘 안 보임 */}
-              {hasRecipients && recipientCount > 1 && (
-                <div style={{
-                  marginTop: 8, padding: "8px 10px", borderRadius: 6,
-                  background: "color-mix(in srgb, var(--color-warning, #eab308) 10%, var(--color-bg-surface))",
-                  border: "1px solid color-mix(in srgb, var(--color-warning, #eab308) 30%, transparent)",
-                  fontSize: 11, color: "var(--color-text-primary)", lineHeight: 1.5,
-                }}>
-                  <div style={{ fontWeight: 700, marginBottom: 2 }}>📋 일괄 발송 ({recipientCount}명)</div>
-                  <div style={{ fontSize: 10, color: "var(--color-text-secondary)" }}>
-                    미리보기는 첫 번째 학생 기준. <strong>#{`{학생이름}`}·#{`{시험성적}`}·#{`{시험N}`}</strong> 등 변수는 학생별로 자동 치환되어 발송됩니다.
-                  </div>
-                </div>
-              )}
-              {/* 적용된 양식 명시 — 학원장이 "양식 적용된 거 맞나" 즉시 인지 */}
-              {hasRecipients && sendMode === "alimtalk" && selectedTemplate && (
-                <div style={{
-                  marginTop: 6, padding: "6px 10px", borderRadius: 6,
-                  background: "color-mix(in srgb, var(--color-success, #22c55e) 8%, var(--color-bg-surface))",
-                  border: "1px solid color-mix(in srgb, var(--color-success, #22c55e) 25%, transparent)",
-                  fontSize: 11, color: "var(--color-text-primary)",
-                }}>
-                  <span style={{ fontWeight: 700 }}>✓ 적용된 양식:</span> {selectedTemplate.name}
-                  {selectedTemplate.is_user_default && <span style={{ marginLeft: 6, fontSize: 9, padding: "1px 5px", borderRadius: 3, background: "color-mix(in srgb, var(--color-primary) 14%, transparent)", color: "var(--color-primary)", fontWeight: 700 }}>기본</span>}
-                </div>
-              )}
-            </div>
 
-            {/* 미리보기 */}
-            <div style={{ fontSize: 11, fontWeight: 700, color: "var(--color-text-muted)", letterSpacing: "0.5px" }}>미리보기</div>
-            {sendMode === "sms" ? (
-              <div className="template-preview-phone">
-                <div className="template-preview-phone__screen">
-                  <div className="template-preview-phone__bubble">
-                    {body ? previewBody : <span className="template-editor__preview-placeholder">본문을 입력하세요</span>}
-                  </div>
-                  <div className="template-preview-phone__time">오후 2:30</div>
+              {/* 학부모/학생 대상 토글 (학생 모드일 때만) */}
+              {hasRecipients && !isStaffMode && (
+                <div className="send-modal__recipient-targets">
+                  <label className="send-modal__check">
+                    <input type="checkbox" checked={sendToParent} onChange={(e) => setSendToParent(e.target.checked)} disabled={sending} />
+                    <span>학부모</span>
+                  </label>
+                  <label className="send-modal__check">
+                    <input type="checkbox" checked={sendToStudent} onChange={(e) => setSendToStudent(e.target.checked)} disabled={sending} />
+                    <span>학생</span>
+                  </label>
+                  {sendToTargets.length === 0 && (
+                    <span className="send-modal__targets-warn">선택 필요</span>
+                  )}
                 </div>
-              </div>
-            ) : (
+              )}
+
+              {/* 적용된 양식 — inline */}
+              {hasRecipients && selectedTemplate && (
+                <div className="send-modal__applied-tpl">
+                  <Check size={ICON.xs} style={{ color: "var(--color-success)", flexShrink: 0 }} />
+                  <span className="send-modal__applied-tpl-name">{selectedTemplate.name}</span>
+                  {selectedTemplate.is_user_default && <Badge tone="primary" size="xs">기본</Badge>}
+                  {isSystemTpl(selectedTemplate) && <Badge tone="info" size="xs">시스템</Badge>}
+                </div>
+              )}
+
+              {/* 일괄 발송 안내 — 변수 치환 인지 보조 */}
+              {hasRecipients && recipientCount > 1 && (
+                <div className="send-modal__bulk-hint">
+                  <div className="send-modal__bulk-hint-title">
+                    일괄 발송 · {recipientCount}명
+                  </div>
+                  <div className="send-modal__bulk-hint-desc">
+                    미리보기는 첫 번째 학생 기준입니다. <strong>{`#{학생이름}`}</strong>, <strong>{`#{시험성적}`}</strong> 등 변수는 학생별로 자동 치환됩니다.
+                  </div>
+                </div>
+              )}
+            </section>
+
+            {/* 카드 2 — 미리보기 + 변수 상태 통합 */}
+            <section className="send-modal__card send-modal__card--preview">
+              <div className="send-modal__card-label">카카오톡 미리보기</div>
               <div className="template-preview-kakao">
                 <div className="template-preview-kakao__card">
                   {(selectedTemplate?.subject || subject) && (
                     <div className="template-preview-kakao__title">{previewSubject}</div>
                   )}
                   <div className="template-preview-kakao__body">
-                    {selectedTemplate ? previewBody : alimtalkFreeForm && body ? previewBody : <span style={{ color: "#999" }}>{alimtalkFreeForm ? "내용을 입력하세요" : "양식을 선택하세요"}</span>}
+                    {selectedTemplate
+                      ? previewBody
+                      : alimtalkFreeForm && body
+                      ? body
+                      : <span className="send-modal__preview-placeholder">{alimtalkFreeForm ? "내용을 입력하세요" : "양식을 선택하세요"}</span>}
                   </div>
                 </div>
               </div>
-            )}
-            <div style={{ fontSize: 10, color: "var(--color-text-muted)" }}>
-              {sendMode === "sms" ? "SMS 미리보기" : "카카오 알림톡 미리보기"}
-            </div>
 
-            {/* 변수 상태 (AlimTalk with selected template) */}
-            {sendMode === "alimtalk" && selectedTemplate && varStatuses.length > 0 && (
-              <div style={{
-                padding: "10px 12px", borderRadius: "var(--radius-md)",
-                background: "var(--color-bg-surface)", border: "1px solid var(--color-border-divider)",
-              }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: "var(--color-text-muted)", marginBottom: 6 }}>변수 상태</div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              {/* 변수 상태 — 미리보기 카드 하단 inline */}
+              {selectedTemplate && varStatuses.length > 0 && (
+                <div className="send-modal__var-status">
                   {varStatuses.map((v) => (
-                    <div key={v.name} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11 }}>
+                    <div key={v.name} className="send-modal__var-row" data-status={v.status}>
                       {v.status === "missing"
-                        ? <FiAlertCircle size={12} style={{ color: "#d97706", flexShrink: 0 }} />
-                        : <FiCheck size={12} style={{ color: "var(--color-success)", flexShrink: 0 }} />}
-                      <span style={{ fontWeight: 600, color: v.status === "missing" ? "#d97706" : "var(--color-text-secondary)" }}>{v.name}</span>
-                      <span style={{ color: "var(--color-text-muted)", fontSize: 10, flex: 1, textAlign: "right" as const }}>
+                        ? <AlertCircle size={ICON.xs} style={{ color: "var(--color-status-warning, #d97706)", flexShrink: 0 }} />
+                        : <Check size={ICON.xs} style={{ color: "var(--color-success)", flexShrink: 0 }} />}
+                      <span className="send-modal__var-name">{v.name}</span>
+                      <span className="send-modal__var-value">
                         {v.status === "auto" ? "자동" : v.status === "provided" ? (v.value ? `"${v.value}"` : "제공됨") : "미제공"}
                       </span>
                     </div>
                   ))}
                 </div>
-              </div>
-            )}
+              )}
+            </section>
           </div>
 
-          {/* ═══ 우측: 편집/선택 ═══ */}
-          <div className="flex-1 min-w-0 flex flex-col gap-3">
-            {/* 상단 바: 대상 + 글자수 (채널 토글 제거 — 알림톡 단독, 학원장 단순화) */}
-            <div style={{
-              display: "flex", alignItems: "center", gap: 16, padding: "8px 14px",
-              background: "var(--color-bg-surface-soft)", borderRadius: "var(--radius-md)",
-              border: "1px solid var(--color-border-divider)",
-            }}>
-              {/* 대상 */}
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-muted)", whiteSpace: "nowrap" }}>대상</span>
-                {isStaffMode ? (
-                  <span style={{ fontSize: 13, fontWeight: 700, color: "var(--color-primary)" }}>직원</span>
+          {/* ═══ 우측: 양식 선택 + 본문 편집 ═══ */}
+          <div className="send-modal__right">
+            {/* ── 양식 선택 바 (양식 변경 진입 SSOT) ── */}
+            <div className="send-modal__tpl-bar">
+              <Tag size={ICON.sm} style={{ color: "var(--color-primary)", flexShrink: 0 }} />
+              <div className="send-modal__tpl-bar-label">
+                {selectedTemplate ? (
+                  <div className="send-modal__tpl-bar-name-row">
+                    <span className="send-modal__tpl-bar-name">{selectedTemplate.name}</span>
+                    {selectedTemplate.solapi_status === "APPROVED" && <Badge tone="success" size="xs">승인</Badge>}
+                    {bodyModified && <Badge tone="warning" size="xs">수정됨</Badge>}
+                  </div>
+                ) : alimtalkFreeForm ? (
+                  <span className="send-modal__tpl-bar-freeform">직접 작성 모드</span>
                 ) : (
-                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                    <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 13, cursor: "pointer", fontWeight: 500 }}>
-                      <input type="checkbox" checked={sendToParent} onChange={(e) => setSendToParent(e.target.checked)} disabled={sending} style={{ accentColor: "var(--color-primary)" }} />
-                      학부모
-                    </label>
-                    <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 13, cursor: "pointer", fontWeight: 500 }}>
-                      <input type="checkbox" checked={sendToStudent} onChange={(e) => setSendToStudent(e.target.checked)} disabled={sending} style={{ accentColor: "var(--color-primary)" }} />
-                      학생
-                    </label>
-                    {sendToTargets.length === 0 && <span style={{ fontSize: 11, color: "var(--color-error)", fontWeight: 600 }}>선택 필요</span>}
+                  <span className="send-modal__tpl-bar-empty">양식을 선택하거나 직접 작성하세요</span>
+                )}
+              </div>
+              <Button
+                size="sm"
+                intent="primary"
+                onClick={() => setShowTemplatePanel((v) => !v)}
+                disabled={sending}
+              >
+                {showTemplatePanel ? "닫기" : selectedTemplate || alimtalkFreeForm ? "양식 변경" : "양식 선택"}
+              </Button>
+            </div>
+
+            {/* ── 양식 패널 (접이식) ── */}
+            {showTemplatePanel && (
+              <div className="send-modal__tpl-panel">
+                <div className="send-modal__tpl-search">
+                  <Search size={ICON.xs} className="send-modal__tpl-search-icon" />
+                  <Input
+                    size="small"
+                    placeholder="양식 검색…"
+                    value={templateSearch}
+                    onChange={(e) => setTemplateSearch(e.target.value)}
+                    style={{ paddingLeft: 28, fontSize: 12 }}
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedTemplateId(null);
+                    setBody("");
+                    setSubject("");
+                    setShowTemplatePanel(false);
+                    setTemplateBodySnapshot(null);
+                    setAlimtalkFreeForm(true);
+                  }}
+                  className="send-modal__tpl-freeform-btn"
+                  data-selected={alimtalkFreeForm && !selectedTemplate || undefined}
+                >
+                  <Edit3 size={ICON.xs} style={{ color: alimtalkFreeForm && !selectedTemplate ? "var(--color-primary)" : "var(--color-text-muted)", flexShrink: 0 }} />
+                  직접 작성하기
+                </button>
+
+                {categorizedTemplates.custom.length > 0 && (
+                  <>
+                    <div className="send-modal__tpl-group-label">내 양식</div>
+                    {categorizedTemplates.custom.map((t) => (
+                      <TemplatePickerCard
+                        key={t.id}
+                        template={t}
+                        isSelected={selectedTemplateId === t.id}
+                        onSelect={() => { selectTemplate(t); setShowTemplatePanel(false); setAlimtalkFreeForm(false); }}
+                        onSetDefault={() => handleSetDefault(t.id)}
+                        onDuplicate={() => handleDuplicate(t.id)}
+                        onDelete={() => handleDeleteTemplate(t.id)}
+                      />
+                    ))}
+                  </>
+                )}
+                {categorizedTemplates.defaults.length > 0 && (
+                  <>
+                    <div className="send-modal__tpl-group-label">시스템 기본 양식</div>
+                    {categorizedTemplates.defaults.map((t) => (
+                      <TemplatePickerCard
+                        key={t.id}
+                        template={t}
+                        isSelected={selectedTemplateId === t.id}
+                        onSelect={() => { selectTemplate(t); setShowTemplatePanel(false); setAlimtalkFreeForm(false); }}
+                        onSetDefault={() => handleSetDefault(t.id)}
+                        onDuplicate={() => handleDuplicate(t.id)}
+                        onDelete={null}
+                      />
+                    ))}
+                  </>
+                )}
+                {categorizedTemplates.custom.length === 0 && categorizedTemplates.defaults.length === 0 && categorizedTemplates.recent.length === 0 && (
+                  <div className="send-modal__tpl-empty">
+                    {templateSearch ? "검색 결과 없음" : "저장된 양식이 없습니다."}
                   </div>
                 )}
               </div>
-
-              {/* 글자수 (SMS) */}
-              {charInfo && (
-                <>
-                  <div style={{ flex: 1 }} />
-                  <span style={{
-                    fontSize: 12, fontWeight: 700, padding: "3px 10px", borderRadius: 6,
-                    background: charInfo.tone === "ok" ? "color-mix(in srgb, var(--color-success) 10%, transparent)"
-                      : charInfo.tone === "lms" ? "color-mix(in srgb, var(--color-primary) 10%, transparent)"
-                      : "color-mix(in srgb, var(--color-error) 10%, transparent)",
-                    color: charInfo.tone === "ok" ? "var(--color-success)" : charInfo.tone === "lms" ? "var(--color-primary)" : "var(--color-error)",
-                  }}>
-                    {charInfo.label}
-                  </span>
-                </>
-              )}
-            </div>
-
-            {/* ══════ SMS 모드 ══════ */}
-            {sendMode === "sms" && (
-              <>
-                {/* ── 양식 선택 바 ── */}
-                <div style={{
-                  display: "flex", alignItems: "center", gap: 10, padding: "10px 14px",
-                  borderRadius: 10, background: "color-mix(in srgb, var(--color-primary) 5%, var(--color-bg-surface))",
-                  border: "1.5px solid color-mix(in srgb, var(--color-primary) 18%, var(--color-border-divider))",
-                }}>
-                  <FiChevronLeft size={16} style={{ color: "var(--color-primary)", flexShrink: 0, transform: "rotate(-90deg)" }} />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    {selectedTemplate ? (
-                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <span style={{ fontSize: 13, fontWeight: 700, color: "var(--color-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                          {selectedTemplate.name}
-                        </span>
-                        {selectedTemplate.is_user_default && <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 5px", borderRadius: 3, background: "color-mix(in srgb, var(--color-primary) 14%, transparent)", color: "var(--color-primary)" }}>기본</span>}
-                        {isSystemTpl(selectedTemplate) && <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 5px", borderRadius: 3, background: "color-mix(in srgb, #2563eb 12%, transparent)", color: "#2563eb" }}>시스템</span>}
-                        {bodyModified && <span style={{ fontSize: 10, color: "var(--color-status-warning, #d97706)", fontWeight: 600 }}>· 수정됨</span>}
-                      </div>
-                    ) : (
-                      <span style={{ fontSize: 13, color: "var(--color-text-muted)" }}>양식을 선택하거나 직접 작성하세요</span>
-                    )}
-                  </div>
-                  <Button
-                    size="sm"
-                    intent="primary"
-                    onClick={() => setShowTemplatePanel(!showTemplatePanel)}
-                    disabled={sending}
-                    style={{ fontWeight: 700 }}
-                  >
-                    {showTemplatePanel ? "닫기" : selectedTemplate ? "양식 변경" : "양식 선택"}
-                  </Button>
-                </div>
-
-                {/* ── 양식 패널 (접이식) ── */}
-                {showTemplatePanel && (
-                  <div style={{ borderRadius: 10, border: "1px solid var(--color-border-divider)", background: "var(--color-bg-surface)", maxHeight: 280, overflowY: "auto", padding: 10, display: "flex", flexDirection: "column", gap: 6 }}>
-                    <div style={{ position: "relative", marginBottom: 2 }}>
-                      <FiSearch size={13} style={{ position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)", color: "var(--color-text-muted)", pointerEvents: "none" }} />
-                      <Input size="small" placeholder="양식 검색…" value={templateSearch} onChange={(e) => setTemplateSearch(e.target.value)} style={{ paddingLeft: 28, fontSize: 12 }} />
-                    </div>
-                    <button type="button" onClick={() => { setSelectedTemplateId(null); setBody(""); setSubject(""); setShowTemplatePanel(false); setTemplateBodySnapshot(null); setSmsEmptyHintDismissed(true); }}
-                      style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "8px 10px", borderRadius: 8, border: selectedTemplateId == null ? "2px solid var(--color-primary)" : "1px solid var(--color-border-divider)", background: selectedTemplateId == null ? "color-mix(in srgb, var(--color-primary) 6%, transparent)" : "transparent", cursor: "pointer", textAlign: "left" as const, fontSize: 12, fontWeight: 600, color: "var(--color-text-primary)", transition: "all 0.15s" }}>
-                      <FiEdit3 size={14} style={{ color: selectedTemplateId == null ? "var(--color-primary)" : "var(--color-text-muted)", flexShrink: 0 }} />
-                      직접 작성하기
-                    </button>
-                    {categorizedTemplates.custom.length > 0 && (
-                      <>
-                        <div style={{ fontSize: 10, fontWeight: 700, color: "var(--color-text-muted)", padding: "6px 4px 2px", letterSpacing: "0.5px" }}>내 양식</div>
-                        {categorizedTemplates.custom.map((t) => (
-                          <TemplatePickerCard key={t.id} template={t} isSelected={selectedTemplateId === t.id} onSelect={() => { selectTemplate(t); setShowTemplatePanel(false); }} onSetDefault={() => handleSetDefault(t.id)} onDuplicate={() => handleDuplicate(t.id)} onDelete={() => handleDeleteTemplate(t.id)} />
-                        ))}
-                      </>
-                    )}
-                    {categorizedTemplates.defaults.length > 0 && (
-                      <>
-                        <div style={{ fontSize: 10, fontWeight: 700, color: "var(--color-text-muted)", padding: "6px 4px 2px", letterSpacing: "0.5px" }}>시스템 기본 양식</div>
-                        {categorizedTemplates.defaults.map((t) => (
-                          <TemplatePickerCard key={t.id} template={t} isSelected={selectedTemplateId === t.id} onSelect={() => { selectTemplate(t); setShowTemplatePanel(false); }} onSetDefault={() => handleSetDefault(t.id)} onDuplicate={() => handleDuplicate(t.id)} onDelete={null} />
-                        ))}
-                      </>
-                    )}
-                    {categorizedTemplates.recent.length === 0 && categorizedTemplates.custom.length === 0 && categorizedTemplates.defaults.length === 0 && (
-                      <div style={{ padding: 20, textAlign: "center", fontSize: 12, color: "var(--color-text-muted)" }}>
-                        {templateSearch ? "검색 결과 없음" : "저장된 양식이 없습니다."}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* ── 저장 바 (상황에 따라 한 가지만 표시) ── */}
-                {!showSaveForm && body.trim() && !showTemplatePanel && (
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 12px", borderRadius: 8, background: "var(--color-bg-surface-soft)", border: "1px solid var(--color-border-divider)" }}>
-                    {bodyModified && selectedTemplate && !isSystemTpl(selectedTemplate) ? (
-                      <>
-                        <Button size="sm" intent="primary" onClick={handleUpdateTemplate} disabled={sending}>양식 덮어쓰기</Button>
-                        <button type="button" onClick={() => { setShowSaveForm(true); setSaveTemplateName(""); }} disabled={sending} style={{ fontSize: 12, color: "var(--color-primary)", background: "none", border: "none", cursor: "pointer", fontWeight: 600, textDecoration: "underline", textUnderlineOffset: 2 }}>
-                          다른 이름으로 저장
-                        </button>
-                      </>
-                    ) : (
-                      <Button size="sm" intent="secondary" onClick={() => { setShowSaveForm(true); setSaveTemplateName(""); }} disabled={sending}>양식으로 저장</Button>
-                    )}
-                    <div style={{ flex: 1 }} />
-                    {charInfo && (
-                      <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 4, background: charInfo.tone === "ok" ? "color-mix(in srgb, var(--color-success) 12%, transparent)" : charInfo.tone === "lms" ? "color-mix(in srgb, var(--color-primary) 12%, transparent)" : "color-mix(in srgb, var(--color-error) 12%, transparent)", color: charInfo.tone === "ok" ? "var(--color-success)" : charInfo.tone === "lms" ? "var(--color-primary)" : "var(--color-error)" }}>
-                        {charInfo.label}
-                      </span>
-                    )}
-                  </div>
-                )}
-                {showSaveForm && (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 6, padding: "10px 14px", borderRadius: 8, background: "color-mix(in srgb, var(--color-primary) 4%, var(--color-bg-surface))", border: "1px solid color-mix(in srgb, var(--color-primary) 20%, var(--color-border-divider))" }}>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-secondary)" }}>양식 이름을 입력하세요</div>
-                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                      <Input size="small" placeholder="예: 출결 알림, 성적표 양식" value={saveTemplateName} onChange={(e) => setSaveTemplateName(e.target.value)} onPressEnter={handleSaveTemplate} style={{ flex: 1, fontSize: 13 }} autoFocus />
-                      <Button size="sm" intent="primary" onClick={handleSaveTemplate} disabled={!saveTemplateName.trim() || !body.trim() || savingTemplate}>{savingTemplate ? "저장 중…" : "저장"}</Button>
-                      <Button size="sm" intent="secondary" onClick={() => setShowSaveForm(false)}>취소</Button>
-                    </div>
-                  </div>
-                )}
-
-                {/* ── 편집 영역: 본문(좌) + 변수 팔레트(우) ── */}
-                <div style={{ display: "flex", gap: 12, flex: 1, minHeight: 0 }}>
-                  {/* 본문 */}
-                  <div ref={bodyWrapRef} style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", position: "relative" }}>
-                    {/* 빈 상태 오버레이 */}
-                    {!body && !selectedTemplate && !smsEmptyHintDismissed && (
-                      <div style={{ position: "absolute", inset: 0, zIndex: 2, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, background: "var(--color-bg-surface)", borderRadius: 8, border: "1px solid var(--color-border-divider)", pointerEvents: "auto" }}>
-                        <FiEdit3 size={28} style={{ color: "var(--color-text-muted)", opacity: 0.4 }} />
-                        <div style={{ textAlign: "center" }}>
-                          <div style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text-secondary)", marginBottom: 4 }}>양식을 선택하거나</div>
-                          <div style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text-secondary)" }}>직접 내용을 작성하세요</div>
-                        </div>
-                        <Button size="sm" intent="primary" onClick={() => { setSmsEmptyHintDismissed(true); setShowTemplatePanel(true); }} style={{ marginTop: 4 }}>양식 선택하기</Button>
-                        <button type="button" onClick={() => setSmsEmptyHintDismissed(true)} style={{ marginTop: 2, fontSize: 13, fontWeight: 600, color: "var(--color-text-muted)", background: "none", border: "none", cursor: "pointer", textDecoration: "underline", textUnderlineOffset: 2 }}>직접 작성하기</button>
-                      </div>
-                    )}
-                    <Input.TextArea
-                      placeholder="내용을 입력하세요"
-                      value={body}
-                      onChange={(e) => setBody(e.target.value)}
-                      disabled={sending}
-                      className="message-domain-input"
-                      style={{
-                        resize: "none",
-                        fontFamily: "inherit",
-                        minHeight: 240,
-                        flex: 1,
-                        fontSize: 14,
-                        lineHeight: 1.7,
-                        padding: 12,
-                        borderColor: smsOverLimit ? "var(--color-error)" : undefined,
-                        pointerEvents: !body && !selectedTemplate && !smsEmptyHintDismissed ? "none" : undefined,
-                      }}
-                    />
-                    {smsOverLimit && (
-                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4, fontSize: 12, fontWeight: 600, color: "var(--color-error)" }}>
-                        <FiAlertCircle size={12} />
-                        {SMS_MAX_CHARS}자 초과 ({body.length}자)
-                      </div>
-                    )}
-                  </div>
-
-                  {/* 변수 팔레트 */}
-                  <div style={{ width: 195, flexShrink: 0, overflowY: "auto", padding: "10px 10px 10px 12px", borderRadius: 10, background: "color-mix(in srgb, var(--color-bg-surface-soft) 70%, var(--color-bg-surface))", border: "1px solid var(--color-border-divider)", borderLeft: "2.5px solid var(--color-primary)" }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: "var(--color-text-secondary)", marginBottom: 2 }}>변수 삽입</div>
-                    <div style={{ fontSize: 10, color: "var(--color-text-muted)", marginBottom: 10, lineHeight: 1.4 }}>클릭하면 커서 위치에 추가됩니다</div>
-                    {blockCategory === "grades" ? (
-                      <GradesBlockPanel blocks={blocks} onInsert={insertBlock} disabled={sending} currentBody={body} />
-                    ) : (
-                      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                        {blocks.map((block) => {
-                          const bc = getBlockColor(block.id);
-                          return (
-                            <div key={block.id}>
-                              <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => insertBlock(block.insertText)} disabled={sending} className="template-editor__block-tag" style={{ background: bc.bg, color: bc.color, borderColor: bc.border, padding: "4px 10px", fontSize: 11, width: "100%" }}>
-                                {block.label}
-                              </button>
-                              {block.description && <div style={{ fontSize: 9.5, color: "var(--color-text-muted)", paddingLeft: 2, lineHeight: 1.3, marginTop: 1 }}>{block.description}</div>}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </>
             )}
 
-            {/* ══════ 알림톡 모드 — SMS와 동일한 양식 선택 패널 + 본문 편집 ══════ */}
-            {sendMode === "alimtalk" && (
-              <>
-                {/* ── 양식 선택 바 ── */}
-                <div style={{
-                  display: "flex", alignItems: "center", gap: 10, padding: "10px 14px",
-                  borderRadius: 10, background: "color-mix(in srgb, var(--color-primary) 5%, var(--color-bg-surface))",
-                  border: "1.5px solid color-mix(in srgb, var(--color-primary) 18%, var(--color-border-divider))",
-                }}>
-                  <FiChevronLeft size={16} style={{ color: "var(--color-primary)", flexShrink: 0, transform: "rotate(-90deg)" }} />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    {selectedTemplate ? (
-                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <span style={{ fontSize: 13, fontWeight: 700, color: "var(--color-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                          {selectedTemplate.name}
-                        </span>
-                        {selectedTemplate.is_user_default && <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 5px", borderRadius: 3, background: "color-mix(in srgb, var(--color-primary) 14%, transparent)", color: "var(--color-primary)" }}>기본</span>}
-                        {isSystemTpl(selectedTemplate) && <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 5px", borderRadius: 3, background: "color-mix(in srgb, #2563eb 12%, transparent)", color: "#2563eb" }}>시스템</span>}
-                        {selectedTemplate.solapi_status === "APPROVED" && <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 5px", borderRadius: 3, background: "color-mix(in srgb, var(--color-success) 12%, transparent)", color: "var(--color-success)" }}>승인</span>}
-                        {bodyModified && <span style={{ fontSize: 10, color: "var(--color-status-warning, #d97706)", fontWeight: 600 }}>· 수정됨</span>}
-                      </div>
-                    ) : alimtalkFreeForm ? (
-                      <span style={{ fontSize: 13, fontWeight: 600, color: "var(--color-primary)" }}>직접 작성 모드</span>
-                    ) : (
-                      <span style={{ fontSize: 13, color: "var(--color-text-muted)" }}>양식을 선택하거나 직접 작성하세요</span>
-                    )}
-                  </div>
-                  <Button
-                    size="sm"
-                    intent="primary"
-                    onClick={() => setShowAlimtalkPanel(!showAlimtalkPanel)}
+            {/* ── 저장 바 — 본문 수정 시에만 inline 노출 ── */}
+            {!showSaveForm && body.trim() && !showTemplatePanel && (selectedTemplate || alimtalkFreeForm) && (
+              bodyModified && selectedTemplate && !isSystemTpl(selectedTemplate) ? (
+                <div className="send-modal__save-bar">
+                  <span className="send-modal__save-bar-text">본문이 수정되었습니다</span>
+                  <Button size="sm" intent="primary" onClick={handleUpdateTemplate} disabled={sending || savingTemplate}>
+                    양식 덮어쓰기
+                  </Button>
+                  <button
+                    type="button"
+                    onClick={() => { setShowSaveForm(true); setSaveTemplateName(""); }}
                     disabled={sending}
-                    style={{ fontWeight: 700 }}
+                    className="send-modal__save-bar-link"
                   >
-                    {showAlimtalkPanel ? "닫기" : selectedTemplate ? "양식 변경" : "양식 선택"}
+                    다른 이름으로 저장
+                  </button>
+                </div>
+              ) : (
+                <div className="send-modal__save-bar">
+                  <Button size="sm" intent="ghost" onClick={() => { setShowSaveForm(true); setSaveTemplateName(""); }} disabled={sending}>
+                    이 본문을 양식으로 저장
                   </Button>
                 </div>
+              )
+            )}
+            {showSaveForm && (
+              <div className="send-modal__save-form">
+                <div className="send-modal__save-form-label">양식 이름을 입력하세요</div>
+                <div className="send-modal__save-form-row">
+                  <Input
+                    size="small"
+                    placeholder="예: 출결 알림, 성적표 양식"
+                    value={saveTemplateName}
+                    onChange={(e) => setSaveTemplateName(e.target.value)}
+                    onPressEnter={handleSaveTemplate}
+                    style={{ flex: 1, fontSize: 13 }}
+                    autoFocus
+                  />
+                  <Button size="sm" intent="primary" onClick={handleSaveTemplate} disabled={!saveTemplateName.trim() || !body.trim() || savingTemplate}>
+                    {savingTemplate ? "저장 중…" : "저장"}
+                  </Button>
+                  <Button size="sm" intent="secondary" onClick={() => setShowSaveForm(false)}>취소</Button>
+                </div>
+              </div>
+            )}
 
-                {/* ── 양식 패널 (접이식) ── */}
-                {showAlimtalkPanel && (
-                  <div style={{ borderRadius: 10, border: "1px solid var(--color-border-divider)", background: "var(--color-bg-surface)", maxHeight: 280, overflowY: "auto", padding: 10, display: "flex", flexDirection: "column", gap: 6 }}>
-                    <div style={{ position: "relative", marginBottom: 2 }}>
-                      <FiSearch size={13} style={{ position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)", color: "var(--color-text-muted)", pointerEvents: "none" }} />
-                      <Input size="small" placeholder="양식 검색…" value={templateSearch} onChange={(e) => setTemplateSearch(e.target.value)} style={{ paddingLeft: 28, fontSize: 12 }} />
+            {/* ── 본문 + 변수 팔레트 ── */}
+            <div className="send-modal__editor">
+              <div ref={bodyWrapRef} className="send-modal__editor-body">
+                {/* 빈 상태 오버레이 */}
+                {!body && !selectedTemplate && !alimtalkFreeForm && (
+                  <div className="send-modal__editor-empty">
+                    <Edit3 size={ICON.xl} style={{ color: "var(--color-text-muted)", opacity: 0.4 }} />
+                    <div className="send-modal__editor-empty-text">
+                      <div>양식을 선택하거나</div>
+                      <div>직접 내용을 작성하세요</div>
                     </div>
-                    {/* 직접 작성하기 */}
-                    <button type="button" onClick={() => {
-                      setSelectedTemplateId(null); setBody(""); setSubject(""); setFreeContent("");
-                      setShowAlimtalkPanel(false); setTemplateBodySnapshot(null); setAlimtalkFreeForm(true);
-                    }}
-                      style={{
-                        display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "8px 10px", borderRadius: 8,
-                        border: alimtalkFreeForm && !selectedTemplate ? "2px solid var(--color-primary)" : "1px solid var(--color-border-divider)",
-                        background: alimtalkFreeForm && !selectedTemplate ? "color-mix(in srgb, var(--color-primary) 6%, transparent)" : "transparent",
-                        cursor: "pointer", textAlign: "left" as const, fontSize: 12, fontWeight: 600, color: "var(--color-text-primary)", transition: "all 0.15s",
-                      }}>
-                      <FiEdit3 size={14} style={{ color: alimtalkFreeForm && !selectedTemplate ? "var(--color-primary)" : "var(--color-text-muted)", flexShrink: 0 }} />
-                      직접 작성하기
-                    </button>
-                    {/* 내 양식 — SMS와 동일한 관리 기능 (기본 지정/복제/삭제) */}
-                    {categorizedTemplates.custom.length > 0 && (
-                      <>
-                        <div style={{ fontSize: 10, fontWeight: 700, color: "var(--color-text-muted)", padding: "6px 4px 2px", letterSpacing: "0.5px" }}>내 양식</div>
-                        {categorizedTemplates.custom.map((t) => (
-                          <TemplatePickerCard key={t.id} template={t} isSelected={selectedTemplateId === t.id} onSelect={() => { selectTemplate(t); setShowAlimtalkPanel(false); setAlimtalkFreeForm(false); }} onSetDefault={() => handleSetDefault(t.id)} onDuplicate={() => handleDuplicate(t.id)} onDelete={() => handleDeleteTemplate(t.id)} />
-                        ))}
-                      </>
-                    )}
-                    {/* 시스템 기본 양식 */}
-                    {categorizedTemplates.defaults.length > 0 && (
-                      <>
-                        <div style={{ fontSize: 10, fontWeight: 700, color: "var(--color-text-muted)", padding: "6px 4px 2px", letterSpacing: "0.5px" }}>시스템 기본 양식</div>
-                        {categorizedTemplates.defaults.map((t) => (
-                          <TemplatePickerCard key={t.id} template={t} isSelected={selectedTemplateId === t.id} onSelect={() => { selectTemplate(t); setShowAlimtalkPanel(false); setAlimtalkFreeForm(false); }} onSetDefault={() => handleSetDefault(t.id)} onDuplicate={() => handleDuplicate(t.id)} onDelete={null} />
-                        ))}
-                      </>
-                    )}
-                    {categorizedTemplates.custom.length === 0 && categorizedTemplates.defaults.length === 0 && categorizedTemplates.recent.length === 0 && (
-                      <div style={{ padding: 20, textAlign: "center", fontSize: 12, color: "var(--color-text-muted)" }}>
-                        {templateSearch ? "검색 결과 없음" : "저장된 양식이 없습니다."}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* ── 저장 바 ── */}
-                {!showSaveForm && body.trim() && !showAlimtalkPanel && (selectedTemplate || alimtalkFreeForm) && (
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 12px", borderRadius: 8, background: "var(--color-bg-surface-soft)", border: "1px solid var(--color-border-divider)" }}>
-                    {bodyModified && selectedTemplate && !isSystemTpl(selectedTemplate) ? (
-                      <>
-                        <Button size="sm" intent="primary" onClick={handleUpdateTemplate} disabled={sending}>양식 덮어쓰기</Button>
-                        <button type="button" onClick={() => { setShowSaveForm(true); setSaveTemplateName(""); }} disabled={sending} style={{ fontSize: 12, color: "var(--color-primary)", background: "none", border: "none", cursor: "pointer", fontWeight: 600, textDecoration: "underline", textUnderlineOffset: 2 }}>
-                          다른 이름으로 저장
-                        </button>
-                      </>
-                    ) : (
-                      <Button size="sm" intent="secondary" onClick={() => { setShowSaveForm(true); setSaveTemplateName(""); }} disabled={sending}>양식으로 저장</Button>
-                    )}
-                  </div>
-                )}
-                {showSaveForm && (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 6, padding: "10px 14px", borderRadius: 8, background: "color-mix(in srgb, var(--color-primary) 4%, var(--color-bg-surface))", border: "1px solid color-mix(in srgb, var(--color-primary) 20%, var(--color-border-divider))" }}>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-secondary)" }}>양식 이름을 입력하세요</div>
-                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                      <Input size="small" placeholder="예: 출결 알림, 성적표 양식" value={saveTemplateName} onChange={(e) => setSaveTemplateName(e.target.value)} onPressEnter={handleSaveTemplate} style={{ flex: 1, fontSize: 13 }} autoFocus />
-                      <Button size="sm" intent="primary" onClick={handleSaveTemplate} disabled={!saveTemplateName.trim() || !body.trim() || savingTemplate}>{savingTemplate ? "저장 중…" : "저장"}</Button>
-                      <Button size="sm" intent="secondary" onClick={() => setShowSaveForm(false)}>취소</Button>
-                    </div>
-                  </div>
-                )}
-
-                {/* ── 편집 영역: 본문(좌) + 변수 팔레트(우) — SMS와 동일 구조 ── */}
-                <div style={{ display: "flex", gap: 12, flex: 1, minHeight: 0 }}>
-                  {/* 본문 */}
-                  <div ref={bodyWrapRef} style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", position: "relative" }}>
-                    {selectedTemplate && (
-                      <div style={{ fontSize: 11, fontWeight: 700, color: "var(--color-text-muted)", marginBottom: 4, display: "flex", alignItems: "center", gap: 6 }}>
-                        본문
-                        {isSystemTpl(selectedTemplate) && (
-                          <span style={{ fontSize: 9, fontWeight: 600, padding: "1px 5px", borderRadius: 3, background: "color-mix(in srgb, #2563eb 12%, transparent)", color: "#2563eb" }}>기본</span>
-                        )}
-                        {bodyModified && (
-                          <span style={{ fontSize: 10, color: "var(--color-status-warning, #d97706)", fontWeight: 600 }}>수정됨</span>
-                        )}
-                      </div>
-                    )}
-                    {/* 빈 상태 오버레이 — SMS와 동일 패턴 */}
-                    {!body && !selectedTemplate && !alimtalkFreeForm && (
-                      <div style={{ position: "absolute", inset: 0, zIndex: 2, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, background: "var(--color-bg-surface)", borderRadius: 8, border: "1px solid var(--color-border-divider)", pointerEvents: "auto" }}>
-                        <FiEdit3 size={28} style={{ color: "var(--color-text-muted)", opacity: 0.4 }} />
-                        <div style={{ textAlign: "center" }}>
-                          <div style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text-secondary)", marginBottom: 4 }}>양식을 선택하거나</div>
-                          <div style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text-secondary)" }}>직접 내용을 작성하세요</div>
-                        </div>
-                        <Button size="sm" intent="primary" onClick={() => setShowAlimtalkPanel(true)} style={{ marginTop: 4 }}>양식 선택하기</Button>
-                        <button type="button" onClick={() => setAlimtalkFreeForm(true)} style={{ marginTop: 2, fontSize: 13, fontWeight: 600, color: "var(--color-text-muted)", background: "none", border: "none", cursor: "pointer", textDecoration: "underline", textUnderlineOffset: 2 }}>직접 작성하기</button>
-                      </div>
-                    )}
-                    <Input.TextArea
-                      value={body}
-                      onChange={(e) => { setBody(e.target.value); if (!alimtalkFreeForm && !selectedTemplate) setAlimtalkFreeForm(true); }}
-                      disabled={sending}
-                      className="message-domain-input"
-                      style={{
-                        resize: "none", fontFamily: "inherit", minHeight: 200, flex: 1,
-                        fontSize: 14, lineHeight: 1.7, padding: 12,
-                        pointerEvents: !body && !selectedTemplate && !alimtalkFreeForm ? "none" : undefined,
-                      }}
-                      placeholder="알림톡 본문을 작성하세요"
-                    />
-                  </div>
-
-                  {/* 변수 팔레트 — default 접힘. 학원장 임근혁 요청: 본문 편집 영역 넓게. */}
-                  {showVarPalette ? (
-                    <div style={{ width: 195, flexShrink: 0, overflowY: "auto", padding: "10px 10px 10px 12px", borderRadius: 10, background: "color-mix(in srgb, var(--color-bg-surface-soft) 70%, var(--color-bg-surface))", border: "1px solid var(--color-border-divider)", borderLeft: "2.5px solid var(--color-primary)", position: "relative" }}>
-                      <button
-                        type="button"
-                        onClick={() => setShowVarPalette(false)}
-                        style={{ position: "absolute", top: 6, right: 6, fontSize: 11, color: "var(--color-text-muted)", background: "none", border: "none", cursor: "pointer" }}
-                        title="변수 팔레트 접기"
-                      >✕</button>
-                      <div style={{ fontSize: 11, fontWeight: 700, color: "var(--color-text-secondary)", marginBottom: 2 }}>변수 삽입</div>
-                      <div style={{ fontSize: 10, color: "var(--color-text-muted)", marginBottom: 10, lineHeight: 1.4 }}>클릭하면 커서 위치에 추가됩니다</div>
-                      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                        {blocks.map((block) => {
-                          const bc = getBlockColor(block.id);
-                          return (
-                            <div key={block.id}>
-                              <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => { if (!alimtalkFreeForm && !selectedTemplate) setAlimtalkFreeForm(true); insertBlock(block.insertText); }} disabled={sending} className="template-editor__block-tag" style={{ background: bc.bg, color: bc.color, borderColor: bc.border, padding: "4px 10px", fontSize: 11, width: "100%" }}>
-                                {block.label}
-                              </button>
-                              {block.description && <div style={{ fontSize: 9.5, color: "var(--color-text-muted)", paddingLeft: 2, lineHeight: 1.3, marginTop: 1 }}>{block.description}</div>}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ) : (
+                    <Button size="sm" intent="primary" onClick={() => setShowTemplatePanel(true)}>
+                      양식 선택하기
+                    </Button>
                     <button
                       type="button"
-                      onClick={() => setShowVarPalette(true)}
-                      style={{
-                        flexShrink: 0, alignSelf: "flex-start",
-                        padding: "8px 12px", fontSize: 12, fontWeight: 600,
-                        background: "var(--color-bg-surface-soft)",
-                        color: "var(--color-text-secondary)",
-                        border: "1px solid var(--color-border-divider)",
-                        borderRadius: 8, cursor: "pointer",
-                      }}
-                      title="변수 팔레트 열기"
+                      onClick={() => setAlimtalkFreeForm(true)}
+                      className="send-modal__editor-empty-link"
                     >
-                      🏷️ 변수
+                      직접 작성하기
                     </button>
+                  </div>
+                )}
+                <Input.TextArea
+                  value={body}
+                  onChange={(e) => { setBody(e.target.value); if (!alimtalkFreeForm && !selectedTemplate) setAlimtalkFreeForm(true); }}
+                  disabled={sending}
+                  className="message-domain-input send-modal__editor-textarea"
+                  placeholder="알림톡 본문을 작성하세요"
+                  style={{
+                    pointerEvents: !body && !selectedTemplate && !alimtalkFreeForm ? "none" : undefined,
+                  }}
+                />
+              </div>
+
+              {showVarPalette ? (
+                <div className="send-modal__var-palette">
+                  <button
+                    type="button"
+                    onClick={() => setShowVarPalette(false)}
+                    className="send-modal__var-palette-close"
+                    title="변수 팔레트 접기"
+                    aria-label="변수 팔레트 접기"
+                  >✕</button>
+                  <div className="send-modal__var-palette-title">변수 삽입</div>
+                  <div className="send-modal__var-palette-desc">클릭하면 커서 위치에 추가됩니다</div>
+                  {blockCategory === "grades" ? (
+                    <GradesBlockPanel blocks={blocks} onInsert={insertBlock} disabled={sending} currentBody={body} />
+                  ) : (
+                    <div className="send-modal__var-palette-list">
+                      {blocks.map((block) => {
+                        const bc = getBlockColor(block.id);
+                        return (
+                          <div key={block.id}>
+                            <button
+                              type="button"
+                              onMouseDown={(e) => e.preventDefault()}
+                              onClick={() => { if (!alimtalkFreeForm && !selectedTemplate) setAlimtalkFreeForm(true); insertBlock(block.insertText); }}
+                              disabled={sending}
+                              className="template-editor__block-tag"
+                              style={{ background: bc.bg, color: bc.color, borderColor: bc.border, padding: "4px 10px", fontSize: 11, width: "100%" }}
+                            >
+                              {block.label}
+                            </button>
+                            {block.description && <div className="send-modal__var-palette-block-desc">{block.description}</div>}
+                          </div>
+                        );
+                      })}
+                    </div>
                   )}
                 </div>
-              </>
-            )}
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShowVarPalette(true)}
+                  className="send-modal__var-palette-toggle"
+                  title="변수 팔레트 열기"
+                >
+                  <Tag size={ICON.xs} />
+                  변수 삽입
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </ModalBody>
 
       {/* ─── 발송 확인 오버레이 ─── */}
       {showConfirm && (
-        <div style={{
-          position: "absolute", inset: 0, zIndex: 20,
-          background: "color-mix(in srgb, var(--color-bg-surface) 94%, transparent)", backdropFilter: "blur(4px)",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          borderRadius: "inherit",
-        }}>
-          <div style={{
-            width: 380, padding: "32px 28px", textAlign: "center",
-            display: "flex", flexDirection: "column", gap: 20,
-          }}>
-            <div style={{ fontSize: 15, fontWeight: 700, color: "var(--color-text-primary)" }}>
-              발송을 확인해 주세요
-            </div>
-            <div style={{
-              display: "flex", flexDirection: "column", gap: 8, padding: "16px 20px",
-              borderRadius: 12, background: "var(--color-bg-surface-soft)",
-              border: "1px solid var(--color-border-divider)",
-              textAlign: "left",
-            }}>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
-                <span style={{ color: "var(--color-text-muted)" }}>채널</span>
-                <span style={{ fontWeight: 700, color: "var(--color-text-primary)" }}>
-                  {sendMode === "sms" ? (body.length > 90 ? "LMS (장문)" : "SMS (단문)") : "카카오 알림톡"}
-                </span>
+        <div className="send-modal__confirm-overlay">
+          <div className="send-modal__confirm-card">
+            <div className="send-modal__confirm-title">발송을 확인해 주세요</div>
+            <div className="send-modal__confirm-meta">
+              <div className="send-modal__confirm-row">
+                <span className="send-modal__confirm-key">채널</span>
+                <span className="send-modal__confirm-val">카카오 알림톡</span>
               </div>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
-                <span style={{ color: "var(--color-text-muted)" }}>대상</span>
-                <span style={{ fontWeight: 700, color: "var(--color-text-primary)" }}>
+              <div className="send-modal__confirm-row">
+                <span className="send-modal__confirm-key">대상</span>
+                <span className="send-modal__confirm-val">
                   {isStaffMode ? `직원 ${staffIds.length}명` : (() => {
                     const parts: string[] = [];
                     if (sendToParent) parts.push(`학부모 ${recipientCount}명`);
@@ -1219,40 +909,23 @@ export default function SendMessageModal({
                   })()}
                 </span>
               </div>
-              {sendMode === "alimtalk" && (selectedTemplate || alimtalkFreeForm) && (
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
-                  <span style={{ color: "var(--color-text-muted)" }}>템플릿</span>
-                  <span style={{ fontWeight: 600, color: "var(--color-text-secondary)", maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {(selectedTemplate || alimtalkFreeForm) && (
+                <div className="send-modal__confirm-row">
+                  <span className="send-modal__confirm-key">템플릿</span>
+                  <span className="send-modal__confirm-val send-modal__confirm-val--ellipsis">
                     {selectedTemplate ? selectedTemplate.name : "직접 작성"}
                   </span>
                 </div>
               )}
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
-                <span style={{ color: "var(--color-text-muted)" }}>본문</span>
-                <span style={{ fontWeight: 600, color: "var(--color-text-secondary)" }}>{body.length}자</span>
+              <div className="send-modal__confirm-row">
+                <span className="send-modal__confirm-key">본문</span>
+                <span className="send-modal__confirm-val">{body.length}자</span>
               </div>
-              {/* 본문 미리보기 */}
-              <div style={{
-                fontSize: 12, color: "var(--color-text-secondary)", lineHeight: 1.5,
-                padding: "8px 10px", borderRadius: 8, marginTop: 2,
-                background: "var(--color-bg-surface)", border: "1px solid var(--color-border-divider)",
-                maxHeight: 160, overflowY: "auto", whiteSpace: "pre-wrap", wordBreak: "break-word",
-              }}>
+              <div className="send-modal__confirm-preview">
                 {body.slice(0, 200)}{body.length > 200 ? "…" : ""}
               </div>
             </div>
-            {sendMode === "sms" && body.length > 90 && (
-              <div style={{
-                display: "flex", alignItems: "center", gap: 6, padding: "8px 12px",
-                borderRadius: 8, fontSize: 12,
-                background: "color-mix(in srgb, var(--color-status-warning, #d97706) 8%, transparent)",
-                color: "var(--color-status-warning, #d97706)",
-              }}>
-                <FiAlertTriangle size={13} style={{ flexShrink: 0 }} />
-                90자 초과 — LMS 요금이 적용됩니다
-              </div>
-            )}
-            <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
+            <div className="send-modal__confirm-actions">
               <Button intent="secondary" onClick={() => setShowConfirm(false)} style={{ minWidth: 100 }}>
                 돌아가기
               </Button>
@@ -1265,62 +938,21 @@ export default function SendMessageModal({
       )}
 
       <ModalFooter
-        left={
-          /* 학원장 임근혁 요청 — 양식 저장·변경 버튼 학원장 시선 끝점에 prominent하게.
-           * "양식 저장 어디서?", "변경 어디서?" 못 찾는 문제 해소. */
-          hasRecipients && sendMode === "alimtalk" ? (
-            <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-              {/* 본문 수정 시 양식 저장/덮어쓰기 */}
-              {body.trim() && (
-                bodyModified && selectedTemplate && !isSystemTpl(selectedTemplate) ? (
-                  <Button
-                    intent="secondary"
-                    onClick={handleUpdateTemplate}
-                    disabled={sending || savingTemplate}
-                    size="md"
-                    style={{ fontWeight: 600 }}
-                  >
-                    💾 양식 덮어쓰기
-                  </Button>
-                ) : (
-                  <Button
-                    intent="secondary"
-                    onClick={() => { setShowSaveForm(true); setSaveTemplateName(""); setShowAlimtalkPanel(false); }}
-                    disabled={sending || savingTemplate}
-                    size="md"
-                    style={{ fontWeight: 600 }}
-                  >
-                    💾 새 양식으로 저장
-                  </Button>
-                )
-              )}
-              <Button
-                intent="ghost"
-                onClick={() => { setShowAlimtalkPanel((v) => !v); setShowSaveForm(false); }}
-                disabled={sending}
-                size="md"
-                style={{ fontWeight: 600 }}
-              >
-                📋 저장된 양식 보기
-              </Button>
-            </div>
-          ) : null
-        }
         right={
-          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+          <div className="send-modal__footer-right">
             {disableReason && !sending && (
-              <span style={{ fontSize: 12, color: "var(--color-status-warning, #d97706)", marginRight: 6, maxWidth: 240, textAlign: "right" as const, fontWeight: 600 }}>
-                ⚠️ {disableReason}
+              <span className="send-modal__footer-warn">
+                <AlertTriangle size={ICON.xs} />
+                {disableReason}
               </span>
             )}
             <Button intent="secondary" onClick={onClose} disabled={sending} size="lg">취소</Button>
-            {/* 발송 버튼 — 학원장 가장 명확하게 보이도록 큼 + primary. */}
             <Button
               intent="primary"
               onClick={requestSend}
               disabled={!canSend || sending}
               size="lg"
-              style={{ minWidth: 200, fontSize: 15, padding: "10px 28px", fontWeight: 700 }}
+              className="send-modal__send-btn"
             >
               {sendButtonText}
             </Button>
