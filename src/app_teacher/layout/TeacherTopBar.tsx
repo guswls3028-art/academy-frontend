@@ -1,7 +1,11 @@
 /**
  * PATH: src/app_teacher/layout/TeacherTopBar.tsx
- * 상단 바 — 좌: 햄버거(사이드바) + 테넌트명 / 우: 학원 홈페이지 + 알림 벨
- * 데스크톱 헤더와 동일 구조
+ * 상단 바 — 좌: 햄버거 + 학원 홈 / 학원 로고 + 이름 / 우: 알림(작업박스)
+ *
+ * 2026-05-12 학원장 spec:
+ *   - 좌상단 홈 아이콘 / 우상단 글로브 두 동선이 모두 /landing 으로 중복 — 우상단 글로브 제거.
+ *   - 우상단은 알림/작업 영역. 글로브 제거 후 알림 종만 유지(향후 검색·계정 추가 자리).
+ *   - 모바일에서 학원 로고가 안 박혀 있어서 브랜드 인지 약함 — program.logo_url 있으면 표시.
  *
  * 인라인 style baseline 면제 (모바일 헤더는 컴포넌트 전체가 token 기반 inline style로 운영).
  */
@@ -9,7 +13,7 @@
 import { useNavigate } from "react-router-dom";
 import { useProgram } from "@/shared/program";
 import { useTeacherPendingCounts } from "@teacher/shared/hooks/useTeacherPendingCounts";
-import { Menu, Bell, BellRing, Globe } from "@teacher/shared/ui/Icons";
+import { Menu, Bell, BellRing } from "@teacher/shared/ui/Icons";
 
 interface Props {
   onMenuClick: () => void;
@@ -20,6 +24,7 @@ export default function TeacherTopBar({ onMenuClick }: Props) {
   const { program } = useProgram();
   const { counts } = useTeacherPendingCounts();
   const tenantName = program?.display_name?.trim() || "";
+  const logoUrl = program?.logo_url?.trim() || "";
   const badge = counts?.total ?? 0;
 
   return (
@@ -83,11 +88,21 @@ export default function TeacherTopBar({ onMenuClick }: Props) {
           style={{
             background: "none",
             border: "none",
-            padding: "4px 0",
+            padding: "4px 4px",
             cursor: "pointer",
             minHeight: 28,
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 8,
           }}
         >
+          {logoUrl && (
+            <img
+              src={logoUrl}
+              alt=""
+              style={{ height: 26, width: "auto", maxWidth: 80, objectFit: "contain", display: "block" }}
+            />
+          )}
           {tenantName ? (
             <span
               style={{
@@ -99,7 +114,7 @@ export default function TeacherTopBar({ onMenuClick }: Props) {
             >
               {tenantName}
             </span>
-          ) : (
+          ) : !logoUrl ? (
             <span
               aria-hidden
               style={{
@@ -110,35 +125,13 @@ export default function TeacherTopBar({ onMenuClick }: Props) {
                 background: "var(--tc-surface-soft)",
               }}
             />
-          )}
+          ) : null}
         </button>
       </div>
 
-      {/* Right: 학원 홈페이지 진입 + 알림 벨 */}
+      {/* Right: 작업박스 영역 — 알림 벨(향후 검색·계정 등 추가 자리).
+          학원 홈페이지 동선은 좌상단 홈 아이콘이 SSOT (2026-05-12 학원장 spec, 중복 제거). */}
       <div style={{ display: "flex", alignItems: "center", gap: 0 }}>
-      <a
-        href="/landing"
-        target="_blank"
-        rel="noopener noreferrer"
-        aria-label="우리 학원 홈페이지 (새 탭)"
-        title="우리 학원 홈페이지"
-        style={{
-          background: "none",
-          border: "none",
-          padding: 8,
-          cursor: "pointer",
-          borderRadius: "var(--tc-radius-full)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          color: "var(--tc-text-secondary)",
-          minWidth: "var(--tc-touch-min)",
-          minHeight: "var(--tc-touch-min)",
-          textDecoration: "none",
-        }}
-      >
-        <Globe size={20} />
-      </a>
       <button
         onClick={() => navigate("/teacher/notifications")}
         aria-label={badge > 0 ? `알림 ${badge > 99 ? "99건 이상" : `${badge}건`}` : "알림"}
