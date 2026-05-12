@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-syntax, @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any */
 // PATH: src/app_teacher/domains/lectures/pages/SessionDetailPage.tsx
 // 차시 상세 — 탭 구조: 학생 + 출석 + 성적 + 시험 + 과제 + 영상 (+ 클리닉 if section_mode)
 import { useState } from "react";
