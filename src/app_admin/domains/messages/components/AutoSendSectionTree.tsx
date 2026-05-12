@@ -1,5 +1,7 @@
+/* eslint-disable react-refresh/only-export-components */
 // PATH: src/app_admin/domains/messages/components/AutoSendSectionTree.tsx
 // 자동발송 — 좌측 구간 폴더 트리 (9구간). SSOT: backend/docs/AUTO-SEND-EVENT-SPEC.md
+// (file 내 default export + named const/type 혼재 → fast-refresh warning disable)
 
 import { useState } from "react";
 import {

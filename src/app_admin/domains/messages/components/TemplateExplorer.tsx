@@ -1,4 +1,4 @@
-/* eslint-disable no-restricted-syntax, react-refresh/only-export-components */
+/* eslint-disable no-restricted-syntax */
 // PATH: src/app_admin/domains/messages/components/TemplateExplorer.tsx
 // 템플릿 저장 — "기본"=사용자 커스텀 | 나머지=자동발송 동일 카테고리 (기본 템플릿 구분 표시) (R-11 baseline 동결)
 
