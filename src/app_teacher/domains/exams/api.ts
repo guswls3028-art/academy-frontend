@@ -17,7 +17,11 @@ export async function fetchExam(examId: number) {
   return res.data;
 }
 
-/** 시험 결과(제출) 목록 */
+/**
+ * 시험 결과(제출) 목록 — ExamDetailPage 채점 워크플로 전용 (row.id / row.score schema).
+ * 사이드바 ResultsPage 등 enrollment_id 기반 schema 가 필요한 경우엔
+ *  app_teacher/domains/results/statsApi.ts 의 fetchExamResults 사용.
+ */
 export async function fetchExamResults(examId: number) {
   const res = await api.get("/results/", { params: { exam: examId, page_size: 200 } });
   const raw = res.data;

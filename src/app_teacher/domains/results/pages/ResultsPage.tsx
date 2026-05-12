@@ -7,7 +7,9 @@ import LectureChip from "@/shared/ui/chips/LectureChip";
 import { SectionTitle, Card, TabBar } from "@teacher/shared/ui/Card";
 import { Badge, AchievementBadge } from "@teacher/shared/ui/Badge";
 import { fetchLectures } from "@teacher/domains/lectures/api";
-import { fetchExams, fetchExamResults } from "@teacher/domains/exams/api";
+import { fetchExams } from "@teacher/domains/exams/api";
+// 사이드바 성적은 admin endpoint schema(enrollment_id) 사용 — statsApi SSOT
+import { fetchExamResults } from "@teacher/domains/results/statsApi";
 import ResultsStatsTab from "@teacher/domains/results/components/ResultsStatsTab";
 
 type Tab = "list" | "stats";
@@ -97,21 +99,25 @@ export default function ResultsPage() {
               ))}
             </div>
 
-            {/* Results */}
+            {/* Results — admin endpoint schema(enrollment_id 기반) SSOT */}
             {selectedExam != null && results && (
               results.length > 0 ? (
                 <div className="flex flex-col gap-1">
-                  {results.map((r: any) => (
-                    <div key={r.id} className="flex justify-between items-center py-2.5 px-1 border-b last:border-b-0" style={{ borderColor: "var(--tc-border)" }}>
-                      <span className="text-sm" style={{ color: "var(--tc-text)" }}>{r.student_name ?? r.enrollment_name ?? "이름 없음"}</span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-bold" style={{ color: "var(--tc-text)" }}>
-                          {r.total_score ?? r.score ?? "-"}/{r.max_score ?? 100}
-                        </span>
-                        <AchievementBadge passed={r.is_pass} achievement={r.achievement} />
+                  {results.map((r: any) => {
+                    const score = r.final_score ?? r.exam_score;
+                    const max = r.exam_max_score ?? r.max_score ?? 100;
+                    return (
+                      <div key={r.enrollment_id} className="flex justify-between items-center py-2.5 px-1 border-b last:border-b-0" style={{ borderColor: "var(--tc-border)" }}>
+                        <span className="text-sm" style={{ color: "var(--tc-text)" }}>{r.student_name ?? "이름 없음"}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-bold" style={{ color: "var(--tc-text)" }}>
+                            {score != null ? `${score}/${max}` : "-"}
+                          </span>
+                          <AchievementBadge passed={r.final_pass ?? r.passed} achievement={r.achievement} />
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 <EmptyState scope="panel" tone="empty" title="결과가 없습니다" />
