@@ -4,7 +4,7 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { EmptyState } from "@/shared/ui/ds";
+import { EmptyState , ICON } from "@/shared/ui/ds";
 import { formatPhone } from "@/shared/utils/formatPhone";
 import LectureChip from "@/shared/ui/chips/LectureChip";
 import { MoreVertical, Pencil, Trash2, Plus, Download } from "@teacher/shared/ui/Icons";
@@ -82,7 +82,7 @@ export default function LectureDetailPage() {
         <div className="relative">
           <button onClick={() => setMenuOpen(!menuOpen)} className="flex p-1 cursor-pointer"
             style={{ background: "none", border: "none", color: "var(--tc-text-muted)" }}>
-            <MoreVertical size={18} />
+            <MoreVertical size={ICON.md} />
           </button>
           {menuOpen && (
             <>
@@ -92,22 +92,22 @@ export default function LectureDetailPage() {
                 <button onClick={() => { setEditOpen(true); setMenuOpen(false); }}
                   className="flex items-center gap-2 w-full text-left text-sm cursor-pointer"
                   style={{ padding: "10px 14px", background: "none", border: "none", color: "var(--tc-text)" }}>
-                  <Pencil size={14} /> 편집
+                  <Pencil size={ICON.xs} /> 편집
                 </button>
                 <button onClick={() => { navigate(`/teacher/classes/${lid}/attendance-matrix`); setMenuOpen(false); }}
                   className="flex items-center gap-2 w-full text-left text-sm cursor-pointer"
                   style={{ padding: "10px 14px", background: "none", border: "none", color: "var(--tc-text)", borderTop: "1px solid var(--tc-border-subtle)" }}>
-                  <Download size={14} /> 출석 현황 (매트릭스)
+                  <Download size={ICON.xs} /> 출석 현황 (매트릭스)
                 </button>
                 <button onClick={() => downloadAttendanceExcel(lid).catch(() => {})}
                   className="flex items-center gap-2 w-full text-left text-sm cursor-pointer"
                   style={{ padding: "10px 14px", background: "none", border: "none", color: "var(--tc-text)", borderTop: "1px solid var(--tc-border-subtle)" }}>
-                  <Download size={14} /> 출석 엑셀
+                  <Download size={ICON.xs} /> 출석 엑셀
                 </button>
                 <button onClick={() => { setSectionOpen(true); setMenuOpen(false); }}
                   className="flex items-center gap-2 w-full text-left text-sm cursor-pointer"
                   style={{ padding: "10px 14px", background: "none", border: "none", color: "var(--tc-text)", borderTop: "1px solid var(--tc-border-subtle)" }}>
-                  <Plus size={14} /> 반 편성
+                  <Plus size={ICON.xs} /> 반 편성
                 </button>
                 <button onClick={async () => {
                     setMenuOpen(false);
@@ -116,7 +116,7 @@ export default function LectureDetailPage() {
                   }}
                   className="flex items-center gap-2 w-full text-left text-sm cursor-pointer"
                   style={{ padding: "10px 14px", background: "none", border: "none", color: "var(--tc-danger)", borderTop: "1px solid var(--tc-border-subtle)" }}>
-                  <Trash2 size={14} /> 삭제
+                  <Trash2 size={ICON.xs} /> 삭제
                 </button>
               </div>
             </>
@@ -174,7 +174,7 @@ export default function LectureDetailPage() {
         <button onClick={() => { setEditSession(null); setSessionFormOpen(true); }}
           className="flex items-center gap-1 text-xs font-bold cursor-pointer self-end"
           style={{ padding: "6px 12px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff" }}>
-          <Plus size={14} /> 차시 추가
+          <Plus size={ICON.xs} /> 차시 추가
         </button>
         {sessLoading ? (
           <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
@@ -213,7 +213,7 @@ export default function LectureDetailPage() {
                 <div className="flex items-center gap-1 shrink-0">
                   <span onClick={(e) => { e.stopPropagation(); setEditSession(s); setSessionFormOpen(true); }}
                     className="flex p-2 cursor-pointer" style={{ color: "var(--tc-text-muted)" }}>
-                    <Pencil size={18} />
+                    <Pencil size={ICON.md} />
                   </span>
                   <ChevronRight />
                 </div>
@@ -232,7 +232,7 @@ export default function LectureDetailPage() {
         <button onClick={() => setEnrollOpen(true)}
           className="flex items-center gap-1 text-xs font-bold cursor-pointer self-end"
           style={{ padding: "6px 12px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff" }}>
-          <Plus size={14} /> 수강생 등록
+          <Plus size={ICON.xs} /> 수강생 등록
         </button>
         {enrollments ? (
           enrollments.length > 0 ? (

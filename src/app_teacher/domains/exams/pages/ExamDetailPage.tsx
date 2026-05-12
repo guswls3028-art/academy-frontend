@@ -1,14 +1,18 @@
 // PATH: src/app_teacher/domains/exams/pages/ExamDetailPage.tsx
-// 시험 상세 — 제출현황 + 간이 채점 + 관리
+// 시험 상세 — 제출현황 + 간이 채점 (admin endpoint SSOT, enrollment_id schema)
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { EmptyState } from "@/shared/ui/ds";
+import { EmptyState , ICON } from "@/shared/ui/ds";
+import { feedback } from "@/shared/ui/feedback";
+import { extractApiError } from "@/shared/utils/extractApiError";
 import { Settings, Camera } from "@teacher/shared/ui/Icons";
-import { fetchExam, fetchExamResults } from "../api";
+import { AchievementBadge } from "@teacher/shared/ui/Badge";
+import { fetchExam } from "../api";
+// 사이드바 ResultsPage 와 동일 SSOT — admin endpoint(IsTeacherOrAdmin) enrollment_id schema
+import { fetchExamResults } from "@teacher/domains/results/statsApi";
+import { updateResult } from "@teacher/domains/scores/api";
 import ExamManageSheet from "../components/ExamManageSheet";
-import { teacherToast } from "@teacher/shared/ui/teacherToast";
-import api from "@/shared/api/axios";
 
 export default function ExamDetailPage() {
   const { examId } = useParams<{ examId: string }>();
@@ -32,8 +36,9 @@ export default function ExamDetailPage() {
     return <EmptyState scope="panel" tone="loading" title="불러오는 중…" />;
   if (!exam) return <EmptyState scope="panel" tone="error" title="시험을 찾을 수 없습니다" />;
 
-  const graded = results?.filter((r: any) => r.score != null) ?? [];
-  const ungraded = results?.filter((r: any) => r.score == null) ?? [];
+  const hasScore = (r: any) => (r.final_score ?? r.exam_score) != null;
+  const graded = results?.filter(hasScore) ?? [];
+  const ungraded = results?.filter((r: any) => !hasScore(r)) ?? [];
 
   return (
     <div className="flex flex-col gap-3">
@@ -50,7 +55,7 @@ export default function ExamDetailPage() {
         </button>
         <button onClick={() => setManageOpen(true)} className="flex p-1 cursor-pointer"
           style={{ background: "none", border: "none", color: "var(--tc-text-muted)" }}>
-          <Settings size={18} />
+          <Settings size={ICON.md} />
         </button>
       </div>
 
@@ -60,7 +65,7 @@ export default function ExamDetailPage() {
         style={{ padding: "var(--tc-space-4)", background: "var(--tc-surface)", border: "1px solid var(--tc-border)" }}
       >
         <StatBox label="만점" value={exam.max_score ?? "-"} />
-        <StatBox label="제출" value={`${results?.length ?? 0}`} color="var(--tc-primary)" />
+        <StatBox label="응시" value={`${results?.length ?? 0}`} color="var(--tc-primary)" />
         <StatBox label="채점" value={`${graded.length}`} color="var(--tc-success)" />
       </div>
 
@@ -75,7 +80,7 @@ export default function ExamDetailPage() {
           </h3>
           <div className="flex flex-col gap-1">
             {ungraded.map((r: any) => (
-              <ResultRow key={r.id} result={r} maxScore={exam.max_score} />
+              <ResultRow key={r.enrollment_id} examId={eid} result={r} exam={exam} />
             ))}
           </div>
         </div>
@@ -92,14 +97,14 @@ export default function ExamDetailPage() {
           </h3>
           <div className="flex flex-col gap-1">
             {graded.map((r: any) => (
-              <ResultRow key={r.id} result={r} maxScore={exam.max_score} />
+              <ResultRow key={r.enrollment_id} examId={eid} result={r} exam={exam} />
             ))}
           </div>
         </div>
       )}
 
       {results?.length === 0 && (
-        <EmptyState scope="panel" tone="empty" title="제출된 결과가 없습니다" />
+        <EmptyState scope="panel" tone="empty" title="응시 학생이 없습니다" />
       )}
 
       <ExamManageSheet open={manageOpen} onClose={() => setManageOpen(false)} exam={exam} onDeleted={() => navigate(-1)} />
@@ -107,24 +112,27 @@ export default function ExamDetailPage() {
   );
 }
 
-function ResultRow({ result, maxScore }: { result: any; maxScore: number }) {
+function ResultRow({ examId, result, exam }: { examId: number; result: any; exam: any }) {
   const qc = useQueryClient();
-  const name = result.student_name ?? result.enrollment_name ?? "이름 없음";
+  const name = result.student_name ?? "이름 없음";
+  const enrollmentId = result.enrollment_id;
+  const currentScore = result.final_score ?? result.exam_score;
+  const maxScore = result.exam_max_score ?? exam.max_score ?? 100;
   const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState<string>(result.score != null ? String(result.score) : "");
+  const [draft, setDraft] = useState<string>(currentScore != null ? String(currentScore) : "");
 
   const mutation = useMutation({
-    mutationFn: (score: number) => api.patch(`/results/${result.id}/`, { score }),
+    mutationFn: (score: number) => updateResult(examId, enrollmentId, { score, maxScore }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["teacher-exam-results"] });
-      teacherToast.success(`${name} 점수가 저장되었습니다.`);
+      qc.invalidateQueries({ queryKey: ["teacher-exam-results", examId] });
+      feedback.success(`${name} 점수가 저장되었습니다.`);
       setEditing(false);
     },
-    onError: () => teacherToast.error("점수 저장에 실패했습니다."),
+    onError: (e) => feedback.error(extractApiError(e, "점수 저장에 실패했습니다.")),
   });
 
   const startEdit = () => {
-    setDraft(result.score != null ? String(result.score) : "");
+    setDraft(currentScore != null ? String(currentScore) : "");
     setEditing(true);
   };
 
@@ -133,12 +141,11 @@ function ResultRow({ result, maxScore }: { result: any; maxScore: number }) {
     if (trimmed === "") { setEditing(false); return; }
     const score = Number(trimmed);
     if (!Number.isFinite(score) || score < 0) {
-      teacherToast.error("점수는 0 이상의 숫자로 입력해 주세요.");
+      feedback.error("점수는 0 이상의 숫자로 입력해 주세요.");
       return;
     }
-    // maxScore가 유효한 양수일 때만 상한 검증 (옛 시험 데이터에서 null/NaN 가능)
     if (Number.isFinite(maxScore) && maxScore > 0 && score > maxScore) {
-      teacherToast.error(`점수는 0 ~ ${maxScore} 사이로 입력해 주세요.`);
+      feedback.error(`점수는 0 ~ ${maxScore} 사이로 입력해 주세요.`);
       return;
     }
     mutation.mutate(score);
@@ -146,48 +153,51 @@ function ResultRow({ result, maxScore }: { result: any; maxScore: number }) {
 
   return (
     <div className="flex justify-between items-center py-2 border-b last:border-b-0" style={{ borderColor: "var(--tc-border)" }}>
-      <span className="text-sm" style={{ color: "var(--tc-text)" }}>{name}</span>
-      {editing ? (
-        <div className="flex items-center gap-1.5 shrink-0">
-          <input
-            type="text"
-            inputMode="numeric"
-            pattern="[0-9]*"
-            autoFocus
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onBlur={commit}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") { e.preventDefault(); commit(); }
-              if (e.key === "Escape") { setEditing(false); }
-            }}
-            placeholder="점수"
-            className="text-center text-sm font-bold outline-none"
+      <span className="text-sm flex-1 min-w-0 truncate" style={{ color: "var(--tc-text)" }}>{name}</span>
+      <div className="flex items-center gap-2 shrink-0">
+        <AchievementBadge passed={result.final_pass ?? result.passed} achievement={result.achievement} />
+        {editing ? (
+          <div className="flex items-center gap-1.5">
+            <input
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              autoFocus
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onBlur={commit}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") { e.preventDefault(); commit(); }
+                if (e.key === "Escape") { setEditing(false); }
+              }}
+              placeholder="점수"
+              className="text-center text-sm font-bold outline-none"
+              style={{
+                width: 64, height: 36,
+                border: "1px solid var(--tc-primary)",
+                borderRadius: "var(--tc-radius-sm)",
+                background: "var(--tc-surface-soft)",
+                color: "var(--tc-text)",
+              }}
+            />
+            <span className="text-[12px]" style={{ color: "var(--tc-text-muted)" }}>/ {maxScore}</span>
+          </div>
+        ) : (
+          <button
+            onClick={startEdit}
+            disabled={mutation.isPending}
+            className="text-sm font-semibold px-3 py-1 rounded cursor-pointer"
             style={{
-              width: 60, height: 36,
-              border: "1px solid var(--tc-primary)",
-              borderRadius: "var(--tc-radius-sm)",
-              background: "var(--tc-surface-soft)",
-              color: "var(--tc-text)",
+              background: currentScore != null ? "var(--tc-success-bg)" : "var(--tc-primary-bg)",
+              color: currentScore != null ? "var(--tc-success)" : "var(--tc-primary)",
+              border: "none",
+              minHeight: "var(--tc-touch-min, 36px)",
             }}
-          />
-          <span className="text-[12px]" style={{ color: "var(--tc-text-muted)" }}>/ {maxScore}</span>
-        </div>
-      ) : (
-        <button
-          onClick={startEdit}
-          disabled={mutation.isPending}
-          className="text-sm font-semibold px-3 py-1 rounded cursor-pointer"
-          style={{
-            background: result.score != null ? "var(--tc-success-bg)" : "var(--tc-primary-bg)",
-            color: result.score != null ? "var(--tc-success)" : "var(--tc-primary)",
-            border: "none",
-            minHeight: "var(--tc-touch-min, 36px)",
-          }}
-        >
-          {mutation.isPending ? "저장 중…" : result.score != null ? `${result.score}점` : "채점"}
-        </button>
-      )}
+          >
+            {mutation.isPending ? "저장 중…" : currentScore != null ? `${currentScore}/${maxScore}` : "채점"}
+          </button>
+        )}
+      </div>
     </div>
   );
 }

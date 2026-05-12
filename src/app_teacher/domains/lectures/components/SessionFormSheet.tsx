@@ -3,6 +3,7 @@
 // 차시 생성/편집 바텀시트
 // R-11: 기존 인라인 style baseline. 마이그레이션은 별도 백로그.
 import { useState, useEffect } from "react";
+import { ICON } from "@/shared/ui/ds";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Trash2 } from "@teacher/shared/ui/Icons";
 import { createSession, updateSession, deleteSession } from "../api";
@@ -10,7 +11,6 @@ import BottomSheet from "@teacher/shared/ui/BottomSheet";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { useConfirm } from "@/shared/ui/confirm";
-
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -110,7 +110,7 @@ export default function SessionFormSheet({ open, onClose, lectureId, editData }:
           <button onClick={handleDelete} disabled={deleteMut.isPending}
             className="flex items-center justify-center gap-1.5 w-full text-[13px] font-semibold cursor-pointer"
             style={{ padding: "10px", borderRadius: "var(--tc-radius)", border: "1px solid var(--tc-danger)", background: "transparent", color: "var(--tc-danger)" }}>
-            <Trash2 size={14} />
+            <Trash2 size={ICON.xs} />
             {deleteMut.isPending ? "삭제 중..." : "차시 삭제"}
           </button>
         )}

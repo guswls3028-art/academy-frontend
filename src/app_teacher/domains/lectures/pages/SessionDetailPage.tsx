@@ -4,7 +4,7 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { EmptyState } from "@/shared/ui/ds";
+import { EmptyState , ICON } from "@/shared/ui/ds";
 import { formatPhone } from "@/shared/utils/formatPhone";
 import LectureChip from "@/shared/ui/chips/LectureChip";
 import { useSectionMode } from "@/shared/hooks/useSectionMode";
@@ -106,7 +106,7 @@ export default function SessionDetailPage() {
               lectureName={session.lecture_title ?? ""}
               color={session.lecture_color}
               chipLabel={session.lecture_chip_label}
-              size={28}
+              size={ICON.xl}
             />
           )}
           <div className="flex-1 min-w-0">
@@ -232,7 +232,11 @@ function HomeworksTab({ homeworks, navigate }: { homeworks: any[]; navigate: any
   if (!homeworks.length) return <EmptyState scope="panel" tone="empty" title="이 차시에 등록된 과제가 없습니다" />;
   return (
     <div className="flex flex-col gap-1.5">
-      {homeworks.map((h: any) => (
+      {homeworks.map((h: any) => {
+        const submitted = h.submitted_count ?? h.submission_count ?? null;
+        const total = h.total_count ?? h.enrolled_count ?? null;
+        const max = h.max_score ?? null;
+        return (
         <button
           key={h.id}
           onClick={() => navigate(`/teacher/homeworks/${h.id}`)}
@@ -248,13 +252,20 @@ function HomeworksTab({ homeworks, navigate }: { homeworks: any[]; navigate: any
             <div className="text-sm font-semibold truncate" style={{ color: "var(--tc-text)" }}>
               {h.title}
             </div>
-            <div className="flex gap-2 text-[11px] mt-0.5" style={{ color: "var(--tc-text-muted)" }}>
+            <div className="flex gap-2 text-[11px] mt-0.5 flex-wrap" style={{ color: "var(--tc-text-muted)" }}>
               {h.due_date && <span>마감 {h.due_date}</span>}
+              {max != null && <span>{max}점</span>}
+              {submitted != null && total != null && (
+                <span style={{ color: submitted >= total ? "var(--tc-success)" : "var(--tc-warn)" }}>
+                  제출 {submitted}/{total}
+                </span>
+              )}
             </div>
           </div>
           <ChevronRightIcon />
         </button>
-      ))}
+        );
+      })}
     </div>
   );
 }
