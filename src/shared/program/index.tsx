@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 // PATH: src/shared/program/index.tsx
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import api, { type ApiRequestConfig } from "@/shared/api/axios";

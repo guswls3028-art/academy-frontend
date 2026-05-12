@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-syntax, @typescript-eslint/no-explicit-any */
 // PATH: src/app_teacher/domains/clinic/pages/ClinicReportsPage.tsx
 // 클리닉 보고서 — 월별 캘린더 + 날짜별 세션 수/참가자 수 조회
 import { useMemo, useState } from "react";

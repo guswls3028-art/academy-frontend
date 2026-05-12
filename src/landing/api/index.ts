@@ -1,6 +1,6 @@
 // PATH: src/app_admin/domains/landing/api/index.ts
 
-import api from "@/shared/api/axios";
+import api, { type ApiRequestConfig } from "@/shared/api/axios";
 import type {
   LandingPublicResponse,
   LandingAdminResponse,
@@ -11,13 +11,13 @@ import type {
 
 /** 공개 랜딩 데이터 조회 (인증 불필요) */
 export async function fetchLandingPublic(): Promise<LandingPublicResponse> {
-  const { data } = await api.get("/core/landing/public/", { skipAuth: true } as any);
+  const { data } = await api.get("/core/landing/public/", { skipAuth: true } as ApiRequestConfig);
   return data;
 }
 
 /** 랜딩 게시 여부만 빠르게 확인 */
 export async function fetchLandingHasPublished(): Promise<boolean> {
-  const { data } = await api.get("/core/landing/has-published/", { skipAuth: true } as any);
+  const { data } = await api.get("/core/landing/has-published/", { skipAuth: true } as ApiRequestConfig);
   return data.has_published;
 }
 
@@ -80,6 +80,6 @@ export async function uploadLandingHeroSlot(
 
 /** 템플릿 목록 조회 */
 export async function fetchLandingTemplates(): Promise<TemplateMeta[]> {
-  const { data } = await api.get("/core/landing/templates/", { skipAuth: true } as any);
+  const { data } = await api.get("/core/landing/templates/", { skipAuth: true } as ApiRequestConfig);
   return data.templates;
 }

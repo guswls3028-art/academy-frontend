@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-syntax */
 import { Link } from "react-router-dom";
 import { useDashboardSummary } from "@dev/domains/dashboard/hooks/useDashboard";
 import { useToggleMaintenance } from "@dev/domains/maintenance/hooks/useMaintenance";

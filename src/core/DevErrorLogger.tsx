@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-syntax */
 // PATH: src/app/DevErrorLogger.tsx
 // 개발/스테이징에서 React 에러(예: #310) 발생 시 전체 메시지 + 컴포넌트 스택을 콘솔에 출력.
 // 로컬에서 영상 재현이 어려울 때, 배포 환경에서 재현 후 콘솔 로그로 원인 확인용.

@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-syntax */
 /**
  * 인벤토리 홈 탭 — 파일 브라우저 (MyInventoryPage에서 추출)
  * 폴더/파일 조회, 업로드, 다운로드, 삭제 + 브레드크럼

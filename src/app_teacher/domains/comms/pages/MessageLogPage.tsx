@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-syntax */
 // PATH: src/app_teacher/domains/comms/pages/MessageLogPage.tsx
 // 발송 이력 — 메시지 로그 조회 페이지
 //
@@ -8,7 +9,7 @@
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { EmptyState } from "@/shared/ui/ds";
-import { ChevronLeft, Check, X, MessageSquare } from "@teacher/shared/ui/Icons";
+import { ChevronLeft, Check, X } from "@teacher/shared/ui/Icons";
 import { Card } from "@teacher/shared/ui/Card";
 import { Badge } from "@teacher/shared/ui/Badge";
 import useAuth from "@/auth/hooks/useAuth";

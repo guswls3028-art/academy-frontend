@@ -1,3 +1,4 @@
+ 
 // PATH: src/app_admin/domains/staff/components/HeaderCenterStaffClock.tsx
 // 헤더 중앙: 근무 중인 직원(직급 아바타 + 이름) + 총근무 시간 + 출근(초록)/휴식(노랑)/퇴근(빨강)
 

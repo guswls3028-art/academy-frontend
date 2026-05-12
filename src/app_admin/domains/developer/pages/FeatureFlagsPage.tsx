@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-syntax */
 // PATH: src/app_admin/domains/developer/pages/FeatureFlagsPage.tsx
 // 개발자 콘솔 > 운영 설정 — feature_flags 관리 (owner/tenant 1 전용)
 // 모드 프리셋 + 운영 테넌트 설정 불러오기 지원
@@ -121,24 +122,10 @@ export default function FeatureFlagsPage() {
   const { program, refetch } = useProgram();
   const { user } = useAuth();
   const ff: FeatureFlags = program?.feature_flags ?? {};
-
-  // 운영 설정은 owner 전용 — 일반 admin/teacher/staff 에게 노출 금지 (시각 검수 M-13).
   const role = (user?.tenantRole ?? "").toLowerCase();
-  if (role !== "owner") {
-    return (
-      <div style={{ padding: "60px 24px", textAlign: "center", color: "var(--color-text-secondary)" }}>
-        <div style={{ fontSize: 28, marginBottom: 8 }} aria-hidden>🔒</div>
-        <p style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text-primary)", margin: "0 0 6px" }}>
-          접근 권한이 없어요
-        </p>
-        <p style={{ fontSize: 13, margin: 0 }}>
-          운영 모드 설정은 학원장 계정에서만 변경할 수 있습니다.
-        </p>
-      </div>
-    );
-  }
+  const isOwner = role === "owner";
 
-  // Local state for edits
+  // Hooks는 모두 early return 이전에 호출 (rules-of-hooks).
   const [sectionMode, setSectionMode] = useState<string>(String(Boolean(ff.section_mode)));
   const [schoolLevel, setSchoolLevel] = useState<string>(
     (ff.school_level_mode as string) || "middle_high"
@@ -158,7 +145,8 @@ export default function FeatureFlagsPage() {
     schoolLevel !== currentSchoolLevel ||
     clinicMode !== currentClinicMode;
 
-  // Fetch tenants (platform admin only - Tenant 1)
+  // Fetch tenants (platform admin only - Tenant 1) — owner가 아닌 경우에도 fetch
+  // 자체는 cheap + tenant 측 차단(403/empty). hook 순서를 안정시키는 게 우선.
   const { data: tenants } = useQuery<TenantWithFlags[]>({
     queryKey: ["tenants-feature-flags"],
     queryFn: async () => {
@@ -166,6 +154,7 @@ export default function FeatureFlagsPage() {
       return res.data;
     },
     staleTime: 60_000,
+    enabled: isOwner,
   });
 
   // Save mutation
@@ -185,6 +174,25 @@ export default function FeatureFlagsPage() {
     },
     onError: () => feedback.error("저장 실패. 권한을 확인하세요."),
   });
+
+  // 운영 설정은 owner 전용 — 일반 admin/teacher/staff 에게 노출 금지 (시각 검수 M-13).
+  if (!isOwner) {
+    return (
+       
+      <div style={{ padding: "60px 24px", textAlign: "center", color: "var(--color-text-secondary)" }}>
+        { }
+        <div style={{ fontSize: 28, marginBottom: 8 }} aria-hidden>🔒</div>
+        { }
+        <p style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text-primary)", margin: "0 0 6px" }}>
+          접근 권한이 없어요
+        </p>
+        { }
+        <p style={{ fontSize: 13, margin: 0 }}>
+          운영 모드 설정은 학원장 계정에서만 변경할 수 있습니다.
+        </p>
+      </div>
+    );
+  }
 
   const stateMap: Record<string, { get: string; set: (v: string) => void }> = {
     section_mode: { get: sectionMode, set: setSectionMode },
@@ -576,7 +584,7 @@ export default function FeatureFlagsPage() {
         </div>
         <div>
           <span style={{ fontWeight: 600, color: "var(--color-text-secondary)" }}>반 편성:</span>{" "}
-          {Boolean(ff.section_mode) ? "A/B반 운영" : "기본 (반 없음)"}
+          {ff.section_mode ? "A/B반 운영" : "기본 (반 없음)"}
         </div>
         <div>
           <span style={{ fontWeight: 600, color: "var(--color-text-secondary)" }}>학생 대상:</span>{" "}

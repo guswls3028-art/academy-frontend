@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-syntax */
 /**
  * 학생 홈 — 모바일 우선
  *

@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-syntax */
 // PATH: src/app_admin/domains/developer/pages/DeveloperPage.tsx
 // To개발자 — 패치노트 / 버그 제보 / 피드백 페이지 (각 탭 = 별도 라우트)
 

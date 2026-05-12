@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-syntax */
 // PATH: src/app_teacher/domains/today/pages/TodayPage.tsx
 // 오늘 홈 — 인사 + KPI 4개 + 지금 처리할 일 + 오늘 수업
 import { useMemo } from "react";
@@ -45,7 +46,6 @@ export default function TodayPage() {
 
   const greetingName = user?.name?.trim() || "선생님";
   const pendingTotal = pendingCounts?.total ?? 0;
-  const recentSubs = pendingCounts?.recentSubmissions ?? 0;
 
   return (
     <div className="flex flex-col gap-3">

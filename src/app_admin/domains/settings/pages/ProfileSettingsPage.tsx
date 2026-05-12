@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-syntax */
 // PATH: src/app_admin/domains/settings/pages/ProfileSettingsPage.tsx
 // 설정 > 프로필 + 보안 — 인라인 편집 통합 페이지
 

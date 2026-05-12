@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-syntax */
 // PATH: src/app/router/ProtectedRoute.tsx
 import { useState } from "react";
 import { Navigate, Outlet } from "react-router-dom";

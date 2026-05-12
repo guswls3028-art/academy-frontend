@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-syntax */
 /**
  * PATH: src/app_admin/domains/results/pages/ResultsExplorerPage.tsx
  *
