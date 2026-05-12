@@ -1,4 +1,5 @@
 // PATH: src/app_admin/domains/messages/components/SendMessageModal.tsx
+/* eslint-disable no-restricted-syntax */
 // 공용 메시지 발송 모달 — 알림톡 템플릿 전용 UX
 // 좌: 수신자 + 실시간 미리보기 / 우: 모드별 편집·선택
 // 모든 진입점(학생·출결·성적·클리닉·직원)에서 동일 UX 제공. 단발성 발송 SSOT.
@@ -673,6 +674,32 @@ export default function SendMessageModal({
                    sendToParent ? "학부모에게만 발송" :
                    sendToStudent ? "학생에게만 발송" :
                    "대상을 선택해 주세요"}
+                </div>
+              )}
+              {/* 일괄 발송 안내 — 학원장 임근혁 보고: 학생별 변수 치환 동작이 미리보기에서 잘 안 보임 */}
+              {hasRecipients && recipientCount > 1 && (
+                <div style={{
+                  marginTop: 8, padding: "8px 10px", borderRadius: 6,
+                  background: "color-mix(in srgb, var(--color-warning, #eab308) 10%, var(--color-bg-surface))",
+                  border: "1px solid color-mix(in srgb, var(--color-warning, #eab308) 30%, transparent)",
+                  fontSize: 11, color: "var(--color-text-primary)", lineHeight: 1.5,
+                }}>
+                  <div style={{ fontWeight: 700, marginBottom: 2 }}>📋 일괄 발송 ({recipientCount}명)</div>
+                  <div style={{ fontSize: 10, color: "var(--color-text-secondary)" }}>
+                    미리보기는 첫 번째 학생 기준. <strong>#{`{학생이름}`}·#{`{시험성적}`}·#{`{시험N}`}</strong> 등 변수는 학생별로 자동 치환되어 발송됩니다.
+                  </div>
+                </div>
+              )}
+              {/* 적용된 양식 명시 — 학원장이 "양식 적용된 거 맞나" 즉시 인지 */}
+              {hasRecipients && sendMode === "alimtalk" && selectedTemplate && (
+                <div style={{
+                  marginTop: 6, padding: "6px 10px", borderRadius: 6,
+                  background: "color-mix(in srgb, var(--color-success, #22c55e) 8%, var(--color-bg-surface))",
+                  border: "1px solid color-mix(in srgb, var(--color-success, #22c55e) 25%, transparent)",
+                  fontSize: 11, color: "var(--color-text-primary)",
+                }}>
+                  <span style={{ fontWeight: 700 }}>✓ 적용된 양식:</span> {selectedTemplate.name}
+                  {selectedTemplate.is_user_default && <span style={{ marginLeft: 6, fontSize: 9, padding: "1px 5px", borderRadius: 3, background: "color-mix(in srgb, var(--color-primary) 14%, transparent)", color: "var(--color-primary)", fontWeight: 700 }}>기본</span>}
                 </div>
               )}
             </div>
