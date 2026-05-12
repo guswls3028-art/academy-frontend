@@ -271,6 +271,8 @@ export default function SendMessageModal({
   const [templateBodySnapshot, setTemplateBodySnapshot] = useState<string | null>(null);
   /** 빈 본문 안내 오버레이를 닫음 — "직접 작성하기" 후에도 본문이 비어 있으면 오버레이가 다시 덮여 입력 불가가 되던 버그 방지 */
   const [smsEmptyHintDismissed, setSmsEmptyHintDismissed] = useState(false);
+  // 변수 팔레트 default 접힘 (학원장 임근혁 보고 — 본문 편집 영역이 좁아 보임)
+  const [showVarPalette, setShowVarPalette] = useState(false);
   const bodyWrapRef = useRef<HTMLDivElement>(null);
   /** 채널 전환 시 양식/본문 보존용 스냅샷 */
   const channelSnapshotRef = useRef<Record<string, { templateId: number | null; body: string; subject: string; freeForm: boolean; snapshot: string | null }>>({});
@@ -1130,24 +1132,48 @@ export default function SendMessageModal({
                     />
                   </div>
 
-                  {/* 변수 팔레트 — 항상 표시 */}
-                  <div style={{ width: 195, flexShrink: 0, overflowY: "auto", padding: "10px 10px 10px 12px", borderRadius: 10, background: "color-mix(in srgb, var(--color-bg-surface-soft) 70%, var(--color-bg-surface))", border: "1px solid var(--color-border-divider)", borderLeft: "2.5px solid var(--color-primary)" }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: "var(--color-text-secondary)", marginBottom: 2 }}>변수 삽입</div>
-                    <div style={{ fontSize: 10, color: "var(--color-text-muted)", marginBottom: 10, lineHeight: 1.4 }}>클릭하면 커서 위치에 추가됩니다</div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                      {blocks.map((block) => {
-                        const bc = getBlockColor(block.id);
-                        return (
-                          <div key={block.id}>
-                            <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => { if (!alimtalkFreeForm && !selectedTemplate) setAlimtalkFreeForm(true); insertBlock(block.insertText); }} disabled={sending} className="template-editor__block-tag" style={{ background: bc.bg, color: bc.color, borderColor: bc.border, padding: "4px 10px", fontSize: 11, width: "100%" }}>
-                              {block.label}
-                            </button>
-                            {block.description && <div style={{ fontSize: 9.5, color: "var(--color-text-muted)", paddingLeft: 2, lineHeight: 1.3, marginTop: 1 }}>{block.description}</div>}
-                          </div>
-                        );
-                      })}
+                  {/* 변수 팔레트 — default 접힘. 학원장 임근혁 요청: 본문 편집 영역 넓게. */}
+                  {showVarPalette ? (
+                    <div style={{ width: 195, flexShrink: 0, overflowY: "auto", padding: "10px 10px 10px 12px", borderRadius: 10, background: "color-mix(in srgb, var(--color-bg-surface-soft) 70%, var(--color-bg-surface))", border: "1px solid var(--color-border-divider)", borderLeft: "2.5px solid var(--color-primary)", position: "relative" }}>
+                      <button
+                        type="button"
+                        onClick={() => setShowVarPalette(false)}
+                        style={{ position: "absolute", top: 6, right: 6, fontSize: 11, color: "var(--color-text-muted)", background: "none", border: "none", cursor: "pointer" }}
+                        title="변수 팔레트 접기"
+                      >✕</button>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: "var(--color-text-secondary)", marginBottom: 2 }}>변수 삽입</div>
+                      <div style={{ fontSize: 10, color: "var(--color-text-muted)", marginBottom: 10, lineHeight: 1.4 }}>클릭하면 커서 위치에 추가됩니다</div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                        {blocks.map((block) => {
+                          const bc = getBlockColor(block.id);
+                          return (
+                            <div key={block.id}>
+                              <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => { if (!alimtalkFreeForm && !selectedTemplate) setAlimtalkFreeForm(true); insertBlock(block.insertText); }} disabled={sending} className="template-editor__block-tag" style={{ background: bc.bg, color: bc.color, borderColor: bc.border, padding: "4px 10px", fontSize: 11, width: "100%" }}>
+                                {block.label}
+                              </button>
+                              {block.description && <div style={{ fontSize: 9.5, color: "var(--color-text-muted)", paddingLeft: 2, lineHeight: 1.3, marginTop: 1 }}>{block.description}</div>}
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setShowVarPalette(true)}
+                      style={{
+                        flexShrink: 0, alignSelf: "flex-start",
+                        padding: "8px 12px", fontSize: 12, fontWeight: 600,
+                        background: "var(--color-bg-surface-soft)",
+                        color: "var(--color-text-secondary)",
+                        border: "1px solid var(--color-border-divider)",
+                        borderRadius: 8, cursor: "pointer",
+                      }}
+                      title="변수 팔레트 열기"
+                    >
+                      🏷️ 변수
+                    </button>
+                  )}
                 </div>
               </>
             )}
