@@ -21,6 +21,9 @@ import { feedback } from "@/shared/ui/feedback/feedback";
 import { useConfirm } from "@/shared/ui/confirm";
 import { reorderSession } from "../api/reorderSession";
 
+/** P0-5 (2026-05-13): 도움 안내 카드 dismiss 키. 학원장(브라우저)별 영속. */
+const HELP_DISMISS_KEY = "scores-tab-help-dismissed-v1";
+
 type Props = {
   sessionId: number;
   lectureId?: number;
@@ -83,6 +86,10 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
   const [drawerEnrollmentId, setDrawerEnrollmentId] = useState<number | null>(null);
   /** 답안 상세 드로어 (StudentScoresDrawer → 답안 상세 보기) */
   const [answerDetail, setAnswerDetail] = useState<{ examId: number; enrollmentId: number; examTitle: string } | null>(null);
+  /** P0-5: 도움 안내 dismiss 상태 (localStorage 영속). */
+  const [helpDismissed, setHelpDismissed] = useState<boolean>(() => {
+    try { return localStorage.getItem(HELP_DISMISS_KEY) === "1"; } catch { return false; }
+  });
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: scoresQueryKeys.sessionScores(sessionId),
@@ -372,39 +379,62 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
       <EmptyState
         scope="panel"
         tone="empty"
-        title={search.trim() ? "검색 결과가 없습니다" : "등록된 수강생이 없습니다"}
-        description={search.trim() ? "다른 검색어로 시도해 보세요." : "수강생 등록 후 성적을 입력할 수 있습니다."}
+        title={search.trim() ? "검색 결과가 없습니다" : "아직 등록된 수강생이 없어요"}
+        description={search.trim()
+          ? "다른 검색어로 시도해 보세요."
+          : "이 세션에 수강생을 먼저 등록해주세요. 등록 후 자동으로 성적 입력표가 만들어집니다."}
       />
     );
   }
 
   return (
     <div className="flex flex-col gap-4">
-      {/* 도움 안내 — 학원장 첫 사용 시 핵심 동작 즉시 인지 (CTA 친절화) */}
-      {!isEditMode && (
+      {/* 도움 안내 — 읽기 모드 only, dismissible.
+          P0-5 (2026-05-13): 매번 노출되던 ⓵⓶⓷⓸ 카드를 localStorage dismiss로 전환.
+          한 번 보고 닫으면 같은 학원장 (브라우저)에서는 ?로 다시 펼치기 전까진 안 보임.
+          편집 모드 안내는 ScoresTable 의 단일 안내로 통합 (P0-4). */}
+      {!isEditMode && !helpDismissed && (
         <div
-          className="rounded-lg border border-[var(--color-border-divider)] bg-[color-mix(in_srgb,var(--color-brand-primary)_5%,var(--color-bg-surface))] px-3 py-2 text-xs text-[var(--color-text-secondary)] flex flex-wrap items-center gap-3"
+          className="rounded-lg border border-[var(--color-border-divider)] bg-[color-mix(in_srgb,var(--color-brand-primary)_5%,var(--color-bg-surface))] px-3 py-2 text-xs text-[var(--color-text-secondary)] flex flex-wrap items-center gap-x-3 gap-y-1"
+          role="note"
         >
           <span className="font-semibold text-[var(--color-text-primary)]">⓵ 학생 행 클릭</span>
-          <span>→ 상세 드로어 (시도 이력·재시험)</span>
+          <span>→ 상세 드로어</span>
           <span className="text-[var(--color-border-divider)]">|</span>
           <span className="font-semibold text-[var(--color-text-primary)]">⓶ 시험명 옆 ⚙</span>
-          <span>→ 만점/커트라인 빠른 수정</span>
+          <span>→ 만점/커트라인 수정</span>
           <span className="text-[var(--color-border-divider)]">|</span>
-          <span className="font-semibold text-[var(--color-text-primary)]">⓷ ◀ ▶ 화살표</span>
-          <span>→ 시험/과제 컬럼 순서 변경</span>
+          <span className="font-semibold text-[var(--color-text-primary)]">⓷ ◀ ▶</span>
+          <span>→ 컬럼 순서 변경</span>
           <span className="text-[var(--color-border-divider)]">|</span>
-          <span className="font-semibold text-[var(--color-text-primary)]">⓸ 회색 "-" 셀</span>
-          <span>= 미등록. 시험·과제 설정 → 대상자 관리에서 추가</span>
+          <span className="font-semibold text-[var(--color-text-primary)]">⓸ 회색 "-"</span>
+          <span>= 미등록 (수강생 일괄배정 필요)</span>
+          <button
+            type="button"
+            className="ml-auto text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--color-bg-surface-hover)]"
+            onClick={() => {
+              try { localStorage.setItem(HELP_DISMISS_KEY, "1"); } catch { /* ignore */ }
+              setHelpDismissed(true);
+            }}
+            aria-label="도움말 닫기"
+            title="다시 안 보기"
+          >
+            ✕
+          </button>
         </div>
       )}
-      {isEditMode && (
-        <div
-          className="rounded-lg border border-[color-mix(in_srgb,var(--color-warning,#eab308)_45%,transparent)] bg-[color-mix(in_srgb,var(--color-warning,#eab308)_10%,var(--color-bg-surface))] px-3 py-2 text-xs text-[var(--color-text-primary)] flex flex-wrap items-center gap-3"
+      {!isEditMode && helpDismissed && (
+        <button
+          type="button"
+          className="self-start text-[11px] text-[var(--color-text-muted)] hover:text-[var(--color-brand-primary)] inline-flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-[var(--color-bg-surface-hover)]"
+          onClick={() => {
+            try { localStorage.removeItem(HELP_DISMISS_KEY); } catch { /* ignore */ }
+            setHelpDismissed(false);
+          }}
+          title="도움말 다시 보기"
         >
-          <span className="font-semibold">편집 모드</span>
-          <span>· 점수 셀: 숫자 입력 · "/" 또는 "미응시" → 미응시 처리 · Tab/Enter/방향키 셀 이동</span>
-        </div>
+          ? 도움말
+        </button>
       )}
       <div
         tabIndex={0}

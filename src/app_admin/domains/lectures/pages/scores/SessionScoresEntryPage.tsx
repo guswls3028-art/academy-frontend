@@ -69,6 +69,11 @@ export default function SessionScoresEntryPage(_props: Props) {
   const [viewFilter, setViewFilter] = useState<"all" | "exam" | "homework">("all");
   /** 점수 표시 형식: raw(원점수만) | fraction(50/100) */
   const [scoreFormat, setScoreFormat] = useState<"raw" | "fraction">("fraction");
+  /** 읽기 모드 표시 옵션 펼침 — 첫 사용자에게 압도감 없도록 default collapsed.
+      비-default 값일 때는 자동 펼침 (학원장이 자기 설정을 즉시 인식). */
+  const [viewOptionsExpanded, setViewOptionsExpanded] = useState(false);
+  const hasNonDefaultViewOptions =
+    viewFilter !== "all" || scoreDisplayMode !== "total" || scoreFormat !== "fraction";
   const { openSendMessageModal } = useSendMessageModal();
   const panelRef = useRef<SessionScoresPanelHandle>(null);
   const [showBulkScoreModal, setShowBulkScoreModal] = useState(false);
@@ -148,14 +153,13 @@ export default function SessionScoresEntryPage(_props: Props) {
     void qc.invalidateQueries({ queryKey: ["session-homeworks", numericSessionId] });
   };
 
+  // 모달이 생성 결과(자동 등록 인원 포함) toast를 띄움 — 호출 측은 invalidate만.
   const handleExamCreated = (_examId: number) => {
     invalidateScores();
-    feedback.success("시험이 추가되었습니다.");
   };
 
   const handleHomeworkCreated = (_homeworkId: number) => {
     invalidateScores();
-    feedback.success("과제가 추가되었습니다.");
   };
 
   /** 대상자 전체 등록 — 세션 수강생을 모든 시험/과제에 일괄 등록 */
@@ -259,16 +263,7 @@ export default function SessionScoresEntryPage(_props: Props) {
     return () => clearInterval(id);
   }, [isEditMode, draft.draftStatus]);
 
-  const setPresetTotalHw = () => {
-    setExamEditTotal(true);
-    setExamEditSubjective(false);
-    setHomeworkEdit(true);
-  };
-  const setPresetSubjectiveHw = () => {
-    setExamEditTotal(false);
-    setExamEditSubjective(true);
-    setHomeworkEdit(true);
-  };
+  // P1-5: setPresetTotalHw / setPresetSubjectiveHw preset 함수 제거 — 5버튼 segment 단순화로 불필요.
 
   const handleSelectTotal = async () => {
     if (examEditTotal) {
@@ -316,27 +311,21 @@ export default function SessionScoresEntryPage(_props: Props) {
       .filter((id): id is number => id != null && Number.isFinite(id));
   }, [data?.rows, selectedEnrollmentIds]);
 
+  const hasSelection = selectedEnrollmentIds.length > 0;
   const selectionBar = (
     <div className="flex flex-col gap-2">
-      <div className="flex flex-wrap items-center gap-2 pl-1">
+      <div
+        className="flex flex-wrap items-center gap-3 pl-1"
+        style={{ opacity: hasSelection ? 1 : 0.55, transition: "opacity 0.15s" }}
+      >
         <span
           className="text-[13px] font-semibold"
-          style={{
-            color: "var(--color-brand-primary)",
-          }}
+          style={{ color: hasSelection ? "var(--color-brand-primary)" : "var(--color-text-muted)" }}
         >
-          {selectedEnrollmentIds.length}명 선택됨
+          {hasSelection ? `${selectedEnrollmentIds.length}명 선택됨` : "학생을 선택하세요"}
         </span>
-        <span className="text-[var(--color-border-divider)]">|</span>
-        <Button
-          intent="secondary"
-          size="sm"
-          onClick={() => setSelectedEnrollmentIds([])}
-          disabled={selectedEnrollmentIds.length === 0}
-        >
-          선택 해제
-        </Button>
-        <span className="text-[var(--color-border-divider)]">|</span>
+
+        {/* ── 그룹 1: primary 액션 ── */}
         {/*
           "메시지 발송"(SMS path) 버튼 제거 (2026-05-12) — 학원장 임근혁 보고:
           "메세지 발송기능 프로그램에서 그냥 지워". 알림톡 발송은 "수업결과 알림톡 발송" 단일 경로.
@@ -409,6 +398,11 @@ export default function SessionScoresEntryPage(_props: Props) {
         >
           수업결과 알림톡 발송
         </Button>
+
+        {/* ── 디바이더 ── */}
+        <span className="h-5 w-px bg-[var(--color-border-divider)]" aria-hidden="true" />
+
+        {/* ── 그룹 2: secondary 액션 ── */}
         <Button
           intent="secondary"
           size="sm"
@@ -458,6 +452,18 @@ export default function SessionScoresEntryPage(_props: Props) {
         >
           엑셀 다운로드
         </Button>
+
+        <div style={{ flex: 1 }} />
+
+        {/* ── 그룹 3: 보조 — 선택 해제 ── */}
+        <Button
+          intent="ghost"
+          size="sm"
+          onClick={() => setSelectedEnrollmentIds([])}
+          disabled={!hasSelection}
+        >
+          선택 해제
+        </Button>
       </div>
     </div>
   );
@@ -474,10 +480,12 @@ export default function SessionScoresEntryPage(_props: Props) {
 
   const primaryAction = (
     <div className="flex items-center gap-2">
-      {/* ── 그룹 1: 핵심 액션 ── */}
+      {/* ── 그룹 1: 핵심 액션 ──
+          P1-3 (2026-05-13): 편집 모드 ON 일 때만 primary 강조. 비편집 상태에선 secondary
+          톤으로 두어 학원장이 "이걸 눌렀을 때 뭔가가 저장된다"는 오해를 줄임. */}
       <Button
         type="button"
-        intent="primary"
+        intent={isEditMode ? "primary" : "secondary"}
         size="sm"
         disabled={isSaving}
         onClick={async () => {
@@ -674,10 +682,14 @@ export default function SessionScoresEntryPage(_props: Props) {
         >
           <div className="bg-[var(--color-bg-surface)] rounded-lg shadow-lg p-6 max-w-md mx-4 border border-[var(--color-border-divider)]">
             <h2 id="draft-restore-title-entry" className="text-base font-semibold text-[var(--color-text-primary)] mb-2">
-              이전에 임시저장된 편집 내용이 있습니다. 복원할까요?
+              {draft.restoreChangeCount > 0
+                ? `임시저장된 변경 ${draft.restoreChangeCount}건이 있습니다. 복원할까요?`
+                : "이전에 임시저장된 편집 내용이 있습니다. 복원할까요?"}
             </h2>
             <p className="text-sm text-[var(--color-text-muted)] mb-4">
               복원하면 이전 편집 내용이 테이블에 다시 적용됩니다. 버리면 현재 서버 데이터만 표시됩니다.
+              <br />
+              <span className="text-[11px]">※ 1시간 이상 방치된 임시저장은 다음 진입 시 자동으로 폐기됩니다.</span>
             </p>
             <div className="flex gap-2 justify-end">
               <button
@@ -703,44 +715,97 @@ export default function SessionScoresEntryPage(_props: Props) {
       {(isEditMode || hasExamsOrHomeworks) && (
       <div className={`scores-view-filter-panel${isEditMode ? " scores-view-filter-panel--edit" : ""}`}>
         {isEditMode ? (
-          <div className="scores-view-filter-section">
-            <span className="scores-view-filter-label">편집 항목</span>
-            <div className="scores-display-segment" role="group" aria-label="편집 항목 선택">
-              <button type="button" onClick={setPresetTotalHw} className="scores-display-segment__btn" aria-pressed={examEditTotal && homeworkEdit && !examEditSubjective}>합산+과제</button>
-              <button type="button" onClick={setPresetSubjectiveHw} className="scores-display-segment__btn" aria-pressed={examEditSubjective && homeworkEdit && !examEditTotal}>주관식+과제</button>
-              <button type="button" onClick={handleSelectTotal} className="scores-display-segment__btn" aria-pressed={examEditTotal && !homeworkEdit}>합산</button>
-              <button type="button" onClick={handleSelectSubjective} className="scores-display-segment__btn" aria-pressed={examEditSubjective && !homeworkEdit}>주관식</button>
-              <button type="button" onClick={handleSelectHomework} className="scores-display-segment__btn" aria-pressed={homeworkEdit && !examEditTotal && !examEditSubjective}>과제</button>
-            </div>
-            <span className="h-4 w-px bg-[var(--color-border-divider)] mx-1 hidden sm:block" aria-hidden="true" />
-            <span className="text-[11px] text-[var(--color-text-muted)] hidden sm:inline">Tab·화살표로 셀 이동 · Enter로 다음 행</span>
-          </div>
-        ) : (
+          // P1-5 (2026-05-13): 5버튼 preset 세그먼트 → [시험: 합산/주관식] · [과제] 2그룹.
+          // 학원장이 "합산+과제" vs "합산" 차이를 즉시 이해 못 하던 문제 해소.
+          // 시험은 합산/주관식 중 하나, 과제는 on/off 독립 — 모든 5조합을 단순 2축으로 표현.
           <>
             <div className="scores-view-filter-section">
-              <span className="scores-view-filter-label">보기</span>
-              <div className="scores-display-segment" role="group" aria-label="컬럼 필터">
-                <button type="button" onClick={() => setViewFilter("all")} className="scores-display-segment__btn" aria-pressed={viewFilter === "all"}>전체</button>
-                <button type="button" onClick={() => setViewFilter("exam")} className="scores-display-segment__btn" aria-pressed={viewFilter === "exam"}>시험만</button>
-                <button type="button" onClick={() => setViewFilter("homework")} className="scores-display-segment__btn" aria-pressed={viewFilter === "homework"}>과제만</button>
+              <span className="scores-view-filter-label">시험</span>
+              <div className="scores-display-segment" role="group" aria-label="시험 점수 입력 방식">
+                <button
+                  type="button"
+                  onClick={handleSelectTotal}
+                  className="scores-display-segment__btn"
+                  aria-pressed={examEditTotal}
+                  title="시험 합산 점수만 한 칸으로 입력"
+                >
+                  합산
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSelectSubjective}
+                  className="scores-display-segment__btn"
+                  aria-pressed={examEditSubjective}
+                  title="주관식 점수만 입력 (객관식은 OMR 자동 채점)"
+                >
+                  주관식
+                </button>
               </div>
             </div>
-            {viewFilter !== "homework" && (
-              <div className="scores-view-filter-section">
-                <span className="scores-view-filter-label">시험 점수</span>
-                <div className="scores-display-segment" role="group" aria-label="시험 점수 표시 방식">
-                  <button type="button" onClick={() => setScoreDisplayMode("total")} className="scores-display-segment__btn" aria-pressed={scoreDisplayMode === "total"}>합산</button>
-                  <button type="button" onClick={() => setScoreDisplayMode("breakdown")} className="scores-display-segment__btn" aria-pressed={scoreDisplayMode === "breakdown"}>객관식 + 주관식</button>
-                </div>
-              </div>
-            )}
             <div className="scores-view-filter-section">
-              <span className="scores-view-filter-label">점수 표시</span>
-              <div className="scores-display-segment" role="group" aria-label="점수 표시 형식">
-                <button type="button" onClick={() => setScoreFormat("raw")} className="scores-display-segment__btn" aria-pressed={scoreFormat === "raw"}>원점수</button>
-                <button type="button" onClick={() => setScoreFormat("fraction")} className="scores-display-segment__btn" aria-pressed={scoreFormat === "fraction"}>만점 표기</button>
+              <span className="scores-view-filter-label">과제</span>
+              <div className="scores-display-segment" role="group" aria-label="과제 점수 입력 on/off">
+                <button
+                  type="button"
+                  onClick={handleSelectHomework}
+                  className="scores-display-segment__btn"
+                  aria-pressed={homeworkEdit}
+                  title="과제 점수 입력 가능 / 불가능 토글"
+                >
+                  {homeworkEdit ? "입력 가능" : "잠김"}
+                </button>
               </div>
             </div>
+            <span className="text-[11px] text-[var(--color-text-muted)] hidden sm:inline">
+              Tab·화살표로 셀 이동 · Enter 다음 행
+            </span>
+          </>
+        ) : (
+          <>
+            {/* 표시 옵션 토글 — collapsed가 default. 비-default 값이면 자동 펼침. */}
+            <button
+              type="button"
+              onClick={() => setViewOptionsExpanded((v) => !v)}
+              className="inline-flex items-center gap-1 text-xs font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] px-2 py-1 rounded hover:bg-[var(--color-bg-surface-hover)]"
+              aria-expanded={viewOptionsExpanded || hasNonDefaultViewOptions}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                style={{ transform: (viewOptionsExpanded || hasNonDefaultViewOptions) ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 0.15s" }}>
+                <polyline points="9 18 15 12 9 6" />
+              </svg>
+              표시 옵션
+              {hasNonDefaultViewOptions && (
+                <span className="ml-1 inline-flex items-center justify-center min-w-[6px] h-[6px] rounded-full bg-[var(--color-brand-primary)]" aria-label="설정 변경됨" />
+              )}
+            </button>
+            {(viewOptionsExpanded || hasNonDefaultViewOptions) && (
+              <>
+                <div className="scores-view-filter-section">
+                  <span className="scores-view-filter-label">보기</span>
+                  <div className="scores-display-segment" role="group" aria-label="컬럼 필터">
+                    <button type="button" onClick={() => setViewFilter("all")} className="scores-display-segment__btn" aria-pressed={viewFilter === "all"}>전체</button>
+                    <button type="button" onClick={() => setViewFilter("exam")} className="scores-display-segment__btn" aria-pressed={viewFilter === "exam"}>시험만</button>
+                    <button type="button" onClick={() => setViewFilter("homework")} className="scores-display-segment__btn" aria-pressed={viewFilter === "homework"}>과제만</button>
+                  </div>
+                </div>
+                {viewFilter !== "homework" && (
+                  <div className="scores-view-filter-section">
+                    <span className="scores-view-filter-label">시험 점수</span>
+                    <div className="scores-display-segment" role="group" aria-label="시험 점수 표시 방식">
+                      <button type="button" onClick={() => setScoreDisplayMode("total")} className="scores-display-segment__btn" aria-pressed={scoreDisplayMode === "total"}>합산</button>
+                      <button type="button" onClick={() => setScoreDisplayMode("breakdown")} className="scores-display-segment__btn" aria-pressed={scoreDisplayMode === "breakdown"}>객관식 + 주관식</button>
+                    </div>
+                  </div>
+                )}
+                <div className="scores-view-filter-section">
+                  <span className="scores-view-filter-label">점수 표시</span>
+                  <div className="scores-display-segment" role="group" aria-label="점수 표시 형식">
+                    <button type="button" onClick={() => setScoreFormat("raw")} className="scores-display-segment__btn" aria-pressed={scoreFormat === "raw"}>원점수</button>
+                    <button type="button" onClick={() => setScoreFormat("fraction")} className="scores-display-segment__btn" aria-pressed={scoreFormat === "fraction"}>만점 표기</button>
+                  </div>
+                </div>
+              </>
+            )}
           </>
         )}
       </div>
@@ -764,7 +829,9 @@ export default function SessionScoresEntryPage(_props: Props) {
         />
       )}
 
-      {/* ── 워크플로우 안내: 시험/과제가 없을 때 ── */}
+      {/* ── 워크플로우 안내: 시험/과제가 없을 때 ──
+          P2 (2026-05-13): 자동 등록 사실을 1단계에 흡수, 가이드와 모달 동작 정합.
+          기존 2단계 "수강생 일괄배정"은 자동 등록 실패 시 보조 경로로 강등. */}
       {!isLoading && !isError && !hasExamsOrHomeworks && (
         <div
           className="rounded-xl border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] overflow-hidden"
@@ -772,24 +839,18 @@ export default function SessionScoresEntryPage(_props: Props) {
         >
           <div className="px-5 py-4">
             <h3 className="text-[14px] font-semibold text-[var(--color-text-primary)]">성적 관리 시작하기</h3>
-            <div className="mt-3 grid grid-cols-3 gap-3">
+            <div className="mt-3 grid grid-cols-2 gap-3">
               {[
                 {
                   step: "1",
                   title: "시험 또는 과제 추가",
-                  desc: "'+ 시험' / '+ 과제' 버튼으로 만드세요.",
+                  desc: "'+ 시험' / '+ 과제' 버튼으로 만들면 차시 수강생이 자동으로 응시·제출 대상으로 등록됩니다.",
                   active: true,
                 },
                 {
                   step: "2",
-                  title: "수강생 일괄배정",
-                  desc: "'수강생 일괄배정'으로 전원 등록하세요.",
-                  active: false,
-                },
-                {
-                  step: "3",
                   title: "성적 입력",
-                  desc: "편집 모드에서 점수 입력 또는 OMR 스캔.",
+                  desc: "편집 모드에서 점수를 직접 입력하거나, OMR 스캔본을 업로드해 객관식을 자동 채점하세요.",
                   active: false,
                 },
               ].map((item) => (
@@ -819,6 +880,9 @@ export default function SessionScoresEntryPage(_props: Props) {
                 </div>
               ))}
             </div>
+            <div className="mt-3 text-[11px] text-[var(--color-text-muted)] leading-relaxed">
+              자동 등록이 안 됐다면 상단 <strong>'수강생 일괄배정'</strong> 버튼으로 보강할 수 있어요.
+            </div>
           </div>
         </div>
       )}
@@ -839,11 +903,12 @@ export default function SessionScoresEntryPage(_props: Props) {
           </svg>
           <div className="min-w-0">
             <div className="text-[13px] font-semibold text-[var(--color-text-primary)]">
-              수강생이 아직 시험·과제에 배정되지 않았습니다
+              응시·제출 대상으로 등록된 수강생이 없습니다
             </div>
             <div className="mt-0.5 text-[12px] text-[var(--color-text-muted)] leading-relaxed">
-              상단의 <strong>'수강생 일괄배정'</strong> 버튼을 누르면 이 차시의 수강생 전원이 모든 시험·과제의 응시 대상으로 등록됩니다.
-              개별 관리가 필요하면 시험/과제 상세에서 대상자를 선택할 수 있습니다.
+              차시에 수강생이 없거나 시험·과제 생성 시 자동 등록이 실패했을 때 보입니다.
+              먼저 차시에 수강생을 등록한 뒤, 상단 <strong>'수강생 일괄배정'</strong> 버튼으로 전원을 응시 대상으로 추가하세요.
+              (개별 관리는 시험·과제 상세에서 가능합니다.)
             </div>
           </div>
         </div>

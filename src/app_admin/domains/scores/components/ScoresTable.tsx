@@ -31,9 +31,6 @@ import {
   getAttendanceTone,
 } from "@/shared/ui/badges/AttendanceStatusBadge";
 import { feedback } from "@/shared/ui/feedback/feedback";
-import AdminModal from "@/shared/ui/modal/AdminModal";
-import ModalHeader from "@/shared/ui/modal/ModalHeader";
-import AdminOmrBatchUploadBox from "@admin/domains/submissions/components/AdminOmrBatchUploadBox";
 
 /** 컬럼 기본 너비 */
 const COL_EDIT = 36;
@@ -80,33 +77,8 @@ function pendingKeyForChange(p: PendingChange): string {
 }
 
 // PassFailText 컴포넌트 제거(2026-05-12): 합불 컬럼 자체 제거 — 점수 셀 data-pass-status 색상/border로 대체.
-
-/** OMR 업로드 — 시험 컬럼 헤더 위 간결한 버튼 + 드래그앤드롭 모달 */
-function OmrUploadButton({ examId, examTitle, onUploaded }: { examId: number; examTitle?: string; onUploaded?: () => void }) {
-  const [open, setOpen] = useState(false);
-
-  return (
-    <>
-      <button
-        type="button"
-        onClick={(e) => { e.stopPropagation(); setOpen(true); }}
-        className="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] font-medium leading-tight bg-[var(--color-bg-surface-soft)] border border-[var(--color-border-divider)] text-[var(--color-text-secondary)] hover:bg-[var(--color-brand-primary)]/10 hover:text-[var(--color-brand-primary)] hover:border-[var(--color-brand-primary)]/40 transition-colors whitespace-nowrap"
-        title="OMR 스캔 업로드"
-      >
-        <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M8 2v12M2 8h12" />
-        </svg>
-        OMR
-      </button>
-      <AdminModal open={open} onClose={() => setOpen(false)} width={520}>
-        <ModalHeader title={`OMR 업로드${examTitle ? ` — ${examTitle}` : ""}`} />
-        <div className="p-5">
-          <AdminOmrBatchUploadBox examId={examId} onUploaded={onUploaded} />
-        </div>
-      </AdminModal>
-    </>
-  );
-}
+// OmrUploadButton 컴포넌트 제거(2026-05-13 P0-2): 헤더 위 absolute 미니버튼 제거.
+// OMR 업로드는 SessionScoresEntryPage 툴바의 OMR 버튼(시험 1개 직진 / 2+개 드롭다운) 단일 경로.
 
 /** 클리닉 대상 여부 + 대상 사유 (시험 / 시험+과제 / 과제)
  *  row.clinic_required (서버 판정)이 SSOT. 사유만 로컬에서 표시용으로 추론. */
@@ -496,9 +468,9 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
         { type: "homework", homeworkId: h.homework_id, title: h.title, sub: "score", key: `hw_${h.homework_id}_score`, width: COL_SCORE, editable: isEditMode && homeworkEdit },
       );
     });
+    // P1-2 (2026-05-13): clinic_reason 컬럼 제거 — 판정 셀 안에 사유를 함께 표시.
     list.push(
-      { type: "clinic_target", key: "clinic_target", width: COL_CLINIC_TARGET, editable: false },
-      { type: "clinic_reason", key: "clinic_reason", width: COL_REASON, editable: false }
+      { type: "clinic_target", key: "clinic_target", width: COL_CLINIC_TARGET, editable: false }
     );
     return list;
   }, [examOptions, homeworkOptions, isEditMode, scoreDisplayMode, examEditTotal, examEditObjective, examEditSubjective, homeworkEdit]);
@@ -522,7 +494,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
         key: c.key,
         label: c.key,
         defaultWidth: c.width,
-        minWidth: c.key === "name" ? 100 : c.key === "clinic_reason" ? 140 : 48,
+        minWidth: c.key === "name" ? 100 : c.key === "clinic_target" ? 80 : 48,
         maxWidth: 500,
       })),
     ];
@@ -546,27 +518,6 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
   const allSelected =
     rows.length > 0 &&
     rows.every((r) => selectedSet.has(r.enrollment_id));
-
-  /** OMR 버튼 위치 계산: 각 시험 그룹의 left offset + width */
-  const examPositions = useMemo(() => {
-    if (examOptions.length === 0) return [];
-    // tableCols[0] = select, tableCols[1..] = columns 순서와 1:1
-    const positions: { examId: number; title: string; left: number; width: number }[] = [];
-    for (const ex of examOptions) {
-      const examCols = examColsMap[ex.exam_id] ?? [];
-      if (examCols.length === 0) continue;
-      const firstIdx = columns.findIndex((c) => c.key === examCols[0].key);
-      const lastIdx = columns.findIndex((c) => c.key === examCols[examCols.length - 1].key);
-      if (firstIdx < 0) continue;
-      // +1 because tableCols[0] is "select" column (not in columns array)
-      let left = tableCols[0]; // select column width
-      for (let i = 0; i < firstIdx; i++) left += tableCols[i + 1];
-      let width = 0;
-      for (let i = firstIdx; i <= lastIdx; i++) width += tableCols[i + 1];
-      positions.push({ examId: ex.exam_id, title: ex.title, left, width });
-    }
-    return positions;
-  }, [examOptions, examColsMap, columns, tableCols]);
 
   return (
     <div>
@@ -596,28 +547,9 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
           </span>
         </div>
       )}
-      {/* OMR 업로드 버튼 — 테이블 밖, 시험 컬럼 위에 정렬 */}
-      {examPositions.length > 0 && (
-        // eslint-disable-next-line no-restricted-syntax
-        <div className="relative" style={{ width: tableWidth, height: 24, zIndex: 10 }}>
-          {examPositions.map((pos) => (
-            <div
-              key={`omr-${pos.examId}`}
-              className="absolute flex items-center justify-center"
-              // eslint-disable-next-line no-restricted-syntax
-              style={{ left: pos.left, width: pos.width, top: 0, height: 24 }}
-            >
-              <OmrUploadButton
-                examId={pos.examId}
-                examTitle={pos.title}
-                onUploaded={() => {
-                  qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
-                }}
-              />
-            </div>
-          ))}
-        </div>
-      )}
+      {/* P0-2 (2026-05-13): 테이블 위 absolute OMR 미니버튼 제거.
+          학원장 캡처에서 헤더 위 "+OMR +OMR" 줄이 시각 노이즈 + 툴바 OMR 버튼과 중복.
+          OMR 업로드는 툴바 우측 OMR 버튼 (시험 1개면 직진, 2+개면 드롭다운) 단일 경로. */}
     <DomainTable
       tableClassName="ds-table--flat ds-table--center ds-scores-table"
       tableStyle={{ tableLayout: "fixed", width: tableWidth }}
@@ -701,13 +633,15 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                 data-group-start=""
                 data-group-parity={exIdx % 2 === 0 ? "even" : "odd"}
               >
-                <span className="inline-flex items-center gap-1">
+                {/* P0-1 (2026-05-13): ◀ ⚙ ▶ 버튼은 그룹 hover 시에만 노출.
+                    평소엔 [시] 뱃지 + 시험명에 폭 양보 → 학원장이 시험명을 즉시 인식. */}
+                <span className="inline-flex items-center gap-1 min-w-0">
                   {onReorderColumn && (
                     <button
                       type="button"
                       onClick={(e) => { e.stopPropagation(); onReorderColumn("exam", ex.exam_id, "up"); }}
                       disabled={exIdx === 0}
-                      className="text-xs leading-none px-0.5 text-[var(--color-text-muted)] hover:text-[var(--color-brand-primary)] disabled:opacity-25 disabled:cursor-not-allowed"
+                      className="ds-col-action-btn text-xs leading-none px-0.5 text-[var(--color-text-muted)] hover:text-[var(--color-brand-primary)] disabled:opacity-25 disabled:cursor-not-allowed"
                       title="왼쪽으로"
                       aria-label={`${ex.title} 왼쪽으로`}
                     >
@@ -715,20 +649,22 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                     </button>
                   )}
                   <Badge variant="solid" tone="primary" oneChar ariaLabel="시험">시</Badge>
-                  <span className="truncate">{ex.title}</span>
-                  <ExamHeaderQuickEdit
-                    examId={ex.exam_id}
-                    examTitle={ex.title}
-                    initialMaxScore={ex.max_score}
-                    initialPassScore={ex.pass_score}
-                    sessionId={sessionId}
-                  />
+                  <span className="truncate min-w-0">{ex.title}</span>
+                  <span className="ds-col-action-btn shrink-0">
+                    <ExamHeaderQuickEdit
+                      examId={ex.exam_id}
+                      examTitle={ex.title}
+                      initialMaxScore={ex.max_score}
+                      initialPassScore={ex.pass_score}
+                      sessionId={sessionId}
+                    />
+                  </span>
                   {onReorderColumn && (
                     <button
                       type="button"
                       onClick={(e) => { e.stopPropagation(); onReorderColumn("exam", ex.exam_id, "down"); }}
                       disabled={exIdx === examOptions.length - 1}
-                      className="text-xs leading-none px-0.5 text-[var(--color-text-muted)] hover:text-[var(--color-brand-primary)] disabled:opacity-25 disabled:cursor-not-allowed"
+                      className="ds-col-action-btn text-xs leading-none px-0.5 text-[var(--color-text-muted)] hover:text-[var(--color-brand-primary)] disabled:opacity-25 disabled:cursor-not-allowed"
                       title="오른쪽으로"
                       aria-label={`${ex.title} 오른쪽으로`}
                     >
@@ -767,13 +703,13 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
               {...(idx === 0 ? { "data-section-start": "" } : {})}
               data-group-parity={idx % 2 === 0 ? "even" : "odd"}
             >
-              <span className="inline-flex items-center gap-1">
+              <span className="inline-flex items-center gap-1 min-w-0">
                 {onReorderColumn && (
                   <button
                     type="button"
                     onClick={(e) => { e.stopPropagation(); onReorderColumn("homework", hw.homework_id, "up"); }}
                     disabled={idx === 0}
-                    className="text-xs leading-none px-0.5 text-[var(--color-text-muted)] hover:text-[var(--color-brand-primary)] disabled:opacity-25 disabled:cursor-not-allowed"
+                    className="ds-col-action-btn text-xs leading-none px-0.5 text-[var(--color-text-muted)] hover:text-[var(--color-brand-primary)] disabled:opacity-25 disabled:cursor-not-allowed"
                     title="왼쪽으로"
                     aria-label={`${hw.title} 왼쪽으로`}
                   >
@@ -781,13 +717,13 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                   </button>
                 )}
                 <Badge variant="solid" tone="complement" oneChar ariaLabel="과제">과</Badge>
-                <span className="truncate">{hw.title}</span>
+                <span className="truncate min-w-0">{hw.title}</span>
                 {onReorderColumn && (
                   <button
                     type="button"
                     onClick={(e) => { e.stopPropagation(); onReorderColumn("homework", hw.homework_id, "down"); }}
                     disabled={idx === homeworkOptions.length - 1}
-                    className="text-xs leading-none px-0.5 text-[var(--color-text-muted)] hover:text-[var(--color-brand-primary)] disabled:opacity-25 disabled:cursor-not-allowed"
+                    className="ds-col-action-btn text-xs leading-none px-0.5 text-[var(--color-text-muted)] hover:text-[var(--color-brand-primary)] disabled:opacity-25 disabled:cursor-not-allowed"
                     title="오른쪽으로"
                     aria-label={`${hw.title} 오른쪽으로`}
                   >
@@ -797,11 +733,12 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
               </span>
             </ResizableTh>
           ))}
+          {/* P1-2 (2026-05-13): 판정 + 사유 컬럼 통합. 한 셀에 뱃지 + 사유 줄바꿈으로 표시. */}
           <ResizableTh
             columnKey="clinic_target"
             width={columnWidths.clinic_target ?? COL_CLINIC_TARGET}
-            minWidth={60}
-            maxWidth={140}
+            minWidth={72}
+            maxWidth={160}
             onWidthChange={setColumnWidth}
             rowSpan={2}
             className="text-center font-semibold text-[var(--color-text-primary)]"
@@ -809,18 +746,6 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
             data-verdict-start=""
           >
             판정
-          </ResizableTh>
-          <ResizableTh
-            columnKey="clinic_reason"
-            width={columnWidths.clinic_reason ?? COL_REASON}
-            minWidth={52}
-            maxWidth={200}
-            onWidthChange={setColumnWidth}
-            rowSpan={2}
-            className="text-center font-semibold text-[var(--color-text-primary)] min-w-0"
-            data-col-type="clinic"
-          >
-            사유
           </ResizableTh>
         </tr>
         {/* Row2: 시험별 서브헤더(합산/객관식/주관식/N번/합불) | 과제 점수/합불.
@@ -904,17 +829,13 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                   data-col-type="name"
                   onClick={() => onSelectRow(row)}
                 >
+                  {/* P1-4 (2026-05-13): 차시 = 강의 컨텍스트라 강의 chip redundant.
+                      이름 가독성 우선 → chip 제거. 클리닉 highlight 와 아바타는 유지. */}
                   <StudentNameWithLectureChip
                     name={row.student_name ?? ""}
                     profilePhotoUrl={row.profile_photo_url ?? undefined}
                     avatarSize={32}
                     clinicHighlight={row.name_highlight_clinic_target === true}
-                    lectures={
-                      row.lecture_title
-                        ? [{ lectureName: row.lecture_title, color: row.lecture_color, chipLabel: row.lecture_chip_label }]
-                        : undefined
-                    }
-                    chipSize={28}
                   />
                 </td>
 
@@ -941,7 +862,8 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                   return (
                     <Fragment key={ex.exam_id}>
                       {examColsList.map((col, colIdx) => {
-                        /* 시험 대상 미등록 → 회색 비활성 셀 */
+                        // 시험 대상 미등록 → 회색 비활성 셀.
+                        // P1-7 (2026-05-13): hover tooltip 추가 — 학원장이 "왜 입력 안 되지" 헷갈림 방지.
                         if (notEnrolledForExam) {
                           return (
                             <td
@@ -950,6 +872,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                               data-col-type="score"
                               {...(colIdx === 0 ? { "data-group-start": "" } : {})}
                               data-group-parity={groupParity}
+                              title={`${ex.title} 응시 대상 미등록 — 상단 "수강생 일괄배정" 으로 추가하세요`}
                             >
                               <span className="text-[var(--color-text-muted)] select-none">-</span>
                             </td>
@@ -1313,7 +1236,13 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                   return (
                     <Fragment key={hw.homework_id}>
                       {notEnrolledForHw ? (
-                          <td className={`min-w-0 align-middle bg-[var(--color-bg-surface-hover)]`} data-col-type="score" data-group-parity={hwParity} {...(hwBodyIdx === 0 ? { "data-section-start": "" } : {})}>
+                          <td
+                            className={`min-w-0 align-middle bg-[var(--color-bg-surface-hover)]`}
+                            data-col-type="score"
+                            data-group-parity={hwParity}
+                            {...(hwBodyIdx === 0 ? { "data-section-start": "" } : {})}
+                            title={`${hw.title} 제출 대상 미등록 — 상단 "수강생 일괄배정" 으로 추가하세요`}
+                          >
                             <span className="text-[var(--color-text-muted)] select-none">-</span>
                           </td>
                       ) : (
@@ -1508,6 +1437,8 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                   );
                 })}
 
+                {/* P1-2 (2026-05-13): 판정 + 사유 통합 셀.
+                    이전엔 두 컬럼 ("대상" 뱃지 + "대상" 텍스트 중복) → 한 셀에 뱃지 + 사유 줄바꿈. */}
                 <td
                   className="text-center align-middle"
                   data-col-type="clinic"
@@ -1515,42 +1446,40 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                 >
                   {(() => {
                     const verdict = getSessionScoresTableVerdict(row);
+                    if (verdict === "dash") {
+                      return <span className="text-[var(--color-text-muted)]" title="시험·과제 없음">-</span>;
+                    }
+                    let badge: React.ReactNode = null;
                     if (verdict === "clinic_target") {
-                      return (
+                      badge = (
                         <span className="ds-scores-pass-fail-badge" data-tone="warning" title="클리닉 미해소 대상">
                           대상
                         </span>
                       );
-                    }
-                    if (verdict === "fail") {
-                      return (
+                    } else if (verdict === "fail") {
+                      badge = (
                         <span className="ds-scores-pass-fail-badge" data-tone="danger" title="커트라인 미만 항목 있음">
                           불합
                         </span>
                       );
-                    }
-                    if (verdict === "dash") {
-                      return <span className="text-[var(--color-text-muted)]" title="시험·과제 없음">-</span>;
+                    } else {
+                      badge = (
+                        <span className="ds-scores-pass-fail-badge" data-tone="success" title="전 항목 커트라인 이상">
+                          합격
+                        </span>
+                      );
                     }
                     return (
-                      <span className="ds-scores-pass-fail-badge" data-tone="success" title="전 항목 커트라인 이상">
-                        합격
-                      </span>
+                      <div className="inline-flex flex-col items-center gap-0.5 leading-tight">
+                        {badge}
+                        {clinicReason && (
+                          <span className="text-[10px] font-medium text-[var(--color-text-muted)]">
+                            {clinicReason}
+                          </span>
+                        )}
+                      </div>
                     );
                   })()}
-                </td>
-
-                <td
-                  className="text-center align-middle min-w-0"
-                  data-col-type="clinic"
-                >
-                  {clinicReason ? (
-                    <span className="text-xs font-semibold text-[var(--color-text-secondary)]">
-                      {clinicReason}
-                    </span>
-                  ) : (
-                    <span className="text-[var(--color-text-muted)]">-</span>
-                  )}
                 </td>
               </tr>
 
