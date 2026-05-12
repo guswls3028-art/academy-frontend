@@ -34,9 +34,9 @@ export default function ExamBundlesPage() {
     mutationFn: deleteBundle,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["teacher-exam-bundles"] });
-      teacherToast.success("번들이 삭제되었습니다.");
+      teacherToast.success("묶음이 삭제되었습니다.");
     },
-    onError: (e) => teacherToast.error(extractApiError(e, "번들을 삭제하지 못했습니다.")),
+    onError: (e) => teacherToast.error(extractApiError(e, "묶음을 삭제하지 못했습니다.")),
   });
 
   return (
@@ -46,16 +46,16 @@ export default function ExamBundlesPage() {
           style={{ background: "none", border: "none", color: "var(--tc-text-secondary)" }}>
           <ChevronLeft size={20} />
         </button>
-        <h1 className="text-[17px] font-bold flex-1" style={{ color: "var(--tc-text)" }}>시험 번들</h1>
+        <h1 className="text-[17px] font-bold flex-1" style={{ color: "var(--tc-text)" }}>시험 묶음</h1>
         <button onClick={() => { setEditTarget(null); setFormOpen(true); }}
           className="flex items-center gap-1 text-xs font-bold cursor-pointer"
           style={{ padding: "6px 12px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff" }}>
-          <Plus size={14} /> 새 번들
+          <Plus size={14} /> 새 묶음
         </button>
       </div>
 
       <div className="text-[11px] px-1" style={{ color: "var(--tc-text-muted)", lineHeight: 1.5 }}>
-        번들은 여러 시험·과제 템플릿을 한 묶음으로 저장한 뒤 차시에 일괄 적용할 때 사용합니다.
+        시험 묶음은 여러 시험·과제 템플릿을 한 번에 묶어 차시에 일괄 적용할 때 사용합니다.
       </div>
 
       {isLoading ? <EmptyState scope="panel" tone="loading" title="불러오는 중…" /> :
@@ -78,7 +78,7 @@ export default function ExamBundlesPage() {
                       <Pencil size={13} />
                     </button>
                     <button onClick={async () => {
-                        const ok = await confirm({ title: "번들 삭제", message: `'${b.name}' 번들을 삭제하시겠습니까?`, confirmText: "삭제", danger: true });
+                        const ok = await confirm({ title: "묶음 삭제", message: `'${b.name}' 묶음을 삭제하시겠습니까?`, confirmText: "삭제", danger: true });
                         if (ok) deleteMut.mutate(b.id);
                       }}
                       className="flex p-1.5 cursor-pointer"
@@ -90,7 +90,7 @@ export default function ExamBundlesPage() {
               </Card>
             ))}
           </div>
-        ) : <EmptyState scope="panel" tone="empty" title="번들이 없습니다" />}
+        ) : <EmptyState scope="panel" tone="empty" title="묶음이 없습니다" />}
 
       <BundleFormSheet open={formOpen} onClose={() => { setFormOpen(false); setEditTarget(null); }} editData={editTarget} />
     </div>
@@ -139,17 +139,17 @@ function BundleFormSheet({ open, onClose, editData }: {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["teacher-exam-bundles"] });
-      teacherToast.success(isEdit ? "수정되었습니다." : "번들이 생성되었습니다.");
+      teacherToast.success(isEdit ? "수정되었습니다." : "묶음이 생성되었습니다.");
       onClose();
     },
     onError: () => teacherToast.error("저장에 실패했습니다."),
   });
 
   return (
-    <BottomSheet open={open} onClose={onClose} title={isEdit ? "번들 편집" : "번들 생성"}>
+    <BottomSheet open={open} onClose={onClose} title={isEdit ? "묶음 편집" : "묶음 생성"}>
       <div className="flex flex-col gap-2.5" style={{ padding: "var(--tc-space-3) 0" }}>
-        <Fld label="번들 이름 *" value={name} onChange={setName} placeholder="예: 1학기 중간고사 세트" />
-        <Fld label="설명" value={description} onChange={setDescription} placeholder="번들 설명 (선택)" />
+        <Fld label="묶음 이름 *" value={name} onChange={setName} placeholder="예: 1학기 중간고사 세트" />
+        <Fld label="설명" value={description} onChange={setDescription} placeholder="묶음 설명 (선택)" />
 
         <div>
           <div className="flex items-center justify-between mb-1">

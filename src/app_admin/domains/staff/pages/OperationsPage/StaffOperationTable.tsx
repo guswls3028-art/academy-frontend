@@ -76,7 +76,7 @@ export default function StaffOperationTable({
         className="ds-input w-full"
         value={q}
         onChange={(e) => setQ(e.target.value)}
-        placeholder="이름/전화번호 검색"
+        placeholder="이름 / 전화번호 검색"
         aria-label="직원 검색"
       />
 

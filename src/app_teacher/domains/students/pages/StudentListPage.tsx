@@ -75,7 +75,7 @@ export default function StudentListPage() {
     mutationFn: (ids: number[]) => bulkDeleteStudents(ids),
     onSuccess: (_, ids) => {
       qc.invalidateQueries({ queryKey: ["students-mobile"] });
-      teacherToast.success(`${ids.length}명을 삭제했습니다. (30일 내 복원 가능)`);
+      teacherToast.success(`${ids.length}명을 삭제했습니다. (30일 이내 복구 가능)`);
       exitSelectMode();
     },
     onError: () => teacherToast.error("삭제에 실패했습니다."),
@@ -86,7 +86,7 @@ export default function StudentListPage() {
       {/* Header */}
       {!selectMode ? (
         <div className="flex items-center justify-between gap-2">
-          <div className="text-[17px] font-bold" style={{ color: "var(--tc-text)" }}>학생</div>
+          <div className="text-[17px] font-bold" style={{ color: "var(--tc-text)" }}>학생 관리</div>
           <div className="flex gap-1.5 items-center shrink-0">
             <button onClick={() => setSelectMode(true)}
               className="flex items-center gap-1 text-[12px] font-semibold cursor-pointer"
@@ -168,7 +168,7 @@ export default function StudentListPage() {
           <div className="flex gap-2">
             <div className="relative flex-1">
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "var(--tc-text-muted)" }} />
-              <input type="text" placeholder="이름, 전화번호, 학교" value={search} onChange={(e) => setSearch(e.target.value)}
+              <input type="text" placeholder="이름, 아이디, 전화번호, 학교" value={search} onChange={(e) => setSearch(e.target.value)}
                 className="w-full text-sm outline-none"
                 style={{ padding: "10px 12px 10px 36px", border: "1px solid var(--tc-border-strong)", borderRadius: "var(--tc-radius)", background: "var(--tc-surface)", color: "var(--tc-text)" }} />
             </div>
@@ -274,7 +274,7 @@ export default function StudentListPage() {
             <BulkBtn icon={<Lock size={14} />} label="비번초기화" onClick={() => setBulkAction("password")} />
             <BulkBtn icon={<Trash2 size={14} />} label="삭제" tone="danger"
               onClick={async () => {
-                const ok = await confirm({ title: `학생 ${selectedCount}명 삭제`, message: "30일 내 복원이 가능합니다. 삭제하시겠습니까?", confirmText: "삭제", danger: true });
+                const ok = await confirm({ title: `학생 ${selectedCount}명 삭제`, message: "30일 이내 복구할 수 있습니다. 삭제하시겠습니까?", confirmText: "삭제", danger: true });
                 if (ok) deleteMut.mutate(Array.from(selectedIds));
               }} />
           </div>

@@ -60,9 +60,9 @@ export default function ClinicPage() {
     mutationFn: deleteClinicSession,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["teacher-clinic-sessions"] });
-      teacherToast.success("세션이 삭제되었습니다.");
+      teacherToast.success("클리닉이 삭제되었습니다.");
     },
-    onError: (e) => teacherToast.error(extractApiError(e, "세션을 삭제하지 못했습니다.")),
+    onError: (e) => teacherToast.error(extractApiError(e, "클리닉을 삭제하지 못했습니다.")),
   });
 
   const isToday = dateFrom === todayISO() && dateTo === todayISO();
@@ -75,7 +75,7 @@ export default function ClinicPage() {
         <button onClick={() => setCreateOpen(true)}
           className="flex items-center gap-1 text-xs font-bold cursor-pointer"
           style={{ padding: "6px 12px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff" }}>
-          <Plus size={14} /> 세션 생성
+          <Plus size={14} /> 클리닉 만들기
         </button>
       </div>
 
@@ -116,14 +116,14 @@ export default function ClinicPage() {
               expanded={selectedSession === s.id}
               onToggle={() => setSelectedSession(selectedSession === s.id ? null : s.id)}
               onDelete={async () => {
-                const ok = await confirm({ title: "세션 삭제", message: "이 클리닉 세션을 삭제하시겠습니까?", confirmText: "삭제", danger: true });
+                const ok = await confirm({ title: "클리닉 삭제", message: "이 클리닉을 삭제하시겠습니까?", confirmText: "삭제", danger: true });
                 if (ok) deleteMut.mutate(s.id);
               }}
             />
           ))}
         </div>
       ) : (
-        <EmptyState scope="panel" tone="empty" title={isToday ? "오늘 예정된 클리닉 세션이 없습니다" : "해당 기간에 클리닉 세션이 없습니다"} />
+        <EmptyState scope="panel" tone="empty" title={isToday ? "오늘 예정된 클리닉이 없습니다" : "해당 기간에 클리닉이 없습니다"} />
       )}
 
       {/* Create session sheet */}
@@ -165,7 +165,7 @@ function SessionCard({
         </div>
         <div className="flex-1 min-w-0">
           <div className="text-[15px] font-semibold truncate" style={{ color: "var(--tc-text)" }}>
-            {session.title || "클리닉 세션"}
+            {session.title || "클리닉"}
           </div>
           <div className="flex gap-2 text-xs mt-0.5" style={{ color: "var(--tc-text-muted)" }}>
             {session.start_time && <span>{session.start_time.slice(0, 5)}</span>}
@@ -200,7 +200,7 @@ function SessionCard({
             <button onClick={(e) => { e.stopPropagation(); onDelete(); }}
               className="text-[11px] font-semibold cursor-pointer"
               style={{ padding: "4px 10px", borderRadius: "var(--tc-radius-sm)", border: "none", background: "var(--tc-danger-bg)", color: "var(--tc-danger)" }}>
-              세션 삭제
+              클리닉 삭제
             </button>
           </div>
         </>
@@ -407,17 +407,17 @@ function ClinicSessionFormSheet({ open, onClose, defaultDate }: { open: boolean;
     }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["teacher-clinic-sessions"] });
-      teacherToast.success("클리닉 세션이 생성되었습니다.");
+      teacherToast.success("클리닉이 만들어졌습니다.");
       setTitle(""); setStartTime(""); setEndTime(""); setLocation(""); setCapacity("10"); setSectionId(null);
       onClose();
     },
-    onError: (e) => teacherToast.error(extractApiError(e, "클리닉 세션을 생성하지 못했습니다.")),
+    onError: (e) => teacherToast.error(extractApiError(e, "클리닉을 만들지 못했습니다.")),
   });
 
   return (
-    <BottomSheet open={open} onClose={onClose} title="클리닉 세션 생성">
+    <BottomSheet open={open} onClose={onClose} title="클리닉 만들기">
       <div className="flex flex-col gap-2.5" style={{ padding: "var(--tc-space-3) 0" }}>
-        <Fld label="세션명 (선택)" value={title} onChange={setTitle} placeholder="예: 오후 클리닉" />
+        <Fld label="클리닉 이름 (선택)" value={title} onChange={setTitle} placeholder="예: 오후 클리닉" />
         {showSectionPicker && (
           <div>
             <label className="text-[11px] font-semibold block mb-1" style={{ color: "var(--tc-text-muted)" }}>반 (선택)</label>

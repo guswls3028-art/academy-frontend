@@ -1,7 +1,7 @@
 /**
  * PATH: src/app_teacher/layout/TeacherTabBar.tsx
- * 하단 탭 — 오늘 | 강의 | 학생 | 커뮤니티 (4탭, 사이드바는 헤더에서 열기)
- * 용어: 데스크톱 사이드바와 통일
+ * 하단 탭 — 대시보드 | 학생 | 강의 | 커뮤니티 (4탭, 사이드바는 헤더에서 열기)
+ * 용어·순서: PC 사이드바 SSOT와 통일
  */
 import { NavLink } from "react-router-dom";
 import { useTeacherPendingCounts } from "@teacher/shared/hooks/useTeacherPendingCounts";
@@ -12,9 +12,9 @@ export default function TeacherTabBar() {
   const badge = counts?.total ?? 0;
 
   const tabs = [
-    { to: "/teacher", label: "오늘", icon: <Home size={22} />, end: true },
-    { to: "/teacher/classes", label: "강의", icon: <BookOpen size={22} /> },
+    { to: "/teacher", label: "대시보드", icon: <Home size={22} />, end: true },
     { to: "/teacher/students", label: "학생", icon: <Users size={22} /> },
+    { to: "/teacher/classes", label: "강의", icon: <BookOpen size={22} /> },
     { to: "/teacher/comms", label: "커뮤니티", icon: <MessageSquare size={22} />, hasBadge: true },
   ];
 

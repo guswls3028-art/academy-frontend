@@ -1,5 +1,5 @@
 // PATH: src/app_teacher/domains/fees/pages/FeesInvoicesPage.tsx
-// 수납 송장 목록 + 상세 BottomSheet + 결제 기록
+// 수납 청구서 목록 + 상세 BottomSheet + 결제 기록
 import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -17,24 +17,19 @@ import {
   type InvoiceStatus,
   type PaymentMethod,
 } from "../api";
+import { FEES_STATUS_LABEL, FEES_STATUS_TONE } from "@admin/domains/fees/utils/feesStatus";
 
 type FilterKey = "ALL" | "PENDING" | "PARTIAL" | "OVERDUE" | "PAID";
 
 const FILTER_TABS: { key: FilterKey; label: string }[] = [
   { key: "ALL", label: "전체" },
-  { key: "PENDING", label: "대기" },
-  { key: "PARTIAL", label: "부분" },
-  { key: "OVERDUE", label: "연체" },
-  { key: "PAID", label: "완납" },
+  { key: "PENDING", label: FEES_STATUS_LABEL.PENDING },
+  { key: "PARTIAL", label: FEES_STATUS_LABEL.PARTIAL },
+  { key: "OVERDUE", label: FEES_STATUS_LABEL.OVERDUE },
+  { key: "PAID", label: FEES_STATUS_LABEL.PAID },
 ];
 
-const STATUS_TONE: Record<InvoiceStatus, "success" | "danger" | "warning" | "info" | "neutral"> = {
-  PAID: "success",
-  PARTIAL: "warning",
-  PENDING: "neutral",
-  OVERDUE: "danger",
-  CANCELLED: "neutral",
-};
+const STATUS_TONE: Record<InvoiceStatus, "success" | "danger" | "warning" | "info" | "neutral"> = FEES_STATUS_TONE;
 
 function formatKRW(n: number): string {
   if (n == null) return "-";
@@ -73,7 +68,7 @@ export default function FeesInvoicesPage() {
       <div className="flex items-center gap-2 py-0.5">
         <BackButton onClick={() => navigate(-1)} />
         <h1 className="text-[17px] font-bold flex-1" style={{ color: "var(--tc-text)" }}>
-          송장
+          청구서
         </h1>
       </div>
 
@@ -85,7 +80,7 @@ export default function FeesInvoicesPage() {
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="학생 이름, 송장 번호"
+          placeholder="학생 이름, 청구서 번호"
           className="flex-1 text-sm"
           style={{ border: "none", background: "transparent", color: "var(--tc-text)", outline: "none" }}
         />
@@ -117,7 +112,7 @@ export default function FeesInvoicesPage() {
       {isLoading ? (
         <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
       ) : invoices.length === 0 ? (
-        <EmptyState scope="panel" tone="empty" title="송장이 없습니다" />
+        <EmptyState scope="panel" tone="empty" title="청구서가 없습니다" />
       ) : (
         <div className="flex flex-col gap-1.5">
           {invoices.map((inv) => (
@@ -216,7 +211,7 @@ function InvoiceDetailSheet({
   });
 
   return (
-    <BottomSheet open={open} onClose={onClose} title={invoice?.invoice_number ?? "송장 상세"}>
+    <BottomSheet open={open} onClose={onClose} title={invoice?.invoice_number ?? "청구서 상세"}>
       {isLoading && <EmptyState scope="panel" tone="loading" title="불러오는 중…" />}
       {invoice && (
         <div className="flex flex-col gap-3 pb-3">

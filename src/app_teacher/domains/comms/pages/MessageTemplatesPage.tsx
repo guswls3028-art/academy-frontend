@@ -78,7 +78,7 @@ export default function MessageTemplatesPage() {
           style={{ background: "none", border: "none", color: "var(--tc-text-secondary)" }}>
           <ChevronLeft size={20} />
         </button>
-        <h1 className="text-[17px] font-bold flex-1" style={{ color: "var(--tc-text)" }}>메시지 템플릿</h1>
+        <h1 className="text-[17px] font-bold flex-1" style={{ color: "var(--tc-text)" }}>템플릿 저장</h1>
         <button onClick={() => setEditSheet({ open: true })}
           className="flex items-center gap-1 text-xs font-bold cursor-pointer"
           style={{ padding: "6px 12px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff" }}>

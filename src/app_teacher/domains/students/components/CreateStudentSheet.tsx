@@ -53,7 +53,7 @@ export default function CreateStudentSheet({ open, onClose }: Props) {
   };
 
   return (
-    <BottomSheet open={open} onClose={resetAndClose} title="학생 등록">
+    <BottomSheet open={open} onClose={resetAndClose} title="학생 추가">
       <div className="flex flex-col gap-2.5" style={{ padding: "var(--tc-space-3) 0" }}>
         <Field label="이름 *" value={name} onChange={setName} placeholder="학생 이름" />
         <Field label="초기 비밀번호" value={password} onChange={setPassword} placeholder="0000" />

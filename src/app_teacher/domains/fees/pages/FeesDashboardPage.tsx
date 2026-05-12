@@ -35,7 +35,7 @@ export default function FeesDashboardPage() {
       <div className="flex items-center gap-2 py-0.5">
         <BackButton onClick={() => navigate(-1)} />
         <h1 className="text-[17px] font-bold flex-1" style={{ color: "var(--tc-text)" }}>
-          수납 {year}.{String(month).padStart(2, "0")}
+          수납 관리 · {year}.{String(month).padStart(2, "0")}
         </h1>
         <button
           onClick={() => navigate("/teacher/fees/invoices")}
@@ -49,7 +49,7 @@ export default function FeesDashboardPage() {
             color: "var(--tc-primary)",
           }}
         >
-          송장 →
+          청구서 →
         </button>
       </div>
 
@@ -136,7 +136,7 @@ export default function FeesDashboardPage() {
 
       {/* 연체 리스트 */}
       <SectionTitle right={overdue && overdue.length > 0 ? <Badge tone="danger" pill>{overdue.length}건</Badge> : undefined}>
-        연체 송장
+        연체 청구서
       </SectionTitle>
       {overdue && overdue.length > 0 ? (
         <div className="flex flex-col gap-1.5">
@@ -170,7 +170,7 @@ export default function FeesDashboardPage() {
           ))}
         </div>
       ) : (
-        <EmptyState scope="panel" tone="empty" title="연체 송장이 없습니다" />
+        <EmptyState scope="panel" tone="empty" title="연체 청구서가 없습니다" />
       )}
     </div>
   );

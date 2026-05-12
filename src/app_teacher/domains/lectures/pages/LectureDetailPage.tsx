@@ -116,7 +116,7 @@ export default function LectureDetailPage() {
                 </button>
                 <button onClick={async () => {
                     setMenuOpen(false);
-                    const ok = await confirm({ title: "강의 삭제", message: "이 강의를 삭제하시겠습니까?", confirmText: "삭제", danger: true });
+                    const ok = await confirm({ title: "강의 삭제", message: "이 강의를 완전히 삭제하시겠습니까? 차시·수강생·출결 등 모든 관련 정보가 제거됩니다.", confirmText: "삭제", danger: true });
                     if (ok) deleteLectureMut.mutate();
                   }}
                   className="flex items-center gap-2 w-full text-left text-sm cursor-pointer"
@@ -221,7 +221,7 @@ export default function LectureDetailPage() {
                   </span>
                   <span onClick={async (e) => {
                       e.stopPropagation();
-                      const ok = await confirm({ title: "차시 삭제", message: "이 차시를 삭제하시겠습니까?", confirmText: "삭제", danger: true });
+                      const ok = await confirm({ title: "차시 삭제", message: "이 차시를 삭제하시겠습니까? 관련된 시험, 과제, 출결 데이터가 모두 삭제됩니다.", confirmText: "삭제", danger: true });
                       if (ok) deleteSessionMut.mutate(s.id);
                     }}
                     className="flex p-1 cursor-pointer" style={{ color: "var(--tc-danger)" }}>

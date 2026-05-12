@@ -111,7 +111,7 @@ export default function VideoDetailPage() {
                 </button>
                 <button onClick={async () => {
                   setMenuOpen(false);
-                  const ok = await confirm({ title: "영상 삭제", message: "이 영상을 삭제하시겠습니까?", confirmText: "삭제", danger: true });
+                  const ok = await confirm({ title: "영상 삭제", message: "이 영상을 삭제하시겠습니까? 학생 시청 기록과 진도 데이터도 함께 삭제됩니다.", confirmText: "삭제", danger: true });
                   if (ok) deleteMut.mutate();
                 }}
                   className="flex items-center gap-2 w-full text-left text-sm cursor-pointer"

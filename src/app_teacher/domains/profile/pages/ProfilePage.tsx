@@ -25,7 +25,7 @@ export default function ProfilePage() {
       <div className="flex items-center gap-2 py-0.5">
         <BackBtn onClick={() => navigate(-1)} />
         <h1 className="text-[17px] font-bold" style={{ color: "var(--tc-text)" }}>
-          내 프로필
+          프로필
         </h1>
       </div>
 

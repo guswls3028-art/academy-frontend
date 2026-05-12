@@ -7,20 +7,25 @@ import { useQuery } from "@tanstack/react-query";
 import { KPI, EmptyState } from "@/shared/ui/ds";
 import { DomainTable } from "@/shared/ui/domain";
 import { fetchDashboard, fetchOverdueInvoices, type DashboardStats, type StudentInvoice } from "../api/fees.api";
+import { FEES_STATUS_LABEL, type InvoiceStatus } from "../utils/feesStatus";
 
 function formatKRW(n: number) {
   return `${n.toLocaleString("ko-KR")}원`;
 }
 
+const STATUS_COLOR: Record<InvoiceStatus, { bg: string; color: string }> = {
+  PENDING: { bg: "var(--color-warning-bg)", color: "var(--color-warning)" },
+  PARTIAL: { bg: "var(--color-info-bg)", color: "var(--color-info)" },
+  PAID: { bg: "var(--color-success-bg)", color: "var(--color-success)" },
+  OVERDUE: { bg: "var(--color-danger-bg)", color: "var(--color-danger)" },
+  CANCELLED: { bg: "var(--color-neutral-bg)", color: "var(--color-text-muted)" },
+};
+
 function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, { bg: string; color: string; label: string }> = {
-    PENDING: { bg: "var(--color-warning-bg)", color: "var(--color-warning)", label: "미납" },
-    PARTIAL: { bg: "var(--color-info-bg)", color: "var(--color-info)", label: "부분납" },
-    PAID: { bg: "var(--color-success-bg)", color: "var(--color-success)", label: "완납" },
-    OVERDUE: { bg: "var(--color-danger-bg)", color: "var(--color-danger)", label: "연체" },
-    CANCELLED: { bg: "var(--color-neutral-bg)", color: "var(--color-text-muted)", label: "취소" },
-  };
-  const s = map[status] ?? { bg: "#eee", color: "#999", label: status };
+  const key = status as InvoiceStatus;
+  const label = FEES_STATUS_LABEL[key] ?? status;
+  const tone = STATUS_COLOR[key] ?? { bg: "#eee", color: "#999" };
+  const s = { ...tone, label };
   return (
     <span
       style={{

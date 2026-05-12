@@ -46,7 +46,7 @@ export default function AppearancePage() {
     <div className="flex flex-col gap-3 pb-4">
       <div className="flex items-center gap-2 py-0.5">
         <BackButton onClick={() => navigate(-1)} />
-        <h1 className="text-[17px] font-bold flex-1" style={{ color: "var(--tc-text)" }}>외관</h1>
+        <h1 className="text-[17px] font-bold flex-1" style={{ color: "var(--tc-text)" }}>테마</h1>
       </div>
 
       {grouped.map(({ group, themes }) => (

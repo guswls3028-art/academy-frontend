@@ -35,18 +35,18 @@ export default function LectureListPage() {
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
-        <SectionTitle>강의</SectionTitle>
+        <SectionTitle>강의 관리</SectionTitle>
         <button onClick={() => setCreateOpen(true)}
           className="flex items-center gap-1 text-xs font-bold cursor-pointer"
           style={{ padding: "6px 12px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff" }}>
-          <Plus size={14} /> 강의 생성
+          <Plus size={14} /> 강의 추가
         </button>
       </div>
 
       <TabBar
         tabs={[
-          { key: "active" as Tab, label: `활성 (${activeLectures?.length ?? "…"})` },
-          { key: "past" as Tab, label: "과거" },
+          { key: "active" as Tab, label: `강의목록 (${activeLectures?.length ?? "…"})` },
+          { key: "past" as Tab, label: "지난강의" },
         ]}
         value={tab}
         onChange={setTab}
@@ -86,7 +86,7 @@ export default function LectureListPage() {
           })}
         </div>
       ) : (
-        <EmptyState scope="panel" tone="empty" title={tab === "active" ? "활성 강의가 없습니다" : "과거 강의가 없습니다"} />
+        <EmptyState scope="panel" tone="empty" title={tab === "active" ? "강의가 없습니다" : "지난 강의가 없습니다"} />
       )}
 
       <LectureFormSheet open={createOpen} onClose={() => setCreateOpen(false)} />

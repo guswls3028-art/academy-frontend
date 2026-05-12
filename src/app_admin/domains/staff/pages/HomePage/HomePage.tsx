@@ -244,7 +244,7 @@ export default function HomePage() {
         searchSlot={
           <input
             className="ds-input"
-            placeholder="이름/전화번호 검색"
+            placeholder="이름 / 전화번호 검색"
             value={q}
             onChange={(e) => setQ(e.target.value)}
             style={{ maxWidth: 360 }}

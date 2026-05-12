@@ -56,7 +56,7 @@ export default function MessageLogPage() {
           style={{ background: "none", border: "none", color: "var(--tc-text-secondary)" }}>
           <ChevronLeft size={20} />
         </button>
-        <h1 className="text-[17px] font-bold" style={{ color: "var(--tc-text)" }}>발송 이력</h1>
+        <h1 className="text-[17px] font-bold" style={{ color: "var(--tc-text)" }}>발송 내역</h1>
         <span className="text-[12px]" style={{ color: "var(--tc-text-muted)" }}>
           {data ? `${data.count}건` : ""}
         </span>
@@ -65,7 +65,7 @@ export default function MessageLogPage() {
       {isLoading ? (
         <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
       ) : items.length === 0 ? (
-        <EmptyState scope="panel" tone="empty" title="발송 이력이 없습니다" />
+        <EmptyState scope="panel" tone="empty" title="발송 내역이 없습니다" />
       ) : (
         <div className="flex flex-col gap-2">
           {items.map((item) => (

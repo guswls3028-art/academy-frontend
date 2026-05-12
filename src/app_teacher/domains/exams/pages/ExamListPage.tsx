@@ -20,12 +20,12 @@ export default function ExamListPage() {
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
         <h2 className="text-base font-bold py-1" style={{ color: "var(--tc-text)" }}>
-          시험 / 과제
+          시험
         </h2>
         <button onClick={() => setCreateOpen(true)}
           className="flex items-center gap-1 text-xs font-bold cursor-pointer"
           style={{ padding: "6px 12px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff" }}>
-          <Plus size={14} /> {tab === "exam" ? "시험" : "과제"} 생성
+          <Plus size={14} /> {tab === "exam" ? "시험" : "과제"} 추가
         </button>
       </div>
 

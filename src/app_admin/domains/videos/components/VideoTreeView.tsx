@@ -331,7 +331,7 @@ export default function VideoTreeView() {
     async (e: React.MouseEvent, videoId: number) => {
       e.preventDefault();
       e.stopPropagation();
-      const ok = await confirm({ title: "영상 삭제", message: "정말 삭제하시겠습니까?" });
+      const ok = await confirm({ title: "영상 삭제", message: "이 영상을 삭제하시겠습니까? 학생 시청 기록과 진도 데이터도 함께 삭제됩니다." });
       if (!ok) return;
       deleteVideoMutation.mutate(videoId);
     },

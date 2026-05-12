@@ -84,7 +84,7 @@ export default function StopwatchPage() {
     <div className="flex flex-col gap-3 pb-4">
       <div className="flex items-center gap-2 py-0.5">
         <BackButton onClick={() => navigate(-1)} />
-        <h1 className="text-[17px] font-bold flex-1" style={{ color: "var(--tc-text)" }}>스톱워치</h1>
+        <h1 className="text-[17px] font-bold flex-1" style={{ color: "var(--tc-text)" }}>타이머</h1>
       </div>
 
       {/* 큰 시간 표시 */}

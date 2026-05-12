@@ -59,7 +59,7 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
       { to: `${ADMIN_NAV_BASE}/fees`, label: "수납", iconPath: "M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6", requiresFeatureFlag: "fee_management" },
       { to: `${ADMIN_NAV_BASE}/community`, label: "커뮤니티", iconPath: "M4 4h16v12H7l-3 3z" },
       { to: `${ADMIN_NAV_BASE}/tools`, label: "도구", iconPath: "M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" },
-      { to: `${ADMIN_NAV_BASE}/staff`, label: "직원관리", iconPath: "M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm-7 8a7 7 0 0 1 14 0", requiresStaffAdmin: true },
+      { to: `${ADMIN_NAV_BASE}/staff`, label: "직원 관리", iconPath: "M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm-7 8a7 7 0 0 1 14 0", requiresStaffAdmin: true },
       { to: `${ADMIN_NAV_BASE}/settings`, label: "설정", iconPath: "M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z" },
     ],
   },
@@ -67,7 +67,7 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
 
 /** 모바일 하단 탭에 노출할 항목 (경로, 라벨, 아이콘 path d) */
 export const ADMIN_MOBILE_TABS: { to: string; label: string; iconPath: string }[] = [
-  { to: `${ADMIN_NAV_BASE}/dashboard`, label: "홈", iconPath: "M3 11l9-7 9 7v9H3z" },
+  { to: `${ADMIN_NAV_BASE}/dashboard`, label: "대시보드", iconPath: "M3 11l9-7 9 7v9H3z" },
   { to: `${ADMIN_NAV_BASE}/students`, label: "학생", iconPath: "M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm-7 8a7 7 0 0 1 14 0" },
   { to: `${ADMIN_NAV_BASE}/lectures`, label: "강의", iconPath: "M4 4h16v12H4zM8 20h8" },
   { to: `${ADMIN_NAV_BASE}/community`, label: "커뮤니티", iconPath: "M4 4h16v12H7l-3 3z" },

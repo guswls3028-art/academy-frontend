@@ -144,7 +144,7 @@ export default function MyStoragePage() {
       <div className="flex items-center gap-2 py-0.5">
         <BackButton onClick={() => (folderStack.length > 0 ? goUp() : navigate(-1))} />
         <h1 className="text-[17px] font-bold flex-1 truncate" style={{ color: "var(--tc-text)" }}>
-          {folderStack.length === 0 ? "내 자료" : folderStack[folderStack.length - 1].name}
+          {folderStack.length === 0 ? "자료 저장소" : folderStack[folderStack.length - 1].name}
         </h1>
         <button
           onClick={() => setCreateFolderOpen(true)}
@@ -230,7 +230,7 @@ export default function MyStoragePage() {
         <div className="text-[12px] flex items-center gap-1 flex-wrap" style={{ color: "var(--tc-text-muted)" }}>
           <button onClick={() => { setFolderStack([]); setCurrentFolderId(null); }}
             className="cursor-pointer" style={{ background: "none", border: "none", padding: 0, color: "var(--tc-primary)" }}>
-            내 자료
+            자료 저장소
           </button>
           {folderStack.map((f, i) => (
             <span key={f.id}>

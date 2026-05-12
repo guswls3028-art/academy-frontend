@@ -10,19 +10,18 @@ import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { useConfirm } from "@/shared/ui/confirm";
 import { fetchVideos, retryVideo, uploadInit, uploadComplete, deleteVideo, fetchPublicSession } from "../api";
+import { VIDEO_STATUS_LABEL } from "@admin/domains/videos/utils/videoStatus";
+import type { VideoStatus } from "@admin/domains/videos/api/videos.api";
 
-// Backend Video.Status enum (uppercase). admin PC와 동일 SSOT.
-// 과거 소문자 enum(pending/completed)로 STATUS_MAP lookup 실패 → 전 영상이 "처리 대기"로 잘못 노출되던 버그 fix.
-type VideoStatus = "PENDING" | "UPLOADED" | "PROCESSING" | "READY" | "FAILED";
 type StatusFilter = "all" | VideoStatus;
 type SortKey = "recent" | "title" | "views";
 
-const STATUS_MAP: Record<VideoStatus, { label: string; color: string; bg: string }> = {
-  READY: { label: "시청 가능", color: "var(--tc-success)", bg: "var(--tc-success-bg)" },
-  PROCESSING: { label: "처리 중", color: "var(--tc-warn)", bg: "var(--tc-warn-bg)" },
-  PENDING: { label: "처리 대기", color: "var(--tc-text-muted)", bg: "var(--tc-surface-soft)" },
-  UPLOADED: { label: "업로드 완료", color: "var(--tc-text-muted)", bg: "var(--tc-surface-soft)" },
-  FAILED: { label: "처리 실패", color: "var(--tc-danger)", bg: "var(--tc-danger-bg)" },
+const STATUS_COLOR: Record<VideoStatus, { color: string; bg: string }> = {
+  READY: { color: "var(--tc-success)", bg: "var(--tc-success-bg)" },
+  PROCESSING: { color: "var(--tc-warn)", bg: "var(--tc-warn-bg)" },
+  PENDING: { color: "var(--tc-text-muted)", bg: "var(--tc-surface-soft)" },
+  UPLOADED: { color: "var(--tc-text-muted)", bg: "var(--tc-surface-soft)" },
+  FAILED: { color: "var(--tc-danger)", bg: "var(--tc-danger-bg)" },
 };
 
 const STATUS_FILTER_OPTIONS: Array<{ key: StatusFilter; label: string }> = [
@@ -139,7 +138,7 @@ export default function VideoListPage() {
     const c: Record<StatusFilter, number> = { all: 0, PENDING: 0, UPLOADED: 0, PROCESSING: 0, READY: 0, FAILED: 0 };
     (videos || []).forEach((v: any) => {
       const raw = (v.status ?? "PENDING") as string;
-      const s = (STATUS_MAP[raw as VideoStatus] ? raw : "PENDING") as VideoStatus;
+      const s = (VIDEO_STATUS_LABEL[raw as VideoStatus] ? raw : "PENDING") as VideoStatus;
       c.all += 1;
       c[s] = (c[s] || 0) + 1;
     });
@@ -251,8 +250,8 @@ export default function VideoListPage() {
         <div className="flex flex-col gap-2">
           {visibleVideos.map((v: any) => {
             const rawStatus = (v.status ?? "PENDING") as string;
-            const status: VideoStatus = (STATUS_MAP[rawStatus as VideoStatus] ? rawStatus : "PENDING") as VideoStatus;
-            const st = STATUS_MAP[status] ?? STATUS_MAP.PENDING;
+            const status: VideoStatus = (VIDEO_STATUS_LABEL[rawStatus as VideoStatus] ? rawStatus : "PENDING") as VideoStatus;
+            const st = { label: VIDEO_STATUS_LABEL[status], ...STATUS_COLOR[status] };
             return (
               <div
                 key={v.id}
@@ -326,7 +325,7 @@ export default function VideoListPage() {
                     <button
                       onClick={async (e) => {
                         e.stopPropagation();
-                        const ok = await confirm({ title: "영상 삭제", message: "이 영상을 삭제하시겠습니까?", confirmText: "삭제", danger: true });
+                        const ok = await confirm({ title: "영상 삭제", message: "이 영상을 삭제하시겠습니까? 학생 시청 기록과 진도 데이터도 함께 삭제됩니다.", confirmText: "삭제", danger: true });
                         if (ok) deleteMut.mutate(v.id);
                       }}
                       className="flex items-center text-[11px] cursor-pointer ml-auto"

@@ -26,11 +26,11 @@ const POST_TYPE_MAP: Record<Tab, string> = {
 
 const TAB_LABELS: Record<Tab, string> = {
   notices: "공지사항",
-  qna: "Q&A",
-  counsel: "상담",
+  qna: "QnA",
+  counsel: "상담 신청",
   requests: "가입신청",
   board: "게시판",
-  materials: "자료",
+  materials: "자료실",
 };
 
 // Tabs that support post creation by staff

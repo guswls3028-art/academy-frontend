@@ -89,7 +89,7 @@ export default function ApplyBundleModal({ open, onClose, sessionId, onApplied }
             <div className="flex flex-col items-center gap-2 py-8 text-[var(--color-text-muted)]">
               <Package size={28} />
               <div className="text-sm font-semibold">등록된 묶음이 없습니다</div>
-              <div className="text-xs">시험 &gt; 묶음 관리에서 먼저 묶음을 만들어 주세요.</div>
+              <div className="text-xs">시험 &gt; 시험 묶음에서 먼저 묶음을 만들어 주세요.</div>
             </div>
           )}
 

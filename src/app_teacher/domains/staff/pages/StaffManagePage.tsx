@@ -78,7 +78,7 @@ export default function StaffManagePage() {
       {/* Search */}
       <div className="relative">
         <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "var(--tc-text-muted)" }} />
-        <input type="text" placeholder="이름, 전화번호" value={search} onChange={(e) => setSearch(e.target.value)}
+        <input type="text" placeholder="이름 / 전화번호 검색" value={search} onChange={(e) => setSearch(e.target.value)}
           className="w-full text-sm"
           style={{ padding: "10px 12px 10px 36px", border: "1px solid var(--tc-border-strong)", borderRadius: "var(--tc-radius)", background: "var(--tc-surface)", color: "var(--tc-text)", outline: "none" }} />
       </div>
@@ -108,7 +108,7 @@ export default function StaffManagePage() {
                     <button onClick={() => setEditTarget(s)} className="flex p-1.5 cursor-pointer"
                       style={{ background: "none", border: "none", color: "var(--tc-text-muted)" }}><Pencil size={14} /></button>
                     <button onClick={async () => {
-                        const ok = await confirm({ title: "직원 삭제", message: `${s.name}을(를) 삭제하시겠습니까?`, confirmText: "삭제", danger: true });
+                        const ok = await confirm({ title: "직원 삭제", message: `${s.name}을(를) 삭제할까요? 연결된 근무기록, 비용 등 모든 데이터가 함께 삭제됩니다.`, confirmText: "삭제", danger: true });
                         if (ok) deleteMut.mutate(s.id);
                       }}
                       className="flex p-1.5 cursor-pointer" style={{ background: "none", border: "none", color: "var(--tc-danger)" }}><Trash2 size={14} /></button>

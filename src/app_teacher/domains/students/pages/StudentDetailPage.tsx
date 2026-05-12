@@ -468,7 +468,7 @@ function EditStudentSheet({ open, onClose, student, studentId, onDelete, onOpenP
 
         {/* Delete */}
         <button onClick={async () => {
-            const ok = await confirm({ title: "학생 삭제", message: "이 학생을 삭제하시겠습니까? 30일 내 복원이 가능합니다.", confirmText: "삭제", danger: true });
+            const ok = await confirm({ title: "학생 삭제", message: "이 학생을 삭제하시겠습니까? 30일 이내 복구할 수 있습니다.", confirmText: "삭제", danger: true });
             if (ok) onDelete();
           }}
           className="w-full text-sm font-semibold cursor-pointer"

@@ -637,7 +637,7 @@ export default function MessageLogPage() {
             발송 내역
           </div>
           <div style={{ fontSize: 13, color: "var(--color-text-muted)" }}>
-            SMS·알림톡 발송 이력과 성공/실패, 차감 금액을 확인할 수 있습니다.
+            SMS·알림톡 발송 내역과 성공/실패, 차감 금액을 확인할 수 있습니다.
             {!isLoading && count > 0 ? (
               <span style={{ marginLeft: 8, color: "var(--color-text-secondary)" }}>
                 총 {count.toLocaleString()}건

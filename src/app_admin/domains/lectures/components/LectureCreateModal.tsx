@@ -349,7 +349,7 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [], l
       {instructorOptions.length === 0 ? (
         <div className="saved-list-field-popover-empty">
           <p className="text-xs text-[var(--color-text-muted)] mb-2">등록된 담당 강사가 없습니다.</p>
-          <p className="text-xs text-[var(--color-text-muted)] mb-2">직원관리에서 강사를 추가해 주세요.</p>
+          <p className="text-xs text-[var(--color-text-muted)] mb-2">직원 관리에서 강사를 추가해 주세요.</p>
           {isPayrollManager && (
             <Button
               size="sm"
@@ -360,7 +360,7 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [], l
                 navigate("/admin/staff");
               }}
             >
-              직원관리로 이동
+              직원 관리로 이동
             </Button>
           )}
         </div>
@@ -392,7 +392,7 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [], l
             </div>
           ))}
           <div className="border-t border-[var(--color-border-divider)] mt-2 pt-2">
-            <p className="text-[11px] text-[var(--color-text-muted)] mb-1">담당 강사 추가·삭제는 직원관리에서 합니다.</p>
+            <p className="text-[11px] text-[var(--color-text-muted)] mb-1">담당 강사 추가·삭제는 직원 관리에서 합니다.</p>
             {isPayrollManager && (
               <Button
                 size="sm"
@@ -404,7 +404,7 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [], l
                   navigate("/admin/staff");
                 }}
               >
-                직원관리로 이동
+                직원 관리로 이동
               </Button>
             )}
           </div>
