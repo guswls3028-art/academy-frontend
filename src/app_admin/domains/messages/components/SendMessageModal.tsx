@@ -639,18 +639,25 @@ export default function SendMessageModal({
   // ─── Render ───
   return (
     <AdminModal open={open} onClose={onClose} width={920} onEnterConfirm={requestSend} className="send-message-modal">
-      <ModalHeader title={
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <span>메시지 발송</span>
-          <span style={{
-            display: "inline-flex", alignItems: "center", padding: "2px 10px", borderRadius: 20,
-            fontSize: 11, fontWeight: 700,
-            background: "color-mix(in srgb, var(--color-primary) 12%, transparent)", color: "var(--color-primary)",
-          }}>
-            {domainLabel}
-          </span>
-        </div>
-      } />
+      <ModalHeader
+        title={
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span>📨 알림톡 발송</span>
+            <span style={{
+              display: "inline-flex", alignItems: "center", padding: "2px 10px", borderRadius: 20,
+              fontSize: 11, fontWeight: 700,
+              background: "color-mix(in srgb, var(--color-primary) 12%, transparent)", color: "var(--color-primary)",
+            }}>
+              {domainLabel}
+            </span>
+          </div>
+        }
+        description={
+          hasRecipients
+            ? `① 양식이 자동으로 적용됐어요  ②  본문을 확인·수정하세요  ③  오른쪽 아래 [발송하기] 버튼을 누르세요${recipientCount > 1 ? " (학생별 점수가 자동 치환됩니다)" : ""}`
+            : "왼쪽 수신자를 먼저 선택해 주세요."
+        }
+      />
 
       <ModalBody>
         <div className="flex gap-5" style={{ minHeight: 0, flex: "1 1 auto" }}>
@@ -757,72 +764,12 @@ export default function SendMessageModal({
 
           {/* ═══ 우측: 편집/선택 ═══ */}
           <div className="flex-1 min-w-0 flex flex-col gap-3">
-            {/* 상단 바: 채널 + 대상 + 글자수 */}
+            {/* 상단 바: 대상 + 글자수 (채널 토글 제거 — 알림톡 단독, 학원장 단순화) */}
             <div style={{
               display: "flex", alignItems: "center", gap: 16, padding: "8px 14px",
               background: "var(--color-bg-surface-soft)", borderRadius: "var(--radius-md)",
               border: "1px solid var(--color-border-divider)",
             }}>
-              {/* 채널 선택: 알림톡 전용 */}
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-muted)", whiteSpace: "nowrap" }}>채널</span>
-                <div style={{ display: "flex", gap: 0, borderRadius: 8, overflow: "hidden", border: "1px solid var(--color-border-divider)" }}>
-                  {([
-                    { key: "alimtalk" as SendMode, label: "알림톡", disabled: false },
-                  ]).map((opt) => (
-                    <button
-                      key={opt.key}
-                      type="button"
-                      onClick={() => {
-                        if (opt.key === sendMode || opt.disabled) return;
-                        // 현재 채널 상태 저장
-                        channelSnapshotRef.current[sendMode] = {
-                          templateId: selectedTemplateId,
-                          body,
-                          subject,
-                          freeForm: alimtalkFreeForm,
-                          snapshot: templateBodySnapshot,
-                        };
-                        // 전환 대상 채널에 저장된 상태가 있으면 복원
-                        const saved = channelSnapshotRef.current[opt.key];
-                        setSendMode(opt.key);
-                        if (saved) {
-                          setSelectedTemplateId(saved.templateId);
-                          setBody(saved.body);
-                          setSubject(saved.subject);
-                          setAlimtalkFreeForm(saved.freeForm);
-                          setTemplateBodySnapshot(saved.snapshot);
-                        } else {
-                          setSelectedTemplateId(null);
-                          setSubject("");
-                          setBody(opt.key === "sms" ? (initialBody ?? "") : "");
-                          setAlimtalkFreeForm(false);
-                          setTemplateBodySnapshot(null);
-                        }
-                        setFreeContent("");
-                        setShowAlimtalkPanel(false);
-                        setShowTemplatePanel(false);
-                      }}
-                      disabled={sending || opt.disabled}
-                      title={undefined}
-                      style={{
-                        padding: "6px 16px", fontSize: 13, fontWeight: 700, border: "none",
-                        cursor: opt.disabled ? "not-allowed" : "pointer",
-                        color: sendMode === opt.key ? "#fff" : opt.disabled ? "var(--color-text-muted)" : "var(--color-text-secondary)",
-                        background: sendMode === opt.key ? "var(--color-primary)" : "var(--color-bg-surface)",
-                        opacity: opt.disabled ? 0.5 : 1,
-                        transition: "all 0.15s",
-                      }}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
-                {!smsAllowed && sendMode === "sms" && <span style={{ fontSize: 10, color: "var(--color-status-warning, #d97706)" }}>SMS 미연동</span>}
-              </div>
-
-              <div style={{ width: 1, height: 24, background: "var(--color-border-divider)" }} />
-
               {/* 대상 */}
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <span style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-muted)", whiteSpace: "nowrap" }}>대상</span>
@@ -1293,18 +1240,20 @@ export default function SendMessageModal({
 
       <ModalFooter
         right={
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
             {disableReason && !sending && (
-              <span style={{ fontSize: 11, color: "var(--color-text-muted)", marginRight: 4, maxWidth: 200, textAlign: "right" as const }}>
-                {disableReason}
+              <span style={{ fontSize: 12, color: "var(--color-status-warning, #d97706)", marginRight: 6, maxWidth: 240, textAlign: "right" as const, fontWeight: 600 }}>
+                ⚠️ {disableReason}
               </span>
             )}
-            <Button intent="secondary" onClick={onClose} disabled={sending}>취소</Button>
+            <Button intent="secondary" onClick={onClose} disabled={sending} size="lg">취소</Button>
+            {/* 발송 버튼 — 학원장 가장 명확하게 보이도록 큼 + primary. 학원장 임근혁 보고로 시각 강조. */}
             <Button
               intent="primary"
               onClick={requestSend}
               disabled={!canSend || sending}
-              style={{ minWidth: 160, fontSize: 14, padding: "8px 24px" }}
+              size="lg"
+              style={{ minWidth: 200, fontSize: 15, padding: "10px 28px", fontWeight: 700 }}
             >
               {sendButtonText}
             </Button>
