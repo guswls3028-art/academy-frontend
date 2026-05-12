@@ -643,17 +643,17 @@ export default function ClinicConsoleWorkspace({
             </div>
             <div className="clinic-ops__header-meta">
               <span className="clinic-ops__header-meta-item">
-                <Clock size={13} aria-hidden />
+                <Clock size={16} aria-hidden />
                 {timeLabel}
               </span>
               {session.location && (
                 <span className="clinic-ops__header-meta-item">
-                  <MapPin size={13} aria-hidden />
+                  <MapPin size={16} aria-hidden />
                   {session.location}
                 </span>
               )}
               <span className="clinic-ops__header-meta-item clinic-ops__header-meta-item--count">
-                <Users size={13} aria-hidden />
+                <Users size={16} aria-hidden />
                 예약 <strong>{participants.length}</strong>명
               </span>
             </div>
@@ -820,7 +820,7 @@ export default function ClinicConsoleWorkspace({
           return (
             <div className="clinic-ops__trigger-status">
               <span className="clinic-ops__trigger-status-icon">
-                {enabledCount > 0 ? <Bell size={13} /> : <BellOff size={13} />}
+                {enabledCount > 0 ? <Bell size={16} /> : <BellOff size={16} />}
               </span>
               <span className="clinic-ops__trigger-status-label">알림 설정</span>
               {CLINIC_TRIGGERS.map((t) => {
@@ -1157,7 +1157,7 @@ export default function ClinicConsoleWorkspace({
                           disabled={isMutating}
                           aria-label={pendingStatus === "attended" ? "출석 알림 발송" : "결석 알림 발송"}
                         >
-                          <Send size={13} aria-hidden />
+                          <Send size={16} aria-hidden />
                           {isMutating ? "발송중…" : pendingStatus === "attended" ? "출석 알림" : "결석 알림"}
                         </button>
                       )}
@@ -1182,11 +1182,11 @@ export default function ClinicConsoleWorkspace({
                             }`}
                           >
                             {t.resolved_at ? (
-                              <ShieldCheck size={11} aria-hidden />
+                              <ShieldCheck size={14} aria-hidden />
                             ) : t.clinic_reason === "homework" ? (
-                              <BookOpen size={11} aria-hidden />
+                              <BookOpen size={14} aria-hidden />
                             ) : (
-                              <FileQuestion size={11} aria-hidden />
+                              <FileQuestion size={14} aria-hidden />
                             )}
                             {getCycleLabel(t.cycle_no) && (
                               <span className="clinic-ops__cycle-badge-inline">
@@ -1444,7 +1444,7 @@ export default function ClinicConsoleWorkspace({
                           onClick={() => handleUncomplete(drawerParticipant)}
                           disabled={completingIds.has(drawerParticipant.id)}
                         >
-                          <Undo2 size={13} aria-hidden />
+                          <Undo2 size={16} aria-hidden />
                           완료 취소
                         </button>
                       </div>
@@ -1455,7 +1455,7 @@ export default function ClinicConsoleWorkspace({
                         onClick={() => handleComplete(drawerParticipant)}
                         disabled={completingIds.has(drawerParticipant.id)}
                       >
-                        <CircleCheckBig size={13} aria-hidden />
+                        <CircleCheckBig size={16} aria-hidden />
                         클리닉 완료
                       </button>
                     )}
@@ -1618,7 +1618,7 @@ export default function ClinicConsoleWorkspace({
                                   }
                                 }}
                               >
-                                <RotateCcw size={13} aria-hidden />
+                                <RotateCcw size={16} aria-hidden />
                                 재시험 허용
                               </button>
                             )}
@@ -1642,7 +1642,7 @@ export default function ClinicConsoleWorkspace({
                                 }
                               }}
                             >
-                              <ShieldCheck size={13} aria-hidden />
+                              <ShieldCheck size={16} aria-hidden />
                               수동 통과
                             </button>
                             <button
@@ -1664,7 +1664,7 @@ export default function ClinicConsoleWorkspace({
                                 }
                               }}
                             >
-                              <Ban size={13} aria-hidden />
+                              <Ban size={16} aria-hidden />
                               면제
                             </button>
                             <button
@@ -1686,7 +1686,7 @@ export default function ClinicConsoleWorkspace({
                                 }
                               }}
                             >
-                              <ArrowRightCircle size={13} aria-hidden />
+                              <ArrowRightCircle size={16} aria-hidden />
                               다음 차수 이월
                             </button>
                           </div>

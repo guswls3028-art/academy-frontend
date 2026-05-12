@@ -257,7 +257,7 @@ export default function ClinicConsoleSidebar({
                   title="이전 주 불러오기"
                   onClick={onImportClick}
                 >
-                  <Copy size={13} aria-hidden />
+                  <Copy size={16} aria-hidden />
                 </button>
               )}
               {onCreateClick && (
@@ -317,7 +317,7 @@ export default function ClinicConsoleSidebar({
                     >
                       <div className="clinic-sidebar__session-content">
                         <div className="clinic-console__sidebar-session-top">
-                          <Clock size={13} aria-hidden />
+                          <Clock size={16} aria-hidden />
                           <span className="clinic-console__sidebar-session-time">
                             {time}
                           </span>

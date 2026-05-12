@@ -141,11 +141,11 @@ function AcademyRow({
             onClick={() => onSave(name.trim(), phone.trim())}
             disabled={saving}
             loading={saving}
-            leftIcon={saving ? undefined : <FiCheck size={13} />}
+            leftIcon={saving ? undefined : <FiCheck size={16} />}
           >
             {saving ? "저장 중…" : "저장"}
           </Button>
-          <Button type="button" intent="ghost" size="sm" onClick={onCancel} disabled={saving} leftIcon={<FiX size={13} />}>
+          <Button type="button" intent="ghost" size="sm" onClick={onCancel} disabled={saving} leftIcon={<FiX size={16} />}>
             취소
           </Button>
           <Button
@@ -154,7 +154,7 @@ function AcademyRow({
             size="sm"
             onClick={onRemove}
             disabled={saving}
-            leftIcon={<FiTrash2 size={13} />}
+            leftIcon={<FiTrash2 size={16} />}
             className="text-[var(--color-error)] hover:bg-[color-mix(in_srgb,var(--color-error)_10%,transparent)]"
           >
             제거
@@ -352,7 +352,7 @@ export default function OrganizationSettingsPage() {
                         onClick={handleAdd}
                         disabled={updateMut.isPending || !newName.trim()}
                         loading={updateMut.isPending}
-                        leftIcon={updateMut.isPending ? undefined : <FiCheck size={13} />}
+                        leftIcon={updateMut.isPending ? undefined : <FiCheck size={16} />}
                       >
                         {updateMut.isPending ? "저장 중…" : "추가"}
                       </Button>
@@ -366,7 +366,7 @@ export default function OrganizationSettingsPage() {
                           setNewPhone("");
                         }}
                         disabled={updateMut.isPending}
-                        leftIcon={<FiX size={13} />}
+                        leftIcon={<FiX size={16} />}
                       >
                         취소
                       </Button>
@@ -599,7 +599,7 @@ function OgPreviewSection({
                     onClick={() => saveMut.mutate()}
                     disabled={isSaving}
                     loading={saveMut.isPending}
-                    leftIcon={saveMut.isPending ? undefined : <FiCheck size={13} />}
+                    leftIcon={saveMut.isPending ? undefined : <FiCheck size={16} />}
                   >
                     저장
                   </Button>
@@ -616,7 +616,7 @@ function OgPreviewSection({
                       }
                     }}
                     disabled={isSaving}
-                    leftIcon={<FiX size={13} />}
+                    leftIcon={<FiX size={16} />}
                   >
                     취소
                   </Button>
@@ -932,7 +932,7 @@ function LegalInfoSection() {
                 onClick={handleSave}
                 disabled={isSaving}
                 loading={isSaving}
-                leftIcon={isSaving ? undefined : <FiCheck size={13} />}
+                leftIcon={isSaving ? undefined : <FiCheck size={16} />}
               >
                 저장
               </Button>
@@ -942,7 +942,7 @@ function LegalInfoSection() {
                 size="sm"
                 onClick={handleCancel}
                 disabled={isSaving}
-                leftIcon={<FiX size={13} />}
+                leftIcon={<FiX size={16} />}
               >
                 취소
               </Button>

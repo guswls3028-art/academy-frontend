@@ -83,11 +83,11 @@ function ProfileEditGroup({
             onClick={() => onSave(name.trim(), phone.trim())}
             disabled={saving}
             loading={saving}
-            leftIcon={saving ? undefined : <FiCheck size={13} />}
+            leftIcon={saving ? undefined : <FiCheck size={16} />}
           >
             {saving ? "저장 중…" : "저장"}
           </Button>
-          <Button type="button" intent="ghost" size="sm" onClick={onCancel} disabled={saving} leftIcon={<FiX size={13} />}>
+          <Button type="button" intent="ghost" size="sm" onClick={onCancel} disabled={saving} leftIcon={<FiX size={16} />}>
             취소
           </Button>
         </div>
@@ -165,11 +165,11 @@ function UsernameEditGroup({
             onClick={handleSave}
             disabled={saving}
             loading={saving}
-            leftIcon={saving ? undefined : <FiCheck size={13} />}
+            leftIcon={saving ? undefined : <FiCheck size={16} />}
           >
             {saving ? "변경 중…" : "변경"}
           </Button>
-          <Button type="button" intent="ghost" size="sm" onClick={onCancel} disabled={saving} leftIcon={<FiX size={13} />}>
+          <Button type="button" intent="ghost" size="sm" onClick={onCancel} disabled={saving} leftIcon={<FiX size={16} />}>
             취소
           </Button>
         </div>
@@ -250,10 +250,10 @@ function PasswordChangeGroup({
         <div className={s.rowEditActions}>
           <Button type="button" intent="primary" size="sm" onClick={handleSubmit}
             disabled={mut.isPending} loading={mut.isPending}
-            leftIcon={mut.isPending ? undefined : <FiCheck size={13} />}>
+            leftIcon={mut.isPending ? undefined : <FiCheck size={16} />}>
             {mut.isPending ? "변경 중…" : "변경"}
           </Button>
-          <Button type="button" intent="ghost" size="sm" onClick={onCancel} disabled={mut.isPending} leftIcon={<FiX size={13} />}>
+          <Button type="button" intent="ghost" size="sm" onClick={onCancel} disabled={mut.isPending} leftIcon={<FiX size={16} />}>
             취소
           </Button>
         </div>
