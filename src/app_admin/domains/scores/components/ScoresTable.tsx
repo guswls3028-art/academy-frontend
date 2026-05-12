@@ -38,10 +38,10 @@ import AdminOmrBatchUploadBox from "@admin/domains/submissions/components/AdminO
 /** 컬럼 기본 너비 */
 const COL_EDIT = 36;
 // 2026-05-12: 학원장 임근혁 보고 — "이름·아이콘·강의 딱지 크기 키워", "시험끼리 행 넓이 좁아 가려진다".
-// 컬럼 폭 + 학생 셀 시각 강화.
-const COL_NAME = 140;        // 이름 + 아바타(32) + 강의 딱지(22) 함께 들어갈 폭
+// 2026-05-13 시각 검증 후 추가 강화: 강의 딱지 22→28, 시험 폭 112→132 (헤더에 ◀⚙▶ 다 들어가야).
+const COL_NAME = 160;        // 이름 + 아바타(32) + 강의 딱지(28) 함께 들어갈 폭
 const COL_ATTENDANCE = 44;
-const COL_SCORE = 112;       // 시험·과제 셀 폭 96→112
+const COL_SCORE = 132;       // 시험·과제 셀 폭. 헤더 ◀ + Badge + 시험명 + ⚙ + ▶ 함께 들어갈 폭
 const COL_CLINIC_TARGET = 72;
 const COL_REASON = 80;
 
@@ -914,7 +914,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                         ? [{ lectureName: row.lecture_title, color: row.lecture_color, chipLabel: row.lecture_chip_label }]
                         : undefined
                     }
-                    chipSize={22}
+                    chipSize={28}
                   />
                 </td>
 
