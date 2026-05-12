@@ -654,7 +654,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                     </button>
                   )}
                   <Badge variant="solid" tone="primary" oneChar ariaLabel="시험">시</Badge>
-                  <span className="whitespace-normal break-words min-w-0 leading-tight">{ex.title}</span>
+                  <span className="whitespace-normal break-keep min-w-0 leading-tight">{ex.title}</span>
                   <span className="ds-col-action-btn shrink-0">
                     <ExamHeaderQuickEdit
                       examId={ex.exam_id}
@@ -723,7 +723,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                   </button>
                 )}
                 <Badge variant="solid" tone="complement" oneChar ariaLabel="과제">과</Badge>
-                <span className="whitespace-normal break-words min-w-0 leading-tight">{hw.title}</span>
+                <span className="whitespace-normal break-keep min-w-0 leading-tight">{hw.title}</span>
                 {onReorderColumn && (
                   <button
                     type="button"
