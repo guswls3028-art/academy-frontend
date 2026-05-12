@@ -7,10 +7,10 @@
   --control-md: 36px;
   --control-lg: 44px;
 
-  /* sidebar — 넓이 2/3 수준(260→172), 접었을 때 아이콘 전용 */
+  /* sidebar — 학원장 가시성 보강: 172→184 (2026-05-12 icon 22px 키운 후 정합) */
   --sidebar-width: var(--sidebar-width-expanded);
-  --sidebar-width-expanded: 172px;
-  --sidebar-width-collapsed: 56px;
+  --sidebar-width-expanded: 184px;
+  --sidebar-width-collapsed: 60px;
 
   /* panel */
   --panel-header: 56px;

@@ -82,19 +82,22 @@ export default function FeesDashboardPage() {
 
       {dashboard && (
         <>
-          {/* KPI */}
+          {/* KPI — 금액 */}
           <div className="grid grid-cols-3 gap-2">
-            <KpiCard label="청구" value={formatKRW(dashboard.total_billed)} color="var(--tc-primary)" />
-            <KpiCard label="수납" value={formatKRW(dashboard.total_paid)} color="var(--tc-success)" />
+            <KpiCard label="청구 총액" value={formatKRW(dashboard.total_billed)} color="var(--tc-primary)" />
+            <KpiCard label="수납 총액" value={formatKRW(dashboard.total_paid)} color="var(--tc-success)" />
             <KpiCard
-              label="미납"
+              label="미납 잔액"
               value={formatKRW(dashboard.total_outstanding)}
               color="var(--tc-danger)"
             />
           </div>
 
-          {/* 상태별 카운트 */}
+          {/* 상태별 건수 */}
           <Card>
+            <div className="text-[11px] font-semibold mb-2" style={{ color: "var(--tc-text-muted)" }}>
+              청구서 건수
+            </div>
             <div className="flex justify-around">
               <Stat label="발행" value={dashboard.invoice_count} />
               <Stat label="미납" value={dashboard.pending_count} color="var(--tc-warn)" />
