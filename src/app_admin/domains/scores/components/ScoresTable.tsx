@@ -504,7 +504,10 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
     ];
   }, [columns]);
 
-  const { columnWidths, setColumnWidth } = useTableColumnPrefs("session-scores", columnDefs);
+  /* 2026-05-13 2차 (P0-A 수정 후속): 컬럼 폭 default 변경(132→160, 44→64, 72→88).
+     기존 학원장 localStorage 값이 새 default 보다 좁아 시험명 1글자씩 wrap 되는 문제.
+     tableId v2 로 bump → 기존 stale prefs 무시, 새 default 폭 적용. */
+  const { columnWidths, setColumnWidth } = useTableColumnPrefs("session-scores-v2", columnDefs);
 
   const tableCols = useMemo(() => {
     return [
