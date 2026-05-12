@@ -8,6 +8,7 @@ import { feedback } from "@/shared/ui/feedback";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { AchievementBadge } from "@teacher/shared/ui/Badge";
 import { fetchSessionExams, fetchExamResults, updateResult } from "../api";
+import { fetchSession, fetchLectureEnrollments } from "@teacher/domains/lectures/api";
 
 export default function MobileScoreEntryPage() {
   const { sessionId } = useParams<{ sessionId: string }>();
@@ -18,6 +19,20 @@ export default function MobileScoreEntryPage() {
     queryKey: ["session-exams", sid],
     queryFn: () => fetchSessionExams(sid),
     enabled: Number.isFinite(sid),
+  });
+
+  // 신규 시험 진입 시 admin endpoint 가 빈 results 반환 → 학생 list 0명 표시 → 채점 시작 불가.
+  // 차시 → 강의 → enrollments 로 base 확보 후 result merge.
+  const { data: sessionDetail } = useQuery({
+    queryKey: ["session-detail-for-scores", sid],
+    queryFn: () => fetchSession(sid),
+    enabled: Number.isFinite(sid),
+  });
+  const lectureIdForEnrollments = sessionDetail?.lecture ?? sessionDetail?.lecture_id ?? null;
+  const { data: enrollments } = useQuery({
+    queryKey: ["session-enrollments-for-scores", lectureIdForEnrollments],
+    queryFn: () => fetchLectureEnrollments(lectureIdForEnrollments!),
+    enabled: Number.isFinite(lectureIdForEnrollments),
   });
 
   const [selectedExamId, setSelectedExamId] = useState<number | null>(null);
@@ -63,6 +78,7 @@ export default function MobileScoreEntryPage() {
               examId={activeExamId}
               examMaxScore={activeExam?.max_score ?? 100}
               examPassScore={activeExam?.pass_score ?? null}
+              enrollments={enrollments ?? []}
             />
           )}
         </>
@@ -102,13 +118,38 @@ function ScoreEntryList({
   examId,
   examMaxScore,
   examPassScore,
-}: { examId: number; examMaxScore: number; examPassScore: number | null }) {
+  enrollments,
+}: { examId: number; examMaxScore: number; examPassScore: number | null; enrollments: any[] }) {
   const qc = useQueryClient();
-  const { data: results, isLoading } = useQuery({
+  const { data: rawResults, isLoading } = useQuery({
     queryKey: ["exam-results", examId],
     queryFn: () => fetchExamResults(examId),
     enabled: Number.isFinite(examId),
   });
+
+  // result row + enrollment 매핑 — 점수 매겨진 학생은 result, 아닌 학생은 enrollment 기반 가상 row
+  const results = useMemo(() => {
+    const byEnrollment = new Map<number, any>();
+    for (const r of rawResults ?? []) {
+      if (r?.enrollment_id != null) byEnrollment.set(r.enrollment_id, r);
+    }
+    const active = (enrollments ?? []).filter((e: any) => e.status === "ACTIVE" || e.status == null);
+    if (active.length === 0) return rawResults ?? [];
+    return active.map((e: any) => {
+      const fromResult = byEnrollment.get(e.id);
+      if (fromResult) return fromResult;
+      return {
+        enrollment_id: e.id,
+        student_name: e.student_name ?? e.student?.name ?? e.name ?? "이름 없음",
+        exam_score: null,
+        final_score: null,
+        exam_max_score: examMaxScore,
+        passed: null,
+        final_pass: null,
+        achievement: null,
+      };
+    });
+  }, [rawResults, enrollments, examMaxScore]);
 
   // row 식별자 = enrollment_id (admin endpoint schema SSOT)
   const inputRefs = useRef<Map<number, HTMLInputElement>>(new Map());
@@ -291,7 +332,7 @@ function ScoreEntryList({
             }}
           >
             <span
-              className="text-[15px] font-semibold flex-1 min-w-0 truncate"
+              className="ds-text-name font-semibold flex-1 min-w-0 truncate"
               style={{ color: "var(--tc-text)" }}
             >
               {name}

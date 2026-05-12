@@ -12,6 +12,7 @@ import { fetchExam } from "../api";
 // 사이드바 ResultsPage 와 동일 SSOT — admin endpoint(IsTeacherOrAdmin) enrollment_id schema
 import { fetchExamResults } from "@teacher/domains/results/statsApi";
 import { updateResult } from "@teacher/domains/scores/api";
+import { fetchSession, fetchLectureEnrollments } from "@teacher/domains/lectures/api";
 import ExamManageSheet from "../components/ExamManageSheet";
 
 export default function ExamDetailPage() {
@@ -32,13 +33,55 @@ export default function ExamDetailPage() {
     enabled: Number.isFinite(eid),
   });
 
+  // enrollment fallback — admin endpoint 는 result row 있는 학생만 반환.
+  // 시험 만든 직후엔 빈 화면이라 학원장이 채점 시작 못 함. exam→session→lecture→enrollments 로 base 확보.
+  const firstSessionId = Array.isArray(exam?.session_ids) && exam.session_ids.length > 0
+    ? exam.session_ids[0]
+    : null;
+  const { data: firstSession } = useQuery({
+    queryKey: ["teacher-exam-first-session", firstSessionId],
+    queryFn: () => fetchSession(firstSessionId!),
+    enabled: firstSessionId != null,
+  });
+  const lectureIdForEnrollments = firstSession?.lecture ?? firstSession?.lecture_id ?? null;
+  const { data: enrollments } = useQuery({
+    queryKey: ["teacher-exam-enrollments", lectureIdForEnrollments],
+    queryFn: () => fetchLectureEnrollments(lectureIdForEnrollments!),
+    enabled: Number.isFinite(lectureIdForEnrollments),
+  });
+
   if (loadingExam || loadingResults)
     return <EmptyState scope="panel" tone="loading" title="불러오는 중…" />;
   if (!exam) return <EmptyState scope="panel" tone="error" title="시험을 찾을 수 없습니다" />;
 
   const hasScore = (r: any) => (r.final_score ?? r.exam_score) != null;
-  const graded = results?.filter(hasScore) ?? [];
-  const ungraded = results?.filter((r: any) => !hasScore(r)) ?? [];
+
+  // result row(점수 매겨진 행) + enrollment fallback(미응시 학생) merge.
+  // 우선순위: result(server) 있으면 result, 없으면 enrollment 기반 가상 행.
+  const resultByEnrollment = new Map<number, any>();
+  for (const r of results ?? []) {
+    if (r?.enrollment_id != null) resultByEnrollment.set(r.enrollment_id, r);
+  }
+  const activeEnrollments = (enrollments ?? []).filter((e: any) => e.status === "ACTIVE" || e.status == null);
+  const merged = activeEnrollments.length > 0
+    ? activeEnrollments.map((e: any) => {
+        const fromResult = resultByEnrollment.get(e.id);
+        if (fromResult) return fromResult;
+        return {
+          enrollment_id: e.id,
+          student_name: e.student_name ?? e.student?.name ?? e.name ?? "이름 없음",
+          exam_score: null,
+          final_score: null,
+          exam_max_score: exam.max_score ?? 100,
+          passed: null,
+          final_pass: null,
+          achievement: null,
+        };
+      })
+    : (results ?? []);
+
+  const graded = merged.filter(hasScore);
+  const ungraded = merged.filter((r: any) => !hasScore(r));
 
   return (
     <div className="flex flex-col gap-3">
@@ -65,8 +108,8 @@ export default function ExamDetailPage() {
         style={{ padding: "var(--tc-space-4)", background: "var(--tc-surface)", border: "1px solid var(--tc-border)" }}
       >
         <StatBox label="만점" value={exam.max_score ?? "-"} />
-        <StatBox label="응시" value={`${results?.length ?? 0}`} color="var(--tc-primary)" />
-        <StatBox label="채점" value={`${graded.length}`} color="var(--tc-success)" />
+        <StatBox label="학생" value={`${merged.length}`} color="var(--tc-primary)" />
+        <StatBox label="채점" value={`${graded.length}/${merged.length}`} color="var(--tc-success)" />
       </div>
 
       {/* Ungraded list */}
@@ -103,8 +146,8 @@ export default function ExamDetailPage() {
         </div>
       )}
 
-      {results?.length === 0 && (
-        <EmptyState scope="panel" tone="empty" title="응시 학생이 없습니다" />
+      {merged.length === 0 && (
+        <EmptyState scope="panel" tone="empty" title="이 시험에 연결된 학생이 없습니다" />
       )}
 
       <ExamManageSheet open={manageOpen} onClose={() => setManageOpen(false)} exam={exam} onDeleted={() => navigate(-1)} />
