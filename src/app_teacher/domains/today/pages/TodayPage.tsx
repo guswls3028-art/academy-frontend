@@ -4,7 +4,7 @@
 import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { EmptyState } from "@/shared/ui/ds";
+import { EmptyState , ICON } from "@/shared/ui/ds";
 import useAuth from "@/auth/hooks/useAuth";
 import { useTeacherPendingCounts } from "@teacher/shared/hooks/useTeacherPendingCounts";
 import { Card, KpiCard, SectionTitle } from "@teacher/shared/ui/Card";
@@ -44,7 +44,14 @@ export default function TodayPage() {
     return { filled, total, pct };
   }, [sessions]);
 
-  const greetingName = user?.name?.trim() || "선생님";
+  const honorific = (() => {
+    const role = user?.tenantRole;
+    if (role === "owner") return "원장님";
+    if (role === "admin") return "관리자님";
+    return "선생님";
+  })();
+  const userName = user?.name?.trim();
+  const greetingName = userName ? `${userName} ${honorific}` : honorific;
   const pendingTotal = pendingCounts?.total ?? 0;
 
   return (
@@ -273,7 +280,7 @@ function PendingRow({
         <Badge tone="danger" pill>
           {count}건
         </Badge>
-        <ChevronRight size={16} style={{ color: "var(--tc-text-muted)" }} />
+        <ChevronRight size={ICON.sm} style={{ color: "var(--tc-text-muted)" }} />
       </span>
     </button>
   );
