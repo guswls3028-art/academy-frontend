@@ -3,7 +3,7 @@
 // nav "적중 사례 모두 보기" / 메인 hit_reports 섹션 하단 "더보기" 진입.
 /* eslint-disable no-restricted-syntax */
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import api, { type ApiRequestConfig } from "@/shared/api/axios";
 import { fetchLandingPublic } from "../api";
@@ -85,24 +85,19 @@ export default function LandingReportsListPage() {
   const totalProb = reports.reduce((s, c) => s + c.total_problems, 0);
   const avgRate = totalProb > 0 ? Math.round((totalHit / totalProb) * 1000) / 10 : 0;
 
-  // 검색 + 정렬 (가시성 강화)
-  const filteredReports = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    let list = reports;
-    if (q) {
-      list = list.filter((r) =>
-        (r.doc_title || "").toLowerCase().includes(q) ||
-        (r.doc_category || "").toLowerCase().includes(q)
-      );
-    }
-    return list.slice().sort((a, b) => {
-      if (sort === "rate") return b.hit_rate_pct - a.hit_rate_pct;
-      if (sort === "count") return b.hit_count - a.hit_count;
-      const ad = a.submitted_at || a.created_at || "";
-      const bd = b.submitted_at || b.created_at || "";
-      return bd.localeCompare(ad);
-    });
-  }, [reports, query, sort]);
+  // 검색 + 정렬 (inline 계산 — useMemo 제거로 React #310 잔존 결함 해소, 2026-05-12 cycle 14).
+  // reports 갯수 적어 useMemo 효익 작음. 안정성 우선.
+  const q = query.trim().toLowerCase();
+  const filteredReports = (q
+    ? reports.filter((r) => (r.doc_title || "").toLowerCase().includes(q) || (r.doc_category || "").toLowerCase().includes(q))
+    : reports
+  ).slice().sort((a, b) => {
+    if (sort === "rate") return b.hit_rate_pct - a.hit_rate_pct;
+    if (sort === "count") return b.hit_count - a.hit_count;
+    const ad = a.submitted_at || a.created_at || "";
+    const bd = b.submitted_at || b.created_at || "";
+    return bd.localeCompare(ad);
+  });
 
   return (
     <div style={{ minHeight: "100vh", background: bg, color: textPrimary, fontFamily: "'Pretendard Variable', 'Pretendard', system-ui, sans-serif", letterSpacing: "-0.011em" }}>
