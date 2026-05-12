@@ -23,6 +23,8 @@ export default function ExamPolicyPanel({ examId, lectureId = 0, sessionId = 0 }
 
   const [passScore, setPassScore] = useState<number | "">("");
   const [savedScore, setSavedScore] = useState<number | "">("");
+  const [maxScore, setMaxScore] = useState<number | "">("");
+  const [savedMaxScore, setSavedMaxScore] = useState<number | "">("");
   const [answerModalOpen, setAnswerModalOpen] = useState(false);
   const [pdfModalOpen, setPdfModalOpen] = useState(false);
 
@@ -46,16 +48,21 @@ export default function ExamPolicyPanel({ examId, lectureId = 0, sessionId = 0 }
     const value = Number.isFinite(ps) && ps >= 0 ? ps : "";
     setPassScore(value);
     setSavedScore(value);
-  }, [exam?.id, exam?.pass_score]);
+    const ms = Number(exam.max_score);
+    const mv = Number.isFinite(ms) && ms > 0 ? ms : "";
+    setMaxScore(mv);
+    setSavedMaxScore(mv);
+  }, [exam?.id, exam?.pass_score, exam?.max_score]);
 
   const numericPassScore = typeof passScore === "number" ? passScore : 0;
-  const isDirty = passScore !== savedScore;
+  const numericMaxScore = typeof maxScore === "number" ? maxScore : 100;
+  const isDirty = passScore !== savedScore || maxScore !== savedMaxScore;
 
   const patchMut = useMutation({
-    mutationFn: (data: { pass_score: number }) => updateAdminExam(examId, data),
+    mutationFn: (data: { pass_score: number; max_score: number }) => updateAdminExam(examId, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin-exam", examId] });
-      feedback.success("커트라인이 저장되었습니다.");
+      feedback.success("시험 정책이 저장되었습니다.");
     },
     onError: (e: unknown) => {
       feedback.error((e as Error)?.message ?? "저장에 실패했습니다.");
@@ -71,11 +78,17 @@ export default function ExamPolicyPanel({ examId, lectureId = 0, sessionId = 0 }
   const canEditQuestions = exam?.exam_type === "template";
 
   const savePassScore = async () => {
+    if (numericPassScore > numericMaxScore) {
+      feedback.error(`커트라인(${numericPassScore})이 만점(${numericMaxScore})보다 클 수 없습니다.`);
+      return;
+    }
     try {
       await patchMut.mutateAsync({
         pass_score: numericPassScore,
+        max_score: numericMaxScore,
       });
       setSavedScore(passScore);
+      setSavedMaxScore(maxScore);
     } catch {
       // onError에서 이미 feedback 처리
     }
@@ -96,6 +109,31 @@ export default function ExamPolicyPanel({ examId, lectureId = 0, sessionId = 0 }
 
       <div className="space-y-6 p-4">
         <div className="flex flex-wrap items-end gap-3">
+          <div>
+            <div className="mb-1 text-sm text-[var(--text-muted)]">만점</div>
+            <input
+              type="number"
+              min={1}
+              step={1}
+              value={maxScore === "" ? "" : maxScore}
+              onChange={(e) => {
+                const v = e.target.value;
+                if (v === "") {
+                  setMaxScore("");
+                  return;
+                }
+                const num = parseInt(v, 10);
+                setMaxScore(Number.isFinite(num) ? num : "");
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && (isDirty && !patchMut.isPending)) {
+                  savePassScore();
+                }
+              }}
+              className="w-24 rounded border border-[var(--border-divider)] px-2 py-1.5 text-sm text-[var(--text-primary)]"
+              aria-label="만점"
+            />
+          </div>
           <div>
             <div className="mb-1 text-sm text-[var(--text-muted)]">커트라인</div>
             <input
@@ -118,6 +156,7 @@ export default function ExamPolicyPanel({ examId, lectureId = 0, sessionId = 0 }
                 }
               }}
               className="w-24 rounded border border-[var(--border-divider)] px-2 py-1.5 text-sm text-[var(--text-primary)]"
+              aria-label="커트라인"
             />
           </div>
           <Button

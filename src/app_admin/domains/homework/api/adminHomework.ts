@@ -12,12 +12,20 @@ export type AdminHomeworkDetail = {
 
   status: "DRAFT" | "OPEN" | "CLOSED";
 
+  /** Homework.meta JSON. default_max_score 등 추가 설정 보관. */
+  meta?: Record<string, any> | null;
+  /** meta.default_max_score 편의 접근자 */
+  default_max_score?: number | null;
+
   created_at: string;
   updated_at: string;
 };
 
 function normalize(raw: any): AdminHomeworkDetail {
   const rawSession = raw?.session_id ?? raw?.session ?? raw?.sessionId;
+  const meta = raw?.meta && typeof raw.meta === "object" ? raw.meta : null;
+  const _dms = meta?.default_max_score;
+  const defaultMaxScore = typeof _dms === "number" && _dms > 0 ? _dms : null;
 
   return {
     id: Number(raw?.id),
@@ -31,6 +39,9 @@ function normalize(raw: any): AdminHomeworkDetail {
     description: raw?.description ?? undefined,
 
     status: (raw?.status ?? "OPEN") as any,
+
+    meta,
+    default_max_score: defaultMaxScore,
 
     created_at: String(raw?.created_at ?? ""),
     updated_at: String(raw?.updated_at ?? ""),

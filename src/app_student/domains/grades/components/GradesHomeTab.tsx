@@ -72,9 +72,10 @@ function groupHomeworks(homeworks: MyHomeworkGradeSummary[]): HwGroup[] {
 type Props = {
   exams: MyExamGradeSummary[];
   homeworks: MyHomeworkGradeSummary[];
+  labels?: { pass?: string; fail?: string };
 };
 
-export default function GradesHomeTab({ exams, homeworks }: Props) {
+export default function GradesHomeTab({ exams, homeworks, labels }: Props) {
   const [subTab, setSubTab] = useState<SubTab>("exams");
   const [examSort, setExamSort] = useState<SortMode>("lecture");
 
@@ -114,7 +115,7 @@ export default function GradesHomeTab({ exams, homeworks }: Props) {
               {examSort === "lecture" ? (
                 <div data-guide="grades-list" style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-6)" }}>
                   {examGroups.map((group) => (
-                    <LectureExamGroup key={group.key} group={group} />
+                    <LectureExamGroup key={group.key} group={group} labels={labels} />
                   ))}
                 </div>
               ) : (
@@ -122,6 +123,7 @@ export default function GradesHomeTab({ exams, homeworks }: Props) {
                   <LectureExamGroup
                     key="__recent__"
                     group={{ key: "__recent__", label: "최근 응시 순", exams: sortedExams, avgPct: null }}
+                    labels={labels}
                   />
                 </div>
               )}
@@ -137,7 +139,7 @@ export default function GradesHomeTab({ exams, homeworks }: Props) {
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-6)" }}>
               {hwGroups.map((group) => (
-                <LectureHwGroup key={group.key} group={group} />
+                <LectureHwGroup key={group.key} group={group} labels={labels} />
               ))}
             </div>
           )}

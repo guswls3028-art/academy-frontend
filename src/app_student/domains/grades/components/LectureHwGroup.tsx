@@ -12,7 +12,7 @@ export type HwGroup = {
   avgPct: number | null;
 };
 
-export default function LectureHwGroup({ group }: { group: HwGroup }) {
+export default function LectureHwGroup({ group, labels }: { group: HwGroup; labels?: { pass?: string; fail?: string } }) {
   return (
     <div>
       <div style={groupHeader}>
@@ -42,7 +42,7 @@ export default function LectureHwGroup({ group }: { group: HwGroup }) {
                     : `${h.score}점`}
                 </div>
               </div>
-              <GradeBadge passed={h.passed} achievement={h.achievement} />
+              <GradeBadge passed={h.passed} achievement={h.achievement} label={labels} />
             </div>
           </div>
         ))}

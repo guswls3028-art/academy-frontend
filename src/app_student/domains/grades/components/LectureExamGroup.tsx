@@ -20,7 +20,7 @@ function fmtScore(total: number | null, max: number): string {
   return `${total}/${max}점`;
 }
 
-export default function LectureExamGroup({ group }: { group: ExamGroup }) {
+export default function LectureExamGroup({ group, labels }: { group: ExamGroup; labels?: { pass?: string; fail?: string } }) {
   return (
     <div>
       <LectureGroupHeader label={group.label} count={group.exams.length} avgPct={group.avgPct} />
@@ -44,7 +44,7 @@ export default function LectureExamGroup({ group }: { group: ExamGroup }) {
                 </div>
               </div>
               <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 }}>
-                <GradeBadge passed={e.is_pass} achievement={e.achievement} />
+                <GradeBadge passed={e.is_pass} achievement={e.achievement} label={labels} />
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                   {e.rank != null && e.cohort_size != null && e.cohort_size > 1 && e.meta_status !== "NOT_SUBMITTED" && (
                     <span

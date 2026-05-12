@@ -22,6 +22,7 @@ import { patchExamSubjectiveScoreQuick } from "../api/patchExamSubjectiveQuick";
 import { getHomeworkStatus } from "../utils/homeworkStatus";
 import { getSessionScoresTableVerdict } from "../utils/sessionScoreRowVerdict";
 import ScoreInputCell from "./ScoreInputCell";
+import ExamHeaderQuickEdit from "./ExamHeaderQuickEdit";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { Badge } from "@/shared/ui/ds";
 import { DomainTable, ResizableTh, useTableColumnPrefs } from "@/shared/ui/domain";
@@ -159,7 +160,7 @@ export type ScoreColumnDef =
       width: number;
       editable: boolean;
     }
-  | { type: "exam_summary"; sub: "score" | "pass"; key: string; width: number; editable: false }
+  | { type: "exam_summary"; sub: "score"; key: string; width: number; editable: false }
   | { type: "clinic_target"; key: "clinic_target"; width: number; editable: false }
   | { type: "clinic_reason"; key: "clinic_reason"; width: number; editable: false };
 
@@ -231,6 +232,9 @@ type Props = {
   selectedEnrollmentIds?: number[];
   onSelectionChange?: (enrollmentIds: number[]) => void;
 
+  /** 컬럼 순서 변경 — 시험/과제 컬럼 헤더의 ◀ ▶ 버튼 (display_order patch). */
+  onReorderColumn?: (type: "exam" | "homework", id: number, direction: "up" | "down") => void;
+
 };
 
 const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
@@ -250,6 +254,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
   selectedCell = null,
   onSelectCell,
   onSelectRow,
+  onReorderColumn,
   onRequestMoveNext,
   onRequestMovePrev,
   onRequestMoveDown,
@@ -485,9 +490,10 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
       }
     });
     if (examOptions.length > 1) {
+      // 합불(exam_summary_pass) 컬럼 제거(2026-05-12) — 학원장 피드백 "셀이 안 보인다" + "합불 셀 제거하고 색상으로 구분".
+      // 점수 셀 자체에 data-pass-status로 합격=녹/불합=적 색상 + 테두리 강조(table.css)로 즉시 식별.
       list.push(
         { type: "exam_summary", sub: "score", key: "exam_summary_score", width: 96, editable: false },
-        { type: "exam_summary", sub: "pass", key: "exam_summary_pass", width: 48, editable: false }
       );
     }
     homeworkOptions.forEach((h) => {
@@ -696,8 +702,39 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                 data-group-parity={exIdx % 2 === 0 ? "even" : "odd"}
               >
                 <span className="inline-flex items-center gap-1">
+                  {onReorderColumn && (
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); onReorderColumn("exam", ex.exam_id, "up"); }}
+                      disabled={exIdx === 0}
+                      className="text-xs leading-none px-0.5 text-[var(--color-text-muted)] hover:text-[var(--color-brand-primary)] disabled:opacity-25 disabled:cursor-not-allowed"
+                      title="왼쪽으로"
+                      aria-label={`${ex.title} 왼쪽으로`}
+                    >
+                      ◀
+                    </button>
+                  )}
                   <Badge variant="solid" tone="primary" oneChar ariaLabel="시험">시</Badge>
                   <span className="truncate">{ex.title}</span>
+                  <ExamHeaderQuickEdit
+                    examId={ex.exam_id}
+                    examTitle={ex.title}
+                    initialMaxScore={ex.max_score}
+                    initialPassScore={ex.pass_score}
+                    sessionId={sessionId}
+                  />
+                  {onReorderColumn && (
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); onReorderColumn("exam", ex.exam_id, "down"); }}
+                      disabled={exIdx === examOptions.length - 1}
+                      className="text-xs leading-none px-0.5 text-[var(--color-text-muted)] hover:text-[var(--color-brand-primary)] disabled:opacity-25 disabled:cursor-not-allowed"
+                      title="오른쪽으로"
+                      aria-label={`${ex.title} 오른쪽으로`}
+                    >
+                      ▶
+                    </button>
+                  )}
                 </span>
               </th>
             );
@@ -728,8 +765,32 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
               data-group-parity={idx % 2 === 0 ? "even" : "odd"}
             >
               <span className="inline-flex items-center gap-1">
+                {onReorderColumn && (
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); onReorderColumn("homework", hw.homework_id, "up"); }}
+                    disabled={idx === 0}
+                    className="text-xs leading-none px-0.5 text-[var(--color-text-muted)] hover:text-[var(--color-brand-primary)] disabled:opacity-25 disabled:cursor-not-allowed"
+                    title="왼쪽으로"
+                    aria-label={`${hw.title} 왼쪽으로`}
+                  >
+                    ◀
+                  </button>
+                )}
                 <Badge variant="solid" tone="complement" oneChar ariaLabel="과제">과</Badge>
                 <span className="truncate">{hw.title}</span>
+                {onReorderColumn && (
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); onReorderColumn("homework", hw.homework_id, "down"); }}
+                    disabled={idx === homeworkOptions.length - 1}
+                    className="text-xs leading-none px-0.5 text-[var(--color-text-muted)] hover:text-[var(--color-brand-primary)] disabled:opacity-25 disabled:cursor-not-allowed"
+                    title="오른쪽으로"
+                    aria-label={`${hw.title} 오른쪽으로`}
+                  >
+                    ▶
+                  </button>
+                )}
               </span>
             </th>
           ))}
@@ -792,18 +853,10 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                 className="text-center text-xs font-medium text-[var(--color-text-secondary)]"
                 data-col-type="exam-summary"
                 data-summary-start=""
+                data-summary=""
                 style={{ width: columnWidths.exam_summary_score ?? 96, minWidth: 72 }}
               >
                 점수
-              </th>
-              <th
-                scope="col"
-                className="text-center text-xs font-medium text-[var(--color-text-secondary)]"
-                data-col-type="pass"
-                data-summary=""
-                style={{ width: columnWidths.exam_summary_pass ?? 48, minWidth: 36 }}
-              >
-                합불
               </th>
             </>
           )}
@@ -927,7 +980,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                               data-group-parity={groupParity}
                               {...(colIdx === 0 ? { "data-group-start": "" } : {})}
                               {...(canEdit ? { "data-editable": "true" } : {})}
-                              {...(block?.passed != null && !isEditMode ? { "data-pass-status": block.passed ? "pass" : "fail" } : {})}
+                              {...(block?.passed != null ? { "data-pass-status": block.passed ? "pass" : "fail" } : {})}
                               className={`min-w-0 text-center align-middle ${isSelected ? "outline-2 outline-[var(--color-brand-primary)] outline-offset-[-2px]" : ""} ${isEditMode ? "hover:bg-[var(--color-bg-surface-hover)]" : ""}`}
                               onClick={(e) => { if (isEditMode) e.stopPropagation(); onSelectCell(row, "exam", ex.exam_id, "total"); }}
                             >
@@ -1040,7 +1093,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                               data-col-type="score"
                               data-group-parity={groupParity}
                               {...(colIdx === 0 ? { "data-group-start": "" } : {})}
-                              {...(block?.passed != null && !isEditMode ? { "data-pass-status": block.passed ? "pass" : "fail" } : {})}
+                              {...(block?.passed != null ? { "data-pass-status": block.passed ? "pass" : "fail" } : {})}
                               className={`min-w-0 text-center align-middle ${isSelected ? "outline-2 outline-[var(--color-brand-primary)] outline-offset-[-2px]" : ""} ${isEditMode ? "hover:bg-[var(--color-bg-surface-hover)]" : ""}`}
                               onClick={(e) => { if (isEditMode) e.stopPropagation(); onSelectCell(row, "exam", ex.exam_id, "objective"); }}
                             >
@@ -1108,7 +1161,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                               data-col-type="score"
                               data-group-parity={groupParity}
                               {...(colIdx === 0 ? { "data-group-start": "" } : {})}
-                              {...(block?.passed != null && !isEditMode ? { "data-pass-status": block.passed ? "pass" : "fail" } : {})}
+                              {...(block?.passed != null ? { "data-pass-status": block.passed ? "pass" : "fail" } : {})}
                               className={`min-w-0 text-center align-middle ${isSelected ? "outline-2 outline-[var(--color-brand-primary)] outline-offset-[-2px]" : ""} ${isEditMode ? "hover:bg-[var(--color-bg-surface-hover)]" : ""}`}
                               onClick={(e) => { if (isEditMode) e.stopPropagation(); onSelectCell(row, "exam", ex.exam_id, "subjective"); }}
                             >
@@ -1229,16 +1282,17 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                     }
                   }
                   return (
-                    <>
-                      <td className="min-w-0 text-center align-middle" data-col-type="exam-summary" data-summary-start="">
-                        <span className="font-bold text-[var(--color-text-primary)] tabular-nums">
-                          {hasAnyScore ? `${totalScore}/${totalMaxScore}` : "-"}
-                        </span>
-                      </td>
-                      <td className="min-w-0 text-center align-middle" data-col-type="pass" data-summary="">
-                        {allPassed != null ? <PassFailText passed={allPassed} /> : null}
-                      </td>
-                    </>
+                    <td
+                      className="min-w-0 text-center align-middle"
+                      data-col-type="exam-summary"
+                      data-summary-start=""
+                      data-summary=""
+                      {...(allPassed != null ? { "data-pass-status": allPassed ? "pass" : "fail" } : {})}
+                    >
+                      <span className="font-bold text-[var(--color-text-primary)] tabular-nums">
+                        {hasAnyScore ? `${totalScore}/${totalMaxScore}` : "-"}
+                      </span>
+                    </td>
                   );
                 })()}
 
@@ -1273,7 +1327,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                         data-group-parity={hwParity}
                         {...(hwBodyIdx === 0 ? { "data-section-start": "" } : {})}
                         {...(canEditScore ? { "data-editable": "true" } : {})}
-                        {...(block?.passed != null && !isEditMode ? { "data-pass-status": block.passed ? "pass" : "fail" } : {})}
+                        {...(block?.passed != null ? { "data-pass-status": block.passed ? "pass" : "fail" } : {})}
                         onClick={(e) => {
                           if (isEditMode) e.stopPropagation();
                           onSelectCell(row, "homework", hw.homework_id);

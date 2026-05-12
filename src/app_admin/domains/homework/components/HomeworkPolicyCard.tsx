@@ -137,7 +137,7 @@ export default function HomeworkPolicyCard({
               type="text"
               inputMode="numeric"
               className="w-[180px] rounded border border-[var(--border-divider)] px-3 py-2 text-4xl font-bold bg-[var(--bg-app)] text-[var(--text-primary)]"
-              value={cutlineValue === 0 ? "" : String(cutlineValue)}
+              value={String(cutlineValue)}
               onChange={(e) => {
                 const v = e.target.value.replace(/\D/g, "");
                 if (v === "") {
@@ -147,12 +147,8 @@ export default function HomeworkPolicyCard({
                 const num = parseInt(v, 10);
                 setCutlineValue(clampCutline(Number.isFinite(num) ? num : 0, mode));
               }}
-              onBlur={() => {
-                // 빈값이면 0으로 확정
-                if (cutlineValue === 0) setCutlineValue(0);
-              }}
               disabled={!canEdit}
-              placeholder="입력"
+              placeholder="0"
               aria-label="커트라인 값"
             />
             <span className="text-sm text-[var(--text-muted)]">

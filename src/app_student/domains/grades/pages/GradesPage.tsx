@@ -20,6 +20,7 @@ export default function GradesPage() {
   const { data, isLoading, isError, refetch } = useMyGradesSummary();
   const exams = data?.exams ?? [];
   const homeworks = data?.homeworks ?? [];
+  const labels = data?.labels;
 
   return (
     <DomainTabShell title="성적" tabs={TABS} activeTab={tab} onTabChange={setTab}>
@@ -34,7 +35,7 @@ export default function GradesPage() {
       )}
 
       {!isLoading && !isError && tab === "home" && (
-        <GradesHomeTab exams={exams} homeworks={homeworks} />
+        <GradesHomeTab exams={exams} homeworks={homeworks} labels={labels} />
       )}
 
       {!isLoading && !isError && tab === "stats" && (

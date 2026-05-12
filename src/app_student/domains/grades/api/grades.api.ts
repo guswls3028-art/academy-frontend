@@ -41,6 +41,8 @@ export type MyHomeworkGradeSummary = {
 export type MyGradesSummary = {
   exams: MyExamGradeSummary[];
   homeworks: MyHomeworkGradeSummary[];
+  /** 학원장이 커스텀한 합/불 라벨. 빈 문자열이면 GradeBadge 기본값 사용. */
+  labels?: { pass?: string; fail?: string };
 };
 
 export async function fetchMyGradesSummary(): Promise<MyGradesSummary> {
@@ -49,5 +51,6 @@ export async function fetchMyGradesSummary(): Promise<MyGradesSummary> {
   return {
     exams: Array.isArray(data.exams) ? data.exams : [],
     homeworks: Array.isArray(data.homeworks) ? data.homeworks : [],
+    labels: data.labels ?? undefined,
   };
 }

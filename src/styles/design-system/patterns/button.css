@@ -85,26 +85,34 @@
  * Intent — 톤만 구분, 동일 입체감
  * ====================================================== */
 
-/* Primary — CTA, 강조 (primary 톤) */
+/* Primary — CTA, 강조 (primary 톤). 학원장 피드백 "버튼 잘 안 보인다" → 채도/대비 강화. */
 .ds-button[data-intent="primary"] {
-  background: color-mix(in srgb, var(--color-brand-primary) 22%, var(--scale-Neutral0, #fff));
-  color: var(--color-text-primary);
+  background: var(--color-brand-primary);
+  color: var(--color-brand-primary-contrast, #fff);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.18),
+    0 2px 4px color-mix(in srgb, var(--color-brand-primary) 24%, transparent),
+    0 1px 2px rgba(0, 0, 0, 0.06);
 }
 
 .ds-button[data-intent="primary"]:hover:not(:disabled):not([data-disabled="true"]) {
-  background: color-mix(in srgb, var(--color-brand-primary) 28%, var(--scale-Neutral0, #fff));
+  background: color-mix(in srgb, var(--color-brand-primary) 88%, #000);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.22),
+    0 4px 8px color-mix(in srgb, var(--color-brand-primary) 30%, transparent),
+    0 2px 4px rgba(0, 0, 0, 0.08);
 }
 
-/* Secondary — 보조 액션 (neutral 톤) + 테두리로 흰배경 가시성 확보 */
+/* Secondary — 보조 액션 (neutral 톤) + 테두리/대비 강화 */
 .ds-button[data-intent="secondary"] {
-  background: color-mix(in srgb, var(--color-border-divider) 10%, var(--color-bg-surface));
+  background: color-mix(in srgb, var(--color-border-divider) 16%, var(--color-bg-surface));
   color: var(--color-text-primary);
-  border: 1px solid color-mix(in srgb, var(--color-border-divider) 45%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-border-divider) 70%, transparent);
 }
 
 .ds-button[data-intent="secondary"]:hover:not(:disabled):not([data-disabled="true"]) {
-  background: color-mix(in srgb, var(--color-border-divider) 16%, var(--color-bg-surface));
-  border-color: color-mix(in srgb, var(--color-border-divider) 65%, transparent);
+  background: color-mix(in srgb, var(--color-border-divider) 24%, var(--color-bg-surface));
+  border-color: var(--color-text-muted);
 }
 
 /* Ghost — 저강도 + 호버 시 테두리 힌트 */
@@ -120,14 +128,18 @@
   border-color: color-mix(in srgb, var(--color-border-divider) 35%, transparent);
 }
 
-/* Danger — 위험 액션 (error 톤) */
+/* Danger — 위험 액션 (error 톤). 학원장 피드백 가시성 강화. */
 .ds-button[data-intent="danger"] {
-  background: color-mix(in srgb, var(--color-error) 12%, var(--color-bg-surface));
-  color: var(--color-error);
+  background: var(--color-error);
+  color: #fff;
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.18),
+    0 2px 4px color-mix(in srgb, var(--color-error) 24%, transparent),
+    0 1px 2px rgba(0, 0, 0, 0.06);
 }
 
 .ds-button[data-intent="danger"]:hover:not(:disabled):not([data-disabled="true"]) {
-  background: color-mix(in srgb, var(--color-error) 20%, var(--color-bg-surface));
+  background: color-mix(in srgb, var(--color-error) 88%, #000);
 }
 
 /* ======================================================

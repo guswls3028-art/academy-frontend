@@ -380,6 +380,32 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
 
   return (
     <div className="flex flex-col gap-4">
+      {/* 도움 안내 — 학원장 첫 사용 시 핵심 동작 즉시 인지 (CTA 친절화) */}
+      {!isEditMode && (
+        <div
+          className="rounded-lg border border-[var(--color-border-divider)] bg-[color-mix(in_srgb,var(--color-brand-primary)_5%,var(--color-bg-surface))] px-3 py-2 text-xs text-[var(--color-text-secondary)] flex flex-wrap items-center gap-3"
+        >
+          <span className="font-semibold text-[var(--color-text-primary)]">⓵ 학생 행 클릭</span>
+          <span>→ 상세 드로어 (시도 이력·재시험)</span>
+          <span className="text-[var(--color-border-divider)]">|</span>
+          <span className="font-semibold text-[var(--color-text-primary)]">⓶ 시험명 옆 ⚙</span>
+          <span>→ 만점/커트라인 빠른 수정</span>
+          <span className="text-[var(--color-border-divider)]">|</span>
+          <span className="font-semibold text-[var(--color-text-primary)]">⓷ ◀ ▶ 화살표</span>
+          <span>→ 시험/과제 컬럼 순서 변경</span>
+          <span className="text-[var(--color-border-divider)]">|</span>
+          <span className="font-semibold text-[var(--color-text-primary)]">⓸ 회색 "-" 셀</span>
+          <span>= 미등록. 시험·과제 설정 → 대상자 관리에서 추가</span>
+        </div>
+      )}
+      {isEditMode && (
+        <div
+          className="rounded-lg border border-[color-mix(in_srgb,var(--color-warning,#eab308)_45%,transparent)] bg-[color-mix(in_srgb,var(--color-warning,#eab308)_10%,var(--color-bg-surface))] px-3 py-2 text-xs text-[var(--color-text-primary)] flex flex-wrap items-center gap-3"
+        >
+          <span className="font-semibold">편집 모드</span>
+          <span>· 점수 셀: 숫자 입력 · "/" 또는 "미응시" → 미응시 처리 · Tab/Enter/방향키 셀 이동</span>
+        </div>
+      )}
       <div
         tabIndex={0}
         className="min-w-0 overflow-x-auto outline-none"
@@ -440,6 +466,7 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
           }}
           selectedEnrollmentIds={selectedEnrollmentIds}
           onSelectionChange={onSelectionChange}
+          onReorderColumn={handleReorder}
         />
       </div>
 

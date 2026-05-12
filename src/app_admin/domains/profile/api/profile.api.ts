@@ -69,6 +69,9 @@ export type TenantInfo = {
   og_title?: string;
   og_description?: string;
   og_image_url?: string;
+  /** 합/불 라벨 커스텀. 빈 문자열이면 기본값(합격/불합격) 사용. */
+  pass_label?: string;
+  fail_label?: string;
 };
 
 export async function fetchTenantInfo(): Promise<TenantInfo> {
@@ -76,7 +79,7 @@ export async function fetchTenantInfo(): Promise<TenantInfo> {
   return data;
 }
 
-export async function updateTenantInfo(payload: Partial<Pick<TenantInfo, "name" | "phone" | "headquarters_phone" | "og_title" | "og_description" | "og_image_url">> & { academies?: AcademyEntry[] }): Promise<TenantInfo> {
+export async function updateTenantInfo(payload: Partial<Pick<TenantInfo, "name" | "phone" | "headquarters_phone" | "og_title" | "og_description" | "og_image_url" | "pass_label" | "fail_label">> & { academies?: AcademyEntry[] }): Promise<TenantInfo> {
   const { data } = await api.patch<TenantInfo>("/core/tenant-info/", payload);
   return data;
 }

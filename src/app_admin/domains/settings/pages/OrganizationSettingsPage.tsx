@@ -396,6 +396,9 @@ export default function OrganizationSettingsPage() {
       {/* ── 카카오톡 미리보기 설정 ── */}
       <OgPreviewSection tenantData={tenantQ.data} saving={updateMut.isPending} />
 
+      {/* ── 합/불 라벨 커스텀 ── */}
+      <PassFailLabelsSection tenantData={tenantQ.data} saving={updateMut.isPending} />
+
       {/* ── 법적 고지 정보 ── */}
       <LegalInfoSection />
     </div>
@@ -653,6 +656,132 @@ function OgPreviewSection({
             )}
           </div>
         </div>
+      </section>
+    </>
+  );
+}
+
+
+/* ------------------------------------------------------------------ */
+/*  합/불 라벨 커스텀 섹션 — 학원장이 "합격/불합격" → "통과/재시험" 등 자유 지정 */
+/* ------------------------------------------------------------------ */
+
+function PassFailLabelsSection({
+  tenantData,
+  saving: parentSaving,
+}: {
+  tenantData?: { pass_label?: string; fail_label?: string } | null;
+  saving: boolean;
+}) {
+  const qc = useQueryClient();
+  const [pass, setPass] = useState("");
+  const [fail, setFail] = useState("");
+  const [editing, setEditing] = useState(false);
+
+  useEffect(() => {
+    if (tenantData) {
+      setPass(tenantData.pass_label || "");
+      setFail(tenantData.fail_label || "");
+    }
+  }, [tenantData]);
+
+  const saveMut = useMutation({
+    mutationFn: () =>
+      updateTenantInfo({
+        pass_label: pass.trim(),
+        fail_label: fail.trim(),
+      }),
+    onSuccess: (data) => {
+      qc.setQueryData(["tenant-info"], data);
+      feedback.success("합격/불합격 라벨이 저장되었습니다.");
+      setEditing(false);
+    },
+    onError: () => feedback.error("저장에 실패했습니다."),
+  });
+
+  const isSaving = saveMut.isPending || parentSaving;
+  const previewPass = pass.trim() || "합격";
+  const previewFail = fail.trim() || "불합격";
+
+  return (
+    <>
+      <div className={s.sectionHeader} style={{ marginTop: 32 }}>
+        <h2 className={s.sectionTitle}>합/불 라벨</h2>
+        <p className={s.sectionDescription}>
+          학생·학부모 화면에 표시되는 합격/불합격 라벨을 학원 스타일에 맞게 변경할 수 있습니다.
+          빈값이면 기본값(합격/불합격)이 사용됩니다.
+        </p>
+      </div>
+
+      <section className={s.section}>
+        {editing ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: 12, maxWidth: 480 }}>
+            <label style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <span style={{ width: 80, fontSize: 13 }}>합격 라벨</span>
+              <input
+                type="text"
+                value={pass}
+                onChange={(e) => setPass(e.target.value.slice(0, 20))}
+                placeholder="합격"
+                className="ds-input"
+                style={{ flex: 1 }}
+                maxLength={20}
+              />
+            </label>
+            <label style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <span style={{ width: 80, fontSize: 13 }}>불합격 라벨</span>
+              <input
+                type="text"
+                value={fail}
+                onChange={(e) => setFail(e.target.value.slice(0, 20))}
+                placeholder="불합격"
+                className="ds-input"
+                style={{ flex: 1 }}
+                maxLength={20}
+              />
+            </label>
+            <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+              <Button
+                type="button"
+                intent="primary"
+                size="sm"
+                onClick={() => saveMut.mutate()}
+                disabled={isSaving}
+              >
+                {isSaving ? "저장 중…" : "저장"}
+              </Button>
+              <Button
+                type="button"
+                intent="ghost"
+                size="sm"
+                onClick={() => {
+                  setPass(tenantData?.pass_label || "");
+                  setFail(tenantData?.fail_label || "");
+                  setEditing(false);
+                }}
+                disabled={isSaving}
+              >
+                취소
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div>
+            <div className={s.row}>
+              <span className={s.rowLabel}>합격</span>
+              <span className={s.rowValue}>{previewPass}</span>
+            </div>
+            <div className={s.row}>
+              <span className={s.rowLabel}>불합격</span>
+              <span className={s.rowValue}>{previewFail}</span>
+            </div>
+            <div style={{ marginTop: 8 }}>
+              <Button type="button" intent="secondary" size="sm" onClick={() => setEditing(true)}>
+                수정
+              </Button>
+            </div>
+          </div>
+        )}
       </section>
     </>
   );

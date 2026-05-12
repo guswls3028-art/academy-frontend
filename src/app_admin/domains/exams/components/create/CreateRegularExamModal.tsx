@@ -115,6 +115,17 @@ export default function CreateRegularExamModal({
   const updateRow = (rowId: number, field: keyof Omit<BulkRow, "id">, value: string) =>
     setRows((prev) => prev.map((r) => (r.id === rowId ? { ...r, [field]: value } : r)));
 
+  const moveRow = (rowId: number, direction: "up" | "down") =>
+    setRows((prev) => {
+      const idx = prev.findIndex((r) => r.id === rowId);
+      if (idx < 0) return prev;
+      const swap = direction === "up" ? idx - 1 : idx + 1;
+      if (swap < 0 || swap >= prev.length) return prev;
+      const next = [...prev];
+      [next[idx], next[swap]] = [next[swap], next[idx]];
+      return next;
+    });
+
   // ── Bulk submit (new stage) ──
   const handleBulkSubmit = async () => {
     if (!sessionId) {
@@ -406,8 +417,8 @@ export default function CreateRegularExamModal({
                   selected={false}
                   showCheck
                   className="session-block--card-sm"
-                  title="템플릿 불러오기"
-                  desc="시험 템플릿을 여러 개 선택하여 일괄 생성합니다."
+                  title="완벽 동일 시험 불러오기"
+                  desc="템플릿과 양식·답안을 공유합니다. 템플릿 수정 시 모든 차시에 반영."
                   onClick={() => {
                     setError(null);
                     setSelectedTemplateIds(new Set());
@@ -421,8 +432,8 @@ export default function CreateRegularExamModal({
                   selected={false}
                   showCheck
                   className="session-block--card-sm"
-                  title="다른 차시에서"
-                  desc="다른 강의/차시의 시험을 복사합니다."
+                  title="양식만 복사 (독립)"
+                  desc="다른 차시의 만점/커트라인만 복사. 답안·문항은 새로 등록."
                   onClick={() => {
                     setError(null);
                     setStage("copy");
@@ -437,6 +448,7 @@ export default function CreateRegularExamModal({
             <div className="modal-form-group">
               <table className="ds-table w-full" style={{ tableLayout: "fixed" }}>
                 <colgroup>
+                  <col style={{ width: 56 }} />
                   <col />
                   <col style={{ width: 90 }} />
                   <col style={{ width: 90 }} />
@@ -444,6 +456,7 @@ export default function CreateRegularExamModal({
                 </colgroup>
                 <thead>
                   <tr>
+                    <th className="text-center text-xs font-semibold" style={{ padding: "6px 4px" }}>순서</th>
                     <th className="text-left text-xs font-semibold" style={{ padding: "6px 8px" }}>제목</th>
                     <th className="text-left text-xs font-semibold" style={{ padding: "6px 8px" }}>만점</th>
                     <th className="text-left text-xs font-semibold" style={{ padding: "6px 8px" }}>
@@ -460,9 +473,34 @@ export default function CreateRegularExamModal({
                 <tbody>
                   {rows.map((row, idx) => (
                     <tr key={row.id}>
+                      <td style={{ padding: "4px 4px", textAlign: "center" }}>
+                        <div className="inline-flex items-center gap-0.5">
+                          <button
+                            type="button"
+                            onClick={() => moveRow(row.id, "up")}
+                            disabled={idx === 0}
+                            className="text-base leading-none px-1 text-[var(--color-text-muted)] hover:text-[var(--color-brand-primary)] disabled:opacity-25 disabled:cursor-not-allowed"
+                            aria-label={`${idx + 1}번 행 위로`}
+                            title="위로"
+                          >
+                            ▲
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => moveRow(row.id, "down")}
+                            disabled={idx === rows.length - 1}
+                            className="text-base leading-none px-1 text-[var(--color-text-muted)] hover:text-[var(--color-brand-primary)] disabled:opacity-25 disabled:cursor-not-allowed"
+                            aria-label={`${idx + 1}번 행 아래로`}
+                            title="아래로"
+                          >
+                            ▼
+                          </button>
+                        </div>
+                      </td>
                       <td style={{ padding: "4px 8px" }}>
                         <input
                           className="ds-input w-full"
+                          style={{ minHeight: 40, fontSize: 14, padding: "10px 12px" }}
                           value={row.title}
                           onChange={(e) => updateRow(row.id, "title", e.target.value)}
                           placeholder={`시험 ${idx + 1}`}

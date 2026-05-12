@@ -128,6 +128,17 @@ export default function CreateHomeworkModal({
   const updateRow = (key: number, field: keyof Omit<BulkRow, "key">, value: string) =>
     setRows((prev) => prev.map((r) => (r.key === key ? { ...r, [field]: value } : r)));
 
+  const moveRow = (key: number, direction: "up" | "down") =>
+    setRows((prev) => {
+      const idx = prev.findIndex((r) => r.key === key);
+      if (idx < 0) return prev;
+      const swap = direction === "up" ? idx - 1 : idx + 1;
+      if (swap < 0 || swap >= prev.length) return prev;
+      const next = [...prev];
+      [next[idx], next[swap]] = [next[swap], next[idx]];
+      return next;
+    });
+
   // ── Bulk submit ──
   const handleBulkSubmit = async () => {
     if (!sessionId) {
@@ -145,9 +156,11 @@ export default function CreateHomeworkModal({
     const createdIds: number[] = [];
     const failed: string[] = [];
 
-    // Apply cutline from the first row
-    const firstCutline = Number(validRows[0].cutline);
+    // 커트라인은 row[0]의 입력값을 항상 사용 (UI에서 row[0]만 편집 가능).
+    // 과거 validRows[0] 사용 시 row[0] 제목이 비어 있으면 다른 행의 default(80)가 잘못 들어가는 버그가 있었음.
+    const firstCutline = Number(rows[0]?.cutline);
     let policyPatched = false;
+    let policyError: string | null = null;
 
     try {
       const policy = await fetchHomeworkPolicyBySession(sessionId);
@@ -157,9 +170,11 @@ export default function CreateHomeworkModal({
           cutline_value: Number.isFinite(firstCutline) && firstCutline >= 0 ? firstCutline : (cutlineMode === "PERCENT" ? 80 : 40),
         });
         policyPatched = true;
+      } else {
+        policyError = "세션 정책 조회 실패 — 커트라인이 적용되지 않았습니다.";
       }
-    } catch {
-      // best-effort policy patch
+    } catch (e: any) {
+      policyError = e?.response?.data?.detail || "커트라인 저장 실패";
     }
 
     for (const row of validRows) {
@@ -205,6 +220,10 @@ export default function CreateHomeworkModal({
         (policyPatched ? ` (커트라인 ${firstCutline}${cutlineMode === "PERCENT" ? "%" : "점"})` : "") +
         (failed.length > 0 ? ` · ${failed.length}개 실패` : "");
       feedback.success(msg);
+    }
+    if (policyError) {
+      // 커트라인 저장 실패는 silent fail이 아니라 명시 노출 — 학원장이 즉시 인지
+      feedback.warning(policyError);
     }
     if (failed.length > 0 && createdIds.length === 0) {
       setError(`모든 과제 생성에 실패했습니다: ${failed.join(", ")}`);
@@ -438,14 +457,16 @@ export default function CreateHomeworkModal({
             <div className="modal-form-group">
               <table className="ds-table w-full" style={{ tableLayout: "fixed" }}>
                 <colgroup>
+                  <col style={{ width: 50 }} />
                   <col />
-                  <col style={{ width: 80 }} />
-                  <col style={{ width: 90 }} />
-                  <col style={{ width: 120 }} />
-                  <col style={{ width: 40 }} />
+                  <col style={{ width: 72 }} />
+                  <col style={{ width: 84 }} />
+                  <col style={{ width: 116 }} />
+                  <col style={{ width: 32 }} />
                 </colgroup>
                 <thead>
                   <tr>
+                    <th className="text-center text-xs font-semibold" style={{ padding: "6px 4px" }}>순서</th>
                     <th className="text-left text-xs font-semibold" style={{ padding: "6px 8px" }}>제목</th>
                     <th className="text-left text-xs font-semibold" style={{ padding: "6px 8px" }}>만점</th>
                     <th className="text-left text-xs font-semibold" style={{ padding: "6px 4px" }}>
@@ -468,9 +489,34 @@ export default function CreateHomeworkModal({
                 <tbody>
                   {rows.map((row, idx) => (
                     <tr key={row.key}>
+                      <td style={{ padding: "4px 4px", textAlign: "center" }}>
+                        <div className="inline-flex items-center gap-0.5">
+                          <button
+                            type="button"
+                            onClick={() => moveRow(row.key, "up")}
+                            disabled={idx === 0}
+                            className="text-base leading-none px-1 text-[var(--color-text-muted)] hover:text-[var(--color-brand-primary)] disabled:opacity-25 disabled:cursor-not-allowed"
+                            aria-label={`${idx + 1}번 행 위로`}
+                            title="위로"
+                          >
+                            ▲
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => moveRow(row.key, "down")}
+                            disabled={idx === rows.length - 1}
+                            className="text-base leading-none px-1 text-[var(--color-text-muted)] hover:text-[var(--color-brand-primary)] disabled:opacity-25 disabled:cursor-not-allowed"
+                            aria-label={`${idx + 1}번 행 아래로`}
+                            title="아래로"
+                          >
+                            ▼
+                          </button>
+                        </div>
+                      </td>
                       <td style={{ padding: "4px 8px" }}>
                         <input
                           className="ds-input w-full"
+                          style={{ minHeight: 40, fontSize: 14, padding: "10px 12px" }}
                           value={row.title}
                           onChange={(e) => updateRow(row.key, "title", e.target.value)}
                           placeholder={`${idx + 1}주차 과제`}

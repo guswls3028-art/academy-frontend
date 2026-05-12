@@ -9,6 +9,7 @@ import { useMemo } from "react";
 import { useAdminHomework } from "../hooks/useAdminHomework";
 
 import HomeworkPolicyPanel from "./setup/HomeworkPolicyPanel";
+import HomeworkMaxScorePanel from "./setup/HomeworkMaxScorePanel";
 import HomeworkEnrollmentPanel from "./setup/HomeworkEnrollmentPanel";
 
 export default function HomeworkSetupPanel({
@@ -34,6 +35,7 @@ export default function HomeworkSetupPanel({
 
   return (
     <div className="space-y-6">
+      <HomeworkMaxScorePanel homeworkId={homeworkId} />
       <HomeworkPolicyPanel sessionId={sessionId} />
       <HomeworkEnrollmentPanel homeworkId={homeworkId} />
     </div>
