@@ -8,6 +8,7 @@ import { EmptyState } from "@/shared/ui/ds";
 import { formatPhone } from "@/shared/utils/formatPhone";
 import LectureChip from "@/shared/ui/chips/LectureChip";
 import { useSectionMode } from "@/shared/hooks/useSectionMode";
+import { AchievementBadge } from "@teacher/shared/ui/Badge";
 import { fetchSession, fetchSessionAttendance } from "../api";
 import { fetchSessionExams, fetchExamResults } from "@teacher/domains/scores/api";
 import { fetchVideos } from "@teacher/domains/videos/api";
@@ -163,7 +164,7 @@ export default function SessionDetailPage() {
       {/* Tab content */}
       {tab === "students" && <StudentsTab attendances={attendances ?? []} navigate={navigate} />}
       {tab === "attendance" && <AttendanceTab attendances={attendances ?? []} />}
-      {tab === "scores" && <ScoresTab exams={exams ?? []} sessionId={sid} />}
+      {tab === "scores" && <ScoresTab exams={exams ?? []} sessionId={sid} navigate={navigate} />}
       {tab === "exams" && <ExamsTab exams={exams ?? []} navigate={navigate} />}
       {tab === "homeworks" && <HomeworksTab homeworks={homeworks ?? []} navigate={navigate} />}
       {tab === "videos" && <VideosTab videos={videos ?? []} navigate={navigate} />}
@@ -392,7 +393,11 @@ function AttendanceTab({ attendances }: { attendances: any[] }) {
 }
 
 /* === Scores tab === */
-function ScoresTab({ exams, sessionId }: { exams: any[]; sessionId: number }) {
+function ScoresTab({
+  exams,
+  sessionId,
+  navigate,
+}: { exams: any[]; sessionId: number; navigate: any }) {
   const [selectedExam, setSelectedExam] = useState<number | null>(null);
 
   const { data: results } = useQuery({
@@ -430,26 +435,44 @@ function ScoresTab({ exams, sessionId }: { exams: any[]; sessionId: number }) {
         </div>
       ) : results ? (
         results.length > 0 ? (
-          <div className="flex flex-col gap-1">
-            {results.map((r: any) => {
-              const name = r.student_name ?? r.enrollment_name ?? "이름 없음";
-              return (
-                <div
-                  key={r.id}
-                  className="flex justify-between items-center py-2 border-b last:border-b-0"
-                  style={{ borderColor: "var(--tc-border)" }}
-                >
-                  <span className="text-sm" style={{ color: "var(--tc-text)" }}>{name}</span>
-                  <span
-                    className="text-sm font-bold"
-                    style={{ color: r.score != null ? "var(--tc-text)" : "var(--tc-text-muted)" }}
+          <>
+            <div className="flex flex-col gap-1">
+              {results.map((r: any) => {
+                const name = r.student_name ?? r.enrollment_name ?? "이름 없음";
+                const score = r.final_score ?? r.score;
+                const maxScore = r.max_score ?? exams.find((e: any) => e.id === selectedExam)?.max_score ?? 100;
+                return (
+                  <div
+                    key={r.id}
+                    className="flex justify-between items-center py-2 border-b last:border-b-0"
+                    style={{ borderColor: "var(--tc-border)" }}
                   >
-                    {r.score != null ? `${r.score}점` : "미채점"}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
+                    <span className="text-sm flex-1 min-w-0 truncate" style={{ color: "var(--tc-text)" }}>{name}</span>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <AchievementBadge passed={r.is_pass} achievement={r.achievement} />
+                      <span
+                        className="text-sm font-bold"
+                        style={{ color: score != null ? "var(--tc-text)" : "var(--tc-text-muted)" }}
+                      >
+                        {score != null ? `${score}/${maxScore}` : "미채점"}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <button
+              onClick={() => navigate(`/teacher/scores/${sessionId}`)}
+              className="text-[13px] font-semibold py-2.5 rounded-xl cursor-pointer"
+              style={{
+                background: "var(--tc-primary)",
+                color: "#fff",
+                border: "none",
+              }}
+            >
+              점수 입력 / 수정
+            </button>
+          </>
         ) : (
           <EmptyState scope="panel" tone="empty" title="결과가 없습니다" />
         )

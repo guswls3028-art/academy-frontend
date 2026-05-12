@@ -2,9 +2,9 @@
 // 성적 API — 기존 exams/results API 재사용
 import api from "@/shared/api/axios";
 
-/** 세션에 연결된 시험 목록 */
+/** 세션에 연결된 시험 목록 (backend 필터: session_id) */
 export async function fetchSessionExams(sessionId: number) {
-  const res = await api.get("/exams/", { params: { session: sessionId, page_size: 50 } });
+  const res = await api.get("/exams/", { params: { session_id: sessionId, page_size: 50 } });
   const raw = res.data;
   return Array.isArray(raw?.results) ? raw.results : Array.isArray(raw) ? raw : [];
 }

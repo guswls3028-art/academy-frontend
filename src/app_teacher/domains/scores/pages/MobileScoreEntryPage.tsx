@@ -1,11 +1,12 @@
 // PATH: src/app_teacher/domains/scores/pages/MobileScoreEntryPage.tsx
-// 성적 입력 — 모바일 최적화. 숫자 키패드 + 자동 다음 포커스
-import { useState, useRef, useCallback, useEffect } from "react";
+// 성적 입력 — 모바일 최적화. 숫자 키패드 + 자동 다음 포커스 + 만점/평균 KPI + 즉시 검증
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback";
 import { extractApiError } from "@/shared/utils/extractApiError";
+import { AchievementBadge } from "@teacher/shared/ui/Badge";
 import { fetchSessionExams, fetchExamResults, updateResult } from "../api";
 
 export default function MobileScoreEntryPage() {
@@ -21,6 +22,7 @@ export default function MobileScoreEntryPage() {
 
   const [selectedExamId, setSelectedExamId] = useState<number | null>(null);
   const activeExamId = selectedExamId ?? exams?.[0]?.id ?? null;
+  const activeExam = exams?.find((e: any) => e.id === activeExamId);
 
   return (
     <div className="flex flex-col gap-3">
@@ -35,28 +37,37 @@ export default function MobileScoreEntryPage() {
         <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
       ) : exams && exams.length > 0 ? (
         <>
-          {/* Exam selector chips */}
-          <div className="flex gap-2 overflow-x-auto pb-1">
-            {exams.map((exam: any) => (
-              <button
-                key={exam.id}
-                onClick={() => setSelectedExamId(exam.id)}
-                className="rounded-full text-[13px] font-semibold whitespace-nowrap shrink-0 cursor-pointer"
-                style={{
-                  padding: "8px 16px",
-                  border: exam.id === activeExamId ? "none" : "1px solid var(--tc-border)",
-                  background: exam.id === activeExamId ? "var(--tc-primary)" : "transparent",
-                  color: exam.id === activeExamId ? "#fff" : "var(--tc-text)",
-                }}
-              >
-                {exam.title}
-              </button>
-            ))}
+          {/* Exam selector chips — 만점 라벨로 컨텍스트 부여 */}
+          <div className="flex gap-2 overflow-x-auto pb-1" style={{ WebkitOverflowScrolling: "touch" }}>
+            {exams.map((exam: any) => {
+              const active = exam.id === activeExamId;
+              return (
+                <button
+                  key={exam.id}
+                  onClick={() => setSelectedExamId(exam.id)}
+                  className="rounded-full text-[13px] font-semibold whitespace-nowrap shrink-0 cursor-pointer"
+                  style={{
+                    padding: "8px 14px",
+                    border: active ? "none" : "1px solid var(--tc-border)",
+                    background: active ? "var(--tc-primary)" : "transparent",
+                    color: active ? "#fff" : "var(--tc-text)",
+                  }}
+                >
+                  {exam.title}{exam.max_score != null ? ` · ${exam.max_score}점` : ""}
+                </button>
+              );
+            })}
           </div>
-          {activeExamId && <ScoreEntryList examId={activeExamId} />}
+          {activeExamId && (
+            <ScoreEntryList
+              examId={activeExamId}
+              examMaxScore={activeExam?.max_score ?? 100}
+              examPassScore={activeExam?.pass_score ?? null}
+            />
+          )}
         </>
       ) : (
-        <EmptyState scope="panel" tone="empty" title="이 세션에 연결된 시험이 없습니다" />
+        <EmptyState scope="panel" tone="empty" title="이 차시에 연결된 시험이 없습니다" />
       )}
     </div>
   );
@@ -87,7 +98,11 @@ function saveDraft(examId: number, m: Map<number, string>) {
   } catch { /* quota exceeded — non-critical */ }
 }
 
-function ScoreEntryList({ examId }: { examId: number }) {
+function ScoreEntryList({
+  examId,
+  examMaxScore,
+  examPassScore,
+}: { examId: number; examMaxScore: number; examPassScore: number | null }) {
   const qc = useQueryClient();
   const { data: results, isLoading } = useQuery({
     queryKey: ["exam-results", examId],
@@ -96,15 +111,21 @@ function ScoreEntryList({ examId }: { examId: number }) {
   });
 
   const inputRefs = useRef<Map<number, HTMLInputElement>>(new Map());
-  // examId 변경 시 해당 시험의 draft 복원
+  // examId 변경 시 해당 시험의 draft 복원 + 첫 input에 포커스
   const [localScores, setLocalScores] = useState<Map<number, string>>(() => loadDraft(examId));
   useEffect(() => { setLocalScores(loadDraft(examId)); }, [examId]);
+  useEffect(() => {
+    // 시험 전환 시 첫 학생 input 자동 포커스 (입력 흐름 가속)
+    if (!results?.length) return;
+    const first = results[0];
+    const t = setTimeout(() => inputRefs.current.get(first.id)?.focus(), 50);
+    return () => clearTimeout(t);
+  }, [examId, results]);
 
   const updateMut = useMutation({
     mutationFn: ({ id, score }: { id: number; score: number }) =>
       updateResult(id, { score }),
     onSuccess: (_data, variables) => {
-      // 저장 성공 → 해당 셀 draft 제거 후 invalidate
       setLocalScores((prev) => {
         const next = new Map(prev);
         next.delete(variables.id);
@@ -124,7 +145,14 @@ function ScoreEntryList({ examId }: { examId: number }) {
       const val = localScores.get(resultId);
       if (val == null || val === "") return;
       const num = Number(val);
-      if (isNaN(num) || num < 0 || num > maxScore) return;
+      if (isNaN(num)) {
+        feedback.error("숫자만 입력하세요.");
+        return;
+      }
+      if (num < 0 || num > maxScore) {
+        feedback.error(`0~${maxScore} 사이의 점수를 입력하세요.`);
+        return;
+      }
       updateMut.mutate({ id: resultId, score: num });
     },
     [localScores, updateMut],
@@ -141,24 +169,79 @@ function ScoreEntryList({ examId }: { examId: number }) {
     [results],
   );
 
+  // 합계/평균 KPI (입력 중인 draft 우선)
+  const stats = useMemo(() => {
+    if (!results?.length) return null;
+    const scores: number[] = [];
+    let passed = 0;
+    for (const r of results) {
+      const draft = localScores.get(r.id);
+      const final = r.final_score ?? r.score;
+      let sc: number | null = null;
+      if (draft != null && draft !== "" && !isNaN(Number(draft))) sc = Number(draft);
+      else if (final != null) sc = Number(final);
+      if (sc != null) {
+        scores.push(sc);
+        if (examPassScore != null && sc >= examPassScore) passed += 1;
+      }
+    }
+    const entered = scores.length;
+    const total = results.length;
+    const avg = entered > 0 ? scores.reduce((a, b) => a + b, 0) / entered : null;
+    const passRate = entered > 0 && examPassScore != null ? Math.round((passed / entered) * 100) : null;
+    return { entered, total, avg, passRate };
+  }, [results, localScores, examPassScore]);
+
   if (isLoading) return <EmptyState scope="panel" tone="loading" title="불러오는 중…" />;
   if (!results?.length)
-    return <EmptyState scope="panel" tone="empty" title="성적 데이터가 없습니다" />;
-
-  const entered = results.filter(
-    (r: any) => r.final_score != null || r.score != null || localScores.has(r.id),
-  ).length;
+    return <EmptyState scope="panel" tone="empty" title="이 시험에 등록된 학생이 없습니다" />;
 
   return (
-    <div className="flex flex-col gap-1.5">
-      <div className="text-[13px]" style={{ color: "var(--tc-text-secondary)" }}>
-        입력 {entered}/{results.length}
-      </div>
+    <div className="flex flex-col gap-2">
+      {/* KPI 1줄 — 입력 진행 + 평균 + 합격률 */}
+      {stats && (
+        <div
+          className="grid gap-2"
+          style={{
+            gridTemplateColumns: examPassScore != null ? "repeat(3, 1fr)" : "repeat(2, 1fr)",
+          }}
+        >
+          <KpiTile label="입력" value={`${stats.entered}/${stats.total}`} />
+          <KpiTile
+            label="평균"
+            value={stats.avg != null ? stats.avg.toFixed(1) : "-"}
+            color={
+              stats.avg != null && stats.avg >= examMaxScore * 0.7
+                ? "var(--tc-success)"
+                : stats.avg != null && stats.avg >= examMaxScore * 0.4
+                  ? "var(--tc-warn)"
+                  : "var(--tc-text)"
+            }
+          />
+          {examPassScore != null && (
+            <KpiTile
+              label={`합격(≥${examPassScore})`}
+              value={stats.passRate != null ? `${stats.passRate}%` : "-"}
+              color={
+                stats.passRate != null && stats.passRate >= 70
+                  ? "var(--tc-success)"
+                  : stats.passRate != null && stats.passRate >= 40
+                    ? "var(--tc-warn)"
+                    : "var(--tc-danger)"
+              }
+            />
+          )}
+        </div>
+      )}
+
       {results.map((r: any) => {
         const existing = r.final_score ?? r.score;
         const display = localScores.get(r.id) ?? (existing != null ? String(existing) : "");
-        const maxScore = r.max_score ?? r.perfect_score ?? 100;
+        const maxScore = r.max_score ?? r.perfect_score ?? examMaxScore ?? 100;
         const name = r.student_name ?? r.name ?? "이름 없음";
+        const draftVal = localScores.get(r.id);
+        const draftNum = draftVal != null && draftVal !== "" ? Number(draftVal) : NaN;
+        const isInvalid = !isNaN(draftNum) && (draftNum < 0 || draftNum > maxScore);
 
         return (
           <div
@@ -171,11 +254,12 @@ function ScoreEntryList({ examId }: { examId: number }) {
             }}
           >
             <span
-              className="text-[15px] font-semibold flex-1 min-w-0"
+              className="text-[15px] font-semibold flex-1 min-w-0 truncate"
               style={{ color: "var(--tc-text)" }}
             >
               {name}
             </span>
+            <AchievementBadge passed={r.is_pass} achievement={r.achievement} />
             <div className="flex items-center gap-1 shrink-0">
               <input
                 ref={(el) => {
@@ -197,18 +281,19 @@ function ScoreEntryList({ examId }: { examId: number }) {
                 onBlur={() => handleSubmit(r.id, maxScore)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
+                    e.preventDefault();
                     handleSubmit(r.id, maxScore);
                     focusNext(r.id);
                   }
                 }}
                 className="text-center text-lg font-bold outline-none"
                 style={{
-                  width: 56,
+                  width: 64,
                   height: 40,
-                  border: "1px solid var(--tc-border-strong)",
+                  border: isInvalid ? "1px solid var(--tc-danger)" : "1px solid var(--tc-border-strong)",
                   borderRadius: "var(--tc-radius-sm)",
-                  background: "var(--tc-surface-soft)",
-                  color: "var(--tc-text)",
+                  background: isInvalid ? "var(--tc-danger-bg, #fef2f2)" : "var(--tc-surface-soft)",
+                  color: isInvalid ? "var(--tc-danger)" : "var(--tc-text)",
                 }}
               />
               <span className="text-[13px]" style={{ color: "var(--tc-text-muted)" }}>
@@ -218,6 +303,25 @@ function ScoreEntryList({ examId }: { examId: number }) {
           </div>
         );
       })}
+    </div>
+  );
+}
+
+function KpiTile({ label, value, color }: { label: string; value: string; color?: string }) {
+  return (
+    <div
+      className="rounded-lg flex flex-col items-center justify-center py-2"
+      style={{
+        background: "var(--tc-surface)",
+        border: "1px solid var(--tc-border)",
+      }}
+    >
+      <span className="text-base font-bold leading-tight" style={{ color: color ?? "var(--tc-text)" }}>
+        {value}
+      </span>
+      <span className="text-[11px] mt-0.5" style={{ color: "var(--tc-text-muted)" }}>
+        {label}
+      </span>
     </div>
   );
 }
