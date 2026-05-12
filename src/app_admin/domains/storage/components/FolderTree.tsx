@@ -46,7 +46,7 @@ export default function FolderTree({
         className={styles.item + (currentFolderId === null ? " " + styles.itemActive : "")}
         onClick={() => onSelect(null)}
       >
-        <Home size={14} className={styles.icon} />
+        <Home size={16} className={styles.icon} />
         <span className={styles.itemLabel}>{rootLabel}</span>
         <span className={styles.itemCount}>{folders.length}</span>
       </button>
@@ -108,7 +108,7 @@ function TreeNode({
             onClick={(e) => { e.stopPropagation(); onToggle(folder.id); }}
             aria-label={isCollapsed ? "펼치기" : "접기"}
           >
-            {isCollapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
+            {isCollapsed ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
           </button>
         ) : (
           <span className={styles.toggleSpacer} />
@@ -120,9 +120,9 @@ function TreeNode({
           title={folder.name}
         >
           {isCollapsed ? (
-            <Folder size={14} className={styles.icon} />
+            <Folder size={16} className={styles.icon} />
           ) : (
-            <FolderOpen size={14} className={styles.icon} />
+            <FolderOpen size={16} className={styles.icon} />
           )}
           <span className={styles.itemLabel}>{folder.name}</span>
           {hasChildren && (
@@ -139,7 +139,7 @@ function TreeNode({
                 title="하위 폴더 만들기"
                 aria-label="하위 폴더 만들기"
               >
-                <FolderPlus size={13} />
+                <FolderPlus size={16} />
               </button>
             )}
             {onRename && (
@@ -150,7 +150,7 @@ function TreeNode({
                 title="이름 변경"
                 aria-label="이름 변경"
               >
-                <Pencil size={13} />
+                <Pencil size={16} />
               </button>
             )}
             {onDelete && (
@@ -161,7 +161,7 @@ function TreeNode({
                 title="하위 포함 삭제"
                 aria-label="하위 포함 삭제"
               >
-                <Trash2 size={13} />
+                <Trash2 size={16} />
               </button>
             )}
           </span>

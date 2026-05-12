@@ -158,7 +158,7 @@ export default function MyStoragePage() {
             color: "var(--tc-text-secondary)",
           }}
         >
-          <FolderPlus size={14} /> 폴더
+          <FolderPlus size={18} /> 폴더
         </button>
         <button
           onClick={() => fileInputRef.current?.click()}
@@ -172,7 +172,7 @@ export default function MyStoragePage() {
             color: "#fff",
           }}
         >
-          <Upload size={14} /> 업로드
+          <Upload size={18} /> 업로드
         </button>
         <input
           ref={fileInputRef}
@@ -287,9 +287,9 @@ export default function MyStoragePage() {
                   className="cursor-pointer shrink-0"
                   style={{ padding: 8, minWidth: 36, minHeight: 36, background: "none", border: "none", color: "var(--tc-text-muted)" }}
                 >
-                  <Trash2 size={14} />
+                  <Trash2 size={18} />
                 </button>
-                <ChevronRight size={14} style={{ color: "var(--tc-text-muted)" }} />
+                <ChevronRight size={18} style={{ color: "var(--tc-text-muted)" }} />
               </div>
             ))}
           </div>
@@ -321,7 +321,7 @@ export default function MyStoragePage() {
                   className="cursor-pointer shrink-0"
                   style={{ padding: 8, minWidth: 36, minHeight: 36, background: "none", border: "none", color: "var(--tc-primary)" }}
                 >
-                  <Download size={14} />
+                  <Download size={18} />
                 </button>
                 <button
                   onClick={async () => {
@@ -331,7 +331,7 @@ export default function MyStoragePage() {
                   className="cursor-pointer shrink-0"
                   style={{ padding: 8, minWidth: 36, minHeight: 36, background: "none", border: "none", color: "var(--tc-text-muted)" }}
                 >
-                  <Trash2 size={14} />
+                  <Trash2 size={18} />
                 </button>
               </div>
             ))}
@@ -357,7 +357,7 @@ export default function MyStoragePage() {
             color: "var(--tc-text)",
           }}
         >
-          <Monitor size={14} /> PC에서 매치업 열기
+          <Monitor size={18} /> PC에서 매치업 열기
         </button>
       </Card>
 

@@ -73,9 +73,9 @@ export const AUTO_SEND_SECTIONS: SectionDef[] = [
       "withdrawal_complete",
     ],
     children: [
-      triggerChild("registration_approved_student", <Bell size={14} aria-hidden />),
-      triggerChild("registration_approved_parent", <Bell size={14} aria-hidden />),
-      triggerChild("withdrawal_complete", <Bell size={14} aria-hidden />),
+      triggerChild("registration_approved_student", <Bell size={16} aria-hidden />),
+      triggerChild("registration_approved_parent", <Bell size={16} aria-hidden />),
+      triggerChild("withdrawal_complete", <Bell size={16} aria-hidden />),
     ],
   },
   {
@@ -84,9 +84,9 @@ export const AUTO_SEND_SECTIONS: SectionDef[] = [
     icon: <ClipboardCheck size={16} aria-hidden />,
     triggers: ["lecture_session_reminder", "check_in_complete", "absent_occurred"],
     children: [
-      triggerChild("lecture_session_reminder", <Bell size={14} aria-hidden />),
-      triggerChild("check_in_complete", <Bell size={14} aria-hidden />),
-      triggerChild("absent_occurred", <Bell size={14} aria-hidden />),
+      triggerChild("lecture_session_reminder", <Bell size={16} aria-hidden />),
+      triggerChild("check_in_complete", <Bell size={16} aria-hidden />),
+      triggerChild("absent_occurred", <Bell size={16} aria-hidden />),
     ],
   },
   {
@@ -95,7 +95,7 @@ export const AUTO_SEND_SECTIONS: SectionDef[] = [
     icon: <BookOpen size={16} aria-hidden />,
     triggers: ["video_encoding_complete"],
     children: [
-      triggerChild("video_encoding_complete", <Bell size={14} aria-hidden />),
+      triggerChild("video_encoding_complete", <Bell size={16} aria-hidden />),
     ],
   },
   {
@@ -110,11 +110,11 @@ export const AUTO_SEND_SECTIONS: SectionDef[] = [
       "retake_assigned",
     ],
     children: [
-      triggerChild("exam_scheduled_days_before", <Bell size={14} aria-hidden />),
-      triggerChild("exam_start_minutes_before", <Bell size={14} aria-hidden />),
-      triggerChild("exam_not_taken", <Bell size={14} aria-hidden />),
-      triggerChild("exam_score_published", <Bell size={14} aria-hidden />),
-      triggerChild("retake_assigned", <Bell size={14} aria-hidden />),
+      triggerChild("exam_scheduled_days_before", <Bell size={16} aria-hidden />),
+      triggerChild("exam_start_minutes_before", <Bell size={16} aria-hidden />),
+      triggerChild("exam_not_taken", <Bell size={16} aria-hidden />),
+      triggerChild("exam_score_published", <Bell size={16} aria-hidden />),
+      triggerChild("retake_assigned", <Bell size={16} aria-hidden />),
     ],
   },
   {
@@ -127,9 +127,9 @@ export const AUTO_SEND_SECTIONS: SectionDef[] = [
       "assignment_not_submitted",
     ],
     children: [
-      triggerChild("assignment_registered", <Bell size={14} aria-hidden />),
-      triggerChild("assignment_due_hours_before", <Bell size={14} aria-hidden />),
-      triggerChild("assignment_not_submitted", <Bell size={14} aria-hidden />),
+      triggerChild("assignment_registered", <Bell size={16} aria-hidden />),
+      triggerChild("assignment_due_hours_before", <Bell size={16} aria-hidden />),
+      triggerChild("assignment_not_submitted", <Bell size={16} aria-hidden />),
     ],
   },
   {
@@ -138,7 +138,7 @@ export const AUTO_SEND_SECTIONS: SectionDef[] = [
     icon: <BarChart2 size={16} aria-hidden />,
     triggers: ["monthly_report_generated"],
     children: [
-      triggerChild("monthly_report_generated", <Bell size={14} aria-hidden />),
+      triggerChild("monthly_report_generated", <Bell size={16} aria-hidden />),
     ],
   },
   {
@@ -157,15 +157,15 @@ export const AUTO_SEND_SECTIONS: SectionDef[] = [
       "counseling_reservation_created",
     ],
     children: [
-      triggerChild("clinic_reservation_created", <CalendarPlus size={14} aria-hidden />),
-      triggerChild("clinic_check_in", <Bell size={14} aria-hidden />),
-      triggerChild("clinic_absent", <Bell size={14} aria-hidden />),
-      triggerChild("clinic_self_study_completed", <BookCheck size={14} aria-hidden />),
-      triggerChild("clinic_cancelled", <Bell size={14} aria-hidden />),
-      triggerChild("clinic_reservation_changed", <CalendarSync size={14} aria-hidden />),
-      triggerChild("clinic_result_notification", <CheckCircle size={14} aria-hidden />),
-      triggerChild("clinic_reminder", <Bell size={14} aria-hidden />),
-      triggerChild("counseling_reservation_created", <CalendarPlus size={14} aria-hidden />),
+      triggerChild("clinic_reservation_created", <CalendarPlus size={16} aria-hidden />),
+      triggerChild("clinic_check_in", <Bell size={16} aria-hidden />),
+      triggerChild("clinic_absent", <Bell size={16} aria-hidden />),
+      triggerChild("clinic_self_study_completed", <BookCheck size={16} aria-hidden />),
+      triggerChild("clinic_cancelled", <Bell size={16} aria-hidden />),
+      triggerChild("clinic_reservation_changed", <CalendarSync size={16} aria-hidden />),
+      triggerChild("clinic_result_notification", <CheckCircle size={16} aria-hidden />),
+      triggerChild("clinic_reminder", <Bell size={16} aria-hidden />),
+      triggerChild("counseling_reservation_created", <CalendarPlus size={16} aria-hidden />),
     ],
   },
   {
@@ -174,8 +174,8 @@ export const AUTO_SEND_SECTIONS: SectionDef[] = [
     icon: <CreditCard size={16} aria-hidden />,
     triggers: ["payment_complete", "payment_due_days_before"],
     children: [
-      triggerChild("payment_complete", <Bell size={14} aria-hidden />),
-      triggerChild("payment_due_days_before", <Bell size={14} aria-hidden />),
+      triggerChild("payment_complete", <Bell size={16} aria-hidden />),
+      triggerChild("payment_due_days_before", <Bell size={16} aria-hidden />),
     ],
   },
   // notice 구간: urgent_notice 제거 (카카오 알림톡 정책 위반)
@@ -185,8 +185,8 @@ export const AUTO_SEND_SECTIONS: SectionDef[] = [
     icon: <MessageCircle size={16} aria-hidden />,
     triggers: ["qna_answered", "counsel_answered"],
     children: [
-      triggerChild("qna_answered", <Bell size={14} aria-hidden />),
-      triggerChild("counsel_answered", <Bell size={14} aria-hidden />),
+      triggerChild("qna_answered", <Bell size={16} aria-hidden />),
+      triggerChild("counsel_answered", <Bell size={16} aria-hidden />),
     ],
   },
   {
@@ -201,11 +201,11 @@ export const AUTO_SEND_SECTIONS: SectionDef[] = [
       "staff_payroll_report",
     ],
     children: [
-      triggerChild("staff_attendance_summary", <Bell size={14} aria-hidden />),
-      triggerChild("staff_expense_report", <Bell size={14} aria-hidden />),
-      triggerChild("staff_month_close", <Bell size={14} aria-hidden />),
-      triggerChild("staff_payroll_snapshot", <Bell size={14} aria-hidden />),
-      triggerChild("staff_payroll_report", <Bell size={14} aria-hidden />),
+      triggerChild("staff_attendance_summary", <Bell size={16} aria-hidden />),
+      triggerChild("staff_expense_report", <Bell size={16} aria-hidden />),
+      triggerChild("staff_month_close", <Bell size={16} aria-hidden />),
+      triggerChild("staff_payroll_snapshot", <Bell size={16} aria-hidden />),
+      triggerChild("staff_payroll_report", <Bell size={16} aria-hidden />),
     ],
   },
 ];

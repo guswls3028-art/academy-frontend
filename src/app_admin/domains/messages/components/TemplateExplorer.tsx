@@ -413,14 +413,14 @@ export default function TemplateExplorer() {
               }}
             >
               <IconAction
-                icon={<FiEdit2 size={14} />}
+                icon={<FiEdit2 size={16} />}
                 label="수정"
                 onClick={() =>
                   setModalOpen({ template: t, mode: "edit" })
                 }
               />
               <IconAction
-                icon={<FiCopy size={14} />}
+                icon={<FiCopy size={16} />}
                 label="복제"
                 onClick={() => handleDuplicate(t)}
                 disabled={createMut.isPending}
@@ -428,7 +428,7 @@ export default function TemplateExplorer() {
               {t.solapi_status !== "PENDING" &&
                 t.solapi_status !== "APPROVED" && (
                   <IconAction
-                    icon={<FiSend size={14} />}
+                    icon={<FiSend size={16} />}
                     label="검수 신청"
                     onClick={() =>
                       setConfirmAction({
@@ -440,7 +440,7 @@ export default function TemplateExplorer() {
                 )}
               {!t.is_system && (
                 <IconAction
-                  icon={<FiTrash2 size={14} />}
+                  icon={<FiTrash2 size={16} />}
                   label="삭제"
                   onClick={() =>
                     setConfirmAction({ type: "delete", id: t.id })
@@ -563,7 +563,7 @@ export default function TemplateExplorer() {
               intent="primary"
               size="sm"
               onClick={() => setModalOpen("create")}
-              leftIcon={<FilePlus size={14} />}
+              leftIcon={<FilePlus size={16} />}
             >
               새 템플릿
             </Button>

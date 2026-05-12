@@ -87,8 +87,8 @@ function LogCard({ item, isPrivileged }: { item: MessageLogItem; isPrivileged: b
         <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
           style={{ background: item.success ? "var(--tc-success-bg)" : "var(--tc-danger-bg)" }}>
           {item.success
-            ? <Check size={14} style={{ color: "var(--tc-success)" }} />
-            : <X size={14} style={{ color: "var(--tc-danger)" }} />}
+            ? <Check size={18} style={{ color: "var(--tc-success)" }} />
+            : <X size={18} style={{ color: "var(--tc-danger)" }} />}
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5 mb-0.5">
