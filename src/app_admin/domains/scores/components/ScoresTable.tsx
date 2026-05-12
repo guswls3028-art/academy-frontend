@@ -37,13 +37,13 @@ import AdminOmrBatchUploadBox from "@admin/domains/submissions/components/AdminO
 
 /** 컬럼 기본 너비 */
 const COL_EDIT = 36;
-const COL_NAME = 88;
-const COL_ATTENDANCE = 36;
-// 2026-05-12: 학원장 "사이사이 간격 늘릴 수 있으면 좋겠어요" — 점수 셀 폭 80→96, 다른 컬럼도 약간씩 증가.
-// COL_PASS 제거(2026-05-12): 합불 컬럼 통째로 제거(점수 셀 색상으로 통합)되어 미사용.
-const COL_SCORE = 96;
-const COL_CLINIC_TARGET = 64;
-const COL_REASON = 72;
+// 2026-05-12: 학원장 임근혁 보고 — "이름·아이콘·강의 딱지 크기 키워", "시험끼리 행 넓이 좁아 가려진다".
+// 컬럼 폭 + 학생 셀 시각 강화.
+const COL_NAME = 140;        // 이름 + 아바타(32) + 강의 딱지(22) 함께 들어갈 폭
+const COL_ATTENDANCE = 44;
+const COL_SCORE = 112;       // 시험·과제 셀 폭 96→112
+const COL_CLINIC_TARGET = 72;
+const COL_REASON = 80;
 
 
 function parseScoreInput(input: string, maxScore?: number | null): number | null {
@@ -754,12 +754,15 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
             </th>
           )}
           {homeworkOptions.map((hw, idx) => (
-            <th
+            <ResizableTh
               key={`head-hw-${hw.homework_id}`}
-              scope="col"
+              columnKey={`hw_${hw.homework_id}_score`}
+              width={columnWidths[`hw_${hw.homework_id}_score`] ?? COL_SCORE}
+              minWidth={64}
+              maxWidth={240}
+              onWidthChange={setColumnWidth}
               rowSpan={2}
               className="group text-center font-medium text-[var(--color-text-primary)] whitespace-nowrap"
-              title={hw.title}
               data-col-type="score"
               {...(idx === 0 ? { "data-section-start": "" } : {})}
               data-group-parity={idx % 2 === 0 ? "even" : "odd"}
@@ -792,7 +795,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                   </button>
                 )}
               </span>
-            </th>
+            </ResizableTh>
           ))}
           <ResizableTh
             columnKey="clinic_target"
@@ -820,7 +823,9 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
             사유
           </ResizableTh>
         </tr>
-        {/* Row2: 시험별 서브헤더(합산/객관식/주관식/N번/합불) | 과제 점수/합불 */}
+        {/* Row2: 시험별 서브헤더(합산/객관식/주관식/N번/합불) | 과제 점수/합불.
+         * 2026-05-12: 학원장 임근혁 요청 — "시험끼리 행 넓이 조절도 안 됨" → ResizableTh로 wrapping
+         * → 우측 끝 드래그 핸들로 학원장이 직접 너비 조절 가능. */}
         <tr className="border-b-2 border-[var(--color-border-divider)]">
           {examOptions.map((ex, exIdx) => {
             const examColsList = (examColsMap[ex.exam_id] ?? []) as Extract<ScoreColumnDef, { type: "exam" }>[];
@@ -829,20 +834,22 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
             return (
               <Fragment key={ex.exam_id}>
                 {examColsList.map((c, ci) => (
-                  <th
+                  <ResizableTh
                     key={c.key}
-                    scope="col"
+                    columnKey={c.key}
+                    width={columnWidths[c.key] ?? COL_SCORE}
+                    minWidth={64}
+                    maxWidth={240}
+                    onWidthChange={setColumnWidth}
                     className="text-center text-xs font-medium text-[var(--color-text-secondary)]"
                     data-col-type="score"
                     {...(ci === 0 ? { "data-group-start": "" } : {})}
                     data-group-parity={parity}
-                    // eslint-disable-next-line no-restricted-syntax
-                    style={{ width: COL_SCORE, minWidth: 48 }}
                   >
                     {c.sub === "total" ? "합산" : c.sub === "objective" ? "객관식" : c.sub === "subjective" ? "주관식" : c.sub === "item" && c.questionId != null
                       ? `${questions.find((q) => q.question_id === c.questionId)?.number ?? c.questionId}번`
                       : "합불"}
-                  </th>
+                  </ResizableTh>
                 ))}
               </Fragment>
             );
@@ -893,21 +900,21 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                 </td>
 
                 <td
-                  className="font-semibold min-w-0 text-[var(--color-text-primary)] align-middle"
+                  className="font-semibold min-w-0 text-[var(--color-text-primary)] align-middle text-sm"
                   data-col-type="name"
                   onClick={() => onSelectRow(row)}
                 >
                   <StudentNameWithLectureChip
                     name={row.student_name ?? ""}
                     profilePhotoUrl={row.profile_photo_url ?? undefined}
-                    avatarSize={24}
+                    avatarSize={32}
                     clinicHighlight={row.name_highlight_clinic_target === true}
                     lectures={
                       row.lecture_title
                         ? [{ lectureName: row.lecture_title, color: row.lecture_color, chipLabel: row.lecture_chip_label }]
                         : undefined
                     }
-                    chipSize={14}
+                    chipSize={22}
                   />
                 </td>
 

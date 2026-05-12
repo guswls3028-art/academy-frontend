@@ -365,42 +365,35 @@ export default function SessionScoresEntryPage(_props: Props) {
               const userWithScoreVars = templates.find((t: any) => !t.is_system && hasScoreVars(t.body));
               const chosenTpl = userDefault ?? userWithScoreVars;
 
-              if (selectedRows.length === 1) {
-                initialBody = chosenTpl
-                  ? substituteScoreVars(chosenTpl.body, selectedRows[0], meta, reportOptions)
-                  : generateScoreReport(selectedRows[0], meta, reportOptions);
-                scoreDetail = buildScoreDetail(selectedRows[0], meta);
-              } else {
-                // 대량 발송: 학생별 개별 성적 변수 생성
-                perStudentVars = {};
-                for (const sRow of selectedRows) {
-                  if (sRow.student_id == null) continue;
-                  perStudentVars[sRow.student_id] = {
-                    시험성적: buildScoreDetail(sRow, meta),
-                    학생이름: sRow.student_name || "",
-                  };
-                }
-                // 첫 번째 학생 기준 미리보기 본문
-                initialBody = chosenTpl
-                  ? substituteScoreVars(chosenTpl.body, selectedRows[0], meta, reportOptions)
-                  : generateScoreReport(selectedRows[0], meta, reportOptions);
-                scoreDetail = buildScoreDetail(selectedRows[0], meta);
+              // 학원장 임근혁 보고(2026-05-12 23:50):
+              // 일괄 발송 양식이 첫 학생으로 치환되어 나와 "특정 대상 한 명으로 하드코딩됐다"는 오해.
+              // → 양식 본문은 변수 그대로 (#{학생이름}/#{시험1명}/...) 노출.
+              // 발송 시 alimtalk_extra_vars + per_student vars로 학생별 자동 치환.
+              initialBody = chosenTpl
+                ? chosenTpl.body  // ✅ 변수 그대로 — 학원장이 일괄 발송 의도 즉시 인식
+                : generateScoreReport(selectedRows[0], meta, reportOptions);
+              scoreDetail = buildScoreDetail(selectedRows[0], meta);
+
+              // 학생별 개별 성적 변수 (모든 학생 대상)
+              perStudentVars = {};
+              for (const sRow of selectedRows) {
+                if (sRow.student_id == null) continue;
+                perStudentVars[sRow.student_id] = {
+                  시험성적: buildScoreDetail(sRow, meta),
+                  학생이름: sRow.student_name || "",
+                };
               }
             } catch {
-              if (selectedRows.length === 1) {
-                initialBody = generateScoreReport(selectedRows[0], meta, reportOptions);
-                scoreDetail = buildScoreDetail(selectedRows[0], meta);
-              } else {
-                perStudentVars = {};
-                for (const sRow of selectedRows) {
-                  if (sRow.student_id == null) continue;
-                  perStudentVars[sRow.student_id] = {
-                    시험성적: buildScoreDetail(sRow, meta),
-                    학생이름: sRow.student_name || "",
-                  };
-                }
-                initialBody = generateScoreReport(selectedRows[0], meta, reportOptions);
-                scoreDetail = buildScoreDetail(selectedRows[0], meta);
+              // 템플릿 조회 실패 시 — generateScoreReport fallback
+              initialBody = generateScoreReport(selectedRows[0], meta, reportOptions);
+              scoreDetail = buildScoreDetail(selectedRows[0], meta);
+              perStudentVars = {};
+              for (const sRow of selectedRows) {
+                if (sRow.student_id == null) continue;
+                perStudentVars[sRow.student_id] = {
+                  시험성적: buildScoreDetail(sRow, meta),
+                  학생이름: sRow.student_name || "",
+                };
               }
             }
             openSendMessageModal({
