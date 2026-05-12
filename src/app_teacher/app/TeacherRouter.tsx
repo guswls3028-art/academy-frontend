@@ -60,20 +60,36 @@ const BugReportPage = lazy(() => import("@teacher/domains/developer/pages/Develo
 const FeedbackPage = lazy(() => import("@teacher/domains/developer/pages/DeveloperPages").then((m) => ({ default: m.FeedbackPage })));
 
 function TeacherFallback() {
+  // chunk lazy load 시 보이는 fallback — 빈 "불러오는 중..." 텍스트보다
+  // 도메인 페이지의 skeleton과 시각적으로 연속되도록 카드 5개 펄스
   return (
     <div
       role="status"
       aria-label="불러오는 중"
-      style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        minHeight: 200,
-        color: "var(--tc-text-muted)",
-        fontSize: 14,
-      }}
+      className="flex flex-col gap-2"
+      style={{ padding: "var(--tc-space-3) 0" }}
     >
-      불러오는 중...
+      <div
+        style={{
+          height: 40,
+          width: "55%",
+          borderRadius: "var(--tc-radius-sm)",
+          background: "var(--tc-surface-soft)",
+          animation: "pulse 1.5s ease-in-out infinite",
+        }}
+      />
+      {[0, 1, 2, 3, 4].map((i) => (
+        <div
+          key={i}
+          style={{
+            height: 56,
+            borderRadius: "var(--tc-radius)",
+            background: "var(--tc-surface-soft)",
+            animation: "pulse 1.5s ease-in-out infinite",
+            animationDelay: `${i * 80}ms`,
+          }}
+        />
+      ))}
     </div>
   );
 }

@@ -126,6 +126,23 @@ function ScoreEntryList({
   const updateMut = useMutation({
     mutationFn: ({ enrollmentId, score, maxScore }: { enrollmentId: number; score: number; maxScore: number }) =>
       updateResult(examId, enrollmentId, { score, maxScore }),
+    // 옵티미스틱 업데이트 — refetch 사이클(invalidate 후 서버 응답까지 ~300-500ms) 동안
+    // 행이 옛 값으로 잠깐 표시되는 racing 차단. onError에서 롤백.
+    onMutate: async (variables) => {
+      const qk = ["exam-results", examId] as const;
+      await qc.cancelQueries({ queryKey: qk });
+      const previous = qc.getQueryData<any[]>(qk);
+      qc.setQueryData<any[]>(qk, (prev) =>
+        Array.isArray(prev)
+          ? prev.map((r) =>
+              r.enrollment_id === variables.enrollmentId
+                ? { ...r, exam_score: variables.score, final_score: variables.score }
+                : r,
+            )
+          : prev,
+      );
+      return { previous };
+    },
     onSuccess: (_data, variables) => {
       setLocalScores((prev) => {
         const next = new Map(prev);
@@ -146,7 +163,10 @@ function ScoreEntryList({
       const name = student?.student_name ?? "";
       feedback.success(name ? `${name} 점수가 저장되었습니다.` : "점수가 저장되었습니다.");
     },
-    onError: (e) => feedback.error(extractApiError(e, "저장 실패")),
+    onError: (e, _vars, ctx: any) => {
+      if (ctx?.previous) qc.setQueryData(["exam-results", examId], ctx.previous);
+      feedback.error(extractApiError(e, "저장 실패"));
+    },
   });
 
   const handleSubmit = useCallback(
@@ -263,9 +283,11 @@ function ScoreEntryList({
             className="flex items-center gap-3 rounded-lg"
             style={{
               padding: "var(--tc-space-3) var(--tc-space-4)",
-              background: saved ? "var(--tc-success-bg)" : "var(--tc-surface)",
-              border: saved ? "1px solid var(--tc-success)" : "1px solid var(--tc-border)",
-              transition: "background 600ms ease, border-color 600ms ease",
+              // 명시 success 색상 — 토큰이 옅을 경우 대비. 페이드인 180ms로 단축해 학원장이 다음 행으로 넘기기 전 visible
+              background: saved ? "rgba(34, 197, 94, 0.18)" : "var(--tc-surface)",
+              border: saved ? "1.5px solid #22c55e" : "1px solid var(--tc-border)",
+              transition: "background 180ms ease-out, border-color 180ms ease-out",
+              boxShadow: saved ? "0 0 0 3px rgba(34, 197, 94, 0.12)" : "none",
             }}
           >
             <span
