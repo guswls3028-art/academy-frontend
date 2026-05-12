@@ -38,11 +38,12 @@ import AdminOmrBatchUploadBox from "@admin/domains/submissions/components/AdminO
 /** 컬럼 기본 너비 */
 const COL_EDIT = 36;
 const COL_NAME = 88;
-const COL_ATTENDANCE = 32;
-const COL_SCORE = 80;
-const COL_PASS = 48;
-const COL_CLINIC_TARGET = 56;
-const COL_REASON = 64;
+const COL_ATTENDANCE = 36;
+// 2026-05-12: 학원장 "사이사이 간격 늘릴 수 있으면 좋겠어요" — 점수 셀 폭 80→96, 다른 컬럼도 약간씩 증가.
+const COL_SCORE = 96;
+const COL_PASS = 56;
+const COL_CLINIC_TARGET = 64;
+const COL_REASON = 72;
 
 
 function parseScoreInput(input: string, maxScore?: number | null): number | null {
@@ -742,7 +743,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
           {examOptions.length > 1 && (
             <th
               scope="col"
-              colSpan={2}
+              rowSpan={2}
               className="text-center font-medium text-[var(--color-text-primary)]"
               data-col-type="exam-summary"
               data-summary-start=""
@@ -846,21 +847,8 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
               </Fragment>
             );
           })}
-          {examOptions.length > 1 && (
-            <>
-              <th
-                scope="col"
-                className="text-center text-xs font-medium text-[var(--color-text-secondary)]"
-                data-col-type="exam-summary"
-                data-summary-start=""
-                data-summary=""
-                style={{ width: columnWidths.exam_summary_score ?? 96, minWidth: 72 }}
-              >
-                점수
-              </th>
-            </>
-          )}
-          {/* 과제 헤더는 Row1에서 rowSpan=2 처리 */}
+          {/* 총점 헤더는 Row1에서 rowSpan=2 처리 (2026-05-12: 합불 컬럼 제거로 colSpan=2 → rowSpan=2 변경) */}
+          {/* 과제 헤더도 Row1에서 rowSpan=2 처리 */}
         </tr>
       </thead>
 

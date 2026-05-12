@@ -277,12 +277,14 @@ table.ds-table {
   display: block;
 }
 
-/* 성적 테이블 — 전체 셀 중앙정렬 + 패딩 + 높이 통일 */
+/* 성적 테이블 — 전체 셀 중앙정렬 + 패딩 + 높이 통일.
+ * 2026-05-12: 학원장 "사이사이 간격 늘릴 수 있으면 좋겠어요" — 가로 패딩 6→12px, 세로 8→10px 확장.
+ */
 .ds-table-wrap .ds-table.ds-table--flat.ds-scores-table thead th,
 .ds-table-wrap .ds-table.ds-table--flat.ds-scores-table tbody td {
   text-align: center;
   line-height: 1.4;
-  padding: 8px 6px;
+  padding: 10px 12px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
