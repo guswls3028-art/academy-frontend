@@ -35,12 +35,16 @@ import { feedback } from "@/shared/ui/feedback/feedback";
 /** 컬럼 기본 너비 */
 const COL_EDIT = 36;
 // 2026-05-12: 학원장 임근혁 보고 — "이름·아이콘·강의 딱지 크기 키워", "시험끼리 행 넓이 좁아 가려진다".
-// 2026-05-13 시각 검증 후 추가 강화: 강의 딱지 22→28, 시험 폭 112→132 (헤더에 ◀⚙▶ 다 들어가야).
+// 2026-05-13 1차: 강의 딱지 22→28, 시험 폭 112→132.
+// 2026-05-13 2차 (P0-A 캡처 검수 후):
+//   - 출석 44→64 ("출석" 두 글자 truncate 해소)
+//   - 시험 132→160 + 헤더 wrap 허용 (시험명 ≥ 5글자 잘림 해소)
+//   - 판정 72→88 (뱃지+사유 통합 후 폭 보강)
 const COL_NAME = 160;        // 이름 + 아바타(32) + 강의 딱지(28) 함께 들어갈 폭
-const COL_ATTENDANCE = 44;
-const COL_SCORE = 132;       // 시험·과제 셀 폭. 헤더 ◀ + Badge + 시험명 + ⚙ + ▶ 함께 들어갈 폭
-const COL_CLINIC_TARGET = 72;
-const COL_REASON = 80;
+const COL_ATTENDANCE = 64;
+const COL_SCORE = 160;       // 시험·과제 셀 폭. 헤더는 wrap 허용으로 시험명 보존
+const COL_CLINIC_TARGET = 88;
+const COL_REASON = 80;       // (사용 안 함, 통합 후 호환용 상수만 잔존)
 
 
 function parseScoreInput(input: string, maxScore?: number | null): number | null {
@@ -627,7 +631,8 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                 key={`head-exam-${ex.exam_id}`}
                 scope="col"
                 colSpan={colSpan}
-                className="group text-center font-medium text-[var(--color-text-primary)] whitespace-nowrap"
+                /* 2026-05-13 2차 (P0-A): whitespace-nowrap 제거 → 시험명 길어도 줄바꿈으로 보존. */
+                className="group text-center font-medium text-[var(--color-text-primary)] align-middle"
                 title={ex.title}
                 data-col-type="score"
                 data-group-start=""
@@ -635,7 +640,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
               >
                 {/* P0-1 (2026-05-13): ◀ ⚙ ▶ 버튼은 그룹 hover 시에만 노출.
                     평소엔 [시] 뱃지 + 시험명에 폭 양보 → 학원장이 시험명을 즉시 인식. */}
-                <span className="inline-flex items-center gap-1 min-w-0">
+                <span className="inline-flex items-start gap-1 min-w-0 max-w-full">
                   {onReorderColumn && (
                     <button
                       type="button"
@@ -649,7 +654,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                     </button>
                   )}
                   <Badge variant="solid" tone="primary" oneChar ariaLabel="시험">시</Badge>
-                  <span className="truncate min-w-0">{ex.title}</span>
+                  <span className="break-keep min-w-0 leading-tight">{ex.title}</span>
                   <span className="ds-col-action-btn shrink-0">
                     <ExamHeaderQuickEdit
                       examId={ex.exam_id}
@@ -698,12 +703,13 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
               maxWidth={240}
               onWidthChange={setColumnWidth}
               rowSpan={2}
-              className="group text-center font-medium text-[var(--color-text-primary)] whitespace-nowrap"
+              /* 2026-05-13 2차 (P0-A): 과제 헤더도 wrap 허용 — 과제명 길어도 줄바꿈으로 보존. */
+              className="group text-center font-medium text-[var(--color-text-primary)] align-middle"
               data-col-type="score"
               {...(idx === 0 ? { "data-section-start": "" } : {})}
               data-group-parity={idx % 2 === 0 ? "even" : "odd"}
             >
-              <span className="inline-flex items-center gap-1 min-w-0">
+              <span className="inline-flex items-start gap-1 min-w-0 max-w-full">
                 {onReorderColumn && (
                   <button
                     type="button"
@@ -717,7 +723,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                   </button>
                 )}
                 <Badge variant="solid" tone="complement" oneChar ariaLabel="과제">과</Badge>
-                <span className="truncate min-w-0">{hw.title}</span>
+                <span className="break-keep min-w-0 leading-tight">{hw.title}</span>
                 {onReorderColumn && (
                   <button
                     type="button"
@@ -829,12 +835,13 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                   data-col-type="name"
                   onClick={() => onSelectRow(row)}
                 >
-                  {/* P1-4 (2026-05-13): 차시 = 강의 컨텍스트라 강의 chip redundant.
-                      이름 가독성 우선 → chip 제거. 클리닉 highlight 와 아바타는 유지. */}
+                  {/* P1-4 (2026-05-13 1차): 차시 = 강의 컨텍스트라 강의 chip redundant. 이름 가독성 우선 → chip 제거.
+                      P1-B (2026-05-13 2차): 사진 없는 학생은 이니셜 아바타 redundant (옆 풀네임에 같은 글자 중복).
+                      → 사진이 있을 때만 32px 아바타, 없으면 아바타 자체 미표시. */}
                   <StudentNameWithLectureChip
                     name={row.student_name ?? ""}
                     profilePhotoUrl={row.profile_photo_url ?? undefined}
-                    avatarSize={32}
+                    avatarSize={row.profile_photo_url ? 32 : undefined}
                     clinicHighlight={row.name_highlight_clinic_target === true}
                   />
                 </td>

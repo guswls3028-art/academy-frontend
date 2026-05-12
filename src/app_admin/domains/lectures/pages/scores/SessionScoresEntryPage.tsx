@@ -744,21 +744,31 @@ export default function SessionScoresEntryPage(_props: Props) {
             </div>
             <div className="scores-view-filter-section">
               <span className="scores-view-filter-label">과제</span>
-              <div className="scores-display-segment" role="group" aria-label="과제 점수 입력 on/off">
+              {/* 2026-05-13 2차 (P1-A): 단일 토글 "입력 가능"/"잠김" → 두 라디오 [켜짐][꺼짐].
+                  현재 어느 상태인지 한눈에 보이고, 다른 상태 클릭으로 직관적 전환. */}
+              <div className="scores-display-segment" role="group" aria-label="과제 점수 입력 켜짐/꺼짐">
                 <button
                   type="button"
-                  onClick={handleSelectHomework}
+                  onClick={() => { if (!homeworkEdit) handleSelectHomework(); }}
                   className="scores-display-segment__btn"
                   aria-pressed={homeworkEdit}
-                  title="과제 점수 입력 가능 / 불가능 토글"
+                  title="과제 점수 입력 가능 상태"
                 >
-                  {homeworkEdit ? "입력 가능" : "잠김"}
+                  켜짐
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { if (homeworkEdit) handleSelectHomework(); }}
+                  className="scores-display-segment__btn"
+                  aria-pressed={!homeworkEdit}
+                  title="과제 점수 입력 차단 상태"
+                >
+                  꺼짐
                 </button>
               </div>
             </div>
-            <span className="text-[11px] text-[var(--color-text-muted)] hidden sm:inline">
-              Tab·화살표로 셀 이동 · Enter 다음 행
-            </span>
+            {/* 2026-05-13 2차 (P0-B): "Tab·화살표..." 짧은 안내 제거 — ScoresTable 의 풍부한
+                편집 모드 카드 1곳으로 단일화. 두 카드 동시 노출 패턴 해소. */}
           </>
         ) : (
           <>
