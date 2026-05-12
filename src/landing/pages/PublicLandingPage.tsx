@@ -17,7 +17,6 @@ import LandingInlineEditorFab from "../components/LandingInlineEditorFab";
 import NoticePopup from "../components/NoticePopup";
 import { setLandingMeta as setMeta } from "../utils/seoMeta";
 import { scrollToLandingSection } from "../utils/scrollToSection";
-import { getTenantSignature } from "../utils/tenantSignature";
 import type { LandingConfig } from "../types";
 
 export default function PublicLandingPage() {
@@ -119,33 +118,14 @@ export default function PublicLandingPage() {
     return <Navigate to="/login" replace />;
   }
 
-  // 청사진 SSOT (#D1+D2, cycle 13) — signature mode "override"면 학원장 입력 무시 + 시그니처
-  // 강제 (박철 청사진 spec). "fallback"이면 빈 값만 채움 (일반 학원).
-  const sig = getTenantSignature();
+  // 학원장이 어드민에서 입력한 LandingConfig가 SSOT. hostname 기반 override 없음.
   const baseConfig = state.data.config;
-  const mergedConfig: LandingConfig = sig
-    ? sig.mode === "override"
-      ? {
-          ...baseConfig,
-          tagline: sig.tagline,
-          subtitle: sig.subtitle,
-          primary_color: sig.primaryColor,
-        }
-      : {
-          ...baseConfig,
-          tagline: baseConfig.tagline || sig.tagline,
-          subtitle: baseConfig.subtitle || sig.subtitle,
-          primary_color: baseConfig.primary_color || sig.primaryColor,
-        }
-    : baseConfig;
-  const effectiveTemplateKey = sig?.mode === "override"
-    ? sig.templateKey
-    : (state.data.template_key || sig?.templateKey || "minimal_tutor");
+  const effectiveTemplateKey = state.data.template_key || "minimal_tutor";
   const Template = getTemplateComponent(effectiveTemplateKey);
   return (
     <PublicLandingContent
       template={Template}
-      initialConfig={mergedConfig}
+      initialConfig={baseConfig}
       notice={baseConfig?.notice_popup}
     />
   );
