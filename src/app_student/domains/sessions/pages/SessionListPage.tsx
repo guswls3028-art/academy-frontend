@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-syntax */
 /**
  * 일정 — 3탭: 내 일정(달력) | 예약 | 지난 일정
  */
