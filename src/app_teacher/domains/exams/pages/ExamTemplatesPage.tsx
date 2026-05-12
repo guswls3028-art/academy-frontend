@@ -94,7 +94,7 @@ function TemplateCard({ template, kind }: { template: any; kind: Tab }) {
                 color: "var(--tc-text-secondary)",
               }}>
               {(u.lecture_color || u.lecture_chip_label) && (
-                <LectureChip lectureName={u.lecture_title ?? u.lecture_name ?? ""} color={u.lecture_color} chipLabel={u.lecture_chip_label} size={14} />
+                <LectureChip lectureName={u.lecture_title ?? u.lecture_name ?? ""} color={u.lecture_color} chipLabel={u.lecture_chip_label} size={20} />
               )}
               <span className="truncate" style={{ maxWidth: 120 }}>{u.lecture_title ?? u.lecture_name}</span>
             </button>

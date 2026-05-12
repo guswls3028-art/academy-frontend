@@ -106,12 +106,12 @@ export default function StaffManagePage() {
                   </div>
                   <div className="flex gap-1 shrink-0">
                     <button onClick={() => setEditTarget(s)} className="flex p-1.5 cursor-pointer"
-                      style={{ background: "none", border: "none", color: "var(--tc-text-muted)" }}><Pencil size={14} /></button>
+                      style={{ background: "none", border: "none", color: "var(--tc-text-muted)" }}><Pencil size={18} /></button>
                     <button onClick={async () => {
                         const ok = await confirm({ title: "직원 삭제", message: `${s.name}을(를) 삭제할까요? 연결된 근무기록, 비용 등 모든 데이터가 함께 삭제됩니다.`, confirmText: "삭제", danger: true });
                         if (ok) deleteMut.mutate(s.id);
                       }}
-                      className="flex p-1.5 cursor-pointer" style={{ background: "none", border: "none", color: "var(--tc-danger)" }}><Trash2 size={14} /></button>
+                      className="flex p-1.5 cursor-pointer" style={{ background: "none", border: "none", color: "var(--tc-danger)" }}><Trash2 size={18} /></button>
                   </div>
                 </div>
               </Card>

@@ -8,7 +8,7 @@ const DEFAULT_LECTURE_COLOR = "#3b82f6";
 export default function LectureChip({
   lectureName,
   color,
-  size = 18,
+  size = 22,
   chipLabel,
 }: {
   lectureName: string;
@@ -23,7 +23,8 @@ export default function LectureChip({
   const two = (chipLabel && chipLabel.trim())
     ? String(chipLabel).trim().slice(0, 2)
     : (lectureName && lectureName.trim() ? lectureName.trim().slice(0, 2) : "");
-  const fontSize = size <= 18 ? 8 : size <= 24 ? 9 : 10;
+  // 2026-05-12 학원장 가시성 보강 — 8/9/10 → 10/12/14 / 큰 chip은 16
+  const fontSize = size <= 18 ? 10 : size <= 24 ? 12 : size <= 32 ? 14 : 16;
 
   return (
     <span

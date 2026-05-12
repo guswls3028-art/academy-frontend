@@ -66,7 +66,7 @@ export default function ResultsPage() {
               color: selectedLecture === l.id ? "var(--tc-primary)" : "var(--tc-text-secondary)",
             }}
           >
-            <LectureChip lectureName={l.title} color={l.color} chipLabel={l.chip_label ?? l.chipLabel} size={14} />
+            <LectureChip lectureName={l.title} color={l.color} chipLabel={l.chip_label ?? l.chipLabel} size={20} />
             {l.title}
           </button>
         ))}

@@ -36,7 +36,7 @@ const DEFAULT_COLOR = "#3b82f6";
 export default function StudentNameWithLectureChip({
   name,
   lectures,
-  chipSize = 16,
+  chipSize = 20,
   profilePhotoUrl,
   avatarSize,
   className,

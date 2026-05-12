@@ -237,7 +237,7 @@ export default function StudentListPage() {
                   <div className="flex items-center gap-1.5 flex-wrap">
                     <span className="text-[15px] font-semibold" style={{ color: "var(--tc-text)" }}>{name}</span>
                     {enrollments.map((e: any) => (
-                      <LectureChip key={e.id ?? e.lectureId} lectureName={e.lectureName ?? e.lecture_title ?? ""} color={e.lectureColor ?? e.lecture_color} chipLabel={e.lectureChipLabel ?? e.lecture_chip_label} size={16} />
+                      <LectureChip key={e.id ?? e.lectureId} lectureName={e.lectureName ?? e.lecture_title ?? ""} color={e.lectureColor ?? e.lecture_color} chipLabel={e.lectureChipLabel ?? e.lecture_chip_label} size={20} />
                     ))}
                   </div>
                   {sub && <div className="text-[12px] mt-0.5" style={{ color: "var(--tc-text-muted)" }}>{sub}</div>}
