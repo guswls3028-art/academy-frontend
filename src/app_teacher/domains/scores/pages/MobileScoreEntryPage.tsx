@@ -110,39 +110,38 @@ function ScoreEntryList({
     enabled: Number.isFinite(examId),
   });
 
+  // row 식별자 = enrollment_id (admin endpoint schema SSOT)
   const inputRefs = useRef<Map<number, HTMLInputElement>>(new Map());
-  // examId 변경 시 해당 시험의 draft 복원 + 첫 input에 포커스
   const [localScores, setLocalScores] = useState<Map<number, string>>(() => loadDraft(examId));
   useEffect(() => { setLocalScores(loadDraft(examId)); }, [examId]);
   useEffect(() => {
-    // 시험 전환 시 첫 학생 input 자동 포커스 (입력 흐름 가속)
     if (!results?.length) return;
     const first = results[0];
-    const t = setTimeout(() => inputRefs.current.get(first.id)?.focus(), 50);
+    const t = setTimeout(() => inputRefs.current.get(first.enrollment_id)?.focus(), 50);
     return () => clearTimeout(t);
   }, [examId, results]);
 
   const updateMut = useMutation({
-    mutationFn: ({ id, score }: { id: number; score: number }) =>
-      updateResult(id, { score }),
+    mutationFn: ({ enrollmentId, score, maxScore }: { enrollmentId: number; score: number; maxScore: number }) =>
+      updateResult(examId, enrollmentId, { score, maxScore }),
     onSuccess: (_data, variables) => {
       setLocalScores((prev) => {
         const next = new Map(prev);
-        next.delete(variables.id);
+        next.delete(variables.enrollmentId);
         saveDraft(examId, next);
         return next;
       });
       qc.invalidateQueries({ queryKey: ["exam-results", examId] });
-      const student = results?.find((r: any) => r.id === variables.id);
-      const name = student?.student_name ?? student?.name ?? "";
+      const student = results?.find((r: any) => r.enrollment_id === variables.enrollmentId);
+      const name = student?.student_name ?? "";
       feedback.success(name ? `${name} 점수가 저장되었습니다.` : "점수가 저장되었습니다.");
     },
     onError: (e) => feedback.error(extractApiError(e, "저장 실패")),
   });
 
   const handleSubmit = useCallback(
-    (resultId: number, maxScore: number) => {
-      const val = localScores.get(resultId);
+    (enrollmentId: number, maxScore: number) => {
+      const val = localScores.get(enrollmentId);
       if (val == null || val === "") return;
       const num = Number(val);
       if (isNaN(num)) {
@@ -153,30 +152,30 @@ function ScoreEntryList({
         feedback.error(`0~${maxScore} 사이의 점수를 입력하세요.`);
         return;
       }
-      updateMut.mutate({ id: resultId, score: num });
+      updateMut.mutate({ enrollmentId, score: num, maxScore });
     },
     [localScores, updateMut],
   );
 
   const focusNext = useCallback(
-    (currentId: number) => {
+    (currentEnrollmentId: number) => {
       if (!results) return;
-      const idx = results.findIndex((r: any) => r.id === currentId);
+      const idx = results.findIndex((r: any) => r.enrollment_id === currentEnrollmentId);
       if (idx >= 0 && idx < results.length - 1) {
-        inputRefs.current.get(results[idx + 1].id)?.focus();
+        inputRefs.current.get(results[idx + 1].enrollment_id)?.focus();
       }
     },
     [results],
   );
 
-  // 합계/평균 KPI (입력 중인 draft 우선)
+  // 합계/평균 KPI (draft 우선)
   const stats = useMemo(() => {
     if (!results?.length) return null;
     const scores: number[] = [];
     let passed = 0;
     for (const r of results) {
-      const draft = localScores.get(r.id);
-      const final = r.final_score ?? r.score;
+      const draft = localScores.get(r.enrollment_id);
+      const final = r.final_score ?? r.exam_score;
       let sc: number | null = null;
       if (draft != null && draft !== "" && !isNaN(Number(draft))) sc = Number(draft);
       else if (final != null) sc = Number(final);
@@ -235,17 +234,18 @@ function ScoreEntryList({
       )}
 
       {results.map((r: any) => {
-        const existing = r.final_score ?? r.score;
-        const display = localScores.get(r.id) ?? (existing != null ? String(existing) : "");
-        const maxScore = r.max_score ?? r.perfect_score ?? examMaxScore ?? 100;
-        const name = r.student_name ?? r.name ?? "이름 없음";
-        const draftVal = localScores.get(r.id);
+        const enrollmentId = r.enrollment_id;
+        const existing = r.final_score ?? r.exam_score;
+        const display = localScores.get(enrollmentId) ?? (existing != null ? String(existing) : "");
+        const maxScore = r.exam_max_score ?? r.max_score ?? examMaxScore ?? 100;
+        const name = r.student_name ?? "이름 없음";
+        const draftVal = localScores.get(enrollmentId);
         const draftNum = draftVal != null && draftVal !== "" ? Number(draftVal) : NaN;
         const isInvalid = !isNaN(draftNum) && (draftNum < 0 || draftNum > maxScore);
 
         return (
           <div
-            key={r.id}
+            key={enrollmentId}
             className="flex items-center gap-3 rounded-lg"
             style={{
               padding: "var(--tc-space-3) var(--tc-space-4)",
@@ -259,11 +259,11 @@ function ScoreEntryList({
             >
               {name}
             </span>
-            <AchievementBadge passed={r.is_pass} achievement={r.achievement} />
+            <AchievementBadge passed={r.final_pass ?? r.passed} achievement={r.achievement} />
             <div className="flex items-center gap-1 shrink-0">
               <input
                 ref={(el) => {
-                  if (el) inputRefs.current.set(r.id, el);
+                  if (el) inputRefs.current.set(enrollmentId, el);
                 }}
                 type="text"
                 inputMode="numeric"
@@ -273,17 +273,17 @@ function ScoreEntryList({
                 onChange={(e) => {
                   const v = e.target.value;
                   setLocalScores((p) => {
-                    const next = new Map(p).set(r.id, v);
+                    const next = new Map(p).set(enrollmentId, v);
                     saveDraft(examId, next);
                     return next;
                   });
                 }}
-                onBlur={() => handleSubmit(r.id, maxScore)}
+                onBlur={() => handleSubmit(enrollmentId, maxScore)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     e.preventDefault();
-                    handleSubmit(r.id, maxScore);
-                    focusNext(r.id);
+                    handleSubmit(enrollmentId, maxScore);
+                    focusNext(enrollmentId);
                   }
                 }}
                 className="text-center text-lg font-bold outline-none"

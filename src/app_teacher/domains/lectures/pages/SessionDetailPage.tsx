@@ -438,18 +438,18 @@ function ScoresTab({
           <>
             <div className="flex flex-col gap-1">
               {results.map((r: any) => {
-                const name = r.student_name ?? r.enrollment_name ?? "이름 없음";
-                const score = r.final_score ?? r.score;
-                const maxScore = r.max_score ?? exams.find((e: any) => e.id === selectedExam)?.max_score ?? 100;
+                const name = r.student_name ?? "이름 없음";
+                const score = r.final_score ?? r.exam_score;
+                const maxScore = r.exam_max_score ?? exams.find((e: any) => e.id === selectedExam)?.max_score ?? 100;
                 return (
                   <div
-                    key={r.id}
+                    key={r.enrollment_id}
                     className="flex justify-between items-center py-2 border-b last:border-b-0"
                     style={{ borderColor: "var(--tc-border)" }}
                   >
                     <span className="text-sm flex-1 min-w-0 truncate" style={{ color: "var(--tc-text)" }}>{name}</span>
                     <div className="flex items-center gap-2 shrink-0">
-                      <AchievementBadge passed={r.is_pass} achievement={r.achievement} />
+                      <AchievementBadge passed={r.final_pass ?? r.passed} achievement={r.achievement} />
                       <span
                         className="text-sm font-bold"
                         style={{ color: score != null ? "var(--tc-text)" : "var(--tc-text-muted)" }}
