@@ -1,6 +1,5 @@
-/* eslint-disable no-restricted-syntax */
 // PATH: src/app_admin/domains/storage/components/FolderTree.tsx
-// 재귀적 폴더 트리 — 여닫이(collapse) + 행 호버 시 액션 (이름변경/하위추가/하위포함삭제) (R-11 baseline 동결)
+// 재귀적 폴더 트리 — 여닫이(collapse) + 행 호버 시 액션 (이름변경/하위추가/하위포함삭제)
 
 import { useState, useCallback } from "react";
 import { FolderOpen, Folder, ChevronRight, ChevronDown, Pencil, FolderPlus, Trash2, Home } from "lucide-react";

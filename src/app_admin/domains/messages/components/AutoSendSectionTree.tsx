@@ -1,6 +1,5 @@
-/* eslint-disable no-restricted-syntax */
 // PATH: src/app_admin/domains/messages/components/AutoSendSectionTree.tsx
-// 자동발송 — 좌측 구간 폴더 트리 (9구간). SSOT: backend/docs/AUTO-SEND-EVENT-SPEC.md (R-11 baseline 동결)
+// 자동발송 — 좌측 구간 폴더 트리 (9구간). SSOT: backend/docs/AUTO-SEND-EVENT-SPEC.md
 
 import { useState } from "react";
 import {
