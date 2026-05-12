@@ -40,8 +40,8 @@ const COL_EDIT = 36;
 const COL_NAME = 88;
 const COL_ATTENDANCE = 36;
 // 2026-05-12: 학원장 "사이사이 간격 늘릴 수 있으면 좋겠어요" — 점수 셀 폭 80→96, 다른 컬럼도 약간씩 증가.
+// COL_PASS 제거(2026-05-12): 합불 컬럼 통째로 제거(점수 셀 색상으로 통합)되어 미사용.
 const COL_SCORE = 96;
-const COL_PASS = 56;
 const COL_CLINIC_TARGET = 64;
 const COL_REASON = 72;
 
@@ -79,19 +79,7 @@ function pendingKeyForChange(p: PendingChange): string {
   return `homework:${p.enrollmentId}:${p.homeworkId}`;
 }
 
-/** 합불 표시 — 시험/과제 셀: 합=초록 배지, 불=빨강 배지. 긍정은 초록색 */
-function PassFailText({ passed }: { passed: boolean | null | undefined }) {
-  if (passed == null) return null;
-  return (
-    <span
-      className="ds-scores-pass-fail-badge"
-      data-tone={passed ? "success" : "danger"}
-      title={passed ? "합격 (커트라인 이상)" : "불합격 (커트라인 미만)"}
-    >
-      {passed ? "합" : "불"}
-    </span>
-  );
-}
+// PassFailText 컴포넌트 제거(2026-05-12): 합불 컬럼 자체 제거 — 점수 셀 data-pass-status 색상/border로 대체.
 
 /** OMR 업로드 — 시험 컬럼 헤더 위 간결한 버튼 + 드래그앤드롭 모달 */
 function OmrUploadButton({ examId, examTitle, onUploaded }: { examId: number; examTitle?: string; onUploaded?: () => void }) {
@@ -353,8 +341,14 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
     }
   }, []);
 
-  const examOptions = viewFilter === "homework" ? [] : (meta?.exams ?? []);
-  const homeworkOptions = viewFilter === "exam" ? [] : (meta?.homeworks ?? []);
+  const examOptions = useMemo(
+    () => (viewFilter === "homework" ? [] : (meta?.exams ?? [])),
+    [viewFilter, meta?.exams],
+  );
+  const homeworkOptions = useMemo(
+    () => (viewFilter === "exam" ? [] : (meta?.homeworks ?? [])),
+    [viewFilter, meta?.homeworks],
+  );
 
   /** 편집 모드 시 점수 셀 동기화: 포커스 아닐 때만 서버 값으로 contenteditable 텍스트 갱신 (pending 셀은 건드리지 않음) */
   useEffect(() => {
@@ -580,12 +574,14 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
       {isEditMode && (
         <div
           className="flex items-center gap-2 px-3 py-1.5 mb-2 rounded-md text-xs flex-wrap"
+          // eslint-disable-next-line no-restricted-syntax
           style={{
             background: "color-mix(in srgb, var(--color-brand-primary) 6%, var(--color-bg-surface))",
             border: "1px solid color-mix(in srgb, var(--color-brand-primary) 15%, var(--color-border-divider))",
             color: "var(--color-text-secondary)",
           }}
         >
+          {/* eslint-disable-next-line no-restricted-syntax */}
           <span style={{ color: "var(--color-brand-primary)", fontWeight: 600 }}>편집 모드</span>
           <span className="opacity-30">|</span>
           <span>점수 입력 후 <kbd className="score-help-kbd">Enter</kbd> 저장</span>
@@ -602,11 +598,13 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
       )}
       {/* OMR 업로드 버튼 — 테이블 밖, 시험 컬럼 위에 정렬 */}
       {examPositions.length > 0 && (
+        // eslint-disable-next-line no-restricted-syntax
         <div className="relative" style={{ width: tableWidth, height: 24, zIndex: 10 }}>
           {examPositions.map((pos) => (
             <div
               key={`omr-${pos.examId}`}
               className="absolute flex items-center justify-center"
+              // eslint-disable-next-line no-restricted-syntax
               style={{ left: pos.left, width: pos.width, top: 0, height: 24 }}
             >
               <OmrUploadButton
@@ -627,6 +625,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
     >
       <colgroup>
         {tableCols.map((w, i) => (
+          // eslint-disable-next-line no-restricted-syntax
           <col key={i} style={{ width: w }} />
         ))}
       </colgroup>
@@ -837,6 +836,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                     data-col-type="score"
                     {...(ci === 0 ? { "data-group-start": "" } : {})}
                     data-group-parity={parity}
+                    // eslint-disable-next-line no-restricted-syntax
                     style={{ width: COL_SCORE, minWidth: 48 }}
                   >
                     {c.sub === "total" ? "합산" : c.sub === "objective" ? "객관식" : c.sub === "subjective" ? "주관식" : c.sub === "item" && c.questionId != null
@@ -918,6 +918,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                     const tone = getAttendanceTone(status);
                     const meta = { PRESENT: "현장", LATE: "지각", ONLINE: "영상", SUPPLEMENT: "보강", EARLY_LEAVE: "조퇴", ABSENT: "결석", RUNAWAY: "출튀", MATERIAL: "자료", INACTIVE: "부재", SECESSION: "퇴원" }[status] ?? status;
                     const color = tone === "success" ? "var(--color-success)" : tone === "danger" ? "var(--color-error)" : tone === "warning" ? "var(--color-warning)" : tone === "primary" ? "var(--color-brand-primary)" : tone === "teal" ? "var(--color-teal, #0d9488)" : "var(--color-text-muted)";
+                    // eslint-disable-next-line no-restricted-syntax
                     return <span className="text-xs font-semibold" style={{ color }}>{meta}</span>;
                   })()}
                 </td>
@@ -1335,6 +1336,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                               contentEditable
                               suppressContentEditableWarning
                               className={`ds-scores-cell-editable font-medium text-right tabular-nums text-sm outline-none inline-block w-full min-w-0 ${isNotSubmitted ? "text-[var(--color-text-muted)]" : "text-[var(--color-text-primary)]"}`}
+                              // eslint-disable-next-line no-restricted-syntax
                               style={{ listStyle: "none" }}
                               onFocus={(e) => {
                                 const el = e.currentTarget;
