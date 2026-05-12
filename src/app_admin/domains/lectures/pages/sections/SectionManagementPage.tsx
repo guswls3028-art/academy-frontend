@@ -353,7 +353,7 @@ export default function SectionManagementPage() {
               size="sm"
               onClick={() => autoAssignMut.mutate()}
               disabled={autoAssignMut.isPending || classSections.length === 0}
-              leftIcon={<Wand2 size={13} />}
+              leftIcon={<Wand2 size={16} />}
             >
               자동배정
             </Button>
@@ -548,7 +548,7 @@ function SectionListCard({
             {sections.length}개
           </span>
         </div>
-        <Button intent="ghost" size="sm" onClick={onAdd} leftIcon={<Plus size={13} />}>반 추가</Button>
+        <Button intent="ghost" size="sm" onClick={onAdd} leftIcon={<Plus size={16} />}>반 추가</Button>
       </div>
 
       <div className="p-3 flex flex-col gap-2" style={{ minHeight: 120 }}>
@@ -1021,7 +1021,7 @@ function SectionFormModal({
             size="sm"
             onClick={onSubmit}
             disabled={!form.label.trim() || pending}
-            leftIcon={editId ? <Pencil size={13} /> : <UserPlus size={13} />}
+            leftIcon={editId ? <Pencil size={16} /> : <UserPlus size={16} />}
           >
             {pending ? "저장 중..." : editId ? "수정" : "추가"}
           </Button>

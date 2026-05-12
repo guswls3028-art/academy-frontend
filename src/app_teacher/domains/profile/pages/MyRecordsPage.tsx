@@ -100,11 +100,11 @@ export default function MyRecordsPage() {
                     <div className="text-[11px]" style={{ color: "var(--tc-text-muted)" }}>{a.start_time?.slice(0,5)} ~ {a.end_time?.slice(0,5)} ({a.duration_hours}h) {a.memo ? `· ${a.memo}` : ""}</div>
                   </div>
                   <div className="flex gap-1">
-                    <button onClick={() => { setEditTarget(a); setFormOpen(true); }} className="flex p-1 cursor-pointer" style={{ background: "none", border: "none", color: "var(--tc-text-muted)" }}><Pencil size={13} /></button>
+                    <button onClick={() => { setEditTarget(a); setFormOpen(true); }} className="flex p-1 cursor-pointer" style={{ background: "none", border: "none", color: "var(--tc-text-muted)" }}><Pencil size={18} /></button>
                     <button onClick={async () => {
                         const ok = await confirm({ title: "근태 삭제", message: "이 근태 기록을 삭제하시겠습니까?", confirmText: "삭제", danger: true });
                         if (ok) deleteAttMut.mutate(a.id);
-                      }} className="flex p-1 cursor-pointer" style={{ background: "none", border: "none", color: "var(--tc-danger)" }}><Trash2 size={13} /></button>
+                      }} className="flex p-1 cursor-pointer" style={{ background: "none", border: "none", color: "var(--tc-danger)" }}><Trash2 size={18} /></button>
                   </div>
                 </div>
               </Card>
@@ -122,11 +122,11 @@ export default function MyRecordsPage() {
                     <div className="text-[11px]" style={{ color: "var(--tc-text-muted)" }}>{e.amount?.toLocaleString()}원 {e.memo ? `· ${e.memo}` : ""}</div>
                   </div>
                   <div className="flex gap-1">
-                    <button onClick={() => { setEditTarget(e); setFormOpen(true); }} className="flex p-1 cursor-pointer" style={{ background: "none", border: "none", color: "var(--tc-text-muted)" }}><Pencil size={13} /></button>
+                    <button onClick={() => { setEditTarget(e); setFormOpen(true); }} className="flex p-1 cursor-pointer" style={{ background: "none", border: "none", color: "var(--tc-text-muted)" }}><Pencil size={18} /></button>
                     <button onClick={async () => {
                         const ok = await confirm({ title: "지출 삭제", message: "이 지출 기록을 삭제하시겠습니까?", confirmText: "삭제", danger: true });
                         if (ok) deleteExpMut.mutate(e.id);
-                      }} className="flex p-1 cursor-pointer" style={{ background: "none", border: "none", color: "var(--tc-danger)" }}><Trash2 size={13} /></button>
+                      }} className="flex p-1 cursor-pointer" style={{ background: "none", border: "none", color: "var(--tc-danger)" }}><Trash2 size={18} /></button>
                   </div>
                 </div>
               </Card>

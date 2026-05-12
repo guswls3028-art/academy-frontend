@@ -217,7 +217,7 @@ export default function LectureDetailPage() {
                 <div className="flex items-center gap-1 shrink-0">
                   <span onClick={(e) => { e.stopPropagation(); setEditSession(s); setSessionFormOpen(true); }}
                     className="flex p-1 cursor-pointer" style={{ color: "var(--tc-text-muted)" }}>
-                    <Pencil size={13} />
+                    <Pencil size={18} />
                   </span>
                   <span onClick={async (e) => {
                       e.stopPropagation();
@@ -225,7 +225,7 @@ export default function LectureDetailPage() {
                       if (ok) deleteSessionMut.mutate(s.id);
                     }}
                     className="flex p-1 cursor-pointer" style={{ color: "var(--tc-danger)" }}>
-                    <Trash2 size={13} />
+                    <Trash2 size={18} />
                   </span>
                   <ChevronRight />
                 </div>

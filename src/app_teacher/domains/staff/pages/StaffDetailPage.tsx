@@ -130,7 +130,7 @@ function LockButton({ staffId, month, isLocked, lockId }: { staffId: number; mon
         }}
         className="flex items-center gap-1 text-xs font-semibold cursor-pointer"
         style={{ padding: "7px 10px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-warn)", background: "var(--tc-warn-bg)", color: "var(--tc-warn)" }}>
-        <Lock size={12} /> 마감됨
+        <Lock size={16} /> 마감됨
       </button>
     );
   }
@@ -189,7 +189,7 @@ function WorkTab({ staffId, month, isLocked, onAdd, onEdit }: {
             <button onClick={onAdd}
               className="flex items-center gap-1 text-xs font-bold cursor-pointer shrink-0 ml-3"
               style={{ padding: "6px 10px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff" }}>
-              <Plus size={13} /> 추가
+              <Plus size={16} /> 추가
             </button>
           )}
         </div>
@@ -216,7 +216,7 @@ function WorkTab({ staffId, month, isLocked, onAdd, onEdit }: {
                   <div className="flex gap-0.5 shrink-0">
                     <button onClick={() => onEdit(r)} className="flex p-1.5 cursor-pointer"
                       style={{ background: "none", border: "none", color: "var(--tc-text-muted)" }}>
-                      <Pencil size={13} />
+                      <Pencil size={18} />
                     </button>
                     <button onClick={async () => {
                         const ok = await confirm({ title: "근태 삭제", message: "이 근태 기록을 삭제하시겠습니까?", confirmText: "삭제", danger: true });
@@ -224,7 +224,7 @@ function WorkTab({ staffId, month, isLocked, onAdd, onEdit }: {
                       }}
                       className="flex p-1.5 cursor-pointer"
                       style={{ background: "none", border: "none", color: "var(--tc-danger)" }}>
-                      <Trash2 size={13} />
+                      <Trash2 size={18} />
                     </button>
                   </div>
                 )}
@@ -300,12 +300,12 @@ function ExpenseTab({ staffId, month }: { staffId: number; month: string }) {
                 <button onClick={() => statusMut.mutate({ id: e.id, status: "approved" })}
                   className="flex items-center justify-center gap-1 flex-1 text-xs font-bold cursor-pointer"
                   style={{ padding: "6px", borderRadius: "var(--tc-radius-sm)", border: "none", background: "var(--tc-success-bg)", color: "var(--tc-success)" }}>
-                  <Check size={12} /> 승인
+                  <Check size={16} /> 승인
                 </button>
                 <button onClick={() => statusMut.mutate({ id: e.id, status: "rejected" })}
                   className="flex items-center justify-center gap-1 flex-1 text-xs font-bold cursor-pointer"
                   style={{ padding: "6px", borderRadius: "var(--tc-radius-sm)", border: "none", background: "var(--tc-danger-bg)", color: "var(--tc-danger)" }}>
-                  <X size={12} /> 반려
+                  <X size={16} /> 반려
                 </button>
                 <button onClick={async () => {
                     const ok = await confirm({ title: "비용 기록 삭제", message: "이 비용 기록을 삭제하시겠습니까?", confirmText: "삭제", danger: true });
@@ -313,7 +313,7 @@ function ExpenseTab({ staffId, month }: { staffId: number; month: string }) {
                   }}
                   className="flex items-center justify-center text-xs cursor-pointer shrink-0"
                   style={{ padding: "6px 10px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border)", background: "var(--tc-surface)", color: "var(--tc-text-muted)" }}>
-                  <Trash2 size={12} />
+                  <Trash2 size={18} />
                 </button>
               </div>
             )}

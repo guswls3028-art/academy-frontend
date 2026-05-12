@@ -109,7 +109,7 @@ export default function StudentDetailPage() {
           <button onClick={() => setEditOpen(true)}
             className="flex items-center gap-1 text-[11px] font-semibold cursor-pointer shrink-0"
             style={{ padding: "5px 10px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary-bg)", color: "var(--tc-primary)" }}>
-            <Pencil size={11} /> 편집
+            <Pencil size={14} /> 편집
           </button>
         </div>
 
@@ -355,7 +355,7 @@ function MemoSection({ studentId, initialMemo }: { studentId: number; initialMem
           <button onClick={() => { setEditing(true); setText(initialMemo); }}
             className="flex items-center gap-1 text-[11px] font-semibold cursor-pointer"
             style={{ background: "none", border: "none", color: "var(--tc-primary)", padding: "2px 6px" }}>
-            <Pencil size={11} /> 편집
+            <Pencil size={14} /> 편집
           </button>
         ) : (
           <div className="flex gap-1">
@@ -463,7 +463,7 @@ function EditStudentSheet({ open, onClose, student, studentId, onDelete, onOpenP
         <button onClick={onOpenPasswordReset}
           className="w-full flex items-center justify-center gap-1.5 text-sm font-semibold cursor-pointer"
           style={{ padding: "10px", borderRadius: "var(--tc-radius)", border: "1px solid var(--tc-border-strong)", background: "var(--tc-surface-soft)", color: "var(--tc-text-secondary)" }}>
-          <Lock size={13} /> 비밀번호 초기화
+          <Lock size={16} /> 비밀번호 초기화
         </button>
 
         {/* Delete */}

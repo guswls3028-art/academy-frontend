@@ -75,7 +75,7 @@ export default function ExamBundlesPage() {
                   <div className="flex gap-0.5 shrink-0">
                     <button onClick={() => { setEditTarget(b); setFormOpen(true); }} className="flex p-1.5 cursor-pointer"
                       style={{ background: "none", border: "none", color: "var(--tc-text-muted)" }}>
-                      <Pencil size={13} />
+                      <Pencil size={18} />
                     </button>
                     <button onClick={async () => {
                         const ok = await confirm({ title: "묶음 삭제", message: `'${b.name}' 묶음을 삭제하시겠습니까?`, confirmText: "삭제", danger: true });
@@ -83,7 +83,7 @@ export default function ExamBundlesPage() {
                       }}
                       className="flex p-1.5 cursor-pointer"
                       style={{ background: "none", border: "none", color: "var(--tc-danger)" }}>
-                      <Trash2 size={13} />
+                      <Trash2 size={18} />
                     </button>
                   </div>
                 </div>
@@ -157,7 +157,7 @@ function BundleFormSheet({ open, onClose, editData }: {
             <button onClick={() => setPickerOpen(true)} type="button"
               className="flex items-center gap-0.5 text-[11px] font-semibold cursor-pointer"
               style={{ padding: "3px 8px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-primary)", background: "var(--tc-primary-bg)", color: "var(--tc-primary)" }}>
-              <Plus size={11} /> 템플릿 추가
+              <Plus size={14} /> 템플릿 추가
             </button>
           </div>
           {items.length === 0 ? (
@@ -173,7 +173,7 @@ function BundleFormSheet({ open, onClose, editData }: {
                   <span className="text-[13px] flex-1 truncate" style={{ color: "var(--tc-text)" }}>{it.title ?? `#${it.template_id}`}</span>
                   <button onClick={() => setItems(items.filter((_, idx) => idx !== i))}
                     className="flex p-0.5 cursor-pointer" style={{ background: "none", border: "none", color: "var(--tc-text-muted)" }}>
-                    <X size={12} />
+                    <X size={16} />
                   </button>
                 </div>
               ))}
