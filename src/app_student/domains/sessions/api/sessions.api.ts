@@ -24,3 +24,8 @@ export async function fetchSessionDetail(sessionId: number): Promise<StudentSess
   const res = await api.get(`/student/sessions/${sessionId}/`);
   return res.data as StudentSession;
 }
+
+export async function clearMyPastSessions(): Promise<{ hidden_before: string }> {
+  const res = await api.post<{ hidden_before: string }>("/student/sessions/clear-past/");
+  return res.data;
+}

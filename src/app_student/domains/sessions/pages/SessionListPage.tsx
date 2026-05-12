@@ -3,15 +3,22 @@
  */
 import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import type { AxiosError } from "axios";
 import StudentPageShell from "@student/shared/ui/pages/StudentPageShell";
 import ScheduleCalendar from "@student/shared/ui/components/ScheduleCalendar";
 import type { DateStatusColor } from "@student/shared/ui/components/ScheduleCalendar";
 import { useMySessions } from "@student/domains/sessions/hooks/useStudentSessions";
+import { clearMyPastSessions } from "@student/domains/sessions/api/sessions.api";
 import type { StudentSession } from "@student/domains/sessions/api/sessions.api";
 import EmptyState from "@student/layout/EmptyState";
 import { formatYmd } from "@student/shared/utils/date";
-import { IconCalendar, IconClinic, IconChevronRight } from "@student/shared/ui/icons/Icons";
+import { IconCalendar, IconClinic, IconChevronRight, IconTrash } from "@student/shared/ui/icons/Icons";
 import { getTenantCodeForApiRequest } from "@/shared/tenant";
+import { useConfirm } from "@/shared/ui/confirm";
+import { studentToast } from "@student/shared/ui/feedback/studentToast";
+
+type ApiErrorBody = { detail?: string; message?: string };
 
 function toDateKey(d: string | null | undefined): string | null {
   if (!d) return null;
@@ -38,6 +45,35 @@ export default function SessionListPage() {
   const [tab, setTab] = useState<ScheduleTab>("calendar");
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const { data: sessions = [], isLoading, isError } = useMySessions();
+  const qc = useQueryClient();
+  const confirm = useConfirm();
+
+  const clearPastMutation = useMutation({
+    mutationFn: clearMyPastSessions,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["student-sessions"] });
+      setSelectedDate(null);
+      studentToast.success("지난 일정을 모두 비웠어요.");
+    },
+    onError: (error: AxiosError<ApiErrorBody>) => {
+      studentToast.error(
+        error?.response?.data?.detail ||
+          error?.response?.data?.message ||
+          "비우기에 실패했어요. 잠시 후 다시 시도해주세요.",
+      );
+    },
+  });
+
+  const handleClearPast = async () => {
+    if (clearPastMutation.isPending) return;
+    const ok = await confirm({
+      title: "지난 일정 비우기",
+      message: "지나간 차시와 클리닉 예약을 화면에서 모두 숨길까요? (학원에 기록은 그대로 남아요)",
+      confirmText: "비우기",
+      danger: true,
+    });
+    if (ok) clearPastMutation.mutate();
+  };
 
   const today = useMemo(() => {
     const now = new Date();
@@ -126,8 +162,45 @@ export default function SessionListPage() {
     );
   }
 
+  const hasPast = pastSessions.length > 0;
+  const clearPastButton = hasPast ? (
+    <button
+      type="button"
+      onClick={handleClearPast}
+      disabled={clearPastMutation.isPending}
+      aria-label="지난 일정 비우기"
+      title="지난 일정 비우기"
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        width: 36,
+        height: 36,
+        borderRadius: 10,
+        border: "1px solid var(--stu-border, rgba(0,0,0,0.08))",
+        background: "var(--stu-surface-1, #fff)",
+        color: "var(--stu-text-muted)",
+        cursor: clearPastMutation.isPending ? "not-allowed" : "pointer",
+        opacity: clearPastMutation.isPending ? 0.5 : 1,
+        transition: "color 0.15s ease, background 0.15s ease",
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.color = "var(--stu-danger, #ef4444)";
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.color = "var(--stu-text-muted)";
+      }}
+    >
+      <IconTrash style={{ width: 18, height: 18 }} />
+    </button>
+  ) : null;
+
   return (
-    <StudentPageShell title="일정" description="날짜를 누르면 해당 날의 일정을 볼 수 있어요.">
+    <StudentPageShell
+      title="일정"
+      description="날짜를 누르면 해당 날의 일정을 볼 수 있어요."
+      actions={clearPastButton}
+    >
       <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-4)" }}>
         {/* 탭 */}
         <TabBar items={getTabItems()} value={tab} onChange={setTab} counts={{ upcoming: upcomingSessions.length, past: pastSessions.length }} />
