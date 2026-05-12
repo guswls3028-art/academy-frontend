@@ -183,12 +183,12 @@ export default function PostDetail({ post: initialPost, onBack }: Props) {
               <button onClick={() => updateMutation.mutate()} disabled={updateMutation.isPending}
                 className="flex items-center gap-1 text-xs font-bold cursor-pointer"
                 style={{ padding: "7px 14px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff" }}>
-                <Save size={13} /> 저장
+                <Save size={16} /> 저장
               </button>
               <button onClick={() => { setEditing(false); setEditTitle(initialPost.title); setEditContent(initialPost.content); }}
                 className="flex items-center gap-1 text-xs font-semibold cursor-pointer"
                 style={{ padding: "7px 14px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-surface-soft)", color: "var(--tc-text-secondary)" }}>
-                <X size={13} /> 취소
+                <X size={16} /> 취소
               </button>
             </div>
           </div>
@@ -275,7 +275,7 @@ function ReplyCard({ reply, onDelete }: { reply: Reply; onDelete?: () => void })
         {onDelete && (
           <button onClick={onDelete} className="flex items-center gap-0.5 text-[11px] cursor-pointer"
             style={{ background: "none", border: "none", color: "var(--tc-danger)", padding: "2px 4px" }}>
-            <Trash2 size={11} /> 삭제
+            <Trash2 size={14} /> 삭제
           </button>
         )}
       </div>

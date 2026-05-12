@@ -218,7 +218,7 @@ export default function MessagingSettingsPage() {
 
           {/* ① 공급자 선택 */}
           <Card>
-            <SectionHeader icon={<Settings size={13} />} title="메시지 공급자" desc="SMS·알림톡 발송에 사용할 공급자를 선택하세요." />
+            <SectionHeader icon={<Settings size={16} />} title="메시지 공급자" desc="SMS·알림톡 발송에 사용할 공급자를 선택하세요." />
             <div className="flex gap-0 rounded-lg overflow-hidden"
               style={{ border: "1px solid var(--tc-border-strong)" }}>
               {([
@@ -242,7 +242,7 @@ export default function MessagingSettingsPage() {
 
           {/* ② API 키 등록 */}
           <Card>
-            <SectionHeader icon={<Lock size={13} />} title="API 연동 설정" desc={provider === "solapi"
+            <SectionHeader icon={<Lock size={16} />} title="API 연동 설정" desc={provider === "solapi"
               ? "솔라피 콘솔에서 발급받은 API Key/Secret을 입력하세요."
               : "뿌리오 계정 ID와 API 인증키를 입력하세요. (연동 IP: " + SERVER_IP + ")"} />
 
@@ -284,7 +284,7 @@ export default function MessagingSettingsPage() {
 
           {/* ③ 발신번호 */}
           <Card>
-            <SectionHeader icon={<Phone size={13} />} title="발신번호" desc={`${providerLabel}에 등록된 발신번호를 입력하세요.`} />
+            <SectionHeader icon={<Phone size={16} />} title="발신번호" desc={`${providerLabel}에 등록된 발신번호를 입력하세요.`} />
             <div className="flex flex-col gap-2">
               <input type="tel" value={sender} onChange={(e) => { setSender(e.target.value); setVerifyMsg(null); }}
                 placeholder="예: 01012345678"
@@ -307,7 +307,7 @@ export default function MessagingSettingsPage() {
               {verifyMsg && (
                 <p className="text-[12px] font-semibold flex items-center gap-1 m-0"
                   style={{ color: verifyMsg.ok ? "var(--tc-success)" : "var(--tc-danger)" }}>
-                  {verifyMsg.ok ? <Check size={12} /> : <AlertCircle size={12} />}
+                  {verifyMsg.ok ? <Check size={14} /> : <AlertCircle size={14} />}
                   {verifyMsg.msg}
                 </p>
               )}
@@ -316,7 +316,7 @@ export default function MessagingSettingsPage() {
 
           {/* ④ 카카오 알림톡 */}
           <Card>
-            <SectionHeader icon={<MessageCircle size={13} />} title="카카오 알림톡 채널" desc={hasPfid
+            <SectionHeader icon={<MessageCircle size={16} />} title="카카오 알림톡 채널" desc={hasPfid
               ? "알림톡 채널이 연동되어 있습니다."
               : "SMS만 사용한다면 이 항목은 건너뛰세요."} badge="선택" />
             <div className="flex gap-2 flex-wrap">
@@ -342,7 +342,7 @@ export default function MessagingSettingsPage() {
 
           {/* ⑤ 연동 테스트 */}
           <Card>
-            <SectionHeader icon={<CheckCircle size={13} />} title="연동 테스트" desc="설정이 끝났다면 아래 버튼으로 연동 상태를 확인하세요." />
+            <SectionHeader icon={<CheckCircle size={16} />} title="연동 테스트" desc="설정이 끝났다면 아래 버튼으로 연동 상태를 확인하세요." />
             <div className="flex items-center gap-2 flex-wrap">
               <button onClick={() => { setTestResult(null); testMut.mutate(); }} disabled={testMut.isPending}
                 className="text-xs font-bold cursor-pointer"
@@ -361,8 +361,8 @@ export default function MessagingSettingsPage() {
                       border: `1px solid ${c.ok ? "var(--tc-success)" : "var(--tc-danger)"}`,
                     }}>
                     {c.ok
-                      ? <CheckCircle size={13} style={{ color: "var(--tc-success)", marginTop: 2, flexShrink: 0 }} />
-                      : <AlertCircle size={13} style={{ color: "var(--tc-danger)", marginTop: 2, flexShrink: 0 }} />}
+                      ? <CheckCircle size={16} style={{ color: "var(--tc-success)", marginTop: 2, flexShrink: 0 }} />
+                      : <AlertCircle size={16} style={{ color: "var(--tc-danger)", marginTop: 2, flexShrink: 0 }} />}
                     <span className="text-[12px]" style={{ color: "var(--tc-text)", lineHeight: 1.5 }}>{c.message}</span>
                   </div>
                 ))}
@@ -373,7 +373,7 @@ export default function MessagingSettingsPage() {
           {/* ⑥ 자동 발송 */}
           {Array.isArray(autoConfigs) && autoConfigs.length > 0 && (
             <Card>
-              <SectionHeader icon={<Send size={13} />} title="자동 발송" desc="트리거별로 자동 발송 여부를 설정하세요." />
+              <SectionHeader icon={<Send size={16} />} title="자동 발송" desc="트리거별로 자동 발송 여부를 설정하세요." />
               <div className="flex flex-col gap-1.5">
                 {autoConfigs.map((cfg: any, i: number) => (
                   <AutoSendRow key={cfg.id ?? i} config={cfg} />
@@ -509,7 +509,7 @@ function AutoSendRow({ config }: { config: any }) {
             className="flex p-1 cursor-pointer"
             style={{ background: "none", border: "none", color: "var(--tc-text-muted)" }}
             title="설정 편집">
-            <Pencil size={13} />
+            <Pencil size={16} />
           </button>
           <button onClick={() => toggleMut.mutate()} type="button" className="cursor-pointer"
             style={{ background: "none", border: "none", padding: 0 }}>
@@ -625,7 +625,7 @@ function AutoSendEditSheet({ open, onClose, config }: { open: boolean; onClose: 
                 <button onClick={() => setPreviewOpen(true)} type="button"
                   className="flex items-center gap-0.5 text-[11px] font-semibold cursor-pointer"
                   style={{ background: "none", border: "none", color: "var(--tc-primary)" }}>
-                  <Eye size={11} /> 미리보기
+                  <Eye size={14} /> 미리보기
                 </button>
               )}
             </div>

@@ -109,7 +109,7 @@ export default function OrganizationSettingsPage() {
                   color: "var(--tc-primary)",
                 }}
               >
-                <Plus size={12} /> 학원 추가
+                <Plus size={14} /> 학원 추가
               </button>
             }
           >
@@ -153,7 +153,7 @@ export default function OrganizationSettingsPage() {
                         color: "var(--tc-danger)",
                       }}
                     >
-                      <Trash2 size={12} /> 제거
+                      <Trash2 size={14} /> 제거
                     </button>
                   </div>
                 </Card>

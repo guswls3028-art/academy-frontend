@@ -160,7 +160,7 @@ export default function TeacherSettingsPage() {
             <button onClick={() => { setEditingProfile(true); setNameInput(user?.name || ""); setPhoneInput(user?.phone || ""); setUsernameInput(user?.username || ""); }}
               className="flex items-center gap-1 text-xs font-semibold cursor-pointer"
               style={{ padding: "6px 12px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary-bg)", color: "var(--tc-primary)" }}>
-              <Pencil size={12} /> 편집
+              <Pencil size={14} /> 편집
             </button>
           )}
         </div>
@@ -171,8 +171,8 @@ export default function TeacherSettingsPage() {
             <FieldInput label="전화" value={phoneInput} onChange={setPhoneInput} placeholder="010-0000-0000" type="tel" />
             <FieldInput label="아이디" value={usernameInput} onChange={setUsernameInput} placeholder="로그인 아이디" />
             <div className="flex gap-2 mt-1">
-              <SmBtn label="저장" primary loading={profileMut.isPending} onClick={() => profileMut.mutate()} icon={<Save size={13} />} />
-              <SmBtn label="취소" onClick={() => setEditingProfile(false)} icon={<X size={13} />} />
+              <SmBtn label="저장" primary loading={profileMut.isPending} onClick={() => profileMut.mutate()} icon={<Save size={16} />} />
+              <SmBtn label="취소" onClick={() => setEditingProfile(false)} icon={<X size={16} />} />
             </div>
           </div>
         )}
@@ -199,8 +199,8 @@ export default function TeacherSettingsPage() {
               <div className="text-[11px]" style={{ color: "var(--tc-danger)" }}>비밀번호가 일치하지 않습니다</div>
             )}
             <div className="flex gap-2 mt-1">
-              <SmBtn label="변경" primary disabled={!pwValid} loading={pwMut.isPending} onClick={() => pwMut.mutate()} icon={<Check size={13} />} />
-              <SmBtn label="취소" onClick={() => { setPwOpen(false); setOldPw(""); setNewPw(""); setNewPwConfirm(""); }} icon={<X size={13} />} />
+              <SmBtn label="변경" primary disabled={!pwValid} loading={pwMut.isPending} onClick={() => pwMut.mutate()} icon={<Check size={16} />} />
+              <SmBtn label="취소" onClick={() => { setPwOpen(false); setOldPw(""); setNewPw(""); setNewPwConfirm(""); }} icon={<X size={16} />} />
             </div>
           </div>
         )}
@@ -463,7 +463,7 @@ function OrgSection() {
           <button onClick={() => { setOrgName(info?.name || ""); setOrgPhone(info?.phone || ""); setEditing(true); }}
             className="flex items-center gap-1 text-xs font-semibold cursor-pointer mt-2"
             style={{ padding: "6px 12px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary-bg)", color: "var(--tc-primary)" }}>
-            <Pencil size={12} /> 편집
+            <Pencil size={14} /> 편집
           </button>
         </div>
       ) : (
@@ -471,8 +471,8 @@ function OrgSection() {
           <FieldInput label="학원명" value={orgName} onChange={setOrgName} placeholder="학원 이름" />
           <FieldInput label="전화번호" value={orgPhone} onChange={setOrgPhone} placeholder="대표 전화" type="tel" />
           <div className="flex gap-2">
-            <SmBtn label="저장" primary loading={saveMut.isPending} onClick={() => saveMut.mutate()} icon={<Save size={13} />} />
-            <SmBtn label="취소" onClick={() => setEditing(false)} icon={<X size={13} />} />
+            <SmBtn label="저장" primary loading={saveMut.isPending} onClick={() => saveMut.mutate()} icon={<Save size={16} />} />
+            <SmBtn label="취소" onClick={() => setEditing(false)} icon={<X size={16} />} />
           </div>
         </div>
       )}

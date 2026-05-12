@@ -259,7 +259,7 @@ export default function CreatePostSheet({ open, onClose, postType, postTypeLabel
           <button onClick={() => fileRef.current?.click()} type="button"
             className="flex items-center gap-1.5 text-[12px] font-medium cursor-pointer"
             style={{ padding: "6px 10px", borderRadius: "var(--tc-radius-sm)", border: "1px dashed var(--tc-border-strong)", background: "none", color: "var(--tc-text-secondary)" }}>
-            <Paperclip size={13} /> 파일 선택
+            <Paperclip size={16} /> 파일 선택
           </button>
           <input ref={fileRef} type="file" multiple onChange={(e) => {
             const selected = Array.from(e.target.files || []);
