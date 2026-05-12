@@ -508,13 +508,16 @@ export default function SessionEnrollModal({
         (se) => !alreadyEnrolledIds.has(se.enrollment) && se.student_id != null && !alreadyEnrolledStudentIds.has(se.student_id)
       );
       const itemsToAdd: SelectedItem[] = toAddRows
-        .filter((se): se is SessionEnrollmentRow & { student_id: number } => se.student_id != null)
-        .map((se) => ({
-          id: se.student_id,
-          name: se.student_name ?? "-",
-          school: se.student_school ?? null,
-          grade: se.student_grade ?? null,
-        }));
+        .filter((se) => se.student_id != null)
+        .map((se) => {
+          const row = se as SessionEnrollmentRow;
+          return {
+            id: row.student_id as number,
+            name: row.student_name ?? "-",
+            school: row.student_school ?? null,
+            grade: row.student_grade ?? null,
+          };
+        });
       if (itemsToAdd.length === 0) {
         feedback.info("가져올 새 수강생이 없습니다. (이미 모두 등록됨)");
         return;
