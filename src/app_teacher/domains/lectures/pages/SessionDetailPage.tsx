@@ -463,21 +463,23 @@ function ScoresTab({ exams, sessionId }: { exams: any[]; sessionId: number }) {
 function VideosTab({ videos, navigate }: { videos: any[]; navigate: any }) {
   if (!videos.length) return <EmptyState scope="panel" tone="empty" title="이 차시에 영상이 없습니다" />;
 
+  // backend Video.Status SSOT (uppercase). 과거 소문자 enum 으로 lookup 실패하던 버그 fix.
   const STATUS_MAP: Record<string, { label: string; color: string }> = {
-    completed: { label: "완료", color: "var(--tc-success)" },
-    processing: { label: "인코딩 중", color: "var(--tc-warn)" },
-    pending: { label: "대기", color: "var(--tc-text-muted)" },
-    failed: { label: "실패", color: "var(--tc-danger)" },
+    READY: { label: "시청 가능", color: "var(--tc-success)" },
+    PROCESSING: { label: "인코딩 중", color: "var(--tc-warn)" },
+    PENDING: { label: "대기", color: "var(--tc-text-muted)" },
+    UPLOADED: { label: "업로드 완료", color: "var(--tc-text-muted)" },
+    FAILED: { label: "실패", color: "var(--tc-danger)" },
   };
 
   return (
     <div className="flex flex-col gap-1.5">
       {videos.map((v: any) => {
-        const st = STATUS_MAP[v.status ?? "pending"] ?? STATUS_MAP.pending;
+        const st = STATUS_MAP[v.status ?? "PENDING"] ?? STATUS_MAP.PENDING;
         return (
           <button
             key={v.id}
-            onClick={() => v.status === "completed" && navigate(`/teacher/videos/${v.id}`)}
+            onClick={() => v.status === "READY" && navigate(`/teacher/videos/${v.id}`)}
             className="flex items-center gap-3 rounded-xl w-full text-left cursor-pointer"
             style={{
               padding: "var(--tc-space-3) var(--tc-space-4)",

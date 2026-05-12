@@ -11,22 +11,25 @@ import { extractApiError } from "@/shared/utils/extractApiError";
 import { useConfirm } from "@/shared/ui/confirm";
 import { fetchVideos, retryVideo, uploadInit, uploadComplete, deleteVideo, fetchPublicSession } from "../api";
 
-type VideoStatus = "pending" | "processing" | "completed" | "failed";
+// Backend Video.Status enum (uppercase). admin PC와 동일 SSOT.
+// 과거 소문자 enum(pending/completed)로 STATUS_MAP lookup 실패 → 전 영상이 "처리 대기"로 잘못 노출되던 버그 fix.
+type VideoStatus = "PENDING" | "UPLOADED" | "PROCESSING" | "READY" | "FAILED";
 type StatusFilter = "all" | VideoStatus;
 type SortKey = "recent" | "title" | "views";
 
 const STATUS_MAP: Record<VideoStatus, { label: string; color: string; bg: string }> = {
-  completed: { label: "시청 가능", color: "var(--tc-success)", bg: "var(--tc-success-bg)" },
-  processing: { label: "처리 중", color: "var(--tc-warn)", bg: "var(--tc-warn-bg)" },
-  pending: { label: "처리 대기", color: "var(--tc-text-muted)", bg: "var(--tc-surface-soft)" },
-  failed: { label: "처리 실패", color: "var(--tc-danger)", bg: "var(--tc-danger-bg)" },
+  READY: { label: "시청 가능", color: "var(--tc-success)", bg: "var(--tc-success-bg)" },
+  PROCESSING: { label: "처리 중", color: "var(--tc-warn)", bg: "var(--tc-warn-bg)" },
+  PENDING: { label: "처리 대기", color: "var(--tc-text-muted)", bg: "var(--tc-surface-soft)" },
+  UPLOADED: { label: "업로드 완료", color: "var(--tc-text-muted)", bg: "var(--tc-surface-soft)" },
+  FAILED: { label: "처리 실패", color: "var(--tc-danger)", bg: "var(--tc-danger-bg)" },
 };
 
 const STATUS_FILTER_OPTIONS: Array<{ key: StatusFilter; label: string }> = [
   { key: "all", label: "전체" },
-  { key: "processing", label: "처리 중" },
-  { key: "completed", label: "시청 가능" },
-  { key: "failed", label: "실패" },
+  { key: "PROCESSING", label: "처리 중" },
+  { key: "READY", label: "시청 가능" },
+  { key: "FAILED", label: "실패" },
 ];
 
 const SORT_OPTIONS: Array<{ key: SortKey; label: string }> = [
@@ -36,7 +39,22 @@ const SORT_OPTIONS: Array<{ key: SortKey; label: string }> = [
 ];
 
 function isValidStatusFilter(v: string | null): v is StatusFilter {
-  return v === "all" || v === "pending" || v === "processing" || v === "completed" || v === "failed";
+  if (v == null) return false;
+  // URL param 호환: 소문자 alias 도 허용 (이전 deep link 보존). 단 내부 상태는 uppercase로 통일.
+  const upper = v.toUpperCase();
+  return v === "all" || upper === "PENDING" || upper === "UPLOADED" || upper === "PROCESSING" || upper === "READY" || upper === "FAILED";
+}
+
+function normalizeStatusFilter(v: string | null): StatusFilter {
+  if (!v) return "all";
+  if (v === "all") return "all";
+  const upper = v.toUpperCase();
+  if (upper === "PENDING" || upper === "UPLOADED" || upper === "PROCESSING" || upper === "READY" || upper === "FAILED") {
+    return upper as StatusFilter;
+  }
+  // 과거 소문자 alias 매핑: completed → READY
+  if (v === "completed") return "READY";
+  return "all";
 }
 
 export default function VideoListPage() {
@@ -50,7 +68,7 @@ export default function VideoListPage() {
   const [query, setQuery] = useState("");
   const initialStatus = searchParams.get("status");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>(
-    isValidStatusFilter(initialStatus) ? initialStatus : "all"
+    isValidStatusFilter(initialStatus) ? normalizeStatusFilter(initialStatus) : "all"
   );
   const [sortKey, setSortKey] = useState<SortKey>("recent");
 
@@ -97,7 +115,7 @@ export default function VideoListPage() {
     if (!videos) return [];
     const q = query.trim().toLowerCase();
     const filtered = videos.filter((v: any) => {
-      if (statusFilter !== "all" && (v.status ?? "pending") !== statusFilter) return false;
+      if (statusFilter !== "all" && (v.status ?? "PENDING") !== statusFilter) return false;
       if (q && !(v.title || "").toLowerCase().includes(q)) return false;
       return true;
     });
@@ -118,9 +136,10 @@ export default function VideoListPage() {
 
   // 상태별 카운트 (필터 칩에 표시)
   const statusCount = useMemo(() => {
-    const c: Record<StatusFilter, number> = { all: 0, pending: 0, processing: 0, completed: 0, failed: 0 };
+    const c: Record<StatusFilter, number> = { all: 0, PENDING: 0, UPLOADED: 0, PROCESSING: 0, READY: 0, FAILED: 0 };
     (videos || []).forEach((v: any) => {
-      const s: VideoStatus = v.status ?? "pending";
+      const raw = (v.status ?? "PENDING") as string;
+      const s = (STATUS_MAP[raw as VideoStatus] ? raw : "PENDING") as VideoStatus;
       c.all += 1;
       c[s] = (c[s] || 0) + 1;
     });
@@ -231,8 +250,9 @@ export default function VideoListPage() {
       ) : (
         <div className="flex flex-col gap-2">
           {visibleVideos.map((v: any) => {
-            const status: VideoStatus = v.status ?? "pending";
-            const st = STATUS_MAP[status] ?? STATUS_MAP.pending;
+            const rawStatus = (v.status ?? "PENDING") as string;
+            const status: VideoStatus = (STATUS_MAP[rawStatus as VideoStatus] ? rawStatus : "PENDING") as VideoStatus;
+            const st = STATUS_MAP[status] ?? STATUS_MAP.PENDING;
             return (
               <div
                 key={v.id}
@@ -259,7 +279,7 @@ export default function VideoListPage() {
                 {/* Info */}
                 <div className="flex-1 min-w-0 flex flex-col gap-1">
                   <button
-                    onClick={() => status === "completed" && navigate(`/teacher/videos/${v.id}`)}
+                    onClick={() => status === "READY" && navigate(`/teacher/videos/${v.id}`)}
                     className="text-[14px] font-semibold text-left truncate cursor-pointer"
                     style={{
                       color: "var(--tc-text)",
@@ -283,12 +303,12 @@ export default function VideoListPage() {
                     >
                       {st.label}
                     </span>
-                    {v.view_count != null && status === "completed" && (
+                    {v.view_count != null && status === "READY" && (
                       <span className="text-[11px]" style={{ color: "var(--tc-text-muted)" }}>
                         {v.view_count}명 시청
                       </span>
                     )}
-                    {status === "failed" && (
+                    {status === "FAILED" && (
                       <button
                         onClick={() => retryMut.mutate(v.id)}
                         disabled={retryMut.isPending}

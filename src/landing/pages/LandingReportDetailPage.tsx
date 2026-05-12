@@ -13,6 +13,7 @@ import type { LandingPublicResponse, HitReportPublicCard, HitReportShowcaseItem 
 import { LandingNavBar, type NavBarTokens } from "../templates/shared";
 import LandingRoleFab from "../components/LandingRoleFab";
 import LandingFooter, { FOOTER_TOKENS_DARK } from "../components/LandingFooter";
+import PdfPageStack from "../components/PdfPageStack";
 import { resolveTenantCode } from "@/shared/tenant";
 import { setLandingMeta as setMeta } from "../utils/seoMeta";
 
@@ -203,18 +204,18 @@ export default function LandingReportDetailPage() {
         </div>
       </section>
 
-      {/* PDF 임베드 */}
-      <section style={{ padding: "32px 24px", background: bgAlt }}>
+      {/* PDF 페이지 stack — 부모 페이지 자연 scroll로 카페 게시물처럼 위→아래 읽기.
+          학원장 spec(2026-05-12): "그냥 간단하게 쭉 스크롤하면서 읽을수있기를 바랬는데". */}
+      <section style={{ padding: "32px 24px 16px", background: bgAlt }}>
         <div style={{ maxWidth: 1200, margin: "0 auto" }}>
-          <div style={{ borderRadius: 16, overflow: "hidden", border: `1px solid ${cardBorder}`, background: "#fff", height: "min(85vh, 1100px)", boxShadow: "0 20px 60px rgba(0,0,0,0.5)" }}>
-            <iframe
-              src={`${pdfUrl}#zoom=page-fit`}
-              title={`${subj} 적중 보고서`}
-              style={{ width: "100%", height: "100%", border: "none" }}
-            />
-          </div>
-          <p style={{ fontSize: 12, color: textSecondary, textAlign: "center", margin: "16px 0 0", lineHeight: 1.7 }}>
-            좌:학교 시험지 문항 / 우:강의에서 다룬 자료. 모바일에서 PDF가 잘 안 보이면 우측 상단 PDF 다운로드를 누르세요.
+          <PdfPageStack
+            pdfUrl={pdfUrl}
+            maxWidth={1100}
+            pageGap={16}
+            textColor={textSecondary}
+          />
+          <p style={{ fontSize: 12, color: textSecondary, textAlign: "center", margin: "20px 0 0", lineHeight: 1.7 }}>
+            좌:학교 시험지 문항 / 우:강의에서 다룬 자료. 페이지를 위에서 아래로 쭉 스크롤하며 읽을 수 있어요. PDF 원본은 우측 상단 "PDF 다운로드"로.
           </p>
         </div>
       </section>
