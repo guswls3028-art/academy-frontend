@@ -162,7 +162,7 @@
 }
 
 .sidebar-group-title {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: var(--font-title);
   color: var(--sidebar-group-title);
   padding: 6px 10px;
@@ -222,7 +222,7 @@
 }
 
 .nav-item span.label {
-  font-size: 14px;
+  font-size: 15px;
   letter-spacing: -0.15px;
 }
 

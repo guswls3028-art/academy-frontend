@@ -97,7 +97,7 @@ export default function FeesDashboardPage() {
           <Card>
             <div className="flex justify-around">
               <Stat label="발행" value={dashboard.invoice_count} />
-              <Stat label="대기" value={dashboard.pending_count} color="var(--tc-warn)" />
+              <Stat label="미납" value={dashboard.pending_count} color="var(--tc-warn)" />
               <Stat label="완납" value={dashboard.paid_count} color="var(--tc-success)" />
               <Stat label="연체" value={dashboard.overdue_count} color="var(--tc-danger)" />
             </div>

@@ -102,7 +102,7 @@ export default function StudentListPage() {
             <button onClick={() => setCreateOpen(true)}
               className="flex items-center gap-1 text-xs font-bold cursor-pointer"
               style={{ padding: "8px 14px", minHeight: "var(--tc-touch-min)", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff" }}>
-              <Plus size={14} /> 등록
+              <Plus size={14} /> 추가
             </button>
           </div>
         </div>
