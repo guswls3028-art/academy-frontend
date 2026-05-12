@@ -319,7 +319,7 @@ export function StaffHomeTable({
     return (
       <EmptyState
         title="등록된 직원이 없습니다"
-        description="직원 등록을 하거나 검색 조건을 완화해 보세요."
+        description="직원 추가를 하거나 검색 조건을 완화해 보세요."
         scope="panel"
       />
     );

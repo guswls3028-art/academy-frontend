@@ -265,7 +265,7 @@ export default function HomePage() {
                 intent="primary"
                 onClick={() => setOpenCreate(true)}
               >
-                직원 등록
+                직원 추가
               </Button>
             </div>
           ) : null

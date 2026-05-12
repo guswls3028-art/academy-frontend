@@ -71,7 +71,7 @@ export default function StaffManagePage() {
         <button onClick={() => setCreateOpen(true)}
           className="flex items-center gap-1 text-xs font-bold cursor-pointer"
           style={{ padding: "6px 12px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff" }}>
-          <Plus size={14} /> 직원 등록
+          <Plus size={14} /> 직원 추가
         </button>
       </div>
 
@@ -154,7 +154,7 @@ function StaffFormSheet({ open, onClose, editData }: { open: boolean; onClose: (
   });
 
   return (
-    <BottomSheet open={open} onClose={onClose} title={isEdit ? "직원 편집" : "직원 등록"}>
+    <BottomSheet open={open} onClose={onClose} title={isEdit ? "직원 편집" : "직원 추가"}>
       <div className="flex flex-col gap-2.5" style={{ padding: "var(--tc-space-3) 0" }}>
         <Fld label="이름 *" value={name} onChange={setName} placeholder="직원 이름" />
         <Fld label="전화" value={phone} onChange={setPhone} type="tel" placeholder="010-" />

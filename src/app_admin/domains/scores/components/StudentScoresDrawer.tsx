@@ -24,6 +24,7 @@ import { useSendMessageModal } from "@admin/domains/messages/context/SendMessage
 import { feedback } from "@/shared/ui/feedback/feedback";
 import CloseButton from "@/shared/ui/ds/CloseButton";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
+import { useTenantLabels } from "@/shared/hooks/useTenantLabels";
 import "./StudentScoresDrawer.css";
 
 type Props = {
@@ -44,6 +45,7 @@ export default function StudentScoresDrawer({ row, meta, sessionId, onClose, onO
   const [expandedExamId, setExpandedExamId] = useState<number | null>(null);
   const [expandedHwId, setExpandedHwId] = useState<number | null>(null);
   const { openSendMessageModal } = useSendMessageModal();
+  const labels = useTenantLabels();
 
   const toggleExpand = useCallback((examId: number) => {
     setExpandedExamId((prev) => (prev === examId ? null : examId));
@@ -424,6 +426,7 @@ function AttemptTimeline({
   onOpenDetail?: () => void;
 }) {
   const qc = useQueryClient();
+  const labels = useTenantLabels();
   const [showNewAttempt, setShowNewAttempt] = useState(false);
   const [retakeScore, setRetakeScore] = useState("");
   const [editingAttempt, setEditingAttempt] = useState<number | null>(null);
@@ -610,7 +613,7 @@ function AttemptTimeline({
                       </button>
                     )}
                     <span className={`ssd-attempt-card__badge ${a.passed === null ? "" : a.passed ? "ssd-attempt-card__badge--pass" : "ssd-attempt-card__badge--fail"}`}>
-                      {a.passed === null ? "-" : a.passed ? "합격" : "불합격"}
+                      {a.passed === null ? "-" : a.passed ? labels.pass : labels.fail}
                     </span>
                   </span>
                 </div>
@@ -762,6 +765,7 @@ function AttemptTimeline({
 /* ── Shared sub-components ── */
 
 function PassBadge({ block }: { block: ScoreBlock }) {
+  const labels = useTenantLabels();
   // 정책: 뱃지는 "성취"(1차+보강합격 인정) 기준. 백엔드가 achievement를 내려주면
   // REMEDIATED를 구분해서 "보강 합격"으로 표시. 없으면 passed로 폴백.
   const achievement = deriveAchievement({
@@ -784,7 +788,7 @@ function PassBadge({ block }: { block: ScoreBlock }) {
         className="student-scores-drawer__pass-badge"
         data-tone={block.passed ? "success" : "danger"}
       >
-        {block.passed ? "합격" : "불합격"}
+        {block.passed ? labels.pass : labels.fail}
       </span>
     );
   }
