@@ -124,8 +124,10 @@ export default function TemplatePickerModal({
     if (showAllCategories) return true;
     if (t.category === "signup") return false;
     if (blockCategory === "default" || blockCategory === "student") {
-      // 학생 일반 발송 — default/student 양식 + (편의상) 시스템 기본 양식은 보임
-      return t.category === "default" || t.category === "student" || isSystemTpl(t);
+      // 학생 일반 발송 — default 양식 + (편의상) 시스템 기본 양식은 보임.
+      // MessageTemplateCategory enum 에는 "student" 가 없음 (backend 카테고리는 12종, frontend
+      // blockCategory 만 추가로 "student" 보유) — t.category 비교에서는 "default" 만.
+      return t.category === "default" || isSystemTpl(t);
     }
     return t.category === blockCategory;
   };
