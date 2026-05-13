@@ -4,6 +4,8 @@ import React from "react";
 type ModalHeaderProps = {
   title: React.ReactNode;
   description?: React.ReactNode;
+  /** description alias — 일부 caller 가 subtitle 명칭을 더 자연스럽게 사용 (예: ExamHeaderQuickEdit) */
+  subtitle?: React.ReactNode;
   type?: "action" | "confirm" | "inspect";
   /** title 좌측 자동 prefix 아이콘(28x28 박스) 숨김 — title 안에 자체 아이콘이 있는 경우 등 */
   noIcon?: boolean;
@@ -88,10 +90,12 @@ function Icon({ type }: { type: "action" | "confirm" | "inspect" }) {
 export default function ModalHeader({
   title,
   description,
+  subtitle,
   type = "action",
   noIcon = false,
 }: ModalHeaderProps) {
   const isConfirm = type === "confirm";
+  const resolvedDescription = description ?? subtitle;
 
   const accentColor =
     type === "confirm"
@@ -140,7 +144,7 @@ export default function ModalHeader({
             {title}
           </div>
 
-          {description && (
+          {resolvedDescription && (
             <div
               style={{
                 marginTop: 4,
@@ -150,7 +154,7 @@ export default function ModalHeader({
                 lineHeight: 1.45,
               }}
             >
-              {description}
+              {resolvedDescription}
             </div>
           )}
 
