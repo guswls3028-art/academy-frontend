@@ -405,9 +405,9 @@ export default function CreateHomeworkModal({
 
   const stageLabels: Record<Stage, string> = {
     choose: "과제 만들기",
-    new: "직접 만들기",
-    import: "이전 과제에서 가져오기",
-    copy: "다른 차시 양식 복사",
+    new: "처음부터 만들기",
+    import: "이전 과제 가져오기",
+    copy: "다른 차시에서 복사",
   };
 
   const headerTitle =
@@ -446,11 +446,13 @@ export default function CreateHomeworkModal({
         title={headerTitle}
         description={
           stage === "choose"
-            ? "이 차시에 적용할 과제를 만듭니다. 만들어진 과제에는 차시 수강생이 자동으로 제출 대상으로 등록됩니다."
+            ? "이 차시에 과제를 추가합니다. 수강생은 자동으로 등록돼요."
             : stage === "new"
-            ? "제목·만점·커트라인·제출기한을 입력해 새 과제를 만듭니다. 한 번에 여러 개도 만들 수 있어요."
+            ? "한 번에 여러 개도 만들 수 있어요."
             : stage === "copy"
-            ? "다른 차시의 과제 양식만 가져와 새로 만듭니다. 원본과 별도로 관리됩니다."
+            ? "다른 차시의 양식만 가져옵니다. 원본과 별개로 관리돼요."
+            : stage === "import"
+            ? "이전에 만든 과제와 연결됩니다."
             : undefined
         }
       />
@@ -474,8 +476,7 @@ export default function CreateHomeworkModal({
             >
               <span aria-hidden="true" style={{ fontSize: 16 }}>⚠</span>
               <div className="text-xs leading-relaxed">
-                <strong>이 차시에 등록된 수강생이 없습니다.</strong> 과제는 만들 수 있지만 제출 대상이 자동 등록되지 않습니다.
-                먼저 차시에 수강생을 등록한 뒤 과제를 만드세요.
+                <strong>이 차시에 수강생이 없어요.</strong> 과제는 만들 수 있지만 수강생 자동 등록은 되지 않습니다.
               </div>
             </div>
           )}
@@ -491,8 +492,8 @@ export default function CreateHomeworkModal({
                   selected={false}
                   showCheck
                   className="session-block--card-sm"
-                  title="직접 만들기"
-                  desc="제목·만점·커트라인·기한을 입력해 새 과제를 만듭니다. (1개~여러 개)"
+                  title="처음부터 만들기"
+                  desc="제목, 만점, 커트라인, 기한 입력"
                   onClick={() => { setError(null); setRows([makeRow()]); setStage("new"); }}
                 />
                 <SessionBlockView
@@ -501,8 +502,8 @@ export default function CreateHomeworkModal({
                   selected={false}
                   showCheck
                   className="session-block--card-sm"
-                  title="이전 과제에서 가져오기 (연결)"
-                  desc="이전에 만들어 둔 과제 양식을 그대로 적용. 원본을 고치면 같이 바뀝니다."
+                  title="이전 과제 가져오기"
+                  desc="원본과 연결 · 원본을 고치면 함께 바뀜"
                   onClick={() => { setError(null); setKeyword(""); setSelectedTemplateIds(new Set()); setStage("import"); }}
                 />
                 <SessionBlockView
@@ -511,8 +512,8 @@ export default function CreateHomeworkModal({
                   selected={false}
                   showCheck
                   className="session-block--card-sm"
-                  title="다른 차시 양식 복사 (독립)"
-                  desc="다른 차시 과제의 양식만 복사. 새로 만들고 원본과 분리됩니다."
+                  title="다른 차시에서 복사"
+                  desc="양식만 복사 · 원본과 별개로 관리"
                   onClick={() => { setError(null); setStage("copy"); }}
                 />
               </div>
@@ -568,7 +569,7 @@ export default function CreateHomeworkModal({
                   </button>
                 </div>
                 <span className="text-xs text-[var(--color-text-muted)]">
-                  아래 모든 과제에 동일하게 적용 · 미만 시 클리닉 보강 대상
+                  모든 과제에 동일 적용 · 미만은 클리닉 보강 대상
                 </span>
               </div>
 
@@ -693,7 +694,7 @@ export default function CreateHomeworkModal({
           {stage === "import" && (
             <div className="modal-form-group">
               <div className="flex items-center justify-between mb-1">
-                <label className="modal-section-label">불러올 과제 선택 (이전에 만든 과제)</label>
+                <label className="modal-section-label">이전에 만든 과제에서 선택</label>
                 {selectedTemplateIds.size > 0 && (
                   <span className="text-xs font-semibold text-[var(--color-brand-primary)]">
                     {selectedTemplateIds.size}개 선택됨
@@ -757,7 +758,7 @@ export default function CreateHomeworkModal({
                 )}
               </div>
               <p className="modal-hint modal-hint--block mt-2">
-                선택한 과제의 제목·양식이 그대로 적용됩니다. 원본을 고치면 이 차시에도 반영돼요.
+                원본을 고치면 이 차시에도 함께 반영됩니다.
               </p>
             </div>
           )}
@@ -770,16 +771,22 @@ export default function CreateHomeworkModal({
             <Button intent="secondary" size="xl" onClick={onClose} disabled={submitting}>
               취소
             </Button>
-            {stage === "new" && (
-              <Button intent="primary" size="xl" onClick={handleBulkSubmit} disabled={bulkDisabled}>
-                {submitting ? "만드는 중…" : `${rows.filter((r) => r.title.trim()).length}개 과제 만들기`}
-              </Button>
-            )}
-            {stage === "import" && (
-              <Button intent="primary" size="xl" onClick={handleImportSubmit} disabled={importDisabled}>
-                {submitting ? "만드는 중…" : `${selectedTemplateIds.size}개 과제 가져오기`}
-              </Button>
-            )}
+            {stage === "new" && (() => {
+              const n = rows.filter((r) => r.title.trim()).length;
+              return (
+                <Button intent="primary" size="xl" onClick={handleBulkSubmit} disabled={bulkDisabled}>
+                  {submitting ? "만드는 중…" : n > 0 ? `${n}개 과제 만들기` : "과제 만들기"}
+                </Button>
+              );
+            })()}
+            {stage === "import" && (() => {
+              const n = selectedTemplateIds.size;
+              return (
+                <Button intent="primary" size="xl" onClick={handleImportSubmit} disabled={importDisabled}>
+                  {submitting ? "만드는 중…" : n > 0 ? `${n}개 과제 가져오기` : "과제 가져오기"}
+                </Button>
+              );
+            })()}
           </>
         }
       />

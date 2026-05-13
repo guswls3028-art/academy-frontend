@@ -380,9 +380,9 @@ export default function CreateRegularExamModal({
 
   const stageLabels: Record<Stage, string> = {
     choose: "시험 만들기",
-    new: "직접 만들기",
-    import: "이전 시험에서 가져오기",
-    copy: "다른 차시 양식 복사",
+    new: "처음부터 만들기",
+    import: "이전 시험 가져오기",
+    copy: "다른 차시에서 복사",
   };
 
   const headerTitle =
@@ -425,11 +425,13 @@ export default function CreateRegularExamModal({
         title={headerTitle}
         description={
           stage === "choose"
-            ? "이 차시에 적용할 시험을 만듭니다. 만들어진 시험에는 차시 수강생이 자동으로 응시 대상으로 등록됩니다."
+            ? "이 차시에 시험을 추가합니다. 수강생은 자동으로 등록돼요."
             : stage === "new"
-            ? "제목·만점·커트라인을 입력해 새 시험을 만듭니다. 한 번에 여러 개도 만들 수 있어요."
+            ? "한 번에 여러 개도 만들 수 있어요."
             : stage === "copy"
-            ? "다른 차시의 시험 양식(만점·커트라인)만 가져와 새로 만듭니다. 원본과 별도로 관리됩니다."
+            ? "다른 차시의 만점·커트라인만 가져옵니다. 원본과 별개로 관리돼요."
+            : stage === "import"
+            ? "이전에 만든 시험과 연결됩니다."
             : undefined
         }
       />
@@ -453,8 +455,7 @@ export default function CreateRegularExamModal({
             >
               <span aria-hidden="true" style={{ fontSize: 16 }}>⚠</span>
               <div className="text-xs leading-relaxed">
-                <strong>이 차시에 등록된 수강생이 없습니다.</strong> 시험은 만들 수 있지만 응시 대상이 자동 등록되지 않습니다.
-                먼저 차시에 수강생을 등록한 뒤 시험을 만드세요.
+                <strong>이 차시에 수강생이 없어요.</strong> 시험은 만들 수 있지만 수강생 자동 등록은 되지 않습니다.
               </div>
             </div>
           )}
@@ -470,8 +471,8 @@ export default function CreateRegularExamModal({
                   selected={false}
                   showCheck
                   className="session-block--card-sm"
-                  title="직접 만들기"
-                  desc="제목·만점·커트라인을 입력해 새 시험을 만듭니다. (1개~여러 개)"
+                  title="처음부터 만들기"
+                  desc="제목, 만점, 커트라인"
                   onClick={() => {
                     setError(null);
                     setRows([makeRow()]);
@@ -484,8 +485,8 @@ export default function CreateRegularExamModal({
                   selected={false}
                   showCheck
                   className="session-block--card-sm"
-                  title="이전 시험에서 가져오기 (연결)"
-                  desc="이전에 만들어 둔 시험 양식·답안을 그대로 적용. 원본을 고치면 같이 바뀝니다."
+                  title="이전 시험 가져오기"
+                  desc="원본과 연결 · 원본을 고치면 함께 바뀜"
                   onClick={() => {
                     setError(null);
                     setSelectedTemplateIds(new Set());
@@ -499,8 +500,8 @@ export default function CreateRegularExamModal({
                   selected={false}
                   showCheck
                   className="session-block--card-sm"
-                  title="다른 차시 양식 복사 (독립)"
-                  desc="다른 차시 시험의 만점·커트라인만 복사. 답안·문항은 새로 만들고 원본과 분리됩니다."
+                  title="다른 차시에서 복사"
+                  desc="양식만 복사 · 원본과 별개로 관리"
                   onClick={() => {
                     setError(null);
                     setStage("copy");
@@ -625,7 +626,7 @@ export default function CreateRegularExamModal({
               {/* 안내 박스 — 자동 등록 결과는 생성 후 toast로 명시 노출 (별도 처리) */}
               <div className="mt-3 rounded border border-[var(--color-border-divider)] bg-[color-mix(in_srgb,var(--color-brand-primary)_4%,var(--color-bg-surface))] p-3">
                 <div className="text-xs text-[var(--color-text-muted)]">
-                  이 차시의 수강생이 자동으로 응시 대상으로 등록됩니다. · 커트라인 미만 점수는 클리닉 보강 대상으로 표시됩니다.
+                  수강생은 자동 등록됩니다. 커트라인 미만은 클리닉 보강 대상으로 표시돼요.
                 </div>
               </div>
             </div>
@@ -652,7 +653,7 @@ export default function CreateRegularExamModal({
           {stage === "import" && (
             <div className="modal-form-group">
               <div className="flex items-center justify-between mb-1">
-                <label className="modal-section-label">불러올 시험 선택 (이전에 만든 시험)</label>
+                <label className="modal-section-label">이전에 만든 시험에서 선택</label>
                 {selectedTemplateIds.size > 0 && (
                   <span className="text-xs font-semibold text-[var(--color-brand-primary)]">
                     {selectedTemplateIds.size}개 선택됨
@@ -744,7 +745,7 @@ export default function CreateRegularExamModal({
                 )}
               </div>
               <p className="modal-hint modal-hint--block mt-2">
-                선택한 시험의 제목·양식·답안이 그대로 적용됩니다. 원본을 고치면 이 차시에도 반영돼요.
+                원본을 고치면 이 차시에도 함께 반영됩니다.
               </p>
             </div>
           )}
@@ -757,26 +758,32 @@ export default function CreateRegularExamModal({
             <Button intent="secondary" size="xl" onClick={onClose} disabled={submitting}>
               취소
             </Button>
-            {stage === "new" && (
-              <Button
-                intent="primary"
-                size="xl"
-                onClick={handleBulkSubmit}
-                disabled={submitting || !bulkHasAnyTitle}
-              >
-                {submitting ? "만드는 중…" : `${rows.filter((r) => r.title.trim()).length}개 시험 만들기`}
-              </Button>
-            )}
-            {stage === "import" && (
-              <Button
-                intent="primary"
-                size="xl"
-                onClick={handleImportSubmit}
-                disabled={importDisabled}
-              >
-                {submitting ? "만드는 중…" : `${selectedTemplateIds.size}개 시험 가져오기`}
-              </Button>
-            )}
+            {stage === "new" && (() => {
+              const n = rows.filter((r) => r.title.trim()).length;
+              return (
+                <Button
+                  intent="primary"
+                  size="xl"
+                  onClick={handleBulkSubmit}
+                  disabled={submitting || !bulkHasAnyTitle}
+                >
+                  {submitting ? "만드는 중…" : n > 0 ? `${n}개 시험 만들기` : "시험 만들기"}
+                </Button>
+              );
+            })()}
+            {stage === "import" && (() => {
+              const n = selectedTemplateIds.size;
+              return (
+                <Button
+                  intent="primary"
+                  size="xl"
+                  onClick={handleImportSubmit}
+                  disabled={importDisabled}
+                >
+                  {submitting ? "만드는 중…" : n > 0 ? `${n}개 시험 가져오기` : "시험 가져오기"}
+                </Button>
+              );
+            })()}
           </>
         }
       />

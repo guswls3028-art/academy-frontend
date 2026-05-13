@@ -322,21 +322,26 @@
   text-align: center;
 }
 
-/* 모달 내 선택 카드: 3열 그리드 등 좁은 영역에서 텍스트가 넘치지 않도록 축소 */
+/* 모달 내 선택 카드: 3열 그리드 등 좁은 영역에서 텍스트가 넘치지 않도록 축소
+ * Why specificity 강화: `.session-block:not(.session-block--compact) .session-block__title`
+ *   = (0,3,0) 로 clamp(1.75rem~2.25rem) 박음. 본 selector가 (0,2,0)이면 짧은 제목이
+ *   거대 폰트로 wrap("처음부터 / 만들기" 3줄) 결함. `:not(.session-block--compact)` 추가로
+ *   동급 (0,3,0) → 작성 순서로 이김. 2026-05-13 시각 검증 후 fix.
+ */
 .session-block--card-sm {
   aspect-ratio: unset;
   min-height: 100px;
   padding: var(--space-5) var(--space-4);
 }
 
-.session-block--card-sm .session-block__title {
+.session-block:not(.session-block--compact).session-block--card-sm .session-block__title {
   font-size: 1rem;
   font-weight: 700;
   line-height: 1.35;
   word-break: keep-all;
 }
 
-.session-block--card-sm .session-block__desc {
+.session-block:not(.session-block--compact).session-block--card-sm .session-block__desc {
   font-size: 12px;
   margin-top: 6px;
   opacity: 0.82;
