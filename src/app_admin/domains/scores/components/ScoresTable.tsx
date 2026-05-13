@@ -32,15 +32,15 @@ import { feedback } from "@/shared/ui/feedback/feedback";
 
 /** 컬럼 기본 너비 */
 const COL_EDIT = 36;
-// 2026-05-13 3차 (SSOT 복구):
-//   - 이름 컬럼 160→200: 강의 딱지 SSOT 부활 후 [아바타32 + 이름 + 딱지24] 동시 수용
-//   - 출석 64 유지
-//   - 시험 160 유지 (헤더 wrap)
-//   - 판정 88 유지
-const COL_NAME = 200;
-const COL_ATTENDANCE = 64;
-const COL_SCORE = 160;
-const COL_CLINIC_TARGET = 88;
+// 2026-05-13 4차 Visual Polish:
+// 1100 narrow viewport (학원장 PC 기본 폭 일부) wrap 836 안에 들어가도록 default 재조정.
+// 직전 합산 1284px → 836 < 1284 → 가로 스크롤 강요. 신규 합산 813px ≤ 836 → viewport 내 안착.
+// 합산 계산: 36 + 170 + 56 + 125*3 + 96 + 72 = 805 + alpha
+// 학원장이 폭 부족 시 ResizableTh 드래그로 직접 조정 가능 (5/13 1차 fix).
+const COL_NAME = 170;
+const COL_ATTENDANCE = 56;
+const COL_SCORE = 125;
+const COL_CLINIC_TARGET = 72;
 
 
 function parseScoreInput(input: string, maxScore?: number | null): number | null {
@@ -511,10 +511,9 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
     ];
   }, [columns]);
 
-  /* 2026-05-13 2차 (P0-A 수정 후속): 컬럼 폭 default 변경(132→160, 44→64, 72→88).
-     기존 학원장 localStorage 값이 새 default 보다 좁아 시험명 1글자씩 wrap 되는 문제.
-     tableId v2 로 bump → 기존 stale prefs 무시, 새 default 폭 적용. */
-  const { columnWidths, setColumnWidth } = useTableColumnPrefs("session-scores-v2", columnDefs);
+  /* 2026-05-13 4차 Visual Polish: 컬럼 폭 default 추가 재조정.
+     v3 bump → 기존 stale prefs (v2 학원장 환경에 박힌 큰 값) 무시. */
+  const { columnWidths, setColumnWidth } = useTableColumnPrefs("session-scores-v3", columnDefs);
 
   const tableCols = useMemo(() => {
     return [

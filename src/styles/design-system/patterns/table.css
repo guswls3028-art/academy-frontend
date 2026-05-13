@@ -609,8 +609,59 @@ table.ds-table {
  * - 배경 틴트 + inset box-shadow(테두리 강조)로 한눈에 구분.
  * - 학원장 피드백: "잘 안 보인다" → 색상/테두리 강도 상향. */
 
+/* 2026-05-13 4차 Visual Polish: 시험·과제 헤더 시험명 wrap 정책.
+ * 길이 ≤ 8자 = 한 줄 14px. > 8자 = 2줄 12px line-clamp (3줄+ 방지).
+ * 학원장 PC 1100/1366 narrow에서 헤더 height 폭주 막음. */
+.ds-scores-table thead th[data-col-type="score"] {
+  vertical-align: middle;
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+.ds-scores-table thead th[data-col-type="score"] > span {
+  font-size: 12px;
+  line-height: 1.25;
+}
+.ds-scores-table thead th[data-col-type="score"] > span > span:nth-child(2) {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-height: 2.4em;
+}
+
 /* 2026-05-13 학원장 결정 시행: 시험 단위 status 폐기 → 학생별 Achievement SSOT.
  * data-achievement 우선 적용 (data-pass-status 보다 정확). 1차 합격 vs 클리닉 이수 구분. */
+/* 2026-05-13 Visual Polish: 점수 셀 inline 상태 dot — tooltip 의존 줄임.
+ * 우상단 작은 색상 dot 으로 학생별 진행 즉시 식별. 학원장 1초 인식. */
+.ds-scores-table tbody td[data-col-type="score"][data-achievement] {
+  position: relative;
+}
+.ds-scores-table tbody td[data-col-type="score"][data-achievement]::after {
+  content: "";
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  pointer-events: none;
+  box-shadow: 0 0 0 1px var(--color-bg-surface);
+}
+.ds-scores-table tbody td[data-col-type="score"][data-achievement="PASS"]::after {
+  background: var(--color-success, #22c55e);
+}
+.ds-scores-table tbody td[data-col-type="score"][data-achievement="FAIL"]::after {
+  background: var(--color-danger, #dc2626);
+}
+.ds-scores-table tbody td[data-col-type="score"][data-achievement="REMEDIATED"]::after {
+  background: var(--color-warning, #f59e0b);
+}
+.ds-scores-table tbody td[data-col-type="score"][data-achievement="NOT_SUBMITTED"]::after {
+  background: var(--color-text-muted);
+  opacity: 0.6;
+}
+
 .ds-scores-table tbody td[data-achievement="REMEDIATED"] {
   background: color-mix(in srgb, var(--color-warning, #f59e0b) 24%, transparent) !important;
   box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--color-warning, #f59e0b) 55%, transparent) !important;
