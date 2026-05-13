@@ -107,11 +107,20 @@ export default function LandingMatchupBoardDetailPage() {
   const hitCount = card.snapshot_meta?.hit_count;
   const countedEntries = card.snapshot_meta?.counted_entries;
   const visibleNow = card.visible;
-  const pdfUrl = card.pdf_url ? (
-    card.pdf_url + (tenantCode.ok && !card.pdf_url.includes("tenant=")
-      ? `${card.pdf_url.includes("?") ? "&" : "?"}tenant=${tenantCode.code}`
-      : "")
-  ) : null;
+  // 본 결함 fix (Phase #74-2, 2026-05-13 시각 검수 발견):
+  // backend pdf_url 가 `/api/v1/...` 상대 path → iframe src에 그대로 박으면
+  // frontend Cloudflare Pages 도메인으로 가서 SPA fallback이 메인 랜딩을 로드 →
+  // 학생이 PDF가 아니라 학원 메인 페이지 봄. apiBase 프리픽스로 backend 절대 URL.
+  const apiBase = (import.meta.env.VITE_API_BASE_URL as string) || "";
+  const pdfUrl = (() => {
+    const raw = card.pdf_url;
+    if (!raw) return null;
+    const abs = raw.startsWith("http") ? raw : `${apiBase}${raw}`;
+    if (tenantCode.ok && !abs.includes("tenant=")) {
+      return `${abs}${abs.includes("?") ? "&" : "?"}tenant=${tenantCode.code}`;
+    }
+    return abs;
+  })();
 
   return (
     <div style={{ minHeight: "100vh", background: "#f8fafc", color: "#0f172a", display: "flex", flexDirection: "column" }}>

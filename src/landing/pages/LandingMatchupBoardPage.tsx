@@ -210,11 +210,22 @@ export default function LandingMatchupBoardPage() {
                 style={{ width: 36, height: 36, borderRadius: 8, border: "1px solid #cbd5e1", background: "#fff", color: "#475569", cursor: "pointer", fontSize: 18, lineHeight: 1, flexShrink: 0 }}
               >×</button>
             </div>
-            <iframe
-              src={viewing.pdf_url + (tenantCode && !viewing.pdf_url.includes("tenant=") ? `${viewing.pdf_url.includes("?") ? "&" : "?"}tenant=${tenantCode}` : "")}
-              title={viewing.title}
-              style={{ flex: 1, border: "none", width: "100%", background: "#f8fafc" }}
-            />
+            {(() => {
+              // detail page와 동일 fix — backend pdf_url 상대 path에 apiBase 프리픽스 부착.
+              // 안 그러면 frontend SPA fallback이 메인 랜딩 페이지 로드 (#74-2).
+              const apiBase = (import.meta.env.VITE_API_BASE_URL as string) || "";
+              const raw = viewing.pdf_url || "";
+              const abs = raw.startsWith("http") ? raw : `${apiBase}${raw}`;
+              const tc = typeof tenantCode === "string" ? tenantCode : "";
+              const src = (tc && !abs.includes("tenant=")) ? `${abs}${abs.includes("?") ? "&" : "?"}tenant=${tc}` : abs;
+              return (
+                <iframe
+                  src={src}
+                  title={viewing.title}
+                  style={{ flex: 1, border: "none", width: "100%", background: "#f8fafc" }}
+                />
+              );
+            })()}
           </div>
         </div>
       )}
