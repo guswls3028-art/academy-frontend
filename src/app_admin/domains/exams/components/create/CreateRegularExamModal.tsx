@@ -5,6 +5,8 @@
 //                     불러오기(다른 차시): 다른 강의/차시에서 시험 복사
 // 대상자 자동 등록
 // ------------------------------------------------------------
+/* eslint-disable no-restricted-syntax */
+// TODO(R-11 cleanup): 이 파일의 인라인 style → className/DS token 마이그레이션. baseline 동결 위해 file-level disable. 신규 인라인 style 추가 시 본 directive 무력화하지 말 것.
 
 import { useEffect, useMemo, useState, useCallback, type CSSProperties } from "react";
 import api from "@/shared/api/axios";
@@ -92,9 +94,10 @@ export default function CreateRegularExamModal({
         if (cancelled) return;
         setTemplates(items ?? []);
       })
-      .catch((e: any) => {
+      .catch((e: unknown) => {
         if (cancelled) return;
-        setError(e?.response?.data?.detail ?? e?.message ?? "템플릿 목록을 불러오지 못했습니다.");
+        const err = e as { response?: { data?: { detail?: string } }; message?: string };
+        setError(err?.response?.data?.detail ?? err?.message ?? "템플릿 목록을 불러오지 못했습니다.");
       })
       .finally(() => {
         if (cancelled) return;
@@ -116,8 +119,9 @@ export default function CreateRegularExamModal({
       if (ids.length === 0) return { enrolled: 0 };
       await updateExamEnrollmentRows({ examId, sessionId, enrollment_ids: ids });
       return { enrolled: ids.length };
-    } catch (e: any) {
-      return { enrolled: 0, error: e?.response?.data?.detail ?? e?.message ?? "자동 등록 실패" };
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { detail?: string } }; message?: string };
+      return { enrolled: 0, error: err?.response?.data?.detail ?? err?.message ?? "자동 등록 실패" };
     }
   }, [sessionId]);
 
@@ -187,7 +191,7 @@ export default function CreateRegularExamModal({
         if (enrollResult.error && !enrollErrorSample) enrollErrorSample = enrollResult.error;
 
         createdIds.push(newExamId);
-      } catch (e: any) {
+      } catch {
         failedTitles.push(row.title.trim());
       }
     }
@@ -719,8 +723,8 @@ export default function CreateRegularExamModal({
                                   style={
                                     lec.color
                                       ? ({
-                                          ["--badge-bg" as any]: `color-mix(in srgb, ${lec.color} 18%, var(--bg-surface-soft))`,
-                                          ["--badge-text" as any]: "var(--text-primary)",
+                                          "--badge-bg": `color-mix(in srgb, ${lec.color} 18%, var(--bg-surface-soft))`,
+                                          "--badge-text": "var(--text-primary)",
                                         } as CSSProperties)
                                       : undefined
                                   }
