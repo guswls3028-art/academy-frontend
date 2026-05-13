@@ -77,11 +77,11 @@ export default function TemplatePickerModal({
       await onRefreshTemplates();
       if (res.updated > 0 || res.solapi_only_count > 0) {
         const parts: string[] = [];
-        if (res.updated > 0) parts.push(`${res.updated}건 SaaS에 반영`);
+        if (res.updated > 0) parts.push(`검수 상태 ${res.updated}건 갱신`);
         if (res.solapi_only_count > 0) parts.push(`솔라피에만 있는 양식 ${res.solapi_only_count}건`);
-        feedback.success(`솔라피 동기화 — ${parts.join(", ")}`);
+        feedback.success(`동기화 — ${parts.join(", ")}`);
       } else {
-        feedback.success(`솔라피 동기화 완료 — 모든 양식이 최신 상태입니다 (${res.unchanged}건 확인).`);
+        feedback.success(`동기화 완료 — 모든 양식의 검수 상태가 최신입니다 (${res.unchanged}건 확인).`);
       }
       if (res.errors && res.errors.length > 0) {
         feedback.warning(`동기화 중 ${res.errors.length}건 오류가 있었습니다. 자세한 내용은 관리자에게 문의해 주세요.`);
@@ -248,8 +248,8 @@ export default function TemplatePickerModal({
           <div className="tpl-picker__left">
             <div className="tpl-picker__sync-bar">
               <div className="tpl-picker__sync-text">
-                <div className="tpl-picker__sync-title">솔라피 콘솔과 동기화</div>
-                <div className="tpl-picker__sync-desc">콘솔에서 변경·승인된 본문/상태를 SaaS로 끌어옵니다</div>
+                <div className="tpl-picker__sync-title">검수 상태 동기화</div>
+                <div className="tpl-picker__sync-desc">솔라피 콘솔의 카카오 검수 결과(APPROVED/REJECTED)를 가져옵니다. 본문은 학원장 영역이라 절대 덮어쓰지 않습니다.</div>
               </div>
               <Button
                 size="sm"
