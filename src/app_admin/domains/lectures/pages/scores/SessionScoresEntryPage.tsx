@@ -26,7 +26,7 @@ import { DomainListToolbar } from "@/shared/ui/domain";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter } from "@/shared/ui/modal";
 import { useSendMessageModal } from "@admin/domains/messages/context/SendMessageModalContext";
 import { fetchMessageTemplates } from "@admin/domains/messages/api/messages.api";
-import { substituteScoreVars, generateScoreReport, buildScoreDetail } from "@admin/domains/scores/utils/generateScoreReport";
+import { substituteScoreVars, generateScoreReport, buildScoreDetail, buildGenericScoreTemplate } from "@admin/domains/scores/utils/generateScoreReport";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import CreateRegularExamModal from "@admin/domains/exams/components/create/CreateRegularExamModal";
 import CreateHomeworkModal from "@admin/domains/homework/components/CreateHomeworkModal";
@@ -401,9 +401,14 @@ export default function SessionScoresEntryPage(_props: Props) {
               // 일괄 발송 양식이 첫 학생으로 치환되어 나와 "특정 대상 한 명으로 하드코딩됐다"는 오해.
               // → 양식 본문은 변수 그대로 (#{학생이름}/#{시험1명}/...) 노출.
               // 발송 시 alimtalk_extra_vars + per_student vars로 학생별 자동 치환.
+              // 학원장 임근혁 보고(2026-05-12 → 2026-05-13 재발):
+              // textarea 에는 양식 본문(변수 그대로)이 떠야 학원장이 "수정 즉시 다수
+              // 학생에게 그대로 반영" 의도를 즉시 인식. 첫 학생 데이터로 치환된 텍스트
+              // 가 박히면 "특정 한 명으로 하드코딩" 오해. fallback 도 generateScoreReport
+              // (첫 학생 텍스트) 가 아니라 buildGenericScoreTemplate (변수 본문) 사용.
               initialBody = chosenTpl
-                ? chosenTpl.body  // ✅ 변수 그대로 — 학원장이 일괄 발송 의도 즉시 인식
-                : generateScoreReport(selectedRows[0], meta, reportOptions);
+                ? chosenTpl.body
+                : buildGenericScoreTemplate(reportOptions);
               scoreDetail = buildScoreDetail(selectedRows[0], meta);
 
               // 학생별 개별 성적 변수 (모든 학생 대상)
@@ -416,8 +421,8 @@ export default function SessionScoresEntryPage(_props: Props) {
                 };
               }
             } catch {
-              // 템플릿 조회 실패 시 — generateScoreReport fallback
-              initialBody = generateScoreReport(selectedRows[0], meta, reportOptions);
+              // 템플릿 조회 실패 시 — 범용 양식 fallback (변수 그대로)
+              initialBody = buildGenericScoreTemplate(reportOptions);
               scoreDetail = buildScoreDetail(selectedRows[0], meta);
               perStudentVars = {};
               for (const sRow of selectedRows) {

@@ -538,7 +538,7 @@ export default function SendMessageModal({
               {/* 적용된 양식 — inline */}
               {hasRecipients && selectedTemplate && (
                 <div className="send-modal__applied-tpl">
-                  <Check size={ICON.xs} style={{ color: "var(--color-success)", flexShrink: 0 }} />
+                  <Check size={ICON.xs} className="send-modal__icon-success" />
                   <span className="send-modal__applied-tpl-name">{selectedTemplate.name}</span>
                   {selectedTemplate.is_user_default && <Badge tone="primary" size="xs">기본</Badge>}
                   {isSystemTpl(selectedTemplate) && <Badge tone="info" size="xs">시스템</Badge>}
@@ -560,7 +560,12 @@ export default function SendMessageModal({
 
             {/* 카드 2 — 미리보기 + 변수 상태 통합 */}
             <section className="send-modal__card send-modal__card--preview">
-              <div className="send-modal__card-label">카카오톡 미리보기</div>
+              <div className="send-modal__card-label">
+                카카오톡 미리보기
+                {hasRecipients && recipientCount > 1 && (
+                  <span className="send-modal__card-sublabel"> · 첫 학생 기준 · 학생별로 자동 치환됨</span>
+                )}
+              </div>
               <div className="template-preview-kakao">
                 <div className="template-preview-kakao__card">
                   {(selectedTemplate?.subject || subject) && (
@@ -582,8 +587,8 @@ export default function SendMessageModal({
                   {varStatuses.map((v) => (
                     <div key={v.name} className="send-modal__var-row" data-status={v.status}>
                       {v.status === "missing"
-                        ? <AlertCircle size={ICON.xs} style={{ color: "var(--color-status-warning, #d97706)", flexShrink: 0 }} />
-                        : <Check size={ICON.xs} style={{ color: "var(--color-success)", flexShrink: 0 }} />}
+                        ? <AlertCircle size={ICON.xs} className="send-modal__icon-warning" />
+                        : <Check size={ICON.xs} className="send-modal__icon-success" />}
                       <span className="send-modal__var-name">{v.name}</span>
                       <span className="send-modal__var-value">
                         {v.status === "auto" ? "자동" : v.status === "provided" ? (v.value ? `"${v.value}"` : "제공됨") : "미제공"}
@@ -600,9 +605,9 @@ export default function SendMessageModal({
             {/* ── 양식 선택 바 (picker modal 진입 SSOT) ── */}
             <div className="send-modal__tpl-bar">
               {selectedTemplate && isSystemTpl(selectedTemplate) ? (
-                <Shield size={ICON.sm} style={{ color: "var(--color-status-info, #2563eb)", flexShrink: 0 }} />
+                <Shield size={ICON.sm} className="send-modal__icon-info" />
               ) : (
-                <Tag size={ICON.sm} style={{ color: "var(--color-primary)", flexShrink: 0 }} />
+                <Tag size={ICON.sm} className="send-modal__icon-primary" />
               )}
               <div className="send-modal__tpl-bar-label">
                 {selectedTemplate ? (
@@ -663,7 +668,7 @@ export default function SendMessageModal({
                     value={saveTemplateName}
                     onChange={(e) => setSaveTemplateName(e.target.value)}
                     onPressEnter={handleSaveTemplate}
-                    style={{ flex: 1, fontSize: 13 }}
+                    className="send-modal__save-form-input"
                     autoFocus
                   />
                   <Button size="sm" intent="primary" onClick={handleSaveTemplate} disabled={!saveTemplateName.trim() || !body.trim() || savingTemplate}>
@@ -674,13 +679,27 @@ export default function SendMessageModal({
               </div>
             )}
 
+            {/* ── 본문 영역 라벨 — 일괄 발송 의도 명시 ── */}
+            <div className="send-modal__editor-label">
+              <span className="send-modal__editor-label-title">양식 본문</span>
+              {hasRecipients && recipientCount > 1 ? (
+                <span className="send-modal__editor-label-hint">
+                  수정한 그대로 학생 {recipientCount}명 전원에게 발송 · <strong>{`#{학생이름}`}</strong>·<strong>{`#{시험성적}`}</strong> 등 변수는 학생별 자동 치환
+                </span>
+              ) : (
+                <span className="send-modal__editor-label-hint">
+                  <strong>{`#{학생이름}`}</strong> 등 변수는 발송 시 학생 데이터로 자동 치환됨
+                </span>
+              )}
+            </div>
+
             {/* ── 본문 + 변수 팔레트 ── */}
             <div className="send-modal__editor">
               <div ref={bodyWrapRef} className="send-modal__editor-body">
                 {/* 빈 상태 오버레이 */}
                 {!body && !selectedTemplate && !alimtalkFreeForm && (
                   <div className="send-modal__editor-empty">
-                    <Edit3 size={ICON.xl} style={{ color: "var(--color-text-muted)", opacity: 0.4 }} />
+                    <Edit3 size={ICON.xl} className="send-modal__icon-muted-faded" />
                     <div className="send-modal__editor-empty-text">
                       <div>양식을 선택하거나</div>
                       <div>직접 내용을 작성하세요</div>
@@ -703,6 +722,8 @@ export default function SendMessageModal({
                   disabled={sending}
                   className="message-domain-input send-modal__editor-textarea"
                   placeholder="알림톡 본문을 작성하세요"
+                  // 빈 상태 오버레이가 위에 떠 있을 때 textarea 클릭이 통과되지 않도록 동적 차단.
+                  // eslint-disable-next-line no-restricted-syntax
                   style={{
                     pointerEvents: !body && !selectedTemplate && !alimtalkFreeForm ? "none" : undefined,
                   }}
@@ -733,8 +754,10 @@ export default function SendMessageModal({
                               onMouseDown={(e) => e.preventDefault()}
                               onClick={() => { if (!alimtalkFreeForm && !selectedTemplate) setAlimtalkFreeForm(true); insertBlock(block.insertText); }}
                               disabled={sending}
-                              className="template-editor__block-tag"
-                              style={{ background: bc.bg, color: bc.color, borderColor: bc.border, padding: "4px 10px", fontSize: 11, width: "100%" }}
+                              className="template-editor__block-tag send-modal__var-palette-block-btn"
+                              // 블록 ID별 고유 색상 동적 적용 — getBlockColor() 반환값(static SSOT). className 으로는 N종 색상 표현 불가.
+                              // eslint-disable-next-line no-restricted-syntax
+                              style={{ background: bc.bg, color: bc.color, borderColor: bc.border }}
                             >
                               {block.label}
                             </button>
@@ -799,10 +822,10 @@ export default function SendMessageModal({
               </div>
             </div>
             <div className="send-modal__confirm-actions">
-              <Button intent="secondary" onClick={() => setShowConfirm(false)} style={{ minWidth: 100 }}>
+              <Button intent="secondary" onClick={() => setShowConfirm(false)} className="send-modal__confirm-back-btn">
                 돌아가기
               </Button>
-              <Button intent="primary" onClick={handleSend} disabled={sending} style={{ minWidth: 140, fontSize: 14 }}>
+              <Button intent="primary" onClick={handleSend} disabled={sending} className="send-modal__confirm-send-btn">
                 {sending ? "발송 중…" : "발송하기"}
               </Button>
             </div>

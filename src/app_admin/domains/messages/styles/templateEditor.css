@@ -862,6 +862,95 @@
   align-items: center;
 }
 
+/* send-modal inline style 이관 (R-11 baseline 동결 no-restricted-syntax) */
+.send-modal__icon-success {
+  color: var(--color-success);
+  flex-shrink: 0;
+}
+
+.send-modal__icon-warning {
+  color: var(--color-status-warning, #d97706);
+  flex-shrink: 0;
+}
+
+.send-modal__icon-info {
+  color: var(--color-status-info, #2563eb);
+  flex-shrink: 0;
+}
+
+.send-modal__icon-primary {
+  color: var(--color-primary);
+  flex-shrink: 0;
+}
+
+.send-modal__icon-muted-faded {
+  color: var(--color-text-muted);
+  opacity: 0.4;
+}
+
+.send-modal__save-form-input.ant-input {
+  flex: 1;
+  font-size: 13px;
+}
+
+.send-modal__var-palette-block-btn {
+  padding: 4px 10px;
+  font-size: 11px;
+  width: 100%;
+}
+
+/* ── 본문 영역 라벨 (일괄 발송 안내 SSOT) ── */
+.send-modal__editor-label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 12px;
+  margin-bottom: -4px;
+  border-radius: 8px 8px 0 0;
+  background: color-mix(in srgb, var(--color-primary) 5%, var(--color-bg-surface));
+  border: 1px solid color-mix(in srgb, var(--color-primary) 18%, var(--color-border-divider));
+  border-bottom: none;
+}
+
+.send-modal__editor-label-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+
+.send-modal__editor-label-hint {
+  font-size: 11.5px;
+  color: var(--color-text-secondary);
+  line-height: 1.4;
+}
+
+.send-modal__editor-label-hint strong {
+  color: var(--color-primary);
+  font-weight: 700;
+}
+
+/* ── confirm overlay 버튼 폭 ── */
+.send-modal__confirm-back-btn {
+  min-width: 100px;
+}
+
+.send-modal__confirm-send-btn {
+  min-width: 140px;
+  font-size: 14px;
+}
+
+/* ── 미리보기 카드 sub-label (read-only 안내) ── */
+.send-modal__card-sublabel {
+  font-size: 10.5px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  letter-spacing: 0;
+  text-transform: none;
+  margin-left: 6px;
+}
+
 /* ── 본문 편집 + 변수 팔레트 ── */
 .send-modal__editor {
   display: flex;

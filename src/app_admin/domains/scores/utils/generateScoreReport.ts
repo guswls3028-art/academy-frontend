@@ -27,11 +27,6 @@ function pct(score: number | null | undefined, max: number | null | undefined): 
   return `${Math.round((score / max) * 100)}%`;
 }
 
-function pctNum(score: number | null | undefined, max: number | null | undefined): number | null {
-  if (score == null || max == null || max === 0) return null;
-  return Math.round((score / max) * 100);
-}
-
 function formatDate(iso?: string): string {
   try {
     const d = iso ? new Date(iso) : new Date();
@@ -245,8 +240,8 @@ export function substituteScoreVars(
   vars["학생이름"] = studentName;
   vars["학생이름2"] = studentName.length >= 2 ? studentName.slice(-2) : studentName;
   vars["학생이름3"] = studentName;
-  vars["강의명"] = options.lectureName || (row as any).lecture_title || "";
-  vars["차시명"] = options.sessionTitle || (row as any).session_title || "";
+  vars["강의명"] = options.lectureName || (row as SessionScoreRow & { lecture_title?: string }).lecture_title || "";
+  vars["차시명"] = options.sessionTitle || (row as SessionScoreRow & { session_title?: string }).session_title || "";
   vars["날짜"] = formatDate(options.date);
 
   // 시험/과제 슬롯 10개 미리 초기화 (미사용 슬롯에 #{시험6} 등이 원문 노출되지 않게)
@@ -373,6 +368,27 @@ export function substituteScoreVars(
     .trim();
 
   return result;
+}
+
+/**
+ * 일괄 발송 fallback 범용 양식 본문 (변수 그대로).
+ * 학원장이 grades 카테고리에 user_default 양식을 미지정한 경우 send modal initialBody.
+ * 학원장 임근혁 보고(2026-05-13): 첫 학생 데이터로 치환된 텍스트가 textarea에 박히면
+ * "수정 즉시 다수 학생 반영" 의도가 깨지고 학원장이 양식 수정 부담 호소.
+ * → fallback도 변수 형태(범용 양식)로 통일. backend가 학생별 #{학생이름}/#{시험성적} 치환.
+ */
+export function buildGenericScoreTemplate(options: ScoreReportOptions = {}): string {
+  const header = [options.lectureName, options.sessionTitle].filter(Boolean).join(" · ");
+  const lines: string[] = [];
+  lines.push("안녕하세요 #{학생이름}님.");
+  if (header) {
+    lines.push(`${header} 성적 안내드립니다.`);
+  } else {
+    lines.push("성적 안내드립니다.");
+  }
+  lines.push("");
+  lines.push("#{시험성적}");
+  return lines.join("\n");
 }
 
 export function buildScoreDetail(
