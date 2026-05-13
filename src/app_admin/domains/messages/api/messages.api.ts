@@ -265,10 +265,19 @@ export interface SolapiOnlyTemplate {
   content_preview: string;
 }
 
+export interface SolapiOrphanCleaned {
+  tenant_id: number;
+  id: number;
+  name: string;
+  previous_template_id: string;
+}
+
 export interface SolapiSyncResult {
   detail: string;
   updated: number;
   unchanged: number;
+  orphan_cleaned_count: number;
+  orphan_cleaned: SolapiOrphanCleaned[];
   solapi_only_count: number;
   solapi_only: SolapiOnlyTemplate[];
   errors: string[];

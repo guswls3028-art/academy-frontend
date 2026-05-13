@@ -75,9 +75,10 @@ export default function TemplatePickerModal({
     try {
       const res = await syncSolapiTemplates();
       await onRefreshTemplates();
-      if (res.updated > 0 || res.solapi_only_count > 0) {
+      if (res.updated > 0 || res.orphan_cleaned_count > 0 || res.solapi_only_count > 0) {
         const parts: string[] = [];
         if (res.updated > 0) parts.push(`검수 상태 ${res.updated}건 갱신`);
+        if (res.orphan_cleaned_count > 0) parts.push(`검수 누락 ${res.orphan_cleaned_count}건 정리`);
         if (res.solapi_only_count > 0) parts.push(`솔라피에만 있는 양식 ${res.solapi_only_count}건`);
         feedback.success(`동기화 — ${parts.join(", ")}`);
       } else {
