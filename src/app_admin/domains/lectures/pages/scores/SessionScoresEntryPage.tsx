@@ -355,17 +355,19 @@ export default function SessionScoresEntryPage(_props: Props) {
   };
 
   const hasSelection = selectedEnrollmentIds.length > 0;
+  // 2026-05-13 학원장 호소: "1명 선택됨이 평소에도 0명 선택됨으로 있었으면", "선택 해제 동떨어짐".
+  // selectionBar 를 항상 노출(평상시 0명 + 액션 disabled). "선택 해제"는 액션 그룹 직후 자연 위치.
   const selectionBar = (
     <div className="flex flex-col gap-2">
       <div
         className="flex flex-wrap items-center gap-3 pl-1"
-        style={{ opacity: hasSelection ? 1 : 0.55, transition: "opacity 0.15s" }}
+        style={{ opacity: hasSelection ? 1 : 0.62, transition: "opacity 0.15s" }}
       >
         <span
-          className="text-[13px] font-semibold"
+          className="text-[13px] font-semibold whitespace-nowrap"
           style={{ color: hasSelection ? "var(--color-brand-primary)" : "var(--color-text-muted)" }}
         >
-          {hasSelection ? `${selectedEnrollmentIds.length}명 선택됨` : "학생을 선택하세요"}
+          {`${selectedEnrollmentIds.length}명 선택됨`}
         </span>
 
         {/* ── 그룹 1: primary 액션 ── */}
@@ -501,9 +503,8 @@ export default function SessionScoresEntryPage(_props: Props) {
           엑셀 다운로드
         </Button>
 
-        <div style={{ flex: 1 }} />
-
-        {/* ── 그룹 3: 보조 — 선택 해제 ── */}
+        {/* 2026-05-13: 선택 해제는 액션 그룹 바로 옆에. 우측 끝 flex spacer 폐기.
+            평상시 0명일 때도 노출되며 disabled. */}
         <Button
           intent="ghost"
           size="sm"
@@ -512,7 +513,60 @@ export default function SessionScoresEntryPage(_props: Props) {
         >
           선택 해제
         </Button>
+
+        {/* 표시 옵션 toggle — 읽기 모드일 때만, selectionBar 우측에 정합 배치.
+            직전엔 별도 row(scores-view-filter-panel)로 붕떠 있던 위치 호소 fix. */}
+        {!isEditMode && hasExamsOrHomeworks && (
+          <>
+            <span className="h-5 w-px bg-[var(--color-border-divider)]" aria-hidden="true" />
+            <button
+              type="button"
+              onClick={() => setViewOptionsExpanded((v) => !v)}
+              className="inline-flex items-center gap-1 text-xs font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] px-2 py-1 rounded hover:bg-[var(--color-bg-surface-hover)]"
+              aria-expanded={viewOptionsExpanded || hasNonDefaultViewOptions}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                style={{ transform: (viewOptionsExpanded || hasNonDefaultViewOptions) ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 0.15s" }}>
+                <polyline points="9 18 15 12 9 6" />
+              </svg>
+              표시 옵션
+              {hasNonDefaultViewOptions && (
+                <span className="ml-1 inline-flex items-center justify-center min-w-[6px] h-[6px] rounded-full bg-[var(--color-brand-primary)]" aria-label="설정 변경됨" />
+              )}
+            </button>
+          </>
+        )}
       </div>
+
+      {/* 표시 옵션 펼침 — selectionBar 다음 줄로 inline expand. */}
+      {!isEditMode && hasExamsOrHomeworks && (viewOptionsExpanded || hasNonDefaultViewOptions) && (
+        <div className="flex flex-wrap items-center gap-3 pl-1 pt-1">
+          <div className="scores-view-filter-section">
+            <span className="scores-view-filter-label">보기</span>
+            <div className="scores-display-segment" role="group" aria-label="컬럼 필터">
+              <button type="button" onClick={() => setViewFilter("all")} className="scores-display-segment__btn" aria-pressed={viewFilter === "all"}>전체</button>
+              <button type="button" onClick={() => setViewFilter("exam")} className="scores-display-segment__btn" aria-pressed={viewFilter === "exam"}>시험만</button>
+              <button type="button" onClick={() => setViewFilter("homework")} className="scores-display-segment__btn" aria-pressed={viewFilter === "homework"}>과제만</button>
+            </div>
+          </div>
+          {viewFilter !== "homework" && (
+            <div className="scores-view-filter-section">
+              <span className="scores-view-filter-label">시험 점수</span>
+              <div className="scores-display-segment" role="group" aria-label="시험 점수 표시 방식">
+                <button type="button" onClick={() => setScoreDisplayMode("total")} className="scores-display-segment__btn" aria-pressed={scoreDisplayMode === "total"}>합산</button>
+                <button type="button" onClick={() => setScoreDisplayMode("breakdown")} className="scores-display-segment__btn" aria-pressed={scoreDisplayMode === "breakdown"}>객관식 + 주관식</button>
+              </div>
+            </div>
+          )}
+          <div className="scores-view-filter-section">
+            <span className="scores-view-filter-label">점수 표시</span>
+            <div className="scores-display-segment" role="group" aria-label="점수 표시 형식">
+              <button type="button" onClick={() => setScoreFormat("raw")} className="scores-display-segment__btn" aria-pressed={scoreFormat === "raw"}>원점수</button>
+              <button type="button" onClick={() => setScoreFormat("fraction")} className="scores-display-segment__btn" aria-pressed={scoreFormat === "fraction"}>만점 표기</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 
@@ -718,7 +772,7 @@ export default function SessionScoresEntryPage(_props: Props) {
             )}
           </div>
         }
-        belowSlot={selectedEnrollmentIds.length > 0 ? selectionBar : undefined}
+        belowSlot={selectionBar}
       />
 
       {draft.hasDraftToRestore && (
@@ -759,113 +813,23 @@ export default function SessionScoresEntryPage(_props: Props) {
         </div>
       )}
 
-      {/* 설정 바 — 읽기 모드: 표시 설정 / 편집 모드: 편집 항목 */}
-      {(isEditMode || hasExamsOrHomeworks) && (
-      <div className={`scores-view-filter-panel${isEditMode ? " scores-view-filter-panel--edit" : ""}`}>
-        {isEditMode ? (
-          // P1-5 (2026-05-13): 5버튼 preset 세그먼트 → [시험: 합산/주관식] · [과제] 2그룹.
-          // 학원장이 "합산+과제" vs "합산" 차이를 즉시 이해 못 하던 문제 해소.
-          // 시험은 합산/주관식 중 하나, 과제는 on/off 독립 — 모든 5조합을 단순 2축으로 표현.
-          <>
-            <div className="scores-view-filter-section">
-              <span className="scores-view-filter-label">시험</span>
-              <div className="scores-display-segment" role="group" aria-label="시험 점수 입력 방식">
-                <button
-                  type="button"
-                  onClick={handleSelectTotal}
-                  className="scores-display-segment__btn"
-                  aria-pressed={examEditTotal}
-                  title="시험 합산 점수만 한 칸으로 입력"
-                >
-                  합산
-                </button>
-                <button
-                  type="button"
-                  onClick={handleSelectSubjective}
-                  className="scores-display-segment__btn"
-                  aria-pressed={examEditSubjective}
-                  title="주관식 점수만 입력 (객관식은 OMR 자동 채점)"
-                >
-                  주관식
-                </button>
-              </div>
-            </div>
-            <div className="scores-view-filter-section">
-              <span className="scores-view-filter-label">과제</span>
-              {/* 2026-05-13 2차 (P1-A): 단일 토글 "입력 가능"/"잠김" → 두 라디오 [켜짐][꺼짐].
-                  현재 어느 상태인지 한눈에 보이고, 다른 상태 클릭으로 직관적 전환. */}
-              <div className="scores-display-segment" role="group" aria-label="과제 점수 입력 켜짐/꺼짐">
-                <button
-                  type="button"
-                  onClick={() => { if (!homeworkEdit) handleSelectHomework(); }}
-                  className="scores-display-segment__btn"
-                  aria-pressed={homeworkEdit}
-                  title="과제 점수 입력 가능 상태"
-                >
-                  켜짐
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { if (homeworkEdit) handleSelectHomework(); }}
-                  className="scores-display-segment__btn"
-                  aria-pressed={!homeworkEdit}
-                  title="과제 점수 입력 차단 상태"
-                >
-                  꺼짐
-                </button>
-              </div>
-            </div>
-            {/* 2026-05-13 2차 (P0-B): "Tab·화살표..." 짧은 안내 제거 — ScoresTable 의 풍부한
-                편집 모드 카드 1곳으로 단일화. 두 카드 동시 노출 패턴 해소. */}
-          </>
-        ) : (
-          <>
-            {/* 표시 옵션 토글 — collapsed가 default. 비-default 값이면 자동 펼침. */}
-            <button
-              type="button"
-              onClick={() => setViewOptionsExpanded((v) => !v)}
-              className="inline-flex items-center gap-1 text-xs font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] px-2 py-1 rounded hover:bg-[var(--color-bg-surface-hover)]"
-              aria-expanded={viewOptionsExpanded || hasNonDefaultViewOptions}
-            >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-                style={{ transform: (viewOptionsExpanded || hasNonDefaultViewOptions) ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 0.15s" }}>
-                <polyline points="9 18 15 12 9 6" />
-              </svg>
-              표시 옵션
-              {hasNonDefaultViewOptions && (
-                <span className="ml-1 inline-flex items-center justify-center min-w-[6px] h-[6px] rounded-full bg-[var(--color-brand-primary)]" aria-label="설정 변경됨" />
-              )}
-            </button>
-            {(viewOptionsExpanded || hasNonDefaultViewOptions) && (
-              <>
-                <div className="scores-view-filter-section">
-                  <span className="scores-view-filter-label">보기</span>
-                  <div className="scores-display-segment" role="group" aria-label="컬럼 필터">
-                    <button type="button" onClick={() => setViewFilter("all")} className="scores-display-segment__btn" aria-pressed={viewFilter === "all"}>전체</button>
-                    <button type="button" onClick={() => setViewFilter("exam")} className="scores-display-segment__btn" aria-pressed={viewFilter === "exam"}>시험만</button>
-                    <button type="button" onClick={() => setViewFilter("homework")} className="scores-display-segment__btn" aria-pressed={viewFilter === "homework"}>과제만</button>
-                  </div>
-                </div>
-                {viewFilter !== "homework" && (
-                  <div className="scores-view-filter-section">
-                    <span className="scores-view-filter-label">시험 점수</span>
-                    <div className="scores-display-segment" role="group" aria-label="시험 점수 표시 방식">
-                      <button type="button" onClick={() => setScoreDisplayMode("total")} className="scores-display-segment__btn" aria-pressed={scoreDisplayMode === "total"}>합산</button>
-                      <button type="button" onClick={() => setScoreDisplayMode("breakdown")} className="scores-display-segment__btn" aria-pressed={scoreDisplayMode === "breakdown"}>객관식 + 주관식</button>
-                    </div>
-                  </div>
-                )}
-                <div className="scores-view-filter-section">
-                  <span className="scores-view-filter-label">점수 표시</span>
-                  <div className="scores-display-segment" role="group" aria-label="점수 표시 형식">
-                    <button type="button" onClick={() => setScoreFormat("raw")} className="scores-display-segment__btn" aria-pressed={scoreFormat === "raw"}>원점수</button>
-                    <button type="button" onClick={() => setScoreFormat("fraction")} className="scores-display-segment__btn" aria-pressed={scoreFormat === "fraction"}>만점 표기</button>
-                  </div>
-                </div>
-              </>
-            )}
-          </>
-        )}
+      {/* 편집 모드 — 시험·과제 입력 항목 토글. 읽기 모드는 selectionBar 우측에 통합됨. */}
+      {isEditMode && (
+      <div className="scores-view-filter-panel scores-view-filter-panel--edit">
+        <div className="scores-view-filter-section">
+          <span className="scores-view-filter-label">시험</span>
+          <div className="scores-display-segment" role="group" aria-label="시험 점수 입력 방식">
+            <button type="button" onClick={handleSelectTotal} className="scores-display-segment__btn" aria-pressed={examEditTotal} title="시험 합산 점수만 한 칸으로 입력">합산</button>
+            <button type="button" onClick={handleSelectSubjective} className="scores-display-segment__btn" aria-pressed={examEditSubjective} title="주관식 점수만 입력 (객관식은 OMR 자동 채점)">주관식</button>
+          </div>
+        </div>
+        <div className="scores-view-filter-section">
+          <span className="scores-view-filter-label">과제</span>
+          <div className="scores-display-segment" role="group" aria-label="과제 점수 입력 켜짐/꺼짐">
+            <button type="button" onClick={() => { if (!homeworkEdit) handleSelectHomework(); }} className="scores-display-segment__btn" aria-pressed={homeworkEdit} title="과제 점수 입력 가능 상태">켜짐</button>
+            <button type="button" onClick={() => { if (homeworkEdit) handleSelectHomework(); }} className="scores-display-segment__btn" aria-pressed={!homeworkEdit} title="과제 점수 입력 차단 상태">꺼짐</button>
+          </div>
+        </div>
       </div>
       )}
 
