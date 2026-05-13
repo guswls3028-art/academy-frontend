@@ -4,7 +4,7 @@ import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import api from "@/shared/api/axios";
-import { Button, Badge } from "@/shared/ui/ds";
+import { Button } from "@/shared/ui/ds";
 import { fetchAdminSessionExams } from "@admin/domains/results/api/adminSessionExams";
 import type { SessionExamRow } from "@admin/domains/results/api/adminSessionExams";
 import { updateAdminExam } from "@admin/domains/exams/api/adminExam";
@@ -12,7 +12,6 @@ import { updateAdminHomework } from "@admin/domains/homework/api/adminHomework";
 import { fetchHomeworkPolicyBySession } from "@admin/domains/homework/api/homeworkPolicy";
 
 import { feedback } from "@/shared/ui/feedback/feedback";
-import { useConfirm } from "@/shared/ui/confirm";
 import CreateRegularExamModal from "@admin/domains/exams/components/create/CreateRegularExamModal";
 import CreateHomeworkModal from "@admin/domains/homework/components/CreateHomeworkModal";
 import ApplyBundleModal from "@admin/domains/exams/components/create/ApplyBundleModal";
@@ -33,14 +32,6 @@ type HomeworkItem = {
   title: string;
   status?: "DRAFT" | "OPEN" | "CLOSED";
 };
-
-function getErrorDetail(error: unknown): string {
-  if (typeof error === "object" && error !== null) {
-    const maybeResponse = (error as { response?: { data?: { detail?: unknown } } }).response;
-    if (typeof maybeResponse?.data?.detail === "string") return maybeResponse.data.detail;
-  }
-  return "변경 실패";
-}
 
 /* ------------------------------------------------------------------ */
 /*  Inline styles (CSS-in-JS) — uses design tokens only               */
@@ -156,14 +147,6 @@ const S = {
     paddingLeft: 2,
   } satisfies CSSProperties,
 
-  /* Action buttons row — always visible, inline */
-  actionsRow: {
-    display: "flex",
-    alignItems: "center",
-    gap: "var(--space-1)",
-    marginTop: 4,
-  } satisfies CSSProperties,
-
   emptyState: {
     padding: "20px 14px",
     textAlign: "center",
@@ -173,25 +156,6 @@ const S = {
     lineHeight: 1.5,
   } satisfies CSSProperties,
 } as const;
-
-/* ------------------------------------------------------------------ */
-/*  Status badge helper                                                */
-/* ------------------------------------------------------------------ */
-
-type StatusTone = "success" | "danger" | "neutral" | "primary";
-
-function StatusBadge({ label, tone }: { label: string; tone: StatusTone }) {
-  return (
-    <Badge
-      variant="solid"
-      tone={tone}
-      size="sm"
-      style={{ flexShrink: 0 }}
-    >
-      {label}
-    </Badge>
-  );
-}
 
 /* ------------------------------------------------------------------ */
 /*  Main component                                                     */
@@ -209,7 +173,6 @@ export default function SessionAssessmentSidePanel({
 }: Props) {
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const confirm = useConfirm();
   const [searchParams] = useSearchParams();
   const location = useLocation();
   const [openCreateExamLocal, setOpenCreateExamLocal] = useState(false);
@@ -223,8 +186,6 @@ export default function SessionAssessmentSidePanel({
   const handleCloseCreateHomework = onCloseCreateHomework ?? (() => setOpenCreateHomeworkLocal(false));
 
   const [openApplyBundle, setOpenApplyBundle] = useState(false);
-  const [examBusy, setExamBusy] = useState<{ id: number; action: "start" | "end" } | null>(null);
-  const [hwBusy, setHwBusy] = useState<{ id: number; action: "start" | "end" } | null>(null);
 
   const examId = useMemo(() => {
     const v = Number(searchParams.get("examId"));
@@ -315,78 +276,10 @@ export default function SessionAssessmentSidePanel({
     }
   }, [location.pathname, sessionId, lectureId, examId, homeworkId, exams, homeworks, navigate]);
 
-  // 자동 마감 — 1차 진실은 백엔드 일일 cron(close_overdue_assessments).
-  //
-  // 다음 useEffect 는 cron 적용 전/실행 사이의 사이드패널 진입에 한해 동일
-  // 정책을 멱등하게 한 번 더 적용하는 클라이언트 안전망이다.
-  // cron 적용 검증이 끝나면 이 useEffect 는 제거 가능.
-  const [autoCloseDone, setAutoCloseDone] = useState(false);
-  useEffect(() => {
-    if (autoCloseDone || !sessionId || !lectureId) return;
-    if (exams.length === 0 && homeworks.length === 0) return;
-    const hasOpen = exams.some((e) => e.status === "OPEN") || homeworks.some((h) => h.status === "OPEN");
-    if (!hasOpen) { setAutoCloseDone(true); return; }
-
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await api.get(`/lectures/sessions/?lecture=${lectureId}`);
-        const sessions = (res.data?.results ?? res.data ?? []) as { id: number; date?: string | null; order: number }[];
-        const current = sessions.find((s) => s.id === sessionId);
-        if (!current?.date) return;
-
-        const sorted = sessions.filter((s) => s.date).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-        const currentIdx = sorted.findIndex((s) => s.id === sessionId);
-        const nextSession = currentIdx >= 0 && currentIdx < sorted.length - 1 ? sorted[currentIdx + 1] : null;
-
-        const deadlineStr = nextSession?.date ?? current.date;
-        const deadline = new Date(deadlineStr);
-        if (!nextSession?.date) {
-          deadline.setDate(deadline.getDate() + 1);
-        }
-
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        deadline.setHours(0, 0, 0, 0);
-
-        if (today < deadline) return;
-        if (cancelled) return;
-
-        let failCount = 0;
-        const promises: Promise<void>[] = [];
-        for (const exam of exams) {
-          if (exam.status === "OPEN") {
-            promises.push(
-              updateAdminExam(Number(exam.exam_id), { status: "CLOSED" }).then(() => {}).catch(() => { failCount++; }),
-            );
-          }
-        }
-        for (const hw of homeworks) {
-          if (hw.status === "OPEN") {
-            promises.push(
-              updateAdminHomework(hw.id, { status: "CLOSED" }).then(() => {}).catch(() => { failCount++; }),
-            );
-          }
-        }
-        if (promises.length > 0) {
-          await Promise.all(promises);
-          if (!cancelled) {
-            if (failCount > 0) {
-              feedback.warning(`자동 마감 중 ${failCount}건이 실패했습니다. 수동으로 확인해 주세요.`);
-            }
-            qc.invalidateQueries({ queryKey: ["admin-session-exams", sessionId] });
-            qc.invalidateQueries({ queryKey: ["session-homeworks", sessionId] });
-            qc.invalidateQueries({ queryKey: ["session-scores", sessionId] });
-          }
-        }
-      } catch {
-        if (!cancelled) feedback.warning("자동 마감 처리 중 오류가 발생했습니다.");
-      } finally {
-        if (!cancelled) setAutoCloseDone(true);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [sessionId, lectureId, exams, homeworks, autoCloseDone, qc]);
+  // 2026-05-13 학원장 결정 시행: 자동 마감 정책 폐기.
+  // 이전엔 차시 deadline 지나면 OPEN → CLOSED 자동 변경 (client safety net + backend cron).
+  // 학원장 결정 "시험 단위 status 폐기 → 학생별 상태 통합" 과 정면 충돌이라 useEffect 제거.
+  // 백엔드 cron `close_overdue_assessments` 도 같이 비활성화 (infra/terraform/purge_schedule.tf).
 
   const invalidateExams = () => qc.invalidateQueries({ queryKey: ["admin-session-exams", sessionId] });
   const invalidateExamsSummary = () => qc.invalidateQueries({ queryKey: ["session-exams-summary", sessionId] });
@@ -401,70 +294,8 @@ export default function SessionAssessmentSidePanel({
     navigate({ pathname: `${base}/assignments`, search: `?homeworkId=${homeworkId}` });
   };
 
-  const handleHomeworkProgress = async (hw: HomeworkItem) => {
-    if (hwBusy) return;
-    setHwBusy({ id: hw.id, action: "start" });
-    try {
-      await updateAdminHomework(hw.id, { status: "OPEN" });
-      invalidateHomeworks();
-      invalidateSessionScores();
-      feedback.success("과제를 진행 중으로 변경했습니다.");
-    } catch (e: unknown) {
-      feedback.error(getErrorDetail(e));
-    } finally {
-      setHwBusy(null);
-    }
-  };
-
-  const handleHomeworkClose = async (hw: HomeworkItem) => {
-    if (hwBusy) return;
-    setHwBusy({ id: hw.id, action: "end" });
-    try {
-      await updateAdminHomework(hw.id, { status: "CLOSED" });
-      invalidateHomeworks();
-      invalidateSessionScores();
-      feedback.success("과제를 종료했습니다.");
-    } catch (e: unknown) {
-      feedback.error(getErrorDetail(e));
-    } finally {
-      setHwBusy(null);
-    }
-  };
-
-  const handleExamProgress = async (id: number) => {
-    if (examBusy) return;
-    setExamBusy({ id, action: "start" });
-    try {
-      await updateAdminExam(id, { status: "OPEN" });
-      qc.invalidateQueries({ queryKey: ["admin-exam", id] });
-      invalidateExams();
-      invalidateExamsSummary();
-      invalidateSessionScores();
-      feedback.success("시험을 진행 중으로 변경했습니다.");
-    } catch (e: unknown) {
-      feedback.error(getErrorDetail(e));
-    } finally {
-      setExamBusy(null);
-    }
-  };
-
-  const handleExamClose = async (id: number) => {
-    const ok = await confirm({ title: "종료 확인", message: "시험을 종료하시겠습니까? 종료 이후엔 답안 제출이 불가합니다.", danger: true, confirmText: "종료" });
-    if (!ok) return;
-    setExamBusy({ id, action: "end" });
-    try {
-      await updateAdminExam(id, { status: "CLOSED" });
-      qc.invalidateQueries({ queryKey: ["admin-exam", id] });
-      invalidateExams();
-      invalidateExamsSummary();
-      invalidateSessionScores();
-      feedback.success("시험을 종료했습니다.");
-    } catch (e: unknown) {
-      feedback.error(getErrorDetail(e));
-    } finally {
-      setExamBusy(null);
-    }
-  };
+  // 2026-05-13 학원장 결정 시행: 시험·과제 단위 start/close 핸들러 폐기.
+  // 학생별 진행 상태(Achievement)가 SSOT — 학원장이 시험 전체를 닫을 일이 없음.
 
   return (
     <aside style={S.aside}>
@@ -501,7 +332,6 @@ export default function SessionAssessmentSidePanel({
           {!examsLoading && !examsError && exams.length === 0 && <EmptyState>등록된 시험이 없습니다</EmptyState>}
           {exams.map((exam: SessionExamRow) => {
             const active = examId != null && Number(exam.exam_id) === examId;
-            const busy = examBusy?.id === Number(exam.exam_id) ? examBusy.action : null;
             const maxScore = examMaxScoreById[Number(exam.exam_id)] ?? 100;
             const gradedCount = examGradedCountById[Number(exam.exam_id)] ?? 0;
             return (
@@ -513,9 +343,6 @@ export default function SessionAssessmentSidePanel({
                 maxScore={maxScore}
                 gradedCount={gradedCount}
                 onSelect={() => onSelectExam(Number(exam.exam_id))}
-                onStart={(e) => { e.stopPropagation(); handleExamProgress(Number(exam.exam_id)); }}
-                onEnd={(e) => { e.stopPropagation(); handleExamClose(Number(exam.exam_id)); }}
-                busy={busy}
               />
             );
           })}
@@ -553,10 +380,7 @@ export default function SessionAssessmentSidePanel({
                 status={hw.status ?? "OPEN"}
                 cutlineMode={cutlineMode}
                 cutlineValue={cutlineValue}
-                busy={hwBusy?.id === hw.id}
                 onSelect={() => onSelectHomework(hw.id)}
-                onStart={(e) => { e.stopPropagation(); handleHomeworkProgress(hw); }}
-                onEnd={(e) => { e.stopPropagation(); handleHomeworkClose(hw); }}
               />
             );
           })}
@@ -611,6 +435,10 @@ export default function SessionAssessmentSidePanel({
 /*  ExamItemCard                                                       */
 /* ------------------------------------------------------------------ */
 
+/* 2026-05-13 학원장 결정 시행: 시험 전체 status 단위 UI 폐기.
+ * 시험은 만들면 영구 응시 가능. 학생별 상태(Achievement)는 성적탭 점수 셀 SSOT 로 통합.
+ * → "마감/진행" 뱃지 + "시험 시작/종료" 버튼 제거.
+ * status props 는 카드 외곽선(active 시각)에만 유지 — 시각 회귀 방지. */
 function ExamItemCard({
   active,
   label,
@@ -618,9 +446,6 @@ function ExamItemCard({
   maxScore,
   gradedCount,
   onSelect,
-  onStart,
-  onEnd,
-  busy,
 }: {
   active: boolean;
   label: string;
@@ -628,15 +453,7 @@ function ExamItemCard({
   maxScore: number;
   gradedCount: number;
   onSelect: () => void;
-  onStart: (e: React.MouseEvent) => void;
-  onEnd: (e: React.MouseEvent) => void;
-  busy: null | "start" | "end";
 }) {
-  const isOpen = status === "OPEN";
-
-  const statusLabel = isOpen ? "진행" : "마감";
-  const statusTone: StatusTone = isOpen ? "success" : "danger";
-
   return (
     <div
       role="button"
@@ -645,29 +462,11 @@ function ExamItemCard({
       onKeyDown={(e) => e.key === "Enter" && onSelect()}
       style={S.card(active, status)}
     >
-      {/* Top row: badge + title */}
       <div style={S.cardTopRow}>
-        <StatusBadge label={statusLabel} tone={statusTone} />
         <div style={S.cardTitle} title={label}>{label}</div>
       </div>
-
-      {/* Meta + action buttons in one row */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 4 }}>
-        <div style={S.cardMeta}>
-          만점 {maxScore}점 · 채점 {gradedCount}명
-        </div>
-        <div style={S.actionsRow} onClick={(e) => e.stopPropagation()}>
-          {!isOpen && (
-            <Button type="button" size="sm" intent="primary" onClick={onStart} disabled={busy != null} loading={busy === "start"}>
-              시험 시작
-            </Button>
-          )}
-          {isOpen && (
-            <Button type="button" size="sm" intent="danger" onClick={onEnd} disabled={busy != null} loading={busy === "end"}>
-              시험 종료
-            </Button>
-          )}
-        </div>
+      <div style={S.cardMeta}>
+        만점 {maxScore}점 · 채점 {gradedCount}명
       </div>
     </div>
   );
@@ -677,31 +476,22 @@ function ExamItemCard({
 /*  HomeworkItemCard                                                    */
 /* ------------------------------------------------------------------ */
 
+/* 2026-05-13 학원장 결정 시행: 과제 status 단위 UI 폐기. ExamItemCard 와 동일 정책. */
 function HomeworkItemCard({
   active,
   label,
   status,
   cutlineMode,
   cutlineValue,
-  busy,
   onSelect,
-  onStart,
-  onEnd,
 }: {
   active: boolean;
   label: string;
   status: "DRAFT" | "OPEN" | "CLOSED";
   cutlineMode: "PERCENT" | "COUNT";
   cutlineValue: number;
-  busy?: boolean;
   onSelect: () => void;
-  onStart: (e: React.MouseEvent) => void;
-  onEnd: (e: React.MouseEvent) => void;
 }) {
-  const isOpen = status === "OPEN";
-  const statusLabel = isOpen ? "진행" : "마감";
-  const statusTone: StatusTone = isOpen ? "success" : "danger";
-
   const metaLabel =
     cutlineMode === "PERCENT"
       ? `기준 ${cutlineValue}%`
@@ -715,30 +505,10 @@ function HomeworkItemCard({
       onKeyDown={(e) => e.key === "Enter" && onSelect()}
       style={S.card(active, status)}
     >
-      {/* Top row: badge + title */}
       <div style={S.cardTopRow}>
-        <StatusBadge label={statusLabel} tone={statusTone} />
         <div style={S.cardTitle} title={label}>{label}</div>
       </div>
-
-      {/* Meta + action buttons in one row */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 4 }}>
-        <div style={S.cardMeta}>
-          {metaLabel}
-        </div>
-        <div style={S.actionsRow} onClick={(e) => e.stopPropagation()}>
-          {!isOpen && (
-            <Button type="button" size="sm" intent="primary" onClick={onStart} disabled={busy}>
-              과제 시작
-            </Button>
-          )}
-          {isOpen && (
-            <Button type="button" size="sm" intent="secondary" onClick={onEnd} disabled={busy}>
-              {busy ? "처리 중…" : "과제 종료"}
-            </Button>
-          )}
-        </div>
-      </div>
+      <div style={S.cardMeta}>{metaLabel}</div>
     </div>
   );
 }

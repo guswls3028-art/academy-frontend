@@ -7,8 +7,8 @@
 import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueries } from "@tanstack/react-query";
-import { FilePlus, ClipboardList, FileCheck, FileClock, FileX } from "lucide-react";
-import { Button, EmptyState, Badge } from "@/shared/ui/ds";
+import { FilePlus, ClipboardList, FileCheck } from "lucide-react";
+import { Button, EmptyState } from "@/shared/ui/ds";
 import Breadcrumb from "@admin/domains/storage/components/Breadcrumb";
 import LectureSessionTree from "../components/LectureSessionTree";
 import { fetchLectures, fetchSessions, sortSessionsByDateDesc, type Lecture, type Session } from "@admin/domains/lectures/api/sessions";
@@ -218,10 +218,10 @@ export default function ExamExplorerPage() {
                 )}
               </div>
               <div className={styles.list}>
+                {/* 2026-05-13 학원장 결정: 시험 단위 status(OPEN/CLOSED) UI 폐기.
+                    아이콘 톤 통일(파일아이콘 + neutral) + status 뱃지 제거.
+                    학생별 진행 상태는 성적탭에서 Achievement SSOT 로 확인. */}
                 {exams.map((e) => {
-                  const StatusIcon = e.status === "OPEN" ? FileCheck : e.status === "CLOSED" ? FileX : FileClock;
-                  const statusTone = e.status === "OPEN" ? "success" : e.status === "CLOSED" ? "muted" : "warning";
-                  const statusLabel = e.status === "OPEN" ? "진행 중" : e.status === "CLOSED" ? "마감" : "설정 중";
                   return (
                     <div
                       key={e.id}
@@ -233,8 +233,8 @@ export default function ExamExplorerPage() {
                         )
                       }
                     >
-                      <div className={styles.listItemIcon} data-tone={statusTone}>
-                        <StatusIcon size={20} />
+                      <div className={styles.listItemIcon} data-tone="primary">
+                        <FileCheck size={20} />
                       </div>
                       <div className={styles.listItemBody}>
                         <div className={styles.listItemTitle}>{e.title || "—"}</div>
@@ -252,7 +252,6 @@ export default function ExamExplorerPage() {
                           <span>{formatDate(e.created_at)}</span>
                         </div>
                       </div>
-                      <Badge variant="solid" tone={statusTone}>{statusLabel}</Badge>
                     </div>
                   );
                 })}

@@ -68,6 +68,17 @@ function firstLine(text: string): string {
   return String(text ?? "").split("\n")[0]?.trim() ?? "";
 }
 
+/** 2026-05-13 학원장 결정 시행: 시험 단위 status 폐기 → 학생별 진행 상태가 SSOT.
+ *  점수 셀 tooltip 으로 노출 (클리닉 1차/2차/3차 정합). */
+function achievementLabel(block: { passed?: boolean | null; achievement?: string | null; meta?: { status?: string | null } | null } | null | undefined): string {
+  if (!block) return "진행중";
+  if (block.meta?.status === "NOT_SUBMITTED") return "진행중 (미응시)";
+  if (block.achievement === "REMEDIATED") return "이수 (보강)";
+  if (block.achievement === "PASS" || block.passed === true) return "이수";
+  if (block.achievement === "FAIL" || block.passed === false) return "판정 대기 (클리닉 대상)";
+  return "진행중";
+}
+
 /** 셀 키 생성 — pending/dirty 맵 키와 ref 키 일치 */
 function pendingKeyForChange(p: PendingChange): string {
   if (p.type === "examTotal") return `examTotal:${p.enrollmentId}:${p.examId}`;
@@ -933,6 +944,10 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                           const hasRetakes = (entry?.attempt_count ?? 0) >= 2;
                           const hasClinicLink = entry?.clinic_link_id != null;
                           const canEdit = isEditMode && examEditTotal && !block?.is_locked && !hasRetakes;
+                          /* 2026-05-13 학원장 결정: 학생별 상태 = 진행중/이수/판정 — 클리닉 1차/2차/3차 정합.
+                             셀 hover 시 tooltip 으로 노출. */
+                          const achLabel = achievementLabel(block);
+                          const cellTitle = `${ex.title} · ${scoreText} · ${achLabel}`;
                           return (
                             <td
                               key={col.key}
@@ -941,7 +956,9 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                               {...(colIdx === 0 ? { "data-group-start": "" } : {})}
                               {...(canEdit ? { "data-editable": "true" } : {})}
                               {...(block?.passed != null ? { "data-pass-status": block.passed ? "pass" : "fail" } : {})}
+                              {...(block?.achievement ? { "data-achievement": block.achievement } : isExamNotSubmitted ? { "data-achievement": "NOT_SUBMITTED" } : {})}
                               className={`min-w-0 text-center align-middle ${isSelected ? "outline-2 outline-[var(--color-brand-primary)] outline-offset-[-2px]" : ""} ${isEditMode ? "hover:bg-[var(--color-bg-surface-hover)]" : ""}`}
+                              title={cellTitle}
                               onClick={(e) => { if (isEditMode) e.stopPropagation(); onSelectCell(row, "exam", ex.exam_id, "total"); }}
                             >
                               {canEdit ? (

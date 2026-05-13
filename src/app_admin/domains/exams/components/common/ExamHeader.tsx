@@ -1,45 +1,28 @@
 import { useState, useRef, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { Exam } from "../../types";
-import { saveExamAsTemplate, updateAdminExam } from "../../api/adminExam";
+import { saveExamAsTemplate } from "../../api/adminExam";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter, MODAL_WIDTH } from "@/shared/ui/modal";
-import { Button, Badge } from "@/shared/ui/ds";
+import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
-import { useConfirm } from "@/shared/ui/confirm";
 import { FiSave, FiChevronDown } from "react-icons/fi";
 import "./ExamHeader.css";
 
 /**
- * 시험 헤더: 제목, 상태 배지, 마감/진행 토글 버튼, 템플릿 저장(regular만).
+ * 시험 헤더: 제목 + 템플릿 저장(regular만).
+ * 2026-05-13 학원장 결정: 시험 단위 status(OPEN/CLOSED) UI 폐기. 학생별 Achievement SSOT 통합.
+ * → 진행 중/마감 뱃지 + 종료하기 버튼 + statusMut mutation 제거.
  */
-export default function ExamHeader({ exam, sessionId }: { exam: Exam; sessionId?: number | null }) {
+export default function ExamHeader({ exam, sessionId: _sessionId }: { exam: Exam; sessionId?: number | null }) {
   const qc = useQueryClient();
-  const confirm = useConfirm();
   const [templateModalOpen, setTemplateModalOpen] = useState(false);
   const [templateName, setTemplateName] = useState("");
   const [templateDropdownOpen, setTemplateDropdownOpen] = useState(false);
   const templateDropdownRef = useRef<HTMLDivElement>(null);
 
-  const isOpen = exam.status !== "CLOSED";
   const isRegular = exam.exam_type === "regular";
   const canSaveAsTemplate = isRegular && !exam.template_exam_id;
   const hasTemplate = isRegular && !!exam.template_exam_id;
-
-  const statusMut = useMutation({
-    mutationFn: (status: "OPEN" | "CLOSED") => updateAdminExam(exam.id, { status }),
-    onSuccess: async (_, status) => {
-      await qc.invalidateQueries({ queryKey: ["admin-exam", exam.id] });
-      if (sessionId != null) {
-        await qc.invalidateQueries({ queryKey: ["admin-session-exams", sessionId] });
-        await qc.invalidateQueries({ queryKey: ["session-exams-summary", sessionId] });
-        await qc.invalidateQueries({ queryKey: ["session-scores", sessionId] });
-      }
-      feedback.success(status === "OPEN" ? "진행 중으로 변경했습니다." : "시험을 종료했습니다.");
-    },
-    onError: (e: any) => {
-      feedback.error(e?.response?.data?.detail ?? "상태 변경에 실패했습니다.");
-    },
-  });
 
   const saveAsTemplateMut = useMutation({
     mutationFn: () => saveExamAsTemplate(exam.id),
@@ -65,37 +48,16 @@ export default function ExamHeader({ exam, sessionId }: { exam: Exam; sessionId?
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [templateDropdownOpen]);
 
-  const statusLabel = isOpen ? "진행 중" : "마감";
-  const statusTone = isOpen ? "success" : "danger";
-
-  const handleCloseExam = async () => {
-    const ok = await confirm({ title: "종료 확인", message: "시험을 종료하시겠습니까? 종료 이후엔 답안 제출이 불가합니다.", danger: true, confirmText: "종료" });
-    if (!ok) return;
-    statusMut.mutate("CLOSED");
-  };
-
   const handleTemplateSaveConfirm = () => {
     saveAsTemplateMut.mutate();
   };
 
   return (
-    <div
-      className={`space-y-2 rounded-lg border-l-4 pl-3 py-2 ${
-        isOpen
-          ? "border-l-[var(--color-success)]"
-          : "border-l-[var(--color-border-divider)]"
-      }`}
-      style={
-        isOpen
-          ? { background: "color-mix(in srgb, var(--color-success) 12%, var(--color-bg-surface))" }
-          : { background: "color-mix(in srgb, var(--color-border-divider) 12%, var(--color-bg-surface))", opacity: 0.75 }
-      }
-    >
+    <div className="space-y-2 rounded-lg border-l-4 pl-3 py-2 border-l-[var(--color-brand-primary)] bg-[color-mix(in_srgb,var(--color-brand-primary)_8%,var(--color-bg-surface))]">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <h2 className="text-lg font-semibold">{exam.title}</h2>
-            <Badge variant="solid" tone={statusTone}>{statusLabel}</Badge>
           </div>
         </div>
 
@@ -157,18 +119,8 @@ export default function ExamHeader({ exam, sessionId }: { exam: Exam; sessionId?
             </div>
           )}
 
-          {isRegular && isOpen && (
-            <Button
-              type="button"
-              intent="danger"
-              size="xl"
-              onClick={handleCloseExam}
-              disabled={statusMut.isPending}
-              className="min-w-[140px]"
-            >
-              {statusMut.isPending ? "처리 중…" : "종료하기"}
-            </Button>
-          )}
+          {/* 2026-05-13 학원장 결정: 시험 단위 종료하기 버튼 폐기.
+              학생별 진행 상태는 성적탭 점수 셀 Achievement 가 SSOT. */}
         </div>
       </div>
 
