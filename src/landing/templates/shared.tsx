@@ -169,15 +169,16 @@ function buildMenuCategories(sections: LandingSection[], isOwner: boolean = fals
   });
 
   // 3. 매치업 / 적중사례 — 학원장 핵심 마케팅
-  // 매치업 게시판(/landing/matchup-board)은 PublicMatchupShowcase entity 기반 — 항상 노출.
-  // 기존 hit_reports section 항목들은 section enabled 시에만.
+  // 학원장 spec(박철T 2026-05-13): 상단 nav "매치업" 클릭 = section 스크롤이 아니라
+  // 정식 게시판으로 라우트. hit_reports section은 학원소개에 요약 게이트로 유지.
+  // → matchup_board를 first(=inline nav 클릭 대상)로, hit_reports section 항목은 후순위.
   {
     const matchupItems: NavMenuItem[] = [];
+    matchupItems.push({ key: "matchup_board", label: "적중보고서 게시판", kind: "route", target: "/landing/matchup-board", badge: "NEW" });
     if (has("hit_reports")) {
-      matchupItems.push({ key: "hit_reports", label: "적중 사례 한눈에", kind: "section", target: "hit_reports" });
+      matchupItems.push({ key: "hit_reports", label: "적중 사례 요약 (홈)", kind: "section", target: "hit_reports" });
       matchupItems.push({ key: "reports_all", label: "보고서 모두 보기", kind: "route", target: "/landing/reports" });
     }
-    matchupItems.push({ key: "matchup_board", label: "적중보고서 게시판", kind: "route", target: "/landing/matchup-board", badge: "NEW" });
     categories.push({ key: "matchup", label: "매치업", items: matchupItems });
   }
 
@@ -238,20 +239,16 @@ export function LandingNavBar({ config, sections, tokens, brandMark }: { config:
   const navigate = useNavigate();
   const location = useLocation();
 
-  // 데스크탑 가로 nav 항목 — 학원장 spec(2026-05-12) "상단 메뉴가 헤더에 붙는게 좋을듯".
-  // 카테고리 라벨 + 단일 액션(첫 항목 기준) 추출 + "더보기"는 햄버거 패널로 위임.
-  // 모바일에선 CSS로 숨김(.landing-nav-inline 미디어쿼리).
+  // 데스크탑 가로 nav 항목 — 학원장 spec(2026-05-13) "헤더 메뉴 별로 라우트 구조".
+  // 클릭 = section hash scroll X / dedicated page route O.
+  // 카테고리에 kind="route" item 있으면 그걸 우선 선택. owner 전용은 inline nav 제외.
   const inlineNav: Array<{ key: string; label: string; item: NavMenuItem }> = [];
   for (const cat of categories) {
     if (cat.items.length === 0) continue;
-    // 매치업/커뮤니티는 카테고리 라벨로, 학원소개/가이드/서비스센터는 카테고리 first item으로.
-    if (cat.key === "matchup" || cat.key === "community") {
-      const first = cat.items[0];
-      inlineNav.push({ key: cat.key, label: cat.label, item: first });
-    } else {
-      const first = cat.items[0];
-      inlineNav.push({ key: cat.key, label: cat.label, item: first });
-    }
+    if (cat.key === "owner") continue;  // owner 카테고리는 햄버거 패널 안에서만 노출
+    const routeItem = cat.items.find((it) => it.kind === "route");
+    const item = routeItem || cat.items[0];
+    inlineNav.push({ key: cat.key, label: cat.label, item });
   }
 
   // 메뉴 클릭 — section type이면 hash, route면 navigate. /landing 외 페이지에서도 cross-page 작동.
