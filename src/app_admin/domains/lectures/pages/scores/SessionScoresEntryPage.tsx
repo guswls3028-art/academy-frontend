@@ -375,13 +375,20 @@ export default function SessionScoresEntryPage(_props: Props) {
                 : buildGenericScoreTemplate(reportOptions);
               scoreDetail = buildScoreDetail(selectedRows[0], meta);
 
-              // 학생별 개별 성적 변수 (모든 학생 대상)
+              // 학생별 변수 dict — 본문 #{시험1명}/#{시험1점수}/#{과제N...}/#{시험총점}/#{숙제완성도} 모두 채움.
+              // SSOT (2026-05-13): substituteScoreVars로 학생별 치환된 본문을 _body_subst 로 보냄.
+              // backend send_views.py가 학생 loop 안에서 _body_subst 있으면 본문 자체를 덮어씀 (학원장 limglish 보고:
+              // 일괄 발송 시 본문 변수 미치환 → 빈 자리 박힘). 영구 SSOT는 backend session_id 컨텍스트로 자동 매핑.
               perStudentVars = {};
               for (const sRow of selectedRows) {
                 if (sRow.student_id == null) continue;
+                const studentBody = chosenTpl
+                  ? substituteScoreVars(chosenTpl.body, sRow, meta, reportOptions)
+                  : substituteScoreVars(buildGenericScoreTemplate(reportOptions), sRow, meta, reportOptions);
                 perStudentVars[sRow.student_id] = {
                   시험성적: buildScoreDetail(sRow, meta),
                   학생이름: sRow.student_name || "",
+                  _body_subst: studentBody,
                 };
               }
             } catch {
@@ -391,9 +398,11 @@ export default function SessionScoresEntryPage(_props: Props) {
               perStudentVars = {};
               for (const sRow of selectedRows) {
                 if (sRow.student_id == null) continue;
+                const studentBody = substituteScoreVars(buildGenericScoreTemplate(reportOptions), sRow, meta, reportOptions);
                 perStudentVars[sRow.student_id] = {
                   시험성적: buildScoreDetail(sRow, meta),
                   학생이름: sRow.student_name || "",
+                  _body_subst: studentBody,
                 };
               }
             }
