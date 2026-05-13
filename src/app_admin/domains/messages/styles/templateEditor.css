@@ -441,11 +441,19 @@
 }
 
 /* ── 수신자 카드 내부 ── */
+.send-modal__recipient-context {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  line-height: 1.4;
+  margin-bottom: 2px;
+}
+
 .send-modal__recipient-name {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 700;
   color: var(--color-primary);
-  line-height: 1.4;
+  line-height: 1.35;
 }
 
 .send-modal__hint {

@@ -5,6 +5,8 @@ type ModalHeaderProps = {
   title: React.ReactNode;
   description?: React.ReactNode;
   type?: "action" | "confirm" | "inspect";
+  /** title 좌측 자동 prefix 아이콘(28x28 박스) 숨김 — title 안에 자체 아이콘이 있는 경우 등 */
+  noIcon?: boolean;
 };
 
 function Icon({ type }: { type: "action" | "confirm" | "inspect" }) {
@@ -87,6 +89,7 @@ export default function ModalHeader({
   title,
   description,
   type = "action",
+  noIcon = false,
 }: ModalHeaderProps) {
   const isConfirm = type === "confirm";
 
@@ -104,23 +107,25 @@ export default function ModalHeader({
       <div aria-hidden className="modal-header__accent" />
 
       <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
-        <div
-          aria-hidden
-          style={{
-            width: 28,
-            height: 28,
-            borderRadius: 10,
-            display: "grid",
-            placeItems: "center",
-            border: "1px solid var(--color-border-divider)",
-            background: "var(--color-modal-bg)",
-            color: accentColor,
-            boxShadow: "var(--elevation-1)",
-            flex: "0 0 auto",
-          }}
-        >
-          <Icon type={type} />
-        </div>
+        {!noIcon && (
+          <div
+            aria-hidden
+            style={{
+              width: 28,
+              height: 28,
+              borderRadius: 10,
+              display: "grid",
+              placeItems: "center",
+              border: "1px solid var(--color-border-divider)",
+              background: "var(--color-modal-bg)",
+              color: accentColor,
+              boxShadow: "var(--elevation-1)",
+              flex: "0 0 auto",
+            }}
+          >
+            <Icon type={type} />
+          </div>
+        )}
 
         <div style={{ minWidth: 0, flex: 1 }}>
           <div

@@ -522,9 +522,16 @@ export default function SendMessageModal({
   if (!open) return null;
 
   // ─── Labels ───
-  const label = recipientLabel ?? (isStaffMode
+  // recipientLabel은 진입 컨텍스트("수업결과 발송 — 선택한 수강생 5명" 등)를
+  // 한 줄에 묶어 보내오는 경우가 많아 268px 카드에서 wrap 무거움.
+  // " — " 구분자 기준으로 컨텍스트(작은 라벨)와 인원(큰 글씨)을 분리해 가볍게 표시.
+  const fallbackLabel = isStaffMode
     ? (hasRecipients ? `선택한 직원 ${staffIds.length}명` : "수신자 없음")
-    : (hasRecipients ? `선택한 학생 ${studentIds.length}명` : "수신자 없음"));
+    : (hasRecipients ? `선택한 학생 ${studentIds.length}명` : "수신자 없음");
+  const rawLabel = recipientLabel ?? fallbackLabel;
+  const labelParts = rawLabel.split(" — ");
+  const labelContext = labelParts.length > 1 ? labelParts[0] : null;
+  const labelName = labelParts.length > 1 ? labelParts.slice(1).join(" — ") : rawLabel;
   const domainLabel = TEMPLATE_CATEGORY_LABELS[blockCategory] ?? "사용자";
 
   const sendButtonText = (() => {
@@ -547,8 +554,9 @@ export default function SendMessageModal({
 
   // ─── Render ───
   return (
-    <AdminModal open={open} onClose={onClose} width={920} onEnterConfirm={requestSend} className="send-message-modal">
+    <AdminModal open={open} onClose={onClose} width={920} onEnterConfirm={requestSend} className="send-message-modal" noMinimize>
       <ModalHeader
+        noIcon
         title={
           <div className="send-modal__title">
             <span>알림톡 발송</span>
@@ -572,7 +580,10 @@ export default function SendMessageModal({
             {/* 카드 1 — 수신자 (대상 토글 + 일괄안내 + 적용양식 통합) */}
             <section className="send-modal__card send-modal__card--recipient">
               <div className="send-modal__card-label">수신자</div>
-              <div className="send-modal__recipient-name">{label}</div>
+              {labelContext && (
+                <div className="send-modal__recipient-context">{labelContext}</div>
+              )}
+              <div className="send-modal__recipient-name">{labelName}</div>
 
               {!hasRecipients && (
                 <div className="send-modal__hint send-modal__hint--warn">

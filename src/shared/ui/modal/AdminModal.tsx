@@ -26,6 +26,8 @@ type AdminModalProps = {
   className?: string;
   /** Enter 키로 긍정 버튼(등록/적용/확인) 실행. textarea 포커스 시에는 동작하지 않음 */
   onEnterConfirm?: () => void;
+  /** 우측 상단 최소화 버튼(━) 숨김 — 단발성 모달(발송/확인 등)에서 사용 */
+  noMinimize?: boolean;
   children: React.ReactNode;
 };
 
@@ -37,6 +39,7 @@ export default function AdminModal({
   zIndex,
   className,
   onEnterConfirm,
+  noMinimize = false,
   children,
 }: AdminModalProps) {
   const isConfirm = type === "confirm";
@@ -156,8 +159,8 @@ export default function AdminModal({
               : undefined
           }
         >
-          {/* 최소화 버튼 — confirm 타입 제외 */}
-          {!isConfirm && ctx && (
+          {/* 최소화 버튼 — confirm 타입 + noMinimize prop 제외 */}
+          {!isConfirm && ctx && !noMinimize && (
             <button
               type="button"
               className="modal-minimize-btn"
