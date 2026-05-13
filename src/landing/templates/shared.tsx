@@ -139,12 +139,13 @@ type NavMenuKind = "section" | "route";
 interface NavMenuItem { key: string; label: string; kind: NavMenuKind; target: string; badge?: string }
 interface NavMenuCategory { key: string; label: string; items: NavMenuItem[] }
 
-function buildMenuCategories(sections: LandingSection[]): NavMenuCategory[] {
+function buildMenuCategories(sections: LandingSection[], isOwner: boolean = false): NavMenuCategory[] {
   const enabledTypes = new Set<string>(sections.filter((s) => s.enabled).map((s) => s.type));
   const has = (t: string) => enabledTypes.has(t);
   const categories: NavMenuCategory[] = [];
 
   // SSOT 순서 (학원장 spec 2026-05-12): 학원소개 → 커뮤니티 → 매치업 → 가이드 → 서비스센터.
+  // owner 시점에는 "수정하기" 카테고리가 최하단에 추가됨 (학원장 spec 2026-05-13).
 
   // 1. 학원소개 — sections 기반
   const aboutItems: NavMenuItem[] = [];
@@ -168,15 +169,16 @@ function buildMenuCategories(sections: LandingSection[]): NavMenuCategory[] {
   });
 
   // 3. 매치업 / 적중사례 — 학원장 핵심 마케팅
-  if (has("hit_reports")) {
-    categories.push({
-      key: "matchup",
-      label: "매치업",
-      items: [
-        { key: "hit_reports", label: "적중 사례 한눈에", kind: "section", target: "hit_reports" },
-        { key: "reports_all", label: "보고서 모두 보기", kind: "route", target: "/landing/reports", badge: "NEW" },
-      ],
-    });
+  // 매치업 게시판(/landing/matchup-board)은 PublicMatchupShowcase entity 기반 — 항상 노출.
+  // 기존 hit_reports section 항목들은 section enabled 시에만.
+  {
+    const matchupItems: NavMenuItem[] = [];
+    if (has("hit_reports")) {
+      matchupItems.push({ key: "hit_reports", label: "적중 사례 한눈에", kind: "section", target: "hit_reports" });
+      matchupItems.push({ key: "reports_all", label: "보고서 모두 보기", kind: "route", target: "/landing/reports" });
+    }
+    matchupItems.push({ key: "matchup_board", label: "적중보고서 게시판", kind: "route", target: "/landing/matchup-board", badge: "NEW" });
+    categories.push({ key: "matchup", label: "매치업", items: matchupItems });
   }
 
   // 4. 가이드
@@ -190,6 +192,19 @@ function buildMenuCategories(sections: LandingSection[]): NavMenuCategory[] {
   if (has("testimonials")) serviceItems.push({ key: "testimonials", label: "추천사", kind: "section", target: "testimonials" });
   serviceItems.push({ key: "reviews", label: "수강 후기", kind: "route", target: "/landing/reviews" });
   if (serviceItems.length) categories.push({ key: "service", label: "서비스센터", items: serviceItems });
+
+  // 6. 수정하기 (owner/admin 전용) — 학원장 spec 2026-05-13.
+  // "내 홈피 어떻게 수정?" / "매치업 게시 어떻게?" 호소 대응 — 사이드바에서 1클릭 진입.
+  if (isOwner) {
+    categories.push({
+      key: "owner",
+      label: "수정하기 (학원장)",
+      items: [
+        { key: "edit_page", label: "페이지 편집 (브랜드/히어로)", kind: "route", target: "/landing?edit=1" },
+        { key: "matchup_board", label: "매치업 적중보고서 게시판 관리", kind: "route", target: "/landing/admin/matchup-board", badge: "NEW" },
+      ],
+    });
+  }
 
   return categories;
 }
@@ -217,7 +232,9 @@ export function LandingNavBar({ config, sections, tokens, brandMark }: { config:
   const ctaLink = config.cta_link || "/login";
   const logoUrl = useResolvedLogo(config, "nav");
   const isDark = tokens.bg.includes("10,14,26");
-  const categories = buildMenuCategories(sections);
+  const { user } = useAuth();
+  const isOwner = !!(user?.is_superuser || user?.tenantRole === "owner" || user?.tenantRole === "admin");
+  const categories = buildMenuCategories(sections, isOwner);
   const navigate = useNavigate();
   const location = useLocation();
 

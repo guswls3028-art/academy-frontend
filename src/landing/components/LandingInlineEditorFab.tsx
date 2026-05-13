@@ -13,6 +13,7 @@
 /* eslint-disable no-restricted-syntax */
 
 import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import useAuth from "@/auth/hooks/useAuth";
 import api from "@/shared/api/axios";
 import { feedback } from "@/shared/ui/feedback/feedback";
@@ -37,6 +38,19 @@ export default function LandingInlineEditorFab({ config, onConfigPreview }: Prop
   const { user } = useAuth();
   const isOwner = !!(user?.is_superuser || user?.tenantRole === "owner" || user?.tenantRole === "admin");
   const [open, setOpen] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // ?edit=1 query 감지 → owner 시점에 drawer 자동 open. 사이드바 "페이지 편집" 클릭 시 진입.
+  useEffect(() => {
+    if (!isOwner) return;
+    if (searchParams.get("edit") === "1" && !open) {
+      setOpen(true);
+      // query 정리 — 새로고침 시 다시 안 열리도록.
+      const next = new URLSearchParams(searchParams);
+      next.delete("edit");
+      setSearchParams(next, { replace: true });
+    }
+  }, [isOwner, searchParams, open, setSearchParams]);
 
   // ESC 키 + body scroll lock (drawer 패턴)
   useEffect(() => {

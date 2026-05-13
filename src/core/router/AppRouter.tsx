@@ -41,6 +41,9 @@ const LandingReviewDetailPage = lazy(() => import("@/landing/pages/LandingReview
 const LandingReviewWritePage = lazy(() => import("@/landing/pages/LandingReviewWritePage"));
 const LandingScoresListPage = lazy(() => import("@/landing/pages/LandingScoresPage").then(m => ({ default: m.LandingScoresListPage })));
 const LandingScoresDetailPage = lazy(() => import("@/landing/pages/LandingScoresPage").then(m => ({ default: m.LandingScoresDetailPage })));
+// 매치업 적중보고서 게시판 admin (Phase #69, 2026-05-13) — 학원장만 진입. 사이드바 "수정하기 (학원장)" → 매치업 게시판 관리.
+const LandingMatchupBoardAdminPage = lazy(() => import("@/landing/admin/LandingMatchupBoardAdminPage"));
+const LandingMatchupBoardPage = lazy(() => import("@/landing/pages/LandingMatchupBoardPage"));
 
 function MaintenanceGate({ enabled }: { enabled: boolean }) {
   const location = useLocation();
@@ -278,6 +281,24 @@ export default function AppRouter() {
         element={
           <Suspense fallback={<div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}><span style={{ color: "var(--color-text-tertiary, #666)", fontSize: "var(--text-sm, 13px)" }}>불러오는 중…</span></div>}>
             <LandingScoresDetailPage />
+          </Suspense>
+        }
+      />
+      {/* 매치업 적중보고서 공개 게시판 — 외부 학부모 read OK (window 안에서만 PDF 노출). */}
+      <Route
+        path="/landing/matchup-board"
+        element={
+          <Suspense fallback={<div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}><span style={{ color: "var(--color-text-tertiary, #666)", fontSize: "var(--text-sm, 13px)" }}>불러오는 중…</span></div>}>
+            <LandingMatchupBoardPage />
+          </Suspense>
+        }
+      />
+      {/* 매치업 적중보고서 게시판 admin — 학원장 전용 CRUD (Phase #69, 2026-05-13). 본 페이지 자체에서 owner 검증. */}
+      <Route
+        path="/landing/admin/matchup-board"
+        element={
+          <Suspense fallback={<div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}><span style={{ color: "var(--color-text-tertiary, #666)", fontSize: "var(--text-sm, 13px)" }}>불러오는 중…</span></div>}>
+            <LandingMatchupBoardAdminPage />
           </Suspense>
         }
       />
