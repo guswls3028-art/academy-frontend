@@ -355,6 +355,10 @@ export default function SessionScoresEntryPage(_props: Props) {
   };
 
   const hasSelection = selectedEnrollmentIds.length > 0;
+  /* 2026-05-13 회귀 fix: hasExamsOrHomeworks 가 selectionBar 안에서 참조되는데
+     이전엔 line 581 (selectionBar 아래) 에서 선언 → TDZ ReferenceError 발생, 페이지 crash.
+     selectionBar 보다 위로 이동. */
+  const hasExamsOrHomeworks = (data?.meta?.exams?.length ?? 0) > 0 || (data?.meta?.homeworks?.length ?? 0) > 0;
   // 2026-05-13 학원장 호소: "1명 선택됨이 평소에도 0명 선택됨으로 있었으면", "선택 해제 동떨어짐".
   // selectionBar 를 항상 노출(평상시 0명 + 액션 disabled). "선택 해제"는 액션 그룹 직후 자연 위치.
   const selectionBar = (
@@ -577,8 +581,6 @@ export default function SessionScoresEntryPage(_props: Props) {
       </div>
     );
   }
-
-  const hasExamsOrHomeworks = (data?.meta?.exams?.length ?? 0) > 0 || (data?.meta?.homeworks?.length ?? 0) > 0;
 
   const primaryAction = (
     <div className="flex items-center gap-2">
