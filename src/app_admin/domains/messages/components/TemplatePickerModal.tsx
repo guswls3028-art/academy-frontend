@@ -183,7 +183,7 @@ export default function TemplatePickerModal({
           className="tpl-picker__card-body"
         >
           <div className="tpl-picker__card-title-row">
-            {isSys && <Shield size={ICON.xs} style={{ color: "var(--color-status-info, #2563eb)", flexShrink: 0 }} />}
+            {isSys && <Shield size={ICON.xs} className="tpl-picker__icon-sys" />}
             <span className="tpl-picker__card-name">{t.name}</span>
             {t.is_user_default && <Badge tone="primary" size="xs">기본</Badge>}
             {t.solapi_status === "APPROVED" && <Badge tone="success" size="xs">승인</Badge>}
@@ -193,7 +193,7 @@ export default function TemplatePickerModal({
             {t.body.replace(/#\{[^}]+\}/g, "•").slice(0, 90)}
           </div>
           <div className="tpl-picker__card-meta">
-            <Tag size={ICON.xs} style={{ color: "var(--color-text-muted)" }} />
+            <Tag size={ICON.xs} className="tpl-picker__icon-muted" />
             <span>{TEMPLATE_CATEGORY_LABELS[t.category as TemplateCategory] ?? t.category}</span>
           </div>
         </button>
@@ -210,11 +210,11 @@ export default function TemplatePickerModal({
           {menuOpenId === t.id && (
             <div className="tpl-picker__card-menu-popup">
               <button type="button" onClick={() => { onSetDefault(t.id); setMenuOpenId(null); }} className="tpl-picker__card-menu-item">
-                <Star size={ICON.xs} style={t.is_user_default ? { color: "var(--color-primary)", fill: "var(--color-primary)" } : { color: "var(--color-text-muted)" }} />
+                <Star size={ICON.xs} className={t.is_user_default ? "tpl-picker__menu-star--active" : "tpl-picker__menu-star--idle"} />
                 {t.is_user_default ? "기본 해제" : "기본으로 지정"}
               </button>
               <button type="button" onClick={() => { onDuplicate(t.id); setMenuOpenId(null); }} className="tpl-picker__card-menu-item">
-                <Copy size={ICON.xs} style={{ color: "var(--color-text-muted)" }} />
+                <Copy size={ICON.xs} className="tpl-picker__icon-muted" />
                 {isSys ? "복제해서 내 양식으로" : "다른 이름으로 복제"}
               </button>
               {!isSys && (
@@ -259,7 +259,7 @@ export default function TemplatePickerModal({
                 onClick={handleSync}
                 disabled={syncing}
               >
-                <RefreshCw size={ICON.xs} style={{ marginRight: 6, animation: syncing ? "tpl-picker-spin 1s linear infinite" : undefined }} />
+                <RefreshCw size={ICON.xs} className={`tpl-picker__sync-icon${syncing ? " tpl-picker__sync-icon--spinning" : ""}`} />
                 {syncing ? "동기화 중…" : "동기화"}
               </Button>
             </div>
@@ -271,7 +271,7 @@ export default function TemplatePickerModal({
                 placeholder="양식 이름·본문 검색…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                style={{ paddingLeft: 34 }}
+                className="tpl-picker__search-input"
                 allowClear
                 autoFocus
               />
@@ -296,7 +296,7 @@ export default function TemplatePickerModal({
                 onClick={() => { onPickFreeForm(); onClose(); }}
                 className="tpl-picker__freeform-btn"
               >
-                <Edit3 size={ICON.sm} style={{ color: "var(--color-primary)", flexShrink: 0 }} />
+                <Edit3 size={ICON.sm} className="tpl-picker__icon-primary" />
                 <div className="tpl-picker__freeform-text">
                   <div className="tpl-picker__freeform-title">직접 작성하기</div>
                   <div className="tpl-picker__freeform-desc">양식 없이 본문을 처음부터 작성합니다</div>
@@ -335,7 +335,7 @@ export default function TemplatePickerModal({
               <>
                 <div className="tpl-picker__preview-header">
                   <div className="tpl-picker__preview-title-row">
-                    {isSystemTpl(previewTpl) && <Shield size={ICON.sm} style={{ color: "var(--color-status-info, #2563eb)", flexShrink: 0 }} />}
+                    {isSystemTpl(previewTpl) && <Shield size={ICON.sm} className="tpl-picker__icon-sys" />}
                     <span className="tpl-picker__preview-name">{previewTpl.name}</span>
                   </div>
                   <div className="tpl-picker__preview-meta">
@@ -357,16 +357,16 @@ export default function TemplatePickerModal({
                     intent="primary"
                     size="lg"
                     onClick={() => { onPick(previewTpl); onClose(); }}
-                    style={{ flex: 1 }}
+                    className="tpl-picker__apply-btn"
                   >
-                    <Check size={ICON.sm} style={{ marginRight: 6 }} />
+                    <Check size={ICON.sm} className="tpl-picker__apply-icon" />
                     이 양식 적용
                   </Button>
                 </div>
               </>
             ) : (
               <div className="tpl-picker__preview-empty">
-                <Tag size={ICON.xl} style={{ color: "var(--color-text-muted)", opacity: 0.4 }} />
+                <Tag size={ICON.xl} className="tpl-picker__icon-empty" />
                 <div className="tpl-picker__preview-empty-text">
                   좌측에서 양식을 선택하면<br />여기에 미리보기가 표시됩니다
                 </div>

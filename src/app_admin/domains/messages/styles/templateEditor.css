@@ -1188,6 +1188,56 @@
   min-height: 0;
 }
 
+/* picker 내부 inline style 제거용 유틸 클래스 (lint no-restricted-syntax) */
+.tpl-picker__icon-sys {
+  color: var(--color-status-info, #2563eb);
+  flex-shrink: 0;
+}
+
+.tpl-picker__icon-muted {
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
+.tpl-picker__icon-primary {
+  color: var(--color-primary);
+  flex-shrink: 0;
+}
+
+.tpl-picker__icon-empty {
+  color: var(--color-text-muted);
+  opacity: 0.4;
+}
+
+.tpl-picker__menu-star--active {
+  color: var(--color-primary);
+  fill: var(--color-primary);
+}
+
+.tpl-picker__menu-star--idle {
+  color: var(--color-text-muted);
+}
+
+.tpl-picker__sync-icon {
+  margin-right: 6px;
+}
+
+.tpl-picker__sync-icon--spinning {
+  animation: tpl-picker-spin 1s linear infinite;
+}
+
+.tpl-picker__search-input.ant-input {
+  padding-left: 34px;
+}
+
+.tpl-picker__apply-btn {
+  flex: 1;
+}
+
+.tpl-picker__apply-icon {
+  margin-right: 6px;
+}
+
 .tpl-picker__sync-bar {
   display: flex;
   align-items: center;
