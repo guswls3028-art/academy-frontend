@@ -36,6 +36,7 @@ const LandingCommunityWritePage = lazy(() => import("@/landing/pages/LandingComm
 const LandingBoardPage = lazy(() => import("@/landing/pages/LandingBoardPage"));
 const LandingBoardDetailPage = lazy(() => import("@/landing/pages/LandingBoardDetailPage"));
 const LandingBoardWritePage = lazy(() => import("@/landing/pages/LandingBoardWritePage"));
+const LandingBoardEditPage = lazy(() => import("@/landing/pages/LandingBoardEditPage"));
 const LandingReviewsPage = lazy(() => import("@/landing/pages/LandingReviewsPage"));
 const LandingReviewDetailPage = lazy(() => import("@/landing/pages/LandingReviewDetailPage"));
 const LandingReviewWritePage = lazy(() => import("@/landing/pages/LandingReviewWritePage"));
@@ -239,6 +240,15 @@ export default function AppRouter() {
         element={
           <Suspense fallback={<div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}><span style={{ color: "var(--color-text-tertiary, #666)", fontSize: "var(--text-sm, 13px)" }}>불러오는 중…</span></div>}>
             <LandingBoardDetailPage />
+          </Suspense>
+        }
+      />
+      {/* 글 수정 — 본인 또는 staff (Phase #72, 2026-05-13 audit P0 fix) */}
+      <Route
+        path="/landing/board/:postId/edit"
+        element={
+          <Suspense fallback={<div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}><span style={{ color: "var(--color-text-tertiary, #666)", fontSize: "var(--text-sm, 13px)" }}>불러오는 중…</span></div>}>
+            <LandingBoardEditPage />
           </Suspense>
         }
       />

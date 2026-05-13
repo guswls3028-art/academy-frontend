@@ -76,7 +76,10 @@ export default function LandingBoardDetailPage() {
     setPost(null);
     fetchBoardDetail(id)
       .then(setPost)
-      .catch((e: any) => setError(e?.response?.status === 404 ? "not-found" : "fetch"));
+      .catch((e: unknown) => {
+        const s = (e as { response?: { status?: number } })?.response?.status;
+        setError(s === 404 ? "not-found" : "fetch");
+      });
   }, [id]);
 
   const loadReplies = useCallback(() => {
@@ -264,9 +267,12 @@ export default function LandingBoardDetailPage() {
           />
 
           {/* 적중보고서 임베드 (Phase 3 cross-attach) */}
-          {Array.isArray((post.meta as any)?.matchup_report_ids) && (post.meta as any).matchup_report_ids.length > 0 && (
-            <EmbeddedHitReportCards reportIds={(post.meta as any).matchup_report_ids as number[]} theme="dark" />
-          )}
+          {(() => {
+            const ids = (post.meta as Record<string, unknown> | null)?.matchup_report_ids;
+            if (!Array.isArray(ids) || ids.length === 0) return null;
+            const numIds = ids.filter((v) => typeof v === "number") as number[];
+            return numIds.length > 0 ? <EmbeddedHitReportCards reportIds={numIds} theme="dark" /> : null;
+          })()}
 
           {/* 액션 row */}
           <div style={{ marginTop: 36, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", paddingTop: 20, borderTop: `1px solid ${border}` }}>
@@ -383,7 +389,7 @@ export default function LandingBoardDetailPage() {
                       <button type="button" onClick={() => onLikeReply(r.id)}
                         style={{ background: "transparent", border: "none", color: r.like_count > 0 ? gold : textMuted, fontSize: 12, fontWeight: 700, cursor: "pointer" }}
                       >♥ {r.like_count}</button>
-                      {(isStaff || (isAuthenticated && (user as any)?.id === r.id)) && (
+                      {(isStaff || r.is_mine) && (
                         <button type="button" onClick={() => onDeleteReply(r.id)}
                           style={{ background: "transparent", border: "none", color: "#ef4444", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
                         >삭제</button>
@@ -410,7 +416,7 @@ export default function LandingBoardDetailPage() {
   }
 }
 
-function Shell({ cfg, children }: { cfg: any; children: React.ReactNode }) {
+function Shell({ cfg, children }: { cfg: NonNullable<LandingPublicResponse["config"]>; children: React.ReactNode }) {
   return (
     <div style={{ minHeight: "100vh", background: "#0A0E1A", color: "#F5F1E8", fontFamily: "'Pretendard Variable', 'Pretendard', system-ui, sans-serif", letterSpacing: "-0.011em" }}>
       <LandingNavBar config={cfg} sections={cfg.sections || []} tokens={NAV_TOKENS} brandMark={<BrandMark name={cfg.brand_name} />} />

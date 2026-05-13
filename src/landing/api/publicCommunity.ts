@@ -77,6 +77,8 @@ export interface PublicReply {
   is_hidden: boolean;
   like_count: number;
   created_at: string;
+  /** 현재 viewer가 본 댓글 작성자 본인인가 (backend serializer SerializerMethodField). */
+  is_mine: boolean;
 }
 
 export interface PaginatedResponse<T> {
