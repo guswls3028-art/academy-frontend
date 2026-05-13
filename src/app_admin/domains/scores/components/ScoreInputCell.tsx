@@ -136,6 +136,7 @@ export default function ScoreInputCell({
         }
       }}
       className="rounded-lg border px-2 py-1.5 text-sm text-center font-medium transition-all"
+      // eslint-disable-next-line no-restricted-syntax -- 점수 셀 disabled 상태별 토큰 전환 동적 계산. R-11 baseline 정합.
       style={{
         width: 72,
         borderColor: disabled
