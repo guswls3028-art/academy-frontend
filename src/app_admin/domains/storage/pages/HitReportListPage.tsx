@@ -23,6 +23,7 @@ import {
   type HitReportListResponse,
 } from "../api/matchup.api";
 import HitReportBoardPreviewStrip from "../components/matchup/HitReportBoardPreviewStrip";
+import HitReportPreviewModal from "../components/matchup/HitReportPreviewModal";
 
 type Tab = "mine" | "all";
 type StatusFilter = "" | "draft" | "submitted";
@@ -133,12 +134,20 @@ export default function HitReportListPage() {
   const draftCount = summary?.drafts ?? 0;
   const avgHitRate = summary?.avg_hit_rate ?? 0;
 
-  const handleOpen = useCallback((docId: number) => {
+  // 학원장 spec (박철T 2026-05-13): row 클릭 = 무거운 편집기 즉시 진입 X.
+  // 먼저 read-only PDF preview modal 띄움 → "수정" 클릭해야 정식 편집기.
+  const [previewReport, setPreviewReport] = useState<HitReportListItem | null>(null);
+
+  const handleOpenEditor = useCallback((docId: number) => {
     // 매치업 페이지로 navigate + state로 docId 전달 → MatchupPage가 useEffect로
     // 자동 doc 선택 + HitReportEditor 오픈.
     navigate("/admin/storage/matchup", { state: { openHitReportForDoc: docId } });
     feedback.info("매치업 편집기로 이동합니다.");
   }, [navigate]);
+
+  const handleRowClick = useCallback((report: HitReportListItem) => {
+    setPreviewReport(report);
+  }, []);
 
   return (
     <div style={{
@@ -266,7 +275,7 @@ export default function HitReportListPage() {
                 key={r.id}
                 report={r}
                 showAuthor={tab === "all"}
-                onClick={() => handleOpen(r.document_id)}
+                onClick={() => handleRowClick(r)}
                 showcaseOn={showcaseIds.has(r.id)}
                 showcaseToggling={togglingId === r.id}
                 onShowcaseToggle={isAcademyAdmin ? () => handleShowcaseToggle(r.id, showcaseIds.has(r.id)) : undefined}
@@ -277,6 +286,20 @@ export default function HitReportListPage() {
           </div>
         )}
       </div>
+
+      {/* read-only PDF preview modal (Phase #70, 2026-05-13) */}
+      {previewReport && (
+        <HitReportPreviewModal
+          report={previewReport}
+          open={!!previewReport}
+          onClose={() => setPreviewReport(null)}
+          onEdit={() => {
+            const docId = previewReport.document_id;
+            setPreviewReport(null);
+            handleOpenEditor(docId);
+          }}
+        />
+      )}
     </div>
   );
 }
