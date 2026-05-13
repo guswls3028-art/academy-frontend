@@ -289,6 +289,21 @@ export default function LandingMatchupBoardAdminPage() {
     }
   }, [reload]);
 
+  const handleCopyShareLink = useCallback(async (card: MatchupShowcaseCard) => {
+    // 학원장 spec (박철T 2026-05-13): 매치업 게시물 단일 외부 공개 URL 카톡 공유.
+    // /landing/matchup-board/<id> — 비로그인 OK (PUBLISHED + window 안만).
+    const absolute = `${window.location.origin}/landing/matchup-board/${card.id}`;
+    let copied = false;
+    try {
+      await navigator.clipboard.writeText(absolute);
+      copied = true;
+    } catch {
+      window.prompt("학생용 공유 링크 (복사해서 카톡으로 보내세요)", absolute);
+    }
+    if (copied) feedback.success("학생용 링크를 복사했습니다. 카톡에 붙여넣으면 학생들이 PDF만 봅니다.");
+    else feedback.info("학생용 링크가 위 입력창에 표시되었습니다.");
+  }, []);
+
   const handleDelete = useCallback(async (card: MatchupShowcaseCard) => {
     if (!window.confirm(`"${card.title}" 게시물을 삭제하시겠습니까?\n(게시판에서 사라지며 일반인에게 노출되지 않습니다.)`)) return;
     try {
@@ -392,6 +407,13 @@ export default function LandingMatchupBoardAdminPage() {
                   </div>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+                  {/* 박철T spec (Phase #74, 2026-05-13): "매치업만 볼 수 있는 링크에
+                      위에 올린 파일만". 게시물 단일 detail URL 카톡 1클릭 공유. */}
+                  <button type="button" onClick={() => handleCopyShareLink(card)}
+                    data-testid={`matchup-share-${card.id}`}
+                    title="학생/학부모 카톡으로 보낼 단일 PDF 링크"
+                    style={{ padding: "7px 12px", borderRadius: 8, border: "1px solid rgba(212,160,76,0.5)", background: "rgba(212,160,76,0.08)", color: "#B8862F", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+                  >🔗 링크 복사</button>
                   <button type="button" onClick={() => openEdit(card)}
                     style={{ padding: "7px 12px", borderRadius: 8, border: "1px solid #cbd5e1", background: "#fff", color: "#475569", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
                   >수정</button>
