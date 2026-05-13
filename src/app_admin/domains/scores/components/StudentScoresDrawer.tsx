@@ -103,12 +103,12 @@ export default function StudentScoresDrawer({ row, meta, sessionId, onClose, onO
   }, [row, meta]);
 
   const handleSendScoreReport = useCallback(async () => {
-    // SSOT (2026-05-13): 일괄 발송 path와 동일한 cache key 사용. row.* 단독 fallback은 backend serializer
-    // 누락 시 빈 값으로 봉투 변수가 비어 발송됨 (학원장 임근혁 limglish 보고). qc cache → row → "" 순서.
+    // SSOT (2026-05-13): 1순위 backend 응답 meta — session_scores_view.py가 응답 meta에 항상 채움 (lecture_title/session_title).
+    // 2/3순위는 캐시·row fallback (호환). 진짜 진리는 meta.* — 어디서 발송하든 일관됨.
     const lecture = qc.getQueryData<{ title?: string; name?: string }>(["lecture", numericLectureId]);
     const session = sessionId ? qc.getQueryData<{ title?: string }>(["session-detail", sessionId]) : null;
-    const lectureName = lecture?.title ?? lecture?.name ?? (row as any).lecture_title ?? "";
-    const sessionTitle = session?.title ?? (row as any).session_title ?? "";
+    const lectureName = meta?.lecture_title ?? lecture?.title ?? lecture?.name ?? (row as any).lecture_title ?? "";
+    const sessionTitle = meta?.session_title ?? session?.title ?? (row as any).session_title ?? "";
     // Phase #5 (2026-05-12) — 학원장 커스텀 합/불 라벨 메시지 본문에 반영.
     const reportOptions = { lectureName, sessionTitle, passLabel: labels.pass, failLabel: labels.fail };
 

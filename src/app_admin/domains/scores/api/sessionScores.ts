@@ -100,6 +100,12 @@ export type SessionScoreRow = {
 };
 
 export type SessionScoreMeta = {
+  /** SSOT 발송 컨텍스트 (2026-05-13) — backend session_scores_view.py가 응답 meta에 항상 채움.
+   *  drawer/일괄/출결 발송 path는 이 필드 우선 사용. row.lecture_title / qc.getQueryData 의존 제거. */
+  session_title?: string;
+  lecture_title?: string;
+  lecture_id?: number | null;
+
   exams: {
     exam_id: number;
     title: string;

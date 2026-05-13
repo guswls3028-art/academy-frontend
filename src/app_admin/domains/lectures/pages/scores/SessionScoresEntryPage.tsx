@@ -343,10 +343,11 @@ export default function SessionScoresEntryPage(_props: Props) {
             const rows = data?.rows ?? [];
             const selectedRows = rows.filter((r) => selectedEnrollmentIds.includes(r.enrollment_id));
             const meta = data?.meta ?? null;
+            // SSOT (2026-05-13): backend 응답 meta가 진짜 진리. 캐시 fallback은 호환.
             const lecture = qc.getQueryData<{ title?: string; name?: string }>(["lecture", numericLectureId]);
-            const lectureName = lecture?.title ?? lecture?.name ?? "";
             const session = qc.getQueryData<{ title?: string }>(["session-detail", numericSessionId]);
-            const sessionTitle = session?.title ?? "";
+            const lectureName = meta?.lecture_title ?? lecture?.title ?? lecture?.name ?? "";
+            const sessionTitle = meta?.session_title ?? session?.title ?? "";
             const reportOptions = { lectureName, sessionTitle };
 
             let initialBody: string | undefined;
