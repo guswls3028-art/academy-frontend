@@ -351,31 +351,57 @@ export default function SessionAttendancePage({
         const sessionTitle = session?.title ?? "";
         let initialBody: string | undefined;
         let scoreDetail = "";
-        if (studentIds.length === 1) {
-          try {
-            const [templates, scoresData] = await Promise.all([
-              fetchMessageTemplates("grades"),
-              fetchSessionScores(sessionId),
-            ]);
-            const row = scoresData.rows.find((r) => r.student_id === studentIds[0]);
-            if (row) {
-              const hasScoreVars = (body: string) => /#{(시험\d|과제\d|시험성적|시험총점|학생이름)}/.test(body);
-              const userDefault = templates.find((t: any) => t.is_user_default && !t.is_system);
-              const userWithScoreVars = templates.find((t: any) => !t.is_system && hasScoreVars(t.body));
-              const chosenTpl = userDefault ?? userWithScoreVars;
-              initialBody = chosenTpl
-                ? substituteScoreVars(chosenTpl.body, row, scoresData.meta, { lectureName, sessionTitle })
-                : generateScoreReport(row, scoresData.meta, { lectureName, sessionTitle });
-              scoreDetail = buildScoreDetail(row, scoresData.meta);
+        let perStudentVars: Record<number, Record<string, string>> | undefined;
+        // SSOT (2026-05-14): 다수 학생 일괄 발송도 학생별 본문 치환 (_body_subst).
+        // 직전 결함: studentIds.length === 1 만 substituteScoreVars 처리, N >= 2 는 raw template + perStudent 없음
+        // → #{시험N명}/#{시험N}/#{과제N...}/#{시험총점}/#{숙제완성도} 빈 자리 박힘. SessionScoresEntryPage 일괄
+        // path와 동일한 SSOT 패턴으로 통일.
+        try {
+          const [templates, scoresData] = await Promise.all([
+            fetchMessageTemplates("grades"),
+            fetchSessionScores(sessionId),
+          ]);
+          const hasScoreVars = (body: string) => /#{(시험\d|과제\d|시험성적|시험총점|학생이름)}/.test(body);
+          const userDefault = templates.find((t: any) => t.is_user_default && !t.is_system);
+          const userWithScoreVars = templates.find((t: any) => !t.is_system && hasScoreVars(t.body));
+          const chosenTpl = userDefault ?? userWithScoreVars;
+
+          const firstRow = scoresData.rows.find((r) => r.student_id === studentIds[0]);
+          if (firstRow) {
+            scoreDetail = buildScoreDetail(firstRow, scoresData.meta);
+          }
+
+          if (studentIds.length === 1 && firstRow) {
+            // 1명: initialBody에 직접 치환된 본문 (drawer path와 동일)
+            initialBody = chosenTpl
+              ? substituteScoreVars(chosenTpl.body, firstRow, scoresData.meta, { lectureName, sessionTitle })
+              : generateScoreReport(firstRow, scoresData.meta, { lectureName, sessionTitle });
+          } else {
+            // 다수: raw template + perStudentVars._body_subst 로 학생별 본문 (backend가 학생 loop 안에서 덮어씀)
+            initialBody = chosenTpl?.body;
+            perStudentVars = {};
+            for (const sid of studentIds) {
+              const sRow = scoresData.rows.find((r) => r.student_id === sid);
+              if (!sRow) continue;
+              const studentBody = chosenTpl
+                ? substituteScoreVars(chosenTpl.body, sRow, scoresData.meta, { lectureName, sessionTitle })
+                : generateScoreReport(sRow, scoresData.meta, { lectureName, sessionTitle });
+              perStudentVars[sid as number] = {
+                시험성적: buildScoreDetail(sRow, scoresData.meta),
+                학생이름: sRow.student_name || "",
+                _body_subst: studentBody,
+              };
             }
-          } catch { /* fallback: empty body */ }
-        }
+          }
+        } catch { /* fallback: backend가 본문 그대로 발송 */ }
+
         openSendMessageModal({
           studentIds,
           recipientLabel: `수업결과 발송 — ${selectedIds.length}명`,
           blockCategory: "grades",
           initialBody,
           alimtalkExtraVars: { 강의명: lectureName, 차시명: sessionTitle, 시험성적: scoreDetail },
+          alimtalkExtraVarsPerStudent: perStudentVars,
         });
       }}>
         수업결과 발송
