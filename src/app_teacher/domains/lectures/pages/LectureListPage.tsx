@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { EmptyState } from "@/shared/ui/ds";
+import { EmptyState , ICON } from "@/shared/ui/ds";
 import LectureChip from "@/shared/ui/chips/LectureChip";
 import { ChevronRight, Plus } from "@teacher/shared/ui/Icons";
 import { TabBar, SectionTitle } from "@teacher/shared/ui/Card";
@@ -39,7 +39,7 @@ export default function LectureListPage() {
         <button onClick={() => setCreateOpen(true)}
           className="flex items-center gap-1 text-xs font-bold cursor-pointer"
           style={{ padding: "6px 12px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff" }}>
-          <Plus size={14} /> 강의 추가
+          <Plus size={ICON.xs} /> 강의 추가
         </button>
       </div>
 
@@ -71,7 +71,7 @@ export default function LectureListPage() {
                 <LectureChip lectureName={l.title} color={l.color} chipLabel={chipLabel} size={40} />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5">
-                    <span className="text-[15px] font-semibold truncate" style={{ color: "var(--tc-text)" }}>{l.title}</span>
+                    <span className="ds-text-name font-semibold truncate" style={{ color: "var(--tc-text)" }}>{l.title}</span>
                     {!l.is_active && <Badge tone="neutral" size="xs">종료</Badge>}
                   </div>
                   {l.subject && <div className="text-[12px] mt-0.5" style={{ color: "var(--tc-text-muted)" }}>{l.subject}</div>}
@@ -80,7 +80,7 @@ export default function LectureListPage() {
                     {dateRange && <span>{dateRange}</span>}
                   </div>
                 </div>
-                <ChevronRight size={16} className="shrink-0 self-center" style={{ color: "var(--tc-text-muted)" }} />
+                <ChevronRight size={ICON.sm} className="shrink-0 self-center" style={{ color: "var(--tc-text-muted)" }} />
               </button>
             );
           })}

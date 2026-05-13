@@ -4,7 +4,7 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { EmptyState } from "@/shared/ui/ds";
+import { EmptyState , ICON } from "@/shared/ui/ds";
 import { Send, MoreVertical, Pencil, Trash2, Save, X } from "@teacher/shared/ui/Icons";
 import { BackButton, Card, TabBar, KpiCard } from "@teacher/shared/ui/Card";
 import { Badge } from "@teacher/shared/ui/Badge";
@@ -79,10 +79,10 @@ export default function VideoDetailPage() {
         {editingTitle ? (
           <div className="flex items-center gap-1 flex-1">
             <input type="text" value={titleInput} onChange={(e) => setTitleInput(e.target.value)}
-              className="flex-1 text-[15px] font-bold"
+              className="flex-1 ds-text-name font-bold"
               style={{ padding: "4px 8px", border: "1px solid var(--tc-border-strong)", borderRadius: "var(--tc-radius-sm)", background: "var(--tc-surface-soft)", color: "var(--tc-text)", outline: "none" }} />
-            <button onClick={() => renameMut.mutate()} className="flex p-1 cursor-pointer" style={{ background: "none", border: "none", color: "var(--tc-primary)" }}><Save size={16} /></button>
-            <button onClick={() => setEditingTitle(false)} className="flex p-1 cursor-pointer" style={{ background: "none", border: "none", color: "var(--tc-text-muted)" }}><X size={16} /></button>
+            <button onClick={() => renameMut.mutate()} className="flex p-1 cursor-pointer" style={{ background: "none", border: "none", color: "var(--tc-primary)" }}><Save size={ICON.sm} /></button>
+            <button onClick={() => setEditingTitle(false)} className="flex p-1 cursor-pointer" style={{ background: "none", border: "none", color: "var(--tc-text-muted)" }}><X size={ICON.sm} /></button>
           </div>
         ) : (
           <h1 className="text-[17px] font-bold flex-1 truncate" style={{ color: "var(--tc-text)" }}>
@@ -92,7 +92,7 @@ export default function VideoDetailPage() {
         <div className="relative">
           <button onClick={() => setMenuOpen(!menuOpen)} className="flex p-1 cursor-pointer"
             style={{ background: "none", border: "none", color: "var(--tc-text-muted)" }}>
-            <MoreVertical size={18} />
+            <MoreVertical size={ICON.md} />
           </button>
           {menuOpen && (
             <>
@@ -102,12 +102,12 @@ export default function VideoDetailPage() {
                 <button onClick={() => { setTitleInput(video.title); setEditingTitle(true); setMenuOpen(false); }}
                   className="flex items-center gap-2 w-full text-left text-sm cursor-pointer"
                   style={{ padding: "10px 14px", background: "none", border: "none", color: "var(--tc-text)" }}>
-                  <Pencil size={14} /> 제목 변경
+                  <Pencil size={ICON.xs} /> 제목 변경
                 </button>
                 <button onClick={() => { setSettingsOpen(true); setMenuOpen(false); }}
                   className="flex items-center gap-2 w-full text-left text-sm cursor-pointer"
                   style={{ padding: "10px 14px", background: "none", border: "none", color: "var(--tc-text)", borderTop: "1px solid var(--tc-border-subtle)" }}>
-                  <MoreVertical size={14} /> 시청 설정
+                  <MoreVertical size={ICON.xs} /> 시청 설정
                 </button>
                 <button onClick={async () => {
                   setMenuOpen(false);
@@ -116,7 +116,7 @@ export default function VideoDetailPage() {
                 }}
                   className="flex items-center gap-2 w-full text-left text-sm cursor-pointer"
                   style={{ padding: "10px 14px", background: "none", border: "none", color: "var(--tc-danger)", borderTop: "1px solid var(--tc-border-subtle)" }}>
-                  <Trash2 size={14} /> 삭제
+                  <Trash2 size={ICON.xs} /> 삭제
                 </button>
               </div>
             </>
@@ -222,7 +222,7 @@ function CommentSection({ videoId, comments }: { videoId: number; comments: any[
           className="flex items-center justify-center shrink-0 cursor-pointer rounded-lg"
           style={{ width: 36, height: 36, background: "var(--tc-primary)", color: "#fff", border: "none" }}
         >
-          <Send size={16} />
+          <Send size={ICON.sm} />
         </button>
       </div>
 

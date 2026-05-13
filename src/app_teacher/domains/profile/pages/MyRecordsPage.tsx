@@ -4,7 +4,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { EmptyState } from "@/shared/ui/ds";
+import { EmptyState , ICON } from "@/shared/ui/ds";
 import { ChevronLeft, Plus, Pencil, Trash2 } from "@teacher/shared/ui/Icons";
 import { Card, TabBar } from "@teacher/shared/ui/Card";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
@@ -72,13 +72,13 @@ export default function MyRecordsPage() {
       <div className="flex items-center gap-2 py-0.5">
         <button onClick={() => navigate(-1)} className="flex p-1 cursor-pointer"
           style={{ background: "none", border: "none", color: "var(--tc-text-secondary)" }}>
-          <ChevronLeft size={20} />
+          <ChevronLeft size={ICON.lg} />
         </button>
         <h1 className="text-[17px] font-bold flex-1" style={{ color: "var(--tc-text)" }}>근태 / 지출</h1>
         <button onClick={() => { setEditTarget(null); setFormOpen(true); }}
           className="flex items-center gap-1 text-xs font-bold cursor-pointer"
           style={{ padding: "6px 12px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff" }}>
-          <Plus size={14} /> 등록
+          <Plus size={ICON.xs} /> 등록
         </button>
       </div>
 
@@ -100,11 +100,11 @@ export default function MyRecordsPage() {
                     <div className="text-[11px]" style={{ color: "var(--tc-text-muted)" }}>{a.start_time?.slice(0,5)} ~ {a.end_time?.slice(0,5)} ({a.duration_hours}h) {a.memo ? `· ${a.memo}` : ""}</div>
                   </div>
                   <div className="flex gap-1">
-                    <button onClick={() => { setEditTarget(a); setFormOpen(true); }} className="flex p-1 cursor-pointer" style={{ background: "none", border: "none", color: "var(--tc-text-muted)" }}><Pencil size={18} /></button>
+                    <button onClick={() => { setEditTarget(a); setFormOpen(true); }} className="flex p-1 cursor-pointer" style={{ background: "none", border: "none", color: "var(--tc-text-muted)" }}><Pencil size={ICON.md} /></button>
                     <button onClick={async () => {
                         const ok = await confirm({ title: "근태 삭제", message: "이 근태 기록을 삭제하시겠습니까?", confirmText: "삭제", danger: true });
                         if (ok) deleteAttMut.mutate(a.id);
-                      }} className="flex p-1 cursor-pointer" style={{ background: "none", border: "none", color: "var(--tc-danger)" }}><Trash2 size={18} /></button>
+                      }} className="flex p-1 cursor-pointer" style={{ background: "none", border: "none", color: "var(--tc-danger)" }}><Trash2 size={ICON.md} /></button>
                   </div>
                 </div>
               </Card>
@@ -122,11 +122,11 @@ export default function MyRecordsPage() {
                     <div className="text-[11px]" style={{ color: "var(--tc-text-muted)" }}>{e.amount?.toLocaleString()}원 {e.memo ? `· ${e.memo}` : ""}</div>
                   </div>
                   <div className="flex gap-1">
-                    <button onClick={() => { setEditTarget(e); setFormOpen(true); }} className="flex p-1 cursor-pointer" style={{ background: "none", border: "none", color: "var(--tc-text-muted)" }}><Pencil size={18} /></button>
+                    <button onClick={() => { setEditTarget(e); setFormOpen(true); }} className="flex p-1 cursor-pointer" style={{ background: "none", border: "none", color: "var(--tc-text-muted)" }}><Pencil size={ICON.md} /></button>
                     <button onClick={async () => {
                         const ok = await confirm({ title: "지출 삭제", message: "이 지출 기록을 삭제하시겠습니까?", confirmText: "삭제", danger: true });
                         if (ok) deleteExpMut.mutate(e.id);
-                      }} className="flex p-1 cursor-pointer" style={{ background: "none", border: "none", color: "var(--tc-danger)" }}><Trash2 size={18} /></button>
+                      }} className="flex p-1 cursor-pointer" style={{ background: "none", border: "none", color: "var(--tc-danger)" }}><Trash2 size={ICON.md} /></button>
                   </div>
                 </div>
               </Card>

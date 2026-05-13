@@ -4,7 +4,7 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { EmptyState } from "@/shared/ui/ds";
+import { EmptyState , ICON } from "@/shared/ui/ds";
 import { ChevronLeft, ChevronLeft as ChevL, ChevronRight as ChevR } from "@teacher/shared/ui/Icons";
 import { Card } from "@teacher/shared/ui/Card";
 import { Badge } from "@teacher/shared/ui/Badge";
@@ -73,7 +73,7 @@ export default function ClinicReportsPage() {
       <div className="flex items-center gap-2 py-0.5">
         <button onClick={() => navigate(-1)} className="flex p-1 cursor-pointer"
           style={{ background: "none", border: "none", color: "var(--tc-text-secondary)" }}>
-          <ChevronLeft size={20} />
+          <ChevronLeft size={ICON.lg} />
         </button>
         <h1 className="text-[17px] font-bold flex-1" style={{ color: "var(--tc-text)" }}>클리닉 보고서</h1>
       </div>
@@ -83,12 +83,12 @@ export default function ClinicReportsPage() {
         <div className="flex items-center justify-between">
           <button onClick={prevMonth} className="flex p-1.5 cursor-pointer"
             style={{ background: "none", border: "none", color: "var(--tc-text-secondary)" }}>
-            <ChevL size={18} />
+            <ChevL size={ICON.md} />
           </button>
-          <span className="text-[15px] font-bold" style={{ color: "var(--tc-text)" }}>{year}년 {month}월</span>
+          <span className="ds-text-name font-bold" style={{ color: "var(--tc-text)" }}>{year}년 {month}월</span>
           <button onClick={nextMonth} className="flex p-1.5 cursor-pointer"
             style={{ background: "none", border: "none", color: "var(--tc-text-secondary)" }}>
-            <ChevR size={18} />
+            <ChevR size={ICON.md} />
           </button>
         </div>
       </Card>

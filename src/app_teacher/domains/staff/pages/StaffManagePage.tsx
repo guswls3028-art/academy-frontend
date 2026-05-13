@@ -4,7 +4,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { EmptyState } from "@/shared/ui/ds";
+import { EmptyState , ICON } from "@/shared/ui/ds";
 import { ChevronLeft, Plus, Pencil, Trash2, Search } from "@teacher/shared/ui/Icons";
 import { Card } from "@teacher/shared/ui/Card";
 import { Badge } from "@teacher/shared/ui/Badge";
@@ -65,19 +65,19 @@ export default function StaffManagePage() {
       <div className="flex items-center gap-2 py-0.5">
         <button onClick={() => navigate(-1)} className="flex p-1 cursor-pointer"
           style={{ background: "none", border: "none", color: "var(--tc-text-secondary)" }}>
-          <ChevronLeft size={20} />
+          <ChevronLeft size={ICON.lg} />
         </button>
         <h1 className="text-[17px] font-bold flex-1" style={{ color: "var(--tc-text)" }}>직원 관리</h1>
         <button onClick={() => setCreateOpen(true)}
           className="flex items-center gap-1 text-xs font-bold cursor-pointer"
           style={{ padding: "6px 12px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff" }}>
-          <Plus size={14} /> 직원 추가
+          <Plus size={ICON.xs} /> 직원 추가
         </button>
       </div>
 
       {/* Search */}
       <div className="relative">
-        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "var(--tc-text-muted)" }} />
+        <Search size={ICON.sm} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "var(--tc-text-muted)" }} />
         <input type="text" placeholder="이름 / 전화번호 검색" value={search} onChange={(e) => setSearch(e.target.value)}
           className="w-full text-sm"
           style={{ padding: "10px 12px 10px 36px", border: "1px solid var(--tc-border-strong)", borderRadius: "var(--tc-radius)", background: "var(--tc-surface)", color: "var(--tc-text)", outline: "none" }} />
@@ -106,12 +106,12 @@ export default function StaffManagePage() {
                   </div>
                   <div className="flex gap-1 shrink-0">
                     <button onClick={() => setEditTarget(s)} className="flex p-1.5 cursor-pointer"
-                      style={{ background: "none", border: "none", color: "var(--tc-text-muted)" }}><Pencil size={18} /></button>
+                      style={{ background: "none", border: "none", color: "var(--tc-text-muted)" }}><Pencil size={ICON.md} /></button>
                     <button onClick={async () => {
                         const ok = await confirm({ title: "직원 삭제", message: `${s.name}을(를) 삭제할까요? 연결된 근무기록, 비용 등 모든 데이터가 함께 삭제됩니다.`, confirmText: "삭제", danger: true });
                         if (ok) deleteMut.mutate(s.id);
                       }}
-                      className="flex p-1.5 cursor-pointer" style={{ background: "none", border: "none", color: "var(--tc-danger)" }}><Trash2 size={18} /></button>
+                      className="flex p-1.5 cursor-pointer" style={{ background: "none", border: "none", color: "var(--tc-danger)" }}><Trash2 size={ICON.md} /></button>
                   </div>
                 </div>
               </Card>

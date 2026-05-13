@@ -4,7 +4,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { EmptyState } from "@/shared/ui/ds";
+import { EmptyState , ICON } from "@/shared/ui/ds";
 import { formatPhone } from "@/shared/utils/formatPhone";
 import LectureChip from "@/shared/ui/chips/LectureChip";
 import { Phone, Mail, User, Pencil, Save, X, Tag, Plus, ToggleLeft, ToggleRight, Lock, MessageSquare } from "@teacher/shared/ui/Icons";
@@ -97,7 +97,7 @@ export default function StudentDetailPage() {
             <div className="flex items-center gap-1.5 flex-wrap">
               <span className="text-lg font-bold" style={{ color: "var(--tc-text)" }}>{name}</span>
               {enrollments.map((e: any) => (
-                <LectureChip key={e.id ?? e.lectureId} lectureName={e.lectureName ?? e.lecture_title ?? ""} color={e.lectureColor ?? e.lecture_color} chipLabel={e.lectureChipLabel ?? e.lecture_chip_label} size={22} />
+                <LectureChip key={e.id ?? e.lectureId} lectureName={e.lectureName ?? e.lecture_title ?? ""} color={e.lectureColor ?? e.lecture_color} chipLabel={e.lectureChipLabel ?? e.lecture_chip_label} size={ICON.lg} />
               ))}
             </div>
             {student.psNumber && (
@@ -109,7 +109,7 @@ export default function StudentDetailPage() {
           <button onClick={() => setEditOpen(true)}
             className="flex items-center gap-1 text-[11px] font-semibold cursor-pointer shrink-0"
             style={{ padding: "5px 10px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary-bg)", color: "var(--tc-primary)" }}>
-            <Pencil size={14} /> 편집
+            <Pencil size={ICON.xs} /> 편집
           </button>
         </div>
 
@@ -200,7 +200,7 @@ function EnrollmentList({ enrollments }: { enrollments: any[] }) {
       {enrollments.map((e: any) => (
         <Card key={e.id ?? e.lectureId} style={{ padding: "var(--tc-space-3) var(--tc-space-4)" }}>
           <div className="flex items-center gap-2">
-            <LectureChip lectureName={e.lectureName ?? e.lecture_title ?? ""} color={e.lectureColor ?? e.lecture_color} chipLabel={e.lectureChipLabel ?? e.lecture_chip_label} size={22} />
+            <LectureChip lectureName={e.lectureName ?? e.lecture_title ?? ""} color={e.lectureColor ?? e.lecture_color} chipLabel={e.lectureChipLabel ?? e.lecture_chip_label} size={ICON.lg} />
             <div className="flex-1 min-w-0">
               <div className="text-sm font-semibold truncate" style={{ color: "var(--tc-text)" }}>{e.lectureName ?? e.lecture_title}</div>
               {e.enrolledAt && <div className="text-[11px]" style={{ color: "var(--tc-text-muted)" }}>{new Date(e.enrolledAt).toLocaleDateString("ko-KR")}</div>}
@@ -355,7 +355,7 @@ function MemoSection({ studentId, initialMemo }: { studentId: number; initialMem
           <button onClick={() => { setEditing(true); setText(initialMemo); }}
             className="flex items-center gap-1 text-[11px] font-semibold cursor-pointer"
             style={{ background: "none", border: "none", color: "var(--tc-primary)", padding: "2px 6px" }}>
-            <Pencil size={14} /> 편집
+            <Pencil size={ICON.xs} /> 편집
           </button>
         ) : (
           <div className="flex gap-1">
@@ -448,7 +448,7 @@ function EditStudentSheet({ open, onClose, student, studentId, onDelete, onOpenP
             }}
             className="flex items-center gap-1 text-xs font-semibold cursor-pointer"
             style={{ padding: "6px 12px", borderRadius: "var(--tc-radius)", border: "none", background: isActive ? "var(--tc-success-bg)" : "var(--tc-danger-bg)", color: isActive ? "var(--tc-success)" : "var(--tc-danger)" }}>
-            {isActive ? <ToggleRight size={14} /> : <ToggleLeft size={14} />}
+            {isActive ? <ToggleRight size={ICON.xs} /> : <ToggleLeft size={ICON.xs} />}
             {isActive ? "활성" : "비활성"}
           </button>
         </div>
@@ -463,7 +463,7 @@ function EditStudentSheet({ open, onClose, student, studentId, onDelete, onOpenP
         <button onClick={onOpenPasswordReset}
           className="w-full flex items-center justify-center gap-1.5 text-sm font-semibold cursor-pointer"
           style={{ padding: "10px", borderRadius: "var(--tc-radius)", border: "1px solid var(--tc-border-strong)", background: "var(--tc-surface-soft)", color: "var(--tc-text-secondary)" }}>
-          <Lock size={16} /> 비밀번호 초기화
+          <Lock size={ICON.sm} /> 비밀번호 초기화
         </button>
 
         {/* Delete */}
@@ -716,7 +716,7 @@ function PasswordResetSheet({ open, onClose, student }: {
         <div className="flex items-center justify-between py-1.5"
           style={{ padding: "10px 12px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border-subtle)", background: notify ? "var(--tc-primary-bg)" : "var(--tc-surface-soft)" }}>
           <div className="flex items-center gap-2">
-            <MessageSquare size={14} style={{ color: notify ? "var(--tc-primary)" : "var(--tc-text-muted)" }} />
+            <MessageSquare size={ICON.xs} style={{ color: notify ? "var(--tc-primary)" : "var(--tc-text-muted)" }} />
             <div>
               <div className="text-[13px] font-semibold" style={{ color: "var(--tc-text)" }}>임시 비밀번호 알림톡 발송</div>
               <div className="text-[11px]" style={{ color: "var(--tc-text-muted)" }}>

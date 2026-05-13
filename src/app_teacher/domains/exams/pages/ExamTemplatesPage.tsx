@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { EmptyState } from "@/shared/ui/ds";
+import { EmptyState , ICON } from "@/shared/ui/ds";
 import { ChevronLeft, FileText } from "@teacher/shared/ui/Icons";
 import { Card, TabBar } from "@teacher/shared/ui/Card";
 import { Badge } from "@teacher/shared/ui/Badge";
@@ -36,7 +36,7 @@ export default function ExamTemplatesPage() {
       <div className="flex items-center gap-2 py-0.5">
         <button onClick={() => navigate(-1)} className="flex p-1 cursor-pointer"
           style={{ background: "none", border: "none", color: "var(--tc-text-secondary)" }}>
-          <ChevronLeft size={20} />
+          <ChevronLeft size={ICON.lg} />
         </button>
         <h1 className="text-[17px] font-bold flex-1" style={{ color: "var(--tc-text)" }}>템플릿 관리</h1>
       </div>
@@ -75,7 +75,7 @@ function TemplateCard({ template, kind }: { template: any; kind: Tab }) {
   return (
     <Card style={{ padding: "var(--tc-space-3) var(--tc-space-4)" }}>
       <div className="flex items-center gap-2 mb-2">
-        <FileText size={14} style={{ color: "var(--tc-primary)", flexShrink: 0 }} />
+        <FileText size={ICON.xs} style={{ color: "var(--tc-primary)", flexShrink: 0 }} />
         <div className="flex-1 min-w-0">
           <div className="text-sm font-semibold truncate" style={{ color: "var(--tc-text)" }}>{title}</div>
           {subject && <div className="text-[11px]" style={{ color: "var(--tc-text-muted)" }}>{subject}</div>}

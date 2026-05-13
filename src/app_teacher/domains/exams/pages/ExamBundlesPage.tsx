@@ -4,7 +4,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { EmptyState } from "@/shared/ui/ds";
+import { EmptyState , ICON } from "@/shared/ui/ds";
 import { ChevronLeft, Plus, Pencil, Trash2, X, FolderPlus } from "@teacher/shared/ui/Icons";
 import { Card, TabBar } from "@teacher/shared/ui/Card";
 import { Badge } from "@teacher/shared/ui/Badge";
@@ -44,13 +44,13 @@ export default function ExamBundlesPage() {
       <div className="flex items-center gap-2 py-0.5">
         <button onClick={() => navigate(-1)} className="flex p-1 cursor-pointer"
           style={{ background: "none", border: "none", color: "var(--tc-text-secondary)" }}>
-          <ChevronLeft size={20} />
+          <ChevronLeft size={ICON.lg} />
         </button>
         <h1 className="text-[17px] font-bold flex-1" style={{ color: "var(--tc-text)" }}>시험 묶음</h1>
         <button onClick={() => { setEditTarget(null); setFormOpen(true); }}
           className="flex items-center gap-1 text-xs font-bold cursor-pointer"
           style={{ padding: "6px 12px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff" }}>
-          <Plus size={14} /> 새 묶음
+          <Plus size={ICON.xs} /> 새 묶음
         </button>
       </div>
 
@@ -75,7 +75,7 @@ export default function ExamBundlesPage() {
                   <div className="flex gap-0.5 shrink-0">
                     <button onClick={() => { setEditTarget(b); setFormOpen(true); }} className="flex p-1.5 cursor-pointer"
                       style={{ background: "none", border: "none", color: "var(--tc-text-muted)" }}>
-                      <Pencil size={18} />
+                      <Pencil size={ICON.md} />
                     </button>
                     <button onClick={async () => {
                         const ok = await confirm({ title: "묶음 삭제", message: `'${b.name}' 묶음을 삭제하시겠습니까?`, confirmText: "삭제", danger: true });
@@ -83,7 +83,7 @@ export default function ExamBundlesPage() {
                       }}
                       className="flex p-1.5 cursor-pointer"
                       style={{ background: "none", border: "none", color: "var(--tc-danger)" }}>
-                      <Trash2 size={18} />
+                      <Trash2 size={ICON.md} />
                     </button>
                   </div>
                 </div>
@@ -157,7 +157,7 @@ function BundleFormSheet({ open, onClose, editData }: {
             <button onClick={() => setPickerOpen(true)} type="button"
               className="flex items-center gap-0.5 text-[11px] font-semibold cursor-pointer"
               style={{ padding: "3px 8px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-primary)", background: "var(--tc-primary-bg)", color: "var(--tc-primary)" }}>
-              <Plus size={14} /> 템플릿 추가
+              <Plus size={ICON.xs} /> 템플릿 추가
             </button>
           </div>
           {items.length === 0 ? (
@@ -173,7 +173,7 @@ function BundleFormSheet({ open, onClose, editData }: {
                   <span className="text-[13px] flex-1 truncate" style={{ color: "var(--tc-text)" }}>{it.title ?? `#${it.template_id}`}</span>
                   <button onClick={() => setItems(items.filter((_, idx) => idx !== i))}
                     className="flex p-0.5 cursor-pointer" style={{ background: "none", border: "none", color: "var(--tc-text-muted)" }}>
-                    <X size={16} />
+                    <X size={ICON.sm} />
                   </button>
                 </div>
               ))}

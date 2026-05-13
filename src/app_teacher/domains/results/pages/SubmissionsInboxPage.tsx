@@ -17,7 +17,7 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { EmptyState } from "@/shared/ui/ds";
+import { EmptyState , ICON } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { BackButton } from "@teacher/shared/ui/Card";
 import { Badge } from "@teacher/shared/ui/Badge";
@@ -350,7 +350,7 @@ export default function SubmissionsInboxPage() {
 
                 <div className="flex-1 min-w-0">
                   <div
-                    className="text-[15px] font-semibold truncate"
+                    className="ds-text-name font-semibold truncate"
                     style={{ color: resolved ? "var(--tc-text)" : "var(--tc-text-muted)" }}
                   >
                     {titleMain} · {titleSub}
@@ -406,7 +406,7 @@ export default function SubmissionsInboxPage() {
                     PC 매칭 대기
                   </span>
                 ) : (
-                  <ChevronRight size={14} style={{ color: "var(--tc-text-muted)", flexShrink: 0 }} />
+                  <ChevronRight size={ICON.xs} style={{ color: "var(--tc-text-muted)", flexShrink: 0 }} />
                 )}
               </div>
             );

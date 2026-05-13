@@ -61,7 +61,7 @@ export default function StatusBottomSheet({
 
         {/* Title */}
         <div
-          className="text-[15px] font-bold"
+          className="ds-text-name font-bold"
           style={{
             padding: "0 var(--tc-space-4) var(--tc-space-3)",
             color: "var(--tc-text)",

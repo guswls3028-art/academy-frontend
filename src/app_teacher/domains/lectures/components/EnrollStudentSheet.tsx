@@ -3,6 +3,7 @@
 // 수강생 등록 바텀시트 — 학생 검색 + 선택 + 일괄 등록
 // R-11: 기존 인라인 style baseline. 마이그레이션은 별도 백로그.
 import { useState } from "react";
+import { ICON } from "@/shared/ui/ds";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { bulkCreateEnrollments } from "../api";
 import { fetchStudents } from "@teacher/domains/students/api";
@@ -10,7 +11,6 @@ import BottomSheet from "@teacher/shared/ui/BottomSheet";
 import { Search, Check, Plus } from "@teacher/shared/ui/Icons";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
-
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -52,7 +52,7 @@ export default function EnrollStudentSheet({ open, onClose, lectureId, enrolledS
       <div className="flex flex-col gap-2" style={{ padding: "var(--tc-space-2) 0" }}>
         {/* Search */}
         <div className="flex items-center gap-2" style={{ padding: "0 0 var(--tc-space-2)", borderBottom: "1px solid var(--tc-border-subtle)" }}>
-          <Search size={16} style={{ color: "var(--tc-text-muted)" }} />
+          <Search size={ICON.sm} style={{ color: "var(--tc-text-muted)" }} />
           <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="학생 이름/전화 검색"
             className="flex-1 text-sm"
             style={{ border: "none", background: "transparent", color: "var(--tc-text)", outline: "none" }} />

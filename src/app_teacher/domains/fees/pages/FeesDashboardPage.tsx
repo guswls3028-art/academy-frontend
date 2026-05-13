@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { EmptyState } from "@/shared/ui/ds";
+import { EmptyState , ICON } from "@/shared/ui/ds";
 import { Card, SectionTitle, KpiCard, BackButton } from "@teacher/shared/ui/Card";
 import { Badge } from "@teacher/shared/ui/Badge";
 import { ChevronRight } from "@teacher/shared/ui/Icons";
@@ -168,7 +168,7 @@ export default function FeesDashboardPage() {
                   {formatKRW(inv.outstanding_amount)}원
                 </div>
               </div>
-              <ChevronRight size={14} style={{ color: "var(--tc-text-muted)" }} />
+              <ChevronRight size={ICON.xs} style={{ color: "var(--tc-text-muted)" }} />
             </button>
           ))}
         </div>

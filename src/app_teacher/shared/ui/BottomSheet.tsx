@@ -54,7 +54,7 @@ export default function BottomSheet({ open, onClose, title, children }: Props) {
         {/* Title */}
         {title && (
           <div
-            className="text-[15px] font-bold shrink-0"
+            className="ds-text-name font-bold shrink-0"
             style={{
               padding: "0 var(--tc-space-4) var(--tc-space-3)",
               color: "var(--tc-text)",

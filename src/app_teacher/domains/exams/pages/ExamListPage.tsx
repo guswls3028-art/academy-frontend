@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { EmptyState } from "@/shared/ui/ds";
+import { EmptyState , ICON } from "@/shared/ui/ds";
 import { Plus } from "@teacher/shared/ui/Icons";
 import { Badge, type BadgeTone } from "@teacher/shared/ui/Badge";
 import { fetchExams, fetchHomeworks } from "../api";
@@ -25,7 +25,7 @@ export default function ExamListPage() {
         <button onClick={() => setCreateOpen(true)}
           className="flex items-center gap-1 text-xs font-bold cursor-pointer"
           style={{ padding: "6px 12px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff" }}>
-          <Plus size={14} /> {tab === "exam" ? "시험" : "과제"} 추가
+          <Plus size={ICON.xs} /> {tab === "exam" ? "시험" : "과제"} 추가
         </button>
       </div>
 
@@ -127,7 +127,7 @@ function ExamTab() {
               <div className="flex items-center gap-2 flex-1 min-w-0">
                 <Badge tone={sb.tone} size="sm">{sb.label}</Badge>
                 <span
-                  className="text-[15px] font-semibold truncate"
+                  className="ds-text-name font-semibold truncate"
                   style={{ color: "var(--tc-text)" }}
                 >
                   {e.title}
@@ -195,7 +195,7 @@ function HomeworkTab() {
             <div className="flex items-center gap-2 flex-1 min-w-0">
               <Badge tone={sb.tone} size="sm">{sb.label}</Badge>
               <span
-                className="text-[15px] font-semibold truncate"
+                className="ds-text-name font-semibold truncate"
                 style={{ color: "var(--tc-text)" }}
               >
                 {h.title}

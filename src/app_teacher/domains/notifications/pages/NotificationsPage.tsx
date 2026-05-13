@@ -8,7 +8,7 @@ import { useNavigate } from "react-router-dom";
 import type { ReactNode } from "react";
 import { useAdminNotificationCounts } from "@admin/domains/admin-notifications/useAdminNotificationCounts";
 import type { AdminNotificationItem } from "@admin/domains/admin-notifications/api";
-import { EmptyState } from "@/shared/ui/ds";
+import { EmptyState , ICON } from "@/shared/ui/ds";
 import { Badge } from "@teacher/shared/ui/Badge";
 import {
   ChevronLeft,
@@ -24,15 +24,15 @@ import { TEACHER_PENDING_ROUTES } from "../routes";
 type ItemType = AdminNotificationItem["type"];
 
 const ICON_MAP: Record<ItemType, ReactNode> = {
-  qna: <MessageCircle size={16} />,
-  counsel: <MessageCircle size={16} />,
-  clinic: <Calendar size={16} />,
-  registration_requests: <UserPlus size={16} />,
-  submissions: <ClipboardList size={16} />,
-  video_failed: <Video size={16} />,
-  consult: <MessageCircle size={16} />,
-  reports: <ClipboardList size={16} />,
-  community: <MessageCircle size={16} />,
+  qna: <MessageCircle size={ICON.sm} />,
+  counsel: <MessageCircle size={ICON.sm} />,
+  clinic: <Calendar size={ICON.sm} />,
+  registration_requests: <UserPlus size={ICON.sm} />,
+  submissions: <ClipboardList size={ICON.sm} />,
+  video_failed: <Video size={ICON.sm} />,
+  consult: <MessageCircle size={ICON.sm} />,
+  reports: <ClipboardList size={ICON.sm} />,
+  community: <MessageCircle size={ICON.sm} />,
 };
 
 const DEST_LABEL: Record<ItemType, string> = {
@@ -73,7 +73,7 @@ export default function NotificationsPage() {
             borderRadius: "var(--tc-radius)",
           }}
         >
-          <ChevronLeft size={20} />
+          <ChevronLeft size={ICON.lg} />
         </button>
         <h1 className="text-lg font-bold flex-1" style={{ color: "var(--tc-text)" }}>
           알림 센터
@@ -136,7 +136,7 @@ export default function NotificationsPage() {
                     {DEST_LABEL[item.type]}
                   </div>
                 </div>
-                <ChevronRight size={16} style={{ color: "var(--tc-text-muted)" }} />
+                <ChevronRight size={ICON.sm} style={{ color: "var(--tc-text-muted)" }} />
               </div>
             </button>
           ))}

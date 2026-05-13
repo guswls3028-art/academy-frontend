@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { EmptyState } from "@/shared/ui/ds";
+import { EmptyState , ICON } from "@/shared/ui/ds";
 import { ChevronLeft, Download, Upload, Camera, Check } from "@teacher/shared/ui/Icons";
 import { Card } from "@teacher/shared/ui/Card";
 import { Badge } from "@teacher/shared/ui/Badge";
@@ -102,7 +102,7 @@ export default function OmrPage() {
       <div className="flex items-center gap-2 py-0.5">
         <button onClick={() => navigate(-1)} className="flex p-1 cursor-pointer"
           style={{ background: "none", border: "none", color: "var(--tc-text-secondary)" }}>
-          <ChevronLeft size={20} />
+          <ChevronLeft size={ICON.lg} />
         </button>
         <h1 className="text-[17px] font-bold flex-1 truncate" style={{ color: "var(--tc-text)" }}>
           OMR · {defaults?.exam_title ?? exam?.title ?? "시험"}
@@ -123,7 +123,7 @@ export default function OmrPage() {
         <button onClick={() => downloadMut.mutate()} disabled={downloadMut.isPending}
           className="flex items-center justify-center gap-2 w-full text-sm font-bold cursor-pointer mt-3"
           style={{ padding: "12px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff" }}>
-          <Download size={14} /> {downloadMut.isPending ? "생성 중…" : "OMR PDF 다운로드"}
+          <Download size={ICON.xs} /> {downloadMut.isPending ? "생성 중…" : "OMR PDF 다운로드"}
         </button>
       </Card>
 
@@ -174,7 +174,7 @@ export default function OmrPage() {
                       color: "var(--tc-primary)",
                       opacity: isScoring ? 0.5 : 1,
                     }}>
-                    <Camera size={14} /> 스캔
+                    <Camera size={ICON.xs} /> 스캔
                   </button>
                 </div>
               );
@@ -239,12 +239,12 @@ function UploadSheet({ open, onClose, examId, enrollmentId, onSubmitted }: {
           <button onClick={() => pick(true)} disabled={submitMut.isPending}
             className="flex items-center justify-center gap-2 text-sm font-bold cursor-pointer"
             style={{ padding: "14px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff" }}>
-            <Camera size={14} /> 카메라로 촬영
+            <Camera size={ICON.xs} /> 카메라로 촬영
           </button>
           <button onClick={() => pick(false)} disabled={submitMut.isPending}
             className="flex items-center justify-center gap-2 text-sm font-semibold cursor-pointer"
             style={{ padding: "14px", borderRadius: "var(--tc-radius)", border: "1px solid var(--tc-border-strong)", background: "var(--tc-surface)", color: "var(--tc-text-secondary)" }}>
-            <Upload size={14} /> 갤러리에서 선택
+            <Upload size={ICON.xs} /> 갤러리에서 선택
           </button>
           <button onClick={onClose} disabled={submitMut.isPending}
             className="text-sm font-semibold cursor-pointer"

@@ -4,7 +4,7 @@
 import { useState, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { EmptyState } from "@/shared/ui/ds";
+import { EmptyState , ICON } from "@/shared/ui/ds";
 import { setPreferAdmin } from "@/core/router/MobileTeacherRedirect";
 import { Card, SectionTitle, BackButton } from "@teacher/shared/ui/Card";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
@@ -159,7 +159,7 @@ export default function MyStoragePage() {
             color: "var(--tc-text-secondary)",
           }}
         >
-          <FolderPlus size={18} /> 폴더
+          <FolderPlus size={ICON.md} /> 폴더
         </button>
         <button
           onClick={() => fileInputRef.current?.click()}
@@ -173,7 +173,7 @@ export default function MyStoragePage() {
             color: "#fff",
           }}
         >
-          <Upload size={18} /> 업로드
+          <Upload size={ICON.md} /> 업로드
         </button>
         <input
           ref={fileInputRef}
@@ -215,7 +215,7 @@ export default function MyStoragePage() {
       {/* Search */}
       <div className="flex items-center gap-2 rounded-xl"
         style={{ padding: "8px 12px", background: "var(--tc-surface)", border: "1px solid var(--tc-border)" }}>
-        <Search size={16} style={{ color: "var(--tc-text-muted)", flexShrink: 0 }} />
+        <Search size={ICON.sm} style={{ color: "var(--tc-text-muted)", flexShrink: 0 }} />
         <input
           type="text"
           value={search}
@@ -288,9 +288,9 @@ export default function MyStoragePage() {
                   className="cursor-pointer shrink-0"
                   style={{ padding: 8, minWidth: 36, minHeight: 36, background: "none", border: "none", color: "var(--tc-text-muted)" }}
                 >
-                  <Trash2 size={18} />
+                  <Trash2 size={ICON.md} />
                 </button>
-                <ChevronRight size={18} style={{ color: "var(--tc-text-muted)" }} />
+                <ChevronRight size={ICON.md} style={{ color: "var(--tc-text-muted)" }} />
               </div>
             ))}
           </div>
@@ -322,7 +322,7 @@ export default function MyStoragePage() {
                   className="cursor-pointer shrink-0"
                   style={{ padding: 8, minWidth: 36, minHeight: 36, background: "none", border: "none", color: "var(--tc-primary)" }}
                 >
-                  <Download size={18} />
+                  <Download size={ICON.md} />
                 </button>
                 <button
                   onClick={async () => {
@@ -332,7 +332,7 @@ export default function MyStoragePage() {
                   className="cursor-pointer shrink-0"
                   style={{ padding: 8, minWidth: 36, minHeight: 36, background: "none", border: "none", color: "var(--tc-text-muted)" }}
                 >
-                  <Trash2 size={18} />
+                  <Trash2 size={ICON.md} />
                 </button>
               </div>
             ))}
@@ -358,7 +358,7 @@ export default function MyStoragePage() {
             color: "var(--tc-text)",
           }}
         >
-          <Monitor size={18} /> PC에서 매치업 열기
+          <Monitor size={ICON.md} /> PC에서 매치업 열기
         </button>
       </Card>
 

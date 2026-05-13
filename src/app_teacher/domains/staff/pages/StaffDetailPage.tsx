@@ -4,7 +4,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { EmptyState } from "@/shared/ui/ds";
+import { EmptyState , ICON } from "@/shared/ui/ds";
 import { ChevronLeft, Plus, Pencil, Trash2, Check, X, Lock } from "@teacher/shared/ui/Icons";
 import { Card, TabBar } from "@teacher/shared/ui/Card";
 import { Badge } from "@teacher/shared/ui/Badge";
@@ -62,7 +62,7 @@ export default function StaffDetailPage() {
       <div className="flex items-center gap-2 py-0.5">
         <button onClick={() => navigate(-1)} className="flex p-1 cursor-pointer"
           style={{ background: "none", border: "none", color: "var(--tc-text-secondary)" }}>
-          <ChevronLeft size={20} />
+          <ChevronLeft size={ICON.lg} />
         </button>
         <h1 className="text-[17px] font-bold flex-1 truncate" style={{ color: "var(--tc-text)" }}>{staff.name}</h1>
         <Badge tone="neutral" size="xs">{staff.role === "TEACHER" ? "강사" : staff.role === "owner" ? "원장" : "조교"}</Badge>
@@ -130,7 +130,7 @@ function LockButton({ staffId, month, isLocked, lockId }: { staffId: number; mon
         }}
         className="flex items-center gap-1 text-xs font-semibold cursor-pointer"
         style={{ padding: "7px 10px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-warn)", background: "var(--tc-warn-bg)", color: "var(--tc-warn)" }}>
-        <Lock size={16} /> 마감됨
+        <Lock size={ICON.sm} /> 마감됨
       </button>
     );
   }
@@ -189,7 +189,7 @@ function WorkTab({ staffId, month, isLocked, onAdd, onEdit }: {
             <button onClick={onAdd}
               className="flex items-center gap-1 text-xs font-bold cursor-pointer shrink-0 ml-3"
               style={{ padding: "6px 10px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff" }}>
-              <Plus size={16} /> 추가
+              <Plus size={ICON.sm} /> 추가
             </button>
           )}
         </div>
@@ -216,7 +216,7 @@ function WorkTab({ staffId, month, isLocked, onAdd, onEdit }: {
                   <div className="flex gap-0.5 shrink-0">
                     <button onClick={() => onEdit(r)} className="flex p-1.5 cursor-pointer"
                       style={{ background: "none", border: "none", color: "var(--tc-text-muted)" }}>
-                      <Pencil size={18} />
+                      <Pencil size={ICON.md} />
                     </button>
                     <button onClick={async () => {
                         const ok = await confirm({ title: "근태 삭제", message: "이 근태 기록을 삭제하시겠습니까?", confirmText: "삭제", danger: true });
@@ -224,7 +224,7 @@ function WorkTab({ staffId, month, isLocked, onAdd, onEdit }: {
                       }}
                       className="flex p-1.5 cursor-pointer"
                       style={{ background: "none", border: "none", color: "var(--tc-danger)" }}>
-                      <Trash2 size={18} />
+                      <Trash2 size={ICON.md} />
                     </button>
                   </div>
                 )}
@@ -300,12 +300,12 @@ function ExpenseTab({ staffId, month }: { staffId: number; month: string }) {
                 <button onClick={() => statusMut.mutate({ id: e.id, status: "approved" })}
                   className="flex items-center justify-center gap-1 flex-1 text-xs font-bold cursor-pointer"
                   style={{ padding: "6px", borderRadius: "var(--tc-radius-sm)", border: "none", background: "var(--tc-success-bg)", color: "var(--tc-success)" }}>
-                  <Check size={16} /> 승인
+                  <Check size={ICON.sm} /> 승인
                 </button>
                 <button onClick={() => statusMut.mutate({ id: e.id, status: "rejected" })}
                   className="flex items-center justify-center gap-1 flex-1 text-xs font-bold cursor-pointer"
                   style={{ padding: "6px", borderRadius: "var(--tc-radius-sm)", border: "none", background: "var(--tc-danger-bg)", color: "var(--tc-danger)" }}>
-                  <X size={16} /> 반려
+                  <X size={ICON.sm} /> 반려
                 </button>
                 <button onClick={async () => {
                     const ok = await confirm({ title: "비용 기록 삭제", message: "이 비용 기록을 삭제하시겠습니까?", confirmText: "삭제", danger: true });
@@ -313,7 +313,7 @@ function ExpenseTab({ staffId, month }: { staffId: number; month: string }) {
                   }}
                   className="flex items-center justify-center text-xs cursor-pointer shrink-0"
                   style={{ padding: "6px 10px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border)", background: "var(--tc-surface)", color: "var(--tc-text-muted)" }}>
-                  <Trash2 size={18} />
+                  <Trash2 size={ICON.md} />
                 </button>
               </div>
             )}
@@ -345,7 +345,7 @@ function PayrollTab({ staffId, month, isLocked }: { staffId: number; month: stri
     return (
       <Card>
         <div className="flex flex-col items-center gap-1.5 py-3">
-          <Lock size={18} style={{ color: "var(--tc-text-muted)" }} />
+          <Lock size={ICON.md} style={{ color: "var(--tc-text-muted)" }} />
           <div className="text-sm font-semibold" style={{ color: "var(--tc-text)" }}>월을 마감하면 급여가 확정됩니다</div>
           <div className="text-[11px] text-center" style={{ color: "var(--tc-text-muted)" }}>
             위의 <span style={{ fontWeight: 600 }}>월 마감</span> 버튼을 눌러 확정하세요.

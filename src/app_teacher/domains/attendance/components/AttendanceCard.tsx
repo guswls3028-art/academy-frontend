@@ -80,7 +80,7 @@ export default function AttendanceCard({
           </div>
           <div className="min-w-0">
             <div
-              className="text-[15px] font-semibold"
+              className="ds-text-name font-semibold"
               style={{ color: "var(--tc-text)" }}
             >
               {studentName}

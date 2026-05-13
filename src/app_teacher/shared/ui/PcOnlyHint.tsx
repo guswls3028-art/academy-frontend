@@ -2,10 +2,10 @@
 // PC 전용 기능 안내 — 모바일에서 미지원 도메인 진입 시 표시.
 // "데스크톱 버전 열기" 버튼으로 admin 라우트로 즉시 전환.
 import { useNavigate } from "react-router-dom";
+import { ICON } from "@/shared/ui/ds";
 import { setPreferAdmin } from "@/core/router/MobileTeacherRedirect";
 import { Monitor, ChevronLeft } from "@teacher/shared/ui/Icons";
 import { Card } from "@teacher/shared/ui/Card";
-
 interface Props {
   title: string;
   description?: string;
@@ -40,7 +40,7 @@ export default function PcOnlyHint({ title, description, desktopPath, reason }: 
             justifyContent: "center",
           }}
         >
-          <ChevronLeft size={20} />
+          <ChevronLeft size={ICON.lg} />
         </button>
         <h1 className="text-[17px] font-bold flex-1 truncate" style={{ color: "var(--tc-text)" }}>
           {title}
@@ -58,9 +58,9 @@ export default function PcOnlyHint({ title, description, desktopPath, reason }: 
               color: "var(--tc-primary)",
             }}
           >
-            <Monitor size={28} />
+            <Monitor size={ICON.xl} />
           </div>
-          <div className="text-[15px] font-bold mb-1" style={{ color: "var(--tc-text)" }}>
+          <div className="ds-text-name font-bold mb-1" style={{ color: "var(--tc-text)" }}>
             PC에서 처리해주세요
           </div>
           {description && (
@@ -95,7 +95,7 @@ export default function PcOnlyHint({ title, description, desktopPath, reason }: 
               minWidth: 200,
             }}
           >
-            <Monitor size={14} /> 데스크톱 버전 열기
+            <Monitor size={ICON.xs} /> 데스크톱 버전 열기
           </button>
         </div>
       </Card>

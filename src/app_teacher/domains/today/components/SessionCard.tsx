@@ -1,11 +1,11 @@
 // PATH: src/app_teacher/domains/today/components/SessionCard.tsx
 // 수업 카드 — LectureChip + 진행상태 + 출결 진척 + 퀵 액션(출석/성적)
 import { useNavigate } from "react-router-dom";
+import { ICON } from "@/shared/ui/ds";
 import LectureChip from "@/shared/ui/chips/LectureChip";
 import { Check, Edit3 } from "@teacher/shared/ui/Icons";
 import { Badge } from "@teacher/shared/ui/Badge";
 import type { TodaySession } from "../api";
-
 interface Props {
   session: TodaySession;
 }
@@ -87,7 +87,7 @@ export default function SessionCard({ session }: Props) {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <div
-              className="text-[15px] font-bold truncate"
+              className="ds-text-name font-bold truncate"
               style={{ color: "var(--tc-text)" }}
             >
               {session.lecture_title || session.title}
@@ -160,7 +160,7 @@ export default function SessionCard({ session }: Props) {
         style={{ padding: "0 var(--tc-space-4) var(--tc-space-3)" }}
       >
         <QuickBtn
-          icon={<Check size={14} />}
+          icon={<Check size={ICON.xs} />}
           label={attendanceDone ? "출석 완료" : "출석"}
           color="var(--tc-success)"
           done={attendanceDone}
@@ -168,7 +168,7 @@ export default function SessionCard({ session }: Props) {
           onClick={() => navigate(`/teacher/attendance/${session.id}`)}
         />
         <QuickBtn
-          icon={<Edit3 size={14} />}
+          icon={<Edit3 size={ICON.xs} />}
           label="성적"
           color="var(--tc-primary)"
           ariaLabel={`${session.lecture_title || session.title} 성적 입력`}

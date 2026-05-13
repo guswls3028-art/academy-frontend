@@ -95,7 +95,7 @@ export default function CounselingPage() {
               }}
             >
               <div className="flex justify-between items-start gap-2">
-                <span className="text-[15px] font-semibold flex-1" style={{ color: "var(--tc-text)" }}>
+                <span className="ds-text-name font-semibold flex-1" style={{ color: "var(--tc-text)" }}>
                   {p.title}
                 </span>
                 <span className="text-[11px] shrink-0" style={{ color: "var(--tc-text-muted)" }}>

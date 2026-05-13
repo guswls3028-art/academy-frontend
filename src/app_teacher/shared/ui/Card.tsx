@@ -44,7 +44,7 @@ export function SectionTitle({
 }) {
   return (
     <div className="flex justify-between items-center py-1">
-      <h2 className="text-[15px] font-bold m-0" style={{ color: "var(--tc-text)" }}>
+      <h2 className="ds-text-name font-bold m-0" style={{ color: "var(--tc-text)" }}>
         {children}
       </h2>
       {right}

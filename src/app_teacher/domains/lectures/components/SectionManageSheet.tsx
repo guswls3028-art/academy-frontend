@@ -3,6 +3,7 @@
 // 반 편성 관리 시트 — 반 생성/삭제
 // R-11: 기존 인라인 style baseline. 마이그레이션은 별도 백로그.
 import { useState } from "react";
+import { ICON } from "@/shared/ui/ds";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
 import { Plus, Trash2 } from "@teacher/shared/ui/Icons";
@@ -10,7 +11,6 @@ import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { useConfirm } from "@/shared/ui/confirm";
 import api from "@/shared/api/axios";
-
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -68,7 +68,7 @@ export default function SectionManageSheet({ open, onClose, lectureId }: Props) 
                   if (ok) deleteSectionMut.mutate(s.id);
                 }}
                 className="flex p-1 cursor-pointer" style={{ background: "none", border: "none", color: "var(--tc-danger)" }}>
-                <Trash2 size={14} />
+                <Trash2 size={ICON.xs} />
               </button>
             </div>
           ))}

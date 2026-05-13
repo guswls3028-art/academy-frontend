@@ -4,7 +4,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { EmptyState } from "@/shared/ui/ds";
+import { EmptyState , ICON } from "@/shared/ui/ds";
 import { ChevronLeft, Plus, Pencil, Trash2, Settings } from "@teacher/shared/ui/Icons";
 import { Card } from "@teacher/shared/ui/Card";
 import { Badge } from "@teacher/shared/ui/Badge";
@@ -76,13 +76,13 @@ export default function MessageTemplatesPage() {
       <div className="flex items-center gap-2 py-0.5">
         <button onClick={() => navigate(-1)} className="flex p-1 cursor-pointer"
           style={{ background: "none", border: "none", color: "var(--tc-text-secondary)" }}>
-          <ChevronLeft size={20} />
+          <ChevronLeft size={ICON.lg} />
         </button>
         <h1 className="text-[17px] font-bold flex-1" style={{ color: "var(--tc-text)" }}>템플릿 저장</h1>
         <button onClick={() => setEditSheet({ open: true })}
           className="flex items-center gap-1 text-xs font-bold cursor-pointer"
           style={{ padding: "6px 12px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff" }}>
-          <Plus size={14} /> 새 템플릿
+          <Plus size={ICON.xs} /> 새 템플릿
         </button>
       </div>
 
@@ -137,14 +137,14 @@ export default function MessageTemplatesPage() {
                     <>
                       <button onClick={() => setEditSheet({ open: true, template: t })}
                         className="flex p-1.5 cursor-pointer" style={{ background: "none", border: "none", color: "var(--tc-text-muted)" }}>
-                        <Pencil size={14} />
+                        <Pencil size={ICON.xs} />
                       </button>
                       <button onClick={async () => {
                           const ok = await confirm({ title: "템플릿 삭제", message: "이 템플릿을 삭제하시겠습니까?", confirmText: "삭제", danger: true });
                           if (ok) deleteMut.mutate(t.id);
                         }}
                         className="flex p-1.5 cursor-pointer" style={{ background: "none", border: "none", color: "var(--tc-danger)" }}>
-                        <Trash2 size={14} />
+                        <Trash2 size={ICON.xs} />
                       </button>
                     </>
                   )}

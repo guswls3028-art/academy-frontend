@@ -11,10 +11,10 @@
  */
 /* eslint-disable no-restricted-syntax */
 import { useNavigate } from "react-router-dom";
+import { ICON } from "@/shared/ui/ds";
 import { useProgram } from "@/shared/program";
 import { useTeacherPendingCounts } from "@teacher/shared/hooks/useTeacherPendingCounts";
 import { Menu, Bell, BellRing } from "@teacher/shared/ui/Icons";
-
 interface Props {
   onMenuClick: () => void;
 }
@@ -59,7 +59,7 @@ export default function TeacherTopBar({ onMenuClick }: Props) {
             minHeight: "var(--tc-touch-min)",
           }}
         >
-          <Menu size={22} />
+          <Menu size={ICON.lg} />
         </button>
         {/* 2026-05-12: 학원 홈페이지로 이동 — 햄버거와 동일 size icon-only(시각 일관성) */}
         <a
@@ -150,7 +150,7 @@ export default function TeacherTopBar({ onMenuClick }: Props) {
           minHeight: "var(--tc-touch-min)",
         }}
       >
-        {badge > 0 ? <BellRing size={22} /> : <Bell size={22} />}
+        {badge > 0 ? <BellRing size={ICON.lg} /> : <Bell size={ICON.lg} />}
         {badge > 0 && (
           <span
             style={{

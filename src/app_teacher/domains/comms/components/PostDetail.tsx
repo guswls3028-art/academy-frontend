@@ -3,7 +3,7 @@
 // 게시글 상세 + Q&A 답변 + 편집/삭제 기능
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { EmptyState } from "@/shared/ui/ds";
+import { EmptyState , ICON } from "@/shared/ui/ds";
 import useAuth from "@/auth/hooks/useAuth";
 import { fetchPostReplies, createReply, deleteReply, updatePost, deletePost, togglePostPin } from "../api";
 import type { Post, Reply } from "../api";
@@ -124,7 +124,7 @@ export default function PostDetail({ post: initialPost, onBack }: Props) {
       {/* Header */}
       <div className="flex items-center gap-2 py-0.5">
         <button onClick={onBack} className="flex p-1 cursor-pointer" style={{ background: "none", border: "none", color: "var(--tc-text-secondary)" }}>
-          <ChevronLeft size={20} />
+          <ChevronLeft size={ICON.lg} />
         </button>
         <h1 className="text-base font-bold truncate flex-1" style={{ color: "var(--tc-text)" }}>
           {postTypeLabel}
@@ -135,7 +135,7 @@ export default function PostDetail({ post: initialPost, onBack }: Props) {
           <div className="relative">
             <button onClick={() => setMenuOpen(!menuOpen)} className="flex p-1 cursor-pointer"
               style={{ background: "none", border: "none", color: "var(--tc-text-muted)" }}>
-              <MoreVertical size={18} />
+              <MoreVertical size={ICON.md} />
             </button>
             {menuOpen && (
               <>
@@ -145,22 +145,22 @@ export default function PostDetail({ post: initialPost, onBack }: Props) {
                   <button onClick={() => { setEditing(true); setMenuOpen(false); }}
                     className="flex items-center gap-2 w-full text-left text-sm cursor-pointer"
                     style={{ padding: "10px 14px", background: "none", border: "none", color: "var(--tc-text)" }}>
-                    <Pencil size={14} /> 편집
+                    <Pencil size={ICON.xs} /> 편집
                   </button>
                   <button onClick={() => { pinMutation.mutate(); setMenuOpen(false); }}
                     className="flex items-center gap-2 w-full text-left text-sm cursor-pointer"
                     style={{ padding: "10px 14px", background: "none", border: "none", color: "var(--tc-text)", borderTop: "1px solid var(--tc-border-subtle)" }}>
-                    <Star size={14} /> {initialPost.is_pinned ? "고정 해제" : "고정"}
+                    <Star size={ICON.xs} /> {initialPost.is_pinned ? "고정 해제" : "고정"}
                   </button>
                   <button onClick={() => { urgentMutation.mutate(); setMenuOpen(false); }}
                     className="flex items-center gap-2 w-full text-left text-sm cursor-pointer"
                     style={{ padding: "10px 14px", background: "none", border: "none", color: "var(--tc-danger)", borderTop: "1px solid var(--tc-border-subtle)" }}>
-                    <AlertCircle size={14} /> {initialPost.is_urgent ? "긴급 해제" : "긴급 설정"}
+                    <AlertCircle size={ICON.xs} /> {initialPost.is_urgent ? "긴급 해제" : "긴급 설정"}
                   </button>
                   <button onClick={handleDelete}
                     className="flex items-center gap-2 w-full text-left text-sm cursor-pointer"
                     style={{ padding: "10px 14px", background: "none", border: "none", color: "var(--tc-danger)", borderTop: "1px solid var(--tc-border-subtle)" }}>
-                    <Trash2 size={14} /> 삭제
+                    <Trash2 size={ICON.xs} /> 삭제
                   </button>
                 </div>
               </>
@@ -174,7 +174,7 @@ export default function PostDetail({ post: initialPost, onBack }: Props) {
         {editing ? (
           <div className="flex flex-col gap-2">
             <input type="text" value={editTitle} onChange={(e) => setEditTitle(e.target.value)}
-              className="w-full text-[15px] font-bold"
+              className="w-full ds-text-name font-bold"
               style={{ padding: "6px 8px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border-strong)", background: "var(--tc-surface-soft)", color: "var(--tc-text)", outline: "none" }} />
             <textarea value={editContent} onChange={(e) => setEditContent(e.target.value)} rows={6}
               className="w-full text-sm"
@@ -183,12 +183,12 @@ export default function PostDetail({ post: initialPost, onBack }: Props) {
               <button onClick={() => updateMutation.mutate()} disabled={updateMutation.isPending}
                 className="flex items-center gap-1 text-xs font-bold cursor-pointer"
                 style={{ padding: "7px 14px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff" }}>
-                <Save size={16} /> 저장
+                <Save size={ICON.sm} /> 저장
               </button>
               <button onClick={() => { setEditing(false); setEditTitle(initialPost.title); setEditContent(initialPost.content); }}
                 className="flex items-center gap-1 text-xs font-semibold cursor-pointer"
                 style={{ padding: "7px 14px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-surface-soft)", color: "var(--tc-text-secondary)" }}>
-                <X size={16} /> 취소
+                <X size={ICON.sm} /> 취소
               </button>
             </div>
           </div>
@@ -199,7 +199,7 @@ export default function PostDetail({ post: initialPost, onBack }: Props) {
                 <span className="text-[10px] font-bold shrink-0 rounded px-1"
                   style={{ background: "var(--tc-danger-bg)", color: "var(--tc-danger)" }}>긴급</span>
               )}
-              <h2 className="text-[15px] font-bold" style={{ color: "var(--tc-text)" }}>{editTitle || initialPost.title}</h2>
+              <h2 className="ds-text-name font-bold" style={{ color: "var(--tc-text)" }}>{editTitle || initialPost.title}</h2>
             </div>
             <div className="text-xs mb-3" style={{ color: "var(--tc-text-muted)" }}>
               {initialPost.author_display_name || "학생"} · {new Date(initialPost.created_at).toLocaleDateString("ko-KR")}
@@ -275,7 +275,7 @@ function ReplyCard({ reply, onDelete }: { reply: Reply; onDelete?: () => void })
         {onDelete && (
           <button onClick={onDelete} className="flex items-center gap-0.5 text-[11px] cursor-pointer"
             style={{ background: "none", border: "none", color: "var(--tc-danger)", padding: "2px 4px" }}>
-            <Trash2 size={14} /> 삭제
+            <Trash2 size={ICON.xs} /> 삭제
           </button>
         )}
       </div>

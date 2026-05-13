@@ -3,6 +3,7 @@
 // 클리닉 세션 참가자 추가 — 학생 검색 + 다중 선택 + 일괄 등록
 // PC ClinicCreatePanel + ClinicTargetSelectModal 의 모바일 단순화 버전 (student 모드만).
 import { useState } from "react";
+import { ICON } from "@/shared/ui/ds";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchStudents } from "@teacher/domains/students/api";
 import { createClinicParticipant } from "../api";
@@ -10,7 +11,6 @@ import BottomSheet from "@teacher/shared/ui/BottomSheet";
 import { Search, Check } from "@teacher/shared/ui/Icons";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
-
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -71,7 +71,7 @@ export default function AddParticipantSheet({ open, onClose, sessionId, alreadyP
       <div className="flex flex-col gap-2" style={{ padding: "var(--tc-space-2) 0" }}>
         {/* Search */}
         <div className="flex items-center gap-2" style={{ padding: "0 0 var(--tc-space-2)", borderBottom: "1px solid var(--tc-border-subtle)" }}>
-          <Search size={16} style={{ color: "var(--tc-text-muted)" }} />
+          <Search size={ICON.sm} style={{ color: "var(--tc-text-muted)" }} />
           <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="학생 이름/전화 검색"
             className="flex-1 text-sm"
             style={{ border: "none", background: "transparent", color: "var(--tc-text)", outline: "none" }} />

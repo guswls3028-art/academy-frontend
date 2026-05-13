@@ -2,7 +2,7 @@
 // 성적 통계 탭 — 강의 → 시험 선택 후 KPI + 차트 + 문항분석 + 학생 석차
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { EmptyState } from "@/shared/ui/ds";
+import { EmptyState , ICON } from "@/shared/ui/ds";
 import LectureChip from "@/shared/ui/chips/LectureChip";
 import { Card, SectionTitle, KpiCard } from "@teacher/shared/ui/Card";
 import { AchievementBadge } from "@teacher/shared/ui/Badge";
@@ -165,7 +165,7 @@ export default function ResultsStatsTab() {
               lectureName={l.title}
               color={l.color}
               chipLabel={l.chip_label ?? l.chipLabel}
-              size={14}
+              size={ICON.xs}
             />
             {l.title}
           </button>

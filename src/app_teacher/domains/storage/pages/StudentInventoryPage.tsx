@@ -3,7 +3,7 @@
 import { useState, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { EmptyState } from "@/shared/ui/ds";
+import { EmptyState , ICON } from "@/shared/ui/ds";
 import { Card, SectionTitle, BackButton } from "@teacher/shared/ui/Card";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
@@ -112,7 +112,7 @@ export default function StudentInventoryPage() {
                 color: "#fff",
               }}
             >
-              <Upload size={14} /> 업로드
+              <Upload size={ICON.xs} /> 업로드
             </button>
             <input
               ref={fileInputRef}
@@ -133,7 +133,7 @@ export default function StudentInventoryPage() {
         <>
           <div className="flex items-center gap-2 rounded-xl"
             style={{ padding: "8px 12px", background: "var(--tc-surface)", border: "1px solid var(--tc-border)" }}>
-            <Search size={16} style={{ color: "var(--tc-text-muted)", flexShrink: 0 }} />
+            <Search size={ICON.sm} style={{ color: "var(--tc-text-muted)", flexShrink: 0 }} />
             <input
               type="text"
               value={search}
@@ -216,7 +216,7 @@ export default function StudentInventoryPage() {
                       className="cursor-pointer shrink-0"
                       style={{ padding: 8, minWidth: 36, minHeight: 36, background: "none", border: "none", color: "var(--tc-primary)" }}
                     >
-                      <Download size={14} />
+                      <Download size={ICON.xs} />
                     </button>
                     <button
                       onClick={async () => {
@@ -226,7 +226,7 @@ export default function StudentInventoryPage() {
                       className="cursor-pointer shrink-0"
                       style={{ padding: 8, minWidth: 36, minHeight: 36, background: "none", border: "none", color: "var(--tc-text-muted)" }}
                     >
-                      <Trash2 size={14} />
+                      <Trash2 size={ICON.xs} />
                     </button>
                   </div>
                 ))}

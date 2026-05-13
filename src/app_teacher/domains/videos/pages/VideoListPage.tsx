@@ -4,7 +4,7 @@
 import { useState, useRef, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { EmptyState } from "@/shared/ui/ds";
+import { EmptyState , ICON } from "@/shared/ui/ds";
 import { Upload, Trash2 } from "@teacher/shared/ui/Icons";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
@@ -157,7 +157,7 @@ export default function VideoListPage() {
         <button onClick={() => fileRef.current?.click()} disabled={uploading}
           className="flex items-center gap-1 text-xs font-bold cursor-pointer"
           style={{ padding: "8px 14px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff", opacity: uploading ? 0.5 : 1, minHeight: 36 }}>
-          <Upload size={14} /> {uploading ? "업로드 중…" : "영상 업로드"}
+          <Upload size={ICON.xs} /> {uploading ? "업로드 중…" : "영상 업로드"}
         </button>
         <input ref={fileRef} type="file" accept="video/*" onChange={handleUpload} style={{ display: "none" }} />
       </div>
@@ -279,7 +279,7 @@ export default function VideoListPage() {
                 <div className="flex-1 min-w-0 flex flex-col gap-1">
                   <button
                     onClick={() => status === "READY" && navigate(`/teacher/videos/${v.id}`)}
-                    className="text-[15px] font-semibold text-left truncate cursor-pointer"
+                    className="ds-text-name font-semibold text-left truncate cursor-pointer"
                     style={{
                       color: "var(--tc-text)",
                       background: "none",
@@ -332,7 +332,7 @@ export default function VideoListPage() {
                       style={{ background: "none", border: "none", color: "var(--tc-text-muted)", padding: "6px", minWidth: 28, minHeight: 28 }}
                       aria-label="영상 삭제"
                     >
-                      <Trash2 size={14} />
+                      <Trash2 size={ICON.xs} />
                     </button>
                   </div>
                 </div>

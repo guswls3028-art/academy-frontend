@@ -3,7 +3,7 @@
 import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { EmptyState } from "@/shared/ui/ds";
+import { EmptyState , ICON } from "@/shared/ui/ds";
 import { ChevronLeft, RefreshCw } from "@teacher/shared/ui/Icons";
 import { Card } from "@teacher/shared/ui/Card";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
@@ -71,7 +71,7 @@ export default function ClinicRemoteControlPage() {
       <div className="flex items-center gap-2 py-0.5">
         <button onClick={() => navigate(-1)} className="flex p-1 cursor-pointer"
           style={{ background: "none", border: "none", color: "var(--tc-text-secondary)" }}>
-          <ChevronLeft size={20} />
+          <ChevronLeft size={ICON.lg} />
         </button>
         <h1 className="text-[17px] font-bold flex-1" style={{ color: "var(--tc-text)" }}>클리닉 리모컨</h1>
       </div>
@@ -106,7 +106,7 @@ export default function ClinicRemoteControlPage() {
           color: "#fff",
           opacity: updateMut.isPending ? 0.6 : 1,
         }}>
-        <RefreshCw size={14} /> 랜덤 3색 배치
+        <RefreshCw size={ICON.xs} /> 랜덤 3색 배치
       </button>
 
       {/* Individual slots */}

@@ -8,7 +8,7 @@
 // 처럼 클리닉 운영 중인 학원에서 모바일 페이지가 EmptyState로 가려져 신고 발생.
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { EmptyState } from "@/shared/ui/ds";
+import { EmptyState , ICON } from "@/shared/ui/ds";
 import { Plus, ChevronLeft, ChevronRight } from "@teacher/shared/ui/Icons";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
 import {
@@ -75,7 +75,7 @@ export default function ClinicPage() {
         <button onClick={() => setCreateOpen(true)}
           className="flex items-center gap-1 text-xs font-bold cursor-pointer"
           style={{ padding: "6px 12px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff" }}>
-          <Plus size={14} /> 클리닉 만들기
+          <Plus size={ICON.xs} /> 클리닉 만들기
         </button>
       </div>
 
@@ -83,7 +83,7 @@ export default function ClinicPage() {
       <div className="flex items-center gap-2 justify-center">
         <button onClick={() => { setDateFrom(addDays(dateFrom, -1)); setDateTo(addDays(dateTo, -1)); }}
           className="flex p-1 cursor-pointer" style={{ background: "none", border: "none", color: "var(--tc-text-muted)" }}>
-          <ChevronLeft size={18} />
+          <ChevronLeft size={ICON.md} />
         </button>
         <div className="flex gap-1.5 items-center">
           <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)}
@@ -94,7 +94,7 @@ export default function ClinicPage() {
         </div>
         <button onClick={() => { setDateFrom(addDays(dateFrom, 1)); setDateTo(addDays(dateTo, 1)); }}
           className="flex p-1 cursor-pointer" style={{ background: "none", border: "none", color: "var(--tc-text-muted)" }}>
-          <ChevronRight size={18} />
+          <ChevronRight size={ICON.md} />
         </button>
         {!isToday && (
           <button onClick={() => { setDateFrom(todayISO()); setDateTo(todayISO()); }}
@@ -164,7 +164,7 @@ function SessionCard({
           <ClinicIcon />
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-[15px] font-semibold truncate" style={{ color: "var(--tc-text)" }}>
+          <div className="ds-text-name font-semibold truncate" style={{ color: "var(--tc-text)" }}>
             {session.title || "클리닉"}
           </div>
           <div className="flex gap-2 text-xs mt-0.5" style={{ color: "var(--tc-text-muted)" }}>

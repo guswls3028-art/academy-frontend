@@ -2,7 +2,7 @@
 // 소통 — 5탭 (공지/Q&A/등록요청/게시판/자료) + 작성 + 검색
 import { useState, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { EmptyState } from "@/shared/ui/ds";
+import { EmptyState , ICON } from "@/shared/ui/ds";
 import { useAdminNotificationCounts } from "@admin/domains/admin-notifications/useAdminNotificationCounts";
 import { Badge } from "@teacher/shared/ui/Badge";
 import { Search, Plus, X } from "@teacher/shared/ui/Icons";
@@ -85,7 +85,7 @@ export default function CommunicationPage() {
       {/* Search bar (toggled) */}
       {searchOpen && isPostTab && (
         <div className="flex items-center gap-2" style={{ padding: "8px var(--tc-space-3)", borderBottom: "1px solid var(--tc-border)" }}>
-          <Search size={16} style={{ color: "var(--tc-text-muted)", flexShrink: 0 }} />
+          <Search size={ICON.sm} style={{ color: "var(--tc-text-muted)", flexShrink: 0 }} />
           <input
             type="text"
             value={searchQuery}
@@ -100,7 +100,7 @@ export default function CommunicationPage() {
             className="flex p-1 cursor-pointer"
             style={{ background: "none", border: "none", color: "var(--tc-text-muted)" }}
           >
-            <X size={16} />
+            <X size={ICON.sm} />
           </button>
         </div>
       )}
@@ -144,7 +144,7 @@ export default function CommunicationPage() {
               className="flex p-1.5 cursor-pointer"
               style={{ background: "none", border: "none", color: searchOpen ? "var(--tc-primary)" : "var(--tc-text-muted)" }}
             >
-              <Search size={18} />
+              <Search size={ICON.md} />
             </button>
           )}
           {canWrite && (
@@ -153,7 +153,7 @@ export default function CommunicationPage() {
               className="flex p-1.5 cursor-pointer"
               style={{ background: "none", border: "none", color: "var(--tc-primary)" }}
             >
-              <Plus size={18} />
+              <Plus size={ICON.md} />
             </button>
           )}
         </div>

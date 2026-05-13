@@ -2,6 +2,7 @@
 // PATH: src/app_teacher/domains/settings/pages/TeacherSettingsPage.tsx
 // 설정 — 프로필 편집 + 비밀번호 변경 + 테마 선택 + 푸시 알림 + PWA
 import { useState, useMemo, useEffect } from "react";
+import { ICON } from "@/shared/ui/ds";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import useAuth from "@/auth/hooks/useAuth";
@@ -15,7 +16,6 @@ import { THEMES, type ThemeKey, type ThemeMeta, isThemeKey } from "@admin/domain
 import { applyThemeToDom, loadThemeFromStorage } from "@admin/domains/settings/theme/themeRuntime";
 import { useConfirm } from "@/shared/ui/confirm";
 import api from "@/shared/api/axios";
-
 /* ─── API ─── */
 async function updateProfile(payload: { name?: string; phone?: string; username?: string }) {
   const { data } = await api.patch("/core/profile/update_me/", payload);
@@ -116,17 +116,17 @@ export default function TeacherSettingsPage() {
   const themeGroups: ThemeGroup[] = useMemo(() => [
     {
       id: "WHITE", label: "라이트",
-      icon: <Sun size={14} style={{ color: "var(--tc-text-muted)" }} />,
+      icon: <Sun size={ICON.xs} style={{ color: "var(--tc-text-muted)" }} />,
       themes: THEMES.filter((t) => t.group === "WHITE"),
     },
     {
       id: "DARK", label: "다크",
-      icon: <Moon size={14} style={{ color: "var(--tc-text-muted)" }} />,
+      icon: <Moon size={ICON.xs} style={{ color: "var(--tc-text-muted)" }} />,
       themes: THEMES.filter((t) => t.group === "DARK"),
     },
     {
       id: "BRAND", label: "브랜드",
-      icon: <Palette size={14} style={{ color: "var(--tc-text-muted)" }} />,
+      icon: <Palette size={ICON.xs} style={{ color: "var(--tc-text-muted)" }} />,
       themes: THEMES.filter((t) => t.group === "BRAND"),
     },
   ], []);
@@ -139,7 +139,7 @@ export default function TeacherSettingsPage() {
       {/* Header */}
       <div className="flex items-center gap-2 py-0.5">
         <button onClick={() => navigate(-1)} className="flex p-1 cursor-pointer" style={{ background: "none", border: "none", color: "var(--tc-text-secondary)" }}>
-          <ChevronLeft size={20} />
+          <ChevronLeft size={ICON.lg} />
         </button>
         <h1 className="text-[17px] font-bold" style={{ color: "var(--tc-text)" }}>설정</h1>
       </div>
@@ -153,14 +153,14 @@ export default function TeacherSettingsPage() {
             {name[0]}
           </div>
           <div className="flex-1 min-w-0">
-            <div className="text-[15px] font-bold" style={{ color: "var(--tc-text)" }}>{name}</div>
+            <div className="ds-text-name font-bold" style={{ color: "var(--tc-text)" }}>{name}</div>
             <div className="text-[12px]" style={{ color: "var(--tc-text-muted)" }}>{roleLabel} · {user?.username}</div>
           </div>
           {!editingProfile && (
             <button onClick={() => { setEditingProfile(true); setNameInput(user?.name || ""); setPhoneInput(user?.phone || ""); setUsernameInput(user?.username || ""); }}
               className="flex items-center gap-1 text-xs font-semibold cursor-pointer"
               style={{ padding: "6px 12px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary-bg)", color: "var(--tc-primary)" }}>
-              <Pencil size={14} /> 편집
+              <Pencil size={ICON.xs} /> 편집
             </button>
           )}
         </div>
@@ -171,8 +171,8 @@ export default function TeacherSettingsPage() {
             <FieldInput label="전화" value={phoneInput} onChange={setPhoneInput} placeholder="010-0000-0000" type="tel" />
             <FieldInput label="아이디" value={usernameInput} onChange={setUsernameInput} placeholder="로그인 아이디" />
             <div className="flex gap-2 mt-1">
-              <SmBtn label="저장" primary loading={profileMut.isPending} onClick={() => profileMut.mutate()} icon={<Save size={16} />} />
-              <SmBtn label="취소" onClick={() => setEditingProfile(false)} icon={<X size={16} />} />
+              <SmBtn label="저장" primary loading={profileMut.isPending} onClick={() => profileMut.mutate()} icon={<Save size={ICON.sm} />} />
+              <SmBtn label="취소" onClick={() => setEditingProfile(false)} icon={<X size={ICON.sm} />} />
             </div>
           </div>
         )}
@@ -186,9 +186,9 @@ export default function TeacherSettingsPage() {
           <button onClick={() => setPwOpen(true)}
             className="flex items-center gap-2 w-full text-left cursor-pointer"
             style={{ padding: "10px 0", background: "none", border: "none", color: "var(--tc-text)" }}>
-            <Lock size={16} style={{ color: "var(--tc-text-muted)" }} />
+            <Lock size={ICON.sm} style={{ color: "var(--tc-text-muted)" }} />
             <span className="text-sm">비밀번호 변경</span>
-            <ChevronLeft size={14} style={{ transform: "rotate(180deg)", marginLeft: "auto", color: "var(--tc-text-muted)" }} />
+            <ChevronLeft size={ICON.xs} style={{ transform: "rotate(180deg)", marginLeft: "auto", color: "var(--tc-text-muted)" }} />
           </button>
         ) : (
           <div className="flex flex-col gap-2">
@@ -199,8 +199,8 @@ export default function TeacherSettingsPage() {
               <div className="text-[11px]" style={{ color: "var(--tc-danger)" }}>비밀번호가 일치하지 않습니다</div>
             )}
             <div className="flex gap-2 mt-1">
-              <SmBtn label="변경" primary disabled={!pwValid} loading={pwMut.isPending} onClick={() => pwMut.mutate()} icon={<Check size={16} />} />
-              <SmBtn label="취소" onClick={() => { setPwOpen(false); setOldPw(""); setNewPw(""); setNewPwConfirm(""); }} icon={<X size={16} />} />
+              <SmBtn label="변경" primary disabled={!pwValid} loading={pwMut.isPending} onClick={() => pwMut.mutate()} icon={<Check size={ICON.sm} />} />
+              <SmBtn label="취소" onClick={() => { setPwOpen(false); setOldPw(""); setNewPw(""); setNewPwConfirm(""); }} icon={<X size={ICON.sm} />} />
             </div>
           </div>
         )}
@@ -269,7 +269,7 @@ export default function TeacherSettingsPage() {
             style={{ padding: "10px 12px", background: "var(--tc-primary-bg)", border: "1px solid var(--tc-primary)", borderRadius: "var(--tc-radius)" }}>
             <div className="w-8 h-8 rounded-md flex items-center justify-center shrink-0"
               style={{ background: "var(--tc-primary)", color: "#fff" }}>
-              <Smartphone size={16} />
+              <Smartphone size={ICON.sm} />
             </div>
             <div className="flex-1">
               <div className="text-[13px] font-semibold" style={{ color: "var(--tc-primary)" }}>홈 화면에 추가</div>
@@ -280,7 +280,7 @@ export default function TeacherSettingsPage() {
         {isInstalled && (
           <div className="flex items-center gap-2"
             style={{ padding: "8px 12px", background: "var(--tc-success-bg)", borderRadius: "var(--tc-radius)", border: "1px solid var(--tc-success)" }}>
-            <Check size={14} style={{ color: "var(--tc-success)" }} />
+            <Check size={ICON.xs} style={{ color: "var(--tc-success)" }} />
             <span className="text-[12px] font-medium" style={{ color: "var(--tc-success)" }}>앱이 설치되어 있습니다</span>
           </div>
         )}
@@ -463,7 +463,7 @@ function OrgSection() {
           <button onClick={() => { setOrgName(info?.name || ""); setOrgPhone(info?.phone || ""); setEditing(true); }}
             className="flex items-center gap-1 text-xs font-semibold cursor-pointer mt-2"
             style={{ padding: "6px 12px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary-bg)", color: "var(--tc-primary)" }}>
-            <Pencil size={14} /> 편집
+            <Pencil size={ICON.xs} /> 편집
           </button>
         </div>
       ) : (
@@ -471,8 +471,8 @@ function OrgSection() {
           <FieldInput label="학원명" value={orgName} onChange={setOrgName} placeholder="학원 이름" />
           <FieldInput label="전화번호" value={orgPhone} onChange={setOrgPhone} placeholder="대표 전화" type="tel" />
           <div className="flex gap-2">
-            <SmBtn label="저장" primary loading={saveMut.isPending} onClick={() => saveMut.mutate()} icon={<Save size={16} />} />
-            <SmBtn label="취소" onClick={() => setEditing(false)} icon={<X size={16} />} />
+            <SmBtn label="저장" primary loading={saveMut.isPending} onClick={() => saveMut.mutate()} icon={<Save size={ICON.sm} />} />
+            <SmBtn label="취소" onClick={() => setEditing(false)} icon={<X size={ICON.sm} />} />
           </div>
         </div>
       )}

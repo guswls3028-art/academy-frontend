@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { EmptyState } from "@/shared/ui/ds";
+import { EmptyState , ICON } from "@/shared/ui/ds";
 import { Card, BackButton } from "@teacher/shared/ui/Card";
 import { Badge } from "@teacher/shared/ui/Badge";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
@@ -75,7 +75,7 @@ export default function FeesInvoicesPage() {
       {/* Search */}
       <div className="flex items-center gap-2 rounded-xl"
         style={{ padding: "8px 12px", background: "var(--tc-surface)", border: "1px solid var(--tc-border)" }}>
-        <Search size={16} style={{ color: "var(--tc-text-muted)", flexShrink: 0 }} />
+        <Search size={ICON.sm} style={{ color: "var(--tc-text-muted)", flexShrink: 0 }} />
         <input
           type="text"
           value={search}
@@ -151,7 +151,7 @@ export default function FeesInvoicesPage() {
                   </div>
                 )}
               </div>
-              <ChevronRight size={14} style={{ color: "var(--tc-text-muted)" }} />
+              <ChevronRight size={ICON.xs} style={{ color: "var(--tc-text-muted)" }} />
             </button>
           ))}
         </div>

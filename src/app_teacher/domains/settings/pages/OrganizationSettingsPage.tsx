@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { EmptyState } from "@/shared/ui/ds";
+import { EmptyState , ICON } from "@/shared/ui/ds";
 import { Card, SectionTitle, BackButton } from "@teacher/shared/ui/Card";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { Plus, Trash2 } from "@teacher/shared/ui/Icons";
@@ -109,7 +109,7 @@ export default function OrganizationSettingsPage() {
                   color: "var(--tc-primary)",
                 }}
               >
-                <Plus size={14} /> 학원 추가
+                <Plus size={ICON.xs} /> 학원 추가
               </button>
             }
           >
@@ -153,7 +153,7 @@ export default function OrganizationSettingsPage() {
                         color: "var(--tc-danger)",
                       }}
                     >
-                      <Trash2 size={14} /> 제거
+                      <Trash2 size={ICON.xs} /> 제거
                     </button>
                   </div>
                 </Card>

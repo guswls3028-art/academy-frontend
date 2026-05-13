@@ -3,6 +3,7 @@
 // 게시글/공지 작성 바텀시트 — 스코프 선택(전체/강의/차시) 포함
 // R-11: 기존 인라인 style baseline. 마이그레이션은 별도 백로그.
 import { useState, useMemo, useRef } from "react";
+import { ICON } from "@/shared/ui/ds";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchScopeNodes, createPost, uploadPostAttachment, type ScopeNode } from "../api";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
@@ -11,7 +12,6 @@ import { AlertCircle, ChevronDown, Paperclip, X, Bell } from "@teacher/shared/ui
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import api from "@/shared/api/axios";
-
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -205,7 +205,7 @@ export default function CreatePostSheet({ open, onClose, postType, postTypeLabel
           <label className="flex items-center gap-2 cursor-pointer">
             <input type="checkbox" checked={isUrgent} onChange={(e) => setIsUrgent(e.target.checked)}
               style={{ accentColor: "var(--tc-danger)" }} />
-            <AlertCircle size={14} style={{ color: "var(--tc-danger)" }} />
+            <AlertCircle size={ICON.xs} style={{ color: "var(--tc-danger)" }} />
             <span className="text-[13px] font-medium" style={{ color: "var(--tc-text)" }}>긴급 공지</span>
           </label>
         )}
@@ -219,7 +219,7 @@ export default function CreatePostSheet({ open, onClose, postType, postTypeLabel
           }}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Bell size={14} style={{ color: sendNotify ? "var(--tc-primary)" : "var(--tc-text-muted)" }} />
+                <Bell size={ICON.xs} style={{ color: sendNotify ? "var(--tc-primary)" : "var(--tc-text-muted)" }} />
                 <div>
                   <div className="text-[13px] font-semibold" style={{ color: "var(--tc-text)" }}>작성 후 알림 발송</div>
                   <div className="text-[11px]" style={{ color: "var(--tc-text-muted)" }}>
@@ -259,7 +259,7 @@ export default function CreatePostSheet({ open, onClose, postType, postTypeLabel
           <button onClick={() => fileRef.current?.click()} type="button"
             className="flex items-center gap-1.5 text-[12px] font-medium cursor-pointer"
             style={{ padding: "6px 10px", borderRadius: "var(--tc-radius-sm)", border: "1px dashed var(--tc-border-strong)", background: "none", color: "var(--tc-text-secondary)" }}>
-            <Paperclip size={16} /> 파일 선택
+            <Paperclip size={ICON.sm} /> 파일 선택
           </button>
           <input ref={fileRef} type="file" multiple onChange={(e) => {
             const selected = Array.from(e.target.files || []);
@@ -332,7 +332,7 @@ function SelectField({ label, value, onChange, options, placeholder }: {
             <option key={opt.value} value={opt.value}>{opt.label}</option>
           ))}
         </select>
-        <ChevronDown size={14} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", color: "var(--tc-text-muted)", pointerEvents: "none" }} />
+        <ChevronDown size={ICON.xs} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", color: "var(--tc-text-muted)", pointerEvents: "none" }} />
       </div>
     </div>
   );

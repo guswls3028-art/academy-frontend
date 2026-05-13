@@ -4,18 +4,18 @@
  * 용어·순서: PC 사이드바 SSOT와 통일
  */
 import { NavLink } from "react-router-dom";
+import { ICON } from "@/shared/ui/ds";
 import { useTeacherPendingCounts } from "@teacher/shared/hooks/useTeacherPendingCounts";
 import { Home, BookOpen, Users, MessageSquare } from "@teacher/shared/ui/Icons";
-
 export default function TeacherTabBar() {
   const { counts } = useTeacherPendingCounts();
   const badge = counts?.total ?? 0;
 
   const tabs = [
-    { to: "/teacher", label: "대시보드", icon: <Home size={22} />, end: true },
-    { to: "/teacher/students", label: "학생", icon: <Users size={22} /> },
-    { to: "/teacher/classes", label: "강의", icon: <BookOpen size={22} /> },
-    { to: "/teacher/comms", label: "커뮤니티", icon: <MessageSquare size={22} />, hasBadge: true },
+    { to: "/teacher", label: "대시보드", icon: <Home size={ICON.lg} />, end: true },
+    { to: "/teacher/students", label: "학생", icon: <Users size={ICON.lg} /> },
+    { to: "/teacher/classes", label: "강의", icon: <BookOpen size={ICON.lg} /> },
+    { to: "/teacher/comms", label: "커뮤니티", icon: <MessageSquare size={ICON.lg} />, hasBadge: true },
   ];
 
   return (

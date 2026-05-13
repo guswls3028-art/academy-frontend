@@ -3,7 +3,7 @@
 // 요금제/구독 조회 — 현재 요금제, 상태, 남은 일수, 결제 예정일
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { EmptyState } from "@/shared/ui/ds";
+import { EmptyState , ICON } from "@/shared/ui/ds";
 import { ChevronLeft, AlertCircle, CheckCircle, Award } from "@teacher/shared/ui/Icons";
 import { Card } from "@teacher/shared/ui/Card";
 import { Badge } from "@teacher/shared/ui/Badge";
@@ -103,7 +103,7 @@ export default function BillingPage() {
       <div className="flex items-center gap-2 py-0.5">
         <button onClick={() => navigate(-1)} className="flex p-1 cursor-pointer"
           style={{ background: "none", border: "none", color: "var(--tc-text-secondary)" }}>
-          <ChevronLeft size={20} />
+          <ChevronLeft size={ICON.lg} />
         </button>
         <h1 className="text-[17px] font-bold flex-1" style={{ color: "var(--tc-text)" }}>결제 / 구독</h1>
       </div>
@@ -140,7 +140,7 @@ export default function BillingPage() {
       <Card>
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <Award size={18} style={{ color: "var(--tc-primary)" }} />
+            <Award size={ICON.md} style={{ color: "var(--tc-primary)" }} />
             <span className="text-[18px] font-bold" style={{ color: "var(--tc-text)" }}>{data.plan_display}</span>
           </div>
           <Badge tone={statusTone}>{data.subscription_status_display}</Badge>
@@ -190,7 +190,7 @@ export default function BillingPage() {
               <div key={c.id} className="flex items-center justify-between"
                 style={{ padding: "10px 12px", borderRadius: "var(--tc-radius-sm)", background: "var(--tc-surface-soft)" }}>
                 <div className="flex items-center gap-2">
-                  <CheckCircle size={14} style={{ color: c.is_active ? "var(--tc-success)" : "var(--tc-text-muted)" }} />
+                  <CheckCircle size={ICON.xs} style={{ color: c.is_active ? "var(--tc-success)" : "var(--tc-text-muted)" }} />
                   <div>
                     <div className="text-[13px] font-semibold" style={{ color: "var(--tc-text)" }}>
                       {c.card_company ?? "카드"}

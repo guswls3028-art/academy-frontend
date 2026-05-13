@@ -3,6 +3,7 @@
  * 사이드 드로어 — PC 사이드바 구조 1:1 매칭. 4그룹 + Lucide 아이콘
  */
 import { useEffect } from "react";
+import { ICON } from "@/shared/ui/ds";
 import { useNavigate, useLocation } from "react-router-dom";
 import useAuth from "@/auth/hooks/useAuth";
 import { setPreferAdmin } from "@/core/router/MobileTeacherRedirect";
@@ -14,7 +15,6 @@ import {
   Monitor, LogOut, AlertCircle, X, FolderPlus, Calendar,
   RefreshCw, Bug, Wrench,
 } from "@teacher/shared/ui/Icons";
-
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -44,29 +44,29 @@ export default function TeacherDrawer({ open, onClose }: Props) {
     {
       title: "메인",
       items: [
-        { label: "대시보드", path: "/teacher", icon: <Home size={18} /> },
-        { label: "학생", path: "/teacher/students", icon: <Users size={18} /> },
-        { label: "강의", path: "/teacher/classes", icon: <BookOpen size={18} /> },
-        { label: "클리닉", path: "/teacher/clinic", icon: <Activity size={18} /> },
-        { label: "클리닉 리모컨", path: "/teacher/clinic/remote", icon: <RefreshCw size={18} /> },
-        { label: "클리닉 보고서", path: "/teacher/clinic/reports", icon: <Calendar size={18} /> },
+        { label: "대시보드", path: "/teacher", icon: <Home size={ICON.md} /> },
+        { label: "학생", path: "/teacher/students", icon: <Users size={ICON.md} /> },
+        { label: "강의", path: "/teacher/classes", icon: <BookOpen size={ICON.md} /> },
+        { label: "클리닉", path: "/teacher/clinic", icon: <Activity size={ICON.md} /> },
+        { label: "클리닉 리모컨", path: "/teacher/clinic/remote", icon: <RefreshCw size={ICON.md} /> },
+        { label: "클리닉 보고서", path: "/teacher/clinic/reports", icon: <Calendar size={ICON.md} /> },
       ],
     },
     {
       title: "학습·운영",
       items: [
-        { label: "시험", path: "/teacher/exams", icon: <ClipboardList size={18} /> },
-        { label: "제출함", path: "/teacher/submissions", icon: <Send size={18} />, badge: counts?.recentSubmissions },
-        { label: "템플릿 관리", path: "/teacher/exams/templates", icon: <FileText size={18} /> },
-        { label: "시험 묶음", path: "/teacher/exams/bundles", icon: <FolderPlus size={18} /> },
-        { label: "성적", path: "/teacher/results", icon: <Award size={18} /> },
-        { label: "영상", path: "/teacher/videos", icon: <Video size={18} /> },
-        { label: "발송 내역", path: "/teacher/message-log", icon: <Send size={18} /> },
-        { label: "템플릿 저장", path: "/teacher/message-templates", icon: <FileText size={18} /> },
-        ...(isOwnerOrAdmin ? [{ label: "메시지 설정", path: "/teacher/messaging-settings", icon: <Settings size={18} /> }] : []),
-        { label: "자료 저장소", path: "/teacher/storage", icon: <FolderPlus size={18} /> },
-        { label: "학생 인벤토리", path: "/teacher/storage/inventory", icon: <Users size={18} /> },
-        { label: "상담 메모", path: "/teacher/counseling", icon: <FileText size={18} /> },
+        { label: "시험", path: "/teacher/exams", icon: <ClipboardList size={ICON.md} /> },
+        { label: "제출함", path: "/teacher/submissions", icon: <Send size={ICON.md} />, badge: counts?.recentSubmissions },
+        { label: "템플릿 관리", path: "/teacher/exams/templates", icon: <FileText size={ICON.md} /> },
+        { label: "시험 묶음", path: "/teacher/exams/bundles", icon: <FolderPlus size={ICON.md} /> },
+        { label: "성적", path: "/teacher/results", icon: <Award size={ICON.md} /> },
+        { label: "영상", path: "/teacher/videos", icon: <Video size={ICON.md} /> },
+        { label: "발송 내역", path: "/teacher/message-log", icon: <Send size={ICON.md} /> },
+        { label: "템플릿 저장", path: "/teacher/message-templates", icon: <FileText size={ICON.md} /> },
+        ...(isOwnerOrAdmin ? [{ label: "메시지 설정", path: "/teacher/messaging-settings", icon: <Settings size={ICON.md} /> }] : []),
+        { label: "자료 저장소", path: "/teacher/storage", icon: <FolderPlus size={ICON.md} /> },
+        { label: "학생 인벤토리", path: "/teacher/storage/inventory", icon: <Users size={ICON.md} /> },
+        { label: "상담 메모", path: "/teacher/counseling", icon: <FileText size={ICON.md} /> },
       ],
     },
     {
@@ -74,29 +74,29 @@ export default function TeacherDrawer({ open, onClose }: Props) {
       items: [
         ...(isOwnerOrAdmin
           ? [
-              { label: "수납", path: "/teacher/fees", icon: <Award size={18} /> },
-              { label: "청구서", path: "/teacher/fees/invoices", icon: <FileText size={18} /> },
+              { label: "수납", path: "/teacher/fees", icon: <Award size={ICON.md} /> },
+              { label: "청구서", path: "/teacher/fees/invoices", icon: <FileText size={ICON.md} /> },
             ]
           : []),
-        { label: "커뮤니티", path: "/teacher/comms", icon: <MessageSquare size={18} />, badge: counts?.total },
-        { label: "타이머", path: "/teacher/tools/stopwatch", icon: <Clock size={18} /> },
-        ...(isOwnerOrAdmin ? [{ label: "직원 관리", path: "/teacher/staff", icon: <Users size={18} /> }] : []),
-        { label: "근태 / 지출", path: "/teacher/my-records", icon: <Clock size={18} /> },
-        { label: "알림 센터", path: "/teacher/notifications", icon: <Bell size={18} />, badge: counts?.total },
-        { label: "프로필", path: "/teacher/profile", icon: <User size={18} /> },
-        ...(isOwnerOrAdmin ? [{ label: "결제 / 구독", path: "/teacher/billing", icon: <Award size={18} /> }] : []),
-        ...(isOwnerOrAdmin ? [{ label: "학원 정보", path: "/teacher/settings/organization", icon: <Settings size={18} /> }] : []),
-        { label: "테마", path: "/teacher/settings/appearance", icon: <Settings size={18} /> },
-        { label: "설정", path: "/teacher/settings", icon: <Settings size={18} /> },
-        { label: "PC에서 처리하는 기능", path: "/teacher/desktop-only", icon: <Monitor size={18} /> },
+        { label: "커뮤니티", path: "/teacher/comms", icon: <MessageSquare size={ICON.md} />, badge: counts?.total },
+        { label: "타이머", path: "/teacher/tools/stopwatch", icon: <Clock size={ICON.md} /> },
+        ...(isOwnerOrAdmin ? [{ label: "직원 관리", path: "/teacher/staff", icon: <Users size={ICON.md} /> }] : []),
+        { label: "근태 / 지출", path: "/teacher/my-records", icon: <Clock size={ICON.md} /> },
+        { label: "알림 센터", path: "/teacher/notifications", icon: <Bell size={ICON.md} />, badge: counts?.total },
+        { label: "프로필", path: "/teacher/profile", icon: <User size={ICON.md} /> },
+        ...(isOwnerOrAdmin ? [{ label: "결제 / 구독", path: "/teacher/billing", icon: <Award size={ICON.md} /> }] : []),
+        ...(isOwnerOrAdmin ? [{ label: "학원 정보", path: "/teacher/settings/organization", icon: <Settings size={ICON.md} /> }] : []),
+        { label: "테마", path: "/teacher/settings/appearance", icon: <Settings size={ICON.md} /> },
+        { label: "설정", path: "/teacher/settings", icon: <Settings size={ICON.md} /> },
+        { label: "PC에서 처리하는 기능", path: "/teacher/desktop-only", icon: <Monitor size={ICON.md} /> },
       ],
     },
     {
       title: "To개발자",
       items: [
-        { label: "패치노트", path: "/teacher/developer", icon: <FileText size={18} /> },
-        { label: "버그 제보", path: "/teacher/developer/bug", icon: <Bug size={18} /> },
-        { label: "피드백", path: "/teacher/developer/feedback", icon: <MessageSquare size={18} /> },
+        { label: "패치노트", path: "/teacher/developer", icon: <FileText size={ICON.md} /> },
+        { label: "버그 제보", path: "/teacher/developer/bug", icon: <Bug size={ICON.md} /> },
+        { label: "피드백", path: "/teacher/developer/feedback", icon: <MessageSquare size={ICON.md} /> },
       ],
     },
   ];
@@ -190,7 +190,7 @@ export default function TeacherDrawer({ open, onClose }: Props) {
               display: "flex",
             }}
           >
-            <X size={18} />
+            <X size={ICON.md} />
           </button>
         </div>
 
@@ -290,7 +290,7 @@ export default function TeacherDrawer({ open, onClose }: Props) {
               textAlign: "left",
             }}
           >
-            <Monitor size={18} />
+            <Monitor size={ICON.md} />
             데스크톱 버전
           </button>
 
@@ -314,7 +314,7 @@ export default function TeacherDrawer({ open, onClose }: Props) {
               textAlign: "left",
             }}
           >
-            <AlertCircle size={18} />
+            <AlertCircle size={ICON.md} />
             문제 신고
           </button>
 
@@ -336,7 +336,7 @@ export default function TeacherDrawer({ open, onClose }: Props) {
               textAlign: "left",
             }}
           >
-            <LogOut size={18} />
+            <LogOut size={ICON.md} />
             로그아웃
           </button>
         </div>

@@ -4,7 +4,7 @@
 import { useState, useDeferredValue } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { EmptyState } from "@/shared/ui/ds";
+import { EmptyState , ICON } from "@/shared/ui/ds";
 import { formatPhone } from "@/shared/utils/formatPhone";
 import LectureChip from "@/shared/ui/chips/LectureChip";
 import { Search, Filter, ChevronRight, Plus, Download, Upload, Check, X, Trash2, Tag, MessageSquare, Lock } from "@teacher/shared/ui/Icons";
@@ -102,7 +102,7 @@ export default function StudentListPage() {
             <button onClick={() => setCreateOpen(true)}
               className="flex items-center gap-1 text-xs font-bold cursor-pointer"
               style={{ padding: "8px 14px", minHeight: "var(--tc-touch-min)", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff" }}>
-              <Plus size={14} /> 추가
+              <Plus size={ICON.xs} /> 추가
             </button>
           </div>
         </div>
@@ -111,7 +111,7 @@ export default function StudentListPage() {
           style={{ padding: "8px 10px", borderRadius: "var(--tc-radius)", background: "var(--tc-primary-bg)", border: "1px solid var(--tc-primary)" }}>
           <button onClick={exitSelectMode} className="flex p-1 cursor-pointer"
             style={{ background: "none", border: "none", color: "var(--tc-primary)" }}>
-            <X size={16} />
+            <X size={ICON.sm} />
           </button>
           <div className="flex-1 text-[13px] font-bold" style={{ color: "var(--tc-primary)" }}>
             {selectedCount}명 선택됨
@@ -139,11 +139,11 @@ export default function StudentListPage() {
             }}
             className="flex items-center gap-2 text-sm cursor-pointer"
             style={{ padding: "10px 12px", minHeight: "var(--tc-touch-min)", borderRadius: "var(--tc-radius-sm)", border: "none", background: "none", color: "var(--tc-text)", textAlign: "left" }}>
-            <Download size={14} /> 엑셀 내보내기
+            <Download size={ICON.xs} /> 엑셀 내보내기
           </button>
           <label className="flex items-center gap-2 text-sm cursor-pointer"
             style={{ padding: "10px 12px", minHeight: "var(--tc-touch-min)", borderRadius: "var(--tc-radius-sm)", border: "none", background: "none", color: "var(--tc-text)" }}>
-            <Upload size={14} /> 엑셀 가져오기
+            <Upload size={ICON.xs} /> 엑셀 가져오기
             <input type="file" accept=".xlsx,.xls,.csv" style={{ display: "none" }}
               onChange={(e) => {
                 const f = e.target.files?.[0];
@@ -167,7 +167,7 @@ export default function StudentListPage() {
         <>
           <div className="flex gap-2">
             <div className="relative flex-1">
-              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "var(--tc-text-muted)" }} />
+              <Search size={ICON.sm} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "var(--tc-text-muted)" }} />
               <input type="text" placeholder="이름, 아이디, 전화번호, 학교" value={search} onChange={(e) => setSearch(e.target.value)}
                 className="w-full text-sm outline-none"
                 style={{ padding: "10px 12px 10px 36px", border: "1px solid var(--tc-border-strong)", borderRadius: "var(--tc-radius)", background: "var(--tc-surface)", color: "var(--tc-text)" }} />
@@ -180,7 +180,7 @@ export default function StudentListPage() {
                 background: hasFilter ? "var(--tc-primary-bg)" : "var(--tc-surface)",
                 color: hasFilter ? "var(--tc-primary)" : "var(--tc-text-muted)",
               }}>
-              <Filter size={18} />
+              <Filter size={ICON.md} />
             </button>
           </div>
 
@@ -229,13 +229,13 @@ export default function StudentListPage() {
                       background: isSelected ? "var(--tc-primary)" : "var(--tc-surface)",
                       color: "#fff",
                     }}>
-                    {isSelected && <Check size={14} />}
+                    {isSelected && <Check size={ICON.xs} />}
                   </div>
                 )}
                 <div className="w-10 h-10 rounded-full flex items-center justify-center text-base font-bold shrink-0" style={{ background: "var(--tc-primary-bg)", color: "var(--tc-primary)" }}>{name[0]}</div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className="text-[15px] font-semibold" style={{ color: "var(--tc-text)" }}>{name}</span>
+                    <span className="ds-text-name font-semibold" style={{ color: "var(--tc-text)" }}>{name}</span>
                     {enrollments.map((e: any) => (
                       <LectureChip key={e.id ?? e.lectureId} lectureName={e.lectureName ?? e.lecture_title ?? ""} color={e.lectureColor ?? e.lecture_color} chipLabel={e.lectureChipLabel ?? e.lecture_chip_label} size={20} />
                     ))}
@@ -248,7 +248,7 @@ export default function StudentListPage() {
                     </div>
                   )}
                 </div>
-                {!selectMode && <ChevronRight size={16} className="shrink-0 self-center" style={{ color: "var(--tc-text-muted)" }} />}
+                {!selectMode && <ChevronRight size={ICON.sm} className="shrink-0 self-center" style={{ color: "var(--tc-text-muted)" }} />}
               </button>
             );
           })}
@@ -269,10 +269,10 @@ export default function StudentListPage() {
             zIndex: 230,
           }}>
           <div className="flex gap-2">
-            <BulkBtn icon={<MessageSquare size={14} />} label="문자" onClick={() => setBulkAction("message")} />
-            <BulkBtn icon={<Tag size={14} />} label="태그" onClick={() => setBulkAction("tag")} />
-            <BulkBtn icon={<Lock size={14} />} label="비번초기화" onClick={() => setBulkAction("password")} />
-            <BulkBtn icon={<Trash2 size={14} />} label="삭제" tone="danger"
+            <BulkBtn icon={<MessageSquare size={ICON.xs} />} label="문자" onClick={() => setBulkAction("message")} />
+            <BulkBtn icon={<Tag size={ICON.xs} />} label="태그" onClick={() => setBulkAction("tag")} />
+            <BulkBtn icon={<Lock size={ICON.xs} />} label="비번초기화" onClick={() => setBulkAction("password")} />
+            <BulkBtn icon={<Trash2 size={ICON.xs} />} label="삭제" tone="danger"
               onClick={async () => {
                 const ok = await confirm({ title: `학생 ${selectedCount}명 삭제`, message: "30일 이내 복구할 수 있습니다. 삭제하시겠습니까?", confirmText: "삭제", danger: true });
                 if (ok) deleteMut.mutate(Array.from(selectedIds));
@@ -542,7 +542,7 @@ function BulkPasswordSheet({ open, onClose, students, onDone }: {
         <div className="flex items-center justify-between"
           style={{ padding: "10px 12px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border-subtle)", background: notify ? "var(--tc-primary-bg)" : "var(--tc-surface-soft)" }}>
           <div className="flex items-center gap-2">
-            <MessageSquare size={14} style={{ color: notify ? "var(--tc-primary)" : "var(--tc-text-muted)" }} />
+            <MessageSquare size={ICON.xs} style={{ color: notify ? "var(--tc-primary)" : "var(--tc-text-muted)" }} />
             <div>
               <div className="text-[13px] font-semibold" style={{ color: "var(--tc-text)" }}>임시 비밀번호 알림톡</div>
               <div className="text-[11px]" style={{ color: "var(--tc-text-muted)" }}>

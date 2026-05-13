@@ -1,6 +1,7 @@
 // PATH: src/app_teacher/domains/developer/pages/DeveloperPages.tsx
 // To개발자 — 패치노트 · 버그 제보 · 피드백 (모바일)
 import { useState, useEffect } from "react";
+import { ICON } from "@/shared/ui/ds";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, SectionTitle, BackButton } from "@teacher/shared/ui/Card";
@@ -17,7 +18,6 @@ import {
   type PatchNote,
   type NoteCategory,
 } from "@admin/domains/developer/pages/patchNotesData";
-
 const CATEGORY_LABEL: Record<NoteCategory, string> = {
   new: "NEW",
   fix: "FIX",
@@ -260,7 +260,7 @@ function SubmissionForm({ kind }: { kind: "bug" | "feedback" }) {
             color: "var(--tc-text-secondary)",
           }}
         >
-          <ImagePlus size={16} />
+          <ImagePlus size={ICON.sm} />
           <span className="text-[13px] font-semibold">스크린샷 / 사진 첨부</span>
           <input
             type="file"
@@ -321,7 +321,7 @@ function SubmissionForm({ kind }: { kind: "bug" | "feedback" }) {
           color: "#fff",
         }}
       >
-        <Send size={14} />
+        <Send size={ICON.xs} />
         {submitMut.isPending ? "전송 중…" : "보내기"}
       </button>
     </div>

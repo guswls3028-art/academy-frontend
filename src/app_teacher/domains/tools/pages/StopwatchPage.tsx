@@ -1,12 +1,12 @@
 // PATH: src/app_teacher/domains/tools/pages/StopwatchPage.tsx
 // 모바일 스톱워치 — 내장 타이머 + PC 타이머 exe 다운로드 옵션
 import { useEffect, useRef, useState } from "react";
+import { ICON } from "@/shared/ui/ds";
 import { useNavigate } from "react-router-dom";
 import { Card, SectionTitle, BackButton } from "@teacher/shared/ui/Card";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { Download } from "@teacher/shared/ui/Icons";
 import { fetchTimerDownloadUrl } from "@admin/domains/tools/stopwatch/api/timer.api";
-
 function formatElapsed(ms: number): string {
   const total = Math.max(0, Math.floor(ms));
   const h = Math.floor(total / 3_600_000);
@@ -202,7 +202,7 @@ export default function StopwatchPage() {
             color: "var(--tc-text)",
           }}
         >
-          <Download size={14} /> PC 타이머 (.exe) 받기
+          <Download size={ICON.xs} /> PC 타이머 (.exe) 받기
         </button>
       </Card>
     </div>
