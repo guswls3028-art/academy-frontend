@@ -59,6 +59,9 @@ export default function CreateRegularExamModal({
   const [selectedTemplateIds, setSelectedTemplateIds] = useState<Set<number>>(new Set());
   const [keyword, setKeyword] = useState("");
 
+  // 차시 수강생 수 — 자동 등록 미리 알리기 위해 모달 오픈 시 1회 조회
+  const [enrollmentCount, setEnrollmentCount] = useState<number | null>(null);
+
   useEffect(() => {
     if (!open) return;
     setStage("choose");
@@ -69,7 +72,14 @@ export default function CreateRegularExamModal({
     setTemplatesLoading(false);
     setSelectedTemplateIds(new Set());
     setKeyword("");
-  }, [open]);
+    setEnrollmentCount(null);
+    // 차시 수강생 수 preflight — 자동 등록 가능 여부를 미리 안내
+    if (sessionId > 0) {
+      fetchSessionEnrollments(sessionId)
+        .then((list) => setEnrollmentCount(list.length))
+        .catch(() => setEnrollmentCount(null));
+    }
+  }, [open, sessionId]);
 
   useEffect(() => {
     if (!open || stage !== "import") return;
@@ -94,15 +104,20 @@ export default function CreateRegularExamModal({
     return () => { cancelled = true; };
   }, [open, stage]);
 
-  const autoEnroll = useCallback(async (examId: number) => {
+  /**
+   * 차시 수강생을 새로 만든 시험에 응시 대상으로 등록.
+   * 결과(등록 인원/실패 사유)는 호출 측에서 묶어서 단일 toast로 표시.
+   * → 시험 N개 동시 생성 시 toast가 N번 뜨지 않도록 silent 동작, 호출 측이 결과 집계.
+   */
+  const autoEnroll = useCallback(async (examId: number): Promise<{ enrolled: number; error?: string }> => {
     try {
       const enrollments = await fetchSessionEnrollments(sessionId);
       const ids = enrollments.map((e) => e.enrollment);
-      if (ids.length > 0) {
-        await updateExamEnrollmentRows({ examId, sessionId, enrollment_ids: ids });
-      }
-    } catch {
-      feedback.warning("학생 자동 등록에 실패했습니다. 수동으로 등록해 주세요.");
+      if (ids.length === 0) return { enrolled: 0 };
+      await updateExamEnrollmentRows({ examId, sessionId, enrollment_ids: ids });
+      return { enrolled: ids.length };
+    } catch (e: any) {
+      return { enrolled: 0, error: e?.response?.data?.detail ?? e?.message ?? "자동 등록 실패" };
     }
   }, [sessionId]);
 
@@ -144,6 +159,8 @@ export default function CreateRegularExamModal({
 
     const createdIds: number[] = [];
     const failedTitles: string[] = [];
+    let enrollMaxPerExam = 0;
+    let enrollErrorSample: string | null = null;
 
     for (const row of validRows) {
       try {
@@ -165,8 +182,9 @@ export default function CreateRegularExamModal({
           answer_visibility: "hidden",
         });
 
-        // Auto-enroll students (fire and forget)
-        void autoEnroll(newExamId);
+        const enrollResult = await autoEnroll(newExamId);
+        enrollMaxPerExam = Math.max(enrollMaxPerExam, enrollResult.enrolled);
+        if (enrollResult.error && !enrollErrorSample) enrollErrorSample = enrollResult.error;
 
         createdIds.push(newExamId);
       } catch (e: any) {
@@ -181,13 +199,19 @@ export default function CreateRegularExamModal({
       onCreated(createdIds[createdIds.length - 1]);
     }
 
-    if (failedTitles.length === 0) {
-      feedback.success(`${createdIds.length}개 시험 일괄 생성 완료`);
-      onClose();
-    } else if (createdIds.length > 0) {
-      feedback.warning(
-        `${createdIds.length}개 생성 완료, ${failedTitles.length}개 실패: ${failedTitles.join(", ")}`
-      );
+    if (createdIds.length > 0) {
+      const enrollMsg = enrollErrorSample
+        ? ` · 응시 대상 자동 등록 실패 — 시험 상세에서 직접 등록하세요`
+        : enrollMaxPerExam > 0
+        ? ` · 수강생 ${enrollMaxPerExam}명 응시 대상 등록됨`
+        : ` · 응시 대상이 등록되지 않았습니다 (차시 수강생 0명)`;
+      if (failedTitles.length === 0) {
+        feedback.success(`${createdIds.length}개 시험 생성 완료${enrollMsg}`);
+      } else {
+        feedback.warning(
+          `${createdIds.length}개 생성 완료, ${failedTitles.length}개 실패: ${failedTitles.join(", ")}${enrollMsg}`
+        );
+      }
       onClose();
     } else {
       setError(`시험 생성 실패: ${failedTitles.join(", ")}`);
@@ -212,6 +236,9 @@ export default function CreateRegularExamModal({
     const createdIds: number[] = [];
     const failedTitles: string[] = [];
 
+    let enrollMaxPerExam = 0;
+    let enrollErrorSample: string | null = null;
+
     for (const tpl of selected) {
       try {
         const res = await api.post("/exams/", {
@@ -224,7 +251,9 @@ export default function CreateRegularExamModal({
         const newExamId = Number(res.data?.id);
         if (!newExamId) throw new Error("생성 후 ID를 받지 못했습니다.");
 
-        void autoEnroll(newExamId);
+        const enrollResult = await autoEnroll(newExamId);
+        enrollMaxPerExam = Math.max(enrollMaxPerExam, enrollResult.enrolled);
+        if (enrollResult.error && !enrollErrorSample) enrollErrorSample = enrollResult.error;
         createdIds.push(newExamId);
       } catch {
         failedTitles.push(tpl.title);
@@ -238,11 +267,17 @@ export default function CreateRegularExamModal({
       onCreated(createdIds[createdIds.length - 1]);
     }
 
-    if (failedTitles.length === 0) {
-      feedback.success(`${createdIds.length}개 템플릿 시험 생성 완료`);
-      onClose();
-    } else if (createdIds.length > 0) {
-      feedback.warning(`${createdIds.length}개 생성 완료, ${failedTitles.length}개 실패: ${failedTitles.join(", ")}`);
+    if (createdIds.length > 0) {
+      const enrollMsg = enrollErrorSample
+        ? ` · 응시 대상 자동 등록 실패 — 시험 상세에서 직접 등록하세요`
+        : enrollMaxPerExam > 0
+        ? ` · 수강생 ${enrollMaxPerExam}명 응시 대상 등록됨`
+        : ` · 응시 대상이 등록되지 않았습니다 (차시 수강생 0명)`;
+      if (failedTitles.length === 0) {
+        feedback.success(`${createdIds.length}개 시험 가져오기 완료${enrollMsg}`);
+      } else {
+        feedback.warning(`${createdIds.length}개 가져오기 완료, ${failedTitles.length}개 실패: ${failedTitles.join(", ")}${enrollMsg}`);
+      }
       onClose();
     } else {
       setError(`시험 생성 실패: ${failedTitles.join(", ")}`);
@@ -258,6 +293,9 @@ export default function CreateRegularExamModal({
 
     const createdIds: number[] = [];
     const failedTitles: string[] = [];
+
+    let enrollMaxPerExam = 0;
+    let enrollErrorSample: string | null = null;
 
     for (const item of items) {
       try {
@@ -278,7 +316,9 @@ export default function CreateRegularExamModal({
           answer_visibility: "hidden",
         });
 
-        void autoEnroll(newExamId);
+        const enrollResult = await autoEnroll(newExamId);
+        enrollMaxPerExam = Math.max(enrollMaxPerExam, enrollResult.enrolled);
+        if (enrollResult.error && !enrollErrorSample) enrollErrorSample = enrollResult.error;
         createdIds.push(newExamId);
       } catch {
         failedTitles.push(item.title);
@@ -292,13 +332,19 @@ export default function CreateRegularExamModal({
       onCreated(createdIds[createdIds.length - 1]);
     }
 
-    if (failedTitles.length === 0) {
-      feedback.success(`${createdIds.length}개 시험 불러오기 완료 (복사 생성)`);
-      onClose();
-    } else if (createdIds.length > 0) {
-      feedback.warning(
-        `${createdIds.length}개 생성 완료, ${failedTitles.length}개 실패: ${failedTitles.join(", ")}`
-      );
+    if (createdIds.length > 0) {
+      const enrollMsg = enrollErrorSample
+        ? ` · 응시 대상 자동 등록 실패 — 시험 상세에서 직접 등록하세요`
+        : enrollMaxPerExam > 0
+        ? ` · 수강생 ${enrollMaxPerExam}명 응시 대상 등록됨`
+        : ` · 응시 대상이 등록되지 않았습니다 (차시 수강생 0명)`;
+      if (failedTitles.length === 0) {
+        feedback.success(`${createdIds.length}개 시험 양식 복사 완료${enrollMsg}`);
+      } else {
+        feedback.warning(
+          `${createdIds.length}개 복사 완료, ${failedTitles.length}개 실패: ${failedTitles.join(", ")}${enrollMsg}`
+        );
+      }
       onClose();
     } else {
       setError(`시험 복사 실패: ${failedTitles.join(", ")}`);
@@ -329,10 +375,10 @@ export default function CreateRegularExamModal({
   if (!open) return null;
 
   const stageLabels: Record<Stage, string> = {
-    choose: "시험 생성",
-    new: "일괄 생성",
-    import: "템플릿 불러오기",
-    copy: "다른 차시에서 불러오기",
+    choose: "시험 만들기",
+    new: "직접 만들기",
+    import: "이전 시험에서 가져오기",
+    copy: "다른 차시 양식 복사",
   };
 
   const headerTitle =
@@ -375,11 +421,11 @@ export default function CreateRegularExamModal({
         title={headerTitle}
         description={
           stage === "choose"
-            ? "신규 시험을 만들거나, 기존 시험을 불러와 이 차시에 적용할 수 있습니다. 대상자는 자동 등록됩니다."
+            ? "이 차시에 적용할 시험을 만듭니다. 만들어진 시험에는 차시 수강생이 자동으로 응시 대상으로 등록됩니다."
             : stage === "new"
-            ? "여러 시험을 한번에 생성할 수 있습니다. 행을 추가한 뒤 일괄 생성하세요."
+            ? "제목·만점·커트라인을 입력해 새 시험을 만듭니다. 한 번에 여러 개도 만들 수 있어요."
             : stage === "copy"
-            ? "다른 강의/차시의 시험을 선택하여 현재 차시에 복사 생성합니다."
+            ? "다른 차시의 시험 양식(만점·커트라인)만 가져와 새로 만듭니다. 원본과 별도로 관리됩니다."
             : undefined
         }
       />
@@ -392,10 +438,27 @@ export default function CreateRegularExamModal({
             </div>
           )}
 
+          {/* 차시 수강생 0명 경고 — 자동 등록 거짓말 방지 */}
+          {stage !== "choose" && enrollmentCount === 0 && (
+            <div
+              className="mb-3 flex items-start gap-2 rounded-lg border px-3 py-2.5"
+              style={{
+                borderColor: "color-mix(in srgb, var(--color-warning) 50%, var(--color-border-divider))",
+                background: "color-mix(in srgb, var(--color-warning) 8%, var(--color-bg-surface))",
+              }}
+            >
+              <span aria-hidden="true" style={{ fontSize: 16 }}>⚠</span>
+              <div className="text-xs leading-relaxed">
+                <strong>이 차시에 등록된 수강생이 없습니다.</strong> 시험은 만들 수 있지만 응시 대상이 자동 등록되지 않습니다.
+                먼저 차시에 수강생을 등록한 뒤 시험을 만드세요.
+              </div>
+            </div>
+          )}
+
           {/* ── Stage: choose ── */}
           {stage === "choose" && (
             <div className="modal-form-group">
-              <div className="modal-section-label mb-3">생성 방식</div>
+              <div className="modal-section-label mb-3">어떻게 만들까요?</div>
               <div className="grid grid-cols-3 gap-3">
                 <SessionBlockView
                   variant="n1"
@@ -403,8 +466,8 @@ export default function CreateRegularExamModal({
                   selected={false}
                   showCheck
                   className="session-block--card-sm"
-                  title="신규 시험"
-                  desc="여러 시험을 한번에 생성합니다."
+                  title="직접 만들기"
+                  desc="제목·만점·커트라인을 입력해 새 시험을 만듭니다. (1개~여러 개)"
                   onClick={() => {
                     setError(null);
                     setRows([makeRow()]);
@@ -417,8 +480,8 @@ export default function CreateRegularExamModal({
                   selected={false}
                   showCheck
                   className="session-block--card-sm"
-                  title="완벽 동일 시험 불러오기"
-                  desc="템플릿과 양식·답안을 공유합니다. 템플릿 수정 시 모든 차시에 반영."
+                  title="이전 시험에서 가져오기 (연결)"
+                  desc="이전에 만들어 둔 시험 양식·답안을 그대로 적용. 원본을 고치면 같이 바뀝니다."
                   onClick={() => {
                     setError(null);
                     setSelectedTemplateIds(new Set());
@@ -432,8 +495,8 @@ export default function CreateRegularExamModal({
                   selected={false}
                   showCheck
                   className="session-block--card-sm"
-                  title="양식만 복사 (독립)"
-                  desc="다른 차시의 만점/커트라인만 복사. 답안·문항은 새로 등록."
+                  title="다른 차시 양식 복사 (독립)"
+                  desc="다른 차시 시험의 만점·커트라인만 복사. 답안·문항은 새로 만들고 원본과 분리됩니다."
                   onClick={() => {
                     setError(null);
                     setStage("copy");
@@ -555,9 +618,10 @@ export default function CreateRegularExamModal({
                 + 추가
               </button>
 
+              {/* 안내 박스 — 자동 등록 결과는 생성 후 toast로 명시 노출 (별도 처리) */}
               <div className="mt-3 rounded border border-[var(--color-border-divider)] bg-[color-mix(in_srgb,var(--color-brand-primary)_4%,var(--color-bg-surface))] p-3">
                 <div className="text-xs text-[var(--color-text-muted)]">
-                  대상자 자동 등록됨 (이 차시의 모든 수강생) · 커트라인 미만 시 클리닉 보강 대상
+                  이 차시의 수강생이 자동으로 응시 대상으로 등록됩니다. · 커트라인 미만 점수는 클리닉 보강 대상으로 표시됩니다.
                 </div>
               </div>
             </div>
@@ -584,7 +648,7 @@ export default function CreateRegularExamModal({
           {stage === "import" && (
             <div className="modal-form-group">
               <div className="flex items-center justify-between mb-1">
-                <label className="modal-section-label">템플릿 선택</label>
+                <label className="modal-section-label">불러올 시험 선택 (이전에 만든 시험)</label>
                 {selectedTemplateIds.size > 0 && (
                   <span className="text-xs font-semibold text-[var(--color-brand-primary)]">
                     {selectedTemplateIds.size}개 선택됨
@@ -676,7 +740,7 @@ export default function CreateRegularExamModal({
                 )}
               </div>
               <p className="modal-hint modal-hint--block mt-2">
-                템플릿 제목이 시험 이름으로 사용됩니다. 여러 개를 선택하여 일괄 생성할 수 있습니다.
+                선택한 시험의 제목·양식·답안이 그대로 적용됩니다. 원본을 고치면 이 차시에도 반영돼요.
               </p>
             </div>
           )}
@@ -696,7 +760,7 @@ export default function CreateRegularExamModal({
                 onClick={handleBulkSubmit}
                 disabled={submitting || !bulkHasAnyTitle}
               >
-                {submitting ? "생성 중…" : `일괄 생성 (${rows.filter((r) => r.title.trim()).length})`}
+                {submitting ? "만드는 중…" : `${rows.filter((r) => r.title.trim()).length}개 시험 만들기`}
               </Button>
             )}
             {stage === "import" && (
@@ -706,7 +770,7 @@ export default function CreateRegularExamModal({
                 onClick={handleImportSubmit}
                 disabled={importDisabled}
               >
-                {submitting ? "생성 중…" : `일괄 생성 (${selectedTemplateIds.size})`}
+                {submitting ? "만드는 중…" : `${selectedTemplateIds.size}개 시험 가져오기`}
               </Button>
             )}
           </>

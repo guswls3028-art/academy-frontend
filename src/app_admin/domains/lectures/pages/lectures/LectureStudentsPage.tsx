@@ -260,12 +260,13 @@ export default function LectureStudentsPage() {
               scope="panel"
               tone="empty"
               title="수강 중인 학생이 없습니다."
-              description="강의 수강생을 등록한 뒤, 각 차시(1차시, 2차시…) 안으로 들어가서 해당 차시 수강생 등록을 해 주세요."
+              description={"'수강생 등록'으로 학생 명단을 만든 뒤, 각 차시 안에서 그 차시 수강생을 추가하세요."}
               actions={
                 <Button intent="primary" onClick={() => setShowLectureEnroll(true)}>
                   수강생 등록
                 </Button>
               }
+              extra="매주 새로 등록할 필요 없어요 — 차시에서 '직전 차시에서 불러오기'로 지난주 수강생을 한 번에 가져올 수 있고, 엑셀 일괄 등록도 지원합니다."
             />
           ) : (
             <div className="overflow-x-auto w-full">

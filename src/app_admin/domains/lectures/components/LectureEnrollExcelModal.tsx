@@ -36,13 +36,15 @@ export default function LectureEnrollExcelModal({
   const [busy, setBusy] = useState(false);
   const [parsed, setParsed] = useState<ParseStudentExcelResult | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [initialPassword, setInitialPassword] = useState("");
+  // 학원장이 한 번 확인하고 그대로 진행하는 흐름. 정책 자체는 그대로(4자 이상) 유지.
+  const DEFAULT_INITIAL_PASSWORD = "1234";
+  const [initialPassword, setInitialPassword] = useState(DEFAULT_INITIAL_PASSWORD);
 
   useEffect(() => {
     if (open) {
       setParsed(null);
       setSelectedFile(null);
-      setInitialPassword("");
+      setInitialPassword(DEFAULT_INITIAL_PASSWORD);
     }
   }, [open]);
 
@@ -154,18 +156,21 @@ export default function LectureEnrollExcelModal({
 
               <div className="modal-form-group" style={{ marginBottom: 0 }}>
                 <label className="modal-section-label" style={{ marginBottom: 6 }}>
-                  초기 비밀번호 <span style={{ color: "var(--color-error)" }}>*</span>
+                  신규 학생 초기 비밀번호 <span style={{ color: "var(--color-error)" }}>*</span>
                 </label>
                 <input
-                  type="password"
+                  type="text"
                   className="ds-input"
                   value={initialPassword}
                   onChange={(e) => setInitialPassword(e.target.value)}
-                  placeholder="신규 생성 학생 로그인용 (4자 이상)"
+                  placeholder="4자 이상"
                   disabled={busy}
-                  autoComplete="new-password"
+                  autoComplete="off"
                   style={{ maxWidth: 280 }}
                 />
+                <p className="text-[11px] text-[var(--color-text-muted)] mt-1">
+                  엑셀에 새로 만들 학생의 로그인 비밀번호입니다. 학생들에게 안내해 주세요. 기본값 그대로 두셔도 됩니다.
+                </p>
               </div>
 
               <div className="flex items-center justify-between">
