@@ -6,6 +6,8 @@
 // 불러오기(다른 차시): 다른 강의/차시에서 과제 복사
 // 대상자 자동 등록
 // ------------------------------------------------------------
+/* eslint-disable no-restricted-syntax */
+// TODO(R-11 cleanup): 이 파일의 인라인 style → className/DS token 마이그레이션. baseline 동결 위해 file-level disable. 신규 인라인 style 추가 시 본 directive 무력화하지 말 것.
 
 import { useEffect, useState, useMemo, useCallback } from "react";
 import api from "@/shared/api/axios";
@@ -105,9 +107,10 @@ export default function CreateHomeworkModal({
         if (cancelled) return;
         setTemplates(items ?? []);
       })
-      .catch((e: any) => {
+      .catch((e: unknown) => {
         if (cancelled) return;
-        setError(e?.response?.data?.detail ?? e?.message ?? "템플릿 목록을 불러오지 못했습니다.");
+        const err = e as { response?: { data?: { detail?: string } }; message?: string };
+        setError(err?.response?.data?.detail ?? err?.message ?? "템플릿 목록을 불러오지 못했습니다.");
       })
       .finally(() => {
         if (cancelled) return;
@@ -124,8 +127,9 @@ export default function CreateHomeworkModal({
       if (ids.length === 0) return { enrolled: 0 };
       await putHomeworkAssignments({ homeworkId, enrollment_ids: ids });
       return { enrolled: ids.length };
-    } catch (e: any) {
-      return { enrolled: 0, error: e?.response?.data?.detail ?? e?.message ?? "자동 등록 실패" };
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { detail?: string } }; message?: string };
+      return { enrolled: 0, error: err?.response?.data?.detail ?? err?.message ?? "자동 등록 실패" };
     }
   }, [sessionId]);
 
@@ -191,8 +195,9 @@ export default function CreateHomeworkModal({
       } else {
         policyError = "세션 정책 조회 실패 — 커트라인이 적용되지 않았습니다.";
       }
-    } catch (e: any) {
-      policyError = e?.response?.data?.detail || "커트라인 저장 실패";
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { detail?: string } } };
+      policyError = err?.response?.data?.detail || "커트라인 저장 실패";
     }
 
     let enrollMaxPerHw = 0;
@@ -209,7 +214,7 @@ export default function CreateHomeworkModal({
 
         // Save max_score + due_date
         const ms = Number(row.maxScore);
-        const metaPatch: Record<string, any> = {};
+        const metaPatch: Record<string, unknown> = {};
         if (Number.isFinite(ms) && ms > 0) metaPatch.default_max_score = ms;
         if (row.dueDate) metaPatch.due_date = row.dueDate;
         if (Object.keys(metaPatch).length > 0) {
@@ -225,7 +230,7 @@ export default function CreateHomeworkModal({
         if (enrollResult.error && !enrollErrorSample) enrollErrorSample = enrollResult.error;
 
         createdIds.push(newId);
-      } catch (e: any) {
+      } catch {
         failed.push(row.title.trim());
       }
     }
