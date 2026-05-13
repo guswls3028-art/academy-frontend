@@ -23,7 +23,10 @@ type ResizableThProps = {
   "aria-sort"?: "ascending" | "descending" | "none";
   scope?: "col";
   rowSpan?: number;
+  colSpan?: number;
   noWrap?: boolean;
+  /** th에 data-* 속성 부여 (data-col-type, data-group-start 등) */
+  dataAttributes?: Record<string, string>;
 };
 
 export default function ResizableTh({
@@ -40,7 +43,9 @@ export default function ResizableTh({
   "aria-sort": ariaSort,
   scope = "col",
   rowSpan,
+  colSpan,
   noWrap = false,
+  dataAttributes,
 }: ResizableThProps) {
   const startX = useRef(0);
   const startWidth = useRef(0);
@@ -101,6 +106,8 @@ export default function ResizableTh({
       className={className}
       aria-sort={ariaSort}
       rowSpan={rowSpan}
+      colSpan={colSpan}
+      {...(dataAttributes ?? {})}
       style={{
         ...style,
         width: displayWidth,

@@ -618,24 +618,14 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
             const examColsList = examColsMap[ex.exam_id] ?? [];
             const colSpan = examColsList.length || 1;
             /* 단일 sub(합산)만 있을 때는 sub-row를 비우고 시험 헤더에 rowSpan=2 부여.
-               "합산" 라벨 N번 반복 = 정보 노이즈 제거. */
+               "합산" 라벨 N번 반복 = 정보 노이즈 제거.
+               + 단일 sub 시 시험 헤더 자체를 ResizableTh로 — 직전엔 plain th 라 학원장이 드래그 폭 조절 못 했음.
+               다중 sub 시는 row2 sub-cell의 ResizableTh로 개별 조절 (기존 그대로). */
             const singleSub = colSpan === 1;
-            return (
-              <th
-                key={`head-exam-${ex.exam_id}`}
-                scope="col"
-                colSpan={colSpan}
-                rowSpan={singleSub ? 2 : 1}
-                /* 2026-05-13 2차 (P0-A): whitespace-nowrap 제거 → 시험명 길어도 줄바꿈으로 보존. */
-                className="group text-center font-medium text-[var(--color-text-primary)] align-middle"
-                title={ex.title}
-                data-col-type="score"
-                data-group-start=""
-                data-group-parity={exIdx % 2 === 0 ? "even" : "odd"}
-              >
-                {/* P0-1 (2026-05-13): ◀ ⚙ ▶ 버튼은 그룹 hover 시에만 노출.
-                    평소엔 [시] 뱃지 + 시험명에 폭 양보 → 학원장이 시험명을 즉시 인식. */}
-                <span className="inline-flex items-start gap-1 min-w-0 max-w-full">
+            const totalCol = examColsList.find((c) => c.sub === "total");
+            const groupParity = exIdx % 2 === 0 ? "even" : "odd";
+            const headerInner = (
+              <span className="inline-flex items-start gap-1 min-w-0 max-w-full">
                   {onReorderColumn && (
                     <button
                       type="button"
@@ -672,6 +662,39 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                     </button>
                   )}
                 </span>
+            );
+            const headerClass = "group text-center font-medium text-[var(--color-text-primary)] align-middle";
+            const headerDataAttrs = { "data-col-type": "score", "data-group-start": "", "data-group-parity": groupParity };
+            /* 단일 sub: ResizableTh로 폭 조절 가능 (totalCol.key 와 동기화).
+               다중 sub: row2 sub-cell ResizableTh가 폭 조절 — row1은 colSpan 묶음. */
+            if (singleSub && totalCol) {
+              return (
+                <ResizableTh
+                  key={`head-exam-${ex.exam_id}`}
+                  columnKey={totalCol.key}
+                  width={columnWidths[totalCol.key] ?? COL_SCORE}
+                  minWidth={64}
+                  maxWidth={320}
+                  onWidthChange={setColumnWidth}
+                  rowSpan={2}
+                  className={headerClass}
+                  title={ex.title}
+                  dataAttributes={headerDataAttrs}
+                >
+                  {headerInner}
+                </ResizableTh>
+              );
+            }
+            return (
+              <th
+                key={`head-exam-${ex.exam_id}`}
+                scope="col"
+                colSpan={colSpan}
+                className={headerClass}
+                title={ex.title}
+                {...headerDataAttrs}
+              >
+                {headerInner}
               </th>
             );
           })}
