@@ -73,7 +73,7 @@ export default function EnrollStudentSheet({ open, onClose, lectureId, enrolledS
                   style={{ padding: "8px 4px", background: "none", border: "none", borderBottom: "1px solid var(--tc-border-subtle)" }}>
                   <span className="w-5 h-5 rounded flex items-center justify-center shrink-0"
                     style={{ border: checked ? "none" : "1.5px solid var(--tc-border-strong)", background: checked ? "var(--tc-primary)" : "transparent" }}>
-                    {checked && <Check size={13} style={{ color: "#fff" }} />}
+                    {checked && <Check size={ICON.xs} style={{ color: "#fff" }} />}
                   </span>
                   <span className="text-sm font-medium" style={{ color: "var(--tc-text)" }}>{s.name}</span>
                   <span className="text-[11px] ml-auto" style={{ color: "var(--tc-text-muted)" }}>

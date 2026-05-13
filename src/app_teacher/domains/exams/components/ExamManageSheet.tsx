@@ -7,6 +7,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { updateExam, deleteExam } from "../api";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
 import { Upload } from "@teacher/shared/ui/Icons";
+import { ICON } from "@/shared/ui/ds";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { useConfirm } from "@/shared/ui/confirm";
@@ -123,7 +124,7 @@ export default function ExamManageSheet({ open, onClose, exam, onDeleted }: Prop
           <button onClick={() => fileRef.current?.click()}
             className="flex items-center gap-1 text-[12px] font-semibold cursor-pointer flex-1 justify-center"
             style={{ padding: "8px", borderRadius: "var(--tc-radius-sm)", border: "1px dashed var(--tc-border-strong)", background: "none", color: "var(--tc-text-secondary)" }}>
-            <Upload size={13} /> PDF / OMR 업로드
+            <Upload size={ICON.xs} /> PDF / OMR 업로드
           </button>
           <input ref={fileRef} type="file" accept=".pdf,.xlsx,.csv,image/*" style={{ display: "none" }}
             onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadAssetMut.mutate(f); if (fileRef.current) fileRef.current.value = ""; }} />

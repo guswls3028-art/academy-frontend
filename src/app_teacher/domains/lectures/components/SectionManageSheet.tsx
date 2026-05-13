@@ -54,7 +54,7 @@ export default function SectionManageSheet({ open, onClose, lectureId }: Props) 
           <button onClick={() => createSectionMut.mutate()} disabled={!newLabel.trim()}
             className="flex items-center gap-1 text-xs font-bold cursor-pointer shrink-0"
             style={{ padding: "8px 12px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff", opacity: !newLabel.trim() ? 0.5 : 1 }}>
-            <Plus size={13} /> 추가
+            <Plus size={ICON.xs} /> 추가
           </button>
         </div>
         {/* Section list */}

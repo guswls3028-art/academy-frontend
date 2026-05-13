@@ -189,7 +189,7 @@ export default function MessagingSettingsPage() {
               background: "var(--tc-warn-bg)",
               border: "1px solid var(--tc-warn)",
             }}>
-              <AlertCircle size={15} style={{ color: "var(--tc-warn)", flexShrink: 0 }} />
+              <AlertCircle size={ICON.sm} style={{ color: "var(--tc-warn)", flexShrink: 0 }} />
               <div className="text-[12px]" style={{ color: "var(--tc-text-secondary)", lineHeight: 1.5 }}>
                 <strong style={{ color: "var(--tc-text)" }}>메시지 발송 설정을 완료해 주세요.</strong>
                 <span style={{ marginLeft: 6 }}>

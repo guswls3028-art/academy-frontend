@@ -19,10 +19,12 @@ export default function LectureChip({
 }) {
   const bg = color || DEFAULT_LECTURE_COLOR;
   const textColor = contrastTextColor(bg);
-  // 강의명 미설정/누락 시 "??" 같은 의문스러운 라벨 대신 단색 chip만 노출
+  // 강의명 미설정/누락 시 "??" 같은 의문스러운 라벨 대신 chip 자체 미렌더
+  // (예전 동작: 빈 파란 박스 노출 → 학생/시험 카드 시각 노이즈로 학원장이 정보로 오인)
   const two = (chipLabel && chipLabel.trim())
     ? String(chipLabel).trim().slice(0, 2)
     : (lectureName && lectureName.trim() ? lectureName.trim().slice(0, 2) : "");
+  if (!two) return null;
   // 2026-05-12 학원장 가시성 보강 — 8/9/10 → 10/12/14 / 큰 chip은 16
   const fontSize = size <= 18 ? 10 : size <= 24 ? 12 : size <= 32 ? 14 : 16;
 

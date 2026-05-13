@@ -64,7 +64,7 @@ export default function ExamBundlesPage() {
             {bundles.map((b) => (
               <Card key={b.id} style={{ padding: "var(--tc-space-3) var(--tc-space-4)" }}>
                 <div className="flex items-start gap-2">
-                  <FolderPlus size={15} style={{ color: "var(--tc-primary)", flexShrink: 0, marginTop: 2 }} />
+                  <FolderPlus size={ICON.sm} style={{ color: "var(--tc-primary)", flexShrink: 0, marginTop: 2 }} />
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-semibold" style={{ color: "var(--tc-text)" }}>{b.name}</div>
                     {b.description && <div className="text-[11px] mt-0.5" style={{ color: "var(--tc-text-muted)" }}>{b.description}</div>}

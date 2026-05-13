@@ -145,7 +145,7 @@ export default function TeacherSettingsPage() {
       </div>
 
       {/* ── Profile section ── */}
-      <Section title="프로필" icon={<User size={15} />}>
+      <Section title="프로필" icon={<User size={ICON.sm} />}>
         {/* Avatar + basic info */}
         <div className="flex items-center gap-3 mb-3">
           <div className="w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold shrink-0"
@@ -181,7 +181,7 @@ export default function TeacherSettingsPage() {
       </Section>
 
       {/* ── Password section ── */}
-      <Section title="보안" icon={<Lock size={15} />}>
+      <Section title="보안" icon={<Lock size={ICON.sm} />}>
         {!pwOpen ? (
           <button onClick={() => setPwOpen(true)}
             className="flex items-center gap-2 w-full text-left cursor-pointer"
@@ -208,7 +208,7 @@ export default function TeacherSettingsPage() {
       </Section>
 
       {/* ── Theme section ── 외관 페이지 (SSOT)로 라우팅. settings에 12카드 중복 노출 제거. */}
-      <Section title="테마" icon={<Palette size={15} />}>
+      <Section title="테마" icon={<Palette size={ICON.sm} />}>
         <button
           onClick={() => navigate("/teacher/settings/appearance")}
           className="flex items-center justify-between w-full cursor-pointer"
@@ -232,7 +232,7 @@ export default function TeacherSettingsPage() {
 
       {/* ── Push notification ── */}
       {push.supported && (
-        <Section title="알림" icon={<Bell size={15} />}>
+        <Section title="알림" icon={<Bell size={ICON.sm} />}>
           <div className="flex items-center justify-between">
             <div>
               <div className="text-sm font-semibold" style={{ color: "var(--tc-text)" }}>푸시 알림</div>
@@ -262,7 +262,7 @@ export default function TeacherSettingsPage() {
       )}
 
       {/* ── App section ── */}
-      <Section title="앱" icon={<Smartphone size={15} />}>
+      <Section title="앱" icon={<Smartphone size={ICON.sm} />}>
         {canInstall && (
           <button onClick={promptInstall}
             className="flex items-center gap-3 w-full text-left cursor-pointer rounded-lg"
@@ -347,7 +347,7 @@ function PwInput({ label, value, onChange, show, onToggle }: {
           className="flex-1 text-sm"
           style={{ padding: "8px 10px", border: "none", background: "transparent", color: "var(--tc-text)", outline: "none" }} />
         <button onClick={onToggle} type="button" className="flex p-2 cursor-pointer" style={{ background: "none", border: "none", color: "var(--tc-text-muted)" }}>
-          {show ? <EyeOff size={15} /> : <Eye size={15} />}
+          {show ? <EyeOff size={ICON.sm} /> : <Eye size={ICON.sm} />}
         </button>
       </div>
     </div>
@@ -455,7 +455,7 @@ function OrgSection() {
   });
 
   return (
-    <Section title="학원 정보" icon={<User size={15} />}>
+    <Section title="학원 정보" icon={<User size={ICON.sm} />}>
       {!editing ? (
         <div>
           <div className="text-sm" style={{ color: "var(--tc-text)" }}>{info?.name || "미설정"}</div>
@@ -515,7 +515,7 @@ function BillingSection() {
   };
 
   return (
-    <Section title="결제 / 구독" icon={<Lock size={15} />}>
+    <Section title="결제 / 구독" icon={<Lock size={ICON.sm} />}>
       {/* Subscription info */}
       {subscription && (
         <div className="mb-3">

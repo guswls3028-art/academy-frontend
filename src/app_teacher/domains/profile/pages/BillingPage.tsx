@@ -115,7 +115,7 @@ export default function BillingPage() {
           padding: "10px 12px", borderRadius: "var(--tc-radius)",
           background: "var(--tc-danger-bg)", border: "1px solid var(--tc-danger)",
         }}>
-          <AlertCircle size={15} style={{ color: "var(--tc-danger)", flexShrink: 0 }} />
+          <AlertCircle size={ICON.sm} style={{ color: "var(--tc-danger)", flexShrink: 0 }} />
           <div className="text-[12px]" style={{ color: "var(--tc-text)", lineHeight: 1.5 }}>
             <strong>구독이 만료되었습니다.</strong> PC에서 결제 정보를 확인해 주세요.
           </div>
@@ -129,7 +129,7 @@ export default function BillingPage() {
           padding: "10px 12px", borderRadius: "var(--tc-radius)",
           background: "var(--tc-warn-bg)", border: "1px solid var(--tc-warn)",
         }}>
-          <AlertCircle size={15} style={{ color: "var(--tc-warn)", flexShrink: 0 }} />
+          <AlertCircle size={ICON.sm} style={{ color: "var(--tc-warn)", flexShrink: 0 }} />
           <div className="text-[12px]" style={{ color: "var(--tc-text)", lineHeight: 1.5 }}>
             <strong>해지 예약됨.</strong> {formatDate(data.subscription_expires_at)}에 구독이 종료됩니다.
           </div>
