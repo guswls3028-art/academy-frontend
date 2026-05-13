@@ -617,11 +617,15 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
           {examOptions.map((ex, exIdx) => {
             const examColsList = examColsMap[ex.exam_id] ?? [];
             const colSpan = examColsList.length || 1;
+            /* 단일 sub(합산)만 있을 때는 sub-row를 비우고 시험 헤더에 rowSpan=2 부여.
+               "합산" 라벨 N번 반복 = 정보 노이즈 제거. */
+            const singleSub = colSpan === 1;
             return (
               <th
                 key={`head-exam-${ex.exam_id}`}
                 scope="col"
                 colSpan={colSpan}
+                rowSpan={singleSub ? 2 : 1}
                 /* 2026-05-13 2차 (P0-A): whitespace-nowrap 제거 → 시험명 길어도 줄바꿈으로 보존. */
                 className="group text-center font-medium text-[var(--color-text-primary)] align-middle"
                 title={ex.title}
@@ -753,6 +757,8 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
             const examColsList = (examColsMap[ex.exam_id] ?? []) as Extract<ScoreColumnDef, { type: "exam" }>[];
             const questions = (ex as { questions?: { question_id: number; number: number }[] }).questions ?? [];
             const parity = exIdx % 2 === 0 ? "even" : "odd";
+            /* 단일 sub(합산)만 있을 땐 row1 th 가 rowSpan=2 이라 row2 자리 차지 X. */
+            if (examColsList.length <= 1) return null;
             return (
               <Fragment key={ex.exam_id}>
                 {examColsList.map((c, ci) => (
