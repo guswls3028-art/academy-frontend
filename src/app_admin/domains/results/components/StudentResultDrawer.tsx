@@ -65,6 +65,7 @@ type Props = {
 
 export default function StudentResultDrawer({ examId, enrollmentId, studentName, examTitle, onClose }: Props) {
   const qc = useQueryClient();
+  const tenantLabels = useTenantLabels();
   const [mainTab, setMainTab] = useState<"answer" | "wrong">("answer");
   const [selectedAttempt, setSelectedAttempt] = useState(1);
   const [isEditMode, setIsEditMode] = useState(false);
@@ -209,7 +210,7 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
                     }
                     style={{ marginLeft: 8 }}
                   >
-                    {achievementLabel(ach)}
+                    {achievementLabel(ach, { pass: tenantLabels.pass, fail: tenantLabels.fail })}
                   </Badge>
                 );
               })()}

@@ -73,16 +73,31 @@ export function deriveFinalPass(input: AchievementInput): boolean | null {
 }
 
 /**
- * Achievement를 "합격/보강합격/불합격/미응시/—" 한글 라벨로.
+ * Achievement를 "{pass}/{보강합격}/{fail}/미응시/—" 한글 라벨로.
+ *
+ * 2026-05-13: tenant 커스텀 라벨(`Tenant.pass_label`/`fail_label`) 반영.
+ * useTenantLabels() 훅을 직접 호출할 수 없는(non-component) 위치에서도
+ * caller 가 labels 를 넘기면 PASS/FAIL 가 학원장 커스텀 라벨로 치환됨.
+ * 보강 합격은 "보강 합격" 고정 (학원장 커스텀 영역 아님 — 학원 운영 의미 보존).
  */
-export function achievementLabel(a: Achievement | null | undefined): string {
+export interface AchievementLabels {
+  pass?: string;
+  fail?: string;
+}
+export function achievementLabel(
+  a: Achievement | null | undefined,
+  labels?: AchievementLabels,
+): string {
+  const passWord = labels?.pass?.trim() || "합격";
+  const failWord = labels?.fail?.trim() || "불합격";
   switch (a) {
     case "PASS":
-      return "합격";
+      return passWord;
     case "REMEDIATED":
-      return "보강 합격";
+      // 보강은 "보강 {passWord}" 패턴 — 학원장 라벨 일관성
+      return `보강 ${passWord}`;
     case "FAIL":
-      return "불합격";
+      return failWord;
     case "NOT_SUBMITTED":
       return "미응시";
     default:

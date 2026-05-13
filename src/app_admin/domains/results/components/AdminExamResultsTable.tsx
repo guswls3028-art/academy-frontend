@@ -15,6 +15,7 @@ import { deriveFrontResultStatus } from "../utils/deriveFrontResultStatus";
 import FrontResultStatusBadge from "./FrontResultStatusBadge";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { Badge, type BadgeTone } from "@/shared/ui/ds";
+import { useTenantLabels } from "@/shared/hooks/useTenantLabels";
 import {
   deriveAchievement,
   achievementLabel,
@@ -39,6 +40,7 @@ export default function AdminExamResultsTable({
   rows: AdminExamResultRow[];
   onSelectEnrollment: (id: number) => void;
 }) {
+  const tenantLabels = useTenantLabels();
   // 점수 내림차순 정렬 (등수순)
   const sorted = useMemo(
     () =>
@@ -59,7 +61,7 @@ export default function AdminExamResultsTable({
             <th style={{ textAlign: "left" }}>학생</th>
             <th>최종점수</th>
             <th>상태</th>
-            <th>합격</th>
+            <th>{tenantLabels.pass}</th>
           </tr>
         </thead>
         <tbody>
@@ -140,7 +142,7 @@ export default function AdminExamResultsTable({
                           : undefined
                       }
                     >
-                      {achievementLabel(achievement)}
+                      {achievementLabel(achievement, { pass: tenantLabels.pass, fail: tenantLabels.fail })}
                     </Badge>
                   ) : (
                     <span style={{ color: "var(--color-text-muted)" }}>—</span>

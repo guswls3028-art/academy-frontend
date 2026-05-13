@@ -334,9 +334,8 @@ export default function SessionItemBrowser({
                         </div>
                       )}
                     </div>
-                    <span className={`ds-badge ${item.status === "OPEN" ? "ds-badge--success" : item.status === "CLOSED" ? "ds-badge--neutral" : "ds-badge--warning"}`}>
-                      {item.status === "OPEN" ? "진행중" : item.status === "CLOSED" ? "마감" : "초안"}
-                    </span>
+                    {/* 2026-05-13 학원장 결정: 시험·과제 단위 status(OPEN/CLOSED/DRAFT) 뱃지 폐기.
+                        학생별 Achievement SSOT 통합 — project_exam_status_deprecated_2026_05_13 */}
                   </label>
                 );
               })}

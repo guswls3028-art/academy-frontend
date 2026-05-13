@@ -1316,7 +1316,11 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                         data-group-parity={hwParity}
                         {...(hwBodyIdx === 0 ? { "data-section-start": "" } : {})}
                         {...(canEditScore ? { "data-editable": "true" } : {})}
-                        {...(block?.passed != null ? { "data-pass-status": block.passed ? "pass" : "fail" } : {})}
+                        {...(isNotSubmitted
+                          ? { "data-achievement": "NOT_SUBMITTED" }
+                          : block?.passed != null
+                            ? { "data-pass-status": block.passed ? "pass" : "fail" }
+                            : {})}
                         onClick={(e) => {
                           if (isEditMode) e.stopPropagation();
                           onSelectCell(row, "homework", hw.homework_id);

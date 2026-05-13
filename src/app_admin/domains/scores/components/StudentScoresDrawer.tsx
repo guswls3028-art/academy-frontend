@@ -820,7 +820,7 @@ function PassBadge({ block }: { block: ScoreBlock }) {
           : undefined
       }
     >
-      {achievementLabel(achievement)}
+      {achievementLabel(achievement, { pass: labels.pass, fail: labels.fail })}
     </span>
   );
 }

@@ -9,6 +9,7 @@
 // 출결/합격/영상/클리닉 wrapper는 그대로 유지 (라벨/톤 매핑만).
 import type { CSSProperties, ReactNode } from "react";
 import { Badge as DsBadge, type BadgeTone as DsTone, type BadgeSize as DsSize } from "@/shared/ui/ds";
+import { useTenantLabels } from "@/shared/hooks/useTenantLabels";
 
 /* ===== Tone 뱃지 ===== */
 
@@ -136,9 +137,11 @@ export function AchievementBadge({
 }) {
   // SSOT: achievement(PASS/REMEDIATED/FAIL) 우선, passed boolean fallback.
   // 일부 응답이 achievement만 주거나 passed만 주는 경우 모두 대응.
-  if (achievement === "REMEDIATED") return <Badge tone="info">보강합격</Badge>;
-  if (achievement === "PASS" || passed === true) return <Badge tone="success">합격</Badge>;
-  if (achievement === "FAIL" || passed === false) return <Badge tone="danger">불합격</Badge>;
+  // 2026-05-13: Tenant.pass_label/fail_label 학원장 커스텀 라벨 반영.
+  const labels = useTenantLabels();
+  if (achievement === "REMEDIATED") return <Badge tone="info">{`보강 ${labels.pass}`}</Badge>;
+  if (achievement === "PASS" || passed === true) return <Badge tone="success">{labels.pass}</Badge>;
+  if (achievement === "FAIL" || passed === false) return <Badge tone="danger">{labels.fail}</Badge>;
   return null;
 }
 

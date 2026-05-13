@@ -1,15 +1,19 @@
 // PATH: src/app_admin/domains/homework/components/common/HomeworkHeader.tsx
 /**
- * HomeworkHeader — 시험 ExamHeader와 동일: 제목, 상태 배지, 템플릿 저장(regular만), 진행/종료는 좌측 패널에서.
+ * HomeworkHeader — 시험 ExamHeader와 동일: 제목, 템플릿 저장(regular만).
+ *
+ * 2026-05-13 학원장 결정: 시험·과제 단위 status(OPEN/CLOSED) UI 폐기.
+ *   학생별 Achievement SSOT 통합 — 학원장이 과제 전체를 닫을 일이 없음.
+ *   → 진행 중/마감 뱃지 + 종료하기 버튼 + statusMut mutation 제거.
+ *   (ExamHeader 와 동일 정책. project_exam_status_deprecated_2026_05_13)
  */
 
 import { useState, useRef, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Button, Badge } from "@/shared/ui/ds";
+import { Button } from "@/shared/ui/ds";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter, MODAL_WIDTH } from "@/shared/ui/modal";
 import { feedback } from "@/shared/ui/feedback/feedback";
-import { useConfirm } from "@/shared/ui/confirm";
-import { saveHomeworkAsTemplate, updateAdminHomework } from "../../api/adminHomework";
+import { saveHomeworkAsTemplate } from "../../api/adminHomework";
 import { FiSave, FiChevronDown } from "react-icons/fi";
 import type { HomeworkSummary } from "../../types";
 import "../../../exams/components/common/ExamHeader.css";
@@ -19,15 +23,12 @@ type Props = {
   sessionId?: number | null;
 };
 
-export default function HomeworkHeader({ homework, sessionId }: Props) {
+export default function HomeworkHeader({ homework }: Props) {
   const qc = useQueryClient();
-  const confirm = useConfirm();
   const [templateModalOpen, setTemplateModalOpen] = useState(false);
   const [templateDropdownOpen, setTemplateDropdownOpen] = useState(false);
   const templateDropdownRef = useRef<HTMLDivElement>(null);
 
-  const isOpen = homework.status !== "CLOSED";
-  const isClosed = homework.status === "CLOSED";
   const isRegular = (homework.homework_type ?? "regular") === "regular";
   const canSaveAsTemplate = isRegular && !homework.template_homework_id;
   const hasTemplate = isRegular && !!homework.template_homework_id;
@@ -44,27 +45,6 @@ export default function HomeworkHeader({ homework, sessionId }: Props) {
     },
   });
 
-  const statusMut = useMutation({
-    mutationFn: (status: "OPEN" | "CLOSED") => updateAdminHomework(homework.id, { status }),
-    onSuccess: async (_, status) => {
-      await qc.invalidateQueries({ queryKey: ["admin-homework", homework.id] });
-      if (sessionId != null) {
-        await qc.invalidateQueries({ queryKey: ["session-homeworks", sessionId] });
-        await qc.invalidateQueries({ queryKey: ["session-scores", sessionId] });
-      }
-      feedback.success(status === "OPEN" ? "진행 중으로 변경했습니다." : "과제를 종료했습니다.");
-    },
-    onError: (e: any) => {
-      feedback.error(e?.response?.data?.detail ?? "상태 변경에 실패했습니다.");
-    },
-  });
-
-  const handleCloseHomework = async () => {
-    const ok = await confirm({ title: "종료 확인", message: "과제를 종료하시겠습니까? 종료 이후엔 제출이 불가합니다.", danger: true, confirmText: "종료" });
-    if (!ok) return;
-    statusMut.mutate("CLOSED");
-  };
-
   useEffect(() => {
     if (!templateDropdownOpen) return;
     const handleClickOutside = (e: MouseEvent) => {
@@ -76,26 +56,16 @@ export default function HomeworkHeader({ homework, sessionId }: Props) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [templateDropdownOpen]);
 
-  const statusLabel = isOpen ? "진행 중" : "마감";
-  const statusTone = isOpen ? "success" : "danger";
-
-  const bannerClass = `rounded-lg border-l-4 pl-3 py-2 ${
-    isOpen
-      ? "border-l-[var(--color-success)]"
-      : "border-l-[var(--color-border-divider)]"
-  }`;
-  const bannerBg = isOpen
-    ? { background: "color-mix(in srgb, var(--color-success) 12%, var(--color-bg-surface))" }
-    : { background: "color-mix(in srgb, var(--color-border-divider) 12%, var(--color-bg-surface))", opacity: 0.75 } as React.CSSProperties;
+  const bannerClass = "rounded-lg border-l-4 pl-3 py-2 border-l-[var(--color-success)]";
+  const bannerBg = { background: "color-mix(in srgb, var(--color-success) 12%, var(--color-bg-surface))" };
 
   return (
     <div className={`space-y-2 ${bannerClass}`} style={bannerBg}>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <h2 className={`text-lg font-semibold text-[var(--text-primary)] ${isClosed ? "line-through opacity-65" : ""}`}>
+          <h2 className="text-lg font-semibold text-[var(--text-primary)]">
             {homework.title}
           </h2>
-          <Badge variant="solid" tone={statusTone}>{statusLabel}</Badge>
         </div>
 
         <div className="flex items-center gap-2">
@@ -145,19 +115,6 @@ export default function HomeworkHeader({ homework, sessionId }: Props) {
                 </div>
               )}
             </div>
-          )}
-
-          {isOpen && (
-            <Button
-              type="button"
-              intent="danger"
-              size="xl"
-              onClick={handleCloseHomework}
-              disabled={statusMut.isPending}
-              className="min-w-[140px]"
-            >
-              {statusMut.isPending ? "처리 중…" : "종료하기"}
-            </Button>
           )}
         </div>
       </div>

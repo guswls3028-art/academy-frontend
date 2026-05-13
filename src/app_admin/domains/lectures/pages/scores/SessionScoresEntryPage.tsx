@@ -35,9 +35,6 @@ import { updateExamEnrollmentRows } from "@admin/domains/exams/api/examEnrollmen
 import { putHomeworkAssignments } from "@admin/domains/homework/api/homeworkAssignments";
 import api from "@/shared/api/axios";
 import AdminOmrBatchUploadBox from "@admin/domains/submissions/components/AdminOmrBatchUploadBox";
-import { updateAdminExam } from "@admin/domains/exams/api/adminExam";
-import { updateAdminHomework } from "@admin/domains/homework/api/adminHomework";
-import { fetchAdminSessionExams } from "@admin/domains/results/api/adminSessionExams";
 import ScorePrintPreviewModal from "@admin/domains/scores/components/ScorePrintPreviewModal";
 import ClinicPrintPreviewModal from "@admin/domains/scores/components/ClinicPrintPreviewModal";
 import { fetchAttendance } from "@admin/domains/lectures/api/attendance";
@@ -206,49 +203,9 @@ export default function SessionScoresEntryPage(_props: Props) {
     }
   };
 
-  const [closingExams, setClosingExams] = useState(false);
-  const [closingHomeworks, setClosingHomeworks] = useState(false);
-
-  const handleCloseAllExams = async () => {
-    setClosingExams(true);
-    try {
-      const exams = await fetchAdminSessionExams(numericSessionId);
-      const openExams = exams.filter((e) => e.status === "OPEN");
-      if (openExams.length === 0) {
-        feedback.info("진행 중인 시험이 없습니다.");
-        return;
-      }
-      if (!(await confirm({ title: "시험 일괄 종료", message: `진행 중인 시험 ${openExams.length}건을 모두 종료하시겠습니까?`, confirmText: "종료" }))) return;
-      await Promise.all(openExams.map((e) => updateAdminExam(Number(e.exam_id), { status: "CLOSED" })));
-      invalidateScores();
-      feedback.success(`시험 ${openExams.length}건 종료 완료`);
-    } catch (e: any) {
-      feedback.error("시험 종료에 실패했습니다. 잠시 후 다시 시도해 주세요.");
-    } finally {
-      setClosingExams(false);
-    }
-  };
-
-  const handleCloseAllHomeworks = async () => {
-    setClosingHomeworks(true);
-    try {
-      const res = await api.get("/homeworks/", { params: { session_id: numericSessionId } });
-      const hws = (res.data?.results ?? res.data?.items ?? res.data ?? []) as any[];
-      const openHws = hws.filter((h) => h.status === "OPEN");
-      if (openHws.length === 0) {
-        feedback.info("진행 중인 과제가 없습니다.");
-        return;
-      }
-      if (!(await confirm({ title: "과제 일괄 종료", message: `진행 중인 과제 ${openHws.length}건을 모두 종료하시겠습니까?`, confirmText: "종료" }))) return;
-      await Promise.all(openHws.map((h) => updateAdminHomework(Number(h.id), { status: "CLOSED" })));
-      invalidateScores();
-      feedback.success(`과제 ${openHws.length}건 종료 완료`);
-    } catch (e: any) {
-      feedback.error("과제 종료에 실패했습니다. 잠시 후 다시 시도해 주세요.");
-    } finally {
-      setClosingHomeworks(false);
-    }
-  };
+  // 2026-05-13 학원장 결정 시행: 시험·과제 일괄 종료 폐기.
+  // status 단위 UI 가 폐기됐으므로 일괄 종료 핸들러도 제거.
+  // project_exam_status_deprecated_2026_05_13 SSOT.
 
   const sessionIdForDraft = Number.isFinite(numericSessionId) ? numericSessionId : 0;
   const draft = useScoreEditDraft({
@@ -744,15 +701,7 @@ export default function SessionScoresEntryPage(_props: Props) {
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-[var(--color-text-muted)]"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
               클리닉 대상 보기
             </button>
-            <div className="border-t border-[var(--color-border-divider)] my-1" />
-            <button type="button" className="w-full text-left px-4 py-2 text-sm text-[var(--color-error)] hover:bg-[var(--color-bg-surface-hover)] flex items-center gap-2" disabled={closingExams} onClick={() => { void handleCloseAllExams(); setShowMoreMenu(false); }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
-              {closingExams ? "종료 중…" : "전체 시험 종료"}
-            </button>
-            <button type="button" className="w-full text-left px-4 py-2 text-sm text-[var(--color-error)] hover:bg-[var(--color-bg-surface-hover)] flex items-center gap-2" disabled={closingHomeworks} onClick={() => { void handleCloseAllHomeworks(); setShowMoreMenu(false); }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
-              {closingHomeworks ? "종료 중…" : "전체 과제 종료"}
-            </button>
+            {/* 2026-05-13 학원장 결정: 시험·과제 일괄 종료 메뉴 폐기. status UI SSOT 통합. */}
           </div>
         )}
       </div>
