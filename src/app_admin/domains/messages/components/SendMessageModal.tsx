@@ -602,7 +602,7 @@ export default function SendMessageModal({
 
           {/* ═══ 우측: 양식 선택 + 본문 편집 ═══ */}
           <div className="send-modal__right">
-            {/* ── 양식 선택 바 (picker modal 진입 SSOT) ── */}
+            {/* ── 양식 바 — 양식 정보 + 저장 액션 + 변경 액션 (학원장 호소 2026-05-13: 칸 효율 통합) ── */}
             <div className="send-modal__tpl-bar">
               {selectedTemplate && isSystemTpl(selectedTemplate) ? (
                 <Shield size={ICON.sm} className="send-modal__icon-info" />
@@ -623,6 +623,37 @@ export default function SendMessageModal({
                   <span className="send-modal__tpl-bar-empty">양식을 선택하거나 직접 작성하세요</span>
                 )}
               </div>
+
+              {/* 저장 액션 — 양식/본문 상태에 따라 분기. 양식 변경 버튼과 같은 라인에 묶어 칸 효율. */}
+              {!showSaveForm && body.trim() && (selectedTemplate || alimtalkFreeForm) && (
+                <div className="send-modal__tpl-bar-save">
+                  {bodyModified && selectedTemplate && !isSystemTpl(selectedTemplate) ? (
+                    <>
+                      <Button size="sm" intent="secondary" onClick={handleUpdateTemplate} disabled={sending || savingTemplate}>
+                        양식 덮어쓰기
+                      </Button>
+                      <button
+                        type="button"
+                        onClick={() => { setShowSaveForm(true); setSaveTemplateName(""); }}
+                        disabled={sending}
+                        className="send-modal__save-bar-link"
+                      >
+                        다른 이름으로
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => { setShowSaveForm(true); setSaveTemplateName(""); }}
+                      disabled={sending}
+                      className="send-modal__save-bar-link"
+                    >
+                      내 양식으로 저장
+                    </button>
+                  )}
+                </div>
+              )}
+
               <Button
                 size="sm"
                 intent="primary"
@@ -633,34 +664,10 @@ export default function SendMessageModal({
               </Button>
             </div>
 
-            {/* ── 저장 바 — 본문 수정 시에만 inline 노출 ── */}
-            {!showSaveForm && body.trim() && (selectedTemplate || alimtalkFreeForm) && (
-              bodyModified && selectedTemplate && !isSystemTpl(selectedTemplate) ? (
-                <div className="send-modal__save-bar">
-                  <span className="send-modal__save-bar-text">본문이 수정되었습니다</span>
-                  <Button size="sm" intent="primary" onClick={handleUpdateTemplate} disabled={sending || savingTemplate}>
-                    양식 덮어쓰기
-                  </Button>
-                  <button
-                    type="button"
-                    onClick={() => { setShowSaveForm(true); setSaveTemplateName(""); }}
-                    disabled={sending}
-                    className="send-modal__save-bar-link"
-                  >
-                    다른 이름으로 저장
-                  </button>
-                </div>
-              ) : (
-                <div className="send-modal__save-bar">
-                  <Button size="sm" intent="ghost" onClick={() => { setShowSaveForm(true); setSaveTemplateName(""); }} disabled={sending}>
-                    이 본문을 양식으로 저장
-                  </Button>
-                </div>
-              )
-            )}
+            {/* ── 양식 이름 입력 form — 저장 액션 클릭 시에만 노출 ── */}
             {showSaveForm && (
               <div className="send-modal__save-form">
-                <div className="send-modal__save-form-label">양식 이름을 입력하세요</div>
+                <div className="send-modal__save-form-label">새 양식 이름을 입력하세요</div>
                 <div className="send-modal__save-form-row">
                   <Input
                     size="small"
