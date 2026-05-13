@@ -10,6 +10,7 @@
 
 import { useState, useCallback, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useParams } from "react-router-dom";
 
 import type { ScoreBlock, SessionScoreRow, SessionScoreExamEntry, SessionScoreHomeworkEntry, SessionScoreMeta } from "../api/sessionScores";
 import { deriveAchievement, achievementLabel, achievementTone } from "@/shared/scoring/achievement";
@@ -47,6 +48,11 @@ export default function StudentScoresDrawer({ row, meta, sessionId, onClose, onO
   const [expandedHwId, setExpandedHwId] = useState<number | null>(null);
   const { openSendMessageModal } = useSendMessageModal();
   const labels = useTenantLabels();
+  const qc = useQueryClient();
+  // SSOT: 일괄 발송 path(SessionScoresEntryPage)와 동일하게 React Query cache에서 lecture/session 메타 조회.
+  // row.lecture_title/session_title는 backend serializer가 안 보내는 케이스가 있어 단독 fallback 불충분.
+  const { lectureId: lectureIdParam } = useParams<{ lectureId: string; sessionId: string }>();
+  const numericLectureId = Number(lectureIdParam);
 
   const toggleExpand = useCallback((examId: number) => {
     setExpandedExamId((prev) => (prev === examId ? null : examId));
@@ -97,8 +103,12 @@ export default function StudentScoresDrawer({ row, meta, sessionId, onClose, onO
   }, [row, meta]);
 
   const handleSendScoreReport = useCallback(async () => {
-    const lectureName = (row as any).lecture_title ?? "";
-    const sessionTitle = (row as any).session_title ?? "";
+    // SSOT (2026-05-13): 일괄 발송 path와 동일한 cache key 사용. row.* 단독 fallback은 backend serializer
+    // 누락 시 빈 값으로 봉투 변수가 비어 발송됨 (학원장 임근혁 limglish 보고). qc cache → row → "" 순서.
+    const lecture = qc.getQueryData<{ title?: string; name?: string }>(["lecture", numericLectureId]);
+    const session = sessionId ? qc.getQueryData<{ title?: string }>(["session-detail", sessionId]) : null;
+    const lectureName = lecture?.title ?? lecture?.name ?? (row as any).lecture_title ?? "";
+    const sessionTitle = session?.title ?? (row as any).session_title ?? "";
     // Phase #5 (2026-05-12) — 학원장 커스텀 합/불 라벨 메시지 본문에 반영.
     const reportOptions = { lectureName, sessionTitle, passLabel: labels.pass, failLabel: labels.fail };
 
@@ -130,7 +140,7 @@ export default function StudentScoresDrawer({ row, meta, sessionId, onClose, onO
         시험성적: scoreDetail,
       },
     });
-  }, [row, meta, openSendMessageModal, labels.pass, labels.fail]);
+  }, [row, meta, openSendMessageModal, labels.pass, labels.fail, qc, numericLectureId, sessionId]);
 
   return (
     <div className="student-scores-drawer-side-panel">
