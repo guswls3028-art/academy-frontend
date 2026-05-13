@@ -76,7 +76,12 @@ export default function LandingBoardDetailPage() {
     if (!Number.isFinite(id)) { setError("not-found"); return; }
     setPost(null);
     fetchBoardDetail(id)
-      .then(setPost)
+      .then((p) => {
+        setPost(p);
+        // P1 audit (2026-05-14): liked 새로고침 후 ♥ 유지. 이전: 초기값 false 고정 →
+        // 새로고침 시 토글 시 카운트 음수 가능. backend serializer is_liked_by_me 사용.
+        setLiked(p.is_liked_by_me);
+      })
       .catch((e: unknown) => {
         const s = (e as { response?: { status?: number } })?.response?.status;
         setError(s === 404 ? "not-found" : "fetch");

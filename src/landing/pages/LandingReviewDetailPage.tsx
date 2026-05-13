@@ -73,7 +73,11 @@ export default function LandingReviewDetailPage() {
     if (!Number.isFinite(id)) { setError("not-found"); return; }
     setReview(null);
     fetchReviewDetail(id)
-      .then(setReview)
+      .then((rv) => {
+        setReview(rv);
+        // P1 audit (2026-05-14): is_liked_by_me 로 ♥ 초기 상태 유지.
+        setLiked(rv.is_liked_by_me);
+      })
       .catch((e: unknown) => {
         const s = (e as { response?: { status?: number } })?.response?.status;
         setError(s === 404 ? "not-found" : "fetch");

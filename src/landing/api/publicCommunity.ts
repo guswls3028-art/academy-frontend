@@ -31,6 +31,8 @@ export interface PublicBoardPost {
   status: BoardStatus;
   created_at: string;
   updated_at: string;
+  /** 현재 viewer가 본 글에 좋아요한 상태 (P1 audit 2026-05-14). */
+  is_liked_by_me: boolean;
 }
 
 export interface PublicBoardPostDetail extends PublicBoardPost {
@@ -57,6 +59,8 @@ export interface PublicReview {
   reply_count: number;
   created_at: string;
   updated_at: string;
+  /** 현재 viewer가 본 후기에 좋아요한 상태 (P1 audit 2026-05-14). */
+  is_liked_by_me: boolean;
 }
 
 export interface PublicReviewDetail extends PublicReview {
@@ -79,6 +83,8 @@ export interface PublicReply {
   created_at: string;
   /** 현재 viewer가 본 댓글 작성자 본인인가 (backend serializer SerializerMethodField). */
   is_mine: boolean;
+  /** 현재 viewer가 본 댓글에 좋아요한 상태 (P1 audit 2026-05-14). */
+  is_liked_by_me: boolean;
 }
 
 export interface PaginatedResponse<T> {
