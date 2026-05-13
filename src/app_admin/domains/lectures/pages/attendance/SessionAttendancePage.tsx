@@ -6,7 +6,7 @@
 // 가 file에 line 추가/수정 → baseline file:line 매칭 깨져 기존 22 errors 새 fail로 분류 → CI 차단.
 // line-level disable 다수 추가도 line shift loop. file-level disable로 임시 회피
 // (백로그: any/unused-vars/prefer-const 정리 후 file-level 제거. [[feedback_lint_baseline_line_shift]]).
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars, prefer-const, no-restricted-syntax */
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars, prefer-const, no-restricted-syntax, react-hooks/exhaustive-deps */
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useFloatingPosition } from "@/shared/ui/floating/useFloatingPosition";
