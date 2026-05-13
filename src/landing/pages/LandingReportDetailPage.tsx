@@ -8,6 +8,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import api, { type ApiRequestConfig } from "@/shared/api/axios";
+import { feedback } from "@/shared/ui/feedback/feedback";
 import { fetchLandingPublic } from "../api";
 import type { LandingPublicResponse, HitReportPublicCard, HitReportShowcaseItem } from "../types";
 import { LandingNavBar, type NavBarTokens } from "../templates/shared";
@@ -122,7 +123,9 @@ export default function LandingReportDetailPage() {
     if (navigator.share) {
       navigator.share({ title, url }).catch(() => {});
     } else {
-      navigator.clipboard.writeText(url).then(() => alert("링크가 복사되었습니다."));
+      navigator.clipboard.writeText(url)
+        .then(() => feedback.success("링크가 복사되었습니다."))
+        .catch(() => feedback.info(url));
     }
   };
 

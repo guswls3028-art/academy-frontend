@@ -8,6 +8,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import useAuth from "@/auth/hooks/useAuth";
 import { saveReturnPath } from "@/shared/api/axios";
+import { feedback } from "@/shared/ui/feedback/feedback";
 import { fetchLandingPublic } from "../api";
 import EmbeddedHitReportCards from "../components/EmbeddedHitReportCards";
 import ReportButton from "../components/ReportButton";
@@ -154,18 +155,18 @@ export default function LandingBoardDetailPage() {
       loadReplies();
       setPost({ ...post, reply_count: post.reply_count + 1 });
     } catch {
-      // 토스트 도입 전 — 단순 alert (Phase 2 후속에서 토스트 통합)
-      window.alert("댓글 등록 실패. 잠시 후 다시 시도해주세요.");
+      feedback.error("댓글 등록 실패. 잠시 후 다시 시도해주세요.");
     } finally { setSubmittingReply(false); }
   };
 
   const onDeleteReply = async (replyId: number) => {
+    // TODO: useConfirm SSOT 로 변환 (별 cycle)
     if (!window.confirm("댓글을 삭제하시겠어요?")) return;
     try {
       await deleteReply(replyId);
       loadReplies();
       if (post) setPost({ ...post, reply_count: Math.max(0, post.reply_count - 1) });
-    } catch { window.alert("삭제 실패"); }
+    } catch { feedback.error("삭제 실패"); }
   };
 
   const onLikeReply = async (replyId: number) => {
@@ -182,17 +183,18 @@ export default function LandingBoardDetailPage() {
     try {
       const updated = await moderateBoardPost(post.id, patch);
       setPost(updated);
-    } catch { window.alert("모더레이션 실패"); }
+    } catch { feedback.error("모더레이션 실패"); }
     finally { setModerating(false); }
   };
 
   const onDeletePost = async () => {
     if (!post) return;
+    // TODO: useConfirm SSOT 로 변환 (별 cycle)
     if (!window.confirm("이 글을 삭제하시겠어요?")) return;
     try {
       await deleteBoardPost(post.id);
       navigate("/landing/board", { replace: true });
-    } catch { window.alert("삭제 실패"); }
+    } catch { feedback.error("삭제 실패"); }
   };
 
   if (!landing?.config) {

@@ -10,6 +10,7 @@
 
 import { useEffect, useState } from "react";
 import api, { type ApiRequestConfig } from "@/shared/api/axios";
+import { feedback } from "@/shared/ui/feedback/feedback";
 
 interface PublishedReport {
   id: number;
@@ -51,7 +52,7 @@ export default function HitReportPicker({ selected, onChange, max = 3 }: Props) 
       onChange(selected.filter((x) => x !== id));
     } else {
       if (selected.length >= max) {
-        window.alert(`적중보고서는 최대 ${max}개까지 첨부할 수 있습니다.`);
+        feedback.warning(`적중보고서는 최대 ${max}개까지 첨부할 수 있습니다.`);
         return;
       }
       onChange([...selected, id]);

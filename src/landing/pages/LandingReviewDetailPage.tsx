@@ -7,6 +7,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import useAuth from "@/auth/hooks/useAuth";
 import { saveReturnPath } from "@/shared/api/axios";
+import { feedback } from "@/shared/ui/feedback/feedback";
 import { fetchLandingPublic } from "../api";
 import ReportButton from "../components/ReportButton";
 import { setLandingMeta } from "../utils/seoMeta";
@@ -73,7 +74,10 @@ export default function LandingReviewDetailPage() {
     setReview(null);
     fetchReviewDetail(id)
       .then(setReview)
-      .catch((e: any) => setError(e?.response?.status === 404 ? "not-found" : "fetch"));
+      .catch((e: unknown) => {
+        const s = (e as { response?: { status?: number } })?.response?.status;
+        setError(s === 404 ? "not-found" : "fetch");
+      });
   }, [id]);
 
   const loadReplies = useCallback(() => {
@@ -155,7 +159,7 @@ export default function LandingReviewDetailPage() {
       setReplyContent("");
       loadReplies();
       setReview({ ...review, reply_count: review.reply_count + 1 });
-    } catch { window.alert("댓글 등록 실패"); }
+    } catch { feedback.error("댓글 등록 실패"); }
     finally { setSubmittingReply(false); }
   };
 
@@ -165,17 +169,18 @@ export default function LandingReviewDetailPage() {
     try {
       const updated = await moderateReview(review.id, patch);
       setReview(updated);
-    } catch { window.alert("모더레이션 실패"); }
+    } catch { feedback.error("모더레이션 실패"); }
     finally { setModerating(false); }
   };
 
   const onDeleteReview = async () => {
     if (!review) return;
+    // TODO: useConfirm SSOT (별 cycle)
     if (!window.confirm("이 후기를 삭제하시겠어요?")) return;
     try {
       await deleteReview(review.id);
       navigate("/landing/reviews", { replace: true });
-    } catch { window.alert("삭제 실패"); }
+    } catch { feedback.error("삭제 실패"); }
   };
 
   const onLikeReply = async (replyId: number) => {
@@ -187,12 +192,13 @@ export default function LandingReviewDetailPage() {
   };
 
   const onDeleteReply = async (replyId: number) => {
+    // TODO: useConfirm SSOT (별 cycle)
     if (!window.confirm("댓글을 삭제하시겠어요?")) return;
     try {
       await deleteReply(replyId);
       loadReplies();
       if (review) setReview({ ...review, reply_count: Math.max(0, review.reply_count - 1) });
-    } catch { window.alert("삭제 실패"); }
+    } catch { feedback.error("삭제 실패"); }
   };
 
   if (!landing?.config) return <CenterSpin />;
@@ -423,7 +429,7 @@ export default function LandingReviewDetailPage() {
   }
 }
 
-function Shell({ cfg, children }: { cfg: any; children: React.ReactNode }) {
+function Shell({ cfg, children }: { cfg: NonNullable<LandingPublicResponse["config"]>; children: React.ReactNode }) {
   return (
     <div style={{ minHeight: "100vh", background: "#0A0E1A", color: "#F5F1E8", fontFamily: "'Pretendard Variable', 'Pretendard', system-ui, sans-serif", letterSpacing: "-0.011em" }}>
       <LandingNavBar config={cfg} sections={cfg.sections || []} tokens={NAV_TOKENS} brandMark={<BrandMark name={cfg.brand_name} />} />
