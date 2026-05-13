@@ -147,14 +147,17 @@ function buildMenuCategories(sections: LandingSection[], isOwner: boolean = fals
   // SSOT 순서 (학원장 spec 2026-05-12): 학원소개 → 커뮤니티 → 매치업 → 가이드 → 서비스센터.
   // owner 시점에는 "수정하기" 카테고리가 최하단에 추가됨 (학원장 spec 2026-05-13).
 
-  // 1. 학원소개 — sections 기반
-  const aboutItems: NavMenuItem[] = [];
+  // 1. 학원소개 — dedicated route page first (학원장 spec 2026-05-13 "헤더 메뉴 별로 라우트 구조").
+  // sections는 메인 페이지의 anchor scroll로 보조. inline nav 가 route 우선 선택 (LandingNavBar).
+  const aboutItems: NavMenuItem[] = [
+    { key: "about_page", label: "학원 소개 (전체)", kind: "route", target: "/landing/about" },
+  ];
   if (has("instructor_profile")) aboutItems.push({ key: "instructor_profile", label: "강사 소개", kind: "section", target: "instructor_profile" });
   if (has("features")) aboutItems.push({ key: "features", label: "수업 특징", kind: "section", target: "features" });
   if (has("management_system")) aboutItems.push({ key: "management_system", label: "학생 관리", kind: "section", target: "management_system" });
   if (has("process_timeline")) aboutItems.push({ key: "process_timeline", label: "수업 흐름", kind: "section", target: "process_timeline" });
   if (has("programs")) aboutItems.push({ key: "programs", label: "프로그램", kind: "section", target: "programs" });
-  if (aboutItems.length) categories.push({ key: "about", label: "학원소개", items: aboutItems });
+  categories.push({ key: "about", label: "학원소개", items: aboutItems });
 
   // 2. 커뮤니티 — backend community 도메인 연동
   categories.push({
@@ -182,10 +185,12 @@ function buildMenuCategories(sections: LandingSection[], isOwner: boolean = fals
     categories.push({ key: "matchup", label: "매치업", items: matchupItems });
   }
 
-  // 4. 가이드
-  const guideItems: NavMenuItem[] = [];
-  if (has("faq")) guideItems.push({ key: "faq", label: "자주 묻는 질문", kind: "section", target: "faq" });
-  if (guideItems.length) categories.push({ key: "guide", label: "가이드", items: guideItems });
+  // 4. 가이드 — dedicated route page first (학원장 spec 2026-05-13 "헤더 메뉴 별로 라우트 구조")
+  const guideItems: NavMenuItem[] = [
+    { key: "guide_page", label: "가이드 전체", kind: "route", target: "/landing/guide" },
+  ];
+  if (has("faq")) guideItems.push({ key: "faq", label: "자주 묻는 질문 (홈)", kind: "section", target: "faq" });
+  categories.push({ key: "guide", label: "가이드", items: guideItems });
 
   // 5. 서비스센터
   const serviceItems: NavMenuItem[] = [];

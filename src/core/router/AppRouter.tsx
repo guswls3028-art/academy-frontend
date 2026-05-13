@@ -45,6 +45,9 @@ const LandingScoresDetailPage = lazy(() => import("@/landing/pages/LandingScores
 // 매치업 적중보고서 게시판 admin (Phase #69, 2026-05-13) — 학원장만 진입. 사이드바 "수정하기 (학원장)" → 매치업 게시판 관리.
 const LandingMatchupBoardAdminPage = lazy(() => import("@/landing/admin/LandingMatchupBoardAdminPage"));
 const LandingMatchupBoardPage = lazy(() => import("@/landing/pages/LandingMatchupBoardPage"));
+// 학원소개/가이드 dedicated page (Phase #73, 2026-05-13) — 학원장 spec "헤더 메뉴 별로 라우트 구조"
+const LandingAboutPage = lazy(() => import("@/landing/pages/LandingAboutPage"));
+const LandingGuidePage = lazy(() => import("@/landing/pages/LandingGuidePage"));
 
 function MaintenanceGate({ enabled }: { enabled: boolean }) {
   const location = useLocation();
@@ -291,6 +294,23 @@ export default function AppRouter() {
         element={
           <Suspense fallback={<div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}><span style={{ color: "var(--color-text-tertiary, #666)", fontSize: "var(--text-sm, 13px)" }}>불러오는 중…</span></div>}>
             <LandingScoresDetailPage />
+          </Suspense>
+        }
+      />
+      {/* 학원소개 / 가이드 dedicated page (Phase #73, 2026-05-13 — 학원장 spec) */}
+      <Route
+        path="/landing/about"
+        element={
+          <Suspense fallback={<div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}><span style={{ color: "var(--color-text-tertiary, #666)", fontSize: "var(--text-sm, 13px)" }}>불러오는 중…</span></div>}>
+            <LandingAboutPage />
+          </Suspense>
+        }
+      />
+      <Route
+        path="/landing/guide"
+        element={
+          <Suspense fallback={<div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}><span style={{ color: "var(--color-text-tertiary, #666)", fontSize: "var(--text-sm, 13px)" }}>불러오는 중…</span></div>}>
+            <LandingGuidePage />
           </Suspense>
         }
       />
