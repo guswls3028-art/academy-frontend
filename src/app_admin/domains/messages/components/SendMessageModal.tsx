@@ -227,25 +227,33 @@ export default function SendMessageModal({
     setShowSaveForm(false);
     setSaveTemplateName("");
     setShowPickerModal(false);
-    setAlimtalkFreeForm(!!initialBody);
+    setAlimtalkFreeForm(false);
     setTemplateBodySnapshot(null);
     setShowConfirm(false);
     sendingRef.current = false;
   }, [open, initialBody]);
 
-  // 자동 선택: 본 테넌트 양식 (카테고리 일치) > 시스템 기본
+  // 자동 선택: 본 테넌트 양식 (카테고리 일치) > 시스템 기본.
+  // initialBody가 있어도 봉투(카카오 검수 통과 4종 ITEM_LIST)는 카테고리에 맞춰 자동 선택해야 함.
+  // 학원장 mental model (domain-policy.md §5): 봉투는 시스템이 매칭, #{선생님메모}만 학원장 자유 작성.
+  // initialBody는 양식 body 대신 #{선생님메모} 자리에 들어가도록 body 그대로 보존.
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
     fetchMessageTemplates(undefined, true).then((list) => {
       if (cancelled) return;
       setTemplates(list);
-      if (!selectedTemplateId && !initialBody) {
+      if (!selectedTemplateId) {
         const match = pickAutoSelectTemplate(list, blockCategory);
         if (match) {
           setSelectedTemplateId(match.id);
-          setBody(match.body);
-          setTemplateBodySnapshot(match.body);
+          if (!initialBody) setBody(match.body);
+          // initialBody가 있으면 학원장 작성 본문이 곧 발송 본문 → snapshot 동기화로 "수정됨" 오인 방지
+          setTemplateBodySnapshot(initialBody ?? match.body);
+          setAlimtalkFreeForm(false);
+        } else if (initialBody) {
+          // 카테고리 매칭 실패 fallback: 학원장 입력 보존 위해 free-form
+          setAlimtalkFreeForm(true);
         }
       }
     }).catch(() => { if (!cancelled) setTemplates([]); });
