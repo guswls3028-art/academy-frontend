@@ -54,7 +54,16 @@ export default function ScoreInputCell({
   const commit = async () => {
     if (disabled || savingRef.current) return false;
 
-    const next = Number(draft);
+    // 빈 입력은 "변경 의도 없음"으로 간주. Number("") = 0 으로 박혀
+    // 미응시/미채점 학생이 0점으로 잘못 저장되는 사고 차단.
+    // (점수 삭제는 별도 휴지통 UI에서 명시적으로 처리할 작업)
+    const trimmed = draft.trim();
+    if (trimmed === "") {
+      setDraft(value == null ? "" : String(value));
+      return false;
+    }
+
+    const next = Number(trimmed);
     if (!Number.isFinite(next) || next < 0 || next > maxScore) {
       setDraft(value == null ? "" : String(value));
       return false;

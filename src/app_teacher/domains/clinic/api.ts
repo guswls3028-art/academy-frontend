@@ -90,3 +90,39 @@ export async function fetchClinicTargets(params?: { section_id?: number }) {
   const raw = res.data;
   return Array.isArray(raw?.results) ? raw.results : Array.isArray(raw) ? raw : [];
 }
+
+/* ─── ClinicLink (학습 실패 → 클리닉 대상 연결 SSOT) ─── */
+// 차시 진입 시 "이 차시에서 어느 학생이 클리닉 대상인지" 보여주는 본질 데이터.
+// ClinicSession (날짜의 클리닉 스케줄) 과 다른 개념: ClinicLink 는 학생×차시 매핑.
+export type ClinicLinkRow = {
+  id: number;
+  enrollment_id: number;
+  session: number;
+  session_title: string;
+  lecture_title: string;
+  student_name: string;
+  reason: string;
+  is_auto: boolean;
+  approved: boolean;
+  resolved_at: string | null;
+  resolution_type: string | null;
+  cycle_no: number;
+  memo: string | null;
+  meta: Record<string, unknown> | null;
+};
+
+export async function fetchSessionClinicLinks(sessionId: number, opts?: { unresolvedOnly?: boolean }) {
+  const params: Record<string, string | number | boolean> = {
+    session: sessionId,
+    page_size: 200,
+  };
+  if (opts?.unresolvedOnly) params.unresolved_only = "true";
+  const res = await api.get("/progress/clinic-links/", { params });
+  const raw = res.data;
+  const list: ClinicLinkRow[] = Array.isArray(raw?.results)
+    ? raw.results
+    : Array.isArray(raw)
+    ? raw
+    : [];
+  return list;
+}

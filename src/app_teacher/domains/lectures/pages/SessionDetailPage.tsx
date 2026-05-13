@@ -13,7 +13,7 @@ import { fetchSession, fetchSessionAttendance, fetchLectureEnrollments } from ".
 import { fetchSessionExams, fetchExamResults } from "@teacher/domains/scores/api";
 import { fetchVideos } from "@teacher/domains/videos/api";
 import { fetchHomeworks } from "@teacher/domains/exams/api";
-import { fetchClinicSessions } from "@teacher/domains/clinic/api";
+import { fetchSessionClinicLinks, type ClinicLinkRow } from "@teacher/domains/clinic/api";
 
 type Tab = "students" | "attendance" | "scores" | "exams" | "homeworks" | "videos" | "clinic";
 
@@ -75,10 +75,12 @@ export default function SessionDetailPage() {
     enabled: Number.isFinite(sid) && tab === "videos",
   });
 
-  const { data: clinicSessions } = useQuery({
-    queryKey: ["session-clinic", sid],
-    queryFn: () => fetchClinicSessions({ date_from: session?.date ?? "", date_to: session?.date ?? "" }),
-    enabled: Number.isFinite(sid) && tab === "clinic" && !!session?.date && sectionMode,
+  // 차시 클리닉 탭 = ClinicLink (학생×차시 매핑) SSOT.
+  // (이전: ClinicSession = 날짜의 클리닉 스케줄 — 차시 내 누가 클리닉 대상인지 못 봄)
+  const { data: clinicLinks } = useQuery({
+    queryKey: ["session-clinic-links", sid],
+    queryFn: () => fetchSessionClinicLinks(sid),
+    enabled: Number.isFinite(sid) && tab === "clinic" && sectionMode,
   });
 
   if (isLoading) return <EmptyState scope="panel" tone="loading" title="불러오는 중…" />;
@@ -185,7 +187,7 @@ export default function SessionDetailPage() {
       {tab === "videos" && <VideosTab videos={videos ?? []} navigate={navigate} />}
       {tab === "clinic" && (
         <ClinicTab
-          clinicSessions={clinicSessions ?? []}
+          links={clinicLinks ?? []}
           enabled={!!sectionMode}
           navigate={navigate}
         />
@@ -272,48 +274,109 @@ function HomeworksTab({ homeworks, navigate }: { homeworks: any[]; navigate: any
   );
 }
 
-/* === Clinic tab === */
+/* === Clinic tab ===
+   이 차시(session)의 ClinicLink 리스트.
+   "어느 학생이 어느 사유로 클리닉 대상인지 + 해소됐는지" 를 한 화면에 표시.
+   - reason: AUTO_FAILED / AUTO_RISK / MANUAL_REQUEST / TEACHER_RECOMMEND
+   - resolution_type: 해소됐을 때 EXAM_PASS / HOMEWORK_PASS / MANUAL_OVERRIDE / WAIVED / CARRIED_OVER
+   - cycle_no: 차수 (이월 시 +1)
+*/
+const REASON_LABEL: Record<string, string> = {
+  AUTO_FAILED: "차시 미통과",
+  AUTO_RISK: "위험 자동",
+  MANUAL_REQUEST: "요청",
+  TEACHER_RECOMMEND: "추천",
+};
+const RESOLUTION_LABEL: Record<string, { label: string; color: string }> = {
+  EXAM_PASS: { label: "시험 통과", color: "var(--tc-success)" },
+  HOMEWORK_PASS: { label: "과제 통과", color: "var(--tc-success)" },
+  MANUAL_OVERRIDE: { label: "수동 해소", color: "var(--tc-info)" },
+  WAIVED: { label: "면제", color: "var(--tc-text-muted)" },
+  CARRIED_OVER: { label: "이월", color: "var(--tc-warn)" },
+  BOOKING_LEGACY: { label: "예약(레거시)", color: "var(--tc-text-muted)" },
+};
+
 function ClinicTab({
-  clinicSessions,
+  links,
   enabled,
   navigate,
 }: {
-  clinicSessions: any[];
+  links: ClinicLinkRow[];
   enabled: boolean;
   navigate: any;
 }) {
   if (!enabled) {
     return <EmptyState scope="panel" tone="empty" title="이 학원은 클리닉 기능을 사용하지 않습니다" />;
   }
-  if (!clinicSessions.length) {
-    return <EmptyState scope="panel" tone="empty" title="이 날짜에 클리닉 세션이 없습니다" />;
+  if (!links.length) {
+    return <EmptyState scope="panel" tone="empty" title="이 차시에서 클리닉 대상 학생이 없습니다" />;
   }
+
+  // 미해소 먼저, 그 안에서 cycle 큰 순(최근 이월), 그 다음 해소된 항목
+  const sorted = [...links].sort((a, b) => {
+    const aResolved = a.resolved_at ? 1 : 0;
+    const bResolved = b.resolved_at ? 1 : 0;
+    if (aResolved !== bResolved) return aResolved - bResolved;
+    if (a.cycle_no !== b.cycle_no) return b.cycle_no - a.cycle_no;
+    return 0;
+  });
+
+  const unresolvedCount = sorted.filter((l) => !l.resolved_at).length;
+
   return (
-    <div className="flex flex-col gap-1.5">
-      {clinicSessions.map((c: any) => (
-        <button
-          key={c.id}
-          onClick={() => navigate(`/teacher/clinic`)}
-          className="flex items-center gap-3 rounded-xl w-full text-left cursor-pointer"
-          style={{
-            padding: "var(--tc-space-3) var(--tc-space-4)",
-            minHeight: "var(--tc-touch-min)",
-            background: "var(--tc-surface)",
-            border: "1px solid var(--tc-border)",
-          }}
-        >
-          <div className="flex-1 min-w-0">
-            <div className="text-sm font-semibold truncate" style={{ color: "var(--tc-text)" }}>
-              {c.title || "클리닉 세션"}
-            </div>
-            <div className="flex gap-2 text-[11px] mt-0.5" style={{ color: "var(--tc-text-muted)" }}>
-              {c.start_time && <span>{c.start_time}</span>}
-              {c.location && <span>{c.location}</span>}
-            </div>
-          </div>
-          <ChevronRightIcon />
-        </button>
-      ))}
+    <div className="flex flex-col gap-2">
+      <div className="text-[12px]" style={{ color: "var(--tc-text-muted)" }}>
+        미해소 {unresolvedCount} / 전체 {sorted.length}
+      </div>
+      <div className="flex flex-col gap-1.5">
+        {sorted.map((l) => {
+          const reasonLabel = REASON_LABEL[l.reason] ?? l.reason;
+          const isResolved = !!l.resolved_at;
+          const resolution = l.resolution_type ? RESOLUTION_LABEL[l.resolution_type] : null;
+          return (
+            <button
+              key={l.id}
+              onClick={() => navigate(`/teacher/clinic`)}
+              className="flex items-center gap-3 rounded-xl w-full text-left cursor-pointer"
+              style={{
+                padding: "var(--tc-space-3) var(--tc-space-4)",
+                minHeight: "var(--tc-touch-min)",
+                background: "var(--tc-surface)",
+                border: "1px solid var(--tc-border)",
+                opacity: isResolved ? 0.7 : 1,
+              }}
+            >
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-semibold truncate" style={{ color: "var(--tc-text)" }}>
+                    {l.student_name || "학생"}
+                  </span>
+                  {l.cycle_no > 1 && (
+                    <span
+                      className="text-[10px] font-semibold px-1.5 py-0.5 rounded shrink-0"
+                      style={{ color: "var(--tc-warn)", background: "color-mix(in srgb, var(--tc-warn) 12%, transparent)" }}
+                    >
+                      {l.cycle_no}차
+                    </span>
+                  )}
+                </div>
+                <div className="flex gap-2 text-[11px] mt-0.5 flex-wrap" style={{ color: "var(--tc-text-muted)" }}>
+                  <span>{reasonLabel}</span>
+                  {l.is_auto && <span>자동</span>}
+                  {l.memo && <span className="truncate max-w-[160px]">{l.memo}</span>}
+                </div>
+              </div>
+              <div className="shrink-0">
+                {isResolved && resolution ? (
+                  <StatusBadge label={resolution.label} color={resolution.color} />
+                ) : (
+                  <StatusBadge label="미해소" color="var(--tc-danger)" />
+                )}
+              </div>
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -486,6 +549,14 @@ function ScoresTab({
                 const name = r.student_name ?? "이름 없음";
                 const score = r.final_score ?? r.exam_score;
                 const maxScore = r.exam_max_score ?? exams.find((e: any) => e.id === selectedExam)?.max_score ?? 100;
+                // 미응시 / 임시채점 / 미채점 / 정상점수 4-state 표시.
+                // backend admin_exam_results_view 응답의 meta_status·is_provisional SSOT 반영.
+                const isNotSubmitted = r.meta_status === "NOT_SUBMITTED";
+                const isProvisional = !!r.is_provisional;
+                let scoreText: string;
+                if (isNotSubmitted) scoreText = "미응시";
+                else if (score == null) scoreText = "미채점";
+                else scoreText = isProvisional ? `${score}/${maxScore} (임시)` : `${score}/${maxScore}`;
                 return (
                   <div
                     key={r.enrollment_id}
@@ -497,9 +568,9 @@ function ScoresTab({
                       <AchievementBadge passed={r.final_pass ?? r.passed} achievement={r.achievement} />
                       <span
                         className="text-sm font-bold"
-                        style={{ color: score != null ? "var(--tc-text)" : "var(--tc-text-muted)" }}
+                        style={{ color: (isNotSubmitted || score == null) ? "var(--tc-text-muted)" : "var(--tc-text)" }}
                       >
-                        {score != null ? `${score}/${maxScore}` : "미채점"}
+                        {scoreText}
                       </span>
                     </div>
                   </div>
