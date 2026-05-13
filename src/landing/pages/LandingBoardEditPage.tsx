@@ -54,7 +54,7 @@ function BrandMark({ name }: { name: string }) {
 
 export default function LandingBoardEditPage() {
   const { postId } = useParams<{ postId: string }>();
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, isLoading: authLoading, user } = useAuth();
   const navigate = useNavigate();
   const u = user as { id?: number; tenantRole?: string | null; is_superuser?: boolean } | null;
   const role = (u?.tenantRole ?? "").toLowerCase();
@@ -96,6 +96,8 @@ export default function LandingBoardEditPage() {
       });
   }, [postId]);
 
+  // useAuth hydrate race 방어 — hydrate 끝나기 전 redirect 금지 (#74-1 패턴 정합)
+  if (authLoading) return <CenterSpin />;
   if (!isAuthenticated) return <Navigate to={`/login?next=${encodeURIComponent(`/landing/board/${postId}/edit`)}`} replace />;
 
   // 권한 검사 — backend 가 직렬화한 is_owner_or_author 우선, fallback 으로 staff 권한.
