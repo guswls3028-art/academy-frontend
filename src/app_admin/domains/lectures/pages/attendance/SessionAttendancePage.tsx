@@ -345,22 +345,26 @@ export default function SessionAttendancePage({
         const selectedRows = sorted.filter((att: any) => selectedSet.has(att.id));
         const studentIds = selectedRows.map((att: any) => att.student_id).filter((id: unknown) => id != null && Number.isFinite(id));
         if (studentIds.length === 0) return;
-        const lecture = qc.getQueryData<{ title?: string; name?: string }>(["lecture", lectureId]);
-        const lectureName = lecture?.title ?? lecture?.name ?? "";
-        const session = qc.getQueryData<{ title?: string }>(["session-detail", sessionId]);
-        const sessionTitle = session?.title ?? "";
+        // SSOT (2026-05-14): qc cache는 폴백, 진짜는 fetchSessionScores 응답 meta.
+        // 직전 결함: 출결 화면에서 lecture/session-detail useQuery cache miss → sessionTitle 빈 → 본문에 차시명 빠짐.
+        // 학원장 limglish 보고: drawer path는 차시명 정상, 일괄 path는 빈 → 두 path 결과 다름. SSOT로 통일.
+        let lectureName = "";
+        let sessionTitle = "";
         let initialBody: string | undefined;
         let scoreDetail = "";
         let perStudentVars: Record<number, Record<string, string>> | undefined;
-        // SSOT (2026-05-14): 다수 학생 일괄 발송도 학생별 본문 치환 (_body_subst).
-        // 직전 결함: studentIds.length === 1 만 substituteScoreVars 처리, N >= 2 는 raw template + perStudent 없음
-        // → #{시험N명}/#{시험N}/#{과제N...}/#{시험총점}/#{숙제완성도} 빈 자리 박힘. SessionScoresEntryPage 일괄
-        // path와 동일한 SSOT 패턴으로 통일.
         try {
           const [templates, scoresData] = await Promise.all([
             fetchMessageTemplates("grades"),
             fetchSessionScores(sessionId),
           ]);
+          // backend SSOT meta 1순위 → qc cache → ""
+          const meta: any = scoresData.meta;
+          const lecture = qc.getQueryData<{ title?: string; name?: string }>(["lecture", lectureId]);
+          const session = qc.getQueryData<{ title?: string }>(["session-detail", sessionId]);
+          lectureName = meta?.lecture_title ?? lecture?.title ?? lecture?.name ?? "";
+          sessionTitle = meta?.session_title ?? session?.title ?? "";
+
           const hasScoreVars = (body: string) => /#{(시험\d|과제\d|시험성적|시험총점|학생이름)}/.test(body);
           const userDefault = templates.find((t: any) => t.is_user_default && !t.is_system);
           const userWithScoreVars = templates.find((t: any) => !t.is_system && hasScoreVars(t.body));
@@ -372,12 +376,10 @@ export default function SessionAttendancePage({
           }
 
           if (studentIds.length === 1 && firstRow) {
-            // 1명: initialBody에 직접 치환된 본문 (drawer path와 동일)
             initialBody = chosenTpl
               ? substituteScoreVars(chosenTpl.body, firstRow, scoresData.meta, { lectureName, sessionTitle })
               : generateScoreReport(firstRow, scoresData.meta, { lectureName, sessionTitle });
           } else {
-            // 다수: raw template + perStudentVars._body_subst 로 학생별 본문 (backend가 학생 loop 안에서 덮어씀)
             initialBody = chosenTpl?.body;
             perStudentVars = {};
             for (const sid of studentIds) {
@@ -393,7 +395,13 @@ export default function SessionAttendancePage({
               };
             }
           }
-        } catch { /* fallback: backend가 본문 그대로 발송 */ }
+        } catch {
+          // fallback: meta/scores fetch 실패 시 qc cache라도
+          const lecture = qc.getQueryData<{ title?: string; name?: string }>(["lecture", lectureId]);
+          const session = qc.getQueryData<{ title?: string }>(["session-detail", sessionId]);
+          lectureName = lecture?.title ?? lecture?.name ?? "";
+          sessionTitle = session?.title ?? "";
+        }
 
         openSendMessageModal({
           studentIds,
