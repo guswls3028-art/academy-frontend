@@ -27,24 +27,20 @@ import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLecture
 import { Badge } from "@/shared/ui/ds";
 import { DomainTable, ResizableTh, useTableColumnPrefs } from "@/shared/ui/domain";
 import type { TableColumnDef } from "@/shared/ui/domain";
-import {
-  getAttendanceTone,
-} from "@/shared/ui/badges/AttendanceStatusBadge";
+import AttendanceStatusBadge from "@/shared/ui/badges/AttendanceStatusBadge";
 import { feedback } from "@/shared/ui/feedback/feedback";
 
 /** 컬럼 기본 너비 */
 const COL_EDIT = 36;
-// 2026-05-12: 학원장 임근혁 보고 — "이름·아이콘·강의 딱지 크기 키워", "시험끼리 행 넓이 좁아 가려진다".
-// 2026-05-13 1차: 강의 딱지 22→28, 시험 폭 112→132.
-// 2026-05-13 2차 (P0-A 캡처 검수 후):
-//   - 출석 44→64 ("출석" 두 글자 truncate 해소)
-//   - 시험 132→160 + 헤더 wrap 허용 (시험명 ≥ 5글자 잘림 해소)
-//   - 판정 72→88 (뱃지+사유 통합 후 폭 보강)
-const COL_NAME = 160;        // 이름 + 아바타(32) + 강의 딱지(28) 함께 들어갈 폭
+// 2026-05-13 3차 (SSOT 복구):
+//   - 이름 컬럼 160→200: 강의 딱지 SSOT 부활 후 [아바타32 + 이름 + 딱지24] 동시 수용
+//   - 출석 64 유지
+//   - 시험 160 유지 (헤더 wrap)
+//   - 판정 88 유지
+const COL_NAME = 200;
 const COL_ATTENDANCE = 64;
-const COL_SCORE = 160;       // 시험·과제 셀 폭. 헤더는 wrap 허용으로 시험명 보존
+const COL_SCORE = 160;
 const COL_CLINIC_TARGET = 88;
-const COL_REASON = 80;       // (사용 안 함, 통합 후 호환용 상수만 잔존)
 
 
 function parseScoreInput(input: string, maxScore?: number | null): number | null {
@@ -528,28 +524,20 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
 
   return (
     <div>
-      {/* 편집 모드 안내 배너 */}
+      {/* 편집 모드 안내 배너 — SSOT 클래스(2026-05-13 3차).
+          인라인 style + raw text-xs 제거. table.css 의 .scores-edit-help-banner 단일 소스. */}
       {isEditMode && (
-        <div
-          className="flex items-center gap-2 px-3 py-1.5 mb-2 rounded-md text-xs flex-wrap"
-          // eslint-disable-next-line no-restricted-syntax
-          style={{
-            background: "color-mix(in srgb, var(--color-brand-primary) 6%, var(--color-bg-surface))",
-            border: "1px solid color-mix(in srgb, var(--color-brand-primary) 15%, var(--color-border-divider))",
-            color: "var(--color-text-secondary)",
-          }}
-        >
-          {/* eslint-disable-next-line no-restricted-syntax */}
-          <span style={{ color: "var(--color-brand-primary)", fontWeight: 600 }}>편집 모드</span>
-          <span className="opacity-30">|</span>
+        <div className="scores-edit-help-banner" role="note">
+          <span className="scores-edit-help-banner__accent">편집 모드</span>
+          <span className="scores-edit-help-banner__sep">|</span>
           <span>점수 입력 후 <kbd className="score-help-kbd">Enter</kbd> 저장</span>
-          <span className="opacity-30">·</span>
+          <span className="scores-edit-help-banner__sep">·</span>
           <span>
             <kbd className="score-help-kbd">/</kbd> 입력 후 <kbd className="score-help-kbd">Enter</kbd>
-            <span className="text-[var(--color-text-muted)]"> = 미응시/미제출 처리</span>
+            <span className="scores-edit-help-banner__muted"> = 미응시/미제출 처리</span>
           </span>
-          <span className="opacity-30">·</span>
-          <span className="text-[var(--color-text-muted)]">
+          <span className="scores-edit-help-banner__sep">·</span>
+          <span className="scores-edit-help-banner__muted">
             <kbd className="score-help-kbd">Tab</kbd> 다음 셀 <kbd className="score-help-kbd">Esc</kbd> 취소
           </span>
         </div>
@@ -834,17 +822,28 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                 </td>
 
                 <td
-                  className="font-semibold min-w-0 text-[var(--color-text-primary)] align-middle text-sm"
+                  className="ds-text-name min-w-0 text-[var(--color-text-primary)] align-middle"
                   data-col-type="name"
                   onClick={() => onSelectRow(row)}
                 >
-                  {/* P1-4 (2026-05-13 1차): 차시 = 강의 컨텍스트라 강의 chip redundant. 이름 가독성 우선 → chip 제거.
-                      P1-B (2026-05-13 2차): 사진 없는 학생은 이니셜 아바타 redundant (옆 풀네임에 같은 글자 중복).
-                      → 사진이 있을 때만 32px 아바타, 없으면 아바타 자체 미표시. */}
+                  {/* SSOT 복구 (2026-05-13 3차): 학생 이름 = [아바타]+[이름]+[강의 딱지] 전역 규약 준수.
+                      직전 P1-4 결정(차시 컨텍스트 redundant)은 학원장 SSOT 위반으로 롤백.
+                      아바타도 SSOT 동일: 사진 없으면 이니셜 표시 (다른 30+ 화면과 정합).
+                      lectures: 단일 강의 → [{...}] 배열로 어댑트 (백엔드 row.lecture_* SSOT 그대로). */}
                   <StudentNameWithLectureChip
                     name={row.student_name ?? ""}
                     profilePhotoUrl={row.profile_photo_url ?? undefined}
-                    avatarSize={row.profile_photo_url ? 32 : undefined}
+                    avatarSize={32}
+                    chipSize={24}
+                    lectures={
+                      row.lecture_title
+                        ? [{
+                            lectureName: row.lecture_title,
+                            color: row.lecture_color ?? undefined,
+                            chipLabel: row.lecture_chip_label ?? undefined,
+                          }]
+                        : null
+                    }
                     clinicHighlight={row.name_highlight_clinic_target === true}
                   />
                 </td>
@@ -853,11 +852,14 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                   {(() => {
                     const status = attendanceMap[row.enrollment_id];
                     if (!status) return <span className="text-[var(--color-text-muted)]">-</span>;
-                    const tone = getAttendanceTone(status);
-                    const meta = { PRESENT: "현장", LATE: "지각", ONLINE: "영상", SUPPLEMENT: "보강", EARLY_LEAVE: "조퇴", ABSENT: "결석", RUNAWAY: "출튀", MATERIAL: "자료", INACTIVE: "부재", SECESSION: "퇴원" }[status] ?? status;
-                    const color = tone === "success" ? "var(--color-success)" : tone === "danger" ? "var(--color-error)" : tone === "warning" ? "var(--color-warning)" : tone === "primary" ? "var(--color-brand-primary)" : tone === "teal" ? "var(--color-teal, #0d9488)" : "var(--color-text-muted)";
-                    // eslint-disable-next-line no-restricted-syntax
-                    return <span className="text-xs font-semibold" style={{ color }}>{meta}</span>;
+                    // SSOT (2026-05-13 3차): 출석 표시는 AttendanceStatusBadge 단일 컴포넌트.
+                    // 직전 인라인 style 색·라벨 매핑은 ds-status-badge 토큰과 drift 우려 → 제거.
+                    return (
+                      <AttendanceStatusBadge
+                        status={status as Parameters<typeof AttendanceStatusBadge>[0]["status"]}
+                        variant="2ch"
+                      />
+                    );
                   })()}
                 </td>
 

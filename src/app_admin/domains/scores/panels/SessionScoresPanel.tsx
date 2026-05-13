@@ -394,24 +394,21 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
           한 번 보고 닫으면 같은 학원장 (브라우저)에서는 ?로 다시 펼치기 전까진 안 보임.
           편집 모드 안내는 ScoresTable 의 단일 안내로 통합 (P0-4). */}
       {!isEditMode && !helpDismissed && (
-        <div
-          className="rounded-lg border border-[var(--color-border-divider)] bg-[color-mix(in_srgb,var(--color-brand-primary)_5%,var(--color-bg-surface))] px-3 py-2 text-xs text-[var(--color-text-secondary)] flex flex-wrap items-center gap-x-3 gap-y-1"
-          role="note"
-        >
-          <span className="font-semibold text-[var(--color-text-primary)]">⓵ 학생 행 클릭</span>
+        <div className="scores-read-help-strip" role="note">
+          <span className="scores-read-help-strip__key">⓵ 학생 행 클릭</span>
           <span>→ 상세 드로어</span>
-          <span className="text-[var(--color-border-divider)]">|</span>
-          <span className="font-semibold text-[var(--color-text-primary)]">⓶ 시험명 옆 ⚙</span>
+          <span className="scores-read-help-strip__sep">|</span>
+          <span className="scores-read-help-strip__key">⓶ 시험명 옆 ⚙</span>
           <span>→ 만점/커트라인 수정</span>
-          <span className="text-[var(--color-border-divider)]">|</span>
-          <span className="font-semibold text-[var(--color-text-primary)]">⓷ ◀ ▶</span>
+          <span className="scores-read-help-strip__sep">|</span>
+          <span className="scores-read-help-strip__key">⓷ ◀ ▶</span>
           <span>→ 컬럼 순서 변경</span>
-          <span className="text-[var(--color-border-divider)]">|</span>
-          <span className="font-semibold text-[var(--color-text-primary)]">⓸ 회색 "-"</span>
+          <span className="scores-read-help-strip__sep">|</span>
+          <span className="scores-read-help-strip__key">⓸ 회색 "-"</span>
           <span>= 미등록 (수강생 일괄배정 필요)</span>
           <button
             type="button"
-            className="ml-auto text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--color-bg-surface-hover)]"
+            className="scores-read-help-strip__close"
             onClick={() => {
               try { localStorage.setItem(HELP_DISMISS_KEY, "1"); } catch { /* ignore */ }
               setHelpDismissed(true);

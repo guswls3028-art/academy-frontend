@@ -311,6 +311,49 @@ export default function SessionScoresEntryPage(_props: Props) {
       .filter((id): id is number => id != null && Number.isFinite(id));
   }, [data?.rows, selectedEnrollmentIds]);
 
+  /** 성적 일괄 변경 — Enter / 적용 버튼 단일 진입점.
+      2026-05-13 3차: 동일 로직 40+줄이 onEnterConfirm + onClick 양쪽에 중복돼 있던 drift 위험을 한 곳으로. */
+  const applyBulkScore = () => {
+    const score = Number(bulkScoreValue);
+    if (Number.isNaN(score) || score < 0) {
+      feedback.error("유효한 점수를 입력해주세요.");
+      return;
+    }
+    const meta = data?.meta;
+    const changes: import("@admin/domains/scores/api/scoreDraft").PendingChange[] = [];
+    for (const enrollmentId of selectedEnrollmentIds) {
+      if (bulkScoreTarget === "exam") {
+        for (const exam of meta?.exams ?? []) {
+          const maxScore = exam.max_score ?? 100;
+          if (score > maxScore) {
+            feedback.error(`${exam.title}의 최대 점수(${maxScore})를 초과합니다.`);
+            return;
+          }
+          changes.push({ type: "examTotal", examId: exam.exam_id, enrollmentId, score, maxScore });
+        }
+      } else {
+        for (const hw of meta?.homeworks ?? []) {
+          const maxScore = hw.max_score ?? 100;
+          if (score > maxScore) {
+            feedback.error(`${hw.title}의 최대 점수(${maxScore})를 초과합니다.`);
+            return;
+          }
+          changes.push({ type: "homework", homeworkId: hw.homework_id, enrollmentId, score });
+        }
+      }
+    }
+    if (changes.length === 0) {
+      feedback.error("변경할 대상이 없습니다. 시험 또는 과제가 등록되어 있는지 확인하세요.");
+      return;
+    }
+    panelRef.current?.applyDraftPatch(changes);
+    feedback.success(
+      `${bulkScoreTarget === "exam" ? "시험" : "과제"} 성적 일괄 변경이 적용되었습니다. (${selectedEnrollmentIds.length}명, ${score}점) 저장하기를 눌러 반영하세요.`
+    );
+    setShowBulkScoreModal(false);
+    setBulkScoreValue("");
+  };
+
   const hasSelection = selectedEnrollmentIds.length > 0;
   const selectionBar = (
     <div className="flex flex-col gap-2">
@@ -943,7 +986,8 @@ export default function SessionScoresEntryPage(_props: Props) {
         />
       )}
 
-      {/* 성적 일괄 변경 모달 */}
+      {/* 성적 일괄 변경 모달.
+          2026-05-13 3차: onEnterConfirm + 적용 버튼 onClick 40+줄 중복 → applyBulkScore 단일화. */}
       <AdminModal
         open={showBulkScoreModal}
         onClose={() => {
@@ -954,45 +998,7 @@ export default function SessionScoresEntryPage(_props: Props) {
         width={420}
         onEnterConfirm={() => {
           if (!isEditMode || !bulkScoreValue.trim()) return;
-          const score = Number(bulkScoreValue);
-          if (Number.isNaN(score) || score < 0) {
-            feedback.error("유효한 점수를 입력해주세요.");
-            return;
-          }
-          // Build PendingChange[] for all selected enrollments
-          const meta = data?.meta;
-          const changes: import("@admin/domains/scores/api/scoreDraft").PendingChange[] = [];
-          for (const enrollmentId of selectedEnrollmentIds) {
-            if (bulkScoreTarget === "exam") {
-              for (const exam of meta?.exams ?? []) {
-                const maxScore = exam.max_score ?? 100;
-                if (score > maxScore) {
-                  feedback.error(`${exam.title}의 최대 점수(${maxScore})를 초과합니다.`);
-                  return;
-                }
-                changes.push({ type: "examTotal", examId: exam.exam_id, enrollmentId, score, maxScore });
-              }
-            } else {
-              for (const hw of meta?.homeworks ?? []) {
-                const maxScore = hw.max_score ?? 100;
-                if (score > maxScore) {
-                  feedback.error(`${hw.title}의 최대 점수(${maxScore})를 초과합니다.`);
-                  return;
-                }
-                changes.push({ type: "homework", homeworkId: hw.homework_id, enrollmentId, score });
-              }
-            }
-          }
-          if (changes.length === 0) {
-            feedback.error("변경할 대상이 없습니다. 시험 또는 과제가 등록되어 있는지 확인하세요.");
-            return;
-          }
-          panelRef.current?.applyDraftPatch(changes);
-          feedback.success(
-            `${bulkScoreTarget === "exam" ? "시험" : "과제"} 성적 일괄 변경이 적용되었습니다. (${selectedEnrollmentIds.length}명, ${score}점) 저장하기를 눌러 반영하세요.`
-          );
-          setShowBulkScoreModal(false);
-          setBulkScoreValue("");
+          applyBulkScore();
         }}
       >
         <ModalHeader title="성적 일괄 변경" />
@@ -1068,47 +1074,7 @@ export default function SessionScoresEntryPage(_props: Props) {
                 intent="primary"
                 size="sm"
                 disabled={!bulkScoreValue.trim() || !isEditMode}
-                onClick={() => {
-                  const score = Number(bulkScoreValue);
-                  if (Number.isNaN(score) || score < 0) {
-                    feedback.error("유효한 점수를 입력해주세요.");
-                    return;
-                  }
-                  // Build PendingChange[] for all selected enrollments
-                  const meta = data?.meta;
-                  const changes: import("@admin/domains/scores/api/scoreDraft").PendingChange[] = [];
-                  for (const enrollmentId of selectedEnrollmentIds) {
-                    if (bulkScoreTarget === "exam") {
-                      for (const exam of meta?.exams ?? []) {
-                        const maxScore = exam.max_score ?? 100;
-                        if (score > maxScore) {
-                          feedback.error(`${exam.title}의 최대 점수(${maxScore})를 초과합니다.`);
-                          return;
-                        }
-                        changes.push({ type: "examTotal", examId: exam.exam_id, enrollmentId, score, maxScore });
-                      }
-                    } else {
-                      for (const hw of meta?.homeworks ?? []) {
-                        const maxScore = hw.max_score ?? 100;
-                        if (score > maxScore) {
-                          feedback.error(`${hw.title}의 최대 점수(${maxScore})를 초과합니다.`);
-                          return;
-                        }
-                        changes.push({ type: "homework", homeworkId: hw.homework_id, enrollmentId, score });
-                      }
-                    }
-                  }
-                  if (changes.length === 0) {
-                    feedback.error("변경할 대상이 없습니다. 시험 또는 과제가 등록되어 있는지 확인하세요.");
-                    return;
-                  }
-                  panelRef.current?.applyDraftPatch(changes);
-                  feedback.success(
-                    `${bulkScoreTarget === "exam" ? "시험" : "과제"} 성적 일괄 변경이 적용되었습니다. (${selectedEnrollmentIds.length}명, ${score}점) 저장하기를 눌러 반영하세요.`
-                  );
-                  setShowBulkScoreModal(false);
-                  setBulkScoreValue("");
-                }}
+                onClick={applyBulkScore}
               >
                 적용
               </Button>
