@@ -213,11 +213,14 @@ export default function LandingMatchupBoardPage() {
             {(() => {
               // detail page와 동일 fix — backend pdf_url 상대 path에 apiBase 프리픽스 부착.
               // 안 그러면 frontend SPA fallback이 메인 랜딩 페이지 로드 (#74-2).
+              // P0 audit (2026-05-13): tenantCode는 { ok, code } 객체. 이전 typeof === "string"
+              // 검사로 항상 false → tenant query 영구 미부착. detail page와 동일 ok/code 패턴.
               const apiBase = (import.meta.env.VITE_API_BASE_URL as string) || "";
               const raw = viewing.pdf_url || "";
               const abs = raw.startsWith("http") ? raw : `${apiBase}${raw}`;
-              const tc = typeof tenantCode === "string" ? tenantCode : "";
-              const src = (tc && !abs.includes("tenant=")) ? `${abs}${abs.includes("?") ? "&" : "?"}tenant=${tc}` : abs;
+              const src = (tenantCode.ok && !abs.includes("tenant="))
+                ? `${abs}${abs.includes("?") ? "&" : "?"}tenant=${tenantCode.code}`
+                : abs;
               return (
                 <iframe
                   src={src}
