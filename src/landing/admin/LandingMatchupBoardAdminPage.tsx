@@ -100,7 +100,7 @@ const INITIAL_FORM: PublishFormState = {
 };
 
 export default function LandingMatchupBoardAdminPage() {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, isLoading } = useAuth();
   const isOwner = !!(user?.is_superuser || user?.tenantRole === "owner" || user?.tenantRole === "admin");
   const navigate = useNavigate();
 
@@ -316,6 +316,15 @@ export default function LandingMatchupBoardAdminPage() {
     }
   }, [reload]);
 
+  // useAuth hydrate 시점 race 방어 — isLoading 중에는 redirect 금지.
+  // 직전 결함: race 시 학원장 진입에도 /login 으로 튕김.
+  if (isLoading) {
+    return (
+      <div style={{ minHeight: "100vh", background: "#f8fafc", display: "flex", alignItems: "center", justifyContent: "center", color: "#64748b", fontSize: 13 }}>
+        불러오는 중…
+      </div>
+    );
+  }
   if (!isAuthenticated) {
     return <Navigate to={`/login?next=${encodeURIComponent("/landing/admin/matchup-board")}`} replace />;
   }
