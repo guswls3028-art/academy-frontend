@@ -80,9 +80,13 @@ export default function LandingBoardPage() {
   useEffect(() => {
     setPosts(null);
     setError(false);
+    // P2 audit (2026-05-14): state race 방어 — 빠른 카테고리/검색/페이지 전환 시 이전
+    // request가 늦게 응답해도 stale set 안 함. cancelled flag로 후 응답 무시.
+    let cancelled = false;
     fetchBoardList({ page, page_size: PAGE_SIZE, category: category || undefined, ordering, q: query || undefined })
-      .then((r) => { setPosts(r.results); setCount(r.count); })
-      .catch(() => { setError(true); setPosts([]); setCount(0); });
+      .then((r) => { if (!cancelled) { setPosts(r.results); setCount(r.count); } })
+      .catch(() => { if (!cancelled) { setError(true); setPosts([]); setCount(0); } });
+    return () => { cancelled = true; };
   }, [page, category, ordering, query]);
 
   const totalPages = Math.max(1, Math.ceil(count / PAGE_SIZE));
@@ -316,10 +320,6 @@ function Pagination({ page, totalPages, onChange, accent, textPrimary, textSecon
         style={{ ...btn, color: textSecondary, opacity: windowEnd === totalPages ? 0.35 : 1 }}>›</button>
     </nav>
   );
-}
-
-function EmptyBox({ children, border, cardBg, color }: { children: React.ReactNode; border: string; cardBg: string; color: string }) {
-  return <div style={{ padding: "56px 24px", borderRadius: 14, background: cardBg, border: `1px solid ${border}`, textAlign: "center", fontSize: 14, color }}>{children}</div>;
 }
 
 function FirstPostInvite({ canWrite, onWrite, border, cardBg, accent, textPrimary, textSecondary }: {

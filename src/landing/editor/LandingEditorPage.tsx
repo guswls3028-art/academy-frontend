@@ -1360,6 +1360,15 @@ function ImageUploadModal({ field, onClose, onUpload }: { field: "hero" | "logo"
   const [drag, setDrag] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
+  // P2 audit (2026-05-14): URL.createObjectURL revoke 페어 — 이전 preview blob 누수 회피.
+  // preview state 변경 또는 unmount 시 이전 blob URL 해제. setPreview 직접 호출 곳도
+  // useEffect cleanup이 자동 처리.
+  useEffect(() => {
+    return () => {
+      if (preview) URL.revokeObjectURL(preview);
+    };
+  }, [preview]);
+
   // 클립보드 paste — 모달 열려있는 동안만 활성. textarea/input에 focus 시 그쪽이 paste 받도록 양보.
   useEffect(() => {
     const handler = (e: ClipboardEvent) => {
