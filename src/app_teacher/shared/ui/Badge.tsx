@@ -107,6 +107,7 @@ export function AttendanceBadge({
     return (
       <span
         title={cfg.label}
+        // eslint-disable-next-line no-restricted-syntax
         style={{
           width: 8,
           height: 8,

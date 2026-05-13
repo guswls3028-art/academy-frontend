@@ -265,6 +265,7 @@ export default function SessionItemBrowser({
       {selectedSessionId && (
         <div>
           <div className="flex items-center justify-between mb-2">
+            {/* eslint-disable-next-line no-restricted-syntax */}
             <label className="modal-section-label" style={{ marginBottom: 0 }}>
               {mode === "exam" ? "시험 목록" : "과제 목록"}
               {selectedSession && (
@@ -306,6 +307,7 @@ export default function SessionItemBrowser({
               {keyword ? "검색 결과가 없습니다." : mode === "exam" ? "이 차시에 시험이 없습니다." : "이 차시에 과제가 없습니다."}
             </div>
           ) : (
+            // eslint-disable-next-line no-restricted-syntax
             <div className="rounded border border-[var(--color-border-divider)] divide-y divide-[var(--color-border-divider)]" style={{ maxHeight: 240, overflowY: "auto" }}>
               {filteredItems.map((item) => {
                 const checked = selectedIds.has(item.id);

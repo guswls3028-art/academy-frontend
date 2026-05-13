@@ -9,7 +9,7 @@
  * - 디자인 토큰만 사용, DomainTable 기반
  */
 
-import { useMemo, useRef, useEffect, useState, Fragment, useCallback, forwardRef, useImperativeHandle } from "react";
+import { useMemo, useRef, useEffect, Fragment, useCallback, forwardRef, useImperativeHandle } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
 import type { SessionScoreRow, SessionScoreMeta } from "../api/sessionScores";

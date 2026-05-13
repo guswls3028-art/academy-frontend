@@ -130,7 +130,7 @@ export default function StudentScoresDrawer({ row, meta, sessionId, onClose, onO
         시험성적: scoreDetail,
       },
     });
-  }, [row, meta, openSendMessageModal]);
+  }, [row, meta, openSendMessageModal, labels.pass, labels.fail]);
 
   return (
     <div className="student-scores-drawer-side-panel">

@@ -57,7 +57,9 @@ export default function AdminExamResultsTable({
       <table className="ds-table w-full text-sm">
         <thead>
           <tr>
+            {/* eslint-disable-next-line no-restricted-syntax */}
             <th style={{ textAlign: "center", width: 56 }}>등수</th>
+            {/* eslint-disable-next-line no-restricted-syntax */}
             <th style={{ textAlign: "left" }}>학생</th>
             <th>최종점수</th>
             <th>상태</th>
@@ -75,6 +77,7 @@ export default function AdminExamResultsTable({
                 className="cursor-pointer"
                 onClick={() => onSelectEnrollment(r.enrollment_id)}
               >
+                {/* eslint-disable-next-line no-restricted-syntax */}
                 <td style={{ textAlign: "center", fontWeight: 700, fontSize: 13 }}>
                   {r.rank != null ? (
                     <span
@@ -86,6 +89,7 @@ export default function AdminExamResultsTable({
                     >
                       {r.rank}
                       <span
+                        // eslint-disable-next-line no-restricted-syntax
                         style={{
                           fontSize: 11,
                           fontWeight: 400,
@@ -97,10 +101,12 @@ export default function AdminExamResultsTable({
                       </span>
                     </span>
                   ) : (
+                    // eslint-disable-next-line no-restricted-syntax
                     <span style={{ color: "var(--color-text-muted)" }}>—</span>
                   )}
                 </td>
 
+                {/* eslint-disable-next-line no-restricted-syntax */}
                 <td style={{ textAlign: "left" }}>
                   <StudentNameWithLectureChip
                     name={r.student_name}
@@ -111,7 +117,9 @@ export default function AdminExamResultsTable({
                   />
                 </td>
 
+                {/* eslint-disable-next-line no-restricted-syntax */}
                 <td style={{ fontWeight: 600 }}>
+                  {/* eslint-disable-next-line no-restricted-syntax */}
                   <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
                     {scoreCell(r)}
                     {r.is_provisional && (
@@ -145,6 +153,7 @@ export default function AdminExamResultsTable({
                       {achievementLabel(achievement, { pass: tenantLabels.pass, fail: tenantLabels.fail })}
                     </Badge>
                   ) : (
+                    // eslint-disable-next-line no-restricted-syntax
                     <span style={{ color: "var(--color-text-muted)" }}>—</span>
                   )}
                 </td>

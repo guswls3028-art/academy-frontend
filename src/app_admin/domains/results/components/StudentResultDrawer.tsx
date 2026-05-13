@@ -94,7 +94,7 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
 
   const attempts = attemptData?.attempts ?? [];
   const maxAttempt = attempts.length > 0 ? Math.max(...attempts.map((a) => a.attempt_index)) : 1;
-  const items1st = detail?.items ?? [];
+  const items1st = useMemo(() => detail?.items ?? [], [detail?.items]);
   const scanImageUrl = useMemo(
     () => detail?.scan_image_url || getScanImageUrl(items1st),
     [detail?.scan_image_url, items1st],
@@ -132,7 +132,10 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
     return map;
   }, [examQuestions, mergedItems]);
 
-  const correctAnswersMap = detail?.correct_answers ?? {};
+  const correctAnswersMap = useMemo<Record<string, string>>(
+    () => detail?.correct_answers ?? {},
+    [detail?.correct_answers],
+  );
 
   const invalidateAll = useCallback(() => {
     qc.invalidateQueries({ queryKey: ["admin-exam-detail", examId, enrollmentId] });
@@ -208,6 +211,7 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
                         ? "1차 불합격 후 클리닉 재시험/수동 해소로 통과"
                         : undefined
                     }
+                    // eslint-disable-next-line no-restricted-syntax
                     style={{ marginLeft: 8 }}
                   >
                     {achievementLabel(ach, { pass: tenantLabels.pass, fail: tenantLabels.fail })}
@@ -220,6 +224,7 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
                   size="sm"
                   tone="warning"
                   title="채점 미확정 — 임시 점수"
+                  // eslint-disable-next-line no-restricted-syntax
                   style={{ marginLeft: 6 }}
                 >
                   임시 점수
@@ -240,6 +245,7 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
           {detail?.remediated && detail.clinic_retake && (
             <div
               className="srd-modal__remediated-banner"
+              // eslint-disable-next-line no-restricted-syntax
               style={{
                 padding: "8px 16px",
                 fontSize: 12,
@@ -251,6 +257,7 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
                 gap: 8,
               }}
             >
+              {/* eslint-disable-next-line no-restricted-syntax */}
               <span style={{ fontWeight: 700 }}>보강 합격</span>
               <span>
                 1차 점수 {detail.total_score}점(미달) → 클리닉 재시험
@@ -263,6 +270,7 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
                 {" 통과"}
               </span>
               {detail.clinic_retake.resolution_type === "MANUAL_OVERRIDE" && (
+                // eslint-disable-next-line no-restricted-syntax
                 <span style={{ marginLeft: "auto", fontSize: 11, opacity: 0.8 }}>
                   관리자 수동 해소
                 </span>

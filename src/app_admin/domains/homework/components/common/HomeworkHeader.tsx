@@ -40,8 +40,9 @@ export default function HomeworkHeader({ homework }: Props) {
       setTemplateModalOpen(false);
       feedback.success("템플릿으로 저장했습니다.");
     },
-    onError: (e: any) => {
-      feedback.error(e?.response?.data?.detail ?? "템플릿 저장에 실패했습니다.");
+    onError: (e: unknown) => {
+      const detail = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      feedback.error(detail ?? "템플릿 저장에 실패했습니다.");
     },
   });
 
