@@ -30,7 +30,7 @@ import {
 function StatusBadge({ status, expired }: { status: MatchupShowcaseStatus; expired: boolean }) {
   let label = "공개";
   let bg = "#16a34a";
-  let fg = "#fff";
+  const fg = "#fff";
   if (expired || status === "expired") { label = "기간 만료"; bg = "#f59e0b"; }
   else if (status === "hidden") { label = "비공개"; bg = "#6b7280"; }
   else if (status === "draft") { label = "초안"; bg = "#94a3b8"; }
