@@ -1537,7 +1537,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                       <div className="inline-flex flex-col items-center gap-0.5 leading-tight">
                         {badge}
                         {clinicReason && (
-                          <span className="text-[10px] font-medium text-[var(--color-text-muted)]">
+                          <span className="text-[11px] font-medium text-[var(--color-text-secondary)]">
                             {clinicReason}
                           </span>
                         )}

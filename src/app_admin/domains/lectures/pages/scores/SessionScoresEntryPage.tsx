@@ -456,12 +456,15 @@ export default function SessionScoresEntryPage(_props: Props) {
         {/* ── 디바이더 ── */}
         <span className="h-5 w-px bg-[var(--color-border-divider)]" aria-hidden="true" />
 
-        {/* ── 그룹 2: secondary 액션 ── */}
+        {/* ── 그룹 2: secondary 액션 ──
+            2026-05-13 학원장 호소 fix: 편집 모드 아닐 때 모달 진입 후 빨간 안내 = 짜증.
+            진입 자체를 편집 모드 ON + 선택 ≥1 일 때만 가능하도록 disabled + tooltip. */}
         <Button
           intent="secondary"
           size="sm"
           onClick={() => setShowBulkScoreModal(true)}
-          disabled={selectedEnrollmentIds.length === 0}
+          disabled={selectedEnrollmentIds.length === 0 || !isEditMode}
+          title={!isEditMode ? "편집 모드를 켠 뒤 사용할 수 있습니다." : selectedEnrollmentIds.length === 0 ? "학생을 선택하세요." : "선택한 학생의 시험·과제 점수를 한번에 변경합니다."}
         >
           성적 일괄 변경
         </Button>
@@ -518,8 +521,9 @@ export default function SessionScoresEntryPage(_props: Props) {
           선택 해제
         </Button>
 
-        {/* 표시 옵션 toggle — 읽기 모드일 때만, selectionBar 우측에 정합 배치.
-            직전엔 별도 row(scores-view-filter-panel)로 붕떠 있던 위치 호소 fix. */}
+        {/* 우측 컨텍스트 옵션 — 모드별 분기:
+            · 비-편집: 표시 옵션 toggle (펼침시 inline expand)
+            · 편집: 시험 합산/주관식 + 과제 켜짐/꺼짐 (별도 row 폐기, 4-layer stack → 3-layer) */}
         {!isEditMode && hasExamsOrHomeworks && (
           <>
             <span className="h-5 w-px bg-[var(--color-border-divider)]" aria-hidden="true" />
@@ -538,6 +542,25 @@ export default function SessionScoresEntryPage(_props: Props) {
                 <span className="ml-1 inline-flex items-center justify-center min-w-[6px] h-[6px] rounded-full bg-[var(--color-brand-primary)]" aria-label="설정 변경됨" />
               )}
             </button>
+          </>
+        )}
+        {isEditMode && (
+          <>
+            <span className="h-5 w-px bg-[var(--color-border-divider)]" aria-hidden="true" />
+            <div className="scores-view-filter-section">
+              <span className="scores-view-filter-label">시험</span>
+              <div className="scores-display-segment" role="group" aria-label="시험 점수 입력 방식">
+                <button type="button" onClick={handleSelectTotal} className="scores-display-segment__btn" aria-pressed={examEditTotal} title="시험 합산 점수만 한 칸으로 입력">합산</button>
+                <button type="button" onClick={handleSelectSubjective} className="scores-display-segment__btn" aria-pressed={examEditSubjective} title="주관식 점수만 입력 (객관식은 OMR 자동 채점)">주관식</button>
+              </div>
+            </div>
+            <div className="scores-view-filter-section">
+              <span className="scores-view-filter-label">과제</span>
+              <div className="scores-display-segment" role="group" aria-label="과제 점수 입력 켜짐/꺼짐">
+                <button type="button" onClick={() => { if (!homeworkEdit) handleSelectHomework(); }} className="scores-display-segment__btn" aria-pressed={homeworkEdit} title="과제 점수 입력 가능 상태">켜짐</button>
+                <button type="button" onClick={() => { if (homeworkEdit) handleSelectHomework(); }} className="scores-display-segment__btn" aria-pressed={!homeworkEdit} title="과제 점수 입력 차단 상태">꺼짐</button>
+              </div>
+            </div>
           </>
         )}
       </div>
@@ -815,25 +838,8 @@ export default function SessionScoresEntryPage(_props: Props) {
         </div>
       )}
 
-      {/* 편집 모드 — 시험·과제 입력 항목 토글. 읽기 모드는 selectionBar 우측에 통합됨. */}
-      {isEditMode && (
-      <div className="scores-view-filter-panel scores-view-filter-panel--edit">
-        <div className="scores-view-filter-section">
-          <span className="scores-view-filter-label">시험</span>
-          <div className="scores-display-segment" role="group" aria-label="시험 점수 입력 방식">
-            <button type="button" onClick={handleSelectTotal} className="scores-display-segment__btn" aria-pressed={examEditTotal} title="시험 합산 점수만 한 칸으로 입력">합산</button>
-            <button type="button" onClick={handleSelectSubjective} className="scores-display-segment__btn" aria-pressed={examEditSubjective} title="주관식 점수만 입력 (객관식은 OMR 자동 채점)">주관식</button>
-          </div>
-        </div>
-        <div className="scores-view-filter-section">
-          <span className="scores-view-filter-label">과제</span>
-          <div className="scores-display-segment" role="group" aria-label="과제 점수 입력 켜짐/꺼짐">
-            <button type="button" onClick={() => { if (!homeworkEdit) handleSelectHomework(); }} className="scores-display-segment__btn" aria-pressed={homeworkEdit} title="과제 점수 입력 가능 상태">켜짐</button>
-            <button type="button" onClick={() => { if (homeworkEdit) handleSelectHomework(); }} className="scores-display-segment__btn" aria-pressed={!homeworkEdit} title="과제 점수 입력 차단 상태">꺼짐</button>
-          </div>
-        </div>
-      </div>
-      )}
+      {/* 2026-05-13 학원장 호소 fix: 편집 모드 4-layer stack 압도감 해소.
+          편집 옵션 토글은 selectionBar 우측에 통합됨. 별도 row 제거. */}
 
       {isLoading && (
         <EmptyState scope="panel" tone="loading" title="성적 불러오는 중…" />

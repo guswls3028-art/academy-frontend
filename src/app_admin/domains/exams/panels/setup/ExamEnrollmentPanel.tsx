@@ -145,7 +145,7 @@ export default function ExamEnrollmentPanel({ examId }: { examId: number }) {
             <div className="flex-1 leading-relaxed">
               <div className="font-semibold">대상 학생이 0명입니다.</div>
               <div className="text-xs mt-0.5" style={{ color: "var(--color-text-primary)" }}>
-                학생을 등록해야 시험 응시·성적 입력이 가능합니다. 아래 <b>수강생 일괄배정</b> 또는 <b>대상자 관리</b>로 등록하세요.
+                학생을 등록해야 시험 응시·성적 입력이 가능합니다. 아래 <b>이 시험에 일괄배정</b> 또는 <b>대상자 관리</b>로 등록하세요.
               </div>
             </div>
           </div>
@@ -182,13 +182,14 @@ export default function ExamEnrollmentPanel({ examId }: { examId: number }) {
                 try {
                   await updateMut.mutateAsync({ enrollment_ids: allIds });
                   await qc.invalidateQueries({ queryKey: ["exam-enrollment", examId, sessionId] });
-                  feedback.success(`수강생 ${allIds.length}명 일괄배정 완료`);
+                  feedback.success(`이 시험에 수강생 ${allIds.length}명 일괄배정 완료`);
                 } catch {
                   feedback.error("전체 등록에 실패했습니다.");
                 }
               }}
+              title="이 시험에만 차시 수강생 전원을 응시 대상으로 등록합니다 (성적탭 전체 시험·과제 일괄배정과 별개)"
             >
-              수강생 일괄배정
+              이 시험에 일괄배정
             </Button>
             <Button
               type="button"

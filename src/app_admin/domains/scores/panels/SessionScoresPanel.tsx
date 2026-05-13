@@ -86,9 +86,15 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
   const [drawerEnrollmentId, setDrawerEnrollmentId] = useState<number | null>(null);
   /** 답안 상세 드로어 (StudentScoresDrawer → 답안 상세 보기) */
   const [answerDetail, setAnswerDetail] = useState<{ examId: number; enrollmentId: number; examTitle: string } | null>(null);
-  /** P0-5: 도움 안내 dismiss 상태 (localStorage 영속). */
+  /** 도움 안내 dismiss 상태 (localStorage 영속).
+   *  2026-05-13: default 를 dismissed(=collapsed) 로 변경 — 매번 strip 노출하던 시각 노이즈 해소.
+   *  학원장이 "? 도움말" 버튼 클릭하면 펼쳐짐. 이전 "0" 또는 unset 인 사용자도 collapsed 시작. */
   const [helpDismissed, setHelpDismissed] = useState<boolean>(() => {
-    try { return localStorage.getItem(HELP_DISMISS_KEY) === "1"; } catch { return false; }
+    try {
+      const v = localStorage.getItem(HELP_DISMISS_KEY);
+      // "1" 명시 dismiss / "0" 명시 expanded / null = default-dismissed
+      return v !== "0";
+    } catch { return true; }
   });
 
   const { data, isLoading, isError, refetch } = useQuery({
@@ -428,10 +434,10 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
           type="button"
           className="self-start text-[11px] text-[var(--color-text-muted)] hover:text-[var(--color-brand-primary)] inline-flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-[var(--color-bg-surface-hover)]"
           onClick={() => {
-            try { localStorage.removeItem(HELP_DISMISS_KEY); } catch { /* ignore */ }
+            try { localStorage.setItem(HELP_DISMISS_KEY, "0"); } catch { /* ignore */ }
             setHelpDismissed(false);
           }}
-          title="도움말 다시 보기"
+          title="도움말 보기"
         >
           ? 도움말
         </button>

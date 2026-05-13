@@ -190,25 +190,27 @@ export default function StudentScoresDrawer({ row, meta, sessionId, onClose, onO
             <section className="student-scores-drawer__section">
               <h3 className="student-scores-drawer__section-title">종합</h3>
               <div className="student-scores-drawer__summary">
+                {/* 2026-05-13 학원장 호소 fix: "0% 합격률" 의미 불명확.
+                    → "{N/M 이수}" 분수 첫째 + 백분율 둘째. Achievement SSOT 와 동일 단어 "이수". */}
                 {stats.examPassRate != null && (
                   <div className="student-scores-drawer__summary-row">
-                    <span className="student-scores-drawer__summary-label">시험 합격률</span>
+                    <span className="student-scores-drawer__summary-label">시험</span>
                     <span className="student-scores-drawer__summary-value">
                       <span style={{ color: stats.examPassRate === 100 ? "var(--color-success)" : stats.examPassRate < 50 ? "var(--color-error)" : "var(--color-text-primary)" }}>
-                        {stats.examPassRate}%
+                        {stats.examPassed}/{stats.examTotal} 이수
                       </span>
-                      <span className="student-scores-drawer__max-score"> ({stats.examPassed}/{stats.examTotal})</span>
+                      <span className="student-scores-drawer__max-score"> ({stats.examPassRate}%)</span>
                     </span>
                   </div>
                 )}
                 {stats.hwPassRate != null && (
                   <div className="student-scores-drawer__summary-row">
-                    <span className="student-scores-drawer__summary-label">과제 합격률</span>
+                    <span className="student-scores-drawer__summary-label">과제</span>
                     <span className="student-scores-drawer__summary-value">
                       <span style={{ color: stats.hwPassRate === 100 ? "var(--color-success)" : stats.hwPassRate < 50 ? "var(--color-error)" : "var(--color-text-primary)" }}>
-                        {stats.hwPassRate}%
+                        {stats.hwPassed}/{stats.hwTotal} 이수
                       </span>
-                      <span className="student-scores-drawer__max-score"> ({stats.hwPassed}/{stats.hwTotal})</span>
+                      <span className="student-scores-drawer__max-score"> ({stats.hwPassRate}%)</span>
                     </span>
                   </div>
                 )}
