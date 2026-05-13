@@ -2,7 +2,7 @@
 /**
  * 일정 — 3탭: 내 일정(달력) | 예약 | 지난 일정
  */
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { AxiosError } from "axios";
@@ -10,7 +10,11 @@ import StudentPageShell from "@student/shared/ui/pages/StudentPageShell";
 import ScheduleCalendar from "@student/shared/ui/components/ScheduleCalendar";
 import type { DateStatusColor } from "@student/shared/ui/components/ScheduleCalendar";
 import { useMySessions } from "@student/domains/sessions/hooks/useStudentSessions";
-import { clearMyPastSessions } from "@student/domains/sessions/api/sessions.api";
+import {
+  clearMyPastSessions,
+  hideMySession,
+  unhideMySession,
+} from "@student/domains/sessions/api/sessions.api";
 import type { StudentSession } from "@student/domains/sessions/api/sessions.api";
 import EmptyState from "@student/layout/EmptyState";
 import { formatYmd } from "@student/shared/utils/date";
@@ -48,6 +52,8 @@ export default function SessionListPage() {
   const { data: sessions = [], isLoading, isError } = useMySessions();
   const qc = useQueryClient();
   const confirm = useConfirm();
+  const [undoTarget, setUndoTarget] = useState<{ id: number; title: string } | null>(null);
+  const undoTimerRef = useRef<number | null>(null);
 
   const clearPastMutation = useMutation({
     mutationFn: clearMyPastSessions,
@@ -64,6 +70,67 @@ export default function SessionListPage() {
       );
     },
   });
+
+  const hideMutation = useMutation({
+    mutationFn: hideMySession,
+    onMutate: async (id: number) => {
+      await qc.cancelQueries({ queryKey: ["student-sessions"] });
+      const prev = qc.getQueryData<StudentSession[]>(["student-sessions"]);
+      qc.setQueryData<StudentSession[]>(["student-sessions"], (cur) =>
+        (cur ?? []).filter((s) => s.id !== id),
+      );
+      return { prev };
+    },
+    onError: (error: AxiosError<ApiErrorBody>, _id, ctx) => {
+      if (ctx?.prev) qc.setQueryData(["student-sessions"], ctx.prev);
+      studentToast.error(
+        error?.response?.data?.detail ||
+          error?.response?.data?.message ||
+          "숨기기에 실패했어요. 잠시 후 다시 시도해주세요.",
+      );
+      setUndoTarget(null);
+    },
+  });
+
+  const unhideMutation = useMutation({
+    mutationFn: unhideMySession,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["student-sessions"] });
+    },
+    onError: (error: AxiosError<ApiErrorBody>) => {
+      studentToast.error(
+        error?.response?.data?.detail ||
+          error?.response?.data?.message ||
+          "되돌리기에 실패했어요.",
+      );
+    },
+  });
+
+  const handleHide = useCallback(
+    (s: StudentSession) => {
+      hideMutation.mutate(s.id);
+      setUndoTarget({ id: s.id, title: s.title });
+      if (undoTimerRef.current) window.clearTimeout(undoTimerRef.current);
+      undoTimerRef.current = window.setTimeout(() => setUndoTarget(null), 4500);
+    },
+    [hideMutation],
+  );
+
+  const handleUndo = useCallback(() => {
+    if (!undoTarget) return;
+    unhideMutation.mutate(undoTarget.id);
+    setUndoTarget(null);
+    if (undoTimerRef.current) {
+      window.clearTimeout(undoTimerRef.current);
+      undoTimerRef.current = null;
+    }
+  }, [undoTarget, unhideMutation]);
+
+  useEffect(() => {
+    return () => {
+      if (undoTimerRef.current) window.clearTimeout(undoTimerRef.current);
+    };
+  }, []);
 
   const handleClearPast = async () => {
     if (clearPastMutation.isPending) return;
@@ -250,14 +317,210 @@ export default function SessionListPage() {
           ) : (
             <>
               <div className="stu-muted" style={{ fontSize: 13, textAlign: "center", padding: "2px 0 4px" }}>
-                총 {pastSessions.length}건의 지난 일정
+                총 {pastSessions.length}건의 지난 일정 · 좌측으로 밀어 숨기기
               </div>
-              <SessionList sessions={pastSessions} showDate isPast />
+              <SessionList sessions={pastSessions} showDate isPast onHide={handleHide} />
             </>
           )
         )}
       </div>
+      {undoTarget && (
+        <UndoBanner
+          title={undoTarget.title}
+          onUndo={handleUndo}
+          onDismiss={() => setUndoTarget(null)}
+        />
+      )}
     </StudentPageShell>
+  );
+}
+
+// ─── Undo Banner ───
+function UndoBanner({
+  title,
+  onUndo,
+  onDismiss,
+}: {
+  title: string;
+  onUndo: () => void;
+  onDismiss: () => void;
+}) {
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      style={{
+        position: "fixed",
+        left: "50%",
+        bottom: "calc(var(--stu-safe-bottom, 0px) + var(--stu-tabbar-h, 56px) + 12px)",
+        transform: "translateX(-50%)",
+        zIndex: 9998,
+        maxWidth: "min(92vw, 380px)",
+        background: "var(--stu-text, #111827)",
+        color: "#fff",
+        borderRadius: 12,
+        padding: "10px 14px",
+        display: "flex",
+        alignItems: "center",
+        gap: 12,
+        boxShadow: "0 8px 24px rgba(0,0,0,0.18)",
+      }}
+    >
+      <div style={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        숨김 · {title}
+      </div>
+      <button
+        type="button"
+        onClick={onUndo}
+        style={{
+          background: "transparent",
+          border: "none",
+          color: "#93c5fd",
+          fontWeight: 800,
+          fontSize: 13,
+          padding: "6px 8px",
+          cursor: "pointer",
+          letterSpacing: "-0.01em",
+        }}
+      >
+        되돌리기
+      </button>
+      <button
+        type="button"
+        onClick={onDismiss}
+        aria-label="닫기"
+        style={{
+          background: "transparent",
+          border: "none",
+          color: "rgba(255,255,255,0.7)",
+          fontSize: 16,
+          lineHeight: 1,
+          padding: "4px 6px",
+          cursor: "pointer",
+        }}
+      >
+        ×
+      </button>
+    </div>
+  );
+}
+
+// ─── Swipe to Hide ───
+function SwipeRevealHide({
+  onHide,
+  children,
+}: {
+  onHide: () => void;
+  children: React.ReactNode;
+}) {
+  const [dragX, setDragX] = useState(0);
+  const [removing, setRemoving] = useState(false);
+  const startX = useRef<number | null>(null);
+  const startY = useRef<number | null>(null);
+  const isHorizontal = useRef<boolean | null>(null);
+  const draggedAt = useRef(0);
+
+  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (removing) return;
+    startX.current = e.clientX;
+    startY.current = e.clientY;
+    isHorizontal.current = null;
+    draggedAt.current = 0;
+  };
+
+  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (startX.current == null || startY.current == null || removing) return;
+    const dx = e.clientX - startX.current;
+    const dy = e.clientY - startY.current;
+    if (isHorizontal.current == null) {
+      if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return;
+      isHorizontal.current = Math.abs(dx) > Math.abs(dy);
+    }
+    if (!isHorizontal.current) return;
+    if (dx >= 0) {
+      setDragX(0);
+      return;
+    }
+    setDragX(Math.max(dx, -180));
+    draggedAt.current = Math.abs(dx);
+    try {
+      (e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId);
+    } catch {}
+  };
+
+  const release = () => {
+    const x = dragX;
+    startX.current = null;
+    startY.current = null;
+    isHorizontal.current = null;
+    if (x < -80) {
+      setRemoving(true);
+      setDragX(-560);
+      window.setTimeout(() => onHide(), 180);
+    } else {
+      setDragX(0);
+    }
+  };
+
+  const onClickCapture = (e: React.MouseEvent) => {
+    if (draggedAt.current > 6) {
+      e.preventDefault();
+      e.stopPropagation();
+      draggedAt.current = 0;
+    }
+  };
+
+  const revealOpacity = Math.min(1, Math.abs(dragX) / 80);
+
+  return (
+    <div
+      style={{
+        position: "relative",
+        overflow: "hidden",
+        borderRadius: 12,
+        maxHeight: removing ? 0 : 200,
+        marginBottom: removing ? 0 : undefined,
+        opacity: removing ? 0 : 1,
+        transition: removing ? "max-height 0.2s ease, opacity 0.2s ease, margin 0.2s ease" : undefined,
+      }}
+    >
+      <div
+        aria-hidden
+        style={{
+          position: "absolute",
+          inset: 0,
+          background: "var(--stu-danger, #ef4444)",
+          color: "#fff",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "flex-end",
+          padding: "0 20px",
+          gap: 6,
+          fontWeight: 700,
+          fontSize: 13,
+          letterSpacing: "-0.01em",
+          opacity: revealOpacity,
+          pointerEvents: "none",
+        }}
+      >
+        <IconTrash style={{ width: 18, height: 18 }} />
+        숨기기
+      </div>
+      <div
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={release}
+        onPointerCancel={release}
+        onClickCapture={onClickCapture}
+        style={{
+          transform: `translateX(${dragX}px)`,
+          transition: dragX === 0 || removing ? "transform 0.2s ease" : undefined,
+          touchAction: "pan-y",
+        }}
+      >
+        {children}
+      </div>
+    </div>
   );
 }
 
@@ -343,10 +606,12 @@ function SessionList({
   sessions,
   showDate,
   isPast,
+  onHide,
 }: {
   sessions: StudentSession[];
   showDate?: boolean;
   isPast?: boolean;
+  onHide?: (s: StudentSession) => void;
 }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-2)" }}>
@@ -363,7 +628,7 @@ function SessionList({
               : status.includes("예정") || status.includes("진행") || status.includes("예약")
                 ? "stu-panel--action"
                 : "stu-panel--nav";
-        return (
+        const card = (
           <Link
             key={s.id}
             to={linkTo}
@@ -406,6 +671,14 @@ function SessionList({
             <IconChevronRight style={{ width: 20, height: 20, color: "var(--stu-text-muted)", flexShrink: 0 }} />
           </Link>
         );
+        if (isPast && onHide) {
+          return (
+            <SwipeRevealHide key={s.id} onHide={() => onHide(s)}>
+              {card}
+            </SwipeRevealHide>
+          );
+        }
+        return <div key={s.id}>{card}</div>;
       })}
     </div>
   );

@@ -29,3 +29,13 @@ export async function clearMyPastSessions(): Promise<{ hidden_before: string }> 
   const res = await api.post<{ hidden_before: string }>("/student/sessions/clear-past/");
   return res.data;
 }
+
+export async function hideMySession(id: number): Promise<{ hidden_ids: number[] }> {
+  const res = await api.post<{ hidden_ids: number[] }>("/student/sessions/hide/", { id });
+  return res.data;
+}
+
+export async function unhideMySession(id: number): Promise<{ hidden_ids: number[] }> {
+  const res = await api.post<{ hidden_ids: number[] }>("/student/sessions/unhide/", { id });
+  return res.data;
+}
