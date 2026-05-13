@@ -103,29 +103,31 @@
     0 2px 4px rgba(0, 0, 0, 0.08);
 }
 
-/* Secondary — 보조 액션 (neutral 톤) + 테두리/대비 강화 */
+/* Secondary — 보조 액션 (neutral 칩).
+ * 화이트 테마(페이지/카드 ≈ 흰색) 위에서도 또렷이 보이도록 Neutral100 fill + Neutral300 border 고정.
+ * Why: 이전 mix 비율(16%)은 라이트 테마에서 페이지 배경과 거의 같은 톤이 되어 버튼이 사라지는 학원장 피드백 반복. */
 .ds-button[data-intent="secondary"] {
-  background: color-mix(in srgb, var(--color-border-divider) 16%, var(--color-bg-surface));
+  background: var(--scale-Neutral100);
   color: var(--color-text-primary);
-  border: 1px solid color-mix(in srgb, var(--color-border-divider) 70%, transparent);
+  border: 1px solid var(--scale-Neutral300);
 }
 
 .ds-button[data-intent="secondary"]:hover:not(:disabled):not([data-disabled="true"]) {
-  background: color-mix(in srgb, var(--color-border-divider) 24%, var(--color-bg-surface));
-  border-color: var(--color-text-muted);
+  background: var(--scale-Neutral200);
+  border-color: var(--scale-Neutral400);
 }
 
-/* Ghost — 저강도 + 호버 시 테두리 힌트 */
+/* Ghost — 저강도. 평상시에도 윤곽 보이도록 transparent + divider border. */
 .ds-button[data-intent="ghost"] {
-  background: color-mix(in srgb, var(--color-border-divider) 4%, var(--color-bg-surface));
+  background: transparent;
   color: var(--color-text-secondary);
-  border: 1px solid transparent;
+  border: 1px solid var(--color-border-divider);
 }
 
 .ds-button[data-intent="ghost"]:hover:not(:disabled):not([data-disabled="true"]) {
-  background: color-mix(in srgb, var(--color-border-divider) 12%, var(--color-bg-surface));
+  background: var(--color-bg-surface-hover);
   color: var(--color-text-primary);
-  border-color: color-mix(in srgb, var(--color-border-divider) 35%, transparent);
+  border-color: var(--color-border-default);
 }
 
 /* Danger — 위험 액션 (error 톤). 학원장 피드백 가시성 강화. */
@@ -247,10 +249,57 @@
  * Disabled
  * ====================================================== */
 
+/* Disabled — opacity 만 낮추면 secondary/ghost 의 옅은 회색 fill 이 거의 사라져 발견성을 잃음.
+ * 학원장 호소("뭐가 뭔지 모르겠다") 대응: opacity 는 0.65 까지만 낮추고, 윤곽(border) 은 또렷하게 유지. */
 .ds-button:disabled,
 .ds-button[data-disabled="true"] {
-  opacity: 0.5;
+  opacity: 0.65;
   cursor: not-allowed;
   pointer-events: none;
   transform: none;
+}
+
+.ds-button[data-intent="secondary"]:disabled,
+.ds-button[data-intent="secondary"][data-disabled="true"] {
+  background: var(--scale-Neutral100);
+  border-color: var(--scale-Neutral400);
+  color: var(--color-text-secondary);
+}
+
+.ds-button[data-intent="ghost"]:disabled,
+.ds-button[data-intent="ghost"][data-disabled="true"] {
+  border-color: var(--color-border-default);
+  color: var(--color-text-secondary);
+}
+
+/* ======================================================
+ * Modal context — 모달은 항상 #ffffff 위에 떠 있어 Neutral100 fill 이 흐려짐.
+ * 모달 안 secondary 는 한 단계 진한 Neutral200 + Neutral400 border 로 강화.
+ * ====================================================== */
+
+.ant-modal-content .ds-button[data-intent="secondary"],
+.ds-modal .ds-button[data-intent="secondary"],
+[role="dialog"] .ds-button[data-intent="secondary"] {
+  background: var(--scale-Neutral200);
+  border-color: var(--scale-Neutral400);
+}
+
+.ant-modal-content .ds-button[data-intent="secondary"]:hover:not(:disabled):not([data-disabled="true"]),
+.ds-modal .ds-button[data-intent="secondary"]:hover:not(:disabled):not([data-disabled="true"]),
+[role="dialog"] .ds-button[data-intent="secondary"]:hover:not(:disabled):not([data-disabled="true"]) {
+  background: var(--scale-Neutral300);
+  border-color: var(--scale-Neutral500);
+}
+
+.ant-modal-content .ds-button[data-intent="ghost"],
+.ds-modal .ds-button[data-intent="ghost"],
+[role="dialog"] .ds-button[data-intent="ghost"] {
+  border-color: var(--color-border-default);
+}
+
+/* antd default 도 모달 안에서 동일 강화 */
+.ant-modal-content .ant-btn-default:not(.ant-btn-primary):not(.ant-btn-dangerous),
+[role="dialog"] .ant-btn-default:not(.ant-btn-primary):not(.ant-btn-dangerous) {
+  background: var(--scale-Neutral200);
+  border-color: var(--scale-Neutral400);
 }

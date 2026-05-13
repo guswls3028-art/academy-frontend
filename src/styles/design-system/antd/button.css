@@ -5,39 +5,108 @@
   border-radius: var(--radius-md);
 }
 
-/* Default buttons follow CONTROL slot */
+/* Default buttons: 화이트 테마(페이지 ≈ 흰색)에서도 또렷이 보이도록 Neutral100 fill + Neutral300 border.
+ * Why: --ui-control-bg(=surface) 그대로 쓰면 페이지/카드 배경과 같은 톤이 되어 버튼이 사라짐. input은 흰 배경이 자연스러우므로 슬롯은 유지하고 antd 버튼만 분리.
+ * AntD 6은 `.ant-btn`에 border-width:0 을 박으므로 반드시 `border` 단축으로 width까지 명시할 것 (border-color만 잡으면 보이지 않음). */
 .ant-btn,
 .ant-btn-default {
-  background: var(--ui-control-bg);
-  border-color: var(--ui-control-border);
+  background: var(--scale-Neutral100);
+  border: 1px solid var(--scale-Neutral300);
   color: var(--ui-control-text);
   box-shadow: var(--ui-control-shadow);
 }
 
 .ant-btn:hover,
 .ant-btn-default:hover {
-  background: var(--ui-control-bg-hover);
-  border-color: var(--ui-control-border-hover);
+  background: var(--scale-Neutral200);
+  border-color: var(--scale-Neutral400);
   color: var(--ui-control-text);
 }
 
-/* Primary buttons follow CONTROL-PRIMARY slot */
+/* antd ghost / text / link 버튼은 위 fill/border 를 상속하지 않도록 무력화 */
+.ant-btn-ghost,
+.ant-btn-background-ghost {
+  background: transparent;
+  border: 1px solid var(--color-border-divider);
+}
+
+.ant-btn-text,
+.ant-btn-link {
+  background: transparent;
+  border: 1px solid transparent;
+}
+
+.ant-btn-text:hover,
+.ant-btn-link:hover {
+  background: var(--color-bg-surface-hover);
+}
+
+/* Primary buttons: brand 색을 그대로 (CTA 가시성 확보). 22% mix 슬롯은 옅어서 사용자가 '안 보인다' 호소 → fix. */
 .ant-btn-primary {
-  background: var(--ui-control-primary-bg);
-  border-color: var(--ui-control-primary-bg);
-  color: var(--ui-control-primary-text);
+  background: var(--color-brand-primary);
+  border: 1px solid var(--color-brand-primary);
+  color: var(--color-brand-primary-contrast, #fff);
 }
 
 .ant-btn-primary:hover {
-  background: var(--ui-control-primary-bg-hover);
-  border-color: var(--ui-control-primary-bg-hover);
-  color: var(--ui-control-primary-text);
+  background: color-mix(in srgb, var(--color-brand-primary) 88%, #000);
+  border-color: color-mix(in srgb, var(--color-brand-primary) 88%, #000);
+  color: var(--color-brand-primary-contrast, #fff);
 }
 
 .ant-btn-primary:active {
-  background: var(--ui-control-primary-bg-active);
-  border-color: var(--ui-control-primary-bg-active);
-  color: var(--ui-control-primary-text);
+  background: color-mix(in srgb, var(--color-brand-primary) 78%, #000);
+  border-color: color-mix(in srgb, var(--color-brand-primary) 78%, #000);
+  color: var(--color-brand-primary-contrast, #fff);
+}
+
+/* Dark 테마: 어두운 페이지 위 Neutral100 은 페이지와 톤 차이가 작아 흐릿함 → 한 단계 더 밝은 Neutral200 사용.
+ * primary/dangerous/ghost/text/link 는 별도 색이 있으므로 default 만 한정. */
+[data-theme="modern-dark"] .ant-btn-default:not(.ant-btn-primary):not(.ant-btn-dangerous),
+[data-theme="dark-navy"] .ant-btn-default:not(.ant-btn-primary):not(.ant-btn-dangerous),
+[data-theme="graphite-studio"] .ant-btn-default:not(.ant-btn-primary):not(.ant-btn-dangerous),
+[data-theme="deep-ocean"] .ant-btn-default:not(.ant-btn-primary):not(.ant-btn-dangerous) {
+  background: var(--scale-Neutral200);
+  border-color: var(--scale-Neutral400);
+}
+
+[data-theme="modern-dark"] .ant-btn-default:not(.ant-btn-primary):not(.ant-btn-dangerous):hover,
+[data-theme="dark-navy"] .ant-btn-default:not(.ant-btn-primary):not(.ant-btn-dangerous):hover,
+[data-theme="graphite-studio"] .ant-btn-default:not(.ant-btn-primary):not(.ant-btn-dangerous):hover,
+[data-theme="deep-ocean"] .ant-btn-default:not(.ant-btn-primary):not(.ant-btn-dangerous):hover {
+  background: var(--scale-Neutral300);
+  border-color: var(--scale-Neutral500);
+}
+
+/* ds-button 도 같은 사유로 다크에서 한 단계 더 밝게 */
+[data-theme="modern-dark"] .ds-button[data-intent="secondary"],
+[data-theme="dark-navy"] .ds-button[data-intent="secondary"],
+[data-theme="graphite-studio"] .ds-button[data-intent="secondary"],
+[data-theme="deep-ocean"] .ds-button[data-intent="secondary"] {
+  background: var(--scale-Neutral200);
+  border-color: var(--scale-Neutral400);
+}
+
+[data-theme="modern-dark"] .ds-button[data-intent="secondary"]:hover:not(:disabled):not([data-disabled="true"]),
+[data-theme="dark-navy"] .ds-button[data-intent="secondary"]:hover:not(:disabled):not([data-disabled="true"]),
+[data-theme="graphite-studio"] .ds-button[data-intent="secondary"]:hover:not(:disabled):not([data-disabled="true"]),
+[data-theme="deep-ocean"] .ds-button[data-intent="secondary"]:hover:not(:disabled):not([data-disabled="true"]) {
+  background: var(--scale-Neutral300);
+  border-color: var(--scale-Neutral500);
+}
+
+/* Dangerous (위험 액션) */
+.ant-btn-dangerous,
+.ant-btn-dangerous.ant-btn-default {
+  background: var(--scale-Neutral100);
+  border: 1px solid var(--color-error);
+  color: var(--color-error);
+}
+
+.ant-btn-dangerous.ant-btn-primary {
+  background: var(--color-error);
+  border-color: var(--color-error);
+  color: #fff;
 }
 
 /* Focus ring (slot) */
