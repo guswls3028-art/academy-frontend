@@ -3,22 +3,21 @@
 // 공용 메시지 발송 모달 — 알림톡 단독 SSOT (학원장 임근혁 보고: SMS 경로 폐기, 2026-05-12)
 //
 // 좌: 수신자/일괄안내/적용양식/카톡 미리보기/변수 상태 (단일 카드 묶음)
-// 우: 양식 선택 바 → (접이식 양식 패널) → 본문 textarea → (접이식 변수 팔레트)
-// footer: [취소] [발송하기]  (양식 저장은 본문 영역 inline에 1곳, 양식 변경은 양식 바 1곳)
+// 우: 양식 선택 바 → 본문 textarea → (접이식 변수 팔레트)
+// footer: [취소] [발송하기]
 //
 // 모든 진입점(학생·출결·성적·클리닉·직원)에서 동일 UX. 단발성 발송 SSOT.
 //
-// 2026-05-13 정돈 리팩터:
-//   - SMS 모드 분기 코드 일괄 제거 (smsAllowed/SMS_MAX_CHARS/charInfo/snapshot/오버레이 SMS 갈래 등)
-//   - 이모지 헤더/푸터/팔레트 토글 모두 lucide 아이콘으로 통일
-//   - raw <span> 뱃지 → <Badge> 치환
-//   - footer 좌측 [양식 저장]/[저장된 양식 보기] 제거 → 양식 바 1곳으로 SSOT
-//   - 좌측 5카드 → 2카드 (수신자 통합 / 미리보기+변수 통합)
+// 2026-05-13 양식 선택 분리:
+//   - 인라인 양식 패널/검색/카드리스트 제거 — `TemplatePickerModal`로 분리 (별도 1040px 팝업)
+//   - 학원장 임근혁 보고: "양식 지정·선택 영역이 좁고 불편" → 별도 큰 모달로 격리
+//   - 카테고리 필터 + "전체 보기" 토글로 다른 카테고리 양식 섞임 방지
+//   - 자동 선택 우선순위: 본 테넌트 양식 (카테고리 일치 + 기본 지정) > 시스템 기본
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Input } from "antd";
-import { Search, Check, AlertCircle, AlertTriangle, Copy, Trash2, Star, Edit3, Tag, Shield } from "lucide-react";
+import { Check, AlertCircle, AlertTriangle, Edit3, Tag, Shield } from "lucide-react";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter } from "@/shared/ui/modal";
 import { Badge, Button, ICON } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
@@ -44,6 +43,7 @@ import {
 } from "../constants/templateBlocks";
 import type { TemplateCategory } from "../constants/templateBlocks";
 import GradesBlockPanel from "./GradesBlockPanel";
+import TemplatePickerModal from "./TemplatePickerModal";
 import "../styles/templateEditor.css";
 
 // ─── Types ───
@@ -61,25 +61,10 @@ export type SendMessageModalProps = {
   alimtalkExtraVarsPerStudent?: Record<number, Record<string, string>>;
 };
 
-// ─── Constants ───
-
-const RECENT_KEY = "sendModal_recentTpls";
-const MAX_RECENT = 5;
-
 // ─── Helpers ───
 
 function isSystemTpl(t: MessageTemplateItem): boolean {
   return t.is_system || t.name.startsWith("[HakwonPlus]") || t.name.startsWith("[학원플러스]");
-}
-
-function getRecentIds(): number[] {
-  try { return JSON.parse(localStorage.getItem(RECENT_KEY) ?? "[]"); }
-  catch { return []; }
-}
-function addRecentId(id: number) {
-  const ids = getRecentIds().filter((x) => x !== id);
-  ids.unshift(id);
-  localStorage.setItem(RECENT_KEY, JSON.stringify(ids.slice(0, MAX_RECENT)));
 }
 
 function extractVars(body: string): string[] {
@@ -106,92 +91,40 @@ function getVarStatuses(
   });
 }
 
-// ─── Template Picker Card ───
+/**
+ * 자동 선택 우선순위:
+ *   1. 본 테넌트 양식: 카테고리 일치 + 기본 지정
+ *   2. 본 테넌트 양식: 카테고리 일치 (가장 최근)
+ *   3. 시스템 기본: 카테고리 매핑 일치 (오너 테넌트 4종)
+ *   4. 시스템 기본: is_user_default
+ *   5. 첫 번째 시스템 기본 (최후 폴백)
+ */
+function pickAutoSelectTemplate(
+  list: MessageTemplateItem[],
+  blockCategory: TemplateCategory,
+): MessageTemplateItem | undefined {
+  const systemCategoryMap: Record<string, string> = {
+    clinic: "clinic", attendance: "attendance", exam: "exam",
+    grades: "grades", assignment: "assignment", payment: "payment",
+    lecture: "attendance", // 강의 발송도 출석 시스템 양식 fallback
+    student: "default", default: "default",
+    notice: "default", community: "default", staff: "default",
+  };
+  const systemCat = systemCategoryMap[blockCategory] || "default";
 
-function TemplatePickerCard({
-  template: t,
-  isSelected,
-  onSelect,
-  onSetDefault,
-  onDuplicate,
-  onDelete,
-}: {
-  template: MessageTemplateItem;
-  isSelected: boolean;
-  onSelect: () => void;
-  onSetDefault: (() => void) | null;
-  onDuplicate: (() => void) | null;
-  onDelete: (() => void) | null;
-}) {
-  const isSys = isSystemTpl(t);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
+  const myMatchDefault = list.find((t) => !isSystemTpl(t) && t.category === blockCategory && t.is_user_default);
+  if (myMatchDefault) return myMatchDefault;
 
-  useEffect(() => {
-    if (!menuOpen) return;
-    const handler = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [menuOpen]);
+  const myMatch = list.find((t) => !isSystemTpl(t) && t.category === blockCategory);
+  if (myMatch) return myMatch;
 
-  return (
-    <div
-      className="send-modal__tpl-card"
-      data-selected={isSelected || undefined}
-    >
-      <button
-        type="button"
-        onClick={onSelect}
-        className="send-modal__tpl-card-body"
-      >
-        <div className="send-modal__tpl-card-title-row">
-          {isSys && <Shield size={ICON.xs} style={{ color: "var(--color-status-info, #2563eb)", flexShrink: 0 }} />}
-          <span className="send-modal__tpl-card-name">{t.name}</span>
-          {t.is_user_default && <Badge tone="primary" size="xs">기본</Badge>}
-        </div>
-        <div className="send-modal__tpl-card-preview">
-          {t.body.replace(/#\{[^}]+\}/g, "•").slice(0, 80)}
-        </div>
-      </button>
+  const sysMatch = list.find((t) => isSystemTpl(t) && t.category === systemCat);
+  if (sysMatch) return sysMatch;
 
-      {(onSetDefault || onDuplicate || onDelete) && (
-        <div ref={menuRef} className="send-modal__tpl-card-menu">
-          <button
-            type="button"
-            onClick={(e) => { e.stopPropagation(); setMenuOpen(!menuOpen); }}
-            className="send-modal__tpl-card-menu-btn"
-            aria-label="더보기"
-          >
-            ⋯
-          </button>
-          {menuOpen && (
-            <div className="send-modal__tpl-card-menu-popup">
-              {onSetDefault && (
-                <button type="button" onClick={() => { onSetDefault(); setMenuOpen(false); }} className="send-modal__tpl-card-menu-item">
-                  <Star size={ICON.xs} style={t.is_user_default ? { color: "var(--color-primary)", fill: "var(--color-primary)" } : { color: "var(--color-text-muted)" }} />
-                  {t.is_user_default ? "기본 해제" : "기본으로 지정"}
-                </button>
-              )}
-              {onDuplicate && (
-                <button type="button" onClick={() => { onDuplicate(); setMenuOpen(false); }} className="send-modal__tpl-card-menu-item">
-                  <Copy size={ICON.xs} style={{ color: "var(--color-text-muted)" }} />
-                  {isSys ? "복제해서 내 양식으로" : "다른 이름으로 복제"}
-                </button>
-              )}
-              {onDelete && !isSys && (
-                <button type="button" onClick={() => { onDelete(); setMenuOpen(false); }} className="send-modal__tpl-card-menu-item send-modal__tpl-card-menu-item--danger">
-                  <Trash2 size={ICON.xs} />
-                  삭제
-                </button>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
+  const sysDefault = list.find((t) => isSystemTpl(t) && t.is_user_default);
+  if (sysDefault) return sysDefault;
+
+  return list.find((t) => isSystemTpl(t));
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -222,11 +155,11 @@ export default function SendMessageModal({
   const [sending, setSending] = useState(false);
   const sendingRef = useRef(false);
   const [templates, setTemplates] = useState<MessageTemplateItem[]>([]);
-  const [templateSearch, setTemplateSearch] = useState("");
   const [showSaveForm, setShowSaveForm] = useState(false);
   const [saveTemplateName, setSaveTemplateName] = useState("");
   const [savingTemplate, setSavingTemplate] = useState(false);
-  const [showTemplatePanel, setShowTemplatePanel] = useState(false);
+  /** 양식 선택 모달 open */
+  const [showPickerModal, setShowPickerModal] = useState(false);
   /** 양식 없이 자유 입력 모드 */
   const [alimtalkFreeForm, setAlimtalkFreeForm] = useState(false);
   const [templateBodySnapshot, setTemplateBodySnapshot] = useState<string | null>(null);
@@ -255,27 +188,6 @@ export default function SendMessageModal({
 
   const selectedTemplate = templates.find((t) => t.id === selectedTemplateId);
   const bodyModified = selectedTemplate != null && templateBodySnapshot != null && body !== templateBodySnapshot;
-  const recentIds = useMemo(() => getRecentIds(), [open]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // 알림톡 통합 4종 라우팅 — signup은 시스템 전용 제외
-  const categorizedTemplates = useMemo(() => {
-    const list = templates.filter((t) => t.category !== "signup");
-    const search = templateSearch.toLowerCase().trim();
-    const filtered = search
-      ? list.filter((t) => t.name.toLowerCase().includes(search) || t.body.toLowerCase().includes(search))
-      : list;
-    const recent: MessageTemplateItem[] = [];
-    const defaults: MessageTemplateItem[] = [];
-    const custom: MessageTemplateItem[] = [];
-    const recentSet = new Set(recentIds);
-    for (const t of filtered) {
-      if (recentSet.has(t.id)) recent.push(t);
-      else if (isSystemTpl(t)) defaults.push(t);
-      else custom.push(t);
-    }
-    recent.sort((a, b) => recentIds.indexOf(a.id) - recentIds.indexOf(b.id));
-    return { recent, defaults, custom };
-  }, [templates, templateSearch, recentIds]);
 
   const varStatuses = useMemo(() => {
     if (!selectedTemplate) return [];
@@ -312,17 +224,16 @@ export default function SendMessageModal({
     setSelectedTemplateId(null);
     setSendToParent(true);
     setSendToStudent(true);
-    setTemplateSearch("");
     setShowSaveForm(false);
     setSaveTemplateName("");
-    setShowTemplatePanel(false);
+    setShowPickerModal(false);
     setAlimtalkFreeForm(!!initialBody);
     setTemplateBodySnapshot(null);
     setShowConfirm(false);
     sendingRef.current = false;
   }, [open, initialBody]);
 
-  // 시스템 기본 템플릿 자동 선택
+  // 자동 선택: 본 테넌트 양식 (카테고리 일치) > 시스템 기본
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
@@ -330,15 +241,7 @@ export default function SendMessageModal({
       if (cancelled) return;
       setTemplates(list);
       if (!selectedTemplateId && !initialBody) {
-        const categoryMap: Record<string, string> = {
-          clinic: "clinic", attendance: "attendance", exam: "exam",
-          grades: "grades", assignment: "assignment", payment: "payment",
-          student: "default", default: "default",
-        };
-        const targetCat = categoryMap[blockCategory] || "default";
-        const match = list.find((t) => t.is_system && t.category === targetCat)
-          || list.find((t) => t.is_system && t.is_user_default)
-          || list.find((t) => t.is_system);
+        const match = pickAutoSelectTemplate(list, blockCategory);
         if (match) {
           setSelectedTemplateId(match.id);
           setBody(match.body);
@@ -348,6 +251,24 @@ export default function SendMessageModal({
     }).catch(() => { if (!cancelled) setTemplates([]); });
     return () => { cancelled = true; };
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 솔라피 동기화 후 picker가 부모에게 templates 재조회 요청
+  const refreshTemplates = useCallback(async () => {
+    try {
+      const list = await fetchMessageTemplates(undefined, true);
+      setTemplates(list);
+      // 현재 적용 중인 양식이 sync 후에도 유지되도록 body/snapshot 갱신
+      if (selectedTemplateId) {
+        const fresh = list.find((t) => t.id === selectedTemplateId);
+        if (fresh && fresh.body !== templateBodySnapshot) {
+          setBody(fresh.body);
+          setTemplateBodySnapshot(fresh.body);
+        }
+      }
+    } catch {
+      // refresh 실패는 silent — 다음 모달 open 시 재시도됨
+    }
+  }, [selectedTemplateId, templateBodySnapshot]);
 
   // ─── Actions ───
   const insertBlock = useCallback((insertText: string) => {
@@ -365,7 +286,15 @@ export default function SendMessageModal({
     setSubject(t.subject ?? "");
     setBody(t.body ?? "");
     setTemplateBodySnapshot(t.body ?? "");
-    addRecentId(t.id);
+    setAlimtalkFreeForm(false);
+  }, []);
+
+  const selectFreeForm = useCallback(() => {
+    setSelectedTemplateId(null);
+    setBody("");
+    setSubject("");
+    setTemplateBodySnapshot(null);
+    setAlimtalkFreeForm(true);
   }, []);
 
   const handleSaveTemplate = async () => {
@@ -522,9 +451,6 @@ export default function SendMessageModal({
   if (!open) return null;
 
   // ─── Labels ───
-  // recipientLabel은 진입 컨텍스트("수업결과 발송 — 선택한 수강생 5명" 등)를
-  // 한 줄에 묶어 보내오는 경우가 많아 268px 카드에서 wrap 무거움.
-  // " — " 구분자 기준으로 컨텍스트(작은 라벨)와 인원(큰 글씨)을 분리해 가볍게 표시.
   const fallbackLabel = isStaffMode
     ? (hasRecipients ? `선택한 직원 ${staffIds.length}명` : "수신자 없음")
     : (hasRecipients ? `선택한 학생 ${studentIds.length}명` : "수신자 없음");
@@ -554,6 +480,7 @@ export default function SendMessageModal({
 
   // ─── Render ───
   return (
+    <>
     <AdminModal open={open} onClose={onClose} width={920} onEnterConfirm={requestSend} className="send-message-modal" noMinimize>
       <ModalHeader
         noIcon
@@ -670,14 +597,19 @@ export default function SendMessageModal({
 
           {/* ═══ 우측: 양식 선택 + 본문 편집 ═══ */}
           <div className="send-modal__right">
-            {/* ── 양식 선택 바 (양식 변경 진입 SSOT) ── */}
+            {/* ── 양식 선택 바 (picker modal 진입 SSOT) ── */}
             <div className="send-modal__tpl-bar">
-              <Tag size={ICON.sm} style={{ color: "var(--color-primary)", flexShrink: 0 }} />
+              {selectedTemplate && isSystemTpl(selectedTemplate) ? (
+                <Shield size={ICON.sm} style={{ color: "var(--color-status-info, #2563eb)", flexShrink: 0 }} />
+              ) : (
+                <Tag size={ICON.sm} style={{ color: "var(--color-primary)", flexShrink: 0 }} />
+              )}
               <div className="send-modal__tpl-bar-label">
                 {selectedTemplate ? (
                   <div className="send-modal__tpl-bar-name-row">
                     <span className="send-modal__tpl-bar-name">{selectedTemplate.name}</span>
                     {selectedTemplate.solapi_status === "APPROVED" && <Badge tone="success" size="xs">승인</Badge>}
+                    {isSystemTpl(selectedTemplate) && <Badge tone="info" size="xs">시스템</Badge>}
                     {bodyModified && <Badge tone="warning" size="xs">수정됨</Badge>}
                   </div>
                 ) : alimtalkFreeForm ? (
@@ -689,85 +621,15 @@ export default function SendMessageModal({
               <Button
                 size="sm"
                 intent="primary"
-                onClick={() => setShowTemplatePanel((v) => !v)}
+                onClick={() => setShowPickerModal(true)}
                 disabled={sending}
               >
-                {showTemplatePanel ? "닫기" : selectedTemplate || alimtalkFreeForm ? "양식 변경" : "양식 선택"}
+                {selectedTemplate || alimtalkFreeForm ? "양식 변경" : "양식 선택"}
               </Button>
             </div>
 
-            {/* ── 양식 패널 (접이식) ── */}
-            {showTemplatePanel && (
-              <div className="send-modal__tpl-panel">
-                <div className="send-modal__tpl-search">
-                  <Search size={ICON.xs} className="send-modal__tpl-search-icon" />
-                  <Input
-                    size="small"
-                    placeholder="양식 검색…"
-                    value={templateSearch}
-                    onChange={(e) => setTemplateSearch(e.target.value)}
-                    style={{ paddingLeft: 28, fontSize: 12 }}
-                  />
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSelectedTemplateId(null);
-                    setBody("");
-                    setSubject("");
-                    setShowTemplatePanel(false);
-                    setTemplateBodySnapshot(null);
-                    setAlimtalkFreeForm(true);
-                  }}
-                  className="send-modal__tpl-freeform-btn"
-                  data-selected={alimtalkFreeForm && !selectedTemplate || undefined}
-                >
-                  <Edit3 size={ICON.xs} style={{ color: alimtalkFreeForm && !selectedTemplate ? "var(--color-primary)" : "var(--color-text-muted)", flexShrink: 0 }} />
-                  직접 작성하기
-                </button>
-
-                {categorizedTemplates.custom.length > 0 && (
-                  <>
-                    <div className="send-modal__tpl-group-label">내 양식</div>
-                    {categorizedTemplates.custom.map((t) => (
-                      <TemplatePickerCard
-                        key={t.id}
-                        template={t}
-                        isSelected={selectedTemplateId === t.id}
-                        onSelect={() => { selectTemplate(t); setShowTemplatePanel(false); setAlimtalkFreeForm(false); }}
-                        onSetDefault={() => handleSetDefault(t.id)}
-                        onDuplicate={() => handleDuplicate(t.id)}
-                        onDelete={() => handleDeleteTemplate(t.id)}
-                      />
-                    ))}
-                  </>
-                )}
-                {categorizedTemplates.defaults.length > 0 && (
-                  <>
-                    <div className="send-modal__tpl-group-label">시스템 기본 양식</div>
-                    {categorizedTemplates.defaults.map((t) => (
-                      <TemplatePickerCard
-                        key={t.id}
-                        template={t}
-                        isSelected={selectedTemplateId === t.id}
-                        onSelect={() => { selectTemplate(t); setShowTemplatePanel(false); setAlimtalkFreeForm(false); }}
-                        onSetDefault={() => handleSetDefault(t.id)}
-                        onDuplicate={() => handleDuplicate(t.id)}
-                        onDelete={null}
-                      />
-                    ))}
-                  </>
-                )}
-                {categorizedTemplates.custom.length === 0 && categorizedTemplates.defaults.length === 0 && categorizedTemplates.recent.length === 0 && (
-                  <div className="send-modal__tpl-empty">
-                    {templateSearch ? "검색 결과 없음" : "저장된 양식이 없습니다."}
-                  </div>
-                )}
-              </div>
-            )}
-
             {/* ── 저장 바 — 본문 수정 시에만 inline 노출 ── */}
-            {!showSaveForm && body.trim() && !showTemplatePanel && (selectedTemplate || alimtalkFreeForm) && (
+            {!showSaveForm && body.trim() && (selectedTemplate || alimtalkFreeForm) && (
               bodyModified && selectedTemplate && !isSystemTpl(selectedTemplate) ? (
                 <div className="send-modal__save-bar">
                   <span className="send-modal__save-bar-text">본문이 수정되었습니다</span>
@@ -823,7 +685,7 @@ export default function SendMessageModal({
                       <div>양식을 선택하거나</div>
                       <div>직접 내용을 작성하세요</div>
                     </div>
-                    <Button size="sm" intent="primary" onClick={() => setShowTemplatePanel(true)}>
+                    <Button size="sm" intent="primary" onClick={() => setShowPickerModal(true)}>
                       양식 선택하기
                     </Button>
                     <button
@@ -971,5 +833,22 @@ export default function SendMessageModal({
         }
       />
     </AdminModal>
+
+    {/* ─── 양식 선택 큰 모달 (별도 1040px 팝업) ─── */}
+    <TemplatePickerModal
+      open={showPickerModal}
+      onClose={() => setShowPickerModal(false)}
+      templates={templates}
+      blockCategory={blockCategory}
+      selectedTemplateId={selectedTemplateId}
+      alimtalkExtraVars={alimtalkExtraVars}
+      onPick={selectTemplate}
+      onPickFreeForm={selectFreeForm}
+      onSetDefault={handleSetDefault}
+      onDuplicate={handleDuplicate}
+      onDelete={handleDeleteTemplate}
+      onRefreshTemplates={refreshTemplates}
+    />
+    </>
   );
 }

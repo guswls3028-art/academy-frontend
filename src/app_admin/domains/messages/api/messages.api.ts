@@ -257,6 +257,35 @@ export async function submitMessageTemplateReview(
   return res.data;
 }
 
+/** 솔라피에서 SaaS에 아직 등록되지 않은 (미매칭) 양식 미리보기 */
+export interface SolapiOnlyTemplate {
+  templateId: string;
+  name: string;
+  status: string;
+  content_preview: string;
+}
+
+export interface SolapiSyncResult {
+  detail: string;
+  updated: number;
+  unchanged: number;
+  solapi_only_count: number;
+  solapi_only: SolapiOnlyTemplate[];
+  errors: string[];
+  credential_source: "tenant" | "system";
+  pfid: string;
+}
+
+/**
+ * 솔라피 콘솔의 알림톡 템플릿을 SaaS DB와 동기화 (콘솔=truth).
+ * 학원장 임근혁 보고 (2026-05-13): 솔라피 콘솔에서 직접 본문/상태가 변경돼도
+ * SaaS DB가 stale 상태로 남던 결함 fix.
+ */
+export async function syncSolapiTemplates(): Promise<SolapiSyncResult> {
+  const res = await api.post<SolapiSyncResult>(`${PREFIX}/templates/sync-solapi/`);
+  return res.data;
+}
+
 // ----------------------------------------
 // 메시지 발송 (공용 모달에서 사용)
 // ----------------------------------------
