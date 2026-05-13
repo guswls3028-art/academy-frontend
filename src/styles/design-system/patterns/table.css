@@ -609,6 +609,25 @@ table.ds-table {
  * - 배경 틴트 + inset box-shadow(테두리 강조)로 한눈에 구분.
  * - 학원장 피드백: "잘 안 보인다" → 색상/테두리 강도 상향. */
 
+/* 2026-05-13 학원장 결정: 시험·과제 헤더 드래그앤드롭 affordance.
+ * grab cursor + dragging 시 opacity + drop-over 시 brand-primary 점선 강조. */
+.scores-col-drag-handle {
+  cursor: grab;
+  border-radius: var(--radius-sm, 4px);
+  padding: 2px 4px;
+  transition: background 140ms ease, box-shadow 140ms ease;
+}
+.scores-col-drag-handle:active {
+  cursor: grabbing;
+}
+.scores-col-drag-handle:hover {
+  background: color-mix(in srgb, var(--color-brand-primary) 8%, transparent);
+}
+.scores-col-drag-handle.scores-col-drag-over {
+  background: color-mix(in srgb, var(--color-brand-primary) 18%, transparent);
+  box-shadow: inset 0 0 0 2px var(--color-brand-primary);
+}
+
 /* 2026-05-13 4차 Visual Polish: 시험·과제 헤더 시험명 wrap 정책.
  * 길이 ≤ 8자 = 한 줄 14px. > 8자 = 2줄 12px line-clamp (3줄+ 방지).
  * 학원장 PC 1100/1366 narrow에서 헤더 height 폭주 막음. */

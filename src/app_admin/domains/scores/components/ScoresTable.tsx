@@ -204,8 +204,9 @@ type Props = {
   selectedEnrollmentIds?: number[];
   onSelectionChange?: (enrollmentIds: number[]) => void;
 
-  /** 컬럼 순서 변경 — 시험/과제 컬럼 헤더의 ◀ ▶ 버튼 (display_order patch). */
-  onReorderColumn?: (type: "exam" | "homework", id: number, direction: "up" | "down") => void;
+  /** 컬럼 순서 변경 — 시험/과제 헤더 드래그앤드롭 (display_order patch).
+   *  2026-05-13 학원장 결정: ◀▶ 버튼 폐기, drag-drop SSOT. fromId 를 toId 위치로 삽입. */
+  onReorderColumnSwap?: (type: "exam" | "homework", fromId: number, toId: number) => void;
 
 };
 
@@ -226,7 +227,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
   selectedCell = null,
   onSelectCell,
   onSelectRow,
-  onReorderColumn,
+  onReorderColumnSwap,
   onRequestMoveNext,
   onRequestMovePrev,
   onRequestMoveDown,
@@ -634,44 +635,46 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
             const singleSub = colSpan === 1;
             const totalCol = examColsList.find((c) => c.sub === "total");
             const groupParity = exIdx % 2 === 0 ? "even" : "odd";
+            /* 2026-05-13 학원장 결정: ◀▶ 버튼 폐기 → 드래그앤드롭. grip cursor 로 affordance. */
             const headerInner = (
-              <span className="inline-flex items-start gap-1 min-w-0 max-w-full">
-                  {onReorderColumn && (
-                    <button
-                      type="button"
-                      onClick={(e) => { e.stopPropagation(); onReorderColumn("exam", ex.exam_id, "up"); }}
-                      disabled={exIdx === 0}
-                      className="ds-col-action-btn text-xs leading-none px-0.5 text-[var(--color-text-muted)] hover:text-[var(--color-brand-primary)] disabled:opacity-25 disabled:cursor-not-allowed"
-                      title="왼쪽으로"
-                      aria-label={`${ex.title} 왼쪽으로`}
-                    >
-                      ◀
-                    </button>
-                  )}
-                  <Badge variant="solid" tone="primary" oneChar ariaLabel="시험">시</Badge>
-                  <span className="whitespace-normal break-keep min-w-0 leading-tight">{ex.title}</span>
-                  <span className="ds-col-action-btn shrink-0">
-                    <ExamHeaderQuickEdit
-                      examId={ex.exam_id}
-                      examTitle={ex.title}
-                      initialMaxScore={ex.max_score}
-                      initialPassScore={ex.pass_score}
-                      sessionId={sessionId}
-                    />
-                  </span>
-                  {onReorderColumn && (
-                    <button
-                      type="button"
-                      onClick={(e) => { e.stopPropagation(); onReorderColumn("exam", ex.exam_id, "down"); }}
-                      disabled={exIdx === examOptions.length - 1}
-                      className="ds-col-action-btn text-xs leading-none px-0.5 text-[var(--color-text-muted)] hover:text-[var(--color-brand-primary)] disabled:opacity-25 disabled:cursor-not-allowed"
-                      title="오른쪽으로"
-                      aria-label={`${ex.title} 오른쪽으로`}
-                    >
-                      ▶
-                    </button>
-                  )}
+              <span
+                className="scores-col-drag-handle inline-flex items-center gap-1 min-w-0 max-w-full"
+                draggable={!!onReorderColumnSwap}
+                onDragStart={(e) => {
+                  e.dataTransfer.effectAllowed = "move";
+                  e.dataTransfer.setData("text/x-academy-col", `exam:${ex.exam_id}`);
+                }}
+                onDragOver={(e) => {
+                  const payload = e.dataTransfer.types.includes("text/x-academy-col");
+                  if (payload) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; (e.currentTarget as HTMLElement).classList.add("scores-col-drag-over"); }
+                }}
+                onDragLeave={(e) => { (e.currentTarget as HTMLElement).classList.remove("scores-col-drag-over"); }}
+                onDrop={(e) => {
+                  (e.currentTarget as HTMLElement).classList.remove("scores-col-drag-over");
+                  const raw = e.dataTransfer.getData("text/x-academy-col");
+                  const [t, idStr] = (raw ?? "").split(":");
+                  if (t === "exam" && idStr) {
+                    e.preventDefault();
+                    const fromId = Number(idStr);
+                    if (Number.isFinite(fromId) && fromId !== ex.exam_id) {
+                      onReorderColumnSwap?.("exam", fromId, ex.exam_id);
+                    }
+                  }
+                }}
+                title={onReorderColumnSwap ? `${ex.title} — 끌어서 순서 변경` : ex.title}
+              >
+                <Badge variant="solid" tone="primary" oneChar ariaLabel="시험">시</Badge>
+                <span className="whitespace-normal break-keep min-w-0 leading-tight">{ex.title}</span>
+                <span className="ds-col-action-btn shrink-0">
+                  <ExamHeaderQuickEdit
+                    examId={ex.exam_id}
+                    examTitle={ex.title}
+                    initialMaxScore={ex.max_score}
+                    initialPassScore={ex.pass_score}
+                    sessionId={sessionId}
+                  />
                 </span>
+              </span>
             );
             const headerClass = "group text-center font-medium text-[var(--color-text-primary)] align-middle";
             const headerDataAttrs = { "data-col-type": "score", "data-group-start": "", "data-group-parity": groupParity };
@@ -737,33 +740,37 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
               {...(idx === 0 ? { "data-section-start": "" } : {})}
               data-group-parity={idx % 2 === 0 ? "even" : "odd"}
             >
-              <span className="inline-flex items-start gap-1 min-w-0 max-w-full">
-                {onReorderColumn && (
-                  <button
-                    type="button"
-                    onClick={(e) => { e.stopPropagation(); onReorderColumn("homework", hw.homework_id, "up"); }}
-                    disabled={idx === 0}
-                    className="ds-col-action-btn text-xs leading-none px-0.5 text-[var(--color-text-muted)] hover:text-[var(--color-brand-primary)] disabled:opacity-25 disabled:cursor-not-allowed"
-                    title="왼쪽으로"
-                    aria-label={`${hw.title} 왼쪽으로`}
-                  >
-                    ◀
-                  </button>
-                )}
+              <span
+                className="scores-col-drag-handle inline-flex items-center gap-1 min-w-0 max-w-full"
+                draggable={!!onReorderColumnSwap}
+                onDragStart={(e) => {
+                  e.dataTransfer.effectAllowed = "move";
+                  e.dataTransfer.setData("text/x-academy-col", `homework:${hw.homework_id}`);
+                }}
+                onDragOver={(e) => {
+                  if (e.dataTransfer.types.includes("text/x-academy-col")) {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = "move";
+                    (e.currentTarget as HTMLElement).classList.add("scores-col-drag-over");
+                  }
+                }}
+                onDragLeave={(e) => { (e.currentTarget as HTMLElement).classList.remove("scores-col-drag-over"); }}
+                onDrop={(e) => {
+                  (e.currentTarget as HTMLElement).classList.remove("scores-col-drag-over");
+                  const raw = e.dataTransfer.getData("text/x-academy-col");
+                  const [t, idStr] = (raw ?? "").split(":");
+                  if (t === "homework" && idStr) {
+                    e.preventDefault();
+                    const fromId = Number(idStr);
+                    if (Number.isFinite(fromId) && fromId !== hw.homework_id) {
+                      onReorderColumnSwap?.("homework", fromId, hw.homework_id);
+                    }
+                  }
+                }}
+                title={onReorderColumnSwap ? `${hw.title} — 끌어서 순서 변경` : hw.title}
+              >
                 <Badge variant="solid" tone="complement" oneChar ariaLabel="과제">과</Badge>
                 <span className="whitespace-normal break-keep min-w-0 leading-tight">{hw.title}</span>
-                {onReorderColumn && (
-                  <button
-                    type="button"
-                    onClick={(e) => { e.stopPropagation(); onReorderColumn("homework", hw.homework_id, "down"); }}
-                    disabled={idx === homeworkOptions.length - 1}
-                    className="ds-col-action-btn text-xs leading-none px-0.5 text-[var(--color-text-muted)] hover:text-[var(--color-brand-primary)] disabled:opacity-25 disabled:cursor-not-allowed"
-                    title="오른쪽으로"
-                    aria-label={`${hw.title} 오른쪽으로`}
-                  >
-                    ▶
-                  </button>
-                )}
               </span>
             </ResizableTh>
           ))}

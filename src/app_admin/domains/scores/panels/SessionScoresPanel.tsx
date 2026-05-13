@@ -110,17 +110,20 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
   }, [data]);
   const meta: SessionScoreMeta | null = data?.meta ?? null;
 
-  const handleReorder = useCallback(async (type: "exam" | "homework", id: number, direction: "up" | "down") => {
-    if (!meta) return;
+  /** 2026-05-13 학원장 결정: 컬럼 순서 변경 = 드래그앤드롭으로 전환.
+   *  기존 ◀▶ 버튼 + direction("up"|"down") 시그니처 → fromId→toId 스왑 시그니처. */
+  const handleReorderSwap = useCallback(async (type: "exam" | "homework", fromId: number, toId: number) => {
+    if (!meta || fromId === toId) return;
     const list = type === "exam"
       ? meta.exams.map((e) => e.exam_id)
       : meta.homeworks.map((h) => h.homework_id);
-    const idx = list.indexOf(id);
-    if (idx < 0) return;
-    const swapIdx = direction === "up" ? idx - 1 : idx + 1;
-    if (swapIdx < 0 || swapIdx >= list.length) return;
+    const fromIdx = list.indexOf(fromId);
+    const toIdx = list.indexOf(toId);
+    if (fromIdx < 0 || toIdx < 0) return;
+    // from 을 빼고 to 위치에 다시 삽입 (drag-drop 자연 순서)
     const newList = [...list];
-    [newList[idx], newList[swapIdx]] = [newList[swapIdx], newList[idx]];
+    const [moved] = newList.splice(fromIdx, 1);
+    newList.splice(toIdx, 0, moved);
     try {
       await reorderSession(sessionId, type === "exam" ? { exams: newList } : { homeworks: newList });
       void qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
@@ -401,7 +404,7 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
           <span className="scores-read-help-strip__key">⓶ 시험명 옆 ⚙</span>
           <span>→ 만점/커트라인 수정</span>
           <span className="scores-read-help-strip__sep">|</span>
-          <span className="scores-read-help-strip__key">⓷ ◀ ▶</span>
+          <span className="scores-read-help-strip__key">⓷ 헤더 드래그</span>
           <span>→ 컬럼 순서 변경</span>
           <span className="scores-read-help-strip__sep">|</span>
           <span className="scores-read-help-strip__key">⓸ 회색 "-"</span>
@@ -493,7 +496,7 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
           }}
           selectedEnrollmentIds={selectedEnrollmentIds}
           onSelectionChange={onSelectionChange}
-          onReorderColumn={handleReorder}
+          onReorderColumnSwap={handleReorderSwap}
         />
       </div>
 

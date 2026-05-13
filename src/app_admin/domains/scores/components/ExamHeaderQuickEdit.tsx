@@ -1,18 +1,22 @@
 /**
  * ExamHeaderQuickEdit
  *
- * 성적탭 시험 컬럼 헤더에 인라인 max_score/pass_score 편집.
- * ⚙ 버튼 클릭 → 작은 popover에서 만점·커트라인 수정 → 저장.
- * 학원장 피드백: "이미 설정된 시험의 총점 수정이 용이해야 함. 드로어에서 가능해도 OK".
+ * 성적탭 시험 컬럼 헤더 ⚙ 버튼 → AdminModal 로 시험명/만점/커트라인 한번에 편집.
+ *
+ * 2026-05-13 학원장 보고: "테이블에서 총점변경 UI/UX가 너무 짜침" → popover 폐기, 정식 모달로.
+ *  - 좁은 absolute popover: 입력 칸 작고, viewport 좁으면 잘림, 다른 element 가림.
+ *  - AdminModal: 폭 확보 + 키보드 흐름 + ESC/배경 클릭 닫기 + 디자인 정합.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { updateAdminExam } from "@admin/domains/exams/api/adminExam";
 import { scoresQueryKeys } from "../api/queryKeys";
 import ShowcasePublishModal from "./ShowcasePublishModal";
+import { AdminModal, ModalHeader, ModalBody, ModalFooter, MODAL_WIDTH } from "@/shared/ui/modal";
+import { Button } from "@/shared/ui/ds";
 
 type Props = {
   examId: number;
@@ -32,42 +36,31 @@ export default function ExamHeaderQuickEdit({
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [showcaseOpen, setShowcaseOpen] = useState(false);
+  const [title, setTitle] = useState<string>(examTitle);
   const [maxScore, setMaxScore] = useState<number | "">(initialMaxScore ?? 100);
   const [passScore, setPassScore] = useState<number | "">(initialPassScore ?? 0);
-  const popRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    setMaxScore(initialMaxScore ?? 100);
-    setPassScore(initialPassScore ?? 0);
-  }, [initialMaxScore, initialPassScore]);
 
   useEffect(() => {
     if (!open) return;
-    const onDoc = (e: MouseEvent) => {
-      if (popRef.current && !popRef.current.contains(e.target as Node)) setOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
-    };
-    document.addEventListener("mousedown", onDoc);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDoc);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
+    // 모달 열릴 때마다 latest 값으로 동기화
+    setTitle(examTitle);
+    setMaxScore(initialMaxScore ?? 100);
+    setPassScore(initialPassScore ?? 0);
+  }, [open, examTitle, initialMaxScore, initialPassScore]);
 
   const saveMut = useMutation({
     mutationFn: () => {
       const ms = typeof maxScore === "number" ? maxScore : 100;
       const ps = typeof passScore === "number" ? passScore : 0;
+      const t = (title ?? "").trim() || examTitle;
       if (ps > ms) throw new Error(`커트라인(${ps})이 만점(${ms})보다 클 수 없습니다.`);
-      return updateAdminExam(examId, { max_score: ms, pass_score: ps });
+      return updateAdminExam(examId, { title: t, max_score: ms, pass_score: ps });
     },
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
       await qc.invalidateQueries({ queryKey: ["admin-exam", examId] });
-      feedback.success(`${examTitle} 점수 설정 저장됨`);
+      await qc.invalidateQueries({ queryKey: ["admin-session-exams", sessionId] });
+      feedback.success(`${title || examTitle} 저장됨`);
       setOpen(false);
     },
     onError: (e: any) => {
@@ -76,101 +69,133 @@ export default function ExamHeaderQuickEdit({
   });
 
   return (
-    <span className="relative inline-flex" ref={popRef}>
+    <>
       <button
         type="button"
-        onClick={(e) => { e.stopPropagation(); setOpen((v) => !v); }}
+        onClick={(e) => { e.stopPropagation(); setOpen(true); }}
         className="text-[11px] leading-none px-1 py-0.5 rounded text-[var(--color-text-muted)] hover:text-[var(--color-brand-primary)] hover:bg-[var(--color-bg-surface-hover)]"
-        title="만점/커트라인 빠른 수정"
-        aria-label={`${examTitle} 만점/커트라인 편집`}
+        title="시험 설정 — 시험명/만점/커트라인 수정"
+        aria-label={`${examTitle} 시험 설정 편집`}
       >
         ⚙
       </button>
-      {open && (
-        <div
-          className="absolute top-full left-1/2 -translate-x-1/2 mt-1 z-50 rounded-lg border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] p-3 shadow-lg whitespace-nowrap"
-          style={{ minWidth: 220 }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="text-xs font-semibold text-[var(--color-text-primary)] mb-2 truncate">
-            {examTitle}
-          </div>
-          <div className="flex items-center gap-2 mb-2">
-            <label className="text-xs text-[var(--color-text-muted)] w-12">만점</label>
-            <input
-              type="number"
-              min={1}
-              value={maxScore}
-              onChange={(e) => {
-                const v = e.target.value;
-                if (v === "") { setMaxScore(""); return; }
-                const n = parseInt(v, 10);
-                setMaxScore(Number.isFinite(n) ? n : "");
-              }}
-              className="ds-input w-20 text-sm"
-              autoFocus
-            />
-          </div>
-          <div className="flex items-center gap-2 mb-3">
-            <label className="text-xs text-[var(--color-text-muted)] w-12">커트라인</label>
-            <input
-              type="number"
-              min={0}
-              value={passScore}
-              onChange={(e) => {
-                const v = e.target.value;
-                if (v === "") { setPassScore(""); return; }
-                const n = parseInt(v, 10);
-                setPassScore(Number.isFinite(n) ? n : "");
-              }}
-              className="ds-input w-20 text-sm"
-            />
-          </div>
-          <div className="flex items-center justify-end gap-2">
-            <button
-              type="button"
-              className="ds-button"
-              data-intent="ghost"
-              data-size="sm"
-              onClick={() => setOpen(false)}
-            >
-              취소
-            </button>
-            <button
-              type="button"
-              className="ds-button"
-              data-intent="primary"
-              data-size="sm"
-              disabled={saveMut.isPending}
-              onClick={() => saveMut.mutate()}
-            >
-              {saveMut.isPending ? "저장 중…" : "저장"}
-            </button>
-          </div>
 
-          {/* 랜딩 게시 (Phase #13) — 학원장 1버튼 publish 진입점.
-              max_score 저장과는 별개 액션이라 separator 두고 분리. */}
-          <div className="mt-3 pt-3 border-t border-[var(--color-border-divider)]">
-            <button
-              type="button"
-              onClick={() => { setOpen(false); setShowcaseOpen(true); }}
-              className="ds-button w-full"
-              data-intent="secondary"
-              data-size="sm"
-              title="이 시험의 익명 석차·점수를 학원 홈페이지에 자동 노출합니다"
-              data-testid={`showcase-publish-trigger-${examId}`}
-            >
-              🌐 학원 홈페이지에 성적 통계 게시
-            </button>
+      <AdminModal
+        open={open}
+        onClose={() => !saveMut.isPending && setOpen(false)}
+        type="action"
+        width={MODAL_WIDTH.md}
+        onEnterConfirm={() => { if (!saveMut.isPending) saveMut.mutate(); }}
+      >
+        <ModalHeader type="action" title="시험 설정" subtitle={examTitle} />
+        <ModalBody>
+          <div className="flex flex-col gap-4">
+            {/* 시험명 */}
+            <label className="block">
+              <span className="mb-1 block text-sm font-semibold text-[var(--color-text-primary)]">
+                시험명
+              </span>
+              <input
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className="ds-input w-full"
+                placeholder="예) 중간고사"
+                autoFocus
+              />
+            </label>
+
+            {/* 만점 + 커트라인 가로 배치 */}
+            <div className="grid grid-cols-2 gap-3">
+              <label className="block">
+                <span className="mb-1 block text-sm font-semibold text-[var(--color-text-primary)]">
+                  만점
+                </span>
+                <input
+                  type="number"
+                  min={1}
+                  value={maxScore}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    if (v === "") { setMaxScore(""); return; }
+                    const n = parseInt(v, 10);
+                    setMaxScore(Number.isFinite(n) ? n : "");
+                  }}
+                  className="ds-input w-full"
+                />
+                <span className="mt-1 block text-[11px] text-[var(--color-text-muted)]">
+                  점수 입력 시 최대 한도
+                </span>
+              </label>
+
+              <label className="block">
+                <span className="mb-1 block text-sm font-semibold text-[var(--color-text-primary)]">
+                  커트라인 (합격선)
+                </span>
+                <input
+                  type="number"
+                  min={0}
+                  value={passScore}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    if (v === "") { setPassScore(""); return; }
+                    const n = parseInt(v, 10);
+                    setPassScore(Number.isFinite(n) ? n : "");
+                  }}
+                  className="ds-input w-full"
+                />
+                <span className="mt-1 block text-[11px] text-[var(--color-text-muted)]">
+                  이 점수 이상 = 이수, 미만 = 클리닉 대상
+                </span>
+              </label>
+            </div>
+
+            {/* 홈페이지 게시 (Phase #13) — 별도 액션 */}
+            <div className="mt-2 pt-3 border-t border-[var(--color-border-divider)]">
+              <button
+                type="button"
+                onClick={() => { setOpen(false); setShowcaseOpen(true); }}
+                className="ds-button w-full"
+                data-intent="secondary"
+                data-size="md"
+                title="이 시험의 익명 석차·점수를 학원 홈페이지에 자동 노출합니다"
+                data-testid={`showcase-publish-trigger-${examId}`}
+              >
+                🌐 학원 홈페이지에 성적 통계 게시
+              </button>
+            </div>
           </div>
-        </div>
-      )}
+        </ModalBody>
+        <ModalFooter
+          right={
+            <>
+              <Button
+                intent="ghost"
+                size="sm"
+                onClick={() => setOpen(false)}
+                disabled={saveMut.isPending}
+              >
+                취소
+              </Button>
+              <Button
+                intent="primary"
+                size="sm"
+                onClick={() => saveMut.mutate()}
+                disabled={saveMut.isPending}
+              >
+                {saveMut.isPending ? "저장 중…" : "저장"}
+              </Button>
+            </>
+          }
+        />
+      </AdminModal>
+
       <ShowcasePublishModal
         open={showcaseOpen}
         onClose={() => setShowcaseOpen(false)}
         examId={examId}
         examTitle={examTitle}
       />
-    </span>
+    </>
   );
 }
