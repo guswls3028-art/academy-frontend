@@ -148,6 +148,14 @@ export default function SessionAttendancePage({
     queryFn: async () => (await api.get(`/lectures/lectures/${lectureId}/`)).data,
     enabled: lectureId != null && Number.isFinite(lectureId),
   });
+  // SSOT (2026-05-14): session-detail cache 보장 — 메시지 발송/영상 시청 안내/수업결과 발송 path가
+  // qc.getQueryData(["session-detail", id])로 sessionTitle 인용. SessionScoresEntryPage:99-103과 동일 패턴.
+  // 직전 결함: 출결탭 진입 시 session-detail cache miss → 본문에 차시명 빈.
+  useQuery({
+    queryKey: ["session-detail", sessionId],
+    queryFn: async () => (await api.get(`/lectures/sessions/${sessionId}/`)).data,
+    enabled: sessionId != null && Number.isFinite(sessionId),
+  });
 
   const updateStatus = useMutation({
     mutationFn: ({ id, status }: { id: number; status: AttendanceStatus }) =>
