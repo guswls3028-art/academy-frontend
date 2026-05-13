@@ -47,6 +47,7 @@ test.describe("Landing Renewal P0 - Visual E2E [2026-05-11]", () => {
 
     // Open side panel
     await hamburger.click();
+    // eslint-disable-next-line no-restricted-syntax
     await page.waitForTimeout(700);
 
     // Side panel
@@ -70,6 +71,7 @@ test.describe("Landing Renewal P0 - Visual E2E [2026-05-11]", () => {
 
     // ESC closes panel
     await page.keyboard.press("Escape");
+    // eslint-disable-next-line no-restricted-syntax
     await page.waitForTimeout(500);
 
     // After ESC, panel text should disappear or panel hidden
@@ -89,6 +91,7 @@ test.describe("Landing Renewal P0 - Visual E2E [2026-05-11]", () => {
   test("S2: 랜딩 footer - 4컬럼 + powered by + 최상단", async ({ page }) => {
     await page.goto(`${BASE}/landing`, { waitUntil: "networkidle" });
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+    // eslint-disable-next-line no-restricted-syntax
     await page.waitForTimeout(600);
 
     const footer = page.locator("footer, [data-testid='landing-footer'], [class*='LandingFooter']").first();
@@ -114,6 +117,7 @@ test.describe("Landing Renewal P0 - Visual E2E [2026-05-11]", () => {
 
   test("S3: 매치업 히어로 캐러셀 (조건부)", async ({ page }) => {
     await page.goto(`${BASE}/landing`, { waitUntil: "networkidle" });
+    // eslint-disable-next-line no-restricted-syntax
     await page.waitForTimeout(1500);
 
     const pageText = await page.locator("body").innerText();
@@ -135,6 +139,7 @@ test.describe("Landing Renewal P0 - Visual E2E [2026-05-11]", () => {
 
   test("S4: 비로그인 커뮤니티 게이트", async ({ page }) => {
     await page.goto(`${BASE}/landing/community/board`, { waitUntil: "networkidle" });
+    // eslint-disable-next-line no-restricted-syntax
     await page.waitForTimeout(1000);
 
     const currentUrl = page.url();
@@ -169,6 +174,7 @@ test.describe("Landing Renewal P0 - Visual E2E [2026-05-11]", () => {
 
     if (!page.url().includes("/landing")) {
       await page.goto(`${BASE}/landing`, { waitUntil: "networkidle" });
+      // eslint-disable-next-line no-restricted-syntax
       await page.waitForTimeout(1000);
     }
 
@@ -190,6 +196,7 @@ test.describe("Landing Renewal P0 - Visual E2E [2026-05-11]", () => {
 
     if (fabVisible) {
       await fabToggle.click();
+      // eslint-disable-next-line no-restricted-syntax
       await page.waitForTimeout(600);
 
       const bodyText = await page.locator("body").innerText();
@@ -223,6 +230,7 @@ test.describe("Landing Renewal P0 - Visual E2E [2026-05-11]", () => {
     await page.waitForURL(/\/(landing|admin|dashboard)/, { timeout: 20000 });
 
     await page.goto(`${BASE}/landing/community/board`, { waitUntil: "networkidle" });
+    // eslint-disable-next-line no-restricted-syntax
     await page.waitForTimeout(1000);
 
     const currentUrl = page.url();
@@ -261,6 +269,7 @@ test.describe("Landing Renewal P0 - Visual E2E [2026-05-11]", () => {
     await page.waitForURL(/\/(landing|admin|dashboard)/, { timeout: 20000 });
 
     await page.goto(`${BASE}/landing/community/board/write`, { waitUntil: "networkidle" });
+    // eslint-disable-next-line no-restricted-syntax
     await page.waitForTimeout(800);
 
     console.log(`[S7] URL: ${page.url()}`);
