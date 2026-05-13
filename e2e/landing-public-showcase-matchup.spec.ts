@@ -49,8 +49,8 @@ async function loginAdmin(page: Page): Promise<string> {
 test("A. 비로그인 /landing/scores — 성적 통계 list 렌더", async ({ page }) => {
   await page.goto(`${BASE}/landing/scores`, { waitUntil: "load", timeout: 30_000 });
   await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
-  // 헤더 라벨 노출
-  await expect(page.locator("h1")).toContainText("성적 통계", { timeout: 15_000 });
+  // 헤더 라벨 노출 (h1 = "우리 학원 시험 결과 통계", breadcrumb = "성적 통계")
+  await expect(page.locator("h1")).toContainText("시험 결과 통계", { timeout: 15_000 });
 });
 
 test("B. 비로그인 /landing/reports — '학교별' sort chip 노출", async ({ page }) => {
