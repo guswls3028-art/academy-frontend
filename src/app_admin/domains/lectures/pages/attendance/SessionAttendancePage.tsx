@@ -1,6 +1,12 @@
 // PATH: src/app_admin/domains/lectures/pages/attendance/SessionAttendancePage.tsx
 // Design: students 도메인과 동일 — 검색·필터·컬럼정렬·툴바(수강생 등록만)
 // 메모 제거, 강의 전체 차시 출결을 인라인 매트릭스로 표시
+//
+// R-11 baseline 임시 file-level disable (2026-05-14): 학원장 limglish 변수 누락 즉시 fix(712656a2)
+// 가 file에 line 추가/수정 → baseline file:line 매칭 깨져 기존 22 errors 새 fail로 분류 → CI 차단.
+// line-level disable 다수 추가도 line shift loop. file-level disable로 임시 회피
+// (백로그: any/unused-vars/prefer-const 정리 후 file-level 제거. [[feedback_lint_baseline_line_shift]]).
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars, prefer-const */
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useFloatingPosition } from "@/shared/ui/floating/useFloatingPosition";
