@@ -949,11 +949,12 @@ function HitReportCardItem({ card, labelOverride, color, rgb, dark, cardBg, card
   const label = labelOverride || card.doc_category || card.doc_title;
   const sub = card.doc_title && card.doc_title !== label ? card.doc_title : "";
   const ratePct = Math.round(card.hit_rate_pct);
-  const apiBase = (import.meta.env.VITE_API_BASE_URL as string) || "";
-  // iframe raw GET이라 X-Tenant-Code 헤더 없음 — query param으로 tenant 전달
-  const tcRes = resolveTenantCode();
-  const tcParam = tcRes.ok ? `?tenant=${encodeURIComponent(tcRes.code)}` : "";
-  const pdfUrl = `${apiBase}/api/v1/matchup/landing/public/${card.id}/curated.pdf${tcParam}#page=1&view=Fit`;
+
+  // 박철T 학원장 호소(2026-05-13): "매치업 카드 마우스 가져다 댔을때 시각 깨짐현상".
+  // 원인: hover 시 카드 우상단 우측옆에 PDF 1페이지 iframe thumbnail(280x360 흰 박스)이
+  // translate(100%, 0)로 떠서 옆 카드를 덮음 — 다크 배경에 흰 큰 박스로 어색 + viewport
+  // 끝 카드는 화면 밖. 카드 클릭 → /landing/reports/{id} detail 1클릭 진입이 이미 작동하므로
+  // hover thumbnail은 제거. (이전: commit fa63d063 — 위치/크기 결함)
 
   return (
     <div
@@ -970,24 +971,6 @@ function HitReportCardItem({ card, labelOverride, color, rgb, dark, cardBg, card
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
     >
-      {/* hover 시 카드 우상단에 PDF 1페이지 thumbnail floating */}
-      {hover && (
-        <div style={{
-          position: "absolute",
-          top: -8, right: -8,
-          transform: "translate(100%, 0)",
-          width: 280, height: 360,
-          background: "#fff",
-          borderRadius: 12,
-          boxShadow: "0 16px 48px rgba(0,0,0,0.35)",
-          border: `1px solid ${dark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.1)"}`,
-          overflow: "hidden",
-          zIndex: 50,
-          pointerEvents: "none",
-        }}>
-          <iframe src={pdfUrl} title={`${label} preview`} style={{ width: "100%", height: "100%", border: "none", pointerEvents: "none" }} />
-        </div>
-      )}
       <Link
         to={`/landing/reports/${card.id}`}
         title="자세한 적중 보고서 보기"
