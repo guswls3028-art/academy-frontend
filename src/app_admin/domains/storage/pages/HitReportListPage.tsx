@@ -186,6 +186,18 @@ export default function HitReportListPage() {
         <Button size="sm" intent="ghost" onClick={() => void load()} disabled={loading} leftIcon={<RefreshCw size={ICON.sm} />}>
           새로고침
         </Button>
+        {/* 학원장 spec (박철T 2026-05-13 라이브): "매치업 페이지에서 작성하기를 누를수있게".
+            게시판 페이지로 deep link + 자동 PDF 업로드 모달 open. */}
+        {isAcademyAdmin && (
+          <>
+            <Button size="sm" intent="ghost" onClick={() => navigate("/landing/admin/matchup-board")}>
+              게시판 관리
+            </Button>
+            <Button size="sm" intent="primary" onClick={() => navigate("/landing/admin/matchup-board?compose=upload")}>
+              + PDF 업로드 게시
+            </Button>
+          </>
+        )}
       </div>
 
       {/* 학원장 포탈 widget (2026-05-11) — 작성/관리(admin) ↔ 학원 게시판(landing) 단일 흐름.

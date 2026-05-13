@@ -72,6 +72,34 @@ export async function publishMatchupShowcase(payload: {
   return data;
 }
 
+/** staff publish — 학원장이 PC에서 편집한 PDF 직접 업로드 (Phase #71, 2026-05-13).
+ *  multipart/form-data. PDF ≤ 20MB.
+ *  source_hit_report_id가 있으면 메타(적중률 등) 자동 enrich.
+ */
+export async function publishMatchupShowcaseUpload(payload: {
+  file: File;
+  title?: string;
+  description?: string;
+  published_at?: string | null;
+  published_until?: string | null;
+  source_hit_report_id?: number | null;
+  meta?: Record<string, unknown>;
+}): Promise<MatchupShowcaseCard> {
+  const form = new FormData();
+  form.append("file", payload.file);
+  if (payload.title) form.append("title", payload.title);
+  if (payload.description) form.append("description", payload.description);
+  if (payload.published_at) form.append("published_at", payload.published_at);
+  if (payload.published_until) form.append("published_until", payload.published_until);
+  if (payload.source_hit_report_id != null) form.append("source_hit_report_id", String(payload.source_hit_report_id));
+  if (payload.meta) form.append("meta", JSON.stringify(payload.meta));
+  const { data } = await api.post<MatchupShowcaseCard>(`${BASE}/publish-upload/`, form, {
+    headers: { "Content-Type": "multipart/form-data" },
+    timeout: 60_000,
+  });
+  return data;
+}
+
 /** staff: title/description/visibility 수정 (스냅샷 자체는 immutable). */
 export async function updateMatchupShowcase(id: number, payload: {
   title?: string;
