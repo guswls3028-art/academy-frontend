@@ -352,7 +352,6 @@ export default function SessionScoresEntryPage(_props: Props) {
 
             let initialBody: string | undefined;
             let scoreDetail = "";
-            let perStudentVars: Record<number, Record<string, string>> | undefined;
 
             try {
               const templates = await fetchMessageTemplates("grades");
@@ -364,55 +363,40 @@ export default function SessionScoresEntryPage(_props: Props) {
               // 학원장 임근혁 보고(2026-05-12 23:50):
               // 일괄 발송 양식이 첫 학생으로 치환되어 나와 "특정 대상 한 명으로 하드코딩됐다"는 오해.
               // → 양식 본문은 변수 그대로 (#{학생이름}/#{시험1명}/...) 노출.
-              // 발송 시 alimtalk_extra_vars + per_student vars로 학생별 자동 치환.
-              // 학원장 임근혁 보고(2026-05-12 → 2026-05-13 재발):
-              // textarea 에는 양식 본문(변수 그대로)이 떠야 학원장이 "수정 즉시 다수
-              // 학생에게 그대로 반영" 의도를 즉시 인식. 첫 학생 데이터로 치환된 텍스트
-              // 가 박히면 "특정 한 명으로 하드코딩" 오해. fallback 도 generateScoreReport
-              // (첫 학생 텍스트) 가 아니라 buildGenericScoreTemplate (변수 본문) 사용.
               initialBody = chosenTpl
                 ? chosenTpl.body
                 : buildGenericScoreTemplate(reportOptions);
               scoreDetail = buildScoreDetail(selectedRows[0], meta);
-
-              // 학생별 변수 dict — 본문 #{시험1명}/#{시험1점수}/#{과제N...}/#{시험총점}/#{숙제완성도} 모두 채움.
-              // SSOT (2026-05-13): substituteScoreVars로 학생별 치환된 본문을 _body_subst 로 보냄.
-              // backend send_views.py가 학생 loop 안에서 _body_subst 있으면 본문 자체를 덮어씀 (학원장 limglish 보고:
-              // 일괄 발송 시 본문 변수 미치환 → 빈 자리 박힘). 영구 SSOT는 backend session_id 컨텍스트로 자동 매핑.
-              perStudentVars = {};
-              for (const sRow of selectedRows) {
-                if (sRow.student_id == null) continue;
-                const studentBody = chosenTpl
-                  ? substituteScoreVars(chosenTpl.body, sRow, meta, reportOptions)
-                  : substituteScoreVars(buildGenericScoreTemplate(reportOptions), sRow, meta, reportOptions);
-                perStudentVars[sRow.student_id] = {
-                  시험성적: buildScoreDetail(sRow, meta),
-                  학생이름: sRow.student_name || "",
-                  _body_subst: studentBody,
-                };
-              }
             } catch {
               // 템플릿 조회 실패 시 — 범용 양식 fallback (변수 그대로)
               initialBody = buildGenericScoreTemplate(reportOptions);
               scoreDetail = buildScoreDetail(selectedRows[0], meta);
-              perStudentVars = {};
+            }
+
+            // SSOT (2026-05-14): 학생별 변수 재계산 callback.
+            // 학원장이 modal textarea에서 본문 수정 시 modal이 currentBody 기반으로 이 callback 호출 →
+            // 각 학생별 substituteScoreVars 결과 (_body_subst) 가 학원장 수정본 반영.
+            // 직전 결함: 모달 열기 전 사전 계산된 _body_subst 만 보내면 학원장 수정이 silently discard.
+            const recomputePerStudentVars = (currentBody: string): Record<number, Record<string, string>> => {
+              const result: Record<number, Record<string, string>> = {};
               for (const sRow of selectedRows) {
                 if (sRow.student_id == null) continue;
-                const studentBody = substituteScoreVars(buildGenericScoreTemplate(reportOptions), sRow, meta, reportOptions);
-                perStudentVars[sRow.student_id] = {
+                result[sRow.student_id] = {
                   시험성적: buildScoreDetail(sRow, meta),
                   학생이름: sRow.student_name || "",
-                  _body_subst: studentBody,
+                  _body_subst: substituteScoreVars(currentBody, sRow, meta, reportOptions),
                 };
               }
-            }
+              return result;
+            };
+
             openSendMessageModal({
               studentIds: selectedStudentIds,
               recipientLabel: `수업결과 발송 — 선택한 수강생 ${selectedEnrollmentIds.length}명`,
               blockCategory: "grades",
               initialBody,
               alimtalkExtraVars: { 강의명: lectureName, 차시명: sessionTitle, 시험성적: scoreDetail },
-              alimtalkExtraVarsPerStudent: perStudentVars,
+              recomputePerStudentVars,
             });
           }}
           disabled={selectedEnrollmentIds.length === 0}

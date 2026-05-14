@@ -358,7 +358,7 @@ export default function SessionAttendancePage({
         let sessionTitle = "";
         let initialBody: string | undefined;
         let scoreDetail = "";
-        let perStudentVars: Record<number, Record<string, string>> | undefined;
+        let recomputePerStudentVars: ((currentBody: string) => Record<number, Record<string, string>>) | undefined;
         try {
           const [templates, scoresData] = await Promise.all([
             fetchMessageTemplates("grades"),
@@ -382,24 +382,28 @@ export default function SessionAttendancePage({
           }
 
           if (studentIds.length === 1 && firstRow) {
+            // 1명 path — initialBody는 이미 substituted text. textarea에서 자유 수정 가능.
             initialBody = chosenTpl
               ? substituteScoreVars(chosenTpl.body, firstRow, scoresData.meta, { lectureName, sessionTitle })
               : generateScoreReport(firstRow, scoresData.meta, { lectureName, sessionTitle });
           } else {
+            // 일괄 path — initialBody는 변수 그대로의 양식 본문. 학생별 치환은 callback에서.
             initialBody = chosenTpl?.body;
-            perStudentVars = {};
-            for (const sid of studentIds) {
-              const sRow = scoresData.rows.find((r) => r.student_id === sid);
-              if (!sRow) continue;
-              const studentBody = chosenTpl
-                ? substituteScoreVars(chosenTpl.body, sRow, scoresData.meta, { lectureName, sessionTitle })
-                : generateScoreReport(sRow, scoresData.meta, { lectureName, sessionTitle });
-              perStudentVars[sid as number] = {
-                시험성적: buildScoreDetail(sRow, scoresData.meta),
-                학생이름: sRow.student_name || "",
-                _body_subst: studentBody,
-              };
-            }
+            // SSOT (2026-05-14): modal이 currentBody (학원장 수정본) 기반으로 학생별 재계산.
+            // 직전 결함: 사전 계산된 _body_subst 만 보내면 학원장 textarea 수정이 silent discard.
+            recomputePerStudentVars = (currentBody: string) => {
+              const result: Record<number, Record<string, string>> = {};
+              for (const sid of studentIds) {
+                const sRow = scoresData.rows.find((r) => r.student_id === sid);
+                if (!sRow || sRow.student_id == null) continue;
+                result[sRow.student_id] = {
+                  시험성적: buildScoreDetail(sRow, scoresData.meta),
+                  학생이름: sRow.student_name || "",
+                  _body_subst: substituteScoreVars(currentBody, sRow, scoresData.meta, { lectureName, sessionTitle }),
+                };
+              }
+              return result;
+            };
           }
         } catch {
           // fallback: meta/scores fetch 실패 시 qc cache라도
@@ -415,7 +419,7 @@ export default function SessionAttendancePage({
           blockCategory: "grades",
           initialBody,
           alimtalkExtraVars: { 강의명: lectureName, 차시명: sessionTitle, 시험성적: scoreDetail },
-          alimtalkExtraVarsPerStudent: perStudentVars,
+          recomputePerStudentVars,
         });
       }}>
         수업결과 발송

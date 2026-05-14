@@ -18,6 +18,13 @@ export type OpenSendMessageOptions = {
   alimtalkExtraVars?: Record<string, string>;
   /** 학생별 개별 치환 변수 — key: student_id (대량 성적 발송 등) */
   alimtalkExtraVarsPerStudent?: Record<number, Record<string, string>>;
+  /**
+   * 학원장이 모달 textarea에서 본문 수정 시 학생별 변수(_body_subst 포함)를 재계산하는 callback.
+   * 제공 시 modal이 body 변경 감지마다 호출 → 최신 본문 기반 학생별 substituted body 생성.
+   * 미제공 시 alimtalkExtraVarsPerStudent prop을 그대로 사용 (사전 계산된 값 고정).
+   * 일괄 성적/출결 path에서 학원장 본문 수정이 silently discard되던 결함 fix (2026-05-14).
+   */
+  recomputePerStudentVars?: (currentBody: string) => Record<number, Record<string, string>>;
   /** 모달이 닫힐 때 호출되는 콜백 */
   onModalClose?: () => void;
 };
@@ -46,6 +53,7 @@ export function SendMessageModalProvider({ children }: { children: ReactNode }) 
   const [initialBody, setInitialBody] = useState<string | undefined>();
   const [alimtalkExtraVars, setAlimtalkExtraVars] = useState<Record<string, string> | undefined>();
   const [alimtalkExtraVarsPerStudent, setAlimtalkExtraVarsPerStudent] = useState<Record<number, Record<string, string>> | undefined>();
+  const recomputePerStudentVarsRef = useRef<((currentBody: string) => Record<number, Record<string, string>>) | undefined>(undefined);
   const onModalCloseRef = useRef<(() => void) | undefined>(undefined);
 
   const openSendMessageModal = useCallback((options: OpenSendMessageOptions) => {
@@ -56,6 +64,7 @@ export function SendMessageModalProvider({ children }: { children: ReactNode }) 
     setInitialBody(options.initialBody);
     setAlimtalkExtraVars(options.alimtalkExtraVars);
     setAlimtalkExtraVarsPerStudent(options.alimtalkExtraVarsPerStudent);
+    recomputePerStudentVarsRef.current = options.recomputePerStudentVars;
     onModalCloseRef.current = options.onModalClose;
     setOpen(true);
   }, []);
@@ -69,6 +78,7 @@ export function SendMessageModalProvider({ children }: { children: ReactNode }) 
     setInitialBody(undefined);
     setAlimtalkExtraVars(undefined);
     setAlimtalkExtraVarsPerStudent(undefined);
+    recomputePerStudentVarsRef.current = undefined;
     onModalCloseRef.current?.();
     onModalCloseRef.current = undefined;
   }, []);
@@ -86,6 +96,7 @@ export function SendMessageModalProvider({ children }: { children: ReactNode }) 
         initialBody={initialBody}
         alimtalkExtraVars={alimtalkExtraVars}
         alimtalkExtraVarsPerStudent={alimtalkExtraVarsPerStudent}
+        recomputePerStudentVarsRef={recomputePerStudentVarsRef}
       />
     </SendMessageModalContext.Provider>
   );

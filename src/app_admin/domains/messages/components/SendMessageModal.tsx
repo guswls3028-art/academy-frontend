@@ -44,6 +44,10 @@ import {
 import type { TemplateCategory } from "../constants/templateBlocks";
 import GradesBlockPanel from "./GradesBlockPanel";
 import TemplatePickerModal from "./TemplatePickerModal";
+import {
+  getAlimtalkTemplateTypeFromCategory,
+  renderAlimtalkFullPreview,
+} from "./AlimtalkTemplateInfoPanel";
 import "../styles/templateEditor.css";
 
 // ─── Types ───
@@ -59,6 +63,13 @@ export type SendMessageModalProps = {
   alimtalkExtraVars?: Record<string, string>;
   /** 학생별 개별 치환 변수 — key: student_id (대량 성적 발송 등) */
   alimtalkExtraVarsPerStudent?: Record<number, Record<string, string>>;
+  /**
+   * 학원장이 textarea에서 본문 수정 시 학생별 변수(_body_subst 포함) 재계산 callback.
+   * 제공 시 body 변경마다 호출 → 최신 본문 기반 학생별 substituted body 생성.
+   * 미제공 시 alimtalkExtraVarsPerStudent prop을 그대로 사용 (사전 계산값 고정).
+   * ref 형태로 받아 SendMessageModalContext가 close 시 자동 cleanup.
+   */
+  recomputePerStudentVarsRef?: React.MutableRefObject<((currentBody: string) => Record<number, Record<string, string>>) | undefined>;
 };
 
 // ─── Helpers ───
@@ -141,6 +152,7 @@ export default function SendMessageModal({
   initialBody,
   alimtalkExtraVars,
   alimtalkExtraVarsPerStudent,
+  recomputePerStudentVarsRef,
 }: SendMessageModalProps) {
   const queryClient = useQueryClient();
   const confirm = useConfirm();
@@ -189,28 +201,44 @@ export default function SendMessageModal({
   const selectedTemplate = templates.find((t) => t.id === selectedTemplateId);
   const bodyModified = selectedTemplate != null && templateBodySnapshot != null && body !== templateBodySnapshot;
 
+  // SSOT (2026-05-14): 변수 상태는 학원장이 textarea에 친 body 기준.
+  // selectedTemplate.body 기준이면 학원장이 양식에서 변수 일부 제거해도 여전히 missing으로 잡혀 발송 차단됨.
+  // 학원장이 친 본문이 곧 발송 본문 → body 안 실제 변수만 검사해야 의도 일치.
   const varStatuses = useMemo(() => {
-    if (!selectedTemplate) return [];
-    return getVarStatuses(selectedTemplate.body, alimtalkExtraVars, freeContent);
-  }, [selectedTemplate, alimtalkExtraVars, freeContent]);
+    if (!selectedTemplate && !alimtalkFreeForm) return [];
+    if (!body) return [];
+    return getVarStatuses(body, alimtalkExtraVars, freeContent);
+  }, [selectedTemplate, alimtalkFreeForm, body, alimtalkExtraVars, freeContent]);
 
   // ─── Can Send ───
+  // missing 변수 — #{내용}/#{공지내용}/#{선생님메모} 등 학원장 편집 영역(편지)이 비어있거나
+  // 자동 채움 외 카테고리 변수가 missing 이면 카카오 발송 시 빈 슬롯 또는 backend 차단.
+  // 학원장이 발송 후 silent fail 보지 않도록 사전 차단.
+  const missingVarNames = varStatuses
+    .filter((v) => v.status === "missing")
+    .map((v) => v.name);
+  const hasMissingVars = missingVarNames.length > 0;
+
   const canSend = (() => {
     if (!hasRecipients || sendToTargets.length === 0 || sending) return false;
     if (!selectedTemplate && !alimtalkFreeForm) return false;
     if (!body.trim()) return false;
+    if (hasMissingVars) return false;
     return true;
   })();
 
   const blocks = useMemo(() => getBlocksForCategory(blockCategory), [blockCategory]);
 
   // ─── Preview ───
-  const previewBody = selectedTemplate
-    ? renderPreviewWithActualData(selectedTemplate.body, alimtalkExtraVars, freeContent)
-    : body;
-  const previewSubject = selectedTemplate
-    ? renderPreviewWithActualData(selectedTemplate.subject || "", alimtalkExtraVars)
-    : subject;
+  // SSOT (2026-05-14): preview는 학원장이 textarea에 친 body 기준 (selectedTemplate.body 무시).
+  // 직전 결함: 양식 자동 매칭 시 preview가 DB 원본 template 고정 → 학원장 본문 수정이 preview에 안 보임.
+  // 학원장이 친 본문이 곧 발송 본문 → 그대로 preview에 노출되어야 일치.
+  const previewBody = renderPreviewWithActualData(body, alimtalkExtraVars, freeContent);
+  const previewSubject = subject
+    ? renderPreviewWithActualData(subject, alimtalkExtraVars)
+    : selectedTemplate
+      ? renderPreviewWithActualData(selectedTemplate.subject || "", alimtalkExtraVars)
+      : subject;
 
   const [showConfirm, setShowConfirm] = useState(false);
 
@@ -234,9 +262,9 @@ export default function SendMessageModal({
   }, [open, initialBody]);
 
   // 자동 선택: 본 테넌트 양식 (카테고리 일치) > 시스템 기본.
-  // initialBody가 있어도 봉투(카카오 검수 통과 4종 ITEM_LIST)는 카테고리에 맞춰 자동 선택해야 함.
-  // 학원장 mental model (domain-policy.md §5): 봉투는 시스템이 매칭, #{선생님메모}만 학원장 자유 작성.
-  // initialBody는 양식 body 대신 #{선생님메모} 자리에 들어가도록 body 그대로 보존.
+  // initialBody가 있어도 봉투(카카오 검수 통과 4종)는 카테고리에 맞춰 자동 선택해야 함.
+  // 학원장 mental model: 봉투는 시스템이 매칭, #{선생님메모}만 학원장 자유 작성.
+  // initialBody는 양식 body 대신 #{선생님메모} 자리에 들어가도록 body로 유지.
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
@@ -412,11 +440,18 @@ export default function SendMessageModal({
         const payload: Parameters<typeof sendMessage>[0] = { send_to: sendTo, message_mode: "alimtalk" };
         if (isStaffMode) payload.staff_ids = staffIds; else payload.student_ids = studentIds;
         if (selectedTemplateId) payload.template_id = selectedTemplateId;
-        payload.raw_body = body.trim();
+        const currentBody = body.trim();
+        payload.raw_body = currentBody;
         if (subject.trim()) payload.raw_subject = subject.trim();
         if (alimtalkExtraVars) payload.alimtalk_extra_vars = alimtalkExtraVars;
-        if (alimtalkExtraVarsPerStudent && Object.keys(alimtalkExtraVarsPerStudent).length > 0) {
-          payload.alimtalk_extra_vars_per_student = alimtalkExtraVarsPerStudent;
+        // SSOT (2026-05-14): 학원장이 textarea에서 본문 수정 시 학생별 substituted body 재계산.
+        // callback이 있으면 currentBody 기반으로 재호출 → 학생별 _body_subst가 학원장 수정본 반영.
+        // 미제공 시 사전 계산된 alimtalkExtraVarsPerStudent 그대로 사용 (legacy + 1명 path 호환).
+        const perStudentVars = recomputePerStudentVarsRef?.current
+          ? recomputePerStudentVarsRef.current(currentBody)
+          : alimtalkExtraVarsPerStudent;
+        if (perStudentVars && Object.keys(perStudentVars).length > 0) {
+          payload.alimtalk_extra_vars_per_student = perStudentVars;
         }
         return payload;
       };
@@ -483,6 +518,10 @@ export default function SendMessageModal({
     if (sendToTargets.length === 0) return "발송 대상을 선택해 주세요";
     if (!selectedTemplate && !alimtalkFreeForm) return "양식을 선택하거나 직접 작성해 주세요";
     if (!body.trim()) return "본문을 입력해 주세요";
+    if (hasMissingVars) {
+      const list = missingVarNames.map((n) => `#{${n}}`).join(", ");
+      return `미입력 변수: ${list} — 본문/변수 팔레트에서 채워 주세요`;
+    }
     return null;
   })();
 
@@ -566,7 +605,9 @@ export default function SendMessageModal({
               )}
             </section>
 
-            {/* 카드 2 — 미리보기 + 변수 상태 통합 */}
+            {/* 카드 2 — 미리보기 + 변수 상태 통합
+                봉투(카카오 자동 채움) + 편지(학원장 작성) 시각 분리.
+                blockCategory 또는 selectedTemplate.category 로 봉투 타입 판별 → renderAlimtalkFullPreview 사용. */}
             <section className="send-modal__card send-modal__card--preview">
               <div className="send-modal__card-label">
                 카카오톡 미리보기
@@ -574,20 +615,41 @@ export default function SendMessageModal({
                   <span className="send-modal__card-sublabel"> · 첫 학생 기준 · 학생별로 자동 치환됨</span>
                 )}
               </div>
-              <div className="template-preview-kakao">
-                <div className="template-preview-kakao__card">
-                  {(selectedTemplate?.subject || subject) && (
-                    <div className="template-preview-kakao__title">{previewSubject}</div>
-                  )}
-                  <div className="template-preview-kakao__body">
-                    {selectedTemplate
-                      ? previewBody
-                      : alimtalkFreeForm && body
-                      ? body
-                      : <span className="send-modal__preview-placeholder">{alimtalkFreeForm ? "내용을 입력하세요" : "양식을 선택하세요"}</span>}
+              {(() => {
+                const tplCategory = (selectedTemplate?.category as TemplateCategory | undefined) ?? blockCategory;
+                const alimtalkType = getAlimtalkTemplateTypeFromCategory(tplCategory);
+                // SSOT (2026-05-14): preview body는 학원장이 textarea에 친 body가 진실.
+                // 직전엔 selectedTemplate.body의 substituted ReactNode[]를 letterBody로 썼는데
+                // (a) renderAlimtalkFullPreview는 raw string body를 받아 자체 렌더, (b) 학원장 수정 반영 안 됨.
+                // 둘 다 해결 위해 body raw string 그대로 전달.
+                const letterBody = body && (selectedTemplate || alimtalkFreeForm) ? body : "";
+                if (alimtalkType) {
+                  return (
+                    <div className="template-preview-kakao">
+                      <div className="template-preview-kakao__card" style={{ whiteSpace: "pre-wrap", lineHeight: 1.7, fontSize: 12 }}>
+                        <div style={{ fontSize: 10, color: "var(--color-text-muted)", marginBottom: 4, fontStyle: "italic" }}>
+                          봉투(카카오 자동 채움) + 학원장님 편지 — 학생별 변수 자동 치환
+                        </div>
+                        {letterBody
+                          ? renderAlimtalkFullPreview(alimtalkType, letterBody)
+                          : <span className="send-modal__preview-placeholder">{alimtalkFreeForm ? "내용을 입력하세요" : "양식을 선택하세요"}</span>}
+                      </div>
+                    </div>
+                  );
+                }
+                return (
+                  <div className="template-preview-kakao">
+                    <div className="template-preview-kakao__card">
+                      {(selectedTemplate?.subject || subject) && (
+                        <div className="template-preview-kakao__title">{previewSubject}</div>
+                      )}
+                      <div className="template-preview-kakao__body">
+                        {letterBody || <span className="send-modal__preview-placeholder">{alimtalkFreeForm ? "내용을 입력하세요" : "양식을 선택하세요"}</span>}
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
+                );
+              })()}
 
               {/* 변수 상태 — 미리보기 카드 하단 inline */}
               {selectedTemplate && varStatuses.length > 0 && (
@@ -696,14 +758,14 @@ export default function SendMessageModal({
 
             {/* ── 본문 영역 라벨 — 일괄 발송 의도 명시 ── */}
             <div className="send-modal__editor-label">
-              <span className="send-modal__editor-label-title">양식 본문</span>
+              <span className="send-modal__editor-label-title">봉투 안 편지 (학원장 자유 편집)</span>
               {hasRecipients && recipientCount > 1 ? (
                 <span className="send-modal__editor-label-hint">
-                  수정한 그대로 학생 {recipientCount}명 전원에게 발송 · <strong>{`#{학생이름}`}</strong>·<strong>{`#{시험성적}`}</strong> 등 변수는 학생별 자동 치환
+                  학원장님 작성한 그대로 학생 {recipientCount}명 전원에게 발송 · <strong>{`#{학생이름}`}</strong>·<strong>{`#{시험성적}`}</strong> 등 변수는 학생별 자동 치환
                 </span>
               ) : (
                 <span className="send-modal__editor-label-hint">
-                  <strong>{`#{학생이름}`}</strong> 등 변수는 발송 시 학생 데이터로 자동 치환됨
+                  카카오 양식의 <strong>봉투 장식</strong>(학원명/학생명/강의명 등)은 자동 채움. 여기에는 <strong>학원장님 메시지만</strong> 자유롭게 작성하세요.
                 </span>
               )}
             </div>
@@ -736,7 +798,7 @@ export default function SendMessageModal({
                   onChange={(e) => { setBody(e.target.value); if (!alimtalkFreeForm && !selectedTemplate) setAlimtalkFreeForm(true); }}
                   disabled={sending}
                   className="message-domain-input send-modal__editor-textarea"
-                  placeholder="알림톡 본문을 작성하세요"
+                  placeholder="학원장님이 학생/학부모에게 전할 안내 메시지를 자유롭게 입력하세요. (봉투 장식은 카카오에서 자동으로 더해집니다)"
                   // 빈 상태 오버레이가 위에 떠 있을 때 textarea 클릭이 통과되지 않도록 동적 차단.
                   // eslint-disable-next-line no-restricted-syntax
                   style={{
