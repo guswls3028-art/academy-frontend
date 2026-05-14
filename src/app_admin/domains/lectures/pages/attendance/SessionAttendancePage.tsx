@@ -242,10 +242,31 @@ export default function SessionAttendancePage({
     const selectedRows = sorted.filter((att: any) => selectedSet.has(att.id));
     const studentIds = selectedRows
       .map((att: any) => att.student_id)
-      .filter((id: unknown) => id != null && Number.isFinite(id));
+      .filter((id: unknown) => id != null && Number.isFinite(id)) as number[];
     const _lectureName = lecture?.title ?? lecture?.name ?? "";
     const _sessionQ = qc.getQueryData<{ title?: string }>(["session-detail", sessionId]);
     const _sessionTitle = _sessionQ?.title ?? "";
+    // SSOT (2026-05-14): 학원장 textarea 본문 수정 시 학생별 substituted body 재계산.
+    // 미적용 시 학원장 수정본 silent discard. 416줄(수업결과)/클리닉 동일 패턴.
+    const recomputePerStudentVars = (currentBody: string) => {
+      const result: Record<number, Record<string, string>> = {};
+      for (const sid of studentIds) {
+        const row = selectedRows.find((r: any) => r.student_id === sid);
+        if (!row || !sid) continue;
+        const studentName = (row.student_name ?? row.name ?? "") as string;
+        let subst = currentBody;
+        subst = subst.replace(/#\{학생이름3\}/g, studentName.length > 3 ? studentName.slice(0, 3) : studentName);
+        subst = subst.replace(/#\{학생이름2\}/g, studentName.length >= 2 ? studentName.slice(-2) : studentName);
+        subst = subst.replace(/#\{학생이름\}/g, studentName);
+        subst = subst.replace(/#\{강의명\}/g, _lectureName);
+        subst = subst.replace(/#\{차시명\}/g, _sessionTitle);
+        result[sid] = {
+          학생이름: studentName,
+          _body_subst: subst,
+        };
+      }
+      return result;
+    };
     openSendMessageModal({
       studentIds,
       recipientLabel: `선택한 출결 ${selectedIds.length}명`,
@@ -254,6 +275,7 @@ export default function SessionAttendancePage({
         강의명: _lectureName,
         차시명: _sessionTitle,
       },
+      recomputePerStudentVars,
     });
   };
 
@@ -271,7 +293,7 @@ export default function SessionAttendancePage({
       : onlineRows;
     const studentIds = targetRows
       .map((att: any) => att.student_id)
-      .filter((id: unknown) => id != null && Number.isFinite(id));
+      .filter((id: unknown) => id != null && Number.isFinite(id)) as number[];
     if (studentIds.length === 0) {
       feedback.info("영상 수강 학생이 없습니다.");
       return;
@@ -279,12 +301,34 @@ export default function SessionAttendancePage({
     const lectureName = lecture?.title ?? lecture?.name ?? "";
     const sessionQuery = qc.getQueryData<{ title?: string; order?: number }>(["session-detail", sessionId]);
     const sessionTitle = sessionQuery?.title ?? "";
+    // SSOT (2026-05-14): initialBody에 #{학생이름} 명시 포함 — 학생별 치환 필수.
+    // 미적용 시 모든 학생에게 raw #{학생이름} 또는 학생 1명 이름 발송. limglish 사고 동일 패턴.
+    const recomputePerStudentVars = (currentBody: string) => {
+      const result: Record<number, Record<string, string>> = {};
+      for (const sid of studentIds) {
+        const row = targetRows.find((r: any) => r.student_id === sid);
+        if (!row || !sid) continue;
+        const studentName = (row.student_name ?? row.name ?? "") as string;
+        let subst = currentBody;
+        subst = subst.replace(/#\{학생이름3\}/g, studentName.length > 3 ? studentName.slice(0, 3) : studentName);
+        subst = subst.replace(/#\{학생이름2\}/g, studentName.length >= 2 ? studentName.slice(-2) : studentName);
+        subst = subst.replace(/#\{학생이름\}/g, studentName);
+        subst = subst.replace(/#\{강의명\}/g, lectureName);
+        subst = subst.replace(/#\{차시명\}/g, sessionTitle);
+        result[sid] = {
+          학생이름: studentName,
+          _body_subst: subst,
+        };
+      }
+      return result;
+    };
     openSendMessageModal({
       studentIds,
       recipientLabel: `영상 시청 안내 — ${studentIds.length}명`,
       blockCategory: "attendance",
       initialBody: `[${lectureName}] ${sessionTitle ? sessionTitle + " " : ""}영상 수업 안내\n\n안녕하세요, #{학생이름} 학생 학부모님.\n금일 영상 수업이 등록되었습니다.\n학생 앱에서 영상을 시청해 주세요.\n\n감사합니다.`,
       alimtalkExtraVars: { 강의명: lectureName, 차시명: sessionTitle },
+      recomputePerStudentVars,
     });
   };
 
