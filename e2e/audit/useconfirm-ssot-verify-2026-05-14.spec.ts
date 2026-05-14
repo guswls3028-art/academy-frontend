@@ -1,5 +1,6 @@
 // PATH: e2e/audit/useconfirm-ssot-verify-2026-05-14.spec.ts
 // useConfirm SSOT 7곳 변환 production 시각 검증 (2026-05-14, commit 9f2bc30f).
+/* eslint-disable no-restricted-syntax */
 //
 // Tenant 1 admin97 로그인 → 매치업 콘솔 게시판 관리 진입 → 삭제 버튼 클릭 →
 // useConfirm DS 모달 (브라우저 window.confirm 아님) 캡처.
