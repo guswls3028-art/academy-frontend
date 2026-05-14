@@ -918,7 +918,10 @@ export default function SendMessageModal({
                 <span className="send-modal__confirm-val">{body.length}자</span>
               </div>
               <div className="send-modal__confirm-preview">
-                {body.slice(0, 200)}{body.length > 200 ? "…" : ""}
+                {/* SSOT (2026-05-14): confirm preview도 첫 학생 substituted body 사용. raw #{강의명}/#{차시명}
+                    노출 시 학원장이 "변수 미치환?" 오해 (limglish 보고). previewLetterBody 가 callback 결과
+                    의 첫 학생 _body_subst 라 backend 자동 치환 변수가 실 데이터로 표시됨. */}
+                {previewLetterBody.slice(0, 200)}{previewLetterBody.length > 200 ? "…" : ""}
               </div>
             </div>
             <div className="send-modal__confirm-actions">

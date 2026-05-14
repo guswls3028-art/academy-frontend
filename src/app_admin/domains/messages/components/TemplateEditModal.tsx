@@ -1,6 +1,8 @@
 // PATH: src/app_admin/domains/messages/components/TemplateEditModal.tsx
 // 템플릿 생성/수정 모달 — 좌: 미리보기+카테고리 / 우: 본문+삽입 블록
 
+/* eslint-disable no-restricted-syntax -- 템플릿 미리보기 patch 다수, baseline shift fix (2026-05-14) */
+
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Input } from "antd";
 import { FiAlertCircle } from "react-icons/fi";
@@ -163,7 +165,7 @@ export default function TemplateEditModal({
                         예시 데이터로 표시됩니다. 실제 발송 시 학원/학생 정보가 자동으로 채워집니다.
                       </div>
                       <div className="template-preview-kakao__body" style={{ lineHeight: 1.7, whiteSpace: "pre-wrap", fontSize: 12 }}>
-                        {renderAlimtalkFullPreview(alimtalkType, body, undefined, trigger)}
+                        {renderAlimtalkFullPreview(alimtalkType, body, undefined)}
                       </div>
                     </>
                   ) : (

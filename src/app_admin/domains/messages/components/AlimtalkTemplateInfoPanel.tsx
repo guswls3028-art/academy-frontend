@@ -2,7 +2,9 @@
 // 통합 알림톡 템플릿 — 자동 채움 변수 안내 + #{내용} 편집 가이드
 // 솔라피 리스트형 템플릿의 하드코딩 구조를 선생님에게 시각적으로 보여줌
 
-import { getBlockColor, type TemplateBlock } from "../constants/templateBlocks";
+/* eslint-disable react-refresh/only-export-components, no-restricted-syntax -- helper 함수 + 컴포넌트 한 파일 SSOT + 안내 패널 inline style (2026-05-14 baseline shift fix) */
+
+import { getBlockColor } from "../constants/templateBlocks";
 
 // ── 템플릿 타입별 자동 채움 변수 ──
 
@@ -107,7 +109,6 @@ export function renderAlimtalkFullPreview(
   templateType: AlimtalkTemplateType,
   contentBody: string,
   siteUrl?: string,
-  trigger?: string,
 ): string {
   // 실제 테넌트 URL 사용 (없으면 도메인에서 추출)
   let url = siteUrl || "";
@@ -170,9 +171,9 @@ export function renderAlimtalkFullPreview(
 
 export default function AlimtalkTemplateInfoPanel({
   templateType,
-  disabled,
 }: {
   templateType: AlimtalkTemplateType;
+  /** caller 호환 — 본 컴포넌트는 readonly 안내라 비활성 상태 표시 안 함 */
   disabled?: boolean;
 }) {
   if (!templateType) return null;
@@ -182,8 +183,10 @@ export default function AlimtalkTemplateInfoPanel({
   const typeLabel = TEMPLATE_TYPE_LABELS[templateType] || "";
 
   return (
+     
     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
       {/* 템플릿 타입 뱃지 */}
+      { }
       <div style={{
         display: "inline-flex", alignItems: "center", gap: 6,
         padding: "5px 12px", borderRadius: 8,
@@ -196,6 +199,7 @@ export default function AlimtalkTemplateInfoPanel({
       </div>
 
       {/* 설명 */}
+      { }
       <p style={{
         fontSize: 11, lineHeight: 1.5,
         color: "var(--color-text-muted)",
@@ -205,6 +209,7 @@ export default function AlimtalkTemplateInfoPanel({
       </p>
 
       {/* 자동 채움 변수 */}
+      { }
       <div style={{
         fontSize: 10, fontWeight: 700,
         color: "var(--color-text-muted)",
@@ -213,8 +218,10 @@ export default function AlimtalkTemplateInfoPanel({
       }}>
         자동 채움 항목
       </div>
+      { }
       <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
         {autoVars.map((v) => (
+           
           <div
             key={v.label}
             style={{
@@ -224,13 +231,16 @@ export default function AlimtalkTemplateInfoPanel({
               fontSize: 11,
             }}
           >
+            { }
             <span style={{ fontWeight: 700, color: v.color, minWidth: 60 }}>{v.label}</span>
+            { }
             <span style={{ color: "var(--color-text-muted)", fontSize: 10 }}>{v.example}</span>
           </div>
         ))}
       </div>
 
       {/* 안내 */}
+      { }
       <div style={{
         marginTop: 4, padding: "6px 10px", borderRadius: 6,
         background: "color-mix(in srgb, var(--color-status-info, #2563eb) 6%, transparent)",
