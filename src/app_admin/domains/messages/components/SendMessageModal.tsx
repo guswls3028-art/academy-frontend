@@ -642,18 +642,29 @@ export default function SendMessageModal({
                 // SSOT: 일괄 path에서 callback 결과(첫 학생 substituted)를 미리보기에 사용해
                 // 학원장이 변수가 실 데이터로 치환된 모습을 볼 수 있게 함.
                 const letterBody = body && (selectedTemplate || alimtalkFreeForm) ? previewLetterBody : "";
+                const channelLabel = alimtalkType
+                  ? alimtalkType === "score" ? "성적표 안내"
+                    : alimtalkType === "attendance" ? "출석 안내"
+                    : alimtalkType === "clinic_info" ? "클리닉 안내"
+                    : alimtalkType === "clinic_change" ? "일정 변경 안내"
+                    : "알림톡"
+                  : "알림톡";
                 if (alimtalkType) {
                   return (
                     <div className="template-preview-kakao">
-                      {/* eslint-disable-next-line no-restricted-syntax */}
-                      <div className="template-preview-kakao__card" style={{ whiteSpace: "pre-wrap", lineHeight: 1.7, fontSize: 12 }}>
-                        {/* eslint-disable-next-line no-restricted-syntax */}
-                        <div style={{ fontSize: 10, color: "var(--color-text-muted)", marginBottom: 4, fontStyle: "italic" }}>
-                          봉투(카카오 자동 채움) + 학원장님 편지 — 학생별 변수 자동 치환
+                      <div className="template-preview-kakao__helper">
+                        봉투(카카오 자동 채움) + 학원장님 편지 — 학생별 변수 자동 치환
+                      </div>
+                      <div className="template-preview-kakao__card">
+                        <div className="template-preview-kakao__header">
+                          <span className="template-preview-kakao__header-label">알림톡 도착</span>
+                          <span className="template-preview-kakao__header-channel">{channelLabel}</span>
                         </div>
-                        {letterBody
-                          ? renderAlimtalkFullPreview(alimtalkType, letterBody)
-                          : <span className="send-modal__preview-placeholder">{alimtalkFreeForm ? "내용을 입력하세요" : "양식을 선택하세요"}</span>}
+                        <div className="template-preview-kakao__body">
+                          {letterBody
+                            ? renderAlimtalkFullPreview(alimtalkType, letterBody)
+                            : <span className="send-modal__preview-placeholder">{alimtalkFreeForm ? "내용을 입력하세요" : "양식을 선택하세요"}</span>}
+                        </div>
                       </div>
                     </div>
                   );
@@ -661,6 +672,10 @@ export default function SendMessageModal({
                 return (
                   <div className="template-preview-kakao">
                     <div className="template-preview-kakao__card">
+                      <div className="template-preview-kakao__header">
+                        <span className="template-preview-kakao__header-label">알림톡 도착</span>
+                        <span className="template-preview-kakao__header-channel">{channelLabel}</span>
+                      </div>
                       {(selectedTemplate?.subject || subject) && (
                         <div className="template-preview-kakao__title">{previewSubject}</div>
                       )}

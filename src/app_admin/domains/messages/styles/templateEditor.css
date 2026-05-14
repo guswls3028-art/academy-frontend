@@ -131,42 +131,96 @@
   color: rgba(255, 255, 255, 0.75);
 }
 
-/* ----- 카카오톡 알림톡 미리보기 ----- */
+/* ----- 카카오톡 알림톡 미리보기 (2026-05-14 디자인 upgrade) ----- */
 .template-preview-kakao {
   width: 100%;
-  max-width: 260px;
+  max-width: 280px;
   margin: 0 auto;
-  background: #b2c7d9;
-  border-radius: 12px;
-  padding: 16px;
+  background: #b2c7d9; /* 카카오톡 채팅창 배경색 */
+  border-radius: 14px;
+  padding: 14px 12px;
   min-height: 200px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
+/* 미리보기 위 보조 안내 (말풍선 밖) */
+.template-preview-kakao__helper {
+  font-size: 10.5px;
+  color: rgba(255, 255, 255, 0.85);
+  text-align: center;
+  margin-bottom: 8px;
+  letter-spacing: -0.2px;
+  line-height: 1.4;
+}
+
 .template-preview-kakao__card {
   background: #fff;
-  border-radius: 12px;
+  border-radius: 14px;
   overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  border-left: 4px solid #fee500;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+/* 카카오톡 알림톡 노란 헤더 — 채널 식별 */
+.template-preview-kakao__header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #fee500; /* 카카오 옐로우 */
+  padding: 8px 12px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #3c1e1e;
+  letter-spacing: -0.2px;
+}
+.template-preview-kakao__header::before {
+  content: "💬";
+  font-size: 12px;
+}
+.template-preview-kakao__header-label {
+  flex: 1;
+}
+.template-preview-kakao__header-channel {
+  font-size: 10px;
+  font-weight: 600;
+  color: #6b4f1f;
+  opacity: 0.8;
 }
 
 .template-preview-kakao__title {
-  padding: 12px 14px 6px;
+  padding: 12px 14px 4px;
   font-size: 14px;
   font-weight: 700;
-  color: #333;
-  border-bottom: 1px solid #f0f0f0;
-  background: #fafafa;
+  color: #1c1c1e;
+  background: #fff;
 }
 
 .template-preview-kakao__body {
-  padding: 12px 14px 16px;
+  padding: 8px 14px 16px;
   font-size: 13px;
-  line-height: 1.5;
-  color: #333;
+  line-height: 1.7;
+  color: #1c1c1e;
   white-space: pre-wrap;
   word-break: break-word;
+  letter-spacing: -0.2px;
+}
+
+/* 자동 채움 변수 영역 (변수 substituted 후 강조) */
+.template-preview-kakao__body em {
+  font-style: normal;
+  font-weight: 600;
+  color: #2563eb;
+}
+
+.template-preview-kakao__footer {
+  border-top: 1px solid #f0f0f0;
+  padding: 10px 14px;
+  font-size: 11px;
+  color: #6b7280;
+  background: #fafafa;
+}
+.template-preview-kakao__footer a {
+  color: #2563eb;
+  text-decoration: none;
 }
 
 /* 블록 버튼 (좌측) — 레거시, 현재는 우측 본문 패널에서 사용 */
