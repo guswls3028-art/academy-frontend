@@ -164,6 +164,10 @@ test.describe("성적 알림톡 발송 리뷰", () => {
         await submitBtn.click();
         // eslint-disable-next-line no-restricted-syntax -- 검증 spec 단발성 timing 보장
         await page.waitForTimeout(1000);
+        // confirm overlay 캡처 + preview 텍스트 검증 (0fa1d1f9 fix — raw #{변수} 노출 X)
+        await page.screenshot({ path: "_artifacts/score-alimtalk-review/08b-confirm-overlay.png", fullPage: true });
+        const confirmPreview = await page.locator(".send-modal__confirm-preview").innerText({ timeout: 3000 }).catch(() => "");
+        console.log("=== confirm overlay preview ===\n" + confirmPreview.slice(0, 400));
         // confirm overlay 안 "발송하기" 버튼 — 모달 영역만 좁혀 click
         const confirmOverlay = page.locator(".send-modal__confirm-overlay");
         const confirmBtn = confirmOverlay.getByRole("button", { name: /발송하기/ });
