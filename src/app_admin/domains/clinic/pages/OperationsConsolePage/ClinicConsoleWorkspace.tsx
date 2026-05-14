@@ -1854,15 +1854,39 @@ export default function ClinicConsoleWorkspace({
                   className="clinic-ops__msg-floating-btn clinic-ops__msg-floating-btn--primary"
                   onClick={() => {
                     if (targetIds.length === 0) return;
+                    const clinicVars = {
+                      클리닉장소: session?.location || "",
+                      클리닉날짜: session?.date || selectedDate,
+                      클리닉시간: formatTime(session?.start_time),
+                    };
+                    // SSOT (2026-05-14): 학원장 textarea 본문 수정 시 학생별 substituted body 재계산.
+                    // 미적용 시 학원장 수정본 silent discard (참고: commit 18bac004 동일 패턴 fix).
+                    const recomputePerStudentVars = (currentBody: string) => {
+                      const result: Record<number, Record<string, string>> = {};
+                      for (const sid of targetIds) {
+                        const p = participants.find((pp) => pp.student === sid);
+                        if (!p || !sid) continue;
+                        const studentName = p.student_name || "";
+                        let subst = currentBody;
+                        subst = subst.replace(/#\{학생이름3\}/g, studentName.length > 3 ? studentName.slice(0, 3) : studentName);
+                        subst = subst.replace(/#\{학생이름2\}/g, studentName.length >= 2 ? studentName.slice(-2) : studentName);
+                        subst = subst.replace(/#\{학생이름\}/g, studentName);
+                        subst = subst.replace(/#\{클리닉장소\}/g, clinicVars.클리닉장소);
+                        subst = subst.replace(/#\{클리닉날짜\}/g, clinicVars.클리닉날짜);
+                        subst = subst.replace(/#\{클리닉시간\}/g, clinicVars.클리닉시간);
+                        result[sid] = {
+                          학생이름: studentName,
+                          _body_subst: subst,
+                        };
+                      }
+                      return result;
+                    };
                     openSendMessageModal({
                       studentIds: targetIds,
                       recipientLabel: label,
                       blockCategory: "clinic",
-                      alimtalkExtraVars: {
-                        클리닉장소: session?.location || "",
-                        클리닉날짜: session?.date || selectedDate,
-                        클리닉시간: formatTime(session?.start_time),
-                      },
+                      alimtalkExtraVars: clinicVars,
+                      recomputePerStudentVars,
                       onModalClose: exitSelectionMode,
                     });
                   }}
