@@ -320,14 +320,27 @@ export function renderPreviewBadges(text: string): React.ReactNode[] {
 
 // ─── 백엔드 자동 치환 변수 (항상 제공) ───
 
-export const ALWAYS_AVAILABLE_VARS = new Set([
+// 학생별 자동 치환 sub-vars — backend send_views.py가 _body_subst 또는 merged_context loop로 채움.
+// frontend가 발송 차단 / "미입력 변수" 경고로 띄우면 안 됨. 학원장 limglish 보고 (2026-05-14):
+// "미입력 변수: #{시험1명}, #{시험1}, ... 정신병 걸리겠다" — 학원장 양식에 박힌 sub-var가 missing 으로
+// 잘못 표시되던 결함 fix.
+const SCORE_SUB_VARS: string[] = [];
+for (let n = 1; n <= 20; n++) {
+  SCORE_SUB_VARS.push(`시험${n}`, `시험${n}명`, `시험${n}만점`, `과제${n}`, `과제${n}명`, `과제${n}만점`);
+}
+
+export const ALWAYS_AVAILABLE_VARS = new Set<string>([
   "학생이름", "학생이름2", "학생이름3", "사이트링크", "날짜", "시간",
   "학생아이디", "학부모아이디", "학생비밀번호", "학부모비밀번호", "비밀번호안내",
   "직원명", "부서", "직급",
   // 통합 알림톡 자동 변수 (솔라피 리스트형 템플릿에서 자동 채움)
-  "학원이름", "장소", "클리닉날짜", "클리닉시간",
+  "학원이름", "학원명", "장소", "클리닉날짜", "클리닉시간",
   "클리닉기존일정", "클리닉변동사항", "클리닉수정자",
   "강의명", "차시명", "강의날짜", "강의시간",
+  // 성적/과제 sub-vars — backend 학생별 자동 치환 (frontend missing 으로 잡지 말 것)
+  "시험성적", "시험총점", "시험총만점", "숙제완성도",
+  "시험목록", "과제목록", "전체요약", "선생님메모", "공지내용", "내용",
+  ...SCORE_SUB_VARS,
 ]);
 
 /**

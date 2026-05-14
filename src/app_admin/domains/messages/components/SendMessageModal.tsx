@@ -235,6 +235,22 @@ export default function SendMessageModal({
   // 직전 결함: 양식 자동 매칭 시 preview가 DB 원본 template 고정 → 학원장 본문 수정이 preview에 안 보임.
   // 학원장이 친 본문이 곧 발송 본문 → 그대로 preview에 노출되어야 일치.
   const previewBody = renderPreviewWithActualData(body, alimtalkExtraVars, freeContent);
+
+  // 카카오 봉투 미리보기용 letterBody: callback이 있으면 첫 학생 substituted body 사용.
+  // 학원장이 #{학생이름}/#{시험1명} 등 변수를 양식에 둬도 미리보기엔 실 데이터로 치환된 모습 표시.
+  // 학원장 limglish 보고 "미리보기 렌더 이상하네" — raw #{...} 노출이 학원장 입장 신뢰 X.
+  const previewLetterBody = useMemo(() => {
+    if (!body) return "";
+    if (!recomputePerStudentVarsRef?.current) return body;
+    try {
+      const perStudent = recomputePerStudentVarsRef.current(body);
+      const firstKey = Object.keys(perStudent)[0];
+      const subst = firstKey ? perStudent[Number(firstKey)]?._body_subst : undefined;
+      return subst || body;
+    } catch {
+      return body;
+    }
+  }, [body, recomputePerStudentVarsRef]);
   const previewSubject = subject
     ? renderPreviewWithActualData(subject, alimtalkExtraVars)
     : selectedTemplate
@@ -623,7 +639,9 @@ export default function SendMessageModal({
                 // 직전엔 selectedTemplate.body의 substituted ReactNode[]를 letterBody로 썼는데
                 // (a) renderAlimtalkFullPreview는 raw string body를 받아 자체 렌더, (b) 학원장 수정 반영 안 됨.
                 // 둘 다 해결 위해 body raw string 그대로 전달.
-                const letterBody = body && (selectedTemplate || alimtalkFreeForm) ? body : "";
+                // SSOT: 일괄 path에서 callback 결과(첫 학생 substituted)를 미리보기에 사용해
+                // 학원장이 변수가 실 데이터로 치환된 모습을 볼 수 있게 함.
+                const letterBody = body && (selectedTemplate || alimtalkFreeForm) ? previewLetterBody : "";
                 if (alimtalkType) {
                   return (
                     <div className="template-preview-kakao">

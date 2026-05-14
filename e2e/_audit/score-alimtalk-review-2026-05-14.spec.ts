@@ -13,7 +13,7 @@ import { test, expect, Page } from "@playwright/test";
 
 // FIX 검증 위해 dev server (5174) 사용. API는 prod (api.hakwonplus.com) 직결.
 // 직전 prod 검증으로 P1(preview/textarea divergence) 결함 실재 확인됨.
-const BASE = process.env.E2E_BASE_URL_OVERRIDE || "http://localhost:5174";
+const BASE = process.env.E2E_BASE_URL_OVERRIDE || "https://hakwonplus.com";
 const API_BASE = process.env.E2E_API_URL || "https://api.hakwonplus.com";
 const USER = process.env.E2E_ADMIN_USER || "admin97";
 const PASS = process.env.E2E_ADMIN_PASS || "koreaseoul97";
@@ -48,7 +48,7 @@ test.describe("성적 알림톡 발송 리뷰", () => {
     // 모든 API 요청에 X-Tenant-Code 헤더 박아 우회.
     await page.setExtraHTTPHeaders({ "X-Tenant-Code": "hakwonplus" });
     let capturedPayload: SendPayload | null = null;
-    await page.route("**/api/v1/messages/send", async (route) => {
+    await page.route("**/api/v1/messaging/send/", async (route) => {
       capturedPayload = route.request().postDataJSON() as SendPayload;
       await route.fulfill({
         status: 200,
@@ -144,16 +144,30 @@ test.describe("성적 알림톡 발송 리뷰", () => {
 
     expect(previewAfter).toContain("[E2E] 수업 수고하셨어요! 0514");
 
-    const submitBtn = page.getByRole("button", { name: /^발송/ }).last();
-    if (await submitBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+    const submitBtn = page.getByRole("button", { name: /^발송|^학부모|학생.*명에게/ }).last();
+    if (await submitBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
       const enabled = await submitBtn.isEnabled().catch(() => false);
-      console.log(`발송 버튼 enabled=${enabled}`);
+      const btnText = await submitBtn.textContent().catch(() => "");
+      console.log(`발송 버튼 enabled=${enabled} text="${btnText}"`);
+      // canSend false 원인 dump — varStatuses missing var + body 상태
+      const diag = await page.evaluate(() => {
+        const missing = Array.from(document.querySelectorAll('.send-modal__var-row[data-status="missing"]'))
+          .map((el) => (el.textContent || "").trim());
+        const ta = document.querySelector('textarea') as HTMLTextAreaElement | null;
+        return { missingVars: missing, bodyLen: ta?.value.length ?? 0, bodyHead: (ta?.value ?? "").slice(0, 200) };
+      });
+      console.log("diag:", JSON.stringify(diag));
+      if (!enabled) {
+        console.error("⛔ 발송 버튼 disabled — 원인:", JSON.stringify(diag));
+      }
       if (enabled) {
         await submitBtn.click();
         // eslint-disable-next-line no-restricted-syntax -- 검증 spec 단발성 timing 보장
         await page.waitForTimeout(1000);
-        const confirmBtn = page.getByRole("button", { name: /발송|확인$|^예$/ }).last();
-        if (await confirmBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+        // confirm overlay 안 "발송하기" 버튼 — 모달 영역만 좁혀 click
+        const confirmOverlay = page.locator(".send-modal__confirm-overlay");
+        const confirmBtn = confirmOverlay.getByRole("button", { name: /발송하기/ });
+        if (await confirmBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
           await confirmBtn.click();
         }
         // eslint-disable-next-line no-restricted-syntax -- 검증 spec 단발성 timing 보장
@@ -180,7 +194,11 @@ test.describe("성적 알림톡 발송 리뷰", () => {
         }
       }
     } else {
-      console.log("payload 미캡처 — 발송 버튼 클릭 또는 mock 미작동");
+      throw new Error("payload 미캡처 — 발송 API 호출 안 됨 (route 매칭 실패 또는 click 안됨)");
     }
+    // 핵심 검증 (P0): 학원장 textarea 수정 본문이 학생별 _body_subst 에 반영됨
+    expect(capturedPayload).not.toBeNull();
+    const cp = capturedPayload as SendPayload;
+    expect(cp.raw_body).toContain("[E2E] 수업 수고하셨어요! 0514");
   });
 });
