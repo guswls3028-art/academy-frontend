@@ -313,6 +313,12 @@ export interface SendMessagePayload {
   template_id?: number | null;
   raw_body?: string;
   raw_subject?: string;
+  /**
+   * 발송 진입점의 블록 카테고리 (grades/attendance/clinic 등).
+   * backend가 template_id 누락 또는 t.category 매핑 안 될 때 unified 봉투 fallback 매칭에 사용.
+   * 학원장 본문 어떻게 수정해도 봉투(검수 양식)는 유지되어 발송 (domain-policy §5).
+   */
+  block_category?: string;
   /** 알림톡 추가 치환 변수 (성적 발송 등) */
   alimtalk_extra_vars?: Record<string, string>;
   /** 학생별 개별 치환 변수 — key: student_id (대량 성적 발송 등) */

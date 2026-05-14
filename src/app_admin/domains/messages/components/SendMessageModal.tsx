@@ -457,6 +457,9 @@ export default function SendMessageModal({
         const payload: Parameters<typeof sendMessage>[0] = { send_to: sendTo, message_mode: "alimtalk" };
         if (isStaffMode) payload.staff_ids = staffIds; else payload.student_ids = studentIds;
         if (selectedTemplateId) payload.template_id = selectedTemplateId;
+        // SSOT (2026-05-14 domain-policy §5): 학원장 본문 어떻게 수정해도 봉투(검수 양식) 유지.
+        // template_id race / 양식 변경으로 누락돼도 block_category 로 backend 가 unified 매칭.
+        if (blockCategory) payload.block_category = blockCategory;
         const currentBody = body.trim();
         payload.raw_body = currentBody;
         if (subject.trim()) payload.raw_subject = subject.trim();
