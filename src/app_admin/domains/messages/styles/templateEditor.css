@@ -131,10 +131,10 @@
   color: rgba(255, 255, 255, 0.75);
 }
 
-/* ----- 카카오톡 알림톡 미리보기 (2026-05-14 디자인 upgrade) ----- */
+/* ----- 카카오톡 알림톡 미리보기 (2026-05-14 디자인 upgrade + wrap polish) ----- */
 .template-preview-kakao {
   width: 100%;
-  max-width: 280px;
+  max-width: 340px;
   margin: 0 auto;
   background: #b2c7d9; /* 카카오톡 채팅창 배경색 */
   border-radius: 14px;
@@ -146,11 +146,13 @@
 /* 미리보기 위 보조 안내 (말풍선 밖) */
 .template-preview-kakao__helper {
   font-size: 10.5px;
-  color: rgba(255, 255, 255, 0.85);
+  color: rgba(255, 255, 255, 0.92);
   text-align: center;
   margin-bottom: 8px;
   letter-spacing: -0.2px;
-  line-height: 1.4;
+  line-height: 1.45;
+  word-break: keep-all; /* 한글 어절 단위 wrap */
+  padding: 0 4px;
 }
 
 .template-preview-kakao__card {
@@ -195,12 +197,14 @@
 }
 
 .template-preview-kakao__body {
-  padding: 8px 14px 16px;
+  padding: 10px 14px 16px;
   font-size: 13px;
-  line-height: 1.7;
+  line-height: 1.65;
   color: #1c1c1e;
   white-space: pre-wrap;
-  word-break: break-word;
+  /* 한글 어절 단위 wrap + 긴 영문/숫자도 overflow 방지 */
+  word-break: keep-all;
+  overflow-wrap: anywhere;
   letter-spacing: -0.2px;
 }
 
