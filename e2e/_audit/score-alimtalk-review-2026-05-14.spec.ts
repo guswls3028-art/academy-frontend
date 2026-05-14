@@ -205,4 +205,82 @@ test.describe("성적 알림톡 발송 리뷰", () => {
     const cp = capturedPayload as SendPayload;
     expect(cp.raw_body).toContain("[E2E] 수업 수고하셨어요! 0514");
   });
+
+  /**
+   * block_category fallback 검증 (2026-05-14, backend 98f78208 + frontend d58e0fc4).
+   * 학원장 본문 수정 후 검수 에러 결함 — frontend race 로 template_id 누락 시 backend가
+   * block_category 로 봉투 자동 매칭 fallback. 학원장 본문 어떻게 수정해도 발송 가능.
+   */
+  test("block_category fallback — template_id 누락해도 봉투 자동 매칭", async ({ page }) => {
+    let capturedPayload: SendPayload | null = null;
+    let serverStatus: number | null = null;
+    let serverDetail: string | null = null;
+    // 발송 API mock — payload 캡처만 + 200 mock (실 발송 차단)
+    await page.route("**/api/v1/messaging/send/", async (route) => {
+      capturedPayload = route.request().postDataJSON() as SendPayload;
+      serverStatus = 200;
+      serverDetail = "mocked OK";
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ detail: "발송 예정 1건. (mocked)", enqueued: 1, enqueue_failed: 0, skipped_no_phone: 0 }),
+      });
+    });
+
+    await loginAdmin(page);
+    await page.setExtraHTTPHeaders({ "X-Tenant-Code": "hakwonplus" });
+
+    const tokenJson = await page.evaluate(() => ({
+      access: localStorage.getItem("hkp.token") || localStorage.getItem("access") || "",
+    }));
+    const headers = { Authorization: `Bearer ${tokenJson.access}`, "X-Tenant-Code": "hakwonplus" };
+    const lecturesResp = await page.request.get(`${API_BASE}/api/v1/lectures/lectures/`, { headers });
+    const lectures = await lecturesResp.json();
+    const lectureList = Array.isArray(lectures) ? lectures : (lectures.results || []);
+    if (lectureList.length === 0) { test.skip(true, "강의 없음"); return; }
+    const LECTURE_ID = lectureList[0].id;
+
+    const sessionsResp = await page.request.get(`${API_BASE}/api/v1/lectures/sessions/?lecture=${LECTURE_ID}`, { headers });
+    const sessions = await sessionsResp.json();
+    const sessionList = Array.isArray(sessions) ? sessions : (sessions.results || []);
+    if (sessionList.length === 0) { test.skip(true, "세션 없음"); return; }
+    const SESSION_ID = sessionList[0].id;
+
+    await page.goto(`${BASE}/admin/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`, { waitUntil: "domcontentloaded" });
+    await page.waitForLoadState("networkidle", { timeout: 30000 }).catch(() => {});
+    await page.locator('text=/불러오는 중/').waitFor({ state: "detached", timeout: 30000 }).catch(() => {});
+    // eslint-disable-next-line no-restricted-syntax -- 검증 spec
+    await page.waitForTimeout(2000);
+
+    const checkboxes = page.locator('tbody input[type="checkbox"], input[type="checkbox"][aria-label*="선택"]');
+    await checkboxes.first().waitFor({ state: "visible", timeout: 15000 }).catch(() => {});
+    const cbCount = await checkboxes.count();
+    if (cbCount < 1) { test.skip(true, "학생 데이터 부족"); return; }
+    await checkboxes.nth(0).check();
+
+    const sendBtn = page.getByRole("button", { name: /수업결과 알림톡 발송/ });
+    await sendBtn.waitFor({ state: "visible", timeout: 10000 });
+    await sendBtn.click();
+    // eslint-disable-next-line no-restricted-syntax -- 검증 spec
+    await page.waitForTimeout(2500);
+
+    const submitBtn = page.getByRole("button", { name: /^발송|학생.*명에게/ }).last();
+    if (await submitBtn.isEnabled().catch(() => false)) {
+      await submitBtn.click();
+      const confirmOverlay = page.locator(".send-modal__confirm-overlay");
+      const confirmBtn = confirmOverlay.getByRole("button", { name: /발송하기/ });
+      if (await confirmBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+        await confirmBtn.click();
+      }
+      // eslint-disable-next-line no-restricted-syntax -- 검증 spec
+      await page.waitForTimeout(2500);
+    }
+
+    // 핵심 검증: payload 에 block_category 포함
+    expect(capturedPayload).not.toBeNull();
+    const cp = capturedPayload as SendPayload & { block_category?: string };
+    console.log("=== block_category in payload ===", cp.block_category);
+    expect(cp.block_category).toBe("grades");
+    console.log(`server response status=${serverStatus} detail=${serverDetail}`);
+  });
 });
