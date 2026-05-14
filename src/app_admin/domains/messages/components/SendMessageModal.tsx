@@ -626,7 +626,9 @@ export default function SendMessageModal({
                 if (alimtalkType) {
                   return (
                     <div className="template-preview-kakao">
+                      {/* eslint-disable-next-line no-restricted-syntax */}
                       <div className="template-preview-kakao__card" style={{ whiteSpace: "pre-wrap", lineHeight: 1.7, fontSize: 12 }}>
+                        {/* eslint-disable-next-line no-restricted-syntax */}
                         <div style={{ fontSize: 10, color: "var(--color-text-muted)", marginBottom: 4, fontStyle: "italic" }}>
                           봉투(카카오 자동 채움) + 학원장님 편지 — 학생별 변수 자동 치환
                         </div>
@@ -644,7 +646,9 @@ export default function SendMessageModal({
                         <div className="template-preview-kakao__title">{previewSubject}</div>
                       )}
                       <div className="template-preview-kakao__body">
-                        {letterBody || <span className="send-modal__preview-placeholder">{alimtalkFreeForm ? "내용을 입력하세요" : "양식을 선택하세요"}</span>}
+                        {letterBody
+                          ? previewBody
+                          : <span className="send-modal__preview-placeholder">{alimtalkFreeForm ? "내용을 입력하세요" : "양식을 선택하세요"}</span>}
                       </div>
                     </div>
                   </div>

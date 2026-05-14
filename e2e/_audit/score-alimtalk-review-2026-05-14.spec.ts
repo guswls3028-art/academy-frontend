@@ -36,14 +36,20 @@ async function loginAdmin(page: Page) {
   }, { access: json.access, refresh: json.refresh });
 }
 
+type SendPayload = {
+  raw_body?: string;
+  alimtalk_extra_vars_per_student?: Record<string, Record<string, string>>;
+  [key: string]: unknown;
+};
+
 test.describe("성적 알림톡 발송 리뷰", () => {
   test("일괄 발송 — textarea 수정이 preview + payload 양쪽 반영", async ({ page }) => {
     // dev server localhost 에서 axios는 host header localhost → backend tenant resolver fail.
     // 모든 API 요청에 X-Tenant-Code 헤더 박아 우회.
     await page.setExtraHTTPHeaders({ "X-Tenant-Code": "hakwonplus" });
-    let capturedPayload: any = null;
+    let capturedPayload: SendPayload | null = null;
     await page.route("**/api/v1/messages/send", async (route) => {
-      capturedPayload = route.request().postDataJSON();
+      capturedPayload = route.request().postDataJSON() as SendPayload;
       await route.fulfill({
         status: 200,
         contentType: "application/json",
@@ -58,8 +64,8 @@ test.describe("성적 알림톡 발송 리뷰", () => {
     await page.screenshot({ path: "_artifacts/score-alimtalk-review/00-dashboard.png", fullPage: true });
 
     // admin97 권한 강의/세션 ID 자동 탐색 — API로 첫 강의 + 첫 세션 fetch
-    const tokenJson: any = await page.evaluate(() => ({
-      access: localStorage.getItem("hkp.token") || localStorage.getItem("access"),
+    const tokenJson = await page.evaluate(() => ({
+      access: localStorage.getItem("hkp.token") || localStorage.getItem("access") || "",
     }));
     const headers = { Authorization: `Bearer ${tokenJson.access}`, "X-Tenant-Code": "hakwonplus" };
     const lecturesResp = await page.request.get(`${API_BASE}/api/v1/lectures/lectures/`, { headers });
@@ -84,6 +90,7 @@ test.describe("성적 알림톡 발송 리뷰", () => {
     await page.waitForLoadState("networkidle", { timeout: 30000 }).catch(() => {});
     // "불러오는 중..." 로딩 사라질 때까지 대기
     await page.locator('text=/불러오는 중/').waitFor({ state: "detached", timeout: 30000 }).catch(() => {});
+    // eslint-disable-next-line no-restricted-syntax -- 검증 spec 단발성 timing 보장
     await page.waitForTimeout(2500);
     await page.screenshot({ path: "_artifacts/score-alimtalk-review/04-scores-tab.png", fullPage: true });
 
@@ -98,12 +105,14 @@ test.describe("성적 알림톡 발송 리뷰", () => {
     }
     await checkboxes.nth(0).check();
     if (cbCount >= 2) await checkboxes.nth(1).check();
+    // eslint-disable-next-line no-restricted-syntax -- 검증 spec 단발성 timing 보장
     await page.waitForTimeout(500);
     await page.screenshot({ path: "_artifacts/score-alimtalk-review/05-selected.png", fullPage: true });
 
     const sendBtn = page.getByRole("button", { name: /수업결과 알림톡 발송/ });
     await sendBtn.waitFor({ state: "visible", timeout: 10000 });
     await sendBtn.click();
+    // eslint-disable-next-line no-restricted-syntax -- 검증 spec 단발성 timing 보장
     await page.waitForTimeout(2500);
     await page.screenshot({ path: "_artifacts/score-alimtalk-review/06-modal-open.png", fullPage: true });
 
@@ -121,6 +130,7 @@ test.describe("성적 알림톡 발송 리뷰", () => {
     await textarea.click();
     await textarea.press("Control+End");
     await page.keyboard.type(ADDED);
+    // eslint-disable-next-line no-restricted-syntax -- 검증 spec 단발성 timing 보장
     await page.waitForTimeout(800);
     const afterBody = await textarea.inputValue();
     expect(afterBody).toContain("[E2E] 수업 수고하셨어요! 0514");
@@ -140,11 +150,13 @@ test.describe("성적 알림톡 발송 리뷰", () => {
       console.log(`발송 버튼 enabled=${enabled}`);
       if (enabled) {
         await submitBtn.click();
+        // eslint-disable-next-line no-restricted-syntax -- 검증 spec 단발성 timing 보장
         await page.waitForTimeout(1000);
         const confirmBtn = page.getByRole("button", { name: /발송|확인$|^예$/ }).last();
         if (await confirmBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
           await confirmBtn.click();
         }
+        // eslint-disable-next-line no-restricted-syntax -- 검증 spec 단발성 timing 보장
         await page.waitForTimeout(2500);
       }
     }

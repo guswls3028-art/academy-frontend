@@ -39,6 +39,7 @@ const noopOpen: ContextValue = {
   openSendMessageModal: () => {},
 };
 
+// eslint-disable-next-line react-refresh/only-export-components -- hook + provider 한 파일 SSOT 의도
 export function useSendMessageModal(): ContextValue {
   const ctx = useContext(SendMessageModalContext);
   return ctx ?? noopOpen;
