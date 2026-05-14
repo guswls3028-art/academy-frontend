@@ -92,6 +92,13 @@ e2e/_artifacts/
 _artifacts/
 _e2e_review_screenshots/
 e2e/audit/_uiux_review/
+# repo root 로컬 ad-hoc 디버깅 스크립트 (probe/seed/verify) — 작업 도구로 보존하되 git 추적 제외
+probe*.mjs
+seed*.mjs
+verify-*.cjs
+verify-*.mjs
+# 로컬 playwright 리뷰용 별도 config (공식 playwright.config.ts/local.config.js 외)
+playwright.local-*.config.ts
 
 # tsc 컴파일 산출물 — .ts 만 정본
 functions/*.js
