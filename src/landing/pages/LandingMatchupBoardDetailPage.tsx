@@ -177,6 +177,26 @@ export default function LandingMatchupBoardDetailPage() {
         </div>
       </div>
 
+      {/* PDF action bar — 학생 카톡 in-app browser fallback (iframe PDF 못 렌더하는 환경 대응) */}
+      {pdfUrl && (
+        <div style={{ background: "#fff", borderBottom: "1px solid #e2e8f0", padding: "10px 24px", flexShrink: 0 }}>
+          <div style={{ maxWidth: 1080, margin: "0 auto", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+            <span style={{ fontSize: 12, color: "#64748b" }}>PDF가 안 보이면 ↓</span>
+            <a
+              href={pdfUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ padding: "7px 14px", borderRadius: 999, background: accent, color: "#fff", fontSize: 12.5, fontWeight: 700, textDecoration: "none" }}
+            >📄 새 탭에서 열기</a>
+            <a
+              href={pdfUrl}
+              download
+              style={{ padding: "7px 14px", borderRadius: 999, background: "rgba(15,23,42,0.05)", color: "#475569", fontSize: 12.5, fontWeight: 700, textDecoration: "none", border: "1px solid rgba(15,23,42,0.08)" }}
+            >⬇️ 다운로드</a>
+          </div>
+        </div>
+      )}
+
       {/* PDF iframe area */}
       <div style={{ flex: 1, position: "relative", background: "#f1f5f9", minHeight: 600 }}>
         {pdfUrl ? (
