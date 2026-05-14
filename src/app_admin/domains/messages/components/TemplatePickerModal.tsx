@@ -241,7 +241,7 @@ export default function TemplatePickerModal({
             <Badge tone="primary" size="sm">{blockLabel}</Badge>
           </div>
         }
-        description="발송할 알림톡 양식을 선택하세요. 카드를 클릭하면 미리보기, 두 번 클릭하면 바로 적용됩니다."
+        description="발송할 알림톡 양식을 선택하세요. 카드를 클릭하면 미리보기, 두 번 클릭하면 바로 적용됩니다. 자동 선택 우선순위: 내 양식(카테고리 일치 + 기본 지정) → 카테고리 일치 → 시스템 기본."
       />
 
       <ModalBody>

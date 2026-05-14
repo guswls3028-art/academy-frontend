@@ -68,34 +68,32 @@ export function getAutoFillBlockIds(templateType: AlimtalkTemplateType): Set<str
   return AUTO_VAR_BLOCK_IDS[templateType] ?? new Set();
 }
 
-/** 카테고리명으로 알림톡 템플릿 타입 판별 (수동 템플릿 편집 시 사용) */
+/** 카테고리명으로 알림톡 템플릿 타입 판별 (수동 템플릿 편집 시 사용)
+ *  backend `alimtalk_content_builders.CATEGORY_TO_TEMPLATE_TYPE` 와 정합 유지.
+ *  미매핑 카테고리는 null 반환 → 미리보기 표시하지 않음 (거짓 약속 방지). */
 export function getAlimtalkTemplateTypeFromCategory(category?: string): AlimtalkTemplateType {
   if (!category) return null;
-  const SCORE_CATS = ["grades", "exam", "assignment", "payment", "notice", "community", "staff", "default", "student"];
-  const ATTENDANCE_CATS = ["attendance", "lecture"];
-  const CLINIC_CATS = ["clinic"];
-  if (SCORE_CATS.includes(category)) return "score";
-  if (ATTENDANCE_CATS.includes(category)) return "attendance";
-  if (CLINIC_CATS.includes(category)) return "clinic_info";
+  if (category === "grades") return "score";
+  if (category === "attendance" || category === "lecture") return "attendance";
+  if (category === "clinic") return "clinic_info";
   return null;
 }
 
-/** 트리거명으로 알림톡 템플릿 타입 판별 */
+/** 트리거명으로 알림톡 템플릿 타입 판별
+ *  backend `alimtalk_content_builders.TRIGGER_TO_TEMPLATE_TYPE` 와 정합 유지.
+ *  미매핑 트리거는 null 반환 → 미리보기 표시하지 않음 (거짓 약속 방지). */
 export function getAlimtalkTemplateType(trigger?: string): AlimtalkTemplateType {
   if (!trigger) return null;
   const CLINIC_INFO = [
-    "clinic_reservation_created", "clinic_reminder", "clinic_check_in", "clinic_check_out",
+    "clinic_reservation_created", "clinic_reminder", "clinic_check_in",
     "clinic_absent", "clinic_self_study_completed", "clinic_result_notification",
     "counseling_reservation_created",
   ];
   const CLINIC_CHANGE = ["clinic_reservation_changed", "clinic_cancelled"];
   const ATTENDANCE = ["check_in_complete", "absent_occurred", "lecture_session_reminder"];
   const SCORE = [
-    "exam_scheduled_days_before", "exam_start_minutes_before", "exam_not_taken",
-    "exam_score_published", "retake_assigned",
-    "assignment_registered", "assignment_due_hours_before", "assignment_not_submitted",
+    "exam_score_published",
     "monthly_report_generated",
-    "video_encoding_complete",
   ];
   if (CLINIC_INFO.includes(trigger)) return "clinic_info";
   if (CLINIC_CHANGE.includes(trigger)) return "clinic_change";
@@ -157,13 +155,10 @@ export function renderAlimtalkFullPreview(
     );
   }
   if (templateType === "score") {
-    const isVideo = trigger === "video_encoding_complete";
-    const recipientLabel = isVideo ? "김선생님." : "홍길동학생님.";
-    const introLabel = isVideo ? "영상 인코딩 안내 드립니다." : "성적표 안내 드립니다.";
     return (
       `학원플러스입니다.\n\n` +
-      `${recipientLabel}\n\n` +
-      `${introLabel}\n` +
+      `홍길동학생님.\n\n` +
+      `성적표 안내 드립니다.\n` +
       `강의\n수학 심화반\n\n` +
       `차시\n3회차\n\n` +
       `${contentBody || "(안내 문구를 작성하세요)"}\n` +
