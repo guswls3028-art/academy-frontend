@@ -201,14 +201,15 @@ export default function SendMessageModal({
   const selectedTemplate = templates.find((t) => t.id === selectedTemplateId);
   const bodyModified = selectedTemplate != null && templateBodySnapshot != null && body !== templateBodySnapshot;
 
-  // SSOT (2026-05-14): 변수 상태는 학원장이 textarea에 친 body 기준.
-  // selectedTemplate.body 기준이면 학원장이 양식에서 변수 일부 제거해도 여전히 missing으로 잡혀 발송 차단됨.
-  // 학원장이 친 본문이 곧 발송 본문 → body 안 실제 변수만 검사해야 의도 일치.
+  // 변수 상태는 selectedTemplate.body 기준 (이전 logic 복원, 2026-05-14 hotfix).
+  // 직전 fix에서 body 기준으로 변경했더니 학원장 양식의 #{시험1명}/#{시험1}/#{시험1만점} 등
+  // score sub-변수가 ALWAYS_AVAILABLE_VARS에 없어 missing으로 잡혀 발송 버튼 disabled 됨
+  // (학원장 limglish 보고). 양식 변수는 backend가 학생별 자동 치환 → frontend가 차단할 이유 없음.
+  // body 수정 path 의도(학원장이 양식 변수 일부 제거해도 발송 가능)는 양식 자체 편집 UI로 따로 해결.
   const varStatuses = useMemo(() => {
-    if (!selectedTemplate && !alimtalkFreeForm) return [];
-    if (!body) return [];
-    return getVarStatuses(body, alimtalkExtraVars, freeContent);
-  }, [selectedTemplate, alimtalkFreeForm, body, alimtalkExtraVars, freeContent]);
+    if (!selectedTemplate) return [];
+    return getVarStatuses(selectedTemplate.body, alimtalkExtraVars, freeContent);
+  }, [selectedTemplate, alimtalkExtraVars, freeContent]);
 
   // ─── Can Send ───
   // missing 변수 — #{내용}/#{공지내용}/#{선생님메모} 등 학원장 편집 영역(편지)이 비어있거나
